@@ -3,36 +3,41 @@
 Minimal Personal AI Agent with three core concepts:
 
 1. **Memory** - File-based persistence (no database)
-2. **Proactivity** - Cron-based heartbeat
-3. **Multi-Instance** - Isolated instances with role configuration
+2. **Cron** - Scheduled tasks via agent-compose.yaml
+3. **Multi-Instance** - Docker-style instance management
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    mini-agent                       │
-├─────────────────────────────────────────────────────┤
-│  Channels (入口)                                    │
-│  ├ CLI (src/cli.ts)                                │
-│  └ HTTP API (src/api.ts)                           │
-├─────────────────────────────────────────────────────┤
-│  Instance Manager (src/instance.ts)                │
-│  ├ ~/.mini-agent/instances/{id}/                   │
-│  ├ config.yaml, instance.yaml                      │
-│  └ master/worker/standalone roles                  │
-├─────────────────────────────────────────────────────┤
-│  Core Loop (src/agent.ts)                          │
-│  └ receive → context → claude → respond            │
-├─────────────────────────────────────────────────────┤
-│  Memory (src/memory.ts) - Instance Isolated        │
-│  ├ MEMORY.md (long-term)                           │
-│  ├ HEARTBEAT.md (tasks)                            │
-│  ├ daily/YYYY-MM-DD.md (daily notes)               │
-│  └ grep search (no embedding)                      │
-├─────────────────────────────────────────────────────┤
-│  Proactive (src/proactive.ts)                      │
-│  └ node-cron scheduler                             │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Channels
+        CLI[CLI<br/>src/cli.ts]
+        API[HTTP API<br/>src/api.ts]
+    end
+
+    subgraph Core
+        Compose[Compose<br/>agent-compose.yaml]
+        Instance[Instance Manager<br/>~/.mini-agent/instances/]
+        Agent[Core Loop<br/>receive → context → claude → respond]
+    end
+
+    subgraph Storage
+        Memory[Memory<br/>MEMORY.md + HEARTBEAT.md + daily/]
+        Logs[Logging<br/>JSON Lines .jsonl]
+    end
+
+    subgraph Scheduler
+        Cron[Cron<br/>node-cron]
+    end
+
+    CLI --> Compose
+    API --> Compose
+    Compose --> Instance
+    Instance --> Agent
+    Agent --> Memory
+    Agent --> Logs
+    Cron --> Agent
+    Compose --> Cron
 ```
 
 ## Install
@@ -44,25 +49,57 @@ curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh
 ## Quick Start
 
 ```bash
-mini-agent              # Interactive chat (default instance)
-mini-agent up           # Create & attach to new instance
-mini-agent up -d        # Create instance in background
+mini-agent              # Interactive chat (auto-creates agent-compose.yaml)
+mini-agent up           # Start from agent-compose.yaml
+mini-agent up -d        # Start in background
 mini-agent help         # Show help
+```
+
+## agent-compose.yaml
+
+Mini-agent uses Docker Compose-style configuration:
+
+```yaml
+version: '1'
+
+paths:
+  memory: ./memory
+  logs: ./logs
+
+agents:
+  assistant:
+    name: My Assistant
+    port: 3001
+    persona: A helpful personal AI assistant
+    cron:
+      - schedule: "*/30 * * * *"
+        task: Check HEARTBEAT.md for pending tasks and execute them if any
+      - schedule: "0 9 * * *"
+        task: Good morning! Review today's schedule
+        enabled: true
+```
+
+### Generate Template
+
+```bash
+mini-agent up --init                    # Generate agent-compose.yaml with examples
+mini-agent up --name "Research" --port 3002  # Custom compose
 ```
 
 ## Instance Management (Docker-style)
 
 ```bash
-# Create & start (attach by default)
-mini-agent up --name "Research"
-mini-agent up -d --name "Worker"     # Detached mode
+# Start from compose file
+mini-agent up                 # Attach by default
+mini-agent up -d              # Detached mode
+
+# Stop instances
+mini-agent down               # Stop all (from compose)
+mini-agent down abc12345      # Stop specific instance
+mini-agent down --all         # Stop all instances
 
 # List instances
 mini-agent list
-
-# Stop instances
-mini-agent down abc12345
-mini-agent down --all
 
 # Attach to running instance
 mini-agent attach abc12345
@@ -78,34 +115,9 @@ mini-agent kill --all
 # Status
 mini-agent status
 mini-agent status abc12345
-```
 
-### Use Specific Instance
-
-```bash
-# Chat with specific instance
-mini-agent --instance abc12345 "hello"
-
-# File mode with instance
-mini-agent --instance abc12345 code.ts "review this"
-```
-
-## Data Structure
-
-```
-~/.mini-agent/
-├── config.yaml                 # Global configuration
-├── instances/
-│   ├── default/                # Default instance
-│   │   ├── instance.yaml       # Instance config
-│   │   ├── MEMORY.md           # Long-term memory
-│   │   ├── HEARTBEAT.md        # Tasks
-│   │   ├── SKILLS.md           # Available skills
-│   │   ├── daily/              # Daily notes
-│   │   └── logs/               # Logs
-│   └── {uuid}/                 # Custom instances
-└── shared/
-    └── GLOBAL_MEMORY.md        # Shared memory (optional)
+# Update mini-agent
+mini-agent update
 ```
 
 ## Unix Pipe Mode
@@ -136,9 +148,10 @@ mini-agent "prompt"     # Single prompt mode
 mini-agent file.txt "prompt"  # File mode
 
 # Instance management (Docker-style)
-mini-agent up [options]       # Create & attach
-mini-agent up -d [options]    # Create in background
-mini-agent down <id|--all>    # Stop instance(s)
+mini-agent up [options]       # Start from compose
+mini-agent up -d [options]    # Start in background
+mini-agent up --init          # Generate compose template
+mini-agent down [id|--all]    # Stop instance(s)
 mini-agent list               # List all instances
 mini-agent attach <id>        # Attach to running instance
 mini-agent start <id>         # Start stopped instance
@@ -146,12 +159,15 @@ mini-agent restart <id>       # Restart instance
 mini-agent status [id]        # Show status
 mini-agent kill <id|--all>    # Delete instance(s)
 mini-agent logs [type]        # Show logs
+mini-agent update             # Update to latest version
 
 # Up options
 -d, --detach            # Run in background
---name <name>           # Instance name
---port <port>           # Server port
---persona <desc>        # Persona description
+-f, --file <path>       # Specify compose file
+--init                  # Generate compose template
+--name <name>           # Custom agent name
+--port <port>           # Custom port
+--persona <desc>        # Custom persona
 
 # Global options
 -i, --instance <id>     # Use specific instance
@@ -163,16 +179,48 @@ mini-agent logs [type]        # Show logs
 ```
 /help           - Show help
 /search <query> - Search memory
-/heartbeat      - Show HEARTBEAT.md
-/trigger        - Trigger heartbeat check
 /remember <text>- Add to memory
-/proactive on   - Start proactive mode
-/proactive off  - Stop proactive mode
 /config         - Show current config
 /config set <key> <value> - Update config
 /instance       - Show current instance
 /instances      - List all instances
+/logs           - Show log statistics
+/logs claude    - Show Claude operation logs
+/logs errors    - Show error logs
 /quit           - Exit
+```
+
+## Logs
+
+Mini-agent provides comprehensive logging in JSON Lines format:
+
+```bash
+# CLI
+mini-agent logs                   # Show log statistics
+mini-agent logs stats             # Show log statistics
+mini-agent logs claude            # Claude operation logs
+mini-agent logs errors            # Error logs
+mini-agent logs cron              # Cron task logs
+mini-agent logs api               # API request logs
+mini-agent logs all               # All logs
+
+# Options
+--date <YYYY-MM-DD>    # Filter by date
+--limit <n>            # Limit results (default: 20)
+```
+
+### Log Structure
+
+```
+~/.mini-agent/instances/{id}/logs/
+├── claude/       # Claude Code operation logs
+│   └── YYYY-MM-DD.jsonl
+├── api/          # API request logs
+│   └── YYYY-MM-DD.jsonl
+├── cron/         # Cron task logs
+│   └── YYYY-MM-DD.jsonl
+└── error/        # Error logs
+    └── YYYY-MM-DD.jsonl
 ```
 
 ## API Endpoints
@@ -200,7 +248,7 @@ mini-agent logs [type]        # Show logs
 | POST | /memory | Add to memory |
 | GET | /context | Get full context |
 
-### Tasks & Proactive
+### Tasks & Heartbeat
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -208,9 +256,19 @@ mini-agent logs [type]        # Show logs
 | POST | /tasks | Add a task |
 | GET | /heartbeat | Read HEARTBEAT.md |
 | PUT | /heartbeat | Update HEARTBEAT.md |
-| POST | /heartbeat/trigger | Trigger heartbeat |
-| POST | /proactive/start | Start proactive mode |
-| POST | /proactive/stop | Stop proactive mode |
+
+### Logs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /logs | Log stats and available dates |
+| GET | /logs/all | Query all logs |
+| GET | /logs/claude | Claude operation logs |
+| GET | /logs/claude/:date | Claude logs for specific date |
+| GET | /logs/errors | Error logs |
+| GET | /logs/cron | Cron task logs |
+| GET | /logs/api | API request logs |
+| GET | /logs/dates | Available log dates |
 
 ### Config
 
@@ -220,90 +278,79 @@ mini-agent logs [type]        # Show logs
 | PUT | /config | Update configuration |
 | POST | /config/reset | Reset to defaults |
 
+## Data Structure
+
+```
+~/.mini-agent/
+├── config.yaml                 # Global configuration
+├── instances/
+│   ├── default/                # Default instance
+│   │   ├── instance.yaml       # Instance config
+│   │   ├── MEMORY.md           # Long-term memory
+│   │   ├── HEARTBEAT.md        # Tasks
+│   │   ├── SKILLS.md           # Available skills
+│   │   ├── daily/              # Daily notes
+│   │   └── logs/               # JSON Lines logs
+│   └── {uuid}/                 # Custom instances
+└── shared/
+    └── GLOBAL_MEMORY.md        # Shared memory (optional)
+
+./                              # Project directory
+├── agent-compose.yaml          # Compose configuration
+├── memory/                     # Project-specific memory (optional)
+└── logs/                       # Project-specific logs (optional)
+```
+
 ## Configuration
 
-### Global Config (~/.mini-agent/config.yaml)
+### agent-compose.yaml (Project Level)
 
 ```yaml
-defaults:
-  port: 3001
-  proactiveSchedule: "*/30 * * * *"
-  claudeTimeout: 120000
-  maxSearchResults: 5
+version: '1'
 
-instances:
-  - id: default
-    role: standalone
+paths:
+  memory: ./memory    # Override instance memory path
+  logs: ./logs        # Override instance logs path
+
+agents:
+  assistant:
+    name: My Assistant
+    port: 3001
+    persona: A helpful personal AI assistant
+    paths:            # Agent-specific paths (highest priority)
+      memory: ./my-memory
+      logs: ./my-logs
+    cron:
+      - schedule: "*/30 * * * *"
+        task: Check HEARTBEAT.md for pending tasks
+      - schedule: "0 9 * * *"
+        task: Good morning greeting
+        enabled: false  # Disabled task
 ```
 
-### Instance Config (instance.yaml)
+### Path Resolution Order
 
-```yaml
-id: "abc12345"
-name: "Research Assistant"
-role: standalone  # master | worker | standalone
-port: 3002
-
-persona:
-  description: "A technical research assistant"
-  systemPrompt: |
-    You are a helpful research assistant...
-
-proactive:
-  enabled: true
-  schedule: "0 9,12,18 * * *"
-
-memory:
-  maxSize: "50MB"
-  syncToGlobal: false
-```
+1. Agent paths (compose `agents.{id}.paths`)
+2. Global paths (compose `paths`)
+3. Instance defaults (`~/.mini-agent/instances/{id}/`)
 
 ## Philosophy
 
 This is the **minimal viable** personal AI agent:
 
-- **No database** - Just Markdown files
+- **No database** - Just Markdown files + JSON Lines logs
 - **No embedding** - grep search is enough
 - **No complex state** - Files are the source of truth
 - **Instance isolated** - Each instance has its own memory
 - **Unix native** - Pipe-friendly, composable with other tools
+- **Compose-style** - Familiar Docker-like workflow
 
 Everything else is optional complexity.
-
-## As Claude Code Skill
-
-Copy the `SKILL.md` file to your project's `.claude/skills/mini-agent/` directory.
 
 ## Requirements
 
 - Node.js 20+
 - Claude CLI (`claude` command available)
-
-## Roadmap
-
-### Planned Features
-
-- [ ] **agent-compose.yaml** — Docker Compose 風格的多 agent 宣告式配置
-  ```yaml
-  # agent-compose.yaml
-  agents:
-    researcher:
-      name: "Research Agent"
-      port: 3001
-      persona: "專精於網路搜尋"
-    coder:
-      name: "Coding Agent"
-      port: 3002
-      depends_on: [researcher]
-  ```
-  ```bash
-  mini-agent up           # 啟動所有 agent
-  mini-agent down         # 停止所有 agent
-  ```
-
-- [ ] **Inter-agent Communication** — Agent 之間的訊息傳遞
-- [ ] **Shared Memory** — 跨 instance 共享記憶
-- [ ] **Task Delegation** — Master 分配任務給 Worker
 
 ## Uninstall
 
