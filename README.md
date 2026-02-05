@@ -44,41 +44,40 @@ curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh
 ## Quick Start
 
 ```bash
-mini-agent              # Interactive chat
-mini-agent server       # HTTP API server
+mini-agent              # Interactive chat (default instance)
+mini-agent up           # Create & attach to new instance
+mini-agent up -d        # Create instance in background
 mini-agent help         # Show help
 ```
 
-## Instance Management
-
-### Create Instances
+## Instance Management (Docker-style)
 
 ```bash
-# Create a new instance
-mini-agent instance create --name "Research" --port 3002
+# Create & start (attach by default)
+mini-agent up --name "Research"
+mini-agent up -d --name "Worker"     # Detached mode
 
-# Create with role
-mini-agent instance create --name "Worker" --role worker --port 3003
+# List instances
+mini-agent list
 
-# Create with persona
-mini-agent instance create --name "Coder" --persona "A helpful coding assistant"
-```
+# Stop instances
+mini-agent down abc12345
+mini-agent down --all
 
-### List & Manage
+# Attach to running instance
+mini-agent attach abc12345
 
-```bash
-# List all instances
-mini-agent instance list
+# Start/stop/restart
+mini-agent start abc12345
+mini-agent restart abc12345
 
-# Show instance status
-mini-agent instance status abc12345
+# Kill (delete) instances
+mini-agent kill abc12345
+mini-agent kill --all
 
-# Start/stop instance server
-mini-agent instance start abc12345
-mini-agent instance stop abc12345
-
-# Delete instance
-mini-agent instance delete abc12345
+# Status
+mini-agent status
+mini-agent status abc12345
 ```
 
 ### Use Specific Instance
@@ -86,9 +85,6 @@ mini-agent instance delete abc12345
 ```bash
 # Chat with specific instance
 mini-agent --instance abc12345 "hello"
-
-# Start server for specific instance
-mini-agent --instance abc12345 server
 
 # File mode with instance
 mini-agent --instance abc12345 code.ts "review this"
@@ -135,25 +131,30 @@ git log --oneline -5 | mini-agent "summarize" | pbcopy
 
 ```bash
 # Basic usage
-mini-agent              # Interactive chat (default)
+mini-agent              # Interactive chat (default instance)
 mini-agent "prompt"     # Single prompt mode
 mini-agent file.txt "prompt"  # File mode
 
-# Server
-mini-agent server       # Start HTTP API server
-mini-agent server -p 8080  # Custom port
+# Instance management (Docker-style)
+mini-agent up [options]       # Create & attach
+mini-agent up -d [options]    # Create in background
+mini-agent down <id|--all>    # Stop instance(s)
+mini-agent list               # List all instances
+mini-agent attach <id>        # Attach to running instance
+mini-agent start <id>         # Start stopped instance
+mini-agent restart <id>       # Restart instance
+mini-agent status [id]        # Show status
+mini-agent kill <id|--all>    # Delete instance(s)
+mini-agent logs [type]        # Show logs
 
-# Instance management
-mini-agent instance create [options]
-mini-agent instance list
-mini-agent instance delete <id>
-mini-agent instance start <id>
-mini-agent instance stop <id>
-mini-agent instance status <id>
+# Up options
+-d, --detach            # Run in background
+--name <name>           # Instance name
+--port <port>           # Server port
+--persona <desc>        # Persona description
 
-# Options
+# Global options
 -i, --instance <id>     # Use specific instance
--p, --port <port>       # Server port
 --data-dir <path>       # Custom data directory
 ```
 
@@ -277,6 +278,32 @@ Copy the `SKILL.md` file to your project's `.claude/skills/mini-agent/` director
 
 - Node.js 20+
 - Claude CLI (`claude` command available)
+
+## Roadmap
+
+### Planned Features
+
+- [ ] **agent-compose.yaml** — Docker Compose 風格的多 agent 宣告式配置
+  ```yaml
+  # agent-compose.yaml
+  agents:
+    researcher:
+      name: "Research Agent"
+      port: 3001
+      persona: "專精於網路搜尋"
+    coder:
+      name: "Coding Agent"
+      port: 3002
+      depends_on: [researcher]
+  ```
+  ```bash
+  mini-agent up           # 啟動所有 agent
+  mini-agent down         # 停止所有 agent
+  ```
+
+- [ ] **Inter-agent Communication** — Agent 之間的訊息傳遞
+- [ ] **Shared Memory** — 跨 instance 共享記憶
+- [ ] **Task Delegation** — Master 分配任務給 Worker
 
 ## Uninstall
 
