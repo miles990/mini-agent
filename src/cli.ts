@@ -34,6 +34,15 @@ import {
   getCurrentInstanceId,
 } from './instance.js';
 import { getLogger, type LogType, type LogEntry, type ClaudeLogEntry } from './logging.js';
+import {
+  findComposeFile,
+  readComposeFile,
+  createDefaultComposeFile,
+  composeUp,
+  composeDown,
+  composeStatus,
+  DEFAULT_COMPOSE_FILE,
+} from './compose.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -248,11 +257,17 @@ async function handleUpCommand(args: string[], port: number): Promise<void> {
   const manager = getInstanceManager();
   const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
   let detached = false;
+  let composeFilePath: string | undefined;
+  let initCompose = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '-d' || arg === '--detach') {
       detached = true;
+    } else if (arg === '-f' || arg === '--file') {
+      composeFilePath = args[++i];
+    } else if (arg === '--init') {
+      initCompose = true;
     } else if (arg === '--name' && args[i + 1]) {
       options.name = args[++i];
     } else if (arg === '--role' && args[i + 1]) {
@@ -264,6 +279,75 @@ async function handleUpCommand(args: string[], port: number): Promise<void> {
     }
   }
 
+  // --init: 產生 compose 模板
+  if (initCompose) {
+    const filePath = createDefaultComposeFile(composeFilePath, true);
+    console.log(`Created ${filePath}`);
+    console.log('\nEdit the file and run: mini-agent up');
+    return;
+  }
+
+  // 檢查是否有 compose 檔案
+  const foundComposeFile = findComposeFile(composeFilePath);
+
+  // 如果有 compose 檔案，使用 compose 模式
+  if (foundComposeFile) {
+    console.log(`Using compose file: ${foundComposeFile}\n`);
+    const compose = readComposeFile(foundComposeFile);
+    const result = composeUp(compose, detached);
+
+    // 顯示結果
+    if (result.started.length > 0) {
+      console.log('Started:');
+      for (const id of result.started) {
+        const agentDef = compose.agents[id];
+        console.log(`  🟢 ${id} (${agentDef.name || id}) - port ${agentDef.port || 3001}`);
+      }
+    }
+
+    if (result.skipped.length > 0) {
+      console.log('\nAlready running:');
+      for (const id of result.skipped) {
+        console.log(`  ⚪ ${id}`);
+      }
+    }
+
+    if (result.failed.length > 0) {
+      console.log('\nFailed:');
+      for (const { id, error } of result.failed) {
+        console.log(`  ❌ ${id}: ${error}`);
+      }
+    }
+
+    console.log(`\n${result.started.length} agent(s) started`);
+
+    // Compose 模式不支援自動 attach（多個 agent）
+    if (!detached && result.started.length === 1) {
+      const agentId = result.started[0];
+      const agentDef = compose.agents[agentId];
+      const instances = manager.list();
+      const inst = instances.find(i => i.name === (agentDef.name || agentId));
+      if (inst) {
+        console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
+        await runAttachedMode(inst.id, inst.port);
+      }
+    }
+
+    return;
+  }
+
+  // 如果沒有任何選項，且沒有 compose 檔案，自動產生模板
+  const hasOptions = options.name || options.port || options.role || options.persona;
+  if (!hasOptions) {
+    console.log(`No ${DEFAULT_COMPOSE_FILE} found.\n`);
+    const filePath = createDefaultComposeFile(undefined, true);
+    console.log(`Created ${filePath}`);
+    console.log('\nEdit the file and run: mini-agent up');
+    console.log('Or create a single instance: mini-agent up --name "My Agent"');
+    return;
+  }
+
+  // 單一實例模式（使用 --name 等選項）
   const instance = manager.create(options);
   console.log(`Created instance: ${instance.id}`);
   console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
@@ -371,10 +455,47 @@ function handleStartCommand(instanceId: string): void {
 function handleDownCommand(args: string[]): void {
   const manager = getInstanceManager();
   const hasAll = args.includes('--all');
-  const instanceId = args.find(a => !a.startsWith('-'));
+  let composeFilePath: string | undefined;
 
+  // 解析 -f 選項
+  for (let i = 0; i < args.length; i++) {
+    if ((args[i] === '-f' || args[i] === '--file') && args[i + 1]) {
+      composeFilePath = args[++i];
+    }
+  }
+
+  const instanceId = args.find(a => !a.startsWith('-') && a !== composeFilePath);
+
+  // 檢查是否有 compose 檔案
+  const foundComposeFile = findComposeFile(composeFilePath);
+
+  // 如果有 compose 檔案且沒指定特定實例，使用 compose 模式
+  if (foundComposeFile && !instanceId) {
+    console.log(`Using compose file: ${foundComposeFile}\n`);
+    const compose = readComposeFile(foundComposeFile);
+    const result = composeDown(compose);
+
+    if (result.started.length > 0) {
+      console.log('Stopped:');
+      for (const id of result.started) {
+        console.log(`  ⚪ ${id}`);
+      }
+    }
+
+    if (result.skipped.length > 0) {
+      console.log('\nAlready stopped:');
+      for (const id of result.skipped) {
+        console.log(`  - ${id}`);
+      }
+    }
+
+    console.log(`\n${result.started.length} agent(s) stopped`);
+    return;
+  }
+
+  // 原有邏輯
   if (!instanceId && !hasAll) {
-    console.error('Usage: mini-agent down <id> | --all');
+    console.error('Usage: mini-agent down <id> | --all | (with agent-compose.yaml)');
     process.exit(1);
   }
 
@@ -481,9 +602,12 @@ Usage:
 
 Commands:
   mini-agent list                     List all instances
-  mini-agent up [options]             Create & start instance (attach mode)
-  mini-agent up -d [options]          Create & start instance (detached)
-  mini-agent down <id|--all>          Stop instance(s)
+  mini-agent up                       Start from agent-compose.yaml
+  mini-agent up -d                    Start in detached mode
+  mini-agent up --name <name>         Create single instance
+  mini-agent up --init                Generate agent-compose.yaml template
+  mini-agent down                     Stop all (from compose file)
+  mini-agent down <id|--all>          Stop specific or all instances
   mini-agent attach <id>              Attach to running instance
   mini-agent start <id>               Start a stopped instance
   mini-agent restart <id>             Restart an instance
@@ -493,10 +617,15 @@ Commands:
 
 Up Options:
   -d, --detach            Run in background (don't attach)
-  --name <name>           Instance name
-  --role <role>           Role: master, worker, standalone (default)
+  -f, --file <path>       Specify compose file (default: agent-compose.yaml)
+  --init                  Generate agent-compose.yaml template
+  --name <name>           Instance name (single instance mode)
   --port <port>           Server port
   --persona <desc>        Persona description
+
+Down Options:
+  -f, --file <path>       Specify compose file
+  --all                   Stop all instances
 
 Logs Options:
   --date <YYYY-MM-DD>     Filter by date
@@ -507,14 +636,14 @@ Global Options:
   --data-dir <path>       Custom data directory
 
 Examples:
-  mini-agent                              # Interactive chat (default)
-  mini-agent up --name "Research"         # Create & attach
-  mini-agent up -d --name "Worker"        # Create in background
+  mini-agent up                           # Start from agent-compose.yaml
+  mini-agent up -d                        # Start in background
+  mini-agent up --init                    # Generate compose template
+  mini-agent up --name "Research"         # Create single instance
+  mini-agent down                         # Stop all (from compose)
   mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance
-  mini-agent list                         # List all instances
   mini-agent logs claude --date 2026-02-05
-  echo "Hello" | mini-agent "translate to Chinese"
 `);
 }
 

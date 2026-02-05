@@ -165,3 +165,35 @@ export interface AgentResponse {
   shouldRemember?: string;
   taskAdded?: string;
 }
+
+// =============================================================================
+// Compose Types
+// =============================================================================
+
+/**
+ * Compose 檔案中的 Agent 定義
+ */
+export interface ComposeAgent {
+  name?: string;
+  port?: number;
+  role?: InstanceRole;
+  persona?: string;
+  proactive?: {
+    schedule?: string;
+  };
+  depends_on?: string[];
+}
+
+/**
+ * Compose 檔案格式
+ */
+export interface ComposeFile {
+  version?: string;
+  agents: Record<string, ComposeAgent>;
+  memory?: {
+    shared?: {
+      path?: string;
+      sync?: boolean;
+    };
+  };
+}
