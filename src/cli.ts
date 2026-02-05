@@ -262,6 +262,12 @@ async function handleInstanceCommand(args: string[]): Promise<void> {
       console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
       console.log(`  Role: ${instance.role}`);
       console.log(`  Port: ${instance.port}`);
+
+      // 自動在背景啟動 API server
+      manager.start(instance.id);
+      const status = manager.getStatus(instance.id);
+      console.log(`  Status: 🟢 running (PID: ${status?.pid})`);
+      console.log(`  API: http://localhost:${instance.port}`);
       break;
     }
 

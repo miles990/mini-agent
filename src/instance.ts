@@ -491,17 +491,17 @@ export class InstanceManager {
       return true;
     }
 
-    // 啟動伺服器進程
+    // 啟動伺服器進程（使用 api.js）
     const serverProcess = spawn(
       'node',
-      [path.join(import.meta.dirname || __dirname, 'server.js'), '--instance', instanceId],
+      [path.join(import.meta.dirname || __dirname, 'api.js')],
       {
         detached: true,
         stdio: 'ignore',
         env: {
           ...process.env,
           MINI_AGENT_INSTANCE: instanceId,
-          MINI_AGENT_PORT: String(config.port),
+          PORT: String(config.port),
         },
       }
     );
