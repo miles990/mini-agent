@@ -29,33 +29,11 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
 export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
   version: '1',
   agents: {
-    researcher: {
-      name: 'Research Agent',
+    default: {
+      name: 'Default Agent',
       port: 3001,
       role: 'standalone',
-      persona: 'Specializes in web research and information gathering',
-      proactive: {
-        schedule: '0 9,18 * * *',
-      },
-    },
-    coder: {
-      name: 'Coding Agent',
-      port: 3002,
-      role: 'standalone',
-      persona: 'Specializes in code review and development',
-      depends_on: ['researcher'],
-    },
-    coordinator: {
-      name: 'Coordinator',
-      port: 3003,
-      role: 'master',
-      persona: 'Coordinates tasks between other agents',
-    },
-  },
-  memory: {
-    shared: {
-      path: '~/.mini-agent/shared',
-      sync: true,
+      persona: 'A helpful personal AI assistant',
     },
   },
 };
