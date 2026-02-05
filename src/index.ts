@@ -2,14 +2,40 @@
  * Mini-Agent - Main Entry Point
  *
  * A minimal Personal AI Agent with:
- * - Memory (file-based, no database)
+ * - Memory (file-based, instance-isolated)
  * - Proactivity (cron-based heartbeat)
- *
- * ~1000 lines total
+ * - Multi-instance support
  */
 
-export { processMessage, runHeartbeat, type Message, type AgentResponse } from './agent.js';
+// Types
+export type {
+  InstanceRole,
+  InstanceConfig,
+  InstanceStatus,
+  GlobalConfig,
+  GlobalDefaults,
+  CreateInstanceOptions,
+  ProactiveTrigger,
+  Persona,
+  ProactiveConfig as ProactiveInstanceConfig,
+  MemoryConfig,
+  Task,
+  MemoryEntry,
+  MemorySearchResult,
+  ApiResponse,
+  ChatRequest,
+  ChatResponse,
+  AgentResponse,
+} from './types.js';
+
+// Agent
+export { processMessage, runHeartbeat, type Message } from './agent.js';
+
+// Memory (instance-aware)
 export {
+  InstanceMemory,
+  createMemory,
+  getMemory,
   readMemory,
   appendMemory,
   readDailyNotes,
@@ -17,13 +43,52 @@ export {
   searchMemory,
   readHeartbeat,
   updateHeartbeat,
+  addTask,
   buildContext,
-  type MemoryEntry,
 } from './memory.js';
+
+// Proactive
 export {
   startProactive,
   stopProactive,
   triggerHeartbeat,
   type ProactiveConfig,
 } from './proactive.js';
+
+// Instance Management
+export {
+  InstanceManager,
+  getInstanceManager,
+  getDataDir,
+  getInstanceDir,
+  initDataDir,
+  loadGlobalConfig,
+  saveGlobalConfig,
+  getGlobalDefaults,
+  updateGlobalDefaults,
+  loadInstanceConfig,
+  saveInstanceConfig,
+  updateInstanceConfig,
+  resetInstanceConfig,
+  createInstance,
+  listInstances,
+  deleteInstance,
+  getCurrentInstanceId,
+  getOrCreateDefaultInstance,
+  validateInstanceId,
+} from './instance.js';
+
+// Config
+export {
+  getConfig,
+  updateConfig,
+  resetConfig,
+  getConfigValue,
+  setConfigValue,
+  getInstanceFullConfig,
+  DEFAULT_CONFIG,
+  type Config,
+} from './config.js';
+
+// API
 export { createApi } from './api.js';

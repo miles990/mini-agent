@@ -8,20 +8,33 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildContext, appendDailyNote, appendMemory, addTask } from './memory.js';
+import { getMemory } from './memory.js';
+import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
+import type { AgentResponse } from './types.js';
 
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-export interface AgentResponse {
-  content: string;
-  shouldRemember?: string;
-  taskAdded?: string;
-}
+/**
+ * 取得系統提示詞
+ */
+function getSystemPrompt(): string {
+  const instanceId = getCurrentInstanceId();
+  const config = loadInstanceConfig(instanceId);
 
-const SYSTEM_PROMPT = `You are a personal AI assistant with memory and task capabilities.
+  // 如果實例有自訂的 persona，使用它
+  if (config?.persona?.systemPrompt) {
+    return config.persona.systemPrompt;
+  }
+
+  // 預設系統提示詞
+  const personaDescription = config?.persona?.description
+    ? `You are ${config.persona.description}.\n\n`
+    : '';
+
+  return `${personaDescription}You are a personal AI assistant with memory and task capabilities.
 
 Instructions:
 - When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
@@ -35,13 +48,15 @@ Instructions:
 - Keep responses concise and helpful
 - You have access to memory context provided below
 `;
+}
 
 /**
  * Call Claude Code via subprocess
  * Uses a temp file to pass the prompt (avoids shell escaping issues)
  */
 async function callClaude(prompt: string, context: string): Promise<string> {
-  const fullPrompt = `${SYSTEM_PROMPT}\n\n${context}\n\n---\n\nUser: ${prompt}`;
+  const systemPrompt = getSystemPrompt();
+  const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
 
   // Write prompt to temp file
   const tmpFile = path.join(os.tmpdir(), `mini-agent-prompt-${Date.now()}.txt`);
@@ -68,15 +83,18 @@ async function callClaude(prompt: string, context: string): Promise<string> {
  * Process a user message
  */
 export async function processMessage(userMessage: string): Promise<AgentResponse> {
+  // 使用當前實例的記憶系統
+  const memory = getMemory();
+
   // 1. Build context from memory
-  const context = await buildContext();
+  const context = await memory.buildContext();
 
   // 2. Call Claude
   const response = await callClaude(userMessage, context);
 
   // 3. Log to daily notes
-  await appendDailyNote(`User: ${userMessage.slice(0, 100)}...`);
-  await appendDailyNote(`Assistant: ${response.slice(0, 100)}...`);
+  await memory.appendDailyNote(`User: ${userMessage.slice(0, 100)}...`);
+  await memory.appendDailyNote(`Assistant: ${response.slice(0, 100)}...`);
 
   // 4. Check if should remember something
   let shouldRemember: string | undefined;
@@ -84,7 +102,7 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     const match = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
     if (match) {
       shouldRemember = match[1].trim();
-      await appendMemory(shouldRemember);
+      await memory.appendMemory(shouldRemember);
     }
   }
 
@@ -95,13 +113,13 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     if (match) {
       const schedule = match[1];
       const taskContent = match[2].trim();
-      await addTask(taskContent, schedule);
+      await memory.addTask(taskContent, schedule);
       taskAdded = taskContent;
     }
   }
 
   // Clean response from all tags
-  let cleanContent = response
+  const cleanContent = response
     .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
     .trim();
@@ -117,7 +135,8 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
  * Run heartbeat check
  */
 export async function runHeartbeat(): Promise<string | null> {
-  const context = await buildContext();
+  const memory = getMemory();
+  const context = await memory.buildContext();
 
   // Check if there are active tasks (look for unchecked checkboxes)
   if (!context.includes('- [ ]')) {
@@ -134,7 +153,7 @@ Keep response brief.`;
 
   try {
     const response = await callClaude(prompt, context);
-    await appendDailyNote(`[Heartbeat] ${response.slice(0, 100)}...`);
+    await memory.appendDailyNote(`[Heartbeat] ${response.slice(0, 100)}...`);
     return response;
   } catch (error) {
     console.error('Heartbeat error:', error);

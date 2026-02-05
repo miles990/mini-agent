@@ -1,7 +1,7 @@
 /**
  * HTTP API Entry Point
  *
- * REST API for mini-agent
+ * REST API for mini-agent with instance management
  */
 
 import express, { type Request, type Response } from 'express';
@@ -15,19 +15,153 @@ import {
   appendMemory,
   buildContext,
   addTask,
+  createMemory,
 } from './memory.js';
 import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
+import {
+  getInstanceManager,
+  loadInstanceConfig,
+  updateInstanceConfig,
+  listInstances,
+  getCurrentInstanceId,
+} from './instance.js';
+import type { CreateInstanceOptions, InstanceConfig } from './types.js';
 
 export function createApi(port = 3001): express.Express {
   const app = express();
   app.use(express.json());
 
-  // Health check
+  // =============================================================================
+  // Health & Info
+  // =============================================================================
+
   app.get('/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', service: 'mini-agent' });
+    res.json({
+      status: 'ok',
+      service: 'mini-agent',
+      instance: getCurrentInstanceId(),
+    });
   });
 
-  // Chat endpoint
+  // =============================================================================
+  // Instance Management
+  // =============================================================================
+
+  // 取得當前實例信息
+  app.get('/api/instance', (_req: Request, res: Response) => {
+    const instanceId = getCurrentInstanceId();
+    const config = loadInstanceConfig(instanceId);
+
+    if (!config) {
+      res.status(404).json({ error: 'Instance not found' });
+      return;
+    }
+
+    res.json(config);
+  });
+
+  // 更新當前實例
+  app.put('/api/instance', (req: Request, res: Response) => {
+    const instanceId = getCurrentInstanceId();
+    const updates = req.body as Partial<InstanceConfig>;
+
+    // 不允許更改 ID
+    delete updates.id;
+    delete updates.createdAt;
+
+    const updated = updateInstanceConfig(instanceId, updates);
+    if (!updated) {
+      res.status(404).json({ error: 'Instance not found' });
+      return;
+    }
+
+    res.json({ success: true, instance: updated });
+  });
+
+  // 列表所有實例
+  app.get('/api/instances', (_req: Request, res: Response) => {
+    const manager = getInstanceManager();
+    const instances = manager.listStatus();
+    res.json(instances);
+  });
+
+  // 創建新實例
+  app.post('/api/instances', (req: Request, res: Response) => {
+    const options = req.body as CreateInstanceOptions;
+    const manager = getInstanceManager();
+
+    try {
+      const instance = manager.create(options);
+      res.json(instance);
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to create instance',
+      });
+    }
+  });
+
+  // 取得特定實例
+  app.get('/api/instances/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const manager = getInstanceManager();
+    const status = manager.getStatus(id);
+
+    if (!status) {
+      res.status(404).json({ error: 'Instance not found' });
+      return;
+    }
+
+    res.json(status);
+  });
+
+  // 刪除實例
+  app.delete('/api/instances/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const manager = getInstanceManager();
+
+    try {
+      const deleted = manager.delete(id);
+      if (deleted) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: 'Instance not found' });
+      }
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to delete instance',
+      });
+    }
+  });
+
+  // 啟動實例
+  app.post('/api/instances/:id/start', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const manager = getInstanceManager();
+
+    try {
+      manager.start(id);
+      const status = manager.getStatus(id);
+      res.json({ success: true, status });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Failed to start instance',
+      });
+    }
+  });
+
+  // 停止實例
+  app.post('/api/instances/:id/stop', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const manager = getInstanceManager();
+
+    manager.stop(id);
+    res.json({ success: true });
+  });
+
+  // =============================================================================
+  // Chat
+  // =============================================================================
+
   app.post('/chat', async (req: Request, res: Response) => {
     const { message } = req.body;
 
@@ -46,7 +180,10 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  // Memory endpoints
+  // =============================================================================
+  // Memory
+  // =============================================================================
+
   app.get('/memory', async (_req: Request, res: Response) => {
     const memory = await readMemory();
     res.json({ memory });
@@ -75,17 +212,22 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true });
   });
 
-  // Context endpoint (for debugging)
+  // =============================================================================
+  // Context
+  // =============================================================================
+
   app.get('/context', async (_req: Request, res: Response) => {
     const context = await buildContext();
     res.json({ context });
   });
 
-  // Task endpoints
+  // =============================================================================
+  // Tasks
+  // =============================================================================
+
   app.get('/tasks', async (_req: Request, res: Response) => {
     const heartbeat = await readHeartbeat();
 
-    // Parse tasks from HEARTBEAT.md
     const tasks: Array<{ task: string; schedule?: string; completed: boolean }> = [];
     const lines = heartbeat.split('\n');
 
@@ -115,7 +257,10 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true, task, schedule });
   });
 
-  // Heartbeat endpoints
+  // =============================================================================
+  // Heartbeat
+  // =============================================================================
+
   app.get('/heartbeat', async (_req: Request, res: Response) => {
     const heartbeat = await readHeartbeat();
     res.json({ heartbeat });
@@ -138,7 +283,10 @@ export function createApi(port = 3001): express.Express {
     res.json({ result: result ?? 'No action needed' });
   });
 
-  // Proactive control
+  // =============================================================================
+  // Proactive
+  // =============================================================================
+
   app.post('/proactive/start', async (req: Request, res: Response) => {
     const config = await getConfig();
     const schedule = req.body.schedule ?? config.proactiveSchedule;
@@ -151,7 +299,10 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true });
   });
 
-  // Config endpoints
+  // =============================================================================
+  // Config
+  // =============================================================================
+
   app.get('/config', async (_req: Request, res: Response) => {
     const config = await getConfig();
     res.json({ config, defaults: DEFAULT_CONFIG });
@@ -177,7 +328,10 @@ export function createApi(port = 3001): express.Express {
   return app;
 }
 
-// Start server if run directly
+// =============================================================================
+// Standalone Server
+// =============================================================================
+
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
   const port = parseInt(process.env.PORT ?? '3001', 10);
@@ -185,19 +339,28 @@ if (isMain) {
 
   app.listen(port, () => {
     console.log(`Mini-Agent API running on http://localhost:${port}`);
-    console.log('Endpoints:');
-    console.log('  POST /chat            - Send a message');
-    console.log('  GET  /memory          - Read long-term memory');
-    console.log('  GET  /memory/search?q=- Search memory');
-    console.log('  POST /memory          - Add to memory');
-    console.log('  GET  /tasks           - List tasks');
-    console.log('  POST /tasks           - Add a task');
-    console.log('  GET  /heartbeat       - Read HEARTBEAT.md');
+    console.log(`Instance: ${getCurrentInstanceId()}`);
+    console.log('');
+    console.log('Instance Endpoints:');
+    console.log('  GET  /api/instance      - Current instance info');
+    console.log('  PUT  /api/instance      - Update current instance');
+    console.log('  GET  /api/instances     - List all instances');
+    console.log('  POST /api/instances     - Create new instance');
+    console.log('  DELETE /api/instances/:id - Delete instance');
+    console.log('');
+    console.log('Other Endpoints:');
+    console.log('  POST /chat              - Send a message');
+    console.log('  GET  /memory            - Read long-term memory');
+    console.log('  GET  /memory/search?q=  - Search memory');
+    console.log('  POST /memory            - Add to memory');
+    console.log('  GET  /tasks             - List tasks');
+    console.log('  POST /tasks             - Add a task');
+    console.log('  GET  /heartbeat         - Read HEARTBEAT.md');
     console.log('  POST /heartbeat/trigger - Trigger heartbeat');
-    console.log('  POST /proactive/start - Start proactive mode');
-    console.log('  POST /proactive/stop  - Stop proactive mode');
-    console.log('  GET  /config          - Get configuration');
-    console.log('  PUT  /config          - Update configuration');
-    console.log('  POST /config/reset    - Reset to defaults');
+    console.log('  POST /proactive/start   - Start proactive mode');
+    console.log('  POST /proactive/stop    - Stop proactive mode');
+    console.log('  GET  /config            - Get configuration');
+    console.log('  PUT  /config            - Update configuration');
+    console.log('  POST /config/reset      - Reset to defaults');
   });
 }

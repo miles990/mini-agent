@@ -7,6 +7,12 @@
  *   server          - HTTP API server
  *   Pipe mode       - echo "..." | mini-agent "prompt"
  *   File mode       - mini-agent file.txt "prompt"
+ *
+ * Instance Management:
+ *   instance create - Create a new instance
+ *   instance list   - List all instances
+ *   instance delete - Delete an instance
+ *   instance start  - Start an instance server
  */
 
 import readline from 'node:readline';
@@ -14,9 +20,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { processMessage } from './agent.js';
 import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
-import { searchMemory, readHeartbeat, appendMemory } from './memory.js';
+import { searchMemory, readHeartbeat, appendMemory, createMemory } from './memory.js';
 import { createApi } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
+import {
+  getInstanceManager,
+  loadInstanceConfig,
+  listInstances,
+  getCurrentInstanceId,
+} from './instance.js';
+import type { InstanceConfig } from './types.js';
+
+// =============================================================================
+// Global Instance Context
+// =============================================================================
+
+let currentInstanceId = 'default';
+
+/**
+ * 設置當前實例 ID（用於 CLI）
+ */
+export function setCurrentInstance(instanceId: string): void {
+  currentInstanceId = instanceId;
+  process.env.MINI_AGENT_INSTANCE = instanceId;
+}
 
 // =============================================================================
 // File Utilities
@@ -59,13 +86,171 @@ function readFileContent(filePath: string): { content: string; type: 'text' | 'i
       const content = fs.readFileSync(resolved, 'utf-8');
       return { content, type: 'text' };
     } else if (isImageFile(filePath)) {
-      // For images, return the absolute path - Claude will read it directly
       return { content: resolved, type: 'image' };
     } else {
       return { content: '', type: 'binary', error: `Unsupported file type: ${filePath}` };
     }
   } catch (err) {
     return { content: '', type: 'text', error: `Error reading file: ${err}` };
+  }
+}
+
+// =============================================================================
+// Instance Commands
+// =============================================================================
+
+async function handleInstanceCommand(args: string[]): Promise<void> {
+  const subCommand = args[0];
+  const manager = getInstanceManager();
+
+  switch (subCommand) {
+    case 'create': {
+      const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
+
+      for (let i = 1; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === '--name' && args[i + 1]) {
+          options.name = args[++i];
+        } else if (arg === '--role' && args[i + 1]) {
+          options.role = args[++i] as 'master' | 'worker' | 'standalone';
+        } else if (arg === '--port' && args[i + 1]) {
+          options.port = parseInt(args[++i], 10);
+        } else if (arg === '--persona' && args[i + 1]) {
+          options.persona = args[++i];
+        }
+      }
+
+      const instance = manager.create(options);
+      console.log(`Created instance: ${instance.id}`);
+      console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
+      console.log(`  Role: ${instance.role}`);
+      console.log(`  Port: ${instance.port}`);
+      break;
+    }
+
+    case 'list': {
+      const instances = manager.listStatus();
+      if (instances.length === 0) {
+        console.log('No instances found');
+        return;
+      }
+
+      console.log('Instances:');
+      console.log('');
+      console.log('ID        Name              Role        Port   Status');
+      console.log('--------  ----------------  ----------  -----  ------');
+
+      for (const inst of instances) {
+        const name = (inst.name ?? '(unnamed)').padEnd(16).substring(0, 16);
+        const role = inst.role.padEnd(10);
+        const port = String(inst.port).padEnd(5);
+        const status = inst.running ? '🟢 running' : '⚪ stopped';
+        console.log(`${inst.id.padEnd(8)}  ${name}  ${role}  ${port}  ${status}`);
+      }
+      break;
+    }
+
+    case 'delete': {
+      const instanceId = args[1];
+      if (!instanceId) {
+        console.error('Usage: mini-agent instance delete <id>');
+        process.exit(1);
+      }
+
+      try {
+        const deleted = manager.delete(instanceId);
+        if (deleted) {
+          console.log(`Deleted instance: ${instanceId}`);
+        } else {
+          console.error(`Instance not found: ${instanceId}`);
+          process.exit(1);
+        }
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : err);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'start': {
+      const instanceId = args[1];
+      if (!instanceId) {
+        console.error('Usage: mini-agent instance start <id>');
+        process.exit(1);
+      }
+
+      try {
+        manager.start(instanceId);
+        const status = manager.getStatus(instanceId);
+        console.log(`Started instance: ${instanceId}`);
+        console.log(`  Port: ${status?.port}`);
+        console.log(`  PID: ${status?.pid}`);
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : err);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'stop': {
+      const instanceId = args[1];
+      if (!instanceId) {
+        console.error('Usage: mini-agent instance stop <id>');
+        process.exit(1);
+      }
+
+      manager.stop(instanceId);
+      console.log(`Stopped instance: ${instanceId}`);
+      break;
+    }
+
+    case 'status': {
+      const instanceId = args[1];
+      if (!instanceId) {
+        console.error('Usage: mini-agent instance status <id>');
+        process.exit(1);
+      }
+
+      const status = manager.getStatus(instanceId);
+      if (!status) {
+        console.error(`Instance not found: ${instanceId}`);
+        process.exit(1);
+      }
+
+      console.log(`Instance: ${status.id}`);
+      console.log(`  Name: ${status.name ?? '(unnamed)'}`);
+      console.log(`  Role: ${status.role}`);
+      console.log(`  Port: ${status.port}`);
+      console.log(`  Status: ${status.running ? '🟢 running' : '⚪ stopped'}`);
+      if (status.pid) {
+        console.log(`  PID: ${status.pid}`);
+      }
+      break;
+    }
+
+    default:
+      console.log(`
+Instance Management:
+
+Commands:
+  mini-agent instance create [options]  Create a new instance
+  mini-agent instance list              List all instances
+  mini-agent instance delete <id>       Delete an instance
+  mini-agent instance start <id>        Start an instance server
+  mini-agent instance stop <id>         Stop an instance server
+  mini-agent instance status <id>       Show instance status
+
+Create Options:
+  --name <name>     Instance name
+  --role <role>     Role: master, worker, standalone (default)
+  --port <port>     Server port
+  --persona <desc>  Persona description
+
+Examples:
+  mini-agent instance create --name "Research Assistant" --port 3002
+  mini-agent instance list
+  mini-agent instance start abc12345
+`);
   }
 }
 
@@ -84,17 +269,23 @@ Usage:
   mini-agent server [--port]          Start HTTP API server
   echo "..." | mini-agent "prompt"    Pipe mode
 
+Instance Management:
+  mini-agent instance create [options]  Create a new instance
+  mini-agent instance list              List all instances
+  mini-agent instance delete <id>       Delete an instance
+  mini-agent instance start <id>        Start an instance server
+
 Options:
-  -p, --port <port>   Port for server (default: 3001)
+  -p, --port <port>       Port for server (default: 3001)
+  -i, --instance <id>     Use specific instance
+  --data-dir <path>       Custom data directory
 
 Examples:
   mini-agent readme.md "summarize"
   mini-agent src/app.ts "review this code"
-  mini-agent a.txt b.txt "compare these files"
+  mini-agent --instance abc123 "hello"
+  mini-agent instance create --name "Assistant" --port 3002
   echo "Hello" | mini-agent "translate to Chinese"
-  git diff | mini-agent "write commit message"
-
-Note: Binary files (images, etc.) require interactive mode: claude
 
 Install:
   curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
@@ -103,17 +294,18 @@ Install:
 
 async function runServer(port: number): Promise<void> {
   const app = createApi(port);
-
-  // Get config and auto-start proactive
   const config = await getConfig();
+  const instanceId = getCurrentInstanceId();
 
   app.listen(port, () => {
     console.log(`Mini-Agent API server running on http://localhost:${port}`);
+    console.log(`Instance: ${instanceId}`);
 
-    // Auto-start proactive mode
     startProactive({ schedule: config.proactiveSchedule });
     console.log(`\n[Proactive] Auto-started with schedule: ${config.proactiveSchedule}`);
     console.log('\nEndpoints:');
+    console.log('  GET  /api/instance      - Current instance info');
+    console.log('  GET  /api/instances     - List all instances');
     console.log('  POST /chat              - Send a message');
     console.log('  GET  /memory            - Read long-term memory');
     console.log('  GET  /memory/search?q=  - Search memory');
@@ -175,15 +367,12 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
 
     const fileName = path.basename(file);
     if (result.type === 'image') {
-      // For images, collect the absolute path
       imagePaths.push(`[Image: ${fileName}]: ${result.content}`);
     } else {
-      // For text files, include the content
       textContents.push(`=== ${fileName} ===\n${result.content}`);
     }
   }
 
-  // Build prompt with text content and image references
   let fullPrompt = prompt;
   if (textContents.length > 0) {
     fullPrompt += `\n\n---\n\n${textContents.join('\n\n')}`;
@@ -202,7 +391,7 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
 }
 
 // =============================================================================
-// Prompt Mode (single prompt without file)
+// Prompt Mode
 // =============================================================================
 
 async function runPromptMode(prompt: string): Promise<void> {
@@ -242,7 +431,9 @@ function runChat(): void {
     }
   });
 
+  const instanceId = getCurrentInstanceId();
   console.log('Mini-Agent - Memory + Proactivity');
+  console.log(`Instance: ${instanceId}`);
   console.log('Type /help for commands, or just chat.\n');
   prompt();
 }
@@ -303,6 +494,8 @@ Chat Commands:
   /config         - Show current config
   /config set <key> <value> - Update config
   /config reset   - Reset to defaults
+  /instance       - Show current instance
+  /instances      - List all instances
   /quit           - Exit
 `);
       break;
@@ -365,32 +558,50 @@ Chat Commands:
       const value = args.slice(2).join(' ');
 
       if (!subCmd || subCmd === 'show') {
-        // Show current config
         const config = await getConfig();
         console.log('\nCurrent Configuration:');
         for (const [k, v] of Object.entries(config)) {
           console.log(`  ${k}: ${JSON.stringify(v)}`);
         }
       } else if (subCmd === 'set' && key) {
-        // Set a config value
         let parsedValue: unknown = value;
-        // Try to parse as JSON for booleans/numbers
         try {
           parsedValue = JSON.parse(value);
         } catch {
           // Keep as string
         }
-        const config = await updateConfig({ [key]: parsedValue });
+        await updateConfig({ [key]: parsedValue });
         console.log(`Set ${key} = ${JSON.stringify(parsedValue)}`);
       } else if (subCmd === 'reset') {
-        const config = await resetConfig();
+        await resetConfig();
         console.log('Configuration reset to defaults');
       } else {
         console.log('Usage:');
         console.log('  /config           - Show current config');
-        console.log('  /config show      - Show current config');
         console.log('  /config set <key> <value> - Set a config value');
         console.log('  /config reset     - Reset to defaults');
+      }
+      break;
+    }
+
+    case 'instance': {
+      const instanceId = getCurrentInstanceId();
+      const config = loadInstanceConfig(instanceId);
+      console.log(`\nCurrent Instance: ${instanceId}`);
+      if (config) {
+        console.log(`  Name: ${config.name ?? '(unnamed)'}`);
+        console.log(`  Role: ${config.role}`);
+        console.log(`  Port: ${config.port}`);
+      }
+      break;
+    }
+
+    case 'instances': {
+      const instances = listInstances();
+      console.log('\nInstances:');
+      for (const inst of instances) {
+        const current = inst.id === getCurrentInstanceId() ? ' (current)' : '';
+        console.log(`  ${inst.id}: ${inst.name ?? '(unnamed)'}${current}`);
       }
       break;
     }
@@ -417,6 +628,9 @@ interface ParsedArgs {
   prompt: string;
   files: string[];
   hasExplicitPrompt: boolean;
+  instanceId: string;
+  dataDir?: string;
+  instanceArgs: string[];
 }
 
 function parseArgs(): ParsedArgs {
@@ -425,34 +639,58 @@ function parseArgs(): ParsedArgs {
   let port = 3001;
   let prompt = 'Process this:';
   let hasExplicitPrompt = false;
+  let instanceId = 'default';
+  let dataDir: string | undefined;
   const files: string[] = [];
+  const instanceArgs: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg === '--port' || arg === '-p') {
       port = parseInt(args[++i] || '3001', 10);
+    } else if (arg === '--instance' || arg === '-i') {
+      instanceId = args[++i] || 'default';
+    } else if (arg === '--data-dir') {
+      dataDir = args[++i];
     } else if (arg === 'server' || arg === 'help') {
       command = arg;
+    } else if (arg === 'instance') {
+      command = 'instance';
+      // 收集 instance 子命令的所有參數
+      instanceArgs.push(...args.slice(i + 1));
+      break;
     } else if (!arg.startsWith('-')) {
-      // Check if it's a file or prompt
       if (fs.existsSync(arg)) {
         files.push(arg);
       } else {
-        // Last non-file argument is the prompt
         prompt = arg;
         hasExplicitPrompt = true;
       }
     }
   }
 
-  return { command, port, prompt, files, hasExplicitPrompt };
+  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt, files, hasExplicitPrompt } = parseArgs();
+  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs } = parseArgs();
 
-  // Check if stdin is piped
+  // 設置資料目錄
+  if (dataDir) {
+    process.env.MINI_AGENT_DATA_DIR = dataDir;
+  }
+
+  // 設置當前實例
+  setCurrentInstance(instanceId);
+
+  // Instance 命令
+  if (command === 'instance') {
+    await handleInstanceCommand(instanceArgs);
+    return;
+  }
+
+  // 檢查是否為管道輸入
   const isPiped = process.stdin.isTTY === undefined && command === '' && files.length === 0 && !hasExplicitPrompt;
 
   // Pipe mode
@@ -467,7 +705,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Prompt-only mode: mini-agent "do something"
+  // Prompt-only mode
   if (hasExplicitPrompt && command === '') {
     await runPromptMode(prompt);
     return;
