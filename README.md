@@ -30,14 +30,24 @@ Minimal Personal AI Agent with two core concepts:
 └─────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+## Install
 
 ```bash
-pnpm setup              # One-click install
+curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/install.sh | bash
+```
 
+## Usage
+
+```bash
 mini-agent              # Interactive chat
 mini-agent server       # HTTP API server
 mini-agent help         # Show help
+```
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/uninstall.sh | bash
 ```
 
 ## Unix Pipe Mode

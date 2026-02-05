@@ -35,8 +35,8 @@ Usage:
 Options:
   -p, --port <port>   Port for server (default: 3001)
 
-Installation:
-  pnpm setup      One-click install
+Install:
+  curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/install.sh | bash
 
 Pipe Examples:
   echo "Hello" | mini-agent "translate to Chinese"
