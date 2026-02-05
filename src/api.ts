@@ -14,6 +14,7 @@ import {
   updateHeartbeat,
   appendMemory,
   buildContext,
+  addTask,
 } from './memory.js';
 
 export function createApi(port = 3001): express.Express {
@@ -79,6 +80,19 @@ export function createApi(port = 3001): express.Express {
     res.json({ context });
   });
 
+  // Task endpoint
+  app.post('/tasks', async (req: Request, res: Response) => {
+    const { task, schedule } = req.body;
+
+    if (!task || typeof task !== 'string') {
+      res.status(400).json({ error: 'task is required' });
+      return;
+    }
+
+    await addTask(task, schedule);
+    res.json({ success: true, task, schedule });
+  });
+
   // Heartbeat endpoints
   app.get('/heartbeat', async (_req: Request, res: Response) => {
     const heartbeat = await readHeartbeat();
@@ -126,11 +140,12 @@ if (isMain) {
   app.listen(port, () => {
     console.log(`Mini-Agent API running on http://localhost:${port}`);
     console.log('Endpoints:');
-    console.log('  POST /chat         - Send a message');
-    console.log('  GET  /memory       - Read long-term memory');
-    console.log('  GET  /memory/search?q= - Search memory');
-    console.log('  POST /memory       - Add to memory');
-    console.log('  GET  /heartbeat    - Read HEARTBEAT.md');
+    console.log('  POST /chat            - Send a message');
+    console.log('  GET  /memory          - Read long-term memory');
+    console.log('  GET  /memory/search?q=- Search memory');
+    console.log('  POST /memory          - Add to memory');
+    console.log('  POST /tasks           - Add a task');
+    console.log('  GET  /heartbeat       - Read HEARTBEAT.md');
     console.log('  POST /heartbeat/trigger - Trigger heartbeat');
     console.log('  POST /proactive/start - Start proactive mode');
     console.log('  POST /proactive/stop  - Stop proactive mode');

@@ -104,6 +104,7 @@ mini-agent help         # Show help
 | GET | /memory | Read long-term memory |
 | GET | /memory/search?q= | Search memory |
 | POST | /memory | Add to memory |
+| POST | /tasks | Add a scheduled task |
 | GET | /heartbeat | Read HEARTBEAT.md |
 | POST | /heartbeat/trigger | Trigger heartbeat |
 | POST | /proactive/start | Start proactive mode |
