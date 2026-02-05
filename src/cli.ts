@@ -336,14 +336,39 @@ async function handleUpCommand(args: string[], port: number): Promise<void> {
     return;
   }
 
-  // 如果沒有任何選項，且沒有 compose 檔案，自動產生模板
-  const hasOptions = options.name || options.port || options.role || options.persona;
+  // 如果沒有任何選項，且沒有 compose 檔案，自動產生並啟動
+  const hasOptions = options.name || options.port || options.persona;
   if (!hasOptions) {
-    console.log(`No ${DEFAULT_COMPOSE_FILE} found.\n`);
-    const filePath = createDefaultComposeFile(undefined, true);
-    console.log(`Created ${filePath}`);
-    console.log('\nEdit the file and run: mini-agent up');
-    console.log('Or create a single instance: mini-agent up --name "My Agent"');
+    console.log(`No ${DEFAULT_COMPOSE_FILE} found, creating...\n`);
+    const filePath = createDefaultComposeFile(undefined, false);
+    console.log(`Created ${filePath}\n`);
+
+    // 讀取剛建立的檔案並啟動
+    const compose = readComposeFile(filePath);
+    const result = composeUp(compose, detached);
+
+    if (result.started.length > 0) {
+      console.log('Started:');
+      for (const id of result.started) {
+        const agentDef = compose.agents[id];
+        console.log(`  🟢 ${id} (${agentDef.name || id}) - port ${agentDef.port || 3001}`);
+      }
+    }
+
+    console.log(`\n${result.started.length} agent(s) started`);
+
+    // 單一 agent 時自動 attach
+    if (!detached && result.started.length === 1) {
+      const agentId = result.started[0];
+      const agentDef = compose.agents[agentId];
+      const instances = manager.list();
+      const inst = instances.find(i => i.name === (agentDef.name || agentId));
+      if (inst) {
+        console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
+        await runAttachedMode(inst.id, inst.port);
+      }
+    }
+
     return;
   }
 
