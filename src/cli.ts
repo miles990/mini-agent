@@ -12,8 +12,9 @@
  *   create          - Create a new instance
  *   attach <id>     - Attach to running instance
  *   start <id>      - Start an instance
- *   stop <id>       - Stop an instance
- *   delete <id>     - Delete an instance
+ *   stop <id|--all> - Stop instance(s)
+ *   restart <id>    - Restart an instance
+ *   kill <id|--all> - Kill (delete) instance(s)
  *   status [id]     - Show instance status
  *   logs [type]     - Show logs
  */
@@ -296,18 +297,38 @@ function handleListCommand(): void {
   }
 }
 
-function handleDeleteCommand(instanceId: string): void {
-  if (!instanceId) {
-    console.error('Usage: mini-agent delete <id>');
+function handleKillCommand(args: string[]): void {
+  const manager = getInstanceManager();
+  const hasAll = args.includes('--all');
+  const instanceId = args.find(a => !a.startsWith('-'));
+
+  if (!instanceId && !hasAll) {
+    console.error('Usage: mini-agent kill <id> | --all');
     process.exit(1);
   }
 
-  const manager = getInstanceManager();
+  if (hasAll) {
+    // Kill all instances (except default)
+    const instances = manager.listStatus();
+    let killed = 0;
+    for (const inst of instances) {
+      if (inst.id === 'default') continue;
+      try {
+        manager.delete(inst.id);
+        console.log(`Killed: ${inst.id}`);
+        killed++;
+      } catch (err) {
+        console.error(`Failed to kill ${inst.id}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    console.log(`\nKilled ${killed} instance(s)`);
+    return;
+  }
 
   try {
-    const deleted = manager.delete(instanceId);
+    const deleted = manager.delete(instanceId!);
     if (deleted) {
-      console.log(`Deleted instance: ${instanceId}`);
+      console.log(`Killed instance: ${instanceId}`);
     } else {
       console.error(`Instance not found: ${instanceId}`);
       process.exit(1);
@@ -338,14 +359,32 @@ function handleStartCommand(instanceId: string): void {
   }
 }
 
-function handleStopCommand(instanceId: string): void {
-  if (!instanceId) {
-    console.error('Usage: mini-agent stop <id>');
+function handleStopCommand(args: string[]): void {
+  const manager = getInstanceManager();
+  const hasAll = args.includes('--all');
+  const instanceId = args.find(a => !a.startsWith('-'));
+
+  if (!instanceId && !hasAll) {
+    console.error('Usage: mini-agent stop <id> | --all');
     process.exit(1);
   }
 
-  const manager = getInstanceManager();
-  manager.stop(instanceId);
+  if (hasAll) {
+    // Stop all running instances
+    const instances = manager.listStatus();
+    let stopped = 0;
+    for (const inst of instances) {
+      if (inst.running) {
+        manager.stop(inst.id);
+        console.log(`Stopped: ${inst.id}`);
+        stopped++;
+      }
+    }
+    console.log(`\nStopped ${stopped} instance(s)`);
+    return;
+  }
+
+  manager.stop(instanceId!);
   console.log(`Stopped instance: ${instanceId}`);
 }
 
@@ -436,10 +475,10 @@ Commands:
   mini-agent create [options]         Create new instance (auto-starts)
   mini-agent attach <id>              Attach to running instance
   mini-agent start <id>               Start an instance
-  mini-agent stop <id>                Stop an instance
+  mini-agent stop <id|--all>          Stop instance(s)
   mini-agent restart <id>             Restart an instance
   mini-agent status [id]              Show instance status
-  mini-agent delete <id>              Delete an instance
+  mini-agent kill <id|--all>          Kill (delete) instance(s)
   mini-agent logs [type]              Show logs
 
 Create Options:
@@ -978,7 +1017,7 @@ Chat Commands:
 // =============================================================================
 
 // 直接命令列表（不需要 instance 前綴）
-const DIRECT_COMMANDS = ['list', 'create', 'attach', 'start', 'stop', 'restart', 'status', 'delete', 'logs', 'help'];
+const DIRECT_COMMANDS = ['list', 'create', 'attach', 'start', 'stop', 'restart', 'status', 'kill', 'logs', 'help'];
 
 interface ParsedArgs {
   command: string;
@@ -1058,7 +1097,7 @@ async function main(): Promise<void> {
       handleStartCommand(commandArgs[0]);
       return;
     case 'stop':
-      handleStopCommand(commandArgs[0]);
+      handleStopCommand(commandArgs);
       return;
     case 'restart':
       handleRestartCommand(commandArgs[0]);
@@ -1066,8 +1105,8 @@ async function main(): Promise<void> {
     case 'status':
       handleStatusCommand(commandArgs[0]);
       return;
-    case 'delete':
-      handleDeleteCommand(commandArgs[0]);
+    case 'kill':
+      handleKillCommand(commandArgs);
       return;
     case 'logs':
       await handleLogsCommand(commandArgs);
