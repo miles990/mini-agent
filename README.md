@@ -1,4 +1,6 @@
-# Mini-Agent
+# Mini-Agent (WIP)
+
+> **Work in Progress** - 核心功能可用，但仍在開發中
 
 Minimal Personal AI Agent with two core concepts:
 
