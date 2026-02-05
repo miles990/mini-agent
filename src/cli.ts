@@ -2,22 +2,59 @@
 /**
  * Mini-Agent CLI
  *
- * Commands:
- *   (default)     - Interactive chat mode
- *   chat          - Interactive chat mode
- *   server        - Start HTTP API server
- *   install       - Install globally via npm link
- *   uninstall     - Remove global installation
- *
- * Pipe mode:
- *   echo "text" | mini-agent "prompt"
+ * Modes:
+ *   (default)       - Interactive chat
+ *   server          - HTTP API server
+ *   Pipe mode       - echo "..." | mini-agent "prompt"
+ *   File mode       - mini-agent file.txt "prompt"
  */
 
 import readline from 'node:readline';
+import fs from 'node:fs';
+import path from 'node:path';
 import { processMessage } from './agent.js';
 import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import { searchMemory, readHeartbeat, appendMemory } from './memory.js';
 import { createApi } from './api.js';
+
+// =============================================================================
+// File Utilities
+// =============================================================================
+
+const TEXT_EXTENSIONS = new Set([
+  '.txt', '.md', '.json', '.js', '.ts', '.tsx', '.jsx', '.py', '.rb', '.go',
+  '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.css', '.scss', '.html', '.xml',
+  '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.sh', '.bash', '.zsh',
+  '.sql', '.graphql', '.vue', '.svelte', '.astro', '.csv', '.log', '.env',
+]);
+
+function isTextFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return TEXT_EXTENSIONS.has(ext);
+}
+
+function readFileContent(filePath: string): { content: string; type: 'text' | 'binary'; error?: string } {
+  try {
+    const resolved = path.resolve(filePath);
+    if (!fs.existsSync(resolved)) {
+      return { content: '', type: 'text', error: `File not found: ${filePath}` };
+    }
+
+    const stats = fs.statSync(resolved);
+    if (stats.isDirectory()) {
+      return { content: '', type: 'text', error: `Is a directory: ${filePath}` };
+    }
+
+    if (isTextFile(filePath)) {
+      const content = fs.readFileSync(resolved, 'utf-8');
+      return { content, type: 'text' };
+    } else {
+      return { content: '', type: 'binary', error: `Binary file not supported in CLI mode: ${filePath}\nUse: claude (interactive mode) for images` };
+    }
+  } catch (err) {
+    return { content: '', type: 'text', error: `Error reading file: ${err}` };
+  }
+}
 
 // =============================================================================
 // CLI Commands
@@ -28,20 +65,26 @@ function showHelp(): void {
 Mini-Agent - Personal AI with Memory + Proactivity
 
 Usage:
-  mini-agent                     Interactive chat (default)
-  mini-agent server [--port]     Start HTTP API server
-  echo "..." | mini-agent "..."  Pipe mode
+  mini-agent                          Interactive chat (default)
+  mini-agent <file> "prompt"          Process a file
+  mini-agent <file1> <file2> "prompt" Process multiple files
+  mini-agent server [--port]          Start HTTP API server
+  echo "..." | mini-agent "prompt"    Pipe mode
 
 Options:
   -p, --port <port>   Port for server (default: 3001)
 
+Examples:
+  mini-agent readme.md "summarize"
+  mini-agent src/app.ts "review this code"
+  mini-agent a.txt b.txt "compare these files"
+  echo "Hello" | mini-agent "translate to Chinese"
+  git diff | mini-agent "write commit message"
+
+Note: Binary files (images, etc.) require interactive mode: claude
+
 Install:
   curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
-
-Pipe Examples:
-  echo "Hello" | mini-agent "translate to Chinese"
-  cat file.txt | mini-agent "summarize"
-  git diff | mini-agent "write commit message"
 `);
 }
 
@@ -83,6 +126,36 @@ async function runPipeMode(prompt: string): Promise<void> {
   }
 
   const fullPrompt = `${prompt}\n\n---\n\n${input}`;
+
+  try {
+    const response = await processMessage(fullPrompt);
+    console.log(response.content);
+  } catch (error) {
+    console.error('Error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
+
+// =============================================================================
+// File Mode
+// =============================================================================
+
+async function runFileMode(files: string[], prompt: string): Promise<void> {
+  const fileContents: string[] = [];
+
+  for (const file of files) {
+    const result = readFileContent(file);
+
+    if (result.error) {
+      console.error(result.error);
+      process.exit(1);
+    }
+
+    const fileName = path.basename(file);
+    fileContents.push(`=== ${fileName} ===\n${result.content}`);
+  }
+
+  const fullPrompt = `${prompt}\n\n---\n\n${fileContents.join('\n\n')}`;
 
   try {
     const response = await processMessage(fullPrompt);
@@ -240,11 +313,19 @@ Chat Commands:
 // Main Entry Point
 // =============================================================================
 
-function parseArgs(): { command: string; port: number; prompt: string } {
+interface ParsedArgs {
+  command: string;
+  port: number;
+  prompt: string;
+  files: string[];
+}
+
+function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
-  let command = '';  // Empty = interactive mode (default)
+  let command = '';
   let port = 3001;
-  let prompt = 'Process this input:';
+  let prompt = 'Process this:';
+  const files: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -254,24 +335,34 @@ function parseArgs(): { command: string; port: number; prompt: string } {
     } else if (arg === 'server' || arg === 'help') {
       command = arg;
     } else if (!arg.startsWith('-')) {
-      // Treat as prompt for pipe mode
-      prompt = arg;
+      // Check if it's a file or prompt
+      if (fs.existsSync(arg)) {
+        files.push(arg);
+      } else {
+        // Last non-file argument is the prompt
+        prompt = arg;
+      }
     }
   }
 
-  return { command, port, prompt };
+  return { command, port, prompt, files };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt } = parseArgs();
+  const { command, port, prompt, files } = parseArgs();
 
-  // Check if stdin is piped (has data waiting)
-  // Note: isTTY is undefined when piped, true when terminal
-  const isPiped = process.stdin.isTTY === undefined && command === '';
+  // Check if stdin is piped
+  const isPiped = process.stdin.isTTY === undefined && command === '' && files.length === 0;
 
-  // Pipe mode: when stdin is piped and no explicit command
+  // Pipe mode
   if (isPiped) {
     await runPipeMode(prompt);
+    return;
+  }
+
+  // File mode
+  if (files.length > 0) {
+    await runFileMode(files, prompt);
     return;
   }
 
@@ -284,7 +375,6 @@ async function main(): Promise<void> {
       runServer(port);
       break;
     default:
-      // Default: interactive chat mode
       runChat();
       break;
   }
