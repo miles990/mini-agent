@@ -6,3 +6,5 @@ memory/
 sessions/
 .claude/
 output.md
+agent-compose.yaml
+.DS_Store
