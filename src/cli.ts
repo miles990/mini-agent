@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Mini-Agent CLI
+ * Mini-Agent CLI (Docker-style)
  *
  * Modes:
  *   (default)       - Interactive chat (default instance)
@@ -8,15 +8,15 @@
  *   File mode       - mini-agent file.txt "prompt"
  *
  * Commands:
- *   list            - List all instances
- *   create          - Create a new instance
- *   attach <id>     - Attach to running instance
- *   start <id>      - Start an instance
- *   stop <id|--all> - Stop instance(s)
- *   restart <id>    - Restart an instance
- *   kill <id|--all> - Kill (delete) instance(s)
- *   status [id]     - Show instance status
- *   logs [type]     - Show logs
+ *   list              - List all instances
+ *   up [options]      - Create and start instance (attach by default, -d for detached)
+ *   down <id|--all>   - Stop instance(s)
+ *   attach <id>       - Attach to running instance
+ *   start <id>        - Start a stopped instance
+ *   restart <id>      - Restart an instance
+ *   kill <id|--all>   - Kill (delete) instance(s)
+ *   status [id]       - Show instance status
+ *   logs [type]       - Show logs
  */
 
 import readline from 'node:readline';
@@ -244,13 +244,16 @@ Examples:
 // Direct Commands (simplified from "instance" subcommands)
 // =============================================================================
 
-async function handleCreateCommand(args: string[]): Promise<void> {
+async function handleUpCommand(args: string[], port: number): Promise<void> {
   const manager = getInstanceManager();
   const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
+  let detached = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--name' && args[i + 1]) {
+    if (arg === '-d' || arg === '--detach') {
+      detached = true;
+    } else if (arg === '--name' && args[i + 1]) {
       options.name = args[++i];
     } else if (arg === '--role' && args[i + 1]) {
       options.role = args[++i] as 'master' | 'worker' | 'standalone';
@@ -267,11 +270,17 @@ async function handleCreateCommand(args: string[]): Promise<void> {
   console.log(`  Role: ${instance.role}`);
   console.log(`  Port: ${instance.port}`);
 
-  // 自動在背景啟動 API server
+  // 啟動 API server
   manager.start(instance.id);
   const status = manager.getStatus(instance.id);
   console.log(`  Status: 🟢 running (PID: ${status?.pid})`);
   console.log(`  API: http://localhost:${instance.port}`);
+
+  // 如果不是 detached 模式，自動 attach
+  if (!detached) {
+    console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
+    await runAttachedMode(instance.id, instance.port);
+  }
 }
 
 function handleListCommand(): void {
@@ -359,13 +368,13 @@ function handleStartCommand(instanceId: string): void {
   }
 }
 
-function handleStopCommand(args: string[]): void {
+function handleDownCommand(args: string[]): void {
   const manager = getInstanceManager();
   const hasAll = args.includes('--all');
   const instanceId = args.find(a => !a.startsWith('-'));
 
   if (!instanceId && !hasAll) {
-    console.error('Usage: mini-agent stop <id> | --all');
+    console.error('Usage: mini-agent down <id> | --all');
     process.exit(1);
   }
 
@@ -376,7 +385,7 @@ function handleStopCommand(args: string[]): void {
     for (const inst of instances) {
       if (inst.running) {
         manager.stop(inst.id);
-        console.log(`Stopped: ${inst.id}`);
+        console.log(`Down: ${inst.id}`);
         stopped++;
       }
     }
@@ -385,7 +394,7 @@ function handleStopCommand(args: string[]): void {
   }
 
   manager.stop(instanceId!);
-  console.log(`Stopped instance: ${instanceId}`);
+  console.log(`Down: ${instanceId}`);
 }
 
 function handleRestartCommand(instanceId: string): void {
@@ -472,16 +481,18 @@ Usage:
 
 Commands:
   mini-agent list                     List all instances
-  mini-agent create [options]         Create new instance (auto-starts)
+  mini-agent up [options]             Create & start instance (attach mode)
+  mini-agent up -d [options]          Create & start instance (detached)
+  mini-agent down <id|--all>          Stop instance(s)
   mini-agent attach <id>              Attach to running instance
-  mini-agent start <id>               Start an instance
-  mini-agent stop <id|--all>          Stop instance(s)
+  mini-agent start <id>               Start a stopped instance
   mini-agent restart <id>             Restart an instance
   mini-agent status [id]              Show instance status
   mini-agent kill <id|--all>          Kill (delete) instance(s)
   mini-agent logs [type]              Show logs
 
-Create Options:
+Up Options:
+  -d, --detach            Run in background (don't attach)
   --name <name>           Instance name
   --role <role>           Role: master, worker, standalone (default)
   --port <port>           Server port
@@ -496,9 +507,10 @@ Global Options:
   --data-dir <path>       Custom data directory
 
 Examples:
-  mini-agent                              # Interactive chat
-  mini-agent readme.md "summarize"        # Process file
-  mini-agent create --name "Research"     # Create instance
+  mini-agent                              # Interactive chat (default)
+  mini-agent up --name "Research"         # Create & attach
+  mini-agent up -d --name "Worker"        # Create in background
+  mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance
   mini-agent list                         # List all instances
   mini-agent logs claude --date 2026-02-05
@@ -1017,7 +1029,7 @@ Chat Commands:
 // =============================================================================
 
 // 直接命令列表（不需要 instance 前綴）
-const DIRECT_COMMANDS = ['list', 'create', 'attach', 'start', 'stop', 'restart', 'status', 'kill', 'logs', 'help'];
+const DIRECT_COMMANDS = ['list', 'up', 'attach', 'start', 'down', 'restart', 'status', 'kill', 'logs', 'help'];
 
 interface ParsedArgs {
   command: string;
@@ -1087,8 +1099,8 @@ async function main(): Promise<void> {
     case 'list':
       handleListCommand();
       return;
-    case 'create':
-      await handleCreateCommand(commandArgs);
+    case 'up':
+      await handleUpCommand(commandArgs, port);
       return;
     case 'attach':
       await handleAttachCommand(commandArgs[0]);
@@ -1096,8 +1108,8 @@ async function main(): Promise<void> {
     case 'start':
       handleStartCommand(commandArgs[0]);
       return;
-    case 'stop':
-      handleStopCommand(commandArgs);
+    case 'down':
+      handleDownCommand(commandArgs);
       return;
     case 'restart':
       handleRestartCommand(commandArgs[0]);
