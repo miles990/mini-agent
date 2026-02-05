@@ -4,7 +4,7 @@
 
 set -e
 
-REPO="https://github.com/user/mini-agent.git"
+REPO="https://github.com/miles990/mini-agent.git"
 INSTALL_DIR="$HOME/.mini-agent"
 
 echo "Installing mini-agent..."

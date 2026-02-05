@@ -33,7 +33,7 @@ Minimal Personal AI Agent with two core concepts:
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 ```
 
 ## Usage
@@ -47,7 +47,7 @@ mini-agent help         # Show help
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/uninstall.sh | bash
 ```
 
 ## Unix Pipe Mode

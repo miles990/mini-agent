@@ -36,7 +36,7 @@ Options:
   -p, --port <port>   Port for server (default: 3001)
 
 Install:
-  curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 
 Pipe Examples:
   echo "Hello" | mini-agent "translate to Chinese"
