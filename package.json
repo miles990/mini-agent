@@ -11,8 +11,7 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
-    "link": "pnpm build && npm link",
-    "unlink": "npm unlink -g mini-agent"
+    "setup": "pnpm install && pnpm build && npm link"
   },
   "dependencies": {
     "express": "^4.18.2",

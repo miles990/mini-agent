@@ -36,8 +36,7 @@ Options:
   -p, --port <port>   Port for server (default: 3001)
 
 Installation:
-  pnpm link       Install globally
-  pnpm unlink     Remove installation
+  pnpm setup      One-click install
 
 Pipe Examples:
   echo "Hello" | mini-agent "translate to Chinese"
