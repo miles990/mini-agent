@@ -28,12 +28,21 @@ const TEXT_EXTENSIONS = new Set([
   '.sql', '.graphql', '.vue', '.svelte', '.astro', '.csv', '.log', '.env',
 ]);
 
+const IMAGE_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg',
+]);
+
 function isTextFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   return TEXT_EXTENSIONS.has(ext);
 }
 
-function readFileContent(filePath: string): { content: string; type: 'text' | 'binary'; error?: string } {
+function isImageFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+function readFileContent(filePath: string): { content: string; type: 'text' | 'image' | 'binary'; error?: string } {
   try {
     const resolved = path.resolve(filePath);
     if (!fs.existsSync(resolved)) {
@@ -48,8 +57,11 @@ function readFileContent(filePath: string): { content: string; type: 'text' | 'b
     if (isTextFile(filePath)) {
       const content = fs.readFileSync(resolved, 'utf-8');
       return { content, type: 'text' };
+    } else if (isImageFile(filePath)) {
+      // For images, return the absolute path - Claude will read it directly
+      return { content: resolved, type: 'image' };
     } else {
-      return { content: '', type: 'binary', error: `Binary file not supported in CLI mode: ${filePath}\nUse: claude (interactive mode) for images` };
+      return { content: '', type: 'binary', error: `Unsupported file type: ${filePath}` };
     }
   } catch (err) {
     return { content: '', type: 'text', error: `Error reading file: ${err}` };
@@ -141,7 +153,8 @@ async function runPipeMode(prompt: string): Promise<void> {
 // =============================================================================
 
 async function runFileMode(files: string[], prompt: string): Promise<void> {
-  const fileContents: string[] = [];
+  const textContents: string[] = [];
+  const imagePaths: string[] = [];
 
   for (const file of files) {
     const result = readFileContent(file);
@@ -152,10 +165,23 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
     }
 
     const fileName = path.basename(file);
-    fileContents.push(`=== ${fileName} ===\n${result.content}`);
+    if (result.type === 'image') {
+      // For images, collect the absolute path
+      imagePaths.push(`[Image: ${fileName}]: ${result.content}`);
+    } else {
+      // For text files, include the content
+      textContents.push(`=== ${fileName} ===\n${result.content}`);
+    }
   }
 
-  const fullPrompt = `${prompt}\n\n---\n\n${fileContents.join('\n\n')}`;
+  // Build prompt with text content and image references
+  let fullPrompt = prompt;
+  if (textContents.length > 0) {
+    fullPrompt += `\n\n---\n\n${textContents.join('\n\n')}`;
+  }
+  if (imagePaths.length > 0) {
+    fullPrompt += `\n\n---\n\nImages:\n${imagePaths.join('\n')}`;
+  }
 
   try {
     const response = await processMessage(fullPrompt);

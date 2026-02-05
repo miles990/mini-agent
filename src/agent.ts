@@ -41,7 +41,7 @@ async function callClaude(prompt: string, context: string): Promise<string> {
   fs.writeFileSync(tmpFile, fullPrompt, 'utf-8');
 
   try {
-    const result = execSync(`cat "${tmpFile}" | claude -p`, {
+    const result = execSync(`cat "${tmpFile}" | claude -p --dangerously-skip-permissions`, {
       encoding: 'utf-8',
       timeout: 120000,
       maxBuffer: 10 * 1024 * 1024, // 10MB
