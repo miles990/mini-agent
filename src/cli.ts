@@ -3,16 +3,19 @@
  * Mini-Agent CLI
  *
  * Modes:
- *   (default)       - Interactive chat
- *   server          - HTTP API server
+ *   (default)       - Interactive chat (default instance)
  *   Pipe mode       - echo "..." | mini-agent "prompt"
  *   File mode       - mini-agent file.txt "prompt"
  *
- * Instance Management:
- *   instance create - Create a new instance
- *   instance list   - List all instances
- *   instance delete - Delete an instance
- *   instance start  - Start an instance server
+ * Commands:
+ *   list            - List all instances
+ *   create          - Create a new instance
+ *   attach <id>     - Attach to running instance
+ *   start <id>      - Start an instance
+ *   stop <id>       - Stop an instance
+ *   delete <id>     - Delete an instance
+ *   status [id]     - Show instance status
+ *   logs [type]     - Show logs
  */
 
 import readline from 'node:readline';
@@ -236,189 +239,182 @@ Examples:
 // Instance Commands
 // =============================================================================
 
-async function handleInstanceCommand(args: string[]): Promise<void> {
-  const subCommand = args[0];
+// =============================================================================
+// Direct Commands (simplified from "instance" subcommands)
+// =============================================================================
+
+async function handleCreateCommand(args: string[]): Promise<void> {
+  const manager = getInstanceManager();
+  const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--name' && args[i + 1]) {
+      options.name = args[++i];
+    } else if (arg === '--role' && args[i + 1]) {
+      options.role = args[++i] as 'master' | 'worker' | 'standalone';
+    } else if (arg === '--port' && args[i + 1]) {
+      options.port = parseInt(args[++i], 10);
+    } else if (arg === '--persona' && args[i + 1]) {
+      options.persona = args[++i];
+    }
+  }
+
+  const instance = manager.create(options);
+  console.log(`Created instance: ${instance.id}`);
+  console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
+  console.log(`  Role: ${instance.role}`);
+  console.log(`  Port: ${instance.port}`);
+
+  // 自動在背景啟動 API server
+  manager.start(instance.id);
+  const status = manager.getStatus(instance.id);
+  console.log(`  Status: 🟢 running (PID: ${status?.pid})`);
+  console.log(`  API: http://localhost:${instance.port}`);
+}
+
+function handleListCommand(): void {
+  const manager = getInstanceManager();
+  const instances = manager.listStatus();
+
+  if (instances.length === 0) {
+    console.log('No instances found');
+    return;
+  }
+
+  console.log('Instances:');
+  console.log('');
+  console.log('ID        Name              Role        Port   Status');
+  console.log('--------  ----------------  ----------  -----  ------');
+
+  for (const inst of instances) {
+    const name = (inst.name ?? '(unnamed)').padEnd(16).substring(0, 16);
+    const role = inst.role.padEnd(10);
+    const port = String(inst.port).padEnd(5);
+    const status = inst.running ? '🟢 running' : '⚪ stopped';
+    console.log(`${inst.id.padEnd(8)}  ${name}  ${role}  ${port}  ${status}`);
+  }
+}
+
+function handleDeleteCommand(instanceId: string): void {
+  if (!instanceId) {
+    console.error('Usage: mini-agent delete <id>');
+    process.exit(1);
+  }
+
   const manager = getInstanceManager();
 
-  switch (subCommand) {
-    case 'create': {
-      const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
-
-      for (let i = 1; i < args.length; i++) {
-        const arg = args[i];
-        if (arg === '--name' && args[i + 1]) {
-          options.name = args[++i];
-        } else if (arg === '--role' && args[i + 1]) {
-          options.role = args[++i] as 'master' | 'worker' | 'standalone';
-        } else if (arg === '--port' && args[i + 1]) {
-          options.port = parseInt(args[++i], 10);
-        } else if (arg === '--persona' && args[i + 1]) {
-          options.persona = args[++i];
-        }
-      }
-
-      const instance = manager.create(options);
-      console.log(`Created instance: ${instance.id}`);
-      console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
-      console.log(`  Role: ${instance.role}`);
-      console.log(`  Port: ${instance.port}`);
-
-      // 自動在背景啟動 API server
-      manager.start(instance.id);
-      const status = manager.getStatus(instance.id);
-      console.log(`  Status: 🟢 running (PID: ${status?.pid})`);
-      console.log(`  API: http://localhost:${instance.port}`);
-      break;
+  try {
+    const deleted = manager.delete(instanceId);
+    if (deleted) {
+      console.log(`Deleted instance: ${instanceId}`);
+    } else {
+      console.error(`Instance not found: ${instanceId}`);
+      process.exit(1);
     }
-
-    case 'list': {
-      const instances = manager.listStatus();
-      if (instances.length === 0) {
-        console.log('No instances found');
-        return;
-      }
-
-      console.log('Instances:');
-      console.log('');
-      console.log('ID        Name              Role        Port   Status');
-      console.log('--------  ----------------  ----------  -----  ------');
-
-      for (const inst of instances) {
-        const name = (inst.name ?? '(unnamed)').padEnd(16).substring(0, 16);
-        const role = inst.role.padEnd(10);
-        const port = String(inst.port).padEnd(5);
-        const status = inst.running ? '🟢 running' : '⚪ stopped';
-        console.log(`${inst.id.padEnd(8)}  ${name}  ${role}  ${port}  ${status}`);
-      }
-      break;
-    }
-
-    case 'delete': {
-      const instanceId = args[1];
-      if (!instanceId) {
-        console.error('Usage: mini-agent instance delete <id>');
-        process.exit(1);
-      }
-
-      try {
-        const deleted = manager.delete(instanceId);
-        if (deleted) {
-          console.log(`Deleted instance: ${instanceId}`);
-        } else {
-          console.error(`Instance not found: ${instanceId}`);
-          process.exit(1);
-        }
-      } catch (err) {
-        console.error(err instanceof Error ? err.message : err);
-        process.exit(1);
-      }
-      break;
-    }
-
-    case 'start': {
-      const instanceId = args[1];
-      if (!instanceId) {
-        console.error('Usage: mini-agent instance start <id>');
-        process.exit(1);
-      }
-
-      try {
-        manager.start(instanceId);
-        const status = manager.getStatus(instanceId);
-        console.log(`Started instance: ${instanceId}`);
-        console.log(`  Port: ${status?.port}`);
-        console.log(`  PID: ${status?.pid}`);
-      } catch (err) {
-        console.error(err instanceof Error ? err.message : err);
-        process.exit(1);
-      }
-      break;
-    }
-
-    case 'stop': {
-      const instanceId = args[1];
-      if (!instanceId) {
-        console.error('Usage: mini-agent instance stop <id>');
-        process.exit(1);
-      }
-
-      manager.stop(instanceId);
-      console.log(`Stopped instance: ${instanceId}`);
-      break;
-    }
-
-    case 'status': {
-      const instanceId = args[1];
-      if (!instanceId) {
-        console.error('Usage: mini-agent instance status <id>');
-        process.exit(1);
-      }
-
-      const status = manager.getStatus(instanceId);
-      if (!status) {
-        console.error(`Instance not found: ${instanceId}`);
-        process.exit(1);
-      }
-
-      console.log(`Instance: ${status.id}`);
-      console.log(`  Name: ${status.name ?? '(unnamed)'}`);
-      console.log(`  Role: ${status.role}`);
-      console.log(`  Port: ${status.port}`);
-      console.log(`  Status: ${status.running ? '🟢 running' : '⚪ stopped'}`);
-      if (status.pid) {
-        console.log(`  PID: ${status.pid}`);
-      }
-      break;
-    }
-
-    case 'attach': {
-      const instanceId = args[1];
-      if (!instanceId) {
-        console.error('Usage: mini-agent instance attach <id>');
-        process.exit(1);
-      }
-
-      const status = manager.getStatus(instanceId);
-      if (!status) {
-        console.error(`Instance not found: ${instanceId}`);
-        process.exit(1);
-      }
-
-      if (!status.running) {
-        console.error(`Instance not running: ${instanceId}`);
-        console.error('Start it first: mini-agent instance start ' + instanceId);
-        process.exit(1);
-      }
-
-      await runAttachedMode(instanceId, status.port);
-      break;
-    }
-
-    default:
-      console.log(`
-Instance Management:
-
-Commands:
-  mini-agent instance create [options]  Create new instance (auto-starts)
-  mini-agent instance list              List all instances
-  mini-agent instance attach <id>       Attach to running instance
-  mini-agent instance start <id>        Start an instance
-  mini-agent instance stop <id>         Stop an instance
-  mini-agent instance status <id>       Show instance status
-  mini-agent instance delete <id>       Delete an instance
-
-Create Options:
-  --name <name>     Instance name
-  --role <role>     Role: master, worker, standalone (default)
-  --port <port>     Server port
-  --persona <desc>  Persona description
-
-Examples:
-  mini-agent instance create --name "Research" --port 3002
-  mini-agent instance attach abc12345
-  mini-agent instance list
-`);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
   }
+}
+
+function handleStartCommand(instanceId: string): void {
+  if (!instanceId) {
+    console.error('Usage: mini-agent start <id>');
+    process.exit(1);
+  }
+
+  const manager = getInstanceManager();
+
+  try {
+    manager.start(instanceId);
+    const status = manager.getStatus(instanceId);
+    console.log(`Started instance: ${instanceId}`);
+    console.log(`  Port: ${status?.port}`);
+    console.log(`  PID: ${status?.pid}`);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+}
+
+function handleStopCommand(instanceId: string): void {
+  if (!instanceId) {
+    console.error('Usage: mini-agent stop <id>');
+    process.exit(1);
+  }
+
+  const manager = getInstanceManager();
+  manager.stop(instanceId);
+  console.log(`Stopped instance: ${instanceId}`);
+}
+
+function handleRestartCommand(instanceId: string): void {
+  if (!instanceId) {
+    console.error('Usage: mini-agent restart <id>');
+    process.exit(1);
+  }
+
+  const manager = getInstanceManager();
+
+  try {
+    manager.restart(instanceId);
+    const status = manager.getStatus(instanceId);
+    console.log(`Restarted instance: ${instanceId}`);
+    console.log(`  Port: ${status?.port}`);
+    console.log(`  PID: ${status?.pid}`);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+}
+
+function handleStatusCommand(instanceId?: string): void {
+  const manager = getInstanceManager();
+
+  // 如果沒指定 ID，顯示所有實例狀態
+  if (!instanceId) {
+    handleListCommand();
+    return;
+  }
+
+  const status = manager.getStatus(instanceId);
+  if (!status) {
+    console.error(`Instance not found: ${instanceId}`);
+    process.exit(1);
+  }
+
+  console.log(`Instance: ${status.id}`);
+  console.log(`  Name: ${status.name ?? '(unnamed)'}`);
+  console.log(`  Role: ${status.role}`);
+  console.log(`  Port: ${status.port}`);
+  console.log(`  Status: ${status.running ? '🟢 running' : '⚪ stopped'}`);
+  if (status.pid) {
+    console.log(`  PID: ${status.pid}`);
+  }
+}
+
+async function handleAttachCommand(instanceId: string): Promise<void> {
+  if (!instanceId) {
+    console.error('Usage: mini-agent attach <id>');
+    process.exit(1);
+  }
+
+  const manager = getInstanceManager();
+  const status = manager.getStatus(instanceId);
+
+  if (!status) {
+    console.error(`Instance not found: ${instanceId}`);
+    process.exit(1);
+  }
+
+  if (!status.running) {
+    console.error(`Instance not running: ${instanceId}`);
+    console.error('Start it first: mini-agent start ' + instanceId);
+    process.exit(1);
+  }
+
+  await runAttachedMode(instanceId, status.port);
 }
 
 // =============================================================================
@@ -430,72 +426,47 @@ function showHelp(): void {
 Mini-Agent - Personal AI with Memory + Proactivity
 
 Usage:
-  mini-agent                          Interactive chat (default)
+  mini-agent                          Interactive chat (default instance)
   mini-agent <file> "prompt"          Process a file
   mini-agent <file1> <file2> "prompt" Process multiple files
-  mini-agent server [--port]          Start HTTP API server
   echo "..." | mini-agent "prompt"    Pipe mode
 
-Instance Management:
-  mini-agent instance create [options]  Create new instance (auto-starts)
-  mini-agent instance list              List all instances
-  mini-agent instance attach <id>       Attach to running instance
-  mini-agent instance start <id>        Start an instance
-  mini-agent instance stop <id>         Stop an instance
-  mini-agent instance delete <id>       Delete an instance
+Commands:
+  mini-agent list                     List all instances
+  mini-agent create [options]         Create new instance (auto-starts)
+  mini-agent attach <id>              Attach to running instance
+  mini-agent start <id>               Start an instance
+  mini-agent stop <id>                Stop an instance
+  mini-agent restart <id>             Restart an instance
+  mini-agent status [id]              Show instance status
+  mini-agent delete <id>              Delete an instance
+  mini-agent logs [type]              Show logs
 
-Logs Management:
-  mini-agent logs                       Show log statistics
-  mini-agent logs claude                Claude operation logs
-  mini-agent logs errors                Error logs
-  mini-agent logs proactive             Proactive system logs
-  mini-agent logs api                   API request logs
+Create Options:
+  --name <name>           Instance name
+  --role <role>           Role: master, worker, standalone (default)
+  --port <port>           Server port
+  --persona <desc>        Persona description
 
-Options:
-  -p, --port <port>       Port for server (default: 3001)
+Logs Options:
+  --date <YYYY-MM-DD>     Filter by date
+  --limit <n>             Limit results (default: 20)
+
+Global Options:
   -i, --instance <id>     Use specific instance
   --data-dir <path>       Custom data directory
-  --date <YYYY-MM-DD>     Filter logs by date
-  --limit <n>             Limit log results
 
 Examples:
-  mini-agent readme.md "summarize"
-  mini-agent src/app.ts "review this code"
-  mini-agent --instance abc123 "hello"
-  mini-agent instance create --name "Assistant" --port 3002
+  mini-agent                              # Interactive chat
+  mini-agent readme.md "summarize"        # Process file
+  mini-agent create --name "Research"     # Create instance
+  mini-agent attach abc12345              # Attach to instance
+  mini-agent list                         # List all instances
   mini-agent logs claude --date 2026-02-05
   echo "Hello" | mini-agent "translate to Chinese"
-
-Install:
-  curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 `);
 }
 
-async function runServer(port: number): Promise<void> {
-  const app = createApi(port);
-  const config = await getConfig();
-  const instanceId = getCurrentInstanceId();
-
-  app.listen(port, () => {
-    console.log(`Mini-Agent API server running on http://localhost:${port}`);
-    console.log(`Instance: ${instanceId}`);
-
-    startProactive({ schedule: config.proactiveSchedule });
-    console.log(`\n[Proactive] Auto-started with schedule: ${config.proactiveSchedule}`);
-    console.log('\nEndpoints:');
-    console.log('  GET  /api/instance      - Current instance info');
-    console.log('  GET  /api/instances     - List all instances');
-    console.log('  POST /chat              - Send a message');
-    console.log('  GET  /memory            - Read long-term memory');
-    console.log('  GET  /memory/search?q=  - Search memory');
-    console.log('  POST /memory            - Add to memory');
-    console.log('  GET  /heartbeat         - Read HEARTBEAT.md');
-    console.log('  POST /heartbeat/trigger - Trigger heartbeat');
-    console.log('  POST /proactive/start   - Start proactive mode');
-    console.log('  POST /proactive/stop    - Stop proactive mode');
-    console.log('\nPress Ctrl+C to stop');
-  });
-}
 
 // =============================================================================
 // Pipe Mode
@@ -1006,6 +977,9 @@ Chat Commands:
 // Main Entry Point
 // =============================================================================
 
+// 直接命令列表（不需要 instance 前綴）
+const DIRECT_COMMANDS = ['list', 'create', 'attach', 'start', 'stop', 'restart', 'status', 'delete', 'logs', 'help'];
+
 interface ParsedArgs {
   command: string;
   port: number;
@@ -1014,8 +988,7 @@ interface ParsedArgs {
   hasExplicitPrompt: boolean;
   instanceId: string;
   dataDir?: string;
-  instanceArgs: string[];
-  logsArgs: string[];
+  commandArgs: string[];
 }
 
 function parseArgs(): ParsedArgs {
@@ -1027,8 +1000,7 @@ function parseArgs(): ParsedArgs {
   let instanceId = 'default';
   let dataDir: string | undefined;
   const files: string[] = [];
-  const instanceArgs: string[] = [];
-  const logsArgs: string[] = [];
+  const commandArgs: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -1039,17 +1011,10 @@ function parseArgs(): ParsedArgs {
       instanceId = args[++i] || 'default';
     } else if (arg === '--data-dir') {
       dataDir = args[++i];
-    } else if (arg === 'server' || arg === 'help') {
+    } else if (DIRECT_COMMANDS.includes(arg) && command === '') {
       command = arg;
-    } else if (arg === 'instance') {
-      command = 'instance';
-      // 收集 instance 子命令的所有參數
-      instanceArgs.push(...args.slice(i + 1));
-      break;
-    } else if (arg === 'logs') {
-      command = 'logs';
-      // 收集 logs 子命令的所有參數
-      logsArgs.push(...args.slice(i + 1));
+      // 收集命令的所有後續參數
+      commandArgs.push(...args.slice(i + 1));
       break;
     } else if (!arg.startsWith('-')) {
       if (fs.existsSync(arg)) {
@@ -1061,11 +1026,11 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs, logsArgs };
+  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs, logsArgs } = parseArgs();
+  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs } = parseArgs();
 
   // 設置資料目錄
   if (dataDir) {
@@ -1075,16 +1040,38 @@ async function main(): Promise<void> {
   // 設置當前實例
   setCurrentInstance(instanceId);
 
-  // Instance 命令
-  if (command === 'instance') {
-    await handleInstanceCommand(instanceArgs);
-    return;
-  }
-
-  // Logs 命令
-  if (command === 'logs') {
-    await handleLogsCommand(logsArgs);
-    return;
+  // 直接命令
+  switch (command) {
+    case 'help':
+      showHelp();
+      return;
+    case 'list':
+      handleListCommand();
+      return;
+    case 'create':
+      await handleCreateCommand(commandArgs);
+      return;
+    case 'attach':
+      await handleAttachCommand(commandArgs[0]);
+      return;
+    case 'start':
+      handleStartCommand(commandArgs[0]);
+      return;
+    case 'stop':
+      handleStopCommand(commandArgs[0]);
+      return;
+    case 'restart':
+      handleRestartCommand(commandArgs[0]);
+      return;
+    case 'status':
+      handleStatusCommand(commandArgs[0]);
+      return;
+    case 'delete':
+      handleDeleteCommand(commandArgs[0]);
+      return;
+    case 'logs':
+      await handleLogsCommand(commandArgs);
+      return;
   }
 
   // 檢查是否為管道輸入
@@ -1108,18 +1095,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Execute command
-  switch (command) {
-    case 'help':
-      showHelp();
-      break;
-    case 'server':
-      await runServer(port);
-      break;
-    default:
-      await runChat(port);
-      break;
-  }
+  // Default: Interactive chat mode
+  await runChat(port);
 }
 
 main().catch((error) => {

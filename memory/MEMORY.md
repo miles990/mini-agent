@@ -16,3 +16,6 @@ This file stores persistent knowledge that the agent should remember across sess
 - [2026-02-05] API 測試新增的記憶
 
 <!-- Add important decisions here -->
+
+## test
+- [2026-02-05] API 測試記憶

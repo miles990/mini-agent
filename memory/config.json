@@ -1,0 +1,8 @@
+{
+  "proactiveSchedule": "*/30 * * * *",
+  "proactiveAutoStart": false,
+  "model": "default",
+  "outputDir": ".",
+  "maxSearchResults": 15,
+  "claudeTimeout": 120000
+}
