@@ -16,6 +16,7 @@ import { processMessage } from './agent.js';
 import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import { searchMemory, readHeartbeat, appendMemory } from './memory.js';
 import { createApi } from './api.js';
+import { getConfig, updateConfig, resetConfig } from './config.js';
 
 // =============================================================================
 // File Utilities
@@ -100,10 +101,18 @@ Install:
 `);
 }
 
-function runServer(port: number): void {
+async function runServer(port: number): Promise<void> {
   const app = createApi(port);
+
+  // Get config and auto-start proactive
+  const config = await getConfig();
+
   app.listen(port, () => {
     console.log(`Mini-Agent API server running on http://localhost:${port}`);
+
+    // Auto-start proactive mode
+    startProactive({ schedule: config.proactiveSchedule });
+    console.log(`\n[Proactive] Auto-started with schedule: ${config.proactiveSchedule}`);
     console.log('\nEndpoints:');
     console.log('  POST /chat              - Send a message');
     console.log('  GET  /memory            - Read long-term memory');
@@ -291,6 +300,9 @@ Chat Commands:
   /remember <text>- Add to memory
   /proactive on   - Start proactive mode
   /proactive off  - Stop proactive mode
+  /config         - Show current config
+  /config set <key> <value> - Update config
+  /config reset   - Reset to defaults
   /quit           - Exit
 `);
       break;
@@ -346,6 +358,42 @@ Chat Commands:
         console.log('Usage: /proactive on|off');
       }
       break;
+
+    case 'config': {
+      const subCmd = args[0];
+      const key = args[1];
+      const value = args.slice(2).join(' ');
+
+      if (!subCmd || subCmd === 'show') {
+        // Show current config
+        const config = await getConfig();
+        console.log('\nCurrent Configuration:');
+        for (const [k, v] of Object.entries(config)) {
+          console.log(`  ${k}: ${JSON.stringify(v)}`);
+        }
+      } else if (subCmd === 'set' && key) {
+        // Set a config value
+        let parsedValue: unknown = value;
+        // Try to parse as JSON for booleans/numbers
+        try {
+          parsedValue = JSON.parse(value);
+        } catch {
+          // Keep as string
+        }
+        const config = await updateConfig({ [key]: parsedValue });
+        console.log(`Set ${key} = ${JSON.stringify(parsedValue)}`);
+      } else if (subCmd === 'reset') {
+        const config = await resetConfig();
+        console.log('Configuration reset to defaults');
+      } else {
+        console.log('Usage:');
+        console.log('  /config           - Show current config');
+        console.log('  /config show      - Show current config');
+        console.log('  /config set <key> <value> - Set a config value');
+        console.log('  /config reset     - Reset to defaults');
+      }
+      break;
+    }
 
     case 'quit':
     case 'exit':

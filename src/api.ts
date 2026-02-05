@@ -16,6 +16,7 @@ import {
   buildContext,
   addTask,
 } from './memory.js';
+import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
 
 export function createApi(port = 3001): express.Express {
   const app = express();
@@ -117,15 +118,39 @@ export function createApi(port = 3001): express.Express {
   });
 
   // Proactive control
-  app.post('/proactive/start', (req: Request, res: Response) => {
-    const { schedule } = req.body;
+  app.post('/proactive/start', async (req: Request, res: Response) => {
+    const config = await getConfig();
+    const schedule = req.body.schedule ?? config.proactiveSchedule;
     startProactive({ schedule });
-    res.json({ success: true, schedule: schedule ?? '*/30 * * * *' });
+    res.json({ success: true, schedule });
   });
 
   app.post('/proactive/stop', (_req: Request, res: Response) => {
     stopProactive();
     res.json({ success: true });
+  });
+
+  // Config endpoints
+  app.get('/config', async (_req: Request, res: Response) => {
+    const config = await getConfig();
+    res.json({ config, defaults: DEFAULT_CONFIG });
+  });
+
+  app.put('/config', async (req: Request, res: Response) => {
+    const updates = req.body;
+
+    if (!updates || typeof updates !== 'object') {
+      res.status(400).json({ error: 'Invalid config object' });
+      return;
+    }
+
+    const config = await updateConfig(updates);
+    res.json({ success: true, config });
+  });
+
+  app.post('/config/reset', async (_req: Request, res: Response) => {
+    const config = await resetConfig();
+    res.json({ success: true, config });
   });
 
   return app;
@@ -149,5 +174,8 @@ if (isMain) {
     console.log('  POST /heartbeat/trigger - Trigger heartbeat');
     console.log('  POST /proactive/start - Start proactive mode');
     console.log('  POST /proactive/stop  - Stop proactive mode');
+    console.log('  GET  /config          - Get configuration');
+    console.log('  PUT  /config          - Update configuration');
+    console.log('  POST /config/reset    - Reset to defaults');
   });
 }
