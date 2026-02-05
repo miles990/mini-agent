@@ -193,6 +193,24 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
 }
 
 // =============================================================================
+// Prompt Mode (single prompt without file)
+// =============================================================================
+
+async function runPromptMode(prompt: string): Promise<void> {
+  try {
+    const response = await processMessage(prompt);
+    console.log(response.content);
+
+    if (response.shouldRemember) {
+      console.log(`\n[Remembered: ${response.shouldRemember}]`);
+    }
+  } catch (error) {
+    console.error('Error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
+
+// =============================================================================
 // Interactive Mode
 // =============================================================================
 
@@ -344,6 +362,7 @@ interface ParsedArgs {
   port: number;
   prompt: string;
   files: string[];
+  hasExplicitPrompt: boolean;
 }
 
 function parseArgs(): ParsedArgs {
@@ -351,6 +370,7 @@ function parseArgs(): ParsedArgs {
   let command = '';
   let port = 3001;
   let prompt = 'Process this:';
+  let hasExplicitPrompt = false;
   const files: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -367,18 +387,19 @@ function parseArgs(): ParsedArgs {
       } else {
         // Last non-file argument is the prompt
         prompt = arg;
+        hasExplicitPrompt = true;
       }
     }
   }
 
-  return { command, port, prompt, files };
+  return { command, port, prompt, files, hasExplicitPrompt };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt, files } = parseArgs();
+  const { command, port, prompt, files, hasExplicitPrompt } = parseArgs();
 
   // Check if stdin is piped
-  const isPiped = process.stdin.isTTY === undefined && command === '' && files.length === 0;
+  const isPiped = process.stdin.isTTY === undefined && command === '' && files.length === 0 && !hasExplicitPrompt;
 
   // Pipe mode
   if (isPiped) {
@@ -389,6 +410,12 @@ async function main(): Promise<void> {
   // File mode
   if (files.length > 0) {
     await runFileMode(files, prompt);
+    return;
+  }
+
+  // Prompt-only mode: mini-agent "do something"
+  if (hasExplicitPrompt && command === '') {
+    await runPromptMode(prompt);
     return;
   }
 
