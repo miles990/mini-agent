@@ -43,6 +43,7 @@ import {
   composeStatus,
   DEFAULT_COMPOSE_FILE,
 } from './compose.js';
+import { startCronTasks, stopCronTasks, getCronTaskCount } from './cron.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -886,12 +887,29 @@ async function runChat(port: number): Promise<void> {
   const config = await getConfig();
   const instanceId = getCurrentInstanceId();
 
+  // 讀取 compose 檔案中的 cron 任務
+  const composeFile = findComposeFile();
+  let cronCount = 0;
+  if (composeFile) {
+    const compose = readComposeFile(composeFile);
+    // 找到當前 instance 對應的 agent（用 name 或第一個）
+    const agents = Object.values(compose.agents);
+    const currentAgent = agents.find(a => a.name === instanceId) || agents[0];
+    if (currentAgent?.cron && currentAgent.cron.length > 0) {
+      startCronTasks(currentAgent.cron);
+      cronCount = getCronTaskCount();
+    }
+  }
+
   app.listen(port, () => {
     console.log(`Mini-Agent - Memory + Proactivity`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
     startProactive({ schedule: config.proactiveSchedule });
     console.log(`Proactive: ${config.proactiveSchedule}`);
+    if (cronCount > 0) {
+      console.log(`Cron: ${cronCount} task(s) active`);
+    }
     console.log('\nType /help for commands, or just chat.\n');
     prompt();
   });

@@ -171,6 +171,15 @@ export interface AgentResponse {
 // =============================================================================
 
 /**
+ * Cron 任務定義
+ */
+export interface CronTask {
+  schedule: string;
+  task: string;
+  enabled?: boolean;
+}
+
+/**
  * Compose 檔案中的 Agent 定義
  */
 export interface ComposeAgent {
@@ -185,6 +194,7 @@ export interface ComposeAgent {
   proactive?: {
     schedule?: string;
   };
+  cron?: CronTask[];
   depends_on?: string[];
 }
 
