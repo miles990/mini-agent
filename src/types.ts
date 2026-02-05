@@ -178,6 +178,10 @@ export interface ComposeAgent {
   port?: number;
   role?: InstanceRole;
   persona?: string;
+  paths?: {
+    memory?: string;
+    logs?: string;
+  };
   proactive?: {
     schedule?: string;
   };
