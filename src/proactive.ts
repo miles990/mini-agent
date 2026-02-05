@@ -6,6 +6,7 @@
 
 import cron from 'node-cron';
 import { runHeartbeat } from './agent.js';
+import { getLogger } from './logging.js';
 
 let heartbeatTask: cron.ScheduledTask | null = null;
 
@@ -21,6 +22,7 @@ export interface ProactiveConfig {
  */
 export function startProactive(config: ProactiveConfig = {}): void {
   const schedule = config.schedule ?? '*/30 * * * *'; // Every 30 minutes
+  const logger = getLogger();
 
   if (heartbeatTask) {
     heartbeatTask.stop();
@@ -28,6 +30,8 @@ export function startProactive(config: ProactiveConfig = {}): void {
 
   heartbeatTask = cron.schedule(schedule, async () => {
     console.log('[Proactive] Running heartbeat check...');
+    logger.logProactive('cron-trigger', undefined, schedule);
+
     const result = await runHeartbeat();
 
     if (result && config.onHeartbeat) {
@@ -41,6 +45,7 @@ export function startProactive(config: ProactiveConfig = {}): void {
     }
   });
 
+  logger.logProactive('start', `Started with schedule: ${schedule}`);
   console.log(`[Proactive] Started with schedule: ${schedule}`);
 }
 
@@ -51,6 +56,8 @@ export function stopProactive(): void {
   if (heartbeatTask) {
     heartbeatTask.stop();
     heartbeatTask = null;
+    const logger = getLogger();
+    logger.logProactive('stop', 'Proactive system stopped');
     console.log('[Proactive] Stopped');
   }
 }
@@ -59,6 +66,8 @@ export function stopProactive(): void {
  * Manually trigger heartbeat
  */
 export async function triggerHeartbeat(): Promise<string | null> {
+  const logger = getLogger();
+  logger.logProactive('manual-trigger', 'Manual heartbeat triggered');
   console.log('[Proactive] Manual heartbeat triggered');
   return runHeartbeat();
 }

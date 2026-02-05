@@ -25,6 +25,7 @@ import {
   listInstances,
   getCurrentInstanceId,
 } from './instance.js';
+import { getLogger, type LogType } from './logging.js';
 import type { CreateInstanceOptions, InstanceConfig } from './types.js';
 
 export function createApi(port = 3001): express.Express {
@@ -325,6 +326,88 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true, config });
   });
 
+  // =============================================================================
+  // Logs
+  // =============================================================================
+
+  // 取得日誌統計
+  app.get('/logs', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const stats = await logger.getStats(date);
+    const dates = await logger.getAvailableDates();
+    res.json({ stats, availableDates: dates });
+  });
+
+  // 查詢所有類型日誌
+  app.get('/logs/all', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.query({ date, limit });
+    res.json({ entries, count: entries.length });
+  });
+
+  // 查詢 Claude 操作日誌
+  app.get('/logs/claude', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.queryClaudeLogs(date, limit);
+    res.json({ entries, count: entries.length });
+  });
+
+  // 查詢特定日期的 Claude 日誌
+  app.get('/logs/claude/:date', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const { date } = req.params;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+
+    // 驗證日期格式
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+      return;
+    }
+
+    const entries = logger.queryClaudeLogs(date, limit);
+    res.json({ entries, count: entries.length, date });
+  });
+
+  // 查詢錯誤日誌
+  app.get('/logs/errors', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.queryErrorLogs(date, limit);
+    res.json({ entries, count: entries.length });
+  });
+
+  // 查詢 Proactive 系統日誌
+  app.get('/logs/proactive', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.queryProactiveLogs(date, limit);
+    res.json({ entries, count: entries.length });
+  });
+
+  // 查詢 API 請求日誌
+  app.get('/logs/api', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.queryApiLogs(date, limit);
+    res.json({ entries, count: entries.length });
+  });
+
+  // 取得可用的日誌日期
+  app.get('/logs/dates', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const type = req.query.type as LogType | undefined;
+    const dates = await logger.getAvailableDates(type);
+    res.json({ dates });
+  });
+
   return app;
 }
 
@@ -362,5 +445,15 @@ if (isMain) {
     console.log('  GET  /config            - Get configuration');
     console.log('  PUT  /config            - Update configuration');
     console.log('  POST /config/reset      - Reset to defaults');
+    console.log('');
+    console.log('Logs Endpoints:');
+    console.log('  GET  /logs              - Log stats and available dates');
+    console.log('  GET  /logs/all          - Query all logs');
+    console.log('  GET  /logs/claude       - Claude operation logs');
+    console.log('  GET  /logs/claude/:date - Claude logs for specific date');
+    console.log('  GET  /logs/errors       - Error logs');
+    console.log('  GET  /logs/proactive    - Proactive system logs');
+    console.log('  GET  /logs/api          - API request logs');
+    console.log('  GET  /logs/dates        - Available log dates');
   });
 }

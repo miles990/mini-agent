@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getMemory } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
+import { getLogger } from './logging.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -53,8 +54,12 @@ Instructions:
 /**
  * Call Claude Code via subprocess
  * Uses a temp file to pass the prompt (avoids shell escaping issues)
+ * Logs the full prompt and response
  */
-async function callClaude(prompt: string, context: string): Promise<string> {
+async function callClaude(
+  prompt: string,
+  context: string
+): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {
   const systemPrompt = getSystemPrompt();
   const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
 
@@ -62,13 +67,15 @@ async function callClaude(prompt: string, context: string): Promise<string> {
   const tmpFile = path.join(os.tmpdir(), `mini-agent-prompt-${Date.now()}.txt`);
   fs.writeFileSync(tmpFile, fullPrompt, 'utf-8');
 
+  const startTime = Date.now();
   try {
     const result = execSync(`cat "${tmpFile}" | claude -p --dangerously-skip-permissions`, {
       encoding: 'utf-8',
       timeout: 120000,
       maxBuffer: 10 * 1024 * 1024, // 10MB
     });
-    return result.trim();
+    const duration = Date.now() - startTime;
+    return { response: result.trim(), systemPrompt, fullPrompt, duration };
   } finally {
     // Clean up temp file
     try {
@@ -83,14 +90,28 @@ async function callClaude(prompt: string, context: string): Promise<string> {
  * Process a user message
  */
 export async function processMessage(userMessage: string): Promise<AgentResponse> {
-  // 使用當前實例的記憶系統
+  // 使用當前實例的記憶系統和日誌系統
   const memory = getMemory();
+  const logger = getLogger();
 
   // 1. Build context from memory
   const context = await memory.buildContext();
 
-  // 2. Call Claude
-  const response = await callClaude(userMessage, context);
+  // 2. Call Claude and log
+  let claudeResult: { response: string; systemPrompt: string; fullPrompt: string; duration: number };
+  let success = true;
+  let errorMsg: string | undefined;
+
+  try {
+    claudeResult = await callClaude(userMessage, context);
+  } catch (error) {
+    success = false;
+    errorMsg = error instanceof Error ? error.message : String(error);
+    logger.logError(error instanceof Error ? error : new Error(errorMsg), 'processMessage');
+    throw error;
+  }
+
+  const { response, systemPrompt, fullPrompt, duration } = claudeResult;
 
   // 3. Log to daily notes
   await memory.appendDailyNote(`User: ${userMessage.slice(0, 100)}...`);
@@ -124,6 +145,26 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
     .trim();
 
+  // 6. Log Claude call
+  logger.logClaudeCall(
+    {
+      userMessage,
+      systemPrompt,
+      context,
+      fullPrompt,
+    },
+    {
+      content: cleanContent,
+      shouldRemember,
+      taskAdded,
+    },
+    {
+      duration,
+      success,
+      error: errorMsg,
+    }
+  );
+
   return {
     content: cleanContent,
     shouldRemember,
@@ -136,10 +177,12 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
  */
 export async function runHeartbeat(): Promise<string | null> {
   const memory = getMemory();
+  const logger = getLogger();
   const context = await memory.buildContext();
 
   // Check if there are active tasks (look for unchecked checkboxes)
   if (!context.includes('- [ ]')) {
+    logger.logProactive('heartbeat', 'No active tasks', 'scheduled');
     return null; // No tasks to process
   }
 
@@ -152,10 +195,14 @@ Review the active tasks and:
 Keep response brief.`;
 
   try {
-    const response = await callClaude(prompt, context);
+    const { response, duration } = await callClaude(prompt, context);
     await memory.appendDailyNote(`[Heartbeat] ${response.slice(0, 100)}...`);
+    logger.logProactive('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
     return response;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.logError(error instanceof Error ? error : new Error(errorMsg), 'runHeartbeat');
+    logger.logProactive('heartbeat', undefined, 'scheduled', { success: false, error: errorMsg });
     console.error('Heartbeat error:', error);
     return null;
   }

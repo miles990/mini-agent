@@ -29,6 +29,7 @@ import {
   listInstances,
   getCurrentInstanceId,
 } from './instance.js';
+import { getLogger, type LogType, type LogEntry, type ClaudeLogEntry } from './logging.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -92,6 +93,142 @@ function readFileContent(filePath: string): { content: string; type: 'text' | 'i
     }
   } catch (err) {
     return { content: '', type: 'text', error: `Error reading file: ${err}` };
+  }
+}
+
+// =============================================================================
+// Logs Commands
+// =============================================================================
+
+async function handleLogsCommand(args: string[]): Promise<void> {
+  const logger = getLogger();
+  const subCommand = args[0] || 'stats';
+
+  // Parse options
+  let date: string | undefined;
+  let limit = 20;
+
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--date' && args[i + 1]) {
+      date = args[++i];
+    } else if (arg === '--limit' && args[i + 1]) {
+      limit = parseInt(args[++i], 10);
+    }
+  }
+
+  switch (subCommand) {
+    case 'stats': {
+      const stats = await logger.getStats(date);
+      const dates = await logger.getAvailableDates();
+      console.log('\nLog Statistics:');
+      console.log(`  Date: ${stats.date}`);
+      console.log(`  Claude calls: ${stats.claude}`);
+      console.log(`  API requests: ${stats.api}`);
+      console.log(`  Proactive: ${stats.proactive}`);
+      console.log(`  Errors: ${stats.error}`);
+      console.log(`  Total: ${stats.total}`);
+      console.log('\nAvailable dates:');
+      for (const d of dates.slice(0, 10)) {
+        console.log(`  ${d}`);
+      }
+      break;
+    }
+
+    case 'claude': {
+      const entries = logger.queryClaudeLogs(date, limit);
+      console.log(`\nClaude Logs (${entries.length} entries):\n`);
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const input = (entry as ClaudeLogEntry).data.input.userMessage.slice(0, 50);
+        const output = (entry as ClaudeLogEntry).data.output.content.slice(0, 50);
+        const duration = entry.metadata.duration ?? 0;
+        console.log(`[${time}] (${duration}ms)`);
+        console.log(`  In:  ${input}...`);
+        console.log(`  Out: ${output}...`);
+        console.log('');
+      }
+      break;
+    }
+
+    case 'errors': {
+      const entries = logger.queryErrorLogs(date, limit);
+      console.log(`\nError Logs (${entries.length} entries):\n`);
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const error = entry.data.error as string;
+        const context = entry.data.context as string | undefined;
+        console.log(`[${time}] ${error}`);
+        if (context) {
+          console.log(`  Context: ${context}`);
+        }
+        console.log('');
+      }
+      break;
+    }
+
+    case 'proactive': {
+      const entries = logger.queryProactiveLogs(date, limit);
+      console.log(`\nProactive Logs (${entries.length} entries):\n`);
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const action = entry.data.action as string;
+        const result = entry.data.result as string | undefined;
+        console.log(`[${time}] ${action}`);
+        if (result) {
+          console.log(`  Result: ${result.slice(0, 100)}...`);
+        }
+        console.log('');
+      }
+      break;
+    }
+
+    case 'api': {
+      const entries = logger.queryApiLogs(date, limit);
+      console.log(`\nAPI Logs (${entries.length} entries):\n`);
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const req = entry.data.request as { method: string; path: string };
+        const res = entry.data.response as { status: number };
+        const duration = entry.metadata.duration ?? 0;
+        console.log(`[${time}] ${req.method} ${req.path} → ${res.status} (${duration}ms)`);
+      }
+      break;
+    }
+
+    case 'all': {
+      const entries = logger.query({ date, limit });
+      console.log(`\nAll Logs (${entries.length} entries):\n`);
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const type = entry.type.padEnd(12);
+        const success = entry.metadata.success ? '✓' : '✗';
+        console.log(`[${time}] ${type} ${success}`);
+      }
+      break;
+    }
+
+    default:
+      console.log(`
+Logs Management:
+
+Commands:
+  mini-agent logs                     Show log statistics
+  mini-agent logs stats               Show log statistics
+  mini-agent logs claude              Show Claude operation logs
+  mini-agent logs errors              Show error logs
+  mini-agent logs proactive           Show proactive system logs
+  mini-agent logs api                 Show API request logs
+  mini-agent logs all                 Show all logs
+
+Options:
+  --date <YYYY-MM-DD>    Filter by date
+  --limit <n>            Limit results (default: 20)
+
+Examples:
+  mini-agent logs claude --date 2026-02-05
+  mini-agent logs errors --limit 10
+`);
   }
 }
 
@@ -275,16 +412,26 @@ Instance Management:
   mini-agent instance delete <id>       Delete an instance
   mini-agent instance start <id>        Start an instance server
 
+Logs Management:
+  mini-agent logs                       Show log statistics
+  mini-agent logs claude                Claude operation logs
+  mini-agent logs errors                Error logs
+  mini-agent logs proactive             Proactive system logs
+  mini-agent logs api                   API request logs
+
 Options:
   -p, --port <port>       Port for server (default: 3001)
   -i, --instance <id>     Use specific instance
   --data-dir <path>       Custom data directory
+  --date <YYYY-MM-DD>     Filter logs by date
+  --limit <n>             Limit log results
 
 Examples:
   mini-agent readme.md "summarize"
   mini-agent src/app.ts "review this code"
   mini-agent --instance abc123 "hello"
   mini-agent instance create --name "Assistant" --port 3002
+  mini-agent logs claude --date 2026-02-05
   echo "Hello" | mini-agent "translate to Chinese"
 
 Install:
@@ -496,6 +643,9 @@ Chat Commands:
   /config reset   - Reset to defaults
   /instance       - Show current instance
   /instances      - List all instances
+  /logs           - Show log statistics
+  /logs claude    - Show Claude operation logs
+  /logs errors    - Show error logs
   /quit           - Exit
 `);
       break;
@@ -606,6 +756,41 @@ Chat Commands:
       break;
     }
 
+    case 'logs': {
+      const logger = getLogger();
+      const subCmd = args[0];
+
+      if (!subCmd || subCmd === 'stats') {
+        const stats = await logger.getStats();
+        console.log('\nToday\'s Log Statistics:');
+        console.log(`  Claude calls: ${stats.claude}`);
+        console.log(`  API requests: ${stats.api}`);
+        console.log(`  Proactive: ${stats.proactive}`);
+        console.log(`  Errors: ${stats.error}`);
+        console.log(`  Total: ${stats.total}`);
+      } else if (subCmd === 'claude') {
+        const entries = logger.queryClaudeLogs(undefined, 10);
+        console.log(`\nRecent Claude Logs (${entries.length}):\n`);
+        for (const entry of entries) {
+          const time = entry.timestamp.split('T')[1].split('.')[0];
+          const input = (entry as ClaudeLogEntry).data.input.userMessage.slice(0, 40);
+          const duration = entry.metadata.duration ?? 0;
+          console.log(`[${time}] ${input}... (${duration}ms)`);
+        }
+      } else if (subCmd === 'errors') {
+        const entries = logger.queryErrorLogs(undefined, 10);
+        console.log(`\nRecent Errors (${entries.length}):\n`);
+        for (const entry of entries) {
+          const time = entry.timestamp.split('T')[1].split('.')[0];
+          const error = entry.data.error as string;
+          console.log(`[${time}] ${error}`);
+        }
+      } else {
+        console.log('Usage: /logs [stats|claude|errors]');
+      }
+      break;
+    }
+
     case 'quit':
     case 'exit':
       isClosing = true;
@@ -631,6 +816,7 @@ interface ParsedArgs {
   instanceId: string;
   dataDir?: string;
   instanceArgs: string[];
+  logsArgs: string[];
 }
 
 function parseArgs(): ParsedArgs {
@@ -643,6 +829,7 @@ function parseArgs(): ParsedArgs {
   let dataDir: string | undefined;
   const files: string[] = [];
   const instanceArgs: string[] = [];
+  const logsArgs: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -660,6 +847,11 @@ function parseArgs(): ParsedArgs {
       // 收集 instance 子命令的所有參數
       instanceArgs.push(...args.slice(i + 1));
       break;
+    } else if (arg === 'logs') {
+      command = 'logs';
+      // 收集 logs 子命令的所有參數
+      logsArgs.push(...args.slice(i + 1));
+      break;
     } else if (!arg.startsWith('-')) {
       if (fs.existsSync(arg)) {
         files.push(arg);
@@ -670,11 +862,11 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs };
+  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs, logsArgs };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs } = parseArgs();
+  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, instanceArgs, logsArgs } = parseArgs();
 
   // 設置資料目錄
   if (dataDir) {
@@ -687,6 +879,12 @@ async function main(): Promise<void> {
   // Instance 命令
   if (command === 'instance') {
     await handleInstanceCommand(instanceArgs);
+    return;
+  }
+
+  // Logs 命令
+  if (command === 'logs') {
+    await handleLogsCommand(logsArgs);
     return;
   }
 
