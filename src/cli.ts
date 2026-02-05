@@ -1228,8 +1228,8 @@ async function main(): Promise<void> {
       return;
   }
 
-  // 檢查是否為管道輸入
-  const isPiped = process.stdin.isTTY === undefined && command === '' && files.length === 0 && !hasExplicitPrompt;
+  // 檢查是否為管道輸入（stdin 不是 TTY 且有 prompt）
+  const isPiped = !process.stdin.isTTY && command === '' && files.length === 0 && hasExplicitPrompt;
 
   // Pipe mode
   if (isPiped) {
