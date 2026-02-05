@@ -44,6 +44,7 @@ import {
   DEFAULT_COMPOSE_FILE,
 } from './compose.js';
 import { startCronTasks, stopCronTasks, getCronTaskCount } from './cron.js';
+import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -911,12 +912,18 @@ async function runChat(port: number): Promise<void> {
     cronCount = getCronTaskCount();
   }
 
+  // 啟動熱重載 watcher
+  const watcherResult = startComposeWatcher(composeFile);
+
   app.listen(port, () => {
     console.log(`Mini-Agent - Memory + Cron`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
     if (cronCount > 0) {
       console.log(`Cron: ${cronCount} task(s) active`);
+    }
+    if (watcherResult.watching) {
+      console.log(`Hot reload: enabled`);
     }
     console.log('\nType /help for commands, or just chat.\n');
     prompt();

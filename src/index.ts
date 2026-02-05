@@ -55,6 +55,24 @@ export {
   type ProactiveConfig,
 } from './proactive.js';
 
+// Cron
+export {
+  startCronTasks,
+  stopCronTasks,
+  getActiveCronTasks,
+  getCronTaskCount,
+  addCronTask,
+  removeCronTask,
+  reloadCronTasks,
+} from './cron.js';
+
+// Watcher
+export {
+  startComposeWatcher,
+  stopComposeWatcher,
+  getWatcherStatus,
+} from './watcher.js';
+
 // Instance Management
 export {
   InstanceManager,

@@ -55,6 +55,16 @@ mini-agent up -d        # Start in background
 mini-agent help         # Show help
 ```
 
+## Hot Reload
+
+Mini-agent automatically watches `agent-compose.yaml` for changes. When you modify cron tasks, they are reloaded without restart:
+
+```bash
+# Edit agent-compose.yaml while running
+# Changes to cron tasks are applied immediately
+# No need to restart the agent
+```
+
 ## agent-compose.yaml
 
 Mini-agent uses Docker Compose-style configuration:
@@ -256,6 +266,15 @@ mini-agent logs all               # All logs
 | POST | /tasks | Add a task |
 | GET | /heartbeat | Read HEARTBEAT.md |
 | PUT | /heartbeat | Update HEARTBEAT.md |
+
+### Cron
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /cron | List active cron tasks |
+| POST | /cron | Add a cron task |
+| DELETE | /cron/:index | Remove a cron task |
+| POST | /cron/reload | Reload all cron tasks |
 
 ### Logs
 

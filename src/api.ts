@@ -25,7 +25,8 @@ import {
   getCurrentInstanceId,
 } from './instance.js';
 import { getLogger, type LogType } from './logging.js';
-import type { CreateInstanceOptions, InstanceConfig } from './types.js';
+import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks } from './cron.js';
+import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 
 export function createApi(port = 3001): express.Express {
   const app = express();
@@ -276,6 +277,63 @@ export function createApi(port = 3001): express.Express {
 
     await updateHeartbeat(content);
     res.json({ success: true });
+  });
+
+  // =============================================================================
+  // Cron
+  // =============================================================================
+
+  // 列出所有 cron 任務
+  app.get('/cron', (_req: Request, res: Response) => {
+    const tasks = getActiveCronTasks();
+    res.json({ tasks, count: tasks.length });
+  });
+
+  // 新增 cron 任務
+  app.post('/cron', (req: Request, res: Response) => {
+    const { schedule, task, enabled } = req.body as CronTask;
+
+    if (!schedule || !task) {
+      res.status(400).json({ error: 'schedule and task are required' });
+      return;
+    }
+
+    const result = addCronTask({ schedule, task, enabled });
+    if (result.success) {
+      res.json({ success: true, task: { schedule, task, enabled } });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  });
+
+  // 移除 cron 任務
+  app.delete('/cron/:index', (req: Request, res: Response) => {
+    const index = parseInt(req.params.index, 10);
+
+    if (isNaN(index)) {
+      res.status(400).json({ error: 'Invalid index' });
+      return;
+    }
+
+    const result = removeCronTask(index);
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: result.error });
+    }
+  });
+
+  // 重新載入 cron 任務
+  app.post('/cron/reload', (req: Request, res: Response) => {
+    const { tasks } = req.body as { tasks: CronTask[] };
+
+    if (!tasks || !Array.isArray(tasks)) {
+      res.status(400).json({ error: 'tasks array is required' });
+      return;
+    }
+
+    const result = reloadCronTasks(tasks);
+    res.json({ success: true, ...result });
   });
 
   // =============================================================================
