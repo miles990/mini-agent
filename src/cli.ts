@@ -23,7 +23,6 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 import { processMessage } from './agent.js';
-import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import { searchMemory, readHeartbeat, appendMemory, createMemory } from './memory.js';
 import { createApi } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
@@ -978,10 +977,7 @@ Chat Commands:
   /help           - Show this help
   /search <query> - Search memory
   /heartbeat      - Show HEARTBEAT.md
-  /trigger        - Trigger heartbeat check
   /remember <text>- Add to memory
-  /proactive on   - Start proactive mode
-  /proactive off  - Stop proactive mode
   /config         - Show current config
   /config set <key> <value> - Update config
   /config reset   - Reset to defaults
@@ -1017,12 +1013,6 @@ Chat Commands:
       break;
     }
 
-    case 'trigger': {
-      const result = await triggerHeartbeat();
-      console.log(result ?? 'No action needed');
-      break;
-    }
-
     case 'remember': {
       const text = args.join(' ');
       if (!text) {
@@ -1033,18 +1023,6 @@ Chat Commands:
       console.log('Remembered!');
       break;
     }
-
-    case 'proactive':
-      if (args[0] === 'on') {
-        startProactive({
-          onHeartbeat: (r) => console.log(`\n[Heartbeat] ${r}\n> `),
-        });
-      } else if (args[0] === 'off') {
-        stopProactive();
-      } else {
-        console.log('Usage: /proactive on|off');
-      }
-      break;
 
     case 'config': {
       const subCmd = args[0];
