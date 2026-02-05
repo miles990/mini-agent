@@ -253,9 +253,8 @@ Examples:
 // Direct Commands (simplified from "instance" subcommands)
 // =============================================================================
 
-async function handleUpCommand(args: string[], port: number): Promise<void> {
+async function handleUpCommand(args: string[]): Promise<void> {
   const manager = getInstanceManager();
-  const options: { name?: string; role?: 'master' | 'worker' | 'standalone'; port?: number; persona?: string } = {};
   let detached = false;
   let composeFilePath: string | undefined;
   let initCompose = false;
@@ -268,14 +267,6 @@ async function handleUpCommand(args: string[], port: number): Promise<void> {
       composeFilePath = args[++i];
     } else if (arg === '--init') {
       initCompose = true;
-    } else if (arg === '--name' && args[i + 1]) {
-      options.name = args[++i];
-    } else if (arg === '--role' && args[i + 1]) {
-      options.role = args[++i] as 'master' | 'worker' | 'standalone';
-    } else if (arg === '--port' && args[i + 1]) {
-      options.port = parseInt(args[++i], 10);
-    } else if (arg === '--persona' && args[i + 1]) {
-      options.persona = args[++i];
     }
   }
 
@@ -287,108 +278,54 @@ async function handleUpCommand(args: string[], port: number): Promise<void> {
     return;
   }
 
-  // 檢查是否有 compose 檔案
-  const foundComposeFile = findComposeFile(composeFilePath);
-
-  // 如果有 compose 檔案，使用 compose 模式
-  if (foundComposeFile) {
-    console.log(`Using compose file: ${foundComposeFile}\n`);
-    const compose = readComposeFile(foundComposeFile);
-    const result = composeUp(compose, detached);
-
-    // 顯示結果
-    if (result.started.length > 0) {
-      console.log('Started:');
-      for (const id of result.started) {
-        const agentDef = compose.agents[id];
-        console.log(`  🟢 ${id} (${agentDef.name || id}) - port ${agentDef.port || 3001}`);
-      }
-    }
-
-    if (result.skipped.length > 0) {
-      console.log('\nAlready running:');
-      for (const id of result.skipped) {
-        console.log(`  ⚪ ${id}`);
-      }
-    }
-
-    if (result.failed.length > 0) {
-      console.log('\nFailed:');
-      for (const { id, error } of result.failed) {
-        console.log(`  ❌ ${id}: ${error}`);
-      }
-    }
-
-    console.log(`\n${result.started.length} agent(s) started`);
-
-    // Compose 模式不支援自動 attach（多個 agent）
-    if (!detached && result.started.length === 1) {
-      const agentId = result.started[0];
-      const agentDef = compose.agents[agentId];
-      const instances = manager.list();
-      const inst = instances.find(i => i.name === (agentDef.name || agentId));
-      if (inst) {
-        console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
-        await runAttachedMode(inst.id, inst.port);
-      }
-    }
-
-    return;
-  }
-
-  // 如果沒有任何選項，且沒有 compose 檔案，自動產生並啟動
-  const hasOptions = options.name || options.port || options.persona;
-  if (!hasOptions) {
-    console.log(`No ${DEFAULT_COMPOSE_FILE} found, creating...\n`);
+  // 檢查是否有 compose 檔案，沒有就自動產生
+  let composeFile = findComposeFile(composeFilePath);
+  if (!composeFile) {
     const filePath = createDefaultComposeFile(undefined, false);
     console.log(`Created ${filePath}\n`);
-
-    // 讀取剛建立的檔案並啟動
-    const compose = readComposeFile(filePath);
-    const result = composeUp(compose, detached);
-
-    if (result.started.length > 0) {
-      console.log('Started:');
-      for (const id of result.started) {
-        const agentDef = compose.agents[id];
-        console.log(`  🟢 ${id} (${agentDef.name || id}) - port ${agentDef.port || 3001}`);
-      }
-    }
-
-    console.log(`\n${result.started.length} agent(s) started`);
-
-    // 單一 agent 時自動 attach
-    if (!detached && result.started.length === 1) {
-      const agentId = result.started[0];
-      const agentDef = compose.agents[agentId];
-      const instances = manager.list();
-      const inst = instances.find(i => i.name === (agentDef.name || agentId));
-      if (inst) {
-        console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
-        await runAttachedMode(inst.id, inst.port);
-      }
-    }
-
-    return;
+    composeFile = filePath;
   }
 
-  // 單一實例模式（使用 --name 等選項）
-  const instance = manager.create(options);
-  console.log(`Created instance: ${instance.id}`);
-  console.log(`  Name: ${instance.name ?? '(unnamed)'}`);
-  console.log(`  Role: ${instance.role}`);
-  console.log(`  Port: ${instance.port}`);
+  // 使用 compose 檔案啟動
+  console.log(`Using: ${composeFile}\n`);
+  const compose = readComposeFile(composeFile);
+  const result = composeUp(compose, detached);
 
-  // 啟動 API server
-  manager.start(instance.id);
-  const status = manager.getStatus(instance.id);
-  console.log(`  Status: 🟢 running (PID: ${status?.pid})`);
-  console.log(`  API: http://localhost:${instance.port}`);
+  // 顯示結果
+  if (result.started.length > 0) {
+    console.log('Started:');
+    for (const id of result.started) {
+      const agentDef = compose.agents[id];
+      console.log(`  🟢 ${id} (${agentDef.name || id}) - port ${agentDef.port || 3001}`);
+    }
+  }
 
-  // 如果不是 detached 模式，自動 attach
-  if (!detached) {
-    console.log('\nAttaching to instance... (use Ctrl+C or /detach to exit)\n');
-    await runAttachedMode(instance.id, instance.port);
+  if (result.skipped.length > 0) {
+    console.log('\nAlready running:');
+    for (const id of result.skipped) {
+      console.log(`  ⚪ ${id}`);
+    }
+  }
+
+  if (result.failed.length > 0) {
+    console.log('\nFailed:');
+    for (const { id, error } of result.failed) {
+      console.log(`  ❌ ${id}: ${error}`);
+    }
+  }
+
+  console.log(`\n${result.started.length} agent(s) started`);
+
+  // 單一 agent 且非 detached 時自動 attach
+  if (!detached && result.started.length === 1) {
+    const agentId = result.started[0];
+    const agentDef = compose.agents[agentId];
+    const instances = manager.list();
+    const inst = instances.find(i => i.name === (agentDef.name || agentId));
+    if (inst) {
+      console.log('\nAttaching... (Ctrl+C or /detach to exit)\n');
+      await runAttachedMode(inst.id, inst.port);
+    }
   }
 }
 
@@ -629,7 +566,6 @@ Commands:
   mini-agent list                     List all instances
   mini-agent up                       Start from agent-compose.yaml
   mini-agent up -d                    Start in detached mode
-  mini-agent up --name <name>         Create single instance
   mini-agent up --init                Generate agent-compose.yaml template
   mini-agent down                     Stop all (from compose file)
   mini-agent down <id|--all>          Stop specific or all instances
@@ -643,10 +579,7 @@ Commands:
 Up Options:
   -d, --detach            Run in background (don't attach)
   -f, --file <path>       Specify compose file (default: agent-compose.yaml)
-  --init                  Generate agent-compose.yaml template
-  --name <name>           Instance name (single instance mode)
-  --port <port>           Server port
-  --persona <desc>        Persona description
+  --init                  Generate agent-compose.yaml template (with examples)
 
 Down Options:
   -f, --file <path>       Specify compose file
@@ -664,7 +597,6 @@ Examples:
   mini-agent up                           # Start from agent-compose.yaml
   mini-agent up -d                        # Start in background
   mini-agent up --init                    # Generate compose template
-  mini-agent up --name "Research"         # Create single instance
   mini-agent down                         # Stop all (from compose)
   mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance
@@ -1254,7 +1186,7 @@ async function main(): Promise<void> {
       handleListCommand();
       return;
     case 'up':
-      await handleUpCommand(commandArgs, port);
+      await handleUpCommand(commandArgs);
       return;
     case 'attach':
       await handleAttachCommand(commandArgs[0]);
