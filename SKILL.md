@@ -14,10 +14,11 @@ metadata:
     bins:
       - claude
       - node
+      - pnpm
   install:
-    - id: npm
-      kind: node
-      package: mini-agent
+    - id: bash
+      kind: script
+      command: curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
       bins:
         - mini-agent
 ---
@@ -39,11 +40,12 @@ Personal AI Agent with Memory + Proactivity. A lightweight agent that maintains 
 ## Quick Start
 
 ```bash
-# Install globally
-npm install -g mini-agent
+# Install via script (recommended)
+curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 
-# Or run directly
-npx mini-agent
+# Or manually
+git clone https://github.com/miles990/mini-agent.git ~/.mini-agent
+cd ~/.mini-agent && pnpm install && pnpm build && npm link
 ```
 
 ## Usage
