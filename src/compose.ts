@@ -20,7 +20,6 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
     default: {
       name: 'Default Agent',
       port: 3001,
-      role: 'standalone',
       persona: 'A helpful personal AI assistant',
     },
   },
@@ -32,7 +31,6 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
     default: {
       name: 'Default Agent',
       port: 3001,
-      role: 'standalone',
       persona: 'A helpful personal AI assistant',
     },
   },
