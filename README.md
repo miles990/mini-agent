@@ -41,12 +41,6 @@ Minimal Personal AI Agent with three core concepts:
 curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 ```
 
-Or install via npm:
-
-```bash
-npm install -g mini-agent
-```
-
 ## Quick Start
 
 ```bash
