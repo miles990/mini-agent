@@ -906,11 +906,9 @@ async function runChat(port: number): Promise<void> {
   }
 
   app.listen(port, () => {
-    console.log(`Mini-Agent - Memory + Proactivity`);
+    console.log(`Mini-Agent - Memory + Cron`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
-    startProactive({ schedule: config.proactiveSchedule });
-    console.log(`Proactive: ${config.proactiveSchedule}`);
     if (cronCount > 0) {
       console.log(`Cron: ${cronCount} task(s) active`);
     }

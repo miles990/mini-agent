@@ -25,6 +25,12 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
       name: 'My Assistant',
       port: 3001,
       persona: 'A helpful personal AI assistant',
+      cron: [
+        {
+          schedule: '*/30 * * * *',
+          task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
+        },
+      ],
     },
   },
 };
@@ -40,6 +46,12 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
       name: 'My Assistant',
       port: 3001,
       persona: 'A helpful personal AI assistant',
+      cron: [
+        {
+          schedule: '*/30 * * * *',
+          task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
+        },
+      ],
     },
   },
 };
@@ -104,6 +116,12 @@ export function generateComposeTemplate(example = false, options?: ComposeOption
           name: options.name || 'My Assistant',
           port: options.port || 3001,
           persona: options.persona || 'A helpful personal AI assistant',
+          cron: [
+            {
+              schedule: '*/30 * * * *',
+              task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
+            },
+          ],
         },
       },
     };
