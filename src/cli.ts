@@ -1,30 +1,72 @@
 #!/usr/bin/env node
 /**
- * CLI Entry Point
+ * Mini-Agent CLI
  *
- * Supports two modes:
- * 1. Interactive mode: readline-based chat interface
- * 2. Pipe mode: read from stdin, output result (Unix pipe compatible)
+ * Commands:
+ *   (default)     - Interactive chat mode
+ *   chat          - Interactive chat mode
+ *   server        - Start HTTP API server
+ *   install       - Install globally via npm link
+ *   uninstall     - Remove global installation
  *
- * Examples:
- *   mini-agent                          # Interactive mode
- *   echo "Hello" | mini-agent           # Pipe mode with default prompt
- *   cat file.txt | mini-agent "summarize this"  # Pipe mode with custom prompt
- *   git diff | mini-agent "write commit message" | pbcopy
+ * Pipe mode:
+ *   echo "text" | mini-agent "prompt"
  */
 
 import readline from 'node:readline';
 import { processMessage } from './agent.js';
 import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import { searchMemory, readHeartbeat, appendMemory } from './memory.js';
+import { createApi } from './api.js';
+
+// =============================================================================
+// CLI Commands
+// =============================================================================
+
+function showHelp(): void {
+  console.log(`
+Mini-Agent - Personal AI with Memory + Proactivity
+
+Usage:
+  mini-agent                     Interactive chat (default)
+  mini-agent server [--port]     Start HTTP API server
+  echo "..." | mini-agent "..."  Pipe mode
+
+Options:
+  -p, --port <port>   Port for server (default: 3001)
+
+Installation:
+  pnpm install:global     Install globally
+  pnpm uninstall:global   Remove installation
+
+Pipe Examples:
+  echo "Hello" | mini-agent "translate to Chinese"
+  cat file.txt | mini-agent "summarize"
+  git diff | mini-agent "write commit message"
+`);
+}
+
+function runServer(port: number): void {
+  const app = createApi(port);
+  app.listen(port, () => {
+    console.log(`Mini-Agent API server running on http://localhost:${port}`);
+    console.log('\nEndpoints:');
+    console.log('  POST /chat              - Send a message');
+    console.log('  GET  /memory            - Read long-term memory');
+    console.log('  GET  /memory/search?q=  - Search memory');
+    console.log('  POST /memory            - Add to memory');
+    console.log('  GET  /heartbeat         - Read HEARTBEAT.md');
+    console.log('  POST /heartbeat/trigger - Trigger heartbeat');
+    console.log('  POST /proactive/start   - Start proactive mode');
+    console.log('  POST /proactive/stop    - Stop proactive mode');
+    console.log('\nPress Ctrl+C to stop');
+  });
+}
 
 // =============================================================================
 // Pipe Mode
 // =============================================================================
 
-/**
- * Read all data from stdin (for pipe mode)
- */
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
@@ -33,14 +75,7 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf-8').trim();
 }
 
-/**
- * Run in pipe mode: read stdin, process, output result
- */
-async function runPipeMode(): Promise<void> {
-  // Get prompt from command line args (default: "Process this input:")
-  const prompt = process.argv[2] || 'Process this input:';
-
-  // Read piped input
+async function runPipeMode(prompt: string): Promise<void> {
   const input = await readStdin();
 
   if (!input) {
@@ -48,12 +83,10 @@ async function runPipeMode(): Promise<void> {
     process.exit(1);
   }
 
-  // Combine prompt with input
   const fullPrompt = `${prompt}\n\n---\n\n${input}`;
 
   try {
     const response = await processMessage(fullPrompt);
-    // Output only the content (suitable for piping to next command)
     console.log(response.content);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
@@ -68,13 +101,12 @@ async function runPipeMode(): Promise<void> {
 let rl: readline.Interface;
 let isClosing = false;
 
-function startInteractiveMode(): void {
+function runChat(): void {
   rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  // Handle close event
   rl.on('close', () => {
     if (!isClosing) {
       console.log('\nBye!');
@@ -100,14 +132,12 @@ function prompt(): void {
       return;
     }
 
-    // Commands
     if (trimmed.startsWith('/')) {
-      await handleCommand(trimmed);
+      await handleChatCommand(trimmed);
       if (!isClosing) prompt();
       return;
     }
 
-    // Process message
     try {
       console.log('\n[Thinking...]\n');
       const response = await processMessage(trimmed);
@@ -125,13 +155,13 @@ function prompt(): void {
   });
 }
 
-async function handleCommand(cmd: string): Promise<void> {
+async function handleChatCommand(cmd: string): Promise<void> {
   const [command, ...args] = cmd.slice(1).split(' ');
 
   switch (command) {
     case 'help':
       console.log(`
-Commands:
+Chat Commands:
   /help           - Show this help
   /search <query> - Search memory
   /heartbeat      - Show HEARTBEAT.md
@@ -143,7 +173,7 @@ Commands:
 `);
       break;
 
-    case 'search':
+    case 'search': {
       const query = args.join(' ');
       if (!query) {
         console.log('Usage: /search <query>');
@@ -158,18 +188,21 @@ Commands:
         });
       }
       break;
+    }
 
-    case 'heartbeat':
+    case 'heartbeat': {
       const hb = await readHeartbeat();
       console.log(hb || '(empty)');
       break;
+    }
 
-    case 'trigger':
+    case 'trigger': {
       const result = await triggerHeartbeat();
       console.log(result ?? 'No action needed');
       break;
+    }
 
-    case 'remember':
+    case 'remember': {
       const text = args.join(' ');
       if (!text) {
         console.log('Usage: /remember <text>');
@@ -178,6 +211,7 @@ Commands:
       await appendMemory(text);
       console.log('Remembered!');
       break;
+    }
 
     case 'proactive':
       if (args[0] === 'on') {
@@ -207,16 +241,57 @@ Commands:
 // Main Entry Point
 // =============================================================================
 
-// Check if stdin is a TTY (interactive) or a pipe
-const isPiped = !process.stdin.isTTY;
+function parseArgs(): { command: string; port: number; prompt: string } {
+  const args = process.argv.slice(2);
+  let command = '';  // Empty = interactive mode (default)
+  let port = 3001;
+  let prompt = 'Process this input:';
 
-if (isPiped) {
-  // Pipe mode: read stdin, process, output
-  runPipeMode().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
-} else {
-  // Interactive mode: readline interface
-  startInteractiveMode();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '--port' || arg === '-p') {
+      port = parseInt(args[++i] || '3001', 10);
+    } else if (arg === 'server' || arg === 'help') {
+      command = arg;
+    } else if (!arg.startsWith('-')) {
+      // Treat as prompt for pipe mode
+      prompt = arg;
+    }
+  }
+
+  return { command, port, prompt };
 }
+
+async function main(): Promise<void> {
+  const { command, port, prompt } = parseArgs();
+
+  // Check if stdin is piped (has data waiting)
+  // Note: isTTY is undefined when piped, true when terminal
+  const isPiped = process.stdin.isTTY === undefined && command === '';
+
+  // Pipe mode: when stdin is piped and no explicit command
+  if (isPiped) {
+    await runPipeMode(prompt);
+    return;
+  }
+
+  // Execute command
+  switch (command) {
+    case 'help':
+      showHelp();
+      break;
+    case 'server':
+      runServer(port);
+      break;
+    default:
+      // Default: interactive chat mode
+      runChat();
+      break;
+  }
+}
+
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

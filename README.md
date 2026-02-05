@@ -33,14 +33,21 @@ Minimal Personal AI Agent with two core concepts:
 ## Quick Start
 
 ```bash
-# Install
+# Install dependencies
 pnpm install
 
-# Interactive mode
-pnpm cli
+# Run directly
+pnpm dev                # Interactive chat
+pnpm server             # HTTP API server
 
-# Run API server
-pnpm dev
+# Install globally (optional)
+pnpm install:global     # npm link
+pnpm uninstall:global   # npm unlink
+
+# After global install:
+mini-agent              # Interactive chat
+mini-agent server       # HTTP API server
+mini-agent help         # Show help
 ```
 
 ## Unix Pipe Mode
@@ -65,7 +72,16 @@ curl -s api.example.com | mini-agent "extract the user name"
 git log --oneline -5 | mini-agent "summarize" | pbcopy
 ```
 
-## Interactive Commands
+## CLI Commands
+
+```bash
+mini-agent              # Interactive chat (default)
+mini-agent server       # Start HTTP API server
+mini-agent server -p 8080  # Custom port
+mini-agent help         # Show help
+```
+
+## Chat Commands (in interactive mode)
 
 ```
 /help           - Show help
