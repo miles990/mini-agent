@@ -81,7 +81,28 @@ export function createApi(port = 3001): express.Express {
     res.json({ context });
   });
 
-  // Task endpoint
+  // Task endpoints
+  app.get('/tasks', async (_req: Request, res: Response) => {
+    const heartbeat = await readHeartbeat();
+
+    // Parse tasks from HEARTBEAT.md
+    const tasks: Array<{ task: string; schedule?: string; completed: boolean }> = [];
+    const lines = heartbeat.split('\n');
+
+    for (const line of lines) {
+      const unchecked = line.match(/^- \[ \] (.+?)(?:\s*\(([^)]+)\))?(?:\s*<!--.*-->)?$/);
+      const checked = line.match(/^- \[x\] (.+?)(?:\s*\(([^)]+)\))?(?:\s*<!--.*-->)?$/);
+
+      if (unchecked) {
+        tasks.push({ task: unchecked[1].trim(), schedule: unchecked[2], completed: false });
+      } else if (checked) {
+        tasks.push({ task: checked[1].trim(), schedule: checked[2], completed: true });
+      }
+    }
+
+    res.json({ tasks });
+  });
+
   app.post('/tasks', async (req: Request, res: Response) => {
     const { task, schedule } = req.body;
 
@@ -169,6 +190,7 @@ if (isMain) {
     console.log('  GET  /memory          - Read long-term memory');
     console.log('  GET  /memory/search?q=- Search memory');
     console.log('  POST /memory          - Add to memory');
+    console.log('  GET  /tasks           - List tasks');
     console.log('  POST /tasks           - Add a task');
     console.log('  GET  /heartbeat       - Read HEARTBEAT.md');
     console.log('  POST /heartbeat/trigger - Trigger heartbeat');
