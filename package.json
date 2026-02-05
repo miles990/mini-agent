@@ -9,13 +9,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/cli.ts",
-    "server": "tsx src/cli.ts server",
     "start": "node dist/cli.js",
-    "cli": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "install:global": "pnpm build && npm link",
-    "uninstall:global": "npm unlink -g mini-agent"
+    "link": "pnpm build && npm link",
+    "unlink": "npm unlink -g mini-agent"
   },
   "dependencies": {
     "express": "^4.18.2",

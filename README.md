@@ -33,21 +33,14 @@ Minimal Personal AI Agent with two core concepts:
 ## Quick Start
 
 ```bash
-# Install dependencies
-pnpm install
+pnpm install            # Install dependencies
+pnpm link               # Install globally (npm link)
 
-# Run directly
-pnpm dev                # Interactive chat
-pnpm server             # HTTP API server
-
-# Install globally (optional)
-pnpm install:global     # npm link
-pnpm uninstall:global   # npm unlink
-
-# After global install:
 mini-agent              # Interactive chat
 mini-agent server       # HTTP API server
 mini-agent help         # Show help
+
+pnpm unlink             # Remove global installation
 ```
 
 ## Unix Pipe Mode
