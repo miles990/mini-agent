@@ -258,6 +258,9 @@ async function handleUpCommand(args: string[]): Promise<void> {
   let detached = false;
   let composeFilePath: string | undefined;
   let initCompose = false;
+  let customName: string | undefined;
+  let customPort: number | undefined;
+  let customPersona: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -267,21 +270,31 @@ async function handleUpCommand(args: string[]): Promise<void> {
       composeFilePath = args[++i];
     } else if (arg === '--init') {
       initCompose = true;
+    } else if (arg === '--name') {
+      customName = args[++i];
+    } else if (arg === '--port') {
+      customPort = parseInt(args[++i], 10);
+    } else if (arg === '--persona') {
+      customPersona = args[++i];
     }
   }
 
+  const composeOptions = (customName || customPort || customPersona)
+    ? { name: customName, port: customPort, persona: customPersona }
+    : undefined;
+
   // --init: 產生 compose 模板
   if (initCompose) {
-    const filePath = createDefaultComposeFile(composeFilePath, true);
+    const filePath = createDefaultComposeFile(composeFilePath, true, composeOptions);
     console.log(`Created ${filePath}`);
     console.log('\nEdit the file and run: mini-agent up');
     return;
   }
 
-  // 檢查是否有 compose 檔案，沒有就自動產生
+  // 檢查是否有 compose 檔案，沒有就自動產生（使用自定義參數）
   let composeFile = findComposeFile(composeFilePath);
   if (!composeFile) {
-    const filePath = createDefaultComposeFile(undefined, false);
+    const filePath = createDefaultComposeFile(undefined, false, composeOptions);
     console.log(`Created ${filePath}\n`);
     composeFile = filePath;
   }
@@ -580,6 +593,9 @@ Up Options:
   -d, --detach            Run in background (don't attach)
   -f, --file <path>       Specify compose file (default: agent-compose.yaml)
   --init                  Generate agent-compose.yaml template (with examples)
+  --name <name>           Custom agent name (for auto-generated compose)
+  --port <port>           Custom port (for auto-generated compose)
+  --persona <desc>        Custom persona (for auto-generated compose)
 
 Down Options:
   -f, --file <path>       Specify compose file
@@ -597,6 +613,7 @@ Examples:
   mini-agent up                           # Start from agent-compose.yaml
   mini-agent up -d                        # Start in background
   mini-agent up --init                    # Generate compose template
+  mini-agent up --name "Research" --port 3002  # Custom compose
   mini-agent down                         # Stop all (from compose)
   mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance

@@ -67,10 +67,37 @@ export function readComposeFile(filePath: string): ComposeFile {
 }
 
 /**
+ * 自定義 compose 檔案的選項
+ */
+export interface ComposeOptions {
+  name?: string;
+  port?: number;
+  persona?: string;
+}
+
+/**
  * 產生 compose 模板
  */
-export function generateComposeTemplate(example = false): string {
-  const template = example ? EXAMPLE_COMPOSE_TEMPLATE : DEFAULT_COMPOSE_TEMPLATE;
+export function generateComposeTemplate(example = false, options?: ComposeOptions): string {
+  let template: ComposeFile;
+
+  if (example) {
+    template = EXAMPLE_COMPOSE_TEMPLATE;
+  } else if (options && (options.name || options.port || options.persona)) {
+    // 使用自定義參數
+    template = {
+      version: '1',
+      agents: {
+        default: {
+          name: options.name || 'Default Agent',
+          port: options.port || 3001,
+          persona: options.persona || 'A helpful personal AI assistant',
+        },
+      },
+    };
+  } else {
+    template = DEFAULT_COMPOSE_TEMPLATE;
+  }
 
   const header = `# Agent Compose File
 # 使用方式: mini-agent up [-d]
@@ -84,9 +111,9 @@ export function generateComposeTemplate(example = false): string {
 /**
  * 建立預設的 compose 檔案
  */
-export function createDefaultComposeFile(targetPath?: string, example = false): string {
+export function createDefaultComposeFile(targetPath?: string, example = false, options?: ComposeOptions): string {
   const filePath = targetPath || path.resolve(DEFAULT_COMPOSE_FILE);
-  const content = generateComposeTemplate(example);
+  const content = generateComposeTemplate(example, options);
   fs.writeFileSync(filePath, content, 'utf-8');
   return filePath;
 }
