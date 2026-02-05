@@ -371,17 +371,41 @@ async function handleInstanceCommand(args: string[]): Promise<void> {
       break;
     }
 
+    case 'attach': {
+      const instanceId = args[1];
+      if (!instanceId) {
+        console.error('Usage: mini-agent instance attach <id>');
+        process.exit(1);
+      }
+
+      const status = manager.getStatus(instanceId);
+      if (!status) {
+        console.error(`Instance not found: ${instanceId}`);
+        process.exit(1);
+      }
+
+      if (!status.running) {
+        console.error(`Instance not running: ${instanceId}`);
+        console.error('Start it first: mini-agent instance start ' + instanceId);
+        process.exit(1);
+      }
+
+      await runAttachedMode(instanceId, status.port);
+      break;
+    }
+
     default:
       console.log(`
 Instance Management:
 
 Commands:
-  mini-agent instance create [options]  Create a new instance
+  mini-agent instance create [options]  Create new instance (auto-starts)
   mini-agent instance list              List all instances
-  mini-agent instance delete <id>       Delete an instance
-  mini-agent instance start <id>        Start an instance server
-  mini-agent instance stop <id>         Stop an instance server
+  mini-agent instance attach <id>       Attach to running instance
+  mini-agent instance start <id>        Start an instance
+  mini-agent instance stop <id>         Stop an instance
   mini-agent instance status <id>       Show instance status
+  mini-agent instance delete <id>       Delete an instance
 
 Create Options:
   --name <name>     Instance name
@@ -390,9 +414,9 @@ Create Options:
   --persona <desc>  Persona description
 
 Examples:
-  mini-agent instance create --name "Research Assistant" --port 3002
+  mini-agent instance create --name "Research" --port 3002
+  mini-agent instance attach abc12345
   mini-agent instance list
-  mini-agent instance start abc12345
 `);
   }
 }
@@ -413,10 +437,12 @@ Usage:
   echo "..." | mini-agent "prompt"    Pipe mode
 
 Instance Management:
-  mini-agent instance create [options]  Create a new instance
+  mini-agent instance create [options]  Create new instance (auto-starts)
   mini-agent instance list              List all instances
+  mini-agent instance attach <id>       Attach to running instance
+  mini-agent instance start <id>        Start an instance
+  mini-agent instance stop <id>         Stop an instance
   mini-agent instance delete <id>       Delete an instance
-  mini-agent instance start <id>        Start an instance server
 
 Logs Management:
   mini-agent logs                       Show log statistics
@@ -562,6 +588,164 @@ async function runPromptMode(prompt: string): Promise<void> {
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
+}
+
+// =============================================================================
+// Attached Mode (connect to running instance via API)
+// =============================================================================
+
+async function runAttachedMode(instanceId: string, port: number): Promise<void> {
+  const baseUrl = `http://localhost:${port}`;
+
+  // 驗證連接
+  try {
+    const res = await fetch(`${baseUrl}/health`);
+    if (!res.ok) throw new Error('Health check failed');
+  } catch {
+    console.error(`Cannot connect to instance at ${baseUrl}`);
+    process.exit(1);
+  }
+
+  console.log(`Attached to instance: ${instanceId}`);
+  console.log(`API: ${baseUrl}`);
+  console.log('Type /detach to disconnect (instance keeps running)');
+  console.log('Type /help for commands\n');
+
+  const attachedRl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  let detached = false;
+
+  attachedRl.on('close', () => {
+    if (!detached) {
+      console.log('\nDetached. Instance still running.');
+    }
+    process.exit(0);
+  });
+
+  const promptAttached = (): void => {
+    if (detached) return;
+
+    attachedRl.question(`[${instanceId}]> `, async (input) => {
+      if (detached) return;
+
+      const trimmed = input?.trim() ?? '';
+      if (!trimmed) {
+        promptAttached();
+        return;
+      }
+
+      // Handle detach
+      if (trimmed === '/detach' || trimmed === '/quit' || trimmed === '/exit') {
+        detached = true;
+        console.log('Detached. Instance still running.');
+        attachedRl.close();
+        return;
+      }
+
+      // Handle local commands
+      if (trimmed === '/help') {
+        console.log(`
+Attached Mode Commands:
+  /detach         - Disconnect (instance keeps running)
+  /status         - Show instance status
+  /memory         - Show memory
+  /heartbeat      - Show HEARTBEAT.md
+  /logs           - Show recent logs
+  (any text)      - Chat with the agent
+`);
+        promptAttached();
+        return;
+      }
+
+      if (trimmed === '/status') {
+        try {
+          const res = await fetch(`${baseUrl}/health`);
+          const data = await res.json();
+          console.log(JSON.stringify(data, null, 2));
+        } catch (err) {
+          console.error('Error:', err);
+        }
+        promptAttached();
+        return;
+      }
+
+      if (trimmed === '/memory') {
+        try {
+          const res = await fetch(`${baseUrl}/memory`);
+          const data = await res.json() as { memory: string };
+          console.log(data.memory || '(empty)');
+        } catch (err) {
+          console.error('Error:', err);
+        }
+        promptAttached();
+        return;
+      }
+
+      if (trimmed === '/heartbeat') {
+        try {
+          const res = await fetch(`${baseUrl}/heartbeat`);
+          const data = await res.json() as { heartbeat: string };
+          console.log(data.heartbeat || '(empty)');
+        } catch (err) {
+          console.error('Error:', err);
+        }
+        promptAttached();
+        return;
+      }
+
+      if (trimmed === '/logs') {
+        try {
+          const res = await fetch(`${baseUrl}/logs/claude?limit=5`);
+          const data = await res.json() as { entries: Array<{ timestamp: string; data: { input: { userMessage: string }; output: { content: string } } }> };
+          if (data.entries?.length) {
+            for (const entry of data.entries) {
+              const time = entry.timestamp.split('T')[1].split('.')[0];
+              console.log(`[${time}] ${entry.data.input.userMessage.slice(0, 40)}...`);
+            }
+          } else {
+            console.log('No logs');
+          }
+        } catch (err) {
+          console.error('Error:', err);
+        }
+        promptAttached();
+        return;
+      }
+
+      // Chat with agent via API
+      console.log('\n[Thinking...]\n');
+      try {
+        const res = await fetch(`${baseUrl}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: trimmed }),
+        });
+        const data = await res.json() as { content: string; shouldRemember?: string; taskAdded?: string; error?: string };
+
+        if (data.error) {
+          console.error('Error:', data.error);
+        } else {
+          console.log(data.content);
+          if (data.shouldRemember) {
+            console.log(`\n[Remembered: ${data.shouldRemember}]`);
+          }
+          if (data.taskAdded) {
+            console.log(`\n[Task added: ${data.taskAdded}]`);
+          }
+        }
+      } catch (err) {
+        console.error('Error:', err instanceof Error ? err.message : err);
+      }
+
+      console.log('');
+      promptAttached();
+    });
+  };
+
+  promptAttached();
 }
 
 // =============================================================================
