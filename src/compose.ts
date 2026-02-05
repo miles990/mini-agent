@@ -21,8 +21,8 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
     logs: './logs',
   },
   agents: {
-    default: {
-      name: 'Default Agent',
+    assistant: {
+      name: 'My Assistant',
       port: 3001,
       persona: 'A helpful personal AI assistant',
     },
@@ -36,8 +36,8 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
     logs: './logs',
   },
   agents: {
-    default: {
-      name: 'Default Agent',
+    assistant: {
+      name: 'My Assistant',
       port: 3001,
       persona: 'A helpful personal AI assistant',
     },
@@ -100,8 +100,8 @@ export function generateComposeTemplate(example = false, options?: ComposeOption
         logs: './logs',
       },
       agents: {
-        default: {
-          name: options.name || 'Default Agent',
+        assistant: {
+          name: options.name || 'My Assistant',
           port: options.port || 3001,
           persona: options.persona || 'A helpful personal AI assistant',
         },
