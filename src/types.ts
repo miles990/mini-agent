@@ -37,11 +37,22 @@ export interface ProactiveConfig {
 }
 
 /**
+ * 對話項目
+ */
+export interface ConversationEntry {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+/**
  * 記憶配置
  */
 export interface MemoryConfig {
   maxSize?: string;
   syncToGlobal?: boolean;
+  hot?: number;    // Context 中的對話數量 (default: 20)
+  warm?: number;   // 每日保留的對話數量 (default: 100)
 }
 
 /**

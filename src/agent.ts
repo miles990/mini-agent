@@ -113,9 +113,9 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
 
   const { response, systemPrompt, fullPrompt, duration } = claudeResult;
 
-  // 3. Log to daily notes
-  await memory.appendDailyNote(`User: ${userMessage.slice(0, 100)}...`);
-  await memory.appendDailyNote(`Assistant: ${response.slice(0, 100)}...`);
+  // 3. Log to conversation history (Hot + Warm)
+  await memory.appendConversation('user', userMessage);
+  await memory.appendConversation('assistant', response);
 
   // 4. Check if should remember something
   let shouldRemember: string | undefined;
@@ -196,7 +196,8 @@ Keep response brief.`;
 
   try {
     const { response, duration } = await callClaude(prompt, context);
-    await memory.appendDailyNote(`[Heartbeat] ${response.slice(0, 100)}...`);
+    // Heartbeat 結果記錄為 assistant 對話
+    await memory.appendConversation('assistant', `[Heartbeat] ${response}`);
     logger.logCron('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
     return response;
   } catch (error) {

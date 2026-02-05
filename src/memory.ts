@@ -17,7 +17,7 @@ import {
   getInstanceDir,
   initDataDir,
 } from './instance.js';
-import type { MemoryEntry } from './types.js';
+import type { MemoryEntry, ConversationEntry } from './types.js';
 
 // =============================================================================
 // Path Utilities
@@ -48,6 +48,13 @@ async function ensureDir(dirPath: string): Promise<void> {
 // Memory Class (Instance-specific)
 // =============================================================================
 
+// =============================================================================
+// Constants
+// =============================================================================
+
+const DEFAULT_HOT_LIMIT = 20;   // Context 中的對話數量
+const DEFAULT_WARM_LIMIT = 100; // 每日保留的對話數量
+
 /**
  * 實例隔離的記憶系統
  */
@@ -55,9 +62,16 @@ export class InstanceMemory {
   private instanceId: string;
   private memoryDir: string;
 
-  constructor(instanceId?: string) {
+  // Hot: 記憶體中的對話 buffer
+  private conversationBuffer: ConversationEntry[] = [];
+  private hotLimit: number;
+  private warmLimit: number;
+
+  constructor(instanceId?: string, options?: { hot?: number; warm?: number }) {
     this.instanceId = instanceId ?? getCurrentInstanceId();
     this.memoryDir = getMemoryDir(this.instanceId);
+    this.hotLimit = options?.hot ?? DEFAULT_HOT_LIMIT;
+    this.warmLimit = options?.warm ?? DEFAULT_WARM_LIMIT;
   }
 
   /**
@@ -165,7 +179,7 @@ export class InstanceMemory {
   }
 
   /**
-   * 附加到今日日記
+   * 附加到今日日記（支援 Warm rotate）
    */
   async appendDailyNote(content: string): Promise<void> {
     const dailyDir = path.join(this.memoryDir, 'daily');
@@ -182,7 +196,83 @@ export class InstanceMemory {
       current = `# Daily Notes - ${today}\n`;
     }
 
-    await fs.writeFile(dailyPath, current + `\n[${timestamp}] ${content}`, 'utf-8');
+    // 添加新內容
+    const newContent = current + `\n[${timestamp}] ${content}`;
+
+    // Warm rotate: 限制每日筆數
+    const lines = newContent.split('\n');
+    const headerLines = lines.filter(l => l.startsWith('#') || l.trim() === '');
+    const contentLines = lines.filter(l => !l.startsWith('#') && l.trim() !== '' && l.startsWith('['));
+
+    // 如果超過 warmLimit，移除最舊的
+    if (contentLines.length > this.warmLimit) {
+      const trimmed = contentLines.slice(-this.warmLimit);
+      const finalContent = [...headerLines, ...trimmed].join('\n');
+      await fs.writeFile(dailyPath, finalContent, 'utf-8');
+    } else {
+      await fs.writeFile(dailyPath, newContent, 'utf-8');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Conversation Management (Hot/Warm)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * 添加對話到 Hot buffer 和 Warm storage
+   */
+  async appendConversation(role: 'user' | 'assistant', content: string): Promise<void> {
+    const timestamp = new Date().toISOString();
+
+    // 1. 添加到 Hot buffer
+    this.conversationBuffer.push({ role, content, timestamp });
+
+    // Hot rotate: 超過限制就移除最舊的
+    if (this.conversationBuffer.length > this.hotLimit) {
+      this.conversationBuffer = this.conversationBuffer.slice(-this.hotLimit);
+    }
+
+    // 2. 寫入 Warm storage (daily notes)
+    const prefix = role === 'user' ? 'User' : 'Assistant';
+    await this.appendDailyNote(`${prefix}: ${content}`);
+  }
+
+  /**
+   * 取得 Hot buffer 中的對話
+   */
+  getHotConversations(): ConversationEntry[] {
+    return [...this.conversationBuffer];
+  }
+
+  /**
+   * 清空 Hot buffer
+   */
+  clearHotBuffer(): void {
+    this.conversationBuffer = [];
+  }
+
+  /**
+   * 取得對話歷史（從 Warm storage）
+   */
+  async getConversationHistory(limit?: number): Promise<ConversationEntry[]> {
+    const daily = await this.readDailyNotes();
+    const lines = daily.split('\n').filter(l => l.match(/^\[\d{2}:\d{2}:\d{2}\]/));
+
+    const conversations: ConversationEntry[] = [];
+    for (const line of lines) {
+      const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\] (User|Assistant): (.+)$/);
+      if (match) {
+        const [, time, role, content] = match;
+        const today = new Date().toISOString().split('T')[0];
+        conversations.push({
+          role: role.toLowerCase() as 'user' | 'assistant',
+          content,
+          timestamp: `${today}T${time}`,
+        });
+      }
+    }
+
+    return limit ? conversations.slice(-limit) : conversations;
   }
 
   /**
@@ -213,22 +303,31 @@ export class InstanceMemory {
 
   /**
    * 建構 LLM 上下文
+   * 使用 Hot buffer 的對話（不是全部 daily notes）
    */
   async buildContext(): Promise<string> {
-    const [memory, daily, heartbeat] = await Promise.all([
+    const [memory, heartbeat] = await Promise.all([
       this.readMemory(),
-      this.readDailyNotes(),
       this.readHeartbeat(),
     ]);
+
+    // 使用 Hot buffer 中的對話
+    const conversations = this.conversationBuffer
+      .map(c => {
+        const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
+        const role = c.role === 'user' ? 'User' : 'Assistant';
+        return `[${time}] ${role}: ${c.content}`;
+      })
+      .join('\n');
 
     return `
 <memory>
 ${memory}
 </memory>
 
-<today>
-${daily}
-</today>
+<recent_conversations>
+${conversations || '(No recent conversations)'}
+</recent_conversations>
 
 <heartbeat>
 ${heartbeat}

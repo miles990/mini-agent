@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { processMessage } from './agent.js';
-import { searchMemory, appendMemory, createMemory } from './memory.js';
+import { searchMemory, appendMemory, createMemory, getMemory } from './memory.js';
 import { createApi } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
@@ -984,6 +984,7 @@ Chat Commands:
   /help           - Show this help
   /search <query> - Search memory
   /remember <text>- Add to memory
+  /history [n]    - Show conversation history (default: 20)
   /config         - Show current config
   /config set <key> <value> - Update config
   /config reset   - Reset to defaults
@@ -1109,6 +1110,27 @@ Chat Commands:
         }
       } else {
         console.log('Usage: /logs [stats|claude|errors]');
+      }
+      break;
+    }
+
+    case 'history': {
+      const mem = getMemory();
+      const limit = args[0] ? parseInt(args[0], 10) : 20;
+      const history = await mem.getConversationHistory(limit);
+
+      if (history.length === 0) {
+        console.log('\nNo conversation history today.');
+      } else {
+        console.log(`\nConversation History (${history.length} entries):\n`);
+        for (const entry of history) {
+          const time = entry.timestamp.split('T')[1]?.split('.')[0] ?? '';
+          const role = entry.role === 'user' ? 'User' : 'Assistant';
+          const content = entry.content.length > 80
+            ? entry.content.slice(0, 80) + '...'
+            : entry.content;
+          console.log(`[${time}] ${role}: ${content}`);
+        }
       }
       break;
     }
