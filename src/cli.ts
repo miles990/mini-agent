@@ -1165,6 +1165,7 @@ interface ParsedArgs {
   instanceId: string;
   dataDir?: string;
   commandArgs: string[];
+  init: boolean;
 }
 
 function parseArgs(): ParsedArgs {
@@ -1175,6 +1176,7 @@ function parseArgs(): ParsedArgs {
   let hasExplicitPrompt = false;
   let instanceId = 'default';
   let dataDir: string | undefined;
+  let init = false;
   const files: string[] = [];
   const commandArgs: string[] = [];
 
@@ -1187,6 +1189,8 @@ function parseArgs(): ParsedArgs {
       instanceId = args[++i] || 'default';
     } else if (arg === '--data-dir') {
       dataDir = args[++i];
+    } else if (arg === '--init') {
+      init = true;
     } else if (DIRECT_COMMANDS.includes(arg) && command === '') {
       command = arg;
       // 收集命令的所有後續參數
@@ -1202,15 +1206,28 @@ function parseArgs(): ParsedArgs {
     }
   }
 
-  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs };
+  return { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs, init };
 }
 
 async function main(): Promise<void> {
-  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs } = parseArgs();
+  const { command, port, prompt, files, hasExplicitPrompt, instanceId, dataDir, commandArgs, init } = parseArgs();
 
   // 設置資料目錄
   if (dataDir) {
     process.env.MINI_AGENT_DATA_DIR = dataDir;
+  }
+
+  // --init: 只建立 compose 檔案，不進入互動模式
+  if (init) {
+    const existing = findComposeFile();
+    if (existing) {
+      console.log(`Compose file already exists: ${existing}`);
+    } else {
+      const filePath = createDefaultComposeFile(undefined, true);
+      console.log(`Created ${filePath}`);
+      console.log('\nEdit the file and run: mini-agent');
+    }
+    return;
   }
 
   // 設置當前實例
