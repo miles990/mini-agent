@@ -2,7 +2,15 @@
 /**
  * CLI Entry Point
  *
- * Interactive command-line interface for mini-agent
+ * Supports two modes:
+ * 1. Interactive mode: readline-based chat interface
+ * 2. Pipe mode: read from stdin, output result (Unix pipe compatible)
+ *
+ * Examples:
+ *   mini-agent                          # Interactive mode
+ *   echo "Hello" | mini-agent           # Pipe mode with default prompt
+ *   cat file.txt | mini-agent "summarize this"  # Pipe mode with custom prompt
+ *   git diff | mini-agent "write commit message" | pbcopy
  */
 
 import readline from 'node:readline';
@@ -10,20 +18,74 @@ import { processMessage } from './agent.js';
 import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import { searchMemory, readHeartbeat, appendMemory } from './memory.js';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// =============================================================================
+// Pipe Mode
+// =============================================================================
 
+/**
+ * Read all data from stdin (for pipe mode)
+ */
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf-8').trim();
+}
+
+/**
+ * Run in pipe mode: read stdin, process, output result
+ */
+async function runPipeMode(): Promise<void> {
+  // Get prompt from command line args (default: "Process this input:")
+  const prompt = process.argv[2] || 'Process this input:';
+
+  // Read piped input
+  const input = await readStdin();
+
+  if (!input) {
+    console.error('Error: No input received from pipe');
+    process.exit(1);
+  }
+
+  // Combine prompt with input
+  const fullPrompt = `${prompt}\n\n---\n\n${input}`;
+
+  try {
+    const response = await processMessage(fullPrompt);
+    // Output only the content (suitable for piping to next command)
+    console.log(response.content);
+  } catch (error) {
+    console.error('Error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
+
+// =============================================================================
+// Interactive Mode
+// =============================================================================
+
+let rl: readline.Interface;
 let isClosing = false;
 
-// Handle close event
-rl.on('close', () => {
-  if (!isClosing) {
-    console.log('\nBye!');
-    process.exit(0);
-  }
-});
+function startInteractiveMode(): void {
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  // Handle close event
+  rl.on('close', () => {
+    if (!isClosing) {
+      console.log('\nBye!');
+      process.exit(0);
+    }
+  });
+
+  console.log('Mini-Agent - Memory + Proactivity');
+  console.log('Type /help for commands, or just chat.\n');
+  prompt();
+}
 
 function prompt(): void {
   if (isClosing) return;
@@ -141,7 +203,20 @@ Commands:
   }
 }
 
-// Main
-console.log('Mini-Agent - Memory + Proactivity');
-console.log('Type /help for commands, or just chat.\n');
-prompt();
+// =============================================================================
+// Main Entry Point
+// =============================================================================
+
+// Check if stdin is a TTY (interactive) or a pipe
+const isPiped = !process.stdin.isTTY;
+
+if (isPiped) {
+  // Pipe mode: read stdin, process, output
+  runPipeMode().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+} else {
+  // Interactive mode: readline interface
+  startInteractiveMode();
+}

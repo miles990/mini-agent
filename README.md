@@ -36,14 +36,36 @@ Minimal Personal AI Agent with two core concepts:
 # Install
 pnpm install
 
-# Run CLI
+# Interactive mode
 pnpm cli
 
 # Run API server
 pnpm dev
 ```
 
-## CLI Commands
+## Unix Pipe Mode
+
+Mini-agent supports Unix pipes for seamless integration with other CLI tools:
+
+```bash
+# Translate text
+echo "Hello World" | mini-agent "翻譯成中文"
+# Output: 你好世界
+
+# Summarize a file
+cat README.md | mini-agent "summarize this in 3 bullet points"
+
+# Write commit message from diff
+git diff | mini-agent "write a commit message"
+
+# Parse JSON
+curl -s api.example.com | mini-agent "extract the user name"
+
+# Chain with other tools
+git log --oneline -5 | mini-agent "summarize" | pbcopy
+```
+
+## Interactive Commands
 
 ```
 /help           - Show help
@@ -77,6 +99,7 @@ This is the **minimal viable** personal AI agent:
 - **No embedding** - grep search is enough
 - **No complex state** - Files are the source of truth
 - **Two concepts only** - Memory + Proactivity
+- **Unix native** - Pipe-friendly, composable with other tools
 
 Everything else is optional complexity.
 
