@@ -204,6 +204,9 @@ async function runPromptMode(prompt: string): Promise<void> {
     if (response.shouldRemember) {
       console.log(`\n[Remembered: ${response.shouldRemember}]`);
     }
+    if (response.taskAdded) {
+      console.log(`\n[Task added: ${response.taskAdded}]`);
+    }
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);
@@ -261,6 +264,9 @@ function prompt(): void {
 
       if (response.shouldRemember) {
         console.log(`\n[Remembered: ${response.shouldRemember}]`);
+      }
+      if (response.taskAdded) {
+        console.log(`\n[Task added: ${response.taskAdded}]`);
       }
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : error);

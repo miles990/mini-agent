@@ -141,6 +141,36 @@ export async function updateHeartbeat(content: string): Promise<void> {
 }
 
 /**
+ * Add a task to HEARTBEAT.md
+ */
+export async function addTask(task: string, schedule?: string): Promise<void> {
+  const heartbeatPath = path.join(MEMORY_DIR, 'HEARTBEAT.md');
+  await fs.mkdir(MEMORY_DIR, { recursive: true });
+
+  let current = '';
+  try {
+    current = await fs.readFile(heartbeatPath, 'utf-8');
+  } catch {
+    current = `# HEARTBEAT\n\n## Active Tasks\n`;
+  }
+
+  const timestamp = new Date().toISOString();
+  const scheduleNote = schedule ? ` (${schedule})` : '';
+  const taskEntry = `\n- [ ] ${task}${scheduleNote} <!-- added: ${timestamp} -->`;
+
+  // Add to Active Tasks section
+  if (current.includes('## Active Tasks')) {
+    const updated = current.replace(
+      '## Active Tasks',
+      `## Active Tasks${taskEntry}`
+    );
+    await fs.writeFile(heartbeatPath, updated, 'utf-8');
+  } else {
+    await fs.writeFile(heartbeatPath, current + `\n## Active Tasks${taskEntry}\n`, 'utf-8');
+  }
+}
+
+/**
  * Build context for LLM (memory + heartbeat)
  */
 export async function buildContext(): Promise<string> {

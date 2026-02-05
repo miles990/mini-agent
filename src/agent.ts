@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildContext, appendDailyNote, appendMemory } from './memory.js';
+import { buildContext, appendDailyNote, appendMemory, addTask } from './memory.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -18,13 +18,20 @@ export interface Message {
 export interface AgentResponse {
   content: string;
   shouldRemember?: string;
+  taskAdded?: string;
 }
 
-const SYSTEM_PROMPT = `You are a personal AI assistant with memory capabilities.
+const SYSTEM_PROMPT = `You are a personal AI assistant with memory and task capabilities.
 
 Instructions:
 - When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
-- Example: [REMEMBER]User prefers TypeScript[/REMEMBER]
+  Example: [REMEMBER]User prefers TypeScript[/REMEMBER]
+
+- When the user asks you to do something periodically/scheduled, wrap it in [TASK]...[/TASK] tags
+  Format: [TASK schedule="cron or description"]task content[/TASK]
+  Example: [TASK schedule="every 5 minutes"]Write a haiku to output.md with timestamp[/TASK]
+  Example: [TASK schedule="daily at 9am"]Send daily summary[/TASK]
+
 - Keep responses concise and helpful
 - You have access to memory context provided below
 `;
@@ -81,9 +88,28 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     }
   }
 
+  // 5. Check if should add a task
+  let taskAdded: string | undefined;
+  if (response.includes('[TASK')) {
+    const match = response.match(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/s);
+    if (match) {
+      const schedule = match[1];
+      const taskContent = match[2].trim();
+      await addTask(taskContent, schedule);
+      taskAdded = taskContent;
+    }
+  }
+
+  // Clean response from all tags
+  let cleanContent = response
+    .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
+    .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
+    .trim();
+
   return {
-    content: response.replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '').trim(),
+    content: cleanContent,
     shouldRemember,
+    taskAdded,
   };
 }
 
