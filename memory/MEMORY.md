@@ -7,6 +7,7 @@ This file stores persistent knowledge that the agent should remember across sess
 <!-- Add user preferences here -->
 
 ## Learned Patterns
+- [2026-02-05] 用戶的名字是小明
 - [2026-02-05] 這是第一條測試記憶
 
 <!-- Add learned patterns here -->

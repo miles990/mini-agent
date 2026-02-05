@@ -4,7 +4,10 @@
  * receive → context → llm → execute → respond
  */
 
-import { spawn } from 'node:child_process';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { buildContext, appendDailyNote, appendMemory } from './memory.js';
 
 export interface Message {
@@ -17,46 +20,41 @@ export interface AgentResponse {
   shouldRemember?: string;
 }
 
+const SYSTEM_PROMPT = `You are a personal AI assistant with memory capabilities.
+
+Instructions:
+- When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
+- Example: [REMEMBER]User prefers TypeScript[/REMEMBER]
+- Keep responses concise and helpful
+- You have access to memory context provided below
+`;
+
 /**
  * Call Claude Code via subprocess
+ * Uses a temp file to pass the prompt (avoids shell escaping issues)
  */
 async function callClaude(prompt: string, context: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fullPrompt = `${context}\n\n---\n\nUser: ${prompt}`;
+  const fullPrompt = `${SYSTEM_PROMPT}\n\n${context}\n\n---\n\nUser: ${prompt}`;
 
-    const proc = spawn('claude', ['-p', fullPrompt], {
-      stdio: ['pipe', 'pipe', 'pipe'],
+  // Write prompt to temp file
+  const tmpFile = path.join(os.tmpdir(), `mini-agent-prompt-${Date.now()}.txt`);
+  fs.writeFileSync(tmpFile, fullPrompt, 'utf-8');
+
+  try {
+    const result = execSync(`cat "${tmpFile}" | claude -p`, {
+      encoding: 'utf-8',
+      timeout: 120000,
+      maxBuffer: 10 * 1024 * 1024, // 10MB
     });
-
-    let stdout = '';
-    let stderr = '';
-
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(stdout.trim());
-      } else {
-        reject(new Error(stderr || `Claude exited with code ${code}`));
-      }
-    });
-
-    proc.on('error', (err) => {
-      reject(err);
-    });
-
-    // Timeout after 2 minutes
-    setTimeout(() => {
-      proc.kill();
-      reject(new Error('Claude timeout'));
-    }, 120000);
-  });
+    return result.trim();
+  } finally {
+    // Clean up temp file
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 /**
