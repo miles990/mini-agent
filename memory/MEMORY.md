@@ -7,9 +7,11 @@ This file stores persistent knowledge that the agent should remember across sess
 <!-- Add user preferences here -->
 
 ## Learned Patterns
+- [2026-02-05] 這是第一條測試記憶
 
 <!-- Add learned patterns here -->
 
 ## Important Decisions
+- [2026-02-05] API 測試新增的記憶
 
 <!-- Add important decisions here -->

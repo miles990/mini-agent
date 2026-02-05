@@ -15,9 +15,23 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
+let isClosing = false;
+
+// Handle close event
+rl.on('close', () => {
+  if (!isClosing) {
+    console.log('\nBye!');
+    process.exit(0);
+  }
+});
+
 function prompt(): void {
+  if (isClosing) return;
+
   rl.question('> ', async (input) => {
-    const trimmed = input.trim();
+    if (isClosing) return;
+
+    const trimmed = input?.trim() ?? '';
 
     if (!trimmed) {
       prompt();
@@ -27,7 +41,7 @@ function prompt(): void {
     // Commands
     if (trimmed.startsWith('/')) {
       await handleCommand(trimmed);
-      prompt();
+      if (!isClosing) prompt();
       return;
     }
 
@@ -45,7 +59,7 @@ function prompt(): void {
     }
 
     console.log('');
-    prompt();
+    if (!isClosing) prompt();
   });
 }
 
@@ -117,7 +131,9 @@ Commands:
 
     case 'quit':
     case 'exit':
+      isClosing = true;
       console.log('Bye!');
+      rl.close();
       process.exit(0);
 
     default:
