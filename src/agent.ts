@@ -119,8 +119,8 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
 export async function runHeartbeat(): Promise<string | null> {
   const context = await buildContext();
 
-  // Check if there are active tasks
-  if (!context.includes('## Active Tasks') || context.includes('<!-- Add tasks below')) {
+  // Check if there are active tasks (look for unchecked checkboxes)
+  if (!context.includes('- [ ]')) {
     return null; // No tasks to process
   }
 
