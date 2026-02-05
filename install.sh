@@ -28,7 +28,7 @@ echo "Installing dependencies..."
 pnpm install --silent
 
 echo "Building..."
-pnpm build --silent
+pnpm build
 
 # Link globally
 echo "Linking globally..."
