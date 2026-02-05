@@ -565,7 +565,22 @@ async function runPromptMode(prompt: string): Promise<void> {
 let rl: readline.Interface;
 let isClosing = false;
 
-function runChat(): void {
+async function runChat(port: number): Promise<void> {
+  // 同時啟動 API server
+  const app = createApi(port);
+  const config = await getConfig();
+  const instanceId = getCurrentInstanceId();
+
+  app.listen(port, () => {
+    console.log(`Mini-Agent - Memory + Proactivity`);
+    console.log(`Instance: ${instanceId}`);
+    console.log(`API server: http://localhost:${port}`);
+    startProactive({ schedule: config.proactiveSchedule });
+    console.log(`Proactive: ${config.proactiveSchedule}`);
+    console.log('\nType /help for commands, or just chat.\n');
+    prompt();
+  });
+
   rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -577,12 +592,6 @@ function runChat(): void {
       process.exit(0);
     }
   });
-
-  const instanceId = getCurrentInstanceId();
-  console.log('Mini-Agent - Memory + Proactivity');
-  console.log(`Instance: ${instanceId}`);
-  console.log('Type /help for commands, or just chat.\n');
-  prompt();
 }
 
 function prompt(): void {
@@ -915,10 +924,10 @@ async function main(): Promise<void> {
       showHelp();
       break;
     case 'server':
-      runServer(port);
+      await runServer(port);
       break;
     default:
-      runChat();
+      await runChat(port);
       break;
   }
 }
