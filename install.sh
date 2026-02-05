@@ -1,6 +1,6 @@
 #!/bin/bash
 # Mini-Agent Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/user/mini-agent/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 
 set -e
 

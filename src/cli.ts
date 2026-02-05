@@ -22,6 +22,7 @@
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { processMessage } from './agent.js';
 import { searchMemory, appendMemory, createMemory } from './memory.js';
 import { createApi } from './api.js';
@@ -538,6 +539,24 @@ function handleStatusCommand(instanceId?: string): void {
   }
 }
 
+function handleUpdateCommand(): void {
+  console.log('Updating mini-agent to latest version...\n');
+
+  const installScript = 'curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash';
+
+  try {
+    execSync(installScript, {
+      stdio: 'inherit',
+      shell: '/bin/bash',
+    });
+  } catch (error) {
+    console.error('\nUpdate failed:', error instanceof Error ? error.message : error);
+    console.error('\nYou can try manually:');
+    console.error(`  ${installScript}`);
+    process.exit(1);
+  }
+}
+
 async function handleAttachCommand(instanceId: string): Promise<void> {
   if (!instanceId) {
     console.error('Usage: mini-agent attach <id>');
@@ -588,6 +607,7 @@ Commands:
   mini-agent status [id]              Show instance status
   mini-agent kill <id|--all>          Kill (delete) instance(s)
   mini-agent logs [type]              Show logs
+  mini-agent update                   Update to latest version
 
 Up Options:
   -d, --detach            Run in background (don't attach)
@@ -1110,7 +1130,7 @@ Chat Commands:
 // =============================================================================
 
 // 直接命令列表（不需要 instance 前綴）
-const DIRECT_COMMANDS = ['list', 'up', 'attach', 'start', 'down', 'restart', 'status', 'kill', 'logs', 'help'];
+const DIRECT_COMMANDS = ['list', 'up', 'attach', 'start', 'down', 'restart', 'status', 'kill', 'logs', 'help', 'update'];
 
 interface ParsedArgs {
   command: string;
@@ -1220,6 +1240,9 @@ async function main(): Promise<void> {
       return;
     case 'logs':
       await handleLogsCommand(commandArgs);
+      return;
+    case 'update':
+      handleUpdateCommand();
       return;
   }
 
