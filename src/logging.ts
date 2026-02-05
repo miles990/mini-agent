@@ -7,7 +7,7 @@
  * ~/.mini-agent/instances/{id}/logs/
  * ├── claude/       Claude Code 操作日誌
  * ├── api/          API 請求日誌
- * ├── proactive/    Proactive 系統日誌
+ * ├── cron/    Cron 系統日誌
  * └── error/        錯誤日誌
  */
 
@@ -24,7 +24,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 /**
  * 日誌類型
  */
-export type LogType = 'claude-call' | 'api-request' | 'proactive' | 'error';
+export type LogType = 'claude-call' | 'api-request' | 'cron' | 'error';
 
 /**
  * Claude 輸入
@@ -107,10 +107,10 @@ export interface ApiLogEntry extends LogEntry {
 }
 
 /**
- * Proactive 日誌項目
+ * Cron 日誌項目
  */
-export interface ProactiveLogEntry extends LogEntry {
-  type: 'proactive';
+export interface CronLogEntry extends LogEntry {
+  type: 'cron';
   data: {
     action: string;
     trigger?: string;
@@ -161,7 +161,7 @@ export class Logger {
    * 確保日誌目錄存在
    */
   private ensureLogDirs(): void {
-    const dirs = ['claude', 'api', 'proactive', 'error'];
+    const dirs = ['claude', 'api', 'cron', 'error'];
     for (const dir of dirs) {
       const dirPath = path.join(this.logsDir, dir);
       if (!existsSync(dirPath)) {
@@ -177,7 +177,7 @@ export class Logger {
     const mapping: Record<LogType, string> = {
       'claude-call': 'claude',
       'api-request': 'api',
-      'proactive': 'proactive',
+      'cron': 'cron',
       'error': 'error',
     };
     return mapping[type];
@@ -264,18 +264,18 @@ export class Logger {
   }
 
   /**
-   * 記錄 Proactive 動作
+   * 記錄 Cron 動作
    */
-  logProactive(
+  logCron(
     action: string,
     result?: string,
     trigger?: string,
     metadata?: Partial<LogMetadata>
   ): string {
     const id = this.generateRequestId();
-    const entry: ProactiveLogEntry = {
+    const entry: CronLogEntry = {
       timestamp: new Date().toISOString(),
-      type: 'proactive',
+      type: 'cron',
       instanceId: this.instanceId,
       requestId: id,
       data: { action, result, trigger },
@@ -343,7 +343,7 @@ export class Logger {
       entries = this.readLogFile(type, dateStr);
     } else {
       // 讀取所有類型
-      const types: LogType[] = ['claude-call', 'api-request', 'proactive', 'error'];
+      const types: LogType[] = ['claude-call', 'api-request', 'cron', 'error'];
       for (const t of types) {
         entries.push(...this.readLogFile(t, dateStr));
       }
@@ -373,10 +373,10 @@ export class Logger {
   }
 
   /**
-   * 查詢 Proactive 日誌
+   * 查詢 Cron 日誌
    */
-  queryProactiveLogs(date?: string, limit = 50): ProactiveLogEntry[] {
-    return this.query({ type: 'proactive', date, limit }) as ProactiveLogEntry[];
+  queryCronLogs(date?: string, limit = 50): CronLogEntry[] {
+    return this.query({ type: 'cron', date, limit }) as CronLogEntry[];
   }
 
   /**
@@ -391,7 +391,7 @@ export class Logger {
    */
   async getAvailableDates(type?: LogType): Promise<string[]> {
     const dates = new Set<string>();
-    const types: LogType[] = type ? [type] : ['claude-call', 'api-request', 'proactive', 'error'];
+    const types: LogType[] = type ? [type] : ['claude-call', 'api-request', 'cron', 'error'];
 
     for (const t of types) {
       const dirPath = path.join(this.logsDir, this.typeToDir(t));
@@ -417,23 +417,23 @@ export class Logger {
     date: string;
     claude: number;
     api: number;
-    proactive: number;
+    cron: number;
     error: number;
     total: number;
   }> {
     const dateStr = date ?? this.getToday();
     const claude = this.readLogFile('claude-call', dateStr).length;
     const api = this.readLogFile('api-request', dateStr).length;
-    const proactive = this.readLogFile('proactive', dateStr).length;
+    const cron = this.readLogFile('cron', dateStr).length;
     const error = this.readLogFile('error', dateStr).length;
 
     return {
       date: dateStr,
       claude,
       api,
-      proactive,
+      cron,
       error,
-      total: claude + api + proactive + error,
+      total: claude + api + cron + error,
     };
   }
 }

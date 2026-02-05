@@ -40,18 +40,18 @@ export function startCronTasks(tasks: CronTask[]): void {
 
     const job = cron.schedule(task.schedule, async () => {
       console.log(`[Cron] Running: ${task.task.slice(0, 50)}...`);
-      logger.logProactive('cron-task', task.task.slice(0, 100), task.schedule);
+      logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
 
       try {
         const response = await processMessage(task.task);
         console.log(`[Cron] Done: ${response.content.slice(0, 50)}...`);
-        logger.logProactive('cron-task-result', response.content.slice(0, 200), task.schedule, {
+        logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
           success: true,
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(`[Cron] Error: ${errorMsg}`);
-        logger.logProactive('cron-task-error', errorMsg, task.schedule, {
+        logger.logCron('cron-task-error', errorMsg, task.schedule, {
           success: false,
           error: errorMsg,
         });

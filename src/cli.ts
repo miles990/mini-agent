@@ -23,7 +23,7 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 import { processMessage } from './agent.js';
-import { searchMemory, readHeartbeat, appendMemory, createMemory } from './memory.js';
+import { searchMemory, appendMemory, createMemory } from './memory.js';
 import { createApi } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
@@ -138,7 +138,7 @@ async function handleLogsCommand(args: string[]): Promise<void> {
       console.log(`  Date: ${stats.date}`);
       console.log(`  Claude calls: ${stats.claude}`);
       console.log(`  API requests: ${stats.api}`);
-      console.log(`  Proactive: ${stats.proactive}`);
+      console.log(`  Cron: ${stats.cron}`);
       console.log(`  Errors: ${stats.error}`);
       console.log(`  Total: ${stats.total}`);
       console.log('\nAvailable dates:');
@@ -180,9 +180,9 @@ async function handleLogsCommand(args: string[]): Promise<void> {
       break;
     }
 
-    case 'proactive': {
-      const entries = logger.queryProactiveLogs(date, limit);
-      console.log(`\nProactive Logs (${entries.length} entries):\n`);
+    case 'cron': {
+      const entries = logger.queryCronLogs(date, limit);
+      console.log(`\nCron Logs (${entries.length} entries):\n`);
       for (const entry of entries) {
         const time = entry.timestamp.split('T')[1].split('.')[0];
         const action = entry.data.action as string;
@@ -230,7 +230,7 @@ Commands:
   mini-agent logs stats               Show log statistics
   mini-agent logs claude              Show Claude operation logs
   mini-agent logs errors              Show error logs
-  mini-agent logs proactive           Show proactive system logs
+  mini-agent logs cron                Show cron task logs
   mini-agent logs api                 Show API request logs
   mini-agent logs all                 Show all logs
 
@@ -777,7 +777,6 @@ Attached Mode Commands:
   /detach         - Disconnect (instance keeps running)
   /status         - Show instance status
   /memory         - Show memory
-  /heartbeat      - Show HEARTBEAT.md
   /logs           - Show recent logs
   (any text)      - Chat with the agent
 `);
@@ -802,18 +801,6 @@ Attached Mode Commands:
           const res = await fetch(`${baseUrl}/memory`);
           const data = await res.json() as { memory: string };
           console.log(data.memory || '(empty)');
-        } catch (err) {
-          console.error('Error:', err);
-        }
-        promptAttached();
-        return;
-      }
-
-      if (trimmed === '/heartbeat') {
-        try {
-          const res = await fetch(`${baseUrl}/heartbeat`);
-          const data = await res.json() as { heartbeat: string };
-          console.log(data.heartbeat || '(empty)');
         } catch (err) {
           console.error('Error:', err);
         }
@@ -976,7 +963,6 @@ async function handleChatCommand(cmd: string): Promise<void> {
 Chat Commands:
   /help           - Show this help
   /search <query> - Search memory
-  /heartbeat      - Show HEARTBEAT.md
   /remember <text>- Add to memory
   /config         - Show current config
   /config set <key> <value> - Update config
@@ -1004,12 +990,6 @@ Chat Commands:
           console.log(`[${r.source}] ${r.content}`);
         });
       }
-      break;
-    }
-
-    case 'heartbeat': {
-      const hb = await readHeartbeat();
-      console.log(hb || '(empty)');
       break;
     }
 
@@ -1087,7 +1067,7 @@ Chat Commands:
         console.log('\nToday\'s Log Statistics:');
         console.log(`  Claude calls: ${stats.claude}`);
         console.log(`  API requests: ${stats.api}`);
-        console.log(`  Proactive: ${stats.proactive}`);
+        console.log(`  Cron: ${stats.cron}`);
         console.log(`  Errors: ${stats.error}`);
         console.log(`  Total: ${stats.total}`);
       } else if (subCmd === 'claude') {

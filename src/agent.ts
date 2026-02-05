@@ -182,7 +182,7 @@ export async function runHeartbeat(): Promise<string | null> {
 
   // Check if there are active tasks (look for unchecked checkboxes)
   if (!context.includes('- [ ]')) {
-    logger.logProactive('heartbeat', 'No active tasks', 'scheduled');
+    logger.logCron('heartbeat', 'No active tasks', 'scheduled');
     return null; // No tasks to process
   }
 
@@ -197,12 +197,12 @@ Keep response brief.`;
   try {
     const { response, duration } = await callClaude(prompt, context);
     await memory.appendDailyNote(`[Heartbeat] ${response.slice(0, 100)}...`);
-    logger.logProactive('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
+    logger.logCron('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
     return response;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.logError(error instanceof Error ? error : new Error(errorMsg), 'runHeartbeat');
-    logger.logProactive('heartbeat', undefined, 'scheduled', { success: false, error: errorMsg });
+    logger.logCron('heartbeat', undefined, 'scheduled', { success: false, error: errorMsg });
     console.error('Heartbeat error:', error);
     return null;
   }

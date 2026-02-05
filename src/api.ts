@@ -6,7 +6,6 @@
 
 import express, { type Request, type Response } from 'express';
 import { processMessage } from './agent.js';
-import { startProactive, stopProactive, triggerHeartbeat } from './proactive.js';
 import {
   searchMemory,
   readMemory,
@@ -279,27 +278,6 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true });
   });
 
-  app.post('/heartbeat/trigger', async (_req: Request, res: Response) => {
-    const result = await triggerHeartbeat();
-    res.json({ result: result ?? 'No action needed' });
-  });
-
-  // =============================================================================
-  // Proactive
-  // =============================================================================
-
-  app.post('/proactive/start', async (req: Request, res: Response) => {
-    const config = await getConfig();
-    const schedule = req.body.schedule ?? config.proactiveSchedule;
-    startProactive({ schedule });
-    res.json({ success: true, schedule });
-  });
-
-  app.post('/proactive/stop', (_req: Request, res: Response) => {
-    stopProactive();
-    res.json({ success: true });
-  });
-
   // =============================================================================
   // Config
   // =============================================================================
@@ -382,12 +360,12 @@ export function createApi(port = 3001): express.Express {
     res.json({ entries, count: entries.length });
   });
 
-  // 查詢 Proactive 系統日誌
-  app.get('/logs/proactive', async (req: Request, res: Response) => {
+  // 查詢 Cron 任務日誌
+  app.get('/logs/cron', async (req: Request, res: Response) => {
     const logger = getLogger();
     const date = req.query.date as string | undefined;
     const limit = parseInt(req.query.limit as string || '50', 10);
-    const entries = logger.queryProactiveLogs(date, limit);
+    const entries = logger.queryCronLogs(date, limit);
     res.json({ entries, count: entries.length });
   });
 
@@ -439,9 +417,6 @@ if (isMain) {
     console.log('  GET  /tasks             - List tasks');
     console.log('  POST /tasks             - Add a task');
     console.log('  GET  /heartbeat         - Read HEARTBEAT.md');
-    console.log('  POST /heartbeat/trigger - Trigger heartbeat');
-    console.log('  POST /proactive/start   - Start proactive mode');
-    console.log('  POST /proactive/stop    - Stop proactive mode');
     console.log('  GET  /config            - Get configuration');
     console.log('  PUT  /config            - Update configuration');
     console.log('  POST /config/reset      - Reset to defaults');
@@ -452,7 +427,7 @@ if (isMain) {
     console.log('  GET  /logs/claude       - Claude operation logs');
     console.log('  GET  /logs/claude/:date - Claude logs for specific date');
     console.log('  GET  /logs/errors       - Error logs');
-    console.log('  GET  /logs/proactive    - Proactive system logs');
+    console.log('  GET  /logs/cron         - Cron task logs');
     console.log('  GET  /logs/api          - API request logs');
     console.log('  GET  /logs/dates        - Available log dates');
   });
