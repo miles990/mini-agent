@@ -25,14 +25,14 @@ fi
 
 # Install and build
 echo "Installing dependencies..."
-pnpm install --silent
+pnpm install
 
 echo "Building..."
 pnpm build
 
 # Link globally
 echo "Linking globally..."
-npm link --silent
+npm link
 
 echo ""
 echo "✓ mini-agent installed!"
