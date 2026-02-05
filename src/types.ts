@@ -190,6 +190,10 @@ export interface ComposeAgent {
 export interface ComposeFile {
   version?: string;
   agents: Record<string, ComposeAgent>;
+  paths?: {
+    memory?: string;
+    logs?: string;
+  };
   memory?: {
     shared?: {
       path?: string;

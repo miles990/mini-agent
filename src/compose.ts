@@ -16,6 +16,10 @@ export const DEFAULT_COMPOSE_FILE = 'agent-compose.yaml';
 
 export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
   version: '1',
+  paths: {
+    memory: './memory',
+    logs: './logs',
+  },
   agents: {
     default: {
       name: 'Default Agent',
@@ -27,6 +31,10 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
 
 export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
   version: '1',
+  paths: {
+    memory: './memory',
+    logs: './logs',
+  },
   agents: {
     default: {
       name: 'Default Agent',
@@ -87,6 +95,10 @@ export function generateComposeTemplate(example = false, options?: ComposeOption
     // 使用自定義參數
     template = {
       version: '1',
+      paths: {
+        memory: './memory',
+        logs: './logs',
+      },
       agents: {
         default: {
           name: options.name || 'Default Agent',
