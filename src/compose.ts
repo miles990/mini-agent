@@ -243,7 +243,7 @@ export function composeUp(compose: ComposeFile, detached = false): ComposeUpResu
       continue;
     }
 
-    // 建立新實例
+    // 建立新實例並啟動
     try {
       const instance = manager.create({
         name: agentName,
@@ -252,7 +252,9 @@ export function composeUp(compose: ComposeFile, detached = false): ComposeUpResu
         persona: agentDef.persona,
       });
 
-      // create 已經會自動啟動，所以直接標記為 started
+      if (detached) {
+        manager.start(instance.id);
+      }
       result.started.push(agentId);
     } catch (err) {
       result.failed.push({

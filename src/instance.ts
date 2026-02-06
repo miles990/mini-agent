@@ -472,12 +472,17 @@ export class InstanceManager {
     }
 
     // 啟動伺服器進程（使用 api.js）
+    // stderr 導到日誌檔，方便除錯
+    const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
+    ensureDir(path.dirname(logFile));
+    const logFd = fs.openSync(logFile, 'a');
+
     const serverProcess = spawn(
       'node',
       [path.join(import.meta.dirname || __dirname, 'api.js')],
       {
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', logFd, logFd],
         env: {
           ...process.env,
           MINI_AGENT_INSTANCE: instanceId,
@@ -487,12 +492,28 @@ export class InstanceManager {
     );
 
     serverProcess.unref();
+    fs.closeSync(logFd);
     this.runningInstances.set(instanceId, serverProcess);
 
     // 記錄 PID
     const pidFile = path.join(getInstanceDir(instanceId), 'server.pid');
     if (serverProcess.pid) {
       fs.writeFileSync(pidFile, String(serverProcess.pid));
+    }
+
+    // 等待確認進程存活（最多 2 秒）
+    const startTime = Date.now();
+    while (Date.now() - startTime < 2000) {
+      if (serverProcess.exitCode !== null) {
+        // 進程已退出，啟動失敗
+        this.runningInstances.delete(instanceId);
+        try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+        const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf-8').slice(-500) : '';
+        throw new Error(`Process exited with code ${serverProcess.exitCode}${log ? `\n${log}` : ''}`);
+      }
+      // busy wait 100ms
+      const waitUntil = Date.now() + 100;
+      while (Date.now() < waitUntil) { /* spin */ }
     }
 
     return true;

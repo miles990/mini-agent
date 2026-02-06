@@ -22,13 +22,14 @@
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawn as spawnChild } from 'node:child_process';
 import { processMessage } from './agent.js';
 import { searchMemory, appendMemory, createMemory, getMemory } from './memory.js';
 import { createApi, setLoopRef } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
   getInstanceManager,
+  getInstanceDir,
   loadInstanceConfig,
   listInstances,
   getCurrentInstanceId,
@@ -116,22 +117,109 @@ function readFileContent(filePath: string): { content: string; type: 'text' | 'i
 // Logs Commands
 // =============================================================================
 
-async function handleLogsCommand(args: string[]): Promise<void> {
-  const logger = getLogger();
-  const subCommand = args[0] || 'stats';
+/**
+ * 找到當前 compose 中第一個實例 ID（用於 logs 預設目標）
+ */
+function resolveInstanceId(specifiedId?: string): string | null {
+  if (specifiedId) return specifiedId;
 
-  // Parse options
+  // 嘗試從 compose 找
+  const composeFile = findComposeFile();
+  if (composeFile) {
+    const compose = readComposeFile(composeFile);
+    const manager = getInstanceManager();
+    const instances = manager.list();
+    const byName = new Map(instances.map(i => [i.name, i]));
+    for (const [, def] of Object.entries(compose.agents)) {
+      const name = def.name || '';
+      const inst = byName.get(name);
+      if (inst) return inst.id;
+    }
+  }
+
+  // 若只有一個實例，直接用
+  const all = listInstances();
+  if (all.length === 1) return all[0].id;
+
+  return null;
+}
+
+async function handleLogsCommand(args: string[]): Promise<void> {
+  // Parse flags first
+  let follow = false;
+  let tail = 50;
   let date: string | undefined;
   let limit = 20;
+  const cleanArgs: string[] = [];
 
-  for (let i = 1; i < args.length; i++) {
+  for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--date' && args[i + 1]) {
+    if (arg === '-f' || arg === '--follow') {
+      follow = true;
+    } else if (arg === '--tail' && args[i + 1]) {
+      tail = parseInt(args[++i], 10);
+    } else if (arg === '--date' && args[i + 1]) {
       date = args[++i];
     } else if (arg === '--limit' && args[i + 1]) {
       limit = parseInt(args[++i], 10);
+    } else {
+      cleanArgs.push(arg);
     }
   }
+
+  const subCommand = cleanArgs[0] || '';
+
+  // 結構化日誌子命令
+  const structuredCommands = ['stats', 'claude', 'errors', 'cron', 'loop', 'api', 'all'];
+  if (structuredCommands.includes(subCommand)) {
+    await handleStructuredLogs(subCommand, date, limit);
+    return;
+  }
+
+  // Docker-style: mini-agent logs [-f] [--tail N] [instance-id]
+  const instanceId = resolveInstanceId(cleanArgs[0]);
+  if (!instanceId) {
+    console.error('No instance found. Specify instance ID or use agent-compose.yaml');
+    console.error('Usage: mini-agent logs [-f] [--tail N] [instance-id]');
+    process.exit(1);
+  }
+
+  const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
+  if (!fs.existsSync(logFile)) {
+    console.error(`No logs found for instance ${instanceId}`);
+    console.error(`Log file: ${logFile}`);
+    return;
+  }
+
+  if (follow) {
+    // tail -f mode
+    const tailProc = spawnChild('tail', ['-f', '-n', String(tail), logFile], {
+      stdio: 'inherit',
+    });
+    // Ctrl+C graceful exit
+    process.on('SIGINT', () => {
+      tailProc.kill();
+      process.exit(0);
+    });
+    await new Promise<void>((resolve) => {
+      tailProc.on('exit', () => resolve());
+    });
+  } else {
+    // Show last N lines
+    const content = fs.readFileSync(logFile, 'utf-8');
+    const lines = content.split('\n');
+    const start = Math.max(0, lines.length - tail);
+    const output = lines.slice(start).join('\n').trimEnd();
+    if (output) {
+      console.log(output);
+    } else {
+      console.log('(empty log)');
+    }
+  }
+}
+
+async function handleStructuredLogs(subCommand: string, date?: string, limit = 20): Promise<void> {
+  const logger = getLogger();
 
   switch (subCommand) {
     case 'stats': {
@@ -213,7 +301,6 @@ async function handleLogsCommand(args: string[]): Promise<void> {
         const icon = result && result !== 'No action' && result !== 'No active tasks' ? '⚡' : '💤';
         console.log(`${icon} [${time}] ${duration > 0 ? `(${(duration / 1000).toFixed(1)}s)` : ''}`);
         if (result) {
-          // 顯示行動摘要（截取第一行，最多 120 字）
           const summary = result.split('\n')[0].slice(0, 120);
           console.log(`  ${summary}${result.length > 120 ? '...' : ''}`);
         } else {
@@ -248,30 +335,6 @@ async function handleLogsCommand(args: string[]): Promise<void> {
       }
       break;
     }
-
-    default:
-      console.log(`
-Logs Management:
-
-Commands:
-  mini-agent logs                     Show log statistics
-  mini-agent logs stats               Show log statistics
-  mini-agent logs loop                Show AgentLoop cycle logs
-  mini-agent logs claude              Show Claude operation logs
-  mini-agent logs errors              Show error logs
-  mini-agent logs cron                Show cron task logs
-  mini-agent logs api                 Show API request logs
-  mini-agent logs all                 Show all logs
-
-Options:
-  --date <YYYY-MM-DD>    Filter by date
-  --limit <n>            Limit results (default: 20)
-
-Examples:
-  mini-agent logs loop
-  mini-agent logs claude --date 2026-02-05
-  mini-agent logs errors --limit 10
-`);
   }
 }
 
@@ -634,7 +697,8 @@ Commands:
   mini-agent restart <id>             Restart an instance
   mini-agent status [id]              Show instance status
   mini-agent kill <id|--all>          Kill (delete) instance(s)
-  mini-agent logs [type]              Show logs
+  mini-agent logs [-f] [--tail N]     Show server logs (like docker logs)
+  mini-agent logs stats               Show structured log statistics
   mini-agent update                   Update to latest version
 
 Up Options:
@@ -650,8 +714,10 @@ Down Options:
   --all                   Stop all instances
 
 Logs Options:
-  --date <YYYY-MM-DD>     Filter by date
-  --limit <n>             Limit results (default: 20)
+  -f, --follow            Follow log output (tail -f)
+  --tail <n>              Number of lines to show (default: 50)
+  --date <YYYY-MM-DD>     Filter by date (structured logs)
+  --limit <n>             Limit results (default: 20, structured logs)
 
 Global Options:
   -i, --instance <id>     Use specific instance
@@ -665,6 +731,9 @@ Examples:
   mini-agent down                         # Stop all (from compose)
   mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance
+  mini-agent logs                        # Show server output
+  mini-agent logs -f                      # Follow server output (Ctrl+C to stop)
+  mini-agent logs --tail 100              # Show last 100 lines
   mini-agent logs claude --date 2026-02-05
 `);
 }
