@@ -18,6 +18,7 @@ import {
   initDataDir,
 } from './instance.js';
 import { withFileLock } from './filelock.js';
+import { getWorkspaceSnapshot, formatWorkspaceContext } from './workspace.js';
 import type { MemoryEntry, ConversationEntry } from './types.js';
 
 // =============================================================================
@@ -344,11 +345,19 @@ export class InstanceMemory {
     const timeStr = now.toLocaleString('zh-TW', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hour12: false });
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+    // Workspace 快照（讓 Agent 感知工作空間）
+    const workspace = getWorkspaceSnapshot();
+    const workspaceCtx = formatWorkspaceContext(workspace);
+
     return `
 <environment>
 Current time: ${timeStr} (${tz})
 Instance: ${this.instanceId}
 </environment>
+
+<workspace>
+${workspaceCtx}
+</workspace>
 
 <memory>
 ${memory}
