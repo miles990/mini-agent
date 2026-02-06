@@ -18,19 +18,46 @@ import {
   initDataDir,
 } from './instance.js';
 import { withFileLock } from './filelock.js';
-import { getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus } from './workspace.js';
-import type { AgentSelfStatus } from './workspace.js';
+import {
+  getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus,
+  getProcessStatus, formatProcessStatus,
+  getLogSummary, formatLogSummary,
+  getSystemResources, formatSystemResources,
+  getNetworkStatus, formatNetworkStatus,
+  getConfigSnapshot, formatConfigSnapshot,
+} from './workspace.js';
+import type {
+  AgentSelfStatus,
+  ProcessStatus, LogSummary, SystemResources, NetworkStatus, ConfigSnapshot,
+} from './workspace.js';
 import type { MemoryEntry, ConversationEntry } from './types.js';
 
 // =============================================================================
-// Self-Status Provider (外部注入，避免循環依賴)
+// Perception Providers (外部注入，避免循環依賴)
 // =============================================================================
 
 let selfStatusProvider: (() => AgentSelfStatus | null) | null = null;
+let processStatusProvider: (() => ProcessStatus) | null = null;
+let logSummaryProvider: (() => LogSummary) | null = null;
+let networkStatusProvider: (() => NetworkStatus) | null = null;
+let configSnapshotProvider: (() => ConfigSnapshot) | null = null;
 
 /** 註冊 Agent 自我狀態提供者 */
 export function setSelfStatusProvider(provider: () => AgentSelfStatus | null): void {
   selfStatusProvider = provider;
+}
+
+/** 註冊所有感知提供者 */
+export function setPerceptionProviders(providers: {
+  process?: () => ProcessStatus;
+  logs?: () => LogSummary;
+  network?: () => NetworkStatus;
+  config?: () => ConfigSnapshot;
+}): void {
+  if (providers.process) processStatusProvider = providers.process;
+  if (providers.logs) logSummaryProvider = providers.logs;
+  if (providers.network) networkStatusProvider = providers.network;
+  if (providers.config) configSnapshotProvider = providers.config;
 }
 
 // =============================================================================
@@ -365,29 +392,43 @@ export class InstanceMemory {
     const selfStatus = selfStatusProvider?.();
     const selfCtx = selfStatus ? formatSelfStatus(selfStatus) : '';
 
-    return `
-<environment>
+    // Process 感知
+    const processCtx = processStatusProvider ? formatProcessStatus(processStatusProvider()) : '';
+
+    // Log 感知
+    const logCtx = logSummaryProvider ? formatLogSummary(logSummaryProvider()) : '';
+
+    // 系統資源（直接取得，不需要注入）
+    const sysRes = getSystemResources();
+    const sysCtx = formatSystemResources(sysRes);
+
+    // 網路感知
+    const netCtx = networkStatusProvider ? formatNetworkStatus(networkStatusProvider()) : '';
+
+    // 配置感知
+    const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
+
+    // 組合所有感知區塊
+    const sections: string[] = [];
+
+    sections.push(`<environment>
 Current time: ${timeStr} (${tz})
 Instance: ${this.instanceId}
-</environment>
+</environment>`);
 
-${selfCtx ? `<self>\n${selfCtx}\n</self>\n` : ''}
-<workspace>
-${workspaceCtx}
-</workspace>
+    if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
+    if (processCtx) sections.push(`<process>\n${processCtx}\n</process>`);
+    if (sysCtx) sections.push(`<system>\n${sysCtx}\n</system>`);
+    if (logCtx) sections.push(`<logs>\n${logCtx}\n</logs>`);
+    if (netCtx) sections.push(`<network>\n${netCtx}\n</network>`);
+    if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
 
-<memory>
-${memory}
-</memory>
+    sections.push(`<workspace>\n${workspaceCtx}\n</workspace>`);
+    sections.push(`<memory>\n${memory}\n</memory>`);
+    sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
+    sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
-<recent_conversations>
-${conversations || '(No recent conversations)'}
-</recent_conversations>
-
-<heartbeat>
-${heartbeat}
-</heartbeat>
-`.trim();
+    return sections.join('\n\n');
   }
 }
 

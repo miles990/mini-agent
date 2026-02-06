@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 
 // =============================================================================
@@ -245,6 +246,330 @@ export function formatWorkspaceContext(snapshot: WorkspaceSnapshot): string {
     lines.push(`Files (${snapshot.files.length}):`);
     for (const f of snapshot.files) {
       lines.push(`  ${f}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #2 Process Awareness
+// =============================================================================
+
+export interface ProcessStatus {
+  /** Server 運行時間（秒） */
+  uptimeSeconds: number;
+  /** 記憶體使用 */
+  memory: { rss: number; heapUsed: number; heapTotal: number };
+  /** Node.js 版本 */
+  nodeVersion: string;
+  /** PID */
+  pid: number;
+  /** 其他 Agent 實例 */
+  otherInstances: Array<{ id: string; name?: string; port: number; running: boolean }>;
+  /** 今日日誌統計 */
+  logStats: { claude: number; api: number; cron: number; error: number } | null;
+}
+
+/**
+ * 取得 Process 狀態
+ */
+export function getProcessStatus(otherInstancesFn?: () => Array<{ id: string; name?: string; port: number; running: boolean }>, logStatsFn?: () => { claude: number; api: number; cron: number; error: number } | null): ProcessStatus {
+  const mem = process.memoryUsage();
+  return {
+    uptimeSeconds: Math.floor(process.uptime()),
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024),
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+    },
+    nodeVersion: process.version,
+    pid: process.pid,
+    otherInstances: otherInstancesFn?.() ?? [],
+    logStats: logStatsFn?.() ?? null,
+  };
+}
+
+/**
+ * 格式化 Process 狀態
+ */
+export function formatProcessStatus(status: ProcessStatus): string {
+  const lines: string[] = [];
+
+  const upH = Math.floor(status.uptimeSeconds / 3600);
+  const upM = Math.floor((status.uptimeSeconds % 3600) / 60);
+  lines.push(`Uptime: ${upH}h ${upM}m | PID: ${status.pid} | Node: ${status.nodeVersion}`);
+  lines.push(`Memory: ${status.memory.rss}MB RSS, ${status.memory.heapUsed}/${status.memory.heapTotal}MB heap`);
+
+  if (status.otherInstances.length > 0) {
+    lines.push(`Other instances (${status.otherInstances.length}):`);
+    for (const inst of status.otherInstances) {
+      const name = inst.name ?? inst.id;
+      lines.push(`  ${name} :${inst.port} ${inst.running ? '●' : '○'}`);
+    }
+  }
+
+  if (status.logStats) {
+    const s = status.logStats;
+    lines.push(`Today's logs: ${s.claude} claude, ${s.api} api, ${s.cron} cron, ${s.error} errors`);
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #3 Log Awareness
+// =============================================================================
+
+export interface LogSummary {
+  /** 最近的錯誤（最多 5 個） */
+  recentErrors: Array<{ time: string; message: string }>;
+  /** 最近的事件（最多 10 個） */
+  recentEvents: Array<{ time: string; type: string; summary: string }>;
+}
+
+/**
+ * 取得日誌摘要（透過注入的函數）
+ */
+export function getLogSummary(
+  errorsFn?: () => Array<{ time: string; message: string }>,
+  eventsFn?: () => Array<{ time: string; type: string; summary: string }>,
+): LogSummary {
+  return {
+    recentErrors: errorsFn?.() ?? [],
+    recentEvents: eventsFn?.() ?? [],
+  };
+}
+
+/**
+ * 格式化日誌摘要
+ */
+export function formatLogSummary(summary: LogSummary): string {
+  const lines: string[] = [];
+
+  if (summary.recentErrors.length > 0) {
+    lines.push(`Recent errors (${summary.recentErrors.length}):`);
+    for (const e of summary.recentErrors) {
+      lines.push(`  [${e.time}] ${e.message.slice(0, 100)}`);
+    }
+  } else {
+    lines.push('No recent errors');
+  }
+
+  if (summary.recentEvents.length > 0) {
+    lines.push(`Recent events (${summary.recentEvents.length}):`);
+    for (const e of summary.recentEvents) {
+      lines.push(`  [${e.time}] ${e.type}: ${e.summary.slice(0, 80)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #4 System Resources
+// =============================================================================
+
+export interface SystemResources {
+  /** CPU 負載（1/5/15 分鐘平均） */
+  loadAvg: [number, number, number];
+  /** CPU 核心數 */
+  cpuCount: number;
+  /** 系統記憶體 */
+  memoryMB: { total: number; free: number; usedPercent: number };
+  /** 磁碟空間（工作目錄所在） */
+  diskGB: { total: number; free: number; usedPercent: number } | null;
+  /** 系統運行時間（秒） */
+  systemUptime: number;
+  /** 平台 */
+  platform: string;
+}
+
+/**
+ * 取得系統資源
+ */
+export function getSystemResources(): SystemResources {
+  const loadAvg = os.loadavg() as [number, number, number];
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+
+  // 磁碟空間
+  let disk: SystemResources['diskGB'] = null;
+  try {
+    const dfOutput = execFileSync('df', ['-k', process.cwd()], {
+      encoding: 'utf-8', timeout: 3000,
+    }).trim();
+    const dfLines = dfOutput.split('\n');
+    if (dfLines.length >= 2) {
+      const parts = dfLines[1].split(/\s+/);
+      const totalKB = parseInt(parts[1]);
+      const usedKB = parseInt(parts[2]);
+      const freeKB = parseInt(parts[3]);
+      if (!isNaN(totalKB) && !isNaN(freeKB)) {
+        disk = {
+          total: Math.round(totalKB / 1024 / 1024),
+          free: Math.round(freeKB / 1024 / 1024),
+          usedPercent: Math.round((usedKB / totalKB) * 100),
+        };
+      }
+    }
+  } catch {
+    // df 不可用
+  }
+
+  return {
+    loadAvg: [
+      Math.round(loadAvg[0] * 100) / 100,
+      Math.round(loadAvg[1] * 100) / 100,
+      Math.round(loadAvg[2] * 100) / 100,
+    ],
+    cpuCount: os.cpus().length,
+    memoryMB: {
+      total: Math.round(totalMem / 1024 / 1024),
+      free: Math.round(freeMem / 1024 / 1024),
+      usedPercent: Math.round((usedMem / totalMem) * 100),
+    },
+    diskGB: disk,
+    systemUptime: Math.floor(os.uptime()),
+    platform: `${os.platform()} ${os.arch()} ${os.release()}`,
+  };
+}
+
+/**
+ * 格式化系統資源
+ */
+export function formatSystemResources(res: SystemResources): string {
+  const lines: string[] = [];
+
+  lines.push(`Platform: ${res.platform}`);
+  lines.push(`CPU: ${res.cpuCount} cores, load: ${res.loadAvg.join(', ')}`);
+  lines.push(`Memory: ${res.memoryMB.usedPercent}% used (${res.memoryMB.free}MB free / ${res.memoryMB.total}MB)`);
+
+  if (res.diskGB) {
+    lines.push(`Disk: ${res.diskGB.usedPercent}% used (${res.diskGB.free}GB free / ${res.diskGB.total}GB)`);
+  }
+
+  const sysUpH = Math.floor(res.systemUptime / 3600);
+  const sysUpD = Math.floor(sysUpH / 24);
+  lines.push(`System uptime: ${sysUpD}d ${sysUpH % 24}h`);
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #5 Network Awareness
+// =============================================================================
+
+export interface NetworkStatus {
+  /** 自身 port 是否開啟 */
+  selfPortOpen: boolean;
+  /** 其他可達的服務 */
+  reachableServices: Array<{ name: string; url: string; ok: boolean; latencyMs?: number }>;
+}
+
+/**
+ * 檢查 port 是否被佔用（同步）
+ */
+function checkPortSync(port: number): boolean {
+  try {
+    execFileSync('lsof', ['-i', `:${port}`, '-P', '-n'], {
+      encoding: 'utf-8', timeout: 2000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 取得網路狀態（同步版本，適合 context building）
+ */
+export function getNetworkStatus(selfPort: number, servicesToCheck?: Array<{ name: string; url: string }>): NetworkStatus {
+  const selfPortOpen = checkPortSync(selfPort);
+
+  const reachable: NetworkStatus['reachableServices'] = [];
+  for (const svc of servicesToCheck ?? []) {
+    try {
+      const start = Date.now();
+      execFileSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', '--connect-timeout', '2', svc.url], {
+        encoding: 'utf-8', timeout: 3000,
+      });
+      reachable.push({ name: svc.name, url: svc.url, ok: true, latencyMs: Date.now() - start });
+    } catch {
+      reachable.push({ name: svc.name, url: svc.url, ok: false });
+    }
+  }
+
+  return { selfPortOpen, reachableServices: reachable };
+}
+
+/**
+ * 格式化網路狀態
+ */
+export function formatNetworkStatus(status: NetworkStatus): string {
+  const lines: string[] = [];
+
+  lines.push(`Self port: ${status.selfPortOpen ? '● open' : '○ closed'}`);
+
+  if (status.reachableServices.length > 0) {
+    for (const svc of status.reachableServices) {
+      const latency = svc.latencyMs ? ` (${svc.latencyMs}ms)` : '';
+      lines.push(`  ${svc.ok ? '●' : '○'} ${svc.name}${latency}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #6 Configuration Awareness
+// =============================================================================
+
+export interface ConfigSnapshot {
+  /** Compose 檔案內容（簡化） */
+  compose: {
+    agents: Array<{ id: string; name: string; port: number; persona?: string; loop?: { enabled: boolean; interval?: string }; cronCount: number }>;
+  } | null;
+  /** 全域預設值 */
+  globalDefaults: Record<string, unknown> | null;
+  /** 當前實例配置 */
+  instanceConfig: Record<string, unknown> | null;
+}
+
+/**
+ * 取得配置快照（透過注入）
+ */
+export function getConfigSnapshot(
+  composeFn?: () => ConfigSnapshot['compose'],
+  globalDefaultsFn?: () => Record<string, unknown> | null,
+  instanceConfigFn?: () => Record<string, unknown> | null,
+): ConfigSnapshot {
+  return {
+    compose: composeFn?.() ?? null,
+    globalDefaults: globalDefaultsFn?.() ?? null,
+    instanceConfig: instanceConfigFn?.() ?? null,
+  };
+}
+
+/**
+ * 格式化配置快照
+ */
+export function formatConfigSnapshot(config: ConfigSnapshot): string {
+  const lines: string[] = [];
+
+  if (config.compose) {
+    lines.push(`Compose agents (${config.compose.agents.length}):`);
+    for (const a of config.compose.agents) {
+      const loop = a.loop?.enabled ? ` loop:${a.loop.interval ?? 'default'}` : '';
+      lines.push(`  ${a.name} :${a.port}${loop} (${a.cronCount} cron)`);
+    }
+  }
+
+  if (config.instanceConfig) {
+    const keys = Object.keys(config.instanceConfig).filter(k => !['id', 'createdAt', 'updatedAt'].includes(k));
+    if (keys.length > 0) {
+      lines.push(`Instance config: ${keys.map(k => `${k}=${JSON.stringify(config.instanceConfig![k])}`).join(', ')}`);
     }
   }
 

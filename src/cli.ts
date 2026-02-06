@@ -24,13 +24,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
 import { processMessage } from './agent.js';
-import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider } from './memory.js';
+import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders } from './memory.js';
+import {
+  getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
+} from './workspace.js';
 import { createApi, setLoopRef } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
   getInstanceManager,
   getInstanceDir,
   loadInstanceConfig,
+  loadGlobalConfig,
   listInstances,
   getCurrentInstanceId,
 } from './instance.js';
@@ -1046,6 +1050,61 @@ async function runChat(port: number): Promise<void> {
       } : null,
       cronTasks: cronTasks.map(t => ({ schedule: t.schedule, task: t.task })),
     };
+  });
+
+  // ── Perception Providers ──
+  const logger = getLogger();
+  const instManager = getInstanceManager();
+
+  setPerceptionProviders({
+    process: () => getProcessStatus(
+      () => instManager.listStatus()
+        .filter(s => s.id !== instanceId)
+        .map(s => ({ id: s.id, name: s.name, port: s.port, running: s.running })),
+      () => {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+          claude: logger.queryClaudeLogs(today, 0).length,
+          api: logger.queryApiLogs(today, 0).length,
+          cron: logger.queryCronLogs(today, 0).length,
+          error: logger.queryErrorLogs(today, 0).length,
+        };
+      },
+    ),
+    logs: () => getLogSummary(
+      () => logger.queryErrorLogs(undefined, 5).map(e => ({
+        time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+        message: e.data.error,
+      })),
+      () => logger.query({ limit: 10 }).map(e => ({
+        time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+        type: e.type,
+        summary: e.type === 'error'
+          ? (e.data as { error: string }).error
+          : e.type === 'claude-call'
+            ? `chat: ${((e.data as { input: { userMessage: string } }).input?.userMessage ?? '').slice(0, 60)}`
+            : e.type === 'cron'
+              ? (e.data as { action: string }).action
+              : `${(e.data as { request?: { method?: string; path?: string } }).request?.method ?? ''} ${(e.data as { request?: { method?: string; path?: string } }).request?.path ?? ''}`,
+      })),
+    ),
+    network: () => getNetworkStatus(port),
+    config: () => getConfigSnapshot(
+      () => ({
+        agents: Object.entries(compose.agents).map(([id, a]) => ({
+          id,
+          name: a.name || id,
+          port: a.port || 3001,
+          persona: a.persona,
+          loop: a.loop ? { enabled: a.loop.enabled !== false, interval: a.loop.interval } : undefined,
+          cronCount: a.cron?.length ?? 0,
+        })),
+      }),
+      () => {
+        try { return loadGlobalConfig().defaults as unknown as Record<string, unknown>; } catch { return null; }
+      },
+      () => loadInstanceConfig(instanceId) as unknown as Record<string, unknown> | null,
+    ),
   });
 
   app.listen(port, () => {

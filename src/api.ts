@@ -28,7 +28,11 @@ import { getLogger, type LogType } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
-import { setSelfStatusProvider } from './memory.js';
+import { setSelfStatusProvider, setPerceptionProviders } from './memory.js';
+import {
+  getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
+} from './workspace.js';
+import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 
 // =============================================================================
@@ -659,6 +663,65 @@ if (isMain) {
     } : null,
     cronTasks: getActiveCronTasks().map(t => ({ schedule: t.schedule, task: t.task })),
   }));
+
+  // ── Perception Providers ──
+  const logger = getLogger();
+  const manager = getInstanceManager();
+
+  setPerceptionProviders({
+    process: () => getProcessStatus(
+      () => manager.listStatus()
+        .filter(s => s.id !== instanceId)
+        .map(s => ({ id: s.id, name: s.name, port: s.port, running: s.running })),
+      () => {
+        const stats = logger.query({ limit: 0 }); // just to get counts
+        const today = new Date().toISOString().split('T')[0];
+        const cLogs = logger.queryClaudeLogs(today, 0).length;
+        const aLogs = logger.queryApiLogs(today, 0).length;
+        const crLogs = logger.queryCronLogs(today, 0).length;
+        const eLogs = logger.queryErrorLogs(today, 0).length;
+        return { claude: cLogs, api: aLogs, cron: crLogs, error: eLogs };
+      },
+    ),
+    logs: () => getLogSummary(
+      () => logger.queryErrorLogs(undefined, 5).map(e => ({
+        time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+        message: e.data.error,
+      })),
+      () => logger.query({ limit: 10 }).map(e => ({
+        time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+        type: e.type,
+        summary: e.type === 'error'
+          ? (e.data as { error: string }).error
+          : e.type === 'claude-call'
+            ? `chat: ${((e.data as { input: { userMessage: string } }).input?.userMessage ?? '').slice(0, 60)}`
+            : e.type === 'cron'
+              ? (e.data as { action: string }).action
+              : `${(e.data as { request?: { method?: string; path?: string } }).request?.method ?? ''} ${(e.data as { request?: { method?: string; path?: string } }).request?.path ?? ''}`,
+      })),
+    ),
+    network: () => getNetworkStatus(port),
+    config: () => getConfigSnapshot(
+      () => {
+        if (!composeFile) return null;
+        const compose = readComposeFile(composeFile);
+        return {
+          agents: Object.entries(compose.agents).map(([id, a]) => ({
+            id,
+            name: a.name || id,
+            port: a.port || 3001,
+            persona: a.persona,
+            loop: a.loop ? { enabled: a.loop.enabled !== false, interval: a.loop.interval } : undefined,
+            cronCount: a.cron?.length ?? 0,
+          })),
+        };
+      },
+      () => {
+        try { return loadGlobalConfig().defaults as unknown as Record<string, unknown>; } catch { return null; }
+      },
+      () => instanceConfig as unknown as Record<string, unknown> | null,
+    ),
+  });
 
   app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
