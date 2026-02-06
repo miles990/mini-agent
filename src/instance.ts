@@ -81,28 +81,12 @@ export function initDataDir(): void {
   const dataDir = getDataDir();
   ensureDir(dataDir);
   ensureDir(path.join(dataDir, 'instances'));
-  ensureDir(path.join(dataDir, 'instances', 'default'));
   ensureDir(path.join(dataDir, 'shared'));
 
   // 創建預設的全域配置
   const globalConfigPath = getGlobalConfigPath();
   if (!fs.existsSync(globalConfigPath)) {
     fs.writeFileSync(globalConfigPath, stringifyYaml(DEFAULT_GLOBAL_CONFIG));
-  }
-
-  // 創建預設實例
-  const defaultInstanceDir = path.join(dataDir, 'instances', 'default');
-  const defaultInstanceConfigPath = path.join(defaultInstanceDir, 'instance.yaml');
-  if (!fs.existsSync(defaultInstanceConfigPath)) {
-    const defaultInstance: InstanceConfig = {
-      id: 'default',
-      name: 'Default Instance',
-      role: 'standalone',
-      port: 3001,
-      createdAt: new Date().toISOString(),
-    };
-    fs.writeFileSync(defaultInstanceConfigPath, stringifyYaml(defaultInstance));
-    createDefaultInstanceFiles(defaultInstanceDir);
   }
 }
 
@@ -406,10 +390,6 @@ export function listInstances(): InstanceConfig[] {
  * 刪除實例
  */
 export function deleteInstance(instanceId: string): boolean {
-  if (instanceId === 'default') {
-    throw new Error('Cannot delete the default instance');
-  }
-
   const instanceDir = getInstanceDir(instanceId);
   if (!fs.existsSync(instanceDir)) {
     return false;

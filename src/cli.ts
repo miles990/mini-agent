@@ -410,7 +410,6 @@ function handleKillCommand(args: string[]): void {
     const instances = manager.listStatus();
     let killed = 0;
     for (const inst of instances) {
-      if (inst.id === 'default') continue;
       try {
         manager.delete(inst.id);
         console.log(`Killed: ${inst.id}`);
