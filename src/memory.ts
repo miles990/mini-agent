@@ -339,7 +339,17 @@ export class InstanceMemory {
       })
       .join('\n');
 
+    // Server 環境資訊（讓 Agent 感知時間和環境）
+    const now = new Date();
+    const timeStr = now.toLocaleString('zh-TW', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hour12: false });
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     return `
+<environment>
+Current time: ${timeStr} (${tz})
+Instance: ${this.instanceId}
+</environment>
+
 <memory>
 ${memory}
 </memory>
