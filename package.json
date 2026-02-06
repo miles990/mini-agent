@@ -11,6 +11,8 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "setup": "pnpm install && pnpm build && npm link"
   },
   "dependencies": {
@@ -25,7 +27,8 @@
     "@types/node-cron": "^3.0.11",
     "@types/uuid": "^11.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=20"

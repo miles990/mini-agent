@@ -17,6 +17,7 @@ import {
   getInstanceDir,
   initDataDir,
 } from './instance.js';
+import { withFileLock } from './filelock.js';
 import type { MemoryEntry, ConversationEntry } from './types.js';
 
 // =============================================================================
@@ -99,21 +100,24 @@ export class InstanceMemory {
   async appendMemory(content: string, section = 'Learned Patterns'): Promise<void> {
     await ensureDir(this.memoryDir);
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
-    const current = await this.readMemory();
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    const entry = `\n- [${timestamp}] ${content}`;
+    await withFileLock(memoryPath, async () => {
+      const current = await this.readMemory();
 
-    const sectionHeader = `## ${section}`;
-    let updated: string;
+      const timestamp = new Date().toISOString().split('T')[0];
+      const entry = `\n- [${timestamp}] ${content}`;
 
-    if (current.includes(sectionHeader)) {
-      updated = current.replace(sectionHeader, `${sectionHeader}${entry}`);
-    } else {
-      updated = current + `\n${sectionHeader}${entry}\n`;
-    }
+      const sectionHeader = `## ${section}`;
+      let updated: string;
 
-    await fs.writeFile(memoryPath, updated, 'utf-8');
+      if (current.includes(sectionHeader)) {
+        updated = current.replace(sectionHeader, `${sectionHeader}${entry}`);
+      } else {
+        updated = current + `\n${sectionHeader}${entry}\n`;
+      }
+
+      await fs.writeFile(memoryPath, updated, 'utf-8');
+    });
   }
 
   /**
@@ -134,7 +138,9 @@ export class InstanceMemory {
   async updateHeartbeat(content: string): Promise<void> {
     await ensureDir(this.memoryDir);
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
-    await fs.writeFile(heartbeatPath, content, 'utf-8');
+    await withFileLock(heartbeatPath, async () => {
+      await fs.writeFile(heartbeatPath, content, 'utf-8');
+    });
   }
 
   /**
@@ -144,25 +150,27 @@ export class InstanceMemory {
     await ensureDir(this.memoryDir);
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
 
-    let current = '';
-    try {
-      current = await fs.readFile(heartbeatPath, 'utf-8');
-    } catch {
-      current = `# HEARTBEAT\n\n## Active Tasks\n`;
-    }
+    await withFileLock(heartbeatPath, async () => {
+      let current = '';
+      try {
+        current = await fs.readFile(heartbeatPath, 'utf-8');
+      } catch {
+        current = `# HEARTBEAT\n\n## Active Tasks\n`;
+      }
 
-    const timestamp = new Date().toISOString();
-    const scheduleNote = schedule ? ` (${schedule})` : '';
-    const taskEntry = `\n- [ ] ${task}${scheduleNote} <!-- added: ${timestamp} -->`;
+      const timestamp = new Date().toISOString();
+      const scheduleNote = schedule ? ` (${schedule})` : '';
+      const taskEntry = `\n- [ ] ${task}${scheduleNote} <!-- added: ${timestamp} -->`;
 
-    let updated: string;
-    if (current.includes('## Active Tasks')) {
-      updated = current.replace('## Active Tasks', `## Active Tasks${taskEntry}`);
-    } else {
-      updated = current + `\n## Active Tasks${taskEntry}\n`;
-    }
+      let updated: string;
+      if (current.includes('## Active Tasks')) {
+        updated = current.replace('## Active Tasks', `## Active Tasks${taskEntry}`);
+      } else {
+        updated = current + `\n## Active Tasks${taskEntry}\n`;
+      }
 
-    await fs.writeFile(heartbeatPath, updated, 'utf-8');
+      await fs.writeFile(heartbeatPath, updated, 'utf-8');
+    });
   }
 
   /**
@@ -187,31 +195,34 @@ export class InstanceMemory {
 
     const today = new Date().toISOString().split('T')[0];
     const dailyPath = path.join(dailyDir, `${today}.md`);
-    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
 
-    let current = '';
-    try {
-      current = await fs.readFile(dailyPath, 'utf-8');
-    } catch {
-      current = `# Daily Notes - ${today}\n`;
-    }
+    await withFileLock(dailyPath, async () => {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
 
-    // 添加新內容
-    const newContent = current + `\n[${timestamp}] ${content}`;
+      let current = '';
+      try {
+        current = await fs.readFile(dailyPath, 'utf-8');
+      } catch {
+        current = `# Daily Notes - ${today}\n`;
+      }
 
-    // Warm rotate: 限制每日筆數
-    const lines = newContent.split('\n');
-    const headerLines = lines.filter(l => l.startsWith('#') || l.trim() === '');
-    const contentLines = lines.filter(l => !l.startsWith('#') && l.trim() !== '' && l.startsWith('['));
+      // 添加新內容
+      const newContent = current + `\n[${timestamp}] ${content}`;
 
-    // 如果超過 warmLimit，移除最舊的
-    if (contentLines.length > this.warmLimit) {
-      const trimmed = contentLines.slice(-this.warmLimit);
-      const finalContent = [...headerLines, ...trimmed].join('\n');
-      await fs.writeFile(dailyPath, finalContent, 'utf-8');
-    } else {
-      await fs.writeFile(dailyPath, newContent, 'utf-8');
-    }
+      // Warm rotate: 限制每日筆數
+      const lines = newContent.split('\n');
+      const headerLines = lines.filter(l => l.startsWith('#') || l.trim() === '');
+      const contentLines = lines.filter(l => !l.startsWith('#') && l.trim() !== '' && l.startsWith('['));
+
+      // 如果超過 warmLimit，移除最舊的
+      if (contentLines.length > this.warmLimit) {
+        const trimmed = contentLines.slice(-this.warmLimit);
+        const finalContent = [...headerLines, ...trimmed].join('\n');
+        await fs.writeFile(dailyPath, finalContent, 'utf-8');
+      } else {
+        await fs.writeFile(dailyPath, newContent, 'utf-8');
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -279,15 +290,23 @@ export class InstanceMemory {
    * 搜尋記憶
    */
   async searchMemory(query: string, maxResults = 5): Promise<MemoryEntry[]> {
+    // Sanitize query: remove shell metacharacters to prevent command injection
+    const sanitized = query.replace(/["`$\\;|&(){}[\]<>!#*?~\n\r]/g, '');
+    if (!sanitized.trim()) return [];
+
     try {
-      const result = execSync(
-        `grep -rni "${query.replace(/"/g, '\\"')}" "${this.memoryDir}" --include="*.md" | head -${maxResults}`,
-        { encoding: 'utf-8', timeout: 5000 }
+      // Use execFileSync to avoid shell interpretation entirely
+      const { execFileSync } = await import('node:child_process');
+      const grepResult = execFileSync(
+        'grep',
+        ['-rni', '--include=*.md', sanitized, this.memoryDir],
+        { encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
       );
 
-      return result
+      return grepResult
         .split('\n')
         .filter((line) => line.trim())
+        .slice(0, maxResults)
         .map((line) => {
           const [filePath, ...rest] = line.split(':');
           return {
