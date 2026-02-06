@@ -5,8 +5,9 @@ Minimal Personal AI Agent with autonomous capabilities:
 1. **Memory** - File-based persistence (MEMORY.md + HEARTBEAT.md + daily notes)
 2. **AgentLoop** - OODA autonomous cycle (Observe → Orient → Decide → Act)
 3. **Cron** - Scheduled tasks via agent-compose.yaml
-4. **Perception** - Full environment awareness (self, process, system, logs, network, config)
-5. **Multi-Instance** - Docker-style instance management with compose
+4. **Perception** - Full environment awareness (builtin + custom shell plugins)
+5. **Skills** - Markdown knowledge modules injected into system prompt
+6. **Multi-Instance** - Docker-style instance management with compose
 
 ## Architecture
 
@@ -32,6 +33,11 @@ graph TB
         Logs[Log Awareness<br/>errors, events]
         Network[Network<br/>ports, services]
         Config[Config<br/>compose, globals]
+        Custom[Custom Plugins<br/>Shell Scripts]
+    end
+
+    subgraph Skills
+        Skill[Markdown Skills<br/>Injected into System Prompt]
     end
 
     subgraph Storage
@@ -61,6 +67,8 @@ graph TB
     Logs -.-> Agent
     Network -.-> Agent
     Config -.-> Agent
+    Custom -.-> Agent
+    Skill -.-> Agent
 ```
 
 ## Install
@@ -103,6 +111,20 @@ agents:
       - schedule: "0 9 * * *"
         task: Good morning! Review today's schedule
         enabled: true
+
+    # Custom Perception (Shell Script plugins)
+    perception:
+      custom:
+        - name: docker
+          script: ./plugins/docker-status.sh
+        - name: ports
+          script: ./plugins/port-check.sh
+
+    # Skills (Markdown knowledge modules)
+    skills:
+      - ./skills/docker-ops.md
+      - ./skills/debug-helper.md
+      - ./skills/project-manager.md
 ```
 
 ### Generate Template
@@ -173,6 +195,118 @@ This means the agent can answer questions like:
 - "What's the CPU usage?" / "How much disk space is left?"
 - "Are there any errors in the logs?"
 - "What's your configuration?"
+
+### Custom Perception Plugins
+
+Extend the agent's awareness with **any executable file** (Bash, Python, binary). Each plugin's stdout is captured and injected into Claude's context as an XML tag.
+
+```yaml
+# agent-compose.yaml
+perception:
+  custom:
+    - name: docker          # → <docker>...</docker>
+      script: ./plugins/docker-status.sh
+    - name: ports           # → <ports>...</ports>
+      script: ./plugins/port-check.sh
+      timeout: 5000         # Optional timeout in ms (default: 5000)
+```
+
+**How it works:**
+1. Each plugin runs as a subprocess with a timeout
+2. stdout is captured and wrapped in `<name>...</name>` XML tag
+3. Tags are injected into Claude's context alongside builtin perceptions
+4. Failures are isolated — one plugin crashing doesn't affect others
+
+**Writing a plugin:**
+
+```bash
+#!/bin/bash
+# plugins/my-plugin.sh
+# Just output useful information to stdout
+
+echo "Status: OK"
+echo "Connections: $(netstat -an | grep ESTABLISHED | wc -l)"
+echo "Load: $(uptime | awk -F'load average:' '{print $2}')"
+```
+
+Any language works — Bash, Python, Go binary, etc. As long as it's executable and writes to stdout.
+
+**Included demo plugins:**
+
+| Plugin | Description |
+|--------|-------------|
+| `docker-status.sh` | Running/stopped containers, resource usage |
+| `port-check.sh` | Common port availability (80, 443, 3000, 5432, 6379...) |
+| `disk-usage.sh` | Mount points, home directory top 5, temp files |
+| `git-status.sh` | Branch, remote, uncommitted files, unpushed commits |
+| `homebrew-outdated.sh` | Outdated brew packages |
+
+## Skills (Markdown Knowledge Modules)
+
+Skills are pure Markdown files that get injected into the agent's **system prompt**. They tell the agent *how to do things* — workflows, checklists, commands, safety rules.
+
+```yaml
+# agent-compose.yaml
+skills:
+  - ./skills/docker-ops.md
+  - ./skills/debug-helper.md
+  - ./skills/project-manager.md
+```
+
+**How it works:**
+1. Markdown files are loaded at startup
+2. Content is injected into the system prompt under `## Your Skills`
+3. Claude sees these as instructions and follows them when relevant
+
+**Writing a skill:**
+
+```markdown
+# Docker 運維專家
+
+當容器出現異常時，按以下流程處理：
+
+## 診斷步驟
+1. 檢查容器狀態：`docker ps -a`
+2. 查看日誌：`docker logs <container>`
+3. 檢查資源：`docker stats --no-stream`
+
+## 安全規則
+- 不要 `docker rm -f` 生產容器
+- 修改前先備份配置
+```
+
+**Included demo skills:**
+
+| Skill | Description |
+|-------|-------------|
+| `docker-ops.md` | Container exception handling, common commands, safety rules |
+| `debug-helper.md` | Systematic debugging workflow (reproduce → locate → hypothesize → verify → fix) |
+| `project-manager.md` | Task management with HEARTBEAT.md, daily workflow |
+| `code-review.md` | Review checklist (logic, security, performance, readability, testing) |
+| `server-admin.md` | System monitoring, common commands, safety rules |
+
+## Three-Layer Architecture
+
+```
+┌──────────────────────────────────────────────────┐
+│                   Claude CLI                      │
+│           (Execution via --dangerously-           │
+│            skip-permissions)                      │
+├──────────────────────────────────────────────────┤
+│  Perception (See)     │  Skills (Know How)        │
+│  ─────────────────    │  ──────────────────       │
+│  Builtin modules      │  Markdown files           │
+│  + Shell plugins      │  → system prompt          │
+│  → context injection  │                           │
+├──────────────────────────────────────────────────┤
+│              Agent Core (Think + Decide)           │
+│              Memory + AgentLoop + Cron             │
+└──────────────────────────────────────────────────┘
+```
+
+- **Perception** provides real-time environment data (what the agent *sees*)
+- **Skills** provide domain knowledge (what the agent *knows how to do*)
+- **Claude CLI** provides execution capability (what the agent *can do*)
 
 ## Instance Management (Docker-style)
 
@@ -380,7 +514,15 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 ./                              # Project directory
 ├── agent-compose.yaml          # Compose configuration
 ├── memory/                     # Project-specific memory
-└── logs/                       # Project-specific logs
+├── logs/                       # Project-specific logs
+├── plugins/                    # Custom perception plugins (shell scripts)
+│   ├── docker-status.sh
+│   ├── port-check.sh
+│   └── ...
+└── skills/                     # Markdown knowledge modules
+    ├── docker-ops.md
+    ├── debug-helper.md
+    └── ...
 ```
 
 ## Memory System (Three-Layer)
@@ -420,6 +562,16 @@ agents:
       - schedule: "0 9 * * *"
         task: Good morning greeting
         enabled: false    # Disabled task
+    perception:           # Custom perception plugins
+      custom:
+        - name: docker
+          script: ./plugins/docker-status.sh
+        - name: ports
+          script: ./plugins/port-check.sh
+          timeout: 10000  # Timeout in ms (default: 5000)
+    skills:               # Markdown knowledge modules
+      - ./skills/docker-ops.md
+      - ./skills/debug-helper.md
     paths:                # Agent-specific paths (highest priority)
       memory: ./my-memory
       logs: ./my-logs
@@ -443,6 +595,7 @@ This is the **minimal viable** personal AI agent:
 - **Compose-style** - Familiar Docker-like workflow
 - **Autonomous** - OODA loop for proactive behavior
 - **Self-aware** - Full environment perception
+- **Pluggable** - Shell scripts as perception plugins, Markdown as skills
 
 Everything else is optional complexity.
 
