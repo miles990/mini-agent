@@ -25,8 +25,10 @@ import {
   getCurrentInstanceId,
 } from './instance.js';
 import { getLogger, type LogType } from './logging.js';
-import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks } from './cron.js';
-import type { AgentLoop } from './loop.js';
+import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount } from './cron.js';
+import { AgentLoop, parseInterval } from './loop.js';
+import { findComposeFile, readComposeFile } from './compose.js';
+import { setSelfStatusProvider } from './memory.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 
 // =============================================================================
@@ -613,14 +615,37 @@ const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
   const port = parseInt(process.env.PORT ?? '3001', 10);
   const app = createApi(port);
+  const instanceId = getCurrentInstanceId();
+  const instanceConfig = loadInstanceConfig(instanceId);
 
-  // Detached 模式也注入基本自我感知
-  const { setSelfStatusProvider } = await import('./memory.js');
+  // ── Cron: 從 compose 讀取並啟動 ──
+  const composeFile = findComposeFile();
+  let currentAgent: import('./types.js').ComposeAgent | undefined;
+
+  if (composeFile) {
+    const compose = readComposeFile(composeFile);
+    const agents = Object.values(compose.agents);
+    currentAgent = agents.find(a => a.name === instanceConfig?.name) || agents[0];
+
+    if (currentAgent?.cron && currentAgent.cron.length > 0) {
+      startCronTasks(currentAgent.cron);
+    }
+  }
+
+  // ── AgentLoop: 從 compose 讀取並啟動 ──
+  const loopConfig = currentAgent?.loop;
+  const loopEnabled = loopConfig?.enabled !== false;
+  if (loopEnabled) {
+    const intervalMs = loopConfig?.interval ? parseInterval(loopConfig.interval) : undefined;
+    const loop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}) });
+    setLoopRef(loop);
+  }
+
+  // ── Self-awareness ──
   const startedAt = new Date().toISOString();
-  const instanceConfig = loadInstanceConfig(getCurrentInstanceId());
 
   setSelfStatusProvider(() => ({
-    name: instanceConfig?.name || getCurrentInstanceId(),
+    name: instanceConfig?.name || instanceId,
     role: instanceConfig?.role || 'standalone',
     port,
     persona: instanceConfig?.persona?.description,
@@ -636,6 +661,11 @@ if (isMain) {
   }));
 
   app.listen(port, () => {
-    slog('SERVER', `Started on :${port} (instance: ${getCurrentInstanceId()})`);
+    slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
+    const cronCount = getCronTaskCount();
+    if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
+    if (loopRef) {
+      loopRef.start();
+    }
   });
 }
