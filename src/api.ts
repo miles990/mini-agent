@@ -230,12 +230,12 @@ export function createApi(port = 3001): express.Express {
   });
 
   // 啟動實例
-  app.post('/api/instances/:id/start', (req: Request, res: Response) => {
+  app.post('/api/instances/:id/start', async (req: Request, res: Response) => {
     const { id } = req.params;
     const manager = getInstanceManager();
 
     try {
-      manager.start(id);
+      await manager.start(id);
       const status = manager.getStatus(id);
       res.json({ success: true, status });
     } catch (error) {

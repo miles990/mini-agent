@@ -460,7 +460,7 @@ export class InstanceManager {
   /**
    * 啟動實例
    */
-  start(instanceId: string): boolean {
+  async start(instanceId: string): Promise<boolean> {
     const config = loadInstanceConfig(instanceId);
     if (!config) {
       throw new Error(`Instance not found: ${instanceId}`);
@@ -472,7 +472,6 @@ export class InstanceManager {
     }
 
     // 啟動伺服器進程（使用 api.js）
-    // stderr 導到日誌檔，方便除錯
     const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
     ensureDir(path.dirname(logFile));
     const logFd = fs.openSync(logFile, 'a');
@@ -501,22 +500,31 @@ export class InstanceManager {
       fs.writeFileSync(pidFile, String(serverProcess.pid));
     }
 
-    // 等待確認進程存活（最多 2 秒）
-    const startTime = Date.now();
-    while (Date.now() - startTime < 2000) {
+    // Health check: 等待 server 真正 ready（最多 10 秒）
+    const healthUrl = `http://localhost:${config.port}/health`;
+    const deadline = Date.now() + 10_000;
+
+    while (Date.now() < deadline) {
+      // 檢查進程是否已退出
       if (serverProcess.exitCode !== null) {
-        // 進程已退出，啟動失敗
         this.runningInstances.delete(instanceId);
         try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
         const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf-8').slice(-500) : '';
         throw new Error(`Process exited with code ${serverProcess.exitCode}${log ? `\n${log}` : ''}`);
       }
-      // busy wait 100ms
-      const waitUntil = Date.now() + 100;
-      while (Date.now() < waitUntil) { /* spin */ }
+
+      try {
+        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(1000) });
+        if (resp.ok) return true; // Server is ready
+      } catch {
+        // Not ready yet, wait and retry
+      }
+
+      await new Promise(r => setTimeout(r, 200));
     }
 
-    return true;
+    // Timeout — server spawned but never became healthy
+    throw new Error(`Server started (pid ${serverProcess.pid}) but health check timed out on :${config.port}`);
   }
 
   /**
@@ -623,7 +631,7 @@ export class InstanceManager {
   /**
    * 重啟實例
    */
-  restart(instanceId: string): boolean {
+  async restart(instanceId: string): Promise<boolean> {
     this.stop(instanceId);
     return this.start(instanceId);
   }

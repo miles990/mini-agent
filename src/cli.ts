@@ -395,7 +395,7 @@ async function handleUpCommand(args: string[]): Promise<void> {
   // 使用 compose 檔案啟動
   console.log(`Using: ${composeFile}\n`);
   const compose = readComposeFile(composeFile);
-  const result = composeUp(compose, detached);
+  const result = await composeUp(compose, detached);
 
   // 顯示結果
   if (result.started.length > 0) {
@@ -499,7 +499,7 @@ function handleKillCommand(args: string[]): void {
   }
 }
 
-function handleStartCommand(instanceId: string): void {
+async function handleStartCommand(instanceId: string): Promise<void> {
   if (!instanceId) {
     console.error('Usage: mini-agent start <id>');
     process.exit(1);
@@ -508,7 +508,7 @@ function handleStartCommand(instanceId: string): void {
   const manager = getInstanceManager();
 
   try {
-    manager.start(instanceId);
+    await manager.start(instanceId);
     const status = manager.getStatus(instanceId);
     console.log(`Started instance: ${instanceId}`);
     console.log(`  Port: ${status?.port}`);
@@ -585,7 +585,7 @@ function handleDownCommand(args: string[]): void {
   console.log(`Down: ${instanceId}`);
 }
 
-function handleRestartCommand(instanceId: string): void {
+async function handleRestartCommand(instanceId: string): Promise<void> {
   if (!instanceId) {
     console.error('Usage: mini-agent restart <id>');
     process.exit(1);
@@ -594,7 +594,7 @@ function handleRestartCommand(instanceId: string): void {
   const manager = getInstanceManager();
 
   try {
-    manager.restart(instanceId);
+    await manager.restart(instanceId);
     const status = manager.getStatus(instanceId);
     console.log(`Restarted instance: ${instanceId}`);
     console.log(`  Port: ${status?.port}`);
@@ -1423,13 +1423,13 @@ async function main(): Promise<void> {
       await handleAttachCommand(commandArgs[0]);
       return;
     case 'start':
-      handleStartCommand(commandArgs[0]);
+      await handleStartCommand(commandArgs[0]);
       return;
     case 'down':
       handleDownCommand(commandArgs);
       return;
     case 'restart':
-      handleRestartCommand(commandArgs[0]);
+      await handleRestartCommand(commandArgs[0]);
       return;
     case 'status':
       handleStatusCommand(commandArgs[0]);

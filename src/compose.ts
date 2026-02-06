@@ -197,7 +197,7 @@ function sortAgentsByDependency(agents: Record<string, ComposeAgent>): string[] 
 /**
  * 啟動 compose 中定義的所有 agents
  */
-export function composeUp(compose: ComposeFile, detached = false): ComposeUpResult {
+export async function composeUp(compose: ComposeFile, detached = false): Promise<ComposeUpResult> {
   const manager = getInstanceManager();
   const result: ComposeUpResult = {
     started: [],
@@ -232,7 +232,7 @@ export function composeUp(compose: ComposeFile, detached = false): ComposeUpResu
       }
       // 如果存在但未運行，啟動它
       try {
-        manager.start(existing.id);
+        await manager.start(existing.id);
         result.started.push(agentId);
       } catch (err) {
         result.failed.push({
@@ -253,7 +253,7 @@ export function composeUp(compose: ComposeFile, detached = false): ComposeUpResu
       });
 
       if (detached) {
-        manager.start(instance.id);
+        await manager.start(instance.id);
       }
       result.started.push(agentId);
     } catch (err) {
