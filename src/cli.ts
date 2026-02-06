@@ -199,6 +199,31 @@ async function handleLogsCommand(args: string[]): Promise<void> {
       break;
     }
 
+    case 'loop': {
+      const entries = logger.queryLoopLogs(date, limit);
+      console.log(`\nAgentLoop Logs (${entries.length} entries):\n`);
+      if (entries.length === 0) {
+        console.log('  No loop cycles recorded yet.');
+        break;
+      }
+      for (const entry of entries) {
+        const time = entry.timestamp.split('T')[1].split('.')[0];
+        const result = entry.data.result as string | undefined;
+        const duration = entry.metadata.duration ?? 0;
+        const icon = result && result !== 'No action' && result !== 'No active tasks' ? '⚡' : '💤';
+        console.log(`${icon} [${time}] ${duration > 0 ? `(${(duration / 1000).toFixed(1)}s)` : ''}`);
+        if (result) {
+          // 顯示行動摘要（截取第一行，最多 120 字）
+          const summary = result.split('\n')[0].slice(0, 120);
+          console.log(`  ${summary}${result.length > 120 ? '...' : ''}`);
+        } else {
+          console.log('  No action needed');
+        }
+        console.log('');
+      }
+      break;
+    }
+
     case 'api': {
       const entries = logger.queryApiLogs(date, limit);
       console.log(`\nAPI Logs (${entries.length} entries):\n`);
@@ -231,6 +256,7 @@ Logs Management:
 Commands:
   mini-agent logs                     Show log statistics
   mini-agent logs stats               Show log statistics
+  mini-agent logs loop                Show AgentLoop cycle logs
   mini-agent logs claude              Show Claude operation logs
   mini-agent logs errors              Show error logs
   mini-agent logs cron                Show cron task logs
@@ -242,6 +268,7 @@ Options:
   --limit <n>            Limit results (default: 20)
 
 Examples:
+  mini-agent logs loop
   mini-agent logs claude --date 2026-02-05
   mini-agent logs errors --limit 10
 `);
@@ -1136,8 +1163,26 @@ Chat Commands:
           const error = entry.data.error as string;
           console.log(`[${time}] ${error}`);
         }
+      } else if (subCmd === 'loop') {
+        const entries = logger.queryLoopLogs(undefined, 10);
+        console.log(`\nAgentLoop Logs (${entries.length}):\n`);
+        if (entries.length === 0) {
+          console.log('  No loop cycles recorded yet.');
+        }
+        for (const entry of entries) {
+          const time = entry.timestamp.split('T')[1].split('.')[0];
+          const result = entry.data.result as string | undefined;
+          const duration = entry.metadata.duration ?? 0;
+          const icon = result && result !== 'No action' && result !== 'No active tasks' ? '⚡' : '💤';
+          console.log(`${icon} [${time}] ${duration > 0 ? `(${(duration / 1000).toFixed(1)}s)` : ''}`);
+          if (result) {
+            console.log(`  ${result.split('\n')[0].slice(0, 100)}`);
+          } else {
+            console.log('  No action needed');
+          }
+        }
       } else {
-        console.log('Usage: /logs [stats|claude|errors]');
+        console.log('Usage: /logs [stats|claude|errors|loop]');
       }
       break;
     }

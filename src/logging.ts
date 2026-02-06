@@ -380,6 +380,16 @@ export class Logger {
   }
 
   /**
+   * 查詢 AgentLoop 日誌（從 cron 日誌中篩選 loop-cycle）
+   */
+  queryLoopLogs(date?: string, limit = 50): CronLogEntry[] {
+    const all = this.query({ type: 'cron', date, limit: 500 }) as CronLogEntry[];
+    return all
+      .filter(e => e.data.action === 'loop-cycle' || e.data.trigger === 'agent-loop')
+      .slice(0, limit);
+  }
+
+  /**
    * 查詢 API 日誌
    */
   queryApiLogs(date?: string, limit = 50): ApiLogEntry[] {

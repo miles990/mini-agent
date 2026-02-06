@@ -499,6 +499,15 @@ export function createApi(port = 3001): express.Express {
     res.json({ entries, count: entries.length });
   });
 
+  // 查詢 AgentLoop 日誌
+  app.get('/logs/loop', async (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string | undefined;
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const entries = logger.queryLoopLogs(date, limit);
+    res.json({ entries, count: entries.length });
+  });
+
   // 查詢 Cron 任務日誌
   app.get('/logs/cron', async (req: Request, res: Response) => {
     const logger = getLogger();
