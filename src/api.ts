@@ -614,6 +614,27 @@ if (isMain) {
   const port = parseInt(process.env.PORT ?? '3001', 10);
   const app = createApi(port);
 
+  // Detached 模式也注入基本自我感知
+  const { setSelfStatusProvider } = await import('./memory.js');
+  const startedAt = new Date().toISOString();
+  const instanceConfig = loadInstanceConfig(getCurrentInstanceId());
+
+  setSelfStatusProvider(() => ({
+    name: instanceConfig?.name || getCurrentInstanceId(),
+    role: instanceConfig?.role || 'standalone',
+    port,
+    persona: instanceConfig?.persona?.description,
+    startedAt,
+    loop: loopRef ? {
+      running: loopRef.getStatus().running,
+      paused: loopRef.getStatus().paused,
+      cycleCount: loopRef.getStatus().cycleCount,
+      lastAction: loopRef.getStatus().lastAction,
+      nextCycleAt: loopRef.getStatus().nextCycleAt,
+    } : null,
+    cronTasks: getActiveCronTasks().map(t => ({ schedule: t.schedule, task: t.task })),
+  }));
+
   app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${getCurrentInstanceId()})`);
   });

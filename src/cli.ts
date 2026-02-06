@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
 import { processMessage } from './agent.js';
-import { searchMemory, appendMemory, createMemory, getMemory } from './memory.js';
+import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider } from './memory.js';
 import { createApi, setLoopRef } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
@@ -44,7 +44,7 @@ import {
   composeStatus,
   DEFAULT_COMPOSE_FILE,
 } from './compose.js';
-import { startCronTasks, stopCronTasks, getCronTaskCount } from './cron.js';
+import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } from './cron.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import type { InstanceConfig } from './types.js';
@@ -1020,6 +1020,33 @@ async function runChat(port: number): Promise<void> {
     agentLoop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}) });
     setLoopRef(agentLoop);
   }
+
+  // Self-awareness: 注入 Agent 自我狀態提供者
+  const serverStartedAt = new Date().toISOString();
+  const agentName = currentAgent?.name || instanceId;
+  const agentPersona = currentAgent?.persona;
+  const agentPort = currentAgent?.port || port;
+
+  setSelfStatusProvider(() => {
+    const loopStatus = agentLoop?.getStatus() ?? null;
+    const cronTasks = getActiveCronTasks();
+
+    return {
+      name: agentName,
+      role: 'standalone',
+      port: agentPort,
+      persona: agentPersona,
+      startedAt: serverStartedAt,
+      loop: loopStatus ? {
+        running: loopStatus.running,
+        paused: loopStatus.paused,
+        cycleCount: loopStatus.cycleCount,
+        lastAction: loopStatus.lastAction,
+        nextCycleAt: loopStatus.nextCycleAt,
+      } : null,
+      cronTasks: cronTasks.map(t => ({ schedule: t.schedule, task: t.task })),
+    };
+  });
 
   app.listen(port, () => {
     console.log(`Mini-Agent - Memory + Cron + Loop`);

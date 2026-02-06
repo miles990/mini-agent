@@ -30,6 +30,35 @@ export interface WorkspaceSnapshot {
   recentlyModified: Array<{ file: string; mtime: string }>;
 }
 
+/** Agent 自身狀態（外部注入，避免循環依賴） */
+export interface AgentSelfStatus {
+  /** Agent 名稱 */
+  name: string;
+  /** 角色 */
+  role: string;
+  /** Port */
+  port: number;
+  /** Persona 描述 */
+  persona?: string;
+  /** Server 啟動時間 */
+  startedAt: string;
+  /** AgentLoop 狀態 */
+  loop: {
+    running: boolean;
+    paused: boolean;
+    cycleCount: number;
+    lastAction: string | null;
+    nextCycleAt: string | null;
+  } | null;
+  /** 活躍 Cron 任務 */
+  cronTasks: Array<{ schedule: string; task: string }>;
+  /** 今日統計 */
+  stats?: {
+    chatCount: number;
+    errorCount: number;
+  };
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -217,6 +246,47 @@ export function formatWorkspaceContext(snapshot: WorkspaceSnapshot): string {
     for (const f of snapshot.files) {
       lines.push(`  ${f}`);
     }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * 格式化 Agent 自我狀態
+ */
+export function formatSelfStatus(status: AgentSelfStatus): string {
+  const lines: string[] = [];
+
+  lines.push(`Name: ${status.name}`);
+  lines.push(`Role: ${status.role} | Port: ${status.port}`);
+  if (status.persona) {
+    lines.push(`Persona: ${status.persona}`);
+  }
+  lines.push(`Server started: ${status.startedAt}`);
+
+  // Loop
+  if (status.loop) {
+    const loopState = status.loop.paused ? 'paused' : status.loop.running ? 'running' : 'stopped';
+    lines.push(`AgentLoop: ${loopState} (${status.loop.cycleCount} cycles)`);
+    if (status.loop.lastAction) {
+      lines.push(`  Last action: ${status.loop.lastAction.slice(0, 80)}`);
+    }
+    if (status.loop.nextCycleAt) {
+      lines.push(`  Next cycle: ${status.loop.nextCycleAt}`);
+    }
+  }
+
+  // Cron
+  if (status.cronTasks.length > 0) {
+    lines.push(`Cron tasks (${status.cronTasks.length}):`);
+    for (const t of status.cronTasks) {
+      lines.push(`  [${t.schedule}] ${t.task.slice(0, 60)}`);
+    }
+  }
+
+  // Stats
+  if (status.stats) {
+    lines.push(`Today: ${status.stats.chatCount} chats, ${status.stats.errorCount} errors`);
   }
 
   return lines.join('\n');

@@ -18,8 +18,20 @@ import {
   initDataDir,
 } from './instance.js';
 import { withFileLock } from './filelock.js';
-import { getWorkspaceSnapshot, formatWorkspaceContext } from './workspace.js';
+import { getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus } from './workspace.js';
+import type { AgentSelfStatus } from './workspace.js';
 import type { MemoryEntry, ConversationEntry } from './types.js';
+
+// =============================================================================
+// Self-Status Provider (外部注入，避免循環依賴)
+// =============================================================================
+
+let selfStatusProvider: (() => AgentSelfStatus | null) | null = null;
+
+/** 註冊 Agent 自我狀態提供者 */
+export function setSelfStatusProvider(provider: () => AgentSelfStatus | null): void {
+  selfStatusProvider = provider;
+}
 
 // =============================================================================
 // Path Utilities
@@ -349,12 +361,17 @@ export class InstanceMemory {
     const workspace = getWorkspaceSnapshot();
     const workspaceCtx = formatWorkspaceContext(workspace);
 
+    // 自我感知（Agent 知道自己是誰、在做什麼）
+    const selfStatus = selfStatusProvider?.();
+    const selfCtx = selfStatus ? formatSelfStatus(selfStatus) : '';
+
     return `
 <environment>
 Current time: ${timeStr} (${tz})
 Instance: ${this.instanceId}
 </environment>
 
+${selfCtx ? `<self>\n${selfCtx}\n</self>\n` : ''}
 <workspace>
 ${workspaceCtx}
 </workspace>
