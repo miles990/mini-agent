@@ -36,7 +36,9 @@ import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js
 /** Timestamped console log for server.log observability */
 export function slog(tag: string, msg: string): void {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  console.log(`${ts} [${tag}] ${msg}`);
+  // 將換行替換為 \n 字面量，確保每次呼叫只產生一行（讓 tail 正確計數）
+  const clean = msg.replace(/\r?\n/g, '\\n');
+  console.log(`${ts} [${tag}] ${clean}`);
 }
 
 // =============================================================================
