@@ -39,12 +39,24 @@ import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js
 // Server Log Helper
 // =============================================================================
 
+/**
+ * 實例 ID 前綴（啟動時設定，讓日誌能區分來源）
+ * 格式：短 ID（8 char）| 名稱
+ */
+let slogPrefix = '';
+
+export function setSlogPrefix(instanceId: string, name?: string): void {
+  const short = instanceId.slice(0, 8);
+  slogPrefix = name ? `${short}|${name}` : short;
+}
+
 /** Timestamped console log for server.log observability */
 export function slog(tag: string, msg: string): void {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
   // 將換行替換為 \n 字面量，確保每次呼叫只產生一行（讓 tail 正確計數）
   const clean = msg.replace(/\r?\n/g, '\\n');
-  console.log(`${ts} [${tag}] ${clean}`);
+  const prefix = slogPrefix ? ` ${slogPrefix} |` : '';
+  console.log(`${ts}${prefix} [${tag}] ${clean}`);
 }
 
 // =============================================================================
@@ -621,6 +633,9 @@ if (isMain) {
   const app = createApi(port);
   const instanceId = getCurrentInstanceId();
   const instanceConfig = loadInstanceConfig(instanceId);
+
+  // ── 設定 slog 前綴（讓日誌能區分實例） ──
+  setSlogPrefix(instanceId, instanceConfig?.name);
 
   // ── Cron: 從 compose 讀取並啟動 ──
   const composeFile = findComposeFile();

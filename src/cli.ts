@@ -28,7 +28,7 @@ import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvi
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
 } from './workspace.js';
-import { createApi, setLoopRef } from './api.js';
+import { createApi, setLoopRef, setSlogPrefix } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
   getInstanceManager,
@@ -121,31 +121,77 @@ function readFileContent(filePath: string): { content: string; type: 'text' | 'i
 // Logs Commands
 // =============================================================================
 
+// ANSI color codes for instance labels
+const INSTANCE_COLORS = [
+  '\x1b[36m',  // cyan
+  '\x1b[33m',  // yellow
+  '\x1b[35m',  // magenta
+  '\x1b[32m',  // green
+  '\x1b[34m',  // blue
+  '\x1b[91m',  // bright red
+];
+const RESET = '\x1b[0m';
+
 /**
- * 找到當前 compose 中第一個實例 ID（用於 logs 預設目標）
+ * 解析實例 ID（支援完整 ID、短 ID、名稱匹配）
  */
 function resolveInstanceId(specifiedId?: string): string | null {
-  if (specifiedId) return specifiedId;
+  if (!specifiedId) return null;
 
-  // 嘗試從 compose 找
+  const all = listInstances();
+
+  // 完整 ID
+  const exact = all.find(i => i.id === specifiedId);
+  if (exact) return exact.id;
+
+  // 短 ID 前綴匹配
+  const prefix = all.filter(i => i.id.startsWith(specifiedId));
+  if (prefix.length === 1) return prefix[0].id;
+
+  // 名稱匹配（不區分大小寫）
+  const byName = all.find(i => i.name?.toLowerCase() === specifiedId.toLowerCase());
+  if (byName) return byName.id;
+
+  return specifiedId; // fallback: 原樣傳回
+}
+
+/**
+ * 取得所有 compose 定義的實例 ID 列表
+ */
+function resolveAllInstanceIds(): Array<{ id: string; name: string }> {
   const composeFile = findComposeFile();
+  const manager = getInstanceManager();
+  const instances = manager.list();
+
   if (composeFile) {
     const compose = readComposeFile(composeFile);
-    const manager = getInstanceManager();
-    const instances = manager.list();
     const byName = new Map(instances.map(i => [i.name, i]));
+    const result: Array<{ id: string; name: string }> = [];
     for (const [, def] of Object.entries(compose.agents)) {
       const name = def.name || '';
       const inst = byName.get(name);
-      if (inst) return inst.id;
+      if (inst) result.push({ id: inst.id, name: inst.name || inst.id });
     }
+    if (result.length > 0) return result;
   }
 
-  // 若只有一個實例，直接用
-  const all = listInstances();
-  if (all.length === 1) return all[0].id;
+  // 全部實例
+  return instances.map(i => ({ id: i.id, name: i.name || i.id }));
+}
 
-  return null;
+/**
+ * 讀取日誌檔案的最後 N 行，每行加上實例標籤
+ */
+function readLogTail(logFile: string, label: string, color: string, tailCount: number): Array<{ line: string; ts: string }> {
+  if (!fs.existsSync(logFile)) return [];
+  const content = fs.readFileSync(logFile, 'utf-8');
+  const lines = content.split('\n').filter(l => l.trim());
+  const start = Math.max(0, lines.length - tailCount);
+  return lines.slice(start).map(line => {
+    // 提取時間戳用於排序（格式：2026-02-06 09:38:27）
+    const ts = line.slice(0, 19);
+    return { line: `${color}${label}${RESET} | ${line}`, ts };
+  });
 }
 
 async function handleLogsCommand(args: string[]): Promise<void> {
@@ -180,44 +226,103 @@ async function handleLogsCommand(args: string[]): Promise<void> {
     return;
   }
 
-  // Docker-style: mini-agent logs [-f] [--tail N] [instance-id]
-  const instanceId = resolveInstanceId(cleanArgs[0]);
-  if (!instanceId) {
-    console.error('No instance found. Specify instance ID or use agent-compose.yaml');
-    console.error('Usage: mini-agent logs [-f] [--tail N] [instance-id]');
+  // ── 確定要顯示哪些實例 ──
+  const specifiedId = resolveInstanceId(cleanArgs[0]);
+  let targets: Array<{ id: string; name: string }>;
+
+  if (specifiedId) {
+    // 指定了實例 → 單一實例
+    const inst = listInstances().find(i => i.id === specifiedId);
+    targets = [{ id: specifiedId, name: inst?.name || specifiedId }];
+  } else {
+    // 未指定 → 全部實例
+    targets = resolveAllInstanceIds();
+  }
+
+  if (targets.length === 0) {
+    console.error('No instances found. Create one with: mini-agent init');
     process.exit(1);
   }
 
-  const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
-  if (!fs.existsSync(logFile)) {
-    console.error(`No logs found for instance ${instanceId}`);
-    console.error(`Log file: ${logFile}`);
+  // ── 單實例模式（原始行為，不加前綴雜訊） ──
+  if (targets.length === 1) {
+    const logFile = path.join(getInstanceDir(targets[0].id), 'logs', 'server.log');
+    if (!fs.existsSync(logFile)) {
+      console.error(`No logs found for ${targets[0].name} (${targets[0].id})`);
+      return;
+    }
+
+    if (follow) {
+      const tailProc = spawnChild('tail', ['-f', '-n', String(tail), logFile], {
+        stdio: 'inherit',
+      });
+      process.on('SIGINT', () => { tailProc.kill(); process.exit(0); });
+      await new Promise<void>(resolve => { tailProc.on('exit', () => resolve()); });
+    } else {
+      const content = fs.readFileSync(logFile, 'utf-8');
+      const lines = content.split('\n');
+      const start = Math.max(0, lines.length - tail);
+      const output = lines.slice(start).join('\n').trimEnd();
+      console.log(output || '(empty log)');
+    }
     return;
   }
 
+  // ── 多實例合併模式 ──
   if (follow) {
-    // tail -f mode
-    const tailProc = spawnChild('tail', ['-f', '-n', String(tail), logFile], {
-      stdio: 'inherit',
-    });
-    // Ctrl+C graceful exit
+    // tail -f: 啟動多個 tail 進程，每行加上染色標籤
+    const procs: ReturnType<typeof spawnChild>[] = [];
+    const readline = await import('node:readline');
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      const logFile = path.join(getInstanceDir(t.id), 'logs', 'server.log');
+      if (!fs.existsSync(logFile)) continue;
+
+      const color = INSTANCE_COLORS[i % INSTANCE_COLORS.length];
+      const label = t.name.padEnd(16).slice(0, 16);
+      const proc = spawnChild('tail', ['-f', '-n', String(Math.ceil(tail / targets.length)), logFile]);
+      procs.push(proc);
+
+      const rl = readline.createInterface({ input: proc.stdout! });
+      rl.on('line', (line: string) => {
+        process.stdout.write(`${color}${label}${RESET} | ${line}\n`);
+      });
+    }
+
+    if (procs.length === 0) {
+      console.error('No log files found for any instance');
+      return;
+    }
+
     process.on('SIGINT', () => {
-      tailProc.kill();
+      for (const p of procs) p.kill();
       process.exit(0);
     });
-    await new Promise<void>((resolve) => {
-      tailProc.on('exit', () => resolve());
-    });
+    await new Promise<void>(() => {}); // 持續運行直到 Ctrl+C
   } else {
-    // Show last N lines
-    const content = fs.readFileSync(logFile, 'utf-8');
-    const lines = content.split('\n');
-    const start = Math.max(0, lines.length - tail);
-    const output = lines.slice(start).join('\n').trimEnd();
-    if (output) {
-      console.log(output);
+    // 靜態模式：讀取各實例最後 N 行，合併按時間排序
+    const allLines: Array<{ line: string; ts: string }> = [];
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      const logFile = path.join(getInstanceDir(t.id), 'logs', 'server.log');
+      const color = INSTANCE_COLORS[i % INSTANCE_COLORS.length];
+      const label = t.name.padEnd(16).slice(0, 16);
+      allLines.push(...readLogTail(logFile, label, color, tail));
+    }
+
+    // 按時間排序
+    allLines.sort((a, b) => a.ts.localeCompare(b.ts));
+
+    // 取最後 tail 行
+    const output = allLines.slice(-tail);
+    if (output.length === 0) {
+      console.log('(no logs)');
     } else {
-      console.log('(empty log)');
+      for (const entry of output) {
+        console.log(entry.line);
+      }
     }
   }
 }
@@ -701,7 +806,8 @@ Commands:
   mini-agent restart <id>             Restart an instance
   mini-agent status [id]              Show instance status
   mini-agent kill <id|--all>          Kill (delete) instance(s)
-  mini-agent logs [-f] [--tail N]     Show server logs (like docker logs)
+  mini-agent logs [-f] [--tail N]     Show all instance logs (merged, color-coded)
+  mini-agent logs [-f] <id|name>      Show logs for specific instance
   mini-agent logs stats               Show structured log statistics
   mini-agent update                   Update to latest version
 
@@ -735,8 +841,10 @@ Examples:
   mini-agent down                         # Stop all (from compose)
   mini-agent down --all                   # Stop all instances
   mini-agent attach abc12345              # Attach to instance
-  mini-agent logs                        # Show server output
-  mini-agent logs -f                      # Follow server output (Ctrl+C to stop)
+  mini-agent logs                        # Show all instance logs (merged)
+  mini-agent logs -f                      # Follow all instance logs (color-coded)
+  mini-agent logs 481a71fc                # Show logs for specific instance
+  mini-agent logs "My Assistant"          # Filter by instance name
   mini-agent logs --tail 100              # Show last 100 lines
   mini-agent logs claude --date 2026-02-05
 `);
@@ -994,6 +1102,10 @@ async function runChat(port: number): Promise<void> {
   const app = createApi(port);
   const config = await getConfig();
   const instanceId = getCurrentInstanceId();
+
+  // 設定 slog 前綴
+  const instConfig = loadInstanceConfig(instanceId);
+  setSlogPrefix(instanceId, instConfig?.name);
 
   // 讀取或建立 compose 檔案
   let composeFile = findComposeFile();
