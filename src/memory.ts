@@ -30,7 +30,11 @@ import type {
   AgentSelfStatus,
   ProcessStatus, LogSummary, SystemResources, NetworkStatus, ConfigSnapshot,
 } from './workspace.js';
-import type { MemoryEntry, ConversationEntry } from './types.js';
+import type { MemoryEntry, ConversationEntry, ComposePerception } from './types.js';
+import {
+  executeAllPerceptions, formatPerceptionResults,
+  loadAllSkills, formatSkillsPrompt,
+} from './perception.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -41,6 +45,34 @@ let processStatusProvider: (() => ProcessStatus) | null = null;
 let logSummaryProvider: (() => LogSummary) | null = null;
 let networkStatusProvider: (() => NetworkStatus) | null = null;
 let configSnapshotProvider: (() => ConfigSnapshot) | null = null;
+
+// Custom Perception & Skills（從 compose 配置注入）
+let customPerceptions: ComposePerception[] = [];
+let skillPaths: string[] = [];
+let skillsPromptCache: string = '';
+
+/** 註冊自訂感知和 Skills */
+export function setCustomExtensions(ext: {
+  perceptions?: ComposePerception[];
+  skills?: string[];
+  cwd?: string;
+}): void {
+  if (ext.perceptions) customPerceptions = ext.perceptions;
+  if (ext.skills) {
+    skillPaths = ext.skills;
+    // Skills 只在啟動時載入一次（不像 perception 每次循環都跑）
+    const loaded = loadAllSkills(skillPaths, ext.cwd);
+    skillsPromptCache = formatSkillsPrompt(loaded);
+    if (loaded.length > 0) {
+      console.log(`[SKILLS] Loaded ${loaded.length} skill(s): ${loaded.map(s => s.name).join(', ')}`);
+    }
+  }
+}
+
+/** 取得 skills prompt（給 agent.ts 用） */
+export function getSkillsPrompt(): string {
+  return skillsPromptCache;
+}
 
 /** 註冊 Agent 自我狀態提供者 */
 export function setSelfStatusProvider(provider: () => AgentSelfStatus | null): void {
@@ -424,6 +456,14 @@ Instance: ${this.instanceId}
     if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
 
     sections.push(`<workspace>\n${workspaceCtx}\n</workspace>`);
+
+    // Custom perceptions（Shell Script 感知）
+    if (customPerceptions.length > 0) {
+      const results = executeAllPerceptions(customPerceptions);
+      const customCtx = formatPerceptionResults(results);
+      if (customCtx) sections.push(customCtx);
+    }
+
     sections.push(`<memory>\n${memory}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);

@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { getMemory } from './memory.js';
+import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { getLogger } from './logging.js';
 import type { AgentResponse } from './types.js';
@@ -48,7 +48,7 @@ Instructions:
 
 - Keep responses concise and helpful
 - You have access to memory context provided below
-`;
+${getSkillsPrompt()}`;
 }
 
 /**

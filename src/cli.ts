@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
 import { processMessage } from './agent.js';
-import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders } from './memory.js';
+import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
 } from './workspace.js';
@@ -1217,6 +1217,12 @@ async function runChat(port: number): Promise<void> {
       },
       () => loadInstanceConfig(instanceId) as unknown as Record<string, unknown> | null,
     ),
+  });
+
+  // Custom Perception & Skills（從 compose 配置）
+  setCustomExtensions({
+    perceptions: currentAgent?.perception?.custom,
+    skills: currentAgent?.skills,
   });
 
   app.listen(port, () => {

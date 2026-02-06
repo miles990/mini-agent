@@ -28,7 +28,7 @@ import { getLogger, type LogType } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
-import { setSelfStatusProvider, setPerceptionProviders } from './memory.js';
+import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
 } from './workspace.js';
@@ -736,6 +736,12 @@ if (isMain) {
       },
       () => instanceConfig as unknown as Record<string, unknown> | null,
     ),
+  });
+
+  // Custom Perception & Skills（從 compose 配置）
+  setCustomExtensions({
+    perceptions: currentAgent?.perception?.custom,
+    skills: currentAgent?.skills,
   });
 
   app.listen(port, () => {

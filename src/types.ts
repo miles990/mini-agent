@@ -193,6 +193,16 @@ export interface CronTask {
 /**
  * Compose 檔案中的 Agent 定義
  */
+/**
+ * 自訂感知插件（Shell Script）
+ */
+export interface ComposePerception {
+  name: string;
+  script: string;       // 腳本路徑（相對或絕對）
+  interval?: string;    // 執行間隔（預留）
+  timeout?: number;     // 超時毫秒（預設 5000）
+}
+
 export interface ComposeAgent {
   name?: string;
   port?: number;
@@ -210,6 +220,11 @@ export interface ComposeAgent {
     enabled?: boolean;
     interval?: string;  // "5m", "30s", "1h"
   };
+  perception?: {
+    builtin?: string[];           // 啟用的內建感知（預設全部）
+    custom?: ComposePerception[]; // 自訂 Shell Script 感知
+  };
+  skills?: string[];              // Markdown skill 檔案路徑
   depends_on?: string[];
 }
 
