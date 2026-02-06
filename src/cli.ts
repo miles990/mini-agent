@@ -25,7 +25,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { processMessage } from './agent.js';
 import { searchMemory, appendMemory, createMemory, getMemory } from './memory.js';
-import { createApi } from './api.js';
+import { createApi, setLoopRef } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
 import {
   getInstanceManager,
@@ -45,6 +45,7 @@ import {
 } from './compose.js';
 import { startCronTasks, stopCronTasks, getCronTaskCount } from './cron.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
+import { AgentLoop, parseInterval } from './loop.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -887,6 +888,7 @@ Attached Mode Commands:
 
 let rl: readline.Interface;
 let isClosing = false;
+let agentLoop: AgentLoop | null = null;
 
 async function runChat(port: number): Promise<void> {
   // 同時啟動 API server
@@ -915,12 +917,24 @@ async function runChat(port: number): Promise<void> {
   // 啟動熱重載 watcher
   const watcherResult = startComposeWatcher(composeFile);
 
+  // AgentLoop: 從 compose 讀取 loop 配置
+  const loopConfig = currentAgent?.loop;
+  const loopEnabled = loopConfig?.enabled !== false; // 預設啟用
+  if (loopEnabled) {
+    const intervalMs = loopConfig?.interval ? parseInterval(loopConfig.interval) : undefined;
+    agentLoop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}) });
+    setLoopRef(agentLoop);
+  }
+
   app.listen(port, () => {
-    console.log(`Mini-Agent - Memory + Cron`);
+    console.log(`Mini-Agent - Memory + Cron + Loop`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
     if (cronCount > 0) {
       console.log(`Cron: ${cronCount} task(s) active`);
+    }
+    if (agentLoop) {
+      agentLoop.start();
     }
     if (watcherResult.watching) {
       console.log(`Hot reload: enabled`);
@@ -961,6 +975,7 @@ function prompt(): void {
       return;
     }
 
+    agentLoop?.pause();
     try {
       console.log('\n[Thinking...]\n');
       const response = await processMessage(trimmed);
@@ -974,6 +989,8 @@ function prompt(): void {
       }
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : error);
+    } finally {
+      agentLoop?.resume();
     }
 
     console.log('');
@@ -1000,6 +1017,10 @@ Chat Commands:
   /logs           - Show log statistics
   /logs claude    - Show Claude operation logs
   /logs errors    - Show error logs
+  /loop           - Show AgentLoop status
+  /loop pause     - Pause the loop
+  /loop resume    - Resume the loop
+  /loop trigger   - Manually run one cycle
   /quit           - Exit
 `);
       break;
@@ -1142,8 +1163,44 @@ Chat Commands:
       break;
     }
 
+    case 'loop': {
+      if (!agentLoop) {
+        console.log('AgentLoop is not enabled');
+        break;
+      }
+      const loopSub = args[0];
+      if (loopSub === 'pause') {
+        agentLoop.pause();
+        console.log('AgentLoop paused');
+      } else if (loopSub === 'resume') {
+        agentLoop.resume();
+        console.log('AgentLoop resumed');
+      } else if (loopSub === 'trigger') {
+        console.log('[AgentLoop] Running cycle...');
+        agentLoop.pause();
+        try {
+          const result = await agentLoop.trigger();
+          console.log(result ? `Action: ${result}` : 'No action needed');
+        } finally {
+          agentLoop.resume();
+        }
+      } else {
+        const s = agentLoop.getStatus();
+        console.log(`\nAgentLoop Status:`);
+        console.log(`  Running: ${s.running}`);
+        console.log(`  Paused: ${s.paused}`);
+        console.log(`  Cycles: ${s.cycleCount}`);
+        console.log(`  Interval: ${s.currentInterval / 1000}s`);
+        if (s.lastCycleAt) console.log(`  Last cycle: ${s.lastCycleAt}`);
+        if (s.lastAction) console.log(`  Last action: ${s.lastAction}`);
+        if (s.nextCycleAt) console.log(`  Next cycle: ${s.nextCycleAt}`);
+      }
+      break;
+    }
+
     case 'quit':
     case 'exit':
+      agentLoop?.stop();
       isClosing = true;
       console.log('Bye!');
       rl.close();

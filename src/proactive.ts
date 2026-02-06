@@ -20,7 +20,12 @@ export interface ProactiveConfig {
 /**
  * Start proactive heartbeat
  */
-export function startProactive(config: ProactiveConfig = {}): void {
+export function startProactive(config: ProactiveConfig & { loopEnabled?: boolean } = {}): void {
+  if (config.loopEnabled) {
+    console.log('[Proactive] Skipped - AgentLoop is active');
+    return;
+  }
+
   const schedule = config.schedule ?? '*/30 * * * *'; // Every 30 minutes
   const logger = getLogger();
 

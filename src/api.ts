@@ -4,7 +4,7 @@
  * REST API for mini-agent with instance management
  */
 
-import express, { type Request, type Response } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import { processMessage } from './agent.js';
 import {
   searchMemory,
@@ -26,11 +26,85 @@ import {
 } from './instance.js';
 import { getLogger, type LogType } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks } from './cron.js';
+import type { AgentLoop } from './loop.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
+
+// =============================================================================
+// AgentLoop reference (set by cli.ts or external caller)
+// =============================================================================
+
+let loopRef: AgentLoop | null = null;
+
+export function setLoopRef(loop: AgentLoop | null): void {
+  loopRef = loop;
+}
+
+// =============================================================================
+// Security Middleware
+// =============================================================================
+
+/**
+ * API Key authentication middleware
+ * Set MINI_AGENT_API_KEY env var to enable
+ */
+function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const apiKey = process.env.MINI_AGENT_API_KEY;
+
+  // Skip auth if no API key configured
+  if (!apiKey) {
+    next();
+    return;
+  }
+
+  // Allow health endpoint without auth
+  if (req.path === '/health') {
+    next();
+    return;
+  }
+
+  const provided = req.headers['x-api-key'] as string
+    ?? req.headers['authorization']?.replace('Bearer ', '');
+
+  if (!provided || provided !== apiKey) {
+    res.status(401).json({ error: 'Unauthorized: invalid or missing API key' });
+    return;
+  }
+
+  next();
+}
+
+/**
+ * Simple rate limiter (in-memory, per IP)
+ */
+function createRateLimiter(maxRequests = 60, windowMs = 60_000) {
+  const requests = new Map<string, { count: number; resetAt: number }>();
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const now = Date.now();
+
+    const entry = requests.get(ip);
+    if (!entry || now > entry.resetAt) {
+      requests.set(ip, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+
+    entry.count++;
+    if (entry.count > maxRequests) {
+      res.status(429).json({ error: 'Too many requests. Try again later.' });
+      return;
+    }
+
+    next();
+  };
+}
 
 export function createApi(port = 3001): express.Express {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
+  app.use(authMiddleware);
+  app.use(createRateLimiter());
 
   // =============================================================================
   // Health & Info
@@ -192,12 +266,19 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/memory/search', async (req: Request, res: Response) => {
     const query = req.query.q as string;
-    if (!query) {
+    if (!query || typeof query !== 'string') {
       res.status(400).json({ error: 'q parameter is required' });
       return;
     }
 
-    const results = await searchMemory(query);
+    // Limit query length to prevent abuse
+    if (query.length > 200) {
+      res.status(400).json({ error: 'Query too long (max 200 chars)' });
+      return;
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string || '5', 10), 50);
+    const results = await searchMemory(query, limit);
     res.json({ results });
   });
 
@@ -442,6 +523,45 @@ export function createApi(port = 3001): express.Express {
     const type = req.query.type as LogType | undefined;
     const dates = await logger.getAvailableDates(type);
     res.json({ dates });
+  });
+
+  // =============================================================================
+  // AgentLoop Control
+  // =============================================================================
+
+  app.get('/loop/status', (_req: Request, res: Response) => {
+    if (!loopRef) {
+      res.json({ enabled: false });
+      return;
+    }
+    res.json({ enabled: true, ...loopRef.getStatus() });
+  });
+
+  app.post('/loop/pause', (_req: Request, res: Response) => {
+    if (!loopRef) {
+      res.status(404).json({ error: 'AgentLoop not enabled' });
+      return;
+    }
+    loopRef.pause();
+    res.json({ success: true, status: loopRef.getStatus() });
+  });
+
+  app.post('/loop/resume', (_req: Request, res: Response) => {
+    if (!loopRef) {
+      res.status(404).json({ error: 'AgentLoop not enabled' });
+      return;
+    }
+    loopRef.resume();
+    res.json({ success: true, status: loopRef.getStatus() });
+  });
+
+  app.post('/loop/trigger', async (_req: Request, res: Response) => {
+    if (!loopRef) {
+      res.status(404).json({ error: 'AgentLoop not enabled' });
+      return;
+    }
+    const action = await loopRef.trigger();
+    res.json({ success: true, action, status: loopRef.getStatus() });
   });
 
   return app;

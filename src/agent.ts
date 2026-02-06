@@ -56,7 +56,7 @@ Instructions:
  * Uses a temp file to pass the prompt (avoids shell escaping issues)
  * Logs the full prompt and response
  */
-async function callClaude(
+export async function callClaude(
   prompt: string,
   context: string
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {

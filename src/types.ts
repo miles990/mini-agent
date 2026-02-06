@@ -206,6 +206,10 @@ export interface ComposeAgent {
     schedule?: string;
   };
   cron?: CronTask[];
+  loop?: {
+    enabled?: boolean;
+    interval?: string;  // "5m", "30s", "1h"
+  };
   depends_on?: string[];
 }
 
