@@ -10,6 +10,7 @@
 import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
+import { slog } from './api.js';
 
 // =============================================================================
 // Types
@@ -75,13 +76,13 @@ export class AgentLoop {
     this.running = true;
     this.paused = false;
     this.scheduleNext();
-    console.log(`[AgentLoop] Started (interval: ${this.currentInterval / 1000}s)`);
+    slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s)`);
   }
 
   stop(): void {
     this.running = false;
     this.clearTimer();
-    console.log('[AgentLoop] Stopped');
+    slog('LOOP', 'Stopped');
   }
 
   pause(): void {
@@ -148,7 +149,7 @@ export class AgentLoop {
     } catch (err) {
       const logger = getLogger();
       logger.logError(err instanceof Error ? err : new Error(String(err)), 'AgentLoop.cycle');
-      console.error('[AgentLoop] Cycle error:', err);
+      slog('LOOP', `ERROR: ${err instanceof Error ? err.message : err}`);
     }
 
     // Schedule next if still running and not paused
@@ -177,6 +178,7 @@ export class AgentLoop {
         // Nothing to do — increase interval
         this.adjustInterval(false);
         logger.logCron('loop-cycle', 'No active tasks', 'agent-loop');
+        slog('LOOP', `#${this.cycleCount} idle (no tasks), next in ${Math.round(this.currentInterval / 1000)}s`);
         return null;
       }
 
@@ -210,8 +212,10 @@ Keep responses brief.`;
         await memory.appendConversation('assistant', `[Loop] ${action}`);
         // Reset interval on action
         this.adjustInterval(true);
+        slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
       } else {
         this.adjustInterval(false);
+        slog('LOOP', `#${this.cycleCount} 💤 no action (${(duration / 1000).toFixed(1)}s), next in ${Math.round(this.currentInterval / 1000)}s`);
       }
 
       logger.logCron('loop-cycle', action ?? 'No action', 'agent-loop', {

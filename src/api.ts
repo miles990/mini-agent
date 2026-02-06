@@ -30,6 +30,16 @@ import type { AgentLoop } from './loop.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 
 // =============================================================================
+// Server Log Helper
+// =============================================================================
+
+/** Timestamped console log for server.log observability */
+export function slog(tag: string, msg: string): void {
+  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  console.log(`${ts} [${tag}] ${msg}`);
+}
+
+// =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
 // =============================================================================
 
@@ -105,6 +115,17 @@ export function createApi(port = 3001): express.Express {
   app.use(express.json({ limit: '1mb' }));
   app.use(authMiddleware);
   app.use(createRateLimiter());
+
+  // Request logging middleware (skip /health to reduce noise)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/health') { next(); return; }
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      slog('API', `${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+  });
 
   // =============================================================================
   // Health & Info
@@ -245,10 +266,16 @@ export function createApi(port = 3001): express.Express {
       return;
     }
 
+    slog('CHAT', `← "${message.slice(0, 80)}${message.length > 80 ? '...' : ''}"`);
+    const chatStart = Date.now();
+
     try {
       const response = await processMessage(message);
+      const elapsed = ((Date.now() - chatStart) / 1000).toFixed(1);
+      slog('CHAT', `→ "${response.content.slice(0, 80)}${response.content.length > 80 ? '...' : ''}" (${elapsed}s)`);
       res.json(response);
     } catch (error) {
+      slog('ERROR', `Chat failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -586,36 +613,6 @@ if (isMain) {
   const app = createApi(port);
 
   app.listen(port, () => {
-    console.log(`Mini-Agent API running on http://localhost:${port}`);
-    console.log(`Instance: ${getCurrentInstanceId()}`);
-    console.log('');
-    console.log('Instance Endpoints:');
-    console.log('  GET  /api/instance      - Current instance info');
-    console.log('  PUT  /api/instance      - Update current instance');
-    console.log('  GET  /api/instances     - List all instances');
-    console.log('  POST /api/instances     - Create new instance');
-    console.log('  DELETE /api/instances/:id - Delete instance');
-    console.log('');
-    console.log('Other Endpoints:');
-    console.log('  POST /chat              - Send a message');
-    console.log('  GET  /memory            - Read long-term memory');
-    console.log('  GET  /memory/search?q=  - Search memory');
-    console.log('  POST /memory            - Add to memory');
-    console.log('  GET  /tasks             - List tasks');
-    console.log('  POST /tasks             - Add a task');
-    console.log('  GET  /heartbeat         - Read HEARTBEAT.md');
-    console.log('  GET  /config            - Get configuration');
-    console.log('  PUT  /config            - Update configuration');
-    console.log('  POST /config/reset      - Reset to defaults');
-    console.log('');
-    console.log('Logs Endpoints:');
-    console.log('  GET  /logs              - Log stats and available dates');
-    console.log('  GET  /logs/all          - Query all logs');
-    console.log('  GET  /logs/claude       - Claude operation logs');
-    console.log('  GET  /logs/claude/:date - Claude logs for specific date');
-    console.log('  GET  /logs/errors       - Error logs');
-    console.log('  GET  /logs/cron         - Cron task logs');
-    console.log('  GET  /logs/api          - API request logs');
-    console.log('  GET  /logs/dates        - Available log dates');
+    slog('SERVER', `Started on :${port} (instance: ${getCurrentInstanceId()})`);
   });
 }

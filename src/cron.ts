@@ -7,6 +7,7 @@
 import cron from 'node-cron';
 import { processMessage } from './agent.js';
 import { getLogger } from './logging.js';
+import { slog } from './api.js';
 import type { CronTask } from './types.js';
 
 interface ScheduledCronTask {
@@ -28,29 +29,32 @@ export function startCronTasks(tasks: CronTask[]): void {
   for (const task of tasks) {
     // 跳過 disabled 的任務
     if (task.enabled === false) {
-      console.log(`[Cron] Skipped (disabled): ${task.task.slice(0, 30)}...`);
+      slog('CRON', `Skipped (disabled): ${task.task.slice(0, 40)}`);
       continue;
     }
 
     // 驗證 cron 表達式
     if (!cron.validate(task.schedule)) {
-      console.error(`[Cron] Invalid schedule: ${task.schedule}`);
+      slog('CRON', `Invalid schedule: ${task.schedule}`);
       continue;
     }
 
     const job = cron.schedule(task.schedule, async () => {
-      console.log(`[Cron] Running: ${task.task.slice(0, 50)}...`);
+      slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
       logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
+      const cronStart = Date.now();
 
       try {
         const response = await processMessage(task.task);
-        console.log(`[Cron] Done: ${response.content.slice(0, 50)}...`);
+        const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
+        slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
         logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
           success: true,
+          duration: Date.now() - cronStart,
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`[Cron] Error: ${errorMsg}`);
+        slog('CRON', `✗ Error: ${errorMsg}`);
         logger.logCron('cron-task-error', errorMsg, task.schedule, {
           success: false,
           error: errorMsg,
@@ -59,11 +63,11 @@ export function startCronTasks(tasks: CronTask[]): void {
     });
 
     activeTasks.push({ task, job });
-    console.log(`[Cron] Scheduled: "${task.task.slice(0, 30)}..." (${task.schedule})`);
+    slog('CRON', `Scheduled: "${task.task.slice(0, 50)}" (${task.schedule})`);
   }
 
   if (activeTasks.length > 0) {
-    console.log(`[Cron] ${activeTasks.length} task(s) active`);
+    slog('CRON', `${activeTasks.length} task(s) active`);
   }
 }
 
@@ -75,7 +79,7 @@ export function stopCronTasks(): void {
     job.stop();
   }
   if (activeTasks.length > 0) {
-    console.log(`[Cron] Stopped ${activeTasks.length} task(s)`);
+    slog('CRON', `Stopped ${activeTasks.length} task(s)`);
   }
   activeTasks = [];
 }
@@ -119,18 +123,21 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
   }
 
   const job = cron.schedule(task.schedule, async () => {
-    console.log(`[Cron] Running: ${task.task.slice(0, 50)}...`);
+    slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
     logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
+    const cronStart = Date.now();
 
     try {
       const response = await processMessage(task.task);
-      console.log(`[Cron] Done: ${response.content.slice(0, 50)}...`);
+      const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
+      slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
       logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
         success: true,
+        duration: Date.now() - cronStart,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[Cron] Error: ${errorMsg}`);
+      slog('CRON', `✗ Error: ${errorMsg}`);
       logger.logCron('cron-task-error', errorMsg, task.schedule, {
         success: false,
         error: errorMsg,
@@ -139,7 +146,7 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
   });
 
   activeTasks.push({ task, job });
-  console.log(`[Cron] Added: "${task.task.slice(0, 30)}..." (${task.schedule})`);
+  slog('CRON', `Added: "${task.task.slice(0, 50)}" (${task.schedule})`);
 
   return { success: true };
 }
@@ -171,7 +178,7 @@ export function removeCronTask(
   removed.job.stop();
   activeTasks.splice(targetIndex, 1);
 
-  console.log(`[Cron] Removed: "${removed.task.task.slice(0, 30)}..."`);
+  slog('CRON', `Removed: "${removed.task.task.slice(0, 50)}"`);;
   return { success: true };
 }
 
@@ -221,7 +228,7 @@ export function reloadCronTasks(tasks: CronTask[]): { added: number; removed: nu
   }
 
   if (added > 0 || removed > 0) {
-    console.log(`[Cron] Reloaded: +${added} -${removed} =${unchanged}`);
+    slog('CRON', `Reloaded: +${added} -${removed} =${unchanged}`);
     logger.logCron('cron-reload', `added=${added}, removed=${removed}, unchanged=${unchanged}`);
   }
 
