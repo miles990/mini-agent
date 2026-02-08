@@ -7,7 +7,8 @@ Minimal Personal AI Agent with autonomous capabilities:
 3. **Cron** - Scheduled tasks via agent-compose.yaml
 4. **Perception** - Full environment awareness (builtin + custom shell plugins)
 5. **Skills** - Markdown knowledge modules injected into system prompt
-6. **Multi-Instance** - Docker-style instance management with compose
+6. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
+7. **Multi-Instance** - Docker-style instance management with compose
 
 ## Architecture
 
@@ -119,12 +120,18 @@ agents:
           script: ./plugins/docker-status.sh
         - name: ports
           script: ./plugins/port-check.sh
+        - name: chrome
+          script: ./plugins/chrome-status.sh
+        - name: web
+          script: ./plugins/web-fetch.sh
+          timeout: 15000
 
     # Skills (Markdown knowledge modules)
     skills:
       - ./skills/docker-ops.md
       - ./skills/debug-helper.md
       - ./skills/project-manager.md
+      - ./skills/web-research.md
 ```
 
 ### Generate Template
@@ -231,10 +238,12 @@ echo "Load: $(uptime | awk -F'load average:' '{print $2}')"
 
 Any language works — Bash, Python, Go binary, etc. As long as it's executable and writes to stdout.
 
-**Included demo plugins:**
+**Included plugins:**
 
 | Plugin | Description |
 |--------|-------------|
+| `chrome-status.sh` | Chrome CDP availability, open tabs (for web access) |
+| `web-fetch.sh` | Three-layer URL fetching (curl → CDP → user login) |
 | `docker-status.sh` | Running/stopped containers, resource usage |
 | `port-check.sh` | Common port availability (80, 443, 3000, 5432, 6379...) |
 | `disk-usage.sh` | Mount points, home directory top 5, temp files |
@@ -275,15 +284,57 @@ skills:
 - 修改前先備份配置
 ```
 
-**Included demo skills:**
+**Included skills:**
 
 | Skill | Description |
 |-------|-------------|
+| `web-research.md` | Three-layer web access workflow (curl → CDP → user login) |
 | `docker-ops.md` | Container exception handling, common commands, safety rules |
 | `debug-helper.md` | Systematic debugging workflow (reproduce → locate → hypothesize → verify → fix) |
 | `project-manager.md` | Task management with HEARTBEAT.md, daily workflow |
 | `code-review.md` | Review checklist (logic, security, performance, readability, testing) |
 | `server-admin.md` | System monitoring, common commands, safety rules |
+
+## Web Access (Three-Layer)
+
+The agent can fetch web content through three layers, falling through automatically:
+
+| Layer | Method | Use Case | Speed |
+|-------|--------|----------|-------|
+| **1. curl** | Direct HTTP | Public pages, APIs, GitHub | < 3s |
+| **2. Chrome CDP** | User's browser session | Authenticated pages (logged-in sites) | < 10s |
+| **3. Open page** | Visible tab for user | Login/verification required | Manual |
+
+### Setup
+
+```bash
+# Option A: Launch Chrome with CDP
+open -a "Google Chrome" --args --remote-debugging-port=9222
+
+# Option B: Interactive setup guide
+bash scripts/chrome-setup.sh
+```
+
+### CDP Client
+
+```bash
+# Check Chrome CDP status
+node scripts/cdp-fetch.mjs status
+
+# Fetch page content (background tab, auto-close)
+node scripts/cdp-fetch.mjs fetch "https://example.com"
+
+# Open visible tab for user login
+node scripts/cdp-fetch.mjs open "https://facebook.com/messages"
+
+# Extract content from open tab
+node scripts/cdp-fetch.mjs extract <tabId>
+
+# Close tab
+node scripts/cdp-fetch.mjs close <tabId>
+```
+
+The `chrome-status.sh` perception plugin reports CDP availability, and `web-fetch.sh` automatically fetches URLs mentioned in conversations using this three-layer strategy.
 
 ## Three-Layer Architecture
 
@@ -516,13 +567,19 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 ├── memory/                     # Project-specific memory
 ├── logs/                       # Project-specific logs
 ├── plugins/                    # Custom perception plugins (shell scripts)
+│   ├── chrome-status.sh
+│   ├── web-fetch.sh
 │   ├── docker-status.sh
 │   ├── port-check.sh
 │   └── ...
-└── skills/                     # Markdown knowledge modules
-    ├── docker-ops.md
-    ├── debug-helper.md
-    └── ...
+├── skills/                     # Markdown knowledge modules
+│   ├── web-research.md
+│   ├── docker-ops.md
+│   ├── debug-helper.md
+│   └── ...
+└── scripts/                    # Utility scripts
+    ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
+    └── chrome-setup.sh         # Chrome CDP setup guide
 ```
 
 ## Memory System (Three-Layer)
@@ -569,9 +626,15 @@ agents:
         - name: ports
           script: ./plugins/port-check.sh
           timeout: 10000  # Timeout in ms (default: 5000)
+        - name: chrome
+          script: ./plugins/chrome-status.sh
+        - name: web
+          script: ./plugins/web-fetch.sh
+          timeout: 15000
     skills:               # Markdown knowledge modules
       - ./skills/docker-ops.md
       - ./skills/debug-helper.md
+      - ./skills/web-research.md
     paths:                # Agent-specific paths (highest priority)
       memory: ./my-memory
       logs: ./my-logs
@@ -603,6 +666,7 @@ Everything else is optional complexity.
 
 - Node.js 20+
 - Claude CLI (`claude` command available)
+- Google Chrome (optional, for three-layer web access via CDP)
 
 ## Uninstall
 

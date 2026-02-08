@@ -8,7 +8,8 @@ Minimal Personal AI Agent framework with autonomous capabilities:
 3. **Cron** - Scheduled proactive tasks via Docker Compose-style configuration
 4. **Perception** - Full environment awareness (builtin modules + custom shell plugins)
 5. **Skills** - Markdown knowledge modules injected into system prompt
-6. **Multi-Instance** - Docker-style instance management with compose
+6. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
+7. **Multi-Instance** - Docker-style instance management with compose
 
 ## Architecture Principles
 
@@ -65,6 +66,8 @@ Builtin modules      Markdown files        --dangerously-skip-
 | FileLock | `src/filelock.ts` | File-based locking for instance management |
 | Types | `src/types.ts` | TypeScript type definitions |
 | Exports | `src/index.ts` | Public API exports |
+| CDP Client | `scripts/cdp-fetch.mjs` | Chrome CDP client (zero-dependency, Node.js native WebSocket) |
+| Chrome Setup | `scripts/chrome-setup.sh` | Interactive Chrome CDP setup guide |
 
 ## Perception System
 
@@ -94,7 +97,7 @@ perception:
       timeout: 5000  # optional, default 5000ms
 ```
 
-Plugin location: `plugins/` directory. Demo plugins: docker-status, port-check, disk-usage, git-status, homebrew-outdated.
+Plugin location: `plugins/` directory. Included plugins: chrome-status, web-fetch, docker-status, port-check, disk-usage, git-status, homebrew-outdated.
 
 ### Skills (Markdown Knowledge Modules)
 
@@ -106,7 +109,24 @@ skills:
   - ./skills/debug-helper.md
 ```
 
-Skill location: `skills/` directory. Demo skills: docker-ops, debug-helper, project-manager, code-review, server-admin.
+Skill location: `skills/` directory. Included skills: web-research, docker-ops, debug-helper, project-manager, code-review, server-admin.
+
+## Web Access (Three-Layer)
+
+Three-layer web fetching strategy, falling through automatically:
+1. **curl** — Public pages, APIs (fast, < 3s)
+2. **Chrome CDP** — User's authenticated browser session (port 9222)
+3. **Open page** — Visible tab for user login/verification
+
+Key files:
+- `scripts/cdp-fetch.mjs` — Zero-dependency CDP client (Node.js native WebSocket)
+  - Commands: `status`, `fetch <url>`, `open <url>`, `extract <tabId>`, `close <tabId>`
+- `scripts/chrome-setup.sh` — Interactive setup guide
+- `plugins/chrome-status.sh` — CDP availability perception
+- `plugins/web-fetch.sh` — Auto-fetch URLs from conversations
+- `skills/web-research.md` — Three-layer workflow knowledge
+
+Environment: `CDP_PORT=9222` (default), `CDP_TIMEOUT=15000`, `CDP_MAX_CONTENT=8000`
 
 ## Memory Architecture
 
@@ -146,6 +166,7 @@ Instance isolation:
 │   └── ...
 ├── memory/              # Project-specific memory
 ├── logs/                # Project-specific logs
+├── scripts/             # Utility scripts (cdp-fetch.mjs, chrome-setup.sh)
 └── src/                 # TypeScript source
 ```
 
@@ -186,6 +207,9 @@ mini-agent help         # Show help
 PORT=3001                # API port (default: 3001)
 MINI_AGENT_INSTANCE=id   # Current instance ID
 MINI_AGENT_API_KEY=xxx   # API authentication key (optional)
+CDP_PORT=9222            # Chrome CDP port (default: 9222)
+CDP_TIMEOUT=15000        # CDP operation timeout in ms (default: 15000)
+CDP_MAX_CONTENT=8000     # Max content extraction chars (default: 8000)
 ```
 
 ## Development Guidelines
