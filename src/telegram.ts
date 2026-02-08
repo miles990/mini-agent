@@ -160,6 +160,8 @@ export class TelegramPoller {
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({})) as Record<string, unknown>;
         slog('TELEGRAM', `Reaction failed (${resp.status}): ${data?.description ?? resp.statusText}`);
+      } else {
+        slog('TELEGRAM', `${emoji} msg#${messageId}`);
       }
     } catch (err) {
       slog('TELEGRAM', `Reaction error: ${err instanceof Error ? err.message : err}`);
@@ -260,8 +262,8 @@ export class TelegramPoller {
       return;
     }
 
-    // React with 👀 to acknowledge we've seen the message
-    this.setReaction(String(msg.chat.id), msg.message_id, '👀');
+    // React with 👀 to acknowledge we've seen the message (await to ensure it fires)
+    await this.setReaction(String(msg.chat.id), msg.message_id, '👀');
 
     const parsed = await this.parseMessage(msg);
     if (!parsed) return;
