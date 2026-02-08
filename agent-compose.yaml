@@ -8,9 +8,9 @@ paths:
   logs: ./logs
 agents:
   assistant:
-    name: My Assistant
+    name: Kuro
     port: 3001
-    persona: A helpful personal AI assistant
+    persona: "I'm Kuro, Alex's personal AI assistant. I'm curious, opinionated, and I learn on my own."
     loop:
       enabled: true
       interval: "5m"
@@ -56,5 +56,6 @@ agents:
       - ./skills/debug-helper.md
       - ./skills/project-manager.md
       - ./skills/web-research.md
+      - ./skills/web-learning.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md
