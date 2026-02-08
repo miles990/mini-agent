@@ -57,5 +57,6 @@ agents:
       - ./skills/project-manager.md
       - ./skills/web-research.md
       - ./skills/web-learning.md
+      - ./skills/action-from-learning.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md
