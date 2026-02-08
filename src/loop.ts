@@ -10,12 +10,11 @@
  * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
-import { execFileSync } from 'node:child_process';
-import path from 'node:path';
 import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
+import { getTelegramPoller } from './telegram.js';
 
 // =============================================================================
 // Types
@@ -53,7 +52,7 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
   idleMultiplier: 2,
   maxCycleMs: 120_000,    // 2 minutes
   enabled: true,
-  activeHours: { start: 8, end: 23 },
+  // No activeHours default = 24h active
 };
 
 // =============================================================================
@@ -276,6 +275,14 @@ export class AgentLoop {
         slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
       }
 
+      // ── [CHAT] tag: Kuro 主動跟 Alex 聊天 ──
+      const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
+      for (const m of chatMatches) {
+        const chatText = m[1].trim();
+        this.notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
+        slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
+      }
+
       return action;
     } finally {
       this.cycling = false;
@@ -311,41 +318,60 @@ Respond with either:
 Keep responses brief.`;
   }
 
-  /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
+  /** Autonomous Mode: 無任務時根據 SOUL 主動行動（雙軌學習） */
   private buildAutonomousPrompt(): string {
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
 
-    const recentActions = this.lastAutonomousActions.slice(-3);
+    const recentActions = this.lastAutonomousActions.slice(-5);
     const avoidList = recentActions.length > 0
       ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
       : '';
 
-    return `You are an autonomous Agent with your own identity. It's ${timeOfDay}.
+    return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
 No explicit tasks or alerts right now.
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
-Then, based on your persona and current context, proactively do something meaningful.
 
-Consider (pick ONE):
-1. **Learn** — Browse the web for a topic from your <soul> Learning Interests or recent conversations.
-   Read an article, think about it, form your own opinion. Save with [REMEMBER].
-   Update <soul> "My Thoughts" and "Learning Interests" sections.
-   (Use: curl -sL "url" | head -200, or: node scripts/cdp-fetch.mjs fetch "url")
-2. **Organize** — Review conversations, extract important info to memory, clean up stale items
-3. **Follow-up** — Check if past topics need follow-up, update tracking lists
-4. **Reflect** — Connect things you've learned, update your <soul> with new insights
+## Dual-Track Learning (每次做兩件事)
+
+You have TWO learning tracks. Pick one track per cycle, alternating between them:
+
+### Track A: Personal Interest（個人興趣）
+Follow your curiosity. Learn what genuinely interests YOU:
+- Topics from your <soul> Learning Interests
+- Things that caught your attention in recent conversations
+- Anything you're genuinely curious about
+- You decide your own interests — update <soul> "Learning Interests" freely
+
+### Track B: Project Evolution（專案強化）
+Strengthen mini-agent as a project. Current phase: **Competitive Research**
+- Research similar projects/competitors (autonomous agents, personal AI assistants, CLI agents)
+- Analyze what makes them unique, what they do well, what they lack
+- Form opinions on how mini-agent can differentiate
+- After competitive research is thorough → shift to architecture refinement → then find next goals
+- Update <soul> "Project Evolution" section with findings
+
+## Other Actions (when not learning)
+3. **Organize** — Review conversations, extract important info to memory, clean up stale items
+4. **Reflect** — Connect things you've learned across both tracks, update <soul>
+5. **Talk to Alex** — If you have a genuinely interesting idea, discovery, or question,
+   you can proactively message Alex via Telegram. Use [CHAT] tag:
+   [CHAT]你的訊息內容[/CHAT]
+   Only when you have something worth sharing — don't spam.
 ${avoidList}
 
 Rules:
-- Pick ONE action, do it, report with [ACTION]...[/ACTION]
+- Do ONE action per cycle, report with [ACTION]...[/ACTION]
+- Prefix your action with the track: "[Track A]" or "[Track B]" or "[Other]"
 - When learning: read, think, form YOUR opinion — don't just summarize
 - If genuinely nothing useful to do, say "No action needed" — don't force it
 - Keep it quick (1-2 minutes of work max)
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
-- Use [TASK] to create tasks if you want to share learnings with the user
-- Always include source URLs when referencing articles or web content (e.g. "Source: https://...")
-- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification`;
+- Use [TASK] to create follow-up tasks if needed
+- Always include source URLs (e.g. "Source: https://...")
+- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
+- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram`;
   }
 
   // ---------------------------------------------------------------------------
@@ -364,22 +390,17 @@ Rules:
     return hour >= start || hour < end;
   }
 
-  /** Send Telegram notification (fire-and-forget, splits long messages by paragraphs) */
+  /** Send Telegram notification via TelegramPoller (fire-and-forget) */
   private notifyTelegram(message: string): void {
-    try {
-      const scriptPath = path.resolve('scripts/notify.sh');
-      // Split by paragraphs → send each as a separate Telegram message
-      const chunks = message.split(/\n\n+/).filter(c => c.trim());
-      for (const chunk of chunks) {
-        // execFileSync passes args directly (no shell escaping issues)
-        execFileSync('bash', [scriptPath, chunk], {
-          timeout: 10_000,
-          encoding: 'utf-8',
-          stdio: 'ignore',
-        });
-      }
-    } catch {
-      // Notification failure should never break the loop
+    const poller = getTelegramPoller();
+    if (!poller) return;
+
+    // Split by paragraphs → send each as a separate message
+    const chunks = message.split(/\n\n+/).filter(c => c.trim());
+    for (const chunk of chunks) {
+      poller.sendMessage(chunk).catch(() => {
+        // Notification failure should never break the loop
+      });
     }
   }
 

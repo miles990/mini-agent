@@ -10,6 +10,7 @@ Minimal Personal AI Agent with autonomous capabilities:
 6. **Smart Guidance** - Core behavior: always provide actionable, state-aware guidance
 7. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
 8. **Multi-Instance** - Docker-style instance management with compose
+9. **Telegram** - Bidirectional Telegram integration (receive messages, smart batched replies, file download)
 
 ## Architecture
 
@@ -18,6 +19,7 @@ graph TB
     subgraph Channels
         CLI[CLI<br/>Interactive + Pipe]
         API[HTTP API<br/>REST]
+        TG[Telegram<br/>Long Poll + Reply]
     end
 
     subgraph Core
@@ -53,6 +55,7 @@ graph TB
 
     CLI --> Compose
     API --> Compose
+    TG --> Agent
     Compose --> Instance
     Instance --> Agent
     Agent --> Memory
@@ -250,6 +253,7 @@ Any language works — Bash, Python, Go binary, etc. As long as it's executable 
 | `disk-usage.sh` | Mount points, home directory top 5, temp files |
 | `git-status.sh` | Branch, remote, uncommitted files, unpushed commits |
 | `homebrew-outdated.sh` | Outdated brew packages |
+| `telegram-inbox.sh` | Pending Telegram messages from inbox |
 
 ## Skills (Markdown Knowledge Modules)
 
@@ -338,6 +342,44 @@ node scripts/cdp-fetch.mjs close <tabId>
 The [Smart Guidance](#smart-guidance-core-behavior) mechanism automatically handles all error scenarios — the agent reads `<chrome>` perception data and provides state-specific setup instructions without any hardcoded guidance text.
 
 The `chrome-status.sh` perception plugin reports CDP status, and `web-fetch.sh` automatically fetches URLs mentioned in conversations using this three-layer strategy.
+
+## Telegram Integration
+
+Bidirectional Telegram support — receive messages, process with Claude, and reply. Uses Telegram Bot API long polling (zero new dependencies, Node built-in `fetch()`).
+
+### Setup
+
+```bash
+# Add to .env
+TELEGRAM_BOT_TOKEN=your-bot-token    # From @BotFather
+TELEGRAM_CHAT_ID=your-chat-id        # Authorized chat ID
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Smart Batching** | Waits 3s for follow-up messages, processes all at once |
+| **Message Types** | Text, photos, documents, voice, forwarded messages |
+| **URL Extraction** | Auto-detects URLs in messages |
+| **File Download** | Saves photos/docs/voice to `memory/media/` |
+| **Inbox (File=Truth)** | All messages logged to `memory/.telegram-inbox.md` |
+| **Perception** | OODA loop sees pending messages via `telegram-inbox` plugin |
+| **Security** | Only accepts messages from configured `TELEGRAM_CHAT_ID` |
+
+### How It Works
+
+```
+User sends Telegram message
+  → getUpdates long poll receives it
+  → Message buffered (3s wait for more)
+  → All buffered messages combined
+  → processMessage() → Claude processes
+  → Reply sent to Telegram
+  → Written to inbox for perception
+```
+
+The agent loop also uses TelegramPoller for notifications (replacing the old `scripts/notify.sh` approach).
 
 ## Three-Layer Architecture
 

@@ -29,7 +29,7 @@ perception:
       timeout: 5000
 ```
 
-現有: chrome-status / web-fetch / docker-status / port-check / disk-usage / git-status / homebrew-outdated
+現有: chrome-status / web-fetch / docker-status / port-check / disk-usage / git-status / homebrew-outdated / telegram-inbox
 
 ### Skills (Markdown Knowledge)
 
@@ -61,10 +61,27 @@ Key files:
 │   ├── MEMORY.md        # 長期知識
 │   ├── HEARTBEAT.md     # 任務管理
 │   ├── ARCHITECTURE.md  # 架構參考（本檔案）
+│   ├── .telegram-inbox.md # Telegram 訊息收件匣
+│   ├── media/           # Telegram 下載的媒體
 │   └── daily/           # 每日對話日誌
 ├── scripts/             # 工具腳本
 └── src/                 # TypeScript source
 ```
+
+## Telegram Integration
+
+雙向 Telegram 整合，使用 Bot API `getUpdates` 長輪詢（零新依賴）。
+
+Key files:
+- `src/telegram.ts` — TelegramPoller class（getUpdates + sendMessage + 檔案下載）
+- `plugins/telegram-inbox.sh` — Perception 插件（讀取未處理訊息）
+- `memory/.telegram-inbox.md` — Inbox 檔案（File=Truth）
+- `memory/.telegram-offset` — 長輪詢 offset 持久化
+- `memory/media/` — 下載的圖片/文件/語音
+
+智能回覆：收到訊息後 buffer 3 秒，累積多條後一次處理回覆。
+安全：只接受 `TELEGRAM_CHAT_ID` 的訊息。
+Loop 整合：`loop.ts` 的 `notifyTelegram()` 改用 TelegramPoller.sendMessage()。
 
 ## AgentLoop (OODA)
 

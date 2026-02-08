@@ -4,6 +4,8 @@
  * REST API for mini-agent with instance management
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { processMessage } from './agent.js';
 import {
@@ -29,6 +31,7 @@ import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, start
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
+import { createTelegramPoller, getTelegramPoller } from './telegram.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
 } from './workspace.js';
@@ -637,8 +640,24 @@ if (isMain) {
   // ── 設定 slog 前綴（讓日誌能區分實例） ──
   setSlogPrefix(instanceId, instanceConfig?.name);
 
-  // ── Cron: 從 compose 讀取並啟動 ──
+  // ── Load .env (lightweight, no dependency) ──
   const composeFile = findComposeFile();
+  const projectDir = composeFile ? path.dirname(composeFile) : process.cwd();
+  const envFile = path.join(projectDir, '.env');
+  if (fs.existsSync(envFile)) {
+    for (const line of fs.readFileSync(envFile, 'utf-8').split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+      if (!process.env[key]) process.env[key] = val;
+    }
+    slog('ENV', `Loaded from ${envFile}`);
+  }
+
+  // ── Cron: 從 compose 讀取並啟動 ──
   let currentAgent: import('./types.js').ComposeAgent | undefined;
 
   if (composeFile) {
@@ -747,6 +766,10 @@ if (isMain) {
     skills: currentAgent?.skills,
   });
 
+  // ── Telegram Poller ──
+  const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
+  const telegramPoller = createTelegramPoller(memoryDir);
+
   app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
     const cronCount = getCronTaskCount();
@@ -754,5 +777,18 @@ if (isMain) {
     if (loopRef) {
       loopRef.start();
     }
+    if (telegramPoller) {
+      telegramPoller.start();
+    }
   });
+
+  // ── Graceful Shutdown ──
+  const shutdown = () => {
+    slog('SERVER', 'Shutting down...');
+    if (telegramPoller) telegramPoller.stop();
+    if (loopRef) loopRef.stop();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }

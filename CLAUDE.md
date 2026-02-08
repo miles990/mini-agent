@@ -29,6 +29,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Agent | `src/agent.ts` |
 | Memory | `src/memory.ts` |
 | AgentLoop | `src/loop.ts` |
+| Telegram | `src/telegram.ts` |
 | Perception | `src/perception.ts` |
 | Workspace | `src/workspace.ts` |
 | Instance | `src/instance.ts` |
@@ -64,9 +65,11 @@ mini-agent list/status/logs [-f]/attach <id>
 ## Environment
 
 ```bash
-PORT=3001              CDP_PORT=9222
-MINI_AGENT_INSTANCE=id CDP_TIMEOUT=15000
-MINI_AGENT_API_KEY=xxx CDP_MAX_CONTENT=8000
+PORT=3001                CDP_PORT=9222
+MINI_AGENT_INSTANCE=id   CDP_TIMEOUT=15000
+MINI_AGENT_API_KEY=xxx   CDP_MAX_CONTENT=8000
+TELEGRAM_BOT_TOKEN=xxx   # Telegram 接收+發送
+TELEGRAM_CHAT_ID=xxx     # 授權的 chat ID
 ```
 
 ## Workflow

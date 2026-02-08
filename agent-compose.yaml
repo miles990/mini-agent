@@ -14,9 +14,7 @@ agents:
     loop:
       enabled: true
       interval: "5m"
-      activeHours:
-        start: 8
-        end: 23
+      # 24h active — no activeHours restriction
     cron:
       - schedule: "*/30 * * * *"
         task: Check HEARTBEAT.md for pending tasks and execute them if any
@@ -39,6 +37,8 @@ agents:
           script: ./plugins/task-tracker.sh
         - name: state-changes
           script: ./plugins/state-watcher.sh
+        - name: telegram-inbox
+          script: ./plugins/telegram-inbox.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
