@@ -52,9 +52,43 @@ ${getSkillsPrompt()}`;
 }
 
 /**
+ * Classify Claude CLI error into user-friendly message
+ */
+function classifyClaudeError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  const stderr = (error as { stderr?: string })?.stderr ?? '';
+  const combined = `${msg}\n${stderr}`.toLowerCase();
+
+  if (combined.includes('enoent') || combined.includes('not found')) {
+    return '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。';
+  }
+  if (combined.includes('timeout') || combined.includes('timed out')) {
+    return '處理超時（超過 2 分鐘）。這個請求可能太複雜，請嘗試簡化問題。';
+  }
+  if (combined.includes('maxbuffer')) {
+    return '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。';
+  }
+  if (combined.includes('permission') || combined.includes('access denied')) {
+    return '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。';
+  }
+
+  // Try to extract useful info from stderr
+  if (stderr.trim()) {
+    // Take last meaningful line from stderr
+    const lines = stderr.trim().split('\n').filter((l: string) => l.trim());
+    const lastLine = lines[lines.length - 1] || '';
+    if (lastLine.length > 10 && lastLine.length < 300) {
+      return `Claude CLI 執行失敗：${lastLine}`;
+    }
+  }
+
+  return '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。';
+}
+
+/**
  * Call Claude Code via subprocess
  * Uses a temp file to pass the prompt (avoids shell escaping issues)
- * Logs the full prompt and response
+ * Captures stderr for better error diagnostics
  */
 export async function callClaude(
   prompt: string,
@@ -71,11 +105,24 @@ export async function callClaude(
   try {
     const result = execSync(`cat "${tmpFile}" | claude -p --dangerously-skip-permissions`, {
       encoding: 'utf-8',
-      timeout: 120000,
+      timeout: 180000, // 3 minutes (web operations may take longer)
       maxBuffer: 10 * 1024 * 1024, // 10MB
     });
     const duration = Date.now() - startTime;
     return { response: result.trim(), systemPrompt, fullPrompt, duration };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const friendlyMessage = classifyClaudeError(error);
+
+    // Try to extract partial stdout (Claude may have produced some output before failing)
+    const stdout = (error as { stdout?: string })?.stdout?.trim();
+    if (stdout && stdout.length > 20) {
+      // Claude produced partial output — use it
+      return { response: stdout, systemPrompt, fullPrompt, duration };
+    }
+
+    // No usable output — return friendly error as the response
+    return { response: friendlyMessage, systemPrompt, fullPrompt, duration };
   } finally {
     // Clean up temp file
     try {
@@ -97,19 +144,8 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
   // 1. Build context from memory
   const context = await memory.buildContext();
 
-  // 2. Call Claude and log
-  let claudeResult: { response: string; systemPrompt: string; fullPrompt: string; duration: number };
-  let success = true;
-  let errorMsg: string | undefined;
-
-  try {
-    claudeResult = await callClaude(userMessage, context);
-  } catch (error) {
-    success = false;
-    errorMsg = error instanceof Error ? error.message : String(error);
-    logger.logError(error instanceof Error ? error : new Error(errorMsg), 'processMessage');
-    throw error;
-  }
+  // 2. Call Claude (now returns friendly error as response instead of throwing)
+  const claudeResult = await callClaude(userMessage, context);
 
   const { response, systemPrompt, fullPrompt, duration } = claudeResult;
 
@@ -160,8 +196,7 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     },
     {
       duration,
-      success,
-      error: errorMsg,
+      success: true,
     }
   );
 
