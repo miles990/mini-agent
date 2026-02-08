@@ -122,9 +122,13 @@ Key files:
 - `scripts/cdp-fetch.mjs` — Zero-dependency CDP client (Node.js native WebSocket)
   - Commands: `status`, `fetch <url>`, `open <url>`, `extract <tabId>`, `close <tabId>`
 - `scripts/chrome-setup.sh` — Interactive setup guide
-- `plugins/chrome-status.sh` — CDP availability perception
+- `plugins/chrome-status.sh` — CDP status + smart guidance (detects Chrome running/stopped)
 - `plugins/web-fetch.sh` — Auto-fetch URLs from conversations
 - `skills/web-research.md` — Three-layer workflow knowledge
+
+Smart guidance: When CDP is unavailable, `chrome-status.sh` detects Chrome state (running/stopped) and the `web-research.md` skill instructs agent to give specific actionable steps (not vague suggestions).
+
+Error handling: `callClaude()` catches errors and returns friendly messages instead of 500. Classifies errors (ENOENT, timeout, maxbuffer, permission) into user-readable explanations.
 
 Environment: `CDP_PORT=9222` (default), `CDP_TIMEOUT=15000`, `CDP_MAX_CONTENT=8000`
 
@@ -157,6 +161,8 @@ Instance isolation:
 ./
 ├── agent-compose.yaml   # Compose configuration
 ├── plugins/             # Custom perception plugins (shell scripts)
+│   ├── chrome-status.sh
+│   ├── web-fetch.sh
 │   ├── docker-status.sh
 │   ├── port-check.sh
 │   └── ...

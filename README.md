@@ -242,7 +242,7 @@ Any language works — Bash, Python, Go binary, etc. As long as it's executable 
 
 | Plugin | Description |
 |--------|-------------|
-| `chrome-status.sh` | Chrome CDP availability, open tabs (for web access) |
+| `chrome-status.sh` | Chrome CDP status with smart guidance (detects Chrome running/stopped, gives specific setup steps) |
 | `web-fetch.sh` | Three-layer URL fetching (curl → CDP → user login) |
 | `docker-status.sh` | Running/stopped containers, resource usage |
 | `port-check.sh` | Common port availability (80, 443, 3000, 5432, 6379...) |
@@ -334,7 +334,12 @@ node scripts/cdp-fetch.mjs extract <tabId>
 node scripts/cdp-fetch.mjs close <tabId>
 ```
 
-The `chrome-status.sh` perception plugin reports CDP availability, and `web-fetch.sh` automatically fetches URLs mentioned in conversations using this three-layer strategy.
+**Smart guidance:** When CDP is not available, the agent detects Chrome's state and provides specific instructions:
+- Chrome running → "Quit Chrome (Cmd+Q), then relaunch with `--remote-debugging-port=9222`"
+- Chrome not running → "Launch with `open -a 'Google Chrome' --args --remote-debugging-port=9222`"
+- Page needs login → Opens a visible tab, waits for user to login, then extracts content
+
+The `chrome-status.sh` perception plugin reports CDP status, and `web-fetch.sh` automatically fetches URLs mentioned in conversations using this three-layer strategy.
 
 ## Three-Layer Architecture
 
