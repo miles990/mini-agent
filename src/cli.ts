@@ -1228,7 +1228,7 @@ async function runChat(port: number): Promise<void> {
     skills: currentAgent?.skills,
   });
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`Mini-Agent - Memory + Cron + Loop`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
@@ -1243,6 +1243,15 @@ async function runChat(port: number): Promise<void> {
     }
     console.log('\nType /help for commands, or just chat.\n');
     prompt();
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n❌ Port ${port} is already in use.`);
+      console.error(`   Try: mini-agent kill --all, or use --port <port>\n`);
+      process.exit(1);
+    }
+    throw err;
   });
 
   rl = readline.createInterface({

@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import net from 'node:net';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { v4 as uuidv4 } from 'uuid';
@@ -301,12 +302,26 @@ export function resetInstanceConfig(instanceId: string): InstanceConfig | null {
 // =============================================================================
 
 /**
- * 尋找可用的 port
+ * 檢查 port 是否可用（OS 層）
  */
-function findAvailablePort(globalConfig: GlobalConfig): number {
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port);
+  });
+}
+
+/**
+ * 尋找可用的 port（同時檢查配置和 OS 層）
+ */
+async function findAvailablePort(globalConfig: GlobalConfig): Promise<number> {
   const usedPorts = new Set<number>();
 
-  // 收集所有已使用的 port
+  // 收集所有配置中已使用的 port
   for (const instance of globalConfig.instances) {
     const config = loadInstanceConfig(instance.id);
     if (config) {
@@ -316,7 +331,7 @@ function findAvailablePort(globalConfig: GlobalConfig): number {
 
   // 從預設 port 開始尋找
   let port = globalConfig.defaults.port;
-  while (usedPorts.has(port)) {
+  while (usedPorts.has(port) || !(await isPortAvailable(port))) {
     port++;
   }
 
@@ -326,12 +341,12 @@ function findAvailablePort(globalConfig: GlobalConfig): number {
 /**
  * 創建新實例
  */
-export function createInstance(options: CreateInstanceOptions = {}): InstanceConfig {
+export async function createInstance(options: CreateInstanceOptions = {}): Promise<InstanceConfig> {
   initDataDir();
 
   const globalConfig = loadGlobalConfig();
   const id = uuidv4().substring(0, 8);
-  const port = options.port ?? findAvailablePort(globalConfig);
+  const port = options.port ?? await findAvailablePort(globalConfig);
 
   const config: InstanceConfig = {
     id,
@@ -423,7 +438,7 @@ export class InstanceManager {
   /**
    * 創建新實例
    */
-  create(options: CreateInstanceOptions = {}): InstanceConfig {
+  create(options: CreateInstanceOptions = {}): Promise<InstanceConfig> {
     return createInstance(options);
   }
 

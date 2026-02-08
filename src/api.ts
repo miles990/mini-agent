@@ -205,12 +205,12 @@ export function createApi(port = 3001): express.Express {
   });
 
   // 創建新實例
-  app.post('/api/instances', (req: Request, res: Response) => {
+  app.post('/api/instances', async (req: Request, res: Response) => {
     const options = req.body as CreateInstanceOptions;
     const manager = getInstanceManager();
 
     try {
-      const instance = manager.create(options);
+      const instance = await manager.create(options);
       res.json(instance);
     } catch (error) {
       res.status(400).json({
@@ -770,7 +770,7 @@ if (isMain) {
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
   const telegramPoller = createTelegramPoller(memoryDir);
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
     const cronCount = getCronTaskCount();
     if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
@@ -780,6 +780,14 @@ if (isMain) {
     if (telegramPoller) {
       telegramPoller.start();
     }
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      slog('SERVER', `Port ${port} is already in use. Try: mini-agent kill --all, or use --port <port>`);
+      process.exit(1);
+    }
+    throw err;
   });
 
   // ── Graceful Shutdown ──

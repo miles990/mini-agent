@@ -245,7 +245,7 @@ export async function composeUp(compose: ComposeFile, detached = false): Promise
 
     // 建立新實例並啟動
     try {
-      const instance = manager.create({
+      const instance = await manager.create({
         name: agentName,
         port: agentDef.port,
         role: agentDef.role,
