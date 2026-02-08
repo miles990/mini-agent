@@ -70,6 +70,7 @@ export interface LogMetadata {
   duration?: number;
   success: boolean;
   error?: string;
+  mode?: string;  // 'task' | 'autonomous' | 'heartbeat'
 }
 
 /**

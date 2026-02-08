@@ -218,11 +218,19 @@ export class AgentLoop {
 
       // ── Decide ──
       this.currentMode = hasWorkToDo ? 'task' : 'autonomous';
+      slog('LOOP', `#${this.cycleCount} 🎯 Mode: ${this.currentMode.toUpperCase()}`);
       const prompt = hasWorkToDo
         ? this.buildTaskPrompt()
         : this.buildAutonomousPrompt();
 
-      const { response, duration } = await callClaude(prompt, context);
+      const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context);
+
+      // 結構化記錄 Claude 呼叫
+      logger.logClaudeCall(
+        { userMessage: prompt, systemPrompt, context: `[${context.length} chars]`, fullPrompt },
+        { content: response },
+        { duration, success: true, mode: this.currentMode }
+      );
 
       // ── Act ──
       const actionMatch = response.match(/\[ACTION\](.*?)\[\/ACTION\]/s);

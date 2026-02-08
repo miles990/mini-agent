@@ -241,7 +241,13 @@ Review the active tasks and:
 Keep response brief.`;
 
   try {
-    const { response, duration } = await callClaude(prompt, context);
+    const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context);
+    // 結構化記錄 Claude 呼叫
+    logger.logClaudeCall(
+      { userMessage: prompt, systemPrompt, context: `[${context.length} chars]`, fullPrompt },
+      { content: response },
+      { duration, success: true, mode: 'heartbeat' }
+    );
     // Heartbeat 結果記錄為 assistant 對話
     await memory.appendConversation('assistant', `[Heartbeat] ${response}`);
     logger.logCron('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
