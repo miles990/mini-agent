@@ -4,6 +4,7 @@ dist/
 .env
 memory/*
 !memory/ARCHITECTURE.md
+!memory/SOUL.md
 sessions/
 .claude/
 output.md

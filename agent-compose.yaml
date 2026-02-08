@@ -14,6 +14,9 @@ agents:
     loop:
       enabled: true
       interval: "5m"
+      activeHours:
+        start: 8
+        end: 23
     cron:
       - schedule: "*/30 * * * *"
         task: Check HEARTBEAT.md for pending tasks and execute them if any
@@ -47,6 +50,7 @@ agents:
     # ── Skills（Markdown 知識模組）──
     # 純 Markdown 檔案，注入 system prompt 讓 Agent 知道怎麼做
     skills:
+      - ./skills/autonomous-behavior.md
       - ./skills/reactive-agent.md
       - ./skills/docker-ops.md
       - ./skills/debug-helper.md

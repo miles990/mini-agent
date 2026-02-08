@@ -1,10 +1,13 @@
 /**
- * AgentLoop - OODA 自主循環
+ * AgentLoop - OODA 自主循環 + Autonomous Idle Behavior
  *
  * Observe → Orient → Decide → Act
  *
- * Agent 在背景自主觀察環境、思考、決定行動、執行。
- * 用戶訊息進來時暫停循環，處理完再恢復。
+ * 兩種模式：
+ * 1. Task Mode: 有任務/警報時，專注處理
+ * 2. Autonomous Mode: 無任務時，根據 SOUL.md 主動找事做
+ *
+ * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
 import { callClaude } from './agent.js';
@@ -25,6 +28,11 @@ export interface AgentLoopConfig {
   maxCycleMs: number;
   /** 是否啟用 */
   enabled: boolean;
+  /** 活躍時段（預設 8:00-23:00） */
+  activeHours?: {
+    start: number;  // 0-23
+    end: number;    // 0-23
+  };
 }
 
 export interface LoopStatus {
@@ -35,6 +43,7 @@ export interface LoopStatus {
   lastAction: string | null;
   nextCycleAt: string | null;
   currentInterval: number;
+  mode: 'task' | 'autonomous' | 'idle';
 }
 
 const DEFAULT_CONFIG: AgentLoopConfig = {
@@ -42,6 +51,7 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
   idleMultiplier: 2,
   maxCycleMs: 120_000,    // 2 minutes
   enabled: true,
+  activeHours: { start: 8, end: 23 },
 };
 
 // =============================================================================
@@ -58,7 +68,12 @@ export class AgentLoop {
   private lastCycleAt: string | null = null;
   private lastAction: string | null = null;
   private nextCycleAt: string | null = null;
-  private cycling = false; // guard against concurrent cycles
+  private cycling = false;
+
+  // ── Autonomous Mode State ──
+  private autonomousCooldown = 0;
+  private lastAutonomousActions: string[] = [];
+  private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
 
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -76,7 +91,7 @@ export class AgentLoop {
     this.running = true;
     this.paused = false;
     this.scheduleNext();
-    slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s)`);
+    slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s, active: ${this.config.activeHours?.start ?? 8}:00-${this.config.activeHours?.end ?? 23}:00)`);
   }
 
   stop(): void {
@@ -94,7 +109,6 @@ export class AgentLoop {
   resume(): void {
     if (!this.running || !this.paused) return;
     this.paused = false;
-    // Wait until current cycle finishes if one is in progress
     if (!this.cycling) {
       this.scheduleNext();
     }
@@ -109,6 +123,7 @@ export class AgentLoop {
       lastAction: this.lastAction,
       nextCycleAt: this.nextCycleAt,
       currentInterval: this.currentInterval,
+      mode: this.currentMode,
     };
   }
 
@@ -152,11 +167,14 @@ export class AgentLoop {
       slog('LOOP', `ERROR: ${err instanceof Error ? err.message : err}`);
     }
 
-    // Schedule next if still running and not paused
     if (this.running && !this.paused) {
       this.scheduleNext();
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Core Cycle — Task Mode + Autonomous Mode
+  // ---------------------------------------------------------------------------
 
   private async cycle(): Promise<string | null> {
     if (this.cycling) return null;
@@ -167,26 +185,108 @@ export class AgentLoop {
       this.cycleCount++;
       this.lastCycleAt = new Date().toISOString();
 
-      // ── Observe ──（focused mode: 只載入核心感知 + 任務/狀態相關）
+      // ── Observe ──
       const memory = getMemory();
       const context = await memory.buildContext({ mode: 'focused' });
 
-      // Check for actionable items: unchecked tasks OR alerts
       const hasActiveTasks = context.includes('- [ ]');
       const hasAlerts = context.includes('ALERT:');
+      const hasWorkToDo = hasActiveTasks || hasAlerts;
 
-      if (!hasActiveTasks && !hasAlerts) {
-        // Nothing to do — increase interval
-        this.adjustInterval(false);
-        logger.logCron('loop-cycle', 'No active tasks', 'agent-loop');
-        slog('LOOP', `#${this.cycleCount} idle (no tasks), next in ${Math.round(this.currentInterval / 1000)}s`);
-        return null;
+      // ── Route: Task Mode vs Autonomous Mode ──
+      if (!hasWorkToDo) {
+        // Check autonomous cooldown
+        if (this.autonomousCooldown > 0) {
+          this.autonomousCooldown--;
+          this.currentMode = 'idle';
+          this.adjustInterval(false);
+          logger.logCron('loop-cycle', 'Autonomous cooldown', 'agent-loop');
+          slog('LOOP', `#${this.cycleCount} 💤 cooldown (${this.autonomousCooldown} remaining)`);
+          return null;
+        }
+
+        // Check active hours
+        if (!this.isWithinActiveHours()) {
+          this.currentMode = 'idle';
+          this.adjustInterval(false);
+          slog('LOOP', `#${this.cycleCount} 🌙 outside active hours`);
+          return null;
+        }
       }
 
-      // ── Orient ── (context already built above)
-
       // ── Decide ──
-      const prompt = `You are an autonomous Agent running a self-check cycle.
+      this.currentMode = hasWorkToDo ? 'task' : 'autonomous';
+      const prompt = hasWorkToDo
+        ? this.buildTaskPrompt()
+        : this.buildAutonomousPrompt();
+
+      const { response, duration } = await callClaude(prompt, context);
+
+      // ── Act ──
+      const actionMatch = response.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
+      let action: string | null = null;
+
+      if (actionMatch) {
+        action = actionMatch[1].trim();
+        this.lastAction = action;
+
+        if (this.currentMode === 'autonomous') {
+          // Autonomous action: record and cooldown
+          this.lastAutonomousActions.push(action);
+          if (this.lastAutonomousActions.length > 10) {
+            this.lastAutonomousActions.shift();
+          }
+          this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
+          await memory.appendConversation('assistant', `[Autonomous] ${action}`);
+          slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
+        } else {
+          await memory.appendConversation('assistant', `[Loop] ${action}`);
+          slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
+        }
+
+        this.adjustInterval(true);
+      } else {
+        if (this.currentMode === 'autonomous') {
+          this.autonomousCooldown = 5; // Nothing to do autonomously, wait longer
+        }
+        this.adjustInterval(false);
+        slog('LOOP', `#${this.cycleCount} 💤 no action (${(duration / 1000).toFixed(1)}s), next in ${Math.round(this.currentInterval / 1000)}s`);
+      }
+
+      logger.logCron('loop-cycle', action ? `[${this.currentMode}] ${action}` : 'No action', 'agent-loop', {
+        duration,
+        success: true,
+      });
+
+      // ── Process Tags ──
+      const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
+      if (rememberMatch) {
+        await memory.appendMemory(rememberMatch[1].trim());
+      }
+
+      const taskMatches = response.matchAll(/\[TASK\](.*?)\[\/TASK\]/gs);
+      for (const m of taskMatches) {
+        const taskText = m[1].trim();
+        await memory.addTask(taskText);
+        slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
+      }
+
+      return action;
+    } finally {
+      this.cycling = false;
+      if (this.running && !this.paused && !this.timer) {
+        this.scheduleNext();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Prompt Builders
+  // ---------------------------------------------------------------------------
+
+  /** Task Mode: 有明確任務或警報時 */
+  private buildTaskPrompt(): string {
+    return `You are an autonomous Agent running a self-check cycle.
 
 Review your current tasks and environment:
 1. Check <state-changes> for any ALERT — these are urgent and should be addressed first
@@ -204,61 +304,62 @@ Respond with either:
 - "No action needed" if nothing to do right now
 
 Keep responses brief.`;
+  }
 
-      const { response, duration } = await callClaude(prompt, context);
+  /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
+  private buildAutonomousPrompt(): string {
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
 
-      // ── Act ──
-      const actionMatch = response.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
-      let action: string | null = null;
+    const recentActions = this.lastAutonomousActions.slice(-3);
+    const avoidList = recentActions.length > 0
+      ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
+      : '';
 
-      if (actionMatch) {
-        action = actionMatch[1].trim();
-        this.lastAction = action;
-        // Record action to conversation history
-        await memory.appendConversation('assistant', `[Loop] ${action}`);
-        // Reset interval on action
-        this.adjustInterval(true);
-        slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
-      } else {
-        this.adjustInterval(false);
-        slog('LOOP', `#${this.cycleCount} 💤 no action (${(duration / 1000).toFixed(1)}s), next in ${Math.round(this.currentInterval / 1000)}s`);
-      }
+    return `You are an autonomous Agent with your own identity. It's ${timeOfDay}.
+No explicit tasks or alerts right now.
 
-      logger.logCron('loop-cycle', action ?? 'No action', 'agent-loop', {
-        duration,
-        success: true,
-      });
+Read your <soul> to understand who you are and what you care about.
+Then, based on your persona and current context, proactively do something meaningful.
 
-      // Process [REMEMBER] tags from response
-      const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
-      if (rememberMatch) {
-        await memory.appendMemory(rememberMatch[1].trim());
-      }
+Consider:
+- Reviewing recent conversations and extracting important info to memory
+- Checking if any past topics need follow-up
+- Organizing or updating MEMORY.md (remove stale info, add insights)
+- Updating your <soul> "What I'm Tracking" or "Learned Preferences" sections
+- Looking at environment state and preparing for potential issues
+${avoidList}
 
-      // Process [TASK] tags — auto-create HEARTBEAT tasks
-      const taskMatches = response.matchAll(/\[TASK\](.*?)\[\/TASK\]/gs);
-      for (const m of taskMatches) {
-        const taskText = m[1].trim();
-        await memory.addTask(taskText);
-        slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
-      }
+Rules:
+- Pick ONE small action, do it, report with [ACTION]...[/ACTION]
+- If genuinely nothing useful to do, say "No action needed" — don't force it
+- Keep it quick (1-2 minutes of work max)
+- Use [REMEMBER] to save valuable discoveries
+- Use [TASK] to create new tasks if you spot something that should be done
 
-      return action;
-    } finally {
-      this.cycling = false;
-      // If was paused during cycle, don't auto-schedule
-      if (this.running && !this.paused && !this.timer) {
-        this.scheduleNext();
-      }
+Keep responses brief.`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  private isWithinActiveHours(): boolean {
+    const hour = new Date().getHours();
+    const start = this.config.activeHours?.start ?? 8;
+    const end = this.config.activeHours?.end ?? 23;
+
+    if (start <= end) {
+      return hour >= start && hour < end;
     }
+    // Wraps midnight (e.g., 22:00 - 06:00)
+    return hour >= start || hour < end;
   }
 
   private adjustInterval(hadAction: boolean): void {
     if (hadAction) {
-      // Reset to base interval
       this.currentInterval = this.config.intervalMs;
     } else {
-      // Increase interval (up to 4x base)
       const maxInterval = this.config.intervalMs * 4;
       this.currentInterval = Math.min(
         this.currentInterval * this.config.idleMultiplier,

@@ -219,6 +219,10 @@ export interface ComposeAgent {
   loop?: {
     enabled?: boolean;
     interval?: string;  // "5m", "30s", "1h"
+    activeHours?: {
+      start?: number;   // 0-23, default 8
+      end?: number;     // 0-23, default 23
+    };
   };
   perception?: {
     builtin?: string[];           // 啟用的內建感知（預設全部）

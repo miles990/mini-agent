@@ -193,6 +193,18 @@ export class InstanceMemory {
   }
 
   /**
+   * 讀取 SOUL.md（Agent 身分認同）
+   */
+  async readSoul(): Promise<string> {
+    const soulPath = path.join(this.memoryDir, 'SOUL.md');
+    try {
+      return await fs.readFile(soulPath, 'utf-8');
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * 讀取 HEARTBEAT.md
    */
   async readHeartbeat(): Promise<string> {
@@ -463,9 +475,10 @@ export class InstanceMemory {
     const mode = options?.mode ?? 'full';
     const hint = options?.relevanceHint?.toLowerCase() ?? '';
 
-    const [memory, heartbeat] = await Promise.all([
+    const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
       this.readHeartbeat(),
+      this.readSoul(),
     ]);
 
     // 使用 Hot buffer 中的對話
@@ -570,6 +583,9 @@ export class InstanceMemory {
         if (customCtx) sections.push(customCtx);
       }
     }
+
+    // ── Soul（身分認同，總是載入）──
+    if (soul) sections.push(`<soul>\n${soul}\n</soul>`);
 
     // ── 記憶和對話（總是載入）──
     sections.push(`<memory>\n${memory}\n</memory>`);

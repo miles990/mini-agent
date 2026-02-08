@@ -656,7 +656,10 @@ if (isMain) {
   const loopEnabled = loopConfig?.enabled !== false;
   if (loopEnabled) {
     const intervalMs = loopConfig?.interval ? parseInterval(loopConfig.interval) : undefined;
-    const loop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}) });
+    const activeHours = loopConfig?.activeHours
+      ? { start: loopConfig.activeHours.start ?? 8, end: loopConfig.activeHours.end ?? 23 }
+      : undefined;
+    const loop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}), ...(activeHours ? { activeHours } : {}) });
     setLoopRef(loop);
   }
 

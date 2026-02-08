@@ -13,6 +13,7 @@
 | Unix Native | 管道友善、可組合 |
 | Smart Guidance | 核心行為：始終提供可行動的狀態感知指引 |
 | Reactive | 主動偵測環境變化，自動建立任務 |
+| Autonomous | 無指令時根據 SOUL.md 自主行動 |
 
 ## 三層架構
 
@@ -41,7 +42,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 ```
 Hot  (In-Memory)  → Last 20 conversations
 Warm (Daily File) → daily/YYYY-MM-DD.md
-Cold (Long-term)  → MEMORY.md + HEARTBEAT.md + SKILLS.md
+Cold (Long-term)  → MEMORY.md + HEARTBEAT.md + SOUL.md
 ```
 
 Instance path: `~/.mini-agent/instances/{id}/`

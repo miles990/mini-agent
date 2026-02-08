@@ -1133,7 +1133,10 @@ async function runChat(port: number): Promise<void> {
   const loopEnabled = loopConfig?.enabled !== false; // 預設啟用
   if (loopEnabled) {
     const intervalMs = loopConfig?.interval ? parseInterval(loopConfig.interval) : undefined;
-    agentLoop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}) });
+    const activeHours = loopConfig?.activeHours
+      ? { start: loopConfig.activeHours.start ?? 8, end: loopConfig.activeHours.end ?? 23 }
+      : undefined;
+    agentLoop = new AgentLoop({ enabled: true, ...(intervalMs ? { intervalMs } : {}), ...(activeHours ? { activeHours } : {}) });
     setLoopRef(agentLoop);
   }
 
