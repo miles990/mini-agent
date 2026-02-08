@@ -10,7 +10,7 @@
  * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
@@ -344,8 +344,8 @@ Rules:
 - Keep it quick (1-2 minutes of work max)
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
 - Use [TASK] to create tasks if you want to share learnings with the user
-
-Keep responses brief.`;
+- Always include source URLs when referencing articles or web content (e.g. "Source: https://...")
+- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification`;
   }
 
   // ---------------------------------------------------------------------------
@@ -364,17 +364,20 @@ Keep responses brief.`;
     return hour >= start || hour < end;
   }
 
-  /** Send Telegram notification (fire-and-forget) */
+  /** Send Telegram notification (fire-and-forget, splits long messages by paragraphs) */
   private notifyTelegram(message: string): void {
     try {
       const scriptPath = path.resolve('scripts/notify.sh');
-      // Truncate long messages, escape for shell
-      const truncated = message.slice(0, 500).replace(/"/g, '\\"');
-      execSync(`bash "${scriptPath}" "${truncated}"`, {
-        timeout: 10_000,
-        encoding: 'utf-8',
-        stdio: 'ignore',
-      });
+      // Split by paragraphs → send each as a separate Telegram message
+      const chunks = message.split(/\n\n+/).filter(c => c.trim());
+      for (const chunk of chunks) {
+        // execFileSync passes args directly (no shell escaping issues)
+        execFileSync('bash', [scriptPath, chunk], {
+          timeout: 10_000,
+          encoding: 'utf-8',
+          stdio: 'ignore',
+        });
+      }
     } catch {
       // Notification failure should never break the loop
     }
