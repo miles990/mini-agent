@@ -10,6 +10,8 @@
  * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
+import { execSync } from 'node:child_process';
+import path from 'node:path';
 import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
@@ -92,6 +94,7 @@ export class AgentLoop {
     this.paused = false;
     this.scheduleNext();
     slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s, active: ${this.config.activeHours?.start ?? 8}:00-${this.config.activeHours?.end ?? 23}:00)`);
+    this.notifyTelegram('🟢 Kuro 上線了');
   }
 
   stop(): void {
@@ -238,9 +241,11 @@ export class AgentLoop {
           }
           this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
+          this.notifyTelegram(`🧠 ${action}`);
           slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
+          this.notifyTelegram(`⚡ ${action}`);
           slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
         }
 
@@ -357,6 +362,22 @@ Keep responses brief.`;
     }
     // Wraps midnight (e.g., 22:00 - 06:00)
     return hour >= start || hour < end;
+  }
+
+  /** Send Telegram notification (fire-and-forget) */
+  private notifyTelegram(message: string): void {
+    try {
+      const scriptPath = path.resolve('scripts/notify.sh');
+      // Truncate long messages, escape for shell
+      const truncated = message.slice(0, 500).replace(/"/g, '\\"');
+      execSync(`bash "${scriptPath}" "${truncated}"`, {
+        timeout: 10_000,
+        encoding: 'utf-8',
+        stdio: 'ignore',
+      });
+    } catch {
+      // Notification failure should never break the loop
+    }
   }
 
   private adjustInterval(hadAction: boolean): void {
