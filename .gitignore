@@ -2,7 +2,8 @@ node_modules/
 dist/
 *.log
 .env
-memory/
+memory/*
+!memory/ARCHITECTURE.md
 sessions/
 .claude/
 output.md

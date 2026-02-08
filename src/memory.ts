@@ -217,6 +217,11 @@ export class InstanceMemory {
 
   /**
    * 添加任務到 HEARTBEAT.md
+   *
+   * 格式支援:
+   * - [ ] P0: urgent task @due:2026-02-10 <!-- added: ... -->
+   * - [ ] P1: important task <!-- added: ... -->
+   * - [ ] task without priority (default P2)
    */
   async addTask(task: string, schedule?: string): Promise<void> {
     await ensureDir(this.memoryDir);
@@ -234,15 +239,68 @@ export class InstanceMemory {
       const scheduleNote = schedule ? ` (${schedule})` : '';
       const taskEntry = `\n- [ ] ${task}${scheduleNote} <!-- added: ${timestamp} -->`;
 
+      // 按優先級插入（P0 在最前面）
       let updated: string;
       if (current.includes('## Active Tasks')) {
-        updated = current.replace('## Active Tasks', `## Active Tasks${taskEntry}`);
+        // 找到插入位置：P0 在最前、P1 在 P0 後、其他在最後
+        const priority = this.extractPriority(task);
+        const lines = current.split('\n');
+        const sectionIdx = lines.findIndex(l => l.includes('## Active Tasks'));
+
+        if (sectionIdx >= 0) {
+          let insertIdx = sectionIdx + 1;
+          // 找到適合的位置
+          for (let i = sectionIdx + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.startsWith('## ') && !line.includes('Active Tasks')) break; // 下一個 section
+            if (!line.startsWith('- [ ]')) continue;
+            const linePriority = this.extractPriority(line);
+            if (linePriority <= priority) {
+              insertIdx = i + 1;
+            } else {
+              break;
+            }
+          }
+          lines.splice(insertIdx, 0, `- [ ] ${task}${scheduleNote} <!-- added: ${timestamp} -->`);
+          updated = lines.join('\n');
+        } else {
+          updated = current.replace('## Active Tasks', `## Active Tasks${taskEntry}`);
+        }
       } else {
         updated = current + `\n## Active Tasks${taskEntry}\n`;
       }
 
       await fs.writeFile(heartbeatPath, updated, 'utf-8');
     });
+  }
+
+  /**
+   * 解析任務優先級（P0=0, P1=1, P2=2, 無=2）
+   */
+  private extractPriority(text: string): number {
+    const match = text.match(/P(\d)/);
+    return match ? parseInt(match[1], 10) : 2;
+  }
+
+  /**
+   * 取得過期任務
+   */
+  async getOverdueTasks(): Promise<string[]> {
+    const heartbeat = await this.readHeartbeat();
+    const now = new Date();
+    const overdue: string[] = [];
+
+    for (const line of heartbeat.split('\n')) {
+      if (!line.includes('- [ ]')) continue;
+      const dueMatch = line.match(/@due:(\d{4}-\d{2}-\d{2})/);
+      if (dueMatch) {
+        const dueDate = new Date(dueMatch[1]);
+        if (dueDate < now) {
+          overdue.push(line.replace(/^\s*- \[ \]\s*/, '').replace(/\s*<!--.*-->/, ''));
+        }
+      }
+    }
+    return overdue;
   }
 
   /**
@@ -394,9 +452,17 @@ export class InstanceMemory {
 
   /**
    * 建構 LLM 上下文
-   * 使用 Hot buffer 的對話（不是全部 daily notes）
+   *
+   * @param options.relevanceHint - 關鍵字提示，用於篩選相關感知（可選）
+   * @param options.mode - 'full' | 'focused'。focused 模式只載入核心感知（用於 AgentLoop）
    */
-  async buildContext(): Promise<string> {
+  async buildContext(options?: {
+    relevanceHint?: string;
+    mode?: 'full' | 'focused';
+  }): Promise<string> {
+    const mode = options?.mode ?? 'full';
+    const hint = options?.relevanceHint?.toLowerCase() ?? '';
+
     const [memory, heartbeat] = await Promise.all([
       this.readMemory(),
       this.readHeartbeat(),
@@ -411,59 +477,101 @@ export class InstanceMemory {
       })
       .join('\n');
 
-    // Server 環境資訊（讓 Agent 感知時間和環境）
+    // 從最近對話提取上下文關鍵字
+    const recentHint = this.conversationBuffer
+      .slice(-3)
+      .map(c => c.content.toLowerCase())
+      .join(' ');
+    const contextHint = hint || recentHint;
+
+    // Server 環境資訊
     const now = new Date();
     const timeStr = now.toLocaleString('zh-TW', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hour12: false });
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // Workspace 快照（讓 Agent 感知工作空間）
-    const workspace = getWorkspaceSnapshot();
-    const workspaceCtx = formatWorkspaceContext(workspace);
-
-    // 自我感知（Agent 知道自己是誰、在做什麼）
-    const selfStatus = selfStatusProvider?.();
-    const selfCtx = selfStatus ? formatSelfStatus(selfStatus) : '';
-
-    // Process 感知
-    const processCtx = processStatusProvider ? formatProcessStatus(processStatusProvider()) : '';
-
-    // Log 感知
-    const logCtx = logSummaryProvider ? formatLogSummary(logSummaryProvider()) : '';
-
-    // 系統資源（直接取得，不需要注入）
-    const sysRes = getSystemResources();
-    const sysCtx = formatSystemResources(sysRes);
-
-    // 網路感知
-    const netCtx = networkStatusProvider ? formatNetworkStatus(networkStatusProvider()) : '';
-
-    // 配置感知
-    const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
-
-    // 組合所有感知區塊
+    // 組合感知區塊
     const sections: string[] = [];
 
-    sections.push(`<environment>
-Current time: ${timeStr} (${tz})
-Instance: ${this.instanceId}
-</environment>`);
+    // ── 必載入（核心感知）──
+    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
-    if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
-    if (processCtx) sections.push(`<process>\n${processCtx}\n</process>`);
-    if (sysCtx) sections.push(`<system>\n${sysCtx}\n</system>`);
-    if (logCtx) sections.push(`<logs>\n${logCtx}\n</logs>`);
-    if (netCtx) sections.push(`<network>\n${netCtx}\n</network>`);
-    if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
-
-    sections.push(`<workspace>\n${workspaceCtx}\n</workspace>`);
-
-    // Custom perceptions（Shell Script 感知）
-    if (customPerceptions.length > 0) {
-      const results = executeAllPerceptions(customPerceptions);
-      const customCtx = formatPerceptionResults(results);
-      if (customCtx) sections.push(customCtx);
+    const selfStatus = selfStatusProvider?.();
+    if (selfStatus) {
+      const selfCtx = formatSelfStatus(selfStatus);
+      if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
     }
 
+    // ── 條件載入（根據相關性）──
+    const isRelevant = (keywords: string[]) =>
+      mode === 'full' || keywords.some(k => contextHint.includes(k));
+
+    // Process — 在問 debug/performance/memory 時才載入
+    if (isRelevant(['process', 'memory', 'cpu', 'pid', 'debug', 'slow', 'performance', 'kill'])) {
+      const processCtx = processStatusProvider ? formatProcessStatus(processStatusProvider()) : '';
+      if (processCtx) sections.push(`<process>\n${processCtx}\n</process>`);
+    }
+
+    // System — 在問 disk/resource 時才載入
+    if (isRelevant(['system', 'disk', 'cpu', 'resource', 'space', 'full'])) {
+      const sysRes = getSystemResources();
+      const sysCtx = formatSystemResources(sysRes);
+      if (sysCtx) sections.push(`<system>\n${sysCtx}\n</system>`);
+    }
+
+    // Logs — 在問 error/log/debug 時才載入
+    if (isRelevant(['error', 'log', 'fail', 'bug', 'debug', 'crash'])) {
+      const logCtx = logSummaryProvider ? formatLogSummary(logSummaryProvider()) : '';
+      if (logCtx) sections.push(`<logs>\n${logCtx}\n</logs>`);
+    }
+
+    // Network — 在問 port/service/network 時才載入
+    if (isRelevant(['port', 'network', 'service', 'connect', 'http', 'api', 'url'])) {
+      const netCtx = networkStatusProvider ? formatNetworkStatus(networkStatusProvider()) : '';
+      if (netCtx) sections.push(`<network>\n${netCtx}\n</network>`);
+    }
+
+    // Config — 在問 config/setting 時才載入
+    if (isRelevant(['config', 'setting', 'compose', 'cron', 'loop', 'skill'])) {
+      const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
+      if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
+    }
+
+    // Workspace — 幾乎總是有用
+    const workspace = getWorkspaceSnapshot();
+    const workspaceCtx = formatWorkspaceContext(workspace);
+    sections.push(`<workspace>\n${workspaceCtx}\n</workspace>`);
+
+    // ── Custom perceptions（Smart 載入）──
+    if (customPerceptions.length > 0) {
+      // 定義每個 plugin 的關聯詞
+      const pluginRelevance: Record<string, string[]> = {
+        docker: ['docker', 'container', 'image', 'deploy'],
+        chrome: ['chrome', 'cdp', 'browser', 'web', 'fetch', 'url', 'page'],
+        web: ['web', 'url', 'fetch', 'http', 'page'],
+        ports: ['port', 'service', 'listen', 'connect'],
+        tasks: [], // 任務追蹤永遠載入
+        'state-changes': [], // 狀態變化永遠載入
+        disk: ['disk', 'space', 'storage'],
+        brew: ['brew', 'homebrew', 'package', 'update'],
+        'git-detail': ['git', 'commit', 'branch', 'merge'],
+      };
+
+      const relevantPlugins = customPerceptions.filter(p => {
+        const keywords = pluginRelevance[p.name] ?? [];
+        // 空關鍵字列表 = 永遠載入
+        if (keywords.length === 0) return true;
+        if (mode === 'full') return true;
+        return keywords.some(k => contextHint.includes(k));
+      });
+
+      if (relevantPlugins.length > 0) {
+        const results = executeAllPerceptions(relevantPlugins);
+        const customCtx = formatPerceptionResults(results);
+        if (customCtx) sections.push(customCtx);
+      }
+    }
+
+    // ── 記憶和對話（總是載入）──
     sections.push(`<memory>\n${memory}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);

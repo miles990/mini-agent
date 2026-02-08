@@ -1,0 +1,56 @@
+# Agent Compose File
+# 使用方式: mini-agent up [-d]
+# 參考: https://github.com/miles990/mini-agent
+
+version: "1"
+paths:
+  memory: ./memory
+  logs: ./logs
+agents:
+  assistant:
+    name: My Assistant
+    port: 3001
+    persona: A helpful personal AI assistant
+    loop:
+      enabled: true
+      interval: "5m"
+    cron:
+      - schedule: "*/30 * * * *"
+        task: Check HEARTBEAT.md for pending tasks and execute them if any
+
+    # ── Custom Perception（Shell Script 感知）──
+    # 任何可執行檔案都能成為感知插件
+    # stdout 會被包在 <name>...</name> XML tag 中注入 Agent context
+    perception:
+      custom:
+        - name: docker
+          script: ./plugins/docker-status.sh
+        - name: ports
+          script: ./plugins/port-check.sh
+        - name: chrome
+          script: ./plugins/chrome-status.sh
+        - name: web
+          script: ./plugins/web-fetch.sh
+          timeout: 15000
+        - name: tasks
+          script: ./plugins/task-tracker.sh
+        - name: state-changes
+          script: ./plugins/state-watcher.sh
+        # - name: disk
+        #   script: ./plugins/disk-usage.sh
+        # - name: brew
+        #   script: ./plugins/homebrew-outdated.sh
+        #   timeout: 10000
+        # - name: git-detail
+        #   script: ./plugins/git-status.sh
+
+    # ── Skills（Markdown 知識模組）──
+    # 純 Markdown 檔案，注入 system prompt 讓 Agent 知道怎麼做
+    skills:
+      - ./skills/reactive-agent.md
+      - ./skills/docker-ops.md
+      - ./skills/debug-helper.md
+      - ./skills/project-manager.md
+      - ./skills/web-research.md
+      # - ./skills/code-review.md
+      # - ./skills/server-admin.md

@@ -167,14 +167,15 @@ export class AgentLoop {
       this.cycleCount++;
       this.lastCycleAt = new Date().toISOString();
 
-      // ── Observe ──
+      // ── Observe ──（focused mode: 只載入核心感知 + 任務/狀態相關）
       const memory = getMemory();
-      const context = await memory.buildContext();
+      const context = await memory.buildContext({ mode: 'focused' });
 
-      // Check for actionable items (unchecked checkboxes)
+      // Check for actionable items: unchecked tasks OR alerts
       const hasActiveTasks = context.includes('- [ ]');
+      const hasAlerts = context.includes('ALERT:');
 
-      if (!hasActiveTasks) {
+      if (!hasActiveTasks && !hasAlerts) {
         // Nothing to do — increase interval
         this.adjustInterval(false);
         logger.logCron('loop-cycle', 'No active tasks', 'agent-loop');
@@ -188,10 +189,15 @@ export class AgentLoop {
       const prompt = `You are an autonomous Agent running a self-check cycle.
 
 Review your current tasks and environment:
-1. Check HEARTBEAT.md for unchecked tasks (- [ ])
-2. If a task can be done now, do it
-3. If a task needs information, gather it
-4. Mark completed tasks with [x]
+1. Check <state-changes> for any ALERT — these are urgent and should be addressed first
+2. Check HEARTBEAT.md for unchecked tasks (- [ ]) — prioritize P0 > P1 > P2
+3. If a task can be done now, do it
+4. If a task needs information, gather it
+5. Mark completed tasks with [x]
+
+If you discover a new problem (e.g. service down, disk full), create a task:
+- [TASK]P0: description[/TASK] for urgent issues
+- [TASK]P1: description[/TASK] for important issues
 
 Respond with either:
 - [ACTION]description of what you did[/ACTION] if you took action
@@ -227,6 +233,14 @@ Keep responses brief.`;
       const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
       if (rememberMatch) {
         await memory.appendMemory(rememberMatch[1].trim());
+      }
+
+      // Process [TASK] tags — auto-create HEARTBEAT tasks
+      const taskMatches = response.matchAll(/\[TASK\](.*?)\[\/TASK\]/gs);
+      for (const m of taskMatches) {
+        const taskText = m[1].trim();
+        await memory.addTask(taskText);
+        slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
       }
 
       return action;
