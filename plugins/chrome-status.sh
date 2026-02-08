@@ -37,10 +37,22 @@ for t in tabs[:5]:
 else
   echo "Status: NOT AVAILABLE"
   echo ""
-  echo "Chrome is not running with CDP enabled."
-  echo "To enable browser access, run:"
-  echo "  mini-agent chrome-setup"
-  echo ""
-  echo "Or manually start Chrome with:"
-  echo "  open -a 'Google Chrome' --args --remote-debugging-port=9222"
+
+  # Detect Chrome state for smart guidance
+  if pgrep -f "Google Chrome" > /dev/null 2>&1; then
+    echo "Chrome is running but CDP is NOT enabled."
+    echo ""
+    echo "To enable, user needs to:"
+    echo "  1. Quit Chrome (Cmd+Q)"
+    echo "  2. Relaunch with: open -a 'Google Chrome' --args --remote-debugging-port=9222"
+    echo ""
+    echo "Or use setup script: bash scripts/chrome-setup.sh"
+  else
+    echo "Chrome is not running."
+    echo ""
+    echo "To enable browser access, user needs to:"
+    echo "  Launch Chrome with: open -a 'Google Chrome' --args --remote-debugging-port=9222"
+    echo ""
+    echo "Or use setup script: bash scripts/chrome-setup.sh"
+  fi
 fi
