@@ -38,21 +38,22 @@ else
   echo "Status: NOT AVAILABLE"
   echo ""
 
-  # Detect Chrome state for smart guidance
+  # Detect Chrome state for diagnostics
   if pgrep -f "Google Chrome" > /dev/null 2>&1; then
-    echo "Chrome is running but CDP is NOT enabled."
-    echo ""
-    echo "To enable, user needs to:"
-    echo "  1. Quit Chrome (Cmd+Q)"
-    echo "  2. Relaunch with: open -a 'Google Chrome' --args --remote-debugging-port=9222"
-    echo ""
-    echo "Or use setup script: bash scripts/chrome-setup.sh"
+    echo "Chrome: running (without CDP)"
   else
-    echo "Chrome is not running."
-    echo ""
-    echo "To enable browser access, user needs to:"
-    echo "  Launch Chrome with: open -a 'Google Chrome' --args --remote-debugging-port=9222"
-    echo ""
-    echo "Or use setup script: bash scripts/chrome-setup.sh"
+    echo "Chrome: not running"
   fi
+
+  # Check port conflict
+  PORT_PID=$(lsof -ti :"$CDP_PORT" 2>/dev/null | head -1)
+  if [[ -n "$PORT_PID" ]]; then
+    PORT_PROC=$(ps -p "$PORT_PID" -o comm= 2>/dev/null)
+    echo "Port $CDP_PORT: in use by $PORT_PROC (PID: $PORT_PID)"
+  else
+    echo "Port $CDP_PORT: free"
+  fi
+
+  echo ""
+  echo "Auto-fix: bash scripts/cdp-auto-setup.sh"
 fi
