@@ -7,8 +7,9 @@ Minimal Personal AI Agent with autonomous capabilities:
 3. **Cron** - Scheduled tasks via agent-compose.yaml
 4. **Perception** - Full environment awareness (builtin + custom shell plugins)
 5. **Skills** - Markdown knowledge modules injected into system prompt
-6. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
-7. **Multi-Instance** - Docker-style instance management with compose
+6. **Smart Guidance** - Core behavior: always provide actionable, state-aware guidance
+7. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
+8. **Multi-Instance** - Docker-style instance management with compose
 
 ## Architecture
 
@@ -334,10 +335,7 @@ node scripts/cdp-fetch.mjs extract <tabId>
 node scripts/cdp-fetch.mjs close <tabId>
 ```
 
-**Smart guidance:** When CDP is not available, the agent detects Chrome's state and provides specific instructions:
-- Chrome running → "Quit Chrome (Cmd+Q), then relaunch with `--remote-debugging-port=9222`"
-- Chrome not running → "Launch with `open -a 'Google Chrome' --args --remote-debugging-port=9222`"
-- Page needs login → Opens a visible tab, waits for user to login, then extracts content
+The [Smart Guidance](#smart-guidance-core-behavior) mechanism automatically handles all error scenarios — the agent reads `<chrome>` perception data and provides state-specific setup instructions without any hardcoded guidance text.
 
 The `chrome-status.sh` perception plugin reports CDP status, and `web-fetch.sh` automatically fetches URLs mentioned in conversations using this three-layer strategy.
 
@@ -363,6 +361,27 @@ The `chrome-status.sh` perception plugin reports CDP status, and `web-fetch.sh` 
 - **Perception** provides real-time environment data (what the agent *sees*)
 - **Skills** provide domain knowledge (what the agent *knows how to do*)
 - **Claude CLI** provides execution capability (what the agent *can do*)
+
+## Smart Guidance (Core Behavior)
+
+Built into the system prompt as a **core behavioral principle**, not per-feature patches. The agent automatically reads all perception data and provides actionable guidance in every interaction:
+
+| Principle | Behavior |
+|-----------|----------|
+| **State-aware** | Reads `<chrome>`, `<system>`, `<docker>`, `<network>` etc. before answering |
+| **Actionable** | Commands are copy-paste ready, never vague "please enable X" |
+| **Solution-first** | 80% how-to-fix, 20% what-went-wrong |
+| **Never give up** | Always provides alternatives or next steps |
+| **Branch guidance** | Different paths for different states (e.g. Chrome running vs not) |
+
+This means **new plugins automatically get smart guidance** — they just need to output state data, the agent handles the rest.
+
+```
+Plugin outputs: "Docker daemon not running"
+  → Agent reads <docker> perception
+  → Agent applies Smart Guidance principle
+  → Agent responds: "Docker 沒有運行。執行 `open -a Docker` 啟動..."
+```
 
 ## Instance Management (Docker-style)
 
@@ -664,6 +683,7 @@ This is the **minimal viable** personal AI agent:
 - **Autonomous** - OODA loop for proactive behavior
 - **Self-aware** - Full environment perception
 - **Pluggable** - Shell scripts as perception plugins, Markdown as skills
+- **Smart by default** - Core guidance principle, not per-feature patches
 
 Everything else is optional complexity.
 

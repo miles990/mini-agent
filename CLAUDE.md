@@ -8,8 +8,9 @@ Minimal Personal AI Agent framework with autonomous capabilities:
 3. **Cron** - Scheduled proactive tasks via Docker Compose-style configuration
 4. **Perception** - Full environment awareness (builtin modules + custom shell plugins)
 5. **Skills** - Markdown knowledge modules injected into system prompt
-6. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
-7. **Multi-Instance** - Docker-style instance management with compose
+6. **Smart Guidance** - Core behavior: always provide actionable, state-aware guidance
+7. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
+8. **Multi-Instance** - Docker-style instance management with compose
 
 ## Architecture Principles
 
@@ -22,6 +23,7 @@ Minimal Personal AI Agent framework with autonomous capabilities:
 | Unix Native | Pipe-friendly, composable with CLI tools |
 | Docker-Style | Familiar `up`, `down`, `attach`, `kill` workflow |
 | Pluggable | Shell scripts as perception plugins, Markdown as skills |
+| Smart Guidance | Core behavior principle in system prompt — agent reads perception data and automatically provides actionable guidance in all interactions. Not per-feature patches. |
 
 ## Three-Layer Architecture
 
@@ -126,7 +128,7 @@ Key files:
 - `plugins/web-fetch.sh` — Auto-fetch URLs from conversations
 - `skills/web-research.md` — Three-layer workflow knowledge
 
-Smart guidance: When CDP is unavailable, `chrome-status.sh` detects Chrome state (running/stopped) and the `web-research.md` skill instructs agent to give specific actionable steps (not vague suggestions).
+All error scenarios are handled by the core [Smart Guidance](#architecture-principles) mechanism — agent reads perception data and automatically provides state-specific guidance. No per-plugin hardcoded guidance needed.
 
 Error handling: `callClaude()` catches errors and returns friendly messages instead of 500. Classifies errors (ENOENT, timeout, maxbuffer, permission) into user-readable explanations.
 
