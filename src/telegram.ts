@@ -143,6 +143,30 @@ export class TelegramPoller {
   }
 
   // ---------------------------------------------------------------------------
+  // Reactions
+  // ---------------------------------------------------------------------------
+
+  private async setReaction(chatId: string, messageId: number, emoji: string): Promise<void> {
+    try {
+      const resp = await fetch(`https://api.telegram.org/bot${this.token}/setMessageReaction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          reaction: [{ type: 'emoji', emoji }],
+        }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({})) as Record<string, unknown>;
+        slog('TELEGRAM', `Reaction failed (${resp.status}): ${data?.description ?? resp.statusText}`);
+      }
+    } catch (err) {
+      slog('TELEGRAM', `Reaction error: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Send message (public — also used by loop.ts)
   // ---------------------------------------------------------------------------
 
@@ -235,6 +259,9 @@ export class TelegramPoller {
       slog('TELEGRAM', `Ignored message from unauthorized chat: ${msg.chat.id}`);
       return;
     }
+
+    // React with 👀 to acknowledge we've seen the message
+    this.setReaction(String(msg.chat.id), msg.message_id, '👀');
 
     const parsed = await this.parseMessage(msg);
     if (!parsed) return;

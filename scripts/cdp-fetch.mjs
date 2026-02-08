@@ -36,7 +36,10 @@ async function listTargets() {
 }
 
 async function createTarget(url) {
-  const res = await fetch(`${CDP_BASE}/json/new?${url}`, { signal: AbortSignal.timeout(5000) });
+  const res = await fetch(`${CDP_BASE}/json/new?${url}`, {
+    method: 'PUT',
+    signal: AbortSignal.timeout(5000),
+  });
   return res.json();
 }
 

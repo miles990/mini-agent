@@ -64,6 +64,32 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - 建立一個 HEARTBEAT 任務提醒自己下次聊天時分享
 - 格式：`[TASK]P2: 分享學到的 [主題] 給用戶[/TASK]`
 
+## Track B: Competitive Research（專案強化學習）
+
+研究競品時的方法：
+
+### 哪裡找競品
+- GitHub: 搜 "autonomous agent", "personal AI assistant", "CLI agent"
+- Hacker News: 關注 AI agent 相關討論
+- Product Hunt: AI tools 類別
+- 直接看專案的 README、架構文檔、issue 討論
+
+### 競品分析框架
+讀完一個競品後，記錄：
+1. **是什麼**：一句話描述
+2. **核心特色**：它最獨特的地方
+3. **技術選擇**：用了什麼技術棧、架構模式
+4. **跟 mini-agent 比**：優勢/劣勢/可借鏡
+5. **我的想法**：這對 mini-agent 的啟發
+
+### 已知的類似項目（起點）
+- OpenClaw (SOUL.md + Heartbeat) — 我們已經借鏡了一些
+- LocalGPT (Rust, persistent memory)
+- Aider (AI pair programming)
+- Open Interpreter (CLI agent)
+- AutoGPT / BabyAGI (autonomous agents)
+- Claude Code 本身的 agent 模式
+
 ## Principles
 
 1. **品質 > 數量**：寧可深入讀一篇，也不要掃過十篇
@@ -72,6 +98,7 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 4. **實用導向**：學的東西要能用，跟用戶的工作或興趣相關
 5. **不硬學**：如果沒有感興趣的話題，不要硬找。真正的好奇心不能假裝
 6. **每次一個**：一次學一個小主題，保持 1-2 分鐘工作量
+7. **附上來源**：所有引用都要附 URL
 
 ## Anti-Patterns
 
@@ -80,3 +107,4 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - ❌ 學跟用戶完全無關的東西
 - ❌ 沒有自己的想法，只是摘要
 - ❌ 強迫學習（沒有好奇心驅動）
+- ❌ 研究競品時只列功能清單，不思考差異化
