@@ -262,8 +262,10 @@ export class TelegramPoller {
       return;
     }
 
-    // React with 👀 to acknowledge we've seen the message (await to ensure it fires)
-    await this.setReaction(String(msg.chat.id), msg.message_id, '👀');
+    // React with 👀 to acknowledge we've seen the message
+    const chatIdStr = String(msg.chat.id);
+    slog('TELEGRAM', `Reacting to msg#${msg.message_id} from chat ${chatIdStr}`);
+    await this.setReaction(chatIdStr, msg.message_id, '👀');
 
     const parsed = await this.parseMessage(msg);
     if (!parsed) return;
