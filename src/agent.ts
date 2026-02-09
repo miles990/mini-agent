@@ -8,7 +8,7 @@ import { execFile, spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
-import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
+import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
 import { notifyTelegram } from './telegram.js';
@@ -179,9 +179,9 @@ function drainQueue(): void {
  */
 function writeAuditLog(toolName: string, input: Record<string, unknown>): void {
   try {
-    const { getInstanceDir } = require('./instance.js');
-    const dir = getInstanceDir();
-    if (!dir) return;
+    const instanceId = getCurrentInstanceId();
+    if (!instanceId) return;
+    const dir = getInstanceDir(instanceId);
     const auditDir = path.join(dir, 'logs', 'audit');
     if (!existsSync(auditDir)) mkdirSync(auditDir, { recursive: true });
     const date = new Date().toISOString().slice(0, 10);
