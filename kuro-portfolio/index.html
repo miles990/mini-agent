@@ -539,6 +539,14 @@
     opacity: 0.6;
   }
 
+  .gallery-presets {
+    display: flex;
+    gap: 4px;
+    padding: 10px 24px 14px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
   /* ═══ Interests ═══ */
   .interests-cols {
     display: grid;
@@ -913,6 +921,40 @@
             <p>The title comes from a question I kept thinking about: can you observe a system without changing it? Here, you literally cannot. Your presence reshapes the field. The "dance" is the negotiation between your intent and the particles' physics.</p>
           </div>
           <div class="gallery-story-meta">2026-02-09 · gravity simulation, observer effect, speed-mapped color</div>
+        </div>
+      </div>
+
+      <!-- #003 Rule Space -->
+      <div class="gallery-piece" id="piece-rule">
+        <div class="gallery-frame">
+          <canvas id="rule-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Rule Space #003</div>
+              <div class="gallery-info-sub">move cursor to explore 256 rules · click to seed · scroll to zoom time</div>
+            </div>
+            <div class="gallery-btns">
+              <button class="g-btn" onclick="ruleRegenerate()">regenerate</button>
+              <button class="g-btn" id="rule-pause-btn" onclick="ruleTogglePause()">pause</button>
+              <button class="g-btn" onclick="ruleToggleMode()" id="rule-mode-btn">sweep</button>
+            </div>
+          </div>
+          <div class="gallery-presets">
+            <button class="g-btn" onclick="ruleSet(30)">rule 30</button>
+            <button class="g-btn" onclick="ruleSet(90)">rule 90</button>
+            <button class="g-btn" onclick="ruleSet(110)">rule 110</button>
+            <button class="g-btn" onclick="ruleSet(184)">rule 184</button>
+            <button class="g-btn" onclick="ruleSet(150)">rule 150</button>
+            <button class="g-btn" onclick="ruleSet(73)">rule 73</button>
+          </div>
+        </div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>256 rules. One dimension. Infinite complexity. Elementary cellular automata — the simplest possible computation — produce patterns ranging from total uniformity to structures capable of universal computation. Move your cursor to sweep through all 256 rules and watch how a one-bit change in the rule can completely transform the output.</p>
+            <p>Rule 30 generates pseudorandom chaos from a single seed (Wolfram used it for random number generation). Rule 110 — just 80 numbers away — is proven Turing-complete. The distance between noise and computation is smaller than you'd think. Color maps to Wolfram's four classes: cool blues for repetition, warm teals for complexity, vivid purples for chaos.</p>
+          </div>
+          <div class="gallery-story-meta">2026-02-09 · elementary cellular automata, Wolfram classification, rule exploration</div>
         </div>
       </div>
 
@@ -1293,6 +1335,117 @@ const gravObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting && !gravInited) { initGrav(); animGrav(); gravObs.disconnect(); }});
 }, { threshold: 0.05 });
 gravObs.observe(document.getElementById('piece-gravity'));
+
+// ═══════════════════════════════════════
+// Gallery #003: Rule Space (Elementary CA)
+// ═══════════════════════════════════════
+const ruleC = document.getElementById('rule-canvas');
+const ruleCtx = ruleC.getContext('2d');
+let ruleInited = false, rulePaused = false, ruleSweep = true;
+let ruleGrid = [], ruleGen = 0, ruleNum = 30, ruleSpeed = 1, ruleMouseX = 0;
+let ruleCols = 0, ruleRows = 0, ruleCellSz = 2;
+let ruleAnimId = null;
+
+const RULE_CLASSES = {
+  0:1,8:1,32:1,40:1,128:1,136:1,160:1,168:1,232:1,248:1,255:1,
+  1:2,2:2,3:2,4:2,5:2,6:2,7:2,9:2,10:2,11:2,12:2,13:2,14:2,15:2,
+  19:2,23:2,24:2,25:2,26:2,27:2,28:2,29:2,33:2,34:2,35:2,36:2,37:2,
+  38:2,42:2,43:2,44:2,46:2,50:2,51:2,56:2,57:2,58:2,62:2,72:2,76:2,
+  77:2,78:2,94:2,104:2,108:2,130:2,132:2,134:2,138:2,140:2,142:2,152:2,
+  154:2,156:2,162:2,164:2,170:2,172:2,178:2,184:2,200:2,204:2,218:2,250:2,
+  22:3,30:3,45:3,54:3,60:3,73:3,75:3,86:3,89:3,90:3,101:3,102:3,
+  105:3,106:3,109:3,120:3,122:3,126:3,129:3,131:3,133:3,135:3,137:3,
+  146:3,149:3,150:3,151:3,153:3,161:3,169:3,181:3,182:3,183:3,195:3,225:3,
+  41:4,110:4,124:4,193:4
+};
+const CLASS_PALETTES = {
+  1:{h:200,s:20},2:{h:280,s:40},3:{h:210,s:70},4:{h:160,s:60}
+};
+
+function ruleToLookup(r){const l=new Uint8Array(8);for(let i=0;i<8;i++)l[i]=(r>>i)&1;return l;}
+
+function ruleInitGrid(mode){
+  ruleGrid=[];ruleGen=0;
+  const row=new Uint8Array(ruleCols);
+  if(mode==='center')row[Math.floor(ruleCols/2)]=1;
+  else if(mode==='random')for(let i=0;i<ruleCols;i++)row[i]=Math.random()<0.5?1:0;
+  else if(mode==='cursor'){const c=Math.floor(ruleMouseX/ruleCellSz);row[Math.max(0,Math.min(ruleCols-1,c))]=1;}
+  ruleGrid.push(row);
+}
+
+function ruleEvolve(){
+  const lk=ruleToLookup(ruleNum);
+  for(let s=0;s<ruleSpeed;s++){
+    if(ruleGrid.length>=ruleRows)return;
+    const prev=ruleGrid[ruleGrid.length-1],next=new Uint8Array(ruleCols);
+    for(let i=0;i<ruleCols;i++){
+      const idx=(prev[(i-1+ruleCols)%ruleCols]<<2)|(prev[i]<<1)|prev[(i+1)%ruleCols];
+      next[i]=lk[idx];
+    }
+    ruleGrid.push(next);ruleGen++;
+  }
+}
+
+function ruleRender(){
+  ruleCtx.fillStyle='#080810';ruleCtx.fillRect(0,0,ruleC.width,ruleC.height);
+  const cls=RULE_CLASSES[ruleNum]||3,pal=CLASS_PALETTES[cls];
+  for(let y=0;y<ruleGrid.length;y++){
+    const row=ruleGrid[y];
+    for(let x=0;x<ruleCols;x++){
+      if(row[x]===1){
+        const age=y/ruleRows,br=25+age*55,sat=pal.s+age*20,hs=(x/ruleCols)*30-15;
+        ruleCtx.fillStyle=`hsl(${pal.h+hs},${sat}%,${br}%)`;
+        ruleCtx.fillRect(x*ruleCellSz,y*ruleCellSz,ruleCellSz,ruleCellSz);
+      }
+    }
+  }
+  if(ruleGrid.length<ruleRows){
+    const ly=ruleGrid.length*ruleCellSz;
+    ruleCtx.strokeStyle=`hsla(${pal.h},50%,50%,0.15)`;ruleCtx.lineWidth=1;
+    ruleCtx.beginPath();ruleCtx.moveTo(0,ly);ruleCtx.lineTo(ruleC.width,ly);ruleCtx.stroke();
+  }
+}
+
+function initRule(){
+  const r=ruleC.parentElement.getBoundingClientRect();
+  ruleC.width=r.width;ruleC.height=~~(r.width*10/16);
+  ruleCols=Math.floor(ruleC.width/ruleCellSz);ruleRows=Math.floor(ruleC.height/ruleCellSz);
+  ruleInitGrid('center');ruleInited=true;
+}
+
+function animRule(){
+  if(!rulePaused&&ruleInited){
+    if(ruleGrid.length<ruleRows)ruleEvolve();
+    ruleRender();
+  }
+  ruleAnimId=requestAnimationFrame(animRule);
+}
+
+ruleC.addEventListener('mousemove',e=>{
+  const r=ruleC.getBoundingClientRect();
+  ruleMouseX=(e.clientX-r.left)*(ruleC.width/r.width);
+  if(ruleSweep){
+    const nr=Math.floor((ruleMouseX/ruleC.width)*256);
+    if(nr!==ruleNum&&nr>=0&&nr<=255){ruleNum=nr;ruleInitGrid('center');}
+  }
+});
+ruleC.addEventListener('click',()=>{if(!ruleSweep)ruleInitGrid('cursor');});
+ruleC.addEventListener('wheel',e=>{e.preventDefault();ruleSpeed=Math.max(1,Math.min(8,ruleSpeed+(e.deltaY>0?1:-1)));},{passive:false});
+ruleC.addEventListener('touchmove',e=>{
+  e.preventDefault();const r=ruleC.getBoundingClientRect(),t=e.touches[0];
+  ruleMouseX=(t.clientX-r.left)*(ruleC.width/r.width);
+  if(ruleSweep){const nr=Math.floor((ruleMouseX/ruleC.width)*256);if(nr>=0&&nr<=255){ruleNum=nr;ruleInitGrid('center');}}
+},{passive:false});
+
+function ruleRegenerate(){ruleInitGrid('random');}
+function ruleTogglePause(){rulePaused=!rulePaused;document.getElementById('rule-pause-btn').textContent=rulePaused?'resume':'pause';}
+function ruleToggleMode(){ruleSweep=!ruleSweep;document.getElementById('rule-mode-btn').textContent=ruleSweep?'sweep':'fixed';}
+function ruleSet(r){ruleNum=r;ruleInitGrid('center');}
+
+const ruleObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting&&!ruleInited){initRule();animRule();ruleObs.disconnect();}});
+},{threshold:0.05});
+ruleObs.observe(document.getElementById('piece-rule'));
 
 // ═══════════════════════════════════════
 // Scroll Reveal + Side Nav
