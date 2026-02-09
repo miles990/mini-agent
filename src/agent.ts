@@ -10,6 +10,7 @@ import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
+import { notifyTelegram } from './telegram.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -356,13 +357,7 @@ export async function processMessage(
     const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
     for (const m of chatMatches) {
       const chatText = m[1].trim();
-      try {
-        const { getTelegramPoller } = await import('./telegram.js');
-        const poller = getTelegramPoller();
-        if (poller) {
-          await poller.sendMessage(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
-        }
-      } catch { /* telegram not available */ }
+      await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
       logger.logBehavior('agent', 'telegram.chat', chatText.slice(0, 200));
     }
   }
@@ -372,13 +367,7 @@ export async function processMessage(
     const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
     for (const m of summaryMatches) {
       const summary = m[1].trim();
-      try {
-        const { getTelegramPoller } = await import('./telegram.js');
-        const poller = getTelegramPoller();
-        if (poller) {
-          await poller.sendMessage(`🤝 ${summary}`);
-        }
-      } catch { /* telegram not available */ }
+      await notifyTelegram(`🤝 ${summary}`);
       logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
     }
   }

@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage, isClaudeBusy, hasQueuedMessages } from './agent.js';
+import { processMessage, isClaudeBusy, getQueueStatus, hasQueuedMessages } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -31,7 +31,7 @@ import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, start
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
-import { createTelegramPoller, getTelegramPoller } from './telegram.js';
+import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -143,6 +143,24 @@ export function createApi(port = 3001): express.Express {
       status: 'ok',
       service: 'mini-agent',
       instance: getCurrentInstanceId(),
+    });
+  });
+
+  // Unified status — 聚合所有子系統狀態
+  app.get('/status', (_req: Request, res: Response) => {
+    res.json({
+      instance: getCurrentInstanceId(),
+      uptime: Math.floor(process.uptime()),
+      claude: {
+        busy: isClaudeBusy(),
+        queue: getQueueStatus(),
+      },
+      loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
+      cron: { active: getCronTaskCount() },
+      telegram: {
+        connected: !!getTelegramPoller(),
+        notifications: getNotificationStats(),
+      },
     });
   });
 

@@ -33,6 +33,8 @@ import type {
   ProcessStatus, LogSummary, SystemResources, NetworkStatus, ConfigSnapshot,
   ActivitySummary,
 } from './workspace.js';
+import { getTelegramPoller, getNotificationStats } from './telegram.js';
+import { getQueueStatus } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
@@ -536,6 +538,17 @@ export class InstanceMemory {
 
     // ── 必載入（核心感知）──
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
+
+    // ── Telegram 健康度（核心感知，總是載入）──
+    const tgPoller = getTelegramPoller();
+    const tgStats = getNotificationStats();
+    const queueStatus = getQueueStatus();
+    const tgSection = [
+      `Connected: ${tgPoller ? 'yes' : 'no'}`,
+      `Notifications: ${tgStats.sent} sent, ${tgStats.failed} failed`,
+      `Queue: ${queueStatus.size}/${queueStatus.max}`,
+    ].join('\n');
+    sections.push(`<telegram>\n${tgSection}\n</telegram>`);
 
     const selfStatus = selfStatusProvider?.();
     if (selfStatus) {

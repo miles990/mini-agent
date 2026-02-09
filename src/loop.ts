@@ -14,7 +14,7 @@ import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
-import { getTelegramPoller } from './telegram.js';
+import { notifyTelegram } from './telegram.js';
 import { diagLog } from './utils.js';
 
 // =============================================================================
@@ -94,7 +94,7 @@ export class AgentLoop {
     this.paused = false;
     this.scheduleNext();
     slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s, active: ${this.config.activeHours?.start ?? 8}:00-${this.config.activeHours?.end ?? 23}:00)`);
-    this.notifyTelegram('🟢 Kuro 上線了');
+    notifyTelegram('🟢 Kuro 上線了');
   }
 
   stop(): void {
@@ -250,12 +250,12 @@ export class AgentLoop {
           }
           this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
-          this.notifyTelegram(`🧠 ${action}`);
+          await notifyTelegram(`🧠 ${action}`);
           slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
           logger.logBehavior('agent', 'action.autonomous', action.slice(0, 200));
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
-          this.notifyTelegram(`⚡ ${action}`);
+          await notifyTelegram(`⚡ ${action}`);
           slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
           logger.logBehavior('agent', 'action.task', action.slice(0, 200));
         }
@@ -298,7 +298,7 @@ export class AgentLoop {
       const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
       for (const m of chatMatches) {
         const chatText = m[1].trim();
-        this.notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
+        await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
         slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
       }
 
@@ -308,7 +308,7 @@ export class AgentLoop {
         const url = m[1] ?? '';
         const desc = m[2].trim();
         const urlPart = url ? `\n🔗 ${url}` : '';
-        this.notifyTelegram(`🌐 ${desc}${urlPart}`);
+        await notifyTelegram(`🌐 ${desc}${urlPart}`);
         slog('LOOP', `🌐 Show: ${desc.slice(0, 60)} ${url}`);
         logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
       }
@@ -317,7 +317,7 @@ export class AgentLoop {
       const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
       for (const m of summaryMatches) {
         const summary = m[1].trim();
-        this.notifyTelegram(`🤝 ${summary}`);
+        await notifyTelegram(`🤝 ${summary}`);
         slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
         logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
       }
@@ -450,20 +450,6 @@ Rules:
     }
     // Wraps midnight (e.g., 22:00 - 06:00)
     return hour >= start || hour < end;
-  }
-
-  /** Send Telegram notification via TelegramPoller (fire-and-forget) */
-  private notifyTelegram(message: string): void {
-    const poller = getTelegramPoller();
-    if (!poller) return;
-
-    // Split by paragraphs → send each as a separate message
-    const chunks = message.split(/\n\n+/).filter(c => c.trim());
-    for (const chunk of chunks) {
-      poller.sendMessage(chunk).catch(() => {
-        // Notification failure should never break the loop
-      });
-    }
   }
 
   private adjustInterval(hadAction: boolean): void {

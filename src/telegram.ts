@@ -191,9 +191,10 @@ export class TelegramPoller {
         return { ok: false, error: 'empty message', status: 0 };
       }
 
-      const body: Record<string, string> = {
+      const body: Record<string, string | boolean> = {
         chat_id: this.chatId,
         text,
+        disable_web_page_preview: true,
       };
       if (parseMode) body.parse_mode = parseMode;
 
@@ -227,6 +228,32 @@ export class TelegramPoller {
       const msg = err instanceof Error ? err.message : String(err);
       slog('TELEGRAM', `sendMessage error: ${msg}`);
       return { ok: false, error: msg, status: 0 };
+    }
+  }
+
+  /** Send photo via Telegram Bot API */
+  async sendPhoto(photoPath: string, caption?: string): Promise<SendResult> {
+    try {
+      const fileData = fs.readFileSync(photoPath);
+      const fileName = path.basename(photoPath);
+
+      const form = new FormData();
+      form.append('chat_id', this.chatId);
+      form.append('photo', new Blob([fileData]), fileName);
+      if (caption) form.append('caption', caption);
+
+      const resp = await fetch(`https://api.telegram.org/bot${this.token}/sendPhoto`, {
+        method: 'POST',
+        body: form,
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as Record<string, unknown>;
+        return { ok: false, error: (err?.description as string) ?? resp.statusText, status: resp.status };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err), status: 0 };
     }
   }
 
@@ -435,7 +462,7 @@ export class TelegramPoller {
       await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: this.chatId, text: msg }),
+        body: JSON.stringify({ chat_id: this.chatId, text: msg, disable_web_page_preview: true }),
       });
     } catch {
       // 連錯誤通知都送不出去，只能 log
@@ -835,4 +862,99 @@ export function createTelegramPoller(memoryDir: string): TelegramPoller | null {
 
   pollerInstance = new TelegramPoller(token, chatId, memoryDir);
   return pollerInstance;
+}
+
+// =============================================================================
+// Notification Stats
+// =============================================================================
+
+let notifSent = 0;
+let notifFailed = 0;
+
+/** 取得通知統計（sent/failed） */
+export function getNotificationStats(): { sent: number; failed: number } {
+  return { sent: notifSent, failed: notifFailed };
+}
+
+// =============================================================================
+// Shared Notification Helpers
+// =============================================================================
+
+/**
+ * 可靠的 Telegram 通知 — 帶重試 + 失敗計數
+ * 按段落分段發送，每段獨立失敗不影響其他段
+ */
+export async function notifyTelegram(message: string): Promise<boolean> {
+  const poller = pollerInstance;
+  if (!poller || !message.trim()) return false;
+
+  const chunks = message.split(/\n\n+/).filter(c => c.trim());
+  let allOk = true;
+
+  for (const chunk of chunks) {
+    const result = await poller.sendMessage(chunk);
+    if (result.ok) {
+      notifSent++;
+    } else {
+      // 重試一次（降級為純文字）
+      await new Promise(r => setTimeout(r, 1000));
+      const retry = await poller.sendMessage(chunk, '');
+      if (retry.ok) {
+        notifSent++;
+      } else {
+        slog('TELEGRAM', `Notification failed: ${retry.error} [${chunk.slice(0, 60)}]`);
+        notifFailed++;
+        allOk = false;
+      }
+    }
+  }
+
+  return allOk;
+}
+
+/**
+ * 發送圖片到 Telegram（使用 TelegramPoller.sendPhoto）
+ */
+export async function sendTelegramPhoto(photoPath: string, caption?: string): Promise<boolean> {
+  const poller = pollerInstance;
+  if (!poller) return false;
+
+  const result = await poller.sendPhoto(photoPath, caption);
+  if (result.ok) {
+    notifSent++;
+    return true;
+  }
+
+  slog('TELEGRAM', `sendPhoto failed: ${result.error}`);
+  notifFailed++;
+  return false;
+}
+
+/**
+ * CDP 截圖並發送到 Telegram
+ * 依賴 Chrome 運行，失敗時靜默返回 false
+ */
+export async function notifyScreenshot(caption?: string): Promise<boolean> {
+  const poller = pollerInstance;
+  if (!poller) return false;
+
+  const screenshotPath = '/tmp/mini-agent-screenshot.png';
+
+  try {
+    const { execFile: execFileCb } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execFileAsync = promisify(execFileCb);
+
+    const scriptPath = path.join(
+      import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
+      '..', 'scripts', 'cdp-screenshot.mjs',
+    );
+
+    await execFileAsync('node', [scriptPath, screenshotPath], { timeout: 10000 });
+  } catch {
+    slog('TELEGRAM', 'Screenshot failed: CDP not available');
+    return false;
+  }
+
+  return sendTelegramPhoto(screenshotPath, caption);
 }
