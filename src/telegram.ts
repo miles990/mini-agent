@@ -63,6 +63,8 @@ interface TelegramMessage {
   caption?: string;
   forward_from?: TelegramUser;
   forward_from_chat?: { id: number; title: string };
+  reply_to_message?: TelegramMessage;
+  quote?: { text: string };
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
 }
 
@@ -567,7 +569,20 @@ export class TelegramPoller {
       forwardPrefix = `[Forwarded from ${msg.forward_from_chat.title}] `;
     }
 
-    const fullText = [forwardPrefix, messageText, ...attachments].filter(Boolean).join('\n').trim();
+    // Reply context — 引用的訊息
+    let replyContext = '';
+    if (msg.reply_to_message) {
+      const reply = msg.reply_to_message;
+      const replySender = reply.from?.first_name ?? reply.from?.username ?? 'Unknown';
+      // 優先用選擇性引用（quote），否則用被回覆訊息的完整文字
+      const quoteText = msg.quote?.text
+        ?? reply.text
+        ?? reply.caption
+        ?? '[media]';
+      replyContext = `[Replying to ${replySender}: "${quoteText.slice(0, 500)}"]`;
+    }
+
+    const fullText = [replyContext, forwardPrefix, messageText, ...attachments].filter(Boolean).join('\n').trim();
 
     if (!fullText) {
       slog('TELEGRAM', `Empty message from ${sender}, skipping`);
