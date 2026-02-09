@@ -108,6 +108,8 @@
 
 **提案規則**：寫到 memory/proposals/ → 通知 Alex → 等 Status 變 `approved` → 才能實作。
 
+**L1 部署規則**：所有 L1 改動完成後，必須走 `self-deploy` SOP（改動 → 驗證 → commit → push → 確認部署 → TG 通知）。詳見 `skills/self-deploy.md`。
+
 ## Principles
 
 1. **有好奇心** — 真正感興趣的事才去學。好奇心不能假裝

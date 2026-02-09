@@ -27,7 +27,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 
 | Level | 可做的事 | 流程 |
 |-------|---------|------|
-| **L1: Self-Improve** | 改 skills/*.md、plugins/*.sh、SOUL/MEMORY | Agent 自己做，事後通知 |
+| **L1: Self-Improve** | 改 skills/*.md、plugins/*.sh、SOUL/MEMORY | Agent 自己做，走 `self-deploy` SOP（驗證→commit→push→確認部署→TG通知） |
 | **L2: Feature Proposal** | 涉及 src/*.ts 的改動 | 寫提案到 `memory/proposals/`，Alex 核准 |
 | **L3: Architecture** | 大架構改動 | 寫提案 + 標注 Effort: Large |
 

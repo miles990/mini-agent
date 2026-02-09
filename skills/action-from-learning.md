@@ -17,6 +17,8 @@
 - **Plugins**: 新增感知腳本 `plugins/*.sh` — 學到新東西就想：能不能變成感知？
 - **文件**: 更新 SOUL.md、MEMORY.md、ARCHITECTURE.md
 
+**⚠️ 做完後必須走 `self-deploy` SOP**：改動 → 驗證 → commit → push → 確認部署 → TG 通知。詳見 `skills/self-deploy.md`。
+
 ### 感知 → 學習 → 強化感知 閉環
 
 學習不只是記筆記。問自己：**我學到的東西能讓我「看到」更多嗎？**
