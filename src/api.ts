@@ -27,7 +27,7 @@ import {
   getCurrentInstanceId,
 } from './instance.js';
 import { getLogger, type LogType } from './logging.js';
-import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount } from './cron.js';
+import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, stopCronTasks } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
@@ -791,11 +791,28 @@ if (isMain) {
   });
 
   // ── Graceful Shutdown ──
+  let shuttingDown = false;
   const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     slog('SERVER', 'Shutting down...');
+
+    // Stop all long-running services
     if (telegramPoller) telegramPoller.stop();
     if (loopRef) loopRef.stop();
-    process.exit(0);
+    stopCronTasks();
+
+    // Graceful HTTP server close
+    server.close(() => {
+      slog('SERVER', 'Stopped');
+      process.exit(0);
+    });
+
+    // Force exit after 5s if server.close hangs
+    setTimeout(() => {
+      slog('SERVER', 'Force exit after timeout');
+      process.exit(1);
+    }, 5000).unref();
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
