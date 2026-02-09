@@ -630,17 +630,48 @@ export function formatSelfStatus(status: AgentSelfStatus): string {
 
 import type { Logger, DiagLogEntry, BehaviorLogEntry } from './logging.js';
 
+export interface CdpOperation {
+  time: string;
+  op: string;
+  url?: string;
+  title?: string;
+}
+
 export interface ActivitySummary {
   recentDiag: Array<{ time: string; context: string; error: string; snapshot?: Record<string, string> }>;
   recentBehavior: Array<{ time: string; actor: string; action: string; detail?: string }>;
+  recentCdp: CdpOperation[];
 }
 
 /**
- * 取得活動摘要（診斷 + 行為）
+ * 讀取最近的 CDP 操作記錄
+ */
+function readRecentCdpOps(limit = 10): CdpOperation[] {
+  try {
+    const cdpLogPath = path.join(os.homedir(), '.mini-agent', 'cdp.jsonl');
+    const content = fs.readFileSync(cdpLogPath, 'utf-8');
+    const lines = content.trim().split('\n').filter(l => l.trim());
+    return lines.slice(-limit).reverse().map(line => {
+      const entry = JSON.parse(line) as { ts: string; op: string; url?: string; title?: string };
+      return {
+        time: entry.ts.split('T')[1]?.split('.')[0] ?? '',
+        op: entry.op,
+        url: entry.url,
+        title: entry.title,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 取得活動摘要（診斷 + 行為 + CDP 操作）
  */
 export function getActivitySummary(logger: Logger): ActivitySummary {
   const diagEntries = logger.queryDiagLogs(undefined, 5) as DiagLogEntry[];
   const behaviorEntries = logger.queryBehaviorLogs(undefined, 10) as BehaviorLogEntry[];
+  const cdpOps = readRecentCdpOps(5);
 
   return {
     recentDiag: diagEntries.map(e => ({
@@ -655,6 +686,7 @@ export function getActivitySummary(logger: Logger): ActivitySummary {
       action: e.data.action,
       detail: e.data.detail,
     })),
+    recentCdp: cdpOps,
   };
 }
 
@@ -681,6 +713,14 @@ export function formatActivitySummary(summary: ActivitySummary): string {
     for (const b of summary.recentBehavior) {
       const detail = b.detail ? `: ${b.detail.slice(0, 80)}` : '';
       lines.push(`  [${b.time}] [${b.actor}] ${b.action}${detail}`);
+    }
+  }
+
+  if (summary.recentCdp.length > 0) {
+    lines.push(`\nRecent CDP operations (${summary.recentCdp.length}):`);
+    for (const c of summary.recentCdp) {
+      const detail = c.title ? `${c.title.slice(0, 50)} (${c.url?.slice(0, 60) ?? ''})` : c.url?.slice(0, 80) ?? '';
+      lines.push(`  [${c.time}] ${c.op}: ${detail}`);
     }
   }
 

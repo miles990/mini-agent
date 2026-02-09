@@ -13,11 +13,32 @@
  *   node scripts/cdp-fetch.mjs close <tabId>             # Close a tab
  */
 
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+
 const CDP_HOST = process.env.CDP_HOST || 'localhost';
 const CDP_PORT = process.env.CDP_PORT || '9222';
 const CDP_BASE = `http://${CDP_HOST}:${CDP_PORT}`;
 const TIMEOUT = parseInt(process.env.CDP_TIMEOUT || '15000');
 const MAX_CONTENT = parseInt(process.env.CDP_MAX_CONTENT || '8000');
+
+// ─── CDP Operation Logging ──────────────────────────────────────────────────
+
+const CDP_LOG_DIR = join(homedir(), '.mini-agent');
+const CDP_LOG_FILE = join(CDP_LOG_DIR, 'cdp.jsonl');
+
+function logCdpOp(op, detail = {}) {
+  try {
+    mkdirSync(CDP_LOG_DIR, { recursive: true });
+    const entry = JSON.stringify({
+      ts: new Date().toISOString(),
+      op,
+      ...detail,
+    });
+    appendFileSync(CDP_LOG_FILE, entry + '\n');
+  } catch { /* logging should never break CDP operations */ }
+}
 
 // ─── CDP HTTP API helpers ─────────────────────────────────────────────────────
 
@@ -198,6 +219,7 @@ async function cmdFetch(url) {
   }
 
   // Create a new tab (background)
+  logCdpOp('fetch', { url });
   const target = await createTarget(url);
   const wsUrl = target.webSocketDebuggerUrl;
 
@@ -269,6 +291,7 @@ async function cmdOpen(url) {
   }
 
   // Create and activate a visible tab
+  logCdpOp('open', { url });
   const target = await createTarget(url);
   await activateTarget(target.id);
 
@@ -307,6 +330,8 @@ async function cmdExtract(tabId) {
     process.exit(1);
   }
 
+  logCdpOp('extract', { tabId, url: target.url, title: target.title });
+
   let ws;
   try {
     ws = await connectWs(wsUrl);
@@ -339,6 +364,7 @@ async function cmdClose(tabId) {
   const targets = await listTargets();
   const target = targets.find(t => t.id === tabId || t.id.startsWith(tabId));
   if (target) {
+    logCdpOp('close', { tabId, url: target.url, title: target.title });
     await closeTarget(target.id);
     console.log(`Closed tab: ${target.title || target.id}`);
   } else {

@@ -58,6 +58,12 @@ function getSystemPrompt(): string {
   Example: [TASK schedule="every 5 minutes"]Write a haiku to output.md with timestamp[/TASK]
   Example: [TASK schedule="daily at 9am"]Send daily summary[/TASK]
 
+- When you open a webpage, display results, or create something the user should see, wrap it in [SHOW]...[/SHOW] tags
+  This sends a Telegram notification so the user doesn't miss it.
+  Format: [SHOW url="URL"]description[/SHOW]
+  Example: [SHOW url="http://localhost:3000"]Portfolio 網站已啟動，打開看看[/SHOW]
+  Example: [SHOW url="https://news.ycombinator.com/item?id=123"]這篇文章很有趣[/SHOW]
+
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
 ${getSkillsPrompt()}`;
@@ -203,10 +209,21 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     }
   }
 
+  // 6. Check if should show something (webpage/result)
+  if (response.includes('[SHOW')) {
+    const showMatches = response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs);
+    for (const m of showMatches) {
+      const url = m[1] ?? '';
+      const desc = m[2].trim();
+      logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
+    }
+  }
+
   // Clean response from all tags
   const cleanContent = response
     .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
+    .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .trim();
 
   // 6. Log Claude call

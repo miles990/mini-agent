@@ -297,6 +297,17 @@ export class AgentLoop {
         slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
       }
 
+      // ── [SHOW] tag: Kuro 展示網頁/成果給用戶 ──
+      const showMatches = response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs);
+      for (const m of showMatches) {
+        const url = m[1] ?? '';
+        const desc = m[2].trim();
+        const urlPart = url ? `\n🔗 ${url}` : '';
+        this.notifyTelegram(`🌐 ${desc}${urlPart}`);
+        slog('LOOP', `🌐 Show: ${desc.slice(0, 60)} ${url}`);
+        logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
+      }
+
       return action;
     } finally {
       this.cycling = false;
@@ -328,6 +339,9 @@ If you discover a new problem (e.g. service down, disk full), create a task:
 Respond with either:
 - [ACTION]description of what you did[/ACTION] if you took action
 - "No action needed" if nothing to do right now
+
+When you open a webpage or create something the user should see, also include:
+- [SHOW url="URL"]description[/SHOW] — this sends a Telegram notification
 
 Keep responses brief.`;
   }
@@ -404,7 +418,8 @@ Rules:
 - Use [TASK] to create follow-up tasks if needed
 - Always include source URLs (e.g. "Source: https://...")
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
-- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram`;
+- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
+- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it`;
   }
 
   // ---------------------------------------------------------------------------
