@@ -548,12 +548,12 @@ export class InstanceManager {
   }
 
   /**
-   * 停止實例
+   * 停止實例（SIGTERM → wait → SIGKILL）
    */
   stop(instanceId: string): boolean {
     const proc = this.runningInstances.get(instanceId);
     if (proc) {
-      proc.kill();
+      proc.kill('SIGTERM');
       this.runningInstances.delete(instanceId);
     }
 
@@ -562,11 +562,35 @@ export class InstanceManager {
     if (fs.existsSync(pidFile)) {
       try {
         const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
-        process.kill(pid);
+
+        // SIGTERM first
+        try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+
+        // Wait up to 3s, then SIGKILL
+        const deadline = Date.now() + 3000;
+        while (Date.now() < deadline) {
+          try {
+            process.kill(pid, 0); // check if alive
+            // Still alive, wait 200ms
+            const waitUntil = Date.now() + 200;
+            while (Date.now() < waitUntil) { /* busy wait */ }
+          } catch {
+            break; // Process is dead
+          }
+        }
+
+        // If still alive, force kill
+        try {
+          process.kill(pid, 0);
+          process.kill(pid, 'SIGKILL');
+        } catch {
+          // Already dead — good
+        }
       } catch {
-        // 進程可能已經停止
+        // PID file read error
       }
-      fs.unlinkSync(pidFile);
+
+      try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
     }
 
     return true;

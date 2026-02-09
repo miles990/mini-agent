@@ -6,7 +6,18 @@ echo "⏹  Stopping all instances..."
 mini-agent kill --all 2>/dev/null || true
 
 # 確保 port 真的釋放（防 EADDRINUSE）
-sleep 1
+# kill --all 現在有 SIGKILL fallback，但仍需等待
+for i in 1 2 3 4 5; do
+  PORT_PID=$(lsof -ti :3001 2>/dev/null || true)
+  if [ -z "$PORT_PID" ]; then
+    break
+  fi
+  if [ "$i" -ge 3 ]; then
+    echo "⚠️  Port 3001 still in use (PID $PORT_PID), force killing..."
+    kill -9 $PORT_PID 2>/dev/null || true
+  fi
+  sleep 1
+done
 
 echo "🔄 Updating mini-agent..."
 mini-agent update

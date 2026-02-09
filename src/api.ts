@@ -808,10 +808,11 @@ if (isMain) {
     });
 
     // Force exit after 5s if server.close hangs
+    // Do NOT .unref() — must guarantee process exits
     setTimeout(() => {
       slog('SERVER', 'Force exit after timeout');
       process.exit(1);
-    }, 5000).unref();
+    }, 5000);
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
