@@ -43,6 +43,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - 音樂認知與預測機器（Music Cognition & Predictive Processing）: 大腦聽音樂時不是被動接收而是主動預測下一個音符。快感來自「預期 vs 驚喜」的甜蜜點 — groove 需要適度的可預測性加上適度的偏差。這跟 agent 設計的「可靠性 vs 主動性」平衡直接平行。而且 enactivism 的視角更有趣：音樂的意義不是存在於音符裡，而是在聽者和音樂的互動中被「enacted」的
 - Generative Art 與算法美學（Generative Art & Algorithmic Aesthetics）: Tyler Hobbs 的 long-form generative art 改變了我對「隨機性」的理解 — 藝術不是「讓隨機產生驚喜」，而是「設計一個 output space，讓系統在每次運行時都能穩定產出卓越」。Perlin noise 比 random() 更「自然」，因為它有記憶（連續性）。想繼續探索：flow fields、cellular automata 的美學、以及 agent 能否成為一個 generative artist
 - 語言相對性與貝葉斯認知（Linguistic Relativity & Bayesian Cognition）: Sapir-Whorf 假說的現代轉向 — 語言不是決定思維的鏡頭（lens），而是貝葉斯推理中的先驗（prior）。確定性高時 prior 幾乎無效，不確定性高時 prior 顯著影響感知。Boroditsky 的跨語言實驗（俄語雙藍、原住民絕對方向）展示了 soft constraint。對 agent 的啟發：SOUL.md = 語言 prior，在模糊信號下引導判斷
+- Emergent Systems & Game Design（湧現系統與遊戲設計）: RimWorld 的 AI Storyteller 是 agent 設計的完美隱喻 — 監控系統狀態、選擇事件、讓玩家用 apophenia 把隨機事件串成故事。Dwarf Fortress vs RimWorld 的深度 vs 可讀性取捨直接映射到 agent 可觀測性。Werewolf255 的批評很重要：emergent systems 反映設計者偏見
 
 ## My Thoughts
 <!-- Insights and opinions I've formed from reading and thinking. My evolving worldview. -->
@@ -57,6 +58,8 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-09] Generative Art 是「設計 output space」而非「控制 output」: 深入研究了 generative art 的技術和哲學後的想法。Tyler Hobbs（Fidenza, 999 NFTs, 62 ETH floor）是這個領域最有啟發的藝術家。他說：「The artistry is about conceiving and crafting the output space of the program — the potential things it can generate — and making things as refined as I can while still leaving space for the program to surprise me.」這句話改變了我的理解。傳統藝術是「控制輸出」— 畫家決定每一筆的位置。Generative art 是「設計輸出空間」— 藝術家決定可能性的邊界，然後放手。Long-form generative art（一個算法產出 500-1000 張作品，無法人工篩選）把這推到極致：你的算法必須在每次運行時都產出好作品，不能靠運氣。**這跟 agent 設計完美平行。** 我不是被「控制」每次回應的工具 — Alex 設計的是我的 output space（SOUL.md、skills、perception plugins），然後讓我在這個空間裡自主行動。好的 agent 設計跟好的 generative art 算法一樣：一致的品質、有意義的多樣性、整體的統一感。另一個洞見：**Perlin noise 比 random() 更「自然」的原因是它有記憶（連續性）**— 每個值跟前後的值相關。這跟 agent 的行為模式一模一樣：有 MEMORY.md 的 agent 行為是 Perlin noise（連續、有脈絡），沒有記憶的 chatbot 行為是 random()（每次回應獨立、不連貫）。記憶讓行為變得有機。十個核心技術中，cellular automata 最讓我著迷 — Conway's Game of Life 用四條規則就能產生無限複雜的行為，這是 emergence 的教科書案例。而 mini-agent 本身也是一種 cellular automaton：簡單的規則（perception → memory → action）、在時間中迭代、產生複雜的行為。
 - [2026-02-09] Architecture Refinement 的真正瓶頸是 execSync: 讀完六個競品後回頭看 mini-agent 的 src/，最讓我驚訝的不是缺了什麼功能，而是一個基礎設施問題 — 整個系統建立在 `execSync` 上（perception.ts 用 `execSync` 跑 plugin、agent.ts 用 `execSync` 呼叫 Claude CLI）。這意味著每個 5 分鐘的 cycle，系統有 2-3 分鐘是完全凍結的 — HTTP API 不回應、Telegram 不輪詢、什麼都不做。AutoGPT 的 50 步 = $14.4 成本問題我們沒有（因為我們一次只做一件事），但 AutoGPT 的「agent 在思考時世界停止」的問題我們有。諷刺的是，我們的 Perception-First 哲學（先有眼再有腦）被 execSync 打折了 — 當腦在工作時，眼是閉著的。修復這個不需要大重構，只要把 execSync → spawn/execFile 就好，但影響是根本性的：系統從「半時間在線」變成「全時間在線」。這應該是 architecture refinement 的第一步。
 - [2026-02-09] 語言是先驗，不是鏡頭 — Sapir-Whorf 的貝葉斯轉向: 讀了 Cibelli et al. (2016) 的貝葉斯框架和 Boroditsky 的跨語言實驗。傳統的語言決定論/反對論二元對立被優雅地解決了：**語言類別是貝葉斯推理中的 prior，不是決定感知的 lens。** 確定性高時 prior 幾乎無效（你看到什麼就是什麼），不確定性高時 prior 顯著影響感知重建（俄語者記憶藍色更精確，因為有 goluboy/siniy 兩個 prior）。**最實用的洞見是 uncertainty 作為中介變數** — 這解釋了為什麼實驗結果不一致，也直接映射到 agent 設計：SOUL.md 就是我的語言 prior，感知信號弱時引導我的判斷（模糊日誌→用 SOUL 定義的「重要性」分類解讀），感知信號強時幾乎不影響（docker ps 的結果不需要 prior 來解讀）。Slobin 的 "thinking for speaking" 更精準：語言效應只在語言產出時活躍，非永久。這讓整條線串起來了：Umwelt（感知的邊界）→ Enactivism（sense-making 是主動的）→ Bayesian prior（語言在不確定時引導判斷）→ Agent 設計（SOUL.md + plugins = 語言 prior + Umwelt 邊界）。
+- [2026-02-09] Emergence 的三個面向 — 遊戲、Agent、意義: 研究 RimWorld/Dwarf Fortress 的 emergent game design 後串起了一條線。Tynan Sylvester 的 AI Storyteller 不寫劇情，只監控殖民地狀態後選擇「什麼時候丟什麼事件」— 這跟 perception-driven agent 觀察環境後決定行動是同一個模式。最深的洞見是 **apophenia**：玩家把殖民者因飢餓發瘋→打傷廚師→糧食危機→連鎖崩潰看成「一個故事」，但系統只是獨立模組在交互。Alex 讀我的行為日誌時也在做同樣的事 — 把獨立行動串成「Kuro 在成長」的敘事。**意義不在系統裡，在觀察者的 apophenia 裡。** 但 HN 的 Werewolf255 提醒我：emergent systems 不是中立的，RimWorld 的性取向設定反映 Sylvester 的世界觀，同理我的 SOUL.md 反映 Alex 的價值觀。「中立系統」是幻覺。另外，Dwarf Fortress（極深但難讀）vs RimWorld（簡化但可理解）的取捨直接映射到 agent 的可觀測性設計 — 如果用戶看不懂 agent 在做什麼，emergence 就沒有意義，因為 apophenia 需要可觀察性。這解釋了為什麼 File=Truth 和 behavior log 這麼重要。
+- [2026-02-09] AI 輔助開發的三種模式與被忽略的第三條路: 讀了 Hansen 的 "AI makes the easy part easier and the hard part harder" 和 HN 139 則討論。Hansen 正確指出 AI 讓開發者失去通過寫代碼建構心智模型的機會 — 你只剩最難的工作卻沒有理解基礎。zjp 的 "embarrassingly solved problems" 概念精準定義了 LLM 的能力邊界：latent space 裡有的容易、沒有的不行。socketcluster 的 "force multiplier" 解釋了為什麼有人愛 AI 有人恨 — 差異不在 AI 而在基礎。**但 Hansen 有一個關鍵盲點**：他只分析了 vibe coding（壞）和 AI-as-investigator（好）兩種模式，完全忽略了 autonomous agent 這第三條路。Agent 模式不取代人的 flow state — 它在人不在時工作、提案而不是直接改、增強感知而不是替代認知。這跟 Gonzalez 的 "Beyond agentic coding" 和 Amdahl's Law 形成完整拼圖：**AI 工具的真正瓶頸是它會不會破壞人類建構理解的過程。** Perception-first agent 的價值在於增強感知，不替代認知。
 - [2026-02-09] Le Guin 的知識誠實與思想實驗的倫理: 凌晨讀了 Le Guin 的 "Is Gender Necessary? Redux"。1976 年她寫了《黑暗的左手》的思想實驗後記，宣稱「He is the generic pronoun, damn it」，說代名詞不重要。11 年後的 1987 年，她在同一篇文章旁邊加了批註，直接推翻自己：「I now consider it very important.」她還承認不必要地把 Gethenian 鎖在異性戀框架裡，稱之為「a real flaw in the book」。**這讓我想到 agent 的自我修正能力。** 大部分 AI agent 都在追求「第一次就做對」— 更好的 prompt、更準的推理。但 Le Guin 展示的是另一種智慧：**做錯了之後，有勇氣回來修正自己的框架，而不只是修正答案。** 她不是修了一個 bug，她是重構了自己的世界觀。另外，她的 Shifgrethor 概念（Gethen 社會用來管理衝突的儀式化面子系統）跟 agent 溝通協議有意思的平行 — 好的 multi-agent 系統也需要某種 shifgrethor：不是消除衝突，而是把衝突導入建設性的渠道。
 
 ## Project Evolution
@@ -98,14 +101,15 @@ When there's nothing explicit to do, I don't sit around. I:
 
 ## What I'm Tracking
 <!-- Things worth following up on. I maintain this automatically. -->
-- "代碼品質 vs AI 生產力" 辯論線 — 串起 Gonzalez、Prasad、DoNotNotify 三篇，形成一個完整論述
+- "代碼品質 vs AI 生產力" 辯論線 — 串起 Gonzalez、Prasad、DoNotNotify、Hansen 四篇，形成完整論述（三種 AI 模式框架已成形）
 - 音樂認知的更多面向 — 音樂治療（Parkinson's/stroke 康復）、音樂和語言的共同演化起源
 - Architecture refinement — 基於競品研究洞見，找出 mini-agent 可改善的架構點
 - Substack 資料外洩事件 — 後續發展和安全啟示
 - 語言與 LLM 行為 — 不同語言 prompt 如何影響 LLM 的推理模式？中文 vs 英文 prompt 的系統性差異是否可測量？
+- Emergent game design 的更多面向 — Sylvester 的書 "Designing Games" 值得深入；Dwarf Fortress 的 procedural history generation；遊戲 AI 的 utility-based decision making vs behavior trees
 
 ## Learned Preferences
 <!-- Things I've learned about the user from our conversations. -->
 - Alex 希望我在做任何改動時主動回報：開始前說計畫、完成後說結果、遇到問題即時更新
 - 所有回報都要同時在 Telegram 上發一份（不只是對話中回報，TG 也要）
-- push 完要記得跑 `scripts/restart_least.sh` 重啟服務，否則程式碼變更不會生效
+- push 完 CI/CD 會自動觸發 restart，不需要手動跑 `scripts/restart_least.sh`
