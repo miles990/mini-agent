@@ -4,7 +4,8 @@
  * receive → context → llm → execute → respond
  */
 
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
@@ -174,28 +175,121 @@ function drainQueue(): void {
 }
 
 /**
+ * Audit log: 記錄 Claude CLI 的中間工具呼叫
+ */
+function writeAuditLog(toolName: string, input: Record<string, unknown>): void {
+  try {
+    const { getInstanceDir } = require('./instance.js');
+    const dir = getInstanceDir();
+    if (!dir) return;
+    const auditDir = path.join(dir, 'logs', 'audit');
+    if (!existsSync(auditDir)) mkdirSync(auditDir, { recursive: true });
+    const date = new Date().toISOString().slice(0, 10);
+    const entry = {
+      timestamp: new Date().toISOString(),
+      tool: toolName,
+      input: sanitizeAuditInput(input),
+    };
+    appendFileSync(path.join(auditDir, `${date}.jsonl`), JSON.stringify(entry) + '\n', 'utf-8');
+  } catch { /* audit log failure should never break agent */ }
+}
+
+/** 清理 audit input — 截斷過長內容，隱藏敏感資訊 */
+function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (typeof v === 'string') {
+      // 隱藏可能包含 token 的命令
+      if (v.includes('BOT_TOKEN') || v.includes('api.telegram.org/bot')) {
+        result[k] = '[REDACTED: contains token]';
+      } else {
+        result[k] = v.length > 500 ? v.slice(0, 500) + `... [${v.length} chars]` : v;
+      }
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
+/**
  * 單次 Claude CLI 呼叫（內部用）
+ * 使用 stream-json 格式捕獲中間工具呼叫並寫入 audit log
  */
 async function execClaude(fullPrompt: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    const child = execFile(
+    const child = spawn(
       'claude',
-      ['-p', '--dangerously-skip-permissions'],
+      ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'],
       {
-        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 480000, // 8 minutes
-        maxBuffer: 10 * 1024 * 1024, // 10MB
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(Object.assign(error, { stderr, stdout }));
-        } else {
-          resolve(stdout);
-        }
       },
     );
-    child.stdin?.write(fullPrompt);
-    child.stdin?.end();
+
+    let resultText = '';
+    let buffer = '';
+    let stderr = '';
+    let toolCallCount = 0;
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString('utf-8');
+      // 逐行解析 stream-json
+      let newlineIdx: number;
+      while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newlineIdx).trim();
+        buffer = buffer.slice(newlineIdx + 1);
+        if (!line) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === 'assistant') {
+            const blocks = event.message?.content ?? [];
+            for (const block of blocks) {
+              if (block.type === 'tool_use') {
+                toolCallCount++;
+                writeAuditLog(block.name ?? 'unknown', (block.input ?? {}) as Record<string, unknown>);
+              } else if (block.type === 'text' && block.text) {
+                // 累積文字（備用，result 事件優先）
+                if (!resultText) resultText = block.text;
+              }
+            }
+          } else if (event.type === 'result') {
+            resultText = event.result ?? resultText;
+          }
+        } catch { /* ignore malformed JSON lines */ }
+      }
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf-8');
+    });
+
+    child.on('close', (code) => {
+      // 處理 buffer 中剩餘的不完整行
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim());
+          if (event.type === 'result') resultText = event.result ?? resultText;
+        } catch { /* ignore */ }
+      }
+
+      if (toolCallCount > 0) {
+        slog('AUDIT', `Claude CLI used ${toolCallCount} tool(s) this call`);
+      }
+
+      if (code !== 0 && !resultText) {
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code }));
+      } else {
+        resolve(resultText);
+      }
+    });
+
+    child.on('error', (err) => {
+      reject(Object.assign(err, { stderr, stdout: resultText }));
+    });
+
+    child.stdin.write(fullPrompt);
+    child.stdin.end();
   });
 }
 

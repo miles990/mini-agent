@@ -9,6 +9,7 @@ import { processMessage } from './agent.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { diagLog } from './utils.js';
+import { notifyTelegram } from './telegram.js';
 import type { CronTask } from './types.js';
 
 interface ScheduledCronTask {
@@ -54,6 +55,9 @@ export function startCronTasks(tasks: CronTask[]): void {
           success: true,
           duration: Date.now() - cronStart,
         });
+
+        // TG 通知：解析 [ACTION] tag
+        await notifyCronAction(response.content);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         slog('CRON', `✗ Error: ${errorMsg}`);
@@ -138,6 +142,9 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
         success: true,
         duration: Date.now() - cronStart,
       });
+
+      // TG 通知：解析 [ACTION] tag
+      await notifyCronAction(response.content);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       slog('CRON', `✗ Error: ${errorMsg}`);
@@ -236,4 +243,19 @@ export function reloadCronTasks(tasks: CronTask[]): { added: number; removed: nu
   }
 
   return { added, removed, unchanged };
+}
+
+/**
+ * CRON 任務完成後解析 [ACTION] 和 [CHAT] tag 並發送 TG 通知
+ */
+async function notifyCronAction(content: string): Promise<void> {
+  // [ACTION] — 任務執行結果
+  const actionMatch = content.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
+  if (actionMatch) {
+    const action = actionMatch[1].trim();
+    await notifyTelegram(`⏰ ${action}`);
+  }
+
+  // [CHAT] — 主動聊天（processMessage 已處理，但 CRON 的 response 可能被 clean 過）
+  // 不重複處理 — processMessage 內已 notifyTelegram [CHAT]
 }
