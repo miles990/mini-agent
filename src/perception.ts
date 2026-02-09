@@ -11,7 +11,7 @@
  * - 直接注入到 Claude 的 system prompt 中
  */
 
-import { execSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { diagLog } from './utils.js';
@@ -39,13 +39,13 @@ export interface PerceptionResult {
 // =============================================================================
 
 /**
- * 執行單一 perception script
+ * 執行單一 perception script（async，不阻塞 event loop）
  * stdout 即結果，失敗時回傳 null（不影響其他 perception）
  */
-export function executePerception(
+export async function executePerception(
   perception: CustomPerception,
   cwd?: string,
-): PerceptionResult {
+): Promise<PerceptionResult> {
   const timeout = perception.timeout ?? 5000;
   const startTime = Date.now();
 
@@ -65,12 +65,24 @@ export function executePerception(
   }
 
   try {
-    const output = execSync(scriptPath, {
-      encoding: 'utf-8',
-      timeout,
-      cwd: cwd ?? process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'], // 捕獲 stderr
-      maxBuffer: 1024 * 1024, // 1MB
+    const output = await new Promise<string>((resolve, reject) => {
+      execFile(
+        scriptPath,
+        [],
+        {
+          encoding: 'utf-8',
+          timeout,
+          cwd: cwd ?? process.cwd(),
+          maxBuffer: 1024 * 1024, // 1MB
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(Object.assign(error, { stderr }));
+          } else {
+            resolve(stdout);
+          }
+        },
+      );
     });
 
     return {
@@ -80,7 +92,6 @@ export function executePerception(
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    // 擷取簡短錯誤（不要整個 stack trace）
     const shortErr = msg.split('\n')[0].slice(0, 200);
     const stderr = (error as { stderr?: string })?.stderr?.trim()?.slice(0, 200) ?? '';
     diagLog('perception.exec', error, { script: perception.name, stderr });
@@ -94,14 +105,14 @@ export function executePerception(
 }
 
 /**
- * 批次執行所有 custom perceptions
+ * 批次執行所有 custom perceptions（並行，Promise.all）
  * 每個獨立執行，失敗不影響其他
  */
-export function executeAllPerceptions(
+export async function executeAllPerceptions(
   perceptions: CustomPerception[],
   cwd?: string,
-): PerceptionResult[] {
-  return perceptions.map(p => executePerception(p, cwd));
+): Promise<PerceptionResult[]> {
+  return Promise.all(perceptions.map(p => executePerception(p, cwd)));
 }
 
 /**

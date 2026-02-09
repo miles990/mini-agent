@@ -4,9 +4,7 @@
  * receive → context → llm → execute → respond
  */
 
-import { execSync } from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
@@ -104,8 +102,13 @@ function classifyClaudeError(error: unknown): string {
 }
 
 /**
+ * Busy flag — 防止並發 Claude CLI 呼叫（記憶體和 CPU 保護）
+ */
+let claudeBusy = false;
+
+/**
  * Call Claude Code via subprocess
- * Uses a temp file to pass the prompt (avoids shell escaping issues)
+ * Uses execFile + stdin pipe (non-blocking, no temp file)
  * Captures stderr for better error diagnostics
  */
 export async function callClaude(
@@ -115,17 +118,42 @@ export async function callClaude(
   const systemPrompt = getSystemPrompt();
   const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
 
-  // Write prompt to temp file
-  const tmpFile = path.join(os.tmpdir(), `mini-agent-prompt-${Date.now()}.txt`);
-  fs.writeFileSync(tmpFile, fullPrompt, 'utf-8');
+  // Busy guard — 防止並發呼叫
+  if (claudeBusy) {
+    return {
+      response: '我正在處理另一個請求，請稍後再試。',
+      systemPrompt,
+      fullPrompt,
+      duration: 0,
+    };
+  }
 
+  claudeBusy = true;
   const startTime = Date.now();
+
   try {
-    const result = execSync(`cat "${tmpFile}" | claude -p --dangerously-skip-permissions`, {
-      encoding: 'utf-8',
-      timeout: 180000, // 3 minutes (web operations may take longer)
-      maxBuffer: 10 * 1024 * 1024, // 10MB
+    const result = await new Promise<string>((resolve, reject) => {
+      const child = execFile(
+        'claude',
+        ['-p', '--dangerously-skip-permissions'],
+        {
+          encoding: 'utf-8',
+          timeout: 180000, // 3 minutes
+          maxBuffer: 10 * 1024 * 1024, // 10MB
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(Object.assign(error, { stderr, stdout }));
+          } else {
+            resolve(stdout);
+          }
+        },
+      );
+      // 直接寫入 stdin，不需要 temp file
+      child.stdin?.write(fullPrompt);
+      child.stdin?.end();
     });
+
     const duration = Date.now() - startTime;
 
     // 行為記錄：Claude 呼叫
@@ -151,19 +179,12 @@ export async function callClaude(
     // Try to extract partial stdout (Claude may have produced some output before failing)
     const stdout = (error as { stdout?: string })?.stdout?.trim();
     if (stdout && stdout.length > 20) {
-      // Claude produced partial output — use it
       return { response: stdout, systemPrompt, fullPrompt, duration };
     }
 
-    // No usable output — return friendly error as the response
     return { response: friendlyMessage, systemPrompt, fullPrompt, duration };
   } finally {
-    // Clean up temp file
-    try {
-      fs.unlinkSync(tmpFile);
-    } catch {
-      // Ignore cleanup errors
-    }
+    claudeBusy = false;
   }
 }
 

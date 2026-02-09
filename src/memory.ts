@@ -613,7 +613,7 @@ export class InstanceMemory {
       });
 
       if (relevantPlugins.length > 0) {
-        const results = executeAllPerceptions(relevantPlugins);
+        const results = await executeAllPerceptions(relevantPlugins);
         const customCtx = formatPerceptionResults(results);
         if (customCtx) sections.push(customCtx);
       }
