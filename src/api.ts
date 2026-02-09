@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage, isClaudeBusy } from './agent.js';
+import { processMessage, isClaudeBusy, hasQueuedMessages } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -279,8 +279,14 @@ export function createApi(port = 3001): express.Express {
     try {
       const response = await processMessage(message);
       const elapsed = ((Date.now() - chatStart) / 1000).toFixed(1);
-      slog('CHAT', `→ "${response.content.slice(0, 80)}${response.content.length > 80 ? '...' : ''}" (${elapsed}s)`);
-      res.json(response);
+
+      if (response.queued) {
+        slog('CHAT', `→ [queued] position ${response.position} (${elapsed}s)`);
+        res.status(202).json(response);
+      } else {
+        slog('CHAT', `→ "${response.content.slice(0, 80)}${response.content.length > 80 ? '...' : ''}" (${elapsed}s)`);
+        res.json(response);
+      }
     } catch (error) {
       slog('ERROR', `Chat failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({
@@ -801,18 +807,19 @@ if (isMain) {
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
 
-    // Wait for in-flight Claude CLI call to finish
-    if (isClaudeBusy()) {
-      slog('SERVER', 'Waiting for Claude CLI call to finish...');
+    // Wait for in-flight Claude CLI call + queued messages to finish
+    if (isClaudeBusy() || hasQueuedMessages()) {
+      const reason = isClaudeBusy() ? 'Claude CLI call' : 'queued messages';
+      slog('SERVER', `Waiting for ${reason} to finish...`);
       const maxWait = 600_000; // 10 minutes (> 8 min timeout)
       const start = Date.now();
-      while (isClaudeBusy() && Date.now() - start < maxWait) {
+      while ((isClaudeBusy() || hasQueuedMessages()) && Date.now() - start < maxWait) {
         await new Promise(r => setTimeout(r, 2000));
       }
-      if (isClaudeBusy()) {
-        slog('SERVER', `Claude CLI still busy after ${maxWait / 1000}s, forcing exit`);
+      if (isClaudeBusy() || hasQueuedMessages()) {
+        slog('SERVER', `Still busy/queued after ${maxWait / 1000}s, forcing exit`);
       } else {
-        slog('SERVER', `Claude CLI finished after ${((Date.now() - start) / 1000).toFixed(0)}s`);
+        slog('SERVER', `All tasks finished after ${((Date.now() - start) / 1000).toFixed(0)}s`);
       }
     }
 

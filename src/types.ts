@@ -175,6 +175,8 @@ export interface AgentResponse {
   content: string;
   shouldRemember?: string;
   taskAdded?: string;
+  queued?: boolean;
+  position?: number;
 }
 
 // =============================================================================

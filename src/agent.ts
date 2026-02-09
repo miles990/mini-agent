@@ -123,6 +123,44 @@ export function isClaudeBusy(): boolean {
   return claudeBusy;
 }
 
+// =============================================================================
+// Message Queue — claudeBusy 時排隊，完成後自動 drain
+// =============================================================================
+
+interface QueueItem {
+  message: string;
+  onComplete?: (result: AgentResponse) => void;
+  queuedAt: number;
+}
+
+const messageQueue: QueueItem[] = [];
+const MAX_QUEUE_SIZE = 5;
+
+/** 查詢 queue 狀態 */
+export function getQueueStatus(): { size: number; max: number } {
+  return { size: messageQueue.length, max: MAX_QUEUE_SIZE };
+}
+
+/** 查詢是否有待處理的排隊訊息 */
+export function hasQueuedMessages(): boolean {
+  return messageQueue.length > 0;
+}
+
+/** 處理 queue 中的下一則訊息 */
+function drainQueue(): void {
+  if (messageQueue.length === 0 || claudeBusy) return;
+  const next = messageQueue.shift()!;
+  slog('QUEUE', `Processing queued message (waited ${((Date.now() - next.queuedAt) / 1000).toFixed(0)}s, ${messageQueue.length} remaining)`);
+  // 用 setImmediate 避免 stack overflow
+  setImmediate(() => {
+    processMessage(next.message).then(result => {
+      if (next.onComplete) next.onComplete(result);
+    }).catch(() => {
+      if (next.onComplete) next.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+    });
+  });
+}
+
 /**
  * 單次 Claude CLI 呼叫（內部用）
  */
@@ -238,8 +276,31 @@ export async function callClaude(
 
 /**
  * Process a user message
+ * claudeBusy 時自動排隊，立即回傳 ack（非阻塞）
+ * @param onQueueComplete — 排隊訊息處理完成後的回調（用於 Telegram 發送回覆）
  */
-export async function processMessage(userMessage: string): Promise<AgentResponse> {
+export async function processMessage(
+  userMessage: string,
+  onQueueComplete?: (result: AgentResponse) => void,
+): Promise<AgentResponse> {
+  // Queue 機制：busy 時排隊，立即回傳 ack
+  if (claudeBusy) {
+    if (messageQueue.length >= MAX_QUEUE_SIZE) {
+      return {
+        content: `目前排隊已滿（${MAX_QUEUE_SIZE}/${MAX_QUEUE_SIZE}），請稍後再試。`,
+        queued: false,
+      };
+    }
+    const position = messageQueue.length + 1;
+    slog('QUEUE', `Message queued (position ${position}/${MAX_QUEUE_SIZE}): ${userMessage.slice(0, 80)}`);
+    messageQueue.push({ message: userMessage, onComplete: onQueueComplete, queuedAt: Date.now() });
+    return {
+      content: `訊息已排隊（第 ${position}/${MAX_QUEUE_SIZE} 位），會在目前的任務完成後處理。`,
+      queued: true,
+      position,
+    };
+  }
+
   // 使用當前實例的記憶系統和日誌系統
   const memory = getMemory();
   const logger = getLogger();
@@ -350,11 +411,16 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     }
   );
 
-  return {
+  const result: AgentResponse = {
     content: cleanContent,
     shouldRemember,
     taskAdded,
   };
+
+  // 處理完成後 drain queue（觸發下一則排隊訊息）
+  drainQueue();
+
+  return result;
 }
 
 /**

@@ -360,26 +360,50 @@ export class TelegramPoller {
         slog('TELEGRAM', `Batched ${messages.length} messages`);
       }
 
-      const response = await processMessage(combined);
-      const replyText = response.content;
+      // Pass callback for queued messages — actual response sent when processed
+      const messageCopy = [...messages];
+      const response = await processMessage(combined, async (queueResult) => {
+        // Queued message has been processed — send the actual response
+        const replyText = queueResult.content;
+        if (!replyText) return;
+        const result = await this.sendLongMessage(replyText);
+        if (result.ok) {
+          slog('TELEGRAM', `→ [queued] ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
+          try {
+            const logger = getLogger();
+            logger.logBehavior('agent', 'telegram.reply', `[queued] ${replyText.slice(0, 200)}`);
+          } catch { /* logger not ready */ }
+        } else {
+          this.logFailedReply(replyText, result);
+          await this.notifyError('send', result, replyText.length);
+        }
+        for (const m of messageCopy) {
+          this.markInboxProcessed(m.timestamp, m.sender);
+        }
+      });
 
-      const result = await this.sendLongMessage(replyText);
-      if (result.ok) {
-        slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
-        // 行為記錄：agent 回覆
-        try {
-          const logger = getLogger();
-          logger.logBehavior('agent', 'telegram.reply', replyText.slice(0, 200));
-        } catch { /* logger not ready */ }
+      if (response.queued) {
+        // Send ack to user — message is queued for later processing
+        await this.sendMessage(`📬 ${response.content}`);
+        slog('TELEGRAM', `→ [queued ack] position ${response.position}`);
+        // Don't markInboxProcessed yet — callback will do it when actually processed
       } else {
-        // 送出失敗 — 智能診斷 + 通知用戶
-        this.logFailedReply(replyText, result);
-        await this.notifyError('send', result, replyText.length);
-      }
-
-      // Mark all as processed
-      for (const m of messages) {
-        this.markInboxProcessed(m.timestamp, m.sender);
+        // Normal flow — send response immediately
+        const replyText = response.content;
+        const result = await this.sendLongMessage(replyText);
+        if (result.ok) {
+          slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
+          try {
+            const logger = getLogger();
+            logger.logBehavior('agent', 'telegram.reply', replyText.slice(0, 200));
+          } catch { /* logger not ready */ }
+        } else {
+          this.logFailedReply(replyText, result);
+          await this.notifyError('send', result, replyText.length);
+        }
+        for (const m of messages) {
+          this.markInboxProcessed(m.timestamp, m.sender);
+        }
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.stack ?? err.message : String(err);
