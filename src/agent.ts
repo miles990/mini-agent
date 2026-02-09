@@ -89,7 +89,7 @@ function classifyClaudeError(error: unknown): ClaudeErrorClassification {
     return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。' };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 3 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
+    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 8 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
@@ -128,7 +128,7 @@ async function execClaude(fullPrompt: string): Promise<string> {
       ['-p', '--dangerously-skip-permissions'],
       {
         encoding: 'utf-8',
-        timeout: 180000, // 3 minutes
+        timeout: 480000, // 8 minutes
         maxBuffer: 10 * 1024 * 1024, // 10MB
       },
       (error, stdout, stderr) => {
