@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -150,7 +151,8 @@ function getGitStatus(cwd: string): WorkspaceSnapshot['git'] {
     }
 
     return { branch, dirty, untracked };
-  } catch {
+  } catch (error) {
+    diagLog('workspace.getGitStatus', error, { cwd });
     return null;
   }
 }
@@ -477,7 +479,12 @@ function checkPortSync(port: number): boolean {
       encoding: 'utf-8', timeout: 2000,
     });
     return true;
-  } catch {
+  } catch (error) {
+    // lsof returns exit 1 when port not found — this is expected, don't log
+    const exitCode = (error as { status?: number })?.status;
+    if (exitCode !== 1) {
+      diagLog('workspace.checkPortSync', error, { port: String(port) });
+    }
     return false;
   }
 }
@@ -612,6 +619,69 @@ export function formatSelfStatus(status: AgentSelfStatus): string {
   // Stats
   if (status.stats) {
     lines.push(`Today: ${status.stats.chatCount} chats, ${status.stats.errorCount} errors`);
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// #7 Activity Summary (Diag + Behavior Awareness)
+// =============================================================================
+
+import type { Logger, DiagLogEntry, BehaviorLogEntry } from './logging.js';
+
+export interface ActivitySummary {
+  recentDiag: Array<{ time: string; context: string; error: string; snapshot?: Record<string, string> }>;
+  recentBehavior: Array<{ time: string; actor: string; action: string; detail?: string }>;
+}
+
+/**
+ * 取得活動摘要（診斷 + 行為）
+ */
+export function getActivitySummary(logger: Logger): ActivitySummary {
+  const diagEntries = logger.queryDiagLogs(undefined, 5) as DiagLogEntry[];
+  const behaviorEntries = logger.queryBehaviorLogs(undefined, 10) as BehaviorLogEntry[];
+
+  return {
+    recentDiag: diagEntries.map(e => ({
+      time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+      context: e.data.context,
+      error: e.data.error,
+      snapshot: e.data.snapshot,
+    })),
+    recentBehavior: behaviorEntries.map(e => ({
+      time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
+      actor: e.data.actor,
+      action: e.data.action,
+      detail: e.data.detail,
+    })),
+  };
+}
+
+/**
+ * 格式化活動摘要
+ */
+export function formatActivitySummary(summary: ActivitySummary): string {
+  const lines: string[] = [];
+
+  if (summary.recentDiag.length > 0) {
+    lines.push(`Recent diagnostics (${summary.recentDiag.length}):`);
+    for (const d of summary.recentDiag) {
+      const snapshotStr = d.snapshot
+        ? ' | ' + Object.entries(d.snapshot).map(([k, v]) => `${k}="${v}"`).join(' ')
+        : '';
+      lines.push(`  [${d.time}] [${d.context}] ${d.error.slice(0, 100)}${snapshotStr}`);
+    }
+  } else {
+    lines.push('No recent diagnostics');
+  }
+
+  if (summary.recentBehavior.length > 0) {
+    lines.push(`\nRecent behavior (${summary.recentBehavior.length}):`);
+    for (const b of summary.recentBehavior) {
+      const detail = b.detail ? `: ${b.detail.slice(0, 80)}` : '';
+      lines.push(`  [${b.time}] [${b.actor}] ${b.action}${detail}`);
+    }
   }
 
   return lines.join('\n');

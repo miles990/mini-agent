@@ -24,7 +24,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 /**
  * 日誌類型
  */
-export type LogType = 'claude-call' | 'api-request' | 'cron' | 'error';
+export type LogType = 'claude-call' | 'api-request' | 'cron' | 'error' | 'diag' | 'behavior';
 
 /**
  * Claude 輸入
@@ -132,6 +132,31 @@ export interface ErrorLogEntry extends LogEntry {
 }
 
 /**
+ * 診斷日誌項目
+ */
+export interface DiagLogEntry extends LogEntry {
+  type: 'diag';
+  data: {
+    context: string;
+    error: string;
+    code?: string;
+    snapshot?: Record<string, string>;
+  };
+}
+
+/**
+ * 行為日誌項目
+ */
+export interface BehaviorLogEntry extends LogEntry {
+  type: 'behavior';
+  data: {
+    actor: 'user' | 'agent' | 'system';
+    action: string;
+    detail?: string;
+  };
+}
+
+/**
  * 查詢選項
  */
 export interface LogQueryOptions {
@@ -162,7 +187,7 @@ export class Logger {
    * 確保日誌目錄存在
    */
   private ensureLogDirs(): void {
-    const dirs = ['claude', 'api', 'cron', 'error'];
+    const dirs = ['claude', 'api', 'cron', 'error', 'diag', 'behavior'];
     for (const dir of dirs) {
       const dirPath = path.join(this.logsDir, dir);
       if (!existsSync(dirPath)) {
@@ -180,6 +205,8 @@ export class Logger {
       'api-request': 'api',
       'cron': 'cron',
       'error': 'error',
+      'diag': 'diag',
+      'behavior': 'behavior',
     };
     return mapping[type];
   }
@@ -309,6 +336,81 @@ export class Logger {
     return id;
   }
 
+  /**
+   * 記錄診斷資訊
+   */
+  logDiag(
+    context: string,
+    error: unknown,
+    snapshot?: Record<string, string>,
+  ): string {
+    const id = this.generateRequestId();
+    const errorStr = error instanceof Error ? error.message : String(error);
+    const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
+    const stack = error instanceof Error ? error.stack : undefined;
+    const entry: DiagLogEntry = {
+      timestamp: new Date().toISOString(),
+      type: 'diag',
+      instanceId: this.instanceId,
+      requestId: id,
+      data: { context, error: errorStr, code, snapshot },
+      metadata: { success: false, error: errorStr },
+    };
+    this.writeLog(entry);
+
+    // 同時寫入 error/ 目錄（保持向後兼容，讓 queryErrorLogs 也能查到）
+    const errorEntry: ErrorLogEntry = {
+      timestamp: entry.timestamp,
+      type: 'error',
+      instanceId: this.instanceId,
+      requestId: id,
+      data: {
+        error: snapshot ? `[${context}] ${errorStr}` : errorStr,
+        stack,
+        context,
+      },
+      metadata: { success: false, error: errorStr },
+    };
+    this.writeLog(errorEntry);
+
+    return id;
+  }
+
+  /**
+   * 記錄行為
+   */
+  logBehavior(
+    actor: 'user' | 'agent' | 'system',
+    action: string,
+    detail?: string,
+  ): string {
+    const id = this.generateRequestId();
+    const entry: BehaviorLogEntry = {
+      timestamp: new Date().toISOString(),
+      type: 'behavior',
+      instanceId: this.instanceId,
+      requestId: id,
+      data: { actor, action, detail },
+      metadata: { success: true },
+    };
+    this.writeLog(entry);
+    return id;
+  }
+
+  /**
+   * 查詢診斷日誌
+   */
+  queryDiagLogs(date?: string, limit = 50): DiagLogEntry[] {
+    return this.query({ type: 'diag', date, limit }) as DiagLogEntry[];
+  }
+
+  /**
+   * 查詢行為日誌
+   */
+  queryBehaviorLogs(date?: string, limit = 50): BehaviorLogEntry[] {
+    return this.query({ type: 'behavior', date, limit }) as BehaviorLogEntry[];
+  }
+
   // ---------------------------------------------------------------------------
   // Query Methods
   // ---------------------------------------------------------------------------
@@ -326,7 +428,9 @@ export class Logger {
       const content = readFileSync(filePath, 'utf-8');
       const lines = content.trim().split('\n').filter(Boolean);
       return lines.map((line) => JSON.parse(line) as LogEntry);
-    } catch {
+    } catch (error) {
+      // Can't use diagLog here (circular dep), log to stderr
+      console.error(`[DIAG] [logging.readLogFile] ${error instanceof Error ? error.message : error} | file=${filePath}`);
       return [];
     }
   }
@@ -344,7 +448,7 @@ export class Logger {
       entries = this.readLogFile(type, dateStr);
     } else {
       // 讀取所有類型
-      const types: LogType[] = ['claude-call', 'api-request', 'cron', 'error'];
+      const types: LogType[] = ['claude-call', 'api-request', 'cron', 'error', 'diag', 'behavior'];
       for (const t of types) {
         entries.push(...this.readLogFile(t, dateStr));
       }
@@ -402,7 +506,7 @@ export class Logger {
    */
   async getAvailableDates(type?: LogType): Promise<string[]> {
     const dates = new Set<string>();
-    const types: LogType[] = type ? [type] : ['claude-call', 'api-request', 'cron', 'error'];
+    const types: LogType[] = type ? [type] : ['claude-call', 'api-request', 'cron', 'error', 'diag', 'behavior'];
 
     for (const t of types) {
       const dirPath = path.join(this.logsDir, this.typeToDir(t));
@@ -413,8 +517,11 @@ export class Logger {
             dates.add(file.replace('.jsonl', ''));
           }
         }
-      } catch {
-        // 目錄不存在
+      } catch (error) {
+        // 目錄不存在 — expected for new log types
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.error(`[DIAG] [logging.getAvailableDates] ${error instanceof Error ? error.message : error} | dir=${dirPath}`);
+        }
       }
     }
 
@@ -430,6 +537,8 @@ export class Logger {
     api: number;
     cron: number;
     error: number;
+    diag: number;
+    behavior: number;
     total: number;
   }> {
     const dateStr = date ?? this.getToday();
@@ -437,6 +546,8 @@ export class Logger {
     const api = this.readLogFile('api-request', dateStr).length;
     const cron = this.readLogFile('cron', dateStr).length;
     const error = this.readLogFile('error', dateStr).length;
+    const diag = this.readLogFile('diag', dateStr).length;
+    const behavior = this.readLogFile('behavior', dateStr).length;
 
     return {
       date: dateStr,
@@ -444,7 +555,9 @@ export class Logger {
       api,
       cron,
       error,
-      total: claude + api + cron + error,
+      diag,
+      behavior,
+      total: claude + api + cron + error + diag + behavior,
     };
   }
 }

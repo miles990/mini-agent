@@ -34,33 +34,17 @@ import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } fr
 import { createTelegramPoller, getTelegramPoller } from './telegram.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
+  getActivitySummary,
 } from './workspace.js';
 import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 
 // =============================================================================
-// Server Log Helper
+// Server Log Helper (re-exported from utils to avoid circular deps)
 // =============================================================================
 
-/**
- * 實例 ID 前綴（啟動時設定，讓日誌能區分來源）
- * 格式：短 ID（8 char）| 名稱
- */
-let slogPrefix = '';
-
-export function setSlogPrefix(instanceId: string, name?: string): void {
-  const short = instanceId.slice(0, 8);
-  slogPrefix = name ? `${short}|${name}` : short;
-}
-
-/** Timestamped console log for server.log observability */
-export function slog(tag: string, msg: string): void {
-  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  // 將換行替換為 \n 字面量，確保每次呼叫只產生一行（讓 tail 正確計數）
-  const clean = msg.replace(/\r?\n/g, '\\n');
-  const prefix = slogPrefix ? ` ${slogPrefix} |` : '';
-  console.log(`${ts}${prefix} [${tag}] ${clean}`);
-}
+export { slog, setSlogPrefix } from './utils.js';
+import { slog, setSlogPrefix, diagLog } from './utils.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -630,6 +614,18 @@ export function createApi(port = 3001): express.Express {
 // Standalone Server
 // =============================================================================
 
+// =============================================================================
+// Global Safety Net
+// =============================================================================
+
+process.on('uncaughtException', (err) => {
+  diagLog('FATAL.uncaught', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  diagLog('WARN.unhandledRejection', reason);
+});
+
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
   const port = parseInt(process.env.PORT ?? '3001', 10);
@@ -723,13 +719,15 @@ if (isMain) {
     logs: () => getLogSummary(
       () => logger.queryErrorLogs(undefined, 5).map(e => ({
         time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
-        message: e.data.error,
+        message: e.data.context ? `[${e.data.context}] ${e.data.error}` : e.data.error,
       })),
       () => logger.query({ limit: 10 }).map(e => ({
         time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
         type: e.type,
         summary: e.type === 'error'
-          ? (e.data as { error: string }).error
+          ? ((e.data as { context?: string; error: string }).context
+              ? `[${(e.data as { context?: string }).context}] ${(e.data as { error: string }).error}`
+              : (e.data as { error: string }).error)
           : e.type === 'claude-call'
             ? `chat: ${((e.data as { input: { userMessage: string } }).input?.userMessage ?? '').slice(0, 60)}`
             : e.type === 'cron'
@@ -758,6 +756,7 @@ if (isMain) {
       },
       () => instanceConfig as unknown as Record<string, unknown> | null,
     ),
+    activity: () => getActivitySummary(logger),
   });
 
   // Custom Perception & Skills（從 compose 配置）

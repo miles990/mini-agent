@@ -11,6 +11,7 @@ import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { getLogger } from './logging.js';
+import { diagLog } from './utils.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -120,6 +121,13 @@ export async function callClaude(
       maxBuffer: 10 * 1024 * 1024, // 10MB
     });
     const duration = Date.now() - startTime;
+
+    // 行為記錄：Claude 呼叫
+    try {
+      const logger = getLogger();
+      logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s`);
+    } catch { /* logger not ready */ }
+
     return { response: result.trim(), systemPrompt, fullPrompt, duration };
   } catch (error) {
     const duration = Date.now() - startTime;

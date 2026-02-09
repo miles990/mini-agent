@@ -8,6 +8,7 @@ import cron from 'node-cron';
 import { processMessage } from './agent.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
+import { diagLog } from './utils.js';
 import type { CronTask } from './types.js';
 
 interface ScheduledCronTask {
@@ -42,6 +43,7 @@ export function startCronTasks(tasks: CronTask[]): void {
     const job = cron.schedule(task.schedule, async () => {
       slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
       logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
+      logger.logBehavior('system', 'cron.trigger', `[${task.schedule}] ${task.task.slice(0, 100)}`);
       const cronStart = Date.now();
 
       try {
@@ -125,6 +127,7 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
   const job = cron.schedule(task.schedule, async () => {
     slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
     logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
+    logger.logBehavior('system', 'cron.trigger', `[${task.schedule}] ${task.task.slice(0, 100)}`);
     const cronStart = Date.now();
 
     try {

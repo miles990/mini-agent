@@ -18,6 +18,7 @@ import type {
   InstanceRole,
   InstanceStatus,
 } from './types.js';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Constants & Defaults
@@ -176,7 +177,8 @@ export function loadGlobalConfig(): GlobalConfig {
         ...config?.defaults,
       },
     };
-  } catch {
+  } catch (error) {
+    diagLog('instance.loadGlobalConfig', error, { file: configPath });
     return DEFAULT_GLOBAL_CONFIG;
   }
 }
@@ -235,7 +237,8 @@ export function loadInstanceConfig(instanceId: string): InstanceConfig | null {
       ...config,
       port: config.port ?? globalConfig.defaults.port,
     };
-  } catch {
+  } catch (error) {
+    diagLog('instance.loadInstanceConfig', error, { file: configPath, instanceId });
     return null;
   }
 }

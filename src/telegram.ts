@@ -14,6 +14,7 @@ import path from 'node:path';
 import { processMessage } from './agent.js';
 import { slog } from './api.js';
 import { getLogger } from './logging.js';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -309,6 +310,12 @@ export class TelegramPoller {
 
     slog('TELEGRAM', `← ${parsed.sender}: ${parsed.text.slice(0, 100)}${parsed.text.length > 100 ? '...' : ''}`);
 
+    // 行為記錄：用戶訊息
+    try {
+      const logger = getLogger();
+      logger.logBehavior('user', 'telegram.message', `${parsed.sender}: ${parsed.text.slice(0, 200)}`);
+    } catch { /* logger not ready */ }
+
     // Write to inbox immediately
     this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
 
@@ -357,6 +364,11 @@ export class TelegramPoller {
       const result = await this.sendLongMessage(replyText);
       if (result.ok) {
         slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
+        // 行為記錄：agent 回覆
+        try {
+          const logger = getLogger();
+          logger.logBehavior('agent', 'telegram.reply', replyText.slice(0, 200));
+        } catch { /* logger not ready */ }
       } else {
         // 送出失敗 — 智能診斷 + 通知用戶
         this.logFailedReply(replyText, result);

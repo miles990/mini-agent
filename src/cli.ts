@@ -27,6 +27,7 @@ import { processMessage } from './agent.js';
 import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
+  getActivitySummary,
 } from './workspace.js';
 import { createApi, setLoopRef, setSlogPrefix } from './api.js';
 import { getConfig, updateConfig, resetConfig } from './config.js';
@@ -1220,6 +1221,7 @@ async function runChat(port: number): Promise<void> {
       },
       () => loadInstanceConfig(instanceId) as unknown as Record<string, unknown> | null,
     ),
+    activity: () => getActivitySummary(logger),
   });
 
   // Custom Perception & Skills（從 compose 配置）

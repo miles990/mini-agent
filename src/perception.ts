@@ -14,6 +14,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -81,6 +82,8 @@ export function executePerception(
     const msg = error instanceof Error ? error.message : String(error);
     // 擷取簡短錯誤（不要整個 stack trace）
     const shortErr = msg.split('\n')[0].slice(0, 200);
+    const stderr = (error as { stderr?: string })?.stderr?.trim()?.slice(0, 200) ?? '';
+    diagLog('perception.exec', error, { script: perception.name, stderr });
     return {
       name: perception.name,
       output: null,

@@ -15,6 +15,7 @@ import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { getTelegramPoller } from './telegram.js';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -164,9 +165,7 @@ export class AgentLoop {
     try {
       await this.cycle();
     } catch (err) {
-      const logger = getLogger();
-      logger.logError(err instanceof Error ? err : new Error(String(err)), 'AgentLoop.cycle');
-      slog('LOOP', `ERROR: ${err instanceof Error ? err.message : err}`);
+      diagLog('loop.runCycle', err);
     }
 
     if (this.running && !this.paused) {
@@ -186,6 +185,9 @@ export class AgentLoop {
     try {
       this.cycleCount++;
       this.lastCycleAt = new Date().toISOString();
+
+      // 行為記錄：循環開始
+      logger.logBehavior('agent', 'loop.cycle.start', `#${this.cycleCount}`);
 
       // ── Observe ──
       const memory = getMemory();
@@ -269,6 +271,10 @@ export class AgentLoop {
         duration,
         success: true,
       });
+
+      // 行為記錄：循環結束
+      const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
+      logger.logBehavior('agent', 'loop.cycle.end', `#${this.cycleCount} ${decision}`);
 
       // ── Process Tags ──
       const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);

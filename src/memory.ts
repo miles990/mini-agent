@@ -18,6 +18,7 @@ import {
   initDataDir,
 } from './instance.js';
 import { withFileLock } from './filelock.js';
+import { diagLog } from './utils.js';
 import {
   getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus,
   getProcessStatus, formatProcessStatus,
@@ -25,10 +26,12 @@ import {
   getSystemResources, formatSystemResources,
   getNetworkStatus, formatNetworkStatus,
   getConfigSnapshot, formatConfigSnapshot,
+  formatActivitySummary,
 } from './workspace.js';
 import type {
   AgentSelfStatus,
   ProcessStatus, LogSummary, SystemResources, NetworkStatus, ConfigSnapshot,
+  ActivitySummary,
 } from './workspace.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception } from './types.js';
 import {
@@ -45,6 +48,7 @@ let processStatusProvider: (() => ProcessStatus) | null = null;
 let logSummaryProvider: (() => LogSummary) | null = null;
 let networkStatusProvider: (() => NetworkStatus) | null = null;
 let configSnapshotProvider: (() => ConfigSnapshot) | null = null;
+let activitySummaryProvider: (() => ActivitySummary) | null = null;
 
 // Custom Perception & Skills（從 compose 配置注入）
 let customPerceptions: ComposePerception[] = [];
@@ -85,11 +89,13 @@ export function setPerceptionProviders(providers: {
   logs?: () => LogSummary;
   network?: () => NetworkStatus;
   config?: () => ConfigSnapshot;
+  activity?: () => ActivitySummary;
 }): void {
   if (providers.process) processStatusProvider = providers.process;
   if (providers.logs) logSummaryProvider = providers.logs;
   if (providers.network) networkStatusProvider = providers.network;
   if (providers.config) configSnapshotProvider = providers.config;
+  if (providers.activity) activitySummaryProvider = providers.activity;
 }
 
 // =============================================================================
@@ -161,7 +167,8 @@ export class InstanceMemory {
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
     try {
       return await fs.readFile(memoryPath, 'utf-8');
-    } catch {
+    } catch (error) {
+      diagLog('memory.readMemory', error, { path: memoryPath });
       return '';
     }
   }
@@ -199,7 +206,8 @@ export class InstanceMemory {
     const soulPath = path.join(this.memoryDir, 'SOUL.md');
     try {
       return await fs.readFile(soulPath, 'utf-8');
-    } catch {
+    } catch (error) {
+      diagLog('memory.readSoul', error, { path: soulPath });
       return '';
     }
   }
@@ -211,7 +219,8 @@ export class InstanceMemory {
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
     try {
       return await fs.readFile(heartbeatPath, 'utf-8');
-    } catch {
+    } catch (error) {
+      diagLog('memory.readHeartbeat', error, { path: heartbeatPath });
       return '';
     }
   }
@@ -243,7 +252,8 @@ export class InstanceMemory {
       let current = '';
       try {
         current = await fs.readFile(heartbeatPath, 'utf-8');
-      } catch {
+      } catch (error) {
+        diagLog('memory.addTask.read', error, { path: heartbeatPath });
         current = `# HEARTBEAT\n\n## Active Tasks\n`;
       }
 
@@ -323,7 +333,8 @@ export class InstanceMemory {
     const dailyPath = path.join(this.memoryDir, 'daily', `${today}.md`);
     try {
       return await fs.readFile(dailyPath, 'utf-8');
-    } catch {
+    } catch (error) {
+      diagLog('memory.readDailyNotes', error, { path: dailyPath });
       return '';
     }
   }
@@ -344,7 +355,8 @@ export class InstanceMemory {
       let current = '';
       try {
         current = await fs.readFile(dailyPath, 'utf-8');
-      } catch {
+      } catch (error) {
+        diagLog('memory.appendDailyNote.read', error, { path: dailyPath });
         current = `# Daily Notes - ${today}\n`;
       }
 
@@ -457,7 +469,8 @@ export class InstanceMemory {
             date: new Date().toISOString().split('T')[0],
           };
         });
-    } catch {
+    } catch (error) {
+      diagLog('memory.searchMemory', error, { query: sanitized, dir: this.memoryDir });
       return [];
     }
   }
@@ -547,6 +560,12 @@ export class InstanceMemory {
     if (isRelevant(['config', 'setting', 'compose', 'cron', 'loop', 'skill'])) {
       const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
       if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
+    }
+
+    // Activity — 行為 + 診斷感知（always load — Kuro needs self-awareness）
+    if (activitySummaryProvider) {
+      const activityCtx = formatActivitySummary(activitySummaryProvider());
+      if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
 
     // Workspace — 幾乎總是有用
