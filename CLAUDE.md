@@ -136,15 +136,50 @@ TELEGRAM_CHAT_ID=xxx     # 授權的 chat ID
 
 ## Deploy
 
+**目標流程**（`.github/workflows/deploy.yml` 尚未 push 到 remote，CI/CD 尚未生效）：
 ```
 push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd restart → health check → Telegram 通知
 ```
 
-- Self-hosted runner: `~/actions-runner-mini-agent/`
+**當前狀態**：
+- Self-hosted runner `mini-agent-mac`: 已安裝、已註冊、online（`~/actions-runner-mini-agent/`）
+- Runner labels: `self-hosted, macOS, ARM64`
+- Workflow 檔案: `.github/workflows/deploy.yml`（本地有，**remote 尚無**）
+- **啟用 CI/CD 需要**: `git add .github/ && git commit && git push`
+
+**基礎設施**：
 - launchd plist: 由 `instance.ts` 動態生成到 `~/Library/LaunchAgents/com.mini-agent.{id}.plist`
 - KeepAlive: launchd 自動重啟崩潰的進程
 - Deploy script: `scripts/deploy.sh`
-- 流程：commit → push，CI/CD 自動部署，不需手動 restart
+
+**手動部署**（CI/CD 啟用前）：`ssh` 到機器後執行 `./scripts/deploy.sh`
+
+## 協作模型（Alex + Claude Code + Kuro）
+
+三者共同維護這個專案，各有不同角色：
+
+| 角色 | 身份 | 職責 |
+|------|------|------|
+| **Alex** | 人類 | 決策、方向、核准 |
+| **Claude Code** | 開發工具 | 寫程式、重構、部署、驗證 |
+| **Kuro** | 自主 Agent | 感知環境、自主學習、執行任務、回報狀態 |
+
+### Claude Code 使用 Kuro 感知
+
+Kuro 在 `localhost:3001` 運行，提供即時環境感知。**Claude Code 在做任何系統狀態相關的判斷前，應先查詢 Kuro 的感知資料，而非依賴文件描述。**
+
+```bash
+# 完整感知上下文（所有 perception modules）
+curl -sf http://localhost:3001/context | jq -r .context
+
+# 個別端點
+curl -sf http://localhost:3001/health          # 健康檢查
+curl -sf http://localhost:3001/loop/status      # AgentLoop 狀態
+curl -sf http://localhost:3001/logs             # 日誌統計
+curl -sf http://localhost:3001/api/instance     # 當前實例資訊
+```
+
+**原則：驗證優先於假設。** 文件寫的不等於實際狀態 — 必須用工具驗證後才能斷言。
 
 ## Workflow
 

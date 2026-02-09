@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 防止同時部署
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: [self-hosted, macOS]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Deploy
+        run: |
+          cd /Users/user/Workspace/mini-agent
+          git fetch origin main
+          git reset --hard origin/main
+          ./scripts/deploy.sh
+
+      - name: Notify Success
+        if: success()
+        uses: ./.github/actions/telegram-notify
+        with:
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          message: "🚀 mini-agent deployed ${{ steps.version.outputs.version }}"
+
+      - name: Notify Failure
+        if: failure()
+        uses: ./.github/actions/telegram-notify
+        with:
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          message: "❌ mini-agent deploy failed ${{ steps.version.outputs.version }} - ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
