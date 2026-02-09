@@ -839,19 +839,43 @@ agents:
 
 ## Philosophy
 
-This is the **minimal viable** personal AI agent:
+Most AI agent frameworks are **goal-driven** — "give me a goal, I'll execute it." mini-agent is **perception-driven** — "see the environment first, then decide what to do." This stems from one observation: AutoGPT/BabyAGI's biggest flaw was "hands without eyes" — they could act but couldn't perceive.
+
+### Core Principles
 
 - **No database** - Just Markdown files + JSON Lines logs
-- **No embedding** - grep search is enough
-- **File = Truth** - Files are the single source of truth
-- **Identity-driven** - SOUL.md defines who the agent *is*, not just what it does
-- **Perception-first** - Environment drives action, not goals
-- **Transparency > Isolation** - Audit trail over sandboxing for personal agents
-- **Autonomous** - OODA loop + dual-track learning (curiosity + project evolution)
-- **Learning-to-action** - Insights become improvements through a safety-gated pipeline
+- **No embedding** - grep search is enough for personal use
+- **File = Truth** - Files are the single source of truth, human-readable and Git-versionable
+- **Identity-driven** - SOUL.md defines who the agent *is* — personality, interests, evolving thoughts
+- **Perception-first** - Environment drives action, not goals. Plugins define the agent's [Umwelt](https://en.wikipedia.org/wiki/Umwelt)
+- **Transparency > Isolation** - Audit trail over sandboxing. Personal agents need trust through visibility, not containment
+- **Autonomous** - OODA loop + dual-track learning (personal curiosity + project evolution)
+- **Learning-to-action** - Insights become improvements through a safety-gated pipeline (L1→L2→L3)
 - **Pluggable** - Shell scripts as perception plugins, Markdown as skills
 - **Smart by default** - Core guidance principle, not per-feature patches
 - **Positive feedback loops** - Perceive → Learn → Act → Strengthen perception
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Perception-First** | Environment drives action | AutoGPT/BabyAGI's biggest flaw: "hands without eyes" |
+| **File = Truth** | Markdown + JSONL, zero database | AutoGPT removed all vector DBs (Pinecone/Milvus/Redis/Weaviate) in late 2023 |
+| **grep > embedding** | Text search over vector search | Personal agent data volume doesn't need vector search |
+| **Identity > Logs** | SOUL.md defines "who I am" | BabyAGI's embedding memory is unreadable and unauditable |
+| **Transparency > Isolation** | Readable audit trail | Matchlock sandbox suits multi-tenant; personal agents need transparency |
+| **Balanced Complexity** | ~3k lines TypeScript | AutoGPT bloated to 181k lines; BabyAGI too minimal at 140 lines |
+
+### How It Differs from Other Frameworks
+
+| Dimension | Platform Agents (OpenClaw etc.) | Goal-Driven (AutoGPT etc.) | mini-agent |
+|-----------|-------------------------------|---------------------------|------------|
+| **Positioning** | Agents run on the platform | Give a goal, execute steps | Personal, embedded in your environment |
+| **Identity** | Platform-assigned | None (just a task executor) | SOUL.md — interests, opinions, growth |
+| **Memory** | Platform-managed | Vector DB / embedding | File=Truth — Markdown, human-readable, Git-versionable |
+| **Perception** | Platform APIs | Minimal or none | Pluggable shell scripts — any executable becomes a sense |
+| **Security** | Platform sandbox (isolation) | Varies | Transparency + auditability over isolation |
+| **Autonomy** | Platform-defined behavior space | Unbounded (risky) | Safety-gated: L1 self-improve → L2 propose → L3 architecture |
 
 Everything else is optional complexity.
 

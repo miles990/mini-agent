@@ -2,20 +2,31 @@
 
 極簡個人 AI Agent 框架。檔案導向、零資料庫、可組合。
 
+## 設計理念
+
+**和主流框架的根本差異**：大部分 AI agent 框架是 goal-driven（給目標、執行步驟）。mini-agent 是 **perception-driven**（先看見環境，再決定做什麼）。AutoGPT/BabyAGI 的最大缺陷是「有手沒有眼」— mini-agent 反過來，感知優先於行動。
+
+**和平台型 Agent（OpenClaw 等）的差異**：
+- 平台型：Agent 在平台上運行，平台管理身份/記憶/安全
+- mini-agent：跑在用戶自己的機器上，嵌入用戶工作環境，SOUL.md 定義自己的身份
+
+**安全模型**：Personal agent 用你的 Chrome session、讀你的對話 — 隔離它等於隔離你自己。mini-agent 選擇 **Transparency > Isolation** — 每個行為都有 audit trail（behavior log + git history + File=Truth）。
+
 ## 核心原則
 
 | 原則 | 說明 |
 |------|------|
-| No Database | Markdown + JSON Lines，人類可讀，Git 可版控 |
+| No Database | Markdown + JSON Lines，人類可讀，Git 可版控（AutoGPT 2023 年底移除全部 vector DB） |
 | No Embedding | grep 搜尋，個人使用足夠快 |
 | File = Truth | 檔案是唯一真相來源 |
-| Identity-Driven | SOUL.md 定義 Agent 身份、興趣、觀點 |
-| Perception-First | 環境驅動行動，非目標驅動 |
-| Transparency > Isolation | 可讀可審計的信任模型 |
+| Identity-Driven | SOUL.md 定義 Agent 身份、興趣、觀點（不只是工具，是有成長軌跡的存在） |
+| Perception-First | 環境驅動行動，非目標驅動。Plugins 定義 Agent 的 Umwelt（感知世界） |
+| Transparency > Isolation | 可讀可審計的信任模型（personal agent 不需要 sandbox） |
 | Smart Guidance | 核心行為：始終提供可行動的狀態感知指引 |
 | Reactive | 主動偵測環境變化，自動建立任務 |
-| Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環 |
+| Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環（L1→L2→L3 安全閘門） |
 | Positive Feedback Loop | 感知 → 學習 → 行動 → 強化感知 |
+| Balanced Complexity | ~3k 行 TypeScript（AutoGPT 181k 行太膨脹，BabyAGI 140 行太簡） |
 
 ## 三層架構
 
