@@ -123,7 +123,16 @@ export async function callClaude(
     return { response: result.trim(), systemPrompt, fullPrompt, duration };
   } catch (error) {
     const duration = Date.now() - startTime;
+    const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
+    const exitCode = (error as { status?: number })?.status;
     const friendlyMessage = classifyClaudeError(error);
+
+    // Log the actual error for debugging
+    const logger = getLogger();
+    logger.logError(
+      new Error(`Claude CLI failed (exit ${exitCode}, ${duration}ms, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || friendlyMessage}`),
+      'callClaude'
+    );
 
     // Try to extract partial stdout (Claude may have produced some output before failing)
     const stdout = (error as { stdout?: string })?.stdout?.trim();

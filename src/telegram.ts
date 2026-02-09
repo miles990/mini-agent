@@ -323,7 +323,8 @@ export class TelegramPoller {
         this.markInboxProcessed(m.timestamp, m.sender);
       }
     } catch (err) {
-      slog('TELEGRAM', `Process error: ${err instanceof Error ? err.message : err}`);
+      const errMsg = err instanceof Error ? err.stack ?? err.message : String(err);
+      slog('TELEGRAM', `Process error: ${errMsg}`);
       await this.sendMessage('抱歉，處理訊息時發生錯誤。');
     } finally {
       this.processing = false;
