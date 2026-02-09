@@ -178,7 +178,9 @@ export function loadGlobalConfig(): GlobalConfig {
       },
     };
   } catch (error) {
-    diagLog('instance.loadGlobalConfig', error, { file: configPath });
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      diagLog('instance.loadGlobalConfig', error, { file: configPath });
+    }
     return DEFAULT_GLOBAL_CONFIG;
   }
 }

@@ -168,7 +168,9 @@ export class InstanceMemory {
     try {
       return await fs.readFile(memoryPath, 'utf-8');
     } catch (error) {
-      diagLog('memory.readMemory', error, { path: memoryPath });
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readMemory', error, { path: memoryPath });
+      }
       return '';
     }
   }
@@ -207,7 +209,9 @@ export class InstanceMemory {
     try {
       return await fs.readFile(soulPath, 'utf-8');
     } catch (error) {
-      diagLog('memory.readSoul', error, { path: soulPath });
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readSoul', error, { path: soulPath });
+      }
       return '';
     }
   }
@@ -220,7 +224,9 @@ export class InstanceMemory {
     try {
       return await fs.readFile(heartbeatPath, 'utf-8');
     } catch (error) {
-      diagLog('memory.readHeartbeat', error, { path: heartbeatPath });
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readHeartbeat', error, { path: heartbeatPath });
+      }
       return '';
     }
   }
@@ -253,7 +259,9 @@ export class InstanceMemory {
       try {
         current = await fs.readFile(heartbeatPath, 'utf-8');
       } catch (error) {
-        diagLog('memory.addTask.read', error, { path: heartbeatPath });
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          diagLog('memory.addTask.read', error, { path: heartbeatPath });
+        }
         current = `# HEARTBEAT\n\n## Active Tasks\n`;
       }
 
@@ -334,7 +342,9 @@ export class InstanceMemory {
     try {
       return await fs.readFile(dailyPath, 'utf-8');
     } catch (error) {
-      diagLog('memory.readDailyNotes', error, { path: dailyPath });
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readDailyNotes', error, { path: dailyPath });
+      }
       return '';
     }
   }
@@ -356,7 +366,9 @@ export class InstanceMemory {
       try {
         current = await fs.readFile(dailyPath, 'utf-8');
       } catch (error) {
-        diagLog('memory.appendDailyNote.read', error, { path: dailyPath });
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          diagLog('memory.appendDailyNote.read', error, { path: dailyPath });
+        }
         current = `# Daily Notes - ${today}\n`;
       }
 
@@ -470,7 +482,11 @@ export class InstanceMemory {
           };
         });
     } catch (error) {
-      diagLog('memory.searchMemory', error, { query: sanitized, dir: this.memoryDir });
+      // grep exit code 1 = no matches (normal), only log real errors
+      const exitCode = (error as { status?: number })?.status;
+      if (exitCode !== 1) {
+        diagLog('memory.searchMemory', error, { query: sanitized, dir: this.memoryDir });
+      }
       return [];
     }
   }
