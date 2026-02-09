@@ -61,6 +61,20 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 log "Building..."
 pnpm build
 
+# Sync CLI installation (~/.mini-agent)
+# mini-agent CLI 全域連結指向 ~/.mini-agent，CI/CD 只更新 Workspace 副本
+# 這裡同步確保 CLI 也是最新版本
+CLI_DIR="$HOME/.mini-agent"
+if [ -d "$CLI_DIR/.git" ]; then
+    log "Syncing CLI installation ($CLI_DIR)..."
+    cd "$CLI_DIR"
+    git fetch origin main && git reset --hard origin/main
+    pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+    pnpm build
+    cd "$DEPLOY_DIR"
+    log "CLI synced"
+fi
+
 # Start — 用 CLI（內部走 launchd）
 log "Starting service..."
 node "$DEPLOY_DIR/dist/cli.js" up -d
