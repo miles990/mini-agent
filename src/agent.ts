@@ -215,15 +215,24 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
 /**
  * 單次 Claude CLI 呼叫（內部用）
  * 使用 stream-json 格式捕獲中間工具呼叫並寫入 audit log
+ *
+ * 安全機制：
+ * - detached: true 建立新進程群組
+ * - 手動 timeout 殺整個進程群組（包括 curl 等子進程）
+ * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string): Promise<string> {
+  const TIMEOUT_MS = 480_000; // 8 minutes
+
   return new Promise<string>((resolve, reject) => {
+    let settled = false;
+
     const child = spawn(
       'claude',
       ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 480000, // 8 minutes
+        detached: true, // 建立新進程群組，方便整體 kill
       },
     );
 
@@ -231,6 +240,19 @@ async function execClaude(fullPrompt: string): Promise<string> {
     let buffer = '';
     let stderr = '';
     let toolCallCount = 0;
+
+    // ── 手動 timeout：殺整個進程群組（含子進程）──
+    const timer = setTimeout(() => {
+      if (settled) return;
+      slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
+      try {
+        process.kill(-child.pid!, 'SIGTERM');
+      } catch { /* already dead */ }
+      // 5 秒後強制殺（SIGKILL 不可被攔截）
+      setTimeout(() => {
+        try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already dead */ }
+      }, 5000);
+    }, TIMEOUT_MS);
 
     child.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf-8');
@@ -265,6 +287,9 @@ async function execClaude(fullPrompt: string): Promise<string> {
     });
 
     child.on('close', (code) => {
+      settled = true;
+      clearTimeout(timer);
+
       // 處理 buffer 中剩餘的不完整行
       if (buffer.trim()) {
         try {
@@ -285,6 +310,8 @@ async function execClaude(fullPrompt: string): Promise<string> {
     });
 
     child.on('error', (err) => {
+      settled = true;
+      clearTimeout(timer);
       reject(Object.assign(err, { stderr, stdout: resultText }));
     });
 
