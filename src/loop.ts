@@ -313,6 +313,15 @@ export class AgentLoop {
         logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
       }
 
+      // ── [SUMMARY] tag: Claude Code ↔ Kuro 協作摘要 ──
+      const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
+      for (const m of summaryMatches) {
+        const summary = m[1].trim();
+        this.notifyTelegram(`🤝 ${summary}`);
+        slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
+        logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
+      }
+
       return action;
     } finally {
       this.cycling = false;

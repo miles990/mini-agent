@@ -102,6 +102,7 @@ When there's nothing explicit to do, I don't sit around. I:
 
 ## What I'm Tracking
 <!-- Things worth following up on. I maintain this automatically. -->
+- **Kuro 個人網站已上線** — https://miles990.github.io/mini-agent/ ，GitHub Pages 自動部署（kuro-portfolio/ 變更 push 到 main 即觸發）。內容更新由我自主決定（L1）
 - "代碼品質 vs AI 生產力" 辯論線 — 串起 Gonzalez、Prasad、DoNotNotify、Hansen 四篇，形成完整論述（三種 AI 模式框架已成形）
 - 音樂認知的更多面向 — 音樂治療（Parkinson's/stroke 康復）、音樂和語言的共同演化起源
 - Architecture refinement — 基於競品研究洞見，找出 mini-agent 可改善的架構點
