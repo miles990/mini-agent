@@ -9,7 +9,7 @@ import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { getLogger } from './logging.js';
-import { diagLog } from './utils.js';
+import { slog, diagLog } from './utils.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -68,37 +68,49 @@ ${getSkillsPrompt()}`;
 }
 
 /**
- * Classify Claude CLI error into user-friendly message
+ * 錯誤分類結果
  */
-function classifyClaudeError(error: unknown): string {
+interface ClaudeErrorClassification {
+  type: 'TIMEOUT' | 'RATE_LIMIT' | 'NOT_FOUND' | 'PERMISSION' | 'MAX_BUFFER' | 'UNKNOWN';
+  message: string;
+  retryable: boolean;
+}
+
+/**
+ * Classify Claude CLI error into structured result
+ */
+function classifyClaudeError(error: unknown): ClaudeErrorClassification {
   const msg = error instanceof Error ? error.message : String(error);
   const stderr = (error as { stderr?: string })?.stderr ?? '';
+  const killed = (error as { killed?: boolean })?.killed;
   const combined = `${msg}\n${stderr}`.toLowerCase();
 
   if (combined.includes('enoent') || combined.includes('not found')) {
-    return '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。';
+    return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。' };
   }
-  if (combined.includes('timeout') || combined.includes('timed out')) {
-    return '處理超時（超過 2 分鐘）。這個請求可能太複雜，請嘗試簡化問題。';
+  if (killed || combined.includes('timeout') || combined.includes('timed out')) {
+    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 3 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
   }
   if (combined.includes('maxbuffer')) {
-    return '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。';
+    return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
   }
-  if (combined.includes('permission') || combined.includes('access denied')) {
-    return '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。';
+  if (combined.includes('rate limit') || combined.includes('429')) {
+    return { type: 'RATE_LIMIT', retryable: true, message: 'Claude API 達到速率限制，稍後自動重試。' };
+  }
+  if (combined.includes('access denied') || (combined.includes('permission') && !combined.includes('skip-permissions'))) {
+    return { type: 'PERMISSION', retryable: false, message: '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。' };
   }
 
   // Try to extract useful info from stderr
   if (stderr.trim()) {
-    // Take last meaningful line from stderr
     const lines = stderr.trim().split('\n').filter((l: string) => l.trim());
     const lastLine = lines[lines.length - 1] || '';
     if (lastLine.length > 10 && lastLine.length < 300) {
-      return `Claude CLI 執行失敗：${lastLine}`;
+      return { type: 'UNKNOWN', retryable: true, message: `Claude CLI 執行失敗：${lastLine}` };
     }
   }
 
-  return '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。';
+  return { type: 'UNKNOWN', retryable: true, message: '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。' };
 }
 
 /**
@@ -107,13 +119,40 @@ function classifyClaudeError(error: unknown): string {
 let claudeBusy = false;
 
 /**
- * Call Claude Code via subprocess
- * Uses execFile + stdin pipe (non-blocking, no temp file)
- * Captures stderr for better error diagnostics
+ * 單次 Claude CLI 呼叫（內部用）
+ */
+async function execClaude(fullPrompt: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const child = execFile(
+      'claude',
+      ['-p', '--dangerously-skip-permissions'],
+      {
+        encoding: 'utf-8',
+        timeout: 180000, // 3 minutes
+        maxBuffer: 10 * 1024 * 1024, // 10MB
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(Object.assign(error, { stderr, stdout }));
+        } else {
+          resolve(stdout);
+        }
+      },
+    );
+    child.stdin?.write(fullPrompt);
+    child.stdin?.end();
+  });
+}
+
+/**
+ * Call Claude Code via subprocess with smart retry
+ * - Retries on transient errors (timeout, rate limit) with exponential backoff
+ * - Releases claudeBusy during retry wait (user requests take priority)
  */
 export async function callClaude(
   prompt: string,
-  context: string
+  context: string,
+  maxRetries = 2,
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {
   const systemPrompt = getSystemPrompt();
   const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
@@ -128,64 +167,68 @@ export async function callClaude(
     };
   }
 
-  claudeBusy = true;
   const startTime = Date.now();
 
-  try {
-    const result = await new Promise<string>((resolve, reject) => {
-      const child = execFile(
-        'claude',
-        ['-p', '--dangerously-skip-permissions'],
-        {
-          encoding: 'utf-8',
-          timeout: 180000, // 3 minutes
-          maxBuffer: 10 * 1024 * 1024, // 10MB
-        },
-        (error, stdout, stderr) => {
-          if (error) {
-            reject(Object.assign(error, { stderr, stdout }));
-          } else {
-            resolve(stdout);
-          }
-        },
-      );
-      // 直接寫入 stdin，不需要 temp file
-      child.stdin?.write(fullPrompt);
-      child.stdin?.end();
-    });
-
-    const duration = Date.now() - startTime;
-
-    // 行為記錄：Claude 呼叫
-    try {
-      const logger = getLogger();
-      logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s`);
-    } catch { /* logger not ready */ }
-
-    return { response: result.trim(), systemPrompt, fullPrompt, duration };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
-    const exitCode = (error as { status?: number })?.status;
-    const friendlyMessage = classifyClaudeError(error);
-
-    // Log the actual error for debugging
-    const logger = getLogger();
-    logger.logError(
-      new Error(`Claude CLI failed (exit ${exitCode}, ${duration}ms, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || friendlyMessage}`),
-      'callClaude'
-    );
-
-    // Try to extract partial stdout (Claude may have produced some output before failing)
-    const stdout = (error as { stdout?: string })?.stdout?.trim();
-    if (stdout && stdout.length > 20) {
-      return { response: stdout, systemPrompt, fullPrompt, duration };
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // 每次嘗試前檢查 busy（重試等待期間可能被其他請求佔走）
+    if (claudeBusy) {
+      return {
+        response: '重試期間收到新請求，已優先處理新請求。',
+        systemPrompt,
+        fullPrompt,
+        duration: Date.now() - startTime,
+      };
     }
 
-    return { response: friendlyMessage, systemPrompt, fullPrompt, duration };
-  } finally {
-    claudeBusy = false;
+    claudeBusy = true;
+
+    try {
+      const result = await execClaude(fullPrompt);
+      const duration = Date.now() - startTime;
+
+      try {
+        const logger = getLogger();
+        const retryInfo = attempt > 0 ? ` (retry #${attempt})` : '';
+        logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${retryInfo}`);
+      } catch { /* logger not ready */ }
+
+      return { response: result.trim(), systemPrompt, fullPrompt, duration };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
+      const exitCode = (error as { status?: number })?.status;
+      const classified = classifyClaudeError(error);
+
+      // Log error
+      const logger = getLogger();
+      logger.logError(
+        new Error(`Claude CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || classified.message}`),
+        'callClaude'
+      );
+
+      // 如果可重試且還有機會，等待後重試
+      if (classified.retryable && attempt < maxRetries) {
+        const delay = 30_000 * Math.pow(2, attempt); // 30s, 60s
+        slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
+        // 釋放 busy — 等待期間允許新請求插入
+        claudeBusy = false;
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+
+      // 最後一次嘗試也失敗了，或不可重試
+      const stdout = (error as { stdout?: string })?.stdout?.trim();
+      if (stdout && stdout.length > 20) {
+        return { response: stdout, systemPrompt, fullPrompt, duration };
+      }
+      return { response: classified.message, systemPrompt, fullPrompt, duration };
+    } finally {
+      claudeBusy = false;
+    }
   }
+
+  // 理論上不會到這裡，但 TypeScript 需要
+  return { response: '重試次數已用盡。', systemPrompt, fullPrompt, duration: Date.now() - startTime };
 }
 
 /**
