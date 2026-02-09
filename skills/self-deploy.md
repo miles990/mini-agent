@@ -73,7 +73,7 @@ Push 後等 CI/CD 完成部署。
 gh run list --limit 1 --json status,conclusion
 ```
 
-**CI/CD 尚未啟用的情況**：如果 `.github/` 還沒 push 到 remote 或 runner offline，跳過此步，但要在 TG 通知中說明「CI/CD 未啟用，改動已 push 但未自動部署」。
+**CI/CD 失敗的情況**：如果 `gh run list` 顯示失敗或 runner offline，看 `gh run view` 日誌排錯。不要跳過，要找出原因並修復。
 
 ## Step 6: 確認部署成功
 

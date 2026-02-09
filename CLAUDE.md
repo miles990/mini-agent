@@ -136,23 +136,19 @@ TELEGRAM_CHAT_ID=xxx     # 授權的 chat ID
 
 ## Deploy
 
-**目標流程**（`.github/workflows/deploy.yml` 尚未 push 到 remote，CI/CD 尚未生效）：
+**部署流程**（CI/CD 自 `2d46412` 起生效）：
 ```
 push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd restart → health check → Telegram 通知
 ```
 
-**當前狀態**：
-- Self-hosted runner `mini-agent-mac`: 已安裝、已註冊、online（`~/actions-runner-mini-agent/`）
-- Runner labels: `self-hosted, macOS, ARM64`
-- Workflow 檔案: `.github/workflows/deploy.yml`（本地有，**remote 尚無**）
-- **啟用 CI/CD 需要**: `git add .github/ && git commit && git push`
-
 **基礎設施**：
+- Self-hosted runner `mini-agent-mac`: `~/actions-runner-mini-agent/`（labels: `self-hosted, macOS, ARM64`）
+- Workflow: `.github/workflows/deploy.yml`
 - launchd plist: 由 `instance.ts` 動態生成到 `~/Library/LaunchAgents/com.mini-agent.{id}.plist`
 - KeepAlive: launchd 自動重啟崩潰的進程
 - Deploy script: `scripts/deploy.sh`
 
-**手動部署**（CI/CD 啟用前）：`ssh` 到機器後執行 `./scripts/deploy.sh`
+**手動部署**（fallback）：`./scripts/deploy.sh`
 
 ## 協作模型（Alex + Claude Code + Kuro）
 
