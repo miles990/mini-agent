@@ -242,11 +242,45 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     }
   }
 
+  // 7. Check for [CHAT] tag — proactive message to user via Telegram
+  if (response.includes('[CHAT]')) {
+    const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
+    for (const m of chatMatches) {
+      const chatText = m[1].trim();
+      try {
+        const { getTelegramPoller } = await import('./telegram.js');
+        const poller = getTelegramPoller();
+        if (poller) {
+          await poller.sendMessage(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
+        }
+      } catch { /* telegram not available */ }
+      logger.logBehavior('agent', 'telegram.chat', chatText.slice(0, 200));
+    }
+  }
+
+  // 8. Check for [SUMMARY] tag — collaboration summary notification
+  if (response.includes('[SUMMARY]')) {
+    const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
+    for (const m of summaryMatches) {
+      const summary = m[1].trim();
+      try {
+        const { getTelegramPoller } = await import('./telegram.js');
+        const poller = getTelegramPoller();
+        if (poller) {
+          await poller.sendMessage(`🤝 ${summary}`);
+        }
+      } catch { /* telegram not available */ }
+      logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
+    }
+  }
+
   // Clean response from all tags
   const cleanContent = response
     .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
+    .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
+    .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
     .trim();
 
   // 6. Log Claude call
