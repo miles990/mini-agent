@@ -194,6 +194,7 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
     if (match) {
       shouldRemember = match[1].trim();
       await memory.appendMemory(shouldRemember);
+      logger.logBehavior('agent', 'memory.save', shouldRemember.slice(0, 200));
     }
   }
 
@@ -206,6 +207,7 @@ export async function processMessage(userMessage: string): Promise<AgentResponse
       const taskContent = match[2].trim();
       await memory.addTask(taskContent, schedule);
       taskAdded = taskContent;
+      logger.logBehavior('agent', 'task.create', taskContent.slice(0, 200));
     }
   }
 

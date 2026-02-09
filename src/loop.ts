@@ -252,10 +252,12 @@ export class AgentLoop {
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
           this.notifyTelegram(`🧠 ${action}`);
           slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
+          logger.logBehavior('agent', 'action.autonomous', action.slice(0, 200));
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
           this.notifyTelegram(`⚡ ${action}`);
           slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
+          logger.logBehavior('agent', 'action.task', action.slice(0, 200));
         }
 
         this.adjustInterval(true);
@@ -279,7 +281,9 @@ export class AgentLoop {
       // ── Process Tags ──
       const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
       if (rememberMatch) {
-        await memory.appendMemory(rememberMatch[1].trim());
+        const remembered = rememberMatch[1].trim();
+        await memory.appendMemory(remembered);
+        logger.logBehavior('agent', 'memory.save', remembered.slice(0, 200));
       }
 
       const taskMatches = response.matchAll(/\[TASK\](.*?)\[\/TASK\]/gs);
@@ -287,6 +291,7 @@ export class AgentLoop {
         const taskText = m[1].trim();
         await memory.addTask(taskText);
         slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
+        logger.logBehavior('agent', 'task.create', taskText.slice(0, 200));
       }
 
       // ── [CHAT] tag: Kuro 主動跟 Alex 聊天 ──
