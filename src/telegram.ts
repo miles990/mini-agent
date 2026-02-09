@@ -174,6 +174,12 @@ export class TelegramPoller {
 
   async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown'): Promise<boolean> {
     try {
+      // Telegram 限制：空訊息不允許
+      if (!text || !text.trim()) {
+        slog('TELEGRAM', 'sendMessage skipped: empty text');
+        return false;
+      }
+
       const body: Record<string, string> = {
         chat_id: this.chatId,
         text,
@@ -187,10 +193,22 @@ export class TelegramPoller {
       });
 
       if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({})) as Record<string, unknown>;
+        const desc = (errData?.description as string) ?? resp.statusText;
+
+        // Markdown 失敗 → 降級為純文字重試
         if (parseMode === 'Markdown') {
+          slog('TELEGRAM', `Markdown send failed (${resp.status}): ${desc}, retrying plain`);
           return this.sendMessage(text, '');
         }
-        slog('TELEGRAM', `sendMessage failed: ${resp.status} ${resp.statusText}`);
+
+        // 訊息太長 → 分段送出
+        if (resp.status === 400 && text.length > 4000) {
+          slog('TELEGRAM', `Message too long (${text.length} chars), splitting`);
+          return this.sendLongMessageFallback(text);
+        }
+
+        slog('TELEGRAM', `sendMessage failed (${resp.status}): ${desc} [${text.length} chars]`);
         return false;
       }
       return true;
@@ -198,6 +216,18 @@ export class TelegramPoller {
       slog('TELEGRAM', `sendMessage error: ${err instanceof Error ? err.message : err}`);
       return false;
     }
+  }
+
+  /** Emergency fallback: hard-split by char limit */
+  private async sendLongMessageFallback(text: string): Promise<boolean> {
+    const MAX = 4000;
+    let ok = true;
+    for (let i = 0; i < text.length; i += MAX) {
+      const chunk = text.slice(i, i + MAX);
+      const sent = await this.sendMessage(chunk, '');
+      if (!sent) ok = false;
+    }
+    return ok;
   }
 
   // ---------------------------------------------------------------------------
@@ -528,8 +558,18 @@ export class TelegramPoller {
     let current = '';
 
     for (const para of text.split('\n\n')) {
+      // 單段超長 → 強制切割
+      if (para.length > MAX_LEN) {
+        if (current.trim()) chunks.push(current.trim());
+        current = '';
+        for (let i = 0; i < para.length; i += MAX_LEN) {
+          chunks.push(para.slice(i, i + MAX_LEN));
+        }
+        continue;
+      }
+
       if ((current + '\n\n' + para).length > MAX_LEN) {
-        if (current) chunks.push(current.trim());
+        if (current.trim()) chunks.push(current.trim());
         current = para;
       } else {
         current = current ? current + '\n\n' + para : para;
