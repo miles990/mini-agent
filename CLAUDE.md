@@ -51,6 +51,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Utils | `src/utils.ts` |
 | Logging | `src/logging.ts` |
 | CDP Client | `scripts/cdp-fetch.mjs` |
+| CDP Screenshot | `scripts/cdp-screenshot.mjs` |
 | SOUL | `memory/SOUL.md` |
 | Architecture | `memory/ARCHITECTURE.md` |
 | Proposals | `memory/proposals/` |
@@ -109,6 +110,38 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | `[TASK]...[/TASK]` | 建立任務到 HEARTBEAT | — |
 | `[CHAT]...[/CHAT]` | 主動跟用戶聊天 | 💬 Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
+
+## Telegram 通知系統
+
+統一的通知 helper（`telegram.ts`），所有通知都走同一個路徑：
+
+| Function | 用途 |
+|----------|------|
+| `notifyTelegram(msg)` | 可靠通知（帶重試 + 失敗計數） |
+| `sendTelegramPhoto(path, caption?)` | 發送圖片 |
+| `notifyScreenshot(caption?)` | CDP 截圖 + 發送到 TG |
+| `getNotificationStats()` | 取得 sent/failed 計數 |
+
+通知統計透過 `<telegram>` 感知 section 注入 OODA context，Kuro 可以看到自己的通知健康度。
+
+## GET /status — 統一狀態 API
+
+聚合所有子系統狀態的單一端點：
+
+```json
+{
+  "instance": "f6616363",
+  "uptime": 1234,
+  "claude": {
+    "busy": true,
+    "currentTask": { "prompt": "...", "startedAt": "...", "elapsed": 42 },
+    "queue": { "size": 0, "max": 5 }
+  },
+  "loop": { "enabled": true, "running": true, "mode": "autonomous", ... },
+  "cron": { "active": 2 },
+  "telegram": { "connected": true, "notifications": { "sent": 5, "failed": 0 } }
+}
+```
 
 ## Commands
 
@@ -170,6 +203,7 @@ curl -sf http://localhost:3001/context | jq -r .context
 
 # 個別端點
 curl -sf http://localhost:3001/health          # 健康檢查
+curl -sf http://localhost:3001/status           # 統一狀態（claude/loop/cron/telegram）
 curl -sf http://localhost:3001/loop/status      # AgentLoop 狀態
 curl -sf http://localhost:3001/logs             # 日誌統計
 curl -sf http://localhost:3001/api/instance     # 當前實例資訊

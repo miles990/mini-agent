@@ -118,10 +118,21 @@ function classifyClaudeError(error: unknown): ClaudeErrorClassification {
  * Busy flag — 防止並發 Claude CLI 呼叫（記憶體和 CPU 保護）
  */
 let claudeBusy = false;
+let currentTask: { prompt: string; startedAt: number } | null = null;
 
 /** 查詢 Claude CLI 是否正在執行 */
 export function isClaudeBusy(): boolean {
   return claudeBusy;
+}
+
+/** 查詢目前正在處理的任務 */
+export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number } | null {
+  if (!currentTask) return null;
+  return {
+    prompt: currentTask.prompt,
+    startedAt: new Date(currentTask.startedAt).toISOString(),
+    elapsed: Math.floor((Date.now() - currentTask.startedAt) / 1000),
+  };
 }
 
 // =============================================================================
@@ -225,6 +236,7 @@ export async function callClaude(
     }
 
     claudeBusy = true;
+    currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now() };
 
     try {
       const result = await execClaude(fullPrompt);
@@ -256,6 +268,7 @@ export async function callClaude(
         slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
         // 釋放 busy — 等待期間允許新請求插入
         claudeBusy = false;
+        currentTask = null;
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
@@ -268,6 +281,7 @@ export async function callClaude(
       return { response: classified.message, systemPrompt, fullPrompt, duration };
     } finally {
       claudeBusy = false;
+      currentTask = null;
     }
   }
 

@@ -17,6 +17,8 @@ Minimal Personal AI Agent with autonomous capabilities:
 13. **Observability** - Multi-dimensional logging: diagnostics, behavior tracking, CDP operations, activity perception
 14. **CI/CD** - GitHub Actions self-hosted runner → launchd deployment with health check and Telegram notification
 15. **Launchd** - Native macOS process management with KeepAlive auto-restart (dynamic plist per instance)
+16. **Reliable Notifications** - Unified TG notification with retry, failure counting, and photo/screenshot support
+17. **Unified Status** - Single `/status` API aggregating all subsystems (claude, loop, cron, telegram)
 
 ## Architecture
 
@@ -209,6 +211,7 @@ The agent has full awareness of its environment through 7 perception modules inj
 | **Logs** | Recent errors, recent events summary | `<logs>` |
 | **Network** | Self port status, service reachability | `<network>` |
 | **Config** | Compose agents, global defaults, instance config | `<config>` |
+| **Telegram** | Connection status, notification stats (sent/failed), queue | `<telegram>` |
 | **Activity** | Recent diagnostics, behavior log, CDP operations | `<activity>` |
 | **Workspace** | File tree, git status, recently modified files | `<workspace>` |
 
@@ -382,6 +385,8 @@ TELEGRAM_CHAT_ID=your-chat-id        # Authorized chat ID
 | **File Download** | Saves photos/docs/voice to `memory/media/` |
 | **Inbox (File=Truth)** | All messages logged to `memory/.telegram-inbox.md` |
 | **Perception** | OODA loop sees pending messages via `telegram-inbox` plugin |
+| **Reliable Notify** | Shared `notifyTelegram()` with retry + failure counting |
+| **Photo/Screenshot** | Send photos and CDP screenshots to Telegram |
 | **Security** | Only accepts messages from configured `TELEGRAM_CHAT_ID` |
 
 ### How It Works
@@ -642,6 +647,7 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 | POST | /memory | Add to memory |
 | GET | /context | Get full context (all perception) |
 | GET | /health | Health check |
+| GET | /status | Unified status (claude, loop, cron, telegram) |
 
 ### Tasks & Heartbeat
 
@@ -761,6 +767,7 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 │   └── ...
 └── scripts/                    # Utility scripts
     ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
+    ├── cdp-screenshot.mjs      # CDP screenshot capture (zero-dependency)
     ├── chrome-setup.sh         # Chrome CDP setup guide
     ├── deploy.sh               # CI/CD deployment (launchd)
     └── restart_least.sh        # Manual restart fallback

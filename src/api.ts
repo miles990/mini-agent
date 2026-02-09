@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage, isClaudeBusy, getQueueStatus, hasQueuedMessages } from './agent.js';
+import { processMessage, isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -153,6 +153,7 @@ export function createApi(port = 3001): express.Express {
       uptime: Math.floor(process.uptime()),
       claude: {
         busy: isClaudeBusy(),
+        currentTask: getCurrentTask(),
         queue: getQueueStatus(),
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
