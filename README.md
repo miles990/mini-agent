@@ -2,15 +2,18 @@
 
 Minimal Personal AI Agent with autonomous capabilities:
 
-1. **Memory** - File-based persistence (MEMORY.md + HEARTBEAT.md + daily notes)
-2. **AgentLoop** - OODA autonomous cycle (Observe → Orient → Decide → Act)
-3. **Cron** - Scheduled tasks via agent-compose.yaml
-4. **Perception** - Full environment awareness (builtin + custom shell plugins)
-5. **Skills** - Markdown knowledge modules injected into system prompt
-6. **Smart Guidance** - Core behavior: always provide actionable, state-aware guidance
-7. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
-8. **Multi-Instance** - Docker-style instance management with compose
-9. **Telegram** - Bidirectional Telegram integration (receive messages, smart batched replies, file download)
+1. **Memory** - File-based persistence (MEMORY.md + HEARTBEAT.md + SOUL.md + daily notes)
+2. **Identity** - SOUL.md defines who the agent *is* — personality, interests, evolving thoughts
+3. **AgentLoop** - OODA autonomous cycle (Observe → Orient → Decide → Act)
+4. **Dual-Track Learning** - Track A (personal curiosity) + Track B (project evolution)
+5. **Perception** - Full environment awareness (builtin + custom shell plugins)
+6. **Skills** - Markdown knowledge modules injected into system prompt
+7. **Smart Guidance** - Core behavior: always provide actionable, state-aware guidance
+8. **Learning-to-Action Loop** - Three safety levels: self-improve → propose feature → propose architecture
+9. **Web Access** - Three-layer web fetching (curl → Chrome CDP → user login)
+10. **Telegram** - Bidirectional Telegram integration (receive messages, smart batched replies, file download)
+11. **Multi-Instance** - Docker-style instance management with compose
+12. **Graceful Shutdown** - Clean stop of all services (Telegram, AgentLoop, Cron, HTTP)
 
 ## Architecture
 
@@ -132,10 +135,14 @@ agents:
 
     # Skills (Markdown knowledge modules)
     skills:
+      - ./skills/autonomous-behavior.md
+      - ./skills/reactive-agent.md
       - ./skills/docker-ops.md
       - ./skills/debug-helper.md
       - ./skills/project-manager.md
       - ./skills/web-research.md
+      - ./skills/web-learning.md
+      - ./skills/action-from-learning.md
 ```
 
 ### Generate Template
@@ -250,10 +257,12 @@ Any language works — Bash, Python, Go binary, etc. As long as it's executable 
 | `web-fetch.sh` | Three-layer URL fetching (curl → CDP → user login) |
 | `docker-status.sh` | Running/stopped containers, resource usage |
 | `port-check.sh` | Common port availability (80, 443, 3000, 5432, 6379...) |
+| `task-tracker.sh` | HEARTBEAT.md task status + deadline tracking |
+| `state-watcher.sh` | Environment state changes since last check |
+| `telegram-inbox.sh` | Pending Telegram messages from inbox |
 | `disk-usage.sh` | Mount points, home directory top 5, temp files |
 | `git-status.sh` | Branch, remote, uncommitted files, unpushed commits |
 | `homebrew-outdated.sh` | Outdated brew packages |
-| `telegram-inbox.sh` | Pending Telegram messages from inbox |
 
 ## Skills (Markdown Knowledge Modules)
 
@@ -293,7 +302,11 @@ skills:
 
 | Skill | Description |
 |-------|-------------|
+| `autonomous-behavior.md` | Dual-track learning, daily rhythm, SOUL.md maintenance |
+| `reactive-agent.md` | Perception-driven reactions, state change detection |
 | `web-research.md` | Three-layer web access workflow (curl → CDP → user login) |
+| `web-learning.md` | Autonomous web learning — HN, research, competitive analysis |
+| `action-from-learning.md` | Learning-to-action loop — 3 safety levels (L1/L2/L3), proposal format |
 | `docker-ops.md` | Container exception handling, common commands, safety rules |
 | `debug-helper.md` | Systematic debugging workflow (reproduce → locate → hypothesize → verify → fix) |
 | `project-manager.md` | Task management with HEARTBEAT.md, daily workflow |
@@ -631,21 +644,36 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 ./                              # Project directory
 ├── agent-compose.yaml          # Compose configuration
 ├── memory/                     # Project-specific memory
+│   ├── MEMORY.md               # Long-term knowledge
+│   ├── HEARTBEAT.md            # Tasks & reminders
+│   ├── SOUL.md                 # Agent identity, interests, thoughts
+│   ├── ARCHITECTURE.md         # Architecture reference
+│   ├── proposals/              # Feature proposals (agent → human review)
+│   ├── research/               # Research reports
+│   └── daily/                  # Daily conversation logs
 ├── logs/                       # Project-specific logs
 ├── plugins/                    # Custom perception plugins (shell scripts)
 │   ├── chrome-status.sh
 │   ├── web-fetch.sh
 │   ├── docker-status.sh
 │   ├── port-check.sh
+│   ├── task-tracker.sh
+│   ├── state-watcher.sh
+│   ├── telegram-inbox.sh
 │   └── ...
 ├── skills/                     # Markdown knowledge modules
+│   ├── autonomous-behavior.md
+│   ├── reactive-agent.md
+│   ├── web-learning.md
+│   ├── action-from-learning.md
 │   ├── web-research.md
 │   ├── docker-ops.md
 │   ├── debug-helper.md
 │   └── ...
 └── scripts/                    # Utility scripts
     ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
-    └── chrome-setup.sh         # Chrome CDP setup guide
+    ├── chrome-setup.sh         # Chrome CDP setup guide
+    └── restart_least.sh        # Kill → update → build → start
 ```
 
 ## Memory System (Three-Layer)
@@ -718,14 +746,15 @@ This is the **minimal viable** personal AI agent:
 
 - **No database** - Just Markdown files + JSON Lines logs
 - **No embedding** - grep search is enough
-- **No complex state** - Files are the source of truth
-- **Instance isolated** - Each instance has its own memory
-- **Unix native** - Pipe-friendly, composable with other tools
-- **Compose-style** - Familiar Docker-like workflow
-- **Autonomous** - OODA loop for proactive behavior
-- **Self-aware** - Full environment perception
+- **File = Truth** - Files are the single source of truth
+- **Identity-driven** - SOUL.md defines who the agent *is*, not just what it does
+- **Perception-first** - Environment drives action, not goals
+- **Transparency > Isolation** - Audit trail over sandboxing for personal agents
+- **Autonomous** - OODA loop + dual-track learning (curiosity + project evolution)
+- **Learning-to-action** - Insights become improvements through a safety-gated pipeline
 - **Pluggable** - Shell scripts as perception plugins, Markdown as skills
 - **Smart by default** - Core guidance principle, not per-feature patches
+- **Positive feedback loops** - Perceive → Learn → Act → Strengthen perception
 
 Everything else is optional complexity.
 

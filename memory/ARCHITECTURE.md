@@ -29,13 +29,13 @@ perception:
       timeout: 5000
 ```
 
-現有: chrome-status / web-fetch / docker-status / port-check / disk-usage / git-status / homebrew-outdated / telegram-inbox
+現有: chrome-status / web-fetch / docker-status / port-check / task-tracker / state-watcher / telegram-inbox / disk-usage / git-status / homebrew-outdated
 
 ### Skills (Markdown Knowledge)
 
 Markdown 檔案注入 system prompt (`## Your Skills`)
 
-現有: web-research / docker-ops / debug-helper / project-manager / code-review / server-admin
+現有: autonomous-behavior / reactive-agent / web-research / web-learning / action-from-learning / docker-ops / debug-helper / project-manager / code-review / server-admin
 
 ## Web Access (Three-Layer)
 
@@ -60,7 +60,10 @@ Key files:
 ├── memory/              # 記憶（此檔案所在）
 │   ├── MEMORY.md        # 長期知識
 │   ├── HEARTBEAT.md     # 任務管理
+│   ├── SOUL.md          # Agent 身份、興趣、觀點、競品研究
 │   ├── ARCHITECTURE.md  # 架構參考（本檔案）
+│   ├── proposals/       # 功能提案（Agent 提出，人類審核）
+│   ├── research/        # 研究報告
 │   ├── .telegram-inbox.md # Telegram 訊息收件匣
 │   ├── media/           # Telegram 下載的媒體
 │   └── daily/           # 每日對話日誌
@@ -83,11 +86,38 @@ Key files:
 安全：只接受 `TELEGRAM_CHAT_ID` 的訊息。
 Loop 整合：`loop.ts` 的 `notifyTelegram()` 改用 TelegramPoller.sendMessage()。
 
+## Design Decisions (Why This Architecture)
+
+> 基於 6 個競品研究（AutoGPT, BabyAGI, Aider, Open Interpreter, LocalGPT, Matchlock）的驗證結論。
+
+| 決策 | 選擇 | 驗證來源 |
+|------|------|----------|
+| **Perception-First** | 環境驅動行動，非目標驅動 | AutoGPT/BabyAGI 的最大缺陷就是「有手沒有眼」 |
+| **File=Truth** | Markdown + JSONL，零資料庫 | AutoGPT 在 2023 年底移除所有 vector DB（Pinecone/Milvus/Redis/Weaviate） |
+| **grep > embedding** | 文字搜尋優先 | 個人 agent 的資料量不需要 vector search |
+| **Identity > Logs** | SOUL.md 定義「我是誰」 | BabyAGI 的 embedding 記憶不可讀、不可審計 |
+| **Transparency > Isolation** | 可讀可審計的信任模型 | Matchlock sandbox 適合多租戶，personal agent 用透明性 |
+| **Balanced Complexity** | ~3k lines TypeScript | AutoGPT 膨脹到 181k lines，BabyAGI 140 lines 太簡 |
+
+詳細研究報告：`memory/research/`
+
+## Learning-to-Action Loop
+
+感知 → 學習 → 行動 → 強化感知（正向閉環）
+
+| Level | 範圍 | 流程 |
+|-------|------|------|
+| L1: Self-Improve | skills/*.md, plugins/*.sh, SOUL/MEMORY | 自己做，事後通知 |
+| L2: Feature Proposal | src/*.ts 改動 | 寫提案到 proposals/，需人類核准 |
+| L3: Architecture | 大架構改動 | 寫提案 + Effort: Large |
+
+提案格式：`memory/proposals/YYYY-MM-DD-標題.md`（含 Problem, Goal, Alternatives, Pros & Cons）
+
 ## AgentLoop (OODA)
 
 Observe → Orient → Decide → Act
 
-支援：暫停/繼續、手動觸發、Cron 整合
+支援：暫停/繼續、手動觸發、Cron 整合、Graceful Shutdown（SIGTERM → 停止所有服務 → 5s 強制退出）
 
 ## Multi-Instance (Docker-style)
 

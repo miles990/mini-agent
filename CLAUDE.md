@@ -9,17 +9,29 @@
 | No Database | Markdown + JSON Lines，人類可讀，Git 可版控 |
 | No Embedding | grep 搜尋，個人使用足夠快 |
 | File = Truth | 檔案是唯一真相來源 |
-| Instance Isolation | 每個實例獨立記憶目錄 |
-| Unix Native | 管道友善、可組合 |
+| Identity-Driven | SOUL.md 定義 Agent 身份、興趣、觀點 |
+| Perception-First | 環境驅動行動，非目標驅動 |
+| Transparency > Isolation | 可讀可審計的信任模型 |
 | Smart Guidance | 核心行為：始終提供可行動的狀態感知指引 |
 | Reactive | 主動偵測環境變化，自動建立任務 |
-| Autonomous | 無指令時根據 SOUL.md 自主行動 |
+| Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環 |
+| Positive Feedback Loop | 感知 → 學習 → 行動 → 強化感知 |
 
 ## 三層架構
 
 ```
 Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 ```
+
+## 學以致用閉環（Action from Learning）
+
+| Level | 可做的事 | 流程 |
+|-------|---------|------|
+| **L1: Self-Improve** | 改 skills/*.md、plugins/*.sh、SOUL/MEMORY | Agent 自己做，事後通知 |
+| **L2: Feature Proposal** | 涉及 src/*.ts 的改動 | 寫提案到 `memory/proposals/`，Alex 核准 |
+| **L3: Architecture** | 大架構改動 | 寫提案 + 標注 Effort: Large |
+
+提案目錄：`memory/proposals/YYYY-MM-DD-標題.md`
 
 ## Key Files
 
@@ -37,13 +49,16 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Cron | `src/cron.ts` |
 | API | `src/api.ts` |
 | CDP Client | `scripts/cdp-fetch.mjs` |
+| SOUL | `memory/SOUL.md` |
+| Architecture | `memory/ARCHITECTURE.md` |
+| Proposals | `memory/proposals/` |
 
 ## Memory Architecture
 
 ```
 Hot  (In-Memory)  → Last 20 conversations
 Warm (Daily File) → daily/YYYY-MM-DD.md
-Cold (Long-term)  → MEMORY.md + HEARTBEAT.md + SOUL.md
+Cold (Long-term)  → MEMORY.md + HEARTBEAT.md + SOUL.md + proposals/
 ```
 
 Instance path: `~/.mini-agent/instances/{id}/`
