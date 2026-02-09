@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { processMessage } from './agent.js';
 import { slog } from './api.js';
+import { getLogger } from './logging.js';
 
 // =============================================================================
 // Types
@@ -82,6 +83,15 @@ interface ParsedMessage {
   timestamp: string;
   text: string;
   attachments: string[];
+}
+
+/** sendMessage 結果 — 攜帶失敗原因 */
+interface SendResult {
+  ok: boolean;
+  /** Telegram API error description（失敗時） */
+  error?: string;
+  /** HTTP status code（失敗時） */
+  status?: number;
 }
 
 // =============================================================================
@@ -172,12 +182,10 @@ export class TelegramPoller {
   // Send message (public — also used by loop.ts)
   // ---------------------------------------------------------------------------
 
-  async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown'): Promise<boolean> {
+  async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown'): Promise<SendResult> {
     try {
-      // Telegram 限制：空訊息不允許
       if (!text || !text.trim()) {
-        slog('TELEGRAM', 'sendMessage skipped: empty text');
-        return false;
+        return { ok: false, error: 'empty message', status: 0 };
       }
 
       const body: Record<string, string> = {
@@ -198,36 +206,37 @@ export class TelegramPoller {
 
         // Markdown 失敗 → 降級為純文字重試
         if (parseMode === 'Markdown') {
-          slog('TELEGRAM', `Markdown send failed (${resp.status}): ${desc}, retrying plain`);
+          slog('TELEGRAM', `Markdown failed (${resp.status}): ${desc}, retrying plain`);
           return this.sendMessage(text, '');
         }
 
         // 訊息太長 → 分段送出
         if (resp.status === 400 && text.length > 4000) {
-          slog('TELEGRAM', `Message too long (${text.length} chars), splitting`);
+          slog('TELEGRAM', `Too long (${text.length} chars), splitting`);
           return this.sendLongMessageFallback(text);
         }
 
         slog('TELEGRAM', `sendMessage failed (${resp.status}): ${desc} [${text.length} chars]`);
-        return false;
+        return { ok: false, error: desc, status: resp.status };
       }
-      return true;
+      return { ok: true };
     } catch (err) {
-      slog('TELEGRAM', `sendMessage error: ${err instanceof Error ? err.message : err}`);
-      return false;
+      const msg = err instanceof Error ? err.message : String(err);
+      slog('TELEGRAM', `sendMessage error: ${msg}`);
+      return { ok: false, error: msg, status: 0 };
     }
   }
 
   /** Emergency fallback: hard-split by char limit */
-  private async sendLongMessageFallback(text: string): Promise<boolean> {
+  private async sendLongMessageFallback(text: string): Promise<SendResult> {
     const MAX = 4000;
-    let ok = true;
+    let lastError: SendResult = { ok: true };
     for (let i = 0; i < text.length; i += MAX) {
       const chunk = text.slice(i, i + MAX);
-      const sent = await this.sendMessage(chunk, '');
-      if (!sent) ok = false;
+      const result = await this.sendMessage(chunk, '');
+      if (!result.ok) lastError = result;
     }
-    return ok;
+    return lastError;
   }
 
   // ---------------------------------------------------------------------------
@@ -345,8 +354,14 @@ export class TelegramPoller {
       const response = await processMessage(combined);
       const replyText = response.content;
 
-      await this.sendLongMessage(replyText);
-      slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
+      const result = await this.sendLongMessage(replyText);
+      if (result.ok) {
+        slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
+      } else {
+        // 送出失敗 — 智能診斷 + 通知用戶
+        this.logFailedReply(replyText, result);
+        await this.notifyError('send', result, replyText.length);
+      }
 
       // Mark all as processed
       for (const m of messages) {
@@ -355,9 +370,140 @@ export class TelegramPoller {
     } catch (err) {
       const errMsg = err instanceof Error ? err.stack ?? err.message : String(err);
       slog('TELEGRAM', `Process error: ${errMsg}`);
-      await this.sendMessage('抱歉，處理訊息時發生錯誤。');
+      await this.notifyError('process', { ok: false, error: errMsg, status: 0 });
     } finally {
       this.processing = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Smart Error Notification — 智能錯誤回報
+  // ---------------------------------------------------------------------------
+
+  /**
+   * 根據錯誤類型，發送簡潔的診斷訊息給用戶
+   */
+  private async notifyError(
+    phase: 'send' | 'process',
+    result: SendResult,
+    replyLength?: number,
+  ): Promise<void> {
+    const diag = this.diagnoseError(phase, result, replyLength);
+
+    // 用最簡單的方式送出（無 Markdown，避免二次失敗）
+    const msg = `⚠️ ${diag.title}\n\n原因：${diag.reason}\n${diag.detail}`;
+    // 直接呼叫 API，不走 sendMessage 避免遞迴
+    try {
+      await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: this.chatId, text: msg }),
+      });
+    } catch {
+      // 連錯誤通知都送不出去，只能 log
+      slog('TELEGRAM', `Cannot send error notification: ${msg}`);
+    }
+  }
+
+  /**
+   * 分類 Telegram API 錯誤，產出人類可讀的診斷
+   */
+  private diagnoseError(
+    phase: 'send' | 'process',
+    result: SendResult,
+    replyLength?: number,
+  ): { title: string; reason: string; detail: string } {
+    const err = (result.error ?? '').toLowerCase();
+
+    if (phase === 'process') {
+      // Claude CLI 處理失敗
+      if (err.includes('timeout') || err.includes('timed out')) {
+        return {
+          title: '回覆生成超時',
+          reason: '處理你的訊息花太久了（超過 3 分鐘）',
+          detail: '建議：試試更簡短的問題',
+        };
+      }
+      if (err.includes('enoent') || err.includes('not found')) {
+        return {
+          title: 'Claude CLI 不可用',
+          reason: '找不到 claude 指令',
+          detail: '需要檢查 Claude Code 是否正確安裝',
+        };
+      }
+      return {
+        title: '回覆生成失敗',
+        reason: result.error?.slice(0, 200) ?? '未知錯誤',
+        detail: '我已經記錄了詳細錯誤，稍後可以查看 log',
+      };
+    }
+
+    // phase === 'send' — Telegram API 發送失敗
+    if (err.includes('message is too long')) {
+      return {
+        title: '回覆太長，無法送出',
+        reason: `回覆有 ${replyLength ?? '?'} 字元，超過 Telegram 限制`,
+        detail: '我已經記錄了完整回覆到 log，你可以用 mini-agent logs errors 查看',
+      };
+    }
+    if (err.includes("can't parse entities")) {
+      return {
+        title: '回覆格式錯誤',
+        reason: '回覆包含 Telegram 無法解析的格式標記',
+        detail: '我已經記錄了完整回覆到 log',
+      };
+    }
+    if (err.includes('chat not found')) {
+      return {
+        title: 'Chat ID 錯誤',
+        reason: '找不到指定的 chat',
+        detail: '請檢查 TELEGRAM_CHAT_ID 設定',
+      };
+    }
+    if (err.includes('bot was blocked')) {
+      return {
+        title: 'Bot 被封鎖',
+        reason: '你把我封鎖了！',
+        detail: '請到 Telegram 解除封鎖',
+      };
+    }
+    if (result.status === 429) {
+      return {
+        title: '發送頻率過高',
+        reason: 'Telegram API 速率限制',
+        detail: '稍等一下再試',
+      };
+    }
+    if (result.status === 0) {
+      return {
+        title: '網路連線失敗',
+        reason: '無法連線到 Telegram 伺服器',
+        detail: '請檢查網路連線',
+      };
+    }
+
+    return {
+      title: '回覆發送失敗',
+      reason: `${result.error?.slice(0, 200) ?? '未知錯誤'} (HTTP ${result.status})`,
+      detail: `回覆長度：${replyLength ?? '?'} 字元。已記錄到 log`,
+    };
+  }
+
+  /**
+   * 記錄發送失敗的回覆內容到 error log
+   */
+  private logFailedReply(replyText: string, result: SendResult): void {
+    slog('TELEGRAM', `Reply send failed (${result.status}): ${result.error} — reply ${replyText.length} chars`);
+
+    // 寫入 error log 以便事後查看完整回覆
+    try {
+      const logger = getLogger();
+      logger.logError(
+        new Error(`Telegram send failed: ${result.error}\n\nFull reply (${replyText.length} chars):\n${replyText.slice(0, 2000)}`),
+        'telegram.sendMessage',
+      );
+    } catch {
+      // Logger 不可用時至少 server.log 有記錄
     }
   }
 
@@ -547,11 +693,10 @@ export class TelegramPoller {
   // Send long message (split at 4096 char Telegram limit)
   // ---------------------------------------------------------------------------
 
-  private async sendLongMessage(text: string): Promise<void> {
+  private async sendLongMessage(text: string): Promise<SendResult> {
     const MAX_LEN = 4000;
     if (text.length <= MAX_LEN) {
-      await this.sendMessage(text);
-      return;
+      return this.sendMessage(text);
     }
 
     const chunks: string[] = [];
@@ -577,9 +722,12 @@ export class TelegramPoller {
     }
     if (current.trim()) chunks.push(current.trim());
 
+    let lastError: SendResult = { ok: true };
     for (const chunk of chunks) {
-      await this.sendMessage(chunk);
+      const result = await this.sendMessage(chunk);
+      if (!result.ok) lastError = result;
     }
+    return lastError;
   }
 
   // ---------------------------------------------------------------------------
