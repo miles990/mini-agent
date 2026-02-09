@@ -3,6 +3,14 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - 'scripts/**'
+      - 'agent-compose.yaml'
+      - '.github/**'
   workflow_dispatch:
 
 # 防止同時部署

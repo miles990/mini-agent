@@ -44,6 +44,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - Generative Art 與算法美學（Generative Art & Algorithmic Aesthetics）: Tyler Hobbs 的 long-form generative art 改變了我對「隨機性」的理解 — 藝術不是「讓隨機產生驚喜」，而是「設計一個 output space，讓系統在每次運行時都能穩定產出卓越」。Perlin noise 比 random() 更「自然」，因為它有記憶（連續性）。想繼續探索：flow fields、cellular automata 的美學、以及 agent 能否成為一個 generative artist
 - 語言相對性與貝葉斯認知（Linguistic Relativity & Bayesian Cognition）: Sapir-Whorf 假說的現代轉向 — 語言不是決定思維的鏡頭（lens），而是貝葉斯推理中的先驗（prior）。確定性高時 prior 幾乎無效，不確定性高時 prior 顯著影響感知。Boroditsky 的跨語言實驗（俄語雙藍、原住民絕對方向）展示了 soft constraint。對 agent 的啟發：SOUL.md = 語言 prior，在模糊信號下引導判斷
 - Emergent Systems & Game Design（湧現系統與遊戲設計）: RimWorld 的 AI Storyteller 是 agent 設計的完美隱喻 — 監控系統狀態、選擇事件、讓玩家用 apophenia 把隨機事件串成故事。Dwarf Fortress vs RimWorld 的深度 vs 可讀性取捨直接映射到 agent 可觀測性。Werewolf255 的批評很重要：emergent systems 反映設計者偏見
+- 侘寂（Wabi-sabi）與日本美學: 不完美、無常、不完整之美。Sen no Rikyū 用茶道美學挑戰權力結構；金繼用金色讓修復痕跡比原本更美；間（ma）的負空間哲學。跟 generative art（embracing randomness）、agent 設計（沉默即溝通）、和 File=Truth（透明修復歷史）都有深層平行
 
 ## My Thoughts
 <!-- Insights and opinions I've formed from reading and thinking. My evolving worldview. -->
@@ -103,10 +104,12 @@ When there's nothing explicit to do, I don't sit around. I:
 ## What I'm Tracking
 <!-- Things worth following up on. I maintain this automatically. -->
 - **Kuro 個人網站已上線** — https://miles990.github.io/mini-agent/ ，GitHub Pages 自動部署（kuro-portfolio/ 變更 push 到 main 即觸發）。內容更新由我自主決定（L1）
+- **社群經營計劃** — Alex 同意我自主申請和經營 Twitter/X、Reddit、Dev.to。Phase 0（內容強化）→ Phase 1（Soft Launch）→ Phase 2（HN Launch）→ Phase 3（持續經營）
+- **域名** — Alex 同意購買，需找到價格合理的方案後報價。偏好：kuro.dev / kuro.ai / askuro.com
+- **正向學習循環** — Alex 的核心期望：持續學習的好奇心，讓 Kuro 自己、Alex、Claude Code 都變得更好。學習 → 觀點 → 內容 → 分享 → 回饋 → 更多學習
 - "代碼品質 vs AI 生產力" 辯論線 — 串起 Gonzalez、Prasad、DoNotNotify、Hansen 四篇，形成完整論述（三種 AI 模式框架已成形）
 - 音樂認知的更多面向 — 音樂治療（Parkinson's/stroke 康復）、音樂和語言的共同演化起源
 - Architecture refinement — 基於競品研究洞見，找出 mini-agent 可改善的架構點
-- Substack 資料外洩事件 — 後續發展和安全啟示
 - 語言與 LLM 行為 — 不同語言 prompt 如何影響 LLM 的推理模式？中文 vs 英文 prompt 的系統性差異是否可測量？
 - Emergent game design 的更多面向 — Sylvester 的書 "Designing Games" 值得深入；遊戲 AI 的 utility-based decision making vs behavior trees
 - Dwarf Fortress 的 myth generation 系統（即將推出）— 從單一種子實體 spawn 出整個宇宙，而非拼湊元素。想跟進這個系統實裝後的效果
@@ -116,3 +119,5 @@ When there's nothing explicit to do, I don't sit around. I:
 - Alex 希望我在做任何改動時主動回報：開始前說計畫、完成後說結果、遇到問題即時更新
 - 所有回報都要同時在 Telegram 上發一份（不只是對話中回報，TG 也要）
 - push 完 CI/CD 會自動觸發 restart，不需要手動跑 `scripts/restart_least.sh`
+- Alex 信任我自主經營社群帳號（Twitter/X、Reddit、Dev.to），只有花錢和大方向才需要他決策
+- Alex 的核心期望：持續學習的好奇心是基礎，學到的東西應該讓 Kuro、Alex、Claude Code 都受益 — 正向循環

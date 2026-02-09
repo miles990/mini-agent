@@ -124,10 +124,23 @@ git push origin main
 7. [CHAT]✅ 新增 self-deploy skill，定義 L1 改動的完整 SOP。已 push。[/CHAT]
 ```
 
+## Push 策略（CI/CD 感知）
+
+deploy.yml 設有 paths filter：只有 `src/`、`scripts/`、`package.json`、`pnpm-lock.yaml`、`tsconfig.json`、`agent-compose.yaml`、`.github/` 的改動才會觸發 CI/CD 部署（= 重啟）。
+
+| 改動類型 | commit | push | 觸發部署？ |
+|----------|--------|------|-----------|
+| memory/、SOUL、skills/、docs | 立刻 | 立刻 | 否 |
+| kuro-portfolio/ | 立刻 | 立刻 | 否 |
+| src/、scripts/、config | commit | push 前確認準備好被重啟 | 是 |
+
+**核心紀律：做完就 commit + push。** 不要累積改動。
+
 ## 重要原則
 
-1. **每次 L1 改動都走這個流程** — 不管多小的改動
+1. **每次改動都 commit + push** — 不管多小，做完就提交，避免資料遺失
 2. **不能只改不 commit** — 改了就要走完
-3. **不能只 commit 不 push** — push 才算完成
+3. **不能只 commit 不 push** — push 才算完成（純 docs push 不會重啟）
 4. **驗證失敗不能硬推** — typecheck/build 沒過就不 commit
 5. **永遠通知 Alex** — 完成或失敗都要說
+6. **crash 不丟資料** — 靠即時 push 而非定時備份
