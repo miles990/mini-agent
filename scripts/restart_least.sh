@@ -8,6 +8,9 @@ mini-agent kill --all 2>/dev/null || true
 # 確保 port 真的釋放（防 EADDRINUSE）
 sleep 1
 
+echo "🔄 Updating mini-agent..."
+mini-agent update
+
 echo "🔨 Building..."
 pnpm --dir "$(dirname "$0")/.." build
 
