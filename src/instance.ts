@@ -4,10 +4,9 @@
  */
 
 import fs from 'node:fs';
-import fsp from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { v4 as uuidv4 } from 'uuid';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type {
@@ -427,14 +426,87 @@ export function deleteInstance(instanceId: string): boolean {
 }
 
 // =============================================================================
+// Launchd Helpers (macOS)
+// =============================================================================
+
+function getLaunchdLabel(instanceId: string): string {
+  return `com.mini-agent.${instanceId}`;
+}
+
+function getPlistPath(instanceId: string): string {
+  const home = process.env.HOME || '';
+  return path.join(home, 'Library', 'LaunchAgents', `${getLaunchdLabel(instanceId)}.plist`);
+}
+
+function generatePlist(instanceId: string, config: InstanceConfig): string {
+  const label = getLaunchdLabel(instanceId);
+  const nodePath = process.execPath;
+  const apiJs = path.join(import.meta.dirname || __dirname, 'api.js');
+  const workDir = path.resolve('.');
+  const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
+  const home = process.env.HOME || '';
+  const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${label}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${nodePath}</string>
+        <string>${apiJs}</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${workDir}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MINI_AGENT_INSTANCE</key>
+        <string>${instanceId}</string>
+        <key>PORT</key>
+        <string>${config.port}</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+        <key>PATH</key>
+        <string>${envPath}</string>
+        <key>HOME</key>
+        <string>${home}</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${logFile}</string>
+    <key>StandardErrorPath</key>
+    <string>${logFile}</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>`;
+}
+
+function getLaunchdStatus(instanceId: string): { loaded: boolean; pid?: number } {
+  const label = getLaunchdLabel(instanceId);
+  try {
+    const output = execSync(`launchctl list "${label}"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const pidMatch = output.match(/"PID"\s*=\s*(\d+)/) || output.match(/^(\d+)\t/m);
+    if (pidMatch) {
+      return { loaded: true, pid: parseInt(pidMatch[1]) };
+    }
+    return { loaded: true };
+  } catch {
+    return { loaded: false };
+  }
+}
+
+// =============================================================================
 // Instance Manager Class
 // =============================================================================
 
 /**
- * 實例管理器
+ * 實例管理器（launchd 後端）
  */
 export class InstanceManager {
-  private runningInstances: Map<string, ChildProcess> = new Map();
 
   constructor() {
     initDataDir();
@@ -478,7 +550,7 @@ export class InstanceManager {
   }
 
   /**
-   * 啟動實例
+   * 啟動實例（via launchd）
    */
   async start(instanceId: string): Promise<boolean> {
     const config = loadInstanceConfig(instanceId);
@@ -486,110 +558,65 @@ export class InstanceManager {
       throw new Error(`Instance not found: ${instanceId}`);
     }
 
-    // 檢查是否已在運行
-    if (this.isRunning(instanceId)) {
-      return true;
+    if (this.isRunning(instanceId)) return true;
+
+    // 確保 log 目錄存在
+    const logDir = path.join(getInstanceDir(instanceId), 'logs');
+    ensureDir(logDir);
+
+    // 如果有殘留的 launchd service，先卸載
+    const plistPath = getPlistPath(instanceId);
+    const { loaded } = getLaunchdStatus(instanceId);
+    if (loaded) {
+      try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }
     }
 
-    // 啟動伺服器進程（使用 api.js）
-    const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
-    ensureDir(path.dirname(logFile));
-    const logFd = fs.openSync(logFile, 'a');
+    // 生成 plist 並載入
+    const plistContent = generatePlist(instanceId, config);
+    ensureDir(path.dirname(plistPath));
+    fs.writeFileSync(plistPath, plistContent);
+    execSync(`launchctl load "${plistPath}"`, { stdio: 'pipe' });
 
-    const serverProcess = spawn(
-      'node',
-      [path.join(import.meta.dirname || __dirname, 'api.js')],
-      {
-        detached: true,
-        stdio: ['ignore', logFd, logFd],
-        env: {
-          ...process.env,
-          MINI_AGENT_INSTANCE: instanceId,
-          PORT: String(config.port),
-        },
-      }
-    );
-
-    serverProcess.unref();
-    fs.closeSync(logFd);
-    this.runningInstances.set(instanceId, serverProcess);
-
-    // 記錄 PID
-    const pidFile = path.join(getInstanceDir(instanceId), 'server.pid');
-    if (serverProcess.pid) {
-      fs.writeFileSync(pidFile, String(serverProcess.pid));
-    }
-
-    // Health check: 等待 server 真正 ready（最多 10 秒）
+    // Health check（最多 10 秒）
     const healthUrl = `http://localhost:${config.port}/health`;
     const deadline = Date.now() + 10_000;
-
     while (Date.now() < deadline) {
-      // 檢查進程是否已退出
-      if (serverProcess.exitCode !== null) {
-        this.runningInstances.delete(instanceId);
-        try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
-        const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf-8').slice(-500) : '';
-        throw new Error(`Process exited with code ${serverProcess.exitCode}${log ? `\n${log}` : ''}`);
-      }
-
       try {
         const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(1000) });
-        if (resp.ok) return true; // Server is ready
-      } catch {
-        // Not ready yet, wait and retry
-      }
-
+        if (resp.ok) return true;
+      } catch { /* not ready */ }
       await new Promise(r => setTimeout(r, 200));
     }
 
-    // Timeout — server spawned but never became healthy
-    throw new Error(`Server started (pid ${serverProcess.pid}) but health check timed out on :${config.port}`);
+    // Health check 失敗 → 卸載並報錯
+    try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }
+    try { fs.unlinkSync(plistPath); } catch { /* ignore */ }
+    const logFile = path.join(logDir, 'server.log');
+    const log = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf-8').slice(-500) : '';
+    throw new Error(`Health check timed out on :${config.port}${log ? `\n${log}` : ''}`);
   }
 
   /**
-   * 停止實例（SIGTERM → wait → SIGKILL）
+   * 停止實例（via launchctl unload）
    */
   stop(instanceId: string): boolean {
-    const proc = this.runningInstances.get(instanceId);
-    if (proc) {
-      proc.kill('SIGTERM');
-      this.runningInstances.delete(instanceId);
+    const plistPath = getPlistPath(instanceId);
+    const { loaded } = getLaunchdStatus(instanceId);
+
+    if (loaded) {
+      try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }
     }
 
-    // 嘗試從 PID 文件停止
+    // 清理 plist 文件
+    try { fs.unlinkSync(plistPath); } catch { /* ignore */ }
+
+    // 向後相容：清理舊的 PID 文件（遷移期）
     const pidFile = path.join(getInstanceDir(instanceId), 'server.pid');
     if (fs.existsSync(pidFile)) {
       try {
         const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
-
-        // SIGTERM first
         try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
-
-        // Wait up to 3s, then SIGKILL
-        const deadline = Date.now() + 3000;
-        while (Date.now() < deadline) {
-          try {
-            process.kill(pid, 0); // check if alive
-            // Still alive, wait 200ms
-            const waitUntil = Date.now() + 200;
-            while (Date.now() < waitUntil) { /* busy wait */ }
-          } catch {
-            break; // Process is dead
-          }
-        }
-
-        // If still alive, force kill
-        try {
-          process.kill(pid, 0);
-          process.kill(pid, 'SIGKILL');
-        } catch {
-          // Already dead — good
-        }
-      } catch {
-        // PID file read error
-      }
-
+      } catch { /* ignore */ }
       try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
     }
 
@@ -600,27 +627,18 @@ export class InstanceManager {
    * 檢查實例是否在運行
    */
   isRunning(instanceId: string): boolean {
-    // 檢查內存中的進程
-    const proc = this.runningInstances.get(instanceId);
-    if (proc && !proc.killed) {
-      return true;
-    }
+    const { loaded, pid } = getLaunchdStatus(instanceId);
+    if (loaded && pid !== undefined) return true;
 
-    // 檢查 PID 文件
+    // 向後相容：檢查 PID file（遷移期）
     const pidFile = path.join(getInstanceDir(instanceId), 'server.pid');
     if (fs.existsSync(pidFile)) {
       try {
-        const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
-        // 檢查進程是否存在
-        process.kill(pid, 0);
+        const oldPid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
+        process.kill(oldPid, 0);
         return true;
       } catch {
-        // 進程不存在，清理 PID 文件
-        try {
-          fs.unlinkSync(pidFile);
-        } catch {
-          // ignore
-        }
+        try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
       }
     }
 
@@ -632,21 +650,10 @@ export class InstanceManager {
    */
   getStatus(instanceId: string): InstanceStatus | null {
     const config = loadInstanceConfig(instanceId);
-    if (!config) {
-      return null;
-    }
+    if (!config) return null;
 
     const running = this.isRunning(instanceId);
-    let pid: number | undefined;
-
-    const pidFile = path.join(getInstanceDir(instanceId), 'server.pid');
-    if (fs.existsSync(pidFile)) {
-      try {
-        pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
-      } catch {
-        // ignore
-      }
-    }
+    const { pid } = getLaunchdStatus(instanceId);
 
     return {
       id: config.id,
@@ -684,9 +691,17 @@ export class InstanceManager {
    * 停止所有實例
    */
   stopAll(): void {
-    for (const instanceId of this.runningInstances.keys()) {
-      this.stop(instanceId);
-    }
+    // 找出所有 com.mini-agent.* 的 launchd service
+    try {
+      const output = execSync('launchctl list', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+      const labels = output.split('\n')
+        .map(line => line.trim().split(/\t/).pop() || '')
+        .filter(label => label.startsWith('com.mini-agent.'));
+      for (const label of labels) {
+        const instanceId = label.replace('com.mini-agent.', '');
+        this.stop(instanceId);
+      }
+    } catch { /* ignore */ }
   }
 }
 

@@ -134,6 +134,18 @@ TELEGRAM_BOT_TOKEN=xxx   # Telegram 接收+發送
 TELEGRAM_CHAT_ID=xxx     # 授權的 chat ID
 ```
 
+## Deploy
+
+```
+push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd restart → health check → Telegram 通知
+```
+
+- Self-hosted runner: `~/actions-runner-mini-agent/`
+- launchd plist: 由 `instance.ts` 動態生成到 `~/Library/LaunchAgents/com.mini-agent.{id}.plist`
+- KeepAlive: launchd 自動重啟崩潰的進程
+- Deploy script: `scripts/deploy.sh`
+- 流程：commit → push，CI/CD 自動部署，不需手動 restart
+
 ## Workflow
 
 - Always respond in 繁體中文

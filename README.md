@@ -15,6 +15,8 @@ Minimal Personal AI Agent with autonomous capabilities:
 11. **Multi-Instance** - Docker-style instance management with compose
 12. **Graceful Shutdown** - Clean stop of all services (Telegram, AgentLoop, Cron, HTTP)
 13. **Observability** - Multi-dimensional logging: diagnostics, behavior tracking, CDP operations, activity perception
+14. **CI/CD** - GitHub Actions self-hosted runner → launchd deployment with health check and Telegram notification
+15. **Launchd** - Native macOS process management with KeepAlive auto-restart (dynamic plist per instance)
 
 ## Architecture
 
@@ -760,7 +762,8 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 └── scripts/                    # Utility scripts
     ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
     ├── chrome-setup.sh         # Chrome CDP setup guide
-    └── restart_least.sh        # Kill → update → build → start
+    ├── deploy.sh               # CI/CD deployment (launchd)
+    └── restart_least.sh        # Manual restart fallback
 ```
 
 ## Memory System (Three-Layer)
