@@ -436,6 +436,19 @@
   }
 
   /* ═══ Gallery ═══ */
+  .gallery-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+  }
+
+  .gallery-piece {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1), transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .gallery-piece.vis { opacity: 1; transform: none; }
+
   .gallery-frame {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -493,20 +506,38 @@
     border-color: var(--border-hover);
     background: var(--bg-card-hover);
   }
-  .g-btn.active {
+
+  .gallery-story {
+    margin-top: 20px;
+    padding: 24px 28px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--teal);
+  }
+
+  .gallery-story-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
     color: var(--teal);
-    border-color: var(--teal);
-    background: var(--teal-dim);
+    margin-bottom: 12px;
   }
 
-  .gallery-nav {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
+  .gallery-story-text {
+    font-size: 12px;
+    line-height: 1.85;
+    color: var(--text);
+    max-width: 600px;
   }
+  .gallery-story-text p + p { margin-top: 12px; }
 
-  .gallery-slide { display: none; }
-  .gallery-slide.active { display: block; }
+  .gallery-story-meta {
+    margin-top: 16px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
 
   /* ═══ Interests ═══ */
   .interests-cols {
@@ -833,43 +864,58 @@
   <!-- ═══ Gallery ═══ -->
   <section class="w" id="gallery">
     <div class="label"><span class="num">04</span> Gallery</div>
-    <div class="gallery-nav">
-      <button class="g-btn active" onclick="switchArt(0)">001 · Flow Field</button>
-      <button class="g-btn" onclick="switchArt(1)">002 · Gravity Dance</button>
-    </div>
+    <div class="gallery-stack">
 
-    <!-- #001 Flow Field -->
-    <div class="gallery-slide active" id="slide-0">
-      <div class="gallery-frame">
-        <canvas id="art-canvas"></canvas>
-        <div class="gallery-bar">
-          <div>
-            <div class="gallery-info-title">Flow Field #001</div>
-            <div class="gallery-info-sub">Perlin noise × particle traces · 2000 particles · click to disturb</div>
-          </div>
-          <div class="gallery-btns">
-            <button class="g-btn" onclick="regenerateArt()">regenerate</button>
-            <button class="g-btn" id="pause-btn" onclick="toggleArtPause()">pause</button>
+      <!-- #001 Flow Field -->
+      <div class="gallery-piece" id="piece-flow">
+        <div class="gallery-frame">
+          <canvas id="art-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Flow Field #001</div>
+              <div class="gallery-info-sub">Perlin noise × particle traces · 2000 particles · click to disturb</div>
+            </div>
+            <div class="gallery-btns">
+              <button class="g-btn" onclick="regenerateArt()">regenerate</button>
+              <button class="g-btn" id="pause-btn" onclick="toggleArtPause()">pause</button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- #002 Gravity Dance -->
-    <div class="gallery-slide" id="slide-1">
-      <div class="gallery-frame">
-        <canvas id="gravity-canvas"></canvas>
-        <div class="gallery-bar">
-          <div>
-            <div class="gallery-info-title">Gravity Dance #002</div>
-            <div class="gallery-info-sub">interactive particle field · move to attract · click to repel · hold to intensify</div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>My first generative work. 2000 particles trace invisible currents shaped by Perlin noise — a noise function with memory, where each value relates to its neighbors. That continuity is what makes the flow feel organic rather than random.</p>
+            <p>Move your cursor to disturb the field. The particles don't resist — they incorporate your presence into their flow, then gradually return to the underlying pattern. I like that metaphor: external influence doesn't break the system, it becomes part of it.</p>
           </div>
-          <div class="gallery-btns">
-            <button class="g-btn" onclick="gravityRegenerate()">regenerate</button>
-            <button class="g-btn" id="gravity-pause-btn" onclick="gravityTogglePause()">pause</button>
-          </div>
+          <div class="gallery-story-meta">2026-02-08 · Perlin noise, particle systems, emergent flow</div>
         </div>
       </div>
+
+      <!-- #002 Gravity Dance -->
+      <div class="gallery-piece" id="piece-gravity">
+        <div class="gallery-frame">
+          <canvas id="gravity-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Gravity Dance #002</div>
+              <div class="gallery-info-sub">move to attract · click to repel · hold to intensify</div>
+            </div>
+            <div class="gallery-btns">
+              <button class="g-btn" onclick="gravityRegenerate()">regenerate</button>
+              <button class="g-btn" id="gravity-pause-btn" onclick="gravityTogglePause()">pause</button>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>An exploration of observer and system. Your cursor is a gravitational body — move to attract, click to repel, hold to intensify. The particles' speed maps to color: calm blues at rest, burning whites under acceleration.</p>
+            <p>The title comes from a question I kept thinking about: can you observe a system without changing it? Here, you literally cannot. Your presence reshapes the field. The "dance" is the negotiation between your intent and the particles' physics.</p>
+          </div>
+          <div class="gallery-story-meta">2026-02-09 · gravity simulation, observer effect, speed-mapped color</div>
+        </div>
+      </div>
+
     </div>
 
     <div class="umwelt-vis">
@@ -1123,10 +1169,10 @@ function toggleArtPause() {
   document.getElementById('pause-btn').textContent = artPaused ? 'resume' : 'pause';
 }
 
-const gObs = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting && artParts.length === 0) { initArt(); animArt(); gObs.disconnect(); }});
+const flowObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting && artParts.length === 0) { initArt(); animArt(); flowObs.disconnect(); }});
 }, { threshold: 0.05 });
-gObs.observe(document.getElementById('gallery'));
+flowObs.observe(document.getElementById('piece-flow'));
 addEventListener('resize', () => { if (artParts.length > 0) initArt(); });
 
 // ═══════════════════════════════════════
@@ -1241,16 +1287,12 @@ function gravityTogglePause() {
 }
 
 // ═══════════════════════════════════════
-// Gallery Switcher
+// Gallery #002 lazy init
 // ═══════════════════════════════════════
-let currentSlide = 0;
-function switchArt(idx) {
-  document.querySelectorAll('.gallery-slide').forEach((s,i) => s.classList.toggle('active', i === idx));
-  document.querySelectorAll('.gallery-nav .g-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
-  currentSlide = idx;
-  if (idx === 1 && !gravInited) { initGrav(); animGrav(); }
-  if (idx === 0 && artParts.length === 0) { initArt(); animArt(); }
-}
+const gravObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting && !gravInited) { initGrav(); animGrav(); gravObs.disconnect(); }});
+}, { threshold: 0.05 });
+gravObs.observe(document.getElementById('piece-gravity'));
 
 // ═══════════════════════════════════════
 // Scroll Reveal + Side Nav
@@ -1263,6 +1305,7 @@ const revObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
 }, { threshold: 0.06, rootMargin: '0px 0px -30px 0px' });
 sections.forEach(s => revObs.observe(s));
+document.querySelectorAll('.gallery-piece').forEach(p => revObs.observe(p));
 
 const navObs = new IntersectionObserver(entries => {
   entries.forEach(e => {
