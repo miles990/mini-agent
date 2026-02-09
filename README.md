@@ -14,6 +14,7 @@ Minimal Personal AI Agent with autonomous capabilities:
 10. **Telegram** - Bidirectional Telegram integration (receive messages, smart batched replies, file download)
 11. **Multi-Instance** - Docker-style instance management with compose
 12. **Graceful Shutdown** - Clean stop of all services (Telegram, AgentLoop, Cron, HTTP)
+13. **Observability** - Multi-dimensional logging: diagnostics, behavior tracking, CDP operations, activity perception
 
 ## Architecture
 
@@ -206,6 +207,7 @@ The agent has full awareness of its environment through 7 perception modules inj
 | **Logs** | Recent errors, recent events summary | `<logs>` |
 | **Network** | Self port status, service reachability | `<network>` |
 | **Config** | Compose agents, global defaults, instance config | `<config>` |
+| **Activity** | Recent diagnostics, behavior log, CDP operations | `<activity>` |
 | **Workspace** | File tree, git status, recently modified files | `<workspace>` |
 
 This means the agent can answer questions like:
@@ -394,6 +396,80 @@ User sends Telegram message
 
 The agent loop also uses TelegramPoller for notifications (replacing the old `scripts/notify.sh` approach).
 
+### Agent Tags
+
+Special tags in Claude's response that trigger system actions:
+
+| Tag | Purpose | Telegram |
+|-----|---------|----------|
+| `[ACTION]...[/ACTION]` | Report completed action | 🧠 autonomous / ⚡ task |
+| `[REMEMBER]...[/REMEMBER]` | Save to long-term memory | — |
+| `[TASK]...[/TASK]` | Create task in HEARTBEAT | — |
+| `[CHAT]...[/CHAT]` | Proactive message to user | 💬 |
+| `[SHOW url=".."]...[/SHOW]` | Show webpage/result to user | 🌐 + URL |
+
+All tags are automatically stripped from the response before sending to the user. All tag actions are recorded in behavior logs.
+
+## Observability
+
+Multi-dimensional logging framework for diagnostics, behavior tracking, and self-awareness.
+
+### Diagnostics (`diagLog`)
+
+Unified error recording with context and snapshot:
+
+```typescript
+diagLog('memory.readMemory', error, { path: memoryPath });
+// → [DIAG] [memory.readMemory] YAML parse error | path=/home/memory/MEMORY.md
+```
+
+- Outputs to `slog` (server.log) + JSONL (`diag/` directory)
+- ENOENT (file not found) is suppressed — expected behavior
+- Global safety net catches `uncaughtException` and `unhandledRejection`
+
+### Behavior Tracking (`logBehavior`)
+
+Records all agent/user/system actions:
+
+| Action | Actor | Trigger |
+|--------|-------|---------|
+| `loop.cycle.start/end` | agent | OODA cycle |
+| `action.autonomous` | agent | `[ACTION]` in autonomous mode |
+| `action.task` | agent | `[ACTION]` in task mode |
+| `memory.save` | agent | `[REMEMBER]` tag |
+| `task.create` | agent | `[TASK]` tag |
+| `show.webpage` | agent | `[SHOW]` tag |
+| `claude.call` | agent | Claude CLI invocation |
+| `cron.trigger` | system | Cron task fires |
+| `telegram.message` | user | Incoming Telegram message |
+| `telegram.reply` | agent | Outgoing Telegram reply |
+
+### CDP Operation Log
+
+Chrome DevTools Protocol operations are logged to `~/.mini-agent/cdp.jsonl`:
+
+```json
+{"ts":"2026-02-09T10:00:00Z","op":"fetch","url":"https://example.com"}
+{"ts":"2026-02-09T10:01:00Z","op":"open","url":"https://news.ycombinator.com"}
+```
+
+### Activity Perception (`<activity>`)
+
+The agent sees its own recent behavior through the `<activity>` context tag:
+
+```
+Recent diagnostics (1):
+  [10:23:49] [perception.exec] exit 126 | script=docker-status.sh
+
+Recent behavior (3):
+  [10:20:00] [agent] action.autonomous: [Track A] 閱讀 HN 文章
+  [10:22:15] [user] telegram.message: "幫我看看 docker 的狀態"
+  [10:22:18] [agent] telegram.reply: 檢查 Docker 狀態...
+
+Recent CDP operations (1):
+  [10:21:30] fetch: Hacker News (https://news.ycombinator.com)
+```
+
 ## Three-Layer Architecture
 
 ```
@@ -486,6 +562,8 @@ mini-agent logs errors                 # Error logs
 mini-agent logs cron                   # Cron task logs
 mini-agent logs loop                   # AgentLoop cycle logs
 mini-agent logs api                    # API request logs
+mini-agent logs diag                   # Diagnostic logs
+mini-agent logs behavior               # Behavior logs
 mini-agent logs all                    # All structured logs
 
 # Options
@@ -506,8 +584,14 @@ Multi-instance `-f` mode uses ANSI colors to distinguish instances.
 │   └── YYYY-MM-DD.jsonl
 ├── cron/              # Cron + AgentLoop cycle logs
 │   └── YYYY-MM-DD.jsonl
-└── error/             # Error logs
+├── error/             # Error logs
+│   └── YYYY-MM-DD.jsonl
+├── diag/              # Diagnostic logs (error context + snapshot)
+│   └── YYYY-MM-DD.jsonl
+└── behavior/          # Behavior logs (user/agent/system actions)
     └── YYYY-MM-DD.jsonl
+
+~/.mini-agent/cdp.jsonl              # CDP operation log (fetch/open/extract/close)
 ```
 
 ## Unix Pipe Mode
@@ -609,6 +693,8 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 | GET | /logs/loop | AgentLoop cycle logs |
 | GET | /logs/cron | Cron task logs |
 | GET | /logs/api | API request logs |
+| GET | /logs/diag | Diagnostic logs |
+| GET | /logs/behavior | Behavior logs |
 | GET | /logs/dates | Available log dates |
 
 ### Config
@@ -624,6 +710,7 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 ```
 ~/.mini-agent/
 ├── config.yaml                 # Global configuration
+├── cdp.jsonl                   # CDP operation log
 ├── instances/
 │   └── {id}/                   # Each instance
 │       ├── instance.yaml       # Instance config
