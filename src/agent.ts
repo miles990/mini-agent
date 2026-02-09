@@ -118,6 +118,11 @@ function classifyClaudeError(error: unknown): ClaudeErrorClassification {
  */
 let claudeBusy = false;
 
+/** 查詢 Claude CLI 是否正在執行 */
+export function isClaudeBusy(): boolean {
+  return claudeBusy;
+}
+
 /**
  * 單次 Claude CLI 呼叫（內部用）
  */

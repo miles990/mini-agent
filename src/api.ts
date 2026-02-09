@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage } from './agent.js';
+import { processMessage, isClaudeBusy } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -791,15 +791,30 @@ if (isMain) {
 
   // ── Graceful Shutdown ──
   let shuttingDown = false;
-  const shutdown = () => {
+  const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
     slog('SERVER', 'Shutting down...');
 
-    // Stop all long-running services
-    if (telegramPoller) telegramPoller.stop();
+    // Stop accepting new work (loop, cron, telegram)
     if (loopRef) loopRef.stop();
     stopCronTasks();
+    if (telegramPoller) telegramPoller.stop();
+
+    // Wait for in-flight Claude CLI call to finish
+    if (isClaudeBusy()) {
+      slog('SERVER', 'Waiting for Claude CLI call to finish...');
+      const maxWait = 600_000; // 10 minutes (> 8 min timeout)
+      const start = Date.now();
+      while (isClaudeBusy() && Date.now() - start < maxWait) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (isClaudeBusy()) {
+        slog('SERVER', `Claude CLI still busy after ${maxWait / 1000}s, forcing exit`);
+      } else {
+        slog('SERVER', `Claude CLI finished after ${((Date.now() - start) / 1000).toFixed(0)}s`);
+      }
+    }
 
     // Graceful HTTP server close
     server.close(() => {
@@ -807,13 +822,12 @@ if (isMain) {
       process.exit(0);
     });
 
-    // Force exit after 5s if server.close hangs
-    // Do NOT .unref() — must guarantee process exits
+    // Force exit after 10s if server.close hangs (Claude call already done)
     setTimeout(() => {
       slog('SERVER', 'Force exit after timeout');
       process.exit(1);
-    }, 5000);
+    }, 10_000);
   };
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', () => void shutdown());
+  process.on('SIGINT', () => void shutdown());
 }
