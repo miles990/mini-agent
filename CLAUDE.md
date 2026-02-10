@@ -50,6 +50,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 |--------|------|
 | CLI | `src/cli.ts` |
 | Agent | `src/agent.ts` |
+| Dispatcher | `src/dispatcher.ts` |
 | Memory | `src/memory.ts` |
 | AgentLoop | `src/loop.ts` |
 | Telegram | `src/telegram.ts` |
@@ -66,6 +67,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | SOUL | `memory/SOUL.md` |
 | Architecture | `memory/ARCHITECTURE.md` |
 | Proposals | `memory/proposals/` |
+| Topic Memory | `memory/topics/*.md` |
 
 ## Memory Architecture
 
@@ -73,9 +75,34 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 Hot  (In-Memory)  → Last 20 conversations
 Warm (Daily File) → daily/YYYY-MM-DD.md
 Cold (Long-term)  → MEMORY.md + HEARTBEAT.md + SOUL.md + proposals/
+Topic (Scoped)    → topics/*.md (Smart Loading by keyword matching)
+Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 ```
 
+**Memory Scoping**：`[REMEMBER #topic]` 自動寫入 `memory/topics/{topic}.md`，`buildContext` 根據對話關鍵字匹配載入對應 topic。無 `#topic` 的 `[REMEMBER]` 照舊寫 MEMORY.md。
+
+**Context Checkpoint**：每次 `buildContext()` 自動存 snapshot（timestamp、mode、contextLength、sections），fire-and-forget 不影響效能。
+
 Instance path: `~/.mini-agent/instances/{id}/`
+
+## Task Lanes（多工分道）
+
+統一 Dispatcher (`src/dispatcher.ts`) 讓不同重量的工作走不同 lane：
+
+```
+所有進入點 → dispatch() → triageMessage() → Haiku Lane (簡單) / Claude Lane (複雜)
+```
+
+| Lane | 並發控制 | 用途 |
+|------|---------|------|
+| **Claude** | `claudeBusy` + queue（既有） | 複雜任務（工具、程式碼、部署） |
+| **Haiku** | Semaphore(5) | 簡單回覆（問候、閒聊、狀態） |
+
+**Triage**：快速路徑（regex <1ms）→ 慢速路徑（Haiku API ~200ms）→ fallback 走 Claude。
+**無 `ANTHROPIC_API_KEY` 時**：triage 跳過，全走 Claude Lane，行為不變。
+**Haiku 失敗時**：自動降級到 Claude Lane。
+
+`/status` 回應包含 `lanes: { claude: {...}, haiku: {...} }`。
 
 ## 可觀測性（Observability）
 
@@ -97,7 +124,8 @@ Instance path: `~/.mini-agent/instances/{id}/`
 |--------|--------|
 | `loop.cycle.start/end` | OODA 循環 |
 | `action.autonomous/task` | `[ACTION]` 自主/任務行動 |
-| `memory.save` | `[REMEMBER]` 記憶保存 |
+| `memory.save` | `[REMEMBER]` 記憶保存（MEMORY.md） |
+| `memory.save.topic` | `[REMEMBER #topic]` topic 記憶保存 |
 | `task.create` | `[TASK]` 建立任務 |
 | `show.webpage` | `[SHOW]` 展示網頁 |
 | `claude.call` | Claude CLI 呼叫 |
@@ -117,7 +145,8 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | Tag | 用途 | 通知 |
 |-----|------|------|
 | `[ACTION]...[/ACTION]` | 報告執行的動作 | 🧠/⚡ Telegram |
-| `[REMEMBER]...[/REMEMBER]` | 保存到記憶 | — |
+| `[REMEMBER]...[/REMEMBER]` | 保存到 MEMORY.md | — |
+| `[REMEMBER #topic]...[/REMEMBER]` | 保存到 topics/{topic}.md | — |
 | `[TASK]...[/TASK]` | 建立任務到 HEARTBEAT | — |
 | `[CHAT]...[/CHAT]` | 主動跟用戶聊天 | 💬 Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
@@ -147,6 +176,10 @@ Agent 回應中的特殊標籤，系統自動解析處理：
     "busy": true,
     "currentTask": { "prompt": "...", "startedAt": "...", "elapsed": 42 },
     "queue": { "size": 0, "max": 5 }
+  },
+  "lanes": {
+    "claude": { "active": 1, "waiting": 0, "max": 1, "totalCalls": 42, "totalMs": 120000 },
+    "haiku": { "active": 0, "waiting": 0, "max": 5, "totalCalls": 15, "totalMs": 3000 }
   },
   "loop": { "enabled": true, "running": true, "mode": "autonomous", ... },
   "cron": { "active": 2 },
