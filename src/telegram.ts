@@ -198,6 +198,9 @@ export class TelegramPoller {
       };
       if (parseMode) body.parse_mode = parseMode;
 
+      // Trace: 記錄每一次 outgoing sendMessage（追蹤 🚨 來源）
+      slog('TG-OUT', `sendMessage [${text.length}ch]: ${text.slice(0, 80).replace(/\n/g, '\\n')}`);
+
       const resp = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -241,6 +244,9 @@ export class TelegramPoller {
       form.append('chat_id', this.chatId);
       form.append('photo', new Blob([fileData]), fileName);
       if (caption) form.append('caption', caption);
+
+      // Trace: 記錄每一次 outgoing sendPhoto（追蹤 🚨 來源）
+      slog('TG-OUT', `sendPhoto [${photoPath}] caption=${caption?.slice(0, 60) ?? 'none'}`);
 
       const resp = await fetch(`https://api.telegram.org/bot${this.token}/sendPhoto`, {
         method: 'POST',
@@ -459,6 +465,7 @@ export class TelegramPoller {
     const msg = `⚠️ ${diag.title}\n\n原因：${diag.reason}\n${diag.detail}`;
     // 直接呼叫 API，不走 sendMessage 避免遞迴
     try {
+      slog('TG-OUT', `notifyError [${msg.length}ch]: ${msg.slice(0, 80).replace(/\n/g, '\\n')}`);
       await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
