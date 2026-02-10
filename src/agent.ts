@@ -75,7 +75,7 @@ function classifyClaudeError(error: unknown): ClaudeErrorClassification {
  * Busy flag — 防止並發 Claude CLI 呼叫（記憶體和 CPU 保護）
  */
 let claudeBusy = false;
-let currentTask: { prompt: string; startedAt: number } | null = null;
+let currentTask: { prompt: string; startedAt: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null = null;
 
 /** 查詢 Claude CLI 是否正在執行 */
 export function isClaudeBusy(): boolean {
@@ -83,12 +83,15 @@ export function isClaudeBusy(): boolean {
 }
 
 /** 查詢目前正在處理的任務 */
-export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number } | null {
+export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
   if (!currentTask) return null;
   return {
     prompt: currentTask.prompt,
     startedAt: new Date(currentTask.startedAt).toISOString(),
     elapsed: Math.floor((Date.now() - currentTask.startedAt) / 1000),
+    toolCalls: currentTask.toolCalls,
+    lastTool: currentTask.lastTool,
+    lastText: currentTask.lastText,
   };
 }
 
@@ -315,8 +318,20 @@ async function execClaude(fullPrompt: string): Promise<string> {
             for (const block of blocks) {
               if (block.type === 'tool_use') {
                 toolCallCount++;
-                writeAuditLog(block.name ?? 'unknown', (block.input ?? {}) as Record<string, unknown>);
+                const toolName = block.name ?? 'unknown';
+                const toolInput = (block.input ?? {}) as Record<string, unknown>;
+                writeAuditLog(toolName, toolInput);
+                // 即時更新 currentTask — 讓 /status 顯示正在做什麼
+                if (currentTask) {
+                  const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? toolInput.url ?? '';
+                  currentTask.toolCalls = toolCallCount;
+                  currentTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                }
               } else if (block.type === 'text' && block.text) {
+                // 即時更新最新思考文字
+                if (currentTask) {
+                  currentTask.lastText = block.text.slice(0, 200);
+                }
                 // 累積文字（備用，result 事件優先）
                 if (!resultText) resultText = block.text;
               }
@@ -409,7 +424,7 @@ export async function callClaude(
     }
 
     claudeBusy = true;
-    currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now() };
+    currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null };
 
     try {
       const result = await execClaude(fullPrompt);
