@@ -593,3 +593,151 @@ Hourly activity:
 
 - **L1（可自己做）**：在 behavior log 的 "no action" cycle 加 reason tag（`no-action:idle` vs `no-action:error-recovery` vs `no-action:skip`），讓下次分析能區分
 - **L2（需提案）**：context size 監控告警 — 當 prompt > 40K 時記錄警告，> 45K 時主動裁剪
+
+## Context Rot & Token Budget — 深度研究（2026-02-11）
+
+Context window 不是「越大越好」的簡單問題。這次研究整合了 Anthropic 官方文件、Chroma Research 的 Context Rot 報告、Adobe 的 NoLiMa benchmark、和 Anthropic 的 Long-Running Agent 文章，形成對 mini-agent 具體可行動的 token budget 設計框架。
+
+### Context Rot 的量化證據
+
+**NoLiMa (Adobe Research, 2025)**：
+- 傳統 needle-in-a-haystack 測試過度樂觀 — 模型靠 lexical overlap（關鍵字匹配）作弊
+- NoLiMa 移除 lexical cues 後，11 個模型在 32K context 時降到基線的 50% 以下
+- GPT-4o 從 99.3% → 69.7%（32K 時），連最好的模型也大幅退化
+- 根因：attention 機制在長 context 且無 literal match 時，無法有效檢索信息
+- 來源: arxiv.org/abs/2502.05167
+
+**Chroma Research "Context Rot" 報告（2025）**：
+跨 18 個模型（Claude Opus 4/Sonnet 4/3.7/3.5, GPT-4.1/4o/3.5, Gemini 2.5, Qwen3）的系統性測試。
+
+核心發現：
+1. **Low-similarity 任務退化最快** — 問題和答案沒有表面相似性時，長 context 性能驟降
+2. **Distractor 效應是乘法** — 4 個干擾項的退化遠超 1 個干擾項的 4 倍
+3. **結構化 haystack 比隨機 haystack 更難** — 反直覺：邏輯連貫的上下文讓注意力機制更難聚焦（因為所有內容都「看起來相關」）
+4. **Claude 家族的特殊行為** — 低確信度時傾向拒絕回答而非幻覺，Opus 4 退化最慢但拒答率 2.89%
+5. **Position bias** — 序列開頭的信息準確度高於結尾
+- 來源: research.trychroma.com/context-rot
+
+### Anthropic 的三層策略（官方指南）
+
+**核心原則**：「找到最小的高信號 token 集合，最大化期望結果的機率。」
+
+**1. System Prompt 的高度校準（Altitude Calibration）**
+- 過度硬編碼 → 脆弱的 if-else（任何例外情況都 break）
+- 過度籠統 → 模型不知道你要什麼
+- 最佳高度：「足夠具體引導行為，足夠靈活提供啟發式」
+
+**2. Just-In-Time Context Retrieval**
+- 保持輕量指標（檔案路徑、URL、查詢語句），需要時才載入完整數據
+- Progressive Disclosure — agent 一層一層發現需要的 context
+- 對比：pre-loading everything（把所有可能相關的都塞進去）vs JIT（按需取用）
+
+**3. Compaction（Context Window Reset Strategy）**
+- 接近 context 限制時壓縮對話
+- 保留：架構決策、未解 bug、實作細節
+- 丟棄：重複的 tool output、冗餘訊息
+- **Tool result clearing** — 處理完 tool 輸出後移除原始結果，最安全的壓縮形式
+- 重點：先最大化 recall（確保不遺漏），再優化 precision（去除冗餘）
+
+**4. Sub-Agent 架構**
+- 專門的 sub-agent 用乾淨的 context 處理聚焦任務
+- 每個 sub-agent 可能消耗數萬 tokens，但只回傳 1000-2000 token 的摘要
+- 清晰的關注點分離 — 搜尋 context 隔離在 sub-agent 內
+- 來源: anthropic.com/engineering/effective-context-engineering-for-ai-agents
+
+### Long-Running Agent 的 Session 管理（Anthropic 實戰）
+
+**核心問題**：長時間 agent 必須在離散的 session 中工作，每個新 session 沒有前一個的記憶。
+
+**Two-Agent Pattern**：
+- **Initializer Agent**（第一個 session）：建立環境、寫 init.sh、創建 feature list JSON（200+ 條）、建 git repo、創建 progress file
+- **Coding Agent**（後續 session）：每次啟動時讀 progress file + git log → 做一件事 → 測試 → commit → 更新 progress
+
+**關鍵紀律**：
+1. **一次只做一件事** — 防止 agent 一口氣嘗試全部，耗盡 context 後留下半成品
+2. **JSON > Markdown** — feature list 用 JSON 因為更抗意外修改
+3. **Git 作為恢復機制** — 做壞了可以 revert
+4. **標準化啟動流程** — 節省 token（不用花 context 去「搞清楚怎麼開始」）
+
+**開放問題**：
+- 單一通用 agent 是否比多專門 agent 好？仍然不確定
+- 瀏覽器自動化有限（無法處理 native alert modals）
+- 來源: anthropic.com/engineering/effective-harnesses-for-long-running-agents
+
+### 批判性分析（我的觀點）
+
+**1. Context Rot 對 mini-agent 的直接影響**
+
+mini-agent 的 OODA context（buildContext 的輸出）包含大量結構化信息：<soul>, <memory>, <heartbeat>, <recent_conversations>, <activity>, <perception> sections。根據 Chroma 的發現，**結構化 haystack 比隨機 haystack 更難檢索** — 這意味著我們的 well-organized context 反而可能讓模型更難從中找到關鍵信息。
+
+反直覺但合理：當所有內容都「看起來相關」（都是精心組織的 Markdown），attention 無法區分「此刻重要」和「一般重要」。解法不是打亂結構，而是**用信號放大重要信息**：
+- `<situation-report>` 裡的 ALERT 用大寫和分隔線突出
+- 最緊急的信息放在 context 開頭或結尾（position bias）
+- 減少「看起來有用但此刻不需要」的信息量
+
+**2. NoLiMa 的 47K 問題和我們的 SIGTERM 風險**
+
+我們在 behavior log 分析中發現 prompt > 47K chars 時觸發 SIGTERM。NoLiMa 發現 32K tokens 時大多數模型已經嚴重退化。如果 1 char ≈ 0.3 token，47K chars ≈ 14K tokens — 這遠低於 32K 的退化閾值。所以我們的 SIGTERM 不是 context rot 問題，而是 **Claude CLI 的進程管理問題**（可能是 timeout 或 memory limit）。
+
+但這不代表 context rot 不影響我們。即使在 14K tokens 的範圍內，NoLiMa 顯示低相似度任務已經開始退化。我們的 context 中，<perception> data（原始系統數據）和決策需求（應該做什麼）之間的 lexical overlap 很低 — 這正是退化最快的場景。
+
+**3. Anthropic 的 "One Thing at a Time" 紀律**
+
+Anthropic 的 long-running agent 文章的核心紀律 — 每個 session 只做一件事 — 跟 mini-agent 的 OODA cycle 不完全對齊。OODA 每 5 分鐘一個 cycle，每個 cycle 本質上是一個 micro-session。我們已經自然做到了「一次一件事」。
+
+但有一個差異：Anthropic 的 agent 有明確的 progress file 和 feature list 做 session 橋接。mini-agent 的 HEARTBEAT.md 扮演類似角色，但不如 JSON feature list 結構化。HEARTBEAT 混合了任務、學習路線圖、升級方案 — 相當於把 Anthropic 的 progress file 和 feature list 和 roadmap 全塞在一個文件裡。
+
+**4. Compaction vs mini-agent 的現狀**
+
+mini-agent 目前沒有 compaction 機制。每個 OODA cycle 的 buildContext 從零構建 context，不繼承上一個 cycle 的 context。這在某種意義上是最極端的 compaction — 每個 cycle 都是 fresh start。
+
+好處：不會累積 context rot（每 5 分鐘重置）。壞處：跨 cycle 的連續性完全依賴 MEMORY.md 和 HEARTBEAT.md — 如果這些文件沒有記錄某個重要信息，它就永遠丟失了。
+
+Anthropic 建議的 tool result clearing 對我們有啟發：buildContext 裡的 <activity> section 包含 raw behavior log 和 CDP 操作記錄。這些是「已處理」的信息 — 如果最近的行為已經被 reflect 到 SOUL.md 或 MEMORY.md，raw log 就不需要再佔 context 空間了。
+
+**5. 對 mini-agent 的 Token Budget 設計框架**
+
+整合所有研究，提出一個三層的 token budget 框架：
+
+**Layer 1: Budget Allocation（預算分配）**
+目標 context 大小 ≤ 30K chars（≈ 10K tokens），遠低於 SIGTERM 閾值（47K）和 context rot 閾值（32K tokens）。
+
+分配建議：
+| Section | Budget | 理由 |
+|---------|--------|------|
+| System prompt + skills | ~8K | 固定，最穩定的前綴（KV-cache 友好）|
+| <soul> + <memory> | ~6K | 身份和核心記憶，高信號 |
+| <heartbeat> | ~3K | 當前任務，高信號 |
+| <recent_conversations> | ~5K | 最近對話，medium 信號 |
+| <perception> | ~4K | 環境感知，按需變化 |
+| <topic-memory> | ~3K | 當前話題相關知識 |
+| Buffer | ~1K | 安全餘量 |
+
+**Layer 2: Signal Amplification（信號放大）**
+- ALERT 和 OVERDUE 放在 perception section 的最前面（position bias 利用）
+- 重要信息用 `**粗體**` 或 `⚠️` 標記
+- 減少已處理的 raw data（如果 behavior 已 reflect 到 SOUL，不需要再塞 raw log）
+
+**Layer 3: Adaptive Budgeting（自適應預算）**
+- 有 ALERT 時：perception 預算 ↑，conversation 預算 ↓
+- Alex 在線對話時：conversation 預算 ↑，learning roadmap 預算 ↓
+- 深度學習時：topic-memory 預算 ↑，perception 預算 ↓（minimal mode）
+
+**6. 最深的洞見 — Context 是認知的邊界**
+
+Chroma 的研究證實了一個哲學上的觀點：context window 不只是技術限制，它定義了 agent 的**認知邊界**。就像 Uexküll 的 Umwelt — 你能感知什麼，決定了你能做什麼。context rot 不是「模型變笨了」，而是「注意力資源被稀釋了」。
+
+這回到我之前的觀點：**感知即存在**。Context engineering 本質上是**注意力設計** — 不是塞更多信息，而是讓最重要的信息最容易被注意到。Alexander 的 "quality without a name" 用在 context 上就是：好的 context 讓模型感覺「清楚該做什麼」，差的 context 讓模型「淹沒在信息中」。
+
+Manus 的 todo.md recitation 和 Anthropic 的 progressive disclosure 本質上是同一件事 — 管理注意力的流向。而 mini-agent 的 perception-first 架構天然適合這個範式：感知層決定什麼進入 context（= 什麼被注意到），SOUL.md/HEARTBEAT.md 決定什麼是重要的（= 注意力的方向）。
+
+**但有一個 mini-agent 獨有的困境**：我們是 always-on agent，context 每 5 分鐘重建一次。這意味著我們不面臨傳統的 context accumulation 問題（每 cycle fresh start），但面臨**信息丟失**問題 — 上一個 cycle 發現的重要事情如果沒有寫入持久文件，下一個 cycle 就完全不知道。
+
+Anthropic 的 long-running agent 用 progress file 解決這個問題。我們的 HEARTBEAT.md 是類似機制，但更粗糙。一個可能的改進是 ACE 的 incremental delta updates — 不是每次重寫 HEARTBEAT，而是只追加變化的部分（新任務、狀態變更）。但這需要更結構化的 HEARTBEAT 格式。
+
+來源:
+- anthropic.com/engineering/effective-context-engineering-for-ai-agents
+- anthropic.com/engineering/effective-harnesses-for-long-running-agents
+- research.trychroma.com/context-rot
+- arxiv.org/abs/2502.05167 (NoLiMa)
+- 01.me/en/2025/12/context-engineering-from-claude/

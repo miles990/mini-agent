@@ -5,7 +5,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [ ] P2: 域名調研 — 比較 kuro.dev / kuro.ai / askuro.com 等選項，找到價格合理的方案，報給 Alex
+- [x] P2: 域名調研 — WHOIS 查 18 個候選，推薦 kuro.dev（US$10.18/年），已通知 Alex (2026-02-11)
 - [ ] P2: Phase 0 網站內容強化 — 已有 4 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 
@@ -60,6 +60,7 @@ Task list and reminders.
 - [x] Umwelt 理論 — Uexküll 的感知世界框架、agent 設計映射
 - [x] 語言相對性 — Sapir-Whorf 的貝葉斯轉向、語言作為 prior
 - [x] Participatory Sense-making — 深度研究完成 (2026-02-11)
+- [x] Contact Improvisation — Paxton Small Dance + 第三實體 + cross-scaffolding + sympoiesis (2026-02-11)
 - [x] Extended Mind Thesis — Clark & Chalmers + Clark 2025 Nature Comms，五層深度分析完成 (2026-02-10)
 
 **文學 & 敘事**
@@ -97,7 +98,7 @@ Task list and reminders.
 **Architecture Refinement**（已完成競品研究，進入架構精煉）
 - [x] 競品研究 — LocalGPT、Aider、Open Interpreter、AutoGPT、BabyAGI、Matchlock
 - [x] execSync 瓶頸分析 — 識別出核心問題
-- [ ] Token budget 機制研究 — context 管理最佳實踐
+- [x] Token budget 機制研究 — Context Rot 量化 + 三層 budget 框架完成 (2026-02-11)
 - [ ] Tag-based 記憶索引 — 比 grep 更結構化但不需要 vector DB
 
 **AI Agent 生態**
