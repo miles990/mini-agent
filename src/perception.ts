@@ -46,7 +46,7 @@ export async function executePerception(
   perception: CustomPerception,
   cwd?: string,
 ): Promise<PerceptionResult> {
-  const timeout = perception.timeout ?? 5000;
+  const timeout = perception.timeout ?? 10000;
   const startTime = Date.now();
 
   // 解析腳本路徑（相對路徑基於 cwd）
@@ -93,8 +93,14 @@ export async function executePerception(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     const shortErr = msg.split('\n')[0].slice(0, 200);
-    const stderr = (error as { stderr?: string })?.stderr?.trim()?.slice(0, 200) ?? '';
-    diagLog('perception.exec', error, { script: perception.name, stderr });
+    const errObj = error as { stderr?: string; killed?: boolean; signal?: string; code?: number | null };
+    const stderr = errObj.stderr?.trim()?.slice(0, 200) ?? '';
+    diagLog('perception.exec', error, {
+      script: perception.name,
+      stderr,
+      killed: String(errObj.killed ?? ''),
+      signal: errObj.signal ?? '',
+    });
     return {
       name: perception.name,
       output: null,

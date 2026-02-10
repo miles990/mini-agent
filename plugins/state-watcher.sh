@@ -12,9 +12,9 @@ SNAPSHOT_FILE="$MEMORY_DIR/.state-snapshot.json"
 collect_state() {
     local state="{"
 
-    # Docker 狀態
-    if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
-        local containers=$(docker ps --format '{{.Names}}:{{.Status}}' 2>/dev/null | sort | tr '\n' ',' | sed 's/,$//')
+    # Docker 狀態（timeout 防止 daemon 無回應時 hang）
+    if command -v docker &>/dev/null && timeout 3 docker info &>/dev/null 2>&1; then
+        local containers=$(timeout 3 docker ps --format '{{.Names}}:{{.Status}}' 2>/dev/null | sort | tr '\n' ',' | sed 's/,$//')
         state="$state\"docker\":\"$containers\","
     else
         state="$state\"docker\":\"unavailable\","
@@ -41,10 +41,10 @@ collect_state() {
     local disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
     state="$state\"disk\":\"$disk_pct\","
 
-    # 記憶體使用（macOS 簡化版）
+    # 記憶體使用（macOS 簡化版，timeout 防止 hang）
     local mem_pressure="normal"
     if command -v memory_pressure &>/dev/null; then
-        mem_pressure=$(memory_pressure 2>/dev/null | head -1 | awk '{print $NF}' || echo "unknown")
+        mem_pressure=$(timeout 3 memory_pressure 2>/dev/null | head -1 | awk '{print $NF}' || echo "unknown")
     fi
     state="$state\"memory\":\"${mem_pressure}\""
 

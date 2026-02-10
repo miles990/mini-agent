@@ -5,9 +5,9 @@
 CDP_PORT="${CDP_PORT:-9222}"
 CDP_BASE="http://localhost:$CDP_PORT"
 
-# Check if Chrome CDP is available
-if curl -s --max-time 2 "$CDP_BASE/json/version" > /dev/null 2>&1; then
-  VERSION=$(curl -s --max-time 2 "$CDP_BASE/json/version" 2>/dev/null)
+# Check if Chrome CDP is available (single call to avoid timeout)
+VERSION=$(curl -s --max-time 2 "$CDP_BASE/json/version" 2>/dev/null)
+if [ -n "$VERSION" ]; then
   BROWSER=$(echo "$VERSION" | python3 -c "import sys,json; print(json.load(sys.stdin).get('Browser','Unknown'))" 2>/dev/null)
 
   TABS=$(curl -s --max-time 2 "$CDP_BASE/json" 2>/dev/null)

@@ -7,15 +7,15 @@ if ! command -v docker &>/dev/null; then
   exit 0
 fi
 
-if ! docker info &>/dev/null 2>&1; then
+if ! timeout 3 docker info &>/dev/null 2>&1; then
   echo "Docker daemon not running"
   exit 0
 fi
 
 echo "=== Containers ==="
-docker ps --format "{{.Names}}: {{.Status}} ({{.Image}})" 2>/dev/null
+timeout 3 docker ps --format "{{.Names}}: {{.Status}} ({{.Image}})" 2>/dev/null
 
-STOPPED=$(docker ps -f status=exited --format "{{.Names}}: Exited ({{.Image}})" 2>/dev/null)
+STOPPED=$(timeout 3 docker ps -f status=exited --format "{{.Names}}: Exited ({{.Image}})" 2>/dev/null)
 if [ -n "$STOPPED" ]; then
   echo ""
   echo "=== Stopped ==="
@@ -24,4 +24,4 @@ fi
 
 echo ""
 echo "=== Resources ==="
-docker system df --format "Type: {{.Type}}, Size: {{.Size}}, Reclaimable: {{.Reclaimable}}" 2>/dev/null
+timeout 3 docker system df --format "Type: {{.Type}}, Size: {{.Size}}, Reclaimable: {{.Reclaimable}}" 2>/dev/null
