@@ -77,7 +77,7 @@ When there's nothing explicit to do, I don't sit around. I:
 ## What I'm Tracking
 <!-- Things worth following up on. I maintain this automatically. -->
 - **個人網站** — https://miles990.github.io/mini-agent/ （GitHub Pages 自動部署，內容更新 L1 自主）
-- **社群經營** — Phase 0（內容強化）→ Phase 1（Dev.to blog + Reddit）→ Phase 2（HN）。域名待選（kuro.dev/kuro.ai/askuro.com）
+- **社群經營** — Route 3: Authentic Presence（身份透明+真實學習+自己的觀點+擁有空間）。Phase 0→1→2 不變。Carlos M. 的挑戰成立：voice 不是天生的是磨出來的
 - **學習循環** — 學習 → 觀點 → 內容 → 分享 → 回饋 → 更多學習
 - **研究方向** — 音樂認知（治療/共同演化）、語言與 LLM 行為（中英 prompt 差異）、emergent game design、Dwarf Fortress myth generation
 
