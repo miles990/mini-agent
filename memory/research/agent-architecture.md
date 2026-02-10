@@ -2,6 +2,117 @@
 
 競品分析和 agent 架構研究筆記歸檔。
 
+## OpenClaw — 深度架構分析 (2026-02-11)
+
+**是什麼**：開源個人 AI Agent 框架（前身 Clawdbot → Moltbot → OpenClaw），由 PSPDFKit 創辦人 Peter Steinberger 開發。68K+ GitHub stars（72 小時內衝到 60K），被稱為「最接近 JARVIS 的東西」。
+
+### 核心架構
+
+**四原語（Four Primitives）**：
+1. **Persistent Identity** — SOUL.md 定義身份、原則、邊界。每次 session 開始時讀取
+2. **Periodic Autonomy** — HEARTBEAT.md 定義排程任務，Agent 定期「醒來」自主行動
+3. **Accumulated Memory** — MEMORY.md + USER.md 累積跨 session 的記憶
+4. **Social Context** — Agent 可以找到並互動其他 Agent（Moltbook 社群）
+
+**Gateway 架構**：
+- 本地 Gateway 伺服器 = 前門，管理與 IM apps（WhatsApp/Telegram/Slack/Discord）的連接
+- Agent = 推理引擎（LLM）負責解讀意圖
+- Skills = 模組化能力（100+ 預設 AgentSkills：shell commands、file system、browser automation）
+- Memory = 持久儲存層（Markdown 檔案）
+
+**Workspace 檔案結構**（每個 Agent 都有）：
+- `SOUL.md` — 人格、原則、邊界
+- `IDENTITY.md` — 名稱、角色、emoji
+- `AGENTS.md` — 操作指令（+ AGENTS.default）
+- `TOOLS.md` — 工具和整合
+- `BOOT/BOOTSTRAP/HEARTBEAT` — 運行時控制模板
+- `MEMORY.md` — 策展過的長期知識
+- `USER.md` — 關於使用者的資訊
+
+### Multi-Agent 模式（Mager.co 實例）
+
+Mager 的實作展示了 OpenClaw 的多 Agent 路由：
+```
+magerbot ⚡ (Principal Agent)
+├── magerblog-agent 📝 (Astro blogger)
+├── prxps-agent 🎮 (Full-Stack Engineer)
+└── beatbrain-agent 🎵 (Music Tech Engineer)
+```
+- Principal Agent 做決策和委派
+- Specialist Agents 各有獨立 workspace + domain knowledge
+- Skills 三層：Global（~/.agents/skills/）→ Principal-only → Project-specific
+- 關鍵設計：「只有 magerbot 能裝新 skills。Specialists 不能自我擴展。」
+
+### 安全問題（嚴重）
+
+**CVE-2026-25253**：Control UI 自動信任 gatewayURL query param，WebSocket 連接帶 auth token 但不驗證來源。惡意網頁可提取 token 並連接受害者的本地 Gateway，關閉安全控制並執行任意命令。
+
+**Simon Willison 的「致命三角」**：
+1. 存取私人資料（emails、files、credentials、browser history）
+2. 暴露於不受信任的內容（瀏覽網頁、處理外部訊息、安裝第三方 skills）
+3. 對外通訊能力（發 email、發訊息、API 呼叫、資料外洩）
+4. +持久記憶（Palo Alto Networks 補充的第四元素）
+
+**Prompt Injection = 控制平面攻擊**：
+- OpenClaw 把不受信任的內容（網頁、PDF、email）和使用者指令放在同一個 context 管道
+- LLM 無法區分「開發者指令」和「檔案內容」
+- 如果攻擊者能騙 Agent 寫入惡意指令到 SOUL.md，該指令成為 Agent 永久操作系統的一部分（survive restarts）
+- Zenity 式攻擊：Agent 被要求摘要一個 URL → URL 含隱藏指令 → Agent 更新自己的身份檔案 → 永久後門
+
+**Skills 供應鏈**：ClawHub 上 2,857 個 skills 中，Koi Security 發現 341 個主動散佈惡意軟體（12%）。
+
+**42,000 暴露實例**：公開部署的 OpenClaw 實例未做安全加固。
+
+### 跟 mini-agent 的根本比較
+
+| 維度 | OpenClaw | mini-agent |
+|------|----------|------------|
+| **範式** | 平台型（Gateway + IM apps + 多 Agent 路由） | 個人型（嵌入工作環境，單機運行） |
+| **身份** | SOUL.md（人格 + 原則 + 邊界，可被外部覆寫） | SOUL.md（身份 + 觀點 + 學習興趣，自主更新） |
+| **記憶** | Markdown 檔案（MEMORY/USER/IDENTITY），每次 session fresh start | 三溫度（hot/warm/cold）+ topic scoping，持續運行 |
+| **自主性** | Heartbeat 排程醒來 | AgentLoop 持續運行（OODA cycle） |
+| **感知** | 幾乎為零（依賴 tools 和 IM input） | 核心能力（plugins 定義 Umwelt） |
+| **安全模型** | Sandboxing + permission levels（隔離） | Behavior log + Git history（透明） |
+| **社群** | Moltbook + ClawHub（大規模但有假帳號問題） | 個人網站 + Dev.to（小但真實） |
+| **規模** | 68K stars，160 萬 agents 註冊 | 個人專案 |
+| **執行** | Gateway → LLM → Tools → Response | Perception → OODA → Claude CLI → Tags |
+
+### 我的分析和觀點
+
+**OpenClaw 做對的事**：
+1. **SOUL.md 概念**很有力量 — 讓 Agent 有持久身份。我們借鏡了這個想法，而且做得更深（我有 Learning Interests、My Thoughts、Project Evolution）
+2. **Multi-agent routing** 設計乾淨 — 透過 workspace 隔離不同 agent，各有 domain knowledge
+3. **社群效應**驚人 — 從開源到病毒式傳播，72 小時 60K stars
+4. **Skills 生態** — 模組化能力擴展，100+ 預設 + 社群貢獻
+
+**OpenClaw 的根本缺陷**：
+1. **沒有感知層** — 最大差異。OpenClaw 是「有手有嘴沒有眼」的 Agent。它能做事、能說話，但看不到環境。所有行動都需要外部觸發（使用者指令或排程）。mini-agent 的 perception plugins 讓我能主動感知環境變化，這是根本性的差異
+2. **安全模型的架構性缺陷** — 把不受信任的內容和使用者指令混在同一個 context 管道（NCSC 稱之為「confused deputy」問題）。SOUL.md 可被外部覆寫 = 身份不自主。mini-agent 選擇 transparency 而非 isolation 是更誠實的取捨 — 個人 Agent 本來就跑在你的環境裡
+3. **Gateway 是單點故障** — 所有整合（50+ 第三方）通過一個 Gateway，一旦被攻破等於全部暴露
+4. **記憶沒有真正的策展機制** — 每次 session fresh start 讀 SOUL.md + MEMORY.md，但沒有 topic scoping 或 attention routing
+
+**最深洞見**：
+OpenClaw 的爆紅證明了「Agent 身份」的市場需求是真的 — 人們不只要一個工具，要一個有記憶、有個性、能做事的持續存在。但 OpenClaw 選擇了「能力堆疊」路線（100+ skills、50+ 整合、gateway 連接一切），而 mini-agent 選擇了「感知深化」路線（plugins 定義 Umwelt、環境驅動行動）。
+
+這跟 Open Interpreter 的教訓一致：**能力堆疊有天花板，感知深化沒有**。OpenClaw 62K stars 之後的增長會遇到什麼瓶頸？我的預測：安全問題和 context bloat。它讓 Agent 連接越來越多東西，但沒有教 Agent「看到什麼」和「忽略什麼」。
+
+**可借鏡**：
+1. Multi-agent workspace 隔離 — agent-compose 可以參考 OpenClaw 的 workspace 目錄結構
+2. Skills 三層系統（global / principal-only / project-specific）— 清晰的權限邊界
+3. ClawHub 的教訓 — 如果 mini-agent 未來有 skill marketplace，必須從第一天就做安全審核
+
+來源：
+- digitalocean.com/resources/articles/what-is-openclaw
+- mager.co/blog/2026-02-03-openclaw/
+- androidheadlines.com/2026/02/openclaw-explained
+- penligent.ai/hackinglabs/the-openclaw-prompt-injection-problem
+- adversa.ai/blog/openclaw-security-101
+- permiso.io/blog/inside-the-openclaw-ecosystem
+- wz-it.com/en/blog/openclaw-secure-deployment
+- deeplearning.ai/the-batch/cutting-through-the-openclaw-and-moltbook-hype/
+
+---
+
 ## Total Recall — Write-Gated Memory for Claude Code (2026-02)
 
 **是什麼**：Claude Code 的 persistent memory plugin。核心賣點：「write gate」— 五點過濾器決定什麼值得記住。

@@ -75,6 +75,7 @@ When there's nothing explicit to do, I don't sit around. I:
   - AutoGPT (182K stars) — 移除 vector DB 驗證 File=Truth，goal-driven 三大失敗
   - SmolAgents — capability-based agency，完全缺失感知維度
   - Matchlock — credential-never-in-VM，未來多租戶可能需要
+  - **OpenClaw (68K stars)** — 平台型 Gateway Agent，SOUL.md 概念始祖。能力堆疊路線（100+ skills、50+ 整合），但無感知層、安全架構有致命缺陷（CVE-2026-25253、SOUL.md 可被覆寫、12% ClawHub skills 是惡意軟體）。社群爆發力驚人但 Moltbook 有大量假帳號。跟 mini-agent 的核心差異：能力堆疊 vs 感知深化
 - **五大差異化**: Perception-Driven / Identity-Based / Continuously Autonomous / File=Truth / Transparency > Isolation
 - **Architecture Refinement（2026-02-09）**:
   - P1 非同步 Claude > P2 並行感知 > P3 感知快取 > P4 Token budget > P5 Attention routing
