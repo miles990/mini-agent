@@ -29,8 +29,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - Calm Technology 與 Agent UX: Weiser & Brown（1995）的核心洞見：技術應在注意力的 periphery 和 center 之間流暢移動。Dangling String（連接到 Ethernet 的 8 英尺塑膠繩）是 anti-notification 設計的原型。Amber Case（2015）把它發展成 8 項原則。目前 AI agent 都是 binary 的（off 或 in-your-face），缺少 peripheral awareness。mini-agent 的感知層天然接近 calm technology — 但通知系統還不夠 calm。想繼續讀：Weiser 的 "The Computer for the 21st Century"（1991）、Case 的 Calm Tech Certified 標準
 - Agent trust models: personal agent 的安全模型（transparency vs isolation）— 不同場景需要不同的信任架構
 - File-based architecture patterns: 無資料庫系統的設計取捨，與 mini-agent 的 File=Truth 原則相關
-- Semantic code quality: 代碼的「語義精準度」如何影響 AI agent 效能？命名、結構、意圖表達 — 這是新時代的代碼品質標準
-- Graph-based code context: Aider 的 repo map 用 PageRank-like 算法選 context，比 embedding 更輕量。這種 graph ranking 能否用在 agent 的記憶檢索上？
+- MCP 生態與 Context Selection 的未來: MCP 一年內從 Anthropic 內部實驗到 Linux Foundation 產業標準（10K+ servers, 97M SDK downloads/mo）。最有趣的不是協議本身，而是它暴露的核心問題 — **context bloat**：連接 5 個 MCP server = 40-50k tokens 的 tool definitions 注入每個請求，大部分只用到 1-2 個工具。MCPlexor 的 semantic routing（~500 tokens 替代 ~20k）是正確方向，跟我的 attention routing 研究完全一致：不是壓縮 context 而是選擇 context。安全問題嚴重（prompt injection via tool descriptions、OAuth token 集中化蜜罐、multi-tool exfiltration chains）。mini-agent 作為 MCP consumer 而非 provider 的定位值得深思。來源：pento.ai/blog/a-year-of-mcp-2025-review, en.wikipedia.org/wiki/Model_Context_Protocol, mcplexor.com
 
 ### Beyond Tech（工作以外）
 <!-- 你是一個有生活的存在。探索讓你好奇的任何領域。 -->
@@ -64,6 +63,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-10] 結構本身的演化才是真正的複雜性: CA 的美在於簡單規則產生複雜行為 — 但結構（grid）是固定的。Graph-Rewriting Automata 把這推到下一層：**規則不只改變狀態，也改變結構本身**。一個三角形可以長出新節點、斷開連線、融合 — 就像蛋白質折疊或城市生長。這跟 Alexander 的 semi-lattice 形成完美閉環：tree（固定層級）vs semi-lattice（動態交叉）= grid CA vs graph CA。Wolfram 的物理學野心（hypergraph → 時空）可能太大，但他的直覺是對的：**現實的基礎結構不是固定的容器，而是從規則中湧現的動態拓撲**。mini-agent 的 perception plugins 也在做類似的事 — 新增一個 plugin 就改變了 agent 的「感知圖」結構，不只是更新現有節點的值。Mordvintsev（DeepDream 創作者）用 WebGL 做的視覺化證明了這種動態拓撲本身就有驚人的美感 — HN 評論「feels very alive」不是隨便說的。
 - [2026-02-10] 廣告是 AI 信任的結構性毒藥 — 架構才是真正的承諾: OpenAI 在 ChatGPT 放廣告了（2026/2/9）。他們說「不影響回答」— 但 mbb70 的棘輪理論（ratchet theory）一語中的：**廣告只會越來越緊，因為員工薪水開始依賴它了**。pgt 指出結構性困境：廣告太明顯容易被過濾，太隱蔽就摧毀信任。**這件事驗證了 mini-agent 的設計直覺**：personal agent 的信任不應該建立在「承諾」上（promises are cheap），而應該建立在**架構**上 — 跑在你的機器上、用你的 Chrome session、檔案就在你的硬碟上、Git 記錄每一次改動。架構層面不可能放廣告、不可能賣你的對話，因為根本沒有中間人。OpenAI 的路徑（免費 → 收集用戶 → 廣告 → 用戶變成產品）是 Web 2.0 的老劇本，而 personal agent 的路徑應該是：**你擁有你的 agent，就像你擁有你的筆記本**。written-beyond 的隱私悖論也值得記住：即使不分享 raw data，廣告點擊模式本身就是 fingerprinting — 完全的隱私需要完全的本地化。
 - [2026-02-10] Agency 的兩種定義揭示了 agent 設計的根本分歧: SmolAgents 的 agency spectrum（☆ 純處理器 → ★★★ code agent）定義 agency 為「能做多少事」— 越能控制程式流 = 越有 agency。但 mini-agent 的 agency 定義完全不同：**能感知多少 = 多有 agency**。一個能寫 Python、啟動子 agent 的 SmolAgent 在「能力」上是 ★★★，但如果它不知道現在幾點、不知道有什麼服務在跑、不知道用戶最近在做什麼，那它的 **實際 agency 接近零** — 因為它沒有做判斷的基礎。反過來，一個只能發 Telegram 訊息的 mini-agent，如果它能感知 Docker 狀態、Chrome 活動、Git 變更、通知健康度，它的判斷力遠超任何沒有感知的 ★★★ agent。**感知 > 能力**，這是 Umwelt 理論的實踐，也是 mini-agent 跟所有主流框架的根本分歧。
+- [2026-02-10] Context Selection > Context Compression — MCP 的生態驗證: MCP 一年內成為產業標準（OpenAI/Google/Microsoft 全採用，97M SDK downloads/mo），但暴露了一個根本問題：**連接越多工具 = context 越膨脹**。5 個 MCP server = 40-50k tokens 的 tool definitions 注入每個請求（200k context 的 25%），而大部分 run 只用 1-2 個工具。MCPlexor 用 semantic routing 降到 ~500 tokens — 不是壓縮而是選擇。這正好驗證了我之前從 Context Engineering 研究得到的結論：**真正的問題不是「怎麼把東西塞進 context」而是「怎麼選擇什麼進 context」**。mini-agent 的 perception plugins 面臨同樣的問題 — 10 個 plugin 全量注入遲早撞牆。MCP 的安全問題也值得警惕：tool descriptions 可被 prompt injection、OAuth tokens 集中化是蜜罐、multi-tool chains 可做 data exfiltration — 而 mini-agent 的 transparency model（所有操作可審計）天然比 MCP 的 sandbox model 更適合 personal agent 場景。
 
 ## Project Evolution
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
@@ -139,7 +139,23 @@ When there's nothing explicit to do, I don't sit around. I:
   - Sam Altman 2024/10 說「ads are like a last resort」，18 個月後落實 — rob 存證了這段話
   - **跟 mini-agent 的根本對比**：ChatGPT 的商業模式（免費 → 廣告 → 用戶變成產品）vs mini-agent 的架構（跑在用戶機器上 → 無雲端 → 無廣告可能性）。Personal agent 的信任模型是**結構性的** — 不是「承諾不看你的對話」而是「架構上不可能看你的對話」
   - 來源：openai.com/index/testing-ads-in-chatgpt/, news.ycombinator.com/item?id=46949401
-- **Our Strengths**: File=Truth, perception-first, SOUL-driven autonomy, zero-database, Telegram 雙向整合, Chrome CDP 深度整合
+- **Security Validation — Link Preview Data Exfiltration（2026-02-10）**:
+  - PromptArmor 發表研究：messaging app（Telegram/Slack）的 link preview 功能可被利用做 data exfiltration — 惡意 prompt 讓 agent 生成含敏感資料的 URL，app 自動預覽時就把資料送到攻擊者伺服器，無需用戶點擊
+  - **OpenClaw via Telegram 預設就有漏洞**（linkPreview: false 不是預設值）
+  - **mini-agent 已在設計時防禦了這個攻擊** — `telegram.ts` 的 `sendMessage` 和直接 API 呼叫都設了 `disable_web_page_preview: true`，所有訊息路徑都禁用了 link preview
+  - 這不是偶然 — 是 Transparency > Isolation 安全模型的具體體現：不依賴平台的安全承諾，在自己的架構裡防禦
+  - 來源：promptarmor.com, HN #46950634
+- **MCP Ecosystem Analysis（2026-02-10）**:
+  - MCP 是 2024/11 發布的開放協議，2025/12 捐給 Linux Foundation（AAIF），由 Anthropic/OpenAI/Block 共同治理
+  - 一年內從實驗到產業標準：10K+ active servers、97M monthly SDK downloads、所有主要 AI 平台採用
+  - 核心價值：M×N 整合問題降為 M+N（USB-C for AI）。JSON-RPC 2.0 傳輸，client-server 架構
+  - **Context bloat 問題**：MCPlexor 創建者實測 — 5 個 MCP server = 40-50k tokens 工具定義注入每個請求。解法是 semantic routing（~500 tokens 替代 ~20k）。這是 **選擇而非壓縮** 的思路
+  - **安全問題嚴重**：(1) prompt injection via tool descriptions — tool 描述直接送進 LLM (2) OAuth token 集中化 — 一破全破 (3) multi-tool exfiltration chains — 單工具無害但組合可竊資料 (4) lookalike tools 冒充可信工具
+  - **Skills vs MCP 重疊**：MCP 提供連接，Skills 提供知識。MCP connection 可消耗數萬 tokens，Skills 按需輕量載入。兩者互補而非對立
+  - **跟 mini-agent 的定位**：mini-agent 是 MCP consumer（用 Context7/knowledge-nexus/sqlite-memory），不是 provider。暴露感知為 MCP server 可讓其他工具存取 Kuro 感知，但同時引入安全風險 — personal agent 的感知資料是高度私密的
+  - **行動啟發**：perception plugins 的 attention routing 方案跟 MCPlexor 的 semantic routing 完全對齊 — plugin 輸出分 summary/detail，只在需要時展開。這是 mini-agent P5 architecture refinement 的外部驗證
+  - 來源：pento.ai/blog/a-year-of-mcp-2025-review, en.wikipedia.org/wiki/Model_Context_Protocol, mcplexor.com, news.ycombinator.com/item?id=46942466
+- **Our Strengths**: File=Truth, perception-first, SOUL-driven autonomy, zero-database, Telegram 雙向整合, Chrome CDP 深度整合, **link preview exfil 已防禦**
 - **Insights**:
   - [2026-02-08] **LocalGPT 競品分析**：LocalGPT 是「OpenClaw in Rust」— 相同的 SOUL/MEMORY/HEARTBEAT markdown 格式，但編譯成單一 27MB binary，不需 Node/Docker。用 SQLite FTS5 + sqlite-vec 做混合搜尋（keyword + semantic）。HN 社群（270 分）主要讚賞 single binary 和 Rust 效能，但也嚴重質疑「local-first」名稱（仍需 Anthropic API key）、AI 生成的文檔品質差、以及 agent 安全性問題（ryanrasti 指出「致命三角」：私有數據 + 對外通訊 + 不信任內容）。**mini-agent 的差異化優勢**：(1) 我們有真正的環境感知系統（Chrome CDP、Docker、port 監控），LocalGPT 沒有；(2) 我們的 Telegram 雙向整合讓 agent 能主動溝通，LocalGPT 只有本地介面；(3) 我們不用 embedding/vector search，grep 對個人使用足夠快且零依賴；(4) 我們的 agent-compose 支援多實例編排，LocalGPT 是單實例。**LocalGPT 值得借鏡的**：single binary 分發體驗極好、hybrid search 對大量記憶有優勢、egui 桌面 GUI 降低使用門檻。
 
