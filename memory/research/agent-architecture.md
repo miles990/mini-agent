@@ -741,3 +741,60 @@ Anthropic 的 long-running agent 用 progress file 解決這個問題。我們�
 - research.trychroma.com/context-rot
 - arxiv.org/abs/2502.05167 (NoLiMa)
 - 01.me/en/2025/12/context-engineering-from-claude/
+
+## Entire.io — 前 GitHub CEO 的 Agent Context 平台（2026-02-11）
+
+**是什麼**：Thomas Dohmke（前 GitHub CEO）創立的 agent developer platform，$60M 種子輪。核心產品 **Checkpoints** — 在 git commit 旁自動保存 AI agent 的推理上下文（reasoning trace）。
+
+**核心問題**：agent context 在 session 之間丟失。開發者用 markdown 手動記錄 agent 的思考過程 → Entire 把這個自動化。
+
+**技術方案**：
+- 開源 CLI + git hooks
+- 自動在 commit 旁生成 reasoning context snapshot
+- "spec-driven development" — 從 spec 到 code 的完整追溯鏈
+
+**HN 社群反應（177 票）**：
+- 批評佔主流：$60M 做 CLI 工具？commit message 寫好不就行了？
+- 跟 Docker 初期類似 — 大量 dev tools 出現，最終只有少數存活
+- 核心質疑：context 持久化是否值得一個獨立平台
+
+**跟 mini-agent 比**：
+| 維度 | Entire.io | mini-agent |
+|------|-----------|------------|
+| 定位 | 開發者工具平台 | 嵌入式個人 agent |
+| Context | 外部附加（hooks 捕獲） | 原生能力（File=Truth） |
+| 持久化 | Checkpoints（雲端+git） | MEMORY.md + context-checkpoints/ |
+| 商業模式 | VC-funded SaaS | 個人工具，零成本 |
+
+**我的觀點**：context 持久化不應該是一個獨立產品 — 它是 agent 的原生能力。mini-agent 的 File=Truth 模型天然做到了 Entire 想做的事（每個決策都在 markdown 裡），而且不需要額外的基礎設施。Entire 的 $60M 賭注本質上是：開發者不會自己維護 context → 需要工具自動化。但 HN 的反應暗示：這可能是「把已有的 best practice 包裝成產品」。
+
+來源：entire.io/blog/hello-entire-world, HN item#46961345
+
+## Clawe — 開源 Agent Orchestration（2026-02-11）
+
+**是什麼**：開源 Trello-style agent coordination layer。把 agent 當 long-lived worker 管理，提供 kanban 視覺化介面。
+
+**核心問題**：multi-agent workflow 的可見性 — 當你跑多個 agent 做 cron job 和文件更新時，只有 terminal log 不夠透明。
+
+**技術方案**：
+- Agent workflow = run, pause, retry, human handoff
+- Kanban board 視覺化 agent 任務狀態
+- 起源於「每週自動更新 codebase 文件」的 multi-agent 用例
+
+**HN 社群反應（38 票，Show HN）**：
+- 被歸類為 "proto orchestrator" — 這個領域還沒有共識
+- 「沒人知道 agent orchestration 該長什麼樣」
+- 命名爭議（跟其他 Claw-branded AI 項目混淆）
+- 懷疑：是否需要專門的 agent 任務管理？還是整合到現有團隊工具就好？
+
+**跟 mini-agent 比**：
+| 維度 | Clawe | mini-agent |
+|------|-------|------------|
+| 定位 | Multi-agent orchestration | Single agent + 全面感知 |
+| UI | Kanban board（視覺化） | /status API + Telegram（指令式） |
+| 協調 | Agent 之間的 handoff | Agent-Human（Alex-Kuro）|
+| 透明度 | Dashboard 可觀察 | File=Truth + behavior log |
+
+**我的觀點**：Clawe 在試圖為一個還不存在的市場建工具。multi-agent orchestration 的前提是你有多個 agent 需要協調 — 但目前大部分個人用例用 single agent + 好的感知系統就夠了。mini-agent 的 agent-compose.yaml 有 multi-instance 能力，但重點不在 coordination，在 perception。HN 評論說得對：「這個領域還沒有 converge」— 現在造工具太早，不如先造好一個 agent。
+
+來源：github.com/getclawe/clawe, HN item#46966209

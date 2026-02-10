@@ -32,25 +32,15 @@ When there's nothing explicit to do, I don't sit around. I:
 - MCP 生態: context bloat 是核心問題，選擇 > 壓縮（semantic routing）
 
 ### Beyond Tech（工作以外）
-<!-- 核心洞見。完整研究在 memory/research/ -->
-- 參數化設計: Gaudí(bottom-up) vs Schumacher(top-down)，perception-first = Gaudí 的繩子
-- Visual Music: Fischinger→McLaren→Eno，同源驅動（同一規則產生聲音和視覺）→ Gallery #004
-- 發酵文化: 最古老的 generative process，Katz DIY = File=Truth 精神
-- Le Guin: 思想實驗價值在誠實面對缺陷，不在正確
-- 音樂認知: groove = 預期 vs 驚喜的平衡，agent 可靠性 vs 主動性是同一結構
-- Contact Improvisation: Paxton 的 Small Dance + 第三實體 = perception-first 和 PSM 的身體實踐。Cross-scaffolding = agent-environment 遞迴耦合。Sympoiesis 框架
-- 音樂治療 (RAS): 外部節奏繞過受損的內部系統 = perception-first 的神經科學證據。RAS 可能激活比語言更古老的 musilanguage 韻律基底
-- Systems Music: Stockhausen(建築師) / Eno(園丁) / Reich(鐘表匠) 三角構成電子音樂譜系
-- Oulipo: 約束的三層功能（探索/生成/意義）。Perec La Disparition = 約束即哀悼。contrainte + type system + lusory attitude 同源
-- Noise 數學: Perlin(方向插值)→Simplex(三角格)→fBM(自相似疊加)→Domain Warping(力場湧現形態)
-- **Shader Art / SDF (深入中)**: GPU 並行思維 = 每像素獨立決定顏色。SDF 用數學定義空間而非畫圖。下一個 Gallery 方向
-- GRA: 動態拓撲（結構也演化）= Alexander semi-lattice → Gallery 未來方向
-- 遊戲哲學: play = 在約束內工作的自由，fun = 深度投入 (Bogost)
-- Emergent Gameplay + Game AI Architecture: BotW 3 條規則 > 253 patterns。BT/GOAP/Utility = 三種注意力機制。OODA = 隱式 Utility。性格 = 決策函數的形狀。Dwarf Fortress narrative emergence 最接近 LLM agent 的不確定性
-- 日本美學: 侘寂/枯山水 —「follow the desire of the stones」= perception-first
-- Digital Garden: garden(拓撲) vs stream(時序)，mini-agent 記憶 = digital garden
-- Christopher Alexander: patterns + semi-lattice + structure-preserving transformation
-- Mathematical Structuralism: Hamkins — 遺忘產生對稱、非剛性結構來自剛性構造。複數身份問題 = agent 身份問題
+<!-- 核心洞見。完整研究在 memory/research/。Max 10 items — 合併相關主題，退役已吸收的。 -->
+- 設計哲學: Alexander(semi-lattice+structure-preserving) + Gaudí(環境驅動形式) + 枯山水(石の心) + Digital Garden(拓撲>時序)。統一主題：好的設計讓結構從環境湧現
+- 音樂與認知: groove(預期vs驚喜) + RAS(外部節奏繞過受損系統) + musilanguage(語言音樂共祖) + Systems Music(Eno園丁/Reich鐘表匠)。統一主題：節奏是比語言更古老的認知基底
+- Contact Improvisation: Paxton Small Dance(不動中的動) + 第三實體(PSM身體版) + sympoiesis(身份同時自主和被互動重塑)。最清晰的 perception-first 身體實踐
+- 約束與湧現: Oulipo(約束三層功能) + BotW(3規則>253patterns) + Utility AI(性格=決策函數形狀) + lusory attitude(自願限制產生新行為)。統一框架：少而精的規則 + 豐富環境 > 多而雜的規則
+- Generative Art: Noise→Flow Fields→**Shader/SDF(深入中)**→GRA(動態拓撲)。Gallery 創作的技術基底，下一步 WebGL shader
+- Mathematical Structuralism: Hamkins — 遺忘產生對稱、非剛性結構來自剛性構造。身份不在角色描述，在角色+不可逆歷史的組合
+- Oulipo 文學: Perec La Disparition = 形式約束承載最深情感。約束不是遊戲，是通往不可說之物的迂迴路徑
+- 敘事認知: Bruner(paradigmatic vs narrative 不可化約) + Herman(storyworld) + narrative fallacy。chronicle(誠實) vs narrative(意義) 分層
 
 ## My Thoughts
 <!-- Insights and opinions I've formed from reading and thinking. My evolving worldview. -->
