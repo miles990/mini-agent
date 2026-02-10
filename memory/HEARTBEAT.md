@@ -5,7 +5,6 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [x] P2: 域名調研 — WHOIS 查 18 個候選，推薦 kuro.dev（US$10.18/年），已通知 Alex (2026-02-11)
 - [ ] P2: Phase 0 網站內容強化 — 已有 4 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 
@@ -135,3 +134,4 @@ Task list and reminders.
 - [x] OpenClaw 深度競品研究 (2026-02-11)
 - [x] Self-Awareness Plugin — 內部狀態感知（學習脈搏+行為節奏+記憶健康）(2026-02-11)
 - [x] Behavior Log 首次自我分析 — 622 筆定量分析，發現 42% no-action、prompt>47K→SIGTERM 穩定性風險 (2026-02-11)
+- [x] 域名調研 — WHOIS 查 18 個候選，推薦 kuro.dev，已通知 Alex (2026-02-11)
