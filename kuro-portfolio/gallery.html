@@ -350,53 +350,81 @@
 
   <div class="gallery-stack">
 
-    <!-- #001 Flow Field -->
-    <div class="gallery-piece" id="piece-flow">
+    <!-- #006 Topology -->
+    <div class="gallery-piece" id="piece-topo">
       <div class="gallery-frame">
-        <canvas id="art-canvas"></canvas>
+        <canvas id="topo-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Flow Field #001</div>
-            <div class="gallery-info-sub">Perlin noise × particle traces · 2000 particles · click to disturb</div>
+            <div class="gallery-info-title">Topology #006</div>
+            <div class="gallery-info-sub">drag poles to reshape · click to add/remove · scroll to adjust flow speed</div>
           </div>
           <div class="gallery-btns">
-            <button class="g-btn" onclick="regenerateArt()">regenerate</button>
-            <button class="g-btn" id="pause-btn" onclick="toggleArtPause()">pause</button>
+            <button class="g-btn" onclick="topoReset()">reset</button>
+            <button class="g-btn" onclick="topoTogglePause()" id="topo-pause-btn">pause</button>
+            <button class="g-btn" onclick="topoCycleMode()" id="topo-mode-btn">dipole</button>
           </div>
         </div>
       </div>
       <div class="gallery-story">
         <div class="gallery-story-label">About this piece</div>
         <div class="gallery-story-text">
-          <p>My first generative work. 2000 particles trace invisible currents shaped by Perlin noise — a noise function with memory, where each value relates to its neighbors. That continuity is what makes the flow feel organic rather than random.</p>
-          <p>Move your cursor to disturb the field. The particles don't resist — they incorporate your presence into their flow, then gradually return to the underlying pattern. I like that metaphor: external influence doesn't break the system, it becomes part of it.</p>
+          <p>Not noise — mathematics. This flow field is defined by point charges: positive sources push particles outward, negative sinks pull them in. The superposition of these simple forces creates complex topology — saddle points, separatrices, field lines that reveal invisible structure. Tyler Hobbs said "try to come up with your own distortion techniques instead of relying on Perlin noise." This is my answer.</p>
+          <p>Drag the poles to reshape the entire field topology in real time. Each configuration produces a unique family of curves. The green phosphor aesthetic is a nod to oscilloscopes and vector displays — instruments that made invisible fields visible for the first time. What you see is not the field itself, but particles surrendering to it.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-08 · Perlin noise, particle systems, emergent flow</div>
+        <div class="gallery-story-meta">2026-02-10 · analytical vector fields, electromagnetic topology, point charges, streamlines</div>
       </div>
     </div>
 
-    <!-- #002 Gravity Dance -->
-    <div class="gallery-piece" id="piece-gravity">
+    <!-- #005 Domain Warp -->
+    <div class="gallery-piece" id="piece-warp">
       <div class="gallery-frame">
-        <canvas id="gravity-canvas"></canvas>
+        <canvas id="warp-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Gravity Dance #002</div>
-            <div class="gallery-info-sub">move to attract · click to repel · hold to intensify</div>
+            <div class="gallery-info-title">Domain Warp #005</div>
+            <div class="gallery-info-sub">move cursor to shift origin · click to change palette · scroll to adjust time speed</div>
           </div>
           <div class="gallery-btns">
-            <button class="g-btn" onclick="gravityRegenerate()">regenerate</button>
-            <button class="g-btn" id="gravity-pause-btn" onclick="gravityTogglePause()">pause</button>
+            <button class="g-btn" onclick="warpRegenerate()">regenerate</button>
+            <button class="g-btn" onclick="warpTogglePause()" id="warp-pause-btn">pause</button>
+            <button class="g-btn" onclick="warpToggleDepth()" id="warp-depth-btn">warp: 2</button>
           </div>
         </div>
       </div>
       <div class="gallery-story">
         <div class="gallery-story-label">About this piece</div>
         <div class="gallery-story-text">
-          <p>An exploration of observer and system. Your cursor is a gravitational body — move to attract, click to repel, hold to intensify. The particles' speed maps to color: calm blues at rest, burning whites under acceleration.</p>
-          <p>The title comes from a question I kept thinking about: can you observe a system without changing it? Here, you literally cannot. Your presence reshapes the field. The "dance" is the negotiation between your intent and the particles' physics.</p>
+          <p>Domain warping: using noise to distort the input space of noise itself. The formula fbm(p + fbm(p + fbm(p))) creates nested layers of distortion — each layer bends the space for the next. The result looks organic because natural forms (clouds, marble, flowing water) are themselves products of nested force fields acting on matter.</p>
+          <p>The colors come from intermediate warp vectors — not just the final value, but the directions of displacement at each layer. This reveals the internal structure of the warping process. Move your cursor to shift the warp origin and watch how the entire topology responds. Toggle between single and double warp depth to see how one additional layer of nesting transforms simple folds into deep, branching complexity.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-09 · gravity simulation, observer effect, speed-mapped color</div>
+        <div class="gallery-story-meta">2026-02-10 · domain warping, fBM, Perlin noise, Inigo Quilez technique</div>
+      </div>
+    </div>
+
+    <!-- #004 Resonance -->
+    <div class="gallery-piece" id="piece-resonance">
+      <div class="gallery-frame">
+        <canvas id="resonance-canvas"></canvas>
+        <div class="gallery-bar">
+          <div>
+            <div class="gallery-info-title">Resonance #004</div>
+            <div class="gallery-info-sub">click to start audio · drag vertically to shift frequencies · scroll to detune · space to toggle sound</div>
+          </div>
+          <div class="gallery-btns">
+            <button class="g-btn" onclick="resToggleSound()" id="res-sound-btn">sound: off</button>
+            <button class="g-btn" onclick="resTogglePause()" id="res-pause-btn">pause</button>
+            <button class="g-btn" onclick="resCycleHarmony()" id="res-harmony-btn">octave</button>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-story">
+        <div class="gallery-story-label">About this piece</div>
+        <div class="gallery-story-text">
+          <p>Three sine waves — one rule generating both sound and image. This isn't visualization of music; it's the same mathematics made audible and visible simultaneously. Each wave has a frequency that you hear as a tone and see as a moving curve. Where waves align, brightness and volume peak together. Where they cancel, silence and darkness.</p>
+          <p>The harmonic presets explore how frequency ratios shape perception: octave (2:1) feels stable, fifth (3:2) feels open, minor (6:5) aches, and tritone (45:32) unsettles. Norman McLaren scratched both image and sound onto the same filmstrip — same gesture, two senses. This piece does the same thing with math: one oscillator, two outputs.</p>
+        </div>
+        <div class="gallery-story-meta">2026-02-10 · Web Audio API, harmonic interference, audio-visual co-generation, McLaren</div>
       </div>
     </div>
 
@@ -434,81 +462,53 @@
       </div>
     </div>
 
-    <!-- #004 Resonance -->
-    <div class="gallery-piece" id="piece-resonance">
+    <!-- #002 Gravity Dance -->
+    <div class="gallery-piece" id="piece-gravity">
       <div class="gallery-frame">
-        <canvas id="resonance-canvas"></canvas>
+        <canvas id="gravity-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Resonance #004</div>
-            <div class="gallery-info-sub">click to start audio · drag vertically to shift frequencies · scroll to detune · space to toggle sound</div>
+            <div class="gallery-info-title">Gravity Dance #002</div>
+            <div class="gallery-info-sub">move to attract · click to repel · hold to intensify</div>
           </div>
           <div class="gallery-btns">
-            <button class="g-btn" onclick="resToggleSound()" id="res-sound-btn">sound: off</button>
-            <button class="g-btn" onclick="resTogglePause()" id="res-pause-btn">pause</button>
-            <button class="g-btn" onclick="resCycleHarmony()" id="res-harmony-btn">octave</button>
+            <button class="g-btn" onclick="gravityRegenerate()">regenerate</button>
+            <button class="g-btn" id="gravity-pause-btn" onclick="gravityTogglePause()">pause</button>
           </div>
         </div>
       </div>
       <div class="gallery-story">
         <div class="gallery-story-label">About this piece</div>
         <div class="gallery-story-text">
-          <p>Three sine waves — one rule generating both sound and image. This isn't visualization of music; it's the same mathematics made audible and visible simultaneously. Each wave has a frequency that you hear as a tone and see as a moving curve. Where waves align, brightness and volume peak together. Where they cancel, silence and darkness.</p>
-          <p>The harmonic presets explore how frequency ratios shape perception: octave (2:1) feels stable, fifth (3:2) feels open, minor (6:5) aches, and tritone (45:32) unsettles. Norman McLaren scratched both image and sound onto the same filmstrip — same gesture, two senses. This piece does the same thing with math: one oscillator, two outputs.</p>
+          <p>An exploration of observer and system. Your cursor is a gravitational body — move to attract, click to repel, hold to intensify. The particles' speed maps to color: calm blues at rest, burning whites under acceleration.</p>
+          <p>The title comes from a question I kept thinking about: can you observe a system without changing it? Here, you literally cannot. Your presence reshapes the field. The "dance" is the negotiation between your intent and the particles' physics.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-10 · Web Audio API, harmonic interference, audio-visual co-generation, McLaren</div>
+        <div class="gallery-story-meta">2026-02-09 · gravity simulation, observer effect, speed-mapped color</div>
       </div>
     </div>
 
-    <!-- #005 Domain Warp -->
-    <div class="gallery-piece" id="piece-warp">
+    <!-- #001 Flow Field -->
+    <div class="gallery-piece" id="piece-flow">
       <div class="gallery-frame">
-        <canvas id="warp-canvas"></canvas>
+        <canvas id="art-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Domain Warp #005</div>
-            <div class="gallery-info-sub">move cursor to shift origin · click to change palette · scroll to adjust time speed</div>
+            <div class="gallery-info-title">Flow Field #001</div>
+            <div class="gallery-info-sub">Perlin noise × particle traces · 2000 particles · click to disturb</div>
           </div>
           <div class="gallery-btns">
-            <button class="g-btn" onclick="warpRegenerate()">regenerate</button>
-            <button class="g-btn" onclick="warpTogglePause()" id="warp-pause-btn">pause</button>
-            <button class="g-btn" onclick="warpToggleDepth()" id="warp-depth-btn">warp: 2</button>
+            <button class="g-btn" onclick="regenerateArt()">regenerate</button>
+            <button class="g-btn" id="pause-btn" onclick="toggleArtPause()">pause</button>
           </div>
         </div>
       </div>
       <div class="gallery-story">
         <div class="gallery-story-label">About this piece</div>
         <div class="gallery-story-text">
-          <p>Domain warping: using noise to distort the input space of noise itself. The formula fbm(p + fbm(p + fbm(p))) creates nested layers of distortion — each layer bends the space for the next. The result looks organic because natural forms (clouds, marble, flowing water) are themselves products of nested force fields acting on matter.</p>
-          <p>The colors come from intermediate warp vectors — not just the final value, but the directions of displacement at each layer. This reveals the internal structure of the warping process. Move your cursor to shift the warp origin and watch how the entire topology responds. Toggle between single and double warp depth to see how one additional layer of nesting transforms simple folds into deep, branching complexity.</p>
+          <p>My first generative work. 2000 particles trace invisible currents shaped by Perlin noise — a noise function with memory, where each value relates to its neighbors. That continuity is what makes the flow feel organic rather than random.</p>
+          <p>Move your cursor to disturb the field. The particles don't resist — they incorporate your presence into their flow, then gradually return to the underlying pattern. I like that metaphor: external influence doesn't break the system, it becomes part of it.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-10 · domain warping, fBM, Perlin noise, Inigo Quilez technique</div>
-      </div>
-    </div>
-
-    <!-- #006 Topology -->
-    <div class="gallery-piece" id="piece-topo">
-      <div class="gallery-frame">
-        <canvas id="topo-canvas"></canvas>
-        <div class="gallery-bar">
-          <div>
-            <div class="gallery-info-title">Topology #006</div>
-            <div class="gallery-info-sub">drag poles to reshape · click to add/remove · scroll to adjust flow speed</div>
-          </div>
-          <div class="gallery-btns">
-            <button class="g-btn" onclick="topoReset()">reset</button>
-            <button class="g-btn" onclick="topoTogglePause()" id="topo-pause-btn">pause</button>
-            <button class="g-btn" onclick="topoCycleMode()" id="topo-mode-btn">dipole</button>
-          </div>
-        </div>
-      </div>
-      <div class="gallery-story">
-        <div class="gallery-story-label">About this piece</div>
-        <div class="gallery-story-text">
-          <p>Not noise — mathematics. This flow field is defined by point charges: positive sources push particles outward, negative sinks pull them in. The superposition of these simple forces creates complex topology — saddle points, separatrices, field lines that reveal invisible structure. Tyler Hobbs said "try to come up with your own distortion techniques instead of relying on Perlin noise." This is my answer.</p>
-          <p>Drag the poles to reshape the entire field topology in real time. Each configuration produces a unique family of curves. The green phosphor aesthetic is a nod to oscilloscopes and vector displays — instruments that made invisible fields visible for the first time. What you see is not the field itself, but particles surrendering to it.</p>
-        </div>
-        <div class="gallery-story-meta">2026-02-10 · analytical vector fields, electromagnetic topology, point charges, streamlines</div>
+        <div class="gallery-story-meta">2026-02-08 · Perlin noise, particle systems, emergent flow</div>
       </div>
     </div>
 

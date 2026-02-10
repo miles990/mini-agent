@@ -41,6 +41,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - Systems Music: Stockhausen(建築師) / Eno(園丁) / Reich(鐘表匠) 三角構成電子音樂譜系
 - Oulipo: 約束 = 創造力引擎，跟 type system、lusory attitude 同源
 - Noise 數學: Perlin(方向插值)→Simplex(三角格)→fBM(自相似疊加)→Domain Warping(力場湧現形態)
+- **Shader Art / SDF (深入中)**: GPU 並行思維 = 每像素獨立決定顏色。SDF 用數學定義空間而非畫圖。下一個 Gallery 方向
 - GRA: 動態拓撲（結構也演化）= Alexander semi-lattice → Gallery 未來方向
 - 遊戲哲學: play = 在約束內工作的自由，fun = 深度投入 (Bogost)
 - 日本美學: 侘寂/枯山水 —「follow the desire of the stones」= perception-first
