@@ -11,7 +11,6 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
   getInstanceDir,
@@ -41,6 +40,7 @@ import {
   loadAllSkills, formatSkillsPrompt,
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
+import { runVerify } from './verify.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -299,20 +299,12 @@ export class InstanceMemory {
 
     for (const line of lines) {
       result.push(line);
-      const verifyMatch = line.match(/^\s*- Verify:\s*`(.+)`/);
+      const verifyMatch = line.match(/^\s*- Verify:\s*(.+)/);
       if (verifyMatch) {
-        const cmd = verifyMatch[1];
-        try {
-          execSync(cmd, {
-            cwd: this.memoryDir,
-            timeout: 5000,
-            encoding: 'utf-8',
-            stdio: ['pipe', 'pipe', 'pipe'],
-          });
-          result.push('  - **Status: ✅ PASSED**');
-        } catch {
-          result.push('  - **Status: ❌ NOT YET**');
-        }
+        const { passed, details } = await runVerify(verifyMatch[1].trim(), this.memoryDir);
+        const status = passed ? '✅ PASSED' : '❌ NOT YET';
+        const msg = details.map(d => d.message).filter(Boolean).join('; ');
+        result.push(`  - **Status: ${status}**${msg ? ` (${msg})` : ''}`);
       }
     }
 
