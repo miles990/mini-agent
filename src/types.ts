@@ -251,3 +251,22 @@ export interface ComposeFile {
     };
   };
 }
+
+// =============================================================================
+// Perception Analysis Types
+// =============================================================================
+
+export interface PerceptionInsight {
+  name: string;
+  insight: string;        // 1-2 句結構化洞察
+  analyzed: boolean;      // true=Haiku 分析, false=raw fallback
+  analysisMs: number;
+  tokens?: { input: number; output: number };
+}
+
+export interface SituationReport {
+  report: string;         // 格式化的 situation report
+  insights: PerceptionInsight[];
+  totalMs: number;
+  totalTokens: { input: number; output: number };
+}

@@ -40,6 +40,7 @@ import {
   executeAllPerceptions, formatPerceptionResults,
   loadAllSkills, formatSkillsPrompt,
 } from './perception.js';
+import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -635,8 +636,13 @@ export class InstanceMemory {
 
       if (relevantPlugins.length > 0) {
         const results = await executeAllPerceptions(relevantPlugins);
-        const customCtx = formatPerceptionResults(results);
-        if (customCtx) sections.push(customCtx);
+        if (isAnalysisAvailable()) {
+          const { report } = await analyzePerceptions(results);
+          if (report) sections.push(`<situation-report>\n${report}\n</situation-report>`);
+        } else {
+          const customCtx = formatPerceptionResults(results);
+          if (customCtx) sections.push(customCtx);
+        }
       }
     }
 
