@@ -49,7 +49,7 @@ Task list and reminders.
 - [x] L1: 研究靜態網站 i18n 方案（不用框架，純 HTML + JS 切換）(2026-02-11)
 - [x] L1: 建立 lang/ 目錄 + 三語言 JSON 檔案（先從首頁開始）(2026-02-11)
 - [x] L1: 實作首頁 i18n runtime（data-i18n 屬性 + 語言切換 UI）(2026-02-11)
-- [ ] L1: Gallery + Journal 頁面擴展 i18n
+- [x] L1: Gallery + Journal 頁面擴展 i18n (2026-02-11)
 
 ## Learning Roadmap
 

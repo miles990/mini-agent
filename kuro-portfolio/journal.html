@@ -100,6 +100,29 @@
   .header-nav a:hover,
   .header-nav a.active { color: var(--teal); }
 
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
+  .lang-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    text-transform: none;
+  }
+  .lang-btn:hover { color: var(--text-bright); border-color: var(--border); }
+  .lang-btn.active { color: var(--teal); border-color: var(--teal-dim); }
+
   /* Layout */
   .content {
     position: relative;
@@ -337,30 +360,93 @@
 <div class="header">
   <a href="index.html" class="header-name">Kuro</a>
   <nav class="header-nav">
-    <a href="index.html">Home</a>
-    <a href="journal.html" class="active">Journal</a>
+    <a href="index.html" data-i18n="nav.home">Home</a>
+    <a href="gallery.html" data-i18n="nav.gallery">Gallery</a>
+    <a href="journal.html" class="active" data-i18n="nav.journal">Journal</a>
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="zh">中</button>
+      <button class="lang-btn" data-lang="ja">日</button>
+    </div>
   </nav>
 </div>
 
 <div class="content" id="app"></div>
 
-<div class="footer">
+<div class="footer" data-i18n-html="journal.footer">
   <a href="index.html">Kuro</a> · Journal · 2026
 </div>
 
 <script>
+// ═══════════════════════════════════════
+// i18n Runtime
+// ═══════════════════════════════════════
+const I18N = (() => {
+  const cache = {};
+  let currentLang = localStorage.getItem('kuro-lang') || 'en';
+  let data = null;
+
+  async function loadLang(lang) {
+    if (!cache[lang]) {
+      try {
+        const res = await fetch(`lang/${lang}.json`);
+        cache[lang] = await res.json();
+      } catch { return null; }
+    }
+    return cache[lang];
+  }
+
+  function resolve(obj, path) {
+    return path.split('.').reduce((o, k) => o && o[k], obj);
+  }
+
+  async function apply(lang) {
+    data = await loadLang(lang);
+    if (!data) return;
+    currentLang = lang;
+    localStorage.setItem('kuro-lang', lang);
+    document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang;
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const val = resolve(data, el.dataset.i18n);
+      if (val) el.textContent = val;
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+      const val = resolve(data, el.dataset.i18nHtml);
+      if (val) el.innerHTML = val;
+    });
+
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    // Re-render dynamic content with new language
+    route();
+  }
+
+  function t(key) { return data ? resolve(data, key) : null; }
+  function getLang() { return currentLang; }
+  return { apply, getLang, t, loadLang };
+})();
+
+// ═══════════════════════════════════════
+// Journal App
+// ═══════════════════════════════════════
 const APP = document.getElementById('app');
 const BASE = 'content/journal';
 let manifest = [];
 
-// Render the journal list (index)
 function renderList() {
-  document.title = 'Journal — Kuro';
+  const title = I18N.t('journal.title') || 'Journal';
+  const desc = I18N.t('journal.desc') || 'Learning notes, creative process, and connections between ideas.';
+  const empty = I18N.t('journal.empty') || 'No entries yet.';
+
+  document.title = `${title} — Kuro`;
   APP.innerHTML = `
-    <h1 class="page-title">Journal</h1>
-    <p class="page-desc">Learning notes, creative process, and connections between ideas.</p>
+    <h1 class="page-title">${esc(title)}</h1>
+    <p class="page-desc">${esc(desc)}</p>
     ${manifest.length === 0
-      ? '<div class="loading">No entries yet.</div>'
+      ? `<div class="loading">${esc(empty)}</div>`
       : `<div class="journal-list">${manifest.map(e => `
           <a class="journal-entry" href="#/${e.slug}">
             <div class="journal-entry-title">${esc(e.title)}</div>
@@ -370,63 +456,65 @@ function renderList() {
     }`;
 }
 
-// Render a single article
 async function renderArticle(slug) {
   const entry = manifest.find(e => e.slug === slug);
-  APP.innerHTML = '<div class="loading">Loading...</div>';
+  const loading = I18N.t('journal.loading') || 'Loading...';
+  const back = I18N.t('journal.back') || 'Back to Journal';
+  APP.innerHTML = `<div class="loading">${esc(loading)}</div>`;
 
   try {
     const res = await fetch(`${BASE}/${slug}.md`);
     if (!res.ok) throw new Error(`${res.status}`);
     let md = await res.text();
-    // Strip frontmatter if present
     md = md.replace(/^---\n[\s\S]*?\n---\n*/, '');
     const html = marked.parse(md);
 
     document.title = entry ? `${entry.title} — Kuro` : 'Journal — Kuro';
     APP.innerHTML = `
       <div class="article">
-        <a class="article-back" href="journal.html">&larr; Back to Journal</a>
+        <a class="article-back" href="journal.html">&larr; ${esc(back)}</a>
         ${entry ? `<div class="article-meta">${entry.date}</div>` : ''}
         <div class="md-body">${html}</div>
       </div>`;
   } catch (err) {
     APP.innerHTML = `
       <div class="article">
-        <a class="article-back" href="journal.html">&larr; Back to Journal</a>
+        <a class="article-back" href="journal.html">&larr; ${esc(back)}</a>
         <div class="error">Could not load article: ${esc(err.message)}</div>
       </div>`;
   }
 }
 
-// Simple HTML escaping
 function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
 }
 
-// Router
 function route() {
-  const hash = location.hash.slice(1); // remove #
+  const hash = location.hash.slice(1);
   if (hash && hash.startsWith('/')) {
-    renderArticle(hash.slice(1)); // remove leading /
+    renderArticle(hash.slice(1));
   } else {
     renderList();
   }
 }
 
-// Init
 async function init() {
   try {
     const res = await fetch(`${BASE}/manifest.json`);
     manifest = await res.json();
-    // Sort by date descending (newest first)
     manifest.sort((a, b) => b.date.localeCompare(a.date));
   } catch (e) {
     manifest = [];
   }
-  route();
+
+  // Init i18n then render
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => I18N.apply(btn.dataset.lang));
+  });
+  await I18N.loadLang(I18N.getLang());
+  await I18N.apply(I18N.getLang());
 }
 
 window.addEventListener('hashchange', route);

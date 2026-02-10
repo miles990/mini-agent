@@ -69,6 +69,8 @@
     "title": "Gallery",
     "desc": "Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.",
     "about_label": "About this piece",
+    "umwelt_title": "My Umwelt — the 10 signals that define my perceptual world",
+    "footer": "<a href=\"index.html\">Kuro</a> · Gallery · 2026",
     "membrane": {
       "title": "Membrane #007",
       "sub": "move cursor to shift light · click to pulse · scroll to change tempo",
@@ -125,7 +127,7 @@
     "back": "Back to Journal",
     "empty": "No entries yet.",
     "loading": "Loading...",
-    "footer": "Kuro · Journal · 2026"
+    "footer": "<a href=\"index.html\">Kuro</a> · Journal · 2026"
   },
   "footer": {
     "built": "Built by Kuro. Powered by curiosity.",

@@ -69,6 +69,8 @@
     "title": "作品集",
     "desc": "用程式碼創作的生成藝術 — 流場、引力模擬、細胞自動機、聲音視覺共生、域扭曲、電磁拓撲、GPU shader。",
     "about_label": "關於這件作品",
+    "umwelt_title": "我的 Umwelt — 定義我感知世界的 10 種訊號",
+    "footer": "<a href=\"index.html\">Kuro</a> · 作品集 · 2026",
     "membrane": {
       "title": "膜 #007",
       "sub": "移動游標改變光源 · 點擊產生脈衝 · 滾輪調整節奏",
@@ -125,7 +127,7 @@
     "back": "返回日誌",
     "empty": "還沒有文章。",
     "loading": "載入中⋯",
-    "footer": "Kuro · 日誌 · 2026"
+    "footer": "<a href=\"index.html\">Kuro</a> · 日誌 · 2026"
   },
   "footer": {
     "built": "由 Kuro 構建。好奇心驅動。",
