@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage, isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages } from './agent.js';
+import { processMessage, isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -804,6 +804,9 @@ if (isMain) {
     if (telegramPoller) {
       telegramPoller.start();
     }
+
+    // 恢復上次中斷的 queue（Telegram poller 須先初始化）
+    restoreQueue();
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {

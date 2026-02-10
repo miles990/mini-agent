@@ -5,13 +5,13 @@
  */
 
 import { execFile, spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
+import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
-import { notifyTelegram } from './telegram.js';
+import { notifyTelegram, getTelegramPoller } from './telegram.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -159,10 +159,87 @@ export function hasQueuedMessages(): boolean {
   return messageQueue.length > 0;
 }
 
+// ── Queue Persistence ──────────────────────────────────────────────────────
+
+interface PersistedQueueEntry {
+  message: string;
+  queuedAt: number;
+  source: 'telegram' | 'api';
+}
+
+function getQueueFilePath(): string | null {
+  try {
+    const instanceId = getCurrentInstanceId();
+    if (!instanceId) return null;
+    return path.join(getInstanceDir(instanceId), 'pending-queue.jsonl');
+  } catch { return null; }
+}
+
+/** 追蹤目前正在處理的訊息（用於持久化） */
+let inFlightMessage: PersistedQueueEntry | null = null;
+
+function saveQueueToDisk(): void {
+  const filePath = getQueueFilePath();
+  if (!filePath) return;
+  try {
+    const entries: PersistedQueueEntry[] = [];
+    // 正在處理中的訊息放最前面（重啟後優先恢復）
+    if (inFlightMessage) entries.push(inFlightMessage);
+    // 接著是排隊中的訊息
+    for (const item of messageQueue) {
+      entries.push({
+        message: item.message,
+        queuedAt: item.queuedAt,
+        source: (item.onComplete ? 'telegram' : 'api') as 'telegram' | 'api',
+      });
+    }
+    if (entries.length === 0) {
+      if (existsSync(filePath)) unlinkSync(filePath);
+      return;
+    }
+    writeFileSync(filePath, entries.map(e => JSON.stringify(e)).join('\n') + '\n', 'utf-8');
+  } catch { /* non-critical */ }
+}
+
+/** 啟動時恢復持久化的 queue（在 Telegram poller 初始化後呼叫） */
+export function restoreQueue(): void {
+  const filePath = getQueueFilePath();
+  if (!filePath || !existsSync(filePath)) return;
+  try {
+    const content = readFileSync(filePath, 'utf-8').trim();
+    if (!content) return;
+    const lines = content.split('\n').filter(l => l.trim());
+    const entries = lines.map(l => JSON.parse(l) as PersistedQueueEntry);
+    for (const entry of entries) {
+      const onComplete = entry.source === 'telegram'
+        ? async (result: AgentResponse) => {
+            const poller = getTelegramPoller();
+            if (!poller || !result.content) return;
+            const sendResult = await poller.sendMessage(result.content);
+            if (sendResult.ok) {
+              slog('QUEUE', `→ [restored] ${result.content.slice(0, 100)}`);
+            }
+          }
+        : undefined;
+      messageQueue.push({ message: entry.message, onComplete, queuedAt: entry.queuedAt });
+    }
+    slog('QUEUE', `Restored ${entries.length} queued message(s) from disk`);
+    unlinkSync(filePath);
+    if (!claudeBusy && messageQueue.length > 0) {
+      drainQueue();
+    }
+  } catch (err) {
+    slog('QUEUE', `Failed to restore queue: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+// ── Queue Drain ────────────────────────────────────────────────────────────
+
 /** 處理 queue 中的下一則訊息 */
 function drainQueue(): void {
   if (messageQueue.length === 0 || claudeBusy) return;
   const next = messageQueue.shift()!;
+  saveQueueToDisk(); // 從 queue 移除後同步寫入磁碟
   slog('QUEUE', `Processing queued message (waited ${((Date.now() - next.queuedAt) / 1000).toFixed(0)}s, ${messageQueue.length} remaining)`);
   // 用 setImmediate 避免 stack overflow
   setImmediate(() => {
@@ -430,12 +507,21 @@ export async function processMessage(
     const position = messageQueue.length + 1;
     slog('QUEUE', `Message queued (position ${position}/${MAX_QUEUE_SIZE}): ${userMessage.slice(0, 80)}`);
     messageQueue.push({ message: userMessage, onComplete: onQueueComplete, queuedAt: Date.now() });
+    saveQueueToDisk(); // 入列後同步寫入磁碟
     return {
       content: `訊息已排隊（第 ${position}/${MAX_QUEUE_SIZE} 位），會在目前的任務完成後處理。`,
       queued: true,
       position,
     };
   }
+
+  // 持久化：標記為處理中（重啟後會恢復到 queue）
+  inFlightMessage = {
+    message: userMessage,
+    queuedAt: Date.now(),
+    source: onQueueComplete ? 'telegram' : 'api',
+  };
+  saveQueueToDisk();
 
   // 使用當前實例的記憶系統和日誌系統
   const memory = getMemory();
@@ -540,6 +626,10 @@ export async function processMessage(
     shouldRemember,
     taskAdded,
   };
+
+  // 處理完成：清除 in-flight 標記並持久化
+  inFlightMessage = null;
+  saveQueueToDisk();
 
   // 處理完成後 drain queue（觸發下一則排隊訊息）
   drainQueue();
