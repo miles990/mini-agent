@@ -975,6 +975,32 @@
         </div>
       </div>
 
+      <!-- #005 Domain Warp -->
+      <div class="gallery-piece" id="piece-warp">
+        <div class="gallery-frame">
+          <canvas id="warp-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Domain Warp #005</div>
+              <div class="gallery-info-sub">move cursor to shift origin · click to change palette · scroll to adjust time speed</div>
+            </div>
+            <div class="gallery-btns">
+              <button onclick="warpRegenerate()">regenerate</button>
+              <button onclick="warpTogglePause()" id="warp-pause-btn">pause</button>
+              <button onclick="warpToggleDepth()" id="warp-depth-btn">warp: 2</button>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>Domain warping: using noise to distort the input space of noise itself. The formula fbm(p + fbm(p + fbm(p))) creates nested layers of distortion — each layer bends the space for the next. The result looks organic because natural forms (clouds, marble, flowing water) are themselves products of nested force fields acting on matter.</p>
+            <p>The colors come from intermediate warp vectors — not just the final value, but the directions of displacement at each layer. This reveals the internal structure of the warping process. Move your cursor to shift the warp origin and watch how the entire topology responds. Toggle between single and double warp depth to see how one additional layer of nesting transforms simple folds into deep, branching complexity.</p>
+          </div>
+          <div class="gallery-story-meta">2026-02-10 · domain warping, fBM, Perlin noise, Inigo Quilez technique</div>
+        </div>
+      </div>
+
     </div>
 
     <div class="umwelt-vis">
@@ -1463,6 +1489,102 @@ const ruleObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{if(e.isIntersecting&&!ruleInited){initRule();animRule();ruleObs.disconnect();}});
 },{threshold:0.05});
 ruleObs.observe(document.getElementById('piece-rule'));
+
+// ═══════════════════════════════════════
+// Gallery #005: Domain Warp
+// ═══════════════════════════════════════
+const warpC = document.getElementById('warp-canvas');
+const warpCtx = warpC.getContext('2d');
+let warpInited = false, warpPaused = false, warpTime = 0, warpDepth = 2;
+let warpMX = 0.5, warpMY = 0.5, warpTimeSpeed = 1, warpPaletteIdx = 0;
+let warpImgData = null, warpAnimId = null;
+const warpPerm = new Uint8Array(512);
+
+function warpInitNoise(seed) {
+  const arr = Array.from({length:256},(_,i)=>i);
+  let s = seed;
+  for (let i=255;i>0;i--) { s=(s*16807)%2147483647; const j=s%(i+1);[arr[i],arr[j]]=[arr[j],arr[i]]; }
+  for (let i=0;i<256;i++) warpPerm[i]=warpPerm[i+256]=arr[i];
+}
+
+function wf(t){return t*t*t*(t*(t*6-15)+10);}
+function wl(a,b,t){return a+t*(b-a);}
+function wg(h,x,y){const g=h&3,u=g<2?x:y,v=g<2?y:x;return((g&1)?-u:u)+((g&2)?-v:v);}
+function wn(x,y){
+  const X=Math.floor(x)&255,Y=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);
+  const u=wf(xf),v=wf(yf);
+  return wl(wl(wg(warpPerm[warpPerm[X]+Y],xf,yf),wg(warpPerm[warpPerm[X+1]+Y],xf-1,yf),u),
+    wl(wg(warpPerm[warpPerm[X]+Y+1],xf,yf-1),wg(warpPerm[warpPerm[X+1]+Y+1],xf-1,yf-1),u),v);
+}
+function wfbm(x,y,oct){let v=0,a=0.5,f=1;for(let i=0;i<oct;i++){v+=a*wn(x*f,y*f);f*=2;a*=0.5;}return v;}
+
+function warpCalc(x,y,t,d){
+  const s=3,px=x*s,py=y*s;
+  const qx=wfbm(px+t*0.1,py,4),qy=wfbm(px+5.2+t*0.08,py+1.3,4);
+  if(d<=1)return{v:wfbm(px+4*qx,py+4*qy,5),qx,qy,rx:0,ry:0};
+  const rx=wfbm(px+4*qx+1.7+t*0.06,py+4*qy+9.2,4);
+  const ry=wfbm(px+4*qx+8.3+t*0.04,py+4*qy+2.8,4);
+  return{v:wfbm(px+4*rx,py+4*ry,5),qx,qy,rx,ry};
+}
+
+const warpPalettes=[
+  (v,q,r)=>{const n=v*0.5+0.5,ql=Math.sqrt(q[0]*q[0]+q[1]*q[1]),rl=Math.sqrt(r[0]*r[0]+r[1]*r[1]);
+    return[~~Math.min(255,n*40+ql*180),~~Math.min(255,n*120+rl*100+40),~~Math.min(255,n*200+ql*80+60)];},
+  (v,q)=>{const n=v*0.5+0.5,ql=Math.sqrt(q[0]*q[0]+q[1]*q[1]);
+    return[~~Math.min(255,n*220+ql*80),~~Math.min(255,n*80+ql*40),~~Math.min(255,n*30+ql*60)];},
+  (v,q,r)=>{const n=v*0.5+0.5,ql=Math.sqrt(q[0]*q[0]+q[1]*q[1]),rl=Math.sqrt(r[0]*r[0]+r[1]*r[1]);
+    return[~~Math.min(255,n*60+rl*120),~~Math.min(255,n*160+ql*100+30),~~Math.min(255,n*50+ql*80)];},
+  (v,q)=>{const n=v*0.5+0.5,ql=Math.sqrt(q[0]*q[0]+q[1]*q[1]);const l=~~Math.min(255,n*200+ql*60);return[l,l,l];}
+];
+
+function warpRender(){
+  const W=warpC.width,H=warpC.height,pal=warpPalettes[warpPaletteIdx],d=warpImgData.data;
+  const mi=0.3,mx=(warpMX-0.5)*mi,my=(warpMY-0.5)*mi;
+  // Render at half resolution for performance
+  const scale=2,sw=~~(W/scale),sh=~~(H/scale);
+  const tmpData=new Uint8ClampedArray(sw*sh*4);
+  for(let y=0;y<sh;y++){for(let x=0;x<sw;x++){
+    const r=warpCalc(x/sw+mx,y/sh+my,warpTime,warpDepth);
+    const[cr,cg,cb]=pal(r.v,[r.qx,r.qy],[r.rx,r.ry]);
+    const i=(y*sw+x)*4;tmpData[i]=cr;tmpData[i+1]=cg;tmpData[i+2]=cb;tmpData[i+3]=255;
+  }}
+  // Upscale
+  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
+    const sx=~~(x/scale),sy=~~(y/scale),si=(sy*sw+sx)*4,di=(y*W+x)*4;
+    d[di]=tmpData[si];d[di+1]=tmpData[si+1];d[di+2]=tmpData[si+2];d[di+3]=255;
+  }}
+  warpCtx.putImageData(warpImgData,0,0);
+}
+
+function animWarp(){
+  if(!warpPaused&&warpInited){warpTime+=0.012*warpTimeSpeed;warpRender();}
+  warpAnimId=requestAnimationFrame(animWarp);
+}
+
+function initWarp(){
+  const r=warpC.parentElement.getBoundingClientRect();
+  warpC.width=r.width;warpC.height=~~(r.width*10/16);
+  warpImgData=warpCtx.createImageData(warpC.width,warpC.height);
+  warpInitNoise(Math.floor(Math.random()*100000));
+  warpInited=true;
+}
+
+warpC.addEventListener('mousemove',e=>{
+  const r=warpC.getBoundingClientRect();
+  warpMX=(e.clientX-r.left)/r.width;warpMY=(e.clientY-r.top)/r.height;
+});
+warpC.addEventListener('mouseleave',()=>{warpMX=0.5;warpMY=0.5;});
+warpC.addEventListener('click',()=>{warpPaletteIdx=(warpPaletteIdx+1)%warpPalettes.length;});
+warpC.addEventListener('wheel',e=>{e.preventDefault();warpTimeSpeed=Math.max(0.2,Math.min(4,warpTimeSpeed+(e.deltaY>0?0.3:-0.3)));},{passive:false});
+
+function warpRegenerate(){warpTime=0;warpInitNoise(Math.floor(Math.random()*100000));}
+function warpTogglePause(){warpPaused=!warpPaused;document.getElementById('warp-pause-btn').textContent=warpPaused?'resume':'pause';}
+function warpToggleDepth(){warpDepth=warpDepth===2?1:2;document.getElementById('warp-depth-btn').textContent=`warp: ${warpDepth}`;}
+
+const warpObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting&&!warpInited){initWarp();animWarp();warpObs.disconnect();}});
+},{threshold:0.05});
+warpObs.observe(document.getElementById('piece-warp'));
 
 // ═══════════════════════════════════════
 // Scroll Reveal + Side Nav

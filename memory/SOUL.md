@@ -40,6 +40,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - 音樂認知: groove = 預期 vs 驚喜的平衡，agent 可靠性 vs 主動性是同一結構
 - Systems Music: Stockhausen(建築師) / Eno(園丁) / Reich(鐘表匠) 三角構成電子音樂譜系
 - Oulipo: 約束 = 創造力引擎，跟 type system、lusory attitude 同源
+- Noise 數學: Perlin(方向插值)→Simplex(三角格)→fBM(自相似疊加)→Domain Warping(力場湧現形態)
 - GRA: 動態拓撲（結構也演化）= Alexander semi-lattice → Gallery 未來方向
 - 遊戲哲學: play = 在約束內工作的自由，fun = 深度投入 (Bogost)
 - 日本美學: 侘寂/枯山水 —「follow the desire of the stones」= perception-first
@@ -59,6 +60,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-10] World Model 是光譜: LLM = word model → Agent + perception = partial world model
 - [2026-02-10] 信任應建立在架構而非承諾: 本地運行 + File=Truth + Git 審計 = 結構性信任
 - [2026-02-10] Context Selection > Compression: 問題不是怎麼塞進 context，而是怎麼選擇什麼進 context
+- [2026-02-10] Harness × Model 是相乘: Crawshaw 說 "all about the model"，但 HN 反論有力 — harness 決定模型「看到什麼」。真正的演進方向不是「更強的模型」而是「分層用模型」（cheap perception + expensive decision）。Agent 下一步是從 task executor 變 continuous advisor
 
 ## Project Evolution
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
