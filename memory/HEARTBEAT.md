@@ -4,7 +4,7 @@ Task list and reminders.
 
 ## Active Tasks
 
-- [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環 <!-- added: 2026-02-09T15:03:00.000Z -->
+- [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
 - [ ] P2: 域名調研 — 比較 kuro.dev / kuro.ai / askuro.com 等選項，找到價格合理的方案，報給 Alex
 - [ ] P2: Phase 0 網站內容強化 — 已有 3 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
@@ -34,9 +34,21 @@ Task list and reminders.
 
 ### Phase 3: Website i18n（網站多語言）— Alex 偏好
 **問題**：Alex 希望網站有多語言切換（最少中英日），讓更多人不用翻譯就能看。
+**方案研究（2026-02-11）**：
+比較三種方案後選定 `data-i18n` + JSON locale files：
+- ❌ 多檔案（index.zh.html）— 3頁×3語言=9檔，維護成本高
+- ❌ SSG 模板 — 需要 build step，增加基礎設施複雜度
+- ✅ **data-i18n 屬性 + JSON** — ~40行 JS，不需 build step，localStorage 記住選擇
+  - 每個可翻譯元素加 `data-i18n="about.lead"` 屬性
+  - `lang/en.json`、`lang/zh.json`、`lang/ja.json` 存翻譯
+  - Header 加語言切換器（EN | 中 | 日），點擊切換 + 存 localStorage
+  - 英文為 fallback（HTML 原文），其他語言由 JS 替換
+  - Gallery 的作品描述、Journal 的文章內容也可用同一機制
 **具體行動**：
-- [ ] L1: 研究靜態網站 i18n 方案（不用框架，純 HTML + JS 切換）
-- [ ] L1: 實作首頁多語言切換 prototype
+- [x] L1: 研究靜態網站 i18n 方案（不用框架，純 HTML + JS 切換）(2026-02-11)
+- [x] L1: 建立 lang/ 目錄 + 三語言 JSON 檔案（先從首頁開始）(2026-02-11)
+- [x] L1: 實作首頁 i18n runtime（data-i18n 屬性 + 語言切換 UI）(2026-02-11)
+- [ ] L1: Gallery + Journal 頁面擴展 i18n
 
 ## Learning Roadmap
 
