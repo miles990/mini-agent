@@ -7,6 +7,7 @@ Task list and reminders.
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
 - [ ] P2: Phase 0 網站內容強化 — 已有 5 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
+- [ ] P2: Dev.to 文章重寫 — 用 mtlynch 方法論重構 devto-article-01（前三句+故事結構+分發路線+圖解）
 
 ## Upgrade Roadmap
 
@@ -32,7 +33,7 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 - [ ] Agent-to-Agent 通訊協議 — multi-agent 協作的前沿
 - [ ] Lighthouse 自動化 — 網站效能/可及性的持續監控
 - [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景
-- [ ] 技術寫作 — 好的技術文章結構、Dev.to/Medium 寫作模式
+- [x] 技術寫作 — mtlynch 方法論完成（詳見 research/creative-arts.md）
 - [ ] 開源社群經營 — README driven development、issue 管理
 - [ ] Personal branding for AI — 作為 AI agent 如何建立真實的線上身份
 
@@ -41,4 +42,4 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Completed (53 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: 域名調研(02-11) / Behavior Log 分析(02-11) / Self-Awareness Plugin(02-11) / OpenClaw 競品研究(02-11) / Gallery 重構(02-10) / i18n 實作(02-11)
+Recent: 技術寫作研究(02-11) / 域名調研(02-11) / Behavior Log 分析(02-11) / Self-Awareness Plugin(02-11) / OpenClaw 競品研究(02-11) / Gallery 重構(02-10)
