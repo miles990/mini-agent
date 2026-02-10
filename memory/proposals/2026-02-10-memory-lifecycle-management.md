@@ -1,6 +1,9 @@
 # Proposal: Memory Lifecycle Management — SOUL.md / MEMORY.md 的生長控制
 
-## Status: draft
+## Status: partial-approved
+<!-- L1 寫入紀律：approved + implemented (2026-02-10) -->
+<!-- L2 改動 3 (超時重試遞減 context)：implemented by Claude Code (4ab0d35) -->
+<!-- L2 改動 1,2 (自動歸檔 + token budget)：deferred，等 L1 效果觀察 -->
 
 ## TL;DR
 
