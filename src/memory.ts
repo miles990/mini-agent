@@ -497,14 +497,22 @@ export class InstanceMemory {
    * 建構 LLM 上下文
    *
    * @param options.relevanceHint - 關鍵字提示，用於篩選相關感知（可選）
-   * @param options.mode - 'full' | 'focused'。focused 模式只載入核心感知（用於 AgentLoop）
+   * @param options.mode - 'full' | 'focused' | 'minimal'
+   *   - full: 載入所有感知（用於 processMessage）
+   *   - focused: 只載入核心感知（用於 AgentLoop）
+   *   - minimal: 最小 context — 身份 + 任務 + 最近對話（用於超時重試）
    */
   async buildContext(options?: {
     relevanceHint?: string;
-    mode?: 'full' | 'focused';
+    mode?: 'full' | 'focused' | 'minimal';
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
     const hint = options?.relevanceHint?.toLowerCase() ?? '';
+
+    // ── Minimal mode: 最小 context，用於超時重試 ──
+    if (mode === 'minimal') {
+      return this.buildMinimalContext();
+    }
 
     const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
@@ -641,6 +649,78 @@ export class InstanceMemory {
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
     return sections.join('\n\n');
+  }
+
+  /**
+   * Minimal context — 超時重試用
+   * 只載入：環境、TG 狀態、核心身份、heartbeat、最近 5 則對話
+   * 跳過：所有 perception、完整 memory、完整 soul
+   */
+  private async buildMinimalContext(): Promise<string> {
+    const [heartbeat, soul] = await Promise.all([
+      this.readHeartbeat(),
+      this.readSoul(),
+    ]);
+
+    const now = new Date();
+    const timeStr = now.toLocaleString('zh-TW', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hour12: false });
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const sections: string[] = [];
+
+    // 環境
+    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL MODE: context reduced for retry]\n</environment>`);
+
+    // TG 狀態（極小）
+    const tgPoller = getTelegramPoller();
+    const tgStats = getNotificationStats();
+    const queueStatus = getQueueStatus();
+    sections.push(`<telegram>\nConnected: ${tgPoller ? 'yes' : 'no'}\nNotifications: ${tgStats.sent} sent, ${tgStats.failed} failed\nQueue: ${queueStatus.size}/${queueStatus.max}\n</telegram>`);
+
+    // Soul — 只取核心身份（到 Learning Interests 之前）
+    if (soul) {
+      const truncated = this.truncateSoulToIdentity(soul);
+      sections.push(`<soul>\n${truncated}\n</soul>`);
+    }
+
+    // Heartbeat — 完整保留（有 active tasks）
+    if (heartbeat) {
+      sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
+    }
+
+    // 最近 5 則對話
+    const recentConvos = this.conversationBuffer
+      .slice(-5)
+      .map(c => {
+        const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
+        const role = c.role === 'user' ? 'User' : 'Assistant';
+        return `[${time}] ${role}: ${c.content}`;
+      })
+      .join('\n');
+    sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);
+
+    return sections.join('\n\n');
+  }
+
+  /**
+   * 截取 SOUL.md 到核心身份部分（Who I Am, My Traits, When I'm Idle）
+   * 跳過 Learning Interests, My Thoughts, Project Evolution 等大區塊
+   */
+  private truncateSoulToIdentity(soul: string): string {
+    // 找到第一個非核心 section 的位置
+    const cutoffSections = ['## Learning Interests', '## My Thoughts', '## Project Evolution', '## What I\'m Tracking'];
+    let cutoffIndex = soul.length;
+    for (const section of cutoffSections) {
+      const idx = soul.indexOf(section);
+      if (idx >= 0 && idx < cutoffIndex) {
+        cutoffIndex = idx;
+      }
+    }
+    const truncated = soul.slice(0, cutoffIndex).trimEnd();
+    if (cutoffIndex < soul.length) {
+      return truncated + '\n\n[... truncated for minimal context mode ...]';
+    }
+    return truncated;
   }
 }
 

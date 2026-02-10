@@ -225,7 +225,9 @@ export class AgentLoop {
         ? this.buildTaskPrompt()
         : this.buildAutonomousPrompt();
 
-      const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context);
+      const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
+        rebuildContext: (mode) => memory.buildContext({ mode }),
+      });
 
       // 結構化記錄 Claude 呼叫
       logger.logClaudeCall(

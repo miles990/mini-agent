@@ -400,15 +400,21 @@ async function execClaude(fullPrompt: string): Promise<string> {
 /**
  * Call Claude Code via subprocess with smart retry
  * - Retries on transient errors (timeout, rate limit) with exponential backoff
+ * - On TIMEOUT: rebuilds context with progressively smaller modes (focused → minimal)
  * - Releases claudeBusy during retry wait (user requests take priority)
  */
 export async function callClaude(
   prompt: string,
   context: string,
   maxRetries = 2,
+  options?: {
+    /** 超時重試時重建 context 的回調。attempt=1 建議 'focused'，attempt=2 建議 'minimal' */
+    rebuildContext?: (mode: 'focused' | 'minimal') => Promise<string>;
+  },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {
   const systemPrompt = getSystemPrompt();
-  const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
+  let currentContext = context;
+  let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
   // Busy guard — 防止並發呼叫
   if (claudeBusy) {
@@ -442,7 +448,7 @@ export async function callClaude(
 
       try {
         const logger = getLogger();
-        const retryInfo = attempt > 0 ? ` (retry #${attempt})` : '';
+        const retryInfo = attempt > 0 ? ` (retry #${attempt}, ${fullPrompt.length} chars)` : '';
         logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${retryInfo}`);
       } catch { /* logger not ready */ }
 
@@ -463,7 +469,22 @@ export async function callClaude(
       // 如果可重試且還有機會，等待後重試
       if (classified.retryable && attempt < maxRetries) {
         const delay = 30_000 * Math.pow(2, attempt); // 30s, 60s
-        slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
+
+        // TIMEOUT 時嘗試縮減 context（最有效的重試策略）
+        if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
+          const retryMode = attempt === 0 ? 'focused' : 'minimal';
+          try {
+            const prevLen = currentContext.length;
+            currentContext = await options.rebuildContext(retryMode);
+            fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, context reduced ${prevLen} → ${currentContext.length} chars (${retryMode} mode), retrying in ${delay / 1000}s`);
+          } catch {
+            slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed, retrying with same context in ${delay / 1000}s`);
+          }
+        } else {
+          slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
+        }
+
         // 釋放 busy — 等待期間允許新請求插入
         claudeBusy = false;
         currentTask = null;
@@ -531,7 +552,9 @@ export async function processMessage(
   const context = await memory.buildContext();
 
   // 2. Call Claude (now returns friendly error as response instead of throwing)
-  const claudeResult = await callClaude(userMessage, context);
+  const claudeResult = await callClaude(userMessage, context, 2, {
+    rebuildContext: (mode) => memory.buildContext({ mode }),
+  });
 
   const { response, systemPrompt, fullPrompt, duration } = claudeResult;
 
@@ -660,7 +683,9 @@ Review the active tasks and:
 Keep response brief.`;
 
   try {
-    const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context);
+    const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
+      rebuildContext: (mode) => memory.buildContext({ mode }),
+    });
     // 結構化記錄 Claude 呼叫
     logger.logClaudeCall(
       { userMessage: prompt, systemPrompt, context: `[${context.length} chars]`, fullPrompt },
