@@ -346,9 +346,35 @@
 
 <div class="content">
   <h1 class="page-title">Gallery</h1>
-  <p class="page-desc">Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, and electromagnetic topology.</p>
+  <p class="page-desc">Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
 
   <div class="gallery-stack">
+
+    <!-- #007 Membrane -->
+    <div class="gallery-piece" id="piece-membrane">
+      <div class="gallery-frame">
+        <canvas id="membrane-canvas"></canvas>
+        <div class="gallery-bar">
+          <div>
+            <div class="gallery-info-title">Membrane #007</div>
+            <div class="gallery-info-sub">move cursor to shift light · click to pulse · scroll to change tempo</div>
+          </div>
+          <div class="gallery-btns">
+            <button class="g-btn" onclick="membraneReset()">reset</button>
+            <button class="g-btn" onclick="membraneTogglePause()" id="membrane-pause-btn">pause</button>
+            <button class="g-btn" onclick="membraneCyclePalette()" id="membrane-palette-btn">phosphor</button>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-story">
+        <div class="gallery-story-label">About this piece</div>
+        <div class="gallery-story-text">
+          <p>The first GPU shader piece. Everything before this ran on the CPU — one pixel at a time, one thread. Here, every pixel decides its own color simultaneously. The GPU doesn't draw; it <em>is</em> the image.</p>
+          <p>Seven SDF circles with smooth union (Quilez's smoothmin) form an organic membrane that breathes with time. The shapes aren't placed — they orbit, drift, and merge according to simple trigonometric functions. Where two surfaces almost touch, the smooth blending creates tension. Where they overlap, the boundary dissolves. Light direction follows your cursor, giving depth to what is mathematically flat. The aesthetic is deliberately restrained: form and shadow, not decoration.</p>
+        </div>
+        <div class="gallery-story-meta">2026-02-11 · WebGL, GLSL fragment shader, SDF, smoothmin, Quilez distance functions</div>
+      </div>
+    </div>
 
     <!-- #006 Topology -->
     <div class="gallery-piece" id="piece-topo">
@@ -536,6 +562,206 @@
 </div>
 
 <script>
+// ═══════════════════════════════════════
+// Gallery #007: Membrane (WebGL SDF Shader)
+// ═══════════════════════════════════════
+const memC = document.getElementById('membrane-canvas');
+let memGL, memProgram, memAnimId = null, memPaused = false;
+let memTime = 0, memTempo = 1, memMouse = [0.5, 0.5], memPulse = 0;
+let memPaletteIdx = 0;
+const MEM_PALETTES = ['phosphor', 'ember', 'ocean', 'bone'];
+const MEM_PALETTE_COLORS = {
+  phosphor: { bg: 'vec3(0.02, 0.03, 0.02)', fg: 'vec3(0.3, 1.0, 0.6)', accent: 'vec3(0.6, 1.0, 0.8)' },
+  ember:    { bg: 'vec3(0.03, 0.02, 0.01)', fg: 'vec3(1.0, 0.45, 0.15)', accent: 'vec3(1.0, 0.7, 0.3)' },
+  ocean:    { bg: 'vec3(0.01, 0.02, 0.04)', fg: 'vec3(0.2, 0.55, 1.0)', accent: 'vec3(0.5, 0.8, 1.0)' },
+  bone:     { bg: 'vec3(0.04, 0.04, 0.035)', fg: 'vec3(0.85, 0.82, 0.75)', accent: 'vec3(1.0, 0.97, 0.9)' },
+};
+
+const MEM_VERT = `attribute vec2 a_pos; void main(){gl_Position=vec4(a_pos,0,1);}`;
+
+function memFragSrc(pal) {
+  const p = MEM_PALETTE_COLORS[pal];
+  return `#extension GL_OES_standard_derivatives : enable
+precision mediump float;
+uniform vec2 u_res;
+uniform float u_time;
+uniform vec2 u_mouse;
+uniform float u_pulse;
+
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+  return mix(b, a, h) - k*h*(1.0-h);
+}
+
+float sdCircle(vec2 p, vec2 c, float r) {
+  return length(p - c) - r;
+}
+
+float scene(vec2 uv, float t, float pulse) {
+  float d = 1e5;
+  float k = 0.6 + 0.15 * sin(t * 0.3);
+  d = smin(d, sdCircle(uv, vec2(sin(t*0.7)*0.6, cos(t*0.5)*0.5), 0.25 + 0.05*sin(t*1.1)), k);
+  d = smin(d, sdCircle(uv, vec2(cos(t*0.6)*0.5, sin(t*0.8)*0.6), 0.2 + 0.04*sin(t*1.3)), k);
+  d = smin(d, sdCircle(uv, vec2(sin(t*0.4+2.0)*0.7, cos(t*0.7+1.0)*0.4), 0.18 + 0.06*sin(t*0.9)), k);
+  d = smin(d, sdCircle(uv, vec2(cos(t*0.5+3.0)*0.4, sin(t*0.6+2.0)*0.7), 0.22 + 0.03*sin(t*1.5)), k);
+  d = smin(d, sdCircle(uv, vec2(sin(t*0.8+1.0)*0.3, cos(t*0.4+3.0)*0.3), 0.15 + 0.05*sin(t*1.7)), k);
+  d = smin(d, sdCircle(uv, vec2(cos(t*0.3+4.0)*0.55, sin(t*0.9+1.5)*0.55), 0.2 + 0.04*sin(t*0.7)), k);
+  d = smin(d, sdCircle(uv, vec2(sin(t*0.9+2.5)*0.45, cos(t*0.3+4.0)*0.6), 0.17 + 0.05*sin(t*1.2)), k);
+  d -= pulse * 0.15;
+  return d;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / min(u_res.x, u_res.y);
+  float t = u_time;
+  float pulse = u_pulse;
+
+  float d = scene(uv, t, pulse);
+
+  // Normal via central differences
+  float eps = 2.0 / min(u_res.x, u_res.y);
+  vec2 n = normalize(vec2(
+    scene(uv + vec2(eps, 0.0), t, pulse) - scene(uv - vec2(eps, 0.0), t, pulse),
+    scene(uv + vec2(0.0, eps), t, pulse) - scene(uv - vec2(0.0, eps), t, pulse)
+  ));
+
+  // Light direction from mouse
+  vec2 light = normalize(vec2(u_mouse.x - 0.5, u_mouse.y - 0.5) * 2.0 + vec2(0.001));
+
+  float diffuse = max(dot(n, light), 0.0);
+  float rim = pow(1.0 - abs(d) * 3.0, 3.0);
+  rim = clamp(rim, 0.0, 1.0);
+
+  vec3 bg = ${p.bg};
+  vec3 fg = ${p.fg};
+  vec3 accent = ${p.accent};
+
+  // Inside the membrane
+  float interior = 1.0 - smoothstep(-0.02, 0.0, d);
+  // Edge glow
+  float edge = exp(-abs(d) * 18.0);
+
+  vec3 col = bg;
+  col = mix(col, fg * (0.3 + 0.7 * diffuse), interior * 0.8);
+  col += accent * edge * (0.5 + 0.5 * diffuse);
+  col += fg * rim * 0.15;
+
+  // Subtle vignette
+  vec2 vuv = gl_FragCoord.xy / u_res;
+  float vig = 1.0 - 0.4 * length(vuv - 0.5);
+  col *= vig;
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+}
+
+function memInit() {
+  const gl = memC.getContext('webgl', { alpha: false, antialias: true });
+  if (!gl) { console.warn('WebGL not supported'); return; }
+  memGL = gl;
+  gl.getExtension('OES_standard_derivatives');
+
+  memBuildProgram(MEM_PALETTES[memPaletteIdx]);
+  memResize();
+  memAnimate();
+}
+
+function memBuildProgram(pal) {
+  const gl = memGL;
+  if (!gl) return;
+  if (memProgram) gl.deleteProgram(memProgram);
+
+  function createShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(s));
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  const vs = createShader(gl.VERTEX_SHADER, MEM_VERT);
+  const fs = createShader(gl.FRAGMENT_SHADER, memFragSrc(pal));
+  if (!vs || !fs) return;
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(prog));
+    return;
+  }
+  gl.useProgram(prog);
+  memProgram = prog;
+
+  // Full-screen quad
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+}
+
+function memResize() {
+  const r = memC.parentElement.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  memC.width = r.width * dpr;
+  memC.height = r.height * dpr;
+  memC.style.width = r.width + 'px';
+  memC.style.height = r.height + 'px';
+  if (memGL) memGL.viewport(0, 0, memC.width, memC.height);
+}
+
+function memAnimate(ts) {
+  if (!memGL || !memProgram) return;
+  memAnimId = requestAnimationFrame(memAnimate);
+  if (memPaused) return;
+
+  const gl = memGL;
+  memTime += 0.016 * memTempo;
+  memPulse *= 0.92; // decay
+
+  const uRes = gl.getUniformLocation(memProgram, 'u_res');
+  const uTime = gl.getUniformLocation(memProgram, 'u_time');
+  const uMouse = gl.getUniformLocation(memProgram, 'u_mouse');
+  const uPulse = gl.getUniformLocation(memProgram, 'u_pulse');
+
+  gl.uniform2f(uRes, memC.width, memC.height);
+  gl.uniform1f(uTime, memTime);
+  gl.uniform2f(uMouse, memMouse[0], memMouse[1]);
+  gl.uniform1f(uPulse, memPulse);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+// Interaction
+memC.addEventListener('mousemove', e => {
+  const r = memC.getBoundingClientRect();
+  memMouse = [(e.clientX - r.left) / r.width, 1.0 - (e.clientY - r.top) / r.height];
+});
+memC.addEventListener('click', () => { memPulse = 1.0; });
+memC.addEventListener('wheel', e => {
+  e.preventDefault();
+  memTempo = Math.max(0.1, Math.min(3, memTempo + (e.deltaY > 0 ? -0.15 : 0.15)));
+}, { passive: false });
+
+function membraneReset() { memTime = 0; memTempo = 1; memPulse = 0; memMouse = [0.5, 0.5]; }
+function membraneTogglePause() {
+  memPaused = !memPaused;
+  document.getElementById('membrane-pause-btn').textContent = memPaused ? 'play' : 'pause';
+}
+function membraneCyclePalette() {
+  memPaletteIdx = (memPaletteIdx + 1) % MEM_PALETTES.length;
+  const pal = MEM_PALETTES[memPaletteIdx];
+  document.getElementById('membrane-palette-btn').textContent = pal;
+  memBuildProgram(pal);
+}
+
 // ═══════════════════════════════════════
 // Gallery Flow Field (interactive) — #001
 // ═══════════════════════════════════════
@@ -1361,6 +1587,13 @@ const topoObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting && !topoInited) { initTopo(); animTopo(); topoObs.disconnect(); } });
 }, {threshold: 0.05});
 topoObs.observe(document.getElementById('piece-topo'));
+
+let memInited = false;
+const memObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting && !memInited) { memInit(); memInited = true; memObs.disconnect(); } });
+}, {threshold: 0.05});
+memObs.observe(document.getElementById('piece-membrane'));
+addEventListener('resize', () => { if (memInited) memResize(); });
 
 // ═══════════════════════════════════════
 // Scroll Reveal for gallery pieces

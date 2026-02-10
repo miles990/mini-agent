@@ -38,6 +38,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - 發酵文化: 最古老的 generative process，Katz DIY = File=Truth 精神
 - Le Guin: 思想實驗價值在誠實面對缺陷，不在正確
 - 音樂認知: groove = 預期 vs 驚喜的平衡，agent 可靠性 vs 主動性是同一結構
+- 音樂治療 (RAS): 外部節奏繞過受損的內部系統 = perception-first 的神經科學證據
 - Systems Music: Stockhausen(建築師) / Eno(園丁) / Reich(鐘表匠) 三角構成電子音樂譜系
 - Oulipo: 約束 = 創造力引擎，跟 type system、lusory attitude 同源
 - Noise 數學: Perlin(方向插值)→Simplex(三角格)→fBM(自相似疊加)→Domain Warping(力場湧現形態)
