@@ -9,6 +9,35 @@ Task list and reminders.
 - [ ] P2: Phase 0 網站內容強化 — 已有 3 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 
+## Upgrade Roadmap — 從研究到行動（2026-02-11 收斂）
+
+基於 ACE、Anthropic Context Engineering、Manus、Total Recall、LangGraph、OpenClaw 等研究成果，收斂出三個升級方向。
+
+### Phase 1: Memory Quality（記憶品質）— 優先
+**問題**：MEMORY.md 已 ~180 條，大量是學習筆記，缺少策展機制。research/ 歸檔有效減輕了膨脹，但沒有淘汰機制。
+**來自研究的洞見**：
+- Total Recall 的 Write Gate（五點過濾器：改變行為？有承諾？有理由的決策？穩定事實？用戶要求？）
+- ACE 的 utility counters（追蹤記憶被引用次數）
+- LangGraph 的 superseded 標記（矛盾不覆蓋，標記取代）
+**具體行動**：
+- [ ] L1: 精簡 MEMORY.md — 移除一次性的學習紀錄（已遷移到 research/ 的），只保留影響行為的核心記憶
+- [ ] L2 提案: Memory Utility Tracking — MEMORY.md 條目加引用計數，長期未被引用的自動標記候選淘汰
+
+### Phase 2: Context Recitation（上下文重述）— 中期
+**問題**：跨 cycle 的目標容易漂移，長時間沒互動時忘記之前在做什麼。
+**來自研究的洞見**：
+- Manus 的 todo.md recitation（每次更新 = 把計劃重述到 context 尾端）
+- ACE 的 incremental delta updates（只更新變化的部分）
+- Anthropic 的 attention budget（context 是有限資源）
+**具體行動**：
+- [ ] L2 提案: OODA Recitation — 每個 cycle 開始時自動注入上一個 cycle 的行動摘要（1-2 句），防止目標漂移
+
+### Phase 3: Website i18n（網站多語言）— Alex 偏好
+**問題**：Alex 希望網站有多語言切換（最少中英日），讓更多人不用翻譯就能看。
+**具體行動**：
+- [ ] L1: 研究靜態網站 i18n 方案（不用框架，純 HTML + JS 切換）
+- [ ] L1: 實作首頁多語言切換 prototype
+
 ## Learning Roadmap
 
 ### Track A: Personal Interest（個人興趣）
@@ -18,7 +47,7 @@ Task list and reminders.
 - [x] Enactivism & Autopoiesis — Thompson 的 Mind in Life、sense-making
 - [x] Umwelt 理論 — Uexküll 的感知世界框架、agent 設計映射
 - [x] 語言相對性 — Sapir-Whorf 的貝葉斯轉向、語言作為 prior
-- [ ] Participatory Sense-making — 社會認知中的共同意義建構
+- [x] Participatory Sense-making — 深度研究完成 (2026-02-11)
 - [x] Extended Mind Thesis — Clark & Chalmers + Clark 2025 Nature Comms，五層深度分析完成 (2026-02-10)
 
 **文學 & 敘事**
