@@ -270,3 +270,44 @@ export interface SituationReport {
   totalMs: number;
   totalTokens: { input: number; output: number };
 }
+
+// =============================================================================
+// Dispatcher / Lane Types
+// =============================================================================
+
+/** 訊息來源 */
+export type DispatchSource = 'telegram' | 'api' | 'cli' | 'cron' | 'loop';
+
+/** 統一的 dispatch 請求 */
+export interface DispatchRequest {
+  message: string;
+  source: DispatchSource;
+  contextMode?: 'full' | 'focused' | 'minimal';
+  /** 排隊訊息完成後的回調（用於 Telegram 發回覆） */
+  onQueueComplete?: (result: AgentResponse) => void;
+}
+
+/** Triage 結果 */
+export interface TriageDecision {
+  lane: 'claude' | 'haiku';
+  reason: string;
+}
+
+/** 解析後的 Agent 標籤 */
+export interface ParsedTags {
+  remember?: string;
+  task?: { content: string; schedule?: string };
+  chats: string[];
+  shows: Array<{ url: string; desc: string }>;
+  summaries: string[];
+  cleanContent: string;
+}
+
+/** 單一 Lane 的統計 */
+export interface LaneStats {
+  active: number;
+  waiting: number;
+  max: number;
+  totalCalls: number;
+  totalMs: number;
+}

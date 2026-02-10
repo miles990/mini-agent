@@ -31,6 +31,9 @@ export type {
 // Agent
 export { processMessage, runHeartbeat, type Message } from './agent.js';
 
+// Dispatcher
+export { dispatch, parseTags, getLaneStats, Semaphore, triageMessage } from './dispatcher.js';
+
 // Memory (instance-aware)
 export {
   InstanceMemory,

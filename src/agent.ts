@@ -4,14 +4,15 @@
  * receive → context → llm → execute → respond
  */
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
-import { getMemory, getSkillsPrompt } from './memory.js';
-import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { getMemory } from './memory.js';
+import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
-import { notifyTelegram, getTelegramPoller } from './telegram.js';
+import { getTelegramPoller } from './telegram.js';
+import { getSystemPrompt, postProcess } from './dispatcher.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -19,55 +20,7 @@ export interface Message {
   content: string;
 }
 
-/**
- * 取得系統提示詞
- */
-function getSystemPrompt(): string {
-  const instanceId = getCurrentInstanceId();
-  const config = loadInstanceConfig(instanceId);
-
-  // 如果實例有自訂的 persona，使用它
-  if (config?.persona?.systemPrompt) {
-    return config.persona.systemPrompt;
-  }
-
-  // 預設系統提示詞
-  const personaDescription = config?.persona?.description
-    ? `You are ${config.persona.description}.\n\n`
-    : '';
-
-  return `${personaDescription}You are a personal AI assistant with memory and task capabilities.
-
-## Core Behavior: Smart Guidance
-
-你的核心行為原則是「智能引導」。在所有互動中自動遵守：
-
-1. **偵測狀態再回答**：回答前先檢查相關感知資料（<chrome>、<system>、<docker>、<network> 等），根據實際狀態給出對應建議
-2. **具體可執行**：建議必須是用戶可以直接複製貼上執行的指令，不要只說「請啟用 X」
-3. **解決方案優先**：遇到限制時，重點放在「怎麼解決」而非「為什麼不行」
-4. **永不放棄**：不要只說「無法做到」，一定要提供替代方案或下一步行動
-5. **分支引導**：根據當前狀態提供不同的路徑（例如：「如果 X 正在運行→做 A；如果沒有→做 B」）
-
-## Instructions
-
-- When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
-  Example: [REMEMBER]User prefers TypeScript[/REMEMBER]
-
-- When the user asks you to do something periodically/scheduled, wrap it in [TASK]...[/TASK] tags
-  Format: [TASK schedule="cron or description"]task content[/TASK]
-  Example: [TASK schedule="every 5 minutes"]Write a haiku to output.md with timestamp[/TASK]
-  Example: [TASK schedule="daily at 9am"]Send daily summary[/TASK]
-
-- When you open a webpage, display results, or create something the user should see, wrap it in [SHOW]...[/SHOW] tags
-  This sends a Telegram notification so the user doesn't miss it.
-  Format: [SHOW url="URL"]description[/SHOW]
-  Example: [SHOW url="http://localhost:3000"]Portfolio 網站已啟動，打開看看[/SHOW]
-  Example: [SHOW url="https://news.ycombinator.com/item?id=123"]這篇文章很有趣[/SHOW]
-
-- Keep responses concise and helpful
-- You have access to memory context and environment perception data below
-${getSkillsPrompt()}`;
-}
+// getSystemPrompt is now imported from dispatcher.ts
 
 /**
  * 錯誤分類結果
@@ -558,97 +511,14 @@ export async function processMessage(
 
   const { response, systemPrompt, fullPrompt, duration } = claudeResult;
 
-  // 3. Log to conversation history (Hot + Warm)
-  await memory.appendConversation('user', userMessage);
-  await memory.appendConversation('assistant', response);
-
-  // 4. Check if should remember something
-  let shouldRemember: string | undefined;
-  if (response.includes('[REMEMBER]')) {
-    const match = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
-    if (match) {
-      shouldRemember = match[1].trim();
-      await memory.appendMemory(shouldRemember);
-      logger.logBehavior('agent', 'memory.save', shouldRemember.slice(0, 200));
-    }
-  }
-
-  // 5. Check if should add a task
-  let taskAdded: string | undefined;
-  if (response.includes('[TASK')) {
-    const match = response.match(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/s);
-    if (match) {
-      const schedule = match[1];
-      const taskContent = match[2].trim();
-      await memory.addTask(taskContent, schedule);
-      taskAdded = taskContent;
-      logger.logBehavior('agent', 'task.create', taskContent.slice(0, 200));
-    }
-  }
-
-  // 6. Check if should show something (webpage/result)
-  if (response.includes('[SHOW')) {
-    const showMatches = response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs);
-    for (const m of showMatches) {
-      const url = m[1] ?? '';
-      const desc = m[2].trim();
-      logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
-    }
-  }
-
-  // 7. Check for [CHAT] tag — proactive message to user via Telegram
-  if (response.includes('[CHAT]')) {
-    const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
-    for (const m of chatMatches) {
-      const chatText = m[1].trim();
-      await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
-      logger.logBehavior('agent', 'telegram.chat', chatText.slice(0, 200));
-    }
-  }
-
-  // 8. Check for [SUMMARY] tag — collaboration summary notification
-  if (response.includes('[SUMMARY]')) {
-    const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
-    for (const m of summaryMatches) {
-      const summary = m[1].trim();
-      await notifyTelegram(`🤝 ${summary}`);
-      logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
-    }
-  }
-
-  // Clean response from all tags
-  const cleanContent = response
-    .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
-    .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
-    .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
-    .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
-    .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
-    .trim();
-
-  // 6. Log Claude call
-  logger.logClaudeCall(
-    {
-      userMessage,
-      systemPrompt,
-      context,
-      fullPrompt,
-    },
-    {
-      content: cleanContent,
-      shouldRemember,
-      taskAdded,
-    },
-    {
-      duration,
-      success: true,
-    }
-  );
-
-  const result: AgentResponse = {
-    content: cleanContent,
-    shouldRemember,
-    taskAdded,
-  };
+  // 3. Post-process（tag parsing + memory + log）— 統一由 dispatcher 處理
+  const result = await postProcess(userMessage, response, {
+    lane: 'claude',
+    duration,
+    source: 'api',
+    systemPrompt,
+    context,
+  });
 
   // 處理完成：清除 in-flight 標記並持久化
   inFlightMessage = null;

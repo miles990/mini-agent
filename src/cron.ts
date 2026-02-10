@@ -5,7 +5,7 @@
  */
 
 import cron from 'node-cron';
-import { processMessage } from './agent.js';
+import { dispatch } from './dispatcher.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { diagLog } from './utils.js';
@@ -48,7 +48,7 @@ export function startCronTasks(tasks: CronTask[]): void {
       const cronStart = Date.now();
 
       try {
-        const response = await processMessage(task.task);
+        const response = await dispatch({ message: task.task, source: 'cron' });
         const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
         slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
         logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
@@ -135,7 +135,7 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
     const cronStart = Date.now();
 
     try {
-      const response = await processMessage(task.task);
+      const response = await dispatch({ message: task.task, source: 'cron' });
       const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
       slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
       logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
@@ -256,6 +256,6 @@ async function notifyCronAction(content: string): Promise<void> {
     await notifyTelegram(`⏰ ${action}`);
   }
 
-  // [CHAT] — 主動聊天（processMessage 已處理，但 CRON 的 response 可能被 clean 過）
-  // 不重複處理 — processMessage 內已 notifyTelegram [CHAT]
+  // [CHAT] — 主動聊天（dispatch/postProcess 已處理）
+  // 不重複處理 — postProcess 內已 notifyTelegram [CHAT]
 }

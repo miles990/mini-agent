@@ -11,7 +11,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { processMessage } from './agent.js';
+import { dispatch } from './dispatcher.js';
 import { slog } from './api.js';
 import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
@@ -395,7 +395,7 @@ export class TelegramPoller {
 
       // Pass callback for queued messages — actual response sent when processed
       const messageCopy = [...messages];
-      const response = await processMessage(combined, async (queueResult) => {
+      const response = await dispatch({ message: combined, source: 'telegram', onQueueComplete: async (queueResult) => {
         // Queued message has been processed — send the actual response
         const replyText = queueResult.content;
         if (!replyText) return;
@@ -413,7 +413,7 @@ export class TelegramPoller {
         for (const m of messageCopy) {
           this.markInboxProcessed(m.timestamp, m.sender);
         }
-      });
+      } });
 
       if (response.queued) {
         // Send ack to user — message is queued for later processing

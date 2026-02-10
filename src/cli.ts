@@ -23,7 +23,7 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
-import { processMessage } from './agent.js';
+import { dispatch } from './dispatcher.js';
 import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
@@ -875,7 +875,7 @@ async function runPipeMode(prompt: string): Promise<void> {
   const fullPrompt = `${prompt}\n\n---\n\n${input}`;
 
   try {
-    const response = await processMessage(fullPrompt);
+    const response = await dispatch({ message: fullPrompt, source: 'cli' });
     console.log(response.content);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
@@ -916,7 +916,7 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
   }
 
   try {
-    const response = await processMessage(fullPrompt);
+    const response = await dispatch({ message: fullPrompt, source: 'cli' });
     console.log(response.content);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
@@ -930,7 +930,7 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
 
 async function runPromptMode(prompt: string): Promise<void> {
   try {
-    const response = await processMessage(prompt);
+    const response = await dispatch({ message: prompt, source: 'cli' });
     console.log(response.content);
 
     if (response.shouldRemember) {
@@ -1291,7 +1291,7 @@ function prompt(): void {
     agentLoop?.pause();
     try {
       console.log('\n[Thinking...]\n');
-      const response = await processMessage(trimmed);
+      const response = await dispatch({ message: trimmed, source: 'cli' });
       console.log(response.content);
 
       if (response.shouldRemember) {

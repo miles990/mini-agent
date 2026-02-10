@@ -7,7 +7,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { processMessage, isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue } from './agent.js';
+import { dispatch, getLaneStats } from './dispatcher.js';
 import {
   searchMemory,
   readMemory,
@@ -156,6 +157,7 @@ export function createApi(port = 3001): express.Express {
         currentTask: getCurrentTask(),
         queue: getQueueStatus(),
       },
+      lanes: getLaneStats(),
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
       cron: { active: getCronTaskCount() },
       telegram: {
@@ -304,7 +306,7 @@ export function createApi(port = 3001): express.Express {
         slog('CHAT', `→ [queued-reply] ${result.content.slice(0, 80)}${result.content.length > 80 ? '...' : ''}`);
       };
 
-      const response = await processMessage(message, onQueueComplete);
+      const response = await dispatch({ message, source: 'api', onQueueComplete });
       const elapsed = ((Date.now() - chatStart) / 1000).toFixed(1);
 
       if (response.queued) {

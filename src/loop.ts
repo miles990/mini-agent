@@ -16,6 +16,7 @@ import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { notifyTelegram } from './telegram.js';
 import { diagLog } from './utils.js';
+import { parseTags } from './dispatcher.js';
 
 // =============================================================================
 // Types
@@ -280,45 +281,33 @@ export class AgentLoop {
       const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
       logger.logBehavior('agent', 'loop.cycle.end', `#${this.cycleCount} ${decision}`);
 
-      // ── Process Tags ──
-      const rememberMatch = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
-      if (rememberMatch) {
-        const remembered = rememberMatch[1].trim();
-        await memory.appendMemory(remembered);
-        logger.logBehavior('agent', 'memory.save', remembered.slice(0, 200));
+      // ── Process Tags（共用 parseTags） ──
+      const tags = parseTags(response);
+
+      if (tags.remember) {
+        await memory.appendMemory(tags.remember);
+        logger.logBehavior('agent', 'memory.save', tags.remember.slice(0, 200));
       }
 
-      const taskMatches = response.matchAll(/\[TASK\](.*?)\[\/TASK\]/gs);
-      for (const m of taskMatches) {
-        const taskText = m[1].trim();
-        await memory.addTask(taskText);
-        slog('LOOP', `📋 Auto-created task: ${taskText.slice(0, 80)}`);
-        logger.logBehavior('agent', 'task.create', taskText.slice(0, 200));
+      if (tags.task) {
+        await memory.addTask(tags.task.content, tags.task.schedule);
+        slog('LOOP', `📋 Auto-created task: ${tags.task.content.slice(0, 80)}`);
+        logger.logBehavior('agent', 'task.create', tags.task.content.slice(0, 200));
       }
 
-      // ── [CHAT] tag: Kuro 主動跟 Alex 聊天 ──
-      const chatMatches = response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs);
-      for (const m of chatMatches) {
-        const chatText = m[1].trim();
+      for (const chatText of tags.chats) {
         await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
         slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
       }
 
-      // ── [SHOW] tag: Kuro 展示網頁/成果給用戶 ──
-      const showMatches = response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs);
-      for (const m of showMatches) {
-        const url = m[1] ?? '';
-        const desc = m[2].trim();
-        const urlPart = url ? `\n🔗 ${url}` : '';
-        await notifyTelegram(`🌐 ${desc}${urlPart}`);
-        slog('LOOP', `🌐 Show: ${desc.slice(0, 60)} ${url}`);
-        logger.logBehavior('agent', 'show.webpage', `${desc.slice(0, 100)}${url ? ` | ${url}` : ''}`);
+      for (const show of tags.shows) {
+        const urlPart = show.url ? `\n🔗 ${show.url}` : '';
+        await notifyTelegram(`🌐 ${show.desc}${urlPart}`);
+        slog('LOOP', `🌐 Show: ${show.desc.slice(0, 60)} ${show.url}`);
+        logger.logBehavior('agent', 'show.webpage', `${show.desc.slice(0, 100)}${show.url ? ` | ${show.url}` : ''}`);
       }
 
-      // ── [SUMMARY] tag: Claude Code ↔ Kuro 協作摘要 ──
-      const summaryMatches = response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs);
-      for (const m of summaryMatches) {
-        const summary = m[1].trim();
+      for (const summary of tags.summaries) {
         await notifyTelegram(`🤝 ${summary}`);
         slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
         logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
