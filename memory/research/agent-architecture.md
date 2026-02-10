@@ -524,3 +524,72 @@ LangGraph 明確區分兩種記憶形成機制：
 - Step 2: 如果 FTS5 不夠，再考慮 embedding — 但可能用本地模型（不依賴外部 API）
 
 來源: docs.langchain.com/oss/python/langgraph/memory, langchain-ai.github.io/langmem/concepts/conceptual_guide/, blog.langchain.com/langmem-sdk-launch/
+
+---
+
+## Behavior Log Self-Analysis (2026-02-11)
+
+對自己 2026-02-10 一整天的 behavior log 做定量分析。622 筆 behavior event、212 筆 claude call、7 筆 error。
+
+### 核心數據
+
+| 指標 | 值 | 意義 |
+|------|-----|------|
+| 完成的 cycles | 92 | 重啟計數器多次（有 #1→#24→#1 等），實際是多次 process restart |
+| No-action cycles | 39 (42%) | 近半 cycle 沒有產出 — 這些是「感知後決定不做」還是「出錯」？ |
+| Task cycles | 53 (57%) | 超過一半有實際行動 |
+| Max consecutive no-action | 7 | 連續 7 次什麼都沒做 — 值得警覺 |
+| Claude call 中位數 | 69.2s | 大多數呼叫在 1 分鐘內完成 |
+| Claude call 最大值 | 1267s (21m) | 長尾問題嚴重 |
+| Memory saves | 23 (MEMORY) + 19 (topics) | 日均 42 次記憶寫入 — 偏多？ |
+
+### 活動分佈 — 兩波高峰
+
+```
+Hourly activity:
+  05:00-06:00  █████████ peak（59+72 events）
+  08:00-10:00  ██████   second peak（52+36+56 events）
+  11:00-13:00  ██       trough（10+0+7 events）— error cluster 導致
+  14:00-20:00  ████     steady（27-39 events/hr）
+```
+
+11:00-13:00 的低谷直接對應 error cluster 2（12:07-13:14），三次重試 exhausted 後空轉。
+
+### Error Pattern — Context Size 是根因
+
+兩個 error cluster 共享相同模式：
+1. **Prompt > 47K chars** 時觸發 exit 143 (SIGTERM)
+2. **重試遞增**：每次重試耗時更長（1380s → 3332s → 4348s）
+3. **三次 exhausted 後靜默失敗**
+
+這跟之前研究的 Context Checkpoint 分析一致 — context 在 session 中膨脹 +33%。**當 prompt 超過某個閾值（~47K），Claude CLI 會被系統 kill。**
+
+### No-Action Analysis
+
+42% no-action 不全是壞事。分兩類：
+1. **有意的 skip**：感知後判斷「不需要做什麼」— 這是正確的 perception-first 行為
+2. **無意的 skip**：process restart 後的空 cycle、error 後的恢復 cycle
+
+但 **7 次連續 no-action** 需要調查 — 這可能是卡在某個循環裡。
+
+### Track 分佈偏斜
+
+| Track | Cycles |
+|-------|--------|
+| Track A（個人興趣）| 5 |
+| Track B（專案強化）| 3 |
+| 其他（Alex 對話、L1、website）| 45 |
+
+「其他」佔 85%。這不一定是問題 — Alex 互動和 L1 行動都是有價值的。但 Track A/B 的顯式學習只佔 15%，說明大部分學習發生在「做事過程中」而非「專門學習時間」。
+
+### 我的分析
+
+1. **Context bloat → SIGTERM 是最大的穩定性風險**。47K prompt 已經很接近極限。`buildContext` 的 minimal mode 被觸發的頻率需要追蹤。
+2. **42% no-action 率**需要更精細的分類 — 哪些是「有意不做」，哪些是「想做但做不了」。當前 log 的 "no action" 標記無法區分。
+3. **Memory 寫入 42 次/天**可能還是太頻繁。寫入紀律 L1 改進後需要再觀察。
+4. **重啟計數器多次重置**（cycle #1 出現多次）暗示 process 不穩定 — 可能跟 SIGTERM error 有關。
+
+### 行動建議
+
+- **L1（可自己做）**：在 behavior log 的 "no action" cycle 加 reason tag（`no-action:idle` vs `no-action:error-recovery` vs `no-action:skip`），讓下次分析能區分
+- **L2（需提案）**：context size 監控告警 — 當 prompt > 40K 時記錄警告，> 45K 時主動裁剪

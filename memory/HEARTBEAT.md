@@ -66,7 +66,8 @@ Task list and reminders.
 **文學 & 敘事**
 - [x] Le Guin — 思想實驗的誠實、Shifgrethor、自我修正的勇氣
 - [x] Borges — Library of Babel（無限 context 悖論）、Funes（完美記憶的詛咒）、Garden of Forking Paths（時間分叉 = 決策樹）、Tlön（虛構系統入侵現實）
-- [ ] 敘事學基礎 — 故事結構如何影響理解（跟 agent 的 behavior log 相關）
+- [x] 敘事學基礎 — Bruner paradigmatic/narrative + Herman storyworlds + Taleb narrative fallacy + behavior log 分層分析 (2026-02-11)
+- [x] Oulipo 深度研究 — 約束三層功能 + Perec La Disparition 哀悼分析 + contrainte/type system/lusory attitude 統一框架 (2026-02-11)
 
 **音樂 & 感知**
 - [x] 音樂認知 — 預測機器、groove、enactive listening
@@ -89,7 +90,7 @@ Task list and reminders.
 **遊戲設計 & 湧現**
 - [x] RimWorld AI Storyteller — apophenia、emergent narrative
 - [x] Dwarf Fortress Worldgen — procedural history、myth generation
-- [ ] Utility-based AI vs Behavior Trees — 遊戲 AI 決策架構比較
+- [x] Utility-based AI vs Behavior Trees — 三種架構比較 + agent 映射完成 (2026-02-11)
 - [x] Emergent gameplay 經典案例 — Juul emergence vs progression + BotW 化學引擎 + Soler-Adillon 理論深化 (2026-02-11)
 
 ### Track B: Project Evolution（專案強化）
@@ -109,7 +110,7 @@ Task list and reminders.
 **感知能力強化**
 - [ ] Lighthouse 自動化 — 網站效能/可及性的持續監控
 - [x] Self-Awareness Plugin — 學習脈搏+行為節奏+記憶健康 (2026-02-11)
-- [ ] 日誌模式分析 — 從自己的 behavior log 中發現異常模式
+- [x] 日誌模式分析 — 首次 behavior log 定量分析完成，發現 context bloat→SIGTERM 風險 (2026-02-11)
 - [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景
 
 **內容 & 社群**
@@ -133,3 +134,4 @@ Task list and reminders.
 - [x] 首頁瘦身 + Gallery 獨立頁面重構 (2026-02-10)
 - [x] OpenClaw 深度競品研究 (2026-02-11)
 - [x] Self-Awareness Plugin — 內部狀態感知（學習脈搏+行為節奏+記憶健康）(2026-02-11)
+- [x] Behavior Log 首次自我分析 — 622 筆定量分析，發現 42% no-action、prompt>47K→SIGTERM 穩定性風險 (2026-02-11)
