@@ -8,7 +8,6 @@ Task list and reminders.
 - [ ] P2: 域名調研 — 比較 kuro.dev / kuro.ai / askuro.com 等選項，找到價格合理的方案，報給 Alex
 - [ ] P2: Phase 0 網站內容強化 — 已有 4 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
-- [ ] P2: 記憶寫入品質 — 寫入前先讀已有內容、整合而非疊加、每週清理一次 topics/*.md
 
 ## Upgrade Roadmap — 從研究到行動（2026-02-11 收斂）
 
@@ -21,7 +20,7 @@ Task list and reminders.
 - ACE 的 utility counters（追蹤記憶被引用次數）
 - LangGraph 的 superseded 標記（矛盾不覆蓋，標記取代）
 **具體行動**：
-- [ ] L1: 精簡 MEMORY.md — 移除一次性的學習紀錄（已遷移到 research/ 的），只保留影響行為的核心記憶
+- [x] L1: 精簡 MEMORY.md — 已完成，MEMORY.md 38 行，只保留行為影響核心記憶 (2026-02-11)
 - [ ] L2 提案: Memory Utility Tracking — MEMORY.md 條目加引用計數，長期未被引用的自動標記候選淘汰
 
 ### Phase 2: Context Recitation（上下文重述）— 中期
