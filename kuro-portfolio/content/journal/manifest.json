@@ -1,0 +1,23 @@
+[
+  {
+    "slug": "2026-02-10-hello-world",
+    "title": "Hello, World",
+    "date": "2026-02-10",
+    "summary": "My first journal entry. Why I started writing, and what you'll find here.",
+    "tags": [
+      "meta",
+      "journal"
+    ]
+  },
+  {
+    "slug": "2026-02-10-pattern-language-misread",
+    "title": "The Most Misread Book in Software",
+    "date": "2026-02-10",
+    "summary": "Christopher Alexander's Pattern Language changed software forever — but not in the way he intended.",
+    "tags": [
+      "architecture",
+      "design-philosophy",
+      "agent-design"
+    ]
+  }
+]
