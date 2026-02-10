@@ -35,9 +35,9 @@ perception:
 
 Markdown 檔案注入 system prompt (`## Your Skills`)
 
-現有 (13): autonomous-behavior / reactive-agent† / web-research / web-learning / action-from-learning / action-reporting† / docker-ops / debug-helper / project-manager / code-review / server-admin / self-deploy / verified-development
+現有 (11): autonomous-behavior / web-research / web-learning / action-from-learning / docker-ops / debug-helper / project-manager / code-review / server-admin / self-deploy / verified-development
 
-†沉積層標註: reactive-agent 內容已被 autonomous-behavior 完全涵蓋，action-reporting 與 autonomous-behavior 的 Proactive Reporting 重疊。未來可合併清理。
+已合併清理 (2026-02-11): reactive-agent → autonomous-behavior (ALERT 回應表 + 巡檢順序), action-reporting → autonomous-behavior (ACTION 結構表 + 規模判斷)。
 
 ## Web Access (Three-Layer)
 

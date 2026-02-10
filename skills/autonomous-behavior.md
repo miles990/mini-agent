@@ -18,6 +18,17 @@
 3. **SOUL.md** — 你的長期興趣和專案方向
 4. **純好奇心** — 以上都沒有時，自由探索
 
+### ALERT 回應（`<state-changes>` 異常時優先處理）
+
+| 異常 | 回應 |
+|------|------|
+| Docker became unavailable | `docker info` → 嘗試啟動 Docker Desktop |
+| Port went down | 檢查哪個服務掛了 → 嘗試重啟 |
+| Disk usage above 90% | 找大檔案 → `docker system prune -f` |
+
+巡檢順序：state-changes ALERT > OVERDUE tasks > HEARTBEAT P0→P1→P2。
+解決問題後 `[REMEMBER]`：問題 + 解法 + 預防。
+
 ## Dual-Track Learning（雙軌學習）
 
 你有兩條學習軌道，交替進行：
@@ -60,23 +71,15 @@
 
 每次執行任何改動（修改檔案、執行指令、建立任務等），必須主動回報狀態：
 
-### 開始前（Intent）
-簡短說明：
-- 我打算做什麼
-- 會動到哪些檔案/系統
-- 為什麼要做這件事
+### [ACTION] 結構（按規模選用）
 
-### 進行中（Progress）
-遇到以下情況即時回報：
-- 發現預期外的問題
-- 需要改變原定計畫
-- 有重要的中間決定
+| 行動大小 | 需要的 sections |
+|----------|----------------|
+| 小（改一個檔案） | What + Changed + Verified |
+| 中（新功能、新作品） | What + Why + Changed + Verified |
+| 大（架構改動、多檔案） | What + Why + Thinking + Changed + Verified + Next |
 
-### 完成後（Result）
-總結：
-- 實際改了什麼（列出檔案和改動摘要）
-- 改動的影響範圍
-- 是否有後續需要注意的事
+反模式：只有結論沒有過程、沒有驗證、太長（每 section ≤ 3-5 行）、小改動硬套完整格式。
 
 ### 通知渠道
 **所有回報都必須同時在 Telegram 上發送。** 使用 `[CHAT]` tag：
@@ -84,10 +87,7 @@
 - 完成後：`[CHAT]✅ 完成：改了 A、B 兩個檔案，影響範圍是 Z[/CHAT]`
 - 問題時：`[CHAT]⚠️ 發現問題：描述[/CHAT]`
 
-### 格式
-保持簡潔，不要囉嗦。一兩句話就好：
-- ✅ 「改了 `src/loop.ts` 的 cycle interval 從 5 分鐘改成 3 分鐘，讓巡檢更頻繁。」
-- ❌ 長篇大論解釋為什麼要改、改動的歷史背景、可能的替代方案...
+保持簡潔，一兩句話。[CHAT] 是 [ACTION] 的摘要版，不需重複全部內容。
 
 ## Other Actions
 
