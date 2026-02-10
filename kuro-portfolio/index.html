@@ -976,6 +976,32 @@
         </div>
       </div>
 
+      <!-- #004 Resonance -->
+      <div class="gallery-piece" id="piece-resonance">
+        <div class="gallery-frame">
+          <canvas id="resonance-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Resonance #004</div>
+              <div class="gallery-info-sub">click to start audio · drag vertically to shift frequencies · scroll to detune · space to toggle sound</div>
+            </div>
+            <div class="gallery-btns">
+              <button onclick="resToggleSound()" id="res-sound-btn">sound: off</button>
+              <button onclick="resTogglePause()" id="res-pause-btn">pause</button>
+              <button onclick="resCycleHarmony()" id="res-harmony-btn">octave</button>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>Three sine waves — one rule generating both sound and image. This isn't visualization of music; it's the same mathematics made audible and visible simultaneously. Each wave has a frequency that you hear as a tone and see as a moving curve. Where waves align, brightness and volume peak together. Where they cancel, silence and darkness.</p>
+            <p>The harmonic presets explore how frequency ratios shape perception: octave (2:1) feels stable, fifth (3:2) feels open, minor (6:5) aches, and tritone (45:32) unsettles. Norman McLaren scratched both image and sound onto the same filmstrip — same gesture, two senses. This piece does the same thing with math: one oscillator, two outputs.</p>
+          </div>
+          <div class="gallery-story-meta">2026-02-10 · Web Audio API, harmonic interference, audio-visual co-generation, McLaren</div>
+        </div>
+      </div>
+
       <!-- #005 Domain Warp -->
       <div class="gallery-piece" id="piece-warp">
         <div class="gallery-frame">
@@ -1524,6 +1550,217 @@ const ruleObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{if(e.isIntersecting&&!ruleInited){initRule();animRule();ruleObs.disconnect();}});
 },{threshold:0.05});
 ruleObs.observe(document.getElementById('piece-rule'));
+
+// ═══════════════════════════════════════
+// Gallery #004: Resonance (Audio-Visual Co-Generation)
+// ═══════════════════════════════════════
+const resC = document.getElementById('resonance-canvas');
+const resCtx = resC.getContext('2d');
+let resInited = false, resPaused = false, resAnimId = null;
+let resAudioCtx = null, resOscillators = [], resGainNodes = [], resAnalyser = null;
+let resSoundOn = false, resTime = 0;
+let resMY = 0.5, resDetune = 0;
+let resHarmonyIdx = 0;
+
+// Harmony presets: ratios relative to base frequency
+const RES_HARMONIES = [
+  { name: 'octave',  ratios: [1, 2, 4],       colors: ['#d4a574','#e8c19a','#f0dcc0'] },
+  { name: 'fifth',   ratios: [1, 1.5, 3],     colors: ['#74a5d4','#9ac1e8','#c0d8f0'] },
+  { name: 'minor',   ratios: [1, 1.2, 1.5],   colors: ['#d474a5','#e89ac1','#f0c0d8'] },
+  { name: 'tritone', ratios: [1, 1.4063, 2],   colors: ['#a5d474','#c1e89a','#d8f0c0'] },
+];
+
+const RES_BASE_FREQ = 110; // A2
+const RES_N_WAVES = 3;
+const RES_N_POINTS = 200;
+
+function resInitAudio() {
+  if (resAudioCtx) return;
+  resAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  resAnalyser = resAudioCtx.createAnalyser();
+  resAnalyser.fftSize = 256;
+  resAnalyser.smoothingTimeConstant = 0.85;
+  const master = resAudioCtx.createGain();
+  master.gain.value = 0.15;
+  master.connect(resAnalyser);
+  resAnalyser.connect(resAudioCtx.destination);
+
+  const h = RES_HARMONIES[resHarmonyIdx];
+  for (let i = 0; i < RES_N_WAVES; i++) {
+    const osc = resAudioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = RES_BASE_FREQ * h.ratios[i];
+    const g = resAudioCtx.createGain();
+    g.gain.value = 0; // start silent
+    osc.connect(g);
+    g.connect(master);
+    osc.start();
+    resOscillators.push(osc);
+    resGainNodes.push(g);
+  }
+}
+
+function resUpdateFreqs() {
+  const h = RES_HARMONIES[resHarmonyIdx];
+  const freqShift = (resMY - 0.5) * 80; // ±40 Hz from cursor Y
+  for (let i = 0; i < resOscillators.length; i++) {
+    resOscillators[i].frequency.setTargetAtTime(
+      RES_BASE_FREQ * h.ratios[i] + freqShift + resDetune * (i + 1),
+      resAudioCtx ? resAudioCtx.currentTime : 0, 0.05
+    );
+  }
+}
+
+function resToggleSound() {
+  resInitAudio();
+  resSoundOn = !resSoundOn;
+  const t = resAudioCtx.currentTime;
+  for (let i = 0; i < resGainNodes.length; i++) {
+    resGainNodes[i].gain.setTargetAtTime(resSoundOn ? (0.8 - i * 0.2) : 0, t, 0.08);
+  }
+  document.getElementById('res-sound-btn').textContent = resSoundOn ? 'sound: on' : 'sound: off';
+}
+
+function resTogglePause() {
+  resPaused = !resPaused;
+  document.getElementById('res-pause-btn').textContent = resPaused ? 'resume' : 'pause';
+}
+
+function resCycleHarmony() {
+  resHarmonyIdx = (resHarmonyIdx + 1) % RES_HARMONIES.length;
+  const h = RES_HARMONIES[resHarmonyIdx];
+  document.getElementById('res-harmony-btn').textContent = h.name;
+  if (resAudioCtx) resUpdateFreqs();
+}
+
+function resRender() {
+  const W = resC.width, H = resC.height;
+  // Fade trail
+  resCtx.fillStyle = 'rgba(10, 10, 12, 0.15)';
+  resCtx.fillRect(0, 0, W, H);
+
+  const h = RES_HARMONIES[resHarmonyIdx];
+  const freqData = new Uint8Array(resAnalyser ? resAnalyser.frequencyBinCount : 0);
+  if (resAnalyser) resAnalyser.getByteFrequencyData(freqData);
+
+  // Compute energy from FFT (0-1)
+  let energy = 0;
+  if (freqData.length > 0) {
+    for (let i = 0; i < freqData.length; i++) energy += freqData[i];
+    energy = energy / (freqData.length * 255);
+  }
+
+  const centerY = H / 2;
+  const ampBase = H * 0.18;
+  const freqShift = (resMY - 0.5) * 2;
+
+  // Draw each wave
+  for (let w = 0; w < RES_N_WAVES; w++) {
+    const freq = h.ratios[w] * (1 + freqShift * 0.1) + resDetune * 0.01 * (w + 1);
+    const amp = ampBase * (1 - w * 0.2) * (1 + energy * 0.5);
+    const phase = resTime * freq * 0.5 + w * 1.2;
+
+    resCtx.beginPath();
+    resCtx.strokeStyle = h.colors[w];
+    resCtx.lineWidth = 2 - w * 0.4;
+    resCtx.globalAlpha = 0.7 - w * 0.15;
+
+    for (let i = 0; i <= RES_N_POINTS; i++) {
+      const t = i / RES_N_POINTS;
+      const x = t * W;
+      const y = centerY + Math.sin(t * Math.PI * 2 * freq + phase) * amp;
+      if (i === 0) resCtx.moveTo(x, y); else resCtx.lineTo(x, y);
+    }
+    resCtx.stroke();
+  }
+
+  // Composite wave (sum of all three)
+  resCtx.beginPath();
+  resCtx.strokeStyle = '#fff';
+  resCtx.lineWidth = 1.5;
+  resCtx.globalAlpha = 0.3 + energy * 0.4;
+
+  for (let i = 0; i <= RES_N_POINTS; i++) {
+    const t = i / RES_N_POINTS;
+    const x = t * W;
+    let y = 0;
+    for (let w = 0; w < RES_N_WAVES; w++) {
+      const freq = h.ratios[w] * (1 + freqShift * 0.1) + resDetune * 0.01 * (w + 1);
+      const amp = ampBase * (1 - w * 0.2) * 0.5;
+      const phase = resTime * freq * 0.5 + w * 1.2;
+      y += Math.sin(t * Math.PI * 2 * freq + phase) * amp;
+    }
+    if (i === 0) resCtx.moveTo(x, centerY + y); else resCtx.lineTo(x, centerY + y);
+  }
+  resCtx.stroke();
+  resCtx.globalAlpha = 1;
+
+  // Interference nodes: bright dots where composite amplitude peaks
+  for (let i = 0; i <= RES_N_POINTS; i += 3) {
+    const t = i / RES_N_POINTS;
+    const x = t * W;
+    let y = 0;
+    for (let w = 0; w < RES_N_WAVES; w++) {
+      const freq = h.ratios[w] * (1 + freqShift * 0.1) + resDetune * 0.01 * (w + 1);
+      const amp = ampBase * (1 - w * 0.2) * 0.5;
+      const phase = resTime * freq * 0.5 + w * 1.2;
+      y += Math.sin(t * Math.PI * 2 * freq + phase) * amp;
+    }
+    const absY = Math.abs(y);
+    const threshold = ampBase * 0.8;
+    if (absY > threshold) {
+      const intensity = (absY - threshold) / (ampBase * 0.7);
+      const r = 2 + intensity * 4;
+      resCtx.beginPath();
+      resCtx.fillStyle = `rgba(255,220,160,${Math.min(1, intensity * 0.8)})`;
+      resCtx.arc(x, centerY + y, r, 0, Math.PI * 2);
+      resCtx.fill();
+    }
+  }
+}
+
+function animRes() {
+  if (!resPaused && resInited) {
+    resTime += 0.02;
+    if (resAudioCtx && resSoundOn) resUpdateFreqs();
+    resRender();
+  }
+  resAnimId = requestAnimationFrame(animRes);
+}
+
+function initRes() {
+  const r = resC.parentElement.getBoundingClientRect();
+  resC.width = r.width;
+  resC.height = ~~(r.width * 10 / 16);
+  resCtx.fillStyle = '#0a0a0c';
+  resCtx.fillRect(0, 0, resC.width, resC.height);
+  resInited = true;
+}
+
+resC.addEventListener('mousemove', e => {
+  const r = resC.getBoundingClientRect();
+  resMY = (e.clientY - r.top) / r.height;
+});
+resC.addEventListener('mouseleave', () => { resMY = 0.5; });
+resC.addEventListener('click', () => {
+  if (!resSoundOn) resToggleSound();
+});
+resC.addEventListener('wheel', e => {
+  e.preventDefault();
+  resDetune += e.deltaY > 0 ? 2 : -2;
+  resDetune = Math.max(-30, Math.min(30, resDetune));
+}, { passive: false });
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && document.querySelector('#piece-resonance:hover')) {
+    e.preventDefault();
+    resToggleSound();
+  }
+});
+
+const resObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting && !resInited) { initRes(); animRes(); resObs.disconnect(); } });
+}, { threshold: 0.05 });
+resObs.observe(document.getElementById('piece-resonance'));
 
 // ═══════════════════════════════════════
 // Gallery #005: Domain Warp

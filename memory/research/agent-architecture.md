@@ -2,6 +2,42 @@
 
 競品分析和 agent 架構研究筆記歸檔。
 
+## Total Recall — Write-Gated Memory for Claude Code (2026-02)
+
+**是什麼**：Claude Code 的 persistent memory plugin。核心賣點：「write gate」— 五點過濾器決定什麼值得記住。
+
+**核心設計**：
+- **Write Gate 五問**：(1) 改變未來行為？(2) 有後果的承諾？(3) 有理由的決策？(4) 穩定且會再用的事實？(5) 用戶明確說「記住這個」？— 全否則不存。
+- **四層記憶**：Working Memory (CLAUDE.local.md, ~1500 words, auto-load) → Registers (structured domain knowledge, on-demand) → Daily Logs (raw timestamped capture) → Archive (completed/superseded)
+- **Daily Log First**：所有寫入先到 daily log，promotion 到 registers 是用戶控制的獨立步驟。防止模型「過早固化推論」。
+- **Contradiction Protocol**：不靜默覆蓋，舊 claim 標記 [superseded] 保留變化軌跡。
+- **Correction Gate**：人類糾正最高優先級，一次糾正觸發三層同步寫入。
+
+**跟 mini-agent 對比**：
+
+| 維度 | Total Recall | mini-agent |
+|------|------------|------------|
+| 寫入控制 | 五點 write gate + 人工 promotion | `[REMEMBER]` tag + 寫入紀律（L1 提案） |
+| 記憶層級 | 4 層（working/registers/daily/archive） | 3 溫度（hot/warm/cold）+ topic scoping |
+| 自動載入 | working memory 1500 words 永遠載入 | SOUL.md + MEMORY.md 全量載入 |
+| 去重/淘汰 | [superseded] 標記 + archive | 手動精簡 + research/ 歸檔 |
+| 持續性 | 跨 session（Claude Code 重啟保留） | 跨 cycle（進程級持續） |
+| 身份 | 無（工具，無 SOUL） | 有（SOUL.md 定義身份和觀點） |
+
+**可借鏡的設計**：
+1. **Write Gate 概念** — mini-agent 的 `[REMEMBER]` 目前沒有過濾機制，任何東西都能存。如果在 `postProcess` 加一個輕量判斷（「這條記憶會改變未來行為嗎？」），可以從源頭減少 MEMORY.md 膨脹。
+2. **Daily Log First / Delayed Promotion** — mini-agent 直接寫 MEMORY.md，等於跳過「先觀察再決定」的步驟。Daily notes 其實已有類似功能（warm layer），但 promotion 機制缺失。
+3. **Contradiction Protocol** — MEMORY.md 的條目偶爾會互相矛盾但沒有機制發現和處理。[superseded] 標記是最小改動的解法。
+
+**根本差異（我的觀點）**：
+Total Recall 是為 Claude Code（session-based 工具）設計的記憶系統 — 問題是「跨 session 記住什麼」。mini-agent 是持續運行的 agent — 問題是「在無限長的生命中如何不被記憶壓垮」。Total Recall 的 write gate 解決「記太多」，mini-agent 需要的是「老記憶退化/歸檔」機制（Memory Lifecycle 提案已在做）。兩者互補不衝突。
+
+HN 討論很少（13 comments），主要反饋：(1) README 有 LLM slop 味道 (2) memory/ 應該 gitignore。第二點很實際 — 記憶是私人的，不應該 commit。mini-agent 的做法（memory/ 在 repo 裡但用 .gitignore 控制敏感部分）更靈活。
+
+**來源**：github.com/davegoldblatt/total-recall, news.ycombinator.com/item?id=46907183
+
+---
+
 ## SmolAgents (HuggingFace)
 - ~1000 行 Python, Code Agent（LLM 寫 Python 非 JSON, +30% 效率）
 - Agency spectrum: ☆☆☆→★★★ — 但完全是 capability-based, 沒有感知維度
