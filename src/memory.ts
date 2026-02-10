@@ -520,8 +520,8 @@ export class InstanceMemory {
     }
 
     // 2. 寫入 Warm storage (daily notes)
-    const prefix = role === 'user' ? 'User' : 'Assistant';
-    await this.appendDailyNote(`${prefix}: ${content}`);
+    const prefix = role === 'user' ? '(alex)' : '(kuro)';
+    await this.appendDailyNote(`${prefix} ${content}`);
   }
 
   /**
@@ -547,12 +547,12 @@ export class InstanceMemory {
 
     const conversations: ConversationEntry[] = [];
     for (const line of lines) {
-      const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\] (User|Assistant): (.+)$/);
+      const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \((alex|kuro)\) (.+)$/);
       if (match) {
-        const [, time, role, content] = match;
+        const [, time, who, content] = match;
         const today = new Date().toISOString().split('T')[0];
         conversations.push({
-          role: role.toLowerCase() as 'user' | 'assistant',
+          role: (who === 'alex' ? 'user' : 'assistant') as 'user' | 'assistant',
           content,
           timestamp: `${today}T${time}`,
         });
@@ -632,8 +632,8 @@ export class InstanceMemory {
     const conversations = this.conversationBuffer
       .map(c => {
         const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
-        const role = c.role === 'user' ? 'User' : 'Assistant';
-        return `[${time}] ${role}: ${c.content}`;
+        const who = c.role === 'user' ? '(alex)' : '(kuro)';
+        return `[${time}] ${who} ${c.content}`;
       })
       .join('\n');
 
@@ -878,8 +878,8 @@ export class InstanceMemory {
       .slice(-5)
       .map(c => {
         const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
-        const role = c.role === 'user' ? 'User' : 'Assistant';
-        return `[${time}] ${role}: ${c.content}`;
+        const who = c.role === 'user' ? '(alex)' : '(kuro)';
+        return `[${time}] ${who} ${c.content}`;
       })
       .join('\n');
     sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);

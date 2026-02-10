@@ -126,7 +126,7 @@ describe('InstanceMemory', () => {
     it('should write to daily notes (warm)', async () => {
       await memory.appendConversation('user', 'Test message');
       const daily = await memory.readDailyNotes();
-      expect(daily).toContain('User: Test message');
+      expect(daily).toContain('(alex) Test message');
     });
 
     it('should clear hot buffer', async () => {
