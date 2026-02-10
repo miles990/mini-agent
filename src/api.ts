@@ -296,7 +296,15 @@ export function createApi(port = 3001): express.Express {
     const chatStart = Date.now();
 
     try {
-      const response = await processMessage(message);
+      // 排隊訊息處理完成時，透過 TG 發送回覆（因為 HTTP 連線已斷）
+      const onQueueComplete = async (result: { content: string }) => {
+        const poller = getTelegramPoller();
+        if (!poller || !result.content) return;
+        await poller.sendMessage(result.content);
+        slog('CHAT', `→ [queued-reply] ${result.content.slice(0, 80)}${result.content.length > 80 ? '...' : ''}`);
+      };
+
+      const response = await processMessage(message, onQueueComplete);
       const elapsed = ((Date.now() - chatStart) / 1000).toFixed(1);
 
       if (response.queued) {

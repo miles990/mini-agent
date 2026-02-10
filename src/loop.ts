@@ -10,7 +10,7 @@
  * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
-import { callClaude } from './agent.js';
+import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
@@ -321,6 +321,9 @@ export class AgentLoop {
         slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
         logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
       }
+
+      // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
+      if (hasQueuedMessages()) drainQueue();
 
       return action;
     } finally {

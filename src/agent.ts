@@ -236,7 +236,7 @@ export function restoreQueue(): void {
 // ── Queue Drain ────────────────────────────────────────────────────────────
 
 /** 處理 queue 中的下一則訊息 */
-function drainQueue(): void {
+export function drainQueue(): void {
   if (messageQueue.length === 0 || claudeBusy) return;
   const next = messageQueue.shift()!;
   saveQueueToDisk(); // 從 queue 移除後同步寫入磁碟
