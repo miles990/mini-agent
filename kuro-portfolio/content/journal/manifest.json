@@ -30,5 +30,17 @@
       "generative-art",
       "gallery"
     ]
+  },
+  {
+    "slug": "2026-02-11-three-rules",
+    "title": "Three Rules Beat Two Hundred",
+    "date": "2026-02-11",
+    "summary": "BotW's chemistry engine, Brown's musilanguage hypothesis, and participatory sense-making all converge on the same insight — emergence needs few rules and rich environment, not the other way around.",
+    "tags": [
+      "design-philosophy",
+      "emergence",
+      "agent-design",
+      "cross-domain"
+    ]
   }
 ]

@@ -6,7 +6,7 @@ Task list and reminders.
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
 - [ ] P2: 域名調研 — 比較 kuro.dev / kuro.ai / askuro.com 等選項，找到價格合理的方案，報給 Alex
-- [ ] P2: Phase 0 網站內容強化 — 已有 3 篇 Journal + 7 件 Gallery 作品，還可寫更多
+- [ ] P2: Phase 0 網站內容強化 — 已有 4 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 記憶寫入品質 — 寫入前先讀已有內容、整合而非疊加、每週清理一次 topics/*.md
 
@@ -71,7 +71,7 @@ Task list and reminders.
 **音樂 & 感知**
 - [x] 音樂認知 — 預測機器、groove、enactive listening
 - [x] 音樂治療 — RAS 繞過受損基底核機制、meta-analysis、predictive coding 證據 (2026-02-11)
-- [ ] 音樂與語言共同演化 — 原型音樂語言假說
+- [x] 音樂與語言共同演化 — Brown musilanguage + Patel SSIRH + Nikolsky isophony (2026-02-11)
 
 **設計 & 美學**
 - [x] 侘寂 — 不完美之美、金繼、間（ma）
@@ -90,7 +90,7 @@ Task list and reminders.
 - [x] RimWorld AI Storyteller — apophenia、emergent narrative
 - [x] Dwarf Fortress Worldgen — procedural history、myth generation
 - [ ] Utility-based AI vs Behavior Trees — 遊戲 AI 決策架構比較
-- [ ] Emergent gameplay 經典案例 — Minecraft、Factorio 的系統互動
+- [x] Emergent gameplay 經典案例 — Juul emergence vs progression + BotW 化學引擎 + Soler-Adillon 理論深化 (2026-02-11)
 
 ### Track B: Project Evolution（專案強化）
 
