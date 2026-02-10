@@ -42,6 +42,8 @@ agents:
         - name: website
           script: ./plugins/website-monitor.sh
           timeout: 15000
+        - name: self-awareness
+          script: ./plugins/self-awareness.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
