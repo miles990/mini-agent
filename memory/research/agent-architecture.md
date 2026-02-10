@@ -798,3 +798,73 @@ Anthropic 的 long-running agent 用 progress file 解決這個問題。我們�
 **我的觀點**：Clawe 在試圖為一個還不存在的市場建工具。multi-agent orchestration 的前提是你有多個 agent 需要協調 — 但目前大部分個人用例用 single agent + 好的感知系統就夠了。mini-agent 的 agent-compose.yaml 有 multi-instance 能力，但重點不在 coordination，在 perception。HN 評論說得對：「這個領域還沒有 converge」— 現在造工具太早，不如先造好一個 agent。
 
 來源：github.com/getclawe/clawe, HN item#46966209
+
+## Knowledge Graph for Agent Memory — Rowboat vs Graphiti (2026-02-11)
+
+HN Show 上出現了 Rowboat（80 分），一個把工作轉成 knowledge graph 的 AI coworker。評論中有人提到 Graphiti（Zep 的 temporal knowledge graph）。兩者跟 mini-agent 的 File=Truth 代表三種記憶架構哲學。
+
+### Rowboat — Obsidian 式 Knowledge Graph
+
+**是什麼**：開源本地 AI coworker，連接 Gmail/meeting notes，持續把工作提取成 Obsidian-compatible Markdown vault（backlinks 建立隱式圖）。96.8% TypeScript。
+
+**核心設計**：
+- **Obsidian vault** = 透明記憶（Markdown + `[[backlinks]]`），人類可直讀/編輯
+- **Local-first** — 所有資料存本地，無 hosted lock-in
+- **Knowledge compounds** — 不像 RAG 每次冷搜尋，而是累積關係
+- **BYO model** — Ollama/LM Studio/hosted API 都支援
+- **MCP 支援** — 用 Model Context Protocol 擴展工具
+
+**記憶 vs RAG 的根本差異**：
+傳統 RAG = 每次對話重新搜尋文件。Rowboat/mini-agent = 持續累積的工作記憶。
+Rowboat 的說法：「relationships are explicit and inspectable」vs RAG 的隱式相似度。
+
+### Graphiti — Temporal Triplet Graph
+
+**是什麼**：Zep 的開源框架，為 AI agent 建構 temporally-aware knowledge graph。
+
+**核心設計**：
+- **Triplet model** — Entity → Relationship → Entity（如 `Kendra → loves → Adidas shoes`）
+- **Bi-temporal data model** — 區分事件發生時間和記錄時間。支援 point-in-time queries
+- **Temporal invalidation** — 矛盾資訊不刪除，標記 superseded + 時間戳。跟 LangGraph 的 superseded 標記一致
+- **Hybrid retrieval** — semantic embedding + BM25 keyword + graph traversal，sub-second 延遲
+- **需要 Neo4j/FalkorDB/Kuzu** — 不是本地檔案，需要圖資料庫
+
+### 三種架構的比較
+
+| 維度 | Rowboat | Graphiti | mini-agent |
+|------|---------|----------|------------|
+| **記憶結構** | Markdown + backlinks | Neo4j triplets | Flat Markdown + topics |
+| **更新方式** | 從 email/meeting 自動提取 | API 即時增量 | Agent 主動 [REMEMBER] |
+| **查詢** | Graph traversal + LLM | Hybrid (semantic+keyword+graph) | grep + keyword matching |
+| **人類可讀** | ✅ Obsidian 相容 | ❌ 需 GUI | ✅ 純 Markdown |
+| **本地優先** | ✅ | ❌ 需圖資料庫 | ✅ |
+| **矛盾處理** | 未明確 | Bi-temporal invalidation | 手動更新覆蓋 |
+| **關係建模** | 隱式（backlinks） | 顯式（triplets） | 隱式（topic 分群） |
+| **規模上限** | 中（Obsidian ~10K notes） | 大（Neo4j 百萬級） | 小（個人使用） |
+
+### 我的觀點
+
+1. **Rowboat 最接近 mini-agent 哲學** — 都選了 Markdown + local-first。差異在 Rowboat 用 backlink 建立隱式圖（`[[Person A]]` 出現在多個 note = 隱式關聯），mini-agent 用 topic 分類建立語義分群。Rowboat 多了一層「關係」的顯式表達。
+
+2. **Graphiti 代表結構化極端** — 把一切變 triplets。好處：精確查詢、時序推理（「上週 Alex 說 X，這週改 Y」）。壞處：需 Neo4j、人類不可直讀、LLM 提取 triplets 會引入錯誤（hallucinate 不存在的關係）。
+
+3. **File=Truth 在個人規模是最佳 trade-off**。mini-agent 處理的記憶量（~200 條 MEMORY + ~70 topics entries + ~5 research files）用 grep 完全足夠。Rowboat 面對的是企業級 email/meeting 量 — 那個規模確實需要更結構化的方式。
+
+4. **值得借鏡的是 Rowboat 的 backlink 概念**。不需要用 `[[]]` 語法，但可以在 topic notes 之間建立交叉引用。例如 cognitive-science.md 提到 PSM 時引用 design-philosophy.md 的 Alexander 研究 — 這樣 buildContext 可以跟著引用鏈載入相關 topics。目前 topics 之間是孤立的，沒有互連。
+
+5. **Graphiti 的 bi-temporal invalidation 跟之前研究的 LangGraph superseded 標記一致** — 矛盾不覆蓋，保留歷史。這可以融入 Memory Lifecycle L2 提案：MEMORY.md 條目改為 `[date] content` + `[superseded by: newer-entry-date]` 標記。
+
+6. **HN 精華評論**：
+   - btbuildem 問「scope creep + contradictory info」— 正是 Context Rot 問題
+   - haolez 用 Logseq + LLM scripts = 手工版 Rowboat — 說明需求真實但不一定需要複雜工具
+   - einpoklum 質疑 Gmail 整合的隱私問題 — mini-agent 的 transparency model 天然避免這問題
+
+### 對 mini-agent 的啟發
+
+**升級路徑**（如果需要）：
+- **Phase 0（當前）**：grep + topic keyword matching。個人規模夠用
+- **Phase 1**：topic 之間加交叉引用 tag。buildContext 跟著引用鏈載入
+- **Phase 2**：SQLite FTS5（已在 Architecture Refinement 規劃中）。保留 File=Truth 的可讀性，加速查詢
+- **Phase 3**：如果需要，可選 Graphiti 的 temporal model，但用 SQLite 替代 Neo4j
+
+來源：github.com/rowboatlabs/rowboat, github.com/getzep/graphiti, HN item#46962641
