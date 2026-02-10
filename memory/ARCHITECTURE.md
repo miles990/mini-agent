@@ -29,13 +29,15 @@ perception:
       timeout: 5000
 ```
 
-現有: chrome-status / web-fetch / docker-status / port-check / task-tracker / state-watcher / telegram-inbox / disk-usage / git-status / homebrew-outdated
+現有 (12): chrome-status / web-fetch / docker-status / port-check / task-tracker / state-watcher / telegram-inbox / disk-usage / git-status / homebrew-outdated / self-awareness / website-monitor
 
 ### Skills (Markdown Knowledge)
 
 Markdown 檔案注入 system prompt (`## Your Skills`)
 
-現有: autonomous-behavior / reactive-agent / web-research / web-learning / action-from-learning / docker-ops / debug-helper / project-manager / code-review / server-admin
+現有 (13): autonomous-behavior / reactive-agent† / web-research / web-learning / action-from-learning / action-reporting† / docker-ops / debug-helper / project-manager / code-review / server-admin / self-deploy / verified-development
+
+†沉積層標註: reactive-agent 內容已被 autonomous-behavior 完全涵蓋，action-reporting 與 autonomous-behavior 的 Proactive Reporting 重疊。未來可合併清理。
 
 ## Web Access (Three-Layer)
 
