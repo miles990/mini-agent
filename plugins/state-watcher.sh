@@ -41,12 +41,16 @@ collect_state() {
     local disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
     state="$state\"disk\":\"$disk_pct\","
 
-    # 記憶體使用（macOS 簡化版，timeout 防止 hang）
-    local mem_pressure="normal"
-    if command -v memory_pressure &>/dev/null; then
-        mem_pressure=$(timeout 3 memory_pressure 2>/dev/null | head -1 | awk '{print $NF}' || echo "unknown")
+    # 記憶體使用（vm_stat 比 memory_pressure 更可靠且更快）
+    local mem_free="unknown"
+    if command -v vm_stat &>/dev/null; then
+        local pages_free=$(vm_stat 2>/dev/null | awk '/Pages free/{print $3}' | tr -d '.')
+        local page_size=16384
+        if [ -n "$pages_free" ]; then
+            mem_free="$((pages_free * page_size / 1048576))MB_free"
+        fi
     fi
-    state="$state\"memory\":\"${mem_pressure}\""
+    state="$state\"memory\":\"${mem_free}\""
 
     state="$state}"
     echo "$state"

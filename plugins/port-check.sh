@@ -1,6 +1,6 @@
 #!/bin/bash
-# 常用服務 Port 檢查
-# 快速確認本機服務是否運行
+# Port 檢查 — 只監控實際使用中的服務
+# 原則：看得精準比看得多重要
 
 check_port() {
   local name=$1
@@ -14,12 +14,15 @@ check_port() {
   fi
 }
 
-check_port "HTTP"       80
-check_port "HTTPS"      443
-check_port "PostgreSQL"  5432
-check_port "MySQL"       3306
-check_port "Redis"       6379
-check_port "MongoDB"     27017
-check_port "Node Dev"    3000
-check_port "Vite"        5173
-check_port "SSH"         22
+# 核心服務
+check_port "Self"        3001
+check_port "CDP"         9222
+
+# 開發服務（有在用才顯示）
+for entry in "Node Dev:3000" "Vite:5173" "HTTP:80" "HTTPS:443"; do
+  name="${entry%%:*}"
+  port="${entry##*:}"
+  if lsof -i :$port -sTCP:LISTEN &>/dev/null 2>&1; then
+    check_port "$name" "$port"
+  fi
+done
