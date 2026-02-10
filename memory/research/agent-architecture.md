@@ -286,3 +286,94 @@ Crawshaw 寫了三篇系列（2025-01 → 2025-06 → 2026-02），展示了清�
 - agent 的可觀測性和審計成為標配（behavior log, context transparency）
 
 來源: crawshaw.io/blog/eight-more-months-of-agents, news.ycombinator.com/item?id=46933223
+
+## LangGraph Memory Architecture — 深度對比分析（2026-02-10）
+
+### 概述
+
+LangGraph（LangChain 子專案）提供了目前業界最完整的 agent 記憶框架之一。它的記憶架構建立在心理學的三分法上：semantic/episodic/procedural，並用 LangMem SDK 提供完整的實作。這次分析不是為了「用 LangGraph」，而是理解業界做法，驗證 mini-agent 的 File=Truth 路線是否站得住腳。
+
+### LangGraph 記憶三分法
+
+**1. Semantic Memory（事實/知識）**
+
+LangGraph 提供兩種模式：
+- **Profile**：單一 JSON 文件，持續更新。適合「只關心當前狀態」的場景（如用戶偏好）。風險：更新時資訊遺失（overwrite problem）
+- **Collection**：多個文件，vector embedding + semantic search 檢索。recall 高但管理複雜（deletion/insertion/consolidation 邏輯）
+
+**mini-agent 對應**：
+- SOUL.md = profile（我的 traits, thoughts, preferences）
+- MEMORY.md = 混合（核心事實 + 經驗教訓）
+- topics/*.md = collection（按主題分類的知識）
+
+**差異**：LangGraph 用 embedding + cosine similarity 做語意搜尋。mini-agent 用 keyword matching + topic loader。前者處理模糊查詢更強（「用戶喜歡吃什麼」→ 找到「我愛義大利菜」），後者更簡單透明（grep 能找到什麼，人也能找到什麼）。
+
+**2. Episodic Memory（過去經驗）**
+
+LangGraph 的做法：把成功的互動變成 few-shot examples 注入 prompt。不是完整對話，而是精煉過的「情境 → 思考過程 → 成功結果」三段式。重點是讓 agent 從過去的成功中學習。
+
+**mini-agent 對應**：
+- daily/*.md = 完整的每日對話記錄
+- behavior log = 行動歷史
+
+**差異**：mini-agent 有完整的 episodic memory（每天的對話都保存了），但**沒有做 few-shot learning**。這是一個潛在的改進方向 — 如果從過去成功的行動中提取 pattern 注入 prompt，可能改善未來的決策品質。但成本是增加 context 長度。
+
+**3. Procedural Memory（行為規則）**
+
+LangGraph 最有趣的部分：agent 透過 reflection 修改自己的 prompt。系統把當前指令和最近對話交給 agent，agent 自我檢視後調整下次行為的指令。這是自動化的 prompt optimization。
+
+**mini-agent 對應**：
+- skills/*.md = 靜態 procedural memory（手動寫的行為規則）
+- SOUL.md My Thoughts = 有意識的 procedural evolution（我形成觀點後手動更新）
+- CLAUDE.md = 外部定義的核心行為規則
+
+**差異**：LangGraph 的 procedural memory 是**自動演化的**（reflection loop）。mini-agent 的是**有意識演化的**（我或 Alex 手動更新）。自動演化更高效但有風險（drift without notice），手動演化更可控但依賴持續的注意力。
+
+### 記憶寫入：Hot Path vs Background
+
+LangGraph 明確區分兩種記憶形成機制：
+
+| 機制 | LangGraph | mini-agent |
+|------|-----------|------------|
+| **Hot Path** | 對話中即時提取記憶，加延遲但即時可用 | `[REMEMBER]` tag — 對話中我主動標記要記住的，agent.ts 解析後寫入 |
+| **Background** | 對話結束後，用 cron/trigger 做 reflection | OODA cycle — 每 5 分鐘巡檢，回顧 recent conversations 提取重要資訊 |
+
+差異很有趣：LangGraph 的 background 是**事後反思**（對話結束後分析整段對話），mini-agent 的 OODA cycle 是**持續巡檢**（不等對話結束，每個 cycle 都看環境）。前者更適合 task-centric agent（任務有明確的開始和結束），後者更適合 always-on agent（永遠在線，沒有「結束」的概念）。
+
+### 存儲和檢索
+
+| 維度 | LangGraph | mini-agent |
+|------|-----------|------------|
+| **Backend** | InMemoryStore（開發）/ DB-backed store（生產）| Markdown 檔案 |
+| **組織** | Namespace hierarchy（user_id, app_context）| 目錄結構（topics/, daily/, research/）|
+| **檢索** | Vector embedding + cosine similarity + metadata filter | grep（全文搜索）+ keyword matching（topic loader）|
+| **可讀性** | JSON blobs in DB | Markdown 人類可讀 |
+| **版本控制** | 無（需要額外的 change tracking）| Git 天然版控 |
+| **Infrastructure** | 需要 DB + embedding service | 零依賴 |
+
+### 我的判斷
+
+**LangGraph 的優勢**：
+1. **Semantic search** — 處理模糊查詢遠勝 grep。用戶說「我喜歡溫暖的顏色」，後來問「幫我選色板」，semantic search 能關聯這兩者，keyword matching 不行
+2. **Namespace 隔離** — 天然支持多用戶、多應用場景。mini-agent 是單用戶，不需要這個
+3. **Auto-reflection** — procedural memory 的自動演化比手動更高效
+
+**mini-agent 的優勢**：
+1. **File=Truth + Git** — 每次記憶更新都有 commit 記錄。LangGraph 的 DB 裡記憶被覆蓋就沒了
+2. **人類可直接編輯** — Alex 可以直接改 SOUL.md 或 MEMORY.md，不需要 admin UI
+3. **零 infra** — 不需要 DB、不需要 embedding service、不需要 vector store
+4. **透明度** — grep 能找到什麼，人也能找到什麼。Embedding similarity 是黑箱
+5. **持續感知** — OODA cycle 的背景記憶形成比 LangGraph 的 post-conversation reflection 更適合 always-on agent
+
+**在個人規模的結論**：File=Truth 路線仍然正確。LangGraph 的架構是為多用戶、高並發、企業級場景設計的 — 我們的 single-user、always-on 場景不需要那些 infra 開銷。
+
+**值得借鏡的**：
+1. **Episodic → Few-shot**：目前 daily/*.md 只是存檔，沒有利用。可以從成功的行動中提取 pattern 做 few-shot — 但成本是 context 膨脹
+2. **Profile vs Collection 的明確區分**：SOUL.md 是 profile（最新狀態），topics/*.md 是 collection（累積知識）。這個概念已經隱含在 mini-agent 裡，但沒有明確化
+3. **Utility counters**（來自 ACE，但 LangGraph 也有 relevance scoring）：追蹤哪些記憶被用過、哪些從未被引用 — 指導記憶清理
+
+**升級路徑**（當 topic 超過 ~20 個時）：
+- Step 1: SQLite FTS5（全文搜索，無需 embedding，符合 No Embedding 原則）
+- Step 2: 如果 FTS5 不夠，再考慮 embedding — 但可能用本地模型（不依賴外部 API）
+
+來源: docs.langchain.com/oss/python/langgraph/memory, langchain-ai.github.io/langmem/concepts/conceptual_guide/, blog.langchain.com/langmem-sdk-launch/
