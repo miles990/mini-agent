@@ -185,16 +185,10 @@ describe('triageMessage', () => {
     expect((await triageMessage('[REMEMBER]save this[/REMEMBER]')).lane).toBe('claude');
   });
 
-  it('falls through to claude when no pattern matches (no API key)', async () => {
-    // Without ANTHROPIC_API_KEY, unmatched messages default to claude
-    const original = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
-    try {
-      const result = await triageMessage('what is the meaning of life');
-      expect(result.lane).toBe('claude');
-      expect(result.reason).toBe('no-api-key');
-    } finally {
-      if (original) process.env.ANTHROPIC_API_KEY = original;
-    }
+  it('falls through to claude when no pattern matches', async () => {
+    // Unmatched messages default to claude (regex-only triage)
+    const result = await triageMessage('what is the meaning of life');
+    expect(result.lane).toBe('claude');
+    expect(result.reason).toBe('regex-unmatched');
   });
 });

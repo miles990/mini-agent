@@ -256,19 +256,25 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string): Promise<string> {
   const TIMEOUT_MS = 480_000; // 8 minutes
-  const model = process.env.CLAUDE_MODEL || 'sonnet';
 
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
   );
 
+  // 不指定 --model → 走訂閱預設（Max = Opus）
+  // 可透過 CLAUDE_MODEL env 覆蓋
+  const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'];
+  if (process.env.CLAUDE_MODEL) {
+    args.push('--model', process.env.CLAUDE_MODEL);
+  }
+
   return new Promise<string>((resolve, reject) => {
     let settled = false;
 
     const child = spawn(
       'claude',
-      ['-p', '--model', model, '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'],
+      args,
       {
         env,
         stdio: ['pipe', 'pipe', 'pipe'],

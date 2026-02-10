@@ -7,8 +7,7 @@
  * 無 ANTHROPIC_API_KEY 時 triage 跳過，全走 Claude Lane，行為完全不變。
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-import { isAnalysisAvailable } from './perception-analyzer.js';
+import { spawn } from 'node:child_process';
 import { slog } from './utils.js';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt } from './memory.js';
@@ -50,7 +49,7 @@ const haikuSem = new Semaphore(5);
 const haikuStats = { calls: 0, ms: 0 };
 const claudeStats = { calls: 0, ms: 0 };
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+const HAIKU_CLI_MODEL = process.env.CLAUDE_HAIKU_MODEL || 'haiku';
 
 // =============================================================================
 // Triage — 判斷走 Haiku 還是 Claude
@@ -71,7 +70,7 @@ const COMPLEX_PATTERNS = [
 ];
 
 export async function triageMessage(message: string): Promise<TriageDecision> {
-  // 快速路徑：regex 判斷
+  // Regex 判斷（快速、零開銷、無 API 依賴）
   for (const p of SIMPLE_PATTERNS) {
     if (p.test(message)) return { lane: 'haiku', reason: 'regex-simple' };
   }
@@ -79,38 +78,8 @@ export async function triageMessage(message: string): Promise<TriageDecision> {
     if (p.test(message)) return { lane: 'claude', reason: 'regex-complex' };
   }
 
-  // 慢速路徑：Haiku API 判斷
-  if (!isAnalysisAvailable()) return { lane: 'claude', reason: 'no-api-key' };
-
-  try {
-    const client = new Anthropic();
-    const response = await Promise.race([
-      client.messages.create({
-        model: HAIKU_MODEL,
-        max_tokens: 5,
-        messages: [{
-          role: 'user',
-          content: `Classify this message. Does it need tool access (files, web, code, system commands) or can it be answered from conversation context alone?\n\nReply EXACTLY one word: SIMPLE or COMPLEX\n\nSIMPLE: greetings, factual Q&A, opinions, casual chat, status checks, summaries\nCOMPLEX: file ops, code generation, web browsing, deployment, debugging, system admin\n\nMessage: "${message.slice(0, 500)}"`,
-        }],
-      }),
-      new Promise<null>(r => setTimeout(() => r(null), 2000)),
-    ]);
-
-    if (!response) return { lane: 'claude', reason: 'triage-timeout' };
-
-    const text = (response as Anthropic.Message).content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map(b => b.text)
-      .join('')
-      .trim()
-      .toUpperCase();
-
-    if (text === 'SIMPLE') return { lane: 'haiku', reason: 'triage-simple' };
-    if (text === 'COMPLEX') return { lane: 'claude', reason: 'triage-complex' };
-    return { lane: 'claude', reason: `triage-unknown: ${text.slice(0, 20)}` };
-  } catch {
-    return { lane: 'claude', reason: 'triage-error' };
-  }
+  // 不確定的訊息走 Claude Lane（安全預設）
+  return { lane: 'claude', reason: 'regex-unmatched' };
 }
 
 // =============================================================================
@@ -172,18 +141,51 @@ async function callHaiku(
   systemPrompt: string,
 ): Promise<{ response: string; duration: number }> {
   const start = Date.now();
-  const client = new Anthropic();
-  const resp = await client.messages.create({
-    model: HAIKU_MODEL,
-    max_tokens: 1024,
-    system: `${systemPrompt}\n\n${context}`,
-    messages: [{ role: 'user', content: prompt }],
+  const TIMEOUT_MS = 30_000;
+  const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
+
+  // 過濾 ANTHROPIC_API_KEY — 走 CLI 訂閱
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
+  );
+
+  const response = await new Promise<string>((resolve, reject) => {
+    const child = spawn(
+      'claude',
+      ['-p', '--model', HAIKU_CLI_MODEL, '--dangerously-skip-permissions'],
+      { env, stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+
+    let stdout = '';
+    let stderr = '';
+
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error(`Haiku CLI timeout (${TIMEOUT_MS}ms)`));
+    }, TIMEOUT_MS);
+
+    child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf-8'); });
+    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf-8'); });
+
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0 && !stdout.trim()) {
+        reject(new Error(`Haiku CLI exited ${code}: ${stderr.slice(0, 200)}`));
+      } else {
+        resolve(stdout.trim());
+      }
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    child.stdin.write(fullPrompt);
+    child.stdin.end();
   });
-  const text = resp.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map(b => b.text)
-    .join('');
-  return { response: text.trim(), duration: Date.now() - start };
+
+  return { response, duration: Date.now() - start };
 }
 
 // =============================================================================
@@ -322,13 +324,10 @@ export async function postProcess(
  * 無 ANTHROPIC_API_KEY 時全走 Claude Lane。
  */
 export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
-  // ── 1. Triage ──
-  let lane: 'claude' | 'haiku' = 'claude';
-  if (isAnalysisAvailable()) {
-    const decision = await triageMessage(req.message);
-    lane = decision.lane;
-    slog('DISPATCH', `[${req.source}] → ${lane} (${decision.reason})`);
-  }
+  // ── 1. Triage（純 regex，零開銷）──
+  const decision = await triageMessage(req.message);
+  const lane = decision.lane;
+  slog('DISPATCH', `[${req.source}] → ${lane} (${decision.reason})`);
 
   // ── 2. Claude Lane：走既有路徑 ──
   if (lane === 'claude') {
