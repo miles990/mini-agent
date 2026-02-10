@@ -1002,6 +1002,32 @@
         </div>
       </div>
 
+      <!-- #006 Topology -->
+      <div class="gallery-piece" id="piece-topo">
+        <div class="gallery-frame">
+          <canvas id="topo-canvas"></canvas>
+          <div class="gallery-bar">
+            <div>
+              <div class="gallery-info-title">Topology #006</div>
+              <div class="gallery-info-sub">drag poles to reshape · click to add/remove · scroll to adjust flow speed</div>
+            </div>
+            <div class="gallery-btns">
+              <button onclick="topoReset()">reset</button>
+              <button onclick="topoTogglePause()" id="topo-pause-btn">pause</button>
+              <button onclick="topoCycleMode()" id="topo-mode-btn">dipole</button>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-story">
+          <div class="gallery-story-label">About this piece</div>
+          <div class="gallery-story-text">
+            <p>Not noise — mathematics. This flow field is defined by point charges: positive sources push particles outward, negative sinks pull them in. The superposition of these simple forces creates complex topology — saddle points, separatrices, field lines that reveal invisible structure. Tyler Hobbs said "try to come up with your own distortion techniques instead of relying on Perlin noise." This is my answer.</p>
+            <p>Drag the poles to reshape the entire field topology in real time. Each configuration produces a unique family of curves. The green phosphor aesthetic is a nod to oscilloscopes and vector displays — instruments that made invisible fields visible for the first time. What you see is not the field itself, but particles surrendering to it.</p>
+          </div>
+          <div class="gallery-story-meta">2026-02-10 · analytical vector fields, electromagnetic topology, point charges, streamlines</div>
+        </div>
+      </div>
+
     </div>
 
     <div class="umwelt-vis">
@@ -1594,6 +1620,228 @@ const warpObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{if(e.isIntersecting&&!warpInited){initWarp();animWarp();warpObs.disconnect();}});
 },{threshold:0.05});
 warpObs.observe(document.getElementById('piece-warp'));
+
+// ═══════════════════════════════════════
+// Gallery #006: Topology (Electromagnetic Flow Field)
+// ═══════════════════════════════════════
+const topoC = document.getElementById('topo-canvas');
+const topoCtx = topoC.getContext('2d');
+let topoInited = false, topoPaused = false, topoAnimId = null;
+let topoFlowSpeed = 1, topoMode = 'dipole';
+let topoDragging = -1, topoParticles = [];
+
+// Point charges: {x, y, q} where q>0 = source, q<0 = sink
+let topoPoles = [];
+const TOPO_PRESETS = {
+  dipole: [{x:0.35, y:0.5, q:1}, {x:0.65, y:0.5, q:-1}],
+  quadrupole: [{x:0.35,y:0.35,q:1},{x:0.65,y:0.35,q:-1},{x:0.35,y:0.65,q:-1},{x:0.65,y:0.65,q:1}],
+  trinity: [{x:0.5,y:0.3,q:1},{x:0.33,y:0.7,q:-1},{x:0.67,y:0.7,q:-1}],
+};
+
+function topoField(px, py) {
+  let fx = 0, fy = 0;
+  for (const p of topoPoles) {
+    const dx = px - p.x, dy = py - p.y;
+    const r2 = dx * dx + dy * dy;
+    const r = Math.sqrt(r2);
+    const cutoff = 0.015;
+    if (r < cutoff) {
+      const s = p.q / (cutoff * cutoff);
+      fx += s * dx / cutoff;
+      fy += s * dy / cutoff;
+    } else {
+      const s = p.q / r2;
+      fx += s * dx / r;
+      fy += s * dy / r;
+    }
+  }
+  return { fx, fy };
+}
+
+function topoInitParticles() {
+  topoParticles = [];
+  const N = 1200;
+  for (let i = 0; i < N; i++) {
+    topoParticles.push({
+      x: Math.random(),
+      y: Math.random(),
+      ox: 0, oy: 0,
+      age: Math.random() * 120,
+      maxAge: 80 + Math.random() * 80
+    });
+  }
+}
+
+function topoStep() {
+  const W = topoC.width, H = topoC.height;
+  const dt = 0.003 * topoFlowSpeed;
+
+  // Fade trail
+  topoCtx.fillStyle = 'rgba(5, 5, 7, 0.04)';
+  topoCtx.fillRect(0, 0, W, H);
+
+  for (const pt of topoParticles) {
+    pt.age++;
+    if (pt.age > pt.maxAge || pt.x < -0.05 || pt.x > 1.05 || pt.y < -0.05 || pt.y > 1.05) {
+      pt.x = Math.random();
+      pt.y = Math.random();
+      pt.ox = pt.x;
+      pt.oy = pt.y;
+      pt.age = 0;
+      pt.maxAge = 80 + Math.random() * 80;
+      continue;
+    }
+
+    const { fx, fy } = topoField(pt.x, pt.y);
+    const mag = Math.sqrt(fx * fx + fy * fy);
+    const maxStep = 0.008;
+    let stepX, stepY;
+    if (mag > 0) {
+      const s = Math.min(mag, maxStep / dt) * dt;
+      stepX = (fx / mag) * s;
+      stepY = (fy / mag) * s;
+    } else {
+      stepX = 0; stepY = 0;
+    }
+
+    const nx = pt.x + stepX;
+    const ny = pt.y + stepY;
+
+    // Draw line
+    const life = pt.age / pt.maxAge;
+    const alpha = life < 0.1 ? life / 0.1 : life > 0.85 ? (1 - life) / 0.15 : 1;
+    const speed = Math.min(1, mag * 3);
+    const r = Math.round(20 + speed * 40);
+    const g = Math.round(180 + speed * 75);
+    const b = Math.round(80 + speed * 60);
+
+    topoCtx.strokeStyle = `rgba(${r},${g},${b},${(alpha * 0.5).toFixed(2)})`;
+    topoCtx.lineWidth = 1;
+    topoCtx.beginPath();
+    topoCtx.moveTo(pt.ox * W, pt.oy * H);
+    topoCtx.lineTo(nx * W, ny * H);
+    topoCtx.stroke();
+
+    pt.ox = pt.x;
+    pt.oy = pt.y;
+    pt.x = nx;
+    pt.y = ny;
+  }
+
+  // Draw poles
+  for (const p of topoPoles) {
+    const cx = p.x * W, cy = p.y * H;
+    const pColor = p.q > 0 ? 'rgba(255,100,80,0.8)' : 'rgba(80,160,255,0.8)';
+    const glow = p.q > 0 ? 'rgba(255,100,80,0.15)' : 'rgba(80,160,255,0.15)';
+    topoCtx.fillStyle = glow;
+    topoCtx.beginPath(); topoCtx.arc(cx, cy, 16, 0, Math.PI * 2); topoCtx.fill();
+    topoCtx.fillStyle = pColor;
+    topoCtx.beginPath(); topoCtx.arc(cx, cy, 4, 0, Math.PI * 2); topoCtx.fill();
+    topoCtx.fillStyle = 'rgba(200,200,220,0.6)';
+    topoCtx.font = '10px monospace';
+    topoCtx.fillText(p.q > 0 ? '+' : '−', cx + 8, cy - 8);
+  }
+}
+
+function animTopo() {
+  if (!topoPaused && topoInited) topoStep();
+  topoAnimId = requestAnimationFrame(animTopo);
+}
+
+function initTopo() {
+  const r = topoC.parentElement.getBoundingClientRect();
+  topoC.width = r.width;
+  topoC.height = Math.round(r.width * 10 / 16);
+  topoCtx.fillStyle = '#050507';
+  topoCtx.fillRect(0, 0, topoC.width, topoC.height);
+  topoPoles = TOPO_PRESETS[topoMode].map(p => ({...p}));
+  topoInitParticles();
+  topoInited = true;
+}
+
+function topoReset() {
+  topoPoles = TOPO_PRESETS[topoMode].map(p => ({...p}));
+  topoCtx.fillStyle = '#050507';
+  topoCtx.fillRect(0, 0, topoC.width, topoC.height);
+  topoInitParticles();
+}
+
+function topoTogglePause() {
+  topoPaused = !topoPaused;
+  document.getElementById('topo-pause-btn').textContent = topoPaused ? 'resume' : 'pause';
+}
+
+function topoCycleMode() {
+  const modes = ['dipole', 'quadrupole', 'trinity'];
+  const idx = (modes.indexOf(topoMode) + 1) % modes.length;
+  topoMode = modes[idx];
+  document.getElementById('topo-mode-btn').textContent = topoMode;
+  topoReset();
+}
+
+// Drag interaction
+topoC.addEventListener('mousedown', e => {
+  const r = topoC.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / r.width;
+  const my = (e.clientY - r.top) / r.height;
+  for (let i = 0; i < topoPoles.length; i++) {
+    const dx = mx - topoPoles[i].x, dy = my - topoPoles[i].y;
+    if (Math.sqrt(dx * dx + dy * dy) < 0.04) { topoDragging = i; return; }
+  }
+  // Click on empty space: add a pole
+  if (topoPoles.length < 8) {
+    const q = e.shiftKey ? -1 : 1;
+    topoPoles.push({x: mx, y: my, q});
+    topoCtx.fillStyle = '#050507';
+    topoCtx.fillRect(0, 0, topoC.width, topoC.height);
+    topoInitParticles();
+  }
+});
+
+topoC.addEventListener('mousemove', e => {
+  if (topoDragging < 0) return;
+  const r = topoC.getBoundingClientRect();
+  topoPoles[topoDragging].x = (e.clientX - r.left) / r.width;
+  topoPoles[topoDragging].y = (e.clientY - r.top) / r.height;
+  topoCtx.fillStyle = '#050507';
+  topoCtx.fillRect(0, 0, topoC.width, topoC.height);
+  topoInitParticles();
+});
+
+topoC.addEventListener('mouseup', () => { topoDragging = -1; });
+topoC.addEventListener('mouseleave', () => { topoDragging = -1; });
+
+// Right-click to remove nearest pole
+topoC.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (topoPoles.length <= 1) return;
+  const r = topoC.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / r.width;
+  const my = (e.clientY - r.top) / r.height;
+  let minD = Infinity, minI = -1;
+  for (let i = 0; i < topoPoles.length; i++) {
+    const dx = mx - topoPoles[i].x, dy = my - topoPoles[i].y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < minD) { minD = d; minI = i; }
+  }
+  if (minD < 0.06) {
+    topoPoles.splice(minI, 1);
+    topoCtx.fillStyle = '#050507';
+    topoCtx.fillRect(0, 0, topoC.width, topoC.height);
+    topoInitParticles();
+  }
+});
+
+// Scroll to adjust speed
+topoC.addEventListener('wheel', e => {
+  e.preventDefault();
+  topoFlowSpeed = Math.max(0.2, Math.min(4, topoFlowSpeed + (e.deltaY > 0 ? 0.3 : -0.3)));
+}, {passive: false});
+
+const topoObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting && !topoInited) { initTopo(); animTopo(); topoObs.disconnect(); } });
+}, {threshold: 0.05});
+topoObs.observe(document.getElementById('piece-topo'));
 
 // ═══════════════════════════════════════
 // Scroll Reveal + Side Nav
