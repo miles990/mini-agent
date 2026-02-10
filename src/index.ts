@@ -41,6 +41,7 @@ export {
   getMemory,
   readMemory,
   appendMemory,
+  appendTopicMemory,
   readDailyNotes,
   appendDailyNote,
   searchMemory,

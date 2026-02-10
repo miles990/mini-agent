@@ -191,10 +191,10 @@ async function callHaiku(
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  let remember: string | undefined;
-  if (response.includes('[REMEMBER]')) {
-    const match = response.match(/\[REMEMBER\](.*?)\[\/REMEMBER\]/s);
-    if (match) remember = match[1].trim();
+  let remember: { content: string; topic?: string } | undefined;
+  if (response.includes('[REMEMBER')) {
+    const match = response.match(/\[REMEMBER(?:\s+#(\S+))?\](.*?)\[\/REMEMBER\]/s);
+    if (match) remember = { content: match[2].trim(), topic: match[1] };
   }
 
   let task: { content: string; schedule?: string } | undefined;
@@ -225,7 +225,7 @@ export function parseTags(response: string): ParsedTags {
   }
 
   const cleanContent = response
-    .replace(/\[REMEMBER\].*?\[\/REMEMBER\]/gs, '')
+    .replace(/\[REMEMBER[^\]]*\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
@@ -256,8 +256,13 @@ export async function postProcess(
 
   // 3. Process tags
   if (tags.remember) {
-    await memory.appendMemory(tags.remember);
-    logger.logBehavior('agent', 'memory.save', tags.remember.slice(0, 200));
+    if (tags.remember.topic) {
+      await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
+      logger.logBehavior('agent', 'memory.save.topic', `#${tags.remember.topic}: ${tags.remember.content.slice(0, 180)}`);
+    } else {
+      await memory.appendMemory(tags.remember.content);
+      logger.logBehavior('agent', 'memory.save', tags.remember.content.slice(0, 200));
+    }
   }
 
   if (tags.task) {
@@ -289,7 +294,7 @@ export async function postProcess(
     },
     {
       content: tags.cleanContent,
-      shouldRemember: tags.remember,
+      shouldRemember: tags.remember?.content,
       taskAdded: tags.task?.content,
     },
     {
@@ -301,7 +306,7 @@ export async function postProcess(
 
   return {
     content: tags.cleanContent,
-    shouldRemember: tags.remember,
+    shouldRemember: tags.remember?.content,
     taskAdded: tags.task?.content,
   };
 }

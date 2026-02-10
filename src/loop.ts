@@ -285,8 +285,13 @@ export class AgentLoop {
       const tags = parseTags(response);
 
       if (tags.remember) {
-        await memory.appendMemory(tags.remember);
-        logger.logBehavior('agent', 'memory.save', tags.remember.slice(0, 200));
+        if (tags.remember.topic) {
+          await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
+          logger.logBehavior('agent', 'memory.save.topic', `#${tags.remember.topic}: ${tags.remember.content.slice(0, 180)}`);
+        } else {
+          await memory.appendMemory(tags.remember.content);
+          logger.logBehavior('agent', 'memory.save', tags.remember.content.slice(0, 200));
+        }
       }
 
       if (tags.task) {

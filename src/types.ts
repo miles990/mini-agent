@@ -295,7 +295,7 @@ export interface TriageDecision {
 
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
-  remember?: string;
+  remember?: { content: string; topic?: string };
   task?: { content: string; schedule?: string };
   chats: string[];
   shows: Array<{ url: string; desc: string }>;

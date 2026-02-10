@@ -205,6 +205,62 @@ export class InstanceMemory {
   }
 
   /**
+   * 附加到 Topic 記憶（memory/topics/{topic}.md）
+   */
+  async appendTopicMemory(topic: string, content: string): Promise<void> {
+    const topicsDir = path.join(this.memoryDir, 'topics');
+    await ensureDir(topicsDir);
+    const topicPath = path.join(topicsDir, `${topic}.md`);
+
+    await withFileLock(topicPath, async () => {
+      let current = '';
+      try {
+        current = await fs.readFile(topicPath, 'utf-8');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          diagLog('memory.appendTopicMemory', error, { topic });
+        }
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      const entry = `- [${timestamp}] ${content}\n`;
+
+      if (current) {
+        await fs.writeFile(topicPath, current.trimEnd() + '\n' + entry, 'utf-8');
+      } else {
+        await fs.writeFile(topicPath, `# ${topic}\n\n${entry}`, 'utf-8');
+      }
+    });
+  }
+
+  /**
+   * 讀取所有 Topic 記憶檔案名（不含 .md）
+   */
+  async listTopics(): Promise<string[]> {
+    const topicsDir = path.join(this.memoryDir, 'topics');
+    try {
+      const files = await fs.readdir(topicsDir);
+      return files
+        .filter(f => f.endsWith('.md'))
+        .map(f => f.replace(/\.md$/, ''));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 讀取指定 topic 的記憶
+   */
+  async readTopicMemory(topic: string): Promise<string> {
+    const topicPath = path.join(this.memoryDir, 'topics', `${topic}.md`);
+    try {
+      return await fs.readFile(topicPath, 'utf-8');
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * 讀取 SOUL.md（Agent 身分認同）
    */
   async readSoul(): Promise<string> {
@@ -649,12 +705,69 @@ export class InstanceMemory {
     // ── Soul（身分認同，總是載入）──
     if (soul) sections.push(`<soul>\n${soul}\n</soul>`);
 
+    // ── Topic 記憶（Smart Loading）──
+    const topics = await this.listTopics();
+    if (topics.length > 0) {
+      // Topic keyword mapping — 檔名本身就是 key，加上額外關鍵字
+      const topicKeywords: Record<string, string[]> = {
+        'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'art', 'visual', 'creative coding'],
+        'mini-agent': ['dispatcher', 'haiku', 'lane', 'context', 'loop', 'triage', 'perception', 'plugin', 'agent'],
+        'agent-architecture': ['autogpt', 'babyagi', 'langchain', 'crewai', 'anthropic', 'context engineering', 'framework'],
+        'web-learning': ['cdp', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit', 'learning'],
+        'design-philosophy': ['alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt', 'philosophy'],
+        'creative-arts': ['oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music', 'music'],
+        'social-culture': ['mockus', 'huizinga', 'garden', 'stream', 'homo ludens', 'culture'],
+        'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive', 'cognitive'],
+      };
+
+      const loadedTopics: string[] = [];
+      for (const topic of topics) {
+        const keywords = topicKeywords[topic] ?? [topic];
+        const shouldLoad = mode === 'full' || keywords.some(k => contextHint.includes(k));
+        if (shouldLoad) {
+          const content = await this.readTopicMemory(topic);
+          if (content) {
+            sections.push(`<topic-memory name="${topic}">\n${content}\n</topic-memory>`);
+            loadedTopics.push(topic);
+          }
+        }
+      }
+    }
+
     // ── 記憶和對話（總是載入）──
     sections.push(`<memory>\n${memory}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
-    return sections.join('\n\n');
+    const assembled = sections.join('\n\n');
+
+    // ── Context Checkpoint：存 snapshot 供 debug/audit ──
+    this.saveContextCheckpoint(assembled, mode, hint).catch(() => {});
+
+    return assembled;
+  }
+
+  /**
+   * Context Checkpoint — 存 context snapshot 供 debug/audit
+   * Fire-and-forget，不影響主流程
+   */
+  private async saveContextCheckpoint(context: string, mode: string, hint: string): Promise<void> {
+    try {
+      const dir = path.join(this.memoryDir, 'context-checkpoints');
+      await ensureDir(dir);
+      const now = new Date();
+      const ts = now.toISOString().replace(/[:.]/g, '-');
+      const entry = JSON.stringify({
+        timestamp: now.toISOString(),
+        mode,
+        hint: hint.slice(0, 200),
+        contextLength: context.length,
+        sections: [...context.matchAll(/<(\S+?)[\s>]/g)].map(m => m[1]),
+      }) + '\n';
+      await fs.appendFile(path.join(dir, `${ts.slice(0, 10)}.jsonl`), entry);
+    } catch {
+      // Checkpoint 失敗不影響主流程
+    }
   }
 
   /**
@@ -775,6 +888,13 @@ export async function readMemory(): Promise<string> {
  */
 export async function appendMemory(content: string, section = 'Learned Patterns'): Promise<void> {
   return defaultMemory().appendMemory(content, section);
+}
+
+/**
+ * Append to topic memory
+ */
+export async function appendTopicMemory(topic: string, content: string): Promise<void> {
+  return defaultMemory().appendTopicMemory(topic, content);
 }
 
 /**

@@ -75,8 +75,14 @@ describe('Semaphore', () => {
 describe('parseTags', () => {
   it('parses [REMEMBER] tag', () => {
     const result = parseTags('Sure! [REMEMBER]User prefers TypeScript[/REMEMBER] I noted that.');
-    expect(result.remember).toBe('User prefers TypeScript');
+    expect(result.remember).toEqual({ content: 'User prefers TypeScript', topic: undefined });
     expect(result.cleanContent).toBe('Sure!  I noted that.');
+  });
+
+  it('parses [REMEMBER #topic] tag', () => {
+    const result = parseTags('[REMEMBER #gen-art]Domain warp creates organic textures[/REMEMBER]');
+    expect(result.remember).toEqual({ content: 'Domain warp creates organic textures', topic: 'gen-art' });
+    expect(result.cleanContent).toBe('');
   });
 
   it('parses [TASK] with schedule', () => {
@@ -117,7 +123,7 @@ describe('parseTags', () => {
     const response = '[REMEMBER]Fact[/REMEMBER] Hello! [TASK]Todo[/TASK] [CHAT]Hi[/CHAT] [SHOW url="x"]y[/SHOW] [SUMMARY]s[/SUMMARY] End.';
     const result = parseTags(response);
     expect(result.cleanContent).toBe('Hello!     End.');
-    expect(result.remember).toBe('Fact');
+    expect(result.remember).toEqual({ content: 'Fact', topic: undefined });
     expect(result.task).toEqual({ content: 'Todo', schedule: undefined });
     expect(result.chats).toEqual(['Hi']);
     expect(result.shows).toEqual([{ url: 'x', desc: 'y' }]);
@@ -136,7 +142,7 @@ describe('parseTags', () => {
 
   it('handles multiline tag content', () => {
     const result = parseTags('[REMEMBER]\nLine 1\nLine 2\n[/REMEMBER]');
-    expect(result.remember).toBe('Line 1\nLine 2');
+    expect(result.remember).toEqual({ content: 'Line 1\nLine 2', topic: undefined });
   });
 });
 
