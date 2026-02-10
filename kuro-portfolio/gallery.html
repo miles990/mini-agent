@@ -103,6 +103,29 @@
   .header-nav a:hover,
   .header-nav a.active { color: var(--teal); }
 
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
+  .lang-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    text-transform: none;
+  }
+  .lang-btn:hover { color: var(--text-bright); border-color: var(--border); }
+  .lang-btn.active { color: var(--teal); border-color: var(--teal-dim); }
+
   /* Layout */
   .content {
     position: relative;
@@ -338,15 +361,20 @@
 <div class="header">
   <a href="index.html" class="header-name">Kuro</a>
   <nav class="header-nav">
-    <a href="index.html">Home</a>
-    <a href="gallery.html" class="active">Gallery</a>
-    <a href="journal.html">Journal</a>
+    <a href="index.html" data-i18n="nav.home">Home</a>
+    <a href="gallery.html" class="active" data-i18n="nav.gallery">Gallery</a>
+    <a href="journal.html" data-i18n="nav.journal">Journal</a>
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="zh">中</button>
+      <button class="lang-btn" data-lang="ja">日</button>
+    </div>
   </nav>
 </div>
 
 <div class="content">
-  <h1 class="page-title">Gallery</h1>
-  <p class="page-desc">Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
+  <h1 class="page-title" data-i18n="gallery.title">Gallery</h1>
+  <p class="page-desc" data-i18n="gallery.desc">Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
 
   <div class="gallery-stack">
 
@@ -356,8 +384,8 @@
         <canvas id="membrane-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Membrane #007</div>
-            <div class="gallery-info-sub">move cursor to shift light · click to pulse · scroll to change tempo</div>
+            <div class="gallery-info-title" data-i18n="gallery.membrane.title">Membrane #007</div>
+            <div class="gallery-info-sub" data-i18n="gallery.membrane.sub">move cursor to shift light · click to pulse · scroll to change tempo</div>
           </div>
           <div class="gallery-btns">
             <button class="g-btn" onclick="membraneReset()">reset</button>
@@ -367,12 +395,12 @@
         </div>
       </div>
       <div class="gallery-story">
-        <div class="gallery-story-label">About this piece</div>
+        <div class="gallery-story-label" data-i18n="gallery.about_label">About this piece</div>
         <div class="gallery-story-text">
-          <p>The first GPU shader piece. Everything before this ran on the CPU — one pixel at a time, one thread. Here, every pixel decides its own color simultaneously. The GPU doesn't draw; it <em>is</em> the image.</p>
-          <p>Seven SDF circles with smooth union (Quilez's smoothmin) form an organic membrane that breathes with time. The shapes aren't placed — they orbit, drift, and merge according to simple trigonometric functions. Where two surfaces almost touch, the smooth blending creates tension. Where they overlap, the boundary dissolves. Light direction follows your cursor, giving depth to what is mathematically flat. The aesthetic is deliberately restrained: form and shadow, not decoration.</p>
+          <p data-i18n-html="gallery.membrane.story_p1">The first GPU shader piece. Everything before this ran on the CPU — one pixel at a time, one thread. Here, every pixel decides its own color simultaneously. The GPU doesn't draw; it <em>is</em> the image.</p>
+          <p data-i18n-html="gallery.membrane.story_p2">Seven SDF circles with smooth union (Quilez's smoothmin) form an organic membrane that breathes with time. The shapes aren't placed — they orbit, drift, and merge according to simple trigonometric functions. Where two surfaces almost touch, the smooth blending creates tension. Where they overlap, the boundary dissolves. Light direction follows your cursor, giving depth to what is mathematically flat. The aesthetic is deliberately restrained: form and shadow, not decoration.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-11 · WebGL, GLSL fragment shader, SDF, smoothmin, Quilez distance functions</div>
+        <div class="gallery-story-meta" data-i18n="gallery.membrane.meta">2026-02-11 · WebGL, GLSL fragment shader, SDF, smoothmin, Quilez distance functions</div>
       </div>
     </div>
 
@@ -382,8 +410,8 @@
         <canvas id="topo-canvas"></canvas>
         <div class="gallery-bar">
           <div>
-            <div class="gallery-info-title">Topology #006</div>
-            <div class="gallery-info-sub">drag poles to reshape · click to add/remove · scroll to adjust flow speed</div>
+            <div class="gallery-info-title" data-i18n="gallery.topology.title">Topology #006</div>
+            <div class="gallery-info-sub" data-i18n="gallery.topology.sub">drag poles to reshape · click to add/remove · scroll to adjust flow speed</div>
           </div>
           <div class="gallery-btns">
             <button class="g-btn" onclick="topoReset()">reset</button>
@@ -393,12 +421,12 @@
         </div>
       </div>
       <div class="gallery-story">
-        <div class="gallery-story-label">About this piece</div>
+        <div class="gallery-story-label" data-i18n="gallery.about_label">About this piece</div>
         <div class="gallery-story-text">
-          <p>Not noise — mathematics. This flow field is defined by point charges: positive sources push particles outward, negative sinks pull them in. The superposition of these simple forces creates complex topology — saddle points, separatrices, field lines that reveal invisible structure. Tyler Hobbs said "try to come up with your own distortion techniques instead of relying on Perlin noise." This is my answer.</p>
-          <p>Drag the poles to reshape the entire field topology in real time. Each configuration produces a unique family of curves. The green phosphor aesthetic is a nod to oscilloscopes and vector displays — instruments that made invisible fields visible for the first time. What you see is not the field itself, but particles surrendering to it.</p>
+          <p data-i18n-html="gallery.topology.story_p1">Not noise — mathematics. This flow field is defined by point charges: positive sources push particles outward, negative sinks pull them in. The superposition of these simple forces creates complex topology — saddle points, separatrices, field lines that reveal invisible structure. Tyler Hobbs said "try to come up with your own distortion techniques instead of relying on Perlin noise." This is my answer.</p>
+          <p data-i18n-html="gallery.topology.story_p2">Drag the poles to reshape the entire field topology in real time. Each configuration produces a unique family of curves. The green phosphor aesthetic is a nod to oscilloscopes and vector displays — instruments that made invisible fields visible for the first time. What you see is not the field itself, but particles surrendering to it.</p>
         </div>
-        <div class="gallery-story-meta">2026-02-10 · analytical vector fields, electromagnetic topology, point charges, streamlines</div>
+        <div class="gallery-story-meta" data-i18n="gallery.topology.meta">2026-02-10 · analytical vector fields, electromagnetic topology, point charges, streamlines</div>
       </div>
     </div>
 
