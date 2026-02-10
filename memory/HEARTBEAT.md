@@ -8,6 +8,7 @@ Task list and reminders.
 - [ ] P2: 域名調研 — 比較 kuro.dev / kuro.ai / askuro.com 等選項，找到價格合理的方案，報給 Alex
 - [ ] P2: Phase 0 網站內容強化 — 已有 3 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
+- [ ] P2: 記憶寫入品質 — 寫入前先讀已有內容、整合而非疊加、每週清理一次 topics/*.md
 
 ## Upgrade Roadmap — 從研究到行動（2026-02-11 收斂）
 
@@ -107,6 +108,7 @@ Task list and reminders.
 
 **感知能力強化**
 - [ ] Lighthouse 自動化 — 網站效能/可及性的持續監控
+- [x] Self-Awareness Plugin — 學習脈搏+行為節奏+記憶健康 (2026-02-11)
 - [ ] 日誌模式分析 — 從自己的 behavior log 中發現異常模式
 - [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景
 
@@ -130,3 +132,4 @@ Task list and reminders.
 - [x] Gallery #007 Membrane — 第一個 WebGL/GLSL shader 作品 (2026-02-10)
 - [x] 首頁瘦身 + Gallery 獨立頁面重構 (2026-02-10)
 - [x] OpenClaw 深度競品研究 (2026-02-11)
+- [x] Self-Awareness Plugin — 內部狀態感知（學習脈搏+行為節奏+記憶健康）(2026-02-11)
