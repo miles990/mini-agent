@@ -261,6 +261,65 @@ export class InstanceMemory {
   }
 
   /**
+   * 讀取 NEXT.md（執行層待辦清單）
+   */
+  async readNext(): Promise<string> {
+    const nextPath = path.join(this.memoryDir, 'NEXT.md');
+    try {
+      return await fs.readFile(nextPath, 'utf-8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readNext', error, { path: nextPath });
+      }
+      return '';
+    }
+  }
+
+  /**
+   * 提取 NEXT.md 的 Now + Next sections（跳過 Later 和規則）
+   */
+  private extractActiveNext(content: string): string {
+    const cutoffMarkers = ['## Later', '## 規則'];
+    let cutoff = content.length;
+    for (const marker of cutoffMarkers) {
+      const idx = content.indexOf(marker);
+      if (idx >= 0 && idx < cutoff) cutoff = idx;
+    }
+    return content.slice(0, cutoff).trim();
+  }
+
+  /**
+   * 執行 NEXT.md 中的 Verify 命令，回傳標註驗證結果的內容
+   * 每個 Verify 命令後附加 ✅ PASSED 或 ❌ NOT YET
+   */
+  private async verifyNextTasks(content: string): Promise<string> {
+    if (!content) return '';
+    const lines = content.split('\n');
+    const result: string[] = [];
+
+    for (const line of lines) {
+      result.push(line);
+      const verifyMatch = line.match(/^\s*- Verify:\s*`(.+)`/);
+      if (verifyMatch) {
+        const cmd = verifyMatch[1];
+        try {
+          execSync(cmd, {
+            cwd: this.memoryDir,
+            timeout: 5000,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+          result.push('  - **Status: ✅ PASSED**');
+        } catch {
+          result.push('  - **Status: ❌ NOT YET**');
+        }
+      }
+    }
+
+    return result.join('\n');
+  }
+
+  /**
    * 讀取 SOUL.md（Agent 身分認同）
    */
   async readSoul(): Promise<string> {
@@ -734,6 +793,14 @@ export class InstanceMemory {
       }
     }
 
+    // ── NEXT.md（執行層待辦 + 完成驗證）──
+    const nextRaw = await this.readNext();
+    if (nextRaw) {
+      const activeNext = this.extractActiveNext(nextRaw);
+      const verified = await this.verifyNextTasks(activeNext);
+      sections.push(`<next>\n${verified}\n</next>`);
+    }
+
     // ── 記憶和對話（總是載入）──
     sections.push(`<memory>\n${memory}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
@@ -805,6 +872,13 @@ export class InstanceMemory {
     // Heartbeat — 完整保留（有 active tasks）
     if (heartbeat) {
       sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
+    }
+
+    // NEXT.md — 只載入 Now section（minimal mode 不跑驗證）
+    const nextRaw = await this.readNext();
+    if (nextRaw) {
+      const nowMatch = nextRaw.match(/## Now[^]*?(?=\n---|\n## )/);
+      if (nowMatch) sections.push(`<next>\n${nowMatch[0].trim()}\n</next>`);
     }
 
     // 最近 5 則對話

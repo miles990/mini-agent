@@ -81,6 +81,8 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 
 **Memory Scoping**：`[REMEMBER #topic]` 自動寫入 `memory/topics/{topic}.md`，`buildContext` 根據對話關鍵字匹配載入對應 topic。無 `#topic` 的 `[REMEMBER]` 照舊寫 MEMORY.md。
 
+**NEXT.md（執行層待辦）**：`memory/NEXT.md` 管理具體可執行的任務，每個任務有 `Verify:` shell 命令。`buildContext()` 自動載入 Now + Next sections 並執行 Verify 命令，在 context 中標註 ✅ PASSED / ❌ NOT YET。HEARTBEAT = 策略層，NEXT = 執行層。
+
 **Context Checkpoint**：每次 `buildContext()` 自動存 snapshot（timestamp、mode、contextLength、sections），fire-and-forget 不影響效能。
 
 Instance path: `~/.mini-agent/instances/{id}/`
@@ -170,18 +172,10 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 
 ```json
 {
-  "instance": "f6616363",
-  "uptime": 1234,
-  "claude": {
-    "busy": true,
-    "currentTask": { "prompt": "...", "startedAt": "...", "elapsed": 42 },
-    "queue": { "size": 0, "max": 5 }
-  },
-  "lanes": {
-    "claude": { "active": 1, "waiting": 0, "max": 1, "totalCalls": 42, "totalMs": 120000 },
-    "haiku": { "active": 0, "waiting": 0, "max": 5, "totalCalls": 15, "totalMs": 3000 }
-  },
-  "loop": { "enabled": true, "running": true, "mode": "autonomous", ... },
+  "instance": "f6616363", "uptime": 1234,
+  "claude": { "busy": true, "currentTask": { "prompt": "...", "elapsed": 42 }, "queue": { "size": 0, "max": 5 } },
+  "lanes": { "claude": { "active": 1, "max": 1 }, "haiku": { "active": 0, "max": 5 } },
+  "loop": { "enabled": true, "running": true, "mode": "autonomous" },
   "cron": { "active": 2 },
   "telegram": { "connected": true, "notifications": { "sent": 5, "failed": 0 } }
 }
