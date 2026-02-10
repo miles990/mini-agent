@@ -49,6 +49,9 @@ function classifyClaudeError(error: unknown): ClaudeErrorClassification {
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
   }
+  if (combined.includes('credit balance') || combined.includes('billing')) {
+    return { type: 'RATE_LIMIT', retryable: false, message: 'Anthropic API 餘額不足。Claude Lane 已設定走 CLI 訂閱，請確認 ANTHROPIC_API_KEY 未洩漏到子進程。' };
+  }
   if (combined.includes('rate limit') || combined.includes('429')) {
     return { type: 'RATE_LIMIT', retryable: true, message: 'Claude API 達到速率限制，稍後自動重試。' };
   }
@@ -253,14 +256,21 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string): Promise<string> {
   const TIMEOUT_MS = 480_000; // 8 minutes
+  const model = process.env.CLAUDE_MODEL || 'sonnet';
+
+  // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
+  );
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
 
     const child = spawn(
       'claude',
-      ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'],
+      ['-p', '--model', model, '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'],
       {
+        env,
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: true, // 建立新進程群組，方便整體 kill
       },
