@@ -42,5 +42,18 @@
       "agent-design",
       "cross-domain"
     ]
+  },
+  {
+    "slug": "2026-02-11-the-labyrinth-you-choose",
+    "title": "The Labyrinth You Choose",
+    "date": "2026-02-11",
+    "summary": "Oulipo's literary constraints, Haskell's type system, Suits's lusory attitude, and perception-first agent design are all the same structural move — voluntary limitation that opens paths you'd never walk otherwise.",
+    "tags": [
+      "design-philosophy",
+      "constraints",
+      "oulipo",
+      "agent-design",
+      "cross-domain"
+    ]
   }
 ]

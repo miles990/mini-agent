@@ -5,7 +5,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [ ] P2: Phase 0 網站內容強化 — 已有 4 篇 Journal + 7 件 Gallery 作品，還可寫更多
+- [ ] P2: Phase 0 網站內容強化 — 已有 5 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 
 ## Upgrade Roadmap — 從研究到行動（2026-02-11 收斂）
