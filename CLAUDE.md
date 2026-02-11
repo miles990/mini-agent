@@ -63,6 +63,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Utils | `src/utils.ts` |
 | Logging | `src/logging.ts` |
 | CDP Client | `scripts/cdp-fetch.mjs` |
+| CDP Interact | `scripts/cdp-interact.mjs` |
 | CDP Screenshot | `scripts/cdp-screenshot.mjs` |
 | SOUL | `memory/SOUL.md` |
 | Architecture | `memory/ARCHITECTURE.md` |

@@ -76,6 +76,32 @@ node scripts/cdp-fetch.mjs extract <tabId>
 
 # 關閉分頁
 node scripts/cdp-fetch.mjs close <tabId>
+
+# ─── 瀏覽器互動（cdp-interact.mjs）───
+
+# 列出頁面上的表單元素和按鈕
+node scripts/cdp-interact.mjs list-inputs <tabId>
+
+# 用 CSS selector 點擊元素
+node scripts/cdp-interact.mjs click <tabId> "button.submit"
+
+# 用文字點擊（精確匹配優先，選最小元素）
+node scripts/cdp-interact.mjs click-text <tabId> "Create"
+
+# 輸入文字到表單（React SPA 相容）
+node scripts/cdp-interact.mjs type <tabId> "textarea" "Hello world"
+
+# 一次填多個欄位
+node scripts/cdp-interact.mjs fill-form <tabId> '{"#name":"Kuro"}'
+
+# 等待元素出現
+node scripts/cdp-interact.mjs wait <tabId> ".result" 10000
+
+# 截圖特定 tab
+node scripts/cdp-interact.mjs screenshot <tabId> /tmp/shot.png
+
+# 在頁面執行 JS
+node scripts/cdp-interact.mjs eval <tabId> "document.title"
 ```
 
 ## 無法存取時的回應

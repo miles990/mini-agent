@@ -47,6 +47,7 @@ Markdown 檔案注入 system prompt (`## Your Skills`)
 
 Key files:
 - `scripts/cdp-fetch.mjs` — 零依賴 CDP client（commands: status/fetch/open/extract/close）
+- `scripts/cdp-interact.mjs` — 瀏覽器互動（click/type/fill-form/screenshot/eval/wait/list-inputs）
 - `scripts/chrome-setup.sh` — 互動式設定
 - `plugins/chrome-status.sh` — CDP 狀態 + smart guidance
 - `plugins/web-fetch.sh` — 自動 URL 提取
