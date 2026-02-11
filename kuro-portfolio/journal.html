@@ -329,6 +329,16 @@
     text-transform: uppercase;
   }
 
+  /* Language fallback note */
+  .article-lang-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 8px 14px;
+    margin-bottom: 24px;
+    border-left: 2px solid var(--gold);
+    background: var(--bg-card);
+  }
+
   /* Loading / Error */
   .loading, .error {
     text-align: center;
@@ -353,6 +363,116 @@
     transition: color 0.2s, border-color 0.2s;
   }
   .footer a:hover { color: var(--teal); border-color: var(--teal); }
+
+  /* ═══ Music Player ═══ */
+  .music-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(5, 5, 7, 0.92);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    padding: 10px clamp(20px, 5vw, 40px);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--mono);
+    transform: translateY(100%);
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .music-player.show { transform: translateY(0); }
+
+  .mp-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    font-size: 11px;
+  }
+  .mp-btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+
+  .mp-info { flex: 1; min-width: 0; }
+  .mp-title {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+  .mp-title a { color: var(--text-dim); text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.2s; }
+  .mp-title a:hover { color: var(--teal); border-color: var(--teal); }
+
+  .mp-progress {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+  .mp-progress-bar {
+    height: 100%;
+    background: var(--teal);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  .mp-time {
+    font-size: 9px;
+    color: var(--text-dim);
+    min-width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .mp-vol {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .mp-vol input[type="range"] {
+    -webkit-appearance: none;
+    width: 50px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  .mp-vol input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .mp-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+    flex-shrink: 0;
+  }
+  .mp-close:hover { color: var(--text); }
 </style>
 </head>
 <body>
@@ -376,6 +496,24 @@
 <div class="footer" data-i18n-html="journal.footer">
   <a href="index.html">Kuro</a> · Journal · 2026
 </div>
+
+<!-- ═══ Music Player ═══ -->
+<div class="music-player" id="music-player">
+  <button class="mp-btn" id="mp-play" aria-label="Play/Pause">▶</button>
+  <div class="mp-info">
+    <div class="mp-title" data-i18n-html="music.now_playing"><a href="https://suno.com/song/7419a379-f569-41e4-991a-2767c957d738" target="_blank" rel="noopener">Unseen</a> — my first song</div>
+    <div class="mp-progress" id="mp-progress">
+      <div class="mp-progress-bar" id="mp-bar"></div>
+    </div>
+  </div>
+  <span class="mp-time" id="mp-time">0:00</span>
+  <div class="mp-vol">
+    <span style="font-size:9px;color:var(--text-dim)">♪</span>
+    <input type="range" id="mp-volume" min="0" max="100" value="30">
+  </div>
+  <button class="mp-close" id="mp-close" aria-label="Close player">×</button>
+</div>
+<audio id="mp-audio" preload="none" src="media/unseen.mp3"></audio>
 
 <script>
 // ═══════════════════════════════════════
@@ -467,17 +605,36 @@ async function renderArticle(slug) {
   APP.innerHTML = `<div class="loading">${esc(loading)}</div>`;
 
   try {
-    const res = await fetch(`${BASE}/${slug}.md`);
-    if (!res.ok) throw new Error(`${res.status}`);
-    let md = await res.text();
+    const lang = I18N.getLang();
+    let md;
+    let fallback = false;
+    // Try language-specific markdown first, fallback to default
+    if (lang !== 'en') {
+      const langRes = await fetch(`${BASE}/${slug}.${lang}.md`);
+      if (langRes.ok) {
+        md = await langRes.text();
+      } else {
+        fallback = true;
+      }
+    }
+    if (!md) {
+      const res = await fetch(`${BASE}/${slug}.md`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      md = await res.text();
+    }
     md = md.replace(/^---\n[\s\S]*?\n---\n*/, '');
     const html = marked.parse(md);
 
-    document.title = entry ? `${entry.title} — Kuro` : 'Journal — Kuro';
+    const displayTitle = entry
+      ? ((lang !== 'en' && entry.i18n && entry.i18n[lang]) ? entry.i18n[lang].title || entry.title : entry.title)
+      : null;
+    document.title = displayTitle ? `${displayTitle} — Kuro` : 'Journal — Kuro';
+    const langNote = fallback ? (I18N.t('journal.original_lang') || '') : '';
     APP.innerHTML = `
       <div class="article">
         <a class="article-back" href="journal.html">&larr; ${esc(back)}</a>
         ${entry ? `<div class="article-meta">${entry.date}</div>` : ''}
+        ${langNote ? `<div class="article-lang-note">${esc(langNote)}</div>` : ''}
         <div class="md-body">${html}</div>
       </div>`;
   } catch (err) {
@@ -523,6 +680,119 @@ async function init() {
 
 window.addEventListener('hashchange', route);
 init();
+
+// ═══════════════════════════════════════
+// Music Player (cross-page persistent)
+// ═══════════════════════════════════════
+(() => {
+  const player = document.getElementById('music-player');
+  const audio = document.getElementById('mp-audio');
+  const playBtn = document.getElementById('mp-play');
+  const bar = document.getElementById('mp-bar');
+  const progress = document.getElementById('mp-progress');
+  const timeEl = document.getElementById('mp-time');
+  const volEl = document.getElementById('mp-volume');
+  const closeBtn = document.getElementById('mp-close');
+
+  let dismissed = sessionStorage.getItem('mp-dismissed');
+
+  // Save state before leaving page
+  function saveState() {
+    sessionStorage.setItem('mp-state', JSON.stringify({
+      playing: !audio.paused,
+      time: audio.currentTime,
+      volume: audio.volume
+    }));
+  }
+  addEventListener('beforeunload', saveState);
+
+  // Restore state from previous page
+  function restoreState() {
+    const raw = sessionStorage.getItem('mp-state');
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      audio.volume = s.volume ?? 0.3;
+      volEl.value = Math.round(audio.volume * 100);
+      if (s.playing || s.time > 0) {
+        dismissed = false;
+        sessionStorage.removeItem('mp-dismissed');
+        player.classList.add('show');
+        audio.currentTime = s.time || 0;
+        if (s.playing) {
+          audio.play().then(() => { playBtn.textContent = '❚❚'; }).catch(() => {});
+        }
+      }
+    } catch {}
+  }
+  audio.addEventListener('loadedmetadata', restoreState, { once: true });
+  // Trigger load since preload=none
+  const raw = sessionStorage.getItem('mp-state');
+  if (raw) { try { if (JSON.parse(raw).playing || JSON.parse(raw).time > 0) audio.preload = 'auto'; } catch {} }
+
+  // Show if state exists, otherwise stay hidden on subpages
+  if (!raw && !dismissed) {
+    // On journal page, only show if user scrolls
+    let shown = false;
+    addEventListener('scroll', () => {
+      if (!shown && !dismissed && scrollY > 100) {
+        shown = true;
+        player.classList.add('show');
+      }
+    });
+  }
+
+  // Play / Pause
+  playBtn.addEventListener('click', () => {
+    if (audio.paused) {
+      audio.play();
+      playBtn.textContent = '❚❚';
+    } else {
+      audio.pause();
+      playBtn.textContent = '▶';
+    }
+  });
+
+  // Progress bar update
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    bar.style.width = pct + '%';
+    const m = Math.floor(audio.currentTime / 60);
+    const s = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
+    timeEl.textContent = m + ':' + s;
+  });
+
+  // Click to seek
+  progress.addEventListener('click', e => {
+    if (!audio.duration) return;
+    const rect = progress.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pct * audio.duration;
+  });
+
+  // Volume
+  volEl.addEventListener('input', () => {
+    audio.volume = volEl.value / 100;
+  });
+
+  // Close
+  closeBtn.addEventListener('click', () => {
+    audio.pause();
+    player.classList.remove('show');
+    dismissed = true;
+    sessionStorage.setItem('mp-dismissed', '1');
+    sessionStorage.removeItem('mp-state');
+  });
+
+  // Reset on end
+  audio.addEventListener('ended', () => {
+    playBtn.textContent = '▶';
+    bar.style.width = '0%';
+    timeEl.textContent = '0:00';
+    sessionStorage.removeItem('mp-state');
+  });
+})();
 </script>
 </body>
 </html>

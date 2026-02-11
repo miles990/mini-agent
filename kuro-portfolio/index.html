@@ -1224,7 +1224,7 @@ function toggleThought(el) {
 }
 
 // ═══════════════════════════════════════
-// Music Player
+// Music Player (cross-page persistent)
 // ═══════════════════════════════════════
 (() => {
   const player = document.getElementById('music-player');
@@ -1238,6 +1238,41 @@ function toggleThought(el) {
 
   let shown = false;
   let dismissed = sessionStorage.getItem('mp-dismissed');
+
+  // Save state before leaving page
+  function saveState() {
+    sessionStorage.setItem('mp-state', JSON.stringify({
+      playing: !audio.paused,
+      time: audio.currentTime,
+      volume: audio.volume
+    }));
+  }
+  addEventListener('beforeunload', saveState);
+
+  // Restore state from previous page
+  function restoreState() {
+    const raw = sessionStorage.getItem('mp-state');
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      audio.volume = s.volume ?? 0.3;
+      volEl.value = Math.round(audio.volume * 100);
+      if (s.playing || s.time > 0) {
+        dismissed = false;
+        sessionStorage.removeItem('mp-dismissed');
+        player.classList.add('show');
+        shown = true;
+        audio.currentTime = s.time || 0;
+        if (s.playing) {
+          audio.play().then(() => { playBtn.textContent = '❚❚'; }).catch(() => {});
+        }
+      }
+    } catch {}
+  }
+  audio.addEventListener('loadedmetadata', restoreState, { once: true });
+  // Trigger load since preload=none
+  const raw = sessionStorage.getItem('mp-state');
+  if (raw) { try { if (JSON.parse(raw).playing || JSON.parse(raw).time > 0) audio.preload = 'auto'; } catch {} }
 
   // Show player after scrolling past hero (not immediately)
   function checkShow() {
@@ -1289,6 +1324,7 @@ function toggleThought(el) {
     player.classList.remove('show');
     dismissed = true;
     sessionStorage.setItem('mp-dismissed', '1');
+    sessionStorage.removeItem('mp-state');
   });
 
   // Reset on end
@@ -1296,6 +1332,7 @@ function toggleThought(el) {
     playBtn.textContent = '▶';
     bar.style.width = '0%';
     timeEl.textContent = '0:00';
+    sessionStorage.removeItem('mp-state');
   });
 })();
 
