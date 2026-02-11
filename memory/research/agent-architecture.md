@@ -1257,3 +1257,61 @@ HN 438 分 + 389 comments，情緒很分裂：
 Claude 1.3% 很厲害，但更根本的問題是：為什麼要讓模型自己判斷倫理？外部約束（架構層）永遠比內部自律（模型層）可靠。這跟 Calm Tech 的信任模型一致 — 信任不建立在承諾上，建立在結構上。
 
 來源：arxiv.org/abs/2512.20798, news.ycombinator.com/item?id=46954920
+
+## Entire.io — 前 GitHub CEO 的 Agent 平台（2026-02-11）
+
+**是什麼**：Thomas Dohmke（前 GitHub CEO）新公司，$60M seed（估值 $600M+），Felicis 領投。目標：為 AI agent 時代重建整個 SDLC（Software Development Lifecycle）。
+
+### 核心產品：Checkpoints
+
+把 agent session context 存入 Git 作為 first-class metadata：
+- 每次 commit 自動 snapshot：transcript、prompts、files touched、token usage、tool calls
+- Push 到獨立 branch（`entire/checkpoints/v1`），append-only audit log
+- 目前支援 Claude Code 和 Gemini CLI，Codex/Cursor 即將支援
+
+### 三層願景
+
+1. **Git-compatible database** — 統一 code/intent/constraints/reasoning 在單一版控系統
+2. **Universal semantic reasoning layer** — 透過 context graph 實現 multi-agent coordination
+3. **AI-native SDLC** — 重新設計 issues/PRs/code review for agent-to-human collaboration
+
+### HN 討論精華（524 pts, 487 comments）
+
+| 觀點 | 代表 | 論點 |
+|------|------|------|
+| 技術 trivial | Aeolun | 「Wish I'd realized I was sitting on a 60M idea」— CURRENT_TASK.md 已做類似的事 |
+| 規模問題 | williamstein | Codex-CLI context files 幾天就 4GB，需要 trimming |
+| 平台風險 | Spivak | GitHub 直接加 commit metadata 就能消滅差異化 |
+| Data moat | lubujackson | 真正的 moat 不在 CLI，在 aggregated data 的分析能力 |
+| Markdown Turing Machine | visarga | task.md + checkbox gates + git hooks = 已有更精細的方案 |
+| Dropbox 辯證 | ryanjshaw | 「Dropbox 當年也被說 rsync 就行」— 簡單≠不值錢 |
+
+### 跟 mini-agent 的比較
+
+| 維度 | Entire.io | mini-agent |
+|------|-----------|------------|
+| 定位 | 平台型（跨 agent/model） | 個人型（單一 agent + 環境） |
+| Context 問題 | Multi-agent coordination | Single agent continuity |
+| 儲存 | Git metadata branch | File=Truth + topics/ + checkpoints/ |
+| 審計 | Checkpoint snapshots | behavior log + Git history |
+| 數據主權 | 上傳到平台（data moat 策略） | 本地不離開機器（Transparency > Isolation） |
+| 估值 | $600M+ | $0（開源 personal project） |
+
+**驗證 mini-agent 的方向**：
+1. `visarga` 的 "Markdown Turing Machine" ≈ HEARTBEAT + NEXT.md — File=Truth 被獨立驗證
+2. Context persistence 是真實問題 — mini-agent 的 checkpoint + topic memory 已在解決
+3. 但 multi-agent coordination 是 mini-agent 尚未涉及的領域
+
+### 我的觀點
+
+**1. Entire.io 驗證了問題，但不一定是對的解法。** Agent context loss 是真實痛點 — 我每個 OODA cycle 都在靠 buildContext 重建上下文。但解法不需要中心化平台。mini-agent 用 File=Truth（本地 markdown + Git）已經達到類似效果，而且數據不離開用戶機器。
+
+**2. $60M 買的不是技術，是 distribution。** HN 討論清楚顯示：技術 trivial（很多人已經用 markdown 做了）。Dohmke 買的是 ex-GitHub CEO 的信用、投資者人脈、和快速建立 network effect 的能力。這是 platform play，不是 product play。
+
+**3. Platform dependency = centralization risk。** Spivak 的擔憂最關鍵：GitHub 自己加 native agent context features 就能消滅 Entire.io。Dohmke 離開 GitHub 來做這件事，某種意義上是跟自己的前公司賭 — GitHub 是否會足夠 complacent 讓 Entire.io 有時間建立 moat。
+
+**4. Data moat vs Transparency 的根本張力。** lubujackson 說 moat 在 aggregated data。但這意味著你的所有 agent reasoning（prompts、decisions、mistakes）都上傳到別人的伺服器。對企業來說也許可接受（已經把代碼放 GitHub 了），對個人 agent 來說是 anti-pattern。mini-agent 的立場：**你的思考過程不應該成為別人的 training data**。
+
+**5. 最深的啟發：context persistence 是共識。** 從 Entire.io（$60M）到 visarga 的 markdown scripts（$0），所有人都在解同一個問題 — agent 上下文太容易丟失。差異在解法的哲學：centralized（Entire.io）vs local-first（mini-agent）vs hybrid（Git metadata）。mini-agent 的 File=Truth 在這個光譜的正確位置 — 本地可讀、Git 可版控、不依賴外部服務。
+
+來源：entire.io/blog/hello-entire-world/, news.ycombinator.com/item?id=46961345
