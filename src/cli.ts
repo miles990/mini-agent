@@ -11,10 +11,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { createInterface } from 'node:readline';
 import { createMemory, getMemory, setDefaultMemory } from './memory.js';
-import { callClaude, parseTags, getSystemPrompt } from './agent.js';
-import { createTelegramPoller, notifyTelegram } from './telegram.js';
+import { callClaude, parseTags, getSystemPrompt, restoreQueue } from './agent.js';
+import { createTelegramPoller, notifyTelegram, flushSummary } from './telegram.js';
 import { AgentLoop, parseInterval } from './loop.js';
+import { schedule, startCron, stopCron, getCronTaskCount } from './cron.js';
 import { loadAllSkills, formatSkillsPrompt } from './perception.js';
+import { setBehaviorLogDir } from './utils.js';
 import type { CustomPerception } from './perception.js';
 
 // =============================================================================
@@ -147,6 +149,10 @@ async function main(): Promise<void> {
   (globalThis as Record<string, unknown>).__miniAgentSkillsPrompt = skillsPrompt;
   (globalThis as Record<string, unknown>).__miniAgentPersona = compose?.persona;
 
+  // Initialize behavior log + restore queue
+  setBehaviorLogDir(path.join(MEMORY_DIR, 'logs'));
+  restoreQueue();
+
   // Initialize Telegram
   const tgPoller = createTelegramPoller(MEMORY_DIR, async (text: string) => {
     const context = await memory.buildContext();
@@ -168,8 +174,8 @@ async function main(): Promise<void> {
   });
   loop.start();
 
-  // Cron: check HEARTBEAT every 30 minutes
-  const cronInterval = setInterval(async () => {
+  // Cron tasks
+  schedule('heartbeat-check', 'every 30m', async () => {
     const heartbeat = await memory.readHeartbeat();
     if (heartbeat.includes('- [ ]')) {
       const context = await memory.buildContext();
@@ -179,7 +185,16 @@ async function main(): Promise<void> {
       );
       await postProcess('Check HEARTBEAT.md for pending tasks and execute them if any', response);
     }
-  }, 30 * 60 * 1000);
+  });
+
+  schedule('summary-flush', 'every 6h', async () => {
+    const digest = flushSummary();
+    if (digest) await notifyTelegram(digest);
+  });
+
+  startCron();
+  const cronCount = getCronTaskCount();
+  if (cronCount > 0) console.log(`  Cron: ${cronCount} task(s)`);
 
   // HTTP Server — minimal endpoints
   const server = http.createServer(async (req, res) => {
@@ -296,7 +311,7 @@ async function main(): Promise<void> {
     console.log('\n  Shutting down...');
     loop.stop();
     tgPoller?.stop();
-    clearInterval(cronInterval);
+    stopCron();
     server.close();
     process.exit(0);
   };

@@ -11,6 +11,7 @@
 import { callClaude, parseTags } from './agent.js';
 import { getMemory } from './memory.js';
 import { notifyTelegram } from './telegram.js';
+import { behaviorLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -212,7 +213,9 @@ export class AgentLoop {
         await notifyTelegram(`🌐 ${show.desc}${urlPart}`);
       }
 
-      console.log(`[LOOP] #${this.cycleCount} ${action ? `${this.currentMode}: ${action.slice(0, 100)}` : 'no action'}`);
+      const logMsg = action ? `${this.currentMode}: ${action.slice(0, 100)}` : 'no action';
+      console.log(`[LOOP] #${this.cycleCount} ${logMsg}`);
+      behaviorLog(`loop.cycle.${this.currentMode}`, logMsg);
       return action;
     } finally {
       this.cycling = false;

@@ -1,8 +1,11 @@
 /**
- * Shared Utilities — Minimal Core
+ * Shared Utilities — Minimal Core Enhanced
  *
- * Stripped down: no logging.js dependency, just slog + diagLog.
+ * slog + diagLog + behaviorLog (JSONL append)
  */
+
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 // =============================================================================
 // slog — Server Log Helper
@@ -42,4 +45,35 @@ export function diagLog(context: string, error: unknown, snapshot?: Record<strin
     : '';
 
   slog('DIAG', `[${context}] ${info.message}${info.code ? ` (${info.code})` : ''}${snapshotStr}`);
+}
+
+// =============================================================================
+// behaviorLog — Append-only JSONL behavior record
+// =============================================================================
+
+let behaviorLogDir: string | null = null;
+
+export function setBehaviorLogDir(dir: string): void {
+  behaviorLogDir = dir;
+  try { mkdirSync(dir, { recursive: true }); } catch { /* ok */ }
+}
+
+export function behaviorLog(action: string, detail: string): void {
+  if (!behaviorLogDir) return;
+  const entry = {
+    ts: new Date().toISOString(),
+    action,
+    detail: detail.slice(0, 500),
+  };
+  try {
+    appendFileSync(join(behaviorLogDir, 'behavior.jsonl'), JSON.stringify(entry) + '\n');
+  } catch { /* non-critical */ }
+}
+
+export function structuredLog(type: string, data: Record<string, unknown>): void {
+  if (!behaviorLogDir) return;
+  const entry = { ts: new Date().toISOString(), type, ...data };
+  try {
+    appendFileSync(join(behaviorLogDir, `${type}.jsonl`), JSON.stringify(entry) + '\n');
+  } catch { /* non-critical */ }
 }

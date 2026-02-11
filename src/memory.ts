@@ -378,15 +378,17 @@ export class InstanceMemory {
     // Soul
     if (soul) sections.push(`<soul>\n${soul}\n</soul>`);
 
-    // Topic memories (load ALL topics, no keyword matching)
+    // Topic memories (load all, will be trimmed by budget)
+    const topicSections: Array<{ name: string; content: string }> = [];
     const topics = await this.listTopics();
-    if (topics.length > 0) {
-      for (const topic of topics) {
-        const content = await this.readTopicMemory(topic);
-        if (content) {
-          sections.push(`<topic-memory name="${topic}">\n${content}\n</topic-memory>`);
-        }
-      }
+    for (const topic of topics) {
+      const content = await this.readTopicMemory(topic);
+      if (content) topicSections.push({ name: topic, content });
+    }
+    // Sort by size ascending so we trim largest first when over budget
+    topicSections.sort((a, b) => a.content.length - b.content.length);
+    for (const t of topicSections) {
+      sections.push(`<topic-memory name="${t.name}">\n${t.content}\n</topic-memory>`);
     }
 
     // Memory
@@ -400,7 +402,38 @@ export class InstanceMemory {
     // Heartbeat
     if (heartbeat) sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
-    return sections.join('\n\n');
+    // Budget enforcement: hard cap at 30K chars
+    const CONTEXT_BUDGET = 30_000;
+    let result = sections.join('\n\n');
+    if (result.length > CONTEXT_BUDGET) {
+      // Trim topic memories first (largest first = last in array)
+      while (result.length > CONTEXT_BUDGET && topicSections.length > 0) {
+        const removed = topicSections.pop()!;
+        const tag = `<topic-memory name="${removed.name}">\n${removed.content}\n</topic-memory>`;
+        const idx = sections.indexOf(tag);
+        if (idx >= 0) sections.splice(idx, 1);
+        result = sections.join('\n\n');
+      }
+      // If still over, trim conversation buffer
+      if (result.length > CONTEXT_BUDGET && this.conversationBuffer.length > 2) {
+        this.conversationBuffer = this.conversationBuffer.slice(-5);
+        const trimmedConv = this.conversationBuffer
+          .map(c => {
+            const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
+            const who = c.role === 'user' ? '(alex)' : '(kuro)';
+            return `[${time}] ${who} ${c.content}`;
+          })
+          .join('\n');
+        const convIdx = sections.findIndex(s => s.startsWith('<recent_conversations>'));
+        if (convIdx >= 0) {
+          sections[convIdx] = `<recent_conversations>\n${trimmedConv}\n</recent_conversations>`;
+        }
+        result = sections.join('\n\n');
+      }
+      console.log(`[MEMORY] Context trimmed to ${result.length} chars (budget: ${CONTEXT_BUDGET})`);
+    }
+
+    return result;
   }
 }
 

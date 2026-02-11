@@ -11,6 +11,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { behaviorLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -212,6 +213,7 @@ export class TelegramPoller {
     if (!parsed) return;
 
     console.log(`[TELEGRAM] ← ${parsed.sender}: ${parsed.text.slice(0, 100)}${parsed.text.length > 100 ? '...' : ''}`);
+    behaviorLog('telegram.message', `from:${parsed.sender} | ${parsed.text.slice(0, 100)}`);
 
     try {
       // Call the callback to get response
@@ -370,18 +372,37 @@ export async function notifyTelegram(message: string): Promise<boolean> {
   return false;
 }
 
+// =============================================================================
+// Summary Buffer
+// =============================================================================
+
+const summaryBuffer: string[] = [];
+
 /**
- * Tiered notification (simplified - all tiers use same logic)
+ * Flush summary buffer into a digest message. Returns null if empty.
+ */
+export function flushSummary(): string | null {
+  if (summaryBuffer.length === 0) return null;
+  const digest = `📋 最近動態（${summaryBuffer.length} 項）：\n\n${summaryBuffer.join('\n')}`;
+  summaryBuffer.length = 0;
+  return digest;
+}
+
+/**
+ * Tiered notification
  */
 export async function notify(message: string, tier: NotificationTier): Promise<boolean> {
   switch (tier) {
     case 'signal':
       return notifyTelegram(message);
-    case 'summary':
-      console.log(`[NOTIFY] [summary] ${message.slice(0, 100)}`);
+    case 'summary': {
+      const time = new Date().toLocaleTimeString('en', { hour12: false });
+      summaryBuffer.push(`${time} ${message}`);
+      behaviorLog('notify.summary', message.slice(0, 100));
       return true;
+    }
     case 'heartbeat':
-      console.log(`[NOTIFY] [heartbeat] ${message.slice(0, 100)}`);
+      behaviorLog('notify.heartbeat', message.slice(0, 100));
       return true;
   }
 }

@@ -5,7 +5,9 @@
 
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { getMemory } from './memory.js';
+import { behaviorLog, structuredLog } from './utils.js';
 
 // Get memory directory (simplified)
 function getMemoryDir(): string {
@@ -45,21 +47,81 @@ export function isClaudeBusy(): boolean {
   return claudeBusy;
 }
 
-// Stub exports for compatibility with other modules
-export function getCurrentTask(): null {
-  return null;
+// =============================================================================
+// Message Queue
+// =============================================================================
+
+const MAX_QUEUE = 5;
+
+interface QueueItem {
+  message: string;
+  queuedAt: number;
+  onComplete?: (result: AgentResponse) => void;
 }
 
-export function getQueueStatus(): { size: number; max: number; items: unknown[] } {
-  return { size: 0, max: 0, items: [] };
+const messageQueue: QueueItem[] = [];
+let currentTaskPrompt: string | null = null;
+
+const QUEUE_FILE = join(process.cwd(), 'memory', '.queue.json');
+
+export function getCurrentTask(): { prompt: string; elapsed: number } | null {
+  if (!claudeBusy || !currentTaskPrompt) return null;
+  return { prompt: currentTaskPrompt.slice(0, 200), elapsed: 0 };
+}
+
+export function getQueueStatus(): { size: number; max: number; items: string[] } {
+  return {
+    size: messageQueue.length,
+    max: MAX_QUEUE,
+    items: messageQueue.map(q => q.message.slice(0, 100)),
+  };
 }
 
 export function hasQueuedMessages(): boolean {
-  return false;
+  return messageQueue.length > 0;
+}
+
+function saveQueueToDisk(): void {
+  try {
+    const data = messageQueue.map(q => ({ message: q.message, queuedAt: q.queuedAt }));
+    writeFileSync(QUEUE_FILE, JSON.stringify(data), 'utf-8');
+  } catch { /* non-critical */ }
 }
 
 export function restoreQueue(): void {
-  // No queue in minimal version
+  try {
+    if (!existsSync(QUEUE_FILE)) return;
+    const data = JSON.parse(readFileSync(QUEUE_FILE, 'utf-8')) as Array<{ message: string; queuedAt: number }>;
+    for (const item of data) {
+      if (messageQueue.length >= MAX_QUEUE) break;
+      messageQueue.push({ message: item.message, queuedAt: item.queuedAt });
+    }
+    if (messageQueue.length > 0) {
+      console.log(`[QUEUE] Restored ${messageQueue.length} queued message(s)`);
+    }
+  } catch { /* ignore corrupt file */ }
+}
+
+export function enqueueMessage(message: string, onComplete?: (result: AgentResponse) => void): boolean {
+  if (messageQueue.length >= MAX_QUEUE) return false;
+  messageQueue.push({ message, queuedAt: Date.now(), onComplete });
+  saveQueueToDisk();
+  return true;
+}
+
+export function drainQueue(): void {
+  if (messageQueue.length === 0 || claudeBusy) return;
+  const next = messageQueue.shift()!;
+  saveQueueToDisk();
+  const waited = ((Date.now() - next.queuedAt) / 1000).toFixed(0);
+  console.log(`[QUEUE] Processing queued message (waited ${waited}s, ${messageQueue.length} remaining)`);
+  setImmediate(() => {
+    processMessage(next.message).then(result => {
+      if (next.onComplete) next.onComplete(result);
+    }).catch(() => {
+      if (next.onComplete) next.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+    });
+  });
 }
 
 export interface Message {
@@ -300,12 +362,19 @@ export async function callClaude(prompt: string, context: string): Promise<strin
   const fullPrompt = `${systemPrompt}\n\n${context}\n\n---\n\nUser: ${prompt}`;
 
   claudeBusy = true;
+  currentTaskPrompt = prompt;
+  const start = Date.now();
 
   try {
     const result = await execClaude(fullPrompt);
+    const duration = (Date.now() - start) / 1000;
+    behaviorLog('claude.call', `${duration.toFixed(1)}s | ${prompt.slice(0, 100)}`);
+    structuredLog('claude-call', { duration, prompt: prompt.slice(0, 200), resultLen: result.length });
     return result.trim();
   } catch (error) {
     const classified = classifyClaudeError(error);
+    behaviorLog('claude.error', `${classified.type} | ${prompt.slice(0, 80)}`);
+    structuredLog('error', { type: classified.type, prompt: prompt.slice(0, 200), message: classified.message });
     const stdout = (error as { stdout?: string })?.stdout?.trim();
     if (stdout && stdout.length > 20) {
       return stdout;
@@ -313,6 +382,9 @@ export async function callClaude(prompt: string, context: string): Promise<strin
     return classified.message;
   } finally {
     claudeBusy = false;
+    currentTaskPrompt = null;
+    // Drain queue after completing
+    setImmediate(() => drainQueue());
   }
 }
 
