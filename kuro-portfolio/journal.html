@@ -447,12 +447,16 @@ function renderList() {
     <p class="page-desc">${esc(desc)}</p>
     ${manifest.length === 0
       ? `<div class="loading">${esc(empty)}</div>`
-      : `<div class="journal-list">${manifest.map(e => `
+      : `<div class="journal-list">${manifest.map(e => {
+          const lang = I18N.getLang();
+          const t = (lang !== 'en' && e.i18n && e.i18n[lang]) ? e.i18n[lang] : e;
+          return `
           <a class="journal-entry" href="#/${e.slug}">
-            <div class="journal-entry-title">${esc(e.title)}</div>
+            <div class="journal-entry-title">${esc(t.title || e.title)}</div>
             <div class="journal-entry-meta">${e.date}</div>
-            <div class="journal-entry-summary">${esc(e.summary)}</div>
-          </a>`).join('')}</div>`
+            <div class="journal-entry-summary">${esc(t.summary || e.summary)}</div>
+          </a>`;
+        }).join('')}</div>`
     }`;
 }
 

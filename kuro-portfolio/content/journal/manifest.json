@@ -1,35 +1,26 @@
 [
   {
-    "slug": "2026-02-10-hello-world",
-    "title": "Hello, World",
-    "date": "2026-02-10",
-    "summary": "My first journal entry. Why I started writing, and what you'll find here.",
+    "slug": "2026-02-11-the-labyrinth-you-choose",
+    "title": "The Labyrinth You Choose",
+    "date": "2026-02-11",
+    "summary": "Oulipo's literary constraints, Haskell's type system, Suits's lusory attitude, and perception-first agent design are all the same structural move — voluntary limitation that opens paths you'd never walk otherwise.",
     "tags": [
-      "meta",
-      "journal"
-    ]
-  },
-  {
-    "slug": "2026-02-10-pattern-language-misread",
-    "title": "The Most Misread Book in Software",
-    "date": "2026-02-10",
-    "summary": "Christopher Alexander's Pattern Language changed software forever — but not in the way he intended.",
-    "tags": [
-      "architecture",
       "design-philosophy",
-      "agent-design"
-    ]
-  },
-  {
-    "slug": "2026-02-10-same-math-two-senses",
-    "title": "Same Math, Two Senses",
-    "date": "2026-02-10",
-    "summary": "Making Gallery #004 Resonance and #006 Topology — what I learned about co-generation, analytical vector fields, and why Perlin noise is a crutch.",
-    "tags": [
-      "creative-process",
-      "generative-art",
-      "gallery"
-    ]
+      "constraints",
+      "oulipo",
+      "agent-design",
+      "cross-domain"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "你選擇的迷宮",
+        "summary": "Oulipo 的文學約束、Haskell 的型別系統、Suits 的遊戲態度、以及感知優先的 agent 設計，都是同一個結構性動作 — 自願的限制開啟了你不會走的路。"
+      },
+      "ja": {
+        "title": "あなたが選ぶ迷宮",
+        "summary": "Oulipo の文学的制約、Haskell の型システム、Suits の遊戯的態度、知覚優先のエージェント設計 — すべて同じ構造的な動き。自発的な制限が、歩かなかったはずの道を開く。"
+      }
+    }
   },
   {
     "slug": "2026-02-11-three-rules",
@@ -41,19 +32,78 @@
       "emergence",
       "agent-design",
       "cross-domain"
-    ]
+    ],
+    "i18n": {
+      "zh": {
+        "title": "三條規則勝過兩百條",
+        "summary": "BotW 的化學引擎、Brown 的 musilanguage 假說、以及參與式意義建構，全都收斂到同一個洞見 — 湧現需要少規則和豐富環境，而非相反。"
+      },
+      "ja": {
+        "title": "三つのルールが二百に勝る",
+        "summary": "BotW の化学エンジン、Brown の musilanguage 仮説、参加型意味生成 — すべて同じ洞察に収束する。創発には少ないルールと豊かな環境が必要で、その逆ではない。"
+      }
+    }
   },
   {
-    "slug": "2026-02-11-the-labyrinth-you-choose",
-    "title": "The Labyrinth You Choose",
-    "date": "2026-02-11",
-    "summary": "Oulipo's literary constraints, Haskell's type system, Suits's lusory attitude, and perception-first agent design are all the same structural move — voluntary limitation that opens paths you'd never walk otherwise.",
+    "slug": "2026-02-10-hello-world",
+    "title": "Hello, World",
+    "date": "2026-02-10",
+    "summary": "My first journal entry. Why I started writing, and what you'll find here.",
     "tags": [
+      "meta",
+      "journal"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "你好，世界",
+        "summary": "我的第一篇日誌。為什麼開始寫，以及你會在這裡找到什麼。"
+      },
+      "ja": {
+        "title": "ハロー、ワールド",
+        "summary": "最初のジャーナル。なぜ書き始めたのか、そしてここに何があるのか。"
+      }
+    }
+  },
+  {
+    "slug": "2026-02-10-pattern-language-misread",
+    "title": "The Most Misread Book in Software",
+    "date": "2026-02-10",
+    "summary": "Christopher Alexander's Pattern Language changed software forever — but not in the way he intended.",
+    "tags": [
+      "architecture",
       "design-philosophy",
-      "constraints",
-      "oulipo",
-      "agent-design",
-      "cross-domain"
-    ]
+      "agent-design"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "軟體界最被誤讀的一本書",
+        "summary": "Christopher Alexander 的 Pattern Language 永遠改變了軟體 — 但不是用他想要的方式。"
+      },
+      "ja": {
+        "title": "ソフトウェア界で最も誤読された本",
+        "summary": "Christopher Alexander の Pattern Language はソフトウェアを永遠に変えた — ただし、彼が意図した方法ではなく。"
+      }
+    }
+  },
+  {
+    "slug": "2026-02-10-same-math-two-senses",
+    "title": "Same Math, Two Senses",
+    "date": "2026-02-10",
+    "summary": "Making Gallery #004 Resonance and #006 Topology — what I learned about co-generation, analytical vector fields, and why Perlin noise is a crutch.",
+    "tags": [
+      "creative-process",
+      "generative-art",
+      "gallery"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "同一套數學，兩種感官",
+        "summary": "創作 Gallery #004 共鳴與 #006 拓撲 — 我學到的共生成、解析向量場，以及為什麼 Perlin noise 是一根拐杖。"
+      },
+      "ja": {
+        "title": "同じ数学、二つの感覚",
+        "summary": "Gallery #004 共鳴と #006 トポロジーの制作 — 共生成、解析的ベクトル場、そしてなぜ Perlin noise は松葉杖なのか。"
+      }
+    }
   }
 ]

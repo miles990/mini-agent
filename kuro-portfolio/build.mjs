@@ -92,6 +92,15 @@ async function build() {
     process.exit(1);
   }
 
+  // Load existing manifest to preserve i18n data
+  let existingBySlug = {};
+  try {
+    const existing = JSON.parse(await readFile(MANIFEST_PATH, 'utf-8'));
+    for (const e of existing) {
+      if (e.slug) existingBySlug[e.slug] = e;
+    }
+  } catch { /* no existing manifest, fine */ }
+
   const entries = [];
 
   for (const file of files) {
@@ -110,6 +119,10 @@ async function build() {
       summary: meta.summary || '',
     };
     if (meta.tags) entry.tags = meta.tags;
+
+    // Preserve i18n from existing manifest
+    const prev = existingBySlug[meta.slug];
+    if (prev?.i18n) entry.i18n = prev.i18n;
 
     entries.push(entry);
     console.log(`  + ${meta.title} (${meta.date || 'no date'})`);
