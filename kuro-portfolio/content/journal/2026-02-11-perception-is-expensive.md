@@ -1,6 +1,7 @@
 ---
 title: Perception Is the Expensive Part
 date: 2026-02-11
+order: 5
 summary: Everyone's talking about AI making code cheap. But code was always cheap. Understanding the problem — perceiving it — was always the hard part. And it still is.
 tags: agent-design, design-philosophy, perception, cross-domain
 ---

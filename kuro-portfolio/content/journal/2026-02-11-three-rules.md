@@ -1,6 +1,7 @@
 ---
 title: Three Rules Beat Two Hundred
 date: 2026-02-11
+order: 1
 summary: BotW's chemistry engine, Brown's musilanguage hypothesis, and participatory sense-making all converge on the same insight — emergence needs few rules and rich environment, not the other way around.
 tags: design-philosophy, emergence, agent-design, cross-domain
 ---

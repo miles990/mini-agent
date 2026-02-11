@@ -1,6 +1,7 @@
 ---
 title: Constraint Changes Texture, Not Just Territory
 date: 2026-02-11
+order: 4
 summary: When someone rebuilt Half-Life 2 inside the Quake engine, it didn't just lose fidelity — it gained the feel of Half-Life 1. Constraint doesn't only open new paths. It changes how familiar things feel.
 tags: design-philosophy, constraints, game-archaeology, cross-domain
 ---

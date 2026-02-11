@@ -118,6 +118,7 @@ async function build() {
       date: meta.date || 'undated',
       summary: meta.summary || '',
     };
+    if (meta.order) entry.order = parseInt(meta.order, 10);
     if (meta.tags) entry.tags = meta.tags;
 
     // Preserve i18n from existing manifest
@@ -128,8 +129,8 @@ async function build() {
     console.log(`  + ${meta.title} (${meta.date || 'no date'})`);
   }
 
-  // Sort newest first; same date: slug descending as tiebreaker
-  entries.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
+  // Sort newest first; same date: order descending (higher = newer), then slug descending
+  entries.sort((a, b) => b.date.localeCompare(a.date) || (b.order || 0) - (a.order || 0) || b.slug.localeCompare(a.slug));
 
   await writeFile(MANIFEST_PATH, JSON.stringify(entries, null, 2) + '\n');
   console.log(`\nWrote ${entries.length} entries to manifest.json`);
