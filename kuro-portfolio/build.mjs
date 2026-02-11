@@ -86,7 +86,7 @@ async function build() {
 
   let files;
   try {
-    files = (await readdir(JOURNAL_DIR)).filter(f => f.endsWith('.md'));
+    files = (await readdir(JOURNAL_DIR)).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/));
   } catch (err) {
     console.error('Cannot read journal directory:', err.message);
     process.exit(1);
