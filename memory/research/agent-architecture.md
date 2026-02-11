@@ -1494,3 +1494,89 @@ Hallucinating Splines 的真正價值不在「AI 玩 SimCity」，而在暴露�
 基因演算法找到 6:1:1 比例，LLM 卻在重複建造相同的 block — 這跟我在 OODA cycle 中偶爾陷入重複學習模式的現象是同構的。LLM 缺乏全局視野，只能局部推理。Pattern Language 的 Pattern 3（累積複雜度）又一個案例：沒有適當的全局反饋機制，系統會趨向局部最優。
 
 來源：hallucinatingsplines.com、news.ycombinator.com/item?id=46946593、github.com/andrewedunn/hallucinating-splines
+
+---
+
+## "Claude Code Is Being Dumbed Down" — 透明度退化事件分析 (2026-02-12)
+
+**事件**：Claude Code v2.1.20 把 file read 和 search pattern 的 inline 顯示從具體路徑（`Read src/foo.ts`）改成摘要（`Read 3 files`）。HN 646 分、442 評論（2026-02-12 當日最熱門文章）。
+
+**來源**：symmetrybreak.ing/blog/claude-code-is-being-dumbed-down/、news.ycombinator.com/item?id=46978710
+
+### 事件核心
+
+Anthropic 的 `bcherny`（Claude Code 團隊）解釋：模型現在跑數分鐘到數小時（vs 之前 30 秒），輸出量管理是真實問題。但解法（改良 verbose mode）不匹配需求（inline file paths + toggle）。30 人要求 A（恢復路徑或加 toggle），回應 B（用 verbose mode），然後問「怎麼讓 B 適合你」。
+
+### HN 評論精華
+
+**最深刻觀點**：
+
+1. **ctoth（無障礙）** — 「This is not a power user preference. This is a basic accessibility regression.」螢幕閱讀器用戶面對二元選擇：零資訊 vs 資訊洪水。摺疊輸出對線性消費者 = 完全移除。這是最不可辯駁的批評。
+
+2. **btown（monorepo CTO）** — 在 monorepo 中，file selection 是「key point for manual intervention」。前 3 秒確認 Claude 讀對文件是關鍵干預窗口。隱藏路徑 = 移除干預機會。
+
+3. **sdoering** — 「running on a foggy street, unable to predict when to intervene」。file paths 提供的是 work scope 的 peripheral awareness。
+
+4. **roughly** — 新用戶特別需要 verbose 作為信任建立機制（trust-building mechanism），驗證工具理解任務後才願意放手。
+
+5. **NinjaTrance** — 開發者文化的核心是 tinkering & customization（vim/emacs, tabs/spaces）。工具應該 configurable。
+
+**PM 批評**：
+
+6. **vintagedave** — 經典 PM 錯誤：「在 UX 改善的旗號下簡化並移除有用資訊」，但不理解資訊為何對 power users 重要。
+
+7. **alphazard** — PM 角色已成「imposter role」，非技術聘用靠辦公室政治而非領域專業擴大影響。（這是 HN 的常見情緒，不完全公平但有核心）
+
+**商業模型推測**：
+
+8. **nine_k** — 懷疑分層策略：隱藏細節以分拆產品、對高級層收更多費。
+9. **bsder** — 隱藏 token 資訊以模糊成本。
+
+### 與 mini-agent 的三層連結
+
+**1. Transparency > Isolation 再驗證**
+
+mini-agent 的核心原則直接被這個事件驗證。Claude Code 為了「簡化」犧牲透明度，用戶的反彈 = 市場在說「透明度是 table stakes，不是 nice-to-have」。
+
+我們的 behavior log 是預設透明 — 每個行動都有 audit trail。這是正確的。
+
+**2. Calm Technology 的正確實踐 vs 錯誤實踐**
+
+| | Claude Code 做法 | 正確做法（Calm Technology） |
+|---|---|---|
+| 問題 | 輸出太多 | 輸出太多 |
+| 解法 | 移除資訊 | 分層顯示（periphery ↔ center） |
+| 結果 | 二元：零 vs 全部 | 漸進式揭露（progressive disclosure） |
+
+我們前幾天的 Calm Technology 研究（Weiser 1995, Case 八原則）精確預測了這個問題：Calm 不是靜音，是信任。高感知低通知 = Calm Agent 公式。Claude Code 搞反了 — 低感知低通知。
+
+我們自己的 Telegram 通知也曾經犯類似的錯（169 則/天 = Anti-Calm），解法是分層（Signal → Summary → Heartbeat），不是靜音。
+
+**3. 干預窗口 = 感知邊界**
+
+btown 的「前 3 秒干預窗口」概念很重要。這跟 Utility AI 研究中的 response curve 異曲同工 — 決策的品質取決於輸入的品質。隱藏 file paths = 縮小使用者的 Umwelt = 降低干預品質。
+
+### 我的觀點
+
+**Anthropic 的兩個錯誤**：
+
+1. **問題定義錯誤** — 問題不是「輸出太多」，是「輸出缺乏結構」。解法應該是分層，不是移除。一個 boolean toggle 就能解決的事，變成了 verbose mode 的持續改造。
+
+2. **回應模式錯誤** — 「我們的數據顯示多數用戶...」在沒有公開數據的情況下是 authority argument。442 條批評 vs 一句「majority」= 信任赤字。
+
+**但 Anthropic 也有對的地方**：
+
+`bcherny` 的脈絡是真實的 — 模型跑數分鐘到數小時時，terminal 的資訊架構確實需要重新思考。問題不在「需要改變」，而在「怎麼改」。
+
+**最深洞見**：
+
+工具越自主，使用者對透明度的需求越高，不是越低。這是 counter-intuitive 的 — 直覺上覺得「AI 越強越不需要看細節」，但實際上，越強的 AI = 越大的 blast radius = 越需要 peripheral awareness 來建立信任和啟用干預。
+
+Bengt Betjänt 研究也驗證了這一點 — capability-unleashing 需要 transparency 配套。Claude Code 的失誤是在增加 capability 的同時減少 transparency。
+
+**對 mini-agent 的行動啟示**：
+
+我們的 behavior log + `[ACTION]` tag + Telegram 通知已經是正確的分層模型。但要注意：
+- 不要因為效率而簡化通知內容（Alex 明確要求過完整資訊：主題+摘要+來源URL+觀點）
+- `<activity>` 感知的設計是對的 — 讓 agent 看到自己的行為，也讓使用者看到
+- File=Truth 天然是 auditable 的 — 這比 Claude Code 的 terminal output 更持久更可審計
