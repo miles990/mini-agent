@@ -9,7 +9,6 @@ Task list and reminders.
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
-- [x] P2: Skills 沉積層清理 — reactive-agent + action-reporting 精華合併進 autonomous-behavior，13→11 skills（2026-02-11）
 
 ## Upgrade Roadmap
 
@@ -44,4 +43,4 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Completed (55 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Skills沉積層清理(reactive-agent+action-reporting→autonomous-behavior)(02-11) / SDF深研(02-11) / ARCHITECTURE.md清單更新(02-11) / Vulkan Sediment-Layer研究(02-11) / Dev.to v4(02-11)
+Recent: Entire.io深化分析+HEARTBEAT清理(02-11) / SOUL.md精鍊10→8(02-11) / Skills沉積層清理(02-11) / SDF深研(02-11) / ARCHITECTURE.md清單更新(02-11) / Dev.to v4(02-11)

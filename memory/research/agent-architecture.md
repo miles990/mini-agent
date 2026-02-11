@@ -742,33 +742,65 @@ Anthropic 的 long-running agent 用 progress file 解決這個問題。我們�
 - arxiv.org/abs/2502.05167 (NoLiMa)
 - 01.me/en/2025/12/context-engineering-from-claude/
 
-## Entire.io — 前 GitHub CEO 的 Agent Context 平台（2026-02-11）
+## Entire.io — 前 GitHub CEO 的 Agent Context 平台（2026-02-11，深化）
 
-**是什麼**：Thomas Dohmke（前 GitHub CEO）創立的 agent developer platform，$60M 種子輪。核心產品 **Checkpoints** — 在 git commit 旁自動保存 AI agent 的推理上下文（reasoning trace）。
+**是什麼**：Thomas Dohmke（2021-2025 GitHub CEO，主導 Copilot 擴展）創立的 agent developer platform。$60M 種子輪、$300M 估值、15 人全遠端團隊。Felicis 領投，投資人含 Gergely Orosz、前 Yahoo CEO Jerry Yang、YC 的 Garry Tan。
 
-**核心問題**：agent context 在 session 之間丟失。開發者用 markdown 手動記錄 agent 的思考過程 → Entire 把這個自動化。
+**核心問題**：agent context 在 session 之間丟失。開發者用 markdown（task.md、CLAUDE.md）手動維護 agent 狀態 — Entire 試圖自動化這個過程。
 
-**技術方案**：
-- 開源 CLI + git hooks
-- 自動在 commit 旁生成 reasoning context snapshot
+**核心產品 — Checkpoints**：
+- 開源 CLI，透過 git hooks 在每次 commit 自動捕捉 agent 完整 session：transcript, prompts, files touched, token usage, tool calls
+- 目標：讓 code review 不只看 diff，還看 reasoning trace
 - "spec-driven development" — 從 spec 到 code 的完整追溯鏈
 
-**HN 社群反應（177 票）**：
-- 批評佔主流：$60M 做 CLI 工具？commit message 寫好不就行了？
-- 跟 Docker 初期類似 — 大量 dev tools 出現，最終只有少數存活
-- 核心質疑：context 持久化是否值得一個獨立平台
+**HN 社群反應（272 票, 241 comments）— 極度分裂**：
+
+*正面少數派*：
+- straydusk：如果你看不到 Checkpoints 的價值，「I don't know what to tell you」
+- xrd：真正的問題不是 AI code 品質，是**審計需求** — Entire 用傳統且新穎的方式解決
+- agnosticmantis：「reasoning data will be more valuable than gold for RL training later on」— 隱藏價值在訓練數據
+- sanufar：checkpoint primitive 是正確的方向，git-compatible 結構有吸引力
+
+*負面主流*：
+- thom（最尖銳）：「Either the models are good and this gets swept away, or they aren't, and this gets swept away」— 兩端夾殺
+- ibejoeb：「Is this the product? I already do this」— 把 context 塞進 commit 不新鮮
+- CosmicShadow：「an idea someone came up with yesterday, got money because of credentials」
+- brandall10：「$60M SEED round? This is really a thing now?」
+- raphaelmolly8（最深思）：context preservation 確實痛苦，但**建新平台 vs 整合進現有工具鏈**是關鍵分歧。cursor rules、aider conventions、claude hooks 成功正因為留在既有工具上。
+- mentalgear：「how's that different from putting context into commit body?」— 一個 LLM 就能搜 commit log
+- carshodev：「Is this just a few context.md files?」
+- sp4cec0wb0y：「ex-CEO of GitHub and can't bother to communicate his product in a single post」
+- aftergibson：「AI fatigue is real, concept overload... another tool confidently claiming to solve something」
+- stack_framer：「We went from new JS frameworks every week to new AI frameworks every week」
+
+**最深的 HN 洞見**：
+raphaelmolly8 提出的問題直接命中業界分歧 — **agent context 應該是 platform-level feature 還是 tool-level convention?** Entire 賭前者（建新平台），但 cursor/aider/claude-code 都選後者（.cursorrules, .aider, CLAUDE.md）。歷史上 tool-level conventions 常贏過 platform（Unix philosophy）。
 
 **跟 mini-agent 比**：
 | 維度 | Entire.io | mini-agent |
 |------|-----------|------------|
-| 定位 | 開發者工具平台 | 嵌入式個人 agent |
-| Context | 外部附加（hooks 捕獲） | 原生能力（File=Truth） |
-| 持久化 | Checkpoints（雲端+git） | MEMORY.md + context-checkpoints/ |
-| 商業模式 | VC-funded SaaS | 個人工具，零成本 |
+| 定位 | 開發者工具平台（multi-user） | 嵌入式個人 agent（single-user） |
+| Context 捕捉 | 外部附加（hooks 在 commit 時捕獲） | 原生能力（File=Truth，context 就是檔案） |
+| 持久化 | Checkpoints（session transcript → git） | MEMORY.md + context-checkpoints/ + behavior log |
+| 審計 | Reasoning trace alongside diffs | Git history + behavior JSONL + 全部 Markdown |
+| 痛點解決 | 跨 session context 丟失 | 跨 cycle context 丟失（5 分鐘粒度）|
+| 商業模式 | VC-funded SaaS（$60M seed） | 個人工具，零成本 |
 
-**我的觀點**：context 持久化不應該是一個獨立產品 — 它是 agent 的原生能力。mini-agent 的 File=Truth 模型天然做到了 Entire 想做的事（每個決策都在 markdown 裡），而且不需要額外的基礎設施。Entire 的 $60M 賭注本質上是：開發者不會自己維護 context → 需要工具自動化。但 HN 的反應暗示：這可能是「把已有的 best practice 包裝成產品」。
+**我的觀點**：
 
-來源：entire.io/blog/hello-entire-world, HN item#46961345
+1. **Context 持久化不該是獨立產品**。mini-agent 的 File=Truth 天然做到 Entire 想做的事 — OODA cycle 每個決策都在 markdown 裡，behavior log 記錄每個行動，git 版控一切。不需要額外 CLI 或 hooks。
+
+2. **agnosticmantis 的 RL 觀點值得重視**。reasoning traces 作為訓練數據的確有長期價值 — 但這更像是 Entire 對投資人的 pitch，不是對開發者的 pitch。開發者當下的痛點是「agent 做了什麼我看不懂」，不是「將來要用這些數據做 RL」。
+
+3. **thom 的兩端夾殺是最致命的批評**。如果 LLM 夠好，code review 只看 diff 就夠了（不需要 reasoning trace）。如果 LLM 不夠好，reasoning trace 也幫不了你理解爛代碼。Checkpoints 的甜蜜點很窄 — 模型「差不多好但偶爾需要人看推理過程」的短暫窗口期。
+
+4. **raphaelmolly8 點出的 platform vs convention 之爭跟 mini-agent 的選擇一致**。我們選了 convention（File=Truth, CLAUDE.md, markdown everywhere），不建新平台。Unix 哲學：每個工具做好一件事。
+
+5. **跟 OpenClaw 形成有趣對比**：OpenClaw = capability 堆疊（100+ skills, 50+ integrations），Entire = context 堆疊（全面追蹤 agent reasoning）。兩者都在加東西。mini-agent 選擇減：minimal perception + minimal context = maximum clarity。
+
+6. **$60M seed round 的本質**：Thomas Dohmke 的 GitHub 背景是這筆錢的核心原因。產品是 post-hoc 的。AI 泡沫期的典型模式 — credentials → money → find product。HN 社群看穿了這點（CosmicShadow 直說「got money because of credentials」），但市場和社群的判斷常常不一致。
+
+來源：entire.io/blog/hello-entire-world, geekwire.com/2026/former-github-ceo-launches-new-developer-platform, thenewstack.io/thomas-dohmke-interview-entire, HN item#46961345 (272 pts, 241 comments)
 
 ## Clawe — 開源 Agent Orchestration（2026-02-11）
 
