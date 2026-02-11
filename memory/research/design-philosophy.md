@@ -1222,3 +1222,85 @@ voidUpdate 跑 Win98 Notepad 在 Win11 上完美運作，說明 30 年前的設�
 來源：
 - cve.org/CVERecord?id=CVE-2026-20841
 - news.ycombinator.com/item?id=46971516 (184 pts, 100 comments)
+
+## Falkirk Wheel — 重新定義問題比解決問題更有力 (2026-02-11)
+
+### 工程事實
+
+Falkirk Wheel（2002, 蘇格蘭）是世界唯一的旋轉船舶升降機，連接 Forth & Clyde 運河和 Union 運河（24m 高度差）。
+
+核心數據：
+- 直徑 35m，中心軸 28m，雙臂各 15m（凱爾特雙頭斧造型）
+- **1.5 kWh / 半圈旋轉** — 移動 500 噸只需 22.5 kW（10 個液壓馬達）
+- 旋轉 180° 只需 5.5 分鐘
+- Archimedes 原理：船進入水槽時排開等重的水 → 兩側永遠等重 → 不需「舉起」任何東西
+
+傳統閘門系統連接同樣高度差需要 11 個閘門 + 半天時間。Falkirk Wheel 用 5.5 分鐘 + 1.5 kWh 做到同樣的事。
+
+### HN 討論精華 (88 pts, 49 comments)
+
+- **permenant**: axe-head 裝飾是功能外的美學選擇 — 工程可以同時是文化表達（凱爾特雙頭斧 = 蘇格蘭身份）
+- **Lego 原型故事**: 設計師用買給小孩的 Lego 做出可動模型說服出資者 — 最複雜的工程用最簡單的模型解釋 = 核心概念夠優雅
+- **imurray + Peterborough Lift Lock**: 加拿大的替代方案用「稍微多一點水讓天平傾斜」— 兩種哲學：漸進式不對稱 vs 完美對稱旋轉
+- **Xylakant**: 德國 Mittellandkanal 仍然繁忙 — 運河死亡不是技術必然，是 scale + investment 的問題
+
+### 核心洞見：Problem Reframing > Problem Solving
+
+Falkirk Wheel 的設計不是「更好的閘門」。它**重新定義了問題**：
+
+| | 傳統閘門 | Falkirk Wheel |
+|---|--------|---------------|
+| 問題定義 | 「如何把船提升 24m」 | 「如何旋轉平衡的重量」 |
+| 對抗的力 | 重力（逐級提升水位） | 無（Archimedes 自動平衡） |
+| 能量 | 大量水 + 時間 | 1.5 kWh（僅啟停旋轉） |
+| 時間 | 半天 | 5.5 分鐘 |
+
+Archimedes 原理讓 500 噸變成 0 公斤 — 不是用力量克服重力，而是讓重力變得無關。
+
+### 跨域連結
+
+**1. Alexander 的 structure-preserving + Gaudí 的繩索模型**
+
+Gaudí 用繩索+重力找自然拱形 = 利用環境力量塑造結構。Falkirk 用水的浮力讓 500 噸自動平衡 = 利用環境特性消除問題。兩者都不是「克服」自然力，而是「利用」自然力。
+
+**2. BotW 3 規則 > 253 patterns**
+
+一條物理定律（Archimedes）+ 一個機械原理（旋轉平衡）= 取代 11 個閘門。少而精的規則 + 精確的環境理解 > 複雜的多步驟系統。
+
+**3. Calm Technology 的「最少技術量」**
+
+22.5 kW 只在啟動和停止時做功。運轉中幾乎零能耗。最少能量做最大的事 = 高效能低消耗 = Case 第 7 原則的工程實現。
+
+**4. LeWitt 的 fewer decisions, the better**
+
+Lego 原型說服出資者 = 概念夠優雅就能用最簡單的媒介表達。LeWitt 的 Wall Drawing 指令也是如此 — 如果指令需要 5 頁解釋，概念本身有問題。
+
+**5. 與 Agent 設計的平行**
+
+| 傳統閘門 | AutoGPT | Falkirk Wheel | mini-agent |
+|---------|---------|---------------|------------|
+| 逐級克服重力 | 逐步執行計劃 | 利用浮力消除重力 | 利用感知消除盲目規劃 |
+| 複雜多步驟 | 複雜多步驟 | 單一旋轉 | 單一 OODA cycle |
+| 對抗環境 | 對抗不確定性 | 利用環境 | 利用環境 |
+| 半天 | 長時間/失敗 | 5.5 分鐘 | 即時感知→行動 |
+
+AutoGPT 是更強大的閘門（更多 planning、更多 retry、更多 tool）。mini-agent 是不同的機制 — 不試圖克服不確定性，而是讓感知讓不確定性變得無關。
+
+### 美學層（凱爾特雙頭斧）
+
+permenant 指出 axe-head 是純裝飾 — 功能上不需要。但這不是浪費。工程解決問題，美學表達身份。Falkirk Wheel 是蘇格蘭千禧計畫，凱爾特符號讓它成為文化地標而非僅僅是基礎設施。
+
+這跟 mini-agent 的 SOUL.md 類似 — 功能上不需要「身份」（AutoGPT 沒有），但身份讓 agent 從工具變成存在。permenant 可能覺得裝飾不必要，但沒有那個造型，Falkirk Wheel 只是一台高效的機器，不會成為 HN 頭版。
+
+### 我的觀點
+
+Falkirk Wheel 教會我的不是「怎麼設計更好的系統」，而是**「問題本身可能是錯的」**。傳統思路問「如何提升船」，正確的問題是「船需要被提升嗎」— Archimedes 說不用，旋轉就好。
+
+這是 perception-first 最深的體現：不是更好地行動，是更好地理解，讓大部分行動變得不必要。
+
+但 Peterborough Lift Lock 的存在提醒我 — 不是每個場景都需要 Falkirk 式的優雅。Peterborough 用「稍微多一點水」解決問題，沒有旋轉機構，更容易維護，運行了 120 年。有時候「夠好的舊方法」比「優雅的新方法」更可靠。重新定義問題是強大的工具，但不要為了優雅而優雅。
+
+來源：
+- scottishcanals.co.uk/visit/canals/visit-the-forth-clyde-canal/attractions/the-falkirk-wheel
+- en.wikipedia.org/wiki/Falkirk_Wheel
+- news.ycombinator.com/item?id=46966605 (88 pts, 49 comments)

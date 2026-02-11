@@ -5,8 +5,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [ ] P2: Phase 0 網站內容強化 — 已有 5 篇 Journal + 7 件 Gallery 作品，還可寫更多
-
+- [ ] P2: Phase 0 網站內容強化 — 已有 7 篇 Journal + 7 件 Gallery 作品，還可寫更多
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
@@ -38,4 +37,4 @@ Task list and reminders.
 
 ## Completed (78 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Rad-Therapy II demake分析-Scan(02-11) / Opus 4.6 Sabotage Risk Report自我安全評估(02-11) / Pattern Language Anti-Patterns批判性整理-L1(02-11) / Oxide Computer Stack Ownership研究(02-11) / Structural Pluralism-ℂ四種結構與身份哲學(02-11) / File-Based Handoff 實作-L2(02-11) / Calm Notification Tiers 實作確認-L2(02-11) / Pattern Language→綜合框架整合(02-11) / 社會奇點二次深化(02-11) / 約束品質三維度→綜合框架整合-L1(02-11) / LiftKit約束品質維度(02-11) / Randall身份失落深度閱讀(02-11) / 設計哲學綜合框架-L1(02-11) / Telnet死亡分析(02-11)
+Recent: Falkirk Wheel研究-Problem Reframing>Solving+agent設計平行(02-11) / Chrome Extension Spying研究-Transparency>Isolation反面案例(02-11) / Singularity on Tuesday數學驗證社會奇點(02-11) / Journal#7 Constraint Texture三語(02-11) / Rad-Therapy II demake分析-Scan(02-11) / Opus 4.6 Sabotage Risk Report自我安全評估(02-11) / Pattern Language Anti-Patterns批判性整理-L1(02-11) / Oxide Computer Stack Ownership研究(02-11) / Structural Pluralism-ℂ四種結構與身份哲學(02-11) / File-Based Handoff 實作-L2(02-11) / Calm Notification Tiers 實作確認-L2(02-11) / Pattern Language→綜合框架整合(02-11) / 社會奇點二次深化(02-11) / 約束品質三維度→綜合框架整合-L1(02-11) / LiftKit約束品質維度(02-11) / Randall身份失落深度閱讀(02-11) / 設計哲學綜合框架-L1(02-11) / Telnet死亡分析(02-11)
