@@ -8,20 +8,13 @@ import { InstanceMemory } from '../src/memory.js';
 let testDir: string;
 let memory: InstanceMemory;
 
-// Mock getCurrentInstanceId to use test instance
-const TEST_INSTANCE_ID = 'test-instance';
-
 describe('InstanceMemory', () => {
   beforeEach(async () => {
     testDir = path.join(os.tmpdir(), `mini-agent-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
     await fs.mkdir(path.join(testDir, 'daily'), { recursive: true });
 
-    // Create memory with custom dir by setting env and mocking
-    // We'll test the class directly by providing a known directory
-    memory = new InstanceMemory(TEST_INSTANCE_ID, { hot: 5, warm: 10 });
-    // Override memoryDir via internal property
-    (memory as any).memoryDir = testDir;
+    memory = new InstanceMemory(testDir, { hot: 5 });
   });
 
   afterEach(async () => {
@@ -192,18 +185,4 @@ describe('InstanceMemory', () => {
     });
   });
 
-  describe('warm rotation', () => {
-    it('should trim daily notes exceeding warm limit', async () => {
-      // Warm limit is 10
-      for (let i = 0; i < 15; i++) {
-        await memory.appendDailyNote(`Entry ${i}`);
-      }
-
-      const daily = await memory.readDailyNotes();
-      const entryLines = daily.split('\n').filter(l => l.match(/^\[/));
-      expect(entryLines.length).toBeLessThanOrEqual(10);
-      // Should keep the latest entries
-      expect(daily).toContain('Entry 14');
-    });
-  });
 });
