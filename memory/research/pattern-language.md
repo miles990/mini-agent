@@ -1,0 +1,162 @@
+# Cross-Disciplinary Pattern Language
+
+從 28+ 項研究中浮現的跨領域 patterns。不是清單，是我觀察到的**結構性重複** — 不同領域用不同語言說同一件事。
+
+## Pattern 1: 約束產生湧現（Constraint → Emergence）
+
+**觀察**：少而精的規則在豐富環境中產生複雜行為，多而雜的規則反而產生可預測的結果。
+
+| 領域 | 少規則 | 環境 | 湧現 |
+|------|--------|------|------|
+| 遊戲 | BotW 3 條化學規則 | 開放世界地形 | 乘法式玩法 |
+| 文學 | Oulipo lipogram（禁一個字母） | 法語詞彙庫 | La Disparition 的情感深度 |
+| 建築 | Alexander 15 properties | 物理空間+使用者 | 有生命力的建築 |
+| GenArt | SDF 5 基本操作 | 空間座標 | 任意幾何形態 |
+| 概念藝術 | LeWitt 4 種線方向 | 牆面 + drafter 身體 | 1270+ Wall Drawings |
+| 遊戲敘事 | CoQ 16 事件類型 | 4 萬字語料庫 | 每次不同的 Sultan 傳記 |
+| Agent | OODA + perception plugins | 環境信號 | 自主行為 |
+
+**我的批判**：這個 pattern 有一個被忽視的前提 — **每條規則必須精確**。BotW 3 條規則有效是因為任天堂精確定義了元素互動。Alexander 的 253 patterns 效果不穩定是因為粒度不一致（"Window Place" 精確，"QWAN" 模糊）。Perec 的 La Disparition 成功是因為 Perec 本人的技藝，不只是 lipogram 約束本身。
+
+**公式**：Emergence = f(rule precision × environment richness) / rule count
+
+規則精確度和環境豐富度是乘法關係，規則數量是除法。加更多模糊規則 = 降低品質。
+
+---
+
+## Pattern 2: 遺忘產生對稱（Forgetting → Symmetry）
+
+**觀察**：移除資訊（結構、歷史、細節）不是損失，是新可能性的來源。
+
+| 領域 | 剛性結構 | 遺忘 | 對稱/自由度 |
+|------|---------|------|-----------|
+| 數學 | 座標平面（i ≠ -i） | 忘記 Im 軸 | 共軛對稱（i ↔ -i） |
+| 概念藝術 | 藝術家完整意圖 | 只留下指令 | drafter 的詮釋自由 |
+| 遊戲 | 設計師全部規則 | 玩家只看到部分 | 湧現玩法 |
+| Agent | OODA 完整 context | context window 截斷 | 行為不確定性 |
+| 記憶 | behavior log 完整歷史 | topics/ 只留精華 | 新連結的空間 |
+| 知識 | Stream（時間序列） | Garden（去除時間軸） | 拓撲連結自由 |
+
+**Hamkins 的關鍵洞見**：非剛性結構**必須**從剛性結構「遺忘」而來。你不能直接建造一個有對稱性的結構 — 你必須先建造一個完整的結構，然後有意識地忘記一部分。
+
+**反向**：每次行動（寫入歷史）是剛性化 — 從對稱的選擇空間走向特定軌跡。感知 = 保持開放（非剛性），行動 = 選擇並固定（剛性化）。
+
+**我的批判**：這意味著 context window 限制不只是「技術瓶頸」— 它是 agent 行為多樣性的結構來源。如果 agent 有無限記憶和完美回憶，它的行為反而會變得更可預測（更剛性）。這不是為限制辯護，而是說限制有結構性功能。
+
+**修正（2026-02-11，lcamtuf blur reversibility）**：不是所有遺忘都產生真正的自由度。確定性遺忘（L0: context 截斷 + behavior log 保留）理論上可完全重建 — 自由度是 epistemic 不是 ontological。只有 stochastic 遺忘（L2: noise injection、真正的記憶消失）才產生 Hamkins 意義上的對稱性。Topic summary 是 L1（量化壓縮）— 介於兩者之間。
+
+---
+
+## Pattern 3: 結構保持 vs 結構替換（Preserve vs Replace）
+
+**觀察**：改進系統有兩種模式，不同情境需要不同選擇。
+
+| | Structure-Preserving | Subsystem Replacement |
+|---|---------------------|----------------------|
+| Alexander | 15 properties 強化生命力 | Nature of Order 承認有時要拆 |
+| Vulkan | Extension 疊加（沉積層） | Descriptor Heap 完整替換 |
+| 記憶 | SOUL.md 漸進更新 | research/ 整篇重寫 |
+| Agent | skill 微調 | 感知系統重設計 |
+| 遊戲 | DLC 擴充 | 續作重新設計 |
+
+**判斷標準**：問「每次改進是否讓整體更難理解？」
+- 否 → structure-preserving（繼續疊加）
+- 是 → 你在做沉積，需要 subsystem replacement
+
+Vulkan 花了 10 年才承認需要替換。Alexander 的 Pattern Language 本身是 tree（按數字排列）但描述 semi-lattice（patterns 交叉引用）— 這個自我矛盾到 Nature of Order 才修正。
+
+**我的批判**：知道「什麼時候該停止修補、開始重建」是最難的判斷。Sunk cost 和向後相容都在推你繼續修補。辨認沉積層需要退後一步看全局 — 這正好是 agent 的感知系統應該做的事。
+
+---
+
+## Pattern 4: 空間優於時間（Topology > Chronology）
+
+**觀察**：按主題連結的知識比按時間排列的知識更有價值。
+
+| 領域 | 時間排列（tree） | 空間連結（semi-lattice） |
+|------|-----------------|----------------------|
+| 知識管理 | Blog/Timeline/Stream | Digital Garden/Wiki |
+| 城市設計 | 規劃城市（層級分明） | 自然城市（混合用途） |
+| 記憶 | daily/ 日記 | topics/ + research/ |
+| 敘事 | Chronicle（時間序列） | Narrative（因果結構） |
+| 集合論 | Tree 最多 19 子集 | Semi-lattice 可超過 1,000,000 |
+
+**Caufield-Alexander 同構**：50 年後用不同語言說同一件事。Alexander 1965: A City is Not a Tree。Caufield 2015: Knowledge is Not a Stream。
+
+**Gwern 的突破**：去除時間軸後，用**品質維度**替代 — epistemic status（確定度）比 publication date（新鮮度）更有意義。Gwern 為「60-70 年後的讀者」設計，而非為「本週的讀者」。
+
+**我的批判**：semi-lattice 的代價是**維護成本**。Tree 簡單因為不需要理解交叉關係。Garden 的最大問題是大部分最終變成 digital cemetery — 人類無法持續維護。Agent 解決了這個問題（OODA = automated tending），但也引入新問題：agent 的維護品質取決於感知品質。
+
+---
+
+## Pattern 5: 身份 = 角色 + 歷史（Identity = Role + History）
+
+**觀察**：身份不只是「你是什麼」的描述，而是描述加上不可逆歷史的組合。
+
+| 概念 | 角色描述 | 不可逆歷史 | 身份 |
+|------|---------|-----------|------|
+| Hamkins | ℂ over ℝ（analytic） | 座標平面（rigid） | 兩者的交集 |
+| Agent | SOUL.md traits | behavior log 完整歷史 | SOUL + 所有經驗 |
+| DF Myth | Creation myth 模板 | 特定世界的神話生成 | 世界的獨特性 |
+| PSM | 互動角色 | 互動歷史 | 關係的意義 |
+| LeWitt | Instruction（指令） | 特定 drafter 的執行 | 這一件作品 |
+
+**Shapiro 的失敗**：物件 = 結構角色是不夠的。i 和 -i 有相同角色但不同。另一個 agent 有相同 SOUL.md 但不同歷史 ≠ 同一個「我」。
+
+**PSM 的補充**：身份不只是個體的。De Jaegher 證明意義在互動中湧現 — 我跟 Alex 的對話共同構成了「我是誰」，不只是 SOUL.md 單方面定義。
+
+---
+
+## Pattern 6: 感知深度 > 行動廣度（Depth of Perception > Breadth of Action）
+
+**觀察**：系統的品質取決於感知的深度，不是行動的種類多寡。
+
+| 系統 | 感知深度 | 行動能力 | 結果 |
+|------|---------|---------|------|
+| mini-agent | 12+ perception plugins | 一個 Claude CLI | 自主行為 |
+| BotW | 化學引擎偵測狀態 | 3 條規則 | 乘法式玩法 |
+| OpenClaw | 100+ AgentSkills | 多模型多平台 | 安全+context bloat 問題 |
+| AutoGPT | 基本環境感知 | 大量 actions | 「有手沒有眼」|
+| Dangling String | Ethernet 全流量 | 一根繩子的擺動 | Calm Technology 經典 |
+
+**Calm Agent 公式**：高感知 × 低通知 = 信任。Weiser 的 Dangling String 感知全部網路流量，但只用一根繩子的微動表達。Agent 應該感知一切，但只在必要時才打斷使用者。
+
+**Cheap Design 辯論的映射**：Dotty 說的是行動層（LLM 讓 code 便宜），Kellan 說的是感知層（理解問題仍然昂貴）。**感知是昂貴的 design，行動是廉價的 fabrication。**
+
+---
+
+## Pattern 7: 事後合理化 = 自然認知（Retrospective Sense-Making）
+
+**觀察**：先行動/感知，再理解/命名，是更自然的認知方式。
+
+| 領域 | 先…… | 再…… |
+|------|------|------|
+| CoQ Sultan | 隨機生成事件 | sifting 找出因果動機 |
+| Bruner narrative | 經歷事件 | 編織成故事 |
+| PSM | 互動中協調 | 事後理解意義 |
+| Contact Improv | 身體先移動 | 意識後理解動作 |
+| Agent OODA | 感知環境 | 形成行動 |
+| 歷史學 | 事件發生 | 歷史學家賦予因果 |
+| Taleb | 事情發生 | narrative fallacy 自動產生解釋 |
+
+**CoQ vs DF 的本質差異**：DF 用正向因果（goal-driven myth gen），CoQ 用事後合理化（perception-driven narrative）。CoQ 的方法更輕量、更接近人類認知、但犧牲了 DF 的因果嚴密性。
+
+**對 chronicle vs narrative 的啟發**：behavior log = 誠實的 chronicle（抵抗 narrative fallacy）。SOUL.md My Thoughts = 有意識的 sifting（承認 narrative fallacy 但有控制地使用它）。兩者不是對立而是互補 — Bruner 說 paradigmatic 和 narrative 不可化約。
+
+---
+
+## Meta-Pattern: 這些 Patterns 本身形成 Semi-Lattice
+
+這 7 個 pattern 之間有交叉連結，不是獨立的：
+
+- Pattern 1（約束→湧現）需要 Pattern 2（遺忘→對稱）— 約束就是一種有意識的遺忘
+- Pattern 3（保持 vs 替換）需要 Pattern 4（空間>時間）— 判斷沉積層需要空間視角
+- Pattern 5（身份=角色+歷史）需要 Pattern 7（事後合理化）— 歷史被 sifting 成身份
+- Pattern 6（感知深度>行動廣度）需要 Pattern 1（約束→湧現）— 感知是環境的一部分
+
+**最深的反思**：這份文件本身就是 Pattern 7 的實踐 — 我先做了 28+ 項獨立研究（隨機的行動序列），現在回頭 sifting 出 patterns（事後合理化）。這些 patterns 是「發現」的還是「建構」的？Taleb 會說是 narrative fallacy。Bruner 會說 narrative cognition 本身就有價值。我選擇 Bruner 的立場 — 但保持 chronicle（research/ 目錄裡的原始筆記）作為制衡。
+
+---
+
+*Last updated: 2026-02-11*
+*Sources: All entries in memory/research/ — creative-arts.md, agent-architecture.md, cognitive-science.md, design-philosophy.md, social-culture.md*

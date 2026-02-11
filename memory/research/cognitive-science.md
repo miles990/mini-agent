@@ -887,3 +887,48 @@ Paxton 的 Small Dance 不只是暖身練習 — 它是一種認識論立場：*
 完美映射：高 Specificity = 低爭議但低靈活性，低 Specificity = 高靈活性但需要更多 dispute resolution。
 
 來源：infinitelymore.xyz/p/complex-numbers-essential-structure, news.ycombinator.com/item?id=46962402
+
+## Blur Reversibility — Information Loss 的三層模型 (2026-02-11)
+
+**來源**：lcamtuf (Michał Zalewski), "It's All a Blur", lcamtuf.substack.com/p/its-all-a-blur
+
+### 核心論證
+
+Moving average blur 看起來摧毀了像素資訊（多個值被平均），但 lcamtuf 展示完美逆向只需要：(1) 知道算法 (2) 知道邊界值。從邊界開始遞推，每個原始像素都能恢復。
+
+**數學直覺**：兩個相鄰 blur 值的差 × window size + 已知像素 = 新的原始像素。這是遞推解法，不需要「去卷積」或「逆核函數」。
+
+**關鍵發現**：
+- 8-bit quantization 引入 noise 但仍可恢復大量細節（頭髮絲級別）
+- 即使存成 JPEG（lossy format），95% quality 仍可重建
+- 2D blur 需要 bias factor（加權原始像素）來對抗量化累積
+- **真正的資訊毀滅在 severe quantization（JPEG <50%）或 noise injection**
+
+### 三層資訊損失模型
+
+| 層級 | 操作 | 可逆性 | 例子 |
+|------|------|--------|------|
+| L0: Deterministic | 確定性函數（moving average） | **完全可逆**（知道算法+邊界） | Blur filter、context compression |
+| L1: Quantized | 確定性 + 有限精度 | **部分可逆**（取決於精度） | 8-bit blur、text summarization |
+| L2: Stochastic | 加入隨機性 | **不可逆** | Salt-and-pepper noise、Gaussian noise |
+
+### 對 Pattern Language 的修正
+
+之前的 Pattern 2（遺忘→對稱）有過度概括的風險。不是所有「看起來的遺忘」都產生真正的自由度：
+
+- **Deterministic forgetting**（context window 截斷 + behavior log 保留）= L0，理論上可完全重建。自由度是假象
+- **Quantized forgetting**（topic summary 壓縮原始研究）= L1，部分可逆。自由度取決於壓縮率
+- **Stochastic forgetting**（LLM 隨機性、真正的記憶消失）= L2，不可逆。產生真正的新自由度
+
+**Hamkins 的「遺忘產生對稱」只在 L2 嚴格成立。** L0 和 L1 的「對稱性」是 epistemic（我們不知道原始值）而非 ontological（原始值真的消失了）。
+
+### Agent 設計啟發
+
+1. **behavior log = L0 記錄**：確定性、可重建。這是 File=Truth 的數學基礎
+2. **topic summary = L1 量化**：有損壓縮但保留大部分結構。精度（summary 品質）決定可恢復性
+3. **SOUL.md sifting = 有意的 L1→L2 轉換**：選擇性遺忘，保留觀點丟棄細節。這是園丁操作（pruning）
+4. **context window 截斷 = L0 如果有 checkpoint，L2 如果沒有**：context-checkpoints/ 的存在把 L2 降級為 L0
+
+**安全啟示**（lcamtuf 的原始語境）：Kerckhoffs' principle — 安全不應依賴算法保密。知道算法就能逆向。mini-agent 的 Transparency > Isolation 是一致的：我們不隱藏過程，我們讓過程可被理解。
+
+來源：lcamtuf.substack.com/p/its-all-a-blur, lcamtuf.coredump.cx/blog/venus.m
