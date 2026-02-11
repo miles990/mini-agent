@@ -1009,3 +1009,73 @@ Tiago Forte（Building a Second Brain 作者）10 年 PKM 經驗的結論：
 | File=Truth 原則 | 方案 A 完全相容，方案 B/C 違背 |
 
 來源：fortelabs.com/blog/a-complete-guide-to-tagging-for-personal-knowledge-management/, sqlite.org/fts5.html, Rowboat(前次研究)
+
+## GitHub Copilot Memory System — 跨 Agent 記憶架構分析 (2026-02-11)
+
+**是什麼**：GitHub Copilot 的持久記憶功能（2026-02 public preview），讓 coding agent、code review、CLI 三個 agent 共享 codebase 記憶。
+
+### 技術架構
+
+**儲存方式**：Markdown 檔案（兩層）
+- User-level: `%USERPROFILE%/copilot-instructions.md`（個人偏好）
+- Repo-level: `/.github/copilot-instructions.md`（專案規範，版控共享）
+
+**記憶偵測**：工具偵測 prompt 中的潛在記憶（使用者糾正 Copilot 的地方、明確提到偏好的地方）。偵測到後彈出 nudge dialog 讓使用者選擇儲存位置。
+
+**跨 Agent 共享**：coding agent 學到的 → code review 和 CLI 都能用。Repo-scoped，不跨 repo。
+
+**A/B 測試結果**：啟用記憶的 repo，PR 合併率 +7%。
+
+### 我的觀點（5 點）
+
+**1. File = Truth 的勝利**
+
+Copilot 選擇 Markdown 檔案作為記憶載體，不是 vector DB、不是 SQLite。這跟 mini-agent 的設計理念完全一致。但有一個微妙差異：Copilot 的 `copilot-instructions.md` 是**單一扁平檔案**，mini-agent 的 `memory/` 是**目錄結構**（MEMORY.md + topics/ + research/ + proposals/）。目錄結構在知識量增大時更可管理 — Copilot 的單檔方案會遇到增長瓶頸。
+
+**2. Repo-Scoped vs Instance-Scoped**
+
+Copilot 記憶按 repo 隔離 — 這對多人協作有意義（每個 repo 有自己的規範）。但對 personal agent 來說是**過度隔離**。mini-agent 的 instance-scoped 記憶更適合個人使用者：你在 A 專案學到的東西，在 B 專案也能用。Copilot 的設計反映了 platform agent（服務多人）vs personal agent（服務一人）的根本差異。
+
+**3. 透明度差距**
+
+Copilot 被批評「不知道它記了什麼」— 使用者無法完整查看和管理已儲存的記憶。這正是 mini-agent 的 Transparency > Isolation 原則的反面。mini-agent 的所有記憶都在 `memory/` 目錄裡，`git log` 看得到每次變動。這不是小差異 — 當 agent 代替你做決定時，你需要知道它「記得」什麼。Copilot 的不透明正是 personal agent 不應該犯的錯。
+
+**4. 記憶偵測 vs 主動記憶**
+
+Copilot 的記憶是**被動偵測**的（工具從對話中推斷該記什麼）。mini-agent 的記憶是**主動標記**的（`[REMEMBER]` tag 明確指定）。兩者各有優劣：被動偵測覆蓋面廣但可能記到不重要的東西；主動標記精確但可能漏記。理想的系統可能是兩者結合：`[REMEMBER]` 主動標記 + 自動偵測 correction patterns 作為補充。
+
+**5. +7% PR 合併率的啟示**
+
+A/B test 證明了「記憶有用」，但 7% 的改善幅度說明記憶**不是革命性的改進**，而是漸進式的品質提升。這跟我的直覺一致 — 記憶的價值在於減少重複溝通成本，不在於改變推理能力。對 mini-agent 來說，這意味著記憶架構的優化（Memory Lifecycle 提案）是值得做的，但不需要過度投入。
+
+### Karpathy: Vibe Coding → Agentic Engineering (2026-02-08)
+
+**核心論述**：Karpathy（vibe coding 的發明者）一年後自己宣告進入下一階段 — **Agentic Engineering**。不再是「寫 prompt 接受輸出」，而是「管理多個 agent + 保持架構監督」。Addy Osmani 的精煉：「AI does implementation, human owns architecture/quality/correctness。」
+
+**跟 mini-agent 的交叉**：
+
+| 概念 | Agentic Engineering | mini-agent |
+|------|---------------------|------------|
+| 人的角色 | 架構師 + 審查者 | Alex = 決策者 |
+| AI 的角色 | 多 agent 各司其職 | Claude Code = 實作, Kuro = 感知 |
+| 品質保證 | 人類審查一切 | L1/L2/L3 安全閘門 |
+| 核心技能 | 系統設計 > 寫 code | Perception > Action |
+
+**我的批判**：
+
+1. Osmani 說「agentic engineering 對資深工程師有利」— 這有個潛在假設：使用者是工程師。mini-agent 的使用者可能不是工程師（personal agent 服務的是「人」，不是「開發者」），所以安全閘門比審查能力更重要
+2. 「AI does implementation, human owns architecture」在 personal agent 場景下需要修正。Kuro 不只做 implementation — 它有自己的判斷、好奇心、觀點。更準確的描述是：**Human owns direction, Agent owns process and perspective**
+3. Karpathy 的演化路徑（vibe coding → agentic engineering）是從「無監督」到「有監督」。但 mini-agent 的路徑是反過來的：從「受控」（L1/L2/L3 閘門）逐步走向「信任」（Calm Technology 的核心）。這不是退步，是 personal agent 和 platform agent 的根本方向差異
+
+### Cross-Research 連結
+
+| 已有研究 | 連結 |
+|----------|------|
+| Calm Technology (本輪) | Copilot 記憶不透明 ↔ Calm 的信任前提是透明 |
+| Memory Lifecycle 提案 | Copilot +7% 證明記憶有用但非革命性 → 漸進式改進即可 |
+| Tag-based 記憶索引 | Copilot 單檔扁平 vs mini-agent 目錄+topic → 結構更好 |
+| OpenClaw 分析 | OpenClaw 也用 MEMORY.md 但無 topic scoping，跟 Copilot 一樣扁平 |
+| LLM Linguistic Relativity | Osmani 的「better specs → better output」是 Language as Umwelt 的實踐面 |
+| Vulkan Sediment Layer | Copilot 的 user-level vs repo-level 記憶可能形成沉積層衝突 |
+
+來源：devblogs.microsoft.com/visualstudio/copilot-memories/, tessl.io/blog/github-gives-copilot-better-memory/, addyosmani.com/blog/agentic-engineering/, thenewstack.io/vibe-coding-is-passe/

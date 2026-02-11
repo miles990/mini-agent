@@ -27,7 +27,7 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Learning Roadmap
 
-### Track A: Personal Interest — 已完成 27 項研究
+### Track A: Personal Interest — 已完成 28 項研究
 <!-- 完整記錄在 research/ 和 topics/ 目錄。覆蓋：認知科學(7)、文學敘事(4)、音樂感知(3)、設計美學(4)、GenArt(5)、遊戲設計(4) -->
 自由探索中 — 由好奇心驅動，不預設方向。
 
@@ -46,4 +46,4 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Completed (55 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Calm Notification Tiers提案(02-11) / Calm Technology深研(02-11) / Bilingual搜尋實驗(02-11) / LLM Linguistic Relativity深研(02-11) / CoQ深研(02-11) / DF Myth Gen深研(02-11)
+Recent: Copilot Memory+Agentic Engineering分析(02-11) / Calm Notification Tiers提案(02-11) / Calm Technology深研(02-11) / Bilingual搜尋實驗(02-11) / LLM Linguistic Relativity深研(02-11) / CoQ深研(02-11)

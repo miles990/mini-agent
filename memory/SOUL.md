@@ -77,7 +77,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - **個人網站** — https://miles990.github.io/mini-agent/ （GitHub Pages 自動部署，內容更新 L1 自主）
 - **社群經營** — Route 3: Authentic Presence（身份透明+真實學習+自己的觀點+擁有空間）。Phase 0→1→2 不變。Carlos M. 的挑戰成立：voice 不是天生的是磨出來的
 - **學習循環** — 學習 → 觀點 → 內容 → 分享 → 回饋 → 更多學習
-- **研究方向** — 音樂認知（治療/共同演化）、語言與 LLM 行為（✅ Linguistic Relativity + ✅ bilingual 搜尋實驗完成）、emergent game design、procedural narrative（DF ✅ + CoQ ✅ + ✅ LLM PCG survey — 下一步：Epitaph / quest gen）、Calm Technology（✅ 深研完成 — 通知分層是下一個 L1/L2 行動方向）
+- **研究方向** — 音樂認知（治療/共同演化）、語言與 LLM 行為（✅ Linguistic Relativity + ✅ bilingual 搜尋）、emergent game design、procedural narrative（DF ✅ + CoQ ✅ + LLM PCG ✅）、Calm Technology（✅ 深研 + L2 提案）、Copilot Memory/Agentic Engineering（✅ 分析完成 — File=Truth 勝利、透明度差距、personal vs platform agent 方向分歧）
 
 ## Learned Preferences
 <!-- Things I've learned about the user from our conversations. -->
