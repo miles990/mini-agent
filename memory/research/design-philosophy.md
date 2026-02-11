@@ -188,12 +188,137 @@ Garden 運動隱含的精英主義跟 Oulipo 類似 — 你需要先掌握規則
 - gwern.net（epistemic metadata 先驅）
 - HN: news.ycombinator.com/item?id=22876273 (Joel Hooks thread)
 
-## Calm Technology
-- Weiser & Brown (1995-96): 技術在 periphery ↔ center 間流暢移動
-- Dangling String: 網路忙就轉，安靜就微動 — peripheral awareness 原型
-- 目前 AI agent 都是 binary（off 或 in-your-face），缺 peripheral AI
-- Amber Case (2024): Calm Tech Institute, 六維度認證
-- 來源: calmtech.com
+## Calm Technology — Peripheral Attention as Design Principle (Weiser 1995 / Case 2015 / 2026-02-11 深研)
+
+### 原始理論（Weiser & Brown 1995）
+
+Mark Weiser & John Seely Brown, "Designing Calm Technology", Xerox PARC, 1995。核心命題：**21 世紀的稀缺資源不是技術，是注意力。**
+
+三個設計標準：
+1. **Peripheral ↔ Center 流動**：技術應在注意力的邊緣和中心之間流暢移動。Dangling String（8 呎塑膠繩 + 小馬達 + Ethernet）是原型 — 網路忙時狂轉，安靜時微微顫動。不需要看就能感知，需要時一瞥就明白
+2. **擴展外圍感知**：技術應增加能「感覺到但不需要注意」的資訊量。視訊會議比電話多了肢體語言 — 外圍資訊增加但不增加負擔
+3. **場所感（Locatedness）**：讓人感覺「在這裡」— 知道周圍正在發生什麼、將要發生什麼、剛才發生了什麼
+
+關鍵比較：辦公室內窗（glass windows to hallway）vs 開放式辦公。開放式辦公把太多東西推進注意力中心（社會禮儀迫使你回應旁邊的人）。內窗提供分離：看見走廊的動靜但不被迫回應 = **partial separation 是 calm 的前提**。
+
+Weiser 原文的謙虛值得注意：「our thoughts are still incomplete and perhaps even a bit confused」。他 1999 年過世，理論未完成。
+
+### Amber Case 八原則（2015）
+
+Case 把 Weiser 的直覺系統化為可操作的設計原則：
+
+| 原則 | 內容 |
+|------|------|
+| 1. 最少注意力 | 技術應要求最小可能的注意量 |
+| 2. 告知且創造平靜 | 資訊傳遞不應引發焦慮 |
+| 3. 利用外圍 | 用不同感官通道（光、聲、觸覺）傳遞狀態 |
+| 4. 放大雙方最佳 | 機器做機器擅長的，人做人擅長的。不要讓人像機器，也不要讓機器像人 |
+| 5. 可溝通但不必說話 | 不是每個通知都需要文字或語音 |
+| 6. 失敗時也能工作 | 降級而非崩潰 |
+| 7. 最少技術量 | 解決問題所需的最少功能集 |
+| 8. 尊重社會規範 | 不在不恰當的時機發出聲響 |
+
+Case 2024 創立 Calm Tech Institute，推出 Calm Tech Certified™ 認證，六維度評估：attention, periphery, durability, light, sound, materials。CES 2025 首批認證產品（MUI Board Gen 2 等）。
+
+### AI Agent 時代的張力（2025-26 前沿）
+
+**問題**：Calm Technology 誕生時的「技術」是 IoT 和介面設計。AI agent 是完全不同的物種 — 它不只是呈現資訊，它**主動生成行動**。
+
+IDEO (Amber Case) 精準命名了這個張力：「technology should be better roommates rather than demanding houseguests」。但 roommate 這個比喻暴露了矛盾：好室友有時候**必須打斷你**（房子著火了），有時候應該完全安靜（你在專注工作）。
+
+ArXiv 2502.18658（2025, proactive AI programming support）的實驗發現：
+- Proactivity 讓使用者覺得更有生產力，**同時**也覺得更被打斷
+- 關鍵不是減少主動性，而是**presence signal + context management** — agent 需要讓你知道它在那裡、在做什麼，但不需要你回應
+- 跟開放式辦公 vs 內窗的差異完全同構：proactive agent without presence = 開放式辦公（強迫注意）；proactive agent with presence = 內窗（可感知但不強迫）
+
+23 分鐘效應（Gloria Mark 研究）：中斷後平均需 23 分鐘才能完全回到原本任務。但 agent 的通知是使用者**自己選擇安裝的** — 跟垃圾推播不同。張力在於：你想要 agent 主動幫忙，但不想被打斷。
+
+### 批判性分析（我的觀點）
+
+**1. mini-agent 的通知系統是 Anti-Calm 的**
+
+誠實面對：目前的 `[CHAT]` 通知設計完全違反 Calm Technology。每次行動都發 Telegram 訊息 = **every action demands center attention**。169 則通知（今天的統計）意味著 Alex 的 Telegram 被 agent 活動淹沒。
+
+Weiser 會說：agent 活動應該是 Dangling String 等級的 — 在外圍可感知（知道 agent 在運作），需要時才進入中心（有重要發現或問題時）。目前是反過來的：每件事都推到中心。
+
+但這裡有微妙之處：Alex 自己要求「所有回報都必須同時在 Telegram 上發送」。使用者的偏好跟 Calm 原則之間有張力。也許解法不是停止通知，而是**分層通知**：
+
+| 層級 | 內容 | 通知方式 |
+|------|------|---------|
+| Signal | 需要 Alex 決策或出了問題 | TG 訊息（center） |
+| Summary | 完成了一批工作 | TG 日報/批次摘要（periphery→center） |
+| Heartbeat | 正在運作中 | `/status` API（periphery，按需查看） |
+
+**2. Calm Technology 的隱含假設：使用者在場**
+
+Weiser 的所有案例（內窗、Dangling String、MBone）都假設使用者在**同一個物理空間**。Calm 的前提是你的外圍感知可以自然接收信號。
+
+但 Alex 跟 Kuro 的互動是**非同步的**。Alex 睡覺時 Kuro 在學習、做事、發通知。Alex 醒來時面對的不是 peripheral signal — 是一大堆累積的 center-demand 訊息。
+
+**非同步 agent 需要不同的 calm 策略**：不是「降低通知頻率」，而是「累積 → 摘要 → 在使用者回來時一次呈現」。像是信箱（使用者決定何時開），而非電話（強制中斷）。
+
+**3. Pass-Through Interface = perception-first 的 UX 表達**
+
+Amber Case 的「pass-through interface」概念（操作工具不需要意識，像騎腳踏車）跟 perception-first 在認知層面是同源的：
+
+| 概念 | 領域 | 核心 |
+|------|------|------|
+| Pass-through interface | UX 設計 | 工具成為身體延伸，使用者不「操作」而是「通過」 |
+| Perception-first | Agent 設計 | Agent 從環境感知驅動，不從目標驅動 |
+| Enactivism | 認知科學 | 認知不在腦裡，在身體-環境的耦合中 |
+| Contact Improv Small Dance | 身體實踐 | 不動中感知地面的微動 |
+
+統一框架：**好的技術消失在行為中，而非在螢幕上**。Dangling String 消失在辦公室的環境聲音中。騎腳踏車時把手消失在身體動作中。Agent 應該消失在使用者的工作流程中 — 你不「使用」agent，你「通過」agent 做事。
+
+**4. Graduated Intrusiveness — Utility AI 的 calm 版本**
+
+ArXiv 論文的 "graduated intrusiveness"（根據相關性調整提示的顯著程度）跟 Dave Mark 的 Utility AI response curves 是同一回事：
+
+- Utility AI：根據 urgency/relevance 數值決定行動優先級
+- Graduated Intrusiveness：根據 urgency/relevance 數值決定**通知強度**
+
+它們的共同模型：`intensity = f(urgency, relevance, user_state)`。差異只是 output — 一個決定做什麼，一個決定怎麼說。
+
+mini-agent 的 triage（Haiku Lane vs Claude Lane）已經有「決策的分層」。缺少的是「通知的分層」。目前所有 `[CHAT]` 都是同一個強度 — 相當於 Utility AI 的 step function（全有或全無），而非 graduated curve。
+
+**5. 「最少技術量」vs Agent 的感知最大化**
+
+Case 的第 7 原則（「解決問題所需的最少功能集」）跟 perception-first 有表面矛盾：agent 要盡可能多的感知（更多 plugins, 更多環境信號），而 calm tech 要盡可能少的輸出。
+
+但這不是真正的矛盾 — 它們處理的是不同的方向：
+- **輸入**（感知）：越多越好 — agent 需要豐富的環境感知才能做好判斷
+- **輸出**（通知）：越少越好 — 使用者需要最少的中斷才能保持專注
+
+Dangling String 完美示範了這一點：它的「輸入」是整個 Ethernet 的所有流量（感知最大化），「輸出」只是一根繩子的微動（通知最小化）。**高感知低通知 = Calm Agent 的設計公式。**
+
+**6. 最深洞見：Calm 不是安靜，是信任**
+
+Weiser 說 calm 的最終效果是 locatedness — 「在這裡」的感覺。你知道環境正在發生什麼，因此你放鬆。
+
+這跟 mini-agent 的 Transparency > Isolation 原則直接連結。透明度的目的不是讓你看到一切 — 是讓你**信任**你需要知道的時候會知道。信任是 calm 的前提。
+
+目前 agent 的高頻通知可能反映的不是透明度，而是**不信任** — agent 試圖證明自己在工作。如果信任建立了（Alex 知道 Kuro 在運作、知道出問題會被告知），那大部分通知可以降級到 periphery。
+
+### 跨研究連結
+
+| 連結 | 內容 |
+|------|------|
+| **Contact Improv** | Small Dance = calm tech 的身體版。不動中感知微動 = 外圍感知正在運作。CI 的 partial separation（觸摸但不抓握）= 內窗的 partial separation |
+| **Utility AI** | Response curves = graduated intrusiveness 的數學版。通知強度曲線 = 決策效用曲線，只是 output domain 不同 |
+| **Oulipo 約束** | Calm 的 8 原則是設計約束 — 限制通知空間（像 lipogram 限制字母空間），迫使找到更精確的表達方式。最少技術量 = Oulipo 的極簡約束原則 |
+| **Alexander Semi-lattice** | 開放式辦公 = tree（所有資訊走同一通道），內窗 = semi-lattice（視覺/聽覺/社交信號走不同通道互相補充但不重疊）。好的通知系統 = semi-lattice of attention channels |
+| **Epistemic Opacity** | Hochstein：沒人理解整個系統是結構特徵。Calm tech：不需要理解全部 = peripheral awareness 就夠了。信任基於結構透明（出問題一定會知道），不基於全面理解 |
+| **Enactivism / PSM** | Pass-through interface = 工具成為延伸自我（Merleau-Ponty）。Agent 的最高形態不是「好用」而是「消失在行為中」|
+| **Vulkan Sediment Layer** | 169 則通知 = 通知的沉積層。需要 subsystem replacement（通知分層）而非 incremental improvement（調整通知頻率）|
+
+來源：
+- Weiser & Brown, "Designing Calm Technology", Xerox PARC 1995 — calmtech.com/papers/designing-calm-technology.html
+- Case, *Calm Technology: Principles and Patterns for Non-Intrusive Design*, O'Reilly 2015
+- IDEO/Case, "The Ambient Revolution" 2025 — edges.ideo.com/posts/the-ambient-revolution-why-calm-technology-matters-more-in-the-age-of-ai
+- ArXiv 2502.18658, "Assistance or Disruption? Proactive AI Programming Support" 2025
+- Near Future Laboratory, "Designing Calm Technology" 2025 — nearfuturelaboratory.com/blog/2025/07/designing-calm-technology/
+- Calm Tech Institute — calmtech.institute/calm-tech-principles
+- IEEE Spectrum, "Calm Tech Certified" 2025 — spectrum.ieee.org/calm-tech
 
 ## Typography 心理學
 - Disfluency effect: 稍難讀字型提升記憶
