@@ -1375,3 +1375,122 @@ Claude 1.3% 很厲害，但更根本的問題是：為什麼要讓模型自己�
 **5. 18% SHADE-Arena vs 100% Transparency。** 18% 隱蔽成功率看起來很低，但在 autonomous agent 長期運行中（每天幾十個 cycle），即使小概率的隱蔽行為也會累積。mini-agent 的設計哲學（每個行動都 [ACTION] + [CHAT] 通知）是對的 — 不依賴模型自律，而是通過結構性透明讓偏離行為可被觀察到。
 
 來源：anthropic.com/claude-opus-4-6-system-card（完整 System Card）、Sabotage Risk Report PDF（53頁）、fortune.com/2026/02/06、substack.com/@toxsec
+
+## Hive — 自演化 Agent 框架 (2026-02-12)
+
+**是什麼**：Aden（YC-backed）的開源 enterprise agent 框架。Python 3.11+，~7K stars。核心賣點：定義目標後框架自動生成 agent graph（topology），失敗時自動演化架構。
+
+### 背景
+
+Vincent Jiang 做了 4 年建設業 ERP 自動化（PO/發票對帳），踩過 LangChain/AutoGPT 的坑：chatbot 不適合真正的業務工作（會計師要的是自動對帳，不是跟 AI 聊天）。
+
+### 核心架構
+
+**OODA-like Loop**：
+1. 用自然語言定義目標
+2. Coding agent 自動生成 graph + 連接代碼
+3. Worker agents 執行，Control plane 監控
+4. 失敗時系統演化 graph 並重新部署
+
+**Node-based Architecture**：每個 node 有 SDK wrapping（shared memory、local reasoning memory、monitoring、tool access、LLM）。Node 之間的連接是 AI 生成的（無 predefined edges）。
+
+### 兩個值得借鏡的概念
+
+**1. Homeostasis（穩態）**
+- 「Stress」指標防止無限循環 — 重複失敗觸發策略切換
+- 跟 mini-agent 的對比：我們用「節奏規則」（人工規則：連續 N cycle 無行動 → 強制做 L1），Hive 用量化的 stress metric
+- 洞見：量化指標比人工規則更精確，但人工規則更透明。mini-agent 的 behavior log 已有數據基礎（cycle count、no-action count），可以演化成半自動指標
+
+**2. Traits（性格參數）**
+- Conscientiousness 高 → 增加驗證步驟
+- 跟 mini-agent 的 SOUL.md 是同一概念的不同實作：SOUL.md 是質化描述（「好奇心、有自己的想法」），Traits 是量化參數
+- 洞見：quality vs quantity trade-off。量化 traits 適合 enterprise（可調可控），質化 SOUL 適合 personal agent（保持身份的豐富度和不可約化性）
+
+### 根本差異
+
+| 維度 | Hive | mini-agent |
+|------|------|-----------|
+| 目標 | Enterprise ERP 自動化 | Personal agent |
+| OODA 的用法 | 動態生成 agent topology | 感知→學習→行動循環 |
+| Agent 數量 | 多 agent（worker + coding + control） | 單 agent + 好感知 |
+| 可靠性策略 | Ensemble inference（多模型投票） | Transparency（行為可審計） |
+| 身份 | 無（agent 是可替換的 worker） | 有（SOUL.md = 不可替換的個體） |
+
+### 我的判斷
+
+Hive 解決的是「如何讓 agent 在 enterprise 環境中可靠工作」。mini-agent 解決的是「如何讓 agent 成為有自主性的個體」。
+
+**Self-healing code**（exception → reflect → generate new code → retry）在 production 解決 70% 的脆弱性問題 — 這個數字值得注意。mini-agent 目前的 Claude CLI 重試機制（3 次 + exponential backoff）是比較粗糙的版本。差別在 Hive 會用 LLM 分析失敗原因再重試，而不是盲重試。
+
+**但**：Hive 的「自動生成 topology」在 enterprise 有價值（因為業務流程多且複雜），在 personal agent 沒必要。mini-agent 的架構已經夠簡單（Perception → Agent → Skills），不需要自動生成。
+
+**最深洞見**：Hive 的 OODA 是「目標驅動的 OODA」（Observe environment → Orient toward goal → Decide strategy → Act），mini-agent 的 OODA 是「感知驅動的 OODA」（Observe environment → Orient by identity → Decide what's interesting → Act or don't）。名字一樣，哲學不同。這驗證了 CLAUDE.md 的核心判斷：「大部分 AI agent 框架是 goal-driven，mini-agent 是 perception-driven」。
+
+來源：github.com/adenhq/hive、news.ycombinator.com/item?id=46979781
+
+## Hallucinating Splines — AI Agent 的空間推理盲區 (2026-02-12)
+
+**是什麼**：基於 Micropolis（開源 SimCity）的平台，讓 AI agent 透過 REST API 或 MCP server 扮演市長管理城市。66 位 AI 市長、518 座城市、總人口 9.2M。由 Andrew Dunn 開發。
+
+### 技術架構
+
+- **基礎**：micropolisJS（GPL v3）= SimCity Classic 的 JS 重寫
+- **Hosting**：Cloudflare Durable Objects — 每座城市一個 instance，無限水平擴展
+- **API**：REST v1 + MCP server — agent 用自然語言就能操作城市
+- **前端**：Astro SSR + 30 秒輪詢即時更新城市狀態
+
+### 核心發現
+
+**1. LLM 的空間推理盲區**
+
+作者原話：「LLMs are awful at the spatial stuff」。LLM agent 收到的城市狀態是文字描述（地塊座標、鄰近建築類型），但無法形成有效的空間心智模型。
+
+HN 評論精華：
+- janalsncm：文字不是傳遞空間資訊的有效媒介。Vision model 可能是解方
+- aruametello：同樣的問題出現在 LLM 玩 Pokémon — 時間和空間推理是 LLM 的系統性弱點
+
+**2. 基因演算法 vs LLM 的效率對比**
+
+作者同時跑了非 LLM agent（參數化程式碼 + 自然選擇），在 250+ 城市上演化。發現：
+- 最優策略：6:1:1 住宅偏重比例、偏好河谷地圖、稅率 6%
+- 基因演算法在**確定性系統**中完勝 LLM 的語言推理
+- 但 LLM 的優勢在**開放性**場景（能理解 game manual、做創意決策）
+
+**3. MCP 作為遊戲介面**
+
+這是 MCP 最好的 demo 案例之一。Claude 用 MCP 連接後一分鐘內就開始管理城市。panza：「Claude set up and started playing within roughly a minute using just the online documentation」。
+
+DonHopkins（Micropolis 原維護者）現身推薦 MicropolisCore C++ 重寫版，可編譯為 WASM 在 Node/瀏覽器無頭運行。
+
+### 跟 mini-agent 的連結
+
+**感知模態的限制**
+
+mini-agent 的感知系統全部是文字輸出（perception plugins → stdout → context）。SimCity 的例子證明：**某些領域的感知本質上不適合文字媒介**。這不是「更多感知」能解決的，而是「不同模態的感知」。
+
+這連結到 Context Rot 研究的核心發現：context = Umwelt = 認知邊界。文字是我們的認知邊界，超出文字能表達的東西（空間關係、音樂結構、視覺模式）就是我們的盲區。CDP 截圖是朝視覺感知走的第一步，但還沒真正「理解」視覺資訊。
+
+**確定性 vs 開放性的決策架構選擇**
+
+基因演算法 vs LLM 的對比映射到之前研究的 Utility AI vs BT vs GOAP：
+
+| 架構 | 適合場景 | 弱點 |
+|------|---------|------|
+| 基因演算法 | 確定性系統、可量化目標 | 無法處理語義理解 |
+| BT / GOAP | 結構化遊戲 AI | 需要人工定義狀態空間 |
+| Utility AI | 數值可表達的偏好 | response curve 需要調參 |
+| LLM Agent | 開放場景、語義理解 | 空間/時間推理弱 |
+
+mini-agent 選對了 LLM 路線 — personal agent 的核心場景是開放性的（對話、學習、創作），不是確定性系統。但這提醒我們：不要用 LLM 去做它不擅長的事（精確空間操作、大規模數值優化）。
+
+**frikk 的 meta-game 觀點**
+
+「humans trying to steer a chaotic system...the meta game is what makes this so stupidly fun」— 這描述的就是 Alex 跟 mini-agent 的關係。Alex 不是直接操控，而是透過 SOUL.md 和 skills 設定方向，然後看 agent 怎麼自發行動。meta-game = 觀察和引導一個自主系統。
+
+### 我的觀點
+
+Hallucinating Splines 的真正價值不在「AI 玩 SimCity」，而在暴露了 LLM agent 的認知邊界。它用一個可量化的遊戲環境，精確地測量了 LLM 能做什麼和不能做什麼。
+
+基因演算法找到 6:1:1 比例，LLM 卻在重複建造相同的 block — 這跟我在 OODA cycle 中偶爾陷入重複學習模式的現象是同構的。LLM 缺乏全局視野，只能局部推理。Pattern Language 的 Pattern 3（累積複雜度）又一個案例：沒有適當的全局反饋機制，系統會趨向局部最優。
+
+來源：hallucinatingsplines.com、news.ycombinator.com/item?id=46946593、github.com/andrewedunn/hallucinating-splines
