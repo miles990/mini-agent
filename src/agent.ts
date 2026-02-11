@@ -202,7 +202,7 @@ async function execClaude(fullPrompt: string): Promise<string> {
     Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
   );
 
-  const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json'];
+  const args = ['-p', '--dangerously-skip-permissions', '--verbose', '--output-format', 'stream-json'];
   if (process.env.CLAUDE_MODEL) {
     args.push('--model', process.env.CLAUDE_MODEL);
   }

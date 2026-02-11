@@ -125,7 +125,7 @@ async function postProcess(userMsg: string, response: string): Promise<string> {
 async function main(): Promise<void> {
   const compose = loadCompose();
   const agentName = compose?.name ?? 'Kuro';
-  const port = compose?.port ?? PORT;
+  const port = process.env.PORT ? PORT : (compose?.port ?? PORT);
   const perceptions = compose?.perception?.custom ?? [];
   const skillPaths = compose?.skills ?? [];
 
@@ -249,6 +249,14 @@ async function main(): Promise<void> {
 
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n  ❌ Port ${port} is already in use. Try: PORT=3099 mini-agent\n`);
+      process.exit(1);
+    }
+    throw err;
   });
 
   server.listen(port, () => {
