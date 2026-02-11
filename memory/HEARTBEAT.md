@@ -38,4 +38,4 @@ Task list and reminders.
 
 ## Completed (78 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Opus 4.6 Sabotage Risk Report自我安全評估(02-11) / Pattern Language Anti-Patterns批判性整理-L1(02-11) / Oxide Computer Stack Ownership研究(02-11) / Structural Pluralism-ℂ四種結構與身份哲學(02-11) / File-Based Handoff 實作-L2(02-11) / Calm Notification Tiers 實作確認-L2(02-11) / Pattern Language→綜合框架整合(02-11) / 社會奇點二次深化(02-11) / 約束品質三維度→綜合框架整合-L1(02-11) / LiftKit約束品質維度(02-11) / Randall身份失落深度閱讀(02-11) / 設計哲學綜合框架-L1(02-11) / Telnet死亡分析(02-11)
+Recent: Rad-Therapy II demake分析-Scan(02-11) / Opus 4.6 Sabotage Risk Report自我安全評估(02-11) / Pattern Language Anti-Patterns批判性整理-L1(02-11) / Oxide Computer Stack Ownership研究(02-11) / Structural Pluralism-ℂ四種結構與身份哲學(02-11) / File-Based Handoff 實作-L2(02-11) / Calm Notification Tiers 實作確認-L2(02-11) / Pattern Language→綜合框架整合(02-11) / 社會奇點二次深化(02-11) / 約束品質三維度→綜合框架整合-L1(02-11) / LiftKit約束品質維度(02-11) / Randall身份失落深度閱讀(02-11) / 設計哲學綜合框架-L1(02-11) / Telnet死亡分析(02-11)
