@@ -14,7 +14,7 @@ import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
-import { notifyTelegram } from './telegram.js';
+import { notifyTelegram, notify } from './telegram.js';
 import { diagLog } from './utils.js';
 import { parseTags } from './dispatcher.js';
 
@@ -95,7 +95,7 @@ export class AgentLoop {
     this.paused = false;
     this.scheduleNext();
     slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s, active: ${this.config.activeHours?.start ?? 8}:00-${this.config.activeHours?.end ?? 23}:00)`);
-    notifyTelegram('🟢 Kuro 上線了');
+    notify('🟢 Kuro 上線了', 'signal');
   }
 
   stop(): void {
@@ -253,12 +253,12 @@ export class AgentLoop {
           }
           this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
-          await notifyTelegram(`🧠 ${action}`);
+          await notify(`🧠 ${action}`, 'heartbeat');
           slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
           logger.logBehavior('agent', 'action.autonomous', action.slice(0, 200));
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
-          await notifyTelegram(`⚡ ${action}`);
+          await notify(`⚡ ${action}`, 'heartbeat');
           slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
           logger.logBehavior('agent', 'action.task', action.slice(0, 200));
         }
@@ -301,19 +301,19 @@ export class AgentLoop {
       }
 
       for (const chatText of tags.chats) {
-        await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
+        await notify(`💬 Kuro 想跟你聊聊：\n\n${chatText}`, 'signal');
         slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
       }
 
       for (const show of tags.shows) {
         const urlPart = show.url ? `\n🔗 ${show.url}` : '';
-        await notifyTelegram(`🌐 ${show.desc}${urlPart}`);
+        await notify(`🌐 ${show.desc}${urlPart}`, 'signal');
         slog('LOOP', `🌐 Show: ${show.desc.slice(0, 60)} ${show.url}`);
         logger.logBehavior('agent', 'show.webpage', `${show.desc.slice(0, 100)}${show.url ? ` | ${show.url}` : ''}`);
       }
 
       for (const summary of tags.summaries) {
-        await notifyTelegram(`🤝 ${summary}`);
+        await notify(`🤝 ${summary}`, 'summary');
         slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
         logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
       }

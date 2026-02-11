@@ -15,6 +15,7 @@ import { dispatch } from './dispatcher.js';
 import { slog } from './api.js';
 import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
+import type { NotificationTier } from './types.js';
 
 // =============================================================================
 // Types
@@ -917,6 +918,48 @@ export async function notifyTelegram(message: string): Promise<boolean> {
   }
 
   return allOk;
+}
+
+// =============================================================================
+// Tiered Notification — Calm Technology 三層分級
+// =============================================================================
+
+let summaryBuffer: string[] = [];
+
+/**
+ * 分級通知 — 根據 tier 決定通知方式
+ * - signal: 即時推送（走 notifyTelegram）
+ * - summary: 累積到 buffer，定期 flush
+ * - heartbeat: 只記 log，不通知
+ */
+export async function notify(message: string, tier: NotificationTier): Promise<boolean> {
+  switch (tier) {
+    case 'signal':
+      return notifyTelegram(message);
+    case 'summary':
+      summaryBuffer.push(`${new Date().toLocaleTimeString('en', { hour12: false })} ${message}`);
+      slog('NOTIFY', `[summary] buffered (${summaryBuffer.length} total): ${message.slice(0, 80)}`);
+      return true;
+    case 'heartbeat':
+      slog('NOTIFY', `[heartbeat] ${message.slice(0, 100)}`);
+      return true;
+  }
+}
+
+/**
+ * Flush summary buffer → 組合成一則 TG 訊息送出
+ * 回傳 null 表示 buffer 是空的
+ */
+export function flushSummary(): string | null {
+  if (summaryBuffer.length === 0) return null;
+  const digest = `📋 最近動態（${summaryBuffer.length} 項）：\n\n${summaryBuffer.join('\n')}`;
+  summaryBuffer = [];
+  return digest;
+}
+
+/** 取得 summary buffer 目前的筆數（供 /status 用） */
+export function getSummaryBufferSize(): number {
+  return summaryBuffer.length;
 }
 
 /**

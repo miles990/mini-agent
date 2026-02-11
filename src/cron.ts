@@ -9,7 +9,7 @@ import { dispatch } from './dispatcher.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { diagLog } from './utils.js';
-import { notifyTelegram } from './telegram.js';
+import { notifyTelegram, notify, flushSummary } from './telegram.js';
 import type { CronTask } from './types.js';
 
 interface ScheduledCronTask {
@@ -65,12 +65,26 @@ export function startCronTasks(tasks: CronTask[]): void {
           success: false,
           error: errorMsg,
         });
+        await notifyCronError(task.task, errorMsg);
       }
     });
 
     activeTasks.push({ task, job });
     slog('CRON', `Scheduled: "${task.task.slice(0, 50)}" (${task.schedule})`);
   }
+
+  // Summary flush cron — 每 6 小時送出累積的 summary 通知
+  const flushJob = cron.schedule('0 */6 * * *', async () => {
+    const digest = flushSummary();
+    if (digest) {
+      slog('CRON', `📋 Flushing summary buffer`);
+      await notifyTelegram(digest);
+    }
+  });
+  activeTasks.push({
+    task: { schedule: '0 */6 * * *', task: '[internal] Flush notification summary buffer' },
+    job: flushJob,
+  });
 
   if (activeTasks.length > 0) {
     slog('CRON', `${activeTasks.length} task(s) active`);
@@ -152,6 +166,7 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
         success: false,
         error: errorMsg,
       });
+      await notifyCronError(task.task, errorMsg);
     }
   });
 
@@ -246,16 +261,20 @@ export function reloadCronTasks(tasks: CronTask[]): { added: number; removed: nu
 }
 
 /**
- * CRON 任務完成後解析 [ACTION] 和 [CHAT] tag 並發送 TG 通知
+ * CRON 任務完成後解析 [ACTION] tag — 正常結果走 summary
  */
 async function notifyCronAction(content: string): Promise<void> {
-  // [ACTION] — 任務執行結果
   const actionMatch = content.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
   if (actionMatch) {
     const action = actionMatch[1].trim();
-    await notifyTelegram(`⏰ ${action}`);
+    await notify(`⏰ ${action}`, 'summary');
   }
+  // [CHAT] — dispatch/postProcess 已處理，不重複
+}
 
-  // [CHAT] — 主動聊天（dispatch/postProcess 已處理）
-  // 不重複處理 — postProcess 內已 notifyTelegram [CHAT]
+/**
+ * CRON 任務異常 — 走 signal 即時通知
+ */
+async function notifyCronError(taskDesc: string, errorMsg: string): Promise<void> {
+  await notify(`🔴 Cron 異常：${taskDesc.slice(0, 60)}\n${errorMsg.slice(0, 200)}`, 'signal');
 }

@@ -303,6 +303,9 @@ export interface ParsedTags {
   cleanContent: string;
 }
 
+/** 通知分級 — Calm Technology 三層模型 */
+export type NotificationTier = 'signal' | 'summary' | 'heartbeat';
+
 /** 單一 Lane 的統計 */
 export interface LaneStats {
   active: number;

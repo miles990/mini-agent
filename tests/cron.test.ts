@@ -49,6 +49,7 @@ describe('Cron Task Manager', () => {
     stopCronTasks();
   });
 
+  // Note: startCronTasks always adds +1 internal summary flush cron job
   describe('startCronTasks', () => {
     it('should schedule enabled tasks', () => {
       startCronTasks([
@@ -56,8 +57,8 @@ describe('Cron Task Manager', () => {
         { schedule: '0 9 * * *', task: 'Morning greeting' },
       ]);
 
-      expect(mockSchedule).toHaveBeenCalledTimes(2);
-      expect(getActiveCronTasks()).toHaveLength(2);
+      expect(mockSchedule).toHaveBeenCalledTimes(3); // 2 user + 1 flush
+      expect(getActiveCronTasks()).toHaveLength(3);
     });
 
     it('should skip disabled tasks', () => {
@@ -66,8 +67,8 @@ describe('Cron Task Manager', () => {
         { schedule: '0 9 * * *', task: 'Disabled task', enabled: false },
       ]);
 
-      expect(mockSchedule).toHaveBeenCalledTimes(1);
-      expect(getActiveCronTasks()).toHaveLength(1);
+      expect(mockSchedule).toHaveBeenCalledTimes(2); // 1 user + 1 flush
+      expect(getActiveCronTasks()).toHaveLength(2);
     });
 
     it('should skip invalid cron expressions', () => {
@@ -78,12 +79,12 @@ describe('Cron Task Manager', () => {
         { schedule: 'invalid', task: 'Invalid' },
       ]);
 
-      expect(getActiveCronTasks()).toHaveLength(1);
+      expect(getActiveCronTasks()).toHaveLength(2); // 1 user + 1 flush
     });
 
     it('should stop existing tasks before starting new ones', () => {
       startCronTasks([{ schedule: '*/5 * * * *', task: 'First' }]);
-      expect(getCronTaskCount()).toBe(1);
+      expect(getCronTaskCount()).toBe(2); // 1 user + 1 flush
 
       startCronTasks([
         { schedule: '*/10 * * * *', task: 'Second' },
@@ -91,7 +92,7 @@ describe('Cron Task Manager', () => {
       ]);
 
       expect(mockStop).toHaveBeenCalled();
-      expect(getCronTaskCount()).toBe(2);
+      expect(getCronTaskCount()).toBe(3); // 2 user + 1 flush
     });
   });
 

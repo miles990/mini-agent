@@ -12,7 +12,7 @@ import { slog } from './utils.js';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
-import { notifyTelegram } from './telegram.js';
+import { notifyTelegram, notify } from './telegram.js';
 import type { AgentResponse, DispatchRequest, TriageDecision, ParsedTags, LaneStats } from './types.js';
 
 // =============================================================================
@@ -277,12 +277,12 @@ export async function postProcess(
   }
 
   for (const chatText of tags.chats) {
-    await notifyTelegram(`💬 Kuro 想跟你聊聊：\n\n${chatText}`);
+    await notify(`💬 Kuro 想跟你聊聊：\n\n${chatText}`, 'signal');
     logger.logBehavior('agent', 'telegram.chat', chatText.slice(0, 200));
   }
 
   for (const summary of tags.summaries) {
-    await notifyTelegram(`🤝 ${summary}`);
+    await notify(`🤝 ${summary}`, 'summary');
     logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
   }
 

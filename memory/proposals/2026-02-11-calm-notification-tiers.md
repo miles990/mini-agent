@@ -1,6 +1,6 @@
 # Proposal: Calm Notification Tiers — 通知三層分級
 
-## Status: draft
+## Status: approved
 
 ## TL;DR
 
