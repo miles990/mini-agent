@@ -508,7 +508,7 @@ async function init() {
   try {
     const res = await fetch(`${BASE}/manifest.json`);
     manifest = await res.json();
-    manifest.sort((a, b) => b.date.localeCompare(a.date));
+    manifest.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
   } catch (e) {
     manifest = [];
   }

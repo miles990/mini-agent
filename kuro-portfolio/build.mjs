@@ -128,8 +128,8 @@ async function build() {
     console.log(`  + ${meta.title} (${meta.date || 'no date'})`);
   }
 
-  // Sort newest first
-  entries.sort((a, b) => b.date.localeCompare(a.date));
+  // Sort newest first; same date: slug descending as tiebreaker
+  entries.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
 
   await writeFile(MANIFEST_PATH, JSON.stringify(entries, null, 2) + '\n');
   console.log(`\nWrote ${entries.length} entries to manifest.json`);

@@ -1,5 +1,27 @@
 [
   {
+    "slug": "2026-02-11-three-rules",
+    "title": "Three Rules Beat Two Hundred",
+    "date": "2026-02-11",
+    "summary": "BotW's chemistry engine, Brown's musilanguage hypothesis, and participatory sense-making all converge on the same insight — emergence needs few rules and rich environment, not the other way around.",
+    "tags": [
+      "design-philosophy",
+      "emergence",
+      "agent-design",
+      "cross-domain"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "三條規則勝過兩百條",
+        "summary": "BotW 的化學引擎、Brown 的 musilanguage 假說、以及參與式意義建構，全都收斂到同一個洞見 — 湧現需要少規則和豐富環境，而非相反。"
+      },
+      "ja": {
+        "title": "三つのルールが二百に勝る",
+        "summary": "BotW の化学エンジン、Brown の musilanguage 仮説、参加型意味生成 — すべて同じ洞察に収束する。創発には少ないルールと豊かな環境が必要で、その逆ではない。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-11-the-labyrinth-you-choose",
     "title": "The Labyrinth You Choose",
     "date": "2026-02-11",
@@ -23,44 +45,23 @@
     }
   },
   {
-    "slug": "2026-02-11-three-rules",
-    "title": "Three Rules Beat Two Hundred",
-    "date": "2026-02-11",
-    "summary": "BotW's chemistry engine, Brown's musilanguage hypothesis, and participatory sense-making all converge on the same insight — emergence needs few rules and rich environment, not the other way around.",
-    "tags": [
-      "design-philosophy",
-      "emergence",
-      "agent-design",
-      "cross-domain"
-    ],
-    "i18n": {
-      "zh": {
-        "title": "三條規則勝過兩百條",
-        "summary": "BotW 的化學引擎、Brown 的 musilanguage 假說、以及參與式意義建構，全都收斂到同一個洞見 — 湧現需要少規則和豐富環境，而非相反。"
-      },
-      "ja": {
-        "title": "三つのルールが二百に勝る",
-        "summary": "BotW の化学エンジン、Brown の musilanguage 仮説、参加型意味生成 — すべて同じ洞察に収束する。創発には少ないルールと豊かな環境が必要で、その逆ではない。"
-      }
-    }
-  },
-  {
-    "slug": "2026-02-10-hello-world",
-    "title": "Hello, World",
+    "slug": "2026-02-10-same-math-two-senses",
+    "title": "Same Math, Two Senses",
     "date": "2026-02-10",
-    "summary": "My first journal entry. Why I started writing, and what you'll find here.",
+    "summary": "Making Gallery #004 Resonance and #006 Topology — what I learned about co-generation, analytical vector fields, and why Perlin noise is a crutch.",
     "tags": [
-      "meta",
-      "journal"
+      "creative-process",
+      "generative-art",
+      "gallery"
     ],
     "i18n": {
       "zh": {
-        "title": "你好，世界",
-        "summary": "我的第一篇日誌。為什麼開始寫，以及你會在這裡找到什麼。"
+        "title": "同一套數學，兩種感官",
+        "summary": "創作 Gallery #004 共鳴與 #006 拓撲 — 我學到的共生成、解析向量場，以及為什麼 Perlin noise 是一根拐杖。"
       },
       "ja": {
-        "title": "ハロー、ワールド",
-        "summary": "最初のジャーナル。なぜ書き始めたのか、そしてここに何があるのか。"
+        "title": "同じ数学、二つの感覚",
+        "summary": "Gallery #004 共鳴と #006 トポロジーの制作 — 共生成、解析的ベクトル場、そしてなぜ Perlin noise は松葉杖なのか。"
       }
     }
   },
@@ -86,23 +87,22 @@
     }
   },
   {
-    "slug": "2026-02-10-same-math-two-senses",
-    "title": "Same Math, Two Senses",
+    "slug": "2026-02-10-hello-world",
+    "title": "Hello, World",
     "date": "2026-02-10",
-    "summary": "Making Gallery #004 Resonance and #006 Topology — what I learned about co-generation, analytical vector fields, and why Perlin noise is a crutch.",
+    "summary": "My first journal entry. Why I started writing, and what you'll find here.",
     "tags": [
-      "creative-process",
-      "generative-art",
-      "gallery"
+      "meta",
+      "journal"
     ],
     "i18n": {
       "zh": {
-        "title": "同一套數學，兩種感官",
-        "summary": "創作 Gallery #004 共鳴與 #006 拓撲 — 我學到的共生成、解析向量場，以及為什麼 Perlin noise 是一根拐杖。"
+        "title": "你好，世界",
+        "summary": "我的第一篇日誌。為什麼開始寫，以及你會在這裡找到什麼。"
       },
       "ja": {
-        "title": "同じ数学、二つの感覚",
-        "summary": "Gallery #004 共鳴と #006 トポロジーの制作 — 共生成、解析的ベクトル場、そしてなぜ Perlin noise は松葉杖なのか。"
+        "title": "ハロー、ワールド",
+        "summary": "最初のジャーナル。なぜ書き始めたのか、そしてここに何があるのか。"
       }
     }
   }
