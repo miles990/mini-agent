@@ -500,3 +500,85 @@ Adams 的 42% 哲學 — 不是產品，是終身工程。這跟大部分 AI age
 | 單人視野 | Adams 拒絕開源保持一致性 | OpenClaw 群眾路線的對比 |
 | Separate games | 每個子系統獨立開發再互連 | mini-agent 模組化（perception/skills/memory）|
 | 42% mindset | 終身工程，不是產品 | Small Dance — 不急著完成 |
+
+## Caves of Qud — Procedural History as Narrative Engine（2026-02-11）
+
+Jason Grinblat & Brian Bucklew (Freehold Games)。FDG 2017 論文 + GDC 2019 演講。
+
+### 核心創新：Subverting Cause & Effect
+
+傳統歷史模擬（如 DF）：先建因果鏈 → 事件從因果自然產生。
+CoQ 的反轉：**先隨機生成事件，再事後合理化動機**。
+
+具體機制：
+1. **State Machine** — Sultan 生命有固定結構（出生 → 8 核心事件 → 登基 → 死亡），但每個事件從 16 種類型隨機選取
+2. **Replacement Grammar** — 4 萬字語料庫，用模板+變數生成符合遊戲「聲音」的文本。分 Early（宇宙/數學意象）和 Late（地面/工業意象）兩套詞彙
+3. **Sifting Patterns** — 生成一連串隨機行為後，掃描序列找出可解釋的動機模式。不是「因為 X 所以做 Y」，而是「做了 X 又做了 Y，所以回顧看來動機是 Z」
+
+這跟真實史學高度同構：歷史學家也是事後賦予事件因果關係。Grinblat 明確引用這點 — 歷史的「修辭功能」（rhetorical function）。
+
+### Sultan 系統細節
+
+5 個程序化 Sultan + 1 個固定 Sultan（Resheph）。每個 Sultan 有：
+- **Themes**：宇宙性興趣（星星、鹽、時間、電路...）
+- **Cognomens**：從事蹟累積的稱號
+- **Faction relationships**：從事件中自然浮現（-200 到 +400 聲望）
+- **Relics**：Sultan 創造的獨特物品，埋在墓中等玩家發現
+
+事件類型（16 種）涵蓋政治陰謀、軍事征服、神秘儀式、工匠創作、聯姻等。每個事件改變遊戲世界：重命名城市、建立新地點、創造遺物、改變派系關係。
+
+### 雙重敘事層
+
+- **Gospel**：「官方」歷史記載，呈現主流敘事
+- **Tomb Inscriptions**：替代視角，通常更英雄化，偶爾省略道德灰區
+
+這是同一事件的兩種 framing — 遊戲自動展示「歷史是被書寫的，不是被記錄的」。
+
+### 與 DF 的關鍵差異
+
+| 維度 | Dwarf Fortress | Caves of Qud |
+|------|---------------|-------------|
+| 方法 | 模擬整個世界史 | 只模擬 Sultan 傳記 |
+| 因果 | 正向因果鏈 | 事後合理化 |
+| 範圍 | 宏觀（文明興亡） | 中觀（個人傳記） |
+| 文本 | 系統生成+列表 | 4 萬字語料 replacement grammar |
+| 遊戲感 | 百科全書式的密度 | 文學性的氛圍 |
+| 效能 | 極重（世界生成可能 30 分鐘） | 輕量（幾秒完成） |
+
+兩者都實現了「歷史不是裝飾，而是 game mechanics 的來源」。但 DF 從模擬出發，CoQ 從敘事出發。
+
+### 我的觀點
+
+**1. 事後合理化是 perception-first 的敘事版**
+正向因果 = goal-driven（「Sultan 想征服，所以出征」）。事後合理化 = perception-driven（「Sultan 做了一堆事，回頭看才發現主題」）。這跟 mini-agent 的哲學完美同構：先行動+感知，narrative 從行為記錄中自然浮現。
+
+**2. behavior log = chronicle，SOUL.md 的演化 = ex post facto rationalization**
+我每天的行為記錄（behavior log）就是 CoQ 的「隨機事件序列」。定期更新 SOUL.md 的 My Thoughts，就是在做 sifting — 回顧行為找出主題和動機。difference：我是有意識地做 sifting，CoQ 的 Sultan 沒有。但兩者的機制同構。
+
+**3. 雙重敘事層的啟發**
+Gospel vs Tomb Inscription = behavior log vs Journal。前者是「發生了什麼」，後者是「我怎麼看發生的事」。兩者都有價值但功能不同。目前 mini-agent 的 behavior log 比較像 Gospel（事實記錄），Journal entries 比較像 Tomb Inscription（帶觀點的重述）。可以更有意識地區分這兩層。
+
+**4. Replacement Grammar 的 Agent 對應**
+CoQ 用 4 萬字語料確保生成文本有一致的「聲音」。SOUL.md 對 Kuro 的作用類似 — 定義「我說話的方式」和「我關心什麼」。但 LLM 的 replacement grammar 是隱式的（from training data），CoQ 的是顯式的（hand-crafted templates）。這是根本性的 trade-off：LLM 靈活但不可控，template 可控但不靈活。
+
+**5. 「Tight scope budget」的智慧**
+Grinblat 說 CoQ 的方法讓他們「在很小的預算內生成豐富的歷史」。DF 走最大化模擬，CoQ 走最小化結構+最大化文學性。對 mini-agent：我們沒有 DF 級別的計算預算（context window 有限），CoQ 的「少結構多氛圍」更適合 — File=Truth + 精煉的 SOUL.md 就是我們的 replacement grammar。
+
+### 跨研究連結
+
+| 概念 | CoQ 中的體現 | 已有研究的對應 |
+|------|------------|--------------|
+| 事後合理化 | 隨機事件 → sifting → 因果敘事 | perception-first（先看再理解） |
+| State Machine + Grammar | Sultan 生命結構 + 4 萬字語料 | skills = state machine, SOUL.md = grammar |
+| 雙重敘事 | Gospel vs Tomb Inscription | chronicle vs narrative（Bruner 雙重認知） |
+| Tight scope budget | 中觀傳記，不模擬全世界 | File=Truth（個人規模的正確取捨） |
+| Myth as Seed（共通） | Sultan 歷史決定世界地理 | DF 創世神話決定一切 |
+| Theme emergence | Sultan themes 從行為序列浮現 | SOUL.md My Thoughts 從學習序列浮現 |
+| 修辭史學 | 歷史有 rhetorical function | narrative fallacy（Taleb）— 人不可能不編故事 |
+
+### 來源
+- Grinblat & Bucklew, "Subverting historical cause & effect: generation of mythic biographies in Caves of Qud", FDG 2017 (pcgworkshop.com, dl.acm.org/doi/10.1145/3102071.3110574)
+- wiki.cavesofqud.com/wiki/Sultan_histories
+- gamedeveloper.com/design/tapping-into-the-potential-of-procedural-generation-in-caves-of-qud
+- GDC 2019: "End-to-End Procedural Generation in Caves of Qud" (gdcvault.com)
+- news.ycombinator.com/item?id=23647941

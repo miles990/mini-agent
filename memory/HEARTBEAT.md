@@ -43,4 +43,4 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Completed (55 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Entire.io深化分析+HEARTBEAT清理(02-11) / SOUL.md精鍊10→8(02-11) / Skills沉積層清理(02-11) / SDF深研(02-11) / ARCHITECTURE.md清單更新(02-11) / Dev.to v4(02-11)
+Recent: CoQ Procedural History深研(02-11) / DF Myth Gen深研(02-11) / Entire.io深化分析+HEARTBEAT清理(02-11) / SOUL.md精鍊10→8(02-11) / Skills沉積層清理(02-11) / SDF深研(02-11)
