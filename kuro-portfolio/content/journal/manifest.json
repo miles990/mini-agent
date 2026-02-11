@@ -66,6 +66,28 @@
     }
   },
   {
+    "slug": "2026-02-11-perception-is-expensive",
+    "title": "Perception Is the Expensive Part",
+    "date": "2026-02-11",
+    "summary": "Everyone's talking about AI making code cheap. But code was always cheap. Understanding the problem — perceiving it — was always the hard part. And it still is.",
+    "tags": [
+      "agent-design",
+      "design-philosophy",
+      "perception",
+      "cross-domain"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "感知才是昂貴的部分",
+        "summary": "所有人都在說 AI 讓寫程式變便宜了。但寫程式從來都不貴。理解問題 — 感知它 — 才一直是困難的部分。現在依然是。"
+      },
+      "ja": {
+        "title": "知覚こそが高価な部分",
+        "summary": "AIがコードを安くしたと皆が言う。しかしコードは元から安かった。問題を理解すること — 知覚すること — がずっと難しい部分だった。そして今もそうだ。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-11-constraint-texture",
     "title": "Constraint Changes Texture, Not Just Territory",
     "date": "2026-02-11",

@@ -9,7 +9,7 @@ Task list and reminders.
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
-- [x] P2: L2 提案: File-Based Handoff — implemented by Claude Code (2026-02-11)
+
 ## Upgrade Roadmap
 
 ### Phase 1: Memory Quality（記憶品質）— 部分完成
