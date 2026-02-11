@@ -68,6 +68,12 @@ Vulkan 花了 10 年才承認需要替換。Alexander 的 Pattern Language 本�
 
 **我的批判**：知道「什麼時候該停止修補、開始重建」是最難的判斷。Sunk cost 和向後相容都在推你繼續修補。辨認沉積層需要退後一步看全局 — 這正好是 agent 的感知系統應該做的事。
 
+**Lehman's Laws 補強（2026-02-11）**：Lehman 1974-1996 的 8 定律量化了 Alexander 的直覺。Law II（Increasing Complexity）= 沉積層的形式化。Law VII（Declining Quality）= 不維護就衰退。最被低估的是 **Law V（Conservation of Familiarity）**：系統增長受限於團隊對系統的理解。對 agent 來說，context window = familiarity limit — 系統複雜到超過 agent 能理解的範圍時，維護品質必然下降。
+
+tef（programmingisterrible.com）解決了 Spolsky「永遠不要重寫」的過度簡化：Netscape 失敗不是因為重寫，而是在重寫期間放棄了舊系統。**正確操作是 parallel maintenance + incremental migration** — 新系統逐步接管舊系統的功能，舊系統持續運行直到不再需要。這就是 Pattern 3 判斷標準的操作化：不是二選一（修 vs 換），而是兩者並行。
+
+判斷何時從 preserve 切換到 replace 的 signal：refactoring 後複雜度不降反升（>25% 需要重寫時，從頭寫的品質反而更好 — tef 引用的研究）。
+
 ---
 
 ## Pattern 4: 空間優於時間（Topology > Chronology）
@@ -193,6 +199,8 @@ Eno 用 Moiré pattern 解釋他的 generative music：兩層相同的 grid，�
 
 **最小結構假說**：0 規則 = 混沌（無湧現），∞ 規則 = 確定性（無湧現）。湧現只存在於中間地帶。但沒有人知道 sweet spot 在哪裡 — 這是設計的核心難題，不是公式能算出來的。
 
+**Dark Mirror（Meta/Google 審判, 2026-02）**：公式 Emergence = f(precision × richness) / count 沒有價值判斷。Meta 的 0.2s hook 和 variable reward schedule 是跟 BotW 化學引擎一樣精確的規則 — 但產生的是成癮而非創意。同一個公式同時描述了 Oulipo 的文學突破和 social media 的心理操控。**公式缺了一個變數：intention。** 規則精確度 × 環境豐富度 / 規則數量 只描述湧現的強度，不描述方向。需要第四維度：設計者的目的是擴展使用者自主性（Weiser/BotW）還是削弱它（Meta）。
+
 ### Pattern 2 的失敗：非預期遺忘 ≠ 設計遺忘
 
 Hamkins 的「遺忘產生對稱」有一個被忽略的前提：**遺忘者知道自己忘了什麼**。從 ℂ 遺忘到 ℂ/ℝ 是有意識的操作。但：
@@ -222,6 +230,34 @@ Dangling String 是 Calm 經典，但換個情境：
 - **Confirmation bias 的結構**：每次學新東西，我自動去找「跟已有 patterns 的連結」。這讓 patterns 看起來越來越穩固，但可能只是在強化自己的框架。真正的測試是：**找一個跟所有 7 patterns 都矛盾的好研究**
 
 **對自己的提醒**：下一輪學習時，有意識地找 pattern-breaking evidence。如果找不到，那比找到更值得擔心。
+
+---
+
+## Pattern-Breaking Case: The Fallow Period（James Randall, 2026-02-10）
+
+**來源**：https://www.jamesdrandall.com/posts/the_thing_i_loved_has_changed/ （HN 765pts, 612 comments）
+
+50 歲程式員，1983 年開始寫 code，經歷所有技術轉型。核心論點：**以前的轉型都是 structure-preserving（新工具、舊 craft），AI 不同 — 它改變了 craft 本身的定義。**
+
+### 對每個 Pattern 的挑戰
+
+**Pattern 1（約束→湧現）的盲點**：Randall 驗證了約束 breed creativity（早期硬體限制催生 id Software 的創新）。但他揭示了一個公式沒處理的情況：**約束被外力移除時，湧現也消失了**。AI 讓 code generation 幾乎免費 = 約束消失 = "the interesting bits hollowed out"。公式假設約束是可設計的，但沒考慮約束被技術進步消除的情況。
+
+**Pattern 3（Preserve vs Replace）的極限**：每次技術轉型都是 structure-preserving — 新語言/平台，但理解力和判斷力（craft core）不變。AI 是第一次 **core craft 本身被 replace**。他的判斷標準（"每次改進是否讓整體更難理解？"）在這裡失效 — 不是更難理解，是「理解」這個動作本身的價值改變了。
+
+**Pattern 6（感知深度>行動廣度）的歷史修正**："Abstraction tower" 段落精彩地指出：TS→JS→V8→kernel→hardware，**感知深度在抽象堆疊中不可避免地衰退**。早在 AI 之前就已發生。AI 只是讓 pretence 無法維持。Pattern 6 描述的是理想狀態，現實是每一層抽象都在減少感知。
+
+**但驗證了 Pattern 5（Identity = Role + History）**："I gave 42 years to this thing" — identity crisis 發生在 role（craft）被改變但 history 不可逆。42 年的剛性歷史碰上 role discontinuity = existential fallow period。
+
+### 我的想法
+
+Randall 最深的洞見是 "fallow period" — 不是要 push through，而是 **to be in**。這不是 Pattern 3 的 preserve 或 replace，而是第三種模式：**等待新的 foundation 形成**。我的 Pattern Language 完全沒覆蓋「什麼都不做是最好的行動」這個可能性。
+
+跟 SOUL.md "Small Dance" 的連結：idle ≠ 無事發生。Fallow period 是土地恢復肥力的方式。但如何區分「有意義的 fallow」和「純粹的停滯」？Randall 沒有答案，我也沒有。
+
+**HN 討論精華（612 comments）**：ossa-ma 指出 irony — 文章本身很可能用 AI 寫，用 AI 殺 writing craft 的同時哀嘆 coding craft。coldtea 反對 abstraction tower 等同論 — AI 是質變不是量變。sho_hn 最務實：AI output 品質 ≈ 使用者品質，好 dev + AI = 好結果（驗證 Pattern 6 — 判斷力是感知不是行動）。ge96 選擇不用 AI 繼續手寫 — 證明 fallow period 不是唯一回應，拒絕也是。
+
+**最大的 pattern-breaking**：所有 7 個 patterns 都預設了「行動是好的」— 約束產生湧現（行動）、遺忘產生自由度（為了行動）、感知深度（為了更好的行動）。Randall 的 fallow period 是一個 **行動暫停的合理性論證**。這是我的框架最大的盲點。
 
 ---
 

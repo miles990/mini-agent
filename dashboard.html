@@ -4,276 +4,271 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kuro Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0a;
-    --surface: #141414;
-    --surface2: #1a1a1a;
-    --border: #252525;
-    --text: #e0e0e0;
-    --text2: #888;
-    --accent: #6ee7b7;
-    --accent2: #34d399;
+    --bg: #08090a;
+    --surface: #111214;
+    --surface2: #181a1e;
+    --surface3: #1e2025;
+    --border: #262830;
+    --border-subtle: #1c1e24;
+    --text: #d4d4d8;
+    --text-bright: #f0f0f2;
+    --text2: #6b6f7b;
+    --text3: #454854;
+    --accent: #5eead4;
+    --accent-dim: rgba(94, 234, 212, 0.12);
+    --accent-glow: rgba(94, 234, 212, 0.06);
     --blue: #60a5fa;
+    --blue-dim: rgba(96, 165, 250, 0.12);
     --yellow: #fbbf24;
+    --yellow-dim: rgba(251, 191, 36, 0.10);
     --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.10);
     --purple: #a78bfa;
+    --purple-dim: rgba(167, 139, 250, 0.10);
+    --orange: #fb923c;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+    --sans: 'Noto Sans TC', 'Noto Sans', system-ui, sans-serif;
+    --radius: 10px;
+    --radius-sm: 6px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-family: var(--sans);
     background: var(--bg);
     color: var(--text);
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
   }
 
   .container {
-    max-width: 1200px;
+    max-width: 1140px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 24px 28px 60px;
   }
 
-  /* Header */
+  /* ── Header ── */
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
+    padding: 0 0 24px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
   }
 
   header h1 {
-    font-size: 18px;
+    font-family: var(--mono);
+    font-size: 16px;
     font-weight: 600;
     color: var(--accent);
+    letter-spacing: -0.02em;
   }
 
-  header h1 span { color: var(--text2); font-weight: 400; }
+  header h1 span {
+    color: var(--text3);
+    font-weight: 300;
+    margin-left: 2px;
+  }
+
+  .header-version {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.02em;
+  }
 
   .header-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
   }
 
   .status-dot {
-    width: 8px; height: 8px;
+    width: 7px; height: 7px;
     border-radius: 50%;
-    display: inline-block;
+    position: relative;
   }
-  .status-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-  .status-dot.busy { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .status-dot.ok {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-dim);
+  }
+  .status-dot.ok::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1px solid rgba(94, 234, 212, 0.2);
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+  .status-dot.busy { background: var(--yellow); box-shadow: 0 0 8px var(--yellow-dim); }
   .status-dot.error { background: var(--red); }
 
-  .refresh-info { color: var(--text2); font-size: 11px; }
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0; transform: scale(1.8); }
+  }
 
-  /* Status Cards */
+  /* ── Status Grid ── */
   .status-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 28px;
   }
 
-  .card {
+  .stat-card {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
   }
+  .stat-card:hover { border-color: var(--border); }
 
-  .card-label {
-    font-size: 11px;
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .stat-card:hover::before { opacity: 1; }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text2);
+    letter-spacing: 0.08em;
+    color: var(--text3);
     margin-bottom: 6px;
   }
 
-  .card-value {
-    font-size: 20px;
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 22px;
     font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
   }
 
-  .card-detail { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .stat-detail {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 5px;
+    line-height: 1.3;
+  }
 
-  /* Filters */
-  .filters {
+  .stat-value.green { color: var(--accent); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.red { color: var(--red); }
+
+  .stat-card:has(.stat-value.yellow) { border-color: rgba(251, 191, 36, 0.15); }
+  .stat-card:has(.stat-value.red) { border-color: rgba(248, 113, 113, 0.15); }
+
+  /* ── Section Layout ── */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .section-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-
-  .filter-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 5px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 12px;
-    transition: all 0.15s;
-  }
-  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
-  .filter-btn.active {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
+    font-size: 13px;
     font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
   }
 
-  .date-input {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 12px;
+  .section-title .icon {
+    font-size: 14px;
+    opacity: 0.7;
   }
 
-  /* Timeline */
-  .timeline {
-    position: relative;
+  .section-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 400;
   }
 
-  .timeline::before {
-    content: '';
-    position: absolute;
-    left: 100px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--border);
-  }
-
-  .timeline-entry {
-    position: relative;
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    gap: 20px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-  .timeline-entry:hover { background: var(--surface); }
-
-  .timeline-time {
-    text-align: right;
-    color: var(--text2);
-    font-size: 12px;
-    padding-top: 2px;
-    white-space: nowrap;
-  }
-
-  .timeline-dot {
-    position: absolute;
-    left: 96px;
-    top: 12px;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    border: 2px solid var(--bg);
-    z-index: 1;
-  }
-  .timeline-dot.agent { background: var(--accent); }
-  .timeline-dot.user { background: var(--blue); }
-  .timeline-dot.system { background: var(--yellow); }
-
-  .timeline-content {
-    padding-left: 12px;
-    min-width: 0;
-  }
-
-  .timeline-action {
-    font-weight: 600;
-    font-size: 12px;
-    margin-bottom: 2px;
-  }
-  .timeline-action .actor-tag {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 500;
-    margin-right: 6px;
-    text-transform: uppercase;
-  }
-  .actor-tag.agent { background: rgba(110, 231, 183, 0.15); color: var(--accent); }
-  .actor-tag.user { background: rgba(96, 165, 250, 0.15); color: var(--blue); }
-  .actor-tag.system { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
-
-  .action-name { color: var(--text); }
-  .action-name.learning { color: var(--purple); }
-  .action-name.memory { color: var(--yellow); }
-  .action-name.telegram { color: var(--blue); }
-  .action-name.loop { color: var(--text2); }
-  .action-name.error { color: var(--red); }
-
-  .timeline-detail {
-    color: var(--text2);
-    font-size: 12px;
-    overflow: hidden;
-    max-height: 40px;
-    transition: max-height 0.3s;
-    cursor: pointer;
-    word-break: break-word;
-  }
-  .timeline-detail.expanded { max-height: 2000px; }
-
-  /* Cycle grouping */
-  .cycle-group {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    overflow: hidden;
-  }
-  .cycle-header {
-    background: var(--surface2);
-    padding: 8px 14px;
-    font-size: 12px;
-    color: var(--text2);
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .cycle-header:hover { background: var(--surface); }
-  .cycle-header .cycle-label { font-weight: 600; color: var(--accent); }
-  .cycle-header .cycle-duration { color: var(--text2); }
-  .cycle-header .cycle-result {
-    max-width: 500px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Current Task & Queue */
-  .task-section {
-    margin-bottom: 24px;
-  }
-
+  /* ── Current Task ── */
   .task-panel {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: border-color 0.2s;
   }
 
   .task-panel.active {
-    border-left: 3px solid var(--yellow);
+    border-color: rgba(251, 191, 36, 0.25);
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(251, 191, 36, 0.02) 100%);
   }
 
-  .task-panel.idle {
-    border-left: 3px solid var(--border);
+  .task-panel.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    background: var(--yellow);
+    border-radius: 0 2px 2px 0;
   }
 
   .task-header {
@@ -283,61 +278,62 @@
     margin-bottom: 8px;
   }
 
-  .task-label {
-    font-size: 11px;
+  .task-badge {
+    font-family: var(--mono);
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text2);
+    letter-spacing: 0.06em;
+    color: var(--text3);
+  }
+
+  .task-badge.running {
+    color: var(--yellow);
   }
 
   .task-elapsed {
+    font-family: var(--mono);
     font-size: 12px;
     color: var(--yellow);
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .task-prompt {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     word-break: break-word;
+    line-height: 1.5;
   }
 
   .task-meta {
     display: flex;
     gap: 16px;
-    font-size: 11px;
-    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
   }
 
-  .task-meta-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .task-meta-value {
-    color: var(--text);
-    font-weight: 500;
-  }
+  .task-meta-value { color: var(--text2); font-weight: 500; }
 
   .task-last-text {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text2);
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    max-height: 60px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+    max-height: 52px;
     overflow: hidden;
     word-break: break-word;
     cursor: pointer;
+    transition: max-height 0.3s ease;
+    line-height: 1.5;
   }
   .task-last-text.expanded { max-height: 2000px; }
 
   .queue-item {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
     padding: 10px 14px;
     margin-bottom: 6px;
     display: flex;
@@ -356,280 +352,523 @@
   }
 
   .queue-item-wait {
-    color: var(--text2);
-    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    font-size: 10px;
     margin-left: 12px;
     white-space: nowrap;
   }
 
-  .queue-empty {
-    font-size: 12px;
+  /* ── Knowledge Journal (Primary) ── */
+  .journal-filters {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    font-family: var(--mono);
+    background: transparent;
+    border: 1px solid var(--border);
     color: var(--text2);
-    padding: 8px 0;
+    padding: 4px 11px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .filter-chip:hover { border-color: var(--text2); color: var(--text); }
+  .filter-chip.active {
+    background: var(--accent-dim);
+    border-color: rgba(94, 234, 212, 0.3);
+    color: var(--accent);
+    font-weight: 500;
   }
 
-  /* Learning Report */
-  .learning-section {
-    margin-bottom: 24px;
+  .journal-grid {
+    display: grid;
+    gap: 8px;
   }
 
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--purple);
-    margin-bottom: 12px;
+  .j-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .j-card:hover {
+    border-color: var(--border);
+    background: var(--surface2);
+  }
+
+  /* Category accent stripe */
+  .j-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    transition: height 0.3s;
+  }
+  .j-card.cat-learning::before { background: var(--purple); }
+  .j-card.cat-action::before { background: var(--accent); }
+  .j-card.cat-issue::before { background: var(--red); }
+  .j-card.cat-lesson::before { background: var(--yellow); }
+
+  .j-meta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-  }
-
-  .section-title .count {
-    font-weight: 400;
-    color: var(--text2);
-    font-size: 11px;
-  }
-
-  .learning-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--purple);
-    border-radius: 6px;
-    padding: 12px 14px;
+    gap: 7px;
     margin-bottom: 8px;
-    transition: border-color 0.15s;
+    flex-wrap: wrap;
   }
-  .learning-card:hover { border-left-color: var(--accent); }
 
-  .learning-time {
-    font-size: 11px;
+  .j-badge {
+    font-family: var(--mono);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .j-badge.learning { background: var(--purple-dim); color: var(--purple); }
+  .j-badge.action { background: var(--accent-dim); color: var(--accent); }
+  .j-badge.issue { background: var(--red-dim); color: var(--red); }
+  .j-badge.lesson { background: var(--yellow-dim); color: var(--yellow); }
+
+  .j-topic {
+    font-family: var(--mono);
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--surface3);
     color: var(--text2);
-    margin-bottom: 4px;
   }
 
-  .learning-what {
-    font-size: 12px;
+  .j-title {
+    font-size: 14px;
     font-weight: 600;
-    color: var(--text);
-    margin-bottom: 4px;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
   }
 
-  .learning-why {
-    font-size: 11px;
+  .j-summary {
+    font-size: 12.5px;
     color: var(--text2);
+    line-height: 1.7;
+    max-height: 80px;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    cursor: pointer;
+    word-break: break-word;
+    position: relative;
+  }
+  .j-summary:not(.expanded)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    background: linear-gradient(to bottom, transparent, var(--surface));
+    pointer-events: none;
+  }
+  .j-card:hover .j-summary:not(.expanded)::after {
+    background: linear-gradient(to bottom, transparent, var(--surface2));
+  }
+  .j-summary.expanded { max-height: 8000px; }
+  .j-summary.expanded::after { display: none; }
+
+  .j-opinion {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--purple-dim);
+    border-left: 2px solid rgba(167, 139, 250, 0.4);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.6;
+    display: none;
+  }
+
+  .j-opinion-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--purple);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .j-summary.expanded ~ .j-opinion { display: block; }
+
+  .j-links {
+    margin-top: 8px;
+    display: none;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .j-summary.expanded ~ .j-links { display: block; }
+
+  .j-links a {
+    font-family: var(--mono);
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 11px;
+    display: inline-block;
+    margin-right: 14px;
+    word-break: break-all;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+  }
+  .j-links a:hover { opacity: 1; text-decoration: underline; }
+
+  .j-toggle {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    cursor: pointer;
+    margin-top: 6px;
+    user-select: none;
+    transition: color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .j-toggle:hover { color: var(--accent); }
+
+  /* ── Learning Report (Compact) ── */
+  .l-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 6px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .l-card:hover {
+    border-color: var(--border);
+    background: var(--surface2);
+  }
+
+  .l-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 10px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--purple);
+    opacity: 0.5;
+  }
+
+  .l-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  .l-what {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 3px;
     line-height: 1.4;
   }
 
-  .learning-detail {
-    font-size: 11px;
+  .l-why {
+    font-size: 12px;
     color: var(--text2);
-    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .l-detail {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 0;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.4s ease;
+    transition: max-height 0.35s ease, margin-top 0.35s ease;
     line-height: 1.6;
   }
-  .learning-detail.expanded { max-height: 3000px; }
+  .l-detail.expanded { max-height: 3000px; margin-top: 10px; }
 
-  .learning-detail-inner {
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
+  .l-detail-inner {
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
   }
 
-  .learning-detail-section {
-    margin-bottom: 8px;
-  }
+  .l-detail-section { margin-bottom: 8px; }
 
-  .learning-detail-label {
+  .l-detail-label {
+    font-family: var(--mono);
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text2);
-    margin-bottom: 2px;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    margin-bottom: 3px;
   }
 
-  .learning-detail-content {
+  .l-detail-content {
     color: var(--text);
     white-space: pre-wrap;
     word-break: break-word;
   }
 
-  .learning-detail-content code {
-    background: var(--surface2);
-    padding: 1px 4px;
+  .l-detail-content code {
+    font-family: var(--mono);
+    background: var(--surface3);
+    padding: 1px 5px;
     border-radius: 3px;
     font-size: 11px;
   }
 
-  .learning-refs {
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-  }
-
-  .learning-refs a {
+  .l-refs a {
+    font-family: var(--mono);
     color: var(--blue);
     text-decoration: none;
     font-size: 11px;
     display: block;
     padding: 2px 0;
     word-break: break-all;
+    opacity: 0.8;
   }
-  .learning-refs a:hover { text-decoration: underline; }
+  .l-refs a:hover { opacity: 1; text-decoration: underline; }
 
-  .learning-toggle {
+  .l-toggle {
+    font-family: var(--mono);
     font-size: 10px;
-    color: var(--text2);
+    color: var(--text3);
     cursor: pointer;
-    margin-top: 4px;
-    opacity: 0.6;
+    margin-top: 5px;
     user-select: none;
+    transition: color 0.15s;
   }
-  .learning-toggle:hover { opacity: 1; color: var(--accent); }
+  .l-toggle:hover { color: var(--accent); }
 
-  /* Journal Section */
-  .journal-section {
-    margin-bottom: 24px;
-  }
-
-  .journal-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    transition: border-color 0.15s;
-  }
-  .journal-card.cat-learning { border-left: 3px solid var(--purple); }
-  .journal-card.cat-action { border-left: 3px solid var(--accent); }
-  .journal-card.cat-issue { border-left: 3px solid var(--red); }
-  .journal-card.cat-lesson { border-left: 3px solid var(--yellow); }
-
-  .journal-header {
+  /* ── Filters (Timeline) ── */
+  .filters-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: 6px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
   }
 
-  .journal-badge {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+  .filters-bar .divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+    margin: 0 4px;
   }
-  .journal-badge.learning { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
-  .journal-badge.action { background: rgba(110, 231, 183, 0.15); color: var(--accent); }
-  .journal-badge.issue { background: rgba(248, 113, 113, 0.15); color: var(--red); }
-  .journal-badge.lesson { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
 
-  .journal-topic {
+  .date-input {
+    font-family: var(--mono);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    transition: border-color 0.15s;
+  }
+  .date-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Timeline ── */
+  .timeline {
+    position: relative;
+    padding-left: 110px;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 99px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--border), var(--border-subtle));
+  }
+
+  .tl-entry {
+    position: relative;
+    padding: 7px 0 7px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s;
+  }
+  .tl-entry:hover { background: rgba(255,255,255,0.01); }
+  .tl-entry:last-child { border-bottom: none; }
+
+  .tl-time {
+    position: absolute;
+    left: -110px;
+    top: 9px;
+    width: 90px;
+    text-align: right;
+    font-family: var(--mono);
+    color: var(--text3);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  .tl-dot {
+    position: absolute;
+    left: -5px;
+    top: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    z-index: 1;
+  }
+  .tl-dot.agent { background: var(--accent); }
+  .tl-dot.user { background: var(--blue); }
+  .tl-dot.system { background: var(--yellow); }
+
+  .tl-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .actor-tag {
+    font-family: var(--mono);
     display: inline-block;
     padding: 1px 6px;
     border-radius: 3px;
-    font-size: 10px;
-    background: var(--surface2);
-    color: var(--text2);
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
+  .actor-tag.agent { background: var(--accent-dim); color: var(--accent); }
+  .actor-tag.user { background: var(--blue-dim); color: var(--blue); }
+  .actor-tag.system { background: var(--yellow-dim); color: var(--yellow); }
 
-  .journal-title {
-    font-size: 13px;
-    font-weight: 600;
+  .action-name {
+    font-family: var(--mono);
+    font-size: 11px;
     color: var(--text);
-    margin-bottom: 4px;
-    line-height: 1.4;
   }
+  .action-name.learning { color: var(--purple); }
+  .action-name.memory { color: var(--yellow); }
+  .action-name.telegram { color: var(--blue); }
+  .action-name.loop { color: var(--text3); }
+  .action-name.error { color: var(--red); }
 
-  .journal-summary {
-    font-size: 12px;
+  .tl-detail {
     color: var(--text2);
-    line-height: 1.5;
-    max-height: 48px;
+    font-size: 12px;
     overflow: hidden;
-    transition: max-height 0.4s ease;
+    max-height: 38px;
+    transition: max-height 0.3s ease;
     cursor: pointer;
     word-break: break-word;
-  }
-  .journal-summary.expanded { max-height: 5000px; }
-
-  .journal-opinion {
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: rgba(167, 139, 250, 0.06);
-    border-left: 2px solid var(--purple);
-    border-radius: 0 4px 4px 0;
-    font-size: 11px;
-    color: var(--text);
     line-height: 1.5;
-    display: none;
+    position: relative;
   }
-  .journal-summary.expanded + .journal-opinion,
-  .journal-summary.expanded ~ .journal-opinion { display: block; }
-
-  .journal-links {
-    margin-top: 6px;
-    display: none;
+  .tl-detail:not(.expanded)::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+    pointer-events: none;
   }
-  .journal-summary.expanded + .journal-opinion + .journal-links,
-  .journal-summary.expanded + .journal-links,
-  .journal-summary.expanded ~ .journal-links { display: block; }
+  .tl-detail.expanded { max-height: 3000px; }
+  .tl-detail.expanded::after { display: none; }
 
-  .journal-links a {
-    color: var(--blue);
-    text-decoration: none;
-    font-size: 11px;
-    display: inline-block;
-    margin-right: 12px;
-    word-break: break-all;
+  /* ── Cycles View ── */
+  .cycle-group {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s;
   }
-  .journal-links a:hover { text-decoration: underline; }
+  .cycle-group:hover { border-color: var(--border); }
 
-  .journal-expand {
-    font-size: 10px;
+  .cycle-header {
+    background: var(--surface);
+    padding: 10px 16px;
+    font-size: 12px;
     color: var(--text2);
     cursor: pointer;
-    margin-top: 4px;
-    opacity: 0.6;
-    user-select: none;
-  }
-  .journal-expand:hover { opacity: 1; color: var(--accent); }
-
-  .journal-filters {
     display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.15s;
+  }
+  .cycle-header:hover { background: var(--surface2); }
+
+  .cycle-label {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 11px;
   }
 
-  /* Empty state */
+  .cycle-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .cycle-result {
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .cycle-body {
+    display: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* ── Empty & Loading States ── */
   .empty-state {
     text-align: center;
-    padding: 60px 20px;
-    color: var(--text2);
+    padding: 48px 20px;
+    color: var(--text3);
+    font-size: 13px;
   }
 
-  /* Loading */
   .loading {
     text-align: center;
-    padding: 40px;
-    color: var(--text2);
+    padding: 36px;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 12px;
   }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.3; }
   }
-  .loading span { animation: pulse 1.5s infinite; }
+  .loading span { animation: pulse 2s ease-in-out infinite; }
 
-  /* Scroll to top */
+  /* ── Scroll to Top ── */
   .scroll-top {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: var(--surface);
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text2);
     width: 36px; height: 36px;
@@ -638,114 +877,151 @@
     display: none;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    transition: all 0.15s;
+    font-size: 14px;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+    z-index: 100;
   }
-  .scroll-top:hover { border-color: var(--accent); color: var(--accent); }
+  .scroll-top:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
   .scroll-top.visible { display: flex; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .container { padding: 16px; }
+    .status-grid { grid-template-columns: repeat(2, 1fr); }
+    .status-grid > :last-child { grid-column: span 2; }
+    .stat-value { font-size: 18px; }
+    .timeline { padding-left: 80px; }
+    .timeline::before { left: 69px; }
+    .tl-time { left: -80px; width: 60px; font-size: 10px; }
+    .tl-dot { left: -5px; }
+    .j-title { font-size: 13px; }
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section {
+    animation: fadeIn 0.4s ease both;
+  }
+  .section:nth-child(2) { animation-delay: 0.05s; }
+  .section:nth-child(3) { animation-delay: 0.1s; }
+  .section:nth-child(4) { animation-delay: 0.15s; }
+  .section:nth-child(5) { animation-delay: 0.2s; }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>Kuro <span>Dashboard</span></h1>
+    <div class="header-left">
+      <h1>Kuro<span>Dashboard</span></h1>
+      <span class="header-version" id="instanceId">--</span>
+    </div>
     <div class="header-controls">
-      <span class="status-dot ok" id="statusDot"></span>
-      <span class="refresh-info" id="refreshInfo">--</span>
+      <div class="status-indicator">
+        <span class="status-dot ok" id="statusDot"></span>
+        <span id="refreshInfo">--</span>
+      </div>
     </div>
   </header>
 
-  <!-- Status Cards -->
+  <!-- Status Grid -->
   <div class="status-grid" id="statusGrid">
-    <div class="card">
-      <div class="card-label">Uptime</div>
-      <div class="card-value" id="uptime">--</div>
+    <div class="stat-card">
+      <div class="stat-label">Uptime</div>
+      <div class="stat-value" id="uptime">--</div>
     </div>
-    <div class="card">
-      <div class="card-label">Claude</div>
-      <div class="card-value" id="claudeStatus">--</div>
-      <div class="card-detail" id="claudeDetail"></div>
+    <div class="stat-card">
+      <div class="stat-label">Claude</div>
+      <div class="stat-value" id="claudeStatus">--</div>
+      <div class="stat-detail" id="claudeDetail"></div>
     </div>
-    <div class="card">
-      <div class="card-label">Loop</div>
-      <div class="card-value" id="loopStatus">--</div>
-      <div class="card-detail" id="loopDetail"></div>
+    <div class="stat-card">
+      <div class="stat-label">Loop</div>
+      <div class="stat-value" id="loopStatus">--</div>
+      <div class="stat-detail" id="loopDetail"></div>
     </div>
-    <div class="card">
-      <div class="card-label">Telegram</div>
-      <div class="card-value" id="telegramStatus">--</div>
-      <div class="card-detail" id="telegramDetail"></div>
+    <div class="stat-card">
+      <div class="stat-label">Telegram</div>
+      <div class="stat-value" id="telegramStatus">--</div>
+      <div class="stat-detail" id="telegramDetail"></div>
     </div>
-    <div class="card">
-      <div class="card-label">Behaviors Today</div>
-      <div class="card-value" id="behaviorCount">--</div>
-      <div class="card-detail" id="behaviorBreakdown"></div>
+    <div class="stat-card">
+      <div class="stat-label">Behaviors</div>
+      <div class="stat-value" id="behaviorCount">--</div>
+      <div class="stat-detail" id="behaviorBreakdown"></div>
     </div>
   </div>
 
-  <!-- Current Task & Queue -->
-  <div class="task-section" id="taskSection">
-    <div class="section-title">
-      <span>Current Activity</span>
-      <span class="count" id="queueCount"></span>
+  <!-- Current Activity -->
+  <div class="section" id="taskSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9656;</span> Current Activity</div>
+      <span class="section-count" id="queueCount"></span>
     </div>
     <div id="taskContent">
-      <div class="task-panel idle">
-        <div class="task-label">Claude</div>
-        <div style="color: var(--text2); font-size: 12px;">Idle</div>
+      <div class="task-panel">
+        <div class="task-badge">Claude</div>
+        <div style="color: var(--text3); font-size: 12px; margin-top: 4px;">Idle — waiting for tasks</div>
       </div>
     </div>
   </div>
 
+  <!-- Knowledge Journal -->
+  <div class="section" id="journalSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9670;</span> Knowledge Journal</div>
+      <span class="section-count" id="journalCount">--</span>
+    </div>
+    <div class="journal-filters" id="journalFilters">
+      <button class="filter-chip active" data-jcat="all">All</button>
+      <button class="filter-chip" data-jcat="learning">Learning</button>
+      <button class="filter-chip" data-jcat="action">Action</button>
+      <button class="filter-chip" data-jcat="issue">Issue</button>
+      <button class="filter-chip" data-jcat="lesson">Lesson</button>
+    </div>
+    <div class="journal-grid" id="journalContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
   <!-- Learning Report -->
-  <div class="learning-section" id="learningSection">
-    <div class="section-title">
-      <span>Learning Report</span>
-      <span class="count" id="learningCount">--</span>
+  <div class="section" id="learningSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9679;</span> Activity Log</div>
+      <span class="section-count" id="learningCount">--</span>
     </div>
     <div id="learningContent">
       <div class="loading"><span>Loading...</span></div>
     </div>
   </div>
 
-  <!-- Knowledge Journal -->
-  <div class="journal-section" id="journalSection">
-    <div class="section-title" style="color: var(--blue);">
-      <span>Knowledge Journal</span>
-      <span class="count" id="journalCount">--</span>
+  <!-- Behavior Timeline -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9472;</span> Behavior Timeline</div>
     </div>
-    <div class="journal-filters" id="journalFilters">
-      <button class="filter-btn active" data-jcat="all">All</button>
-      <button class="filter-btn" data-jcat="learning">Learning</button>
-      <button class="filter-btn" data-jcat="action">Action</button>
-      <button class="filter-btn" data-jcat="issue">Issue</button>
-      <button class="filter-btn" data-jcat="lesson">Lesson</button>
+    <div class="filters-bar">
+      <button class="filter-chip active" data-actor="all">All</button>
+      <button class="filter-chip" data-actor="agent">Agent</button>
+      <button class="filter-chip" data-actor="user">User</button>
+      <button class="filter-chip" data-actor="system">System</button>
+      <div class="divider"></div>
+      <button class="filter-chip active" data-view="timeline">Timeline</button>
+      <button class="filter-chip" data-view="cycles">Cycles</button>
+      <span style="flex: 1;"></span>
+      <input type="date" class="date-input" id="dateInput">
     </div>
-    <div id="journalContent">
+    <div id="content">
       <div class="loading"><span>Loading...</span></div>
     </div>
   </div>
-
-  <!-- Filters -->
-  <div class="filters">
-    <button class="filter-btn active" data-actor="all">All</button>
-    <button class="filter-btn" data-actor="agent">Agent</button>
-    <button class="filter-btn" data-actor="user">User</button>
-    <button class="filter-btn" data-actor="system">System</button>
-    <span style="color: var(--text2); margin: 0 4px;">|</span>
-    <button class="filter-btn active" data-view="timeline">Timeline</button>
-    <button class="filter-btn" data-view="cycles">Cycles</button>
-    <span style="flex: 1;"></span>
-    <input type="date" class="date-input" id="dateInput">
-  </div>
-
-  <!-- Timeline -->
-  <div id="content">
-    <div class="loading"><span>Loading...</span></div>
-  </div>
 </div>
 
-<button class="scroll-top" id="scrollTop" title="Scroll to top">&uarr;</button>
+<button class="scroll-top" id="scrollTop" title="Scroll to top">&#8593;</button>
 
 <script>
 const API = window.location.origin;
@@ -761,29 +1037,29 @@ let currentJournalCat = 'all';
 // Init
 document.getElementById('dateInput').value = currentDate;
 
-// Journal Filters
-document.querySelectorAll('.filter-btn[data-jcat]').forEach(btn => {
+// ── Event Listeners ──
+
+document.querySelectorAll('.filter-chip[data-jcat]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn[data-jcat]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-chip[data-jcat]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentJournalCat = btn.dataset.jcat;
     renderJournal(allJournalEntries);
   });
 });
 
-// Filters
-document.querySelectorAll('.filter-btn[data-actor]').forEach(btn => {
+document.querySelectorAll('.filter-chip[data-actor]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn[data-actor]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-chip[data-actor]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentActor = btn.dataset.actor;
     render();
   });
 });
 
-document.querySelectorAll('.filter-btn[data-view]').forEach(btn => {
+document.querySelectorAll('.filter-chip[data-view]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn[data-view]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-chip[data-view]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentView = btn.dataset.view;
     render();
@@ -802,7 +1078,8 @@ window.addEventListener('scroll', () => {
 });
 scrollBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-// Format helpers
+// ── Helpers ──
+
 function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -832,7 +1109,16 @@ function escapeHtml(str) {
   return el.innerHTML;
 }
 
-// Fetch all data
+function formatMarkdown(str) {
+  let out = escapeHtml(str);
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-bright)">$1</strong>');
+  out = out.replace(/\n/g, '<br>');
+  return out;
+}
+
+// ── Data Fetching ──
+
 async function fetchAll() {
   try {
     const [statusRes, behaviorsRes, learningRes, journalRes] = await Promise.all([
@@ -855,93 +1141,125 @@ async function fetchAll() {
     render();
 
     lastUpdate = new Date();
-    document.getElementById('refreshInfo').textContent = 'Updated ' + formatTime(lastUpdate.toISOString());
+    document.getElementById('refreshInfo').textContent = formatTime(lastUpdate.toISOString());
     document.getElementById('statusDot').className = 'status-dot ok';
   } catch (err) {
     console.error('Fetch error:', err);
     document.getElementById('statusDot').className = 'status-dot error';
-    document.getElementById('refreshInfo').textContent = 'Error: ' + err.message;
+    document.getElementById('refreshInfo').textContent = 'Error';
   }
 }
 
-function formatMarkdown(str) {
-  // backtick → code
-  let out = escapeHtml(str);
-  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // **bold**
-  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // newlines
-  out = out.replace(/\n/g, '<br>');
-  return out;
+// ── Status Update ──
+
+function updateStatus(s) {
+  document.getElementById('instanceId').textContent = s.instance || '--';
+  document.getElementById('uptime').textContent = formatUptime(s.uptime);
+
+  // Claude
+  const claudeEl = document.getElementById('claudeStatus');
+  const claudeDetail = document.getElementById('claudeDetail');
+  if (s.claude.busy) {
+    claudeEl.textContent = 'Busy';
+    claudeEl.className = 'stat-value yellow';
+    const task = s.claude.currentTask;
+    claudeDetail.textContent = task ? task.prompt.slice(0, 50) + '...' : '';
+  } else {
+    claudeEl.textContent = 'Idle';
+    claudeEl.className = 'stat-value green';
+    const q = s.claude.queue;
+    claudeDetail.textContent = q && q.size > 0 ? q.size + ' queued' : '';
+  }
+
+  // Loop
+  const loopEl = document.getElementById('loopStatus');
+  const loopDetail = document.getElementById('loopDetail');
+  if (s.loop.enabled) {
+    loopEl.textContent = s.loop.paused ? 'Paused' : 'Active';
+    loopEl.className = 'stat-value ' + (s.loop.paused ? 'yellow' : 'green');
+    loopDetail.textContent = '#' + (s.loop.cycleCount || 0);
+  } else {
+    loopEl.textContent = 'Off';
+    loopEl.className = 'stat-value';
+    loopDetail.textContent = '';
+  }
+
+  // Telegram
+  const tgEl = document.getElementById('telegramStatus');
+  const tgDetail = document.getElementById('telegramDetail');
+  if (s.telegram.connected) {
+    const n = s.telegram.notifications;
+    tgEl.textContent = 'Online';
+    tgEl.className = 'stat-value green';
+    tgDetail.textContent = n.sent + ' sent / ' + n.failed + ' fail';
+  } else {
+    tgEl.textContent = 'Offline';
+    tgEl.className = 'stat-value red';
+    tgDetail.textContent = '';
+  }
+
+  renderTaskSection(s.claude);
 }
 
-function renderLearning(entries) {
-  const container = document.getElementById('learningContent');
-  const countEl = document.getElementById('learningCount');
-  countEl.textContent = entries.length + ' items today';
+// ── Task Section ──
 
-  if (entries.length === 0) {
-    container.innerHTML = '<div style="color: var(--text2); font-size: 12px; padding: 12px 0;">No learning activities recorded today.</div>';
-    return;
-  }
+function renderTaskSection(claude) {
+  const container = document.getElementById('taskContent');
+  const queueCountEl = document.getElementById('queueCount');
+  const task = claude.currentTask;
+  const queue = claude.queue;
 
   let html = '';
-  for (const entry of entries) {
-    const time = formatTime(entry.timestamp);
-    const id = 'lc-' + entry.timestamp.replace(/[^0-9]/g, '');
-    const hasDetail = entry.changed || entry.verified || (entry.urls && entry.urls.length > 0) || entry.full;
 
-    html += '<div class="learning-card">';
-    html += '  <div class="learning-time">' + time + '</div>';
-    html += '  <div class="learning-what">' + escapeHtml(entry.what) + '</div>';
-    if (entry.why) {
-      html += '  <div class="learning-why">' + escapeHtml(entry.why) + '</div>';
+  if (claude.busy && task) {
+    const elapsed = task.elapsed;
+    const elapsedStr = elapsed > 60
+      ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's'
+      : elapsed + 's';
+
+    html += '<div class="task-panel active">';
+    html += '  <div class="task-header">';
+    html += '    <div class="task-badge running">Running</div>';
+    html += '    <div class="task-elapsed">' + elapsedStr + '</div>';
+    html += '  </div>';
+    html += '  <div class="task-prompt">' + escapeHtml(task.prompt.slice(0, 200)) + (task.prompt.length > 200 ? '...' : '') + '</div>';
+    html += '  <div class="task-meta">';
+    html += '    <span>Tools: <span class="task-meta-value">' + task.toolCalls + '</span></span>';
+    if (task.lastTool) {
+      html += '    <span>Last: <span class="task-meta-value">' + escapeHtml(task.lastTool) + '</span></span>';
     }
-
-    if (hasDetail) {
-      html += '  <div class="learning-detail" id="' + id + '">';
-      html += '    <div class="learning-detail-inner">';
-
-      if (entry.changed) {
-        html += '      <div class="learning-detail-section">';
-        html += '        <div class="learning-detail-label">Changed</div>';
-        html += '        <div class="learning-detail-content">' + formatMarkdown(entry.changed) + '</div>';
-        html += '      </div>';
-      }
-
-      if (entry.verified) {
-        html += '      <div class="learning-detail-section">';
-        html += '        <div class="learning-detail-label">Verified</div>';
-        html += '        <div class="learning-detail-content">' + formatMarkdown(entry.verified) + '</div>';
-        html += '      </div>';
-      }
-
-      if (entry.urls && entry.urls.length > 0) {
-        html += '      <div class="learning-refs">';
-        html += '        <div class="learning-detail-label">References</div>';
-        for (const url of entry.urls) {
-          const display = url.replace(/^https?:\/\//, '').slice(0, 80);
-          html += '        <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
-        }
-        html += '      </div>';
-      }
-
-      html += '    </div>';
-      html += '  </div>';
-      html += '  <div class="learning-toggle" onclick="toggleLearningDetail(\'' + id + '\', this)">+ details</div>';
+    html += '  </div>';
+    if (task.lastText) {
+      html += '  <div class="task-last-text" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(task.lastText.slice(0, 500)) + '</div>';
     }
-
+    html += '</div>';
+  } else {
+    html += '<div class="task-panel">';
+    html += '  <div class="task-badge">Claude</div>';
+    html += '  <div style="color: var(--text3); font-size: 12px; margin-top: 4px;">Idle — waiting for tasks</div>';
     html += '</div>';
   }
 
-  container.innerHTML = html;
-}
+  // Queue
+  if (queue && queue.size > 0) {
+    queueCountEl.textContent = queue.size + ' queued';
+    html += '<div style="margin-top: 8px;">';
+    html += '  <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Queue (' + queue.size + '/' + queue.max + ')</div>';
+    for (const item of (queue.items || [])) {
+      const waitStr = item.waited > 60
+        ? Math.floor(item.waited / 60) + 'm ' + (item.waited % 60) + 's'
+        : item.waited + 's';
+      html += '<div class="queue-item">';
+      html += '  <div class="queue-item-msg">' + escapeHtml(item.message) + '</div>';
+      html += '  <div class="queue-item-wait">' + waitStr + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  } else {
+    queueCountEl.textContent = '';
+  }
 
-function toggleLearningDetail(id, toggleEl) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.toggle('expanded');
-  toggleEl.textContent = el.classList.contains('expanded') ? '- hide' : '+ details';
+  container.innerHTML = html;
 }
 
 // ── Journal Rendering ──
@@ -963,10 +1281,10 @@ function renderJournal(entries) {
     ? entries
     : entries.filter(e => e.category === currentJournalCat);
 
-  countEl.textContent = filtered.length + ' / ' + entries.length + ' entries';
+  countEl.textContent = filtered.length + ' / ' + entries.length;
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div style="color: var(--text2); font-size: 12px; padding: 12px 0;">No knowledge entries for this date.</div>';
+    container.innerHTML = '<div class="empty-state">No knowledge entries for this date.</div>';
     return;
   }
 
@@ -977,31 +1295,26 @@ function renderJournal(entries) {
     const topicShort = topicLabels[e.topic] || e.topic;
     const jid = 'j-' + i;
 
-    html += '<div class="journal-card cat-' + cat + '">';
+    html += '<div class="j-card cat-' + cat + '">';
 
-    // Header with badges
-    html += '  <div class="journal-header">';
-    html += '    <span class="journal-badge ' + cat + '">' + (catLabels[cat] || cat) + '</span>';
-    html += '    <span class="journal-topic">' + escapeHtml(topicShort) + '</span>';
+    html += '  <div class="j-meta">';
+    html += '    <span class="j-badge ' + cat + '">' + (catLabels[cat] || cat) + '</span>';
+    html += '    <span class="j-topic">' + escapeHtml(topicShort) + '</span>';
     html += '  </div>';
 
-    // Title
-    html += '  <div class="journal-title">' + escapeHtml(e.title) + '</div>';
+    html += '  <div class="j-title">' + escapeHtml(e.title) + '</div>';
 
-    // Summary (click to expand)
-    html += '  <div class="journal-summary" id="' + jid + '" onclick="toggleJournal(\'' + jid + '\')">' + formatMarkdown(e.summary) + '</div>';
+    html += '  <div class="j-summary" id="' + jid + '" onclick="toggleJournal(\'' + jid + '\')">' + formatMarkdown(e.summary) + '</div>';
 
-    // Opinion (shown when expanded)
     if (e.opinion) {
-      html += '  <div class="journal-opinion">';
-      html += '    <div style="font-size: 10px; text-transform: uppercase; color: var(--purple); margin-bottom: 4px; letter-spacing: 0.5px;">My Take</div>';
+      html += '  <div class="j-opinion">';
+      html += '    <div class="j-opinion-label">My Take</div>';
       html += '    ' + formatMarkdown(e.opinion);
       html += '  </div>';
     }
 
-    // Source links (shown when expanded)
     if (e.urls && e.urls.length > 0) {
-      html += '  <div class="journal-links">';
+      html += '  <div class="j-links">';
       for (const url of e.urls) {
         const display = url.replace(/^https?:\/\//, '').slice(0, 60);
         html += '    <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
@@ -1009,9 +1322,7 @@ function renderJournal(entries) {
       html += '  </div>';
     }
 
-    // Expand hint
-    html += '  <div class="journal-expand" onclick="toggleJournal(\'' + jid + '\')">+ more</div>';
-
+    html += '  <div class="j-toggle" onclick="toggleJournal(\'' + jid + '\')">+ more</div>';
     html += '</div>';
   }
 
@@ -1022,122 +1333,85 @@ function toggleJournal(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.toggle('expanded');
-  // Update the expand hint
-  const card = el.closest('.journal-card');
+  const card = el.closest('.j-card');
   if (card) {
-    const hint = card.querySelector('.journal-expand');
+    const hint = card.querySelector('.j-toggle');
     if (hint) hint.textContent = el.classList.contains('expanded') ? '- less' : '+ more';
   }
 }
 
-function updateStatus(s) {
-  document.getElementById('uptime').textContent = formatUptime(s.uptime);
+// ── Learning Report Rendering ──
 
-  // Claude
-  const claudeEl = document.getElementById('claudeStatus');
-  const claudeDetail = document.getElementById('claudeDetail');
-  if (s.claude.busy) {
-    claudeEl.textContent = 'Busy';
-    claudeEl.style.color = 'var(--yellow)';
-    const task = s.claude.currentTask;
-    claudeDetail.textContent = task ? task.prompt.slice(0, 60) + '...' : '';
-  } else {
-    claudeEl.textContent = 'Idle';
-    claudeEl.style.color = 'var(--accent)';
-    const q = s.claude.queue;
-    claudeDetail.textContent = q && q.size > 0 ? q.size + ' queued' : '';
+function renderLearning(entries) {
+  const container = document.getElementById('learningContent');
+  const countEl = document.getElementById('learningCount');
+  countEl.textContent = entries.length + ' today';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-state">No activity log entries today.</div>';
+    return;
   }
-
-  // Loop
-  const loopEl = document.getElementById('loopStatus');
-  const loopDetail = document.getElementById('loopDetail');
-  if (s.loop.enabled) {
-    loopEl.textContent = s.loop.paused ? 'Paused' : 'Running';
-    loopEl.style.color = s.loop.paused ? 'var(--yellow)' : 'var(--accent)';
-    loopDetail.textContent = 'Cycle #' + (s.loop.cycleCount || 0);
-  } else {
-    loopEl.textContent = 'Disabled';
-    loopEl.style.color = 'var(--text2)';
-    loopDetail.textContent = '';
-  }
-
-  // Telegram
-  const tgEl = document.getElementById('telegramStatus');
-  const tgDetail = document.getElementById('telegramDetail');
-  if (s.telegram.connected) {
-    const n = s.telegram.notifications;
-    tgEl.textContent = 'Connected';
-    tgEl.style.color = 'var(--accent)';
-    tgDetail.textContent = n.sent + ' sent, ' + n.failed + ' failed';
-  } else {
-    tgEl.textContent = 'Disconnected';
-    tgEl.style.color = 'var(--red)';
-    tgDetail.textContent = '';
-  }
-
-  // Current Task & Queue
-  renderTaskSection(s.claude);
-}
-
-function renderTaskSection(claude) {
-  const container = document.getElementById('taskContent');
-  const queueCountEl = document.getElementById('queueCount');
-  const task = claude.currentTask;
-  const queue = claude.queue;
 
   let html = '';
+  for (const entry of entries) {
+    const time = formatTime(entry.timestamp);
+    const id = 'lc-' + entry.timestamp.replace(/[^0-9]/g, '');
+    const hasDetail = entry.changed || entry.verified || (entry.urls && entry.urls.length > 0) || entry.full;
 
-  // Current task panel
-  if (claude.busy && task) {
-    const elapsed = task.elapsed;
-    const elapsedStr = elapsed > 60
-      ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's'
-      : elapsed + 's';
+    html += '<div class="l-card">';
+    html += '  <div class="l-time">' + time + '</div>';
+    html += '  <div class="l-what">' + escapeHtml(entry.what) + '</div>';
+    if (entry.why) {
+      html += '  <div class="l-why">' + escapeHtml(entry.why) + '</div>';
+    }
 
-    html += '<div class="task-panel active">';
-    html += '  <div class="task-header">';
-    html += '    <div class="task-label">Current Task</div>';
-    html += '    <div class="task-elapsed">' + elapsedStr + '</div>';
-    html += '  </div>';
-    html += '  <div class="task-prompt">' + escapeHtml(task.prompt.slice(0, 200)) + (task.prompt.length > 200 ? '...' : '') + '</div>';
-    html += '  <div class="task-meta">';
-    html += '    <div class="task-meta-item">Tools: <span class="task-meta-value">' + task.toolCalls + '</span></div>';
-    if (task.lastTool) {
-      html += '    <div class="task-meta-item">Last tool: <span class="task-meta-value">' + escapeHtml(task.lastTool) + '</span></div>';
-    }
-    html += '  </div>';
-    if (task.lastText) {
-      html += '  <div class="task-last-text" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(task.lastText.slice(0, 500)) + '</div>';
-    }
-    html += '</div>';
-  } else {
-    html += '<div class="task-panel idle">';
-    html += '  <div class="task-label">Claude</div>';
-    html += '  <div style="color: var(--text2); font-size: 12px;">Idle — waiting for tasks</div>';
-    html += '</div>';
-  }
+    if (hasDetail) {
+      html += '  <div class="l-detail" id="' + id + '">';
+      html += '    <div class="l-detail-inner">';
 
-  // Queue
-  if (queue && queue.size > 0) {
-    queueCountEl.textContent = queue.size + ' queued';
-    html += '<div style="margin-top: 8px;">';
-    html += '  <div style="font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Queue (' + queue.size + '/' + queue.max + ')</div>';
-    for (const item of (queue.items || [])) {
-      const waitStr = item.waited > 60
-        ? Math.floor(item.waited / 60) + 'm ' + (item.waited % 60) + 's'
-        : item.waited + 's';
-      html += '<div class="queue-item">';
-      html += '  <div class="queue-item-msg">' + escapeHtml(item.message) + '</div>';
-      html += '  <div class="queue-item-wait">waiting ' + waitStr + '</div>';
-      html += '</div>';
+      if (entry.changed) {
+        html += '      <div class="l-detail-section">';
+        html += '        <div class="l-detail-label">Changed</div>';
+        html += '        <div class="l-detail-content">' + formatMarkdown(entry.changed) + '</div>';
+        html += '      </div>';
+      }
+
+      if (entry.verified) {
+        html += '      <div class="l-detail-section">';
+        html += '        <div class="l-detail-label">Verified</div>';
+        html += '        <div class="l-detail-content">' + formatMarkdown(entry.verified) + '</div>';
+        html += '      </div>';
+      }
+
+      if (entry.urls && entry.urls.length > 0) {
+        html += '      <div class="l-refs">';
+        html += '        <div class="l-detail-label">References</div>';
+        for (const url of entry.urls) {
+          const display = url.replace(/^https?:\/\//, '').slice(0, 80);
+          html += '        <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
+        }
+        html += '      </div>';
+      }
+
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div class="l-toggle" onclick="toggleLearningDetail(\'' + id + '\', this)">+ details</div>';
     }
+
     html += '</div>';
-  } else {
-    queueCountEl.textContent = '';
   }
 
   container.innerHTML = html;
 }
+
+function toggleLearningDetail(id, toggleEl) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('expanded');
+  toggleEl.textContent = el.classList.contains('expanded') ? '- hide' : '+ details';
+}
+
+// ── Behavior Timeline ──
 
 function render() {
   let filtered = allBehaviors;
@@ -1145,18 +1419,17 @@ function render() {
     filtered = filtered.filter(e => e.data.actor === currentActor);
   }
 
-  // Update count
   const agents = allBehaviors.filter(e => e.data.actor === 'agent').length;
   const users = allBehaviors.filter(e => e.data.actor === 'user').length;
   const systems = allBehaviors.filter(e => e.data.actor === 'system').length;
   document.getElementById('behaviorCount').textContent = allBehaviors.length;
   document.getElementById('behaviorBreakdown').textContent =
-    'agent:' + agents + ' user:' + users + ' system:' + systems;
+    'agent:' + agents + '  user:' + users + '  sys:' + systems;
 
   const container = document.getElementById('content');
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state">No behaviors found for this date/filter.</div>';
+    container.innerHTML = '<div class="empty-state">No behaviors found for this date.</div>';
     return;
   }
 
@@ -1177,18 +1450,16 @@ function renderTimeline(container, entries) {
     const actionClass = classifyAction(action);
     const time = formatTime(entry.timestamp);
 
-    html += '<div class="timeline-entry">';
-    html += '  <div class="timeline-time">' + time + '</div>';
-    html += '  <div class="timeline-dot ' + actor + '"></div>';
-    html += '  <div class="timeline-content">';
-    html += '    <div class="timeline-action">';
-    html += '      <span class="actor-tag ' + actor + '">' + actor + '</span>';
-    html += '      <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
-    html += '    </div>';
-    if (detail) {
-      html += '    <div class="timeline-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
-    }
+    html += '<div class="tl-entry">';
+    html += '  <div class="tl-time">' + time + '</div>';
+    html += '  <div class="tl-dot ' + actor + '"></div>';
+    html += '  <div class="tl-action">';
+    html += '    <span class="actor-tag ' + actor + '">' + actor + '</span>';
+    html += '    <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
     html += '  </div>';
+    if (detail) {
+      html += '  <div class="tl-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
+    }
     html += '</div>';
   }
 
@@ -1197,7 +1468,6 @@ function renderTimeline(container, entries) {
 }
 
 function renderCycles(container, entries) {
-  // Group entries into OODA cycles (between loop.cycle.start and loop.cycle.end)
   const cycles = [];
   let current = null;
 
@@ -1221,15 +1491,8 @@ function renderCycles(container, entries) {
     } else if (current) {
       current.entries.push(entry);
     } else {
-      // Entry outside any cycle — put in an "uncategorized" group
       if (cycles.length === 0 || cycles[cycles.length - 1].number !== 'outside') {
-        cycles.push({
-          number: 'outside',
-          start: entry.timestamp,
-          end: entry.timestamp,
-          result: '',
-          entries: [entry],
-        });
+        cycles.push({ number: 'outside', start: entry.timestamp, end: entry.timestamp, result: '', entries: [entry] });
       } else {
         cycles[cycles.length - 1].entries.push(entry);
         cycles[cycles.length - 1].end = entry.timestamp;
@@ -1237,7 +1500,6 @@ function renderCycles(container, entries) {
     }
   }
 
-  // If there's an incomplete cycle
   if (current) {
     current.result = '(in progress)';
     cycles.push(current);
@@ -1250,18 +1512,22 @@ function renderCycles(container, entries) {
       ? Math.round((new Date(cycle.end) - new Date(cycle.start)) / 1000)
       : '...';
     const label = cycle.number === 'outside'
-      ? 'Outside cycles'
+      ? 'Outside'
       : 'Cycle ' + cycle.number.replace('#', '');
     const durationStr = typeof duration === 'number'
       ? (duration > 60 ? Math.floor(duration / 60) + 'm ' + (duration % 60) + 's' : duration + 's')
       : duration;
 
+    const cycleId = 'cy-' + cycle.start.replace(/[^0-9]/g, '');
+
     html += '<div class="cycle-group">';
-    html += '  <div class="cycle-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === \'none\' ? \'block\' : \'none\'">';
-    html += '    <span><span class="cycle-label">' + label + '</span> &middot; ' + formatTime(cycle.start) + ' &middot; ' + durationStr + '</span>';
+    html += '  <div class="cycle-header" onclick="toggleCycle(\'' + cycleId + '\')">';
+    html += '    <span><span class="cycle-label">' + label + '</span> <span class="cycle-time">' + formatTime(cycle.start) + ' &middot; ' + durationStr + '</span></span>';
     html += '    <span class="cycle-result">' + escapeHtml(cycle.result.slice(0, 80)) + '</span>';
     html += '  </div>';
-    html += '  <div style="display: none;">';
+    html += '  <div class="cycle-body" id="' + cycleId + '">';
+    html += '    <div class="timeline" style="margin: 8px 0 8px 12px; padding-left: 100px;">';
+    html += '      <div style="position:absolute;left:89px;top:0;bottom:0;width:1px;background:var(--border-subtle);"></div>';
 
     for (const entry of cycle.entries) {
       const actor = entry.data.actor;
@@ -1270,21 +1536,20 @@ function renderCycles(container, entries) {
       const actionClass = classifyAction(action);
       const time = formatTime(entry.timestamp);
 
-      html += '<div class="timeline-entry" style="padding-left: 14px;">';
-      html += '  <div class="timeline-time">' + time + '</div>';
-      html += '  <div class="timeline-dot ' + actor + '" style="left: 110px;"></div>';
-      html += '  <div class="timeline-content">';
-      html += '    <div class="timeline-action">';
-      html += '      <span class="actor-tag ' + actor + '">' + actor + '</span>';
-      html += '      <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
-      html += '    </div>';
-      if (detail) {
-        html += '    <div class="timeline-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
-      }
+      html += '<div class="tl-entry">';
+      html += '  <div class="tl-time">' + time + '</div>';
+      html += '  <div class="tl-dot ' + actor + '"></div>';
+      html += '  <div class="tl-action">';
+      html += '    <span class="actor-tag ' + actor + '">' + actor + '</span>';
+      html += '    <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
       html += '  </div>';
+      if (detail) {
+        html += '  <div class="tl-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
+      }
       html += '</div>';
     }
 
+    html += '    </div>';
     html += '  </div>';
     html += '</div>';
   }
@@ -1296,10 +1561,17 @@ function renderCycles(container, entries) {
   container.innerHTML = html;
 }
 
-// Auto-refresh
+function toggleCycle(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' || !el.style.display ? 'block' : 'none';
+}
+
+// ── Auto-refresh ──
+
 function startRefresh() {
   fetchAll();
-  refreshTimer = setInterval(fetchAll, 10000);
+  refreshTimer = setInterval(fetchAll, 30000);
 }
 
 startRefresh();

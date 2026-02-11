@@ -202,18 +202,45 @@ export function restoreQueue(): void {
 
 // ── Queue Drain ────────────────────────────────────────────────────────────
 
-/** 處理 queue 中的下一則訊息 */
+/** 批次處理 queue 中的所有訊息 */
 export function drainQueue(): void {
   if (messageQueue.length === 0 || claudeBusy) return;
-  const next = messageQueue.shift()!;
-  saveQueueToDisk(); // 從 queue 移除後同步寫入磁碟
-  slog('QUEUE', `Processing queued message (waited ${((Date.now() - next.queuedAt) / 1000).toFixed(0)}s, ${messageQueue.length} remaining)`);
-  // 用 setImmediate 避免 stack overflow
+
+  // 一次取出所有排隊訊息
+  const batch = messageQueue.splice(0);
+  saveQueueToDisk();
+
+  if (batch.length === 1) {
+    // 單則直接處理（不需要合併格式）
+    const item = batch[0];
+    slog('QUEUE', `Processing queued message (waited ${((Date.now() - item.queuedAt) / 1000).toFixed(0)}s)`);
+    setImmediate(() => {
+      processMessage(item.message).then(result => {
+        if (item.onComplete) item.onComplete(result);
+      }).catch(() => {
+        if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+      });
+    });
+    return;
+  }
+
+  // 多則合併為一個 prompt
+  const mergedPrompt = batch
+    .map((item, i) => `[訊息 ${i + 1}] ${item.message}`)
+    .join('\n');
+  const waitTimes = batch.map(item => ((Date.now() - item.queuedAt) / 1000).toFixed(0));
+  slog('QUEUE', `Batch processing ${batch.length} queued messages (waited ${waitTimes.join('/')}s)`);
+
   setImmediate(() => {
-    processMessage(next.message).then(result => {
-      if (next.onComplete) next.onComplete(result);
+    processMessage(mergedPrompt).then(result => {
+      // 所有 callback 收到同一個回覆
+      for (const item of batch) {
+        if (item.onComplete) item.onComplete(result);
+      }
     }).catch(() => {
-      if (next.onComplete) next.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+      for (const item of batch) {
+        if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+      }
     });
   });
 }

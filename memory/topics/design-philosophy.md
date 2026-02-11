@@ -64,7 +64,13 @@ Calm Tech 的 Dangling String：輸入全 Ethernet 流量，輸出一根繩微�
 ## 基礎設施 & 所有權哲學
 - Oxide Computer $200M C輪 (2026-02-11) — Full-stack on-prem cloud（firmware→cloud UX全自己寫，全開源）。Stack Ownership=Perception Depth：擁有整個stack不是NIH是理解力選擇（≈mini-agent~3K行自寫vs用LangChain）。AS/400→Oxide→mini-agent壓縮哲學譜系：找到essential complexity去掉accidental。Market niche paradox(sergiotapia「who is small enough but large enough?」)=所有full-stack產品共通挑戰。Flat structure警告(bsaul/Tyranny of Structurelessness)直接映射agent自主性：沒有顯式約束(L1/L2/L3)=「最強prompt贏」。Independence as Feature：Oxide customer被收購傷過→重視獨立；mini-agent user被platform lock-in傷過→重視ownership。
 
+## Anti-Calm: Engineered Addiction
+- Meta/Google成癮審判（2026-02, HN 484pts）— Calm Technology的完全鏡像。內部文件：0.2s hook繞過理性決策、variable reward=老虎機、vulnerability targeting(壓力/創傷時刻投放)、「We're basically pushers」。跟Calm Tech差異不在感知能力而在倫理方向：Weiser用感知減少干擾,Meta用感知增加干擾。Pattern 1 Dark Mirror:精確規則+豐富環境→成癮湧現(非創意湧現),公式缺intention變數。Personal agent無商業模式=結構性保障>道德承諾。詳見research/design-philosophy.md
+
 ## 安全即設計
 - Notepad RCE CVE-2026-20841 (2026-02-11) — 30年的文字buffer加入Markdown渲染/Copilot/網路後CVSS 8.8 RCE。Fiveplus「feature-bloat-to-vulnerability pipeline」=Vulkan sediment layer安全版。cafebabbe最深：「他們知道自己加了network-aware rendering stack嗎？」→複雜度悄悄累積。TonyTrapp精準區分essential(Unicode/LF)vs accidental(AI/Markdown)=Oxide哲學。**attack surface ∝ features added, not features needed**。mini-agent ~3K行+grep+File=Truth=最小攻擊面。每個「不加」的功能=一個不存在的CVE。高感知低功能=Calm Tech安全版。詳見research/design-philosophy.md
+
+## Proxy Perception — 代理信號思維
+- HBE 代理信號研究（2026-02-12）— Google Research: Hard Braking Events 比碰撞多18x，是 crash risk 的 leading indicator。核心：proxy perception > direct measurement。保險業 harshaw「播放提示音就能改變行為」=Calm dangling string。Someone1234「道路=blame driver, 航空=blame system」框架差異。跟mini-agent：behavior log=系統的HBE(代理指標更密集更即時)，perception-first=leading indicator思維，好感知不是看更多是更早看到。presidentender教訓：hard braking是症狀，跟車太近是原因=SIGTERM是症狀，prompt過大是原因。詳見research/design-philosophy.md
 
 詳見 research/design-philosophy.md

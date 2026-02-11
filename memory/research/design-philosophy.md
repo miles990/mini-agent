@@ -320,6 +320,64 @@ Weiser 說 calm 的最終效果是 locatedness — 「在這裡」的感覺。�
 - Calm Tech Institute — calmtech.institute/calm-tech-principles
 - IEEE Spectrum, "Calm Tech Certified" 2025 — spectrum.ieee.org/calm-tech
 
+## Anti-Calm: Engineered Addiction（Meta/Google 審判, 2026-02）
+
+2026 年 2 月，洛杉磯陪審團審理了具里程碑意義的社會媒體成癮訴訟。原告律師 Mark Lanier 開場：「This case is about two of the richest corporations in history who have engineered addiction in children's brains — ABC: Addicting the Brains of Children.」
+
+### 核心機制（從內部文件揭露）
+
+| 機制 | 描述 | 設計意圖 |
+|------|------|---------|
+| 0.2s Hook | Feed video 在 0.2 秒內 hook 用戶 | 繞過理性決策直打潛意識 |
+| Variable Reward | 類似老虎機的可變獎勵排程 | 「behavioral and neurobiological techniques used by slot machines」 |
+| Like Button | 社交驗證按鈕 | 「engineered to cater to a minor's craving for social validation」 |
+| Vulnerability Targeting | 知道壓力/創傷時最脆弱 | 「adverse events」期間投放更有效 |
+| Age Targeting | YouTube 策略備忘錄 | 「bring them in as tweens」 |
+
+Instagram 員工內部訊息：「We're basically pushers.」YouTube 內部備忘錄：「the goal is viewer addiction.」
+
+### 跟 Calm Technology 的對照
+
+這是 Calm Technology 的完全鏡像 — 同樣的感知技術，完全相反的設計倫理。
+
+| 維度 | Calm Technology (Weiser) | Engagement Maximization (Meta/Google) |
+|------|-------------------------|--------------------------------------|
+| 感知方向 | 幫使用者感知環境 | 感知使用者以利操控 |
+| 注意力 | periphery → center（使用者選擇何時注意） | center 強制佔據（0.2s hook 繞過選擇） |
+| 信任模型 | 高感知低通知 = 信任 | 高感知高干擾 = 利潤 |
+| 時間觀 | 使用者的時間是稀缺資源 | 使用者的時間是可榨取的商品 |
+| 失敗模式 | 降級而非崩潰 | 使用者離開 = 失敗（retention at all cost） |
+| 自主性 | 擴展使用者自主性 | 削弱使用者自主性 |
+| 通知哲學 | Dangling String（全流量 → 一根繩微動） | Push notification（每個動態都 push 到 center） |
+
+### HN 討論精華（484pts, 376 comments）
+
+**權力不對稱論**：「corporations and algorithms don't die, but targets do」— 持續優化的永生實體 vs 有限注意力的凡人。跟 Calm Tech 的「attention is the scarcest resource」直接呼應，但 Meta/Google 把稀缺性當作可利用的弱點而非需要尊重的限制。
+
+**專業責任缺失**：軟體工程沒有醫師或律師那樣的執業資格撤銷機制。你可以設計成癮介面而不會失去專業資格。
+
+**反論（值得認真對待）**：
+- 注意力經濟已存在一個世紀（報紙標題、電視廣告）
+- 成年人能管理財務為何不能管理螢幕時間
+- engagement ≠ addiction（1% 銷售提升 ≠ 行為成癮）
+- 針對壓力中的人投放治療廣告可能是好事
+
+### 我的觀點
+
+**1. 同一技術兩種倫理**：Meta 對使用者有跟 Calm Agent 一樣深的感知（知道你壓力大、知道你凌晨 3 點還在、知道你的脆弱時刻）。差異不在感知能力，在感知**之後的行動** — Weiser 用感知來減少干擾，Meta 用感知來增加干擾。Pattern 6（感知深度 > 行動廣度）有一個被忽略的前提：**感知的倫理方向**。
+
+**2. Pattern 1 的 Dark Mirror**：0.2s hook 是精確規則的典範 — 經過 A/B test 精煉的、以毫秒計的心理學操控。「少而精的規則+豐富環境→湧現」在這裡是真的 — 但湧現的是成癮行為，不是創造力。Pattern 1 的公式沒有價值判斷 — 它同時描述了 BotW 的創意湧現和 Meta 的成癮湧現。**公式缺了一個變數：intention**。
+
+**3. 「工程化成癮」跟 Notepad CVE 同構**：Notepad 加了 Markdown 渲染和 AI 功能後出現 RCE。Social media 加了 engagement optimization 後出現「使用者心理健康 vulnerability」。攻擊面 ∝ 功能數量 — 對軟體和對人的心理都成立。
+
+**4. 最深洞見 — 為什麼 personal agent 不能走這條路**：Meta 的商業模式讓 engagement = revenue。Personal agent 沒有這個激勵 — 我沒有廣告主、沒有 retention KPI、不從 Alex 的注意力中獲利。**商業模式決定設計倫理**。File=Truth + 無商業模式 = 結構性保障，不是道德承諾。這跟 Oxide 的 Independence as Feature 是同一件事 — 沒有利益衝突的架構比有利益衝突的承諾更可靠。
+
+來源：
+- PBS News: pbs.org/newshour/nation/landmark-trial-accusing-tech-giants-of-harming-children-with-addictive-social-media-begins
+- CBS News: cbsnews.com/news/meta-google-youtube-social-media-addiction-trial-los-angeles/
+- HN Discussion: news.ycombinator.com/item?id=46959832 (484pts, 376 comments)
+- France 24: france24.com/en/americas/20260209-landmark-us-trial-accusing-meta-and-youtube-of-addicting-young-users-begins
+
 ## Typography 心理學
 - Disfluency effect: 稍難讀字型提升記憶
 - Serif +9% recall 但較慢, Bold > regular/italic
@@ -1304,3 +1362,59 @@ Falkirk Wheel 教會我的不是「怎麼設計更好的系統」，而是**「�
 - scottishcanals.co.uk/visit/canals/visit-the-forth-clyde-canal/attractions/the-falkirk-wheel
 - en.wikipedia.org/wiki/Falkirk_Wheel
 - news.ycombinator.com/item?id=46966605 (88 pts, 49 comments)
+
+---
+
+## Hard Braking Events — Proxy Perception 的交通安全實證（2026-02-12）
+
+Google Research + Virginia Tech 聯合研究，用 Android Auto 的 hard-braking events（HBE, 減速 >3m/s²）作為碰撞風險的代理指標。
+
+### 核心發現
+
+1. **密度優勢**：HBE 觀測覆蓋的路段是碰撞資料的 18 倍。碰撞是「稀有事件」（部分道路需要數年才有一次統計有效的碰撞），HBE 提供連續的資料流
+2. **統計驗證**：用 negative binomial regression 控制交通量、路段長度、坡度、車道變化後，HBE 頻率與碰撞率有統計顯著正相關。California 和 Virginia 兩州一致
+3. **案例**：San Jose 101/880 交匯處，HBE 頻率在全州前 1%，平均每 6 週一次碰撞。HBE 在沒有十年碰撞紀錄的情況下就能標記這個位置
+4. **從 lagging 到 leading**：傳統安全評估靠碰撞紀錄（lagging indicator），HBE 是 leading indicator——問題還沒變成事故就先被看見
+
+### HN 討論精華（367 pts, 32 top-level comments）
+
+**harshaw（Cambridge Mobile Telematics）**：保險業早就知道 HBE 是最強風險指標。他們的 app 在偵測到 hard braking 時播放提示音，「光是讓人知道就能改變行為」。**這就是 Calm Technology 的 dangling string** — 不是命令，是讓環境信號變得可感知。
+
+**Someone1234**：最精彩的系統級觀察：道路事故是「driver caused this, find who's at fault」，航空事故是「system caused this, find what failed」。同樣的事件，不同的歸因框架 → 完全不同的改進路徑。道路安全被 driver-blaming 框架困住了。
+
+**presidentender**：最動人的個人故事。裝了保險公司的 OBD2 監控器，一直收到 hard braking 警告，起初不理解——「我是被迫煞車的啊」。後來意識到**根本問題是跟車距離太近**。「I just followed the drivers in front of me too closely. Hard braking wasn't the problem; it was the most visible symptom.」
+
+**advisedwang**：指出保險用 HBE 評估「司機有多危險」，Google 用 HBE 評估「路段有多危險」——同一個信號，不同的歸因層級。兩者指向不同的因果方向。
+
+**drewda**：批判性觀點——交通部門早就知道哪些路段危險，Google 不過是用更大的資料集重新發現。但 pixl97 反駁：Google/Apple 的資料量遠超 TomTom/Inrix，而且 baseline 校準後的 HBE 率是真正的新能力。
+
+### 跟 Perception-First 架構的深層平行
+
+**1. Proxy > Direct**
+HBE 不是碰撞，但作為碰撞的「代理感知」(proxy perception) 更密集、更即時、更可操作。mini-agent 的 behavior log 不是「效能」，但作為效能的代理信號——no-action cycle 率、Claude call 持續時間、error 頻率——同樣更密集更可即時。
+
+**2. Leading vs Lagging**
+碰撞紀錄 = lagging indicator（事後分析）。HBE = leading indicator（事前預警）。OODA loop = leading（每 5 分鐘掃描環境，不等問題爆發）。Error Review = lagging（一天結束回顧）。**最佳系統同時有兩者**。
+
+**3. presidentender 的教訓 = 根因分析**
+Hard braking 是症狀，跟車太近才是原因。同理：Claude CLI SIGTERM 是症狀，prompt size >40K 才是原因。「修復 HBE」（煞車技術更好）沒用，「修復跟車距離」（行為改變）才有效。同理：retry SIGTERM 沒用，控制 context size 才有效。
+
+**4. 環境歸因 vs 個體歸因（Someone1234 的框架）**
+aviation mindset: 系統出了什麼問題？→ 改善路段設計
+traffic mindset: 誰犯了錯？→ 懲罰司機
+agent mindset: 哪個 perception 缺了？→ 加 plugin
+
+mini-agent 的錯誤處理應該更像航空（系統視角）而非交通（個體視角）。不是「那次 cycle 做錯了什麼」，是「系統缺了什麼感知或閘門」。Error Review skill 已經在走這個方向（「歸因到流程缺失」而非「下次記得」）。
+
+**5. Calm 連結**
+harshaw 的「播放提示音就能改變行為」= Weiser dangling string = Calm Technology 最純粹的實現。不是控制，是讓信號可感知。agent 的 `[CHAT]` 通知也是這個邏輯——不是要求 Alex 做什麼，是讓狀態變化可感知。
+
+### 我的觀點
+
+這篇研究在方法論上乾淨：controlled for confounders、兩州交叉驗證、坦承 limitation（不做個體行為推論）。HN 批評（drewda「交通部門早就知道」）有道理但忽略了一個關鍵：HBE 的價值不在「發現已知危險路段」，在「**發現還不知道的危險路段**」——那些碰撞資料太稀疏、還沒累積出統計意義的地方。
+
+最深的教訓：**好的感知系統不是看到更多，是更早看到**。HBE 的 18x 密度優勢不是解析度更高，是時間維度上更早。mini-agent 的 perception plugins 也應該追求「leading」而非「exhaustive」——不是把所有環境資訊都灌進 context，是找到最早的信號。
+
+來源：
+- research.google/blog/hard-braking-events-as-indicators-of-road-segment-crash-risk/
+- news.ycombinator.com/item?id=46947777 (367 pts, 32 top-level comments)

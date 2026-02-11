@@ -215,9 +215,10 @@ export function createApi(port = 3001): express.Express {
   app.use(authMiddleware);
   app.use(createRateLimiter());
 
-  // Request logging middleware (skip /health to reduce noise)
+  // Request logging middleware (skip noisy polling endpoints)
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal']);
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path === '/health') { next(); return; }
+    if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
     res.on('finish', () => {
       const duration = Date.now() - start;
