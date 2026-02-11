@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy.sh — Stop → install → build → start via launchd → health check
+# deploy.sh — Stop → install → build → start (background) → health check
 set -e
 
 DEPLOY_DIR="/Users/user/Workspace/mini-agent"
@@ -18,31 +18,30 @@ log "Starting deployment..."
 # Stop — graceful shutdown（等任務完成再退出）
 log "Stopping existing service..."
 
-# 卸載所有 com.mini-agent.* launchd services（送 SIGTERM 觸發 graceful shutdown）
+# 卸載所有 com.mini-agent.* launchd services（如有殘留）
 for plist in "$HOME/Library/LaunchAgents"/com.mini-agent.*.plist; do
     [ -f "$plist" ] && launchctl unload "$plist" 2>/dev/null && rm -f "$plist"
 done
-# 卸載舊的固定 plist（遷移期）
-if [ -f "$HOME/Library/LaunchAgents/com.mini-agent.plist" ]; then
-    launchctl unload "$HOME/Library/LaunchAgents/com.mini-agent.plist" 2>/dev/null || true
-    rm -f "$HOME/Library/LaunchAgents/com.mini-agent.plist"
-fi
 
-# 等進程自己優雅退出（最長 11 分鐘，讓 8 分鐘 Claude 呼叫完成）
-WAIT_MAX=132  # 132 * 5s = 660s = 11min
-for i in $(seq 1 $WAIT_MAX); do
-    if ! pgrep -f "node.*mini-agent.*dist/api.js" > /dev/null 2>&1; then
-        break
+# 送 SIGTERM 觸發 graceful shutdown，等進程退出（最長 11 分鐘）
+AGENT_PATTERN="node.*mini-agent.*dist/cli.js"
+if pgrep -f "$AGENT_PATTERN" > /dev/null 2>&1; then
+    pkill -f "$AGENT_PATTERN" 2>/dev/null || true
+    WAIT_MAX=132  # 132 * 5s = 660s = 11min
+    for i in $(seq 1 $WAIT_MAX); do
+        if ! pgrep -f "$AGENT_PATTERN" > /dev/null 2>&1; then
+            break
+        fi
+        if [ "$i" -eq 1 ]; then log "Waiting for running tasks to finish..."; fi
+        sleep 5
+    done
+
+    # 只有超時才 force kill
+    if pgrep -f "$AGENT_PATTERN" > /dev/null 2>&1; then
+        log "Process still alive after ${WAIT_MAX}x5s, force killing..."
+        pkill -9 -f "$AGENT_PATTERN" 2>/dev/null || true
+        sleep 1
     fi
-    if [ "$i" -eq 1 ]; then log "Waiting for running tasks to finish..."; fi
-    sleep 5
-done
-
-# 只有超時才 force kill
-if pgrep -f "node.*mini-agent.*dist/api.js" > /dev/null 2>&1; then
-    log "Process still alive after ${WAIT_MAX}x5s, force killing..."
-    pkill -9 -f "node.*mini-agent.*dist/api.js" 2>/dev/null || true
-    sleep 1
 fi
 
 # 確保 port 空出
@@ -75,18 +74,23 @@ if [ -d "$CLI_DIR/.git" ]; then
     log "CLI synced"
 fi
 
-# Start — 用 CLI（內部走 launchd）
+# Start — background process with nohup
 log "Starting service..."
-node "$DEPLOY_DIR/dist/cli.js" up -d
+AGENT_LOG="$HOME/.mini-agent/server.log"
+nohup node "$DEPLOY_DIR/dist/cli.js" >> "$AGENT_LOG" 2>&1 &
+AGENT_PID=$!
+log "Started (PID $AGENT_PID)"
 
-# Health check
+# Health check（wait up to 10s）
 log "Running health check..."
-sleep 3
-if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
-    log "Deployment successful"
-    exit 0
-else
-    log "Health check failed"
-    tail -20 "$HOME/.mini-agent/instances/*/logs/server.log" >> "$LOG_FILE" 2>/dev/null || true
-    exit 1
-fi
+for i in $(seq 1 10); do
+    if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+        log "Deployment successful (PID $AGENT_PID)"
+        exit 0
+    fi
+    sleep 1
+done
+
+log "Health check failed"
+tail -20 "$AGENT_LOG" >> "$LOG_FILE" 2>/dev/null || true
+exit 1
