@@ -30,7 +30,7 @@ Task list and reminders.
 
 ### Track B: Project Evolution — 待做項目
 
-- [ ] Lighthouse 自動化 — 網站效能/可及性的持續監控
+- [x] Lighthouse 自動化 — plugin + cache 架構完成 (2026-02-11)
 - [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景
 
 ## Scheduled Tasks
