@@ -1,19 +1,12 @@
 /**
- * Memory System - Minimal Core
+ * Memory System - Minimal Core Enhanced
  *
- * Stripped down to ~300 lines while keeping core functionality:
- * - File-based memory (MEMORY.md, SOUL.md, HEARTBEAT.md)
+ * Core functionality:
+ * - File-based memory (MEMORY.md, SOUL.md, HEARTBEAT.md, NEXT.md)
  * - Hot conversation buffer + daily notes
  * - Topic memory scoping
- * - Context building with custom perceptions
+ * - Context building with perceptions + activity + workspace + verify
  * - grep-based search
- *
- * Removed:
- * - Perception provider injection
- * - Context checkpoints
- * - NEXT.md verification
- * - Instance.ts dependency (memoryDir passed directly)
- * - File locking (personal use, single process)
  */
 
 import fs from 'node:fs/promises';
@@ -22,9 +15,10 @@ import type { CustomPerception } from './perception.js';
 import {
   executeAllPerceptions,
   formatPerceptionResults,
-  loadAllSkills,
-  formatSkillsPrompt,
 } from './perception.js';
+import { getRecentActivity } from './utils.js';
+import { getWorkspaceStatus } from './workspace.js';
+import { verifyNextTasks } from './verify.js';
 
 // =============================================================================
 // Types
@@ -57,20 +51,17 @@ export class InstanceMemory {
   private conversationBuffer: ConversationEntry[] = [];
   private hotLimit: number;
   private customPerceptions: CustomPerception[] = [];
-  private skills: string[] = [];
 
   constructor(
     memoryDir: string,
     options?: {
       hot?: number;
       perceptions?: CustomPerception[];
-      skills?: string[];
     }
   ) {
     this.memoryDir = memoryDir;
     this.hotLimit = options?.hot ?? DEFAULT_HOT_LIMIT;
     this.customPerceptions = options?.perceptions ?? [];
-    this.skills = options?.skills ?? [];
   }
 
   // ---------------------------------------------------------------------------
@@ -139,6 +130,18 @@ export class InstanceMemory {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.error('[memory.readHeartbeat]', error);
+      }
+      return '';
+    }
+  }
+
+  async readNext(): Promise<string> {
+    const nextPath = path.join(this.memoryDir, 'NEXT.md');
+    try {
+      return await fs.readFile(nextPath, 'utf-8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error('[memory.readNext]', error);
       }
       return '';
     }
@@ -335,13 +338,14 @@ export class InstanceMemory {
   // ---------------------------------------------------------------------------
 
   async buildContext(options?: { mode?: 'full' | 'focused' }): Promise<string> {
-    const mode = options?.mode ?? 'full';
+    const _mode = options?.mode ?? 'full';
 
     // Read core memory files in parallel
-    const [memory, heartbeat, soul] = await Promise.all([
+    const [memory, heartbeat, soul, next] = await Promise.all([
       this.readMemory(),
       this.readHeartbeat(),
       this.readSoul(),
+      this.readNext(),
     ]);
 
     // Build hot conversations string
@@ -402,6 +406,20 @@ export class InstanceMemory {
     // Heartbeat
     if (heartbeat) sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
+    // NEXT.md with verify results
+    if (next) {
+      const verified = await verifyNextTasks(next, this.memoryDir);
+      sections.push(`<next>\n${verified}\n</next>`);
+    }
+
+    // Activity (recent behavior log)
+    const activity = getRecentActivity();
+    if (activity) sections.push(`<activity>\n${activity}\n</activity>`);
+
+    // Workspace (git status)
+    const workspace = getWorkspaceStatus();
+    if (workspace) sections.push(`<workspace>\n${workspace}\n</workspace>`);
+
     // Budget enforcement: hard cap at 30K chars
     const CONTEXT_BUDGET = 30_000;
     let result = sections.join('\n\n');
@@ -448,7 +466,6 @@ export function createMemory(
   options?: {
     hot?: number;
     perceptions?: CustomPerception[];
-    skills?: string[];
   }
 ): InstanceMemory {
   if (!memoryInstances.has(memoryDir)) {
@@ -467,8 +484,6 @@ export function getMemory(memoryDir?: string): InstanceMemory {
 // Backward Compatibility - Module-level functions
 // =============================================================================
 
-// For backward compatibility, we need a default memory instance.
-// This will need to be set by the caller (e.g., agent.ts or cli.ts)
 let defaultMemoryInstance: InstanceMemory | null = null;
 
 export function setDefaultMemory(memory: InstanceMemory): void {

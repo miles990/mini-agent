@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Mini-Agent Minimal Core — Entry Point
+ * Mini-Agent Minimal Core Enhanced — Entry Point
  *
- * Starts: HTTP server + Telegram poller + AgentLoop
- * That's it. No instance management, no compose, no multi-agent.
+ * Starts: HTTP server + Telegram poller + AgentLoop + Cron + Haiku dispatch
  */
 
 import http from 'node:http';
@@ -12,6 +11,7 @@ import fs from 'node:fs';
 import { createInterface } from 'node:readline';
 import { createMemory, getMemory, setDefaultMemory } from './memory.js';
 import { callClaude, parseTags, getSystemPrompt, restoreQueue } from './agent.js';
+import { triageMessage, callHaiku, getHaikuStats } from './dispatcher.js';
 import { createTelegramPoller, notifyTelegram, flushSummary } from './telegram.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { schedule, startCron, stopCron, getCronTaskCount } from './cron.js';
@@ -73,14 +73,12 @@ function loadCompose(): ComposeAgent | null {
   if (!fs.existsSync(composePath)) return null;
   try {
     const content = fs.readFileSync(composePath, 'utf-8');
-    // Extract what we need with regex — avoid full YAML parser dependency
     const nameMatch = content.match(/name:\s*["']?([^"'\n]+)/);
     const portMatch = content.match(/port:\s*(\d+)/);
     const personaMatch = content.match(/persona:\s*["']?([^"'\n]+)/);
     const loopIntervalMatch = content.match(/interval:\s*["']?(\d+[smh])["']?/);
     const loopEnabledMatch = content.match(/enabled:\s*(true|false)/);
 
-    // Extract skills list
     const skills: string[] = [];
     const skillsSection = content.match(/skills:\n((?:\s+-\s+.+\n?)*)/);
     if (skillsSection) {
@@ -89,7 +87,6 @@ function loadCompose(): ComposeAgent | null {
       }
     }
 
-    // Extract custom perceptions
     const perceptions: CustomPerception[] = [];
     const customSection = content.match(/custom:\n((?:\s+-.+\n(?:\s+\w+:.+\n)*)*)/);
     if (customSection) {
@@ -116,6 +113,23 @@ function loadCompose(): ComposeAgent | null {
   } catch {
     return null;
   }
+}
+
+// =============================================================================
+// Smart dispatch: Haiku fast path or Claude full path
+// =============================================================================
+
+async function smartChat(message: string, context: string): Promise<string> {
+  const triage = triageMessage(message);
+  if (triage.lane === 'haiku') {
+    try {
+      const systemPrompt = getSystemPrompt();
+      return await callHaiku(message, context, systemPrompt);
+    } catch {
+      // Haiku failed → fall through to Claude
+    }
+  }
+  return callClaude(message, context);
 }
 
 // =============================================================================
@@ -160,7 +174,7 @@ async function main(): Promise<void> {
   const perceptions = compose?.perception?.custom ?? [];
   const skillPaths = compose?.skills ?? [];
 
-  console.log(`\n  Mini-Agent Minimal Core`);
+  console.log(`\n  Mini-Agent Minimal Core Enhanced`);
   console.log(`  ${agentName} :${port}\n`);
 
   // Initialize memory with perception plugins
@@ -182,10 +196,14 @@ async function main(): Promise<void> {
   setBehaviorLogDir(path.join(MEMORY_DIR, 'logs'));
   restoreQueue();
 
-  // Initialize Telegram
+  // Haiku status
+  const hasHaiku = !!process.env.ANTHROPIC_API_KEY;
+  console.log(`  Haiku: ${hasHaiku ? 'enabled' : 'disabled (no ANTHROPIC_API_KEY)'}`);
+
+  // Initialize Telegram (with smart dispatch)
   const tgPoller = createTelegramPoller(MEMORY_DIR, async (text: string) => {
     const context = await memory.buildContext();
-    const response = await callClaude(text, context);
+    const response = await smartChat(text, context);
     return postProcess(text, response);
   });
 
@@ -242,6 +260,10 @@ async function main(): Promise<void> {
         agent: agentName,
         uptime: process.uptime(),
         loop: loop.getStatus(),
+        lanes: {
+          claude: { busy: false },
+          haiku: getHaikuStats(),
+        },
         telegram: { connected: !!tgPoller },
       }));
       return;
@@ -261,7 +283,7 @@ async function main(): Promise<void> {
         try {
           const { message } = JSON.parse(body) as { message: string };
           const context = await memory.buildContext();
-          const response = await callClaude(message, context);
+          const response = await smartChat(message, context);
           const content = await postProcess(message, response);
           res.writeHead(200);
           res.end(JSON.stringify({ content }));
@@ -328,7 +350,7 @@ async function main(): Promise<void> {
       }
 
       const context = await memory.buildContext();
-      const response = await callClaude(input, context);
+      const response = await smartChat(input, context);
       const content = await postProcess(input, response);
       console.log(`\n${content}\n`);
       rl.prompt();
