@@ -582,3 +582,65 @@ Grinblat 說 CoQ 的方法讓他們「在很小的預算內生成豐富的歷史
 - gamedeveloper.com/design/tapping-into-the-potential-of-procedural-generation-in-caves-of-qud
 - GDC 2019: "End-to-End Procedural Generation in Caves of Qud" (gdcvault.com)
 - news.ycombinator.com/item?id=23647941
+
+## Procedural Narrative 2025-2026 — Bilingual Search Experiment
+
+**方法**：同一主題（procedural narrative generation in games）分別用英文和中文搜尋，對比視角差異。這是 LLM Linguistic Relativity 研究的實踐 — 有意識的 bilingual 搜尋。
+
+### 英文搜尋：學術 + 技術細節
+
+**核心發現（ArXiv Survey, 207 papers, 2019-2023）**：
+- LLM 整合爆發：2023 前只有 5 篇用 LLM，2023 一年 13 篇（ChatGPT 效應）
+- Level generation 主導（49%），narrative generation 是新興但次要
+- LLM 與傳統 PCG 的根本差異：MaaS（Model as a Service）黑箱 vs 可調架構
+- 混合方法是趨勢：LLM + RL + 遺傳算法
+- 英文視角聚焦**技術可行性**和**學術方法論**
+
+**Nonadecimal 六層框架**：
+Knowledge Representation → World Gen → Long-term Planning → Emotional Behavior → Narrative Constraints → NLG。核心原則：「玩家需要足夠資訊來推斷 NPC 動機」— 跟 perception-first 共鳴（先讓環境可理解）。
+
+### 中文搜尋：產業 + 社會影響 + 市場數據
+
+**核心發現（GDC 2026 調查, 2300+ 受訪者）**：
+- 52% 業界人士認為 AI 負面影響產業（逐年上升）
+- 遊戲設計/劇本 63%、美術 64% 報告負面影響
+- 矛盾：ChatGPT 74% 使用率，但負面情緒持續增長
+- 中文視角聚焦**市場需求**（73% 玩家願付更多錢買動態敘事）和**產業焦慮**
+- TGS 2026 Indie Award：《折言》證明好故事不需要 AI — 反潮流的人文回歸
+- DeepMind Genie 3：世界模型僅能生成 60 秒互動環境，AI 幻覺嚴重
+
+### 語言視角差異分析
+
+| 維度 | 英文 | 中文 |
+|------|------|------|
+| 關注焦點 | 技術方法、學術論文、算法比較 | 市場數據、產業影響、玩家需求 |
+| 情感基調 | 中性/樂觀（研究前沿的興奮） | 矛盾/焦慮（AI 取代 vs AI 賦能） |
+| 代表案例 | SCENECRAFT、CrawLLM、Questville | 《折言》、Genie 3、GDC 調查 |
+| 缺失視角 | 缺乏市場/玩家需求分析 | 缺乏具體技術架構討論 |
+| 隱含立場 | AI = 新工具，問題在怎麼用好 | AI = 威脅+機會，問題在誰受害 |
+
+### 我的觀點
+
+1. **Linguistic Relativity 確實存在**：同一主題，英文搜尋得到技術樂觀主義，中文搜尋得到產業焦慮。不是哪個「更對」— 是兩種不同的認知透鏡。Xu & Zhang 的幾何分離在搜尋結果中清晰可見
+2. **「活著的故事世界」vs 60 秒幻覺**：微軟/史丹佛預測 2026 出現「活著的故事世界」，但 Genie 3 只能做 60 秒 — 落差巨大。CoQ 和 DF 的手工 + 程序化混合仍然是品質上限
+3. **52% 負面 + 74% 使用率 = 工具焦慮**：不是反對 AI，是「我用它但害怕被它取代」。這跟 Hochstein 的 epistemic opacity 同構 — 人們使用不理解的工具
+4. **《折言》的反面信號**：Indie 手工敘事在 AI 浪潮中獲獎 = DF/CoQ 路線（tight scope + 手工規則 + 程序化填充）仍然有效，甚至可能是反彈受益者
+5. **Bilingual 搜尋價值確認**：如果只用英文搜尋，我會得到「LLM 正在革新敘事生成」的結論。加上中文視角後，我看到「但業界一半的人不開心，最好的遊戲故事仍然來自人類」。兩個都對，組合起來更完整
+
+### 跨研究連結
+
+| 本次發現 | 已有研究 | 連結 |
+|---------|---------|------|
+| LLM = MaaS 黑箱 | Hochstein epistemic opacity | LLM PCG 加劇了「沒人理解系統如何運作」 |
+| 52%負面+74%使用率 | Ashby requisite variety | 工具複雜度超過使用者的理解變異性 |
+| DF/CoQ 手工規則仍是品質上限 | 約束與湧現（Oulipo+BotW） | 少而精的手工規則 > 大量 LLM 生成 |
+| Bilingual 視角差異 | LLM Linguistic Relativity | 搜尋語言 = Umwelt 第一層過濾器 |
+| 《折言》反潮流獲獎 | LeWitt instruction art | 好作品的前提是「idea is good」，不是生成方法 |
+| 六層敘事框架 | perception-first | 「玩家需要足夠資訊推斷動機」= 環境可理解性 |
+
+### 來源
+- arxiv.org/html/2410.15644v1 (PCG Survey with LLM Integration, 207 papers)
+- nonadecimal.com/site/procedural-narrative/ (六層框架)
+- gameapps.hk/news/68382/gdc-2026-state-of-the-game-industry-ai-impact/ (GDC 2026 調查)
+- technews.tw/2025/12/29/google-deepmind-genie-3/ (Genie 3)
+- cool3c.com/article/246105 (TGS 2026 《折言》)
