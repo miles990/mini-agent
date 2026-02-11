@@ -642,6 +642,61 @@ export function createApi(port = 3001): express.Express {
     res.json({ success: true, action, status: loopRef.getStatus() });
   });
 
+  // =============================================================================
+  // Dashboard
+  // =============================================================================
+
+  // Learning digest API — 從 behavior log 提取每日學習心得
+  app.get('/api/dashboard/learning', (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string || undefined;
+    const entries = logger.queryBehaviorLogs(date, 500);
+
+    // 過濾出學習/行動相關的 behavior（action.task / action.autonomous / loop.cycle.end）
+    const learningEntries = entries.filter(e => {
+      const action = e.data.action;
+      const detail = e.data.detail || '';
+      return (action === 'action.task' || action === 'action.autonomous') && detail.includes('**What**:');
+    });
+
+    // 解析結構化內容
+    const digest = learningEntries.map(e => {
+      const detail = e.data.detail || '';
+      const what = detail.match(/\*\*What\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
+      const why = detail.match(/\*\*Why\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
+      const changed = detail.match(/\*\*Changed\*\*:\s*\n([\s\S]*?)(?:\*\*Verified|$)/)?.[1]?.trim() || '';
+      return { timestamp: e.timestamp, what, why, changed };
+    });
+
+    res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
+  });
+
+  // Behavior timeline API — dashboard 主要資料源
+  app.get('/api/dashboard/behaviors', (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string || undefined;
+    const limit = Math.min(parseInt(req.query.limit as string || '200', 10), 500);
+    const actor = req.query.actor as string || undefined;
+
+    let entries = logger.queryBehaviorLogs(date, limit);
+
+    if (actor) {
+      entries = entries.filter(e => e.data.actor === actor);
+    }
+
+    res.json({ entries, count: entries.length, date: date ?? new Date().toISOString().split('T')[0] });
+  });
+
+  // Dashboard HTML — 靜態頁面
+  app.get('/dashboard', (_req: Request, res: Response) => {
+    const dashboardPath = path.join(import.meta.dirname, '..', 'dashboard.html');
+    if (fs.existsSync(dashboardPath)) {
+      res.sendFile(dashboardPath);
+    } else {
+      res.status(404).send('Dashboard not found');
+    }
+  });
+
   return app;
 }
 

@@ -10,6 +10,8 @@
  * 靈感來源：OpenClaw 的 SOUL.md + Heartbeat 模式
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
@@ -321,6 +323,9 @@ export class AgentLoop {
       // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
       if (hasQueuedMessages()) drainQueue();
 
+      // 檢查 approved proposals → 自動建立 handoff
+      await checkApprovedProposals();
+
       return action;
     } finally {
       this.cycling = false;
@@ -479,5 +484,75 @@ export function parseInterval(str: string): number {
     case 'm': return value * 60_000;
     case 'h': return value * 3_600_000;
     default: return DEFAULT_CONFIG.intervalMs;
+  }
+}
+
+// =============================================================================
+// Handoff — Approved Proposals → Handoff Files
+// =============================================================================
+
+/**
+ * 檢查 memory/proposals/ 中 Status: approved 的提案，
+ * 自動在 memory/handoffs/ 建立對應的 handoff 任務檔案
+ */
+async function checkApprovedProposals(): Promise<void> {
+  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
+  const handoffsDir = path.join(process.cwd(), 'memory', 'handoffs');
+
+  if (!fs.existsSync(proposalsDir)) return;
+  if (!fs.existsSync(handoffsDir)) {
+    fs.mkdirSync(handoffsDir, { recursive: true });
+  }
+
+  let files: string[];
+  try {
+    files = fs.readdirSync(proposalsDir).filter(f => f.endsWith('.md') && f !== 'README.md');
+  } catch {
+    return;
+  }
+
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.join(proposalsDir, file), 'utf-8');
+
+      // 只處理 Status: approved（不是 implemented, draft, rejected 等）
+      if (!content.includes('Status: approved')) continue;
+
+      // 對應的 handoff 檔案名稱
+      const handoffFile = path.join(handoffsDir, file);
+      if (fs.existsSync(handoffFile)) continue; // 已建立過
+
+      // 從 proposal 提取資訊
+      const titleMatch = content.match(/^# Proposal:\s*(.+)/m);
+      const title = titleMatch?.[1]?.trim() ?? file.replace('.md', '');
+      const tldrMatch = content.match(/## TL;DR\s*\n\n([\s\S]*?)(?=\n## )/);
+      const tldr = tldrMatch?.[1]?.trim() ?? '';
+
+      const now = new Date().toISOString();
+      const handoffContent = `# Handoff: ${title}
+
+## Meta
+- Status: pending
+- From: kuro
+- To: claude-code
+- Created: ${now}
+- Proposal: proposals/${file}
+
+## Task
+${tldr}
+
+See the full proposal at \`memory/proposals/${file}\` for details, alternatives, and acceptance criteria.
+
+## Log
+- ${now.slice(0, 16)} [kuro] Auto-created handoff from approved proposal
+`;
+
+      fs.writeFileSync(handoffFile, handoffContent, 'utf-8');
+      slog('HANDOFF', `Created: ${file} (from approved proposal)`);
+
+      await notify(`📋 Handoff 已建立：${title}\n等待 Claude Code 執行`, 'summary');
+    } catch {
+      // 單一檔案失敗不影響其他
+    }
   }
 }

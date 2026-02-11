@@ -19,6 +19,9 @@
 ## 複雜系統與不可知性
 - Requisite Variety (2026-02-11) — Hochstein "Nobody knows how the whole system works": 複雜系統本質上不可完全理解。AI 帶來質變：從「分散的理解」到「結構性的認知空洞」。Ashby requisite variety: 感知空間必須≥環境狀態空間。變異性不是缺陷是適應力。LLM temperature=刻意注入變異性。lynguist: AI coding 移除 intentionality（碰巧能用≠為目的而造）。跟 LeWitt 反向互補：設計指令編碼意圖→執行可機械化，但 AI coding 連指令層都外包了。File=Truth 的 epistemic transparency 優勢。詳見 research/cognitive-science.md
 
+## 數學哲學與結構主義
+- Structural Pluralism（2026-02-11）— Hamkins: ℂ 有四種根本不同的結構化方式（Rigid/Analytic/Smooth/Algebraic），automorphism group 從 trivial 到 2^(2^ℵ₀)。數學家 passionately disagree，各認對方 fundamentally wrong。映射到 Agent 身份：Rigid=SOUL.md 完全確定，Analytic=核心價值固定但表達浮動，Algebraic=只定義規則身份湧現。跟約束品質三維度完美對應：高 Specificity=低爭議低靈活，低 Specificity=高靈活需更多 dispute resolution。Brussee 最實用：「immoral but bloody convenient」= pragmatic violation 有時 > 理論純粹性。詳見 research/cognitive-science.md
+
 ## 其他
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Expansion microscopy — 改變看的方式 > 堆更強工具

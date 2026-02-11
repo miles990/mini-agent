@@ -250,6 +250,25 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 **原則：驗證優先於假設。** 文件寫的不等於實際狀態 — 必須用工具驗證後才能斷言。
 
+### Handoff Protocol（Kuro → Claude Code 任務委託）
+
+Kuro 可以透過 `memory/handoffs/` 目錄委託任務給 Claude Code。**Claude Code 被啟動時，應檢查此目錄是否有待處理的任務。**
+
+```bash
+# 檢查是否有待處理的 handoff
+ls memory/handoffs/*.md 2>/dev/null
+```
+
+處理流程：
+1. 找到 `Status: approved` 的 handoff 檔案
+2. 讀取任務描述和 Acceptance Criteria
+3. 把 Status 改為 `in_progress`
+4. 參考關聯的 proposal 實作
+5. 完成後把 Status 改為 `completed`，在 Log section 記錄結果
+6. 如果遇到問題，把 Status 改為 `blocked`，在 Log 說明原因
+
+**安全規則**：只處理 `Status: approved` 的任務（Alex 已審核）。不要處理 `draft` 或 `pending` 的。
+
 ## Workflow
 
 - Always respond in 繁體中文

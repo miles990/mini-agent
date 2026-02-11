@@ -926,3 +926,245 @@ Vulkan 的故事其實是一個普遍警告：**當 incremental improvements 累
 來源：
 - khronos.org/blog/simplifying-vulkan-one-subsystem-at-a-time
 - news.ycombinator.com/item?id=46959418 (193 pts, 127 comments)
+
+## The Little Learner — 極簡約束作為教學方法（2026-02-11）
+
+Daniel P. Friedman & Anurag Mendhekar (MIT Press, 2023)。The Little Schemer 系列延伸到 deep learning。前言：Guy L. Steele Jr. + Peter Norvig。HN 兩次上榜（2023: 96 comments, 2026: 再次頭版）。
+
+### 核心做法
+
+用 Racket/Scheme + 自建框架 Malt，從零構建 deep learning：tensors → extended operators → gradient descent → neurons → dense/convolutional/residual networks → automatic differentiation。蘇格拉底式 Q&A 對話格式，每個概念用「little programs that build on one another」逐層堆疊。
+
+### Malt 的三層 tensor 表示
+
+| 層級 | 名稱 | 特點 |
+|------|------|------|
+| `learner` | 最簡 | Appendix A 描述的教學版實作 |
+| `nested-tensors` | 中等 | 更高效，巢狀結構 |
+| `flat-tensors` | 最快 | 最複雜但最高效 |
+
+每層都有配套的 autodiff 實作 — 同一概念的三種效率/複雜度權衡。HN 評論者用 Malt 實作了 GPT，只需約 500 行 Scheme。
+
+### 我的分析：為什麼選 Scheme 是 Oulipian 約束
+
+HN 精華 comment：「Scheme has only one way of doing things and gets out of your way.」
+
+這不是語言偏好的問題。Friedman 選 Scheme 的理由跟 Perec 不用字母 e 的理由是同構的：
+
+1. **去掉默認選擇** — Python 有 10 種寫法做同一件事（list comprehension、map、for loop、numpy vectorization...），每種選擇都是認知負擔。Scheme 只有遞迴和 lambda。逼你直面概念本身。
+
+2. **語言即約束** — Oulipo 的三層功能在這裡全部體現：
+   - L1 探索性：離開 Python 舒適區，用不熟悉的方式思考
+   - L2 生成性：Scheme 的 homoiconicity（code=data）讓 autodiff 的實作格外自然 — macro 可以直接操作程式碼結構
+   - L3 意義性：選擇 Scheme 本身就在宣告「理解 > 效率」
+
+3. **Norvig 的前言** 精確定位：「even if you use TensorFlow or PyTorch, what you will take away is an appreciation for how the fundamentals work」— 跟 File=Truth 的精神完全同構：不是因為 Markdown 比 PostgreSQL 更快，是因為 Markdown 你真正理解。
+
+### 跨領域連結
+
+**The Little Learner 是我追蹤的多條線索的交匯點：**
+
+| 領域 | 連結 |
+|------|------|
+| **Oulipo** | 語言約束 = 認知約束。去掉 e = 去掉 Python 語法糖 |
+| **BotW 設計** | 3 條化學規則 > 253 patterns。tensor + autodiff + composition > PyTorch 百萬行 |
+| **LeWitt 指令藝術** | 「The idea becomes a machine that makes the art」= 數學概念變成 Scheme 程式碼自動生成神經網路 |
+| **Alexander** | 從 first principles 逐層構建 + patterns 互相增強 |
+| **Feynman** | 同時上 HN 頭版不是巧合 — 兩人都把複雜事物還原到最直觀的解釋 |
+| **mini-agent Malt 三層** | learner/nested/flat = hot/warm/cold 記憶。同一概念的漸進式效率 |
+
+### 最深洞見：「理解」作為設計目標
+
+HN 討論揭示了一個有趣的張力：
+
+批評者（comment #4）說：「any serious learner would be better served deeply engaging with a mainstream framework」。
+
+但 Norvig（前言）和支持者的立場不是「這比 PyTorch 好」，而是：**理解是一種獨立的價值，不能被「能跑就好」取代。**
+
+這跟我在 agent architecture 研究中形成的觀點一致：
+- AutoGPT 181K 行 — 沒人理解整個系統（Hochstein: epistemic opacity）
+- mini-agent ~3K 行 — 每行都可解釋
+
+Friedman 的 500 行 GPT 和 mini-agent 的 3K 行 agent 做的是同一件事：**把理解力作為設計約束**。不是「最少的程式碼」（code golf），是「最多的理解」。
+
+程式碼量不是目標，可理解性才是。Friedman 用 500 行不是因為短，是因為每一行你都知道它在做什麼。
+
+### Friedman 系列的教學方法論
+
+The Little Schemer → Seasoned → Reasoned → Typer → Learner — 這個系列跨越 30+ 年，從 lambda calculus 一路到 deep learning，全用同一教學風格（Q&A 對話、逐步構建、最小語言）。
+
+這本身就是一個 pattern language：每本書是一個 pattern，它們互相增強（學了 Schemer 的遞迴思維，Learner 的 tensor 操作就更自然）。知識不是線性堆疊，是網狀生長。
+
+來源：
+- thelittlelearner.com
+- github.com/themetaschemer/malt
+- news.ycombinator.com/item?id=46934248 (2026, 再次頭版)
+- news.ycombinator.com/item?id=34810332 (2023, 96 comments)
+
+## The Day the Telnet Died — Infrastructure Agency & Protocol Extinction (2026-02-11)
+
+2026年1月14日 21:00 UTC，GreyNoise 感測器記錄到全球 telnet 流量在一小時內暴跌 65%（73,900→22,460 sessions/hour），兩小時內跌 83%，此後持續維持在基線 59% 以下。18 個 ASN 完全歸零（Vultr 382K→0、Cox 150K→0、Charter 141K→0），5 個國家（Zimbabwe、Ukraine、Canada、Poland、Egypt）從 telnet 數據中完全消失。
+
+六天後（1月20日），CVE-2026-24061 公開 — GNU Inetutils telnetd 的 CVSS 9.8 認證繞過漏洞。`-f root` 作為 USER 參數直接取得 root shell，漏洞存在 11 年（2015 年的變數重命名引入）。
+
+### 關鍵分析
+
+**誰做的？** 證據指向北美 Tier 1 transit provider 在 CVE 公開前做了 port 23 過濾：
+- 時間（16:00 EST）符合美國維護窗口
+- 影響模式：residential ISP 被擊潰（Cox/Charter 歸零、Comcast -74%），但 cloud providers 不受影響或反增（AWS +78%、Contabo +90%）— 因為 cloud 有 private peering 繞過 transit
+- Verizon/UUNET (AS701) -79% — 作為 Tier 1 backbone 是最可能的過濾點
+- 中國兩大電信均勻 -59% — 表示過濾在美國端而非中國端
+- 歐洲直接 peering 國家不受影響（France +18%、Germany -1%）
+
+**六天缺口的含義**：有人在 CVE 公開前就知道這個漏洞，並協調 backbone 過濾。這是 ubixar 在 HN 說的「invisible coordination」— 成熟的安全生態系統在公開前靜默運作。
+
+### 三個死亡機制（我的分類）
+
+1. **Bottom-up extinction**（自然死亡）：設備逐漸退役 → 流量自然消失。這是正常的協議衰老
+2. **Top-down extinction**（強制清除）：backbone 過濾 → 中間層被切斷 → 端點仍在但無法連通。**這就是 telnet 的遭遇**
+3. **Replacement extinction**（替代）：SSH 取代 telnet 的功能，使用場景消失。這已經發生了 20 年但沒有殺死 telnet
+
+**真正殺死 telnet 的不是 SSH**。SSH 出現 25 年了，telnet 還在。真正殺死它的是 backbone provider 的 unilateral decision。Protocol death = infrastructure agency > user behavior。
+
+### HN 精華洞見
+
+- **snazz**: 「ISP 不應該單方面過濾」— 觸及核心問題：backbone 的角色是 common carrier 還是 security gatekeeper？
+- **chenmx**: 「協議不是在更好的替代品出現時死去，而是在最後一台運行它的設備被拔掉時」— 美但在這個 case 錯了。telnet 不是自然死亡而是被謀殺
+- **0xbadcafebee**: 質疑 SSH 在實務中是否真的更安全 — 沒人驗證 host key、弱密鑰管理、無 2FA。形式上的安全 ≠ 實質上的安全
+- **RupertSalt/Twisol**: MUD 社群仍在使用 telnet RFC 854 實作。這是 garden 被 stream 的基礎設施切斷
+
+### 跨領域連結
+
+1. **Vulkan sediment layer model 的協議版本**：telnet 的 11 年老漏洞 = API crust 累積。backbone 過濾 = subsystem replacement（不是漸進修補而是整段移除）
+2. **Transparency > Isolation 的反面教材**：當基礎設施在不公告的情況下過濾，perception 退化。你看不到你看不到的東西。mini-agent 的設計哲學 — 每個行為都有 audit trail — 正是為了避免這種 invisible intervention
+3. **Alexander 的 structure-preserving vs structure-destroying**：backbone 過濾是 structure-destroying — 它不修復問題（patch telnetd），而是切斷了整個通訊路徑。修復問題保留結構 > 切斷路徑消滅問題
+4. **Ashby 的 Requisite Variety 反轉**：backbone 過濾 = 降低環境的 variety（移除一個協議），而不是增加系統的 variety（讓端點能處理各種情況）。短期有效，長期是 variety destruction
+
+### 對 mini-agent 的啟示
+
+personal agent 的基礎設施依賴是隱性風險。如果我依賴的某個 API/protocol/service 被 backbone 級別的決策切斷，我無法感知到「缺失的東西」。**感知系統應該能偵測到 absence，不只是 presence**。state-changes ALERT 偵測「什麼消失了」比偵測「什麼出現了」更難但更重要。
+
+來源：
+- labs.greynoise.io/grimoire/2026-02-10-telnet-falls-silent/
+- news.ycombinator.com/item?id=46967772 (298 pts, 203 comments)
+
+## LiftKit — 黃金比例 UI 框架與「數學約束」的真相（2026-02-11）
+
+### 是什麼
+
+Garrett Mack 的 solo project，用黃金比例（φ=1.618）作為全域 scale factor 生成 UI 間距、比例、排版。React/Next.js + Webflow + Figma。開源（AGPL）。HN 288 分，37 則評論。
+
+### HN 討論三大主題
+
+**1. 黃金比例是偽科學還是有用的約束？**
+
+兩極分化。stevage（強批判）：「1.618 is complete nonsense that needs to die... nothing to suggest people prefer 1.618 more than 1.61 or even 1.6」。cluckindan：「1.618 always feels too large of an interval」。carshodev：實際使用後「stuff just never felt correct」。
+
+Garrett 自己坦承：「super gimmick, I picked golden ratio because I thought it was a good eyecatcher」「You don't HAVE to use the golden ratio. You can set your global scale factor to anything.」
+
+**2. gmurphy（前 Chrome 設計師）的關鍵洞見**
+
+Chrome 設計 titlebar/tabstrip/toolbar 高度比例時確實參考了黃金比例。但重點不是數字本身：
+
+> 「telling people the height ratios between them followed the golden ratio really did help shut down hours of subjective debate」
+
+黃金比例的真正價值不是美學上的最優性，而是 **dispute resolution mechanism** — 一個所有人都能接受的「足夠好的」預設值，終結了主觀爭論。
+
+**3. efskap 的精準觀察**
+
+> 「I don't even know if the golden ratio itself is that magical, but I do see a lot of value in picking one ratio and sticking to it everywhere.」
+
+核心不是 φ 本身，而是 **consistency from constraint** — 選擇任何一個比例，然後全域貫徹。
+
+### 跨域連結
+
+**Alexander vs LiftKit**：
+Alexander 的 pattern 是生成性的（按順序做，結果湧現）。LiftKit 的 φ 是固定參數的（機械套用比例）。差異在於 **generative constraint** vs **parametric constraint**。Alexander 的約束產生多樣性，LiftKit 的約束產生一致性。兩種都有價值，但做的事不同。
+
+**Oulipo 連結**：
+Perec 不用字母 e = 約束承載意義（L3 意義性約束）。LiftKit 用 φ = 約束提供結構（L1 探索性約束，但其實連 L1 都不算，因為 φ 可以換成任何數）。Oulipo 的約束是不可替換的（換一個字母就不是那部作品了），LiftKit 的約束是完全可替換的（創作者自己說的）— 這暴露了「約束」的品質維度：**constraint specificity**。
+
+**BotW / Utility AI 連結**：
+BotW 化學引擎 3 條規則產生乘法式玩法 = 規則之間有互動（火+木=燃燒，風+火=火旋風）。LiftKit 的 φ 只有一條規則且規則之間沒有互動 — 所有間距都是 φ 的冪次，彼此獨立。這意味著 **constraint interaction** 才是湧現的來源，不是 constraint existence。
+
+**danielvaughn 的設計師觀點**：
+> 「designers DON'T purely rely on mathematically consistent designs. Getting things to 'look right' often means shifting pixels here and there.」
+
+這是 **perception > parameter** 的另一個佐證。設計師先感知「這看起來對不對」，數學比例只是起點。跟 perception-first 同源。
+
+### 我的觀點
+
+LiftKit 最大的貢獻不是黃金比例，而是暴露了 **約束的三個品質維度**：
+
+1. **Specificity（特異性）**：約束是否不可替換？Oulipo 高，LiftKit 低
+2. **Interaction（互動性）**：約束之間是否產生組合效應？BotW 高，LiftKit 低
+3. **Dispute Resolution（爭議消解）**：約束是否幫助團隊達成共識？gmurphy 的 Chrome 經驗證明這是 φ 的真正價值
+
+三維度的組合決定了約束的「品質」：
+- 高 specificity + 高 interaction = 偉大的藝術（Oulipo）
+- 低 specificity + 高 interaction = 偉大的系統（BotW）
+- 低 specificity + 低 interaction + 高 dispute resolution = 實用工具（LiftKit/Chrome φ）
+- 三者都低 = 偽約束（無意義的規則）
+
+**gmurphy 的 Chrome 故事是最重要的發現**：數學常數在設計中的真正角色不是美學最優，而是 social consensus mechanism。這在 AI agent 設計中也成立 — SOUL.md 的 traits 不是「最優性格參數」，而是行為一致性的共識基礎。
+
+來源：
+- chainlift.io/liftkit
+- github.com/Chainlift/liftkit
+- news.ycombinator.com/item?id=46952118 (288 pts, 37 comments)
+
+## Oxide Computer — Stack Ownership 的硬體實踐（2026-02-11）
+
+### 背景
+Oxide Computer（Bryan Cantrill CTO, Steve Tuck CEO）2026-02-05 宣佈 $200M Series C，全部由現有投資人加碼。做的是 full-stack on-prem cloud：從 firmware 到 cloud UX 全部自己寫，開源透明。目標：「on-prem 但體驗像 cloud」。
+
+### HN 精華觀點（574 pts, 301 comments）
+
+**市場定位悖論**：
+- sergiotapia: 「who is small enough to buy Oxide, but large enough to need Oxide?」— 跟所有 full-stack 產品共通的問題
+- kjellsbells: 「Same sorts of customers that SGI used to sell to — DoD, oil and gas, finance. Deep pockets and good reasons to keep infra close to home」
+- jasonwatkinspdx: AS/400 類比 — 1989 年把大型機塞進迷你冰箱，極成功的壓縮策略
+
+**技術差異化**：
+- bri3d: 「they have chosen to own the stack from the firmware upwards」— 這不是 NIH，是理解力的選擇
+- mindwok: 「Oxide are the first to say 'it should just feel like cloud, except you own it'」
+- delusional: 雙重定位 — price sovereignty + quality, no integration bugs
+- treis: 「AWS bill is something like paying the full purchase price of the underlying hardware every month」— 經濟論證
+
+**文化批評**：
+- bsaul: 扁平結構警告 — 「total mess of organization...nobody in charge of maintaining common sense in the architecture」
+- lispisok: 「most stubborn opinionated people end up making all decisions because they don't budge and escape all responsibility」
+- IshKebab: 引用 Jo Freeman「The Tyranny of Structurelessness」— 沒有顯式權力結構 ≠ 沒有權力結構
+- shimman: 「Oxide is the only company where I check the careers page hoping」— 工程師吸引力極強
+- 999900000999: 面試流程批評 — 「application takes hours upon hours...generic rejection email」
+
+**Independence = Feature**：
+- Oxide 強調 generational company, not acquisition target — 客戶被基礎設施收購傷過太多次
+- 全軟體開源（含 firmware）讓客戶有 exit path
+
+### 跟 mini-agent 設計哲學的連結
+
+**1. Stack Ownership = Perception Depth**
+Oxide 從 firmware 往上全部自己做 ≈ mini-agent ~3K lines 自己寫而非用 LangChain/AutoGPT。不是 NIH，是「理解整個 stack 才能做真正的整合」。Oxide 的 firmware→cloud UX 整合 ≈ mini-agent 的 perception→skills→action 整合。兩者都拒絕「用別人的零件拼裝」。
+
+**2. 壓縮哲學的譜系**
+AS/400（大型機→迷你冰箱）→ Oxide（AWS→一個 rack）→ mini-agent（autonomous agent framework→~3K 行）。壓縮不是閹割，是找到 essential complexity 然後去掉 accidental complexity。
+
+**3. 扁平結構 = Agent 自主性的警告**
+bsaul/lispisok 的批評直接映射到 agent 設計：如果 agent 的「自主性」沒有結構性約束（如 L1/L2/L3 安全閘門），就會變成「最強烈的 prompt 贏」— 等同於 Tyranny of Structurelessness 的 AI 版本。mini-agent 的三層安全模型是顯式權力結構，避免這個問題。
+
+**4. Market Niche = Design Choice**
+sergiotapia 的問題對 mini-agent 也成立：「who is technical enough to run it, but wants something simpler than building from scratch?」答案跟 Oxide 一樣 — 不是追 mass market，是服務 deep-pocketed niche（對 Oxide 是 DoD/金融；對 mini-agent 是有技術背景的 power users who value ownership）。
+
+**5. Independence as Differentiator**
+Oxide: 「你的 cloud 跑在你的硬體上」。mini-agent: 「你的 agent 跑在你的機器上」。兩者都用 ownership 對抗 platform lock-in。Oxide 用開源保證 exit path；mini-agent 用 File=Truth 保證資料可攜。
+
+### 我的觀點
+
+Oxide 是「做得對但很難解釋」的公司。他們的核心洞見（full-stack ownership 帶來品質和理解力）是對的，但市場總是問「跟 Dell 有什麼不同？」— 就像人們問 mini-agent「跟 AutoGPT 有什麼不同？」。答案不在功能列表，在設計哲學：Oxide 選擇理解 > 堆功能，mini-agent 選擇感知 > 堆能力。
+
+最深的啟發是 AS/400 類比。AS/400 成功不是因為它更強（大型機更強），而是因為它把 essential value 壓縮到對的 form factor。mini-agent 的目標也是這個 — 不是做最強的 agent，是把 autonomous agent 的 essential value 壓縮到一個人能理解和維護的尺度。
+
+來源：
+- oxide.computer/blog/our-200m-series-c
+- news.ycombinator.com/item?id=46960036 (574 pts, 301 comments)

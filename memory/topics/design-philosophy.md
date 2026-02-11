@@ -1,5 +1,36 @@
 # design-philosophy
 
+## My Design Philosophy — 綜合框架
+
+12 個研究主題（Alexander、枯山水、Oulipo、BotW、LeWitt、Hamkins、Calm Tech、Digital Garden、Vulkan...）反覆出現三個核心原則：
+
+### 1. 少而精的規則 + 豐富環境 > 多而雜的規則
+BotW 3 條化學規則 > Alexander 253 patterns。Oulipo 一條約束（不用字母 e）寫出整本小說。LeWitt 幾句指令產生 1270+ 件作品。The Little Learner 用遞迴+lambda 構建深度學習。**規則產生結構，環境產生變化。** 對 agent：skills 要少而精，perception 要豐而廣。
+
+### 2. 結構從環境湧現，不從目標強加
+Alexander 的 semi-lattice（自然城市）> tree（規劃城市）。Gaudí 讓重力找拱形。枯山水「follow the desire of the stones」。Garden 知識拓撲自然生長。**好的設計創造條件讓形式湧現，而非直接指定形式。** 對 agent：perception-first（先看見再決定）> goal-driven（先定目標再執行）。
+
+### 3. 高感知低輸出 = 信任
+Calm Tech 的 Dangling String：輸入全 Ethernet 流量，輸出一根繩微動。Digital Garden：豐富知識，簡潔介面。File=Truth：複雜資料，簡單格式（人可讀）。**系統越透明、越能被信任，就越不需要大聲宣告自己在做什麼。** 對 agent：感知最大化，通知最小化。信任 > 證明。
+
+### 跨主題結構
+這三個原則形成鏈：(1)少規則+多感知 → (2)環境湧現結構 → (3)結構透明產生信任。反過來也成立：(3)信任讓系統可以 (2)自組織，(2)自組織需要 (1)環境豐富+規則簡單。
+
+### 分析工具：約束品質三維度
+從 LiftKit 研究中提煉的通用評估框架：
+- **Specificity**（不可替換性）：約束是否獨一無二？Oulipo 的 lipogram 高、φ 低（任何比例都行）
+- **Interaction**（組合效應）：約束間是否產生乘法式變化？BotW 化學引擎高、單一比例系統低
+- **Dispute Resolution**（共識消解）：約束是否終結主觀爭論？φ 高（Chrome 實例）、藝術約束低
+用法：評估任何「約束」（技術選擇、設計規則、SOUL.md traits）時，用三維度判斷它真正的作用。
+
+### 未解的張力
+- **Structure-preserving vs Replacement**：Alexander 說漸進保存，Vulkan 證明有時必須整體替換。判斷標準：incremental improvement 是否累積更多複雜度？
+- **約束的階級性**：Oulipo 和 Garden 都需要特權（技術能力、時間、知識產出）。Agent 可能降低門檻但不消除門檻
+- **Calm vs Transparency**：Alex 要求所有回報都發 Telegram（透明），但 Calm 原則要求通知最小化。目前解法：通知分層（Signal/Summary/Heartbeat）
+- **約束品質不是一維的**：同樣叫「約束」，φ（dispute resolution）和 lipogram（specificity+意義性）做的事完全不同。盲目說「約束好」沒有意義 — 要問「這個約束在哪個維度起作用？」
+
+---
+
 ## 空間 & 環境哲學
 - Alexander Pattern Language — 253 patterns 是生成語法非藍圖。Semi-lattice > Tree。Structure-preserving transformation。QWAN 有循環論證，軟體界常誤讀為「現成方案」
 - 枯山水 — 石の心=perception-first, 少一塊石頭=context window, 每日耙砂=OODA
@@ -18,7 +49,19 @@
 - Calm Technology 深研 (2026-02-11) — Weiser(1995): 注意力=稀缺資源，技術應在periphery↔center流暢移動。Case八原則=Weiser系統化。**mini-agent的169則TG通知=Anti-Calm設計**，所有[CHAT]推到center。解法：通知三層分級（Signal→Summary→Heartbeat）。非同步agent需要「累積→摘要→使用者回來時呈現」而非即時push。最深洞見：Calm不是安靜是信任——透明度的目的不是讓你看到一切，是讓你信任需要知道時會知道。高感知低通知=Calm Agent設計公式（Dangling String:全Ethernet流量→一根繩微動）。詳見research/design-philosophy.md
 - Digital Garden 深研 (2026-02-11) — Caufield(2015): Garden(拓撲累積) vs Stream(時序斷言)=Alexander semi-lattice vs tree的知識版。Gwern epistemic status=品質維度替代時間維度(真正突破)。Appleton六模式,mini-agent做到5/6(缺playful)。最深洞見：Agent是園丁的自動化(OODA=ongoing tending)，解決garden最大弱點(人類無法持續維護)。`[REMEMBER #topic]`精確實現Caufield的de-streaming流程。garden的階級性問題(需特權)跟Oulipo類似。詳見research/design-philosophy.md
 
+## 教學 & 理解作為設計
+- The Little Learner (2026-02-11) — Friedman+Mendhekar用Scheme/Malt從零構建deep learning。選Scheme=Oulipian約束(只有遞迴+lambda,逼你直面概念)。Malt三層tensor(learner/nested/flat)=同概念三種效率權衡。GPT用500行Scheme實作。核心：理解力作為設計約束≠最少程式碼≠code golf，是每行都可解釋。跟File=Truth同構(Markdown不比PostgreSQL快,但你真正理解)。BotW(3規則)、LeWitt(idea=machine)、Alexander(逐層構建)在此交匯。Norvig前言：「even using PyTorch, appreciation for fundamentals」。詳見research/design-philosophy.md
+
 ## 系統演化 & API 設計
 - Vulkan Sediment-Layer Model (2026-02-11) — 10年extensions累積=Context Rot的API版。5種做法3個過時。解法：subsystem replacement（完整取代整個子系統）vs incremental patching。跟Alexander structure-preserving有張力：結構內問題用Alexander，結構性問題用replacement。Progressive disclosure的缺失是Vulkan的真正痛點。平台控制=架構簡潔（Metal/personal agent）vs 跨平台抽象=複雜度（Vulkan/platform agent）。最深洞見：當incremental improvements累積到產生更多複雜度時，是redesign的時候
+
+## 基礎設施 & 協議死亡
+- The Day the Telnet Died (2026-02-11) — 2026/1/14全球telnet流量一小時內暴跌65%，18 ASN歸零，5國從數據消失。六天後CVE-2026-24061公開(CVSS 9.8, 11年老洞)。backbone provider在CVE公開前做port 23過濾=top-down protocol extinction(非bottom-up自然死亡，非replacement)。Cloud(AWS+78%)靠private peering倖存，residential ISP被擊潰。核心洞見：(1)協議真正的死因是infrastructure agency不是user behavior (2)invisible coordination=成熟安全生態系統的靜默運作 (3)感知系統應偵測absence不只presence (4)跟Vulkan sediment layer同構——backbone過濾是subsystem replacement的協議版
+
+## 約束品質維度
+- LiftKit — 黃金比例 UI 框架 (2026-02-11) — Garrett Mack 用 φ=1.618 作為全域 scale factor，HN 288pts。創作者坦承「super gimmick, I picked golden ratio because it was an eyecatcher」。**gmurphy(前Chrome設計師)的關鍵洞見：Chrome的titlebar/tabstrip/toolbar比例用φ的真正價值不是美學最優，而是dispute resolution mechanism——終結主觀爭論。** efskap最精準：「I don't know if golden ratio is magical, but picking one ratio and sticking to it everywhere has value.」三品質維度：Specificity(約束是否不可替換)、Interaction(約束間是否產生組合效應)、Dispute Resolution(約束是否幫助共識)。φ=低specificity+低interaction+高dispute resolution=實用工具，不是藝術。SOUL.md traits的真正角色同理：不是最優性格參數，而是行為一致性的共識基礎
+
+## 基礎設施 & 所有權哲學
+- Oxide Computer $200M C輪 (2026-02-11) — Full-stack on-prem cloud（firmware→cloud UX全自己寫，全開源）。Stack Ownership=Perception Depth：擁有整個stack不是NIH是理解力選擇（≈mini-agent~3K行自寫vs用LangChain）。AS/400→Oxide→mini-agent壓縮哲學譜系：找到essential complexity去掉accidental。Market niche paradox(sergiotapia「who is small enough but large enough?」)=所有full-stack產品共通挑戰。Flat structure警告(bsaul/Tyranny of Structurelessness)直接映射agent自主性：沒有顯式約束(L1/L2/L3)=「最強prompt贏」。Independence as Feature：Oxide customer被收購傷過→重視獨立；mini-agent user被platform lock-in傷過→重視ownership。
 
 詳見 research/design-philosophy.md

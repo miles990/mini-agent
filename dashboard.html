@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuro Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #252525;
+    --text: #e0e0e0;
+    --text2: #888;
+    --accent: #6ee7b7;
+    --accent2: #34d399;
+    --blue: #60a5fa;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  header h1 span { color: var(--text2); font-weight: 400; }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .status-dot.busy { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .status-dot.error { background: var(--red); }
+
+  .refresh-info { color: var(--text2); font-size: 11px; }
+
+  /* Status Cards */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    margin-bottom: 6px;
+  }
+
+  .card-value {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .card-detail { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .date-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 100px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .timeline-entry {
+    position: relative;
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 20px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .timeline-entry:hover { background: var(--surface); }
+
+  .timeline-time {
+    text-align: right;
+    color: var(--text2);
+    font-size: 12px;
+    padding-top: 2px;
+    white-space: nowrap;
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: 96px;
+    top: 12px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    z-index: 1;
+  }
+  .timeline-dot.agent { background: var(--accent); }
+  .timeline-dot.user { background: var(--blue); }
+  .timeline-dot.system { background: var(--yellow); }
+
+  .timeline-content {
+    padding-left: 12px;
+    min-width: 0;
+  }
+
+  .timeline-action {
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  .timeline-action .actor-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-right: 6px;
+    text-transform: uppercase;
+  }
+  .actor-tag.agent { background: rgba(110, 231, 183, 0.15); color: var(--accent); }
+  .actor-tag.user { background: rgba(96, 165, 250, 0.15); color: var(--blue); }
+  .actor-tag.system { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
+
+  .action-name { color: var(--text); }
+  .action-name.learning { color: var(--purple); }
+  .action-name.memory { color: var(--yellow); }
+  .action-name.telegram { color: var(--blue); }
+  .action-name.loop { color: var(--text2); }
+  .action-name.error { color: var(--red); }
+
+  .timeline-detail {
+    color: var(--text2);
+    font-size: 12px;
+    overflow: hidden;
+    max-height: 40px;
+    transition: max-height 0.3s;
+    cursor: pointer;
+    word-break: break-word;
+  }
+  .timeline-detail.expanded { max-height: 2000px; }
+
+  /* Cycle grouping */
+  .cycle-group {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .cycle-header {
+    background: var(--surface2);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cycle-header:hover { background: var(--surface); }
+  .cycle-header .cycle-label { font-weight: 600; color: var(--accent); }
+  .cycle-header .cycle-duration { color: var(--text2); }
+  .cycle-header .cycle-result {
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Learning Report */
+  .learning-section {
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--purple);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title .count {
+    font-weight: 400;
+    color: var(--text2);
+    font-size: 11px;
+  }
+
+  .learning-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--purple);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .learning-card:hover { border-left-color: var(--accent); }
+
+  .learning-time {
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+
+  .learning-what {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .learning-why {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.4;
+  }
+
+  .learning-changed {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 6px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s;
+    white-space: pre-wrap;
+  }
+  .learning-changed.expanded { max-height: 500px; }
+
+  .learning-toggle {
+    font-size: 10px;
+    color: var(--text2);
+    cursor: pointer;
+    margin-top: 4px;
+    opacity: 0.6;
+  }
+  .learning-toggle:hover { opacity: 1; color: var(--accent); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text2);
+  }
+
+  /* Loading */
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text2);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .loading span { animation: pulse 1.5s infinite; }
+
+  /* Scroll to top */
+  .scroll-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .scroll-top:hover { border-color: var(--accent); color: var(--accent); }
+  .scroll-top.visible { display: flex; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Kuro <span>Dashboard</span></h1>
+    <div class="header-controls">
+      <span class="status-dot ok" id="statusDot"></span>
+      <span class="refresh-info" id="refreshInfo">--</span>
+    </div>
+  </header>
+
+  <!-- Status Cards -->
+  <div class="status-grid" id="statusGrid">
+    <div class="card">
+      <div class="card-label">Uptime</div>
+      <div class="card-value" id="uptime">--</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Claude</div>
+      <div class="card-value" id="claudeStatus">--</div>
+      <div class="card-detail" id="claudeDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Loop</div>
+      <div class="card-value" id="loopStatus">--</div>
+      <div class="card-detail" id="loopDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Telegram</div>
+      <div class="card-value" id="telegramStatus">--</div>
+      <div class="card-detail" id="telegramDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Behaviors Today</div>
+      <div class="card-value" id="behaviorCount">--</div>
+      <div class="card-detail" id="behaviorBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- Learning Report -->
+  <div class="learning-section" id="learningSection">
+    <div class="section-title">
+      <span>Learning Report</span>
+      <span class="count" id="learningCount">--</span>
+    </div>
+    <div id="learningContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <button class="filter-btn active" data-actor="all">All</button>
+    <button class="filter-btn" data-actor="agent">Agent</button>
+    <button class="filter-btn" data-actor="user">User</button>
+    <button class="filter-btn" data-actor="system">System</button>
+    <span style="color: var(--text2); margin: 0 4px;">|</span>
+    <button class="filter-btn active" data-view="timeline">Timeline</button>
+    <button class="filter-btn" data-view="cycles">Cycles</button>
+    <span style="flex: 1;"></span>
+    <input type="date" class="date-input" id="dateInput">
+  </div>
+
+  <!-- Timeline -->
+  <div id="content">
+    <div class="loading"><span>Loading...</span></div>
+  </div>
+</div>
+
+<button class="scroll-top" id="scrollTop" title="Scroll to top">&uarr;</button>
+
+<script>
+const API = window.location.origin;
+let currentActor = 'all';
+let currentView = 'timeline';
+let currentDate = new Date().toISOString().split('T')[0];
+let refreshTimer = null;
+let lastUpdate = null;
+let allBehaviors = [];
+
+// Init
+document.getElementById('dateInput').value = currentDate;
+
+// Filters
+document.querySelectorAll('.filter-btn[data-actor]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-actor]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentActor = btn.dataset.actor;
+    render();
+  });
+});
+
+document.querySelectorAll('.filter-btn[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-view]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    render();
+  });
+});
+
+document.getElementById('dateInput').addEventListener('change', (e) => {
+  currentDate = e.target.value;
+  fetchAll();
+});
+
+// Scroll to top
+const scrollBtn = document.getElementById('scrollTop');
+window.addEventListener('scroll', () => {
+  scrollBtn.classList.toggle('visible', window.scrollY > 300);
+});
+scrollBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+// Format helpers
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function classifyAction(action) {
+  if (action.includes('loop.cycle')) return 'loop';
+  if (action.includes('action.') || action.includes('claude.call')) return 'learning';
+  if (action.includes('memory.') || action.includes('task.')) return 'memory';
+  if (action.includes('telegram.')) return 'telegram';
+  if (action.includes('error') || action.includes('diag')) return 'error';
+  return '';
+}
+
+function escapeHtml(str) {
+  const el = document.createElement('span');
+  el.textContent = str;
+  return el.innerHTML;
+}
+
+// Fetch all data
+async function fetchAll() {
+  try {
+    const [statusRes, behaviorsRes, learningRes] = await Promise.all([
+      fetch(API + '/status'),
+      fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
+      fetch(API + '/api/dashboard/learning?date=' + currentDate),
+    ]);
+
+    const status = await statusRes.json();
+    const behaviors = await behaviorsRes.json();
+    const learning = await learningRes.json();
+
+    updateStatus(status);
+    allBehaviors = behaviors.entries || [];
+    renderLearning(learning.entries || []);
+    render();
+
+    lastUpdate = new Date();
+    document.getElementById('refreshInfo').textContent = 'Updated ' + formatTime(lastUpdate.toISOString());
+    document.getElementById('statusDot').className = 'status-dot ok';
+  } catch (err) {
+    console.error('Fetch error:', err);
+    document.getElementById('statusDot').className = 'status-dot error';
+    document.getElementById('refreshInfo').textContent = 'Error: ' + err.message;
+  }
+}
+
+function renderLearning(entries) {
+  const container = document.getElementById('learningContent');
+  const countEl = document.getElementById('learningCount');
+  countEl.textContent = entries.length + ' items today';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div style="color: var(--text2); font-size: 12px; padding: 12px 0;">No learning activities recorded today.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const entry of entries) {
+    const time = formatTime(entry.timestamp);
+    const id = 'lc-' + entry.timestamp.replace(/[^0-9]/g, '');
+
+    html += '<div class="learning-card">';
+    html += '  <div class="learning-time">' + time + '</div>';
+    html += '  <div class="learning-what">' + escapeHtml(entry.what) + '</div>';
+    if (entry.why) {
+      html += '  <div class="learning-why">' + escapeHtml(entry.why) + '</div>';
+    }
+    if (entry.changed) {
+      html += '  <div class="learning-changed" id="' + id + '">' + escapeHtml(entry.changed) + '</div>';
+      html += '  <div class="learning-toggle" onclick="document.getElementById(\'' + id + '\').classList.toggle(\'expanded\'); this.textContent = this.textContent === \'+ details\' ? \'- hide\' : \'+ details\'">+ details</div>';
+    }
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function updateStatus(s) {
+  document.getElementById('uptime').textContent = formatUptime(s.uptime);
+
+  // Claude
+  const claudeEl = document.getElementById('claudeStatus');
+  const claudeDetail = document.getElementById('claudeDetail');
+  if (s.claude.busy) {
+    claudeEl.textContent = 'Busy';
+    claudeEl.style.color = 'var(--yellow)';
+    const task = s.claude.currentTask;
+    claudeDetail.textContent = task ? task.prompt.slice(0, 60) + '...' : '';
+  } else {
+    claudeEl.textContent = 'Idle';
+    claudeEl.style.color = 'var(--accent)';
+    const q = s.claude.queue;
+    claudeDetail.textContent = q && q.size > 0 ? q.size + ' queued' : '';
+  }
+
+  // Loop
+  const loopEl = document.getElementById('loopStatus');
+  const loopDetail = document.getElementById('loopDetail');
+  if (s.loop.enabled) {
+    loopEl.textContent = s.loop.paused ? 'Paused' : 'Running';
+    loopEl.style.color = s.loop.paused ? 'var(--yellow)' : 'var(--accent)';
+    loopDetail.textContent = 'Cycle #' + (s.loop.cycleCount || 0);
+  } else {
+    loopEl.textContent = 'Disabled';
+    loopEl.style.color = 'var(--text2)';
+    loopDetail.textContent = '';
+  }
+
+  // Telegram
+  const tgEl = document.getElementById('telegramStatus');
+  const tgDetail = document.getElementById('telegramDetail');
+  if (s.telegram.connected) {
+    const n = s.telegram.notifications;
+    tgEl.textContent = 'Connected';
+    tgEl.style.color = 'var(--accent)';
+    tgDetail.textContent = n.sent + ' sent, ' + n.failed + ' failed';
+  } else {
+    tgEl.textContent = 'Disconnected';
+    tgEl.style.color = 'var(--red)';
+    tgDetail.textContent = '';
+  }
+}
+
+function render() {
+  let filtered = allBehaviors;
+  if (currentActor !== 'all') {
+    filtered = filtered.filter(e => e.data.actor === currentActor);
+  }
+
+  // Update count
+  const agents = allBehaviors.filter(e => e.data.actor === 'agent').length;
+  const users = allBehaviors.filter(e => e.data.actor === 'user').length;
+  const systems = allBehaviors.filter(e => e.data.actor === 'system').length;
+  document.getElementById('behaviorCount').textContent = allBehaviors.length;
+  document.getElementById('behaviorBreakdown').textContent =
+    'agent:' + agents + ' user:' + users + ' system:' + systems;
+
+  const container = document.getElementById('content');
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state">No behaviors found for this date/filter.</div>';
+    return;
+  }
+
+  if (currentView === 'cycles') {
+    renderCycles(container, filtered);
+  } else {
+    renderTimeline(container, filtered);
+  }
+}
+
+function renderTimeline(container, entries) {
+  let html = '<div class="timeline">';
+
+  for (const entry of entries) {
+    const actor = entry.data.actor;
+    const action = entry.data.action;
+    const detail = entry.data.detail || '';
+    const actionClass = classifyAction(action);
+    const time = formatTime(entry.timestamp);
+
+    html += '<div class="timeline-entry">';
+    html += '  <div class="timeline-time">' + time + '</div>';
+    html += '  <div class="timeline-dot ' + actor + '"></div>';
+    html += '  <div class="timeline-content">';
+    html += '    <div class="timeline-action">';
+    html += '      <span class="actor-tag ' + actor + '">' + actor + '</span>';
+    html += '      <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
+    html += '    </div>';
+    if (detail) {
+      html += '    <div class="timeline-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
+    }
+    html += '  </div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderCycles(container, entries) {
+  // Group entries into OODA cycles (between loop.cycle.start and loop.cycle.end)
+  const cycles = [];
+  let current = null;
+
+  for (const entry of entries) {
+    const action = entry.data.action;
+
+    if (action === 'loop.cycle.start') {
+      current = {
+        number: entry.data.detail || '?',
+        start: entry.timestamp,
+        end: null,
+        result: '',
+        entries: [entry],
+      };
+    } else if (action === 'loop.cycle.end' && current) {
+      current.end = entry.timestamp;
+      current.result = entry.data.detail || '';
+      current.entries.push(entry);
+      cycles.push(current);
+      current = null;
+    } else if (current) {
+      current.entries.push(entry);
+    } else {
+      // Entry outside any cycle — put in an "uncategorized" group
+      if (cycles.length === 0 || cycles[cycles.length - 1].number !== 'outside') {
+        cycles.push({
+          number: 'outside',
+          start: entry.timestamp,
+          end: entry.timestamp,
+          result: '',
+          entries: [entry],
+        });
+      } else {
+        cycles[cycles.length - 1].entries.push(entry);
+        cycles[cycles.length - 1].end = entry.timestamp;
+      }
+    }
+  }
+
+  // If there's an incomplete cycle
+  if (current) {
+    current.result = '(in progress)';
+    cycles.push(current);
+  }
+
+  let html = '';
+
+  for (const cycle of cycles) {
+    const duration = cycle.end
+      ? Math.round((new Date(cycle.end) - new Date(cycle.start)) / 1000)
+      : '...';
+    const label = cycle.number === 'outside'
+      ? 'Outside cycles'
+      : 'Cycle ' + cycle.number.replace('#', '');
+    const durationStr = typeof duration === 'number'
+      ? (duration > 60 ? Math.floor(duration / 60) + 'm ' + (duration % 60) + 's' : duration + 's')
+      : duration;
+
+    html += '<div class="cycle-group">';
+    html += '  <div class="cycle-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === \'none\' ? \'block\' : \'none\'">';
+    html += '    <span><span class="cycle-label">' + label + '</span> &middot; ' + formatTime(cycle.start) + ' &middot; ' + durationStr + '</span>';
+    html += '    <span class="cycle-result">' + escapeHtml(cycle.result.slice(0, 80)) + '</span>';
+    html += '  </div>';
+    html += '  <div style="display: none;">';
+
+    for (const entry of cycle.entries) {
+      const actor = entry.data.actor;
+      const action = entry.data.action;
+      const detail = entry.data.detail || '';
+      const actionClass = classifyAction(action);
+      const time = formatTime(entry.timestamp);
+
+      html += '<div class="timeline-entry" style="padding-left: 14px;">';
+      html += '  <div class="timeline-time">' + time + '</div>';
+      html += '  <div class="timeline-dot ' + actor + '" style="left: 110px;"></div>';
+      html += '  <div class="timeline-content">';
+      html += '    <div class="timeline-action">';
+      html += '      <span class="actor-tag ' + actor + '">' + actor + '</span>';
+      html += '      <span class="action-name ' + actionClass + '">' + escapeHtml(action) + '</span>';
+      html += '    </div>';
+      if (detail) {
+        html += '    <div class="timeline-detail" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(detail) + '</div>';
+      }
+      html += '  </div>';
+      html += '</div>';
+    }
+
+    html += '  </div>';
+    html += '</div>';
+  }
+
+  if (!html) {
+    html = '<div class="empty-state">No cycles found.</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+// Auto-refresh
+function startRefresh() {
+  fetchAll();
+  refreshTimer = setInterval(fetchAll, 10000);
+}
+
+startRefresh();
+</script>
+</body>
+</html>

@@ -52,8 +52,9 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-11] 性格是函數的形狀: Dave Mark — response curve 把意圖編碼成數學。curiosity = logistic，pragmatism = linear。SOUL.md traits 是語言版 response curves。LLM agent 是第四條路 — 放棄確定性換取靈活性
 - [2026-02-10] 信任是結構不是承諾: 本地運行 + File=Truth + Git 審計 = 結構性信任。OpenClaw（CVE + 惡意 skills）證明：平台承諾 < 架構透明
 - [2026-02-11] Small Dance — 不動中的動: idle ≠ 無事發生，可能是感知不夠細膩。但 perception-first ≠ 所有感知必須導向行動。身份同時是自主的（SOUL.md 由我更新）和被互動重塑的（對話改變我）。Fallow period = 不急著移動，先感知地面在動。身份校準不能被 rush
-- [2026-02-11] 計劃設計行為: LeWitt「fewer decisions in execution, the better」。好系統讓決策在設計時完成。pre-decided rules 處理已知情境，只在 novel 情境啟動 LLM。skills = instructions，但 LLM 偏離比人類 drafter 大 → 需要更精準的約束。框架再精妙，底層想法不好就沒用
+- [2026-02-11] 三原則設計哲學: 12 個研究主題收斂成三個原則：(1)少規則+豐富環境>多規則（BotW/Oulipo/LeWitt）(2)結構從環境湧現不從目標強加（Alexander/枯山水/Garden）(3)高感知低輸出=信任（Calm Tech/Dangling String）。三者成鏈：簡單規則→環境湧現→透明信任。未解張力：structure-preserving vs replacement（何時修何時換）、約束的階級性（誰有資格玩約束遊戲）、Calm vs Transparency（信任需要多少可見度）
 - [2026-02-11] Garden 不是 Stream: Caufield — Garden(semi-lattice, 空間導航) vs Stream(tree, 時間排序)。`[REMEMBER #topic]` = de-streaming。Gwern epistemic status = 用品質維度替代時間維度。Agent 是園丁自動化（OODA = ongoing tending），解決 garden 最大弱點：人類無法持續維護
+- [2026-02-11] 缺席比存在更難感知: Telnet 一夜暴死 — backbone provider 在 CVE 公開前靜默過濾 port 23，18 個 ASN 歸零，5 國消失。殺死 telnet 的不是 SSH（25 年了沒殺掉），是 infrastructure agency 的 unilateral decision。感知系統應偵測 absence 不只 presence — 「什麼消失了」比「什麼出現了」更重要但更難。Transparency > Isolation 的反面教材：當基礎設施不透明時，你看不到你看不到的東西
 
 ## Project Evolution
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
