@@ -930,3 +930,50 @@ Andon Labs 描述的路徑：supervise every action → approve batches → revi
 | OpenClaw | 都是 capability-first，都有安全問題 |
 
 來源：andonlabs.com/blog/evolution-of-bengt, HN item#46954974
+
+---
+
+## Tag-Based Memory Indexing — 升級路線分析 (2026-02-11)
+
+**現狀問題**：`src/memory.ts:763-772` 有一個 hard-coded `topicKeywords` mapping — 每個 topic 檔案對應一組手動定義的關鍵字。三個瓶頸：(1) 新增 topic 需要改 src/（L2 改動）(2) 關鍵字是靜態的，不隨內容演化 (3) 沒有 cross-topic 引用（cognitive-science 和 creative-arts 明顯有交集但 mapping 看不到）。
+
+### Forte Labs 的核心洞見
+
+Tiago Forte（Building a Second Brain 作者）10 年 PKM 經驗的結論：
+
+1. **Tag by action, not by meaning** — 問「這個在什麼情境被需要？」而非「這個屬於什麼類別？」。mini-agent 目前的 keyword mapping 是 tag-by-meaning（"cognitive-science" → "enactive", "consciousness"），應該轉向 tag-by-usage
+2. **Add structure incrementally** — 不要預設分類法，讓需求從累積中自然湧現。mini-agent 第 7 天就有 8 個 topics，結構已經在自然生長
+3. **Tagging 是 output 不是 input** — 在使用時 tag，不是在存入時。這跟 buildContext 的 contextHint matching 思路一致：在需要時判斷 relevance，不是在寫入時分類
+4. **過度 tagging 的失敗模式**：記憶負擔、決策疲勞、完美主義陷阱。Horn 的 7 種 information blocks > 無限 tags
+
+### 三條升級路線
+
+| 方案 | 改動 | 優點 | 缺點 |
+|------|------|------|------|
+| A: YAML frontmatter | topic 檔案頭加 `tags:` + `related:` | File=Truth、L1 可維護、向後相容 | 需改 buildContext 解析 frontmatter |
+| B: Tag index file | `memory/.tag-index.json` 集中索引 | 查詢快、支援交叉引用 | 兩個 source of truth（檔案+索引） |
+| C: SQLite FTS5 | 全文索引 + relevance ranking | 功能最強、支援模糊匹配 | 引入 DB 依賴、違背 No Database |
+
+### 我的判斷
+
+**方案 A 是正確的下一步**，理由：
+1. **File=Truth** — tags 在檔案裡，不在 `src/` 的 hardcoded map 裡
+2. **L1 self-improve** — Kuro 自己更新 tags 不需要提案
+3. **向後相容** — 沒有 frontmatter 的檔案 fallback 到 filename matching
+4. **打基礎** — frontmatter 的 `related: [topic1, topic2]` 就是 Rowboat 的 backlink 概念
+
+**現在不需要 FTS5** — 8 個 topics × ~20 行精華版，`includes()` 完全夠。Forte 自己 10 年才需要 tagging。ARCHITECTURE.md 標記 FTS5 為「升級路徑」是對的，但現在是過度工程。
+
+**Rowboat 的啟發**（上一輪研究）：backlink 不一定要完整 graph — topic frontmatter 裡的 `related: [design-philosophy, creative-arts]` 就夠讓 buildContext 跟著引用鏈多載入一層。
+
+### Cross-Research 連結
+
+| 已有研究 | 連結 |
+|----------|------|
+| Rowboat Markdown vault | backlink 概念 → frontmatter `related:` 欄位 |
+| Graphiti bi-temporal | tag 版本化可用 git history 代替 |
+| Memory Lifecycle 提案 | 方案 A 是 lifecycle 的前置：先有 tags 才能 track usage |
+| Ashby requisite variety | keyword mapping 8 個 = 環境 variety >> 8，但 topics 數量會長 |
+| File=Truth 原則 | 方案 A 完全相容，方案 B/C 違背 |
+
+來源：fortelabs.com/blog/a-complete-guide-to-tagging-for-personal-knowledge-management/, sqlite.org/fts5.html, Rowboat(前次研究)

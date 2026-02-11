@@ -31,7 +31,7 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ### Track B: Project Evolution — 待做項目
 
-- [ ] Tag-based 記憶索引 — 比 grep 更結構化但不需要 vector DB
+- [x] Tag-based 記憶索引 — 研究完成：YAML frontmatter 方案最佳（File=Truth+L1可維護），FTS5 過度工程。可作 L2 提案（2026-02-11）
 - [ ] Agent-to-Agent 通訊協議 — multi-agent 協作的前沿
 - [ ] Lighthouse 自動化 — 網站效能/可及性的持續監控
 - [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景

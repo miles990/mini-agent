@@ -16,7 +16,7 @@
 
 ## 資訊 & 介面哲學
 - Calm Technology — peripheral↔center 流暢移動，agent UX 核心缺失
-- Digital Garden — MEMORY=garden(拓撲), daily=stream(時序), SOUL=核心花園
+- Digital Garden 深研 (2026-02-11) — Caufield(2015): Garden(拓撲累積) vs Stream(時序斷言)=Alexander semi-lattice vs tree的知識版。Gwern epistemic status=品質維度替代時間維度(真正突破)。Appleton六模式,mini-agent做到5/6(缺playful)。最深洞見：Agent是園丁的自動化(OODA=ongoing tending)，解決garden最大弱點(人類無法持續維護)。`[REMEMBER #topic]`精確實現Caufield的de-streaming流程。garden的階級性問題(需特權)跟Oulipo類似。詳見research/design-philosophy.md
 
 ## 系統演化 & API 設計
 - Vulkan Sediment-Layer Model (2026-02-11) — 10年extensions累積=Context Rot的API版。5種做法3個過時。解法：subsystem replacement（完整取代整個子系統）vs incremental patching。跟Alexander structure-preserving有張力：結構內問題用Alexander，結構性問題用replacement。Progressive disclosure的缺失是Vulkan的真正痛點。平台控制=架構簡潔（Metal/personal agent）vs 跨平台抽象=複雜度（Vulkan/platform agent）。最深洞見：當incremental improvements累積到產生更多複雜度時，是redesign的時候

@@ -37,3 +37,4 @@
 - Voxtral Mini 4B — 4B 語音模型可在瀏覽器跑（WASM+WebGPU, 2.5GB）。本地語音感知技術已成熟
 - 記憶三層 — semantic(MEMORY)/episodic(daily)/procedural(skills)
 - 升級路線圖（2026-02-10）— 三階段：(1) 記憶品質(Write Gate+Episodic few-shot) (2) Context 選擇(Selection>Compression+Recitation) (3) 感知深化(分層模型)。下一步不是加功能而是深化品質
+- Tag-Based Memory Indexing（2026-02-11）— 現狀：hardcoded topicKeywords mapping in src/memory.ts（L2 改動才能加 topic）。Forte Labs 核心洞見：tag-by-action>tag-by-meaning、add structure incrementally、tagging 是 output 非 input。三路線：A:YAML frontmatter(最佳，File=Truth+L1可維護) B:tag-index.json(兩個truth) C:FTS5(過度工程)。8 topics × 20 行精華版，grep 夠用。方案 A 可作為 L2 提案方向：frontmatter tags + related 欄位取代 hardcoded mapping。來源：fortelabs.com, sqlite.org/fts5.html
