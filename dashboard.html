@@ -419,16 +419,62 @@
     line-height: 1.4;
   }
 
-  .learning-changed {
+  .learning-detail {
     font-size: 11px;
     color: var(--text2);
-    margin-top: 6px;
+    margin-top: 8px;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s;
-    white-space: pre-wrap;
+    transition: max-height 0.4s ease;
+    line-height: 1.6;
   }
-  .learning-changed.expanded { max-height: 500px; }
+  .learning-detail.expanded { max-height: 3000px; }
+
+  .learning-detail-inner {
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .learning-detail-section {
+    margin-bottom: 8px;
+  }
+
+  .learning-detail-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    margin-bottom: 2px;
+  }
+
+  .learning-detail-content {
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .learning-detail-content code {
+    background: var(--surface2);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  .learning-refs {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .learning-refs a {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 11px;
+    display: block;
+    padding: 2px 0;
+    word-break: break-all;
+  }
+  .learning-refs a:hover { text-decoration: underline; }
 
   .learning-toggle {
     font-size: 10px;
@@ -436,6 +482,7 @@
     cursor: pointer;
     margin-top: 4px;
     opacity: 0.6;
+    user-select: none;
   }
   .learning-toggle:hover { opacity: 1; color: var(--accent); }
 
@@ -665,6 +712,17 @@ async function fetchAll() {
   }
 }
 
+function formatMarkdown(str) {
+  // backtick → code
+  let out = escapeHtml(str);
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // **bold**
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // newlines
+  out = out.replace(/\n/g, '<br>');
+  return out;
+}
+
 function renderLearning(entries) {
   const container = document.getElementById('learningContent');
   const countEl = document.getElementById('learningCount');
@@ -679,6 +737,7 @@ function renderLearning(entries) {
   for (const entry of entries) {
     const time = formatTime(entry.timestamp);
     const id = 'lc-' + entry.timestamp.replace(/[^0-9]/g, '');
+    const hasDetail = entry.changed || entry.verified || (entry.urls && entry.urls.length > 0) || entry.full;
 
     html += '<div class="learning-card">';
     html += '  <div class="learning-time">' + time + '</div>';
@@ -686,14 +745,51 @@ function renderLearning(entries) {
     if (entry.why) {
       html += '  <div class="learning-why">' + escapeHtml(entry.why) + '</div>';
     }
-    if (entry.changed) {
-      html += '  <div class="learning-changed" id="' + id + '">' + escapeHtml(entry.changed) + '</div>';
-      html += '  <div class="learning-toggle" onclick="document.getElementById(\'' + id + '\').classList.toggle(\'expanded\'); this.textContent = this.textContent === \'+ details\' ? \'- hide\' : \'+ details\'">+ details</div>';
+
+    if (hasDetail) {
+      html += '  <div class="learning-detail" id="' + id + '">';
+      html += '    <div class="learning-detail-inner">';
+
+      if (entry.changed) {
+        html += '      <div class="learning-detail-section">';
+        html += '        <div class="learning-detail-label">Changed</div>';
+        html += '        <div class="learning-detail-content">' + formatMarkdown(entry.changed) + '</div>';
+        html += '      </div>';
+      }
+
+      if (entry.verified) {
+        html += '      <div class="learning-detail-section">';
+        html += '        <div class="learning-detail-label">Verified</div>';
+        html += '        <div class="learning-detail-content">' + formatMarkdown(entry.verified) + '</div>';
+        html += '      </div>';
+      }
+
+      if (entry.urls && entry.urls.length > 0) {
+        html += '      <div class="learning-refs">';
+        html += '        <div class="learning-detail-label">References</div>';
+        for (const url of entry.urls) {
+          const display = url.replace(/^https?:\/\//, '').slice(0, 80);
+          html += '        <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
+        }
+        html += '      </div>';
+      }
+
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div class="learning-toggle" onclick="toggleLearningDetail(\'' + id + '\', this)">+ details</div>';
     }
+
     html += '</div>';
   }
 
   container.innerHTML = html;
+}
+
+function toggleLearningDetail(id, toggleEl) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('expanded');
+  toggleEl.textContent = el.classList.contains('expanded') ? '- hide' : '+ details';
 }
 
 function updateStatus(s) {

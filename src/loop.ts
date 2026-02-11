@@ -257,12 +257,12 @@ export class AgentLoop {
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
           await notify(`🧠 ${action}`, 'heartbeat');
           slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
-          logger.logBehavior('agent', 'action.autonomous', action.slice(0, 200));
+          logger.logBehavior('agent', 'action.autonomous', action.slice(0, 2000));
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
           await notify(`⚡ ${action}`, 'heartbeat');
           slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
-          logger.logBehavior('agent', 'action.task', action.slice(0, 200));
+          logger.logBehavior('agent', 'action.task', action.slice(0, 2000));
         }
 
         this.adjustInterval(true);

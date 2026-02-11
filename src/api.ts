@@ -665,7 +665,10 @@ export function createApi(port = 3001): express.Express {
       const what = detail.match(/\*\*What\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
       const why = detail.match(/\*\*Why\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
       const changed = detail.match(/\*\*Changed\*\*:\s*\n([\s\S]*?)(?:\*\*Verified|$)/)?.[1]?.trim() || '';
-      return { timestamp: e.timestamp, what, why, changed };
+      const verified = detail.match(/\*\*Verified\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
+      // 提取所有 URL
+      const urls = [...detail.matchAll(/https?:\/\/[^\s)>\]]+/g)].map(m => m[0]);
+      return { timestamp: e.timestamp, what, why, changed, verified, urls, full: detail };
     });
 
     res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
