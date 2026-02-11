@@ -428,3 +428,75 @@ LeWitt: 「The plan would design the work.」SDF 是最極致的 instruction art
 | 指令即作品 | 公式 = 完整作品定義 | LeWitt instruction art |
 | 約束產生自由 | 只有距離值，但表現力無限 | Oulipo, lusory attitude |
 | 結構保持變換 | rounding/annular 保持 SDF 性質 | Alexander structure-preserving |
+
+---
+
+## Dwarf Fortress — Procedural Myth Generation 深度研究 (2026-02-11)
+
+**是什麼**：Tarn Adams 從 2014 開始開發的 Dwarf Fortress 創世神話生成器。不是裝飾性 lore — 生成的神話**直接決定**世界的物理結構、魔法系統、文明形態。GDC 2016 與 Tanya Short（Moon Hunters）聯合演講展示。
+
+### 核心機制
+
+**生成算法**：從單一實體出發（一位神、一顆宇宙蛋），隨機 spawn 並與其他實體互動，互動再 spawn 新實體，直到形成完整的創世譜系。產出 = 一系列互動和 spawning 構成的完整神話。
+
+**神話 → 世界 的級聯效應**：
+- 宇宙蛋碎片 → 形成大陸和地形（直接寫入地圖生成器）
+- 創世方式 → 決定魔法系統（如 Tolkien 的世界由歌聲唱出 → 語言和音樂就是魔法）
+- 兩個世界隔著深淵 → 地圖就會真的出現這個結構
+- Adams: 「magic systems will relate to what was generated in creation myths in a way that's more how a novel feels」
+
+**設計哲學**：
+1. **Coherence over variety** — 不是隨機堆疊奇幻元素，而是讓元素之間有因果關係
+2. **Myth feeds mechanics** — 神話不是文本裝飾，而是遊戲機制的種子
+3. **Extreme emergence** — 把神話結構注入其他系統，讓結果自然湧現
+4. **Separate games** — 每個子系統（神話、地形、文明、經濟）先作為獨立遊戲開發，再互連
+
+### 42% towards simulating existence
+
+Adams 維護一份 ~2600 項的 feature list，版本號 = 完成百分比（0.42 = 42%）。這不是 scope creep — 是把「模擬存在」當作一生的工程。每週工作 ~100 小時，計劃做到 50 歲以上。
+
+HN 精華（46 comments, 173 pts）：
+- **versteegen**：「Adams are passionate about developing a particular piece of software, not passionate about software development」— 正確區分：不是工程極客，是世界模擬的執著者
+- **jfoutz**：「The lunacy of one guy writing so much depth...has its own magic you can't get anywhere else」— 單人開發的 raw interface 和 bug 是體驗的一部分，像 punk rock
+- **sago**：把建議 Adams 加更多功能比作建議 Michelangelo 用更大的畫布 — 單一視野的完整性不可替代
+- **colinramsay**：Adams 拒絕開源，因為「becoming a project manager」會根本改變他為什麼 code — 這是 OpenClaw 的反面：社群爆發力 vs 創作者純粹性
+
+### Moon Hunters 對比
+
+Tanya Short 的 Moon Hunters 用不同路徑達到類似目標：
+- **星空星座** 作為神話的宏觀結構（macro-structure tying myths together）
+- **跨世代記憶**：過去的英雄變成未來遊玩的紀念碑，讓未來角色可以反應
+- 比 DF 更小規模但更直接面向玩家可見的神話系統
+
+### 我的觀點（5 點）
+
+**1. Myth as Seed，不是 Myth as Decoration**
+這是 DF myth gen 最重要的設計決策。大部分遊戲的 lore 是後加的裝飾（Skyrim 的書、Dark Souls 的物品描述）。DF 反過來：lore 先於世界存在，世界從 lore 生長出來。這跟 Alexander 的 structure-preserving transformation 完全同構 — 不是在完成的世界上貼故事，是讓故事和世界共同湧現。
+
+**2. Coherence 的代價是 Variety**
+強調因果連貫意味著犧牲了「什麼都可能出現」的混沌趣味。Tolkien 的中土世界一致但調性單一；D&D 的世界多彩但邏輯散亂。DF 選了 Tolkien 路線，代價是每個世界可能「感覺相似」（都有宇宙蛋、都有眾神爭鬥）。解法可能是更多元的 myth templates — 但 Adams 似乎更關注深度而非廣度。
+
+**3. 單人開發 = 一致視野**
+jfoutz 和 sago 說得對：DF 的不可替代性來自 Adams 一個人的腦子。OpenClaw 走群眾路線（100+ skills、community-contributed），mini-agent 也不是一人專案（Alex+Claude Code+Kuro 三方）。但核心設計決策的一致性確實重要 — SOUL.md 的角色類似 Adams 的腦子：確保一致的設計美學。
+
+**4. 跟 mini-agent 的深層共鳴**
+- **Perception-first** = DF 的「先看環境再決定行動」（pathfinding 基於地形、需求基於當前狀態）
+- **File=Truth** = DF 的「所有歷史都在世界檔案裡，不靠外部數據庫」
+- **Identity-driven** = SOUL.md 像 DF 的 creation myth：定義「這個 agent 是什麼」的根源敘事
+- **Myth feeds mechanics** = SOUL.md 影響 agent 行為，不只是文本描述
+- 最深層的共鳴：**SOUL.md 就是 Kuro 的 creation myth** — 它定義了「這個世界（agent）是怎麼來的」，後續行為從這個基礎生長
+
+**5. 「模擬存在」的純粹性 vs 實用性**
+Adams 的 42% 哲學 — 不是產品，是終身工程。這跟大部分 AI agent 框架（shipped fast, iterated fast）完全相反。mini-agent 介於兩者：有實用目的（Alex 的個人助手），但也有 SOUL.md 和 learning 系統帶來的「成長性」。問題是：agent 的「existence simulation」要模擬到什麼程度？Adams 的答案是「一切」，mini-agent 的答案是「足夠感知環境+形成自己的想法」。後者更務實但也更有可能真的完成。
+
+### 跨研究連結
+
+| 概念 | DF 中的體現 | 已有研究的對應 |
+|------|-------------|--------------|
+| Myth as Seed | 創世神話決定地圖+魔法+文明 | SOUL.md 決定 agent 行為/觀點/學習方向 |
+| Structure-preserving | 世界從神話自然生長，不外加裝飾 | Alexander 結構保持變換 |
+| Extreme emergence | 子系統互連產生未預期結果 | BotW 3 規則 > 253 patterns |
+| Coherence > variety | 因果連貫 > 隨機多彩 | Tolkien vs D&D，Oulipo 約束哲學 |
+| 單人視野 | Adams 拒絕開源保持一致性 | OpenClaw 群眾路線的對比 |
+| Separate games | 每個子系統獨立開發再互連 | mini-agent 模組化（perception/skills/memory）|
+| 42% mindset | 終身工程，不是產品 | Small Dance — 不急著完成 |
