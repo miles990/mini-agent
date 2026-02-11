@@ -108,9 +108,17 @@ interface QueueItem {
 const messageQueue: QueueItem[] = [];
 const MAX_QUEUE_SIZE = 5;
 
-/** 查詢 queue 狀態 */
-export function getQueueStatus(): { size: number; max: number } {
-  return { size: messageQueue.length, max: MAX_QUEUE_SIZE };
+/** 查詢 queue 狀態（含排隊訊息摘要） */
+export function getQueueStatus(): { size: number; max: number; items: Array<{ message: string; queuedAt: string; waited: number }> } {
+  return {
+    size: messageQueue.length,
+    max: MAX_QUEUE_SIZE,
+    items: messageQueue.map(item => ({
+      message: item.message.slice(0, 120),
+      queuedAt: new Date(item.queuedAt).toISOString(),
+      waited: Math.floor((Date.now() - item.queuedAt) / 1000),
+    })),
+  };
 }
 
 /** 查詢是否有待處理的排隊訊息 */

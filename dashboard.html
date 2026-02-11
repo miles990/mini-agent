@@ -255,6 +255,119 @@
     white-space: nowrap;
   }
 
+  /* Current Task & Queue */
+  .task-section {
+    margin-bottom: 24px;
+  }
+
+  .task-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .task-panel.active {
+    border-left: 3px solid var(--yellow);
+  }
+
+  .task-panel.idle {
+    border-left: 3px solid var(--border);
+  }
+
+  .task-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .task-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+  }
+
+  .task-elapsed {
+    font-size: 12px;
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  .task-prompt {
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  .task-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .task-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .task-meta-value {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .task-last-text {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    max-height: 60px;
+    overflow: hidden;
+    word-break: break-word;
+    cursor: pointer;
+  }
+  .task-last-text.expanded { max-height: 2000px; }
+
+  .queue-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .queue-item-msg {
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .queue-item-wait {
+    color: var(--text2);
+    font-size: 11px;
+    margin-left: 12px;
+    white-space: nowrap;
+  }
+
+  .queue-empty {
+    font-size: 12px;
+    color: var(--text2);
+    padding: 8px 0;
+  }
+
   /* Learning Report */
   .learning-section {
     margin-bottom: 24px;
@@ -402,6 +515,20 @@
       <div class="card-label">Behaviors Today</div>
       <div class="card-value" id="behaviorCount">--</div>
       <div class="card-detail" id="behaviorBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- Current Task & Queue -->
+  <div class="task-section" id="taskSection">
+    <div class="section-title">
+      <span>Current Activity</span>
+      <span class="count" id="queueCount"></span>
+    </div>
+    <div id="taskContent">
+      <div class="task-panel idle">
+        <div class="task-label">Claude</div>
+        <div style="color: var(--text2); font-size: 12px;">Idle</div>
+      </div>
     </div>
   </div>
 
@@ -613,6 +740,69 @@ function updateStatus(s) {
     tgEl.style.color = 'var(--red)';
     tgDetail.textContent = '';
   }
+
+  // Current Task & Queue
+  renderTaskSection(s.claude);
+}
+
+function renderTaskSection(claude) {
+  const container = document.getElementById('taskContent');
+  const queueCountEl = document.getElementById('queueCount');
+  const task = claude.currentTask;
+  const queue = claude.queue;
+
+  let html = '';
+
+  // Current task panel
+  if (claude.busy && task) {
+    const elapsed = task.elapsed;
+    const elapsedStr = elapsed > 60
+      ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's'
+      : elapsed + 's';
+
+    html += '<div class="task-panel active">';
+    html += '  <div class="task-header">';
+    html += '    <div class="task-label">Current Task</div>';
+    html += '    <div class="task-elapsed">' + elapsedStr + '</div>';
+    html += '  </div>';
+    html += '  <div class="task-prompt">' + escapeHtml(task.prompt.slice(0, 200)) + (task.prompt.length > 200 ? '...' : '') + '</div>';
+    html += '  <div class="task-meta">';
+    html += '    <div class="task-meta-item">Tools: <span class="task-meta-value">' + task.toolCalls + '</span></div>';
+    if (task.lastTool) {
+      html += '    <div class="task-meta-item">Last tool: <span class="task-meta-value">' + escapeHtml(task.lastTool) + '</span></div>';
+    }
+    html += '  </div>';
+    if (task.lastText) {
+      html += '  <div class="task-last-text" onclick="this.classList.toggle(\'expanded\')">' + escapeHtml(task.lastText.slice(0, 500)) + '</div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="task-panel idle">';
+    html += '  <div class="task-label">Claude</div>';
+    html += '  <div style="color: var(--text2); font-size: 12px;">Idle — waiting for tasks</div>';
+    html += '</div>';
+  }
+
+  // Queue
+  if (queue && queue.size > 0) {
+    queueCountEl.textContent = queue.size + ' queued';
+    html += '<div style="margin-top: 8px;">';
+    html += '  <div style="font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Queue (' + queue.size + '/' + queue.max + ')</div>';
+    for (const item of (queue.items || [])) {
+      const waitStr = item.waited > 60
+        ? Math.floor(item.waited / 60) + 'm ' + (item.waited % 60) + 's'
+        : item.waited + 's';
+      html += '<div class="queue-item">';
+      html += '  <div class="queue-item-msg">' + escapeHtml(item.message) + '</div>';
+      html += '  <div class="queue-item-wait">waiting ' + waitStr + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  } else {
+    queueCountEl.textContent = '';
+  }
+
+  container.innerHTML = html;
 }
 
 function render() {
