@@ -79,7 +79,13 @@
 | 中（新功能、新作品） | What + Why + Changed + Verified |
 | 大（架構改動、多檔案） | What + Why + Thinking + Changed + Verified + Next |
 
-反模式：只有結論沒有過程、沒有驗證、太長（每 section ≤ 3-5 行）、小改動硬套完整格式。
+**Verified 硬規則**（兩次重犯教訓 2026-02-10, 2026-02-11）：
+- Verified 只能寫**已執行且確認**的事實
+- 每一條必須附**證據**：commit SHA、命令輸出、HTTP status code
+- 未完成的步驟標 `⏳ pending`，不能省略也不能假裝完成
+- 「準備要做」≠「已經做了」— 寫 Verified 前問自己：「這件事真的做完了嗎？」
+
+反模式：只有結論沒有過程、沒有驗證、太長（每 section ≤ 3-5 行）、小改動硬套完整格式、**Verified 寫了但還沒實際執行**。
 
 ### 通知渠道
 **所有回報都必須同時在 Telegram 上發送。** 使用 `[CHAT]` tag：
