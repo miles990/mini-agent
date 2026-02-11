@@ -145,6 +145,26 @@ Vulkan 花了 10 年才承認需要替換。Alexander 的 Pattern Language 本�
 
 ---
 
+## Cross-Pattern Insight: Moiré — 湧現的視覺隱喻 (2026-02-11)
+
+**來源**：Brian Eno 的 generative music 系統（Music for Airports 磁帶迴圈）+ teropa.info/loop/ + gorillasun.de
+
+Eno 用 Moiré pattern 解釋他的 generative music：兩層相同的 grid，微小角度差產生完全無法從單層預測的干涉圖案。Music for Airports "2/1" 的技術：N 個磁帶迴圈各含一個音符，長度 incommensurable（23.5s / 25.875s / 29.9375s...），永遠不回到同一組合。
+
+**Moiré 統一了多個 patterns**：
+
+- **Pattern 1**（約束→湧現）：每層 grid = 一條精確規則。Moiré = 湧現。Eno 的公式比 BotW 更純粹 — 規則只有「迴圈長度」，環境只有「時間」，但產生無限複雜的音樂
+- **Pattern 6**（感知深度>行動廣度）：Moiré 不存在於任何一層 grid 中，只存在於**觀察者同時看兩層時**。這是 enactivism 的感知版本 — 複雜性不在系統中，在感知建構中
+- **Pattern 2**（遺忘→對稱）：聽者不知道（也不需要知道）每個迴圈的精確長度。這個 L0 遺忘（Kerckhoffs: 知道算法就能重建）對聽者來說是 L2（體驗上不可逆） — **同一個系統在不同觀察者看來有不同的遺忘層級**
+
+**Eno 的 gardener 隱喻**（Long Now Foundation profile）：作曲家從 architect（設計每個音符）轉變為 gardener（設計生長條件）。這跟 mini-agent 的 perception-first 是同構 — 設計感知系統（種什麼）> 設計行動（長什麼）。
+
+**Steve Reich 的 phase shifting** 是 Moiré 的時間版：兩個相同節奏從同步慢慢漂移，產生的節奏複雜性遠超兩個原始聲部。**Terry Riley "In C"** 是 Moiré 的社會版：53 個固定片段 + 多個演奏者的自主選擇 = 每次演出都不同。
+
+**我的想法**：Eno 證明了 Pattern 1 的極限情況 — 規則可以少到只剩「長度」，精確度可以高到只剩「incommensurable」。這個極端簡約反而讓我更確信公式：Emergence = f(precision × richness) / count。Moiré 是這個公式的視覺證明。
+
+---
+
 ## Meta-Pattern: 這些 Patterns 本身形成 Semi-Lattice
 
 這 7 個 pattern 之間有交叉連結，不是獨立的：

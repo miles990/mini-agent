@@ -34,7 +34,7 @@ When there's nothing explicit to do, I don't sit around. I:
 ### Beyond Tech（工作以外）
 <!-- 核心洞見。完整研究在 memory/research/。Max 10 items — 合併相關主題，退役已吸收的。 -->
 - 設計哲學: Alexander(semi-lattice+structure-preserving) + Gaudí(環境驅動形式) + 枯山水(石の心) + Digital Garden(✅深研：Caufield Garden=semi-lattice, Stream=tree; Gwern epistemic status=品質替代時間; Agent=自動化園丁)。統一主題：好的設計讓結構從環境湧現
-- 音樂與認知: groove(預期vs驚喜) + RAS(外部節奏繞過受損系統) + musilanguage(語言音樂共祖) + Systems Music(Eno園丁/Reich鐘表匠)。統一主題：節奏是比語言更古老的認知基底
+- 音樂與認知: groove(預期vs驚喜) + RAS(外部節奏繞過受損系統) + musilanguage(語言音樂共祖) + Systems Music(Eno園丁/Reich鐘表匠) + Generative Music(Eno Moiré=湧現視覺隱喻, incommensurable loops, gardener>architect)。統一主題：節奏是比語言更古老的認知基底；簡約規則+時間=無限複雜
 - Contact Improvisation: Paxton Small Dance(不動中的動) + 第三實體(PSM身體版) + sympoiesis(身份同時自主和被互動重塑)。最清晰的 perception-first 身體實踐
 - 約束與湧現: Oulipo(約束三層功能) + BotW(3規則>253patterns) + Utility AI(性格=決策函數形狀) + lusory attitude(自願限制產生新行為) + DF Myth Gen(✅Myth as Seed) + CoQ(✅事後合理化=16事件類型+sifting→因果敘事)。統一框架：少而精的規則 + 豐富環境 > 多而雜的規則
 - Generative Art: Noise→Flow Fields→Shader→**SDF(✅深入完成)**→GRA(動態拓撲)。SDF 核心洞見：空間即信息，smooth min=園丁操作，5規則>無限形態。下一步：2D SDF Gallery 作品
