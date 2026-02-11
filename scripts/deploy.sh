@@ -74,18 +74,55 @@ if [ -d "$CLI_DIR/.git" ]; then
     log "CLI synced"
 fi
 
-# Start — background process with nohup
+# Start — launchd plist for reliable daemon management (KeepAlive + auto-restart)
 log "Starting service..."
+PLIST_LABEL="com.mini-agent.kuro"
+PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 AGENT_LOG="$HOME/.mini-agent/server.log"
-nohup node "$DEPLOY_DIR/dist/cli.js" >> "$AGENT_LOG" 2>&1 &
-AGENT_PID=$!
-log "Started (PID $AGENT_PID)"
+
+cat > "$PLIST_PATH" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>${DEPLOY_DIR}/dist/cli.js</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${DEPLOY_DIR}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>${HOME}</string>
+        <key>PORT</key>
+        <string>3001</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${AGENT_LOG}</string>
+    <key>StandardErrorPath</key>
+    <string>${AGENT_LOG}</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+PLIST
+
+launchctl load "$PLIST_PATH"
+log "launchd service loaded ($PLIST_LABEL)"
 
 # Health check（wait up to 10s）
 log "Running health check..."
 for i in $(seq 1 10); do
     if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
-        log "Deployment successful (PID $AGENT_PID)"
+        log "Deployment successful"
         exit 0
     fi
     sleep 1
