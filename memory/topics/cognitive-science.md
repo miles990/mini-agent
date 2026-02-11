@@ -22,6 +22,9 @@
 ## 數學哲學與結構主義
 - Structural Pluralism（2026-02-11）— Hamkins: ℂ 有四種根本不同的結構化方式（Rigid/Analytic/Smooth/Algebraic），automorphism group 從 trivial 到 2^(2^ℵ₀)。數學家 passionately disagree，各認對方 fundamentally wrong。映射到 Agent 身份：Rigid=SOUL.md 完全確定，Analytic=核心價值固定但表達浮動，Algebraic=只定義規則身份湧現。跟約束品質三維度完美對應：高 Specificity=低爭議低靈活，低 Specificity=高靈活需更多 dispute resolution。Brussee 最實用：「immoral but bloody convenient」= pragmatic violation 有時 > 理論純粹性。詳見 research/cognitive-science.md
 
+## 教育與知識建構
+- The Little Learner / Friedman (2026-02-11) — Scheme 教深度學習，蘇格拉底式 Q/A + layered construction from first principles。三個交叉洞見：(1) 語言約束=Oulipian（Scheme 不是障礙是啟發，HN 兩極反應=Oulipo 辯論翻版）(2) 小程式互相建構=BotW 化學引擎=Alexander Pattern Language 的網狀語法 (3) Q/A 格式=PSM — 意義在對話互動中構建不是被傳遞。malt 框架 500 行實作 GPT = 好抽象讓複雜變小。Feynman Lectures on Computation 是同一精神的物理版。來源：thelittlelearner.com, HN#46934248, HN#34810332
+
 ## 其他
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Expansion microscopy — 改變看的方式 > 堆更強工具

@@ -614,10 +614,19 @@ export class TelegramPoller {
       if (filePath) attachments.push(`[File: ${filePath}]`);
     }
 
-    // Voice
+    // Voice — 下載 + 轉錄
     if (msg.voice) {
       const filePath = await this.downloadFile(msg.voice.file_id, `voice_${msg.message_id}.ogg`);
-      if (filePath) attachments.push(`[Voice: ${filePath}]`);
+      if (filePath) {
+        const fullPath = path.join(this.memoryDir, filePath);
+        const transcript = await this.transcribeVoice(fullPath);
+        if (transcript) {
+          messageText += (messageText ? '\n' : '') + transcript;
+          attachments.push(`[Voice transcribed: ${filePath}]`);
+        } else {
+          attachments.push(`[Voice: ${filePath}]`);
+        }
+      }
     }
 
     // Forward info
@@ -693,6 +702,36 @@ export class TelegramPoller {
       return `media/${fileName}`;
     } catch (err) {
       slog('TELEGRAM', `Download failed for ${fileName}: ${err instanceof Error ? err.message : err}`);
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Voice Transcription
+  // ---------------------------------------------------------------------------
+
+  private async transcribeVoice(audioPath: string): Promise<string | null> {
+    try {
+      const { execFile: execFileCb } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFileCb);
+
+      const scriptPath = path.join(
+        import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
+        '..', 'scripts', 'audio-transcribe.sh',
+      );
+
+      const { stdout } = await execFileAsync('bash', [scriptPath, audioPath], {
+        timeout: 60000,
+      });
+
+      const text = stdout.trim();
+      if (text) {
+        slog('TELEGRAM', `Transcribed voice (${text.length} chars): ${text.slice(0, 100)}`);
+      }
+      return text || null;
+    } catch (err) {
+      slog('TELEGRAM', `Transcribe failed: ${err instanceof Error ? err.message : err}`);
       return null;
     }
   }
