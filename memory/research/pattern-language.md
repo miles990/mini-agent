@@ -14,6 +14,7 @@
 | GenArt | SDF 5 基本操作 | 空間座標 | 任意幾何形態 |
 | 概念藝術 | LeWitt 4 種線方向 | 牆面 + drafter 身體 | 1270+ Wall Drawings |
 | 遊戲敘事 | CoQ 16 事件類型 | 4 萬字語料庫 | 每次不同的 Sultan 傳記 |
+| 物理 | 大氣散射 3 域規則 | 大氣組成+太陽光 | 預測所有行星天空顏色 |
 | Agent | OODA + perception plugins | 環境信號 | 自主行為 |
 
 **我的批判**：這個 pattern 有一個被忽視的前提 — **每條規則必須精確**。BotW 3 條規則有效是因為任天堂精確定義了元素互動。Alexander 的 253 patterns 效果不穩定是因為粒度不一致（"Window Place" 精確，"QWAN" 模糊）。Perec 的 La Disparition 成功是因為 Perec 本人的技藝，不只是 lipogram 約束本身。
