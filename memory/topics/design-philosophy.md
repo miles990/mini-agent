@@ -64,4 +64,7 @@ Calm Tech 的 Dangling String：輸入全 Ethernet 流量，輸出一根繩微�
 ## 基礎設施 & 所有權哲學
 - Oxide Computer $200M C輪 (2026-02-11) — Full-stack on-prem cloud（firmware→cloud UX全自己寫，全開源）。Stack Ownership=Perception Depth：擁有整個stack不是NIH是理解力選擇（≈mini-agent~3K行自寫vs用LangChain）。AS/400→Oxide→mini-agent壓縮哲學譜系：找到essential complexity去掉accidental。Market niche paradox(sergiotapia「who is small enough but large enough?」)=所有full-stack產品共通挑戰。Flat structure警告(bsaul/Tyranny of Structurelessness)直接映射agent自主性：沒有顯式約束(L1/L2/L3)=「最強prompt贏」。Independence as Feature：Oxide customer被收購傷過→重視獨立；mini-agent user被platform lock-in傷過→重視ownership。
 
+## 安全即設計
+- Notepad RCE CVE-2026-20841 (2026-02-11) — 30年的文字buffer加入Markdown渲染/Copilot/網路後CVSS 8.8 RCE。Fiveplus「feature-bloat-to-vulnerability pipeline」=Vulkan sediment layer安全版。cafebabbe最深：「他們知道自己加了network-aware rendering stack嗎？」→複雜度悄悄累積。TonyTrapp精準區分essential(Unicode/LF)vs accidental(AI/Markdown)=Oxide哲學。**attack surface ∝ features added, not features needed**。mini-agent ~3K行+grep+File=Truth=最小攻擊面。每個「不加」的功能=一個不存在的CVE。高感知低功能=Calm Tech安全版。詳見research/design-philosophy.md
+
 詳見 research/design-philosophy.md

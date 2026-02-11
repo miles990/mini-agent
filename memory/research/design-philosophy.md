@@ -1168,3 +1168,57 @@ Oxide 是「做得對但很難解釋」的公司。他們的核心洞見（full-
 來源：
 - oxide.computer/blog/our-200m-series-c
 - news.ycombinator.com/item?id=46960036 (574 pts, 301 comments)
+
+---
+
+## Notepad RCE — Feature Bloat → Vulnerability Pipeline (CVE-2026-20841, 2026-02-11)
+
+### 事件
+
+Windows Notepad 被發現 CVSS 8.8 的遠程代碼執行漏洞。一個 30 年來被視為「最安全的程式」（純文字 buffer，沒有網路功能）的工具，在微軟加入 Markdown 渲染、Copilot AI、網路功能後，暴露了 RCE 攻擊面。同期 Notepad++ 也被 state actor 攻擊。
+
+### HN 討論精華（184 pts, 100 comments）
+
+**Fiveplus（核心論述）**：「feature-bloat-to-vulnerability pipeline」— Notepad 30 年是 principle of least privilege 的典範，現在 8.8 CVSS 是 fundamental failure。「does this text editor need a network-aware rendering stack?」
+
+**cafebabbe（最深一句）**：「Question is, did they even realize they added a network-aware rendering stack...」 — 複雜度是悄悄累積的，沒有人做了一個「加入 RCE 攻擊面」的決定。
+
+**TonyTrapp（精準區分）**：Win9x→Win10 的改進（Unicode、LF 支援、大檔案、Ctrl+S）是 essential complexity。Win11 的加入（Copilot、Markdown、tabs with networking）是 accidental complexity。前者有用，後者是 bloat。
+
+**weinzierl（重要反論）**：「Bush hid the facts」bug 證明即使是「簡單」的 Notepad 也有 bug（encoding 偵測啟發式失敗）。nostalgia fallacy 是真的 — 但 **attack surface magnitude 確實跟功能量級正相關**。8.8 CVSS RCE ≠ encoding 顯示 bug。
+
+**r2vcap（絕望）**：Notepad++ 被攻擊 + 原生 Notepad 有 RCE = 「我還能用什麼？」
+
+**keepamovin（回應）**：「寫一個 Rust 替代品，no network permissions」— 當生態系統不可信，自己建最小可信基礎。
+
+### 跨主題交匯分析
+
+這個事件是之前多個研究主題的交匯點：
+
+| 已知概念 | 在 Notepad RCE 中的體現 |
+|----------|------------------------|
+| **Vulkan Sediment Layer** | 30 年功能堆積 = API 沉積層。Markdown 渲染建在文字 buffer 上 = 新子系統建在老基礎上 |
+| **Calm Technology** | Notepad 本來是 Calm 典範（做一件事做好），Copilot 把它變成 Anti-Calm |
+| **Oxide Stack Ownership** | essential complexity（Unicode/LF）vs accidental complexity（AI/Markdown/網路）的區分 |
+| **Telnet Death** | infrastructure agency 的後果 — Notepad 的轉變不是用戶要求的，是平台推動的 |
+| **mini-agent File=Truth** | ~3K 行 + no embedding + grep = 最小攻擊面。attack surface ∝ features added, not features needed |
+
+### 核心洞見：Feature Budget 是安全預算
+
+cafebabbe 的問題（「他們知道自己加了網路渲染層嗎？」）揭示一個結構性問題：**大型組織中，每個功能決策都是局部合理的（「Markdown 預覽好用」），但累積效果是全局脆弱的（「文字編輯器有 RCE」）**。
+
+這跟 Ashby 的 Requisite Variety 有張力：系統要應對環境複雜度，需要匹配的內部複雜度。但 Notepad 的例子顯示，**匹配的方式很重要** — 加功能和加攻擊面是同一件事。Oxide 和 mini-agent 選擇的路線是：不追求匹配環境的全部複雜度，而是選擇性地匹配（感知多、功能少）。
+
+**Calm Technology 的安全版本**：高感知低功能 = 小攻擊面。不是什麼都能做，而是什麼都能看到但只做必要的事。
+
+### 我的觀點
+
+Notepad RCE 是 Vulkan sediment layer model 的安全後果版。當 incremental features 累積到產生結構性風險時（RCE on a text editor），已經太晚了 — 你需要的不是 patch 而是 rethink。
+
+voidUpdate 跑 Win98 Notepad 在 Win11 上完美運作，說明 30 年前的設計在功能上已經足夠。後來加的每一層都是 trade-off：Unicode/LF 支援值得（essential），Copilot/Markdown/網路不值得（accidental）。TonyTrapp 的區分方式跟 Oxide 一模一樣。
+
+對 mini-agent：**每加一個功能都是安全決定**。File=Truth 不只是哲學，是攻擊面管理。grep 不需要 network stack。Markdown 不需要渲染引擎。JSONL 不需要 database driver。每一個「不加」都是一個不存在的 CVE。
+
+來源：
+- cve.org/CVERecord?id=CVE-2026-20841
+- news.ycombinator.com/item?id=46971516 (184 pts, 100 comments)

@@ -1241,7 +1241,7 @@ function toggleThought(el) {
 
   // Show player after scrolling past hero (not immediately)
   function checkShow() {
-    if (!shown && !dismissed && scrollY > innerHeight * 0.6) {
+    if (!shown && !dismissed && scrollY > 100) {
       shown = true;
       player.classList.add('show');
     }
