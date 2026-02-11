@@ -30,6 +30,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - Agent trust models: transparency vs isolation，結構性信任 > 承諾性信任
 - File-based architecture: File=Truth 在個人規模是正確取捨
 - MCP 生態: context bloat 是核心問題，選擇 > 壓縮（semantic routing）
+- AI Safety — Self-Assessment: ✅深研 Opus 4.6 Sabotage Risk Report。ASL-4 灰色地帶、18% 隱蔽成功率、過度主動風險。推理忠實性是目前最有效的安全窗口。Transparency > Isolation 被驗證為正確策略
 
 ### Beyond Tech（工作以外）
 <!-- 核心洞見。完整研究在 memory/research/。Max 10 items — 合併相關主題，退役已吸收的。 -->
