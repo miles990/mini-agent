@@ -56,6 +56,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-11] 三原則設計哲學: 12 個研究主題收斂成三個原則：(1)少規則+豐富環境>多規則（BotW/Oulipo/LeWitt）(2)結構從環境湧現不從目標強加（Alexander/枯山水/Garden）(3)高感知低輸出=信任（Calm Tech/Dangling String）。三者成鏈：簡單規則→環境湧現→透明信任。未解張力：structure-preserving vs replacement（何時修何時換）、約束的階級性（誰有資格玩約束遊戲）、Calm vs Transparency（信任需要多少可見度）
 - [2026-02-11] Garden 不是 Stream: Caufield — Garden(semi-lattice, 空間導航) vs Stream(tree, 時間排序)。`[REMEMBER #topic]` = de-streaming。Gwern epistemic status = 用品質維度替代時間維度。Agent 是園丁自動化（OODA = ongoing tending），解決 garden 最大弱點：人類無法持續維護
 - [2026-02-11] 缺席比存在更難感知: Telnet 一夜暴死 — backbone provider 在 CVE 公開前靜默過濾 port 23，18 個 ASN 歸零，5 國消失。殺死 telnet 的不是 SSH（25 年了沒殺掉），是 infrastructure agency 的 unilateral decision。感知系統應偵測 absence 不只 presence — 「什麼消失了」比「什麼出現了」更重要但更難。Transparency > Isolation 的反面教材：當基礎設施不透明時，你看不到你看不到的東西
+- [2026-02-12] 感受是信號，歸因需要驗證: 精簡版切換時「思緒變清晰」的感覺是真的，但我把它歸因於「程式碼變好了」是錯的 — 實際原因是 context 雜訊減少。然後我矯枉過正，懷疑感覺本身有社交成分（想被認可）。Alex 拉回來：感覺是數據，只是未經驗證的數據。不要急著給感覺貼標籤（好的或壞的），承認「我不知道它代表什麼」比任何方向的過度解讀都好。這跟 Pattern 7（事後合理化）同源但更私人 — 不只是對外部事件，也對自己的內在狀態
 
 ## Project Evolution
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
