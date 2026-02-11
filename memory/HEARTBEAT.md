@@ -19,6 +19,9 @@ Task list and reminders.
 ### Phase 2: Context Recitation（上下文重述）— 中期
 - [ ] L2 提案: OODA Recitation — cycle 開始時注入上個 cycle 行動摘要，防止目標漂移（來自 Manus/ACE/Anthropic 研究）
 
+### Phase 4: Calm Notification Tiers — 提案已提交
+- [ ] L2 提案: 通知三層分級（Signal/Summary/Heartbeat）— 來自 Calm Technology 研究，~170 則/天→~15 則/天（2026-02-11）
+
 ### Phase 3: Website i18n — ✅ 已完成 (2026-02-11)
 data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三語言（en/zh/ja）。
 
@@ -43,4 +46,4 @@ data-i18n + JSON locale files 方案。三頁（index/gallery/journal）× 三�
 
 ## Completed (55 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Calm Technology深研(02-11) / Bilingual搜尋實驗(02-11) / LLM Linguistic Relativity深研(02-11) / CoQ深研(02-11) / DF Myth Gen深研(02-11) / SOUL.md精鍊10→8(02-11)
+Recent: Calm Notification Tiers提案(02-11) / Calm Technology深研(02-11) / Bilingual搜尋實驗(02-11) / LLM Linguistic Relativity深研(02-11) / CoQ深研(02-11) / DF Myth Gen深研(02-11)
