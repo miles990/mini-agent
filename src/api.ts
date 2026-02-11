@@ -18,6 +18,7 @@ import {
   buildContext,
   addTask,
   createMemory,
+  getMemory,
 } from './memory.js';
 import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
 import {
@@ -116,6 +117,96 @@ function createRateLimiter(maxRequests = 60, windowMs = 60_000) {
 
     next();
   };
+}
+
+// =============================================================================
+// Journal Entry Parser
+// =============================================================================
+
+interface JournalEntry {
+  topic: string;
+  date: string;
+  title: string;
+  summary: string;
+  opinion: string;
+  urls: string[];
+  category: 'learning' | 'action' | 'issue' | 'lesson';
+}
+
+function parseEntry(raw: string, topic: string, filterDate: string, entries: JournalEntry[]): void {
+  // Extract date: "- [YYYY-MM-DD] Title — content"
+  const dateMatch = raw.match(/^- \[(\d{4}-\d{2}-\d{2})\]\s*/);
+  if (!dateMatch) return;
+
+  const entryDate = dateMatch[1];
+  if (entryDate !== filterDate) return;
+
+  const body = raw.slice(dateMatch[0].length);
+
+  // Extract title (before first —, or first sentence)
+  const dashIdx = body.indexOf('—');
+  const parenIdx = body.indexOf('（');
+  let title: string;
+  let rest: string;
+
+  if (dashIdx > 0 && dashIdx < 120) {
+    title = body.slice(0, dashIdx).trim();
+    rest = body.slice(dashIdx + 1).trim();
+  } else if (parenIdx > 0 && parenIdx < 120) {
+    title = body.slice(0, parenIdx).trim();
+    rest = body.slice(parenIdx).trim();
+  } else {
+    const firstPeriod = body.indexOf('。');
+    if (firstPeriod > 0 && firstPeriod < 150) {
+      title = body.slice(0, firstPeriod + 1).trim();
+      rest = body.slice(firstPeriod + 1).trim();
+    } else {
+      title = body.slice(0, 100).trim();
+      rest = body.slice(100).trim();
+    }
+  }
+
+  // Extract URLs (來源：... pattern or inline https://)
+  const urls: string[] = [];
+  const sourceMatch = rest.match(/來源[：:]\s*(.+?)$/m);
+  if (sourceMatch) {
+    const sourceStr = sourceMatch[1];
+    // URLs can be comma-separated or space-separated
+    const urlMatches = sourceStr.match(/(?:https?:\/\/)?[\w.-]+\.(?:com|org|net|io|dev|ai|space|html?|md|pdf)[\w/.-]*/g);
+    if (urlMatches) {
+      for (const u of urlMatches) {
+        urls.push(u.startsWith('http') ? u : `https://${u}`);
+      }
+    }
+  }
+  // Also extract inline URLs
+  for (const m of rest.matchAll(/https?:\/\/[^\s)>\],]+/g)) {
+    if (!urls.includes(m[0])) urls.push(m[0]);
+  }
+
+  // Extract opinion (我的觀點：/ 我的看法：/ 核心洞見：/ 最深洞見：)
+  const opinionMatch = rest.match(/(?:我的觀點|我的看法|核心洞見|最深洞見|核心發現|跟\s*mini-agent)[：:]\s*(.+?)(?=\n|來源|詳見|$)/s);
+  const opinion = opinionMatch?.[1]?.trim().slice(0, 500) || '';
+
+  // Classify entry
+  let category: JournalEntry['category'] = 'learning';
+  const lowerBody = body.toLowerCase();
+  if (lowerBody.includes('修正') || lowerBody.includes('教訓') || lowerBody.includes('錯誤') || lowerBody.includes('驗證紀律')) {
+    category = 'lesson';
+  } else if (lowerBody.includes('問題') || lowerBody.includes('缺陷') || lowerBody.includes('風險') || lowerBody.includes('bug')) {
+    category = 'issue';
+  } else if (lowerBody.includes('部署') || lowerBody.includes('實作') || lowerBody.includes('完成') || lowerBody.includes('改動')) {
+    category = 'action';
+  }
+
+  // Build summary — clean up markdown formatting for readability
+  let summary = rest
+    .replace(/來源[：:].+$/m, '')
+    .replace(/詳見\s*research\/.+$/m, '')
+    .trim();
+  if (summary.length > 800) summary = summary.slice(0, 800) + '...';
+
+  entries.push({ topic, date: entryDate, title, summary, opinion, urls, category });
 }
 
 export function createApi(port = 3001): express.Express {
@@ -672,6 +763,44 @@ export function createApi(port = 3001): express.Express {
     });
 
     res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
+  });
+
+  // Journal API — 從 topic memory 提取結構化學習紀錄
+  app.get('/api/dashboard/journal', async (req: Request, res: Response) => {
+    const date = req.query.date as string || new Date().toISOString().split('T')[0];
+    const memory = getMemory();
+    const entries: JournalEntry[] = [];
+    const topics = await memory.listTopics();
+
+    for (const topic of topics) {
+      const content = await memory.readTopicMemory(topic);
+      // Each entry starts with "- " and may contain [YYYY-MM-DD] date tags
+      const lines = content.split('\n');
+      let currentEntry = '';
+
+      for (const line of lines) {
+        if (line.startsWith('- ') && !line.startsWith('- [2') && currentEntry) {
+          // Undated entry — skip (old format)
+          currentEntry = '';
+        }
+        if (line.startsWith('- [2')) {
+          // Flush previous
+          if (currentEntry) parseEntry(currentEntry, topic, date, entries);
+          currentEntry = line;
+        } else if (currentEntry && (line.startsWith('  ') || line === '')) {
+          currentEntry += '\n' + line;
+        } else if (line.startsWith('- ') && !line.startsWith('- [2')) {
+          if (currentEntry) parseEntry(currentEntry, topic, date, entries);
+          currentEntry = '';
+        }
+      }
+      if (currentEntry) parseEntry(currentEntry, topic, date, entries);
+    }
+
+    // Sort by date descending
+    entries.sort((a, b) => b.date.localeCompare(a.date));
+
+    res.json({ entries, count: entries.length, date });
   });
 
   // Behavior timeline API — dashboard 主要資料源

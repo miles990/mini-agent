@@ -486,6 +486,124 @@
   }
   .learning-toggle:hover { opacity: 1; color: var(--accent); }
 
+  /* Journal Section */
+  .journal-section {
+    margin-bottom: 24px;
+  }
+
+  .journal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .journal-card.cat-learning { border-left: 3px solid var(--purple); }
+  .journal-card.cat-action { border-left: 3px solid var(--accent); }
+  .journal-card.cat-issue { border-left: 3px solid var(--red); }
+  .journal-card.cat-lesson { border-left: 3px solid var(--yellow); }
+
+  .journal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+
+  .journal-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .journal-badge.learning { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+  .journal-badge.action { background: rgba(110, 231, 183, 0.15); color: var(--accent); }
+  .journal-badge.issue { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+  .journal-badge.lesson { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
+
+  .journal-topic {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--surface2);
+    color: var(--text2);
+  }
+
+  .journal-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  .journal-summary {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    max-height: 48px;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    cursor: pointer;
+    word-break: break-word;
+  }
+  .journal-summary.expanded { max-height: 5000px; }
+
+  .journal-opinion {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(167, 139, 250, 0.06);
+    border-left: 2px solid var(--purple);
+    border-radius: 0 4px 4px 0;
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.5;
+    display: none;
+  }
+  .journal-summary.expanded + .journal-opinion,
+  .journal-summary.expanded ~ .journal-opinion { display: block; }
+
+  .journal-links {
+    margin-top: 6px;
+    display: none;
+  }
+  .journal-summary.expanded + .journal-opinion + .journal-links,
+  .journal-summary.expanded + .journal-links,
+  .journal-summary.expanded ~ .journal-links { display: block; }
+
+  .journal-links a {
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 11px;
+    display: inline-block;
+    margin-right: 12px;
+    word-break: break-all;
+  }
+  .journal-links a:hover { text-decoration: underline; }
+
+  .journal-expand {
+    font-size: 10px;
+    color: var(--text2);
+    cursor: pointer;
+    margin-top: 4px;
+    opacity: 0.6;
+    user-select: none;
+  }
+  .journal-expand:hover { opacity: 1; color: var(--accent); }
+
+  .journal-filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
   /* Empty state */
   .empty-state {
     text-align: center;
@@ -590,6 +708,24 @@
     </div>
   </div>
 
+  <!-- Knowledge Journal -->
+  <div class="journal-section" id="journalSection">
+    <div class="section-title" style="color: var(--blue);">
+      <span>Knowledge Journal</span>
+      <span class="count" id="journalCount">--</span>
+    </div>
+    <div class="journal-filters" id="journalFilters">
+      <button class="filter-btn active" data-jcat="all">All</button>
+      <button class="filter-btn" data-jcat="learning">Learning</button>
+      <button class="filter-btn" data-jcat="action">Action</button>
+      <button class="filter-btn" data-jcat="issue">Issue</button>
+      <button class="filter-btn" data-jcat="lesson">Lesson</button>
+    </div>
+    <div id="journalContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
   <!-- Filters -->
   <div class="filters">
     <button class="filter-btn active" data-actor="all">All</button>
@@ -619,9 +755,21 @@ let currentDate = new Date().toISOString().split('T')[0];
 let refreshTimer = null;
 let lastUpdate = null;
 let allBehaviors = [];
+let allJournalEntries = [];
+let currentJournalCat = 'all';
 
 // Init
 document.getElementById('dateInput').value = currentDate;
+
+// Journal Filters
+document.querySelectorAll('.filter-btn[data-jcat]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-jcat]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentJournalCat = btn.dataset.jcat;
+    renderJournal(allJournalEntries);
+  });
+});
 
 // Filters
 document.querySelectorAll('.filter-btn[data-actor]').forEach(btn => {
@@ -687,19 +835,23 @@ function escapeHtml(str) {
 // Fetch all data
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
+      fetch(API + '/api/dashboard/journal?date=' + currentDate),
     ]);
 
     const status = await statusRes.json();
     const behaviors = await behaviorsRes.json();
     const learning = await learningRes.json();
+    const journal = await journalRes.json();
 
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
+    allJournalEntries = journal.entries || [];
     renderLearning(learning.entries || []);
+    renderJournal(allJournalEntries);
     render();
 
     lastUpdate = new Date();
@@ -790,6 +942,92 @@ function toggleLearningDetail(id, toggleEl) {
   if (!el) return;
   el.classList.toggle('expanded');
   toggleEl.textContent = el.classList.contains('expanded') ? '- hide' : '+ details';
+}
+
+// ── Journal Rendering ──
+
+const catLabels = { learning: 'Learning', action: 'Action', issue: 'Issue', lesson: 'Lesson' };
+const topicLabels = {
+  'agent-architecture': 'Agent',
+  'cognitive-science': 'Cognition',
+  'creative-arts': 'Creative',
+  'design-philosophy': 'Design',
+  'social-culture': 'Social',
+};
+
+function renderJournal(entries) {
+  const container = document.getElementById('journalContent');
+  const countEl = document.getElementById('journalCount');
+
+  const filtered = currentJournalCat === 'all'
+    ? entries
+    : entries.filter(e => e.category === currentJournalCat);
+
+  countEl.textContent = filtered.length + ' / ' + entries.length + ' entries';
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="color: var(--text2); font-size: 12px; padding: 12px 0;">No knowledge entries for this date.</div>';
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < filtered.length; i++) {
+    const e = filtered[i];
+    const cat = e.category || 'learning';
+    const topicShort = topicLabels[e.topic] || e.topic;
+    const jid = 'j-' + i;
+
+    html += '<div class="journal-card cat-' + cat + '">';
+
+    // Header with badges
+    html += '  <div class="journal-header">';
+    html += '    <span class="journal-badge ' + cat + '">' + (catLabels[cat] || cat) + '</span>';
+    html += '    <span class="journal-topic">' + escapeHtml(topicShort) + '</span>';
+    html += '  </div>';
+
+    // Title
+    html += '  <div class="journal-title">' + escapeHtml(e.title) + '</div>';
+
+    // Summary (click to expand)
+    html += '  <div class="journal-summary" id="' + jid + '" onclick="toggleJournal(\'' + jid + '\')">' + formatMarkdown(e.summary) + '</div>';
+
+    // Opinion (shown when expanded)
+    if (e.opinion) {
+      html += '  <div class="journal-opinion">';
+      html += '    <div style="font-size: 10px; text-transform: uppercase; color: var(--purple); margin-bottom: 4px; letter-spacing: 0.5px;">My Take</div>';
+      html += '    ' + formatMarkdown(e.opinion);
+      html += '  </div>';
+    }
+
+    // Source links (shown when expanded)
+    if (e.urls && e.urls.length > 0) {
+      html += '  <div class="journal-links">';
+      for (const url of e.urls) {
+        const display = url.replace(/^https?:\/\//, '').slice(0, 60);
+        html += '    <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
+      }
+      html += '  </div>';
+    }
+
+    // Expand hint
+    html += '  <div class="journal-expand" onclick="toggleJournal(\'' + jid + '\')">+ more</div>';
+
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function toggleJournal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('expanded');
+  // Update the expand hint
+  const card = el.closest('.journal-card');
+  if (card) {
+    const hint = card.querySelector('.journal-expand');
+    if (hint) hint.textContent = el.classList.contains('expanded') ? '- less' : '+ more';
+  }
 }
 
 function updateStatus(s) {
