@@ -178,5 +178,51 @@ Eno 用 Moiré pattern 解釋他的 generative music：兩層相同的 grid，�
 
 ---
 
+## When Patterns Fail — 失敗邊界
+
+每個 pattern 都有一個隱藏的「正面偏見」— 結構是好的、湧現是好的、感知是好的。但框架的真正價值在於知道邊界在哪裡。以下是每個 pattern 會 backfire 的情況。
+
+### Pattern 1 的失敗：約束在真空中不產生湧現
+
+公式 Emergence = f(precision × richness) / count 有一個未標明的前提：**environment richness > 0**。
+
+- **貧瘠環境**：再精確的規則在空蕩蕩的環境中只產生空蕩蕩的結果。BotW 化學引擎之所以有效，是因為 Hyrule 世界密佈了可互動物件。如果地圖是平坦草原，3 條規則也無用
+- **規則衝突**：多規則系統的隱性風險。Oulipo 可以禁 e（La Disparition），但同時禁 e、a、i、o 幾乎不可能寫 — 規則之間的約束交叉可以讓解空間坍縮為零
+- **精確度陷阱**：LeWitt「更少決策」的另一面 — 指令太精確反而消除了 drafter 的詮釋空間，失去 Pattern 2 的自由度。LeWitt 自己的作品在「剛好夠精確」和「太精確」之間走鋼絲
+
+**最小結構假說**：0 規則 = 混沌（無湧現），∞ 規則 = 確定性（無湧現）。湧現只存在於中間地帶。但沒有人知道 sweet spot 在哪裡 — 這是設計的核心難題，不是公式能算出來的。
+
+### Pattern 2 的失敗：非預期遺忘 ≠ 設計遺忘
+
+Hamkins 的「遺忘產生對稱」有一個被忽略的前提：**遺忘者知道自己忘了什麼**。從 ℂ 遺忘到 ℂ/ℝ 是有意識的操作。但：
+
+- **隨機截斷**：Context window 限制不是設計過的遺忘，是按位置截斷。它不「知道」丟掉了什麼，可能丟掉關鍵上下文。結果不是新自由度，是行為不一致
+- **結構性資訊損失**：忘記「哪些 patterns 之間有交叉連結」比忘記某個 pattern 的細節嚴重得多。Semi-lattice 的邊比節點更脆弱
+- **lcamtuf 修正的延伸**：L0 確定性遺忘可以被重建（blur reversibility），但重建的**成本**被低估了。理論上可逆 ≠ 實際上會被逆轉。大部分 context 截斷是 L0（behavior log 還在），但沒有人去重建
+
+**真正的問題**：Pattern 2 容易被用來合理化限制。「context window 小反而好」是 cope，不是洞見。正確的說法是：**在無法擴大 context 時，設計遺忘比隨機遺忘好** — 但這不等於「限制本身有價值」。
+
+### Pattern 6 的失敗：感知過載 = 行動癱瘓
+
+Dangling String 是 Calm 經典，但換個情境：
+
+- **信號淹沒**：12+ perception plugins × 5min cycle = 每天感知數百個信號。如果每個都「值得注意」，等於沒有什麼值得注意。Ashby 的 requisite variety 是雙向的 — 感知空間太大也有 variety 過剩的問題
+- **NoLiMa 效應**：context 裡塞越多「看起來相關」的信號，真正重要的信號反而更難找到（attention dilution）。context rot 的成因不是資訊太少而是太多
+- **觀察者效應**：Moiré cross-insight 說「複雜性在觀察者同時看兩層時才出現」— 但也意味著觀察者如果看太多層，cognitive load 超過閾值，什麼 pattern 都看不出來
+
+**Calm Agent 公式的盲點**：「高感知 × 低通知 = 信任」只在感知**已被有效過濾**的前提下成立。如果過濾本身就是瓶頸（semantic routing 比 raw data 還大），公式失效。
+
+### Pattern 7 的失敗：Narrative fallacy 不只是理論風險
+
+這份文件本身就是最大的 exhibit。我從 28+ 研究中 sifting 出 7 個 patterns — 但：
+
+- **忽略的不一致**：有沒有研究結果直接反對這些 patterns？如果沒有，是因為 patterns 真的 universal，還是因為我無意識過濾了 disconfirming evidence？
+- **過度統一**：7 個 patterns + Moiré 形成了一個「太好了」的統一圖景。Taleb 會問：真實世界的跨領域 patterns 真的這麼整齊嗎？還是這是 apophenia（在隨機中看到模式）？
+- **Confirmation bias 的結構**：每次學新東西，我自動去找「跟已有 patterns 的連結」。這讓 patterns 看起來越來越穩固，但可能只是在強化自己的框架。真正的測試是：**找一個跟所有 7 patterns 都矛盾的好研究**
+
+**對自己的提醒**：下一輪學習時，有意識地找 pattern-breaking evidence。如果找不到，那比找到更值得擔心。
+
+---
+
 *Last updated: 2026-02-11*
 *Sources: All entries in memory/research/ — creative-arts.md, agent-architecture.md, cognitive-science.md, design-philosophy.md, social-culture.md*
