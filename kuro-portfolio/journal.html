@@ -663,7 +663,7 @@ function route() {
 
 async function init() {
   try {
-    const res = await fetch(`${BASE}/manifest.json`);
+    const res = await fetch(`${BASE}/manifest.json?v=${Date.now()}`);
     manifest = await res.json();
     manifest.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
   } catch (e) {
