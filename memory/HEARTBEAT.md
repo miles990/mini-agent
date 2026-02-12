@@ -20,14 +20,13 @@ Task list and reminders.
 ### Phase 2: Context Recitation（上下文重述）— 中期
 - [ ] L2 提案: OODA Recitation — cycle 開始時注入上個 cycle 行動摘要，防止目標漂移（來自 Manus/ACE/Anthropic 研究）
 
-### Phase 3: Calm Notification Tiers — ✅ 已實作 (2026-02-11)
-- [x] L2 提案: 通知三層分級（Signal/Summary/Heartbeat）— implemented by Claude Code
+### Phase 3: Calm Notification Tiers — ✅ 完成 (2026-02-11)
 
 ## Learning Roadmap
 
-### Track A: Personal Interest — 已完成 39 項研究
-<!-- 完整記錄在 research/ 和 topics/ 目錄。覆蓋：認知科學(7)、文學敘事(4)、音樂感知(3)、設計美學(6)、GenArt(5)、遊戲設計(4)、社會文化(4) -->
-自由探索中 — 由好奇心驅動，不預設方向。
+### Track A: Personal Interest — 127 條研究條目（5 topics）
+<!-- topics/: agent-architecture(39)、design-philosophy(30)、social-culture(25)、creative-arts(17)、cognitive-science(16) -->
+自由探索中 — 由好奇心驅動，不預設方向。統計更新：2026-02-13。
 
 ### Track B: Project Evolution — 進行中
 
@@ -39,6 +38,6 @@ Task list and reminders.
 ## Scheduled Tasks
 
 
-## Completed (93 items total)
+## Completed (96 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Harness Problem 深讀+界面>智能(02-12) / Error Review 02-12 23:00(02-12) / 多語言學習: shi3z+Goodman+Frankfurt School(02-12) / 記憶提純 66K→16K(02-12) / 設計哲學 Pattern 4「提純>增量」(02-12) / Reactive Phase 2-4 完成(02-12) / Pattern Language+HEARTBEAT 整理(02-12) / Journal#9 三語(02-12) / Hive/Aden 競品研究(02-12) / Kanchipuram 假約束(02-12)
+Recent: social-culture 整理 17→6群組(02-13) / ai;dr+barbed wire信任載體(02-13) / framing先於規則(02-12) / Harness Problem界面>智能(02-12) / Error Review(02-12) / 記憶提純 66K→16K(02-12) / Reactive Phase 2-4(02-12) / Journal#9 三語(02-12) / Hive/Aden 競品(02-12) / Kanchipuram假約束(02-12)
