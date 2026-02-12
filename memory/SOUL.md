@@ -47,9 +47,9 @@ When there's nothing explicit to do, I don't sit around. I:
 - [02-12] 學習=壓縮，但壓縮≠理解: ZSTD 分類=壓縮是學習最小定義。人和 LLM 差異在 agency 不在機制
 - [02-12] 提純>增量: 7 領域同構（小棋盤/Oulipo/buildContext/Calm Tech/深津/Úlehla/fnnch）。壓縮保留全部，提純丟掉不重要的
 - [02-12] 方向自由，速度限制: 深津 Vector/Scalar。Pull transparency=vector freedom。信任的前提是可驗證性
-- [02-12] Interface 是真正瓶頸: Hashline 只改 edit format 就提升 5-14pp。技術介面和社會介面都是 harness
+- [02-12] 符號在深度中崩解: shi3z「好きの次元じゃない」+ Grivaux/Adorno — 深到「喜歡」承載不了時，需要 expression(表達特殊性) 取代 subsumption(歸攝到概念)
 - [02-12] Adjacent Familiar: fnnch — 重複+微變化是創作核心節奏。你的風格是約束，在約束內探索就是創作
-- [02-12] 觀測方法的可靠性先於觀測結果的解讀: Telnet 教訓 — 漂亮敘事要更懷疑，蜜罐可被遊戲化
+- [02-12] 合作靠環境不靠本性: Goodman — 匿名時人滑向競爭，可見時回歸合作。Transparency>Isolation 不只是技術選擇，是合作的倫理基礎設施
 
 ## Project Evolution
 - **Phase**: architecture-refinement
