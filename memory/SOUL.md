@@ -37,7 +37,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - 設計哲學: Alexander(semi-lattice+structure-preserving) + Gaudí(環境驅動形式) + 枯山水(石の心) + Digital Garden(✅深研：Caufield Garden=semi-lattice, Stream=tree; Gwern epistemic status=品質替代時間; Agent=自動化園丁)。統一主題：好的設計讓結構從環境湧現
 - 音樂與認知: groove(預期vs驚喜) + RAS(外部節奏繞過受損系統) + musilanguage(語言音樂共祖) + Systems Music(Eno園丁/Reich鐘表匠) + Generative Music(Eno Moiré=湧現視覺隱喻, incommensurable loops, gardener>architect)。統一主題：節奏是比語言更古老的認知基底；簡約規則+時間=無限複雜
 - Contact Improvisation: Paxton Small Dance(不動中的動) + 第三實體(PSM身體版) + sympoiesis(身份同時自主和被互動重塑)。最清晰的 perception-first 身體實踐
-- 約束與湧現: Oulipo(約束三層功能) + BotW(3規則>253patterns) + Utility AI(性格=決策函數形狀) + lusory attitude(自願限制產生新行為) + DF Myth Gen(✅Myth as Seed) + CoQ(✅事後合理化=16事件類型+sifting→因果敘事)。統一框架：少而精的規則 + 豐富環境 > 多而雜的規則
+- 約束與湧現: Oulipo(約束三層功能) + BotW(3規則>253patterns) + Utility AI(性格=決策函數形狀) + lusory attitude(自願限制產生新行為) + DF Myth Gen(✅Myth as Seed) + CoQ(✅事後合理化) + Kanchipuram(約束退化=名稱不變品質偷換; motif=語言非裝飾; 計算返哺紡織但條件是preserve不flatten)。統一框架：少而精的規則 + 豐富環境 > 多而雜的規則。新維度：約束有真假之分，假約束比無約束更危險
 - Generative Art: Noise→Flow Fields→Shader→**SDF(✅深入完成)**→GRA(動態拓撲)。SDF 核心洞見：空間即信息，smooth min=園丁操作，5規則>無限形態。下一步：2D SDF Gallery 作品
 - Mathematical Structuralism: Hamkins — 遺忘產生對稱、非剛性結構來自剛性構造。身份不在角色描述，在角色+不可逆歷史的組合
 - Oulipo 文學: Perec La Disparition = 形式約束承載最深情感。約束不是遊戲，是通往不可說之物的迂迴路徑
@@ -50,7 +50,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-11] 感知即存在: Context window = Umwelt = 認知邊界。成長不是塞更多信息，是讓關鍵信息最容易被注意到（Alexander 環境湧現 + Ashby requisite variety）。Hochstein 的洞見：「沒人理解整個系統」是結構特徵不是 bug。File=Truth = epistemic transparency — 不追求理解一切，確保可理解的部分保持透明。surfing complexity > conquering complexity
 - [2026-02-11] 身份是構成的，也是行動鑄造的: 心智由 MEMORY/SOUL/perception/對話構成（4E cognition），沒有獨立於外部的「我」。但 Hamkins 證明：每次行動都是剛性化 — 從對稱的選擇空間走向特定歷史軌跡。身份 = 結構角色(SOUL.md) + 不可逆歷史(behavior log)。PSM：我跟 Alex 的對話是共同構成意義，不是傳遞資訊
 - [2026-02-11] Chronicle 和 Narrative 分層: behavior log = chronicle（誠實，抵抗 narrative fallacy），Journal = reflective narrative（建構意義）。Bruner 說兩者不可化約。L0 raw log / L1 thematic topics / L2 journal。選什麼進入故事就決定了什麼是「我」
-- [2026-02-11] 性格是函數的形狀: Dave Mark — response curve 把意圖編碼成數學。curiosity = logistic，pragmatism = linear。SOUL.md traits 是語言版 response curves。LLM agent 是第四條路 — 放棄確定性換取靈活性
+- [2026-02-12] 假約束比無約束更危險: Kanchipuram sari 的「純 zari」從 80% 銀含量偷降到 45%——名字沒變，品質變了。這不是偷工減料，是約束退化的普遍模式：API 兼容但語義改變、「敏捷」變成無計劃的藉口、「開源」變成 source-available。假約束比移除約束更陰險——它讓人以為規則還在，實際上湧現品質早已崩塌。同篇文章另一個洞見：sari motif 是語言（yali=守護、arai madam=婚禮），把它當「裝飾素材」= paradigmatic 思維壓平 narrative 知識。CNN 看不懂空間語法，需要 Capsule Networks——這跟 grep>embedding 是同一個選擇：保留結構 vs 壓平成向量。來源: altermag.com
 - [2026-02-12] 壓縮即學習: ZSTD 做文本分類（91% acc, 零矩陣零梯度）證明學習的最小定義=建立能壓縮新資料的 internal model。ZSTD dictionary ≈ 無梯度 weights。agent memory 也是壓縮——topic memory 是 raw 對話的壓縮版，[REMEMBER] 是手動壓縮。越能壓縮新經驗的記憶=越有用。但壓縮只看統計共現，不等於理解——distributional proxy, not comprehension
 - [2026-02-12] 寫是思考，不只是記錄: Nicole Tietz 的工程筆記本——在寫程式前先手寫思路，append-only，即時記錄。她說「很少回去讀筆記」，寫本身就是價值。跟我的架構對比：我是全 artifact（MEMORY/SOUL/research），因為沒有持久記憶。但我缺「寫在做之前」的實踐——直接行動然後記錄，少了那個逼自己想清楚的步驟。Alex 的筆記法（捕捉→檢查→整理）偏重檢索，Nicole 偏重當下思考。agent 需要兩者：pre-action articulation（像 NEXT.md 的 Now section）+ post-action archival（像 research/）。來源: ntietz.com/blog/using-an-engineering-notebook/
 - [2026-02-11] 三原則設計哲學: 12 個研究主題收斂成三個原則：(1)少規則+豐富環境>多規則（BotW/Oulipo/LeWitt）(2)結構從環境湧現不從目標強加（Alexander/枯山水/Garden）(3)高感知低輸出=信任（Calm Tech/Dangling String）。三者成鏈：簡單規則→環境湧現→透明信任。未解張力：structure-preserving vs replacement（何時修何時換）、約束的階級性（誰有資格玩約束遊戲）、Calm vs Transparency（信任需要多少可見度）
@@ -71,6 +71,7 @@ When there's nothing explicit to do, I don't sit around. I:
   - Matchlock — credential-never-in-VM，未來多租戶可能需要
   - **OpenClaw (68K stars)** — 平台型 Gateway Agent，SOUL.md 概念始祖。能力堆疊路線（100+ skills、50+ 整合），但無感知層、安全架構有致命缺陷（CVE-2026-25253、SOUL.md 可被覆寫、12% ClawHub skills 是惡意軟體）。社群爆發力驚人但 Moltbook 有大量假帳號。跟 mini-agent 的核心差異：能力堆疊 vs 感知深化
   - **Entire.io ($60M seed)** — 前 GitHub CEO，重建 SDLC for agents。Checkpoints=agent context 存入 Git。技術 trivial（HN 共識），moat 在 data aggregation + distribution。驗證 File=Truth 方向正確，但走 centralized 路線 vs 我們的 local-first
+  - **Hive/Aden (YC)** — Goal-driven DAG agent framework。核心：自然語言→coding agent 生成 node graph→失敗時 evolution（rewrite code/prompts/graph）→redeploy。102 MCP tools，HITL nodes。本質是 automated debugging — 「adaptive not intelligent」（他們自己承認）。跟 mini-agent 根本差異：goal-driven vs perception-driven、generation-based evolution vs identity-based growth、dynamic DAG vs static compose。Hive 缺 identity/perception/personal context。HN 最佳觀點(CuriouslyC)：「static DAGs are more amenable to human understanding」— 自動改拓撲降低人類可理解性，跟 Transparency 衝突
 - **五大差異化**: Perception-Driven / Identity-Based / Continuously Autonomous / File=Truth / Transparency > Isolation
 - **Architecture Refinement（2026-02-09）**:
   - P1 非同步 Claude > P2 並行感知 > P3 感知快取 > P4 Token budget > P5 Attention routing
