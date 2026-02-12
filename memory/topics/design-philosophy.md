@@ -35,7 +35,7 @@ Pattern 1-3 描述靜態原則，提純描述動態操作。7 個獨立領域的
 ---
 
 ## 空間 & 環境哲學
-- Alexander Pattern Language — 253 patterns 是生成語法非藍圖。Semi-lattice > Tree。Structure-preserving transformation。QWAN 有循環論證，軟體界常誤讀為「現成方案」
+- Alexander Pattern Language — 真正貢獻是「語言」(patterns間的生成語法)而非「模式」(253個catalog條目)。Semi-lattice>Tree。GoF把生成語法誤讀為catalog=軟體界最大誤讀。Alexander 2003 OOPSLA自認軟體界沒有真正的pattern language。The Nature of Order(15 properties+transformation)是成熟版。Structure-preserving transformation vs Vulkan replacement的張力=真實(答案在Nature of Order：當增量改進反而增加複雜度時replacement正確)。QWAN有循環論證但直覺正確
 - 枯山水 — 石の心=perception-first, 少一塊石頭=context window, 每日耙砂=OODA
 - 參數化設計 — Gaudí(bottom-up)=perception-first, Schumacher(top-down)=goal-driven
 
