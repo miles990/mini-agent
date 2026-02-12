@@ -756,7 +756,9 @@ export function createApi(port = 3001): express.Express {
       const detail = e.data.detail || '';
       const what = detail.match(/\*\*What\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
       const why = detail.match(/\*\*Why\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
-      const changed = detail.match(/\*\*Changed\*\*:\s*\n([\s\S]*?)(?:\*\*Verified|$)/)?.[1]?.trim() || '';
+      const changed = (detail.match(/\*\*Changed\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim())
+        || (detail.match(/\*\*Changed\*\*:\s*\n([\s\S]*?)(?:\*\*Verified|$)/)?.[1]?.trim())
+        || '';
       const verified = detail.match(/\*\*Verified\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
       // 提取所有 URL
       const urls = [...detail.matchAll(/https?:\/\/[^\s)>\]]+/g)].map(m => m[0]);
