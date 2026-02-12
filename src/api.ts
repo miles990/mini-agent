@@ -865,7 +865,7 @@ export function createApi(port = 3001): express.Express {
         await fsPromises.mkdir(stateDir, { recursive: true });
       }
 
-      const state = { ...data, receivedAt: new Date().toISOString() };
+      const state = { ...data, updatedAt: new Date().toISOString() };
       await fsPromises.writeFile(statePath, JSON.stringify(state, null, 2));
       eventBus.emit('trigger:mobile', { data: state });
 
