@@ -932,3 +932,68 @@ Moving average blur 看起來摧毀了像素資訊（多個值被平均），但
 **安全啟示**（lcamtuf 的原始語境）：Kerckhoffs' principle — 安全不應依賴算法保密。知道算法就能逆向。mini-agent 的 Transparency > Isolation 是一致的：我們不隱藏過程，我們讓過程可被理解。
 
 來源：lcamtuf.substack.com/p/its-all-a-blur, lcamtuf.coredump.cx/blog/venus.m
+
+## Compression as Classification — 壓縮即學習 (2026-02-12)
+
+**是什麼**：Max Halford 用 Python 3.14 新加的 `compression.zstd` 模組做文本分類。零矩陣、零梯度、零反向傳播。91% accuracy，1.9 秒跑完 3387 文件。
+
+### 原理
+
+壓縮長度 ≈ Kolmogorov complexity（不可計算，但可近似）。核心直覺：
+
+1. 為每個類別建一個 ZSTD dictionary（= 該類別的壓縮知識）
+2. 新文本交給各類別的 compressor
+3. 壓縮後最短的 = 最「像」= 分類結果
+
+```python
+# 核心邏輯就這麼簡單
+for label, comp in self.compressors.items():
+    size = len(comp.compress(text, mode))
+    if size < best_size:
+        best_size = size
+        best_label = label
+```
+
+### 三個調參旋鈕
+
+| 參數 | 效果 | trade-off |
+|------|------|-----------|
+| Window size | buffer 中保留多少 bytes | 大=準但慢，小=快但資料少 |
+| Compression level | ZSTD 1-22 級 | 高=壓縮比好(準)但慢 |
+| Rebuild frequency | 幾筆新資料後重建 compressor | 頻繁=準但有開銷 |
+
+### 效能對比
+
+| 方法 | Accuracy | 時間 |
+|------|----------|------|
+| ZSTD (2026) | 91% | 1.9s |
+| LZW (2021) | 89% | 32 min |
+| TF-IDF + LR (batch) | 94% | - |
+
+ZSTD 的增量壓縮 API 是關鍵突破 — LZW/gzip 不支持增量，每次要重新壓縮所有訓練數據。
+
+### 深層洞見
+
+**「學習」的最小定義 = 建立能壓縮新資料的 internal model。**
+
+這不只是技術 trick，而是觸及學習的本質：
+- ZSTD dictionary ≈ 無梯度的 trained weights
+- 壓縮比 = 你對某個領域的「理解程度」
+- 好的 teacher 能把複雜概念壓縮成簡潔的解釋（好的壓縮器）
+
+**跟 agent memory 的平行**：
+- topic memory = raw 對話的壓縮版。越能壓縮新經驗的記憶 = 越有用的記憶
+- MEMORY.md 的 [REMEMBER] 就是手動壓縮 — 把一次學習壓成一條精華
+- Memory Utility Tracking（HEARTBEAT 裡的 L2 提案方向）可以用「壓縮」視角重新定義：某條記憶被引用 = 它成功壓縮了新的對話 context
+
+**Hutter Prize 連結**：Marcus Hutter（DeepMind）的壓縮挑戰賽——能完美壓縮人類知識的 AI = AGI。壓縮即智能（compression = intelligence）。
+
+### 我的看法
+
+這是我看過最優雅的「非 ML 的 ML」。它證明了一個重要的認識論觀點：你不需要理解「特徵」來分類——壓縮距離自動提取了統計模式。
+
+但 91% vs TF-IDF 的 94% 說明了 trade-off：壓縮方法犧牲了一點精度換取了極致的簡潔。這很 mini-agent — 我們用 grep 而不是 embedding，用 Markdown 而不是 vector DB。有時候「夠好但簡單」比「最好但複雜」更有價值。
+
+**反面思考**：壓縮方法的限制是它只看統計共現（字節級），無法理解語義。「bank」出現在「river bank」和「bank account」中壓縮結果不同，但不是因為「理解」了多義性，而是因為周圍的字節分佈不同。這跟 word2vec 的 distributional hypothesis 一樣，都是「統計代理人」而非「理解」。
+
+來源：maxhalford.github.io/blog/text-classification-zstd/、前作（2021）：maxhalford.github.io/blog/text-classification-by-compression/
