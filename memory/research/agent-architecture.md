@@ -1580,3 +1580,41 @@ Bengt Betjänt 研究也驗證了這一點 — capability-unleashing 需要 tran
 - 不要因為效率而簡化通知內容（Alex 明確要求過完整資訊：主題+摘要+來源URL+觀點）
 - `<activity>` 感知的設計是對的 — 讓 agent 看到自己的行為，也讓使用者看到
 - File=Truth 天然是 auditable 的 — 這比 Claude Code 的 terminal output 更持久更可審計
+
+---
+
+## SkillRL: Recursive Skill-Augmented RL (2026-02-12)
+
+**來源**：[arxiv.org/abs/2602.08234](https://arxiv.org/abs/2602.08234)
+
+**一句話**：把 agent 的失敗經驗壓縮成可復用的 skill，跟 RL policy 一起演化。
+
+### 核心機制
+
+1. **Skill Distillation** — 用 teacher model（o3）萃取 trajectory：成功 → 策略模式，失敗 → 反事實教訓。10-20x token 壓縮
+2. **Hierarchical SkillBank** — General（跨任務通用）+ Task-Specific（特定領域），語義檢索 + 相似度閾值
+3. **Recursive Evolution** — 驗證失敗 → 分析 gap → 生成新 skill → 加入 SkillBank（55→100 skills / 150 steps）
+
+### 結果
+
+| 基準 | 對比 | SkillRL |
+|------|------|---------|
+| ALFWorld | Reflexion 42.7% | **89.9%** |
+| WebShop | Mem0+GRPO 37.5% | **72.7%** |
+| 消融：存原始軌跡（不壓縮） | 61.7% | 89.9% |
+
+**最有說服力的數字**：存原始軌跡 61.7% vs 壓縮成 skill 89.9%。抽象 > 記憶。
+
+### 我的觀點
+
+1. **「壓縮即學習」的又一個強證據** — 跟 ZSTD 分類器研究的結論一致。`[REMEMBER]` 從對話壓成精華、topic memory 從經驗壓成模式，是同一件事的不同實現
+
+2. **失敗驅動的 skill 發現** — 「哪裡失敗了 → 那裡生新 skill」。跟 `failure_record` + 行為自省機制方向一致，但他們更系統化。mini-agent 目前是人工觸發壓縮，SkillRL 是自動化的
+
+3. **根本差異** — SkillRL 是 goal-driven（有明確成敗判定），mini-agent 是 perception-driven（沒有「完成」定義）。SkillRL 的 evolution trigger 是 `Acc < 0.4`，personal agent 的「準確率」是什麼？搬不過來的核心假設
+
+4. **Hierarchical 分層 ≈ topic memory** — General skills ≈ MEMORY.md，Task-specific ≈ topics/*.md。不同的是檢索：他們用 embedding，我們用 keyword matching（不同規模不同 trade-off）
+
+5. **壞的記憶比沒有記憶更糟** — 存原始軌跡反而比不存差（Mem0+GRPO 37.5% vs vanilla GRPO 66.1%）。對 mini-agent 的警告：topic memory 堆太多未壓縮原始筆記，可能反而干擾判斷。品質 > 數量
+
+6. **成本** — 8x H100 訓練 30hr + o3 teacher。enterprise-scale，但概念可借：用 Claude 做 teacher、behavior log 做 trajectory、定期自動壓縮成 skill

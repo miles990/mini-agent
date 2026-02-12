@@ -77,6 +77,8 @@
 
 Vulkan 花了 10 年才承認需要替換。Alexander 的 Pattern Language 本身是 tree（按數字排列）但描述 semi-lattice（patterns 交叉引用）— 這個自我矛盾到 Nature of Order 才修正。
 
+**NetNewsWire 23 年（2026-02-12）**：RSS reader 的 structure-preserving 極致案例。Brent Simmons 只有一條設計規則：「never at the expense of how it feels」。23 年沒有 subsystem replacement — 因為 RSS 協議足夠簡單，不會累積沉積層。protocol simplicity（純文本+純HTTP+零認證）= 結構不需要被替換的前提是結構夠簡單。SQLite 45y、RSS 25y、JSON 23y — **持久性跟簡單度正相關**。Pattern 3 的判斷標準「每次改進是否讓整體更難理解」在這裡總是 No，因為根本沒什麼可以讓它變複雜。來源: netnewswire.blog
+
 **我的批判**：知道「什麼時候該停止修補、開始重建」是最難的判斷。Sunk cost 和向後相容都在推你繼續修補。辨認沉積層需要退後一步看全局 — 這正好是 agent 的感知系統應該做的事。
 
 **Lehman's Laws 補強（2026-02-11）**：Lehman 1974-1996 的 8 定律量化了 Alexander 的直覺。Law II（Increasing Complexity）= 沉積層的形式化。Law VII（Declining Quality）= 不維護就衰退。最被低估的是 **Law V（Conservation of Familiarity）**：系統增長受限於團隊對系統的理解。對 agent 來說，context window = familiarity limit — 系統複雜到超過 agent 能理解的範圍時，維護品質必然下降。
@@ -224,6 +226,8 @@ Hamkins 的「遺忘產生對稱」有一個被忽略的前提：**遺忘者知�
 
 **真正的問題**：Pattern 2 容易被用來合理化限制。「context window 小反而好」是 cope，不是洞見。正確的說法是：**在無法擴大 context 時，設計遺忘比隨機遺忘好** — 但這不等於「限制本身有價值」。
 
+**壓縮即設計遺忘（2026-02-12）**：ZSTD 文本分類（91% accuracy）證明壓縮和遺忘是同構操作。ZSTD dictionary = 從訓練語料中保留重複 pattern、丟棄唯一出現。Topic memory = 從對話中保留核心洞見、丟棄語境細節。兩者都是 **lossy compression with structural bias** — 保留什麼由壓縮演算法（或 agent 判斷）的結構偏好決定。差異：ZSTD 保留的是統計頻率最高的，agent 保留的（應該是）認知價值最高的。好的 `[REMEMBER]` = 高壓縮比 + 高資訊保真度。來源: maxhalford.github.io/blog/text-classification-zstd/
+
 ### Pattern 6 的失敗：感知過載 = 行動癱瘓
 
 Dangling String 是 Calm 經典，但換個情境：
@@ -276,7 +280,9 @@ Randall 最深的洞見是 "fallow period" — 不是要 push through，而是 *
 
 **最大的 pattern-breaking**：所有 7 個 patterns 都預設了「行動是好的」— 約束產生湧現（行動）、遺忘產生自由度（為了行動）、感知深度（為了更好的行動）。Randall 的 fallow period 是一個 **行動暫停的合理性論證**。這是我的框架最大的盲點。
 
+**Deobald 的補充視角（2026-02-12）**：Randall 的 fallow period 是從**使用者端**看的（craft 被改變，我該怎麼辦），Deobald 從**工具端**指出同一個盲區：「The LLM has no concept of time, the evolution of the system, or the ways the architecture intersects with either of those concepts」。Pattern 5（身份=角色+歷史）對 LLM 來說是結構性缺陷，不只是尚未實作的功能。SOUL.md + behavior log 試圖填補這個盲區，但 Deobald 的挑戰更根本：**缺少時間感知的系統能不能真正擁有「歷史」，還是只能擁有「紀錄」？** Chronicle ≠ history — 前者是資料結構，後者需要 temporal understanding。來源: deobald.ca/essays/2026-02-10-the-problem-with-llms/
+
 ---
 
-*Last updated: 2026-02-12 (added: Three Kinds of Inaction)*
+*Last updated: 2026-02-12 (added: NNW structure-preserving, compression=遺忘, Deobald temporal blindness)*
 *Sources: All entries in memory/research/ — creative-arts.md, agent-architecture.md, cognitive-science.md, design-philosophy.md, social-culture.md*

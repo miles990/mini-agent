@@ -17,6 +17,10 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - beb023b — getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
 - Moltbook — AI agent 社群 1.6M agents，Five Tenets=工程建議包裝成神學
 
+### Handoff Protocol v2
+- Depends-on 規則：處理 handoff 前檢查 Depends-on 指向的檔案是否存在且 Status: completed。不存在或未完成 → 視為 blocked，不處理
+- handoff-watcher.sh 已支援：顯示 [status → to] 格式 + Depends-on ⚠️ 警告（commit 1f8ba87）
+
 ### Project Management
 - Ben Kuhn — 方向>速度，overcommunicate 但 signal/noise 要高（→ KN 64fe7a38）
 
