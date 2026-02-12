@@ -20,21 +20,43 @@ export interface Message {
   content: string;
 }
 
+// =============================================================================
+// LLM Provider Abstraction
+// =============================================================================
+
+export type Provider = 'claude' | 'codex';
+
+export function getProvider(): Provider {
+  const p = process.env.AGENT_PROVIDER?.toLowerCase();
+  if (p === 'codex') return 'codex';
+  return 'claude';
+}
+
+export function getFallback(): Provider | null {
+  const f = process.env.AGENT_FALLBACK?.toLowerCase();
+  if (f === 'codex' || f === 'claude') return f as Provider;
+  return null;
+}
+
+async function execProvider(provider: Provider, fullPrompt: string): Promise<string> {
+  return provider === 'codex' ? execCodex(fullPrompt) : execClaude(fullPrompt);
+}
+
 // getSystemPrompt is now imported from dispatcher.ts
 
 /**
  * 錯誤分類結果
  */
-interface ClaudeErrorClassification {
+interface ErrorClassification {
   type: 'TIMEOUT' | 'RATE_LIMIT' | 'NOT_FOUND' | 'PERMISSION' | 'MAX_BUFFER' | 'UNKNOWN';
   message: string;
   retryable: boolean;
 }
 
 /**
- * Classify Claude CLI error into structured result
+ * Classify CLI error into structured result (provider-agnostic)
  */
-function classifyClaudeError(error: unknown): ClaudeErrorClassification {
+function classifyError(error: unknown): ErrorClassification {
   const msg = error instanceof Error ? error.message : String(error);
   const stderr = (error as { stderr?: string })?.stderr ?? '';
   const killed = (error as { killed?: boolean })?.killed;
@@ -417,6 +439,129 @@ async function execClaude(fullPrompt: string): Promise<string> {
 }
 
 /**
+ * 單次 Codex CLI 呼叫（內部用）
+ * 使用 JSONL 格式捕獲中間工具呼叫並寫入 audit log
+ *
+ * 安全機制與 execClaude 相同：detached process group + 手動 timeout
+ */
+async function execCodex(fullPrompt: string): Promise<string> {
+  const TIMEOUT_MS = 480_000; // 8 minutes (same as Claude)
+
+  // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'OPENAI_API_KEY'),
+  );
+
+  const args = ['exec', '--dangerously-bypass-approvals-and-sandbox', '--json'];
+  if (process.env.CODEX_MODEL) {
+    args.push('-m', process.env.CODEX_MODEL);
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+
+    const child = spawn(
+      'codex',
+      args,
+      {
+        env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: true,
+      },
+    );
+
+    let resultText = '';
+    let buffer = '';
+    let stderr = '';
+    let toolCallCount = 0;
+
+    // ── 手動 timeout：殺整個進程群組（含子進程）──
+    const timer = setTimeout(() => {
+      if (settled) return;
+      slog('CODEX', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
+      try {
+        process.kill(-child.pid!, 'SIGTERM');
+      } catch { /* already dead */ }
+      setTimeout(() => {
+        try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already dead */ }
+      }, 5000);
+    }, TIMEOUT_MS);
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString('utf-8');
+      // 逐行解析 JSONL
+      let newlineIdx: number;
+      while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newlineIdx).trim();
+        buffer = buffer.slice(newlineIdx + 1);
+        if (!line) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === 'item.completed' && event.item) {
+            const item = event.item;
+            if (item.type === 'agent_message' && item.text) {
+              resultText = item.text;
+              if (currentTask) {
+                currentTask.lastText = item.text.slice(0, 200);
+              }
+            } else if (item.type === 'tool_call') {
+              toolCallCount++;
+              const toolName = item.tool ?? 'unknown';
+              const toolInput = (item.input ?? item.args ?? {}) as Record<string, unknown>;
+              writeAuditLog(toolName, toolInput);
+              if (currentTask) {
+                const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? '';
+                currentTask.toolCalls = toolCallCount;
+                currentTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+              }
+            }
+          }
+          // turn.completed — final event, usage info (no text to extract)
+        } catch { /* ignore malformed JSON lines */ }
+      }
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf-8');
+    });
+
+    child.on('close', (code) => {
+      settled = true;
+      clearTimeout(timer);
+
+      // 處理 buffer 中剩餘的不完整行
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim());
+          if (event.type === 'item.completed' && event.item?.type === 'agent_message' && event.item.text) {
+            resultText = event.item.text;
+          }
+        } catch { /* ignore */ }
+      }
+
+      if (toolCallCount > 0) {
+        slog('AUDIT', `Codex CLI used ${toolCallCount} tool(s) this call`);
+      }
+
+      if (code !== 0 && !resultText) {
+        reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code }));
+      } else {
+        resolve(resultText);
+      }
+    });
+
+    child.on('error', (err) => {
+      settled = true;
+      clearTimeout(timer);
+      reject(Object.assign(err, { stderr, stdout: resultText }));
+    });
+
+    child.stdin.write(fullPrompt);
+    child.stdin.end();
+  });
+}
+
+/**
  * Call Claude Code via subprocess with smart retry
  * - Retries on transient errors (timeout, rate limit) with exponential backoff
  * - On TIMEOUT: rebuilds context with progressively smaller modes (focused → minimal)
@@ -445,7 +590,9 @@ export async function callClaude(
     };
   }
 
+  const primary = getProvider();
   const startTime = Date.now();
+  let lastErrorMessage = '重試次數已用盡。';
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     // 每次嘗試前檢查 busy（重試等待期間可能被其他請求佔走）
@@ -462,13 +609,14 @@ export async function callClaude(
     currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null };
 
     try {
-      const result = await execClaude(fullPrompt);
+      const result = await execProvider(primary, fullPrompt);
       const duration = Date.now() - startTime;
 
       try {
         const logger = getLogger();
+        const providerInfo = primary !== 'claude' ? ` [${primary}]` : '';
         const retryInfo = attempt > 0 ? ` (retry #${attempt}, ${fullPrompt.length} chars)` : '';
-        logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${retryInfo}`);
+        logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${providerInfo}${retryInfo}`);
       } catch { /* logger not ready */ }
 
       return { response: result.trim(), systemPrompt, fullPrompt, duration };
@@ -476,14 +624,16 @@ export async function callClaude(
       const duration = Date.now() - startTime;
       const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
       const exitCode = (error as { status?: number })?.status;
-      const classified = classifyClaudeError(error);
+      const classified = classifyError(error);
 
       // Log error
       const logger = getLogger();
       logger.logError(
-        new Error(`Claude CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || classified.message}`),
+        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || classified.message}`),
         'callClaude'
       );
+
+      lastErrorMessage = classified.message;
 
       // 如果可重試且還有機會，等待後重試
       if (classified.retryable && attempt < maxRetries) {
@@ -511,11 +661,35 @@ export async function callClaude(
         continue;
       }
 
-      // 最後一次嘗試也失敗了，或不可重試
+      // 最後一次嘗試也失敗了，或不可重試 — 嘗試 fallback
       const stdout = (error as { stdout?: string })?.stdout?.trim();
       if (stdout && stdout.length > 20) {
         return { response: stdout, systemPrompt, fullPrompt, duration };
       }
+
+      // Fallback: 主要 provider 全部失敗後，嘗試備用 provider（最多一次）
+      const fallback = getFallback();
+      if (fallback && fallback !== primary) {
+        slog('FALLBACK', `${primary} failed after ${attempt + 1} attempt(s), trying ${fallback}`);
+        claudeBusy = true;
+        currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null };
+        try {
+          const fbResult = await execProvider(fallback, fullPrompt);
+          const fbDuration = Date.now() - startTime;
+          try {
+            const fbLogger = getLogger();
+            fbLogger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(fbDuration / 1000).toFixed(1)}s [fallback:${fallback}]`);
+          } catch { /* logger not ready */ }
+          return { response: fbResult.trim(), systemPrompt, fullPrompt, duration: fbDuration };
+        } catch (fbError) {
+          const fbMsg = fbError instanceof Error ? fbError.message : String(fbError);
+          slog('FALLBACK', `${fallback} also failed: ${fbMsg.slice(0, 200)}`);
+        } finally {
+          claudeBusy = false;
+          currentTask = null;
+        }
+      }
+
       return { response: classified.message, systemPrompt, fullPrompt, duration };
     } finally {
       claudeBusy = false;
@@ -524,7 +698,7 @@ export async function callClaude(
   }
 
   // 理論上不會到這裡，但 TypeScript 需要
-  return { response: '重試次數已用盡。', systemPrompt, fullPrompt, duration: Date.now() - startTime };
+  return { response: lastErrorMessage, systemPrompt, fullPrompt, duration: Date.now() - startTime };
 }
 
 /**

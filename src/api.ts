@@ -9,7 +9,7 @@ import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue, getProvider, getFallback } from './agent.js';
 import { dispatch, getLaneStats } from './dispatcher.js';
 import {
   searchMemory,
@@ -272,6 +272,11 @@ export function createApi(port = 3001): express.Express {
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
+      },
+      provider: {
+        primary: getProvider(),
+        fallback: getFallback(),
+        codexModel: process.env.CODEX_MODEL || null,
       },
     });
   });
