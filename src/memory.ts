@@ -818,9 +818,10 @@ export class InstanceMemory {
       sections.push(`<soul>\n${soul}\n</soul>`);
     }
 
-    // ── Topic 記憶（Smart Loading — token 預算制）──
+    // ── Topic 記憶（Smart Loading）──
     const topics = await this.listTopics();
     if (topics.length > 0) {
+      // Topic keyword mapping — 檔名本身就是 key，加上額外關鍵字
       const topicKeywords: Record<string, string[]> = {
         'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'art', 'visual', 'creative coding'],
         'mini-agent': ['dispatcher', 'haiku', 'lane', 'context', 'loop', 'triage', 'perception', 'plugin', 'agent'],
@@ -832,49 +833,16 @@ export class InstanceMemory {
         'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive', 'cognitive'],
       };
 
-      // Score topics by keyword match count (more matches = more relevant)
-      const scoredTopics: { topic: string; score: number }[] = [];
+      const loadedTopics: string[] = [];
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
-        const score = keywords.filter(k => contextHint.includes(k)).length;
-        if (mode === 'full' || score > 0) {
-          scoredTopics.push({ topic, score });
-        }
-      }
-      // Sort by relevance score descending
-      scoredTopics.sort((a, b) => b.score - a.score);
-
-      // Budget: focused=2 topics (most relevant), full=all but truncated
-      const MAX_TOPICS = mode === 'full' ? scoredTopics.length : 2;
-      const MAX_ENTRIES_PER_TOPIC = mode === 'full' ? 5 : 3;
-
-      const loadedTopics: string[] = [];
-      for (const { topic } of scoredTopics.slice(0, MAX_TOPICS)) {
-        const content = await this.readTopicMemory(topic);
-        if (content) {
-          // Keep only the most recent N entries (entries start with "- [")
-          const lines = content.split('\n');
-          const headerLines: string[] = [];
-          const entries: string[] = [];
-          let currentEntry = '';
-
-          for (const line of lines) {
-            if (line.startsWith('- [')) {
-              if (currentEntry) entries.push(currentEntry);
-              currentEntry = line;
-            } else if (currentEntry) {
-              currentEntry += '\n' + line;
-            } else {
-              headerLines.push(line);
-            }
+        const shouldLoad = mode === 'full' || keywords.some(k => contextHint.includes(k));
+        if (shouldLoad) {
+          const content = await this.readTopicMemory(topic);
+          if (content) {
+            sections.push(`<topic-memory name="${topic}">\n${content}\n</topic-memory>`);
+            loadedTopics.push(topic);
           }
-          if (currentEntry) entries.push(currentEntry);
-
-          // Take the last N entries (most recent)
-          const recentEntries = entries.slice(-MAX_ENTRIES_PER_TOPIC);
-          const truncatedContent = [...headerLines, ...recentEntries].join('\n');
-          sections.push(`<topic-memory name="${topic}">\n${truncatedContent}\n</topic-memory>`);
-          loadedTopics.push(topic);
         }
       }
     }
