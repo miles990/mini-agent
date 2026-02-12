@@ -1030,6 +1030,9 @@ let currentView = 'timeline';
 let currentDate = new Date().toISOString().split('T')[0];
 let refreshTimer = null;
 let lastUpdate = null;
+let consecutiveFailures = 0;
+const REFRESH_BASE = 30000;
+const REFRESH_MAX = 120000;
 let allBehaviors = [];
 let allJournalEntries = [];
 let currentJournalCat = 'all';
@@ -1128,6 +1131,10 @@ async function fetchAll() {
       fetch(API + '/api/dashboard/journal?date=' + currentDate),
     ]);
 
+    for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
+      if (!res.ok) throw new Error(name + ' API returned ' + res.status);
+    }
+
     const status = await statusRes.json();
     const behaviors = await behaviorsRes.json();
     const learning = await learningRes.json();
@@ -1143,10 +1150,16 @@ async function fetchAll() {
     lastUpdate = new Date();
     document.getElementById('refreshInfo').textContent = formatTime(lastUpdate.toISOString());
     document.getElementById('statusDot').className = 'status-dot ok';
+    if (consecutiveFailures > 0) {
+      consecutiveFailures = 0;
+      scheduleRefresh();
+    }
   } catch (err) {
     console.error('Fetch error:', err);
     document.getElementById('statusDot').className = 'status-dot error';
     document.getElementById('refreshInfo').textContent = 'Error';
+    consecutiveFailures++;
+    scheduleRefresh();
   }
 }
 
@@ -1163,7 +1176,7 @@ function updateStatus(s) {
     claudeEl.textContent = 'Busy';
     claudeEl.className = 'stat-value yellow';
     const task = s.claude.currentTask;
-    claudeDetail.textContent = task ? task.prompt.slice(0, 50) + '...' : '';
+    claudeDetail.textContent = task?.prompt ? task.prompt.slice(0, 50) + '...' : '';
   } else {
     claudeEl.textContent = 'Idle';
     claudeEl.className = 'stat-value green';
@@ -1569,9 +1582,15 @@ function toggleCycle(id) {
 
 // ── Auto-refresh ──
 
+function scheduleRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  const interval = Math.min(REFRESH_BASE * Math.pow(2, consecutiveFailures), REFRESH_MAX);
+  refreshTimer = setInterval(fetchAll, interval);
+}
+
 function startRefresh() {
   fetchAll();
-  refreshTimer = setInterval(fetchAll, 30000);
+  scheduleRefresh();
 }
 
 startRefresh();

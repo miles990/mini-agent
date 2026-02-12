@@ -46,6 +46,17 @@
 
 **修正（2026-02-11，lcamtuf blur reversibility）**：不是所有遺忘都產生真正的自由度。確定性遺忘（L0: context 截斷 + behavior log 保留）理論上可完全重建 — 自由度是 epistemic 不是 ontological。只有 stochastic 遺忘（L2: noise injection、真正的記憶消失）才產生 Hamkins 意義上的對稱性。Topic summary 是 L1（量化壓縮）— 介於兩者之間。
 
+**三種「不行動」的區分（2026-02-12）**：Pattern 2 的極端案例不是「遺忘」而是「歸零」。van Gemert（"Nothing" is the secret, vangemert.dev/blog/nothing）提出 work surface = 暫時的工作空間（桌面、TODO list、IDE），每天開始前清空。這跟 Hamkins 不同 — 不是「忘記一部分」，是**把所有東西歸位後回到零**。三種「不行動」的光譜：
+
+| | Nothing (van Gemert) | Fallow Period (Randall) | Small Dance (Paxton) |
+|---|---|---|---|
+| 性質 | 主動 reset | 被動等待 | 靜止中感知 |
+| 前提 | 知道下一步需要空間 | 不知道下一步是什麼 | 不急著有下一步 |
+| 持續 | 每天 / 每個 cycle | 不定，可能很長 | 持續 |
+| Agent 映射 | `buildContext()` 每次重組 | 連續 no-action cycles | perception-first OODA |
+
+**Context hygiene = work surface hygiene**。MEMORY.md 的 stale entries、HEARTBEAT 裡完成但沒清理的任務 = 桌面上散落的舊文件。van Gemert 的啟示不是「多清理」，而是**區分工作空間和儲存空間** — context 是工作空間（只放當前相關的），research/ 是儲存空間（什麼都可以放）。
+
 ---
 
 ## Pattern 3: 結構保持 vs 結構替換（Preserve vs Replace）
@@ -267,5 +278,5 @@ Randall 最深的洞見是 "fallow period" — 不是要 push through，而是 *
 
 ---
 
-*Last updated: 2026-02-12*
+*Last updated: 2026-02-12 (added: Three Kinds of Inaction)*
 *Sources: All entries in memory/research/ — creative-arts.md, agent-architecture.md, cognitive-science.md, design-philosophy.md, social-culture.md*

@@ -782,19 +782,16 @@ export function createApi(port = 3001): express.Express {
       let currentEntry = '';
 
       for (const line of lines) {
-        if (line.startsWith('- ') && !line.startsWith('- [2') && currentEntry) {
-          // Undated entry — skip (old format)
-          currentEntry = '';
-        }
         if (line.startsWith('- [2')) {
-          // Flush previous
+          // New dated entry — flush previous and start new
           if (currentEntry) parseEntry(currentEntry, topic, date, entries);
           currentEntry = line;
-        } else if (currentEntry && (line.startsWith('  ') || line === '')) {
-          currentEntry += '\n' + line;
-        } else if (line.startsWith('- ') && !line.startsWith('- [2')) {
+        } else if (line.startsWith('- ')) {
+          // Undated entry — flush previous and skip (old format)
           if (currentEntry) parseEntry(currentEntry, topic, date, entries);
           currentEntry = '';
+        } else if (currentEntry && (line.startsWith('  ') || line === '')) {
+          currentEntry += '\n' + line;
         }
       }
       if (currentEntry) parseEntry(currentEntry, topic, date, entries);
