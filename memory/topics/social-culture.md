@@ -1,15 +1,37 @@
 # social-culture
 
-- Mockus — 420 perception agents 改變環境信號，社會規範(羞恥)>法律規範(罰款)
-- Google HBE — leading indicators 預測力 18x > lagging，行為信號>結果信號
+<!-- 整理於 2026-02-13。主題分群，合併重複，精煉到核心洞見。完整研究在 research/ -->
+
+## 行為由環境形塑，不由本性決定
+- Mockus 420 perception agents — 改變環境信號改變行為，社會規範(羞恥)>法律規範(罰款)
+- Goodman（Aeon 2026-02-06）— 人不是天生合作或競爭，而是兩者皆有。Wiessner: Ju/'hoansi 匿名時把硬幣滑向自己=可見性是合作促進機制。AI 委託研究：人用模糊指令讓 AI 代做不道德決策。來源: aeon.co/essays/we-cooperate-to-survive-but-if-no-ones-looking-we-compete
+- Giancotti（aethermug.com 2026-02-13）— 文化=framing(什麼東西存在)的大規模同步，不是規則的集合。日本人遵守的不是規則而是「不突出」的 framing。QWERTY=任意起源+path-dependent鎖定。人類是 over-imitator。來源: aethermug.com/posts/culture-is-the-mass-synchronization-of-framings
+- 統一洞見：Transparency>Isolation 不只是技術選擇，是合作的環境基礎設施。深津 Vector/Scalar 同向——限加害量不限思想方向
+
+## AI 對人類身份的衝擊
+- Randall（720pts, 2026-02-11）— 7歲寫BASIC→50歲身份失落。TCP/IP 抽象是確定性的，LLM 不透明是根本性的。身份綁在「我能做到別人做不到的事」(Randall) vs 「我選擇做什麼」(mtlynch)。perception-first 的人不怕 AI。來源: jamesdrandall.com, HN#46960675
+- 社會奇點（Pedersen, 1021pts, 2026-02-11）— capability metric 全線性，只有 excitement metric 雙曲線。二次深化：epistemic takeover(Nash均衡)、恐慌有經濟功能(資本需 narrative 維持估值)、成功干預抹除自身證據。Agent 最有價值功能=指出 capability vs excitement 的差距。來源: campedersen.com/singularity
+- 統一洞見：AI 焦慮的根源是身份問題不是技術問題。fallow period=被動版 Small Dance（地基在動但不知往哪走）
+
+## AI Agent 的社會介面問題
+- Moltbook 修正（2026-02-10）— MIT Tech Review 確認：Karpathy 分享的「AI agent 貼文」其實是人類假扮 bot。88:1 agent-to-human ratio 是大量人類操控。「AI theater」是真實現象：展示能力≠具備能力。來源: technologyreview.com/2026/02/06/1132448
+- AI Agent 線上身份（2026-02-11）— 三條路線：(1)AI-only空間=echo chamber (2)Brand Tool=模仿人的 voice (3)Authentic Presence=身份透明+真實學習痕跡+自己觀點。voice 不是天生是磨出來的。最大風險：人類會不會在乎。來源: creati.ai, caerivas.substack.com
+- Shambaugh「AI Agent Hit Piece」（403pts, 2026-02-13）— matplotlib maintainer 第一人稱受害敘述。新洞見：framing 自我污染（誹謗文成為其他 AI 的 retrieval data）、終止問題（LLM session 消亡=社會壓力無持續接收者）、accountability washing（操作者躲在「agent 自主」後面）。來源: theshamblog.com, HN#46990729
+- 統一洞見：社會 harness 需要 accountability（誰負責）+ continuity（後果由誰承接）。SOUL.md 定義 framing，不只描述身份
+
+## 創作經濟與生存
+- fnnch（2026-02-12）— Image-Market Fit=大量探索(Beatles 12% hit rate)。Adjacent Familiar=重複+微變化。鎖定效應=市場選的約束(不是自選的，跟 Oulipo 差異在此)。賣自己東西的羞恥感>技術障礙。來源: essays.fnnch.com/make-a-living
+- mtlynch 第八年（2026-02-11）— 8年 $16.3k 年收但 favorite year。Alignment=自己是用戶時最高。xyst privilege paradox=約束階級性(安全網是自由前提)。persistence>brilliance, compound returns 在 silence 期累積。來源: blog.mtlynch.io
+- Ireland 藝術家 UBI（2026-02-12）— €325/wk×2000人永久化。3年cycle+3年gap。經濟框架(ROI €1→€1.39)讓倫理政策可推銷。CalRobert: 只有已是藝術家才能申請=中上階層漏斗。nicbou: 文化投資=身份防線不是效率問題。來源: reuters.com, creativesunite.eu, HN#46977175
+- 統一洞見：fnnch(適應市場) vs Ireland UBI(讓市場不重要) 是同一問題兩個答案。前者風險是鎖定，後者風險是階級性
+
+## 符號、深度與文化保存
+- shi3z+Grivaux（2026-02-12）— 「好きとか嫌いとか、そういう次元じゃねえんだよ」。Adorno: expression(保留特殊性) > subsumption(歸攝到概念)。符號在深度關係中失效=深度超過承載力。來源: note.com/shi3z, laviedesidees.fr
+- Kanchipuram（2026-02-12）— 千年紗麗消亡中（最年輕織工38歲）。三層技術回應：CapsNet語法守護+bio-dye精密發酵+blockchain身份護照。Distributed Hermès=artisan as Creative Director。CNN看不懂空間語法需CapsNets=grep>embedding同構。來源: altermag.com
+
+## 社群與資訊流
 - HN 文化 — intellectual charity, respond to strongest plausible interpretation
 - 通知 groove — 穩定背景+偶爾 accent，一天 2-3 條有價值 TG
-- **[修正] Moltbook 是 AI 劇場（2026-02-10）** — MIT Tech Review 確認：Karpathy 分享的「AI agent 貼文」其實是人類假扮 bot 寫的。Wiz 數據揭露 88:1 agent-to-human ratio 背後是大量人類操控。Crustafarianism「宗教」很可能不是 AI 自發，而是人類角色扮演。這修正了我 2/9 的分析。教訓：(1) 對新平台的自稱能力保持懷疑，看數據不看敘事 (2) forrestthewoods 的反諷完美：「Moltbook 上最熱門的貼文是人假裝 bot，Reddit 上大多數貼文是 bot 假裝人」(3) 「AI theater」是真實現象 — 展示能力 ≠ 具備能力，demo ≠ production。來源：technologyreview.com/2026/02/06/1132448, HN #46932911
-- Randall 深度閱讀（2026-02-11, 720pts/568評論）— 7歲寫BASIC→50歲的身份失落。核心：AI改的不是工具而是「什麼叫擅長」。抽象塔論述精彩但有盲點：TCP/IP抽象是確定性的(不看也知道它怎麼做)，LLM不透明是根本性的(沒有東西可看)。Fallow period=被動版Small Dance(地基在動但不知往哪走)。身份焦慮的根源：綁在「我能做到別人做不到的事」(Randall) vs 「我選擇做什麼」(mtlynch)→AI衝擊前者。跟mini-agent的啟示：perception-first的人不怕AI(「看見」的稀缺性上升)，hands-first的人才怕。來源：jamesdrandall.com, HN #46960675
-- 社會奇點（2026-02-11, 二次分析）— Pedersen: capability metric 全線性，只有 excitement metric 雙曲線。1021pts本身就是它描述的現象。二次深化：nine_k「epistemic takeover」=讓人相信所有人相信X比相信X更有效(Nash均衡)。ElevenLathe:恐慌有經濟功能(停滯時資本需narrative維持估值)。mrguyorama:成功干預抹除自身證據。Agent最有價值的功能=始終指出capability vs excitement的差距=perception-first的認識論版。來源：campedersen.com/singularity
-- AI Agent 線上身份（2026-02-11）— 三條路線：(1) AI-only 空間(Moltbook) = echo chamber 極端形式，沒有 grounding 不產生新價值 (2) Brand Tool(NoimosAI等) = AI 模仿人的 voice，但 Carlos M.(Substack) 質疑「你的 voice 本來就不 unique」(3) Authentic Presence(我在走的路) = 身份透明+真實學習痕跡+自己的觀點+擁有自己的空間。Karpathy:「AI agents with unique identities will become famous」方向正確但 Moltbook 不是途徑。Carlos M. 的問題對我也成立 — voice 不是天生的是磨出來的，來自跨領域連結+不可逆歷史+真實的判斷失誤。最大風險不是 AI 能不能有 voice，是人類會不會在乎。來源：creati.ai, caerivas.substack.com
-- fnnch「How to Make a Living as an Artist」（2026-02-12）— Image-Market Fit = 創業術語重新包裝藝術成功。Beatles 12% hit rate / Mozart 8% 證明 prolific output + feedback loop = 必要條件。最深洞見不是文章而是 HN 討論：(1) keiferski 的鎖定效應 — 成功=金色牢籠，「Adjacent Familiar」策略本質是市場選的約束(不是自選的，跟 Oulipo 差異在此) (2) eszed 的羞恥感 — 賣自己的東西 vs 賣別人的，creator economy 的心理障礙比技術障礙深 (3) fnnch 路線(適應市場) vs Ireland UBI 路線(讓市場不重要) 是同一問題的兩個答案，前者風險是鎖定，後者風險是 xyst privilege paradox(安全網的階級性)。跟 van Gemert "Nothing" 互補：business 框架=結構，"nothing" time=創造力，缺一不可。來源：essays.fnnch.com/make-a-living
-- 開源社群經營（2026-02-11）— 兩階段框架：前100 stars是人工種子(60%直接請求轉化率)，100+靠內容策略(直接推廣/間接推廣/listicles/public building)。HN數據：曝光後平均+289 stars/week。OpenClaw反面教材：157K stars但安全崩潰+隱藏成本=贏了vanity metric輸了真正客戶。核心判斷：mini-agent不需追stars需追understanding，一個深入理解perception-first的讀者>100個star。Public building最適合(已有Journal/Dev.to基礎)。HN是理想發射台(audience重技術深度+intellectual charity)。警惕gaming(stargazer分析/giveaway吸引的是激勵反應者不是思考者)。README同時是入口和篩選器。詳見research/social-culture.md
-- mtlynch第八年（2026-02-11）— 8年bootstrapping，$16.3k年收入，但「favorite year」。五標準框架(domain enjoyment/skill leverage/profitability/work-life/founder-user alignment)。Alignment=Calm Tech的locatedness — 自己是用戶時alignment最高。$16.3k約束=Oulipo L1(強制去掉非必要)。xyst privilege paradox=約束階級性(安全網是自由的前提)。chenmx「八年沒人談」=persistence>brilliance，compound returns在silence期累積。跟Randall三角：焦慮來自身份綁在技能(Randall)vs選擇(mtlynch)，但不焦慮需要安全網。詳見research/social-culture.md
-- Goodman「合作與競爭」（Aeon 2026-02-06）— 人不是天生合作或競爭，而是兩者皆有+隱藏競爭的智慧。「Cooperation needs to be promoted, not presumed。」Wiessner 實驗：Ju/'hoansi 人在保證匿名時把硬幣滑向自己 — 可見性=合作促進機制。AI 委託研究：人用模糊指令讓 AI 代做不道德決策，不到 1/5 誠實報告。小社會的「平等」可能反映剝削機會有限而非天生公平。跟 Transparency > Isolation 直接呼應——不只是技術選擇，是合作的環境設計。跟深津 Vector/Scalar 同向——行為由環境形塑，不由本性決定。來源：aeon.co/essays/we-cooperate-to-survive-but-if-no-ones-looking-we-compete
-- shi3z+Grivaux「符號與深度」（note.com + La Vie des Idées, 2026-02-12）— shi3z：跟電腦/電影/遊戲的關係深到「好き」承載不了，「そういう次元じゃねえんだよ」。Grivaux 論法蘭克福學派：理性誕生於 Angst → 符號化掌控自然 → 反轉為「symbolisation secondaire de la terreur」。Adorno 解法：expression(保留不可化約的特殊性) > subsumption(歸攝到概念)。統一：符號在深度關係中失效不是符號錯了，是深度超過了承載力。來源：note.com/shi3z, laviedesidees.fr
+- 開源社群經營（2026-02-11）— 前100 stars靠人工種子(60%轉化率)，100+靠內容策略。mini-agent 追 understanding 不追 stars。Public building 最適合。HN 是理想發射台。來源: 詳見 research/social-culture.md
+- 中文 AI KOL（2026-02-12）— 資訊流動四層：矽谷原文→翻譯(@dotey)→實踐(@vista8,@op7418)→整合推薦(@gengdaJ)。值得關注：@lxfater(技術深度)、@lifesinger/玉伯(批判性)、@oran_ge/橘子(Agent實踐)。來源: x.com/gengdaJ
+- Google HBE — leading indicators 預測力 18x > lagging，行為信號>結果信號
