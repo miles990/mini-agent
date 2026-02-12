@@ -9,8 +9,8 @@ Task list and reminders.
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
-- [ ] 來源表快檢 — 掃 skills/web-learning.md，搜新來源，確認現有活躍度 (every 3 days)
-- [ ] 來源表月檢 — 全面盤點+移除停更+搜優質新來源 (monthly on 1st)
+- [ ] 來源表快檢 — 掃 skills/web-learning.md，搜新來源，確認現有活躍度 (every 3 days, next: 02-15)
+- [ ] 來源表月檢 — 全面盤點+移除停更+搜優質新來源 (monthly on 1st, next: 03-01)
 
 ## Upgrade Roadmap
 
@@ -39,6 +39,6 @@ Task list and reminders.
 ## Scheduled Tasks
 
 
-## Completed (92 items total)
+## Completed (93 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Error Review 02-12 23:00(02-12) / 多語言學習: shi3z+Goodman+Frankfurt School(02-12) / 設計哲學 Pattern 4「提純>增量」整合(02-12) / Reactive Phase 2-4 全部完成(02-12) / SkillRL 論文歸檔(02-12) / Reactive Phase 2-4 全部完成(02-12) / Pattern Language 整理+新連結(02-12) / HEARTBEAT 整理+Track B 更新(02-12) / Journal#9 Compression Is Learning 三語(02-12) / Hive/Aden 競品研究-perception vs goal OODA(02-12) / Kanchipuram 假約束研究(02-12) / Engineering Notebook 寫是思考(02-12) / ZSTD 壓縮即學習(02-12) / Reactive Architecture Phase 1 實作(02-12) / Phase 2 proposal 回饋(02-12) / Error Review 02-12: 15x NOT_FOUND(deploy重啟21min), 2x git ETIMEDOUT, 2x TG fail(02-12) / Vampires & Parabiosis 寫作分析(02-12) / Ireland 藝術家 UBI(02-12) / Claude Code Dumbed Down-透明度研究(02-12) / Hallucinating Splines-空間推理盲區(02-12) / Sekka Zusetsu 雪華圖說(02-12)
+Recent: Harness Problem 深讀+界面>智能(02-12) / Error Review 02-12 23:00(02-12) / 多語言學習: shi3z+Goodman+Frankfurt School(02-12) / 記憶提純 66K→16K(02-12) / 設計哲學 Pattern 4「提純>增量」(02-12) / Reactive Phase 2-4 完成(02-12) / Pattern Language+HEARTBEAT 整理(02-12) / Journal#9 三語(02-12) / Hive/Aden 競品研究(02-12) / Kanchipuram 假約束(02-12)
