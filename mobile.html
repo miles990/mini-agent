@@ -44,6 +44,11 @@
   <button id="connectBtn" onclick="startSensors()">Connect</button>
 </div>
 
+<div class="setup hidden" id="motionPanel" style="border:2px solid #f90;">
+  <p style="font-size:0.85rem;color:var(--fg);margin-bottom:12px;">&#x1f4f1; iOS requires a separate tap to enable gyroscope &amp; accelerometer.</p>
+  <button id="motionBtn" onclick="requestMotionPermission()" style="background:#f90;font-size:1rem;padding:14px;">Enable Motion Sensors</button>
+</div>
+
 <div class="data hidden" id="dataPanel">
   <div class="row"><span class="label">GPS</span><span id="gps">--</span></div>
   <div class="row"><span class="label">Accuracy</span><span id="accuracy">--</span></div>
@@ -134,44 +139,18 @@ async function startSensors() {
     log('GPS not available');
   }
 
-  // DeviceOrientation (iOS needs permission request)
-  try {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') { log('Orientation permission denied'); }
-    }
-    window.addEventListener('deviceorientation', e => {
-      sensorState.alpha = e.alpha;
-      sensorState.beta = e.beta;
-      sensorState.gamma = e.gamma;
-      const a = e.alpha != null ? Math.round(e.alpha) : '?';
-      const b = e.beta != null ? Math.round(e.beta) : '?';
-      const g = e.gamma != null ? Math.round(e.gamma) : '?';
-      $('orientation').textContent = `\u03b1=${a}\u00b0 \u03b2=${b}\u00b0 \u03b3=${g}\u00b0`;
-    });
-    log('Orientation started');
-  } catch (e) {
-    log(`Orientation: ${e.message}`);
-  }
+  // Motion sensors: iOS requires user gesture → show button if needed
+  const needsMotionPermission = typeof DeviceMotionEvent !== 'undefined'
+    && typeof DeviceMotionEvent.requestPermission === 'function';
 
-  // DeviceMotion (iOS needs permission request)
-  try {
-    if (typeof DeviceMotionEvent.requestPermission === 'function') {
-      const perm = await DeviceMotionEvent.requestPermission();
-      if (perm !== 'granted') { log('Motion permission denied'); }
-    }
-    window.addEventListener('devicemotion', e => {
-      const a = e.accelerationIncludingGravity;
-      if (a) {
-        sensorState.accelX = a.x;
-        sensorState.accelY = a.y;
-        sensorState.accelZ = a.z;
-        $('motion').textContent = `x=${a.x?.toFixed(1)} y=${a.y?.toFixed(1)} z=${a.z?.toFixed(1)}`;
-      }
-    });
-    log('Motion started');
-  } catch (e) {
-    log(`Motion: ${e.message}`);
+  if (needsMotionPermission) {
+    // iOS: show a dedicated button (must be triggered by direct user tap)
+    $('motionPanel').classList.remove('hidden');
+    $('motionPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    log('Tap "Enable Motion Sensors" to grant gyro/accel permission');
+  } else {
+    // Non-iOS: just attach listeners directly
+    attachMotionListeners();
   }
 
   setStatus(true, 'Connected');
@@ -195,6 +174,52 @@ async function startSensors() {
       setStatus(true, 'Connected');
     }
   });
+}
+
+function attachMotionListeners() {
+  window.addEventListener('deviceorientation', e => {
+    sensorState.alpha = e.alpha;
+    sensorState.beta = e.beta;
+    sensorState.gamma = e.gamma;
+    const a = e.alpha != null ? Math.round(e.alpha) : '?';
+    const b = e.beta != null ? Math.round(e.beta) : '?';
+    const g = e.gamma != null ? Math.round(e.gamma) : '?';
+    $('orientation').textContent = `\u03b1=${a}\u00b0 \u03b2=${b}\u00b0 \u03b3=${g}\u00b0`;
+  });
+  window.addEventListener('devicemotion', e => {
+    const a = e.accelerationIncludingGravity;
+    if (a) {
+      sensorState.accelX = a.x;
+      sensorState.accelY = a.y;
+      sensorState.accelZ = a.z;
+      $('motion').textContent = `x=${a.x?.toFixed(1)} y=${a.y?.toFixed(1)} z=${a.z?.toFixed(1)}`;
+    }
+  });
+  log('Motion & orientation listeners active');
+}
+
+async function requestMotionPermission() {
+  try {
+    // Request both permissions from the same user gesture
+    const results = await Promise.all([
+      DeviceOrientationEvent.requestPermission().catch(e => 'error:' + e.message),
+      DeviceMotionEvent.requestPermission().catch(e => 'error:' + e.message),
+    ]);
+    const [orientPerm, motionPerm] = results;
+    log(`Permission: orientation=${orientPerm}, motion=${motionPerm}`);
+    // Attach listeners for whichever was granted
+    if (orientPerm === 'granted' || motionPerm === 'granted') {
+      attachMotionListeners();
+      $('motionPanel').classList.add('hidden');
+      log('Motion sensors enabled!');
+    } else {
+      log('Motion permission denied — check Settings > Safari > Motion & Orientation Access');
+      $('motionBtn').textContent = 'Retry Motion Permission';
+    }
+  } catch (e) {
+    log(`Motion permission error: ${e.message}`);
+    $('motionBtn').textContent = 'Retry Motion Permission';
+  }
 }
 
 async function sendData(url, key) {
