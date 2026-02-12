@@ -734,6 +734,8 @@ export class InstanceMemory {
       };
 
       const relevantPlugins = customPerceptions.filter(p => {
+        // enabled flag filter（預設 true）
+        if (p.enabled === false) return false;
         const keywords = pluginRelevance[p.name] ?? [];
         // 空關鍵字列表 = 永遠載入
         if (keywords.length === 0) return true;
