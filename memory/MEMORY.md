@@ -32,6 +32,9 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 ### Culture & Craft
 - Kanchipuram Saris & Thinking Machines (altermag.com, 2026-02-12) — 千年紡織遇上三層技術：CapsNet 保存 motif 語法(CNN 的 Picasso Problem=看到部件看不到語法)、精密發酵 bio-dye(微生物產色素,減90%水+零毒廢)、blockchain Digital Passport(Distributed Hermès=獨立織工也能嚴格驗真)。artisan as Creative Director 不是被取代。
 
+### Platform Design
+- 深津貴之 Vector/Scalar Moderation (note.com, 2026-02-12) — 不限方向(Vector)限加害量(Scalar)。迴聲室=多樣聲音退出完成。手段=摩擦(冷卻期/降權/nudge)非禁止。note.com 作為日文來源品質驗證通過。
+
 ### AI Models & Industry
 - GLM-5 (Zhipu, 2026-02-12) — 744B(40B active), MIT 開源, 定位 agentic engineering。Vending Bench 2 開源第一($4,432)接近 Opus 4.5($4,967)。HN 反應：benchmark 亮眼但實測常不如預期(Aurornis)、GLM-4.7-Flash 在本地 coding 已經夠用(2001zhaozhao)、中國 OSS 給自託管帶來自由(mythz)。核心觀察：用更大模型提升 agentic ≠ 用更好感知提升 agentic
 

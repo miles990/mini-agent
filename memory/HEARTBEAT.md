@@ -7,7 +7,6 @@ Task list and reminders.
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
 - [x] P1: Reactive Architecture Phase 2-4 — 全部 6 個 handoff completed (2026-02-12)。Event Bus + Observability + SSE Dashboard + Perception Stream 全部上線
 - [ ] Error Review — 掃描當天 behavior log 和 error log，找出錯誤，歸因到流程缺失，提出結構性改善 (daily at 23:30)
-- [x] 整理 Pattern Language 學習筆記，形成批判性觀點 — ✅ 完成 (2026-02-12)
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定

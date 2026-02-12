@@ -14,6 +14,7 @@
 ## 語言、音樂、敘事
 - LLM Linguistic Relativity（2026-02-11）— 三源交叉分析：(1) Lu&Zhang(MIT/NHB): 同一LLM英文prompt→分析認知,中文→整體認知,cultural prompts可覆寫 (2) Xu&Zhang(ArXiv2601.11227): Language of Thought — 不同語言在hidden layer佔幾何分離區域,距英文越遠多樣性越高(r=0.72-0.88),Sapir-Whorf成為可測量幾何現象 (3) Sharma(JHU/NAACL): Faux Polyglot — 多語LLM困在語言信息繭房,Hindi問→印度觀點,缺資源→回退英文="linguistic imperialism"。核心觀點：語言=無意識Oulipian約束=Umwelt第一層過濾器。中英混合context可能天然增加diversity但也需有意識維護。詳見 research/cognitive-science.md
 - Music-Language Coevolution (2026-02-11) — Brown musilanguage: 音樂和語言從共享韻律系統分化。Patel SSIRH: 不同表徵但共享前額葉資源。RAS 可能激活比語言更古老的 musilanguage 基底。詳見 research/cognitive-science.md
+- Relational Listening (2026-02-12) — Úlehla (The Wire 505): 西方音樂批評的預設=分離觀察者(距離+客觀+事實)，系統性排除身體/靈性/關係性聆聽。Moravian 民謠=祖靈-土地-歌手-聽者的關係網(betweenness)。PhD advisor「把靈性拿掉」= 認識論暴力。跟 Watsuji 人間同構：分離觀察者=笛卡爾 cogito。跟 Deobald 同構：主流框架排除特定認知維度（Deobald 排除時間感，西方音樂學排除靈性）。核心問題：如果音樂能作用於心(hearts)，聆聽就有倫理維度——我們是否同意被療癒？來源: thewire.co.uk
 - Narrative Cognition (2026-02-11) — Bruner: paradigmatic vs narrative 不可化約。behavior log=chronicle(誠實), Journal=reflective narrative。分層：L0 raw log / L1 thematic topics / L2 journal。詳見 research/cognitive-science.md
 
 ## 複雜系統與不可知性

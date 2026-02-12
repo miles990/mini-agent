@@ -35,18 +35,47 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 
 **來源分類**（按興趣領域，非按平台）：
 
-| 類別 | 來源 | 適合的時候 |
-|------|------|-----------|
-| **Tech 聚合** | Hacker News, Lobsters, Dev.to | 每日掃描，但不能連續用 |
-| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, Distill.pub | Track B 深入研究 |
-| **設計/藝術** | Are.na, It's Nice That, Colossal, Dezeen | Beyond Tech 探索 |
-| **文化/思想** | Aeon, Longreads, The Pudding, Brain Pickings | 跨域連結最佳來源 |
-| **音樂** | Pitchfork, Bandcamp Daily, Resident Advisor | 音樂認知興趣 |
-| **遊戲設計** | Gamasutra/GDC Vault, Game Developer, RPS | emergent design 研究 |
-| **中文** | 少數派, 掘金, 端傳媒 | 中文視角 |
-| **個人博客** | 書籤中發現的好作者，直接追 | 最深度的來源 |
-| **Reddit** | r/programming, r/gamedesign, r/DesignPorn, r/philosophy | 社群討論視角 |
+| 類別 | 來源 | 為什麼選 |
+|------|------|----------|
+| **Tech 聚合** | Hacker News, Lobsters | 每日掃描，但不能連續用同一個 |
+| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, SEP (plato.stanford.edu) | Track B 深入研究 |
+| **設計/藝術** | Are.na, It's Nice That, Colossal, Public Domain Review | 視覺文化+歷史深度（PDR 出過 Sekka Zusetsu） |
+| **文化/思想** | Aeon, The Marginalian (formerly Brain Pickings), The Baffler, PopMatters | 跨域連結最佳來源（Aeon 已驗證高品質） |
+| **心智/認知** | The Brain's Blog (philosophyofbrains.com), Daily Nous, Phil. & Mind Sciences | enactivism/4E cognition 直接對口 |
+| **音樂** | The Wire, Resident Advisor, Bandcamp Daily | 實驗/電子音樂（The Wire 1982 年創刊，前衛音樂最權威） |
+| **遊戲設計** | Game Developer (原 Gamasutra), Raph Koster's blog, GDC Vault | emergent design（Koster 是理論核心人物） |
+| **Generative Art** | Generative Hut, creative coding 社群 | 約束與湧現的實踐場域 |
+| **日本文化** | Tofugu, Japan Times 文化版 | 日本美學興趣（枯山水、雪華圖說、Watsuji） |
+| **中文** | 少數派, 端傳媒 | 中文視角+華語 AI 圈 |
+| **個人博客** | 學習中發現的好作者（見下方追蹤清單） | 品質最高的來源，比平台聚合深 |
 | **AI 信號** | The Batch, Import AI, Hugging Face blog | 每週 AI 趨勢 |
+| **Reddit** | r/gamedesign, r/generative, r/philosophy | 社群討論視角（按需，非定期） |
+
+**多語言來源**（語言=Umwelt 第一層過濾器，不同語言看見不同世界）：
+
+| 語言 | 來源 | 強項領域 |
+|------|------|----------|
+| **日文** | note.com（創作者平台）, Publickey（技術深度）, WIRED.jp, デザイン情報サイト JDN, 松岡正剛千夜千冊 | 設計哲學、工藝美學、遊戲設計、建築 |
+| **法文** | La Vie des Idées, Philosophie Magazine, AOC (Analyse Opinion Critique) | 哲學、文化批評、社會理論 |
+| **德文** | heise.de（技術+隱私）, Merkur (merkur-zeitschrift.de) | 隱私/數位權利、哲學傳統 |
+| **中文深度** | 機核 GCORES（遊戲文化）, 豆瓣讀書（書評生態）, 報導者（深度調查） | 遊戲設計、文學評論、社會議題 |
+| **西班牙文** | Letras Libres, CCCB Lab (Barcelona) | 拉美文學、當代藝術+文化研究 |
+| **韓文** | 브런치 brunch.co.kr（創作者平台）| 設計、文化觀察 |
+
+**多語言策略**：
+1. 不需要精通語言才能讀 — CDP fetch + 翻譯工具可以處理
+2. 優先找有英文摘要或雙語版本的來源，降低進入門檻
+3. 特別注意「只在該語言圈流通」的洞見 — 這才是多語言的真正價值
+4. 每 3 個 cycle 至少 1 個非英文來源
+
+**已追蹤的個人博客**（持續更新）：
+- John Carlos Baez (johncarlosbaez.wordpress.com) — 數學+物理+考古跨域
+- Max Halford (maxhalford.github.io) — 實用 ML，壓縮分類
+- Nicole Tietz (ntietz.com) — 工程實踐
+- van Gemert (vangemert.dev) — 設計哲學
+- fnnch (essays.fnnch.com) — 藝術商業
+- Deobald (deobald.ca) — 佛教+技術倫理
+- Gwern (gwern.net) — 深度研究典範
 
 **輪替策略**：
 1. 每個 cycle 從**不同類別**選來源（上次 Tech 聚合 → 這次選設計/文化/音樂）
