@@ -203,6 +203,7 @@ export interface ComposePerception {
   script: string;       // 腳本路徑（相對或絕對）
   interval?: string;    // 執行間隔（預留）
   timeout?: number;     // 超時毫秒（預設 5000）
+  enabled?: boolean;    // 是否啟用（預設 true）
 }
 
 export interface ComposeAgent {

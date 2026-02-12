@@ -26,8 +26,10 @@ agents:
       custom:
         - name: docker
           script: ./plugins/docker-status.sh
+          enabled: false
         - name: ports
           script: ./plugins/port-check.sh
+          enabled: false
         - name: chrome
           script: ./plugins/chrome-status.sh
         - name: web

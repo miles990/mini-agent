@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
@@ -79,6 +80,9 @@ export class AgentLoop {
   private autonomousCooldown = 0;
   private lastAutonomousActions: string[] = [];
   private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
+
+  // ── Context Hash (distinctUntilChanged) ──
+  private lastContextHash: string | null = null;
 
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -195,6 +199,15 @@ export class AgentLoop {
       // ── Observe ──
       const memory = getMemory();
       const context = await memory.buildContext({ mode: 'focused' });
+
+      // ── Context Hash — skip if unchanged ──
+      const contextHash = crypto.createHash('md5').update(context).digest('hex');
+      if (this.lastContextHash && contextHash === this.lastContextHash) {
+        slog('LOOP', `#${this.cycleCount} ♻️ context unchanged, skip`);
+        logger.logBehavior('agent', 'loop.cycle.end', `#${this.cycleCount} context unchanged`);
+        return null;
+      }
+      this.lastContextHash = contextHash;
 
       const hasActiveTasks = context.includes('- [ ]');
       const hasAlerts = context.includes('ALERT:');

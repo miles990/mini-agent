@@ -212,6 +212,17 @@ function parseEntry(raw: string, topic: string, filterDate: string, entries: Jou
 export function createApi(port = 3001): express.Express {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+
+  // JSON parse error handler — body-parser 解析失敗時返回 400 而非噴 stack trace
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof SyntaxError && 'body' in err) {
+      slog('API', `JSON parse error: ${err.message} (${req.method} ${req.path})`);
+      res.status(400).json({ error: `Invalid JSON: ${err.message}` });
+      return;
+    }
+    next(err);
+  });
+
   app.use(authMiddleware);
   app.use(createRateLimiter());
 
@@ -983,7 +994,7 @@ if (isMain) {
 
   // Custom Perception & Skills（從 compose 配置）
   setCustomExtensions({
-    perceptions: currentAgent?.perception?.custom,
+    perceptions: currentAgent?.perception?.custom?.filter(p => p.enabled !== false),
     skills: currentAgent?.skills,
   });
 
