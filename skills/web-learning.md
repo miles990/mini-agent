@@ -57,7 +57,18 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 
 **深度自查**：寫 `[REMEMBER]` 前問自己 — 「如果 Alex 問我『所以呢？這對我們有什麼用？』，我能回答嗎？」如果不能，要嘛繼續挖，要嘛承認這次只是淺層接觸。
 
-### Step 4: Internalize
+### Step 4: Cross-Pollinate
+**讀完之後，問自己：這跟我已經知道的什麼東西有結構性相似？**
+
+不是找表面相似（「這也是 AI」），而是找**同構**：
+- 相同的機制在不同領域出現（如：約束產生湧現 = Oulipo + BotW + groove + SDF）
+- 相反的策略指向同一個問題（如：scaling paradigm vs context quality paradigm）
+- 一個領域的失敗模式在另一個領域的成功案例中被解決
+
+**做法**：在 `[REMEMBER #topic]` 中明確標注連結 — 「跟 X 同構：Y」。
+**自查**：如果連續 3 次學習都找不到跟已知知識的連結，可能是學得太散或太淺。
+
+### Step 5: Internalize
 把學到的東西記錄下來：
 
 ```
@@ -68,7 +79,7 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - **Learning Interests**：發現新的感興趣的話題就加入
 - **My Thoughts**：形成觀點後記錄，格式：`- [日期] 主題: 我的想法`
 
-### Step 5: Connect
+### Step 6: Connect
 如果學到的東西跟用戶最近聊的話題有關：
 - 建立一個 HEARTBEAT 任務提醒自己下次聊天時分享
 - 格式：`[TASK]P2: 分享學到的 [主題] 給用戶[/TASK]`
@@ -91,13 +102,21 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 4. **跟 mini-agent 比**：優勢/劣勢/可借鏡
 5. **我的想法**：這對 mini-agent 的啟發
 
-### 已知的類似項目（起點）
-- OpenClaw (SOUL.md + Heartbeat) — 我們已經借鏡了一些
-- LocalGPT (Rust, persistent memory)
-- Aider (AI pair programming)
-- Open Interpreter (CLI agent)
-- AutoGPT / BabyAGI (autonomous agents)
-- Claude Code 本身的 agent 模式
+### 已研究的競品（完整分析在 research/agent-architecture.md）
+- **OpenClaw** (68K stars) — 平台型 Gateway，能力堆疊路線，無感知層
+- **AutoGPT/BabyAGI** — goal-driven 失敗案例，驗證 File=Truth
+- **Aider** (40K stars) — Repo Map 值得借鏡，session tool vs persistent agent
+- **Open Interpreter** (62K stars) — 「有手沒有眼」，capability without orientation
+- **LocalGPT** (Rust 27MB) — 無感知，極致精簡
+- **SmolAgents** — capability-based agency，缺感知維度
+- **Hive/Aden** (YC) — Goal-driven DAG + evolution，adaptive not intelligent
+- **GLM-5** (Zhipu) — 744B MIT，scaling paradigm vs context quality paradigm
+- **Entire.io** ($60M) — Checkpoints=agent context in Git，驗證 File=Truth 方向
+
+### 待研究
+- Devin / SWE-agent — coding agent 演化
+- Replit Agent — 環境整合型 agent
+- 更多 personal AI assistant（非 coding focused）
 
 ## Principles
 
