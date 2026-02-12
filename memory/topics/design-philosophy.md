@@ -5,7 +5,7 @@
 12 個研究主題（Alexander、枯山水、Oulipo、BotW、LeWitt、Hamkins、Calm Tech、Digital Garden、Vulkan...）反覆出現三個核心原則：
 
 ### 1. 少而精的規則 + 豐富環境 > 多而雜的規則
-BotW 3 條化學規則 > Alexander 253 patterns。Oulipo 一條約束（不用字母 e）寫出整本小說。LeWitt 幾句指令產生 1270+ 件作品。The Little Learner 用遞迴+lambda 構建深度學習。**規則產生結構，環境產生變化。** 對 agent：skills 要少而精，perception 要豐而廣。
+BotW 3 條化學規則 > Alexander 253 patterns。Oulipo 一條約束（不用字母 e）寫出整本小說。LeWitt 幾句指令產生 1270+ 件作品。The Little Learner 用遞迴+lambda 構建深度學習。Into the Breach 8×8 棋盤 > 傳統戰棋大地圖 — 縮小是提純不是簡化。**規則產生結構，環境產生變化。** 對 agent：skills 要少而精，perception 要豐而廣。context window 同理：每個 token 都重要 > 塞更多 token。
 
 ### 2. 結構從環境湧現，不從目標強加
 Alexander 的 semi-lattice（自然城市）> tree（規劃城市）。Gaudí 讓重力找拱形。枯山水「follow the desire of the stones」。Garden 知識拓撲自然生長。**好的設計創造條件讓形式湧現，而非直接指定形式。** 對 agent：perception-first（先看見再決定）> goal-driven（先定目標再執行）。
@@ -39,6 +39,7 @@ Calm Tech 的 Dangling String：輸入全 Ethernet 流量，輸出一根繩微�
 ## 約束 & 湧現
 - Oulipo — 約束三層功能：L1 探索(離開舒適區)、L2 生成(規則互動產生意外)、L3 意義(約束=作品)。contrainte + type system + lusory attitude 同源
 - Emergent Gameplay — BotW 3 條規則 > Alexander 253 patterns。Agent emergence 獨特性：LLM 隨機性是第三種不確定源
+- Small Board Design（機核 GCORES, 2026-02-12）— Into the Breach(8×8)+Star Renegades(5×8)+弈戰征途(4×4)：棋盤越小樂趣越大。四要素：完美資訊對弈感、消除垃圾時間、移動成為核心策略、組合多樣性。「策略深度不在地圖大小，在規則是否能在有限空間內激發無限思考」。棋盤縮小不是簡化是提純=context window 設計同構：剔除不相關資訊，讓每個 token 都重要。弈戰征途「移動決定70%結果」=有限空間中位置>能力。來源: gcores.com/articles/210754
 - Utility AI / BT / GOAP — 三種注意力機制。OODA = 隱式 Utility。性格 = 決策函數的形狀（Dave Mark response curves）
 - Sol LeWitt Instruction Art (1967) — 「The idea becomes a machine that makes the art.」指令=約束+自由度，drafter=執行者帶身體直覺。「The plan would design the work」→ pre-decided rules > 即時 LLM 推理。skills=instructions 但 LLM 偏離範圍比人類 drafter 大。behavior log=過程即作品（「All intervening steps are of interest」）。「Conceptual art is good only when the idea is good」— 框架再好，底層想法不好就沒用
 
