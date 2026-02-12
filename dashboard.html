@@ -1028,11 +1028,7 @@ const API = window.location.origin;
 let currentActor = 'all';
 let currentView = 'timeline';
 let currentDate = new Date().toISOString().split('T')[0];
-let refreshTimer = null;
 let lastUpdate = null;
-let consecutiveFailures = 0;
-const REFRESH_BASE = 30000;
-const REFRESH_MAX = 120000;
 let allBehaviors = [];
 let allJournalEntries = [];
 let currentJournalCat = 'all';
@@ -1150,16 +1146,10 @@ async function fetchAll() {
     lastUpdate = new Date();
     document.getElementById('refreshInfo').textContent = formatTime(lastUpdate.toISOString());
     document.getElementById('statusDot').className = 'status-dot ok';
-    if (consecutiveFailures > 0) {
-      consecutiveFailures = 0;
-      scheduleRefresh();
-    }
   } catch (err) {
     console.error('Fetch error:', err);
     document.getElementById('statusDot').className = 'status-dot error';
     document.getElementById('refreshInfo').textContent = 'Error';
-    consecutiveFailures++;
-    scheduleRefresh();
   }
 }
 
@@ -1580,20 +1570,36 @@ function toggleCycle(id) {
   el.style.display = el.style.display === 'none' || !el.style.display ? 'block' : 'none';
 }
 
-// ── Auto-refresh ──
+// ── SSE — 事件驅動更新（取代 30s polling）──
 
-function scheduleRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
-  const interval = Math.min(REFRESH_BASE * Math.pow(2, consecutiveFailures), REFRESH_MAX);
-  refreshTimer = setInterval(fetchAll, interval);
+let sseRefreshTimer = null;
+
+function scheduleSSERefresh() {
+  if (sseRefreshTimer) return;
+  sseRefreshTimer = setTimeout(() => {
+    sseRefreshTimer = null;
+    fetchAll();
+  }, 2000);
 }
 
-function startRefresh() {
-  fetchAll();
-  scheduleRefresh();
+function connectSSE() {
+  const es = new EventSource(API + '/api/events');
+  es.onmessage = () => scheduleSSERefresh();
+  es.onerror = () => {
+    es.close();
+    document.getElementById('statusDot').className = 'status-dot error';
+    setTimeout(connectSSE, 10000);
+  };
 }
 
-startRefresh();
+// Fallback: 定期刷新（SSE 斷線保底）
+function startFallbackRefresh() {
+  setInterval(fetchAll, 60000);
+}
+
+fetchAll();
+connectSSE();
+startFallbackRefresh();
 </script>
 </body>
 </html>

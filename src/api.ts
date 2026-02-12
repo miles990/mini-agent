@@ -40,6 +40,10 @@ import {
 } from './workspace.js';
 import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
+import { initObservability } from './observability.js';
+import { eventBus } from './event-bus.js';
+import type { AgentEvent } from './event-bus.js';
+import { perceptionStreams } from './perception-stream.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -227,7 +231,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/events']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -840,6 +844,30 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // SSE — Dashboard 即時事件流（Phase 3b）
+  app.get('/api/events', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const handler = (event: AgentEvent): void => {
+      const payload = JSON.stringify({ type: event.type, data: event.data, ts: event.timestamp });
+      res.write(`data: ${payload}\n\n`);
+    };
+
+    eventBus.on('action:*', handler);
+    eventBus.on('trigger:*', handler);
+
+    const keepalive = setInterval(() => res.write(':ping\n\n'), 30_000);
+
+    _req.on('close', () => {
+      eventBus.off('action:*', handler);
+      eventBus.off('trigger:*', handler);
+      clearInterval(keepalive);
+    });
+  });
+
   return app;
 }
 
@@ -993,14 +1021,23 @@ if (isMain) {
   });
 
   // Custom Perception & Skills（從 compose 配置）
+  const enabledPerceptions = currentAgent?.perception?.custom?.filter(p => p.enabled !== false);
   setCustomExtensions({
-    perceptions: currentAgent?.perception?.custom?.filter(p => p.enabled !== false),
+    perceptions: enabledPerceptions,
     skills: currentAgent?.skills,
   });
+
+  // Phase 4: 啟動 perception streams（獨立 interval + distinctUntilChanged）
+  if (enabledPerceptions && enabledPerceptions.length > 0) {
+    const cwd = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
+    perceptionStreams.start(enabledPerceptions, cwd);
+  }
 
   // ── Telegram Poller ──
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
   const telegramPoller = createTelegramPoller(memoryDir);
+
+  initObservability();
 
   const server = app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);

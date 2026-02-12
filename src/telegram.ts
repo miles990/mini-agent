@@ -16,6 +16,7 @@ import { slog } from './api.js';
 import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
 import type { NotificationTier } from './types.js';
+import { eventBus } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -445,6 +446,7 @@ export class TelegramPoller {
       await this.notifyError('process', { ok: false, error: errMsg, status: 0 });
     } finally {
       this.processing = false;
+      eventBus.emit('trigger:telegram', { messageCount: messages.length });
     }
   }
 

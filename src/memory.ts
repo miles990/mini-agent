@@ -40,6 +40,7 @@ import {
   loadAllSkills, formatSkillsPrompt,
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
+import { perceptionStreams } from './perception-stream.js';
 import { runVerify } from './verify.js';
 
 // =============================================================================
@@ -718,39 +719,51 @@ export class InstanceMemory {
     const workspaceCtx = formatWorkspaceContext(workspace);
     sections.push(`<workspace>\n${workspaceCtx}\n</workspace>`);
 
-    // ── Custom perceptions（Smart 載入）──
+    // ── Custom perceptions（Stream cache 優先 → fallback 直接執行）──
     if (customPerceptions.length > 0) {
-      // 定義每個 plugin 的關聯詞
       const pluginRelevance: Record<string, string[]> = {
         docker: ['docker', 'container', 'image', 'deploy'],
         chrome: ['chrome', 'cdp', 'browser', 'web', 'fetch', 'url', 'page'],
         web: ['web', 'url', 'fetch', 'http', 'page'],
         ports: ['port', 'service', 'listen', 'connect'],
-        tasks: [], // 任務追蹤永遠載入
-        'state-changes': [], // 狀態變化永遠載入
+        tasks: [],
+        'state-changes': [],
         disk: ['disk', 'space', 'storage'],
         brew: ['brew', 'homebrew', 'package', 'update'],
         'git-detail': ['git', 'commit', 'branch', 'merge'],
       };
 
-      const relevantPlugins = customPerceptions.filter(p => {
-        // enabled flag filter（預設 true）
-        if (p.enabled === false) return false;
-        const keywords = pluginRelevance[p.name] ?? [];
-        // 空關鍵字列表 = 永遠載入
-        if (keywords.length === 0) return true;
-        if (mode === 'full') return true;
-        return keywords.some(k => contextHint.includes(k));
-      });
-
-      if (relevantPlugins.length > 0) {
-        const results = await executeAllPerceptions(relevantPlugins);
-        if (isAnalysisAvailable()) {
-          const { report } = await analyzePerceptions(results);
-          if (report) sections.push(`<situation-report>\n${report}\n</situation-report>`);
+      if (perceptionStreams.isActive()) {
+        // Phase 4: 從 stream cache 讀取（不執行 shell scripts）
+        const cachedReport = perceptionStreams.getCachedReport();
+        if (cachedReport) {
+          sections.push(`<situation-report>\n${cachedReport}\n</situation-report>`);
         } else {
-          const customCtx = formatPerceptionResults(results);
-          if (customCtx) sections.push(customCtx);
+          const cachedResults = perceptionStreams.getCachedResults();
+          if (cachedResults.length > 0) {
+            const customCtx = formatPerceptionResults(cachedResults);
+            if (customCtx) sections.push(customCtx);
+          }
+        }
+      } else {
+        // Fallback: 直接執行（streams 未啟動，例如 CLI 模式）
+        const relevantPlugins = customPerceptions.filter(p => {
+          if (p.enabled === false) return false;
+          const keywords = pluginRelevance[p.name] ?? [];
+          if (keywords.length === 0) return true;
+          if (mode === 'full') return true;
+          return keywords.some(k => contextHint.includes(k));
+        });
+
+        if (relevantPlugins.length > 0) {
+          const results = await executeAllPerceptions(relevantPlugins);
+          if (isAnalysisAvailable()) {
+            const { report } = await analyzePerceptions(results);
+            if (report) sections.push(`<situation-report>\n${report}\n</situation-report>`);
+          } else {
+            const customCtx = formatPerceptionResults(results);
+            if (customCtx) sections.push(customCtx);
+          }
         }
       }
     }

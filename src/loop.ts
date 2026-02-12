@@ -12,14 +12,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
-import { slog } from './api.js';
-import { notifyTelegram, notify } from './telegram.js';
 import { diagLog } from './utils.js';
 import { parseTags } from './dispatcher.js';
+import { eventBus } from './event-bus.js';
+import type { AgentEvent } from './event-bus.js';
+import { perceptionStreams } from './perception-stream.js';
 
 // =============================================================================
 // Types
@@ -81,8 +81,31 @@ export class AgentLoop {
   private lastAutonomousActions: string[] = [];
   private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
 
-  // ── Context Hash (distinctUntilChanged) ──
-  private lastContextHash: string | null = null;
+  // ── Per-perception change detection (Phase 4) ──
+  private lastPerceptionVersion = -1;
+
+  // ── Event-Driven Scheduling (Phase 2b) ──
+  private triggerReason: string | null = null;
+  private lastCycleTime = 0;
+  private static readonly MIN_CYCLE_INTERVAL = 60_000;           // 60s throttle
+  private static readonly HEARTBEAT_INTERVAL = 30 * 60_000;      // 30min
+  private static readonly NIGHT_HEARTBEAT_INTERVAL = 60 * 60_000; // 60min (00-08)
+
+  /** Event handler — bound to `this` for subscribe/unsubscribe */
+  private handleTrigger = (event: AgentEvent): void => {
+    if (!this.running || this.paused || this.cycling) return;
+
+    // Throttle: min 60s between cycles
+    const now = Date.now();
+    if (now - this.lastCycleTime < AgentLoop.MIN_CYCLE_INTERVAL) return;
+
+    const reason = event.type.replace('trigger:', '');
+    const detail = Object.keys(event.data).length > 0
+      ? `: ${JSON.stringify(event.data).slice(0, 100)}`
+      : '';
+    this.triggerReason = `${reason}${detail}`;
+    this.runCycle();
+  };
 
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -99,15 +122,16 @@ export class AgentLoop {
 
     this.running = true;
     this.paused = false;
-    this.scheduleNext();
-    slog('LOOP', `Started (interval: ${this.currentInterval / 1000}s, active: ${this.config.activeHours?.start ?? 8}:00-${this.config.activeHours?.end ?? 23}:00)`);
-    notify('🟢 Kuro 上線了', 'signal');
+    eventBus.on('trigger:*', this.handleTrigger);
+    this.scheduleHeartbeat();
+    eventBus.emit('action:loop', { event: 'start', detail: 'Started (event-driven, throttle: 60s, heartbeat: 30min/60min night)' });
   }
 
   stop(): void {
     this.running = false;
+    eventBus.off('trigger:*', this.handleTrigger);
     this.clearTimer();
-    slog('LOOP', 'Stopped');
+    eventBus.emit('action:loop', { event: 'stop' });
   }
 
   pause(): void {
@@ -120,7 +144,7 @@ export class AgentLoop {
     if (!this.running || !this.paused) return;
     this.paused = false;
     if (!this.cycling) {
-      this.scheduleNext();
+      this.scheduleHeartbeat();
     }
   }
 
@@ -143,6 +167,7 @@ export class AgentLoop {
 
   async trigger(): Promise<string | null> {
     if (this.cycling) return null;
+    this.triggerReason = 'manual';
     return this.cycle();
   }
 
@@ -158,16 +183,27 @@ export class AgentLoop {
     }
   }
 
-  private scheduleNext(): void {
+  private scheduleHeartbeat(): void {
     this.clearTimer();
     if (!this.running || this.paused) return;
 
-    this.nextCycleAt = new Date(Date.now() + this.currentInterval).toISOString();
-    this.timer = setTimeout(() => this.runCycle(), this.currentInterval);
+    const hour = new Date().getHours();
+    const interval = (hour >= 0 && hour < 8)
+      ? AgentLoop.NIGHT_HEARTBEAT_INTERVAL
+      : AgentLoop.HEARTBEAT_INTERVAL;
+
+    this.currentInterval = interval;
+    this.nextCycleAt = new Date(Date.now() + interval).toISOString();
+    this.timer = setTimeout(() => {
+      this.triggerReason = 'heartbeat';
+      this.runCycle();
+    }, interval);
   }
 
   private async runCycle(): Promise<void> {
     if (!this.running || this.paused) return;
+
+    this.lastCycleTime = Date.now();
 
     try {
       await this.cycle();
@@ -176,7 +212,7 @@ export class AgentLoop {
     }
 
     if (this.running && !this.paused) {
-      this.scheduleNext();
+      this.scheduleHeartbeat();
     }
   }
 
@@ -193,25 +229,27 @@ export class AgentLoop {
       this.cycleCount++;
       this.lastCycleAt = new Date().toISOString();
 
-      // 行為記錄：循環開始
-      logger.logBehavior('agent', 'loop.cycle.start', `#${this.cycleCount}`);
+      eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
+
+      // ── Per-perception change detection (Phase 4) ──
+      const currentVersion = perceptionStreams.version;
+      if (perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
+        eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
+        return null;
+      }
+      this.lastPerceptionVersion = currentVersion;
 
       // ── Observe ──
       const memory = getMemory();
       const context = await memory.buildContext({ mode: 'focused' });
 
-      // ── Context Hash — skip if unchanged ──
-      const contextHash = crypto.createHash('md5').update(context).digest('hex');
-      if (this.lastContextHash && contextHash === this.lastContextHash) {
-        slog('LOOP', `#${this.cycleCount} ♻️ context unchanged, skip`);
-        logger.logBehavior('agent', 'loop.cycle.end', `#${this.cycleCount} context unchanged`);
-        return null;
-      }
-      this.lastContextHash = contextHash;
-
       const hasActiveTasks = context.includes('- [ ]');
       const hasAlerts = context.includes('ALERT:');
       const hasWorkToDo = hasActiveTasks || hasAlerts;
+
+      if (hasAlerts) {
+        eventBus.emit('trigger:alert', { cycle: this.cycleCount });
+      }
 
       // ── Route: Task Mode vs Autonomous Mode ──
       if (!hasWorkToDo) {
@@ -219,27 +257,34 @@ export class AgentLoop {
         if (this.autonomousCooldown > 0) {
           this.autonomousCooldown--;
           this.currentMode = 'idle';
-          this.adjustInterval(false);
           logger.logCron('loop-cycle', 'Autonomous cooldown', 'agent-loop');
-          slog('LOOP', `#${this.cycleCount} 💤 cooldown (${this.autonomousCooldown} remaining)`);
+          eventBus.emit('action:loop', { event: 'cooldown', cycleCount: this.cycleCount, remaining: this.autonomousCooldown });
           return null;
         }
 
         // Check active hours
         if (!this.isWithinActiveHours()) {
           this.currentMode = 'idle';
-          this.adjustInterval(false);
-          slog('LOOP', `#${this.cycleCount} 🌙 outside active hours`);
+          eventBus.emit('action:loop', { event: 'outside-hours', cycleCount: this.cycleCount });
           return null;
         }
       }
 
       // ── Decide ──
       this.currentMode = hasWorkToDo ? 'task' : 'autonomous';
-      slog('LOOP', `#${this.cycleCount} 🎯 Mode: ${this.currentMode.toUpperCase()}`);
+      const triggerInfo = this.triggerReason
+        ? ` (triggered by: ${this.triggerReason})`
+        : '';
+      eventBus.emit('action:loop', { event: 'mode', cycleCount: this.cycleCount, mode: this.currentMode, triggerInfo });
+
+      const triggerSuffix = this.triggerReason
+        ? `\n\nTriggered by: ${this.triggerReason}`
+        : '';
+      this.triggerReason = null;
+
       const prompt = hasWorkToDo
-        ? this.buildTaskPrompt()
-        : this.buildAutonomousPrompt();
+        ? this.buildTaskPrompt() + triggerSuffix
+        : this.buildAutonomousPrompt() + triggerSuffix;
 
       const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
@@ -268,23 +313,18 @@ export class AgentLoop {
           }
           this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
-          await notify(`🧠 ${action}`, 'heartbeat');
-          slog('LOOP', `#${this.cycleCount} 🧠 ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
-          logger.logBehavior('agent', 'action.autonomous', action.slice(0, 2000));
+          eventBus.emit('action:loop', { event: 'action.autonomous', cycleCount: this.cycleCount, action, duration });
         } else {
           await memory.appendConversation('assistant', `[Loop] ${action}`);
-          await notify(`⚡ ${action}`, 'heartbeat');
-          slog('LOOP', `#${this.cycleCount} ⚡ ${action.slice(0, 100)} (${(duration / 1000).toFixed(1)}s)`);
-          logger.logBehavior('agent', 'action.task', action.slice(0, 2000));
+          eventBus.emit('action:loop', { event: 'action.task', cycleCount: this.cycleCount, action, duration });
         }
 
-        this.adjustInterval(true);
       } else {
         if (this.currentMode === 'autonomous') {
           this.autonomousCooldown = 5; // Nothing to do autonomously, wait longer
         }
-        this.adjustInterval(false);
-        slog('LOOP', `#${this.cycleCount} 💤 no action (${(duration / 1000).toFixed(1)}s), next in ${Math.round(this.currentInterval / 1000)}s`);
+        eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
+        eventBus.emit('action:loop', { event: 'idle', cycleCount: this.cycleCount, duration, nextHeartbeat: Math.round(this.currentInterval / 1000) });
       }
 
       logger.logCron('loop-cycle', action ? `[${this.currentMode}] ${action}` : 'No action', 'agent-loop', {
@@ -292,9 +332,8 @@ export class AgentLoop {
         success: true,
       });
 
-      // 行為記錄：循環結束
       const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
-      logger.logBehavior('agent', 'loop.cycle.end', `#${this.cycleCount} ${decision}`);
+      eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
       // ── Process Tags（共用 parseTags） ──
       const tags = parseTags(response);
@@ -302,35 +341,27 @@ export class AgentLoop {
       if (tags.remember) {
         if (tags.remember.topic) {
           await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
-          logger.logBehavior('agent', 'memory.save.topic', `#${tags.remember.topic}: ${tags.remember.content.slice(0, 180)}`);
         } else {
           await memory.appendMemory(tags.remember.content);
-          logger.logBehavior('agent', 'memory.save', tags.remember.content.slice(0, 200));
         }
+        eventBus.emit('action:memory', { content: tags.remember.content, topic: tags.remember.topic });
       }
 
       if (tags.task) {
         await memory.addTask(tags.task.content, tags.task.schedule);
-        slog('LOOP', `📋 Auto-created task: ${tags.task.content.slice(0, 80)}`);
-        logger.logBehavior('agent', 'task.create', tags.task.content.slice(0, 200));
+        eventBus.emit('action:task', { content: tags.task.content });
       }
 
       for (const chatText of tags.chats) {
-        await notify(`💬 Kuro 想跟你聊聊：\n\n${chatText}`, 'signal');
-        slog('LOOP', `💬 Chat to Alex: ${chatText.slice(0, 80)}`);
+        eventBus.emit('action:chat', { text: chatText });
       }
 
       for (const show of tags.shows) {
-        const urlPart = show.url ? `\n🔗 ${show.url}` : '';
-        await notify(`🌐 ${show.desc}${urlPart}`, 'signal');
-        slog('LOOP', `🌐 Show: ${show.desc.slice(0, 60)} ${show.url}`);
-        logger.logBehavior('agent', 'show.webpage', `${show.desc.slice(0, 100)}${show.url ? ` | ${show.url}` : ''}`);
+        eventBus.emit('action:show', { desc: show.desc, url: show.url });
       }
 
       for (const summary of tags.summaries) {
-        await notify(`🤝 ${summary}`, 'summary');
-        slog('LOOP', `🤝 Summary: ${summary.slice(0, 80)}`);
-        logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
+        eventBus.emit('action:summary', { text: summary });
       }
 
       // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
@@ -343,7 +374,7 @@ export class AgentLoop {
     } finally {
       this.cycling = false;
       if (this.running && !this.paused && !this.timer) {
-        this.scheduleNext();
+        this.scheduleHeartbeat();
       }
     }
   }
@@ -469,17 +500,6 @@ Rules:
     return hour >= start || hour < end;
   }
 
-  private adjustInterval(hadAction: boolean): void {
-    if (hadAction) {
-      this.currentInterval = this.config.intervalMs;
-    } else {
-      const maxInterval = this.config.intervalMs * 4;
-      this.currentInterval = Math.min(
-        this.currentInterval * this.config.idleMultiplier,
-        maxInterval,
-      );
-    }
-  }
 }
 
 // =============================================================================
@@ -561,9 +581,7 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
 `;
 
       fs.writeFileSync(handoffFile, handoffContent, 'utf-8');
-      slog('HANDOFF', `Created: ${file} (from approved proposal)`);
-
-      await notify(`📋 Handoff 已建立：${title}\n等待 Claude Code 執行`, 'summary');
+      eventBus.emit('action:handoff', { file, title });
     } catch {
       // 單一檔案失敗不影響其他
     }

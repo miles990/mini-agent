@@ -52,6 +52,8 @@ import {
 import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } from './cron.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
 import { AgentLoop, parseInterval } from './loop.js';
+import { initObservability } from './observability.js';
+import { perceptionStreams } from './perception-stream.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -1225,10 +1227,17 @@ async function runChat(port: number): Promise<void> {
   });
 
   // Custom Perception & Skills（從 compose 配置）
+  const enabledPerceptions = currentAgent?.perception?.custom?.filter(p => p.enabled !== false);
   setCustomExtensions({
-    perceptions: currentAgent?.perception?.custom,
+    perceptions: enabledPerceptions,
     skills: currentAgent?.skills,
   });
+
+  // Phase 4: 啟動 perception streams
+  if (enabledPerceptions && enabledPerceptions.length > 0) {
+    const cwd = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
+    perceptionStreams.start(enabledPerceptions, cwd);
+  }
 
   const server = app.listen(port, () => {
     console.log(`Mini-Agent - Memory + Cron + Loop`);
@@ -1237,6 +1246,7 @@ async function runChat(port: number): Promise<void> {
     if (cronCount > 0) {
       console.log(`Cron: ${cronCount} task(s) active`);
     }
+    initObservability();
     if (agentLoop) {
       agentLoop.start();
     }

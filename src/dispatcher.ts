@@ -8,11 +8,10 @@
  */
 
 import { spawn } from 'node:child_process';
-import { slog } from './utils.js';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
-import { notifyTelegram, notify } from './telegram.js';
+import { eventBus } from './event-bus.js';
 import type { AgentResponse, DispatchRequest, TriageDecision, ParsedTags, LaneStats } from './types.js';
 
 // =============================================================================
@@ -260,30 +259,27 @@ export async function postProcess(
   if (tags.remember) {
     if (tags.remember.topic) {
       await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
-      logger.logBehavior('agent', 'memory.save.topic', `#${tags.remember.topic}: ${tags.remember.content.slice(0, 180)}`);
     } else {
       await memory.appendMemory(tags.remember.content);
-      logger.logBehavior('agent', 'memory.save', tags.remember.content.slice(0, 200));
     }
+    eventBus.emit('action:memory', { content: tags.remember.content, topic: tags.remember.topic });
   }
 
   if (tags.task) {
     await memory.addTask(tags.task.content, tags.task.schedule);
-    logger.logBehavior('agent', 'task.create', tags.task.content.slice(0, 200));
+    eventBus.emit('action:task', { content: tags.task.content });
   }
 
   for (const show of tags.shows) {
-    logger.logBehavior('agent', 'show.webpage', `${show.desc.slice(0, 100)}${show.url ? ` | ${show.url}` : ''}`);
+    eventBus.emit('action:show', { desc: show.desc, url: show.url });
   }
 
   for (const chatText of tags.chats) {
-    await notify(`💬 Kuro 想跟你聊聊：\n\n${chatText}`, 'signal');
-    logger.logBehavior('agent', 'telegram.chat', chatText.slice(0, 200));
+    eventBus.emit('action:chat', { text: chatText });
   }
 
   for (const summary of tags.summaries) {
-    await notify(`🤝 ${summary}`, 'summary');
-    logger.logBehavior('agent', 'collab.summary', summary.slice(0, 200));
+    eventBus.emit('action:summary', { text: summary });
   }
 
   // 4. Log call
@@ -327,7 +323,7 @@ export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
   // ── 1. Triage（純 regex，零開銷）──
   const decision = await triageMessage(req.message);
   const lane = decision.lane;
-  slog('DISPATCH', `[${req.source}] → ${lane} (${decision.reason})`);
+  eventBus.emit('log:info', { tag: 'DISPATCH', msg: `[${req.source}] → ${lane} (${decision.reason})` });
 
   // ── 2. Claude Lane：走既有路徑 ──
   if (lane === 'claude') {
@@ -357,7 +353,7 @@ export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
     });
   } catch (error) {
     // Haiku 失敗 → 降級到 Claude Lane
-    slog('DISPATCH', `Haiku failed, falling back to Claude: ${error}`);
+    eventBus.emit('log:info', { tag: 'DISPATCH', msg: `Haiku failed, falling back to Claude: ${error}` });
     claudeStats.calls++;
     const agent = await getAgentModule();
     const result = await agent.processMessage(req.message, req.onQueueComplete);

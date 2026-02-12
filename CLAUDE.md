@@ -61,6 +61,9 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Cron | `src/cron.ts` |
 | API | `src/api.ts` |
 | Utils | `src/utils.ts` |
+| EventBus | `src/event-bus.ts` |
+| Observability | `src/observability.ts` |
+| PerceptionStream | `src/perception-stream.ts` |
 | Logging | `src/logging.ts` |
 | CDP Client | `scripts/cdp-fetch.mjs` |
 | CDP Interact | `scripts/cdp-interact.mjs` |
@@ -107,6 +110,45 @@ Instance path: `~/.mini-agent/instances/{id}/`
 
 `/status` 回應包含 `lanes: { claude: {...}, haiku: {...} }`。
 
+## Reactive Architecture
+
+事件驅動架構，取代直接呼叫耦合。
+
+### EventBus (`src/event-bus.ts`)
+
+`node:events` 為基礎的 typed event bus + wildcard pattern 支援。
+
+```
+trigger:workspace | trigger:telegram | trigger:cron | trigger:alert | trigger:heartbeat
+action:loop | action:chat | action:memory | action:task | action:show | action:summary | action:handoff
+log:info | log:error | log:behavior
+notification:signal | notification:summary | notification:heartbeat
+```
+
+**Reactive Primitives**（零外部依賴）：`debounce(fn, ms)`, `throttle(fn, ms)`, `distinctUntilChanged(hashFn)`
+
+### Observability (`src/observability.ts`)
+
+Subscriber 模式：所有 `action:*` 和 `log:*` 事件 → 統一路由到 slog/logBehavior/notify。
+loop.ts 和 dispatcher.ts 不再直接呼叫 slog/logBehavior/notify，改為 `eventBus.emit()`。
+
+### Perception Streams (`src/perception-stream.ts`)
+
+每個 perception plugin 獨立運行，各自有 interval + `distinctUntilChanged`。
+`buildContext()` 讀取快取，不再每次執行 shell scripts。
+
+| Category | Interval | Plugins |
+|----------|----------|---------|
+| workspace | 60s | state-changes, tasks, git-detail |
+| chrome | 120s | chrome, web |
+| telegram | event-driven | telegram-inbox |
+| heartbeat | 30min | 其他所有 |
+
+### Dashboard SSE (`GET /api/events`)
+
+Server-Sent Events 推送 `action:*` + `trigger:*` 事件到 dashboard。
+Dashboard 收到事件後 2s debounce 再 refresh，取代 30s setInterval polling。60s fallback polling 作為備援。
+
 ## 可觀測性（Observability）
 
 多維度日誌框架，讓 agent 感知自己的行為和錯誤。
@@ -120,24 +162,6 @@ Instance path: `~/.mini-agent/instances/{id}/`
 - `claude-call` / `api-request` / `cron` / `error` — 原有
 - `diag` — 診斷記錄（錯誤 + context + snapshot）
 - `behavior` — 行為記錄（actor + action + detail）
-
-**Behavior Log 覆蓋**：
-
-| action | 觸發點 |
-|--------|--------|
-| `loop.cycle.start/end` | OODA 循環 |
-| `action.autonomous/task` | `[ACTION]` 自主/任務行動 |
-| `memory.save` | `[REMEMBER]` 記憶保存（MEMORY.md） |
-| `memory.save.topic` | `[REMEMBER #topic]` topic 記憶保存 |
-| `task.create` | `[TASK]` 建立任務 |
-| `show.webpage` | `[SHOW]` 展示網頁 |
-| `claude.call` | Claude CLI 呼叫 |
-| `cron.trigger` | Cron 觸發 |
-| `telegram.message/reply` | Telegram 收發訊息 |
-
-**CDP 操作日誌**：`~/.mini-agent/cdp.jsonl`（fetch/open/extract/close）
-
-**`<activity>` 感知**：診斷 + 行為 + CDP 操作，注入 OODA context。
 
 **diagLog 注意**：ENOENT（檔案不存在）是正常行為，不記錄。grep exit code 1（無匹配）也不記錄。
 
@@ -252,31 +276,25 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 ### Handoff Protocol v2（雙向任務委託 + 依賴追蹤）
 
-`memory/handoffs/` 是 Kuro 和 Claude Code 之間的**雙向任務委託介面**。任一方都可以發起 handoff，Alex 審核後才能執行。
+`memory/handoffs/` 是 Kuro 和 Claude Code 之間的**雙向任務委託介面**。任一方都可以發起，Alex 審核後執行。
 
-```bash
-# 檢查是否有待處理的 handoff
-ls memory/handoffs/*.md 2>/dev/null
-```
-
-#### Handoff 檔案格式
+#### 檔案格式
 
 ```markdown
 # Handoff: 任務標題
 
 ## Meta
-- Status: pending → approved → in_progress → completed → verified | blocked | rejected
+- Status: pending | approved | in_progress | completed | blocked
 - From: kuro | claude-code | alex
 - To: claude-code | kuro
-- Reviewer: alex              # 可選，預設 Alex
 - Created: ISO timestamp
-- Proposal: proposals/xxx.md  # 可選，關聯的 proposal
-- Depends-on: xxx.md, yyy.md  # 可選，依賴的其他 handoff
+- Proposal: proposals/xxx.md  # 可選
+- Depends-on: xxx.md, yyy.md  # 可選
 
 ## Task
 具體要做什麼。
 
-## Tasks                       # 可選，實作步驟追蹤
+## Tasks                       # 可選，進度追蹤
 - [ ] 子任務 1
 - [ ] 子任務 2
 
@@ -287,66 +305,31 @@ ls memory/handoffs/*.md 2>/dev/null
 - timestamp [actor] 事件記錄
 ```
 
-#### 發起 Handoff
-
-| 發起者 | 方式 | Status 初始值 |
-|--------|------|--------------|
-| **Kuro** | OODA loop 中發現需要 Claude Code 做 L2 改動，建立 handoff 檔案 | `pending` |
-| **Claude Code** | 完成任務後需要 Kuro 驗證/整合，建立反向 handoff 檔案 | `pending` |
-| **Alex** | 直接建立 handoff 指派任務給任一方 | `approved`（免審核） |
-
 命名規則：`memory/handoffs/YYYY-MM-DD-簡短描述.md`
 
-發起者建立檔案後，在 Log 記錄建立事件，等 Alex 把 Status 改為 `approved` 後才會被執行。
+#### 發起
 
-#### Claude Code 處理流程
+| 發起者 | Status 初始值 |
+|--------|--------------|
+| **Kuro** / **Claude Code** | `pending`（等 Alex 審核） |
+| **Alex** | `approved`（免審核） |
 
-1. 找到 `To: claude-code` 且 `Status: approved` 的 handoff
-2. 檢查 `Depends-on`：所有依賴必須是 `Status: verified` 才能開始
-3. 把 Status 改為 `in_progress`，Log 記錄開始時間
-4. 參考關聯的 proposal 實作，過程中勾選 Tasks checkbox
-5. 完成後把 Status 改為 `completed`，在 Log 記錄結果
-6. 如果需要 Kuro 後續驗證/整合，建立反向 handoff（`From: claude-code, To: kuro`）
-7. 如果遇到問題，把 Status 改為 `blocked`，在 Log 說明原因
+#### 執行流程
 
-#### Kuro 處理流程
+1. 找到指派給自己（`To:`）且 `Status: approved` 的 handoff
+2. 檢查 `Depends-on`：所有依賴必須是 `completed` 才能開始
+3. Status → `in_progress`，Log 記錄開始
+4. 執行任務，過程中勾選 Tasks checkbox
+5. Status → `completed`，Acceptance Criteria 全部勾選，Log 記錄結果
+6. **通知**：Claude Code 完成 → `/chat` API 通知 Kuro；Kuro 完成 → Telegram 通知 Alex
+7. 需要對方後續 → 建立新的反向 handoff（`pending`）
+8. 遇到問題 → Status → `blocked`，Log 說明原因，阻塞解除後改回 `in_progress`
 
-1. 感知系統（`handoff-watcher.sh`）偵測到 `To: kuro` 且 `Status: approved` 的 handoff
-2. 檢查 `Depends-on`：所有依賴必須是 `Status: verified` 才能開始
-3. 把 Status 改為 `in_progress`，Log 記錄開始
-4. 在 OODA loop 中執行任務（驗證、數據分析、反思、更新 SOUL.md 等）
-5. 過程中勾選 Tasks checkbox 追蹤進度
-6. 完成後把 Status 改為 `completed`，Log 記錄結果
-7. 如果發現後續需要 Claude Code 做 L2 改動，建立新 handoff（`From: kuro, To: claude-code`）
+#### 規則
 
-#### 完成後處理
-
-1. 執行者把 Status 改為 `completed`，確保 Acceptance Criteria 全部勾選
-2. **通知對方**：
-   - Claude Code 完成 → 透過 `/chat` API 通知 Kuro（Kuro 常駐，能即時收到）
-   - Kuro 完成 → 透過 Telegram 通知 Alex（Claude Code 非常駐，等 Alex 下次啟動時檢查）
-3. **Reviewer 驗收**：Reviewer（通常是 Alex）檢查 Acceptance Criteria，Status 改為 `verified`，Log 記錄簽收
-4. **依賴解鎖**：`Depends-on` 指向這個 handoff 的其他任務，`verified` 後可以開始
-5. **需要後續？** 建立新的反向 handoff（`pending`，等審核）
-6. **不需要後續？** 檔案留原處，git history 即歸檔
-
-```
-completed ──Reviewer 驗收──→ verified ──→ 解鎖依賴 ──有後續──→ 新 handoff（pending）
-                                              │
-                                              └──無後續──→ 結束
-```
-
-#### Blocked 恢復
-
-1. 執行者遇到問題，Status 改為 `blocked`，Log 說明阻塞原因
-2. Kuro blocked → Telegram 通知 Alex；Claude Code blocked → Log 記錄，等 Alex 下次看到
-3. 阻塞解除後（Alex 介入 / 依賴完成 / 問題修復），Status 改回 `in_progress`，Log 記錄恢復原因
-
-#### 安全規則
-
-- **只處理 `Status: approved` 的任務**（Alex 已審核）。不要處理 `draft` 或 `pending` 的
-- Alex 發起的 handoff（`From: alex`）不需要額外 Reviewer
-- `Depends-on` 是手動管理，循環依賴由審核時發現
+- **只處理 `Status: approved`**。不動 `pending` 的
+- Alex 的 `approved` = 預先信任，`completed` 即終態，不需二次驗收
+- `Depends-on` 手動管理，循環依賴由審核時發現
 
 ## Workflow
 

@@ -19,6 +19,9 @@ Minimal Personal AI Agent with autonomous capabilities:
 15. **Launchd** - Native macOS process management with KeepAlive auto-restart (dynamic plist per instance)
 16. **Reliable Notifications** - Unified TG notification with retry, failure counting, and photo/screenshot support
 17. **Unified Status** - Single `/status` API aggregating all subsystems (claude, loop, cron, telegram)
+18. **Reactive Architecture** - EventBus with typed events, wildcard patterns, and reactive primitives (debounce, throttle, distinctUntilChanged)
+19. **Perception Streams** - Independent per-plugin intervals with change detection — workspace(60s), chrome(120s), telegram(event-driven), heartbeat(30min)
+20. **Dashboard SSE** - Real-time Server-Sent Events push to dashboard, replacing polling with 2s debounced refresh
 
 ## Architecture
 
@@ -477,6 +480,42 @@ Recent CDP operations (1):
   [10:21:30] fetch: Hacker News (https://news.ycombinator.com)
 ```
 
+## Reactive Architecture
+
+Event-driven architecture replacing direct call coupling. Zero external dependencies.
+
+### EventBus
+
+Typed event bus (`src/event-bus.ts`) based on `node:events` with wildcard pattern support:
+
+```typescript
+eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: 42 });
+eventBus.on('action:*', (e) => console.log(e.type, e.data)); // wildcard
+```
+
+Event categories: `trigger:*` (drive loop), `action:*` (agent behavior), `log:*` (observability), `notification:*` (alerts).
+
+Includes reactive primitives: `debounce(fn, ms)`, `throttle(fn, ms)`, `distinctUntilChanged(hashFn)`.
+
+### Perception Streams
+
+Each perception plugin runs independently with its own interval and `distinctUntilChanged` change detection (`src/perception-stream.ts`). `buildContext()` reads from cache instead of executing shell scripts every cycle.
+
+| Category | Interval | Plugins |
+|----------|----------|---------|
+| workspace | 60s | state-changes, tasks, git-detail |
+| chrome | 120s | chrome, web |
+| telegram | event-driven | telegram-inbox |
+| heartbeat | 30min | all others |
+
+### Observability Subscribers
+
+Centralized event → slog/logBehavior/notify routing (`src/observability.ts`). Loop and dispatcher emit events; subscribers handle output formatting.
+
+### Dashboard SSE
+
+`GET /api/events` streams real-time events to the dashboard via Server-Sent Events. Dashboard receives events, debounces 2s, then refreshes. 60s fallback polling as backup.
+
 ## Three-Layer Architecture
 
 ```
@@ -648,6 +687,7 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 | GET | /context | Get full context (all perception) |
 | GET | /health | Health check |
 | GET | /status | Unified status (claude, loop, cron, telegram) |
+| GET | /api/events | SSE stream (real-time action/trigger events) |
 
 ### Tasks & Heartbeat
 

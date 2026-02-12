@@ -11,6 +11,7 @@ import { slog } from './api.js';
 import { diagLog } from './utils.js';
 import { notifyTelegram, notify, flushSummary } from './telegram.js';
 import type { CronTask } from './types.js';
+import { eventBus } from './event-bus.js';
 
 interface ScheduledCronTask {
   task: CronTask;
@@ -43,6 +44,7 @@ export function startCronTasks(tasks: CronTask[]): void {
 
     const job = cron.schedule(task.schedule, async () => {
       slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
+      eventBus.emit('trigger:cron', { schedule: task.schedule, task: task.task.slice(0, 100) });
       logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
       logger.logBehavior('system', 'cron.trigger', `[${task.schedule}] ${task.task.slice(0, 100)}`);
       const cronStart = Date.now();
