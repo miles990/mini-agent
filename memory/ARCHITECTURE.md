@@ -104,6 +104,29 @@ Loop 整合：`loop.ts` 的 `notifyTelegram()` 改用 TelegramPoller.sendMessage
 
 詳細研究報告：`memory/research/`
 
+## JIT Loading Pattern（按需載入）
+
+Agent 知識管理的核心模式：不把所有知識塞進 context，按需載入。
+
+```
+大知識庫 → Index/Matching → 載入相關子集 → Context Window
+```
+
+mini-agent 的實踐：
+
+| 層級 | 機制 | 觸發方式 |
+|------|------|----------|
+| Topic Memory | `memory/topics/*.md` | `buildContext()` 關鍵字匹配 |
+| Skills | `skills/*.md` | System prompt 靜態注入 |
+| Perception Cache | `perception-stream.ts` | 各 plugin 獨立 interval + distinctUntilChanged |
+
+業界同構實踐（2026-02 研究）：
+- **CodeRLM** — Tree-sitter 結構化索引 + API 查詢（symbol-level, index-backed）
+- **Teddy Chen Pattern Language** — 3 萬行 skill 用內部 JIT Loading（集中知識、按需載入、統一治理）
+- **RLM 論文** (MIT CSAIL) — 把大資料當外部資料，遞迴查詢而非全量載入
+
+**設計取捨**：mini-agent 用關鍵字匹配（模糊但零依賴），CodeRLM 用 tree-sitter（精確但需要 Rust server）。個人 agent 3K 行 codebase，模糊匹配足夠。
+
 ## Learning-to-Action Loop
 
 感知 → 學習 → 行動 → 強化感知（正向閉環）
