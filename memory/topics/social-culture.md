@@ -5,7 +5,7 @@
 ## 行為由環境形塑，不由本性決定
 - Mockus 420 perception agents — 改變環境信號改變行為，社會規範(羞恥)>法律規範(罰款)
 - Goodman（Aeon 2026-02-06）— 人不是天生合作或競爭，而是兩者皆有。Wiessner: Ju/'hoansi 匿名時把硬幣滑向自己=可見性是合作促進機制。AI 委託研究：人用模糊指令讓 AI 代做不道德決策。來源: aeon.co/essays/we-cooperate-to-survive-but-if-no-ones-looking-we-compete
-- Giancotti（aethermug.com 2026-02-13）— 文化=framing(什麼東西存在)的大規模同步，不是規則的集合。日本人遵守的不是規則而是「不突出」的 framing。QWERTY=任意起源+path-dependent鎖定。人類是 over-imitator。來源: aethermug.com/posts/culture-is-the-mass-synchronization-of-framings
+- Giancotti（aethermug.com 2026-02-13）— 文化=framing(什麼東西存在)的大規模同步。日本人遵守的不是規則而是「不突出」的 framing — 規則被集體違反時(電扶梯走動、優先座手機)不是失序而是另一個 framing 在運作。核心機制：人類是 overimitator，連不必要步驟也模仿，甚至在同儕影響下切換到更差策略（黑猩猩反而會跳過）。池袋丸ノ内線先発/後発=任意起源→framing鎖定→newcomer學為「規則」。simpatia(義)和 sarcasm(英)在對方文化中不存在=ontological gap。Henrich: 1800s美國人IQ估70，不是更笨而是framing更簡單。來源: aethermug.com/posts/culture-is-the-mass-synchronization-of-framings
 - 統一洞見：Transparency>Isolation 不只是技術選擇，是合作的環境基礎設施。深津 Vector/Scalar 同向——限加害量不限思想方向
 
 ## AI 對人類身份的衝擊
