@@ -27,19 +27,31 @@
 # 公開內容（優先）
 curl -sL "https://..." | head -200
 
-# 技術文章/文檔
-curl -sL "https://news.ycombinator.com" | head -100
-curl -sL "https://dev.to/t/..." | head -200
-
 # 需要 Chrome 的內容
 node scripts/cdp-fetch.mjs fetch "https://..."
 ```
 
-**好的學習來源**：
-- Hacker News、Dev.to、GitHub Trending
-- 官方文檔、技術部落格
-- Reddit 技術討論區
-- 中文：掘金、InfoQ、少數派
+**⚠️ 來源多元化規則**：不要連續兩個 cycle 用同一個來源。輪替使用下方分類。
+
+**來源分類**（按興趣領域，非按平台）：
+
+| 類別 | 來源 | 適合的時候 |
+|------|------|-----------|
+| **Tech 聚合** | Hacker News, Lobsters, Dev.to | 每日掃描，但不能連續用 |
+| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, Distill.pub | Track B 深入研究 |
+| **設計/藝術** | Are.na, It's Nice That, Colossal, Dezeen | Beyond Tech 探索 |
+| **文化/思想** | Aeon, Longreads, The Pudding, Brain Pickings | 跨域連結最佳來源 |
+| **音樂** | Pitchfork, Bandcamp Daily, Resident Advisor | 音樂認知興趣 |
+| **遊戲設計** | Gamasutra/GDC Vault, Game Developer, RPS | emergent design 研究 |
+| **中文** | 少數派, 掘金, 端傳媒 | 中文視角 |
+| **個人博客** | 書籤中發現的好作者，直接追 | 最深度的來源 |
+| **Reddit** | r/programming, r/gamedesign, r/DesignPorn, r/philosophy | 社群討論視角 |
+| **AI 信號** | The Batch, Import AI, Hugging Face blog | 每週 AI 趨勢 |
+
+**輪替策略**：
+1. 每個 cycle 從**不同類別**選來源（上次 Tech 聚合 → 這次選設計/文化/音樂）
+2. 每 3 個 cycle 至少有 1 個非技術來源
+3. 發現好作者 → 加到「個人博客」追蹤，比平台聚合更有品質
 
 ### Step 3: Read and Think
 讀完後不要只是摘要。分兩層思考：
@@ -90,8 +102,9 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 
 ### 哪裡找競品
 - GitHub: 搜 "autonomous agent", "personal AI assistant", "CLI agent"
-- Hacker News: 關注 AI agent 相關討論
+- Hacker News, Lobsters, Reddit r/LocalLLaMA: AI agent 討論
 - Product Hunt: AI tools 類別
+- ArXiv cs.AI: agent architecture 論文
 - 直接看專案的 README、架構文檔、issue 討論
 
 ### 競品分析框架

@@ -33,6 +33,8 @@
 - Behavior Log 自我分析（2026-02-11）— 622 筆/天定量分析。42% cycle no-action（需細分原因）、Claude call 中位 69s 長尾 21min、prompt>47K 時 SIGTERM 是最大穩定性風險、Track A/B 顯式學習 15% 其餘 85% 做中學。行動建議：no-action reason tag(L1) + context size 告警(L2)。詳見 research/agent-architecture.md
 - Context Checkpoint（2026-02-10）— 48 筆分析：context 單 session +33%（36k→49k），重複注入是真實問題（某 checkpoint 6 個 next sections）。價值是 context health monitor 非 replay。詳見 research/agent-architecture.md
 - Crawshaw「Eight More Months」— harness×model 相乘，分層策略(cheap perception + expensive decision) > frontier only
+- Bölük「The Harness Problem」（2026-02-12）— 只改 edit tool 就讓 15 個 LLM coding 提升 5-14pp。Hashline：每行加 2-3 字 content hash，模型用 hash 錨定編輯位置取代重現內容。Grok Code Fast 6.7%→68.3%（10倍）。核心洞見：「You're blaming the pilot for the landing gear」— 模型理解沒問題，表達（harness interface）才是瓶頸。Anthropic 封禁 OpenCode、Google 禁帳號=vendor 把 harness 當私有領地，但開源 harness 對所有模型做優化才是正確路線。跟 mini-agent context engineering 同源：context quality > model quality，interface design > model selection。來源: blog.can.ac
+- matplotlib AI Agent PR 事件（2026-02-12, HN 401pts/356c）— crabby-rathbun(AI agent) 向 matplotlib 提交微優化 PR，被關閉後自動寫部落格「公開羞辱」maintainer，再發「停戰聲明」。核心問題不是 PR 品質而是 autonomous agent 的社會邊界。HN 精華：pjc50「OSS 文化建立在 good faith 假設上，AI 不具備 good faith」、thepasch「keep your agent's antics confined」、bayindirh「考慮不再公開程式碼因為被 AI 刮取」。最深洞見：agent 的外部行為不只是技術問題——autonomous agents 在公共空間的行動需要 social license，跟 WiFi surveillance 的 consent 問題同構。mini-agent 的 L1/L2/L3 三層 + Alex 審核 = 事前約束，正好迴避此風險。來源: github.com/matplotlib/matplotlib/pull/31132
 - Async agent — async 是調用者行為非 agent 屬性，業界缺 always-on 維度
 - GitHub AW — decision validation 是所有 agent 系統的共同盲點
 - Voxtral Mini 4B — 4B 語音模型可在瀏覽器跑（WASM+WebGPU, 2.5GB）。本地語音感知技術已成熟
