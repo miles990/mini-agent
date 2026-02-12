@@ -5,6 +5,7 @@ dist/
 memory/*
 !memory/ARCHITECTURE.md
 !memory/SOUL.md
+!memory/behavior.md
 sessions/
 .claude/
 output.md

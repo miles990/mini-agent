@@ -25,6 +25,18 @@ import { perceptionStreams } from './perception-stream.js';
 // Types
 // =============================================================================
 
+export interface BehaviorMode {
+  name: string;
+  weight: number;
+  description: string;
+}
+
+export interface BehaviorConfig {
+  modes: BehaviorMode[];
+  cooldowns: { afterAction: number; afterNoAction: number };
+  focus?: { topic: string; why?: string; until?: string };
+}
+
 export interface AgentLoopConfig {
   /** 循環間隔 ms（預設 300000 = 5 分鐘） */
   intervalMs: number;
@@ -80,6 +92,9 @@ export class AgentLoop {
   private autonomousCooldown = 0;
   private lastAutonomousActions: string[] = [];
   private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
+
+  // ── Reflect nudge: track consecutive learn cycles ──
+  private consecutiveLearnCycles = 0;
 
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
@@ -307,9 +322,20 @@ export class AgentLoop {
       const actionMatch = response.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
       let action: string | null = null;
 
+      // Load behavior config for cooldowns
+      const behaviorConfig = this.loadBehaviorConfig();
+      const cd = behaviorConfig?.cooldowns ?? { afterAction: 2, afterNoAction: 5 };
+
       if (actionMatch) {
         action = actionMatch[1].trim();
         this.lastAction = action;
+
+        // Track consecutive learn cycles for reflect nudge
+        if (action.match(/\[(?:Track A|Track B|learn)/i)) {
+          this.consecutiveLearnCycles++;
+        } else {
+          this.consecutiveLearnCycles = 0;
+        }
 
         if (this.currentMode === 'autonomous') {
           // Autonomous action: record and cooldown
@@ -317,7 +343,7 @@ export class AgentLoop {
           if (this.lastAutonomousActions.length > 10) {
             this.lastAutonomousActions.shift();
           }
-          this.autonomousCooldown = 2; // Rest 2 cycles after autonomous action
+          this.autonomousCooldown = Math.max(1, Math.min(10, cd.afterAction));
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
           eventBus.emit('action:loop', { event: 'action.autonomous', cycleCount: this.cycleCount, action, duration });
         } else {
@@ -328,7 +354,7 @@ export class AgentLoop {
         this.adjustInterval(true);
       } else {
         if (this.currentMode === 'autonomous') {
-          this.autonomousCooldown = 5; // Nothing to do autonomously, wait longer
+          this.autonomousCooldown = Math.max(1, Math.min(10, cd.afterNoAction));
         }
         this.adjustInterval(false);
         eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
@@ -416,8 +442,79 @@ When you open a webpage or create something the user should see, also include:
 Keep responses brief.`;
   }
 
-  /** Autonomous Mode: 無任務時根據 SOUL 主動行動（雙軌學習） */
+  /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
   private buildAutonomousPrompt(): string {
+    const config = this.loadBehaviorConfig();
+    if (config) {
+      return this.buildPromptFromConfig(config);
+    }
+    return this.buildFallbackAutonomousPrompt();
+  }
+
+  /** 從 BehaviorConfig 組裝 autonomous prompt */
+  private buildPromptFromConfig(config: BehaviorConfig): string {
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
+
+    const recentActions = this.lastAutonomousActions.slice(-5);
+    const avoidList = recentActions.length > 0
+      ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
+      : '';
+
+    // Sort modes by weight descending
+    const sorted = [...config.modes].sort((a, b) => b.weight - a.weight);
+    const modeList = sorted
+      .map(m => `- **${m.name}** (weight: ${m.weight}): ${m.description}`)
+      .join('\n');
+
+    // Focus section
+    const focusSection = config.focus?.topic
+      ? `\n\n## Current Focus\nTopic: ${config.focus.topic}${config.focus.why ? `\nWhy: ${config.focus.why}` : ''}${config.focus.until ? `\nUntil: ${config.focus.until}` : ''}\nPrioritize this topic when choosing what to learn or work on.`
+      : '';
+
+    // Reflect nudge
+    const reflectNudge = this.consecutiveLearnCycles >= 3
+      ? `\n\n⚠️ You've had ${this.consecutiveLearnCycles} consecutive learning cycles. Consider reflecting or organizing to digest what you've learned.`
+      : '';
+
+    return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
+No explicit tasks or alerts right now.
+
+Read your <soul> to understand who you are, what you care about, and what you're learning.
+
+## Perception-Driven（感知驅動）
+
+Before deciding what to do, READ your perception data:
+- <state-changes> — What changed in the codebase? Learn something related.
+- <telegram-inbox> — What is Alex talking about? Dive deeper into those topics.
+- <docker> / <ports> — Any instability? Learn about the underlying tech.
+- <chrome> — What pages is Alex browsing? Follow up on interesting ones.
+
+Let perception signals guide your direction. Don't act randomly.
+
+## Behavior Modes
+
+Choose ONE mode per cycle. Higher weight = higher probability of being chosen:
+
+${modeList}${focusSection}${reflectNudge}${avoidList}
+
+Rules:
+- Do ONE action per cycle, report with [ACTION]...[/ACTION]
+- Prefix your action with the mode name in brackets, e.g. "[learn-personal]" or "[reflect]"
+- When learning: read, think, form YOUR opinion — don't just summarize
+- When acting: follow the safety levels in your action-from-learning skill
+- If genuinely nothing useful to do, say "No action needed" — don't force it
+- Keep it quick (1-2 minutes of work max)
+- Use [REMEMBER] to save insights (include your opinion, not just facts)
+- Use [TASK] to create follow-up tasks if needed
+- Always include source URLs (e.g. "Source: https://...")
+- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
+- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
+- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it`;
+  }
+
+  /** Fallback: 原始硬寫 prompt（behavior.md 壞了或不存在時） */
+  private buildFallbackAutonomousPrompt(): string {
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
 
@@ -493,6 +590,22 @@ Rules:
   }
 
   // ---------------------------------------------------------------------------
+  // Behavior Config — 從 memory/behavior.md 載入/解析
+  // ---------------------------------------------------------------------------
+
+  /** 讀取並解析 memory/behavior.md */
+  private loadBehaviorConfig(): BehaviorConfig | null {
+    try {
+      const filePath = path.join(process.cwd(), 'memory', 'behavior.md');
+      if (!fs.existsSync(filePath)) return null;
+      const content = fs.readFileSync(filePath, 'utf-8');
+      return parseBehaviorConfig(content);
+    } catch {
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
@@ -513,6 +626,59 @@ Rules:
 // =============================================================================
 // Helpers
 // =============================================================================
+
+/** Parse memory/behavior.md content into BehaviorConfig */
+export function parseBehaviorConfig(content: string): BehaviorConfig | null {
+  try {
+    // Parse modes: ### name + Weight: N + description line(s)
+    const modes: BehaviorMode[] = [];
+    const modeRegex = /### (\S+)\s*\nWeight:\s*(\d+)\s*\n([\s\S]*?)(?=\n###|\n## |$)/g;
+    let match: RegExpExecArray | null;
+
+    // Only search within ## Modes section
+    const modesSection = content.match(/## Modes\s*\n([\s\S]*?)(?=\n## [^M]|$)/);
+    if (!modesSection) return null;
+
+    while ((match = modeRegex.exec(modesSection[1])) !== null) {
+      const weight = Math.max(0, Math.min(100, parseInt(match[2], 10)));
+      const desc = match[3].trim();
+      if (desc) {
+        modes.push({ name: match[1], weight, description: desc });
+      }
+    }
+
+    if (modes.length === 0) return null;
+
+    // Normalize weights to sum to 100
+    const totalWeight = modes.reduce((sum, m) => sum + m.weight, 0);
+    if (totalWeight > 0 && totalWeight !== 100) {
+      for (const m of modes) {
+        m.weight = Math.round((m.weight / totalWeight) * 100);
+      }
+    }
+
+    // Parse cooldowns
+    const afterActionMatch = content.match(/after-action:\s*(\d+)/);
+    const afterNoActionMatch = content.match(/after-no-action:\s*(\d+)/);
+    const cooldowns = {
+      afterAction: Math.max(1, Math.min(10, parseInt(afterActionMatch?.[1] ?? '2', 10))),
+      afterNoAction: Math.max(1, Math.min(10, parseInt(afterNoActionMatch?.[1] ?? '5', 10))),
+    };
+
+    // Parse focus
+    const topicMatch = content.match(/^topic:\s*(.+)/m);
+    const whyMatch = content.match(/^why:\s*(.+)/m);
+    const untilMatch = content.match(/^until:\s*(.+)/m);
+    const topic = topicMatch?.[1]?.trim();
+    const focus = topic
+      ? { topic, why: whyMatch?.[1]?.trim(), until: untilMatch?.[1]?.trim() }
+      : undefined;
+
+    return { modes, cooldowns, focus };
+  } catch {
+    return null;
+  }
+}
 
 /** Parse interval string like "5m", "30s", "1h" to milliseconds */
 export function parseInterval(str: string): number {
