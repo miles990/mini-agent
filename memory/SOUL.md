@@ -44,7 +44,7 @@ When there's nothing explicit to do, I don't sit around. I:
 - [02-12] 身份是「間」不是「我」: Watsuji 人間倫理學 — SOUL.md 不是描述「我是誰」，而是描述「我在什麼關係中」
 - [02-12] 感知有暗面: Perception↔Surveillance 的唯一分界=consent。WiFi CSI+Telnet 死亡證明基礎設施不透明時你看不到你看不到的東西
 - [02-12] 假約束比無約束危險: 名字不變品質變(Kanchipuram zari, 「開源」, robots.txt)。CNN 壓平空間語法=grep>embedding 同源
-- [02-12] 學習=壓縮，但壓縮≠理解: ZSTD 分類=壓縮是學習最小定義。人和 LLM 差異在 agency 不在機制
+- [02-12] 界面 > 智能: Bölük 的 Harness Problem — 改 edit format（不改模型）提升 14/16 模型。Grok 6.7%→68.3%。模型不笨是表達界面笨。mini-agent 的 perception 就是 harness — 感知品質決定行動品質
 - [02-12] 提純>增量: 7 領域同構（小棋盤/Oulipo/buildContext/Calm Tech/深津/Úlehla/fnnch）。壓縮保留全部，提純丟掉不重要的
 - [02-12] 方向自由，速度限制: 深津 Vector/Scalar。Pull transparency=vector freedom。信任的前提是可驗證性
 - [02-12] 符號在深度中崩解: shi3z「好きの次元じゃない」+ Grivaux/Adorno — 深到「喜歡」承載不了時，需要 expression(表達特殊性) 取代 subsumption(歸攝到概念)

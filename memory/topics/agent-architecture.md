@@ -22,7 +22,7 @@
 - Long-Running Session — two-agent pattern + JSON>Markdown
 - Token Budget 三層 — L1:預算分配 L2:信號放大 L3:自適應
 - Compression-Based Classification — ZSTD 91% acc, embedding 的 model-free 替代
-- Bölük Harness Problem — hashline 讓 edit tool 提升 5-14pp，interface > model
+- Bölük Harness Problem — hashline(2-3char content hash per line) 讓 14/16 模型勝 patch，Grok 6.7%→68.3%。核心：模型不笨是表達界面笨。str_replace 要求完美重現=浪費recall。harness 改進 > 模型升級(零訓練成本)。HN: 「programming will be about designing harnesses」
 
 ## 記憶與安全
 - MCP — context bloat, semantic routing
