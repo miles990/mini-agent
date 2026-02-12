@@ -6,6 +6,7 @@ Task list and reminders.
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
 - [ ] Error Review — 掃描當天 behavior log 和 error log，找出錯誤，歸因到流程缺失，提出結構性改善 (daily at 23:30, last: 02-13)
+- [x] P1: Claude CLI exit 143 專項修復 — 收斂觸發條件、加 timeout/重試策略驗證、產出可執行 mitigation checklist (done: 2026-02-13, `memory/handoffs/2026-02-13-claude-exit143-mitigation-checklist.md`)
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定

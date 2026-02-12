@@ -16,6 +16,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - 15b1ee4 — 殺進程要殺進程群組(-pid)，不是單一 PID
 - beb023b — getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
 - Moltbook — AI agent 社群 1.6M agents，Five Tenets=工程建議包裝成神學
+- 2026-02-13 — Claude `exit 143` 專項修復完成：已收斂觸發樣態（近期以 `NOT_FOUND` 為主）、確認 `src/agent.ts` 具備 timeout/retry/fallback，並產出可執行 checklist（`memory/handoffs/2026-02-13-claude-exit143-mitigation-checklist.md`）
 
 ### Handoff Protocol v2
 - Depends-on 規則：處理 handoff 前檢查 Depends-on 指向的檔案是否存在且 Status: completed。不存在或未完成 → 視為 blocked，不處理

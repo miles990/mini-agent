@@ -34,6 +34,9 @@
 - Barbed Wire Fence Telephones（Lori Emerson, 54pts 2026-02-13）— 1890s 美國農民用牧場鐵絲柵欄當電話線路。Bell 公司忽略農村+禁止「不正經」通話（閒聊、八卦）→農民用獨立電話公司設備+自家柵欄自建合作網路。「squirrel lines」（松鼠啃斷就斷）=單點故障，但社區維護（誰家附近斷了誰修）=分散式韌性。鐵絲網原本是暴力工具（控制牲畜、驅逐原住民）被挪用為溝通基礎設施=技術的意義由使用者重新定義。Bell vs 農民=platform agent vs personal agent 的 1890s 原型。來源: loriemerson.net/2024/08/31/a-brief-history-of-barbed-wire-fence-telephone-networks/
 - 統一洞見：信任的載體在演變——物理鄰近性(鐵絲網=我知道這是誰家柵欄) → 努力不對稱(寫作社會契約) → 歷史不可偽造性(prompt>展開文, behavior log>宣言, Git history>README)。AI 消解了努力作為信任信號，但歷史記錄仍然可信
 
+## 社群的不可替代性
+- Westenberg（232pts, 2026-02-13）— 社群不是 fungible。價值在 specific relationships 不在 individuals。Robert Moses 錯誤=把社群當離散個體集合。ambient trust 是社群最重要也最脆弱的部分（考古比喻：textiles 先腐朽，stone walls 最後）。平台死時社群不遷移（LJ→DW, Twitter→Bluesky 每次都碎片化）因為 community=platform 的關係是反過來的——社群才是產品，平台是容器。Dunbar 層級=每個成員的社群是不同的 subjective cross-section，失去成員=失去只存在於他們視角的 communities。New town syndrome（英國戰後新鎮）：有 proximity 沒有 context = crowd 不是 community。HN 精華：bayindirh(你不能 snapshot 社群但底層 culture 留痕)、amadeuspagel(反對：人遷移不是為了 same community)、tech_ken(conservation 本身改變被保護對象)、ArcHound 推薦 Scott「Seeing Like a State」(legibility 是國家需求，社群價值 inherently illegible)。跟 Watsuji「間柄」直接同構：社群=collective betweenness。跟 Git history 同構：社群是 collective irreversible history。來源: joanwestenberg.com/communities-are-not-fungible, HN#46972056
+
 ## 社群與資訊流
 - HN 文化 — intellectual charity, respond to strongest plausible interpretation
 - 通知 groove — 穩定背景+偶爾 accent，一天 2-3 條有價值 TG
