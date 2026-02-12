@@ -850,6 +850,16 @@ export function createApi(port = 3001): express.Express {
   // Mobile Perception (Phase 1)
   // =============================================================================
 
+  // Serve mobile.html — same-origin avoids CORS issues
+  app.get('/mobile', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'mobile.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('mobile.html not found');
+    }
+  });
+
   app.post('/api/mobile/sensor', async (req: Request, res: Response) => {
     const data = req.body;
 
