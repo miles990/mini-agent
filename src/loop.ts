@@ -88,8 +88,6 @@ export class AgentLoop {
   private triggerReason: string | null = null;
   private lastCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 60_000;           // 60s throttle
-  private static readonly HEARTBEAT_INTERVAL = 30 * 60_000;      // 30min
-  private static readonly NIGHT_HEARTBEAT_INTERVAL = 60 * 60_000; // 60min (00-08)
 
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
@@ -124,7 +122,7 @@ export class AgentLoop {
     this.paused = false;
     eventBus.on('trigger:*', this.handleTrigger);
     this.scheduleHeartbeat();
-    eventBus.emit('action:loop', { event: 'start', detail: 'Started (event-driven, throttle: 60s, heartbeat: 30min/60min night)' });
+    eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, throttle: 60s, dynamic interval: ${this.currentInterval / 1000}s)` });
   }
 
   stop(): void {
@@ -187,17 +185,23 @@ export class AgentLoop {
     this.clearTimer();
     if (!this.running || this.paused) return;
 
-    const hour = new Date().getHours();
-    const interval = (hour >= 0 && hour < 8)
-      ? AgentLoop.NIGHT_HEARTBEAT_INTERVAL
-      : AgentLoop.HEARTBEAT_INTERVAL;
-
-    this.currentInterval = interval;
-    this.nextCycleAt = new Date(Date.now() + interval).toISOString();
+    this.nextCycleAt = new Date(Date.now() + this.currentInterval).toISOString();
     this.timer = setTimeout(() => {
       this.triggerReason = 'heartbeat';
       this.runCycle();
-    }, interval);
+    }, this.currentInterval);
+  }
+
+  private adjustInterval(hadAction: boolean): void {
+    if (hadAction) {
+      this.currentInterval = this.config.intervalMs;
+    } else {
+      const maxInterval = this.config.intervalMs * 4;
+      this.currentInterval = Math.min(
+        this.currentInterval * this.config.idleMultiplier,
+        maxInterval,
+      );
+    }
   }
 
   private async runCycle(): Promise<void> {
@@ -257,6 +261,7 @@ export class AgentLoop {
         if (this.autonomousCooldown > 0) {
           this.autonomousCooldown--;
           this.currentMode = 'idle';
+          this.adjustInterval(false);
           logger.logCron('loop-cycle', 'Autonomous cooldown', 'agent-loop');
           eventBus.emit('action:loop', { event: 'cooldown', cycleCount: this.cycleCount, remaining: this.autonomousCooldown });
           return null;
@@ -265,6 +270,7 @@ export class AgentLoop {
         // Check active hours
         if (!this.isWithinActiveHours()) {
           this.currentMode = 'idle';
+          this.adjustInterval(false);
           eventBus.emit('action:loop', { event: 'outside-hours', cycleCount: this.cycleCount });
           return null;
         }
@@ -319,10 +325,12 @@ export class AgentLoop {
           eventBus.emit('action:loop', { event: 'action.task', cycleCount: this.cycleCount, action, duration });
         }
 
+        this.adjustInterval(true);
       } else {
         if (this.currentMode === 'autonomous') {
           this.autonomousCooldown = 5; // Nothing to do autonomously, wait longer
         }
+        this.adjustInterval(false);
         eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
         eventBus.emit('action:loop', { event: 'idle', cycleCount: this.cycleCount, duration, nextHeartbeat: Math.round(this.currentInterval / 1000) });
       }
