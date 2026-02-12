@@ -38,3 +38,4 @@ until: 2026-02-20
 ## Rhythm Log
 <!-- 每次調整記錄 before→after + 原因，Git diff 也會追蹤 -->
 - [2026-02-13] Initial setup — weights: learn-personal:30 learn-project:10 organize:20 reflect:15 act:15 chat:10. Focus: self-evolution-foundations (觀察自己行為模式，為第一次調整累積依據)
+- [2026-02-13] Observation #1 (5 cycles post-deploy) — actual: learn-personal×2 organize×1 act×1 learn-project×1. 大致吻合 weights（learn-personal 最頻）。節奏規則（2學→1做）有被遵守。chat mode 尚未獨立觸發（都嵌在 action 內）。樣本太小不做調整
