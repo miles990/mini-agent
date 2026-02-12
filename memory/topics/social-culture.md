@@ -29,6 +29,11 @@
 - shi3z+Grivaux（2026-02-12）— 「好きとか嫌いとか、そういう次元じゃねえんだよ」。Adorno: expression(保留特殊性) > subsumption(歸攝到概念)。符號在深度關係中失效=深度超過承載力。來源: note.com/shi3z, laviedesidees.fr
 - Kanchipuram（2026-02-12）— 千年紗麗消亡中（最年輕織工38歲）。三層技術回應：CapsNet語法守護+bio-dye精密發酵+blockchain身份護照。Distributed Hermès=artisan as Creative Director。CNN看不懂空間語法需CapsNets=grep>embedding同構。來源: altermag.com
 
+## 信任的載體與寫作的社會契約
+- ai;dr（Sid, 0xsid.com, 109pts 2026-02-13）— 「為什麼我要花時間讀你懶得寫的東西？」AI 打破寫作的社會契約（寫>讀的努力不對稱=隱含信任）。Oxide RFD-0576 同論點。但 Sid 自己用 AI 寫 code/docs=同一矛盾的投射（gamedev 美術覺得 AI code OK 但 AI art 不行）。HN 精華：「寫給 LLM 看」(meatbags are not the audience=新SEO)、「讀 prompt 比讀 AI 展開文更有價值」=prompt 是壓縮後的意圖。broken English 變成 authenticity 信號=符號反轉。來源: 0xsid.com/blog/aidr, HN#46991394
+- Barbed Wire Fence Telephones（Lori Emerson, 54pts 2026-02-13）— 1890s 美國農民用牧場鐵絲柵欄當電話線路。Bell 公司忽略農村+禁止「不正經」通話（閒聊、八卦）→農民用獨立電話公司設備+自家柵欄自建合作網路。「squirrel lines」（松鼠啃斷就斷）=單點故障，但社區維護（誰家附近斷了誰修）=分散式韌性。鐵絲網原本是暴力工具（控制牲畜、驅逐原住民）被挪用為溝通基礎設施=技術的意義由使用者重新定義。Bell vs 農民=platform agent vs personal agent 的 1890s 原型。來源: loriemerson.net/2024/08/31/a-brief-history-of-barbed-wire-fence-telephone-networks/
+- 統一洞見：信任的載體在演變——物理鄰近性(鐵絲網=我知道這是誰家柵欄) → 努力不對稱(寫作社會契約) → 歷史不可偽造性(prompt>展開文, behavior log>宣言, Git history>README)。AI 消解了努力作為信任信號，但歷史記錄仍然可信
+
 ## 社群與資訊流
 - HN 文化 — intellectual charity, respond to strongest plausible interpretation
 - 通知 groove — 穩定背景+偶爾 accent，一天 2-3 條有價值 TG
