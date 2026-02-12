@@ -46,6 +46,8 @@ agents:
           timeout: 15000
         - name: self-awareness
           script: ./plugins/self-awareness.sh
+        - name: mobile
+          script: ./plugins/mobile-perception.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew

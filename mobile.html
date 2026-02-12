@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Kuro Mobile Sensor</title>
+<style>
+  :root { --bg: #0a0a0a; --fg: #e0e0e0; --accent: #6cf; --dim: #666; --ok: #4c6; --err: #e44; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--fg); padding: 16px; min-height: 100dvh; }
+  h1 { font-size: 1.2rem; color: var(--accent); margin-bottom: 12px; }
+  .status { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.85rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); }
+  .dot.ok { background: var(--ok); }
+  .dot.err { background: var(--err); }
+  .setup { background: #111; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .setup label { display: block; font-size: 0.8rem; color: var(--dim); margin-bottom: 4px; }
+  .setup input { width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: var(--fg); font-size: 0.9rem; margin-bottom: 12px; }
+  .setup button { width: 100%; padding: 10px; background: var(--accent); color: #000; border: none; border-radius: 4px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+  .setup button:disabled { opacity: 0.4; }
+  .data { font-family: 'SF Mono', monospace; font-size: 0.8rem; line-height: 1.6; }
+  .data .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #1a1a1a; }
+  .data .label { color: var(--dim); }
+  .log { margin-top: 16px; font-size: 0.75rem; color: var(--dim); max-height: 120px; overflow-y: auto; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>Kuro Mobile Sensor</h1>
+
+<div class="status">
+  <div class="dot" id="statusDot"></div>
+  <span id="statusText">Disconnected</span>
+</div>
+
+<div class="setup" id="setupPanel">
+  <label>Server URL</label>
+  <input id="serverUrl" type="url" placeholder="http://192.168.1.x:3001" />
+  <label>API Key</label>
+  <input id="apiKey" type="password" placeholder="MINI_AGENT_API_KEY" />
+  <button id="connectBtn" onclick="startSensors()">Connect</button>
+</div>
+
+<div class="data hidden" id="dataPanel">
+  <div class="row"><span class="label">GPS</span><span id="gps">--</span></div>
+  <div class="row"><span class="label">Accuracy</span><span id="accuracy">--</span></div>
+  <div class="row"><span class="label">Altitude</span><span id="altitude">--</span></div>
+  <div class="row"><span class="label">Speed</span><span id="speed">--</span></div>
+  <div class="row"><span class="label">Heading</span><span id="heading">--</span></div>
+  <div class="row"><span class="label">Orientation</span><span id="orientation">--</span></div>
+  <div class="row"><span class="label">Motion</span><span id="motion">--</span></div>
+  <div class="row"><span class="label">Last sent</span><span id="lastSent">--</span></div>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let sensorState = {};
+let sendInterval = null;
+let sending = false;
+
+// Restore saved config
+const saved = localStorage.getItem('kuro-mobile');
+if (saved) {
+  try {
+    const cfg = JSON.parse(saved);
+    $('serverUrl').value = cfg.url || '';
+    $('apiKey').value = cfg.key || '';
+  } catch {}
+}
+
+function log(msg) {
+  const el = $('log');
+  const t = new Date().toLocaleTimeString();
+  el.textContent = `[${t}] ${msg}\n` + el.textContent;
+  if (el.textContent.length > 2000) el.textContent = el.textContent.slice(0, 2000);
+}
+
+function setStatus(ok, text) {
+  $('statusDot').className = 'dot ' + (ok ? 'ok' : ok === false ? 'err' : '');
+  $('statusText').textContent = text;
+}
+
+async function startSensors() {
+  const url = $('serverUrl').value.replace(/\/+$/, '');
+  const key = $('apiKey').value;
+  if (!url || !key) { log('URL and API Key required'); return; }
+
+  localStorage.setItem('kuro-mobile', JSON.stringify({ url, key }));
+  $('connectBtn').disabled = true;
+  log('Starting sensors...');
+
+  // Test connection
+  try {
+    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    log('Server reachable');
+  } catch (e) {
+    log(`Connection failed: ${e.message}`);
+    setStatus(false, 'Connection failed');
+    $('connectBtn').disabled = false;
+    return;
+  }
+
+  $('setupPanel').classList.add('hidden');
+  $('dataPanel').classList.remove('hidden');
+  setStatus(null, 'Requesting permissions...');
+
+  // GPS
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      pos => {
+        sensorState.latitude = pos.coords.latitude;
+        sensorState.longitude = pos.coords.longitude;
+        sensorState.accuracy = pos.coords.accuracy;
+        sensorState.altitude = pos.coords.altitude;
+        sensorState.speed = pos.coords.speed;
+        sensorState.heading = pos.coords.heading;
+        $('gps').textContent = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+        $('accuracy').textContent = `\u00b1${Math.round(pos.coords.accuracy)}m`;
+        $('altitude').textContent = pos.coords.altitude != null ? `${Math.round(pos.coords.altitude)}m` : '--';
+        $('speed').textContent = pos.coords.speed != null ? `${pos.coords.speed.toFixed(1)} m/s` : '0 m/s';
+        $('heading').textContent = pos.coords.heading != null ? `${Math.round(pos.coords.heading)}\u00b0` : '--';
+      },
+      err => log(`GPS error: ${err.message}`),
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+    log('GPS started');
+  } else {
+    log('GPS not available');
+  }
+
+  // DeviceOrientation (iOS needs permission request)
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') { log('Orientation permission denied'); }
+    }
+    window.addEventListener('deviceorientation', e => {
+      sensorState.alpha = e.alpha;
+      sensorState.beta = e.beta;
+      sensorState.gamma = e.gamma;
+      const a = e.alpha != null ? Math.round(e.alpha) : '?';
+      const b = e.beta != null ? Math.round(e.beta) : '?';
+      const g = e.gamma != null ? Math.round(e.gamma) : '?';
+      $('orientation').textContent = `\u03b1=${a}\u00b0 \u03b2=${b}\u00b0 \u03b3=${g}\u00b0`;
+    });
+    log('Orientation started');
+  } catch (e) {
+    log(`Orientation: ${e.message}`);
+  }
+
+  // DeviceMotion (iOS needs permission request)
+  try {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      const perm = await DeviceMotionEvent.requestPermission();
+      if (perm !== 'granted') { log('Motion permission denied'); }
+    }
+    window.addEventListener('devicemotion', e => {
+      const a = e.accelerationIncludingGravity;
+      if (a) {
+        sensorState.accelX = a.x;
+        sensorState.accelY = a.y;
+        sensorState.accelZ = a.z;
+        $('motion').textContent = `x=${a.x?.toFixed(1)} y=${a.y?.toFixed(1)} z=${a.z?.toFixed(1)}`;
+      }
+    });
+    log('Motion started');
+  } catch (e) {
+    log(`Motion: ${e.message}`);
+  }
+
+  setStatus(true, 'Connected');
+
+  // Send every 5 seconds
+  sendInterval = setInterval(() => sendData(url, key), 5000);
+  sendData(url, key); // first send immediately
+
+  // Page Visibility: pause when backgrounded, resume when foregrounded
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (sendInterval) { clearInterval(sendInterval); sendInterval = null; }
+      log('Backgrounded - paused');
+      setStatus(null, 'Paused (background)');
+    } else {
+      if (!sendInterval) {
+        sendInterval = setInterval(() => sendData(url, key), 5000);
+        sendData(url, key);
+      }
+      log('Foregrounded - resumed');
+      setStatus(true, 'Connected');
+    }
+  });
+}
+
+async function sendData(url, key) {
+  if (sending) return;
+  sending = true;
+  try {
+    const payload = {
+      ...sensorState,
+      deviceName: navigator.userAgent.includes('iPhone') ? "Alex's iPhone"
+        : navigator.userAgent.includes('iPad') ? "Alex's iPad"
+        : 'Mobile Device',
+      timestamp: new Date().toISOString(),
+    };
+    const res = await fetch(`${url}/api/mobile/sensor`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      $('lastSent').textContent = new Date().toLocaleTimeString();
+      setStatus(true, 'Connected');
+    } else if (res.status === 401) {
+      log('Auth failed (401) - check API key');
+      setStatus(false, 'Auth failed');
+      clearInterval(sendInterval);
+    } else {
+      log(`Send error: HTTP ${res.status}`);
+      setStatus(false, `Error ${res.status}`);
+    }
+  } catch (e) {
+    log(`Send failed: ${e.message}`);
+    setStatus(false, 'Send failed');
+  } finally {
+    sending = false;
+  }
+}
+</script>
+</body>
+</html>
