@@ -24,7 +24,13 @@ NOW_EPOCH=$(date +%s)
 AGE=$(( NOW_EPOCH - UPDATED_EPOCH ))
 
 if [ "$AGE" -gt 120 ]; then
-  echo "Disconnected (last seen ${AGE}s ago)"
+  if [ "$AGE" -gt 3600 ]; then
+    echo "Disconnected (last seen $(( AGE / 3600 ))h ago)"
+  elif [ "$AGE" -gt 60 ]; then
+    echo "Disconnected (last seen $(( AGE / 60 ))m ago)"
+  else
+    echo "Disconnected (last seen ${AGE}s ago)"
+  fi
   exit 0
 fi
 
@@ -35,11 +41,11 @@ jq -r '
   # Device info
   "Connected: \($d.deviceName // "unknown")",
 
-  # Location (always show if available)
+  # Location
   (if $d.latitude then
     "Location: \($d.latitude), \($d.longitude) ±\($d.accuracy // "?" | if type == "number" then (. | round | tostring) else . end)m"
   else
-    "Location: unavailable"
+    "Location: unavailable (GPS permission needed or acquiring)"
   end),
 
   # Altitude (only if present and non-zero)
