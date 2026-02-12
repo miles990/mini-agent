@@ -9,6 +9,7 @@ export type AgentEventType =
   | 'trigger:cron'
   | 'trigger:alert'
   | 'trigger:heartbeat'
+  | 'trigger:mobile'
   // Actions（agent 行為）
   | 'action:loop'
   | 'action:chat'

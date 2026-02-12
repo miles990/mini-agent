@@ -49,6 +49,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'chrome': 'chrome',
   'web': 'chrome',
   'telegram-inbox': 'telegram',
+  'mobile': 'workspace',
 };
 
 function getCategory(name: string): string {

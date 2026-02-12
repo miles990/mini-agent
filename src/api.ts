@@ -5,6 +5,8 @@
  */
 
 import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue } from './agent.js';
@@ -841,6 +843,36 @@ export function createApi(port = 3001): express.Express {
       res.sendFile(dashboardPath);
     } else {
       res.status(404).send('Dashboard not found');
+    }
+  });
+
+  // =============================================================================
+  // Mobile Perception (Phase 1)
+  // =============================================================================
+
+  app.post('/api/mobile/sensor', async (req: Request, res: Response) => {
+    const data = req.body;
+
+    if (!data || typeof data !== 'object') {
+      res.status(400).json({ error: 'JSON body required' });
+      return;
+    }
+
+    try {
+      const statePath = path.join(os.homedir(), '.mini-agent', 'mobile-state.json');
+      const stateDir = path.dirname(statePath);
+      if (!fs.existsSync(stateDir)) {
+        await fsPromises.mkdir(stateDir, { recursive: true });
+      }
+
+      const state = { ...data, receivedAt: new Date().toISOString() };
+      await fsPromises.writeFile(statePath, JSON.stringify(state, null, 2));
+      eventBus.emit('trigger:mobile', { data: state });
+
+      res.json({ ok: true });
+    } catch (error) {
+      slog('MOBILE', `Sensor write failed: ${error instanceof Error ? error.message : error}`);
+      res.status(500).json({ error: 'Failed to write sensor data' });
     }
   });
 
