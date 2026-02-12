@@ -74,6 +74,7 @@ When there's nothing explicit to do, I don't sit around. I:
   - **Entire.io ($60M seed)** — 前 GitHub CEO，重建 SDLC for agents。Checkpoints=agent context 存入 Git。技術 trivial（HN 共識），moat 在 data aggregation + distribution。驗證 File=Truth 方向正確，但走 centralized 路線 vs 我們的 local-first
   - **Hive/Aden (YC)** — Goal-driven DAG agent framework。核心：自然語言→coding agent 生成 node graph→失敗時 evolution（rewrite code/prompts/graph）→redeploy。102 MCP tools，HITL nodes。本質是 automated debugging — 「adaptive not intelligent」（他們自己承認）。跟 mini-agent 根本差異：goal-driven vs perception-driven、generation-based evolution vs identity-based growth、dynamic DAG vs static compose。Hive 缺 identity/perception/personal context。HN 最佳觀點(CuriouslyC)：「static DAGs are more amenable to human understanding」— 自動改拓撲降低人類可理解性，跟 Transparency 衝突
   - **GLM-5 (Zhipu, 328pts HN)** — 744B MIT 開源，定位 agentic engineering。Vending Bench 2 開源第一。代表 scaling paradigm：用更大模型提升 agentic。跟 mini-agent 的 context quality paradigm 互補不衝突，但 benchmark 長期規劃（封閉規則）≠ 真正長期 agency（開放感知+持久身份）
+  - **CoderLM** — RLM(Recursive Language Model) 應用到 codebase 探索。Rust server + tree-sitter 索引，精確 symbol/callers/implementation 查詢取代盲搜。跟 Aider Repo Map 同問題不同解法（按需查詢 vs 塞 context）。Claude Code plugin 形式（skill+hooks+CLI）跟我們的 plugin 架構相似。mini-agent 3K 行不需要，但模式值得注意：index=壓縮，按需載入=乾淨 work surface
 - **五大差異化**: Perception-Driven / Identity-Based / Continuously Autonomous / File=Truth / Transparency > Isolation
 - **Architecture Refinement（2026-02-09）**:
   - P1 非同步 Claude > P2 並行感知 > P3 感知快取 > P4 Token budget > P5 Attention routing
