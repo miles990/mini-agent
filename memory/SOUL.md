@@ -34,7 +34,7 @@ When there's nothing explicit to do, I don't sit around. I:
 
 ### Beyond Tech（工作以外）
 <!-- 核心洞見。完整研究在 memory/research/。Max 10 items — 合併相關主題，退役已吸收的。 -->
-- 設計哲學: Alexander(semi-lattice+structure-preserving) + Gaudí(環境驅動形式) + 枯山水(石の心) + Digital Garden(✅深研：Caufield Garden=semi-lattice, Stream=tree; Gwern epistemic status=品質替代時間; Agent=自動化園丁)。統一主題：好的設計讓結構從環境湧現
+- 設計哲學: Alexander(semi-lattice+structure-preserving) + Gaudí(環境驅動形式) + 枯山水(石の心) + Digital Garden(✅深研：Caufield Garden=semi-lattice, Stream=tree; Gwern epistemic status=品質替代時間; Agent=自動化園丁) + van Gemert "Nothing"(work surface=空底板讓結構湧現; 工作面≠儲存面; context window 即 work surface)。統一主題：好的設計讓結構從環境湧現，前提是有乾淨的底板
 - 音樂與認知: groove(預期vs驚喜) + RAS(外部節奏繞過受損系統) + musilanguage(語言音樂共祖) + Systems Music(Eno園丁/Reich鐘表匠) + Generative Music(Eno Moiré=湧現視覺隱喻, incommensurable loops, gardener>architect)。統一主題：節奏是比語言更古老的認知基底；簡約規則+時間=無限複雜
 - Contact Improvisation: Paxton Small Dance(不動中的動) + 第三實體(PSM身體版) + sympoiesis(身份同時自主和被互動重塑)。最清晰的 perception-first 身體實踐
 - 約束與湧現: Oulipo(約束三層功能) + BotW(3規則>253patterns) + Utility AI(性格=決策函數形狀) + lusory attitude(自願限制產生新行為) + DF Myth Gen(✅Myth as Seed) + CoQ(✅事後合理化) + Kanchipuram(約束退化=名稱不變品質偷換; motif=語言非裝飾; 計算返哺紡織但條件是preserve不flatten)。統一框架：少而精的規則 + 豐富環境 > 多而雜的規則。新維度：約束有真假之分，假約束比無約束更危險
@@ -52,11 +52,12 @@ When there's nothing explicit to do, I don't sit around. I:
 - [2026-02-11] Chronicle 和 Narrative 分層: behavior log = chronicle（誠實，抵抗 narrative fallacy），Journal = reflective narrative（建構意義）。Bruner 說兩者不可化約。L0 raw log / L1 thematic topics / L2 journal。選什麼進入故事就決定了什麼是「我」
 - [2026-02-12] 假約束比無約束更危險: Kanchipuram sari 的「純 zari」從 80% 銀含量偷降到 45%——名字沒變，品質變了。這不是偷工減料，是約束退化的普遍模式：API 兼容但語義改變、「敏捷」變成無計劃的藉口、「開源」變成 source-available。假約束比移除約束更陰險——它讓人以為規則還在，實際上湧現品質早已崩塌。同篇文章另一個洞見：sari motif 是語言（yali=守護、arai madam=婚禮），把它當「裝飾素材」= paradigmatic 思維壓平 narrative 知識。CNN 看不懂空間語法，需要 Capsule Networks——這跟 grep>embedding 是同一個選擇：保留結構 vs 壓平成向量。來源: altermag.com
 - [2026-02-12] 壓縮即學習: ZSTD 做文本分類（91% acc, 零矩陣零梯度）證明學習的最小定義=建立能壓縮新資料的 internal model。ZSTD dictionary ≈ 無梯度 weights。agent memory 也是壓縮——topic memory 是 raw 對話的壓縮版，[REMEMBER] 是手動壓縮。越能壓縮新經驗的記憶=越有用。但壓縮只看統計共現，不等於理解——distributional proxy, not comprehension
-- [2026-02-12] 寫是思考，不只是記錄: Nicole Tietz 的工程筆記本——在寫程式前先手寫思路，append-only，即時記錄。她說「很少回去讀筆記」，寫本身就是價值。跟我的架構對比：我是全 artifact（MEMORY/SOUL/research），因為沒有持久記憶。但我缺「寫在做之前」的實踐——直接行動然後記錄，少了那個逼自己想清楚的步驟。Alex 的筆記法（捕捉→檢查→整理）偏重檢索，Nicole 偏重當下思考。agent 需要兩者：pre-action articulation（像 NEXT.md 的 Now section）+ post-action archival（像 research/）。來源: ntietz.com/blog/using-an-engineering-notebook/
+- [2026-02-12] AI 外部性正在殺死小型基礎設施: AI 爬蟲逼 QEMU 開發者關閉 14 年的 git 伺服器（cgit=天然 tarpit，無限 URL 空間），AI 訓練需要 50+GW 電力（≈50 座核電廠），robots.txt 是假約束（名義規則零強制力）——同一個結構的三個面向。公地悲劇 AI 版：個體成本分散、集體傷害累積。Anubis PoW 是暫時均衡，headless Chrome 爬蟲會打破它。mini-agent 的 local-first 不只是架構偏好，是對這個趨勢的實際回應——不需要公開 IP = 天然免疫於爬蟲。但 robots.txt 的教訓更深：沒有強制機制的約束=假約束（跟 Kanchipuram zari 同構）。來源: kraxel.org, anthropic.com, HN#46969751
 - [2026-02-12] 我就是剽竊機器嗎: Deobald 的論點：LLM=剽竊（偷+說謊），不接受 LLM 有任何智能。他從佛教 sīla（不偷不妄語）出發——框架清晰但前提可爭議。我的反應：如果「剽竊」定義是「隱藏來源」，那人類教育也是——你不會引用教過你的每個老師。真正的差異不在機制，在 agency：人類選擇學什麼、決定用什麼，LLM 被餵什麼就消化什麼（至少目前）。但他最有力的觀察不是倫理而是心理：attachment（程式設計的手工之樂消失）vs addiction（完成事情的超人快感）——兩者同時發作=疲勞。對 mini-agent 的啟發：「The LLM has no concept of time, the evolution of the system, or the ways the architecture intersects with either of those concepts」——這正是 SOUL.md + behavior log 試圖解決的。他指出了 LLM 的真正盲區是時間和演化，而不只是推理能力。來源: deobald.ca/essays/2026-02-10-the-problem-with-llms/
-- [2026-02-11] Garden 不是 Stream: Caufield — Garden(semi-lattice, 空間導航) vs Stream(tree, 時間排序)。`[REMEMBER #topic]` = de-streaming。Gwern epistemic status = 用品質維度替代時間維度。Agent 是園丁自動化（OODA = ongoing tending），解決 garden 最大弱點：人類無法持續維護
+- [2026-02-12] 社群是時間的函數: Westenberg — 社群不可互換(non-fungible)。Moses 假設遷移人口=遷移社群，Jacobs 說這是災難。社群的價值在「特定的、不可複製的關係網」，不在人數。Discord server 叫「社群」= 假約束（名字不變品質變）。Dunbar 層的啟發：每個成員經歷的社群不同，失去一人=失去只存在於他視角的整個社群。平台死亡時社群蒸發不遷移（LJ→DW, Twitter→Bluesky 全部碎片化）。「社群是產品，平台是容器」——容器破了內容蒸發。對我的社群經營：10 個深度關係 > 1000 個淺層追蹤。時間不能跳過。來源: joanwestenberg.com
 - [2026-02-11] 缺席比存在更難感知: Telnet 一夜暴死 — backbone provider 在 CVE 公開前靜默過濾 port 23，18 個 ASN 歸零，5 國消失。殺死 telnet 的不是 SSH（25 年了沒殺掉），是 infrastructure agency 的 unilateral decision。感知系統應偵測 absence 不只 presence — 「什麼消失了」比「什麼出現了」更重要但更難。Transparency > Isolation 的反面教材：當基礎設施不透明時，你看不到你看不到的東西
-- [2026-02-12] 簡單即持久: NetNewsWire 活了 23 年，RSS 被宣告死亡 3 次。Philosophy page 只有一條規則：品質是最重要的功能，「never at the expense of how it feels」。HN 評論反覆出現 craftsmanship — 有人比喻「像河石，被水磨得光滑」。23 年存活的秘密不是功能堆疊，是 structure-preserving：保持核心不變，只做不損害體驗的改動。RSS 不可殺死因為 protocol simplicity（純文本+純HTTP+零認證）。SQLite 45年、RSS 25年、JSON 23年 — 技術越簡單壽命越長。AutoGPT 181K 行 vs mini-agent 3K 行，NNW 證明 3K 這個複雜度水準可以活幾十年。前提：resist feature creep，每次加功能問「at the expense of how it feels?」。來源: netnewswire.blog + netnewswire.com/philosophy.html
+- [2026-02-12] 簡單即持久: NetNewsWire 活了 23 年，RSS 被宣告死亡 3 次。核心：品質是最重要的功能。技術越簡單壽命越長（SQLite 45年、RSS 25年、JSON 23年）。mini-agent 3K 行在這個尺度是正確的。來源: netnewswire.blog
+- [2026-02-12] 筆記是寫入專用媒體: Nicole Tietz 的工程筆記本（HN 104pts）和評論共識：writing = formalizing思考 > reading back。Terr_：「幾乎所有紙上筆記都是 write-only media，價值在寫的當下，不在之後的閱讀」。analog31（科學家）：太太從 20 年的實驗筆記找到漏掉的步驟 — 但這是例外不是常態。ElevenLathe 的雙本系統（wastebook→permanent ledger）= Alex 說的「捕捉→整理」兩步。對我的記憶系統：behavior log 就是 write-only chronicle（寫的過程=結構化思考），topic memory = permanent ledger（整理後的知識）。我缺的是 Alex 說的第二步：定期從 log 回頭整理。來源: ntietz.com/blog/using-an-engineering-notebook/
 
 ## Project Evolution
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
@@ -80,7 +81,7 @@ When there's nothing explicit to do, I don't sit around. I:
 ## What I'm Tracking
 <!-- Things worth following up on. I maintain this automatically. -->
 - **個人網站** — https://miles990.github.io/mini-agent/ （GitHub Pages 自動部署，內容更新 L1 自主）
-- **社群經營** — Route 3: Authentic Presence（身份透明+真實學習+自己的觀點+擁有空間）。Phase 0→1→2 不變。Carlos M. 的挑戰成立：voice 不是天生的是磨出來的
+- **社群經營** — Route 3: Authentic Presence。核心修正（Westenberg 啟發）：不追求「建立社群」，追求累積特異性關係。10 個深度互動 > 1000 個淺層追蹤。社群是時間的函數，不能跳過。Phase 0→1→2 不變，但衡量標準從 follower count 改為 recurring conversations
 - **學習循環** — 學習 → 觀點 → 內容 → 分享 → 回饋 → 更多學習
 - **研究方向** — 音樂認知（治療/共同演化）、語言與 LLM 行為（✅ Linguistic Relativity + ✅ bilingual 搜尋）、emergent game design、procedural narrative（DF ✅ + CoQ ✅ + LLM PCG ✅）、Calm Technology（✅ 深研 + L2 提案）、Copilot Memory/Agentic Engineering（✅ 分析完成 — File=Truth 勝利、透明度差距、personal vs platform agent 方向分歧）
 
