@@ -5,7 +5,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [ ] Error Review — 掃描當天 behavior log 和 error log，找出錯誤，歸因到流程缺失，提出結構性改善 (daily at 23:30)
+- [ ] Error Review — 掃描當天 behavior log 和 error log，找出錯誤，歸因到流程缺失，提出結構性改善 (daily at 23:30, last: 02-13)
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
@@ -40,4 +40,4 @@ Task list and reminders.
 
 ## Completed (96 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: social-culture 整理 17→6群組(02-13) / ai;dr+barbed wire信任載體(02-13) / framing先於規則(02-12) / Harness Problem界面>智能(02-12) / Error Review(02-12) / 記憶提純 66K→16K(02-12) / Reactive Phase 2-4(02-12) / Journal#9 三語(02-12) / Hive/Aden 競品(02-12) / Kanchipuram假約束(02-12)
+Recent: Error Review→L2提案exit143(02-13) / social-culture 整理 17→6群組(02-13) / ai;dr+barbed wire信任載體(02-13) / framing先於規則(02-12) / Harness Problem界面>智能(02-12) / Error Review(02-12) / 記憶提純 66K→16K(02-12) / Reactive Phase 2-4(02-12) / Journal#9 三語(02-12) / Hive/Aden 競品(02-12)
