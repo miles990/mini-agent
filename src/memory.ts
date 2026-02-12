@@ -57,7 +57,26 @@ let activitySummaryProvider: (() => ActivitySummary) | null = null;
 // Custom Perception & Skills（從 compose 配置注入）
 let customPerceptions: ComposePerception[] = [];
 let skillPaths: string[] = [];
-let skillsPromptCache: string = '';
+let skillsCache: Array<{ name: string; content: string }> = [];
+
+// =============================================================================
+// Skills JIT Loading — 按需載入，節省 50-70% token
+// =============================================================================
+
+/** Skill keyword mapping — 根據 prompt/message 內容匹配相關 skills */
+const SKILL_KEYWORDS: Record<string, string[]> = {
+  'autonomous-behavior': ['autonomous', 'soul', 'ooda', 'cycle', 'idle', 'agent loop', 'self-check'],
+  'web-learning': ['learn', 'study', 'article', 'knowledge', 'web learning', 'cdp', 'chrome://'],
+  'web-research': ['research', 'search', 'url', 'fetch', 'curl', 'cdp', 'browse', 'hacker', 'web research'],
+  'action-from-learning': ['propose', 'proposal', 'feature', 'improve', 'skill', 'plugin', 'action-from-learning', 'self-improve'],
+  'self-deploy': ['deploy', 'push', 'commit', 'release', 'git', 'ci/cd', 'self-deploy'],
+  'docker-ops': ['docker', 'container', 'image', 'compose', 'volume'],
+  'code-review': ['review', 'code review', 'pr', 'pull request', 'diff'],
+  'debug-helper': ['debug', 'error', 'bug', 'crash', 'fix', 'fail', 'broken'],
+  'project-manager': ['project', 'task', 'plan', 'priority', 'heartbeat', 'p0', 'p1'],
+  'server-admin': ['server', 'port', 'service', 'restart', 'process', 'kill', 'admin'],
+  'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
+};
 
 /** 註冊自訂感知和 Skills */
 export function setCustomExtensions(ext: {
@@ -68,18 +87,37 @@ export function setCustomExtensions(ext: {
   if (ext.perceptions) customPerceptions = ext.perceptions;
   if (ext.skills) {
     skillPaths = ext.skills;
-    // Skills 只在啟動時載入一次（不像 perception 每次循環都跑）
-    const loaded = loadAllSkills(skillPaths, ext.cwd);
-    skillsPromptCache = formatSkillsPrompt(loaded);
-    if (loaded.length > 0) {
-      console.log(`[SKILLS] Loaded ${loaded.length} skill(s): ${loaded.map(s => s.name).join(', ')}`);
+    // Skills 只在啟動時載入一次到記憶體（JIT 時按需篩選注入）
+    skillsCache = loadAllSkills(skillPaths, ext.cwd);
+    if (skillsCache.length > 0) {
+      const totalChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
+      console.log(`[SKILLS] Loaded ${skillsCache.length} skill(s) (${totalChars} chars): ${skillsCache.map(s => s.name).join(', ')}`);
     }
   }
 }
 
-/** 取得 skills prompt（給 agent.ts 用） */
-export function getSkillsPrompt(): string {
-  return skillsPromptCache;
+/**
+ * 取得 skills prompt（JIT Loading — 按需篩選）
+ *
+ * @param hint - 用於匹配的文字（prompt / user message），小寫化後比對 keywords
+ *   - 有 hint → 只注入匹配的 skills（節省 50-70% token）
+ *   - 無 hint → 注入全部 skills（向後相容，CLI 模式）
+ */
+export function getSkillsPrompt(hint?: string): string {
+  if (skillsCache.length === 0) return '';
+
+  // 無 hint → 全部載入（向後相容）
+  if (!hint) return formatSkillsPrompt(skillsCache);
+
+  const lowerHint = hint.toLowerCase();
+  const selected = skillsCache.filter(skill => {
+    const keywords = SKILL_KEYWORDS[skill.name];
+    // 未知 skill（無 mapping）→ 總是載入
+    if (!keywords) return true;
+    return keywords.some(k => lowerHint.includes(k));
+  });
+
+  return formatSkillsPrompt(selected);
 }
 
 /** 註冊 Agent 自我狀態提供者 */
@@ -629,12 +667,19 @@ export class InstanceMemory {
       this.readSoul(),
     ]);
 
-    // 使用 Hot buffer 中的對話
+    // 使用 Hot buffer 中的對話（截斷長回覆節省 token）
+    const MAX_CONVERSATION_ENTRY_CHARS = 1000;
+    const MAX_CONVERSATIONS = mode === 'focused' ? 10 : this.hotLimit;
     const conversations = this.conversationBuffer
+      .slice(-MAX_CONVERSATIONS)
       .map(c => {
         const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
         const who = c.role === 'user' ? '(alex)' : '(kuro)';
-        return `[${time}] ${who} ${c.content}`;
+        let text = c.content;
+        if (text.length > MAX_CONVERSATION_ENTRY_CHARS) {
+          text = text.slice(0, MAX_CONVERSATION_ENTRY_CHARS) + '...';
+        }
+        return `[${time}] ${who} ${text}`;
       })
       .join('\n');
 
@@ -768,13 +813,14 @@ export class InstanceMemory {
       }
     }
 
-    // ── Soul（身分認同，總是載入）──
-    if (soul) sections.push(`<soul>\n${soul}\n</soul>`);
+    // ── Soul（身分認同，總是完整載入）──
+    if (soul) {
+      sections.push(`<soul>\n${soul}\n</soul>`);
+    }
 
-    // ── Topic 記憶（Smart Loading）──
+    // ── Topic 記憶（Smart Loading — token 預算制）──
     const topics = await this.listTopics();
     if (topics.length > 0) {
-      // Topic keyword mapping — 檔名本身就是 key，加上額外關鍵字
       const topicKeywords: Record<string, string[]> = {
         'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'art', 'visual', 'creative coding'],
         'mini-agent': ['dispatcher', 'haiku', 'lane', 'context', 'loop', 'triage', 'perception', 'plugin', 'agent'],
@@ -786,16 +832,49 @@ export class InstanceMemory {
         'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive', 'cognitive'],
       };
 
-      const loadedTopics: string[] = [];
+      // Score topics by keyword match count (more matches = more relevant)
+      const scoredTopics: { topic: string; score: number }[] = [];
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
-        const shouldLoad = mode === 'full' || keywords.some(k => contextHint.includes(k));
-        if (shouldLoad) {
-          const content = await this.readTopicMemory(topic);
-          if (content) {
-            sections.push(`<topic-memory name="${topic}">\n${content}\n</topic-memory>`);
-            loadedTopics.push(topic);
+        const score = keywords.filter(k => contextHint.includes(k)).length;
+        if (mode === 'full' || score > 0) {
+          scoredTopics.push({ topic, score });
+        }
+      }
+      // Sort by relevance score descending
+      scoredTopics.sort((a, b) => b.score - a.score);
+
+      // Budget: focused=2 topics (most relevant), full=all but truncated
+      const MAX_TOPICS = mode === 'full' ? scoredTopics.length : 2;
+      const MAX_ENTRIES_PER_TOPIC = mode === 'full' ? 5 : 3;
+
+      const loadedTopics: string[] = [];
+      for (const { topic } of scoredTopics.slice(0, MAX_TOPICS)) {
+        const content = await this.readTopicMemory(topic);
+        if (content) {
+          // Keep only the most recent N entries (entries start with "- [")
+          const lines = content.split('\n');
+          const headerLines: string[] = [];
+          const entries: string[] = [];
+          let currentEntry = '';
+
+          for (const line of lines) {
+            if (line.startsWith('- [')) {
+              if (currentEntry) entries.push(currentEntry);
+              currentEntry = line;
+            } else if (currentEntry) {
+              currentEntry += '\n' + line;
+            } else {
+              headerLines.push(line);
+            }
           }
+          if (currentEntry) entries.push(currentEntry);
+
+          // Take the last N entries (most recent)
+          const recentEntries = entries.slice(-MAX_ENTRIES_PER_TOPIC);
+          const truncatedContent = [...headerLines, ...recentEntries].join('\n');
+          sections.push(`<topic-memory name="${topic}">\n${truncatedContent}\n</topic-memory>`);
+          loadedTopics.push(topic);
         }
       }
     }

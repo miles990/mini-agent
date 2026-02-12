@@ -68,6 +68,8 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | CDP Client | `scripts/cdp-fetch.mjs` |
 | CDP Interact | `scripts/cdp-interact.mjs` |
 | CDP Screenshot | `scripts/cdp-screenshot.mjs` |
+| Mobile PWA | `mobile.html` |
+| Mobile Plugin | `plugins/mobile-perception.sh` |
 | SOUL | `memory/SOUL.md` |
 | Architecture | `memory/ARCHITECTURE.md` |
 | Proposals | `memory/proposals/` |
@@ -119,7 +121,7 @@ Instance path: `~/.mini-agent/instances/{id}/`
 `node:events` 為基礎的 typed event bus + wildcard pattern 支援。
 
 ```
-trigger:workspace | trigger:telegram | trigger:cron | trigger:alert | trigger:heartbeat
+trigger:workspace | trigger:telegram | trigger:cron | trigger:alert | trigger:heartbeat | trigger:mobile
 action:loop | action:chat | action:memory | action:task | action:show | action:summary | action:handoff
 log:info | log:error | log:behavior
 notification:signal | notification:summary | notification:heartbeat
@@ -139,7 +141,7 @@ loop.ts 和 dispatcher.ts 不再直接呼叫 slog/logBehavior/notify，改為 `e
 
 | Category | Interval | Plugins |
 |----------|----------|---------|
-| workspace | 60s | state-changes, tasks, git-detail |
+| workspace | 60s | state-changes, tasks, git-detail, mobile |
 | chrome | 120s | chrome, web |
 | telegram | event-driven | telegram-inbox |
 | heartbeat | 30min | 其他所有 |
@@ -148,6 +150,27 @@ loop.ts 和 dispatcher.ts 不再直接呼叫 slog/logBehavior/notify，改為 `e
 
 Server-Sent Events 推送 `action:*` + `trigger:*` 事件到 dashboard。
 Dashboard 收到事件後 2s debounce 再 refresh，取代 30s setInterval polling。60s fallback polling 作為備援。
+
+## Mobile Perception（手機感知）
+
+手機作為 Kuro 的身體延伸 — GPS 是方向感、加速度計是前庭系統、相機是眼睛、麥克風是耳朵。
+
+**Phase 1（已完成）**：Sensor data via HTTP POST
+
+```
+Phone PWA (5s POST) → POST /api/mobile/sensor → ~/.mini-agent/mobile-state.json → perception plugin → <mobile> section
+```
+
+- `GET /mobile` — serve `mobile.html`（同源，免 CORS）
+- `POST /api/mobile/sensor` — 接收 sensor JSON，寫入 cache，emit `trigger:mobile`
+- `plugins/mobile-perception.sh` — 讀取 cache，輸出 `<mobile>` section（位置、方向、動作）
+- 認證：走全局 `authMiddleware`（`MINI_AGENT_API_KEY`）
+- Cache: `~/.mini-agent/mobile-state.json`（最新快照）
+
+**未來 Phases**（見 `memory/proposals/2026-02-12-mobile-perception.md`）：
+- Phase 2: Vision（WebSocket + photo cache + Claude Vision）
+- Phase 3: Voice（WebRTC + whisper-small STT + Kyutai Pocket TTS）
+- Phase 4: Multimodal（語音 + 影像同時）
 
 ## 可觀測性（Observability）
 

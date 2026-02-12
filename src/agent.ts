@@ -431,7 +431,7 @@ export async function callClaude(
     rebuildContext?: (mode: 'focused' | 'minimal') => Promise<string>;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {
-  const systemPrompt = getSystemPrompt();
+  const systemPrompt = getSystemPrompt(prompt);
   let currentContext = context;
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 

@@ -22,6 +22,8 @@ Minimal Personal AI Agent with autonomous capabilities:
 18. **Reactive Architecture** - EventBus with typed events, wildcard patterns, and reactive primitives (debounce, throttle, distinctUntilChanged)
 19. **Perception Streams** - Independent per-plugin intervals with change detection — workspace(60s), chrome(120s), telegram(event-driven), heartbeat(30min)
 20. **Dashboard SSE** - Real-time Server-Sent Events push to dashboard, replacing polling with 2s debounced refresh
+21. **Task Lanes** - Unified Dispatcher with Haiku lane (simple) / Claude lane (complex), regex+Haiku triage, automatic fallback
+22. **Mobile Perception** - Phone as physical sensor hub (GPS, gyro, camera, mic) via PWA + HTTP POST — extending the agent's Umwelt to the physical world
 
 ## Architecture
 
@@ -31,6 +33,7 @@ graph TB
         CLI[CLI<br/>Interactive + Pipe]
         API[HTTP API<br/>REST]
         TG[Telegram<br/>Long Poll + Reply]
+        Mobile[Mobile PWA<br/>Sensor + Camera + Voice]
     end
 
     subgraph Core
@@ -67,6 +70,7 @@ graph TB
     CLI --> Compose
     API --> Compose
     TG --> Agent
+    Mobile --> API
     Compose --> Instance
     Instance --> Agent
     Agent --> Memory
@@ -273,6 +277,7 @@ Any language works — Bash, Python, Go binary, etc. As long as it's executable 
 | `disk-usage.sh` | Mount points, home directory top 5, temp files |
 | `git-status.sh` | Branch, remote, uncommitted files, unpushed commits |
 | `homebrew-outdated.sh` | Outdated brew packages |
+| `mobile-perception.sh` | Phone sensor data (GPS, orientation, motion) from mobile-state.json cache |
 
 ## Skills (Markdown Knowledge Modules)
 
@@ -493,7 +498,7 @@ eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: 42 });
 eventBus.on('action:*', (e) => console.log(e.type, e.data)); // wildcard
 ```
 
-Event categories: `trigger:*` (drive loop), `action:*` (agent behavior), `log:*` (observability), `notification:*` (alerts).
+Event categories: `trigger:*` (drive loop, includes `trigger:mobile`), `action:*` (agent behavior), `log:*` (observability), `notification:*` (alerts).
 
 Includes reactive primitives: `debounce(fn, ms)`, `throttle(fn, ms)`, `distinctUntilChanged(hashFn)`.
 
@@ -503,7 +508,7 @@ Each perception plugin runs independently with its own interval and `distinctUnt
 
 | Category | Interval | Plugins |
 |----------|----------|---------|
-| workspace | 60s | state-changes, tasks, git-detail |
+| workspace | 60s | state-changes, tasks, git-detail, mobile |
 | chrome | 120s | chrome, web |
 | telegram | event-driven | telegram-inbox |
 | heartbeat | 30min | all others |
@@ -515,6 +520,31 @@ Centralized event → slog/logBehavior/notify routing (`src/observability.ts`). 
 ### Dashboard SSE
 
 `GET /api/events` streams real-time events to the dashboard via Server-Sent Events. Dashboard receives events, debounces 2s, then refreshes. 60s fallback polling as backup.
+
+### Mobile Perception
+
+Phone as physical sensor hub — the agent's body extension into the physical world.
+
+```
+Phone PWA (5s POST) → POST /api/mobile/sensor → ~/.mini-agent/mobile-state.json → <mobile> section
+```
+
+**Phase 1 (shipped):** GPS + gyro + accel via HTTP POST, zero new dependencies
+- `GET /mobile` — serves `mobile.html` (same-origin, no CORS)
+- `POST /api/mobile/sensor` — receives sensor JSON, writes cache, emits `trigger:mobile`
+- `plugins/mobile-perception.sh` — reads cache, outputs `<mobile>` perception section
+
+**Future phases:** Vision (WebSocket + photo), Voice (WebRTC + local STT/TTS), Multimodal
+
+```xml
+<mobile>
+Connected: Alex's iPhone
+Location: 25.0330, 121.5654 ±10m
+Speed: 1.2 m/s
+Heading: 270°
+Orientation: α=45° β=10° γ=2°
+</mobile>
+```
 
 ## Three-Layer Architecture
 
@@ -638,6 +668,7 @@ Multi-instance `-f` mode uses ANSI colors to distinguish instances.
     └── YYYY-MM-DD.jsonl
 
 ~/.mini-agent/cdp.jsonl              # CDP operation log (fetch/open/extract/close)
+~/.mini-agent/mobile-state.json      # Mobile sensor state cache (latest snapshot)
 ```
 
 ## Unix Pipe Mode
@@ -688,6 +719,8 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 | GET | /health | Health check |
 | GET | /status | Unified status (claude, loop, cron, telegram) |
 | GET | /api/events | SSE stream (real-time action/trigger events) |
+| GET | /mobile | Serve mobile sensor PWA |
+| POST | /api/mobile/sensor | Receive phone sensor data |
 
 ### Tasks & Heartbeat
 
@@ -778,6 +811,7 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 
 ./                              # Project directory
 ├── agent-compose.yaml          # Compose configuration
+├── mobile.html                 # Mobile sensor PWA (phone → agent)
 ├── memory/                     # Project-specific memory
 │   ├── MEMORY.md               # Long-term knowledge
 │   ├── HEARTBEAT.md            # Tasks & reminders

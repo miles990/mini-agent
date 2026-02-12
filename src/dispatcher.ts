@@ -85,7 +85,7 @@ export async function triageMessage(message: string): Promise<TriageDecision> {
 // System Prompt（與 agent.ts 共用邏輯）
 // =============================================================================
 
-export function getSystemPrompt(): string {
+export function getSystemPrompt(relevanceHint?: string): string {
   const instanceId = getCurrentInstanceId();
   const config = loadInstanceConfig(instanceId);
 
@@ -127,7 +127,7 @@ export function getSystemPrompt(): string {
 
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
-${getSkillsPrompt()}`;
+${getSkillsPrompt(relevanceHint)}`;
 }
 
 // =============================================================================
@@ -342,7 +342,7 @@ export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
     const memory = getMemory();
     const contextMode = req.contextMode ?? (req.source === 'loop' ? 'focused' : 'minimal');
     const context = await memory.buildContext({ mode: contextMode });
-    const systemPrompt = getSystemPrompt();
+    const systemPrompt = getSystemPrompt(req.message);
     const { response, duration } = await callHaiku(req.message, context, systemPrompt);
 
     haikuStats.calls++;
