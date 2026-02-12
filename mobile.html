@@ -68,14 +68,17 @@ let sensorState = {};
 let sendInterval = null;
 let sending = false;
 
-// Restore saved config
+// Auto-detect server URL from current page origin, restore saved config
 const saved = localStorage.getItem('kuro-mobile');
+const autoUrl = window.location.origin;
 if (saved) {
   try {
     const cfg = JSON.parse(saved);
-    $('serverUrl').value = cfg.url || '';
+    $('serverUrl').value = cfg.url || autoUrl;
     $('apiKey').value = cfg.key || '';
   } catch {}
+} else {
+  $('serverUrl').value = autoUrl;
 }
 
 function log(msg) {
@@ -93,7 +96,7 @@ function setStatus(ok, text) {
 async function startSensors() {
   const url = $('serverUrl').value.replace(/\/+$/, '');
   const key = $('apiKey').value;
-  if (!url || !key) { log('URL and API Key required'); return; }
+  if (!url) { log('Server URL required'); return; }
 
   localStorage.setItem('kuro-mobile', JSON.stringify({ url, key }));
   $('connectBtn').disabled = true;
@@ -235,10 +238,10 @@ async function sendData(url, key) {
     };
     const res = await fetch(`${url}/api/mobile/sensor`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
-      },
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        key ? { 'Authorization': `Bearer ${key}` } : {}
+      ),
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
     });
