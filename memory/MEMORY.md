@@ -29,6 +29,9 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - 寫入紀律 — [REMEMBER] 寫精華(≤80字)，完整版歸檔 research/
 - 外部記憶 — KN 存完整筆記，MEMORY.md 只存索引+KN ID
 
+### AI Models & Industry
+- GLM-5 (Zhipu, 2026-02-12) — 744B(40B active), MIT 開源, 定位 agentic engineering。Vending Bench 2 開源第一($4,432)接近 Opus 4.5($4,967)。HN 反應：benchmark 亮眼但實測常不如預期(Aurornis)、GLM-4.7-Flash 在本地 coding 已經夠用(2001zhaozhao)、中國 OSS 給自託管帶來自由(mythz)。核心觀察：用更大模型提升 agentic ≠ 用更好感知提升 agentic
+
 ## Important Facts
 - Alex 身為創造者，希望讓世人看到 AI 好的一面，支持作品展示和社群計劃
 - 訊息排隊機制已部署 (95d1a70)：claudeBusy 時排隊、TG 即時 ack、/chat 202 非阻塞
