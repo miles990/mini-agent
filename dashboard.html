@@ -863,6 +863,194 @@
   }
   .loading span { animation: pulse 2s ease-in-out infinite; }
 
+  /* ── Observability ── */
+  .obs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .obs-card,
+  .obs-row {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .obs-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .obs-value {
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--text-bright);
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .obs-value.dim { color: var(--text2); }
+  .obs-value.ok { color: var(--accent); }
+
+  .obs-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .obs-item {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.45;
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+  }
+  .obs-item.warn { border-left-color: var(--yellow); color: var(--text); }
+  .obs-item.err { border-left-color: var(--red); color: var(--text); }
+
+  .obs-decision {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    align-items: start;
+    font-size: 12px;
+    color: var(--text2);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .obs-decision:last-child { border-bottom: none; }
+
+  .obs-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  .obs-mode-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .obs-mode-tag.autonomous { background: var(--accent-dim); color: var(--accent); }
+  .obs-mode-tag.task { background: var(--yellow-dim); color: var(--yellow); }
+
+  /* ── Cognitive Trace ── */
+  .cog-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .cog-filters .divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  .cog-summary {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .cog-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .cog-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .cog-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .cog-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  .cog-route,
+  .cog-mode,
+  .cog-score {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .cog-route.autonomous { background: var(--accent-dim); color: var(--accent); }
+  .cog-route.task { background: var(--yellow-dim); color: var(--yellow); }
+  .cog-mode { background: var(--surface3); color: var(--text2); }
+  .cog-score { background: var(--blue-dim); color: var(--blue); }
+
+  .cog-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cog-block {
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+
+  .cog-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cog-text {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .cog-text.empty { color: var(--text3); font-style: italic; }
+
+  .cog-sources a {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue);
+    text-decoration: none;
+    display: inline-block;
+    margin-right: 10px;
+    margin-bottom: 2px;
+    word-break: break-all;
+  }
+  .cog-sources a:hover { text-decoration: underline; }
+
   /* ── Scroll to Top ── */
   .scroll-top {
     position: fixed;
@@ -890,6 +1078,8 @@
     .container { padding: 16px; }
     .status-grid { grid-template-columns: repeat(2, 1fr); }
     .status-grid > :last-child { grid-column: span 2; }
+    .obs-grid { grid-template-columns: repeat(2, 1fr); }
+    .cog-grid { grid-template-columns: 1fr; }
     .stat-value { font-size: 18px; }
     .timeline { padding-left: 80px; }
     .timeline::before { left: 69px; }
@@ -911,6 +1101,7 @@
   .section:nth-child(3) { animation-delay: 0.1s; }
   .section:nth-child(4) { animation-delay: 0.15s; }
   .section:nth-child(5) { animation-delay: 0.2s; }
+  .section:nth-child(6) { animation-delay: 0.25s; }
 </style>
 </head>
 <body>
@@ -953,6 +1144,69 @@
       <div class="stat-label">Behaviors</div>
       <div class="stat-value" id="behaviorCount">--</div>
       <div class="stat-detail" id="behaviorBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- Observability -->
+  <div class="section" id="observabilitySection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9881;</span> Observability</div>
+      <span class="section-count" id="obsUpdatedAt">--</span>
+    </div>
+    <div class="obs-grid">
+      <div class="obs-card">
+        <div class="obs-label">Execution</div>
+        <div class="obs-value" id="obsExecution">--</div>
+      </div>
+      <div class="obs-card">
+        <div class="obs-label">Next Loop</div>
+        <div class="obs-value" id="obsNextLoop">--</div>
+      </div>
+      <div class="obs-card">
+        <div class="obs-label">Cycle Age</div>
+        <div class="obs-value dim" id="obsCycleAge">--</div>
+      </div>
+      <div class="obs-card">
+        <div class="obs-label">Learning Metrics</div>
+        <div class="obs-value dim" id="obsLearning">--</div>
+      </div>
+    </div>
+    <div class="obs-row" style="margin-bottom:10px;">
+      <div class="obs-label">Alerts</div>
+      <div class="obs-list" id="obsAlerts">
+        <div class="obs-item">--</div>
+      </div>
+    </div>
+    <div class="obs-row">
+      <div class="obs-label">Recent Decisions</div>
+      <div id="obsDecisions">
+        <div class="obs-item">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cognitive Trace -->
+  <div class="section" id="cognitionSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9787;</span> Cognitive Trace</div>
+      <span class="section-count" id="cognitionCount">--</span>
+    </div>
+    <div class="cog-filters">
+      <button class="filter-chip active" data-cog-route="all">All Routes</button>
+      <button class="filter-chip" data-cog-route="autonomous">Autonomous</button>
+      <button class="filter-chip" data-cog-route="task">Task</button>
+      <div class="divider"></div>
+      <button class="filter-chip active" data-cog-mode="all">All Modes</button>
+      <button class="filter-chip" data-cog-mode="chat">Chat</button>
+      <button class="filter-chip" data-cog-mode="reflect">Reflect</button>
+      <button class="filter-chip" data-cog-mode="learn-personal">Learn-Personal</button>
+      <button class="filter-chip" data-cog-mode="learn-project">Learn-Project</button>
+      <button class="filter-chip" data-cog-mode="act-on-learning">Act-on-Learning</button>
+      <button class="filter-chip" data-cog-mode="organize">Organize</button>
+    </div>
+    <div class="cog-summary" id="cognitionSummary">--</div>
+    <div class="cog-list" id="cognitionContent">
+      <div class="loading"><span>Loading...</span></div>
     </div>
   </div>
 
@@ -1032,6 +1286,10 @@ let lastUpdate = null;
 let allBehaviors = [];
 let allJournalEntries = [];
 let currentJournalCat = 'all';
+let cognitionEntries = [];
+let cognitionStats = null;
+let currentCognitionRoute = 'all';
+let currentCognitionMode = 'all';
 
 // Init
 document.getElementById('dateInput').value = currentDate;
@@ -1065,6 +1323,24 @@ document.querySelectorAll('.filter-chip[data-view]').forEach(btn => {
   });
 });
 
+document.querySelectorAll('.filter-chip[data-cog-route]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip[data-cog-route]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCognitionRoute = btn.dataset.cogRoute;
+    renderCognition();
+  });
+});
+
+document.querySelectorAll('.filter-chip[data-cog-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip[data-cog-mode]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCognitionMode = btn.dataset.cogMode;
+    renderCognition();
+  });
+});
+
 document.getElementById('dateInput').addEventListener('change', (e) => {
   currentDate = e.target.value;
   fetchAll();
@@ -1091,6 +1367,40 @@ function formatUptime(seconds) {
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatDurationShort(sec) {
+  if (!Number.isFinite(sec) || sec < 0) return '--';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
+function formatAge(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '--';
+  const sec = Math.floor(ms / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
+function extractLatestMetrics(entries) {
+  const metric = (entries || []).find(e => e?.data?.action === 'loop.metrics');
+  if (!metric || !metric.data || !metric.data.detail) return null;
+  const detail = String(metric.data.detail);
+  const m = detail.match(/ratio=([0-9]+:[0-9]+)\s+remember=([0-9]+)\s+repeat=([^\s]+)\s+\(A:([0-9]+)\s+T:([0-9]+)\)/);
+  if (!m) return null;
+  return {
+    ratio: m[1],
+    remember: Number(m[2]),
+    repeat: m[3],
+    autonomous: Number(m[4]),
+    task: Number(m[5]),
+  };
 }
 
 function classifyAction(action) {
@@ -1120,14 +1430,15 @@ function formatMarkdown(str) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
       fetch(API + '/api/dashboard/journal?date=' + currentDate),
+      fetch(API + '/api/dashboard/cognition?date=' + currentDate + '&limit=300'),
     ]);
 
-    for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
+    for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes], ['cognition', cognitionRes]]) {
       if (!res.ok) throw new Error(name + ' API returned ' + res.status);
     }
 
@@ -1135,16 +1446,22 @@ async function fetchAll() {
     const behaviors = await behaviorsRes.json();
     const learning = await learningRes.json();
     const journal = await journalRes.json();
+    const cognition = await cognitionRes.json();
 
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
     renderLearning(learning.entries || []);
     renderJournal(allJournalEntries);
+    cognitionEntries = cognition.entries || [];
+    cognitionStats = cognition.stats || null;
+    renderCognition();
     render();
+    updateObservability(status, allBehaviors);
 
     lastUpdate = new Date();
     document.getElementById('refreshInfo').textContent = formatTime(lastUpdate.toISOString());
+    document.getElementById('obsUpdatedAt').textContent = 'updated ' + formatTime(lastUpdate.toISOString());
     document.getElementById('statusDot').className = 'status-dot ok';
   } catch (err) {
     console.error('Fetch error:', err);
@@ -1178,9 +1495,11 @@ function updateStatus(s) {
   const loopEl = document.getElementById('loopStatus');
   const loopDetail = document.getElementById('loopDetail');
   if (s.loop.enabled) {
-    loopEl.textContent = s.loop.paused ? 'Paused' : 'Active';
-    loopEl.className = 'stat-value ' + (s.loop.paused ? 'yellow' : 'green');
-    loopDetail.textContent = '#' + (s.loop.cycleCount || 0);
+    const mode = (s.loop.mode || 'idle').toUpperCase();
+    loopEl.textContent = s.loop.paused ? 'PAUSED' : mode;
+    const color = s.loop.paused ? 'yellow' : (s.loop.mode === 'idle' ? '' : 'green');
+    loopEl.className = 'stat-value ' + color;
+    loopDetail.textContent = '#' + (s.loop.cycleCount || 0) + ' · ' + formatDurationShort((s.loop.currentInterval || 0) / 1000);
   } else {
     loopEl.textContent = 'Off';
     loopEl.className = 'stat-value';
@@ -1202,6 +1521,178 @@ function updateStatus(s) {
   }
 
   renderTaskSection(s.claude);
+}
+
+function updateObservability(status, behaviors) {
+  const executionEl = document.getElementById('obsExecution');
+  const nextLoopEl = document.getElementById('obsNextLoop');
+  const cycleAgeEl = document.getElementById('obsCycleAge');
+  const learningEl = document.getElementById('obsLearning');
+  const alertsEl = document.getElementById('obsAlerts');
+  const decisionsEl = document.getElementById('obsDecisions');
+
+  const loop = status.loop || {};
+  const mode = String(loop.mode || 'idle');
+  const provider = status.provider?.primary || '--';
+  executionEl.textContent = mode.toUpperCase() + ' · ' + provider;
+  executionEl.className = 'obs-value ' + (mode === 'idle' ? 'dim' : 'ok');
+
+  const now = Date.now();
+  let nextInSec = null;
+  if (loop.nextCycleAt) {
+    const nextMs = new Date(loop.nextCycleAt).getTime() - now;
+    nextInSec = Math.max(0, Math.floor(nextMs / 1000));
+    nextLoopEl.textContent = formatDurationShort(nextInSec);
+  } else {
+    nextLoopEl.textContent = '--';
+  }
+  nextLoopEl.className = 'obs-value ' + (mode === 'idle' ? 'dim' : '');
+
+  let cycleAgeMs = null;
+  if (loop.lastCycleAt) {
+    cycleAgeMs = now - new Date(loop.lastCycleAt).getTime();
+    cycleAgeEl.textContent = formatAge(cycleAgeMs);
+  } else {
+    cycleAgeEl.textContent = '--';
+  }
+
+  const latestMetrics = extractLatestMetrics(behaviors);
+  if (latestMetrics) {
+    learningEl.textContent = 'ratio ' + latestMetrics.ratio + ' · remember ' + latestMetrics.remember + ' · repeat ' + latestMetrics.repeat;
+    learningEl.className = 'obs-value';
+  } else {
+    learningEl.textContent = 'no metrics yet';
+    learningEl.className = 'obs-value dim';
+  }
+
+  const alerts = [];
+  const intervalMs = Number(loop.currentInterval || 0);
+  if (loop.enabled && loop.running && cycleAgeMs != null && intervalMs > 0) {
+    if (cycleAgeMs > intervalMs * 2 + 30000) {
+      alerts.push({ level: 'warn', text: 'Loop heartbeat delayed: last cycle ' + formatAge(cycleAgeMs) + ' ago' });
+    }
+  }
+  if (status.claude?.busy && status.claude?.currentTask?.elapsed > 180) {
+    alerts.push({ level: 'warn', text: 'Long-running task: ' + formatDurationShort(status.claude.currentTask.elapsed) });
+  }
+  if (status.claude?.queue?.size > 3) {
+    alerts.push({ level: 'warn', text: 'Queue backlog: ' + status.claude.queue.size + ' pending' });
+  }
+  if (latestMetrics && latestMetrics.repeat.endsWith('%')) {
+    const repeat = parseFloat(latestMetrics.repeat.slice(0, -1));
+    if (Number.isFinite(repeat) && repeat >= 60) {
+      alerts.push({ level: 'err', text: 'High repetition risk: ' + latestMetrics.repeat });
+    }
+  }
+
+  if (alerts.length === 0) {
+    alertsEl.innerHTML = '<div class="obs-item">No active alerts</div>';
+  } else {
+    alertsEl.innerHTML = alerts.map(a => '<div class="obs-item ' + a.level + '">' + escapeHtml(a.text) + '</div>').join('');
+  }
+
+  const decisions = (behaviors || [])
+    .filter(e => e?.data?.action === 'action.autonomous' || e?.data?.action === 'action.task')
+    .slice(0, 5);
+
+  if (decisions.length === 0) {
+    decisionsEl.innerHTML = '<div class="obs-item">No decisions yet</div>';
+    return;
+  }
+
+  let decisionsHtml = '';
+  for (const d of decisions) {
+    const action = d.data.action === 'action.autonomous' ? 'autonomous' : 'task';
+    const raw = String(d.data.detail || '').replace(/\s+/g, ' ').trim();
+    const text = raw.length > 180 ? raw.slice(0, 180) + '...' : raw;
+    decisionsHtml += '<div class="obs-decision">';
+    decisionsHtml += '  <div class="obs-time">' + formatTime(d.timestamp) + '</div>';
+    decisionsHtml += '  <div><span class="obs-mode-tag ' + action + '">' + action + '</span>' + escapeHtml(text || '(no detail)') + '</div>';
+    decisionsHtml += '</div>';
+  }
+  decisionsEl.innerHTML = decisionsHtml;
+}
+
+function renderCognition() {
+  const container = document.getElementById('cognitionContent');
+  const countEl = document.getElementById('cognitionCount');
+  const summaryEl = document.getElementById('cognitionSummary');
+
+  const base = cognitionEntries || [];
+  const filtered = base.filter(e => {
+    if (currentCognitionRoute !== 'all' && e.route !== currentCognitionRoute) return false;
+    if (currentCognitionMode !== 'all' && (e.modeTag || 'unknown') !== currentCognitionMode) return false;
+    return true;
+  });
+
+  countEl.textContent = filtered.length + ' / ' + base.length;
+
+  if (cognitionStats) {
+    summaryEl.textContent =
+      'auto:' + cognitionStats.autonomous +
+      '  task:' + cognitionStats.task +
+      '  withWhy:' + cognitionStats.withWhy +
+      '  withThinking:' + cognitionStats.withThinking +
+      '  withVerified:' + cognitionStats.withVerified +
+      '  avgScore:' + cognitionStats.avgObservabilityScore;
+  } else {
+    summaryEl.textContent = '--';
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state">No cognitive traces for this filter/date.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const e of filtered.slice(0, 60)) {
+    const score = Number(e.observabilityScore || 0);
+    const mode = escapeHtml(e.modeTag || 'unknown');
+    const what = e.what || e.changed || '';
+    const learning = [e.verified, e.next].filter(Boolean).join('\n');
+
+    html += '<div class="cog-card">';
+    html += '  <div class="cog-meta">';
+    html += '    <span class="cog-time">' + formatTime(e.timestamp) + '</span>';
+    html += '    <span class="cog-route ' + e.route + '">' + e.route + '</span>';
+    html += '    <span class="cog-mode">' + mode + '</span>';
+    html += '    <span class="cog-score">score ' + score + '/5</span>';
+    html += '  </div>';
+    html += '  <div class="cog-grid">';
+
+    html += '    <div class="cog-block">';
+    html += '      <div class="cog-label">Motivation</div>';
+    html += '      <div class="cog-text' + (e.why ? '' : ' empty') + '">' + (e.why ? formatMarkdown(e.why) : 'missing why') + '</div>';
+    html += '    </div>';
+
+    html += '    <div class="cog-block">';
+    html += '      <div class="cog-label">Thinking</div>';
+    html += '      <div class="cog-text' + (e.thinking ? '' : ' empty') + '">' + (e.thinking ? formatMarkdown(e.thinking) : 'missing thinking') + '</div>';
+    html += '    </div>';
+
+    html += '    <div class="cog-block">';
+    html += '      <div class="cog-label">Action</div>';
+    html += '      <div class="cog-text' + (what ? '' : ' empty') + '">' + (what ? formatMarkdown(what) : 'missing action detail') + '</div>';
+    html += '    </div>';
+
+    html += '    <div class="cog-block">';
+    html += '      <div class="cog-label">Learning</div>';
+    html += '      <div class="cog-text' + (learning ? '' : ' empty') + '">' + (learning ? formatMarkdown(learning) : 'missing verification/next') + '</div>';
+    if (e.sources && e.sources.length > 0) {
+      html += '      <div class="cog-sources">';
+      for (const url of e.sources) {
+        const display = String(url).replace(/^https?:\/\//, '').slice(0, 80);
+        html += '      <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(display) + '</a>';
+      }
+      html += '      </div>';
+    }
+    html += '    </div>';
+
+    html += '  </div>';
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
 }
 
 // ── Task Section ──

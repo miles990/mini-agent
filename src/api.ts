@@ -30,7 +30,7 @@ import {
   listInstances,
   getCurrentInstanceId,
 } from './instance.js';
-import { getLogger, type LogType } from './logging.js';
+import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, stopCronTasks } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
@@ -139,6 +139,22 @@ interface JournalEntry {
   category: 'learning' | 'action' | 'issue' | 'lesson';
 }
 
+interface CognitionEntry {
+  timestamp: string;
+  actor: 'agent' | 'user' | 'system';
+  route: 'autonomous' | 'task';
+  modeTag: string | null;
+  what: string;
+  why: string;
+  thinking: string;
+  changed: string;
+  verified: string;
+  next: string;
+  sources: string[];
+  full: string;
+  observabilityScore: number;
+}
+
 function parseEntry(raw: string, topic: string, filterDate: string, entries: JournalEntry[]): void {
   // Extract date: "- [YYYY-MM-DD] Title — content"
   const dateMatch = raw.match(/^- \[(\d{4}-\d{2}-\d{2})\]\s*/);
@@ -215,6 +231,75 @@ function parseEntry(raw: string, topic: string, filterDate: string, entries: Jou
   entries.push({ topic, date: entryDate, title, summary, opinion, urls, category });
 }
 
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function pickSection(detail: string, labels: string[]): string {
+  for (const label of labels) {
+    const escaped = escapeRegex(label);
+
+    // Markdown style: **What**: ...
+    const md = new RegExp(`\\*\\*${escaped}\\*\\*:\\s*([\\s\\S]*?)(?=\\n\\*\\*[A-Za-z][A-Za-z\\s-]{1,24}\\*\\*:|$)`, 'i');
+    const mdMatch = detail.match(md);
+    if (mdMatch?.[1]?.trim()) return mdMatch[1].trim();
+
+    // Plain style: What: ...
+    const plain = new RegExp(`(?:^|\\n)\\s*${escaped}:\\s*([\\s\\S]*?)(?=\\n[A-Za-z][A-Za-z\\s-]{1,24}:|$)`, 'i');
+    const plainMatch = detail.match(plain);
+    if (plainMatch?.[1]?.trim()) return plainMatch[1].trim();
+  }
+  return '';
+}
+
+function parseSources(detail: string): string[] {
+  const found = new Set<string>();
+  for (const m of detail.matchAll(/https?:\/\/[^\s)>\]]+/g)) {
+    found.add(m[0]);
+  }
+  const sourceLine = pickSection(detail, ['Source', 'Sources', '來源']);
+  for (const m of sourceLine.matchAll(/https?:\/\/[^\s)>\],]+/g)) {
+    found.add(m[0]);
+  }
+  return Array.from(found);
+}
+
+function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
+  const action = entry.data.action;
+  if (action !== 'action.autonomous' && action !== 'action.task') return null;
+
+  const full = entry.data.detail || '';
+  const modeTagMatch = full.match(/^\s*\[([a-z0-9-]+)\]/i);
+  const modeTag = modeTagMatch?.[1]?.toLowerCase() ?? null;
+  const route: 'autonomous' | 'task' = action === 'action.autonomous' ? 'autonomous' : 'task';
+
+  const what = pickSection(full, ['What']);
+  const why = pickSection(full, ['Why']);
+  const thinking = pickSection(full, ['Thinking']);
+  const changed = pickSection(full, ['Changed']);
+  const verified = pickSection(full, ['Verified']);
+  const next = pickSection(full, ['Next']);
+  const sources = parseSources(full);
+
+  const observabilityScore = [what, why, thinking, changed, verified].filter(Boolean).length;
+
+  return {
+    timestamp: entry.timestamp,
+    actor: entry.data.actor,
+    route,
+    modeTag,
+    what,
+    why,
+    thinking,
+    changed,
+    verified,
+    next,
+    sources,
+    full,
+    observabilityScore,
+  };
+}
+
 export function createApi(port = 3001): express.Express {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
@@ -233,7 +318,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/events']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/events']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -766,26 +851,19 @@ export function createApi(port = 3001): express.Express {
     const date = req.query.date as string || undefined;
     const entries = logger.queryBehaviorLogs(date, 500);
 
-    // 過濾出學習/行動相關的 behavior（action.task / action.autonomous / loop.cycle.end）
-    const learningEntries = entries.filter(e => {
-      const action = e.data.action;
-      const detail = e.data.detail || '';
-      return (action === 'action.task' || action === 'action.autonomous') && detail.includes('**What**:');
-    });
-
-    // 解析結構化內容
-    const digest = learningEntries.map(e => {
-      const detail = e.data.detail || '';
-      const what = detail.match(/\*\*What\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
-      const why = detail.match(/\*\*Why\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
-      const changed = (detail.match(/\*\*Changed\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim())
-        || (detail.match(/\*\*Changed\*\*:\s*\n([\s\S]*?)(?:\*\*Verified|$)/)?.[1]?.trim())
-        || '';
-      const verified = detail.match(/\*\*Verified\*\*:\s*(.+?)(?:\n|$)/)?.[1]?.trim() || '';
-      // 提取所有 URL
-      const urls = [...detail.matchAll(/https?:\/\/[^\s)>\]]+/g)].map(m => m[0]);
-      return { timestamp: e.timestamp, what, why, changed, verified, urls, full: detail };
-    });
+    const digest = entries
+      .map(parseCognitionEntry)
+      .filter((e): e is CognitionEntry => e !== null)
+      .map(e => ({
+        timestamp: e.timestamp,
+        what: e.what || e.changed || '',
+        why: e.why,
+        changed: e.changed,
+        verified: e.verified,
+        urls: e.sources,
+        full: e.full,
+      }))
+      .filter(e => !!e.what || !!e.why || !!e.changed || !!e.verified);
 
     res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
   });
@@ -839,6 +917,47 @@ export function createApi(port = 3001): express.Express {
     }
 
     res.json({ entries, count: entries.length, date: date ?? new Date().toISOString().split('T')[0] });
+  });
+
+  // Cognition API — 解析 agent 的動機/思考/行動/驗證鏈路
+  app.get('/api/dashboard/cognition', (req: Request, res: Response) => {
+    const logger = getLogger();
+    const date = req.query.date as string || undefined;
+    const limit = Math.min(parseInt(req.query.limit as string || '200', 10), 500);
+    const route = req.query.route as string || 'all';
+    const mode = (req.query.mode as string || 'all').toLowerCase();
+
+    const rawEntries = logger.queryBehaviorLogs(date, limit);
+    let entries = rawEntries
+      .map(parseCognitionEntry)
+      .filter((e): e is CognitionEntry => e !== null);
+
+    if (route === 'autonomous' || route === 'task') {
+      entries = entries.filter(e => e.route === route);
+    }
+    if (mode !== 'all') {
+      entries = entries.filter(e => e.modeTag === mode);
+    }
+
+    const stats = {
+      total: entries.length,
+      autonomous: entries.filter(e => e.route === 'autonomous').length,
+      task: entries.filter(e => e.route === 'task').length,
+      withWhy: entries.filter(e => !!e.why).length,
+      withThinking: entries.filter(e => !!e.thinking).length,
+      withVerified: entries.filter(e => !!e.verified).length,
+      avgObservabilityScore: entries.length > 0
+        ? Number((entries.reduce((sum, e) => sum + e.observabilityScore, 0) / entries.length).toFixed(2))
+        : 0,
+    };
+
+    res.json({
+      entries,
+      stats,
+      count: entries.length,
+      date: date ?? new Date().toISOString().split('T')[0],
+      filters: { route, mode, limit },
+    });
   });
 
   // Dashboard HTML — 靜態頁面
