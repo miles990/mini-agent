@@ -953,6 +953,10 @@ Most AI agent frameworks are **goal-driven** — "give me a goal, I'll execute i
 
 Everything else is optional complexity.
 
+## Contributing
+
+Contributions are welcome. Start with `CONTRIBUTING.md` for workflow, coding standards, and verification steps.
+
 ## Requirements
 
 - Node.js 20+

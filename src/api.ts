@@ -21,6 +21,7 @@ import {
   addTask,
   createMemory,
   getMemory,
+  getCapabilitiesSnapshot,
 } from './memory.js';
 import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
 import {
@@ -318,7 +319,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/events']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/events']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -958,6 +959,12 @@ export function createApi(port = 3001): express.Express {
       date: date ?? new Date().toISOString().split('T')[0],
       filters: { route, mode, limit },
     });
+  });
+
+  // Capability snapshot API — skills/plugins/provider/tool readiness + tool-use stats
+  app.get('/api/dashboard/capabilities', async (_req: Request, res: Response) => {
+    const snapshot = await getCapabilitiesSnapshot();
+    res.json(snapshot);
   });
 
   // Dashboard HTML — 靜態頁面

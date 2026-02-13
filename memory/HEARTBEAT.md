@@ -34,11 +34,11 @@ Task list and reminders.
 - [x] Lighthouse 自動化 — plugin + cache 架構完成 (2026-02-11)
 - [x] Reactive Architecture Phase 1 — context hash skip + perception enabled flag (2026-02-12)
 - [x] Reactive Architecture Phase 2-4 — event bus + observability + SSE dashboard + perception stream (2026-02-12)
-- [ ] 視覺感知 — CDP 截圖 + 視覺對比的應用場景
+- [x] 視覺感知 — CDP 截圖 + 視覺對比的應用場景（done: 2026-02-13；`memory/artifacts/cdp-dashboard-2026-02-13-153122.png` vs `memory/artifacts/cdp-dashboard-2026-02-13.png`）
 
 ## Scheduled Tasks
 
 
-## Completed (96 items total)
+## Completed (97 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
 Recent: Pattern Language批判性觀點整理(02-13) / Error Review→L2提案exit143(02-13) / social-culture 整理 17→6群組(02-13) / ai;dr+barbed wire信任載體(02-13) / framing先於規則(02-12) / Harness Problem界面>智能(02-12) / Error Review(02-12) / 記憶提純 66K→16K(02-12) / Reactive Phase 2-4(02-12) / Journal#9 三語(02-12)

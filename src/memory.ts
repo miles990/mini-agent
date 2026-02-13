@@ -11,6 +11,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
   getInstanceDir,
@@ -33,7 +34,7 @@ import type {
   ActivitySummary,
 } from './workspace.js';
 import { getTelegramPoller, getNotificationStats } from './telegram.js';
-import { getQueueStatus } from './agent.js';
+import { getQueueStatus, getProvider, getFallback } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
@@ -58,6 +59,30 @@ let activitySummaryProvider: (() => ActivitySummary) | null = null;
 let customPerceptions: ComposePerception[] = [];
 let skillPaths: string[] = [];
 let skillsCache: Array<{ name: string; content: string }> = [];
+
+// Tool availability changes rarely; cache it in-process.
+let toolAvailabilityCache: { checkedAt: number; values: Record<string, boolean> } | null = null;
+
+export interface CapabilitiesSnapshot {
+  provider: { primary: string; fallback: string | null };
+  skills: { count: number; names: string[] };
+  plugins: { count: number; names: string[] };
+  tools: {
+    availability: Record<string, boolean>;
+    readyCount: number;
+    total: number;
+  };
+  toolUseToday: {
+    totalCalls: number;
+    webFetchCount: number;
+    byTool: Record<string, number>;
+    topTools: Array<{ name: string; count: number }>;
+  };
+  readiness: {
+    score: number;
+    level: 'low' | 'medium' | 'high';
+  };
+}
 
 // =============================================================================
 // Skills JIT Loading — 按需載入，節省 50-70% token
@@ -118,6 +143,136 @@ export function getSkillsPrompt(hint?: string): string {
   });
 
   return formatSkillsPrompt(selected);
+}
+
+function commandExists(cmd: string): boolean {
+  try {
+    execFileSync('which', [cmd], { stdio: 'ignore', timeout: 1500 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getToolAvailability(): Record<string, boolean> {
+  const now = Date.now();
+  if (toolAvailabilityCache && now - toolAvailabilityCache.checkedAt < 300_000) {
+    return toolAvailabilityCache.values;
+  }
+
+  const availability: Record<string, boolean> = {
+    claude: commandExists('claude'),
+    codex: commandExists('codex'),
+    curl: commandExists('curl'),
+    git: commandExists('git'),
+    node: commandExists('node'),
+    docker: commandExists('docker'),
+  };
+
+  toolAvailabilityCache = { checkedAt: now, values: availability };
+  return availability;
+}
+
+function isWebFetch(tool: string, input: Record<string, unknown>): boolean {
+  const name = tool.toLowerCase();
+  if (name.includes('web') || name.includes('fetch') || name.includes('browser') || name.includes('http')) {
+    return true;
+  }
+  const cmd = String(input.command ?? '');
+  const url = String(input.url ?? '');
+  const pattern = `${cmd}\n${url}`.toLowerCase();
+  return pattern.includes('http://')
+    || pattern.includes('https://')
+    || pattern.includes('curl ')
+    || pattern.includes('wget ');
+}
+
+async function readToolUseToday(instanceId: string): Promise<CapabilitiesSnapshot['toolUseToday']> {
+  const today = new Date().toISOString().slice(0, 10);
+  const auditPath = path.join(getInstanceDir(instanceId), 'logs', 'audit', `${today}.jsonl`);
+
+  try {
+    const raw = await fs.readFile(auditPath, 'utf-8');
+    const lines = raw.split('\n').filter(l => l.trim());
+
+    const byTool: Record<string, number> = {};
+    let webFetchCount = 0;
+    let totalCalls = 0;
+
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line) as { tool?: string; input?: Record<string, unknown> };
+        const tool = entry.tool || 'unknown';
+        byTool[tool] = (byTool[tool] || 0) + 1;
+        totalCalls++;
+        if (isWebFetch(tool, entry.input ?? {})) {
+          webFetchCount++;
+        }
+      } catch {
+        // skip malformed line
+      }
+    }
+
+    const topTools = Object.entries(byTool)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, count]) => ({ name, count }));
+
+    return { totalCalls, webFetchCount, byTool, topTools };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      diagLog('memory.readToolUseToday', error, { auditPath });
+    }
+    return { totalCalls: 0, webFetchCount: 0, byTool: {}, topTools: [] };
+  }
+}
+
+function formatCapabilitiesContext(cap: CapabilitiesSnapshot): string {
+  const lines: string[] = [];
+  lines.push(`Provider: primary=${cap.provider.primary}${cap.provider.fallback ? ` fallback=${cap.provider.fallback}` : ''}`);
+  lines.push(`Skills (${cap.skills.count}): ${cap.skills.names.join(', ') || 'none'}`);
+  lines.push(`Enabled plugins (${cap.plugins.count}): ${cap.plugins.names.join(', ') || 'none'}`);
+
+  const toolSummary = Object.entries(cap.tools.availability)
+    .map(([name, ok]) => `${name}:${ok ? 'yes' : 'no'}`)
+    .join(', ');
+  lines.push(`Tool availability: ${toolSummary}`);
+  lines.push(`Capability readiness: ${cap.readiness.score}% (${cap.readiness.level}) [${cap.tools.readyCount}/${cap.tools.total} tools ready]`);
+
+  lines.push(`Tool use today: total=${cap.toolUseToday.totalCalls}, webFetch=${cap.toolUseToday.webFetchCount}`);
+  if (cap.toolUseToday.topTools.length > 0) {
+    const top = cap.toolUseToday.topTools.map(t => `${t.name}(${t.count})`).join(', ');
+    lines.push(`Top tools: ${top}`);
+  }
+  return lines.join('\n');
+}
+
+export async function getCapabilitiesSnapshot(instanceId = getCurrentInstanceId()): Promise<CapabilitiesSnapshot> {
+  const skillNames = skillsCache.map(s => s.name);
+  const pluginNames = customPerceptions
+    .filter(p => p.enabled !== false)
+    .map(p => p.name);
+
+  const availability = getToolAvailability();
+  const total = Object.keys(availability).length;
+  const readyCount = Object.values(availability).filter(Boolean).length;
+  const score = total > 0 ? Math.round((readyCount / total) * 100) : 0;
+  const level: 'low' | 'medium' | 'high' = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+
+  const toolUseToday = await readToolUseToday(instanceId);
+
+  return {
+    provider: { primary: getProvider(), fallback: getFallback() },
+    skills: { count: skillNames.length, names: skillNames },
+    plugins: { count: pluginNames.length, names: pluginNames },
+    tools: {
+      availability,
+      readyCount,
+      total,
+    },
+    toolUseToday,
+    readiness: { score, level },
+  };
 }
 
 /** 註冊 Agent 自我狀態提供者 */
@@ -717,6 +872,10 @@ export class InstanceMemory {
       const selfCtx = formatSelfStatus(selfStatus);
       if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
     }
+
+    const capabilities = await getCapabilitiesSnapshot(this.instanceId);
+    const capabilitiesCtx = formatCapabilitiesContext(capabilities);
+    if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
 
     // ── 條件載入（根據相關性）──
     const isRelevant = (keywords: string[]) =>

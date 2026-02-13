@@ -866,7 +866,7 @@
   /* ── Observability ── */
   .obs-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 10px;
     margin-bottom: 10px;
   }
@@ -897,6 +897,8 @@
   }
   .obs-value.dim { color: var(--text2); }
   .obs-value.ok { color: var(--accent); }
+  .obs-value.warn { color: var(--yellow); }
+  .obs-value.err { color: var(--red); }
 
   .obs-list {
     display: grid;
@@ -1170,6 +1172,11 @@
         <div class="obs-label">Learning Metrics</div>
         <div class="obs-value dim" id="obsLearning">--</div>
       </div>
+      <div class="obs-card">
+        <div class="obs-label">Capability Readiness</div>
+        <div class="obs-value dim" id="obsCapabilityReady">--</div>
+        <div class="stat-detail" id="obsCapabilityDetail"></div>
+      </div>
     </div>
     <div class="obs-row" style="margin-bottom:10px;">
       <div class="obs-label">Alerts</div>
@@ -1192,6 +1199,9 @@
       <span class="section-count" id="cognitionCount">--</span>
     </div>
     <div class="cog-filters">
+      <button class="filter-chip active" data-cog-lens="all">All Cognition</button>
+      <button class="filter-chip" data-cog-lens="learning">Learning Only</button>
+      <div class="divider"></div>
       <button class="filter-chip active" data-cog-route="all">All Routes</button>
       <button class="filter-chip" data-cog-route="autonomous">Autonomous</button>
       <button class="filter-chip" data-cog-route="task">Task</button>
@@ -1290,6 +1300,7 @@ let cognitionEntries = [];
 let cognitionStats = null;
 let currentCognitionRoute = 'all';
 let currentCognitionMode = 'all';
+let currentCognitionLens = 'all';
 
 // Init
 document.getElementById('dateInput').value = currentDate;
@@ -1337,6 +1348,15 @@ document.querySelectorAll('.filter-chip[data-cog-mode]').forEach(btn => {
     document.querySelectorAll('.filter-chip[data-cog-mode]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentCognitionMode = btn.dataset.cogMode;
+    renderCognition();
+  });
+});
+
+document.querySelectorAll('.filter-chip[data-cog-lens]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip[data-cog-lens]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCognitionLens = btn.dataset.cogLens;
     renderCognition();
   });
 });
@@ -1430,15 +1450,16 @@ function formatMarkdown(str) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, capabilitiesRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
       fetch(API + '/api/dashboard/journal?date=' + currentDate),
       fetch(API + '/api/dashboard/cognition?date=' + currentDate + '&limit=300'),
+      fetch(API + '/api/dashboard/capabilities'),
     ]);
 
-    for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes], ['cognition', cognitionRes]]) {
+    for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes], ['cognition', cognitionRes], ['capabilities', capabilitiesRes]]) {
       if (!res.ok) throw new Error(name + ' API returned ' + res.status);
     }
 
@@ -1447,6 +1468,7 @@ async function fetchAll() {
     const learning = await learningRes.json();
     const journal = await journalRes.json();
     const cognition = await cognitionRes.json();
+    const capabilities = await capabilitiesRes.json();
 
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
@@ -1457,7 +1479,7 @@ async function fetchAll() {
     cognitionStats = cognition.stats || null;
     renderCognition();
     render();
-    updateObservability(status, allBehaviors);
+    updateObservability(status, allBehaviors, capabilities);
 
     lastUpdate = new Date();
     document.getElementById('refreshInfo').textContent = formatTime(lastUpdate.toISOString());
@@ -1523,11 +1545,13 @@ function updateStatus(s) {
   renderTaskSection(s.claude);
 }
 
-function updateObservability(status, behaviors) {
+function updateObservability(status, behaviors, capabilities) {
   const executionEl = document.getElementById('obsExecution');
   const nextLoopEl = document.getElementById('obsNextLoop');
   const cycleAgeEl = document.getElementById('obsCycleAge');
   const learningEl = document.getElementById('obsLearning');
+  const capReadyEl = document.getElementById('obsCapabilityReady');
+  const capDetailEl = document.getElementById('obsCapabilityDetail');
   const alertsEl = document.getElementById('obsAlerts');
   const decisionsEl = document.getElementById('obsDecisions');
 
@@ -1563,6 +1587,22 @@ function updateObservability(status, behaviors) {
   } else {
     learningEl.textContent = 'no metrics yet';
     learningEl.className = 'obs-value dim';
+  }
+
+  if (capabilities && capabilities.readiness) {
+    const score = Number(capabilities.readiness.score || 0);
+    const color = score >= 80 ? 'ok' : score >= 50 ? 'warn' : 'err';
+    capReadyEl.textContent = score + '%';
+    capReadyEl.className = 'obs-value ' + color;
+    const ready = capabilities.tools?.readyCount ?? 0;
+    const total = capabilities.tools?.total ?? 0;
+    const calls = capabilities.toolUseToday?.totalCalls ?? 0;
+    const webFetch = capabilities.toolUseToday?.webFetchCount ?? 0;
+    capDetailEl.textContent = 'tools ' + ready + '/' + total + ' · today calls ' + calls + ' · web fetch ' + webFetch;
+  } else {
+    capReadyEl.textContent = '--';
+    capReadyEl.className = 'obs-value dim';
+    capDetailEl.textContent = '';
   }
 
   const alerts = [];
@@ -1619,7 +1659,12 @@ function renderCognition() {
   const summaryEl = document.getElementById('cognitionSummary');
 
   const base = cognitionEntries || [];
+  const learningModes = new Set(['learn-personal', 'learn-project', 'reflect', 'organize', 'act-on-learning']);
   const filtered = base.filter(e => {
+    if (currentCognitionLens === 'learning') {
+      const mode = e.modeTag || '';
+      if (!learningModes.has(mode)) return false;
+    }
     if (currentCognitionRoute !== 'all' && e.route !== currentCognitionRoute) return false;
     if (currentCognitionMode !== 'all' && (e.modeTag || 'unknown') !== currentCognitionMode) return false;
     return true;
@@ -1628,9 +1673,11 @@ function renderCognition() {
   countEl.textContent = filtered.length + ' / ' + base.length;
 
   if (cognitionStats) {
+    const learningVisible = filtered.filter(e => learningModes.has(e.modeTag || '')).length;
     summaryEl.textContent =
       'auto:' + cognitionStats.autonomous +
       '  task:' + cognitionStats.task +
+      '  learnVisible:' + learningVisible +
       '  withWhy:' + cognitionStats.withWhy +
       '  withThinking:' + cognitionStats.withThinking +
       '  withVerified:' + cognitionStats.withVerified +
