@@ -290,8 +290,8 @@ export class AgentLoop {
 
       // ── Route: Task Mode vs Autonomous Mode ──
       if (!shouldRunTaskMode) {
-        // Check autonomous cooldown
-        if (this.autonomousCooldown > 0) {
+        // Check autonomous cooldown (but learning boost overrides it)
+        if (this.autonomousCooldown > 0 && !shouldForceAutonomous) {
           this.autonomousCooldown--;
           this.currentMode = 'idle';
           this.adjustInterval(false);
@@ -299,6 +299,7 @@ export class AgentLoop {
           eventBus.emit('action:loop', { event: 'cooldown', cycleCount: this.cycleCount, remaining: this.autonomousCooldown });
           return null;
         }
+        if (shouldForceAutonomous) this.autonomousCooldown = 0;
 
         // Check active hours
         if (!this.isWithinActiveHours()) {
