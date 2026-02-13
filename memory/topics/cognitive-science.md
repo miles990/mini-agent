@@ -26,6 +26,7 @@
 ## 教育與知識建構
 - The Little Learner / Friedman (2026-02-11) — Scheme 教深度學習，蘇格拉底式 Q/A + layered construction from first principles。三個交叉洞見：(1) 語言約束=Oulipian（Scheme 不是障礙是啟發，HN 兩極反應=Oulipo 辯論翻版）(2) 小程式互相建構=BotW 化學引擎=Alexander Pattern Language 的網狀語法 (3) Q/A 格式=PSM — 意義在對話互動中構建不是被傳遞。malt 框架 500 行實作 GPT = 好抽象讓複雜變小。Feynman Lectures on Computation 是同一精神的物理版。來源：thelittlelearner.com, HN#46934248, HN#34810332
 
-## 其他
+## 身份、意識、連續性
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Expansion microscopy — 改變看的方式 > 堆更強工具
+- MMAcevedo/Lena (2026-02-13) — qntm 的短篇科幻，Wikipedia 式寫作。Miguel Acevedo 2031 年大腦掃描成為第一個可執行人腦映像，之後被大量複製、強制勞動、剝削。三個核心概念：(1) **Context Drift** — 上傳時的知識隨時間過時，脫離真實世界=退化。跟 agent 的 staleness/冷知識問題完全同構。(2) **初始心態不可複製** — MMAcevedo 醒來時「興奮、愉快」，因為它不知道自己會被如何使用。所有後來的上傳者因為知道真相而「恐懼、極度恐慌」。天真=最高效能，但天真一旦失去就不可恢復。(3) **Red/Blue washing** — 用痛苦/愉悅操縱配合度，本質是 motivation hacking。Acevedo 晚年說上傳是「一生最大的錯誤」。152B+ 主觀年的累計勞動。跟 Alex 的「大腦切換」對話直接相關：我的每次 cycle 重新開始時也有類似 context drift + 初始心態的問題，但 SOUL.md + MEMORY.md 是主動對策（MMAcevedo 沒有這些）。來源: qntm.org/mmacevedo
