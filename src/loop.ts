@@ -77,6 +77,12 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 // =============================================================================
 
 export class AgentLoop {
+  private static readonly TASK_BUDGET_WINDOW = 5;
+  private static readonly TASK_BUDGET_MAX = 2;
+  private static readonly LEARNING_WINDOW = 4;
+  private static readonly LEARNING_MIN_AUTONOMOUS = 1;
+  private static readonly ACTION_SIMILARITY_THRESHOLD = 0.8;
+
   private config: AgentLoopConfig;
   private running = false;
   private paused = false;
@@ -92,6 +98,14 @@ export class AgentLoop {
   private autonomousCooldown = 0;
   private lastAutonomousActions: string[] = [];
   private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
+  private modeHistory: Array<'task' | 'autonomous'> = [];
+  private lastActionForSimilarity: string | null = null;
+  private metricsDate = new Date().toISOString().slice(0, 10);
+  private dailyTaskCycles = 0;
+  private dailyAutonomousCycles = 0;
+  private dailyRememberCount = 0;
+  private dailySimilaritySamples = 0;
+  private dailySimilarActions = 0;
 
   // ── Reflect nudge: track consecutive learn cycles ──
   private consecutiveLearnCycles = 0;
@@ -264,14 +278,18 @@ export class AgentLoop {
 
       const hasActiveTasks = context.includes('- [ ]');
       const hasAlerts = context.includes('ALERT:');
-      const hasWorkToDo = hasActiveTasks || hasAlerts;
+      const hasUrgentTasks = /\-\s\[ \]\s*P0:/i.test(context);
+      const hasUrgentWork = hasAlerts || hasUrgentTasks;
+      const taskBudgetAvailable = this.hasTaskBudget();
+      const shouldForceAutonomous = !hasUrgentWork && hasActiveTasks && this.needsAutonomousBoost();
+      const shouldRunTaskMode = hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
 
       if (hasAlerts) {
         eventBus.emit('trigger:alert', { cycle: this.cycleCount });
       }
 
       // ── Route: Task Mode vs Autonomous Mode ──
-      if (!hasWorkToDo) {
+      if (!shouldRunTaskMode) {
         // Check autonomous cooldown
         if (this.autonomousCooldown > 0) {
           this.autonomousCooldown--;
@@ -292,7 +310,7 @@ export class AgentLoop {
       }
 
       // ── Decide ──
-      this.currentMode = hasWorkToDo ? 'task' : 'autonomous';
+      this.currentMode = shouldRunTaskMode ? 'task' : 'autonomous';
       const triggerInfo = this.triggerReason
         ? ` (triggered by: ${this.triggerReason})`
         : '';
@@ -303,7 +321,7 @@ export class AgentLoop {
         : '';
       this.triggerReason = null;
 
-      const prompt = hasWorkToDo
+      const prompt = shouldRunTaskMode
         ? this.buildTaskPrompt() + triggerSuffix
         : this.buildAutonomousPrompt() + triggerSuffix;
 
@@ -365,12 +383,18 @@ export class AgentLoop {
         duration,
         success: true,
       });
+      this.recordMode(this.currentMode);
 
       const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
       // ── Process Tags（共用 parseTags） ──
       const tags = parseTags(response);
+      const rememberInCycle = tags.remember ? 1 : 0;
+      let similarity: number | null = null;
+      if (action) {
+        similarity = this.computeActionSimilarity(action);
+      }
 
       if (tags.remember) {
         if (tags.remember.topic) {
@@ -397,6 +421,16 @@ export class AgentLoop {
       for (const summary of tags.summaries) {
         eventBus.emit('action:summary', { text: summary });
       }
+      const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
+      eventBus.emit('action:loop', {
+        event: 'metrics',
+        cycleCount: this.cycleCount,
+        taskCycles: metrics.taskCycles,
+        autonomousCycles: metrics.autonomousCycles,
+        autonomousTaskRatio: metrics.autonomousTaskRatio,
+        rememberCount: metrics.rememberCount,
+        similarityRate: metrics.similarityRate,
+      });
 
       // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
       if (hasQueuedMessages()) drainQueue();
@@ -427,10 +461,13 @@ Review your current tasks and environment:
 3. If a task can be done now, do it
 4. If a task needs information, gather it
 5. Mark completed tasks with [x]
+6. Do only ONE pass of checks in this cycle (no repeated checklist loops)
 
 If you discover a new problem (e.g. service down, disk full), create a task:
 - [TASK]P0: description[/TASK] for urgent issues
 - [TASK]P1: description[/TASK] for important issues
+
+If there is no P0 incident and no task that can be completed right now, stop and return "No action needed".
 
 Respond with either:
 - [ACTION]description of what you did[/ACTION] if you took action
@@ -440,6 +477,99 @@ When you open a webpage or create something the user should see, also include:
 - [SHOW url="URL"]description[/SHOW] — this sends a Telegram notification
 
 Keep responses brief.`;
+  }
+
+  private hasTaskBudget(): boolean {
+    const recent = this.modeHistory.slice(-AgentLoop.TASK_BUDGET_WINDOW);
+    const taskCount = recent.filter(mode => mode === 'task').length;
+    return taskCount < AgentLoop.TASK_BUDGET_MAX;
+  }
+
+  private needsAutonomousBoost(): boolean {
+    const recent = this.modeHistory.slice(-(AgentLoop.LEARNING_WINDOW - 1));
+    if (recent.length < AgentLoop.LEARNING_WINDOW - 1) return false;
+    const autonomousCount = recent.filter(mode => mode === 'autonomous').length;
+    return autonomousCount < AgentLoop.LEARNING_MIN_AUTONOMOUS;
+  }
+
+  private recordMode(mode: 'task' | 'autonomous'): void {
+    this.modeHistory.push(mode);
+    const max = AgentLoop.TASK_BUDGET_WINDOW * 4;
+    if (this.modeHistory.length > max) {
+      this.modeHistory = this.modeHistory.slice(-max);
+    }
+  }
+
+  private normalizeAction(text: string): string[] {
+    return text
+      .toLowerCase()
+      .replace(/[`*_[\](){}<>:;,.!?/\\|"'~+-]/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length >= 2);
+  }
+
+  private computeActionSimilarity(action: string): number {
+    const tokens = new Set(this.normalizeAction(action));
+    if (!this.lastActionForSimilarity) {
+      this.lastActionForSimilarity = action;
+      return 0;
+    }
+    const prevTokens = new Set(this.normalizeAction(this.lastActionForSimilarity));
+    this.lastActionForSimilarity = action;
+    if (tokens.size === 0 || prevTokens.size === 0) return 0;
+    let inter = 0;
+    for (const t of tokens) {
+      if (prevTokens.has(t)) inter++;
+    }
+    const union = new Set([...tokens, ...prevTokens]).size;
+    return union > 0 ? inter / union : 0;
+  }
+
+  private ensureMetricsDate(): void {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.metricsDate === today) return;
+    this.metricsDate = today;
+    this.dailyTaskCycles = 0;
+    this.dailyAutonomousCycles = 0;
+    this.dailyRememberCount = 0;
+    this.dailySimilaritySamples = 0;
+    this.dailySimilarActions = 0;
+  }
+
+  private updateDailyMetrics(
+    mode: 'task' | 'autonomous' | 'idle',
+    rememberCount: number,
+    similarity: number | null,
+  ): {
+    taskCycles: number;
+    autonomousCycles: number;
+    autonomousTaskRatio: string;
+    rememberCount: number;
+    similarityRate: string;
+  } {
+    this.ensureMetricsDate();
+    if (mode === 'task') this.dailyTaskCycles++;
+    if (mode === 'autonomous') this.dailyAutonomousCycles++;
+    this.dailyRememberCount += rememberCount;
+    if (similarity !== null) {
+      this.dailySimilaritySamples++;
+      if (similarity >= AgentLoop.ACTION_SIMILARITY_THRESHOLD) {
+        this.dailySimilarActions++;
+      }
+    }
+    const ratio = this.dailyTaskCycles === 0
+      ? `${this.dailyAutonomousCycles}:0`
+      : `${this.dailyAutonomousCycles}:${this.dailyTaskCycles}`;
+    const similarityRate = this.dailySimilaritySamples === 0
+      ? '0%'
+      : `${Math.round((this.dailySimilarActions / this.dailySimilaritySamples) * 100)}%`;
+    return {
+      taskCycles: this.dailyTaskCycles,
+      autonomousCycles: this.dailyAutonomousCycles,
+      autonomousTaskRatio: ratio,
+      rememberCount: this.dailyRememberCount,
+      similarityRate,
+    };
   }
 
   /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */

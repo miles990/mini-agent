@@ -88,6 +88,12 @@ function handleLoopEvent(e: AgentEvent): void {
     case 'cycle.end':
       logger.logBehavior('agent', 'loop.cycle.end', `#${cc} ${d.decision}`);
       break;
+
+    case 'metrics': {
+      const detail = `#${cc} ratio=${d.autonomousTaskRatio} remember=${d.rememberCount} repeat=${d.similarityRate} (A:${d.autonomousCycles} T:${d.taskCycles})`;
+      logger.logBehavior('agent', 'loop.metrics', detail);
+      break;
+    }
   }
 }
 
