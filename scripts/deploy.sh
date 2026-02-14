@@ -75,6 +75,14 @@ if [ -d "$CLI_DIR/.git" ]; then
     log "CLI synced"
 fi
 
+# Reset Telegram getUpdates state (prevent 409 Conflict from stale long-poll)
+if [ -f "$DEPLOY_DIR/.env" ]; then
+    TG_TOKEN=$(grep TELEGRAM_BOT_TOKEN "$DEPLOY_DIR/.env" | cut -d= -f2 | tr -d '"'"'" | tr -d ' ')
+    if [ -n "$TG_TOKEN" ]; then
+        curl -sf -X POST "https://api.telegram.org/bot${TG_TOKEN}/deleteWebhook" > /dev/null 2>&1 && log "Telegram state reset"
+    fi
+fi
+
 # Start — 用 CLI（內部走 launchd）
 log "Starting service..."
 node "$DEPLOY_DIR/dist/cli.js" up -d

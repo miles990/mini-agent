@@ -111,6 +111,7 @@ export class TelegramPoller {
   private retryDelay = 5000;
   private readonly maxRetryDelay = 60000;
   private readonly pollTimeout = 30;
+  private conflictCount = 0;
   private memoryDir: string;
   private offsetFile: string;
   private inboxFile: string;
@@ -136,10 +137,17 @@ export class TelegramPoller {
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
     this.retryDelay = 5000;
+    this.conflictCount = 0;
+
+    // Reset any stale getUpdates state at Telegram's side
+    try {
+      await fetch(`https://api.telegram.org/bot${this.token}/deleteWebhook`, { method: 'POST' });
+    } catch { /* best-effort */ }
+
     slog('TELEGRAM', `Poller started (chatId: ${this.chatId})`);
     this.pollLoop();
   }
@@ -286,6 +294,11 @@ export class TelegramPoller {
       try {
         const updates = await this.getUpdates();
 
+        if (this.conflictCount > 0) {
+          slog('TELEGRAM', `409 Conflict resolved after ${this.conflictCount} retries`);
+          this.conflictCount = 0;
+        }
+
         if (updates.length > 0) {
           this.retryDelay = 5000;
           for (const update of updates) {
@@ -297,7 +310,21 @@ export class TelegramPoller {
       } catch (err) {
         if (!this.running) break;
 
-        slog('TELEGRAM', `Poll error: ${err instanceof Error ? err.message : err}`);
+        const errMsg = err instanceof Error ? err.message : String(err);
+
+        // 409 Conflict = another getUpdates request is active (stale from previous process)
+        // This is transient after deploy — use longer backoff and suppress repeated logs
+        if (errMsg.includes('409')) {
+          this.conflictCount++;
+          if (this.conflictCount === 1) {
+            slog('TELEGRAM', `409 Conflict — stale getUpdates from previous process, waiting to resolve...`);
+          }
+          // Longer backoff for 409: wait 30s then retry (Telegram long-poll timeout is 30s)
+          await this.sleep(30_000);
+          continue;
+        }
+
+        slog('TELEGRAM', `Poll error: ${errMsg}`);
         await this.sleep(this.retryDelay);
         this.retryDelay = Math.min(this.retryDelay * 2, this.maxRetryDelay);
         continue;
