@@ -255,14 +255,12 @@ export function drainQueue(): void {
 
   setImmediate(() => {
     processMessage(mergedPrompt).then(result => {
-      // 所有 callback 收到同一個回覆
-      for (const item of batch) {
-        if (item.onComplete) item.onComplete(result);
-      }
+      // Batch 模式：只呼叫第一個 callback（避免重複發送 Telegram）
+      const first = batch.find(item => item.onComplete);
+      if (first?.onComplete) first.onComplete(result);
     }).catch(() => {
-      for (const item of batch) {
-        if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
-      }
+      const first = batch.find(item => item.onComplete);
+      if (first?.onComplete) first.onComplete({ content: '處理排隊訊息時發生錯誤。' });
     });
   });
 }
