@@ -113,6 +113,21 @@ for (const topic of topics) {
 
 **品質守護**：counter 只增不刪，不設自動淘汰閾值。定期由 Kuro 手動 review。
 
+#### L1: SOUL.md 定期維護（本週，Kuro 自己做）
+
+**問題**：SOUL.md 目前 108 行，My Thoughts 持續增加但沒有退役機制。每個 cycle 完整載入，越長 token 成本越高（違反 C2）。
+
+**改什麼**：Kuro 的 reflect 行為 + `memory/behavior.md`
+
+**怎麼做**：
+1. 在 behavior.md `## Sequences` section 新增規則：`reflect → soul-review (reflect 時順便檢查 SOUL.md，合併被取代的觀點)`
+2. My Thoughts 設**軟上限 10 條** — 超過就合併相近的，而非刪除
+3. Learning Interests 也定期精煉 — 已失去興趣的移到 archive section 或刪除
+
+**品質守護**：這是手動維護不是自動淘汰。每次合併或移除都在 git history 中可追溯（C4 可逆性）。
+
+**可逆性**：git revert 即可恢復任何 SOUL.md 版本。
+
 #### L3: Cross-Pollination Score（未來）
 
 分析 `[REMEMBER]` 中的跨領域引用密度（含「同構」「平行」「連結」等字眼的比例）。需要更多設計，暫緩。
@@ -195,6 +210,42 @@ for (const topic of topics) {
 **預估工作量**：memory.ts ~50 行修改，agent.ts ~5 行修改。
 
 **品質守護**：truncated topics 仍保留標題索引，Kuro 看到標題能決定「這個跟當前對話相關，我需要完整內容」。寬度不縮，精度提升。
+
+#### L2: Per-Plugin Timeout（需改 src/）
+
+**問題**：`perception-stream.ts` 的 `tick()` 沒有對個別 plugin 設 timeout。如果某個 plugin（例如 chrome CDP 斷連）卡住，會 block 整個 category 的其他 plugins。state-watcher.sh 已有過 SIGTERM 被 kill 的記錄（見 `<activity>` diagnostics）。
+
+**改什麼**：`src/perception-stream.ts` 的 plugin 執行邏輯
+
+**技術設計**：
+
+```typescript
+// perception-stream.ts — tick() 中的 plugin 執行
+const PLUGIN_TIMEOUT_MS = 10_000; // 10 seconds per plugin
+
+for (const plugin of category.plugins) {
+  try {
+    const result = await Promise.race([
+      this.executePlugin(plugin),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Plugin ${plugin.name} timeout after ${PLUGIN_TIMEOUT_MS}ms`)), PLUGIN_TIMEOUT_MS)
+      ),
+    ]);
+    plugin.lastOutput = result;
+    plugin.status = 'ok';
+  } catch (err) {
+    plugin.status = 'degraded';
+    plugin.lastError = err instanceof Error ? err.message : String(err);
+    // 繼續執行其他 plugins，不阻塞
+  }
+}
+```
+
+**預估工作量**：perception-stream.ts ~20 行修改。
+
+**品質守護**：timeout 後標記 plugin 為 `degraded` 但不關閉 — 下個 tick 仍會重試。self-awareness.sh 的 Perception Signal section 會顯示 degraded 狀態。
+
+**可逆性**：env var `PLUGIN_TIMEOUT_MS` 控制，設為 0 = 無 timeout（回退到現有行為）。
 
 ---
 
@@ -381,6 +432,46 @@ app.get('/api/dashboard/context', async (req: Request, res: Response) => {
 
 **品質守護**：sequences 只是 nudge（在 prompt 中提醒），不是強制。Kuro 可以忽略。
 
+#### L2: parseBehaviorConfig Validation（需改 src/）
+
+**問題**：`loop.ts` 的 `loadBehaviorConfig()` 靠 regex 解析 behavior.md。Kuro 在 L1 改動 behavior.md 時（如新增 `## Sequences` section、調整 weight），格式偏差會導致 config 靜默載入失敗（weight 歸零、mode 消失）而非報錯。這直接影響 L1 self-improve 的安全性。
+
+**改什麼**：`src/loop.ts` 的 `parseBehaviorConfig()` / `loadBehaviorConfig()`
+
+**技術設計**：
+
+```typescript
+// loop.ts — parseBehaviorConfig() 結尾新增 validation
+function validateBehaviorConfig(config: BehaviorConfig): void {
+  // 1. Weight 總和 > 0（至少一個 mode 可被選中）
+  const totalWeight = Object.values(config.modes).reduce((sum, m) => sum + m.weight, 0);
+  if (totalWeight === 0) {
+    slog('behavior.validate', '⚠ All weights are 0 — no mode can be selected');
+  }
+
+  // 2. 已知 mode names 檢查（防止 typo 新增了未知 mode）
+  const knownModes = ['learn-personal', 'learn-project', 'organize', 'reflect', 'act-on-learning', 'chat'];
+  for (const mode of Object.keys(config.modes)) {
+    if (!knownModes.includes(mode)) {
+      slog('behavior.validate', `⚠ Unknown mode "${mode}" in behavior.md`);
+    }
+  }
+
+  // 3. Cooldown 值合理性（> 0 且 < 60 分鐘）
+  for (const [key, val] of Object.entries(config.cooldowns ?? {})) {
+    if (val < 0 || val > 60) {
+      slog('behavior.validate', `⚠ Cooldown "${key}" = ${val} looks unreasonable`);
+    }
+  }
+}
+```
+
+**預估工作量**：loop.ts ~15 行新增。
+
+**品質守護**：validation 只 warn（slog），不 block。Kuro 的 L1 改動不會因為 validation 失敗而被阻止，但 warning 會出現在 behavior log 中，Kuro 和 Alex 都能在 dashboard 看到。
+
+**可逆性**：validation 是純 observe，移除不影響任何功能。
+
 #### L2: Cross-Cycle State Machine（需改 src/）
 
 **改什麼**：`src/loop.ts` 的 `AgentLoop` class
@@ -444,6 +535,50 @@ this.previousCycleInfo = {
 
 **品質守護**：L1.5 改動仍需走 self-deploy SOP（驗證→commit→push→確認部署→TG通知）。
 
+#### L1: Plugin Self-Test in Self-Deploy SOP（本週，Kuro 自己做）
+
+**問題**：Kuro 改 plugins/*.sh 後，self-deploy SOP 只驗證 `pnpm typecheck`（TypeScript），不驗證 shell 腳本本身。曾有過 plugin 語法錯誤導致 perception stream 靜默失敗的情況。
+
+**改什麼**：`skills/self-deploy.md` 新增驗證步驟
+
+**怎麼做**：
+在 self-deploy SOP 的「驗證」步驟中新增：
+
+```markdown
+## 驗證
+- [ ] `pnpm typecheck` 通過（如果改了 src/）
+- [ ] **Plugin self-test**（如果改了 plugins/*.sh）：
+  - `bash -n plugins/<modified>.sh` — 語法檢查
+  - `bash plugins/<modified>.sh` — 實際執行一次，確認有輸出且無 stderr
+  - 確認 `curl -sf localhost:3001/context` 中對應的 perception section 正常
+```
+
+**品質守護**：self-test 是 SOP 的一部分，不是自動化 — Kuro 在 commit 前手動執行。
+
+#### L1: TG 通知品質 Guideline（本週，Kuro 自己做）
+
+**問題**：Telegram 通知密度和品質不穩定。有時一個學習 cycle 發多條通知（學習開始 + 記憶保存 + 學習結束），有時重要行動只發一條模糊的通知。Alex 需要的是：重要的事必到、瑣碎的事不打擾。
+
+**改什麼**：`skills/autonomous-behavior.md` 的通知 section
+
+**怎麼做**：
+在 `## Proactive Reporting` section 新增品質規則：
+
+```markdown
+### TG 通知品質規則
+1. **一個 cycle 最多 1 條 [CHAT]** — 合併同 cycle 的多個通知為一條
+2. **學習通知只在有 actionable insight 時才發** — 「讀了一篇文章」不發，「讀了 X 發現可以改善 Y」才發
+3. **行動通知必須包含結果** — 不是「準備做 X」而是「做了 X，結果是 Y」
+4. **no-action cycle 不發通知** — 除非有需要 Alex 注意的異常
+5. **通知分級**：
+   - 🧠 學習洞察（有觀點+可行動）
+   - ⚡ 行動完成（含結果）
+   - ⚠️ 異常/問題
+   - 💬 主動聊天（有趣發現）
+```
+
+**品質守護**：減少通知數量不等於減少透明度 — 每條通知的信息密度應該更高。Alex 回頭看 TG 時能快速掌握重點。
+
 ---
 
 ### 7. 檢視介面（Dashboard 擴展）
@@ -482,10 +617,56 @@ Dashboard (dashboard.html) 目前有 behavior timeline、learning digest、cogni
 
 ---
 
+### 8. L2 前置條件：穩定性 + 測試
+
+#### L2-0a: Exit 143 穩定性強化
+
+**問題**：Claude CLI exit 143（SIGTERM 被 kill）是已知的穩定性問題（見 `memory/handoffs/2026-02-13-claude-exit143-mitigation-checklist.md`）。在此基礎上改 src/ 核心路徑，如果 exit 143 頻繁發生，會讓功能改動的效果難以評估。
+
+**改什麼**：`src/agent.ts` 的 claude call 路徑
+
+**技術設計**：
+- 確保 exit 143 的 retry 邏輯穩固（已有，需驗證覆蓋所有路徑）
+- 加 structured logging：每次 exit 143 記錄 prompt size + elapsed time + retry count
+- 確認 fallback to codex 路徑在 exit 143 後正確啟動
+
+**預估工作量**：agent.ts ~20 行驗證/修改。
+
+**品質守護**：這是其他所有 L2 改動的穩定性基座。不穩定的 runtime 上做的功能改動可能產生誤導性的 behavior data。
+
+#### L2-0b: L2 前置測試覆蓋
+
+**問題**：現有測試（9 個檔案）覆蓋了基礎 memory 功能，但不覆蓋 L2 要改動的核心路徑。在沒有測試的情況下改 `buildContext()` 的 topic loading 或 `cycle()` 的 mode selection，違反 C1（Quality-First）。
+
+**改什麼**：`tests/` 新增測試
+
+**測試範圍**：
+1. `tests/memory.test.ts` 擴展：
+   - `buildContext` 三種 mode（full/focused/minimal）回傳正確 section
+   - topic keyword matching 邏輯（匹配/不匹配/邊界情況）
+2. `tests/loop.test.ts`（新建）：
+   - `parseBehaviorConfig()` 正確解析 weight、cooldowns、focus
+   - `parseBehaviorConfig()` 對格式異常的 behavior.md 不崩潰（graceful fallback）
+   - mode selection 邏輯（weight-based random 的基本正確性）
+
+**預估工作量**：~200 行測試程式碼。
+
+**品質守護**：測試是 L2 其他改動的前置依賴（見 DAG）。每個 L2 PR 必須確保現有測試通過。
+
+---
+
 ## 依賴關係（DAG）
 
 ```mermaid
 graph TD
+    %% L2 前置條件（穩定性 + 測試）
+    L2_EXIT143[L2-0a: Exit 143 穩定性強化] --> L2_TESTS
+    L2_TESTS[L2-0b: 前置測試覆蓋] --> L2_UTIL
+    L2_TESTS --> L2_RELEVANCE
+    L2_TESTS --> L2_STATE
+    L2_TESTS --> L2_BEHAVIOR_VALIDATE
+
+    %% L1 → L2 依賴
     L1_HIT[L1: Topic Hit Tracking] --> L2_UTIL[L2: Context-Level Utility Counter]
     L1_SIGNAL[L1: Perception Signal Tracking] --> L2_RELEVANCE[L2: Perception Relevance Passthrough]
     L1_DECISION[L1: Decision Trace Format] --> L2_DECISION[L2: Decision Trace Auto-Record]
@@ -493,19 +674,35 @@ graph TD
     L2_SECTION --> L2_BUDGET_API[L2: Context Budget API]
     L1_REFLECT[L1: Reflect Nudge] --> L2_STATE[L2: Cross-Cycle State Machine]
     L1_L15[L1: L1.5 Safety Zone]
+    L1_SOUL[L1: SOUL.md 定期維護]
+    L1_PLUGIN_TEST[L1: Plugin Self-Test in SOP]
+    L1_TG_QUALITY[L1: TG 通知品質 Guideline]
 
+    %% L2 新增節點
+    L2_RELEVANCE --> L2_PLUGIN_TIMEOUT[L2: Per-Plugin Timeout]
+    L2_BEHAVIOR_VALIDATE[L2: parseBehaviorConfig Validation] --> L2_STATE
+
+    %% L2 → Dashboard
     L2_UTIL --> L2_DASHBOARD[L2: Dashboard Upgrade]
     L2_DECISION --> L2_DASHBOARD
     L2_BUDGET_API --> L2_DASHBOARD
+
+    %% L2/L3
     L2_STATE --> L3_COMPOSE[L3: Behavioral Composition]
     L2_UTIL --> L3_CROSS[L3: Cross-Pollination Score]
 
+    %% Styling
     style L1_HIT fill:#4CAF50,color:#fff
     style L1_SIGNAL fill:#4CAF50,color:#fff
     style L1_DECISION fill:#4CAF50,color:#fff
     style L1_CONTEXT fill:#4CAF50,color:#fff
     style L1_REFLECT fill:#4CAF50,color:#fff
     style L1_L15 fill:#4CAF50,color:#fff
+    style L1_SOUL fill:#4CAF50,color:#fff
+    style L1_PLUGIN_TEST fill:#4CAF50,color:#fff
+    style L1_TG_QUALITY fill:#4CAF50,color:#fff
+    style L2_EXIT143 fill:#F44336,color:#fff
+    style L2_TESTS fill:#F44336,color:#fff
     style L2_UTIL fill:#2196F3,color:#fff
     style L2_RELEVANCE fill:#2196F3,color:#fff
     style L2_DECISION fill:#2196F3,color:#fff
@@ -513,9 +710,13 @@ graph TD
     style L2_BUDGET_API fill:#2196F3,color:#fff
     style L2_STATE fill:#2196F3,color:#fff
     style L2_DASHBOARD fill:#2196F3,color:#fff
+    style L2_PLUGIN_TIMEOUT fill:#2196F3,color:#fff
+    style L2_BEHAVIOR_VALIDATE fill:#2196F3,color:#fff
     style L3_COMPOSE fill:#FF9800,color:#fff
     style L3_CROSS fill:#FF9800,color:#fff
 ```
+
+**圖例**：🟢 L1（Kuro 自己做）/ 🔴 L2 前置條件（穩定性+測試）/ 🔵 L2 功能 / 🟠 L3
 
 ## 實施時間線
 
@@ -529,18 +730,27 @@ graph TD
 | Day 4-5 | Context Size Trend | plugins/self-awareness.sh |
 | Day 5 | Reflect Nudge 擴展 | memory/behavior.md |
 | Day 5 | L1.5 Safety Zone | skills/action-from-learning.md |
+| Day 5 | SOUL.md 定期維護 | memory/SOUL.md |
+| Day 5 | Plugin Self-Test in SOP | skills/self-deploy.md |
+| Day 5 | TG 通知品質 Guideline | skills/autonomous-behavior.md |
 
 ### Week 2（02-21 ~ 02-27）：L2 改動（Claude Code 實作，Alex 審核後）
 
-| 優先 | 改動 | 涉及 src/ |
-|------|------|----------|
-| 1 | Section-Level Size Tracking | memory.ts (~10 行) |
-| 2 | Decision Trace Auto-Record | loop.ts (~10 行), api.ts (~5 行) |
-| 3 | Context-Level Utility Counter | memory.ts (~70 行) |
-| 4 | Perception Relevance Passthrough | memory.ts (~50 行), agent.ts (~5 行) |
-| 5 | Cross-Cycle State Machine | loop.ts (~15 行) |
-| 6 | Context Budget API | api.ts (~40 行) |
-| 7 | Dashboard Upgrade | dashboard.html (~300 行) |
+**執行順序：穩定性 → 測試 → 功能**
+
+| 優先 | 改動 | 涉及 src/ | 備註 |
+|------|------|----------|------|
+| 0a | Exit 143 穩定性強化 | agent.ts (~20 行) | 前置條件：所有後續改動的基礎穩定性 |
+| 0b | L2 前置測試覆蓋 | tests/ (~200 行) | 前置條件：buildContext modes + topic matching + parseBehaviorConfig |
+| 1 | Section-Level Size Tracking | memory.ts (~10 行) | |
+| 2 | Decision Trace Auto-Record | loop.ts (~10 行), api.ts (~5 行) | |
+| 3 | Context-Level Utility Counter | memory.ts (~70 行) | |
+| 4 | Perception Relevance Passthrough | memory.ts (~50 行), agent.ts (~5 行) | |
+| 5 | Per-Plugin Timeout | perception-stream.ts (~20 行) | |
+| 6 | parseBehaviorConfig Validation | loop.ts (~15 行) | |
+| 7 | Cross-Cycle State Machine | loop.ts (~15 行) | |
+| 8 | Context Budget API | api.ts (~40 行) | |
+| 9 | Dashboard Upgrade | dashboard.html (~300 行) | |
 
 ### Beyond Week 2：L3（需更多設計）
 
@@ -567,16 +777,19 @@ graph TD
 
 ### Cons
 - L1 的 hit tracking 靠 Kuro 手動記錄，可能不夠精確
-- 7 個領域同時推進可能分散注意力
+- 8 個升級領域同時推進可能分散注意力
 - Dashboard 擴展後 dashboard.html 會更大更複雜
 - Decision trace 增加每個 cycle 的 output token（約 50-100 tokens）
+- L2 前置測試 + exit143 強化增加了實作前的準備工作量
 
 ## Effort: Large
-## Risk: Low（每步可回退，L1 先行驗證方向）
+## Risk: Low（每步可回退，穩定性+測試先行，L1 先行驗證方向）
 
 ## Source
-- 前對話：Alex × Claude Code × Kuro 三方討論（2026-02-14 04:06-04:43）
+- 前對話：Alex × Claude Code × Kuro 三方討論（2026-02-14 04:06-05:00）
+- Claude Code 架構 review + 補充發現（2026-02-14 04:59）
 - ACE 論文（ICLR 2026）— utility counter 概念
 - Self-Evolving Agents survey（arXiv 2507.21046）— self-assessment 分類
 - behavior.md Rhythm Log — 觀察期數據（02-13 ~ 02-14）
 - Anthropic/Manus — context budget + OODA recitation 概念
+- Exit 143 mitigation checklist（2026-02-13）— 穩定性基線
