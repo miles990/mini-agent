@@ -817,9 +817,9 @@ Rules:
   // ---------------------------------------------------------------------------
 
   private isWithinActiveHours(): boolean {
+    if (!this.config.activeHours) return true; // No restriction = 24h active
     const hour = new Date().getHours();
-    const start = this.config.activeHours?.start ?? 8;
-    const end = this.config.activeHours?.end ?? 23;
+    const { start, end } = this.config.activeHours;
 
     if (start <= end) {
       return hour >= start && hour < end;
