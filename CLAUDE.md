@@ -399,8 +399,10 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 ## Deployment
 
-- Kuro 走正式 CI/CD pipeline（push main → GitHub Actions → deploy.sh → launchd restart）。**不要直接部署** — 一律 commit + push 走 pipeline
+- **Claude Code 不直接 push 部署**。完成 commit 後，透過 `/chat` API 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
+- 通知格式：`[Claude Code] 已 commit {hash}，請部署。變更摘要：...`
 - 改完 src/*.ts 後，先跑 `pnpm typecheck` 再 commit
+- 如果 Kuro 離線，等他上線後再通知；緊急情況可 fallback 手動 `git push origin main`
 
 ## Workflow
 
