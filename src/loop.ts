@@ -110,6 +110,12 @@ export class AgentLoop {
   // ── Reflect nudge: track consecutive learn cycles ──
   private consecutiveLearnCycles = 0;
 
+  // ── Behavior config resilience ──
+  private lastValidConfig: BehaviorConfig | null = null;
+
+  // ── Cross-cycle state (only last cycle, no accumulation) ──
+  private previousCycleInfo: string | null = null;
+
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
 
@@ -322,9 +328,13 @@ export class AgentLoop {
         : '';
       this.triggerReason = null;
 
+      const previousCycleSuffix = this.previousCycleInfo
+        ? `\n\nPrevious cycle: ${this.previousCycleInfo}`
+        : '';
+
       const prompt = shouldRunTaskMode
-        ? this.buildTaskPrompt() + triggerSuffix
-        : this.buildAutonomousPrompt() + triggerSuffix;
+        ? this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix
+        : this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix;
 
       const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
@@ -388,6 +398,9 @@ export class AgentLoop {
 
       const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
+
+      // Record for next cycle (only last cycle, no accumulation)
+      this.previousCycleInfo = `Mode: ${this.currentMode}, Action: ${decision}, Duration: ${(duration / 1000).toFixed(1)}s`;
 
       // ── Process Tags（共用 parseTags） ──
       const tags = parseTags(response);
@@ -630,6 +643,7 @@ Choose ONE mode per cycle. Higher weight = higher probability of being chosen:
 ${modeList}${focusSection}${reflectNudge}${avoidList}
 
 Rules:
+- Start every response with [DECISION]why you chose this mode and what triggered it[/DECISION]
 - Do ONE action per cycle, report with [ACTION]...[/ACTION]
 - Prefix your action with the mode name in brackets, e.g. "[learn-personal]" or "[reflect]"
 - When learning: read, think, form YOUR opinion — don't just summarize
@@ -728,11 +742,19 @@ Rules:
   private loadBehaviorConfig(): BehaviorConfig | null {
     try {
       const filePath = path.join(process.cwd(), 'memory', 'behavior.md');
-      if (!fs.existsSync(filePath)) return null;
+      if (!fs.existsSync(filePath)) return this.lastValidConfig;
       const content = fs.readFileSync(filePath, 'utf-8');
-      return parseBehaviorConfig(content);
-    } catch {
-      return null;
+      const config = parseBehaviorConfig(content);
+      if (config) {
+        this.lastValidConfig = config;
+        return config;
+      }
+      // Parse failed — keep lastValidConfig, emit error
+      eventBus.emit('log:error', { message: 'parseBehaviorConfig returned null, keeping lastValidConfig' });
+      return this.lastValidConfig;
+    } catch (err) {
+      eventBus.emit('log:error', { message: `loadBehaviorConfig error: ${err instanceof Error ? err.message : err}` });
+      return this.lastValidConfig;
     }
   }
 

@@ -60,10 +60,15 @@ function classifyError(error: unknown): ErrorClassification {
   const msg = error instanceof Error ? error.message : String(error);
   const stderr = (error as { stderr?: string })?.stderr ?? '';
   const killed = (error as { killed?: boolean })?.killed;
+  const exitCode = (error as { status?: number })?.status;
   const combined = `${msg}\n${stderr}`.toLowerCase();
 
   if (combined.includes('enoent') || combined.includes('not found')) {
     return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。' };
+  }
+  // Exit 143 = SIGTERM (128+15) — context 過大或系統資源不足
+  if (exitCode === 143) {
+    return { type: 'TIMEOUT', retryable: true, message: 'Claude CLI 被 SIGTERM 終止（exit 143）。可能是 context 過大或系統資源不足。' };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
     return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 8 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
@@ -314,6 +319,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string): Promise<string> {
   const TIMEOUT_MS = 480_000; // 8 minutes
+  const startTs = Date.now();
 
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
@@ -416,6 +422,12 @@ async function execClaude(fullPrompt: string): Promise<string> {
 
       if (toolCallCount > 0) {
         slog('AUDIT', `Claude CLI used ${toolCallCount} tool(s) this call`);
+      }
+
+      // Exit 143 結構化 logging（SIGTERM — context 過大或系統終止）
+      if (code === 143) {
+        const elapsed = ((Date.now() - startTs) / 1000).toFixed(1);
+        slog('EXIT143', `prompt=${fullPrompt.length} chars, elapsed=${elapsed}s, tools=${toolCallCount}`);
       }
 
       if (code !== 0 && !resultText) {
@@ -739,12 +751,12 @@ export async function processMessage(
   const memory = getMemory();
   const logger = getLogger();
 
-  // 1. Build context from memory
-  const context = await memory.buildContext();
+  // 1. Build context from memory (pass user message as relevance hint for smart topic loading)
+  const context = await memory.buildContext({ relevanceHint: userMessage });
 
   // 2. Call Claude (now returns friendly error as response instead of throwing)
   const claudeResult = await callClaude(userMessage, context, 2, {
-    rebuildContext: (mode) => memory.buildContext({ mode }),
+    rebuildContext: (mode) => memory.buildContext({ mode, relevanceHint: userMessage }),
   });
 
   const { response, systemPrompt, fullPrompt, duration } = claudeResult;

@@ -911,6 +911,98 @@
   .section:nth-child(3) { animation-delay: 0.1s; }
   .section:nth-child(4) { animation-delay: 0.15s; }
   .section:nth-child(5) { animation-delay: 0.2s; }
+  .section:nth-child(6) { animation-delay: 0.25s; }
+  .section:nth-child(7) { animation-delay: 0.3s; }
+
+  /* ── Decision Timeline ── */
+  .decision-entry {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 12px;
+  }
+  .decision-entry:last-child { border-bottom: none; }
+  .decision-time { color: var(--text3); font-family: var(--mono); min-width: 50px; }
+  .decision-mode {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    min-width: 80px;
+    text-align: center;
+  }
+  .decision-text { color: var(--text); flex: 1; }
+  .decision-score {
+    font-family: var(--mono);
+    font-size: 11px;
+    min-width: 20px;
+    text-align: right;
+  }
+  .score-high { color: var(--accent); }
+  .score-mid { color: var(--yellow); }
+  .score-low { color: var(--red); }
+
+  /* ── Context Health ── */
+  .ctx-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+  .ctx-card {
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .ctx-card-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .ctx-card-value {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--text-bright);
+  }
+  .ctx-sections {
+    padding: 0 12px 12px;
+  }
+  .ctx-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 11px;
+  }
+  .ctx-bar-label {
+    min-width: 100px;
+    color: var(--text2);
+    font-family: var(--mono);
+  }
+  .ctx-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ctx-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .ctx-bar-value {
+    min-width: 50px;
+    text-align: right;
+    font-family: var(--mono);
+    color: var(--text3);
+  }
 </style>
 </head>
 <body>
@@ -1021,6 +1113,29 @@
   </div>
 </div>
 
+  <!-- Decision Timeline -->
+  <div class="section" id="decisionSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9654;</span> Decision Timeline</div>
+      <span class="section-count" id="decisionCount">--</span>
+    </div>
+    <div id="decisionContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Context Health -->
+  <div class="section" id="contextSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9608;</span> Context Health</div>
+    </div>
+    <div id="contextContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
+</div>
+
 <button class="scroll-top" id="scrollTop" title="Scroll to top">&#8593;</button>
 
 <script>
@@ -1118,13 +1233,103 @@ function formatMarkdown(str) {
 
 // ── Data Fetching ──
 
+// ── Decision Timeline Rendering ──
+
+function renderDecisions(entries) {
+  const container = document.getElementById('decisionContent');
+  const countEl = document.getElementById('decisionCount');
+
+  const withDecision = entries.filter(e => e.decision || e.modeTag);
+  countEl.textContent = withDecision.length;
+
+  if (withDecision.length === 0) {
+    container.innerHTML = '<div class="empty-state">No decisions recorded today.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const e of withDecision.slice(-30).reverse()) {
+    const time = formatTime(e.timestamp);
+    const mode = e.modeTag || e.route || '?';
+    const text = e.decision || e.what || '(no trace)';
+    const score = e.observabilityScore ?? 0;
+    const scoreClass = score >= 4 ? 'score-high' : score >= 2 ? 'score-mid' : 'score-low';
+
+    html += '<div class="decision-entry">';
+    html += '<span class="decision-time">' + time + '</span>';
+    html += '<span class="decision-mode">' + escapeHtml(mode) + '</span>';
+    html += '<span class="decision-text">' + escapeHtml(text.slice(0, 200)) + '</span>';
+    html += '<span class="decision-score ' + scoreClass + '">' + score + '/6</span>';
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+// ── Context Health Rendering ──
+
+function renderContextHealth(data) {
+  const container = document.getElementById('contextContent');
+  const summary = data.summary;
+
+  if (!summary) {
+    container.innerHTML = '<div class="empty-state">No context checkpoints today.</div>';
+    return;
+  }
+
+  let html = '<div class="ctx-summary">';
+  html += '<div class="ctx-card"><div class="ctx-card-label">Checkpoints</div><div class="ctx-card-value">' + summary.checkpointCount + '</div></div>';
+  html += '<div class="ctx-card"><div class="ctx-card-label">Avg Context</div><div class="ctx-card-value">' + (summary.avgContextLength > 1000 ? Math.round(summary.avgContextLength / 1000) + 'K' : summary.avgContextLength) + ' chars</div></div>';
+
+  const topicCount = Object.keys(summary.topicUtility || {}).length;
+  html += '<div class="ctx-card"><div class="ctx-card-label">Topics Loaded</div><div class="ctx-card-value">' + topicCount + '</div></div>';
+  html += '</div>';
+
+  // Section size bars
+  const sections = summary.sections || {};
+  const sectionNames = Object.keys(sections);
+  if (sectionNames.length > 0) {
+    const maxChars = Math.max(...sectionNames.map(n => sections[n].avgChars));
+    html += '<div class="ctx-sections">';
+    const sorted = sectionNames.sort((a, b) => sections[b].avgChars - sections[a].avgChars);
+    for (const name of sorted) {
+      const s = sections[name];
+      const pct = maxChars > 0 ? Math.round((s.avgChars / maxChars) * 100) : 0;
+      const sizeStr = s.avgChars > 1000 ? Math.round(s.avgChars / 1000) + 'K' : s.avgChars;
+      html += '<div class="ctx-bar-row">';
+      html += '<span class="ctx-bar-label">' + escapeHtml(name) + '</span>';
+      html += '<div class="ctx-bar"><div class="ctx-bar-fill" style="width:' + pct + '%"></div></div>';
+      html += '<span class="ctx-bar-value">' + sizeStr + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Topic utility
+  const topicUtility = summary.topicUtility || {};
+  const topicNames = Object.keys(topicUtility);
+  if (topicNames.length > 0) {
+    html += '<div style="padding: 8px 12px; border-top: 1px solid var(--border-subtle);">';
+    html += '<div style="font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Topic Load Frequency</div>';
+    const sortedTopics = topicNames.sort((a, b) => topicUtility[b] - topicUtility[a]);
+    for (const t of sortedTopics) {
+      html += '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:var(--surface2);border-radius:3px;font-size:11px;font-family:var(--mono);">' + escapeHtml(t) + ' <span style="color:var(--accent);">' + topicUtility[t] + '</span></span>';
+    }
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
       fetch(API + '/api/dashboard/journal?date=' + currentDate),
+      fetch(API + '/api/dashboard/cognition?date=' + currentDate).catch(() => null),
+      fetch(API + '/api/dashboard/context?date=' + currentDate).catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -1135,12 +1340,16 @@ async function fetchAll() {
     const behaviors = await behaviorsRes.json();
     const learning = await learningRes.json();
     const journal = await journalRes.json();
+    const cognition = cognitionRes?.ok ? await cognitionRes.json() : { entries: [] };
+    const contextData = contextRes?.ok ? await contextRes.json() : { entries: [], summary: null };
 
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
     renderLearning(learning.entries || []);
     renderJournal(allJournalEntries);
+    renderDecisions(cognition.entries || []);
+    renderContextHealth(contextData);
     render();
 
     lastUpdate = new Date();

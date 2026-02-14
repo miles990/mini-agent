@@ -190,6 +190,118 @@ describe('InstanceMemory', () => {
       const context = await memory.buildContext();
       expect(context).toContain('(No recent conversations)');
     });
+
+    it('should include environment section in all modes', async () => {
+      const full = await memory.buildContext({ mode: 'full' });
+      expect(full).toContain('<environment>');
+
+      const focused = await memory.buildContext({ mode: 'focused' });
+      expect(focused).toContain('<environment>');
+
+      const minimal = await memory.buildContext({ mode: 'minimal' });
+      expect(minimal).toContain('<environment>');
+    });
+
+    it('should include MINIMAL MODE marker in minimal mode', async () => {
+      const minimal = await memory.buildContext({ mode: 'minimal' });
+      expect(minimal).toContain('MINIMAL MODE');
+    });
+
+    it('should limit conversations in focused mode', async () => {
+      // Add 15 conversations (hot limit is 5 for test, focused caps at 10)
+      for (let i = 0; i < 5; i++) {
+        await memory.appendConversation('user', `Message ${i}`);
+      }
+
+      const full = await memory.buildContext({ mode: 'full' });
+      const focused = await memory.buildContext({ mode: 'focused' });
+
+      // Both should contain conversations but focused limits count
+      expect(full).toContain('Message 0');
+      expect(focused).toContain('Message 0');
+    });
+
+    it('should produce shorter context in minimal mode than full mode', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'MEMORY.md'),
+        '## Knowledge\n- Important fact\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(testDir, 'HEARTBEAT.md'),
+        '## Active Tasks\n- [ ] Do something\n',
+        'utf-8'
+      );
+
+      const full = await memory.buildContext({ mode: 'full' });
+      const minimal = await memory.buildContext({ mode: 'minimal' });
+
+      // Minimal should be shorter (no full memory, no perceptions)
+      expect(minimal.length).toBeLessThan(full.length);
+    });
+  });
+
+  describe('buildContext topic keyword matching', () => {
+    beforeEach(async () => {
+      const topicsDir = path.join(testDir, 'topics');
+      await fs.mkdir(topicsDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(topicsDir, 'gen-art.md'),
+        '# Gen Art\n- Perlin noise techniques\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(topicsDir, 'mini-agent.md'),
+        '# Mini Agent\n- Dispatcher architecture\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(topicsDir, 'custom-topic.md'),
+        '# Custom\n- Custom data\n',
+        'utf-8'
+      );
+    });
+
+    it('should load all topics in full mode', async () => {
+      const context = await memory.buildContext({ mode: 'full' });
+      expect(context).toContain('topic-memory name="gen-art"');
+      expect(context).toContain('topic-memory name="mini-agent"');
+      expect(context).toContain('topic-memory name="custom-topic"');
+    });
+
+    it('should load only matching topics in focused mode with hint', async () => {
+      const context = await memory.buildContext({
+        mode: 'focused',
+        relevanceHint: 'dispatcher architecture',
+      });
+      // mini-agent topic has 'dispatcher' keyword
+      expect(context).toContain('topic-memory name="mini-agent"');
+      // gen-art topic should NOT load (no matching keywords)
+      expect(context).not.toContain('topic-memory name="gen-art"');
+    });
+
+    it('should load topic by name fallback when no keyword mapping exists', async () => {
+      const context = await memory.buildContext({
+        mode: 'focused',
+        relevanceHint: 'custom-topic related',
+      });
+      // custom-topic falls back to topic name as keyword
+      expect(context).toContain('topic-memory name="custom-topic"');
+    });
+
+    it('should load gen-art topic when hint contains art keywords', async () => {
+      const context = await memory.buildContext({
+        mode: 'focused',
+        relevanceHint: 'generative noise art',
+      });
+      expect(context).toContain('topic-memory name="gen-art"');
+    });
+
+    it('should not load topics in minimal mode', async () => {
+      const context = await memory.buildContext({ mode: 'minimal' });
+      expect(context).not.toContain('topic-memory');
+    });
   });
 
   describe('warm rotation', () => {

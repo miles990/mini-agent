@@ -145,6 +145,7 @@ interface CognitionEntry {
   actor: 'agent' | 'user' | 'system';
   route: 'autonomous' | 'task';
   modeTag: string | null;
+  decision: string;
   what: string;
   why: string;
   thinking: string;
@@ -274,6 +275,10 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
   const modeTag = modeTagMatch?.[1]?.toLowerCase() ?? null;
   const route: 'autonomous' | 'task' = action === 'action.autonomous' ? 'autonomous' : 'task';
 
+  // Parse [DECISION]...[/DECISION] tag
+  const decisionMatch = full.match(/\[DECISION\]([\s\S]*?)\[\/DECISION\]/i);
+  const decision = decisionMatch?.[1]?.trim() ?? '';
+
   const what = pickSection(full, ['What']);
   const why = pickSection(full, ['Why']);
   const thinking = pickSection(full, ['Thinking']);
@@ -282,13 +287,14 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
   const next = pickSection(full, ['Next']);
   const sources = parseSources(full);
 
-  const observabilityScore = [what, why, thinking, changed, verified].filter(Boolean).length;
+  const observabilityScore = [decision, what, why, thinking, changed, verified].filter(Boolean).length;
 
   return {
     timestamp: entry.timestamp,
     actor: entry.data.actor,
     route,
     modeTag,
+    decision,
     what,
     why,
     thinking,
@@ -319,7 +325,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/events']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/events']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -965,6 +971,65 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/dashboard/capabilities', async (_req: Request, res: Response) => {
     const snapshot = await getCapabilitiesSnapshot();
     res.json(snapshot);
+  });
+
+  // Context Budget API — checkpoint 分析
+  app.get('/api/dashboard/context', async (req: Request, res: Response) => {
+    try {
+      const memory = getMemory();
+      const checkpointDir = path.join(memory.getMemoryDir(), 'context-checkpoints');
+
+      if (!fs.existsSync(checkpointDir)) {
+        res.json({ entries: [], summary: null });
+        return;
+      }
+
+      // Read today's JSONL (or specified date)
+      const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+      const filePath = path.join(checkpointDir, `${date}.jsonl`);
+
+      if (!fs.existsSync(filePath)) {
+        res.json({ entries: [], summary: null });
+        return;
+      }
+
+      const content = await fsPromises.readFile(filePath, 'utf-8');
+      const entries = content.trim().split('\n')
+        .filter(l => l.trim())
+        .map(l => { try { return JSON.parse(l); } catch { return null; } })
+        .filter(Boolean);
+
+      // Aggregate section sizes across all entries
+      const sectionTotals = new Map<string, { totalChars: number; count: number }>();
+      for (const entry of entries) {
+        if (!Array.isArray(entry.sections)) continue;
+        for (const s of entry.sections) {
+          const existing = sectionTotals.get(s.name) ?? { totalChars: 0, count: 0 };
+          existing.totalChars += s.chars;
+          existing.count += 1;
+          sectionTotals.set(s.name, existing);
+        }
+      }
+
+      const summary = {
+        date,
+        checkpointCount: entries.length,
+        avgContextLength: entries.length > 0
+          ? Math.round(entries.reduce((sum: number, e: { contextLength?: number }) => sum + (e.contextLength ?? 0), 0) / entries.length)
+          : 0,
+        sections: Object.fromEntries(
+          [...sectionTotals.entries()].map(([name, { totalChars, count }]) => [
+            name,
+            { avgChars: Math.round(totalChars / count), appearances: count },
+          ]),
+        ),
+        topicUtility: memory.getTopicUtility(),
+      };
+
+      res.json({ entries: entries.slice(-20), summary }); // Last 20 entries + summary
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
   });
 
   // Dashboard HTML — 靜態頁面

@@ -155,10 +155,22 @@ class PerceptionStreamManager {
   private async tick(entry: StreamEntry): Promise<void> {
     if (!this.running) return;
 
-    const result = await executePerception(
-      entry.perception as CustomPerception,
-      this.cwd,
-    );
+    const timeoutMs = entry.perception.timeout ?? 10_000; // 預設 10s
+    let result: PerceptionResult;
+
+    try {
+      result = await Promise.race([
+        executePerception(entry.perception as CustomPerception, this.cwd),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Plugin ${entry.perception.name} timed out (${timeoutMs}ms)`)), timeoutMs),
+        ),
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      slog('PERCEPTION', `[degraded] ${entry.perception.name}: ${msg}`);
+      // 超時或錯誤：保留上次結果，不更新
+      return;
+    }
 
     const hash = crypto.createHash('md5')
       .update(result.output ?? '')

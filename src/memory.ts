@@ -343,6 +343,9 @@ export class InstanceMemory {
   private hotLimit: number;
   private warmLimit: number;
 
+  // Utility counter: track topic load frequency
+  private topicLoadCounts = new Map<string, number>();
+
   constructor(instanceId?: string, options?: { hot?: number; warm?: number }) {
     this.instanceId = instanceId ?? getCurrentInstanceId();
     this.memoryDir = getMemoryDir(this.instanceId);
@@ -355,6 +358,13 @@ export class InstanceMemory {
    */
   getMemoryDir(): string {
     return this.memoryDir;
+  }
+
+  /**
+   * 取得 topic 載入頻率統計
+   */
+  getTopicUtility(): Record<string, number> {
+    return Object.fromEntries(this.topicLoadCounts);
   }
 
   /**
@@ -995,12 +1005,18 @@ export class InstanceMemory {
       const loadedTopics: string[] = [];
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
-        const shouldLoad = mode === 'full' || keywords.some(k => contextHint.includes(k));
+        const isDirectMatch = keywords.some(k => contextHint.includes(k));
+        const shouldLoad = mode === 'full' || isDirectMatch;
         if (shouldLoad) {
           const content = await this.readTopicMemory(topic);
           if (content) {
-            sections.push(`<topic-memory name="${topic}">\n${content}\n</topic-memory>`);
+            // In full mode with hint: non-matching topics get truncated
+            const shouldTruncate = mode === 'full' && hint && !isDirectMatch;
+            const topicContent = shouldTruncate ? truncateTopicMemory(content) : content;
+            sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
             loadedTopics.push(topic);
+            // Track utility
+            this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
         }
       }
@@ -1037,12 +1053,20 @@ export class InstanceMemory {
       await ensureDir(dir);
       const now = new Date();
       const ts = now.toISOString().replace(/[:.]/g, '-');
+      // Per-section char count: match <tag>...</tag> and measure content size
+      const sectionSizes: Array<{ name: string; chars: number }> = [];
+      for (const m of context.matchAll(/<(\S+?)[\s>][\s\S]*?<\/\1>/g)) {
+        sectionSizes.push({ name: m[1], chars: m[0].length });
+      }
+      // Topic utility counts snapshot
+      const topicUtility = Object.fromEntries(this.topicLoadCounts);
       const entry = JSON.stringify({
         timestamp: now.toISOString(),
         mode,
         hint: hint.slice(0, 200),
         contextLength: context.length,
-        sections: [...context.matchAll(/<(\S+?)[\s>]/g)].map(m => m[1]),
+        sections: sectionSizes,
+        topicUtility,
       }) + '\n';
       await fs.appendFile(path.join(dir, `${ts.slice(0, 10)}.jsonl`), entry);
     } catch {
@@ -1128,6 +1152,28 @@ export class InstanceMemory {
     }
     return truncated;
   }
+}
+
+// =============================================================================
+// Topic Truncation
+// =============================================================================
+
+/**
+ * Truncate topic memory for non-directly-matched topics.
+ * Keeps: title (first line) + last 3 entries + entry count.
+ */
+function truncateTopicMemory(content: string): string {
+  const lines = content.split('\n');
+  const title = lines[0] || '';
+
+  // Extract entries (lines starting with "- [")
+  const entries = lines.filter(l => l.startsWith('- ['));
+  const total = entries.length;
+
+  if (total <= 3) return content; // Already small enough
+
+  const recent = entries.slice(-3);
+  return `${title}\n(${total} entries, showing recent 3)\n${recent.join('\n')}`;
 }
 
 // =============================================================================
