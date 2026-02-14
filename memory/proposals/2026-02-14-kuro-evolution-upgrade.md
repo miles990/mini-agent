@@ -1,6 +1,6 @@
 # Proposal: Kuro Evolution Upgrade — 感知深化 × 自我評估 × 決策透明
 
-## Status: approved
+## Status: completed (2026-02-14, 3bdbd57 + a419df3) — L1×9 + L2×10 全部實作
 
 ## TL;DR
 七個升級領域、三個層級（L1/L2/L3），全部服從 Quality-First Constraint。從 Kuro 能自己做的 L1 改動開始（本週），到需要改 src/ 的 L2（下週），最後是架構級 L3（需更多設計）。核心目標：讓 Kuro 的思考品質更高、決策過程更透明、感知更精準，而不是讓 Kuro 做更多事。
