@@ -9,6 +9,7 @@ memory/*
 !memory/handoffs/
 memory/handoffs/*
 !memory/handoffs/active.md
+!memory/proposals/
 sessions/
 .claude/*
 !.claude/settings.json

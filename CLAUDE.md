@@ -279,6 +279,11 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 | **Claude Code** | 開發工具 | 寫程式、重構、部署、驗證 |
 | **Kuro** | 自主 Agent | 感知環境、自主學習、執行任務、回報狀態 |
 
+### Claude Code 與 Kuro 溝通
+
+- **Claude Code 透過 `/chat` API 發訊息給 Kuro 時，必須在訊息開頭加上 `[Claude Code]` 前綴**，避免 Kuro 混淆訊息來源、污染 context
+- Claude Code 的操作（edit、write）會觸發 Kuro 的 `trigger:workspace` → perception stream → 可能觸發新 cycle。**Claude Code 是 Kuro 環境的一部分**，操作時要意識到這點
+
 ### Claude Code 使用 Kuro 感知
 
 Kuro 在 `localhost:3001` 運行，提供即時環境感知。**Claude Code 在做任何系統狀態相關的判斷前，應先查詢 Kuro 的感知資料，而非依賴文件描述。**
@@ -367,6 +372,19 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - **只處理 `Status: approved`**。不動 `pending` 的
 - Alex 的 `approved` = 預先信任，`completed` 即終態，不需二次驗收
 - `Depends-on` 手動管理，循環依賴由審核時發現
+
+## 進化核心約束（Meta-Constraints）
+
+所有對 Kuro 的改動（包括 src/、skills/、plugins/、behavior.md）都必須通過這四個檢查點：
+
+| 約束 | 規則 | 檢查問題 |
+|------|------|----------|
+| **C1: Quality-First** | 品質為第一優先。效率、透明、節制都服務於思考品質 | 會不會讓思考變淺、學習變窄、判斷變粗糙？ |
+| **C2: Token 節制** | Token 像預算，有意識分配。寬度不縮，精度提升 | 改動讓 context 更精準還是只是更少？ |
+| **C3: 透明不干預** | Decision trace 是事後記錄，不是事前規劃。追蹤機制 fire-and-forget | 追蹤機制是否增加 cycle 時間超過 5%？ |
+| **C4: 可逆性** | 每個改動都要能快速回退（L1: git revert / L2: env flag / L3: 新舊並存） | 出問題時能在 1 分鐘內恢復嗎？ |
+
+詳見升級提案：`memory/proposals/2026-02-14-kuro-evolution-upgrade.md`
 
 ## Kuro Agent Debugging
 
