@@ -72,8 +72,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 0 24px;
-    margin-bottom: 24px;
+    padding: 0 0 20px;
+    margin-bottom: 20px;
     border-bottom: 1px solid var(--border-subtle);
   }
 
@@ -146,6 +146,46 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0; transform: scale(1.8); }
   }
+
+  /* ── Today Summary Bar ── */
+  .today-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .today-chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: border-color 0.2s;
+  }
+  .today-chip:hover { border-color: var(--border); }
+
+  .today-chip .chip-icon {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .today-chip .chip-value {
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+
+  .today-chip.highlight {
+    border-color: rgba(94, 234, 212, 0.2);
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(94, 234, 212, 0.03) 100%);
+  }
+  .today-chip.highlight .chip-value { color: var(--accent); }
 
   /* ── Status Grid ── */
   .status-grid {
@@ -244,6 +284,48 @@
     font-size: 11px;
     color: var(--text3);
     font-weight: 400;
+  }
+
+  /* ── Collapsible Section ── */
+  .section-collapsible .section-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    margin: 0 -8px 0;
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    border-bottom: none;
+  }
+  .section-collapsible .section-header:hover {
+    background: rgba(255,255,255,0.02);
+  }
+
+  .section-collapse-icon {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .section-collapsible.collapsed .section-collapse-icon {
+    transform: rotate(-90deg);
+  }
+
+  .section-collapsible .section-body {
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+    max-height: 5000px;
+    opacity: 1;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 10px;
+    padding-top: 14px;
+  }
+  .section-collapsible.collapsed .section-body {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
   }
 
   /* ── Current Task ── */
@@ -452,6 +534,27 @@
     background: var(--surface3);
     color: var(--text2);
   }
+
+  /* Library reference chip in journal card */
+  .j-lib-ref {
+    font-family: var(--mono);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--blue-dim);
+    color: var(--blue);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .j-lib-ref:hover {
+    background: rgba(96, 165, 250, 0.2);
+    color: #93bbfc;
+  }
+  .j-lib-ref .lib-icon { font-size: 9px; }
 
   .j-title {
     font-size: 14px;
@@ -918,35 +1021,6 @@
   .lib-cited-by-item { font-size: 12px; color: var(--text2); padding: 2px 0; font-family: var(--mono); }
   .lib-content-body { font-size: 13px; line-height: 1.7; color: var(--text); border-top: 1px solid var(--border-subtle); padding-top: 16px; white-space: pre-wrap; word-break: break-word; }
 
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    .container { padding: 16px; }
-    .status-grid { grid-template-columns: repeat(2, 1fr); }
-    .status-grid > :last-child { grid-column: span 2; }
-    .stat-value { font-size: 18px; }
-    .timeline { padding-left: 80px; }
-    .timeline::before { left: 69px; }
-    .tl-time { left: -80px; width: 60px; font-size: 10px; }
-    .tl-dot { left: -5px; }
-    .j-title { font-size: 13px; }
-  }
-
-  /* ── Animations ── */
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .section {
-    animation: fadeIn 0.4s ease both;
-  }
-  .section:nth-child(2) { animation-delay: 0.05s; }
-  .section:nth-child(3) { animation-delay: 0.1s; }
-  .section:nth-child(4) { animation-delay: 0.15s; }
-  .section:nth-child(5) { animation-delay: 0.2s; }
-  .section:nth-child(6) { animation-delay: 0.25s; }
-  .section:nth-child(7) { animation-delay: 0.3s; }
-
   /* ── Decision Timeline ── */
   .decision-entry {
     display: flex;
@@ -1036,6 +1110,39 @@
     font-family: var(--mono);
     color: var(--text3);
   }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .container { padding: 16px; }
+    .status-grid { grid-template-columns: repeat(2, 1fr); }
+    .status-grid > :last-child { grid-column: span 2; }
+    .stat-value { font-size: 18px; }
+    .timeline { padding-left: 80px; }
+    .timeline::before { left: 69px; }
+    .tl-time { left: -80px; width: 60px; font-size: 10px; }
+    .tl-dot { left: -5px; }
+    .j-title { font-size: 13px; }
+    .today-bar { gap: 4px; }
+    .today-chip { font-size: 10px; padding: 4px 8px; }
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section {
+    animation: fadeIn 0.4s ease both;
+  }
+  .section:nth-child(2) { animation-delay: 0.05s; }
+  .section:nth-child(3) { animation-delay: 0.1s; }
+  .section:nth-child(4) { animation-delay: 0.15s; }
+  .section:nth-child(5) { animation-delay: 0.2s; }
+  .section:nth-child(6) { animation-delay: 0.25s; }
+  .section:nth-child(7) { animation-delay: 0.3s; }
+  .section:nth-child(8) { animation-delay: 0.35s; }
+  .section:nth-child(9) { animation-delay: 0.4s; }
 </style>
 </head>
 <body>
@@ -1052,6 +1159,32 @@
       </div>
     </div>
   </header>
+
+  <!-- Today Summary Bar -->
+  <div class="today-bar" id="todayBar">
+    <div class="today-chip highlight">
+      <span class="chip-icon">&#9670;</span>
+      <span>Journal</span>
+      <span class="chip-value" id="todayJournal">--</span>
+    </div>
+    <div class="today-chip">
+      <span class="chip-icon">&#128218;</span>
+      <span>Library</span>
+      <span class="chip-value" id="todayLibrary">--</span>
+    </div>
+    <div class="today-chip">
+      <span class="chip-icon">&#9472;</span>
+      <span>Behaviors</span>
+      <span class="chip-value" id="todayBehaviors">--</span>
+    </div>
+    <div class="today-chip">
+      <span class="chip-icon">&#9654;</span>
+      <span>Decisions</span>
+      <span class="chip-value" id="todayDecisions">--</span>
+    </div>
+    <span style="flex: 1;"></span>
+    <input type="date" class="date-input" id="dateInput">
+  </div>
 
   <!-- Status Grid -->
   <div class="status-grid" id="statusGrid">
@@ -1095,7 +1228,7 @@
     </div>
   </div>
 
-  <!-- Knowledge Journal -->
+  <!-- Knowledge Journal (PRIMARY — most prominent) -->
   <div class="section" id="journalSection">
     <div class="section-header">
       <div class="section-title"><span class="icon">&#9670;</span> Knowledge Journal</div>
@@ -1113,18 +1246,7 @@
     </div>
   </div>
 
-  <!-- Learning Report -->
-  <div class="section" id="learningSection">
-    <div class="section-header">
-      <div class="section-title"><span class="icon">&#9679;</span> Activity Log</div>
-      <span class="section-count" id="learningCount">--</span>
-    </div>
-    <div id="learningContent">
-      <div class="loading"><span>Loading...</span></div>
-    </div>
-  </div>
-
-  <!-- Library -->
+  <!-- Library (RIGHT AFTER Journal — linked) -->
   <div class="section" id="librarySection">
     <div class="section-header">
       <div class="section-title"><span class="icon">&#128218;</span> Library</div>
@@ -1152,46 +1274,69 @@
     </div>
   </div>
 
-  <!-- Behavior Timeline -->
-  <div class="section">
+  <!-- Activity Log -->
+  <div class="section" id="learningSection">
     <div class="section-header">
-      <div class="section-title"><span class="icon">&#9472;</span> Behavior Timeline</div>
+      <div class="section-title"><span class="icon">&#9679;</span> Activity Log</div>
+      <span class="section-count" id="learningCount">--</span>
     </div>
-    <div class="filters-bar">
-      <button class="filter-chip active" data-actor="all">All</button>
-      <button class="filter-chip" data-actor="agent">Agent</button>
-      <button class="filter-chip" data-actor="user">User</button>
-      <button class="filter-chip" data-actor="system">System</button>
-      <div class="divider"></div>
-      <button class="filter-chip active" data-view="timeline">Timeline</button>
-      <button class="filter-chip" data-view="cycles">Cycles</button>
-      <span style="flex: 1;"></span>
-      <input type="date" class="date-input" id="dateInput">
-    </div>
-    <div id="content">
-      <div class="loading"><span>Loading...</span></div>
-    </div>
-  </div>
-</div>
-
-  <!-- Decision Timeline -->
-  <div class="section" id="decisionSection">
-    <div class="section-header">
-      <div class="section-title"><span class="icon">&#9654;</span> Decision Timeline</div>
-      <span class="section-count" id="decisionCount">--</span>
-    </div>
-    <div id="decisionContent">
+    <div id="learningContent">
       <div class="loading"><span>Loading...</span></div>
     </div>
   </div>
 
-  <!-- Context Health -->
-  <div class="section" id="contextSection">
-    <div class="section-header">
-      <div class="section-title"><span class="icon">&#9608;</span> Context Health</div>
+  <!-- Behavior Timeline (COLLAPSIBLE) -->
+  <div class="section section-collapsible collapsed" id="behaviorSection">
+    <div class="section-header" onclick="toggleSection('behaviorSection')">
+      <div class="section-title">
+        <span class="icon">&#9472;</span> Behavior Timeline
+        <span class="section-collapse-icon">&#9660;</span>
+      </div>
     </div>
-    <div id="contextContent">
-      <div class="loading"><span>Loading...</span></div>
+    <div class="section-body">
+      <div class="filters-bar">
+        <button class="filter-chip active" data-actor="all">All</button>
+        <button class="filter-chip" data-actor="agent">Agent</button>
+        <button class="filter-chip" data-actor="user">User</button>
+        <button class="filter-chip" data-actor="system">System</button>
+        <div class="divider"></div>
+        <button class="filter-chip active" data-view="timeline">Timeline</button>
+        <button class="filter-chip" data-view="cycles">Cycles</button>
+      </div>
+      <div id="content">
+        <div class="loading"><span>Loading...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decision Timeline (COLLAPSIBLE) -->
+  <div class="section section-collapsible collapsed" id="decisionSection">
+    <div class="section-header" onclick="toggleSection('decisionSection')">
+      <div class="section-title">
+        <span class="icon">&#9654;</span> Decision Timeline
+        <span class="section-collapse-icon">&#9660;</span>
+        <span class="section-count" id="decisionCount">--</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div id="decisionContent">
+        <div class="loading"><span>Loading...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Health (COLLAPSIBLE) -->
+  <div class="section section-collapsible collapsed" id="contextSection">
+    <div class="section-header" onclick="toggleSection('contextSection')">
+      <div class="section-title">
+        <span class="icon">&#9608;</span> Context Health
+        <span class="section-collapse-icon">&#9660;</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div id="contextContent">
+        <div class="loading"><span>Loading...</span></div>
+      </div>
     </div>
   </div>
 
@@ -1209,8 +1354,22 @@ let allBehaviors = [];
 let allJournalEntries = [];
 let currentJournalCat = 'all';
 
+// Library data — used for Journal↔Library linking
+let libraryData = [];
+let libUrlMap = {};   // url → CatalogEntry
+let libCitedMap = {};
+let libActiveTag = '';
+
 // Init
 document.getElementById('dateInput').value = currentDate;
+
+// ── Section Collapse ──
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+}
 
 // ── Event Listeners ──
 
@@ -1292,6 +1451,39 @@ function formatMarkdown(str) {
   return out;
 }
 
+// ── Journal↔Library URL matching ──
+
+function buildLibUrlMap() {
+  libUrlMap = {};
+  for (const entry of libraryData) {
+    if (entry.url) {
+      // Normalize URL for matching: strip protocol, trailing slash
+      const normalized = entry.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      libUrlMap[normalized] = entry;
+      // Also store the raw url
+      libUrlMap[entry.url] = entry;
+    }
+  }
+}
+
+function findLibraryMatch(urls) {
+  if (!urls || urls.length === 0) return null;
+  for (const url of urls) {
+    const normalized = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (libUrlMap[normalized]) return libUrlMap[normalized];
+    if (libUrlMap[url]) return libUrlMap[url];
+    // Partial match: check if any library URL starts with journal URL's domain+path
+    for (const libEntry of libraryData) {
+      if (!libEntry.url) continue;
+      const libNorm = libEntry.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (normalized.startsWith(libNorm) || libNorm.startsWith(normalized)) {
+        return libEntry;
+      }
+    }
+  }
+  return null;
+}
+
 // ── Data Fetching ──
 
 // ── Decision Timeline Rendering ──
@@ -1302,6 +1494,9 @@ function renderDecisions(entries) {
 
   const withDecision = entries.filter(e => e.decision || e.modeTag);
   countEl.textContent = withDecision.length;
+
+  // Update today bar
+  document.getElementById('todayDecisions').textContent = withDecision.length;
 
   if (withDecision.length === 0) {
     container.innerHTML = '<div class="empty-state">No decisions recorded today.</div>';
@@ -1407,6 +1602,11 @@ async function fetchAll() {
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
+
+    // Update today summary bar
+    document.getElementById('todayJournal').textContent = allJournalEntries.length;
+    document.getElementById('todayBehaviors').textContent = allBehaviors.length;
+
     renderLearning(learning.entries || []);
     renderJournal(allJournalEntries);
     renderDecisions(cognition.entries || []);
@@ -1568,11 +1768,19 @@ function renderJournal(entries) {
     const topicShort = topicLabels[e.topic] || e.topic;
     const jid = 'j-' + i;
 
+    // Check for library match
+    const libMatch = findLibraryMatch(e.urls);
+
     html += '<div class="j-card cat-' + cat + '">';
 
     html += '  <div class="j-meta">';
     html += '    <span class="j-badge ' + cat + '">' + (catLabels[cat] || cat) + '</span>';
     html += '    <span class="j-topic">' + escapeHtml(topicShort) + '</span>';
+    if (libMatch) {
+      html += '    <span class="j-lib-ref" onclick="showLibraryDetail(\'' + escapeHtml(libMatch.id) + '\')" title="View in Library: ' + escapeHtml(libMatch.title) + '">';
+      html += '      <span class="lib-icon">&#128218;</span> ' + escapeHtml(libMatch.title.slice(0, 30)) + (libMatch.title.length > 30 ? '...' : '');
+      html += '    </span>';
+    }
     html += '  </div>';
 
     html += '  <div class="j-title">' + escapeHtml(e.title) + '</div>';
@@ -1840,7 +2048,7 @@ function toggleCycle(id) {
   el.style.display = el.style.display === 'none' || !el.style.display ? 'block' : 'none';
 }
 
-// ── SSE — 事件驅動更新（取代 30s polling）──
+// ── SSE — 事件驅動更新 ──
 
 let sseRefreshTimer = null;
 
@@ -1862,16 +2070,12 @@ function connectSSE() {
   };
 }
 
-// Fallback: 定期刷新（SSE 斷線保底）
+// Fallback polling
 function startFallbackRefresh() {
   setInterval(fetchAll, 60000);
 }
 
 // ── Library ──
-
-let libraryData = [];
-let libCitedMap = {};
-let libActiveTag = '';
 
 async function fetchLibrary() {
   try {
@@ -1884,6 +2088,9 @@ async function fetchLibrary() {
     const stats = statsRes.ok ? await statsRes.json() : { topCited: [] };
     libraryData = cat.entries || [];
 
+    // Build URL map for Journal↔Library linking
+    buildLibUrlMap();
+
     // Build cited map from stats
     libCitedMap = {};
     for (const tc of (stats.topCited || [])) {
@@ -1891,8 +2098,14 @@ async function fetchLibrary() {
     }
 
     document.getElementById('libraryCount').textContent = libraryData.length;
+    document.getElementById('todayLibrary').textContent = libraryData.length;
     renderLibraryTags();
     renderLibrary();
+
+    // Re-render journal with library links now available
+    if (allJournalEntries.length > 0) {
+      renderJournal(allJournalEntries);
+    }
   } catch (e) {
     console.error('Library fetch error:', e);
   }
@@ -2042,6 +2255,7 @@ document.getElementById('libDetailOverlay').addEventListener('click', function(e
   if (e.target === this) this.style.display = 'none';
 });
 
+// ── Init ──
 fetchAll();
 fetchLibrary();
 connectSSE();
