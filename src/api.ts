@@ -153,6 +153,7 @@ interface CognitionEntry {
   verified: string;
   next: string;
   sources: string[];
+  basis: string[];
   full: string;
   observabilityScore: number;
 }
@@ -266,6 +267,46 @@ function parseSources(detail: string): string[] {
   return Array.from(found);
 }
 
+/**
+ * Extract prior knowledge references from action text.
+ * Matches patterns like:
+ *   - "跟 X 同構" / "跟 X 呼應" / "跟 X 一致"
+ *   - "之前讀的 X" / "之前學的 X"
+ *   - "X（YYYY-MM-DD）" or "X (YYYY-MM-DD Study)"
+ *   - "來自 X 研究" / "基於 X"
+ *   - Explicit topic references like "agent-architecture:CodeRLM"
+ */
+function parseBasis(detail: string): string[] {
+  const found = new Set<string>();
+
+  // Cross-reference patterns: "跟 X 同構/呼應/一致/平行/互補/連結/吻合"
+  for (const m of detail.matchAll(/跟(?:\s*(?:我)?之前(?:讀|學)(?:過)?(?:的)?)?[「「]?\s*(.+?)\s*[」」]?\s*(?:同構|呼應|一致|平行|互補|連結|吻合|有關|相關)/g)) {
+    const ref = m[1].trim().slice(0, 80);
+    if (ref.length >= 3) found.add(ref);
+  }
+
+  // "之前讀/學的 X" pattern
+  for (const m of detail.matchAll(/之前(?:讀|學)(?:過)?(?:的)?\s*(?:\*\*)?(.+?)(?:\*\*)?(?:\s*(?:比較|分析|觀點|觀察|高度|完全))/g)) {
+    const ref = m[1].trim().slice(0, 80);
+    if (ref.length >= 3) found.add(ref);
+  }
+
+  // Topic entry references: "topic:entry" format
+  for (const m of detail.matchAll(/([a-z-]+):([A-Z][A-Za-z0-9\s-]+)/g)) {
+    found.add(`${m[1]}:${m[2].trim()}`);
+  }
+
+  // Dated study references: "Title（YYYY-MM-DD Study）" or "Title (YYYY-MM-DD)"
+  for (const m of detail.matchAll(/(?:\*\*)?([^*\n]+?)(?:\*\*)?\s*[（(]\s*(\d{4}-\d{2}-\d{2})(?:\s*Study)?\s*[）)]/g)) {
+    const title = m[1].trim();
+    if (title.length >= 3 && title.length <= 80) {
+      found.add(`${title} (${m[2]})`);
+    }
+  }
+
+  return Array.from(found);
+}
+
 function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
   const action = entry.data.action;
   if (action !== 'action.autonomous' && action !== 'action.task') return null;
@@ -287,6 +328,7 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
   const verified = pickSection(full, ['Verified']);
   const next = pickSection(full, ['Next']);
   const sources = parseSources(full);
+  const basis = parseBasis(full);
 
   const observabilityScore = [decision, what, why, thinking, changed, verified].filter(Boolean).length;
 
@@ -303,6 +345,7 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
     verified,
     next,
     sources,
+    basis,
     full,
     observabilityScore,
   };
@@ -951,9 +994,11 @@ export function createApi(port = 3001): express.Express {
       total: entries.length,
       autonomous: entries.filter(e => e.route === 'autonomous').length,
       task: entries.filter(e => e.route === 'task').length,
+      withDecision: entries.filter(e => !!e.decision).length,
       withWhy: entries.filter(e => !!e.why).length,
       withThinking: entries.filter(e => !!e.thinking).length,
       withVerified: entries.filter(e => !!e.verified).length,
+      withBasis: entries.filter(e => e.basis.length > 0).length,
       avgObservabilityScore: entries.length > 0
         ? Number((entries.reduce((sum, e) => sum + e.observabilityScore, 0) / entries.length).toFixed(2))
         : 0,

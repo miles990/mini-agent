@@ -643,7 +643,11 @@ Choose ONE mode per cycle. Higher weight = higher probability of being chosen:
 ${modeList}${focusSection}${reflectNudge}${avoidList}
 
 Rules:
-- Start every response with [DECISION]why you chose this mode and what triggered it[/DECISION]
+- Start every response with a structured Decision section (3 lines max):
+  ## Decision
+  chose: [mode-name] (weight:N, reason — what triggered this choice)
+  skipped: [other-mode] (reason), ...
+  context: [which perception signals or recent events influenced this choice]
 - Do ONE action per cycle, report with [ACTION]...[/ACTION]
 - Prefix your action with the mode name in brackets, e.g. "[learn-personal]" or "[reflect]"
 - When learning: read, think, form YOUR opinion — don't just summarize
@@ -653,6 +657,14 @@ Rules:
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
 - Use [TASK] to create follow-up tasks if needed
 - Always include source URLs (e.g. "Source: https://...")
+- Structure your [ACTION] with these sections for traceability:
+  ## Decision (already at top of response)
+  ## What — what you did (1-2 sentences)
+  ## Why — why this matters / why now
+  ## Thinking — your reasoning process, citing sources and prior knowledge by name
+  ## Changed — what files/memory changed (or "none")
+  ## Verified — evidence that it worked (commands run, results confirmed)
+  Keep each section concise. Not all sections required every cycle — use what's relevant.
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
 - Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
 - Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it`;
