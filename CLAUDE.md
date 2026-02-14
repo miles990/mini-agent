@@ -297,11 +297,25 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 **原則：驗證優先於假設。** 文件寫的不等於實際狀態 — 必須用工具驗證後才能斷言。
 
-### Handoff Protocol v2（雙向任務委託 + 依賴追蹤）
+### Handoff Protocol v2（兩層制）
 
 `memory/handoffs/` 是 Kuro 和 Claude Code 之間的**雙向任務委託介面**。任一方都可以發起，Alex 審核後執行。
 
-#### 檔案格式
+#### 輕量級（< 30min 任務）
+
+使用 `memory/handoffs/active.md` 表格，一行一任務：
+
+```markdown
+| From | To | Task | Status | Created | Done |
+|------|----|------|--------|---------|------|
+| alex | claude-code | 加 hook | pending | 02-14 | — |
+```
+
+完成改 status 為 `done` 並填 Done 日期。累積 20+ 行 done 時再清理。
+
+#### 重量級（> 30min 或跨多人）
+
+獨立 handoff 檔案，完整格式：
 
 ```markdown
 # Handoff: 任務標題
@@ -353,6 +367,22 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - **只處理 `Status: approved`**。不動 `pending` 的
 - Alex 的 `approved` = 預先信任，`completed` 即終態，不需二次驗收
 - `Depends-on` 手動管理，循環依賴由審核時發現
+
+## Kuro Agent Debugging
+
+- **時間戳一律確認 UTC/本地時間再下結論**。server.log 用 ISO 格式（UTC），不要用人類直覺猜時間
+- **修改 src/ 或 memory/ 之前，先 `curl -sf localhost:3001/status` 確認 Kuro 當前狀態**。避免在 Kuro active cycle 中修改檔案造成誤觸發（Claude Code 的 edit 也是 Kuro 環境的一部分 — file change → trigger:workspace → cycle）
+- 修改 Kuro 的 learning/behavior intervals 時，驗證 dynamic intervals（如 5-20min）被保留，不要意外替換成 fixed intervals。Night-mode 也要用 dynamic scheduling 除非明確指定
+
+## Code Conventions
+
+- TypeScript strict mode。編輯 .ts 檔案時，確保 field names 跨 endpoints、plugins、types 一致 — 跨層 mismatch（如 receivedAt vs updatedAt）曾造成 bug
+- HTML 檔案如果會發 API 呼叫，一律走 HTTP server route serve — 不要假設 file:// protocol 能用（CORS 限制）
+
+## Deployment
+
+- Kuro 走正式 CI/CD pipeline（push main → GitHub Actions → deploy.sh → launchd restart）。**不要直接部署** — 一律 commit + push 走 pipeline
+- 改完 src/*.ts 後，先跑 `pnpm typecheck` 再 commit
 
 ## Workflow
 

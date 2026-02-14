@@ -6,8 +6,13 @@ memory/*
 !memory/ARCHITECTURE.md
 !memory/SOUL.md
 !memory/behavior.md
+!memory/handoffs/
+memory/handoffs/*
+!memory/handoffs/active.md
 sessions/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/skills/
 output.md
 agent-compose.yaml
 .DS_Store
