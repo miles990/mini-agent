@@ -13,6 +13,7 @@ import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
 import { getTelegramPoller } from './telegram.js';
 import { getSystemPrompt, postProcess } from './dispatcher.js';
+import { eventBus } from './event-bus.js';
 import type { AgentResponse } from './types.js';
 
 export interface Message {
@@ -776,6 +777,9 @@ export async function processMessage(
 
   // 處理完成後 drain queue（觸發下一則排隊訊息）
   drainQueue();
+
+  // 通知 AgentLoop 有 /chat 訊息被處理，喚醒 idle 中的 cycle
+  eventBus.emit('trigger:chat', { source: 'api' });
 
   return result;
 }

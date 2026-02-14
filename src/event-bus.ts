@@ -10,6 +10,7 @@ export type AgentEventType =
   | 'trigger:alert'
   | 'trigger:heartbeat'
   | 'trigger:mobile'
+  | 'trigger:chat'
   // Actions（agent 行為）
   | 'action:loop'
   | 'action:chat'

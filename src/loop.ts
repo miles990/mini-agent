@@ -73,6 +73,23 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 };
 
 // =============================================================================
+// Helpers
+// =============================================================================
+
+/** Parse human-friendly interval string (e.g. "30m", "2h", "5m") to ms. Returns 0 on invalid. */
+function parseScheduleInterval(s: string): number {
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|s|sec)$/i);
+  if (!m) return 0;
+  const val = parseFloat(m[1]);
+  switch (m[2].toLowerCase()) {
+    case 's': case 'sec': return val * 1_000;
+    case 'm': case 'min': return val * 60_000;
+    case 'h': case 'hr': return val * 3_600_000;
+    default: return 0;
+  }
+}
+
+// =============================================================================
 // AgentLoop
 // =============================================================================
 
@@ -446,6 +463,21 @@ export class AgentLoop {
         similarityRate: metrics.similarityRate,
       });
 
+      // [SCHEDULE] tag — Kuro 自主排程覆蓋
+      if (tags.schedule) {
+        const ms = parseScheduleInterval(tags.schedule.next);
+        if (ms > 0) {
+          const bounded = Math.max(120_000, Math.min(14_400_000, ms));
+          this.currentInterval = bounded;
+          eventBus.emit('action:loop', {
+            event: 'schedule',
+            next: tags.schedule.next,
+            reason: tags.schedule.reason,
+            bounded: bounded !== ms,
+          });
+        }
+      }
+
       // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
       if (hasQueuedMessages()) drainQueue();
 
@@ -667,7 +699,12 @@ Rules:
   Keep each section concise. Not all sections required every cycle — use what's relevant.
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
 - Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
-- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it`;
+- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
+- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h). Examples:
+  [SCHEDULE next="45m" reason="waiting for Alex feedback"]
+  [SCHEDULE next="5m" reason="continuing deep research"]
+  [SCHEDULE next="2h" reason="night time, no pending messages"]
+  If omitted, the system auto-adjusts based on whether you took action.`;
   }
 
   /** Fallback: 原始硬寫 prompt（behavior.md 壞了或不存在時） */
@@ -743,7 +780,12 @@ Rules:
 - Always include source URLs (e.g. "Source: https://...")
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
 - Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
-- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it`;
+- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
+- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h). Examples:
+  [SCHEDULE next="45m" reason="waiting for Alex feedback"]
+  [SCHEDULE next="5m" reason="continuing deep research"]
+  [SCHEDULE next="2h" reason="night time, no pending messages"]
+  If omitted, the system auto-adjusts based on whether you took action.`;
   }
 
   // ---------------------------------------------------------------------------

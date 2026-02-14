@@ -238,6 +238,12 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  let schedule: { next: string; reason: string } | undefined;
+  if (response.includes('[SCHEDULE')) {
+    const match = response.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
+    if (match) schedule = { next: match[1], reason: match[2] ?? '' };
+  }
+
   const cleanContent = response
     .replace(/\[REMEMBER[^\]]*\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
@@ -245,9 +251,10 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
+    .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .trim();
 
-  return { remember, task, archive, chats, shows, summaries, cleanContent };
+  return { remember, task, archive, chats, shows, summaries, schedule, cleanContent };
 }
 
 // =============================================================================
