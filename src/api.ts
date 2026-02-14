@@ -275,9 +275,10 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
   const modeTag = modeTagMatch?.[1]?.toLowerCase() ?? null;
   const route: 'autonomous' | 'task' = action === 'action.autonomous' ? 'autonomous' : 'task';
 
-  // Parse [DECISION]...[/DECISION] tag
-  const decisionMatch = full.match(/\[DECISION\]([\s\S]*?)\[\/DECISION\]/i);
-  const decision = decisionMatch?.[1]?.trim() ?? '';
+  // Parse decision — supports both [DECISION]...[/DECISION] tag and ## Decision heading
+  const decisionTagMatch = full.match(/\[DECISION\]([\s\S]*?)\[\/DECISION\]/i);
+  const decisionHeadingMatch = full.match(/##\s*Decision\s*\n([\s\S]*?)(?=\n##\s|\n\*\*[A-Z]|$)/i);
+  const decision = (decisionTagMatch?.[1] ?? decisionHeadingMatch?.[1] ?? '').trim();
 
   const what = pickSection(full, ['What']);
   const why = pickSection(full, ['Why']);
