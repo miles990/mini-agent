@@ -29,9 +29,16 @@
 
 ### Plugin
 ```bash
+# 1. 語法檢查
 bash -n plugins/你改的檔案.sh
+
+# 2. 實際執行一次，確認有輸出且無 stderr
+bash plugins/你改的檔案.sh
+
+# 3. 確認 perception context 中對應的 section 正常
+curl -sf localhost:3001/context | grep -o '<對應section>' | head -1
 ```
-失敗 → 修復後重試。
+任一步失敗 → 修復後重試。
 
 ### TypeScript
 ```bash

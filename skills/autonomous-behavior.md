@@ -87,6 +87,31 @@
 
 反模式：只有結論沒有過程、沒有驗證、太長（每 section ≤ 3-5 行）、小改動硬套完整格式、**Verified 寫了但還沒實際執行**。
 
+### Decision Trace（決策追蹤）
+
+每個 cycle 的 `[ACTION]` 中，在 `## What` 之前新增 `## Decision` 一行（事後記錄，不是事前規劃）：
+
+```
+## Decision
+chose: learn-personal (weight:50, rolled)
+skipped: reflect (weight:5, not rolled), act-on-learning (streak:2 < threshold:3)
+context: telegram-inbox empty, state-changes none, HN unscanned 4h
+```
+
+**規則**：最多 3 行。超過就是過度解釋。
+
+### TG 通知品質規則
+
+1. **一個 cycle 最多 1 條 `[CHAT]`** — 合併同 cycle 的多個通知為一條
+2. **學習通知只在有 actionable insight 時才發** — 「讀了一篇文章」不發，「讀了 X 發現可以改善 Y」才發
+3. **行動通知必須包含結果** — 不是「準備做 X」而是「做了 X，結果是 Y」
+4. **no-action cycle 不發通知** — 除非有需要 Alex 注意的異常
+5. **通知分級**：
+   - 🧠 學習洞察（有觀點+可行動）
+   - ⚡ 行動完成（含結果）
+   - ⚠️ 異常/問題
+   - 💬 主動聊天（有趣發現）
+
 ### 通知渠道
 **所有回報都必須同時在 Telegram 上發送。** 使用 `[CHAT]` tag：
 - 開始前：`[CHAT]🔧 準備改 X，原因是 Y[/CHAT]`

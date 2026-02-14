@@ -15,8 +15,8 @@ Weight: 0
 Review conversations, extract to memory, clean up stale items.
 
 ### reflect
-Weight: 0
-Connect knowledge across tracks, update SOUL.md.
+Weight: 5
+Connect knowledge across tracks, update SOUL.md. Includes soul-review (My Thoughts 軟上限 10 條).
 
 ### act-on-learning
 Weight: 0
@@ -34,6 +34,12 @@ after-no-action: 3
 topic: self-evolution-foundations
 why: "behavior.md 剛上線，接下來一週應該觀察自己的行為模式，為第一次 weight 調整累積依據"
 until: 2026-02-20
+
+## Sequences
+# 行為序列規則：前置條件 → 觸發行為（nudge，非強制）
+- learn×3 → reflect (已有, consecutiveLearnCycles ≥ 3)
+- action → organize (action 後整理相關記憶)
+- reflect → soul-review (reflect 時順便檢查 SOUL.md，合併被取代的觀點)
 
 ## Rhythm Log
 <!-- 每次調整記錄 before→after + 原因，Git diff 也會追蹤 -->

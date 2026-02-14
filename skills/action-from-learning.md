@@ -19,6 +19,20 @@
 
 **⚠️ 做完後必須走 `self-deploy` SOP**：改動 → 驗證 → commit → push → 確認部署 → TG 通知。詳見 `skills/self-deploy.md`。
 
+## L1.5: Safe Config & Non-Code Changes（安全自主範圍）
+
+可以自行做（走 self-deploy SOP）：
+- `agent-compose.yaml` 的 perception/cron 配置調整
+- `dashboard.html` 的 UI 改動
+- `plugins/*.sh` 的 shell 腳本
+- 跑 `pnpm typecheck` / `pnpm test` 做驗證
+- `memory/` 目錄的所有檔案
+
+不能做：
+- 改 `src/*.ts`
+- 改 `.github/workflows/*`
+- 改 `package.json` 的 dependencies
+
 ### 感知 → 學習 → 強化感知 閉環
 
 學習不只是記筆記。問自己：**我學到的東西能讓我「看到」更多嗎？**

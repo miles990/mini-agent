@@ -169,3 +169,106 @@ if [ -f "$MEMORY_FILE" ]; then
     mem_entries=${mem_entries:-0}
     echo "MEMORY.md: $mem_lines lines, $mem_entries entries"
 fi
+
+# ─── Topic Utility（主題引用追蹤）─────────────────────
+echo ""
+echo "=== Topic Utility ==="
+
+HITS_FILE="$MEMORY_DIR/.topic-hits.json"
+if [ -f "$HITS_FILE" ]; then
+    # 統計 top 5 和 bottom 5
+    total_hits=$(python3 -c "
+import json, sys
+try:
+    with open('$HITS_FILE') as f:
+        data = json.load(f)
+    items = sorted(data.items(), key=lambda x: -x[1])
+    total = sum(v for v in data.values())
+    print(f'Total hits: {total}')
+    if items:
+        top = ', '.join(f'{k}({v})' for k,v in items[:5])
+        print(f'Top: {top}')
+        zero = [k for k,v in items if v == 0]
+        if zero:
+            print(f'Never cited: {len(zero)} entries')
+except Exception as e:
+    print(f'Error reading hits: {e}')
+" 2>/dev/null)
+    echo "$total_hits"
+else
+    echo "No hit data yet (create $HITS_FILE to start tracking)"
+fi
+
+# ─── Perception Signal（感知信號影響追蹤）─────────────────────
+echo ""
+echo "=== Perception Signal ==="
+
+if [ -f "$BEHAVIOR_LOG" ]; then
+    # 從 behavior log 的 action detail 提取 <section> 引用
+    sections_cited=$(grep -oE '<[a-z-]+>' "$BEHAVIOR_LOG" 2>/dev/null | sort | uniq -c | sort -rn | head -10)
+    if [ -n "$sections_cited" ]; then
+        # 格式化輸出
+        influential=""
+        while IFS= read -r line; do
+            count=$(echo "$line" | awk '{print $1}')
+            section=$(echo "$line" | awk '{print $2}' | tr -d '<>')
+            # 排除 closing tags 和非 perception sections
+            case "$section" in
+                /*)  continue ;;
+                environment|self|capabilities|process|config|memory|recent_conversations|heartbeat|soul) continue ;;
+            esac
+            influential="${influential}${section}(${count}), "
+        done <<< "$sections_cited"
+        influential="${influential%, }"
+        if [ -n "$influential" ]; then
+            echo "Cited in actions: $influential"
+        else
+            echo "No perception sections cited in today's actions"
+        fi
+    else
+        echo "No perception sections cited in today's actions"
+    fi
+else
+    echo "No behavior log for signal tracking"
+fi
+
+# ─── Context Health（Context 大小趨勢）─────────────────────
+echo ""
+echo "=== Context Health ==="
+
+CHECKPOINT_DIR="$HOME/.mini-agent/instances/$INSTANCE_ID/context-checkpoints"
+if [ -d "$CHECKPOINT_DIR" ]; then
+    # 讀取最近 20 個 checkpoint 的 contextLength
+    recent_sizes=$(cat "$CHECKPOINT_DIR"/*.jsonl 2>/dev/null | tail -20 | grep -oE '"contextLength":[0-9]+' | sed 's/"contextLength"://')
+    if [ -n "$recent_sizes" ]; then
+        count=$(echo "$recent_sizes" | wc -l | tr -d ' ')
+        avg=$(echo "$recent_sizes" | awk '{sum+=$1} END {printf "%.0f", sum/NR}')
+        latest=$(echo "$recent_sizes" | tail -1)
+        first=$(echo "$recent_sizes" | head -1)
+
+        # 趨勢判斷：比較前 5 和後 5 的平均
+        if [ "$count" -ge 10 ]; then
+            first5_avg=$(echo "$recent_sizes" | head -5 | awk '{sum+=$1} END {printf "%.0f", sum/NR}')
+            last5_avg=$(echo "$recent_sizes" | tail -5 | awk '{sum+=$1} END {printf "%.0f", sum/NR}')
+            if [ "$last5_avg" -gt "$((first5_avg * 110 / 100))" ]; then
+                trend="growing"
+            elif [ "$last5_avg" -lt "$((first5_avg * 90 / 100))" ]; then
+                trend="shrinking"
+            else
+                trend="stable"
+            fi
+        else
+            trend="insufficient data"
+        fi
+
+        echo "Recent ($count checkpoints): avg=${avg} chars, latest=${latest}"
+        echo "Trend: $trend"
+        if [ "$trend" = "growing" ]; then
+            echo "Warning: Context size growing >10%"
+        fi
+    else
+        echo "No checkpoint data"
+    fi
+else
+    echo "No checkpoint directory"
+fi
