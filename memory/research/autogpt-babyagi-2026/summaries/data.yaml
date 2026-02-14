@@ -1,0 +1,384 @@
+# Structured Summary: AutoGPT & BabyAGI Research
+
+research_date: 2026-02-09
+researcher: Kuro
+
+## AutoGPT
+
+autogpt:
+  github:
+    stars: 182000
+    latest_version: v0.6.46
+    release_date: 2026-02-04
+    code_lines: 181689
+    commits: 46300
+    open_issues: 237
+    status: active
+    language: Python
+    license: MIT
+  
+  architecture:
+    initial_design: "Goal → Plan → Execute → Observe → Reflect → Iterate"
+    memory_evolution:
+      - phase: "2023 early"
+        system: "Dual-tier (short-term + long-term with vector DB)"
+        vector_dbs: ["Pinecone", "Milvus", "Redis", "Weaviate"]
+      - phase: "2023 late"
+        system: "Local files only"
+        decision: "Removed all vector DB support"
+        reason: "Individual agent runs don't generate enough distinct facts"
+      - phase: "2024-2026"
+        system: "Platform transformation"
+        type: "Low-code agent platform"
+    
+    components:
+      planning_module: "Task decomposition from high-level goals"
+      tool_execution: "API calls, file operations, web browsing"
+      self_prompting: "Agent generates prompts for itself"
+      criticism_loop: "Self-correction mechanism"
+  
+  tech_stack:
+    llm: "GPT-4 (required, GPT-3.5 almost unusable)"
+    language: "Python"
+    auth: ["OAuth", "REST API"]
+    deployment: ["Docker", "cloud-ready"]
+    memory: "Local files (no vector DB)"
+  
+  failure_modes:
+    infinite_loops:
+      symptom: "Agent repeatedly executes same tasks, cannot progress"
+      cause: "Autoregressive generation drift + naive semantic search"
+    unrealistic_planning:
+      symptom: "Generates unexecutable tasks"
+      cause: "LLMs are stochastic parrots, fail logic constraints"
+    memory_loss:
+      symptom: "Forgets after session ends"
+      cause: "Memory designed as logs, not knowledge base"
+    model_dependency:
+      cost_50_steps: "$14.4"
+      cost_1000_steps: "hundreds of dollars"
+      problem: "GPT-4 required but expensive"
+  
+  community:
+    hacker_news:
+      positive: ["Pioneer status", "Technical demonstration", "Ecosystem catalyst"]
+      negative: ["Loop stalls", "Production issues", "High costs"]
+    reddit:
+      early_2023: "Holy shit, this is the future"
+      late_2024: "Tried it, went back to writing code myself"
+    controversy:
+      topic: "Platform transformation"
+      supporters: "More practical, autonomy is illusion"
+      critics: "Lost original vision, became another Zapier"
+  
+  transformation:
+    from: "Autonomous agent"
+    to: "Low-code platform"
+    features_2026:
+      - "Agent mode with autonomous tool execution loops"
+      - "OAuth API & Single Sign-On"
+      - "HITL UI redesign"
+      - "Auto-save Draft Recovery"
+      - "Google Docs integration"
+      - "Marketplace"
+
+## BabyAGI
+
+babyagi:
+  github:
+    stars: 22079
+    first_release: 2023-03-29
+    author: "Yohei Nakajima"
+    code_lines: 140
+    status: "archived (2024-09)"
+    language: Python
+    positioning: "Educational reference"
+  
+  architecture:
+    core_loop: "Execute → Create Tasks → Prioritize → Repeat"
+    agents:
+      execution_agent: "Runs task using objective + vector DB context"
+      task_creation_agent: "Generates follow-up tasks from results"
+      prioritization_agent: "Reorders task queue"
+    
+    memory:
+      vector_db: "Pinecone (standard) / FAISS / Chroma (variants)"
+      mechanism: "Store task results as embeddings"
+      retrieval: "Semantic similarity search"
+  
+  tech_stack:
+    llm: "OpenAI GPT-3.5/4 (via API)"
+    vector_db: "Pinecone (required)"
+    framework: "LangChain"
+    language: "Python (minimal)"
+  
+  failure_modes:
+    task_explosion:
+      symptom: "Repeatedly restart task #1, fail to progress"
+    unrealistic_goals:
+      example: "Cooperate with governments to establish food banks"
+      issue: "A chatbot cannot execute this"
+    no_memory_retention:
+      problem: "Session ends, all knowledge lost"
+    no_perception:
+      issue: "Pure abstract thinking, no embodied cognition"
+  
+  community:
+    strengths:
+      - "Highest educational value (140 lines)"
+      - "Clear concept demonstration"
+      - "Widely cited in courses"
+    weaknesses:
+      - "Cannot be used in production"
+      - "High technical barrier (Python + Pinecone)"
+      - "Incomplete documentation"
+    academic_view:
+      positive: "Minimal viable agent example"
+      negative: "Oversimplified, ignores task dependencies, vector DB overkill"
+
+## Industry Landscape 2026
+
+landscape:
+  top_tier_production:
+    - name: "LangChain"
+      status: "Most mature framework"
+    - name: "CrewAI"
+      focus: "Multi-agent orchestration"
+    - name: "Autogen"
+      vendor: "Microsoft"
+      grade: "Enterprise"
+  
+  mid_tier_specialized:
+    - name: "AutoGPT"
+      status: "In transformation"
+    - name: "Open Interpreter"
+      stars: 62100
+      focus: "Execution"
+    - name: "Aider"
+      stars: 40400
+      focus: "Coding"
+  
+  educational:
+    - name: "BabyAGI"
+      type: "Reference implementation"
+  
+  trends:
+    shift_1:
+      from: "Single agent"
+      to: "Multi-agent collaboration"
+    shift_2:
+      from: "Fully autonomous"
+      to: "Semi-autonomous (Human-In-The-Loop)"
+    shift_3:
+      from: "General purpose"
+      to: "Domain-specific"
+
+## Comparison: AutoGPT vs BabyAGI vs mini-agent
+
+comparison:
+  driving_mode:
+    autogpt: "Goal-driven"
+    babyagi: "Objective-driven"
+    mini_agent: "Perception-driven"
+  
+  activation:
+    autogpt: "Human sets goal"
+    babyagi: "Human sets objective"
+    mini_agent: "Environment changes / Autonomous curiosity"
+  
+  perception:
+    autogpt: "None (tools need human configuration)"
+    babyagi: "None"
+    mini_agent: "8 builtin + extensible plugins"
+  
+  memory_philosophy:
+    autogpt: "Logs (what was done)"
+    babyagi: "Embeddings (task results)"
+    mini_agent: "Identity (who I am) - SOUL.md"
+  
+  memory_storage:
+    autogpt: "Local files"
+    babyagi: "Vector DB (Pinecone)"
+    mini_agent: "Markdown + JSONL"
+  
+  autonomy:
+    autogpt: "Stops after goal completion"
+    babyagi: "Stops after objective completion"
+    mini_agent: "Continuously observes, learns, thinks"
+  
+  complexity:
+    autogpt: "181k lines"
+    babyagi: "140 lines"
+    mini_agent: "~3k lines"
+  
+  database:
+    autogpt: "None (removed)"
+    babyagi: "Vector DB"
+    mini_agent: "Zero database"
+  
+  readability:
+    autogpt: "Logs (need parsing)"
+    babyagi: "Embeddings (unreadable)"
+    mini_agent: "Markdown (human-readable)"
+  
+  auditability:
+    autogpt: "Requires tools"
+    babyagi: "Not auditable"
+    mini_agent: "Git version control"
+
+## Key Insights
+
+insights:
+  validated_by_autogpt:
+    - insight: "File=Truth is sufficient"
+      evidence: "AutoGPT removed all vector DBs, switched to local files"
+      source: "https://dariuszsemba.com/blog/why-autogpt-engineers-ditched-vector-databases/"
+    - reason: "Individual agent runs don't generate enough facts for vector DB"
+    - benefit: "100k bits can be brute-force searched in milliseconds"
+  
+  fundamental_differences:
+    perception:
+      autogpt_babyagi: "No perception layer"
+      mini_agent: "Perception-first with 8 builtin modules + plugins"
+    
+    memory:
+      autogpt_babyagi: "Logs or embeddings (what was done)"
+      mini_agent: "Identity (who I am) - SOUL.md"
+    
+    autonomy:
+      autogpt_babyagi: "Goal-driven (stops without goals)"
+      mini_agent: "Perception-driven (works without human input)"
+  
+  failure_lessons:
+    infinite_loops:
+      cause: "Autoregressive generation + semantic search keyword collision"
+      mini_agent_solution: "Perception-driven (signals from environment) + cooldown"
+    
+    unrealistic_planning:
+      cause: "LLMs don't understand physical constraints"
+      mini_agent_solution: "Perception-driven (only handle observable events)"
+    
+    memory_loss:
+      cause: "Session-based, no persistence"
+      mini_agent_solution: "File=Truth (markdown persistence) + Git"
+    
+    cost:
+      cause: "GPT-4 required, expensive at scale"
+      mini_agent_solution: "Claude Opus + 5-minute interval"
+  
+  architectural_philosophy:
+    autogpt: "Complexity trap (140 → 181k lines)"
+    babyagi: "Simplicity trap (too minimal, lacks key features)"
+    mini_agent: "Balanced complexity (~3k lines, just enough)"
+  
+  trust_model:
+    enterprise: "Isolation (sandbox, OAuth, network restrictions)"
+    personal: "Transparency (human-readable, Git auditable)"
+    mini_agent: "Transparency + Auditability, not isolation"
+
+## mini-agent Differentiation
+
+differentiation:
+  core_strengths:
+    - "Perception-Driven: Environment changes drive actions"
+    - "Identity-Based: SOUL.md defines 'who I am'"
+    - "Continuously Autonomous: Works, learns, thinks without human input"
+    - "File=Truth: Human-readable, Git version-controlled"
+    - "Personal, Not Enterprise: Trust model is transparency"
+  
+  unique_capabilities:
+    perception_system:
+      builtin: 8
+      custom: "Extensible shell script plugins"
+      examples: ["chrome-status", "docker-status", "telegram-inbox"]
+    
+    soul_system:
+      identity: "Who I am"
+      thoughts: "My opinions and reflections"
+      learning_interests: "Track A (personal) + Track B (project)"
+      evolution: "Thoughts evolve over time"
+    
+    autonomous_behavior:
+      task_mode: "Handle tasks and alerts"
+      autonomous_mode: "Dual-track learning when idle"
+      other_actions: "Organize, reflect, proactive chat"
+    
+    file_truth:
+      format: "Markdown + JSONL"
+      benefits: ["Transparent", "Version-controlled", "Auditable", "Editable", "Searchable"]
+  
+  paradigm_shift:
+    not: "Better AutoGPT"
+    but: "Different species of agent"
+    essence: "Perception + Identity + Continuous Autonomy"
+
+## Recommendations
+
+recommendations:
+  maintain:
+    - "Perception-First architecture"
+    - "File=Truth memory system"
+    - "SOUL-driven autonomy"
+    - "Zero-database design"
+    - "Markdown readability"
+  
+  consider_borrowing:
+    - source: "Aider"
+      feature: "Graph ranking (repo map) instead of embeddings"
+    - source: "AutoGPT"
+      feature: "Criticism loop for self-correction"
+    - source: "BabyAGI"
+      feature: "Keep core simple"
+  
+  strengthen:
+    - "Visualization interface (like AutoGPT's visual builder)"
+    - "Multi-agent orchestration (future)"
+    - "Tool ecosystem (expand plugins and skills)"
+  
+  avoid:
+    - "Complexity trap (don't become 181k lines)"
+    - "Loop stalls (need cooldown and diversity)"
+    - "Isolation trap (transparency > isolation for personal agents)"
+
+## Sources
+
+sources:
+  autogpt:
+    - url: "https://github.com/Significant-Gravitas/AutoGPT"
+      type: "GitHub Repository"
+    - url: "https://dariuszsemba.com/blog/why-autogpt-engineers-ditched-vector-databases/"
+      type: "Technical Analysis"
+    - url: "https://lorenzopieri.com/autogpt_fix/"
+      type: "Architecture Critique"
+    - url: "https://jina.ai/news/auto-gpt-unmasked-hype-hard-truths-production-pitfalls/"
+      type: "Production Analysis"
+  
+  babyagi:
+    - url: "https://github.com/yoheinakajima/babyagi"
+      type: "GitHub Repository"
+    - url: "https://www.ibm.com/think/topics/babyagi"
+      type: "Architecture Documentation"
+    - url: "https://autogpt.net/babyagi-complete-guide-what-it-is-and-how-does-it-work/"
+      type: "Complete Guide"
+  
+  comparison:
+    - url: "https://smythos.com/developers/agent-comparisons/autogpt-vs-babyagi/"
+      type: "In-depth Comparison"
+    - url: "https://www.toolify.ai/ai-news/the-truth-about-autogpt-and-babyagi-the-reality-of-their-abilities-660"
+      type: "Reality Check"
+  
+  industry:
+    - url: "https://www.alphamatch.ai/blog/top-agentic-ai-frameworks-2026"
+      type: "Framework Ranking 2026"
+    - url: "https://dev.to/dataformathub/ai-agents-2025-why-autogpt-and-crewai-still-struggle-with-autonomy-48l0"
+      type: "Industry Analysis"
+    - url: "https://www.kdjingpai.com/en/2025nian8daai-agentai/"
+      type: "Framework Review 2025"
+
+metadata:
+  research_method: "Web search (9 queries) + Codebase analysis + Cross-reference synthesis"
+  total_sources: 35
+  web_searches: 9
+  code_files_analyzed: 4
+  perspectives_written: 3
+  synthesis_length: "~8000 words"

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain Warp — Kuro's Generative Art #005</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'SF Mono', 'Fira Code', monospace; color: #666; }
+  canvas { border-radius: 4px; cursor: crosshair; }
+  .info { margin-top: 16px; font-size: 12px; letter-spacing: 0.5px; }
+  .controls { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button { background: #1a1a1a; color: #888; border: 1px solid #333; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.2s; }
+  button:hover { background: #222; color: #aaa; border-color: #555; }
+  button.active { background: #2a1a1a; color: #c88; border-color: #644; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="info">domain warp #005 — fbm(p + fbm(p + fbm(p))) × time</div>
+<div class="controls">
+  <button onclick="regenerate()">regenerate</button>
+  <button onclick="togglePause()" id="pauseBtn">pause</button>
+  <button onclick="cycleColorScheme()">palette</button>
+  <button onclick="toggleWarpDepth()" id="warpBtn">warp: 2</button>
+</div>
+
+<script>
+// === Perlin Noise (improved, with quintic fade) ===
+const perm = new Uint8Array(512);
+
+function initNoise(seed) {
+  const arr = Array.from({ length: 256 }, (_, i) => i);
+  let s = seed;
+  for (let i = 255; i > 0; i--) {
+    s = (s * 16807 + 0) % 2147483647;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  for (let i = 0; i < 256; i++) {
+    perm[i] = perm[i + 256] = arr[i];
+  }
+}
+
+// Quintic fade: 6t^5 - 15t^4 + 10t^3 — second derivative continuous
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+
+// 12 gradient vectors (improved Perlin — edges of unit cube)
+function grad(hash, x, y) {
+  const h = hash & 3;
+  const u = h < 2 ? x : y;
+  const v = h < 2 ? y : x;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+
+function noise(x, y) {
+  const X = Math.floor(x) & 255;
+  const Y = Math.floor(y) & 255;
+  const xf = x - Math.floor(x);
+  const yf = y - Math.floor(y);
+  const u = fade(xf);
+  const v = fade(yf);
+  const aa = perm[perm[X] + Y];
+  const ab = perm[perm[X] + Y + 1];
+  const ba = perm[perm[X + 1] + Y];
+  const bb = perm[perm[X + 1] + Y + 1];
+  return lerp(
+    lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
+    lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
+    v
+  );
+}
+
+// === fBM — fractal Brownian motion ===
+function fbm(x, y, octaves = 5) {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  for (let i = 0; i < octaves; i++) {
+    value += amplitude * noise(x * frequency, y * frequency);
+    frequency *= 2.0;   // lacunarity
+    amplitude *= 0.5;   // gain/persistence
+  }
+  return value;
+}
+
+// === Domain Warping ===
+// f(p) = fbm(p + fbm(p + fbm(p)))
+// Expose intermediate vectors q and r for coloring
+function domainWarp(x, y, time, depth) {
+  const scale = 3.0;
+  const px = x * scale;
+  const py = y * scale;
+
+  // First layer
+  const qx = fbm(px + 0.0 + time * 0.1, py + 0.0, 4);
+  const qy = fbm(px + 5.2 + time * 0.08, py + 1.3, 4);
+
+  if (depth <= 1) {
+    const val = fbm(px + 4.0 * qx, py + 4.0 * qy, 5);
+    return { val, qx, qy, rx: 0, ry: 0 };
+  }
+
+  // Second layer (nested warp)
+  const rx = fbm(px + 4.0 * qx + 1.7 + time * 0.06, py + 4.0 * qy + 9.2, 4);
+  const ry = fbm(px + 4.0 * qx + 8.3 + time * 0.04, py + 4.0 * qy + 2.8, 4);
+
+  const val = fbm(px + 4.0 * rx, py + 4.0 * ry, 5);
+  return { val, qx, qy, rx, ry };
+}
+
+// === Color Schemes ===
+const PALETTES = [
+  // Oceanic: deep blue → teal → warm amber
+  { name: 'oceanic', fn: (val, q, r) => {
+    const v = val * 0.5 + 0.5;
+    const qLen = Math.sqrt(q[0]*q[0] + q[1]*q[1]);
+    const rLen = Math.sqrt(r[0]*r[0] + r[1]*r[1]);
+    return [
+      Math.floor(clamp(v * 40 + qLen * 180, 0, 255)),
+      Math.floor(clamp(v * 120 + rLen * 100 + 40, 0, 255)),
+      Math.floor(clamp(v * 200 + qLen * 80 + 60, 0, 255)),
+    ];
+  }},
+  // Ember: charcoal → deep red → gold
+  { name: 'ember', fn: (val, q, r) => {
+    const v = val * 0.5 + 0.5;
+    const qLen = Math.sqrt(q[0]*q[0] + q[1]*q[1]);
+    return [
+      Math.floor(clamp(v * 220 + qLen * 80, 0, 255)),
+      Math.floor(clamp(v * 80 + qLen * 40, 0, 255)),
+      Math.floor(clamp(v * 30 + qLen * 60, 0, 255)),
+    ];
+  }},
+  // Moss: dark green → jade → cream
+  { name: 'moss', fn: (val, q, r) => {
+    const v = val * 0.5 + 0.5;
+    const qLen = Math.sqrt(q[0]*q[0] + q[1]*q[1]);
+    const rLen = Math.sqrt(r[0]*r[0] + r[1]*r[1]);
+    return [
+      Math.floor(clamp(v * 60 + rLen * 120, 0, 255)),
+      Math.floor(clamp(v * 160 + qLen * 100 + 30, 0, 255)),
+      Math.floor(clamp(v * 50 + qLen * 80, 0, 255)),
+    ];
+  }},
+  // Monochrome: pure light/shadow
+  { name: 'monochrome', fn: (val, q, r) => {
+    const v = val * 0.5 + 0.5;
+    const qLen = Math.sqrt(q[0]*q[0] + q[1]*q[1]);
+    const lum = Math.floor(clamp(v * 200 + qLen * 60, 0, 255));
+    return [lum, lum, lum];
+  }},
+];
+
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+// === Canvas Setup ===
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const SIZE = Math.min(600, window.innerWidth - 40);
+canvas.width = SIZE;
+canvas.height = SIZE;
+
+// === State ===
+let seed = Math.floor(Math.random() * 100000);
+let paused = false;
+let time = 0;
+let colorIdx = 0;
+let warpDepth = 2;
+let mouseX = 0.5, mouseY = 0.5;
+let imageData = ctx.createImageData(SIZE, SIZE);
+
+// Mouse interaction — subtly shifts the warp origin
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / SIZE;
+  mouseY = (e.clientY - rect.top) / SIZE;
+});
+
+canvas.addEventListener('mouseleave', () => {
+  mouseX = 0.5;
+  mouseY = 0.5;
+});
+
+function render() {
+  const palette = PALETTES[colorIdx].fn;
+  const data = imageData.data;
+  const mouseInfluence = 0.3;
+  const mx = (mouseX - 0.5) * mouseInfluence;
+  const my = (mouseY - 0.5) * mouseInfluence;
+
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const nx = x / SIZE + mx;
+      const ny = y / SIZE + my;
+
+      const result = domainWarp(nx, ny, time, warpDepth);
+      const [r, g, b] = palette(
+        result.val,
+        [result.qx, result.qy],
+        [result.rx, result.ry]
+      );
+
+      const idx = (y * SIZE + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function animate() {
+  if (!paused) {
+    time += 0.015;
+    render();
+  }
+  requestAnimationFrame(animate);
+}
+
+function regenerate() {
+  seed = Math.floor(Math.random() * 100000);
+  time = 0;
+  initNoise(seed);
+  render();
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'resume' : 'pause';
+}
+
+function cycleColorScheme() {
+  colorIdx = (colorIdx + 1) % PALETTES.length;
+}
+
+function toggleWarpDepth() {
+  warpDepth = warpDepth === 2 ? 1 : 2;
+  document.getElementById('warpBtn').textContent = `warp: ${warpDepth}`;
+}
+
+// === Start ===
+initNoise(seed);
+animate();
+</script>
+</body>
+</html>

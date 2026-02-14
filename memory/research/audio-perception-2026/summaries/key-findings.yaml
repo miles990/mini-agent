@@ -1,0 +1,199 @@
+# Audio/Speech Perception Research - Key Findings
+# Date: 2026-02-11
+
+research_topic: audio-perception-2026
+status: completed
+scope: local_macos_arm64
+
+# 核心結論
+recommendations:
+  primary_stt: whisper-cpp
+  primary_music_analysis: essentia
+  current_integration: no_active_listening
+  next_step: telegram_voice_plugin
+
+# STT 方案對比
+stt_solutions:
+  whisper_cpp:
+    speed: 4_stars  # 8s/min on M1 Pro
+    accuracy: 5_stars
+    integration: 5_stars  # CLI ready
+    memory: 500MB
+    cost: free
+    use_case: universal_stt
+    
+  apple_speech_analyzer:
+    speed: 5_stars  # 4.5s/min, 55% faster than Whisper
+    accuracy: 4_stars
+    integration: 2_stars  # needs Swift wrapper
+    memory: 400MB
+    cost: free
+    use_case: ios_macos_native
+    
+  voxtral_mini_4b:
+    speed: 5_stars  # <500ms latency
+    accuracy: 4_stars
+    integration: 3_stars  # needs Python/WASM
+    memory: 3GB
+    cost: free
+    use_case: realtime_streaming
+
+# 音訊分析能力
+audio_analysis:
+  llm_native:
+    claude_sonnet_4_5:
+      supported:
+        - speech_transcription
+        - emotion_analysis
+        - speaker_relationship
+      not_supported:
+        - music_classification
+        - sound_effects
+        - environmental_audio
+        
+  mir_tools:
+    essentia:
+      speed: fast  # 2s for 3min song
+      features: [bpm, genre, mood, instruments]
+      memory: 500MB
+      platform: macos_arm64_supported
+      
+    librosa:
+      speed: slow  # 5s for 3min song
+      features: [tempo, mfcc, chroma, spectral]
+      memory: 150MB
+      platform: cross_platform
+
+# 整合模式
+integration_modes:
+  file_based:
+    latency: 5-30s
+    memory: 500MB
+    privacy: high
+    use_case: music_library_meeting_recordings
+    
+  realtime_streaming:
+    latency: 0.5-2s
+    memory: 3GB
+    privacy: medium
+    use_case: voice_assistant_live_captions
+    
+  wake_word_triggered:
+    latency: <1s_after_trigger
+    memory: 10MB_standby
+    privacy: high
+    use_case: siri_alexa_style
+
+# Mini-agent 策略
+mini_agent_strategy:
+  phase_0_current:
+    action: no_integration
+    reason: conflicts_with_perception_first_principle
+    
+  phase_1_near_term:
+    action: telegram_voice_transcription
+    workflow: telegram_oga → ffmpeg → whisper_cpp → context
+    benefits:
+      - aligns_with_file_equals_truth
+      - no_always_on_listening
+      - opt_in_feature
+    
+  phase_2_future:
+    action: wake_word_voice_assistant
+    prerequisites:
+      - user_explicit_consent
+      - privacy_indicator
+      - easy_disable
+    architecture: porcupine → whisper → claude_api → piper_tts
+
+# 資源用量
+resource_usage:
+  whisper_base_model:
+    memory: 500MB
+    disk: 142MB
+    processing: 8s_per_minute_audio
+    
+  whisper_with_streaming:
+    memory: 800MB
+    cpu: 50_percent
+    latency: 2.1s
+    
+  essentia_with_models:
+    memory: 500MB
+    disk: 800MB
+    processing: 2s_per_3min_song
+
+# 隱私層級
+privacy_levels:
+  level_1_fully_local:
+    components: [whisper_cpp, llama_cpp, piper_tts]
+    memory_required: 16GB_plus
+    network: zero
+    
+  level_2_hybrid:
+    logic: sensitive_keywords → local_llm, else → cloud_api
+    recommendation: recommended
+    
+  level_3_cloud_first:
+    risk: all_audio_uploaded
+    mitigation: e2e_encryption
+
+# 延遲預算（2026 標準: <1.5s）
+latency_budget:
+  target: 1500ms
+  breakdown:
+    vad: 10ms
+    stt: 500ms  # Whisper.cpp
+    llm: 300ms  # Claude API
+    tts: 400ms  # Piper
+    network: 200ms
+  total: 1410ms
+  status: meets_standard
+
+# 風險評估
+risks:
+  technical:
+    - model_loading_slow: use_tiny_model
+    - multilingual_accuracy: specify_language_parameter
+    - background_noise: add_vad_preprocessing
+    
+  privacy:
+    - accidental_recording: no_active_listening_in_phase_0
+    - audio_file_leakage: user_reminder_to_cleanup
+    
+  resource:
+    - memory_shortage: use_base_model_max_500MB
+    - disk_space: cron_cleanup_7day_old_files
+
+# 未來研究方向
+future_research:
+  short_term_3_months:
+    - implement_telegram_voice_plugin
+    - test_whisper_chinese_accuracy
+    - evaluate_voxtral_cli_usability
+    
+  mid_term_6_months:
+    - research_wake_word_solutions
+    - experiment_essentia_music_analysis
+    - explore_local_tts
+    
+  long_term_1_year:
+    - full_voice_assistant_prototype
+    - environmental_sound_detection
+    - multimodal_perception_fusion
+
+# 關鍵決策
+key_decisions:
+  chosen_stt: whisper_cpp
+  chosen_music_analysis: essentia
+  integration_approach: file_based_first
+  no_active_microphone_listening: true
+  next_action: implement_telegram_voice_plugin
+
+# 成功標準
+success_criteria:
+  telegram_voice_transcription:
+    - install_time: <30_min
+    - transcription_accuracy: >90_percent_for_english
+    - memory_usage: <600MB
+    - user_experience: seamless_no_manual_trigger

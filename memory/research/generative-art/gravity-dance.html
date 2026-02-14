@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gravity Dance — Kuro's Generative Art #002</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060610; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'SF Mono', 'Fira Code', monospace; color: #556; }
+  canvas { border-radius: 4px; cursor: crosshair; }
+  .info { margin-top: 16px; font-size: 12px; letter-spacing: 0.5px; }
+  .hint { margin-top: 6px; font-size: 11px; color: #334; }
+  .controls { margin-top: 12px; display: flex; gap: 12px; }
+  button { background: #0e0e1a; color: #667; border: 1px solid #222; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.2s; }
+  button:hover { background: #141428; color: #99a; border-color: #444; }
+  button.active { border-color: #558; color: #99b; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="info">gravity dance #002 — interactive particle field</div>
+<div class="hint">move cursor to attract &middot; click to repel &middot; hold to intensify</div>
+<div class="controls">
+  <button onclick="regenerate()">regenerate</button>
+  <button onclick="togglePause()">pause / resume</button>
+  <button onclick="clearCanvas()">clear</button>
+</div>
+
+<script>
+// === Canvas Setup ===
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = Math.min(800, window.innerWidth - 40);
+const H = W;
+canvas.width = W;
+canvas.height = H;
+
+// === Configuration ===
+const CONFIG = {
+  particleCount: 1500,
+  maxSpeed: 3,
+  friction: 0.97,
+  fadeAlpha: 0.04,
+  lineWidth: 0.6,
+  gravityRadius: 200,
+  gravityStrength: 0.8,
+  repelMultiplier: 3,
+};
+
+// === Mouse State ===
+let mouse = { x: W / 2, y: H / 2, active: false, pressing: false, holdTime: 0 };
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - rect.left) * (W / rect.width);
+  mouse.y = (e.clientY - rect.top) * (H / rect.height);
+  mouse.active = true;
+});
+
+canvas.addEventListener('mouseleave', () => { mouse.active = false; mouse.pressing = false; mouse.holdTime = 0; });
+canvas.addEventListener('mousedown', () => { mouse.pressing = true; });
+canvas.addEventListener('mouseup', () => { mouse.pressing = false; mouse.holdTime = 0; });
+
+// Touch support
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  mouse.x = (touch.clientX - rect.left) * (W / rect.width);
+  mouse.y = (touch.clientY - rect.top) * (H / rect.height);
+  mouse.active = true;
+}, { passive: false });
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  mouse.pressing = true;
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  mouse.x = (touch.clientX - rect.left) * (W / rect.width);
+  mouse.y = (touch.clientY - rect.top) * (H / rect.height);
+  mouse.active = true;
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { mouse.active = false; mouse.pressing = false; mouse.holdTime = 0; });
+
+// === Color ===
+function speedToColor(speed, angle) {
+  const t = speed / CONFIG.maxSpeed;
+  // Cool palette: deep blue → cyan → warm white at high speed
+  const r = Math.floor(30 + 200 * t * t);
+  const g = Math.floor(60 + 160 * t);
+  const b = Math.floor(180 + 75 * (1 - t * 0.5));
+  const a = 0.15 + 0.35 * t;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+// === Particles ===
+let particles = [];
+let paused = false;
+
+class Particle {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = (Math.random() - 0.5) * 0.5;
+    this.prevX = this.x;
+    this.prevY = this.y;
+    this.life = 400 + Math.random() * 600;
+    this.age = 0;
+    this.mass = 0.5 + Math.random() * 1.5;
+  }
+
+  update() {
+    this.prevX = this.x;
+    this.prevY = this.y;
+
+    // Gravity toward mouse
+    if (mouse.active) {
+      const dx = mouse.x - this.x;
+      const dy = mouse.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < CONFIG.gravityRadius && dist > 1) {
+        const force = CONFIG.gravityStrength * (1 - dist / CONFIG.gravityRadius);
+        const holdBoost = mouse.pressing ? 1 + Math.min(mouse.holdTime * 0.01, 2) : 1;
+        const direction = mouse.pressing ? -CONFIG.repelMultiplier : 1;
+        const fx = (dx / dist) * force * direction * holdBoost / this.mass;
+        const fy = (dy / dist) * force * direction * holdBoost / this.mass;
+        this.vx += fx;
+        this.vy += fy;
+      }
+    }
+
+    // Subtle drift (very gentle noise-like wander)
+    this.vx += (Math.random() - 0.5) * 0.02;
+    this.vy += (Math.random() - 0.5) * 0.02;
+
+    // Friction
+    this.vx *= CONFIG.friction;
+    this.vy *= CONFIG.friction;
+
+    // Speed limit
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (speed > CONFIG.maxSpeed) {
+      this.vx = (this.vx / speed) * CONFIG.maxSpeed;
+      this.vy = (this.vy / speed) * CONFIG.maxSpeed;
+    }
+
+    this.x += this.vx;
+    this.y += this.vy;
+    this.age++;
+
+    // Wrap around edges
+    if (this.x < 0) this.x += W;
+    if (this.x > W) this.x -= W;
+    if (this.y < 0) this.y += H;
+    if (this.y > H) this.y -= H;
+
+    // Respawn if too old
+    if (this.age > this.life) {
+      this.reset();
+    }
+
+    return speed;
+  }
+
+  draw(speed) {
+    // Don't draw wrapped-around lines
+    const dx = Math.abs(this.x - this.prevX);
+    const dy = Math.abs(this.y - this.prevY);
+    if (dx > W / 2 || dy > H / 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(this.prevX, this.prevY);
+    ctx.lineTo(this.x, this.y);
+    ctx.strokeStyle = speedToColor(speed, 0);
+    ctx.lineWidth = CONFIG.lineWidth + speed * 0.3;
+    ctx.stroke();
+  }
+}
+
+// === Gravity well indicator ===
+function drawGravityWell() {
+  if (!mouse.active) return;
+
+  const radius = CONFIG.gravityRadius;
+  const intensity = mouse.pressing ? 0.08 + Math.min(mouse.holdTime * 0.002, 0.12) : 0.04;
+  const color = mouse.pressing ? `rgba(255, 80, 60, ${intensity})` : `rgba(100, 160, 255, ${intensity})`;
+
+  const gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, radius);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(1, 'transparent');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(mouse.x, mouse.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// === Main Loop ===
+function init() {
+  particles = Array.from({ length: CONFIG.particleCount }, () => new Particle());
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0, 0, W, H);
+}
+
+function animate() {
+  if (!paused) {
+    // Fade
+    ctx.fillStyle = `rgba(6, 6, 16, ${CONFIG.fadeAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+
+    // Gravity indicator
+    drawGravityWell();
+
+    // Update hold time
+    if (mouse.pressing) mouse.holdTime++;
+
+    // Particles
+    for (const particle of particles) {
+      const speed = particle.update();
+      particle.draw(speed);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function regenerate() {
+  init();
+}
+
+function togglePause() {
+  paused = !paused;
+}
+
+function clearCanvas() {
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0, 0, W, H);
+  for (const particle of particles) {
+    particle.reset();
+  }
+}
+
+// === Start ===
+init();
+animate();
+</script>
+</body>
+</html>

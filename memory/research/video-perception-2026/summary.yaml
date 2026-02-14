@@ -1,0 +1,199 @@
+---
+research_id: video-perception-2026
+date: 2026-02-11
+status: completed
+researcher: Claude Sonnet 4.5
+
+overview:
+  topic: Video and Visual Perception for AI Agents (2026)
+  focus: Practical approaches for mini-agent framework on macOS ARM64
+  key_finding: >
+    Claude doesn't support native video input. Mainstream approach is 
+    "keyframe extraction + vision LLM". macOS local models (LLaVA, Apple Vision) 
+    are mature. YouTube transcript extraction is cost-free. CDP screencast 
+    can monitor browser video playback.
+
+perspectives:
+  - id: 01-claude-vision-api
+    title: Claude Vision API Capabilities
+    key_points:
+      - No native video input (images only)
+      - Supports JPEG/PNG/GIF/WebP, up to 100 images/request
+      - URL-based input added in 2026
+      - Image token costs: Haiku $1/MTok, Sonnet $3/MTok, Opus $5/MTok
+      - Batch API offers 50% discount, Prompt Caching saves 90%
+  
+  - id: 02-video-understanding-approaches
+    title: Video Understanding Methodologies
+    key_points:
+      - Mainstream: frame extraction + vision LLM analysis
+      - CDP Screencast API for browser video monitoring
+      - Agentic Video Intelligence: Retrieve-Perceive-Review pattern
+      - Challenge: goal drift when integrating web search
+      - Multi-agent systems for temporal reasoning
+  
+  - id: 03-local-models-macos
+    title: Local Models on macOS ARM64
+    key_points:
+      - LLaVA via Ollama (one-line install)
+      - Apple Vision Framework (built-in OCR, 14 languages)
+      - Apple FastVLM (CVPR 2025, but complex setup)
+      - vllm-mlx (OpenAI-compatible local API, 400+ tok/s)
+      - Recommend: Apple Vision for OCR, LLaVA for simple vision
+  
+  - id: 04-youtube-video-analysis
+    title: YouTube Video Analysis Strategy
+    key_points:
+      - yt-dlp for subtitle download (no API key needed)
+      - youtube-transcript-api for pure Python approach
+      - Phase 1: Transcript-only (fast, free)
+      - Phase 2: Transcript + keyframes (balanced)
+      - Phase 3: Full frame analysis (expensive)
+  
+  - id: 05-screen-perception
+    title: Screen Perception and Real-time Monitoring
+    key_points:
+      - CDP screencast API (Page.startScreencast/stopScreencast)
+      - Verified by Cypress/Puppeteer/Playwright
+      - Use cases: YouTube monitoring, meeting recording, UI testing
+      - Approach A: Periodic screenshots (existing capability)
+      - Approach B: CDP screencast stream (advanced)
+      - Approach C: Hybrid (recommended)
+
+implementation_priority:
+  phase_1:
+    title: Quick Wins (1-2 days)
+    cost: $0
+    risk: low
+    tasks:
+      - CDP screenshot + OCR (ocrmac)
+      - YouTube transcript extraction (youtube-transcript-api)
+      - Optional: Install LLaVA locally (ollama)
+    expected_value: Agent can "see" screen text and learn from YouTube
+  
+  phase_2:
+    title: Smart Enhancement (1 week)
+    cost: $5-20/month
+    risk: medium
+    tasks:
+      - Screen change monitoring (hash-based)
+      - YouTube keyframe analysis (transcript + vision)
+      - Hybrid vision pipeline (LLaVA screening + Claude deep analysis)
+    expected_value: Auto-detect environment changes, visual content understanding
+  
+  phase_3:
+    title: Advanced Experiments (selective)
+    cost: $0-100/month
+    risk: high
+    tasks:
+      - CDP screencast continuous monitoring
+      - Full video analysis (download + frame extraction)
+      - vllm-mlx local API server
+    expected_value: Real-time visual streaming, complete video understanding
+
+technical_choices:
+  vision_engines:
+    ocr: Apple Vision Framework (built-in, fast, accurate)
+    simple_classification: LLaVA (local, free, fast)
+    complex_reasoning: Claude Haiku 4.5 (high accuracy, $1/MTok)
+    critical_decisions: Claude Sonnet 4.5 (highest quality, $3/MTok)
+  
+  video_processing:
+    youtube_tutorials: Transcript-only (youtube-transcript-api)
+    coding_tutorials: Transcript + keyframes (yt-dlp + Claude vision)
+    visual_design: Full frame analysis (ffmpeg + LLaVA + Claude)
+    online_meetings: CDP screencast (to be developed)
+  
+  cost_control:
+    - Tiered analysis (LLaVA screening → Claude deep analysis)
+    - Selective sampling (scene change detection)
+    - Batch API (50% discount for non-urgent)
+    - Prompt caching (90% savings on fixed prompts)
+    - Local-first (Apple Vision / LLaVA before API)
+
+resource_requirements:
+  phase_1:
+    time: 1-2 days
+    cost: $0
+    hardware: Existing Mac + Chrome CDP
+    dependencies: [ocrmac, youtube-transcript-api, ollama]
+  
+  phase_2:
+    time: 1 week
+    cost: $5-20/month
+    hardware: Existing (LLaVA recommends 16GB+ RAM)
+    dependencies: [ffmpeg, yt-dlp]
+  
+  phase_3:
+    time: 2-4 weeks
+    cost: $0-100/month
+    hardware: M2/M3 with 32GB+ RAM (for vllm-mlx)
+    dependencies: [Docker, MLX, complex setup]
+
+risks_and_challenges:
+  technical:
+    - Plugin timeout limit (~10s) → Solution: background tasks for heavy work
+    - Storage accumulation (frames) → Solution: real-time analysis, periodic cleanup
+    - API cost escalation → Solution: local screening (LLaVA) + API refinement
+  
+  product:
+    - Feature bloat → Keep core simple, advanced features optional
+    - User expectation → Document capability limits clearly
+
+integration_points:
+  perception_system:
+    - screen-ocr.sh (Apple Vision OCR)
+    - screen-monitor.sh (change detection)
+    - youtube-transcript.sh (subtitle extraction)
+  
+  skills:
+    - visual-learning.md (OCR, image understanding, YouTube)
+  
+  ooda_loop:
+    - Inject <screen-text>, <screen-activity>, <youtube> into context
+
+competitive_comparison:
+  openclaw: Focus on GUI control vs mini-agent's perception-first approach
+  autogpt: They removed vector DB, we started with File=Truth
+  babyagi: "Hands without eyes" problem → visual perception is the solution
+
+next_actions:
+  immediate:
+    - [x] Complete research report
+    - [ ] Install ocrmac (pip install ocrmac)
+    - [ ] Create plugins/screen-ocr.sh
+    - [ ] Create plugins/youtube-transcript.sh
+    - [ ] Install Ollama + LLaVA (optional)
+    - [ ] Update skills/web-learning.md
+  
+  after_validation:
+    - [ ] Test YouTube transcript extraction
+    - [ ] Evaluate LLaVA vs Claude Haiku accuracy
+    - [ ] Design screen change monitoring logic
+    - [ ] Develop hybrid vision pipeline
+  
+  long_term:
+    - [ ] CDP screencast prototype
+    - [ ] Full video analysis workflow
+    - [ ] vllm-mlx experiment (if high throughput needed)
+
+conclusion: >
+  Video/visual perception is the key upgrade for mini-agent from "can read" 
+  to "can see". Strategy: incremental (Phase 1→2→3), cost-optimized 
+  (local-first → API refinement), lightweight (core stays simple), 
+  practical (prioritize YouTube learning for 80% value). Recommend starting 
+  with Phase 1's three quick wins, validate value, then proceed to Phase 2.
+
+sources:
+  - https://platform.claude.com/docs/en/build-with-claude/vision
+  - https://docs.claude.com/en/docs/build-with-claude/vision
+  - https://platform.claude.com/docs/en/about-claude/pricing
+  - https://datasciocean.com/en/paper-intro/video-deep-research/
+  - https://arxiv.org/html/2511.14446v1
+  - https://github.com/selenide/selenide/issues/2145
+  - https://ollama.com/library/llava
+  - https://machinelearning.apple.com/research/fast-vision-language-models
+  - https://pypi.org/project/ocrmac/
+  - https://pypi.org/project/youtube-transcript-api/
+  - https://github.com/haron/yt-dlp-transcript
+  - https://chromedevtools.github.io/devtools-protocol/

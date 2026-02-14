@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Field — Kuro's Generative Art #001</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'SF Mono', 'Fira Code', monospace; color: #666; }
+  canvas { border-radius: 4px; }
+  .info { margin-top: 16px; font-size: 12px; letter-spacing: 0.5px; }
+  .controls { margin-top: 12px; display: flex; gap: 12px; }
+  button { background: #1a1a1a; color: #888; border: 1px solid #333; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.2s; }
+  button:hover { background: #222; color: #aaa; border-color: #555; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="info">flow field #001 — perlin noise × particle traces</div>
+<div class="controls">
+  <button onclick="regenerate()">regenerate</button>
+  <button onclick="togglePause()">pause / resume</button>
+  <button onclick="clearCanvas()">clear</button>
+</div>
+
+<script>
+// === Perlin Noise (simplified, based on improved noise reference implementation) ===
+const permutation = [];
+const p = new Uint8Array(512);
+
+function initNoise(seed) {
+  const arr = Array.from({ length: 256 }, (_, i) => i);
+  // Fisher-Yates shuffle with seed
+  let s = seed;
+  for (let i = 255; i > 0; i--) {
+    s = (s * 16807 + 0) % 2147483647;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  for (let i = 0; i < 256; i++) {
+    p[i] = p[i + 256] = arr[i];
+  }
+}
+
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+
+function grad(hash, x, y) {
+  const h = hash & 3;
+  const u = h < 2 ? x : y;
+  const v = h < 2 ? y : x;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+
+function perlin(x, y) {
+  const X = Math.floor(x) & 255;
+  const Y = Math.floor(y) & 255;
+  const xf = x - Math.floor(x);
+  const yf = y - Math.floor(y);
+  const u = fade(xf);
+  const v = fade(yf);
+  const aa = p[p[X] + Y];
+  const ab = p[p[X] + Y + 1];
+  const ba = p[p[X + 1] + Y];
+  const bb = p[p[X + 1] + Y + 1];
+  return lerp(
+    lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
+    lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
+    v
+  );
+}
+
+// === Canvas Setup ===
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = Math.min(800, window.innerWidth - 40);
+const H = W;
+canvas.width = W;
+canvas.height = H;
+
+// === Configuration ===
+const CONFIG = {
+  particleCount: 2000,
+  noiseScale: 0.003,
+  speed: 1.5,
+  fadeAlpha: 0.012,
+  lineWidth: 0.8,
+  colorMode: 'angle', // 'angle' or 'speed'
+};
+
+// === Color Palette ===
+function angleToColor(angle) {
+  // Soft neon palette: teal → magenta → gold
+  const t = (angle + Math.PI) / (2 * Math.PI); // normalize to 0-1
+  const r = Math.floor(40 + 180 * Math.pow(Math.sin(t * Math.PI), 2));
+  const g = Math.floor(180 + 60 * Math.cos(t * Math.PI * 1.5));
+  const b = Math.floor(200 + 55 * Math.sin(t * Math.PI * 0.7 + 1));
+  return `rgba(${r}, ${g}, ${b}, 0.4)`;
+}
+
+// === Particles ===
+let particles = [];
+let paused = false;
+let seed = Math.floor(Math.random() * 100000);
+let frameCount = 0;
+
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.prevX = this.x;
+    this.prevY = this.y;
+    this.life = 200 + Math.random() * 300;
+    this.age = 0;
+  }
+  update() {
+    this.prevX = this.x;
+    this.prevY = this.y;
+
+    const angle = perlin(
+      this.x * CONFIG.noiseScale,
+      this.y * CONFIG.noiseScale
+    ) * Math.PI * 4;
+
+    this.x += Math.cos(angle) * CONFIG.speed;
+    this.y += Math.sin(angle) * CONFIG.speed;
+    this.age++;
+
+    if (this.x < 0 || this.x > W || this.y < 0 || this.y > H || this.age > this.life) {
+      this.reset();
+    }
+
+    return angle;
+  }
+  draw(angle) {
+    ctx.beginPath();
+    ctx.moveTo(this.prevX, this.prevY);
+    ctx.lineTo(this.x, this.y);
+    ctx.strokeStyle = angleToColor(angle);
+    ctx.lineWidth = CONFIG.lineWidth;
+    ctx.stroke();
+  }
+}
+
+function init() {
+  initNoise(seed);
+  particles = Array.from({ length: CONFIG.particleCount }, () => new Particle());
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+}
+
+function animate() {
+  if (!paused) {
+    // Subtle fade for trail effect
+    ctx.fillStyle = `rgba(10, 10, 10, ${CONFIG.fadeAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const particle of particles) {
+      const angle = particle.update();
+      particle.draw(angle);
+    }
+    frameCount++;
+  }
+  requestAnimationFrame(animate);
+}
+
+function regenerate() {
+  seed = Math.floor(Math.random() * 100000);
+  frameCount = 0;
+  init();
+}
+
+function togglePause() {
+  paused = !paused;
+}
+
+function clearCanvas() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+  for (const particle of particles) {
+    particle.reset();
+  }
+}
+
+// === Start ===
+init();
+animate();
+</script>
+</body>
+</html>

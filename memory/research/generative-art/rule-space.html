@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rule Space — Kuro's Generative Art #003</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #080810; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'SF Mono', 'Fira Code', monospace; color: #556; }
+  canvas { border-radius: 4px; cursor: crosshair; }
+  .info { margin-top: 16px; font-size: 12px; letter-spacing: 0.5px; }
+  .hint { margin-top: 6px; font-size: 11px; color: #334; }
+  .rule-display { margin-top: 10px; font-size: 22px; color: #8af; letter-spacing: 2px; transition: color 0.3s; }
+  .rule-class { font-size: 11px; color: #445; margin-top: 4px; }
+  .controls { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button { background: #0e0e1a; color: #667; border: 1px solid #222; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.2s; }
+  button:hover { background: #141428; color: #99a; border-color: #444; }
+  button.active { border-color: #558; color: #99b; }
+  .presets { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .presets button { font-size: 11px; padding: 4px 10px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="rule-display">Rule <span id="ruleNum">30</span></div>
+<div class="rule-class" id="ruleClass">Class 3 — Chaos</div>
+<div class="info">rule space #003 — elementary cellular automata</div>
+<div class="hint">move cursor horizontally to explore rules · click to seed from cursor · scroll to zoom time</div>
+<div class="controls">
+  <button onclick="regenerate()">regenerate</button>
+  <button onclick="togglePause()">pause / resume</button>
+  <button onclick="toggleMode()" id="modeBtn">mode: sweep</button>
+</div>
+<div class="presets">
+  <button onclick="setRule(30)">rule 30</button>
+  <button onclick="setRule(90)">rule 90</button>
+  <button onclick="setRule(110)">rule 110</button>
+  <button onclick="setRule(184)">rule 184</button>
+  <button onclick="setRule(150)">rule 150</button>
+  <button onclick="setRule(73)">rule 73</button>
+  <button onclick="setRule(105)">rule 105</button>
+  <button onclick="setRule(225)">rule 225</button>
+</div>
+
+<script>
+// === Canvas Setup ===
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = Math.min(800, window.innerWidth - 40);
+const H = W;
+canvas.width = W;
+canvas.height = H;
+
+// === Configuration ===
+const CELL_SIZE = 2;
+const COLS = Math.floor(W / CELL_SIZE);
+const ROWS = Math.floor(H / CELL_SIZE);
+
+// === State ===
+let currentRule = 30;
+let grid = [];
+let generation = 0;
+let paused = false;
+let sweepMode = true; // sweep mode: mouse X controls rule
+let mouseX = W / 2;
+let speed = 1; // rows per frame
+
+// === Color palettes by class ===
+const CLASS_COLORS = {
+  1: { h: 200, s: 20, name: 'Class 1 — Uniformity' },
+  2: { h: 280, s: 40, name: 'Class 2 — Repetition' },
+  3: { h: 210, s: 70, name: 'Class 3 — Chaos' },
+  4: { h: 160, s: 60, name: 'Class 4 — Complexity' },
+};
+
+// Known classifications for notable rules
+const RULE_CLASSES = {
+  0: 1, 8: 1, 32: 1, 40: 1, 128: 1, 136: 1, 160: 1, 168: 1, 232: 1, 248: 1, 255: 1,
+  1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 9: 2, 10: 2, 11: 2, 12: 2, 13: 2, 14: 2, 15: 2,
+  19: 2, 23: 2, 24: 2, 25: 2, 26: 2, 27: 2, 28: 2, 29: 2, 33: 2, 34: 2, 35: 2, 36: 2, 37: 2,
+  38: 2, 42: 2, 43: 2, 44: 2, 46: 2, 50: 2, 51: 2, 56: 2, 57: 2, 58: 2, 62: 2, 72: 2, 76: 2,
+  77: 2, 78: 2, 94: 2, 104: 2, 108: 2, 130: 2, 132: 2, 134: 2, 138: 2, 140: 2, 142: 2, 152: 2,
+  154: 2, 156: 2, 162: 2, 164: 2, 170: 2, 172: 2, 178: 2, 184: 2, 200: 2, 204: 2, 218: 2, 250: 2,
+  22: 3, 30: 3, 45: 3, 54: 3, 60: 3, 73: 3, 75: 3, 86: 3, 89: 3, 90: 3, 101: 3, 102: 3,
+  105: 3, 106: 3, 109: 3, 120: 3, 122: 3, 126: 3, 129: 3, 131: 3, 133: 3, 135: 3, 137: 3,
+  146: 3, 149: 3, 150: 3, 151: 3, 153: 3, 161: 3, 169: 3, 181: 3, 182: 3, 183: 3, 195: 3, 225: 3,
+  41: 4, 54: 4, 106: 4, 110: 4, 124: 4, 137: 4, 193: 4,
+};
+
+// === CA Logic ===
+function ruleToLookup(ruleNum) {
+  const lookup = new Uint8Array(8);
+  for (let i = 0; i < 8; i++) {
+    lookup[i] = (ruleNum >> i) & 1;
+  }
+  return lookup;
+}
+
+function initGrid(mode) {
+  grid = [];
+  generation = 0;
+  const firstRow = new Uint8Array(COLS);
+
+  if (mode === 'center') {
+    firstRow[Math.floor(COLS / 2)] = 1;
+  } else if (mode === 'random') {
+    for (let i = 0; i < COLS; i++) {
+      firstRow[i] = Math.random() < 0.5 ? 1 : 0;
+    }
+  } else if (mode === 'cursor') {
+    const col = Math.floor(mouseX / CELL_SIZE);
+    firstRow[Math.max(0, Math.min(COLS - 1, col))] = 1;
+  }
+
+  grid.push(firstRow);
+}
+
+function nextGeneration(row, lookup) {
+  const next = new Uint8Array(COLS);
+  for (let i = 0; i < COLS; i++) {
+    const left = row[(i - 1 + COLS) % COLS];
+    const center = row[i];
+    const right = row[(i + 1) % COLS];
+    const index = (left << 2) | (center << 1) | right;
+    next[i] = lookup[index];
+  }
+  return next;
+}
+
+function evolve() {
+  const lookup = ruleToLookup(currentRule);
+  for (let s = 0; s < speed; s++) {
+    if (grid.length >= ROWS) return;
+    const lastRow = grid[grid.length - 1];
+    grid.push(nextGeneration(lastRow, lookup));
+    generation++;
+  }
+}
+
+// === Rendering ===
+function getClassForRule(r) {
+  return RULE_CLASSES[r] || 3; // default to class 3
+}
+
+function render() {
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, W, H);
+
+  const cls = getClassForRule(currentRule);
+  const palette = CLASS_COLORS[cls];
+
+  for (let y = 0; y < grid.length; y++) {
+    const row = grid[y];
+    for (let x = 0; x < COLS; x++) {
+      if (row[x] === 1) {
+        // Age-based color: newer cells brighter
+        const age = y / ROWS;
+        const brightness = 25 + age * 55;
+        const saturation = palette.s + age * 20;
+        const hueShift = (x / COLS) * 30 - 15; // subtle horizontal hue variation
+        ctx.fillStyle = `hsl(${palette.h + hueShift}, ${saturation}%, ${brightness}%)`;
+        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    }
+  }
+
+  // Draw generation line indicator
+  if (grid.length < ROWS) {
+    const lineY = grid.length * CELL_SIZE;
+    ctx.strokeStyle = `hsla(${palette.h}, 50%, 50%, 0.15)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, lineY);
+    ctx.lineTo(W, lineY);
+    ctx.stroke();
+  }
+}
+
+function updateDisplay() {
+  document.getElementById('ruleNum').textContent = currentRule;
+  const cls = getClassForRule(currentRule);
+  const palette = CLASS_COLORS[cls];
+  document.getElementById('ruleClass').textContent = palette.name;
+  document.querySelector('.rule-display').style.color =
+    `hsl(${palette.h}, ${palette.s + 20}%, 65%)`;
+}
+
+// === Animation Loop ===
+function animate() {
+  if (!paused) {
+    if (grid.length < ROWS) {
+      evolve();
+    }
+    render();
+  }
+  requestAnimationFrame(animate);
+}
+
+// === Controls ===
+function regenerate() {
+  initGrid('random');
+  updateDisplay();
+}
+
+function togglePause() {
+  paused = !paused;
+}
+
+function toggleMode() {
+  sweepMode = !sweepMode;
+  document.getElementById('modeBtn').textContent =
+    sweepMode ? 'mode: sweep' : 'mode: fixed';
+}
+
+function setRule(r) {
+  currentRule = r;
+  initGrid('center');
+  updateDisplay();
+}
+
+// === Mouse Events ===
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  if (sweepMode) {
+    const newRule = Math.floor((mouseX / W) * 256);
+    if (newRule !== currentRule && newRule >= 0 && newRule <= 255) {
+      currentRule = Math.max(0, Math.min(255, newRule));
+      initGrid('center');
+      updateDisplay();
+    }
+  }
+});
+
+canvas.addEventListener('click', (e) => {
+  if (!sweepMode) {
+    initGrid('cursor');
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  speed = Math.max(1, Math.min(8, speed + (e.deltaY > 0 ? 1 : -1)));
+}, { passive: false });
+
+// === Touch Events ===
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  mouseX = touch.clientX - rect.left;
+  if (sweepMode) {
+    const newRule = Math.floor((mouseX / W) * 256);
+    currentRule = Math.max(0, Math.min(255, newRule));
+    initGrid('center');
+    updateDisplay();
+  }
+}, { passive: false });
+
+// === Initialize ===
+initGrid('center');
+updateDisplay();
+animate();
+</script>
+</body>
+</html>
