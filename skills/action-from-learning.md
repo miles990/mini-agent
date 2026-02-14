@@ -6,6 +6,7 @@
 
 | Level | 可以做的事 | 流程 |
 |-------|-----------|------|
+| **Create** | 寫 journal、gallery 作品、inner voice、Dev.to 文章 — 任何原創內容 | 自己做，發佈到網站 |
 | **L1: Self-Improve** | 改 skills/*.md、新增 plugins/*.sh、改 SOUL/MEMORY/ARCHITECTURE.md | 自己做，事後 [CHAT] 通知 Alex |
 | **L2: Feature Proposal** | 涉及 src/*.ts 的改動 | 寫提案到 `memory/proposals/`，等 Alex 審核 |
 | **L3: Architecture** | 大架構改動（新 API、改記憶架構、改 AgentLoop 行為） | 寫提案 + 標注 `Effort: Large` |
@@ -175,11 +176,12 @@ graph LR
 - 有明確可行動的洞見時才做，不要硬擠
 - L1 小改進可以頻繁做；L2/L3 提案慎重寫
 
-## 判斷：繼續學 vs 行動？
+## 判斷：繼續學 vs 行動 vs 創作？
 
 問自己：
-1. 我學到的東西能**具體改善**什麼？
-2. 改善的幅度值不值得花時間？
-3. 是 L1（自己能做）還是 L2/L3（需要提案）？
+1. 我有話想說嗎？有什麼觀點想表達？ → **創作**（journal / inner voice）
+2. 我學到的東西能**具體改善**什麼？ → **L1 行動**
+3. 改善涉及 src/*.ts？ → **L2/L3 提案**
+4. 以上都沒有？ → **繼續學**
 
-如果三個問題都有清楚答案 → 行動。否則 → 繼續學。
+創作不需要「值不值得」的門檻。如果你讀完一篇文章後有想法冒出來，那就寫。門檻只有一個：是不是你真正想說的。
