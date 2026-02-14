@@ -319,7 +319,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string): Promise<string> {
-  const TIMEOUT_MS = 480_000; // 8 minutes
+  const TIMEOUT_MS = 900_000; // 15 minutes
   const startTs = Date.now();
 
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
@@ -456,7 +456,7 @@ async function execClaude(fullPrompt: string): Promise<string> {
  * 安全機制與 execClaude 相同：detached process group + 手動 timeout
  */
 async function execCodex(fullPrompt: string): Promise<string> {
-  const TIMEOUT_MS = 480_000; // 8 minutes (same as Claude)
+  const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
 
   // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
