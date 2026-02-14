@@ -254,6 +254,11 @@ function pickSection(detail: string, labels: string[]): string {
     const plain = new RegExp(`(?:^|\\n)\\s*${escaped}:\\s*([\\s\\S]*?)(?=\\n[A-Za-z][A-Za-z\\s-]{1,24}:|$)`, 'i');
     const plainMatch = detail.match(plain);
     if (plainMatch?.[1]?.trim()) return plainMatch[1].trim();
+
+    // Heading style: ## What\n...
+    const heading = new RegExp(`(?:^|\\n)##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`, 'i');
+    const headingMatch = detail.match(heading);
+    if (headingMatch?.[1]?.trim()) return headingMatch[1].trim();
   }
   return '';
 }
