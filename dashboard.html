@@ -1116,7 +1116,7 @@
     background: linear-gradient(135deg, var(--surface) 0%, rgba(167, 139, 250, 0.03) 100%);
     border: 1px solid rgba(167, 139, 250, 0.15);
     border-radius: var(--radius);
-    padding: 20px 22px;
+    padding: 22px 24px;
     margin-bottom: 28px;
     position: relative;
     overflow: hidden;
@@ -1133,7 +1133,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
   .inner-title {
     font-size: 14px;
@@ -1162,6 +1162,82 @@
   .mood-badge.troubled { background: var(--red-dim); color: var(--red); }
   .mood-badge.waking { background: var(--yellow-dim); color: var(--yellow); }
 
+  /* Inner Voice — the monologue */
+  .inner-voice {
+    margin-bottom: 20px;
+  }
+  .inner-voice-entry {
+    position: relative;
+    padding: 16px 18px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid rgba(167, 139, 250, 0.4);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .inner-voice-entry:hover {
+    border-left-color: var(--purple);
+    background: var(--surface3);
+  }
+  .inner-voice-timestamp {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .inner-voice-text {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.75;
+    word-break: break-word;
+    white-space: pre-wrap;
+    overflow: hidden;
+    max-height: 160px;
+    transition: max-height 0.3s ease;
+  }
+  .inner-voice-entry.expanded .inner-voice-text {
+    max-height: 2000px;
+  }
+  .inner-voice-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--surface2));
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .inner-voice-entry.expanded .inner-voice-fade { opacity: 0; }
+  .inner-voice-entry:hover .inner-voice-fade {
+    background: linear-gradient(transparent, var(--surface3));
+  }
+  .inner-voice-more {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .inner-voice-more-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .inner-voice-more-btn:hover {
+    border-color: var(--purple);
+    color: var(--purple);
+  }
+  .inner-voice-more-btn.active {
+    border-color: var(--purple);
+    color: var(--purple);
+    background: var(--purple-dim);
+  }
+
+  /* Inner subsections grid */
   .inner-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1230,13 +1306,24 @@
     font-size: 11px;
     color: var(--text);
     white-space: normal;
-    width: 260px;
+    width: 280px;
+    max-width: 90vw;
     z-index: 10;
     line-height: 1.5;
     font-family: var(--sans);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   }
   .interest-tag:hover .interest-tooltip { display: block; }
+
+  .interest-category {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    margin: 6px 0 4px;
+    width: 100%;
+  }
 
   .thought-list {
     display: flex;
@@ -1247,21 +1334,21 @@
     font-size: 12px;
     color: var(--text2);
     line-height: 1.55;
-    padding: 6px 10px;
+    padding: 8px 10px;
     background: var(--surface2);
     border-radius: var(--radius-sm);
     border-left: 2px solid rgba(167, 139, 250, 0.3);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s;
     overflow: hidden;
-    max-height: 40px;
+    max-height: 44px;
   }
   .thought-item:hover {
     background: var(--surface3);
     border-left-color: var(--purple);
   }
   .thought-item.expanded {
-    max-height: 300px;
+    max-height: 600px;
   }
   .thought-item .thought-topic {
     font-family: var(--mono);
@@ -1277,11 +1364,49 @@
     margin-left: 4px;
   }
 
+  .trait-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid rgba(94, 234, 212, 0.15);
+    color: var(--text2);
+    cursor: default;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .trait-tag:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .trait-tag .trait-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text);
+    white-space: normal;
+    width: 220px;
+    max-width: 80vw;
+    z-index: 10;
+    line-height: 1.5;
+    font-family: var(--sans);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .trait-tag:hover .trait-tooltip { display: block; }
+
   .mood-detail {
     font-size: 12px;
     color: var(--text2);
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
     border-top: 1px solid var(--border-subtle);
     font-family: var(--mono);
     font-size: 11px;
@@ -1375,14 +1500,18 @@
       </div>
       <span class="mood-badge waking" id="moodBadge">--</span>
     </div>
+
+    <!-- Inner Voice — personal monologue (most prominent) -->
+    <div class="inner-voice" id="innerVoice"></div>
+
     <div class="inner-grid">
       <div class="inner-block">
         <div class="inner-block-label">Now Thinking</div>
         <div class="thinking-now" id="thinkingNow">--</div>
       </div>
       <div class="inner-block">
-        <div class="inner-block-label">Interests</div>
-        <div class="interest-tags" id="interestTags">--</div>
+        <div class="inner-block-label">Traits</div>
+        <div class="interest-tags" id="traitTags">--</div>
       </div>
     </div>
     <div class="inner-grid" style="margin-top: 14px;">
@@ -1391,8 +1520,8 @@
         <div class="thought-list" id="thoughtList">--</div>
       </div>
       <div class="inner-block">
-        <div class="inner-block-label">Traits</div>
-        <div class="interest-tags" id="traitTags">--</div>
+        <div class="inner-block-label">Interests</div>
+        <div class="interest-tags" id="interestTags">--</div>
       </div>
     </div>
     <div class="mood-detail" id="moodDetail"></div>
@@ -1721,6 +1850,31 @@ function renderInnerState(data) {
     focusEl.textContent = (modeLabels[focus.mode] || focus.mode) + ' \u00b7 cycle #' + focus.cycleCount;
   }
 
+  // Inner Voice — personal monologue (most prominent)
+  const voiceEl = document.getElementById('innerVoice');
+  if (data.innerVoice && data.innerVoice.length > 0) {
+    const latest = data.innerVoice[0];
+    let html = '<div class="inner-voice-entry" onclick="this.classList.toggle(\'expanded\')">';
+    html += '<div class="inner-voice-timestamp">' + escapeHtml(latest.timestamp) + '</div>';
+    html += '<div class="inner-voice-text">' + escapeHtml(latest.content) + '</div>';
+    html += '<div class="inner-voice-fade"></div>';
+    html += '</div>';
+    // Show older entries as small buttons
+    if (data.innerVoice.length > 1) {
+      html += '<div class="inner-voice-more">';
+      for (let i = 1; i < data.innerVoice.length; i++) {
+        const v = data.innerVoice[i];
+        html += '<button class="inner-voice-more-btn" onclick="event.stopPropagation();showVoiceEntry(this,' + i + ')">' + escapeHtml(v.timestamp) + '</button>';
+      }
+      html += '</div>';
+    }
+    voiceEl.innerHTML = html;
+    // Store entries for switching
+    voiceEl._entries = data.innerVoice;
+  } else {
+    voiceEl.innerHTML = '';
+  }
+
   // Now Thinking
   const thinkingEl = document.getElementById('thinkingNow');
   const thinking = data.recentThinking;
@@ -1739,23 +1893,28 @@ function renderInnerState(data) {
     thinkingEl.textContent = 'Observing the environment...';
   }
 
-  // Interests
+  // Interests (with category grouping)
   const interestEl = document.getElementById('interestTags');
   if (data.interests && data.interests.length > 0) {
     let html = '';
+    let lastCat = null;
     for (const i of data.interests) {
+      if (i.category && i.category !== lastCat) {
+        lastCat = i.category;
+        html += '<div class="interest-category">' + escapeHtml(i.category) + '</div>';
+      }
       html += '<span class="interest-tag">' + escapeHtml(i.name);
-      html += '<span class="interest-tooltip">' + escapeHtml(i.detail.slice(0, 180)) + '</span>';
+      html += '<span class="interest-tooltip">' + escapeHtml(i.detail.slice(0, 250)) + '</span>';
       html += '</span>';
     }
     interestEl.innerHTML = html;
   }
 
-  // Core Thoughts
+  // Core Thoughts (show all, expandable)
   const thoughtEl = document.getElementById('thoughtList');
   if (data.thoughts && data.thoughts.length > 0) {
     let html = '';
-    for (const t of data.thoughts.slice(0, 5)) {
+    for (const t of data.thoughts) {
       html += '<div class="thought-item" onclick="this.classList.toggle(\'expanded\')">';
       html += '<span class="thought-topic">' + escapeHtml(t.topic) + '</span>';
       html += '<span class="thought-date">' + t.date + '</span><br>';
@@ -1765,15 +1924,34 @@ function renderInnerState(data) {
     thoughtEl.innerHTML = html;
   }
 
-  // Traits
+  // Traits (with detail tooltip)
   const traitEl = document.getElementById('traitTags');
   if (data.traits && data.traits.length > 0) {
     let html = '';
     for (const t of data.traits) {
-      html += '<span class="interest-tag" style="border-color:rgba(94,234,212,0.15);">' + escapeHtml(t) + '</span>';
+      const name = typeof t === 'string' ? t : t.name;
+      const detail = typeof t === 'string' ? '' : t.detail;
+      html += '<span class="trait-tag">' + escapeHtml(name);
+      if (detail) html += '<span class="trait-tooltip">' + escapeHtml(detail) + '</span>';
+      html += '</span>';
     }
     traitEl.innerHTML = html;
   }
+}
+
+function showVoiceEntry(btn, index) {
+  const voiceEl = document.getElementById('innerVoice');
+  const entries = voiceEl._entries;
+  if (!entries || !entries[index]) return;
+  const entry = entries[index];
+  // Update main display
+  const entryEl = voiceEl.querySelector('.inner-voice-entry');
+  entryEl.querySelector('.inner-voice-timestamp').textContent = entry.timestamp;
+  entryEl.querySelector('.inner-voice-text').textContent = entry.content;
+  entryEl.classList.remove('expanded');
+  // Update active button
+  voiceEl.querySelectorAll('.inner-voice-more-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 // ── Decision Timeline Rendering ──

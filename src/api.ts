@@ -1133,21 +1133,27 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  // Inner State API — Kuro 的內在狀態（興趣、思想、心情、當下想法）
+  // Inner State API — Kuro 的內在狀態（興趣、思想、心情、內心獨白）
   app.get('/api/dashboard/inner-state', async (_req: Request, res: Response) => {
     try {
       const memory = getMemory();
       const soul = await memory.readSoul();
       const logger = getLogger();
 
-      // --- Parse interests from SOUL.md ---
-      const interestsRaw: { name: string; detail: string }[] = [];
+      // --- Parse interests from SOUL.md (handles ### subsections) ---
+      const interestsRaw: { name: string; detail: string; category?: string }[] = [];
       const interestsSection = soul.match(/## Learning Interests\n([\s\S]*?)(?=\n## )/);
       if (interestsSection) {
         const lines = interestsSection[1].split('\n');
+        let currentCategory = '';
         for (const line of lines) {
+          const catMatch = line.match(/^###\s*(.+)/);
+          if (catMatch) {
+            currentCategory = catMatch[1].trim();
+            continue;
+          }
           const m = line.match(/^- (.+?):\s*(.+)/);
-          if (m) interestsRaw.push({ name: m[1].trim(), detail: m[2].trim() });
+          if (m) interestsRaw.push({ name: m[1].trim(), detail: m[2].trim(), category: currentCategory || undefined });
         }
       }
 
@@ -1162,21 +1168,38 @@ export function createApi(port = 3001): express.Express {
             thoughts.push({
               date: m[1],
               topic: m[2].trim(),
-              summary: m[3].trim().slice(0, 200),
+              summary: m[3].trim(),
             });
           }
         }
       }
 
       // --- Parse traits from SOUL.md ---
-      const traits: string[] = [];
+      const traits: { name: string; detail: string }[] = [];
       const traitsSection = soul.match(/## My Traits\n([\s\S]*?)(?=\n## )/);
       if (traitsSection) {
         const lines = traitsSection[1].split('\n');
         for (const line of lines) {
-          const m = line.match(/^\s*-\s*\*\*(.+?)\*\*/);
-          if (m) traits.push(m[1]);
+          const m = line.match(/^\s*-\s*\*\*(.+?)\*\*:\s*(.*)/);
+          if (m) traits.push({ name: m[1], detail: m[2].trim() });
         }
+      }
+
+      // --- Inner Voice (personal monologue) ---
+      let innerVoice: { timestamp: string; content: string }[] = [];
+      const voicePath = path.join(memory.getMemoryDir(), 'inner-voice.md');
+      try {
+        const voiceContent = await fsPromises.readFile(voicePath, 'utf-8');
+        const entries = voiceContent.split(/^## (\d{4}-\d{2}-\d{2} \d{2}:\d{2})/m);
+        // entries: ['preamble', 'timestamp1', 'content1', 'timestamp2', 'content2', ...]
+        for (let i = 1; i < entries.length; i += 2) {
+          const timestamp = entries[i].trim();
+          const content = entries[i + 1]?.trim() || '';
+          if (content) innerVoice.push({ timestamp, content });
+        }
+        innerVoice = innerVoice.slice(-5).reverse(); // Most recent first
+      } catch {
+        // No inner-voice.md yet — that's fine
       }
 
       // --- Current focus (what I'm doing/thinking right now) ---
@@ -1238,8 +1261,9 @@ export function createApi(port = 3001): express.Express {
 
       res.json({
         traits,
-        interests: interestsRaw.slice(0, 15),
-        thoughts: thoughts.slice(0, 10),
+        interests: interestsRaw.slice(0, 20),
+        thoughts: thoughts.slice(0, 11),
+        innerVoice,
         currentFocus,
         mood: { state: mood, detail: moodDetail },
         recentThinking,

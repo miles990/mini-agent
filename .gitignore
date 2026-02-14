@@ -6,6 +6,7 @@ memory/*
 !memory/ARCHITECTURE.md
 !memory/SOUL.md
 !memory/behavior.md
+!memory/inner-voice.md
 !memory/handoffs/
 memory/handoffs/*
 !memory/handoffs/active.md
