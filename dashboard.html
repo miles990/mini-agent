@@ -1501,30 +1501,34 @@
       <span class="mood-badge waking" id="moodBadge">--</span>
     </div>
 
-    <!-- Inner Voice — personal monologue (most prominent) -->
+    <!-- Now Thinking — what Kuro is currently doing (most important for human readability) -->
+    <div class="thinking-now" id="thinkingNow" style="margin-bottom:16px;">--</div>
+
+    <!-- Inner Voice — personal monologue -->
     <div class="inner-voice" id="innerVoice"></div>
 
-    <div class="inner-grid">
-      <div class="inner-block">
-        <div class="inner-block-label">Now Thinking</div>
-        <div class="thinking-now" id="thinkingNow">--</div>
-      </div>
-      <div class="inner-block">
-        <div class="inner-block-label">Traits</div>
-        <div class="interest-tags" id="traitTags">--</div>
-      </div>
-    </div>
-    <div class="inner-grid" style="margin-top: 14px;">
-      <div class="inner-block">
-        <div class="inner-block-label">Core Thoughts</div>
-        <div class="thought-list" id="thoughtList">--</div>
-      </div>
-      <div class="inner-block">
-        <div class="inner-block-label">Interests</div>
-        <div class="interest-tags" id="interestTags">--</div>
-      </div>
-    </div>
     <div class="mood-detail" id="moodDetail"></div>
+
+    <!-- Collapsible: Traits, Interests, Core Thoughts -->
+    <div class="inner-details-toggle" onclick="toggleInnerDetails()" id="innerDetailsToggle" style="font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle);user-select:none;transition:color 0.15s;">+ Traits, Interests, Core Thoughts</div>
+    <div id="innerDetailsBody" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,opacity 0.25s ease;opacity:0;">
+      <div class="inner-grid" style="margin-top:14px;">
+        <div class="inner-block">
+          <div class="inner-block-label">Traits</div>
+          <div class="interest-tags" id="traitTags">--</div>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-label">Interests</div>
+          <div class="interest-tags" id="interestTags">--</div>
+        </div>
+      </div>
+      <div class="inner-grid" style="margin-top: 14px;">
+        <div class="inner-block" style="grid-column:span 2;">
+          <div class="inner-block-label">Core Thoughts</div>
+          <div class="thought-list" id="thoughtList">--</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Status Grid -->
@@ -1712,6 +1716,21 @@ function toggleSection(id) {
   el.classList.toggle('collapsed');
 }
 
+function toggleInnerDetails() {
+  const body = document.getElementById('innerDetailsBody');
+  const toggle = document.getElementById('innerDetailsToggle');
+  const expanded = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
+  if (expanded) {
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    toggle.textContent = '+ Traits, Interests, Core Thoughts';
+  } else {
+    body.style.maxHeight = '3000px';
+    body.style.opacity = '1';
+    toggle.textContent = '- Traits, Interests, Core Thoughts';
+  }
+}
+
 // ── Event Listeners ──
 
 document.querySelectorAll('.filter-chip[data-jcat]').forEach(btn => {
@@ -1875,20 +1894,31 @@ function renderInnerState(data) {
     voiceEl.innerHTML = '';
   }
 
-  // Now Thinking
+  // Now Thinking — human-readable summary of what Kuro is doing
   const thinkingEl = document.getElementById('thinkingNow');
   const thinking = data.recentThinking;
   if (thinking && thinking.length > 0) {
+    const latest = thinking[0];
+    const raw = latest.decision || latest.thinking || '';
+    // Extract the "chose:" line as a readable summary
+    const choseMatch = raw.match(/chose:\s*(.+?)(?:\n|$)/);
+    const skippedMatch = raw.match(/skipped:\s*(.+?)(?:\n|$)/);
     let html = '';
-    for (const t of thinking.slice(0, 2)) {
-      if (t.mode) html += '<span class="thinking-mode">' + escapeHtml(t.mode) + '</span>';
-      const text = t.thinking || t.decision || '(observing)';
-      html += '<span>' + escapeHtml(text.slice(0, 200)) + '</span>';
-      if (thinking.indexOf(t) < Math.min(thinking.length, 2) - 1) html += '<br><br>';
+    if (latest.mode) html += '<span class="thinking-mode">' + escapeHtml(latest.mode) + '</span>';
+    if (choseMatch) {
+      html += '<span style="color:var(--text-bright)">' + escapeHtml(choseMatch[1].trim()) + '</span>';
+    } else {
+      html += '<span>' + escapeHtml(raw.slice(0, 200)) + '</span>';
     }
     thinkingEl.innerHTML = html;
   } else if (focus && focus.lastAction) {
-    thinkingEl.innerHTML = escapeHtml(focus.lastAction);
+    // Extract "chose:" from lastAction too
+    const choseMatch = focus.lastAction.match(/chose:\s*(.+?)(?:\n|$)/);
+    if (choseMatch) {
+      thinkingEl.innerHTML = '<span style="color:var(--text-bright)">' + escapeHtml(choseMatch[1].trim()) + '</span>';
+    } else {
+      thinkingEl.innerHTML = escapeHtml(focus.lastAction.slice(0, 200));
+    }
   } else {
     thinkingEl.textContent = 'Observing the environment...';
   }

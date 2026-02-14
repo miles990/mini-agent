@@ -653,7 +653,13 @@ export class InstanceMemory {
     try {
       return await fs.readFile(soulPath, 'utf-8');
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Fallback: try project memory/ directory (SOUL.md lives in repo, not instance dir)
+        const fallback = path.join(process.cwd(), 'memory', 'SOUL.md');
+        if (fallback !== soulPath) {
+          try { return await fs.readFile(fallback, 'utf-8'); } catch { /* ignore */ }
+        }
+      } else {
         diagLog('memory.readSoul', error, { path: soulPath });
       }
       return '';

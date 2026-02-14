@@ -1188,8 +1188,14 @@ export function createApi(port = 3001): express.Express {
       // --- Inner Voice (personal monologue) ---
       let innerVoice: { timestamp: string; content: string }[] = [];
       const voicePath = path.join(memory.getMemoryDir(), 'inner-voice.md');
+      const voiceFallback = path.join(process.cwd(), 'memory', 'inner-voice.md');
       try {
-        const voiceContent = await fsPromises.readFile(voicePath, 'utf-8');
+        let voiceContent: string;
+        try {
+          voiceContent = await fsPromises.readFile(voicePath, 'utf-8');
+        } catch {
+          voiceContent = await fsPromises.readFile(voiceFallback, 'utf-8');
+        }
         const entries = voiceContent.split(/^## (\d{4}-\d{2}-\d{2} \d{2}:\d{2})/m);
         // entries: ['preamble', 'timestamp1', 'content1', 'timestamp2', 'content2', ...]
         for (let i = 1; i < entries.length; i += 2) {
