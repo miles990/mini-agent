@@ -192,16 +192,29 @@ async function callHaiku(
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  let remember: { content: string; topic?: string } | undefined;
+  let remember: { content: string; topic?: string; ref?: string } | undefined;
   if (response.includes('[REMEMBER')) {
-    const match = response.match(/\[REMEMBER(?:\s+#(\S+))?\](.*?)\[\/REMEMBER\]/s);
-    if (match) remember = { content: match[2].trim(), topic: match[1] };
+    const match = response.match(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/s);
+    if (match) remember = { content: match[3].trim(), topic: match[1], ref: match[2] };
   }
 
   let task: { content: string; schedule?: string } | undefined;
   if (response.includes('[TASK')) {
     const match = response.match(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/s);
     if (match) task = { content: match[2].trim(), schedule: match[1] };
+  }
+
+  let archive: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' } | undefined;
+  if (response.includes('[ARCHIVE')) {
+    const match = response.match(/\[ARCHIVE\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?\](.*?)\[\/ARCHIVE\]/s);
+    if (match) {
+      archive = {
+        url: match[1],
+        title: match[2] ?? '',
+        content: match[4].trim(),
+        mode: (match[3] as 'full' | 'excerpt' | 'metadata-only') || undefined,
+      };
+    }
   }
 
   const chats: string[] = [];
@@ -228,12 +241,13 @@ export function parseTags(response: string): ParsedTags {
   const cleanContent = response
     .replace(/\[REMEMBER[^\]]*\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
+    .replace(/\[ARCHIVE[^\]]*\].*?\[\/ARCHIVE\]/gs, '')
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
     .trim();
 
-  return { remember, task, chats, shows, summaries, cleanContent };
+  return { remember, task, archive, chats, shows, summaries, cleanContent };
 }
 
 // =============================================================================
@@ -258,11 +272,18 @@ export async function postProcess(
   // 3. Process tags
   if (tags.remember) {
     if (tags.remember.topic) {
-      await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
+      await memory.appendTopicMemory(tags.remember.topic, tags.remember.content, tags.remember.ref);
     } else {
       await memory.appendMemory(tags.remember.content);
     }
     eventBus.emit('action:memory', { content: tags.remember.content, topic: tags.remember.topic });
+  }
+
+  if (tags.archive) {
+    memory.archiveSource(tags.archive.url, tags.archive.title, tags.archive.content, {
+      mode: tags.archive.mode,
+    }).catch(() => {}); // fire-and-forget
+    eventBus.emit('action:memory', { content: `[ARCHIVE] ${tags.archive.title}`, topic: 'library' });
   }
 
   if (tags.task) {

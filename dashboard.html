@@ -885,6 +885,39 @@
   .scroll-top:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
   .scroll-top.visible { display: flex; }
 
+  /* ── Library ── */
+  .lib-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .lib-search { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; color: var(--text); font-family: var(--mono); font-size: 12px; width: 200px; outline: none; }
+  .lib-search:focus { border-color: var(--accent); }
+  .lib-tags { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  .lib-tag-chip { display: inline-block; padding: 2px 8px; background: var(--surface2); border-radius: 3px; font-size: 11px; font-family: var(--mono); color: var(--text2); cursor: pointer; border: 1px solid transparent; }
+  .lib-tag-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .lib-sort { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; color: var(--text2); font-family: var(--mono); font-size: 11px; outline: none; }
+  .lib-card { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
+  .lib-card:hover { border-color: var(--accent); }
+  .lib-card-title { color: var(--text-bright); font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+  .lib-card-meta { font-family: var(--mono); font-size: 11px; color: var(--text3); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .lib-card-meta .cited { color: var(--accent); font-weight: 500; }
+  .lib-card-tags { display: flex; gap: 4px; margin-top: 4px; }
+  .lib-card-tag { font-size: 10px; padding: 1px 6px; background: var(--surface2); border-radius: 3px; color: var(--text2); font-family: var(--mono); }
+  .lib-mode { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-family: var(--mono); }
+  .lib-mode.full { background: var(--accent-dim); color: var(--accent); }
+  .lib-mode.excerpt { background: var(--yellow-dim); color: var(--yellow); }
+  .lib-mode.metadata-only { background: var(--surface2); color: var(--text3); }
+  .lib-detail-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; overflow-y: auto; }
+  .lib-detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); max-width: 800px; width: 100%; padding: 20px; max-height: calc(100vh - 80px); overflow-y: auto; }
+  .lib-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .lib-back { background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 12px; color: var(--text2); cursor: pointer; font-family: var(--mono); font-size: 12px; }
+  .lib-back:hover { border-color: var(--accent); color: var(--accent); }
+  .lib-original { font-family: var(--mono); font-size: 11px; color: var(--blue); text-decoration: none; }
+  .lib-original:hover { text-decoration: underline; }
+  .lib-detail-title { font-size: 18px; font-weight: 600; color: var(--text-bright); margin-bottom: 8px; }
+  .lib-detail-meta { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .lib-cited-by { margin-bottom: 16px; }
+  .lib-cited-by-title { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 6px; }
+  .lib-cited-by-item { font-size: 12px; color: var(--text2); padding: 2px 0; font-family: var(--mono); }
+  .lib-content-body { font-size: 13px; line-height: 1.7; color: var(--text); border-top: 1px solid var(--border-subtle); padding-top: 16px; white-space: pre-wrap; word-break: break-word; }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .container { padding: 16px; }
@@ -1088,6 +1121,34 @@
     </div>
     <div id="learningContent">
       <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Library -->
+  <div class="section" id="librarySection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#128218;</span> Library</div>
+      <span class="section-count" id="libraryCount">--</span>
+    </div>
+    <div class="lib-toolbar">
+      <input type="text" class="lib-search" id="libSearch" placeholder="Search title, tags...">
+      <div class="lib-tags" id="libTags"></div>
+      <select class="lib-sort" id="libSort">
+        <option value="cited">Most Cited</option>
+        <option value="date">Most Recent</option>
+      </select>
+    </div>
+    <div id="libraryContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+    <div class="lib-detail-overlay" id="libDetailOverlay" style="display:none;">
+      <div class="lib-detail-panel">
+        <div class="lib-detail-header">
+          <button class="lib-back" id="libBack">&larr; Back</button>
+          <a class="lib-original" id="libOriginalLink" target="_blank" rel="noopener">Open Original</a>
+        </div>
+        <div id="libDetailContent"></div>
+      </div>
     </div>
   </div>
 
@@ -1806,7 +1867,183 @@ function startFallbackRefresh() {
   setInterval(fetchAll, 60000);
 }
 
+// ── Library ──
+
+let libraryData = [];
+let libCitedMap = {};
+let libActiveTag = '';
+
+async function fetchLibrary() {
+  try {
+    const [catRes, statsRes] = await Promise.all([
+      fetch(API + '/api/library'),
+      fetch(API + '/api/library/stats'),
+    ]);
+    if (!catRes.ok) return;
+    const cat = await catRes.json();
+    const stats = statsRes.ok ? await statsRes.json() : { topCited: [] };
+    libraryData = cat.entries || [];
+
+    // Build cited map from stats
+    libCitedMap = {};
+    for (const tc of (stats.topCited || [])) {
+      libCitedMap[tc.id] = tc.count;
+    }
+
+    document.getElementById('libraryCount').textContent = libraryData.length;
+    renderLibraryTags();
+    renderLibrary();
+  } catch (e) {
+    console.error('Library fetch error:', e);
+  }
+}
+
+function renderLibraryTags() {
+  const tagCounts = {};
+  for (const e of libraryData) {
+    for (const t of e.tags) tagCounts[t] = (tagCounts[t] || 0) + 1;
+  }
+  const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const container = document.getElementById('libTags');
+  let html = '<span class="lib-tag-chip' + (!libActiveTag ? ' active' : '') + '" data-libtag="">All</span>';
+  for (const [tag, count] of sorted) {
+    html += '<span class="lib-tag-chip' + (libActiveTag === tag ? ' active' : '') + '" data-libtag="' + escapeHtml(tag) + '">' + escapeHtml(tag) + ' ' + count + '</span>';
+  }
+  container.innerHTML = html;
+}
+
+function renderLibrary() {
+  const container = document.getElementById('libraryContent');
+  const search = (document.getElementById('libSearch').value || '').toLowerCase();
+  const sort = document.getElementById('libSort').value;
+
+  let filtered = libraryData;
+  if (libActiveTag) filtered = filtered.filter(e => e.tags.includes(libActiveTag));
+  if (search) filtered = filtered.filter(e =>
+    e.title.toLowerCase().includes(search) ||
+    (e.author || '').toLowerCase().includes(search) ||
+    e.tags.some(t => t.includes(search))
+  );
+
+  // Sort
+  if (sort === 'cited') {
+    filtered = [...filtered].sort((a, b) => (libCitedMap[b.id] || 0) - (libCitedMap[a.id] || 0));
+  } else {
+    filtered = [...filtered].sort((a, b) => (b.accessed || '').localeCompare(a.accessed || ''));
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state">No library entries found.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const e of filtered) {
+    const cited = libCitedMap[e.id] || 0;
+    const date = (e.accessed || '').split('T')[0];
+    const modeClass = e.archiveMode || 'full';
+    html += '<div class="lib-card" data-libid="' + escapeHtml(e.id) + '">';
+    html += '  <div class="lib-card-title">' + escapeHtml(e.title) + '</div>';
+    html += '  <div class="lib-card-meta">';
+    if (e.author) html += '<span>' + escapeHtml(e.author) + '</span>';
+    html += '    <span>' + date + '</span>';
+    html += '    <span class="lib-mode ' + modeClass + '">' + modeClass + '</span>';
+    if (cited > 0) html += '    <span class="cited">cited: ' + cited + '</span>';
+    html += '  </div>';
+    if (e.tags.length > 0) {
+      html += '  <div class="lib-card-tags">';
+      for (const t of e.tags) html += '<span class="lib-card-tag">' + escapeHtml(t) + '</span>';
+      html += '  </div>';
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+async function showLibraryDetail(id) {
+  const overlay = document.getElementById('libDetailOverlay');
+  const detailContent = document.getElementById('libDetailContent');
+  const originalLink = document.getElementById('libOriginalLink');
+  detailContent.innerHTML = '<div class="loading"><span>Loading...</span></div>';
+  overlay.style.display = 'flex';
+
+  try {
+    const [entryRes, citedRes] = await Promise.all([
+      fetch(API + '/api/library/' + encodeURIComponent(id)),
+      fetch(API + '/api/library/' + encodeURIComponent(id) + '/cited-by'),
+    ]);
+    if (!entryRes.ok) { detailContent.innerHTML = '<div class="empty-state">Not found</div>'; return; }
+    const data = await entryRes.json();
+    const cited = citedRes.ok ? await citedRes.json() : { citedBy: [] };
+    const e = data.entry;
+    originalLink.href = e.url;
+
+    let html = '<div class="lib-detail-title">' + escapeHtml(e.title) + '</div>';
+    html += '<div class="lib-detail-meta">';
+    if (e.author) html += '<span>' + escapeHtml(e.author) + '</span>';
+    if (e.date) html += '<span>' + e.date + '</span>';
+    html += '<span>' + (e.accessed || '').split('T')[0] + '</span>';
+    html += '<span class="lib-mode ' + (e.archiveMode || 'full') + '">' + (e.archiveMode || 'full') + '</span>';
+    html += '<span>' + (e.charCount || 0) + ' chars</span>';
+    html += '</div>';
+
+    // Tags
+    if (e.tags && e.tags.length > 0) {
+      html += '<div class="lib-card-tags" style="margin-bottom:12px;">';
+      for (const t of e.tags) html += '<span class="lib-card-tag">' + escapeHtml(t) + '</span>';
+      html += '</div>';
+    }
+
+    // Cited by
+    if (cited.citedBy && cited.citedBy.length > 0) {
+      html += '<div class="lib-cited-by">';
+      html += '<div class="lib-cited-by-title">Referenced by (' + cited.citedBy.length + ')</div>';
+      for (const ref of cited.citedBy) {
+        html += '<div class="lib-cited-by-item">' + escapeHtml(ref.file) + ': ' + escapeHtml(ref.line.slice(0, 120)) + '</div>';
+      }
+      html += '</div>';
+    }
+
+    // Content (strip frontmatter)
+    let content = data.content || '';
+    if (content.startsWith('---')) {
+      const endIdx = content.indexOf('---', 4);
+      if (endIdx > 0) content = content.slice(endIdx + 3).trim();
+    }
+    if (content) {
+      html += '<div class="lib-content-body">' + escapeHtml(content) + '</div>';
+    }
+
+    detailContent.innerHTML = html;
+  } catch (err) {
+    detailContent.innerHTML = '<div class="empty-state">Error: ' + escapeHtml(String(err)) + '</div>';
+  }
+}
+
+// Library event listeners
+document.getElementById('libSearch').addEventListener('input', renderLibrary);
+document.getElementById('libSort').addEventListener('change', renderLibrary);
+document.getElementById('libTags').addEventListener('click', function(e) {
+  const chip = e.target.closest('[data-libtag]');
+  if (!chip) return;
+  libActiveTag = chip.dataset.libtag;
+  renderLibraryTags();
+  renderLibrary();
+});
+document.getElementById('libraryContent').addEventListener('click', function(e) {
+  const card = e.target.closest('[data-libid]');
+  if (!card) return;
+  showLibraryDetail(card.dataset.libid);
+});
+document.getElementById('libBack').addEventListener('click', function() {
+  document.getElementById('libDetailOverlay').style.display = 'none';
+});
+document.getElementById('libDetailOverlay').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+
 fetchAll();
+fetchLibrary();
 connectSSE();
 startFallbackRefresh();
 </script>

@@ -296,12 +296,29 @@ export interface TriageDecision {
 
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
-  remember?: { content: string; topic?: string };
+  remember?: { content: string; topic?: string; ref?: string };
   task?: { content: string; schedule?: string };
+  archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
   chats: string[];
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];
   cleanContent: string;
+}
+
+/** Library catalog entry */
+export interface CatalogEntry {
+  id: string;
+  url: string;
+  title: string;
+  author?: string;
+  date?: string;
+  type?: string;
+  accessed: string;
+  contentFile: string;
+  tags: string[];
+  charCount: number;
+  contentHash: string;
+  archiveMode: 'full' | 'excerpt' | 'metadata-only';
 }
 
 /** 通知分級 — Calm Technology 三層模型 */

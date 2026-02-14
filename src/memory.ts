@@ -11,6 +11,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
@@ -35,7 +36,7 @@ import type {
 } from './workspace.js';
 import { getTelegramPoller, getNotificationStats } from './telegram.js';
 import { getQueueStatus, getProvider, getFallback } from './agent.js';
-import type { MemoryEntry, ConversationEntry, ComposePerception } from './types.js';
+import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
   loadAllSkills, formatSkillsPrompt,
@@ -410,8 +411,9 @@ export class InstanceMemory {
 
   /**
    * 附加到 Topic 記憶（memory/topics/{topic}.md）
+   * @param ref - 可選的 Library 來源引用 slug（ref:slug）
    */
-  async appendTopicMemory(topic: string, content: string): Promise<void> {
+  async appendTopicMemory(topic: string, content: string, ref?: string): Promise<void> {
     const topicsDir = path.join(this.memoryDir, 'topics');
     await ensureDir(topicsDir);
     const topicPath = path.join(topicsDir, `${topic}.md`);
@@ -427,7 +429,8 @@ export class InstanceMemory {
       }
 
       const timestamp = new Date().toISOString().split('T')[0];
-      const entry = `- [${timestamp}] ${content}\n`;
+      const refSuffix = ref ? ` ref:${ref}` : '';
+      const entry = `- [${timestamp}] ${content}${refSuffix}\n`;
 
       if (current) {
         await fs.writeFile(topicPath, current.trimEnd() + '\n' + entry, 'utf-8');
@@ -435,6 +438,133 @@ export class InstanceMemory {
         await fs.writeFile(topicPath, `# ${topic}\n\n${entry}`, 'utf-8');
       }
     });
+  }
+
+  // =========================================================================
+  // Library — 可調閱式來源藏書室
+  // =========================================================================
+
+  /**
+   * 存檔外部來源到 Library
+   */
+  async archiveSource(url: string, title: string, content: string, options?: {
+    author?: string;
+    date?: string;
+    type?: string;
+    tags?: string[];
+    mode?: 'full' | 'excerpt' | 'metadata-only';
+  }): Promise<{ id: string; contentFile: string }> {
+    const libraryDir = path.join(this.memoryDir, 'library');
+    const contentDir = path.join(libraryDir, 'content');
+    await ensureDir(contentDir);
+
+    const id = toSlug(title);
+    const today = new Date().toISOString().split('T')[0];
+    const contentFile = `${today}-${id}.md`;
+    const archiveMode = options?.mode ?? (content ? 'full' : 'metadata-only');
+
+    // Truncate at paragraph boundary if >100KB
+    let finalContent = content;
+    const MAX_BYTES = 100_000;
+    if (Buffer.byteLength(content) > MAX_BYTES) {
+      const truncated = content.slice(0, MAX_BYTES);
+      const lastBreak = Math.max(
+        truncated.lastIndexOf('\n\n'),
+        truncated.lastIndexOf('\n#'),
+      );
+      const cutPoint = lastBreak > MAX_BYTES * 0.5 ? lastBreak : MAX_BYTES;
+      finalContent = truncated.slice(0, cutPoint)
+        + `\n\n<!-- truncated: original ${content.length} chars, kept ${cutPoint} chars -->`;
+    }
+
+    const contentHash = 'sha256:' + crypto.createHash('sha256').update(content).digest('hex');
+    const accessed = new Date().toISOString();
+    const tags = options?.tags ?? [];
+
+    // Write content file with YAML frontmatter
+    if (archiveMode !== 'metadata-only') {
+      const frontmatter = [
+        '---',
+        `id: ${id}`,
+        `url: ${url}`,
+        `title: "${title.replace(/"/g, '\\"')}"`,
+        options?.author ? `author: "${options.author}"` : null,
+        options?.date ? `date: ${options.date}` : null,
+        options?.type ? `type: ${options.type}` : null,
+        `accessed: ${accessed}`,
+        `tags: [${tags.join(', ')}]`,
+        `contentHash: "${contentHash}"`,
+        `archiveMode: ${archiveMode}`,
+        '---',
+        '',
+      ].filter(Boolean).join('\n');
+      await fs.writeFile(path.join(contentDir, contentFile), frontmatter + finalContent, 'utf-8');
+    }
+
+    // Append to catalog (append-only JSONL)
+    const entry: CatalogEntry = {
+      id, url, title,
+      ...(options?.author && { author: options.author }),
+      ...(options?.date && { date: options.date }),
+      ...(options?.type && { type: options.type }),
+      accessed, contentFile, tags,
+      charCount: content.length,
+      contentHash, archiveMode,
+    };
+    const catalogPath = path.join(libraryDir, 'catalog.jsonl');
+    await fs.appendFile(catalogPath, JSON.stringify(entry) + '\n', 'utf-8');
+
+    return { id, contentFile };
+  }
+
+  /**
+   * 讀取 Library catalog
+   */
+  async readCatalog(): Promise<CatalogEntry[]> {
+    const catalogPath = path.join(this.memoryDir, 'library', 'catalog.jsonl');
+    try {
+      const raw = await fs.readFile(catalogPath, 'utf-8');
+      return raw.split('\n').filter(l => l.trim()).map(l => JSON.parse(l) as CatalogEntry);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        diagLog('memory.readCatalog', error);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * 讀取 Library 單篇原文
+   */
+  async readLibraryContent(id: string): Promise<{ entry: CatalogEntry | null; content: string }> {
+    const catalog = await this.readCatalog();
+    const entry = catalog.find(e => e.id === id) ?? null;
+    if (!entry) return { entry: null, content: '' };
+    try {
+      const contentPath = path.join(this.memoryDir, 'library', 'content', entry.contentFile);
+      const content = await fs.readFile(contentPath, 'utf-8');
+      return { entry, content };
+    } catch {
+      return { entry, content: '' };
+    }
+  }
+
+  /**
+   * 查詢引用某 Library 來源的所有 memory 檔案（動態 grep）
+   */
+  async findCitedBy(id: string): Promise<Array<{ file: string; line: string }>> {
+    try {
+      const result = execFileSync(
+        'grep', ['-rn', `ref:${id}`, this.memoryDir, '--include=*.md'],
+        { encoding: 'utf-8', timeout: 5000, maxBuffer: 512 * 1024 },
+      );
+      return result.split('\n').filter(l => l.trim()).map(l => {
+        const [filePath, ...rest] = l.split(':');
+        return { file: path.relative(this.memoryDir, filePath), line: rest.slice(1).join(':').trim() };
+      });
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -1155,6 +1285,20 @@ export class InstanceMemory {
 }
 
 // =============================================================================
+// Slug Utility
+// =============================================================================
+
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+}
+
+// =============================================================================
 // Topic Truncation
 // =============================================================================
 
@@ -1277,4 +1421,35 @@ export async function addTask(task: string, schedule?: string): Promise<void> {
  */
 export async function buildContext(): Promise<string> {
   return defaultMemory().buildContext();
+}
+
+/**
+ * Archive a source to Library
+ */
+export async function archiveSource(
+  url: string, title: string, content: string,
+  options?: Parameters<InstanceMemory['archiveSource']>[3],
+): Promise<{ id: string; contentFile: string }> {
+  return defaultMemory().archiveSource(url, title, content, options);
+}
+
+/**
+ * Read Library catalog
+ */
+export async function readCatalog(): Promise<CatalogEntry[]> {
+  return defaultMemory().readCatalog();
+}
+
+/**
+ * Read Library content by ID
+ */
+export async function readLibraryContent(id: string): ReturnType<InstanceMemory['readLibraryContent']> {
+  return defaultMemory().readLibraryContent(id);
+}
+
+/**
+ * Find all memory files that cite a Library source
+ */
+export async function findCitedBy(id: string): ReturnType<InstanceMemory['findCitedBy']> {
+  return defaultMemory().findCitedBy(id);
 }

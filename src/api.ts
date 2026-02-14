@@ -22,6 +22,9 @@ import {
   createMemory,
   getMemory,
   getCapabilitiesSnapshot,
+  readCatalog,
+  readLibraryContent,
+  findCitedBy,
 } from './memory.js';
 import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
 import {
@@ -611,6 +614,58 @@ export function createApi(port = 3001): express.Express {
 
     await appendMemory(content, section);
     res.json({ success: true });
+  });
+
+  // =============================================================================
+  // Library — 可調閱式來源藏書室
+  // =============================================================================
+
+  app.get('/api/library', async (req: Request, res: Response) => {
+    const catalog = await readCatalog();
+    const tag = req.query.tag as string | undefined;
+    const filtered = tag ? catalog.filter(e => e.tags.includes(tag)) : catalog;
+    res.json({ entries: filtered, count: filtered.length });
+  });
+
+  app.get('/api/library/stats', async (_req: Request, res: Response) => {
+    const catalog = await readCatalog();
+    const tagCounts: Record<string, number> = {};
+    for (const entry of catalog) {
+      for (const tag of entry.tags) {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      }
+    }
+    const modeCounts: Record<string, number> = {};
+    for (const entry of catalog) {
+      modeCounts[entry.archiveMode] = (modeCounts[entry.archiveMode] || 0) + 1;
+    }
+    // Top cited: grep count for each entry
+    const citedCounts: Array<{ id: string; title: string; count: number }> = [];
+    for (const entry of catalog) {
+      const refs = await findCitedBy(entry.id);
+      if (refs.length > 0) citedCounts.push({ id: entry.id, title: entry.title, count: refs.length });
+    }
+    citedCounts.sort((a, b) => b.count - a.count);
+    res.json({
+      total: catalog.length,
+      tags: tagCounts,
+      modes: modeCounts,
+      topCited: citedCounts.slice(0, 10),
+    });
+  });
+
+  app.get('/api/library/:id/cited-by', async (req: Request, res: Response) => {
+    const refs = await findCitedBy(req.params.id);
+    res.json({ id: req.params.id, citedBy: refs, count: refs.length });
+  });
+
+  app.get('/api/library/:id', async (req: Request, res: Response) => {
+    const { entry, content } = await readLibraryContent(req.params.id);
+    if (!entry) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.json({ entry, content });
   });
 
   // =============================================================================

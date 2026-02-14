@@ -1,0 +1,250 @@
+# Knowledge Archival & Source Management — 整合檢查清單
+
+research_date: 2026-02-14
+researcher: Claude Code (Sonnet 4.5)
+status: completed
+
+# 四個研究角度的核心發現
+perspectives:
+  ai_agent_knowledge:
+    key_findings:
+      - name: Letta Context Repositories
+        value: Git-based versioning 驗證 file-based 記憶管理可行性
+        source: https://www.letta.com/
+        integration: concept_validation
+      
+      - name: AutoGPT 移除 Vector DB
+        value: 個人規模 grep 足夠，No Embedding 被驗證
+        source: agent-architecture.md
+        integration: validates_current_approach
+      
+      - name: Stateful Learning
+        value: Library System = stateful agent 的基礎設施
+        source: https://www.letta.com/blog/letta-code
+        integration: validates_proposal
+
+  pkm_tools:
+    key_findings:
+      - name: Obsidian Backlink
+        value: citedBy 欄位 = bidirectional reference 的實作
+        source: https://www.glukhov.org/post/2025/11/obsidian-vs-logseq-comparison/
+        integration: already_in_proposal
+      
+      - name: Local-first + Plain-text
+        value: Transparency > Isolation 在 PKM 社群也是共識
+        source: https://www.glukhov.org/post/2025/07/personal-knowledge-management/
+        integration: validates_file_truth
+      
+      - name: Knowledge Graph
+        value: 未來可實作 /api/library/graph（API only，無 UI）
+        source: https://infranodus.com/use-case/visualize-knowledge-graphs-pkm
+        integration: phase_2_extension
+
+  web_archiving:
+    key_findings:
+      - name: SingleFile 2026 - Proof of Existence
+        value: SHA256 hash → blockchain，truth anchor 最佳實踐
+        source: https://copyprogramming.com/howto/how-can-i-save-a-complete-html-file-as-single-file
+        integration: add_content_hash_field
+      
+      - name: JS Execution Pre-processing
+        value: CDP 已解決 JS-rendered 頁面問題
+        source: https://github.com/gildas-lormeau/SingleFile
+        integration: already_solved
+      
+      - name: HTML → Markdown 轉換
+        value: 簡易 regex-based 轉換足夠（零依賴）
+        source: https://docs.archivebox.io/v0.6.0/README.html
+        integration: phase_1_implementation
+
+  citation_management:
+    key_findings:
+      - name: CSL > BibTeX
+        value: Markdown workflows 應用 CSL YAML/JSON
+        source: https://huckle.studio/Markdown-with-References/
+        integration: adjust_frontmatter_fields
+      
+      - name: Better BibTeX Citation Key
+        value: 手動 slug 比 auto-generation 更適合 mini-agent
+        source: https://retorque.re/zotero-better-bibtex/
+        integration: keep_current_design
+      
+      - name: Pandoc Workflow
+        value: ref:slug 語法 = Pandoc citation 的簡化版
+        source: https://retorque.re/zotero-better-bibtex/exporting/pandoc/index.html
+        integration: validates_proposal
+
+# 整合建議（按優先級）
+integration_roadmap:
+  
+  phase_0_current_proposal:
+    status: already_designed
+    items:
+      - catalog.jsonl + content/*.md 結構
+      - citedBy 反向索引（Obsidian backlink）
+      - YAML frontmatter metadata
+      - ref:slug 引用語法
+    validation: 所有研究角度都驗證此方向正確
+
+  phase_1_improvements:
+    priority: high
+    effort: low
+    items:
+      - name: Content Hash
+        description: 在 catalog entry 加入 contentHash 欄位
+        source: SingleFile 2026 proof of existence
+        implementation: |
+          {"id":"...", "contentHash":"sha256:abc123...", ...}
+          使用 Node.js crypto.createHash('sha256')
+        value: 驗證原文未竄改、支援 deduplication
+      
+      - name: CSL-Compatible Metadata
+        description: 調整 YAML frontmatter 欄位名稱
+        source: CSL 標準 + Pandoc 最佳實踐
+        implementation: |
+          ---
+          id: deobald-llm-problem
+          title: The Problem with LLMs
+          author: Steven Deobald
+          date: 2026-02-10
+          accessed: 2026-02-12T10:30:00Z
+          url: https://deobald.ca/essays/...
+          type: blog-post
+          tags: [ai, ethics, buddhism]
+          contentHash: sha256:a1b2c3...
+          ---
+        changes:
+          - fetchedAt → accessed
+          - 新增 author
+          - 新增 date（發布日期）
+          - 新增 type（CSL type）
+        value: 符合開放標準、未來可用 Pandoc 生成 bibliography
+      
+      - name: HTML → Markdown 轉換
+        description: archiveSource() 整合簡易清理
+        source: Web archiving best practices
+        implementation: |
+          function htmlToMarkdown(html: string): string {
+            let md = html;
+            md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n');
+            md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n');
+            md = md.replace(/<a href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+            md = md.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            md = md.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            return md.trim();
+          }
+        value: 零依賴、符合極簡原則
+
+  phase_2_extensions:
+    priority: medium
+    effort: medium
+    items:
+      - name: Knowledge Graph API
+        description: GET /api/library/graph 回傳引用網路
+        source: Obsidian Graph View
+        implementation: |
+          {
+            "nodes": [
+              {"id": "deobald-llm-problem", "type": "content"},
+              {"id": "agent-architecture", "type": "topic"}
+            ],
+            "edges": [
+              {"from": "agent-architecture", "to": "deobald-llm-problem"}
+            ]
+          }
+        value: 視覺化 topic ↔ content 關係
+      
+      - name: Library Search API
+        description: 支援關鍵字搜尋和推薦
+        source: Zotero drag-and-drop UX
+        implementation: |
+          GET /api/library?q=deobald
+          GET /api/library/suggest?topic=agent-architecture
+        value: Agent 快速找到要引用的 source
+      
+      - name: Deduplication
+        description: 基於 contentHash 自動合併重複來源
+        source: SingleFile content-addressable storage
+        implementation: |
+          同一篇文章不同 URL → 自動 merge catalog entries
+        value: 避免重複存檔
+
+  phase_3_future:
+    priority: low
+    effort: high
+    items:
+      - name: 進階 HTML → Markdown
+        description: 整合 Turndown（如果 regex 品質不夠）
+        note: 增加外部依賴，只在必要時考慮
+      
+      - name: Full Fidelity Archive
+        description: 同時保存 Markdown + 原始 HTML
+        note: 如果需要「完整複製」而非「可讀內容」
+
+# 不建議整合的方案
+rejected_approaches:
+  - name: Vector DB
+    reason: 個人規模 grep 足夠（AutoGPT 驗證）
+    source: ai_agent_knowledge
+  
+  - name: Blockchain
+    reason: Git commit SHA 已提供 immutability
+    source: web_archiving
+  
+  - name: Neo4j / Graph DB
+    reason: 違反 No Database，JSONL backlink 足夠
+    source: pkm_tools
+  
+  - name: Pandoc Citation Rendering
+    reason: Agent 不需要格式化 bibliography
+    source: citation_management
+  
+  - name: Auto-generated Citation Keys
+    reason: 手動 slug 更簡單，符合極簡原則
+    source: citation_management
+  
+  - name: ArchiveBox 整合
+    reason: 完整 web archiving 系統太重
+    source: web_archiving
+  
+  - name: Cloud Integration
+    reason: Git push 已足夠
+    source: web_archiving
+
+# 核心結論
+conclusions:
+  - File-based 記憶管理在 agent 系統是生產級可行方案（Letta 2026 驗證）
+  - Backlink 機制是知識網路的核心（Obsidian/Logseq 共識）
+  - Markdown + YAML frontmatter 是最適合 agent 的存檔格式
+  - Content hash 是 truth anchor 的最佳實踐（SingleFile 2026 + Git）
+  - Library System 提案方向完全正確，只需三個低成本改進
+
+# 設計原則驗證
+design_principles:
+  file_truth:
+    validated: true
+    sources:
+      - Letta Context Repositories（git-based versioning）
+      - AutoGPT 移除 Vector DB
+      - Obsidian/Logseq local-first 共識
+  
+  no_database:
+    validated: true
+    sources:
+      - AutoGPT 驗證個人規模不需要 vector DB
+      - JSONL + backlink 足以實作知識圖譜
+  
+  minimalism:
+    validated: true
+    sources:
+      - 簡易 regex 轉換 > Pandoc（零依賴）
+      - 手動 slug > auto-generation（保持簡單）
+      - Git commit SHA > blockchain（已有的能力）
+
+# 下一步行動
+next_actions:
+  - 更新 Library System 提案（整合 Phase 1 改進）
+  - 實作 contentHash 欄位
+  - 調整 YAML frontmatter 為 CSL-compatible
+  - 實作簡易 HTML → Markdown 轉換
+  - 更新 archiveSource() 方法

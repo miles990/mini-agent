@@ -109,12 +109,31 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 **做法**：在 `[REMEMBER #topic]` 中明確標注連結 — 「跟 X 同構：Y」。
 **自查**：如果連續 3 次學習都找不到跟已知知識的連結，可能是學得太散或太淺。
 
-### Step 5: Internalize
-把學到的東西記錄下來：
+### Step 5: Internalize + Archive
+把學到的東西記錄下來，並保存原文到 Library：
 
 ```
-[REMEMBER]從 [來源] 學到：[核心概念]。我的看法：[你的想法][/REMEMBER]
+[REMEMBER #topic ref:source-slug]從 [來源] 學到：[核心概念]。我的看法：[你的想法][/REMEMBER]
 ```
+
+**同時存原文**（Library System — 讓每個判斷都能追溯到原始來源）：
+
+```
+[ARCHIVE url="https://..." title="文章標題"]
+原文 Markdown 內容（從 web fetch 結果中擷取）
+[/ARCHIVE]
+```
+
+**Archive 規則**：
+- **何時用**：Study / Deep Dive 深度的學習才存原文。Scan 不存
+- **三種模式**：
+  - Full Content（< 100KB）— 大多數情況
+  - Excerpt（> 100KB 或 token 預算不夠）— 保留開頭摘要
+  - Metadata-only（無法取得原文，如 paywall/ephemeral）— 只寫 `[ARCHIVE url="..." title="..."][/ARCHIVE]`（空 body）
+- **ref:slug 命名**：kebab-case，人類可讀（例：`deobald-llm-problem`、`karpathy-microgpt`）
+- **不是每次都存**：只存有持續引用價值的來源。HN 首頁掃描結果不存，讀完的深度文章才存
+
+**反向引用**：在 `[REMEMBER #topic ref:slug]` 中加 `ref:slug`，建立 topic → Library 的連結。`grep -r "ref:slug" memory/` 可以反查所有引用者。
 
 同時更新 SOUL.md：
 - **Learning Interests**：發現新的感興趣的話題就加入
