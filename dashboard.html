@@ -1111,6 +1111,186 @@
     color: var(--text3);
   }
 
+  /* ── Inner State (Kuro's Self) ── */
+  .inner-state {
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(167, 139, 250, 0.03) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .inner-state::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.3), var(--accent-dim), transparent);
+  }
+
+  .inner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .inner-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .inner-title .kuro-name {
+    font-family: var(--mono);
+    color: var(--purple);
+    font-size: 15px;
+  }
+
+  .mood-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+  }
+  .mood-badge.productive { background: var(--accent-dim); color: var(--accent); }
+  .mood-badge.focused { background: var(--blue-dim); color: var(--blue); }
+  .mood-badge.contemplative { background: var(--purple-dim); color: var(--purple); }
+  .mood-badge.troubled { background: var(--red-dim); color: var(--red); }
+  .mood-badge.waking { background: var(--yellow-dim); color: var(--yellow); }
+
+  .inner-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .inner-block {
+    min-width: 0;
+  }
+  .inner-block-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .thinking-now {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.65;
+    word-break: break-word;
+  }
+  .thinking-now .thinking-mode {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--purple);
+    background: var(--purple-dim);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+
+  .interest-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .interest-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    color: var(--text2);
+    transition: all 0.15s;
+    cursor: default;
+    position: relative;
+  }
+  .interest-tag:hover {
+    border-color: var(--purple);
+    color: var(--text);
+  }
+  .interest-tag .interest-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text);
+    white-space: normal;
+    width: 260px;
+    z-index: 10;
+    line-height: 1.5;
+    font-family: var(--sans);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .interest-tag:hover .interest-tooltip { display: block; }
+
+  .thought-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .thought-item {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.55;
+    padding: 6px 10px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid rgba(167, 139, 250, 0.3);
+    cursor: pointer;
+    transition: all 0.15s;
+    overflow: hidden;
+    max-height: 40px;
+  }
+  .thought-item:hover {
+    background: var(--surface3);
+    border-left-color: var(--purple);
+  }
+  .thought-item.expanded {
+    max-height: 300px;
+  }
+  .thought-item .thought-topic {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--purple);
+    margin-right: 6px;
+    font-weight: 500;
+  }
+  .thought-item .thought-date {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+
+  .mood-detail {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  @media (max-width: 768px) {
+    .inner-grid { grid-template-columns: 1fr; }
+  }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .container { padding: 16px; }
@@ -1184,6 +1364,38 @@
     </div>
     <span style="flex: 1;"></span>
     <input type="date" class="date-input" id="dateInput">
+  </div>
+
+  <!-- Inner State — Kuro's Self -->
+  <div class="inner-state" id="innerState">
+    <div class="inner-header">
+      <div class="inner-title">
+        <span class="kuro-name">Kuro</span>
+        <span style="color:var(--text3);font-size:12px;" id="innerFocus">--</span>
+      </div>
+      <span class="mood-badge waking" id="moodBadge">--</span>
+    </div>
+    <div class="inner-grid">
+      <div class="inner-block">
+        <div class="inner-block-label">Now Thinking</div>
+        <div class="thinking-now" id="thinkingNow">--</div>
+      </div>
+      <div class="inner-block">
+        <div class="inner-block-label">Interests</div>
+        <div class="interest-tags" id="interestTags">--</div>
+      </div>
+    </div>
+    <div class="inner-grid" style="margin-top: 14px;">
+      <div class="inner-block">
+        <div class="inner-block-label">Core Thoughts</div>
+        <div class="thought-list" id="thoughtList">--</div>
+      </div>
+      <div class="inner-block">
+        <div class="inner-block-label">Traits</div>
+        <div class="interest-tags" id="traitTags">--</div>
+      </div>
+    </div>
+    <div class="mood-detail" id="moodDetail"></div>
   </div>
 
   <!-- Status Grid -->
@@ -1486,6 +1698,84 @@ function findLibraryMatch(urls) {
 
 // ── Data Fetching ──
 
+// ── Inner State Rendering ──
+
+function renderInnerState(data) {
+  if (!data) return;
+
+  // Mood badge
+  const moodBadge = document.getElementById('moodBadge');
+  const moodState = data.mood?.state || 'waking';
+  moodBadge.textContent = moodState;
+  moodBadge.className = 'mood-badge ' + moodState;
+
+  // Mood detail
+  const moodDetail = document.getElementById('moodDetail');
+  moodDetail.textContent = data.mood?.detail || '';
+
+  // Current focus
+  const focusEl = document.getElementById('innerFocus');
+  const focus = data.currentFocus;
+  if (focus) {
+    const modeLabels = { autonomous: 'Autonomous', task: 'Task', idle: 'Idle' };
+    focusEl.textContent = (modeLabels[focus.mode] || focus.mode) + ' \u00b7 cycle #' + focus.cycleCount;
+  }
+
+  // Now Thinking
+  const thinkingEl = document.getElementById('thinkingNow');
+  const thinking = data.recentThinking;
+  if (thinking && thinking.length > 0) {
+    let html = '';
+    for (const t of thinking.slice(0, 2)) {
+      if (t.mode) html += '<span class="thinking-mode">' + escapeHtml(t.mode) + '</span>';
+      const text = t.thinking || t.decision || '(observing)';
+      html += '<span>' + escapeHtml(text.slice(0, 200)) + '</span>';
+      if (thinking.indexOf(t) < Math.min(thinking.length, 2) - 1) html += '<br><br>';
+    }
+    thinkingEl.innerHTML = html;
+  } else if (focus && focus.lastAction) {
+    thinkingEl.innerHTML = escapeHtml(focus.lastAction);
+  } else {
+    thinkingEl.textContent = 'Observing the environment...';
+  }
+
+  // Interests
+  const interestEl = document.getElementById('interestTags');
+  if (data.interests && data.interests.length > 0) {
+    let html = '';
+    for (const i of data.interests) {
+      html += '<span class="interest-tag">' + escapeHtml(i.name);
+      html += '<span class="interest-tooltip">' + escapeHtml(i.detail.slice(0, 180)) + '</span>';
+      html += '</span>';
+    }
+    interestEl.innerHTML = html;
+  }
+
+  // Core Thoughts
+  const thoughtEl = document.getElementById('thoughtList');
+  if (data.thoughts && data.thoughts.length > 0) {
+    let html = '';
+    for (const t of data.thoughts.slice(0, 5)) {
+      html += '<div class="thought-item" onclick="this.classList.toggle(\'expanded\')">';
+      html += '<span class="thought-topic">' + escapeHtml(t.topic) + '</span>';
+      html += '<span class="thought-date">' + t.date + '</span><br>';
+      html += escapeHtml(t.summary);
+      html += '</div>';
+    }
+    thoughtEl.innerHTML = html;
+  }
+
+  // Traits
+  const traitEl = document.getElementById('traitTags');
+  if (data.traits && data.traits.length > 0) {
+    let html = '';
+    for (const t of data.traits) {
+      html += '<span class="interest-tag" style="border-color:rgba(94,234,212,0.15);">' + escapeHtml(t) + '</span>';
+    }
+    traitEl.innerHTML = html;
+  }
+}
+
 // ── Decision Timeline Rendering ──
 
 function renderDecisions(entries) {
@@ -1579,13 +1869,14 @@ function renderContextHealth(data) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
       fetch(API + '/api/dashboard/journal?date=' + currentDate),
       fetch(API + '/api/dashboard/cognition?date=' + currentDate).catch(() => null),
       fetch(API + '/api/dashboard/context?date=' + currentDate).catch(() => null),
+      fetch(API + '/api/dashboard/inner-state').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -1598,6 +1889,7 @@ async function fetchAll() {
     const journal = await journalRes.json();
     const cognition = cognitionRes?.ok ? await cognitionRes.json() : { entries: [] };
     const contextData = contextRes?.ok ? await contextRes.json() : { entries: [], summary: null };
+    const innerState = innerStateRes?.ok ? await innerStateRes.json() : null;
 
     updateStatus(status);
     allBehaviors = behaviors.entries || [];
@@ -1607,6 +1899,7 @@ async function fetchAll() {
     document.getElementById('todayJournal').textContent = allJournalEntries.length;
     document.getElementById('todayBehaviors').textContent = allBehaviors.length;
 
+    renderInnerState(innerState);
     renderLearning(learning.entries || []);
     renderJournal(allJournalEntries);
     renderDecisions(cognition.entries || []);

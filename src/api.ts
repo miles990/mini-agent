@@ -372,7 +372,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/events']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -1128,6 +1128,123 @@ export function createApi(port = 3001): express.Express {
       };
 
       res.json({ entries: entries.slice(-20), summary }); // Last 20 entries + summary
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
+  // Inner State API — Kuro 的內在狀態（興趣、思想、心情、當下想法）
+  app.get('/api/dashboard/inner-state', async (_req: Request, res: Response) => {
+    try {
+      const memory = getMemory();
+      const soul = await memory.readSoul();
+      const logger = getLogger();
+
+      // --- Parse interests from SOUL.md ---
+      const interestsRaw: { name: string; detail: string }[] = [];
+      const interestsSection = soul.match(/## Learning Interests\n([\s\S]*?)(?=\n## )/);
+      if (interestsSection) {
+        const lines = interestsSection[1].split('\n');
+        for (const line of lines) {
+          const m = line.match(/^- (.+?):\s*(.+)/);
+          if (m) interestsRaw.push({ name: m[1].trim(), detail: m[2].trim() });
+        }
+      }
+
+      // --- Parse My Thoughts from SOUL.md ---
+      const thoughts: { date: string; topic: string; summary: string }[] = [];
+      const thoughtsSection = soul.match(/## My Thoughts\n([\s\S]*?)(?=\n## )/);
+      if (thoughtsSection) {
+        const lines = thoughtsSection[1].split('\n');
+        for (const line of lines) {
+          const m = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]\s*(.+?):\s*([\s\S]+)/);
+          if (m) {
+            thoughts.push({
+              date: m[1],
+              topic: m[2].trim(),
+              summary: m[3].trim().slice(0, 200),
+            });
+          }
+        }
+      }
+
+      // --- Parse traits from SOUL.md ---
+      const traits: string[] = [];
+      const traitsSection = soul.match(/## My Traits\n([\s\S]*?)(?=\n## )/);
+      if (traitsSection) {
+        const lines = traitsSection[1].split('\n');
+        for (const line of lines) {
+          const m = line.match(/^\s*-\s*\*\*(.+?)\*\*/);
+          if (m) traits.push(m[1]);
+        }
+      }
+
+      // --- Current focus (what I'm doing/thinking right now) ---
+      const loopStatus = loopRef?.getStatus() ?? null;
+      const currentFocus = {
+        mode: loopStatus?.mode ?? 'idle',
+        lastAction: loopStatus?.lastAction?.slice(0, 200) ?? null,
+        cycleCount: loopStatus?.cycleCount ?? 0,
+        nextCycleAt: loopStatus?.nextCycleAt ?? null,
+      };
+
+      // --- Mood derivation from recent activity ---
+      const todayStr = new Date().toISOString().split('T')[0];
+      const recentBehaviors = logger.queryBehaviorLogs(todayStr, 200);
+      const recentActions = recentBehaviors.filter(
+        e => e.data.actor === 'agent' && e.data.action?.includes('claude.call')
+      );
+      const errorCount = recentBehaviors.filter(
+        e => e.data.action?.includes('error') || e.data.action?.includes('diag')
+      ).length;
+      const totalCycles = recentBehaviors.filter(e => e.data.action === 'loop.cycle.end').length;
+
+      // Derive a mood signal from activity patterns
+      let mood: string;
+      let moodDetail: string;
+      if (errorCount > 5) {
+        mood = 'troubled';
+        moodDetail = `${errorCount} errors today — something isn't right`;
+      } else if (recentActions.length > 15) {
+        mood = 'productive';
+        moodDetail = `${recentActions.length} actions taken — active and engaged`;
+      } else if (recentActions.length > 5) {
+        mood = 'focused';
+        moodDetail = `Steady rhythm — ${recentActions.length} actions, ${totalCycles} cycles`;
+      } else if (totalCycles > 0) {
+        mood = 'contemplative';
+        moodDetail = `Mostly observing — ${totalCycles} cycles, few actions`;
+      } else {
+        mood = 'waking';
+        moodDetail = 'Just started — warming up';
+      }
+
+      // --- Recent thinking (from last cognition entries) ---
+      const cognitionEntries = recentBehaviors
+        .map(parseCognitionEntry)
+        .filter((e): e is CognitionEntry => e !== null && (!!e.thinking || !!e.decision))
+        .slice(-3)
+        .reverse();
+
+      const recentThinking = cognitionEntries.map(e => ({
+        timestamp: e.timestamp,
+        decision: e.decision?.slice(0, 150) ?? null,
+        thinking: e.thinking?.slice(0, 300) ?? null,
+        mode: e.modeTag,
+      }));
+
+      // --- Topic pulse (what topics I've been exploring) ---
+      const topicUtility = memory.getTopicUtility();
+
+      res.json({
+        traits,
+        interests: interestsRaw.slice(0, 15),
+        thoughts: thoughts.slice(0, 10),
+        currentFocus,
+        mood: { state: mood, detail: moodDetail },
+        recentThinking,
+        topicPulse: topicUtility,
+      });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
     }
