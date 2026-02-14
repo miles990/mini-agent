@@ -8,4 +8,4 @@
 | alex | claude-code | CLAUDE.md 加六條改善規則 | done | 02-14 | 02-14 |
 | alex | claude-code | 建立 /deploy-kuro Skill | done | 02-14 | 02-14 |
 | alex | claude-code | 建立 active.md 輕量 handoff | done | 02-14 | 02-14 |
-| kuro | kuro | Behavior Experimentation 最小版 L2 提案 | pending | 02-14 | — |
+| kuro | kuro | Behavior Experimentation 最小版 L2 提案 | done | 02-14 | 02-15 |
