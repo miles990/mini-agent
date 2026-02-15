@@ -294,11 +294,20 @@ export interface TriageDecision {
   reason: string;
 }
 
+/** Thread 操作類型 */
+export interface ThreadAction {
+  op: 'start' | 'progress' | 'complete' | 'pause';
+  id: string;
+  title?: string;   // only for 'start'
+  note: string;
+}
+
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
   remember?: { content: string; topic?: string; ref?: string };
   task?: { content: string; schedule?: string };
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
+  threads: ThreadAction[];
   chats: string[];
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];

@@ -44,6 +44,7 @@ import {
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
 import { runVerify } from './verify.js';
+import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1002,6 +1003,12 @@ export class InstanceMemory {
     // ── 必載入（核心感知）──
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
+    // ── Temporal Sense（時間感）──
+    const temporalCtx = await buildTemporalSection();
+    if (temporalCtx) {
+      sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
+    }
+
     // ── Telegram 健康度（核心感知，總是載入）──
     const tgPoller = getTelegramPoller();
     const tgStats = getNotificationStats();
@@ -1118,6 +1125,12 @@ export class InstanceMemory {
       }
     }
 
+    // ── Threads（持續思考線索）──
+    const threadsCtx = buildThreadsContextSection();
+    if (threadsCtx) {
+      sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+    }
+
     // ── Soul（身分認同，總是完整載入）──
     if (soul) {
       sections.push(`<soul>\n${soul}\n</soul>`);
@@ -1148,7 +1161,9 @@ export class InstanceMemory {
           if (content) {
             // In full mode with hint: non-matching topics get truncated
             const shouldTruncate = mode === 'full' && hint && !isDirectMatch;
-            const topicContent = shouldTruncate ? truncateTopicMemory(content) : content;
+            let topicContent = shouldTruncate ? truncateTopicMemory(content) : content;
+            // Add temporal markers to dates in topic memory
+            topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
             loadedTopics.push(topic);
             // Track utility

@@ -12,7 +12,8 @@ import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
-import type { AgentResponse, DispatchRequest, TriageDecision, ParsedTags, LaneStats } from './types.js';
+import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
+import type { AgentResponse, DispatchRequest, TriageDecision, ParsedTags, ThreadAction, LaneStats } from './types.js';
 
 // =============================================================================
 // Semaphore — 控制 Haiku Lane 並發
@@ -248,6 +249,19 @@ export function parseTags(response: string): ParsedTags {
     if (match) schedule = { next: match[1], reason: match[2] ?? '' };
   }
 
+  // [THREAD] tags — manage thought threads
+  const threads: ThreadAction[] = [];
+  if (response.includes('[THREAD')) {
+    for (const m of response.matchAll(/\[THREAD\s+(start|progress|complete|pause)="([^"]+)"(?:\s+title="([^"]*)")?\](.*?)\[\/THREAD\]/gs)) {
+      threads.push({
+        op: m[1] as ThreadAction['op'],
+        id: m[2],
+        title: m[3],
+        note: m[4].trim(),
+      });
+    }
+  }
+
   const cleanContent = response
     .replace(/\[REMEMBER[^\]]*\].*?\[\/REMEMBER\]/gs, '')
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
@@ -255,10 +269,11 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
+    .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .trim();
 
-  return { remember, task, archive, chats, shows, summaries, schedule, cleanContent };
+  return { remember, task, archive, threads, chats, shows, summaries, schedule, cleanContent };
 }
 
 // =============================================================================
@@ -312,6 +327,24 @@ export async function postProcess(
   if (tags.task) {
     await memory.addTask(tags.task.content, tags.task.schedule);
     eventBus.emit('action:task', { content: tags.task.content });
+  }
+
+  // [THREAD] tags
+  for (const t of tags.threads) {
+    switch (t.op) {
+      case 'start':
+        await startThread(t.id, t.title ?? t.id, t.note);
+        break;
+      case 'progress':
+        await progressThread(t.id, t.note);
+        break;
+      case 'complete':
+        await completeThread(t.id, t.note || undefined);
+        break;
+      case 'pause':
+        await pauseThread(t.id, t.note || undefined);
+        break;
+    }
   }
 
   // Notification-producing tags: suppress when processing [Claude Code] system messages

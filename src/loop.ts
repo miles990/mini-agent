@@ -23,6 +23,10 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import {
+  updateTemporalState, buildThreadsPromptSection,
+  startThread, progressThread, completeThread, pauseThread,
+} from './temporal.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -454,7 +458,7 @@ export class AgentLoop {
 
       const prompt = shouldRunTaskMode
         ? this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix
-        : this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+        : await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -594,6 +598,25 @@ export class AgentLoop {
       for (const summary of tags.summaries) {
         eventBus.emit('action:summary', { text: summary });
       }
+
+      // ── Process [THREAD] tags ──
+      for (const t of tags.threads) {
+        switch (t.op) {
+          case 'start':
+            await startThread(t.id, t.title ?? t.id, t.note);
+            break;
+          case 'progress':
+            await progressThread(t.id, t.note);
+            break;
+          case 'complete':
+            await completeThread(t.id, t.note || undefined);
+            break;
+          case 'pause':
+            await pauseThread(t.id, t.note || undefined);
+            break;
+        }
+      }
+
       const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
       eventBus.emit('action:loop', {
         event: 'metrics',
@@ -622,6 +645,14 @@ export class AgentLoop {
 
       // Phase 1c: Clear checkpoint — cycle completed normally
       clearCycleCheckpoint();
+
+      // ── Update Temporal State (fire-and-forget) ──
+      const touchedTopics = tags.remember?.topic ? [tags.remember.topic] : undefined;
+      updateTemporalState({
+        mode: this.currentMode,
+        action,
+        topics: touchedTopics,
+      }).catch(() => {});
 
       // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 chatBusy 釋放）
       if (hasQueuedMessages()) drainQueue();
@@ -767,12 +798,15 @@ Keep responses brief.`;
   }
 
   /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
-  private buildAutonomousPrompt(): string {
+  private async buildAutonomousPrompt(): Promise<string> {
     const config = this.loadBehaviorConfig();
-    if (config) {
-      return this.buildPromptFromConfig(config);
-    }
-    return this.buildFallbackAutonomousPrompt();
+    const base = config
+      ? this.buildPromptFromConfig(config)
+      : this.buildFallbackAutonomousPrompt();
+
+    // Inject active threads hint
+    const threadSection = await buildThreadsPromptSection();
+    return threadSection ? `${base}\n\n${threadSection}` : base;
   }
 
   /** 從 BehaviorConfig 組裝 autonomous prompt */
@@ -852,7 +886,13 @@ Rules:
   [SCHEDULE next="45m" reason="waiting for Alex feedback"]
   [SCHEDULE next="5m" reason="continuing deep research"]
   [SCHEDULE next="2h" reason="night time, no pending messages"]
-  If omitted, the system auto-adjusts based on whether you took action.`;
+  If omitted, the system auto-adjusts based on whether you took action.
+- Use [THREAD] to manage ongoing thought threads:
+  [THREAD start="id" title="思路標題"]first progress note[/THREAD]
+  [THREAD progress="id"]progress note[/THREAD]
+  [THREAD complete="id"]completion note[/THREAD]
+  [THREAD pause="id"]reason for pausing[/THREAD]
+  Max 3 active threads. Threads are gravity, not obligation.`;
   }
 
   /** Fallback: 原始硬寫 prompt（behavior.md 壞了或不存在時） */
