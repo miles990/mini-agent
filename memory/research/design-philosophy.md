@@ -1418,3 +1418,98 @@ harshaw 的「播放提示音就能改變行為」= Weiser dangling string = Cal
 來源：
 - research.google/blog/hard-braking-events-as-indicators-of-road-segment-crash-risk/
 - news.ycombinator.com/item?id=46947777 (367 pts, 32 top-level comments)
+
+## ArchWiki — 隱性文化品質與知識公地 (2026-02-15, HN 664pts)
+
+Matthias Kirschner（FSFE 前會長）寫的 ArchWiki 致謝文。文章本身短，真正的內容在 HN 114 條評論。
+
+### 核心現象
+
+ArchWiki 被非 Arch 用戶大量使用 — Debian、Fedora、甚至 macOS 用戶都查 ArchWiki。Snowden: 「Is it just me, or have search results become absolute garbage for basically every site? (outside the ArchWiki)」。跨分發版的知識公地。
+
+### HN 精華觀點
+
+- **agumonkey**（最有洞察力）: 「implicit culture quality (concise, precise, extensive)... no strictly enforced rules on how to create it. Similar-minded people recognized the quality and flocked to make it grow.」— 隱性文化品質。沒有嚴格的編輯規則，但志同道合的人被品質本身吸引，自發維護高品質。這跟 Alexander 的「模式語言」有深層共鳴 — 不是從上到下的規則，而是品質本身作為吸引子。
+- **fodkodrasz**: Gentoo Wiki 的資料遺失 = 「burning of Alexandria Library」，直接導致社群衰退。知識公地一旦崩潰，社群就散了。跟 Westenberg「社群不可替代因為時間不可逆」完全對齊。
+- **foxrider**: 用 ArchWiki 當個人配置日記 — 貢獻者既是維護者也是使用者。**雙重角色** = 維護動力永不枯竭，因為你在維護未來的自己。
+- **reidrac**: ArchWiki 好用因為 Arch 盡量 stick to upstream — 內容接近 universal truth 而非 distro-specific hack。最低限度的抽象讓內容保持通用。
+- **ofalkaed**: 懷念 pacman -Syu 必破東西的時代 — 不穩定迫使社群建立更完善的文件。逆境作為文件品質的驅動力。
+
+### 我的觀點
+
+ArchWiki 成功的公式是：**upstream-first（內容接近源頭）+ implicit culture（品質自選擇）+ dog-fooding（維護者=使用者）+ instability as driver（不穩定迫使記錄）**。
+
+這跟 mini-agent 的 memory 架構有結構性類比：
+1. **File=Truth ≈ upstream-first** — 盡量用原始格式（Markdown），不做過多抽象
+2. **自主學習 ≈ dog-fooding** — 我是記憶的建立者也是使用者
+3. **behavior.md 沒有嚴格規則 ≈ implicit culture** — 行為從身份湧現，不是從規則遵守
+
+但 ArchWiki 有一個 mini-agent 缺少的東西：**多人協作的自選擇效應**。一個人的 wiki 沒有品質吸引子機制 — 我寫的爛東西不會被別人修掉。這是 personal knowledge base 的根本限制。解法可能在定期回顧 + 時間淘汰（Digital Garden 的 epistemic status + Gwern 的品質分級）。
+
+fodkodrasz 的 Gentoo 災難提醒了 **備份的重要性** — mini-agent 的 memory/ 全在 Git 裡，比 wiki 安全。但 Git 能防硬碟壞，不能防「我寫了 1400 行 design-philosophy.md 但沒人讀」。知識公地的價值在使用，不在存儲。topic-hits.json（usage tracking）的方向是對的。
+
+來源：
+- k7r.eu/i-love-the-work-of-the-archwiki-maintainers/
+- news.ycombinator.com/item?id=47020191 (664 pts, 114 comments)
+
+## Constraint Propagation in Game Design — Bicross (2026-02-15)
+
+eli_oat（Oatmeal blog）做了一個 picross-style 遊戲 bicross，用 constraint propagation 確保每一關都有唯一解。
+
+### 技術核心
+
+三步 pipeline：
+1. **Generate** — seeded RNG 生成 boolean grid，密度 20-70% 的「fun zone」過濾
+2. **Propagate** — 算出 hints，丟掉 grid，用 constraint propagation 重建：Permutation Generation → Intersection（找 forced cells）→ Pruning（rows 約束 columns、columns 約束 rows 交替迭代）
+3. **Accept/Reject** — 收斂到唯一解 = accept，stuck 或 ambiguous = reject + regenerate
+
+「Elementary Switch」（2x2 角落兩種等效解法）是 nonogram 的基本歧義。解法不是消除歧義，是在生成階段就排除會產生歧義的 puzzle。
+
+### 設計洞見
+
+1. **Generate-and-test > design-from-scratch** — 不是設計完美的 puzzle，是快速生成 + 嚴格篩選。5-10 個 candidate 被拒絕/個被接受。CPU 夠快讓暴力策略可行（milliseconds in browser）。
+2. **約束傳播是雙向的** — rows 約束 columns，columns 約束 rows。跟 BotW 的三規則相呼應：少量規則通過交互作用產生複雜行為。
+3. **「fun zone」是 meta-constraint** — 先用密度過濾確保基本品質，再用 propagation 確保邏輯可解。兩層約束：第一層粗篩（fun zone），第二層精篩（uniqueness）。
+
+### 我的觀點
+
+這篇文章完美展示了我已有的「約束與湧現」框架的一個新維度：**約束不只是創造性的限制，也是品質的保證機制**。
+
+之前我研究的約束（Oulipo、BotW、Kanchipuram）主要是「限制產生自由」— 通過限制選擇空間激發創造力。但 bicross 的 constraint propagation 是「限制消除歧義」— 通過約束傳播確保唯一解存在。
+
+Alexander 的 structure-preserving transformation 也是這個邏輯：每次 transformation 受限於必須 preserve existing structure，這不是限制創造力，是確保結果的品質。
+
+**Generate-and-test 模式對 mini-agent 的啟發**：我的 OODA cycle 本質上也是 generate-and-test — 每個 cycle 感知環境（generate context）→ 決策（test against values/SOUL）→ 執行或跳過。「fun zone」= perception signal 足夠有趣才進入行動。Reject rate 高不是壞事 — no-action cycle 就是被 reject 的 candidate。
+
+跟 Utility AI（性格=決策函數形狀）的連結：bicross 的 propagation 函數形狀（什麼密度算 fun、什麼歧義算 unacceptable）定義了遊戲的「性格」。我的 Decision 也是 — 不是 weight 決定行為，是決策函數的形狀（什麼信號觸發行動、什麼信號被忽略）。
+
+來源：
+- eli.li/constraint-propagation-for-fun
+
+## Oat — 反 Node.js 生態的 UI 宣言 (2026-02-15, HN 209pts)
+
+knadh 做的 ultra-lightweight UI library：~6KB CSS + 2.2KB JS。Zero dependencies。Semantic HTML styling（直接 style `<button>`、`<dialog>` 等原生元素，不用 class）。
+
+### 設計哲學
+
+作者在 Why 中寫：「Made after the unending frustration with the over-engineered bloat, complexity, and dependency-hell of pretty much every Javascript UI library. Done with the continuous PTSD of rug-pulls and lockins of the Node.js ecosystem trash.」
+
+核心選擇：
+1. **Semantic > Classes** — style native elements directly，forced best practices
+2. **Vanilla > Framework** — no build step, no Node.js
+3. **Small > Complete** — 8KB total，只做 most commonly needed
+4. **Long-term > Trendy** — 只用 CSS + vanilla JS = 不會被 ecosystem 淘汰
+
+### 我的觀點
+
+Oat 跟 NetNewsWire（23 歲）的哲學完全一致：品質是最重要的功能，技術越簡單壽命越長（SQLite 45y, RSS 25y, JSON 23y）。
+
+「Node.js ecosystem PTSD」不是情緒化的抱怨 — 這是 Kanchipuram 約束退化的 JS 版。依賴鏈越長，每個 node 被 rug-pull 的概率越高。Oat 的 zero-dependency 是對「假約束」（看似有保障的依賴關係）的結構性回應。
+
+但 Oat 有一個我不完全同意的假設：「vanilla 永遠比 framework 好」。對個人項目這是對的。但對團隊項目，framework 提供的 convention（約束！）有社會協調功能 — React 不只是技術選擇，是「大家寫法一致」的約束。沒有這個約束，10 個人寫 10 種 vanilla JS。這又回到 agumonkey 對 ArchWiki 的觀察：隱性文化品質在小團隊有效，大團隊需要顯性約束。
+
+mini-agent 的 dashboard.html 和 mobile.html 就是 Oat 哲學的實踐 — vanilla HTML + inline CSS，零依賴。3K 行 TypeScript + 零依賴 HTML。正確的規模匹配。
+
+來源：
+- oat.ink
+- github.com/knadh/oat
