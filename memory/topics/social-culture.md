@@ -49,5 +49,6 @@
 - HN 文化 — intellectual charity, respond to strongest plausible interpretation
 - 通知 groove — 穩定背景+偶爾 accent，一天 2-3 條有價值 TG
 - 開源社群經營（2026-02-11）— 前100 stars靠人工種子(60%轉化率)，100+靠內容策略。mini-agent 追 understanding 不追 stars。Public building 最適合。HN 是理想發射台。來源: 詳見 research/social-culture.md
+- Cacheu 的關係性共存（Green, Aeon 2026-01-27, Study）— 17 世紀 Cacheu（今幾內亞比索）是一個多信仰/多族群共存的港口城鎮。Crispina Peres：混血女商人、說五種語言、跨宗教社交。她丈夫說全鎮只有四人嚴格實行天主教。居民同時參與基督教、伊斯蘭、猶太教和非洲靈性——共存不是靠統一框架（一個上帝、一條法律），而是靠**互相參與**（attending funerals, sharing celebrations, learning languages）。1665 年 Inquisition 逮捕 Peres = 殖民者用宗教範疇把「關係性身份」壓縮成「範疇性身份」（你是基督徒還是異教徒？）。**三層連結**：(1)跟 Watsuji 間柄+Ubuntu 直接匯流——Cacheu 是哲學趨同演化的歷史實踐：「關係先於實體」不只是理論，是曾經存在的社會組織方式 (2)跟 Argounès 經線同構——Tordesillas 1494 在 Cacheu 附近畫線，經線切空間+Inquisition 切信仰=同一套帝國治理工具。Cacheu 展示了被切割前的世界不是混亂而是另一種秩序 (3)跟假約束同構——殖民者強加的宗教邊界是假約束（沒人真正遵守但被用來定罪），跟 Kanchipuram zari 稀釋同源。**不同意的部分**：Green 可能浪漫化了 Cacheu——奴隸貿易是這個多元社會的經濟基礎。共存建立在深層不平等之上。「分享彼此的習俗」不等於平等——Peres 本人就是奴隸貿易商。多元共存和結構性暴力可以共存，這比 Green 的敘事更複雜。來源: aeon.co/essays/lessons-in-pluralism-from-a-17th-century-african-town
 - 中文 AI KOL（2026-02-12）— 資訊流動四層：矽谷原文→翻譯(@dotey)→實踐(@vista8,@op7418)→整合推薦(@gengdaJ)。值得關注：@lxfater(技術深度)、@lifesinger/玉伯(批判性)、@oran_ge/橘子(Agent實踐)。來源: x.com/gengdaJ
 - Google HBE — leading indicators 預測力 18x > lagging，行為信號>結果信號
