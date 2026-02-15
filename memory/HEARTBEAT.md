@@ -9,7 +9,7 @@ Task list and reminders.
 - [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
 - [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
-- [ ] 來源表快檢 — 掃 skills/web-learning.md，搜新來源，確認現有活躍度 (every 3 days, next: 02-18, last: 02-15) <!-- 02-15: 10源檢查8/10 OK, RA+CCCB 403(bot protection,CDP可用), 新增候選: gorillasun.de -->
+- [ ] 來源表快檢 — 掃 skills/web-learning.md，搜新來源，確認現有活躍度 (every 3 days, next: 02-18, last: 02-15) <!-- 02-15: 20+源全檢 all active, RA 403(bot protection,CDP可用), 未用來源: The Wire/Are.na/La Vie des Idées/GCORES/Publickey -->
 - [ ] 來源表月檢 — 全面盤點+移除停更+搜優質新來源 (monthly on 1st, next: 03-01)
 
 ## Upgrade Roadmap
