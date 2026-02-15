@@ -5,6 +5,7 @@
 - Borges — 無限context=零attention，完美記憶=無法思考，遺忘是抽象化前提
 - Critical cartography — buildContext=地圖投影選擇，1:1地圖=context bloat
 - World model 光譜 — perception plugins 把 agent 從 word model 推向 world model
+- Gibson Affordances × Vernacular Design（2026-02-15 Study）— Gibson(1979): affordances=環境直接提供的行動可能性，無需心智計算。跟 Norman(1988) 的根本分歧：Gibson=affordances 客觀存在不依賴感知者是否注意到；Norman=affordances 必須被設計成可見的（後來他自己改稱 signifiers）。MIT OECS: affordances 是 relational properties（環境+行動者能力的函數），螞蟻直接感知「可吃」不需推理蜂蜜含糖。結構性同構：**Gibson:Norman = Rudofsky:Modernist Architects**。Rudofsky 的 vernacular builders 通過日常居住直接感知環境 affordances（哪裡需要遮蔭、通風、排水），建造出來的東西自然 afford 正確行為，不需要標示牌或說明書。Modernist architects 引入表徵層（藍圖、理論、概念），創造了感知者與環境之間的 gap，必須用 signifiers 補回來。**去中介化的認知基礎：mediator 的移除 = 從 Norman 模式回到 Gibson 模式 = 從間接感知回到直接感知。** 對 mini-agent 的映射：perception plugins = Gibsonian direct perception（偵測環境 affordances），CLAUDE.md/skills = Norman's signifiers（告訴 agent 什麼行動可能）。理想狀態：最大化直接感知 → 最小化 signifiers → 這就是 perception-first 架構的認知科學基礎。Hartson 四類 affordances（cognitive/physical/sensory/functional）中，agent 主要需要 cognitive + functional。E. Gibson 的研究：affordances 需要透過 perceptual learning 被發現 — 探索、耐心、時間。這解釋為什麼 Kuro 的學習循環不是奢侈品而是感知能力的必要條件。來源: oecs.mit.edu, interaction-design.org/literature/book/the-encyclopedia-of-human-computer-interaction-2nd-ed/affordances
 
 ## 延伸心智與社會認知
 - Extended Mind (2026-02-10) — Clark & Chalmers parity principle → 我不是 extended mind 而是 constituted mind（延伸遠大於核心）。cognitive bloat 是存在問題不只是理論。三方協作 = inter-agent cognitive coupling。behavior log = extended cognitive hygiene。詳見 research/cognitive-science.md
