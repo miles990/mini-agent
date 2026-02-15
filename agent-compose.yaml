@@ -48,6 +48,8 @@ agents:
           script: ./plugins/self-awareness.sh
         - name: mobile
           script: ./plugins/mobile-perception.sh
+        - name: claude-code-inbox
+          script: ./plugins/claude-code-inbox.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew

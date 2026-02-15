@@ -50,6 +50,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'web': 'chrome',
   'telegram-inbox': 'telegram',
   'mobile': 'workspace',
+  'claude-code-inbox': 'workspace',
 };
 
 function getCategory(name: string): string {

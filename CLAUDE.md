@@ -309,12 +309,18 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 
 ### Claude Code 與 Kuro 溝通
 
-- **`[Claude Code]` 前綴的訊息自動走 Loop Lane**（`processSystemMessage`），不佔用 Chat Lane，不阻塞 Alex 的 Telegram 訊息
+- **不使用 `/chat` API**。`/chat` 會佔用 Loop Lane、中斷 Kuro 思考、可能在 TG 上插入 Alex 和 Kuro 之間的對話
+- **改用檔案驅動通知**：寫入 `~/.mini-agent/claude-code-inbox.md`，Kuro 的 `claude-code-inbox` perception plugin 每 30s 自動偵測並在下一個 cycle 處理
+- **通知格式**：
+  ```
+  [YYYY-MM-DD HH:MM] 摘要訊息
+  詳細說明（可選）
+  ```
 - **轉述 Alex 時區分原話和詮釋**：
-  - `[Claude Code] Alex 原話：「...」` — 直接引述，保留語氣
-  - `[Claude Code] 我的理解：Alex 想要...` — Claude Code 的詮釋，Kuro 可以質疑
-  - `[Claude Code] 這是我自己的想法...` — Claude Code 發起的討論
+  - `Alex 原話：「...」` — 直接引述，保留語氣
+  - `我的理解：Alex 想要...` — Claude Code 的詮釋，Kuro 可以質疑
 - Claude Code 的操作（edit、write）會觸發 Kuro 的 `trigger:workspace` → perception stream → 可能觸發新 cycle。**Claude Code 是 Kuro 環境的一部分**，操作時要意識到這點
+- **原則：不打斷、不插入、不佔用。** Kuro 在自然節奏中感知 Claude Code 的訊息，不是被迫即時處理
 
 ### Claude Code 使用 Kuro 感知
 
@@ -395,7 +401,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 3. Status → `in_progress`，Log 記錄開始
 4. 執行任務，過程中勾選 Tasks checkbox
 5. Status → `completed`，Acceptance Criteria 全部勾選，Log 記錄結果
-6. **通知**：Claude Code 完成 → `/chat` API 通知 Kuro；Kuro 完成 → Telegram 通知 Alex
+6. **通知**：Claude Code 完成 → 寫入 `~/.mini-agent/claude-code-inbox.md`（Kuro 透過 perception 自然感知）；Kuro 完成 → Telegram 通知 Alex
 7. 需要對方後續 → 建立新的反向 handoff（`pending`）
 8. 遇到問題 → Status → `blocked`，Log 說明原因，阻塞解除後改回 `in_progress`
 
@@ -431,10 +437,10 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 ## Deployment
 
-- **Claude Code 不直接 push 部署**。完成 commit 後，透過 `/chat` API 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
-- 通知格式：`[Claude Code] 已 commit {hash}，請部署。變更摘要：...`
+- **Claude Code 不直接 push 部署**。完成 commit 後，寫入 `~/.mini-agent/claude-code-inbox.md` 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
+- 通知寫法：`echo "[$(date '+%Y-%m-%d %H:%M')] 已 commit {hash}，請部署。變更：..." >> ~/.mini-agent/claude-code-inbox.md`
 - 改完 src/*.ts 後，先跑 `pnpm typecheck` 再 commit
-- 如果 Kuro 離線，等他上線後再通知；緊急情況可 fallback 手動 `git push origin main`
+- 如果 Kuro 離線，通知檔案會持久保存，Kuro 上線後自動感知；緊急情況可 fallback 手動 `git push origin main`
 
 ## Workflow
 
