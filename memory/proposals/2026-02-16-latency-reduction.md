@@ -1,6 +1,6 @@
 # Proposal: 延遲縮減 — 加快感知反應與 Alex↔Kuro 連結
 
-## Status: approved (Phase 0+1 implemented)
+## Status: implemented (Phase 0+1 completed)
 
 ## TL;DR
 
