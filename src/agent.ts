@@ -918,6 +918,10 @@ export async function processMessage(
 
 /**
  * Process a system message (cron, heartbeat) — uses loop lane to not block user chat
+ *
+ * [Claude Code] messages get special treatment:
+ * - skipHistory: don't pollute conversation history (prevents identity confusion in chat lane)
+ * - suppressChat: don't send [CHAT]/[SHOW]/[SUMMARY] to TG (prevents interleaving with Alex↔Kuro conversation)
  */
 export async function processSystemMessage(message: string): Promise<AgentResponse> {
   const memory = getMemory();
@@ -932,8 +936,12 @@ export async function processSystemMessage(message: string): Promise<AgentRespon
     return { content: '系統任務被搶佔（用戶訊息優先）。' };
   }
 
+  // [Claude Code] messages: isolate from conversation history and TG notifications
+  const isClaudeCode = message.startsWith('[Claude Code]');
+
   return postProcess(message, response, {
     lane: 'claude', duration, source: 'cron', systemPrompt, context,
+    ...(isClaudeCode && { skipHistory: true, suppressChat: true }),
   });
 }
 

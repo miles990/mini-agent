@@ -268,14 +268,26 @@ export function parseTags(response: string): ParsedTags {
 export async function postProcess(
   userMessage: string,
   response: string,
-  meta: { lane: string; duration: number; source: string; systemPrompt: string; context: string },
+  meta: {
+    lane: string;
+    duration: number;
+    source: string;
+    systemPrompt: string;
+    context: string;
+    /** Skip conversation history (prevents context pollution from system messages) */
+    skipHistory?: boolean;
+    /** Suppress TG notifications for [CHAT]/[SHOW]/[SUMMARY] tags */
+    suppressChat?: boolean;
+  },
 ): Promise<AgentResponse> {
   const memory = getMemory();
   const logger = getLogger();
 
-  // 1. Log to conversation history
-  await memory.appendConversation('user', userMessage);
-  await memory.appendConversation('assistant', response);
+  // 1. Log to conversation history (skip for [Claude Code] system messages to prevent identity confusion)
+  if (!meta.skipHistory) {
+    await memory.appendConversation('user', userMessage);
+    await memory.appendConversation('assistant', response);
+  }
 
   // 2. Parse tags
   const tags = parseTags(response);
@@ -302,16 +314,20 @@ export async function postProcess(
     eventBus.emit('action:task', { content: tags.task.content });
   }
 
-  for (const show of tags.shows) {
-    eventBus.emit('action:show', { desc: show.desc, url: show.url });
-  }
+  // Notification-producing tags: suppress when processing [Claude Code] system messages
+  // to prevent interleaving with Alex↔Kuro TG conversation
+  if (!meta.suppressChat) {
+    for (const show of tags.shows) {
+      eventBus.emit('action:show', { desc: show.desc, url: show.url });
+    }
 
-  for (const chatText of tags.chats) {
-    eventBus.emit('action:chat', { text: chatText });
-  }
+    for (const chatText of tags.chats) {
+      eventBus.emit('action:chat', { text: chatText });
+    }
 
-  for (const summary of tags.summaries) {
-    eventBus.emit('action:summary', { text: summary });
+    for (const summary of tags.summaries) {
+      eventBus.emit('action:summary', { text: summary });
+    }
   }
 
   // 4. Log call
