@@ -382,6 +382,39 @@ export async function buildTemporalSection(): Promise<string | null> {
 }
 
 // =============================================================================
+// Thread Convergence Detection — 偵測 active threads 之間的共享概念
+// =============================================================================
+
+/**
+ * 偵測 active threads 之間的概念交叉
+ * 提取 progress notes 中的 Capitalized terms（人名、術語、框架）
+ * 兩個 threads 共享 2+ 概念時產生 hint
+ */
+function detectThreadConvergence(threads: ActiveThread[]): string[] {
+  const activeThreads = threads.filter(t => t.status === 'active');
+  if (activeThreads.length < 2) return [];
+
+  const hints: string[] = [];
+
+  for (let i = 0; i < activeThreads.length; i++) {
+    for (let j = i + 1; j < activeThreads.length; j++) {
+      const a = activeThreads[i];
+      const b = activeThreads[j];
+      // Extract Capitalized multi-word terms from progress notes + title
+      const textA = [a.title, ...a.progressNotes].join(' ');
+      const textB = [b.title, ...b.progressNotes].join(' ');
+      const wordsA = new Set(textA.match(/\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*/g) ?? []);
+      const wordsB = new Set(textB.match(/\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*/g) ?? []);
+      const shared = [...wordsA].filter(w => wordsB.has(w));
+      if (shared.length >= 2) {
+        hints.push(`Threads 「${a.title}」and 「${b.title}」share concepts: ${shared.join(', ')}. Consider cross-pollinating or merging.`);
+      }
+    }
+  }
+  return hints;
+}
+
+// =============================================================================
 // Build Active Threads Section for Autonomous Prompt
 // =============================================================================
 
@@ -404,6 +437,16 @@ export async function buildThreadsPromptSection(): Promise<string | null> {
   for (const t of activeThreads) {
     const dayCount = Math.ceil((Date.now() - new Date(t.startedAt).getTime()) / 86_400_000);
     lines.push(`- 「${t.title}」(${dayCount} days, ${t.progressNotes.length} notes)`);
+  }
+
+  // Convergence hints
+  const convergenceHints = detectThreadConvergence(state.activeThreads);
+  if (convergenceHints.length > 0) {
+    lines.push('');
+    lines.push('### Convergence Detected');
+    for (const hint of convergenceHints) {
+      lines.push(`- ${hint}`);
+    }
   }
 
   lines.push('');

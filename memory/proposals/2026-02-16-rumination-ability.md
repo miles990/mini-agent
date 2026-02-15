@@ -1,6 +1,6 @@
 # Proposal: 反芻能力（Rumination）
 
-## Status: draft
+## Status: implemented
 
 ## TL;DR
 

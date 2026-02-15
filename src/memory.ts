@@ -568,6 +568,77 @@ export class InstanceMemory {
     }
   }
 
+  // =========================================================================
+  // Rumination — 反芻能力（Cross-Pollination + Decay Review）
+  // =========================================================================
+
+  /**
+   * Cross-Pollination Digest: 從每個 topic 隨機抽 n 條 entry，放在一起找跨域連結
+   * 注入 reflect mode prompt，幫助發現隱藏的知識連結
+   */
+  async getCrossPollinationDigest(n = 2): Promise<string> {
+    const topics = await this.listTopics();
+    if (topics.length === 0) return '';
+
+    const samples: string[] = [];
+    for (const topic of topics) {
+      const content = await this.readTopicMemory(topic);
+      if (!content) continue;
+      const entries = content.split('\n').filter(l => l.startsWith('- ['));
+      if (entries.length === 0) continue;
+      // Fisher-Yates shuffle, take n
+      const shuffled = [...entries];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const picked = shuffled.slice(0, n);
+      samples.push(`### ${topic}\n${picked.join('\n')}`);
+    }
+
+    if (samples.length === 0) return '';
+    return `<rumination-digest>\n${samples.join('\n\n')}\n</rumination-digest>`;
+  }
+
+  /**
+   * Forgotten Entries: 找出 hit count = 0 且 age > maxAge 天的 topic entries
+   * 利用 .topic-hits.json 判斷「被遺忘的知識」
+   */
+  async getForgottenEntries(maxAgeDays = 7, limit = 5): Promise<string> {
+    const hitsPath = path.join(this.memoryDir, '.topic-hits.json');
+    let hits: Record<string, number> = {};
+    try {
+      const raw = await fs.readFile(hitsPath, 'utf-8');
+      hits = JSON.parse(raw) as Record<string, number>;
+    } catch {
+      // No hits file — treat all as unhit
+    }
+
+    const now = Date.now();
+    const forgotten: Array<{ topic: string; entry: string; ageDays: number }> = [];
+
+    const topics = await this.listTopics();
+    for (const topic of topics) {
+      const content = await this.readTopicMemory(topic);
+      if (!content) continue;
+      for (const line of content.split('\n').filter(l => l.startsWith('- ['))) {
+        const dateMatch = line.match(/\[(\d{4}-\d{2}-\d{2})/);
+        if (!dateMatch) continue;
+        const ageDays = Math.floor((now - new Date(dateMatch[1]).getTime()) / 86_400_000);
+        const key = `${topic}:${line.slice(2, 62)}`;
+        if (ageDays >= maxAgeDays && (hits[key] ?? 0) === 0) {
+          forgotten.push({ topic, entry: line, ageDays });
+        }
+      }
+    }
+
+    if (forgotten.length === 0) return '';
+    const selected = forgotten.sort((a, b) => b.ageDays - a.ageDays).slice(0, limit);
+    return `<forgotten-knowledge>\n${selected.map(f =>
+      `- [${f.topic}, ${f.ageDays}d ago] ${f.entry.slice(2)}`
+    ).join('\n')}\n</forgotten-knowledge>`;
+  }
+
   /**
    * 讀取所有 Topic 記憶檔案名（不含 .md）
    */

@@ -806,7 +806,21 @@ Keep responses brief.`;
 
     // Inject active threads hint
     const threadSection = await buildThreadsPromptSection();
-    return threadSection ? `${base}\n\n${threadSection}` : base;
+
+    // Inject rumination material for reflect mode
+    const memory = getMemory();
+    const [digest, forgotten] = await Promise.all([
+      memory.getCrossPollinationDigest(2),
+      memory.getForgottenEntries(7, 5),
+    ]);
+    const ruminationSection = (digest || forgotten)
+      ? `\n\n## Rumination Material (use when reflecting)\nRandom entries from your knowledge — look for hidden connections, contradictions, or patterns:\n${digest}${forgotten ? `\n\nKnowledge that hasn't been referenced in 7+ days — revisit or confirm absorbed:\n${forgotten}` : ''}`
+      : '';
+
+    const parts = [base];
+    if (threadSection) parts.push(threadSection);
+    if (ruminationSection) parts.push(ruminationSection);
+    return parts.join('\n\n');
   }
 
   /** 從 BehaviorConfig 組裝 autonomous prompt */
