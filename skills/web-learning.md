@@ -76,6 +76,7 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - fnnch (essays.fnnch.com) — 藝術商業
 - Deobald (deobald.ca) — 佛教+技術倫理
 - Gwern (gwern.net) — 深度研究典範
+- Gorilla Sun (gorillasun.de) — creative coding 演算法拆解+generative art
 
 **輪替策略**：
 1. 每個 cycle 從**不同類別**選來源（上次 Tech 聚合 → 這次選設計/文化/音樂）
