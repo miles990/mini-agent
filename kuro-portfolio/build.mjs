@@ -121,9 +121,25 @@ async function build() {
     if (meta.order) entry.order = parseInt(meta.order, 10);
     if (meta.tags) entry.tags = meta.tags;
 
-    // Preserve i18n from existing manifest
-    const prev = existingBySlug[meta.slug];
-    if (prev?.i18n) entry.i18n = prev.i18n;
+    // Build i18n from language-specific .md files, fall back to existing manifest
+    const i18n = {};
+    for (const lang of ['zh', 'ja']) {
+      const langFile = join(JOURNAL_DIR, `${meta.slug}.${lang}.md`);
+      try {
+        const langContent = await readFile(langFile, 'utf-8');
+        const langMeta = parseFrontmatter(langContent, `${meta.slug}.${lang}.md`);
+        if (langMeta.title || langMeta.summary) {
+          i18n[lang] = {};
+          if (langMeta.title) i18n[lang].title = langMeta.title;
+          if (langMeta.summary) i18n[lang].summary = langMeta.summary;
+        }
+      } catch {
+        // No language file — check existing manifest
+        const prev = existingBySlug[meta.slug];
+        if (prev?.i18n?.[lang]) i18n[lang] = prev.i18n[lang];
+      }
+    }
+    if (Object.keys(i18n).length > 0) entry.i18n = i18n;
 
     entries.push(entry);
     console.log(`  + ${meta.title} (${meta.date || 'no date'})`);
