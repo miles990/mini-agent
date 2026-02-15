@@ -362,6 +362,14 @@ export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
     claudeStats.calls++;
     const start = Date.now();
     const agent = await getAgentModule();
+
+    // System sources (cron) use loop lane to not block user chat
+    if (req.source === 'cron') {
+      const result = await agent.processSystemMessage(req.message);
+      claudeStats.ms += Date.now() - start;
+      return result;
+    }
+
     const result = await agent.processMessage(req.message, req.onQueueComplete);
     claudeStats.ms += Date.now() - start;
     return result;

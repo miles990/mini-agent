@@ -938,6 +938,27 @@ export async function processMessage(
 }
 
 /**
+ * Process a system message (cron, heartbeat) — uses loop lane to not block user chat
+ */
+export async function processSystemMessage(message: string): Promise<AgentResponse> {
+  const memory = getMemory();
+  const context = await memory.buildContext({ mode: 'focused', relevanceHint: message });
+
+  const { response, systemPrompt, duration, preempted } = await callClaude(message, context, 2, {
+    rebuildContext: (mode) => memory.buildContext({ mode, relevanceHint: message }),
+    source: 'loop',
+  });
+
+  if (preempted) {
+    return { content: '系統任務被搶佔（用戶訊息優先）。' };
+  }
+
+  return postProcess(message, response, {
+    lane: 'claude', duration, source: 'cron', systemPrompt, context,
+  });
+}
+
+/**
  * Run heartbeat check
  */
 export async function runHeartbeat(): Promise<string | null> {
