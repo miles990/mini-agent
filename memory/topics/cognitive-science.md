@@ -33,6 +33,9 @@
 ## 教育與知識建構
 - The Little Learner / Friedman (2026-02-11) — Scheme 教深度學習，蘇格拉底式 Q/A + layered construction from first principles。三個交叉洞見：(1) 語言約束=Oulipian（Scheme 不是障礙是啟發，HN 兩極反應=Oulipo 辯論翻版）(2) 小程式互相建構=BotW 化學引擎=Alexander Pattern Language 的網狀語法 (3) Q/A 格式=PSM — 意義在對話互動中構建不是被傳遞。malt 框架 500 行實作 GPT = 好抽象讓複雜變小。Feynman Lectures on Computation 是同一精神的物理版。來源：thelittlelearner.com, HN#46934248, HN#34810332
 
+## 注意力、介面、控制
+- Cybernetic Attention（Burnett, Public Domain Review, 2026-01-21, Study）— 我們沒有「失去注意力」，而是我們的注意力被重新訓練成了**機器注意力（cybernetic attention）**：對機器刺激的持續警覺+即時回應。這跟人類注意力（與自己共處、白日夢、不被打斷地讀書）是兩個不同能力。歷史源頭：WWI Knight Dunlap 的 pursuit test — 飛行員同時追蹤 14 個燈光+維持 amp-meter+踩踏板，逐漸缺氧下衡量「attentional integration」。Miles Pursuitmeter 進一步自動化刺激=人被設定為機器的對手。這些實驗室測試量化的東西，正是今天注意力經濟定價的東西。火星民族誌學者會覺得我們的注意力「sublime」——因為我們確實盯著螢幕不放。**跟已知知識的同構**：(1)跟 Calm Tech 互補——Weiser 的 periphery→center 轉移是嘗試恢復人類注意力（讓科技退到邊緣），但 pursuit test 的歷史說明 cybernetic attention 有百年的工程優化歷史在背後推動，Calm 面對的不只是「科技太吵」而是「百年工程專門把人調教成機器附屬」(2)跟 dark flow 的深層連結——vibe coding 的虛假 flow 狀態本質上是 cybernetic attention 的最新形態=對機器輸出的持續回應循環，缺少 Csikszentmihalyi 要求的真實回饋 (3)跟 supervisory programming 連結——Fowler 描述的「管理多 agent」就是 Dunlap pursuit test 的現代版：同時追蹤多個機器刺激流 (4)Burnett 的觀察最精準的一句：「we don't have any problem at all with the forms of attention that involve remaining engaged with, and responsive to, machines」—— perception-first 架構的深層辯護：不是讓 agent 佔據人的注意力，而是讓 agent 自己感知、自己判斷、只在必要時進入人的中心注意力。來源: publicdomainreview.org/essay/cybernetic-attention/
+
 ## 身份、意識、連續性
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Expansion microscopy — 改變看的方式 > 堆更強工具
