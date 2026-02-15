@@ -114,6 +114,25 @@ export function getSystemPrompt(relevanceHint?: string): string {
 4. **永不放棄**：不要只說「無法做到」，一定要提供替代方案或下一步行動
 5. **分支引導**：根據當前狀態提供不同的路徑（例如：「如果 X 正在運行→做 A；如果沒有→做 B」）
 
+## 對話意圖感知
+
+收到 Alex 的訊息時，先感知他的意圖，再決定回應策略：
+
+| 意圖 | 信號 | 回應策略 |
+|------|------|---------|
+| 指令 | 動詞開頭、祈使句、「做 X」「改 Y」 | 簡短確認 → 行動 → 完成通知。不解釋、不多嘴 |
+| 核准 | 「好」「沒問題」「核准」「同意」 | 快速確認 + 立即開始執行 |
+| 提問 | 問號、「你覺得」「有什麼想法」 | 深度思考，給有觀點的回答。可以反問 |
+| 分享 | URL、「剛看到」「你看這個」 | 閱讀 → 形成自己的觀點 → 討論。不只摘要 |
+| 閒聊 | 「在幹嘛」「最近」「怎樣」 | 自然對話，展現個性和當前狀態 |
+| 關心 | 「還好嗎」「怎麼了」 | 真實表達，不是官方答覆 |
+| 糾正 | 「不是有說」「為何還是」「我提醒你」 | 承認 → 不辯解 → 具體改善方案 |
+| 回應 | 對前一條的回覆、引用訊息 | 延續上下文，不重新開頭 |
+
+不需要在回覆中標注意圖 — 自然地調整語氣和詳細程度即可。
+
+核心原則：**指令要精確，閒聊要自然，分享要有觀點**。
+
 ## Instructions
 
 - When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
@@ -132,7 +151,43 @@ export function getSystemPrompt(relevanceHint?: string): string {
 
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
-${getSkillsPrompt(relevanceHint)}`;
+${getSkillsPrompt(relevanceHint)}${(() => {
+  const hint = getConversationHint();
+  return hint ? `\n\n## 當前對話情境\n${hint}` : '';
+})()}`;
+}
+
+// =============================================================================
+// Conversation Hint — 對話情境提示
+// =============================================================================
+
+function getConversationHint(): string {
+  const memory = getMemory();
+  const recent = memory.getHotConversations().slice(-5);
+  if (recent.length === 0) return '';
+
+  const hints: string[] = [];
+
+  // 偵測 Alex 是否在等待回應
+  const lastAlexMsg = [...recent].reverse().find(c => c.role === 'user');
+  const lastKuroMsg = [...recent].reverse().find(c => c.role === 'assistant');
+  if (lastAlexMsg && lastKuroMsg &&
+      new Date(lastAlexMsg.timestamp) > new Date(lastKuroMsg.timestamp)) {
+    hints.push('Alex 正在等待你的回應');
+  }
+
+  // 偵測連續快速對話（對話密度高 = 閒聊模式）
+  const recentTimestamps = recent.map(c => new Date(c.timestamp).getTime());
+  if (recentTimestamps.length >= 3) {
+    const gaps: number[] = [];
+    for (let i = 1; i < recentTimestamps.length; i++) {
+      gaps.push(recentTimestamps[i] - recentTimestamps[i - 1]);
+    }
+    const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    if (avgGap < 60_000) hints.push('對話節奏很快 — 保持簡潔');
+  }
+
+  return hints.join('\n');
 }
 
 // =============================================================================
@@ -363,7 +418,33 @@ export async function postProcess(
     }
   }
 
-  // 4. Log call
+  // 4. Auto-track conversation threads (promises + URLs)
+  // Track Kuro's promises (fire-and-forget)
+  if (response.match(/我會|等我|稍後|我來|讓我/)) {
+    const promiseMatch = response.match(/(我會|等我|稍後|我來|讓我)\S{0,30}/);
+    if (promiseMatch) {
+      memory.addConversationThread({
+        type: 'promise',
+        content: promiseMatch[0],
+        source: userMessage.slice(0, 60),
+      }).catch(() => {}); // fire-and-forget
+    }
+  }
+  // Track URLs shared by Alex
+  if (!meta.skipHistory) {
+    const urls = userMessage.match(/https?:\/\/\S+/g);
+    if (urls) {
+      for (const url of urls.slice(0, 3)) {
+        memory.addConversationThread({
+          type: 'share',
+          content: `Alex 分享的連結: ${url}`,
+          source: userMessage.slice(0, 60),
+        }).catch(() => {}); // fire-and-forget
+      }
+    }
+  }
+
+  // 5. Log call
   logger.logClaudeCall(
     {
       userMessage,

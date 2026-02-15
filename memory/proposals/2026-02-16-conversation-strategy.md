@@ -1,6 +1,6 @@
 # Proposal: 對話策略（Conversation Strategy）
 
-## Status: approved
+## Status: implemented
 
 ## TL;DR
 

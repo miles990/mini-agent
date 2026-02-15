@@ -36,7 +36,7 @@ import type {
 } from './workspace.js';
 import { getTelegramPoller, getNotificationStats } from './telegram.js';
 import { getQueueStatus, getProvider, getFallback } from './agent.js';
-import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry } from './types.js';
+import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry, ConversationThread } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
   loadAllSkills, formatSkillsPrompt,
@@ -439,6 +439,53 @@ export class InstanceMemory {
         await fs.writeFile(topicPath, `# ${topic}\n\n${entry}`, 'utf-8');
       }
     });
+  }
+
+  // =========================================================================
+  // Conversation Threads — 對話脈絡追蹤
+  // =========================================================================
+
+  /**
+   * 讀取對話脈絡追蹤
+   */
+  async getConversationThreads(): Promise<ConversationThread[]> {
+    const filePath = path.join(this.memoryDir, '.conversation-threads.json');
+    try {
+      const raw = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(raw) as ConversationThread[];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 新增對話脈絡追蹤項目
+   */
+  async addConversationThread(thread: Omit<ConversationThread, 'id' | 'createdAt'>): Promise<void> {
+    const filePath = path.join(this.memoryDir, '.conversation-threads.json');
+    const threads = await this.getConversationThreads();
+    threads.push({
+      ...thread,
+      id: crypto.randomUUID().slice(0, 8),
+      createdAt: new Date().toISOString(),
+    });
+    // 只保留最近 20 條未完成 + 最近 10 條已完成
+    const active = threads.filter(t => !t.resolvedAt).slice(-20);
+    const resolved = threads.filter(t => t.resolvedAt).slice(-10);
+    await fs.writeFile(filePath, JSON.stringify([...active, ...resolved], null, 2), 'utf-8');
+  }
+
+  /**
+   * 完成對話脈絡追蹤項目
+   */
+  async resolveConversationThread(id: string): Promise<void> {
+    const filePath = path.join(this.memoryDir, '.conversation-threads.json');
+    const threads = await this.getConversationThreads();
+    const thread = threads.find(t => t.id === id);
+    if (thread) {
+      thread.resolvedAt = new Date().toISOString();
+      await fs.writeFile(filePath, JSON.stringify(threads, null, 2), 'utf-8');
+    }
   }
 
   // =========================================================================
@@ -1200,6 +1247,17 @@ export class InstanceMemory {
     const threadsCtx = buildThreadsContextSection();
     if (threadsCtx) {
       sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+    }
+
+    // ── Conversation Threads（對話脈絡追蹤）──
+    const convThreads = await this.getConversationThreads();
+    const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
+    if (activeConvThreads.length > 0) {
+      const threadLines = activeConvThreads.map(t => {
+        const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
+        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}")`;
+      });
+      sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }
 
     // ── Soul（身分認同，總是完整載入）──

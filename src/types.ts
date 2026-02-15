@@ -331,6 +331,16 @@ export interface CatalogEntry {
   archiveMode: 'full' | 'excerpt' | 'metadata-only';
 }
 
+/** 對話脈絡追蹤項目 */
+export interface ConversationThread {
+  id: string;
+  type: 'promise' | 'question' | 'share' | 'correction';
+  content: string;
+  createdAt: string;
+  resolvedAt?: string;
+  source: string;
+}
+
 /** 通知分級 — Calm Technology 三層模型 */
 export type NotificationTier = 'signal' | 'summary' | 'heartbeat';
 

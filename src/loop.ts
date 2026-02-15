@@ -804,11 +804,26 @@ Keep responses brief.`;
       ? this.buildPromptFromConfig(config)
       : this.buildFallbackAutonomousPrompt();
 
+    const memory = getMemory();
+
+    // Inject conversation threads for chat mode awareness
+    const convThreads = await memory.getConversationThreads();
+    const pendingConvThreads = convThreads.filter(t => !t.resolvedAt);
+    let chatContextSection = '';
+    if (pendingConvThreads.length > 0) {
+      const items = pendingConvThreads.map(t => `- [${t.type}] ${t.content}`).join('\n');
+      chatContextSection = `\n\n## 待跟進的對話\nRecent promises, questions, and shared URLs to follow up on:\n${items}`;
+    }
+    // Time awareness for chat mode
+    const chatHour = new Date().getHours();
+    if (chatHour >= 0 && chatHour < 8) {
+      chatContextSection += '\n\n⚠️ 現在是深夜 — 除非很重要，否則不要發訊息打擾 Alex。';
+    }
+
     // Inject active threads hint
     const threadSection = await buildThreadsPromptSection();
 
     // Inject rumination material for reflect mode
-    const memory = getMemory();
     const [digest, forgotten] = await Promise.all([
       memory.getCrossPollinationDigest(2),
       memory.getForgottenEntries(7, 5),
@@ -818,6 +833,7 @@ Keep responses brief.`;
       : '';
 
     const parts = [base];
+    if (chatContextSection) parts.push(chatContextSection);
     if (threadSection) parts.push(threadSection);
     if (ruminationSection) parts.push(ruminationSection);
     return parts.join('\n\n');
