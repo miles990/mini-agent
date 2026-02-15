@@ -322,43 +322,22 @@ export function restoreQueue(): void {
 
 // ── Queue Drain ────────────────────────────────────────────────────────────
 
-/** 批次處理 queue 中的所有訊息 */
+/** 循序處理 queue 中的訊息（FIFO，每次一則） */
 export function drainQueue(): void {
   if (messageQueue.length === 0 || chatBusy) return;
 
-  // 一次取出所有排隊訊息
-  const batch = messageQueue.splice(0);
+  // 取出第一則訊息（processMessage 完成後會再呼叫 drainQueue 處理下一則）
+  const item = messageQueue.shift()!;
   saveQueueToDisk();
 
-  if (batch.length === 1) {
-    // 單則直接處理（不需要合併格式）
-    const item = batch[0];
-    slog('QUEUE', `Processing queued message (waited ${((Date.now() - item.queuedAt) / 1000).toFixed(0)}s)`);
-    setImmediate(() => {
-      processMessage(item.message).then(result => {
-        if (item.onComplete) item.onComplete(result);
-      }).catch(() => {
-        if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
-      });
-    });
-    return;
-  }
-
-  // 多則合併為一個 prompt
-  const mergedPrompt = batch
-    .map((item, i) => `[訊息 ${i + 1}] ${item.message}`)
-    .join('\n');
-  const waitTimes = batch.map(item => ((Date.now() - item.queuedAt) / 1000).toFixed(0));
-  slog('QUEUE', `Batch processing ${batch.length} queued messages (waited ${waitTimes.join('/')}s)`);
+  const waitTime = ((Date.now() - item.queuedAt) / 1000).toFixed(0);
+  slog('QUEUE', `Processing queued message (waited ${waitTime}s, ${messageQueue.length} remaining)`);
 
   setImmediate(() => {
-    processMessage(mergedPrompt).then(result => {
-      // Batch 模式：只呼叫第一個 callback（避免重複發送 Telegram）
-      const first = batch.find(item => item.onComplete);
-      if (first?.onComplete) first.onComplete(result);
+    processMessage(item.message).then(result => {
+      if (item.onComplete) item.onComplete(result);
     }).catch(() => {
-      const first = batch.find(item => item.onComplete);
-      if (first?.onComplete) first.onComplete({ content: '處理排隊訊息時發生錯誤。' });
+      if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
     });
   });
 }

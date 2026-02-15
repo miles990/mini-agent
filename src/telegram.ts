@@ -408,22 +408,33 @@ export class TelegramPoller {
     }
 
     this.processing = true;
-    const messages = [...this.messageBuffer];
-    this.messageBuffer = [];
+
+    // Group by time proximity — only combine messages within batchWaitMs of each other.
+    // Messages separated by >3s get their own processing round (each gets its own response).
+    const group: ParsedMessage[] = [this.messageBuffer.shift()!];
+    while (this.messageBuffer.length > 0) {
+      const lastTs = new Date(group[group.length - 1].timestamp).getTime();
+      const nextTs = new Date(this.messageBuffer[0].timestamp).getTime();
+      if (nextTs - lastTs <= this.batchWaitMs) {
+        group.push(this.messageBuffer.shift()!);
+      } else {
+        break;
+      }
+    }
 
     try {
-      // Combine messages into one prompt
+      // Combine messages within the group into one prompt
       let combined: string;
-      if (messages.length === 1) {
-        combined = messages[0].text;
+      if (group.length === 1) {
+        combined = group[0].text;
       } else {
-        // Multiple messages → combine with context
-        combined = messages.map(m => m.text).join('\n\n');
-        slog('TELEGRAM', `Batched ${messages.length} messages`);
+        // Multiple rapid messages → combine with context
+        combined = group.map(m => m.text).join('\n\n');
+        slog('TELEGRAM', `Batched ${group.length} messages`);
       }
 
       // Pass callback for queued messages — actual response sent when processed
-      const messageCopy = [...messages];
+      const messageCopy = [...group];
       const response = await dispatch({ message: combined, source: 'telegram', onQueueComplete: async (queueResult) => {
         // Queued message has been processed — send the actual response
         const replyText = queueResult.content;
@@ -463,7 +474,7 @@ export class TelegramPoller {
           this.logFailedReply(replyText, result);
           await this.notifyError('send', result, replyText.length);
         }
-        for (const m of messages) {
+        for (const m of group) {
           this.markInboxProcessed(m.timestamp, m.sender);
         }
       }
@@ -473,7 +484,11 @@ export class TelegramPoller {
       await this.notifyError('process', { ok: false, error: errMsg, status: 0 });
     } finally {
       this.processing = false;
-      eventBus.emit('trigger:telegram', { messageCount: messages.length });
+      eventBus.emit('trigger:telegram', { messageCount: group.length });
+      // Flush remaining buffered messages (from different time groups)
+      if (this.messageBuffer.length > 0) {
+        this.scheduleFlush();
+      }
     }
   }
 
