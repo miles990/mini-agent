@@ -69,6 +69,7 @@ after-no-action: 2
 - learn×3 → reflect (consecutiveLearnCycles ≥ 3)
 - action → organize (organize related memory after acting)
 - reflect → soul-review (check SOUL.md during reflection, merge superseded thoughts)
+- reflect → ruminate (cross-pollination digest + thread convergence check; decay review weekly)
 
 ## Rhythm Log
 <!-- Each adjustment: before→after + reason. Git diff also tracks. -->

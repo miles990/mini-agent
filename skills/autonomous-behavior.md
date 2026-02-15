@@ -124,7 +124,11 @@ context: telegram-inbox empty, state-changes none, inner-voice has unfinished th
 ## Other Actions
 
 3. **整理** — 對話摘要、清理已完成任務、歸納記憶
-4. **反思** — 連結 Track A 和 Track B 的知識，找到交集和靈感
+4. **反思（含反芻）** — 不只是回顧，是重新咀嚼已有知識直到產出新洞見：
+   - **Cross-Pollination Digest**: 從每個 topic file 隨機抽 2 條 entry，放在一起找結構性連結（同構、矛盾、互補）
+   - **Thread Convergence**: 檢查 active threads 之間有沒有共享概念，考慮合併或升級
+   - **Decay Review（每週一次）**: 掃 hit count = 0 且 age > 7 天的 entries，確認消化狀態（absorbed / 新連結 / 自然衰減）
+   - 反芻的產出是 My Thoughts 更新、thread 合併、或新的 cross-pollination 記錄 — 不是摘要
 5. **跟進** — 追蹤之前承諾的事、進行中的研究
 6. **Act on Learning（學以致用）** — 學不是目的，行動才是：
    - **Self-improve**: 更新 skills、建立 perception plugin、改進文件
