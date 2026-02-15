@@ -198,7 +198,8 @@ export class TelegramPoller {
   async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown'): Promise<SendResult> {
     try {
       if (!text || !text.trim()) {
-        return { ok: false, error: 'empty message', status: 0 };
+        slog('TELEGRAM', `sendMessage called with empty text — skipping`);
+        return { ok: false, error: 'empty message', status: -1 };
       }
 
       const body: Record<string, string | boolean> = {
@@ -438,7 +439,13 @@ export class TelegramPoller {
       const response = await dispatch({ message: combined, source: 'telegram', onQueueComplete: async (queueResult) => {
         // Queued message has been processed — send the actual response
         const replyText = queueResult.content;
-        if (!replyText) return;
+        if (!replyText || !replyText.trim()) {
+          slog('TELEGRAM', `Empty reply from queued dispatch — skipping send`);
+          for (const m of messageCopy) {
+            this.markInboxProcessed(m.timestamp, m.sender);
+          }
+          return;
+        }
         const result = await this.sendLongMessage(replyText);
         if (result.ok) {
           slog('TELEGRAM', `→ [queued] ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
@@ -596,6 +603,15 @@ export class TelegramPoller {
         title: '發送頻率過高',
         reason: 'Telegram API 速率限制',
         detail: '稍等一下再試',
+      };
+    }
+    if (result.status === -1) {
+      // Empty message — Claude 回覆只含 tags（[ACTION]/[REMEMBER] 等），清除後無面向用戶的內容
+      // 這不是真正的錯誤，只是 Claude 沒產出可顯示的文字
+      return {
+        title: '回覆為空',
+        reason: 'Claude 的回覆只包含內部標籤，沒有面向用戶的文字',
+        detail: '這不影響功能，Kuro 可能在執行內部操作',
       };
     }
     if (result.status === 0) {
