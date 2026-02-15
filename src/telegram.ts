@@ -463,6 +463,13 @@ export class TelegramPoller {
       } else {
         // Normal flow — send response immediately
         const replyText = response.content;
+        if (!replyText || !replyText.trim()) {
+          slog('TELEGRAM', `Empty reply from dispatch — skipping send`);
+          for (const m of group) {
+            this.markInboxProcessed(m.timestamp, m.sender);
+          }
+          return;
+        }
         const result = await this.sendLongMessage(replyText);
         if (result.ok) {
           slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);

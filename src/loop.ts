@@ -220,7 +220,7 @@ export class AgentLoop {
   // ── Event-Driven Scheduling (Phase 2b) ──
   private triggerReason: string | null = null;
   private lastCycleTime = 0;
-  private static readonly MIN_CYCLE_INTERVAL = 60_000;           // 60s throttle
+  private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
@@ -341,7 +341,10 @@ export class AgentLoop {
     if (hadAction) {
       this.currentInterval = this.config.intervalMs;
     } else {
-      const maxInterval = this.config.intervalMs * 4;
+      // Dynamic idle cap: daytime (8-24 local) ×2, night (0-8) ×4
+      const hour = new Date().getHours();
+      const maxMultiplier = (hour >= 8) ? 2 : 4;
+      const maxInterval = this.config.intervalMs * maxMultiplier;
       this.currentInterval = Math.min(
         this.currentInterval * this.config.idleMultiplier,
         maxInterval,

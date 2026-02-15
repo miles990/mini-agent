@@ -35,7 +35,7 @@ interface StreamEntry {
 
 // Category → interval mapping
 const INTERVALS: Record<string, number> = {
-  workspace: 60_000,     // 60s
+  workspace: 30_000,     // 30s
   chrome: 120_000,       // 120s
   telegram: 0,           // event-driven
   heartbeat: 30 * 60_000, // 30min
