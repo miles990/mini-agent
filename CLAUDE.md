@@ -101,18 +101,27 @@ Instance path: `~/.mini-agent/instances/{id}/`
 
 ```
 所有進入點 → dispatch() → triageMessage() → Haiku Lane (簡單) / Claude Lane (複雜)
+                                                              ↓
+                                                   Chat Lane / Loop Lane
 ```
 
 | Lane | 並發控制 | 用途 |
 |------|---------|------|
-| **Claude** | `claudeBusy` + queue（既有） | 複雜任務（工具、程式碼、部署） |
+| **Chat** | `chatBusy` + queue | 用戶訊息（低延遲優先） |
+| **Loop** | `loopBusy`（可被搶佔） | OODA cycle（可以慢） |
 | **Haiku** | Semaphore(5) | 簡單回覆（問候、閒聊、狀態） |
 
-**Triage**：快速路徑（regex <1ms）→ 慢速路徑（Haiku API ~200ms）→ fallback 走 Claude。
+**Dual-Lane Claude**：Chat 和 Loop 各自獨立的 Claude CLI process，互不阻塞。用戶訊息不再等 OODA cycle。
+
+**Preemption**：當 chatBusy 且 loopBusy 時，系統搶佔 Loop Lane（kill process group）釋放資源。被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
+
+**Crash Resume**：cycle 開始前寫 checkpoint（`~/.mini-agent/instances/{id}/cycle-state.json`），正常結束刪除。重啟時讀取 <1h 的 checkpoint，注入下個 cycle prompt。Partial output 走 30s throttle event-driven 更新。
+
+**Triage**：快速路徑（regex <1ms）→ fallback 走 Claude。
 **無 `ANTHROPIC_API_KEY` 時**：triage 跳過，全走 Claude Lane，行為不變。
 **Haiku 失敗時**：自動降級到 Claude Lane。
 
-`/status` 回應包含 `lanes: { claude: {...}, haiku: {...} }`。
+`/status` 回應包含 `claude: { busy, chat: {...}, loop: {...}, queue: {...} }` + `lanes: { claude: {...}, haiku: {...} }`。
 
 ## Reactive Architecture
 
@@ -223,8 +232,13 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 ```json
 {
   "instance": "f6616363", "uptime": 1234,
-  "claude": { "busy": true, "currentTask": { "prompt": "...", "elapsed": 42 }, "queue": { "size": 0, "max": 5 } },
-  "lanes": { "claude": { "active": 1, "max": 1 }, "haiku": { "active": 0, "max": 5 } },
+  "claude": {
+    "busy": true,
+    "chat": { "busy": false, "task": null },
+    "loop": { "busy": true, "task": { "prompt": "...", "startedAt": "...", "elapsed": 42 } },
+    "queue": { "size": 0, "max": 5 }
+  },
+  "lanes": { "claude": { "active": 1, "max": 2 }, "haiku": { "active": 0, "max": 5 } },
   "loop": { "enabled": true, "running": true, "mode": "autonomous" },
   "cron": { "active": 2 },
   "telegram": { "connected": true, "notifications": { "sent": 5, "failed": 0 } }

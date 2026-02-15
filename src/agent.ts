@@ -39,8 +39,13 @@ export function getFallback(): Provider | null {
   return null;
 }
 
-async function execProvider(provider: Provider, fullPrompt: string): Promise<string> {
-  return provider === 'codex' ? execCodex(fullPrompt) : execClaude(fullPrompt);
+interface ExecOptions {
+  source?: CallSource;
+  onPartialOutput?: (text: string) => void;
+}
+
+async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
+  return provider === 'codex' ? execCodex(fullPrompt, opts) : execClaude(fullPrompt, opts);
 }
 
 // getSystemPrompt is now imported from dispatcher.ts
@@ -99,32 +104,119 @@ function classifyError(error: unknown): ErrorClassification {
   return { type: 'UNKNOWN', retryable: true, message: '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。' };
 }
 
-/**
- * Busy flag — 防止並發 Claude CLI 呼叫（記憶體和 CPU 保護）
- */
-let claudeBusy = false;
-let currentTask: { prompt: string; startedAt: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null = null;
+// =============================================================================
+// Lane Types
+// =============================================================================
 
-/** 查詢 Claude CLI 是否正在執行 */
-export function isClaudeBusy(): boolean {
-  return claudeBusy;
+export type CallSource = 'chat' | 'loop';
+
+interface TaskInfo {
+  prompt: string;
+  startedAt: number;
+  toolCalls: number;
+  lastTool: string | null;
+  lastText: string | null;
 }
 
-/** 查詢目前正在處理的任務 */
-export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
-  if (!currentTask) return null;
+function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
+  if (!task) return null;
   return {
-    prompt: currentTask.prompt,
-    startedAt: new Date(currentTask.startedAt).toISOString(),
-    elapsed: Math.floor((Date.now() - currentTask.startedAt) / 1000),
-    toolCalls: currentTask.toolCalls,
-    lastTool: currentTask.lastTool,
-    lastText: currentTask.lastText,
+    prompt: task.prompt,
+    startedAt: new Date(task.startedAt).toISOString(),
+    elapsed: Math.floor((Date.now() - task.startedAt) / 1000),
+    toolCalls: task.toolCalls,
+    lastTool: task.lastTool,
+    lastText: task.lastText,
   };
 }
 
 // =============================================================================
-// Message Queue — claudeBusy 時排隊，完成後自動 drain
+// Dual-Lane Busy Locks (Phase 1a)
+// =============================================================================
+
+let chatBusy = false;
+let loopBusy = false;
+let chatTask: TaskInfo | null = null;
+let loopTask: TaskInfo | null = null;
+
+// =============================================================================
+// Preemption State (Phase 1b)
+// =============================================================================
+
+let busyGeneration = 0;
+let loopChildPid: number | null = null;
+
+/** 查詢 Claude CLI 是否正在執行（任一 lane） */
+export function isClaudeBusy(): boolean {
+  return chatBusy || loopBusy;
+}
+
+/** 查詢 chat lane 是否忙碌 */
+export function isChatBusy(): boolean {
+  return chatBusy;
+}
+
+/** 查詢 loop lane 是否忙碌 */
+export function isLoopBusy(): boolean {
+  return loopBusy;
+}
+
+/** 查詢目前正在處理的任務（backward compat: 回傳 chat 優先） */
+export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
+  return formatTask(chatTask) ?? formatTask(loopTask);
+}
+
+/** 查詢雙 lane 狀態 */
+export function getLaneStatus(): {
+  chat: { busy: boolean; task: ReturnType<typeof formatTask> };
+  loop: { busy: boolean; task: ReturnType<typeof formatTask> };
+} {
+  return {
+    chat: { busy: chatBusy, task: formatTask(chatTask) },
+    loop: { busy: loopBusy, task: formatTask(loopTask) },
+  };
+}
+
+// =============================================================================
+// Preemption (Phase 1b)
+// =============================================================================
+
+/**
+ * 搶佔 Loop Lane — 殺死正在執行的 loop Claude process
+ * 用於：user message 到達時 chatBusy=true，搶佔 loop 釋放資源
+ */
+export function preemptLoopCycle(): { preempted: boolean; partialOutput: string | null } {
+  if (!loopBusy || !loopChildPid) {
+    return { preempted: false, partialOutput: null };
+  }
+
+  const pid = loopChildPid;
+  const partial = loopTask?.lastText ?? null;
+
+  // Kill process group (includes child processes like curl)
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch { /* already dead */ }
+
+  // SIGKILL fallback after 3s
+  setTimeout(() => {
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
+  }, 3000);
+
+  // Bump generation — any in-flight loop callClaude will detect mismatch
+  busyGeneration++;
+  loopBusy = false;
+  loopTask = null;
+  loopChildPid = null;
+
+  slog('PREEMPT', `Killed loop process group (pid: ${pid}), generation: ${busyGeneration}`);
+  eventBus.emit('action:loop', { event: 'preempted', partialOutput: partial?.slice(0, 100) });
+
+  return { preempted: true, partialOutput: partial };
+}
+
+// =============================================================================
+// Message Queue — chatBusy 時排隊，完成後自動 drain
 // =============================================================================
 
 interface QueueItem {
@@ -220,7 +312,7 @@ export function restoreQueue(): void {
     }
     slog('QUEUE', `Restored ${entries.length} queued message(s) from disk`);
     unlinkSync(filePath);
-    if (!claudeBusy && messageQueue.length > 0) {
+    if (!chatBusy && messageQueue.length > 0) {
       drainQueue();
     }
   } catch (err) {
@@ -232,7 +324,7 @@ export function restoreQueue(): void {
 
 /** 批次處理 queue 中的所有訊息 */
 export function drainQueue(): void {
-  if (messageQueue.length === 0 || claudeBusy) return;
+  if (messageQueue.length === 0 || chatBusy) return;
 
   // 一次取出所有排隊訊息
   const batch = messageQueue.splice(0);
@@ -318,9 +410,10 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 手動 timeout 殺整個進程群組（包括 curl 等子進程）
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
-async function execClaude(fullPrompt: string): Promise<string> {
+async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = 900_000; // 15 minutes
   const startTs = Date.now();
+  const source = opts?.source ?? 'chat';
 
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
@@ -347,6 +440,11 @@ async function execClaude(fullPrompt: string): Promise<string> {
       },
     );
 
+    // Track PID for loop lane (preemption support)
+    if (source === 'loop') {
+      loopChildPid = child.pid ?? null;
+    }
+
     let resultText = '';
     let buffer = '';
     let stderr = '';
@@ -364,6 +462,9 @@ async function execClaude(fullPrompt: string): Promise<string> {
         try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already dead */ }
       }, 5000);
     }, TIMEOUT_MS);
+
+    // Per-lane task reference
+    const getTask = (): TaskInfo | null => source === 'loop' ? loopTask : chatTask;
 
     child.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf-8');
@@ -383,19 +484,25 @@ async function execClaude(fullPrompt: string): Promise<string> {
                 const toolName = block.name ?? 'unknown';
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
-                // 即時更新 currentTask — 讓 /status 顯示正在做什麼
-                if (currentTask) {
+                // 即時更新 per-lane task — 讓 /status 顯示正在做什麼
+                const task = getTask();
+                if (task) {
                   const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? toolInput.url ?? '';
-                  currentTask.toolCalls = toolCallCount;
-                  currentTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                  task.toolCalls = toolCallCount;
+                  task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
                 }
               } else if (block.type === 'text' && block.text) {
                 // 即時更新最新思考文字
-                if (currentTask) {
-                  currentTask.lastText = block.text.slice(0, 200);
+                const task = getTask();
+                if (task) {
+                  task.lastText = block.text.slice(0, 200);
                 }
                 // 累積文字（備用，result 事件優先）
                 if (!resultText) resultText = block.text;
+                // Partial output callback (for cycle checkpoint)
+                if (opts?.onPartialOutput) {
+                  opts.onPartialOutput(resultText);
+                }
               }
             }
           } else if (event.type === 'result') {
@@ -412,6 +519,11 @@ async function execClaude(fullPrompt: string): Promise<string> {
     child.on('close', (code) => {
       settled = true;
       clearTimeout(timer);
+
+      // Clear PID tracking
+      if (source === 'loop') {
+        loopChildPid = null;
+      }
 
       // 處理 buffer 中剩餘的不完整行
       if (buffer.trim()) {
@@ -441,6 +553,9 @@ async function execClaude(fullPrompt: string): Promise<string> {
     child.on('error', (err) => {
       settled = true;
       clearTimeout(timer);
+      if (source === 'loop') {
+        loopChildPid = null;
+      }
       reject(Object.assign(err, { stderr, stdout: resultText }));
     });
 
@@ -455,8 +570,9 @@ async function execClaude(fullPrompt: string): Promise<string> {
  *
  * 安全機制與 execClaude 相同：detached process group + 手動 timeout
  */
-async function execCodex(fullPrompt: string): Promise<string> {
+async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
+  const source = opts?.source ?? 'chat';
 
   // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
@@ -486,6 +602,9 @@ async function execCodex(fullPrompt: string): Promise<string> {
     let stderr = '';
     let toolCallCount = 0;
 
+    // Per-lane task reference
+    const getTask = (): TaskInfo | null => source === 'loop' ? loopTask : chatTask;
+
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {
       if (settled) return;
@@ -512,18 +631,20 @@ async function execCodex(fullPrompt: string): Promise<string> {
             const item = event.item;
             if (item.type === 'agent_message' && item.text) {
               resultText = item.text;
-              if (currentTask) {
-                currentTask.lastText = item.text.slice(0, 200);
+              const task = getTask();
+              if (task) {
+                task.lastText = item.text.slice(0, 200);
               }
             } else if (item.type === 'tool_call') {
               toolCallCount++;
               const toolName = item.tool ?? 'unknown';
               const toolInput = (item.input ?? item.args ?? {}) as Record<string, unknown>;
               writeAuditLog(toolName, toolInput);
-              if (currentTask) {
+              const task = getTask();
+              if (task) {
                 const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? '';
-                currentTask.toolCalls = toolCallCount;
-                currentTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                task.toolCalls = toolCallCount;
+                task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
               }
             }
           }
@@ -576,7 +697,7 @@ async function execCodex(fullPrompt: string): Promise<string> {
  * Call Claude Code via subprocess with smart retry
  * - Retries on transient errors (timeout, rate limit) with exponential backoff
  * - On TIMEOUT: rebuilds context with progressively smaller modes (focused → minimal)
- * - Releases claudeBusy during retry wait (user requests take priority)
+ * - Releases per-lane busy during retry wait (user requests take priority)
  */
 export async function callClaude(
   prompt: string,
@@ -585,14 +706,24 @@ export async function callClaude(
   options?: {
     /** 超時重試時重建 context 的回調。attempt=1 建議 'focused'，attempt=2 建議 'minimal' */
     rebuildContext?: (mode: 'focused' | 'minimal') => Promise<string>;
+    /** 呼叫來源：'chat'=用戶訊息，'loop'=OODA cycle */
+    source?: CallSource;
+    /** Streaming partial output callback（用於 cycle checkpoint） */
+    onPartialOutput?: (text: string) => void;
   },
-): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number }> {
+): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
+  const source = options?.source ?? 'chat';
   const systemPrompt = getSystemPrompt(prompt);
   let currentContext = context;
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
-  // Busy guard — 防止並發呼叫
-  if (claudeBusy) {
+  // Per-lane busy helpers
+  const isBusy = () => source === 'loop' ? loopBusy : chatBusy;
+  const setBusy = (v: boolean) => { if (source === 'loop') loopBusy = v; else chatBusy = v; };
+  const setTask = (v: TaskInfo | null) => { if (source === 'loop') loopTask = v; else chatTask = v; };
+
+  // Busy guard — 防止同一 lane 並發呼叫
+  if (isBusy()) {
     return {
       response: '我正在處理另一個請求，請稍後再試。',
       systemPrompt,
@@ -607,7 +738,7 @@ export async function callClaude(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     // 每次嘗試前檢查 busy（重試等待期間可能被其他請求佔走）
-    if (claudeBusy) {
+    if (isBusy()) {
       return {
         response: '重試期間收到新請求，已優先處理新請求。',
         systemPrompt,
@@ -616,22 +747,39 @@ export async function callClaude(
       };
     }
 
-    claudeBusy = true;
-    currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null };
+    setBusy(true);
+    setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
+
+    // Capture generation for preemption detection (loop only)
+    const gen = busyGeneration;
 
     try {
-      const result = await execProvider(primary, fullPrompt);
+      const result = await execProvider(primary, fullPrompt, {
+        source,
+        onPartialOutput: options?.onPartialOutput,
+      });
+
+      // Preemption check: if generation changed during exec, we were preempted
+      if (source === 'loop' && gen !== busyGeneration) {
+        return { response: '', systemPrompt, fullPrompt, duration: Date.now() - startTime, preempted: true };
+      }
+
       const duration = Date.now() - startTime;
 
       try {
         const logger = getLogger();
         const providerInfo = primary !== 'claude' ? ` [${primary}]` : '';
         const retryInfo = attempt > 0 ? ` (retry #${attempt}, ${fullPrompt.length} chars)` : '';
-        logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${providerInfo}${retryInfo}`);
+        logger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(duration / 1000).toFixed(1)}s${providerInfo}${retryInfo} [${source}]`);
       } catch { /* logger not ready */ }
 
       return { response: result.trim(), systemPrompt, fullPrompt, duration };
     } catch (error) {
+      // Preemption check: killed process throws error, detect via generation mismatch
+      if (source === 'loop' && gen !== busyGeneration) {
+        return { response: '', systemPrompt, fullPrompt, duration: Date.now() - startTime, preempted: true };
+      }
+
       const duration = Date.now() - startTime;
       const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
       const exitCode = (error as { status?: number })?.status;
@@ -640,7 +788,7 @@ export async function callClaude(
       // Log error
       const logger = getLogger();
       logger.logError(
-        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars): ${stderr.slice(0, 500) || classified.message}`),
+        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
         'callClaude'
       );
 
@@ -666,8 +814,8 @@ export async function callClaude(
         }
 
         // 釋放 busy — 等待期間允許新請求插入
-        claudeBusy = false;
-        currentTask = null;
+        setBusy(false);
+        setTask(null);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
@@ -682,29 +830,29 @@ export async function callClaude(
       const fallback = getFallback();
       if (fallback && fallback !== primary) {
         slog('FALLBACK', `${primary} failed after ${attempt + 1} attempt(s), trying ${fallback}`);
-        claudeBusy = true;
-        currentTask = { prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null };
+        setBusy(true);
+        setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
         try {
-          const fbResult = await execProvider(fallback, fullPrompt);
+          const fbResult = await execProvider(fallback, fullPrompt, { source });
           const fbDuration = Date.now() - startTime;
           try {
             const fbLogger = getLogger();
-            fbLogger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(fbDuration / 1000).toFixed(1)}s [fallback:${fallback}]`);
+            fbLogger.logBehavior('agent', 'claude.call', `${prompt.slice(0, 100)} → ${(fbDuration / 1000).toFixed(1)}s [fallback:${fallback}] [${source}]`);
           } catch { /* logger not ready */ }
           return { response: fbResult.trim(), systemPrompt, fullPrompt, duration: fbDuration };
         } catch (fbError) {
           const fbMsg = fbError instanceof Error ? fbError.message : String(fbError);
           slog('FALLBACK', `${fallback} also failed: ${fbMsg.slice(0, 200)}`);
         } finally {
-          claudeBusy = false;
-          currentTask = null;
+          setBusy(false);
+          setTask(null);
         }
       }
 
       return { response: classified.message, systemPrompt, fullPrompt, duration };
     } finally {
-      claudeBusy = false;
-      currentTask = null;
+      setBusy(false);
+      setTask(null);
     }
   }
 
@@ -714,15 +862,20 @@ export async function callClaude(
 
 /**
  * Process a user message
- * claudeBusy 時自動排隊，立即回傳 ack（非阻塞）
+ * chatBusy 時自動排隊，立即回傳 ack（非阻塞）
  * @param onQueueComplete — 排隊訊息處理完成後的回調（用於 Telegram 發送回覆）
  */
 export async function processMessage(
   userMessage: string,
   onQueueComplete?: (result: AgentResponse) => void,
 ): Promise<AgentResponse> {
-  // Queue 機制：busy 時排隊，立即回傳 ack
-  if (claudeBusy) {
+  // Queue 機制：chat lane busy 時排隊，立即回傳 ack
+  if (chatBusy) {
+    // 嘗試搶佔 loop lane 釋放系統資源
+    if (loopBusy) {
+      preemptLoopCycle();
+    }
+
     if (messageQueue.length >= MAX_QUEUE_SIZE) {
       return {
         content: `目前排隊已滿（${MAX_QUEUE_SIZE}/${MAX_QUEUE_SIZE}），請稍後再試。`,

@@ -9,7 +9,7 @@ import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue, getProvider, getFallback } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue, getProvider, getFallback, getLaneStatus } from './agent.js';
 import { dispatch, getLaneStats } from './dispatcher.js';
 import {
   searchMemory,
@@ -402,12 +402,14 @@ export function createApi(port = 3001): express.Express {
 
   // Unified status — 聚合所有子系統狀態
   app.get('/status', (_req: Request, res: Response) => {
+    const laneStatus = getLaneStatus();
     res.json({
       instance: getCurrentInstanceId(),
       uptime: Math.floor(process.uptime()),
       claude: {
         busy: isClaudeBusy(),
-        currentTask: getCurrentTask(),
+        chat: laneStatus.chat,
+        loop: laneStatus.loop,
         queue: getQueueStatus(),
       },
       lanes: getLaneStats(),

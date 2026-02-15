@@ -55,10 +55,14 @@ const HAIKU_CLI_MODEL = process.env.CLAUDE_HAIKU_MODEL || 'haiku';
 // =============================================================================
 
 const SIMPLE_PATTERNS = [
-  /^(hi|hello|hey|哈囉|嗨|你好)(\s|[!！,.，。]|$)/i,
-  /^(thanks|thx|謝謝|好的|OK|了解|收到)(\s|[!！,.，。]|$)/i,
-  /^(幾點|時間|what time|today)/i,
-  /^(你好嗎|how are you|最近)/i,
+  /^(hi|hello|hey|哈囉|嗨|你好|早安|午安|晚安|good morning|good night|gm|gn)(\s|[!！,.，。]|$)/i,
+  /^(thanks|thx|謝謝|好的|OK|了解|收到|讚|nice|cool|great|got it)(\s|[!！,.，。]|$)/i,
+  /^(幾點|時間|what time|today|現在幾點)/i,
+  /^(你好嗎|how are you|最近|最近怎樣|你還好嗎)/i,
+  /^(狀態|status|現在狀態|你在幹嘛|你在做什麼|what are you doing)/i,
+  /^(掰掰|bye|再見|晚安|good bye|see you|回頭見)(\s|[!！,.，。]|$)/i,
+  /^(哈哈|lol|笑死|😂|🤣|XD|xd)(\s|[!！,.，。]|$)/i,
+  /^(對|沒錯|是的|yes|yeah|yep|right|exactly|correct)(\s|[!！,.，。]|$)/i,
 ];
 const COMPLEX_PATTERNS = [
   /(deploy|部署|push|commit|build|install)/i,
@@ -397,17 +401,20 @@ export async function dispatch(req: DispatchRequest): Promise<AgentResponse> {
 // =============================================================================
 
 export function getLaneStats(): Record<string, LaneStats> {
-  let claudeActive = 0;
+  let chatActive = 0;
+  let loopActive = 0;
   let claudeWaiting = 0;
   if (_agentModule) {
-    claudeActive = _agentModule.isClaudeBusy() ? 1 : 0;
+    const laneStatus = _agentModule.getLaneStatus();
+    chatActive = laneStatus.chat.busy ? 1 : 0;
+    loopActive = laneStatus.loop.busy ? 1 : 0;
     claudeWaiting = _agentModule.getQueueStatus().size;
   }
   return {
     claude: {
-      active: claudeActive,
+      active: chatActive + loopActive,
       waiting: claudeWaiting,
-      max: 1,
+      max: 2,
       totalCalls: claudeStats.calls,
       totalMs: claudeStats.ms,
     },

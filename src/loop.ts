@@ -22,8 +22,82 @@ import { parseTags } from './dispatcher.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
+import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 
 const execFileAsync = promisify(execFile);
+
+// =============================================================================
+// Cycle Checkpoint (Phase 1c)
+// =============================================================================
+
+interface CycleCheckpoint {
+  startedAt: string;
+  mode: 'task' | 'autonomous' | 'idle';
+  triggerReason: string | null;
+  promptSnippet: string;
+  partialOutput: string | null;
+  lastAction: string | null;
+  lastAutonomousActions: string[];
+}
+
+function getCycleCheckpointPath(): string | null {
+  try {
+    const instanceId = getCurrentInstanceId();
+    if (!instanceId) return null;
+    return path.join(getInstanceDir(instanceId), 'cycle-state.json');
+  } catch { return null; }
+}
+
+function saveCycleCheckpoint(data: CycleCheckpoint): void {
+  const filePath = getCycleCheckpointPath();
+  if (!filePath) return;
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data), 'utf-8');
+  } catch { /* fire-and-forget */ }
+}
+
+function clearCycleCheckpoint(): void {
+  const filePath = getCycleCheckpointPath();
+  if (!filePath) return;
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch { /* fire-and-forget */ }
+}
+
+function loadStaleCheckpoint(): { info: string; lastAction: string | null; lastAutonomousActions: string[] } | null {
+  const filePath = getCycleCheckpointPath();
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(raw) as CycleCheckpoint;
+
+    // 只恢復 1h 內的 checkpoint
+    const age = Date.now() - new Date(data.startedAt).getTime();
+    if (age > 3_600_000) {
+      slog('RESUME', 'Stale checkpoint found but too old (>1h), ignoring');
+      fs.unlinkSync(filePath);
+      return null;
+    }
+
+    const partial = data.partialOutput ? ` Partial output: ${data.partialOutput.slice(0, 200)}` : '';
+    const info = `Mode: ${data.mode}, Trigger: ${data.triggerReason ?? 'unknown'}, Prompt: ${data.promptSnippet}${partial}`;
+
+    slog('RESUME', `Detected interrupted cycle from ${data.startedAt}`);
+    fs.unlinkSync(filePath);
+
+    return {
+      info,
+      lastAction: data.lastAction,
+      lastAutonomousActions: data.lastAutonomousActions,
+    };
+  } catch {
+    // JSON parse failure or other error — ignore (degrade gracefully)
+    try { if (filePath) fs.unlinkSync(filePath); } catch { /* */ }
+    return null;
+  }
+}
 
 // =============================================================================
 // Types
@@ -137,6 +211,9 @@ export class AgentLoop {
   // ── Cross-cycle state (only last cycle, no accumulation) ──
   private previousCycleInfo: string | null = null;
 
+  // ── Interrupted cycle resume (Phase 1b + 1c) ──
+  private interruptedCycleInfo: string | null = null;
+
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
 
@@ -176,6 +253,18 @@ export class AgentLoop {
 
     this.running = true;
     this.paused = false;
+
+    // Phase 1c: Recover interrupted cycle on startup
+    const stale = loadStaleCheckpoint();
+    if (stale) {
+      this.interruptedCycleInfo = stale.info;
+      if (stale.lastAction) this.lastAction = stale.lastAction;
+      if (stale.lastAutonomousActions.length > 0) {
+        this.lastAutonomousActions = stale.lastAutonomousActions;
+      }
+      eventBus.emit('action:loop', { event: 'resume', detail: `Recovered interrupted cycle: ${stale.info.slice(0, 100)}` });
+    }
+
     eventBus.on('trigger:*', this.handleTrigger);
     this.scheduleHeartbeat();
     eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, throttle: 60s, dynamic interval: ${this.currentInterval / 1000}s)` });
@@ -347,19 +436,65 @@ export class AgentLoop {
       const triggerSuffix = this.triggerReason
         ? `\n\nTriggered by: ${this.triggerReason}`
         : '';
+      const currentTriggerReason = this.triggerReason;
       this.triggerReason = null;
 
       const previousCycleSuffix = this.previousCycleInfo
         ? `\n\nPrevious cycle: ${this.previousCycleInfo}`
         : '';
 
-      const prompt = shouldRunTaskMode
-        ? this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix
-        : this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix;
+      // Phase 1b+1c: Inject interrupted cycle context (one-shot)
+      const interruptedSuffix = this.interruptedCycleInfo
+        ? `\n\nYour previous cycle was interrupted (${this.interruptedCycleInfo.includes('process restart') ? 'process restart' : 'preempted by user message'}). You were doing: ${this.interruptedCycleInfo}. Continue if relevant.`
+        : '';
+      this.interruptedCycleInfo = null; // one-shot: 用完即清
 
-      const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
-        rebuildContext: (mode) => memory.buildContext({ mode }),
+      const prompt = shouldRunTaskMode
+        ? this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix
+        : this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+
+      // Phase 1c: Save checkpoint before calling Claude
+      saveCycleCheckpoint({
+        startedAt: new Date().toISOString(),
+        mode: this.currentMode,
+        triggerReason: currentTriggerReason,
+        promptSnippet: prompt.slice(0, 500),
+        partialOutput: null,
+        lastAction: this.lastAction,
+        lastAutonomousActions: this.lastAutonomousActions.slice(-10),
       });
+
+      // Phase 1c: Throttled partial output callback (30s)
+      let lastCheckpointUpdate = 0;
+      const onPartialOutput = (text: string) => {
+        const now = Date.now();
+        if (now - lastCheckpointUpdate < 30_000) return;
+        lastCheckpointUpdate = now;
+        saveCycleCheckpoint({
+          startedAt: new Date().toISOString(),
+          mode: this.currentMode,
+          triggerReason: currentTriggerReason,
+          promptSnippet: prompt.slice(0, 500),
+          partialOutput: text.slice(0, 500),
+          lastAction: this.lastAction,
+          lastAutonomousActions: this.lastAutonomousActions.slice(-10),
+        });
+      };
+
+      const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
+        rebuildContext: (mode) => memory.buildContext({ mode }),
+        source: 'loop',
+        onPartialOutput,
+      });
+
+      // Phase 1b: Handle preemption
+      if (preempted) {
+        this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${prompt.slice(0, 200)}`;
+        slog('LOOP', `Cycle preempted — will resume next cycle`);
+        eventBus.emit('action:loop', { event: 'cycle.preempted', cycleCount: this.cycleCount });
+        // Don't clear checkpoint — leave it for crash recovery
+        return null;
+      }
 
       // 結構化記錄 Claude 呼叫
       logger.logClaudeCall(
@@ -482,7 +617,10 @@ export class AgentLoop {
         }
       }
 
-      // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 claudeBusy 釋放）
+      // Phase 1c: Clear checkpoint — cycle completed normally
+      clearCycleCheckpoint();
+
+      // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 chatBusy 釋放）
       if (hasQueuedMessages()) drainQueue();
 
       // 檢查 approved proposals → 自動建立 handoff
