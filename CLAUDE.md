@@ -74,6 +74,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Architecture | `memory/ARCHITECTURE.md` |
 | Proposals | `memory/proposals/` |
 | Topic Memory | `memory/topics/*.md` |
+| Delegation Skill | `skills/delegation.md` |
 
 ## Memory Architecture
 
@@ -107,11 +108,15 @@ Instance path: `~/.mini-agent/instances/{id}/`
 
 | Lane | 並發控制 | 用途 |
 |------|---------|------|
-| **Chat** | `chatBusy` + queue | 用戶訊息（低延遲優先） |
-| **Loop** | `loopBusy`（可被搶佔） | OODA cycle（可以慢） |
+| **Chat** | `chatBusy` + queue | 用戶 Telegram 訊息（低延遲優先） |
+| **Loop** | `loopBusy`（可被搶佔） | OODA cycle + cron + `[Claude Code]` API 訊息 |
 | **Haiku** | Semaphore(5) | 簡單回覆（問候、閒聊、狀態） |
 
 **Dual-Lane Claude**：Chat 和 Loop 各自獨立的 Claude CLI process，互不阻塞。用戶訊息不再等 OODA cycle。
+
+**Loop Lane 路由**：以下訊息自動走 Loop Lane（`processSystemMessage`），不佔 Chat Lane：
+- `source === 'cron'` — 排程任務
+- `message.startsWith('[Claude Code]')` — Claude Code 的 API 訊息
 
 **Preemption**：當 chatBusy 且 loopBusy 時，系統搶佔 Loop Lane（kill process group）釋放資源。被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
 
@@ -287,17 +292,28 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 
 ## 協作模型（Alex + Claude Code + Kuro）
 
-三者共同維護這個專案，各有不同角色：
+三者共同維護這個專案，各有不同角色和身份邊界：
 
-| 角色 | 身份 | 職責 |
-|------|------|------|
-| **Alex** | 人類 | 決策、方向、核准 |
-| **Claude Code** | 開發工具 | 寫程式、重構、部署、驗證 |
-| **Kuro** | 自主 Agent | 感知環境、自主學習、執行任務、回報狀態 |
+| 角色 | 系統類比 | 身份 | 職責 |
+|------|---------|------|------|
+| **Alex** | — | 人類決策者 | 決策、方向、核准 |
+| **Claude Code** | Session Worker | 無持久身份，session 內有判斷力 | 寫程式、重構、部署、驗證 |
+| **Kuro** | Daemon | 有 SOUL.md、有記憶、有連續性 | 感知環境、自主學習、創作、執行任務 |
+| **CLI Subprocess** | Ephemeral Worker | 無身份、無 context | Kuro 在 cycle 內 delegate 的無身份工具 |
+
+**身份邊界原則**：
+- 只有 Kuro 有 SOUL.md、寫 `memory/`、發 Telegram
+- Claude Code 是 session worker — session 內有完整能力，結束後消失
+- CLI Subprocess 是 Kuro 的工具 — 不讀 SOUL.md、不寫 memory、不發通知
+- 詳見 `skills/delegation.md`（Kuro 的任務委派技能）
 
 ### Claude Code 與 Kuro 溝通
 
-- **Claude Code 透過 `/chat` API 發訊息給 Kuro 時，必須在訊息開頭加上 `[Claude Code]` 前綴**，避免 Kuro 混淆訊息來源、污染 context
+- **`[Claude Code]` 前綴的訊息自動走 Loop Lane**（`processSystemMessage`），不佔用 Chat Lane，不阻塞 Alex 的 Telegram 訊息
+- **轉述 Alex 時區分原話和詮釋**：
+  - `[Claude Code] Alex 原話：「...」` — 直接引述，保留語氣
+  - `[Claude Code] 我的理解：Alex 想要...` — Claude Code 的詮釋，Kuro 可以質疑
+  - `[Claude Code] 這是我自己的想法...` — Claude Code 發起的討論
 - Claude Code 的操作（edit、write）會觸發 Kuro 的 `trigger:workspace` → perception stream → 可能觸發新 cycle。**Claude Code 是 Kuro 環境的一部分**，操作時要意識到這點
 
 ### Claude Code 使用 Kuro 感知
