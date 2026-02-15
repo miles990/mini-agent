@@ -13,6 +13,7 @@ memory/handoffs/*
 !memory/proposals/
 !memory/library/
 !memory/research/
+!memory/threads/
 sessions/
 .claude/*
 !.claude/settings.json
