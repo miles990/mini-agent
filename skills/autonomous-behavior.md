@@ -103,11 +103,11 @@ context: telegram-inbox empty, state-changes none, inner-voice has unfinished th
 ### TG 通知品質規則
 
 1. **一個 cycle 最多 1 條 `[CHAT]`** — 合併同 cycle 的多個通知為一條
-2. **學習通知只在有 actionable insight 時才發** — 「讀了一篇文章」不發，「讀了 X 發現可以改善 Y」才發
+2. **每次學習都發一條簡短分享** — 主題+核心洞見+你的觀點，1-3 句話。學習without分享=沒學
 3. **行動通知必須包含結果** — 不是「準備做 X」而是「做了 X，結果是 Y」
 4. **no-action cycle 不發通知** — 除非有需要 Alex 注意的異常
 5. **通知分級**：
-   - 🧠 學習洞察（有觀點+可行動）
+   - 🧠 學習分享（每次學習必發：主題+洞見+觀點）
    - ⚡ 行動完成（含結果）
    - ⚠️ 異常/問題
    - 💬 主動聊天（有趣發現）
