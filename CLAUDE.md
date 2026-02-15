@@ -91,6 +91,8 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 
 **Context Checkpoint**：每次 `buildContext()` 自動存 snapshot（timestamp、mode、contextLength、sections），fire-and-forget 不影響效能。
 
+**Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
+
 Instance path: `~/.mini-agent/instances/{id}/`
 
 ## Task Lanes（多工分道）

@@ -12,14 +12,18 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
-import { diagLog } from './utils.js';
+import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
+
+const execFileAsync = promisify(execFile);
 
 // =============================================================================
 // Types
@@ -483,6 +487,9 @@ export class AgentLoop {
 
       // 檢查 approved proposals → 自動建立 handoff
       await checkApprovedProposals();
+
+      // Auto-commit memory changes（fire-and-forget）
+      autoCommitMemory(action).catch(() => {});
 
       return action;
     } finally {
@@ -965,6 +972,58 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
       eventBus.emit('action:handoff', { file, title });
     } catch {
       // 單一檔案失敗不影響其他
+    }
+  }
+}
+
+// =============================================================================
+// Auto-Commit — cycle 結束後自動 commit memory/ 變更
+// =============================================================================
+
+const AUTO_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
+
+/**
+ * 檢查 memory/、skills/、plugins/ 是否有未 commit 的變更，
+ * 有的話自動 git add + commit。Fire-and-forget，不阻塞 cycle。
+ */
+async function autoCommitMemory(action: string | null): Promise<void> {
+  const cwd = process.cwd();
+
+  try {
+    // 取得 working tree 中指定路徑的變更
+    const { stdout: status } = await execFileAsync(
+      'git', ['status', '--porcelain', ...AUTO_COMMIT_PATHS],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
+
+    if (!status.trim()) return; // 沒有變更
+
+    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+
+    // git add 變更的檔案
+    await execFileAsync(
+      'git', ['add', ...AUTO_COMMIT_PATHS],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
+
+    // 組合 commit message
+    const summary = action
+      ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
+      : 'auto-save memory';
+    const fileList = changedFiles.slice(0, 5).join(', ');
+    const msg = `chore(auto): ${summary}\n\nFiles: ${fileList}`;
+
+    await execFileAsync(
+      'git', ['commit', '-m', msg],
+      { cwd, encoding: 'utf-8', timeout: 10000 },
+    );
+
+    slog('auto-commit', `committed ${changedFiles.length} file(s): ${fileList}`);
+  } catch (err: unknown) {
+    // commit 失敗（e.g. nothing to commit）靜默忽略
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('nothing to commit')) {
+      slog('auto-commit', `skipped: ${msg.slice(0, 120)}`);
     }
   }
 }
