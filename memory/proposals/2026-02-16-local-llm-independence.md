@@ -1,6 +1,6 @@
 # Proposal: Local LLM Independence — 本機混合推理架構
 
-## Status: draft
+## Status: draft (v3 — 量測數據 + 反饋完整整合)
 
 ## TL;DR
 在 mini-agent 加入本機 LLM 支援（Ollama），讓 Kuro 在無外部 API 時仍能思考和行動。初期目標是「保底」，長期目標是完全斷開外部 API。
@@ -56,31 +56,119 @@ graph TD
 export type Provider = 'claude' | 'codex' | 'local';
 
 // 新增 execLocal — 直接呼叫 Ollama HTTP API
+// v3: 補齊 TaskInfo 追蹤、timeout、audit log（對齊 execClaude/execCodex 能力）
+// 注意：Phase 1 用 stream:false（無 partial output）— 有意取捨：
+//   - execClaude/execCodex 用 subprocess stdout 做 partial output（process 模型）
+//   - execLocal 用 HTTP API（request/response 模型）— 無 process 可追蹤
+//   - Phase 2 可改 stream:true + SSE 消費實現 partial output
 async function execLocal(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const model = process.env.LOCAL_MODEL || 'qwen3:8b';
   const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+  const timeout = opts?.timeout ?? 120_000; // 預設 2 分鐘（本機推理不應更久）
 
-  const response = await fetch(`${baseUrl}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      prompt: fullPrompt,
-      stream: false,
-      options: {
-        num_ctx: 8192,        // 8K context（8B 模型的合理上限）
-        temperature: 0.7,
-        top_p: 0.9,
-      },
-    }),
-  });
+  // TaskInfo 追蹤（讓 /status 能顯示 local 模型正在做什麼）
+  const taskInfo = {
+    prompt: fullPrompt.slice(0, 100),
+    startedAt: new Date().toISOString(),
+    provider: 'local' as const,
+    model,
+  };
+  setCurrentTask(taskInfo);
 
-  const data = await response.json();
-  return data.response?.trim() ?? '';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    // v2: 使用 /api/chat 而非 /api/generate（支援 system/user 角色分離，更好的對話品質）
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: opts?.systemPrompt ?? '' },
+          { role: 'user', content: fullPrompt },
+        ],
+        stream: false,
+        options: {
+          num_ctx: 8192,
+          temperature: 0.7,
+          top_p: 0.9,
+        },
+      }),
+    });
+
+    clearTimeout(timer);
+    const data = await response.json();
+    const result = data.message?.content?.trim() ?? '';
+
+    // v2: 回應品質 guardrail — 空回應或疑似格式錯誤時標記
+    if (!result) {
+      slog('local', `empty response from ${model}`);
+    }
+
+    // Audit log（對齊 execClaude 的追蹤能力）
+    writeAuditLog('local', { model, promptLen: fullPrompt.length, responseLen: result.length });
+
+    return result;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      slog('local', `timeout after ${timeout}ms`);
+    }
+    throw err;
+  } finally {
+    clearCurrentTask();
+  }
 }
 ```
 
-#### 2. `src/agent.ts` — `getProvider()` / `getFallback()` 擴展
+#### 2. `src/agent.ts` — Ollama 健康檢查（v3 完善）
+
+```typescript
+// v3: 健康檢查包含模型存在性驗證 + /status 端點整合
+interface OllamaHealth {
+  available: boolean;
+  modelReady: boolean;
+  checkedAt: number;
+}
+
+let ollamaHealth: OllamaHealth = { available: false, modelReady: false, checkedAt: 0 };
+
+async function isOllamaAvailable(): Promise<boolean> {
+  // 30 秒快取
+  if (Date.now() - ollamaHealth.checkedAt < 30_000) {
+    return ollamaHealth.available && ollamaHealth.modelReady;
+  }
+  const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+  const model = process.env.LOCAL_MODEL || 'qwen3:8b';
+  try {
+    const r = await fetch(`${baseUrl}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!r.ok) {
+      ollamaHealth = { available: false, modelReady: false, checkedAt: Date.now() };
+      return false;
+    }
+    // v3: 檢查目標模型是否已拉取
+    const data = await r.json();
+    const models = data.models?.map((m: any) => m.name) ?? [];
+    const modelReady = models.some((m: string) => m.startsWith(model.split(':')[0]));
+    ollamaHealth = { available: true, modelReady, checkedAt: Date.now() };
+    return modelReady;
+  } catch {
+    ollamaHealth = { available: false, modelReady: false, checkedAt: Date.now() };
+    return false;
+  }
+}
+
+// 暴露給 /status 端點（讓 dashboard 能看到 local provider 狀態）
+export function getOllamaHealth(): OllamaHealth {
+  return { ...ollamaHealth };
+}
+```
+
+#### 3. `src/agent.ts` — `getProvider()` / `getFallback()` 擴展
 
 ```typescript
 export function getProvider(): Provider {
@@ -97,7 +185,7 @@ export function getFallback(): Provider | null {
 }
 ```
 
-#### 3. `src/agent.ts` — `execProvider()` 路由
+#### 4. `src/agent.ts` — `execProvider()` 路由
 
 ```typescript
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
@@ -107,25 +195,71 @@ async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecO
 }
 ```
 
-#### 4. `src/dispatcher.ts` — Local Triage
+#### 5. `src/dispatcher.ts` — Local 整合（v3 精確整合點）
 
-Haiku Lane 目前用 Claude CLI `--model haiku`。本機模式下改為用 Ollama：
-
-```typescript
-// callHaiku 中加入 local fallback
-if (process.env.AGENT_PROVIDER === 'local') {
-  // 直接用 local model 回答，不走 Claude CLI
-  return callLocal(prompt, context, systemPrompt);
-}
+現有程式碼流程（dispatcher.ts:484-533）：
+```
+dispatch() → triageMessage() → lane='haiku' → callHaiku() → postProcess()
+                              → lane='claude' → processMessage/processSystemMessage()
 ```
 
-#### 5. Context 適配
+**Local 分支插入位置：Haiku Lane 起始處（L508-509 之間）**
 
-本機模型 context window 小（8K vs Claude 的 200K）。需要：
-- `buildContext()` 已有 `mode: 'minimal'` 支援（~8K chars），直接複用
-- Local provider 自動使用 `minimal` mode
+```typescript
+// ── 3. Haiku Lane：不受 claudeBusy 阻塞 ──
+// v3: Local provider 替換 — 在 callHaiku 之前攔截
+const provider = getProvider();
+if (provider === 'local' || (provider === 'auto' && await isOllamaAvailable())) {
+  // Local 模式下，simple 任務走 execLocal 而非 callHaiku
+  const memory = getMemory();
+  const context = await memory.buildContext({ mode: 'minimal' });
+  const systemPrompt = getSystemPrompt(req.message);
+  const response = await execLocal(req.message, { systemPrompt, context });
 
-#### 6. 環境變數
+  // 品質 guardrail — 失敗則 fallthrough 到原有 callHaiku
+  const validation = validateLocalResponse(response);
+  if (validation.ok) {
+    return postProcess(req.message, response, {
+      lane: 'local', duration: Date.now() - start, source: req.source,
+    });
+  }
+  slog('dispatch', `local guardrail: ${validation.reason}, falling back to haiku`);
+}
+
+// 原有 callHaiku 路徑不變
+await haikuSem.acquire();
+// ...
+```
+
+**關鍵設計**：
+1. `callHaiku()` 完全不改 — local 是前置攔截，不是內部替換
+2. Guardrail 失敗 → 自動 fallthrough 到 callHaiku（graceful degradation）
+3. `postProcess()` 仍會處理 agent tags，行為一致
+4. Lane 標記為 `'local'`（/status 可見）
+
+#### 6. Context 適配（v3 — 含量測數據）
+
+本機模型 context window 小（8K tokens vs Claude 的 200K）。
+
+**實測數據**（2026-02-16 量測）：
+| Context Mode | 大小 | 預估 Tokens | 備註 |
+|-------------|------|-------------|------|
+| **full** | ~99K chars | ~28K tokens | 全感知+記憶+soul+對話 |
+| **minimal** | **~3.8K chars** | **~1K tokens** | 只含環境+TG+soul核心+heartbeat+近5則對話 |
+
+**結論**：`buildMinimalContext()` 只佔 8K context window 的 ~13%，完全可行。剩餘 ~7K tokens 足夠放 system prompt + user message + response。
+
+**Breakdown（minimal mode）**：
+- environment: 136 chars
+- telegram: 81 chars
+- soul (truncated to identity): 1,312 chars
+- heartbeat: 2,108 chars
+- NEXT.md (Now section): 31 chars
+- recent conversations (5): ~500 chars（估算，內容依實際對話而定）
+
+**不需要進一步壓縮**。`minimal` mode 已足夠精簡。
+
+#### 7. 環境變數
 
 ```bash
 AGENT_PROVIDER=auto         # auto | claude | codex | local
@@ -134,15 +268,106 @@ LOCAL_MODEL=qwen3:8b        # Ollama 模型名
 OLLAMA_URL=http://localhost:11434  # Ollama 端點
 ```
 
-### Auto 模式路由邏輯
+### Auto 模式路由邏輯（v3 完整決策樹）
+
+```mermaid
+graph TD
+    A[autoRoute] --> B{Claude CLI 可用?}
+    B -->|No| C{Ollama 可用?}
+    C -->|No| D[Error: No provider]
+    C -->|Yes| E{記憶體足夠?}
+    E -->|No| D
+    E -->|Yes| F[return local]
+    B -->|Yes| G{Ollama 可用?}
+    G -->|No| H[return claude]
+    G -->|Yes| I{triageMessage = haiku?}
+    I -->|No| H
+    I -->|Yes| J{來源 = telegram?}
+    J -->|Yes| H
+    J -->|No| K{prompt > 3K chars?}
+    K -->|Yes| H
+    K -->|No| L[return local]
+```
 
 ```typescript
-// auto 模式：根據任務複雜度選擇 provider
-function autoRoute(prompt: string, context: string): Provider {
-  // 1. 如果 Claude CLI 不可用 → local
-  // 2. 如果是 triage 判定的 simple → local
-  // 3. 如果 prompt + context > 8K chars → claude（local 放不下）
-  // 4. 其他 → claude
+// auto 模式：根據可用性 + 複雜度 + 來源選擇 provider
+async function autoRoute(prompt: string, source: string): Promise<Provider> {
+  const ollamaReady = await isOllamaAvailable();
+
+  // 規則 1: Claude CLI 不可用 → local 是唯一選擇
+  if (!isClaudeAvailable()) {
+    if (!ollamaReady) throw new Error('No provider available');
+    if (!checkMemoryBudget()) throw new Error('Insufficient memory for local model');
+    return 'local';
+  }
+
+  // 規則 2: Ollama 不可用 → claude 是唯一選擇
+  if (!ollamaReady) return 'claude';
+
+  // 規則 3: 已被 triageMessage 判定為 claude lane → 尊重 triage 結果
+  // （auto 只介入 haiku lane 的任務，不搶 claude lane）
+
+  // 規則 4: 用戶 Telegram 訊息 → claude（品質優先，不拿 Alex 的體驗冒險）
+  if (source === 'telegram') return 'claude';
+
+  // 規則 5: prompt 長度 > 3K chars → claude（留夠 context 空間）
+  // minimal context ~3.8K + prompt 3K + response buffer = 接近 8K 上限
+  if (prompt.length > 3000) return 'claude';
+
+  // 規則 6: 來源是 cron / loop 的簡單任務 → local
+  return 'local';
+}
+
+// 記憶體預算檢查（v3 新增）
+function checkMemoryBudget(): boolean {
+  const mem = process.memoryUsage();
+  const totalSystemMB = os.totalmem() / 1024 / 1024; // 16384 on M2 Pro 16GB
+  // Ollama 推理約需 5-8GB。保守估計：系統總記憶體的 60% 已用就不啟動 local
+  const usedRatio = 1 - (os.freemem() / os.totalmem());
+  return usedRatio < 0.6;
+}
+```
+
+**設計原則**：
+1. **保守** — 寧可多用 Claude 也不要因 local 品質差產生壞結果
+2. **不搶道** — auto 只介入 haiku lane，claude lane 的任務永遠走 Claude
+3. **品質 > 效率** — Alex 的訊息永遠走 Claude
+4. **可觀測** — 每次路由決策都 slog，事後可分析 local/claude 比例
+
+### 回應品質 Guardrail（v2 新增）
+
+Local 模型品質不穩定，需要基本防護：
+
+```typescript
+function validateLocalResponse(response: string): { ok: boolean; reason?: string } {
+  // 1. 空回應
+  if (!response.trim()) return { ok: false, reason: 'empty' };
+
+  // 2. 重複性偵測（模型退化時常見）
+  const lines = response.split('\n');
+  if (lines.length > 5) {
+    const unique = new Set(lines.map(l => l.trim()).filter(Boolean));
+    if (unique.size < lines.length * 0.3) return { ok: false, reason: 'repetitive' };
+  }
+
+  // 3. 過短（<20 chars 且不是 yes/no 類回應）
+  if (response.length < 20 && !/^(yes|no|ok|好|是|否)/i.test(response)) {
+    return { ok: false, reason: 'too-short' };
+  }
+
+  return { ok: true };
+}
+
+// execLocal 中使用：
+const result = data.message?.content?.trim() ?? '';
+const validation = validateLocalResponse(result);
+if (!validation.ok) {
+  slog('local', `guardrail triggered: ${validation.reason}`);
+  // 如果有 fallback provider，自動切換
+  const fallback = getFallback();
+  if (fallback && fallback !== 'local') {
+    return execProvider(fallback, fullPrompt, opts);
+  }
 }
 ```
 
@@ -156,7 +381,23 @@ function autoRoute(prompt: string, context: string): Provider {
 brew install ollama  # macOS
 ollama serve &       # 啟動服務
 ollama pull qwen3:8b # 拉取推薦模型（~5GB）
+
+# v2: 驗證模型可用
+ollama run qwen3:8b "Hello, respond with OK" --nowordwrap
 ```
+
+### 模型版本鎖定（v2 新增）
+
+```bash
+# .ollama-models — 鎖定測試過的模型版本
+# 格式：model_name:tag  sha256_digest
+qwen3:8b  sha256:abc123...
+
+# scripts/verify-models.sh — 啟動時檢查模型 digest 是否匹配
+ollama list | grep qwen3:8b | awk '{print $3}'
+```
+
+**目的**：避免 `ollama pull` 拉到新版模型後行為突變。只在明確測試後才更新 digest。
 
 ## Alternatives Considered（替代方案）
 
@@ -183,23 +424,35 @@ ollama pull qwen3:8b # 拉取推薦模型（~5GB）
 - **無 Agent 能力**：Phase 1 的本機模型只能對話，不能使用 tools（需要 Phase 2 的 tool loop）
 
 ## Effort: Medium
-- Phase 1 核心改動 ~200 行
-- 主要在 `src/agent.ts`（~100 行）和 `src/dispatcher.ts`（~50 行）
-- 安裝腳本 + 文件 ~50 行
+- Phase 1 核心改動 ~350 行（v3 補強後）
+- `src/agent.ts`：~200 行（execLocal + OllamaHealth + guardrail + TaskInfo + autoRoute + memoryBudget）
+- `src/dispatcher.ts`：~50 行（local 分支攔截 + lane 標記）
+- `src/api.ts`：~10 行（/status 端點加入 ollamaHealth）
+- 安裝腳本 + 模型驗證 ~80 行
 
 ## Risk: Low
 - 不影響現有 Claude/Codex 路徑（純加法改動）
 - `AGENT_PROVIDER=claude` 行為完全不變
 - Ollama 是成熟專案（85K GitHub stars）
 - C4 可逆性：env var 切換 = 1 秒回退
+- **v3 風險緩解**：
+  - 記憶體預算：`checkMemoryBudget()` — 系統記憶體用量 >60% 時不啟動 local（M2 Pro 16GB → 閾值 ~9.6GB used）
+  - 回應品質 guardrail（空回應/重複/過短 → 自動 fallback 到 Claude）
+  - 模型版本鎖定（`.ollama-models` digest 比對）防止 silent regression
+  - Graceful degradation：local 失敗 → fallthrough 到 callHaiku → callHaiku 也失敗 → 降級到 Claude（三層防線）
 
 ## Phases（分階段交付）
 
 ### Phase 1: 存活層（本提案）
-- Ollama + Qwen3 8B
-- `execLocal()` + provider routing
-- Auto mode（簡單走 local，複雜走 Claude）
-- Claude 失敗自動 fallback 到 local
+- Ollama + Qwen3 8B（版本鎖定，digest 比對）
+- `execLocal()` + provider routing（TaskInfo 追蹤、timeout、audit log、AbortController）
+- `isOllamaAvailable()` 健康檢查（30s 快取 + 模型存在性驗證 + /status 整合）
+- Auto mode（完整決策樹，品質優先保守路由，只介入 haiku lane）
+- 三層 fallback 防線：local → callHaiku → Claude
+- 回應品質 guardrail（空回應/重複/過短偵測 → 自動 fallback）
+- `buildMinimalContext()` 實測 **3.8K chars（~1K tokens）**，在 8K context 內綽綽有餘
+- 記憶體預算檢查（`checkMemoryBudget()`，>60% 用量時不啟動 local）
+- Phase 1 不含 partial output（有意取捨，Phase 2 可加 stream:true + SSE）
 
 ### Phase 2: 長手（後續提案）
 - 自建 Tool Loop（4 工具：bash/read/write/grep）
