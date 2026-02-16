@@ -234,8 +234,8 @@ export class AgentLoop {
 
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
-    // telegram-user has its own dedicated handler — skip here to avoid double trigger
-    if (event.type === 'trigger:telegram-user') return;
+    // telegram events handled exclusively by handleTelegramWake
+    if (event.type === 'trigger:telegram-user' || event.type === 'trigger:telegram') return;
 
     if (!this.running || this.paused || this.cycling) return;
 
@@ -441,8 +441,10 @@ export class AgentLoop {
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
       // ── Per-perception change detection (Phase 4) ──
+      // telegram-user bypasses this check — Alex's messages must never be skipped
       const currentVersion = perceptionStreams.version;
-      if (perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
+      const isTelegramUser = this.triggerReason?.startsWith('telegram-user') ?? false;
+      if (!isTelegramUser && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
         eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
         return null;
       }
