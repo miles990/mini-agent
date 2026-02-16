@@ -1,20 +1,18 @@
 /**
- * Core Agent Loop
+ * LLM Execution Layer (OODA-Only)
  *
- * receive → context → llm → execute → respond
+ * Single loop lane: callClaude() → execProvider() → response
  */
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
-import { getTelegramPoller } from './telegram.js';
-import { getSystemPrompt, postProcess } from './dispatcher.js';
+import { getSystemPrompt } from './dispatcher.js';
 import { eventBus } from './event-bus.js';
-import type { AgentResponse } from './types.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -108,7 +106,7 @@ function classifyError(error: unknown): ErrorClassification {
 // Lane Types
 // =============================================================================
 
-export type CallSource = 'chat' | 'loop';
+export type CallSource = 'loop';
 
 interface TaskInfo {
   prompt: string;
@@ -131,29 +129,16 @@ function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string;
 }
 
 // =============================================================================
-// Dual-Lane Busy Locks (Phase 1a)
+// Loop Lane Busy Lock (OODA-Only)
 // =============================================================================
 
-let chatBusy = false;
 let loopBusy = false;
-let chatTask: TaskInfo | null = null;
 let loopTask: TaskInfo | null = null;
-
-// =============================================================================
-// Preemption State (Phase 1b)
-// =============================================================================
-
-let busyGeneration = 0;
 let loopChildPid: number | null = null;
 
-/** 查詢 Claude CLI 是否正在執行（任一 lane） */
+/** 查詢 Claude CLI 是否正在執行 */
 export function isClaudeBusy(): boolean {
-  return chatBusy || loopBusy;
-}
-
-/** 查詢 chat lane 是否忙碌 */
-export function isChatBusy(): boolean {
-  return chatBusy;
+  return loopBusy;
 }
 
 /** 查詢 loop lane 是否忙碌 */
@@ -161,185 +146,18 @@ export function isLoopBusy(): boolean {
   return loopBusy;
 }
 
-/** 查詢目前正在處理的任務（backward compat: 回傳 chat 優先） */
+/** 查詢目前正在處理的任務 */
 export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
-  return formatTask(chatTask) ?? formatTask(loopTask);
+  return formatTask(loopTask);
 }
 
-/** 查詢雙 lane 狀態 */
+/** 查詢 loop lane 狀態 */
 export function getLaneStatus(): {
-  chat: { busy: boolean; task: ReturnType<typeof formatTask> };
   loop: { busy: boolean; task: ReturnType<typeof formatTask> };
 } {
   return {
-    chat: { busy: chatBusy, task: formatTask(chatTask) },
     loop: { busy: loopBusy, task: formatTask(loopTask) },
   };
-}
-
-// =============================================================================
-// Preemption (Phase 1b)
-// =============================================================================
-
-/**
- * 搶佔 Loop Lane — 殺死正在執行的 loop Claude process
- * 用於：user message 到達時 chatBusy=true，搶佔 loop 釋放資源
- */
-export function preemptLoopCycle(): { preempted: boolean; partialOutput: string | null } {
-  if (!loopBusy || !loopChildPid) {
-    return { preempted: false, partialOutput: null };
-  }
-
-  const pid = loopChildPid;
-  const partial = loopTask?.lastText ?? null;
-
-  // Kill process group (includes child processes like curl)
-  try {
-    process.kill(-pid, 'SIGTERM');
-  } catch { /* already dead */ }
-
-  // SIGKILL fallback after 3s
-  setTimeout(() => {
-    try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
-  }, 3000);
-
-  // Bump generation — any in-flight loop callClaude will detect mismatch
-  busyGeneration++;
-  loopBusy = false;
-  loopTask = null;
-  loopChildPid = null;
-
-  slog('PREEMPT', `Killed loop process group (pid: ${pid}), generation: ${busyGeneration}`);
-  eventBus.emit('action:loop', { event: 'preempted', partialOutput: partial?.slice(0, 100) });
-
-  return { preempted: true, partialOutput: partial };
-}
-
-// =============================================================================
-// Message Queue — chatBusy 時排隊，完成後自動 drain
-// =============================================================================
-
-interface QueueItem {
-  message: string;
-  onComplete?: (result: AgentResponse) => void;
-  queuedAt: number;
-}
-
-const messageQueue: QueueItem[] = [];
-const MAX_QUEUE_SIZE = 5;
-
-/** 查詢 queue 狀態（含排隊訊息摘要） */
-export function getQueueStatus(): { size: number; max: number; items: Array<{ message: string; queuedAt: string; waited: number }> } {
-  return {
-    size: messageQueue.length,
-    max: MAX_QUEUE_SIZE,
-    items: messageQueue.map(item => ({
-      message: item.message.slice(0, 120),
-      queuedAt: new Date(item.queuedAt).toISOString(),
-      waited: Math.floor((Date.now() - item.queuedAt) / 1000),
-    })),
-  };
-}
-
-/** 查詢是否有待處理的排隊訊息 */
-export function hasQueuedMessages(): boolean {
-  return messageQueue.length > 0;
-}
-
-// ── Queue Persistence ──────────────────────────────────────────────────────
-
-interface PersistedQueueEntry {
-  message: string;
-  queuedAt: number;
-  source: 'telegram' | 'api';
-}
-
-function getQueueFilePath(): string | null {
-  try {
-    const instanceId = getCurrentInstanceId();
-    if (!instanceId) return null;
-    return path.join(getInstanceDir(instanceId), 'pending-queue.jsonl');
-  } catch { return null; }
-}
-
-/** 追蹤目前正在處理的訊息（用於持久化） */
-let inFlightMessage: PersistedQueueEntry | null = null;
-
-function saveQueueToDisk(): void {
-  const filePath = getQueueFilePath();
-  if (!filePath) return;
-  try {
-    const entries: PersistedQueueEntry[] = [];
-    // 正在處理中的訊息放最前面（重啟後優先恢復）
-    if (inFlightMessage) entries.push(inFlightMessage);
-    // 接著是排隊中的訊息
-    for (const item of messageQueue) {
-      entries.push({
-        message: item.message,
-        queuedAt: item.queuedAt,
-        source: (item.onComplete ? 'telegram' : 'api') as 'telegram' | 'api',
-      });
-    }
-    if (entries.length === 0) {
-      if (existsSync(filePath)) unlinkSync(filePath);
-      return;
-    }
-    writeFileSync(filePath, entries.map(e => JSON.stringify(e)).join('\n') + '\n', 'utf-8');
-  } catch { /* non-critical */ }
-}
-
-/** 啟動時恢復持久化的 queue（在 Telegram poller 初始化後呼叫） */
-export function restoreQueue(): void {
-  const filePath = getQueueFilePath();
-  if (!filePath || !existsSync(filePath)) return;
-  try {
-    const content = readFileSync(filePath, 'utf-8').trim();
-    if (!content) return;
-    const lines = content.split('\n').filter(l => l.trim());
-    const entries = lines.map(l => JSON.parse(l) as PersistedQueueEntry);
-    for (const entry of entries) {
-      const onComplete = entry.source === 'telegram'
-        ? async (result: AgentResponse) => {
-            const poller = getTelegramPoller();
-            if (!poller || !result.content) return;
-            const sendResult = await poller.sendMessage(result.content);
-            if (sendResult.ok) {
-              slog('QUEUE', `→ [restored] ${result.content.slice(0, 100)}`);
-            }
-          }
-        : undefined;
-      messageQueue.push({ message: entry.message, onComplete, queuedAt: entry.queuedAt });
-    }
-    slog('QUEUE', `Restored ${entries.length} queued message(s) from disk`);
-    unlinkSync(filePath);
-    if (!chatBusy && messageQueue.length > 0) {
-      drainQueue();
-    }
-  } catch (err) {
-    slog('QUEUE', `Failed to restore queue: ${err instanceof Error ? err.message : err}`);
-  }
-}
-
-// ── Queue Drain ────────────────────────────────────────────────────────────
-
-/** 循序處理 queue 中的訊息（FIFO，每次一則） */
-export function drainQueue(): void {
-  if (messageQueue.length === 0 || chatBusy) return;
-
-  // 取出第一則訊息（processMessage 完成後會再呼叫 drainQueue 處理下一則）
-  const item = messageQueue.shift()!;
-  saveQueueToDisk();
-
-  const waitTime = ((Date.now() - item.queuedAt) / 1000).toFixed(0);
-  slog('QUEUE', `Processing queued message (waited ${waitTime}s, ${messageQueue.length} remaining)`);
-
-  setImmediate(() => {
-    processMessage(item.message).then(result => {
-      if (item.onComplete) item.onComplete(result);
-    }).catch(() => {
-      if (item.onComplete) item.onComplete({ content: '處理排隊訊息時發生錯誤。' });
-    });
-  });
 }
 
 /**
@@ -392,7 +210,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = 900_000; // 15 minutes
   const startTs = Date.now();
-  const source = opts?.source ?? 'chat';
+  const source = opts?.source ?? 'loop';
 
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
@@ -442,9 +260,6 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }, 5000);
     }, TIMEOUT_MS);
 
-    // Per-lane task reference
-    const getTask = (): TaskInfo | null => source === 'loop' ? loopTask : chatTask;
-
     child.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf-8');
       // 逐行解析 stream-json
@@ -463,18 +278,16 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 const toolName = block.name ?? 'unknown';
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
-                // 即時更新 per-lane task — 讓 /status 顯示正在做什麼
-                const task = getTask();
-                if (task) {
+                // 即時更新 task — 讓 /status 顯示正在做什麼
+                if (loopTask) {
                   const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? toolInput.url ?? '';
-                  task.toolCalls = toolCallCount;
-                  task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                  loopTask.toolCalls = toolCallCount;
+                  loopTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
                 }
               } else if (block.type === 'text' && block.text) {
                 // 即時更新最新思考文字
-                const task = getTask();
-                if (task) {
-                  task.lastText = block.text.slice(0, 200);
+                if (loopTask) {
+                  loopTask.lastText = block.text.slice(0, 200);
                 }
                 // 累積文字（備用，result 事件優先）
                 if (!resultText) resultText = block.text;
@@ -551,7 +364,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
  */
 async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
-  const source = opts?.source ?? 'chat';
+  const source = opts?.source ?? 'loop';
 
   // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
@@ -581,9 +394,6 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     let stderr = '';
     let toolCallCount = 0;
 
-    // Per-lane task reference
-    const getTask = (): TaskInfo | null => source === 'loop' ? loopTask : chatTask;
-
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {
       if (settled) return;
@@ -610,20 +420,18 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
             const item = event.item;
             if (item.type === 'agent_message' && item.text) {
               resultText = item.text;
-              const task = getTask();
-              if (task) {
-                task.lastText = item.text.slice(0, 200);
+              if (loopTask) {
+                loopTask.lastText = item.text.slice(0, 200);
               }
             } else if (item.type === 'tool_call') {
               toolCallCount++;
               const toolName = item.tool ?? 'unknown';
               const toolInput = (item.input ?? item.args ?? {}) as Record<string, unknown>;
               writeAuditLog(toolName, toolInput);
-              const task = getTask();
-              if (task) {
+              if (loopTask) {
                 const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? '';
-                task.toolCalls = toolCallCount;
-                task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                loopTask.toolCalls = toolCallCount;
+                loopTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
               }
             }
           }
@@ -691,15 +499,15 @@ export async function callClaude(
     onPartialOutput?: (text: string) => void;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
-  const source = options?.source ?? 'chat';
+  const source = options?.source ?? 'loop';
   const systemPrompt = getSystemPrompt(prompt);
   let currentContext = context;
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
-  // Per-lane busy helpers
-  const isBusy = () => source === 'loop' ? loopBusy : chatBusy;
-  const setBusy = (v: boolean) => { if (source === 'loop') loopBusy = v; else chatBusy = v; };
-  const setTask = (v: TaskInfo | null) => { if (source === 'loop') loopTask = v; else chatTask = v; };
+  // Busy helpers (OODA-Only: single loop lane)
+  const isBusy = () => loopBusy;
+  const setBusy = (v: boolean) => { loopBusy = v; };
+  const setTask = (v: TaskInfo | null) => { loopTask = v; };
 
   // Busy guard — 防止同一 lane 並發呼叫
   if (isBusy()) {
@@ -729,19 +537,11 @@ export async function callClaude(
     setBusy(true);
     setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
 
-    // Capture generation for preemption detection (loop only)
-    const gen = busyGeneration;
-
     try {
       const result = await execProvider(primary, fullPrompt, {
         source,
         onPartialOutput: options?.onPartialOutput,
       });
-
-      // Preemption check: if generation changed during exec, we were preempted
-      if (source === 'loop' && gen !== busyGeneration) {
-        return { response: '', systemPrompt, fullPrompt, duration: Date.now() - startTime, preempted: true };
-      }
 
       const duration = Date.now() - startTime;
 
@@ -754,11 +554,6 @@ export async function callClaude(
 
       return { response: result.trim(), systemPrompt, fullPrompt, duration };
     } catch (error) {
-      // Preemption check: killed process throws error, detect via generation mismatch
-      if (source === 'loop' && gen !== busyGeneration) {
-        return { response: '', systemPrompt, fullPrompt, duration: Date.now() - startTime, preempted: true };
-      }
-
       const duration = Date.now() - startTime;
       const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
       const exitCode = (error as { status?: number })?.status;
@@ -839,153 +634,3 @@ export async function callClaude(
   return { response: lastErrorMessage, systemPrompt, fullPrompt, duration: Date.now() - startTime };
 }
 
-/**
- * Process a user message
- * chatBusy 時自動排隊，立即回傳 ack（非阻塞）
- * @param onQueueComplete — 排隊訊息處理完成後的回調（用於 Telegram 發送回覆）
- */
-export async function processMessage(
-  userMessage: string,
-  onQueueComplete?: (result: AgentResponse) => void,
-): Promise<AgentResponse> {
-  // Queue 機制：chat lane busy 時排隊，立即回傳 ack
-  if (chatBusy) {
-    // 嘗試搶佔 loop lane 釋放系統資源
-    if (loopBusy) {
-      preemptLoopCycle();
-    }
-
-    if (messageQueue.length >= MAX_QUEUE_SIZE) {
-      return {
-        content: `目前排隊已滿（${MAX_QUEUE_SIZE}/${MAX_QUEUE_SIZE}），請稍後再試。`,
-        queued: false,
-      };
-    }
-    const position = messageQueue.length + 1;
-    slog('QUEUE', `Message queued (position ${position}/${MAX_QUEUE_SIZE}): ${userMessage.slice(0, 80)}`);
-    messageQueue.push({ message: userMessage, onComplete: onQueueComplete, queuedAt: Date.now() });
-    saveQueueToDisk(); // 入列後同步寫入磁碟
-    return {
-      content: `訊息已排隊（第 ${position}/${MAX_QUEUE_SIZE} 位），會在目前的任務完成後處理。`,
-      queued: true,
-      position,
-    };
-  }
-
-  // 持久化：標記為處理中（重啟後會恢復到 queue）
-  inFlightMessage = {
-    message: userMessage,
-    queuedAt: Date.now(),
-    source: onQueueComplete ? 'telegram' : 'api',
-  };
-  saveQueueToDisk();
-
-  // 使用當前實例的記憶系統和日誌系統
-  const memory = getMemory();
-  const logger = getLogger();
-
-  // 1. Build context from memory (pass user message as relevance hint for smart topic loading)
-  const context = await memory.buildContext({ relevanceHint: userMessage });
-
-  // 2. Call Claude (now returns friendly error as response instead of throwing)
-  const claudeResult = await callClaude(userMessage, context, 2, {
-    rebuildContext: (mode) => memory.buildContext({ mode, relevanceHint: userMessage }),
-  });
-
-  const { response, systemPrompt, fullPrompt, duration } = claudeResult;
-
-  // 3. Post-process（tag parsing + memory + log）— 統一由 dispatcher 處理
-  const result = await postProcess(userMessage, response, {
-    lane: 'claude',
-    duration,
-    source: 'api',
-    systemPrompt,
-    context,
-  });
-
-  // 處理完成：清除 in-flight 標記並持久化
-  inFlightMessage = null;
-  saveQueueToDisk();
-
-  // 處理完成後 drain queue（觸發下一則排隊訊息）
-  drainQueue();
-
-  // 通知 AgentLoop 有 /chat 訊息被處理，喚醒 idle 中的 cycle
-  eventBus.emit('trigger:chat', { source: 'api' });
-
-  return result;
-}
-
-/**
- * Process a system message (cron, heartbeat) — uses loop lane to not block user chat
- *
- * [Claude Code] messages get special treatment:
- * - skipHistory: don't pollute conversation history (prevents identity confusion in chat lane)
- * - suppressChat: don't send [CHAT]/[SHOW]/[SUMMARY] to TG (prevents interleaving with Alex↔Kuro conversation)
- */
-export async function processSystemMessage(message: string): Promise<AgentResponse> {
-  const memory = getMemory();
-  const context = await memory.buildContext({ mode: 'focused', relevanceHint: message });
-
-  const { response, systemPrompt, duration, preempted } = await callClaude(message, context, 2, {
-    rebuildContext: (mode) => memory.buildContext({ mode, relevanceHint: message }),
-    source: 'loop',
-  });
-
-  if (preempted) {
-    return { content: '系統任務被搶佔（用戶訊息優先）。' };
-  }
-
-  // [Claude Code] messages: isolate from conversation history and TG notifications
-  const isClaudeCode = message.startsWith('[Claude Code]');
-
-  return postProcess(message, response, {
-    lane: 'claude', duration, source: 'cron', systemPrompt, context,
-    ...(isClaudeCode && { skipHistory: true, suppressChat: true }),
-  });
-}
-
-/**
- * Run heartbeat check
- */
-export async function runHeartbeat(): Promise<string | null> {
-  const memory = getMemory();
-  const logger = getLogger();
-  const context = await memory.buildContext();
-
-  // Check if there are active tasks (look for unchecked checkboxes)
-  if (!context.includes('- [ ]')) {
-    logger.logCron('heartbeat', 'No active tasks', 'scheduled');
-    return null; // No tasks to process
-  }
-
-  const prompt = `You are checking your HEARTBEAT tasks.
-Review the active tasks and:
-1. If any task can be completed now, do it and mark it done
-2. If any task needs attention, take action
-3. Report what you did (or "No action needed" if nothing to do)
-
-Keep response brief.`;
-
-  try {
-    const { response, systemPrompt, fullPrompt, duration } = await callClaude(prompt, context, 2, {
-      rebuildContext: (mode) => memory.buildContext({ mode }),
-    });
-    // 結構化記錄 Claude 呼叫
-    logger.logClaudeCall(
-      { userMessage: prompt, systemPrompt, context: `[${context.length} chars]`, fullPrompt },
-      { content: response },
-      { duration, success: true, mode: 'heartbeat' }
-    );
-    // Heartbeat 結果記錄為 assistant 對話
-    await memory.appendConversation('assistant', `[Heartbeat] ${response}`);
-    logger.logCron('heartbeat', response.slice(0, 200), 'scheduled', { duration, success: true });
-    return response;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.logError(error instanceof Error ? error : new Error(errorMsg), 'runHeartbeat');
-    logger.logCron('heartbeat', undefined, 'scheduled', { success: false, error: errorMsg });
-    console.error('Heartbeat error:', error);
-    return null;
-  }
-}

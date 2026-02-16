@@ -175,8 +175,6 @@ export interface AgentResponse {
   content: string;
   shouldRemember?: string;
   taskAdded?: string;
-  queued?: boolean;
-  position?: number;
 }
 
 // =============================================================================
@@ -284,14 +282,6 @@ export interface DispatchRequest {
   message: string;
   source: DispatchSource;
   contextMode?: 'full' | 'focused' | 'minimal';
-  /** 排隊訊息完成後的回調（用於 Telegram 發回覆） */
-  onQueueComplete?: (result: AgentResponse) => void;
-}
-
-/** Triage 結果 */
-export interface TriageDecision {
-  lane: 'claude' | 'haiku';
-  reason: string;
 }
 
 /** Thread 操作類型 */
@@ -356,11 +346,3 @@ export interface ConversationThread {
 /** 通知分級 — Calm Technology 三層模型 */
 export type NotificationTier = 'signal' | 'summary' | 'heartbeat';
 
-/** 單一 Lane 的統計 */
-export interface LaneStats {
-  active: number;
-  waiting: number;
-  max: number;
-  totalCalls: number;
-  totalMs: number;
-}

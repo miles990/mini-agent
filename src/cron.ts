@@ -5,7 +5,9 @@
  */
 
 import cron from 'node-cron';
-import { dispatch } from './dispatcher.js';
+import { postProcess } from './dispatcher.js';
+import { callClaude } from './agent.js';
+import { buildContext } from './memory.js';
 import { getLogger } from './logging.js';
 import { slog } from './api.js';
 import { diagLog } from './utils.js';
@@ -50,7 +52,12 @@ export function startCronTasks(tasks: CronTask[]): void {
       const cronStart = Date.now();
 
       try {
-        const response = await dispatch({ message: task.task, source: 'cron' });
+        const context = await buildContext();
+        const result = await callClaude(task.task, context, 2, { source: 'loop' });
+        const response = await postProcess(task.task, result.response, {
+          lane: 'cron', duration: result.duration, source: 'cron',
+          systemPrompt: result.systemPrompt, context,
+        });
         const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
         slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
         logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
@@ -151,7 +158,12 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
     const cronStart = Date.now();
 
     try {
-      const response = await dispatch({ message: task.task, source: 'cron' });
+      const context = await buildContext();
+        const result = await callClaude(task.task, context, 2, { source: 'loop' });
+        const response = await postProcess(task.task, result.response, {
+          lane: 'cron', duration: result.duration, source: 'cron',
+          systemPrompt: result.systemPrompt, context,
+        });
       const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
       slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
       logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {

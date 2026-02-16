@@ -11,7 +11,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { dispatch } from './dispatcher.js';
 import { slog } from './api.js';
 import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
@@ -397,115 +396,22 @@ export class TelegramPoller {
     this.flushTimer = setTimeout(() => this.flushBuffer(), this.batchWaitMs);
   }
 
-  private async flushBuffer(): Promise<void> {
+  private flushBuffer(): void {
     this.flushTimer = null;
     if (this.messageBuffer.length === 0) return;
 
-    // Prevent concurrent processing
-    if (this.processing) {
-      // Re-schedule: there are messages waiting but we're busy
-      this.scheduleFlush();
-      return;
+    // Count messages being flushed (all buffered messages go to inbox, which is already written)
+    const count = this.messageBuffer.length;
+    if (count > 1) {
+      slog('TELEGRAM', `Batched ${count} messages`);
     }
 
-    this.processing = true;
+    // Clear buffer — messages are already in inbox (written by handleUpdate)
+    this.messageBuffer.length = 0;
 
-    // Group by time proximity — only combine messages within batchWaitMs of each other.
-    // Messages separated by >3s get their own processing round (each gets its own response).
-    const group: ParsedMessage[] = [this.messageBuffer.shift()!];
-    while (this.messageBuffer.length > 0) {
-      const lastTs = new Date(group[group.length - 1].timestamp).getTime();
-      const nextTs = new Date(this.messageBuffer[0].timestamp).getTime();
-      if (nextTs - lastTs <= this.batchWaitMs) {
-        group.push(this.messageBuffer.shift()!);
-      } else {
-        break;
-      }
-    }
-
-    try {
-      // Combine messages within the group into one prompt
-      let combined: string;
-      if (group.length === 1) {
-        combined = group[0].text;
-      } else {
-        // Multiple rapid messages → combine with context
-        combined = group.map(m => m.text).join('\n\n');
-        slog('TELEGRAM', `Batched ${group.length} messages`);
-      }
-
-      // Pass callback for queued messages — actual response sent when processed
-      const messageCopy = [...group];
-      const response = await dispatch({ message: combined, source: 'telegram', onQueueComplete: async (queueResult) => {
-        // Queued message has been processed — send the actual response
-        const replyText = queueResult.content;
-        if (!replyText || !replyText.trim()) {
-          slog('TELEGRAM', `Empty reply from queued dispatch — skipping send`);
-          for (const m of messageCopy) {
-            this.markInboxProcessed(m.timestamp, m.sender);
-          }
-          return;
-        }
-        const result = await this.sendLongMessage(replyText);
-        if (result.ok) {
-          slog('TELEGRAM', `→ [queued] ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
-          try {
-            const logger = getLogger();
-            logger.logBehavior('agent', 'telegram.reply', `[queued] ${replyText.slice(0, 200)}`);
-          } catch { /* logger not ready */ }
-        } else {
-          this.logFailedReply(replyText, result);
-          await this.notifyError('send', result, replyText.length);
-        }
-        for (const m of messageCopy) {
-          this.markInboxProcessed(m.timestamp, m.sender);
-        }
-      } });
-
-      if (response.queued) {
-        // Send ack to user — message is queued for later processing
-        await this.sendMessage(`📬 ${response.content}`);
-        slog('TELEGRAM', `→ [queued ack] position ${response.position}`);
-        // Don't markInboxProcessed yet — callback will do it when actually processed
-      } else {
-        // Normal flow — send response immediately
-        const replyText = response.content;
-        if (!replyText || !replyText.trim()) {
-          slog('TELEGRAM', `Empty reply from dispatch — skipping send`);
-          for (const m of group) {
-            this.markInboxProcessed(m.timestamp, m.sender);
-          }
-          return;
-        }
-        const result = await this.sendLongMessage(replyText);
-        if (result.ok) {
-          slog('TELEGRAM', `→ ${replyText.slice(0, 100)}${replyText.length > 100 ? '...' : ''}`);
-          try {
-            const logger = getLogger();
-            logger.logBehavior('agent', 'telegram.reply', replyText.slice(0, 200));
-          } catch { /* logger not ready */ }
-        } else {
-          this.logFailedReply(replyText, result);
-          await this.notifyError('send', result, replyText.length);
-        }
-        for (const m of group) {
-          this.markInboxProcessed(m.timestamp, m.sender);
-        }
-      }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.stack ?? err.message : String(err);
-      slog('TELEGRAM', `Process error: ${errMsg}`);
-      await this.notifyError('process', { ok: false, error: errMsg, status: 0 });
-    } finally {
-      this.processing = false;
-      eventBus.emit('trigger:telegram', { messageCount: group.length });
-      // Trigger loop cycle so Kuro sees Alex's message in full OODA context
-      eventBus.emit('trigger:telegram-user', { messageCount: group.length });
-      // Flush remaining buffered messages (from different time groups)
-      if (this.messageBuffer.length > 0) {
-        this.scheduleFlush();
-      }
-    }
+    // Emit events to trigger OODA cycle
+    eventBus.emit('trigger:telegram', { messageCount: count });
+    eventBus.emit('trigger:telegram-user', { messageCount: count });
   }
 
   // ---------------------------------------------------------------------------

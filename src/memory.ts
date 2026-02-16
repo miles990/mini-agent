@@ -35,7 +35,7 @@ import type {
   ActivitySummary,
 } from './workspace.js';
 import { getTelegramPoller, getNotificationStats } from './telegram.js';
-import { getQueueStatus, getProvider, getFallback } from './agent.js';
+import { getProvider, getFallback } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry, ConversationThread } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
@@ -1194,11 +1194,9 @@ export class InstanceMemory {
     // ── Telegram 健康度（核心感知，總是載入）──
     const tgPoller = getTelegramPoller();
     const tgStats = getNotificationStats();
-    const queueStatus = getQueueStatus();
     const tgSection = [
       `Connected: ${tgPoller ? 'yes' : 'no'}`,
       `Notifications: ${tgStats.sent} sent, ${tgStats.failed} failed`,
-      `Queue: ${queueStatus.size}/${queueStatus.max}`,
     ].join('\n');
     sections.push(`<telegram>\n${tgSection}\n</telegram>`);
 
@@ -1448,8 +1446,7 @@ export class InstanceMemory {
     // TG 狀態（極小）
     const tgPoller = getTelegramPoller();
     const tgStats = getNotificationStats();
-    const queueStatus = getQueueStatus();
-    sections.push(`<telegram>\nConnected: ${tgPoller ? 'yes' : 'no'}\nNotifications: ${tgStats.sent} sent, ${tgStats.failed} failed\nQueue: ${queueStatus.size}/${queueStatus.max}\n</telegram>`);
+    sections.push(`<telegram>\nConnected: ${tgPoller ? 'yes' : 'no'}\nNotifications: ${tgStats.sent} sent, ${tgStats.failed} failed\n</telegram>`);
 
     // Soul — 只取核心身份（到 Learning Interests 之前）
     if (soul) {

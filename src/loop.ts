@@ -14,11 +14,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { callClaude, hasQueuedMessages, drainQueue } from './agent.js';
+import { callClaude } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
+import { notifyTelegram } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -690,8 +691,22 @@ export class AgentLoop {
         topics: touchedTopics,
       }).catch(() => {});
 
-      // Loop cycle 結束後 drain queue（TG 排隊訊息可能在等 chatBusy 釋放）
-      if (hasQueuedMessages()) drainQueue();
+      // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
+      if (currentTriggerReason?.startsWith('telegram-user')) {
+        // 回覆內容優先順序：[CHAT] tag > cleanContent（排除 [ACTION] 區塊）
+        const replyContent = tags.chats.length > 0
+          ? tags.chats.join('\n\n')
+          : tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+
+        if (replyContent) {
+          notifyTelegram(replyContent).catch((err) => {
+            slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
+          });
+          // 已透過 OODA reply 發送，不要重複透過 action:chat 事件發
+          // 清空 chats 避免 observability.ts 再次發送
+          tags.chats.length = 0;
+        }
+      }
 
       // 檢查 approved proposals → 自動建立 handoff
       await checkApprovedProposals();

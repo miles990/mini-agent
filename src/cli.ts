@@ -23,8 +23,9 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
-import { dispatch } from './dispatcher.js';
-import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
+import { postProcess } from './dispatcher.js';
+import { callClaude } from './agent.js';
+import { searchMemory, appendMemory, createMemory, getMemory, setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, buildContext } from './memory.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -855,6 +856,23 @@ Examples:
 
 
 // =============================================================================
+// CLI Dispatch — callClaude + postProcess (OODA-Only)
+// =============================================================================
+
+async function cliDispatch(message: string): Promise<{ content: string; shouldRemember?: string; taskAdded?: string }> {
+  const context = await buildContext();
+  const result = await callClaude(message, context, 2, { source: 'loop' });
+  const processed = await postProcess(message, result.response, {
+    lane: 'cli',
+    duration: result.duration,
+    source: 'cli',
+    systemPrompt: result.systemPrompt,
+    context,
+  });
+  return processed;
+}
+
+// =============================================================================
 // Pipe Mode
 // =============================================================================
 
@@ -877,7 +895,7 @@ async function runPipeMode(prompt: string): Promise<void> {
   const fullPrompt = `${prompt}\n\n---\n\n${input}`;
 
   try {
-    const response = await dispatch({ message: fullPrompt, source: 'cli' });
+    const response = await cliDispatch(fullPrompt);
     console.log(response.content);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
@@ -918,7 +936,7 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
   }
 
   try {
-    const response = await dispatch({ message: fullPrompt, source: 'cli' });
+    const response = await cliDispatch(fullPrompt);
     console.log(response.content);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
@@ -932,7 +950,7 @@ async function runFileMode(files: string[], prompt: string): Promise<void> {
 
 async function runPromptMode(prompt: string): Promise<void> {
   try {
-    const response = await dispatch({ message: prompt, source: 'cli' });
+    const response = await cliDispatch(prompt);
     console.log(response.content);
 
     if (response.shouldRemember) {
@@ -1301,7 +1319,7 @@ function prompt(): void {
     agentLoop?.pause();
     try {
       console.log('\n[Thinking...]\n');
-      const response = await dispatch({ message: trimmed, source: 'cli' });
+      const response = await cliDispatch(trimmed);
       console.log(response.content);
 
       if (response.shouldRemember) {

@@ -9,8 +9,7 @@ import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getQueueStatus, hasQueuedMessages, restoreQueue, getProvider, getFallback, getLaneStatus } from './agent.js';
-import { dispatch, getLaneStats } from './dispatcher.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getLaneStatus } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -400,7 +399,7 @@ export function createApi(port = 3001): express.Express {
     });
   });
 
-  // Unified status — 聚合所有子系統狀態
+  // Unified status — 聚合所有子系統狀態 (OODA-Only)
   app.get('/status', (_req: Request, res: Response) => {
     const laneStatus = getLaneStatus();
     res.json({
@@ -408,11 +407,8 @@ export function createApi(port = 3001): express.Express {
       uptime: Math.floor(process.uptime()),
       claude: {
         busy: isClaudeBusy(),
-        chat: laneStatus.chat,
         loop: laneStatus.loop,
-        queue: getQueueStatus(),
       },
-      lanes: getLaneStats(),
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
       cron: { active: getCronTaskCount() },
       telegram: {
@@ -546,6 +542,8 @@ export function createApi(port = 3001): express.Express {
   // Chat
   // =============================================================================
 
+  // OODA-Only: /chat writes to inbox and triggers OODA cycle
+  // Response will be delivered via Telegram (not HTTP)
   app.post('/chat', async (req: Request, res: Response) => {
     const { message } = req.body;
 
@@ -555,27 +553,21 @@ export function createApi(port = 3001): express.Express {
     }
 
     slog('CHAT', `← "${message.slice(0, 80)}${message.length > 80 ? '...' : ''}"`);
-    const chatStart = Date.now();
 
     try {
-      // 排隊訊息處理完成時，透過 TG 發送回覆（因為 HTTP 連線已斷）
-      const onQueueComplete = async (result: { content: string }) => {
-        const poller = getTelegramPoller();
-        if (!poller || !result.content) return;
-        await poller.sendMessage(result.content);
-        slog('CHAT', `→ [queued-reply] ${result.content.slice(0, 80)}${result.content.length > 80 ? '...' : ''}`);
-      };
+      // Write to claude-code-inbox (file-based notification)
+      const inboxPath = path.join(os.homedir(), '.mini-agent', 'claude-code-inbox.md');
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const entry = `[${timestamp}] ${message}\n`;
+      await fsPromises.appendFile(inboxPath, entry, 'utf-8');
 
-      const response = await dispatch({ message, source: 'api', onQueueComplete });
-      const elapsed = ((Date.now() - chatStart) / 1000).toFixed(1);
+      // Emit trigger to wake OODA cycle
+      eventBus.emit('trigger:telegram', { source: 'api', messageCount: 1 });
 
-      if (response.queued) {
-        slog('CHAT', `→ [queued] position ${response.position} (${elapsed}s)`);
-        res.status(202).json(response);
-      } else {
-        slog('CHAT', `→ "${response.content.slice(0, 80)}${response.content.length > 80 ? '...' : ''}" (${elapsed}s)`);
-        res.json(response);
-      }
+      slog('CHAT', `→ [inbox] message queued for OODA cycle`);
+      res.status(202).json({
+        content: '訊息已收到，將在下一個 OODA cycle 中處理。',
+      });
     } catch (error) {
       slog('ERROR', `Chat failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({
@@ -1543,8 +1535,7 @@ if (isMain) {
       telegramPoller.start();
     }
 
-    // 恢復上次中斷的 queue（Telegram poller 須先初始化）
-    restoreQueue();
+    // OODA-Only: no queue to restore
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {
@@ -1567,17 +1558,16 @@ if (isMain) {
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
 
-    // Wait for in-flight Claude CLI call + queued messages to finish
-    if (isClaudeBusy() || hasQueuedMessages()) {
-      const reason = isClaudeBusy() ? 'Claude CLI call' : 'queued messages';
-      slog('SERVER', `Waiting for ${reason} to finish...`);
+    // Wait for in-flight Claude CLI call to finish
+    if (isClaudeBusy()) {
+      slog('SERVER', 'Waiting for Claude CLI call to finish...');
       const maxWait = 600_000; // 10 minutes (> 8 min timeout)
       const start = Date.now();
-      while ((isClaudeBusy() || hasQueuedMessages()) && Date.now() - start < maxWait) {
+      while (isClaudeBusy() && Date.now() - start < maxWait) {
         await new Promise(r => setTimeout(r, 2000));
       }
-      if (isClaudeBusy() || hasQueuedMessages()) {
-        slog('SERVER', `Still busy/queued after ${maxWait / 1000}s, forcing exit`);
+      if (isClaudeBusy()) {
+        slog('SERVER', `Still busy after ${maxWait / 1000}s, forcing exit`);
       } else {
         slog('SERVER', `All tasks finished after ${((Date.now() - start) / 1000).toFixed(0)}s`);
       }

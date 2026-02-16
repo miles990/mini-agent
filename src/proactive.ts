@@ -1,11 +1,14 @@
 /**
- * Proactive System - Cron-based heartbeat
+ * Proactive System - Legacy cron-based heartbeat
  *
- * Periodically checks HEARTBEAT.md and executes tasks
+ * In OODA-Only architecture, this is superseded by AgentLoop (loop.ts) + Cron (cron.ts).
+ * Kept for backwards compatibility — startProactive() no-ops when loop is active.
  */
 
 import cron from 'node-cron';
-import { runHeartbeat } from './agent.js';
+import { callClaude } from './agent.js';
+import { postProcess } from './dispatcher.js';
+import { buildContext } from './memory.js';
 import { getLogger } from './logging.js';
 
 let heartbeatTask: cron.ScheduledTask | null = null;
@@ -75,4 +78,20 @@ export async function triggerHeartbeat(): Promise<string | null> {
   logger.logCron('manual-trigger', 'Manual heartbeat triggered');
   console.log('[Proactive] Manual heartbeat triggered');
   return runHeartbeat();
+}
+
+/** Internal heartbeat via callClaude */
+async function runHeartbeat(): Promise<string | null> {
+  try {
+    const prompt = 'Check HEARTBEAT.md for pending tasks and execute them if any.';
+    const context = await buildContext();
+    const result = await callClaude(prompt, context, 2, { source: 'loop' });
+    await postProcess(prompt, result.response, {
+      lane: 'heartbeat', duration: result.duration, source: 'proactive',
+      systemPrompt: result.systemPrompt, context,
+    });
+    return result.response;
+  } catch {
+    return null;
+  }
 }

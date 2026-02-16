@@ -29,10 +29,10 @@ export type {
 } from './types.js';
 
 // Agent
-export { processMessage, runHeartbeat, type Message } from './agent.js';
+export { callClaude, type Message } from './agent.js';
 
 // Dispatcher
-export { dispatch, parseTags, getLaneStats, Semaphore, triageMessage } from './dispatcher.js';
+export { parseTags, postProcess, getSystemPrompt, Semaphore } from './dispatcher.js';
 
 // Memory (instance-aware)
 export {
