@@ -647,6 +647,19 @@ export class AgentLoop {
         memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
       }
 
+      // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
+      // Must run BEFORE action:chat emission to prevent duplicate sends
+      if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
+        const replyContent = tags.chats.join('\n\n');
+        if (replyContent) {
+          notifyTelegram(replyContent).catch((err) => {
+            slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
+          });
+          // Clear chats — already sent via OODA reply, skip action:chat to prevent duplicate
+          tags.chats.length = 0;
+        }
+      }
+
       for (const chatText of tags.chats) {
         eventBus.emit('action:chat', { text: chatText });
       }
@@ -714,20 +727,13 @@ export class AgentLoop {
         topics: touchedTopics,
       }).catch(() => {});
 
-      // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
-      if (currentTriggerReason?.startsWith('telegram-user')) {
-        // 回覆內容優先順序：[CHAT] tag > cleanContent（排除 [ACTION] 區塊）
-        const replyContent = tags.chats.length > 0
-          ? tags.chats.join('\n\n')
-          : tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
-
-        if (replyContent) {
-          notifyTelegram(replyContent).catch((err) => {
+      // ── Telegram Reply fallback（telegram-user 但無 [CHAT] tag → 用 cleanContent） ──
+      if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
+        const fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+        if (fallbackContent) {
+          notifyTelegram(fallbackContent).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
-          // 已透過 OODA reply 發送，不要重複透過 action:chat 事件發
-          // 清空 chats 避免 observability.ts 再次發送
-          tags.chats.length = 0;
         }
       }
 
