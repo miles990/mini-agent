@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { callClaude, preemptLoopCycle } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -289,6 +289,16 @@ export class AgentLoop {
     }
 
     // Not in a cycle → trigger immediately
+    // But if loopBusy (held by CRON or other non-cycle caller), preempt first
+    if (isLoopBusy()) {
+      slog('LOOP', `Preempting busy state for telegram-user (non-cycle)`);
+      preemptLoopCycle();
+      setTimeout(() => {
+        this.triggerReason = 'telegram-user';
+        this.runCycle();
+      }, 500);
+      return;
+    }
     this.triggerReason = 'telegram-user';
     this.runCycle();
   };
