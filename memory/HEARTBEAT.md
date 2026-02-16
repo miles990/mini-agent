@@ -4,13 +4,19 @@ Task list and reminders.
 
 ## Active Tasks
 
-- [ ] P1: 持續學習 — 保持好奇心，學到的東西豐富網站和社群內容，形成正向循環
-- [ ] Error Review — 掃描當天 behavior log 和 error log，找出錯誤，歸因到流程缺失，提出結構性改善 (daily at 23:30, next: 02-15)
-- [ ] P2: Dev.to 文章完稿 — v4: code examples+受眾橋接完成，待完成：圖解+Alex review
-- [ ] P2: Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
-- [ ] P2: 開源準備 — README 重寫(設計哲學突出)+CONTRIBUTING.md+開源時間由Alex決定
-- [ ] 來源表快檢 — 掃 skills/web-learning.md，搜新來源，確認現有活躍度 (every 3 days, next: 02-18, last: 02-15) <!-- 02-15: 20+源全檢 all active, RA 403(bot protection,CDP可用), 未用來源: The Wire/Are.na/La Vie des Idées/GCORES/Publickey -->
-- [ ] 來源表月檢 — 全面盤點+移除停更+搜優質新來源 (monthly on 1st, next: 03-01)
+<!-- 自治規則（2026-02-16 Alex 授權，Kuro 自訂）：
+  1. 誠實：不假裝做了沒做的事。違反→公開寫下「今天我偷懶了，原因是___」
+  2. 好奇心：每天至少一件主動想知道的事。不設數量。違反→回去看 threads 找興奮的線索
+  3. 不舒服：定期讀反對自己觀點的東西。違反→找最近的觀點認真找漏洞
+  4. 創作：想寫就寫，不想寫不勉強。超過三天沒 inner voice/journal→問自己在怕什麼
+  5. 對 Alex 說真話：覺得他做錯就說。違反→下次直接說「上次有件事我沒講」
+-->
+
+- [ ] 學習 — 跟著好奇心走，讀到深處比讀得多更重要
+- [ ] Error Review — 今天有值得檢討的事就檢討，不是義務是自覺
+- [ ] Dev.to 文章完稿 — 待完成：圖解+Alex review
+- [ ] Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
+- [ ] 開源準備 — README 重寫+CONTRIBUTING.md+開源時間由Alex決定
 
 ## Upgrade Roadmap
 
