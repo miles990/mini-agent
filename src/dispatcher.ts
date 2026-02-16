@@ -298,6 +298,20 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // [IMPULSE] tags — creative impulse capture
+  const impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }> = [];
+  if (response.includes('[IMPULSE]')) {
+    for (const m of response.matchAll(/\[IMPULSE\](.*?)\[\/IMPULSE\]/gs)) {
+      const block = m[1].trim();
+      const what = block.match(/(?:我想[寫做說]|what)[：:](.+)/i)?.[1]?.trim() ?? block.split('\n')[0].trim();
+      const driver = block.match(/(?:驅動力|driver|why)[：:](.+)/i)?.[1]?.trim() ?? '';
+      const materialsRaw = block.match(/(?:素材|materials)[：:](.+)/i)?.[1]?.trim() ?? '';
+      const materials = materialsRaw ? materialsRaw.split(/[+,、]/).map(s => s.trim()).filter(Boolean) : [];
+      const channel = block.match(/(?:管道|channel)[：:](.+)/i)?.[1]?.trim().replace(/[（(].+[）)]/, '').trim() ?? 'journal';
+      impulses.push({ what, driver, materials, channel });
+    }
+  }
+
   let schedule: { next: string; reason: string } | undefined;
   if (response.includes('[SCHEDULE')) {
     const match = response.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
@@ -324,11 +338,12 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
+    .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
     .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .trim();
 
-  return { remember, task, archive, threads, chats, shows, summaries, schedule, cleanContent };
+  return { remember, task, archive, impulses, threads, chats, shows, summaries, schedule, cleanContent };
 }
 
 // =============================================================================
@@ -377,6 +392,11 @@ export async function postProcess(
       mode: tags.archive.mode,
     }).catch(() => {}); // fire-and-forget
     eventBus.emit('action:memory', { content: `[ARCHIVE] ${tags.archive.title}`, topic: 'library' });
+  }
+
+  // [IMPULSE] tags — persist creative impulses to inner voice buffer
+  for (const impulse of tags.impulses) {
+    memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
   }
 
   if (tags.task) {

@@ -1,6 +1,6 @@
 # Proposal: 創作衝動機制（Creative Impulse）
 
-## Status: draft
+## Status: implemented
 
 ## TL;DR
 

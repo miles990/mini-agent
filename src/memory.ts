@@ -686,6 +686,70 @@ export class InstanceMemory {
     ).join('\n')}\n</forgotten-knowledge>`;
   }
 
+  // =========================================================================
+  // Inner Voice Buffer — 創作衝動的捕捉與持久化
+  // =========================================================================
+
+  private getImpulseBufferPath(): string {
+    return path.join(this.memoryDir, '.inner-voice-buffer.json');
+  }
+
+  async getImpulses(): Promise<import('./types.js').CreativeImpulse[]> {
+    try {
+      const raw = await fs.readFile(this.getImpulseBufferPath(), 'utf-8');
+      return JSON.parse(raw) as import('./types.js').CreativeImpulse[];
+    } catch {
+      return [];
+    }
+  }
+
+  async addImpulse(impulse: Omit<import('./types.js').CreativeImpulse, 'id' | 'createdAt'>): Promise<void> {
+    const impulses = await this.getImpulses();
+    const entry: import('./types.js').CreativeImpulse = {
+      id: crypto.randomUUID().slice(0, 8),
+      createdAt: new Date().toISOString(),
+      ...impulse,
+    };
+    impulses.push(entry);
+    await fs.writeFile(this.getImpulseBufferPath(), JSON.stringify(impulses, null, 2), 'utf-8');
+  }
+
+  async markImpulseExpressed(id: string): Promise<void> {
+    const impulses = await this.getImpulses();
+    const target = impulses.find(i => i.id === id);
+    if (target) {
+      target.expressedAt = new Date().toISOString();
+      await fs.writeFile(this.getImpulseBufferPath(), JSON.stringify(impulses, null, 2), 'utf-8');
+    }
+  }
+
+  async getUnexpressedImpulses(): Promise<import('./types.js').CreativeImpulse[]> {
+    const impulses = await this.getImpulses();
+    const now = Date.now();
+    const EXPIRE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+    return impulses.filter(i => !i.expressedAt && (now - new Date(i.createdAt).getTime()) < EXPIRE_MS);
+  }
+
+  buildInnerVoiceSection(impulses: import('./types.js').CreativeImpulse[]): string {
+    if (impulses.length === 0) return '';
+    const now = Date.now();
+    const lines = impulses.map(i => {
+      const ageMs = now - new Date(i.createdAt).getTime();
+      const ageStr = ageMs < 3600000 ? `${Math.floor(ageMs / 60000)}m ago`
+        : ageMs < 86400000 ? `${Math.floor(ageMs / 3600000)}h ago`
+        : `${Math.floor(ageMs / 86400000)}d ago`;
+      const mats = i.materials.length > 0 ? ` (素材: ${i.materials.join(', ')})` : '';
+      return `- [${ageStr}] 「${i.what}」→ ${i.channel}${mats}`;
+    });
+    const oldest = impulses.reduce((a, b) =>
+      new Date(a.createdAt) < new Date(b.createdAt) ? a : b);
+    const oldestAge = now - new Date(oldest.createdAt).getTime();
+    const oldestStr = oldestAge < 3600000 ? `${Math.floor(oldestAge / 60000)} minutes`
+      : oldestAge < 86400000 ? `${Math.floor(oldestAge / 3600000)} hours`
+      : `${Math.floor(oldestAge / 86400000)} days`;
+    return `You have ${impulses.length} unexpressed thought${impulses.length > 1 ? 's' : ''}:\n${lines.join('\n')}\n\nThe oldest thought has been waiting ${oldestStr}. Trust your impulse.`;
+  }
+
   /**
    * 讀取所有 Topic 記憶檔案名（不含 .md）
    */
@@ -1247,6 +1311,13 @@ export class InstanceMemory {
     const threadsCtx = buildThreadsContextSection();
     if (threadsCtx) {
       sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+    }
+
+    // ── Inner Voice（未表達的創作衝動）──
+    const unexpressedImpulses = await this.getUnexpressedImpulses();
+    const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
+    if (innerVoiceCtx) {
+      sections.push(`<inner-voice>\n${innerVoiceCtx}\n</inner-voice>`);
     }
 
     // ── Conversation Threads（對話脈絡追蹤）──

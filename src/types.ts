@@ -302,11 +302,23 @@ export interface ThreadAction {
   note: string;
 }
 
+/** Creative Impulse — 學習中冒出的創作衝動 */
+export interface CreativeImpulse {
+  id: string;
+  what: string;           // 想寫/做什麼
+  driver: string;         // 為什麼想做
+  materials: string[];    // 已有素材
+  channel: string;        // journal | inner-voice | gallery | devto | chat
+  createdAt: string;      // ISO timestamp
+  expressedAt?: string;   // 被表達的時間
+}
+
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
   remember?: { content: string; topic?: string; ref?: string };
   task?: { content: string; schedule?: string };
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
+  impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;
   threads: ThreadAction[];
   chats: string[];
   shows: Array<{ url: string; desc: string }>;

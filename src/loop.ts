@@ -587,6 +587,11 @@ export class AgentLoop {
         eventBus.emit('action:task', { content: tags.task.content });
       }
 
+      // [IMPULSE] tags — persist creative impulses
+      for (const impulse of tags.impulses) {
+        memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
+      }
+
       for (const chatText of tags.chats) {
         eventBus.emit('action:chat', { text: chatText });
       }
@@ -824,17 +829,24 @@ Keep responses brief.`;
     const threadSection = await buildThreadsPromptSection();
 
     // Inject rumination material for reflect mode
-    const [digest, forgotten] = await Promise.all([
+    const [digest, forgotten, unexpressedImpulses] = await Promise.all([
       memory.getCrossPollinationDigest(2),
       memory.getForgottenEntries(7, 5),
+      memory.getUnexpressedImpulses(),
     ]);
     const ruminationSection = (digest || forgotten)
       ? `\n\n## Rumination Material (use when reflecting)\nRandom entries from your knowledge — look for hidden connections, contradictions, or patterns:\n${digest}${forgotten ? `\n\nKnowledge that hasn't been referenced in 7+ days — revisit or confirm absorbed:\n${forgotten}` : ''}`
       : '';
 
+    // Inner voice buffer hint
+    const innerVoiceHint = unexpressedImpulses.length > 0
+      ? `\n\n## Inner Voice\nYou have ${unexpressedImpulses.length} unexpressed creative impulse${unexpressedImpulses.length > 1 ? 's' : ''} waiting. Check <inner-voice> in your context. If one feels right, create something.`
+      : '';
+
     const parts = [base];
     if (chatContextSection) parts.push(chatContextSection);
     if (threadSection) parts.push(threadSection);
+    if (innerVoiceHint) parts.push(innerVoiceHint);
     if (ruminationSection) parts.push(ruminationSection);
     return parts.join('\n\n');
   }
@@ -900,6 +912,13 @@ Rules:
 - Keep it quick (1-2 minutes of work max)
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
 - Use [TASK] to create follow-up tasks if needed
+- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges during learning — capture it before it fades:
+  [IMPULSE]
+  我想寫：what you want to create
+  驅動力：what triggered this impulse
+  素材：material1 + material2
+  管道：journal | inner-voice | gallery | devto | chat
+  [/IMPULSE]
 - Always include source URLs (e.g. "Source: https://...")
 - Structure your [ACTION] with these sections for traceability:
   ## Decision (already at top of response)
@@ -995,6 +1014,13 @@ Rules:
 - Keep it quick (1-2 minutes of work max)
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
 - Use [TASK] to create follow-up tasks if needed
+- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges during learning — capture it before it fades:
+  [IMPULSE]
+  我想寫：what you want to create
+  驅動力：what triggered this impulse
+  素材：material1 + material2
+  管道：journal | inner-voice | gallery | devto | chat
+  [/IMPULSE]
 - Always include source URLs (e.g. "Source: https://...")
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
 - Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram

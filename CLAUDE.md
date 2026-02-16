@@ -216,6 +216,7 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | `[TASK]...[/TASK]` | 建立任務到 HEARTBEAT | — |
 | `[CHAT]...[/CHAT]` | 主動跟用戶聊天 | 💬 Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
+| `[IMPULSE]...[/IMPULSE]` | 捕捉創作衝動到 inner voice buffer | — |
 
 ## Telegram 通知系統
 
