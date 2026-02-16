@@ -11,6 +11,7 @@ export type AgentEventType =
   | 'trigger:heartbeat'
   | 'trigger:mobile'
   | 'trigger:chat'
+  | 'trigger:telegram-user'
   // Actions（agent 行為）
   | 'action:loop'
   | 'action:chat'

@@ -226,8 +226,16 @@ export class AgentLoop {
   private lastCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
+  // ── Telegram Wake (trigger loop cycle on Alex's TG message) ──
+  private telegramWakeQueue = 0;
+  private lastTelegramWake = 0;
+  private static readonly TELEGRAM_WAKE_THROTTLE = 5_000;        // 5s throttle
+
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
+    // telegram-user has its own dedicated handler — skip here to avoid double trigger
+    if (event.type === 'trigger:telegram-user') return;
+
     if (!this.running || this.paused || this.cycling) return;
 
     // Throttle: min 60s between cycles
@@ -239,6 +247,27 @@ export class AgentLoop {
       ? `: ${JSON.stringify(event.data).slice(0, 100)}`
       : '';
     this.triggerReason = `${reason}${detail}`;
+    this.runCycle();
+  };
+
+  /** Telegram wake handler — triggers loop cycle when Alex sends a TG message */
+  private handleTelegramWake = (_event: AgentEvent): void => {
+    if (!this.running || this.paused) return;
+
+    // Throttle: 5s between wake triggers
+    const now = Date.now();
+    if (now - this.lastTelegramWake < AgentLoop.TELEGRAM_WAKE_THROTTLE) return;
+    this.lastTelegramWake = now;
+
+    if (this.cycling) {
+      // Currently in a cycle → queue, will trigger after cycle ends
+      this.telegramWakeQueue++;
+      slog('LOOP', `Telegram wake queued (${this.telegramWakeQueue} pending)`);
+      return;
+    }
+
+    // Not in a cycle → trigger immediately
+    this.triggerReason = 'telegram-user';
     this.runCycle();
   };
 
@@ -270,6 +299,7 @@ export class AgentLoop {
     }
 
     eventBus.on('trigger:*', this.handleTrigger);
+    eventBus.on('trigger:telegram-user', this.handleTelegramWake);
     this.scheduleHeartbeat();
     eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, throttle: 60s, dynamic interval: ${this.currentInterval / 1000}s)` });
   }
@@ -277,6 +307,7 @@ export class AgentLoop {
   stop(): void {
     this.running = false;
     eventBus.off('trigger:*', this.handleTrigger);
+    eventBus.off('trigger:telegram-user', this.handleTelegramWake);
     this.clearTimer();
     eventBus.emit('action:loop', { event: 'stop' });
   }
@@ -671,6 +702,18 @@ export class AgentLoop {
       return action;
     } finally {
       this.cycling = false;
+
+      // Drain queued telegram wake requests
+      if (this.telegramWakeQueue > 0) {
+        this.telegramWakeQueue = 0;
+        setTimeout(() => {
+          if (this.running && !this.paused && !this.cycling) {
+            this.triggerReason = 'telegram-user (queued)';
+            this.runCycle();
+          }
+        }, 3000);
+      }
+
       if (this.running && !this.paused && !this.timer) {
         this.scheduleHeartbeat();
       }

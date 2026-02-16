@@ -499,6 +499,8 @@ export class TelegramPoller {
     } finally {
       this.processing = false;
       eventBus.emit('trigger:telegram', { messageCount: group.length });
+      // Trigger loop cycle so Kuro sees Alex's message in full OODA context
+      eventBus.emit('trigger:telegram-user', { messageCount: group.length });
       // Flush remaining buffered messages (from different time groups)
       if (this.messageBuffer.length > 0) {
         this.scheduleFlush();
