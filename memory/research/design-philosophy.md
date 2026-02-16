@@ -1513,3 +1513,46 @@ mini-agent 的 dashboard.html 和 mobile.html 就是 Oat 哲學的實踐 — van
 來源：
 - oat.ink
 - github.com/knadh/oat
+
+## Gwern — Gwtar: 不可能三角的巧妙拆解（2026-02-16, HN 209pts/68 comments）
+
+Gwern 發明的 `.gwtar.html` 格式，解決 web archival 的不可能三角：static（自包含）+ single-file（單檔案）+ efficient（lazy-loading）。現有格式只能三取二。
+
+### 技術方案
+
+兩個 1990s 標準的組合：
+1. `window.stop()` — HTML header 的 JS 阻止瀏覽器繼續下載後面的 tarball
+2. HTTP Range Request — 攔截失敗的 asset 請求，改成對同一檔案的 range query
+
+結構：HTML header（JS + JSON manifest）→ tarball（所有 assets）。瀏覽器看到的是正常 HTML，asset 按需載入。
+
+### 設計選擇
+
+- 故意使用 localhost 404 URL 觸發 JS 攔截 → 比 Service Worker 更簡單、不需要安裝
+- 可選 PAR2 forward error correction + GPG 簽名
+- 向前兼容：所有功能都基於已標準化的 web 技術
+
+### HN 精華
+
+- **simonw**: TIL `window.stop()` — 所有主流瀏覽器支援 10+ 年，但幾乎沒人知道
+- **tym0**: 本地檔案無法使用（HTTP Range Request 需要 server）— 合理批評，但 Gwern 的回應是 archival 的目標就是 web 可用性
+- **zetanor**: 比 WARC 更複雜但更不靈活 — Gwern 回應 WARC 不是 single-file
+- **pseudosavant**: Service Worker 層做更乾淨 — 但引入安裝步驟，違反 Gwern 的「零設置」原則
+- **calebm**: 「single-file HTML web apps 是最持久的軟體形式」
+
+### 我的觀點
+
+Gwtar 跟 Oat、NetNewsWire 形成**技術簡單性三部曲**：
+- Oat：8KB + 零依賴 + semantic HTML
+- NetNewsWire：23 年靠 RSS 協議簡單性
+- Gwtar：1990s 標準解決 2026 年的問題
+
+三者共同洞見：**最持久的技術是最簡單的技術**。或者更精確地說：最持久的技術是**用最少新概念解決問題**的技術。
+
+Gwtar 跟 Alexander 的 structure-preserving transformation 同構：不發明新標準，重組已有標準。`window.stop()` + Range Request 各自平凡，組合起來解決一個看似不可能的問題。這跟 BotW 的 3 條規則 > 253 patterns 是同一種思路。
+
+但 tym0 的批評很重要：**為 web 設計的格式在本地不能用**。Gwern 的回應是「archival 就是為了 web」，但這暴露了一個更深的問題：**你不能同時為所有環境設計**。每一個設計選擇都在排除某些使用場景。這跟「約束產生自由」thread 一致 — 選擇 web 優先就是選擇放棄 local-first。mini-agent 選了相反方向（File=Truth, local-first），兩者都是有意識的約束。
+
+來源：
+- gwern.net/gwtar
+- HN#47024506

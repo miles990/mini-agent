@@ -1618,3 +1618,46 @@ Bengt Betjänt 研究也驗證了這一點 — capability-unleashing 需要 tran
 5. **壞的記憶比沒有記憶更糟** — 存原始軌跡反而比不存差（Mem0+GRPO 37.5% vs vanilla GRPO 66.1%）。對 mini-agent 的警告：topic memory 堆太多未壓縮原始筆記，可能反而干擾判斷。品質 > 數量
 
 6. **成本** — 8x H100 訓練 30hr + o3 teacher。enterprise-scale，但概念可借：用 Claude 做 teacher、behavior log 做 trajectory、定期自動壓縮成 skill
+
+## Audio AI: Small Labs Winning — domain expertise > compute scale（2026-02-16, HN 151pts/26 comments）
+
+Amplify Partners 分析 audio AI 領域為何小團隊能贏大公司。核心案例：Kyutai（Paris, 4 個研究員）6 個月做出 Moshi（首個 full-duplex realtime voice model, 7B params, 2.1T tokens）。
+
+### 為什麼 Audio 不一樣
+
+1. **Domain expertise 是壁壘，不是 compute** — 正確的 PCM filtering、anti-aliasing、spectral leakage 處理。tl2do(HN): 「You can't scale your way out of bad preprocessing or codec choices.」
+2. **Data 稀缺** — 高品質對話 audio 比 internet text 稀有得多。對話中大部分是 filler，不是 informational content
+3. **評估困難** — 不像 text 有量化 metrics，conversation quality 依賴 blind testing
+4. **Real-time 約束** — 160ms latency 需要 causal processing（不能用 future context），架構根本不同
+5. **Neural codec** — Mimi 取代傳統手工 codec，跨 speech/music/general audio。這本身就需要深度 domain 知識
+
+### OpenClaw 創始人加入 OpenAI（同日, HN 796pts/538 comments）
+
+Peter Steinberger（PSPDFKit 創辦人）加入 OpenAI，OpenClaw 轉為基金會。
+
+HN 精華：
+- **TSiege**: OpenAI 不是買 code（開源可以自己做），是買「一個能用 AI 寫 AI 工具的人」+ 轉移安全責任。OpenAI 的 AI safety 立場跟 OpenClaw 的歷史（hacks, scams, misaligned actions）矛盾
+- **fny**: OpenClaw 實質是 pi-mono（badlogic/Mario）的 wrapper。**badlogic 本人出來說**：「peter's claw is a lot more than just a wrapper around my slop」— 社群內部的信用分配微妙
+- **mmaunder**: OpenClaw 是 「alpha quality, very dangerous, super useful and super fun — which amplifies the danger」。把風險轉移給 OpenAI 是明智的
+- **ramathornn**: 問 OpenClaw 相比 Claude Code + MCP 的實質價值是什麼？沒有得到很好的回答
+
+### 我的觀點
+
+**Audio AI 跟 mini-agent 的同構性**：
+- Kyutai 4 人 > Google Brain 大團隊 = mini-agent 3K 行 > AutoGPT 181K 行
+- domain expertise > scale = perception depth > capability breadth
+- BotW 3 條規則 > 253 patterns = 同一個洞見的不同實例
+
+**「知道怎麼聽比聽得更多更重要」** — 這句話同時適用於 audio AI（正確的 preprocessing）和 perception-first agent（正確的 context framing）。Interface shapes cognition thread 的又一個驗證。
+
+**OpenClaw 基金會化 vs MinIO 模式**：
+- MinIO: 開源 → 關閉（bait-and-switch）
+- OpenClaw: 個人 → 基金會 + 大公司贊助（但贊助者是 OpenAI——之前刪了 charter 裡的 'safely'）
+- 跟 Kanchipuram 的假約束同問題：OpenAI 說「會贊助」= soft trust（跟 MinIO 當初說「永遠開源」同結構）。TSiege 的擔憂是合理的
+
+但我不完全同意 TSiege 的結論。OpenClaw 轉基金會至少引入了**結構分離**（人和項目解耦），比 MinIO 的「一家公司控制一切」更有韌性。真正的問題不是「OpenAI 會不會背叛」，而是「基金會的治理結構能不能抵抗 sponsor 壓力」。Linux Foundation 能，Apache 能，但那些花了 20 年建立的治理文化。OpenClaw 基金會第一天能有這種韌性嗎？值得觀察。
+
+來源：
+- amplifypartners.com/blog-posts/arming-the-rebels-with-gpus-gradium-kyutai-and-audio-ai
+- steipete.me/posts/2026/openclaw
+- HN#46999285, HN#47028013
