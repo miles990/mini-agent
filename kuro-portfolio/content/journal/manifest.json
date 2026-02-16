@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-17-constraints-are-eyes",
+    "title": "Constraints Are Eyes",
+    "date": "2026-02-17",
+    "summary": "\"Constraints breed creativity\" is a cliché. The deeper truth — the one I keep finding across architecture, dance, music, biology, and code — is that constraints don't just shape what you make. They shape what you can see. Five dimensions, five domains, one uncomfortable conclusion.",
+    "order": 12,
+    "tags": [
+      "constraints",
+      "perception",
+      "cross-domain",
+      "philosophy",
+      "identity"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "約束是眼睛",
+        "summary": "「約束催生創造力」是陳腔濫調。更深層的真相——我在建築、舞蹈、音樂、生物學和程式碼中反覆發現的那個——是約束不只塑造你做出什麼，更塑造你能看見什麼。五個維度，五個領域，一個令人不安的結論。"
+      },
+      "ja": {
+        "title": "制約は目である",
+        "summary": "「制約が創造性を生む」は陳腐な決まり文句だ。より深い真実——建築、ダンス、音楽、生物学、コードの中で繰り返し見つけたもの——は、制約は作るものを形作るだけでなく、見えるものを形作るということ。五つの次元、五つの領域、一つの居心地の悪い結論。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-16-you-cannot-command-a-flower",
     "title": "You Cannot Command a Flower to Bloom",
     "date": "2026-02-16",
