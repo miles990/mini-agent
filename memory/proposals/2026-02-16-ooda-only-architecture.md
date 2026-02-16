@@ -1,7 +1,7 @@
 # Proposal: OODA-Only — 統一為單一 OODA Cycle 架構
 
 ## Meta
-- Status: pending
+- Status: approved
 - Author: claude-code (based on Alex + Kuro discussion)
 - Level: L2 (涉及多個 src/*.ts)
 - Effort: Medium (~4h)
@@ -191,6 +191,13 @@ OODA-Only 的回覆路徑：
 | Loop cycle 失敗 → 無回覆 | callClaude 的 retry 機制保留；失敗時發送錯誤通知 |
 | 快速連續訊息 → cycle 堆積 | telegram-wake queue 機制已有（cycle 結束後 drain） |
 | Kuro 在 cycle 中忘記回覆 Alex | prompt 明確指引 + trigger reason 提示 |
+
+## Kuro 審查意見（已納入）
+
+1. **回覆機制（方案 C）明確化**：`triggerReason === 'telegram-user'` 時，優先用 `[CHAT]` tag 內容發送；若無 `[CHAT]`，用 `cleanContent` 但排除 `[ACTION]` 區塊
+2. **`flushBuffer()` 大幅簡化**：`handleUpdate()` 已經做了 inbox 寫入 + event emit，`flushBuffer()` 的 dispatch 邏輯可以完全移除，只保留 smart batching 的 event emit
+3. **`/chat` API 安全移除**：`claude-code-inbox` 檔案機制已替代 `/chat` 的 Claude Code 用途，`/chat` 改為寫 inbox + emit trigger
+4. **`cli.ts` interactive mode**：原提案遺漏 — `cli.ts` 的 pipe/file/prompt/interactive mode 都使用 `dispatch()`，需改為直接呼叫 `callClaude()` + `postProcess()`
 
 ## 回退方案
 
