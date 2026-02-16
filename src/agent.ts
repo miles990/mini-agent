@@ -135,6 +135,7 @@ function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string;
 let loopBusy = false;
 let loopTask: TaskInfo | null = null;
 let loopChildPid: number | null = null;
+let loopGeneration = 0; // Bumped on preemption — callClaude detects mismatch
 
 /** 查詢 Claude CLI 是否正在執行 */
 export function isClaudeBusy(): boolean {
@@ -158,6 +159,36 @@ export function getLaneStatus(): {
   return {
     loop: { busy: loopBusy, task: formatTask(loopTask) },
   };
+}
+
+/** 搶佔正在執行的 loop cycle（用於 Alex 的 TG 訊息優先處理） */
+export function preemptLoopCycle(): { preempted: boolean; partialOutput: string | null } {
+  if (!loopBusy || !loopChildPid) {
+    return { preempted: false, partialOutput: null };
+  }
+
+  const pid = loopChildPid;
+  const partial = loopTask?.lastText ?? null;
+
+  // Kill process group (includes child processes like curl)
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch { /* already dead */ }
+
+  // SIGKILL fallback after 3s
+  setTimeout(() => {
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
+  }, 3000);
+
+  loopGeneration++;
+  loopBusy = false;
+  loopTask = null;
+  loopChildPid = null;
+
+  slog('PREEMPT', `Killed loop process group (pid: ${pid}), generation: ${loopGeneration}`);
+  eventBus.emit('action:loop', { event: 'preempted', partialOutput: partial?.slice(0, 100) });
+
+  return { preempted: true, partialOutput: partial };
 }
 
 /**
@@ -534,6 +565,7 @@ export async function callClaude(
       };
     }
 
+    const genAtStart = loopGeneration;
     setBusy(true);
     setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
 
@@ -545,6 +577,11 @@ export async function callClaude(
 
       const duration = Date.now() - startTime;
 
+      // Preemption detection: generation changed while we were running
+      if (source === 'loop' && loopGeneration !== genAtStart) {
+        return { response: result.trim(), systemPrompt, fullPrompt, duration, preempted: true };
+      }
+
       try {
         const logger = getLogger();
         const providerInfo = primary !== 'claude' ? ` [${primary}]` : '';
@@ -555,6 +592,13 @@ export async function callClaude(
       return { response: result.trim(), systemPrompt, fullPrompt, duration };
     } catch (error) {
       const duration = Date.now() - startTime;
+
+      // Preemption detection: don't retry if preempted
+      if (source === 'loop' && loopGeneration !== genAtStart) {
+        const stdout = (error as { stdout?: string })?.stdout?.trim() ?? '';
+        return { response: stdout, systemPrompt, fullPrompt, duration, preempted: true };
+      }
+
       const stderr = (error as { stderr?: string })?.stderr?.trim() ?? '';
       const exitCode = (error as { status?: number })?.status;
       const classified = classifyError(error);

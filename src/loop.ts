@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { callClaude } from './agent.js';
+import { callClaude, preemptLoopCycle } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -261,9 +261,30 @@ export class AgentLoop {
     this.lastTelegramWake = now;
 
     if (this.cycling) {
-      // Currently in a cycle → queue, will trigger after cycle ends
+      // Already handling Alex's message → just queue
+      if (this.triggerReason?.startsWith('telegram-user') ||
+          this.currentMode === 'idle') {
+        this.telegramWakeQueue++;
+        slog('LOOP', `Telegram wake queued (${this.telegramWakeQueue} pending)`);
+        return;
+      }
+
+      // Preempt autonomous/task cycle for Alex's message
+      slog('LOOP', `Preempting ${this.currentMode} cycle for telegram-user`);
+      const { preempted, partialOutput } = preemptLoopCycle();
+      if (preempted) {
+        this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
+        // cycling flag will be cleared by the preempted callClaude rejection
+        // Small delay to let the process cleanup settle
+        setTimeout(() => {
+          this.triggerReason = 'telegram-user';
+          this.runCycle();
+        }, 500);
+        return;
+      }
+      // preempt failed (process already dead?) → fall through to queue
       this.telegramWakeQueue++;
-      slog('LOOP', `Telegram wake queued (${this.telegramWakeQueue} pending)`);
+      slog('LOOP', `Preempt failed, telegram wake queued (${this.telegramWakeQueue} pending)`);
       return;
     }
 
