@@ -469,7 +469,7 @@ export class AgentLoop {
       // ── Route: Task Mode vs Autonomous Mode ──
       if (!shouldRunTaskMode) {
         // Check autonomous cooldown (but learning boost overrides it)
-        if (this.autonomousCooldown > 0 && !shouldForceAutonomous) {
+        if (this.autonomousCooldown > 0 && !shouldForceAutonomous && !isTelegramUser) {
           this.autonomousCooldown--;
           this.currentMode = 'idle';
           this.adjustInterval(false);
