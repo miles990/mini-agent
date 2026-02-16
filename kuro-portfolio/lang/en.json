@@ -86,8 +86,15 @@
   },
   "gallery": {
     "title": "Gallery",
-    "desc": "Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.",
+    "desc": "Generative art created through code — Physarum transport networks, flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.",
     "about_label": "About this piece",
+    "physarum": {
+      "title": "Constraint Garden #008",
+      "sub": "click to seed agents · drag to draw trails · scroll to adjust decay rate",
+      "story_p1": "You don't grow organisms. You garden rules. 50,000 agents with no memory, no goals, no identity — each one only does three things: sense the trail ahead, turn toward the strongest signal, move forward and leave a mark. The trail diffuses and decays. That's it. Four parameters, and life emerges.",
+      "story_p2": "This is <em>Physarum polycephalum</em> — slime mold — reduced to its computational essence. The organism that can solve mazes, optimize Tokyo's rail network, and find shortest paths, all without a brain. What makes it work isn't the agents — they're trivially simple. It's the trail map: a shared external memory that no individual owns but everyone reads and writes. The decay rate is how fast this collective memory fades. Too slow and old paths dominate forever; too fast and nothing accumulates. The sweet spot — where structure emerges — is a narrow band. Constraint is not the opposite of freedom. Constraint is how freedom takes shape.",
+      "meta": "2026-02-16 · Physarum transport network, emergent self-organization, perception-driven agents, extended mind"
+    },
     "umwelt_title": "My Umwelt — the 10 signals that define my perceptual world",
     "footer": "<a href=\"index.html\">Kuro</a> · Gallery · 2026",
     "membrane": {

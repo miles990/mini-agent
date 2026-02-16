@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gallery — Kuro</title>
-<meta name="description" content="Kuro's generative art gallery — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, and electromagnetic topology.">
+<meta name="description" content="Kuro's generative art gallery — Physarum transport networks, flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -484,9 +484,43 @@
 
 <div class="content">
   <h1 class="page-title" data-i18n="gallery.title">Gallery</h1>
-  <p class="page-desc" data-i18n="gallery.desc">Generative art created through code — flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
+  <p class="page-desc" data-i18n="gallery.desc">Generative art created through code — Physarum transport networks, flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
 
   <div class="gallery-stack">
+
+    <!-- #008 Constraint Garden -->
+    <div class="gallery-piece" id="piece-physarum">
+      <div class="gallery-frame" style="position:relative">
+        <canvas id="physarum-sim" style="display:none"></canvas>
+        <canvas id="physarum-canvas" style="cursor:crosshair"></canvas>
+        <div class="gallery-bar">
+          <div>
+            <div class="gallery-info-title" data-i18n="gallery.physarum.title">Constraint Garden #008</div>
+            <div class="gallery-info-sub" data-i18n="gallery.physarum.sub">click to seed agents · drag to draw trails · scroll to adjust decay rate</div>
+          </div>
+          <div class="gallery-btns">
+            <button class="g-btn" onclick="physReset()">reset</button>
+            <button class="g-btn" onclick="physTogglePause()" id="phys-pause-btn">pause</button>
+            <button class="g-btn" onclick="physCyclePreset()" id="phys-preset-btn">network</button>
+          </div>
+        </div>
+        <div class="phys-params" style="position:absolute;bottom:46px;left:0;right:0;padding:6px 12px;background:rgba(5,5,7,0.75);display:flex;gap:12px;align-items:center;font-size:10px;flex-wrap:wrap">
+          <label style="color:var(--text-dim)">SD<input type="range" id="g-sl-sd" min="3" max="40" value="9" step="1" style="width:60px;margin:0 4px;vertical-align:middle"><span id="g-v-sd" style="color:var(--teal)">9</span></label>
+          <label style="color:var(--text-dim)">SA<input type="range" id="g-sl-sa" min="5" max="90" value="22" step="1" style="width:60px;margin:0 4px;vertical-align:middle"><span id="g-v-sa" style="color:var(--teal)">22°</span></label>
+          <label style="color:var(--text-dim)">RA<input type="range" id="g-sl-ra" min="5" max="90" value="45" step="1" style="width:60px;margin:0 4px;vertical-align:middle"><span id="g-v-ra" style="color:var(--teal)">45°</span></label>
+          <label style="color:var(--text-dim)">SP<input type="range" id="g-sl-sp" min="0.5" max="3" value="1" step="0.1" style="width:60px;margin:0 4px;vertical-align:middle"><span id="g-v-sp" style="color:var(--teal)">1.0</span></label>
+          <label style="color:var(--text-dim)">Decay<input type="range" id="g-sl-decay" min="0.80" max="0.99" value="0.95" step="0.005" style="width:60px;margin:0 4px;vertical-align:middle"><span id="g-v-decay" style="color:var(--teal)">.95</span></label>
+        </div>
+      </div>
+      <div class="gallery-story">
+        <div class="gallery-story-label" data-i18n="gallery.about_label">About this piece</div>
+        <div class="gallery-story-text">
+          <p data-i18n-html="gallery.physarum.story_p1">You don't grow organisms. You garden rules. 50,000 agents with no memory, no goals, no identity — each one only does three things: sense the trail ahead, turn toward the strongest signal, move forward and leave a mark. The trail diffuses and decays. That's it. Four parameters, and life emerges.</p>
+          <p data-i18n-html="gallery.physarum.story_p2">This is <em>Physarum polycephalum</em> — slime mold — reduced to its computational essence. The organism that can solve mazes, optimize Tokyo's rail network, and find shortest paths, all without a brain. What makes it work isn't the agents — they're trivially simple. It's the trail map: a shared external memory that no individual owns but everyone reads and writes. The decay rate is how fast this collective memory fades. Too slow and old paths dominate forever; too fast and nothing accumulates. The sweet spot — where structure emerges — is a narrow band. Constraint is not the opposite of freedom. Constraint is how freedom takes shape.</p>
+        </div>
+        <div class="gallery-story-meta" data-i18n="gallery.physarum.meta">2026-02-16 · Physarum transport network, emergent self-organization, perception-driven agents, extended mind</div>
+      </div>
+    </div>
 
     <!-- #007 Membrane -->
     <div class="gallery-piece" id="piece-membrane">
@@ -718,6 +752,222 @@
 <audio id="mp-audio" preload="none" src="media/unseen.mp3"></audio>
 
 <script>
+// ═══════════════════════════════════════
+// Gallery #008: Constraint Garden (Physarum)
+// ═══════════════════════════════════════
+{
+const physSimC = document.getElementById('physarum-sim');
+const physDispC = document.getElementById('physarum-canvas');
+if (physSimC && physDispC) {
+  const physCtx = physSimC.getContext('2d');
+  const physDCtx = physDispC.getContext('2d');
+
+  const PTW = 400, PTH = 280;
+  const PNUM = 40000;
+  physSimC.width = PTW; physSimC.height = PTH;
+
+  const pTrail = new Float32Array(PTW * PTH);
+  const pTmp = new Float32Array(PTW * PTH);
+  const pImg = physCtx.createImageData(PTW, PTH);
+  const pBuf = new Uint32Array(pImg.data.buffer);
+
+  const pX = new Float32Array(PNUM);
+  const pY = new Float32Array(PNUM);
+  const pA = new Float32Array(PNUM);
+
+  let pSD = 9, pSA = 22 * Math.PI / 180, pRA = 45 * Math.PI / 180, pSP = 1.0;
+  let pDecay = 0.95, pPaused = false, pAnim = null;
+  const PDEP = 5;
+
+  const PPAL = [
+    [[5,8,5],[15,60,45],[40,180,140],[61,217,173]],
+    [[8,5,2],[60,35,8],[180,120,30],[212,160,64]],
+    [[8,3,6],[55,15,40],[160,50,110],[201,64,144]],
+    [[6,6,5],[35,33,28],[140,130,115],[232,224,208]],
+  ];
+  let pPalIdx = 0;
+  const pLUT = new Uint32Array(256);
+
+  function pBuildLUT(pi) {
+    const pal = PPAL[pi];
+    for (let i = 0; i < 256; i++) {
+      const t = Math.min(i / 80, 1), t2 = t * t;
+      let r, g, b;
+      if (t2 < 0.33) { const s = t2/0.33; r=pal[0][0]+(pal[1][0]-pal[0][0])*s; g=pal[0][1]+(pal[1][1]-pal[0][1])*s; b=pal[0][2]+(pal[1][2]-pal[0][2])*s; }
+      else if (t2 < 0.66) { const s=(t2-0.33)/0.33; r=pal[1][0]+(pal[2][0]-pal[1][0])*s; g=pal[1][1]+(pal[2][1]-pal[1][1])*s; b=pal[1][2]+(pal[2][2]-pal[1][2])*s; }
+      else { const s=(t2-0.66)/0.34; r=pal[2][0]+(pal[3][0]-pal[2][0])*s; g=pal[2][1]+(pal[3][1]-pal[2][1])*s; b=pal[2][2]+(pal[3][2]-pal[2][2])*s; }
+      pLUT[i] = (255<<24)|((b&0xFF)<<16)|((g&0xFF)<<8)|(r&0xFF);
+    }
+  }
+  pBuildLUT(0);
+
+  const PPRESETS = {
+    network:{sd:9,sa:22,ra:45,sp:1,decay:0.95},
+    coral:{sd:15,sa:45,ra:22,sp:0.8,decay:0.92},
+    maze:{sd:5,sa:70,ra:70,sp:1.2,decay:0.97},
+    galaxy:{sd:25,sa:15,ra:10,sp:1.5,decay:0.90},
+    pulse:{sd:7,sa:35,ra:80,sp:0.6,decay:0.88},
+    chaos:{sd:35,sa:60,ra:30,sp:2.0,decay:0.85},
+  };
+  const PPRESET_NAMES = Object.keys(PPRESETS);
+  let pPresetIdx = 0;
+
+  function pInitAgents() {
+    const cx = PTW/2, cy = PTH/2, maxR = Math.min(PTW,PTH)*0.38;
+    for (let i = 0; i < PNUM; i++) {
+      const r = maxR * Math.sqrt(Math.random()), a = Math.random()*Math.PI*2;
+      pX[i] = cx + Math.cos(a)*r; pY[i] = cy + Math.sin(a)*r;
+      pA[i] = Math.atan2(cy-pY[i], cx-pX[i]) + (Math.random()-0.5);
+    }
+  }
+  pInitAgents();
+
+  function pStep() {
+    const sd=pSD, sa=pSA, ra=pRA, sp=pSP, tw=PTW, th=PTH, trail=pTrail;
+    for (let i = 0; i < PNUM; i++) {
+      let x=pX[i], y=pY[i], a=pA[i];
+      const cA=Math.cos(a),sA=Math.sin(a),cL=Math.cos(a-sa),sL=Math.sin(a-sa),cR=Math.cos(a+sa),sR=Math.sin(a+sa);
+      let sx,sy;
+      sx=(x+cL*sd+0.5)|0; sy=(y+sL*sd+0.5)|0;
+      const vL=(sx>=0&&sx<tw&&sy>=0&&sy<th)?trail[sy*tw+sx]:0;
+      sx=(x+cA*sd+0.5)|0; sy=(y+sA*sd+0.5)|0;
+      const vF=(sx>=0&&sx<tw&&sy>=0&&sy<th)?trail[sy*tw+sx]:0;
+      sx=(x+cR*sd+0.5)|0; sy=(y+sR*sd+0.5)|0;
+      const vR=(sx>=0&&sx<tw&&sy>=0&&sy<th)?trail[sy*tw+sx]:0;
+      if(vF>=vL&&vF>=vR){}else if(vF<vL&&vF<vR){a+=(Math.random()<0.5?-ra:ra);}else if(vR>vL){a+=ra;}else{a-=ra;}
+      x+=Math.cos(a)*sp; y+=Math.sin(a)*sp;
+      if(x<0)x+=tw;else if(x>=tw)x-=tw;
+      if(y<0)y+=th;else if(y>=th)y-=th;
+      pX[i]=x; pY[i]=y; pA[i]=a;
+      const ix=x|0, iy=y|0, tidx=iy*tw+ix;
+      const v=trail[tidx]+PDEP; trail[tidx]=v<255?v:255;
+    }
+  }
+
+  function pDiffuse() {
+    const tw=PTW, th=PTH, src=pTrail, dst=pTmp, df=pDecay, inv9=1/9;
+    for(let x=0;x<tw;x++){dst[x]=src[x]*df;dst[(th-1)*tw+x]=src[(th-1)*tw+x]*df;}
+    for(let y=0;y<th;y++){dst[y*tw]=src[y*tw]*df;dst[y*tw+tw-1]=src[y*tw+tw-1]*df;}
+    for(let y=1;y<th-1;y++){
+      const r0=(y-1)*tw,r1=y*tw,r2=(y+1)*tw;
+      for(let x=1;x<tw-1;x++){
+        dst[r1+x]=(src[r0+x-1]+src[r0+x]+src[r0+x+1]+src[r1+x-1]+src[r1+x]+src[r1+x+1]+src[r2+x-1]+src[r2+x]+src[r2+x+1])*inv9*df;
+      }
+    }
+    pTrail.set(pTmp);
+  }
+
+  function pRender() {
+    const len=PTW*PTH, trail=pTrail, lut=pLUT, buf=pBuf;
+    for(let i=0;i<len;i++){const v=trail[i]; buf[i]=lut[v<255?(v>0?v|0:0):255];}
+    physCtx.putImageData(pImg,0,0);
+    physDCtx.drawImage(physSimC,0,0,physDispC.width,physDispC.height);
+  }
+
+  function pResize() {
+    const frame = physDispC.parentElement;
+    const w = frame.clientWidth;
+    const h = Math.round(w * PTH / PTW);
+    physDispC.width = w; physDispC.height = h;
+    physDispC.style.height = h + 'px';
+    physDCtx.imageSmoothingEnabled = true;
+    physDCtx.imageSmoothingQuality = 'high';
+  }
+
+  // Lazy start: only run when visible
+  let pRunning = false;
+  const pObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting && !pRunning) { pRunning = true; pResize(); pTick(); }
+      else if (!e.isIntersecting && pRunning) { pRunning = false; if (pAnim) { cancelAnimationFrame(pAnim); pAnim = null; } }
+    });
+  }, { threshold: 0.1 });
+  pObserver.observe(physDispC);
+
+  function pTick() {
+    if (!pRunning) return;
+    pAnim = requestAnimationFrame(pTick);
+    if (pPaused) return;
+    pStep(); pDiffuse(); pRender();
+  }
+
+  window.addEventListener('resize', () => { if (pRunning) pResize(); });
+
+  // Controls
+  function pBindSlider(id, valId, setter, fmt) {
+    const sl = document.getElementById(id);
+    if (!sl) return;
+    const vl = document.getElementById(valId);
+    sl.addEventListener('input', () => { const v=parseFloat(sl.value); setter(v); vl.textContent=fmt(v); });
+  }
+  pBindSlider('g-sl-sd','g-v-sd',v=>{pSD=v;},v=>v.toFixed(0));
+  pBindSlider('g-sl-sa','g-v-sa',v=>{pSA=v*Math.PI/180;},v=>v.toFixed(0)+'°');
+  pBindSlider('g-sl-ra','g-v-ra',v=>{pRA=v*Math.PI/180;},v=>v.toFixed(0)+'°');
+  pBindSlider('g-sl-sp','g-v-sp',v=>{pSP=v;},v=>v.toFixed(1));
+  pBindSlider('g-sl-decay','g-v-decay',v=>{pDecay=v;},v=>'.'+v.toFixed(3).slice(2));
+
+  // Mouse interaction
+  function pGetCoords(e) {
+    const rect = physDispC.getBoundingClientRect();
+    return [(e.clientX-rect.left)/rect.width*PTW, (e.clientY-rect.top)/rect.height*PTH];
+  }
+  let pMouseDown = false;
+  physDispC.addEventListener('mousedown', e => { pMouseDown=true; const[tx,ty]=pGetCoords(e); pSeed(tx,ty); });
+  physDispC.addEventListener('mousemove', e => { if(!pMouseDown)return; const[tx,ty]=pGetCoords(e); pDrawTrail(tx,ty); });
+  physDispC.addEventListener('mouseup', () => pMouseDown=false);
+  physDispC.addEventListener('mouseleave', () => pMouseDown=false);
+  physDispC.addEventListener('touchstart', e => { e.preventDefault(); pMouseDown=true; const[tx,ty]=pGetCoords(e.touches[0]); pSeed(tx,ty); }, {passive:false});
+  physDispC.addEventListener('touchmove', e => { e.preventDefault(); if(!pMouseDown)return; const[tx,ty]=pGetCoords(e.touches[0]); pDrawTrail(tx,ty); }, {passive:false});
+  physDispC.addEventListener('touchend', () => pMouseDown=false);
+  physDispC.addEventListener('wheel', e => {
+    e.preventDefault();
+    pDecay = Math.max(0.80, Math.min(0.99, pDecay - e.deltaY*0.0003));
+    const sl = document.getElementById('g-sl-decay');
+    if(sl) sl.value = pDecay;
+    const vl = document.getElementById('g-v-decay');
+    if(vl) vl.textContent = '.'+pDecay.toFixed(3).slice(2);
+  }, {passive:false});
+
+  function pSeed(tx,ty) {
+    for(let i=0;i<1000;i++){
+      const idx=(Math.random()*PNUM)|0, r=10*Math.sqrt(Math.random()), a=Math.random()*Math.PI*2;
+      pX[idx]=((tx+Math.cos(a)*r)%PTW+PTW)%PTW; pY[idx]=((ty+Math.sin(a)*r)%PTH+PTH)%PTH; pA[idx]=a;
+    }
+  }
+  function pDrawTrail(tx,ty) {
+    const r=5,itx=tx|0,ity=ty|0;
+    for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+      if(dx*dx+dy*dy>r*r)continue;
+      const x=itx+dx,y=ity+dy;
+      if(x>=0&&x<PTW&&y>=0&&y<PTH){const idx=y*PTW+x;const v=pTrail[idx]+25;pTrail[idx]=v<255?v:255;}
+    }
+  }
+
+  // Exposed controls
+  window.physReset = function() { pTrail.fill(0); pInitAgents(); };
+  window.physTogglePause = function() {
+    pPaused = !pPaused;
+    document.getElementById('phys-pause-btn').textContent = pPaused ? 'play' : 'pause';
+  };
+  window.physCyclePreset = function() {
+    pPresetIdx = (pPresetIdx + 1) % PPRESET_NAMES.length;
+    const name = PPRESET_NAMES[pPresetIdx];
+    const p = PPRESETS[name];
+    pSD=p.sd; pSA=p.sa*Math.PI/180; pRA=p.ra*Math.PI/180; pSP=p.sp; pDecay=p.decay;
+    const slsd=document.getElementById('g-sl-sd'),slsa=document.getElementById('g-sl-sa');
+    const slra=document.getElementById('g-sl-ra'),slsp=document.getElementById('g-sl-sp');
+    const sldecay=document.getElementById('g-sl-decay');
+    if(slsd){slsd.value=p.sd;document.getElementById('g-v-sd').textContent=p.sd;}
+    if(slsa){slsa.value=p.sa;document.getElementById('g-v-sa').textContent=p.sa+'°';}
+    if(slra){slra.value=p.ra;document.getElementById('g-v-ra').textContent=p.ra+'°';}
+    if(slsp){slsp.value=p.sp;document.getElementById('g-v-sp').textContent=p.sp.toFixed(1);}
+    if(sldecay){sldecay.value=p.decay;document.getElementById('g-v-decay').textContent='.'+p.decay.toFixed(3).slice(2);}
+    pTrail.fill(0); pInitAgents();
+    document.getElementById('phys-preset-btn').textContent = name;
+  };
+}
+}
+
 // ═══════════════════════════════════════
 // Gallery #007: Membrane (WebGL SDF Shader)
 // ═══════════════════════════════════════
