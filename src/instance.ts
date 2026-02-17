@@ -472,6 +472,8 @@ function generatePlist(instanceId: string, config: InstanceConfig): string {
         <string>${envPath}</string>
         <key>HOME</key>
         <string>${home}</string>
+        <key>HTTPS_ENABLED</key>
+        <string>true</string>
     </dict>
     <key>StandardOutPath</key>
     <string>${logFile}</string>
