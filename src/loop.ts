@@ -553,10 +553,14 @@ export class AgentLoop {
         });
       };
 
+      // Map currentMode to CycleMode for skill filtering
+      const cycleMode = this.currentMode === 'task' ? 'task' as const : 'learn' as const;
+
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
         source: 'loop',
         onPartialOutput,
+        cycleMode,
       });
 
       // Phase 1b: Handle preemption

@@ -12,6 +12,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
 import { getSystemPrompt } from './dispatcher.js';
+import type { CycleMode } from './memory.js';
 import { eventBus } from './event-bus.js';
 
 export interface Message {
@@ -528,10 +529,12 @@ export async function callClaude(
     source?: CallSource;
     /** Streaming partial output callback（用於 cycle checkpoint） */
     onPartialOutput?: (text: string) => void;
+    /** OODA cycle mode hint for skill filtering */
+    cycleMode?: CycleMode;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
-  const systemPrompt = getSystemPrompt(prompt);
+  const systemPrompt = getSystemPrompt(prompt, options?.cycleMode);
   let currentContext = context;
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 

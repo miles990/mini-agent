@@ -105,6 +105,20 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
 };
 
+/**
+ * Cycle mode → skills mapping — 按 OODA cycle 模式精準載入 skills
+ * 比 keyword matching 更高效（autonomous prompt 包含太多關鍵字導致幾乎所有 skill 都被匹配）
+ */
+export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
+
+const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
+  learn: ['autonomous-behavior', 'web-learning', 'web-research'],
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy'],
+  task: ['autonomous-behavior', 'project-manager', 'debug-helper'],
+  respond: [], // empty = load all skills (不確定需要什麼)
+  reflect: ['autonomous-behavior'],
+};
+
 /** 註冊自訂感知和 Skills */
 export function setCustomExtensions(ext: {
   perceptions?: ComposePerception[];
@@ -129,14 +143,33 @@ export function setCustomExtensions(ext: {
  * @param hint - 用於匹配的文字（prompt / user message），小寫化後比對 keywords
  *   - 有 hint → 只注入匹配的 skills（節省 50-70% token）
  *   - 無 hint → 注入全部 skills（向後相容，CLI 模式）
+ * @param cycleMode - OODA cycle 模式，優先於 keyword matching
+ *   - 有 cycleMode → 用 mode→skills 映射表精準載入
+ *   - 無 cycleMode → 退回 keyword matching（向後相容）
  */
-export function getSkillsPrompt(hint?: string): string {
+export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
   if (skillsCache.length === 0) return '';
 
-  // 無 hint → 全部載入（向後相容）
-  if (!hint) return formatSkillsPrompt(skillsCache);
+  // 無 hint 且無 cycleMode → 全部載入（向後相容）
+  if (!hint && !cycleMode) return formatSkillsPrompt(skillsCache);
 
-  const lowerHint = hint.toLowerCase();
+  // cycleMode 優先：用映射表精準篩選
+  if (cycleMode) {
+    const allowedSkills = CYCLE_MODE_SKILLS[cycleMode];
+
+    // respond mode: 空陣列 = 全部載入（不確定需要什麼 skill）
+    if (allowedSkills.length === 0) return formatSkillsPrompt(skillsCache);
+
+    const selected = skillsCache.filter(skill =>
+      allowedSkills.includes(skill.name) ||
+      // 未知 skill（不在任何 mode 映射中）→ 總是載入
+      !Object.values(CYCLE_MODE_SKILLS).some(skills => skills.includes(skill.name))
+    );
+    return formatSkillsPrompt(selected);
+  }
+
+  // Fallback: keyword matching（無 cycleMode 時）
+  const lowerHint = hint!.toLowerCase();
   const selected = skillsCache.filter(skill => {
     const keywords = SKILL_KEYWORDS[skill.name];
     // 未知 skill（無 mapping）→ 總是載入
@@ -1353,18 +1386,36 @@ export class InstanceMemory {
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
         const isDirectMatch = keywords.some(k => contextHint.includes(k));
-        const shouldLoad = mode === 'full' || isDirectMatch;
-        if (shouldLoad) {
+
+        if (mode === 'focused') {
+          // focused mode: 只載入匹配的 topics
+          if (!isDirectMatch) continue;
           const content = await this.readTopicMemory(topic);
           if (content) {
-            // In full mode with hint: non-matching topics get truncated
-            const shouldTruncate = mode === 'full' && hint && !isDirectMatch;
-            let topicContent = shouldTruncate ? truncateTopicMemory(content) : content;
-            // Add temporal markers to dates in topic memory
+            // Soft ranking: session utility 低的 topic 用 brief truncation
+            const loadCount = this.topicLoadCounts.get(topic) ?? 0;
+            let topicContent = loadCount < 2 ? truncateTopicMemory(content, 'brief') : content;
             topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
             loadedTopics.push(topic);
-            // Track utility
+            this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
+          }
+        } else {
+          // full mode: 匹配的完整載入，非匹配的只載 title + count (summary)
+          const content = await this.readTopicMemory(topic);
+          if (content) {
+            let topicContent: string;
+            if (isDirectMatch) {
+              topicContent = content;
+            } else if (hint) {
+              topicContent = truncateTopicMemory(content, 'summary');
+            } else {
+              // 無 hint 的 full mode → brief truncation（保留最小上下文）
+              topicContent = truncateTopicMemory(content, 'brief');
+            }
+            topicContent = addTemporalMarkers(topicContent);
+            sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
+            loadedTopics.push(topic);
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
         }
@@ -1524,7 +1575,12 @@ function toSlug(title: string): string {
  * Truncate topic memory for non-directly-matched topics.
  * Keeps: title (first line) + last 3 entries + entry count.
  */
-function truncateTopicMemory(content: string): string {
+/**
+ * Truncate topic memory — aggressive mode for non-matching topics
+ * @param content - raw topic file content
+ * @param level - 'summary' = title + count only; 'brief' = title + count + last 1 entry
+ */
+function truncateTopicMemory(content: string, level: 'brief' | 'summary' = 'brief'): string {
   const lines = content.split('\n');
   const title = lines[0] || '';
 
@@ -1532,10 +1588,15 @@ function truncateTopicMemory(content: string): string {
   const entries = lines.filter(l => l.startsWith('- ['));
   const total = entries.length;
 
-  if (total <= 3) return content; // Already small enough
+  if (total <= 1) return content; // Already minimal
 
-  const recent = entries.slice(-3);
-  return `${title}\n(${total} entries, showing recent 3)\n${recent.join('\n')}`;
+  if (level === 'summary') {
+    return `${title}\n(${total} entries)`;
+  }
+
+  // brief: title + count + last 1 entry
+  const recent = entries.slice(-1);
+  return `${title}\n(${total} entries, latest)\n${recent.join('\n')}`;
 }
 
 // =============================================================================

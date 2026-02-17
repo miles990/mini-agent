@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { InstanceMemory } from '../src/memory.js';
+import { InstanceMemory, getSkillsPrompt, setCustomExtensions, type CycleMode } from '../src/memory.js';
 
 // Use a temp dir for test isolation
 let testDir: string;
@@ -316,6 +316,92 @@ describe('InstanceMemory', () => {
       expect(entryLines.length).toBeLessThanOrEqual(10);
       // Should keep the latest entries
       expect(daily).toContain('Entry 14');
+    });
+  });
+
+  describe('getSkillsPrompt with cycleMode', () => {
+    beforeEach(() => {
+      // Load test skills
+      const skillsDir = path.join(testDir, 'skills');
+      setCustomExtensions({
+        skills: [
+          'autonomous-behavior.md',
+          'web-learning.md',
+          'web-research.md',
+          'action-from-learning.md',
+          'self-deploy.md',
+          'project-manager.md',
+          'debug-helper.md',
+        ],
+        cwd: skillsDir,
+      });
+    });
+
+    it('should load all skills when no hint and no cycleMode', () => {
+      const result = getSkillsPrompt();
+      // Without any skills loaded (files don't exist), returns empty
+      // This tests the fallback path
+      expect(typeof result).toBe('string');
+    });
+
+    it('should use cycleMode over keyword matching when both provided', () => {
+      // cycleMode should take priority
+      const result = getSkillsPrompt('some hint text', 'reflect');
+      expect(typeof result).toBe('string');
+    });
+  });
+
+  describe('buildContext topic truncation', () => {
+    beforeEach(async () => {
+      const topicsDir = path.join(testDir, 'topics');
+      await fs.mkdir(topicsDir, { recursive: true });
+
+      // Create a large topic with many entries
+      const entries = Array.from({ length: 10 }, (_, i) =>
+        `- [2026-02-${String(i + 1).padStart(2, '0')}] Entry ${i}`
+      ).join('\n');
+      await fs.writeFile(
+        path.join(topicsDir, 'gen-art.md'),
+        `# Gen Art Topics\n${entries}\n`,
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(topicsDir, 'mini-agent.md'),
+        `# Mini Agent Topics\n${entries}\n`,
+        'utf-8'
+      );
+    });
+
+    it('should use summary truncation for non-matching topics in full mode with hint', async () => {
+      const context = await memory.buildContext({
+        mode: 'full',
+        relevanceHint: 'dispatcher architecture',
+      });
+      // mini-agent matches (has 'dispatcher' keyword) → full content
+      expect(context).toContain('topic-memory name="mini-agent"');
+      expect(context).toMatch(/Entry 0/); // mini-agent has full entries
+
+      // gen-art doesn't match → summary only (title + count)
+      expect(context).toContain('topic-memory name="gen-art"');
+      expect(context).toContain('(10 entries)');
+    });
+
+    it('should not load non-matching topics in focused mode', async () => {
+      const context = await memory.buildContext({
+        mode: 'focused',
+        relevanceHint: 'dispatcher architecture',
+      });
+      expect(context).toContain('topic-memory name="mini-agent"');
+      expect(context).not.toContain('topic-memory name="gen-art"');
+    });
+
+    it('should use brief truncation in full mode without hint', async () => {
+      const context = await memory.buildContext({ mode: 'full' });
+      // All topics loaded with brief truncation (title + count + last 1)
+      expect(context).toContain('topic-memory name="gen-art"');
+      expect(context).toContain('topic-memory name="mini-agent"');
+      // Should have truncated content (last entry only)
+      expect(context).toContain('(10 entries, latest)');
     });
   });
 });

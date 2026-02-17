@@ -6,7 +6,7 @@
  */
 
 import { getLogger } from './logging.js';
-import { getMemory, getSkillsPrompt } from './memory.js';
+import { getMemory, getSkillsPrompt, type CycleMode } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
@@ -42,7 +42,7 @@ export class Semaphore {
 // System Prompt（與 agent.ts 共用邏輯）
 // =============================================================================
 
-export function getSystemPrompt(relevanceHint?: string): string {
+export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode): string {
   const instanceId = getCurrentInstanceId();
   const config = loadInstanceConfig(instanceId);
 
@@ -103,7 +103,7 @@ export function getSystemPrompt(relevanceHint?: string): string {
 
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
-${getSkillsPrompt(relevanceHint)}${(() => {
+${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
   const hint = getConversationHint();
   return hint ? `\n\n## 當前對話情境\n${hint}` : '';
 })()}`;
