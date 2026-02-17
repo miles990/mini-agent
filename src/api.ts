@@ -6,6 +6,7 @@
 
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
+import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
@@ -1599,6 +1600,38 @@ if (isMain) {
     throw err;
   });
 
+  // ── HTTPS Server (optional, for mobile sensor permissions) ──
+  let httpsServer: https.Server | null = null;
+  if (process.env.HTTPS_ENABLED === 'true') {
+    const certPath = process.env.HTTPS_CERT
+      || path.join(os.homedir(), '.mini-agent', 'tls', 'cert.pem');
+    const keyPath = process.env.HTTPS_KEY
+      || path.join(os.homedir(), '.mini-agent', 'tls', 'key.pem');
+
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      const httpsPort = parseInt(process.env.HTTPS_PORT || String(port + 442), 10);
+      httpsServer = https.createServer({
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath),
+      }, app);
+
+      httpsServer.listen(httpsPort, () => {
+        slog('SERVER', `HTTPS started on :${httpsPort}`);
+      });
+
+      httpsServer.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          slog('WARN', `HTTPS port ${httpsPort} already in use, skipping HTTPS`);
+        } else {
+          slog('WARN', `HTTPS server error: ${err.message}`);
+        }
+        httpsServer = null;
+      });
+    } else {
+      slog('WARN', `HTTPS enabled but certs not found at ${certPath}`);
+    }
+  }
+
   // ── Graceful Shutdown ──
   let shuttingDown = false;
   const shutdown = async () => {
@@ -1626,7 +1659,8 @@ if (isMain) {
       }
     }
 
-    // Graceful HTTP server close
+    // Graceful HTTP + HTTPS server close
+    if (httpsServer) httpsServer.close();
     server.close(() => {
       slog('SERVER', 'Stopped');
       process.exit(0);

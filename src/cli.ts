@@ -21,6 +21,8 @@
 
 import readline from 'node:readline';
 import fs from 'node:fs';
+import https from 'node:https';
+import os from 'node:os';
 import path from 'node:path';
 import { execSync, spawn as spawnChild } from 'node:child_process';
 import { postProcess } from './dispatcher.js';
@@ -1283,6 +1285,36 @@ async function runChat(port: number): Promise<void> {
     }
     throw err;
   });
+
+  // ── HTTPS Server (optional, for mobile sensor permissions) ──
+  if (process.env.HTTPS_ENABLED === 'true') {
+    const certPath = process.env.HTTPS_CERT
+      || path.join(os.homedir(), '.mini-agent', 'tls', 'cert.pem');
+    const keyPath = process.env.HTTPS_KEY
+      || path.join(os.homedir(), '.mini-agent', 'tls', 'key.pem');
+
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      const httpsPort = parseInt(process.env.HTTPS_PORT || String(port + 442), 10);
+      const httpsServer = https.createServer({
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath),
+      }, app);
+
+      httpsServer.listen(httpsPort, () => {
+        console.log(`HTTPS server: https://localhost:${httpsPort}`);
+      });
+
+      httpsServer.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`HTTPS port ${httpsPort} already in use, skipping HTTPS`);
+        } else {
+          console.error(`HTTPS server error: ${err.message}`);
+        }
+      });
+    } else {
+      console.error(`HTTPS enabled but certs not found at ${certPath}`);
+    }
+  }
 
   rl = readline.createInterface({
     input: process.stdin,
