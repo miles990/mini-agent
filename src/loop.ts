@@ -274,12 +274,8 @@ export class AgentLoop {
       const { preempted, partialOutput } = preemptLoopCycle();
       if (preempted) {
         this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
-        // cycling flag will be cleared by the preempted callClaude rejection
-        // Small delay to let the process cleanup settle
-        setTimeout(() => {
-          this.triggerReason = 'telegram-user';
-          this.runCycle();
-        }, 500);
+        // Let the finally block handle rescheduling after cycling=false
+        this.telegramWakeQueue++;
         return;
       }
       // preempt failed (process already dead?) → fall through to queue
