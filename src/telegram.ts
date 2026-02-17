@@ -733,7 +733,7 @@ export class TelegramPoller {
     }
   }
 
-  private markInboxProcessed(timestamp: string, sender: string): void {
+  markInboxProcessed(timestamp: string, sender: string): void {
     try {
       const content = fs.readFileSync(this.inboxFile, 'utf-8');
       const tsPrefix = `- [${timestamp}] ${sender}:`;
@@ -759,6 +759,41 @@ export class TelegramPoller {
         if (newProcessedIdx !== -1) {
           newLines.splice(newProcessedIdx + 1, 0, entryLine);
         }
+      }
+
+      fs.writeFileSync(this.inboxFile, newLines.join('\n'), 'utf-8');
+      this.trimInbox();
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /** Move ALL pending inbox messages to processed (called after OODA cycle) */
+  markAllInboxProcessed(): void {
+    try {
+      const content = fs.readFileSync(this.inboxFile, 'utf-8');
+      const lines = content.split('\n');
+      const pendingIdx = lines.findIndex(l => l === '## Pending');
+      const processedIdx = lines.findIndex(l => l === '## Processed');
+      if (pendingIdx === -1 || processedIdx === -1) return;
+
+      const pendingEntries: string[] = [];
+      const newLines: string[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        if (i > pendingIdx && i < processedIdx && lines[i].startsWith('- [')) {
+          pendingEntries.push(lines[i] + ' → replied');
+          continue;
+        }
+        newLines.push(lines[i]);
+      }
+
+      if (pendingEntries.length === 0) return;
+
+      // Insert all moved entries after ## Processed
+      const newProcessedIdx = newLines.findIndex(l => l === '## Processed');
+      if (newProcessedIdx !== -1) {
+        newLines.splice(newProcessedIdx + 1, 0, ...pendingEntries);
       }
 
       fs.writeFileSync(this.inboxFile, newLines.join('\n'), 'utf-8');
@@ -992,6 +1027,11 @@ export async function sendTelegramPhoto(photoPath: string, caption?: string): Pr
   slog('TELEGRAM', `sendPhoto failed: ${result.error}`);
   notifFailed++;
   return false;
+}
+
+/** Mark all pending inbox messages as processed (called after OODA cycle) */
+export function markInboxAllProcessed(): void {
+  pollerInstance?.markAllInboxProcessed();
 }
 
 /**

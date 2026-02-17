@@ -19,7 +19,7 @@ import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
-import { notifyTelegram } from './telegram.js';
+import { notifyTelegram, markInboxAllProcessed } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -749,6 +749,9 @@ export class AgentLoop {
 
       // 檢查 approved proposals → 自動建立 handoff
       await checkApprovedProposals();
+
+      // Mark all pending inbox messages as processed（cycle saw them all）
+      markInboxAllProcessed();
 
       // Auto-commit memory changes（fire-and-forget）
       autoCommitMemory(action).catch(() => {});
