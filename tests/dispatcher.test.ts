@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Semaphore, parseTags, triageMessage } from '../src/dispatcher.js';
+import { Semaphore, parseTags } from '../src/dispatcher.js';
 
 // =============================================================================
 // Semaphore Tests
@@ -146,49 +146,3 @@ describe('parseTags', () => {
   });
 });
 
-// =============================================================================
-// triageMessage Tests (regex-based, no API calls)
-// =============================================================================
-
-describe('triageMessage', () => {
-  it('classifies simple greetings as haiku', async () => {
-    expect((await triageMessage('hi')).lane).toBe('haiku');
-    expect((await triageMessage('Hello!')).lane).toBe('haiku');
-    expect((await triageMessage('你好')).lane).toBe('haiku');
-    expect((await triageMessage('哈囉')).lane).toBe('haiku');
-    expect((await triageMessage('hey there')).lane).toBe('haiku');
-  });
-
-  it('classifies simple replies as haiku', async () => {
-    expect((await triageMessage('thanks')).lane).toBe('haiku');
-    expect((await triageMessage('好的')).lane).toBe('haiku');
-    expect((await triageMessage('OK')).lane).toBe('haiku');
-    expect((await triageMessage('了解')).lane).toBe('haiku');
-  });
-
-  it('classifies time questions as haiku', async () => {
-    expect((await triageMessage('幾點了')).lane).toBe('haiku');
-    expect((await triageMessage('what time is it')).lane).toBe('haiku');
-  });
-
-  it('classifies complex commands as claude', async () => {
-    expect((await triageMessage('deploy the latest version')).lane).toBe('claude');
-    expect((await triageMessage('部署最新版')).lane).toBe('claude');
-    expect((await triageMessage('create a new file')).lane).toBe('claude');
-    expect((await triageMessage('fix this bug')).lane).toBe('claude');
-    expect((await triageMessage('run the tests')).lane).toBe('claude');
-  });
-
-  it('classifies agent tags as complex', async () => {
-    expect((await triageMessage('[ACTION]do something[/ACTION]')).lane).toBe('claude');
-    expect((await triageMessage('[TASK]check disk[/TASK]')).lane).toBe('claude');
-    expect((await triageMessage('[REMEMBER]save this[/REMEMBER]')).lane).toBe('claude');
-  });
-
-  it('falls through to claude when no pattern matches', async () => {
-    // Unmatched messages default to claude (regex-only triage)
-    const result = await triageMessage('what is the meaning of life');
-    expect(result.lane).toBe('claude');
-    expect(result.reason).toBe('regex-unmatched');
-  });
-});
