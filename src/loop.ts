@@ -752,6 +752,7 @@ export class AgentLoop {
 
       // Mark all pending inbox messages as processed（cycle saw them all）
       markInboxAllProcessed();
+      markClaudeCodeInboxProcessed();
 
       // Auto-commit memory changes（fire-and-forget）
       autoCommitMemory(action).catch(() => {});
@@ -1311,6 +1312,51 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
       // 單一檔案失敗不影響其他
     }
   }
+}
+
+// =============================================================================
+// Claude Code Inbox — mark pending → processed after cycle
+// =============================================================================
+
+const CLAUDE_CODE_INBOX_PATH = path.join(
+  process.env.HOME ?? '/tmp',
+  '.mini-agent',
+  'claude-code-inbox.md',
+);
+
+/**
+ * Move all entries from ## Pending to ## Processed.
+ * Trim processed to most recent 50 entries.
+ * Fire-and-forget — errors silently ignored.
+ */
+function markClaudeCodeInboxProcessed(): void {
+  try {
+    if (!fs.existsSync(CLAUDE_CODE_INBOX_PATH)) return;
+    const content = fs.readFileSync(CLAUDE_CODE_INBOX_PATH, 'utf-8');
+
+    const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## Processed)/);
+    if (!pendingMatch) return;
+
+    const pendingLines = pendingMatch[1].split('\n').filter(l => l.startsWith('- ['));
+    if (pendingLines.length === 0) return;
+
+    // Mark each pending line as processed with timestamp
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const processedEntries = pendingLines.map(l => `${l} → processed ${now}`);
+
+    // Extract existing processed entries
+    const processedMatch = content.match(/## Processed\n([\s\S]*?)$/);
+    const existingProcessed = processedMatch?.[1]
+      ?.split('\n')
+      .filter(l => l.startsWith('- ['))
+      ?? [];
+
+    // Combine and trim to 50
+    const allProcessed = [...processedEntries, ...existingProcessed].slice(0, 50);
+
+    const newContent = `## Pending\n\n## Processed\n${allProcessed.join('\n')}\n`;
+    fs.writeFileSync(CLAUDE_CODE_INBOX_PATH, newContent, 'utf-8');
+  } catch { /* fire-and-forget */ }
 }
 
 // =============================================================================

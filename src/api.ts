@@ -556,14 +556,27 @@ export function createApi(port = 3001): express.Express {
     slog('CHAT', `← "${message.slice(0, 80)}${message.length > 80 ? '...' : ''}"`);
 
     try {
-      // Write to claude-code-inbox (file-based notification)
+      // Write to claude-code-inbox (pending/processed format)
       const inboxPath = path.join(os.homedir(), '.mini-agent', 'claude-code-inbox.md');
       const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      const entry = `[${timestamp}] ${message}\n`;
-      await fsPromises.appendFile(inboxPath, entry, 'utf-8');
+      const entry = `- [${timestamp}] ${message}`;
 
-      // Emit trigger to wake OODA cycle
-      eventBus.emit('trigger:telegram', { source: 'api', messageCount: 1 });
+      // Auto-init file with correct sections if needed
+      let content = '';
+      try {
+        content = await fsPromises.readFile(inboxPath, 'utf-8');
+      } catch { /* file doesn't exist yet */ }
+
+      if (!content.includes('## Pending')) {
+        content = `## Pending\n\n## Processed\n`;
+      }
+
+      // Insert entry after ## Pending line
+      content = content.replace('## Pending\n', `## Pending\n${entry}\n`);
+      await fsPromises.writeFile(inboxPath, content, 'utf-8');
+
+      // Emit workspace trigger (not telegram — avoid being treated as Alex's message)
+      eventBus.emit('trigger:workspace', { source: 'chat-api', messageCount: 1 });
 
       slog('CHAT', `→ [inbox] message queued for OODA cycle`);
       res.status(202).json({
