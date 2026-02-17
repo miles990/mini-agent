@@ -85,7 +85,7 @@ graph TD
 **改進**：
 - **AgentLoop（focused mode）改為更精確的匹配**：目前的 `topicKeywords` 太寬泛（例如 `agent` 匹配到 `agent-architecture`，但大部分 cycle 不需要完整的競品分析）。改進：增加 negative keywords（排除不相關的匹配）
 - **非匹配 topics 的 truncation 更激進**：目前保留 title + last 3 entries。改為只保留 title + entry count（一行摘要），需要時再載入
-- **Topic heat 權重**：結合 `self-awareness.sh` 的 topic heat 數據，最近 24h 未被引用的 topics 不載入
+- **Topic heat 權重**：結合 `self-awareness.sh` 的 topic heat 數據做載入優先序。**不用 hard cutoff**（Alex 反饋：24h 未引用就不載入太激進，某些 topic 可能 3-5 天沒碰但仍然重要）。改用 soft ranking：heat 高的 topics 完整載入，heat 低的只載入 title + entry count + last 1 entry（保留最小上下文），確保冷門 topic 不會完全消失
 
 **預估節省**：~5-15K tokens/cycle（取決於 topic 數量和匹配率）
 
@@ -113,7 +113,7 @@ graph TD
 ### Cons
 - keyword/mode 映射需要手動維護（新 skill 要加映射）
 - 可能漏載某個 cycle 需要的 skill（但 `respond` mode 全載作為兜底）
-- Topic 精細化可能誤判（近期沒被引用 ≠ 不重要）
+- Topic 精細化可能誤判（近期沒被引用 ≠ 不重要）— **已緩解**：改用 soft ranking 取代 hard cutoff，冷門 topic 保留最小上下文（title + count + last 1），不會完全消失
 
 ## Effort: Small
 ## Risk: Low
