@@ -1312,20 +1312,73 @@ export function createApi(port = 3001): express.Express {
     }
 
     try {
-      const statePath = path.join(os.homedir(), '.mini-agent', 'mobile-state.json');
-      const stateDir = path.dirname(statePath);
+      const stateDir = path.join(os.homedir(), '.mini-agent');
+      const statePath = path.join(stateDir, 'mobile-state.json');
+      const historyPath = path.join(stateDir, 'mobile-history.jsonl');
       if (!fs.existsSync(stateDir)) {
         await fsPromises.mkdir(stateDir, { recursive: true });
       }
 
       const state = { ...data, updatedAt: new Date().toISOString() };
+
+      // Write latest snapshot (existing behavior)
       await fsPromises.writeFile(statePath, JSON.stringify(state, null, 2));
+
+      // Append to ring buffer (Phase 1.5: keep last 120 entries = ~10 min at 5s interval)
+      const MAX_HISTORY = 120;
+      const historyEntry = JSON.stringify({
+        ts: state.updatedAt,
+        accelX: data.accelX ?? data.data?.accelX,
+        accelY: data.accelY ?? data.data?.accelY,
+        accelZ: data.accelZ ?? data.data?.accelZ,
+        alpha: data.alpha ?? data.data?.alpha,
+        beta: data.beta ?? data.data?.beta,
+        gamma: data.gamma ?? data.data?.gamma,
+        latitude: data.latitude ?? data.data?.latitude,
+        longitude: data.longitude ?? data.data?.longitude,
+        speed: data.speed ?? data.data?.speed,
+        accuracy: data.accuracy ?? data.data?.accuracy,
+      });
+      try {
+        let lines: string[] = [];
+        if (fs.existsSync(historyPath)) {
+          const raw = await fsPromises.readFile(historyPath, 'utf-8');
+          lines = raw.split('\n').filter(Boolean);
+        }
+        // Keep last (MAX_HISTORY - 1) + new entry = MAX_HISTORY
+        if (lines.length >= MAX_HISTORY) {
+          lines = lines.slice(lines.length - MAX_HISTORY + 1);
+        }
+        lines.push(historyEntry);
+        await fsPromises.writeFile(historyPath, lines.join('\n') + '\n');
+      } catch {
+        // History write is best-effort, don't block the main flow
+      }
+
       eventBus.emit('trigger:mobile', { data: state });
 
       res.json({ ok: true });
     } catch (error) {
       slog('MOBILE', `Sensor write failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({ error: 'Failed to write sensor data' });
+    }
+  });
+
+  // Mobile sensor history — Phase 1.5: query ring buffer
+  app.get('/api/mobile/history', async (_req: Request, res: Response) => {
+    try {
+      const historyPath = path.join(os.homedir(), '.mini-agent', 'mobile-history.jsonl');
+      if (!fs.existsSync(historyPath)) {
+        res.json({ entries: [], count: 0 });
+        return;
+      }
+      const raw = await fsPromises.readFile(historyPath, 'utf-8');
+      const entries = raw.split('\n').filter(Boolean).map(line => {
+        try { return JSON.parse(line); } catch { return null; }
+      }).filter(Boolean);
+      res.json({ entries, count: entries.length });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to read history' });
     }
   });
 

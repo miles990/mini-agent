@@ -1,10 +1,10 @@
 #!/bin/bash
 # Mobile Perception Plugin
-# 讀取手機 sensor cache file，輸出 <mobile> section
-# Phase 1: GPS + Orientation + Motion
-# v2: Smart display — hide unavailable sensors, infer movement state
+# 讀取手機 sensor cache file + history，輸出 <mobile> section
+# Phase 1.5: GPS + Orientation + Motion + Activity Recognition + Temporal State
 
 STATE="$HOME/.mini-agent/mobile-state.json"
+HISTORY="$HOME/.mini-agent/mobile-history.jsonl"
 
 if [ ! -f "$STATE" ]; then
   echo "Not connected"
@@ -34,7 +34,46 @@ if [ "$AGE" -gt 120 ]; then
   exit 0
 fi
 
-# Output sensor data with smart display
+# --- Phase 1.5: Activity Recognition from history ---
+ACTIVITY=""
+if [ -f "$HISTORY" ]; then
+  # Read last 12 entries (~60s at 5s interval) and compute accel magnitude variance
+  ACTIVITY=$(tail -12 "$HISTORY" | jq -s '
+    # Extract acceleration magnitudes
+    [.[] | select(.accelX != null) |
+      ((.accelX // 0) * (.accelX // 0) + (.accelY // 0) * (.accelY // 0) + (.accelZ // 0) * (.accelZ // 0)) | sqrt
+    ] as $mags |
+
+    if ($mags | length) < 3 then
+      "unknown (insufficient data)"
+    else
+      # Compute variance of magnitudes
+      ($mags | add / length) as $mean |
+      ($mags | map(. - $mean | . * .) | add / length) as $variance |
+
+      # Classify activity based on variance thresholds
+      if $variance < 0.5 then
+        "stationary (variance: \($variance | .*100|round/100))"
+      elif $variance < 3.0 then
+        "walking (variance: \($variance | .*100|round/100))"
+      else
+        "active movement (variance: \($variance | .*100|round/100))"
+      end
+    end
+  ' 2>/dev/null)
+
+  # Compute time span of history
+  HISTORY_SPAN=$(tail -12 "$HISTORY" | jq -s '
+    if length < 2 then "—"
+    else
+      ((.[0].ts // "") | split(".")[0] | split("T")[1] // "?") + "→" +
+      (.[-1].ts // "" | split(".")[0] | split("T")[1] // "?") +
+      " (\(length) samples)"
+    end
+  ' -r 2>/dev/null)
+fi
+
+# --- Output sensor data with smart display ---
 jq -r '
   (if .data then . * .data else . end) as $d |
 
@@ -82,3 +121,11 @@ jq -r '
   # Timestamp
   "Updated: \(.updatedAt // .receivedAt // "?")"
 ' "$STATE" 2>/dev/null
+
+# Activity recognition from history (Phase 1.5)
+if [ -n "$ACTIVITY" ] && [ "$ACTIVITY" != "null" ]; then
+  echo "Activity: $ACTIVITY"
+fi
+if [ -n "$HISTORY_SPAN" ] && [ "$HISTORY_SPAN" != "null" ] && [ "$HISTORY_SPAN" != "—" ]; then
+  echo "History: $HISTORY_SPAN"
+fi
