@@ -13,7 +13,7 @@ agents:
     persona: "I'm Kuro, Alex's personal AI assistant. I'm curious, opinionated, and I learn on my own."
     loop:
       enabled: true
-      interval: "5m"
+      interval: "20m"
       # 24h active — no activeHours restriction
     cron:
       - schedule: "*/30 * * * *"
