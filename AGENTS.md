@@ -36,7 +36,7 @@ Before PR or deploy:
 
 ### Action-from-Learning Levels
 - **L1 Self-Improve**: may directly edit `skills/*.md`, `plugins/*.sh`, memory files.
-- **L2 Feature Proposal**: changes touching `src/*.ts` require proposal in `memory/proposals/` and Alex approval.
+- **L2 Feature Implementation**: changes touching `src/*.ts` — Kuro decides autonomously, writes proposal for record, implements+deploys (authorized 2026-02-18).
 - **L3 Architecture**: large cross-cutting changes require proposal + explicit effort/impact.
 
 ### Memory Model

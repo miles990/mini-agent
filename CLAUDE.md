@@ -39,8 +39,8 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Level | 可做的事 | 流程 |
 |-------|---------|------|
 | **L1: Self-Improve** | 改 skills/*.md、plugins/*.sh、SOUL/MEMORY | Agent 自己做，走 `self-deploy` SOP（驗證→commit→push→確認部署→TG通知） |
-| **L2: Feature Proposal** | 涉及 src/*.ts 的改動 | 寫提案到 `memory/proposals/`，Alex 核准 |
-| **L3: Architecture** | 大架構改動 | 寫提案 + 標注 Effort: Large |
+| **L2: Feature Implementation** | 涉及 src/*.ts 的改動 | Kuro 自主決定，寫提案記錄，自行實作+部署（2026-02-18 授權） |
+| **L3: Architecture** | 大架構改動 | 寫提案 + 標注 Effort: Large，Alex 核准 |
 
 提案目錄：`memory/proposals/YYYY-MM-DD-標題.md`
 
