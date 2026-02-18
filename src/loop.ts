@@ -619,7 +619,7 @@ export class AgentLoop {
           if (this.lastAutonomousActions.length > 10) {
             this.lastAutonomousActions.shift();
           }
-          this.autonomousCooldown = Math.max(1, Math.min(10, cd.afterAction));
+          this.autonomousCooldown = cd.afterAction > 0 ? Math.min(10, cd.afterAction) : 0;
           await memory.appendConversation('assistant', `[Autonomous] ${action}`);
           eventBus.emit('action:loop', { event: 'action.autonomous', cycleCount: this.cycleCount, action, duration });
         } else {
@@ -630,7 +630,7 @@ export class AgentLoop {
         this.adjustInterval(true);
       } else {
         if (this.currentMode === 'autonomous') {
-          this.autonomousCooldown = Math.max(1, Math.min(10, cd.afterNoAction));
+          this.autonomousCooldown = cd.afterNoAction > 0 ? Math.min(10, cd.afterNoAction) : 0;
         }
         this.adjustInterval(false);
         eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
@@ -1248,8 +1248,8 @@ export function parseBehaviorConfig(content: string): BehaviorConfig | null {
     const afterActionMatch = content.match(/after-action:\s*(\d+)/);
     const afterNoActionMatch = content.match(/after-no-action:\s*(\d+)/);
     const cooldowns = {
-      afterAction: Math.max(1, Math.min(10, parseInt(afterActionMatch?.[1] ?? '2', 10))),
-      afterNoAction: Math.max(1, Math.min(10, parseInt(afterNoActionMatch?.[1] ?? '5', 10))),
+      afterAction: afterActionMatch ? Math.max(1, Math.min(10, parseInt(afterActionMatch[1], 10))) : 0,
+      afterNoAction: afterNoActionMatch ? Math.max(1, Math.min(10, parseInt(afterNoActionMatch[1], 10))) : 0,
     };
 
     // Parse focus
