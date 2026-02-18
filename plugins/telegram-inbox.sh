@@ -41,8 +41,8 @@ if [ "$seen_not_replied" -gt 0 ]; then
         echo "$seen_not_replied seen-but-not-replied message(s) ==="
     fi
     echo ""
-    echo "--- Seen but NOT replied (needs response) ---"
-    grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '→ seen$' | head -5 | while IFS= read -r line; do
+    echo "⚠️ NEEDS RESPONSE: $seen_not_replied message(s) you saw but never replied ==="
+    grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '→ seen$' | head -10 | while IFS= read -r line; do
         echo "  $line"
     done
 fi
