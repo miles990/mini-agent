@@ -16,6 +16,7 @@ import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
 import type { NotificationTier } from './types.js';
 import { eventBus } from './event-bus.js';
+import { withFileLock } from './filelock.js';
 
 // =============================================================================
 // Types
@@ -382,6 +383,9 @@ export class TelegramPoller {
 
     // Write to inbox immediately
     this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
+
+    // Auto-enqueue to NEXT.md so the message persists until explicitly handled
+    autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});
 
     // Add to buffer and schedule flush
     this.messageBuffer.push(parsed);
@@ -901,6 +905,61 @@ export class TelegramPoller {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
+
+// =============================================================================
+// Auto-Enqueue to NEXT.md — 訊息入列，直到顯式完成才移除
+// =============================================================================
+
+const NEXT_MD_PATH = path.join(process.cwd(), 'memory', 'NEXT.md');
+
+/**
+ * 自動將 Alex 的訊息寫入 NEXT.md 的 Next section。
+ * 訊息會留在那裡直到 Kuro 用 [DONE] 標記完成。
+ * 使用 withFileLock 防止併發寫入。
+ */
+async function autoEnqueueToNext(message: string, timestamp: string): Promise<void> {
+  await withFileLock(NEXT_MD_PATH, async () => {
+    try {
+      if (!fs.existsSync(NEXT_MD_PATH)) return;
+      const content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
+
+      // 去重：比對 timestamp prefix，避免同一條訊息重複入列
+      if (content.includes(`(收到: ${timestamp})`)) return;
+
+      const preview = message.replace(/\n/g, ' ').slice(0, 50);
+      const entry = `- [ ] P1: 回覆 Alex: "${preview}" (收到: ${timestamp})`;
+
+      // 插入到 ## Next section 的末尾（在 --- 之前）
+      const nextHeader = '## Next(接下來做,按優先度排序)';
+      const nextIdx = content.indexOf(nextHeader);
+      if (nextIdx === -1) return;
+
+      // 找到 Next section 之後的下一個 --- 分隔線
+      const afterHeader = content.indexOf('\n', nextIdx);
+      const nextSeparator = content.indexOf('\n---', afterHeader);
+      if (nextSeparator === -1) return;
+
+      // 檢查 "(空)" 佔位符
+      const sectionContent = content.slice(afterHeader, nextSeparator);
+      let updated: string;
+      if (sectionContent.includes('(空)')) {
+        // 替換 "(空)" 為新項目
+        updated = content.slice(0, afterHeader) + '\n\n' + entry + '\n' + content.slice(nextSeparator);
+      } else {
+        // 在 --- 之前插入新項目
+        updated = content.slice(0, nextSeparator) + '\n' + entry + content.slice(nextSeparator);
+      }
+
+      fs.writeFileSync(NEXT_MD_PATH, updated, 'utf-8');
+      slog('NEXT', `Enqueued: ${preview.slice(0, 40)}`);
+    } catch {
+      // Non-critical — don't block message processing
+    }
+  });
+}
+
+/** Export for use in [DONE] tag processing */
+export { NEXT_MD_PATH };
 
 // =============================================================================
 // Singleton

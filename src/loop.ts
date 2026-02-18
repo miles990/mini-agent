@@ -28,6 +28,9 @@ import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
+import { triageNextItems, extractNextItems } from './triage.js';
+import { NEXT_MD_PATH } from './telegram.js';
+import { withFileLock } from './filelock.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -517,9 +520,25 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
+      // Triage NEXT.md items (Sonnet 4.6, fire-and-forget on failure)
+      await triageNextItems().catch(() => {});
+
+      // Priority prefix: 強制先處理 NEXT.md pending items
+      const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
+      let nextPendingItems: string[] = [];
+      try {
+        if (fs.existsSync(NEXT_MD_PATH)) {
+          nextPendingItems = extractNextItems(fs.readFileSync(NEXT_MD_PATH, 'utf-8'));
+        }
+      } catch { /* non-critical */ }
+
+      const priorityPrefix = (isTelegramUserCycle || nextPendingItems.length > 0)
+        ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，用 [CHAT] 回應 Alex 的問題（至少 acknowledge），完成後用 [DONE] 標記。處理完待辦才做自主行動。\n\n`
+        : '';
+
       const prompt = shouldRunTaskMode
-        ? this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix
-        : await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+        ? priorityPrefix + this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix
+        : priorityPrefix + await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -700,6 +719,11 @@ export class AgentLoop {
             await pauseThread(t.id, t.note || undefined);
             break;
         }
+      }
+
+      // ── Process [DONE] tags — remove completed items from NEXT.md ──
+      if (tags.dones.length > 0) {
+        markNextItemsDone(tags.dones).catch(() => {});
       }
 
       const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
@@ -1420,4 +1444,72 @@ async function autoCommitMemory(action: string | null): Promise<void> {
       slog('auto-commit', `skipped: ${msg.slice(0, 120)}`);
     }
   }
+}
+
+// =============================================================================
+// [DONE] Tag — 從 NEXT.md 移除已完成項目
+// =============================================================================
+
+/**
+ * 將 NEXT.md 中匹配的項目標記為完成（移除 checkbox）。
+ * 匹配邏輯：[DONE] 的描述包含 NEXT.md 項目的關鍵字即視為匹配。
+ */
+async function markNextItemsDone(dones: string[]): Promise<void> {
+  await withFileLock(NEXT_MD_PATH, async () => {
+    try {
+      if (!fs.existsSync(NEXT_MD_PATH)) return;
+      let content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
+      let removed = 0;
+
+      for (const done of dones) {
+        // 找到 Next section 中的 pending items
+        const items = extractNextItems(content);
+        if (items.length === 0) break;
+
+        // 嘗試匹配：取 [DONE] 描述的前 30 字和每個 item 比對
+        const doneNorm = done.toLowerCase().slice(0, 80);
+        const matched = items.find(item => {
+          const itemNorm = item.toLowerCase();
+          // 精確匹配 timestamp（如果 [DONE] 包含 timestamp）
+          const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
+          if (tsMatch && itemNorm.includes(tsMatch[0])) return true;
+          // 模糊匹配：Alex 訊息前 20 字
+          const previewMatch = itemNorm.match(/回覆 Alex: "(.{10,30})"/);
+          if (previewMatch && doneNorm.includes(previewMatch[1].toLowerCase().slice(0, 15))) return true;
+          // 最寬鬆：只要 [DONE] 提到 "alex" 且 item 是 "回覆 Alex"
+          if (doneNorm.includes('alex') && itemNorm.includes('回覆 alex')) return true;
+          return false;
+        });
+
+        if (matched) {
+          // 移除匹配的行
+          content = content.replace(matched + '\n', '');
+          removed++;
+        }
+      }
+
+      // 如果 Next section 變空了，加回 "(空)"
+      if (removed > 0) {
+        const remainingItems = extractNextItems(content);
+        if (remainingItems.length === 0) {
+          const nextHeader = '## Next(接下來做,按優先度排序)';
+          const nextIdx = content.indexOf(nextHeader);
+          if (nextIdx !== -1) {
+            const afterHeader = content.indexOf('\n', nextIdx);
+            const nextSeparator = content.indexOf('\n---', afterHeader);
+            if (nextSeparator !== -1) {
+              const between = content.slice(afterHeader, nextSeparator).trim();
+              if (!between) {
+                content = content.slice(0, afterHeader) + '\n\n(空)\n' + content.slice(nextSeparator);
+              }
+            }
+          }
+        }
+        fs.writeFileSync(NEXT_MD_PATH, content, 'utf-8');
+        slog('DONE', `Marked ${removed} item(s) done in NEXT.md`);
+      }
+    } catch {
+      // Non-critical
+    }
+  });
 }

@@ -115,7 +115,7 @@ ${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
 
 function getConversationHint(): string {
   const memory = getMemory();
-  const recent = memory.getHotConversations().slice(-5);
+  const recent = memory.getHotConversations().slice(-15);
   if (recent.length === 0) return '';
 
   const hints: string[] = [];
@@ -126,6 +126,8 @@ function getConversationHint(): string {
   if (lastAlexMsg && lastKuroMsg &&
       new Date(lastAlexMsg.timestamp) > new Date(lastKuroMsg.timestamp)) {
     hints.push('Alex 正在等待你的回應');
+    // 顯示最後未回覆問題的前 100 字
+    hints.push(`最後的訊息: "${lastAlexMsg.content.slice(0, 100)}"`);
   }
 
   // 偵測連續快速對話（對話密度高 = 閒聊模式）
@@ -207,6 +209,14 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // [DONE] tags — mark NEXT.md items as completed
+  const dones: string[] = [];
+  if (response.includes('[DONE]')) {
+    for (const m of response.matchAll(/\[DONE\]\s*(.+?)(?:\n|$)/g)) {
+      dones.push(m[1].trim());
+    }
+  }
+
   let schedule: { next: string; reason: string } | undefined;
   if (response.includes('[SCHEDULE')) {
     const match = response.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
@@ -236,9 +246,10 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
     .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
+    .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')
     .trim();
 
-  return { remember, task, archive, impulses, threads, chats, shows, summaries, schedule, cleanContent };
+  return { remember, task, archive, impulses, threads, chats, shows, summaries, dones, schedule, cleanContent };
 }
 
 // =============================================================================

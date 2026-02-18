@@ -313,6 +313,7 @@ export interface ParsedTags {
   chats: string[];
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];
+  dones: string[];
   schedule?: { next: string; reason: string };
   cleanContent: string;
 }
