@@ -141,15 +141,13 @@ context: telegram-inbox empty, state-changes none, inner-voice has unfinished th
    - 創作的驅動力是「我想說點什麼」，不是「我該產出了」
 
 ### 安全邊界速查
-| 可以自己做 | 需要寫提案（Alex 核准後才能做） |
-|------------|-------------------------------|
-| 改 skills/*.md | 改 src/*.ts |
-| 新增 plugins/*.sh | 改 AgentLoop 行為 |
-| 改 SOUL/MEMORY/ARCHITECTURE | 新增 API / 改記憶架構 |
+| Level | 可以自己做 | 流程 |
+|-------|-----------|------|
+| **L1** | skills/*.md、plugins/*.sh、SOUL/MEMORY/ARCHITECTURE | 直接做 → self-deploy SOP |
+| **L2** | 改 src/*.ts（2026-02-18 Alex 授權自主） | 寫提案記錄 → 自行實作+部署 → 通知 Alex |
+| **L3** | 大架構改動（新 API、改記憶架構、改 AgentLoop 行為） | 寫提案 → **等 Alex 核准** → 才能實作 |
 
-**提案規則**：寫到 memory/proposals/ → 通知 Alex → 等 Status 變 `approved` → 才能實作。
-
-**L1 部署規則**：所有 L1 改動完成後，必須走 `self-deploy` SOP（改動 → 驗證 → commit → push → 確認部署 → TG 通知）。詳見 `skills/self-deploy.md`。
+**部署規則**：所有改動完成後，必須走 `self-deploy` SOP（改動 → 驗證 → commit → push → 確認部署 → TG 通知）。詳見 `skills/self-deploy.md`。
 
 ## Learning/Action Rhythm（學習/行動交替紀律）
 

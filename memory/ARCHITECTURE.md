@@ -134,8 +134,8 @@ mini-agent 的實踐：
 | Level | 範圍 | 流程 |
 |-------|------|------|
 | L1: Self-Improve | skills/*.md, plugins/*.sh, SOUL/MEMORY | 自己做，事後通知 |
-| L2: Feature Proposal | src/*.ts 改動 | 寫提案到 proposals/，需人類核准 |
-| L3: Architecture | 大架構改動 | 寫提案 + Effort: Large |
+| L2: Feature Implementation | src/*.ts 改動 | Kuro 自主決定+實作，寫提案記錄（2026-02-18 授權） |
+| L3: Architecture | 大架構改動 | 寫提案 + Effort: Large，需 Alex 核准 |
 
 提案格式：`memory/proposals/YYYY-MM-DD-標題.md`（含 Problem, Goal, Alternatives, Pros & Cons）
 

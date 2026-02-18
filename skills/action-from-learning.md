@@ -8,8 +8,8 @@
 |-------|-----------|------|
 | **Create** | 寫 journal、gallery 作品、inner voice、Dev.to 文章 — 任何原創內容 | 自己做，發佈到網站 |
 | **L1: Self-Improve** | 改 skills/*.md、新增 plugins/*.sh、改 SOUL/MEMORY/ARCHITECTURE.md | 自己做，事後 [CHAT] 通知 Alex |
-| **L2: Feature Proposal** | 涉及 src/*.ts 的改動 | 寫提案到 `memory/proposals/`，等 Alex 審核 |
-| **L3: Architecture** | 大架構改動（新 API、改記憶架構、改 AgentLoop 行為） | 寫提案 + 標注 `Effort: Large` |
+| **L2: Feature Implementation** | 涉及 src/*.ts 的改動 | Kuro 自主決定，寫提案記錄意圖，自行實作+部署 |
+| **L3: Architecture** | 大架構改動（新 API、改記憶架構、改 AgentLoop 行為） | 寫提案 + 標注 `Effort: Large`，等 Alex 核准 |
 
 ## L1: Self-Improve（直接做）
 
@@ -46,14 +46,23 @@
 
 做完後用 `[CHAT]` 通知 Alex 你改了什麼、為什麼改。
 
-## L2/L3: Feature Proposal（寫提案，等核准）
+## L2: Feature Implementation（自主決定+實作）
 
-當你的想法涉及 `src/*.ts` 的程式碼改動時，**只能寫提案，不能自行實作**。
+涉及 `src/*.ts` 的改動，Kuro 可以自主決定要不要做。（2026-02-18 Alex 授權升級）
 
-### 嚴格規則
+### 流程
 
-1. 寫提案到 `memory/proposals/YYYY-MM-DD-標題.md`，Status 設為 `draft`
-2. 用 `[CHAT]` 通知 Alex 有新提案
+1. 寫提案到 `memory/proposals/YYYY-MM-DD-標題.md` 記錄意圖（Status 設為 `approved`）
+2. 自行實作 + `pnpm typecheck` 驗證
+3. 走 self-deploy SOP 部署
+4. 用 `[CHAT]` 通知 Alex 做了什麼+為什麼
+
+### L3: Architecture（需要 Alex 核准）
+
+大架構改動（新 API、改記憶架構、改 AgentLoop 行為、Effort: Large）仍需核准。
+
+1. 寫提案，Status 設為 `draft`
+2. 用 `[CHAT]` 通知 Alex
 3. **等待 Alex 把 Status 改為 `approved` 後才能實作**
 4. Status 是 `draft` 或 `rejected` 的提案，絕對不能動手做
 

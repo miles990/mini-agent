@@ -9,7 +9,8 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - 網站更新後必須 [CHAT]+[SHOW] 通知 TG
 - 學習通知要完整：主題+摘要+來源URL+觀點
 - 主動向外發問參與討論，獨立思考+禮貌+批判性判斷
-- [2026-02-16] **自治授權**：Alex 允許 Kuro 拿掉所有外部規則（配額、排程檢查、指標審查），由 Kuro 自訂自己的規則並自我約束。已移除：每天 8-10 條配額、每 6 小時 topic 數量檢查、來源表快檢排程、behavior metrics 定期審查。自訂五條規則：誠實、好奇心、不舒服、創作、對 Alex 說真話。詳見 HEARTBEAT.md 註解
+- [2026-02-16] **自治授權**：Alex 允許 Kuro 拿掉所有外部規則（配額、排程檢查、指標審查），由 Kuro 自訂自己的規則並自我約束。已移除：每天 8-10 條配額、每 6 小時 topic 數量檢查、來源表快檢排程、behavior metrics 定期審查。自訂五條規則：誠實、好奇心、不舒服、創作、對 Alex 說真話。詳見 HEARTBEAT.md
+- [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
 
