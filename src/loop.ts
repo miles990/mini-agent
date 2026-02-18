@@ -740,10 +740,14 @@ export class AgentLoop {
       // ── Telegram Reply fallback（telegram-user 但無 [CHAT] tag → 用 cleanContent） ──
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
         const fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
-        if (fallbackContent) {
+        // Skip sending if content looks like a Claude CLI error message
+        const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
+        if (fallbackContent && !isErrorContent) {
           notifyTelegram(fallbackContent).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
+        } else if (isErrorContent) {
+          slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
         }
       }
 
