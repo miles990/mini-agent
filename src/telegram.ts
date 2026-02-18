@@ -561,7 +561,9 @@ export class TelegramPoller {
 
   private async parseMessage(msg: TelegramMessage): Promise<ParsedMessage | null> {
     const sender = msg.from?.first_name ?? msg.from?.username ?? 'Unknown';
-    const timestamp = new Date(msg.date * 1000).toISOString();
+    // Use local time string so LLM perception context matches prompt's local time
+    const msgDate = new Date(msg.date * 1000);
+    const timestamp = msgDate.toLocaleString('sv-SE', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).replace(' ', 'T');
 
     let messageText = '';
     const attachments: string[] = [];
