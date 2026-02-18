@@ -15,21 +15,40 @@ fi
 # Count pending messages
 pending=$(sed -n '/^## Pending$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep -c '^- \[' || echo 0)
 
-if [ "$pending" -eq 0 ]; then
+# Count seen-but-not-replied messages (marked → seen, not → replied)
+seen_not_replied=$(grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '→ seen$' | head -10 | wc -l | tr -d ' ')
+
+header_count=$((pending + seen_not_replied))
+
+if [ "$header_count" -eq 0 ]; then
     echo "No pending messages"
-    exit 0
+else
+    echo "=== ${header_count}"
 fi
 
-echo "=== $pending pending message(s) ==="
+if [ "$pending" -gt 0 ]; then
+    echo "$pending pending message(s) ==="
+    echo ""
+    # Show pending messages
+    sed -n '/^## Pending$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^- \[' | head -10 | while IFS= read -r line; do
+        echo "  $line"
+    done
+fi
 
-# Show pending messages
-sed -n '/^## Pending$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^- \[' | head -10 | while IFS= read -r line; do
-    # Extract timestamp and content
-    echo "  $line"
-done
+# Show seen-but-not-replied (these need attention!)
+if [ "$seen_not_replied" -gt 0 ]; then
+    if [ "$pending" -eq 0 ]; then
+        echo "$seen_not_replied seen-but-not-replied message(s) ==="
+    fi
+    echo ""
+    echo "--- Seen but NOT replied (needs response) ---"
+    grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '→ seen$' | head -5 | while IFS= read -r line; do
+        echo "  $line"
+    done
+fi
 
-# Show recent processed (last 3)
-recent=$(grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '^- \[' | head -3)
+# Show recent replied (last 3)
+recent=$(grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '→ replied$' | head -3)
 if [ -n "$recent" ]; then
     echo ""
     echo "--- Recent replies ---"

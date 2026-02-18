@@ -771,7 +771,7 @@ export class TelegramPoller {
   }
 
   /** Move ALL pending inbox messages to processed (called after OODA cycle) */
-  markAllInboxProcessed(): void {
+  markAllInboxProcessed(didReply = false): void {
     try {
       const content = fs.readFileSync(this.inboxFile, 'utf-8');
       const lines = content.split('\n');
@@ -779,12 +779,14 @@ export class TelegramPoller {
       const processedIdx = lines.findIndex(l => l === '## Processed');
       if (pendingIdx === -1 || processedIdx === -1) return;
 
+      // 'replied' = agent sent a response this cycle; 'seen' = agent saw but didn't respond
+      const suffix = didReply ? ' → replied' : ' → seen';
       const pendingEntries: string[] = [];
       const newLines: string[] = [];
 
       for (let i = 0; i < lines.length; i++) {
         if (i > pendingIdx && i < processedIdx && lines[i].startsWith('- [')) {
-          pendingEntries.push(lines[i] + ' → replied');
+          pendingEntries.push(lines[i] + suffix);
           continue;
         }
         newLines.push(lines[i]);
@@ -1032,8 +1034,8 @@ export async function sendTelegramPhoto(photoPath: string, caption?: string): Pr
 }
 
 /** Mark all pending inbox messages as processed (called after OODA cycle) */
-export function markInboxAllProcessed(): void {
-  pollerInstance?.markAllInboxProcessed();
+export function markInboxAllProcessed(didReply = false): void {
+  pollerInstance?.markAllInboxProcessed(didReply);
 }
 
 /**

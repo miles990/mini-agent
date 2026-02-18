@@ -659,9 +659,11 @@ export class AgentLoop {
 
       // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
       // Must run BEFORE action:chat emission to prevent duplicate sends
+      let didReplyToTelegram = false;
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
         const replyContent = tags.chats.join('\n\n');
         if (replyContent) {
+          didReplyToTelegram = true;
           notifyTelegram(replyContent).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
@@ -755,7 +757,8 @@ export class AgentLoop {
       await checkApprovedProposals();
 
       // Mark all pending inbox messages as processed（cycle saw them all）
-      markInboxAllProcessed();
+      // didReplyToTelegram: true → 'replied', false → 'seen' (honest distinction)
+      markInboxAllProcessed(didReplyToTelegram);
       markClaudeCodeInboxProcessed();
 
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
