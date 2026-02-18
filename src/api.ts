@@ -558,7 +558,9 @@ export function createApi(port = 3001): express.Express {
     try {
       // Write to claude-code-inbox (pending/processed format)
       const inboxPath = path.join(os.homedir(), '.mini-agent', 'claude-code-inbox.md');
-      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      // Use local time so LLM perception context matches prompt's local time
+      const now = new Date();
+      const timestamp = now.toLocaleString('sv-SE', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).slice(0, 16);
       const entry = `- [${timestamp}] ${message}`;
 
       // Auto-init file with correct sections if needed
