@@ -754,6 +754,10 @@ export class AgentLoop {
       markInboxAllProcessed();
       markClaudeCodeInboxProcessed();
 
+      // Refresh telegram-inbox perception cache so next cycle sees cleared state
+      // (telegram-inbox is event-driven, won't refresh unless triggered)
+      eventBus.emit('trigger:telegram', { source: 'mark-processed' });
+
       // Auto-commit memory changes（fire-and-forget）
       autoCommitMemory(action).catch(() => {});
 
