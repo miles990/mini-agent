@@ -533,7 +533,7 @@ export class AgentLoop {
       } catch { /* non-critical */ }
 
       const priorityPrefix = (isTelegramUserCycle || nextPendingItems.length > 0)
-        ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，用 [CHAT] 回應 Alex 的問題（至少 acknowledge），完成後用 [DONE] 標記。處理完待辦才做自主行動。\n\n`
+        ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
         : '';
 
       const prompt = shouldRunTaskMode
