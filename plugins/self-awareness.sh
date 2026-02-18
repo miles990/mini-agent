@@ -232,7 +232,7 @@ else
     echo "No behavior log for signal tracking"
 fi
 
-# ─── Context Health（Context 大小趨勢）─────────────────────
+# ─── Context Health（Context 大小趨勢 + Section Breakdown）─────────────────────
 echo ""
 echo "=== Context Health ==="
 
@@ -245,6 +245,9 @@ if [ -d "$CHECKPOINT_DIR" ]; then
         avg=$(echo "$recent_sizes" | awk '{sum+=$1} END {printf "%.0f", sum/NR}')
         latest=$(echo "$recent_sizes" | tail -1)
         first=$(echo "$recent_sizes" | head -1)
+
+        # Approximate token estimate (4 chars ≈ 1 token)
+        latest_tokens=$((latest / 4))
 
         # 趨勢判斷：比較前 5 和後 5 的平均
         if [ "$count" -ge 10 ]; then
@@ -262,10 +265,30 @@ if [ -d "$CHECKPOINT_DIR" ]; then
         fi
 
         echo "Recent ($count checkpoints): avg=${avg} chars, latest=${latest}"
+        echo "Approx tokens: ~${latest_tokens} (~$((latest_tokens * 100 / 200000))% of 200K window)"
         echo "Trend: $trend"
         if [ "$trend" = "growing" ]; then
             echo "Warning: Context size growing >10%"
         fi
+
+        # Section breakdown from latest checkpoint (pipe JSON via stdin for safety)
+        section_breakdown=$(cat "$CHECKPOINT_DIR"/*.jsonl 2>/dev/null | tail -1 | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    sections = data.get('sections', [])
+    if sections:
+        sections.sort(key=lambda x: -x['chars'])
+        total = sum(s['chars'] for s in sections)
+        parts = []
+        for s in sections[:5]:
+            pct = s['chars'] * 100 // total
+            parts.append(f\"{s['name']}({pct}%)\")
+        print('Top sections: ' + ', '.join(parts))
+except:
+    pass
+" 2>/dev/null)
+        [ -n "$section_breakdown" ] && echo "$section_breakdown"
     else
         echo "No checkpoint data"
     fi

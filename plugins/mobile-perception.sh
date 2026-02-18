@@ -129,3 +129,81 @@ fi
 if [ -n "$HISTORY_SPAN" ] && [ "$HISTORY_SPAN" != "null" ] && [ "$HISTORY_SPAN" != "—" ]; then
   echo "History: $HISTORY_SPAN"
 fi
+
+# --- Phase 1D: Weather + Location Semantics ---
+LAT=$(jq -r '(.data.latitude // .latitude // empty)' "$STATE" 2>/dev/null)
+LON=$(jq -r '(.data.longitude // .longitude // empty)' "$STATE" 2>/dev/null)
+
+if [ -n "$LAT" ] && [ -n "$LON" ] && [ "$LAT" != "null" ] && [ "$LON" != "null" ]; then
+  # Weather from Open-Meteo (free, no API key)
+  WEATHER_CACHE="$HOME/.mini-agent/weather-cache.json"
+  WEATHER_AGE=9999
+  if [ -f "$WEATHER_CACHE" ]; then
+    WEATHER_TS=$(jq -r '.fetchedAt // "0"' "$WEATHER_CACHE" 2>/dev/null)
+    if [ -n "$WEATHER_TS" ] && [ "$WEATHER_TS" != "0" ]; then
+      WEATHER_EPOCH=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%S" "${WEATHER_TS%%.*}" +%s 2>/dev/null || echo 0)
+      WEATHER_AGE=$(( NOW_EPOCH - WEATHER_EPOCH ))
+    fi
+  fi
+
+  # Refresh weather every 30 minutes
+  if [ "$WEATHER_AGE" -gt 1800 ]; then
+    WEATHER_RAW=$(curl -sf --max-time 5 "https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto" 2>/dev/null)
+    if [ -n "$WEATHER_RAW" ]; then
+      echo "$WEATHER_RAW" | jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%S)" '. + {fetchedAt: $ts}' > "$WEATHER_CACHE" 2>/dev/null
+    fi
+  fi
+
+  if [ -f "$WEATHER_CACHE" ]; then
+    WEATHER_INFO=$(jq -r '
+      .current as $c |
+      if $c then
+        # WMO weather codes → descriptions
+        ($c.weather_code // -1) as $wc |
+        (if $wc == 0 then "Clear"
+         elif $wc <= 3 then "Partly cloudy"
+         elif $wc <= 48 then "Foggy"
+         elif $wc <= 55 then "Drizzle"
+         elif $wc <= 65 then "Rain"
+         elif $wc <= 67 then "Freezing rain"
+         elif $wc <= 75 then "Snow"
+         elif $wc <= 77 then "Snow grains"
+         elif $wc <= 82 then "Rain showers"
+         elif $wc <= 86 then "Snow showers"
+         elif $wc <= 99 then "Thunderstorm"
+         else "Unknown" end) as $desc |
+        "Weather: \($desc), \($c.temperature_2m // "?")°C (feels \($c.apparent_temperature // "?")°C), humidity \($c.relative_humidity_2m // "?")%, wind \($c.wind_speed_10m // "?")km/h"
+      else empty end
+    ' "$WEATHER_CACHE" 2>/dev/null)
+    [ -n "$WEATHER_INFO" ] && [ "$WEATHER_INFO" != "null" ] && echo "$WEATHER_INFO"
+  fi
+
+  # Reverse geocode from Nominatim (free, cached aggressively)
+  GEO_CACHE="$HOME/.mini-agent/geocode-cache.json"
+  GEO_AGE=9999
+  if [ -f "$GEO_CACHE" ]; then
+    GEO_TS=$(jq -r '.fetchedAt // "0"' "$GEO_CACHE" 2>/dev/null)
+    if [ -n "$GEO_TS" ] && [ "$GEO_TS" != "0" ]; then
+      GEO_EPOCH=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%S" "${GEO_TS%%.*}" +%s 2>/dev/null || echo 0)
+      GEO_AGE=$(( NOW_EPOCH - GEO_EPOCH ))
+    fi
+  fi
+
+  # Refresh geocode every 10 minutes (Nominatim rate limit: 1 req/s, be very conservative)
+  if [ "$GEO_AGE" -gt 600 ]; then
+    GEO_RAW=$(curl -sf --max-time 5 -H "User-Agent: mini-agent/1.0 (personal AI agent)" "https://nominatim.openstreetmap.org/reverse?lat=${LAT}&lon=${LON}&format=json&zoom=16" 2>/dev/null)
+    if [ -n "$GEO_RAW" ]; then
+      echo "$GEO_RAW" | jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%S)" '. + {fetchedAt: $ts}' > "$GEO_CACHE" 2>/dev/null
+    fi
+  fi
+
+  if [ -f "$GEO_CACHE" ]; then
+    PLACE=$(jq -r '
+      .address as $a |
+      if $a then
+        [$a.road // empty, $a.suburb // $a.neighbourhood // empty, $a.city // $a.town // $a.village // empty] | map(select(. != null)) | join(", ")
+      else empty end
+    ' "$GEO_CACHE" 2>/dev/null)
+    [ -n "$PLACE" ] && [ "$PLACE" != "null" ] && [ "$PLACE" != "" ] && echo "Place: $PLACE"
+  fi
+fi
