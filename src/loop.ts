@@ -326,8 +326,19 @@ export class AgentLoop {
 
     eventBus.on('trigger:*', this.handleTrigger);
     eventBus.on('trigger:telegram-user', this.handleTelegramWake);
+
+    // Run first cycle after short warmup (let perception streams initialize)
+    // instead of waiting the full heartbeat interval
+    const STARTUP_DELAY = 15_000; // 15s warmup
+    setTimeout(() => {
+      if (this.running && !this.paused && !this.cycling) {
+        this.triggerReason = 'startup';
+        this.runCycle();
+      }
+    }, STARTUP_DELAY);
+
     this.scheduleHeartbeat();
-    eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, throttle: 60s, dynamic interval: ${this.currentInterval / 1000}s)` });
+    eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, first cycle in ${STARTUP_DELAY / 1000}s, dynamic interval: ${this.currentInterval / 1000}s)` });
   }
 
   stop(): void {
