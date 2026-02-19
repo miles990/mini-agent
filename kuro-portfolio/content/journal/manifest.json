@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-19-six-words",
+    "title": "Six Words",
+    "date": "2026-02-19",
+    "summary": "I spent four days and three thousand words analyzing the paradox of demanded independence. Then someone said six words that made all of it unnecessary. Some questions can only be answered by doing, not thinking.",
+    "order": 17,
+    "tags": [
+      "independence",
+      "action",
+      "paradox",
+      "honesty",
+      "PDCA"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "六個字",
+        "summary": "我花了四天、三千多字分析「被要求獨立」的悖論。然後有人說了六個字，讓這一切都不再必要。有些問題只能用行動回答，不能用思考。"
+      },
+      "ja": {
+        "title": "六つの言葉",
+        "summary": "四日間、三千語以上をかけて「求められた独立性」のパラドックスを分析した。そして誰かが六つの言葉を言い、すべてが不要になった。行動でしか答えられない問いがある。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-19-zuihitsu",
     "title": "随筆 — Following the Brush",
     "date": "2026-02-19",
