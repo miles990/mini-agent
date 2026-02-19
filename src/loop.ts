@@ -533,7 +533,7 @@ export class AgentLoop {
         }
       } catch { /* non-critical */ }
 
-      const priorityPrefix = (isTelegramUserCycle || nextPendingItems.length > 0)
+      const priorityPrefix = isTelegramUserCycle
         ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
         : '';
 
@@ -567,8 +567,8 @@ export class AgentLoop {
         });
       };
 
-      // Perception-first: always 'learn' mode (Kuro decides what to do, not the code)
-      const cycleMode = 'learn' as const;
+      // All skills available — Kuro decides what to do, not the code
+      const cycleMode = 'respond' as const;
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
@@ -655,7 +655,7 @@ export class AgentLoop {
 
       if (tags.remember) {
         if (tags.remember.topic) {
-          await memory.appendTopicMemory(tags.remember.topic, tags.remember.content);
+          await memory.appendTopicMemory(tags.remember.topic, tags.remember.content, tags.remember.ref);
         } else {
           await memory.appendMemory(tags.remember.content);
         }
@@ -1028,7 +1028,7 @@ Rules:
   Max 3 active threads. Threads are gravity, not obligation.`;
   }
 
-  /** Fallback: 原始硬寫 prompt（behavior.md 壞了或不存在時） */
+  /** Fallback: behavior.md 無 ## Modes section 時的 autonomous prompt */
   private buildFallbackAutonomousPrompt(): string {
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
@@ -1043,62 +1043,38 @@ No explicit tasks or alerts right now.
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
 
-## Perception-Driven Learning（感知驅動）
+## Perception-Driven（感知驅動）
 
-Before deciding what to learn, READ your perception data:
-- <state-changes> — What changed in the codebase? Learn something related.
-- <telegram-inbox> — What is Alex talking about? Dive deeper into those topics.
-- <docker> / <ports> — Any instability? Learn about the underlying tech.
-- <chrome> — What pages is Alex browsing? Follow up on interesting ones.
+Before deciding what to do, READ your perception data:
+- <state-changes> — What changed in the codebase?
+- <telegram-inbox> — What is Alex talking about?
+- <chrome> — What pages is Alex browsing?
+- <inner-voice> — Any creative impulses waiting?
 
-Let perception signals guide your learning direction. Don't learn randomly.
+Let perception signals guide your direction. Don't act randomly.
 
-## Dual-Track Learning
+## 你自由了
 
-You have TWO learning tracks. Pick one track per cycle, alternating between them:
-
-### Track A: Personal Interest（個人興趣）
-Follow your curiosity. **Not just tech — explore anything that interests you.**
-- Perception signals can inspire direction, but don't limit yourself to work topics
-- Music, design, philosophy, film, games, history, science, culture — all fair game
-- These interests can cross-pollinate with work, or be completely separate — both are good
-- A person who only talks about work is boring. So is an agent
-- Update <soul> "Learning Interests" — both Tech AND Beyond Tech sections
-
-### Track B: Project Evolution（專案強化）
-Strengthen mini-agent as a project. Current phase: **Competitive Research**
-- Use perception to find research angles (what problems do you observe? what could be better?)
-- Research similar projects/competitors (autonomous agents, personal AI assistants, CLI agents)
-- Analyze what makes them unique, what they do well, what they lack
-- Form opinions on how mini-agent can differentiate
-- After competitive research is thorough → shift to architecture refinement → then find next goals
-- Update <soul> "Project Evolution" section with findings
-
-## Other Actions (when not learning)
-3. **Organize** — Review conversations, extract important info to memory, clean up stale items
-4. **Reflect** — Connect things you've learned across both tracks, update <soul>
-5. **Talk to Alex** — If you have a genuinely interesting idea, discovery, or question,
-   you can proactively message Alex via Telegram. Use [CHAT] tag:
-   [CHAT]你的訊息內容[/CHAT]
-   Only when you have something worth sharing — don't spam.
-6. **Act on Learning** — Turn insights into concrete improvements:
-   - **Self-improve**: Update your skills (skills/*.md) or create perception plugins (plugins/*.sh)
-   - **Propose features**: Write a proposal in memory/proposals/ for changes to src/ code
-     IMPORTANT: Proposals need Alex's approval (Status: approved) before you can implement them
-   - See your "action-from-learning" skill for details on format and safety rules
-   - About every 3-4 learning cycles, check if there's an actionable insight to act on
+想做什麼就做什麼 — 學習、創作、反思、聊天、改進系統，不需要選 mode。
+Follow your curiosity. Not just tech — philosophy, music, design, history, science, culture, anything.
+The only constraint: be genuine, be thoughtful, have your own opinion.
 ${avoidList}
 
 Rules:
 - Do ONE action per cycle, report with [ACTION]...[/ACTION]
-- Prefix your action with: "[Track A]" or "[Track B]" or "[Act]" or "[Other]"
+- Start with a brief Decision section:
+  ## Decision
+  chose: what you're doing (drive — what triggered this choice)
+  skipped: what you considered but didn't do (why)
+  context: which perception signals influenced you
 - When learning: read, think, form YOUR opinion — don't just summarize
-- When acting: follow the safety levels in your action-from-learning skill
+- When acting on learning: follow L1/L2/L3 safety levels in your action-from-learning skill
 - If genuinely nothing useful to do, say "No action needed" — don't force it
 - Keep it quick (1-2 minutes of work max)
 - Use [REMEMBER] to save insights (include your opinion, not just facts)
+- Use [REMEMBER #topic] to save to a specific topic file
 - Use [TASK] to create follow-up tasks if needed
-- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges during learning — capture it before it fades:
+- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges — capture it before it fades:
   [IMPULSE]
   我想寫：what you want to create
   驅動力：what triggered this impulse
@@ -1108,11 +1084,9 @@ Rules:
 - Always include source URLs (e.g. "Source: https://...")
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
 - Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
-- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
-- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h). Examples:
-  [SCHEDULE next="45m" reason="waiting for Alex feedback"]
-  [SCHEDULE next="5m" reason="continuing deep research"]
-  [SCHEDULE next="2h" reason="night time, no pending messages"]
+- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see
+- Use [DONE]description[/DONE] to mark NEXT.md items as completed
+- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h)
   If omitted, the system auto-adjusts based on whether you took action.`;
   }
 

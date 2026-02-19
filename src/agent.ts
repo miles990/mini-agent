@@ -621,10 +621,16 @@ export async function callClaude(
 
         // TIMEOUT 時嘗試縮減 context（最有效的重試策略）
         if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
-          const retryMode = attempt === 0 ? 'focused' : 'minimal';
+          let retryMode: 'focused' | 'minimal' = attempt === 0 ? 'focused' : 'minimal';
           try {
             const prevLen = currentContext.length;
             currentContext = await options.rebuildContext(retryMode);
+            // Hard cap: if focused mode didn't actually reduce size, escalate to minimal
+            if (retryMode === 'focused' && currentContext.length >= prevLen * 0.8) {
+              slog('RETRY', `focused mode ineffective (${prevLen} → ${currentContext.length}), escalating to minimal`);
+              retryMode = 'minimal';
+              currentContext = await options.rebuildContext(retryMode);
+            }
             fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
             slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, context reduced ${prevLen} → ${currentContext.length} chars (${retryMode} mode), retrying in ${delay / 1000}s`);
           } catch {

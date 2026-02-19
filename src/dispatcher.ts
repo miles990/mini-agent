@@ -346,7 +346,9 @@ export async function postProcess(
 
   // 4. Auto-track conversation threads (promises + URLs)
   // Track Kuro's promises (fire-and-forget)
-  if (response.match(/我會|等我|稍後|我來|讓我/)) {
+  // Skip error responses — classifyError() messages contain「稍後」which falsely triggers tracking
+  const isErrorResponse = /^(我正在處理另一個請求|處理超時|處理訊息時發生錯誤|重試次數已用盡|無法找到|Claude CLI)/.test(response.trim());
+  if (!isErrorResponse && response.match(/我會|等我|稍後|我來|讓我/)) {
     const promiseMatch = response.match(/(我會|等我|稍後|我來|讓我)\S{0,30}/);
     if (promiseMatch) {
       memory.addConversationThread({
