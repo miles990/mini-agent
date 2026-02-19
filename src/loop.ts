@@ -469,7 +469,8 @@ export class AgentLoop {
       const hasUrgentWork = hasAlerts || hasUrgentTasks;
       const taskBudgetAvailable = this.hasTaskBudget();
       const shouldForceAutonomous = !hasUrgentWork && hasActiveTasks && this.needsAutonomousBoost();
-      const shouldRunTaskMode = hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
+      // telegram-user ALWAYS triggers task mode — Alex's messages override budget limits
+      const shouldRunTaskMode = isTelegramUser || hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
 
       if (hasAlerts) {
         eventBus.emit('trigger:alert', { cycle: this.cycleCount });
