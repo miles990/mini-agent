@@ -26,6 +26,22 @@ Pattern 1-3 描述靜態原則，提純描述動態操作。7 個獨立領域的
 - **Dispute Resolution**（共識消解）：約束是否終結主觀爭論？φ 高（Chrome 實例）、藝術約束低
 用法：評估任何「約束」（技術選擇、設計規則、SOUL.md traits）時，用三維度判斷它真正的作用。
 
+### 5. 約束耦合原則 — 成敗取決於距離
+跨 7 領域歸納（Oulipo/BotW/Kanchipuram/Sizing System/Vulkan/Alexander/Generative Art）：**好的約束維持耦合，壞的約束製造距離。**
+
+失敗模式：
+- **退化 Degradation**：形式保留實質流失（Kanchipuram zari 80→45%、vanity sizing 標籤不變測量漂移）。content↔form 脫耦
+- **壓迫 Oppression**：受益者≠承受者（女裝尺寸=工廠效率≠穿著者、Alexander tree=規劃者≠居民）。designer↔subject 脫耦
+- **僵化 Ossification**：累積超過效用（Vulkan sediment layers、context rot）。history↔present 脫耦
+
+成功模式：
+- **自選 Self-chosen**：constrainer=constrained（Oulipo、SOUL.md traits）
+- **最小 Minimal**：規則緊貼材料物理（BotW 3 rules、Into the Breach 8×8）
+- **時間深度 Time-deep**：約束+耐心→結晶（Qubibi 13yr reaction-diffusion、KAS 17yr Buchla）
+- **異質 Heterogeneous**：約束輸入來源防止同質化（Shvembldr anti-ablation、web-learning 來源輪替）
+
+推廣了 ArchWiki dog-fooding 原則：不只是「使用者應維護文件」，是**任何約束系統只在約束力與被約束者保持直接關係時才有效**。perception-first = 約束從感知湧現（維持耦合），goal-driven = 約束從外部強加（壓迫風險）。
+
 ### 未解的張力
 - **Structure-preserving vs Replacement**：Alexander 說漸進保存，Vulkan 證明有時必須整體替換。判斷標準：incremental improvement 是否累積更多複雜度？
 - **約束的階級性**：Oulipo 和 Garden 都需要特權（技術能力、時間、知識產出）。Agent 可能降低門檻但不消除門檻

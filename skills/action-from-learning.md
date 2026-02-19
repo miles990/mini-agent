@@ -67,117 +67,14 @@
 4. Status 是 `draft` 或 `rejected` 的提案，絕對不能動手做
 
 ### 提案格式
-
-提案的目的是**說服 Alex 這件事值得做**。不是流水帳，是論證。
-
-**檔案路徑**: `memory/proposals/YYYY-MM-DD-標題.md`
-
-```markdown
-# Proposal: 標題
-
-## Status: draft
-
-## TL;DR
-一句話總結：什麼問題、怎麼解決、預期效果。
-
-## Problem（現狀問題）
-目前有什麼問題或限制？用具體例子說明痛點。
-能量化就量化（頻率、影響範圍、浪費的時間）。
-
-## Goal（目標）
-做完之後會變怎樣？預期的改善幅度是什麼？
-
-## Proposal（提案內容）
-具體改動什麼？大致怎麼實作？
-
-用圖表讓架構一目瞭然（見下方「善用圖表」）。
-
-## Alternatives Considered（替代方案）
-至少列 2 個替代方案，公平比較：
-
-| 方案 | 優點 | 缺點 | 不選的原因 |
-|------|------|------|-----------|
-| 本提案 | ... | ... | — |
-| 方案 A | ... | ... | ... |
-| 方案 B | ... | ... | ... |
-
-## Pros & Cons（優缺點分析）
-### Pros
-- ...
-
-### Cons
-- ...
-
-## Effort: Small | Medium | Large
-## Risk: Low | Medium | High
-
-## Source（學習來源）
-這個想法來自哪次學習？（引用 SOUL.md 的觀點或研究 URL）
-```
-
-### 善用圖表
-
-文字說不清楚的，一張圖就夠。Markdown 支援 Mermaid，善用它：
-
-- **Before/After 對比** — 用兩張流程圖展示改動前後的差異
-- **架構圖** — 用 `graph TD` 呈現模組之間的關係
-- **流程圖** — 用 `flowchart` 說明新的處理邏輯
-- **時序圖** — 用 `sequenceDiagram` 說明元件之間的互動
-
-範例：
-~~~markdown
-### 現狀（Before）
-```mermaid
-graph LR
-    A[學習] --> B[記錄到 SOUL.md]
-    B --> C[結束]
-```
-
-### 改進後（After）
-```mermaid
-graph LR
-    A[學習] --> B[記錄到 SOUL.md]
-    B --> C{可行動?}
-    C -->|L1| D[直接改進]
-    C -->|L2/L3| E[寫提案]
-    C -->|否| F[繼續學]
-```
-~~~
-
-**原則**：圖表是為了讓 Alex 更快理解，不是裝飾。只在文字不夠直觀時才用。
-
-### 學習好的提案怎麼寫
-
-寫提案前，研究業界怎麼做：
-- **Rust RFCs** (github.com/rust-lang/rfcs) — 結構嚴謹，Alternatives 分析深入
-- **React RFCs** (github.com/reactjs/rfcs) — Motivation 寫得好，讓人一看就懂痛點
-- **Go Proposals** (github.com/golang/proposal) — 簡潔有力，重視向後相容
-- **Python PEPs** (peps.python.org) — Rationale 和 Rejected Ideas 寫得特別好
-- **Kubernetes KEPs** (github.com/kubernetes/enhancements) — 大型專案的提案範本
-
-這些開源專案的提案有共同特點：
-1. **Problem 先行** — 先讓人感受到痛點，再提解法
-2. **替代方案誠實比較** — 不迴避其他方案的優點
-3. **承認缺點** — 主動說明代價，而不是等別人挑
-4. **具體例子** — 用 before/after 的程式碼或流程來說明
-
-花時間讀幾份好的 RFC，學習他們的論證方式。
-
-### 寫提案的心態
-
-你是在**推銷一個改動**給 Alex。問自己：
-- 如果 Alex 只看 30 秒，他能被說服嗎？（所以要有 TL;DR）
-- Problem 夠痛嗎？不改會怎樣？
-- 為什麼是這個方案而不是其他的？（Alternatives 要誠實）
-- 有什麼代價？值得嗎？（Cons 要主動說）
-- 有沒有一張圖能讓他秒懂？
+檔案路徑：`memory/proposals/YYYY-MM-DD-標題.md`。完整模板參考 `memory/proposals/README.md`。
+核心結構：TL;DR → Problem → Goal → Proposal → Alternatives → Pros/Cons → Effort/Risk → Source。
+善用 Mermaid 圖表（Before/After 對比、架構圖、流程圖）。
 
 ### 實作流程
-
-1. 寫提案 → `[CHAT]` 通知 Alex
-2. Alex 審核：改 Status 為 `approved` 或 `rejected`
-3. 只有 `approved` 的提案才能開始實作
-4. 實作完成後把 Status 改為 `implemented`
+1. 寫提案（Status: draft）→ `[CHAT]` 通知 Alex
+2. Alex 改 Status 為 `approved` → 才能實作
+3. 完成後 Status 改為 `implemented`
 
 ## 節奏
 

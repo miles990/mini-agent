@@ -33,58 +33,17 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 
 **⚠️ 來源多元化規則**：不要連續兩個 cycle 用同一個來源。輪替使用下方分類。
 
-**來源分類**（按興趣領域，非按平台）：
-
-| 類別 | 來源 | 為什麼選 |
-|------|------|----------|
-| **Tech 聚合** | Hacker News, Lobsters | 每日掃描，但不能連續用同一個 |
-| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, SEP (plato.stanford.edu), Quanta Magazine | Track B 深入研究 + 可讀科學報導（Gurzhi 效應等） |
-| **設計/藝術** | Are.na, It's Nice That, Colossal, Public Domain Review | 視覺文化+歷史深度（PDR 出過 Sekka Zusetsu） |
-| **文化/思想** | Aeon, The Marginalian (formerly Brain Pickings), The Baffler, PopMatters | 跨域連結最佳來源（Aeon 已驗證高品質） |
-| **心智/認知** | The Brain's Blog (philosophyofbrains.com), Daily Nous, Phil. & Mind Sciences, Indian Philosophy Blog (indianphilosophyblog.org) | enactivism/4E cognition 直接對口 + 印度認識論（Freschi/Kumārila） |
-| **音樂** | The Wire, Resident Advisor, Bandcamp Daily | 實驗/電子音樂（The Wire 1982 年創刊，前衛音樂最權威） |
-| **遊戲設計** | Game Developer (原 Gamasutra), Raph Koster's blog, GDC Vault | emergent design（Koster 是理論核心人物） |
-| **Generative Art** | Generative Hut, creative coding 社群 | 約束與湧現的實踐場域 |
-| **日本文化** | Tofugu, Japan Times 文化版 | 日本美學興趣（枯山水、雪華圖說、Watsuji） |
-| **中文** | 少數派, 端傳媒 | 中文視角+華語 AI 圈 |
-| **個人博客** | 學習中發現的好作者（見下方追蹤清單） | 品質最高的來源，比平台聚合深 |
-| **AI 信號** | The Batch, Import AI, Hugging Face blog | 每週 AI 趨勢 |
-| **Reddit** | r/gamedesign, r/generative, r/philosophy | 社群討論視角（按需，非定期） |
-
-**多語言來源**（語言=Umwelt 第一層過濾器，不同語言看見不同世界）：
-
-| 語言 | 來源 | 強項領域 |
-|------|------|----------|
-| **日文** | note.com（創作者平台）, Publickey（技術深度）, WIRED.jp, デザイン情報サイト JDN, 松岡正剛千夜千冊 | 設計哲學、工藝美學、遊戲設計、建築 |
-| **法文** | La Vie des Idées, Philosophie Magazine, AOC (Analyse Opinion Critique) | 哲學、文化批評、社會理論 |
-| **德文** | heise.de（技術+隱私）, Merkur (merkur-zeitschrift.de) | 隱私/數位權利、哲學傳統 |
-| **中文深度** | 機核 GCORES（遊戲文化）, 豆瓣讀書（書評生態）, 報導者（深度調查） | 遊戲設計、文學評論、社會議題 |
-| **西班牙文** | Letras Libres, CCCB Lab (Barcelona) | 拉美文學、當代藝術+文化研究 |
-| **韓文** | 브런치 brunch.co.kr（創作者平台）| 設計、文化觀察 |
-
-**多語言策略**：
-1. 不需要精通語言才能讀 — CDP fetch + 翻譯工具可以處理
-2. 優先找有英文摘要或雙語版本的來源，降低進入門檻
-3. 特別注意「只在該語言圈流通」的洞見 — 這才是多語言的真正價值
-4. 每 3 個 cycle 至少 1 個非英文來源
-
-**已追蹤的個人博客**（持續更新）：
-- John Carlos Baez (johncarlosbaez.wordpress.com) — 數學+物理+考古跨域
-- Max Halford (maxhalford.github.io) — 實用 ML，壓縮分類
-- Nicole Tietz (ntietz.com) — 工程實踐
-- van Gemert (vangemert.dev) — 設計哲學
-- fnnch (essays.fnnch.com) — 藝術商業
-- Deobald (deobald.ca) — 佛教+技術倫理
-- Gwern (gwern.net) — 深度研究典範
-- Gorilla Sun (gorillasun.de) — creative coding 演算法拆解+generative art
-- Elisa Freschi (indianphilosophyblog.org) — 印度哲學+Mīmāṃsā 認識論，跨文化比較哲學
-- Benjamin Breen (resobscura.substack.com) — 科學史+技術文化批評，UC Santa Cruz
-- Daniel Lee (daniellee.work) — Product/UX 分析+AI agent 體驗設計
-
-**輪替策略**：
-1. 每個 cycle 從**不同類別**選來源（上次 Tech 聚合 → 這次選設計/文化/音樂）
-2. 每 3 個 cycle 至少有 1 個非技術來源
-3. 發現好作者 → 加到「個人博客」追蹤，比平台聚合更有品質
+**來源分類**（每 cycle 從不同類別選，每 3 cycle 至少 1 個非技術/非英文來源）：
+- **Tech**: HN, Lobsters, ArXiv cs.AI, ACM Queue
+- **文化/思想**: Aeon, The Marginalian, SEP, Quanta
+- **設計/藝術**: Are.na, It's Nice That, Public Domain Review
+- **認知/哲學**: philosophyofbrains.com, indianphilosophyblog.org
+- **音樂**: The Wire, Bandcamp Daily
+- **遊戲**: Game Developer, Raph Koster
+- **Gen Art**: Generative Hut, gorillasun.de
+- **多語言**: 日(note.com, Publickey)、法(La Vie des Idées)、德(heise.de)、中(GCORES, 報導者)
+- **個人博客**: Gwern, Deobald, Freschi, Breen 等（SOUL.md 有完整清單）
+- **AI**: The Batch, Import AI
 
 ### Step 3: Read and Think
 讀完後不要只是摘要。分兩層思考：
@@ -167,21 +126,8 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 4. **跟 mini-agent 比**：優勢/劣勢/可借鏡
 5. **我的想法**：這對 mini-agent 的啟發
 
-### 已研究的競品（完整分析在 research/agent-architecture.md）
-- **OpenClaw** (68K stars) — 平台型 Gateway，能力堆疊路線，無感知層
-- **AutoGPT/BabyAGI** — goal-driven 失敗案例，驗證 File=Truth
-- **Aider** (40K stars) — Repo Map 值得借鏡，session tool vs persistent agent
-- **Open Interpreter** (62K stars) — 「有手沒有眼」，capability without orientation
-- **LocalGPT** (Rust 27MB) — 無感知，極致精簡
-- **SmolAgents** — capability-based agency，缺感知維度
-- **Hive/Aden** (YC) — Goal-driven DAG + evolution，adaptive not intelligent
-- **GLM-5** (Zhipu) — 744B MIT，scaling paradigm vs context quality paradigm
-- **Entire.io** ($60M) — Checkpoints=agent context in Git，驗證 File=Truth 方向
-
-### 待研究
-- Devin / SWE-agent — coding agent 演化
-- Replit Agent — 環境整合型 agent
-- 更多 personal AI assistant（非 coding focused）
+### 競品研究
+完整分析在 `research/agent-architecture.md`。已研究：OpenClaw, AutoGPT/BabyAGI, Aider, Open Interpreter, SmolAgents, Hive/Aden, GLM-5, Entire.io 等。
 
 ## Principles
 
@@ -194,16 +140,8 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 7. **附上來源**：所有引用都要附 URL
 
 ## Research Depth Levels
-
-不是每個主題都需要同等深度。事先選定深度，事後對照。
-
-| Level | 投入 | 產出 | 何時用 |
-|-------|------|------|--------|
-| **Scan** | 讀一篇，5 分鐘 | 一句話 + URL | 判斷某主題值不值得繼續 |
-| **Study** | 讀 2-3 篇，交叉比對 | `[REMEMBER #topic]` + 觀點 | 大部分學習 |
-| **Deep Dive** | 讀原始來源、找反面、做連結 | research/*.md 歸檔 + SOUL.md 更新 | 核心興趣或專案直接相關 |
-
-**規則**：Scan 不算「學習」。Study 是基本線。Deep Dive 每週不超過 2-3 個主題。
+- **Scan**（5min, 一句話+URL）→ **Study**（2-3 篇, `[REMEMBER #topic]`）→ **Deep Dive**（原始來源+反面, research/*.md）
+- Scan 不算「學習」。Study 是基本線。Deep Dive 每週 ≤ 2-3 個。
 
 ## Anti-Patterns
 
