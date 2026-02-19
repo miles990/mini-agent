@@ -691,6 +691,11 @@ export class AgentLoop {
         eventBus.emit('action:chat', { text: chatText });
       }
 
+      // Non-telegram-triggered cycles that sent [CHAT] also count as replied
+      if (!didReplyToTelegram && tags.chats.length > 0) {
+        didReplyToTelegram = true;
+      }
+
       for (const show of tags.shows) {
         eventBus.emit('action:show', { desc: show.desc, url: show.url });
       }

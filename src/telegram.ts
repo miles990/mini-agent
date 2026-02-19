@@ -793,15 +793,23 @@ export class TelegramPoller {
           pendingEntries.push(lines[i] + suffix);
           continue;
         }
+        // When replying, also upgrade previously-seen messages to replied
+        // (prevents infinite "NEEDS RESPONSE" loop for messages replied in autonomous cycles)
+        if (didReply && i > processedIdx && lines[i].endsWith(' → seen')) {
+          newLines.push(lines[i].replace(/ → seen$/, ' → replied'));
+          continue;
+        }
         newLines.push(lines[i]);
       }
 
-      if (pendingEntries.length === 0) return;
+      if (pendingEntries.length === 0 && !didReply) return;
 
       // Insert all moved entries after ## Processed
-      const newProcessedIdx = newLines.findIndex(l => l === '## Processed');
-      if (newProcessedIdx !== -1) {
-        newLines.splice(newProcessedIdx + 1, 0, ...pendingEntries);
+      if (pendingEntries.length > 0) {
+        const newProcessedIdx = newLines.findIndex(l => l === '## Processed');
+        if (newProcessedIdx !== -1) {
+          newLines.splice(newProcessedIdx + 1, 0, ...pendingEntries);
+        }
       }
 
       fs.writeFileSync(this.inboxFile, newLines.join('\n'), 'utf-8');
