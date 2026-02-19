@@ -72,8 +72,8 @@ Explore new topics.
 `;
     const config = parseBehaviorConfig(minimal);
     expect(config).not.toBeNull();
-    expect(config!.cooldowns.afterAction).toBe(2);
-    expect(config!.cooldowns.afterNoAction).toBe(5);
+    expect(config!.cooldowns.afterAction).toBe(0);
+    expect(config!.cooldowns.afterNoAction).toBe(0);
   });
 
   it('should return null when no Modes section', () => {
