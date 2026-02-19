@@ -2,7 +2,7 @@
 # Kuro 個人網站存活監控
 # L1: 感知 plugin — 每個 loop cycle 檢查網站是否正常
 
-URL="https://miles990.github.io/mini-agent/"
+URL="https://kuro.page"
 TIMEOUT=10
 
 status=$(curl -sf -o /dev/null -w "%{http_code}" --max-time $TIMEOUT "$URL" 2>/dev/null)
