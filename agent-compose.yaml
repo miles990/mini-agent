@@ -24,6 +24,8 @@ agents:
         task: "Daily review: Scan today's behavior log for error patterns, repeated failures, or inefficiencies. Check topic memory — any topic idle >3 days? Summarize findings. If actionable improvements found, create L1 tasks."
       - schedule: "0 10 * * 0"
         task: "Weekly AI frontier report for Alex: Compile this week's major AI events, model releases, agent architecture trends, and notable research. Include your opinions and recommendations. Send via [CHAT] to Alex."
+      - schedule: "0 */4 * * *"
+        task: "Smart patrol: Run `bash plugins/self-healing.sh` and check results. If any HEALED items, [CHAT] notify Alex what was auto-repaired. If any UNRESOLVED items, attempt manual diagnosis and fix. Also check: (1) topic memory idle >3 days (2) HEARTBEAT overdue tasks (3) uncommitted memory changes. Take action on findings."
 
     # ── Custom Perception（Shell Script 感知）──
     # 任何可執行檔案都能成為感知插件
@@ -60,6 +62,8 @@ agents:
           script: ./plugins/focus-context.sh
         - name: anomaly-detector
           script: ./plugins/anomaly-detector.sh
+        - name: self-healing
+          script: ./plugins/self-healing.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
