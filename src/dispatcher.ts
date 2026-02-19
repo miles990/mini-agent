@@ -244,6 +244,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
     .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
+    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
     .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')

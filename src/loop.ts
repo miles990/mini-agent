@@ -619,7 +619,7 @@ export class AgentLoop {
         }
         this.autonomousCooldown = cd.afterAction > 0 ? Math.min(10, cd.afterAction) : 0;
         await memory.appendConversation('assistant', `[Loop] ${action}`);
-        eventBus.emit('action:loop', { event: 'action', cycleCount: this.cycleCount, action, duration });
+        eventBus.emit('action:loop', { event: 'action.autonomous', cycleCount: this.cycleCount, action, duration });
 
         this.adjustInterval(true);
       } else {
@@ -762,14 +762,17 @@ export class AgentLoop {
       // ── Telegram Reply fallback（telegram-user 但無 [CHAT] tag → 用 cleanContent） ──
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
         const fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
-        // Skip sending if content looks like a Claude CLI error message
+        // Skip sending if content looks like error or internal format
         const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
-        if (fallbackContent && !isErrorContent) {
-          notifyTelegram(fallbackContent).catch((err) => {
+        const isInternalFormat = /^## Decision|^## What|^chose:|^skipped:/m.test(fallbackContent);
+        if (fallbackContent && !isErrorContent && !isInternalFormat) {
+          // Cap at 2000 chars to avoid sending overly long messages
+          const capped = fallbackContent.length > 2000 ? fallbackContent.slice(0, 2000) + '...' : fallbackContent;
+          notifyTelegram(capped).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
-        } else if (isErrorContent) {
-          slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
+        } else if (isErrorContent || isInternalFormat) {
+          slog('LOOP', `Suppressed ${isInternalFormat ? 'internal' : 'error'} content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
         }
       }
 

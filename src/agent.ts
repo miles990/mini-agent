@@ -538,6 +538,21 @@ export async function callClaude(
   let currentContext = context;
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
+  // Pre-check: if prompt is too large, proactively reduce context before first attempt
+  const PROMPT_HARD_CAP = 80_000;
+  if (fullPrompt.length > PROMPT_HARD_CAP && options?.rebuildContext) {
+    slog('AGENT', `Prompt too large (${fullPrompt.length} chars), pre-reducing context`);
+    try {
+      currentContext = await options.rebuildContext('focused');
+      fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+      if (fullPrompt.length > PROMPT_HARD_CAP) {
+        currentContext = await options.rebuildContext('minimal');
+        fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+      }
+      slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars`);
+    } catch { /* proceed with original */ }
+  }
+
   // Busy helpers (OODA-Only: single loop lane)
   const isBusy = () => loopBusy;
   const setBusy = (v: boolean) => { loopBusy = v; };
