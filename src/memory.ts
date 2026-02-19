@@ -1497,6 +1497,20 @@ export class InstanceMemory {
         topicUtility,
       }) + '\n';
       await fs.appendFile(path.join(dir, `${ts.slice(0, 10)}.jsonl`), entry);
+
+      // Rotation: delete checkpoint files older than 7 days (run ~1% of calls to avoid fs spam)
+      if (Math.random() < 0.01) {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const files = await fs.readdir(dir);
+        for (const f of files) {
+          if (!f.endsWith('.jsonl')) continue;
+          const dateStr = f.replace('.jsonl', '');
+          const fileDate = new Date(dateStr).getTime();
+          if (fileDate && fileDate < cutoff) {
+            await fs.unlink(path.join(dir, f)).catch(() => {});
+          }
+        }
+      }
     } catch {
       // Checkpoint 失敗不影響主流程
     }

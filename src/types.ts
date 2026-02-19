@@ -305,8 +305,8 @@ export interface CreativeImpulse {
 
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
-  remember?: { content: string; topic?: string; ref?: string };
-  task?: { content: string; schedule?: string };
+  remembers: Array<{ content: string; topic?: string; ref?: string }>;
+  tasks: Array<{ content: string; schedule?: string }>;
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
   impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;
   threads: ThreadAction[];

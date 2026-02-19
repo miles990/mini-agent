@@ -124,10 +124,17 @@ export async function executeAllPerceptions(
 /**
  * 將 perception 結果格式化為 XML context sections
  */
+const PLUGIN_OUTPUT_CAP = 4000; // 4K chars per plugin — prevents context bloat
+
 export function formatPerceptionResults(results: PerceptionResult[]): string {
   return results
     .filter(r => r.output) // 只包含有輸出的
-    .map(r => `<${r.name}>\n${r.output}\n</${r.name}>`)
+    .map(r => {
+      const output = r.output!.length > PLUGIN_OUTPUT_CAP
+        ? r.output!.slice(0, PLUGIN_OUTPUT_CAP) + '\n[... truncated]'
+        : r.output!;
+      return `<${r.name}>\n${output}\n</${r.name}>`;
+    })
     .join('\n\n');
 }
 

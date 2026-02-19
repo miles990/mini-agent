@@ -647,24 +647,24 @@ export class AgentLoop {
 
       // ── Process Tags（共用 parseTags） ──
       const tags = parseTags(response);
-      const rememberInCycle = tags.remember ? 1 : 0;
+      const rememberInCycle = tags.remembers.length;
       let similarity: number | null = null;
       if (action) {
         similarity = this.computeActionSimilarity(action);
       }
 
-      if (tags.remember) {
-        if (tags.remember.topic) {
-          await memory.appendTopicMemory(tags.remember.topic, tags.remember.content, tags.remember.ref);
+      for (const rem of tags.remembers) {
+        if (rem.topic) {
+          await memory.appendTopicMemory(rem.topic, rem.content, rem.ref);
         } else {
-          await memory.appendMemory(tags.remember.content);
+          await memory.appendMemory(rem.content);
         }
-        eventBus.emit('action:memory', { content: tags.remember.content, topic: tags.remember.topic });
+        eventBus.emit('action:memory', { content: rem.content, topic: rem.topic });
       }
 
-      if (tags.task) {
-        await memory.addTask(tags.task.content, tags.task.schedule);
-        eventBus.emit('action:task', { content: tags.task.content });
+      for (const t of tags.tasks) {
+        await memory.addTask(t.content, t.schedule);
+        eventBus.emit('action:task', { content: t.content });
       }
 
       // [IMPULSE] tags — persist creative impulses
@@ -752,7 +752,8 @@ export class AgentLoop {
       clearCycleCheckpoint();
 
       // ── Update Temporal State (fire-and-forget) ──
-      const touchedTopics = tags.remember?.topic ? [tags.remember.topic] : undefined;
+      const topicList = tags.remembers.filter(r => r.topic).map(r => r.topic!);
+      const touchedTopics = topicList.length > 0 ? topicList : undefined;
       updateTemporalState({
         mode: this.currentMode,
         action,

@@ -10,6 +10,7 @@ import { getMemory, getSkillsPrompt, type CycleMode } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
+import { slog } from './utils.js';
 import type { AgentResponse, ParsedTags, ThreadAction } from './types.js';
 
 // =============================================================================
@@ -149,16 +150,18 @@ function getConversationHint(): string {
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  let remember: { content: string; topic?: string; ref?: string } | undefined;
+  const remembers: Array<{ content: string; topic?: string; ref?: string }> = [];
   if (response.includes('[REMEMBER')) {
-    const match = response.match(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/s);
-    if (match) remember = { content: match[3].trim(), topic: match[1], ref: match[2] };
+    for (const m of response.matchAll(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/gs)) {
+      remembers.push({ content: m[3].trim(), topic: m[1], ref: m[2] });
+    }
   }
 
-  let task: { content: string; schedule?: string } | undefined;
+  const tasks: Array<{ content: string; schedule?: string }> = [];
   if (response.includes('[TASK')) {
-    const match = response.match(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/s);
-    if (match) task = { content: match[2].trim(), schedule: match[1] };
+    for (const m of response.matchAll(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/gs)) {
+      tasks.push({ content: m[2].trim(), schedule: m[1] });
+    }
   }
 
   let archive: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' } | undefined;
@@ -250,7 +253,17 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')
     .trim();
 
-  return { remember, task, archive, impulses, threads, chats, shows, summaries, dones, schedule, cleanContent };
+  // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
+  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ACTION', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
+  for (const tag of tagNames) {
+    const openCount = (response.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
+    const closeCount = (response.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
+    if (openCount > 0 && openCount !== closeCount) {
+      slog('TAGS', `⚠ Malformed [${tag}]: ${openCount} open, ${closeCount} close`);
+    }
+  }
+
+  return { remembers, tasks, archive, impulses, threads, chats, shows, summaries, dones, schedule, cleanContent };
 }
 
 // =============================================================================
@@ -285,13 +298,13 @@ export async function postProcess(
   const tags = parseTags(response);
 
   // 3. Process tags
-  if (tags.remember) {
-    if (tags.remember.topic) {
-      await memory.appendTopicMemory(tags.remember.topic, tags.remember.content, tags.remember.ref);
+  for (const rem of tags.remembers) {
+    if (rem.topic) {
+      await memory.appendTopicMemory(rem.topic, rem.content, rem.ref);
     } else {
-      await memory.appendMemory(tags.remember.content);
+      await memory.appendMemory(rem.content);
     }
-    eventBus.emit('action:memory', { content: tags.remember.content, topic: tags.remember.topic });
+    eventBus.emit('action:memory', { content: rem.content, topic: rem.topic });
   }
 
   if (tags.archive) {
@@ -306,9 +319,9 @@ export async function postProcess(
     memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
   }
 
-  if (tags.task) {
-    await memory.addTask(tags.task.content, tags.task.schedule);
-    eventBus.emit('action:task', { content: tags.task.content });
+  for (const t of tags.tasks) {
+    await memory.addTask(t.content, t.schedule);
+    eventBus.emit('action:task', { content: t.content });
   }
 
   // [THREAD] tags
@@ -383,8 +396,8 @@ export async function postProcess(
     },
     {
       content: tags.cleanContent,
-      shouldRemember: tags.remember?.content,
-      taskAdded: tags.task?.content,
+      shouldRemember: tags.remembers[0]?.content,
+      taskAdded: tags.tasks[0]?.content,
     },
     {
       duration: meta.duration,
@@ -395,7 +408,7 @@ export async function postProcess(
 
   return {
     content: tags.cleanContent,
-    shouldRemember: tags.remember?.content,
-    taskAdded: tags.task?.content,
+    shouldRemember: tags.remembers[0]?.content,
+    taskAdded: tags.tasks[0]?.content,
   };
 }
