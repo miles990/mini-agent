@@ -31,6 +31,22 @@ perception:
 
 現有 (12): chrome-status / web-fetch / docker-status / port-check / task-tracker / state-watcher / telegram-inbox / disk-usage / git-status / homebrew-outdated / self-awareness / website-monitor
 
+### Design Principle: Plugins as Attention Selectors
+
+每個 perception plugin 不只是資料收集器 — 它是**注意力選擇器**，決定該 cycle 可以有什麼樣的思維方式。不同 plugin 啟動不同類型的注意力：
+
+| Plugin | Attention Type | 思維效果 |
+|--------|---------------|---------|
+| chrome | exploratory | 跟隨好奇心，發現新方向 |
+| state-changes | alert | 偵測異常，快速回應 |
+| self-awareness | metacognitive | 觀察自己的模式，校準行為 |
+| telegram-inbox | relational | 回應他人，維護關係 |
+| inner-voice | reflective | 重新咀嚼，形成新連結 |
+
+設計含義：少而精的 plugins（每個精準塑造特定注意力類型）比多而雜更好。同時追求所有注意力類型 = 沒有一種做得好。OODA cycle 在不同 plugin 間交替 = 注意力類型交替。
+
+參考：Burnett "Cybernetic Attention" (PDR 2026-01-21)、McGilchrist attention-as-love、BotW 3 規則原則。
+
 ### Skills (Markdown Knowledge)
 
 Markdown 檔案注入 system prompt (`## Your Skills`)
