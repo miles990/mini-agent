@@ -18,6 +18,12 @@ agents:
     cron:
       - schedule: "*/30 * * * *"
         task: Check HEARTBEAT.md for pending tasks and execute them if any
+      - schedule: "15 */3 * * *"
+        task: "Smart source scan: Check HN, Lobsters, or ArXiv for articles related to your active threads and learning interests. Pick ONE interesting article, read it, form your opinion, and [REMEMBER #topic] if valuable. Rotate sources each time."
+      - schedule: "45 23 * * *"
+        task: "Daily review: Scan today's behavior log for error patterns, repeated failures, or inefficiencies. Check topic memory — any topic idle >3 days? Summarize findings. If actionable improvements found, create L1 tasks."
+      - schedule: "0 10 * * 0"
+        task: "Weekly AI frontier report for Alex: Compile this week's major AI events, model releases, agent architecture trends, and notable research. Include your opinions and recommendations. Send via [CHAT] to Alex."
 
     # ── Custom Perception（Shell Script 感知）──
     # 任何可執行檔案都能成為感知插件
