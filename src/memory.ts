@@ -1387,6 +1387,10 @@ export class InstanceMemory {
           'ooda', 'perception-driven', 'multi-agent', 'agent framework',
           'docker', 'ollama', 'openrouter', 'benchmark', 'model comparison',
           'deobald', 'telnet', 'greynoise', 'pahud', 'netnewswire',
+          'winter', 'neurosymbolic', 'datalog', 'lemmer-webber',
+          'ace', 'total recall', 'write gate', 'skillsbench',
+          'gemini', 'gpt', 'deep think', 'codex-spark', 'agentic',
+          'opc-skills', 'seo-geo', 'apptopia', 'memory system',
         ],
         'web-learning': ['cdp', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit'],
         'design-philosophy': [
@@ -1395,18 +1399,24 @@ export class InstanceMemory {
           'rancière', 'calm technology', 'utility ai', 'goap',
           'response curve', 'partage', 'interface shapes', 'oulipo',
           'sdf', 'string art', 'emergent gameplay',
+          'vernacular', 'rudofsky', 'hobbs', 'long-form',
+          'mono no aware', 'yūgen', 'zeami', 'noh', 'chanoyu',
+          'bleuje', 'gorilla sun', 'zuihitsu', 'sei shōnagon',
         ],
         'creative-arts': [
           'oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music',
           'dälek', 'hayward', 'hip-hop', 'shoegaze', 'semantic ablation',
           'contact improvisation', 'generative art', 'nastruzzi',
           'music', 'song', 'unseen', 'ablation', 'mmaevedo',
+          'footwork', 'živa píseň', 'reaction-diffusion',
         ],
         'social-culture': [
           'mockus', 'huizinga', 'garden', 'homo ludens',
           'ireland', 'ubi', 'basic income', 'amanuensis', 'jacobson',
           'nabokov', 'tolstoy', 'olmec', 'stela', 'baez',
           'literary labor', 'fluorite',
+          'dan koe', 'spiral dynamics', 'randall', 'fallow',
+          'kanchipuram', 'barbed wire', 'trust',
         ],
         'cognitive-science': [
           'borges', 'embodied cognition', 'consciousness', 'enactive',
@@ -1414,6 +1424,10 @@ export class InstanceMemory {
           'warburg', 'de botton', 'kumārila', 'narrative cognition',
           'double bind', 'affordance', 'neuroplasticity', 'metacognition',
           'linear time', 'breakdown', 'containment', 'rumination',
+          'predictive processing', 'friston', 'free energy', 'epistemic arc',
+          'de beauvoir', 'vieillesse', 'mexistentialism', 'uranga',
+          'thompson', 'ubuntu', 'hunhu', 'carson', 'accidentality',
+          'kahneman', 'system 1', 'system 2', 'kluge',
         ],
       };
 
