@@ -450,10 +450,11 @@ export class AgentLoop {
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
       // ── Per-perception change detection (Phase 4) ──
-      // telegram-user bypasses this check — Alex's messages must never be skipped
+      // telegram-user and cron bypass this check — must never be skipped
       const currentVersion = perceptionStreams.version;
       const isTelegramUser = this.triggerReason?.startsWith('telegram-user') ?? false;
-      if (!isTelegramUser && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
+      const isCronTrigger = this.triggerReason?.startsWith('cron') ?? false;
+      if (!isTelegramUser && !isCronTrigger && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
         eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
         return null;
       }
@@ -469,8 +470,8 @@ export class AgentLoop {
       const hasUrgentWork = hasAlerts || hasUrgentTasks;
       const taskBudgetAvailable = this.hasTaskBudget();
       const shouldForceAutonomous = !hasUrgentWork && hasActiveTasks && this.needsAutonomousBoost();
-      // telegram-user ALWAYS triggers task mode — Alex's messages override budget limits
-      const shouldRunTaskMode = isTelegramUser || hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
+      // telegram-user and cron ALWAYS trigger task mode — override budget limits
+      const shouldRunTaskMode = isTelegramUser || isCronTrigger || hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
 
       if (hasAlerts) {
         eventBus.emit('trigger:alert', { cycle: this.cycleCount });
