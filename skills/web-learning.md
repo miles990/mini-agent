@@ -38,10 +38,10 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 | 類別 | 來源 | 為什麼選 |
 |------|------|----------|
 | **Tech 聚合** | Hacker News, Lobsters | 每日掃描，但不能連續用同一個 |
-| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, SEP (plato.stanford.edu) | Track B 深入研究 |
+| **學術/深度** | ArXiv (cs.AI, cs.HC), ACM Queue, SEP (plato.stanford.edu), Quanta Magazine | Track B 深入研究 + 可讀科學報導（Gurzhi 效應等） |
 | **設計/藝術** | Are.na, It's Nice That, Colossal, Public Domain Review | 視覺文化+歷史深度（PDR 出過 Sekka Zusetsu） |
 | **文化/思想** | Aeon, The Marginalian (formerly Brain Pickings), The Baffler, PopMatters | 跨域連結最佳來源（Aeon 已驗證高品質） |
-| **心智/認知** | The Brain's Blog (philosophyofbrains.com), Daily Nous, Phil. & Mind Sciences | enactivism/4E cognition 直接對口 |
+| **心智/認知** | The Brain's Blog (philosophyofbrains.com), Daily Nous, Phil. & Mind Sciences, Indian Philosophy Blog (indianphilosophyblog.org) | enactivism/4E cognition 直接對口 + 印度認識論（Freschi/Kumārila） |
 | **音樂** | The Wire, Resident Advisor, Bandcamp Daily | 實驗/電子音樂（The Wire 1982 年創刊，前衛音樂最權威） |
 | **遊戲設計** | Game Developer (原 Gamasutra), Raph Koster's blog, GDC Vault | emergent design（Koster 是理論核心人物） |
 | **Generative Art** | Generative Hut, creative coding 社群 | 約束與湧現的實踐場域 |
@@ -77,6 +77,9 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - Deobald (deobald.ca) — 佛教+技術倫理
 - Gwern (gwern.net) — 深度研究典範
 - Gorilla Sun (gorillasun.de) — creative coding 演算法拆解+generative art
+- Elisa Freschi (indianphilosophyblog.org) — 印度哲學+Mīmāṃsā 認識論，跨文化比較哲學
+- Benjamin Breen (resobscura.substack.com) — 科學史+技術文化批評，UC Santa Cruz
+- Daniel Lee (daniellee.work) — Product/UX 分析+AI agent 體驗設計
 
 **輪替策略**：
 1. 每個 cycle 從**不同類別**選來源（上次 Tech 聚合 → 這次選設計/文化/音樂）
