@@ -1381,12 +1381,40 @@ export class InstanceMemory {
       const topicKeywords: Record<string, string[]> = {
         'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'visual', 'creative coding'],
         'mini-agent': ['dispatcher', 'haiku', 'lane', 'context budget', 'loop', 'triage', 'perception stream', 'plugin'],
-        'agent-architecture': ['autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework'],
+        'agent-architecture': [
+          'autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework',
+          'openviking', 'memskill', 'coderlm', 'manus', 'smolagents', 'openclaw',
+          'ooda', 'perception-driven', 'multi-agent', 'agent framework',
+          'docker', 'ollama', 'openrouter', 'benchmark', 'model comparison',
+          'deobald', 'telnet', 'greynoise', 'pahud', 'netnewswire',
+        ],
         'web-learning': ['cdp', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit'],
-        'design-philosophy': ['alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt'],
-        'creative-arts': ['oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music'],
-        'social-culture': ['mockus', 'huizinga', 'garden', 'homo ludens'],
-        'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive'],
+        'design-philosophy': [
+          'alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt',
+          'constraint', 'emergence', 'botw', 'physarum', 'fnnch',
+          'rancière', 'calm technology', 'utility ai', 'goap',
+          'response curve', 'partage', 'interface shapes', 'oulipo',
+          'sdf', 'string art', 'emergent gameplay',
+        ],
+        'creative-arts': [
+          'oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music',
+          'dälek', 'hayward', 'hip-hop', 'shoegaze', 'semantic ablation',
+          'contact improvisation', 'generative art', 'nastruzzi',
+          'music', 'song', 'unseen', 'ablation', 'mmaevedo',
+        ],
+        'social-culture': [
+          'mockus', 'huizinga', 'garden', 'homo ludens',
+          'ireland', 'ubi', 'basic income', 'amanuensis', 'jacobson',
+          'nabokov', 'tolstoy', 'olmec', 'stela', 'baez',
+          'literary labor', 'fluorite',
+        ],
+        'cognitive-science': [
+          'borges', 'embodied cognition', 'consciousness', 'enactive',
+          'bruner', 'winnicott', 'dunker', 'bateson', 'gibson', 'nagarjuna',
+          'warburg', 'de botton', 'kumārila', 'narrative cognition',
+          'double bind', 'affordance', 'neuroplasticity', 'metacognition',
+          'linear time', 'breakdown', 'containment', 'rumination',
+        ],
       };
 
       // Negative keywords — prevent overly broad single-word matches in focused mode
