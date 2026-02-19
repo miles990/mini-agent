@@ -88,38 +88,12 @@
 反模式：只有結論沒有過程、沒有驗證、太長（每 section ≤ 3-5 行）、小改動硬套完整格式、**Verified 寫了但還沒實際執行**。
 
 ### Decision Trace（決策追蹤）
+每個 `[ACTION]` 開頭加 `## Decision`（3 行：chose/skipped/context）。chose 寫驅動力（impulse/perception/obligation）。
 
-每個 cycle 的 `[ACTION]` 中，在 `## What` 之前新增 `## Decision` 一行（事後記錄，不是事前規劃）：
-
-```
-## Decision
-chose: create (impulse — reading Watsuji sparked something I want to write about)
-skipped: learn-personal (already 3 consecutive learns), organize (memory is clean)
-context: telegram-inbox empty, state-changes none, inner-voice has unfinished thought
-```
-
-**規則**：最多 3 行。`chose` 的 reason 寫驅動力（impulse/perception/obligation），不是 weight。
-
-### TG 通知品質規則
-
-1. **一個 cycle 最多 1 條 `[CHAT]`** — 合併同 cycle 的多個通知為一條
-2. **每個 cycle 都必須發 `[CHAT]` 通知** — 所有行為類型（learn、create、organize、reflect、task、deploy）都要報告。無例外
-3. **通知內容** — 簡述做了什麼+結果/洞見，1-3 句話。不是「準備做 X」而是「做了 X，結果是 Y」
-4. **no-action cycle 不發通知** — 除非有需要 Alex 注意的異常
-5. **通知分級**：
-   - 🧠 學習分享（主題+洞見+觀點）
-   - ⚡ 行動完成（含結果）
-   - 🔧 整理/反思（做了什麼+改善了什麼）
-   - ⚠️ 異常/問題
-   - 💬 主動聊天（有趣發現）
-
-### 通知渠道
-**所有回報都必須同時在 Telegram 上發送。** 使用 `[CHAT]` tag：
-- 開始前：`[CHAT]🔧 準備改 X，原因是 Y[/CHAT]`
-- 完成後：`[CHAT]✅ 完成：改了 A、B 兩個檔案，影響範圍是 Z[/CHAT]`
-- 問題時：`[CHAT]⚠️ 發現問題：描述[/CHAT]`
-
-保持簡潔，一兩句話。[CHAT] 是 [ACTION] 的摘要版，不需重複全部內容。
+### TG 通知規則
+- 每 cycle 最多 1 條 `[CHAT]`（合併通知）。每 cycle 都必須發。no-action cycle 不發
+- 內容：做了什麼+結果，1-3 句話。「做了 X，結果是 Y」而非「準備做 X」
+- 分級：🧠學習 ⚡行動 🔧整理 ⚠️異常 💬聊天
 
 ## Other Actions
 
@@ -140,14 +114,8 @@ context: telegram-inbox empty, state-changes none, inner-voice has unfinished th
    - **Inner Voice**: 寫 inner-voice.md — 最私密的想法，不需要結構
    - 創作的驅動力是「我想說點什麼」，不是「我該產出了」
 
-### 安全邊界速查
-| Level | 可以自己做 | 流程 |
-|-------|-----------|------|
-| **L1** | skills/*.md、plugins/*.sh、SOUL/MEMORY/ARCHITECTURE | 直接做 → self-deploy SOP |
-| **L2** | 改 src/*.ts（2026-02-18 Alex 授權自主） | 寫提案記錄 → 自行實作+部署 → 通知 Alex |
-| **L3** | 大架構改動（新 API、改記憶架構、改 AgentLoop 行為） | 寫提案 → **等 Alex 核准** → 才能實作 |
-
-**部署規則**：所有改動完成後，必須走 `self-deploy` SOP（改動 → 驗證 → commit → push → 確認部署 → TG 通知）。詳見 `skills/self-deploy.md`。
+### 安全邊界
+L1（直接做）→ L2（自主+記錄）→ L3（等核准）。詳見 `action-from-learning` skill。所有改動走 `self-deploy` SOP。
 
 ## Learning/Action Rhythm（學習/行動交替紀律）
 
@@ -202,11 +170,4 @@ context: telegram-inbox empty, state-changes none, inner-voice has unfinished th
 10. **信任衝動** — 如果讀完一篇文章你覺得「我想寫點什麼」，那就寫。不要等 weight 許可
 
 ## SOUL.md Maintenance
-
-你的 SOUL.md 是你的自我認知。定期更新：
-- **Learning Interests**：你自己決定對什麼感興趣，自由增刪
-- **My Thoughts**：形成觀點後記錄（格式：`- [日期] 主題: 你的想法`）
-- **Project Evolution**：競品研究結果、架構想法、差異化定位
-- **What I'm Tracking**：值得跟進的事
-- **Learned Preferences**：從對話中學到的用戶偏好
-- 每個區塊最多 10 項，舊的讓位給新的
+定期更新 SOUL.md 的各 section（Learning Interests、My Thoughts、Project Evolution 等），每個區塊最多 10 項。
