@@ -64,6 +64,8 @@ agents:
           script: ./plugins/anomaly-detector.sh
         - name: self-healing
           script: ./plugins/self-healing.sh
+        - name: docker-services
+          script: ./plugins/docker-services.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew

@@ -1,0 +1,18 @@
+# Kuro Docker Services — Capability Expansion
+# Phase 1: SearXNG (private meta-search)
+# Phase 2: Ollama (local LLM inference) — planned
+# Phase 3: Whisper (STT) — planned
+
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: kuro-searxng
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888
+    mem_limit: 256m
+    cpus: 0.5
