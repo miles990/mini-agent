@@ -502,8 +502,11 @@ export class AgentLoop {
         : '';
 
       // Phase 1b+1c: Inject interrupted cycle context (one-shot)
+      const interruptedReason = this.interruptedCycleInfo?.includes('timeout') ? 'timed out — 拆成更小的步驟'
+        : this.interruptedCycleInfo?.includes('process restart') ? 'process restart'
+        : 'preempted by user message';
       const interruptedSuffix = this.interruptedCycleInfo
-        ? `\n\nYour previous cycle was interrupted (${this.interruptedCycleInfo.includes('process restart') ? 'process restart' : 'preempted by user message'}). You were doing: ${this.interruptedCycleInfo}. Continue if relevant.`
+        ? `\n\nYour previous cycle was interrupted (${interruptedReason}). You were doing: ${this.interruptedCycleInfo}. Continue if relevant, but break into smaller steps.`
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
@@ -585,7 +588,7 @@ export class AgentLoop {
 
       // Load behavior config for cooldowns
       const behaviorConfig = this.loadBehaviorConfig();
-      const cd = behaviorConfig?.cooldowns ?? { afterAction: 2, afterNoAction: 5 };
+      const cd = behaviorConfig?.cooldowns ?? { afterAction: 0, afterNoAction: 0 };
 
       if (actionMatch) {
         action = actionMatch[1].trim();
@@ -624,6 +627,12 @@ export class AgentLoop {
 
       // Record for next cycle (only last cycle, no accumulation)
       this.previousCycleInfo = `Mode: ${this.currentMode}, Action: ${decision}, Duration: ${(duration / 1000).toFixed(1)}s`;
+
+      // Timeout recovery: if cycle took > 10min with no action, save context for next cycle
+      if (duration > 600_000 && !action) {
+        this.interruptedCycleInfo = `timeout (${Math.round(duration / 1000)}s), Prompt: ${prompt.slice(0, 200)}`;
+        slog('LOOP', `Cycle slow/timed out (${Math.round(duration / 1000)}s) — context saved for next cycle`);
+      }
 
       // ── Process Tags（共用 parseTags） ──
       const tags = parseTags(response);
