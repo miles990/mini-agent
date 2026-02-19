@@ -760,7 +760,13 @@ export class InstanceMemory {
     const impulses = await this.getImpulses();
     const now = Date.now();
     const EXPIRE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-    return impulses.filter(i => !i.expressedAt && (now - new Date(i.createdAt).getTime()) < EXPIRE_MS);
+    const active = impulses.filter(i => !i.expressedAt && (now - new Date(i.createdAt).getTime()) < EXPIRE_MS);
+    // Cleanup: remove expired/expressed entries from disk (fire-and-forget)
+    if (active.length < impulses.length) {
+      const toKeep = impulses.filter(i => i.expressedAt || (now - new Date(i.createdAt).getTime()) < EXPIRE_MS);
+      fs.writeFile(this.getImpulseBufferPath(), JSON.stringify(toKeep, null, 2), 'utf-8').catch(() => {});
+    }
+    return active;
   }
 
   buildInnerVoiceSection(impulses: import('./types.js').CreativeImpulse[]): string {
@@ -1362,9 +1368,10 @@ export class InstanceMemory {
       sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }
 
-    // ── Soul（身分認同，總是完整載入）──
+    // ── Soul（身分認同）──
     if (soul) {
-      sections.push(`<soul>\n${soul}\n</soul>`);
+      const soulContent = mode === 'focused' ? this.truncateSoulToIdentity(soul) : soul;
+      sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
     // ── Topic 記憶（Smart Loading）──
@@ -1392,21 +1399,25 @@ export class InstanceMemory {
           if (!isDirectMatch) continue;
           const content = await this.readTopicMemory(topic);
           if (content) {
-            // Soft ranking: session utility 低的 topic 用 brief truncation
+            // Utility-based truncation: frequently loaded topics get brief (already seen), new ones get full
             const loadCount = this.topicLoadCounts.get(topic) ?? 0;
-            let topicContent = loadCount < 2 ? truncateTopicMemory(content, 'brief') : content;
+            let topicContent = loadCount >= 2 ? truncateTopicMemory(content, 'brief') : content;
+            // Per-topic cap: 8K chars max
+            if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
             topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
             loadedTopics.push(topic);
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
         } else {
-          // full mode: 匹配的完整載入，非匹配的只載 title + count (summary)
+          // full mode: 匹配的完整載入（capped），非匹配的只載 title + count (summary)
           const content = await this.readTopicMemory(topic);
           if (content) {
             let topicContent: string;
             if (isDirectMatch) {
               topicContent = content;
+              // Per-topic cap: 8K chars max even for direct matches
+              if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
             } else if (hint) {
               topicContent = truncateTopicMemory(content, 'summary');
             } else {
@@ -1435,7 +1446,24 @@ export class InstanceMemory {
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
-    const assembled = sections.join('\n\n');
+    let assembled = sections.join('\n\n');
+
+    // ── Global context budget: 60K chars hard cap ──
+    const CONTEXT_BUDGET = 60_000;
+    if (assembled.length > CONTEXT_BUDGET) {
+      // Trim topic-memory sections first (largest, least essential)
+      const topicPattern = /<topic-memory[^>]*>[\s\S]*?<\/topic-memory>/g;
+      assembled = assembled.replace(topicPattern, (match) => {
+        // Replace full content with summary
+        const nameMatch = match.match(/name="([^"]*)"/);
+        const name = nameMatch?.[1] ?? 'unknown';
+        return `<topic-memory name="${name}">\n[trimmed — context budget exceeded]\n</topic-memory>`;
+      });
+      // If still over budget after trimming topics, truncate memory section
+      if (assembled.length > CONTEXT_BUDGET) {
+        assembled = assembled.slice(0, CONTEXT_BUDGET) + '\n\n[... context truncated at 60K chars]';
+      }
+    }
 
     // ── Context Checkpoint：存 snapshot 供 debug/audit ──
     this.saveContextCheckpoint(assembled, mode, hint).catch(() => {});

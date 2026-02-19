@@ -54,6 +54,11 @@ export function startCronTasks(tasks: CronTask[]): void {
       try {
         const context = await buildContext();
         const result = await callClaude(task.task, context, 2, { source: 'loop' });
+        // Detect busy guard response — log as skipped instead of "done"
+        if (result.duration === 0 && result.response.includes('稍後再試')) {
+          slog('CRON', `⏭ Skipped (loop busy): "${task.task.slice(0, 60)}"`);
+          return;
+        }
         const response = await postProcess(task.task, result.response, {
           lane: 'cron', duration: result.duration, source: 'cron',
           systemPrompt: result.systemPrompt, context,
@@ -159,11 +164,16 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
 
     try {
       const context = await buildContext();
-        const result = await callClaude(task.task, context, 2, { source: 'loop' });
-        const response = await postProcess(task.task, result.response, {
-          lane: 'cron', duration: result.duration, source: 'cron',
-          systemPrompt: result.systemPrompt, context,
-        });
+      const result = await callClaude(task.task, context, 2, { source: 'loop' });
+      // Detect busy guard response — log as skipped instead of "done"
+      if (result.duration === 0 && result.response.includes('稍後再試')) {
+        slog('CRON', `⏭ Skipped (loop busy): "${task.task.slice(0, 60)}"`);
+        return;
+      }
+      const response = await postProcess(task.task, result.response, {
+        lane: 'cron', duration: result.duration, source: 'cron',
+        systemPrompt: result.systemPrompt, context,
+      });
       const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
       slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
       logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {

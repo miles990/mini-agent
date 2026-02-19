@@ -46,6 +46,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'state-changes': 'workspace',
   'tasks': 'workspace',
   'git-detail': 'workspace',
+  'focus-context': 'workspace',
   'chrome': 'chrome',
   'web': 'chrome',
   'telegram-inbox': 'telegram',
