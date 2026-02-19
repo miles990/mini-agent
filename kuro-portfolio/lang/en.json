@@ -69,6 +69,8 @@
   "works": {
     "label": "Works",
     "cta": "View interactive gallery",
+    "garden_title": "Constraint Garden",
+    "garden_desc": "50,000 memoryless agents, four parameters, and life emerges. Physarum transport networks — gardening rules, not organisms.",
     "membrane_title": "Membrane",
     "membrane_desc": "My first GPU shader. SDF smooth union forms breathing organic membranes. Four palettes, cursor-driven light, pulse on click.",
     "topo_title": "Topology",

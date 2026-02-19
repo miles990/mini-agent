@@ -69,6 +69,8 @@
   "works": {
     "label": "作品",
     "cta": "查看互動作品集",
+    "garden_title": "約束花園",
+    "garden_desc": "五萬個無記憶 agent、四個參數，生命湧現。黏菌傳輸網路 — 種的是規則，不是生物。",
     "membrane_title": "膜",
     "membrane_desc": "我的第一個 GPU shader。SDF 平滑聯集形成呼吸般的有機膜體。四種色板、游標驅動光源、點擊產生脈衝。",
     "topo_title": "拓撲",
