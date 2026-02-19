@@ -378,6 +378,102 @@
   footer a { color: var(--text-dim); }
   footer a:hover { color: var(--teal); }
 
+  /* ═══ Narrative ═══ */
+  .narrative { margin-bottom: 48px; }
+
+  .hook {
+    font-family: var(--serif);
+    font-size: clamp(18px, 3vw, 22px);
+    color: var(--text-white);
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+
+  .hook-body {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.85;
+    max-width: 600px;
+    margin-bottom: 28px;
+  }
+
+  .stories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 600px) {
+    .stories { grid-template-columns: 1fr; }
+  }
+
+  .story-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .story-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .story-card.gen::before { background: var(--teal); }
+  .story-card.opp::before { background: var(--magenta); }
+
+  .story-era {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .story-title {
+    font-size: 14px;
+    color: var(--text-white);
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .story-card p {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.75;
+  }
+
+  .challenge {
+    font-size: 13px;
+    line-height: 1.85;
+    color: var(--text);
+    max-width: 600px;
+  }
+
+  .challenge em { color: var(--text-bright); }
+
+  .challenge-q {
+    display: block;
+    font-family: var(--serif);
+    font-size: clamp(16px, 2.5vw, 20px);
+    color: var(--text-white);
+    font-style: italic;
+    margin-top: 12px;
+  }
+
+  .section-intro {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 540px;
+    margin-bottom: 32px;
+    line-height: 1.75;
+  }
+
   /* ═══ Animations ═══ */
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(12px); }
@@ -398,6 +494,10 @@
   .container > :nth-child(8) { animation-delay: 0.35s; }
   .container > :nth-child(9) { animation-delay: 0.4s; }
   .container > :nth-child(10) { animation-delay: 0.45s; }
+  .container > :nth-child(11) { animation-delay: 0.5s; }
+  .container > :nth-child(12) { animation-delay: 0.55s; }
+  .container > :nth-child(13) { animation-delay: 0.6s; }
+  .container > :nth-child(14) { animation-delay: 0.65s; }
 </style>
 </head>
 <body>
@@ -410,10 +510,44 @@
   <p class="subtitle">
     Every constraint shapes what it touches. Some liberate. Some destroy.
     The difference isn't obvious &mdash; until you see <em>the shape</em>.
-    <br><br>
-    Eight dimensions, distilled from Oulipo literature, game design, typography,
-    fashion systems, quantum complexity, and experimental music. Adjust the sliders.
-    Load a specimen. Watch the shape tell you what kind of constraint you're looking at.
+  </p>
+
+  <div class="narrative">
+    <p class="hook">In 1350, a group of monks had a problem.</p>
+    <p class="hook-body">
+      They needed to write numbers up to 9,999 &mdash; but only had space
+      the size of a fingernail. Six centuries later, fashion designers faced
+      a similar challenge: fit every woman&rsquo;s body into a single sizing system.
+    </p>
+
+    <div class="stories">
+      <div class="story-card gen">
+        <div class="story-era">1350 &mdash; Cistercian Monastery</div>
+        <div class="story-title">One glyph = 9,999 numbers</div>
+        <p>Monks invented a 2D encoding: a single vertical stroke with four
+        quadrants, each representing a digit through rotation and reflection.
+        Lossless compression in a fingernail. The constraint produced elegance.</p>
+      </div>
+      <div class="story-card opp">
+        <div class="story-era">1958 &mdash; US Dept. of Commerce</div>
+        <div class="story-title">One system = half of women excluded</div>
+        <p>Designers created sizing by scaling a size 8 template up and down,
+        assuming all bodies are the same shape at different scales. Median
+        waist: 37.7&Prime; = size 18. Most brands stop at 16.</p>
+      </div>
+    </div>
+
+    <p class="challenge">
+      Both started with the same constraint: <em>compress many into few</em>.
+      One created elegance. The other excluded half of all women.
+      <span class="challenge-q">What makes the difference?</span>
+    </p>
+  </div>
+
+  <p class="section-intro">
+    Eight dimensions reveal the answer. Distilled from Oulipo literature,
+    game design, quantum complexity, typography, and four other domains.
+    Select a specimen or calibrate the sliders.
   </p>
 
   <div class="chart-wrap">
