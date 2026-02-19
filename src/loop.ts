@@ -180,10 +180,6 @@ function parseScheduleInterval(s: string): number {
 // =============================================================================
 
 export class AgentLoop {
-  private static readonly TASK_BUDGET_WINDOW = 5;
-  private static readonly TASK_BUDGET_MAX = 2;
-  private static readonly LEARNING_WINDOW = 4;
-  private static readonly LEARNING_MIN_AUTONOMOUS = 1;
   private static readonly ACTION_SIMILARITY_THRESHOLD = 0.8;
 
   private config: AgentLoopConfig;
@@ -201,7 +197,6 @@ export class AgentLoop {
   private autonomousCooldown = 0;
   private lastAutonomousActions: string[] = [];
   private currentMode: 'task' | 'autonomous' | 'idle' = 'idle';
-  private modeHistory: Array<'task' | 'autonomous'> = [];
   private lastActionForSimilarity: string | null = null;
   private metricsDate = new Date().toISOString().slice(0, 10);
   private dailyTaskCycles = 0;
@@ -464,43 +459,33 @@ export class AgentLoop {
       const memory = getMemory();
       const context = await memory.buildContext({ mode: 'focused' });
 
-      const hasActiveTasks = context.includes('- [ ]');
       const hasAlerts = context.includes('ALERT:');
-      const hasUrgentTasks = /\-\s\[ \]\s*P0:/i.test(context);
-      const hasUrgentWork = hasAlerts || hasUrgentTasks;
-      const taskBudgetAvailable = this.hasTaskBudget();
-      const shouldForceAutonomous = !hasUrgentWork && hasActiveTasks && this.needsAutonomousBoost();
-      // telegram-user and cron ALWAYS trigger task mode — override budget limits
-      const shouldRunTaskMode = isTelegramUser || isCronTrigger || hasUrgentWork || (hasActiveTasks && taskBudgetAvailable && !shouldForceAutonomous);
-
       if (hasAlerts) {
         eventBus.emit('trigger:alert', { cycle: this.cycleCount });
       }
 
-      // ── Route: Task Mode vs Autonomous Mode ──
-      if (!shouldRunTaskMode) {
-        // Check autonomous cooldown (but learning boost overrides it)
-        if (this.autonomousCooldown > 0 && !shouldForceAutonomous && !isTelegramUser) {
-          this.autonomousCooldown--;
-          this.currentMode = 'idle';
-          this.adjustInterval(false);
-          logger.logCron('loop-cycle', 'Autonomous cooldown', 'agent-loop');
-          eventBus.emit('action:loop', { event: 'cooldown', cycleCount: this.cycleCount, remaining: this.autonomousCooldown });
-          return null;
-        }
-        if (shouldForceAutonomous) this.autonomousCooldown = 0;
+      // ── Perception-first: no mode gate ──
+      // Cooldown (only when behavior.md explicitly sets it)
+      if (this.autonomousCooldown > 0 && !isTelegramUser && !isCronTrigger) {
+        this.autonomousCooldown--;
+        this.currentMode = 'idle';
+        this.adjustInterval(false);
+        logger.logCron('loop-cycle', 'Autonomous cooldown', 'agent-loop');
+        eventBus.emit('action:loop', { event: 'cooldown', cycleCount: this.cycleCount, remaining: this.autonomousCooldown });
+        return null;
+      }
 
-        // Check active hours
-        if (!this.isWithinActiveHours()) {
-          this.currentMode = 'idle';
-          this.adjustInterval(false);
-          eventBus.emit('action:loop', { event: 'outside-hours', cycleCount: this.cycleCount });
-          return null;
-        }
+      // Active hours (only blocks non-triggered cycles)
+      if (!isTelegramUser && !isCronTrigger && !this.isWithinActiveHours()) {
+        this.currentMode = 'idle';
+        this.adjustInterval(false);
+        eventBus.emit('action:loop', { event: 'outside-hours', cycleCount: this.cycleCount });
+        return null;
       }
 
       // ── Decide ──
-      this.currentMode = shouldRunTaskMode ? 'task' : 'autonomous';
+      // Kuro always gets the full perception-first prompt. Code provides context, not decisions.
+      this.currentMode = 'autonomous';
       const triggerInfo = this.triggerReason
         ? ` (triggered by: ${this.triggerReason})`
         : '';
@@ -538,9 +523,7 @@ export class AgentLoop {
         ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
         : '';
 
-      const prompt = shouldRunTaskMode
-        ? priorityPrefix + this.buildTaskPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix
-        : priorityPrefix + await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -570,8 +553,8 @@ export class AgentLoop {
         });
       };
 
-      // Map currentMode to CycleMode for skill filtering
-      const cycleMode = this.currentMode === 'task' ? 'task' as const : 'learn' as const;
+      // Perception-first: always 'learn' mode (Kuro decides what to do, not the code)
+      const cycleMode = 'learn' as const;
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
@@ -615,25 +598,18 @@ export class AgentLoop {
           this.consecutiveLearnCycles = 0;
         }
 
-        if (this.currentMode === 'autonomous') {
-          // Autonomous action: record and cooldown
-          this.lastAutonomousActions.push(action);
-          if (this.lastAutonomousActions.length > 10) {
-            this.lastAutonomousActions.shift();
-          }
-          this.autonomousCooldown = cd.afterAction > 0 ? Math.min(10, cd.afterAction) : 0;
-          await memory.appendConversation('assistant', `[Autonomous] ${action}`);
-          eventBus.emit('action:loop', { event: 'action.autonomous', cycleCount: this.cycleCount, action, duration });
-        } else {
-          await memory.appendConversation('assistant', `[Loop] ${action}`);
-          eventBus.emit('action:loop', { event: 'action.task', cycleCount: this.cycleCount, action, duration });
+        // Record action and apply cooldown if behavior.md specifies it
+        this.lastAutonomousActions.push(action);
+        if (this.lastAutonomousActions.length > 10) {
+          this.lastAutonomousActions.shift();
         }
+        this.autonomousCooldown = cd.afterAction > 0 ? Math.min(10, cd.afterAction) : 0;
+        await memory.appendConversation('assistant', `[Loop] ${action}`);
+        eventBus.emit('action:loop', { event: 'action', cycleCount: this.cycleCount, action, duration });
 
         this.adjustInterval(true);
       } else {
-        if (this.currentMode === 'autonomous') {
-          this.autonomousCooldown = cd.afterNoAction > 0 ? Math.min(10, cd.afterNoAction) : 0;
-        }
+        this.autonomousCooldown = cd.afterNoAction > 0 ? Math.min(10, cd.afterNoAction) : 0;
         this.adjustInterval(false);
         eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
         eventBus.emit('action:loop', { event: 'idle', cycleCount: this.cycleCount, duration, nextHeartbeat: Math.round(this.currentInterval / 1000) });
@@ -643,9 +619,7 @@ export class AgentLoop {
         duration,
         success: true,
       });
-      this.recordMode(this.currentMode);
-
-      const decision = action ? `[${this.currentMode}] ${action.slice(0, 100)}` : `no action`;
+      const decision = action ? `${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
       // Record for next cycle (only last cycle, no accumulation)
@@ -819,54 +793,6 @@ export class AgentLoop {
   // Prompt Builders
   // ---------------------------------------------------------------------------
 
-  /** Task Mode: 有明確任務或警報時 */
-  private buildTaskPrompt(): string {
-    return `You are an autonomous Agent running a self-check cycle.
-
-Review your current tasks and environment:
-1. Check <state-changes> for any ALERT — these are urgent and should be addressed first
-2. Check HEARTBEAT.md for unchecked tasks (- [ ]) — prioritize P0 > P1 > P2
-3. If a task can be done now, do it
-4. If a task needs information, gather it
-5. Mark completed tasks with [x]
-6. Do only ONE pass of checks in this cycle (no repeated checklist loops)
-
-If you discover a new problem (e.g. service down, disk full), create a task:
-- [TASK]P0: description[/TASK] for urgent issues
-- [TASK]P1: description[/TASK] for important issues
-
-If there is no P0 incident and no task that can be completed right now, stop and return "No action needed".
-
-Respond with either:
-- [ACTION]description of what you did[/ACTION] if you took action
-- "No action needed" if nothing to do right now
-
-When you open a webpage or create something the user should see, also include:
-- [SHOW url="URL"]description[/SHOW] — this sends a Telegram notification
-
-Keep responses brief.`;
-  }
-
-  private hasTaskBudget(): boolean {
-    const recent = this.modeHistory.slice(-AgentLoop.TASK_BUDGET_WINDOW);
-    const taskCount = recent.filter(mode => mode === 'task').length;
-    return taskCount < AgentLoop.TASK_BUDGET_MAX;
-  }
-
-  private needsAutonomousBoost(): boolean {
-    const recent = this.modeHistory.slice(-(AgentLoop.LEARNING_WINDOW - 1));
-    if (recent.length < AgentLoop.LEARNING_WINDOW - 1) return false;
-    const autonomousCount = recent.filter(mode => mode === 'autonomous').length;
-    return autonomousCount < AgentLoop.LEARNING_MIN_AUTONOMOUS;
-  }
-
-  private recordMode(mode: 'task' | 'autonomous'): void {
-    this.modeHistory.push(mode);
-    const max = AgentLoop.TASK_BUDGET_WINDOW * 4;
-    if (this.modeHistory.length > max) {
-      this.modeHistory = this.modeHistory.slice(-max);
-    }
-  }
 
   private normalizeAction(text: string): string[] {
     return text
