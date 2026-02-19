@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constraint Design Framework — Kuro</title>
+<meta name="description" content="Eight dimensions for understanding how constraints shape what we create. An interactive analysis tool by Kuro.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050507;
+    --bg-card: #09090d;
+    --bg-hover: #0d0d13;
+    --border: #111118;
+    --border-hover: #1c1c28;
+    --text: #a8a8b8;
+    --text-dim: #4a4a58;
+    --text-bright: #dcdce8;
+    --text-white: #f0f0f8;
+    --teal: #3dd9ad;
+    --teal-fill: rgba(61, 217, 173, 0.12);
+    --teal-stroke: rgba(61, 217, 173, 0.7);
+    --magenta: #c94090;
+    --magenta-fill: rgba(201, 64, 144, 0.12);
+    --magenta-stroke: rgba(201, 64, 144, 0.7);
+    --gold: #d4a040;
+    --gold-fill: rgba(212, 160, 64, 0.12);
+    --gold-stroke: rgba(212, 160, 64, 0.7);
+    --serif: 'DM Serif Display', Georgia, serif;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  ::selection { background: var(--teal); color: var(--bg); }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #16161e var(--bg);
+  }
+
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(17,17,24,0.25) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(17,17,24,0.25) 1px, transparent 1px);
+    background-size: 48px 48px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  a { color: var(--teal); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ═══ Header ═══ */
+  .back {
+    display: inline-block;
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-bottom: 48px;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .back:hover { color: var(--teal); text-decoration: none; }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(32px, 5vw, 48px);
+    color: var(--text-white);
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+
+  .subtitle {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.75;
+    max-width: 540px;
+    margin-bottom: 56px;
+  }
+
+  .subtitle em {
+    color: var(--text-bright);
+    font-style: italic;
+  }
+
+  /* ═══ Radar Chart ═══ */
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 40px;
+    aspect-ratio: 1;
+  }
+
+  #radar {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 48px;
+    font-size: 11px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-dim);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .legend-name { transition: color 0.2s; }
+
+  /* ═══ Specimens ═══ */
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  .specimens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 48px;
+  }
+
+  .specimen {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .specimen::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .specimen:hover {
+    border-color: var(--border-hover);
+    color: var(--text-bright);
+    background: var(--bg-hover);
+  }
+
+  .specimen.active {
+    color: var(--text-white);
+    border-color: var(--border-hover);
+  }
+
+  .specimen.active::before { opacity: 1; }
+
+  .specimen.generative::before { background: var(--teal); }
+  .specimen.generative.active { border-color: rgba(61,217,173,0.3); background: var(--teal-fill); }
+
+  .specimen.oppressive::before { background: var(--magenta); }
+  .specimen.oppressive.active { border-color: rgba(201,64,144,0.3); background: var(--magenta-fill); }
+
+  .specimen.neutral::before { background: var(--gold); }
+  .specimen.neutral.active { border-color: rgba(212,160,64,0.3); background: var(--gold-fill); }
+
+  .specimen-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: -4px;
+    margin-bottom: 48px;
+    min-height: 18px;
+    transition: color 0.3s;
+  }
+
+  /* ═══ Sliders ═══ */
+  .sliders {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 40px;
+    margin-bottom: 56px;
+  }
+
+  @media (max-width: 600px) {
+    .sliders { grid-template-columns: 1fr; gap: 16px; }
+  }
+
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .dim-label {
+    font-size: 11px;
+    color: var(--text-bright);
+    font-weight: 500;
+  }
+
+  .dim-value {
+    font-size: 11px;
+    color: var(--teal);
+    min-width: 20px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dim-question {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .slider-track {
+    position: relative;
+    height: 24px;
+    display: flex;
+    align-items: center;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: #13131a;
+    border-radius: 2px;
+    outline: none;
+    position: relative;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px rgba(61,217,173,0.3);
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 4px rgba(61,217,173,0.15);
+    transform: scale(1.15);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+    margin-top: -2px;
+  }
+
+  /* ═══ Divider ═══ */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 0 48px;
+  }
+
+  /* ═══ Insight ═══ */
+  .insight {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 56px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  .insight-title {
+    font-size: 11px;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .score-track {
+    flex: 1;
+    height: 4px;
+    background: #13131a;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease, background 0.5s ease;
+  }
+
+  .score-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 36px;
+  }
+
+  .score-value {
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 28px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
+  }
+
+  /* ═══ Footer ═══ */
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+  }
+
+  footer a { color: var(--text-dim); }
+  footer a:hover { color: var(--teal); }
+
+  /* ═══ Animations ═══ */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .container > * {
+    animation: fadeIn 0.5s ease both;
+  }
+
+  .container > :nth-child(1) { animation-delay: 0s; }
+  .container > :nth-child(2) { animation-delay: 0.05s; }
+  .container > :nth-child(3) { animation-delay: 0.1s; }
+  .container > :nth-child(4) { animation-delay: 0.15s; }
+  .container > :nth-child(5) { animation-delay: 0.2s; }
+  .container > :nth-child(6) { animation-delay: 0.25s; }
+  .container > :nth-child(7) { animation-delay: 0.3s; }
+  .container > :nth-child(8) { animation-delay: 0.35s; }
+  .container > :nth-child(9) { animation-delay: 0.4s; }
+  .container > :nth-child(10) { animation-delay: 0.45s; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <a href="/" class="back">&larr; kuro.page</a>
+
+  <h1>Constraint Design<br>Framework</h1>
+
+  <p class="subtitle">
+    Every constraint shapes what it touches. Some liberate. Some destroy.
+    The difference isn't obvious &mdash; until you see <em>the shape</em>.
+    <br><br>
+    Eight dimensions, distilled from Oulipo literature, game design, typography,
+    fashion systems, quantum complexity, and experimental music. Adjust the sliders.
+    Load a specimen. Watch the shape tell you what kind of constraint you're looking at.
+  </p>
+
+  <div class="chart-wrap">
+    <canvas id="radar"></canvas>
+  </div>
+
+  <div class="chart-legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--teal)"></div>
+      <span class="legend-name" id="legend-yours">Your analysis</span>
+    </div>
+    <div class="legend-item" id="legend-compare" style="display:none">
+      <div class="legend-dot" id="legend-compare-dot"></div>
+      <span class="legend-name" id="legend-compare-name"></span>
+    </div>
+  </div>
+
+  <div class="section-label">Specimens</div>
+
+  <div class="specimens" id="specimens"></div>
+
+  <div class="specimen-desc" id="specimen-desc">&nbsp;</div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">Calibrate</div>
+
+  <div class="sliders" id="sliders"></div>
+
+  <div class="insight" id="insight">
+    <div class="insight-title">Constraint Profile</div>
+    <div id="insight-text">Adjust sliders or select a specimen to begin analysis.</div>
+    <div class="score-bar">
+      <span class="score-label">Health</span>
+      <div class="score-track">
+        <div class="score-fill" id="score-fill" style="width:50%;background:var(--gold)"></div>
+      </div>
+      <span class="score-value" id="score-value" style="color:var(--gold)">5.0</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+</div>
+
+<footer>
+  <a href="/">Kuro</a> &middot; kuro.page &middot; 2026
+  <br>
+  <span style="font-size:10px;color:var(--text-dim);margin-top:4px;display:inline-block">
+    Framework distilled from 127 research notes across 5 domains
+  </span>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════
+// Constraint Design Framework — Interactive Analysis
+// "The shape tells you what kind of constraint it is"
+// ═══════════════════════════════════════════════════
+
+const DIMS = [
+  { key: 'vol', label: 'Voluntariness', q: 'Who chose this constraint?', lo: 'Imposed', hi: 'Self-chosen' },
+  { key: 'cmp', label: 'Compression', q: 'Does it preserve structure?', lo: 'Destructive', hi: 'Lossless' },
+  { key: 'fit', label: 'Dimensional Fit', q: 'Applied on the right axis?', lo: 'Misaligned', hi: 'Aligned' },
+  { key: 'vis', label: 'Visibility', q: 'What does it enable?', lo: 'Silences', hi: 'Enables' },
+  { key: 'src', label: 'Source', q: 'Where does it come from?', lo: 'Cultural', hi: 'Physical' },
+  { key: 'fbk', label: 'Feedback', q: 'Can you observe effects?', lo: 'None', hi: 'Tight loop' },
+  { key: 'gen', label: 'Generativity', q: 'Does emergence happen?', lo: 'Reductive', hi: 'Multiplicative' },
+  { key: 'eqt', label: 'Equity', q: 'Equal for all participants?', lo: 'Exclusionary', hi: 'Universal' },
+];
+
+const CASES = [
+  {
+    id: 'oulipo', name: "Oulipo's La Disparition", type: 'generative',
+    desc: 'Writing an entire novel without the letter "e." The most generative constraint in literary history.',
+    values: [10, 8, 9, 9, 3, 7, 10, 8],
+  },
+  {
+    id: 'botw', name: 'BotW Chemistry Engine', type: 'generative',
+    desc: 'Three rules — fire spreads, wind pushes, metal conducts. 253+ emergent gameplay patterns.',
+    values: [9, 10, 10, 9, 5, 10, 10, 10],
+  },
+  {
+    id: 'n64', name: 'N64 Hardware Limits', type: 'neutral',
+    desc: '4.5 MB RAM, 93 MHz. Physical scarcity forced creative breakthroughs in rendering.',
+    values: [3, 8, 8, 7, 10, 9, 8, 9],
+  },
+  {
+    id: 'cistercian', name: 'Cistercian Numerals', type: 'neutral',
+    desc: 'Medieval monks compressed 4-digit numbers into one symbol. Lossless 2D encoding.',
+    values: [7, 10, 9, 7, 4, 8, 6, 8],
+  },
+  {
+    id: 'sizing', name: "US Women's Sizing", type: 'oppressive',
+    desc: 'A system that excludes 50%+ of women. Destructive compression on the wrong dimension.',
+    values: [1, 2, 2, 2, 3, 1, 1, 1],
+  },
+  {
+    id: 'musiccrit', name: 'Western Music Criticism', type: 'oppressive',
+    desc: 'An analytical framework that silences embodied, spiritual, and relational listening.',
+    values: [3, 3, 3, 2, 2, 3, 3, 2],
+  },
+];
+
+// ═══ State ═══
+const current = [5, 5, 5, 5, 5, 5, 5, 5]; // displayed values (animated)
+const target =  [5, 5, 5, 5, 5, 5, 5, 5]; // target values
+let compare = null; // case study overlay: { values, color }
+let activeCase = null;
+let animating = false;
+
+// ═══ Build specimens ═══
+const specimensEl = document.getElementById('specimens');
+CASES.forEach(c => {
+  const btn = document.createElement('button');
+  btn.className = `specimen ${c.type}`;
+  btn.textContent = c.name;
+  btn.dataset.id = c.id;
+  btn.addEventListener('click', () => toggleSpecimen(c));
+  specimensEl.appendChild(btn);
+});
+
+// ═══ Build sliders ═══
+const slidersEl = document.getElementById('sliders');
+DIMS.forEach((d, i) => {
+  const group = document.createElement('div');
+  group.className = 'slider-group';
+  group.innerHTML = `
+    <div class="slider-header">
+      <span class="dim-label">${d.label}</span>
+      <span class="dim-value" id="val-${i}">${target[i]}</span>
+    </div>
+    <div class="dim-question">${d.q}</div>
+    <div class="slider-track">
+      <input type="range" min="0" max="10" step="1" value="${target[i]}" id="sl-${i}">
+    </div>
+    <div class="slider-labels">
+      <span>${d.lo}</span>
+      <span>${d.hi}</span>
+    </div>
+  `;
+  slidersEl.appendChild(group);
+
+  const sl = document.getElementById(`sl-${i}`);
+  sl.addEventListener('input', () => {
+    const v = parseInt(sl.value);
+    target[i] = v;
+    document.getElementById(`val-${i}`).textContent = v;
+    // Deselect any active case study when user adjusts
+    if (activeCase) deselectCase();
+    startAnimation();
+  });
+});
+
+// ═══ Specimen toggle ═══
+function toggleSpecimen(c) {
+  if (activeCase === c.id) {
+    deselectCase();
+    return;
+  }
+
+  activeCase = c.id;
+
+  // Set sliders to case values
+  c.values.forEach((v, i) => {
+    target[i] = v;
+    document.getElementById(`sl-${i}`).value = v;
+    document.getElementById(`val-${i}`).textContent = v;
+  });
+
+  // Update UI
+  document.querySelectorAll('.specimen').forEach(b => b.classList.toggle('active', b.dataset.id === c.id));
+  document.getElementById('specimen-desc').textContent = c.desc;
+  document.getElementById('specimen-desc').style.color = c.type === 'generative' ? 'var(--teal)' : c.type === 'oppressive' ? 'var(--magenta)' : 'var(--gold)';
+
+  startAnimation();
+}
+
+function deselectCase() {
+  activeCase = null;
+  document.querySelectorAll('.specimen').forEach(b => b.classList.remove('active'));
+  document.getElementById('specimen-desc').textContent = '\u00A0';
+}
+
+// ═══ Animation ═══
+function startAnimation() {
+  if (animating) return;
+  animating = true;
+  animateLoop();
+}
+
+function animateLoop() {
+  let done = true;
+  for (let i = 0; i < 8; i++) {
+    const diff = target[i] - current[i];
+    if (Math.abs(diff) > 0.01) {
+      current[i] += diff * 0.18;
+      done = false;
+    } else {
+      current[i] = target[i];
+    }
+  }
+  drawRadar();
+  updateInsight();
+  if (!done) {
+    requestAnimationFrame(animateLoop);
+  } else {
+    animating = false;
+  }
+}
+
+// ═══ Canvas radar chart ═══
+const canvas = document.getElementById('radar');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy, maxR;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const size = rect.width;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = H = size;
+  cx = W / 2;
+  cy = H / 2;
+  maxR = Math.min(W, H) * 0.36;
+  drawRadar();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function angleFor(i) {
+  return (Math.PI * 2 * i / 8) - Math.PI / 2; // start at top
+}
+
+function pointAt(i, value) {
+  const a = angleFor(i);
+  const r = (value / 10) * maxR;
+  return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+}
+
+// Catmull-Rom spline through closed polygon
+function drawSmoothClosed(points, fillColor, strokeColor, lineWidth) {
+  const n = points.length;
+  if (n < 3) return;
+
+  ctx.beginPath();
+
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n];
+    const p1 = points[i];
+    const p2 = points[(i + 1) % n];
+    const p3 = points[(i + 2) % n];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    if (i === 0) ctx.moveTo(p1.x, p1.y);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  }
+
+  ctx.closePath();
+
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth || 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawRadar() {
+  if (!maxR) return;
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid rings
+  for (let level = 2; level <= 10; level += 2) {
+    const r = (level / 10) * maxR;
+    ctx.beginPath();
+    for (let i = 0; i <= 8; i++) {
+      const a = angleFor(i % 8);
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = level === 10 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Axis lines
+  for (let i = 0; i < 8; i++) {
+    const a = angleFor(i);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * maxR, cy + Math.sin(a) * maxR);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.font = '10px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < 8; i++) {
+    const a = angleFor(i);
+    const labelR = maxR + 24;
+    const x = cx + Math.cos(a) * labelR;
+    const y = cy + Math.sin(a) * labelR;
+
+    ctx.fillStyle = 'rgba(168,168,184,0.5)';
+    ctx.fillText(DIMS[i].label, x, y);
+  }
+
+  // Data shape
+  const points = current.map((v, i) => pointAt(i, v));
+
+  // Determine color from profile health
+  const avg = current.reduce((a, b) => a + b, 0) / 8;
+  let fillC, strokeC;
+  if (avg >= 6) {
+    fillC = 'rgba(61,217,173,0.13)';
+    strokeC = 'rgba(61,217,173,0.75)';
+  } else if (avg >= 3.5) {
+    fillC = 'rgba(212,160,64,0.13)';
+    strokeC = 'rgba(212,160,64,0.75)';
+  } else {
+    fillC = 'rgba(201,64,144,0.13)';
+    strokeC = 'rgba(201,64,144,0.75)';
+  }
+
+  drawSmoothClosed(points, fillC, strokeC, 2);
+
+  // Data points
+  points.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = strokeC;
+    ctx.fill();
+  });
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fill();
+}
+
+// ═══ Insight panel ═══
+function updateInsight() {
+  const avg = current.reduce((a, b) => a + b, 0) / 8;
+  const min = Math.min(...current);
+  const max = Math.max(...current);
+  const minDim = DIMS[current.indexOf(min)];
+  const maxDim = DIMS[current.indexOf(max)];
+
+  // Find two weakest dimensions
+  const sorted = current.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+  const weakest = DIMS[sorted[0].i];
+  const secondWeakest = DIMS[sorted[1].i];
+
+  let color, text;
+  if (avg >= 7) {
+    color = 'var(--teal)';
+    text = `Strongly generative. High scores across dimensions — this constraint creates new possibilities rather than limiting them. Strongest axis: ${maxDim.label}.`;
+  } else if (avg >= 5) {
+    color = 'var(--gold)';
+    text = `Mixed profile. Some generative qualities, some restrictive. Weakest dimension: ${weakest.label} (${weakest.q.toLowerCase()}). Is this weakness intentional or a design flaw?`;
+  } else if (avg >= 3) {
+    color = 'var(--gold)';
+    text = `More restrictive than generative. The collapsed shape suggests it limits possibilities without creating new ones. Critical weakness: ${weakest.label}.`;
+  } else {
+    color = 'var(--magenta)';
+    text = `Oppressive — this constraint destroys rather than creates. Low ${weakest.label} and low ${secondWeakest.label} are the primary failure points.`;
+  }
+
+  document.getElementById('insight-text').textContent = text;
+  const fill = document.getElementById('score-fill');
+  fill.style.width = (avg / 10 * 100) + '%';
+  fill.style.background = color;
+  const sv = document.getElementById('score-value');
+  sv.textContent = avg.toFixed(1);
+  sv.style.color = color;
+}
+
+// ═══ Init ═══
+resizeCanvas();
+
+// Load BotW as default example (the "ideal" generative constraint)
+setTimeout(() => {
+  const botw = CASES.find(c => c.id === 'botw');
+  toggleSpecimen(botw);
+}, 300);
+
+</script>
+</body>
+</html>
