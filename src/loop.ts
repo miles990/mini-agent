@@ -567,8 +567,8 @@ export class AgentLoop {
         });
       };
 
-      // All skills available — Kuro decides what to do, not the code
-      const cycleMode = 'respond' as const;
+      // JIT skill loading: detect cycle mode from context
+      const cycleMode = this.detectCycleMode(context, currentTriggerReason);
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode }),
@@ -888,6 +888,24 @@ export class AgentLoop {
       rememberCount: this.dailyRememberCount,
       similarityRate,
     };
+  }
+
+  /** Detect cycle mode for JIT skill loading */
+  private detectCycleMode(
+    context: string,
+    triggerReason: string | null,
+  ): import('./memory.js').CycleMode {
+    // User interaction (telegram, chat) → respond (all skills)
+    if (triggerReason?.startsWith('telegram-user')) return 'respond';
+
+    // ALERT or overdue tasks → task mode
+    if (context.includes('ALERT:') || context.includes('overdue')) return 'task';
+
+    // Consecutive learn cycles → nudge toward act/reflect
+    if (this.consecutiveLearnCycles >= 3) return 'act';
+
+    // Default: learn (most common autonomous mode)
+    return 'learn';
   }
 
   /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */

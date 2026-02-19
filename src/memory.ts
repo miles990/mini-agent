@@ -113,9 +113,9 @@ export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
 const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
   learn: ['autonomous-behavior', 'web-learning', 'web-research'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy'],
-  task: ['autonomous-behavior', 'project-manager', 'debug-helper'],
-  respond: [], // empty = load all skills (不確定需要什麼)
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation'],
+  task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops'],
+  respond: [], // empty = load all skills (用戶互動，不確定需要什麼)
   reflect: ['autonomous-behavior'],
 };
 
@@ -1374,35 +1374,60 @@ export class InstanceMemory {
       sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
-    // ── Topic 記憶（Smart Loading）──
+    // ── Topic 記憶（Smart Loading + negative keywords + heat-based truncation）──
     const topics = await this.listTopics();
     if (topics.length > 0) {
       // Topic keyword mapping — 檔名本身就是 key，加上額外關鍵字
       const topicKeywords: Record<string, string[]> = {
-        'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'art', 'visual', 'creative coding'],
-        'mini-agent': ['dispatcher', 'haiku', 'lane', 'context', 'loop', 'triage', 'perception', 'plugin', 'agent'],
-        'agent-architecture': ['autogpt', 'babyagi', 'langchain', 'crewai', 'anthropic', 'context engineering', 'framework'],
-        'web-learning': ['cdp', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit', 'learning'],
-        'design-philosophy': ['alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt', 'philosophy'],
-        'creative-arts': ['oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music', 'music'],
-        'social-culture': ['mockus', 'huizinga', 'garden', 'stream', 'homo ludens', 'culture'],
-        'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive', 'cognitive'],
+        'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'visual', 'creative coding'],
+        'mini-agent': ['dispatcher', 'haiku', 'lane', 'context budget', 'loop', 'triage', 'perception stream', 'plugin'],
+        'agent-architecture': ['autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework'],
+        'web-learning': ['cdp', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit'],
+        'design-philosophy': ['alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt'],
+        'creative-arts': ['oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music'],
+        'social-culture': ['mockus', 'huizinga', 'garden', 'homo ludens'],
+        'cognitive-science': ['borges', 'embodied cognition', 'consciousness', 'enactive'],
       };
+
+      // Negative keywords — prevent overly broad single-word matches in focused mode
+      const topicNegativeKeywords: Record<string, string[]> = {
+        'mini-agent': ['agent'],  // 'agent' alone matches too broadly
+        'agent-architecture': ['anthropic'], // too generic
+      };
+
+      // Load topic heat data
+      let topicHeat: Record<string, number> = {};
+      try {
+        const heatPath = path.join(this.memoryDir, '.topic-hits.json');
+        const heatRaw = await fs.readFile(heatPath, 'utf-8');
+        topicHeat = JSON.parse(heatRaw) as Record<string, number>;
+      } catch { /* no heat data — treat all as cold */ }
 
       const loadedTopics: string[] = [];
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
-        const isDirectMatch = keywords.some(k => contextHint.includes(k));
+        const negatives = topicNegativeKeywords[topic] ?? [];
+
+        // Match: keyword found AND not a negative-only match
+        const isDirectMatch = keywords.some(k => {
+          if (!contextHint.includes(k)) return false;
+          // If this keyword is in negatives, require additional keyword match
+          if (negatives.includes(k)) return keywords.some(k2 => k2 !== k && contextHint.includes(k2));
+          return true;
+        });
+
+        const heat = topicHeat[topic] ?? 0;
 
         if (mode === 'focused') {
           // focused mode: 只載入匹配的 topics
           if (!isDirectMatch) continue;
           const content = await this.readTopicMemory(topic);
           if (content) {
-            // Utility-based truncation: frequently loaded topics get brief (already seen), new ones get full
             const loadCount = this.topicLoadCounts.get(topic) ?? 0;
-            let topicContent = loadCount >= 2 ? truncateTopicMemory(content, 'brief') : content;
-            // Per-topic cap: 8K chars max
+            // Heat-based truncation: high-heat topics get brief (already familiar), cold get full
+            let topicContent = (loadCount >= 2 || heat >= 5)
+              ? truncateTopicMemory(content, 'brief')
+              : content;
             if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
             topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
@@ -1410,19 +1435,16 @@ export class InstanceMemory {
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
         } else {
-          // full mode: 匹配的完整載入（capped），非匹配的只載 title + count (summary)
+          // full mode: 匹配的完整載入（capped），非匹配的只載 summary
           const content = await this.readTopicMemory(topic);
           if (content) {
             let topicContent: string;
             if (isDirectMatch) {
               topicContent = content;
-              // Per-topic cap: 8K chars max even for direct matches
               if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
-            } else if (hint) {
-              topicContent = truncateTopicMemory(content, 'summary');
             } else {
-              // 無 hint 的 full mode → brief truncation（保留最小上下文）
-              topicContent = truncateTopicMemory(content, 'brief');
+              // Non-matching topics: always summary (just title + count)
+              topicContent = truncateTopicMemory(content, 'summary');
             }
             topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);

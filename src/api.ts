@@ -577,8 +577,8 @@ export function createApi(port = 3001): express.Express {
       content = content.replace('## Pending\n', `## Pending\n${entry}\n`);
       await fsPromises.writeFile(inboxPath, content, 'utf-8');
 
-      // Emit workspace trigger (not telegram — avoid being treated as Alex's message)
-      eventBus.emit('trigger:workspace', { source: 'chat-api', messageCount: 1 });
+      // Emit trigger:chat to wake idle AgentLoop immediately
+      eventBus.emit('trigger:chat', { source: 'chat-api', messageCount: 1 });
 
       slog('CHAT', `→ [inbox] message queued for OODA cycle`);
       res.status(202).json({

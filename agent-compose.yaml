@@ -50,6 +50,10 @@ agents:
           script: ./plugins/mobile-perception.sh
         - name: claude-code-inbox
           script: ./plugins/claude-code-inbox.sh
+        - name: focus-context
+          script: ./plugins/focus-context.sh
+        - name: anomaly-detector
+          script: ./plugins/anomaly-detector.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
@@ -69,5 +73,6 @@ agents:
       - ./skills/web-research.md
       - ./skills/web-learning.md
       - ./skills/action-from-learning.md
+      - ./skills/delegation.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md

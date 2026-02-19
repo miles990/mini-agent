@@ -395,13 +395,13 @@ describe('InstanceMemory', () => {
       expect(context).not.toContain('topic-memory name="gen-art"');
     });
 
-    it('should use brief truncation in full mode without hint', async () => {
+    it('should use summary truncation in full mode without hint', async () => {
       const context = await memory.buildContext({ mode: 'full' });
-      // All topics loaded with brief truncation (title + count + last 1)
+      // All topics loaded with summary truncation (title + count only)
       expect(context).toContain('topic-memory name="gen-art"');
       expect(context).toContain('topic-memory name="mini-agent"');
-      // Should have truncated content (last entry only)
-      expect(context).toContain('(10 entries, latest)');
+      // Non-matching topics should have summary (just title + count)
+      expect(context).toContain('(10 entries)');
     });
   });
 });
