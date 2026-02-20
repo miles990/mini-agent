@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import os from 'node:os';
+import { exec } from 'node:child_process';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getLaneStatus } from './agent.js';
@@ -619,7 +620,103 @@ export function createApi(port = 3001): express.Express {
     res.json({ results });
   });
 
-  app.post('/memory', async (req: Request, res: Response) => {
+  // New API: GET /api/memory/structured
+  app.get('/api/memory/structured', async (_req: Request, res: Response) => {
+    try {
+      const memory = getMemory();
+      const memoryContent = await memory.readMemory(); // Assuming readMemory returns the content of MEMORY.md
+      const sections: Record<string, string> = {};
+      const lines = memoryContent.split('\n');
+      let currentSectionTitle = '';
+      let currentSectionContent: string[] = [];
+
+      for (const line of lines) {
+        const match = line.match(/^##\s*(.+)/);
+        if (match) {
+          if (currentSectionTitle && currentSectionContent.length > 0) {
+            sections[currentSectionTitle] = currentSectionContent.join('\n').trim();
+          }
+          currentSectionTitle = match[1].trim();
+          currentSectionContent = [];
+        } else if (currentSectionTitle) {
+          currentSectionContent.push(line);
+        }
+      }
+      if (currentSectionTitle && currentSectionContent.length > 0) {
+        sections[currentSectionTitle] = currentSectionContent.join('\n').trim();
+      }
+      res.json({ sections });
+    } catch (error) {
+      slog('ERROR', `Failed to read structured memory: ${error instanceof Error ? error.message : error}`);
+      res.status(500).json({ error: 'Failed to read structured memory' });
+    }
+  });
+
+  // New API: GET /api/memory/history
+  app.get('/api/memory/history', async (req: Request, res: Response) => {
+    try {
+      const memoryDir = getMemory().getMemoryDir();
+      const { exec } = await import('node:child_process');
+
+      // Execute git log command to get history of all files in memory directory
+      // Format: commit_hash|author_name|author_date|subject
+      const command = `git -C ${memoryDir} log --pretty=format:"%H|%an|%ad|%s" --date=iso --name-only -- .`;
+
+      exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+        if (error) {
+          slog('ERROR', `git log error: ${error.message}`);
+          return res.status(500).json({ error: 'Failed to retrieve memory history' });
+        }
+        if (stderr) {
+          slog('WARN', `git log stderr: ${stderr}`);
+        }
+
+        const rawEntries = stdout.trim().split('\n\n'); // Split by double newline for each commit block
+        const history = [];
+
+        for (const entry of rawEntries) {
+          const lines = entry.split('\n');
+          if (lines.length < 2) continue;
+
+          const [hash, author, date, subject] = lines[0].split('|');
+          const filesChanged = lines.slice(1).filter(line => line.trim() !== '');
+
+          history.push({
+            hash,
+            author,
+            date,
+            subject,
+            filesChanged,
+          });
+        }
+        res.json({ history });
+      });
+    } catch (error) {
+      slog('ERROR', `Failed to get memory history: ${error instanceof Error ? error.message : error}`);
+      res.status(500).json({ error: 'Failed to get memory history' });
+    }
+  });
+
+  // New API: GET /api/memory/search?q=keyword
+  app.get('/api/memory/search', async (req: Request, res: Response) => {
+    const query = req.query.q as string;
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({ error: 'q parameter is required' });
+      return;
+    }
+
+    // Limit query length to prevent abuse
+    if (query.length > 200) {
+      res.status(400).json({ error: 'Query too long (max 200 chars)' });
+      return;
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string || '5', 10), 50);
+    const results = await searchMemory(query, limit); // Re-using existing searchMemory function
+    res.json({ results });
+  });
+
+  app.post("/memory", async (req: Request, res: Response) => {
     const { content, section } = req.body;
 
     if (!content || typeof content !== 'string') {

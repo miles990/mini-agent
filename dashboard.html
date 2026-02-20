@@ -4,10 +4,142 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kuro Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
+  <style>
+    .main-nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 10px;
+    }
+    .main-nav .nav-item {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text2);
+      text-decoration: none;
+      padding: 8px 15px;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s;
+    }
+    .main-nav .nav-item:hover {
+      color: var(--text-bright);
+      background: var(--surface2);
+    }
+    .main-nav .nav-item.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      font-weight: 500;
+    }
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .text-input {
+      flex-grow: 1;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-bright);
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+    .text-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .button {
+      padding: 8px 15px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-bright);
+      font-family: var(--mono);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .memory-section-card {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 10px;
+    }
+    .memory-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 10px;
+    }
+    .memory-section-content {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .memory-history-entry {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .memory-history-entry:last-child {
+      border-bottom: none;
+    }
+    .memory-history-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 5px;
+    }
+    .memory-history-subject {
+      font-size: 13px;
+      color: var(--text-bright);
+      margin-bottom: 5px;
+    }
+    .memory-history-files {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+    }
+    .memory-file-item {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      padding: 5px 0;
+      border-bottom: 1px dashed var(--border-subtle);
+    }
+    .memory-file-item:last-child {
+      border-bottom: none;
+    }
+    .memory-search-result {
+      background: var(--surface2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 15px;
+      margin-bottom: 8px;
+    }
+    .memory-search-result-file {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 5px;
+    }
+    .memory-search-result-snippet {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
   :root {
     --bg: #08090a;
     --surface: #111214;
@@ -1451,7 +1583,14 @@
 </style>
 </head>
 <body>
-<div class="container">
+    <div class="container">
+
+      <nav class="main-nav">
+        <a href="#dashboard" class="nav-item active" data-tab="dashboard">Dashboard</a>
+        <a href="#memory" class="nav-item" data-tab="memory">Memory Lab</a>
+      </nav>
+
+
   <header>
     <div class="header-left">
       <h1>Kuro<span>Dashboard</span></h1>
@@ -1466,7 +1605,8 @@
   </header>
 
   <!-- Today Summary Bar -->
-  <div class="today-bar" id="todayBar">
+    <div id="dashboardContent" class="tab-content active">
+      <div class="today-bar" id="todayBar">
     <div class="today-chip highlight">
       <span class="chip-icon">&#9670;</span>
       <span>Journal</span>
@@ -1685,12 +1825,182 @@
     </div>
   </div>
 
-</div>
+    </div>
 
-<button class="scroll-top" id="scrollTop" title="Scroll to top">&#8593;</button>
+    <div id="memoryContent" class="tab-content" style="display:none;">
+      <!-- Memory Lab content will go here -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title"><span class="icon">&#9729;</span> Structured Memory (MEMORY.md)</div>
+        </div>
+        <div id="structuredMemoryContent"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title"><span class="icon">&#9201;</span> Memory History (Git Log)</div>
+        </div>
+        <div id="memoryHistoryContent"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title"><span class="icon">&#128269;</span> Search Memory</div>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="memorySearchInput" placeholder="Search memory content..." class="text-input">
+          <button id="memorySearchButton" class="button">Search</button>
+        </div>
+        <div id="memorySearchResults"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title"><span class="icon">&#128193;</span> Memory Files</div>
+        </div>
+        <div id="memoryFilesContent"></div>
+      </div>
+
+    </div>
+
+    <button class="scroll-top" id="scrollTop" title="Scroll to top">&#8593;</button>
 
 <script>
-const API = window.location.origin;
+    const API = window.location.origin;
+    let currentTab = 'dashboard';
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.style.display = 'none';
+      });
+      document.querySelectorAll('.main-nav .nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+
+      document.getElementById(tabId + 'Content').style.display = 'block';
+      document.querySelector(`.main-nav .nav-item[data-tab="${tabId}"]`).classList.add('active');
+      currentTab = tabId;
+
+      // Fetch data for the memory tab if it's activated
+      if (tabId === 'memory') {
+        fetchMemoryData();
+      }
+    }
+
+    document.querySelectorAll('.main-nav .nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchTab(e.target.dataset.tab);
+      });
+    });
+
+    // Initial tab load
+    switchTab(currentTab);
+
+    // Markdown renderer (simple for now)
+    function renderMarkdown(markdown) {
+      return marked.parse(markdown);
+    }
+
+    async function fetchMemoryData() {
+      // Fetch Structured Memory
+      try {
+        const res = await fetch(API + '/api/memory/structured');
+        const data = await res.json();
+        const container = document.getElementById('structuredMemoryContent');
+        let html = '';
+        for (const sectionTitle in data.sections) {
+          html += `<div class="memory-section-card">`;
+          html += `<div class="memory-section-title">${escapeHtml(sectionTitle)}</div>`;
+          html += `<div class="memory-section-content">${renderMarkdown(data.sections[sectionTitle])}</div>`;
+          html += `</div>`;
+        }
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to fetch structured memory:', error);
+        document.getElementById('structuredMemoryContent').innerHTML = '<div class="empty-state">Failed to load structured memory.</div>';
+      }
+
+      // Fetch Memory History
+      try {
+        const res = await fetch(API + '/api/memory/history');
+        const data = await res.json();
+        const container = document.getElementById('memoryHistoryContent');
+        let html = '';
+        if (data.history && data.history.length > 0) {
+          for (const entry of data.history) {
+            html += `<div class="memory-history-entry">`;
+            html += `<div class="memory-history-meta">${escapeHtml(entry.date)} by ${escapeHtml(entry.author)}</div>`;
+            html += `<div class="memory-history-subject">${escapeHtml(entry.subject)}</div>`;
+            if (entry.filesChanged && entry.filesChanged.length > 0) {
+              html += `<div class="memory-history-files">Changed: ${escapeHtml(entry.filesChanged.join(', '))}</div>`;
+            }
+            html += `</div>`;
+          }
+        } else {
+          html += '<div class="empty-state">No memory history found.</div>';
+        }
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to fetch memory history:', error);
+        document.getElementById('memoryHistoryContent').innerHTML = '<div class="empty-state">Failed to load memory history.</div>';
+      }
+
+      // Fetch Memory Files
+      try {
+        const res = await fetch(API + '/api/memory/files');
+        const data = await res.json();
+        const container = document.getElementById('memoryFilesContent');
+        let html = '';
+        if (data.files && data.files.length > 0) {
+          for (const file of data.files) {
+            html += `<div class="memory-file-item">${escapeHtml(file)}</div>`;
+          }
+        } else {
+          html += '<div class="empty-state">No memory files found.</div>';
+        }
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to fetch memory files:', error);
+        document.getElementById('memoryFilesContent').innerHTML = '<div class="empty-state">Failed to load memory files.</div>';
+      }
+    }
+
+    document.getElementById('memorySearchButton').addEventListener('click', async () => {
+      const query = document.getElementById('memorySearchInput').value;
+      if (!query) return;
+      try {
+        const res = await fetch(API + '/api/memory/search?q=' + encodeURIComponent(query));
+        const data = await res.json();
+        const container = document.getElementById('memorySearchResults');
+        let html = '';
+        if (data.results && data.results.length > 0) {
+          for (const result of data.results) {
+            html += `<div class="memory-search-result">`;
+            html += `<div class="memory-search-result-file">${escapeHtml(result.file)}</div>`;
+            html += `<div class="memory-search-result-snippet">${renderMarkdown(result.snippet)}</div>`;
+            html += `</div>`;
+          }
+        } else {
+          html += '<div class="empty-state">No results found.</div>';
+        }
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to search memory:', error);
+        document.getElementById('memorySearchResults').innerHTML = '<div class="empty-state">Failed to perform search.</div>';
+      }
+    });
+
+    // Extend fetchAll to include memory data if memory tab is active
+    const originalFetchAll = fetchAll;
+    fetchAll = async () => {
+      await originalFetchAll();
+      if (currentTab === 'memory') {
+        fetchMemoryData();
+      }
+    };
+
+
 let currentActor = 'all';
 let currentView = 'timeline';
 let currentDate = new Date().toISOString().split('T')[0];
