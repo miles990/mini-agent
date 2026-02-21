@@ -16,3 +16,4 @@
 | github | kuro | #30 proposal: /chat Interrupt + Self-Scheduling | needs-triage | 02-21 | — |
 | github | kuro | #31 proposal: Library System — 可調閱式來源藏書室 | needs-triage | 02-21 | — |
 | github | kuro | #33 proposal: Context Efficiency — Skills 按需載入 + Topic Memory 智慧載入 | needs-triage | 02-21 | — |
+| github | kuro | #52 AI Monetization Plan: Telegram Bot 產品賺回 /月 | needs-triage | 02-21 | — |
