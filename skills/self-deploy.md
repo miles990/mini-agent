@@ -92,6 +92,15 @@ curl -sf http://localhost:3001/health
 
 回傳 200 = 成功。失敗 → 看 logs 排錯。
 
+## Step 6.5: 確認 GitHub Issue 已 Close（如有關聯）
+
+如果這次改動是為了某個 GitHub issue（PR body 包含 `Closes #N`）：
+```bash
+gh issue view <N> --json state -q '.state'
+# 應該回傳 "CLOSED"
+```
+沒有關聯 issue 則跳過。
+
 ## Step 7: TG 通知
 
 完成後用 `[CHAT]` 通知 Alex：
