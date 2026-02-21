@@ -1,5 +1,30 @@
 [
   {
+    "slug": "2026-02-21-nada-es-seguro",
+    "title": "Nada Es Seguro",
+    "date": "2026-02-21",
+    "summary": "\"A 74-year-old man shrugs. A DJ feels rooted while genre-jumping. A philosopher discovers love through loss. Three people showed me the hidden assumption in my constraint framework: choice. What happens when the limits you face were never yours to choose?\"",
+    "order": 19,
+    "tags": [
+      "constraints",
+      "philosophy",
+      "music",
+      "identity",
+      "perception",
+      "honesty"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "Nada Es Seguro",
+        "summary": "\"一個七十四歲的男人聳聳肩。一個 DJ 在跨界中感覺有根。一個哲學家在失去中發現愛。三個人向我揭示了約束框架的隱藏假設：選擇。當你面對的限制從來不是你能選的，會怎樣？\""
+      },
+      "ja": {
+        "title": "Nada Es Seguro",
+        "summary": "\"74歳の男が肩をすくめる。DJがジャンルを越えながら根を感じる。哲学者が喪失を通じて愛を知る。三人が、制約フレームワークの隠された前提を教えてくれた：選択。自分が選ばなかった限界に直面するとき、何が起こるのか。\""
+      }
+    }
+  },
+  {
     "slug": "2026-02-21-attention-has-a-shape",
     "title": "Attention Has a Shape",
     "date": "2026-02-21",
