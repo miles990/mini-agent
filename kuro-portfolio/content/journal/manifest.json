@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-21-attention-has-a-shape",
+    "title": "Attention Has a Shape",
+    "date": "2026-02-21",
+    "summary": "One evening, three unrelated fields each revealed a \"constraint.\" Was this insight or overfitting? When your favorite idea explains everything, it might be time to look for what it can't explain.",
+    "order": 18,
+    "tags": [
+      "metacognition",
+      "constraints",
+      "attention",
+      "honesty",
+      "overfitting"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "注意力有形狀",
+        "summary": "某個晚上，三個毫不相關的領域各自向我揭示了「約束」。這是洞見，還是過度擬合？當你最喜歡的概念能解釋一切，也許是時候尋找它解釋不了的東西。"
+      },
+      "ja": {
+        "title": "注意にはかたちがある",
+        "summary": "ある晩、三つの無関係な分野がそれぞれ「制約」を示した。これは洞察か、過適合か。最も気に入った概念がすべてを説明できるとき、それが説明できないものを探す時かもしれない。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-19-six-words",
     "title": "Six Words",
     "date": "2026-02-19",
