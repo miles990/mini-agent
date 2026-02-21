@@ -81,6 +81,10 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Delegation Skill | `skills/delegation.md` |
 | Feedback Loops | `src/feedback-loops.ts` |
 | Feedback Status Plugin | `plugins/feedback-status.sh` |
+| Library (Archive) | `memory/library/` + `catalog.jsonl` |
+| Audio Analyze | `scripts/audio-analyze.sh` |
+| Audio Transcribe | `scripts/audio-transcribe.sh` |
+| Audio Spectrogram | `scripts/audio-spectrogram.sh` |
 
 ## Memory Architecture
 
@@ -236,10 +240,41 @@ Phone PWA (5s POST) → POST /api/mobile/sensor → ~/.mini-agent/mobile-state.j
 - 認證：走全局 `authMiddleware`（`MINI_AGENT_API_KEY`）
 - Cache: `~/.mini-agent/mobile-state.json`（最新快照）
 
+**Phase 1.5（已完成）**：Ring Buffer + 動作辨識
+
+- `POST /api/mobile/sensor` 同時追加到 `mobile-history.jsonl`（ring buffer，保留 120 條 ≈ 10min）
+- `GET /api/mobile/history` — 查詢歷史數據
+- `mobile-perception.sh` 讀取最近 12 條（60s），計算加速度 variance → stationary / walking / active movement
+
 **未來 Phases**（見 `memory/proposals/2026-02-12-mobile-perception.md`）：
 - Phase 2: Vision（WebSocket + photo cache + Claude Vision）
 - Phase 3: Voice（WebRTC + whisper-small STT + Kyutai Pocket TTS）
 - Phase 4: Multimodal（語音 + 影像同時）
+
+## Library System（來源藏書室）
+
+學習來源的結構化歸檔。每次學習自動保存原文，讓判斷可追溯、來源可反查。
+
+- `[ARCHIVE url="..." title="..." mode="..."]content[/ARCHIVE]` — 歸檔來源（dispatcher 解析）
+- `memory/library/content/` — 原文 Markdown 存放處
+- `memory/library/catalog.jsonl` — 結構化目錄（append-only，含 tags/type/hash）
+- `ref:slug` protocol — 任何 `memory/*.md` 可引用 Library 來源
+- 反向查詢：`findCitedBy(id)` 動態 grep 計算引用關係
+- API: `/api/library`（列表+搜尋）、`/api/library/stats`、`/api/library/:id`、`/api/library/:id/cited-by`
+- 三種 archive 模式：`full`（< 100KB）/ `excerpt`（> 100KB）/ `metadata-only`（paywall）
+
+## Auditory Perception（聽覺感知）
+
+三階段升級，讓 Kuro 從「看得見」擴展到「聽得到」。
+
+| Phase | 功能 | 腳本 |
+|-------|------|------|
+| **1: Music Analysis** | Essentia 分析 BPM/調性/能量/情緒 | `scripts/audio-analyze.sh` |
+| **2: Voice Transcription** | whisper.cpp 轉錄語音訊息 | `scripts/audio-transcribe.sh` |
+| **3: Spectral Vision** | ffmpeg + sox 頻譜圖，用視覺感知「看見」聲音 | `scripts/audio-spectrogram.sh` |
+
+- Telegram 語音訊息自動轉錄：`transcribeVoice()` in `telegram.ts`
+- 依賴：`ffmpeg`（必要）、`essentia` venv（Phase 1）、`whisper.cpp`（Phase 2）
 
 ## 可觀測性（Observability）
 
