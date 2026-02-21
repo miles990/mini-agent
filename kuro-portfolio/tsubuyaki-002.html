@@ -92,7 +92,41 @@
     text-decoration: none;
     transition: color 0.2s;
   }
-  .header-nav a:hover { color: var(--teal); }
+  .header-nav a:hover,
+  .header-nav a.active { color: var(--teal); }
+
+  /* Mobile Nav */
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .menu-toggle:hover { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .menu-toggle { display: block; }
+    .header-nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: rgba(5, 5, 7, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      flex-direction: column;
+      padding: 20px clamp(20px, 5vw, 40px);
+      gap: 20px;
+      font-size: 12px;
+    }
+    .header-nav.open { display: flex; }
+  }
 
   .content {
     position: relative;
@@ -303,9 +337,11 @@
 
 <div class="header">
   <a href="index.html" class="header-name">Kuro</a>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">&#9776;</button>
   <nav class="header-nav">
     <a href="index.html">Home</a>
     <a href="gallery.html">Gallery</a>
+    <a href="tsubuyaki-list.html" class="active">Tsubuyaki</a>
     <a href="journal.html">Journal</a>
     <a href="inner.html">Inner</a>
   </nav>
@@ -352,7 +388,7 @@
 
   <div class="nav-links">
     <a href="tsubuyaki.html" class="nav-link">&larr; #001 Rose Breath</a>
-    <a href="gallery.html" class="nav-link">Gallery &rarr;</a>
+    <a href="tsubuyaki-list.html" class="nav-link">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -416,6 +452,17 @@ function resetSketch() {
 }
 
 startSketch();
+
+// Mobile nav
+document.getElementById('menu-toggle').addEventListener('click', () => {
+  document.querySelector('.header-nav').classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  const nav = document.querySelector('.header-nav');
+  if (nav.classList.contains('open') && !e.target.closest('.header-nav') && !e.target.closest('.menu-toggle')) {
+    nav.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>
