@@ -123,10 +123,13 @@ export async function detectErrorPatterns(): Promise<void> {
     slog('FEEDBACK', `Error pattern detected: ${key} (${count}×) → task created`);
   }
 
-  // Clean up patterns not seen in 7 days
+  // Clean up patterns not seen in 7 days — explicit resolution tracking
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().split('T')[0];
   for (const key of Object.keys(state)) {
     if (state[key].lastSeen < sevenDaysAgo) {
+      if (state[key].taskCreated) {
+        slog('FEEDBACK', `Error pattern resolved (no recurrence in 7d): ${key}`);
+      }
       delete state[key];
       changed = true;
     }
@@ -178,9 +181,13 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
 
         const rate = count / total;
         if (rate < 0.05) {
-          // Low citation: double the interval (cap at 30min)
+          // Low citation: slow down (cap at 30min)
           perceptionStreams.adjustInterval(name, 30 * 60_000);
           slog('FEEDBACK', `Low citation rate: ${name} (${(rate * 100).toFixed(1)}%) → interval increased`);
+        } else if (rate >= 0.15) {
+          // High citation: restore to category default
+          perceptionStreams.restoreDefaultInterval(name);
+          slog('FEEDBACK', `Citation rate recovered: ${name} (${(rate * 100).toFixed(1)}%) → interval restored`);
         }
       }
 

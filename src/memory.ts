@@ -1327,10 +1327,18 @@ export class InstanceMemory {
         } else {
           const cachedResults = perceptionStreams.getCachedResults();
           if (cachedResults.length > 0) {
-            const customCtx = formatPerceptionResults(cachedResults);
+            // Plugin no-change 壓縮：未變化的 plugin 只注入一行
+            const compressedResults = cachedResults.map(r => {
+              if (!perceptionStreams.hasChangedSinceLastBuild(r.name)) {
+                return { ...r, output: '(no change)' };
+              }
+              return r;
+            });
+            const customCtx = formatPerceptionResults(compressedResults);
             if (customCtx) sections.push(customCtx);
           }
         }
+        perceptionStreams.markContextBuilt();
       } else {
         // Fallback: 直接執行（streams 未啟動，例如 CLI 模式）
         const relevantPlugins = customPerceptions.filter(p => {
@@ -1515,8 +1523,9 @@ export class InstanceMemory {
       sections.push(`<next>\n${verified}\n</next>`);
     }
 
-    // ── 記憶和對話（總是載入）──
-    sections.push(`<memory>\n${memory}\n</memory>`);
+    // ── 記憶和對話（總是載入，memory 分層）──
+    const tieredMem = this.tieredMemoryContent(memory);
+    sections.push(`<memory>\n${tieredMem}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
     sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
 
@@ -1666,6 +1675,76 @@ export class InstanceMemory {
       return truncated + '\n\n[... truncated for minimal context mode ...]';
     }
     return truncated;
+  }
+
+  /**
+   * Memory 分層載入 — 近期全載、中期摘要、舊的省略
+   * Kuro 提案：7天全載、7-30天 key only、30天+按需
+   */
+  private tieredMemoryContent(raw: string): string {
+    if (!raw) return raw;
+
+    const now = Date.now();
+    const SEVEN_DAYS = 7 * 86_400_000;
+    const THIRTY_DAYS = 30 * 86_400_000;
+
+    // Sections that are always loaded in full (small, critical)
+    const alwaysFullSections = ['User Preferences', 'Important Facts', 'Important Decisions'];
+
+    const lines = raw.split('\n');
+    const result: string[] = [];
+    let isAlwaysFullSection = false;
+    let olderCount = 0;
+
+    for (const line of lines) {
+      // Section headers
+      const sectionMatch = line.match(/^## (.+)/);
+      if (sectionMatch) {
+        if (olderCount > 0) {
+          result.push(`(${olderCount} older entries available via search)`);
+          olderCount = 0;
+        }
+        isAlwaysFullSection = alwaysFullSections.some(s => sectionMatch[1].includes(s));
+        result.push(line);
+        continue;
+      }
+
+      // Sub-section headers always kept
+      if (line.startsWith('### ')) {
+        result.push(line);
+        continue;
+      }
+
+      // Always-full sections: keep everything
+      if (isAlwaysFullSection) {
+        result.push(line);
+        continue;
+      }
+
+      // Dated entries: tier by age
+      const dateMatch = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
+      if (dateMatch) {
+        const age = now - new Date(dateMatch[1]).getTime();
+        if (age <= SEVEN_DAYS) {
+          result.push(line);
+        } else if (age <= THIRTY_DAYS) {
+          const truncated = line.length > 100 ? line.slice(0, 100) + '...' : line;
+          result.push(truncated);
+        } else {
+          olderCount++;
+        }
+        continue;
+      }
+
+      // Undated entries (e.g., "- text"): always keep (typically important constants)
+      result.push(line);
+    }
+
+    if (olderCount > 0) {
+      result.push(`(${olderCount} older entries available via search)`);
+    }
+
+    return result.join('\n');
   }
 }
 

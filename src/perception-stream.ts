@@ -67,6 +67,7 @@ class PerceptionStreamManager {
   private cwd = '';
   private running = false;
   private _version = 0;
+  private lastBuildHashes = new Map<string, string>();
 
   get version(): number {
     return this._version;
@@ -148,6 +149,37 @@ class PerceptionStreamManager {
       .map(e => `## ${e.perception.name}\n${e.analysis}`);
 
     return analyses.length > 0 ? analyses.join('\n\n') : null;
+  }
+
+  /**
+   * Check if a plugin's output changed since last context build.
+   */
+  hasChangedSinceLastBuild(name: string): boolean {
+    const entry = this.streams.get(name);
+    if (!entry?.hash) return true;
+    return this.lastBuildHashes.get(name) !== entry.hash;
+  }
+
+  /**
+   * Mark current hashes as "seen" — call after building context.
+   */
+  markContextBuilt(): void {
+    for (const [name, entry] of this.streams) {
+      if (entry.hash) {
+        this.lastBuildHashes.set(name, entry.hash);
+      }
+    }
+  }
+
+  /**
+   * Restore a perception's interval to its category default.
+   * Used by feedback Loop B when citation rate recovers.
+   */
+  restoreDefaultInterval(name: string): void {
+    const category = getCategory(name);
+    const defaultInterval = INTERVALS[category] ?? INTERVALS.heartbeat;
+    this.adjustInterval(name, defaultInterval);
+    slog('PERCEPTION', `Interval restored to default: ${name} → ${Math.round(defaultInterval / 1000)}s`);
   }
 
   /**
