@@ -1,6 +1,7 @@
 # Proposal: Mobile Sensor History — Ring Buffer + 動作辨識
 
 ## Status: approved
+GitHub-Issue: #29
 
 ## TL;DR
 手機 sensor 目前只保留最新一筆快照，無法感知「連續行為」（走路、站起來、搖晃）。加入 60 秒 ring buffer + 基礎動作辨識，讓 Kuro 從「知道你在哪」升級到「感受你在做什麼」。

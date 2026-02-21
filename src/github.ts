@@ -1,10 +1,11 @@
 /**
  * GitHub Mechanical Automation — fire-and-forget
  *
- * 三個自動化函數，每個 OODA cycle 結束後呼叫：
+ * 四個自動化函數，每個 OODA cycle 結束後呼叫：
  * 1. autoCreateIssueFromProposal — approved proposal → GitHub issue
- * 2. autoMergeApprovedPR — approved + CI pass → auto merge
- * 3. autoTrackNewIssues — 新 issue → handoffs/active.md
+ * 2. autoCloseCompletedIssues — completed/implemented proposal → close issue
+ * 3. autoMergeApprovedPR — approved + CI pass → auto merge
+ * 4. autoTrackNewIssues — 新 issue → handoffs/active.md
  *
  * 全部 try-catch 靜默失敗，不影響 OODA cycle。
  */
@@ -42,17 +43,44 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
     return;
   }
 
+  // Layer 3: Dedup guard — fetch all existing proposal issues once
+  let existingByTitle: Map<string, number>;
+  try {
+    const { stdout } = await execFileAsync(
+      'gh', ['issue', 'list', '--label', 'proposal', '--state', 'all', '--json', 'number,title', '--limit', '200'],
+      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
+    );
+    const issues: Array<{ number: number; title: string }> = JSON.parse(stdout);
+    existingByTitle = new Map(issues.map(i => [i.title, i.number]));
+  } catch {
+    existingByTitle = new Map();
+  }
+
   for (const file of files) {
     try {
       const filePath = path.join(proposalsDir, file);
       const content = fs.readFileSync(filePath, 'utf-8');
 
-      // 只處理 Status: approved 且沒有 GitHub-Issue 的
-      if (!content.includes('Status: approved')) continue;
+      // 已有 GitHub-Issue → skip
       if (content.includes('GitHub-Issue:')) continue;
+
+      // Layer 1: Strict status detection
+      // Only match exact "Status: approved" at line start with ## or - prefix
+      // Rejects: "approved → implemented", "approved (Part 1-3)", body text mentions
+      const statusMatch = content.match(/^(##\s+|-\s+)Status:\s*approved\s*$/m);
+      if (!statusMatch) continue;
 
       const titleMatch = content.match(/^# Proposal:\s*(.+)/m);
       const title = titleMatch?.[1]?.trim() ?? file.replace('.md', '');
+      const issueTitle = `proposal: ${title}`;
+
+      // Layer 3: If issue already exists on GitHub, just write back the ref
+      const existingNum = existingByTitle.get(issueTitle);
+      if (existingNum !== undefined) {
+        writeBackIssueRef(filePath, content, statusMatch[0], existingNum);
+        slog('github', `linked existing issue #${existingNum} to proposal: ${file}`);
+        continue;
+      }
 
       const tldrMatch = content.match(/## (?:TL;DR|What)\s*\n\n?([\s\S]*?)(?=\n## )/);
       const tldr = tldrMatch?.[1]?.trim() ?? '';
@@ -60,7 +88,7 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
       const body = `Proposal: \`memory/proposals/${file}\`\n\n${tldr}`;
 
       const { stdout } = await execFileAsync(
-        'gh', ['issue', 'create', '--title', `proposal: ${title}`, '--label', 'proposal', '--body', body],
+        'gh', ['issue', 'create', '--title', issueTitle, '--label', 'proposal', '--body', body],
         { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
       );
 
@@ -69,12 +97,7 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
       const issueNum = issueUrl.match(/\/issues\/(\d+)/)?.[1];
 
       if (issueNum) {
-        // 寫回 GitHub-Issue 到 proposal Meta section
-        const updated = content.replace(
-          /^(- Status: approved)/m,
-          `$1\n- GitHub-Issue: #${issueNum}`,
-        );
-        fs.writeFileSync(filePath, updated, 'utf-8');
+        writeBackIssueRef(filePath, content, statusMatch[0], parseInt(issueNum, 10));
         slog('github', `created issue #${issueNum} from proposal: ${file}`);
       }
     } catch {
@@ -83,8 +106,88 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
   }
 }
 
+/** Layer 2: Write GitHub-Issue ref back to proposal, handling both formats */
+function writeBackIssueRef(filePath: string, content: string, statusLine: string, issueNum: number): void {
+  // "## Status: approved" → add plain line after; "- Status: approved" → add list item after
+  const ref = statusLine.startsWith('## ')
+    ? `GitHub-Issue: #${issueNum}`
+    : `- GitHub-Issue: #${issueNum}`;
+  const updated = content.replace(statusLine, `${statusLine}\n${ref}`);
+  if (updated !== content) {
+    fs.writeFileSync(filePath, updated, 'utf-8');
+  } else {
+    slog('github', `WARN: write-back failed for ${path.basename(filePath)}`);
+  }
+}
+
 // =============================================================================
-// 2. PR approved + CI pass → auto merge
+// 2. Completed proposal → close GitHub issue
+// =============================================================================
+
+const TERMINAL_STATUSES = ['completed', 'implemented', 'superseded'];
+
+export async function autoCloseCompletedIssues(): Promise<void> {
+  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
+  if (!fs.existsSync(proposalsDir)) return;
+
+  let files: string[];
+  try {
+    files = fs.readdirSync(proposalsDir).filter(f => f.endsWith('.md') && f !== 'README.md');
+  } catch {
+    return;
+  }
+
+  // Fetch open proposal issues once
+  let openIssues: Map<number, string>;
+  try {
+    const { stdout } = await execFileAsync(
+      'gh', ['issue', 'list', '--label', 'proposal', '--state', 'open', '--json', 'number,title', '--limit', '200'],
+      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
+    );
+    const issues: Array<{ number: number; title: string }> = JSON.parse(stdout);
+    openIssues = new Map(issues.map(i => [i.number, i.title]));
+  } catch {
+    return; // Can't check without issue list
+  }
+
+  if (openIssues.size === 0) return;
+
+  for (const file of files) {
+    try {
+      const filePath = path.join(proposalsDir, file);
+      const content = fs.readFileSync(filePath, 'utf-8');
+
+      // Must have GitHub-Issue ref
+      const issueMatch = content.match(/GitHub-Issue:\s*#(\d+)/);
+      if (!issueMatch) continue;
+
+      const issueNum = parseInt(issueMatch[1], 10);
+
+      // Only process if this issue is actually open
+      if (!openIssues.has(issueNum)) continue;
+
+      // Check if proposal status is terminal
+      const statusMatch = content.match(/^(?:##\s+|-\s+)Status:\s*(.+)$/m);
+      if (!statusMatch) continue;
+
+      const status = statusMatch[1].toLowerCase();
+      if (!TERMINAL_STATUSES.some(s => status.includes(s))) continue;
+
+      // Close the issue
+      await execFileAsync(
+        'gh', ['issue', 'close', String(issueNum), '--comment', `Proposal status: ${statusMatch[1].trim()}`],
+        { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
+      );
+
+      slog('github', `auto-closed issue #${issueNum} (${file})`);
+    } catch {
+      // 單一檔案失敗不影響其他
+    }
+  }
+}
+
+// =============================================================================
+// 3. PR approved + CI pass → auto merge
 // =============================================================================
 
 interface PRInfo {
@@ -133,7 +236,7 @@ export async function autoMergeApprovedPR(): Promise<void> {
 }
 
 // =============================================================================
-// 3. 新 issue → handoffs/active.md
+// 4. 新 issue → handoffs/active.md
 // =============================================================================
 
 export async function autoTrackNewIssues(): Promise<void> {
@@ -191,6 +294,7 @@ export async function githubAutoActions(): Promise<void> {
   if (!await ghAvailable()) return;
 
   await autoCreateIssueFromProposal().catch(() => {});
+  await autoCloseCompletedIssues().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }

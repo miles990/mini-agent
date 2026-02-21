@@ -1,6 +1,7 @@
 # Proposal: /chat Interrupt + Self-Scheduling
 
 ## Status: approved
+GitHub-Issue: #30
 
 ## TL;DR
 /chat API 訊息在 idle 時不會喚醒 AgentLoop，導致延遲最多 20 分鐘。同時加入 `[SCHEDULE]` tag 讓 Kuro 自己決定下一個 cycle 的間隔，取代目前的演算法控制。

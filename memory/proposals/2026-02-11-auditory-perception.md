@@ -1,6 +1,7 @@
 # Proposal: Auditory Perception — 聽覺感知三階段
 
 ## Status: approved
+GitHub-Issue: #26
 
 ## TL;DR
 

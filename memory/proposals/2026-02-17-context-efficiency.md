@@ -1,6 +1,7 @@
 # Proposal: Context Efficiency — Skills 按需載入 + Topic Memory 智慧載入
 
 ## Status: approved
+GitHub-Issue: #33
 
 ## TL;DR
 每個 OODA cycle 浪費 ~40% token 在不相關的 skills 和 topic memory 上。透過改進現有的 keyword matching 機制，每 cycle 省 ~10K tokens，品質不降反升（shorter well-scoped inputs yield sharper responses）。

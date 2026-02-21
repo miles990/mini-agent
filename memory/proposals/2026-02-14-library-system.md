@@ -1,6 +1,7 @@
 # Proposal: Library System — 可調閱式來源藏書室
 
 ## Status: approved
+GitHub-Issue: #31
 
 ## TL;DR
 
