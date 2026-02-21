@@ -8,6 +8,13 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 HEALED=0
+
+# macOS-compatible timeout (GNU timeout not available by default)
+_timeout() {
+  local secs="$1"; shift
+  perl -e 'alarm shift; exec @ARGV' "$secs" "$@" 2>/dev/null
+}
+
 FAILED=0
 REPORT=""
 
@@ -25,10 +32,10 @@ heal_report() {
 
 # --- Check 1: Docker ---
 if command -v docker &>/dev/null; then
-  if ! timeout 3 docker info &>/dev/null 2>&1; then
+  if ! __timeout 3 docker info &>/dev/null 2>&1; then
     open -a Docker 2>/dev/null
     sleep 5
-    if timeout 3 docker info &>/dev/null 2>&1; then
+    if __timeout 3 docker info &>/dev/null 2>&1; then
       heal_report "HEALED" "Docker was unavailable → restarted Docker Desktop"
     else
       heal_report "FAILED" "Docker unavailable, auto-restart failed"
@@ -52,7 +59,7 @@ fi
 # --- Check 3: Disk Usage ---
 DISK_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
 if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -gt 90 ] 2>/dev/null; then
-  if command -v docker &>/dev/null && timeout 3 docker info &>/dev/null 2>&1; then
+  if command -v docker &>/dev/null && __timeout 3 docker info &>/dev/null 2>&1; then
     docker system prune -f &>/dev/null
     NEW_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
     heal_report "HEALED" "Disk was ${DISK_PCT}% → docker prune → now ${NEW_PCT}%"
