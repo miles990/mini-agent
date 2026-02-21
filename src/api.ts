@@ -709,13 +709,12 @@ export function createApi(port = 3001): express.Express {
 
     try {
       const limit = Math.min(parseInt(req.query.limit as string || '20', 10), 100);
-      const { execSync } = await import('node:child_process');
+      const { execFileSync } = await import('node:child_process');
       const cwd = process.cwd();
-      const escapedQuery = query.replace(/['"\\]/g, '\\$&');
-      const raw = execSync(
-        `grep -rni --include='*.md' '${escapedQuery}' memory/ | head -n ${limit}`,
+      const raw = execFileSync(
+        'grep', ['-rni', '--include=*.md', query, 'memory/'],
         { cwd, encoding: 'utf-8', timeout: 5000 },
-      ).trim();
+      ).split('\n').slice(0, limit).join('\n').trim();
 
       const results: Array<{ file: string; line: number; content: string }> = [];
       if (raw) {
@@ -777,13 +776,13 @@ export function createApi(port = 3001): express.Express {
     try {
       const filePath = req.params.path;
 
-      // Security: prevent path traversal
-      if (filePath.includes('..') || filePath.startsWith('/')) {
+      // Security: prevent path traversal (resolve and verify prefix)
+      const memoryRoot = path.resolve(process.cwd(), 'memory');
+      const fullPath = path.resolve(memoryRoot, filePath);
+      if (!fullPath.startsWith(memoryRoot + path.sep) && fullPath !== memoryRoot) {
         res.status(400).json({ error: 'Invalid path' });
         return;
       }
-
-      const fullPath = path.join(process.cwd(), 'memory', filePath);
       const content = await fsPromises.readFile(fullPath, 'utf-8');
       res.json({ path: filePath, content, size: content.length });
     } catch (err) {
