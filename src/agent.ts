@@ -258,6 +258,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
+    let timedOut = false;
 
     const child = spawn(
       'claude',
@@ -282,6 +283,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {
       if (settled) return;
+      timedOut = true;
       slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
       try {
         process.kill(-child.pid!, 'SIGTERM');
@@ -368,7 +370,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code }));
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut }));
       } else {
         resolve(resultText);
       }
@@ -380,7 +382,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (source === 'loop') {
         loopChildPid = null;
       }
-      reject(Object.assign(err, { stderr, stdout: resultText }));
+      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut }));
     });
 
     child.stdin.write(fullPrompt);
@@ -410,6 +412,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
+    let timedOut = false;
 
     const child = spawn(
       'codex',
@@ -429,6 +432,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {
       if (settled) return;
+      timedOut = true;
       slog('CODEX', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
       try {
         process.kill(-child.pid!, 'SIGTERM');
@@ -495,7 +499,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code }));
+        reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut }));
       } else {
         resolve(resultText);
       }
@@ -504,7 +508,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     child.on('error', (err) => {
       settled = true;
       clearTimeout(timer);
-      reject(Object.assign(err, { stderr, stdout: resultText }));
+      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut }));
     });
 
     child.stdin.write(fullPrompt);
