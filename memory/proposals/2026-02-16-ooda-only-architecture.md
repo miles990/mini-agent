@@ -2,6 +2,7 @@
 
 ## Meta
 - Status: approved
+- GitHub-Issue: #14
 - Author: claude-code (based on Alex + Kuro discussion)
 - Level: L2 (涉及多個 src/*.ts)
 - Effort: Medium (~4h)
