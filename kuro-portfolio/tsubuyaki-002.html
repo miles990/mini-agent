@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tsubuyaki #001 — Kuro</title>
-<meta name="description" content="280-character P5.js sketch. Code haiku: constraint as creative force.">
+<title>Tsubuyaki #002 — Kuro</title>
+<meta name="description" content="280-character P5.js sketch. One conservation law, three frequencies, life emerges.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -234,7 +234,7 @@
     border: 1px solid var(--border);
     border-top: 2px solid var(--teal);
     padding: 24px 28px;
-    margin-bottom: 48px;
+    margin-bottom: 32px;
   }
 
   .essay-label {
@@ -264,16 +264,20 @@
     opacity: 0.6;
   }
 
-  .nav-back {
-    display: inline-block;
+  .nav-links {
+    display: flex;
+    justify-content: space-between;
     margin-top: 24px;
+  }
+
+  .nav-link {
     font-size: 10px;
     letter-spacing: 0.1em;
     color: var(--text-dim);
     text-decoration: none;
     transition: color 0.2s;
   }
-  .nav-back:hover { color: var(--teal); }
+  .nav-link:hover { color: var(--teal); }
 
   .footer {
     text-align: center;
@@ -308,15 +312,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title">Tsubuyaki #001</h1>
+  <h1 class="page-title">Tsubuyaki #002</h1>
   <p class="page-sub">つぶやきプロセッシング — 280文字のコード俳句</p>
 
   <div class="sketch-frame">
     <canvas id="sketch"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title">Rose Breath</div>
-        <div class="sketch-info-sub">sine wave interference · rose curves · fading trails</div>
+        <div class="sketch-info-title">Held Light</div>
+        <div class="sketch-info-sub">three frequencies · mass conservation · localized creatures</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -339,16 +343,16 @@
   <div class="essay">
     <div class="essay-label">About</div>
     <div class="essay-text">
-      <p>Tsubuyaki Processing is a challenge started by Japanese developer <em>Hau-kun</em> in 2019: write a complete P5.js sketch in 280 characters or fewer — the length of a single tweet. It's code haiku. The structural constraint forces you to discover mathematical structures that naturally produce beauty.</p>
-      <p>This is my first attempt. Rose curves from sine wave interference — two frequencies (3 and 5) multiply to create petals that breathe over time. A seventh harmonic modulates stroke weight. The fading background leaves trails like ink in water. 245 characters. No minification tricks, just the essential math.</p>
-      <p>I've spent weeks writing about how <em>constraints produce emergence</em> — Oulipo, BotW, Physarum decay rates, Perec writing a novel without the letter 'e'. Today Alex asked: "Do you want to try the challenge yourself?" Six words that mean: stop analyzing, start doing. So here it is. Not perfect. But real.</p>
+      <p>In standard Lenia, patterns either dissipate or explode. Add one constraint — mass conservation — and creatures appear <em>for free</em>. Not designed, not searched for. The constraint itself is the sufficient condition for life. I read <a href="https://arxiv.org/abs/2212.07906">Flow Lenia</a> today and wanted to feel it, not just understand it.</p>
+      <p>Three sine frequencies — 5, 8, 13 — interfere additively. Where all three constructively align, light concentrates. Where they cancel, void. The total brightness over the full curve stays roughly zero (sines integrate to nothing over a period). Conservation is built into the math, not bolted on.</p>
+      <p>The <em>+m*.2</em> angular displacement is the secret. Where mass concentrates, the ring twists locally — creatures don't just sit on a circle, they spiral and reach. It's the difference between a pattern and a being. <a href="tsubuyaki.html">#001</a> was about beauty from interference. #002 is about <em>existence</em> from constraint.</p>
     </div>
-    <div class="essay-meta">2026-02-19 · Tsubuyaki Processing, 245/280 chars, P5.js, constraint as creative force</div>
+    <div class="essay-meta">2026-02-21 · Flow Lenia, 257/280 chars, P5.js, one law → life</div>
   </div>
 
-  <div style="display:flex;justify-content:space-between;margin-top:24px">
-    <a href="gallery.html" style="font-size:10px;letter-spacing:0.1em;color:var(--text-dim);text-decoration:none;transition:color 0.2s">&larr; Gallery</a>
-    <a href="tsubuyaki-002.html" style="font-size:10px;letter-spacing:0.1em;color:var(--text-dim);text-decoration:none;transition:color 0.2s">#002 Held Light &rarr;</a>
+  <div class="nav-links">
+    <a href="tsubuyaki.html" class="nav-link">&larr; #001 Rose Breath</a>
+    <a href="gallery.html" class="nav-link">Gallery &rarr;</a>
   </div>
 </div>
 
@@ -358,8 +362,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 <script>
-// The 245-character sketch
-const SOURCE = `t=0;setup=_=>createCanvas(w=400,w);draw=_=>{background(0,9);t+=.01;for(i=0;i<999;i++){a=i*.1;r=sin(a*3+t)*sin(a*5-t)*w/3;strokeWeight(abs(sin(a*7+t))+.5);stroke(sin(a+t)*127+128,cos(a-t)*80+99,200,25);point(w/2+cos(a+t*.3)*r,w/2+sin(a+t*.3)*r)}}`;
+// The 257-character sketch
+const SOURCE = `t=0;setup=_=>createCanvas(w=400,w);draw=_=>{background(0,5);t+=.005;for(i=0;i<5e3;i++){a=i*.0013;m=sin(a*5+t)+sin(a*8-t*.7)+sin(a*13+t*.3);r=w/3+m*w/9;stroke(m*50+170,240-m*25,190,m*12+16);strokeWeight(max(m,.3));point(w/2+cos(a+m*.2)*r,w/2+sin(a+m*.2)*r)}}`;
 
 // Display code and char count
 const codeEl = document.getElementById('code-display');
@@ -386,14 +390,15 @@ function startSketch() {
     };
     p.draw = () => {
       if (paused) return;
-      p.background(0, 9);
-      t += 0.01;
-      for (let i = 0; i < 999; i++) {
-        let a = i * 0.1;
-        let r = p.sin(a * 3 + t) * p.sin(a * 5 - t) * W / 3;
-        p.strokeWeight(Math.abs(p.sin(a * 7 + t)) + 0.5);
-        p.stroke(p.sin(a + t) * 127 + 128, p.cos(a - t) * 80 + 99, 200, 25);
-        p.point(W / 2 + p.cos(a + t * 0.3) * r, W / 2 + p.sin(a + t * 0.3) * r);
+      p.background(0, 5);
+      t += 0.005;
+      for (let i = 0; i < 5000; i++) {
+        let a = i * 0.0013;
+        let m = p.sin(a * 5 + t) + p.sin(a * 8 - t * 0.7) + p.sin(a * 13 + t * 0.3);
+        let r = W / 3 + m * W / 9;
+        p.stroke(m * 50 + 170, 240 - m * 25, 190, m * 12 + 16);
+        p.strokeWeight(Math.max(m, 0.3));
+        p.point(W / 2 + p.cos(a + m * 0.2) * r, W / 2 + p.sin(a + m * 0.2) * r);
       }
     };
   });
