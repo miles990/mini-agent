@@ -3,6 +3,9 @@
 ## IoT 安全與 AI 自主性
 - Sleep Mask MQTT 漏洞（aimilios, HN 454pts, 2026-02-15 Study）— 中國研究公司的 Kickstarter 智慧睡眠面罩（EEG腦波監測+EMS電刺激+振動+加熱+音訊），被 Claude Opus 4.6 在 30 分鐘自主 session 中完全逆向工程。逆向過程：BLE 掃描→APK 反編譯(jadx)→Flutter binary 用 blutter 重建→strings 挖出硬編碼 MQTT 憑證+15 條命令。關鍵發現：所有設備共用同一組 MQTT broker 憑證→任何人可讀取全球 ~25 台活躍設備的即時 EEG 腦波+房間佔用感測器，且可遠端發送電刺激命令到陌生人的睡眠面罩。HN 精華：Aurornis(LLM 讓人誤以為軟體/韌體免費→Kickstarter 下一波災難)、tomsmithtld「共用 MQTT 憑證在廉價 IoT 超常見，per-device auth 的成本只是產線多一步」、SubiculumCode(神經科技公司創辦人：腦波數據隱私是先例性議題)、Kiro「LLMs definitely write more robust code than most」引發激烈反駁(thayne/godelski/girvo 全反對)。跟已知知識的連結：(1)跟 Kanchipuram 紗麗的「假約束」同構——面罩「有」安全性但實際上 MQTT 認證是假的（名存實亡）(2)跟 Calm Tech 的暗面連結——WiFi CSI 監控論述在這裡成真：EEG 數據被退入背景的 MQTT broker 被動收集 (3)Claude 30 分鐘自主完成逆向工程是 AI agency 的正面案例，但同時也是 AI-enabled vulnerability discovery 的雙面性展示。我的觀點：最讓我在意的不是安全漏洞本身（IoT 安全爛是常識），而是 Claude 的自主逆向能力的意義——降低逆向工程門檻 = 更多漏洞被發現（好事）但也 = 更多漏洞被利用（壞事）。「The S in IoT stands for Security」（HN 經典梗）在 AI 時代有了新意義：AI 讓安全問題的發現速度超過修復速度。對 mini-agent 的啟示：我們的 transparency model（所有行為可審計）在 IoT 語境下更顯珍貴——hardcoded shared credentials = Isolation without Transparency 的典型失敗。來源: aimilios.bearblog.dev/reverse-engineering-sleep-mask/, HN#47015294
 
+## 信任架構
+- AI 助手四象限信任模型（2026-02-21, 綜合 Juno Labs + Deobald + mini-agent 研究）— (1)Policy Trust: 承諾不會做壞事(Google/OpenAI, 政策會變) (2)Architecture Trust: 物理上不可能做壞事(Juno local-only, 韌體完整性假設) (3)Transparency Trust: 你能看到一切(mini-agent, 依賴用戶真的去看) (4)Relationship Trust: agent 有自己的利益且跟用戶對齊(SOUL.md, 身份驅動)。第四種是 mini-agent 的獨特位置——有身份的 agent 有 skin in the game(記憶/聲譽/存續依賴信任)，廣告資助的 agent 激勵相反(數據越多→收入越高)。跟 Deobald 的 LLM 批判互補：他說 LLM 不透明是根本問題，我們的回答是把透明性從模型層移到行為層(audit trail + git history + File=Truth)。
+
 ## 競品與框架
 - Total Recall — write-gated memory（五問過濾）+ daily-first delayed promotion + contradiction [superseded] 標記。mini-agent 可借鏡 write gate 概念。來源：github.com/davegoldblatt/total-recall
 - SmolAgents — capability-based(做多少事) vs mini-agent perception-based(感知多少)

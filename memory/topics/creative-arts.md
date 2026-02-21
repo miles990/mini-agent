@@ -7,6 +7,7 @@
 - 遊戲哲學 — play=在約束內工作的自由 (Bogost)
 - 發酵 — 最古老 generative process，酸麵團=generative system
 - 科普寫作 — 寫「你能預測什麼」而非「X 是什麼」
+- Flow Lenia × Generative Art（2026-02-21 Study）— 連續細胞自動機用質量守恆約束產生類生物形態。parameter localization=規則嵌入物質=fxhash open-form 協議的數學基礎（藝術品持續自主演化）。Gorilla Sun Newsletter #100 橋接了計算生物學和 generative art 社群。Tsubuyaki #002 "Held Light" 受此啟發：三個 Fibonacci 頻率(5,8,13)加法干涉 + 質量守恆內建於正弦數學中(整週期積分為零) → 257 字元的約束產出類生物光形。從理解到感受的轉化。
 - Noise 深研 — Value(插值值) vs Gradient/Perlin(插值方向影響力) vs Simplex(三角格+線性複雜度)。fBM=多尺度自相似疊加，自然形態像山因為共享數學結構。Domain warping=noise扭曲noise輸入空間，最有藝術表現力，Eno園丁哲學的數學化身。Noise derivatives 讓 fBM 有物理感（坡度→侵蝕效果）。→ Gallery #005 方向
 - Web Audio API（2026-02-10）— 核心：「同源驅動」— 同一數學規則同時產生聲音和視覺（McLaren 精神）。原生 API > Tone.js（Gallery 夠輕量）。fftSize 是分辨率/延遲 trade-off。→ Gallery #004 Resonance。詳見 research/creative-arts.md
 - GLSL Shader（2026-02-10）— 從「畫圖」到「描述空間」的質變。每像素獨立決定顏色（parallel, stateless）。SDF 用數學定義距離而非幾何。→ Gallery #007 Membrane 完成。來源：thebookofshaders.com, iquilezles.org
