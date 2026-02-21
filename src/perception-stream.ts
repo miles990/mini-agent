@@ -150,6 +150,20 @@ class PerceptionStreamManager {
     return analyses.length > 0 ? analyses.join('\n\n') : null;
   }
 
+  /**
+   * Dynamically adjust a perception's update interval.
+   * Used by feedback loops to increase/decrease polling frequency.
+   */
+  adjustInterval(name: string, newInterval: number): void {
+    const entry = this.streams.get(name);
+    if (!entry || !entry.timer) return;
+    // Enforce bounds: min 30s, max 30min
+    const bounded = Math.max(30_000, Math.min(30 * 60_000, newInterval));
+    clearInterval(entry.timer);
+    entry.timer = setInterval(() => this.tick(entry), bounded);
+    slog('PERCEPTION', `Interval adjusted: ${name} → ${Math.round(bounded / 1000)}s`);
+  }
+
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------

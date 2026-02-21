@@ -79,6 +79,8 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | GitHub PRs Plugin | `plugins/github-prs.sh` |
 | GitHub Ops Skill | `skills/github-ops.md` |
 | Delegation Skill | `skills/delegation.md` |
+| Feedback Loops | `src/feedback-loops.ts` |
+| Feedback Status Plugin | `plugins/feedback-status.sh` |
 
 ## Memory Architecture
 
@@ -99,6 +101,18 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 **Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
 
 Instance path: `~/.mini-agent/instances/{id}/`
+
+## Intelligent Feedback Loops（Phase 2 自我學習）
+
+三個 fire-and-forget 回饋迴路（`src/feedback-loops.ts`），每個 OODA cycle 結束後執行：
+
+| Loop | 功能 | State 檔案 |
+|------|------|-----------|
+| **A: Error Patterns** | error log 分群，同模式 ≥3 次 → 自動建 HEARTBEAT task | `error-patterns.json` |
+| **B: Perception Citations** | 追蹤 action 引用的 `<section>`，每 50 cycle 調整低引用 perception 的 interval | `perception-citations.json` |
+| **C: Decision Quality** | 滑動窗口 20 cycle 的 observabilityScore，avg < 3.0 → 注入品質提醒 | `decision-quality.json` |
+
+安全護欄：全部 `.catch(() => {})`、error pattern 不重複建 task、品質警告 24h 冷卻、perception interval 上下限 30s-30min。
 
 ## GitHub Closed-Loop Workflow
 
@@ -139,7 +153,9 @@ GitHub Issues 作為統一追蹤點，機械步驟自動化 + 判斷步驟由 Ku
 ```
 Alex (Telegram) → writeInbox() → emit trigger:telegram-user → AgentLoop.handleTelegramWake()
                                                                         ↓
-System (cron/workspace) → emit trigger:* → AgentLoop.handleTrigger() → cycle()
+Claude Code (/chat) → writeInbox() → emit trigger:chat ─────→ AgentLoop.handleTrigger()
+                                                                        ↓
+System (cron/workspace) → emit trigger:* ────────────────────→ cycle()
                                                                         ↓
                                                                callClaude() → response
                                                                         ↓
@@ -254,6 +270,11 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | `[CHAT]...[/CHAT]` | 主動跟用戶聊天 | 💬 Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
 | `[IMPULSE]...[/IMPULSE]` | 捕捉創作衝動到 inner voice buffer | — |
+| `[SCHEDULE next="Xm" reason="..."]` | 自主排程下次 cycle 間隔（2m-4h） | — |
+| `[DONE]...[/DONE]` | 標記 NEXT.md 任務完成 | — |
+| `[THREAD op="..." id="..."]...[/THREAD]` | 管理思考線程 | — |
+| `[ARCHIVE url="..." title="..."]...[/ARCHIVE]` | 歸檔網頁來源 | — |
+| `[SUMMARY]...[/SUMMARY]` | 發送摘要事件 | — |
 
 ## Telegram 通知系統
 

@@ -72,6 +72,8 @@ agents:
           script: ./plugins/github-issues.sh
         - name: github-prs
           script: ./plugins/github-prs.sh
+        - name: feedback-status
+          script: ./plugins/feedback-status.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew

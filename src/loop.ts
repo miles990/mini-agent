@@ -25,6 +25,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
+import { runFeedbackLoops } from './feedback-loops.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, buildThreadsPromptSection,
@@ -806,6 +807,9 @@ export class AgentLoop {
 
       // GitHub mechanical automation（fire-and-forget）
       githubAutoActions().catch(() => {});
+
+      // Intelligent feedback loops（fire-and-forget）
+      runFeedbackLoops(action).catch(() => {});
 
       // Drain one queued cron task（loopBusy now free）
       drainCronQueue().catch(() => {});

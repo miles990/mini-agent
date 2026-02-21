@@ -12,6 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
@@ -1289,6 +1290,15 @@ export class InstanceMemory {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
+
+    // Decision quality warning（feedback loop injection）
+    const qualityFlagPath = path.join(getInstanceDir(this.instanceId), 'decision-quality-warning.flag');
+    try {
+      if (existsSync(qualityFlagPath)) {
+        const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
+        if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
+      }
+    } catch { /* ignore */ }
 
     // Workspace — 幾乎總是有用
     const workspace = getWorkspaceSnapshot();
