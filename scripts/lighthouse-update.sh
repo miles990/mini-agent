@@ -3,7 +3,7 @@
 # 用法: bash scripts/lighthouse-update.sh [url]
 # 預設 URL: Kuro 個人網站
 
-URL="${1:-https://miles990.github.io/mini-agent/}"
+URL="${1:-https://kuro.page}"
 CACHE_DIR="$HOME/.mini-agent"
 CACHE_FILE="$CACHE_DIR/lighthouse-cache.json"
 REPORT_FILE="/tmp/lighthouse-report-$$.json"
