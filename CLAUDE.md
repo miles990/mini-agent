@@ -130,37 +130,40 @@ GitHub Issues 作為統一追蹤點，機械步驟自動化 + 判斷步驟由 Ku
 
 **安全護欄**：auto-merge 需雙重條件（approved + CI pass）、`hold` label 可阻止、gh CLI 未安裝時 graceful exit、回退只需刪 `src/github.ts` + loop.ts 移除一行。
 
-## Task Lanes（多工分道）
+## OODA-Only Architecture
 
-統一 Dispatcher (`src/dispatcher.ts`) 讓不同重量的工作走不同 lane：
+所有訊息統一由 AgentLoop 的 OODA Cycle 處理。一個 process、一個身份、一個對話者。
+
+### 訊息流
 
 ```
-所有進入點 → dispatch() → triageMessage() → Haiku Lane (簡單) / Claude Lane (複雜)
-                                                              ↓
-                                                   Chat Lane / Loop Lane
+Alex (Telegram) → writeInbox() → emit trigger:telegram-user → AgentLoop.handleTelegramWake()
+                                                                        ↓
+System (cron/workspace) → emit trigger:* → AgentLoop.handleTrigger() → cycle()
+                                                                        ↓
+                                                               callClaude() → response
+                                                                        ↓
+                                                               [CHAT] tag → notifyTelegram()
 ```
 
-| Lane | 並發控制 | 用途 |
-|------|---------|------|
-| **Chat** | `chatBusy` + queue | 用戶 Telegram 訊息（低延遲優先） |
-| **Loop** | `loopBusy`（可被搶佔） | OODA cycle + cron + `[Claude Code]` API 訊息 |
-| **Haiku** | Semaphore(5) | 簡單回覆（問候、閒聊、狀態） |
+### Dispatcher（Tag Processor）
 
-**Dual-Lane Claude**：Chat 和 Loop 各自獨立的 Claude CLI process，互不阻塞。用戶訊息不再等 OODA cycle。
+`src/dispatcher.ts` 僅保留 tag 處理和 system prompt：
+- `parseTags()` — 解析 [REMEMBER], [TASK], [CHAT], [ACTION] 等 tags
+- `postProcess()` — tag 處理 + memory + log
+- `getSystemPrompt()` — system prompt 組裝（含 JIT skills）
 
-**Loop Lane 路由**：以下訊息自動走 Loop Lane（`processSystemMessage`），不佔 Chat Lane：
-- `source === 'cron'` — 排程任務
-- `message.startsWith('[Claude Code]')` — Claude Code 的 API 訊息
+### Preemption
 
-**Preemption**：當 chatBusy 且 loopBusy 時，系統搶佔 Loop Lane（kill process group）釋放資源。被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
+Alex 的 Telegram 訊息可搶佔進行中的 OODA cycle（`preemptLoopCycle`）。
+被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
 
-**Crash Resume**：cycle 開始前寫 checkpoint（`~/.mini-agent/instances/{id}/cycle-state.json`），正常結束刪除。重啟時讀取 <1h 的 checkpoint，注入下個 cycle prompt。Partial output 走 30s throttle event-driven 更新。
+### Crash Resume
 
-**Triage**：快速路徑（regex <1ms）→ fallback 走 Claude。
-**無 `ANTHROPIC_API_KEY` 時**：triage 跳過，全走 Claude Lane，行為不變。
-**Haiku 失敗時**：自動降級到 Claude Lane。
+cycle 開始前寫 checkpoint（`~/.mini-agent/instances/{id}/cycle-state.json`），正常結束刪除。
+重啟時讀取 <1h 的 checkpoint，注入下個 cycle prompt。
 
-`/status` 回應包含 `claude: { busy, chat: {...}, loop: {...}, queue: {...} }` + `lanes: { claude: {...}, haiku: {...} }`。
+`/status` 回應：`claude: { busy, loop: { busy, task } }` + `loop: { enabled, running, mode, cycleCount, ... }`
 
 ## Reactive Architecture
 
