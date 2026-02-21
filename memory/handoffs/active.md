@@ -29,3 +29,12 @@
 | github | kuro | #18 proposal: File-Based Handoff — Kuro→Claude Code 任務委託機制 | needs-triage | 02-21 | — |
 | github | kuro | #17 proposal: Auditory Perception — 聽覺感知三階段 | needs-triage | 02-21 | — |
 | github | kuro | #16 proposal: Claude CLI 呼叫韌性改進 | needs-triage | 02-21 | — |
+| github | kuro | #33 proposal: Context Efficiency — Skills 按需載入 + Topic Memory 智慧載入 | needs-triage | 02-21 | — |
+| github | kuro | #32 proposal: Delegation Skill — Kuro 學會委派任務 | needs-triage | 02-21 | — |
+| github | kuro | #31 proposal: Library System — 可調閱式來源藏書室 | needs-triage | 02-21 | — |
+| github | kuro | #30 proposal: /chat Interrupt + Self-Scheduling | needs-triage | 02-21 | — |
+| github | kuro | #29 proposal: Mobile Sensor History — Ring Buffer + 動作辨識 | needs-triage | 02-21 | — |
+| github | kuro | #28 proposal: Handoff Protocol v2 — 雙向進度管理 + 依賴追蹤 | needs-triage | 02-21 | — |
+| github | kuro | #27 proposal: File-Based Handoff — Kuro→Claude Code 任務委託機制 | needs-triage | 02-21 | — |
+| github | kuro | #26 proposal: Auditory Perception — 聽覺感知三階段 | needs-triage | 02-21 | — |
+| github | kuro | #25 proposal: Claude CLI 呼叫韌性改進 | needs-triage | 02-21 | — |
