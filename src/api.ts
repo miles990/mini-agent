@@ -377,7 +377,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -629,6 +629,170 @@ export function createApi(port = 3001): express.Express {
 
     await appendMemory(content, section);
     res.json({ success: true });
+  });
+
+  // =============================================================================
+  // Memory Lab — 記憶視覺化 API
+  // =============================================================================
+
+  // Structured Memory — 解析 MEMORY.md 為結構化 sections
+  app.get('/api/memory/structured', async (_req: Request, res: Response) => {
+    try {
+      const raw = await readMemory();
+      const sections: Record<string, string> = {};
+      let currentSection = '';
+      const lines = raw.split('\n');
+
+      for (const line of lines) {
+        const heading = line.match(/^##\s+(.+)/);
+        if (heading) {
+          currentSection = heading[1].trim();
+          sections[currentSection] = '';
+        } else if (currentSection) {
+          sections[currentSection] += line + '\n';
+        }
+      }
+
+      // Trim trailing whitespace from each section
+      for (const key of Object.keys(sections)) {
+        sections[key] = sections[key].trimEnd();
+      }
+
+      res.json({ sections });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
+  // Memory History — git log for memory/ directory
+  app.get('/api/memory/history', async (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string || '30', 10), 100);
+      const { execSync } = await import('node:child_process');
+      const cwd = process.cwd();
+      const raw = execSync(
+        `git log --pretty=format:'%H|||%ai|||%an|||%s' --name-only -n ${limit} -- memory/`,
+        { cwd, encoding: 'utf-8', timeout: 5000 },
+      );
+
+      const history: Array<{ hash: string; date: string; author: string; subject: string; filesChanged: string[] }> = [];
+      let current: { hash: string; date: string; author: string; subject: string; filesChanged: string[] } | null = null;
+
+      for (const line of raw.split('\n')) {
+        if (line.includes('|||')) {
+          if (current) history.push(current);
+          const [hash, date, author, subject] = line.split('|||');
+          current = { hash, date, author, subject, filesChanged: [] };
+        } else if (line.trim() && current) {
+          current.filesChanged.push(line.trim());
+        }
+      }
+      if (current) history.push(current);
+
+      res.json({ history });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
+  // Memory Search — search through all memory files
+  app.get('/api/memory/search', async (req: Request, res: Response) => {
+    const query = req.query.q as string;
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({ error: 'q parameter is required' });
+      return;
+    }
+    if (query.length > 200) {
+      res.status(400).json({ error: 'Query too long (max 200 chars)' });
+      return;
+    }
+
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string || '20', 10), 100);
+      const { execSync } = await import('node:child_process');
+      const cwd = process.cwd();
+      const escapedQuery = query.replace(/['"\\]/g, '\\$&');
+      const raw = execSync(
+        `grep -rni --include='*.md' '${escapedQuery}' memory/ | head -n ${limit}`,
+        { cwd, encoding: 'utf-8', timeout: 5000 },
+      ).trim();
+
+      const results: Array<{ file: string; line: number; content: string }> = [];
+      if (raw) {
+        for (const match of raw.split('\n')) {
+          const m = match.match(/^(.+?):(\d+):(.+)$/);
+          if (m) {
+            results.push({ file: m[1], line: parseInt(m[2], 10), content: m[3].trim() });
+          }
+        }
+      }
+
+      res.json({ results, count: results.length, query });
+    } catch (err) {
+      // grep exit code 1 = no match (normal)
+      if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 1) {
+        res.json({ results: [], count: 0, query });
+        return;
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
+  // Memory Files — list all files in memory/
+  app.get('/api/memory/files', async (_req: Request, res: Response) => {
+    try {
+      const memoryDir = path.join(process.cwd(), 'memory');
+      const files: Array<{ name: string; path: string; size: number; modified: string }> = [];
+
+      async function scanDir(dir: string, prefix: string): Promise<void> {
+        const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) {
+            await scanDir(fullPath, relPath);
+          } else if (entry.name.endsWith('.md') || entry.name.endsWith('.json') || entry.name.endsWith('.jsonl')) {
+            const stat = await fsPromises.stat(fullPath);
+            files.push({
+              name: entry.name,
+              path: relPath,
+              size: stat.size,
+              modified: stat.mtime.toISOString(),
+            });
+          }
+        }
+      }
+
+      await scanDir(memoryDir, '');
+      files.sort((a, b) => b.modified.localeCompare(a.modified));
+
+      res.json({ files, count: files.length });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
+  // Memory File Content — read a specific memory file
+  app.get('/api/memory/file/:path(*)', async (req: Request, res: Response) => {
+    try {
+      const filePath = req.params.path;
+
+      // Security: prevent path traversal
+      if (filePath.includes('..') || filePath.startsWith('/')) {
+        res.status(400).json({ error: 'Invalid path' });
+        return;
+      }
+
+      const fullPath = path.join(process.cwd(), 'memory', filePath);
+      const content = await fsPromises.readFile(fullPath, 'utf-8');
+      res.json({ path: filePath, content, size: content.length });
+    } catch (err) {
+      if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'ENOENT') {
+        res.status(404).json({ error: 'File not found' });
+        return;
+      }
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
   });
 
   // =============================================================================
