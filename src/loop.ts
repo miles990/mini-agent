@@ -24,6 +24,7 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { githubAutoActions } from './github.js';
 import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
@@ -796,6 +797,9 @@ export class AgentLoop {
 
       // Auto-commit memory changes（fire-and-forget）
       autoCommitMemory(action).catch(() => {});
+
+      // GitHub mechanical automation（fire-and-forget）
+      githubAutoActions().catch(() => {});
 
       return action;
     } finally {

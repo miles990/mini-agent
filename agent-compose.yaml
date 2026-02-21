@@ -26,6 +26,8 @@ agents:
         task: "Weekly AI frontier report for Alex: Compile this week's major AI events, model releases, agent architecture trends, and notable research. Include your opinions and recommendations. Send via [CHAT] to Alex."
       - schedule: "0 */4 * * *"
         task: "Smart patrol: Run `bash plugins/self-healing.sh` and check results. If any HEALED items, [CHAT] notify Alex what was auto-repaired. If any UNRESOLVED items, attempt manual diagnosis and fix. Also check: (1) topic memory idle >3 days (2) HEARTBEAT overdue tasks (3) uncommitted memory changes. Take action on findings."
+      - schedule: "0 10 * * 1"
+        task: "Weekly GitHub triage: Review <github-issues> for any needs-triage items. For each, assess effort (S/M/L), assign labels, and either handle directly (S) or create handoff (M/L). Check <github-prs> for stale PRs needing review. Summarize actions via [CHAT]."
 
     # ── Custom Perception（Shell Script 感知）──
     # 任何可執行檔案都能成為感知插件
@@ -66,6 +68,10 @@ agents:
           script: ./plugins/self-healing.sh
         - name: docker-services
           script: ./plugins/docker-services.sh
+        - name: github-issues
+          script: ./plugins/github-issues.sh
+        - name: github-prs
+          script: ./plugins/github-prs.sh
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
@@ -86,5 +92,6 @@ agents:
       - ./skills/web-learning.md
       - ./skills/action-from-learning.md
       - ./skills/delegation.md
+      - ./skills/github-ops.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md
