@@ -74,6 +74,10 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Architecture | `memory/ARCHITECTURE.md` |
 | Proposals | `memory/proposals/` |
 | Topic Memory | `memory/topics/*.md` |
+| GitHub Automation | `src/github.ts` |
+| GitHub Issues Plugin | `plugins/github-issues.sh` |
+| GitHub PRs Plugin | `plugins/github-prs.sh` |
+| GitHub Ops Skill | `skills/github-ops.md` |
 | Delegation Skill | `skills/delegation.md` |
 
 ## Memory Architecture
@@ -95,6 +99,36 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 **Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
 
 Instance path: `~/.mini-agent/instances/{id}/`
+
+## GitHub Closed-Loop Workflow
+
+GitHub Issues 作為統一追蹤點，機械步驟自動化 + 判斷步驟由 Kuro 決定。
+
+```
+入口（proposal/issue/handoff）
+  → [github-issues.sh] perception 偵測
+  → Kuro triage（依 github-ops.md skill）
+  → 實作 → PR（gh pr create --body "Closes #N"）
+  → [github-prs.sh] 顯示 CI + review 狀態
+  → approved + CI pass → autoMergeApprovedPR() 自動 merge
+  → GitHub "Closes #N" 自動 close issue → 閉環
+```
+
+**機械自動化**（`src/github.ts`，fire-and-forget，每個 OODA cycle 後執行）：
+
+| 函數 | 功能 |
+|------|------|
+| `autoCreateIssueFromProposal()` | approved proposal 無 `GitHub-Issue:` → `gh issue create` → 寫回 issue number |
+| `autoMergeApprovedPR()` | `reviewDecision=APPROVED` + CI 全 pass + 無 `hold` label → `gh pr merge` |
+| `autoTrackNewIssues()` | 新 open issue 不在 `handoffs/active.md` → 自動加一行（`needs-triage`） |
+
+**感知層**（perception plugins，60s file cache，heartbeat category）：
+- `<github-issues>` — open issues 分區：Needs Triage / Assigned / Recently Closed
+- `<github-prs>` — open PRs + CI/review 狀態，`★ READY-TO-MERGE` 標記，24h merged
+
+**判斷層**（`skills/github-ops.md`）：Triage 決策表（S/M/L）、PR review 準則、mixed review 模型。
+
+**安全護欄**：auto-merge 需雙重條件（approved + CI pass）、`hold` label 可阻止、gh CLI 未安裝時 graceful exit、回退只需刪 `src/github.ts` + loop.ts 移除一行。
 
 ## Task Lanes（多工分道）
 

@@ -2,6 +2,9 @@
  * Cron Task Manager
  *
  * 管理 agent-compose.yaml 中定義的定時任務
+ *
+ * Queue-Drain 模式：cron 觸發時排入 queue，OODA cycle 結束後 drain。
+ * 解決 loopBusy guard 導致 cron 被擋的問題。
  */
 
 import cron from 'node-cron';
@@ -19,6 +22,20 @@ interface ScheduledCronTask {
   task: CronTask;
   job: cron.ScheduledTask;
 }
+
+// =============================================================================
+// Cron Queue — 排隊等 OODA cycle 結束後執行
+// =============================================================================
+
+interface QueuedCronTask {
+  task: CronTask;
+  queuedAt: number;
+  retries: number;
+}
+
+const cronQueue: QueuedCronTask[] = [];
+const MAX_QUEUE_SIZE = 10;
+const MAX_RETRIES = 2;
 
 let activeTasks: ScheduledCronTask[] = [];
 
@@ -44,43 +61,8 @@ export function startCronTasks(tasks: CronTask[]): void {
       continue;
     }
 
-    const job = cron.schedule(task.schedule, async () => {
-      slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
-      eventBus.emit('trigger:cron', { schedule: task.schedule, task: task.task.slice(0, 100) });
-      logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
-      logger.logBehavior('system', 'cron.trigger', `[${task.schedule}] ${task.task.slice(0, 100)}`);
-      const cronStart = Date.now();
-
-      try {
-        const context = await buildContext();
-        const result = await callClaude(task.task, context, 2, { source: 'loop' });
-        // Detect busy guard response — log as skipped instead of "done"
-        if (result.duration === 0 && result.response.includes('稍後再試')) {
-          slog('CRON', `⏭ Skipped (loop busy): "${task.task.slice(0, 60)}"`);
-          return;
-        }
-        const response = await postProcess(task.task, result.response, {
-          lane: 'cron', duration: result.duration, source: 'cron',
-          systemPrompt: result.systemPrompt, context,
-        });
-        const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
-        slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
-        logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
-          success: true,
-          duration: Date.now() - cronStart,
-        });
-
-        // TG 通知：解析 [ACTION] tag
-        await notifyCronAction(response.content);
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        slog('CRON', `✗ Error: ${errorMsg}`);
-        logger.logCron('cron-task-error', errorMsg, task.schedule, {
-          success: false,
-          error: errorMsg,
-        });
-        await notifyCronError(task.task, errorMsg);
-      }
+    const job = cron.schedule(task.schedule, () => {
+      enqueueCronTask(task);
     });
 
     activeTasks.push({ task, job });
@@ -156,42 +138,8 @@ export function addCronTask(task: CronTask): { success: boolean; error?: string 
     return { success: false, error: 'Task already exists' };
   }
 
-  const job = cron.schedule(task.schedule, async () => {
-    slog('CRON', `⏰ Triggered: "${task.task.slice(0, 60)}"`);
-    logger.logCron('cron-task', task.task.slice(0, 100), task.schedule);
-    logger.logBehavior('system', 'cron.trigger', `[${task.schedule}] ${task.task.slice(0, 100)}`);
-    const cronStart = Date.now();
-
-    try {
-      const context = await buildContext();
-      const result = await callClaude(task.task, context, 2, { source: 'loop' });
-      // Detect busy guard response — log as skipped instead of "done"
-      if (result.duration === 0 && result.response.includes('稍後再試')) {
-        slog('CRON', `⏭ Skipped (loop busy): "${task.task.slice(0, 60)}"`);
-        return;
-      }
-      const response = await postProcess(task.task, result.response, {
-        lane: 'cron', duration: result.duration, source: 'cron',
-        systemPrompt: result.systemPrompt, context,
-      });
-      const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
-      slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
-      logger.logCron('cron-task-result', response.content.slice(0, 200), task.schedule, {
-        success: true,
-        duration: Date.now() - cronStart,
-      });
-
-      // TG 通知：解析 [ACTION] tag
-      await notifyCronAction(response.content);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      slog('CRON', `✗ Error: ${errorMsg}`);
-      logger.logCron('cron-task-error', errorMsg, task.schedule, {
-        success: false,
-        error: errorMsg,
-      });
-      await notifyCronError(task.task, errorMsg);
-    }
+  const job = cron.schedule(task.schedule, () => {
+    enqueueCronTask(task);
   });
 
   activeTasks.push({ task, job });
@@ -282,6 +230,99 @@ export function reloadCronTasks(tasks: CronTask[]): { added: number; removed: nu
   }
 
   return { added, removed, unchanged };
+}
+
+// =============================================================================
+// Queue management — enqueue + drain
+// =============================================================================
+
+/** 將 cron 任務排入 queue（由 cron schedule handler 呼叫） */
+function enqueueCronTask(task: CronTask): void {
+  // 避免同一任務重複排隊
+  const isDuplicate = cronQueue.some(
+    q => q.task.schedule === task.schedule && q.task.task === task.task,
+  );
+  if (isDuplicate) {
+    slog('CRON', `⏭ Already queued: "${task.task.slice(0, 60)}"`);
+    return;
+  }
+
+  // Queue 滿了則丟棄最舊的
+  if (cronQueue.length >= MAX_QUEUE_SIZE) {
+    const dropped = cronQueue.shift();
+    slog('CRON', `⚠ Queue full, dropped: "${dropped?.task.task.slice(0, 60)}"`);
+  }
+
+  cronQueue.push({ task, queuedAt: Date.now(), retries: 0 });
+  slog('CRON', `⏰ Queued (${cronQueue.length}): "${task.task.slice(0, 60)}"`);
+  eventBus.emit('trigger:cron', { schedule: task.schedule, task: task.task.slice(0, 100) });
+}
+
+/**
+ * Drain 一個 queued cron task — 由 OODA cycle 結束後呼叫。
+ * 每次只執行一個，避免 blocking 太久。
+ * Fire-and-forget，失敗 retry 最多 MAX_RETRIES 次。
+ */
+export async function drainCronQueue(): Promise<void> {
+  if (cronQueue.length === 0) return;
+
+  const item = cronQueue.shift()!;
+  const logger = getLogger();
+  const cronStart = Date.now();
+
+  logger.logCron('cron-task', item.task.task.slice(0, 100), item.task.schedule);
+  logger.logBehavior('system', 'cron.execute', `[${item.task.schedule}] ${item.task.task.slice(0, 100)} (attempt ${item.retries + 1})`);
+
+  try {
+    const context = await buildContext();
+    const result = await callClaude(item.task.task, context, 2, { source: 'loop' });
+
+    // Busy guard 仍然擋住 → re-queue with retry
+    if (result.duration === 0 && result.response.includes('稍後再試')) {
+      if (item.retries < MAX_RETRIES) {
+        item.retries++;
+        cronQueue.push(item);
+        slog('CRON', `⏭ Re-queued (retry ${item.retries}): "${item.task.task.slice(0, 60)}"`);
+      } else {
+        slog('CRON', `✗ Dropped after ${MAX_RETRIES} retries: "${item.task.task.slice(0, 60)}"`);
+      }
+      return;
+    }
+
+    const response = await postProcess(item.task.task, result.response, {
+      lane: 'cron', duration: result.duration, source: 'cron',
+      systemPrompt: result.systemPrompt, context,
+    });
+    const elapsed = ((Date.now() - cronStart) / 1000).toFixed(1);
+    slog('CRON', `✓ Done (${elapsed}s): "${response.content.slice(0, 80)}"`);
+    logger.logCron('cron-task-result', response.content.slice(0, 200), item.task.schedule, {
+      success: true,
+      duration: Date.now() - cronStart,
+    });
+
+    await notifyCronAction(response.content);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    slog('CRON', `✗ Error: ${errorMsg}`);
+    logger.logCron('cron-task-error', errorMsg, item.task.schedule, {
+      success: false,
+      error: errorMsg,
+    });
+
+    // Retry on error
+    if (item.retries < MAX_RETRIES) {
+      item.retries++;
+      cronQueue.push(item);
+      slog('CRON', `⏭ Re-queued after error (retry ${item.retries}): "${item.task.task.slice(0, 60)}"`);
+    } else {
+      await notifyCronError(item.task.task, errorMsg);
+    }
+  }
+}
+
+/** 取得 queue 中待執行的任務數 */
+export function getCronQueueSize(): number {
+  return cronQueue.length;
 }
 
 /**

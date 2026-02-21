@@ -25,6 +25,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
+import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
@@ -534,7 +535,9 @@ export class AgentLoop {
         }
       } catch { /* non-critical */ }
 
-      const priorityPrefix = isTelegramUserCycle
+      // Priority prefix 只在 telegram-user cycle 觸發（避免 cry-wolf desensitization）
+      // HEARTBEAT overdue 任務在 <tasks> perception 中已可見，不需重複注入
+      const priorityPrefix = isTelegramUserCycle && nextPendingItems.length > 0
         ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
         : '';
 
@@ -795,11 +798,17 @@ export class AgentLoop {
       // (telegram-inbox is event-driven, won't refresh unless triggered)
       eventBus.emit('trigger:telegram', { source: 'mark-processed' });
 
+      // Escalate overdue HEARTBEAT tasks（fire-and-forget）
+      autoEscalateOverdueTasks().catch(() => {});
+
       // Auto-commit memory changes（fire-and-forget）
       autoCommitMemory(action).catch(() => {});
 
       // GitHub mechanical automation（fire-and-forget）
       githubAutoActions().catch(() => {});
+
+      // Drain one queued cron task（loopBusy now free）
+      drainCronQueue().catch(() => {});
 
       return action;
     } finally {
@@ -1296,6 +1305,26 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
 
       fs.writeFileSync(handoffFile, handoffContent, 'utf-8');
       eventBus.emit('action:handoff', { file, title });
+      slog('HANDOFF', `Auto-created handoff for: ${title}`);
+
+      // 通知 Claude Code（寫入 inbox）
+      try {
+        const inboxPath = path.join(
+          process.env.HOME ?? '/tmp', '.mini-agent', 'claude-code-inbox.md',
+        );
+        if (fs.existsSync(inboxPath)) {
+          const inboxContent = fs.readFileSync(inboxPath, 'utf-8');
+          const ts = new Date().toLocaleString('sv-SE', {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }).slice(0, 16);
+          const msg = `- [${ts}] [Handoff] 新任務待處理：${title}（來自 proposal: ${file}）`;
+          const updated = inboxContent.replace('## Pending\n', `## Pending\n${msg}\n`);
+          fs.writeFileSync(inboxPath, updated, 'utf-8');
+        }
+      } catch { /* notification non-critical */ }
+
+      // Telegram 通知 Alex
+      notifyTelegram(`📋 新 Handoff：${title}\n來源：proposals/${file}\n指派：claude-code`).catch(() => {});
     } catch {
       // 單一檔案失敗不影響其他
     }
@@ -1357,6 +1386,55 @@ const AUTO_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
  * 檢查 memory/、skills/、plugins/ 是否有未 commit 的變更，
  * 有的話自動 git add + commit。Fire-and-forget，不阻塞 cycle。
  */
+// =============================================================================
+// Auto-Escalate Overdue Tasks — 逾期任務升壓
+// =============================================================================
+
+/**
+ * 掃描 HEARTBEAT.md 中 @due: 已過期的未完成任務，升級為 P0。
+ * Fire-and-forget，每個 OODA cycle 結束後呼叫。
+ */
+async function autoEscalateOverdueTasks(): Promise<void> {
+  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+  if (!fs.existsSync(heartbeatPath)) return;
+
+  try {
+    let content = fs.readFileSync(heartbeatPath, 'utf-8');
+    const today = new Date().toISOString().slice(0, 10);
+    let escalated = 0;
+
+    // 找到所有含 @due: 的未完成任務
+    const lines = content.split('\n');
+    const updated = lines.map(line => {
+      // 只處理未完成的 checkbox 行
+      if (!line.match(/^\s*- \[ \]/)) return line;
+      const dueMatch = line.match(/@due:(\d{4}-\d{2}-\d{2})/);
+      if (!dueMatch) return line;
+
+      const dueDate = dueMatch[1];
+      if (dueDate > today) return line; // 未過期
+
+      // 已經是 P0 → 不重複升級
+      if (line.includes('P0')) return line;
+
+      // 升級為 P0
+      escalated++;
+      // 替換 P1/P2/P3 為 P0，或在 checkbox 後加上 P0
+      if (line.match(/P[1-3]/)) {
+        return line.replace(/P[1-3]/, 'P0 ⚠️OVERDUE');
+      }
+      return line.replace('- [ ] ', '- [ ] P0 ⚠️OVERDUE ');
+    });
+
+    if (escalated > 0) {
+      fs.writeFileSync(heartbeatPath, updated.join('\n'), 'utf-8');
+      slog('ESCALATE', `Promoted ${escalated} overdue task(s) to P0 in HEARTBEAT.md`);
+    }
+  } catch {
+    // 靜默失敗
+  }
+}
+
 async function autoCommitMemory(action: string | null): Promise<void> {
   const cwd = process.cwd();
 

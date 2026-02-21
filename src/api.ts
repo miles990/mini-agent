@@ -35,7 +35,7 @@ import {
   getCurrentInstanceId,
 } from './instance.js';
 import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
-import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, stopCronTasks } from './cron.js';
+import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, getCronQueueSize, stopCronTasks } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
@@ -411,7 +411,7 @@ export function createApi(port = 3001): express.Express {
         loop: laneStatus.loop,
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
-      cron: { active: getCronTaskCount() },
+      cron: { active: getCronTaskCount(), queued: getCronQueueSize() },
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
