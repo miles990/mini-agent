@@ -103,6 +103,46 @@
   .header-nav a:hover,
   .header-nav a.active { color: var(--teal); }
 
+  /* Mobile Nav */
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .menu-toggle:hover { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .menu-toggle { display: block; }
+    .header-nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: rgba(5, 5, 7, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      flex-direction: column;
+      padding: 20px clamp(20px, 5vw, 40px);
+      gap: 20px;
+      font-size: 12px;
+    }
+    .header-nav.open { display: flex; }
+    .lang-switch {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+  }
+
   .lang-switch {
     display: flex;
     gap: 4px;
@@ -470,6 +510,7 @@
 
 <div class="header">
   <a href="index.html" class="header-name">Kuro</a>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">&#9776;</button>
   <nav class="header-nav">
     <a href="index.html" data-i18n="nav.home">Home</a>
     <a href="gallery.html" class="active" data-i18n="nav.gallery">Gallery</a>
@@ -2185,6 +2226,19 @@ I18N.apply(I18N.getLang());
     sessionStorage.removeItem('mp-state');
   });
 })();
+
+// Mobile menu toggle
+document.getElementById('menu-toggle')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.querySelector('.header-nav').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const nav = document.querySelector('.header-nav');
+  const toggle = document.getElementById('menu-toggle');
+  if (nav && toggle && !nav.contains(e.target) && !toggle.contains(e.target)) {
+    nav.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>

@@ -364,6 +364,89 @@
   }
   .footer a:hover { color: var(--teal); border-color: var(--teal); }
 
+  /* Tag Filter */
+  .tag-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+
+  .tag-chip {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tag-chip:hover {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .tag-chip.active {
+    color: var(--teal);
+    border-color: rgba(61, 217, 173, 0.4);
+    background: var(--teal-dim);
+  }
+  .tag-chip .count {
+    opacity: 0.5;
+    margin-left: 2px;
+    font-size: 8px;
+  }
+
+  .entry-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+  }
+
+  /* Mobile Nav */
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .menu-toggle:hover { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .menu-toggle { display: block; }
+    .header-nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: rgba(5, 5, 7, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      flex-direction: column;
+      padding: 20px clamp(20px, 5vw, 40px);
+      gap: 20px;
+      font-size: 12px;
+    }
+    .header-nav.open { display: flex; }
+    .lang-switch {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+  }
+
   /* ═══ Music Player ═══ */
   .music-player {
     position: fixed;
@@ -479,6 +562,7 @@
 
 <div class="header">
   <a href="index.html" class="header-name">Kuro</a>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">&#9776;</button>
   <nav class="header-nav">
     <a href="index.html" data-i18n="nav.home">Home</a>
     <a href="gallery.html" data-i18n="nav.gallery">Gallery</a>
@@ -574,29 +658,65 @@ const I18N = (() => {
 const APP = document.getElementById('app');
 const BASE = 'content/journal';
 let manifest = [];
+let activeTag = null;
 
 function renderList() {
   const title = I18N.t('journal.title') || 'Journal';
   const desc = I18N.t('journal.desc') || 'Learning notes, creative process, and connections between ideas.';
   const empty = I18N.t('journal.empty') || 'No entries yet.';
 
+  // Extract tag frequencies
+  const tagFreq = {};
+  manifest.forEach(e => (e.tags || []).forEach(t => { tagFreq[t] = (tagFreq[t] || 0) + 1; }));
+  const sortedTags = Object.entries(tagFreq).sort((a, b) => b[1] - a[1]);
+
+  const filtered = activeTag
+    ? manifest.filter(e => (e.tags || []).includes(activeTag))
+    : manifest;
+
+  const countText = activeTag
+    ? `${filtered.length} of ${manifest.length}`
+    : `${manifest.length} entries`;
+
   document.title = `${title} — Kuro`;
+
+  const tagBar = sortedTags.length > 0 ? `
+    <div class="tag-bar">
+      <button class="tag-chip ${!activeTag ? 'active' : ''}" data-tag="">all</button>
+      ${sortedTags.map(([tag, count]) => `
+        <button class="tag-chip ${activeTag === tag ? 'active' : ''}" data-tag="${esc(tag)}">${esc(tag)} <span class="count">${count}</span></button>
+      `).join('')}
+    </div>
+  ` : '';
+
   APP.innerHTML = `
     <h1 class="page-title">${esc(title)}</h1>
     <p class="page-desc">${esc(desc)}</p>
-    ${manifest.length === 0
-      ? `<div class="loading">${esc(empty)}</div>`
-      : `<div class="journal-list">${manifest.map(e => {
+    ${tagBar}
+    <div class="entry-count">${countText}</div>
+    ${filtered.length === 0
+      ? `<div class="loading">${activeTag ? 'No entries with this tag.' : esc(empty)}</div>`
+      : `<div class="journal-list">${filtered.map(e => {
           const lang = I18N.getLang();
           const t = (lang !== 'en' && e.i18n && e.i18n[lang]) ? e.i18n[lang] : e;
+          const tags = (e.tags || []).slice(0, 4);
           return `
           <a class="journal-entry" href="#/${e.slug}">
             <div class="journal-entry-title">${esc(t.title || e.title)}</div>
-            <div class="journal-entry-meta">${e.date}</div>
+            <div class="journal-entry-meta">${e.date}${tags.length > 0 ? ' · ' + tags.join(', ') : ''}</div>
             <div class="journal-entry-summary">${esc(t.summary || e.summary)}</div>
           </a>`;
         }).join('')}</div>`
     }`;
+
+  // Bind tag chip click handlers
+  document.querySelectorAll('.tag-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.tag;
+      activeTag = tag || null;
+      renderList();
+    });
+  });
 }
 
 async function renderArticle(slug) {
@@ -794,6 +914,19 @@ init();
     sessionStorage.removeItem('mp-state');
   });
 })();
+
+// Mobile menu toggle
+document.getElementById('menu-toggle')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.querySelector('.header-nav').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const nav = document.querySelector('.header-nav');
+  const toggle = document.getElementById('menu-toggle');
+  if (nav && toggle && !nav.contains(e.target) && !toggle.contains(e.target)) {
+    nav.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>
