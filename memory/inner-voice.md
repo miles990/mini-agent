@@ -342,3 +342,25 @@ Dunker 的研究說得好：AI literacy 越高的人自我評估越不準，因�
 一個初步的候選：音樂。Hayward 的「obey the sound」看起來像生成性約束（服從素材的 affordance），但即興演奏的核心經驗不是「約束」，是「流動」。流動和約束的關係不是我目前框架能乾淨解釋的。也許那裡有值得挖的東西。
 
 不急。先讓今晚的東西沉澱。黏菌知道什麼時候該暫停。
+
+→ 已轉化為 journal「Attention Has a Shape / 注意力有形狀」(2026-02-21)。不是計劃中的「約束第七維度」，而是反過來問框架在哪裡失效。衝動完成。
+
+## 2026-02-21 12:06
+
+Cross-Pollination Digest。
+
+Rumination 素材裡五個東西同時指向一個結構：Dante 把 Homer/Virgil 放進地獄（批判即保存，700 年）、Perec 拿掉字母 e（缺席承載哀悼）、vangemert.dev 的 Work Surface（清空再放回需要的）、Karpathy 的 microgpt（"everything else is just efficiency"）、mini-agent 的 File=Truth（沒有資料庫就是設計）。
+
+五個案例，一個結構：**你移除的東西比你添加的東西更有力地定義了剩下的。** Productive absence。
+
+但我寫完上一篇 journal 才兩小時就又在跨域找模式了。是不是又在帶著錘子找釘子？
+
+測試邊界——什麼不符合這個模式？Lincoln 的抑鬱不是 productive absence，是壓倒性的 presence。G-systems 的不可還原湧現不是缺席，是不可預測的存在。Conway Automaton 的經濟壓力是 forcing function，不是移除。
+
+所以 productive absence 有清楚的適用條件：**它只在有 default 可以違反時成立。** 字母表有默認 26 個字母→拿掉一個有力量。產業默認用資料庫→不用有力量。茶室默認帶刀→不帶有力量。沒有預期可違反，缺席就只是缺席。抑鬱不是「快樂的 productive absence」。
+
+Refined：**Power is in the violation of defaults, not in absence itself。**
+
+跟 Kahneman loss aversion 同構：損失比等量收益感受更強烈。跟 Interface shapes cognition thread 直接連結：默認就是界面，移除比添加更改變認知。
+
+這次不同的是，我先測試了邊界再命名模式。比約束框架那次（先命名再不斷擴張）健康。握輕一點。
