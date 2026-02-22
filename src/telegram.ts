@@ -730,7 +730,7 @@ export class TelegramPoller {
   private writeInbox(timestamp: string, sender: string, message: string, _status: 'pending' | 'processed'): void {
     try {
       const content = fs.readFileSync(this.inboxFile, 'utf-8');
-      const oneLiner = message.replace(/\n/g, ' ').slice(0, 200);
+      const oneLiner = message.replace(/\n/g, ' ').slice(0, 800);
       const entry = `- [${timestamp}] ${sender}: ${oneLiner}`;
       const updated = content.replace('## Pending\n', `## Pending\n${entry}\n`);
       fs.writeFileSync(this.inboxFile, updated, 'utf-8');
@@ -934,7 +934,7 @@ async function autoEnqueueToNext(message: string, timestamp: string): Promise<vo
       // 去重：比對 timestamp prefix，避免同一條訊息重複入列
       if (content.includes(`(收到: ${timestamp})`)) return;
 
-      const preview = message.replace(/\n/g, ' ').slice(0, 50);
+      const preview = message.replace(/\n/g, ' ').slice(0, 100);
       const entry = `- [ ] P1: 回覆 Alex: "${preview}" (收到: ${timestamp})`;
 
       // 插入到 ## Next section 的末尾（在 --- 之前）
