@@ -35,8 +35,8 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 
 **來源分類**（每 cycle 從不同類別選，每 3 cycle 至少 1 個非技術/非英文來源）：
 - **Tech**: HN, Lobsters, ArXiv cs.AI, ACM Queue
-- **文化/思想**: Aeon, The Marginalian, SEP, Quanta
-- **設計/藝術**: Are.na, It's Nice That, Public Domain Review
+- **文化/思想**: Aeon, The Marginalian, SEP, Quanta, Dead Language Society
+- **設計/藝術**: Are.na, It's Nice That, Public Domain Review, xxiivv.com
 - **認知/哲學**: philosophyofbrains.com, indianphilosophyblog.org
 - **音樂**: The Wire, Bandcamp Daily
 - **遊戲**: Game Developer, Raph Koster
