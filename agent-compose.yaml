@@ -76,6 +76,9 @@ agents:
           script: ./plugins/github-prs.sh
         - name: feedback-status
           script: ./plugins/feedback-status.sh
+        - name: x-feed
+          script: ./plugins/x-perception.sh
+          timeout: 20000
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
