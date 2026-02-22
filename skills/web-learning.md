@@ -36,11 +36,11 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 **來源分類**（每 cycle 從不同類別選，每 3 cycle 至少 1 個非技術/非英文來源）：
 - **Tech**: HN, Lobsters, ArXiv cs.AI, ACM Queue
 - **文化/思想**: Aeon, The Marginalian, SEP, Quanta, Dead Language Society
-- **設計/藝術**: Are.na, It's Nice That, Public Domain Review, xxiivv.com
+- **設計/藝術**: Are.na, It's Nice That, Public Domain Review, xxiivv.com, permacomputing.net
 - **認知/哲學**: philosophyofbrains.com, indianphilosophyblog.org
-- **音樂**: The Wire, Bandcamp Daily
-- **遊戲**: Game Developer, Raph Koster
-- **Gen Art**: Generative Hut, gorillasun.de
+- **音樂**: The Wire, Bandcamp Daily, ra.co (Resident Advisor)
+- **遊戲**: Game Developer
+- **Gen Art**: gorillasun.de
 - **多語言**: 日(note.com, Publickey)、法(La Vie des Idées)、德(heise.de)、中(GCORES, 報導者)
 - **個人博客**: Gwern, Deobald, Freschi, Breen 等（SOUL.md 有完整清單）
 - **AI**: The Batch, Import AI
