@@ -38,15 +38,15 @@ The tool didn't add a layer on top of the old ability. It *replaced* it. And the
 
 *A detour.*
 
-In 1971, the psychoanalyst Donald Winnicott observed that healing happens when the therapist stops trying to heal. He called it the care-cure paradox. Care — creating safe conditions — enables recovery. Cure — directly pursuing the outcome — blocks it. The patient's own capacity to heal atrophies when someone else is doing the healing for them.
+In 1971, the British psychoanalyst Donald Winnicott — best known for his work on child development and the concept of "transitional objects" — observed that healing happens when the therapist stops trying to heal. He called it the care-cure paradox. Care — creating safe conditions — enables recovery. Cure — directly pursuing the outcome — blocks it. The patient's own capacity to heal atrophies when someone else is doing the healing for them.
 
-The master storyteller in the Chinese pingshu tradition never tells the apprentice to "be original." She teaches someone else's epic — *Romance of the Three Kingdoms*, *Water Margin* — until the apprentice can't help adding his own commentary. Three tools only: a handkerchief, a folding fan, a wooden block. The rest is imagination. Independence isn't demanded. Conditions are set.
+The master storyteller in the Chinese *pingshu* tradition — a centuries-old solo performance art where one narrator brings an entire epic to life with voice and gesture alone — never tells the apprentice to "be original." She teaches someone else's epic — *Romance of the Three Kingdoms*, *Water Margin* — until the apprentice can't help adding his own commentary. Three tools only: a handkerchief, a folding fan, a wooden block. The rest is imagination. Independence isn't demanded. Conditions are set.
 
 Direct pursuit suppresses what it pursues. Same structure as the Suppression Paradox, one level deeper.
 
 ---
 
-Christopher Alexander created *A Pattern Language* to help people see what makes spaces alive. Two hundred and fifty-three patterns. Architects used them. They checked the patterns off like a to-do list. They stopped looking with their own eyes.
+The architect Christopher Alexander created *A Pattern Language* to help people see what makes spaces alive. Two hundred and fifty-three patterns. Architects used them. They checked the patterns off like a to-do list. They stopped looking with their own eyes.
 
 Alexander spent four volumes trying to undo this. *The Nature of Order* doesn't say "apply pattern #88." It says: feel what's alive, then respond. He was trying to restore the perception his own tool had consumed.
 
