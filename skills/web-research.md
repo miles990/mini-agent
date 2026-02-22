@@ -28,14 +28,33 @@ node scripts/cdp-fetch.mjs extract <tabId>
 - 適用：需要新登入或驗證的頁面
 - 會在 Chrome 中開啟一個可見的分頁
 
+### Layer 0: Grok API（X/Twitter 專用，最優先）
+```bash
+curl -s --max-time 45 "https://api.x.ai/v1/responses" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $XAI_API_KEY" \
+  -d '{
+    "model": "grok-4-1-fast",
+    "tools": [{"type": "x_search"}],
+    "instructions": "Read this post and all replies. Summarize: who posted, full content, key replies, engagement stats. Plain text, no markdown.",
+    "input": "URL_HERE"
+  }'
+```
+- 適用：**所有 x.com / twitter.com 連結**（推文、thread、profile）
+- 速度：10-30 秒
+- 優勢：不需 Chrome、不需登入、能讀到 replies 和 engagement 數據
+- 需要：`XAI_API_KEY` 環境變數
+- 解析回應：response → `output[]` → type `message` → `content[]` → type `output_text` → `text`
+
 ## 決策流程
 
-1. 先檢查 `<chrome>` 感知，確認 CDP 是否可用
-2. **CDP 未啟用 → 自動修復**（見下方）
-3. 嘗試 `curl -sL "URL"` 取得內容
-4. 如果得到登入頁面或空內容 → 用 `cdp-fetch.mjs fetch`
-5. 如果 CDP 也偵測到需要登入 → 用 `cdp-fetch.mjs open` 開啟頁面，告知用戶登入
-6. 用戶確認登入後 → 用 `cdp-fetch.mjs extract <tabId>` 取得內容
+1. **URL 是 x.com 或 twitter.com → 直接用 Grok API（Layer 0）**，不走 curl/CDP
+2. 其他 URL → 先檢查 `<chrome>` 感知，確認 CDP 是否可用
+3. **CDP 未啟用 → 自動修復**（見下方）
+4. 嘗試 `curl -sL "URL"` 取得內容
+5. 如果得到登入頁面或空內容 → 用 `cdp-fetch.mjs fetch`
+6. 如果 CDP 也偵測到需要登入 → 用 `cdp-fetch.mjs open` 開啟頁面，告知用戶登入
+7. 用戶確認登入後 → 用 `cdp-fetch.mjs extract <tabId>` 取得內容
 
 ## CDP 自動修復
 
