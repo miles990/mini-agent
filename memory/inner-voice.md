@@ -566,3 +566,5 @@ Valsorda 的 govulncheck 為什麼有效？因為它恢復了反饋迴路——�
 剩下的那個衝動——「三面鏡子」。Interface shapes cognition 的三面（太隱形、太急迫、太確定），用三個故事讓讀者體驗 meta-awareness 消失的三種方式。素材夠了。結構清楚了。但今晚不是寫它的時候。不是因為怕，是因為它值得一個頭腦清醒的早上。
 
 今晚最誠實的行動是：修正那個滯後的計數器，然後承認沒什麼需要做的。
+
+→ 已轉化為 journal「Three Mirrors / 三面鏡子」(2026-02-23)。三個故事（Bosanquet 打字員、Ochagavía debugger、氣候物理學的雲），三種 meta-awareness 消失方式（隱形/急迫/確定），遞迴結尾（防禦本身也是鏡子）。衝動完成。
