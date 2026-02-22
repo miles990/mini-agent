@@ -66,6 +66,9 @@ function classifyError(error: unknown): ErrorClassification {
   const stderr = (error as { stderr?: string })?.stderr ?? '';
   const killed = (error as { killed?: boolean })?.killed;
   const exitCode = (error as { status?: number })?.status;
+  const signal = (error as { signal?: string })?.signal;
+  const duration = (error as { duration?: number })?.duration;
+  const timeoutMs = (error as { timeoutMs?: number })?.timeoutMs;
   const combined = `${msg}\n${stderr}`.toLowerCase();
 
   if (combined.includes('enoent') || combined.includes('not found')) {
@@ -75,8 +78,17 @@ function classifyError(error: unknown): ErrorClassification {
   if (exitCode === 143) {
     return { type: 'TIMEOUT', retryable: true, message: 'Claude CLI 被 SIGTERM 終止（exit 143）。可能是 context 過大或系統資源不足。' };
   }
+  // Duration-based timeout detection — catches race conditions where timedOut flag wasn't set
+  // (e.g. process killed externally by OOM or system pressure before our timer fired)
+  if (duration && timeoutMs && duration > timeoutMs * 0.9 && exitCode === null) {
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（${Math.round(duration / 1000)}s）。進程可能被系統終止${signal ? `（signal: ${signal}）` : ''}。` };
+  }
+  // External signal detection — process terminated by signal but not our timeout
+  if (signal && exitCode === null && !killed) {
+    return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。` };
+  }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 8 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
+    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 15 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
@@ -287,10 +299,22 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
       try {
         process.kill(-child.pid!, 'SIGTERM');
-      } catch { /* already dead */ }
+      } catch (e) { slog('CLAUDE', `SIGTERM failed for pgid ${child.pid}: ${e}`); }
       // 5 秒後強制殺（SIGKILL 不可被攔截）
       setTimeout(() => {
-        try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already dead */ }
+        try { process.kill(-child.pid!, 'SIGKILL'); } catch (e) { slog('CLAUDE', `SIGKILL failed for pgid ${child.pid}: ${e}`); }
+        // Force-resolve safety net: if close event hasn't fired 10s after SIGKILL, force reject
+        setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            if (source === 'loop') loopChildPid = null;
+            const duration = Date.now() - startTs;
+            slog('CLAUDE', `Force-resolve: close event not received 10s after SIGKILL (pid ${child.pid}), elapsed=${(duration / 1000).toFixed(1)}s`);
+            reject(Object.assign(new Error('Claude CLI force-resolved: close event timeout after SIGKILL'), {
+              stderr, stdout: resultText, status: null, killed: true, signal: 'SIGKILL', duration, timeoutMs: TIMEOUT_MS,
+            }));
+          }
+        }, 10_000);
       }, 5000);
     }, TIMEOUT_MS);
 
@@ -342,9 +366,10 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       stderr += chunk.toString('utf-8');
     });
 
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       settled = true;
       clearTimeout(timer);
+      const duration = Date.now() - startTs;
 
       // Clear PID tracking
       if (source === 'loop') {
@@ -365,12 +390,16 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
       // Exit 143 結構化 logging（SIGTERM — context 過大或系統終止）
       if (code === 143) {
-        const elapsed = ((Date.now() - startTs) / 1000).toFixed(1);
-        slog('EXIT143', `prompt=${fullPrompt.length} chars, elapsed=${elapsed}s, tools=${toolCallCount}`);
+        slog('EXIT143', `prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}`);
+      }
+
+      // Log unexpected signals for diagnostics
+      if (signal && !timedOut) {
+        slog('CLAUDE', `Process terminated by signal ${signal} (not our timeout), elapsed=${(duration / 1000).toFixed(1)}s`);
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut }));
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
       } else {
         resolve(resultText);
       }
@@ -382,7 +411,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (source === 'loop') {
         loopChildPid = null;
       }
-      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut }));
+      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
 
     child.stdin.write(fullPrompt);
@@ -398,6 +427,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
  */
 async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
+  const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
   // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
@@ -436,9 +466,20 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
       slog('CODEX', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
       try {
         process.kill(-child.pid!, 'SIGTERM');
-      } catch { /* already dead */ }
+      } catch (e) { slog('CODEX', `SIGTERM failed for pgid ${child.pid}: ${e}`); }
       setTimeout(() => {
-        try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already dead */ }
+        try { process.kill(-child.pid!, 'SIGKILL'); } catch (e) { slog('CODEX', `SIGKILL failed for pgid ${child.pid}: ${e}`); }
+        // Force-resolve safety net
+        setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            const duration = Date.now() - startTs;
+            slog('CODEX', `Force-resolve: close event not received 10s after SIGKILL (pid ${child.pid}), elapsed=${(duration / 1000).toFixed(1)}s`);
+            reject(Object.assign(new Error('Codex CLI force-resolved: close event timeout after SIGKILL'), {
+              stderr, stdout: resultText, status: null, killed: true, signal: 'SIGKILL', duration, timeoutMs: TIMEOUT_MS,
+            }));
+          }
+        }, 10_000);
       }, 5000);
     }, TIMEOUT_MS);
 
@@ -480,9 +521,10 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
       stderr += chunk.toString('utf-8');
     });
 
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       settled = true;
       clearTimeout(timer);
+      const duration = Date.now() - startTs;
 
       // 處理 buffer 中剩餘的不完整行
       if (buffer.trim()) {
@@ -499,7 +541,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut }));
+        reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
       } else {
         resolve(resultText);
       }
@@ -508,7 +550,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     child.on('error', (err) => {
       settled = true;
       clearTimeout(timer);
-      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut }));
+      reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
 
     child.stdin.write(fullPrompt);
