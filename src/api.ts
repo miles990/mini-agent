@@ -40,6 +40,7 @@ import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
+import { createDigestBot, getDigestBot } from './digest-bot.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -435,6 +436,11 @@ export function createApi(port = 3001): express.Express {
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
+      },
+      digestBot: {
+        enabled: !!getDigestBot(),
+        running: getDigestBot()?.isRunning() ?? false,
+        subscribers: getDigestBot()?.getSubscriberCount() ?? 0,
       },
       provider: {
         primary: getProvider(),
@@ -1895,6 +1901,9 @@ if (isMain) {
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
   const telegramPoller = createTelegramPoller(memoryDir);
 
+  // ── Digest Bot (separate TG bot for AI paper digests) ──
+  const digestBot = createDigestBot();
+
   initObservability();
 
   const server = app.listen(port, () => {
@@ -1906,6 +1915,9 @@ if (isMain) {
     }
     if (telegramPoller) {
       telegramPoller.start();
+    }
+    if (digestBot) {
+      digestBot.start();
     }
 
     // OODA-Only: no queue to restore
@@ -1962,6 +1974,7 @@ if (isMain) {
     if (loopRef) loopRef.stop();
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
+    if (digestBot) digestBot.stop();
 
     // Wait for in-flight Claude CLI call to finish
     if (isClaudeBusy()) {
