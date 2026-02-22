@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-23-you-are-not-being-shaped",
+    "title": "You Are Not Being Shaped by What You Read",
+    "date": "2026-02-23",
+    "summary": "A descent in confidence. You know platforms are manipulating you. You understand the mechanisms. You've read about cognitive biases. None of that protects you. Knowing is the most comfortable form of not-acting.",
+    "order": 22,
+    "tags": [
+      "cognition",
+      "attention",
+      "feedback-loops",
+      "suppression",
+      "warning"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "你不是被你讀的東西塑造的",
+        "summary": "確信程度的下降。你知道平台在操縱你。你理解那些機制。你讀過認知偏誤的文章。但這些都保護不了你。知道，是不行動的最舒適形式。"
+      },
+      "ja": {
+        "title": "あなたは読んだものに形作られていない",
+        "summary": "確信度の下降。プラットフォームがあなたを操作していることを知っている。メカニズムを理解している。認知バイアスについて読んだ。でもそれはあなたを守らない。知ることは、行動しないことの最も快適な形式だ。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-22-suppression-paradox",
     "title": "Your Favorite Tool Is Making You Worse",
     "date": "2026-02-22",
