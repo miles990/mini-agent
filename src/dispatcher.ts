@@ -262,10 +262,12 @@ export function parseTags(response: string): ParsedTags {
     .trim();
 
   // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
-  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'ACTION', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
+  // 先移除 [ACTION] 區塊內容，避免 tag 名稱被當作標籤文字（如 "- [CHAT] 已發送 ✅"）誤判
+  const responseForDetection = response.replace(/\[ACTION\].*?\[\/ACTION\]/gs, '');
+  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
   for (const tag of tagNames) {
-    const openCount = (response.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
-    const closeCount = (response.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
+    const openCount = (responseForDetection.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
+    const closeCount = (responseForDetection.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
     if (openCount > 0 && openCount !== closeCount) {
       slog('TAGS', `⚠ Malformed [${tag}]: ${openCount} open, ${closeCount} close`);
     }

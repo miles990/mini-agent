@@ -288,6 +288,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     }
 
     let resultText = '';
+    const allTextBlocks: string[] = []; // 累積所有 assistant text blocks（含中間 turns），防止 tags 遺失
     let buffer = '';
     let stderr = '';
     let toolCallCount = 0;
@@ -347,7 +348,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 if (loopTask) {
                   loopTask.lastText = block.text.slice(0, 200);
                 }
-                // 累積文字（備用，result 事件優先）
+                // 累積所有 text blocks — 中間 turns 的 tags（如 [CHAT]）不能遺失
+                allTextBlocks.push(block.text);
                 if (!resultText) resultText = block.text;
                 // Partial output callback (for cycle checkpoint)
                 if (opts?.onPartialOutput) {
@@ -401,6 +403,16 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (code !== 0 && !resultText) {
         reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
       } else {
+        // 檢查中間 text blocks 是否有 tags 被 result 事件覆蓋而遺失
+        // result 事件只包含最後一個 assistant turn 的 text，中間 turns 的 tags 會被丟棄
+        const TAG_RE = /\[(CHAT|ASK|REMEMBER|SHOW|SUMMARY|TASK|ARCHIVE|IMPULSE|THREAD)\b/;
+        if (allTextBlocks.length > 1) {
+          const intermediateWithTags = allTextBlocks.slice(0, -1).filter(b => TAG_RE.test(b));
+          if (intermediateWithTags.length > 0) {
+            slog('TAGS', `Recovered ${intermediateWithTags.length} intermediate text block(s) with tags`);
+            resultText = intermediateWithTags.join('\n') + '\n' + resultText;
+          }
+        }
         resolve(resultText);
       }
     });
