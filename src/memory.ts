@@ -96,11 +96,14 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'autonomous-behavior': ['autonomous', 'soul', 'ooda', 'cycle', 'idle', 'agent loop', 'self-check'],
   'web-learning': ['learn', 'study', 'article', 'knowledge', 'web learning', 'cdp', 'chrome://'],
   'web-research': ['research', 'search', 'url', 'fetch', 'curl', 'cdp', 'browse', 'hacker', 'web research'],
+  'web-ai-sessions': ['ai session', 'claude', 'gpt', 'gemini', 'chatbot', 'ai conversation'],
   'action-from-learning': ['propose', 'proposal', 'feature', 'improve', 'skill', 'plugin', 'action-from-learning', 'self-improve'],
   'self-deploy': ['deploy', 'push', 'commit', 'release', 'git', 'ci/cd', 'self-deploy'],
+  'delegation': ['delegate', 'subprocess', 'cli', 'handoff', 'claude code'],
   'docker-ops': ['docker', 'container', 'image', 'compose', 'volume'],
   'code-review': ['review', 'code review', 'pr', 'pull request', 'diff'],
   'debug-helper': ['debug', 'error', 'bug', 'crash', 'fix', 'fail', 'broken'],
+  'github-ops': ['github', 'issue', 'pr', 'pull request', 'merge', 'ci'],
   'project-manager': ['project', 'task', 'plan', 'priority', 'heartbeat', 'p0', 'p1'],
   'server-admin': ['server', 'port', 'service', 'restart', 'process', 'kill', 'admin'],
   'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
@@ -113,10 +116,10 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
 export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
 const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
-  learn: ['autonomous-behavior', 'web-learning', 'web-research'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation'],
-  task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops'],
-  respond: [], // empty = load all skills (用戶互動，不確定需要什麼)
+  learn: ['autonomous-behavior', 'web-learning', 'web-research', 'web-ai-sessions'],
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'verified-development', 'code-review'],
+  task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops', 'server-admin', 'github-ops', 'verified-development', 'code-review'],
+  respond: [], // empty = fall through to keyword matching
   reflect: ['autonomous-behavior'],
 };
 
@@ -158,19 +161,18 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
   if (cycleMode) {
     const allowedSkills = CYCLE_MODE_SKILLS[cycleMode];
 
-    // respond mode: 空陣列 = 全部載入（不確定需要什麼 skill）
-    if (allowedSkills.length === 0) return formatSkillsPrompt(skillsCache);
-
-    const selected = skillsCache.filter(skill =>
-      allowedSkills.includes(skill.name) ||
-      // 未知 skill（不在任何 mode 映射中）→ 總是載入
-      !Object.values(CYCLE_MODE_SKILLS).some(skills => skills.includes(skill.name))
-    );
-    return formatSkillsPrompt(selected);
+    // respond mode: 空陣列 → fall through to keyword matching（而非載入全部 43K）
+    if (allowedSkills.length > 0) {
+      const selected = skillsCache.filter(skill =>
+        allowedSkills.includes(skill.name)
+      );
+      return formatSkillsPrompt(selected);
+    }
+    // Fall through to keyword matching for respond mode
   }
 
-  // Fallback: keyword matching（無 cycleMode 時）
-  const lowerHint = hint!.toLowerCase();
+  // Fallback: keyword matching（respond mode 或無 cycleMode 時）
+  const lowerHint = (hint ?? '').toLowerCase();
   const selected = skillsCache.filter(skill => {
     const keywords = SKILL_KEYWORDS[skill.name];
     // 未知 skill（無 mapping）→ 總是載入
@@ -1589,8 +1591,15 @@ export class InstanceMemory {
 
     let assembled = sections.join('\n\n');
 
-    // ── Global context budget: 60K chars hard cap ──
-    const CONTEXT_BUDGET = 60_000;
+    // ── Global context budget: dynamic based on skills overhead ──
+    // fullPrompt = systemPrompt(~3K) + skills + context + userPrompt(~5K)
+    // PROMPT_HARD_CAP in agent.ts = 80K, so context budget = 80K - skills - 8K overhead
+    const PROMPT_HARD_CAP = 80_000;
+    const NON_CONTEXT_BASE = 8_000; // system prompt base + user prompt estimate
+    const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
+    // Most modes load a subset (~60%); use conservative estimate to avoid pre-reduce in callClaude
+    const estimatedSkillsOverhead = Math.ceil(totalSkillsChars * 0.6);
+    const CONTEXT_BUDGET = Math.min(60_000, Math.max(30_000, PROMPT_HARD_CAP - estimatedSkillsOverhead - NON_CONTEXT_BASE));
     if (assembled.length > CONTEXT_BUDGET) {
       // Trim topic-memory sections first (largest, least essential)
       const topicPattern = /<topic-memory[^>]*>[\s\S]*?<\/topic-memory>/g;
@@ -1602,7 +1611,7 @@ export class InstanceMemory {
       });
       // If still over budget after trimming topics, truncate memory section
       if (assembled.length > CONTEXT_BUDGET) {
-        assembled = assembled.slice(0, CONTEXT_BUDGET) + '\n\n[... context truncated at 60K chars]';
+        assembled = assembled.slice(0, CONTEXT_BUDGET) + `\n\n[... context truncated at ${Math.round(CONTEXT_BUDGET / 1000)}K chars]`;
       }
     }
 
