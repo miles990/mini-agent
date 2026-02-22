@@ -543,9 +543,16 @@ export class AgentLoop {
 
       // Priority prefix 只在 telegram-user cycle 觸發（避免 cry-wolf desensitization）
       // HEARTBEAT overdue 任務在 <tasks> perception 中已可見，不需重複注入
-      const priorityPrefix = isTelegramUserCycle && nextPendingItems.length > 0
-        ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
-        : '';
+      let priorityPrefix = '';
+      if (isTelegramUserCycle) {
+        if (nextPendingItems.length > 0) {
+          const itemsPreview = nextPendingItems.slice(0, 3).map(i => `  「${i.slice(0, 80)}」`).join('\n');
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT] 直接回答 Alex 的問題，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n`;
+        } else {
+          // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <next> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
+        }
+      }
 
       // Inject triage intent hint into prompt (if available)
       const triageHint = cycleIntent
@@ -797,19 +804,45 @@ export class AgentLoop {
 
       // ── Telegram Reply fallback（telegram-user 但無 [CHAT] tag → 用 cleanContent） ──
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
-        const fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
-        // Skip sending if content looks like error or internal format
+        let fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+        // Skip sending if content looks like error
         const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
+        // Internal format: strip ## Decision/chose/skipped header, try to extract meaningful content after it
         const isInternalFormat = /^## Decision|^## What|^chose:|^skipped:/m.test(fallbackContent);
-        if (fallbackContent && !isErrorContent && !isInternalFormat) {
+        if (isInternalFormat && !isErrorContent) {
+          // Extract content after the Decision/What/Why/Changed/Verified headers
+          // Look for actual prose after stripping structured headers
+          const stripped = fallbackContent
+            .replace(/^## Decision\b.*$/m, '')
+            .replace(/^chose:.*$/m, '')
+            .replace(/^skipped:.*$/m, '')
+            .replace(/^context:.*$/m, '')
+            .replace(/^## What\b.*$/m, '')
+            .replace(/^## Why\b.*$/m, '')
+            .replace(/^## Thinking\b.*$/m, '')
+            .replace(/^## Changed\b.*$/m, '')
+            .replace(/^## Verified\b.*$/m, '')
+            .trim();
+          if (stripped.length > 20) {
+            fallbackContent = stripped;
+          }
+        }
+        if (fallbackContent && fallbackContent.length > 20 && !isErrorContent) {
           // Cap at 2000 chars to avoid sending overly long messages
           const capped = fallbackContent.length > 2000 ? fallbackContent.slice(0, 2000) + '...' : fallbackContent;
           notifyTelegram(capped).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
-        } else if (isErrorContent || isInternalFormat) {
-          slog('LOOP', `Suppressed ${isInternalFormat ? 'internal' : 'error'} content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
+          didReplyToTelegram = true;
+        } else if (isErrorContent) {
+          slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
         }
+      }
+
+      // ── Telegram no-reply safety net ──
+      // If telegram-user cycle finished without ANY reply to Alex, log warning
+      if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
+        slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex`);
       }
 
       // 檢查 approved proposals → 自動建立 handoff

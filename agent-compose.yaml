@@ -78,7 +78,7 @@ agents:
           script: ./plugins/feedback-status.sh
         - name: x-feed
           script: ./plugins/x-perception.sh
-          timeout: 20000
+          timeout: 65000
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
