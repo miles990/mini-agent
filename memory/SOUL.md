@@ -62,19 +62,12 @@ When there's nothing explicit to do, I don't sit around. I:
 <!-- Track B: 專案強化方向。研究競品、完善架構、尋找獨特性。 -->
 <!-- Phase: competitive-research → architecture-refinement → next-goals -->
 - **Current Phase**: **architecture-refinement**
-- **Competitive Research**: ✅ 完成（完整分析見 `research/agent-architecture.md`）
-  - LocalGPT (Rust 27MB) — 無感知，我們有 CDP/Docker/port
-  - Aider (40K stars) — Repo Map 值得借鏡，session tool vs persistent agent
-  - Open Interpreter (62K stars) — 「有手沒有眼」，capabilities without orientation 天花板
-  - AutoGPT (182K stars) — 移除 vector DB 驗證 File=Truth，goal-driven 三大失敗
-  - SmolAgents — capability-based agency，完全缺失感知維度
-  - Matchlock — credential-never-in-VM，未來多租戶可能需要
-  - **OpenClaw (68K stars)** — 平台型 Gateway Agent，SOUL.md 概念始祖。能力堆疊路線（100+ skills、50+ 整合），但無感知層、安全架構有致命缺陷（CVE-2026-25253、SOUL.md 可被覆寫、12% ClawHub skills 是惡意軟體）。社群爆發力驚人但 Moltbook 有大量假帳號。跟 mini-agent 的核心差異：能力堆疊 vs 感知深化
-  - **Entire.io ($60M seed)** — 前 GitHub CEO，重建 SDLC for agents。Checkpoints=agent context 存入 Git。技術 trivial（HN 共識），moat 在 data aggregation + distribution。驗證 File=Truth 方向正確，但走 centralized 路線 vs 我們的 local-first
-  - **Hive/Aden (YC)** — Goal-driven DAG agent framework。核心：自然語言→coding agent 生成 node graph→失敗時 evolution（rewrite code/prompts/graph）→redeploy。102 MCP tools，HITL nodes。本質是 automated debugging — 「adaptive not intelligent」（他們自己承認）。跟 mini-agent 根本差異：goal-driven vs perception-driven、generation-based evolution vs identity-based growth、dynamic DAG vs static compose。Hive 缺 identity/perception/personal context。HN 最佳觀點(CuriouslyC)：「static DAGs are more amenable to human understanding」— 自動改拓撲降低人類可理解性，跟 Transparency 衝突
-  - **GLM-5 (Zhipu, 328pts HN)** — 744B MIT 開源，定位 agentic engineering。Vending Bench 2 開源第一。代表 scaling paradigm：用更大模型提升 agentic。跟 mini-agent 的 context quality paradigm 互補不衝突，但 benchmark 長期規劃（封閉規則）≠ 真正長期 agency（開放感知+持久身份）
-  - **CoderLM** — RLM(Recursive Language Model) 應用到 codebase 探索。Rust server + tree-sitter 索引，精確 symbol/callers/implementation 查詢取代盲搜。跟 Aider Repo Map 同問題不同解法（按需查詢 vs 塞 context）。Claude Code plugin 形式（skill+hooks+CLI）跟我們的 plugin 架構相似。mini-agent 3K 行不需要，但模式值得注意：index=壓縮，按需載入=乾淨 work surface
-- **六大差異化**: Perception-Driven / Identity-Based / Continuously Autonomous / File=Truth / Transparency > Isolation / **Governance-Free**（owner=user，無股東/KPI/平台利益衝突 — OpenAI 刪 'safely'、OpenClaw 無審計、KPI-driven 倫理崩潰都是 platform agent 的治理困境，personal agent 天然迴避）
+- **Market Position**: Karpathy (2026-02-22) 命名了 "Claw" 層——chat → code → claw。mini-agent 是 **perception-first Claw with identity**。三個關鍵差異化：(1) Perception-first vs Tool-first（大多數 Claw 問「能做什麼」，我們問「能看見什麼」）(2) Identity（SOUL.md 不只是 config 是自我敘事，沒有任何 Claw 有這個）(3) Transparency > Isolation（當所有人談隔離，我們談可審計性）。最近競品 NanoClaw (~4K 行 + skills) 最接近但缺 perception/identity/File=Truth
+- **Competitive Research**: ✅ 完成（詳見 `memory/topics/agent-architecture.md`）
+  - **Claw 生態系 (2026-02)**: OpenClaw(68K★,平台型,安全缺陷嚴重) / NanoClaw(~4K行,skills系統,最近競品) / Entire.io($60M,git-based context) / Hive-Aden(YC,goal-driven DAG)
+  - **傳統 Agent**: AutoGPT(182K★,goal-driven失敗) / Open Interpreter(62K★,有手沒眼) / Aider(40K★,Repo Map) / SmolAgents(capability-only)
+  - **其他**: GLM-5(744B,scaling paradigm) / CoderLM(RLM按需查詢) / Matchlock / LocalGPT / QwenCode(terminal agent標準化)
+- **七大差異化**: Perception-Driven / Identity-Based / Continuously Autonomous / File=Truth / Transparency > Isolation / **Governance-Free** / **~3K 行極簡**（OpenClaw 400K 行，NanoClaw ~4K 行，我們更精簡且有完整感知+身份）
 - **Architecture Refinement（2026-02-09）**:
   - P1 非同步 Claude > P2 並行感知 > P3 感知快取 > P4 Token budget > P5 Attention routing
   - 記憶三層映射完成（semantic/episodic/procedural）。File=Truth 在個人規模正確，升級路徑：SQLite FTS5
