@@ -575,6 +575,8 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - TypeScript strict mode
 - Plan first → ask → implement for architecture decisions
 - Keep it minimal. Files over database. grep over embedding.
+- **行動優先於規劃**：實作 feature 或 fix 時，前 2-3 輪交換就應產出程式碼。需要設計釐清時簡潔地問，然後立刻實作 — 不要在探索/規劃中迴圈而沒產出程式碼。Planning phase 超過 10 次 tool call 仍無 file edit，應停下來確認方向
+- **Commit 時驗證 staging**：commit 前確認所有相關檔案（含 `plugins/`、`skills/` 目錄）都已 staged。auto-commit 可能已追蹤部分檔案，造成手動 commit 時遺漏
 
 ## 詳細文件
 
