@@ -79,7 +79,7 @@ function clearCycleCheckpoint(): void {
   } catch { /* fire-and-forget */ }
 }
 
-function loadStaleCheckpoint(): { info: string; lastAction: string | null; lastAutonomousActions: string[] } | null {
+function loadStaleCheckpoint(): { info: string; triggerReason: string | null; lastAction: string | null; lastAutonomousActions: string[] } | null {
   const filePath = getCycleCheckpointPath();
   if (!filePath || !fs.existsSync(filePath)) return null;
   try {
@@ -102,6 +102,7 @@ function loadStaleCheckpoint(): { info: string; lastAction: string | null; lastA
 
     return {
       info,
+      triggerReason: data.triggerReason,
       lastAction: data.lastAction,
       lastAutonomousActions: data.lastAutonomousActions,
     };
@@ -325,6 +326,11 @@ export class AgentLoop {
       if (stale.lastAction) this.lastAction = stale.lastAction;
       if (stale.lastAutonomousActions.length > 0) {
         this.lastAutonomousActions = stale.lastAutonomousActions;
+      }
+      // Restore telegram-user trigger so priorityPrefix fires on resumed cycle
+      if (stale.triggerReason?.startsWith('telegram-user')) {
+        this.triggerReason = 'telegram-user (resumed)';
+        slog('RESUME', `Restoring telegram-user trigger — Alex's message needs reply`);
       }
       eventBus.emit('action:loop', { event: 'resume', detail: `Recovered interrupted cycle: ${stale.info.slice(0, 100)}` });
     }
