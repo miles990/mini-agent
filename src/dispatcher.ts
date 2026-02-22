@@ -150,23 +150,26 @@ function getConversationHint(): string {
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
+  // Strip [ACTION] blocks before parsing — tags mentioned inside reports are descriptions, not instructions
+  const parseSource = response.replace(/\[ACTION\].*?\[\/ACTION\]/gs, '');
+
   const remembers: Array<{ content: string; topic?: string; ref?: string }> = [];
-  if (response.includes('[REMEMBER')) {
-    for (const m of response.matchAll(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/gs)) {
+  if (parseSource.includes('[REMEMBER')) {
+    for (const m of parseSource.matchAll(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/gs)) {
       remembers.push({ content: m[3].trim(), topic: m[1], ref: m[2] });
     }
   }
 
   const tasks: Array<{ content: string; schedule?: string }> = [];
-  if (response.includes('[TASK')) {
-    for (const m of response.matchAll(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/gs)) {
+  if (parseSource.includes('[TASK')) {
+    for (const m of parseSource.matchAll(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/gs)) {
       tasks.push({ content: m[2].trim(), schedule: m[1] });
     }
   }
 
   let archive: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' } | undefined;
-  if (response.includes('[ARCHIVE')) {
-    const match = response.match(/\[ARCHIVE\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?\](.*?)\[\/ARCHIVE\]/s);
+  if (parseSource.includes('[ARCHIVE')) {
+    const match = parseSource.match(/\[ARCHIVE\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?\](.*?)\[\/ARCHIVE\]/s);
     if (match) {
       archive = {
         url: match[1],
@@ -178,37 +181,37 @@ export function parseTags(response: string): ParsedTags {
   }
 
   const chats: string[] = [];
-  if (response.includes('[CHAT]')) {
-    for (const m of response.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs)) {
+  if (parseSource.includes('[CHAT]')) {
+    for (const m of parseSource.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs)) {
       chats.push(m[1].trim());
     }
   }
 
   const asks: string[] = [];
-  if (response.includes('[ASK]')) {
-    for (const m of response.matchAll(/\[ASK\](.*?)\[\/ASK\]/gs)) {
+  if (parseSource.includes('[ASK]')) {
+    for (const m of parseSource.matchAll(/\[ASK\](.*?)\[\/ASK\]/gs)) {
       asks.push(m[1].trim());
     }
   }
 
   const shows: Array<{ url: string; desc: string }> = [];
-  if (response.includes('[SHOW')) {
-    for (const m of response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs)) {
+  if (parseSource.includes('[SHOW')) {
+    for (const m of parseSource.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs)) {
       shows.push({ url: m[1] ?? '', desc: m[2].trim() });
     }
   }
 
   const summaries: string[] = [];
-  if (response.includes('[SUMMARY]')) {
-    for (const m of response.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs)) {
+  if (parseSource.includes('[SUMMARY]')) {
+    for (const m of parseSource.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs)) {
       summaries.push(m[1].trim());
     }
   }
 
   // [IMPULSE] tags — creative impulse capture
   const impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }> = [];
-  if (response.includes('[IMPULSE]')) {
-    for (const m of response.matchAll(/\[IMPULSE\](.*?)\[\/IMPULSE\]/gs)) {
+  if (parseSource.includes('[IMPULSE]')) {
+    for (const m of parseSource.matchAll(/\[IMPULSE\](.*?)\[\/IMPULSE\]/gs)) {
       const block = m[1].trim();
       const what = block.match(/(?:我想[寫做說]|what)[：:](.+)/i)?.[1]?.trim() ?? block.split('\n')[0].trim();
       const driver = block.match(/(?:驅動力|driver|why)[：:](.+)/i)?.[1]?.trim() ?? '';
@@ -221,22 +224,22 @@ export function parseTags(response: string): ParsedTags {
 
   // [DONE] tags — mark NEXT.md items as completed
   const dones: string[] = [];
-  if (response.includes('[DONE]')) {
-    for (const m of response.matchAll(/\[DONE\]\s*(.+?)(?:\n|$)/g)) {
+  if (parseSource.includes('[DONE]')) {
+    for (const m of parseSource.matchAll(/\[DONE\]\s*(.+?)(?:\n|$)/g)) {
       dones.push(m[1].trim());
     }
   }
 
   let schedule: { next: string; reason: string } | undefined;
-  if (response.includes('[SCHEDULE')) {
-    const match = response.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
+  if (parseSource.includes('[SCHEDULE')) {
+    const match = parseSource.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
     if (match) schedule = { next: match[1], reason: match[2] ?? '' };
   }
 
   // [THREAD] tags — manage thought threads
   const threads: ThreadAction[] = [];
-  if (response.includes('[THREAD')) {
-    for (const m of response.matchAll(/\[THREAD\s+(start|progress|complete|pause)="([^"]+)"(?:\s+title="([^"]*)")?\](.*?)\[\/THREAD\]/gs)) {
+  if (parseSource.includes('[THREAD')) {
+    for (const m of parseSource.matchAll(/\[THREAD\s+(start|progress|complete|pause)="([^"]+)"(?:\s+title="([^"]*)")?\](.*?)\[\/THREAD\]/gs)) {
       threads.push({
         op: m[1] as ThreadAction['op'],
         id: m[2],
