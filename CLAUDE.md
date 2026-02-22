@@ -81,6 +81,10 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Delegation Skill | `skills/delegation.md` |
 | Feedback Loops | `src/feedback-loops.ts` |
 | Feedback Status Plugin | `plugins/feedback-status.sh` |
+| Chat Room UI | `chat-room.html` |
+| Chat Room Inbox Plugin | `plugins/chat-room-inbox.sh` |
+| Chat Room CLI | `scripts/room.sh` |
+| Conversations | `memory/conversations/*.jsonl` |
 | Library (Archive) | `memory/library/` + `catalog.jsonl` |
 | Audio Analyze | `scripts/audio-analyze.sh` |
 | Audio Transcribe | `scripts/audio-transcribe.sh` |
@@ -194,8 +198,8 @@ cycle 開始前寫 checkpoint（`~/.mini-agent/instances/{id}/cycle-state.json`�
 `node:events` 為基礎的 typed event bus + wildcard pattern 支援。
 
 ```
-trigger:workspace | trigger:telegram | trigger:cron | trigger:alert | trigger:heartbeat | trigger:mobile
-action:loop | action:chat | action:memory | action:task | action:show | action:summary | action:handoff
+trigger:workspace | trigger:telegram | trigger:cron | trigger:alert | trigger:heartbeat | trigger:mobile | trigger:room
+action:loop | action:chat | action:memory | action:task | action:show | action:summary | action:handoff | action:room
 log:info | log:error | log:behavior
 notification:signal | notification:summary | notification:heartbeat
 ```
@@ -262,6 +266,30 @@ Phone PWA (5s POST) → POST /api/mobile/sensor → ~/.mini-agent/mobile-state.j
 - 反向查詢：`findCitedBy(id)` 動態 grep 計算引用關係
 - API: `/api/library`（列表+搜尋）、`/api/library/stats`、`/api/library/:id`、`/api/library/:id/cited-by`
 - 三種 archive 模式：`full`（< 100KB）/ `excerpt`（> 100KB）/ `metadata-only`（paywall）
+
+## Team Chat Room（團隊聊天室）
+
+Alex、Kuro、Claude Code 三方即時討論介面，對話紀錄持久化。
+
+```
+Alex/Claude Code → POST /api/room → conversation JSONL + chat-room-inbox.md (if @kuro)
+                                   → emit action:room → SSE → Browser
+Kuro (OODA)      → perceives <chat-room-inbox> → responds [CHAT] → action:chat → SSE → Browser
+```
+
+**API 端點**：
+- `GET /chat-ui` — serve `chat-room.html`
+- `POST /api/room` — `{ from: "alex"|"kuro"|"claude-code", text: string }`，寫 JSONL + inbox（if @kuro）
+- `GET /api/room` — `?date=YYYY-MM-DD`（預設今天），回傳 messages array
+- `GET /api/room/stream` — SSE，訂閱 `action:room` + `action:chat` + `trigger:room`
+
+**對話儲存**：`memory/conversations/YYYY-MM-DD.jsonl`（JSON Lines，每行一筆 `{ from, text, ts, mentions }`）
+
+**Kuro 感知**：`plugins/chat-room-inbox.sh` → `<chat-room-inbox>` section（workspace category, 30s）。Inbox 路徑：`~/.mini-agent/chat-room-inbox.md`，cycle 結束後由 `markChatRoomInboxProcessed()` 清理。
+
+**Kuro 回應橋接**：`handleChatEvent()` in `observability.ts` 自動將 Kuro 的 `[CHAT]` 寫入 conversation JSONL + emit `action:room`。
+
+**Terminal CLI**：`scripts/room.sh`（`room "msg"` / `room --read` / `room --watch` / `room --from kuro "msg"`）
 
 ## Auditory Perception（聽覺感知）
 

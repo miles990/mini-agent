@@ -6,6 +6,9 @@
  * 輸出格式與重構前完全一致。
  */
 
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
+import path from 'node:path';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
@@ -24,6 +27,7 @@ export function initObservability(): void {
   eventBus.on('action:show', handleShowEvent);
   eventBus.on('action:summary', handleSummaryEvent);
   eventBus.on('action:handoff', handleHandoffEvent);
+  eventBus.on('action:room', handleRoomEvent);
   eventBus.on('log:info', handleLogInfo);
 }
 
@@ -131,6 +135,9 @@ function handleChatEvent(e: AgentEvent): void {
   notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal');
   slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
+
+  // Bridge to Chat Room — fire-and-forget
+  writeRoomMessage('kuro', text).catch(() => {});
 }
 
 // =============================================================================
@@ -172,6 +179,42 @@ function handleHandoffEvent(e: AgentEvent): void {
 // log:info — 通用 slog 轉發
 // =============================================================================
 
+// =============================================================================
+// action:room — Chat Room 訊息
+// =============================================================================
+
+function handleRoomEvent(e: AgentEvent): void {
+  const logger = getLogger();
+  const { from, text } = e.data as { from: string; text: string };
+  const actor: 'user' | 'agent' | 'system' = from === 'kuro' ? 'agent' : from === 'alex' ? 'user' : 'system';
+  logger.logBehavior(actor, 'room.message', `[${from}] ${(text as string).slice(0, 200)}`);
+}
+
+// =============================================================================
+// log:info — 通用 slog 轉發
+// =============================================================================
+
 function handleLogInfo(e: AgentEvent): void {
   slog(e.data.tag as string, e.data.msg as string);
+}
+
+// =============================================================================
+// writeRoomMessage — fire-and-forget 寫入 conversation JSONL + emit action:room
+// =============================================================================
+
+export async function writeRoomMessage(from: string, text: string): Promise<void> {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const entry = { from, text, ts: now.toISOString(), mentions: [] as string[] };
+
+  const convDir = path.join(process.cwd(), 'memory', 'conversations');
+  if (!fs.existsSync(convDir)) {
+    await fsPromises.mkdir(convDir, { recursive: true });
+  }
+  await fsPromises.appendFile(
+    path.join(convDir, `${dateStr}.jsonl`),
+    JSON.stringify(entry) + '\n',
+  );
+
+  eventBus.emit('action:room', { from, text, ts: now.toISOString(), mentions: [] });
 }

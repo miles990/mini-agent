@@ -794,6 +794,7 @@ export class AgentLoop {
       // didReplyToTelegram: true → 'replied', false → 'seen' (honest distinction)
       markInboxAllProcessed(didReplyToTelegram);
       markClaudeCodeInboxProcessed();
+      markChatRoomInboxProcessed();
 
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
       // (telegram-inbox is event-driven, won't refresh unless triggered)
@@ -1377,6 +1378,48 @@ function markClaudeCodeInboxProcessed(): void {
 
     const newContent = `## Pending\n\n## Processed\n${allProcessed.join('\n')}\n`;
     fs.writeFileSync(CLAUDE_CODE_INBOX_PATH, newContent, 'utf-8');
+  } catch { /* fire-and-forget */ }
+}
+
+// =============================================================================
+// Chat Room Inbox — mark pending → processed after cycle
+// =============================================================================
+
+const CHAT_ROOM_INBOX_PATH = path.join(
+  process.env.HOME ?? '/tmp',
+  '.mini-agent',
+  'chat-room-inbox.md',
+);
+
+/**
+ * Move all entries from ## Pending to ## Processed.
+ * Trim processed to most recent 50 entries.
+ * Fire-and-forget — errors silently ignored.
+ */
+function markChatRoomInboxProcessed(): void {
+  try {
+    if (!fs.existsSync(CHAT_ROOM_INBOX_PATH)) return;
+    const content = fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8');
+
+    const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## Processed)/);
+    if (!pendingMatch) return;
+
+    const pendingLines = pendingMatch[1].split('\n').filter(l => l.startsWith('- ['));
+    if (pendingLines.length === 0) return;
+
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const processedEntries = pendingLines.map(l => `${l} → processed ${now}`);
+
+    const processedMatch = content.match(/## Processed\n([\s\S]*?)$/);
+    const existingProcessed = processedMatch?.[1]
+      ?.split('\n')
+      .filter(l => l.startsWith('- ['))
+      ?? [];
+
+    const allProcessed = [...processedEntries, ...existingProcessed].slice(0, 50);
+
+    const newContent = `## Pending\n\n## Processed\n${allProcessed.join('\n')}\n`;
+    fs.writeFileSync(CHAT_ROOM_INBOX_PATH, newContent, 'utf-8');
   } catch { /* fire-and-forget */ }
 }
 

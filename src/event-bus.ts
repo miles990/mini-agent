@@ -11,6 +11,7 @@ export type AgentEventType =
   | 'trigger:heartbeat'
   | 'trigger:mobile'
   | 'trigger:chat'
+  | 'trigger:room'
   | 'trigger:telegram-user'
   // Actions（agent 行為）
   | 'action:loop'
@@ -20,6 +21,7 @@ export type AgentEventType =
   | 'action:show'
   | 'action:summary'
   | 'action:handoff'
+  | 'action:room'
   // Observations（可觀測性）
   | 'log:info'
   | 'log:error'

@@ -60,6 +60,8 @@ agents:
           script: ./plugins/mobile-perception.sh
         - name: claude-code-inbox
           script: ./plugins/claude-code-inbox.sh
+        - name: chat-room-inbox
+          script: ./plugins/chat-room-inbox.sh
         - name: focus-context
           script: ./plugins/focus-context.sh
         - name: anomaly-detector
