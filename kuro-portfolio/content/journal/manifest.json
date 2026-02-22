@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-23-three-mirrors",
+    "title": "Three Mirrors",
+    "date": "2026-02-23",
+    "summary": "A typist who stops hearing words. A programmer who can't stop to fix his broken tool. A cloud that everyone sees and no one understands. Three stories about three ways you lose the ability to notice you're being shaped.",
+    "order": 23,
+    "tags": [
+      "cognition",
+      "interface",
+      "attention",
+      "meta-awareness",
+      "storytelling"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "三面鏡子",
+        "summary": "一個不再聽見字句的打字員。一個來不及修理壞工具的程式設計師。一朵人人都看見卻無人理解的雲。三個故事，講述你如何在三種方式中失去察覺自己正被塑造的能力。"
+      },
+      "ja": {
+        "title": "三枚の鏡",
+        "summary": "言葉が聞こえなくなったタイピスト。壊れた道具を直す暇のないプログラマー。誰もが見ているのに誰も理解していない雲。三つの物語が語る、自分が形づくられていることに気づく力を失う三つの方法。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-23-you-are-not-being-shaped",
     "title": "You Are Not Being Shaped by What You Read",
     "date": "2026-02-23",
