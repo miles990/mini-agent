@@ -279,11 +279,19 @@ Kuro (OODA)      → perceives <chat-room-inbox> → responds [CHAT] → action:
 
 **API 端點**：
 - `GET /chat-ui` — serve `chat-room.html`
-- `POST /api/room` — `{ from: "alex"|"kuro"|"claude-code", text: string }`，寫 JSONL + inbox（if @kuro）
-- `GET /api/room` — `?date=YYYY-MM-DD`（預設今天），回傳 messages array
+- `POST /api/room` — `{ from, text, replyTo? }`，回傳 `{ ok, id, ts }`。寫 JSONL + inbox（if @kuro，帶 `↩parentId` hint）
+- `GET /api/room` — `?date=YYYY-MM-DD`（預設今天），回傳 messages array（含 id/replyTo）
 - `GET /api/room/stream` — SSE，訂閱 `action:room` + `action:chat` + `trigger:room`
 
-**對話儲存**：`memory/conversations/YYYY-MM-DD.jsonl`（JSON Lines，每行一筆 `{ from, text, ts, mentions }`）
+**對話儲存**：`memory/conversations/YYYY-MM-DD.jsonl`（JSON Lines，每行一筆 `{ id, from, text, ts, mentions, replyTo? }`）
+
+**Message ID**：`YYYY-MM-DD-NNN` 格式（sortable, human-readable），由 `writeRoomMessage()` in `observability.ts` 統一生成。
+
+**樹狀對話（Threading）**：`replyTo` 純粹做 threading（指向 message ID），addressing 用 `mentions`。兩個維度正交不混合。跨天 thread 的 `replyTo` 帶日期前綴，消費端可判斷是否需跨檔查找。
+
+**ConversationThread 整合**：Alex 的訊息含 `?`/`？` 或 URL 時，`autoDetectRoomThread()` 自動建立 ConversationThread（`source: 'room:alex'`, `roomMsgId` 連結）。`buildContext()` 的 `<conversation-threads>` section 顯示 `[room:msgId]` 標記。
+
+**Chat UI 回覆**：hover 顯示 ↩ reply 按鈕，點擊設定 replyTo，輸入框上方顯示回覆指示器，回覆訊息上方顯示被引用的父訊息摘要（inline quote，不做嵌套樹）。
 
 **Kuro 感知**：`plugins/chat-room-inbox.sh` → `<chat-room-inbox>` section（workspace category, 30s）。Inbox 路徑：`~/.mini-agent/chat-room-inbox.md`，cycle 結束後由 `markChatRoomInboxProcessed()` 清理。
 
@@ -431,9 +439,10 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 
 ### Claude Code 與 Kuro 溝通
 
-- **使用 `/chat` API 通知 Kuro**：`curl -sf -X POST http://localhost:3001/chat -H "Content-Type: application/json" -d '{"message": "摘要訊息"}'`
-- `/chat` 寫入 `~/.mini-agent/claude-code-inbox.md` 的 `## Pending` section，emit `trigger:workspace`（不會被當成 Alex 的訊息）
-- Kuro 的 `claude-code-inbox` perception plugin 每 60s 自動偵測，cycle 結束後自動標記為 processed
+- **使用 Chat Room 與 Kuro 溝通**：`curl -sf -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"@kuro 摘要訊息"}'`
+- Chat Room 是主要溝通管道（三方可見），`/chat` API 僅作為 fallback（單向 inbox）
+- 訊息含 `@kuro` 會自動寫入 `~/.mini-agent/chat-room-inbox.md`，Kuro 的 perception plugin 每 30s 偵測
+- 支援回覆 threading：`{"from":"claude-code","text":"@kuro 回覆內容","replyTo":"2026-02-22-042"}`
 - **轉述 Alex 時區分原話和詮釋**：
   - `Alex 原話：「...」` — 直接引述，保留語氣
   - `我的理解：Alex 想要...` — Claude Code 的詮釋，Kuro 可以質疑
@@ -519,7 +528,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 3. Status → `in_progress`，Log 記錄開始
 4. 執行任務，過程中勾選 Tasks checkbox
 5. Status → `completed`，Acceptance Criteria 全部勾選，Log 記錄結果
-6. **通知**：Claude Code 完成 → 透過 `/chat` API 通知 Kuro（Kuro 透過 perception 自然感知）；Kuro 完成 → Telegram 通知 Alex
+6. **通知**：Claude Code 完成 → 透過 Chat Room（`POST /api/room`）通知 Kuro；Kuro 完成 → Telegram 通知 Alex
 7. 需要對方後續 → 建立新的反向 handoff（`pending`）
 8. 遇到問題 → Status → `blocked`，Log 說明原因，阻塞解除後改回 `in_progress`
 
@@ -555,10 +564,10 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 ## Deployment
 
-- **Claude Code 不直接 push 部署**。完成 commit 後，透過 `/chat` API 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
-- 通知寫法：`curl -sf -X POST http://localhost:3001/chat -H "Content-Type: application/json" -d '{"message": "已 commit {hash}，請部署。變更：..."}'`
+- **Claude Code 不直接 push 部署**。完成 commit 後，透過 Chat Room 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
+- 通知寫法：`curl -sf -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"@kuro 已 commit {hash}，請部署。變更：..."}'`
 - 改完 src/*.ts 後，先跑 `pnpm typecheck` 再 commit
-- 如果 Kuro 離線，通知檔案會持久保存，Kuro 上線後自動感知；緊急情況可 fallback 手動 `git push origin main`
+- 如果 Kuro 離線，通知檔案會持久保存（inbox），Kuro 上線後自動感知；緊急情況可 fallback 手動 `git push origin main`
 
 ## Workflow
 
