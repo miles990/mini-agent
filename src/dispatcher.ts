@@ -150,8 +150,12 @@ function getConversationHint(): string {
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  // Strip [ACTION] blocks before parsing — tags mentioned inside reports are descriptions, not instructions
-  const parseSource = response.replace(/\[ACTION\].*?\[\/ACTION\]/gs, '');
+  // Strip regions where tags are "mentioned" not "used" — prevents pollution
+  // Order: ACTION blocks > fenced code > inline code
+  const parseSource = response
+    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')  // ACTION reports describe tags, not invoke them
+    .replace(/```[\s\S]*?```/g, '')               // fenced code blocks (```...```)
+    .replace(/`[^`\n]+`/g, '');                   // inline code (`...`)
 
   const remembers: Array<{ content: string; topic?: string; ref?: string }> = [];
   if (parseSource.includes('[REMEMBER')) {
@@ -265,8 +269,11 @@ export function parseTags(response: string): ParsedTags {
     .trim();
 
   // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
-  // 先移除 [ACTION] 區塊內容，避免 tag 名稱被當作標籤文字（如 "- [CHAT] 已發送 ✅"）誤判
-  const responseForDetection = response.replace(/\[ACTION\].*?\[\/ACTION\]/gs, '');
+  // Reuse same stripping logic as parseSource to avoid false positives from mentioned tags
+  const responseForDetection = response
+    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`\n]+`/g, '');
   const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
