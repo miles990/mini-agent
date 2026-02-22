@@ -19,6 +19,7 @@ import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
+import type { ParsedTags } from './types.js';
 import { notifyTelegram, markInboxAllProcessed } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
@@ -794,7 +795,7 @@ export class AgentLoop {
       // didReplyToTelegram: true → 'replied', false → 'seen' (honest distinction)
       markInboxAllProcessed(didReplyToTelegram);
       markClaudeCodeInboxProcessed();
-      markChatRoomInboxProcessed();
+      markChatRoomInboxProcessed(response, tags, action);
 
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
       // (telegram-inbox is event-driven, won't refresh unless triggered)
@@ -1391,34 +1392,156 @@ const CHAT_ROOM_INBOX_PATH = path.join(
   'chat-room-inbox.md',
 );
 
+/** Extract key terms from a message for address matching */
+function extractKeyTerms(text: string): string[] {
+  // Remove @mentions and common noise
+  const cleaned = text
+    .replace(/@\w+/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[`*_[\](){}<>:;,.!?/\\|"'~+-]/g, ' ')
+    .toLowerCase();
+  const stopWords = new Set(['的', '了', '是', '在', '有', '和', '也', '不', '都', '就', '被',
+    'the', 'a', 'an', 'is', 'are', 'was', 'were', 'to', 'of', 'in', 'for', 'on', 'and', 'or',
+    'it', 'this', 'that', 'with', 'as', 'at', 'by', 'from', 'i', 'you', 'he', 'she', 'we', 'they']);
+  return cleaned.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w));
+}
+
+/** Check if Kuro's response addressed a particular inbox message (lenient — prefer false positives) */
+function isMessageAddressed(
+  sender: string, messageText: string,
+  response: string, chatTags: string[], action: string | null,
+): boolean {
+  const responseLower = response.toLowerCase();
+  const senderLower = sender.toLowerCase();
+  const terms = extractKeyTerms(messageText);
+
+  // 1. Has [CHAT] tags and response mentions sender or key terms
+  if (chatTags.length > 0) {
+    if (responseLower.includes(senderLower)) return true;
+    if (terms.some(t => responseLower.includes(t))) return true;
+  }
+
+  // 2. Response mentions both sender name and a key term
+  if (responseLower.includes(senderLower) && terms.some(t => responseLower.includes(t))) {
+    return true;
+  }
+
+  // 3. Action mentions a key term
+  if (action) {
+    const actionLower = action.toLowerCase();
+    if (terms.some(t => actionLower.includes(t))) return true;
+  }
+
+  // 4. Very short message (≤2 words after removing @mention) + any [CHAT] → addressed
+  const strippedWords = messageText.replace(/@\w+/g, '').trim().split(/\s+/).filter(Boolean);
+  if (strippedWords.length <= 2 && chatTags.length > 0) return true;
+
+  return false;
+}
+
+/** Truncate message to ≤60 chars summary */
+function summarizeMessage(text: string): string {
+  if (text.length <= 60) return text;
+  return text.slice(0, 57) + '...';
+}
+
 /**
- * Move all entries from ## Pending to ## Processed.
+ * Smart inbox processing: track addressed vs unaddressed messages.
+ * - Addressed pending → Processed (→ replied / → addressed)
+ * - Unaddressed pending → Unaddressed (summary only)
+ * - Previously unaddressed + now addressed → Processed
+ * - Previously unaddressed + 24h old → Processed (→ expired)
  * Trim processed to most recent 50 entries.
  * Fire-and-forget — errors silently ignored.
  */
-function markChatRoomInboxProcessed(): void {
+function markChatRoomInboxProcessed(response: string, tags: ParsedTags, action: string | null): void {
   try {
     if (!fs.existsSync(CHAT_ROOM_INBOX_PATH)) return;
     const content = fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8');
 
-    const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## Processed)/);
-    if (!pendingMatch) return;
+    const now = new Date();
+    const nowStr = now.toISOString().slice(0, 16).replace('T', ' ');
 
-    const pendingLines = pendingMatch[1].split('\n').filter(l => l.startsWith('- ['));
-    if (pendingLines.length === 0) return;
-
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-    const processedEntries = pendingLines.map(l => `${l} → processed ${now}`);
-
+    // Parse three sections
+    const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## (?:Unaddressed|Processed))/);
+    const unaddressedMatch = content.match(/## Unaddressed\n([\s\S]*?)(?=## Processed)/);
     const processedMatch = content.match(/## Processed\n([\s\S]*?)$/);
-    const existingProcessed = processedMatch?.[1]
-      ?.split('\n')
-      .filter(l => l.startsWith('- ['))
-      ?? [];
 
-    const allProcessed = [...processedEntries, ...existingProcessed].slice(0, 50);
+    const pendingLines = pendingMatch?.[1]?.split('\n').filter(l => l.startsWith('- [')) ?? [];
+    const unaddressedLines = unaddressedMatch?.[1]?.split('\n').filter(l => l.startsWith('- [')) ?? [];
+    const existingProcessed = processedMatch?.[1]?.split('\n').filter(l => l.startsWith('- [')) ?? [];
 
-    const newContent = `## Pending\n\n## Processed\n${allProcessed.join('\n')}\n`;
+    if (pendingLines.length === 0 && unaddressedLines.length === 0) return;
+
+    const newUnaddressed: string[] = [];
+    const newProcessed: string[] = [];
+
+    // Process pending messages
+    for (const line of pendingLines) {
+      // Parse: - [YYYY-MM-DD HH:MM] (sender) message text
+      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (.+)$/);
+      if (!match) {
+        // Unparseable → move to processed as-is
+        newProcessed.push(`${line} → processed ${nowStr}`);
+        continue;
+      }
+
+      const [, ts, sender, text] = match;
+      const addressed = isMessageAddressed(sender, text, response, tags.chats, action);
+
+      if (addressed) {
+        const suffix = tags.chats.length > 0 ? 'replied' : 'addressed';
+        newProcessed.push(`${line} → ${suffix} ${nowStr}`);
+      } else {
+        // Move to unaddressed with summary + unaddressed timestamp
+        const summary = summarizeMessage(text);
+        newUnaddressed.push(`- [${ts}|u:${nowStr}] (${sender}) ${summary}`);
+      }
+    }
+
+    // Process existing unaddressed messages
+    for (const line of unaddressedLines) {
+      // Parse: - [YYYY-MM-DD HH:MM|u:YYYY-MM-DD HH:MM] (sender) message text
+      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\|u:(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (.+)$/);
+      if (!match) {
+        // Unparseable → expire
+        newProcessed.push(`${line} → expired ${nowStr}`);
+        continue;
+      }
+
+      const [, originalTs, _uTs, sender, text] = match;
+
+      // Check if addressed this cycle
+      if (isMessageAddressed(sender, text, response, tags.chats, action)) {
+        const suffix = tags.chats.length > 0 ? 'replied' : 'addressed';
+        newProcessed.push(`- [${originalTs}] (${sender}) ${text} → ${suffix} ${nowStr}`);
+        continue;
+      }
+
+      // Check 24h expiry from original timestamp
+      const originalDate = new Date(originalTs.replace(' ', 'T') + ':00');
+      const ageMs = now.getTime() - originalDate.getTime();
+      if (ageMs > 24 * 60 * 60 * 1000) {
+        newProcessed.push(`- [${originalTs}] (${sender}) ${text} → expired ${nowStr}`);
+        continue;
+      }
+
+      // Keep as unaddressed
+      newUnaddressed.push(line);
+    }
+
+    const allProcessed = [...newProcessed, ...existingProcessed].slice(0, 50);
+
+    const newContent = [
+      '## Pending',
+      '',
+      '## Unaddressed',
+      ...newUnaddressed,
+      '',
+      '## Processed',
+      ...allProcessed,
+      '',
+    ].join('\n');
     fs.writeFileSync(CHAT_ROOM_INBOX_PATH, newContent, 'utf-8');
   } catch { /* fire-and-forget */ }
 }
