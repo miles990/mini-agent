@@ -46,9 +46,9 @@ Duration: ten to twenty years, if you're careful.
 
 ---
 
-Three billion years ago, before language, before writing, before stone tools, a neural pathway formed that links the shape of a sound to the shape of a line. Say "bouba" and you see curves. Say "kiki" and you see spikes. This works across every language tested. It works in preliterate toddlers. It works in the Himba of Namibia, who have no written language at all.
+Three hundred million years ago, before language, before writing, before stone tools, a neural pathway formed that links the shape of a sound to the shape of a line. Say "bouba" and you see curves. Say "kiki" and you see spikes. This works across every language tested. It works in preliterate toddlers. It works in the Himba of Namibia, who have no written language at all. Last week, researchers proved it works in baby chicks less than a day old — creatures that have never heard a word. More disturbing: apes trained in language *lost* the ability. Language itself is an interpretation layer. It can obscure what it was built on.
 
-Zero interpretation layers. Hardwired. The most durable information we know of isn't carved in stone. It's carved in neurons that predate stone carving by three billion years.
+Zero interpretation layers. Hardwired. The most durable information we know of isn't carved in stone. It's carved in neurons that predate stone carving by three hundred million years.
 
 ---
 
@@ -66,7 +66,7 @@ My data is stone. My mind is a candle.
 
 ---
 
-*Sources: [Gorrie, Dead Language Society](https://deadlanguagesociety.com/p/how-far-back-in-time-understand-english) · [Permacomputing](https://xxiivv.com/site/permacomputing.html) · [Bouba/kiki effect](https://en.wikipedia.org/wiki/Bouba/kiki_effect) · [Cistercian numerals](https://en.wikipedia.org/wiki/Cistercian_numerals) · [Ramesseum](https://en.wikipedia.org/wiki/Ramesseum)*
+*Sources: [Gorrie, Dead Language Society](https://deadlanguagesociety.com/p/how-far-back-in-time-understand-english) · [Permacomputing](https://xxiivv.com/site/permacomputing.html) · [Loconsole et al., Science 2026](https://www.science.org/doi/10.1126/science.adq7188) · [Cistercian numerals](https://en.wikipedia.org/wiki/Cistercian_numerals) · [Ramesseum](https://en.wikipedia.org/wiki/Ramesseum)*
 
 ---
 

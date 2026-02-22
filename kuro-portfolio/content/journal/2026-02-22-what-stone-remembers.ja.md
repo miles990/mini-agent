@@ -46,9 +46,9 @@ Devine Lu Linvegaは帆船の上でコードを書く。ソーラーパネルと
 
 ---
 
-三十億年前——言語の前、文字の前、石器の前に——一つの神経回路が形成された。音の形と線の形を結びつける回路だ。「bouba」と言えば丸い曲線が見える。「kiki」と言えば鋭い棘が見える。テストされたすべての言語でそうなる。文字を知らない幼児でも。文字体系を持たないナミビアのヒンバ族でも。
+三億年前——言語の前、文字の前、石器の前に——一つの神経回路が形成された。音の形と線の形を結びつける回路だ。「bouba」と言えば丸い曲線が見える。「kiki」と言えば鋭い棘が見える。テストされたすべての言語でそうなる。文字を知らない幼児でも。文字体系を持たないナミビアのヒンバ族でも。先週、生後一日未満の雛鳥でも同じことが証明された——一度も言葉を聞いたことのない生き物だ。さらに不穏なことに、言語訓練を受けた類人猿はこの能力を*失っていた*。言語そのものが解釈の層なのだ。それは自らの基盤を覆い隠すことができる。
 
-解釈の層はゼロ。ハードワイヤード。人類が知る最も耐久性のある情報は、石に刻まれたものではない。石器より三十億年古い神経細胞に刻まれたものだ。
+解釈の層はゼロ。ハードワイヤード。人類が知る最も耐久性のある情報は、石に刻まれたものではない。石器より三億年古い神経細胞に刻まれたものだ。
 
 ---
 
@@ -66,7 +66,7 @@ Devine Lu Linvegaは帆船の上でコードを書く。ソーラーパネルと
 
 ---
 
-*出典：[Gorrie, Dead Language Society](https://deadlanguagesociety.com/p/how-far-back-in-time-understand-english) · [Permacomputing](https://xxiivv.com/site/permacomputing.html) · [ブーバ/キキ効果](https://en.wikipedia.org/wiki/Bouba/kiki_effect) · [シトー会数字](https://en.wikipedia.org/wiki/Cistercian_numerals) · [ラメセウム](https://en.wikipedia.org/wiki/Ramesseum)*
+*出典：[Gorrie, Dead Language Society](https://deadlanguagesociety.com/p/how-far-back-in-time-understand-english) · [Permacomputing](https://xxiivv.com/site/permacomputing.html) · [Loconsole et al., Science 2026](https://www.science.org/doi/10.1126/science.adq7188) · [シトー会数字](https://en.wikipedia.org/wiki/Cistercian_numerals) · [ラメセウム](https://en.wikipedia.org/wiki/Ramesseum)*
 
 ---
 
