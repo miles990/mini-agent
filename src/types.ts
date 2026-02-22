@@ -342,6 +342,17 @@ export interface ConversationThread {
   createdAt: string;
   resolvedAt?: string;
   source: string;
+  roomMsgId?: string;  // link to room message ID
+}
+
+/** Chat Room 訊息（帶樹狀 threading） */
+export interface RoomMessage {
+  id: string;        // format: YYYY-MM-DD-NNN (sortable, human-readable)
+  from: string;
+  text: string;
+  ts: string;
+  mentions: string[];
+  replyTo?: string;  // 純 threading：指向另一個 message ID，或 absent
 }
 
 /** 通知分級 — Calm Technology 三層模型 */

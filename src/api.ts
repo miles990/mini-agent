@@ -46,7 +46,7 @@ import {
 } from './workspace.js';
 import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
-import { initObservability } from './observability.js';
+import { initObservability, writeRoomMessage } from './observability.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -357,6 +357,26 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
     full,
     observabilityScore,
   };
+}
+
+// =============================================================================
+// Auto-detect ConversationThread from Room messages (Alex only, conservative)
+// =============================================================================
+
+async function autoDetectRoomThread(msgId: string, text: string): Promise<void> {
+  const memory = getMemory();
+  const hasQuestion = /[?？]/.test(text);
+  const hasUrl = /https?:\/\/[^\s]+/.test(text);
+
+  if (!hasQuestion && !hasUrl) return;
+
+  const type = hasQuestion ? 'question' : 'share';
+  await memory.addConversationThread({
+    type,
+    content: text.slice(0, 200),
+    source: 'room:alex',
+    roomMsgId: msgId,
+  });
 }
 
 export function createApi(port = 3001): express.Express {
@@ -1577,7 +1597,7 @@ export function createApi(port = 3001): express.Express {
 
   // POST /api/room — send a message to chat room
   app.post('/api/room', async (req: Request, res: Response) => {
-    const { from, text } = req.body;
+    const { from, text, replyTo } = req.body;
 
     if (!from || !text || typeof from !== 'string' || typeof text !== 'string') {
       res.status(400).json({ error: 'from and text are required' });
@@ -1591,31 +1611,23 @@ export function createApi(port = 3001): express.Express {
     }
 
     try {
+      // Write message via writeRoomMessage (generates ID, writes JSONL, emits action:room)
+      const id = await writeRoomMessage(from, text, replyTo as string | undefined);
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10);
       const timestamp = now.toISOString();
 
-      // Parse mentions
-      const mentions = [];
+      // Parse mentions for inbox logic
+      const mentions: string[] = [];
       if (text.includes('@kuro')) mentions.push('kuro');
       if (text.includes('@claude')) mentions.push('claude-code');
       if (text.includes('@alex')) mentions.push('alex');
-
-      const entry = { from, text, ts: timestamp, mentions };
-
-      // Write to conversation JSONL
-      const convDir = path.join(process.cwd(), 'memory', 'conversations');
-      if (!fs.existsSync(convDir)) {
-        await fsPromises.mkdir(convDir, { recursive: true });
-      }
-      const convPath = path.join(convDir, `${dateStr}.jsonl`);
-      await fsPromises.appendFile(convPath, JSON.stringify(entry) + '\n');
 
       // If not from kuro and mentions kuro (or no mention) → write to inbox
       if (from !== 'kuro' && (mentions.includes('kuro') || mentions.length === 0)) {
         const inboxPath = path.join(os.homedir(), '.mini-agent', 'chat-room-inbox.md');
         const localTime = now.toLocaleString('sv-SE', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).slice(0, 16);
-        const inboxEntry = `- [${localTime}] (${from}) ${text}`;
+        const replyHint = replyTo ? ` ↩${replyTo}` : '';
+        const inboxEntry = `- [${localTime}] (${from})${replyHint} ${text}`;
 
         let content = '';
         try { content = await fsPromises.readFile(inboxPath, 'utf-8'); } catch { /* file doesn't exist */ }
@@ -1629,11 +1641,13 @@ export function createApi(port = 3001): express.Express {
         eventBus.emit('trigger:room', { source: 'room-api', from });
       }
 
-      // Broadcast to SSE listeners
-      eventBus.emit('action:room', { from, text, ts: timestamp, mentions });
+      // Auto-detect conversation threads (only for Alex's messages) — fire-and-forget
+      if (from === 'alex') {
+        autoDetectRoomThread(id, text).catch(() => {});
+      }
 
-      slog('ROOM', `${from}: ${text.slice(0, 80)}`);
-      res.status(201).json({ ok: true, ts: timestamp });
+      slog('ROOM', `[${id}] ${from}: ${text.slice(0, 80)}`);
+      res.status(201).json({ ok: true, id, ts: timestamp });
     } catch (error) {
       slog('ERROR', `Room post failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({ error: 'Failed to post message' });

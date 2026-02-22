@@ -1438,7 +1438,8 @@ export class InstanceMemory {
     if (activeConvThreads.length > 0) {
       const threadLines = activeConvThreads.map(t => {
         const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
-        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}")`;
+        const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
+        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
       });
       sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }

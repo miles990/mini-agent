@@ -136,7 +136,7 @@ function handleChatEvent(e: AgentEvent): void {
   slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
 
-  // Bridge to Chat Room — fire-and-forget
+  // Bridge to Chat Room — fire-and-forget (no replyTo for Kuro's direct chats)
   writeRoomMessage('kuro', text).catch(() => {});
 }
 
@@ -202,19 +202,36 @@ function handleLogInfo(e: AgentEvent): void {
 // writeRoomMessage — fire-and-forget 寫入 conversation JSONL + emit action:room
 // =============================================================================
 
-export async function writeRoomMessage(from: string, text: string): Promise<void> {
+export async function writeRoomMessage(from: string, text: string, replyTo?: string): Promise<string> {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
-  const entry = { from, text, ts: now.toISOString(), mentions: [] as string[] };
 
   const convDir = path.join(process.cwd(), 'memory', 'conversations');
   if (!fs.existsSync(convDir)) {
     await fsPromises.mkdir(convDir, { recursive: true });
   }
-  await fsPromises.appendFile(
-    path.join(convDir, `${dateStr}.jsonl`),
-    JSON.stringify(entry) + '\n',
-  );
 
-  eventBus.emit('action:room', { from, text, ts: now.toISOString(), mentions: [] });
+  // Generate date-based ID: YYYY-MM-DD-NNN
+  const convPath = path.join(convDir, `${dateStr}.jsonl`);
+  let lineCount = 0;
+  try {
+    const raw = await fsPromises.readFile(convPath, 'utf-8');
+    lineCount = raw.split('\n').filter(Boolean).length;
+  } catch { /* file doesn't exist yet */ }
+  const id = `${dateStr}-${String(lineCount + 1).padStart(3, '0')}`;
+
+  // Parse mentions
+  const mentions: string[] = [];
+  if (text.includes('@kuro')) mentions.push('kuro');
+  if (text.includes('@claude')) mentions.push('claude-code');
+  if (text.includes('@alex')) mentions.push('alex');
+
+  const entry: Record<string, unknown> = { id, from, text, ts: now.toISOString(), mentions };
+  if (replyTo) entry.replyTo = replyTo;
+
+  await fsPromises.appendFile(convPath, JSON.stringify(entry) + '\n');
+
+  eventBus.emit('action:room', { id, from, text, ts: now.toISOString(), mentions, ...(replyTo ? { replyTo } : {}) });
+
+  return id;
 }

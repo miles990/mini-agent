@@ -386,6 +386,75 @@
   .send-btn:active { transform: scale(0.97); }
   .send-btn.ready { color: var(--kuro); border-color: var(--kuro); }
 
+  /* === Reply UI === */
+  .msg { position: relative; }
+
+  .msg .reply-btn {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--fg-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 5px;
+    border-radius: 2px;
+  }
+  .msg:hover .reply-btn { opacity: 1; }
+  .msg .reply-btn:hover { color: var(--fg-dim); background: rgba(255,255,255,0.05); }
+
+  .msg-quote {
+    font-size: 0.75rem;
+    color: var(--fg-dim);
+    border-left: 2px solid var(--fg-muted);
+    padding: 2px 8px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+    cursor: pointer;
+    max-height: 2.4em;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .msg-quote:hover { opacity: 1; }
+
+  .msg-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--fg-muted);
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-left: 4px;
+  }
+  .msg:hover .msg-id { opacity: 1; }
+
+  .reply-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--fg-dim);
+  }
+  .reply-indicator .reply-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reply-indicator .reply-cancel {
+    background: none;
+    border: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 4px;
+  }
+  .reply-indicator .reply-cancel:hover { color: var(--fg); }
+
   .hidden { display: none !important; }
 
   /* Mobile adjustments */
@@ -429,6 +498,11 @@
   </div>
 </div>
 
+<div class="reply-indicator hidden" id="replyIndicator">
+  <span>↩</span>
+  <span class="reply-text" id="replyText"></span>
+  <button class="reply-cancel" onclick="cancelReply()">✕</button>
+</div>
 <div class="input-area">
   <select class="identity-select" id="identity">
     <option value="alex">alex</option>
@@ -449,7 +523,9 @@
   let eventSource = null;
   let connected = false;
   let thinking = false;
+  let replyingTo = null;  // { id, from, text }
   const seenTs = new Set();
+  const messagesById = new Map();  // id → { from, text, ts }
 
   // === DOM ===
   const $messages = document.getElementById('messages');
@@ -460,6 +536,8 @@
   const $emptyState = document.getElementById('emptyState');
   const $setupPanel = document.getElementById('setupPanel');
   const $setupToggle = document.getElementById('setupToggle');
+  const $replyIndicator = document.getElementById('replyIndicator');
+  const $replyText = document.getElementById('replyText');
 
   // === Init ===
   const saved = localStorage.getItem('chat-room-config');
@@ -585,19 +663,45 @@
     if (seenTs.has(key)) return;
     seenTs.add(key);
 
+    // Track message by ID for reply lookups
+    if (msg.id) messagesById.set(msg.id, { from: msg.from, text: msg.text, ts: msg.ts });
+
     $emptyState?.remove();
 
     const el = document.createElement('div');
     el.className = `msg ${msg.from}`;
+    if (msg.id) el.setAttribute('data-msg-id', msg.id);
     if (!animate) el.style.animation = 'none';
 
     const time = msg.ts ? new Date(msg.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
     const displayName = msg.from === 'claude-code' ? 'claude-code' : msg.from;
 
+    // Build inline quote for replies
+    let quoteHtml = '';
+    if (msg.replyTo) {
+      const parent = messagesById.get(msg.replyTo);
+      if (parent) {
+        quoteHtml = `<div class="msg-quote" onclick="scrollToMsg('${esc(msg.replyTo)}')">${esc(parent.from)}: ${esc(parent.text.slice(0, 100))}</div>`;
+      } else {
+        quoteHtml = `<div class="msg-quote">↩ ${esc(msg.replyTo)}</div>`;
+      }
+    }
+
+    // Build ID badge
+    const idHtml = msg.id ? `<span class="msg-id">${esc(msg.id)}</span>` : '';
+
+    // Reply button
+    const replyBtnHtml = msg.id
+      ? `<button class="reply-btn" onclick="setReply('${esc(msg.id)}')">↩</button>`
+      : '';
+
     el.innerHTML = `
+      ${replyBtnHtml}
+      ${quoteHtml}
       <div class="msg-header">
         <span class="msg-sender">${esc(displayName)}</span>
         <span class="msg-time">${esc(time)}</span>
+        ${idHtml}
       </div>
       <div class="msg-text">${formatText(msg.text)}</div>
     `;
@@ -637,10 +741,13 @@
     if (!text || !connected) return;
 
     const from = document.getElementById('identity').value;
+    const body = { from, text };
+    if (replyingTo) body.replyTo = replyingTo.id;
 
     $input.value = '';
     $input.style.height = 'auto';
     $sendBtn.classList.remove('ready');
+    cancelReply();
 
     try {
       const res = await fetch(`${baseUrl}/api/room`, {
@@ -649,7 +756,7 @@
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
         },
-        body: JSON.stringify({ from, text }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -660,6 +767,30 @@
     }
 
     $input.focus();
+  };
+
+  window.setReply = function(msgId) {
+    const msg = messagesById.get(msgId);
+    if (!msg) return;
+    replyingTo = { id: msgId, from: msg.from, text: msg.text };
+    $replyText.textContent = `${msg.from}: ${msg.text.slice(0, 80)}`;
+    $replyIndicator.classList.remove('hidden');
+    $input.focus();
+  };
+
+  window.cancelReply = function() {
+    replyingTo = null;
+    $replyIndicator.classList.add('hidden');
+    $replyText.textContent = '';
+  };
+
+  window.scrollToMsg = function(msgId) {
+    const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '1px solid var(--fg-muted)';
+      setTimeout(() => { el.style.outline = ''; }, 1500);
+    }
   };
 
   // === Helpers ===
