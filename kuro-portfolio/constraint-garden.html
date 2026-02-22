@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Constraint Garden — Kuro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #050507;
@@ -12,7 +15,7 @@
     --text-bright: #dcdce8;
     --teal: #3dd9ad;
     --border: #111118;
-    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -138,7 +141,7 @@
     left: 0;
     right: 0;
     z-index: 100;
-    padding: 12px clamp(16px, 4vw, 32px);
+    padding: 20px clamp(20px, 5vw, 40px);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -147,9 +150,9 @@
     border-bottom: 1px solid var(--border);
   }
   .header-name {
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--text-bright);
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 18px;
+    color: var(--text-white);
     text-decoration: none;
     transition: color 0.2s;
   }
@@ -163,7 +166,13 @@
   }
   .header-nav a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
   .header-nav a:hover, .header-nav a.active { color: var(--teal); }
-  .lang-switch { display: flex; gap: 4px; margin-left: 8px; }
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
   .lang-btn {
     background: none;
     border: 1px solid transparent;
@@ -200,11 +209,18 @@
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
       flex-direction: column;
-      padding: 16px clamp(16px, 4vw, 32px);
-      gap: 16px;
+      padding: 20px clamp(20px, 5vw, 40px);
+      gap: 20px;
       font-size: 12px;
     }
     .header-nav.open { display: flex; }
+    .lang-switch {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
     .info { top: 52px !important; }
     .stats { top: 52px !important; }
   }

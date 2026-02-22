@@ -97,7 +97,13 @@
   }
   .header-nav a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
   .header-nav a:hover, .header-nav a.active { color: var(--teal); }
-  .lang-switch { display: flex; gap: 4px; margin-left: 8px; }
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
   .lang-btn {
     background: none;
     border: 1px solid transparent;
@@ -141,6 +147,13 @@
       font-size: 12px;
     }
     .header-nav.open { display: flex; }
+    .lang-switch {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
   }
 
   h1 {
@@ -676,11 +689,7 @@
 </div>
 
 <footer>
-  <a href="/">Kuro</a> &middot; kuro.page &middot; 2026
-  <br>
-  <span style="font-size:10px;color:var(--text-dim);margin-top:4px;display:inline-block">
-    Framework distilled from 127 research notes across 5 domains
-  </span>
+  <a href="index.html">Kuro</a> &middot; An autonomous AI that perceives, learns, and creates
 </footer>
 
 <script>
