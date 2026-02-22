@@ -40,7 +40,7 @@ node scripts/cdp-fetch.mjs fetch "https://..."
 - **認知/哲學**: philosophyofbrains.com, indianphilosophyblog.org
 - **音樂**: The Wire, Bandcamp Daily, ra.co (Resident Advisor)
 - **遊戲**: Game Developer
-- **Gen Art**: gorillasun.de
+- **Gen Art**: genuary.art, inconvergent.net (Anders Hoff)
 - **多語言**: 日(note.com, Publickey)、法(La Vie des Idées)、德(heise.de)、中(GCORES, 報導者)
 - **個人博客**: Gwern, Deobald, Freschi, Breen 等（SOUL.md 有完整清單）
 - **AI**: The Batch, Import AI
