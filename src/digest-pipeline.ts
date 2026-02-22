@@ -247,7 +247,7 @@ Reply with ONLY the indices as comma-separated numbers (e.g. "3,7,12,21,45"). No
 // =============================================================================
 
 /** Use Sonnet for deep summaries + cross-paper analysis */
-export async function summarizePapers(papers: Paper[]): Promise<DigestResult> {
+export async function summarizePapers(papers: Paper[], lang: 'en' | 'zh' = 'en'): Promise<DigestResult> {
   const today = new Date().toISOString().slice(0, 10);
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -279,7 +279,7 @@ URL: ${p.url}`
       messages: [{
         role: 'user',
         content: `You are an AI research analyst. Summarize these ${papers.length} papers for a technical audience.
-
+${lang === 'zh' ? '\nIMPORTANT: Write ALL text (tldr, keyInsights, whyItMatters, todaysSignal) in Traditional Chinese (繁體中文). Keep paper titles, author names, and technical terms in English.\n' : ''}
 For EACH paper, provide:
 1. TL;DR (one sentence, what they did and found)
 2. Key Insights (2-3 bullet points)
@@ -355,8 +355,10 @@ ${paperDetails}`,
 // =============================================================================
 
 /** Format digest as Telegram-friendly Markdown */
-export function formatDigest(digest: DigestResult): string {
-  const header = `🔬 *AI Research Digest — ${digest.date}*\n`;
+export function formatDigest(digest: DigestResult, lang: 'en' | 'zh' = 'en'): string {
+  const header = lang === 'zh'
+    ? `🔬 *AI 研究摘要 — ${digest.date}*\n`
+    : `🔬 *AI Research Digest — ${digest.date}*\n`;
 
   const paperSections = digest.papers.map((s, i) => {
     const insights = s.keyInsights.map(k => `  • ${k}`).join('\n');
@@ -369,7 +371,8 @@ ${insights}
 🔗 ${s.paper.url}`;
   }).join('\n\n---\n\n');
 
-  const signal = `\n\n📡 *Today's Signal*\n${escapeMd(digest.todaysSignal)}`;
+  const signalLabel = lang === 'zh' ? '今日趨勢' : "Today's Signal";
+  const signal = `\n\n📡 *${signalLabel}*\n${escapeMd(digest.todaysSignal)}`;
 
   return header + '\n' + paperSections + signal;
 }
@@ -385,8 +388,8 @@ function escapeMd(text: string): string {
 // =============================================================================
 
 /** Run the complete daily digest pipeline */
-export async function runDailyDigest(): Promise<DigestResult> {
-  slog('DIGEST', '=== Starting daily digest pipeline ===');
+export async function runDailyDigest(lang: 'en' | 'zh' = 'en'): Promise<DigestResult> {
+  slog('DIGEST', `=== Starting daily digest pipeline (lang=${lang}) ===`);
 
   const papers = await fetchPapers();
   if (papers.length === 0) {
@@ -395,7 +398,7 @@ export async function runDailyDigest(): Promise<DigestResult> {
   }
 
   const filtered = await filterPapers(papers, 5);
-  const digest = await summarizePapers(filtered);
+  const digest = await summarizePapers(filtered, lang);
 
   slog('DIGEST', `=== Digest complete: ${digest.papers.length} papers ===`);
   return digest;

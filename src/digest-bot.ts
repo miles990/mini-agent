@@ -30,6 +30,7 @@ interface Subscriber {
   username?: string;
   subscribedAt: string;
   topics?: string[];
+  lang?: 'en' | 'zh';
 }
 
 interface SubscriberStore {
@@ -42,7 +43,7 @@ interface TelegramUpdate {
     message_id: number;
     chat: { id: number; type: string; first_name?: string; username?: string };
     text?: string;
-    from?: { id: number; username?: string; first_name?: string };
+    from?: { id: number; username?: string; first_name?: string; language_code?: string };
     date: number;
   };
 }
@@ -157,96 +158,155 @@ export class DigestBot {
     const username = msg.from?.username ?? msg.chat.first_name ?? 'unknown';
 
     if (text === '/start') {
-      await this.handleStart(chatId, username);
+      await this.handleStart(chatId, username, msg.from?.language_code);
     } else if (text === '/topics') {
       await this.handleTopics(chatId);
     } else if (text === '/digest') {
       await this.handleManualDigest(chatId);
     } else if (text === '/unsubscribe') {
       await this.handleUnsubscribe(chatId);
+    } else if (text === '/lang') {
+      await this.handleLang(chatId);
     } else if (text === '/help') {
-      await this.sendMessage(chatId,
-        '🔬 *AI Research Digest Bot*\n\n' +
-        '/start — Subscribe to daily AI paper digest\n' +
-        '/digest — Get today\'s digest now\n' +
-        '/unsubscribe — Stop receiving digests\n' +
-        '/help — Show this help',
-      );
+      const lang = this.getUserLang(chatId);
+      const helpText = lang === 'zh'
+        ? '🔬 *AI 研究摘要 Bot*\n\n' +
+          '/start — 訂閱每日 AI 論文摘要\n' +
+          '/digest — 立即取得今天的摘要\n' +
+          '/lang — 切換語言（EN ↔ 中文）\n' +
+          '/unsubscribe — 取消訂閱\n' +
+          '/help — 顯示說明'
+        : '🔬 *AI Research Digest Bot*\n\n' +
+          '/start — Subscribe to daily AI paper digest\n' +
+          '/digest — Get today\'s digest now\n' +
+          '/lang — Switch language (EN ↔ 中文)\n' +
+          '/unsubscribe — Stop receiving digests\n' +
+          '/help — Show this help';
+      await this.sendMessage(chatId, helpText);
     }
   }
 
-  private async handleStart(chatId: number, username: string): Promise<void> {
+  private async handleStart(chatId: number, username: string, languageCode?: string): Promise<void> {
     const store = this.loadSubscribers();
     const existing = store.subscribers.find(s => s.chatId === chatId);
 
     if (existing) {
-      await this.sendMessage(chatId, '✅ You\'re already subscribed! You\'ll receive daily AI paper digests at 8am.');
+      const lang = existing.lang ?? 'en';
+      const msg = lang === 'zh'
+        ? '✅ 你已經訂閱了！每天早上 8 點會收到 AI 論文摘要。'
+        : '✅ You\'re already subscribed! You\'ll receive daily AI paper digests at 8am.';
+      await this.sendMessage(chatId, msg);
       return;
     }
+
+    const lang: 'en' | 'zh' = languageCode?.startsWith('zh') ? 'zh' : 'en';
 
     store.subscribers.push({
       chatId,
       username,
       subscribedAt: new Date().toISOString(),
+      lang,
     });
     this.saveSubscribers(store);
 
-    slog('DIGEST-BOT', `New subscriber: ${username} (${chatId}), total: ${store.subscribers.length}`);
+    slog('DIGEST-BOT', `New subscriber: ${username} (${chatId}), lang: ${lang}, total: ${store.subscribers.length}`);
 
-    await this.sendMessage(chatId,
-      '🎉 *Subscribed to AI Research Digest!*\n\n' +
-      'You\'ll receive a daily summary of the top 5 AI papers at 8am.\n\n' +
-      'Use /digest to get today\'s digest right now.',
-    );
+    const msg = lang === 'zh'
+      ? '🎉 *已訂閱 AI 研究摘要！*\n\n' +
+        '每天早上 8 點會收到 5 篇最重要 AI 論文的摘要。\n\n' +
+        '使用 /digest 立即取得今天的摘要。\n' +
+        '使用 /lang 切換語言。'
+      : '🎉 *Subscribed to AI Research Digest!*\n\n' +
+        'You\'ll receive a daily summary of the top 5 AI papers at 8am.\n\n' +
+        'Use /digest to get today\'s digest right now.\n' +
+        'Use /lang to switch language.';
+    await this.sendMessage(chatId, msg);
   }
 
   private async handleTopics(chatId: number): Promise<void> {
-    await this.sendMessage(chatId,
-      '📚 *Topic filtering coming soon!*\n\n' +
-      'Currently covering: cs.AI, cs.LG, cs.CL\n' +
-      'Topic customization will be available in a future update.',
-    );
+    const lang = this.getUserLang(chatId);
+    const msg = lang === 'zh'
+      ? '📚 *主題篩選即將推出！*\n\n' +
+        '目前涵蓋：cs.AI、cs.LG、cs.CL\n' +
+        '主題自訂功能將在未來更新中提供。'
+      : '📚 *Topic filtering coming soon!*\n\n' +
+        'Currently covering: cs.AI, cs.LG, cs.CL\n' +
+        'Topic customization will be available in a future update.';
+    await this.sendMessage(chatId, msg);
   }
 
   private async handleManualDigest(chatId: number): Promise<void> {
+    const lang = this.getUserLang(chatId);
+
     if (this.digestRunning) {
-      await this.sendMessage(chatId, '⏳ A digest is already being generated. Please wait...');
+      await this.sendMessage(chatId, lang === 'zh' ? '⏳ 摘要正在產生中，請稍候...' : '⏳ A digest is already being generated. Please wait...');
       return;
     }
 
     this.digestRunning = true;
-    await this.sendMessage(chatId, '🔄 Generating today\'s digest... (this takes ~30 seconds)');
+    await this.sendMessage(chatId, lang === 'zh' ? '🔄 正在產生今天的摘要...（大約需要 30 秒）' : '🔄 Generating today\'s digest... (this takes ~30 seconds)');
 
     try {
-      const digest = await runDailyDigest();
+      const digest = await runDailyDigest(lang);
       if (digest.papers.length === 0) {
-        await this.sendMessage(chatId, '😅 No papers available right now. Try again later.');
+        await this.sendMessage(chatId, lang === 'zh' ? '😅 目前沒有可用的論文，請稍後再試。' : '😅 No papers available right now. Try again later.');
         return;
       }
 
-      const formatted = formatDigest(digest);
+      const formatted = formatDigest(digest, lang);
       await this.sendLongMessage(chatId, formatted);
     } catch (err) {
       slog('DIGEST-BOT', `Manual digest failed: ${err instanceof Error ? err.message : err}`);
-      await this.sendMessage(chatId, '❌ Failed to generate digest. Please try again later.');
+      await this.sendMessage(chatId, lang === 'zh' ? '❌ 摘要產生失敗，請稍後再試。' : '❌ Failed to generate digest. Please try again later.');
     } finally {
       this.digestRunning = false;
     }
   }
 
   private async handleUnsubscribe(chatId: number): Promise<void> {
+    const lang = this.getUserLang(chatId);
     const store = this.loadSubscribers();
     const before = store.subscribers.length;
     store.subscribers = store.subscribers.filter(s => s.chatId !== chatId);
 
     if (store.subscribers.length === before) {
-      await this.sendMessage(chatId, 'You\'re not subscribed.');
+      await this.sendMessage(chatId, lang === 'zh' ? '你尚未訂閱。' : 'You\'re not subscribed.');
       return;
     }
 
     this.saveSubscribers(store);
     slog('DIGEST-BOT', `Unsubscribed: ${chatId}, remaining: ${store.subscribers.length}`);
-    await this.sendMessage(chatId, '👋 Unsubscribed. You won\'t receive daily digests anymore.\nUse /start to re-subscribe anytime.');
+    const msg = lang === 'zh'
+      ? '👋 已取消訂閱。你不會再收到每日摘要了。\n使用 /start 可以隨時重新訂閱。'
+      : '👋 Unsubscribed. You won\'t receive daily digests anymore.\nUse /start to re-subscribe anytime.';
+    await this.sendMessage(chatId, msg);
+  }
+
+  private async handleLang(chatId: number): Promise<void> {
+    const store = this.loadSubscribers();
+    const sub = store.subscribers.find(s => s.chatId === chatId);
+
+    if (!sub) {
+      await this.sendMessage(chatId, 'Please /start first.\n請先 /start 訂閱。');
+      return;
+    }
+
+    const newLang: 'en' | 'zh' = (sub.lang ?? 'en') === 'en' ? 'zh' : 'en';
+    sub.lang = newLang;
+    this.saveSubscribers(store);
+
+    slog('DIGEST-BOT', `Language switched: ${chatId} → ${newLang}`);
+
+    const msg = newLang === 'zh'
+      ? '🌐 語言已切換為 *中文*。\n你的摘要將以繁體中文顯示。'
+      : '🌐 Language switched to *English*.\nYour digests will be in English.';
+    await this.sendMessage(chatId, msg);
+  }
+
+  private getUserLang(chatId: number): 'en' | 'zh' {
+    const store = this.loadSubscribers();
+    const sub = store.subscribers.find(s => s.chatId === chatId);
+    return sub?.lang ?? 'en';
   }
 
   // ---------------------------------------------------------------------------
@@ -265,25 +325,38 @@ export class DigestBot {
     let failed = 0;
 
     try {
-      const digest = await runDailyDigest();
-      if (digest.papers.length === 0) {
-        slog('DIGEST-BOT', 'Broadcast skipped — no papers');
+      const store = this.loadSubscribers();
+      if (store.subscribers.length === 0) {
+        slog('DIGEST-BOT', 'Broadcast skipped — no subscribers');
         return { sent: 0, failed: 0 };
       }
 
-      const formatted = formatDigest(digest);
-      const store = this.loadSubscribers();
-
+      // Group subscribers by language
+      const byLang = new Map<'en' | 'zh', Subscriber[]>();
       for (const sub of store.subscribers) {
-        try {
-          await this.sendLongMessage(sub.chatId, formatted);
-          sent++;
-        } catch (err) {
-          slog('DIGEST-BOT', `Failed to send to ${sub.chatId}: ${err instanceof Error ? err.message : err}`);
-          failed++;
+        const lang = sub.lang ?? 'en';
+        if (!byLang.has(lang)) byLang.set(lang, []);
+        byLang.get(lang)!.push(sub);
+      }
+
+      for (const [lang, subs] of byLang) {
+        const digest = await runDailyDigest(lang);
+        if (digest.papers.length === 0) {
+          slog('DIGEST-BOT', `Broadcast skipped for ${lang} — no papers`);
+          continue;
         }
-        // Small delay between sends to avoid rate limiting
-        await sleep(100);
+
+        const formatted = formatDigest(digest, lang);
+        for (const sub of subs) {
+          try {
+            await this.sendLongMessage(sub.chatId, formatted);
+            sent++;
+          } catch (err) {
+            slog('DIGEST-BOT', `Failed to send to ${sub.chatId}: ${err instanceof Error ? err.message : err}`);
+            failed++;
+          }
+          await sleep(100);
+        }
       }
 
       slog('DIGEST-BOT', `Broadcast complete: ${sent} sent, ${failed} failed`);
