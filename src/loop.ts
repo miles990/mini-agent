@@ -32,7 +32,8 @@ import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { triageNextItems, extractNextItems } from './triage.js';
+import { triageNextItems, extractNextItems, triageCycleIntent } from './triage.js';
+import type { CycleIntentResult } from './triage.js';
 import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
 
@@ -525,8 +526,11 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
-      // Triage NEXT.md items (Sonnet 4.6, fire-and-forget on failure)
-      await triageNextItems().catch(() => {});
+      // Triage: NEXT.md items (Sonnet) + cycle intent (Haiku), run in parallel
+      const [, cycleIntent] = await Promise.all([
+        triageNextItems().catch(() => {}),
+        triageCycleIntent(context.slice(0, 2000), currentTriggerReason).catch(() => null) as Promise<CycleIntentResult | null>,
+      ]);
 
       // Priority prefix: 強制先處理 NEXT.md pending items
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
@@ -543,7 +547,12 @@ export class AgentLoop {
         ? `⚠️ PRIORITY: 你有 ${nextPendingItems.length} 個未處理的待辦事項在 NEXT.md。先檢查 <next> section，處理 Alex 的問題。\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT]，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆，禁止直接用 Write tool 改 NEXT.md 來偽裝已回覆。處理完待辦才做自主行動。\n\n`
         : '';
 
-      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+      // Inject triage intent hint into prompt (if available)
+      const triageHint = cycleIntent
+        ? `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`
+        : '';
+
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -573,8 +582,8 @@ export class AgentLoop {
         });
       };
 
-      // JIT skill loading: detect cycle mode from context
-      const cycleMode = this.detectCycleMode(context, currentTriggerReason);
+      // JIT skill loading: use triage intent if available, fallback to heuristic
+      const cycleMode = cycleIntent?.mode ?? this.detectCycleMode(context, currentTriggerReason);
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
         rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount }),
@@ -700,6 +709,21 @@ export class AgentLoop {
       // Non-telegram-triggered cycles that sent [CHAT] also count as replied
       if (!didReplyToTelegram && tags.chats.length > 0) {
         didReplyToTelegram = true;
+      }
+
+      // ── Process [ASK] tags — blocking questions that need Alex's reply ──
+      for (const askText of tags.asks) {
+        const askMsg = `❓ ${askText}`;
+        notifyTelegram(askMsg).catch((err) => {
+          slog('LOOP', `Telegram ask failed: ${err instanceof Error ? err.message : err}`);
+        });
+        // Create a conversation thread so it persists until Alex replies
+        memory.addConversationThread({
+          type: 'question',
+          content: askText.slice(0, 200),
+          source: 'kuro:ask',
+        }).catch(() => {});
+        eventBus.emit('action:chat', { text: askText, blocking: true });
       }
 
       for (const show of tags.shows) {
@@ -1059,7 +1083,8 @@ Rules:
   ## Verified — evidence that it worked (commands run, results confirmed)
   Keep each section concise. Not all sections required every cycle — use what's relevant.
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
-- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
+- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
+- Use [ASK]question[/ASK] when you genuinely need Alex's input before proceeding — this creates a tracked conversation thread and sends ❓ to Telegram. Use sparingly: only when a decision truly depends on Alex. Don't use [ASK] for FYI or status updates.
 - Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
 - Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h). Examples:
   [SCHEDULE next="45m" reason="waiting for Alex feedback"]
@@ -1129,7 +1154,8 @@ Rules:
   [/IMPULSE]
 - Always include source URLs (e.g. "Source: https://...")
 - Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
-- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram
+- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
+- Use [ASK]question[/ASK] when you genuinely need Alex's input before proceeding — creates a tracked thread. Use sparingly.
 - Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see
 - Use [DONE]description[/DONE] to mark NEXT.md items as completed
 - Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h)

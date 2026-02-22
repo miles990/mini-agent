@@ -184,6 +184,13 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  const asks: string[] = [];
+  if (response.includes('[ASK]')) {
+    for (const m of response.matchAll(/\[ASK\](.*?)\[\/ASK\]/gs)) {
+      asks.push(m[1].trim());
+    }
+  }
+
   const shows: Array<{ url: string; desc: string }> = [];
   if (response.includes('[SHOW')) {
     for (const m of response.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs)) {
@@ -245,6 +252,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[ARCHIVE[^\]]*\].*?\[\/ARCHIVE\]/gs, '')
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
     .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
+    .replace(/\[ASK\].*?\[\/ASK\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
     .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
     .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
@@ -254,7 +262,7 @@ export function parseTags(response: string): ParsedTags {
     .trim();
 
   // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
-  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ACTION', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
+  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'ACTION', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
   for (const tag of tagNames) {
     const openCount = (response.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
     const closeCount = (response.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
@@ -263,7 +271,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, shows, summaries, dones, schedule, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, schedule, cleanContent };
 }
 
 // =============================================================================

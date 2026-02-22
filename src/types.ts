@@ -311,6 +311,7 @@ export interface ParsedTags {
   impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;
   threads: ThreadAction[];
   chats: string[];
+  asks: string[];
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];
   dones: string[];

@@ -1,11 +1,10 @@
 /**
- * Triage — Sonnet 4.6 快速分類 NEXT.md 項目
+ * Triage — 輕量模型做 pre-cycle 分類
  *
- * 每個 cycle 開始前，如果 NEXT.md 有 >1 pending items，
- * 用 Sonnet 4.6 快速分類、排序、合併。
+ * 1. triageNextItems(): Sonnet 4.6 分類 NEXT.md 項目（~200 tokens, $0.002）
+ * 2. triageCycleIntent(): Haiku 4.5 預判 cycle 意圖（~150 tokens, $0.0003）
  *
- * 無 ANTHROPIC_API_KEY → 跳過 triage，保留原始順序。
- * 成本：~200 tokens/call ≈ $0.002
+ * 無 ANTHROPIC_API_KEY → 跳過，保留預設行為。
  */
 
 import fs from 'node:fs';
@@ -15,6 +14,7 @@ import { withFileLock } from './filelock.js';
 import { NEXT_MD_PATH } from './telegram.js';
 
 const SONNET_MODEL = 'claude-sonnet-4-6-20250514';
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 let client: Anthropic | null = null;
 
@@ -113,4 +113,70 @@ ${items.join('\n')}`,
       slog('TRIAGE', `Failed: ${err instanceof Error ? err.message : err}`);
     }
   });
+}
+
+// =============================================================================
+// Cycle Intent Triage — Haiku 快速預判 cycle 意圖
+// =============================================================================
+
+export interface CycleIntentResult {
+  mode: 'respond' | 'learn' | 'act' | 'reflect' | 'task';
+  reason: string;
+  focus?: string;
+}
+
+/**
+ * 用 Haiku 4.5 預判這個 cycle 應該做什麼。
+ *
+ * 輸入：壓縮的 perception 摘要（前 2000 chars）
+ * 輸出：mode + reason + optional focus hint
+ * 成本：~150 tokens ≈ $0.0003
+ *
+ * Fallback：無 API key 或失敗 → 返回 null，使用既有 detectCycleMode()
+ */
+export async function triageCycleIntent(
+  contextSummary: string,
+  triggerReason: string | null,
+): Promise<CycleIntentResult | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  // telegram-user always respond — skip triage cost
+  if (triggerReason?.startsWith('telegram-user')) return null;
+
+  try {
+    const start = Date.now();
+    const response = await getClient().messages.create({
+      model: HAIKU_MODEL,
+      max_tokens: 100,
+      messages: [{
+        role: 'user',
+        content: `你是 Kuro 的前置決策器。根據以下感知摘要，判斷這個 cycle 應該做什麼。
+
+觸發原因：${triggerReason ?? 'heartbeat'}
+
+感知摘要（截斷）：
+${contextSummary.slice(0, 2000)}
+
+用一行 JSON 回答（不要其他文字）：
+{"mode":"respond|learn|act|reflect|task","reason":"10字內原因","focus":"可選：具體該關注什麼"}`,
+      }],
+    });
+
+    const elapsed = Date.now() - start;
+    const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
+
+    // Parse JSON — tolerant of markdown fencing
+    const jsonStr = text.replace(/^```json?\s*/, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(jsonStr) as CycleIntentResult;
+
+    // Validate mode
+    const validModes = ['respond', 'learn', 'act', 'reflect', 'task'];
+    if (!validModes.includes(parsed.mode)) return null;
+
+    slog('TRIAGE', `Intent: ${parsed.mode} — ${parsed.reason} (${elapsed}ms)`);
+    return parsed;
+  } catch {
+    // Non-critical — fall back to heuristic detectCycleMode()
+    return null;
+  }
 }

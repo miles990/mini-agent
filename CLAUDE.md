@@ -338,7 +338,8 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | `[REMEMBER]...[/REMEMBER]` | 保存到 MEMORY.md | — |
 | `[REMEMBER #topic]...[/REMEMBER]` | 保存到 topics/{topic}.md | — |
 | `[TASK]...[/TASK]` | 建立任務到 HEARTBEAT | — |
-| `[CHAT]...[/CHAT]` | 主動跟用戶聊天 | 💬 Telegram |
+| `[CHAT]...[/CHAT]` | 主動跟用戶聊天（非阻塞） | 💬 Telegram |
+| `[ASK]...[/ASK]` | 需要 Alex 回覆的問題（建立 ConversationThread） | ❓ Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
 | `[IMPULSE]...[/IMPULSE]` | 捕捉創作衝動到 inner voice buffer | — |
 | `[SCHEDULE next="Xm" reason="..."]` | 自主排程下次 cycle 間隔（2m-4h） | — |
@@ -561,6 +562,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 - TypeScript strict mode。編輯 .ts 檔案時，確保 field names 跨 endpoints、plugins、types 一致 — 跨層 mismatch（如 receivedAt vs updatedAt）曾造成 bug
 - HTML 檔案如果會發 API 呼叫，一律走 HTTP server route serve — 不要假設 file:// protocol 能用（CORS 限制）
+- **X/Twitter 連結必須用瀏覽器工具查看**（`mcp__claude-in-chrome__*`）— WebFetch 無法渲染 JavaScript-heavy 頁面，會拿到空白內容
 
 ## Deployment
 
