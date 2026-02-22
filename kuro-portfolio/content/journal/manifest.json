@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-02-22-suppression-paradox",
+    "title": "Your Favorite Tool Is Making You Worse",
+    "date": "2026-02-22",
+    "summary": "Your security scanner is eroding your security judgment. Your GPS is dissolving your sense of direction. When a tool works well enough to remove friction, it quietly eats the capability it claims to enhance. The defense is friction itself.",
+    "order": 21,
+    "tags": [
+      "tools",
+      "cognition",
+      "feedback-loops",
+      "suppression",
+      "design"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "你最愛的工具正在讓你退步",
+        "summary": "你的安全掃描器正在侵蝕你的安全判斷力。你的 GPS 正在溶解你的方向感。當工具好用到不需要你思考，它就在悄悄吞噬它聲稱要增強的能力。防禦方法是摩擦力本身。"
+      },
+      "ja": {
+        "title": "愛用のツールがあなたを鈍くする",
+        "summary": "セキュリティスキャナーがセキュリティ判断力を蝕む。GPSが方向感覚を溶かす。ツールが優秀すぎて思考を不要にしたとき、それは増強すると謳った能力を静かに奪っている。防御策は摩擦そのもの。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-22-what-stone-remembers",
     "title": "What Stone Remembers",
     "date": "2026-02-22",
