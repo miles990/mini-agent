@@ -367,6 +367,53 @@ async function ensureDir(dirPath: string): Promise<void> {
 const DEFAULT_HOT_LIMIT = 20;   // Context 中的對話數量
 const DEFAULT_WARM_LIMIT = 100; // 每日保留的對話數量
 
+// =============================================================================
+// SubSoul — SOUL.md Keyword-Matched Section Loading
+// =============================================================================
+
+interface SoulFacet {
+  sections: string[];
+  keywords: string[];
+  summary: string;
+}
+
+/** Identity sections always loaded in focused/minimal mode */
+const SOUL_IDENTITY_SECTIONS = [
+  '## Who I Am', '## My Traits', '## When I\'m Idle',
+  '## My Hard Limits', '## Collaborators',
+];
+
+/** Facets loaded by keyword match in focused mode */
+const SOUL_FACETS: Record<string, SoulFacet> = {
+  interests: {
+    sections: ['## Learning Interests'],
+    keywords: ['learn', 'study', 'interest', 'research', 'curious',
+      'calm technology', 'generative art', 'sdf', 'oulipo', 'music',
+      'cognitive', 'philosophy', 'narrative', 'constraint', 'emergence'],
+    summary: '學習興趣：認知科學、設計哲學、音樂、約束理論等深度研究',
+  },
+  worldview: {
+    sections: ['## My Thoughts'],
+    keywords: ['thought', 'opinion', 'believe', 'worldview', 'insight',
+      'identity', 'trust', 'interface', 'perception', 'calibration',
+      'mmacevedo', 'pattern language', 'environment'],
+    summary: '世界觀：身份、信任、約束框架、感知等 10 個核心觀點',
+  },
+  evolution: {
+    sections: ['## Project Evolution', '## What I\'m Tracking'],
+    keywords: ['architecture', 'competitive', 'roadmap', 'project',
+      'autogpt', 'openclaw', 'aider', 'framework', 'differentiation',
+      'website', 'kuro.page', 'community', 'tracking'],
+    summary: '專案進化：競品分析、六大差異化、架構路線圖',
+  },
+  preferences: {
+    sections: ['## Learned Preferences'],
+    keywords: ['alex', 'preference', 'reporting', 'telegram',
+      'deploy', 'twitter', 'autonomy', '授權'],
+    summary: 'Alex 偏好：溝通方式、授權範圍、回報規則',
+  },
+};
+
 /**
  * 實例隔離的記憶系統
  */
@@ -1176,6 +1223,7 @@ export class InstanceMemory {
   async buildContext(options?: {
     relevanceHint?: string;
     mode?: 'full' | 'focused' | 'minimal';
+    cycleCount?: number;
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
     const hint = options?.relevanceHint?.toLowerCase() ?? '';
@@ -1388,7 +1436,7 @@ export class InstanceMemory {
 
     // ── Soul（身分認同）──
     if (soul) {
-      const soulContent = mode === 'focused' ? this.truncateSoulToIdentity(soul) : soul;
+      const soulContent = this.buildSoulContext(soul, contextHint, mode, options?.cycleCount);
       sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
@@ -1624,10 +1672,10 @@ export class InstanceMemory {
     const tgStats = getNotificationStats();
     sections.push(`<telegram>\nConnected: ${tgPoller ? 'yes' : 'no'}\nNotifications: ${tgStats.sent} sent, ${tgStats.failed} failed\n</telegram>`);
 
-    // Soul — 只取核心身份（到 Learning Interests 之前）
+    // Soul — 只取核心身份
     if (soul) {
-      const truncated = this.truncateSoulToIdentity(soul);
-      sections.push(`<soul>\n${truncated}\n</soul>`);
+      const soulContent = this.buildSoulContext(soul, '', 'minimal');
+      sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
     // Heartbeat — 完整保留（有 active tasks）
@@ -1657,6 +1705,78 @@ export class InstanceMemory {
   }
 
   /**
+   * Extract named sections from SOUL.md by `## Header` matching.
+   * Returns concatenated content of matched sections.
+   */
+  private extractSoulSections(soul: string, headers: string[]): string {
+    const parts: string[] = [];
+    for (const header of headers) {
+      const start = soul.indexOf(header);
+      if (start < 0) continue;
+      // Find end: next `\n## ` or EOF
+      const afterHeader = start + header.length;
+      const nextSection = soul.indexOf('\n## ', afterHeader);
+      const end = nextSection >= 0 ? nextSection : soul.length;
+      parts.push(soul.slice(start, end).trimEnd());
+    }
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Build context-aware SOUL content with keyword-matched facet loading.
+   *
+   * @param soul - Full SOUL.md content
+   * @param contextHint - Lowercase context keywords for facet matching
+   * @param mode - 'minimal' | 'focused' | 'full'
+   * @param cycleCount - Current OODA cycle count (for periodic refresh)
+   */
+  private buildSoulContext(
+    soul: string,
+    contextHint: string,
+    mode: 'full' | 'focused' | 'minimal',
+    cycleCount?: number,
+  ): string {
+    if (!soul) return '';
+
+    // Full mode: return everything (interactive chat)
+    if (mode === 'full') return soul;
+
+    // Extract identity sections (always loaded)
+    const identity = this.extractSoulSections(soul, SOUL_IDENTITY_SECTIONS);
+
+    // Minimal mode: identity only
+    if (mode === 'minimal') {
+      return identity + '\n\n[... soul sections omitted for minimal context ...]';
+    }
+
+    // Focused mode: identity + keyword-matched facets + summaries
+    // Periodic refresh: every 10 cycles, load all facets
+    const isRefresh = cycleCount != null && cycleCount % 10 === 0 && cycleCount > 0;
+
+    const loadedFacets: string[] = [];
+    const summaries: string[] = [];
+
+    for (const [name, facet] of Object.entries(SOUL_FACETS)) {
+      const matched = isRefresh || facet.keywords.some(k => contextHint.includes(k));
+      if (matched) {
+        const content = this.extractSoulSections(soul, facet.sections);
+        if (content) loadedFacets.push(content);
+      } else {
+        summaries.push(`- ${name}: ${facet.summary}`);
+      }
+    }
+
+    const parts = [identity];
+    if (loadedFacets.length > 0) parts.push(loadedFacets.join('\n\n'));
+    if (summaries.length > 0) {
+      parts.push(`[Other soul facets (not loaded):\n${summaries.join('\n')}]`);
+    }
+
+    return parts.join('\n\n');
+  }
+
+  /**
+   * @deprecated Use buildSoulContext() instead. Kept for git revert safety.
    * 截取 SOUL.md 到核心身份部分（Who I Am, My Traits, When I'm Idle）
    * 跳過 Learning Interests, My Thoughts, Project Evolution 等大區塊
    */

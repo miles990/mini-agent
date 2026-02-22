@@ -471,7 +471,7 @@ export class AgentLoop {
 
       // ── Observe ──
       const memory = getMemory();
-      const context = await memory.buildContext({ mode: 'focused' });
+      const context = await memory.buildContext({ mode: 'focused', cycleCount: this.cycleCount });
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
@@ -576,7 +576,7 @@ export class AgentLoop {
       const cycleMode = this.detectCycleMode(context, currentTriggerReason);
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
-        rebuildContext: (mode) => memory.buildContext({ mode }),
+        rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount }),
         source: 'loop',
         onPartialOutput,
         cycleMode,
