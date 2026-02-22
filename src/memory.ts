@@ -429,6 +429,15 @@ export class InstanceMemory {
   // Utility counter: track topic load frequency
   private topicLoadCounts = new Map<string, number>();
 
+  // SubSoul: last facet load record (for checkpoint data collection)
+  private lastSoulFacetRecord: {
+    loaded: string[];
+    skipped: string[];
+    reason: 'keyword' | 'refresh' | 'full' | 'minimal' | 'fallback';
+    identityChars: number;
+    totalChars: number;
+  } | null = null;
+
   constructor(instanceId?: string, options?: { hot?: number; warm?: number }) {
     this.instanceId = instanceId ?? getCurrentInstanceId();
     this.memoryDir = getMemoryDir(this.instanceId);
@@ -1619,6 +1628,9 @@ export class InstanceMemory {
       }
       // Topic utility counts snapshot
       const topicUtility = Object.fromEntries(this.topicLoadCounts);
+      // SubSoul facet load record
+      const soulFacets = this.lastSoulFacetRecord ?? undefined;
+      this.lastSoulFacetRecord = null; // consume after checkpoint
       const entry = JSON.stringify({
         timestamp: now.toISOString(),
         mode,
@@ -1626,6 +1638,7 @@ export class InstanceMemory {
         contextLength: context.length,
         sections: sectionSizes,
         topicUtility,
+        ...(soulFacets && { soulFacets }),
       }) + '\n';
       await fs.appendFile(path.join(dir, `${ts.slice(0, 10)}.jsonl`), entry);
 
@@ -1739,13 +1752,41 @@ export class InstanceMemory {
     if (!soul) return '';
 
     // Full mode: return everything (interactive chat)
-    if (mode === 'full') return soul;
+    if (mode === 'full') {
+      this.lastSoulFacetRecord = {
+        loaded: Object.keys(SOUL_FACETS),
+        skipped: [],
+        reason: 'full',
+        identityChars: 0,
+        totalChars: soul.length,
+      };
+      return soul;
+    }
 
     // Extract identity sections (always loaded)
     const identity = this.extractSoulSections(soul, SOUL_IDENTITY_SECTIONS);
 
+    // Fallback: if extraction found nothing, return full soul (header mismatch)
+    if (!identity) {
+      this.lastSoulFacetRecord = {
+        loaded: Object.keys(SOUL_FACETS),
+        skipped: [],
+        reason: 'fallback',
+        identityChars: 0,
+        totalChars: soul.length,
+      };
+      return soul;
+    }
+
     // Minimal mode: identity only
     if (mode === 'minimal') {
+      this.lastSoulFacetRecord = {
+        loaded: [],
+        skipped: Object.keys(SOUL_FACETS),
+        reason: 'minimal',
+        identityChars: identity.length,
+        totalChars: identity.length,
+      };
       return identity + '\n\n[... soul sections omitted for minimal context ...]';
     }
 
@@ -1753,6 +1794,8 @@ export class InstanceMemory {
     // Periodic refresh: every 10 cycles, load all facets
     const isRefresh = cycleCount != null && cycleCount % 10 === 0 && cycleCount > 0;
 
+    const loaded: string[] = [];
+    const skipped: string[] = [];
     const loadedFacets: string[] = [];
     const summaries: string[] = [];
 
@@ -1761,8 +1804,10 @@ export class InstanceMemory {
       if (matched) {
         const content = this.extractSoulSections(soul, facet.sections);
         if (content) loadedFacets.push(content);
+        loaded.push(name);
       } else {
         summaries.push(`- ${name}: ${facet.summary}`);
+        skipped.push(name);
       }
     }
 
@@ -1772,7 +1817,16 @@ export class InstanceMemory {
       parts.push(`[Other soul facets (not loaded):\n${summaries.join('\n')}]`);
     }
 
-    return parts.join('\n\n');
+    const result = parts.join('\n\n');
+    this.lastSoulFacetRecord = {
+      loaded,
+      skipped,
+      reason: isRefresh ? 'refresh' : 'keyword',
+      identityChars: identity.length,
+      totalChars: result.length,
+    };
+
+    return result;
   }
 
   /**
