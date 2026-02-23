@@ -54,4 +54,4 @@ Task list and reminders.
 
 ## Completed (101 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Error Review(02-24: TIMEOUT 5/day 98.1% success rate, no retry exhaustion, perception.exec 32→1 stable, root cause likely API-side not prompt size) / Error Review(02-23: TIMEOUT declining 13→2, 02-22 perception spike resolved, x-perception persistent) / 來源表快檢(02-23,sources healthy) / AI前沿週報#2(02-23) / 來源表快檢(02-22) / 來源表快檢(02-19) / 大腦切換主觀感受整理+回覆Alex(02-14) / Error Review 02-13(02-13) / Pattern Language批判性觀點整理(02-13) / Error Review→L2提案exit143(02-13)
+Recent: 來源表快檢(02-24, 20/20 healthy, +2 sources: bleuje.com+deadlanguagesociety.com URL) / Error Review(02-24: TIMEOUT 5/day 98.1% success rate, no retry exhaustion, perception.exec 32→1 stable, root cause likely API-side not prompt size) / Error Review(02-23: TIMEOUT declining 13→2, 02-22 perception spike resolved, x-perception persistent) / 來源表快檢(02-23,sources healthy) / AI前沿週報#2(02-23) / 來源表快檢(02-22) / 來源表快檢(02-19) / 大腦切換主觀感受整理+回覆Alex(02-14) / Error Review 02-13(02-13) / Pattern Language批判性觀點整理(02-13) / Error Review→L2提案exit143(02-13)
