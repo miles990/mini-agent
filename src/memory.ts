@@ -1599,7 +1599,7 @@ export class InstanceMemory {
             let topicContent = (loadCount >= 2 || heat >= 5)
               ? truncateTopicMemory(content, 'brief')
               : content;
-            if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
+            if (topicContent.length > 4000) topicContent = topicContent.slice(0, 4000) + '\n[... truncated]';
             topicContent = addTemporalMarkers(topicContent);
             sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
             loadedTopics.push(topic);
@@ -1612,7 +1612,7 @@ export class InstanceMemory {
             let topicContent: string;
             if (isDirectMatch) {
               topicContent = content;
-              if (topicContent.length > 8000) topicContent = topicContent.slice(0, 8000) + '\n[... truncated]';
+              if (topicContent.length > 4000) topicContent = topicContent.slice(0, 4000) + '\n[... truncated]';
             } else {
               // Non-matching topics: always summary (just title + count)
               topicContent = truncateTopicMemory(content, 'summary');
