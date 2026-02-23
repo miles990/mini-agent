@@ -7,11 +7,15 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { getCurrentInstanceId, getInstanceDir, getDataDir } from './instance.js';
 import { readPendingInbox, writeInboxItem, markInboxProcessed } from './inbox.js';
 import { rebuildIndex } from './search.js';
 import { slog } from './utils.js';
 import type { InboxItem, ParsedTags } from './types.js';
+
+const execFileAsync = promisify(execFile);
 
 // =============================================================================
 // Task Progress Tracking
@@ -312,6 +316,49 @@ export async function syncHandoffStatus(): Promise<void> {
 }
 
 // =============================================================================
+// Auto Push — 機械化部署
+// =============================================================================
+
+const NO_DEPLOY_FLAG = '.no-deploy';
+
+/**
+ * 如果 local ahead of origin/main → git push origin main。
+ * 安全護欄：只 push main、.no-deploy flag 可阻止、fire-and-forget。
+ */
+export async function autoPushIfAhead(): Promise<void> {
+  const cwd = process.cwd();
+
+  // .no-deploy flag 阻止
+  if (fs.existsSync(path.join(cwd, NO_DEPLOY_FLAG))) return;
+
+  try {
+    // 確認在 main branch
+    const { stdout: branch } = await execFileAsync(
+      'git', ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
+    if (branch.trim() !== 'main') return;
+
+    // 檢查是否 ahead of remote
+    const { stdout: revList } = await execFileAsync(
+      'git', ['rev-list', '--count', 'origin/main..HEAD'],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
+    const ahead = parseInt(revList.trim(), 10);
+    if (!ahead || ahead === 0) return;
+
+    // Push
+    await execFileAsync(
+      'git', ['push', 'origin', 'main'],
+      { cwd, encoding: 'utf-8', timeout: 30000 },
+    );
+    slog('HOUSEKEEPING', `auto-pushed ${ahead} commit(s) to origin/main`);
+  } catch (err) {
+    slog('HOUSEKEEPING', `auto-push failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+// =============================================================================
 // Pipeline Runner
 // =============================================================================
 
@@ -323,6 +370,7 @@ let cycleCounter = 0;
 export async function runHousekeeping(): Promise<void> {
   cycleCounter++;
 
+  await autoPushIfAhead().catch(() => {});
   await consolidateInboxSources().catch(() => {});
   await refreshSearchIndex().catch(() => {});
   await expireOldInboxItems().catch(() => {});
