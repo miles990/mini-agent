@@ -883,6 +883,9 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）
       runFeedbackLoops(action).catch(() => {});
 
+      // Resolve stale ConversationThreads（24h TTL + inbox-clear）
+      resolveStaleConversationThreads().catch(() => {});
+
       // Housekeeping pipeline（fire-and-forget）
       runHousekeeping().catch(() => {});
 
@@ -1619,6 +1622,54 @@ function markChatRoomInboxProcessed(response: string, tags: ParsedTags, action: 
     ].join('\n');
     fs.writeFileSync(CHAT_ROOM_INBOX_PATH, newContent, 'utf-8');
   } catch { /* fire-and-forget */ }
+}
+
+/**
+ * Resolve stale ConversationThreads. Runs every cycle (fire-and-forget).
+ *
+ * Rules:
+ * - ALL thread types: auto-expire after 24h (same TTL as inbox messages)
+ * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
+ *   (prevents Kuro from re-responding to already-processed messages)
+ */
+async function resolveStaleConversationThreads(): Promise<void> {
+  const memory = getMemory();
+  const threads = await memory.getConversationThreads();
+  const now = Date.now();
+  const TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+  const toResolve: string[] = [];
+
+  // Rule 1: Auto-expire any thread older than 24h
+  for (const t of threads) {
+    if (t.resolvedAt) continue;
+    const ageMs = now - new Date(t.createdAt).getTime();
+    if (ageMs > TTL_MS) {
+      toResolve.push(t.id);
+    }
+  }
+
+  // Rule 2: Resolve room threads when inbox is clear
+  const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
+    ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8')
+    : '';
+  const hasPending = /## Pending\n- \[/.test(inboxContent);
+  const hasUnaddressed = /## Unaddressed\n- \[/.test(inboxContent);
+
+  if (!hasPending && !hasUnaddressed) {
+    for (const t of threads) {
+      if (t.resolvedAt) continue;
+      if (!t.source?.startsWith('room:')) continue;
+      if (!toResolve.includes(t.id)) {
+        toResolve.push(t.id);
+      }
+    }
+  }
+
+  // Resolve via Memory API (handles correct instance path)
+  for (const id of toResolve) {
+    await memory.resolveConversationThread(id);
+  }
 }
 
 // =============================================================================
