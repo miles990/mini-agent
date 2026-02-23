@@ -1,6 +1,6 @@
 # Proposal: /chat Interrupt + Self-Scheduling
 
-## Status: approved
+## Status: implemented (preemptLoopCycle + [SCHEDULE] tag)
 GitHub-Issue: #30
 
 ## TL;DR

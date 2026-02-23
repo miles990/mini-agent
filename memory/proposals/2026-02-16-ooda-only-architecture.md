@@ -1,7 +1,7 @@
 # Proposal: OODA-Only — 統一為單一 OODA Cycle 架構
 
 ## Meta
-- Status: approved
+- Status: implemented (2026-02-16, current architecture)
 - GitHub-Issue: #14
 - Author: claude-code (based on Alex + Kuro discussion)
 - Level: L2 (涉及多個 src/*.ts)

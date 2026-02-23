@@ -1,6 +1,6 @@
 # Proposal: Auditory Perception — 聽覺感知三階段
 
-## Status: approved
+## Status: implemented (Phase 1-3: audio-analyze.sh + audio-transcribe.sh + audio-spectrogram.sh)
 GitHub-Issue: #26
 
 ## TL;DR

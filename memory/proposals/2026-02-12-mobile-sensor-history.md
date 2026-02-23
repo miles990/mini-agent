@@ -1,6 +1,6 @@
 # Proposal: Mobile Sensor History — Ring Buffer + 動作辨識
 
-## Status: approved
+## Status: implemented (Phase 1.5: mobile-history.jsonl ring buffer + variance-based motion detection)
 GitHub-Issue: #29
 
 ## TL;DR

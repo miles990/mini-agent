@@ -1,6 +1,6 @@
 # Proposal: Library System — 可調閱式來源藏書室
 
-## Status: approved
+## Status: implemented (memory/library/ + catalog.jsonl + API endpoints)
 GitHub-Issue: #31
 
 ## TL;DR
