@@ -184,10 +184,11 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  const chats: string[] = [];
-  if (parseSource.includes('[CHAT]')) {
-    for (const m of parseSource.matchAll(/\[CHAT\](.*?)\[\/CHAT\]/gs)) {
-      chats.push(m[1].trim());
+  const chats: Array<{ text: string; reply: boolean }> = [];
+  if (parseSource.includes('[CHAT')) {
+    for (const m of parseSource.matchAll(/\[CHAT(?:\s+@reply)?\](.*?)\[\/CHAT\]/gs)) {
+      const isReply = m[0].startsWith('[CHAT @reply]');
+      chats.push({ text: m[1].trim(), reply: isReply });
     }
   }
 
@@ -266,7 +267,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
     .replace(/\[ARCHIVE[^\]]*\].*?\[\/ARCHIVE\]/gs, '')
     .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
-    .replace(/\[CHAT\].*?\[\/CHAT\]/gs, '')
+    .replace(/\[CHAT(?:\s+@reply)?\].*?\[\/CHAT\]/gs, '')
     .replace(/\[ASK\].*?\[\/ASK\]/gs, '')
     .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
     .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
@@ -378,8 +379,8 @@ export async function postProcess(
       eventBus.emit('action:show', { desc: show.desc, url: show.url });
     }
 
-    for (const chatText of tags.chats) {
-      eventBus.emit('action:chat', { text: chatText });
+    for (const chat of tags.chats) {
+      eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 
     for (const summary of tags.summaries) {

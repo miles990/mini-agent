@@ -124,6 +124,9 @@ export class TelegramPoller {
   private readonly batchWaitMs = 3000; // Wait 3s for more messages before processing
   private processing = false; // Lock to prevent concurrent processMessage calls
 
+  // Track last Alex message ID for reply threading
+  private lastAlexMessageId: number | null = null;
+
   constructor(token: string, chatId: string, memoryDir: string) {
     this.token = token;
     this.chatId = chatId;
@@ -196,19 +199,20 @@ export class TelegramPoller {
   // Send message (public — also used by loop.ts)
   // ---------------------------------------------------------------------------
 
-  async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown'): Promise<SendResult> {
+  async sendMessage(text: string, parseMode: 'Markdown' | 'HTML' | '' = 'Markdown', replyToMessageId?: number): Promise<SendResult> {
     try {
       if (!text || !text.trim()) {
         slog('TELEGRAM', `sendMessage called with empty text — skipping`);
         return { ok: false, error: 'empty message', status: -1 };
       }
 
-      const body: Record<string, string | boolean> = {
+      const body: Record<string, string | boolean | number> = {
         chat_id: this.chatId,
         text,
         disable_web_page_preview: true,
       };
       if (parseMode) body.parse_mode = parseMode;
+      if (replyToMessageId) body.reply_to_message_id = replyToMessageId;
 
       // Trace: 記錄每一次 outgoing sendMessage（追蹤 🚨 來源）
       slog('TG-OUT', `sendMessage [${text.length}ch]: ${text.slice(0, 80).replace(/\n/g, '\\n')}`);
@@ -226,7 +230,7 @@ export class TelegramPoller {
         // Markdown 失敗 → 降級為純文字重試
         if (parseMode === 'Markdown') {
           slog('TELEGRAM', `Markdown failed (${resp.status}): ${desc}, retrying plain`);
-          return this.sendMessage(text, '');
+          return this.sendMessage(text, '', replyToMessageId);
         }
 
         // 訊息太長 → 分段送出
@@ -367,6 +371,9 @@ export class TelegramPoller {
       slog('TELEGRAM', `Ignored message from unauthorized chat: ${msg.chat.id}`);
       return;
     }
+
+    // Track last Alex message ID for reply threading
+    this.lastAlexMessageId = msg.message_id;
 
     // React with 👀 to acknowledge we've seen the message
     await this.setReaction(String(msg.chat.id), msg.message_id, '👀');
@@ -743,6 +750,10 @@ export class TelegramPoller {
     }
   }
 
+  getLastAlexMessageId(): number | null {
+    return this.lastAlexMessageId;
+  }
+
   markInboxProcessed(timestamp: string, sender: string): void {
     try {
       const content = fs.readFileSync(this.inboxFile, 'utf-8');
@@ -1016,21 +1027,24 @@ export function getNotificationStats(): { sent: number; failed: number } {
  * 可靠的 Telegram 通知 — 帶重試 + 失敗計數
  * 按段落分段發送，每段獨立失敗不影響其他段
  */
-export async function notifyTelegram(message: string): Promise<boolean> {
+export async function notifyTelegram(message: string, replyToMessageId?: number): Promise<boolean> {
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 
   const chunks = message.split(/\n\n+/).filter(c => c.trim());
   let allOk = true;
 
-  for (const chunk of chunks) {
-    const result = await poller.sendMessage(chunk);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    // Only first chunk carries reply_to — subsequent chunks are continuations
+    const replyId = i === 0 ? replyToMessageId : undefined;
+    const result = await poller.sendMessage(chunk, 'Markdown', replyId);
     if (result.ok) {
       notifSent++;
     } else {
       // 重試一次（降級為純文字）
       await new Promise(r => setTimeout(r, 1000));
-      const retry = await poller.sendMessage(chunk, '');
+      const retry = await poller.sendMessage(chunk, '', replyId);
       if (retry.ok) {
         notifSent++;
       } else {
@@ -1056,10 +1070,10 @@ let summaryBuffer: string[] = [];
  * - summary: 累積到 buffer，定期 flush
  * - heartbeat: 只記 log，不通知
  */
-export async function notify(message: string, tier: NotificationTier): Promise<boolean> {
+export async function notify(message: string, tier: NotificationTier, replyToMessageId?: number): Promise<boolean> {
   switch (tier) {
     case 'signal':
-      return notifyTelegram(message);
+      return notifyTelegram(message, replyToMessageId);
     case 'summary':
       summaryBuffer.push(`${new Date().toLocaleTimeString('en', { hour12: false })} ${message}`);
       slog('NOTIFY', `[summary] buffered (${summaryBuffer.length} total): ${message.slice(0, 80)}`);
@@ -1107,6 +1121,11 @@ export async function sendTelegramPhoto(photoPath: string, caption?: string): Pr
 /** Mark all pending inbox messages as processed (called after OODA cycle) */
 export function markInboxAllProcessed(didReply = false): void {
   pollerInstance?.markAllInboxProcessed(didReply);
+}
+
+/** Get the Telegram message_id of Alex's last message (for reply threading) */
+export function getLastAlexMessageId(): number | null {
+  return pollerInstance?.getLastAlexMessageId() ?? null;
 }
 
 /**

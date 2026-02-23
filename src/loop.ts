@@ -701,7 +701,7 @@ export class AgentLoop {
       // Must run BEFORE action:chat emission to prevent duplicate sends
       let didReplyToTelegram = false;
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
-        const replyContent = tags.chats.join('\n\n');
+        const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
           didReplyToTelegram = true;
           notifyTelegram(replyContent).catch((err) => {
@@ -712,8 +712,8 @@ export class AgentLoop {
         }
       }
 
-      for (const chatText of tags.chats) {
-        eventBus.emit('action:chat', { text: chatText });
+      for (const chat of tags.chats) {
+        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
       }
 
       // Non-telegram-triggered cycles that sent [CHAT] also count as replied
@@ -1487,7 +1487,7 @@ function extractKeyTerms(text: string): string[] {
 /** Check if Kuro's response addressed a particular inbox message (lenient — prefer false positives) */
 function isMessageAddressed(
   sender: string, messageText: string,
-  response: string, chatTags: string[], action: string | null,
+  response: string, chatTags: Array<{ text: string; reply: boolean }>, action: string | null,
 ): boolean {
   const responseLower = response.toLowerCase();
   const senderLower = sender.toLowerCase();

@@ -310,7 +310,7 @@ export interface ParsedTags {
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
   impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;
   threads: ThreadAction[];
-  chats: string[];
+  chats: Array<{ text: string; reply: boolean }>;
   asks: string[];
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];

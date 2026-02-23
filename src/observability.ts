@@ -13,7 +13,7 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
 import { getLogger } from './logging.js';
-import { notify } from './telegram.js';
+import { notify, getLastAlexMessageId } from './telegram.js';
 
 // =============================================================================
 // Init — 註冊所有 subscribers
@@ -132,8 +132,12 @@ function handleTaskEvent(e: AgentEvent): void {
 function handleChatEvent(e: AgentEvent): void {
   const logger = getLogger();
   const text = e.data.text as string;
-  notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal');
-  slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}`);
+  const isReply = e.data.reply as boolean | undefined;
+
+  // Delayed reply: quote Alex's original message via reply_to_message_id
+  const replyToMsgId = isReply ? getLastAlexMessageId() ?? undefined : undefined;
+  notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal', replyToMsgId);
+  slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
 
   // Bridge to Chat Room — fire-and-forget (no replyTo for Kuro's direct chats)
