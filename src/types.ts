@@ -315,8 +315,21 @@ export interface ParsedTags {
   shows: Array<{ url: string; desc: string }>;
   summaries: string[];
   dones: string[];
+  progresses: Array<{ task: string; content: string }>;
   schedule?: { next: string; reason: string };
   cleanContent: string;
+}
+
+/** Unified Inbox 項目 */
+export interface InboxItem {
+  id: string;
+  source: 'telegram' | 'room' | 'claude-code' | 'github' | 'handoff';
+  from: string;
+  priority: 0 | 1 | 2 | 3 | 4;
+  content: string;
+  ts: string;
+  status: 'pending' | 'seen' | 'replied';
+  meta?: Record<string, string>;
 }
 
 /** Library catalog entry */

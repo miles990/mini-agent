@@ -15,6 +15,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
+import { writeInboxItem } from './inbox.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -283,6 +284,17 @@ export async function autoTrackNewIssues(): Promise<void> {
 
   const updated = activeContent.trimEnd() + '\n' + newRows + '\n';
   fs.writeFileSync(activePath, updated, 'utf-8');
+
+  // Dual-write to unified inbox
+  for (const i of newIssues) {
+    writeInboxItem({
+      source: 'github',
+      from: 'system',
+      content: `#${i.number} ${i.title}`,
+      meta: { issueNumber: String(i.number) },
+    });
+  }
+
   slog('github', `tracked ${newIssues.length} new issue(s) in active.md`);
 }
 

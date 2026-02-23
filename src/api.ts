@@ -51,6 +51,7 @@ import { initObservability, writeRoomMessage } from './observability.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
+import { writeInboxItem } from './inbox.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -602,6 +603,9 @@ export function createApi(port = 3001): express.Express {
       // Insert entry after ## Pending line
       content = content.replace('## Pending\n', `## Pending\n${entry}\n`);
       await fsPromises.writeFile(inboxPath, content, 'utf-8');
+
+      // Dual-write to unified inbox
+      writeInboxItem({ source: 'claude-code', from: 'claude-code', content: message });
 
       // Emit trigger:chat to wake idle AgentLoop immediately
       eventBus.emit('trigger:chat', { source: 'chat-api', messageCount: 1 });
@@ -1645,6 +1649,19 @@ export function createApi(port = 3001): express.Express {
         await fsPromises.writeFile(inboxPath, content, 'utf-8');
 
         eventBus.emit('trigger:room', { source: 'room-api', from });
+      }
+
+      // Dual-write to unified inbox
+      if (from !== 'kuro') {
+        writeInboxItem({
+          source: 'room',
+          from,
+          content: text,
+          meta: {
+            roomMsgId: id,
+            ...(replyTo ? { replyTo: replyTo as string } : {}),
+          },
+        });
       }
 
       // Auto-detect conversation threads (only for Alex's messages) — fire-and-forget

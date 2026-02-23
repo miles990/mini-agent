@@ -234,6 +234,14 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // [PROGRESS] tags — task progress tracking
+  const progresses: Array<{ task: string; content: string }> = [];
+  if (parseSource.includes('[PROGRESS')) {
+    for (const m of parseSource.matchAll(/\[PROGRESS\s+task="([^"]+)"\](.*?)\[\/PROGRESS\]/gs)) {
+      progresses.push({ task: m[1].trim(), content: m[2].trim() });
+    }
+  }
+
   let schedule: { next: string; reason: string } | undefined;
   if (parseSource.includes('[SCHEDULE')) {
     const match = parseSource.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
@@ -266,6 +274,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')
+    .replace(/\[PROGRESS[^\]]*\].*?\[\/PROGRESS\]/gs, '')
     .trim();
 
   // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
@@ -274,7 +283,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD'];
+  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD', 'PROGRESS'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
     const closeCount = (responseForDetection.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
@@ -283,7 +292,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, schedule, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, schedule, cleanContent };
 }
 
 // =============================================================================

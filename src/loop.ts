@@ -32,10 +32,11 @@ import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { triageNextItems, extractNextItems, triageCycleIntent } from './triage.js';
-import type { CycleIntentResult } from './triage.js';
+import { extractNextItems } from './triage.js';
 import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
+import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection } from './inbox.js';
+import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -532,11 +533,9 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
-      // Triage: NEXT.md items (Sonnet) + cycle intent (Haiku), run in parallel
-      const [, cycleIntent] = await Promise.all([
-        triageNextItems().catch(() => {}),
-        triageCycleIntent(context.slice(0, 2000), currentTriggerReason).catch(() => null) as Promise<CycleIntentResult | null>,
-      ]);
+      // Rule-based triage from unified inbox（零 LLM 成本）
+      const inboxItems = readPendingInbox();
+      const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason);
 
       // Priority prefix: 強制先處理 NEXT.md pending items
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
@@ -556,14 +555,12 @@ export class AgentLoop {
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT] 直接回答 Alex 的問題，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n`;
         } else {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <next> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
         }
       }
 
-      // Inject triage intent hint into prompt (if available)
-      const triageHint = cycleIntent
-        ? `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`
-        : '';
+      // Inject triage intent hint into prompt (rule-based, zero LLM cost)
+      const triageHint = `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`;
 
       const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix;
 
@@ -768,7 +765,14 @@ export class AgentLoop {
       // ── Process [DONE] tags — remove completed items from NEXT.md ──
       if (tags.dones.length > 0) {
         markNextItemsDone(tags.dones).catch(() => {});
+        // [DONE] → task-progress linkage
+        for (const done of tags.dones) {
+          markTaskProgressDone(done);
+        }
       }
+
+      // ── Process [PROGRESS] tags — task progress tracking ──
+      trackTaskProgress(tags);
 
       const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
       eventBus.emit('action:loop', {
@@ -860,6 +864,9 @@ export class AgentLoop {
       markClaudeCodeInboxProcessed();
       markChatRoomInboxProcessed(response, tags, action);
 
+      // Mark unified inbox items as processed
+      markAllInboxProcessed(didReplyToTelegram ? 'replied' : 'seen');
+
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
       // (telegram-inbox is event-driven, won't refresh unless triggered)
       eventBus.emit('trigger:telegram', { source: 'mark-processed' });
@@ -875,6 +882,9 @@ export class AgentLoop {
 
       // Intelligent feedback loops（fire-and-forget）
       runFeedbackLoops(action).catch(() => {});
+
+      // Housekeeping pipeline（fire-and-forget）
+      runHousekeeping().catch(() => {});
 
       // Drain one queued cron task（loopBusy now free）
       drainCronQueue().catch(() => {});

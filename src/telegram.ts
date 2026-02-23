@@ -17,6 +17,7 @@ import { diagLog } from './utils.js';
 import type { NotificationTier } from './types.js';
 import { eventBus } from './event-bus.js';
 import { withFileLock } from './filelock.js';
+import { writeInboxItem } from './inbox.js';
 
 // =============================================================================
 // Types
@@ -383,6 +384,9 @@ export class TelegramPoller {
 
     // Write to inbox immediately
     this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
+
+    // Dual-write to unified inbox
+    writeInboxItem({ source: 'telegram', from: parsed.sender, content: parsed.text });
 
     // Auto-enqueue to NEXT.md so the message persists until explicitly handled
     autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});

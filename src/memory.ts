@@ -47,6 +47,8 @@ import { perceptionStreams } from './perception-stream.js';
 import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, isIndexReady, rebuildIndex } from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
+import { readPendingInbox, formatInboxSection } from './inbox.js';
+import { buildTaskProgressSection } from './housekeeping.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1334,6 +1336,19 @@ export class InstanceMemory {
       `Notifications: ${tgStats.sent} sent, ${tgStats.failed} failed`,
     ].join('\n');
     sections.push(`<telegram>\n${tgSection}\n</telegram>`);
+
+    // ── Unified Inbox（核心感知 — 統一收件匣）──
+    const inboxItems = readPendingInbox();
+    const inboxCtx = formatInboxSection(inboxItems);
+    if (inboxCtx) {
+      sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
+    }
+
+    // ── Task Progress（跨 cycle 進度追蹤）──
+    const progressCtx = buildTaskProgressSection(inboxItems);
+    if (progressCtx) {
+      sections.push(`<task-progress>\n${progressCtx}\n</task-progress>`);
+    }
 
     const selfStatus = selfStatusProvider?.();
     if (selfStatus) {
