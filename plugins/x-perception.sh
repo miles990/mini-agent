@@ -30,7 +30,7 @@ fi
 # Query Grok API with x_search tool
 # Note: only grok-4 family supports x_search (grok-3-mini deprecated for tools)
 # Keep query simple and timeout tight — Grok x_search can be slow
-RESPONSE=$(curl -s --connect-timeout 5 --max-time 20 "https://api.x.ai/v1/responses" \
+RESPONSE=$(curl -s --connect-timeout 5 --max-time 12 "https://api.x.ai/v1/responses" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $XAI_API_KEY" \
   -d '{
