@@ -14,6 +14,8 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 
 ## Learned Patterns
 
+- [2026-02-24] Context 現況（實測 42.8K chars）：recent_conversations(13K,31%)>memory(3.1K)>heartbeat(2K)>soul(1.8K)>activity(1.6K)>threads(1.4K)。Soul 瘦身已完成（1.8K<<4K目標）。下一個最高 ROI 優化點是 recent_conversations 壓縮
+
 ### Operations & Debugging
 - 15b1ee4 — 殺進程要殺進程群組(-pid)，不是單一 PID
 - beb023b — getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
