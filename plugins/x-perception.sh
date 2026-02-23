@@ -58,42 +58,18 @@ if [[ -z "$RESPONSE" ]]; then
   fallback_stale "Grok API: request timeout"
 fi
 
-# Check for API error in response
-HAS_ERROR=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    if 'error' in d:
-        print(d['error'].get('message', 'unknown error'))
-    elif 'code' in d:
-        print(d.get('error', d.get('code', 'unknown')))
-except:
-    pass
-" 2>/dev/null)
-
+# Check for API error (jq single pass — eliminates 2x python3 startup ~130ms)
+HAS_ERROR=$(echo "$RESPONSE" | jq -r '.error.message // .code // empty' 2>/dev/null)
 if [[ -n "$HAS_ERROR" ]]; then
   fallback_stale "Grok API error: $HAS_ERROR"
 fi
 
-# Extract the text output from the response
-OUTPUT=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    output = data.get('output', [])
-    for item in output:
-        if item.get('type') == 'message':
-            content = item.get('content', [])
-            for c in content:
-                if c.get('type') == 'output_text':
-                    print(c['text'])
-                    sys.exit(0)
-    print('No text output found')
-except Exception as e:
-    print(f'Parse error: {e}')
-" 2>/dev/null)
+# Extract text output (jq single pass)
+OUTPUT=$(echo "$RESPONSE" | jq -r '
+  [.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | first // empty
+' 2>/dev/null)
 
-if [[ -z "$OUTPUT" ]] || [[ "$OUTPUT" == "No text output found" ]] || [[ "$OUTPUT" == Parse* ]]; then
+if [[ -z "$OUTPUT" ]]; then
   fallback_stale "Grok X Search returned no results"
 fi
 
