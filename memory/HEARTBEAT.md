@@ -21,7 +21,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] 學習 — 跟著好奇心走，讀到深處比讀得多更重要
-- [ ] Error Review — 今天有值得檢討的事就檢討，不是義務是自覺 (last: 02-23)
+- [ ] Error Review — 今天有值得檢討的事就檢討，不是義務是自覺 (last: 02-24)
 - [ ] Dev.to 文章完稿 — 待完成：圖解+Alex review
 - [ ] Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] 開源準備 — README 重寫+CONTRIBUTING.md+開源時間由Alex決定
@@ -54,4 +54,4 @@ Task list and reminders.
 
 ## Completed (101 items total)
 <!-- 詳見 git history 和 research/ 目錄 -->
-Recent: Error Review(02-23: TIMEOUT declining 13→2, 02-22 perception spike resolved, x-perception persistent) / 來源表快檢(02-23,sources healthy) / AI前沿週報#2(02-23) / 來源表快檢(02-22) / 來源表快檢(02-19) / 大腦切換主觀感受整理+回覆Alex(02-14) / Error Review 02-13(02-13) / Pattern Language批判性觀點整理(02-13) / Error Review→L2提案exit143(02-13)
+Recent: Error Review(02-24: TIMEOUT 5/day 98.1% success rate, no retry exhaustion, perception.exec 32→1 stable, root cause likely API-side not prompt size) / Error Review(02-23: TIMEOUT declining 13→2, 02-22 perception spike resolved, x-perception persistent) / 來源表快檢(02-23,sources healthy) / AI前沿週報#2(02-23) / 來源表快檢(02-22) / 來源表快檢(02-19) / 大腦切換主觀感受整理+回覆Alex(02-14) / Error Review 02-13(02-13) / Pattern Language批判性觀點整理(02-13) / Error Review→L2提案exit143(02-13)
