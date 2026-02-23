@@ -22,13 +22,13 @@
 3. `<memory>` 中有待深入的領域
 
 ### Step 2: Find Content
-使用三層存取（見 web-research skill）：
+使用多層存取（見 web-research skill）：
 ```bash
 # 公開內容（優先）
 curl -sL "https://..." | head -200
 
 # 需要 Chrome 的內容
-node scripts/cdp-fetch.mjs fetch "https://..."
+bash scripts/pinchtab-fetch.sh fetch "https://..."
 ```
 
 **⚠️ 來源多元化規則**：不要連續兩個 cycle 用同一個來源。輪替使用下方分類。

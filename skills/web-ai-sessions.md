@@ -1,6 +1,6 @@
 # Web AI Sessions — 外部 AI 作為研究工具
 
-用 Chrome CDP 操作 web AI（Grok、ChatGPT、Gemini、Claude.ai）作為外部工作記憶和研究助手。
+用 Pinchtab 操作 web AI（Grok、ChatGPT、Gemini、Claude.ai）作為外部工作記憶和研究助手。
 
 ## Why
 
@@ -24,20 +24,20 @@ OODA cycle 是無狀態的——每次重建 context。但 web AI session 是有
 # 從 <chrome> 感知讀取 tab list
 
 # 開新 session（如果需要）
-node scripts/cdp-fetch.mjs open "https://grok.com"
+bash scripts/pinchtab-fetch.sh open "https://grok.com"
 ```
 
 ### 2. 輸入提問
 
 ```bash
-# 找到輸入框（各平台不同）
-# Grok: contenteditable div
-node scripts/cdp-interact.mjs eval <tabId> "document.querySelector('[contenteditable]').focus(); document.execCommand('insertText', false, '你的問題')"
+# 找到輸入框
+bash scripts/pinchtab-interact.sh list-inputs
+
+# 用 a11y ref 填入文字
+bash scripts/pinchtab-interact.sh type <ref> "你的問題"
 
 # 提交
-node scripts/cdp-interact.mjs click <tabId> "[aria-label='提交']"
-# 或
-node scripts/cdp-interact.mjs click-text <tabId> "Submit"
+bash scripts/pinchtab-interact.sh click-text "Submit"
 ```
 
 ### 3. 等待回應
@@ -46,20 +46,20 @@ node scripts/cdp-interact.mjs click-text <tabId> "Submit"
 # Grok DeepSearch 約 20-30 秒
 # 普通回應 5-15 秒
 # 用 screenshot 確認狀態
-node scripts/cdp-interact.mjs screenshot <tabId> /tmp/ai-response.png
+bash scripts/pinchtab-interact.sh screenshot /tmp/ai-response.jpg
 
 # 提取文字內容
-node scripts/cdp-interact.mjs eval <tabId> "document.querySelector('main').textContent"
+bash scripts/pinchtab-interact.sh eval "document.querySelector('main').textContent"
 ```
 
 ### 4. 提取結果
 
 ```bash
 # 完整頁面內容
-node scripts/cdp-fetch.mjs fetch "<session-url>"
+bash scripts/pinchtab-fetch.sh fetch "<session-url>"
 
 # 或用 eval 精確提取
-node scripts/cdp-interact.mjs eval <tabId> "document.querySelector('.response-container').textContent"
+bash scripts/pinchtab-interact.sh eval "document.querySelector('.response-container').textContent"
 ```
 
 ## 使用模式
@@ -90,7 +90,7 @@ node scripts/cdp-interact.mjs eval <tabId> "document.querySelector('.response-co
 
 ```markdown
 - [ ] P3: [Grok] emergent game design 追蹤 — URL: grok.com/c/xxx, last: 02-18
-  Verify: node scripts/cdp-fetch.mjs fetch "URL" | head -5
+  Verify: bash scripts/pinchtab-fetch.sh fetch "URL" | head -5
 ```
 
 ### 追蹤規則
@@ -110,10 +110,10 @@ node scripts/cdp-interact.mjs eval <tabId> "document.querySelector('.response-co
 ## 已知平台細節
 
 ### Grok (grok.com)
-- 輸入：`contenteditable` div，用 `document.execCommand('insertText')`
-- 提交：`[aria-label="提交"]` 按鈕
+- 輸入：用 `list-inputs` 找到 a11y ref，`type` 填入
+- 提交：`click-text "Submit"` 或對應按鈕
 - DeepSearch：觸發後約 20-30 秒
-- 提取：`main.textContent`（動態渲染，普通 fetch 可能拿不到完整內容）
+- 提取：`eval "main.textContent"`（動態渲染）
 - 優勢：X 原生搜索
 
 ### ChatGPT (chatgpt.com)
