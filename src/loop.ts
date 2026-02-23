@@ -537,8 +537,9 @@ export class AgentLoop {
       const inboxItems = readPendingInbox();
       const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason);
 
-      // Priority prefix: 強制先處理 NEXT.md pending items
+      // Priority prefix: 強制先處理 NEXT.md pending items 或 Chat Room priority 訊息
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
+      const isRoomPriorityCycle = currentTriggerReason?.startsWith('room') ?? false;
       let nextPendingItems: string[] = [];
       try {
         if (fs.existsSync(NEXT_MD_PATH)) {
@@ -546,8 +547,7 @@ export class AgentLoop {
         }
       } catch { /* non-critical */ }
 
-      // Priority prefix 只在 telegram-user cycle 觸發（避免 cry-wolf desensitization）
-      // HEARTBEAT overdue 任務在 <tasks> perception 中已可見，不需重複注入
+      // Priority prefix 在 telegram-user 或 room cycle 觸發
       let priorityPrefix = '';
       if (isTelegramUserCycle) {
         if (nextPendingItems.length > 0) {
@@ -557,6 +557,21 @@ export class AgentLoop {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
         }
+      } else if (isRoomPriorityCycle) {
+        // Chat Room @kuro 訊息觸發 — 讀取 inbox pending messages
+        try {
+          const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
+            ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8') : '';
+          const pendingLines = inboxContent.match(/## Pending\n([\s\S]*?)(?=## (?:Unaddressed|Processed))/)?.[1]
+            ?.split('\n').filter(l => l.startsWith('- [')) ?? [];
+          const unaddressedLines = inboxContent.match(/## Unaddressed\n([\s\S]*?)(?=## Processed)/)?.[1]
+            ?.split('\n').filter(l => l.startsWith('- [')) ?? [];
+          const allPending = [...pendingLines, ...unaddressedLines];
+          if (allPending.length > 0) {
+            const preview = allPending.slice(0, 5).map(l => `  ${l}`).join('\n');
+            priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 [CHAT]回覆內容[/CHAT] 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+          }
+        } catch { /* non-critical */ }
       }
 
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
