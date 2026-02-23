@@ -107,7 +107,11 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 
 **Context Checkpoint**：每次 `buildContext()` 自動存 snapshot（timestamp、mode、contextLength、sections），fire-and-forget 不影響效能。
 
-**Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
+**Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/`、`src/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
+
+**Auto-Push**：每個 loop cycle 結束後，`autoPushUnpushed()` 自動推送 unpushed commits 到 origin/main。搭配 CI/CD 實現全自動部署。
+
+**ConversationThread Lifecycle**：`resolveStaleConversationThreads()` 每個 cycle 結束後自動清理過期 threads。規則：(1) 所有 thread 類型 24h TTL 自動過期 (2) room threads 在 inbox 清空後立即 resolve。防止 Kuro 對已處理的訊息重複回應。健康狀態可在 `<self-awareness>` 的 Thread Health section 觀察。
 
 Instance path: `~/.mini-agent/instances/{id}/`
 
@@ -586,10 +590,9 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 ## Deployment
 
-- **Claude Code 不直接 push 部署**。完成 commit 後，透過 Chat Room 通知 Kuro，由 Kuro 執行部署（他有 `self-deploy` SOP：驗證→commit→push→確認部署→TG通知）
-- 通知寫法：`curl -sf -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"@kuro 已 commit {hash}，請部署。變更：..."}'`
-- 改完 src/*.ts 後，先跑 `pnpm typecheck` 再 commit
-- 如果 Kuro 離線，通知檔案會持久保存（inbox），Kuro 上線後自動感知；緊急情況可 fallback 手動 `git push origin main`
+- **全自動部署流水線**：Claude Code 改檔案 → Kuro auto-commit → Kuro auto-push → GitHub Actions CI/CD 自動部署。無需手動通知
+- 改完 src/*.ts 後，先跑 `pnpm typecheck` 確認無型別錯誤
+- 緊急情況可 fallback 手動 `git push origin main`
 
 ## Workflow
 

@@ -15,7 +15,7 @@ Minimal Personal AI Agent with autonomous capabilities:
 11. **Multi-Instance** - Docker-style instance management with compose
 12. **Graceful Shutdown** - Clean stop of all services (Telegram, AgentLoop, Cron, HTTP)
 13. **Observability** - Multi-dimensional logging: diagnostics, behavior tracking, CDP operations, activity perception
-14. **CI/CD** - GitHub Actions self-hosted runner → launchd deployment with health check and Telegram notification
+14. **CI/CD** - Fully automated: auto-commit → auto-push → GitHub Actions → launchd deployment with health check and Telegram notification
 15. **Launchd** - Native macOS process management with KeepAlive auto-restart (dynamic plist per instance)
 16. **Reliable Notifications** - Unified TG notification with retry, failure counting, and photo/screenshot support
 17. **Unified Status** - Single `/status` API aggregating all subsystems (claude, loop, cron, telegram)
