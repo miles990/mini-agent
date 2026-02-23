@@ -44,6 +44,7 @@ import {
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
+import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, isIndexReady, rebuildIndex } from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 
@@ -1184,9 +1185,44 @@ export class InstanceMemory {
   }
 
   /**
-   * 搜尋記憶
+   * 初始化 FTS5 搜尋索引
+   */
+  initSearchIndex(): void {
+    const dbPath = path.join(getInstanceDir(this.instanceId), 'memory-index.db');
+    initSearchIndex(dbPath);
+    if (!isIndexReady()) {
+      indexMemoryFiles(this.memoryDir);
+    }
+  }
+
+  /**
+   * 重建搜尋索引
+   */
+  rebuildSearchIndex(): number {
+    return rebuildIndex(this.memoryDir);
+  }
+
+  /**
+   * 搜尋記憶（FTS5 優先，grep fallback）
    */
   async searchMemory(query: string, maxResults = 5): Promise<MemoryEntry[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    // Try FTS5 first
+    const ftsResults = searchMemoryFTS(trimmed, maxResults);
+    if (ftsResults.length > 0) {
+      return ftsResults;
+    }
+
+    // Fallback to grep
+    return this.grepSearch(trimmed, maxResults);
+  }
+
+  /**
+   * grep 搜尋（fallback）
+   */
+  private async grepSearch(query: string, maxResults: number): Promise<MemoryEntry[]> {
     // Sanitize query: remove shell metacharacters to prevent command injection
     const sanitized = query.replace(/["`$\\;|&(){}[\]<>!#*?~\n\r]/g, '');
     if (!sanitized.trim()) return [];
@@ -1991,7 +2027,9 @@ export function createMemory(instanceId?: string): InstanceMemory {
   const id = instanceId ?? getCurrentInstanceId();
 
   if (!memoryInstances.has(id)) {
-    memoryInstances.set(id, new InstanceMemory(id));
+    const memory = new InstanceMemory(id);
+    memory.initSearchIndex();
+    memoryInstances.set(id, memory);
   }
 
   return memoryInstances.get(id)!;
