@@ -16,7 +16,7 @@ check_port() {
 
 # 核心服務
 check_port "Self"        3001
-check_port "CDP"         9222
+check_port "Pinchtab"    9867
 
 # 開發服務（有在用才顯示）
 for entry in "Node Dev:3000" "Vite:5173" "HTTP:80" "HTTPS:443"; do

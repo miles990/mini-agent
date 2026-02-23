@@ -2,10 +2,10 @@
 # Web 三層擷取感知 — curl → Chrome CDP → 提示用戶
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 
-CDP_PORT="${CDP_PORT:-9222}"
-CDP_BASE="http://localhost:$CDP_PORT"
+PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
+PINCHTAB_BASE="http://localhost:$PINCHTAB_PORT"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CDP_FETCH="$SCRIPT_DIR/scripts/cdp-fetch.mjs"
+PINCHTAB_FETCH="$SCRIPT_DIR/scripts/pinchtab-fetch.sh"
 
 # 讀取最近的對話記錄，提取 URL
 INSTANCE_DIR="${MINI_AGENT_INSTANCE_DIR:-$HOME/.mini-agent/instances/default}"
@@ -30,10 +30,10 @@ if [[ -z "$URLS" ]]; then
   exit 0
 fi
 
-# Check if Chrome CDP is available
-CDP_AVAILABLE=false
-if curl -s --max-time 2 "$CDP_BASE/json/version" > /dev/null 2>&1; then
-  CDP_AVAILABLE=true
+# Check if Pinchtab is available
+PINCHTAB_AVAILABLE=false
+if curl -s --max-time 2 "$PINCHTAB_BASE/health" > /dev/null 2>&1; then
+  PINCHTAB_AVAILABLE=true
 fi
 
 echo "=== Web Content ==="
@@ -71,21 +71,21 @@ for URL in $URLS; do
     fi
   fi
 
-  # Layer 2: Try Chrome CDP (authenticated pages)
-  if [[ "$CDP_AVAILABLE" == "true" ]]; then
-    echo "  [curl failed/auth required, trying Chrome CDP...]"
-    CDP_RESULT=$(node "$CDP_FETCH" fetch "$URL" 2>/dev/null)
-    CDP_EXIT=$?
+  # Layer 2: Try Pinchtab (authenticated pages)
+  if [[ "$PINCHTAB_AVAILABLE" == "true" ]]; then
+    echo "  [curl failed/auth required, trying Pinchtab...]"
+    PINCHTAB_RESULT=$(bash "$PINCHTAB_FETCH" fetch "$URL" 2>/dev/null)
+    PINCHTAB_EXIT=$?
 
-    if [[ $CDP_EXIT -eq 0 ]] && [[ -n "$CDP_RESULT" ]]; then
-      # Check if CDP also got auth page
-      if echo "$CDP_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
+    if [[ $PINCHTAB_EXIT -eq 0 ]] && [[ -n "$PINCHTAB_RESULT" ]]; then
+      # Check if Pinchtab also got auth page
+      if echo "$PINCHTAB_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
         echo "  [Login required]"
         echo "  This page needs authentication."
-        echo "  To access: node scripts/cdp-fetch.mjs open \"$URL\""
-        echo "  Then: node scripts/cdp-fetch.mjs extract <tabId>"
+        echo "  To access: bash scripts/pinchtab-fetch.sh open \"$URL\""
+        echo "  Then: bash scripts/pinchtab-fetch.sh extract <tabId>"
       else
-        echo "$CDP_RESULT" | head -40
+        echo "$PINCHTAB_RESULT" | head -40
       fi
       echo ""
       continue
@@ -94,10 +94,10 @@ for URL in $URLS; do
 
   # Layer 3: Cannot access
   echo "  [Cannot fetch — requires login or is inaccessible]"
-  if [[ "$CDP_AVAILABLE" == "false" ]]; then
-    echo "  Chrome CDP not available. Run: bash scripts/chrome-setup.sh"
+  if [[ "$PINCHTAB_AVAILABLE" == "false" ]]; then
+    echo "  Pinchtab not available. Run: bash scripts/pinchtab-setup.sh start"
   else
-    echo "  To open in Chrome: node scripts/cdp-fetch.mjs open \"$URL\""
+    echo "  To open in Chrome: bash scripts/pinchtab-fetch.sh open \"$URL\""
   fi
   echo ""
 done

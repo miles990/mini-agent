@@ -35,8 +35,8 @@ RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "https://api.x.ai/v1/respo
   -H "Authorization: Bearer $XAI_API_KEY" \
   -d '{
     "model": "grok-4-1-fast",
-    "tools": [{"type": "x_search"}],
-    "instructions": "List top 5 interesting posts. For each: @handle, one-line summary, likes count. Plain text, no markdown.",
+    "tools": [{"type": "x_search", "x_search": {"enable_video_understanding": true}}],
+    "instructions": "List top 5 interesting posts. For each: @handle, one-line summary, likes count. If a post has video, describe its content briefly. Plain text, no markdown.",
     "input": "trending AI agent and personal AI posts today"
   }' 2>/dev/null)
 

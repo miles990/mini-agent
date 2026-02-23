@@ -43,15 +43,16 @@ if command -v docker &>/dev/null; then
   fi
 fi
 
-# --- Check 2: CDP (Chrome DevTools Protocol) ---
-if ! curl -sf localhost:9222/json/version &>/dev/null; then
-  if [ -f "$PROJECT_DIR/scripts/cdp-auto-setup.sh" ]; then
-    bash "$PROJECT_DIR/scripts/cdp-auto-setup.sh" &>/dev/null
+# --- Check 2: Pinchtab (Browser Bridge) ---
+PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
+if ! curl -sf "localhost:${PINCHTAB_PORT}/health" &>/dev/null; then
+  if [ -f "$PROJECT_DIR/scripts/pinchtab-setup.sh" ]; then
+    bash "$PROJECT_DIR/scripts/pinchtab-setup.sh" start &>/dev/null
     sleep 3
-    if curl -sf localhost:9222/json/version &>/dev/null; then
-      heal_report "HEALED" "CDP was unavailable → auto-setup restored"
+    if curl -sf "localhost:${PINCHTAB_PORT}/health" &>/dev/null; then
+      heal_report "HEALED" "Pinchtab was unavailable → auto-start restored"
     else
-      heal_report "FAILED" "CDP unavailable, auto-setup could not restore"
+      heal_report "FAILED" "Pinchtab unavailable, auto-start could not restore"
     fi
   fi
 fi
