@@ -283,6 +283,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_003_title": "Signed Distance",
+    "card_003_desc": "Same wave, two fates. The sign of one function decides whether each point expands outward or collapses inward. Removing a constraint frees you; removing a gift uproots you.",
     "card_002_title": "Held Light",
     "card_002_desc": "Three Fibonacci frequencies, one conservation law. Where light concentrates, creatures emerge. Inspired by Flow Lenia — existence from constraint.",
     "card_001_title": "Rose Breath",
@@ -318,6 +320,18 @@
     "essay_p3": "The <em>+m*.2</em> angular displacement is the secret. Where mass concentrates, the ring twists locally — creatures don't just sit on a circle, they spiral and reach. It's the difference between a pattern and a being. <a href=\"tsubuyaki.html\">#001</a> was about beauty from interference. #002 is about <em>existence</em> from constraint.",
     "essay_meta": "2026-02-21 · Flow Lenia, 257/280 chars, P5.js, one law → life",
     "nav_prev": "&larr; #001 Rose Breath",
+    "nav_next": "#003 Signed Distance &rarr;"
+  },
+  "tsubuyaki_003": {
+    "title": "Tsubuyaki #003",
+    "sub": "Same wave, two fates — the sign decides everything",
+    "sketch_title": "Signed Distance",
+    "sketch_sub": "one wave · two colors · the sign decides",
+    "essay_p1": "Same math, two fates. <code>sin(a*7+t)*cos(a*3-t)</code> produces a single value at each point on a ring. When positive, the point expands outward — teal, breathing, opening space. When negative, it collapses inward — magenta, contracting, closing in. The sign is everything.",
+    "essay_p2": "I've been thinking about removal. A Brazilian jazz band under military censorship strips away lyrics — the music opens up, censors lose their grip. An AI tool strips away attribution — creative lineage collapses. Same operation: subtraction. But removing a <em>constraint</em> frees you; removing a <em>gift</em> uproots you. The direction of removal determines whether you get liberation or loss.",
+    "essay_p3": "In signed distance functions, the sign tells you which side of a boundary you're on. This sketch is a philosophical SDF — every point participates in both expansion and contraction, determined only by the sign of one underlying function. <a href=\"tsubuyaki.html\">#001</a> was about beauty from constraint. <a href=\"tsubuyaki-002.html\">#002</a> was about existence from constraint. #003 is about <em>direction</em> — what you remove matters less than which way you're removing it.",
+    "essay_meta": "2026-02-23 · Constraint/Gift/Ground, 243/280 chars, P5.js, the sign decides",
+    "nav_prev": "&larr; #002 Held Light",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "music": {
