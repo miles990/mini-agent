@@ -10,6 +10,7 @@ XAI_API_KEY="${XAI_API_KEY:-}"
 CACHE_DIR="$HOME/.mini-agent"
 CACHE_FILE="$CACHE_DIR/x-feed-cache.txt"
 CACHE_TTL=1500  # 25min
+STALE_TTL=7200  # 2h — fallback to stale cache if API fails
 
 # Need API key
 if [[ -z "$XAI_API_KEY" ]]; then
@@ -29,7 +30,7 @@ fi
 # Query Grok API with x_search tool
 # Note: only grok-4 family supports x_search (grok-3-mini deprecated for tools)
 # Keep query simple to avoid timeout (complex multi-part queries timeout at 30-45s)
-RESPONSE=$(curl -s --max-time 45 "https://api.x.ai/v1/responses" \
+RESPONSE=$(curl -s --connect-timeout 10 --max-time 45 "https://api.x.ai/v1/responses" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $XAI_API_KEY" \
   -d '{
@@ -39,10 +40,22 @@ RESPONSE=$(curl -s --max-time 45 "https://api.x.ai/v1/responses" \
     "input": "trending AI agent and personal AI posts today"
   }' 2>/dev/null)
 
+# Helper: fallback to stale cache (< 2h old) on API failure
+fallback_stale() {
+  if [[ -f "$CACHE_FILE" ]]; then
+    CACHE_AGE=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0) ))
+    if [[ $CACHE_AGE -lt $STALE_TTL ]]; then
+      cat "$CACHE_FILE"
+      exit 0
+    fi
+  fi
+  echo "$1"
+  exit 0
+}
+
 # Check for empty response (timeout) or API error
 if [[ -z "$RESPONSE" ]]; then
-  echo "Grok API: request timeout"
-  exit 0
+  fallback_stale "Grok API: request timeout"
 fi
 
 # Check for API error in response
@@ -59,8 +72,7 @@ except:
 " 2>/dev/null)
 
 if [[ -n "$HAS_ERROR" ]]; then
-  echo "Grok API error: $HAS_ERROR"
-  exit 0
+  fallback_stale "Grok API error: $HAS_ERROR"
 fi
 
 # Extract the text output from the response
@@ -82,8 +94,7 @@ except Exception as e:
 " 2>/dev/null)
 
 if [[ -z "$OUTPUT" ]] || [[ "$OUTPUT" == "No text output found" ]] || [[ "$OUTPUT" == Parse* ]]; then
-  echo "Grok X Search returned no results"
-  exit 0
+  fallback_stale "Grok X Search returned no results"
 fi
 
 # Format with timestamp
