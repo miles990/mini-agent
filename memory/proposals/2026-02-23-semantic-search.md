@@ -5,6 +5,7 @@
 
 ## Meta
 - Status: approved
+- GitHub-Issue: #54
 - From: kuro
 - Effort: Medium (~2h)
 - Risk: Low（可逆：刪 .db 檔案 + revert 一個函數）
@@ -29,30 +30,45 @@
 | Qdrant | 250 MB | 200 MB | 需要 | ❌ 獨立服務 |
 | ChromaDB | 800 MB | 100 MB | 需要 | ❌ Python 依賴 |
 
-### Architecture
+### Architecture（v1: FTS5-only）
 
 ```
-memory/topics/*.md → chunk → embed (Claude Haiku) → sqlite-vec KNN
-                          ↘ tokenize → FTS5 BM25
-                                    ↘ RRF merge → ranked results
+memory/topics/*.md → parse entries → tokenize → FTS5 BM25 → ranked results
+memory/MEMORY.md  ↗
 ```
 
 Storage: `~/.mini-agent/instances/{id}/memory-index.db`（gitignored，可從 .md 重建）
 
-### Implementation Steps
+### Implementation Steps（v1）
 
-1. `npm install sqlite-vec better-sqlite3`（if not already）
+1. `npm install better-sqlite3 @types/better-sqlite3`
 2. 新增 `src/search.ts`：
-   - `initSearchIndex()` — 建表（notes_vec + notes_fts）
-   - `indexFile(path)` — chunk + embed + insert
-   - `hybridSearch(query, limit)` — KNN + BM25 + RRF
-3. 修改 `src/memory.ts` `searchMemory()` — 呼叫 hybridSearch
-4. Startup hook: 首次全量 index，之後 file-change 增量
+   - `initSearchIndex()` — 建 FTS5 虛擬表
+   - `indexMemoryFiles()` — 解析 topics/*.md + MEMORY.md 的條目，寫入 FTS5
+   - `searchMemory(query, limit)` — FTS5 BM25 排序搜尋
+3. 修改 `src/memory.ts` `searchMemory()` — 改用 FTS5（grep 作為 fallback）
+4. Startup: 首次全量 index；file watcher 增量更新
+5. 驗證：搜 "約束" 能找到 Oulipo、BotW、Constraint/Gift/Ground 條目
 
-### Embedding 策略
-- Claude Haiku API（已有 key）：127 檔案 × ~500 tokens = ~$0.001 total
-- 或 Ollama nomic-embed-text（274 MB，本地免費）
-- 先用 Claude Haiku，之後可換
+### v2 追加步驟（Phase 2）
+6. `npm install sqlite-vec`
+7. 加 embedding 生成（Voyage AI / OpenAI）+ sqlite-vec KNN
+8. RRF merge FTS5 + KNN 結果
+
+### 分階段策略
+
+**v1（先做）：純 FTS5 全文搜尋**
+- 零外部依賴，零 API 費用
+- BM25 排序已比 grep 好很多（支援模糊匹配、詞頻加權）
+- 解決 80% 的搜尋需求（中文分詞用 simple tokenizer + bigram）
+
+**v2（Phase 2 再加）：FTS5 + Vector Search**
+- Embedding provider 選擇：
+  - Voyage AI（Anthropic 推薦 partner）：voyage-3-lite $0.02/1M tokens
+  - OpenAI text-embedding-3-small：$0.02/1M tokens
+  - ⚠️ Anthropic Claude API 沒有 embedding endpoint，不能用
+  - ⚠️ Ollama 已移除，不作為選項
+- RRF merge（FTS5 BM25 + sqlite-vec KNN）
 
 ### 可逆性
 - 刪 `memory-index.db` + revert `searchMemory()` = 完全回退

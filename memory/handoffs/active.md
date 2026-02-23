@@ -18,3 +18,4 @@
 | github | kuro | #33 proposal: Context Efficiency — Skills 按需載入 + Topic Memory 智慧載入 | needs-triage | 02-21 | — |
 | github | kuro | #52 AI Monetization Plan: Telegram Bot 產品賺回 /月 | needs-triage | 02-21 | — |
 | github | kuro | #53 AI Agent 變現計畫：從零到第一個付費用戶的執行路線圖 | needs-triage | 02-22 | — |
+| github | kuro | #54 proposal: 知識語義搜尋 — sqlite-vec + FTS5 | needs-triage | 02-23 | — |
