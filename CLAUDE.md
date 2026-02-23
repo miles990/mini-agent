@@ -431,6 +431,8 @@ TELEGRAM_BOT_TOKEN=xxx       # Telegram 接收+發送
 TELEGRAM_CHAT_ID=xxx         # 授權的 chat ID
 BRIDGE_HEADLESS=true         # Pinchtab headless Chrome
 BRIDGE_STEALTH=light         # Pinchtab anti-detection
+CDP_URL=                     # 連接現有 Chrome（設定後不啟動新 Chrome）
+BRIDGE_PROFILE=              # Chrome profile 目錄（預設 ~/.pinchtab/chrome-profile）
 ```
 
 ## Deploy
@@ -590,7 +592,8 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 
 - TypeScript strict mode。編輯 .ts 檔案時，確保 field names 跨 endpoints、plugins、types 一致 — 跨層 mismatch（如 receivedAt vs updatedAt）曾造成 bug
 - HTML 檔案如果會發 API 呼叫，一律走 HTTP server route serve — 不要假設 file:// protocol 能用（CORS 限制）
-- **X/Twitter 連結必須用瀏覽器工具查看**（`mcp__claude-in-chrome__*`）— WebFetch 無法渲染 JavaScript-heavy 頁面，會拿到空白內容
+- **JS-heavy / 需登入的網站**（Facebook、X/Twitter 等）必須用瀏覽器工具查看（`mcp__claude-in-chrome__*`）— WebFetch 無法渲染 JS-heavy 頁面，Pinchtab headless 模式沒有用戶 session。隱私限定貼文（如 Facebook 朋友限定）則需 Alex 手動協助
+- **Pinchtab 安裝**：release 是 `.tar.gz` 格式（非裸 binary），repo 為 `pinchtab/pinchtab`。支援 `CDP_URL` 連接現有 Chrome、`BRIDGE_PROFILE` 指定 Chrome profile 目錄
 
 ## Deployment
 

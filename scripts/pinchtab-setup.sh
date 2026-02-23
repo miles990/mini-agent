@@ -66,17 +66,30 @@ cmd_install() {
     *) echo "Unsupported OS: $os"; exit 1 ;;
   esac
 
-  local binary="pinchtab-${os}-${arch}"
-  local url="https://github.com/nichochar/pinchtab/releases/latest/download/${binary}"
+  local archive="pinchtab-${os}-${arch}.tar.gz"
+  local url="https://github.com/pinchtab/pinchtab/releases/latest/download/${archive}"
+  local tmpdir
+  tmpdir=$(mktemp -d)
 
   echo "Downloading Pinchtab: $url"
-  if curl -fSL --max-time 60 "$url" -o "$PINCHTAB_BIN"; then
-    chmod +x "$PINCHTAB_BIN"
-    echo "Installed: $PINCHTAB_BIN"
-    "$PINCHTAB_BIN" --version 2>/dev/null || true
+  if curl -fSL --max-time 60 "$url" -o "$tmpdir/$archive"; then
+    tar -xzf "$tmpdir/$archive" -C "$tmpdir"
+    local extracted
+    extracted=$(find "$tmpdir" -name "pinchtab" -type f | head -1)
+    if [[ -n "$extracted" ]]; then
+      mv "$extracted" "$PINCHTAB_BIN"
+      chmod +x "$PINCHTAB_BIN"
+      echo "Installed: $PINCHTAB_BIN"
+      "$PINCHTAB_BIN" --version 2>/dev/null || true
+    else
+      echo "Extract failed: pinchtab binary not found in archive"
+      exit 1
+    fi
+    rm -rf "$tmpdir"
   else
+    rm -rf "$tmpdir"
     echo "Download failed. Install manually:"
-    echo "  curl -fSL '$url' -o '$PINCHTAB_BIN' && chmod +x '$PINCHTAB_BIN'"
+    echo "  curl -fSL '$url' -o /tmp/$archive && tar -xzf /tmp/$archive -C ~/.mini-agent/bin/"
     exit 1
   fi
 }
