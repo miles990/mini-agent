@@ -387,33 +387,11 @@ export async function postProcess(
     }
   }
 
-  // 4. Auto-track conversation threads (promises + URLs)
-  // Track Kuro's promises (fire-and-forget)
-  // Skip error responses — classifyError() messages contain「稍後」which falsely triggers tracking
-  const isErrorResponse = /^(我正在處理另一個請求|處理超時|處理訊息時發生錯誤|重試次數已用盡|無法找到|Claude CLI)/.test(response.trim());
-  if (!isErrorResponse && response.match(/我會|等我|稍後|我來|讓我/)) {
-    const promiseMatch = response.match(/(我會|等我|稍後|我來|讓我)\S{0,30}/);
-    if (promiseMatch) {
-      memory.addConversationThread({
-        type: 'promise',
-        content: promiseMatch[0],
-        source: userMessage.slice(0, 60),
-      }).catch(() => {}); // fire-and-forget
-    }
-  }
-  // Track URLs shared by Alex
-  if (!meta.skipHistory) {
-    const urls = userMessage.match(/https?:\/\/\S+/g);
-    if (urls) {
-      for (const url of urls.slice(0, 3)) {
-        memory.addConversationThread({
-          type: 'share',
-          content: `Alex 分享的連結: ${url}`,
-          source: userMessage.slice(0, 60),
-        }).catch(() => {}); // fire-and-forget
-      }
-    }
-  }
+  // 4. ConversationThread tracking
+  // Promise tracking removed — 「讓我/我會」triggers too broadly (noise > signal).
+  //   Real promises go through [TASK] → HEARTBEAT with verification.
+  // Dispatcher URL share tracking removed — duplicates autoDetectRoomThread() in api.ts.
+  //   Chat Room is now the primary channel; tracking there is sufficient.
 
   // 5. Log call
   logger.logClaudeCall(
