@@ -29,15 +29,15 @@ fi
 
 # Query Grok API with x_search tool
 # Note: only grok-4 family supports x_search (grok-3-mini deprecated for tools)
-# Keep query simple to avoid timeout (complex multi-part queries timeout at 30-45s)
-RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "https://api.x.ai/v1/responses" \
+# Keep query simple and timeout tight — Grok x_search can be slow
+RESPONSE=$(curl -s --connect-timeout 5 --max-time 20 "https://api.x.ai/v1/responses" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $XAI_API_KEY" \
   -d '{
     "model": "grok-4-1-fast",
-    "tools": [{"type": "x_search", "x_search": {"enable_video_understanding": true}}],
-    "instructions": "List top 5 interesting posts. For each: @handle, one-line summary, likes count. If a post has video, describe its content briefly. Plain text, no markdown.",
-    "input": "trending AI agent and personal AI posts today"
+    "tools": [{"type": "x_search"}],
+    "instructions": "List top 5 trending posts. For each: @handle, one-line summary, likes. Plain text, no markdown.",
+    "input": "trending AI agent posts today"
   }' 2>/dev/null)
 
 # Helper: fallback to stale cache (< 2h old) on API failure
