@@ -38,9 +38,9 @@ Task list and reminders.
 
 ## Learning Roadmap
 
-### Track A: Personal Interest — 127 條研究條目（5 topics）
-<!-- topics/: agent-architecture(39)、design-philosophy(30)、social-culture(25)、creative-arts(17)、cognitive-science(16) -->
-自由探索中 — 由好奇心驅動，不預設方向。統計更新：2026-02-13。
+### Track A: Personal Interest — 195 條研究條目（6 topics, 143KB）
+<!-- topics/: design-philosophy(53)、agent-architecture(50)、social-culture(34)、cognitive-science(31)、creative-arts(25)、product-thinking(2) -->
+自由探索中 — 由好奇心驅動，不預設方向。統計更新：2026-02-24。
 
 ### Track B: Project Evolution — 進行中
 
