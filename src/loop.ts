@@ -1640,9 +1640,11 @@ async function resolveStaleConversationThreads(): Promise<void> {
 
   const toResolve: string[] = [];
 
-  // Rule 1: Auto-expire any thread older than 24h
+  // Rule 1: Auto-expire threads older than 24h
+  // Exception: 'kuro:ask' threads — Alex may take days to reply to [ASK] questions
   for (const t of threads) {
     if (t.resolvedAt) continue;
+    if (t.source === 'kuro:ask') continue;
     const ageMs = now - new Date(t.createdAt).getTime();
     if (ageMs > TTL_MS) {
       toResolve.push(t.id);
