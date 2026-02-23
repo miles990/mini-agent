@@ -55,19 +55,24 @@ Markdown 檔案注入 system prompt (`## Your Skills`)
 
 已合併清理 (2026-02-11): reactive-agent → autonomous-behavior (ALERT 回應表 + 巡檢順序), action-reporting → autonomous-behavior (ACTION 結構表 + 規模判斷)。
 
-## Web Access (Three-Layer)
+## Web Access (Multi-Layer)
 
+0. **Grok API** — X/Twitter 專用，影片理解（`enable_video_understanding`）
+0.5. **Pinchtab Vision** — JS-heavy 頁面截圖 + OCR/Claude Vision
 1. **curl** — 公開頁面、API（快速 <3s）
-2. **Chrome CDP** — 使用者已登入的 session（port 9222）
+2. **Pinchtab** — 使用者已登入的 Chrome session（port 9867，a11y tree）
 3. **Open page** — 可見 tab 讓使用者登入/驗證
 
 Key files:
-- `scripts/cdp-fetch.mjs` — 零依賴 CDP client（commands: status/fetch/open/extract/close）
-- `scripts/cdp-interact.mjs` — 瀏覽器互動（click/type/fill-form/screenshot/eval/wait/list-inputs）
-- `scripts/chrome-setup.sh` — 互動式設定
-- `plugins/chrome-status.sh` — CDP 狀態 + smart guidance
+- `scripts/pinchtab-setup.sh` — Pinchtab 安裝/啟動/管理
+- `scripts/pinchtab-fetch.sh` — 瀏覽器內容擷取（commands: status/fetch/open/extract/close）
+- `scripts/pinchtab-interact.sh` — 瀏覽器互動（click/type/fill-form/screenshot/eval/list-inputs）
+- `scripts/pinchtab-screenshot.sh` — 截圖
+- `scripts/pinchtab-vision.sh` — 截圖 + OCR/Vision 分析
+- `plugins/chrome-status.sh` — Pinchtab 狀態 + smart guidance
 - `plugins/web-fetch.sh` — 自動 URL 提取
-- `skills/web-research.md` — 三層工作流知識
+- `plugins/screen-vision.sh` — 定期截圖 OCR（chrome category, 120s）
+- `skills/web-research.md` — 多層工作流知識
 
 ## Project Structure
 
