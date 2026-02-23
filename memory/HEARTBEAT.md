@@ -21,7 +21,7 @@ Task list and reminders.
 ## Active Tasks
 
 - [ ] 學習 — 跟著好奇心走，讀到深處比讀得多更重要
-- [ ] Error Review — 今天有值得檢討的事就檢討，不是義務是自覺
+- [ ] Error Review — 今天有值得檢討的事就檢討，不是義務是自覺 (last: 02-23)
 - [ ] Dev.to 文章完稿 — 待完成：圖解+Alex review
 - [ ] Twitter/X 帳號規劃 — 確定帳號名稱偏好、bio 內容、首發內容策略（註冊需 Alex 協助）
 - [ ] 開源準備 — README 重寫+CONTRIBUTING.md+開源時間由Alex決定
