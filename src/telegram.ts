@@ -1110,14 +1110,14 @@ export function markInboxAllProcessed(didReply = false): void {
 }
 
 /**
- * CDP 截圖並發送到 Telegram
- * 依賴 Chrome 運行，失敗時靜默返回 false
+ * Pinchtab 截圖並發送到 Telegram
+ * 依賴 Pinchtab 運行，失敗時靜默返回 false
  */
 export async function notifyScreenshot(caption?: string): Promise<boolean> {
   const poller = pollerInstance;
   if (!poller) return false;
 
-  const screenshotPath = '/tmp/mini-agent-screenshot.png';
+  const screenshotPath = '/tmp/mini-agent-screenshot.jpg';
 
   try {
     const { execFile: execFileCb } = await import('node:child_process');
@@ -1126,12 +1126,12 @@ export async function notifyScreenshot(caption?: string): Promise<boolean> {
 
     const scriptPath = path.join(
       import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
-      '..', 'scripts', 'cdp-screenshot.mjs',
+      '..', 'scripts', 'pinchtab-screenshot.sh',
     );
 
-    await execFileAsync('node', [scriptPath, screenshotPath], { timeout: 10000 });
+    await execFileAsync('bash', [scriptPath, screenshotPath], { timeout: 10000 });
   } catch {
-    slog('TELEGRAM', 'Screenshot failed: CDP not available');
+    slog('TELEGRAM', 'Screenshot failed: Pinchtab not available');
     return false;
   }
 

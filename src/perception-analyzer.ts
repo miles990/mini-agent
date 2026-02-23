@@ -43,7 +43,7 @@ const ANALYSIS_PROMPTS: Record<string, string> = {
   brew: 'Summarize: how many outdated packages? Any security-critical updates? Reply in 1-2 sentences. Just the count and whether any are security-related.',
   ports: 'Summarize: which monitored services are UP and which are DOWN? Reply in 1-2 sentences. If any critical service is DOWN, start with "URGENT:".',
   'state-changes': 'Summarize: what changed since last check? Preserve any ALERT markers. Reply in 1-2 sentences. If there are ALERTs, start with "URGENT:".',
-  chrome: 'Summarize: is CDP available? How many tabs open? Any notable pages? Reply in 1 sentence.',
+  chrome: 'Summarize: is Pinchtab available? How many tabs open? Any notable pages? Reply in 1 sentence.',
   'git-detail': 'Summarize: current branch, uncommitted changes count, recent commit topic. Reply in 1 sentence.',
   disk: 'Summarize: disk usage percentage and available space. Reply in 1 sentence. If usage > 90%, start with "URGENT:".',
   web: 'Summarize: what web content was fetched and its key finding. Reply in 1 sentence.',

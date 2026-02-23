@@ -66,9 +66,11 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Observability | `src/observability.ts` |
 | PerceptionStream | `src/perception-stream.ts` |
 | Logging | `src/logging.ts` |
-| CDP Client | `scripts/cdp-fetch.mjs` |
-| CDP Interact | `scripts/cdp-interact.mjs` |
-| CDP Screenshot | `scripts/cdp-screenshot.mjs` |
+| Pinchtab Setup | `scripts/pinchtab-setup.sh` |
+| Pinchtab Fetch | `scripts/pinchtab-fetch.sh` |
+| Pinchtab Interact | `scripts/pinchtab-interact.sh` |
+| Pinchtab Screenshot | `scripts/pinchtab-screenshot.sh` |
+| Pinchtab Vision | `scripts/pinchtab-vision.sh` |
 | Mobile PWA | `mobile.html` |
 | Mobile Plugin | `plugins/mobile-perception.sh` |
 | SOUL | `memory/SOUL.md` |
@@ -380,7 +382,7 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 |----------|------|
 | `notifyTelegram(msg)` | 可靠通知（帶重試 + 失敗計數） |
 | `sendTelegramPhoto(path, caption?)` | 發送圖片 |
-| `notifyScreenshot(caption?)` | CDP 截圖 + 發送到 TG |
+| `notifyScreenshot(caption?)` | Pinchtab 截圖 + 發送到 TG |
 | `getNotificationStats()` | 取得 sent/failed 計數 |
 
 通知統計透過 `<telegram>` 感知 section 注入 OODA context，Kuro 可以看到自己的通知健康度。
@@ -422,11 +424,13 @@ mini-agent list/status/logs [-f]/attach <id>
 ## Environment
 
 ```bash
-PORT=3001                CDP_PORT=9222
-MINI_AGENT_INSTANCE=id   CDP_TIMEOUT=15000
-MINI_AGENT_API_KEY=xxx   CDP_MAX_CONTENT=8000
-TELEGRAM_BOT_TOKEN=xxx   # Telegram 接收+發送
-TELEGRAM_CHAT_ID=xxx     # 授權的 chat ID
+PORT=3001                    PINCHTAB_PORT=9867
+MINI_AGENT_INSTANCE=id       PINCHTAB_TIMEOUT=15000
+MINI_AGENT_API_KEY=xxx       PINCHTAB_MAX_CONTENT=8000
+TELEGRAM_BOT_TOKEN=xxx       # Telegram 接收+發送
+TELEGRAM_CHAT_ID=xxx         # 授權的 chat ID
+BRIDGE_HEADLESS=true         # Pinchtab headless Chrome
+BRIDGE_STEALTH=light         # Pinchtab anti-detection
 ```
 
 ## Deploy

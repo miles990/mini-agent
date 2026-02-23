@@ -14,7 +14,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { diagLog } from './utils.js';
+import { diagLog, slog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -95,12 +95,17 @@ export async function executePerception(
     const shortErr = msg.split('\n')[0].slice(0, 200);
     const errObj = error as { stderr?: string; killed?: boolean; signal?: string; code?: number | null };
     const stderr = errObj.stderr?.trim()?.slice(0, 200) ?? '';
-    diagLog('perception.exec', error, {
-      script: perception.name,
-      stderr,
-      killed: String(errObj.killed ?? ''),
-      signal: errObj.signal ?? '',
-    });
+    // Timeout kills are normal degradation, not errors — only log unexpected failures
+    if (errObj.killed && errObj.signal === 'SIGTERM') {
+      slog('PERCEPTION', `[timeout] ${perception.name} killed after ${timeout}ms`);
+    } else {
+      diagLog('perception.exec', error, {
+        script: perception.name,
+        stderr,
+        killed: String(errObj.killed ?? ''),
+        signal: errObj.signal ?? '',
+      });
+    }
     return {
       name: perception.name,
       output: null,
