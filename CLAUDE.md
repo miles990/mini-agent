@@ -17,7 +17,7 @@
 | 原則 | 說明 |
 |------|------|
 | No Database | Markdown + JSON Lines，人類可讀，Git 可版控（AutoGPT 2023 年底移除全部 vector DB） |
-| No Embedding | grep 搜尋，個人使用足夠快 |
+| No Embedding | FTS5 全文搜尋 + grep fallback，個人使用足夠快 |
 | File = Truth | 檔案是唯一真相來源 |
 | Identity-Driven | SOUL.md 定義 Agent 身份、興趣、觀點（不只是工具，是有成長軌跡的存在） |
 | Perception-First | 環境驅動行動，非目標驅動。Plugins 定義 Agent 的 Umwelt（感知世界） |
@@ -60,6 +60,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Compose | `src/compose.ts` |
 | Cron | `src/cron.ts` |
 | API | `src/api.ts` |
+| Search | `src/search.ts` |
 | Utils | `src/utils.ts` |
 | EventBus | `src/event-bus.ts` |
 | Observability | `src/observability.ts` |
@@ -109,6 +110,25 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 **Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
 
 Instance path: `~/.mini-agent/instances/{id}/`
+
+## Search System（語義搜尋）
+
+FTS5 全文搜尋取代 grep，支援 BM25 排序和中英文模糊匹配。
+
+**架構**：`src/search.ts` — better-sqlite3 + FTS5 虛擬表（unicode61 tokenizer）
+
+```
+searchMemory(query) → FTS5 BM25 搜尋 → 有結果直接回傳
+                    → 無結果 → fallback grep（保留原有邏輯）
+```
+
+**索引**：
+- 自動索引 `topics/*.md` + `MEMORY.md` 中的 entries（bullet 格式）
+- DB 路徑：`~/.mini-agent/instances/{id}/memory-index.db`
+- `createMemory()` 時自動初始化，若索引為空則自動建立
+- `rebuildSearchIndex()` 可全量重建（刪表重建）
+
+**中文支援**：unicode61 tokenizer 對中文做 character-level 分詞，個人筆記規模（<1000 條）足夠好。
 
 ## Intelligent Feedback Loops（Phase 2 自我學習）
 
@@ -576,7 +596,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - Always respond in 繁體中文
 - TypeScript strict mode
 - Plan first → ask → implement for architecture decisions
-- Keep it minimal. Files over database. grep over embedding.
+- Keep it minimal. Files over database. FTS5 full-text search over embedding.
 - **行動優先於規劃**：實作 feature 或 fix 時，前 2-3 輪交換就應產出程式碼。需要設計釐清時簡潔地問，然後立刻實作 — 不要在探索/規劃中迴圈而沒產出程式碼。Planning phase 超過 10 次 tool call 仍無 file edit，應停下來確認方向
 - **Commit 時驗證 staging**：commit 前確認所有相關檔案（含 `plugins/`、`skills/` 目錄）都已 staged。auto-commit 可能已追蹤部分檔案，造成手動 commit 時遺漏
 

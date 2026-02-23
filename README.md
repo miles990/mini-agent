@@ -24,6 +24,7 @@ Minimal Personal AI Agent with autonomous capabilities:
 20. **Dashboard SSE** - Real-time Server-Sent Events push to dashboard, replacing polling with 2s debounced refresh
 21. **Task Lanes** - Unified Dispatcher with Haiku lane (simple) / Claude lane (complex), regex+Haiku triage, automatic fallback
 22. **Mobile Perception** - Phone as physical sensor hub (GPS, gyro, camera, mic) via PWA + HTTP POST — extending the agent's Umwelt to the physical world
+23. **Semantic Search** - FTS5 full-text search (BM25 ranking) with grep fallback — indexes topic memory and MEMORY.md entries for fuzzy CJK+English search
 
 ## Architecture
 
@@ -669,6 +670,7 @@ Multi-instance `-f` mode uses ANSI colors to distinguish instances.
 
 ~/.mini-agent/cdp.jsonl              # CDP operation log (fetch/open/extract/close)
 ~/.mini-agent/mobile-state.json      # Mobile sensor state cache (latest snapshot)
+~/.mini-agent/instances/{id}/memory-index.db  # FTS5 search index (auto-built)
 ```
 
 ## Unix Pipe Mode
@@ -918,7 +920,7 @@ Most AI agent frameworks are **goal-driven** — "give me a goal, I'll execute i
 ### Core Principles
 
 - **No database** - Just Markdown files + JSON Lines logs
-- **No embedding** - grep search is enough for personal use
+- **No embedding** - FTS5 full-text search with grep fallback — enough for personal use
 - **File = Truth** - Files are the single source of truth, human-readable and Git-versionable
 - **Identity-driven** - SOUL.md defines who the agent *is* — personality, interests, evolving thoughts
 - **Perception-first** - Environment drives action, not goals. Plugins define the agent's [Umwelt](https://en.wikipedia.org/wiki/Umwelt)
@@ -935,7 +937,7 @@ Most AI agent frameworks are **goal-driven** — "give me a goal, I'll execute i
 |----------|--------|-----------|
 | **Perception-First** | Environment drives action | AutoGPT/BabyAGI's biggest flaw: "hands without eyes" |
 | **File = Truth** | Markdown + JSONL, zero database | AutoGPT removed all vector DBs (Pinecone/Milvus/Redis/Weaviate) in late 2023 |
-| **grep > embedding** | Text search over vector search | Personal agent data volume doesn't need vector search |
+| **FTS5 > embedding** | BM25 full-text search over vector search | Personal agent data volume doesn't need vector search; FTS5 with grep fallback |
 | **Identity > Logs** | SOUL.md defines "who I am" | BabyAGI's embedding memory is unreadable and unauditable |
 | **Transparency > Isolation** | Readable audit trail | Matchlock sandbox suits multi-tenant; personal agents need transparency |
 | **Balanced Complexity** | ~3k lines TypeScript | AutoGPT bloated to 181k lines; BabyAGI too minimal at 140 lines |
