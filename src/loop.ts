@@ -35,7 +35,7 @@ import {
 import { extractNextItems } from './triage.js';
 import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
-import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection } from './inbox.js';
+import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem } from './inbox.js';
 import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 
 const execFileAsync = promisify(execFile);
@@ -1622,15 +1622,19 @@ function markChatRoomInboxProcessed(response: string, tags: ParsedTags, action: 
 }
 
 // =============================================================================
-// Auto-Commit — cycle 結束後自動 commit memory/ 變更
+// Auto-Commit — cycle 結束後自動 commit（按目錄原子提交）
 // =============================================================================
 
-const AUTO_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
-
 /**
- * 檢查 memory/、skills/、plugins/ 是否有未 commit 的變更，
- * 有的話自動 git add + commit。Fire-and-forget，不阻塞 cycle。
+ * 原子提交組：每個目錄獨立 commit，便於 revert 和 audit。
+ * src/ 不自動 commit — 只偵測並注入 inbox 提醒。
  */
+const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
+  { paths: ['memory/'], prefix: 'chore(auto)' },
+  { paths: ['skills/'], prefix: 'chore(auto/skills)' },
+  { paths: ['plugins/'], prefix: 'chore(auto/plugins)' },
+];
+
 // =============================================================================
 // Auto-Escalate Overdue Tasks — 逾期任務升壓
 // =============================================================================
@@ -1682,44 +1686,60 @@ async function autoEscalateOverdueTasks(): Promise<void> {
 
 async function autoCommitMemory(action: string | null): Promise<void> {
   const cwd = process.cwd();
+  const summary = action
+    ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
+    : 'auto-save';
 
-  try {
-    // 取得 working tree 中指定路徑的變更
-    const { stdout: status } = await execFileAsync(
-      'git', ['status', '--porcelain', ...AUTO_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
+  // 原子提交：每個目錄組獨立 commit
+  for (const group of ATOMIC_COMMIT_GROUPS) {
+    try {
+      const { stdout: status } = await execFileAsync(
+        'git', ['status', '--porcelain', ...group.paths],
+        { cwd, encoding: 'utf-8', timeout: 5000 },
+      );
 
-    if (!status.trim()) return; // 沒有變更
+      if (!status.trim()) continue;
 
-    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+      const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
 
-    // git add 變更的檔案
-    await execFileAsync(
-      'git', ['add', ...AUTO_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
+      await execFileAsync(
+        'git', ['add', ...group.paths],
+        { cwd, encoding: 'utf-8', timeout: 5000 },
+      );
 
-    // 組合 commit message
-    const summary = action
-      ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
-      : 'auto-save memory';
-    const fileList = changedFiles.slice(0, 5).join(', ');
-    const msg = `chore(auto): ${summary}\n\nFiles: ${fileList}`;
+      const fileList = changedFiles.slice(0, 5).join(', ');
+      const msg = `${group.prefix}: ${summary}\n\nFiles: ${fileList}`;
 
-    await execFileAsync(
-      'git', ['commit', '-m', msg],
-      { cwd, encoding: 'utf-8', timeout: 10000 },
-    );
+      await execFileAsync(
+        'git', ['commit', '-m', msg],
+        { cwd, encoding: 'utf-8', timeout: 10000 },
+      );
 
-    slog('auto-commit', `committed ${changedFiles.length} file(s): ${fileList}`);
-  } catch (err: unknown) {
-    // commit 失敗（e.g. nothing to commit）靜默忽略
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes('nothing to commit')) {
-      slog('auto-commit', `skipped: ${msg.slice(0, 120)}`);
+      slog('auto-commit', `[${group.prefix}] ${changedFiles.length} file(s): ${fileList}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('nothing to commit')) {
+        slog('auto-commit', `[${group.prefix}] skipped: ${msg.slice(0, 120)}`);
+      }
     }
   }
+
+  // src/ 未 commit 偵測 → inbox 提醒（不自動 commit）
+  try {
+    const { stdout: srcStatus } = await execFileAsync(
+      'git', ['status', '--porcelain', 'src/'],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
+    if (srcStatus.trim()) {
+      const srcFiles = srcStatus.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+      writeInboxItem({
+        source: 'claude-code',
+        from: 'system',
+        content: `⚠️ src/ 有 ${srcFiles.length} 個未 commit 的檔案: ${srcFiles.slice(0, 3).join(', ')}`,
+        meta: { type: 'uncommitted-src' },
+      });
+    }
+  } catch { /* non-critical */ }
 }
 
 // =============================================================================
