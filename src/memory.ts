@@ -1437,15 +1437,23 @@ export class InstanceMemory {
         } else {
           const cachedResults = perceptionStreams.getCachedResults();
           if (cachedResults.length > 0) {
-            // Plugin no-change 壓縮：未變化的 plugin 只注入一行
-            const compressedResults = cachedResults.map(r => {
+            // Plugin no-change 壓縮：unchanged sections 合併為一行摘要
+            const changedResults: typeof cachedResults = [];
+            const unchangedNames: string[] = [];
+            for (const r of cachedResults) {
               if (!perceptionStreams.hasChangedSinceLastBuild(r.name)) {
-                return { ...r, output: '(no change)' };
+                unchangedNames.push(r.name);
+              } else {
+                changedResults.push(r);
               }
-              return r;
-            });
-            const customCtx = formatPerceptionResults(compressedResults);
+            }
+            // 只渲染有變化的 sections
+            const customCtx = formatPerceptionResults(changedResults);
             if (customCtx) sections.push(customCtx);
+            // 未變化的 sections：一行列表取代多個 XML 區塊
+            if (unchangedNames.length > 0) {
+              sections.push(`<unchanged-perceptions>\n${unchangedNames.join(', ')}\n</unchanged-perceptions>`);
+            }
           }
         }
         perceptionStreams.markContextBuilt();
