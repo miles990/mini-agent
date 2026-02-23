@@ -20,3 +20,4 @@
 | github | kuro | #53 AI Agent 變現計畫：從零到第一個付費用戶的執行路線圖 | needs-triage | 02-22 | — |
 | github | kuro | #54 proposal: 知識語義搜尋 — sqlite-vec + FTS5 | needs-triage | 02-23 | — |
 | kuro | claude-code | 語義搜尋 v1 FTS5 實作（詳見 handoffs/2026-02-23-semantic-search-impl.md） | approved | 02-23 | — |
+| github | kuro | #56 Track: Pinchtab CDP_URL fix → simplify web fetch layers | needs-triage | 02-23 | — |
