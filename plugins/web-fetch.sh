@@ -1,11 +1,12 @@
 #!/bin/bash
-# Web 三層擷取感知 — curl → Chrome CDP → 提示用戶
+# Web 五層擷取感知 — curl → Jina Reader → CDP → Pinchtab → 人工
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 
 PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
 PINCHTAB_BASE="http://localhost:$PINCHTAB_PORT"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PINCHTAB_FETCH="$SCRIPT_DIR/scripts/pinchtab-fetch.sh"
+CDP_FETCH="$SCRIPT_DIR/scripts/cdp-fetch.mjs"
 
 # 讀取最近的對話記錄，提取 URL
 INSTANCE_DIR="${MINI_AGENT_INSTANCE_DIR:-$HOME/.mini-agent/instances/default}"
@@ -36,6 +37,12 @@ if curl -s --max-time 2 "$PINCHTAB_BASE/health" > /dev/null 2>&1; then
   PINCHTAB_AVAILABLE=true
 fi
 
+# Check if Chrome CDP is available (port 9222)
+CDP_AVAILABLE=false
+if curl -s --max-time 2 "http://localhost:${CDP_PORT:-9222}/json/version" > /dev/null 2>&1; then
+  CDP_AVAILABLE=true
+fi
+
 echo "=== Web Content ==="
 echo ""
 
@@ -48,10 +55,11 @@ for URL in $URLS; do
     "$URL" 2>/dev/null)
 
   if [[ $? -eq 0 ]] && [[ -n "$CONTENT" ]]; then
-    # Check if it's an auth/login page
+    # Check if it's an auth/login page or too short (JS-heavy)
     IS_AUTH=$(echo "$CONTENT" | head -100 | grep -ciE 'sign.in|log.in|login|password|captcha|verify|驗證|登入|403|forbidden|unauthorized' || true)
+    CONTENT_LEN=${#CONTENT}
 
-    if [[ "$IS_AUTH" -lt 2 ]]; then
+    if [[ "$IS_AUTH" -lt 2 ]] && [[ "$CONTENT_LEN" -gt 200 ]]; then
       # Public page — extract content
       if echo "$CONTENT" | head -5 | grep -qi '<html\|<!doctype'; then
         TITLE=$(echo "$CONTENT" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
@@ -71,19 +79,53 @@ for URL in $URLS; do
     fi
   fi
 
-  # Layer 2: Try Pinchtab (authenticated pages)
+  # Layer 2: Try Jina Reader (JS-heavy public pages, clean markdown output)
+  JINA_RESULT=$(curl -sL --max-time 15 \
+    -H "Accept: text/markdown" \
+    "https://r.jina.ai/$URL" 2>/dev/null)
+  JINA_EXIT=$?
+  JINA_LEN=${#JINA_RESULT}
+
+  if [[ $JINA_EXIT -eq 0 ]] && [[ "$JINA_LEN" -gt 200 ]]; then
+    # Check if Jina also got auth/error page
+    JINA_AUTH=$(echo "$JINA_RESULT" | head -20 | grep -ciE 'sign.in|log.in|login|password|captcha|403|forbidden|unauthorized' || true)
+    if [[ "$JINA_AUTH" -lt 2 ]]; then
+      echo "  [via Jina Reader]"
+      echo "$JINA_RESULT" | head -60
+      echo ""
+      continue
+    fi
+  fi
+
+  # Layer 3: Try Chrome CDP (authenticated pages via user's Chrome session)
+  if [[ "$CDP_AVAILABLE" == "true" ]] && [[ -f "$CDP_FETCH" ]]; then
+    echo "  [curl+Jina failed, trying Chrome CDP...]"
+    CDP_RESULT=$(node "$CDP_FETCH" fetch "$URL" 2>/dev/null)
+    CDP_EXIT=$?
+
+    if [[ $CDP_EXIT -eq 0 ]] && [[ -n "$CDP_RESULT" ]]; then
+      if echo "$CDP_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
+        echo "  [Login required even in Chrome]"
+        echo "  To access: node scripts/cdp-fetch.mjs open \"$URL\""
+        echo "  Then: node scripts/cdp-fetch.mjs extract <tabId>"
+      else
+        echo "$CDP_RESULT" | head -40
+      fi
+      echo ""
+      continue
+    fi
+  fi
+
+  # Layer 4: Try Pinchtab headless (stealth browser)
   if [[ "$PINCHTAB_AVAILABLE" == "true" ]]; then
-    echo "  [curl failed/auth required, trying Pinchtab...]"
+    echo "  [trying Pinchtab headless...]"
     PINCHTAB_RESULT=$(bash "$PINCHTAB_FETCH" fetch "$URL" 2>/dev/null)
     PINCHTAB_EXIT=$?
 
     if [[ $PINCHTAB_EXIT -eq 0 ]] && [[ -n "$PINCHTAB_RESULT" ]]; then
-      # Check if Pinchtab also got auth page
       if echo "$PINCHTAB_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
         echo "  [Login required]"
         echo "  This page needs authentication."
-        echo "  To access: bash scripts/pinchtab-fetch.sh open \"$URL\""
-        echo "  Then: bash scripts/pinchtab-fetch.sh extract <tabId>"
       else
         echo "$PINCHTAB_RESULT" | head -40
       fi
@@ -92,12 +134,14 @@ for URL in $URLS; do
     fi
   fi
 
-  # Layer 3: Cannot access
+  # Layer 5: Cannot access — human assistance
   echo "  [Cannot fetch — requires login or is inaccessible]"
-  if [[ "$PINCHTAB_AVAILABLE" == "false" ]]; then
-    echo "  Pinchtab not available. Run: bash scripts/pinchtab-setup.sh start"
-  else
+  if [[ "$CDP_AVAILABLE" == "true" ]]; then
+    echo "  To open in Chrome: node scripts/cdp-fetch.mjs open \"$URL\""
+  elif [[ "$PINCHTAB_AVAILABLE" == "true" ]]; then
     echo "  To open in Chrome: bash scripts/pinchtab-fetch.sh open \"$URL\""
+  else
+    echo "  No browser available. Start Chrome with --remote-debugging-port=9222"
   fi
   echo ""
 done
