@@ -1712,14 +1712,12 @@ export function createApi(port = 3001): express.Express {
     };
 
     eventBus.on('action:room', handler);
-    eventBus.on('action:chat', handler);
     eventBus.on('trigger:room', handler);
 
     const keepalive = setInterval(() => res.write(':ping\n\n'), 30_000);
 
     _req.on('close', () => {
       eventBus.off('action:room', handler);
-      eventBus.off('action:chat', handler);
       eventBus.off('trigger:room', handler);
       clearInterval(keepalive);
     });

@@ -640,7 +640,7 @@
         if (payload.type === 'action:room' || payload.type === 'action:chat') {
           removeThinking();
           const msg = payload.type === 'action:chat'
-            ? { from: 'kuro', text: payload.data.text, ts: payload.ts }
+            ? { from: 'kuro', text: payload.data.text, ts: payload.ts, id: payload.data.id }
             : payload.data;
           addMessage(msg, true);
         } else if (payload.type === 'trigger:room') {
@@ -658,8 +658,8 @@
   function addMessage(msg, animate) {
     if (!msg || !msg.from || !msg.text) return;
 
-    // Deduplicate by timestamp
-    const key = `${msg.from}:${msg.ts}:${msg.text.slice(0, 50)}`;
+    // Deduplicate: prefer msg.id, fallback to from:ts:text
+    const key = msg.id || `${msg.from}:${msg.ts}:${msg.text.slice(0, 50)}`;
     if (seenTs.has(key)) return;
     seenTs.add(key);
 
