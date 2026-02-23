@@ -14,6 +14,7 @@ memory/handoffs/*
 !memory/library/
 !memory/research/
 !memory/threads/
+!memory/discussions/
 sessions/
 .claude/*
 !.claude/settings.json

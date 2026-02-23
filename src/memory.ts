@@ -110,6 +110,8 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'project-manager': ['project', 'task', 'plan', 'priority', 'heartbeat', 'p0', 'p1'],
   'server-admin': ['server', 'port', 'service', 'restart', 'process', 'kill', 'admin'],
   'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
+  'discussion-facilitation': ['discussion', 'discuss', 'facilitate', 'meeting', 'agenda', 'diverge', 'converge', 'decision'],
+  'discussion-participation': ['discussion', 'discuss', 'participate', 'round', 'opinion', 'viewpoint'],
 };
 
 /**

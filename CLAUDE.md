@@ -92,6 +92,9 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Audio Analyze | `scripts/audio-analyze.sh` |
 | Audio Transcribe | `scripts/audio-transcribe.sh` |
 | Audio Spectrogram | `scripts/audio-spectrogram.sh` |
+| Discussion Facilitation | `skills/discussion-facilitation.md` |
+| Discussion Participation | `skills/discussion-participation.md` |
+| Discussions | `memory/discussions/` |
 
 ## Memory Architecture
 

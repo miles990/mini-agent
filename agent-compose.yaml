@@ -100,5 +100,7 @@ agents:
       - ./skills/action-from-learning.md
       - ./skills/delegation.md
       - ./skills/github-ops.md
+      - ./skills/discussion-facilitation.md
+      - ./skills/discussion-participation.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md
