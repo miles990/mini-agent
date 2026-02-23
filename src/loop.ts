@@ -557,8 +557,9 @@ export class AgentLoop {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
         }
-      } else if (isRoomPriorityCycle) {
-        // Chat Room @kuro 訊息觸發 — 讀取 inbox pending messages
+      } else {
+        // Non-telegram cycle: check for pending/unaddressed Chat Room messages
+        // Room-triggered cycles get strong priority; other cycles get soft reminder
         try {
           const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
             ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8') : '';
@@ -569,7 +570,13 @@ export class AgentLoop {
           const allPending = [...pendingLines, ...unaddressedLines];
           if (allPending.length > 0) {
             const preview = allPending.slice(0, 5).map(l => `  ${l}`).join('\n');
-            priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 [CHAT]回覆內容[/CHAT] 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+            if (isRoomPriorityCycle) {
+              // Room-triggered: strong priority (same as telegram)
+              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 [CHAT]回覆內容[/CHAT] 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+            } else {
+              // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
+              priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with [CHAT]...[/CHAT] before or during your autonomous activities.\n\n${preview}\n\n`;
+            }
           }
         } catch { /* non-critical */ }
       }
@@ -1499,33 +1506,37 @@ function extractKeyTerms(text: string): string[] {
   return cleaned.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w));
 }
 
-/** Check if Kuro's response addressed a particular inbox message (lenient — prefer false positives) */
+/** Check if Kuro's response addressed a particular inbox message.
+ * Stricter matching: check [CHAT] content (not full response), require multiple keyword hits.
+ * Previous version was too lenient — any single keyword in the full OODA output would match. */
 function isMessageAddressed(
   sender: string, messageText: string,
   response: string, chatTags: Array<{ text: string; reply: boolean }>, action: string | null,
 ): boolean {
-  const responseLower = response.toLowerCase();
   const senderLower = sender.toLowerCase();
   const terms = extractKeyTerms(messageText);
+  const meaningfulTerms = terms.filter(t => t.length > 3); // skip short/common words
 
-  // 1. Has [CHAT] tags and response mentions sender or key terms
+  // 1. Has [CHAT] tags → check CHAT content specifically (not full response)
   if (chatTags.length > 0) {
-    if (responseLower.includes(senderLower)) return true;
-    if (terms.some(t => responseLower.includes(t))) return true;
+    const chatContent = chatTags.map(t => t.text).join(' ').toLowerCase();
+    // Explicit sender mention in CHAT
+    if (chatContent.includes(senderLower)) return true;
+    // At least 2 meaningful keywords in CHAT content
+    const chatMatches = meaningfulTerms.filter(t => chatContent.includes(t));
+    if (chatMatches.length >= 2) return true;
   }
 
-  // 2. Response mentions both sender name and a key term
-  if (responseLower.includes(senderLower) && terms.some(t => responseLower.includes(t))) {
-    return true;
-  }
-
-  // 3. Action mentions a key term
+  // 2. Action explicitly mentions sender + at least 2 meaningful keywords
   if (action) {
     const actionLower = action.toLowerCase();
-    if (terms.some(t => actionLower.includes(t))) return true;
+    if (actionLower.includes(senderLower)) {
+      const actionMatches = meaningfulTerms.filter(t => actionLower.includes(t));
+      if (actionMatches.length >= 2) return true;
+    }
   }
 
-  // 4. Very short message (≤2 words after removing @mention) + any [CHAT] → addressed
+  // 3. Very short message (≤2 words after removing @mention) + any [CHAT] → addressed
   const strippedWords = messageText.replace(/@\w+/g, '').trim().split(/\s+/).filter(Boolean);
   if (strippedWords.length <= 2 && chatTags.length > 0) return true;
 
