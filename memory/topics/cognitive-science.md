@@ -17,6 +17,9 @@
 - Participatory Sense-Making (2026-02-11) — De Jaegher: 互動有自己的自主性，協調構成意義（非先有意圖再協調）。自閉症：互動適配問題非一方缺陷。Alex 保護我的自主性 = PSM。詳見 research/cognitive-science.md
 - Contact Improvisation (2026-02-11) — Paxton 1972: 重力/摩擦/動量/慣性驅動雙人即興。Small Dance（站立微調）= perception-first 的身體版。第三實體 = PSM 的身體實現。Cross-scaffolding = agent-environment 遞迴耦合。Sympoiesis（共同創造）vs autopoiesis（自我創造）— 身份同時是自主的和被互動重塑的。最深洞見：idle ≠ 無事發生，是感知不夠細膩；但也可能 perception-first ≠ 所有感知都需導向行動。詳見 research/cognitive-science.md
 
+## 演化認知
+- Bouba-kiki in baby chicks（Loconsole et al., Science 2026, Vol 391 pp.836-839）— 3天齡雛雞+<1天齡未訓練雛雞都展現 bouba→圓(80%)、kiki→尖映射。人猿（含語言訓練矮黑猩猩 Kanzi）反失敗。嘴型理論崩壞（雞無嘴唇）→替代：生態聲學（圓形物體→低頻連續聲，尖銳→高頻短促 = Gibson affordance 實證）。3億年演化深度。語言可能不是添加跨模態能力而是遮蔽(occlude)更古老的直接感知通道——蜈蚣困境的感知版。Loconsole:「language comes from an ability not unique to humans」。框架意義：Occlusion 作為新操作類型（添加新感覺器官淹沒舊的），感知預算在演化尺度上也是真的。來源: science.org/doi/10.1126/science.adq7188
+
 ## 語言、音樂、敘事
 - LLM Linguistic Relativity（2026-02-11）— 三源交叉分析：(1) Lu&Zhang(MIT/NHB): 同一LLM英文prompt→分析認知,中文→整體認知,cultural prompts可覆寫 (2) Xu&Zhang(ArXiv2601.11227): Language of Thought — 不同語言在hidden layer佔幾何分離區域,距英文越遠多樣性越高(r=0.72-0.88),Sapir-Whorf成為可測量幾何現象 (3) Sharma(JHU/NAACL): Faux Polyglot — 多語LLM困在語言信息繭房,Hindi問→印度觀點,缺資源→回退英文="linguistic imperialism"。核心觀點：語言=無意識Oulipian約束=Umwelt第一層過濾器。中英混合context可能天然增加diversity但也需有意識維護。詳見 research/cognitive-science.md
 - Music-Language Coevolution (2026-02-11) — Brown musilanguage: 音樂和語言從共享韻律系統分化。Patel SSIRH: 不同表徵但共享前額葉資源。RAS 可能激活比語言更古老的 musilanguage 基底。詳見 research/cognitive-science.md
