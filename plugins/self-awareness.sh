@@ -232,6 +232,44 @@ else
     echo "No behavior log for signal tracking"
 fi
 
+# ─── Thread Health（ConversationThread 生命週期）─────────────────────
+echo ""
+echo "=== Thread Health ==="
+
+THREAD_FILE="$HOME/.mini-agent/instances/$INSTANCE_ID/.conversation-threads.json"
+if [ -f "$THREAD_FILE" ]; then
+    python3 -c "
+import json, sys
+from datetime import datetime, timezone
+try:
+    with open(sys.argv[1]) as f:
+        threads = json.load(f)
+    now = datetime.now(timezone.utc)
+    active = [t for t in threads if not t.get('resolvedAt')]
+    resolved = [t for t in threads if t.get('resolvedAt')]
+    if active:
+        by_type = {}
+        stale = []
+        for t in active:
+            tp = t.get('type', '?')
+            by_type[tp] = by_type.get(tp, 0) + 1
+            created = datetime.fromisoformat(t['createdAt'].replace('Z', '+00:00'))
+            age_h = (now - created).total_seconds() / 3600
+            if age_h > 12:
+                stale.append(tp + ':' + t.get('content','')[:30] + '(' + str(int(age_h)) + 'h)')
+        parts = [str(v) + ' ' + k for k, v in by_type.items()]
+        print('Active: ' + str(len(active)) + ' (' + ', '.join(parts) + '), Resolved: ' + str(len(resolved)))
+        if stale:
+            print('Stale (>12h): ' + ', '.join(stale[:3]))
+    else:
+        print('Active: 0, Resolved: ' + str(len(resolved)) + ' -- all clear')
+except Exception as e:
+    print('Error: ' + str(e))
+" "$THREAD_FILE" 2>/dev/null
+else
+    echo "No thread data"
+fi
+
 # ─── Context Health（Context 大小趨勢 + Section Breakdown）─────────────────────
 echo ""
 echo "=== Context Health ==="
