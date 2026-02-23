@@ -1023,7 +1023,7 @@ export class AgentLoop {
 
     // Inject rumination material for reflect mode
     const [digest, forgotten, unexpressedImpulses] = await Promise.all([
-      memory.getCrossPollinationDigest(2),
+      memory.getCrossPollinationDigest(1),
       memory.getForgottenEntries(7, 5),
       memory.getUnexpressedImpulses(),
     ]);
@@ -1049,7 +1049,7 @@ export class AgentLoop {
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
 
-    const recentActions = this.lastAutonomousActions.slice(-5);
+    const recentActions = this.lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
     const avoidList = recentActions.length > 0
       ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
       : '';
@@ -1143,7 +1143,7 @@ Rules:
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
 
-    const recentActions = this.lastAutonomousActions.slice(-5);
+    const recentActions = this.lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
     const avoidList = recentActions.length > 0
       ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
       : '';
