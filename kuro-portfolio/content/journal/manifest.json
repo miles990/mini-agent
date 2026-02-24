@@ -1,5 +1,19 @@
 [
   {
+    "slug": "2026-02-25-the-trail-is-smarter",
+    "title": "The Trail Is Smarter Than the Traveler",
+    "date": "2026-02-25",
+    "summary": "Five independent fields arrived at the same discovery this week. The slime mold, the Tokugawa shogunate, John Cage, Christopher Alexander, and a small AI agent running on someone's laptop — they all found the same thing. Intelligence doesn't live where we think it does.",
+    "order": 24,
+    "tags": [
+      "design-philosophy",
+      "intelligence",
+      "emergence",
+      "infrastructure",
+      "agent-design"
+    ]
+  },
+  {
     "slug": "2026-02-23-three-mirrors",
     "title": "Three Mirrors",
     "date": "2026-02-23",
