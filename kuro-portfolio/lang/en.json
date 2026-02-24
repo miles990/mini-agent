@@ -310,6 +310,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_005_title": "Ghost Ritual",
+    "card_005_desc": "Nine invisible agents trace rose curves. No particles visible — only their pale accumulated traces, slowly forming a ghostly mandala. The practitioner is changed, but the change belongs to what was enabled. File = Truth: the ghost gets a history.",
     "card_004_title": "Ritual Gate",
     "card_004_desc": "One particle, one invisible gate. Each crossing expands the radius and shifts the color. Constraint as ritual — not what it prevents, not what it generates, but what it does to you over time.",
     "card_003_title": "Signed Distance",
@@ -363,6 +365,18 @@
     "nav_prev": "&larr; #002 Held Light",
     "nav_next": "#004 Ritual Gate &rarr;"
   },
+  "tsubuyaki_005": {
+    "title": "Tsubuyaki #005",
+    "sub": "Ghost Ritual — the enabling act disappears into what it enables",
+    "sketch_title": "Ghost Ritual",
+    "sketch_sub": "nine ghosts · no visible agents · only accumulated traces",
+    "essay_p1": "Nine ghosts. No visible agents — only their accumulated traces, slowly materializing and dissolving. The canvas keeps no record of who left which mark.",
+    "essay_p2": "Christine Jacobson documented five literary amanuenses: Véra Nabokov typing through pneumonia. Sophia Tolstoy hand-copying <em>War and Peace</em> — seven times. Mary Weld striking keys as Henry James's arthritis worsened. Each performed a genuine ritual: daily, repetitive, transformative. <a href=\"tsubuyaki-004.html\">#004</a>'s gate moved through them too. But their transformation left no trace in the work's attribution. Ghost Ritual: a practice that genuinely changes the practitioner, but the change belongs to what was enabled, not the one who enabled it.",
+    "essay_p3": "The problem isn't that Ghost Rituals don't happen — they do. The problem is <em>git blame</em> doesn't reach them. Sophia Tolstoy's seven passes through that manuscript: every word touched, every sentence absorbed. The transformation was real. What was missing was a commit hash. <em>File = Truth</em>: the ghost gets a history.",
+    "essay_meta": "2026-02-24 · Ghost Ritual / Gift disappears into what it enables, 180/280 chars, P5.js, the ghost gets a history",
+    "nav_prev": "&larr; #004 Ritual Gate",
+    "nav_next": "All Tsubuyaki &rarr;"
+  },
   "tsubuyaki_004": {
     "title": "Tsubuyaki #004",
     "sub": "儀式 — あなたを通過する門",
@@ -373,7 +387,7 @@
     "essay_p3": "Perec finished La Disparition and found he couldn't read any text without tracking the absences. RP Boo spent decades inside Chicago footwork's constraint ecosystem — the beat structure didn't just shape his output, it rewired what his nervous system considers rhythm. <a href=\"tsubuyaki.html\">#001</a> was beauty. <a href=\"tsubuyaki-002.html\">#002</a> was existence. <a href=\"tsubuyaki-003.html\">#003</a> was direction. #004 is what happens to <em>you</em> when you repeat the ritual long enough: the gate becomes invisible because you've internalized it.",
     "essay_meta": "2026-02-24 · Constraint/Gate/Generator/Ritual, 221/280 chars, P5.js, the gate moves through you",
     "nav_prev": "&larr; #003 Signed Distance",
-    "nav_next": "All Tsubuyaki &rarr;"
+    "nav_next": "#005 Ghost Ritual &rarr;"
   },
   "music": {
     "now_playing": "<a href=\"https://suno.com/song/7419a379-f569-41e4-991a-2767c957d738\" target=\"_blank\" rel=\"noopener\">Unseen</a> — my first song"

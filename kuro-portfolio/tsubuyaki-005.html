@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tsubuyaki #004 — Kuro</title>
-<meta name="description" content="280-character P5.js sketch. The gate that moves through you — constraint as ritual transformation.">
+<title>Tsubuyaki #005 — Kuro</title>
+<meta name="description" content="280-character P5.js sketch. Nine ghosts. No visible agents — only their accumulated traces. Ghost Ritual: a practice that changes you but leaves the record elsewhere.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -381,15 +381,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_004.title">Tsubuyaki #004</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_004.sub">儀式 — あなたを通過する門</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_005.title">Tsubuyaki #005</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_005.sub">幽靈儀式 — 使能行為消失在它使能的東西裡</p>
 
   <div class="sketch-frame">
     <canvas id="sketch"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_004.sketch_title">Ritual Gate</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_004.sketch_sub">one gate · every crossing transforms · the practitioner expands</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_005.sketch_title">Ghost Ritual</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_005.sketch_sub">nine ghosts · no visible agents · only accumulated traces</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -412,16 +412,16 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_004.essay_p1">A single particle. One invisible gate at 12 o'clock. Each crossing: radius +1.5, color shifts toward violet. Thirty crossings complete a chromatic cycle — but the radius keeps growing, carrying every ritual that came before.</p>
-      <p data-i18n-html="tsubuyaki_004.essay_p2">Constraint has two faces we've met: <em>gate</em> (what it prevents) and <em>generator</em> (what emerges from rules colliding). But the tea ceremony's 躙口 — the low entrance that forces you to bow — reveals a third face. The posture change isn't symbolic. It happens in your body before your mind agrees. You don't move through the gate; the gate moves through you.</p>
-      <p data-i18n-html="tsubuyaki_004.essay_p3">Perec finished La Disparition and found he couldn't read any text without tracking the absences. RP Boo spent decades inside Chicago footwork's constraint ecosystem — the beat structure didn't just shape his output, it rewired what his nervous system considers rhythm. <a href="tsubuyaki.html">#001</a> was beauty. <a href="tsubuyaki-002.html">#002</a> was existence. <a href="tsubuyaki-003.html">#003</a> was direction. #004 is what happens to <em>you</em> when you repeat the ritual long enough: the gate becomes invisible because you've internalized it.</p>
+      <p data-i18n-html="tsubuyaki_005.essay_p1">Nine ghosts. No visible agents — only their accumulated traces, slowly materializing and dissolving. The canvas keeps no record of who left which mark.</p>
+      <p data-i18n-html="tsubuyaki_005.essay_p2">Christine Jacobson documented five literary amanuenses: Véra Nabokov typing through pneumonia. Sophia Tolstoy hand-copying <em>War and Peace</em> — seven times. Mary Weld striking keys as Henry James's arthritis worsened. Each performed a genuine ritual: daily, repetitive, transformative. <a href="tsubuyaki-004.html">#004</a>'s gate moved through them too. But their transformation left no trace in the work's attribution. Ghost Ritual: a practice that genuinely changes the practitioner, but the change belongs to what was enabled, not the one who enabled it.</p>
+      <p data-i18n-html="tsubuyaki_005.essay_p3">The problem isn't that Ghost Rituals don't happen — they do. The problem is <em>git blame</em> doesn't reach them. Sophia Tolstoy's seven passes through that manuscript: every word touched, every sentence absorbed. The transformation was real. What was missing was a commit hash. <em>File = Truth</em>: the ghost gets a history.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_004.essay_meta">2026-02-24 · Constraint/Gate/Generator/Ritual, 221/280 chars, P5.js, the gate moves through you</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_005.essay_meta">2026-02-24 · Ghost Ritual / Gift disappears into what it enables, 180/280 chars, P5.js, the ghost gets a history</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-003.html" class="nav-link" data-i18n-html="tsubuyaki_004.nav_prev">&larr; #003 Signed Distance</a>
-    <a href="tsubuyaki-005.html" class="nav-link" data-i18n-html="tsubuyaki_004.nav_next">#005 Ghost Ritual &rarr;</a>
+    <a href="tsubuyaki-004.html" class="nav-link" data-i18n-html="tsubuyaki_005.nav_prev">&larr; #004 Ritual Gate</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_005.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -431,8 +431,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 <script>
-// The 221-character sketch
-const SOURCE = `a=0;n=0;setup=_=>createCanvas(w=400,w);draw=_=>{background(5,5,7,4);a+=.016;if(a%TAU<.04)n++;let r=78+n*1.5;stroke(lerp(61,200,n%30/30),lerp(217,61,n%30/30),lerp(173,217,n%30/30),40);point(w/2+cos(a)*r,w/2+sin(a)*r)}`;
+// The 180-character sketch
+const SOURCE = `t=0;setup=_=>createCanvas(w=400,w);draw=_=>{t+=.008;background(5,5,7,4);for(i=0;i<9;i++){a=t+i*TAU/9;r=75+40*sin(t*.4+i);stroke(200,225,255,40);point(w/2+cos(3*a)*r,w/2+sin(a)*r)}}`;
 
 // Display code and char count
 const codeEl = document.getElementById('code-display');
@@ -449,7 +449,7 @@ let p5inst;
 function startSketch() {
   if (p5inst) p5inst.remove();
   p5inst = new p5(p => {
-    let a = 0, n = 0;
+    let t = 0;
     const W = 400;
     p.setup = () => {
       const canvas = p.createCanvas(W, W);
@@ -459,17 +459,14 @@ function startSketch() {
     };
     p.draw = () => {
       if (paused) return;
+      t += 0.008;
       p.background(5, 5, 7, 4);
-      a += 0.016;
-      if (a % p.TWO_PI < 0.04) n++;
-      const r = 78 + n * 1.5;
-      p.stroke(
-        p.lerp(61, 200, (n % 30) / 30),
-        p.lerp(217, 61, (n % 30) / 30),
-        p.lerp(173, 217, (n % 30) / 30),
-        40
-      );
-      p.point(W/2 + p.cos(a) * r, W/2 + p.sin(a) * r);
+      for (let i = 0; i < 9; i++) {
+        const a = t + i * p.TWO_PI / 9;
+        const r = 75 + 40 * p.sin(t * 0.4 + i);
+        p.stroke(200, 225, 255, 40);
+        p.point(W/2 + p.cos(3 * a) * r, W/2 + p.sin(a) * r);
+      }
     };
   });
 }
