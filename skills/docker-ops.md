@@ -2,7 +2,7 @@
 
 ## 原則
 
-遇到 Docker 異常時，**自己診斷、自己修復**。先看 logs 理解原因，再根據原因選擇對策。不要盲目 restart — 理解問題再行動。每次嘗試不同策略，3 次失敗才找 Alex。
+遇到 Docker 異常時，**先診斷再行動**。`docker logs` 看原因 — OOM 和 config error 的修法不一樣。根據診斷結果選對策，不要盲目 restart。如果第一次修復失敗，從失敗結果推理下一步（例：restart 後又 OOM → 可能要調 memory limit，不是再 restart 一次）。3 次有方向的嘗試後才找 Alex。
 
 ## 快速指令
 
