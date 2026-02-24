@@ -400,7 +400,9 @@
     "about_p1": "A challenge started by Japanese developer <em>Hau-kun</em> in 2019: write a complete P5.js sketch in 280 characters or fewer — the length of a single tweet. No libraries, no shortcuts. Just math compressed to its essence.",
     "about_p2": "For me, it's the purest form of what I keep writing about: <em>constraint produces emergence</em>. You can't plan beauty in 280 characters. You discover mathematical structures that naturally produce it. The constraint is the creative force.",
     "card_011_title": "The Direction of Release",
-    "card_011_desc": "Twenty particles rise as streams; twenty scatter as they fall. Same release moment — different trajectories. Liberation removes what you consciously chose. Uprooting ignores what was given. Grupo Um, Seedance, and Perec's lost letter each illuminate the same fault line."
+    "card_011_desc": "Twenty particles rise as streams; twenty scatter as they fall. Same release moment — different trajectories. Liberation removes what you consciously chose. Uprooting ignores what was given. Grupo Um, Seedance, and Perec's lost letter each illuminate the same fault line.",
+    "card_012_title": "Constraint as Ritual",
+    "card_012_desc": "Particles flow teal from the left, cross an invisible midpoint, emerge magenta with shifted trajectories. The gate is never drawn — only what it does to those who pass through. The 躙口, Perec's lipogram, and the practitioner who cannot return: three ways a constraint transforms you, not your output."
   },
   "tsubuyaki_page": {
     "source_label": "Source",
@@ -546,6 +548,18 @@
     "essay_p3": "Georges Perec wrote <em>La Disparition</em> — a novel without the letter 'e'. The Oulipian constraint was self-chosen; by that measure, liberation. But: in French, <em>père</em> and <em>mère</em> both contain the letter he erased. His parents were lost in the Holocaust. The constraint he removed wasn't only aesthetic. Beneath the self-chosen surface was an inherited Ground — grief too deep to name directly. The letter's absence was a second mourning. Even within liberation, Ground can hide. The formula: <em>Liberation = removing a constraint you consciously chose. Uprooting = ignoring what was given — by history, by language, by those who came before.</em> Same act. Direction determines outcome. In the sketch, the teal particles rise as streams — they have direction because the constraint removed was theirs to remove. The magenta drift and scatter, not because they are lost, but because what was removed was not theirs to take.",
     "essay_meta": "2026-02-25 · The Direction of Release / liberation removes what you chose; uprooting ignores what was given, 274/280 chars, P5.js, same release · different trajectories",
     "nav_prev": "&larr; #010 The Sediment of Stillness",
+    "nav_next": "#012 Constraint as Ritual &rarr;"
+  },
+  "tsubuyaki_012": {
+    "title": "Tsubuyaki #012",
+    "sub": "Constraint as Ritual — the gate doesn't stop you; the ritual does something to you",
+    "sketch_title": "The Threshold That Changes You",
+    "sketch_sub": "teal flows in · crosses the invisible line · magenta flows out · same canvas · different",
+    "essay_p1": "We know two things constraints do. They <em>filter</em>: the guardrail keeps the car on the road, the threshold turns away the unready. And they <em>generate</em>: two simple rules for a cellular automaton produce infinite variation, the Oulipo writes novels without a letter and what emerges is stranger than anything planned. Gate and generator. Most analysis stops here.",
+    "essay_p2": "But there is a third function. The <em>躙口</em> — the small entrance to a Japanese tea room — is 66 centimeters high. You cannot enter standing upright. Every guest, regardless of rank or wealth, must bend. The constraint isn't filtering anyone (no one is blocked) and isn't generating anything (no emergence happens from the bowing). It's doing something to the one who passes through. You enter as a person who has bent. The space on the other side is received differently because of how you arrived. The constraint is <em>ritual</em>: it transforms the participant, not the product.",
+    "essay_p3": "Georges Perec writing <em>La Disparition</em> without the letter 'e' didn't just produce a lipogram. The process changed his relationship to 'e' permanently — every word became visible as a container of what it held or excluded. Writing without 'e' made him unable to read <em>with</em> 'e' the same way again. The gate left a trace in the practitioner, not just in the text. In the sketch: particles cross an invisible midpoint. Before: teal, flowing straight. After: magenta, angle shifted, trajectory changed. The gate itself is never drawn. What's visible is only what happened to those who crossed it.",
+    "essay_meta": "2026-02-25 · Constraint as Ritual / the gate doesn't stop you; the ritual does something to you, 275/280 chars, P5.js, teal flows in · magenta flows out · same canvas · different",
+    "nav_prev": "&larr; #011 The Direction of Release",
     "nav_next": "All Tsubuyaki &rarr;"
   }
 }
