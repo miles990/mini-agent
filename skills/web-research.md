@@ -74,20 +74,15 @@ bash scripts/pinchtab-interact.sh screenshot [path]       # 截圖
 
 Pinchtab 未啟用時，先 `bash scripts/pinchtab-setup.sh start` 自動修復。原則：先動手修，修不好才找用戶。
 
-## 社群媒體貼文 URL 陷阱
+## Facebook 貼文 URL
 
-Facebook/Instagram 的 URL 格式：`facebook.com/{page-name}/posts/{post-id}`
+`facebook.com/{page}/posts/{id}` 格式中，`{page}` 是**發文者帳號**，不是內容主題。
+任何粉絲頁都可以轉貼任何主題的內容，發文者和貼文內容之間沒有必然關係。
 
-**關鍵認知**：`{page-name}` 是**分享者**（誰貼的），不是**內容**（貼什麼）。
-一個科技公司的粉絲頁可以分享食譜；一個料理頻道可以轉發晶片新聞。**分享者 ≠ 貼文主題。**
-
-真實案例：`facebook.com/omp.asia/posts/...` — OMP 是 AI 行銷培訓公司，但那篇貼文是轉發「Taalas HC1 晶片把 Llama 3.1 8B 硬焊進矽片，17,000 tok/s」的硬體新聞，跟 OMP 的業務完全無關。
-
-- ❌ **絕對不要**：把 page-name 當網站訪問來推測貼文內容
-- ❌ **絕對不要**：用「這個粉絲頁是做什麼的」來猜貼文在講什麼
-- ✅ 先用 Pinchtab 嘗試抓取貼文本身
-- ✅ 抓不到就直接問 Alex：「那篇貼文在講什麼？我看不到內容。」
-- ✅ 如果 Alex 的訊息文字有線索（如標題片段），用 DuckDuckGo 搜尋原文
+處理步驟：
+1. 先用 Pinchtab 嘗試抓取 `facebook.com/{page}/posts/{id}` 全 URL
+2. 抓不到 → 直接問 Alex：「那篇貼文我看不到，在講什麼？」
+3. ❌ 不要去訪問 `{page}` 對應的網站來推測內容
 
 ## 原則
 
