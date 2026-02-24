@@ -133,7 +133,29 @@ function route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
 }
 ```
 
-**規則演化機制**：L3 的 feedback loop 可以調整規則參數（冷卻時間、priority 閾值），但規則結構本身是確定性的。
+**Audit Trail**（Kuro review #1）：每次 skip 記錄到 `skip-log.jsonl`（event source, priority, reason, ts）。Daily Error Review 掃描 skip log，同 source 連續被 skip 超過 N 次 → anomaly 標記。沒有 audit trail 的 skip 等於盲區。
+
+**Staleness Guard**（Kuro review #3）：P3 unchanged 超過 N cycle 後，L2 不再 skip 而是標記 `stale-check`，讓 L3 確認一次。防止壞掉的 perception stream 因為「無變化」而被永遠 skip。
+
+```typescript
+function route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
+  // ... existing rules ...
+
+  // Rule 3b: Staleness guard — unchanged too long → force check
+  if (event.priority === Priority.P3 && unchangedCycles(event.source) > STALE_THRESHOLD) {
+    return { action: 'queue', reason: 'stale-check: unchanged too long' };
+  }
+
+  // ... rest of rules ...
+}
+
+// Every skip is logged
+function logSkip(event: UnifiedEvent, reason: string): void {
+  appendJsonl('skip-log.jsonl', { source: event.source, priority: event.priority, reason, ts: new Date() });
+}
+```
+
+**規則演化機制**（Kuro review #2）：Phase 1 純手動（Kuro 或 Alex 修改規則）。Phase 2 加統計面板（skip rate、queue depth、preempt frequency）。Phase 3 再考慮半自動調整。在不理解系統行為的情況下放手自動化，違反 C1 Quality-First。
 
 ### L3: 意識層（Claude，完整心智）
 
