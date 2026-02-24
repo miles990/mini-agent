@@ -101,82 +101,107 @@ interface PerceptionEnricher {
 
 **可插拔介面**（Alex 補充）：L2 路由器設計為可替換模組。Phase 1 用確定性規則（零 API call、零 token），但介面允許未來替換為輕量 LLM（如 Claude Haiku）做更智慧的路由判斷。
 
+**核心不變量**（三方共識 #062-#063）：**事件只能被延遲，不能被消滅。** Router 可以讀 content 做 priority classification（路由），但不能基於 content 語義做 skip/drop（濾網）。類比：交通號誌讀路況決定紅綠燈，但不能決定「這條路不該存在」。
+
 ```typescript
 // 路由器介面 — 任何實作都必須符合
 interface EventRouter {
+  /**
+   * 路由決策。可讀 event.content 做 priority classification，
+   * 但不能基於 content 語義消滅事件。
+   * 不變量：事件只能被延遲（priority 調整），不能被消滅（無 skip/drop）。
+   */
   route(event: UnifiedEvent, loopState: LoopState): Promise<RouteDecision> | RouteDecision;
   readonly name: string;        // 'deterministic' | 'haiku' | 'custom'
   readonly costPerCall: number;  // 0 for rules, >0 for LLM
 }
 
+// 路由決策 — 型別系統強制無 skip/drop
 interface RouteDecision {
-  action: 'skip' | 'queue' | 'preempt';
+  priority: Priority;           // 最終 priority（可升降）
+  lane: string;                 // 'preempt' | 'immediate' | 'normal' | 'deferred'
   reason: string;
+  priorityAdjusted?: {          // content-based 調整時必填（audit trail）
+    from: Priority;
+    to: Priority;
+    basis: string;              // 調整依據
+  };
 }
 
-// Phase 1 預設實作：確定性規則
+// Priority SLA — 每個等級都有處理時限，P4 不等於「永遠不處理」
+const PRIORITY_SLA: Record<Priority, number> = {
+  [Priority.P0]: 0,            // 立即（preempt）
+  [Priority.P1]: 1,            // 1 cycle 內
+  [Priority.P2]: 3,            // 3 cycles 內
+  [Priority.P3]: 10,           // 10 cycles 內
+};
+
+// Phase 1 預設實作：確定性規則（不讀 content）
 class DeterministicRouter implements EventRouter {
   readonly name = 'deterministic';
   readonly costPerCall = 0;
 
   route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
-  // Rule 1: P0 事件 — 搶佔（cooperative yield）
-  if (event.priority === Priority.P0 && loopState.cycling) {
-    return { action: 'preempt', reason: 'P0 event during cycle' };
-  }
+    // Rule 1: P0 事件 — 搶佔
+    if (event.priority === Priority.P0 && loopState.cycling) {
+      return { priority: Priority.P0, lane: 'preempt', reason: 'P0 event during cycle' };
+    }
 
-  // Rule 2: P1 事件 — cooperative yield（設 flag，等 cycle 自然結束）
-  if (event.priority === Priority.P1 && loopState.cycling) {
-    return { action: 'queue', reason: 'P1 queued for next cycle' };
-  }
+    // Rule 2: P1 事件 — cooperative yield
+    if (event.priority === Priority.P1 && loopState.cycling) {
+      return { priority: Priority.P1, lane: 'immediate', reason: 'P1 queued for next cycle' };
+    }
 
-  // Rule 3: P3 heartbeat — 如果感知無變化，skip
-  if (event.priority === Priority.P3 && !perceptionStreams.hasChangedSinceLastBuild()) {
-    return { action: 'skip', reason: 'no perception changes' };
-  }
+    // Rule 3: P3 heartbeat — 延遲但不消滅
+    if (event.priority === Priority.P3 && !perceptionStreams.hasChangedSinceLastBuild()) {
+      return { priority: Priority.P3, lane: 'deferred', reason: 'no perception changes' };
+    }
 
-  // Rule 4: 冷卻期 — 同 source 10s 內不重複觸發
-  if (recentlyProcessed(event.source, 10_000)) {
-    return { action: 'skip', reason: 'cooldown' };
-  }
+    // Rule 4: 冷卻期 — 延遲
+    if (recentlyProcessed(event.source, 10_000)) {
+      return { priority: event.priority, lane: 'deferred', reason: 'cooldown' };
+    }
 
-    // Default: 排隊處理
-    return { action: 'queue', reason: 'normal processing' };
+    // Default
+    return { priority: event.priority, lane: 'normal', reason: 'normal processing' };
   }
 }
 
-// 未來可替換為 LLM 路由器：
+// 未來可替換為 LLM 路由器（讀 content 做 priority classification）：
 // class HaikuRouter implements EventRouter {
 //   readonly name = 'haiku';
-//   readonly costPerCall = ~0.001;  // 極低成本
+//   readonly costPerCall = ~0.001;
 //   async route(event, loopState): Promise<RouteDecision> {
-//     // 用 Haiku 分析事件語義，做更細緻的路由
-//     // 例：判斷 P2 事件是否其實很緊急、合併相關事件等
+//     // 讀 content 判斷緊急度 → 調整 priority
+//     // 例：「production 掛了」P2 → P0，但事件仍到達 L3
+//     // priorityAdjusted 記錄每次調整（audit trail）
 //   }
 // }
 ```
 
 **切換方式**：`agent-compose.yaml` 設定 `router: deterministic | haiku`，或 feature toggle 動態切換。Phase 1 只實作 `DeterministicRouter`，介面預留擴展點。
 
-**Audit Trail**（Kuro review #1）：每次 skip 記錄到 `skip-log.jsonl`（event source, priority, reason, ts）。Daily Error Review 掃描 skip log，同 source 連續被 skip 超過 N 次 → anomaly 標記。沒有 audit trail 的 skip 等於盲區。
+**Deferred Lane 處理**（對應原 skip 邏輯）：`deferred` lane 的事件不立即觸發 cycle，但進入待處理佇列，受 Priority SLA 約束。超過 SLA 未處理 → 自動升級 priority。這確保「延遲」不會退化為「消滅」。
 
-**Staleness Guard**（Kuro review #3）：P3 unchanged 超過 N cycle 後，L2 不再 skip 而是標記 `stale-check`，讓 L3 確認一次。防止壞掉的 perception stream 因為「無變化」而被永遠 skip。
+**Audit Trail**（Kuro review #1）：每次 deferred 和 priority 調整都記錄到 `route-log.jsonl`（event source, priority, lane, priorityAdjusted, reason, ts）。Daily Error Review 掃描 route log，同 source 連續 deferred 超過 N 次 → anomaly 標記。
+
+**Staleness Guard**（Kuro review #3）：P3 unchanged 超過 N cycle 後，L2 從 `deferred` 升級為 `normal` lane，讓 L3 確認一次。防止壞掉的 perception stream 因為「無變化」而被永遠延遲。
 
 ```typescript
-function route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
-  // ... existing rules ...
+// 在 DeterministicRouter.route() 中：
 
-  // Rule 3b: Staleness guard — unchanged too long → force check
-  if (event.priority === Priority.P3 && unchangedCycles(event.source) > STALE_THRESHOLD) {
-    return { action: 'queue', reason: 'stale-check: unchanged too long' };
-  }
-
-  // ... rest of rules ...
+// Rule 3b: Staleness guard — unchanged too long → force normal processing
+if (event.priority === Priority.P3 && unchangedCycles(event.source) > STALE_THRESHOLD) {
+  return { priority: Priority.P3, lane: 'normal', reason: 'stale-check: unchanged too long' };
 }
 
-// Every skip is logged
-function logSkip(event: UnifiedEvent, reason: string): void {
-  appendJsonl('skip-log.jsonl', { source: event.source, priority: event.priority, reason, ts: new Date() });
+// Every routing decision is logged
+function logRoute(event: UnifiedEvent, decision: RouteDecision): void {
+  appendJsonl('route-log.jsonl', {
+    source: event.source, priority: decision.priority, lane: decision.lane,
+    ...(decision.priorityAdjusted ? { adjusted: decision.priorityAdjusted } : {}),
+    reason: decision.reason, ts: new Date(),
+  });
 }
 ```
 
