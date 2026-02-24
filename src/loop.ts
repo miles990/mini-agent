@@ -40,6 +40,10 @@ import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProg
 import { isEnabled, trackStart } from './features.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
 import type { LoopState } from './event-router.js';
+import {
+  hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
+  drainHeldTags, buildHeldTagsPrompt, logHesitation,
+} from './hesitation.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -820,7 +824,16 @@ export class AgentLoop {
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
       const triageHint = `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`;
 
-      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix;
+      // ── Hesitation: inject held tags for review ──
+      let hesitationReviewSuffix = '';
+      if (isEnabled('hesitation-signal')) {
+        const heldTags = drainHeldTags();
+        if (heldTags.length > 0) {
+          hesitationReviewSuffix = '\n\n' + buildHeldTagsPrompt(heldTags);
+        }
+      }
+
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + hesitationReviewSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -934,6 +947,22 @@ export class AgentLoop {
       let similarity: number | null = null;
       if (action) {
         similarity = this.computeActionSimilarity(action);
+      }
+
+      // ── Hesitation Signal（確定性，零 API call）──
+      let hesitationScheduleReview = false;
+      if (isEnabled('hesitation-signal')) {
+        const errorPatterns = loadErrorPatterns();
+        const hesitationResult = hesitate(response, tags, errorPatterns);
+        if (!hesitationResult.confident) {
+          const { held, scheduleReview } = applyHesitation(tags, hesitationResult);
+          hesitationScheduleReview = scheduleReview;
+          if (held.length > 0) {
+            saveHeldTags(held);
+            slog('HESITATION', `Score ${hesitationResult.score}: held ${held.map(h => h.type).join(', ')}`);
+          }
+          logHesitation(hesitationResult, held.length > 0 ? `held:${held.map(h => h.type).join(',')}` : 'marked', this.cycleCount);
+        }
       }
 
       // ── Side Effect Tracking (Layer 4 Enhanced Checkpoint) ──
@@ -1070,6 +1099,18 @@ export class AgentLoop {
             bounded: bounded !== ms,
           });
         }
+      }
+
+      // ── Hesitation: schedule short review cycle if tags were held ──
+      if (hesitationScheduleReview && !tags.schedule) {
+        // Override interval to 2min for held tag review (same bounds as [SCHEDULE])
+        this.currentInterval = 120_000; // 2 minutes
+        eventBus.emit('action:loop', {
+          event: 'schedule',
+          next: '2m',
+          reason: 'hesitation review: held tags pending',
+          bounded: false,
+        });
       }
 
       // Phase 1c: Save final checkpoint with side effects, then clear on success

@@ -67,6 +67,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'perception',        group: 'core',         description: 'Perception stream plugins' },
   { name: 'observability',     group: 'core',         description: 'Event bus subscribers (logging/routing)' },
   { name: 'unified-pipeline', group: 'core',         description: 'Unified event pipeline — all inputs through L0-L4 (vs separate handlers)' },
+  { name: 'hesitation-signal', group: 'core',        description: 'Deterministic hesitation — hold overconfident tags for review (Ritual constraint)' },
 
   // ── Post-cycle housekeeping ──
   { name: 'auto-commit',       group: 'housekeeping', description: 'Auto git commit memory/skills/plugins changes' },
