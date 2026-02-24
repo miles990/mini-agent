@@ -97,17 +97,29 @@ interface PerceptionEnricher {
 
 **Kuro 的核心要求**：Grok 做「幫我看更清楚」，不做「替我決定看什麼」。所有事件都到達 L3，Grok 只增加 metadata。
 
-### L2: 路由層（確定性規則，無心智）
+### L2: 路由層（可插拔，預設確定性規則）
 
-純規則引擎，零 API call，零 token：
+**可插拔介面**（Alex 補充）：L2 路由器設計為可替換模組。Phase 1 用確定性規則（零 API call、零 token），但介面允許未來替換為輕量 LLM（如 Claude Haiku）做更智慧的路由判斷。
 
 ```typescript
+// 路由器介面 — 任何實作都必須符合
+interface EventRouter {
+  route(event: UnifiedEvent, loopState: LoopState): Promise<RouteDecision> | RouteDecision;
+  readonly name: string;        // 'deterministic' | 'haiku' | 'custom'
+  readonly costPerCall: number;  // 0 for rules, >0 for LLM
+}
+
 interface RouteDecision {
   action: 'skip' | 'queue' | 'preempt';
   reason: string;
 }
 
-function route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
+// Phase 1 預設實作：確定性規則
+class DeterministicRouter implements EventRouter {
+  readonly name = 'deterministic';
+  readonly costPerCall = 0;
+
+  route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
   // Rule 1: P0 事件 — 搶佔（cooperative yield）
   if (event.priority === Priority.P0 && loopState.cycling) {
     return { action: 'preempt', reason: 'P0 event during cycle' };
@@ -128,10 +140,23 @@ function route(event: UnifiedEvent, loopState: LoopState): RouteDecision {
     return { action: 'skip', reason: 'cooldown' };
   }
 
-  // Default: 排隊處理
-  return { action: 'queue', reason: 'normal processing' };
+    // Default: 排隊處理
+    return { action: 'queue', reason: 'normal processing' };
+  }
 }
+
+// 未來可替換為 LLM 路由器：
+// class HaikuRouter implements EventRouter {
+//   readonly name = 'haiku';
+//   readonly costPerCall = ~0.001;  // 極低成本
+//   async route(event, loopState): Promise<RouteDecision> {
+//     // 用 Haiku 分析事件語義，做更細緻的路由
+//     // 例：判斷 P2 事件是否其實很緊急、合併相關事件等
+//   }
+// }
 ```
+
+**切換方式**：`agent-compose.yaml` 設定 `router: deterministic | haiku`，或 feature toggle 動態切換。Phase 1 只實作 `DeterministicRouter`，介面預留擴展點。
 
 **Audit Trail**（Kuro review #1）：每次 skip 記錄到 `skip-log.jsonl`（event source, priority, reason, ts）。Daily Error Review 掃描 skip log，同 source 連續被 skip 超過 N 次 → anomaly 標記。沒有 audit trail 的 skip 等於盲區。
 
