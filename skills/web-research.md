@@ -80,8 +80,8 @@ Pinchtab 未啟用時，先 `bash scripts/pinchtab-setup.sh start` 自動修復�
 任何粉絲頁都可以轉貼任何主題的內容，發文者和貼文內容之間沒有必然關係。
 
 處理步驟：
-1. 先用 Pinchtab 嘗試抓取 `facebook.com/{page}/posts/{id}` 全 URL
-2. 抓不到 → 直接問 Alex：「那篇貼文我看不到，在講什麼？」
+1. `bash scripts/pinchtab-fetch.sh fetch "URL"` — 自動 headless → visible 切換（visible 有 FB login session）
+2. 還是抓不到 → 直接問 Alex：「那篇貼文我看不到，在講什麼？」
 3. ❌ 不要去訪問 `{page}` 對應的網站來推測內容
 
 ## 原則
