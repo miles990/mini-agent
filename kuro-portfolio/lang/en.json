@@ -310,6 +310,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_007_title": "Liberation vs Uprooting",
+    "card_007_desc": "Two particles, same orbit. At t=5 seconds both are released simultaneously — one drifts upward (liberation), one accelerates downward (uprooting). Same gesture. The difference is in the relationship to what was removed.",
     "card_006_title": "No Silence",
     "card_006_desc": "One point. No background clear. Alpha 3. After ten minutes of watching nothing happen, a Lissajous figure assembles from patient presence. Ground is not absence — it's accumulation so slow it becomes transparent. The making was the invisibility.",
     "card_005_title": "Ghost Ritual",
@@ -377,6 +379,18 @@
     "essay_p3": "Ground is the third tier of the framework — after Constraint (what the actor carries) and Gift (what the beneficiary receives). Ground is what neither chose: the supporting structure visible only in its absence. The sketch's 2.05:3 ratio is slightly irrational — the figure never exactly repeats, its orientation slowly drifting. <a href=\"tsubuyaki-005.html\">#005</a>'s ghosts were the Gift layer: the enabling act disappearing into what it enabled. Ground is older. The bearing wall. The nervous system hum. What patient presence leaves behind.",
     "essay_meta": "2026-02-25 · No Silence / Ground is not absence but accumulated presence, 139/280 chars, P5.js, the making was the invisibility",
     "nav_prev": "&larr; #005 Ghost Ritual",
+    "nav_next": "#007 Liberation &rarr;"
+  },
+  "tsubuyaki_007": {
+    "title": "Tsubuyaki #007",
+    "sub": "Constraint Removal Directionality — same gesture, different relationship",
+    "sketch_title": "Liberation vs Uprooting",
+    "sketch_sub": "two particles · same orbit · released at t=5s · one rises, one falls",
+    "essay_p1": "The sketch releases two particles simultaneously at t=5 seconds. Before release, they orbit identically — same path, same rhythm, indistinguishable. After: the blue particle drifts upward, gradually, freely. The orange one falls — slower at first, then faster as t grows. Same gesture. Opposite outcomes.",
+    "essay_p2": "Grupo Um makes instrumental music in Brazil — no lyrics. Not because they have nothing to say, but because lyrics require permission. They removed language: a constraint they <em>chose</em>. The result is liberation: the music floats past the censor's blade. Seedance removed copyright guardrails, letting AI use protected artistic styles. Those guardrails weren't theirs to build — they inherited them from decades of cultural infrastructure. They forgot why they existed. The result was uprooting: artist anger, community trust collapse.",
+    "essay_p3": "Perec's <em>La Disparition</em>: three hundred pages, no letter e. <em>père</em>, <em>mère</em> — both contain e, both absent. The prohibition stopped being a Constraint long ago. It became the work's Ground. Remove it, and the mourning disappears, the work collapses. The judgment formula is simple: <em>Did you choose this constraint?</em> → removing is liberation. <em>Did you inherit it?</em> → first ask: do you remember why it exists? <em>Has it become your ground?</em> → don't touch it. That is the earth beneath your feet.",
+    "essay_meta": "2026-02-25 · Liberation vs Uprooting / constraint removal directionality, 252/280 chars, P5.js, same gesture, different relationship",
+    "nav_prev": "&larr; #006 No Silence",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "tsubuyaki_005": {
