@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kuro-sense</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0a0a; color: #e0e0e0;
+    max-width: 600px; margin: 0 auto; padding: 16px;
+  }
+  h1 { font-size: 1.4em; color: #5eead4; margin-bottom: 8px; }
+  h2 { font-size: 1.1em; color: #94a3b8; margin: 16px 0 8px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    background: #1a1a1a; color: #94a3b8; border: 1px solid #333;
+    font-size: 0.9em;
+  }
+  .tab.active { background: #1e3a3a; color: #5eead4; border-color: #5eead4; }
+  .card {
+    background: #141414; border: 1px solid #222; border-radius: 8px;
+    padding: 12px; margin-bottom: 8px;
+  }
+  .cap-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .cap-row:last-child { border-bottom: none; }
+  .status { font-size: 1.1em; width: 20px; text-align: center; }
+  .cap-name { font-weight: 600; min-width: 140px; }
+  .cap-desc { color: #94a3b8; font-size: 0.85em; }
+  .missing { color: #f87171; font-size: 0.8em; }
+  .cat-label { color: #5eead4; font-size: 0.8em; text-transform: uppercase; margin-top: 12px; }
+  .summary { padding: 12px; text-align: center; color: #94a3b8; }
+  .btn {
+    padding: 10px 20px; border-radius: 8px; cursor: pointer;
+    background: #1e3a3a; color: #5eead4; border: 1px solid #5eead4;
+    font-size: 1em; width: 100%; margin-top: 12px;
+  }
+  .btn:active { background: #2d4a4a; }
+  .os-info { display: flex; gap: 16px; flex-wrap: wrap; }
+  .os-item { font-size: 0.9em; }
+  .os-label { color: #94a3b8; }
+  .loading { text-align: center; padding: 40px; color: #94a3b8; }
+  input[type="checkbox"] { accent-color: #5eead4; width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<h1>kuro-sense</h1>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('detect')">Detect</div>
+  <div class="tab" onclick="showTab('config')">Configure</div>
+  <div class="tab" onclick="showTab('install')">Install</div>
+</div>
+
+<div id="detect-tab">
+  <div class="loading">Scanning environment...</div>
+</div>
+
+<div id="config-tab" style="display:none">
+  <div class="loading">Load detection results first</div>
+</div>
+
+<div id="install-tab" style="display:none">
+  <div id="install-list"></div>
+</div>
+
+<script>
+let detectData = null;
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['detect','config','install'][i] === name);
+  });
+  ['detect','config','install'].forEach(n => {
+    document.getElementById(n+'-tab').style.display = n === name ? '' : 'none';
+  });
+}
+
+async function runDetect() {
+  try {
+    const res = await fetch('/api/detect');
+    detectData = await res.json();
+    renderDetect();
+    renderConfig();
+    renderInstall();
+  } catch(e) {
+    document.getElementById('detect-tab').innerHTML =
+      '<div class="card"><p style="color:#f87171">Failed to detect: '+e.message+'</p></div>';
+  }
+}
+
+function renderDetect() {
+  const d = detectData;
+  let html = '<div class="card"><div class="os-info">';
+  html += `<div class="os-item"><span class="os-label">OS:</span> ${d.OS.OS}/${d.OS.Arch}</div>`;
+  if(d.Runtimes.Node) html += `<div class="os-item"><span class="os-label">Node:</span> ${d.Runtimes.Node}</div>`;
+  if(d.Runtimes.Python) html += `<div class="os-item"><span class="os-label">Python:</span> ${d.Runtimes.Python}</div>`;
+  html += '</div></div>';
+
+  const cats = ['workspace','chrome','telegram','heartbeat'];
+  const catNames = {workspace:'Workspace',chrome:'Chrome',telegram:'Telegram',heartbeat:'Heartbeat'};
+  let avail=0, total=0;
+
+  cats.forEach(cat => {
+    const caps = d.Capabilities.filter(c => c.Capability.Category === cat);
+    if(!caps.length) return;
+    html += `<div class="cat-label">${catNames[cat]}</div><div class="card">`;
+    caps.forEach(c => {
+      total++;
+      const ok = c.Available;
+      if(ok) avail++;
+      const icon = ok ? (c.Degraded ? '⚠️' : '✅') : '❌';
+      const missing = (c.MissingDeps||[]).map(d=>d.Name).join(', ');
+      html += `<div class="cap-row">
+        <span class="status">${icon}</span>
+        <span class="cap-name">${c.Capability.Name}</span>
+        <span class="cap-desc">${c.Capability.Description}</span>
+        ${missing ? '<span class="missing">need: '+missing+'</span>' : ''}
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  html += `<div class="summary">${avail}/${total} capabilities available</div>`;
+  document.getElementById('detect-tab').innerHTML = html;
+}
+
+function renderConfig() {
+  if(!detectData) return;
+  let html = '<h2>Select plugins to enable</h2>';
+  detectData.Capabilities.forEach(c => {
+    const checked = c.Available ? 'checked' : '';
+    html += `<div class="cap-row">
+      <input type="checkbox" id="chk-${c.Capability.Name}" ${checked}>
+      <span class="cap-name">${c.Capability.Name}</span>
+    </div>`;
+  });
+  html += '<button class="btn" onclick="applyConfig()">Apply Changes</button>';
+  document.getElementById('config-tab').innerHTML = html;
+}
+
+async function applyConfig() {
+  const enable=[], disable=[];
+  detectData.Capabilities.forEach(c => {
+    const el = document.getElementById('chk-'+c.Capability.Name);
+    if(el && el.checked) enable.push(c.Capability.Name);
+    else disable.push(c.Capability.Name);
+  });
+  try {
+    await fetch('/api/apply', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enable, disable})
+    });
+    alert('Applied!');
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+function renderInstall() {
+  if(!detectData) return;
+  const missing = [];
+  detectData.Capabilities.forEach(c => {
+    (c.MissingDeps||[]).forEach(d => {
+      if(!missing.find(m=>m.Name===d.Name)) missing.push(d);
+    });
+  });
+  if(!missing.length) {
+    document.getElementById('install-list').innerHTML = '<div class="summary">All dependencies satisfied ✓</div>';
+    return;
+  }
+  let html = '<h2>Missing Dependencies</h2>';
+  missing.forEach(d => {
+    html += `<div class="cap-row">
+      <span class="cap-name">${d.Name}</span>
+      <span class="cap-desc">${d.Kind}: ${d.Check}</span>
+      <button class="btn" style="width:auto;margin:0;padding:4px 12px" onclick="installDep('${d.Name}')">Install</button>
+    </div>`;
+  });
+  document.getElementById('install-list').innerHTML = html;
+}
+
+async function installDep(name) {
+  try {
+    const res = await fetch('/api/install', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    });
+    const data = await res.json();
+    alert(JSON.stringify(data));
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+runDetect();
+</script>
+</body>
+</html>
