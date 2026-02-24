@@ -63,6 +63,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Search | `src/search.ts` |
 | Utils | `src/utils.ts` |
 | EventBus | `src/event-bus.ts` |
+| EventRouter | `src/event-router.ts` |
 | Observability | `src/observability.ts` |
 | PerceptionStream | `src/perception-stream.ts` |
 | Logging | `src/logging.ts` |

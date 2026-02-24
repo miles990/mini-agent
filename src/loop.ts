@@ -38,6 +38,8 @@ import { withFileLock } from './filelock.js';
 import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem } from './inbox.js';
 import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
+import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
+import type { LoopState } from './event-router.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -256,8 +258,149 @@ export class AgentLoop {
   private lastPriorityDrainAt = 0;
   private static readonly PRIORITY_COOLDOWN = 10_000; // 同類 10s 冷卻
 
+  // =========================================================================
+  // Unified Event Handler (unified-pipeline feature toggle)
+  // =========================================================================
+
+  /** Unified event handler — all inputs through single L0→L4 pipeline */
+  private handleUnifiedEvent = (agentEvent: AgentEvent): void => {
+    if (!this.running || this.paused) return;
+
+    const now = Date.now();
+    const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
+
+    // Source-specific throttle (preserves existing behavior)
+    if (source === 'telegram' && priority === Priority.P0) {
+      if (now - this.lastTelegramWake < AgentLoop.TELEGRAM_WAKE_THROTTLE) return;
+      this.lastTelegramWake = now;
+    }
+
+    const event = createEvent(source, priority, null, agentEvent.data);
+    const loopState: LoopState = {
+      cycling: this.cycling,
+      lastCycleTime: this.lastCycleTime,
+      triggerReason: this.triggerReason,
+      currentMode: this.currentMode,
+      perceptionChanged: perceptionStreams.version !== this.lastPerceptionVersion,
+    };
+
+    const decision = router.route(event, loopState);
+    logRoute(event, decision);
+
+    if (this.cycling) {
+      this.handleEventWhileCycling(event, decision, agentEvent, now);
+    } else {
+      this.handleEventNotCycling(event, decision, agentEvent, now);
+    }
+  };
+
+  /** Handle routed event while a cycle is in progress */
+  private handleEventWhileCycling(
+    event: ReturnType<typeof createEvent>,
+    decision: ReturnType<typeof router.route>,
+    agentEvent: AgentEvent,
+    now: number,
+  ): void {
+    switch (decision.lane) {
+      case 'preempt':
+      case 'immediate': {
+        // Already handling same source or idle → just queue (cycle finishes fast)
+        if (event.source === 'telegram' && (
+          this.triggerReason?.startsWith('telegram-user') || this.currentMode === 'idle'
+        )) {
+          this.telegramWakeQueue++;
+          slog('LOOP', `[unified] ${event.source} queued (${this.telegramWakeQueue} pending, mode: ${this.currentMode})`);
+          return;
+        }
+
+        // Cooperative yield: set pendingPriority, let cycle finish naturally
+        const msgCount = (agentEvent.data?.messageCount as number) ?? 1;
+        const reason = `${event.source}${event.priority === Priority.P0 ? '-P0' : '-P1'}`;
+
+        // Storm guard: recently drained → accumulate only
+        if (now - this.lastPriorityDrainAt < AgentLoop.PRIORITY_COOLDOWN && this.pendingPriority) {
+          this.pendingPriority.messageCount += msgCount;
+          slog('LOOP', `[unified] Priority cooldown — accumulating (${this.pendingPriority.messageCount} msg)`);
+          return;
+        }
+
+        if (!this.pendingPriority) {
+          this.pendingPriority = { reason, arrivedAt: now, messageCount: msgCount };
+        } else {
+          // P0 upgrades existing pending reason
+          if (event.priority === Priority.P0 && !this.pendingPriority.reason.includes('P0')) {
+            this.pendingPriority.reason = reason;
+          }
+          this.pendingPriority.messageCount += msgCount;
+        }
+
+        slog('LOOP', `[unified] Priority signal: ${reason} (${this.pendingPriority.messageCount} msg, cycle age: ${Math.round((now - this.lastCycleTime) / 1000)}s)`);
+        eventBus.emit('action:loop', { event: 'priority.pending', reason, messageCount: this.pendingPriority.messageCount });
+        this.scheduleSafetyValve();
+        return;
+      }
+
+      case 'normal':
+        // Cycle in progress → queue for after cycle
+        if (event.source === 'telegram') {
+          this.telegramWakeQueue++;
+        }
+        slog('LOOP', `[unified] Event queued: ${event.source} (${decision.reason})`);
+        return;
+
+      case 'deferred':
+        slog('LOOP', `[unified] Event deferred: ${event.source} (${decision.reason})`);
+        return;
+    }
+  }
+
+  /** Handle routed event when no cycle is running */
+  private handleEventNotCycling(
+    event: ReturnType<typeof createEvent>,
+    decision: ReturnType<typeof router.route>,
+    agentEvent: AgentEvent,
+    now: number,
+  ): void {
+    if (decision.lane === 'deferred') {
+      slog('LOOP', `[unified] Event deferred: ${event.source} (${decision.reason})`);
+      return;
+    }
+
+    // Non-telegram sources: respect min cycle interval
+    if (event.source !== 'telegram' && now - this.lastCycleTime < AgentLoop.MIN_CYCLE_INTERVAL) {
+      return;
+    }
+
+    // If agent process is busy (held by cron etc), preempt first
+    if (isLoopBusy()) {
+      slog('LOOP', `[unified] Preempting busy state for ${event.source}`);
+      preemptLoopCycle();
+      setTimeout(() => {
+        this.triggerReason = `${event.source} (unified)`;
+        this.runCycle();
+      }, 500);
+      return;
+    }
+
+    // Build trigger reason
+    const detail = Object.keys(agentEvent.data).length > 0
+      ? `: ${JSON.stringify(agentEvent.data).slice(0, 100)}`
+      : '';
+    this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}${detail}`;
+    this.runCycle();
+  }
+
+  // =========================================================================
+  // Legacy Event Handlers (used when unified-pipeline is OFF)
+  // =========================================================================
+
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
+    // ★ Unified pipeline: all events go through single handler
+    if (isEnabled('unified-pipeline')) {
+      return this.handleUnifiedEvent(event);
+    }
+
     // telegram events handled exclusively by handleTelegramWake
     if (event.type === 'trigger:telegram-user' || event.type === 'trigger:telegram') return;
 
@@ -290,6 +433,9 @@ export class AgentLoop {
 
   /** Telegram wake handler — triggers loop cycle when Alex sends a TG message */
   private handleTelegramWake = (_event: AgentEvent): void => {
+    // ★ Unified pipeline: handled by handleTrigger → handleUnifiedEvent
+    if (isEnabled('unified-pipeline')) return;
+
     if (!this.running || this.paused) return;
 
     // Throttle: 5s between wake triggers
