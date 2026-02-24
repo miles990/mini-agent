@@ -1849,8 +1849,17 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
     for (const line of lines) {
       try {
         const msg = JSON.parse(line);
-        if (msg.from === 'kuro' && msg.replyTo) {
-          replied.add(msg.replyTo);
+        if (msg.from === 'kuro') {
+          // Track explicit replyTo
+          if (msg.replyTo) replied.add(msg.replyTo);
+          // Also track message IDs mentioned in text (e.g. "看到了 #111" or "[2026-02-24-111]")
+          if (msg.text) {
+            const text = msg.text as string;
+            // Full ID: 2026-02-24-NNN
+            for (const m of text.matchAll(/\b(\d{4}-\d{2}-\d{2}-\d+)\b/g)) replied.add(m[1]);
+            // Short form: #N or #NNN (not part of a full date-prefixed ID)
+            for (const m of text.matchAll(/(?<![0-9-])#(\d{1,4})\b/g)) replied.add(`${dateStr}-${m[1]}`);
+          }
         }
         // Build reverse lookup for non-kuro messages (sender + cleaned text prefix → id)
         if (msg.from && msg.from !== 'kuro' && msg.id && msg.text) {
