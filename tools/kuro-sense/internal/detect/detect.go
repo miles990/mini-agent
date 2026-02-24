@@ -9,6 +9,8 @@ import (
 // Results holds the complete detection output.
 type Results struct {
 	OS           OSInfo
+	Hardware     HardwareInfo
+	Network      NetworkInfo
 	Runtimes     RuntimeVersions
 	Capabilities []registry.DetectionResult
 }
@@ -16,6 +18,8 @@ type Results struct {
 // RunAll detects all capabilities against the current environment.
 func RunAll(caps []registry.Capability) Results {
 	osInfo := DetectOS()
+	hardware := DetectHardware()
+	network := DetectNetwork()
 	runtimes := DetectRuntimes()
 
 	results := make([]registry.DetectionResult, 0, len(caps))
@@ -25,6 +29,8 @@ func RunAll(caps []registry.Capability) Results {
 
 	return Results{
 		OS:           osInfo,
+		Hardware:     hardware,
+		Network:      network,
 		Runtimes:     runtimes,
 		Capabilities: results,
 	}
@@ -69,6 +75,10 @@ func checkDependency(dep registry.Dependency) bool {
 		return HasPythonModule(dep.Check)
 	case registry.KindFile:
 		return fileExists(dep.Check)
+	case registry.KindHardware:
+		return HasHardware(dep.Check)
+	case registry.KindNetwork:
+		return HasNetwork(dep.Check)
 	default:
 		return false
 	}

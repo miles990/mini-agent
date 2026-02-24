@@ -79,6 +79,7 @@ func All() []Capability {
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
 				{Name: "pinchtab", Kind: KindService, Check: "localhost:9867", Required: false},
 				{Name: "XAI_API_KEY", Kind: KindEnvVar, Check: "XAI_API_KEY", Required: false},
+				{Name: "internet", Kind: KindNetwork, Check: "internet", Required: false},
 			},
 		},
 		{
@@ -89,6 +90,8 @@ func All() []Capability {
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
 				{Name: "pinchtab", Kind: KindService, Check: "localhost:9867", Required: true},
 				{Name: "ocrmac", Kind: KindPython, Check: "ocrmac", Required: true, Install: InstallHint{Method: InstallPip, Package: "ocrmac"}},
+				{Name: "camera", Kind: KindHardware, Check: "camera", Required: false},
+				{Name: "display", Kind: KindHardware, Check: "display", Required: true},
 			},
 		},
 
@@ -99,6 +102,7 @@ func All() []Capability {
 			Category: CategoryTelegram, DefaultOn: true,
 			Dependencies: []Dependency{
 				{Name: "TELEGRAM_BOT_TOKEN", Kind: KindEnvVar, Check: "TELEGRAM_BOT_TOKEN", Required: true},
+				{Name: "Telegram API", Kind: KindNetwork, Check: "api.telegram.org:443", Required: false},
 			},
 		},
 
@@ -127,6 +131,7 @@ func All() []Capability {
 			Dependencies: []Dependency{
 				{Name: "gh", Kind: KindBinary, Check: "gh", Required: true, Install: InstallHint{Method: InstallBrew, Package: "gh"}},
 				{Name: "jq", Kind: KindBinary, Check: "jq", Required: true, Install: InstallHint{Method: InstallBrew, Package: "jq"}},
+				{Name: "GitHub API", Kind: KindNetwork, Check: "api.github.com:443", Required: false},
 			},
 		},
 		{
@@ -136,6 +141,7 @@ func All() []Capability {
 			Dependencies: []Dependency{
 				{Name: "gh", Kind: KindBinary, Check: "gh", Required: true, Install: InstallHint{Method: InstallBrew, Package: "gh"}},
 				{Name: "jq", Kind: KindBinary, Check: "jq", Required: true, Install: InstallHint{Method: InstallBrew, Package: "jq"}},
+				{Name: "GitHub API", Kind: KindNetwork, Check: "api.github.com:443", Required: false},
 			},
 		},
 		{
@@ -146,6 +152,7 @@ func All() []Capability {
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
 				{Name: "jq", Kind: KindBinary, Check: "jq", Required: true, Install: InstallHint{Method: InstallBrew, Package: "jq"}},
 				{Name: "XAI_API_KEY", Kind: KindEnvVar, Check: "XAI_API_KEY", Required: true},
+				{Name: "xAI API", Kind: KindNetwork, Check: "api.x.ai:443", Required: false},
 			},
 		},
 		{
@@ -179,6 +186,7 @@ func All() []Capability {
 			Category: CategoryHeartbeat, DefaultOn: true, Timeout: 15000,
 			Dependencies: []Dependency{
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
+				{Name: "internet", Kind: KindNetwork, Check: "internet", Required: false},
 			},
 		},
 

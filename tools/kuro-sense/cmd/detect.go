@@ -51,6 +51,66 @@ func printHuman(results detect.Results) {
 	}
 	fmt.Println()
 
+	// Hardware
+	hw := results.Hardware
+	fmt.Println("  Hardware:")
+	if len(hw.Cameras) > 0 {
+		names := hwNames(hw.Cameras)
+		fmt.Printf("    Camera:     %s\n", strings.Join(names, ", "))
+	} else {
+		fmt.Println("    Camera:     (none)")
+	}
+	if len(hw.Microphones) > 0 {
+		names := hwNames(hw.Microphones)
+		fmt.Printf("    Microphone: %s\n", strings.Join(names, ", "))
+	} else {
+		fmt.Println("    Microphone: (none)")
+	}
+	if len(hw.Speakers) > 0 {
+		names := hwNames(hw.Speakers)
+		fmt.Printf("    Speaker:    %s\n", strings.Join(names, ", "))
+	} else {
+		fmt.Println("    Speaker:    (none)")
+	}
+	if len(hw.Displays) > 0 {
+		for _, d := range hw.Displays {
+			res := ""
+			if d.Resolution != "" {
+				res = " (" + d.Resolution + ")"
+			}
+			fmt.Printf("    Display:    %s%s\n", d.Name, res)
+		}
+	} else {
+		fmt.Println("    Display:    (none)")
+	}
+	fmt.Println()
+
+	// Network
+	nw := results.Network
+	fmt.Println("  Network:")
+	if nw.Internet.Connected {
+		fmt.Printf("    Internet:   ✓ connected (%s)\n", nw.Internet.Latency)
+	} else {
+		fmt.Println("    Internet:   ✗ no connection")
+	}
+	if len(nw.LAN.IPs) > 0 {
+		fmt.Printf("    LAN IP:     %s\n", strings.Join(nw.LAN.IPs, ", "))
+	}
+	if nw.VPN.Active {
+		fmt.Printf("    VPN:        ✓ active (%s)\n", strings.Join(nw.VPN.Interfaces, ", "))
+	}
+	for _, svc := range nw.Services {
+		icon := "✓"
+		latency := ""
+		if !svc.Reachable {
+			icon = "✗"
+		} else if svc.Latency != "" {
+			latency = " (" + svc.Latency + ")"
+		}
+		fmt.Printf("    %-16s %s%s\n", svc.Name+":", icon, latency)
+	}
+	fmt.Println()
+
 	// Runtimes
 	fmt.Println("  Runtimes:")
 	if results.Runtimes.Node != "" {
@@ -123,6 +183,14 @@ func printHuman(results detect.Results) {
 func depNames(deps []registry.Dependency) []string {
 	names := make([]string, len(deps))
 	for i, d := range deps {
+		names[i] = d.Name
+	}
+	return names
+}
+
+func hwNames(devs []detect.HWDevice) []string {
+	names := make([]string, len(devs))
+	for i, d := range devs {
 		names[i] = d.Name
 	}
 	return names

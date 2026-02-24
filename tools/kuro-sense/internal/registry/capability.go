@@ -14,11 +14,13 @@ const (
 type DependencyKind string
 
 const (
-	KindBinary  DependencyKind = "binary"
-	KindService DependencyKind = "service"
-	KindFile    DependencyKind = "file"
-	KindEnvVar  DependencyKind = "envvar"
-	KindPython  DependencyKind = "python"
+	KindBinary   DependencyKind = "binary"
+	KindService  DependencyKind = "service"
+	KindFile     DependencyKind = "file"
+	KindEnvVar   DependencyKind = "envvar"
+	KindPython   DependencyKind = "python"
+	KindHardware DependencyKind = "hardware" // Check: "camera" / "microphone" / "display" / "speaker"
+	KindNetwork  DependencyKind = "network"  // Check: "internet" / "host:port" endpoint reachability
 )
 
 // InstallMethod represents how to install a dependency.
