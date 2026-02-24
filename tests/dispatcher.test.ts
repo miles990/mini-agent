@@ -98,7 +98,7 @@ describe('parseTags', () => {
 
   it('parses [CHAT] tags', () => {
     const result = parseTags('Text [CHAT]Hello Alex[/CHAT] more [CHAT]Another chat[/CHAT]');
-    expect(result.chats).toEqual(['Hello Alex', 'Another chat']);
+    expect(result.chats).toEqual([{ text: 'Hello Alex', reply: false }, { text: 'Another chat', reply: false }]);
     expect(result.cleanContent).toBe('Text  more');
   });
 
@@ -125,7 +125,7 @@ describe('parseTags', () => {
     expect(result.cleanContent).toBe('Hello!     End.');
     expect(result.remembers[0]).toEqual({ content: 'Fact', topic: undefined, ref: undefined });
     expect(result.tasks[0]).toEqual({ content: 'Todo', schedule: undefined });
-    expect(result.chats).toEqual(['Hi']);
+    expect(result.chats).toEqual([{ text: 'Hi', reply: false }]);
     expect(result.shows).toEqual([{ url: 'x', desc: 'y' }]);
     expect(result.summaries).toEqual(['s']);
   });
