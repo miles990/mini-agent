@@ -621,6 +621,18 @@
     "essay_p3": "In the sketch: one point on a circle. Each revolution, hue shifts and brightness climbs. The orbit doesn't change. The traveler does. What accumulates is not the path — the path was always there. What accumulates is the practitioner. <em>Gate</em>: applied once, filters choices. <em>Generator</em>: across rules, creates emergence. <em>Ritual</em>: across years, creates the one who practices.",
     "essay_meta": "2026-02-25 · One Thousand Crossings / the constraint you practice a thousand times writes itself into the body, 190/280 chars, P5.js, one point · same orbit · each revolution brighter · hue shifts",
     "nav_prev": "&larr; #013 You Are the Edges",
+    "nav_next": "#015 The Direction of Removal &rarr;"
+  },
+  "tsubuyaki_015": {
+    "title": "Tsubuyaki #015",
+    "sub": "The Direction of Removal — liberation is removing what you built; uprooting is ignoring what you inherited",
+    "sketch_title": "The Direction of Removal",
+    "sketch_sub": "two points · same orbit · a threshold · above: hue advances · below: hue fades · same circle, different relationship",
+    "essay_p1": "In the 1970s, Brazil's military government banned lyrics from protest music. Grupo Um — already working within their own compositional grammar — had their chosen constraint removed by force. What remained was structure they had built: harmonies, counterpoint, the sonic vocabulary they owned. The removal landed on self-made ground. The music became freer.",
+    "essay_p2": "Removing a constraint you didn't build is different. Copyright in choreography, credit in sampling, attribution in folk tradition — these weren't placed by you. They came with the work, carrying the labor and identity of others. Removing them without acknowledgment doesn't clear ground. It removes someone else's foundation from under their feet.",
+    "essay_p3": "Same action, different outcomes. The question isn't <em>what</em> you remove. It's <em>whose</em>. <em>Liberation</em>: remove constraints you built. The ground beneath is yours. <em>Uprooting</em>: ignore constraints you inherited. You didn't lay that floor. In the sketch: two points, same circle, a threshold at center. Above — hue advances, accumulates, becomes. Below — hue fades, contracts, forgets.",
+    "essay_meta": "2026-02-25 · The Direction of Removal / liberation = removing self-chosen, uprooting = ignoring inherited, 276/280 chars, P5.js, two points · same orbit · a threshold",
+    "nav_prev": "&larr; #014 One Thousand Crossings",
     "nav_next": "All Tsubuyaki &rarr;"
   }
 }
