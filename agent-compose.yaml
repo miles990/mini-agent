@@ -102,5 +102,6 @@ agents:
       - ./skills/github-ops.md
       - ./skills/discussion-facilitation.md
       - ./skills/discussion-participation.md
+      - ./skills/self-diagnosis.md
       # - ./skills/code-review.md
       # - ./skills/server-admin.md

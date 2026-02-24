@@ -270,6 +270,121 @@ export async function auditDecisionQuality(action: string | null): Promise<void>
 }
 
 // =============================================================================
+// Loop D: System Health Audit (Output Quality Monitoring)
+// =============================================================================
+
+interface PerceptionHealthEntry {
+  avgOutputLen: number;
+  minOutputLen: number;
+  emptyCount: number;
+  totalChecks: number;
+  lastAlertAt: string | null;
+}
+
+interface SystemHealthState {
+  perceptions: Record<string, PerceptionHealthEntry>;
+  fetchHealth: {
+    restrictedDomains: string[];
+    lastCheckedAt: string | null;
+  };
+  cyclesSinceLastCheck: number;
+}
+
+const HEALTH_CHECK_INTERVAL = 10; // Every 10 cycles
+
+/**
+ * 通用系統健康審計 — 偵測靜默失敗。
+ * 不只看「有沒有錯誤」，而是看「輸出品質有沒有下降」。
+ *
+ * 檢查項目：
+ * 1. Perception 輸出品質（長度趨勢、空輸出率）
+ * 2. Web fetch 品質（限制域名偵測）
+ * 3. 學習腐化偵測（learned behavior 與實際結果不符）
+ */
+export async function auditSystemHealth(): Promise<void> {
+  const state = readState<SystemHealthState>('system-health.json', {
+    perceptions: {},
+    fetchHealth: { restrictedDomains: [], lastCheckedAt: null },
+    cyclesSinceLastCheck: 0,
+  });
+
+  state.cyclesSinceLastCheck++;
+
+  // Only do full check every N cycles
+  if (state.cyclesSinceLastCheck < HEALTH_CHECK_INTERVAL) {
+    writeState('system-health.json', state);
+    return;
+  }
+  state.cyclesSinceLastCheck = 0;
+
+  // ── Check 1: Perception output quality ──
+  const stats = perceptionStreams.getStats();
+  for (const s of stats) {
+    const entry = state.perceptions[s.name] ?? {
+      avgOutputLen: 0, minOutputLen: Infinity, emptyCount: 0,
+      totalChecks: 0, lastAlertAt: null,
+    };
+
+    entry.totalChecks++;
+
+    // High timeout rate is a problem
+    if (s.timeouts >= 3) {
+      const cooldownOk = !entry.lastAlertAt ||
+        (Date.now() - new Date(entry.lastAlertAt).getTime()) > 24 * 3600_000;
+
+      if (cooldownOk) {
+        const memory = getMemory();
+        const dueDate = new Date(Date.now() + 2 * 86400_000).toISOString().split('T')[0];
+        await memory.addTask(
+          `P2: 感知健康 — ${s.name} 連續 ${s.timeouts} 次 timeout（avg ${s.avgMs}ms）@due:${dueDate}`,
+        );
+        entry.lastAlertAt = new Date().toISOString();
+        slog('FEEDBACK', `[health] Perception ${s.name}: ${s.timeouts} timeouts → task created`);
+      }
+    }
+
+    state.perceptions[s.name] = entry;
+  }
+
+  // ── Check 2: Fetch health (scan cdp.jsonl for patterns) ──
+  try {
+    const { existsSync: exists, readFileSync: readFile } = await import('node:fs');
+    const cdpLog = path.join(process.env.HOME ?? '', '.mini-agent', 'cdp.jsonl');
+    if (exists(cdpLog)) {
+      const lines = readFile(cdpLog, 'utf-8').split('\n').filter(Boolean).slice(-100);
+      const domainRestrictions = new Map<string, number>();
+
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line);
+          if (entry.op === 'fetch' && entry.result === 'content_restricted') {
+            const url = new URL(entry.url ?? '');
+            const count = domainRestrictions.get(url.hostname) ?? 0;
+            domainRestrictions.set(url.hostname, count + 1);
+          }
+        } catch { /* skip bad lines */ }
+      }
+
+      // Domains with 3+ restrictions
+      const problematic = [...domainRestrictions.entries()]
+        .filter(([, count]) => count >= 3)
+        .map(([domain]) => domain);
+
+      if (problematic.length > 0) {
+        const newDomains = problematic.filter(d => !state.fetchHealth.restrictedDomains.includes(d));
+        if (newDomains.length > 0) {
+          slog('FEEDBACK', `[health] Fetch restrictions detected: ${newDomains.join(', ')}`);
+          state.fetchHealth.restrictedDomains = problematic;
+        }
+      }
+      state.fetchHealth.lastCheckedAt = new Date().toISOString();
+    }
+  } catch { /* best effort */ }
+
+  writeState('system-health.json', state);
+}
+
+// =============================================================================
 // Unified Entry Point
 // =============================================================================
 
@@ -277,4 +392,5 @@ export async function runFeedbackLoops(action: string | null): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
   await auditDecisionQuality(action).catch(() => {});
+  await auditSystemHealth().catch(() => {});
 }

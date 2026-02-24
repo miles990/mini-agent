@@ -187,6 +187,27 @@ is_auth_page() {
   [[ "$count" -ge 2 ]]
 }
 
+# Check if content looks like a restricted/unavailable page (not login, but gated content)
+# Catches: Facebook "目前無法查看此內容", short social media restriction pages, etc.
+is_content_restricted() {
+  local content="$1" url="$2"
+  local content_len=${#content}
+
+  # Pattern 1: Known restriction messages (any site)
+  local restrict_count
+  restrict_count=$(echo "$content" | head -30 | grep -ciE '目前無法查看此內容|此內容目前無法顯示|this content isn.t available|sorry.*this page isn.t available|content.unavailable|you must log in to continue|受限制的內容' || true)
+  [[ "$restrict_count" -ge 1 ]] && return 0
+
+  # Pattern 2: Suspiciously short content from social media (< 500 chars = likely restriction page)
+  local domain
+  domain=$(extract_domain "$url" 2>/dev/null || echo "")
+  if echo "$domain" | grep -qiE 'facebook\.com|instagram\.com|threads\.net|x\.com|twitter\.com'; then
+    [[ "$content_len" -lt 500 ]] && return 0
+  fi
+
+  return 1
+}
+
 # Output content with offset + truncation
 output_content() {
   local content="$1"
@@ -269,11 +290,11 @@ cmd_fetch() {
   local learned
   learned=$(check_domain "$domain" 2>/dev/null || echo "")
 
-  if [[ "$learned" == "auth_required" ]] && is_headless; then
-    # We know this domain needs auth — skip wasted headless attempt
-    log_event "op=fetch" "url=$url" "detail=learned_auth_skip_headless" "domain=$domain"
-    echo "Known auth domain ($domain) — switching to visible mode..." >&2
-    switch_mode visible "learned_auth:$domain"
+  if [[ "$learned" == "auth_required" || "$learned" == "content_restricted" || "$learned" == "needs_visible" ]] && is_headless; then
+    # We know this domain needs visible mode — skip wasted headless attempt
+    log_event "op=fetch" "url=$url" "detail=learned_skip_headless" "domain=$domain" "learned=$learned"
+    echo "Known restricted domain ($domain) — switching to visible mode..." >&2
+    switch_mode visible "learned:$domain"
   fi
 
   # Step 1: Open URL in new tab
@@ -349,6 +370,51 @@ cmd_fetch() {
     echo "Please log in to the site in the Chrome window, then run:"
     echo "  bash scripts/pinchtab-fetch.sh extract ${tab_id}"
     return
+  fi
+
+  # Step 4b: Check for content restriction (gated content, not login page)
+  if is_content_restricted "$content" "$url"; then
+    if is_headless; then
+      # Content restricted in headless — retry with visible (login session may help)
+      local ms; ms=$(timer_elapsed "$t0")
+      log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=content_restricted" "detail=retry_visible" "durationMs=$ms" "mode=headless" "contentLen=${#content}"
+      [[ -n "$domain" ]] && learn_domain "$domain" "content_restricted" "headless"
+      echo "Content restricted in headless — retrying in visible mode..." >&2
+      close_tab "$tab_id"
+      switch_mode visible "content_restricted:$domain"
+
+      # Re-fetch in visible mode
+      tab_id=$(open_tab "$url")
+      sleep 3
+      raw=$(read_tab "$tab_id")
+      content=$(echo "$raw" | extract_text)
+
+      if [[ -n "$content" ]] && ! is_content_restricted "$content" "$url" && ! is_auth_page "$content"; then
+        # Visible mode worked!
+        close_tab "$tab_id"
+        ms=$(timer_elapsed "$t0")
+        log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=ok" "detail=visible_retry_success" "durationMs=$ms" "mode=visible" "contentLen=${#content}"
+        [[ -n "$domain" ]] && learn_domain "$domain" "needs_visible" "visible"
+        output_content "$content"
+        switch_mode headless "content_restricted_done"
+        return
+      fi
+
+      # Still restricted in visible — content genuinely unavailable
+      close_tab "$tab_id"
+      ms=$(timer_elapsed "$t0")
+      log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=content_restricted" "detail=genuinely_unavailable" "durationMs=$ms" "mode=visible" "contentLen=${#content}"
+      switch_mode headless "content_restricted_failed"
+      echo "CONTENT_RESTRICTED: Content unavailable even with login session." >&2
+      exit 1
+    fi
+
+    # Already visible — content truly restricted
+    close_tab "$tab_id"
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=content_restricted" "detail=genuinely_unavailable" "durationMs=$ms" "mode=visible" "contentLen=${#content}"
+    echo "CONTENT_RESTRICTED: $url — content is unavailable." >&2
+    exit 1
   fi
 
   # Step 5: Success — output content, learn, and cleanup
@@ -452,6 +518,91 @@ cmd_close() {
   echo "Closed tab: $tab_id"
 }
 
+cmd_repair() {
+  local domain="$1"
+  if [[ -z "$domain" ]]; then
+    # Scan cdp.jsonl for problematic domains
+    echo "=== Fetch Health Report ==="
+    python3 -c "
+import json, sys
+from collections import defaultdict
+
+log_file = '$LOG_FILE'
+learned_file = '$PINCHTAB_LEARNED'
+
+# Analyze recent fetches
+domains = defaultdict(lambda: {'ok': 0, 'restricted': 0, 'fail': 0, 'avg_len': 0, 'total_len': 0})
+try:
+    with open(log_file) as f:
+        for line in f:
+            try:
+                d = json.loads(line.strip())
+                if d.get('op') != 'fetch': continue
+                from urllib.parse import urlparse
+                dom = urlparse(d.get('url', '')).netloc
+                if not dom: continue
+                r = d.get('result', '')
+                cl = int(d.get('contentLen', 0))
+                if r == 'ok':
+                    domains[dom]['ok'] += 1
+                    domains[dom]['total_len'] += cl
+                elif r == 'content_restricted':
+                    domains[dom]['restricted'] += 1
+                elif r in ('error', 'auth_required'):
+                    domains[dom]['fail'] += 1
+            except: pass
+except: pass
+
+# Report
+problems = []
+for dom, s in sorted(domains.items()):
+    total = s['ok'] + s['restricted'] + s['fail']
+    if total == 0: continue
+    avg = s['total_len'] // max(s['ok'], 1)
+    issues = []
+    if s['restricted']: issues.append(f'restricted:{s[\"restricted\"]}')
+    if s['fail']: issues.append(f'failed:{s[\"fail\"]}')
+    if avg < 500 and s['ok'] > 0: issues.append(f'avg_len:{avg}')
+    if issues:
+        problems.append(f'  {dom}: {s[\"ok\"]}/{total} success, {', '.join(issues)}')
+
+if problems:
+    print('Problematic domains:')
+    for p in problems: print(p)
+else:
+    total_ok = sum(d['ok'] for d in domains.values())
+    total = sum(d['ok'] + d['restricted'] + d['fail'] for d in domains.values())
+    print(f'All domains healthy ({total_ok}/{total} success)')
+
+# Show current learned behaviors
+print()
+print('Current learned behaviors:')
+try:
+    seen = {}
+    with open(learned_file) as f:
+        for line in f:
+            try:
+                d = json.loads(line.strip())
+                seen[d['domain']] = d
+            except: pass
+    for dom, d in sorted(seen.items()):
+        b = d.get('behavior', '?')
+        m = d.get('mode', '?')
+        status = '✅' if b == 'ok' else '⚠️' if b == 'needs_visible' else '❌'
+        print(f'  {status} {dom}: {b} (mode: {m})')
+except: print('  (no learned data)')
+" 2>/dev/null
+    echo ""
+    echo "To repair a domain: bash scripts/pinchtab-fetch.sh repair <domain>"
+    return
+  fi
+
+  # Fix specific domain
+  log_event "op=repair" "domain=$domain"
+  learn_domain "$domain" "content_restricted" "headless"
+  echo "Repaired: $domain → content_restricted (will use visible mode next time)"
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 # Parse flags from any position
@@ -473,6 +624,7 @@ case "${ARGS[0]:-}" in
   open)     cmd_open "${ARGS[1]:-}" ;;
   extract)  cmd_extract "${ARGS[1]:-}" ;;
   close)    cmd_close "${ARGS[1]:-}" ;;
+  repair)   cmd_repair "${ARGS[1]:-}" ;;
   *)
     echo "pinchtab-fetch — Smart browser content fetcher via Pinchtab"
     echo ""

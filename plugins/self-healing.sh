@@ -95,6 +95,94 @@ if [ $? -ne 0 ]; then
   heal_report "FAILED" "Health endpoint unreachable"
 fi
 
+# --- Check 7: Fetch Quality (cdp.jsonl analysis) ---
+CDP_LOG="$HOME/.mini-agent/cdp.jsonl"
+if [ -f "$CDP_LOG" ]; then
+  # Check for domains with repeated content_restricted results
+  RESTRICTED_DOMAINS=$(python3 -c "
+import json, sys
+from collections import defaultdict
+counts = defaultdict(int)
+try:
+    lines = open('$CDP_LOG').readlines()[-50:]
+    for line in lines:
+        try:
+            d = json.loads(line.strip())
+            if d.get('result') == 'content_restricted':
+                from urllib.parse import urlparse
+                dom = urlparse(d.get('url', '')).netloc
+                if dom: counts[dom] += 1
+        except: pass
+except: pass
+problems = [f'{d}({c}x)' for d, c in counts.items() if c >= 2]
+if problems: print(', '.join(problems))
+" 2>/dev/null)
+  if [ -n "$RESTRICTED_DOMAINS" ]; then
+    heal_report "FAILED" "Fetch content restricted: $RESTRICTED_DOMAINS — run: bash scripts/pinchtab-fetch.sh repair"
+  fi
+fi
+
+# --- Check 8: Learned Behavior Integrity ---
+LEARNED_FILE="$HOME/.mini-agent/pinchtab-learned.jsonl"
+if [ -f "$LEARNED_FILE" ]; then
+  # Check for domains learned as "ok" in headless that might be wrong
+  # (social media domains should NOT be "ok" in headless)
+  BAD_LEARNED=$(python3 -c "
+import json
+seen = {}
+try:
+    for line in open('$LEARNED_FILE'):
+        try:
+            d = json.loads(line.strip())
+            seen[d['domain']] = d
+        except: pass
+except: pass
+social = ['facebook.com', 'instagram.com', 'threads.net']
+bad = []
+for dom, d in seen.items():
+    if d.get('behavior') == 'ok' and d.get('mode') == 'headless':
+        if any(s in dom for s in social):
+            bad.append(dom)
+if bad: print(', '.join(bad))
+" 2>/dev/null)
+  if [ -n "$BAD_LEARNED" ]; then
+    # Auto-repair: mark as content_restricted
+    for domain in $(echo "$BAD_LEARNED" | tr ',' '\n' | tr -d ' '); do
+      python3 -c "
+import json, datetime, sys
+d = {'domain': sys.argv[1], 'behavior': 'content_restricted', 'mode': 'headless',
+     'lastSeen': datetime.datetime.utcnow().isoformat() + 'Z'}
+print(json.dumps(d))
+" "$domain" >> "$LEARNED_FILE" 2>/dev/null
+    done
+    heal_report "HEALED" "Bad learned behaviors fixed: $BAD_LEARNED → content_restricted"
+  fi
+fi
+
+# --- Check 9: System Health State File ---
+HEALTH_FILE=$(ls -t "$HOME/.mini-agent/instances"/*/system-health.json 2>/dev/null | head -1)
+if [ -f "$HEALTH_FILE" 2>/dev/null ]; then
+  HEALTH_ISSUES=$(python3 -c "
+import json
+try:
+    d = json.load(open('$HEALTH_FILE'))
+    issues = []
+    # Check perception timeouts
+    for name, p in d.get('perceptions', {}).items():
+        if p.get('emptyCount', 0) > 5:
+            issues.append(f'{name}(empty:{p[\"emptyCount\"]})')
+    # Check fetch restrictions
+    rd = d.get('fetchHealth', {}).get('restrictedDomains', [])
+    if rd:
+        issues.append(f'restricted:{len(rd)} domains')
+    if issues: print(', '.join(issues))
+except: pass
+" 2>/dev/null)
+  if [ -n "$HEALTH_ISSUES" ]; then
+    heal_report "FAILED" "System health issues: $HEALTH_ISSUES"
+  fi
+fi
+
 # --- Output ---
 if [ "$HEALED" -gt 0 ] || [ "$FAILED" -gt 0 ]; then
   echo "Self-Healing: ${HEALED} healed, ${FAILED} unresolved"
