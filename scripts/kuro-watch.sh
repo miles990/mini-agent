@@ -96,18 +96,21 @@ def fmt(line):
     action = d.get('action', '?')
     detail = str(d.get('detail', ''))
 
-    # Compress multiline detail to first line
-    detail_first = detail.split('\n')[0][:90]
-    if len(detail) > len(detail_first):
-        detail_first += ' …'
-
     c = color_for(action)
     time_str   = f"{C_TIME}{t}{RESET}"
     actor_str  = f"{C_ACTOR}{actor:<9}{RESET}"
     action_str = f"{c}{action:<30}{RESET}"
-    detail_str = f"{DIM}{detail_first}{RESET}"
 
-    return f"  {time_str}  {actor_str}  {action_str}  {detail_str}"
+    # Show full detail; multiline detail gets continuation lines
+    # Indent = 2 + 8(time) + 2 + 9(actor) + 2 + 30(action) + 2 = 55 chars
+    INDENT = ' ' * 55
+    detail_lines = [l for l in detail.split('\n') if l.strip()]
+    if not detail_lines:
+        detail_lines = ['']
+
+    first = f"  {time_str}  {actor_str}  {action_str}  {DIM}{detail_lines[0]}{RESET}"
+    cont  = [f"{INDENT}{DIM}{dl}{RESET}" for dl in detail_lines[1:]]
+    return '\n'.join([first] + cont)
 
 for line in sys.stdin:
     out = fmt(line)
