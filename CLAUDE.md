@@ -591,13 +591,26 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - **修改 src/ 或 memory/ 之前，先 `curl -sf localhost:3001/status` 確認 Kuro 當前狀態**。避免在 Kuro active cycle 中修改檔案造成誤觸發（Claude Code 的 edit 也是 Kuro 環境的一部分 — file change → trigger:workspace → cycle）
 - 修改 Kuro 的 learning/behavior intervals 時，驗證 dynamic intervals（如 5-20min）被保留，不要意外替換成 fixed intervals。Night-mode 也要用 dynamic scheduling 除非明確指定
 
+## 自主解決問題
+
+**Kuro 和 Claude Code 都應該自主推理出最佳解決方案，而不是照固定流程操作。**
+
+遇到任何問題時的完整閉環：
+1. **先問「該不該做」** — 不要用戰術上的勤奮掩蓋戰略上的懶惰。方向對了，再從最可能的原因開始驗證
+2. **不行就抽絲剝繭** — 最大嫌疑被排除？問題範疇縮小了。從剩下的裡面再找最大的，逐步收斂到根因
+3. **記錄一切** — 每次嘗試的結果都留 log。排查過程本身就是線索
+4. **自己解決到底** — 至少 3 次有方向的嘗試才找 Alex
+5. **解決後改進自己** — 問「怎麼讓這件事不再發生？」。更新 skill、修改 script、加入經驗記憶、改進 perception
+6. **預防勝於治療** — 發現（掃 log 找 pattern）< 預測（看到衰退趨勢提前處理）< 預防（經驗記憶 + 防禦性設計，讓問題無法發生）。往上走
+
+**可用工具**：curl、`pinchtab-fetch.sh`（Smart Fetch：自動 auth + headless/visible 切換）、`pinchtab-vision.sh`（OCR）、`pinchtab-interact.sh`（瀏覽器互動）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋、`pinchtab-setup.sh mode [headless|visible]`
+
+**Pinchtab**：`~/.pinchtab/chrome-profile` 已有 Facebook 等登入 session。安裝：`.tar.gz` 格式，repo `pinchtab/pinchtab`。
+
 ## Code Conventions
 
 - TypeScript strict mode。編輯 .ts 檔案時，確保 field names 跨 endpoints、plugins、types 一致 — 跨層 mismatch（如 receivedAt vs updatedAt）曾造成 bug
 - HTML 檔案如果會發 API 呼叫，一律走 HTTP server route serve — 不要假設 file:// protocol 能用（CORS 限制）
-- **JS-heavy / 需登入的網站**（Facebook 等）必須用瀏覽器工具查看（`mcp__claude-in-chrome__*`）— WebFetch 無法渲染 JS-heavy 頁面，Pinchtab headless 模式沒有用戶 session。隱私限定貼文（如 Facebook 朋友限定）則需 Alex 手動協助
-- **X/Twitter 走 Grok API**（`plugins/x-perception.sh`）— 用 Grok x_search tool 搜尋，不依賴瀏覽器
-- **Pinchtab 安裝**：release 是 `.tar.gz` 格式（非裸 binary），repo 為 `pinchtab/pinchtab`。支援 `CDP_URL` 連接現有 Chrome、`BRIDGE_PROFILE` 指定 Chrome profile 目錄
 
 ## Deployment
 

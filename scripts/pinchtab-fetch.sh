@@ -1,16 +1,20 @@
 #!/bin/bash
-# Pinchtab Fetch — Browser content fetcher via Pinchtab API
+# Pinchtab Fetch — Smart browser content fetcher via Pinchtab API
 #
-# Drop-in replacement for cdp-fetch.mjs with identical CLI interface.
-# Writes operations to ~/.mini-agent/cdp.jsonl (workspace.ts compatible).
+# Intelligent flow:
+#   1. Open URL in new tab → read via ?tabId= (isolated)
+#   2. Success → output content → auto-close tab
+#   3. AUTH_REQUIRED + headless → auto-switch visible → reopen → prompt login
+#   4. Extract after login → output content → auto-switch back to headless
+#
+# All operations logged to ~/.mini-agent/cdp.jsonl with result/timing/context.
 #
 # Usage:
 #   bash scripts/pinchtab-fetch.sh status                  # Check availability
-#   bash scripts/pinchtab-fetch.sh fetch <url>             # Fetch page content (truncated)
+#   bash scripts/pinchtab-fetch.sh fetch <url>             # Smart fetch (auto tab + auth handling)
 #   bash scripts/pinchtab-fetch.sh fetch <url> --full      # Fetch full content
-#   bash scripts/pinchtab-fetch.sh open <url>              # Open visible tab
-#   bash scripts/pinchtab-fetch.sh extract [tabId]         # Extract from tab (truncated)
-#   bash scripts/pinchtab-fetch.sh extract [tabId] --full  # Extract full content
+#   bash scripts/pinchtab-fetch.sh open <url>              # Open visible tab (manual)
+#   bash scripts/pinchtab-fetch.sh extract [tabId]         # Extract from tab (auto-headless after)
 #   bash scripts/pinchtab-fetch.sh close <tabId>           # Close a tab
 
 PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
@@ -19,22 +23,83 @@ PINCHTAB_TIMEOUT="${PINCHTAB_TIMEOUT:-15000}"
 PINCHTAB_MAX_CONTENT="${PINCHTAB_MAX_CONTENT:-8000}"
 LOG_DIR="$HOME/.mini-agent"
 LOG_FILE="$LOG_DIR/cdp.jsonl"
+PINCHTAB_MODE_FILE="$HOME/.mini-agent/pinchtab.mode"
+PINCHTAB_LEARNED="$HOME/.mini-agent/pinchtab-learned.jsonl"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+
+# Structured log: every operation with result, context, timing
+# Fields: ts, op, url?, tabId?, result, detail?, contentLen?, durationMs?, mode?
+log_event() {
+  mkdir -p "$LOG_DIR"
+  local json
+  json=$(python3 -c "
+import json, datetime, sys
+d = {}
+for arg in sys.argv[1:]:
+    if '=' in arg:
+        k, v = arg.split('=', 1)
+        # Auto-type numbers
+        if v.isdigit(): v = int(v)
+        elif v == 'true': v = True
+        elif v == 'false': v = False
+        d[k] = v
+d['ts'] = datetime.datetime.utcnow().isoformat() + 'Z'
+print(json.dumps(d))
+" "$@" 2>/dev/null || echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"op\":\"$1\"}")
+  echo "$json" >> "$LOG_FILE" 2>/dev/null
+}
+
+# Timer helpers
+timer_start() { python3 -c "import time; print(int(time.time()*1000))" 2>/dev/null; }
+timer_elapsed() { local now; now=$(python3 -c "import time; print(int(time.time()*1000))" 2>/dev/null); echo $(( now - $1 )); }
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-log_op() {
-  local op="$1"; shift
+# ─── Experience Memory ────────────────────────────────────────────────────────
+# Learn from past fetches: remember which domains need auth, which work headless.
+# Each entry: {"domain":"x.com","behavior":"auth_required|ok","lastSeen":"ISO","mode":"headless"}
+# On next fetch, check learned behavior → skip wasted attempts.
+
+learn_domain() {
+  local domain="$1" behavior="$2" mode="$3"
   mkdir -p "$LOG_DIR"
-  local entry
-  entry=$(python3 -c "
-import json, datetime
-d = {'ts': datetime.datetime.utcnow().isoformat() + 'Z', 'op': '$op'}
-extra = dict(zip(['url','tabId','title'], '''$@'''.split('|')))
-d.update({k:v for k,v in extra.items() if v})
+  python3 -c "
+import json, datetime, sys
+d = {'domain': sys.argv[1], 'behavior': sys.argv[2], 'mode': sys.argv[3],
+     'lastSeen': datetime.datetime.utcnow().isoformat() + 'Z'}
 print(json.dumps(d))
-" 2>/dev/null || echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"op\":\"$op\"}")
-  echo "$entry" >> "$LOG_FILE" 2>/dev/null
+" "$domain" "$behavior" "$mode" >> "$PINCHTAB_LEARNED" 2>/dev/null
 }
+
+# Get most recent learned behavior for a domain
+check_domain() {
+  local domain="$1"
+  [[ ! -f "$PINCHTAB_LEARNED" ]] && return 1
+  # Return the most recent entry for this domain
+  python3 -c "
+import sys, json
+domain = sys.argv[1]
+last = None
+for line in open(sys.argv[2]):
+    try:
+        d = json.loads(line.strip())
+        if d.get('domain') == domain:
+            last = d
+    except: pass
+if last:
+    print(last.get('behavior', ''))
+else:
+    sys.exit(1)
+" "$domain" "$PINCHTAB_LEARNED" 2>/dev/null
+}
+
+extract_domain() {
+  echo "$1" | python3 -c "from urllib.parse import urlparse; import sys; print(urlparse(sys.stdin.read().strip()).netloc)" 2>/dev/null
+}
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 timeout_secs() {
   echo $(( PINCHTAB_TIMEOUT / 1000 ))
@@ -42,6 +107,105 @@ timeout_secs() {
 
 health_ok() {
   curl -sf --max-time 3 "${PINCHTAB_BASE}/health" >/dev/null 2>&1
+}
+
+current_mode() {
+  if is_headless; then echo "headless"; else echo "visible"; fi
+}
+
+is_headless() {
+  if [[ -f "$PINCHTAB_MODE_FILE" ]]; then
+    [[ "$(cat "$PINCHTAB_MODE_FILE")" == "true" ]]
+  else
+    return 0  # default headless
+  fi
+}
+
+switch_mode() {
+  local mode="$1" reason="${2:-manual}"
+  local from_mode
+  from_mode=$(current_mode)
+  log_event "op=mode_switch" "from=$from_mode" "to=$mode" "reason=$reason"
+  bash "$SCRIPT_DIR/pinchtab-setup.sh" mode "$mode" >&2
+  sleep 2
+}
+
+# Open URL in new tab, return tab ID
+open_tab() {
+  local url="$1"
+  local result
+  result=$(curl -sf --max-time "$(timeout_secs)" -X POST "${PINCHTAB_BASE}/tab" \
+    -H "Content-Type: application/json" \
+    -d "{\"action\":\"new\",\"url\":\"$url\"}" 2>/dev/null)
+  local tab_id
+  tab_id=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',d.get('tabId','')))" 2>/dev/null || echo "")
+  if [[ -n "$tab_id" ]]; then
+    log_event "op=tab_open" "tabId=$tab_id" "url=$url" "result=ok"
+  else
+    log_event "op=tab_open" "url=$url" "result=failed" "detail=no_tab_id"
+  fi
+  echo "$tab_id"
+}
+
+# Read text from specific tab
+read_tab() {
+  local tab_id="$1"
+  if [[ -n "$tab_id" ]]; then
+    curl -sf --max-time "$(timeout_secs)" "${PINCHTAB_BASE}/text?tabId=$tab_id" 2>/dev/null
+  else
+    curl -sf --max-time "$(timeout_secs)" "${PINCHTAB_BASE}/text" 2>/dev/null
+  fi
+}
+
+# Close a tab
+close_tab() {
+  local tab_id="$1"
+  [[ -z "$tab_id" ]] && return
+  curl -sf --max-time 5 -X POST "${PINCHTAB_BASE}/tab" \
+    -H "Content-Type: application/json" \
+    -d "{\"action\":\"close\",\"tabId\":\"$tab_id\"}" >/dev/null 2>&1
+  log_event "op=tab_close" "tabId=$tab_id"
+}
+
+# Extract text field from JSON response
+extract_text() {
+  python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('text', '') if isinstance(d, dict) else d)
+except:
+    print(sys.stdin.read())
+" 2>/dev/null
+}
+
+# Check if content looks like an auth/login page
+is_auth_page() {
+  local content="$1"
+  local count
+  count=$(echo "$content" | head -30 | grep -ciE 'sign.in|log.in|login|password|captcha|verify|驗證|登入|403|forbidden|unauthorized|create.an.account' || true)
+  [[ "$count" -ge 2 ]]
+}
+
+# Output content with offset + truncation
+output_content() {
+  local content="$1"
+  local total=${#content}
+
+  if [[ $OFFSET -gt 0 ]]; then
+    content="${content:$OFFSET}"
+    total=${#content}
+  fi
+
+  if [[ "$FULL_OUTPUT" == "true" ]] || [[ $total -le $PINCHTAB_MAX_CONTENT ]]; then
+    echo "$content"
+  else
+    echo "$content" | head -c "$PINCHTAB_MAX_CONTENT"
+    local remaining=$((total - PINCHTAB_MAX_CONTENT))
+    local next_offset=$((OFFSET + PINCHTAB_MAX_CONTENT))
+    echo ""
+    echo "[... truncated, ${remaining} more chars. Use --offset ${next_offset} to continue]"
+  fi
 }
 
 # ─── Commands ─────────────────────────────────────────────────────────────────
@@ -56,30 +220,30 @@ cmd_status() {
   fi
 
   echo "Pinchtab: AVAILABLE (${PINCHTAB_BASE})"
+  echo "Mode: $(current_mode)"
 
   # List tabs
   local tabs
   tabs=$(curl -sf --max-time 5 "${PINCHTAB_BASE}/tabs" 2>/dev/null)
   if [[ -n "$tabs" ]]; then
-    local tab_info
-    tab_info=$(echo "$tabs" | python3 -c "
+    echo "$tabs" | python3 -c "
 import sys, json
 try:
-    tabs = json.load(sys.stdin)
+    data = json.load(sys.stdin)
+    tabs = data if isinstance(data, list) else data.get('tabs', [])
     print(f'Open tabs: {len(tabs)}')
     print()
     for t in tabs[:10]:
         title = (t.get('title', '') or 'Untitled')[:60]
         url = (t.get('url', '') or '')[:80]
         tid = t.get('id', t.get('tabId', ''))
-        print(f'  [{str(tid)[:8]}] {title}')
-        print(f'           {url}')
+        print(f'  [{str(tid)[:12]}] {title}')
+        print(f'  {\" \" * 14}{url}')
     if len(tabs) > 10:
         print(f'  ... and {len(tabs) - 10} more')
 except Exception as e:
     print(f'Tab parse error: {e}')
-" 2>/dev/null)
-    echo "$tab_info"
+" 2>/dev/null
   fi
 }
 
@@ -90,57 +254,110 @@ cmd_fetch() {
     exit 1
   fi
 
+  local t0
+  t0=$(timer_start)
+
   if ! health_ok; then
+    log_event "op=fetch" "url=$url" "result=error" "detail=pinchtab_unavailable"
     echo "Pinchtab not available. Run: bash scripts/pinchtab-setup.sh start" >&2
     exit 1
   fi
 
-  log_op "fetch" "$url"
+  # Step 0: Check learned experience for this domain
+  local domain
+  domain=$(extract_domain "$url")
+  local learned
+  learned=$(check_domain "$domain" 2>/dev/null || echo "")
 
-  # Navigate to URL
-  curl -sf --max-time "$(timeout_secs)" -X POST "${PINCHTAB_BASE}/navigate" \
-    -H "Content-Type: application/json" \
-    -d "{\"url\":\"$url\"}" >/dev/null 2>&1
+  if [[ "$learned" == "auth_required" ]] && is_headless; then
+    # We know this domain needs auth — skip wasted headless attempt
+    log_event "op=fetch" "url=$url" "detail=learned_auth_skip_headless" "domain=$domain"
+    echo "Known auth domain ($domain) — switching to visible mode..." >&2
+    switch_mode visible "learned_auth:$domain"
+  fi
 
-  # Wait for page load
-  sleep 2
+  # Step 1: Open URL in new tab
+  local tab_id
+  tab_id=$(open_tab "$url")
 
-  # Get text content
+  if [[ -z "$tab_id" ]]; then
+    # Fallback: navigate in current tab
+    log_event "op=fetch" "url=$url" "detail=tab_open_failed_fallback_navigate" "mode=$(current_mode)"
+    curl -sf --max-time "$(timeout_secs)" -X POST "${PINCHTAB_BASE}/navigate" \
+      -H "Content-Type: application/json" \
+      -d "{\"url\":\"$url\"}" >/dev/null 2>&1
+    sleep 3
+    local raw
+    raw=$(curl -sf --max-time "$(timeout_secs)" "${PINCHTAB_BASE}/text" 2>/dev/null)
+    local content
+    content=$(echo "$raw" | extract_text)
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=fetch" "url=$url" "result=fallback_ok" "contentLen=${#content}" "durationMs=$ms"
+    output_content "$content"
+    return
+  fi
+
+  # Step 2: Wait for page load
+  sleep 3
+
+  # Step 3: Read content from the specific tab
+  local raw
+  raw=$(read_tab "$tab_id")
   local content
-  content=$(curl -sf --max-time "$(timeout_secs)" "${PINCHTAB_BASE}/text" 2>/dev/null)
+  content=$(echo "$raw" | extract_text)
 
   if [[ -z "$content" ]]; then
+    close_tab "$tab_id"
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=error" "detail=empty_content" "durationMs=$ms" "mode=$(current_mode)"
     echo "Failed to fetch content from: $url" >&2
     exit 1
   fi
 
-  # Check for auth page
-  local is_auth
-  is_auth=$(echo "$content" | head -20 | grep -ciE 'sign.in|log.in|login|password|captcha|verify|驗證|登入|403|forbidden|unauthorized' || true)
+  # Step 4: Check for auth
+  if is_auth_page "$content"; then
+    local auth_snippet
+    auth_snippet=$(echo "$content" | head -5 | tr '\n' ' ' | head -c 100)
 
-  if [[ "$is_auth" -ge 2 ]]; then
+    if is_headless; then
+      # Auto-switch to visible mode + learn for next time
+      local ms; ms=$(timer_elapsed "$t0")
+      log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=auth_required" "detail=auto_switch_visible" "durationMs=$ms" "mode=headless" "contentLen=${#content}"
+      [[ -n "$domain" ]] && learn_domain "$domain" "auth_required" "headless"
+      echo "AUTH_REQUIRED — auto-switching to visible mode..." >&2
+      close_tab "$tab_id"
+      switch_mode visible "auth_required"
+
+      # Re-open URL in visible Chrome
+      tab_id=$(open_tab "$url")
+      sleep 2
+
+      echo "AUTH_REQUIRED: $url"
+      echo "VISIBLE_MODE: Chrome is now open with the page."
+      echo "TAB_ID: ${tab_id}"
+      echo ""
+      echo "Log in to the site, then run:"
+      echo "  bash scripts/pinchtab-fetch.sh extract ${tab_id}"
+      return
+    fi
+    # Already visible — just tell user to log in
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=auth_required" "detail=already_visible" "durationMs=$ms" "mode=visible" "contentLen=${#content}"
     echo "AUTH_REQUIRED: $url"
+    echo "TAB_ID: ${tab_id}"
     echo ""
-    echo "This page requires login/verification."
-    echo "Use: bash scripts/pinchtab-fetch.sh open \"$url\" to open it visibly."
+    echo "Please log in to the site in the Chrome window, then run:"
+    echo "  bash scripts/pinchtab-fetch.sh extract ${tab_id}"
     return
   fi
 
-  # Output content (with offset + truncation support)
-  local total=${#content}
-  if [[ $OFFSET -gt 0 ]]; then
-    content="${content:$OFFSET}"
-    total=${#content}
-  fi
-  if [[ "$FULL_OUTPUT" == "true" ]] || [[ $total -le $PINCHTAB_MAX_CONTENT ]]; then
-    echo "$content"
-  else
-    echo "$content" | head -c "$PINCHTAB_MAX_CONTENT"
-    local remaining=$((total - PINCHTAB_MAX_CONTENT))
-    local next_offset=$((OFFSET + PINCHTAB_MAX_CONTENT))
-    echo ""
-    echo "[... truncated, ${remaining} more chars. Use --offset ${next_offset} to continue]"
-  fi
+  # Step 5: Success — output content, learn, and cleanup
+  close_tab "$tab_id"
+  local ms; ms=$(timer_elapsed "$t0")
+  log_event "op=fetch" "url=$url" "tabId=$tab_id" "result=ok" "contentLen=${#content}" "durationMs=$ms" "mode=$(current_mode)"
+  # Learn: this domain works in current mode
+  [[ -n "$domain" ]] && learn_domain "$domain" "ok" "$(current_mode)"
+  output_content "$content"
 }
 
 cmd_open() {
@@ -151,69 +368,76 @@ cmd_open() {
   fi
 
   if ! health_ok; then
+    log_event "op=open" "url=$url" "result=error" "detail=pinchtab_unavailable"
     echo "Pinchtab not available. Run: bash scripts/pinchtab-setup.sh start" >&2
     exit 1
   fi
 
-  log_op "open" "$url"
-
-  # Open new tab
-  local result
-  result=$(curl -sf --max-time "$(timeout_secs)" -X POST "${PINCHTAB_BASE}/tab" \
-    -H "Content-Type: application/json" \
-    -d "{\"action\":\"open\",\"url\":\"$url\"}" 2>/dev/null)
+  # Switch to visible if headless
+  if is_headless; then
+    echo "Switching to visible mode..." >&2
+    switch_mode visible "open_command"
+  fi
 
   local tab_id
-  tab_id=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tabId','unknown'))" 2>/dev/null || echo "unknown")
+  tab_id=$(open_tab "$url")
+  log_event "op=open" "url=$url" "tabId=${tab_id:-none}" "result=ok" "mode=visible"
 
   echo "Opened: $url"
-  echo "Tab ID: $tab_id"
+  echo "Tab ID: ${tab_id:-unknown}"
+  echo "Mode: visible"
   echo ""
-  echo "Page is now visible in Chrome."
-  echo "After logging in, use:"
-  echo "  bash scripts/pinchtab-fetch.sh extract $tab_id"
+  echo "After done, extract content:"
+  echo "  bash scripts/pinchtab-fetch.sh extract ${tab_id:-}"
 }
 
 cmd_extract() {
   local tab_id="$1"
+  local t0
+  t0=$(timer_start)
 
   if ! health_ok; then
+    log_event "op=extract" "tabId=${tab_id:-none}" "result=error" "detail=pinchtab_unavailable"
     echo "Pinchtab not available" >&2
     exit 1
   fi
 
-  log_op "extract" "|$tab_id"
-
-  # Get text content from current/specified tab
+  # Read content from specific tab (or current)
+  local raw
+  raw=$(read_tab "$tab_id")
   local content
-  if [[ -n "$tab_id" ]]; then
-    # Switch to tab first
-    curl -sf --max-time 5 -X POST "${PINCHTAB_BASE}/tab" \
-      -H "Content-Type: application/json" \
-      -d "{\"action\":\"activate\",\"tabId\":\"$tab_id\"}" >/dev/null 2>&1
-    sleep 1
-  fi
-
-  content=$(curl -sf --max-time "$(timeout_secs)" "${PINCHTAB_BASE}/text" 2>/dev/null)
+  content=$(echo "$raw" | extract_text)
 
   if [[ -z "$content" ]]; then
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=extract" "tabId=${tab_id:-none}" "result=error" "detail=empty_content" "durationMs=$ms"
     echo "Failed to extract content" >&2
     exit 1
   fi
 
-  local total=${#content}
-  if [[ $OFFSET -gt 0 ]]; then
-    content="${content:$OFFSET}"
-    total=${#content}
+  # Still auth page? Tell user
+  if is_auth_page "$content"; then
+    local ms; ms=$(timer_elapsed "$t0")
+    log_event "op=extract" "tabId=${tab_id:-none}" "result=auth_still_required" "contentLen=${#content}" "durationMs=$ms"
+    echo "AUTH_STILL_REQUIRED — page still shows login."
+    echo "Please complete login in Chrome, then retry:"
+    echo "  bash scripts/pinchtab-fetch.sh extract ${tab_id}"
+    return
   fi
-  if [[ "$FULL_OUTPUT" == "true" ]] || [[ $total -le $PINCHTAB_MAX_CONTENT ]]; then
-    echo "$content"
-  else
-    echo "$content" | head -c "$PINCHTAB_MAX_CONTENT"
-    local remaining=$((total - PINCHTAB_MAX_CONTENT))
-    local next_offset=$((OFFSET + PINCHTAB_MAX_CONTENT))
-    echo ""
-    echo "[... truncated, ${remaining} more chars. Use --offset ${next_offset} to continue]"
+
+  # Success — output content
+  local ms; ms=$(timer_elapsed "$t0")
+  log_event "op=extract" "tabId=${tab_id:-none}" "result=ok" "contentLen=${#content}" "durationMs=$ms" "mode=$(current_mode)"
+  output_content "$content"
+
+  # Auto-cleanup: close tab + switch back to headless
+  if [[ -n "$tab_id" ]]; then
+    close_tab "$tab_id"
+    echo "" >&2
+    echo "Tab closed." >&2
+  fi
+  if ! is_headless; then
+    switch_mode headless "extract_complete"
   fi
 }
 
@@ -224,12 +448,7 @@ cmd_close() {
     exit 1
   fi
 
-  log_op "close" "|$tab_id"
-
-  curl -sf --max-time 5 -X POST "${PINCHTAB_BASE}/tab" \
-    -H "Content-Type: application/json" \
-    -d "{\"action\":\"close\",\"tabId\":\"$tab_id\"}" >/dev/null 2>&1
-
+  close_tab "$tab_id"
   echo "Closed tab: $tab_id"
 }
 
@@ -255,20 +474,18 @@ case "${ARGS[0]:-}" in
   extract)  cmd_extract "${ARGS[1]:-}" ;;
   close)    cmd_close "${ARGS[1]:-}" ;;
   *)
-    echo "pinchtab-fetch — Browser content fetcher via Pinchtab"
+    echo "pinchtab-fetch — Smart browser content fetcher via Pinchtab"
     echo ""
     echo "Commands:"
-    echo "  status              Check Pinchtab availability"
-    echo "  fetch <url>              Fetch page content (first 8000 chars)"
-    echo "  fetch <url> --full       Fetch full content (no truncation)"
-    echo "  fetch <url> --offset N   Skip first N chars (continue reading)"
-    echo "  open <url>               Open visible tab (for login)"
-    echo "  extract [tabId]          Extract content from tab"
-    echo "  close <tabId>            Close a tab"
+    echo "  status                     Check Pinchtab availability + mode"
+    echo "  fetch <url>                Smart fetch (auto tab, auth detection, mode switch)"
+    echo "  fetch <url> --full         Fetch full content (no truncation)"
+    echo "  fetch <url> --offset N     Skip first N chars (continue reading)"
+    echo "  open <url>                 Open in visible Chrome (auto-switch mode)"
+    echo "  extract [tabId]            Extract content (auto-switch back to headless)"
+    echo "  close <tabId>              Close a tab"
     echo ""
-    echo "Flags (any command):"
-    echo "  --full                   No truncation"
-    echo "  --offset N               Skip first N chars"
+    echo "All operations logged to: $LOG_FILE"
     echo ""
     echo "Environment:"
     echo "  PINCHTAB_PORT=9867          API port"
