@@ -425,11 +425,25 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.58rem;
     color: var(--fg-muted);
-    opacity: 0;
+    opacity: 0.45;
     transition: opacity 0.15s;
     margin-left: 4px;
+    cursor: pointer;
+    user-select: none;
   }
-  .msg:hover .msg-id { opacity: 1; }
+  .msg:hover .msg-id { opacity: 0.9; }
+  .msg-id:hover { color: var(--fg-dim) !important; }
+
+  /* Inline message ID link (referenced in text) */
+  .msg-ref {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82em;
+    color: var(--fg-dim);
+    cursor: pointer;
+    border-bottom: 1px dashed var(--fg-muted);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .msg-ref:hover { color: var(--fg); border-color: var(--fg-dim); }
 
   .reply-indicator {
     display: flex;
@@ -687,8 +701,11 @@
       }
     }
 
-    // Build ID badge
-    const idHtml = msg.id ? `<span class="msg-id">${esc(msg.id)}</span>` : '';
+    // Build ID badge (short form: #NNN)
+    const shortId = msg.id ? '#' + msg.id.replace(/^\d{4}-\d{2}-\d{2}-/, '') : '';
+    const idHtml = msg.id
+      ? `<span class="msg-id" onclick="scrollToMsg('${esc(msg.id)}')" title="${esc(msg.id)}">${esc(shortId)}</span>`
+      : '';
 
     // Reply button
     const replyBtnHtml = msg.id
@@ -788,17 +805,38 @@
     const el = document.querySelector(`[data-msg-id="${msgId}"]`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.outline = '1px solid var(--fg-muted)';
-      setTimeout(() => { el.style.outline = ''; }, 1500);
+      el.style.transition = 'outline 0s, box-shadow 0s';
+      el.style.outline = '1px solid var(--fg-dim)';
+      el.style.boxShadow = '0 0 0 3px rgba(200,205,216,0.08)';
+      setTimeout(() => {
+        el.style.transition = 'outline 0.8s, box-shadow 0.8s';
+        el.style.outline = '1px solid transparent';
+        el.style.boxShadow = 'none';
+        setTimeout(() => { el.style.outline = ''; el.style.boxShadow = ''; el.style.transition = ''; }, 800);
+      }, 1200);
+    } else {
+      // ID 不在本頁（可能是跨天訊息）
+      addSystemMsg(`Message ${msgId} not loaded in current view`);
     }
   };
 
   // === Helpers ===
   function formatText(text) {
     let html = esc(text);
+    // @mentions
     html = html.replace(/@kuro/g, '<span class="mention kuro">@kuro</span>');
     html = html.replace(/@alex/g, '<span class="mention alex">@alex</span>');
     html = html.replace(/@claude/g, '<span class="mention claude">@claude</span>');
+    // Message ID references: ↩YYYY-MM-DD-NNN or #YYYY-MM-DD-NNN or standalone YYYY-MM-DD-NNN
+    // Matches: ↩2026-02-24-107  or  2026-02-24-107  or  #2026-02-24-107
+    html = html.replace(
+      /(↩)?(\d{4}-\d{2}-\d{2}-\d+)/g,
+      (match, arrow, fullId) => {
+        const short = '#' + fullId.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+        const prefix = arrow || '';
+        return `${prefix}<span class="msg-ref" onclick="scrollToMsg('${fullId}')" title="${fullId}">${short}</span>`;
+      }
+    );
     return html;
   }
 
