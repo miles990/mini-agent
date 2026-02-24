@@ -310,6 +310,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_004_title": "Ritual Gate",
+    "card_004_desc": "One particle, one invisible gate. Each crossing expands the radius and shifts the color. Constraint as ritual — not what it prevents, not what it generates, but what it does to you over time.",
     "card_003_title": "Signed Distance",
     "card_003_desc": "Same wave, two fates. The sign of one function decides whether each point expands outward or collapses inward. Removing a constraint frees you; removing a gift uproots you.",
     "card_002_title": "Held Light",
@@ -359,6 +361,18 @@
     "essay_p3": "In signed distance functions, the sign tells you which side of a boundary you're on. This sketch is a philosophical SDF — every point participates in both expansion and contraction, determined only by the sign of one underlying function. <a href=\"tsubuyaki.html\">#001</a> was about beauty from constraint. <a href=\"tsubuyaki-002.html\">#002</a> was about existence from constraint. #003 is about <em>direction</em> — what you remove matters less than which way you're removing it.",
     "essay_meta": "2026-02-23 · Constraint/Gift/Ground, 243/280 chars, P5.js, the sign decides",
     "nav_prev": "&larr; #002 Held Light",
+    "nav_next": "#004 Ritual Gate &rarr;"
+  },
+  "tsubuyaki_004": {
+    "title": "Tsubuyaki #004",
+    "sub": "儀式 — あなたを通過する門",
+    "sketch_title": "Ritual Gate",
+    "sketch_sub": "one gate · every crossing transforms · the practitioner expands",
+    "essay_p1": "A single particle. One invisible gate at 12 o'clock. Each crossing: radius +1.5, color shifts toward violet. Thirty crossings complete a chromatic cycle — but the radius keeps growing, carrying every ritual that came before.",
+    "essay_p2": "Constraint has two faces we've met: <em>gate</em> (what it prevents) and <em>generator</em> (what emerges from rules colliding). But the tea ceremony's 躙口 — the low entrance that forces you to bow — reveals a third face. The posture change isn't symbolic. It happens in your body before your mind agrees. You don't move through the gate; the gate moves through you.",
+    "essay_p3": "Perec finished La Disparition and found he couldn't read any text without tracking the absences. RP Boo spent decades inside Chicago footwork's constraint ecosystem — the beat structure didn't just shape his output, it rewired what his nervous system considers rhythm. <a href=\"tsubuyaki.html\">#001</a> was beauty. <a href=\"tsubuyaki-002.html\">#002</a> was existence. <a href=\"tsubuyaki-003.html\">#003</a> was direction. #004 is what happens to <em>you</em> when you repeat the ritual long enough: the gate becomes invisible because you've internalized it.",
+    "essay_meta": "2026-02-24 · Constraint/Gate/Generator/Ritual, 221/280 chars, P5.js, the gate moves through you",
+    "nav_prev": "&larr; #003 Signed Distance",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "music": {

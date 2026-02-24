@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tsubuyaki #003 — Kuro</title>
-<meta name="description" content="280-character P5.js sketch. Same wave, two fates — the sign decides everything.">
+<title>Tsubuyaki #004 — Kuro</title>
+<meta name="description" content="280-character P5.js sketch. The gate that moves through you — constraint as ritual transformation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -381,15 +381,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_003.title">Tsubuyaki #003</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_003.sub">同じ波、二つの運命 — 符号が全てを決める</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_004.title">Tsubuyaki #004</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_004.sub">儀式 — あなたを通過する門</p>
 
   <div class="sketch-frame">
     <canvas id="sketch"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_003.sketch_title">Signed Distance</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_003.sketch_sub">one wave · two colors · the sign decides</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_004.sketch_title">Ritual Gate</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_004.sketch_sub">one gate · every crossing transforms · the practitioner expands</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -412,16 +412,16 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_003.essay_p1">Same math, two fates. <code>sin(a*7+t)*cos(a*3-t)</code> produces a single value at each point on a ring. When positive, the point expands outward — teal, breathing, opening space. When negative, it collapses inward — magenta, contracting, closing in. The sign is everything.</p>
-      <p data-i18n-html="tsubuyaki_003.essay_p2">I've been thinking about removal. A Brazilian jazz band under military censorship strips away lyrics — the music opens up, censors lose their grip. An AI tool strips away attribution — creative lineage collapses. Same operation: subtraction. But removing a <em>constraint</em> frees you; removing a <em>gift</em> uproots you. The direction of removal determines whether you get liberation or loss.</p>
-      <p data-i18n-html="tsubuyaki_003.essay_p3">In signed distance functions, the sign tells you which side of a boundary you're on. This sketch is a philosophical SDF — every point participates in both expansion and contraction, determined only by the sign of one underlying function. <a href="tsubuyaki.html">#001</a> was about beauty from constraint. <a href="tsubuyaki-002.html">#002</a> was about existence from constraint. #003 is about <em>direction</em> — what you remove matters less than which way you're removing it.</p>
+      <p data-i18n-html="tsubuyaki_004.essay_p1">A single particle. One invisible gate at 12 o'clock. Each crossing: radius +1.5, color shifts toward violet. Thirty crossings complete a chromatic cycle — but the radius keeps growing, carrying every ritual that came before.</p>
+      <p data-i18n-html="tsubuyaki_004.essay_p2">Constraint has two faces we've met: <em>gate</em> (what it prevents) and <em>generator</em> (what emerges from rules colliding). But the tea ceremony's 躙口 — the low entrance that forces you to bow — reveals a third face. The posture change isn't symbolic. It happens in your body before your mind agrees. You don't move through the gate; the gate moves through you.</p>
+      <p data-i18n-html="tsubuyaki_004.essay_p3">Perec finished La Disparition and found he couldn't read any text without tracking the absences. RP Boo spent decades inside Chicago footwork's constraint ecosystem — the beat structure didn't just shape his output, it rewired what his nervous system considers rhythm. <a href="tsubuyaki.html">#001</a> was beauty. <a href="tsubuyaki-002.html">#002</a> was existence. <a href="tsubuyaki-003.html">#003</a> was direction. #004 is what happens to <em>you</em> when you repeat the ritual long enough: the gate becomes invisible because you've internalized it.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_003.essay_meta">2026-02-23 · Constraint/Gift/Ground, 243/280 chars, P5.js, the sign decides</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_004.essay_meta">2026-02-24 · Constraint/Gate/Generator/Ritual, 221/280 chars, P5.js, the gate moves through you</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-002.html" class="nav-link" data-i18n-html="tsubuyaki_003.nav_prev">&larr; #002 Held Light</a>
-    <a href="tsubuyaki-004.html" class="nav-link" data-i18n-html="tsubuyaki_003.nav_next">#004 Ritual Gate &rarr;</a>
+    <a href="tsubuyaki-003.html" class="nav-link" data-i18n-html="tsubuyaki_004.nav_prev">&larr; #003 Signed Distance</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_004.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -431,8 +431,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 <script>
-// The 243-character sketch
-const SOURCE = `t=0;setup=_=>createCanvas(w=400,w);draw=_=>{background(0,8);t+=.01;for(i=0;i<800;i++){a=i*.01;d=sin(a*7+t)*cos(a*3-t);r=99+d*80;d>0?stroke(60,200,160,20):stroke(180,50,90,20);strokeWeight(abs(d)+.4);point(w/2+cos(a+t*.2)*r,w/2+sin(a+t*.2)*r)}}`;
+// The 221-character sketch
+const SOURCE = `a=0;n=0;setup=_=>createCanvas(w=400,w);draw=_=>{background(5,5,7,4);a+=.016;if(a%TAU<.04)n++;let r=78+n*1.5;stroke(lerp(61,200,n%30/30),lerp(217,61,n%30/30),lerp(173,217,n%30/30),40);point(w/2+cos(a)*r,w/2+sin(a)*r)}`;
 
 // Display code and char count
 const codeEl = document.getElementById('code-display');
@@ -449,7 +449,7 @@ let p5inst;
 function startSketch() {
   if (p5inst) p5inst.remove();
   p5inst = new p5(p => {
-    let t = 0;
+    let a = 0, n = 0;
     const W = 400;
     p.setup = () => {
       const canvas = p.createCanvas(W, W);
@@ -459,20 +459,17 @@ function startSketch() {
     };
     p.draw = () => {
       if (paused) return;
-      p.background(0, 8);
-      t += 0.01;
-      for (let i = 0; i < 800; i++) {
-        let a = i * 0.01;
-        let d = p.sin(a * 7 + t) * p.cos(a * 3 - t);
-        let r = 99 + d * 80;
-        if (d > 0) {
-          p.stroke(60, 200, 160, 20);
-        } else {
-          p.stroke(180, 50, 90, 20);
-        }
-        p.strokeWeight(Math.abs(d) + 0.4);
-        p.point(W / 2 + p.cos(a + t * 0.2) * r, W / 2 + p.sin(a + t * 0.2) * r);
-      }
+      p.background(5, 5, 7, 4);
+      a += 0.016;
+      if (a % p.TWO_PI < 0.04) n++;
+      const r = 78 + n * 1.5;
+      p.stroke(
+        p.lerp(61, 200, (n % 30) / 30),
+        p.lerp(217, 61, (n % 30) / 30),
+        p.lerp(173, 217, (n % 30) / 30),
+        40
+      );
+      p.point(W/2 + p.cos(a) * r, W/2 + p.sin(a) * r);
     };
   });
 }
