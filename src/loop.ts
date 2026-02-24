@@ -1846,6 +1846,8 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
     const jsonlPath = path.join(process.cwd(), 'memory', 'conversations', `${dateStr}.jsonl`);
     if (!fs.existsSync(jsonlPath)) return { replied, msgLookup };
     const lines = fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean);
+    // parentOf: msgId → replyTo msgId (for transitive parent-addressing)
+    const parentOf = new Map<string, string>();
     for (const line of lines) {
       try {
         const msg = JSON.parse(line);
@@ -1861,6 +1863,8 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
             for (const m of text.matchAll(/(?<![0-9-])#(\d{1,4})\b/g)) replied.add(`${dateStr}-${m[1]}`);
           }
         }
+        // Track reply chain for all messages
+        if (msg.id && msg.replyTo) parentOf.set(msg.id, msg.replyTo);
         // Build reverse lookup for non-kuro messages (sender + cleaned text prefix → id)
         if (msg.from && msg.from !== 'kuro' && msg.id && msg.text) {
           const cleanedText = (msg.text as string).replace(/@\w+\s*/g, '').trim();
@@ -1868,6 +1872,15 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
           msgLookup.set(key, msg.id);
         }
       } catch { /* skip malformed lines */ }
+    }
+    // Transitively mark parents as addressed:
+    // If Kuro replied to B, and B is a reply to A, A is also addressed (same thread context).
+    for (const id of [...replied]) {
+      let parent = parentOf.get(id);
+      while (parent && !replied.has(parent)) {
+        replied.add(parent);
+        parent = parentOf.get(parent);
+      }
     }
   } catch { /* fire-and-forget */ }
   return { replied, msgLookup };
