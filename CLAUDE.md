@@ -97,6 +97,13 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Discussion Facilitation | `skills/discussion-facilitation.md` |
 | Discussion Participation | `skills/discussion-participation.md` |
 | Discussions | `memory/discussions/` |
+| kuro-sense CLI | `tools/kuro-sense/main.go` |
+| kuro-sense Registry | `tools/kuro-sense/internal/registry/registry.go` |
+| kuro-sense Detect | `tools/kuro-sense/internal/detect/detect.go` |
+| kuro-sense Compose | `tools/kuro-sense/internal/compose/` |
+| kuro-sense TUI | `tools/kuro-sense/internal/tui/app.go` |
+| kuro-sense Web UI | `tools/kuro-sense/internal/web/` |
+| kuro-sense Pack | `tools/kuro-sense/internal/pack/` |
 
 ## Memory Architecture
 
@@ -628,6 +635,30 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - Keep it minimal. Files over database. FTS5 full-text search over embedding.
 - **行動優先於規劃**：實作 feature 或 fix 時，前 2-3 輪交換就應產出程式碼。需要設計釐清時簡潔地問，然後立刻實作 — 不要在探索/規劃中迴圈而沒產出程式碼。Planning phase 超過 10 次 tool call 仍無 file edit，應停下來確認方向
 - **Commit 時驗證 staging**：commit 前確認所有相關檔案（含 `plugins/`、`skills/` 目錄）都已 staged。auto-commit 可能已追蹤部分檔案，造成手動 commit 時遺漏
+
+## kuro-sense — 感知能力管理工具
+
+Go 語言的跨平台 CLI 工具，偵測環境、配置 agent 感知 plugins、安裝依賴、打包遷移。
+
+**位置**：`tools/kuro-sense/`（獨立 `go.mod`）
+
+```bash
+cd tools/kuro-sense
+go build -o kuro-sense .        # 編譯
+./kuro-sense detect             # 偵測環境能力
+./kuro-sense detect --json      # JSON 輸出
+./kuro-sense apply --auto --dry-run --agent-dir /path/to/agent  # 自動配置預覽
+./kuro-sense serve --port 8090  # Web UI（手機用）
+./kuro-sense pack               # 打包 agent 資料
+./kuro-sense unpack archive.tar.gz  # 還原
+make build-all                  # 4 平台交叉編譯
+```
+
+**Capability Registry**：27 個 perception plugin 完整映射（compiled-in），涵蓋 workspace / chrome / telegram / heartbeat 四個 category。
+
+**Compose 整合**：讀寫 `agent-compose.yaml`，使用 yaml.v3 Node API 保留註解和格式，輸出與 `src/compose.ts` 的 `loadCompose()` 相容。
+
+**追蹤**：GitHub Issue #59
 
 ## 詳細文件
 
