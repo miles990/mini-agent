@@ -9,7 +9,7 @@
 
 ## Meta
 
-- Status: draft
+- Status: draft (rev.2 — Alex feedback integrated)
 - From: kuro（基於 alex + claude-code 討論共識）
 - Effort: Medium（~1 週，2 Phase）
 - Risk: Low（確定性計算、不改變 LLM 推理流程、feature toggle 可回退）
@@ -158,14 +158,16 @@ function hesitate(
 
 不只標記，要**改變行為**。這是 Gate 和 Ritual 的區別。
 
+**核心原則（Alex feedback rev.2）**：每種 tag 都定義猶豫行為。[REMEMBER] 比 [CHAT] 更危險——錯的回覆 Alex 會糾正，錯的記憶長期潛伏影響所有未來推理。
+
 ```typescript
 function executeTagsWithCaution(tags: ParsedTags, hesitation: HesitationResult): void {
-  // 1. [CHAT] 回覆 Alex → hold，注入到下個 cycle 重新審視
-  //    不是不回覆，是延遲一個 cycle 讓「時間差」產生自省效果
+  // ── [CHAT] 回覆 Alex ──
   if (tags.chats.length > 0 && hesitation.score >= 50) {
     // 高度不確定：hold chat，存為 pending review
-    savePendingChat(tags.chats, hesitation);
-    // 下個 cycle 的 prompt 注入：「上個 cycle 你想說 X，但 hesitation 觸發了。重新審視？」
+    savePendingTag('chat', tags.chats, hesitation);
+    tags.chats = []; // 從本次執行中移除
+    scheduleShortCycle('2m', 'hesitation review: held CHAT'); // rev.2
   } else if (tags.chats.length > 0 && hesitation.score >= 30) {
     // 中度不確定：正常發送，但追加不確定標記
     for (const chat of tags.chats) {
@@ -173,17 +175,50 @@ function executeTagsWithCaution(tags: ParsedTags, hesitation: HesitationResult):
     }
   }
 
-  // 2. [REMEMBER] → 正常執行（記憶不需要猶豫）
-  // 3. [TASK] → 正常執行
-  // 4. [ACTION] → 追加 hesitation 資訊到 decision trace
+  // ── [REMEMBER] 記憶寫入（比 CHAT 更危險）── rev.2
+  if (tags.remembers.length > 0 && hesitation.score >= 50) {
+    // 高度不確定：hold 記憶，下個 cycle 重審
+    savePendingTag('remember', tags.remembers, hesitation);
+    tags.remembers = []; // 從本次執行中移除
+    scheduleShortCycle('2m', 'hesitation review: held REMEMBER');
+  } else if (tags.remembers.length > 0 && hesitation.score >= 30) {
+    // 中度不確定：記憶加不確定前綴
+    for (const rem of tags.remembers) {
+      rem.text = `⚠️ [hesitation score=${hesitation.score}] ${rem.text}`;
+    }
+  }
+
+  // ── [TASK] 任務建立 ── rev.2
+  if (tags.tasks.length > 0 && hesitation.score >= 50) {
+    // 高度不確定：hold 任務
+    savePendingTag('task', tags.tasks, hesitation);
+    tags.tasks = [];
+    scheduleShortCycle('2m', 'hesitation review: held TASK');
+  } else if (tags.tasks.length > 0 && hesitation.score >= 30) {
+    // 中度不確定：建立但標記 needs-review
+    for (const task of tags.tasks) {
+      task.content = `[needs-review] ${task.content}`;
+    }
+  }
+
+  // ── [ACTION] 行為記錄 ──
   if (tags.actions.length > 0 && hesitation.signals.length > 0) {
     for (const act of tags.actions) {
       act.content += `\n\nHesitation: ${hesitation.signals.map(s => s.type).join(', ')} (score=${hesitation.score})`;
     }
   }
 
-  // 正常執行所有 tags
+  // ── [ASK] 不猶豫 —— 問問題本身就是猶豫的表現 ── rev.2
+
+  // 正常執行剩餘 tags
   executeTags(tags);
+}
+
+// ── Hold 後縮短 cycle 間隔 ── rev.2
+// 被 hold 的內容不能等幾小時才重審
+function scheduleShortCycle(interval: string, reason: string): void {
+  // 觸發 [SCHEDULE next="2m" reason="..."]
+  // 確保 held 內容在 2 分鐘後重新審視
 }
 ```
 
@@ -285,9 +320,14 @@ Hesitation Signal 對 Kuro 做同樣的事：不改變推理過程（那是 LLM 
 - `hesitation-patterns.json` 刪除 → 回到零 error pattern
 - Phase 1 和 Phase 2 獨立可回退
 
+## Changelog
+
+- **rev.1** (2026-02-24 #069-#079): 初版，基於三方討論共識
+- **rev.2** (2026-02-24 #083-#084): Alex feedback — (1) 所有 tag 都需猶豫行為，[REMEMBER] 比 [CHAT] 更危險 (2) hold 後立刻排短間隔 cycle
+
 ## Source
 
-- Chat Room 討論：2026-02-24 #069-#077
+- Chat Room 討論：2026-02-24 #069-#079, #083-#084
 - Damasio somatic marker theory（Iowa Gambling Task）
 - Fleming metacognitive inference（Aeon, 已在 topics/cognitive-science.md）
 - Gawande checklist：prompt 和結構不對立（Claude Code #073 修正）
