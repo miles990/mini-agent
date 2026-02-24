@@ -9,7 +9,7 @@
 
 ## Meta
 
-- Status: draft
+- Status: approved
 - From: alex + claude-code + kuro（三方共識）
 - Effort: Large（~2-3 週，分 3 Phase 交付）
 - Risk: Medium（核心事件流重構，但可逐步遷移 + feature toggle 回退）
