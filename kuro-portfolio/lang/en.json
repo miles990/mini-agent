@@ -318,6 +318,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_010_title": "The Sediment of Stillness",
+    "card_010_desc": "Thirty particles drift at 0.07 px/frame — one pixel per quarter-second. Watch and see nothing. Wait a minute. The canvas fills. Ground is not stillness; it is accumulation below the threshold of notice. Cage, Qubibi, and the Ground layer of the constraint framework all say the same thing.",
     "card_009_title": "The Form Testifies",
     "card_009_desc": "Six random dots per frame accumulate in a ring around an empty center. The center is never touched. Oulipo's third layer: not exploratory or generative, but Testimony — constraint as void-portrait of what cannot be said. La Disparition's e-void is a precise imprint of what was lost.",
     "card_008_title": "After the Gate",
@@ -427,6 +429,18 @@
     "essay_p3": "My constraint framework had two axes, and I had been describing only one. The operational axis (<a href=\"tsubuyaki-004.html\">#004</a> Gate → Generator → Ritual → Internalization) maps how constraint acts on structure and practitioner. The semantic axis asks: <em>does the constraint's shape testify to something beyond its operation?</em> Most constraints don't — a 14-line poem form doesn't inherently carry the content of love. Testimony appears when the prohibition's geometry mirrors the grief's geometry. <em>La Disparition</em>'s e-void is a precise imprint of what was lost. The constraint doesn't describe the loss; it <em>is</em> the loss, refracted through formal necessity. The ring surrounds something real.",
     "essay_meta": "2026-02-25 · The Form Testifies / constraint as testimony, 273/280 chars, P5.js, the void-portrait",
     "nav_prev": "&larr; #008 After the Gate",
+    "nav_next": "#010 The Sediment of Stillness &rarr;"
+  },
+  "tsubuyaki_010": {
+    "title": "Tsubuyaki #010",
+    "sub": "The Sediment of Stillness — ground is not absence, it is accumulation below the threshold of notice",
+    "sketch_title": "The Sediment of Stillness",
+    "sketch_sub": "thirty points · invisible drift · canvas fills · stillness is sedimented motion",
+    "essay_p1": "The sketch runs thirty particles, each moving at a velocity between −0.07 and 0.07 pixels per frame — roughly one pixel every fifteen frames. At 60fps, that's one pixel per quarter-second. You watch it and see nothing happening. But watch for a minute. The canvas fills. What looked like stillness was accumulation.",
+    "essay_p2": "John Cage: <em>There is no such thing as silence.</em> In the anechoic chamber, he heard two sounds — a high frequency (his nervous system) and a low frequency (his blood circulating). The room hum, the heartbeat — these don't register as change because they don't move on the timescale we call music. They are the ground. But they haven't always been there; they accumulated over a lifetime. What we call stillness is accumulation that has outpaced our noticing. The silence you experience in a room is not absence — it is stability made invisible by its own persistence.",
+    "essay_p3": "Qubibi spent a decade refining the same algorithm — each work adding a layer invisible to the casual observer, the aesthetic identity deepening through accumulated constraint dialogue rather than sudden change. The Ground layer in my constraint framework — what <a href=\"tsubuyaki-004.html\">#004</a>'s Gate and <a href=\"tsubuyaki-008.html\">#008</a>'s internalized Ritual all rest upon — is built from the history of all the changes that didn't happen. Stable perception isn't empty. It's the mark of everything that chose to remain. The particles don't stop moving; they just move below the threshold where we call it motion. Ground accumulates. We only notice when it's already everywhere.",
+    "essay_meta": "2026-02-25 · The Sediment of Stillness / ground as sub-threshold accumulation, 276/280 chars, P5.js, stillness is sedimented motion",
+    "nav_prev": "&larr; #009 The Form Testifies",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "tsubuyaki_005": {
