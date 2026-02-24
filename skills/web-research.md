@@ -78,12 +78,16 @@ Pinchtab 未啟用時，先 `bash scripts/pinchtab-setup.sh start` 自動修復�
 
 Facebook/Instagram 的 URL 格式：`facebook.com/{page-name}/posts/{post-id}`
 
-- `{page-name}` 是**粉絲頁名稱**，不是獨立網站域名
-- 貼文內容可以是任何主題（轉貼、分享新聞等），與粉絲頁本身的主題完全無關
-- ❌ **絕對不要**：把 page-name 當網站訪問（例如從 `facebook.com/omp.asia/posts/...` 去訪問 `omp.asia`）
-- ❌ **絕對不要**：用頁面主人是誰來推測貼文內容
-- ✅ 如果 Pinchtab 無法抓取：直接告訴 Alex 看不到貼文內容，詢問貼文在講什麼
-- ✅ 如果 URL 或 Alex 的文字有關鍵字線索，可以 DuckDuckGo 搜尋驗證
+**關鍵認知**：`{page-name}` 是**分享者**（誰貼的），不是**內容**（貼什麼）。
+一個科技公司的粉絲頁可以分享食譜；一個料理頻道可以轉發晶片新聞。**分享者 ≠ 貼文主題。**
+
+真實案例：`facebook.com/omp.asia/posts/...` — OMP 是 AI 行銷培訓公司，但那篇貼文是轉發「Taalas HC1 晶片把 Llama 3.1 8B 硬焊進矽片，17,000 tok/s」的硬體新聞，跟 OMP 的業務完全無關。
+
+- ❌ **絕對不要**：把 page-name 當網站訪問來推測貼文內容
+- ❌ **絕對不要**：用「這個粉絲頁是做什麼的」來猜貼文在講什麼
+- ✅ 先用 Pinchtab 嘗試抓取貼文本身
+- ✅ 抓不到就直接問 Alex：「那篇貼文在講什麼？我看不到內容。」
+- ✅ 如果 Alex 的訊息文字有線索（如標題片段），用 DuckDuckGo 搜尋原文
 
 ## 原則
 
