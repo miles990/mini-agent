@@ -40,6 +40,10 @@ interface DecisionQualityState {
   avgScore: number;
   warningInjected: boolean;
   lastWarningAt: string | null;
+  // Self-Challenge tracking
+  challengeTotal: number;
+  challengeCompliant: number;
+  lastChallengeWarningAt: string | null;
 }
 
 // =============================================================================
@@ -210,7 +214,7 @@ const QUALITY_WINDOW = 20;
  * 追蹤滑動窗口 20 cycle 的平均 observabilityScore。
  * 品質下降時注入提醒到下個 cycle 的 prompt。
  */
-export async function auditDecisionQuality(action: string | null): Promise<void> {
+export async function auditDecisionQuality(action: string | null, triggerReason?: string | null): Promise<void> {
   if (!action) return;
 
   const state = readState<DecisionQualityState>('decision-quality.json', {
@@ -218,6 +222,9 @@ export async function auditDecisionQuality(action: string | null): Promise<void>
     avgScore: 0,
     warningInjected: false,
     lastWarningAt: null,
+    challengeTotal: 0,
+    challengeCompliant: 0,
+    lastChallengeWarningAt: null,
   });
 
   // Score current action's observability (0-6)
@@ -264,6 +271,33 @@ export async function auditDecisionQuality(action: string | null): Promise<void>
     }
     state.warningInjected = false;
     slog('FEEDBACK', `Decision quality recovered (avg ${state.avgScore}/6) — warning cleared`);
+  }
+
+  // ── Self-Challenge compliance tracking ──
+  const isAlexFacing = triggerReason?.startsWith('telegram-user') ?? false;
+  if (isAlexFacing && action.includes('[CHAT]')) {
+    state.challengeTotal++;
+    const hasChallenge = /##\s*Challenge.*?checked/i.test(action);
+    if (hasChallenge) {
+      state.challengeCompliant++;
+    } else {
+      // Missing challenge — log for visibility
+      slog('FEEDBACK', `[challenge] Alex-facing response without ## Challenge (${state.challengeCompliant}/${state.challengeTotal} compliant)`);
+
+      // If compliance drops below 50% after 5+ responses, inject warning
+      const rate = state.challengeTotal >= 5
+        ? state.challengeCompliant / state.challengeTotal : 1;
+      const challengeCooldownOk = !state.lastChallengeWarningAt ||
+        (Date.now() - new Date(state.lastChallengeWarningAt).getTime()) > 12 * 3600_000;
+
+      if (rate < 0.5 && challengeCooldownOk) {
+        const challengeFlagPath = getStatePath('challenge-warning.flag');
+        const warning = `你回覆 Alex 時的自我質疑率偏低（${state.challengeCompliant}/${state.challengeTotal}）。提醒：回覆前先做三個檢查 — 來源廣度、根因 vs 症狀、反例搜尋。`;
+        writeFileSync(challengeFlagPath, warning, 'utf-8');
+        state.lastChallengeWarningAt = new Date().toISOString();
+        slog('FEEDBACK', `[challenge] Warning injected: compliance ${Math.round(rate * 100)}%`);
+      }
+    }
   }
 
   writeState('decision-quality.json', state);
@@ -388,9 +422,9 @@ export async function auditSystemHealth(): Promise<void> {
 // Unified Entry Point
 // =============================================================================
 
-export async function runFeedbackLoops(action: string | null): Promise<void> {
+export async function runFeedbackLoops(action: string | null, triggerReason?: string | null): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
-  await auditDecisionQuality(action).catch(() => {});
+  await auditDecisionQuality(action, triggerReason).catch(() => {});
   await auditSystemHealth().catch(() => {});
 }

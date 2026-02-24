@@ -342,7 +342,8 @@ export class AgentLoop {
 
       case 'normal':
         // Cycle in progress → queue for after cycle
-        if (event.source === 'telegram') {
+        // Only queue REAL telegram messages (from flushBuffer), not perception refreshes
+        if (event.source === 'telegram' && agentEvent.data?.source !== 'mark-processed') {
           this.telegramWakeQueue++;
         }
         slog('LOOP', `[unified] Event queued: ${event.source} (${decision.reason})`);
@@ -363,6 +364,11 @@ export class AgentLoop {
   ): void {
     if (decision.lane === 'deferred') {
       slog('LOOP', `[unified] Event deferred: ${event.source} (${decision.reason})`);
+      return;
+    }
+
+    // Perception refresh events (mark-processed) should NOT trigger new cycles
+    if (event.source === 'telegram' && agentEvent.data?.source === 'mark-processed') {
       return;
     }
 
@@ -782,10 +788,10 @@ export class AgentLoop {
       if (isTelegramUserCycle) {
         if (nextPendingItems.length > 0) {
           const itemsPreview = nextPendingItems.slice(0, 3).map(i => `  「${i.slice(0, 80)}」`).join('\n');
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT] 直接回答 Alex 的問題，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT] 直接回答 Alex 的問題，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 [CHAT] 之前先做這三個檢查（寫在 [ACTION] 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 [ACTION] 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
         } else {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 [ACTION] 加 ## Challenge: checked。\n\n`;
         }
       } else {
         // Non-telegram cycle: check for pending/unaddressed Chat Room messages
@@ -1172,7 +1178,7 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action).then(() => done(), e => done(String(e)));
+        runFeedbackLoops(action, currentTriggerReason).then(() => done(), e => done(String(e)));
       }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）
