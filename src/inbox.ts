@@ -192,6 +192,30 @@ export function markInboxProcessed(ids: string[], status: 'seen' | 'replied'): v
 }
 
 /**
+ * 檢查是否有近期未回覆的 telegram 訊息（status: 'seen'）。
+ * 用於啟動時判斷是否應優先處理 telegram 而非跑 generic 自主 cycle。
+ */
+export function hasRecentUnrepliedTelegram(hoursBack: number = 4): boolean {
+  try {
+    const inboxPath = getInboxPath();
+    if (!fs.existsSync(inboxPath)) return false;
+    const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
+    const cutoff = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line) as InboxItem;
+        if (item.source === 'telegram' && item.status === 'seen' && item.ts >= cutoff) {
+          return true;
+        }
+      } catch { /* skip malformed */ }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 標記所有 pending items。
  */
 export function markAllInboxProcessed(status: 'seen' | 'replied'): void {

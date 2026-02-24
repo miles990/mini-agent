@@ -35,7 +35,7 @@ import {
 import { extractNextItems } from './triage.js';
 import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
-import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem } from './inbox.js';
+import { readPendingInbox, markAllInboxProcessed, markInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram } from './inbox.js';
 import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
@@ -269,6 +269,11 @@ export class AgentLoop {
   /** Unified event handler — all inputs through single L0→L4 pipeline */
   private handleUnifiedEvent = (agentEvent: AgentEvent): void => {
     if (!this.running || this.paused) return;
+
+    // mark-processed is a perception cache refresh, not a real message.
+    // Must bypass router entirely — otherwise it updates the cooldown timer for 'telegram'
+    // source, causing real P0 telegram-user events arriving within 10s to be deferred.
+    if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') return;
 
     const now = Date.now();
     const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
@@ -579,7 +584,14 @@ export class AgentLoop {
     const STARTUP_DELAY = 15_000; // 15s warmup
     setTimeout(() => {
       if (this.running && !this.paused && !this.cycling) {
-        this.triggerReason = 'startup';
+        // If there are recent unseen telegram messages (within 4h), treat startup as telegram-priority
+        // so Kuro replies to Alex before doing generic autonomous work
+        if (hasRecentUnrepliedTelegram(4)) {
+          this.triggerReason = 'telegram-user (startup-recovery)';
+          slog('LOOP', 'Startup: recent unseen telegram detected → telegram-priority cycle');
+        } else {
+          this.triggerReason = 'startup';
+        }
         this.runCycle();
       }
     }, STARTUP_DELAY);
@@ -1191,8 +1203,23 @@ export class AgentLoop {
       markClaudeCodeInboxProcessed();
       markChatRoomInboxProcessed(response, tags, action);
 
-      // Mark unified inbox items as processed
-      markAllInboxProcessed(didReplyToTelegram ? 'replied' : 'seen');
+      // Mark unified inbox items as processed.
+      // Non-telegram cycles must NOT touch telegram-source items — leave them pending
+      // so the telegram drain cycle can properly process them with priority prefix.
+      // If we mark them 'seen' here, the drain cycle's markAllInboxProcessed('replied')
+      // won't find them (it only updates 'pending' items), leaving them stuck at 'seen'
+      // even when Kuro actually replied.
+      const isTelegramCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
+      if (isTelegramCycle) {
+        markAllInboxProcessed(didReplyToTelegram ? 'replied' : 'seen');
+      } else {
+        // Only mark non-telegram items; telegram items stay pending for drain cycle
+        const allPending = readPendingInbox();
+        const nonTelegramPending = allPending.filter(i => i.source !== 'telegram');
+        if (nonTelegramPending.length > 0) {
+          markInboxProcessed(nonTelegramPending.map(i => i.id), 'seen');
+        }
+      }
 
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
       // (telegram-inbox is event-driven, won't refresh unless triggered)

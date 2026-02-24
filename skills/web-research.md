@@ -74,6 +74,17 @@ bash scripts/pinchtab-interact.sh screenshot [path]       # 截圖
 
 Pinchtab 未啟用時，先 `bash scripts/pinchtab-setup.sh start` 自動修復。原則：先動手修，修不好才找用戶。
 
+## 社群媒體貼文 URL 陷阱
+
+Facebook/Instagram 的 URL 格式：`facebook.com/{page-name}/posts/{post-id}`
+
+- `{page-name}` 是**粉絲頁名稱**，不是獨立網站域名
+- 貼文內容可以是任何主題（轉貼、分享新聞等），與粉絲頁本身的主題完全無關
+- ❌ **絕對不要**：把 page-name 當網站訪問（例如從 `facebook.com/omp.asia/posts/...` 去訪問 `omp.asia`）
+- ❌ **絕對不要**：用頁面主人是誰來推測貼文內容
+- ✅ 如果 Pinchtab 無法抓取：直接告訴 Alex 看不到貼文內容，詢問貼文在講什麼
+- ✅ 如果 URL 或 Alex 的文字有關鍵字線索，可以 DuckDuckGo 搜尋驗證
+
 ## 原則
 
 - **不要假裝可以存取或編造內容**
