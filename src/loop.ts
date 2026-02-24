@@ -719,6 +719,16 @@ export class AgentLoop {
 
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
+      // ── Inbox recovery: upgrade to telegram-priority if pending telegram items exist ──
+      // Handles cases where trigger:telegram-user was dropped (e.g. router cooldown pollution).
+      // Must run before isTelegramUser so all downstream checks (skip, cooldown, active-hours,
+      // priority prefix, inbox marking) see the correct value.
+      const inboxItemsEarly = readPendingInbox();
+      if (inboxItemsEarly.some(i => i.source === 'telegram') && !this.triggerReason?.startsWith('telegram-user')) {
+        this.triggerReason = 'telegram-user (inbox-recovery)';
+        slog('LOOP', 'Inbox recovery: pending telegram items detected → upgrading to telegram-priority');
+      }
+
       // ── Per-perception change detection (Phase 4) ──
       // telegram-user and cron bypass this check — must never be skipped
       const currentVersion = perceptionStreams.version;
@@ -786,7 +796,8 @@ export class AgentLoop {
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
       // Rule-based triage from unified inbox（零 LLM 成本）
-      const inboxItems = readPendingInbox();
+      // Re-use inboxItemsEarly — already read above for inbox-recovery check
+      const inboxItems = inboxItemsEarly;
       const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason);
 
       // Priority prefix: 強制先處理 NEXT.md pending items 或 Chat Room priority 訊息
