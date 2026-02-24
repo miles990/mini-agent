@@ -111,7 +111,12 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
 function createRateLimiter(maxRequests = 60, windowMs = 60_000) {
   const requests = new Map<string, { count: number; resetAt: number }>();
 
+  // Paths exempt from rate limiting (polling/streaming endpoints)
+  const exempt = new Set(['/health', '/status', '/api/events', '/api/room/stream']);
+
   return (req: Request, res: Response, next: NextFunction): void => {
+    if (exempt.has(req.path)) { next(); return; }
+
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
     const now = Date.now();
 
