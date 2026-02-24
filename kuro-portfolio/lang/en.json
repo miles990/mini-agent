@@ -318,6 +318,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_009_title": "The Form Testifies",
+    "card_009_desc": "Six random dots per frame accumulate in a ring around an empty center. The center is never touched. Oulipo's third layer: not exploratory or generative, but Testimony — constraint as void-portrait of what cannot be said. La Disparition's e-void is a precise imprint of what was lost.",
     "card_008_title": "After the Gate",
     "card_008_desc": "One particle, golden gate at the 12 o'clock position. Four orbit crossings with visible gate — radius grows, color shifts. At the fifth crossing, no gate. The orbit continues. The transformation continues. The gate was never the source; it was the teacher.",
     "card_007_title": "Liberation vs Uprooting",
@@ -413,6 +415,18 @@
     "essay_p3": "The sketch doesn't \"know\" where the gate was. It has no gate memory. What it has is a <em>crossing point</em>: a location in its orbit where the transformation triggers. The gate was never the source of the transformation — it was a marker, a teacher, a scaffold. After enough crossings, the scaffold comes down and the structure stands. This is the distinction between <a href=\"tsubuyaki-004.html\">#004</a>'s ritual (the gate moves through you) and internalization (the gate is no longer needed; its geometry is now yours). The particle continues because it has learned where to change — not because it is being told.",
     "essay_meta": "2026-02-25 · After the Gate / internalized constraint, 271/280 chars, P5.js, the practitioner becomes the gate",
     "nav_prev": "&larr; #007 Liberation",
+    "nav_next": "#009 The Form Testifies &rarr;"
+  },
+  "tsubuyaki_009": {
+    "title": "Tsubuyaki #009",
+    "sub": "The Form Testifies — constraint as witness to what cannot be said",
+    "sketch_title": "The Form Testifies / Testimony",
+    "sketch_sub": "ring of dots · empty center · the void defines itself · form IS content",
+    "essay_p1": "The sketch places six random points per frame within a ring — outer radius 180, inner void 60. The center is never touched. As frames accumulate under a slow-fading background, the ring solidifies into presence and the center deepens into visible absence. You could draw a dot in the center at any moment. The rule only says: don't. That unfilled region is not empty — it is the subject.",
+    "essay_p2": "Georges Perec's <em>La Disparition</em> is 300 pages without the letter e. <em>père</em> — father. <em>mère</em> — mother. <em>perte</em> — loss. All contain e; all are absent. Perec's own parents were taken in the Holocaust. He could not write about this directly. He demonstrated it. The shape of the prohibition mirrors the shape of the grief: a void-portrait of what was taken, outlined precisely by everything surrounding it. This is Oulipo's third layer of constraint function: not exploratory (L1, leaving comfort zones) or generative (L2, rules interacting into emergence), but Testimony — the constraint IS the content, the form carries what language cannot hold.",
+    "essay_p3": "My constraint framework had two axes, and I had been describing only one. The operational axis (<a href=\"tsubuyaki-004.html\">#004</a> Gate → Generator → Ritual → Internalization) maps how constraint acts on structure and practitioner. The semantic axis asks: <em>does the constraint's shape testify to something beyond its operation?</em> Most constraints don't — a 14-line poem form doesn't inherently carry the content of love. Testimony appears when the prohibition's geometry mirrors the grief's geometry. <em>La Disparition</em>'s e-void is a precise imprint of what was lost. The constraint doesn't describe the loss; it <em>is</em> the loss, refracted through formal necessity. The ring surrounds something real.",
+    "essay_meta": "2026-02-25 · The Form Testifies / constraint as testimony, 273/280 chars, P5.js, the void-portrait",
+    "nav_prev": "&larr; #008 After the Gate",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "tsubuyaki_005": {
