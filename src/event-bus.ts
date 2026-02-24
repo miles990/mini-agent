@@ -13,6 +13,7 @@ export type AgentEventType =
   | 'trigger:chat'
   | 'trigger:room'
   | 'trigger:telegram-user'
+  | 'trigger:sense'
   // Actions（agent 行為）
   | 'action:loop'
   | 'action:chat'

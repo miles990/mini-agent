@@ -10,6 +10,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { slog } from './api.js';
 import { getLogger } from './logging.js';
@@ -1138,11 +1139,84 @@ export async function notifyTelegram(message: string, replyToMessageId?: number)
         slog('TELEGRAM', `Notification failed: ${retry.error} [${chunk.slice(0, 60)}]`);
         notifFailed++;
         allOk = false;
+        // Queue for later retry
+        queueFailedNotification(chunk);
       }
     }
   }
 
+  // On success, attempt to drain queued notifications (fire-and-forget)
+  if (allOk) {
+    drainNotificationQueue(poller).catch(() => {});
+  }
+
   return allOk;
+}
+
+// =============================================================================
+// Notification Queue — 失敗通知排隊重試
+// =============================================================================
+
+const QUEUE_PATH = path.join(os.homedir(), '.mini-agent', 'telegram-queue.jsonl');
+
+function queueFailedNotification(message: string): void {
+  try {
+    const entry = JSON.stringify({ ts: new Date().toISOString(), message });
+    const dir = path.dirname(QUEUE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(QUEUE_PATH, entry + '\n');
+
+    // Count lines for event data
+    const lines = fs.readFileSync(QUEUE_PATH, 'utf-8').trim().split('\n').filter(Boolean);
+    eventBus.emit('trigger:sense', {
+      type: 'telegram-status',
+      status: 'send-failed',
+      queueSize: lines.length,
+    }, { priority: 'P1', source: 'telegram' });
+  } catch { /* best effort */ }
+}
+
+async function drainNotificationQueue(poller: TelegramPoller): Promise<void> {
+  if (!fs.existsSync(QUEUE_PATH)) return;
+
+  let lines: string[];
+  try {
+    lines = fs.readFileSync(QUEUE_PATH, 'utf-8').trim().split('\n').filter(Boolean);
+  } catch { return; }
+
+  if (lines.length === 0) return;
+
+  // Drain at most 3 per successful send
+  const toDrain = lines.slice(0, 3);
+  const remaining = lines.slice(3);
+  let drained = 0;
+
+  for (const line of toDrain) {
+    try {
+      const { message } = JSON.parse(line) as { message: string };
+      const result = await poller.sendMessage(message, '');
+      if (result.ok) {
+        notifSent++;
+        drained++;
+      } else {
+        // Put back
+        remaining.unshift(line);
+      }
+    } catch {
+      remaining.unshift(line);
+    }
+  }
+
+  // Rewrite queue file
+  if (remaining.length > 0) {
+    fs.writeFileSync(QUEUE_PATH, remaining.join('\n') + '\n');
+  } else {
+    try { fs.unlinkSync(QUEUE_PATH); } catch { /* ok */ }
+  }
+
+  if (drained > 0) {
+    slog('TELEGRAM', `Drained ${drained} queued notification(s), ${remaining.length} remaining`);
+  }
 }
 
 // =============================================================================

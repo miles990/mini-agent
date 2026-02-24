@@ -183,6 +183,33 @@ except: pass
   fi
 fi
 
+# --- Check 10: Telegram Notification Queue ---
+TG_QUEUE="$HOME/.mini-agent/telegram-queue.jsonl"
+if [ -f "$TG_QUEUE" ]; then
+  QUEUE_SIZE=$(wc -l < "$TG_QUEUE" | tr -d ' ')
+  if [ "$QUEUE_SIZE" -gt 10 ]; then
+    heal_report "FAILED" "Telegram queue backing up: ${QUEUE_SIZE} unsent notifications"
+  fi
+fi
+
+# --- Write sense-alerts.json for environment-sense.sh ---
+ALERTS_FILE="$HOME/.mini-agent/sense-alerts.json"
+if [ "$HEALED" -gt 0 ]; then
+  # Write healed alerts so environment-sense.sh can display them
+  python3 -c "
+import json, datetime, sys
+alerts = []
+try:
+    alerts = json.load(open('$ALERTS_FILE'))
+except: pass
+# Keep only last hour
+now = datetime.datetime.utcnow()
+alerts = [a for a in alerts if (now - datetime.datetime.fromisoformat(a.get('ts','2000-01-01').replace('Z',''))).total_seconds() < 3600]
+alerts.append({'type': 'self-healed', 'service': 'system', 'ts': now.isoformat() + 'Z', 'healed': $HEALED})
+json.dump(alerts, open('$ALERTS_FILE', 'w'), indent=2)
+" 2>/dev/null
+fi
+
 # --- Output ---
 if [ "$HEALED" -gt 0 ] || [ "$FAILED" -gt 0 ]; then
   echo "Self-Healing: ${HEALED} healed, ${FAILED} unresolved"

@@ -727,6 +727,17 @@ export async function callClaude(
       }
 
       // 最後一次嘗試也失敗了，或不可重試 — 嘗試 fallback
+      // Emit sense event for network-like failures (helps Kuro adjust behavior)
+      if (classified.type === 'TIMEOUT' || classified.type === 'UNKNOWN') {
+        eventBus.emit('trigger:sense', {
+          type: 'api-status',
+          service: primary,
+          status: 'unreachable',
+          error: classified.message,
+          retriesExhausted: true,
+        }, { priority: 'P1', source: 'agent' });
+      }
+
       const stdout = (error as { stdout?: string })?.stdout?.trim();
       if (stdout && stdout.length > 20) {
         return { response: stdout, systemPrompt, fullPrompt, duration };

@@ -1352,6 +1352,24 @@ export function createApi(port = 3001): express.Express {
     res.json(snapshot);
   });
 
+  // kuro-sense Environment Detection API
+  app.get('/api/sense', async (_req: Request, res: Response) => {
+    try {
+      const senseBin = path.join(__dirname, '..', 'tools', 'kuro-sense', 'kuro-sense');
+      if (!fs.existsSync(senseBin)) {
+        res.status(503).json({ error: 'kuro-sense binary not found' });
+        return;
+      }
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFile);
+      const { stdout } = await execFileAsync(senseBin, ['detect', '--json'], { timeout: 15000 });
+      res.json(JSON.parse(stdout));
+    } catch {
+      res.status(503).json({ error: 'kuro-sense not available' });
+    }
+  });
+
   // Context Budget API — checkpoint 分析
   app.get('/api/dashboard/context', async (req: Request, res: Response) => {
     try {
@@ -1981,6 +1999,27 @@ if (isMain) {
     const cwd = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
     perceptionStreams.start(enabledPerceptions, cwd);
   }
+
+  // ── Startup Auto-Detect (kuro-sense) ──
+  // Fire-and-forget: detect hardware/network → write cache → slog summary
+  (async () => {
+    try {
+      const senseBin = path.join(__dirname, '..', 'tools', 'kuro-sense', 'kuro-sense');
+      if (!fs.existsSync(senseBin)) return;
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFile);
+      const { stdout } = await execFileAsync(senseBin, ['detect', '--json'], { timeout: 15000 });
+      const result = JSON.parse(stdout);
+      const cacheDir = path.join(os.homedir(), '.mini-agent');
+      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFileSync(path.join(cacheDir, 'sense-cache.json'), JSON.stringify(result, null, 2));
+      const caps = result.Capabilities?.length ?? 0;
+      const avail = result.Capabilities?.filter((c: { Available: boolean }) => c.Available)?.length ?? 0;
+      const net = result.Network?.internet?.connected ? 'online' : 'offline';
+      slog('SENSE', `Startup detect: ${avail}/${caps} capabilities, network ${net}`);
+    } catch { /* silent — binary missing or detect failed */ }
+  })();
 
   // ── Telegram Poller ──
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');

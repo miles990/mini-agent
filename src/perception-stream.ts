@@ -58,6 +58,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'mobile': 'workspace',
   'claude-code-inbox': 'workspace',
   'chat-room-inbox': 'workspace',
+  'environment-sense': 'heartbeat',
 };
 
 function getCategory(name: string): string {
