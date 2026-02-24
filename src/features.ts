@@ -60,6 +60,8 @@ const FEATURES: FeatureInfo[] = [
   { name: 'digest-bot',        group: 'polling',      description: 'AI Research Digest bot polling + daily broadcast' },
 
   // ── Core ──
+  { name: 'cooperative-yield',  group: 'core',         description: 'Signal-based cooperative yield (vs kill-based preemption)' },
+  { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },
   { name: 'ooda-loop',         group: 'core',         description: 'OODA cycle (main agent loop)' },
   { name: 'cron',              group: 'core',         description: 'Scheduled cron tasks' },
   { name: 'perception',        group: 'core',         description: 'Perception stream plugins' },

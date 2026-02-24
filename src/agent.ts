@@ -204,6 +204,12 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
   return { preempted: true, partialOutput: partial };
 }
 
+/** Bump generation without kill — for safety valve when process is in retry backoff */
+export function bumpLoopGeneration(): void {
+  loopGeneration++;
+  slog('PREEMPT', `Generation bumped to ${loopGeneration} (no active process)`);
+}
+
 /**
  * Audit log: 記錄 Claude CLI 的中間工具呼叫
  */

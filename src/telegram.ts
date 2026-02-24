@@ -19,6 +19,7 @@ import { eventBus } from './event-bus.js';
 import { withFileLock } from './filelock.js';
 import { writeInboxItem } from './inbox.js';
 import { isEnabled } from './features.js';
+import { isLoopBusy } from './agent.js';
 
 // =============================================================================
 // Types
@@ -280,12 +281,11 @@ export class TelegramPoller {
     }
   }
 
-  /** Emergency fallback: hard-split by char limit */
+  /** Smart split: preserve content at natural boundaries (lines > sentences > words) */
   private async sendLongMessageFallback(text: string): Promise<SendResult> {
-    const MAX = 4000;
+    const chunks = smartSplitText(text, 4000);
     let lastError: SendResult = { ok: true };
-    for (let i = 0; i < text.length; i += MAX) {
-      const chunk = text.slice(i, i + MAX);
+    for (const chunk of chunks) {
       const result = await this.sendMessage(chunk, '');
       if (!result.ok) lastError = result;
     }
@@ -379,6 +379,11 @@ export class TelegramPoller {
     // React with 👀 to acknowledge we've seen the message
     await this.setReaction(String(msg.chat.id), msg.message_id, '👀');
 
+    // Layer 0 Reflex: instant 💭 when busy — no OODA needed
+    if (isEnabled('reflex-ack') && isLoopBusy()) {
+      this.sendMessage('💭', '', msg.message_id).catch(() => {});
+    }
+
     const parsed = await this.parseMessage(msg);
     if (!parsed) return;
 
@@ -426,8 +431,8 @@ export class TelegramPoller {
     this.messageBuffer.length = 0;
 
     // Emit events to trigger OODA cycle
-    eventBus.emit('trigger:telegram', { messageCount: count });
-    eventBus.emit('trigger:telegram-user', { messageCount: count });
+    eventBus.emit('trigger:telegram', { messageCount: count }, { priority: 'P1', source: 'autonomic' });
+    eventBus.emit('trigger:telegram-user', { messageCount: count }, { priority: 'P1', source: 'autonomic' });
   }
 
   // ---------------------------------------------------------------------------
@@ -1021,6 +1026,84 @@ export function getNotificationStats(): { sent: number; failed: number } {
 }
 
 // =============================================================================
+// Smart Text Splitting — 保留資訊完整性
+// =============================================================================
+
+/**
+ * Split text at natural boundaries while preserving ALL content.
+ * Priority: line breaks > sentence endings > word boundaries > hard cut (last resort)
+ */
+function smartSplitText(text: string, maxLen: number): string[] {
+  if (text.length <= maxLen) return [text];
+
+  const result: string[] = [];
+  const lines = text.split('\n');
+  let current = '';
+
+  for (const line of lines) {
+    const candidate = current ? current + '\n' + line : line;
+    if (candidate.length <= maxLen) {
+      current = candidate;
+    } else if (current) {
+      result.push(current);
+      // Single line might itself exceed maxLen
+      if (line.length > maxLen) {
+        result.push(...splitLongLine(line, maxLen));
+        current = '';
+      } else {
+        current = line;
+      }
+    } else {
+      // First line is already too long
+      result.push(...splitLongLine(line, maxLen));
+      current = '';
+    }
+  }
+  if (current) result.push(current);
+
+  return result;
+}
+
+/** Split a single long line at sentence/word boundaries */
+function splitLongLine(line: string, maxLen: number): string[] {
+  const result: string[] = [];
+  let remaining = line;
+
+  while (remaining.length > maxLen) {
+    let splitIdx = -1;
+
+    // Try sentence boundaries (。、. followed by space)
+    for (const sep of ['。', '！', '？', '. ', '! ', '? ']) {
+      const idx = remaining.lastIndexOf(sep, maxLen);
+      if (idx > maxLen * 0.3) { splitIdx = idx + sep.length; break; }
+    }
+
+    // Try comma/semicolon boundaries
+    if (splitIdx < 0) {
+      for (const sep of ['，', '；', ', ', '; ']) {
+        const idx = remaining.lastIndexOf(sep, maxLen);
+        if (idx > maxLen * 0.3) { splitIdx = idx + sep.length; break; }
+      }
+    }
+
+    // Try word boundary (space)
+    if (splitIdx < 0) {
+      const idx = remaining.lastIndexOf(' ', maxLen);
+      if (idx > maxLen * 0.3) splitIdx = idx + 1;
+    }
+
+    // Absolute last resort: hard cut
+    if (splitIdx < 0) splitIdx = maxLen;
+
+    result.push(remaining.slice(0, splitIdx).trimEnd());
+    remaining = remaining.slice(splitIdx).trimStart();
+  }
+
+  if (remaining) result.push(remaining);
+  return result;
+}
+
+// =============================================================================
 // Shared Notification Helpers
 // =============================================================================
 
@@ -1033,7 +1116,9 @@ export async function notifyTelegram(message: string, replyToMessageId?: number)
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 
-  const chunks = message.split(/\n\n+/).filter(c => c.trim());
+  // Split by paragraphs, then pre-split any oversized paragraphs to preserve content
+  const rawChunks = message.split(/\n\n+/).filter(c => c.trim());
+  const chunks = rawChunks.flatMap(c => c.length > 4000 ? smartSplitText(c, 4000) : [c]);
   let allOk = true;
 
   for (let i = 0; i < chunks.length; i++) {

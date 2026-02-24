@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { callClaude, preemptLoopCycle, isLoopBusy } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, bumpLoopGeneration } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -53,6 +53,10 @@ interface CycleCheckpoint {
   partialOutput: string | null;
   lastAction: string | null;
   lastAutonomousActions: string[];
+  // ── Side Effect Tracking (Layer 4) ──
+  sideEffects?: string[];
+  tagsProcessed?: string[];
+  pendingPriorityInfo?: string | null;
 }
 
 function getCycleCheckpointPath(): string | null {
@@ -81,7 +85,7 @@ function clearCycleCheckpoint(): void {
   } catch { /* fire-and-forget */ }
 }
 
-function loadStaleCheckpoint(): { info: string; triggerReason: string | null; lastAction: string | null; lastAutonomousActions: string[] } | null {
+function loadStaleCheckpoint(): { info: string; triggerReason: string | null; lastAction: string | null; lastAutonomousActions: string[]; sideEffects?: string[] } | null {
   const filePath = getCycleCheckpointPath();
   if (!filePath || !fs.existsSync(filePath)) return null;
   try {
@@ -97,9 +101,12 @@ function loadStaleCheckpoint(): { info: string; triggerReason: string | null; la
     }
 
     const partial = data.partialOutput ? ` Partial output: ${data.partialOutput.slice(0, 200)}` : '';
-    const info = `Mode: ${data.mode}, Trigger: ${data.triggerReason ?? 'unknown'}, Prompt: ${data.promptSnippet}${partial}`;
+    const sideEffectHint = data.sideEffects?.length
+      ? `\nAlready completed side effects (DO NOT repeat): ${data.sideEffects.join('; ')}`
+      : '';
+    const info = `Mode: ${data.mode}, Trigger: ${data.triggerReason ?? 'unknown'}, Prompt: ${data.promptSnippet}${partial}${sideEffectHint}`;
 
-    slog('RESUME', `Detected interrupted cycle from ${data.startedAt}`);
+    slog('RESUME', `Detected interrupted cycle from ${data.startedAt}${data.sideEffects?.length ? ` (${data.sideEffects.length} side effects)` : ''}`);
     fs.unlinkSync(filePath);
 
     return {
@@ -107,6 +114,7 @@ function loadStaleCheckpoint(): { info: string; triggerReason: string | null; la
       triggerReason: data.triggerReason,
       lastAction: data.lastAction,
       lastAutonomousActions: data.lastAutonomousActions,
+      sideEffects: data.sideEffects,
     };
   } catch {
     // JSON parse failure or other error — ignore (degrade gracefully)
@@ -156,6 +164,7 @@ export interface LoopStatus {
   nextCycleAt: string | null;
   currentInterval: number;
   mode: 'task' | 'autonomous' | 'idle';
+  pendingPriority?: { reason: string; waitingMs: number };
 }
 
 const DEFAULT_CONFIG: AgentLoopConfig = {
@@ -238,10 +247,32 @@ export class AgentLoop {
   private lastTelegramWake = 0;
   private static readonly TELEGRAM_WAKE_THROTTLE = 5_000;        // 5s throttle
 
+  // ── Cooperative Yield (Layer 3) ──
+  private pendingPriority: { reason: string; arrivedAt: number; messageCount: number } | null = null;
+  private safetyValveTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly SAFETY_VALVE_TIMEOUT = 300_000; // 5min
+
+  // ── Interrupt storm guard (Layer 2) ──
+  private lastPriorityDrainAt = 0;
+  private static readonly PRIORITY_COOLDOWN = 10_000; // 同類 10s 冷卻
+
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
     // telegram events handled exclusively by handleTelegramWake
     if (event.type === 'trigger:telegram-user' || event.type === 'trigger:telegram') return;
+
+    // P1 room-question: @kuro with ? → cooperative yield signal
+    if (event.type === 'trigger:room' && this.cycling) {
+      const text = (event.data?.text as string) ?? '';
+      if (text.includes('@kuro') && (text.includes('?') || text.includes('？'))) {
+        if (!this.pendingPriority && isEnabled('cooperative-yield')) {
+          this.pendingPriority = { reason: 'room-question', arrivedAt: Date.now(), messageCount: 1 };
+          this.scheduleSafetyValve();
+          slog('LOOP', `Priority signal: room-question`);
+          return;
+        }
+      }
+    }
 
     if (!this.running || this.paused || this.cycling) return;
 
@@ -275,12 +306,33 @@ export class AgentLoop {
         return;
       }
 
-      // Preempt autonomous/task cycle for Alex's message
+      if (isEnabled('cooperative-yield')) {
+        // ★ Cooperative yield: set flag, let cycle finish naturally
+        const msgCount = (_event.data?.messageCount as number) ?? 1;
+
+        // Interrupt storm guard: recently drained → accumulate only
+        if (now - this.lastPriorityDrainAt < AgentLoop.PRIORITY_COOLDOWN && this.pendingPriority) {
+          this.pendingPriority.messageCount += msgCount;
+          slog('LOOP', `Priority cooldown — accumulating (${this.pendingPriority.messageCount} msg)`);
+          return;
+        }
+
+        if (!this.pendingPriority) {
+          this.pendingPriority = { reason: 'telegram-user', arrivedAt: now, messageCount: msgCount };
+        } else {
+          this.pendingPriority.messageCount += msgCount;
+        }
+        slog('LOOP', `Priority signal: telegram-user (${this.pendingPriority.messageCount} msg, cycle age: ${Math.round((now - this.lastCycleTime) / 1000)}s)`);
+        eventBus.emit('action:loop', { event: 'priority.pending', reason: 'telegram-user', messageCount: this.pendingPriority.messageCount });
+        this.scheduleSafetyValve();
+        return;
+      }
+
+      // Legacy fallback: kill
       slog('LOOP', `Preempting ${this.currentMode} cycle for telegram-user`);
       const { preempted, partialOutput } = preemptLoopCycle();
       if (preempted) {
         this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
-        // Let the finally block handle rescheduling after cycling=false
         this.telegramWakeQueue++;
         return;
       }
@@ -308,6 +360,32 @@ export class AgentLoop {
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.currentInterval = this.config.intervalMs;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Safety Valve (Cooperative Yield fallback — kill after 5min)
+  // ---------------------------------------------------------------------------
+
+  private scheduleSafetyValve(): void {
+    if (this.safetyValveTimer) return;
+    const arrivedAt = this.pendingPriority?.arrivedAt ?? Date.now();
+    this.safetyValveTimer = setTimeout(() => {
+      this.safetyValveTimer = null;
+      if (!this.cycling || !this.pendingPriority) return;
+      slog('LOOP', `Safety valve: ${Math.round((Date.now() - arrivedAt) / 1000)}s, force-killing`);
+      eventBus.emit('action:loop', { event: 'safety-valve', elapsed: Math.round((Date.now() - arrivedAt) / 1000) });
+      const { preempted, partialOutput } = preemptLoopCycle();
+      if (preempted) {
+        this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
+      } else {
+        bumpLoopGeneration();
+      }
+      this.telegramWakeQueue++;
+    }, AgentLoop.SAFETY_VALVE_TIMEOUT);
+  }
+
+  private clearSafetyValve(): void {
+    if (this.safetyValveTimer) { clearTimeout(this.safetyValveTimer); this.safetyValveTimer = null; }
   }
 
   // ---------------------------------------------------------------------------
@@ -359,6 +437,8 @@ export class AgentLoop {
     eventBus.off('trigger:*', this.handleTrigger);
     eventBus.off('trigger:telegram-user', this.handleTelegramWake);
     this.clearTimer();
+    this.clearSafetyValve();
+    this.pendingPriority = null;
     eventBus.emit('action:loop', { event: 'stop' });
   }
 
@@ -386,6 +466,9 @@ export class AgentLoop {
       nextCycleAt: this.nextCycleAt,
       currentInterval: this.currentInterval,
       mode: this.currentMode,
+      ...(this.pendingPriority ? {
+        pendingPriority: { reason: this.pendingPriority.reason, waitingMs: Date.now() - this.pendingPriority.arrivedAt },
+      } : {}),
     };
   }
 
@@ -701,6 +784,10 @@ export class AgentLoop {
         similarity = this.computeActionSimilarity(action);
       }
 
+      // ── Side Effect Tracking (Layer 4 Enhanced Checkpoint) ──
+      const cycleSideEffects: string[] = [];
+      const cycleTagsProcessed: string[] = [];
+
       for (const rem of tags.remembers) {
         if (rem.topic) {
           await memory.appendTopicMemory(rem.topic, rem.content, rem.ref);
@@ -708,11 +795,15 @@ export class AgentLoop {
           await memory.appendMemory(rem.content);
         }
         eventBus.emit('action:memory', { content: rem.content, topic: rem.topic });
+        cycleSideEffects.push(`remember:${rem.topic ?? 'MEMORY.md'}`);
+        cycleTagsProcessed.push('REMEMBER');
       }
 
       for (const t of tags.tasks) {
         await memory.addTask(t.content, t.schedule);
         eventBus.emit('action:task', { content: t.content });
+        cycleSideEffects.push(`task:${t.content.slice(0, 60)}`);
+        cycleTagsProcessed.push('TASK');
       }
 
       // [IMPULSE] tags — persist creative impulses
@@ -730,6 +821,8 @@ export class AgentLoop {
           notifyTelegram(replyContent).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
+          cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
+          cycleTagsProcessed.push('CHAT');
           // Clear chats — already sent via OODA reply, skip action:chat to prevent duplicate
           tags.chats.length = 0;
         }
@@ -737,6 +830,8 @@ export class AgentLoop {
 
       for (const chat of tags.chats) {
         eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
+        cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
+        cycleTagsProcessed.push('CHAT');
       }
 
       // Non-telegram-triggered cycles that sent [CHAT] also count as replied
@@ -747,6 +842,8 @@ export class AgentLoop {
       // ── Process [ASK] tags — blocking questions that need Alex's reply ──
       for (const askText of tags.asks) {
         const askMsg = `❓ ${askText}`;
+        cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
+        cycleTagsProcessed.push('ASK');
         notifyTelegram(askMsg).catch((err) => {
           slog('LOOP', `Telegram ask failed: ${err instanceof Error ? err.message : err}`);
         });
@@ -823,7 +920,21 @@ export class AgentLoop {
         }
       }
 
-      // Phase 1c: Clear checkpoint — cycle completed normally
+      // Phase 1c: Save final checkpoint with side effects, then clear on success
+      if (cycleSideEffects.length > 0) {
+        saveCycleCheckpoint({
+          startedAt: new Date().toISOString(),
+          mode: this.currentMode,
+          triggerReason: currentTriggerReason,
+          promptSnippet: prompt.slice(0, 500),
+          partialOutput: response.slice(0, 500),
+          lastAction: this.lastAction,
+          lastAutonomousActions: this.lastAutonomousActions.slice(-10),
+          sideEffects: cycleSideEffects,
+          tagsProcessed: cycleTagsProcessed,
+          pendingPriorityInfo: this.pendingPriority ? `${this.pendingPriority.reason}:${this.pendingPriority.messageCount}msg` : null,
+        });
+      }
       clearCycleCheckpoint();
 
       // ── Update Temporal State (fire-and-forget) ──
@@ -939,9 +1050,25 @@ export class AgentLoop {
       return action;
     } finally {
       this.cycling = false;
+      this.clearSafetyValve();
 
-      // Drain queued telegram wake requests
-      if (this.telegramWakeQueue > 0) {
+      // Cooperative yield: drain pending priority first
+      if (this.pendingPriority) {
+        const pp = this.pendingPriority;
+        this.pendingPriority = null;
+        this.telegramWakeQueue = 0;
+        this.lastPriorityDrainAt = Date.now();
+        const waited = Math.round((Date.now() - pp.arrivedAt) / 1000);
+        slog('LOOP', `Draining priority: ${pp.reason} (${pp.messageCount} msg, waited ${waited}s)`);
+        eventBus.emit('action:loop', { event: 'priority.drain', reason: pp.reason, waitedMs: Date.now() - pp.arrivedAt });
+        setTimeout(() => {
+          if (this.running && !this.paused && !this.cycling) {
+            this.triggerReason = `telegram-user (yielded, waited ${waited}s)`;
+            this.runCycle();
+          }
+        }, 500);
+      } else if (this.telegramWakeQueue > 0) {
+        // Legacy: drain queued telegram wake requests
         this.telegramWakeQueue = 0;
         setTimeout(() => {
           if (this.running && !this.paused && !this.cycling) {

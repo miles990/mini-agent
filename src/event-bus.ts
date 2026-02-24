@@ -34,6 +34,10 @@ export interface AgentEvent {
   type: AgentEventType;
   data: Record<string, unknown>;
   timestamp: Date;
+  /** Producer-assigned priority hint */
+  priority?: 'P0' | 'P1' | 'P2';
+  /** Source layer (reflex/autonomic/filter/conscious) */
+  source?: string;
 }
 
 type EventPattern = AgentEventType | 'trigger:*' | 'action:*' | 'log:*' | 'notification:*';
@@ -48,8 +52,12 @@ export class AgentEventBus {
     this.emitter.setMaxListeners(20);
   }
 
-  emit(type: AgentEventType, data: Record<string, unknown> = {}): void {
-    const event: AgentEvent = { type, data, timestamp: new Date() };
+  emit(type: AgentEventType, data: Record<string, unknown> = {}, meta?: { priority?: 'P0' | 'P1' | 'P2'; source?: string }): void {
+    const event: AgentEvent = {
+      type, data, timestamp: new Date(),
+      ...(meta?.priority ? { priority: meta.priority } : {}),
+      ...(meta?.source ? { source: meta.source } : {}),
+    };
     this.emitter.emit(type, event);
     // Wildcard: prefix:* listeners
     const prefix = type.split(':')[0];

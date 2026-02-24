@@ -12,7 +12,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eventBus, distinctUntilChanged } from './event-bus.js';
+import { eventBus, distinctUntilChanged, debounce } from './event-bus.js';
 import { executePerception } from './perception.js';
 import type { PerceptionResult, CustomPerception } from './perception.js';
 import type { ComposePerception } from './types.js';
@@ -31,6 +31,11 @@ interface StreamEntry {
   updatedAt: Date | null;
   timer: ReturnType<typeof setInterval> | null;
   isChanged: (hash: string) => boolean;
+  // ── Layer 1 backpressure metrics ──
+  lastDurationMs: number;
+  timeoutCount: number;
+  totalRunMs: number;
+  runCount: number;
 }
 
 // Category → interval mapping
@@ -70,6 +75,11 @@ class PerceptionStreamManager {
   private _version = 0;
   private lastBuildHashes = new Map<string, string>();
 
+  // Layer 1 backpressure: debounce workspace triggers
+  private workspaceTriggerDebounce = debounce(() => {
+    eventBus.emit('trigger:workspace', { source: 'perception-batch', coalesced: true });
+  }, 5_000);
+
   get version(): number {
     return this._version;
   }
@@ -91,6 +101,10 @@ class PerceptionStreamManager {
         updatedAt: null,
         timer: null,
         isChanged: distinctUntilChanged<string>(h => h),
+        lastDurationMs: 0,
+        timeoutCount: 0,
+        totalRunMs: 0,
+        runCount: 0,
       };
 
       this.streams.set(p.name, entry);
@@ -124,6 +138,7 @@ class PerceptionStreamManager {
     }
     this.streams.clear();
     this.running = false;
+    this.workspaceTriggerDebounce.cancel();
   }
 
   isActive(): boolean {
@@ -197,6 +212,18 @@ class PerceptionStreamManager {
     slog('PERCEPTION', `Interval adjusted: ${name} → ${Math.round(bounded / 1000)}s`);
   }
 
+  /**
+   * Get performance stats for all perception streams.
+   */
+  getStats(): Array<{ name: string; avgMs: number; timeouts: number; interval: number }> {
+    return [...this.streams.entries()].map(([name, e]) => ({
+      name,
+      avgMs: e.runCount > 0 ? Math.round(e.totalRunMs / e.runCount) : 0,
+      timeouts: e.timeoutCount,
+      interval: INTERVALS[getCategory(name)] ?? 30_000,
+    }));
+  }
+
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
@@ -204,9 +231,19 @@ class PerceptionStreamManager {
   private async tick(entry: StreamEntry): Promise<void> {
     if (!this.running) return;
 
+    // Circuit breaker: 3 consecutive timeouts → double interval
+    if (entry.timeoutCount >= 3) {
+      const currentInterval = INTERVALS[getCategory(entry.perception.name)] ?? 30_000;
+      this.adjustInterval(entry.perception.name, currentInterval * 2);
+      entry.timeoutCount = 0;
+      slog('PERCEPTION', `[circuit-breaker] ${entry.perception.name}: 3 consecutive timeouts → interval doubled`);
+      return;
+    }
+
     const timeoutMs = entry.perception.timeout ?? 10_000; // 預設 10s
     let result: PerceptionResult;
 
+    const start = Date.now();
     try {
       result = await Promise.race([
         executePerception(entry.perception as CustomPerception, this.cwd),
@@ -214,12 +251,17 @@ class PerceptionStreamManager {
           setTimeout(() => reject(new Error(`Plugin ${entry.perception.name} timed out (${timeoutMs}ms)`)), timeoutMs),
         ),
       ]);
+      entry.timeoutCount = 0; // reset on success
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       slog('PERCEPTION', `[degraded] ${entry.perception.name}: ${msg}`);
+      entry.timeoutCount++;
       // 超時或錯誤：保留上次結果，不更新
       return;
     }
+    entry.lastDurationMs = Date.now() - start;
+    entry.totalRunMs += entry.lastDurationMs;
+    entry.runCount++;
 
     const hash = crypto.createHash('md5')
       .update(result.output ?? '')
@@ -243,9 +285,10 @@ class PerceptionStreamManager {
       }
 
       // Emit change trigger (may drive loop cycle)
+      // Workspace triggers are debounced to coalesce rapid plugin changes
       const category = getCategory(entry.perception.name);
       if (category === 'workspace') {
-        eventBus.emit('trigger:workspace', { source: entry.perception.name });
+        this.workspaceTriggerDebounce();
       }
     }
   }
