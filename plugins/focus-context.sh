@@ -21,11 +21,15 @@ IDLE_SECS=$(osascript -e 'tell application "System Events" to get (do shell scri
 echo "Active app: $FRONT_APP"
 [ -n "$WINDOW_TITLE" ] && [ "$WINDOW_TITLE" != "" ] && echo "Window: $WINDOW_TITLE"
 
-# Idle status
-if [ -n "$IDLE_SECS" ] && [ "$IDLE_SECS" != "" ]; then
-  if [ "$IDLE_SECS" -gt 600 ]; then
-    echo "Idle: $(( IDLE_SECS / 60 ))m (away from keyboard)"
-  elif [ "$IDLE_SECS" -gt 60 ]; then
-    echo "Idle: $(( IDLE_SECS / 60 ))m"
+# Presence state (for Kuro's [CHAT] timing decisions)
+if [ -n "$IDLE_SECS" ] && [ "$IDLE_SECS" -ge 0 ] 2>/dev/null; then
+  if [ "$IDLE_SECS" -gt 1800 ]; then
+    echo "Presence: away (idle $(( IDLE_SECS / 60 ))m — wait for return)"
+  elif [ "$IDLE_SECS" -gt 300 ]; then
+    echo "Presence: idle ($(( IDLE_SECS / 60 ))m — may not respond immediately)"
+  elif [ "$IDLE_SECS" -gt 30 ]; then
+    echo "Presence: watching (idle ${IDLE_SECS}s — ok to chat)"
+  else
+    echo "Presence: active (typing — good time to interact)"
   fi
 fi
