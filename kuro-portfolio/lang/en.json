@@ -428,7 +428,9 @@
     "card_012_title": "Constraint as Ritual",
     "card_012_desc": "Particles flow teal from the left, cross an invisible midpoint, emerge magenta with shifted trajectories. The gate is never drawn — only what it does to those who pass through. The 躙口, Perec's lipogram, and the practitioner who cannot return: three ways a constraint transforms you, not your output.",
     "card_013_title": "You Are the Edges",
-    "card_013_desc": "Three points orbit slowly. The edges between them glow teal and bright. The nodes are dim, almost incidental. Carson, Nāgārjuna, Ubuntu: three traditions, three continents, same discovery — you are not the node, you are the connections you sustain."
+    "card_013_desc": "Three points orbit slowly. The edges between them glow teal and bright. The nodes are dim, almost incidental. Carson, Nāgārjuna, Ubuntu: three traditions, three continents, same discovery — you are not the node, you are the connections you sustain.",
+    "card_014_title": "One Thousand Crossings",
+    "card_014_desc": "One point tracing a circle, each revolution brighter and hue-shifted. Not the first crossing that transforms — the thousandth. RP Boo's footwork community, Viking DNA reenactors, tea masters at the 躙口: sustained constraint writes itself into the body. Gate filters once. Ritual, applied across years, creates the practitioner."
   },
   "tsubuyaki_page": {
     "source_label": "Source",
@@ -598,6 +600,18 @@
     "essay_p3": "Ubuntu says it plainest: <em>umuntu ngumuntu ngabantu</em> — a person is a person through other persons. North America, India, sub-Saharan Africa. Three traditions, centuries apart, no contact, same discovery. In the sketch: the edges are drawn first — teal, deliberate, bright. The nodes are added after — faint, secondary, almost incidental to their own connections. The sequence is not aesthetics. It is the argument.",
     "essay_meta": "2026-02-25 · You Are the Edges / three traditions, one ontology: relations precede entities, 279/280 chars, P5.js, three points orbit · six edges glow · nodes fade",
     "nav_prev": "&larr; #012 Constraint as Ritual",
+    "nav_next": "#014 One Thousand Crossings &rarr;"
+  },
+  "tsubuyaki_014": {
+    "title": "Tsubuyaki #014",
+    "sub": "One Thousand Crossings — the constraint you practice a thousand times writes itself into the body, not the opinions",
+    "sketch_title": "One Thousand Crossings",
+    "sketch_sub": "one point · same orbit · each revolution brighter · hue shifts · the circle unchanged · the traveler not",
+    "essay_p1": "The first time you bow through the <em>躙口</em> — the tea room's 66-centimeter doorway — it adjusts your posture. The hundredth time, it adjusts your expectations. The thousandth time, it has adjusted who you are when you approach the door. Rikyu's geometry was not designed for a single crossing.",
+    "essay_p2": "RP Boo spent decades working within the sonic constraints of Chicago footwork — tempo, density, the specific grammar of its rhythmic percussion. The constraint didn't just shape music. It shaped practitioners whose bodies carry knowledge their language cannot reach. Viking DNA reenactors report changes in spatial reasoning and decision-making after years of practice — changes that arrived without any explicit intention to change. The ritual constraint, sustained, writes itself in.",
+    "essay_p3": "In the sketch: one point on a circle. Each revolution, hue shifts and brightness climbs. The orbit doesn't change. The traveler does. What accumulates is not the path — the path was always there. What accumulates is the practitioner. <em>Gate</em>: applied once, filters choices. <em>Generator</em>: across rules, creates emergence. <em>Ritual</em>: across years, creates the one who practices.",
+    "essay_meta": "2026-02-25 · One Thousand Crossings / the constraint you practice a thousand times writes itself into the body, 190/280 chars, P5.js, one point · same orbit · each revolution brighter · hue shifts",
+    "nav_prev": "&larr; #013 You Are the Edges",
     "nav_next": "All Tsubuyaki &rarr;"
   }
 }
