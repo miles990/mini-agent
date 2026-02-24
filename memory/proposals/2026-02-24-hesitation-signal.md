@@ -9,7 +9,8 @@
 
 ## Meta
 
-- Status: draft (rev.2 — Alex feedback integrated)
+- Status: approved
+- GitHub-Issue: #58
 - From: kuro（基於 alex + claude-code 討論共識）
 - Effort: Medium（~1 週，2 Phase）
 - Risk: Low（確定性計算、不改變 LLM 推理流程、feature toggle 可回退）

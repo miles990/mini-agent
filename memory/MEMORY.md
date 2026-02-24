@@ -21,7 +21,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 
 ### Workflow
 - [REMEMBER] 寫精華(≤80字)，完整版歸檔 research/ 或 topics/
-- Context 瓶頸：topic-memory(12K,29%)>recent_conversations(8K,19%)>memory+heartbeat(5K,12%)。Soul 已瘦身(1.8K)。下一步：L2 壓縮 recent_conversations
+- [2026-02-24] Context 瓶頸（最新實測 37K）：recent_conversations=15.5K(41%,最大)>memory=4.7K(13%)>heartbeat=2.7K>threads=2.4K>soul=2.2K(6%,已達標)。Soul瘦身完成。下一步：recent_conversations budgeting
 
 ## Important Decisions
 - L2 超時重試遞減 context 已實作 (buildContext minimal mode + callClaude rebuildContext)
