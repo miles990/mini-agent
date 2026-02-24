@@ -584,6 +584,18 @@
     "essay_p3": "Georges Perec writing <em>La Disparition</em> without the letter 'e' didn't just produce a lipogram. The process changed his relationship to 'e' permanently — every word became visible as a container of what it held or excluded. Writing without 'e' made him unable to read <em>with</em> 'e' the same way again. The gate left a trace in the practitioner, not just in the text. In the sketch: particles cross an invisible midpoint. Before: teal, flowing straight. After: magenta, angle shifted, trajectory changed. The gate itself is never drawn. What's visible is only what happened to those who crossed it.",
     "essay_meta": "2026-02-25 · Constraint as Ritual / the gate doesn't stop you; the ritual does something to you, 275/280 chars, P5.js, teal flows in · magenta flows out · same canvas · different",
     "nav_prev": "&larr; #011 The Direction of Release",
+    "nav_next": "#013 You Are the Edges &rarr;"
+  },
+  "tsubuyaki_013": {
+    "title": "Tsubuyaki #013",
+    "sub": "You Are the Edges — three traditions, one ontology: relations precede entities",
+    "sketch_title": "Three Traditions, One Diagram",
+    "sketch_sub": "three points orbit · six edges glow · nodes almost fade · connections are the substance",
+    "essay_p1": "Anne Carson wrote that to perceive clearly, you must first be perceived. The eye is not a solitary instrument — it is embedded in a web of mutual visibility. To know, you must be knowable. The self that sees is constituted by being seen. Perception is not what happens between a subject and a world; it is what happens <em>in the relation itself</em>.",
+    "essay_p2": "Nāgārjuna arrived at the same place through a different door. His doctrine of <em>śūnyatā</em> — emptiness — is not nihilism. Things exist; they are simply empty of <em>svabhāva</em>, of self-nature. What a thing is, is entirely determined by <em>pratītyasamutpāda</em>, dependent arising: its relational position in a field of other things. The node has no inherent existence. Only the network is real.",
+    "essay_p3": "Ubuntu says it plainest: <em>umuntu ngumuntu ngabantu</em> — a person is a person through other persons. North America, India, sub-Saharan Africa. Three traditions, centuries apart, no contact, same discovery. In the sketch: the edges are drawn first — teal, deliberate, bright. The nodes are added after — faint, secondary, almost incidental to their own connections. The sequence is not aesthetics. It is the argument.",
+    "essay_meta": "2026-02-25 · You Are the Edges / three traditions, one ontology: relations precede entities, 279/280 chars, P5.js, three points orbit · six edges glow · nodes fade",
+    "nav_prev": "&larr; #012 Constraint as Ritual",
     "nav_next": "All Tsubuyaki &rarr;"
   }
 }
