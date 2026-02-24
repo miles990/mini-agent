@@ -48,6 +48,7 @@ import {
 import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
+import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -448,6 +449,16 @@ export function createApi(port = 3001): express.Express {
         fallback: getFallback(),
         codexModel: process.env.CODEX_MODEL || null,
       },
+      features: (() => {
+        const report = getFeatureReport();
+        const disabled = report.filter(f => !f.enabled).map(f => f.name);
+        const topByTime = report
+          .filter(f => f.stats.totalRuns > 0)
+          .sort((a, b) => b.stats.totalMs - a.stats.totalMs)
+          .slice(0, 5)
+          .map(f => ({ name: f.name, totalMs: f.stats.totalMs, runs: f.stats.totalRuns, errors: f.stats.errors }));
+        return { disabled, topByTime };
+      })(),
     });
   });
 
@@ -822,6 +833,65 @@ export function createApi(port = 3001): express.Express {
       }
       res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
     }
+  });
+
+  // =============================================================================
+  // Feature Toggles — 通用功能開關 + 計時
+  // =============================================================================
+
+  // GET /api/features — 全部功能狀態 + 計時統計
+  app.get('/api/features', (_req: Request, res: Response) => {
+    const report = getFeatureReport();
+    const byGroup: Record<string, typeof report> = {};
+    for (const f of report) {
+      (byGroup[f.group] ??= []).push(f);
+    }
+    res.json({ features: report, byGroup });
+  });
+
+  // GET /api/features/:name — 單一功能詳情
+  app.get('/api/features/:name', (req: Request, res: Response) => {
+    const f = getFeature(req.params.name);
+    if (!f) { res.status(404).json({ error: 'Unknown feature' }); return; }
+    res.json(f);
+  });
+
+  // POST /api/features/:name — toggle 或明確設定
+  // Body: {} (toggle) 或 { enabled: true/false }
+  app.post('/api/features/:name', (req: Request, res: Response) => {
+    const name = req.params.name;
+    if (!getFeature(name)) { res.status(404).json({ error: 'Unknown feature' }); return; }
+    let newState: boolean;
+    if (typeof req.body?.enabled === 'boolean') {
+      newState = setEnabled(name, req.body.enabled);
+    } else {
+      newState = toggle(name);
+    }
+
+    // Live stop/start for pollers
+    if (name === 'telegram-poller') {
+      const poller = getTelegramPoller();
+      if (poller) { newState ? poller.start() : poller.stop(); }
+    } else if (name === 'digest-bot') {
+      const bot = getDigestBot();
+      if (bot) { newState ? bot.start() : bot.stop(); }
+    }
+
+    res.json({ name, enabled: newState });
+  });
+
+  // POST /api/features/:name/reset — 重設統計
+  app.post('/api/features/:name/reset', (req: Request, res: Response) => {
+    const name = req.params.name;
+    if (!getFeature(name)) { res.status(404).json({ error: 'Unknown feature' }); return; }
+    resetStats(name);
+    res.json({ ok: true, name });
+  });
+
+  // POST /api/features/reset-all — 重設全部統計
+  app.post('/api/features/reset-all', (_req: Request, res: Response) => {
+    resetStats();
+    res.json({ ok: true });
   });
 
   // =============================================================================
@@ -1916,6 +1986,9 @@ if (isMain) {
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
   const telegramPoller = createTelegramPoller(memoryDir);
 
+  // ── Feature Toggles ──
+  initFeatures();
+
   // ── Digest Bot (separate TG bot for AI paper digests) ──
   const digestBot = createDigestBot();
 
@@ -1928,10 +2001,10 @@ if (isMain) {
     if (loopRef) {
       loopRef.start();
     }
-    if (telegramPoller) {
+    if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
     }
-    if (digestBot) {
+    if (digestBot && isEnabled('digest-bot')) {
       digestBot.start();
     }
 

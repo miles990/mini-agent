@@ -71,11 +71,14 @@ export async function triageNextItems(): Promise<void> {
           content: `你是 Kuro 的任務分類器。以下是待處理項目，請：
 1. 分類每項（question/instruction/share/chat/ack）
 2. 排序（question > instruction > share > chat > ack）
-3. 合併相似項目（例如同一話題的連續訊息）
-4. 標記可以直接刪除的（純表情、已過時等）— 輸出時加 [DELETE] 前綴
+3. 標記可以直接刪除的（純表情、已過時等）— 輸出時加 [DELETE] 前綴
 
-輸出格式：每行一項，按優先度排序，保留原始格式（- [ ] P{N}: ...）
-如果合併了項目，用合併後的描述。
+⚠️ 嚴格規則：
+- 每一行必須原封不動輸出（只改變順序，不改寫任何文字）
+- 禁止合併項目 — 每條 Alex 的訊息都是獨立的，URL 不可替換或省略
+- 只能做：重新排序 + 標記 [DELETE]
+
+輸出格式：每行一項，按優先度排序，保留原始文字不變。
 如果標記刪除，該行前加 [DELETE]。
 
 待處理：

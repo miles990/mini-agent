@@ -62,6 +62,7 @@ export class DigestBot {
   private offsetFile: string;
   private digestRunning = false;
   private cronJob: cron.ScheduledTask | null = null;
+  private abortController: AbortController | null = null;
 
   constructor(token: string) {
     const instanceDir = getInstanceDir(getCurrentInstanceId());
@@ -99,6 +100,10 @@ export class DigestBot {
 
   stop(): void {
     this.running = false;
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
     if (this.cronJob) {
       this.cronJob.stop();
       this.cronJob = null;
@@ -135,9 +140,11 @@ export class DigestBot {
   }
 
   private async getUpdates(): Promise<TelegramUpdate[]> {
+    this.abortController = new AbortController();
+    const timeout = AbortSignal.timeout((this.pollTimeout + 5) * 1000);
     const resp = await fetch(
       `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.offset}&timeout=${this.pollTimeout}&allowed_updates=["message"]`,
-      { signal: AbortSignal.timeout((this.pollTimeout + 5) * 1000) },
+      { signal: AbortSignal.any([this.abortController.signal, timeout]) },
     );
     if (!resp.ok) throw new Error(`getUpdates: ${resp.status}`);
     const data = await resp.json() as { ok: boolean; result: TelegramUpdate[] };

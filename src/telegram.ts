@@ -18,6 +18,7 @@ import type { NotificationTier } from './types.js';
 import { eventBus } from './event-bus.js';
 import { withFileLock } from './filelock.js';
 import { writeInboxItem } from './inbox.js';
+import { isEnabled } from './features.js';
 
 // =============================================================================
 // Types
@@ -1028,6 +1029,7 @@ export function getNotificationStats(): { sent: number; failed: number } {
  * 按段落分段發送，每段獨立失敗不影響其他段
  */
 export async function notifyTelegram(message: string, replyToMessageId?: number): Promise<boolean> {
+  if (!isEnabled('telegram-notify')) return false;
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 

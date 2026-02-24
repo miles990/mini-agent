@@ -37,6 +37,7 @@ import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
 import { readPendingInbox, markAllInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem } from './inbox.js';
 import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
+import { isEnabled, trackStart } from './features.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -878,7 +879,7 @@ export class AgentLoop {
       }
 
       // 檢查 approved proposals → 自動建立 handoff
-      await checkApprovedProposals();
+      if (isEnabled('approved-proposals')) await checkApprovedProposals();
 
       // Mark all pending inbox messages as processed（cycle saw them all）
       // didReplyToTelegram: true → 'replied', false → 'seen' (honest distinction)
@@ -894,25 +895,46 @@ export class AgentLoop {
       eventBus.emit('trigger:telegram', { source: 'mark-processed' });
 
       // Escalate overdue HEARTBEAT tasks（fire-and-forget）
-      autoEscalateOverdueTasks().catch(() => {});
+      if (isEnabled('auto-escalate')) {
+        const done = trackStart('auto-escalate');
+        autoEscalateOverdueTasks().then(() => done(), e => done(String(e)));
+      }
 
       // Auto-commit memory changes（fire-and-forget）
-      autoCommitMemory(action).catch(() => {});
+      if (isEnabled('auto-commit')) {
+        const done = trackStart('auto-commit');
+        autoCommitMemory(action).then(() => done(), e => done(String(e)));
+      }
 
       // GitHub mechanical automation（fire-and-forget）
-      githubAutoActions().catch(() => {});
+      if (isEnabled('github-automation')) {
+        const done = trackStart('github-automation');
+        githubAutoActions().then(() => done(), e => done(String(e)));
+      }
 
       // Intelligent feedback loops（fire-and-forget）
-      runFeedbackLoops(action).catch(() => {});
+      if (isEnabled('feedback-loops')) {
+        const done = trackStart('feedback-loops');
+        runFeedbackLoops(action).then(() => done(), e => done(String(e)));
+      }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）
-      resolveStaleConversationThreads().catch(() => {});
+      if (isEnabled('stale-threads')) {
+        const done = trackStart('stale-threads');
+        resolveStaleConversationThreads().then(() => done(), e => done(String(e)));
+      }
 
       // Housekeeping pipeline（fire-and-forget）
-      runHousekeeping().catch(() => {});
+      if (isEnabled('housekeeping')) {
+        const done = trackStart('housekeeping');
+        runHousekeeping().then(() => done(), e => done(String(e)));
+      }
 
       // Drain one queued cron task（loopBusy now free）
-      drainCronQueue().catch(() => {});
+      if (isEnabled('cron-drain')) {
+        const done = trackStart('cron-drain');
+        drainCronQueue().then(() => done(), e => done(String(e)));
+      }
 
       return action;
     } finally {
