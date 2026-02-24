@@ -24,6 +24,7 @@ done
 
 exec python3 -u - "$BASE_URL" "$API_KEY" "$INTERVAL" <<'PYEOF'
 import sys, json, time, urllib.request, urllib.error, shutil
+from datetime import datetime
 
 base_url, api_key, interval_s = sys.argv[1], sys.argv[2], float(sys.argv[3])
 
@@ -82,7 +83,10 @@ def render(s):
     loop = s.get('loop', {})
     cyc  = loop.get('cycleCount', 0)
     next_at = loop.get('nextCycleAt', '')
-    next_str = next_at[11:16] if len(next_at) >= 16 else '—'
+    try:
+        next_str = datetime.fromisoformat(next_at.replace('Z', '+00:00')).astimezone().strftime('%H:%M') if next_at else '—'
+    except Exception:
+        next_str = next_at[11:16] if len(next_at) >= 16 else '—'
     last_action = loop.get('lastAction') or '—'
 
     # separator

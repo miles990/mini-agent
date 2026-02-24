@@ -47,7 +47,8 @@ LOG_FILE="$BEHAVIOR_DIR/$TODAY.jsonl"
 
 # ── Python formatter ──
 FORMATTER=$(cat <<'PYEOF'
-import sys, json, datetime, os
+import sys, json, os
+from datetime import datetime
 
 RESET  = '\033[0m'
 BOLD   = '\033[1m'
@@ -86,7 +87,10 @@ def fmt(line):
         return DIM + line[:120] + RESET
 
     ts = e.get('timestamp', '')
-    t  = ts[11:19] if len(ts) >= 19 else ts
+    try:
+        t = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone().strftime('%H:%M:%S')
+    except Exception:
+        t = ts[11:19] if len(ts) >= 19 else ts
     d  = e.get('data', {})
     actor  = d.get('actor', '?')
     action = d.get('action', '?')
