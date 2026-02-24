@@ -1834,6 +1834,55 @@ const CHAT_ROOM_INBOX_PATH = path.join(
   'chat-room-inbox.md',
 );
 
+/** Read conversation JSONL and build reply tracking data.
+ * Returns:
+ * - replied: Set of message IDs that Kuro has replied to (replyTo values)
+ * - msgLookup: Map of "sender\0textPrefix" → message ID (for entries without [msgId]) */
+function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, string> } {
+  const replied = new Set<string>();
+  const msgLookup = new Map<string, string>();
+  try {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const jsonlPath = path.join(process.cwd(), 'memory', 'conversations', `${dateStr}.jsonl`);
+    if (!fs.existsSync(jsonlPath)) return { replied, msgLookup };
+    const lines = fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean);
+    for (const line of lines) {
+      try {
+        const msg = JSON.parse(line);
+        if (msg.from === 'kuro' && msg.replyTo) {
+          replied.add(msg.replyTo);
+        }
+        // Build reverse lookup for non-kuro messages (sender + cleaned text prefix → id)
+        if (msg.from && msg.from !== 'kuro' && msg.id && msg.text) {
+          const cleanedText = (msg.text as string).replace(/@\w+\s*/g, '').trim();
+          const key = `${msg.from}\0${cleanedText.slice(0, 30).toLowerCase()}`;
+          msgLookup.set(key, msg.id);
+        }
+      } catch { /* skip malformed lines */ }
+    }
+  } catch { /* fire-and-forget */ }
+  return { replied, msgLookup };
+}
+
+/** Check if Kuro replied to a message in the room, by ID or content lookup. */
+function isRepliedInRoom(
+  msgId: string | undefined, sender: string, text: string,
+  replied: Set<string>, msgLookup: Map<string, string>,
+): boolean {
+  // Direct ID match
+  if (msgId && replied.has(msgId)) return true;
+  // Transitive: if this message is a reply (↩parent) and Kuro replied to the parent
+  const replyToHint = text.match(/↩(\d{4}-\d{2}-\d{2}-\d+)/);
+  if (replyToHint && replied.has(replyToHint[1])) return true;
+  // Fallback: look up message ID by sender + text prefix (for old entries without [msgId])
+  // Strip leading ↩ replyTo hint and @mentions for matching
+  const cleanText = text.replace(/^↩\S+\s*/, '').replace(/@\w+\s*/g, '').trim();
+  const lookupKey = `${sender}\0${cleanText.slice(0, 30).toLowerCase()}`;
+  const resolvedId = msgLookup.get(lookupKey);
+  if (resolvedId && replied.has(resolvedId)) return true;
+  return false;
+}
+
 /** Extract key terms from a message for address matching */
 function extractKeyTerms(text: string): string[] {
   // Remove @mentions and common noise
@@ -1908,6 +1957,9 @@ function markChatRoomInboxProcessed(response: string, tags: ParsedTags, action: 
     const now = new Date();
     const nowStr = now.toISOString().slice(0, 16).replace('T', ' ');
 
+    // Read Kuro's room replies from conversation JSONL
+    const { replied, msgLookup } = getRoomReplyStatus();
+
     // Parse three sections
     const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## (?:Unaddressed|Processed))/);
     const unaddressedMatch = content.match(/## Unaddressed\n([\s\S]*?)(?=## Processed)/);
@@ -1924,42 +1976,49 @@ function markChatRoomInboxProcessed(response: string, tags: ParsedTags, action: 
 
     // Process pending messages
     for (const line of pendingLines) {
-      // Parse: - [YYYY-MM-DD HH:MM] (sender) message text
-      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (.+)$/);
+      // Parse: - [YYYY-MM-DD HH:MM] (sender) [msgId] text  OR  - [YYYY-MM-DD HH:MM] (sender) text
+      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (?:\[(\d{4}-\d{2}-\d{2}-\d+)\] )?(.+)$/);
       if (!match) {
         // Unparseable → move to processed as-is
         newProcessed.push(`${line} → processed ${nowStr}`);
         continue;
       }
 
-      const [, ts, sender, text] = match;
-      const addressed = isMessageAddressed(sender, text, response, tags.chats, action);
+      const [, ts, sender, msgId, text] = match;
+
+      // Check 1: Kuro replied to this message in the room (via replyTo in JSONL)
+      const repliedInRoom = isRepliedInRoom(msgId, sender, text, replied, msgLookup);
+      // Check 2: Text-based matching (CHAT tags, ACTION keywords)
+      const addressed = repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action);
 
       if (addressed) {
-        const suffix = tags.chats.length > 0 ? 'replied' : 'addressed';
+        const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`${line} → ${suffix} ${nowStr}`);
       } else {
         // Move to unaddressed with summary + unaddressed timestamp
         const summary = summarizeMessage(text);
-        newUnaddressed.push(`- [${ts}|u:${nowStr}] (${sender}) ${summary}`);
+        const idPart = msgId ? `[${msgId}] ` : '';
+        newUnaddressed.push(`- [${ts}|u:${nowStr}] (${sender}) ${idPart}${summary}`);
       }
     }
 
     // Process existing unaddressed messages
     for (const line of unaddressedLines) {
-      // Parse: - [YYYY-MM-DD HH:MM|u:YYYY-MM-DD HH:MM] (sender) message text
-      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\|u:(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (.+)$/);
+      // Parse: - [ts|u:ts] (sender) [msgId] text  OR  - [ts|u:ts] (sender) text
+      const match = line.match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\|u:(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] \((\w[\w-]*)\) (?:\[(\d{4}-\d{2}-\d{2}-\d+)\] )?(.+)$/);
       if (!match) {
         // Unparseable → expire
         newProcessed.push(`${line} → expired ${nowStr}`);
         continue;
       }
 
-      const [, originalTs, _uTs, sender, text] = match;
+      const [, originalTs, _uTs, sender, msgId, text] = match;
 
-      // Check if addressed this cycle
-      if (isMessageAddressed(sender, text, response, tags.chats, action)) {
-        const suffix = tags.chats.length > 0 ? 'replied' : 'addressed';
+      // Check 1: Kuro replied to this message in the room
+      const repliedInRoom = isRepliedInRoom(msgId, sender, text, replied, msgLookup);
+      // Check 2: Text-based matching
+      if (repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action)) {
+        const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`- [${originalTs}] (${sender}) ${text} → ${suffix} ${nowStr}`);
         continue;
       }

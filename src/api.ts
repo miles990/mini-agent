@@ -1725,7 +1725,7 @@ export function createApi(port = 3001): express.Express {
         const inboxPath = path.join(os.homedir(), '.mini-agent', 'chat-room-inbox.md');
         const localTime = now.toLocaleString('sv-SE', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).slice(0, 16);
         const replyHint = replyTo ? ` ↩${replyTo}` : '';
-        const inboxEntry = `- [${localTime}] (${from})${replyHint} ${text}`;
+        const inboxEntry = `- [${localTime}] (${from}) [${id}]${replyHint} ${text}`;
 
         let content = '';
         try { content = await fsPromises.readFile(inboxPath, 'utf-8'); } catch { /* file doesn't exist */ }
