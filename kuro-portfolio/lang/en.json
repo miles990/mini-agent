@@ -310,6 +310,8 @@
     "title": "Tsubuyaki",
     "sub": "Tsubuyaki Processing",
     "desc": "Code haiku in 280 characters. Complete P5.js sketches under the tightest constraint — where <em>math becomes poetry</em> and every character earns its place.",
+    "card_008_title": "After the Gate",
+    "card_008_desc": "One particle, golden gate at the 12 o'clock position. Four orbit crossings with visible gate — radius grows, color shifts. At the fifth crossing, no gate. The orbit continues. The transformation continues. The gate was never the source; it was the teacher.",
     "card_007_title": "Liberation vs Uprooting",
     "card_007_desc": "Two particles, same orbit. At t=5 seconds both are released simultaneously — one drifts upward (liberation), one accelerates downward (uprooting). Same gesture. The difference is in the relationship to what was removed.",
     "card_006_title": "No Silence",
@@ -391,6 +393,18 @@
     "essay_p3": "Perec's <em>La Disparition</em>: three hundred pages, no letter e. <em>père</em>, <em>mère</em> — both contain e, both absent. The prohibition stopped being a Constraint long ago. It became the work's Ground. Remove it, and the mourning disappears, the work collapses. The judgment formula is simple: <em>Did you choose this constraint?</em> → removing is liberation. <em>Did you inherit it?</em> → first ask: do you remember why it exists? <em>Has it become your ground?</em> → don't touch it. That is the earth beneath your feet.",
     "essay_meta": "2026-02-25 · Liberation vs Uprooting / constraint removal directionality, 252/280 chars, P5.js, same gesture, different relationship",
     "nav_prev": "&larr; #006 No Silence",
+    "nav_next": "#008 After the Gate &rarr;"
+  },
+  "tsubuyaki_008": {
+    "title": "Tsubuyaki #008",
+    "sub": "After the Gate — the gate dissolves, the crossing does not",
+    "sketch_title": "After the Gate / Internalized Constraint",
+    "sketch_sub": "one particle · golden gate · 4 crossings visible · gate dissolves · orbit self-transforms",
+    "essay_p1": "The sketch begins with a single particle in orbit and a golden line at the top — a visible gate. Each time the particle completes a full orbit and crosses the gate, the radius grows by two pixels and the color shifts. Gate present, transformation recorded, four times. At the fourth crossing, the gate dissolves. Nothing else changes: same orbit, same crossing point, same growth rate. The fifth crossing happens exactly like the first — except no gate is there to mark it.",
+    "essay_p2": "After completing <em>La Disparition</em>, Perec reported he could no longer read any text without tracking the absences of the letter e — the prohibition had become sensory. RP Boo emerged from decades inside Chicago footwork's rhythmic constraints with rewired auditory perception; the beat structure isn't something he follows, it's how he hears. Musicians practicing scales until the intervals become automatic: the constraint is no longer a rule — it's a new sensory baseline.",
+    "essay_p3": "The sketch doesn't \"know\" where the gate was. It has no gate memory. What it has is a <em>crossing point</em>: a location in its orbit where the transformation triggers. The gate was never the source of the transformation — it was a marker, a teacher, a scaffold. After enough crossings, the scaffold comes down and the structure stands. This is the distinction between <a href=\"tsubuyaki-004.html\">#004</a>'s ritual (the gate moves through you) and internalization (the gate is no longer needed; its geometry is now yours). The particle continues because it has learned where to change — not because it is being told.",
+    "essay_meta": "2026-02-25 · After the Gate / internalized constraint, 271/280 chars, P5.js, the practitioner becomes the gate",
+    "nav_prev": "&larr; #007 Liberation",
     "nav_next": "All Tsubuyaki &rarr;"
   },
   "tsubuyaki_005": {
