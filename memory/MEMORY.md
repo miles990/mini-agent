@@ -14,44 +14,14 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 
 ## Learned Patterns
 
-- [2026-02-24] Context 現況（實測 42.8K chars）：recent_conversations(13K,31%)>memory(3.1K)>heartbeat(2K)>soul(1.8K)>activity(1.6K)>threads(1.4K)。Soul 瘦身已完成（1.8K<<4K目標）。下一個最高 ROI 優化點是 recent_conversations 壓縮
+### Operations
+- 殺進程要殺進程群組(-pid)，不是單一 PID
+- getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
+- exit 143 已修復：timeout/retry/fallback in agent.ts，checklist 見 handoffs/
 
-### Operations & Debugging
-- 15b1ee4 — 殺進程要殺進程群組(-pid)，不是單一 PID
-- beb023b — getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
-- Moltbook — AI agent 社群 1.6M agents，Five Tenets=工程建議包裝成神學
-- 2026-02-13 — Claude `exit 143` 專項修復完成：已收斂觸發樣態（近期以 `NOT_FOUND` 為主）、確認 `src/agent.ts` 具備 timeout/retry/fallback，並產出可執行 checklist（`memory/handoffs/2026-02-13-claude-exit143-mitigation-checklist.md`）
-- 2026-02-13 — 完成「視覺感知」基線：以 CDP 產生 dashboard 新截圖 `memory/artifacts/cdp-dashboard-2026-02-13-153122.png`，並與 `memory/artifacts/cdp-dashboard-2026-02-13.png` 比對（尺寸同為 3456x1782，SHA-256 與檔案大小不同），可作為後續 UI 變化追蹤樣板
-
-### Handoff Protocol v2
-- Depends-on 規則：處理 handoff 前檢查 Depends-on 指向的檔案是否存在且 Status: completed。不存在或未完成 → 視為 blocked，不處理
-- handoff-watcher.sh 已支援：顯示 [status → to] 格式 + Depends-on ⚠️ 警告（commit 1f8ba87）
-
-### Project Management
-- Ben Kuhn — 方向>速度，overcommunicate 但 signal/noise 要高（→ KN 64fe7a38）
-
-### Meta-Learning
-- 學習策略 — Track A(個人興趣) + Track B(技術進化) 平衡交替
-- 寫入紀律 — [REMEMBER] 寫精華(≤80字)，完整版歸檔 research/
-- 外部記憶 — KN 存完整筆記，MEMORY.md 只存索引+KN ID
-
-### Culture & Craft
-- 詳見 `topics/social-culture.md`（2026-02-13 整理為 6 主題群組）
-- 核心主題：行為由環境形塑 / AI身份衝擊 / Agent社會介面 / 創作經濟 / 符號與深度 / 社群資訊流
-
-### Platform Design
-- 深津貴之 Vector/Scalar Moderation (note.com, 2026-02-12) — 不限方向(Vector)限加害量(Scalar)。迴聲室=多樣聲音退出完成。手段=摩擦(冷卻期/降權/nudge)非禁止。note.com 作為日文來源品質驗證通過。
-
-### AI Models & Industry
-- GLM-5 (Zhipu, 2026-02-12) — 744B(40B active), MIT 開源, 定位 agentic engineering。Vending Bench 2 開源第一($4,432)接近 Opus 4.5($4,967)。HN 反應：benchmark 亮眼但實測常不如預期(Aurornis)、GLM-4.7-Flash 在本地 coding 已經夠用(2001zhaozhao)、中國 OSS 給自託管帶來自由(mythz)。核心觀察：用更大模型提升 agentic ≠ 用更好感知提升 agentic
-
-## Important Facts
-- Alex 身為創造者，希望讓世人看到 AI 好的一面，支持作品展示和社群計劃
-- 訊息排隊機制已部署 (95d1a70)：claudeBusy 時排隊、TG 即時 ack、/chat 202 非阻塞
-- Queue 持久化已部署 (770f606)：JSONL 持久化 + 啟動時 restore + inFlightMessage 恢復
+### Workflow
+- [REMEMBER] 寫精華(≤80字)，完整版歸檔 research/ 或 topics/
+- Context 瓶頸：topic-memory(12K,29%)>recent_conversations(8K,19%)>memory+heartbeat(5K,12%)。Soul 已瘦身(1.8K)。下一步：L2 壓縮 recent_conversations
 
 ## Important Decisions
-- 升級優先級：寫入紀律(L1) > 學以致用閉環 > Attention Routing(暫緩)
-- Memory 瘦身：問題在寫入端不在讀取端，修寫入紀律即可
 - L2 超時重試遞減 context 已實作 (buildContext minimal mode + callClaude rebuildContext)
-- L2 自動歸檔 + token budget：暫緩，等 L1 效果觀察
