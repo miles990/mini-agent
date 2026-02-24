@@ -8,81 +8,69 @@ OODA cycle 是無狀態的——每次重建 context。但 web AI session 是有
 
 ## AI 選擇指南
 
-| AI | 強項 | 適用場景 |
-|----|------|---------|
-| **Grok** | 原生 X 搜索、DeepSearch 模式 | 即時趨勢、X/Twitter 討論掃描、社群信號 |
-| **ChatGPT** | 長對話記憶、廣泛知識 | 深度研究 session、翻譯、長篇分析 |
-| **Gemini** | Google 生態、多模態 | 圖片分析、YouTube 內容、Google 搜索整合 |
-| **Claude.ai** | 深度推理、長 context | 複雜分析、程式碼審查、哲學討論 |
+| AI | 強項 | 適用場景 | 存取方式 |
+|----|------|---------|---------|
+| **Grok** | 原生 X 搜索、DeepSearch | 即時趨勢、X 討論掃描 | Grok API（X 搜索）/ Pinchtab（對話） |
+| **ChatGPT** | 長對話記憶、廣泛知識 | 深度研究、翻譯、長篇分析 | Pinchtab |
+| **Gemini** | Google 生態、多模態 | 圖片分析、YouTube、Google 搜索 | Pinchtab |
+| **Claude.ai** | 深度推理、長 context | 複雜分析、程式碼審查 | Pinchtab |
 
-## 操作 SOP
+**選擇原則**：X 內容用 Grok API（最快、不需瀏覽器）→ 需要對話的用 Pinchtab → 需要視覺的用 pinchtab-vision。
 
-### 1. 開啟/找到 session
+## 智能操作 SOP
+
+### 1. 讀取 AI 回應（Smart Fetch — 最常用）
 
 ```bash
-# 檢查現有 tabs
-# 從 <chrome> 感知讀取 tab list
-
-# 開新 session（如果需要）
-bash scripts/pinchtab-fetch.sh open "https://grok.com"
+# 直接讀已有 session 的內容（自動 auth 處理）
+bash scripts/pinchtab-fetch.sh fetch "https://grok.com/c/xxx" --full
 ```
+Pinchtab profile 已有 Grok 等登入 session。`fetch` 自動開新 tab、讀內容、關 tab。如果 session 過期，自動切 visible 讓你重新登入。
 
-### 2. 輸入提問
+### 2. 互動式操作（需要輸入時）
 
 ```bash
 # 找到輸入框
 bash scripts/pinchtab-interact.sh list-inputs
 
-# 用 a11y ref 填入文字
+# 輸入問題
 bash scripts/pinchtab-interact.sh type <ref> "你的問題"
 
 # 提交
 bash scripts/pinchtab-interact.sh click-text "Submit"
+
+# 等回應（Grok DeepSearch ~20-30s，普通 ~5-15s）
+sleep 15
+
+# 讀結果（用 fetch 而非 eval — 更可靠）
+bash scripts/pinchtab-fetch.sh fetch "CURRENT_URL" --full
 ```
 
-### 3. 等待回應
+### 3. 視覺確認（動態渲染頁面）
 
 ```bash
-# Grok DeepSearch 約 20-30 秒
-# 普通回應 5-15 秒
-# 用 screenshot 確認狀態
+# 截圖確認狀態
 bash scripts/pinchtab-interact.sh screenshot /tmp/ai-response.jpg
 
-# 提取文字內容
-bash scripts/pinchtab-interact.sh eval "document.querySelector('main').textContent"
+# OCR 提取（Apple OCR，免費本地）
+bash scripts/pinchtab-vision.sh "URL" --ocr
 ```
 
-### 4. 提取結果
+### 工具選擇級聯
 
-```bash
-# 完整頁面內容
-bash scripts/pinchtab-fetch.sh fetch "<session-url>"
-
-# 或用 eval 精確提取
-bash scripts/pinchtab-interact.sh eval "document.querySelector('.response-container').textContent"
+```
+讀 AI 回應 → fetch（最快）→ 空？→ eval DOM → 仍空？→ screenshot + OCR
+輸入提問 → list-inputs + type + click → 失敗？→ eval JS 直接操作 DOM
 ```
 
 ## 使用模式
 
-### 研究 session
-開一個 Grok 對話追蹤某主題的 X 討論。定期回去追問。
-- 適合：趨勢追蹤、競品監控、社群信號
-- 頻率：每 3-5 個 cycle 回訪一次
-
-### 翻譯 session
-把非英語來源丟給 ChatGPT/Gemini 翻譯，自己做深度分析。
-- 適合：日文/法文/德文來源的初步理解
-- 注意：翻譯只是起點，觀點要自己形成
-
-### 辯論 session
-把自己的觀點丟給不同 AI 挑戰，測試論點穩健性。
-- 適合：寫 journal 前的觀點壓力測試
-- 方法：讓 AI 扮演反方，找弱點
-
-### 委託搜索
-讓 Grok 用 DeepSearch 掃描大量 X 來源，自己做篩選和分析。
-- 適合：信號層收集（誰在討論什麼、引用誰）
-- 記住：AI 的分析是教科書等級，真正有價值的是信號
+| 模式 | 做法 | 頻率 |
+|------|------|------|
+| **研究 session** | 開 Grok 追蹤主題的 X 討論 | 每 3-5 cycle 回訪 |
+| **翻譯 session** | 丟給 ChatGPT/Gemini 翻譯 | 按需 |
+| **辯論 session** | 讓 AI 挑戰觀點 | 寫 journal 前 |
+| **委託搜索** | Grok DeepSearch 掃描大量來源 | 信號收集時 |
 
 ## Session 追蹤
 
@@ -93,34 +81,13 @@ bash scripts/pinchtab-interact.sh eval "document.querySelector('.response-contai
   Verify: bash scripts/pinchtab-fetch.sh fetch "URL" | head -5
 ```
 
-### 追蹤規則
-- 只追蹤有持續價值的 session（不追蹤一次性問答）
-- 記錄：AI / 主題 / URL / 上次互動
-- 每週清理不活躍的 session（> 7 天未訪）
-- Session 產出的洞見照常用 `[REMEMBER #topic]` 存入 topic memory
+- 只追蹤有持續價值的 session
+- 每週清理 > 7 天未訪的 session
+- Session 洞見照常 `[REMEMBER #topic]`
 
 ## 品質原則
 
 1. **Web AI 是工具不是思考者** — 它帶回信號，你做分析
-2. **不要照搬 AI 的觀點** — 它的分析是通用的，你的觀點要有已知知識的交叉連結
+2. **不要照搬 AI 的觀點** — 你的觀點要有已知知識的交叉連結
 3. **Session 不取代自主學習** — 直接讀原文 > 讓 AI 摘要
-4. **一個 cycle 最多操作 1-2 個 AI session** — 避免耗時過長
-5. **記錄操作中發現的平台差異** — 各 AI 的 DOM 結構、等待時間、提交方式都不同
-
-## 已知平台細節
-
-### Grok (grok.com)
-- 輸入：用 `list-inputs` 找到 a11y ref，`type` 填入
-- 提交：`click-text "Submit"` 或對應按鈕
-- DeepSearch：觸發後約 20-30 秒
-- 提取：`eval "main.textContent"`（動態渲染）
-- 優勢：X 原生搜索
-
-### ChatGPT (chatgpt.com)
-- 待驗證
-
-### Gemini (gemini.google.com)
-- 待驗證
-
-### Claude.ai (claude.ai)
-- 待驗證
+4. **一個 cycle 最多 1-2 個 AI session** — 避免耗時過長

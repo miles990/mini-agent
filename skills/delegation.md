@@ -21,18 +21,11 @@
 
 ## 怎麼 delegate
 
-### 工具選擇（Shell-first）
+### 工具選擇
 
 **硬規則 #1：能用 shell 做的不用 Claude CLI。** curl/grep/jq 能做的事不浪費 API token。
 
-| 任務 | 工具 | 範例 |
-|------|------|------|
-| HTTP 健康度檢查 | shell | `curl -sf URL -o /dev/null -w '%{http_code}'` |
-| JSON 解析 | shell | `jq '.field'` |
-| 檔案計數/搜尋 | shell | `grep -c pattern file` |
-| HN top stories | shell | HN Firebase API + jq |
-| 結構化摘要 | Claude CLI | `claude -p "..." --no-input --max-turns 1` |
-| 翻譯（帶 style guide） | Claude CLI | `claude -p "..." --no-input --max-turns 1` |
+**其他情況，自己判斷最適合的工具。** 你有 shell、Claude CLI subprocess、Pinchtab（web）、Grok API（X/Twitter）。根據任務性質選擇：確定性任務用 shell，需要語言理解用 CLI，需要瀏覽器用 Pinchtab，需要 X 搜索用 Grok。
 
 ### Shell Script（優先）
 

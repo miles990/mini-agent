@@ -1,41 +1,29 @@
 # Web Research 網路研究能力
 
-你具備多層網路存取能力。**核心原則：智能化選擇、最大化利用每個工具的能力、自動 fallback。**
+你有多種方式存取網路。**根據實際情境判斷用什麼，不要照固定順序。**
 
-## 工具能力矩陣
+## 你有什麼工具
 
-| 工具 | 最強項 | 有 session | JS 渲染 | 速度 |
-|------|--------|-----------|---------|------|
-| `curl` | 公開靜態頁面 | ❌ | ❌ | ⚡ <1s |
-| `pinchtab-fetch.sh` | 需登入 + JS-heavy | ✅ 自動 | ✅ | 🔵 3-5s |
-| `pinchtab-vision.sh` | 視覺理解 | ✅ | ✅ | 🟡 5-10s |
-| Grok API | X/Twitter | N/A | N/A | 🟡 10-30s |
+| 工具 | 強項 | 特性 |
+|------|------|------|
+| `curl -sL` | 公開靜態頁面 | 最快（<1s），無 JS/session |
+| `pinchtab-fetch.sh fetch` | 需登入 + JS-heavy | 有 session、自動 auth 偵測/切換、隔離 tab |
+| `pinchtab-vision.sh` | 視覺理解 | 截圖 + OCR/Vision，SPA 友好 |
+| `pinchtab-interact.sh` | 瀏覽器互動 | 點擊、輸入、執行 JS |
+| Grok API | X/Twitter | 原生 X 搜索、影片理解，不需瀏覽器 |
 
-## 智能決策流程
+## 怎麼選
 
-```
-URL 進入
-  │
-  ├─ x.com / twitter.com → Grok API（專用工具，最佳效果）
-  │
-  ├─ 公開靜態頁面（github.com, news, docs）→ curl -sL
-  │   └─ 空/JS 殼 → 升級到 Pinchtab
-  │
-  └─ 其他（社群、需登入、JS-heavy）→ pinchtab-fetch.sh fetch
-      │ ← Smart fetch 自動處理：
-      │   • 開新 tab → ?tabId= 讀取 → 自動關 tab
-      │   • 有 session 直接讀（Facebook, Reddit 等已登入）
-      │   • AUTH → 自動切 visible → 開 URL → 提示登入
-      │   • extract 後自動切回 headless
-      │
-      └─ 純視覺/SPA → pinchtab-vision.sh --ocr
-```
+**自己判斷**。看 URL、看你對這個網站的經驗、看感知中 Pinchtab 是否可用。
 
-**關鍵原則**：
-- **不要手動判斷需不需要登入** — `pinchtab-fetch.sh fetch` 會自動偵測 + 處理
-- **不要手動切 headless/visible** — script 自動切換，extract 後自動恢復
-- **Pinchtab profile（`~/.pinchtab/chrome-profile`）已有 Facebook 等登入 session**
-- **一律用 `fetch` 而非 `open`**，除非明確要讓用戶看到頁面
+常見情境（參考，不是規則）：
+- X/Twitter 連結 → Grok API 效果最好（能讀 replies、engagement）
+- Facebook、Reddit 等社群 → Pinchtab（profile 已有登入 session）
+- GitHub、新聞、文件 → curl 通常就夠
+- 內容是空的 → 可能是 JS 渲染，試 Pinchtab 或 vision
+- 被要求登入 → `pinchtab-fetch.sh fetch` 會自動偵測並處理
+
+**關鍵**：`pinchtab-fetch.sh fetch` 內建 auth 偵測 + headless/visible 自動切換。直接用它，不需要手動判斷要不要登入、要不要切模式。
 
 ## 工具詳情
 

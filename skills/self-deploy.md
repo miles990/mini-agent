@@ -82,15 +82,28 @@ gh run list --limit 1 --json status,conclusion
 
 **CI/CD 失敗的情況**：如果 `gh run list` 顯示失敗或 runner offline，看 `gh run view` 日誌排錯。不要跳過，要找出原因並修復。
 
-## Step 6: 確認部署成功
+## Step 6: 確認部署成功（智能驗證）
 
-CI/CD 完成後（或手動部署後），驗證服務正常：
+CI/CD 完成後，自動走驗證級聯，不要停在第一步等人：
 
 ```bash
+# 1. 健康檢查
 curl -sf http://localhost:3001/health
+# → 200 = 成功 ✅
+
+# 2. 失敗？等 10s 重試（部署可能還在重啟）
+sleep 10 && curl -sf http://localhost:3001/health
+
+# 3. 仍失敗？看 logs 找原因
+curl -sf http://localhost:3001/logs
+
+# 4. 仍失敗？看 CI 日誌
+gh run list --limit 1 --json status,conclusion
+
+# 5. 確定部署壞了 → rollback + 通知 Alex
 ```
 
-回傳 200 = 成功。失敗 → 看 logs 排錯。
+原則：**自動重試 → 自動診斷 → 才找人**。不要第一次 curl 失敗就 rollback。
 
 ## Step 6.5: 確認 GitHub Issue 已 Close（如有關聯）
 
