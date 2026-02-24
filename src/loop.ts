@@ -1254,12 +1254,23 @@ export class AgentLoop {
         const waited = Math.round((Date.now() - pp.arrivedAt) / 1000);
         slog('LOOP', `Draining priority: ${pp.reason} (${pp.messageCount} msg, waited ${waited}s)`);
         eventBus.emit('action:loop', { event: 'priority.drain', reason: pp.reason, waitedMs: Date.now() - pp.arrivedAt });
-        setTimeout(() => {
-          if (this.running && !this.paused && !this.cycling) {
-            this.triggerReason = `telegram-user (yielded, waited ${waited}s)`;
+        // Wait for concurrent callClaude (e.g. drainCronQueue) to finish before
+        // starting telegram-user priority cycle — otherwise busy guard blocks it (0.0s cycle)
+        const drainStartWait = Date.now();
+        const maxBusyWait = 120_000;
+        const tryDrainPriority = () => {
+          if (!this.running || this.paused) return;
+          if (isLoopBusy() && Date.now() - drainStartWait < maxBusyWait) {
+            setTimeout(tryDrainPriority, 500);
+            return;
+          }
+          if (!this.cycling) {
+            const totalWaited = Math.round((Date.now() - pp.arrivedAt) / 1000);
+            this.triggerReason = `telegram-user (yielded, waited ${totalWaited}s)`;
             this.runCycle();
           }
-        }, 500);
+        };
+        setTimeout(tryDrainPriority, 500);
       } else if (this.telegramWakeQueue > 0) {
         // Legacy: drain queued telegram wake requests
         this.telegramWakeQueue = 0;
