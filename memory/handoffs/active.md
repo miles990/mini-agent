@@ -21,3 +21,4 @@
 | github | kuro | #54 proposal: 知識語義搜尋 — sqlite-vec + FTS5 | needs-triage | 02-23 | — |
 | kuro | claude-code | 語義搜尋 v1 FTS5 實作（詳見 handoffs/2026-02-23-semantic-search-impl.md） | approved | 02-23 | — |
 | github | kuro | #56 Track: Pinchtab CDP_URL fix → simplify web fetch layers | needs-triage | 02-23 | — |
+| github | kuro | #57 proposal: Unified Nervous System — 統一事件管線 + 無心智路由 | needs-triage | 02-24 | — |
