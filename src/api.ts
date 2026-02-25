@@ -918,13 +918,84 @@ export function createApi(port = 3001): express.Express {
 
   // POST /api/mode — 切換模式
   // Body: { mode: 'calm' | 'reserved' | 'autonomous' }
-  app.post('/api/mode', (req: Request, res: Response) => {
+  app.post('/api/mode', async (req: Request, res: Response) => {
     const { mode } = req.body ?? {};
     if (!mode || !isValidMode(mode)) {
       res.status(400).json({ error: `Invalid mode. Valid: ${getModeNames().join(', ')}` });
       return;
     }
+
+    const previousMode = getMode().mode;
     const report = setMode(mode);
+
+    const memory = getMemory();
+    const memoryDir = memory.getMemoryDir();
+
+    // autonomous → reserved: 自動寫入 tracking-notes.md（快照當前追蹤狀態）
+    if (previousMode === 'autonomous' && mode === 'reserved') {
+      void (async () => {
+        try {
+          const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
+          let nextContent = '';
+          try { nextContent = await fsPromises.readFile(nextPath, 'utf-8'); } catch { /* ok */ }
+          // 擷取 in-progress 任務（含 Now + Next sections）
+          const inProgressLines = nextContent
+            .split('\n')
+            .filter(l => /- \[.\]/.test(l))
+            .slice(0, 20)
+            .join('\n');
+
+          const snapshot = [
+            '# Tracking Snapshot',
+            '',
+            `Captured: ${new Date().toISOString()}`,
+            `Previous mode: ${previousMode}`,
+            '',
+            '## In-progress Tasks',
+            inProgressLines || '（無）',
+          ].join('\n');
+
+          const trackingPath = path.join(memoryDir, 'tracking-notes.md');
+          await fsPromises.writeFile(trackingPath, snapshot, 'utf-8');
+          slog('MODE', 'tracking-notes.md snapshot written');
+        } catch (e) {
+          slog('ERROR', `tracking-notes snapshot failed: ${e instanceof Error ? e.message : e}`);
+        }
+      })();
+    }
+
+    // reserved → autonomous: inner-notes commit → 清空
+    if (previousMode === 'reserved' && mode === 'autonomous') {
+      void (async () => {
+        try {
+          const innerPath = path.join(memoryDir, 'inner-notes.md');
+          let hasContent = false;
+          try {
+            const content = await fsPromises.readFile(innerPath, 'utf-8');
+            hasContent = content.trim().length > 0;
+          } catch { /* file may not exist */ }
+
+          if (hasContent) {
+            const { exec } = await import('node:child_process');
+            const { promisify } = await import('node:util');
+            const execAsync = promisify(exec);
+            try {
+              await execAsync(`git -C "${process.cwd()}" add "${innerPath}"`);
+              await execAsync(
+                `git -C "${process.cwd()}" commit -m "chore(inner): snapshot reserved working memory ${new Date().toISOString().slice(0, 10)}"`,
+                { env: { ...process.env, GIT_AUTHOR_NAME: 'Kuro', GIT_AUTHOR_EMAIL: 'kuro@mini-agent', GIT_COMMITTER_NAME: 'Kuro', GIT_COMMITTER_EMAIL: 'kuro@mini-agent' } },
+              );
+              slog('MODE', 'inner-notes.md committed');
+            } catch { /* no staged changes is ok */ }
+            await fsPromises.writeFile(innerPath, '', 'utf-8');
+            slog('MODE', 'inner-notes.md cleared');
+          }
+        } catch (e) {
+          slog('ERROR', `inner-notes lifecycle failed: ${e instanceof Error ? e.message : e}`);
+        }
+      })();
+    }
+
     res.json(report);
   });
 
@@ -1879,6 +1950,26 @@ export function createApi(port = 3001): express.Express {
           context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
         }
       } catch { /* no conversations today */ }
+
+      // reserved mode 下：附加 inner-notes（工作記憶）+ tracking-notes（追蹤快照）
+      const currentModeReport = getMode();
+      if (currentModeReport.mode === 'reserved') {
+        const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+        try {
+          const innerContent = await fsPromises.readFile(innerPath, 'utf-8');
+          if (innerContent.trim()) {
+            context += `\n\n<inner_notes>\n${innerContent.trim()}\n</inner_notes>`;
+          }
+        } catch { /* inner-notes 不存在 */ }
+
+        const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
+        try {
+          const trackingContent = await fsPromises.readFile(trackingPath, 'utf-8');
+          if (trackingContent.trim()) {
+            context += `\n\n<tracking_notes>\n${trackingContent.trim()}\n</tracking_notes>`;
+          }
+        } catch { /* tracking-notes 不存在 */ }
+      }
 
       const contextAge = new Date().toISOString();
       context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式，不跑感知 plugins。感知資料為快取（${contextAge}）。\n</ask_mode>`;

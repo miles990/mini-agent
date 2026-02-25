@@ -364,8 +364,12 @@ export async function postProcess(
   if (tags.inner) {
     const mode = getMode();
     if (mode.mode === 'reserved') {
+      // Atomic write: tmp → rename，防止 snapshot 讀到半寫狀態
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-      fs.writeFile(innerPath, tags.inner, 'utf-8').catch(() => {}); // fire-and-forget
+      const tmpPath = innerPath + '.tmp';
+      fs.writeFile(tmpPath, tags.inner, 'utf-8')
+        .then(() => fs.rename(tmpPath, innerPath))
+        .catch(() => {}); // fire-and-forget
       slog('INNER', 'Working memory updated');
     }
   }
