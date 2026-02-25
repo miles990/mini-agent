@@ -199,9 +199,11 @@ is_content_restricted() {
   [[ "$restrict_count" -ge 1 ]] && return 0
 
   # Pattern 2: Suspiciously short content from social media (< 500 chars = likely restriction page)
+  # Note: X.com/Twitter excluded — Grok API handles these as Step -1 in cmd_fetch.
+  # Short X.com content in browser is normal (tweets are short), not necessarily restricted.
   local domain
   domain=$(extract_domain "$url" 2>/dev/null || echo "")
-  if echo "$domain" | grep -qiE 'facebook\.com|instagram\.com|threads\.net|x\.com|twitter\.com'; then
+  if echo "$domain" | grep -qiE 'facebook\.com|instagram\.com|threads\.net'; then
     [[ "$content_len" -lt 500 ]] && return 0
   fi
 
@@ -277,6 +279,35 @@ cmd_fetch() {
 
   local t0
   t0=$(timer_start)
+
+  # Step -1: X.com/Twitter → try Grok API first (most reliable for X content)
+  local is_x_url
+  is_x_url=$(echo "$url" | grep -oiE 'x\.com|twitter\.com' || true)
+  if [[ -n "$is_x_url" ]] && [[ -n "${XAI_API_KEY:-}" ]]; then
+    local grok_response grok_text
+    grok_response=$(curl -s --connect-timeout 5 --max-time 30 "https://api.x.ai/v1/responses" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $XAI_API_KEY" \
+      -d "{
+        \"model\": \"grok-4-1-fast\",
+        \"tools\": [{\"type\": \"x_search\", \"x_search\": {\"enable_video_understanding\": true}}],
+        \"instructions\": \"Read this post and all replies. Return: author handle, full text content, engagement stats, key replies. If there is video, describe its content. Plain text, no markdown.\",
+        \"input\": \"$url\"
+      }" 2>/dev/null)
+
+    grok_text=$(echo "$grok_response" | jq -r '
+      [.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | first // empty
+    ' 2>/dev/null)
+
+    if [[ -n "$grok_text" ]] && [[ ${#grok_text} -gt 50 ]]; then
+      local ms; ms=$(timer_elapsed "$t0")
+      log_event "op=fetch" "url=$url" "result=ok" "detail=grok_api" "contentLen=${#grok_text}" "durationMs=$ms"
+      output_content "$grok_text"
+      return
+    fi
+    # Grok failed — fall through to browser
+    log_event "op=fetch" "url=$url" "detail=grok_failed_fallthrough" "grokLen=${#grok_text:-0}"
+  fi
 
   if ! health_ok; then
     log_event "op=fetch" "url=$url" "result=error" "detail=pinchtab_unavailable"

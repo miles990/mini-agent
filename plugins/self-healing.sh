@@ -45,7 +45,9 @@ fi
 
 # --- Check 2: Pinchtab (Browser Bridge) ---
 PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
-if ! curl -sf "localhost:${PINCHTAB_PORT}/health" &>/dev/null; then
+PINCHTAB_HEALTH=$(curl -sf --max-time 3 "localhost:${PINCHTAB_PORT}/health" 2>/dev/null || echo "")
+if [ -z "$PINCHTAB_HEALTH" ]; then
+  # Pinchtab not responding at all
   if [ -f "$PROJECT_DIR/scripts/pinchtab-setup.sh" ]; then
     bash "$PROJECT_DIR/scripts/pinchtab-setup.sh" start &>/dev/null
     sleep 3
@@ -53,6 +55,18 @@ if ! curl -sf "localhost:${PINCHTAB_PORT}/health" &>/dev/null; then
       heal_report "HEALED" "Pinchtab was unavailable → auto-start restored"
     else
       heal_report "FAILED" "Pinchtab unavailable, auto-start could not restore"
+    fi
+  fi
+elif echo "$PINCHTAB_HEALTH" | grep -q '"disconnected"'; then
+  # Pinchtab running but CDP connection lost — restart to reconnect
+  if [ -f "$PROJECT_DIR/scripts/pinchtab-setup.sh" ]; then
+    bash "$PROJECT_DIR/scripts/pinchtab-setup.sh" restart &>/dev/null
+    sleep 3
+    NEW_HEALTH=$(curl -sf --max-time 3 "localhost:${PINCHTAB_PORT}/health" 2>/dev/null || echo "")
+    if echo "$NEW_HEALTH" | grep -q '"ok"'; then
+      heal_report "HEALED" "Pinchtab CDP was disconnected → restart restored"
+    else
+      heal_report "FAILED" "Pinchtab CDP disconnected, restart could not restore"
     fi
   fi
 fi
