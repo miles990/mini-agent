@@ -1237,6 +1237,65 @@
     background: var(--purple-dim);
   }
 
+  /* Inner Notes — working memory (reserved mode) */
+  .inner-notes-block {
+    margin-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 14px;
+  }
+  .inner-notes-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .inner-mode-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--purple-dim);
+    color: var(--purple);
+    text-transform: lowercase;
+    letter-spacing: 0.04em;
+  }
+  .inner-notes-text {
+    font-size: 12px;
+    color: var(--text2);
+    background: rgba(167, 139, 250, 0.04);
+    border-left: 2px solid var(--purple);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.65;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .tracking-notes-text {
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 12px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+  .inner-notes-empty {
+    font-size: 11px;
+    color: var(--text3);
+    font-style: italic;
+  }
+
   /* Inner subsections grid */
   .inner-grid {
     display: grid;
@@ -1713,6 +1772,21 @@
     <div class="inner-voice" id="innerVoice"></div>
 
     <div class="mood-detail" id="moodDetail"></div>
+
+    <!-- Inner Notes — working memory (reserved mode only) -->
+    <div id="innerNotesSection" class="inner-notes-block" style="display:none;">
+      <div class="inner-notes-label">
+        Working Memory
+        <span class="inner-mode-tag">reserved</span>
+      </div>
+      <div id="innerNotesContent" class="inner-notes-text inner-notes-empty">（尚無筆記）</div>
+      <div id="trackingNotesSection" style="display:none;">
+        <div class="inner-notes-label" style="margin-top:12px;">
+          Tracking Snapshot
+        </div>
+        <div id="trackingNotesContent" class="tracking-notes-text"></div>
+      </div>
+    </div>
 
     <!-- Collapsible: Traits, Interests, Core Thoughts -->
     <div class="inner-details-toggle" onclick="toggleInnerDetails()" id="innerDetailsToggle" style="font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle);user-select:none;transition:color 0.15s;">+ Traits, Interests, Core Thoughts</div>
@@ -2243,6 +2317,32 @@ function renderInnerState(data) {
       html += '</span>';
     }
     traitEl.innerHTML = html;
+  }
+
+  // Inner Notes — working memory (reserved mode only)
+  const innerNotesSection = document.getElementById('innerNotesSection');
+  const innerNotesContent = document.getElementById('innerNotesContent');
+  const trackingNotesSection = document.getElementById('trackingNotesSection');
+  const trackingNotesContent = document.getElementById('trackingNotesContent');
+
+  if (data.innerNotes) {
+    innerNotesSection.style.display = 'block';
+    innerNotesContent.className = 'inner-notes-text';
+    innerNotesContent.textContent = data.innerNotes;
+  } else if (data.trackingNotes) {
+    // reserved mode but no inner notes yet — still show the section
+    innerNotesSection.style.display = 'block';
+    innerNotesContent.className = 'inner-notes-text inner-notes-empty';
+    innerNotesContent.textContent = '（OODA 尚未寫入工作記憶）';
+  } else {
+    innerNotesSection.style.display = 'none';
+  }
+
+  if (data.trackingNotes) {
+    trackingNotesSection.style.display = 'block';
+    trackingNotesContent.textContent = data.trackingNotes;
+  } else {
+    trackingNotesSection.style.display = 'none';
   }
 }
 

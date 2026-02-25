@@ -1681,6 +1681,23 @@ export function createApi(port = 3001): express.Express {
       // --- Topic pulse (what topics I've been exploring) ---
       const topicUtility = memory.getTopicUtility();
 
+      // --- Inner Notes + Tracking Notes (reserved mode working memory) ---
+      let innerNotes: string | null = null;
+      let trackingNotes: string | null = null;
+      const currentModeReport = getMode();
+      if (currentModeReport.mode === 'reserved') {
+        const innerNotesPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+        try {
+          const c = await fsPromises.readFile(innerNotesPath, 'utf-8');
+          if (c.trim()) innerNotes = c.trim();
+        } catch { /* ok */ }
+        const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
+        try {
+          const c = await fsPromises.readFile(trackingPath, 'utf-8');
+          if (c.trim()) trackingNotes = c.trim();
+        } catch { /* ok */ }
+      }
+
       res.json({
         traits,
         interests: interestsRaw.slice(0, 20),
@@ -1690,6 +1707,8 @@ export function createApi(port = 3001): express.Express {
         mood: { state: mood, detail: moodDetail },
         recentThinking,
         topicPulse: topicUtility,
+        innerNotes,
+        trackingNotes,
       });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
