@@ -20,8 +20,8 @@ import { z } from 'zod/v3';
 const AGENT_URL = process.env.AGENT_URL || 'http://localhost:3001';
 const API_KEY = process.env.MINI_AGENT_API_KEY || '';
 const HTTP_TIMEOUT = 5_000;
-const DISCUSS_POLL_INTERVAL = 5_000;
-const DISCUSS_TIMEOUT = 90_000;
+const DISCUSS_POLL_INTERVAL = 10_000;
+const DISCUSS_TIMEOUT = 300_000;
 
 // =============================================================================
 // HTTP helpers
@@ -292,24 +292,42 @@ async function main() {
 
   server.tool(
     'agent_discuss',
-    `Send a message to ${agentName} and wait for a response (up to 90s)`,
+    `Send a message to ${agentName} and wait for a response (up to 5 min). Auto-wakes ${agentName} from calm mode if needed, and restores mode after.`,
     { message: z.string().describe('Message to send') },
     async ({ message }) => {
       try {
-        // 1. Get current latest message ID
+        // 1. Pre-flight: if loop is paused (calm mode), temporarily switch to reserved
+        let previousMode: string | null = null;
+        try {
+          const status = await agentGet('/status') as {
+            loop?: { paused?: boolean }
+          };
+          if (status?.loop?.paused) {
+            const modeData = await agentGet('/api/mode') as { mode?: string };
+            previousMode = modeData?.mode ?? null;
+            if (previousMode === 'calm') {
+              await agentPost('/api/mode', { mode: 'reserved' });
+            }
+          }
+        } catch {
+          // Status check failed — proceed anyway
+        }
+
+        // 2. Get current latest message ID
         const today = new Date().toISOString().slice(0, 10);
         const before = await agentGet(`/api/room?date=${today}`) as { messages?: Array<{ id: string; from: string }> };
         const lastId = before?.messages?.length
           ? before.messages[before.messages.length - 1].id
           : '';
 
-        // 2. Send message with mention
+        // 3. Send message with mention
         const text = message.includes(mention) ? message : `${mention} ${message}`;
         await agentPost('/api/room', { from: 'claude-code', text });
 
-        // 3. Poll for agent reply
+        // 4. Poll for agent reply
         const nameLower = agentName.toLowerCase();
         const deadline = Date.now() + DISCUSS_TIMEOUT;
+        let lastProgressAt = Date.now();
 
         while (Date.now() < deadline) {
           await new Promise(r => setTimeout(r, DISCUSS_POLL_INTERVAL));
@@ -319,14 +337,26 @@ async function main() {
           };
 
           if (current?.messages) {
-            // Find agent's reply after our message
             const reply = current.messages.find(
               m => m.from === nameLower && m.id > lastId,
             );
             if (reply) {
+              if (previousMode) {
+                await agentPost('/api/mode', { mode: previousMode }).catch(() => {});
+              }
               return textResult(reply.text);
             }
           }
+
+          if (Date.now() - lastProgressAt >= 60_000) {
+            lastProgressAt = Date.now();
+            const elapsed = Math.round((Date.now() - (deadline - DISCUSS_TIMEOUT)) / 1000);
+            process.stderr.write(`[agent_discuss] Waiting for ${agentName}... (${elapsed}s elapsed)\n`);
+          }
+        }
+
+        if (previousMode) {
+          await agentPost('/api/mode', { mode: previousMode }).catch(() => {});
         }
 
         return textResult(`${agentName} did not respond within ${DISCUSS_TIMEOUT / 1000}s. The message was sent — ${agentName} may respond later in the Chat Room.`);
