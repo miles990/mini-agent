@@ -384,6 +384,7 @@ Agent 回應中的特殊標籤，系統自動解析處理：
 | `[CHAT]...[/CHAT]` | 主動跟用戶聊天（非阻塞） | 💬 Telegram |
 | `[ASK]...[/ASK]` | 需要 Alex 回覆的問題（建立 ConversationThread） | ❓ Telegram |
 | `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
+| `[INNER]...[/INNER]` | 更新工作記憶（跨 cycle 的 scratch pad，每次全量覆寫） | — |
 | `[IMPULSE]...[/IMPULSE]` | 捕捉創作衝動到 inner voice buffer | — |
 | `[SCHEDULE next="Xm" reason="..."]` | 自主排程下次 cycle 間隔（2m-4h） | — |
 | `[DONE]...[/DONE]` | 標記 NEXT.md 任務完成 | — |

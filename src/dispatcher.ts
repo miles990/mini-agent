@@ -105,6 +105,11 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode): 
   Example: [SHOW url="http://localhost:3000"]Portfolio 網站已啟動，打開看看[/SHOW]
   Example: [SHOW url="https://news.ycombinator.com/item?id=123"]這篇文章很有趣[/SHOW]
 
+- Use [INNER]...[/INNER] to update your working memory — what you're currently tracking, thinking about,
+  or working on. Unlike [REMEMBER] (long-term), this is your scratch pad that persists across cycles.
+  Overwrite each time with full current state (not append). Use it every cycle when you have active context.
+  Example: [INNER]Currently tracking: CLI stability (0 timeouts last 24h). Pending: inner voice draft about constraints.[/INNER]
+
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
 ${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
