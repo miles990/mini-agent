@@ -1876,7 +1876,7 @@ export function createApi(port = 3001): express.Express {
         content = content.replace('## Pending\n', `## Pending\n${inboxEntry}\n`);
         await fsPromises.writeFile(inboxPath, content, 'utf-8');
 
-        eventBus.emit('trigger:room', { source: 'room-api', from, text });
+        eventBus.emit('trigger:room', { source: 'room-api', from, text, roomMsgId: id });
       }
 
       // Dual-write to unified inbox

@@ -605,6 +605,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - **時間戳一律確認 UTC/本地時間再下結論**。server.log 用 ISO 格式（UTC），不要用人類直覺猜時間
 - **修改 src/ 或 memory/ 之前，先 `curl -sf localhost:3001/status` 確認 Kuro 當前狀態**。避免在 Kuro active cycle 中修改檔案造成誤觸發（Claude Code 的 edit 也是 Kuro 環境的一部分 — file change → trigger:workspace → cycle）
 - 修改 Kuro 的 learning/behavior intervals 時，驗證 dynamic intervals（如 5-20min）被保留，不要意外替換成 fixed intervals。Night-mode 也要用 dynamic scheduling 除非明確指定
+- **內容被截斷時，查來源 log**。Hook、API、dashboard 等介面常截斷長文。看到 `...` 或內容不完整時，直接查來源：`memory/conversations/YYYY-MM-DD.jsonl`（Chat Room）、instance `logs/` 目錄、`server.log` 等。不要用截斷的摘要做判斷
 
 ## 自主解決問題
 

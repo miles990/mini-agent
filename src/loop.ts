@@ -38,6 +38,9 @@ import { withFileLock } from './filelock.js';
 import { readPendingInbox, markAllInboxProcessed, markInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram } from './inbox.js';
 import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
+import { writeRoomMessage } from './observability.js';
+import { readMemory } from './memory.js';
+import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
 import type { LoopState } from './event-router.js';
 import {
@@ -242,6 +245,10 @@ export class AgentLoop {
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
 
+  // ── Quick Reply (parallel response during cycling) ──
+  private quickReplyInFlight = false;
+  private quickReplyRecord: { question: string; answer: string; source: string; ts: string } | null = null;
+
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
 
@@ -336,6 +343,17 @@ export class AgentLoop {
           return;
         }
 
+        // Quick Reply: if cycle has been running >10s and this is a direct message,
+        // dispatch a parallel lightweight response without interrupting the cycle
+        const cycleAge = now - this.lastCycleTime;
+        if (cycleAge > 10_000 && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
+          const text = (agentEvent.data?.text as string) ?? '';
+          const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
+          if (text) {
+            this.quickReply(event.source, text, roomMsgId).catch(() => {});
+          }
+        }
+
         // Cooperative yield: set pendingPriority, let cycle finish naturally
         const msgCount = (agentEvent.data?.messageCount as number) ?? 1;
         const reason = `${event.source}${event.priority === Priority.P0 ? '-P0' : '-P1'}`;
@@ -375,6 +393,83 @@ export class AgentLoop {
       case 'deferred':
         slog('LOOP', `[unified] Event deferred: ${event.source} (${decision.reason})`);
         return;
+    }
+  }
+
+  /**
+   * Quick Reply — parallel response while a cycle is in progress.
+   * Uses minimal context (same as /api/ask) to reply immediately without
+   * interrupting the current cycle. Fire-and-forget.
+   */
+  private async quickReply(source: string, text: string, replyTo?: string): Promise<void> {
+    if (this.quickReplyInFlight) return; // one at a time
+    this.quickReplyInFlight = true;
+
+    try {
+      const memory = getMemory();
+      let context = await memory.buildContext({ mode: 'minimal' });
+
+      // Append MEMORY.md excerpt (same as /api/ask)
+      const memContent = await readMemory();
+      if (memContent) {
+        context += `\n\n<memory>\n${memContent.slice(0, 2000)}\n</memory>`;
+      }
+
+      // Append today's recent chat room messages
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      try {
+        const raw = fs.readFileSync(convPath, 'utf-8');
+        const msgs = raw.split('\n').filter(Boolean).map(line => {
+          try { return JSON.parse(line) as { from: string; text: string; ts?: string }; } catch { return null; }
+        }).filter(Boolean).slice(-15);
+        if (msgs.length > 0) {
+          const chatLines = msgs.map(m => `[${m!.ts ?? ''}] (${m!.from}) ${m!.text}`).join('\n');
+          context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
+        }
+      } catch { /* no conversations today */ }
+
+      // Reserved mode: include working memory
+      if (getMode().mode === 'reserved') {
+        const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+        try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim()}\n</inner_notes>`; } catch {}
+        const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
+        try { const c = fs.readFileSync(trackingPath, 'utf-8'); if (c.trim()) context += `\n\n<tracking_notes>\n${c.trim()}\n</tracking_notes>`; } catch {}
+      }
+
+      context += `\n\n<quick_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是快速回覆模式——直接對話回應，不需要做 OODA 分析。你的深度思考會繼續進行，之後有需要補充的可以再說。\n</quick_reply_mode>`;
+
+      const { response } = await callClaude(text, context, 1);
+
+      // Parse tags, extract clean content
+      const tags = parseTags(response);
+      const answer = tags.cleanContent || response;
+
+      // Handle [REMEMBER] tags (fire-and-forget)
+      for (const rem of tags.remembers) {
+        if (rem.topic) {
+          memory.appendTopicMemory(rem.topic, rem.content, rem.ref).catch(() => {});
+        } else {
+          memory.appendMemory(rem.content).catch(() => {});
+        }
+      }
+
+      // Send reply to the appropriate channel
+      if (source === 'telegram') {
+        notifyTelegram(answer).catch(() => {});
+      }
+      // Always write to chat room (visible to all)
+      await writeRoomMessage('kuro', answer, replyTo);
+
+      // Record for next cycle awareness
+      this.quickReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString() };
+
+      slog('LOOP', `[quick-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
+      eventBus.emit('action:loop', { event: 'quick-reply', source, answerLength: answer.length });
+    } catch (err) {
+      slog('ERROR', `[quick-reply] Failed: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      this.quickReplyInFlight = false;
     }
   }
 
@@ -701,6 +796,12 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
+      // Quick Reply record: if a parallel reply was sent during the previous cycle
+      const quickReplySuffix = this.quickReplyRecord
+        ? `\n\nDuring your previous cycle, a ${this.quickReplyRecord.source} message arrived and was answered via quick-reply (parallel, lightweight). Question: "${this.quickReplyRecord.question.slice(0, 200)}" → Your quick answer: "${this.quickReplyRecord.answer.slice(0, 200)}". Only follow up if you have something substantive to add.`
+        : '';
+      this.quickReplyRecord = null; // one-shot
+
       // Rule-based triage from unified inbox（零 LLM 成本）
       // Re-use inboxItemsEarly — already read above for inbox-recovery check
       const inboxItems = inboxItemsEarly;
@@ -762,7 +863,7 @@ export class AgentLoop {
         }
       }
 
-      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + hesitationReviewSuffix;
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + quickReplySuffix + hesitationReviewSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
