@@ -24,3 +24,4 @@
 | github | kuro | #57 proposal: Unified Nervous System — 統一事件管線 + 無心智路由 | needs-triage | 02-24 | — |
 | github | kuro | #58 Hesitation Signal — 功能性感覺作為推理中斷機制 | needs-triage | 02-24 | — |
 | github | kuro | #59 kuro-sense: 感知能力管理工具 (Go) | needs-triage | 02-24 | — |
+| github | kuro | #64 feat: layered mode architecture + /api/ask sync endpoint | needs-triage | 02-25 | — |
