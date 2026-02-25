@@ -132,9 +132,15 @@ export class DigestBot {
           await sleep(10000);
           continue;
         }
-        slog('DIGEST-BOT', `Poll error: ${msg}`);
-        await sleep(this.retryDelay);
-        this.retryDelay = Math.min(this.retryDelay * 2, 60000);
+        // Long-polling timeout/abort is normal — only log real errors
+        const isTimeout = msg.includes('aborted') || msg.includes('timeout');
+        if (!isTimeout) {
+          slog('DIGEST-BOT', `Poll error: ${msg}`);
+        }
+        await sleep(isTimeout ? 1000 : this.retryDelay);
+        if (!isTimeout) {
+          this.retryDelay = Math.min(this.retryDelay * 2, 60000);
+        }
       }
     }
   }
