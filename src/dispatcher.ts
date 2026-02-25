@@ -360,17 +360,17 @@ export async function postProcess(
     memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
   }
 
-  // [INNER] tag — working memory, only active in reserved mode
+  // [INNER] tag — working memory, active in reserved + autonomous mode
   if (tags.inner) {
     const mode = getMode();
-    if (mode.mode === 'reserved') {
+    if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
       // Atomic write: tmp → rename，防止 snapshot 讀到半寫狀態
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
       const tmpPath = innerPath + '.tmp';
       fs.writeFile(tmpPath, tags.inner, 'utf-8')
         .then(() => fs.rename(tmpPath, innerPath))
         .catch(() => {}); // fire-and-forget
-      slog('INNER', 'Working memory updated');
+      slog('INNER', `Working memory updated (${mode.mode})`);
     }
   }
 

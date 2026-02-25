@@ -1681,22 +1681,21 @@ export function createApi(port = 3001): express.Express {
       // --- Topic pulse (what topics I've been exploring) ---
       const topicUtility = memory.getTopicUtility();
 
-      // --- Inner Notes + Tracking Notes (reserved mode working memory) ---
+      // --- Inner Notes + Tracking Notes (all modes read; reserved+autonomous write) ---
       let innerNotes: string | null = null;
       let trackingNotes: string | null = null;
       const currentModeReport = getMode();
-      if (currentModeReport.mode === 'reserved') {
-        const innerNotesPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-        try {
-          const c = await fsPromises.readFile(innerNotesPath, 'utf-8');
-          if (c.trim()) innerNotes = c.trim();
-        } catch { /* ok */ }
-        const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
-        try {
-          const c = await fsPromises.readFile(trackingPath, 'utf-8');
-          if (c.trim()) trackingNotes = c.trim();
-        } catch { /* ok */ }
-      }
+      // Always read — calm shows previous content read-only
+      const innerNotesPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+      try {
+        const c = await fsPromises.readFile(innerNotesPath, 'utf-8');
+        if (c.trim()) innerNotes = c.trim();
+      } catch { /* ok */ }
+      const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
+      try {
+        const c = await fsPromises.readFile(trackingPath, 'utf-8');
+        if (c.trim()) trackingNotes = c.trim();
+      } catch { /* ok */ }
 
       res.json({
         traits,
@@ -1709,6 +1708,8 @@ export function createApi(port = 3001): express.Express {
         topicPulse: topicUtility,
         innerNotes,
         trackingNotes,
+        innerNotesWritable: currentModeReport.mode === 'reserved' || currentModeReport.mode === 'autonomous',
+        agentMode: currentModeReport.mode,
       });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });

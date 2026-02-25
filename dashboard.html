@@ -1263,6 +1263,10 @@
     text-transform: lowercase;
     letter-spacing: 0.04em;
   }
+  .inner-mode-tag.readonly {
+    background: var(--surface2);
+    color: var(--text3);
+  }
   .inner-notes-text {
     font-size: 12px;
     color: var(--text2);
@@ -1762,7 +1766,10 @@
         <span class="kuro-name">Kuro</span>
         <span style="color:var(--text3);font-size:12px;" id="innerFocus">--</span>
       </div>
-      <span class="mood-badge waking" id="moodBadge">--</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="agentModeBadge" style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">--</span>
+        <span class="mood-badge waking" id="moodBadge">--</span>
+      </div>
     </div>
 
     <!-- Now Thinking — what Kuro is currently doing (most important for human readability) -->
@@ -1777,7 +1784,7 @@
     <div id="innerNotesSection" class="inner-notes-block" style="display:none;">
       <div class="inner-notes-label">
         Working Memory
-        <span class="inner-mode-tag">reserved</span>
+        <span class="inner-mode-tag" id="innerModeTag">writing</span>
       </div>
       <div id="innerNotesContent" class="inner-notes-text inner-notes-empty">（尚無筆記）</div>
       <div id="trackingNotesSection" style="display:none;">
@@ -2202,6 +2209,18 @@ function findLibraryMatch(urls) {
 function renderInnerState(data) {
   if (!data) return;
 
+  // Agent mode badge (calm / reserved / autonomous)
+  const agentModeBadge = document.getElementById('agentModeBadge');
+  if (agentModeBadge && data.agentMode) {
+    const modeColors = {
+      calm: 'background:var(--blue-dim);color:var(--blue)',
+      reserved: 'background:var(--purple-dim);color:var(--purple)',
+      autonomous: 'background:var(--accent-dim);color:var(--accent)',
+    };
+    agentModeBadge.textContent = data.agentMode;
+    agentModeBadge.style.cssText = 'font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.06em;' + (modeColors[data.agentMode] || 'background:var(--surface2);color:var(--text3)');
+  }
+
   // Mood badge
   const moodBadge = document.getElementById('moodBadge');
   const moodState = data.mood?.state || 'waking';
@@ -2319,22 +2338,29 @@ function renderInnerState(data) {
     traitEl.innerHTML = html;
   }
 
-  // Inner Notes — working memory (reserved mode only)
+  // Inner Notes — working memory (reserved+autonomous: writing; calm: read-only)
   const innerNotesSection = document.getElementById('innerNotesSection');
   const innerNotesContent = document.getElementById('innerNotesContent');
+  const innerModeTag = document.getElementById('innerModeTag');
   const trackingNotesSection = document.getElementById('trackingNotesSection');
   const trackingNotesContent = document.getElementById('trackingNotesContent');
 
-  if (data.innerNotes) {
+  const writable = data.innerNotesWritable !== false;
+  // Show section if: has content, or in a writable mode (so Kuro can see the empty state)
+  if (data.innerNotes || writable) {
     innerNotesSection.style.display = 'block';
-    innerNotesContent.className = 'inner-notes-text';
-    innerNotesContent.textContent = data.innerNotes;
-  } else if (data.trackingNotes) {
-    // reserved mode but no inner notes yet — still show the section
-    innerNotesSection.style.display = 'block';
-    innerNotesContent.className = 'inner-notes-text inner-notes-empty';
-    innerNotesContent.textContent = '（OODA 尚未寫入工作記憶）';
+    // Badge: writing (reserved/autonomous) vs read-only (calm)
+    innerModeTag.textContent = writable ? 'writing' : 'read-only';
+    innerModeTag.className = 'inner-mode-tag' + (writable ? '' : ' readonly');
+    if (data.innerNotes) {
+      innerNotesContent.className = 'inner-notes-text';
+      innerNotesContent.textContent = data.innerNotes;
+    } else {
+      innerNotesContent.className = 'inner-notes-text inner-notes-empty';
+      innerNotesContent.textContent = '（OODA 尚未寫入工作記憶）';
+    }
   } else {
+    // calm mode + no existing notes → hide entirely
     innerNotesSection.style.display = 'none';
   }
 
