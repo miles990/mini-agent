@@ -2009,7 +2009,7 @@ export function createApi(port = 3001): express.Express {
       const contextAge = new Date().toISOString();
       context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式，不跑感知 plugins。感知資料為快取（${contextAge}）。\n</ask_mode>`;
 
-      const { response } = await callClaude(question, context, 1);
+      const { response } = await callClaude(question, context, 1, { source: 'ask' });
 
       // 處理 [REMEMBER] tags（fire-and-forget）
       const tags = parseTags(response);

@@ -119,7 +119,7 @@ function classifyError(error: unknown): ErrorClassification {
 // Lane Types
 // =============================================================================
 
-export type CallSource = 'loop';
+export type CallSource = 'loop' | 'ask';
 
 interface TaskInfo {
   prompt: string;
@@ -618,11 +618,13 @@ export async function callClaude(
   }
 
   // Busy helpers (OODA-Only: single loop lane)
-  const isBusy = () => loopBusy;
-  const setBusy = (v: boolean) => { loopBusy = v; };
-  const setTask = (v: TaskInfo | null) => { loopTask = v; };
+  // 'ask' source runs in parallel — no busy guard, no loop state tracking
+  const isLoopSource = source === 'loop';
+  const isBusy = () => isLoopSource && loopBusy;
+  const setBusy = (v: boolean) => { if (isLoopSource) loopBusy = v; };
+  const setTask = (v: TaskInfo | null) => { if (isLoopSource) loopTask = v; };
 
-  // Busy guard — 防止同一 lane 並發呼叫
+  // Busy guard — 防止同一 lane 並發呼叫（only for loop source）
   if (isBusy()) {
     return {
       response: '我正在處理另一個請求，請稍後再試。',

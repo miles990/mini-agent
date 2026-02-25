@@ -439,7 +439,7 @@ export class AgentLoop {
 
       context += `\n\n<quick_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是快速回覆模式——直接對話回應，不需要做 OODA 分析。你的深度思考會繼續進行，之後有需要補充的可以再說。\n</quick_reply_mode>`;
 
-      const { response } = await callClaude(text, context, 1);
+      const { response } = await callClaude(text, context, 1, { source: 'ask' });
 
       // Parse tags, extract clean content
       const tags = parseTags(response);
