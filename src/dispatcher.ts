@@ -5,12 +5,15 @@
  * 所有訊息統一由 Loop Lane (OODA cycle) 處理。
  */
 
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, type CycleMode } from './memory.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
+import { getMode } from './mode.js';
 import type { AgentResponse, ParsedTags, ThreadAction } from './types.js';
 
 // =============================================================================
@@ -243,6 +246,13 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // [INNER] tag — working memory for reserved mode
+  let inner: string | undefined;
+  if (parseSource.includes('[INNER]')) {
+    const m = parseSource.match(/\[INNER\](.*?)\[\/INNER\]/s);
+    if (m) inner = m[1].trim();
+  }
+
   let schedule: { next: string; reason: string } | undefined;
   if (parseSource.includes('[SCHEDULE')) {
     const match = parseSource.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
@@ -276,6 +286,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[SCHEDULE[^\]]*\]/g, '')
     .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')
     .replace(/\[PROGRESS[^\]]*\].*?\[\/PROGRESS\]/gs, '')
+    .replace(/\[INNER\].*?\[\/INNER\]/gs, '')
     .trim();
 
   // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
@@ -284,7 +295,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD', 'PROGRESS'];
+  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD', 'PROGRESS', 'INNER'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
     const closeCount = (responseForDetection.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
@@ -293,7 +304,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, schedule, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, schedule, inner, cleanContent };
 }
 
 // =============================================================================
@@ -347,6 +358,16 @@ export async function postProcess(
   // [IMPULSE] tags — persist creative impulses to inner voice buffer
   for (const impulse of tags.impulses) {
     memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
+  }
+
+  // [INNER] tag — working memory, only active in reserved mode
+  if (tags.inner) {
+    const mode = getMode();
+    if (mode.mode === 'reserved') {
+      const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+      fs.writeFile(innerPath, tags.inner, 'utf-8').catch(() => {}); // fire-and-forget
+      slog('INNER', 'Working memory updated');
+    }
   }
 
   for (const t of tags.tasks) {

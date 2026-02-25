@@ -317,6 +317,7 @@ export interface ParsedTags {
   dones: string[];
   progresses: Array<{ task: string; content: string }>;
   schedule?: { next: string; reason: string };
+  inner?: string;
   cleanContent: string;
 }
 

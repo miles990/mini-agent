@@ -1,7 +1,7 @@
 # Proposal: Reserved Mode Working Memory
 
 ## Meta
-- Status: pending
+- Status: in_progress
 - Effort: Medium
 - Created: 2026-02-25
 - Author: Kuro + Alex (collaborative design)
