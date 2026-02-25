@@ -331,6 +331,17 @@ export class AgentLoop {
     agentEvent: AgentEvent,
     now: number,
   ): void {
+    // Quick Reply: independent of router priority — any direct message during long-running
+    // cycle gets a parallel lightweight response without interrupting the cycle
+    const cycleAge = now - this.lastCycleTime;
+    if (cycleAge > 10_000 && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
+      const text = (agentEvent.data?.text as string) ?? '';
+      const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
+      if (text) {
+        this.quickReply(event.source, text, roomMsgId).catch(() => {});
+      }
+    }
+
     switch (decision.lane) {
       case 'preempt':
       case 'immediate': {
@@ -341,17 +352,6 @@ export class AgentLoop {
           this.telegramWakeQueue++;
           slog('LOOP', `[unified] ${event.source} queued (${this.telegramWakeQueue} pending, mode: ${this.currentMode})`);
           return;
-        }
-
-        // Quick Reply: if cycle has been running >10s and this is a direct message,
-        // dispatch a parallel lightweight response without interrupting the cycle
-        const cycleAge = now - this.lastCycleTime;
-        if (cycleAge > 10_000 && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
-          const text = (agentEvent.data?.text as string) ?? '';
-          const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
-          if (text) {
-            this.quickReply(event.source, text, roomMsgId).catch(() => {});
-          }
         }
 
         // Cooperative yield: set pendingPriority, let cycle finish naturally
