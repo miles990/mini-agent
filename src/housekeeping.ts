@@ -291,9 +291,11 @@ export async function expireOldInboxItems(): Promise<void> {
 // Sync Handoff Status
 // =============================================================================
 
+const closedIssues = new Set<string>();
+
 /**
- * 掃描 handoffs/ 的 completed status → 未來可自動 close GitHub issue。
- * 目前只做日誌記錄。
+ * 掃描 handoffs/ 的 completed status → 自動 close 對應 GitHub issue。
+ * 已 close 的 issue 不重複處理（檔案內 Issue-Closed 標記 + memory Set）。
  */
 export async function syncHandoffStatus(): Promise<void> {
   const handoffsDir = path.join(process.cwd(), 'memory', 'handoffs');
@@ -302,15 +304,36 @@ export async function syncHandoffStatus(): Promise<void> {
   try {
     const files = fs.readdirSync(handoffsDir).filter(f => f.endsWith('.md') && f !== 'active.md');
     for (const file of files) {
-      const content = fs.readFileSync(path.join(handoffsDir, file), 'utf-8');
+      const filePath = path.join(handoffsDir, file);
+      const content = fs.readFileSync(filePath, 'utf-8');
       const statusMatch = content.match(/Status:\s*(completed)/i);
       const issueMatch = content.match(/GitHub-Issue:\s*#?(\d+)/i);
 
-      if (statusMatch && issueMatch) {
-        // Could auto-close GitHub issue here in the future
-        // For now, just log
-        slog('HOUSEKEEPING', `handoff ${file} completed, issue #${issueMatch[1]}`);
+      if (!statusMatch || !issueMatch) continue;
+
+      const issueNum = issueMatch[1];
+
+      // Skip if already marked as closed in file or in-memory
+      if (content.includes('Issue-Closed: true') || closedIssues.has(issueNum)) continue;
+
+      // Try to close the GitHub issue
+      try {
+        await execFileAsync('gh', ['issue', 'close', issueNum, '-c', `Completed via handoff ${file}`], {
+          cwd: process.cwd(), encoding: 'utf-8', timeout: 15000,
+        });
+        slog('HOUSEKEEPING', `closed issue #${issueNum} (handoff ${file} completed)`);
+      } catch {
+        // Issue may already be closed or gh not available — mark anyway to stop retrying
+        slog('HOUSEKEEPING', `issue #${issueNum} close skipped (already closed or gh unavailable)`);
       }
+
+      // Mark in file so it never retries across restarts
+      const updated = content.replace(
+        /(GitHub-Issue:\s*#?\d+)/i,
+        `$1\n- Issue-Closed: true`,
+      );
+      fs.writeFileSync(filePath, updated);
+      closedIssues.add(issueNum);
     }
   } catch { /* non-critical */ }
 }
