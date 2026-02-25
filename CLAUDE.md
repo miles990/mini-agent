@@ -654,8 +654,9 @@ Alex 手機 (RC) ↔ Claude Code (MCP tools + Hook) ↔ Agent instance (HTTP API
 
 **MCP Server**（`src/mcp-server.ts`，stdio transport）：
 - 啟動時自動偵測 agent 名字（`GET /api/instance` → fallback `AGENT_NAME` env → `"Agent"`）
-- 13 tools：狀態類（`agent_status`, `agent_context`, `agent_logs`, `agent_memory_search`, `agent_read_messages`）+ 控制類（`agent_loop_pause/resume/trigger`, `agent_feature_toggle`, `agent_get_mode`, `agent_set_mode`）+ 協作類（`agent_chat`, `agent_discuss`）
-- `agent_discuss` 同步等待回覆（每 5s poll，最多 90s）
+- 14 tools：狀態類（`agent_status`, `agent_context`, `agent_logs`, `agent_memory_search`, `agent_read_messages`）+ 控制類（`agent_loop_pause/resume/trigger`, `agent_feature_toggle`, `agent_get_mode`, `agent_set_mode`）+ 協作類（`agent_chat`, `agent_discuss`, `agent_ask`）
+- `agent_ask` 同步問答（直接呼叫 `/api/ask`，30s timeout，always-on 不受 mode 影響）
+- `agent_discuss` 同步等待回覆（每 10s poll，最多 5 min），依賴 calm mode direct message wake
 - `agent_chat` 自動加 `@{name}` mention
 - 所有 HTTP 呼叫帶 `X-API-Key` header（`MINI_AGENT_API_KEY` env）
 - Agent 離線時返回友好錯誤訊息而非 crash
@@ -697,11 +698,27 @@ claude --mcp-config mcp-agent.json   # 啟動帶 MCP 的 Claude Code
 - API: `GET /api/mode`（取得當前模式）、`POST /api/mode { mode }`（切換）
 - MCP: `agent_get_mode`、`agent_set_mode`
 
+**疊加式架構**（GitHub Issue #64）：地基溝通能力 always-on，上層加自主行為：
+```
+地基（Communication Layer）— 不受 mode 影響
+├── POST /api/ask   → 同步問答（5-15s，minimal context）
+└── POST /api/room  → 非同步討論（agent_discuss）
+
+reserved  = 地基 + OODA 靜音運行（感知、學習，不主動發話）
+autonomous = reserved + 主動行為（telegram、GitHub、auto-escalate）
+```
+
 | Mode | 說明 | 特徵 |
 |------|------|------|
 | **calm** | 最低活動量，只回應直接訊息 | Loop paused, cron off, feedback off |
-| **reserved** | 正常運行但不主動發起 | Loop on, cron on, notifications off |
+| **reserved** | 靜音運行 — OODA 執行但不主動發話 | Loop on, cron on, notifications off |
 | **autonomous** | 完全自主（預設） | 全部啟用 |
+
+**`POST /api/ask`**（always-on 同步問答）：
+- Context：soul + heartbeat + NEXT Now + MEMORY.md 頭 2000 chars + 今日 Chat Room 最近 15 條
+- 處理 `[REMEMBER]` tag（fire-and-forget）
+- 不跑 perception plugins（使用快取感知資料）
+- Response：`{ ok: true, answer: string, contextAge: ISO string }`
 
 ## kuro-sense — 感知能力管理工具
 
