@@ -53,7 +53,7 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
-import { getMode, setMode, isValidMode, setLoopController, getModeNames } from './mode.js';
+import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { parseTags } from './dispatcher.js';
 
 // =============================================================================
@@ -912,6 +912,18 @@ export function createApi(port = 3001): express.Express {
   // =============================================================================
 
   // GET /api/mode — 取得當前模式
+  // =============================================================================
+  // Mode persistence helpers
+  // =============================================================================
+
+  function getModeStatePath(): string {
+    return path.join(os.homedir(), '.mini-agent', 'instances', getCurrentInstanceId(), 'mode.json');
+  }
+
+  function saveModeState(mode: ModeName): void {
+    fsPromises.writeFile(getModeStatePath(), JSON.stringify({ mode }), 'utf-8').catch(() => {});
+  }
+
   app.get('/api/mode', (_req: Request, res: Response) => {
     res.json(getMode());
   });
@@ -995,6 +1007,9 @@ export function createApi(port = 3001): express.Express {
         }
       })();
     }
+
+    // 持久化模式到磁碟（fire-and-forget）
+    saveModeState(mode);
 
     res.json(report);
   });
@@ -2221,8 +2236,19 @@ if (isMain) {
     if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
     if (loopRef) {
       loopRef.start();
-      setMode('calm');
-      slog('MODE', 'Startup default: calm mode');
+
+      // 恢復持久化 mode；找不到持久化狀態才預設 calm
+      let startupMode: ModeName = 'calm';
+      const modeStatePath = path.join(os.homedir(), '.mini-agent', 'instances', instanceId, 'mode.json');
+      try {
+        const saved = JSON.parse(fs.readFileSync(modeStatePath, 'utf-8')) as { mode?: string };
+        if (saved.mode && isValidMode(saved.mode)) {
+          startupMode = saved.mode;
+        }
+      } catch { /* no persisted mode, use calm */ }
+
+      setMode(startupMode);
+      slog('MODE', `Startup mode: ${startupMode}${startupMode === 'calm' ? ' (default)' : ' (restored)'}`);
     }
     if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
