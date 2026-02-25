@@ -1268,8 +1268,8 @@ export class InstanceMemory {
    * @param options.relevanceHint - 關鍵字提示，用於篩選相關感知（可選）
    * @param options.mode - 'full' | 'focused' | 'minimal'
    *   - full: 載入所有感知（用於 processMessage）
-   *   - focused: 只載入核心感知（用於 AgentLoop）
-   *   - minimal: 最小 context — 身份 + 任務 + 最近對話（用於超時重試）
+   *   - focused: 只載入核心感知 + perception streams（用於 AgentLoop 常規 cycle）
+   *   - minimal: 輕量 context — 身份 + inbox + 對話脈絡（用於簡單對話回覆 + 超時重試）
    */
   async buildContext(options?: {
     relevanceHint?: string;
@@ -1749,7 +1749,7 @@ export class InstanceMemory {
     const sections: string[] = [];
 
     // 環境
-    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL MODE: context reduced for retry]\n</environment>`);
+    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[LIGHTWEIGHT CONTEXT: soul + inbox + recent conversations]\n</environment>`);
 
     // TG 狀態（極小）
     const tgPoller = getTelegramPoller();
@@ -1772,6 +1772,25 @@ export class InstanceMemory {
     if (nextRaw) {
       const nowMatch = nextRaw.match(/## Now[^]*?(?=\n---|\n## )/);
       if (nowMatch) sections.push(`<next>\n${nowMatch[0].trim()}\n</next>`);
+    }
+
+    // Unified Inbox（對話回覆需要看到收到的訊息）
+    const inboxItems = readPendingInbox();
+    const inboxCtx = formatInboxSection(inboxItems);
+    if (inboxCtx) {
+      sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
+    }
+
+    // Conversation Threads（對話脈絡追蹤）
+    const convThreads = await this.getConversationThreads();
+    const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
+    if (activeConvThreads.length > 0) {
+      const threadLines = activeConvThreads.map(t => {
+        const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
+        const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
+        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
+      });
+      sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }
 
     // 最近 5 則對話
