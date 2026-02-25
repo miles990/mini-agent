@@ -2539,7 +2539,7 @@ function updateStatus(s) {
   if (s.claude.busy) {
     claudeEl.textContent = 'Busy';
     claudeEl.className = 'stat-value yellow';
-    const task = s.claude.currentTask;
+    const task = s.claude.loop?.task;
     claudeDetail.textContent = task?.prompt ? task.prompt.slice(0, 50) + '...' : '';
   } else {
     claudeEl.textContent = 'Idle';
@@ -2583,7 +2583,7 @@ function updateStatus(s) {
 function renderTaskSection(claude) {
   const container = document.getElementById('taskContent');
   const queueCountEl = document.getElementById('queueCount');
-  const task = claude.currentTask;
+  const task = claude.loop?.task;
   const queue = claude.queue;
 
   let html = '';
