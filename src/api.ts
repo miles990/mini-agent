@@ -2072,6 +2072,8 @@ if (isMain) {
     if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
     if (loopRef) {
       loopRef.start();
+      setMode('calm');
+      slog('MODE', 'Startup default: calm mode');
     }
     if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
