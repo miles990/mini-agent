@@ -10,7 +10,7 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getLaneStatus } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getLaneStatus, callClaude } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -54,6 +54,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames } from './mode.js';
+import { parseTags } from './dispatcher.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1842,6 +1843,63 @@ export function createApi(port = 3001): express.Express {
       eventBus.off('trigger:room', handler);
       clearInterval(keepalive);
     });
+  });
+
+  // POST /api/ask — 同步問答端點（always-on，不受 OODA mode 影響）
+  app.post('/api/ask', async (req: Request, res: Response) => {
+    const { question } = req.body as { question?: unknown };
+    if (!question || typeof question !== 'string') {
+      res.status(400).json({ error: 'question is required' });
+      return;
+    }
+
+    try {
+      const memory = getMemory();
+
+      // 建立 minimal context（soul + heartbeat + NEXT Now + recent convos）
+      let context = await memory.buildContext({ mode: 'minimal' });
+
+      // 補充 MEMORY.md 頭 2000 chars
+      const memContent = await readMemory();
+      if (memContent) {
+        const memExcerpt = memContent.slice(0, 2000);
+        context += `\n\n<memory>\n${memExcerpt}\n</memory>`;
+      }
+
+      // 補充今日 Chat Room 最近 15 條
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      try {
+        const raw = await fsPromises.readFile(convPath, 'utf-8');
+        const msgs = raw.split('\n').filter(Boolean).map(line => {
+          try { return JSON.parse(line) as { from: string; text: string; ts?: string }; } catch { return null; }
+        }).filter(Boolean).slice(-15);
+        if (msgs.length > 0) {
+          const chatLines = msgs.map(m => `[${m!.ts ?? ''}] (${m!.from}) ${m!.text}`).join('\n');
+          context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
+        }
+      } catch { /* no conversations today */ }
+
+      const contextAge = new Date().toISOString();
+      context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式，不跑感知 plugins。感知資料為快取（${contextAge}）。\n</ask_mode>`;
+
+      const { response } = await callClaude(question, context, 1);
+
+      // 處理 [REMEMBER] tags（fire-and-forget）
+      const tags = parseTags(response);
+      for (const rem of tags.remembers) {
+        if (rem.topic) {
+          memory.appendTopicMemory(rem.topic, rem.content, rem.ref).catch(() => {});
+        } else {
+          memory.appendMemory(rem.content).catch(() => {});
+        }
+      }
+
+      res.json({ ok: true, answer: tags.cleanContent, contextAge });
+    } catch (error) {
+      slog('ERROR', `Ask failed: ${error instanceof Error ? error.message : error}`);
+      res.status(500).json({ error: 'Ask failed' });
+    }
   });
 
   // SSE — Dashboard 即時事件流（Phase 3b）

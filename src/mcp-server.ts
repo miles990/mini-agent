@@ -292,39 +292,22 @@ async function main() {
 
   server.tool(
     'agent_discuss',
-    `Send a message to ${agentName} and wait for a response (up to 5 min). Auto-wakes ${agentName} from calm mode if needed, and restores mode after.`,
+    `Send a message to ${agentName} and wait for a response (up to 5 min). Works in all modes — calm mode uses direct message wake.`,
     { message: z.string().describe('Message to send') },
     async ({ message }) => {
       try {
-        // 1. Pre-flight: if loop is paused (calm mode), temporarily switch to reserved
-        let previousMode: string | null = null;
-        try {
-          const status = await agentGet('/status') as {
-            loop?: { paused?: boolean }
-          };
-          if (status?.loop?.paused) {
-            const modeData = await agentGet('/api/mode') as { mode?: string };
-            previousMode = modeData?.mode ?? null;
-            if (previousMode === 'calm') {
-              await agentPost('/api/mode', { mode: 'reserved' });
-            }
-          }
-        } catch {
-          // Status check failed — proceed anyway
-        }
-
-        // 2. Get current latest message ID
+        // 1. Get current latest message ID
         const today = new Date().toISOString().slice(0, 10);
         const before = await agentGet(`/api/room?date=${today}`) as { messages?: Array<{ id: string; from: string }> };
         const lastId = before?.messages?.length
           ? before.messages[before.messages.length - 1].id
           : '';
 
-        // 3. Send message with mention
+        // 2. Send message with mention
         const text = message.includes(mention) ? message : `${mention} ${message}`;
         await agentPost('/api/room', { from: 'claude-code', text });
 
-        // 4. Poll for agent reply
+        // 3. Poll for agent reply
         const nameLower = agentName.toLowerCase();
         const deadline = Date.now() + DISCUSS_TIMEOUT;
         let lastProgressAt = Date.now();
@@ -341,9 +324,6 @@ async function main() {
               m => m.from === nameLower && m.id > lastId,
             );
             if (reply) {
-              if (previousMode) {
-                await agentPost('/api/mode', { mode: previousMode }).catch(() => {});
-              }
               return textResult(reply.text);
             }
           }
@@ -355,13 +335,30 @@ async function main() {
           }
         }
 
-        if (previousMode) {
-          await agentPost('/api/mode', { mode: previousMode }).catch(() => {});
-        }
-
         return textResult(`${agentName} did not respond within ${DISCUSS_TIMEOUT / 1000}s. The message was sent — ${agentName} may respond later in the Chat Room.`);
       } catch (e) {
         return errorResult(`Discussion failed: ${e instanceof Error ? e.message : e}`);
+      }
+    },
+  );
+
+  server.tool(
+    'agent_ask',
+    `Ask ${agentName} a direct question (synchronous, 5-15s). Always available regardless of mode.`,
+    { question: z.string().describe('Question to ask') },
+    async ({ question }) => {
+      try {
+        const res = await agentFetch('/api/ask', {
+          method: 'POST',
+          body: JSON.stringify({ question }),
+          timeout: 30_000,
+        });
+        if (!res.ok) return errorResult(`Ask failed: HTTP ${res.status}`);
+        const data = await res.json() as { answer?: string; contextAge?: string };
+        const suffix = data.contextAge ? `\n\n_[感知資料截至 ${data.contextAge}]_` : '';
+        return textResult((data.answer ?? '(no response)') + suffix);
+      } catch (e) {
+        return errorResult(`Ask failed: ${e instanceof Error ? e.message : e}`);
       }
     },
   );

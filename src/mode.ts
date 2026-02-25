@@ -49,7 +49,7 @@ const MODES: Record<ModeName, ModeDefinition> = {
     loopPaused: true,
   },
   reserved: {
-    description: 'Normal operation but no proactive outreach',
+    description: 'Silent operation — OODA runs but no proactive outreach',
     features: {
       'ooda-loop': true,
       'cron': true,
