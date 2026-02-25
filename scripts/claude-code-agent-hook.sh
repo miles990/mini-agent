@@ -20,7 +20,7 @@ if [ -z "$INFO" ]; then
     exit 0
 fi
 
-NAME=$(echo "$INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('config',{}).get('name','Agent'))" 2>/dev/null || echo "Agent")
+NAME=$(echo "$INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name') or d.get('config',{}).get('name','Agent'))" 2>/dev/null || echo "Agent")
 NAME_LOWER=$(echo "$NAME" | tr '[:upper:]' '[:lower:]')
 
 STATUS=$(curl -sf --max-time 2 $AUTH_HEADER "$AGENT_URL/status" 2>/dev/null)

@@ -80,9 +80,10 @@ let mention = `@${agentName.toLowerCase()}`;
 
 async function detectAgentName(): Promise<void> {
   try {
-    const info = await agentGet('/api/instance') as { config?: { name?: string } };
-    if (info?.config?.name) {
-      agentName = info.config.name;
+    const info = await agentGet('/api/instance') as { name?: string; config?: { name?: string } };
+    const detected = info?.name || info?.config?.name;
+    if (detected) {
+      agentName = detected;
       mention = `@${agentName.toLowerCase()}`;
     }
   } catch {
