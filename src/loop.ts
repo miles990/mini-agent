@@ -208,6 +208,8 @@ export class AgentLoop {
   private config: AgentLoopConfig;
   private running = false;
   private paused = false;
+  /** One-shot flag: allows a single cycle to run while paused (calm mode direct messages) */
+  private calmWake = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private cycleCount = 0;
   private currentInterval: number;
@@ -266,9 +268,21 @@ export class AgentLoop {
   // Unified Event Handler (unified-pipeline feature toggle)
   // =========================================================================
 
+  /** Direct message sources that can wake the loop even when paused (calm mode) */
+  private static readonly DIRECT_MESSAGE_SOURCES: ReadonlySet<string> = new Set(['telegram', 'room', 'chat']);
+
   /** Unified event handler — all inputs through single L0→L4 pipeline */
   private handleUnifiedEvent = (agentEvent: AgentEvent): void => {
-    if (!this.running || this.paused) return;
+    if (!this.running) return;
+
+    // When paused (calm mode), only allow direct messages through
+    if (this.paused) {
+      if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') return;
+      const { source } = classifyTrigger(agentEvent.type, agentEvent.data);
+      if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(source)) return;
+      this.calmWake = true;
+      slog('LOOP', `[calm-wake] Direct message bypasses pause: ${agentEvent.type}`);
+    }
 
     // mark-processed is a perception cache refresh, not a real message.
     // Must bypass router entirely — otherwise it updates the cooldown timer for 'telegram'
@@ -432,7 +446,15 @@ export class AgentLoop {
       }
     }
 
-    if (!this.running || this.paused || this.cycling) return;
+    if (!this.running || this.cycling) return;
+
+    // When paused (calm mode), only allow direct message sources
+    if (this.paused) {
+      const { source } = classifyTrigger(event.type, event.data);
+      if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(source)) return;
+      this.calmWake = true;
+      slog('LOOP', `[calm-wake] Legacy: direct message bypasses pause: ${event.type}`);
+    }
 
     // Throttle: min 60s between cycles
     const now = Date.now();
@@ -451,7 +473,12 @@ export class AgentLoop {
     // ★ Unified pipeline: handled by handleTrigger → handleUnifiedEvent
     if (isEnabled('unified-pipeline')) return;
 
-    if (!this.running || this.paused) return;
+    if (!this.running) return;
+    // Telegram DM is always a direct message — allow in calm mode
+    if (this.paused) {
+      this.calmWake = true;
+      slog('LOOP', `[calm-wake] Legacy: telegram wake bypasses pause`);
+    }
 
     // Throttle: 5s between wake triggers
     const now = Date.now();
@@ -689,7 +716,8 @@ export class AgentLoop {
   }
 
   private async runCycle(): Promise<void> {
-    if (!this.running || this.paused) return;
+    if (!this.running || (this.paused && !this.calmWake)) return;
+    this.calmWake = false;
 
     this.lastCycleTime = Date.now();
 
@@ -1297,7 +1325,9 @@ export class AgentLoop {
         const drainStartWait = Date.now();
         const maxBusyWait = 120_000;
         const tryDrainPriority = () => {
-          if (!this.running || this.paused) return;
+          if (!this.running) return;
+          // Pending priority came from P0/P1 direct messages — re-arm calm wake for drain
+          if (this.paused) this.calmWake = true;
           if (isLoopBusy() && Date.now() - drainStartWait < maxBusyWait) {
             setTimeout(tryDrainPriority, 500);
             return;
@@ -1313,7 +1343,9 @@ export class AgentLoop {
         // Legacy: drain queued telegram wake requests
         this.telegramWakeQueue = 0;
         setTimeout(() => {
-          if (this.running && !this.paused && !this.cycling) {
+          // Queued telegram wakes are direct messages — re-arm calm wake
+          if (this.paused) this.calmWake = true;
+          if (this.running && !this.cycling) {
             this.triggerReason = 'telegram-user (queued)';
             this.runCycle();
           }
