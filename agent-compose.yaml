@@ -76,6 +76,8 @@ agents:
           script: ./plugins/github-prs.sh
         - name: feedback-status
           script: ./plugins/feedback-status.sh
+        - name: claude-code-sessions
+          script: ./plugins/claude-code-sessions.sh
         - name: x-feed
           script: ./plugins/x-perception.sh
           timeout: 35000

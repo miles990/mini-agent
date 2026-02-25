@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "agent": {
+      "command": "node",
+      "args": ["dist/mcp-server.js"],
+      "cwd": "/Users/user/Workspace/mini-agent",
+      "env": {
+        "AGENT_URL": "http://localhost:3001",
+        "MINI_AGENT_API_KEY": ""
+      }
+    }
+  }
+}

@@ -58,6 +58,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'mobile': 'workspace',
   'claude-code-inbox': 'workspace',
   'chat-room-inbox': 'workspace',
+  'claude-code-sessions': 'workspace',
   'environment-sense': 'heartbeat',
 };
 
