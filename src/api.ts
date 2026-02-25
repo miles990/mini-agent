@@ -117,9 +117,12 @@ function createRateLimiter(maxRequests = 60, windowMs = 60_000) {
 
   // Paths exempt from rate limiting (polling/streaming endpoints)
   const exempt = new Set(['/health', '/status', '/api/events', '/api/room/stream']);
+  // GET-only exemptions (read-only polling used by MCP agent_discuss)
+  const exemptGet = new Set(['/api/room', '/context', '/logs']);
 
   return (req: Request, res: Response, next: NextFunction): void => {
     if (exempt.has(req.path)) { next(); return; }
+    if (req.method === 'GET' && exemptGet.has(req.path)) { next(); return; }
 
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
     const now = Date.now();
