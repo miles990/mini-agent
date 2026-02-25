@@ -12,7 +12,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eventBus, distinctUntilChanged, debounce } from './event-bus.js';
+import { eventBus, distinctUntilChanged } from './event-bus.js';
 import { executePerception } from './perception.js';
 import type { PerceptionResult, CustomPerception } from './perception.js';
 import type { ComposePerception } from './types.js';
@@ -77,11 +77,6 @@ class PerceptionStreamManager {
   private _version = 0;
   private lastBuildHashes = new Map<string, string>();
 
-  // Layer 1 backpressure: debounce workspace triggers
-  private workspaceTriggerDebounce = debounce(() => {
-    eventBus.emit('trigger:workspace', { source: 'perception-batch', coalesced: true });
-  }, 5_000);
-
   get version(): number {
     return this._version;
   }
@@ -140,7 +135,7 @@ class PerceptionStreamManager {
     }
     this.streams.clear();
     this.running = false;
-    this.workspaceTriggerDebounce.cancel();
+    // (debounce removed — perception changes no longer trigger cycles)
   }
 
   isActive(): boolean {
@@ -286,12 +281,10 @@ class PerceptionStreamManager {
         }
       }
 
-      // Emit change trigger (may drive loop cycle)
-      // Workspace triggers are debounced to coalesce rapid plugin changes
-      const category = getCategory(entry.perception.name);
-      if (category === 'workspace') {
-        this.workspaceTriggerDebounce();
-      }
+      // Note: perception changes do NOT trigger cycles — data is cached and
+      // consumed by the next scheduled cycle or direct-message-triggered cycle.
+      // Previously emitted trigger:workspace here, but it caused continuous
+      // cycling (~every 30s) since workspace plugins detect changes frequently.
     }
   }
 }
