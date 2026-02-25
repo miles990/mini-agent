@@ -240,6 +240,38 @@ async function main() {
     },
   );
 
+  // ─── Mode tools ────────────────────────────────────────────────────────
+
+  server.tool(
+    'agent_get_mode',
+    `Get ${agentName}'s current control mode (calm/reserved/autonomous)`,
+    {},
+    async () => {
+      try {
+        const data = await agentGet('/api/mode');
+        return textResult(JSON.stringify(data, null, 2));
+      } catch (e) {
+        return errorResult(`Failed to get mode: ${e instanceof Error ? e.message : e}`);
+      }
+    },
+  );
+
+  server.tool(
+    'agent_set_mode',
+    `Set ${agentName}'s control mode: "calm" (minimal, only direct messages), "reserved" (normal ops, no proactive outreach), "autonomous" (fully autonomous)`,
+    {
+      mode: z.enum(['calm', 'reserved', 'autonomous']).describe('Control mode'),
+    },
+    async ({ mode }) => {
+      try {
+        const data = await agentPost('/api/mode', { mode });
+        return textResult(`${agentName} switched to "${mode}" mode.\n${JSON.stringify(data, null, 2)}`);
+      } catch (e) {
+        return errorResult(`Failed to set mode: ${e instanceof Error ? e.message : e}`);
+      }
+    },
+  );
+
   // ─── Collaboration tools (core value) ─────────────────────────────────
 
   server.tool(

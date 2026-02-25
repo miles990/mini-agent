@@ -53,6 +53,7 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
+import { getMode, setMode, isValidMode, setLoopController, getModeNames } from './mode.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -69,6 +70,9 @@ let loopRef: AgentLoop | null = null;
 
 export function setLoopRef(loop: AgentLoop | null): void {
   loopRef = loop;
+  if (loop) {
+    setLoopController({ pause: () => loop.pause(), resume: () => loop.resume() });
+  }
 }
 
 // =============================================================================
@@ -897,6 +901,27 @@ export function createApi(port = 3001): express.Express {
   app.post('/api/features/reset-all', (_req: Request, res: Response) => {
     resetStats();
     res.json({ ok: true });
+  });
+
+  // =============================================================================
+  // Mode — 冷靜/內斂/自主模式切換 (bundled feature toggles)
+  // =============================================================================
+
+  // GET /api/mode — 取得當前模式
+  app.get('/api/mode', (_req: Request, res: Response) => {
+    res.json(getMode());
+  });
+
+  // POST /api/mode — 切換模式
+  // Body: { mode: 'calm' | 'reserved' | 'autonomous' }
+  app.post('/api/mode', (req: Request, res: Response) => {
+    const { mode } = req.body ?? {};
+    if (!mode || !isValidMode(mode)) {
+      res.status(400).json({ error: `Invalid mode. Valid: ${getModeNames().join(', ')}` });
+      return;
+    }
+    const report = setMode(mode);
+    res.json(report);
   });
 
   // =============================================================================

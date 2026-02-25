@@ -105,6 +105,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | kuro-sense Web UI | `tools/kuro-sense/internal/web/` |
 | kuro-sense Pack | `tools/kuro-sense/internal/pack/` |
 | MCP Server | `src/mcp-server.ts` |
+| Mode | `src/mode.ts` |
 | MCP Config | `mcp-agent.json` |
 | Agent Hook | `scripts/claude-code-agent-hook.sh` |
 | Claude Code Sessions Plugin | `plugins/claude-code-sessions.sh` |
@@ -653,7 +654,7 @@ Alex 手機 (RC) ↔ Claude Code (MCP tools + Hook) ↔ Agent instance (HTTP API
 
 **MCP Server**（`src/mcp-server.ts`，stdio transport）：
 - 啟動時自動偵測 agent 名字（`GET /api/instance` → fallback `AGENT_NAME` env → `"Agent"`）
-- 11 tools：狀態類（`agent_status`, `agent_context`, `agent_logs`, `agent_memory_search`, `agent_read_messages`）+ 控制類（`agent_loop_pause/resume/trigger`, `agent_feature_toggle`）+ 協作類（`agent_chat`, `agent_discuss`）
+- 13 tools：狀態類（`agent_status`, `agent_context`, `agent_logs`, `agent_memory_search`, `agent_read_messages`）+ 控制類（`agent_loop_pause/resume/trigger`, `agent_feature_toggle`, `agent_get_mode`, `agent_set_mode`）+ 協作類（`agent_chat`, `agent_discuss`）
 - `agent_discuss` 同步等待回覆（每 5s poll，最多 90s）
 - `agent_chat` 自動加 `@{name}` mention
 - 所有 HTTP 呼叫帶 `X-API-Key` header（`MINI_AGENT_API_KEY` env）
@@ -690,6 +691,17 @@ claude --mcp-config mcp-agent.json   # 啟動帶 MCP 的 Claude Code
 ```
 
 **多 Agent 擴展**：換 `AGENT_URL` 即可對接不同 instance。
+
+**Agent Control Mode**（`src/mode.ts`，GitHub Issue #62）：
+- 三種預設模式，透過 bundled feature toggles 實現
+- API: `GET /api/mode`（取得當前模式）、`POST /api/mode { mode }`（切換）
+- MCP: `agent_get_mode`、`agent_set_mode`
+
+| Mode | 說明 | 特徵 |
+|------|------|------|
+| **calm** | 最低活動量，只回應直接訊息 | Loop paused, cron off, feedback off |
+| **reserved** | 正常運行但不主動發起 | Loop on, cron on, notifications off |
+| **autonomous** | 完全自主（預設） | 全部啟用 |
 
 ## kuro-sense — 感知能力管理工具
 
