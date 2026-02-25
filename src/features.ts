@@ -66,7 +66,6 @@ const FEATURES: FeatureInfo[] = [
   { name: 'cron',              group: 'core',         description: 'Scheduled cron tasks' },
   { name: 'perception',        group: 'core',         description: 'Perception stream plugins' },
   { name: 'observability',     group: 'core',         description: 'Event bus subscribers (logging/routing)' },
-  { name: 'unified-pipeline', group: 'core',         description: 'Unified event pipeline — all inputs through L0-L4 (vs separate handlers)' },
   { name: 'hesitation-signal', group: 'core',        description: 'Deterministic hesitation — hold overconfident tags for review (Ritual constraint)' },
 
   // ── Post-cycle housekeeping ──

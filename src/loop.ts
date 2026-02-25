@@ -265,7 +265,7 @@ export class AgentLoop {
   private static readonly PRIORITY_COOLDOWN = 10_000; // 同類 10s 冷卻
 
   // =========================================================================
-  // Unified Event Handler (unified-pipeline feature toggle)
+  // Unified Event Handler — single entry point for all triggers
   // =========================================================================
 
   /** Direct message sources that can wake the loop even when paused (calm mode) */
@@ -395,8 +395,8 @@ export class AgentLoop {
       return;
     }
 
-    // Non-telegram sources: respect min cycle interval
-    if (event.source !== 'telegram' && now - this.lastCycleTime < AgentLoop.MIN_CYCLE_INTERVAL) {
+    // Non-direct-message sources: respect min cycle interval
+    if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && now - this.lastCycleTime < AgentLoop.MIN_CYCLE_INTERVAL) {
       return;
     }
 
@@ -419,131 +419,11 @@ export class AgentLoop {
     this.runCycle();
   }
 
-  // =========================================================================
-  // Legacy Event Handlers (used when unified-pipeline is OFF)
-  // =========================================================================
-
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
-    // ★ Unified pipeline: all events go through single handler
-    if (isEnabled('unified-pipeline')) {
-      return this.handleUnifiedEvent(event);
-    }
-
-    // telegram events handled exclusively by handleTelegramWake
-    if (event.type === 'trigger:telegram-user' || event.type === 'trigger:telegram') return;
-
-    // P1 room-question: @kuro with ? → cooperative yield signal
-    if (event.type === 'trigger:room' && this.cycling) {
-      const text = (event.data?.text as string) ?? '';
-      if (text.includes('@kuro') && (text.includes('?') || text.includes('？'))) {
-        if (!this.pendingPriority && isEnabled('cooperative-yield')) {
-          this.pendingPriority = { reason: 'room-question', arrivedAt: Date.now(), messageCount: 1 };
-          this.scheduleSafetyValve();
-          slog('LOOP', `Priority signal: room-question`);
-          return;
-        }
-      }
-    }
-
-    if (!this.running || this.cycling) return;
-
-    // When paused (calm mode), only allow direct message sources
-    if (this.paused) {
-      const { source } = classifyTrigger(event.type, event.data);
-      if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(source)) return;
-      this.calmWake = true;
-      slog('LOOP', `[calm-wake] Legacy: direct message bypasses pause: ${event.type}`);
-    }
-
-    // Throttle: min 60s between cycles
-    const now = Date.now();
-    if (now - this.lastCycleTime < AgentLoop.MIN_CYCLE_INTERVAL) return;
-
-    const reason = event.type.replace('trigger:', '');
-    const detail = Object.keys(event.data).length > 0
-      ? `: ${JSON.stringify(event.data).slice(0, 100)}`
-      : '';
-    this.triggerReason = `${reason}${detail}`;
-    this.runCycle();
+    return this.handleUnifiedEvent(event);
   };
 
-  /** Telegram wake handler — triggers loop cycle when Alex sends a TG message */
-  private handleTelegramWake = (_event: AgentEvent): void => {
-    // ★ Unified pipeline: handled by handleTrigger → handleUnifiedEvent
-    if (isEnabled('unified-pipeline')) return;
-
-    if (!this.running) return;
-    // Telegram DM is always a direct message — allow in calm mode
-    if (this.paused) {
-      this.calmWake = true;
-      slog('LOOP', `[calm-wake] Legacy: telegram wake bypasses pause`);
-    }
-
-    // Throttle: 5s between wake triggers
-    const now = Date.now();
-    if (now - this.lastTelegramWake < AgentLoop.TELEGRAM_WAKE_THROTTLE) return;
-    this.lastTelegramWake = now;
-
-    if (this.cycling) {
-      // Already handling Alex's message → just queue
-      if (this.triggerReason?.startsWith('telegram-user') ||
-          this.currentMode === 'idle') {
-        this.telegramWakeQueue++;
-        slog('LOOP', `Telegram wake queued (${this.telegramWakeQueue} pending)`);
-        return;
-      }
-
-      if (isEnabled('cooperative-yield')) {
-        // ★ Cooperative yield: set flag, let cycle finish naturally
-        const msgCount = (_event.data?.messageCount as number) ?? 1;
-
-        // Interrupt storm guard: recently drained → accumulate only
-        if (now - this.lastPriorityDrainAt < AgentLoop.PRIORITY_COOLDOWN && this.pendingPriority) {
-          this.pendingPriority.messageCount += msgCount;
-          slog('LOOP', `Priority cooldown — accumulating (${this.pendingPriority.messageCount} msg)`);
-          return;
-        }
-
-        if (!this.pendingPriority) {
-          this.pendingPriority = { reason: 'telegram-user', arrivedAt: now, messageCount: msgCount };
-        } else {
-          this.pendingPriority.messageCount += msgCount;
-        }
-        slog('LOOP', `Priority signal: telegram-user (${this.pendingPriority.messageCount} msg, cycle age: ${Math.round((now - this.lastCycleTime) / 1000)}s)`);
-        eventBus.emit('action:loop', { event: 'priority.pending', reason: 'telegram-user', messageCount: this.pendingPriority.messageCount });
-        this.scheduleSafetyValve();
-        return;
-      }
-
-      // Legacy fallback: kill
-      slog('LOOP', `Preempting ${this.currentMode} cycle for telegram-user`);
-      const { preempted, partialOutput } = preemptLoopCycle();
-      if (preempted) {
-        this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
-        this.telegramWakeQueue++;
-        return;
-      }
-      // preempt failed (process already dead?) → fall through to queue
-      this.telegramWakeQueue++;
-      slog('LOOP', `Preempt failed, telegram wake queued (${this.telegramWakeQueue} pending)`);
-      return;
-    }
-
-    // Not in a cycle → trigger immediately
-    // But if loopBusy (held by CRON or other non-cycle caller), preempt first
-    if (isLoopBusy()) {
-      slog('LOOP', `Preempting busy state for telegram-user (non-cycle)`);
-      preemptLoopCycle();
-      setTimeout(() => {
-        this.triggerReason = 'telegram-user';
-        this.runCycle();
-      }, 500);
-      return;
-    }
-    this.triggerReason = 'telegram-user';
-    this.runCycle();
-  };
 
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -604,7 +484,6 @@ export class AgentLoop {
     }
 
     eventBus.on('trigger:*', this.handleTrigger);
-    eventBus.on('trigger:telegram-user', this.handleTelegramWake);
 
     // Run first cycle after short warmup (let perception streams initialize)
     // instead of waiting the full heartbeat interval
@@ -630,7 +509,6 @@ export class AgentLoop {
   stop(): void {
     this.running = false;
     eventBus.off('trigger:*', this.handleTrigger);
-    eventBus.off('trigger:telegram-user', this.handleTelegramWake);
     this.clearTimer();
     this.clearSafetyValve();
     this.pendingPriority = null;

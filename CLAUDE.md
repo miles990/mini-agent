@@ -596,6 +596,7 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 | **C2: Token 節制** | Token 像預算，有意識分配。寬度不縮，精度提升 | 改動讓 context 更精準還是只是更少？ |
 | **C3: 透明不干預** | Decision trace 是事後記錄，不是事前規劃。追蹤機制 fire-and-forget | 追蹤機制是否增加 cycle 時間超過 5%？ |
 | **C4: 可逆性** | 每個改動都要能快速回退（L1: git revert / L2: env flag / L3: 新舊並存） | 出問題時能在 1 分鐘內恢復嗎？ |
+| **C5: 避免技術債** | 盡量不留 dead code。Feature flag 遷移穩定後應畢業（刪 flag + 刪 legacy path），git revert 就是 L1 回退。兩條平行路徑容易語義分歧 | 這段 code 有沒有「永遠不會執行」的路徑？ |
 
 詳見升級提案：`memory/proposals/2026-02-14-kuro-evolution-upgrade.md`
 
