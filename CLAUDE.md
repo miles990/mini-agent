@@ -104,6 +104,10 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | kuro-sense TUI | `tools/kuro-sense/internal/tui/app.go` |
 | kuro-sense Web UI | `tools/kuro-sense/internal/web/` |
 | kuro-sense Pack | `tools/kuro-sense/internal/pack/` |
+| MCP Server | `src/mcp-server.ts` |
+| MCP Config | `mcp-agent.json` |
+| Agent Hook | `scripts/claude-code-agent-hook.sh` |
+| Claude Code Sessions Plugin | `plugins/claude-code-sessions.sh` |
 
 ## Memory Architecture
 
@@ -635,6 +639,57 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - Keep it minimal. Files over database. FTS5 full-text search over embedding.
 - **行動優先於規劃**：實作 feature 或 fix 時，前 2-3 輪交換就應產出程式碼。需要設計釐清時簡潔地問，然後立刻實作 — 不要在探索/規劃中迴圈而沒產出程式碼。Planning phase 超過 10 次 tool call 仍無 file edit，應停下來確認方向
 - **Commit 時驗證 staging**：commit 前確認所有相關檔案（含 `plugins/`、`skills/` 目錄）都已 staged。auto-commit 可能已追蹤部分檔案，造成手動 commit 時遺漏
+
+## Agent MCP Server + Remote Control
+
+Claude Code 透過 MCP Server 原生操作 Agent，搭配 Remote Control 讓 Alex 從手機控制。
+
+**追蹤**：GitHub Issue #63
+
+**架構**：
+```
+Alex 手機 (RC) ↔ Claude Code (MCP tools + Hook) ↔ Agent instance (HTTP API)
+```
+
+**MCP Server**（`src/mcp-server.ts`，stdio transport）：
+- 啟動時自動偵測 agent 名字（`GET /api/instance` → fallback `AGENT_NAME` env → `"Agent"`）
+- 11 tools：狀態類（`agent_status`, `agent_context`, `agent_logs`, `agent_memory_search`, `agent_read_messages`）+ 控制類（`agent_loop_pause/resume/trigger`, `agent_feature_toggle`）+ 協作類（`agent_chat`, `agent_discuss`）
+- `agent_discuss` 同步等待回覆（每 5s poll，最多 90s）
+- `agent_chat` 自動加 `@{name}` mention
+- 所有 HTTP 呼叫帶 `X-API-Key` header（`MINI_AGENT_API_KEY` env）
+- Agent 離線時返回友好錯誤訊息而非 crash
+
+**配置**（`mcp-agent.json`）：
+```json
+{
+  "mcpServers": {
+    "agent": {
+      "command": "node",
+      "args": ["dist/mcp-server.js"],
+      "env": { "AGENT_URL": "http://localhost:3001", "MINI_AGENT_API_KEY": "" }
+    }
+  }
+}
+```
+
+**Claude Code Hook**（`scripts/claude-code-agent-hook.sh`）：
+- `UserPromptSubmit` hook，每次 prompt 自動注入 agent 即時狀態
+- 輸出 loop mode、cycle count、claude busy、agent 最近回覆
+- Agent 離線時靜默跳過（exit 0）
+
+**感知插件**（`plugins/claude-code-sessions.sh`）：
+- 偵測 Claude Code interactive sessions 和 MCP 連接數
+- 分類 `workspace`（30s interval）
+- Agent 可感知 Alex 正在用 Claude Code / RC
+
+**使用方式**：
+```bash
+pnpm build
+claude --mcp-config mcp-agent.json   # 啟動帶 MCP 的 Claude Code
+/rc                                   # 開啟 Remote Control
+```
+
+**多 Agent 擴展**：換 `AGENT_URL` 即可對接不同 instance。
 
 ## kuro-sense — 感知能力管理工具
 
