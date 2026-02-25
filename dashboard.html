@@ -2316,12 +2316,15 @@ function renderInnerState(data) {
     let html = '';
     for (const t of data.thoughts) {
       html += '<div class="thought-item" onclick="this.classList.toggle(\'expanded\')">';
-      html += '<span class="thought-topic">' + escapeHtml(t.topic) + '</span>';
-      html += '<span class="thought-date">' + t.date + '</span><br>';
+      if (t.topic) html += '<span class="thought-topic">' + escapeHtml(t.topic) + '</span>';
+      if (t.date) html += '<span class="thought-date">' + t.date + '</span>';
+      if (t.topic || t.date) html += '<br>';
       html += escapeHtml(t.summary);
       html += '</div>';
     }
     thoughtEl.innerHTML = html;
+  } else {
+    thoughtEl.innerHTML = '<span style="color:var(--text3);font-size:11px;font-style:italic;">No core thoughts in SOUL.md</span>';
   }
 
   // Traits (with detail tooltip)

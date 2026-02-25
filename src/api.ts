@@ -1358,15 +1358,23 @@ export function createApi(port = 3001): express.Express {
     const digest = entries
       .map(parseCognitionEntry)
       .filter((e): e is CognitionEntry => e !== null)
-      .map(e => ({
-        timestamp: e.timestamp,
-        what: e.what || e.changed || '',
-        why: e.why,
-        changed: e.changed,
-        verified: e.verified,
-        urls: e.sources,
-        full: e.full,
-      }))
+      .map(e => {
+        // Fallback: extract "chose:" line from full text when what is empty
+        let what = e.what || e.changed || '';
+        if (!what && e.full) {
+          const choseMatch = e.full.match(/chose:\s*(.+?)(?:\n|$)/);
+          if (choseMatch) what = choseMatch[1].trim();
+        }
+        return {
+          timestamp: e.timestamp,
+          what,
+          why: e.why,
+          changed: e.changed,
+          verified: e.verified,
+          urls: e.sources,
+          full: e.full,
+        };
+      })
       .filter(e => !!e.what || !!e.why || !!e.changed || !!e.verified);
 
     res.json({ entries: digest, count: digest.length, date: date ?? new Date().toISOString().split('T')[0] });
@@ -1574,18 +1582,30 @@ export function createApi(port = 3001): express.Express {
       }
 
       // --- Parse My Thoughts from SOUL.md ---
+      // Supports two formats:
+      //   - [YYYY-MM-DD] topic: summary   (dated)
+      //   - text                           (simple bullet)
       const thoughts: { date: string; topic: string; summary: string }[] = [];
       const thoughtsSection = soul.match(/## My Thoughts\n([\s\S]*?)(?=\n## )/);
       if (thoughtsSection) {
         const lines = thoughtsSection[1].split('\n');
         for (const line of lines) {
-          const m = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]\s*(.+?):\s*([\s\S]+)/);
-          if (m) {
-            thoughts.push({
-              date: m[1],
-              topic: m[2].trim(),
-              summary: m[3].trim(),
-            });
+          // Dated format: - [2026-02-25] topic: summary
+          const dated = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]\s*(.+?):\s*([\s\S]+)/);
+          if (dated) {
+            thoughts.push({ date: dated[1], topic: dated[2].trim(), summary: dated[3].trim() });
+            continue;
+          }
+          // Simple format: - text (with optional — separator for topic hint)
+          const simple = line.match(/^- (.+)/);
+          if (simple) {
+            const text = simple[1].trim();
+            const dashSplit = text.split('—');
+            if (dashSplit.length >= 2) {
+              thoughts.push({ date: '', topic: dashSplit[0].trim(), summary: dashSplit.slice(1).join('—').trim() });
+            } else {
+              thoughts.push({ date: '', topic: '', summary: text });
+            }
           }
         }
       }
