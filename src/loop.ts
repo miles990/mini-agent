@@ -647,11 +647,8 @@ export class AgentLoop {
       this.lastPerceptionVersion = currentVersion;
 
       // ── Observe ──
-      // Dynamic depth: triage intent determines context weight
-      const earlyIntent = detectModeFromInbox(inboxItemsEarly, this.triggerReason);
-      const contextMode = earlyIntent.mode === 'respond' ? 'minimal' as const : 'focused' as const;
       const memory = getMemory();
-      const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount });
+      const context = await memory.buildContext({ mode: 'focused', cycleCount: this.cycleCount });
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
