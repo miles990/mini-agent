@@ -1369,14 +1369,14 @@ export function getLastAlexMessageId(): number | null {
 }
 
 /**
- * Pinchtab 截圖並發送到 Telegram
- * 依賴 Pinchtab 運行，失敗時靜默返回 false
+ * Chrome CDP 截圖並發送到 Telegram
+ * 依賴 Chrome CDP 運行，失敗時靜默返回 false
  */
 export async function notifyScreenshot(caption?: string): Promise<boolean> {
   const poller = pollerInstance;
   if (!poller) return false;
 
-  const screenshotPath = '/tmp/mini-agent-screenshot.jpg';
+  const screenshotPath = '/tmp/mini-agent-screenshot.png';
 
   try {
     const { execFile: execFileCb } = await import('node:child_process');
@@ -1385,12 +1385,12 @@ export async function notifyScreenshot(caption?: string): Promise<boolean> {
 
     const scriptPath = path.join(
       import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
-      '..', 'scripts', 'pinchtab-screenshot.sh',
+      '..', 'scripts', 'cdp-fetch.mjs',
     );
 
-    await execFileAsync('bash', [scriptPath, screenshotPath], { timeout: 10000 });
+    await execFileAsync('node', [scriptPath, 'screenshot', '', screenshotPath], { timeout: 15000 });
   } catch {
-    slog('TELEGRAM', 'Screenshot failed: Pinchtab not available');
+    slog('TELEGRAM', 'Screenshot failed: Chrome CDP not available');
     return false;
   }
 

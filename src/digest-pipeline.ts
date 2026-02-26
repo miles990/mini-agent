@@ -421,12 +421,30 @@ export async function runDailyDigest(lang: 'en' | 'zh' = 'en'): Promise<DigestRe
  * Detect if a message should go through the fast digest path (skip OODA).
  * Works on raw message text (before any prefix processing).
  */
+/** URLs that need JS rendering or auth — skip instant digest, let OODA handle */
+const SKIP_DIGEST_DOMAINS = [
+  'x.com', 'twitter.com',
+  'facebook.com', 'fb.com',
+  'instagram.com',
+  'threads.net',
+];
+
 export function isDigestContent(text: string, hasForward: boolean): boolean {
   if (hasForward) return true;
   if (text.startsWith('/d ') || text.startsWith('/d\n')) return true;
   const trimmed = text.trim();
   // Pure URL or text containing a URL
-  if (/https?:\/\/\S+/.test(trimmed)) return true;
+  if (/https?:\/\/\S+/.test(trimmed)) {
+    // Skip social media URLs that can't be fetched with simple HTTP
+    const urlMatch = trimmed.match(/https?:\/\/([^/\s]+)/);
+    if (urlMatch) {
+      const domain = urlMatch[1].replace(/^www\./, '');
+      if (SKIP_DIGEST_DOMAINS.some(d => domain === d || domain.endsWith(`.${d}`))) {
+        return false;
+      }
+    }
+    return true;
+  }
   return false;
 }
 

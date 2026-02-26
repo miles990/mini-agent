@@ -97,8 +97,8 @@ export interface CapabilitiesSnapshot {
 /** Skill keyword mapping — 根據 prompt/message 內容匹配相關 skills */
 const SKILL_KEYWORDS: Record<string, string[]> = {
   'autonomous-behavior': ['autonomous', 'soul', 'ooda', 'cycle', 'idle', 'agent loop', 'self-check'],
-  'web-learning': ['learn', 'study', 'article', 'knowledge', 'web learning', 'pinchtab', 'cdp', 'chrome://'],
-  'web-research': ['research', 'search', 'url', 'fetch', 'curl', 'pinchtab', 'cdp', 'browse', 'hacker', 'web research'],
+  'web-learning': ['learn', 'study', 'article', 'knowledge', 'web learning', 'cdp', 'chrome://', 'cdp-fetch'],
+  'web-research': ['research', 'search', 'url', 'fetch', 'curl', 'cdp', 'cdp-fetch', 'browse', 'hacker', 'web research'],
   'web-ai-sessions': ['ai session', 'claude', 'gpt', 'gemini', 'chatbot', 'ai conversation'],
   'action-from-learning': ['propose', 'proposal', 'feature', 'improve', 'skill', 'plugin', 'action-from-learning', 'self-improve'],
   'self-deploy': ['deploy', 'push', 'commit', 'release', 'git', 'ci/cd', 'self-deploy'],
@@ -1542,7 +1542,7 @@ export class InstanceMemory {
           'gemini', 'gpt', 'deep think', 'codex-spark', 'agentic',
           'opc-skills', 'seo-geo', 'apptopia', 'memory system',
         ],
-        'web-learning': ['pinchtab', 'chrome', 'fetch', 'hacker news', 'dev.to', 'reddit'],
+        'web-learning': ['cdp', 'chrome', 'cdp-fetch', 'fetch', 'hacker news', 'dev.to', 'reddit'],
         'design-philosophy': [
           'alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt',
           'constraint', 'emergence', 'botw', 'physarum', 'fnnch',
