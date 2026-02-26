@@ -31,6 +31,7 @@ interface Subscriber {
   subscribedAt: string;
   topics?: string[];
   lang?: 'en' | 'zh';
+  format?: 'summary' | 'full';
 }
 
 interface SubscriberStore {
@@ -257,16 +258,17 @@ export class DigestBot {
     }
 
     this.digestRunning = true;
+    const format = this.getUserFormat(chatId);
     await this.sendMessage(chatId, lang === 'zh' ? '🔄 正在產生今天的摘要...（大約需要 30 秒）' : '🔄 Generating today\'s digest... (this takes ~30 seconds)');
 
     try {
-      const digest = await runDailyDigest(lang);
+      const digest = await runDailyDigest(lang, format);
       if (digest.papers.length === 0) {
         await this.sendMessage(chatId, lang === 'zh' ? '😅 目前沒有可用的論文，請稍後再試。' : '😅 No papers available right now. Try again later.');
         return;
       }
 
-      const formatted = formatDigest(digest, lang);
+      const formatted = formatDigest(digest, lang, format);
       await this.sendLongMessage(chatId, formatted);
     } catch (err) {
       slog('DIGEST-BOT', `Manual digest failed: ${err instanceof Error ? err.message : err}`);
@@ -322,6 +324,12 @@ export class DigestBot {
     return sub?.lang ?? 'en';
   }
 
+  private getUserFormat(chatId: number): 'summary' | 'full' {
+    const store = this.loadSubscribers();
+    const sub = store.subscribers.find(s => s.chatId === chatId);
+    return sub?.format ?? 'summary';
+  }
+
   // ---------------------------------------------------------------------------
   // Daily Broadcast (called by cron)
   // ---------------------------------------------------------------------------
@@ -344,22 +352,24 @@ export class DigestBot {
         return { sent: 0, failed: 0 };
       }
 
-      // Group subscribers by language
-      const byLang = new Map<'en' | 'zh', Subscriber[]>();
+      // Group subscribers by language + format
+      const groupKey = (s: Subscriber) => `${s.lang ?? 'en'}:${s.format ?? 'summary'}`;
+      const groups = new Map<string, Subscriber[]>();
       for (const sub of store.subscribers) {
-        const lang = sub.lang ?? 'en';
-        if (!byLang.has(lang)) byLang.set(lang, []);
-        byLang.get(lang)!.push(sub);
+        const key = groupKey(sub);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(sub);
       }
 
-      for (const [lang, subs] of byLang) {
-        const digest = await runDailyDigest(lang);
+      for (const [key, subs] of groups) {
+        const [lang, format] = key.split(':') as ['en' | 'zh', 'summary' | 'full'];
+        const digest = await runDailyDigest(lang, format);
         if (digest.papers.length === 0) {
-          slog('DIGEST-BOT', `Broadcast skipped for ${lang} — no papers`);
+          slog('DIGEST-BOT', `Broadcast skipped for ${key} — no papers`);
           continue;
         }
 
-        const formatted = formatDigest(digest, lang);
+        const formatted = formatDigest(digest, lang, format);
         for (const sub of subs) {
           try {
             await this.sendLongMessage(sub.chatId, formatted);

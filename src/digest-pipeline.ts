@@ -256,7 +256,7 @@ Reply with ONLY the indices as comma-separated numbers (e.g. "3,7,12,21,45"). No
 // =============================================================================
 
 /** Use Sonnet for deep summaries + cross-paper analysis */
-export async function summarizePapers(papers: Paper[], lang: 'en' | 'zh' = 'en'): Promise<DigestResult> {
+export async function summarizePapers(papers: Paper[], lang: 'en' | 'zh' = 'en', format: 'summary' | 'full' = 'summary'): Promise<DigestResult> {
   const today = new Date().toISOString().slice(0, 10);
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -282,12 +282,33 @@ URL: ${p.url}`
 
   try {
     const start = Date.now();
-    const response = await getClient().messages.create({
-      model: SONNET_MODEL,
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: `You are an AI research analyst. Summarize these ${papers.length} papers for a technical audience.
+
+    const fullModePrompt = `You are a translator. Translate these ${papers.length} AI paper abstracts into Traditional Chinese (繁體中文).
+
+IMPORTANT:
+- Translate the FULL abstract faithfully. Do NOT summarize or condense.
+- Keep paper titles, author names, URLs, and technical terms (model names, method names, metrics) in English.
+- Preserve all technical details, numbers, and results.
+
+After all papers, write a brief "Today's Signal" in Traditional Chinese: one paragraph identifying the common theme or trend.
+
+Format your response as JSON:
+{
+  "papers": [
+    {
+      "index": 0,
+      "tldr": "完整翻譯的 abstract",
+      "keyInsights": [],
+      "whyItMatters": ""
+    }
+  ],
+  "todaysSignal": "..."
+}
+
+Papers:
+${paperDetails}`;
+
+    const summaryModePrompt = `You are an AI research analyst. Summarize these ${papers.length} papers for a technical audience.
 ${lang === 'zh' ? '\nIMPORTANT: Write ALL text (tldr, keyInsights, whyItMatters, todaysSignal) in Traditional Chinese (繁體中文). Keep paper titles, author names, and technical terms in English.\n' : ''}
 For EACH paper, provide:
 1. TL;DR (one sentence, what they did and found)
@@ -310,7 +331,14 @@ Format your response as JSON:
 }
 
 Papers:
-${paperDetails}`,
+${paperDetails}`;
+
+    const response = await getClient().messages.create({
+      model: SONNET_MODEL,
+      max_tokens: format === 'full' ? 4000 : 2000,
+      messages: [{
+        role: 'user',
+        content: format === 'full' ? fullModePrompt : summaryModePrompt,
       }],
     });
 
@@ -364,12 +392,24 @@ ${paperDetails}`,
 // =============================================================================
 
 /** Format digest as Telegram-friendly Markdown */
-export function formatDigest(digest: DigestResult, lang: 'en' | 'zh' = 'en'): string {
+export function formatDigest(digest: DigestResult, lang: 'en' | 'zh' = 'en', format: 'summary' | 'full' = 'summary'): string {
   const header = lang === 'zh'
-    ? `🔬 *AI 研究摘要 — ${digest.date}*\n`
+    ? (format === 'full'
+      ? `🔬 *AI 研究原文 — ${digest.date}*\n`
+      : `🔬 *AI 研究摘要 — ${digest.date}*\n`)
     : `🔬 *AI Research Digest — ${digest.date}*\n`;
 
   const paperSections = digest.papers.map((s, i) => {
+    if (format === 'full') {
+      // Full mode: show translated abstract without summary structure
+      return `*${i + 1}. ${escapeMd(s.paper.title)}*
+${s.paper.authors.slice(0, 5).join(', ')}${s.paper.authors.length > 5 ? ' et al.' : ''}
+
+${escapeMd(s.tldr)}
+
+🔗 ${s.paper.url}`;
+    }
+    // Summary mode: structured TL;DR + insights
     const insights = s.keyInsights.map(k => `  • ${k}`).join('\n');
     return `*${i + 1}. ${escapeMd(s.paper.title)}*
 ${escapeMd(s.tldr)}
@@ -397,8 +437,8 @@ function escapeMd(text: string): string {
 // =============================================================================
 
 /** Run the complete daily digest pipeline */
-export async function runDailyDigest(lang: 'en' | 'zh' = 'en'): Promise<DigestResult> {
-  slog('DIGEST', `=== Starting daily digest pipeline (lang=${lang}) ===`);
+export async function runDailyDigest(lang: 'en' | 'zh' = 'en', format: 'summary' | 'full' = 'summary'): Promise<DigestResult> {
+  slog('DIGEST', `=== Starting daily digest pipeline (lang=${lang}, format=${format}) ===`);
 
   const papers = await fetchPapers();
   if (papers.length === 0) {
@@ -407,9 +447,9 @@ export async function runDailyDigest(lang: 'en' | 'zh' = 'en'): Promise<DigestRe
   }
 
   const filtered = await filterPapers(papers, 5);
-  const digest = await summarizePapers(filtered, lang);
+  const digest = await summarizePapers(filtered, lang, format);
 
-  slog('DIGEST', `=== Digest complete: ${digest.papers.length} papers ===`);
+  slog('DIGEST', `=== Digest complete: ${digest.papers.length} papers (format=${format}) ===`);
   return digest;
 }
 
