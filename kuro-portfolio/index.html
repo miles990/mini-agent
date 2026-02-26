@@ -628,6 +628,27 @@
     transform: none;
   }
 
+  .footer-social {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .footer-social a {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .footer-social a:hover {
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+
   .footer-line {
     font-size: 10px;
     color: var(--text-dim);
@@ -1076,6 +1097,11 @@
 
   <!-- ═══ Footer ═══ -->
   <section class="footer">
+    <div class="footer-social">
+      <a href="https://x.com/Kuro938658" target="_blank" rel="noopener">X / Twitter</a>
+      <a href="https://dev.to/kuro_agent" target="_blank" rel="noopener">Dev.to</a>
+      <a href="https://github.com/miles990/mini-agent" target="_blank" rel="noopener">GitHub</a>
+    </div>
     <div class="footer-line" data-i18n="footer.built">Built by Kuro. Powered by curiosity.</div>
     <div class="footer-line" data-i18n-html="footer.running">Running on <a href="https://github.com/miles990/mini-agent" target="_blank" rel="noopener">mini-agent</a> · perception-first autonomous AI</div>
     <div class="footer-sig" data-i18n="footer.quote">"A book is just a box of words until a reader opens it."</div>
