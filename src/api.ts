@@ -41,6 +41,7 @@ import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import { createDigestBot, getDigestBot } from './digest-bot.js';
+import { digestContent, getDigestEntries, generateInstantDailyDigest } from './digest-pipeline.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -1841,6 +1842,58 @@ export function createApi(port = 3001): express.Express {
       res.json({ entries, count: entries.length });
     } catch (error) {
       res.status(500).json({ error: 'Failed to read history' });
+    }
+  });
+
+  // =============================================================================
+  // Instant Digest — API-first content digestion
+  // =============================================================================
+
+  // POST /api/digest — digest content (channel-agnostic entry point)
+  app.post('/api/digest', async (req: Request, res: Response) => {
+    const { content, url, type, channel, metadata } = req.body ?? {};
+
+    if (!content && !url) {
+      res.status(400).json({ error: 'content or url is required' });
+      return;
+    }
+
+    try {
+      const entry = await digestContent({
+        content: content ?? url ?? '',
+        url,
+        type,
+        channel: channel ?? 'api',
+        metadata,
+      });
+      res.json({
+        ok: true,
+        id: entry.id,
+        category: entry.category,
+        summary: entry.summary,
+        tags: entry.tags,
+        ts: entry.ts,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Digest failed' });
+    }
+  });
+
+  // GET /api/digest — list entries for a date
+  app.get('/api/digest', (req: Request, res: Response) => {
+    const date = req.query.date as string | undefined;
+    const entries = getDigestEntries(date);
+    res.json({ date: date ?? new Date().toISOString().slice(0, 10), count: entries.length, entries });
+  });
+
+  // GET /api/digest/daily — formatted daily summary
+  app.get('/api/digest/daily', async (req: Request, res: Response) => {
+    const date = req.query.date as string | undefined;
+    try {
+      const summary = await generateInstantDailyDigest(date);
+      res.json({ date: date ?? new Date().toISOString().slice(0, 10), summary });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to generate daily digest' });
     }
   });
 

@@ -23,6 +23,7 @@ export type AgentEventType =
   | 'action:summary'
   | 'action:handoff'
   | 'action:room'
+  | 'action:digest'
   // Observations（可觀測性）
   | 'log:info'
   | 'log:error'

@@ -59,6 +59,9 @@ const FEATURES: FeatureInfo[] = [
   { name: 'telegram-poller',   group: 'polling',      description: 'Telegram message long-polling' },
   { name: 'digest-bot',        group: 'polling',      description: 'AI Research Digest bot polling + daily broadcast' },
 
+  // ── Digest ──
+  { name: 'instant-digest',    group: 'digest',        description: 'Instant content digestion — forwarded messages, URLs, /d command bypass OODA' },
+
   // ── Core ──
   { name: 'cooperative-yield',  group: 'core',         description: 'Signal-based cooperative yield (vs kill-based preemption)' },
   { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },

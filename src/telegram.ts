@@ -21,6 +21,7 @@ import { withFileLock } from './filelock.js';
 import { writeInboxItem } from './inbox.js';
 import { isEnabled } from './features.js';
 import { isLoopBusy } from './agent.js';
+import { digestContent, isDigestContent, formatInstantReply, type DigestEntry } from './digest-pipeline.js';
 
 // =============================================================================
 // Types
@@ -390,6 +391,15 @@ export class TelegramPoller {
 
     slog('TELEGRAM', `← ${parsed.sender}: ${parsed.text.slice(0, 100)}${parsed.text.length > 100 ? '...' : ''}`);
 
+    // ── Instant Digest fast path ──
+    // Forwarded messages, pure URLs, and /d prefix bypass OODA — get instant summary
+    if (isEnabled('instant-digest') && this.isDigestEligible(msg)) {
+      this.handleInstantDigest(msg, parsed).catch(err =>
+        slog('TELEGRAM', `Instant digest error: ${err instanceof Error ? err.message : err}`),
+      );
+      return; // Skip normal OODA flow
+    }
+
     // 行為記錄：用戶訊息
     try {
       const logger = getLogger();
@@ -408,6 +418,79 @@ export class TelegramPoller {
     // Add to buffer and schedule flush
     this.messageBuffer.push(parsed);
     this.scheduleFlush();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instant Digest — fast path for forwarded messages, URLs, /d commands
+  // ---------------------------------------------------------------------------
+
+  /** Check if a message should bypass OODA and go through instant digest */
+  private isDigestEligible(msg: TelegramMessage): boolean {
+    const text = (msg.text ?? msg.caption ?? '').trim();
+    const hasForward = !!(msg.forward_from || msg.forward_from_chat);
+    return isDigestContent(text, hasForward);
+  }
+
+  /** Handle instant digest: classify + summarize + reply */
+  private async handleInstantDigest(msg: TelegramMessage, parsed: ParsedMessage): Promise<void> {
+    const text = (msg.text ?? msg.caption ?? '').trim();
+    const urls = this.extractUrls(msg);
+    const isForward = !!(msg.forward_from || msg.forward_from_chat);
+    const isDCommand = text.startsWith('/d ') || text === '/d';
+
+    // Determine content and type
+    let content = parsed.text;
+    let type: 'forward' | 'url' | 'note' = 'note';
+    let url: string | undefined;
+
+    if (isForward) {
+      type = 'forward';
+      // Source info for metadata
+    } else if (isDCommand) {
+      content = text.slice(3).trim(); // Strip "/d " prefix
+      type = 'note';
+    }
+
+    if (urls.length > 0) {
+      url = urls[0];
+      if (!isForward) type = 'url';
+    }
+
+    // Build source info
+    let source: string | undefined;
+    if (msg.forward_from) {
+      source = `轉發自 ${msg.forward_from.first_name}`;
+    } else if (msg.forward_from_chat) {
+      source = `轉發自 ${msg.forward_from_chat.title}`;
+    }
+
+    slog('TELEGRAM', `⚡ Instant digest: type=${type}, url=${url ?? 'none'}`);
+
+    try {
+      const entry = await digestContent({
+        content,
+        url,
+        type,
+        channel: 'telegram',
+        metadata: source ? { source } : undefined,
+      });
+
+      const reply = formatInstantReply(entry);
+      await this.sendMessage(reply, '', msg.message_id);
+
+      // Set reaction to indicate digest complete
+      await this.setReaction(String(msg.chat.id), msg.message_id, '⚡');
+
+      eventBus.emit('action:digest', { id: entry.id, category: entry.category }, { priority: 'P2', source: 'instant-digest' });
+    } catch (err) {
+      slog('TELEGRAM', `Instant digest failed: ${err instanceof Error ? err.message : err}`);
+      // Fallback: let it go through normal OODA flow
+      this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
+      writeInboxItem({ source: 'telegram', from: parsed.sender, content: parsed.text });
+      autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});
+      this.messageBuffer.push(parsed);
+      this.scheduleFlush();
+    }
   }
 
   private scheduleFlush(): void {

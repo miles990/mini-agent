@@ -1,14 +1,23 @@
 /**
- * AI Research Digest Pipeline
+ * Digest Pipeline
  *
- * Fetch → Deduplicate → Filter (Haiku) → Summarize (Sonnet) → Format
+ * Two pipelines in one module:
  *
- * Sources: HuggingFace Daily Papers + arXiv API (cs.AI/LG/CL)
- * Cost: ~$0.07/day
+ * 1. AI Research Digest — daily paper curation
+ *    Fetch → Deduplicate → Filter (Haiku) → Summarize (Sonnet) → Format
+ *
+ * 2. Instant Digest — real-time content digestion (channel-agnostic)
+ *    Content in → Detect type → Fetch URL → Classify + Summarize (Haiku) → Store → Reply
+ *
+ * Instant Digest is designed as an independent, API-first service.
+ * Any channel (Telegram, HTTP, Webhook, CLI) feeds into the same pipeline.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { slog } from './utils.js';
+import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 
 // =============================================================================
 // Types
@@ -402,4 +411,291 @@ export async function runDailyDigest(lang: 'en' | 'zh' = 'en'): Promise<DigestRe
 
   slog('DIGEST', `=== Digest complete: ${digest.papers.length} papers ===`);
   return digest;
+}
+
+// =============================================================================
+// Instant Digest — Real-time content digestion (channel-agnostic)
+// =============================================================================
+
+/**
+ * Detect if a message should go through the fast digest path (skip OODA).
+ * Works on raw message text (before any prefix processing).
+ */
+export function isDigestContent(text: string, hasForward: boolean): boolean {
+  if (hasForward) return true;
+  if (text.startsWith('/d ') || text.startsWith('/d\n')) return true;
+  const trimmed = text.trim();
+  if (/^https?:\/\/\S+$/.test(trimmed)) return true;
+  return false;
+}
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  ai: '🤖', design: '🎨', tech: '⚙️', business: '💼',
+  culture: '🎭', personal: '📝', other: '📌',
+};
+
+/** Format a single digest entry as instant reply (for Telegram / Chat Room) */
+export function formatInstantReply(entry: DigestEntry): string {
+  const emoji = CATEGORY_EMOJI[entry.category] ?? '📌';
+  let reply = `📋 ${emoji} ${entry.category.toUpperCase()} — ${entry.summary}`;
+  if (entry.tags.length > 0) reply += `\n🏷️ ${entry.tags.join(', ')}`;
+  return reply;
+}
+
+export interface DigestRequest {
+  content: string;
+  url?: string;
+  type?: 'forward' | 'url' | 'note' | 'voice' | 'image';
+  channel?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DigestEntry {
+  id: string;                  // d-YYYY-MM-DD-NNN
+  ts: string;                  // ISO timestamp
+  channel: string;
+  type: string;
+  category: string;
+  source?: string;
+  summary: string;
+  content: string;             // Original (truncated to 2000 chars)
+  url?: string;
+  tags: string[];
+  metadata?: Record<string, unknown>;
+}
+
+const CATEGORIES = ['ai', 'design', 'tech', 'business', 'culture', 'personal', 'other'] as const;
+
+/** Get the JSONL storage path for digest entries */
+function getDigestStorePath(): string {
+  return path.join(getInstanceDir(getCurrentInstanceId()), 'digest.jsonl');
+}
+
+/** Generate next digest entry ID for today */
+function nextDigestId(): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const storePath = getDigestStorePath();
+
+  let count = 0;
+  try {
+    if (fs.existsSync(storePath)) {
+      const lines = fs.readFileSync(storePath, 'utf-8').split('\n').filter(Boolean);
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line) as DigestEntry;
+          if (entry.id.startsWith(`d-${today}-`)) count++;
+        } catch { /* skip malformed lines */ }
+      }
+    }
+  } catch { /* file not found */ }
+
+  return `d-${today}-${String(count + 1).padStart(3, '0')}`;
+}
+
+/** Try to fetch and extract text content from a URL */
+async function fetchUrlContent(url: string): Promise<string> {
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; InstantDigest/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return '';
+
+    const contentType = resp.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/json')) {
+      return `[Non-text content: ${contentType}]`;
+    }
+
+    const html = await resp.text();
+
+    // Simple HTML → text extraction (strip tags, decode entities)
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return text.slice(0, 5000);
+  } catch (err) {
+    slog('INSTANT-DIGEST', `URL fetch failed: ${err instanceof Error ? err.message : err}`);
+    return '';
+  }
+}
+
+/** Core: classify + summarize content using Haiku */
+export async function digestContent(req: DigestRequest): Promise<DigestEntry> {
+  const start = Date.now();
+  const id = nextDigestId();
+  const ts = new Date().toISOString();
+
+  // Resolve content: if URL provided and no content, fetch it
+  let resolvedContent = req.content;
+  if (req.url && (!resolvedContent || resolvedContent === req.url)) {
+    const fetched = await fetchUrlContent(req.url);
+    if (fetched) {
+      resolvedContent = fetched;
+    }
+  }
+
+  const truncatedContent = resolvedContent.slice(0, 2000);
+
+  // If no API key, return basic entry without LLM
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const entry: DigestEntry = {
+      id, ts,
+      channel: req.channel ?? 'api',
+      type: req.type ?? 'note',
+      category: 'other',
+      summary: truncatedContent.slice(0, 200) + (truncatedContent.length > 200 ? '...' : ''),
+      content: truncatedContent,
+      url: req.url,
+      tags: [],
+      metadata: req.metadata,
+    };
+    storeDigestEntry(entry);
+    return entry;
+  }
+
+  // Use Haiku for fast classify + summarize
+  try {
+    const response = await getClient().messages.create({
+      model: HAIKU_MODEL,
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Classify and summarize this content. Reply in JSON only, no markdown fencing.
+
+Content:
+${truncatedContent}
+${req.url ? `\nURL: ${req.url}` : ''}
+
+JSON format:
+{"category":"${CATEGORIES.join('|')}","summary":"一句話摘要（繁體中文）","tags":["tag1","tag2"]}
+
+Rules:
+- summary: one sentence in Traditional Chinese, capture the key point
+- category: pick the best fit from the list
+- tags: 1-3 lowercase English keywords`,
+      }],
+    });
+
+    const elapsed = Date.now() - start;
+    const text = response.content[0].type === 'text' ? response.content[0].text.trim() : '{}';
+
+    // Parse JSON — tolerant of markdown fencing
+    const jsonStr = text.replace(/^```json?\s*/, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(jsonStr) as {
+      category?: string;
+      summary?: string;
+      tags?: string[];
+    };
+
+    const entry: DigestEntry = {
+      id, ts,
+      channel: req.channel ?? 'api',
+      type: req.type ?? 'note',
+      category: CATEGORIES.includes(parsed.category as typeof CATEGORIES[number]) ? parsed.category! : 'other',
+      summary: parsed.summary ?? truncatedContent.slice(0, 200),
+      content: truncatedContent,
+      url: req.url,
+      tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+      metadata: req.metadata,
+    };
+
+    storeDigestEntry(entry);
+    slog('INSTANT-DIGEST', `${id} [${entry.category}] ${entry.summary.slice(0, 60)}... (${elapsed}ms)`);
+    return entry;
+  } catch (err) {
+    slog('INSTANT-DIGEST', `LLM failed: ${err instanceof Error ? err.message : err}`);
+    // Fallback: store without LLM classification
+    const entry: DigestEntry = {
+      id, ts,
+      channel: req.channel ?? 'api',
+      type: req.type ?? 'note',
+      category: 'other',
+      summary: truncatedContent.slice(0, 200) + (truncatedContent.length > 200 ? '...' : ''),
+      content: truncatedContent,
+      url: req.url,
+      tags: [],
+      metadata: req.metadata,
+    };
+    storeDigestEntry(entry);
+    return entry;
+  }
+}
+
+/** Append a digest entry to JSONL storage */
+function storeDigestEntry(entry: DigestEntry): void {
+  try {
+    const storePath = getDigestStorePath();
+    fs.appendFileSync(storePath, JSON.stringify(entry) + '\n', 'utf-8');
+  } catch (err) {
+    slog('INSTANT-DIGEST', `Store failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+/** Read all digest entries for a given date */
+export function getDigestEntries(date?: string): DigestEntry[] {
+  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+  const storePath = getDigestStorePath();
+  const entries: DigestEntry[] = [];
+
+  try {
+    if (!fs.existsSync(storePath)) return [];
+    const lines = fs.readFileSync(storePath, 'utf-8').split('\n').filter(Boolean);
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line) as DigestEntry;
+        if (entry.ts.startsWith(targetDate)) {
+          entries.push(entry);
+        }
+      } catch { /* skip malformed */ }
+    }
+  } catch { /* file not found */ }
+
+  return entries;
+}
+
+/** Generate a formatted daily summary of all instant digest entries */
+export async function generateInstantDailyDigest(date?: string): Promise<string> {
+  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+  const entries = getDigestEntries(targetDate);
+
+  if (entries.length === 0) {
+    return `📋 ${targetDate} — 今天沒有消化的內容。`;
+  }
+
+  // Group by category
+  const byCategory = new Map<string, DigestEntry[]>();
+  for (const e of entries) {
+    const cat = e.category;
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat)!.push(e);
+  }
+
+  const categoryEmoji: Record<string, string> = {
+    ai: '🤖', design: '🎨', tech: '💻', business: '💼',
+    culture: '🎭', personal: '📝', other: '📌',
+  };
+
+  let output = `📋 *每日消化 — ${targetDate}*\n共 ${entries.length} 則\n`;
+
+  for (const [cat, catEntries] of byCategory) {
+    const emoji = categoryEmoji[cat] ?? '📌';
+    output += `\n${emoji} *${cat.toUpperCase()}* (${catEntries.length})\n`;
+    for (const e of catEntries) {
+      output += `• ${escapeMd(e.summary)}`;
+      if (e.url) output += ` [🔗](${e.url})`;
+      output += '\n';
+    }
+  }
+
+  return output;
 }
