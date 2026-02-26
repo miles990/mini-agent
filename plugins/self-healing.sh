@@ -43,32 +43,10 @@ if command -v docker &>/dev/null; then
   fi
 fi
 
-# --- Check 2: Pinchtab (Browser Bridge) ---
-PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
-PINCHTAB_HEALTH=$(curl -sf --max-time 3 "localhost:${PINCHTAB_PORT}/health" 2>/dev/null || echo "")
-if [ -z "$PINCHTAB_HEALTH" ]; then
-  # Pinchtab not responding at all
-  if [ -f "$PROJECT_DIR/scripts/pinchtab-setup.sh" ]; then
-    bash "$PROJECT_DIR/scripts/pinchtab-setup.sh" start &>/dev/null
-    sleep 3
-    if curl -sf "localhost:${PINCHTAB_PORT}/health" &>/dev/null; then
-      heal_report "HEALED" "Pinchtab was unavailable → auto-start restored"
-    else
-      heal_report "FAILED" "Pinchtab unavailable, auto-start could not restore"
-    fi
-  fi
-elif echo "$PINCHTAB_HEALTH" | grep -q '"disconnected"'; then
-  # Pinchtab running but CDP connection lost — restart to reconnect
-  if [ -f "$PROJECT_DIR/scripts/pinchtab-setup.sh" ]; then
-    bash "$PROJECT_DIR/scripts/pinchtab-setup.sh" restart &>/dev/null
-    sleep 3
-    NEW_HEALTH=$(curl -sf --max-time 3 "localhost:${PINCHTAB_PORT}/health" 2>/dev/null || echo "")
-    if echo "$NEW_HEALTH" | grep -q '"ok"'; then
-      heal_report "HEALED" "Pinchtab CDP was disconnected → restart restored"
-    else
-      heal_report "FAILED" "Pinchtab CDP disconnected, restart could not restore"
-    fi
-  fi
+# --- Check 2: Chrome CDP (Browser) ---
+CDP_STATUS=$(node "$PROJECT_DIR/scripts/cdp-fetch.mjs" status 2>/dev/null)
+if [ $? -ne 0 ] || [ -z "$CDP_STATUS" ]; then
+  heal_report "FAILED" "Chrome CDP not available on port ${CDP_PORT:-9222}"
 fi
 
 # --- Check 3: Disk Usage ---
@@ -132,46 +110,11 @@ problems = [f'{d}({c}x)' for d, c in counts.items() if c >= 2]
 if problems: print(', '.join(problems))
 " 2>/dev/null)
   if [ -n "$RESTRICTED_DOMAINS" ]; then
-    heal_report "FAILED" "Fetch content restricted: $RESTRICTED_DOMAINS — run: bash scripts/pinchtab-fetch.sh repair"
+    heal_report "FAILED" "Fetch content restricted: $RESTRICTED_DOMAINS — may need login: node scripts/cdp-fetch.mjs login <url>"
   fi
 fi
 
-# --- Check 8: Learned Behavior Integrity ---
-LEARNED_FILE="$HOME/.mini-agent/pinchtab-learned.jsonl"
-if [ -f "$LEARNED_FILE" ]; then
-  # Check for domains learned as "ok" in headless that might be wrong
-  # (social media domains should NOT be "ok" in headless)
-  BAD_LEARNED=$(python3 -c "
-import json
-seen = {}
-try:
-    for line in open('$LEARNED_FILE'):
-        try:
-            d = json.loads(line.strip())
-            seen[d['domain']] = d
-        except: pass
-except: pass
-social = ['facebook.com', 'instagram.com', 'threads.net']
-bad = []
-for dom, d in seen.items():
-    if d.get('behavior') == 'ok' and d.get('mode') == 'headless':
-        if any(s in dom for s in social):
-            bad.append(dom)
-if bad: print(', '.join(bad))
-" 2>/dev/null)
-  if [ -n "$BAD_LEARNED" ]; then
-    # Auto-repair: mark as content_restricted
-    for domain in $(echo "$BAD_LEARNED" | tr ',' '\n' | tr -d ' '); do
-      python3 -c "
-import json, datetime, sys
-d = {'domain': sys.argv[1], 'behavior': 'content_restricted', 'mode': 'headless',
-     'lastSeen': datetime.datetime.utcnow().isoformat() + 'Z'}
-print(json.dumps(d))
-" "$domain" >> "$LEARNED_FILE" 2>/dev/null
-    done
-    heal_report "HEALED" "Bad learned behaviors fixed: $BAD_LEARNED → content_restricted"
-  fi
-fi
+# --- Check 8: (reserved for future use) ---
 
 # --- Check 9: System Health State File ---
 HEALTH_FILE=$(ls -t "$HOME/.mini-agent/instances"/*/system-health.json 2>/dev/null | head -1)

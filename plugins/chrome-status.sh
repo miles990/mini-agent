@@ -1,61 +1,32 @@
 #!/bin/bash
-# Pinchtab 瀏覽器狀態感知
+# Chrome CDP 瀏覽器狀態感知
 # stdout 會被包在 <chrome>...</chrome> 中注入 Agent context
 
-PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
-PINCHTAB_BASE="http://localhost:$PINCHTAB_PORT"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+CDP_FETCH="$PROJECT_DIR/scripts/cdp-fetch.mjs"
 
-# Check if Pinchtab is available
-HEALTH=$(curl -s --max-time 2 "$PINCHTAB_BASE/health" 2>/dev/null)
-if [ -n "$HEALTH" ]; then
-  TABS=$(curl -s --max-time 2 "$PINCHTAB_BASE/tabs" 2>/dev/null)
-  TAB_COUNT=$(echo "$TABS" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?")
+# Check if cdp-fetch.mjs exists
+if [[ ! -f "$CDP_FETCH" ]]; then
+  echo "Status: NOT AVAILABLE"
+  echo "cdp-fetch.mjs: not found"
+  exit 0
+fi
 
+# Check Chrome CDP status
+STATUS_OUTPUT=$(node "$CDP_FETCH" status 2>/dev/null)
+if [ $? -eq 0 ] && [ -n "$STATUS_OUTPUT" ]; then
   echo "Status: AVAILABLE"
-  echo "Bridge: Pinchtab"
-  echo "Port: $PINCHTAB_PORT"
-  echo "Open tabs: $TAB_COUNT"
+  echo "Bridge: Chrome CDP (port ${CDP_PORT:-9222})"
   echo ""
-  echo "Capabilities: fetch, open, extract, close, screenshot, a11y-snapshot"
-  echo "Tool: bash scripts/pinchtab-fetch.sh <command> [args]"
-
-  # List recent tabs (top 5)
+  echo "Capabilities: fetch, screenshot, open, extract, close, login, eval, click, type, scroll"
+  echo "Tool: node scripts/cdp-fetch.mjs <command> [args]"
   echo ""
-  echo "Recent tabs:"
-  echo "$TABS" | python3 -c "
-import sys, json
-try:
-    tabs = json.load(sys.stdin)
-    for t in tabs[:5]:
-        title = (t.get('title','') or 'Untitled')[:50]
-        url = (t.get('url',''))[:70]
-        tid = str(t.get('id', t.get('tabId', '')))[:8]
-        print(f'  [{tid}] {title}')
-        print(f'           {url}')
-except:
-    pass
-" 2>/dev/null
-
+  echo "$STATUS_OUTPUT"
 else
   echo "Status: NOT AVAILABLE"
   echo ""
-
-  # Detect Pinchtab state
-  if [ -f "$HOME/.mini-agent/bin/pinchtab" ]; then
-    echo "Pinchtab: installed but not running"
-  else
-    echo "Pinchtab: not installed"
-  fi
-
-  # Check port conflict
-  PORT_PID=$(lsof -ti :"$PINCHTAB_PORT" 2>/dev/null | head -1)
-  if [[ -n "$PORT_PID" ]]; then
-    PORT_PROC=$(ps -p "$PORT_PID" -o comm= 2>/dev/null)
-    echo "Port $PINCHTAB_PORT: in use by $PORT_PROC (PID: $PORT_PID)"
-  else
-    echo "Port $PINCHTAB_PORT: free"
-  fi
-
+  echo "Chrome CDP: not responding on port ${CDP_PORT:-9222}"
   echo ""
-  echo "Auto-fix: bash scripts/pinchtab-setup.sh start"
+  echo "Start Chrome with: node scripts/cdp-fetch.mjs fetch about:blank"
 fi

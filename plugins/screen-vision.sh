@@ -3,17 +3,19 @@
 # Category: chrome (120s interval)
 # stdout 會被包在 <screen-text>...</screen-text> 中注入 Agent context
 #
-# 只在 Pinchtab 可用且 ocrmac 已安裝時執行
+# 只在 Chrome CDP 可用且 ocrmac 已安裝時執行
 # Hash-based 變更偵測：只在畫面改變時重新 OCR
 
-PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+CDP_FETCH="$PROJECT_DIR/scripts/cdp-fetch.mjs"
 CACHE_DIR="$HOME/.mini-agent"
-SHOT_FILE="$CACHE_DIR/screen-vision.jpg"
+SHOT_FILE="$CACHE_DIR/screen-vision.png"
 TEXT_CACHE="$CACHE_DIR/screen-vision-text.txt"
 HASH_CACHE="$CACHE_DIR/screen-vision-hash.txt"
 
-# Check Pinchtab
-if ! curl -sf --max-time 2 "http://localhost:${PINCHTAB_PORT}/health" >/dev/null 2>&1; then
+# Check Chrome CDP
+if ! node "$CDP_FETCH" status &>/dev/null; then
   exit 0
 fi
 
@@ -24,8 +26,8 @@ fi
 
 mkdir -p "$CACHE_DIR"
 
-# Capture screenshot
-curl -sf --max-time 10 "http://localhost:${PINCHTAB_PORT}/screenshot" -o "$SHOT_FILE" 2>/dev/null
+# Capture screenshot via cdp-fetch.mjs (screenshots current active tab)
+node "$CDP_FETCH" screenshot "" "$SHOT_FILE" 2>/dev/null
 if [[ ! -f "$SHOT_FILE" ]] || [[ ! -s "$SHOT_FILE" ]]; then
   exit 0
 fi
