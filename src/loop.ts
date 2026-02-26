@@ -1276,7 +1276,11 @@ export class AgentLoop {
       }).catch(() => {});
 
       // ── Telegram Reply fallback（telegram-user 但無 <kuro:chat> tag → 用 cleanContent） ──
-      if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
+      // Use didReplyToTelegram instead of tags.chats.length === 0 because chats are
+      // cleared at line 1113 after sending. The old check would fire the fallback
+      // even when we already replied, causing duplicate messages when cleanContent
+      // is non-empty (e.g. when backtick-quoted tag references corrupt the stripping).
+      if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
         let fallbackContent = tags.cleanContent.replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '').trim();
         // Skip sending if content looks like error
         const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
