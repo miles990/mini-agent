@@ -1374,7 +1374,7 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action, currentTriggerReason).then(() => done(), e => done(String(e)));
+        runFeedbackLoops(action, currentTriggerReason, context).then(() => done(), e => done(String(e)));
       }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）

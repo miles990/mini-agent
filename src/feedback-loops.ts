@@ -1,15 +1,16 @@
 /**
  * Intelligent Feedback Loops — Phase 2 Self-Learning
  *
- * 三個 fire-and-forget 回饋迴路：
+ * 四個 fire-and-forget 回饋迴路：
  * - Loop A: 錯誤模式識別 → 自動建修復任務
  * - Loop B: 感知引用追蹤 → 動態調頻
  * - Loop C: 決策品質自我審計
+ * - Loop E: CRS Baseline — 每 cycle 記錄 context/citation/score 數據
  *
  * 全部 fire-and-forget，不影響 OODA cycle。
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { getLogger } from './logging.js';
@@ -419,12 +420,98 @@ export async function auditSystemHealth(): Promise<void> {
 }
 
 // =============================================================================
+// Loop E: CRS Baseline Recording
+// =============================================================================
+
+interface BaselineCycleRecord {
+  timestamp: string;
+  contextLength: number;
+  sections: Array<{ name: string; chars: number }>;
+  citations: string[];
+  observabilityScore: number;
+  estimatedTokens: number;
+  triggerReason: string | null;
+}
+
+/**
+ * CRS Phase 1: 記錄每個 cycle 的 context baseline 數據。
+ * 不改變 context，只記錄 — 用於建立 50 cycle 的 baseline。
+ * 數據寫入 instance dir 的 crs-baseline.jsonl。
+ */
+function recordBaselineCycle(
+  action: string | null,
+  context: string | null,
+  triggerReason?: string | null,
+): void {
+  if (!context) return;
+
+  // Parse section sizes from context XML tags
+  const sections: Array<{ name: string; chars: number }> = [];
+  for (const m of context.matchAll(/<(\S+?)[\s>][\s\S]*?<\/\1>/g)) {
+    sections.push({ name: m[1], chars: m[0].length });
+  }
+
+  // Extract which sections were cited in the action
+  const citations: string[] = [];
+  if (action) {
+    const sectionNames = new Set(sections.map(s => s.name));
+
+    // Method 1: Direct <section-name> tag references in action text
+    for (const m of action.matchAll(/<(\w[\w-]+)>/g)) {
+      if (sectionNames.has(m[1]) && !citations.includes(m[1])) {
+        citations.push(m[1]);
+      }
+    }
+
+    // Method 2: Section name keyword matching (hyphenated → space)
+    const actionLower = action.toLowerCase();
+    for (const s of sections) {
+      if (citations.includes(s.name)) continue;
+      const keyword = s.name.replace(/-/g, ' ');
+      if (keyword.length > 3 && actionLower.includes(keyword)) {
+        citations.push(s.name);
+      }
+    }
+  }
+
+  // Score action observability (same rubric as Loop C)
+  let score = 0;
+  if (action) {
+    if (/##\s*Decision|\[DECISION\]/i.test(action)) score++;
+    if (/##\s*What|\*\*What/i.test(action)) score++;
+    if (/##\s*Why|\*\*Why/i.test(action)) score++;
+    if (/##\s*Thinking|\*\*Thinking/i.test(action)) score++;
+    if (/##\s*Changed|\*\*Changed/i.test(action)) score++;
+    if (/##\s*Verified|\*\*Verified/i.test(action)) score++;
+  }
+
+  const record: BaselineCycleRecord = {
+    timestamp: new Date().toISOString(),
+    contextLength: context.length,
+    sections,
+    citations: [...new Set(citations)],
+    observabilityScore: score,
+    estimatedTokens: Math.round(context.length / 4),
+    triggerReason: triggerReason ?? null,
+  };
+
+  const p = getStatePath('crs-baseline.jsonl');
+  appendFileSync(p, JSON.stringify(record) + '\n');
+}
+
+// =============================================================================
 // Unified Entry Point
 // =============================================================================
 
-export async function runFeedbackLoops(action: string | null, triggerReason?: string | null): Promise<void> {
+export async function runFeedbackLoops(
+  action: string | null,
+  triggerReason?: string | null,
+  context?: string | null,
+): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
   await auditDecisionQuality(action, triggerReason).catch(() => {});
   await auditSystemHealth().catch(() => {});
+  // CRS baseline recording (sync, fire-and-forget)
+  try { recordBaselineCycle(action, context ?? null, triggerReason); } catch { /* ignore */ }
 }
