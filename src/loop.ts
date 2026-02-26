@@ -644,6 +644,9 @@ export class AgentLoop {
       slog('JOURNAL', `Loaded ${journalEntries.length} work journal entries from previous instance`);
     }
 
+    // Achievement system: retroactive unlock on first boot
+    import('./achievements.js').then(m => m.retroactiveUnlock()).catch(() => {});
+
     eventBus.on('trigger:*', this.handleTrigger);
 
     // Run first cycle after short warmup (let perception streams initialize)
@@ -1213,7 +1216,8 @@ export class AgentLoop {
         } else {
           const ms = parseScheduleInterval(tags.schedule.next);
           if (ms > 0) {
-            const bounded = Math.max(30_000, Math.min(14_400_000, ms));
+            // Schedule Ceiling: 2h max (Ulysses contract — 消除逃避空間)
+            const bounded = Math.max(30_000, Math.min(7_200_000, ms));
             this.currentInterval = bounded;
             eventBus.emit('action:loop', {
               event: 'schedule',
@@ -1382,7 +1386,7 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action, currentTriggerReason, context).then(() => done(), e => done(String(e)));
+        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount).then(() => done(), e => done(String(e)));
       }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）

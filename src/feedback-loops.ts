@@ -507,6 +507,7 @@ export async function runFeedbackLoops(
   action: string | null,
   triggerReason?: string | null,
   context?: string | null,
+  cycleCount?: number,
 ): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
@@ -514,4 +515,6 @@ export async function runFeedbackLoops(
   await auditSystemHealth().catch(() => {});
   // CRS baseline recording (sync, fire-and-forget)
   try { recordBaselineCycle(action, context ?? null, triggerReason); } catch { /* ignore */ }
+  // Achievement system (fire-and-forget)
+  try { const { checkAchievements } = await import('./achievements.js'); await checkAchievements(action, cycleCount ?? 0); } catch { /* ignore */ }
 }

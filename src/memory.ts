@@ -1412,6 +1412,13 @@ export class InstanceMemory {
       }
     } catch { /* ignore */ }
 
+    // Achievements + Output Gate（always load — identity reinforcement）
+    try {
+      const { buildAchievementsContext } = await import('./achievements.js');
+      const achievementsCtx = buildAchievementsContext();
+      if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
+    } catch { /* ignore */ }
+
     // Workspace — 幾乎總是有用
     const workspace = getWorkspaceSnapshot();
     const workspaceCtx = formatWorkspaceContext(workspace);
