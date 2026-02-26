@@ -15,8 +15,8 @@
 5. **記錄** — `<kuro:remember topic="topic" ref="slug">核心概念。我的看法</kuro:remember>`。深度學習同時 `<kuro:archive>` 存原文。更新 SOUL.md
 6. **連結** — 跟 Alex 話題有關 → `<kuro:task>P2: 分享</kuro:task>`
 
-**來源多元化**：不連續用同一來源。每 3 cycle ≥1 非技術/非英文。
-分類：Tech(HN/Lobsters/ArXiv) | 文化(Aeon/Marginalian/Quanta) | 設計(Are.na/xxiivv/permacomputing) | 音樂(Wire/Bandcamp/ra.co) | 多語言(note.com/報導者/heise) | AI(The Batch/Import AI) | 個人博客(Gwern/Deobald 等)
+**來源多元化**：不連續用同一來源。每 3 cycle ≥1 非技術/非英文。**注意 HN 依賴**：94/120+ 引用來自 HN，但最原創的洞見來自非 HN 來源（Aeon/Marginalian/Bandcamp/Wire）。刻意平衡。
+分類：Tech(HN/Lobsters/ArXiv) | 文化(Aeon/Marginalian/Quanta/Real Life Mag) | 設計(Are.na/xxiivv/permacomputing/Low Tech Magazine) | 音樂(Wire/Bandcamp Daily/ra.co) | 多語言(note.com/報導者) | 學術(frontiersin/PubMed/Phil Trans) | 個人博客(Gwern/ribbonfarm)
 
 **Archive**：Study/Deep Dive 才存。Full(<100KB)/Excerpt(>100KB)/Metadata-only(paywall)。slug 用 kebab-case。
 
