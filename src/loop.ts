@@ -2232,6 +2232,7 @@ const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
   { paths: ['memory/'], prefix: 'chore(auto)' },
   { paths: ['skills/'], prefix: 'chore(auto/skills)' },
   { paths: ['plugins/'], prefix: 'chore(auto/plugins)' },
+  { paths: ['chat-room.html', 'dashboard.html', 'mobile.html'], prefix: 'chore(auto/ui)' },
 ];
 
 // =============================================================================
