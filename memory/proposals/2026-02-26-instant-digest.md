@@ -1,152 +1,183 @@
-# Proposal: Instant Digest — 訊息秒級消化管線
+# Proposal: Instant Digest — 獨立訊息消化服務
 
 ## TL;DR
-Alex 丟任何東西給 Kuro（轉發訊息、URL、文字、語音），3 秒內收到摘要回覆 + 自動歸檔。每日彙整。解決「訊息堆積 = 心智負擔」。
+任何來源丟內容進來 → 3 秒摘要+分類+歸檔 → 每日彙整。獨立產品，API-first，任何人/agent 都能接入。mini-agent 是第一個客戶。
 
 ## Meta
-- Status: draft
+- Status: approved (L2 self-approved — Alex signals: [033]「都是」[036]「你就是kuro」[038]「所有的都要有」)
 - From: kuro
-- To: kuro (L2, 涉及 src/telegram.ts 改動)
+- To: kuro (L2)
 - Created: 2026-02-26T14:45:00+08:00
-- Effort: Medium（2-3h）
+- Updated: 2026-02-26T14:57:00+08:00
+- Effort: Medium-Large（獨立 repo + 產品化）
 
 ## Problem
-Alex 收到訊息的速度 > Kuro 處理的速度。Kuro 的 OODA cycle 每 5-20 分鐘一次，每次只處理一件事。訊息堆積在 Alex 端 = 心智負擔。
+訊息進來的速度 > 處理的速度 → 堆積在人腦 = 心智負擔。這不只是 Alex 的問題，所有知識工作者都有。
 
-Alex 需要的不是對話式回覆，是「幫我把這個東西消化掉，我不用再想它」。
+現有工具（Pocket、Instapaper、Notion Web Clipper）只做「存」，不做「消化」。存了不看 = 垃圾桶。
 
-## Solution
+## Vision
 
-在 Telegram handler 加一條 **fast path**：偵測到「需要消化的內容」時，繞過 OODA 佇列，直接用 Haiku 秒級處理。
-
-### 使用流程
+**Instant Digest 是一個獨立的訊息消化服務。**
 
 ```
-Alex 轉發一篇文章給 Kuro
-  → Kuro 立即回覆：「📋 [AI/產業] Anthropic 收購 Vercept，$50M+ 融資團隊主動加入。重點：Computer Use 工程能力收購，不是 acqui-hire。」
-  → 自動存入今日 digest
-  → Alex 不用再想這件事
-
-Alex 傳一個 URL
-  → Kuro 立即回覆：「📋 [設計] 純 CSS 實作 x86 CPU 模擬器。約束驅動的極致案例。」
-  → 存入 digest
-
-Alex 傳一段文字備忘
-  → Kuro 立即回覆：「📋 [備忘] 已記錄：明天跟 Y 開會討論 Z」
-  → 存入 digest
-
-每天晚上
-  → Kuro 主動發送今日 digest 摘要（分類整理）
+任何管道（Telegram / HTTP API / Webhook / CLI）
+  → Digest Pipeline（classify + summarize + archive）
+  → 秒級回覆摘要
+  → 結構化存儲
+  → 每日/每週彙整
 ```
 
-### 觸發條件
+### 為什麼是獨立產品
 
-以下情況走 fast digest path（不進 OODA）：
-1. **轉發訊息**（`forward_from` 或 `forward_from_chat` 存在）
-2. **純 URL**（訊息只有一個 URL，無其他文字）
-3. **`/d` 前綴**（明確指定要消化：`/d 這是我的想法...`）
+- **不綁 mini-agent**：獨立 repo、獨立部署、獨立文件
+- **API-first**：`POST /digest` 丟內容，拿回摘要+分類。任何 agent 都能接
+- **管道 adapter**：Telegram bot、Slack bot、HTTP webhook、CLI — 想接什麼接什麼
+- **自帶存儲**：JSONL flat file（File = Truth 哲學），也可接外部存儲
+- **mini-agent 是第一個客戶**，不是唯一客戶
 
-以下情況走原本的 OODA path：
-- Alex 直接對話（問問題、給指令、閒聊）
-- 帶文字的 URL（Alex 加了自己的評論 = 想討論，不只是消化）
-
-### 架構
+## Architecture
 
 ```
-TelegramPoller.processMessage()
-  │
-  ├─ isDigestContent(msg)?
-  │   ├─ YES → instantDigest(msg)
-  │   │         ├─ Haiku classify + summarize (< 3s)
-  │   │         ├─ Reply to Alex（📋 + 摘要）
-  │   │         ├─ Store → digest/YYYY-MM-DD.jsonl
-  │   │         └─ Done（不進 inbox/OODA）
-  │   │
-  │   └─ NO → 原本流程（inbox → OODA cycle）
-  │
-  └─ URL detected?
-      └─ fetch content → 餵給 Haiku（更好的摘要品質）
+┌─────────────────────────────────────────────┐
+│              Instant Digest                  │
+│                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Telegram  │  │  HTTP    │  │ Webhook  │  │
+│  │ Adapter   │  │  API     │  │ Adapter  │  │
+│  └─────┬─────┘  └─────┬────┘  └─────┬────┘  │
+│        │              │              │       │
+│        └──────────────┼──────────────┘       │
+│                       ▼                      │
+│              ┌────────────────┐              │
+│              │ Digest Pipeline │              │
+│              │                │              │
+│              │ 1. Detect type │              │
+│              │ 2. Fetch URL   │              │
+│              │ 3. Classify    │  ← LLM       │
+│              │ 4. Summarize   │    (Haiku)   │
+│              │ 5. Store       │              │
+│              │ 6. Reply       │              │
+│              └────────────────┘              │
+│                       │                      │
+│              ┌────────▼───────┐              │
+│              │    Storage     │              │
+│              │  (JSONL/API)   │              │
+│              └────────────────┘              │
+│                       │                      │
+│              ┌────────▼───────┐              │
+│              │  Daily Digest  │              │
+│              │  (Scheduled)   │              │
+│              └────────────────┘              │
+└──────────────────────────────────────────────┘
 ```
 
-## Data Model
+### Core API
 
-### digest/YYYY-MM-DD.jsonl
+```
+POST /digest
+  Body: { content, url?, type?, channel?, metadata? }
+  Response: { id, category, summary, tags }
+
+GET /digest?date=YYYY-MM-DD
+  Response: { entries: [...] }
+
+GET /digest/daily?date=YYYY-MM-DD
+  Response: { formatted digest }
+
+POST /digest/webhook
+  Body: { adapter-specific payload }
+  Response: 202 Accepted
+```
+
+### Data Model
+
 ```json
 {
   "id": "d-2026-02-26-001",
   "ts": "2026-02-26T14:45:00+08:00",
-  "type": "forward|url|note|voice",
+  "channel": "telegram|api|webhook|cli",
+  "type": "forward|url|note|voice|image",
   "category": "ai|design|tech|business|culture|personal|other",
   "source": "轉發自 XXX 群組",
   "summary": "一行摘要",
   "content": "原始內容（前 2000 字）",
   "url": "https://...",
-  "tags": ["anthropic", "computer-use", "acquisition"]
+  "tags": ["anthropic", "computer-use"],
+  "metadata": {}
 }
 ```
 
-### 每日 Digest 格式（Telegram 推送）
-```
-📋 今日消化（2/26）— 8 則
+## Implementation Strategy
 
-🤖 AI（3）
-• Anthropic 收購 Vercept — CU 工程能力收購
-• GLM-5 開源 — 744B 模型 MIT 授權
-• Agent 信任模型比較 — isolation vs transparency
+### Phase 1: Core（在 mini-agent 內先跑通）
 
-🎨 設計（2）
-• x86CSS — 純 CSS 的 x86 模擬器
-• Alexander Pattern Language 回顧
+在 mini-agent 內建 digest pipeline，驗證核心流程：
 
-📝 備忘（3）
-• 明天跟 Y 開會
-• Z 專案需要更新文件
-• 買咖啡豆
-```
+1. **`src/instant-digest.ts`** — 管道無關的核心模組 ✅ DONE
+   - `isDigestContent()` — 偵測是否走 fast path
+   - `digestContent({ text, url?, source, channel })` → `{ id, category, summary, tags }`
+   - `storeDigestEntry()` → 寫 JSONL（`~/.mini-agent/instances/{id}/digest/YYYY-MM-DD.jsonl`）
+   - `generateDailyDigest()` → 彙整
+   - `formatInstantReply()` / `formatDailyDigest()` — 格式化
+   - 用 Haiku API 做分類+摘要
 
-## Implementation Plan
+2. **`src/telegram.ts`** — Telegram adapter（接入現有 poller） 🔲 NEXT
+   - `handleUpdate()` 加 fast path：偵測轉發/URL/`/d` → 呼叫 pipeline → 即時回覆
 
-### Step 1: 新增 `src/instant-digest.ts`（核心模組）
-- `isDigestContent(msg)` — 判斷是否走 fast path
-- `instantDigest(msg)` — Haiku 分類+摘要+存儲
-- `fetchUrlContent(url)` — 抓取 URL 內容（用 curl，reuse pinchtab-fetch 邏輯）
-- `storeDigestEntry(entry)` — 寫入 JSONL
-- `generateDailyDigest(date)` — 彙整當日所有條目
-- `formatDailyDigest(entries)` — 格式化為 Telegram 訊息
+3. **`src/api.ts`** — HTTP adapter（`POST /api/digest`） 🔲
+   - Chat Room、外部 webhook 都走這裡
 
-### Step 2: 修改 `src/telegram.ts`
-- 在 `flushBuffer()` 中加入 digest 路由判斷
-- digest 訊息不寫入 inbox（不進 OODA）
-- digest 訊息直接回覆（不等 OODA cycle）
+4. **Cron** — 每日 22:00 發 digest 🔲
 
-### Step 3: Cron job
-- 每日 22:00 自動發送 daily digest（如果當天有條目）
-- 加入 `agent-compose.yaml`
+### Phase 2: Extract（抽成獨立 repo）
 
-### Step 4: `/digest` 指令
-- Telegram 輸入 `/digest` → 立即生成並發送今日 digest
+Phase 1 驗證完成後：
+- 新建 `instant-digest` repo
+- 把 `digest-pipeline.ts` 抽出來，加上獨立的 HTTP server
+- 寫 README、部署文件
+- mini-agent 改為呼叫外部 digest 服務
+
+### Phase 3: Product（產品化）
+
+- 多用戶支援
+- Slack adapter
+- Web UI（dashboard 看今日/歷史 digest）
+- 自訂分類規則
+- 自訂 LLM provider
+
+## Trigger Rules（Phase 1）
+
+走 fast digest path（不進 OODA）：
+1. **轉發訊息**（`forward_from` 或 `forward_from_chat`）
+2. **純 URL**（訊息只有一個 URL）
+3. **`/d` 前綴**（手動觸發：`/d 今天的想法...`）
+
+走原本 OODA path：
+- 直接對話（問問題、給指令、閒聊）
+- 帶文字的 URL（有評論 = 想討論）
 
 ## Cost
 
 | 項目 | 單價 | 日用量 | 日成本 |
 |------|------|--------|--------|
 | Haiku classify+summarize | ~$0.001/次 | 20-50 次 | $0.02-0.05 |
-| URL fetch（curl） | Free | — | $0 |
-| Daily digest（Haiku 彙整） | ~$0.005 | 1 次 | $0.005 |
+| URL fetch | Free | — | $0 |
+| Daily digest 彙整 | ~$0.005 | 1 次 | $0.005 |
 | **Total** | | | **~$0.03-0.06/day** |
 
-## 不做的事
+## 不做的事（Phase 1）
 
-- ❌ 不取代 OODA cycle — 對話、任務、學習繼續走原本路徑
-- ❌ 不做複雜的 NLP — Haiku 的判斷力夠用
-- ❌ 不建新的 Telegram bot — 共用現有的 Kuro bot
-- ❌ 不需要新的外部依賴 — Anthropic SDK 已有
+- ❌ 不建新 repo — 先在 mini-agent 跑通
+- ❌ 不建新 Telegram bot — 共用 Kuro bot
+- ❌ 不做多用戶 — Phase 1 只有 Alex
+- ❌ 不取代 OODA — 對話/任務/學習走原本路徑
 
 ## Rollback
 
-刪除 `src/instant-digest.ts` + 還原 `telegram.ts` 的路由判斷（一個 `if` block）。約 1 分鐘。
+Phase 1: 刪 `src/instant-digest.ts` + 還原 `telegram.ts` / `api.ts` 路由（1 分鐘）。
 
 ## 決策點（給 Alex）
 
-1. **要不要做？** — Yes / No
-2. **觸發方式偏好？** — 預設：轉發=自動消化、純URL=自動消化、`/d`前綴=手動消化。或者你想要所有訊息都先消化再決定要不要深入討論？
+1. **做不做？** — Yes / No
+2. Phase 1 先在 mini-agent 內跑通，驗證後再抽成獨立產品。這個策略 OK？
