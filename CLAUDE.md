@@ -68,11 +68,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Observability | `src/observability.ts` |
 | PerceptionStream | `src/perception-stream.ts` |
 | Logging | `src/logging.ts` |
-| Pinchtab Setup | `scripts/pinchtab-setup.sh` |
-| Pinchtab Fetch | `scripts/pinchtab-fetch.sh` |
-| Pinchtab Interact | `scripts/pinchtab-interact.sh` |
-| Pinchtab Screenshot | `scripts/pinchtab-screenshot.sh` |
-| Pinchtab Vision | `scripts/pinchtab-vision.sh` |
+| CDP Fetch (Browser) | `scripts/cdp-fetch.mjs` |
 | Mobile PWA | `mobile.html` |
 | Mobile Plugin | `plugins/mobile-perception.sh` |
 | SOUL | `memory/SOUL.md` |
@@ -415,7 +411,7 @@ Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處
 |----------|------|
 | `notifyTelegram(msg)` | 可靠通知（帶重試 + 失敗計數） |
 | `sendTelegramPhoto(path, caption?)` | 發送圖片 |
-| `notifyScreenshot(caption?)` | Pinchtab 截圖 + 發送到 TG |
+| `notifyScreenshot(caption?)` | Chrome CDP 截圖 + 發送到 TG |
 | `getNotificationStats()` | 取得 sent/failed 計數 |
 
 通知統計透過 `<telegram>` 感知 section 注入 OODA context，Kuro 可以看到自己的通知健康度。
@@ -457,15 +453,12 @@ mini-agent list/status/logs [-f]/attach <id>
 ## Environment
 
 ```bash
-PORT=3001                    PINCHTAB_PORT=9867
-MINI_AGENT_INSTANCE=id       PINCHTAB_TIMEOUT=15000
-MINI_AGENT_API_KEY=xxx       PINCHTAB_MAX_CONTENT=8000
+PORT=3001                    CDP_PORT=9222
+MINI_AGENT_INSTANCE=id       CDP_TIMEOUT=15000
+MINI_AGENT_API_KEY=xxx       CDP_MAX_CONTENT=8000
 TELEGRAM_BOT_TOKEN=xxx       # Telegram 接收+發送
 TELEGRAM_CHAT_ID=xxx         # 授權的 chat ID
-BRIDGE_HEADLESS=true         # Pinchtab headless Chrome
-BRIDGE_STEALTH=light         # Pinchtab anti-detection
-CDP_URL=                     # 連接現有 Chrome（設定後不啟動新 Chrome）
-BRIDGE_PROFILE=              # Chrome profile 目錄（預設 ~/.pinchtab/chrome-profile）
+CDP_HOST=localhost            # Chrome CDP host
 ```
 
 ## Deploy
@@ -635,9 +628,9 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 5. **解決後改進自己** — 問「怎麼讓這件事不再發生？」。更新 skill、修改 script、加入經驗記憶、改進 perception
 6. **預防勝於治療** — 發現（掃 log 找 pattern）< 預測（看到衰退趨勢提前處理）< 預防（經驗記憶 + 防禦性設計，讓問題無法發生）。往上走
 
-**可用工具**：curl、`pinchtab-fetch.sh`（Smart Fetch：自動 auth + headless/visible 切換）、`pinchtab-vision.sh`（OCR）、`pinchtab-interact.sh`（瀏覽器互動）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋、`pinchtab-setup.sh mode [headless|visible]`
+**可用工具**：curl、`cdp-fetch.mjs`（Chrome CDP：fetch/screenshot/interact/login，port 9222）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋
 
-**Pinchtab**：`~/.pinchtab/chrome-profile` 已有 Facebook 等登入 session。安裝：`.tar.gz` 格式，repo `pinchtab/pinchtab`。
+**Chrome CDP**：`~/.mini-agent/chrome-cdp-profile` 為 Chrome profile。`node scripts/cdp-fetch.mjs login <url>` 切換 visible 模式登入。
 
 ## Code Conventions
 
