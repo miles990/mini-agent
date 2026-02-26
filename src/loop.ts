@@ -36,7 +36,7 @@ import { extractNextItems } from './triage.js';
 import { NEXT_MD_PATH } from './telegram.js';
 import { withFileLock } from './filelock.js';
 import { readPendingInbox, markAllInboxProcessed, markInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram } from './inbox.js';
-import { runHousekeeping, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
+import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage } from './observability.js';
 import { readMemory } from './memory.js';
@@ -1359,10 +1359,18 @@ export class AgentLoop {
         autoEscalateOverdueTasks().then(() => done(), e => done(String(e)));
       }
 
-      // Auto-commit memory changes（fire-and-forget）
+      // Auto-commit → then auto-push（sequential，防止 push 在 commit 完成前觸發 CI/CD reset）
       if (isEnabled('auto-commit')) {
         const done = trackStart('auto-commit');
-        autoCommitMemory(action).then(() => done(), e => done(String(e)));
+        autoCommitMemory(action)
+          .then(() => {
+            done();
+            if (isEnabled('auto-push')) {
+              const pushDone = trackStart('auto-push');
+              return autoPushIfAhead().then(() => pushDone(), e => pushDone(String(e)));
+            }
+          })
+          .catch(e => done(String(e)));
       }
 
       // GitHub mechanical automation（fire-and-forget）

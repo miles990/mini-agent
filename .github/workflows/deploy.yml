@@ -36,6 +36,8 @@ jobs:
       - name: Deploy
         run: |
           cd /Users/user/Workspace/mini-agent
+          # Stash uncommitted changes to prevent data loss from reset --hard
+          git stash --include-untracked -m "ci: pre-deploy stash $(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
           git fetch origin main
           git reset --hard origin/main
           ./scripts/deploy.sh

@@ -393,7 +393,8 @@ let cycleCounter = 0;
 export async function runHousekeeping(): Promise<void> {
   cycleCounter++;
 
-  await autoPushIfAhead().catch(() => {});
+  // NOTE: autoPushIfAhead() 已移到 loop.ts，鏈在 autoCommitMemory() 完成後。
+  // 防止 push 在 commit 完成前觸發 CI/CD 的 git reset --hard 覆蓋未 commit 的改動。
   await consolidateInboxSources().catch(() => {});
   await refreshSearchIndex().catch(() => {});
   await expireOldInboxItems().catch(() => {});
