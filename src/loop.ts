@@ -133,6 +133,58 @@ function loadStaleCheckpoint(): { info: string; triggerReason: string | null; la
 }
 
 // =============================================================================
+// Work Journal (cross-restart context continuity)
+// =============================================================================
+
+interface WorkJournalEntry {
+  ts: string;
+  cycle: number;
+  action: string;
+  trigger: string | null;
+  tags: string[];
+  sideEffects: string[];
+}
+
+function getWorkJournalPath(): string | null {
+  try {
+    const instanceId = getCurrentInstanceId();
+    if (!instanceId) return null;
+    return path.join(getInstanceDir(instanceId), 'work-journal.jsonl');
+  } catch { return null; }
+}
+
+function writeWorkJournal(entry: WorkJournalEntry): void {
+  const filePath = getWorkJournalPath();
+  if (!filePath) return;
+  try {
+    fs.appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
+    // Trim to last 50 entries to prevent unbounded growth
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    if (lines.length > 50) {
+      fs.writeFileSync(filePath, lines.slice(-50).join('\n') + '\n', 'utf-8');
+    }
+  } catch { /* fire-and-forget */ }
+}
+
+function loadWorkJournal(limit: number = 5): WorkJournalEntry[] {
+  const filePath = getWorkJournalPath();
+  if (!filePath || !fs.existsSync(filePath)) return [];
+  try {
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    return lines.slice(-limit).map(l => JSON.parse(l) as WorkJournalEntry);
+  } catch { return []; }
+}
+
+function formatWorkJournalContext(entries: WorkJournalEntry[]): string {
+  const lines = entries.map(e => {
+    const tagsStr = e.tags.length > 0 ? ` [${e.tags.join(',')}]` : '';
+    const effects = e.sideEffects.length > 0 ? ` → ${e.sideEffects.join('; ')}` : '';
+    return `- #${e.cycle} (${e.trigger ?? 'auto'}): ${e.action.slice(0, 200)}${tagsStr}${effects}`;
+  });
+  return `Work journal from before restart (continue relevant work, honor commitments):\n${lines.join('\n')}`;
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -247,6 +299,7 @@ export class AgentLoop {
 
   // ── Cross-cycle state (only last cycle, no accumulation) ──
   private previousCycleInfo: string | null = null;
+  private workJournalContext: string | null = null;
 
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
