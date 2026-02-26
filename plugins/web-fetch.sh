@@ -1,14 +1,16 @@
 #!/bin/bash
-# Web 六層擷取感知 — curl → Jina Reader → Grok(X) → CDP → Pinchtab → 人工
+# Web 五層擷取感知 — curl → Jina Reader → Grok(X) → CDP → 人工
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 #
 # 每層都有內容品質驗證 — 防止「成功但內容是垃圾」的靜默失敗
 
-PINCHTAB_PORT="${PINCHTAB_PORT:-9867}"
-PINCHTAB_BASE="http://localhost:$PINCHTAB_PORT"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PINCHTAB_FETCH="$SCRIPT_DIR/scripts/pinchtab-fetch.sh"
 CDP_FETCH="$SCRIPT_DIR/scripts/cdp-fetch.mjs"
+
+# Load .env for API keys (XAI_API_KEY etc.) — launchd doesn't pass them
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+  set -a; source "$SCRIPT_DIR/.env"; set +a
+fi
 
 # 讀取最近的對話記錄，提取 URL
 INSTANCE_DIR="${MINI_AGENT_INSTANCE_DIR:-$HOME/.mini-agent/instances/default}"
@@ -51,12 +53,6 @@ is_content_useful() {
 
   return 0
 }
-
-# Check if Pinchtab is available
-PINCHTAB_AVAILABLE=false
-if curl -s --max-time 2 "$PINCHTAB_BASE/health" > /dev/null 2>&1; then
-  PINCHTAB_AVAILABLE=true
-fi
 
 # Check if Chrome CDP is available (port 9222)
 CDP_AVAILABLE=false
@@ -164,30 +160,12 @@ for URL in $URLS; do
     fi
   fi
 
-  # ── Layer 5: Pinchtab (stealth browser, auto content restriction handling) ──
-  if [[ "$PINCHTAB_AVAILABLE" == "true" ]]; then
-    echo "  [trying Pinchtab...]"
-    PINCHTAB_RESULT=$(bash "$PINCHTAB_FETCH" fetch "$URL" 2>/dev/null)
-    PINCHTAB_EXIT=$?
-
-    if [[ $PINCHTAB_EXIT -eq 0 ]] && [[ -n "$PINCHTAB_RESULT" ]]; then
-      if echo "$PINCHTAB_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
-        echo "  [Login required]"
-        echo "  This page needs authentication."
-      else
-        echo "$PINCHTAB_RESULT" | head -40
-      fi
-      echo ""
-      continue
-    fi
-  fi
-
-  # ── Layer 6: Cannot access — report clearly ──
+  # ── Layer 5: Cannot access — report clearly ──
   echo "  [Cannot fetch — requires login or is inaccessible]"
   if [[ -n "$IS_X_URL" ]] && [[ -z "${XAI_API_KEY:-}" ]]; then
     echo "  Tip: Set XAI_API_KEY to use Grok x_search for X/Twitter posts"
-  elif [[ "$PINCHTAB_AVAILABLE" == "true" ]]; then
-    echo "  To open in Chrome: bash scripts/pinchtab-fetch.sh open \"$URL\""
+  elif [[ "$CDP_AVAILABLE" == "true" ]]; then
+    echo "  To open in Chrome: node scripts/cdp-fetch.mjs open \"$URL\""
   else
     echo "  No browser available. Start Chrome with --remote-debugging-port=9222"
   fi
