@@ -482,6 +482,14 @@ export class TelegramPoller {
       await this.setReaction(String(msg.chat.id), msg.message_id, '⚡');
 
       eventBus.emit('action:digest', { id: entry.id, category: entry.category }, { priority: 'P2', source: 'instant-digest' });
+
+      // If content needs depth, also queue for OODA follow-up
+      if (entry.needsDepth) {
+        const depthPrompt = `[深度補充] Instant Digest ${entry.id} 需要深度分析：\n${entry.summary}\n${entry.url ? `URL: ${entry.url}` : ''}`;
+        this.writeInbox(parsed.timestamp, parsed.sender, depthPrompt, 'pending');
+        writeInboxItem({ source: 'telegram', from: parsed.sender, content: depthPrompt });
+        slog('TELEGRAM', `Queued depth follow-up for ${entry.id}`);
+      }
     } catch (err) {
       slog('TELEGRAM', `Instant digest failed: ${err instanceof Error ? err.message : err}`);
       // Fallback: let it go through normal OODA flow

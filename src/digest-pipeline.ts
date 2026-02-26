@@ -439,6 +439,7 @@ export function formatInstantReply(entry: DigestEntry): string {
   const emoji = CATEGORY_EMOJI[entry.category] ?? '📌';
   let reply = `📋 ${emoji} ${entry.category.toUpperCase()} — ${entry.summary}`;
   if (entry.tags.length > 0) reply += `\n🏷️ ${entry.tags.join(', ')}`;
+  if (entry.needsDepth) reply += `\n\n🔍 這個主題有深度，我會在下次 cycle 補充完整分析。`;
   return reply;
 }
 
@@ -461,6 +462,7 @@ export interface DigestEntry {
   content: string;             // Original (truncated to 2000 chars)
   url?: string;
   tags: string[];
+  needsDepth: boolean;         // Whether this content warrants deeper OODA analysis
   metadata?: Record<string, unknown>;
 }
 
@@ -557,6 +559,7 @@ export async function digestContent(req: DigestRequest): Promise<DigestEntry> {
       content: truncatedContent,
       url: req.url,
       tags: [],
+      needsDepth: false,
       metadata: req.metadata,
     };
     storeDigestEntry(entry);
@@ -577,12 +580,13 @@ ${truncatedContent}
 ${req.url ? `\nURL: ${req.url}` : ''}
 
 JSON format:
-{"category":"${CATEGORIES.join('|')}","summary":"一句話摘要（繁體中文）","tags":["tag1","tag2"]}
+{"category":"${CATEGORIES.join('|')}","summary":"一句話摘要（繁體中文）","tags":["tag1","tag2"],"needsDepth":true/false}
 
 Rules:
 - summary: one sentence in Traditional Chinese, capture the key point
 - category: pick the best fit from the list
-- tags: 1-3 lowercase English keywords`,
+- tags: 1-3 lowercase English keywords
+- needsDepth: true if the content is complex, controversial, multi-faceted, or would benefit from deeper analysis (e.g. research papers, long articles, nuanced topics). false for simple news, announcements, or self-explanatory content`,
       }],
     });
 
@@ -595,6 +599,7 @@ Rules:
       category?: string;
       summary?: string;
       tags?: string[];
+      needsDepth?: boolean;
     };
 
     const entry: DigestEntry = {
@@ -606,6 +611,7 @@ Rules:
       content: truncatedContent,
       url: req.url,
       tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+      needsDepth: parsed.needsDepth === true,
       metadata: req.metadata,
     };
 
@@ -624,6 +630,7 @@ Rules:
       content: truncatedContent,
       url: req.url,
       tags: [],
+      needsDepth: false,
       metadata: req.metadata,
     };
     storeDigestEntry(entry);
