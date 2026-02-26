@@ -263,8 +263,8 @@ export class AgentLoop {
   private lastCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
-  // ── Telegram Wake (trigger loop cycle on Alex's TG message) ──
-  private telegramWakeQueue = 0;
+  // ── Direct Message Wake (trigger loop cycle on direct messages: telegram, room, chat) ──
+  private directMessageWakeQueue = 0;
   private lastTelegramWake = 0;
   private static readonly TELEGRAM_WAKE_THROTTLE = 5_000;        // 5s throttle
 
@@ -352,11 +352,11 @@ export class AgentLoop {
       case 'preempt':
       case 'immediate': {
         // Already handling same source or idle → just queue (cycle finishes fast)
-        if (event.source === 'telegram' && (
+        if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && (
           this.triggerReason?.startsWith('telegram-user') || this.currentMode === 'idle'
         )) {
-          this.telegramWakeQueue++;
-          slog('LOOP', `[unified] ${event.source} queued (${this.telegramWakeQueue} pending, mode: ${this.currentMode})`);
+          this.directMessageWakeQueue++;
+          slog('LOOP', `[unified] ${event.source} queued (${this.directMessageWakeQueue} pending, mode: ${this.currentMode})`);
           return;
         }
 
@@ -389,9 +389,9 @@ export class AgentLoop {
 
       case 'normal':
         // Cycle in progress → queue for after cycle
-        // Only queue REAL telegram messages (from flushBuffer), not perception refreshes
-        if (event.source === 'telegram' && agentEvent.data?.source !== 'mark-processed') {
-          this.telegramWakeQueue++;
+        // Direct message sources (telegram, room, chat) get queued for drain after cycle ends
+        if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && agentEvent.data?.source !== 'mark-processed') {
+          this.directMessageWakeQueue++;
         }
         slog('LOOP', `[unified] Event queued: ${event.source} (${decision.reason})`);
         return;
@@ -549,7 +549,7 @@ export class AgentLoop {
       } else {
         bumpLoopGeneration();
       }
-      this.telegramWakeQueue++;
+      this.directMessageWakeQueue++;
     }, AgentLoop.SAFETY_VALVE_TIMEOUT);
   }
 
@@ -737,11 +737,14 @@ export class AgentLoop {
       }
 
       // ── Per-perception change detection (Phase 4) ──
-      // telegram-user and cron bypass this check — must never be skipped
+      // Direct messages (telegram, room, chat) and cron bypass this check — must never be skipped
       const currentVersion = perceptionStreams.version;
       const isTelegramUser = this.triggerReason?.startsWith('telegram-user') ?? false;
+      const isDirectMessage = isTelegramUser
+        || this.triggerReason?.startsWith('room') || this.triggerReason?.startsWith('chat')
+        || this.triggerReason?.startsWith('direct-message');
       const isCronTrigger = this.triggerReason?.startsWith('cron') ?? false;
-      if (!isTelegramUser && !isCronTrigger && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
+      if (!isDirectMessage && !isCronTrigger && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
         eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
         return null;
       }
@@ -758,7 +761,7 @@ export class AgentLoop {
 
       // ── Perception-first: no mode gate ──
       // Cooldown (only when behavior.md explicitly sets it)
-      if (this.autonomousCooldown > 0 && !isTelegramUser && !isCronTrigger) {
+      if (this.autonomousCooldown > 0 && !isDirectMessage && !isCronTrigger) {
         this.autonomousCooldown--;
         this.currentMode = 'idle';
         this.adjustInterval(false);
@@ -768,7 +771,7 @@ export class AgentLoop {
       }
 
       // Active hours (only blocks non-triggered cycles)
-      if (!isTelegramUser && !isCronTrigger && !this.isWithinActiveHours()) {
+      if (!isDirectMessage && !isCronTrigger && !this.isWithinActiveHours()) {
         this.currentMode = 'idle';
         this.adjustInterval(false);
         eventBus.emit('action:loop', { event: 'outside-hours', cycleCount: this.cycleCount });
@@ -1321,13 +1324,13 @@ export class AgentLoop {
       if (this.pendingPriority) {
         const pp = this.pendingPriority;
         this.pendingPriority = null;
-        this.telegramWakeQueue = 0;
+        this.directMessageWakeQueue = 0;
         this.lastPriorityDrainAt = Date.now();
         const waited = Math.round((Date.now() - pp.arrivedAt) / 1000);
         slog('LOOP', `Draining priority: ${pp.reason} (${pp.messageCount} msg, waited ${waited}s)`);
         eventBus.emit('action:loop', { event: 'priority.drain', reason: pp.reason, waitedMs: Date.now() - pp.arrivedAt });
         // Wait for concurrent callClaude (e.g. drainCronQueue) to finish before
-        // starting telegram-user priority cycle — otherwise busy guard blocks it (0.0s cycle)
+        // starting priority cycle — otherwise busy guard blocks it (0.0s cycle)
         const drainStartWait = Date.now();
         const maxBusyWait = 120_000;
         const tryDrainPriority = () => {
@@ -1340,19 +1343,21 @@ export class AgentLoop {
           }
           if (!this.cycling) {
             const totalWaited = Math.round((Date.now() - pp.arrivedAt) / 1000);
-            this.triggerReason = `telegram-user (yielded, waited ${totalWaited}s)`;
+            // Use the original source from pendingPriority reason (e.g. "telegram-P0", "room-P1")
+            const drainSource = pp.reason.startsWith('telegram') ? 'telegram-user' : pp.reason.split('-')[0];
+            this.triggerReason = `${drainSource} (yielded, waited ${totalWaited}s)`;
             this.runCycle();
           }
         };
         setTimeout(tryDrainPriority, 500);
-      } else if (this.telegramWakeQueue > 0) {
-        // Legacy: drain queued telegram wake requests
-        this.telegramWakeQueue = 0;
+      } else if (this.directMessageWakeQueue > 0) {
+        // Drain queued direct message wake requests (telegram, room, chat)
+        this.directMessageWakeQueue = 0;
         setTimeout(() => {
-          // Queued telegram wakes are direct messages — re-arm calm wake
+          // Direct message wakes — re-arm calm wake
           if (this.paused) this.calmWake = true;
           if (this.running && !this.cycling) {
-            this.triggerReason = 'telegram-user (queued)';
+            this.triggerReason = 'direct-message (queued)';
             this.runCycle();
           }
         }, 3000);
@@ -1446,8 +1451,11 @@ export class AgentLoop {
     context: string,
     triggerReason: string | null,
   ): import('./memory.js').CycleMode {
-    // User interaction (telegram, chat) → respond (all skills)
-    if (triggerReason?.startsWith('telegram-user')) return 'respond';
+    // User interaction (telegram, room, chat) → respond (all skills)
+    if (triggerReason?.startsWith('telegram-user')
+      || triggerReason?.startsWith('room')
+      || triggerReason?.startsWith('chat')
+      || triggerReason?.startsWith('direct-message')) return 'respond';
 
     // ALERT or overdue tasks → task mode
     if (context.includes('ALERT:') || context.includes('overdue')) return 'task';
