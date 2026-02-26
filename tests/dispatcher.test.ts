@@ -149,4 +149,14 @@ describe('parseTags', () => {
     const result = parseTags('<kuro:chat>@claude-code I use <kuro:action> for decisions</kuro:chat>\n<kuro:action>## Decision\nreplied</kuro:action>');
     expect(result.chats).toEqual([{ text: '@claude-code I use <kuro:action> for decisions', reply: false }]);
   });
+
+  it('preserves inline code in chat text', () => {
+    const result = parseTags('<kuro:chat>Use `<kuro:schedule next="now">` for continuation</kuro:chat>');
+    expect(result.chats[0].text).toContain('`<kuro:schedule next="now">`');
+  });
+
+  it('preserves inline code in inner text', () => {
+    const result = parseTags('<kuro:inner>Tracking: `<kuro:schedule>` usage</kuro:inner>');
+    expect(result.inner).toContain('`<kuro:schedule>`');
+  });
 });

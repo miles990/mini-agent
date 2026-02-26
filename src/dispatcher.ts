@@ -192,17 +192,20 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // Chat text is extracted from the original response (not parseSource) to preserve
+  // inline code and backtick content that users/Kuro see in Chat Room and Telegram.
   const chats: Array<{ text: string; reply: boolean }> = [];
   if (parseSource.includes('<kuro:chat')) {
-    for (const m of parseSource.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
+    for (const m of response.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
       const isReply = m[0].startsWith('<kuro:chat reply="true">');
       chats.push({ text: m[1].trim(), reply: isReply });
     }
   }
 
+  // Ask text is extracted from original response (displayed to user via Telegram)
   const asks: string[] = [];
   if (parseSource.includes('<kuro:ask>')) {
-    for (const m of parseSource.matchAll(/<kuro:ask>([\s\S]*?)<\/kuro:ask>/g)) {
+    for (const m of response.matchAll(/<kuro:ask>([\s\S]*?)<\/kuro:ask>/g)) {
       asks.push(m[1].trim());
     }
   }
@@ -251,10 +254,11 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  // <kuro:inner> tag — working memory for reserved mode
+  // Inner text is extracted from original response to preserve inline code content
+  // displayed on Dashboard Working Memory section.
   let inner: string | undefined;
   if (parseSource.includes('<kuro:inner>')) {
-    const m = parseSource.match(/<kuro:inner>([\s\S]*?)<\/kuro:inner>/);
+    const m = response.match(/<kuro:inner>([\s\S]*?)<\/kuro:inner>/);
     if (m) inner = m[1].trim();
   }
 
