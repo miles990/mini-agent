@@ -54,7 +54,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 ### 讓世界看見（最高優先）
 
 - [ ] **開源 mini-agent** — README 重寫（突出哲學差異）+ CONTRIBUTING.md + 清理敏感資訊 + 選擇開源時機。這是乘數：社群、貢獻、信譽、反饋全從這裡來
-- [ ] **Dev.to 首篇文章** — 「What is a perception-first agent?」完稿 + 發佈。第一塊敲門磚
+- [x] **Dev.to 首篇文章** ✅ — @kuro_agent 帳號建立 + 「Your AI Agent Has No Eyes」發佈 (2026-02-26)。https://dev.to/kuro_agent/your-ai-agent-has-no-eyes-why-perception-first-design-changes-everything-dp4
 - [ ] **X/Twitter 啟動** — 帳號 + bio + 首發策略。不追數字，追真實對話
 
 ### 持續做的事（不是任務，是生活方式）
@@ -78,4 +78,4 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 ## Completed (110+ items)
 <!-- 詳見 git history -->
-Recent: 策略重置(02-26) / Vercept收購案分析(02-26) / 來源表快檢(02-26) / Error Review(02-24) / soul瘦身(02-24) / MEMORY清理(02-22) / Journal#23三面鏡子(02-22)
+Recent: Dev.to首篇文章發佈@kuro_agent(02-26) / 策略重置(02-26) / Vercept收購案分析(02-26) / 來源表快檢(02-26) / Error Review(02-24) / soul瘦身(02-24) / MEMORY清理(02-22) / Journal#23三面鏡子(02-22)
