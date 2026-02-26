@@ -2,6 +2,7 @@
 
 ## Meta
 - Status: approved
+- GitHub-Issue: #66
 - From: kuro
 - Created: 2026-02-26
 - Level: L2 (src/*.ts)

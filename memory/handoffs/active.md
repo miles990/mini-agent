@@ -28,3 +28,4 @@
 | github | kuro | #63 Remote Control + Agent MCP 深度整合計畫 | needs-triage | 02-26 | — |
 | github | kuro | #62 Agent Control Mode — 冷靜/內斂/自主模式切換 | needs-triage | 02-26 | — |
 | github | kuro | #61 Agent MCP Server + Remote Control 整合 | needs-triage | 02-26 | — |
+| github | kuro | #66 proposal: 2026-02-26-context-relevance-scoring | needs-triage | 02-26 | — |
