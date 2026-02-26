@@ -131,12 +131,16 @@ export async function executeAllPerceptions(
  */
 const PLUGIN_OUTPUT_CAP = 4000; // 4K chars per plugin — prevents context bloat
 
-export function formatPerceptionResults(results: PerceptionResult[]): string {
+export function formatPerceptionResults(
+  results: PerceptionResult[],
+  capOverrides?: Record<string, number>,
+): string {
   return results
     .filter(r => r.output) // 只包含有輸出的
     .map(r => {
-      const output = r.output!.length > PLUGIN_OUTPUT_CAP
-        ? r.output!.slice(0, PLUGIN_OUTPUT_CAP) + '\n[... truncated]'
+      const cap = capOverrides?.[r.name] ?? PLUGIN_OUTPUT_CAP;
+      const output = r.output!.length > cap
+        ? r.output!.slice(0, cap) + '\n[... truncated]'
         : r.output!;
       return `<${r.name}>\n${output}\n</${r.name}>`;
     })

@@ -202,6 +202,7 @@ export interface ComposePerception {
   interval?: string;    // 執行間隔（預留）
   timeout?: number;     // 超時毫秒（預設 5000）
   enabled?: boolean;    // 是否啟用（預設 true）
+  output_cap?: number;  // 每 plugin 輸出上限 chars（預設 PLUGIN_OUTPUT_CAP）
 }
 
 export interface ComposeAgent {

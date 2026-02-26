@@ -1431,6 +1431,12 @@ export class InstanceMemory {
         'git-detail': ['git', 'commit', 'branch', 'merge'],
       };
 
+      // Per-plugin output cap overrides from compose config
+      const capOverrides: Record<string, number> = {};
+      for (const p of customPerceptions) {
+        if (p.output_cap) capOverrides[p.name] = p.output_cap;
+      }
+
       if (perceptionStreams.isActive()) {
         // Phase 4: 從 stream cache 讀取（不執行 shell scripts）
         const cachedReport = perceptionStreams.getCachedReport();
@@ -1450,7 +1456,7 @@ export class InstanceMemory {
               }
             }
             // 只渲染有變化的 sections
-            const customCtx = formatPerceptionResults(changedResults);
+            const customCtx = formatPerceptionResults(changedResults, capOverrides);
             if (customCtx) sections.push(customCtx);
             // 未變化的 sections：一行列表取代多個 XML 區塊
             if (unchangedNames.length > 0) {
@@ -1475,7 +1481,7 @@ export class InstanceMemory {
             const { report } = await analyzePerceptions(results);
             if (report) sections.push(`<situation-report>\n${report}\n</situation-report>`);
           } else {
-            const customCtx = formatPerceptionResults(results);
+            const customCtx = formatPerceptionResults(results, capOverrides);
             if (customCtx) sections.push(customCtx);
           }
         }
