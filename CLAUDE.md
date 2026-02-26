@@ -69,6 +69,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | PerceptionStream | `src/perception-stream.ts` |
 | Logging | `src/logging.ts` |
 | CDP Fetch (Browser) | `scripts/cdp-fetch.mjs` |
+| Web Cache | `~/.mini-agent/web-cache/` |
 | Mobile PWA | `mobile.html` |
 | Mobile Plugin | `plugins/mobile-perception.sh` |
 | SOUL | `memory/SOUL.md` |
@@ -276,6 +277,26 @@ loop.ts 和 dispatcher.ts 不再直接呼叫 slog/logBehavior/notify，改為 `e
 | chrome | 120s | chrome, web |
 | telegram | event-driven | telegram-inbox |
 | heartbeat | 30min | 其他所有 |
+
+**Per-Plugin Output Cap**：`agent-compose.yaml` 可為個別 plugin 設定 `output_cap`（chars），覆蓋預設 `PLUGIN_OUTPUT_CAP=4000`。context 注入時依此上限截斷。
+
+```yaml
+- name: web
+  script: ./plugins/web-fetch.sh
+  output_cap: 2500   # 預設 4000
+```
+
+**Web Content Cache**：`plugins/web-fetch.sh` 擷取的完整來源資料存到 `~/.mini-agent/web-cache/`，context 只注入精簡版（~1000 chars/URL）。
+
+```
+~/.mini-agent/web-cache/
+  <url-hash>.txt      # 完整內容（URL + title + layer + full text）
+  manifest.jsonl      # 索引（url, layer, len, timestamp, file）
+```
+
+- 每次擷取覆寫同 URL 的 cache（URL hash 為檔名）
+- 7 天自動清理
+- `cdp-fetch.mjs --compact`：跳過 links section（perception 用途省 ~2000 chars）
 
 ### Dashboard SSE (`GET /api/events`)
 

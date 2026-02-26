@@ -42,9 +42,11 @@ agents:
           enabled: false
         - name: chrome
           script: ./plugins/chrome-status.sh
+          output_cap: 500
         - name: web
           script: ./plugins/web-fetch.sh
           timeout: 15000
+          output_cap: 2500
         - name: tasks
           script: ./plugins/task-tracker.sh
         - name: state-changes

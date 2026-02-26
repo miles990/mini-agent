@@ -3,6 +3,7 @@
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 #
 # 每層都有內容品質驗證 — 防止「成功但內容是垃圾」的靜默失敗
+# Compact output: 精簡版注入 context，完整版存到 web-cache/
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CDP_FETCH="$SCRIPT_DIR/scripts/cdp-fetch.mjs"
@@ -35,6 +36,39 @@ if [[ -z "$URLS" ]]; then
   exit 0
 fi
 
+# ─── Full Content Cache ───────────────────────────────────────────────────────
+# 完整來源資料存到磁碟，context 只注入精簡版
+WEB_CACHE_DIR="$HOME/.mini-agent/web-cache"
+mkdir -p "$WEB_CACHE_DIR"
+
+# cache_content URL LAYER FULL_CONTENT [TITLE]
+# Saves full content to disk
+cache_content() {
+  local url="$1" layer="$2" content="$3" title="${4:-}"
+  local url_hash
+  url_hash=$(echo -n "$url" | md5 -q 2>/dev/null || echo -n "$url" | md5sum 2>/dev/null | cut -d' ' -f1)
+  local short_hash="${url_hash:0:12}"
+  local cache_file="$WEB_CACHE_DIR/${short_hash}.txt"
+
+  # Write full content
+  {
+    echo "URL: $url"
+    [[ -n "$title" ]] && echo "Title: $title"
+    echo "Layer: $layer"
+    echo "Fetched: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "---"
+    echo "$content"
+  } > "$cache_file"
+
+  # Append to manifest (JSONL, append-only)
+  local content_len=${#content}
+  echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"url\":\"$url\",\"layer\":\"$layer\",\"len\":$content_len,\"file\":\"${short_hash}.txt\"}" \
+    >> "$WEB_CACHE_DIR/manifest.jsonl" 2>/dev/null
+}
+
+# Cleanup: remove cache files older than 7 days (fire-and-forget)
+find "$WEB_CACHE_DIR" -name '*.txt' -mtime +7 -delete 2>/dev/null &
+
 # ─── Content Quality Gate ─────────────────────────────────────────────────────
 # 通用品質驗證 — 防止「有輸出但沒用」的靜默失敗
 is_content_useful() {
@@ -60,11 +94,10 @@ if curl -s --max-time 2 "http://localhost:${CDP_PORT:-9222}/json/version" > /dev
   CDP_AVAILABLE=true
 fi
 
-echo "=== Web Content ==="
-echo ""
-
 for URL in $URLS; do
-  echo "--- $URL ---"
+  # Short domain for compact display
+  DOMAIN=$(echo "$URL" | sed -E 's|https?://([^/]+).*|\1|' | sed 's/^www\.//')
+  echo "[$DOMAIN]"
 
   # ── Layer 1: curl (fast, public pages) ──
   CONTENT=$(curl -sL --max-time 8 --max-filesize 1048576 \
@@ -78,16 +111,18 @@ for URL in $URLS; do
     if [[ "$IS_AUTH" -lt 2 ]] && [[ "$CONTENT_LEN" -gt 200 ]] && is_content_useful "$CONTENT" "$URL"; then
       if echo "$CONTENT" | head -5 | grep -qi '<html\|<!doctype'; then
         TITLE=$(echo "$CONTENT" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
-        TEXT=$(echo "$CONTENT" \
+        FULL_TEXT=$(echo "$CONTENT" \
           | sed 's/<script[^>]*>.*<\/script>//gi' \
           | sed 's/<style[^>]*>.*<\/style>//gi' \
           | sed 's/<[^>]*>//g' \
-          | tr -s '[:space:]' ' ' \
-          | head -c 2000)
-        [[ -n "$TITLE" ]] && echo "  Title: $TITLE"
-        echo "  Content: ${TEXT:0:1500}"
+          | tr -s '[:space:]' ' ')
+        # Cache full text, output compact version
+        cache_content "$URL" "curl" "$FULL_TEXT" "$TITLE"
+        [[ -n "$TITLE" ]] && echo "$TITLE"
+        echo "${FULL_TEXT:0:1000}"
       else
-        echo "  Content: ${CONTENT:0:1500}"
+        cache_content "$URL" "curl" "$CONTENT"
+        echo "${CONTENT:0:1000}"
       fi
       echo ""
       continue
@@ -104,8 +139,8 @@ for URL in $URLS; do
   if [[ $JINA_EXIT -eq 0 ]] && [[ "$JINA_LEN" -gt 200 ]] && is_content_useful "$JINA_RESULT" "$URL"; then
     JINA_AUTH=$(echo "$JINA_RESULT" | head -20 | grep -ciE 'sign.in|log.in|login|password|captcha|403|forbidden|unauthorized' || true)
     if [[ "$JINA_AUTH" -lt 2 ]]; then
-      echo "  [via Jina Reader]"
-      echo "$JINA_RESULT" | head -60
+      cache_content "$URL" "jina" "$JINA_RESULT"
+      echo "$JINA_RESULT" | head -30
       echo ""
       continue
     fi
@@ -114,7 +149,6 @@ for URL in $URLS; do
   # ── Layer 3: Grok x_search (X/Twitter native access) ──
   IS_X_URL=$(echo "$URL" | grep -oiE 'x\.com|twitter\.com' || true)
   if [[ -n "$IS_X_URL" ]] && [[ -n "${XAI_API_KEY:-}" ]]; then
-    echo "  [trying Grok x_search...]"
     GROK_RESPONSE=$(curl -s --connect-timeout 5 --max-time 15 "https://api.x.ai/v1/responses" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $XAI_API_KEY" \
@@ -130,8 +164,8 @@ for URL in $URLS; do
     ' 2>/dev/null)
 
     if [[ -n "$GROK_TEXT" ]] && [[ ${#GROK_TEXT} -gt 50 ]]; then
-      echo "  [via Grok x_search]"
-      echo "$GROK_TEXT" | head -40
+      cache_content "$URL" "grok" "$GROK_TEXT"
+      echo "$GROK_TEXT" | head -25
       echo ""
       continue
     fi
@@ -139,35 +173,31 @@ for URL in $URLS; do
 
   # ── Layer 4: Chrome CDP (authenticated pages) ──
   if [[ "$CDP_AVAILABLE" == "true" ]] && [[ -f "$CDP_FETCH" ]]; then
-    echo "  [curl+Jina failed, trying Chrome CDP...]"
-    CDP_RESULT=$(node "$CDP_FETCH" fetch "$URL" 2>/dev/null)
+    # Fetch full content for cache, output compact (no links)
+    CDP_RESULT_FULL=$(node "$CDP_FETCH" fetch "$URL" 2>/dev/null)
     CDP_EXIT=$?
 
-    if [[ $CDP_EXIT -eq 0 ]] && [[ -n "$CDP_RESULT" ]]; then
-      if echo "$CDP_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
-        echo "  [Login required even in Chrome]"
-        echo "  To access: node scripts/cdp-fetch.mjs open \"$URL\""
-        echo "  Then: node scripts/cdp-fetch.mjs extract <tabId>"
-      elif is_content_useful "$CDP_RESULT" "$URL"; then
-        echo "$CDP_RESULT" | head -40
-      else
-        echo "  [CDP returned restricted content — falling through]"
-      fi
-      echo ""
-      if is_content_useful "$CDP_RESULT" "$URL" || echo "$CDP_RESULT" | head -1 | grep -q "AUTH_REQUIRED"; then
+    if [[ $CDP_EXIT -eq 0 ]] && [[ -n "$CDP_RESULT_FULL" ]]; then
+      if echo "$CDP_RESULT_FULL" | head -1 | grep -q "AUTH_REQUIRED"; then
+        echo "Login required"
+        echo "To access: node scripts/cdp-fetch.mjs open \"$URL\""
+        echo ""
+        continue
+      elif is_content_useful "$CDP_RESULT_FULL" "$URL"; then
+        cache_content "$URL" "cdp" "$CDP_RESULT_FULL"
+        # Output compact: skip links section
+        echo "$CDP_RESULT_FULL" | sed '/^--- Links ---$/,$d' | head -30
+        echo ""
         continue
       fi
+      # Content not useful — fall through to Layer 5
     fi
   fi
 
   # ── Layer 5: Cannot access — report clearly ──
-  echo "  [Cannot fetch — requires login or is inaccessible]"
+  echo "Cannot fetch — requires login or is inaccessible"
   if [[ -n "$IS_X_URL" ]] && [[ -z "${XAI_API_KEY:-}" ]]; then
-    echo "  Tip: Set XAI_API_KEY to use Grok x_search for X/Twitter posts"
-  elif [[ "$CDP_AVAILABLE" == "true" ]]; then
-    echo "  To open in Chrome: node scripts/cdp-fetch.mjs open \"$URL\""
-  else
-    echo "  No browser available. Start Chrome with --remote-debugging-port=9222"
+    echo "Tip: Set XAI_API_KEY for X/Twitter"
   fi
   echo ""
 done
