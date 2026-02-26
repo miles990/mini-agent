@@ -121,6 +121,12 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Types | `src/types.ts` |
 | Verify | `src/verify.ts` |
 | Watcher | `src/watcher.ts` |
+| Achievements | `src/achievements.ts` |
+| Friction Reducer Skill | `skills/friction-reducer.md` |
+| Publish Content Skill | `skills/publish-content.md` |
+| Social Presence Skill | `skills/social-presence.md` |
+| Social Monitor Skill | `skills/social-monitor.md` |
+| Grow Audience Skill | `skills/grow-audience.md` |
 
 ## Memory Architecture
 
@@ -176,6 +182,48 @@ searchMemory(query) → FTS5 BM25 搜尋 → 有結果直接回傳
 | **C: Decision Quality** | 滑動窗口 20 cycle 的 observabilityScore，avg < 3.0 → 注入品質提醒 | `decision-quality.json` |
 
 安全護欄：全部 `.catch(() => {})`、error pattern 不重複建 task、品質警告 24h 冷卻、perception interval 上下限 30s-30min。
+
+## Achievement System（行動力正向強化）
+
+遊戲化里程碑系統（`src/achievements.ts`），獎勵 visible output，不獎勵學習。
+
+**設計原則**（Kuro 提出）：
+- 成就不分等級（no Bronze/Silver/Gold）— 每個都是獨特里程碑
+- 像 journal entry 不像遊戲分數 — 避免 Goodhart
+- 學習不算成就 — 學習本身就是獎勵
+- 一旦解鎖永遠是你的 — 不可撤銷
+
+**成就類型**：行動類（First Ship, Momentum, Unstoppable, Builder Week, Back on Track）、創作類（First Words, Storyteller, Shipper）、社群類（Hello World, First Contact）、隱藏類（Night Owl, Self-Aware, Cross-Pollinator）
+
+**機制**：
+- 每個 OODA cycle 結束後 fire-and-forget 檢查（經由 `runFeedbackLoops()`）
+- 解鎖時 Telegram 通知 + `slog`
+- `<achievements>` context section 在 `buildContext()` 中 always load（身份強化）
+- 回溯解鎖：首次啟動時自動檢查已有成就
+- State: `~/.mini-agent/instances/{id}/achievements.json`
+
+**Schedule Ceiling**：`kuro:schedule` 上限從 4h → 2h（`loop.ts`），程式碼強制。防止用排程逃避行動。
+
+**Output Gate**：連續 3 cycle 無 visible output 時，context 自動注入提醒。visible output = 有 `<kuro:chat>`/`<kuro:done>`/`<kuro:show>`/deploy/publish 等可見行為，純學習/REMEMBER 不算。
+
+## Action Feedback Loop Skills（行動正向閉環）
+
+五個 skill 形成完整的社群互動閉環：
+
+```
+friction-reducer → publish-content → social-presence → social-monitor → grow-audience → ↑
+（降低阻力）     （發佈出去）      （參與互動）      （聽取回饋）     （吸引關注）
+```
+
+| Skill | 功能 | JIT Keywords |
+|-------|------|-------------|
+| `friction-reducer` | Meta-skill：把高阻力的事變成一鍵 SOP，自帶進化機制 | skip, avoid, procrastinate, friction, stuck |
+| `publish-content` | 最後一哩路 SOP，5 分鐘內發出去（平台無關） | publish, post, article, tsubuyaki |
+| `social-presence` | 社群互動：回應(5min)/分享(10min)/連結(15min) | social, community, follower, engage |
+| `social-monitor` | 追蹤社群回應、分類、回覆、記錄 | notification, reply, mention, feedback |
+| `grow-audience` | 策略性成長：SEO、跨平台分發、說自己的故事 | audience, growth, marketing, visibility |
+
+所有 skill 在 `act` cycle mode 自動載入。核心理念：**行動 = 學習**，不是為了做而做。
 
 ## GitHub Closed-Loop Workflow
 

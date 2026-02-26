@@ -29,6 +29,8 @@ Minimal Personal AI Agent with autonomous capabilities:
 25. **Agent Control Modes** - Three modes (calm/reserved/autonomous) with bundled feature toggles, MCP + API control
 26. **MCP Server** - Claude Code native integration via stdio MCP transport (14 tools: status, control, collaboration)
 27. **Team Chat Room** - Three-party real-time discussion (Alex, Kuro, Claude Code) with persistent JSONL conversations and threading
+28. **Achievement System** - Gamification-inspired milestones that reward visible output (not learning). Unique achievements (no tiers), retroactive unlock, TG notification, `<achievements>` context section for identity reinforcement
+29. **Action Feedback Loop** - Schedule Ceiling (2h max interval), Output Gate (3-cycle nudge), and 5 action-oriented skills forming a positive closed loop: Create → Publish → Engage → Monitor → Grow → Create
 
 ## Architecture
 
@@ -348,6 +350,11 @@ skills:
 | `discussion-facilitation.md` | Multi-party discussion facilitation |
 | `discussion-participation.md` | Thoughtful discussion participation |
 | `web-ai-sessions.md` | External AI tool usage via Pinchtab (Grok, ChatGPT, etc.) |
+| `friction-reducer.md` | Meta-skill: turn high-friction tasks into one-click SOPs, with self-evolution mechanism |
+| `publish-content.md` | Last-mile publishing SOP — content ready to published in 5 minutes (platform-agnostic) |
+| `social-presence.md` | Community interaction: respond (5min) / share (10min) / connect (15min) |
+| `social-monitor.md` | Track and respond to social platform notifications and feedback |
+| `grow-audience.md` | Strategic visibility: SEO, cross-platform distribution, authentic storytelling |
 
 ## Web Access (Three-Layer)
 
