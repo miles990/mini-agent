@@ -327,7 +327,11 @@ async function cmdFetch(url, flags = {}) {
 
   const target = await createTarget(url);
   const wsUrl = target.webSocketDebuggerUrl;
-  if (!wsUrl) { console.error('Failed to get WebSocket URL'); process.exit(1); }
+  if (!wsUrl) {
+    await closeTarget(target.id).catch(() => {});
+    console.error('Failed to get WebSocket URL');
+    process.exit(1);
+  }
 
   let ws;
   try {
@@ -353,10 +357,9 @@ async function cmdFetch(url, flags = {}) {
       const offset = flags.offset || 0;
       console.log(formatContent(content, offset, maxLen, { compact: !!flags.compact }));
     }
-
-    await closeTarget(target.id);
   } finally {
     if (ws?.readyState === WebSocket.OPEN) ws.close();
+    await closeTarget(target.id).catch(() => {});
   }
 }
 
@@ -366,7 +369,11 @@ async function cmdScreenshot(url, outputPath) {
 
   const target = await createTarget(url);
   const wsUrl = target.webSocketDebuggerUrl;
-  if (!wsUrl) { console.error('Failed to get WebSocket URL'); process.exit(1); }
+  if (!wsUrl) {
+    await closeTarget(target.id).catch(() => {});
+    console.error('Failed to get WebSocket URL');
+    process.exit(1);
+  }
 
   let ws;
   try {
@@ -392,10 +399,9 @@ async function cmdScreenshot(url, outputPath) {
     const outFile = outputPath || '/tmp/cdp-screenshot.png';
     writeFileSync(outFile, Buffer.from(result.data, 'base64'));
     console.log(`Screenshot saved: ${outFile}`);
-
-    await closeTarget(target.id);
   } finally {
     if (ws?.readyState === WebSocket.OPEN) ws.close();
+    await closeTarget(target.id).catch(() => {});
   }
 }
 
@@ -584,6 +590,26 @@ async function cmdScroll(tabId, direction = 'down') {
   }
 }
 
+async function cmdCleanup() {
+  if (!await cdpAvailable()) {
+    console.log('Chrome not running. Nothing to clean up.');
+    return;
+  }
+  const targets = await listTargets();
+  const pages = targets.filter(t => t.type === 'page');
+  const blanks = pages.filter(t => !t.url || t.url === 'about:blank' || t.url === 'chrome://newtab/');
+
+  if (blanks.length === 0) {
+    console.log('No blank tabs to clean up.');
+    return;
+  }
+
+  for (const tab of blanks) {
+    await closeTarget(tab.id).catch(() => {});
+  }
+  console.log(`Closed ${blanks.length} blank tab(s).`);
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 const [cmd, ...args] = process.argv.slice(2);
@@ -651,6 +677,9 @@ try {
       if (!positional[0]) { console.error('Usage: cdp-fetch.mjs scroll <tabId> [down|up|N]'); process.exit(1); }
       await cmdScroll(positional[0], positional[1]);
       break;
+    case 'cleanup':
+      await cmdCleanup();
+      break;
     default:
       console.log('cdp-fetch — Chrome browser tool (CDP, zero dependencies)');
       console.log('');
@@ -663,6 +692,7 @@ try {
       console.log('');
       console.log('Chrome management:');
       console.log('  status                            Chrome status + open tabs');
+      console.log('  cleanup                           Close all blank tabs');
       console.log('  login [url]                       Switch to visible for login');
       console.log('  headless                          Switch back to headless');
       console.log('');
