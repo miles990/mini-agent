@@ -425,7 +425,8 @@ export function isDigestContent(text: string, hasForward: boolean): boolean {
   if (hasForward) return true;
   if (text.startsWith('/d ') || text.startsWith('/d\n')) return true;
   const trimmed = text.trim();
-  if (/^https?:\/\/\S+$/.test(trimmed)) return true;
+  // Pure URL or text containing a URL
+  if (/https?:\/\/\S+/.test(trimmed)) return true;
   return false;
 }
 

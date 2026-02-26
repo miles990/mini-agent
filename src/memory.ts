@@ -1488,6 +1488,17 @@ export class InstanceMemory {
       sections.push(`<threads>\n${threadsCtx}\n</threads>`);
     }
 
+    // ── Working Memory（跨 cycle 工作記憶，<kuro:inner> 寫入）──
+    const innerNotesPath = path.join(getInstanceDir(this.instanceId), 'inner-notes.md');
+    try {
+      if (existsSync(innerNotesPath)) {
+        const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
+        if (innerContent) {
+          sections.push(`<working-memory>\n${innerContent}\n</working-memory>`);
+        }
+      }
+    } catch { /* ignore */ }
+
     // ── Inner Voice（未表達的創作衝動）──
     const unexpressedImpulses = await this.getUnexpressedImpulses();
     const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
