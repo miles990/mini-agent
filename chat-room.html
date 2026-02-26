@@ -578,8 +578,9 @@
   });
 
   // Enter to send, Shift+Enter for newline
+  // Skip if IME is composing (e.g. selecting Chinese characters)
   $input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       sendMessage();
     }
