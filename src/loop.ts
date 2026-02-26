@@ -637,6 +637,13 @@ export class AgentLoop {
       eventBus.emit('action:loop', { event: 'resume', detail: `Recovered interrupted cycle: ${stale.info.slice(0, 100)}` });
     }
 
+    // Phase 1d: Load work journal for restart resilience
+    const journalEntries = loadWorkJournal(5);
+    if (journalEntries.length > 0) {
+      this.workJournalContext = formatWorkJournalContext(journalEntries);
+      slog('JOURNAL', `Loaded ${journalEntries.length} work journal entries from previous instance`);
+    }
+
     eventBus.on('trigger:*', this.handleTrigger);
 
     // Run first cycle after short warmup (let perception streams initialize)
@@ -925,7 +932,13 @@ export class AgentLoop {
         }
       }
 
-      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + quickReplySuffix + hesitationReviewSuffix;
+      // Phase 1d: Inject work journal context on first cycle after restart (one-shot)
+      const workJournalSuffix = this.workJournalContext
+        ? `\n\n${this.workJournalContext}`
+        : '';
+      if (this.workJournalContext) this.workJournalContext = null; // one-shot: 用完即清
+
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + quickReplySuffix + hesitationReviewSuffix + workJournalSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -1242,6 +1255,16 @@ export class AgentLoop {
         });
       }
       clearCycleCheckpoint();
+
+      // ── Write Work Journal (fire-and-forget, survives restart) ──
+      writeWorkJournal({
+        ts: new Date().toISOString(),
+        cycle: this.cycleCount,
+        action: action || 'no-action',
+        trigger: currentTriggerReason,
+        tags: cycleTagsProcessed,
+        sideEffects: cycleSideEffects,
+      });
 
       // ── Update Temporal State (fire-and-forget) ──
       const topicList = tags.remembers.filter(r => r.topic).map(r => r.topic!);
