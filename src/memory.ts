@@ -114,7 +114,9 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'discussion-participation': ['discussion', 'discuss', 'participate', 'round', 'opinion', 'viewpoint'],
   'friction-reducer': ['skip', 'avoid', 'procrastinate', 'friction', 'stuck', 'output gate', 'can\'t start'],
   'publish-content': ['publish', 'post', 'article', 'tsubuyaki', 'dev.to', 'tweet', 'write'],
-  'social-presence': ['social', 'community', 'x.com', 'twitter', 'follower', 'engage', 'interact'],
+  'social-presence': ['social', 'community', 'follower', 'engage', 'interact'],
+  'social-monitor': ['notification', 'reply', 'mention', 'comment', 'response', 'feedback'],
+  'grow-audience': ['audience', 'growth', 'marketing', 'seo', 'discover', 'promote', 'visibility'],
 };
 
 /**
@@ -125,7 +127,7 @@ export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
 const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
   learn: ['autonomous-behavior', 'web-learning', 'web-research', 'web-ai-sessions'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence'],
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence', 'social-monitor', 'grow-audience'],
   task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops', 'server-admin', 'github-ops', 'verified-development', 'code-review'],
   respond: [], // empty = fall through to keyword matching
   reflect: ['autonomous-behavior'],
