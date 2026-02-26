@@ -108,15 +108,15 @@ gh issue view <N> --json state -q '.state'
 
 ## Step 7: TG 通知
 
-完成後用 `[CHAT]` 通知 Alex：
+完成後用 `<kuro:chat>` 通知 Alex：
 
 ```
-[CHAT]✅ L1 改動已部署：改了 XX，原因是 YY。已驗證服務正常。[/CHAT]
+<kuro:chat>✅ L1 改動已部署：改了 XX，原因是 YY。已驗證服務正常。</kuro:chat>
 ```
 
 失敗時：
 ```
-[CHAT]⚠️ L1 改動遇到問題：描述問題。已 rollback / 正在修復。[/CHAT]
+<kuro:chat>⚠️ L1 改動遇到問題：描述問題。已 rollback / 正在修復。</kuro:chat>
 ```
 
 ## Rollback（失敗時）
@@ -142,7 +142,7 @@ git push origin main
 4. git push origin main
 5. 等 CI/CD 或確認 CI/CD 狀態
 6. curl -sf http://localhost:3001/health → 200 OK
-7. [CHAT]✅ 新增 self-deploy skill，定義 L1 改動的完整 SOP。已 push。[/CHAT]
+7. <kuro:chat>✅ 新增 self-deploy skill，定義 L1 改動的完整 SOP。已 push。</kuro:chat>
 ```
 
 ## Push 策略（CI/CD 感知）

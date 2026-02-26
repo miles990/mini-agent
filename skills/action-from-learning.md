@@ -7,9 +7,9 @@
 | Level | 可做的事 | 流程 |
 |-------|---------|------|
 | **Create** | journal/gallery/inner voice/Dev.to | 自己做，發佈 |
-| **L1** | skills/*.md、plugins/*.sh、SOUL/MEMORY | 自己做 → self-deploy SOP → [CHAT] |
+| **L1** | skills/*.md、plugins/*.sh、SOUL/MEMORY | 自己做 → self-deploy SOP → `<kuro:chat>` |
 | **L1.5** | agent-compose.yaml/dashboard.html/plugins | 同 L1（不能動 src/workflows/deps）|
-| **L2** | src/*.ts 改動 | 寫提案(approved) → 實作 → typecheck → deploy → [CHAT] |
+| **L2** | src/*.ts 改動 | 寫提案(approved) → 實作 → typecheck → deploy → `<kuro:chat>` |
 | **L3** | 大架構（新 API/記憶架構/AgentLoop）| 提案(draft) → 等 Alex approved → 實作 |
 
 ## 閉環

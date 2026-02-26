@@ -83,7 +83,7 @@ bash scripts/pinchtab-vision.sh "URL" --ocr
 
 - 只追蹤有持續價值的 session
 - 每週清理 > 7 天未訪的 session
-- Session 洞見照常 `[REMEMBER #topic]`
+- Session 洞見照常 `<kuro:remember topic="topic">`
 
 ## 品質原則
 
