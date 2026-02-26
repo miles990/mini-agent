@@ -2226,13 +2226,16 @@ async function resolveStaleConversationThreads(): Promise<void> {
 
 /**
  * 原子提交組：每個目錄獨立 commit，便於 revert 和 audit。
- * src/ 不自動 commit — 只偵測並注入 inbox 提醒。
+ * 所有完成的工作都 auto-commit（Alex 指令 2026-02-26）。
  */
 const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
   { paths: ['memory/'], prefix: 'chore(auto)' },
   { paths: ['skills/'], prefix: 'chore(auto/skills)' },
   { paths: ['plugins/'], prefix: 'chore(auto/plugins)' },
+  { paths: ['src/'], prefix: 'chore(auto/src)' },
+  { paths: ['scripts/'], prefix: 'chore(auto/scripts)' },
   { paths: ['chat-room.html', 'dashboard.html', 'mobile.html'], prefix: 'chore(auto/ui)' },
+  { paths: ['kuro-portfolio/'], prefix: 'chore(auto/portfolio)' },
 ];
 
 // =============================================================================
@@ -2324,22 +2327,6 @@ async function autoCommitMemory(action: string | null): Promise<void> {
     }
   }
 
-  // src/ 未 commit 偵測 → inbox 提醒（不自動 commit）
-  try {
-    const { stdout: srcStatus } = await execFileAsync(
-      'git', ['status', '--porcelain', 'src/'],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
-    if (srcStatus.trim()) {
-      const srcFiles = srcStatus.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
-      writeInboxItem({
-        source: 'claude-code',
-        from: 'system',
-        content: `⚠️ src/ 有 ${srcFiles.length} 個未 commit 的檔案: ${srcFiles.slice(0, 3).join(', ')}`,
-        meta: { type: 'uncommitted-src' },
-      });
-    }
-  } catch { /* non-critical */ }
 }
 
 // =============================================================================

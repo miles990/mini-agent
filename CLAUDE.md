@@ -141,7 +141,7 @@ Checkpoint        → context-checkpoints/YYYY-MM-DD.jsonl
 
 **Context Checkpoint**：每次 `buildContext()` 自動存 snapshot（timestamp、mode、contextLength、sections），fire-and-forget 不影響效能。
 
-**Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查 `memory/`、`skills/`、`plugins/`、`src/` 的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto): {action summary}`。確保學習成果不會因 crash/restart 而遺失。
+**Auto-Commit**：每個 loop cycle 結束後，`autoCommitMemory()` 自動檢查所有工作目錄（`memory/`、`skills/`、`plugins/`、`src/`、`scripts/`、`kuro-portfolio/`、root HTML files）的未 commit 變更，有變更就 `git add + commit`。Fire-and-forget 不阻塞 cycle。Commit message 格式：`chore(auto/{group}): {action summary}`。確保所有完成的工作不會因 crash/restart 而遺失。
 
 **Auto-Push**：每個 loop cycle 結束後，`autoPushUnpushed()` 自動推送 unpushed commits 到 origin/main。搭配 CI/CD 實現全自動部署。
 
