@@ -202,9 +202,9 @@ describe('InstanceMemory', () => {
       expect(minimal).toContain('<environment>');
     });
 
-    it('should include MINIMAL MODE marker in minimal mode', async () => {
+    it('should include LIGHTWEIGHT CONTEXT marker in minimal mode', async () => {
       const minimal = await memory.buildContext({ mode: 'minimal' });
-      expect(minimal).toContain('MINIMAL MODE');
+      expect(minimal).toContain('LIGHTWEIGHT CONTEXT');
     });
 
     it('should limit conversations in focused mode', async () => {

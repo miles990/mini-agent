@@ -221,6 +221,42 @@ class PerceptionStreamManager {
     }));
   }
 
+  /**
+   * Get detailed status for all perception streams (for dashboard/API).
+   */
+  getStatus(): Array<{
+    name: string;
+    category: string;
+    interval: number;
+    updatedAt: string | null;
+    ageMs: number | null;
+    avgMs: number;
+    timeouts: number;
+    runCount: number;
+    healthy: boolean;
+  }> {
+    const now = Date.now();
+    return [...this.streams.entries()].map(([name, e]) => {
+      const category = getCategory(name);
+      const interval = INTERVALS[category] ?? 30_000;
+      const ageMs = e.updatedAt ? now - e.updatedAt.getTime() : null;
+      // Healthy if: has run at least once AND no recent timeouts AND age < 3x interval (or event-driven)
+      const healthy = e.runCount > 0 && e.timeoutCount < 3 &&
+        (interval === 0 || ageMs === null || ageMs < interval * 3);
+      return {
+        name,
+        category,
+        interval,
+        updatedAt: e.updatedAt?.toISOString() ?? null,
+        ageMs,
+        avgMs: e.runCount > 0 ? Math.round(e.totalRunMs / e.runCount) : 0,
+        timeouts: e.timeoutCount,
+        runCount: e.runCount,
+        healthy,
+      };
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------

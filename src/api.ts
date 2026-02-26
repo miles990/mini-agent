@@ -1498,6 +1498,11 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // Perception Streams status — for dashboard observability
+  app.get('/api/perception-streams', (_req: Request, res: Response) => {
+    res.json(perceptionStreams.getStatus());
+  });
+
   // Context Budget API — checkpoint 分析
   app.get('/api/dashboard/context', async (req: Request, res: Response) => {
     try {

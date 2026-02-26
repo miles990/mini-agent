@@ -190,7 +190,7 @@
   /* ── Status Grid ── */
   .status-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     margin-bottom: 28px;
   }
@@ -249,6 +249,240 @@
 
   .stat-card:has(.stat-value.yellow) { border-color: rgba(251, 191, 36, 0.15); }
   .stat-card:has(.stat-value.red) { border-color: rgba(248, 113, 113, 0.15); }
+
+  /* ── OODA Cycle Visualizer ── */
+  .ooda-section {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+
+  .ooda-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .ooda-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+  }
+
+  .ooda-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .ooda-mode-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .ooda-mode-badge.autonomous { background: var(--accent-dim); color: var(--accent); }
+  .ooda-mode-badge.reserved { background: var(--blue-dim); color: var(--blue); }
+  .ooda-mode-badge.calm { background: var(--purple-dim); color: var(--purple); }
+
+  .ooda-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 12px;
+  }
+
+  .ooda-phase {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .ooda-phase.active {
+    background: var(--accent-dim);
+    border-color: rgba(94, 234, 212, 0.25);
+    color: var(--accent);
+  }
+
+  @keyframes ooda-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.15); }
+    50% { box-shadow: 0 0 0 6px rgba(94, 234, 212, 0); }
+  }
+
+  .ooda-phase.running {
+    background: var(--accent-dim);
+    border-color: rgba(94, 234, 212, 0.3);
+    color: var(--accent);
+    animation: ooda-pulse 2s ease-in-out infinite;
+  }
+
+  .ooda-arrow {
+    width: 28px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .ooda-arrow.active { color: var(--accent); }
+
+  .ooda-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .ooda-countdown {
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  .ooda-countdown.imminent { color: var(--yellow); }
+
+  /* ── Perception Streams ── */
+  .perception-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .perception-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    transition: border-color 0.3s, background 0.3s;
+  }
+
+  .perception-pill.fresh {
+    border-color: rgba(94, 234, 212, 0.2);
+  }
+
+  .perception-pill.stale {
+    border-color: rgba(251, 191, 36, 0.2);
+    color: var(--yellow);
+  }
+
+  .perception-pill.error {
+    border-color: rgba(248, 113, 113, 0.2);
+    color: var(--red);
+  }
+
+  .perception-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .perception-pill.fresh .perception-dot { background: var(--accent); }
+  .perception-pill.stale .perception-dot { background: var(--yellow); }
+  .perception-pill.error .perception-dot { background: var(--red); }
+
+  .perception-age {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  /* ── Subsystems Panel ── */
+  .subsys-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .subsys-group {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+
+  .subsys-group-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .subsys-group-count {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .subsys-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  .subsys-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .subsys-dot.on { background: var(--accent); }
+  .subsys-dot.off { background: var(--red); }
+  .subsys-dot.idle { background: var(--text3); }
+
+  .subsys-name {
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .subsys-stats {
+    color: var(--text3);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .subsys-stats .has-errors { color: var(--red); }
 
   /* ── Section Layout ── */
   .section {
@@ -1839,9 +2073,61 @@
       <div class="stat-detail" id="telegramDetail"></div>
     </div>
     <div class="stat-card">
+      <div class="stat-label">Mode</div>
+      <div class="stat-value" id="modeStatus">--</div>
+      <div class="stat-detail" id="modeDetail"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cron</div>
+      <div class="stat-value" id="cronStatus">--</div>
+      <div class="stat-detail" id="cronDetail"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Errors</div>
+      <div class="stat-value" id="errorStatus">--</div>
+      <div class="stat-detail" id="errorDetail"></div>
+    </div>
+    <div class="stat-card">
       <div class="stat-label">Behaviors</div>
       <div class="stat-value" id="behaviorCount">--</div>
       <div class="stat-detail" id="behaviorBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- OODA Cycle Visualizer -->
+  <div class="ooda-section" id="oodaSection">
+    <div class="ooda-header">
+      <div class="ooda-title">OODA Cycle</div>
+      <div class="ooda-meta">
+        <span id="oodaCycleNum">--</span>
+        <span class="ooda-mode-badge" id="oodaModeBadge">--</span>
+      </div>
+    </div>
+    <div class="ooda-flow" id="oodaFlow">
+      <div class="ooda-phase" id="ooda-perceive">Perceive</div>
+      <div class="ooda-arrow" id="ooda-arrow-1">&rarr;</div>
+      <div class="ooda-phase" id="ooda-orient">Orient</div>
+      <div class="ooda-arrow" id="ooda-arrow-2">&rarr;</div>
+      <div class="ooda-phase" id="ooda-decide">Decide</div>
+      <div class="ooda-arrow" id="ooda-arrow-3">&rarr;</div>
+      <div class="ooda-phase" id="ooda-act">Act</div>
+    </div>
+    <div class="ooda-footer">
+      <span id="oodaInterval">--</span>
+      <span class="ooda-countdown" id="oodaCountdown">--</span>
+    </div>
+  </div>
+
+  <!-- Perception Streams -->
+  <div class="ooda-section" id="perceptionSection">
+    <div class="ooda-header">
+      <div class="ooda-title">Perception Streams</div>
+      <div class="ooda-meta">
+        <span id="perceptionSummary">--</span>
+      </div>
+    </div>
+    <div class="perception-grid" id="perceptionGrid">
+      <div style="color:var(--text3);font-size:12px;">Loading...</div>
     </div>
   </div>
 
@@ -1966,6 +2252,38 @@
     </div>
     <div class="section-body">
       <div id="contextContent">
+        <div class="loading"><span>Loading...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subsystems Health -->
+  <div class="section section-collapsible collapsed" id="subsystemsSection">
+    <div class="section-header" onclick="toggleSection('subsystemsSection')">
+      <div class="section-title">
+        <span class="icon">&#9881;</span> Subsystems
+        <span class="section-collapse-icon">&#9660;</span>
+        <span class="section-count" id="subsystemsCount">--</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="subsys-grid" id="subsystemsContent">
+        <div class="loading"><span>Loading...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cron Schedule -->
+  <div class="section section-collapsible collapsed" id="cronSection">
+    <div class="section-header" onclick="toggleSection('cronSection')">
+      <div class="section-title">
+        <span class="icon">&#9200;</span> Cron Schedule
+        <span class="section-collapse-icon">&#9660;</span>
+        <span class="section-count" id="cronCount">--</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div id="cronContent">
         <div class="loading"><span>Loading...</span></div>
       </div>
     </div>
@@ -2481,9 +2799,43 @@ function renderContextHealth(data) {
   container.innerHTML = html;
 }
 
+function renderPerceptionStreams(streams) {
+  const grid = document.getElementById('perceptionGrid');
+  const summary = document.getElementById('perceptionSummary');
+  if (!streams || !streams.length) {
+    grid.innerHTML = '<div style="color:var(--text3);font-size:12px;">No streams</div>';
+    summary.textContent = '0 streams';
+    return;
+  }
+
+  const healthy = streams.filter(s => s.healthy).length;
+  summary.textContent = healthy + '/' + streams.length + ' healthy';
+
+  // Sort: unhealthy first, then by category
+  const catOrder = { workspace: 0, chrome: 1, telegram: 2, heartbeat: 3 };
+  streams.sort((a, b) => {
+    if (a.healthy !== b.healthy) return a.healthy ? 1 : -1;
+    return (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9);
+  });
+
+  grid.innerHTML = streams.map(s => {
+    const cls = !s.runCount ? '' : s.healthy ? 'fresh' : s.timeouts >= 3 ? 'error' : 'stale';
+    let age = '';
+    if (s.ageMs !== null) {
+      const sec = Math.round(s.ageMs / 1000);
+      age = sec < 60 ? sec + 's' : sec < 3600 ? Math.round(sec / 60) + 'm' : Math.round(sec / 3600) + 'h';
+    }
+    return '<div class="perception-pill ' + cls + '" title="' + s.name + ' (' + s.category + ')&#10;Interval: ' + (s.interval ? Math.round(s.interval / 1000) + 's' : 'event') + '&#10;Avg: ' + s.avgMs + 'ms&#10;Runs: ' + s.runCount + '&#10;Timeouts: ' + s.timeouts + '">'
+      + '<span class="perception-dot"></span>'
+      + '<span>' + s.name.replace(/-/g, '\u2011') + '</span>'
+      + (age ? '<span class="perception-age">' + age + '</span>' : '')
+      + '</div>';
+  }).join('');
+}
+
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
@@ -2491,6 +2843,7 @@ async function fetchAll() {
       fetch(API + '/api/dashboard/cognition?date=' + currentDate).catch(() => null),
       fetch(API + '/api/dashboard/context?date=' + currentDate).catch(() => null),
       fetch(API + '/api/dashboard/inner-state').catch(() => null),
+      fetch(API + '/api/perception-streams').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -2504,8 +2857,10 @@ async function fetchAll() {
     const cognition = cognitionRes?.ok ? await cognitionRes.json() : { entries: [] };
     const contextData = contextRes?.ok ? await contextRes.json() : { entries: [], summary: null };
     const innerState = innerStateRes?.ok ? await innerStateRes.json() : null;
+    const perceptionStreams = perceptionRes?.ok ? await perceptionRes.json() : [];
 
     updateStatus(status);
+    renderPerceptionStreams(perceptionStreams);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
 
@@ -2576,6 +2931,71 @@ function updateStatus(s) {
     tgEl.textContent = 'Offline';
     tgEl.className = 'stat-value red';
     tgDetail.textContent = '';
+  }
+
+  // OODA section
+  document.getElementById('oodaCycleNum').textContent = '#' + (s.loop.cycleCount || 0);
+  const modeBadge = document.getElementById('oodaModeBadge');
+  const mode = s.loop.mode || 'autonomous';
+  modeBadge.textContent = mode;
+  modeBadge.className = 'ooda-mode-badge ' + mode;
+
+  // OODA interval & countdown
+  const interval = s.loop.currentInterval;
+  if (interval) {
+    document.getElementById('oodaInterval').textContent = 'Interval: ' + (interval >= 60000 ? Math.round(interval / 60000) + 'm' : Math.round(interval / 1000) + 's');
+  }
+  const nextAt = s.loop.nextCycleAt;
+  const countdownEl = document.getElementById('oodaCountdown');
+  if (nextAt && !s.claude.loop?.busy) {
+    const remaining = Math.max(0, Math.round((new Date(nextAt).getTime() - Date.now()) / 1000));
+    countdownEl.textContent = 'Next: ' + (remaining > 60 ? Math.round(remaining / 60) + 'm' : remaining + 's');
+    countdownEl.className = 'ooda-countdown' + (remaining < 30 ? ' imminent' : '');
+  } else if (s.claude.loop?.busy) {
+    countdownEl.textContent = 'Running...';
+    countdownEl.className = 'ooda-countdown imminent';
+  } else {
+    countdownEl.textContent = '';
+  }
+
+  // OODA phase highlighting
+  const phases = ['ooda-perceive', 'ooda-orient', 'ooda-decide', 'ooda-act'];
+  const arrows = ['ooda-arrow-1', 'ooda-arrow-2', 'ooda-arrow-3'];
+  const isBusy = s.claude.loop?.busy;
+  const task = s.claude.loop?.task;
+  // Infer phase from task state
+  let activePhase = -1;
+  if (isBusy && task) {
+    if (task.toolCalls === 0) activePhase = 0; // perceive (just started)
+    else if (task.toolCalls <= 3) activePhase = 1; // orient (reading/searching)
+    else if (task.lastText && !task.lastTool) activePhase = 2; // decide (thinking)
+    else activePhase = 3; // act (using tools)
+  }
+  phases.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'ooda-phase' + (isBusy && i <= activePhase ? (i === activePhase ? ' running' : ' active') : '');
+  });
+  arrows.forEach((id, i) => {
+    document.getElementById(id).className = 'ooda-arrow' + (isBusy && i < activePhase ? ' active' : '');
+  });
+
+  // Mode status
+  const modeEl = document.getElementById('modeStatus');
+  const modeDetailEl = document.getElementById('modeDetail');
+  if (modeEl) {
+    modeEl.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    modeEl.className = 'stat-value ' + (mode === 'autonomous' ? 'green' : mode === 'reserved' ? 'blue' : 'purple');
+    const disabledCount = s.features?.disabled?.length || 0;
+    modeDetailEl.textContent = disabledCount ? disabledCount + ' disabled' : '';
+  }
+
+  // Cron
+  const cronEl = document.getElementById('cronStatus');
+  const cronDetail = document.getElementById('cronDetail');
+  if (cronEl) {
+    cronEl.textContent = s.cron.active || 0;
+    cronEl.className = 'stat-value';
+    cronDetail.textContent = s.cron.queued ? s.cron.queued + ' queued' : '';
   }
 
   renderTaskSection(s.claude);
