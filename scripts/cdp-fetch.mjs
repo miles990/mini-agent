@@ -266,7 +266,7 @@ function detectAuthPage(content) {
   return indicators.some(i => lower.includes(i));
 }
 
-function formatContent(content, offset = 0, maxLen = MAX_CONTENT) {
+function formatContent(content, offset = 0, maxLen = MAX_CONTENT, { compact = false } = {}) {
   let output = `Title: ${content.title}\nURL: ${content.url}\n`;
 
   if (content.text) {
@@ -279,7 +279,8 @@ function formatContent(content, offset = 0, maxLen = MAX_CONTENT) {
     }
   }
 
-  if (offset === 0 && content.links.length > 0) {
+  // --compact: skip links section (saves ~2000 chars for perception use)
+  if (!compact && offset === 0 && content.links.length > 0) {
     output += '\n\n--- Links ---\n';
     for (const link of content.links) {
       output += `  ${link.text}: ${link.href}\n`;
@@ -350,7 +351,7 @@ async function cmdFetch(url, flags = {}) {
     } else {
       const maxLen = flags.full ? Infinity : MAX_CONTENT;
       const offset = flags.offset || 0;
-      console.log(formatContent(content, offset, maxLen));
+      console.log(formatContent(content, offset, maxLen, { compact: !!flags.compact }));
     }
 
     await closeTarget(target.id);
@@ -592,6 +593,7 @@ const flags = {};
 const positional = [];
 for (const arg of args) {
   if (arg === '--full') flags.full = true;
+  else if (arg === '--compact') flags.compact = true;
   else if (arg.startsWith('--offset')) { /* handled next */ }
   else if (args[args.indexOf(arg) - 1] === '--offset') flags.offset = parseInt(arg);
   else positional.push(arg);
