@@ -112,6 +112,9 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
   'discussion-facilitation': ['discussion', 'discuss', 'facilitate', 'meeting', 'agenda', 'diverge', 'converge', 'decision'],
   'discussion-participation': ['discussion', 'discuss', 'participate', 'round', 'opinion', 'viewpoint'],
+  'friction-reducer': ['skip', 'avoid', 'procrastinate', 'friction', 'stuck', 'output gate', 'can\'t start'],
+  'publish-content': ['publish', 'post', 'article', 'tsubuyaki', 'dev.to', 'tweet', 'write'],
+  'social-presence': ['social', 'community', 'x.com', 'twitter', 'follower', 'engage', 'interact'],
 };
 
 /**
@@ -122,7 +125,7 @@ export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
 const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
   learn: ['autonomous-behavior', 'web-learning', 'web-research', 'web-ai-sessions'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'verified-development', 'code-review'],
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence'],
   task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops', 'server-admin', 'github-ops', 'verified-development', 'code-review'],
   respond: [], // empty = fall through to keyword matching
   reflect: ['autonomous-behavior'],
