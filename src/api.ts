@@ -41,7 +41,7 @@ import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import { createDigestBot, getDigestBot } from './digest-bot.js';
-import { digestContent, getDigestEntries, generateInstantDailyDigest } from './digest-pipeline.js';
+import { digestContent, getDigestEntries, generateInstantDailyDigest, isDigestContent, formatInstantReply } from './digest-pipeline.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -1931,6 +1931,25 @@ export function createApi(port = 3001): express.Express {
       const id = await writeRoomMessage(from, text, replyTo as string | undefined);
       const now = new Date();
       const timestamp = now.toISOString();
+
+      // Instant Digest — channel-agnostic fast reply for digest-eligible room messages
+      if (from !== 'kuro' && isEnabled('instant-digest') && isDigestContent(text, false)) {
+        const urlMatch = text.match(/https?:\/\/\S+/);
+        digestContent({
+          content: text.startsWith('/d ') ? text.slice(3).trim() : text,
+          url: urlMatch?.[0],
+          type: urlMatch ? 'url' as const : 'note' as const,
+          channel: 'room',
+          metadata: { from, roomMsgId: id },
+        }).then(async (entry) => {
+          const reply = formatInstantReply(entry);
+          await writeRoomMessage('kuro', reply, id);
+          eventBus.emit('action:digest', { id: entry.id, category: entry.category }, { priority: 'P2', source: 'instant-digest' });
+        }).catch(err => {
+          slog('ROOM', `Instant digest error: ${err instanceof Error ? err.message : err}`);
+        });
+        // Continue — message also goes to inbox for OODA evaluation
+      }
 
       // Parse mentions for inbox logic
       const mentions: string[] = [];

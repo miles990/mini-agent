@@ -391,13 +391,13 @@ export class TelegramPoller {
 
     slog('TELEGRAM', `← ${parsed.sender}: ${parsed.text.slice(0, 100)}${parsed.text.length > 100 ? '...' : ''}`);
 
-    // ── Instant Digest fast path ──
-    // Forwarded messages, pure URLs, and /d prefix bypass OODA — get instant summary
+    // ── Instant Digest fast reply ──
+    // Digest-eligible messages get instant summary, then continue to normal OODA flow
     if (isEnabled('instant-digest') && this.isDigestEligible(msg)) {
       this.handleInstantDigest(msg, parsed).catch(err =>
         slog('TELEGRAM', `Instant digest error: ${err instanceof Error ? err.message : err}`),
       );
-      return; // Skip normal OODA flow
+      // No return — message also enters normal flow for OODA evaluation
     }
 
     // 行為記錄：用戶訊息
@@ -483,21 +483,9 @@ export class TelegramPoller {
 
       eventBus.emit('action:digest', { id: entry.id, category: entry.category }, { priority: 'P2', source: 'instant-digest' });
 
-      // If content needs depth, also queue for OODA follow-up
-      if (entry.needsDepth) {
-        const depthPrompt = `[深度補充] Instant Digest ${entry.id} 需要深度分析：\n${entry.summary}\n${entry.url ? `URL: ${entry.url}` : ''}`;
-        this.writeInbox(parsed.timestamp, parsed.sender, depthPrompt, 'pending');
-        writeInboxItem({ source: 'telegram', from: parsed.sender, content: depthPrompt });
-        slog('TELEGRAM', `Queued depth follow-up for ${entry.id}`);
-      }
     } catch (err) {
       slog('TELEGRAM', `Instant digest failed: ${err instanceof Error ? err.message : err}`);
-      // Fallback: let it go through normal OODA flow
-      this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
-      writeInboxItem({ source: 'telegram', from: parsed.sender, content: parsed.text });
-      autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});
-      this.messageBuffer.push(parsed);
-      this.scheduleFlush();
+      // Digest failed — normal flow (after this function) handles inbox and OODA
     }
   }
 
