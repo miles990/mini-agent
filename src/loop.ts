@@ -188,8 +188,10 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 // Helpers
 // =============================================================================
 
-/** Parse human-friendly interval string (e.g. "30m", "2h", "5m") to ms. Returns 0 on invalid. */
+/** Parse human-friendly interval string (e.g. "30m", "2h", "5m", "now") to ms. Returns 0 on invalid. */
 function parseScheduleInterval(s: string): number {
+  // "now" = continuation signal — run next cycle after brief cooldown
+  if (s.trim().toLowerCase() === 'now') return 30_000;
   const m = s.match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|s|sec)$/i);
   if (!m) return 0;
   const val = parseFloat(m[1]);
@@ -220,6 +222,10 @@ export class AgentLoop {
   private lastAction: string | null = null;
   private nextCycleAt: string | null = null;
   private cycling = false;
+
+  // ── Continuation State ──
+  private consecutiveNowCount = 0;
+  private static readonly MAX_CONSECUTIVE_NOW = 10;
 
   // ── Autonomous Mode State ──
   private autonomousCooldown = 0;
@@ -1118,17 +1124,38 @@ export class AgentLoop {
 
       // <kuro:schedule> tag — Kuro 自主排程覆蓋
       if (tags.schedule) {
-        const ms = parseScheduleInterval(tags.schedule.next);
-        if (ms > 0) {
-          const bounded = Math.max(120_000, Math.min(14_400_000, ms));
-          this.currentInterval = bounded;
+        const isNow = tags.schedule.next.trim().toLowerCase() === 'now';
+        if (isNow) {
+          this.consecutiveNowCount++;
+        } else {
+          this.consecutiveNowCount = 0;
+        }
+
+        // Safety: cap consecutive "now" to prevent infinite loop
+        if (isNow && this.consecutiveNowCount > AgentLoop.MAX_CONSECUTIVE_NOW) {
+          this.currentInterval = this.config.intervalMs; // reset to base
+          this.consecutiveNowCount = 0;
           eventBus.emit('action:loop', {
             event: 'schedule',
-            next: tags.schedule.next,
-            reason: tags.schedule.reason,
-            bounded: bounded !== ms,
+            next: 'now (capped)',
+            reason: `consecutive now limit (${AgentLoop.MAX_CONSECUTIVE_NOW}) reached, reset to base interval`,
+            bounded: true,
           });
+        } else {
+          const ms = parseScheduleInterval(tags.schedule.next);
+          if (ms > 0) {
+            const bounded = Math.max(30_000, Math.min(14_400_000, ms));
+            this.currentInterval = bounded;
+            eventBus.emit('action:loop', {
+              event: 'schedule',
+              next: tags.schedule.next,
+              reason: tags.schedule.reason,
+              bounded: bounded !== ms,
+            });
+          }
         }
+      } else {
+        this.consecutiveNowCount = 0;
       }
 
       // ── Hesitation: schedule short review cycle if tags were held ──
@@ -1562,10 +1589,12 @@ Rules:
 - Use <kuro:chat>message</kuro:chat> to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
 - Use <kuro:ask>question</kuro:ask> when you genuinely need Alex's input before proceeding — this creates a tracked conversation thread and sends ❓ to Telegram. Use sparingly: only when a decision truly depends on Alex. Don't use <kuro:ask> for FYI or status updates.
 - Use <kuro:show url="URL">description</kuro:show> when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
-- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 2m, max: 4h). Examples:
-  <kuro:schedule next="45m" reason="waiting for Alex feedback" />
+- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 30s, max: 4h). Examples:
+  <kuro:schedule next="now" reason="continuing multi-step work" />
   <kuro:schedule next="5m" reason="continuing deep research" />
+  <kuro:schedule next="45m" reason="waiting for Alex feedback" />
   <kuro:schedule next="2h" reason="night time, no pending messages" />
+  "now" = 30s cooldown then immediately run next cycle. Use when you're doing work that needs continuation — you decide when that is.
   If omitted, the system auto-adjusts based on whether you took action.
 - Use <kuro:thread> to manage ongoing thought threads:
   <kuro:thread op="start" id="id" title="思路標題">first progress note</kuro:thread>
@@ -1634,7 +1663,7 @@ Rules:
 - Use <kuro:ask>question</kuro:ask> when you genuinely need Alex's input before proceeding — creates a tracked thread. Use sparingly.
 - Use <kuro:show url="URL">description</kuro:show> when you open a webpage or create something Alex should see
 - Use <kuro:done>description</kuro:done> to mark NEXT.md items as completed
-- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 2m, max: 4h)
+- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 30s, max: 4h). "now" = 30s cooldown for continuation.
   If omitted, the system auto-adjusts based on whether you took action.`;
   }
 

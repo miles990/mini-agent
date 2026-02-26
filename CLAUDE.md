@@ -401,7 +401,7 @@ Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處
 | `<kuro:show url="..">...</kuro:show>` | 展示網頁/成果 | 🌐 Telegram |
 | `<kuro:inner>...</kuro:inner>` | 更新工作記憶（跨 cycle 的 scratch pad，每次全量覆寫） | — |
 | `<kuro:impulse>...</kuro:impulse>` | 捕捉創作衝動到 inner voice buffer | — |
-| `<kuro:schedule next="Xm" reason="..." />` | 自主排程下次 cycle 間隔（2m-4h） | — |
+| `<kuro:schedule next="Xm" reason="..." />` | 自主排程下次 cycle 間隔（30s-4h，`next="now"` = 30s continuation） | — |
 | `<kuro:done>...</kuro:done>` | 標記 NEXT.md 任務完成 | — |
 | `<kuro:thread op="..." id="...">...</kuro:thread>` | 管理思考線程 | — |
 | `<kuro:archive url="..." title="...">...</kuro:archive>` | 歸檔網頁來源 | — |
