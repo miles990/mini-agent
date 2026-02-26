@@ -326,15 +326,15 @@ export function getCronQueueSize(): number {
 }
 
 /**
- * CRON 任務完成後解析 [ACTION] tag — 正常結果走 summary
+ * CRON 任務完成後解析 <kuro:action> tag — 正常結果走 summary
  */
 async function notifyCronAction(content: string): Promise<void> {
-  const actionMatch = content.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
+  const actionMatch = content.match(/<kuro:action>([\s\S]*?)<\/kuro:action>/);
   if (actionMatch) {
     const action = actionMatch[1].trim();
     await notify(`⏰ ${action}`, 'summary');
   }
-  // [CHAT] — dispatch/postProcess 已處理，不重複
+  // <kuro:chat> — dispatch/postProcess 已處理，不重複
 }
 
 /**

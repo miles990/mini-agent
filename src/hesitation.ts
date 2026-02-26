@@ -105,7 +105,7 @@ export function hesitate(
     }
   }
 
-  // Signal 3: Long [CHAT] response without hedging
+  // Signal 3: Long <kuro:chat> response without hedging
   if (tags.chats.length > 0) {
     const chatText = tags.chats.map(c => c.text).join(' ');
     if (!HEDGE_RE.test(chatText) && chatText.length > 200) {
@@ -163,7 +163,7 @@ export function applyHesitation(
   const now = new Date().toISOString();
   const signalNames = hesitation.signals.map(s => s.type);
 
-  // ── [CHAT] ──
+  // ── <kuro:chat> ──
   if (tags.chats.length > 0) {
     if (hesitation.score >= 50) {
       // High uncertainty: hold all chats
@@ -179,7 +179,7 @@ export function applyHesitation(
     }
   }
 
-  // ── [REMEMBER] — more dangerous than CHAT (silent long-term corruption) ──
+  // ── <kuro:remember> — more dangerous than CHAT (silent long-term corruption) ──
   if (tags.remembers.length > 0) {
     if (hesitation.score >= 50) {
       for (const rem of tags.remembers) {
@@ -193,7 +193,7 @@ export function applyHesitation(
     }
   }
 
-  // ── [TASK] ──
+  // ── <kuro:task> ──
   if (tags.tasks.length > 0) {
     if (hesitation.score >= 50) {
       for (const task of tags.tasks) {
@@ -207,8 +207,8 @@ export function applyHesitation(
     }
   }
 
-  // ── [ASK] — asking IS hesitating, no modulation needed ──
-  // ── [ACTION] — append hesitation info to decision trace ──
+  // ── <kuro:ask> — asking IS hesitating, no modulation needed ──
+  // ── <kuro:action> — append hesitation info to decision trace ──
   // (handled by caller via hesitation.suggestion in action log)
 
   return { held, scheduleReview: held.length > 0 };

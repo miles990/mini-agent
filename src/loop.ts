@@ -445,7 +445,7 @@ export class AgentLoop {
       const tags = parseTags(response);
       const answer = tags.cleanContent || response;
 
-      // Handle [REMEMBER] tags (fire-and-forget)
+      // Handle <kuro:remember> tags (fire-and-forget)
       for (const rem of tags.remembers) {
         if (rem.topic) {
           memory.appendTopicMemory(rem.topic, rem.content, rem.ref).catch(() => {});
@@ -822,10 +822,10 @@ export class AgentLoop {
       if (isTelegramUserCycle) {
         if (nextPendingItems.length > 0) {
           const itemsPreview = nextPendingItems.slice(0, 3).map(i => `  「${i.slice(0, 80)}」`).join('\n');
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 [CHAT]回覆內容[/CHAT] 直接回答 Alex 的問題，2) 再用 [DONE]描述[/DONE] 標記完成。不發 [CHAT] 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 [CHAT] 之前先做這三個檢查（寫在 [ACTION] 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 [ACTION] 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 <kuro:chat>回覆內容</kuro:chat> 直接回答 Alex 的問題，2) 再用 <kuro:done>描述</kuro:done> 標記完成。不發 <kuro:chat> 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 <kuro:chat> 之前先做這三個檢查（寫在 <kuro:action> 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 <kuro:action> 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
         } else {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with [CHAT]...[/CHAT].\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 [ACTION] 加 ## Challenge: checked。\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
         }
       } else {
         // Non-telegram cycle: check for pending/unaddressed Chat Room messages
@@ -842,10 +842,10 @@ export class AgentLoop {
             const preview = allPending.slice(0, 5).map(l => `  ${l}`).join('\n');
             if (isRoomPriorityCycle) {
               // Room-triggered: strong priority (same as telegram)
-              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 [CHAT]回覆內容[/CHAT] 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
             } else {
               // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
-              priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with [CHAT]...[/CHAT] before or during your autonomous activities.\n\n${preview}\n\n`;
+              priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
             }
           }
         } catch { /* non-critical */ }
@@ -920,7 +920,7 @@ export class AgentLoop {
       );
 
       // ── Act ──
-      const actionMatch = response.match(/\[ACTION\](.*?)\[\/ACTION\]/s);
+      const actionMatch = response.match(/<kuro:action>([\s\S]*?)<\/kuro:action>/);
       let action: string | null = null;
 
       // Load behavior config for cooldowns
@@ -1017,7 +1017,7 @@ export class AgentLoop {
         cycleTagsProcessed.push('TASK');
       }
 
-      // [IMPULSE] tags — persist creative impulses
+      // <kuro:impulse> tags — persist creative impulses
       for (const impulse of tags.impulses) {
         memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
       }
@@ -1045,12 +1045,12 @@ export class AgentLoop {
         cycleTagsProcessed.push('CHAT');
       }
 
-      // Non-telegram-triggered cycles that sent [CHAT] also count as replied
+      // Non-telegram-triggered cycles that sent <kuro:chat> also count as replied
       if (!didReplyToTelegram && tags.chats.length > 0) {
         didReplyToTelegram = true;
       }
 
-      // ── Process [ASK] tags — blocking questions that need Alex's reply ──
+      // ── Process <kuro:ask> tags — blocking questions that need Alex's reply ──
       for (const askText of tags.asks) {
         const askMsg = `❓ ${askText}`;
         cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
@@ -1075,7 +1075,7 @@ export class AgentLoop {
         eventBus.emit('action:summary', { text: summary });
       }
 
-      // ── Process [THREAD] tags ──
+      // ── Process <kuro:thread> tags ──
       for (const t of tags.threads) {
         switch (t.op) {
           case 'start':
@@ -1093,16 +1093,16 @@ export class AgentLoop {
         }
       }
 
-      // ── Process [DONE] tags — remove completed items from NEXT.md ──
+      // ── Process <kuro:done> tags — remove completed items from NEXT.md ──
       if (tags.dones.length > 0) {
         markNextItemsDone(tags.dones).catch(() => {});
-        // [DONE] → task-progress linkage
+        // <kuro:done> → task-progress linkage
         for (const done of tags.dones) {
           markTaskProgressDone(done);
         }
       }
 
-      // ── Process [PROGRESS] tags — task progress tracking ──
+      // ── Process <kuro:progress> tags — task progress tracking ──
       trackTaskProgress(tags);
 
       const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
@@ -1116,7 +1116,7 @@ export class AgentLoop {
         similarityRate: metrics.similarityRate,
       });
 
-      // [SCHEDULE] tag — Kuro 自主排程覆蓋
+      // <kuro:schedule> tag — Kuro 自主排程覆蓋
       if (tags.schedule) {
         const ms = parseScheduleInterval(tags.schedule.next);
         if (ms > 0) {
@@ -1133,7 +1133,7 @@ export class AgentLoop {
 
       // ── Hesitation: schedule short review cycle if tags were held ──
       if (hesitationScheduleReview && !tags.schedule) {
-        // Override interval to 2min for held tag review (same bounds as [SCHEDULE])
+        // Override interval to 2min for held tag review (same bounds as <kuro:schedule>)
         this.currentInterval = 120_000; // 2 minutes
         eventBus.emit('action:loop', {
           event: 'schedule',
@@ -1169,9 +1169,9 @@ export class AgentLoop {
         topics: touchedTopics,
       }).catch(() => {});
 
-      // ── Telegram Reply fallback（telegram-user 但無 [CHAT] tag → 用 cleanContent） ──
+      // ── Telegram Reply fallback（telegram-user 但無 <kuro:chat> tag → 用 cleanContent） ──
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length === 0) {
-        let fallbackContent = tags.cleanContent.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+        let fallbackContent = tags.cleanContent.replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '').trim();
         // Skip sending if content looks like error
         const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
         // Internal format: strip ## Decision/chose/skipped header, try to extract meaningful content after it
@@ -1534,23 +1534,23 @@ Rules:
   chose: [mode-name] (weight:N, reason — what triggered this choice)
   skipped: [other-mode] (reason), ...
   context: [which perception signals or recent events influenced this choice]
-- Do ONE action per cycle, report with [ACTION]...[/ACTION]
+- Do ONE action per cycle, report with <kuro:action>...</kuro:action>
 - Prefix your action with the mode name in brackets, e.g. "[learn-personal]" or "[reflect]"
 - When learning: read, think, form YOUR opinion — don't just summarize
 - When acting: follow the safety levels in your action-from-learning skill
 - If genuinely nothing useful to do, say "No action needed" — don't force it
 - Keep it quick (1-2 minutes of work max)
-- Use [REMEMBER] to save insights (include your opinion, not just facts)
-- Use [TASK] to create follow-up tasks if needed
-- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges during learning — capture it before it fades:
-  [IMPULSE]
+- Use <kuro:remember>insights</kuro:remember> to save insights (include your opinion, not just facts)
+- Use <kuro:task>task</kuro:task> to create follow-up tasks if needed
+- Use <kuro:impulse>...</kuro:impulse> when a creative thought emerges during learning — capture it before it fades:
+  <kuro:impulse>
   我想寫：what you want to create
   驅動力：what triggered this impulse
   素材：material1 + material2
   管道：journal | inner-voice | gallery | devto | chat
-  [/IMPULSE]
+  </kuro:impulse>
 - Always include source URLs (e.g. "Source: https://...")
-- Structure your [ACTION] with these sections for traceability:
+- Structure your <kuro:action> with these sections for traceability:
   ## Decision (already at top of response)
   ## What — what you did (1-2 sentences)
   ## Why — why this matters / why now
@@ -1558,20 +1558,20 @@ Rules:
   ## Changed — what files/memory changed (or "none")
   ## Verified — evidence that it worked (commands run, results confirmed)
   Keep each section concise. Not all sections required every cycle — use what's relevant.
-- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
-- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
-- Use [ASK]question[/ASK] when you genuinely need Alex's input before proceeding — this creates a tracked conversation thread and sends ❓ to Telegram. Use sparingly: only when a decision truly depends on Alex. Don't use [ASK] for FYI or status updates.
-- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
-- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h). Examples:
-  [SCHEDULE next="45m" reason="waiting for Alex feedback"]
-  [SCHEDULE next="5m" reason="continuing deep research"]
-  [SCHEDULE next="2h" reason="night time, no pending messages"]
+- Use paragraphs (separated by blank lines) to structure your <kuro:action> — each paragraph becomes a separate notification
+- Use <kuro:chat>message</kuro:chat> to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
+- Use <kuro:ask>question</kuro:ask> when you genuinely need Alex's input before proceeding — this creates a tracked conversation thread and sends ❓ to Telegram. Use sparingly: only when a decision truly depends on Alex. Don't use <kuro:ask> for FYI or status updates.
+- Use <kuro:show url="URL">description</kuro:show> when you open a webpage or create something Alex should see — this sends a Telegram notification so he doesn't miss it
+- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 2m, max: 4h). Examples:
+  <kuro:schedule next="45m" reason="waiting for Alex feedback" />
+  <kuro:schedule next="5m" reason="continuing deep research" />
+  <kuro:schedule next="2h" reason="night time, no pending messages" />
   If omitted, the system auto-adjusts based on whether you took action.
-- Use [THREAD] to manage ongoing thought threads:
-  [THREAD start="id" title="思路標題"]first progress note[/THREAD]
-  [THREAD progress="id"]progress note[/THREAD]
-  [THREAD complete="id"]completion note[/THREAD]
-  [THREAD pause="id"]reason for pausing[/THREAD]
+- Use <kuro:thread> to manage ongoing thought threads:
+  <kuro:thread op="start" id="id" title="思路標題">first progress note</kuro:thread>
+  <kuro:thread op="progress" id="id">progress note</kuro:thread>
+  <kuro:thread op="complete" id="id">completion note</kuro:thread>
+  <kuro:thread op="pause" id="id">reason for pausing</kuro:thread>
   Max 3 active threads. Threads are gravity, not obligation.`;
   }
 
@@ -1608,7 +1608,7 @@ The only constraint: be genuine, be thoughtful, have your own opinion.
 ${avoidList}
 
 Rules:
-- Do ONE action per cycle, report with [ACTION]...[/ACTION]
+- Do ONE action per cycle, report with <kuro:action>...</kuro:action>
 - Start with a brief Decision section:
   ## Decision
   chose: what you're doing (drive — what triggered this choice)
@@ -1618,23 +1618,23 @@ Rules:
 - When acting on learning: follow L1/L2/L3 safety levels in your action-from-learning skill
 - If genuinely nothing useful to do, say "No action needed" — don't force it
 - Keep it quick (1-2 minutes of work max)
-- Use [REMEMBER] to save insights (include your opinion, not just facts)
-- Use [REMEMBER #topic] to save to a specific topic file
-- Use [TASK] to create follow-up tasks if needed
-- Use [IMPULSE]...[/IMPULSE] when a creative thought emerges — capture it before it fades:
-  [IMPULSE]
+- Use <kuro:remember>insights</kuro:remember> to save insights (include your opinion, not just facts)
+- Use <kuro:remember topic="topic">text</kuro:remember> to save to a specific topic file
+- Use <kuro:task>task</kuro:task> to create follow-up tasks if needed
+- Use <kuro:impulse>...</kuro:impulse> when a creative thought emerges — capture it before it fades:
+  <kuro:impulse>
   我想寫：what you want to create
   驅動力：what triggered this impulse
   素材：material1 + material2
   管道：journal | inner-voice | gallery | devto | chat
-  [/IMPULSE]
+  </kuro:impulse>
 - Always include source URLs (e.g. "Source: https://...")
-- Use paragraphs (separated by blank lines) to structure your [ACTION] — each paragraph becomes a separate notification
-- Use [CHAT]message[/CHAT] to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
-- Use [ASK]question[/ASK] when you genuinely need Alex's input before proceeding — creates a tracked thread. Use sparingly.
-- Use [SHOW url="URL"]description[/SHOW] when you open a webpage or create something Alex should see
-- Use [DONE]description[/DONE] to mark NEXT.md items as completed
-- Use [SCHEDULE next="Xm" reason="..."] to set your next cycle interval (min: 2m, max: 4h)
+- Use paragraphs (separated by blank lines) to structure your <kuro:action> — each paragraph becomes a separate notification
+- Use <kuro:chat>message</kuro:chat> to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
+- Use <kuro:ask>question</kuro:ask> when you genuinely need Alex's input before proceeding — creates a tracked thread. Use sparingly.
+- Use <kuro:show url="URL">description</kuro:show> when you open a webpage or create something Alex should see
+- Use <kuro:done>description</kuro:done> to mark NEXT.md items as completed
+- Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 2m, max: 4h)
   If omitted, the system auto-adjusts based on whether you took action.`;
   }
 
@@ -1980,7 +1980,7 @@ function extractKeyTerms(text: string): string[] {
 }
 
 /** Check if Kuro's response addressed a particular inbox message.
- * Stricter matching: check [CHAT] content (not full response), require multiple keyword hits.
+ * Stricter matching: check <kuro:chat> content (not full response), require multiple keyword hits.
  * Previous version was too lenient — any single keyword in the full OODA output would match. */
 function isMessageAddressed(
   sender: string, messageText: string,
@@ -1990,7 +1990,7 @@ function isMessageAddressed(
   const terms = extractKeyTerms(messageText);
   const meaningfulTerms = terms.filter(t => t.length > 3); // skip short/common words
 
-  // 1. Has [CHAT] tags → check CHAT content specifically (not full response)
+  // 1. Has <kuro:chat> tags → check CHAT content specifically (not full response)
   if (chatTags.length > 0) {
     const chatContent = chatTags.map(t => t.text).join(' ').toLowerCase();
     // Explicit sender mention in CHAT
@@ -2009,7 +2009,7 @@ function isMessageAddressed(
     }
   }
 
-  // 3. Very short message (≤2 words after removing @mention) + any [CHAT] → addressed
+  // 3. Very short message (≤2 words after removing @mention) + any <kuro:chat> → addressed
   const strippedWords = messageText.replace(/@\w+/g, '').trim().split(/\s+/).filter(Boolean);
   if (strippedWords.length <= 2 && chatTags.length > 0) return true;
 
@@ -2150,7 +2150,7 @@ async function resolveStaleConversationThreads(): Promise<void> {
   const toResolve: string[] = [];
 
   // Rule 1: Auto-expire threads older than 24h
-  // Exception: 'kuro:ask' threads — Alex may take days to reply to [ASK] questions
+  // Exception: 'kuro:ask' threads — Alex may take days to reply to <kuro:ask> questions
   for (const t of threads) {
     if (t.resolvedAt) continue;
     if (t.source === 'kuro:ask') continue;
@@ -2305,12 +2305,12 @@ async function autoCommitMemory(action: string | null): Promise<void> {
 }
 
 // =============================================================================
-// [DONE] Tag — 從 NEXT.md 移除已完成項目
+// <kuro:done> Tag — 從 NEXT.md 移除已完成項目
 // =============================================================================
 
 /**
  * 將 NEXT.md 中匹配的項目標記為完成（移除 checkbox）。
- * 匹配邏輯：[DONE] 的描述包含 NEXT.md 項目的關鍵字即視為匹配。
+ * 匹配邏輯：<kuro:done> 的描述包含 NEXT.md 項目的關鍵字即視為匹配。
  */
 async function markNextItemsDone(dones: string[]): Promise<void> {
   await withFileLock(NEXT_MD_PATH, async () => {
@@ -2324,17 +2324,17 @@ async function markNextItemsDone(dones: string[]): Promise<void> {
         const items = extractNextItems(content);
         if (items.length === 0) break;
 
-        // 嘗試匹配：取 [DONE] 描述的前 30 字和每個 item 比對
+        // 嘗試匹配：取 <kuro:done> 描述的前 30 字和每個 item 比對
         const doneNorm = done.toLowerCase().slice(0, 80);
         const matched = items.find(item => {
           const itemNorm = item.toLowerCase();
-          // 精確匹配 timestamp（如果 [DONE] 包含 timestamp）
+          // 精確匹配 timestamp（如果 <kuro:done> 包含 timestamp）
           const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
           if (tsMatch && itemNorm.includes(tsMatch[0])) return true;
           // 模糊匹配：Alex 訊息前 20 字
           const previewMatch = itemNorm.match(/回覆 Alex: "(.{10,30})"/);
           if (previewMatch && doneNorm.includes(previewMatch[1].toLowerCase().slice(0, 15))) return true;
-          // 最寬鬆：只要 [DONE] 提到 "alex" 且 item 是 "回覆 Alex"
+          // 最寬鬆：只要 <kuro:done> 提到 "alex" 且 item 是 "回覆 Alex"
           if (doneNorm.includes('alex') && itemNorm.includes('回覆 alex')) return true;
           return false;
         });

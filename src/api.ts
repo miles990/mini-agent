@@ -2031,7 +2031,7 @@ export function createApi(port = 3001): express.Express {
 
       const { response } = await callClaude(question, context, 1, { source: 'ask' });
 
-      // 處理 [REMEMBER] tags（fire-and-forget）
+      // 處理 <kuro:remember> tags（fire-and-forget）
       const tags = parseTags(response);
       for (const rem of tags.remembers) {
         if (rem.topic) {

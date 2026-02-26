@@ -109,6 +109,21 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | MCP Config | `mcp-agent.json` |
 | Agent Hook | `scripts/claude-code-agent-hook.sh` |
 | Claude Code Sessions Plugin | `plugins/claude-code-sessions.sh` |
+| Dashboard | `dashboard.html` |
+| Config | `src/config.ts` |
+| Digest Bot | `src/digest-bot.ts` |
+| Digest Pipeline | `src/digest-pipeline.ts` |
+| Features | `src/features.ts` |
+| FileLock | `src/filelock.ts` |
+| Housekeeping | `src/housekeeping.ts` |
+| Inbox | `src/inbox.ts` |
+| Entry Point | `src/index.ts` |
+| Perception Analyzer | `src/perception-analyzer.ts` |
+| Temporal | `src/temporal.ts` |
+| Triage | `src/triage.ts` |
+| Types | `src/types.ts` |
+| Verify | `src/verify.ts` |
+| Watcher | `src/watcher.ts` |
 
 ## Memory Architecture
 
@@ -373,24 +388,24 @@ Kuro (OODA)      → perceives <chat-room-inbox> → responds [CHAT] → action:
 
 ## Agent Tags
 
-Agent 回應中的特殊標籤，系統自動解析處理：
+Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處理：
 
 | Tag | 用途 | 通知 |
 |-----|------|------|
-| `[ACTION]...[/ACTION]` | 報告執行的動作 | 🧠/⚡ Telegram |
-| `[REMEMBER]...[/REMEMBER]` | 保存到 MEMORY.md | — |
-| `[REMEMBER #topic]...[/REMEMBER]` | 保存到 topics/{topic}.md | — |
-| `[TASK]...[/TASK]` | 建立任務到 HEARTBEAT | — |
-| `[CHAT]...[/CHAT]` | 主動跟用戶聊天（非阻塞） | 💬 Telegram |
-| `[ASK]...[/ASK]` | 需要 Alex 回覆的問題（建立 ConversationThread） | ❓ Telegram |
-| `[SHOW url=".."]...[/SHOW]` | 展示網頁/成果 | 🌐 Telegram |
-| `[INNER]...[/INNER]` | 更新工作記憶（跨 cycle 的 scratch pad，每次全量覆寫） | — |
-| `[IMPULSE]...[/IMPULSE]` | 捕捉創作衝動到 inner voice buffer | — |
-| `[SCHEDULE next="Xm" reason="..."]` | 自主排程下次 cycle 間隔（2m-4h） | — |
-| `[DONE]...[/DONE]` | 標記 NEXT.md 任務完成 | — |
-| `[THREAD op="..." id="..."]...[/THREAD]` | 管理思考線程 | — |
-| `[ARCHIVE url="..." title="..."]...[/ARCHIVE]` | 歸檔網頁來源 | — |
-| `[SUMMARY]...[/SUMMARY]` | 發送摘要事件 | — |
+| `<kuro:action>...</kuro:action>` | 報告執行的動作 | 🧠/⚡ Telegram |
+| `<kuro:remember>...</kuro:remember>` | 保存到 MEMORY.md | — |
+| `<kuro:remember topic="t">...</kuro:remember>` | 保存到 topics/{topic}.md | — |
+| `<kuro:task>...</kuro:task>` | 建立任務到 HEARTBEAT | — |
+| `<kuro:chat>...</kuro:chat>` | 主動跟用戶聊天（非阻塞） | 💬 Telegram |
+| `<kuro:ask>...</kuro:ask>` | 需要 Alex 回覆的問題（建立 ConversationThread） | ❓ Telegram |
+| `<kuro:show url="..">...</kuro:show>` | 展示網頁/成果 | 🌐 Telegram |
+| `<kuro:inner>...</kuro:inner>` | 更新工作記憶（跨 cycle 的 scratch pad，每次全量覆寫） | — |
+| `<kuro:impulse>...</kuro:impulse>` | 捕捉創作衝動到 inner voice buffer | — |
+| `<kuro:schedule next="Xm" reason="..." />` | 自主排程下次 cycle 間隔（2m-4h） | — |
+| `<kuro:done>...</kuro:done>` | 標記 NEXT.md 任務完成 | — |
+| `<kuro:thread op="..." id="...">...</kuro:thread>` | 管理思考線程 | — |
+| `<kuro:archive url="..." title="...">...</kuro:archive>` | 歸檔網頁來源 | — |
+| `<kuro:summary>...</kuro:summary>` | 發送摘要事件 | — |
 
 ## Telegram 通知系統
 

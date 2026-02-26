@@ -354,7 +354,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 if (loopTask) {
                   loopTask.lastText = block.text.slice(0, 200);
                 }
-                // 累積所有 text blocks — 中間 turns 的 tags（如 [CHAT]）不能遺失
+                // 累積所有 text blocks — 中間 turns 的 tags（如 <kuro:chat>）不能遺失
                 allTextBlocks.push(block.text);
                 if (!resultText) resultText = block.text;
                 // Partial output callback (for cycle checkpoint)

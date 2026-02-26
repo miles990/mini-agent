@@ -204,7 +204,7 @@ export async function updateTemporalState(cycleResult: {
 }
 
 // =============================================================================
-// Thread CRUD — 從 [THREAD] tags 呼叫
+// Thread CRUD — 從 <kuro:thread> tags 呼叫
 // =============================================================================
 
 export async function startThread(id: string, title: string, note: string): Promise<boolean> {
@@ -450,7 +450,7 @@ export async function buildThreadsPromptSection(): Promise<string | null> {
   }
 
   lines.push('');
-  lines.push('You are NOT obligated to work on these. But if your perception signals or curiosity naturally connect to a thread, follow that connection. Use [THREAD progress="id"]note[/THREAD] to record progress.');
+  lines.push('You are NOT obligated to work on these. But if your perception signals or curiosity naturally connect to a thread, follow that connection. Use <kuro:thread op="progress" id="id">note</kuro:thread> to record progress.');
 
   return lines.join('\n');
 }

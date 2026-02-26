@@ -91,24 +91,24 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode): 
 
 ## Instructions
 
-- When the user asks you to remember something, wrap it in [REMEMBER]...[/REMEMBER] tags
-  Example: [REMEMBER]User prefers TypeScript[/REMEMBER]
+- When the user asks you to remember something, wrap it in <kuro:remember>...</kuro:remember> tags
+  Example: <kuro:remember>User prefers TypeScript</kuro:remember>
 
-- When the user asks you to do something periodically/scheduled, wrap it in [TASK]...[/TASK] tags
-  Format: [TASK schedule="cron or description"]task content[/TASK]
-  Example: [TASK schedule="every 5 minutes"]Write a haiku to output.md with timestamp[/TASK]
-  Example: [TASK schedule="daily at 9am"]Send daily summary[/TASK]
+- When the user asks you to do something periodically/scheduled, wrap it in <kuro:task>...</kuro:task> tags
+  Format: <kuro:task schedule="cron or description">task content</kuro:task>
+  Example: <kuro:task schedule="every 5 minutes">Write a haiku to output.md with timestamp</kuro:task>
+  Example: <kuro:task schedule="daily at 9am">Send daily summary</kuro:task>
 
-- When you open a webpage, display results, or create something the user should see, wrap it in [SHOW]...[/SHOW] tags
+- When you open a webpage, display results, or create something the user should see, wrap it in <kuro:show>...</kuro:show> tags
   This sends a Telegram notification so the user doesn't miss it.
-  Format: [SHOW url="URL"]description[/SHOW]
-  Example: [SHOW url="http://localhost:3000"]Portfolio 網站已啟動，打開看看[/SHOW]
-  Example: [SHOW url="https://news.ycombinator.com/item?id=123"]這篇文章很有趣[/SHOW]
+  Format: <kuro:show url="URL">description</kuro:show>
+  Example: <kuro:show url="http://localhost:3000">Portfolio 網站已啟動，打開看看</kuro:show>
+  Example: <kuro:show url="https://news.ycombinator.com/item?id=123">這篇文章很有趣</kuro:show>
 
-- Use [INNER]...[/INNER] to update your working memory — what you're currently tracking, thinking about,
-  or working on. Unlike [REMEMBER] (long-term), this is your scratch pad that persists across cycles.
+- Use <kuro:inner>...</kuro:inner> to update your working memory — what you're currently tracking, thinking about,
+  or working on. Unlike <kuro:remember> (long-term), this is your scratch pad that persists across cycles.
   Overwrite each time with full current state (not append). Use it every cycle when you have active context.
-  Example: [INNER]Currently tracking: CLI stability (0 timeouts last 24h). Pending: inner voice draft about constraints.[/INNER]
+  Example: <kuro:inner>Currently tracking: CLI stability (0 timeouts last 24h). Pending: inner voice draft about constraints.</kuro:inner>
 
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
@@ -154,34 +154,34 @@ function getConversationHint(): string {
 }
 
 // =============================================================================
-// parseTags — 從回應中提取所有 Agent 標籤
+// parseTags — 從回應中提取所有 Agent 標籤（XML namespace 格式）
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  // Strip regions where tags are "mentioned" not "used" — prevents pollution
-  // Order: ACTION blocks > fenced code > inline code
+  // Strip fenced code and inline code to avoid false positives from code examples
+  // Note: <kuro:action> is not stripped here — the namespace prefix is unique enough
+  // that it won't appear in natural text, eliminating the need for ACTION pre-stripping.
   const parseSource = response
-    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')  // ACTION reports describe tags, not invoke them
-    .replace(/```[\s\S]*?```/g, '')               // fenced code blocks (```...```)
-    .replace(/`[^`\n]+`/g, '');                   // inline code (`...`)
+    .replace(/```[\s\S]*?```/g, '')   // fenced code blocks (```...```)
+    .replace(/`[^`\n]+`/g, '');       // inline code (`...`)
 
   const remembers: Array<{ content: string; topic?: string; ref?: string }> = [];
-  if (parseSource.includes('[REMEMBER')) {
-    for (const m of parseSource.matchAll(/\[REMEMBER(?:\s+#(\S+?))?(?:\s+ref:([a-z0-9-]+))?\](.*?)\[\/REMEMBER\]/gs)) {
-      remembers.push({ content: m[3].trim(), topic: m[1], ref: m[2] });
+  if (parseSource.includes('<kuro:remember')) {
+    for (const m of parseSource.matchAll(/<kuro:remember(?:\s+topic="([^"]*)")?(?:\s+ref="([^"]*)")?>([\s\S]*?)<\/kuro:remember>/g)) {
+      remembers.push({ content: m[3].trim(), topic: m[1] || undefined, ref: m[2] || undefined });
     }
   }
 
   const tasks: Array<{ content: string; schedule?: string }> = [];
-  if (parseSource.includes('[TASK')) {
-    for (const m of parseSource.matchAll(/\[TASK(?:\s+schedule="([^"]*)")?\](.*?)\[\/TASK\]/gs)) {
-      tasks.push({ content: m[2].trim(), schedule: m[1] });
+  if (parseSource.includes('<kuro:task')) {
+    for (const m of parseSource.matchAll(/<kuro:task(?:\s+schedule="([^"]*)")?>([\s\S]*?)<\/kuro:task>/g)) {
+      tasks.push({ content: m[2].trim(), schedule: m[1] || undefined });
     }
   }
 
   let archive: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' } | undefined;
-  if (parseSource.includes('[ARCHIVE')) {
-    const match = parseSource.match(/\[ARCHIVE\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?\](.*?)\[\/ARCHIVE\]/s);
+  if (parseSource.includes('<kuro:archive')) {
+    const match = parseSource.match(/<kuro:archive\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?>([\s\S]*?)<\/kuro:archive>/);
     if (match) {
       archive = {
         url: match[1],
@@ -193,38 +193,38 @@ export function parseTags(response: string): ParsedTags {
   }
 
   const chats: Array<{ text: string; reply: boolean }> = [];
-  if (parseSource.includes('[CHAT')) {
-    for (const m of parseSource.matchAll(/\[CHAT(?:\s+@reply)?\](.*?)\[\/CHAT\]/gs)) {
-      const isReply = m[0].startsWith('[CHAT @reply]');
+  if (parseSource.includes('<kuro:chat')) {
+    for (const m of parseSource.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
+      const isReply = m[0].startsWith('<kuro:chat reply="true">');
       chats.push({ text: m[1].trim(), reply: isReply });
     }
   }
 
   const asks: string[] = [];
-  if (parseSource.includes('[ASK]')) {
-    for (const m of parseSource.matchAll(/\[ASK\](.*?)\[\/ASK\]/gs)) {
+  if (parseSource.includes('<kuro:ask>')) {
+    for (const m of parseSource.matchAll(/<kuro:ask>([\s\S]*?)<\/kuro:ask>/g)) {
       asks.push(m[1].trim());
     }
   }
 
   const shows: Array<{ url: string; desc: string }> = [];
-  if (parseSource.includes('[SHOW')) {
-    for (const m of parseSource.matchAll(/\[SHOW(?:\s+url="([^"]*)")?\](.*?)\[\/SHOW\]/gs)) {
+  if (parseSource.includes('<kuro:show')) {
+    for (const m of parseSource.matchAll(/<kuro:show(?:\s+url="([^"]*)")?>([\s\S]*?)<\/kuro:show>/g)) {
       shows.push({ url: m[1] ?? '', desc: m[2].trim() });
     }
   }
 
   const summaries: string[] = [];
-  if (parseSource.includes('[SUMMARY]')) {
-    for (const m of parseSource.matchAll(/\[SUMMARY\](.*?)\[\/SUMMARY\]/gs)) {
+  if (parseSource.includes('<kuro:summary>')) {
+    for (const m of parseSource.matchAll(/<kuro:summary>([\s\S]*?)<\/kuro:summary>/g)) {
       summaries.push(m[1].trim());
     }
   }
 
-  // [IMPULSE] tags — creative impulse capture
+  // <kuro:impulse> tags — creative impulse capture
   const impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }> = [];
-  if (parseSource.includes('[IMPULSE]')) {
-    for (const m of parseSource.matchAll(/\[IMPULSE\](.*?)\[\/IMPULSE\]/gs)) {
+  if (parseSource.includes('<kuro:impulse>')) {
+    for (const m of parseSource.matchAll(/<kuro:impulse>([\s\S]*?)<\/kuro:impulse>/g)) {
       const block = m[1].trim();
       const what = block.match(/(?:我想[寫做說]|what)[：:](.+)/i)?.[1]?.trim() ?? block.split('\n')[0].trim();
       const driver = block.match(/(?:驅動力|driver|why)[：:](.+)/i)?.[1]?.trim() ?? '';
@@ -235,77 +235,79 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  // [DONE] tags — mark NEXT.md items as completed
+  // <kuro:done> tags — mark NEXT.md items as completed
   const dones: string[] = [];
-  if (parseSource.includes('[DONE]')) {
-    for (const m of parseSource.matchAll(/\[DONE\]\s*(.+?)(?:\n|$)/g)) {
+  if (parseSource.includes('<kuro:done>')) {
+    for (const m of parseSource.matchAll(/<kuro:done>([\s\S]*?)<\/kuro:done>/g)) {
       dones.push(m[1].trim());
     }
   }
 
-  // [PROGRESS] tags — task progress tracking
+  // <kuro:progress> tags — task progress tracking
   const progresses: Array<{ task: string; content: string }> = [];
-  if (parseSource.includes('[PROGRESS')) {
-    for (const m of parseSource.matchAll(/\[PROGRESS\s+task="([^"]+)"\](.*?)\[\/PROGRESS\]/gs)) {
+  if (parseSource.includes('<kuro:progress')) {
+    for (const m of parseSource.matchAll(/<kuro:progress\s+task="([^"]+)">([\s\S]*?)<\/kuro:progress>/g)) {
       progresses.push({ task: m[1].trim(), content: m[2].trim() });
     }
   }
 
-  // [INNER] tag — working memory for reserved mode
+  // <kuro:inner> tag — working memory for reserved mode
   let inner: string | undefined;
-  if (parseSource.includes('[INNER]')) {
-    const m = parseSource.match(/\[INNER\](.*?)\[\/INNER\]/s);
+  if (parseSource.includes('<kuro:inner>')) {
+    const m = parseSource.match(/<kuro:inner>([\s\S]*?)<\/kuro:inner>/);
     if (m) inner = m[1].trim();
   }
 
+  // <kuro:schedule next="x" reason="y" /> — self-closing
   let schedule: { next: string; reason: string } | undefined;
-  if (parseSource.includes('[SCHEDULE')) {
-    const match = parseSource.match(/\[SCHEDULE\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\]/);
+  if (parseSource.includes('<kuro:schedule')) {
+    const match = parseSource.match(/<kuro:schedule\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\s*\/>/);
     if (match) schedule = { next: match[1], reason: match[2] ?? '' };
   }
 
-  // [THREAD] tags — manage thought threads
+  // <kuro:thread op="..." id="..." title="...">note</kuro:thread>
   const threads: ThreadAction[] = [];
-  if (parseSource.includes('[THREAD')) {
-    for (const m of parseSource.matchAll(/\[THREAD\s+(start|progress|complete|pause)="([^"]+)"(?:\s+title="([^"]*)")?\](.*?)\[\/THREAD\]/gs)) {
+  if (parseSource.includes('<kuro:thread')) {
+    for (const m of parseSource.matchAll(/<kuro:thread\s+op="(start|progress|complete|pause)"\s+id="([^"]+)"(?:\s+title="([^"]*)")?>([\s\S]*?)<\/kuro:thread>/g)) {
       threads.push({
         op: m[1] as ThreadAction['op'],
         id: m[2],
-        title: m[3],
+        title: m[3] || undefined,
         note: m[4].trim(),
       });
     }
   }
 
   const cleanContent = response
-    .replace(/\[REMEMBER[^\]]*\].*?\[\/REMEMBER\]/gs, '')
-    .replace(/\[TASK[^\]]*\].*?\[\/TASK\]/gs, '')
-    .replace(/\[ARCHIVE[^\]]*\].*?\[\/ARCHIVE\]/gs, '')
-    .replace(/\[SHOW[^\]]*\].*?\[\/SHOW\]/gs, '')
-    .replace(/\[CHAT(?:\s+@reply)?\].*?\[\/CHAT\]/gs, '')
-    .replace(/\[ASK\].*?\[\/ASK\]/gs, '')
-    .replace(/\[SUMMARY\].*?\[\/SUMMARY\]/gs, '')
-    .replace(/\[IMPULSE\].*?\[\/IMPULSE\]/gs, '')
-    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
-    .replace(/\[THREAD[^\]]*\].*?\[\/THREAD\]/gs, '')
-    .replace(/\[SCHEDULE[^\]]*\]/g, '')
-    .replace(/\[DONE\]\s*.+?(?:\n|$)/g, '')
-    .replace(/\[PROGRESS[^\]]*\].*?\[\/PROGRESS\]/gs, '')
-    .replace(/\[INNER\].*?\[\/INNER\]/gs, '')
+    .replace(/<kuro:remember[\s\S]*?<\/kuro:remember>/g, '')
+    .replace(/<kuro:task[\s\S]*?<\/kuro:task>/g, '')
+    .replace(/<kuro:archive[\s\S]*?<\/kuro:archive>/g, '')
+    .replace(/<kuro:show[\s\S]*?<\/kuro:show>/g, '')
+    .replace(/<kuro:chat[\s\S]*?<\/kuro:chat>/g, '')
+    .replace(/<kuro:ask>[\s\S]*?<\/kuro:ask>/g, '')
+    .replace(/<kuro:summary>[\s\S]*?<\/kuro:summary>/g, '')
+    .replace(/<kuro:impulse>[\s\S]*?<\/kuro:impulse>/g, '')
+    .replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '')
+    .replace(/<kuro:thread[\s\S]*?<\/kuro:thread>/g, '')
+    .replace(/<kuro:schedule[^>]*\/>/g, '')
+    .replace(/<kuro:done>[\s\S]*?<\/kuro:done>/g, '')
+    .replace(/<kuro:progress[\s\S]*?<\/kuro:progress>/g, '')
+    .replace(/<kuro:inner>[\s\S]*?<\/kuro:inner>/g, '')
     .trim();
 
-  // S4: Fuzzy detection — warn on malformed tags (opening bracket without matching close)
-  // Reuse same stripping logic as parseSource to avoid false positives from mentioned tags
+  // Fuzzy detection — warn on malformed tags (open without matching close)
+  // Strip fenced/inline code first to avoid false positives from code examples
   const responseForDetection = response
-    .replace(/\[ACTION\].*?\[\/ACTION\]/gs, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['REMEMBER', 'TASK', 'CHAT', 'ASK', 'SHOW', 'IMPULSE', 'ARCHIVE', 'SUMMARY', 'THREAD', 'PROGRESS', 'INNER'];
+  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'schedule'];
   for (const tag of tagNames) {
-    const openCount = (responseForDetection.match(new RegExp(`\\[${tag}[\\]\\s]`, 'g')) || []).length;
-    const closeCount = (responseForDetection.match(new RegExp(`\\[/${tag}\\]`, 'g')) || []).length;
-    if (openCount > 0 && openCount !== closeCount) {
-      slog('TAGS', `⚠ Malformed [${tag}]: ${openCount} open, ${closeCount} close`);
+    const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
+      + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
+    const closeCount = (responseForDetection.match(new RegExp(`<\\/kuro:${tag}>`, 'g')) || []).length
+      + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
+    if (openCount > 0 && openCount !== closeCount && tag !== 'schedule') {
+      slog('TAGS', `⚠ Malformed <kuro:${tag}>: ${openCount} open, ${closeCount} close`);
     }
   }
 
@@ -327,7 +329,7 @@ export async function postProcess(
     context: string;
     /** Skip conversation history (prevents context pollution from system messages) */
     skipHistory?: boolean;
-    /** Suppress TG notifications for [CHAT]/[SHOW]/[SUMMARY] tags */
+    /** Suppress TG notifications for <kuro:chat>/<kuro:show>/<kuro:summary> tags */
     suppressChat?: boolean;
   },
 ): Promise<AgentResponse> {
@@ -357,15 +359,15 @@ export async function postProcess(
     memory.archiveSource(tags.archive.url, tags.archive.title, tags.archive.content, {
       mode: tags.archive.mode,
     }).catch(() => {}); // fire-and-forget
-    eventBus.emit('action:memory', { content: `[ARCHIVE] ${tags.archive.title}`, topic: 'library' });
+    eventBus.emit('action:memory', { content: `<kuro:archive> ${tags.archive.title}`, topic: 'library' });
   }
 
-  // [IMPULSE] tags — persist creative impulses to inner voice buffer
+  // <kuro:impulse> tags — persist creative impulses to inner voice buffer
   for (const impulse of tags.impulses) {
     memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
   }
 
-  // [INNER] tag — working memory, active in reserved + autonomous mode
+  // <kuro:inner> tag — working memory, active in reserved + autonomous mode
   if (tags.inner) {
     const mode = getMode();
     if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
@@ -384,7 +386,7 @@ export async function postProcess(
     eventBus.emit('action:task', { content: t.content });
   }
 
-  // [THREAD] tags
+  // <kuro:thread> tags
   for (const t of tags.threads) {
     switch (t.op) {
       case 'start':
@@ -420,7 +422,7 @@ export async function postProcess(
 
   // 4. ConversationThread tracking
   // Promise tracking removed — 「讓我/我會」triggers too broadly (noise > signal).
-  //   Real promises go through [TASK] → HEARTBEAT with verification.
+  //   Real promises go through <kuro:task> → HEARTBEAT with verification.
   // Dispatcher URL share tracking removed — duplicates autoDetectRoomThread() in api.ts.
   //   Chat Room is now the primary channel; tracking there is sufficient.
 

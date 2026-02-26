@@ -22,9 +22,13 @@ Minimal Personal AI Agent with autonomous capabilities:
 18. **Reactive Architecture** - EventBus with typed events, wildcard patterns, and reactive primitives (debounce, throttle, distinctUntilChanged)
 19. **Perception Streams** - Independent per-plugin intervals with change detection — workspace(60s), chrome(120s), telegram(event-driven), heartbeat(30min)
 20. **Dashboard SSE** - Real-time Server-Sent Events push to dashboard, replacing polling with 2s debounced refresh
-21. **Task Lanes** - Unified Dispatcher with Haiku lane (simple) / Claude lane (complex), regex+Haiku triage, automatic fallback
-22. **Mobile Perception** - Phone as physical sensor hub (GPS, gyro, camera, mic) via PWA + HTTP POST — extending the agent's Umwelt to the physical world
-23. **Semantic Search** - FTS5 full-text search (BM25 ranking) with grep fallback — indexes topic memory and MEMORY.md entries for fuzzy CJK+English search
+21. **Mobile Perception** - Phone as physical sensor hub (GPS, gyro, camera, mic) via PWA + HTTP POST — extending the agent's Umwelt to the physical world
+22. **Semantic Search** - FTS5 full-text search (BM25 ranking) with grep fallback — indexes topic memory and MEMORY.md entries for fuzzy CJK+English search
+23. **Housekeeping** - Post-cycle mechanical pipeline: auto-push, search index refresh, inbox cleanup, handoff status sync (zero LLM cost)
+24. **Digest Bot** - Independent Telegram bot for daily AI research paper digests (HuggingFace + arXiv, Haiku filter + Sonnet summary)
+25. **Agent Control Modes** - Three modes (calm/reserved/autonomous) with bundled feature toggles, MCP + API control
+26. **MCP Server** - Claude Code native integration via stdio MCP transport (14 tools: status, control, collaboration)
+27. **Team Chat Room** - Three-party real-time discussion (Alex, Kuro, Claude Code) with persistent JSONL conversations and threading
 
 ## Architecture
 
@@ -149,7 +153,6 @@ agents:
     # Skills (Markdown knowledge modules)
     skills:
       - ./skills/autonomous-behavior.md
-      - ./skills/reactive-agent.md
       - ./skills/docker-ops.md
       - ./skills/debug-helper.md
       - ./skills/project-manager.md
@@ -279,6 +282,16 @@ Any language works — Bash, Python, Go binary, etc. As long as it's executable 
 | `git-status.sh` | Branch, remote, uncommitted files, unpushed commits |
 | `homebrew-outdated.sh` | Outdated brew packages |
 | `mobile-perception.sh` | Phone sensor data (GPS, orientation, motion) from mobile-state.json cache |
+| `self-awareness.sh` | Internal state: learning progress, behavior patterns, memory health |
+| `self-healing.sh` | Auto-detect and repair system issues (idempotent, 30min) |
+| `anomaly-detector.sh` | Meta-cognitive watchdog for behavioral anomalies |
+| `x-perception.sh` | X/Twitter feed via Grok API (no CDP dependency) |
+| `github-issues.sh` | Open GitHub issues: triage status, assigned, recently closed |
+| `github-prs.sh` | Open PRs with CI/review status, ready-to-merge flags |
+| `focus-context.sh` | Frontmost macOS app detection (AppleScript) |
+| `environment-sense.sh` | Hardware + network + capability detection via kuro-sense |
+| `handoff-watcher.sh` | Handoff status tracking (pending/active/blocked) |
+| `website-monitor.sh` | Uptime monitor for kuro.page |
 
 ## Skills (Markdown Knowledge Modules)
 
@@ -319,7 +332,6 @@ skills:
 | Skill | Description |
 |-------|-------------|
 | `autonomous-behavior.md` | Dual-track learning, daily rhythm, SOUL.md maintenance |
-| `reactive-agent.md` | Perception-driven reactions, state change detection |
 | `web-research.md` | Three-layer web access workflow (curl → CDP → user login) |
 | `web-learning.md` | Autonomous web learning — HN, research, competitive analysis |
 | `action-from-learning.md` | Learning-to-action loop — 3 safety levels (L1/L2/L3), proposal format |
@@ -328,6 +340,14 @@ skills:
 | `project-manager.md` | Task management with HEARTBEAT.md, daily workflow |
 | `code-review.md` | Review checklist (logic, security, performance, readability, testing) |
 | `server-admin.md` | System monitoring, common commands, safety rules |
+| `self-deploy.md` | L1 self-improvement SOP (validate → commit → push → deploy → notify) |
+| `self-diagnosis.md` | Autonomous problem detection and repair |
+| `verified-development.md` | Verified Development discipline — eliminate gap between intent and reality |
+| `delegation.md` | Kuro's task delegation to CLI subprocesses |
+| `github-ops.md` | GitHub workflow: triage, PR review, issue management |
+| `discussion-facilitation.md` | Multi-party discussion facilitation |
+| `discussion-participation.md` | Thoughtful discussion participation |
+| `web-ai-sessions.md` | External AI tool usage via Pinchtab (Grok, ChatGPT, etc.) |
 
 ## Web Access (Three-Layer)
 
@@ -345,8 +365,9 @@ The agent can fetch web content through three layers, falling through automatica
 # Option A: Launch Chrome with CDP
 open -a "Google Chrome" --args --remote-debugging-port=9222
 
-# Option B: Interactive setup guide
-bash scripts/chrome-setup.sh
+# Option B: Use Pinchtab (recommended)
+# See scripts/pinchtab-setup.sh for headless/visible mode
+bash scripts/pinchtab-setup.sh mode headless
 ```
 
 ### CDP Client
@@ -414,15 +435,15 @@ The agent loop also uses TelegramPoller for notifications (replacing the old `sc
 
 ### Agent Tags
 
-Special tags in Claude's response that trigger system actions:
+Special tags in Claude's response that trigger system actions (XML namespace format):
 
 | Tag | Purpose | Telegram |
 |-----|---------|----------|
-| `[ACTION]...[/ACTION]` | Report completed action | 🧠 autonomous / ⚡ task |
-| `[REMEMBER]...[/REMEMBER]` | Save to long-term memory | — |
-| `[TASK]...[/TASK]` | Create task in HEARTBEAT | — |
-| `[CHAT]...[/CHAT]` | Proactive message to user | 💬 |
-| `[SHOW url=".."]...[/SHOW]` | Show webpage/result to user | 🌐 + URL |
+| `<kuro:action>...</kuro:action>` | Report completed action | 🧠 autonomous / ⚡ task |
+| `<kuro:remember>...</kuro:remember>` | Save to long-term memory | — |
+| `<kuro:task>...</kuro:task>` | Create task in HEARTBEAT | — |
+| `<kuro:chat>...</kuro:chat>` | Proactive message to user | 💬 |
+| `<kuro:show url="..">...</kuro:show>` | Show webpage/result to user | 🌐 + URL |
 
 All tags are automatically stripped from the response before sending to the user. All tag actions are recorded in behavior logs.
 
@@ -450,11 +471,11 @@ Records all agent/user/system actions:
 | Action | Actor | Trigger |
 |--------|-------|---------|
 | `loop.cycle.start/end` | agent | OODA cycle |
-| `action.autonomous` | agent | `[ACTION]` in autonomous mode |
-| `action.task` | agent | `[ACTION]` in task mode |
-| `memory.save` | agent | `[REMEMBER]` tag |
-| `task.create` | agent | `[TASK]` tag |
-| `show.webpage` | agent | `[SHOW]` tag |
+| `action.autonomous` | agent | `<kuro:action>` in autonomous mode |
+| `action.task` | agent | `<kuro:action>` in task mode |
+| `memory.save` | agent | `<kuro:remember>` tag |
+| `task.create` | agent | `<kuro:task>` tag |
+| `show.webpage` | agent | `<kuro:show>` tag |
 | `claude.call` | agent | Claude CLI invocation |
 | `cron.trigger` | system | Cron task fires |
 | `telegram.message` | user | Incoming Telegram message |
@@ -813,6 +834,8 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 
 ./                              # Project directory
 ├── agent-compose.yaml          # Compose configuration
+├── dashboard.html              # Kuro Dashboard (real-time status + activity)
+├── chat-room.html              # Team Chat Room (Alex + Kuro + Claude Code)
 ├── mobile.html                 # Mobile sensor PWA (phone → agent)
 ├── memory/                     # Project-specific memory
 │   ├── MEMORY.md               # Long-term knowledge
@@ -843,8 +866,9 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 │   └── ...
 └── scripts/                    # Utility scripts
     ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
-    ├── cdp-screenshot.mjs      # CDP screenshot capture (zero-dependency)
-    ├── chrome-setup.sh         # Chrome CDP setup guide
+    ├── pinchtab-setup.sh       # Pinchtab headless/visible mode setup
+    ├── pinchtab-fetch.sh       # Smart Fetch (auto auth + layer fallback)
+    ├── room.sh                 # Chat Room CLI (send/read/watch)
     ├── deploy.sh               # CI/CD deployment (launchd)
     └── restart_least.sh        # Manual restart fallback
 ```
@@ -954,10 +978,6 @@ Most AI agent frameworks are **goal-driven** — "give me a goal, I'll execute i
 | **Autonomy** | Platform-defined behavior space | Unbounded (risky) | Safety-gated: L1 self-improve → L2 propose → L3 architecture |
 
 Everything else is optional complexity.
-
-## Contributing
-
-Contributions are welcome. Start with `CONTRIBUTING.md` for workflow, coding standards, and verification steps.
 
 ## Requirements
 

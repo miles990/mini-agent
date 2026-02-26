@@ -275,7 +275,7 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
 
   // ── Self-Challenge compliance tracking ──
   const isAlexFacing = triggerReason?.startsWith('telegram-user') ?? false;
-  if (isAlexFacing && action.includes('[CHAT]')) {
+  if (isAlexFacing && action.includes('<kuro:chat>')) {
     state.challengeTotal++;
     const hasChallenge = /##\s*Challenge.*?checked/i.test(action);
     if (hasChallenge) {

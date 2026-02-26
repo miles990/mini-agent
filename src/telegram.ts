@@ -536,7 +536,7 @@ export class TelegramPoller {
       };
     }
     if (result.status === -1) {
-      // Empty message — Claude 回覆只含 tags（[ACTION]/[REMEMBER] 等），清除後無面向用戶的內容
+      // Empty message — Claude 回覆只含 tags（<kuro:action>/<kuro:remember> 等），清除後無面向用戶的內容
       // 這不是真正的錯誤，只是 Claude 沒產出可顯示的文字
       return {
         title: '回覆為空',
@@ -944,7 +944,7 @@ const NEXT_MD_PATH = path.join(process.cwd(), 'memory', 'NEXT.md');
 
 /**
  * 自動將 Alex 的訊息寫入 NEXT.md 的 Next section。
- * 訊息會留在那裡直到 Kuro 用 [DONE] 標記完成。
+ * 訊息會留在那裡直到 Kuro 用 <kuro:done> 標記完成。
  * 使用 withFileLock 防止併發寫入。
  */
 async function autoEnqueueToNext(message: string, timestamp: string): Promise<void> {
@@ -988,7 +988,7 @@ async function autoEnqueueToNext(message: string, timestamp: string): Promise<vo
   });
 }
 
-/** Export for use in [DONE] tag processing */
+/** Export for use in <kuro:done> tag processing */
 export { NEXT_MD_PATH };
 
 // =============================================================================

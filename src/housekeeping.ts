@@ -27,7 +27,7 @@ function getTaskProgressDir(): string {
 }
 
 /**
- * 從 [PROGRESS] tags 寫入對應 task progress 檔案。
+ * 從 <kuro:progress> tags 寫入對應 task progress 檔案。
  * Fire-and-forget，每項 append 到 task-progress/{task}.md。
  */
 export function trackTaskProgress(tags: ParsedTags): void {
@@ -59,7 +59,7 @@ export function trackTaskProgress(tags: ParsedTags): void {
 }
 
 /**
- * [DONE] tag → 寫入對應 task-progress 檔案的完成記錄。
+ * <kuro:done> tag → 寫入對應 task-progress 檔案的完成記錄。
  * 匹配規則：done content 中的關鍵字 match task-progress/ 下的檔案名。
  */
 export function markTaskProgressDone(doneContent: string): void {

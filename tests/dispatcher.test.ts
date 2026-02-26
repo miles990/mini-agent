@@ -73,54 +73,54 @@ describe('Semaphore', () => {
 // =============================================================================
 
 describe('parseTags', () => {
-  it('parses [REMEMBER] tag', () => {
-    const result = parseTags('Sure! [REMEMBER]User prefers TypeScript[/REMEMBER] I noted that.');
+  it('parses <kuro:remember> tag', () => {
+    const result = parseTags('Sure! <kuro:remember>User prefers TypeScript</kuro:remember> I noted that.');
     expect(result.remembers[0]).toEqual({ content: 'User prefers TypeScript', topic: undefined, ref: undefined });
     expect(result.cleanContent).toBe('Sure!  I noted that.');
   });
 
-  it('parses [REMEMBER #topic] tag', () => {
-    const result = parseTags('[REMEMBER #gen-art]Domain warp creates organic textures[/REMEMBER]');
+  it('parses <kuro:remember topic="..."> tag', () => {
+    const result = parseTags('<kuro:remember topic="gen-art">Domain warp creates organic textures</kuro:remember>');
     expect(result.remembers[0]).toEqual({ content: 'Domain warp creates organic textures', topic: 'gen-art', ref: undefined });
     expect(result.cleanContent).toBe('');
   });
 
-  it('parses [TASK] with schedule', () => {
-    const result = parseTags('[TASK schedule="every 5 minutes"]Write a haiku[/TASK]');
+  it('parses <kuro:task> with schedule', () => {
+    const result = parseTags('<kuro:task schedule="every 5 minutes">Write a haiku</kuro:task>');
     expect(result.tasks[0]).toEqual({ content: 'Write a haiku', schedule: 'every 5 minutes' });
     expect(result.cleanContent).toBe('');
   });
 
-  it('parses [TASK] without schedule', () => {
-    const result = parseTags('[TASK]Do something[/TASK]');
+  it('parses <kuro:task> without schedule', () => {
+    const result = parseTags('<kuro:task>Do something</kuro:task>');
     expect(result.tasks[0]).toEqual({ content: 'Do something', schedule: undefined });
   });
 
-  it('parses [CHAT] tags', () => {
-    const result = parseTags('Text [CHAT]Hello Alex[/CHAT] more [CHAT]Another chat[/CHAT]');
+  it('parses <kuro:chat> tags', () => {
+    const result = parseTags('Text <kuro:chat>Hello Alex</kuro:chat> more <kuro:chat>Another chat</kuro:chat>');
     expect(result.chats).toEqual([{ text: 'Hello Alex', reply: false }, { text: 'Another chat', reply: false }]);
     expect(result.cleanContent).toBe('Text  more');
   });
 
-  it('parses [SHOW] tags', () => {
-    const result = parseTags('[SHOW url="http://localhost:3000"]Check this[/SHOW]');
+  it('parses <kuro:show> tags', () => {
+    const result = parseTags('<kuro:show url="http://localhost:3000">Check this</kuro:show>');
     expect(result.shows).toEqual([{ url: 'http://localhost:3000', desc: 'Check this' }]);
     expect(result.cleanContent).toBe('');
   });
 
-  it('parses [SHOW] without url', () => {
-    const result = parseTags('[SHOW]Something to see[/SHOW]');
+  it('parses <kuro:show> without url', () => {
+    const result = parseTags('<kuro:show>Something to see</kuro:show>');
     expect(result.shows).toEqual([{ url: '', desc: 'Something to see' }]);
   });
 
-  it('parses [SUMMARY] tags', () => {
-    const result = parseTags('[SUMMARY]Work done today[/SUMMARY]');
+  it('parses <kuro:summary> tags', () => {
+    const result = parseTags('<kuro:summary>Work done today</kuro:summary>');
     expect(result.summaries).toEqual(['Work done today']);
     expect(result.cleanContent).toBe('');
   });
 
   it('returns cleanContent with all tags removed', () => {
-    const response = '[REMEMBER]Fact[/REMEMBER] Hello! [TASK]Todo[/TASK] [CHAT]Hi[/CHAT] [SHOW url="x"]y[/SHOW] [SUMMARY]s[/SUMMARY] End.';
+    const response = '<kuro:remember>Fact</kuro:remember> Hello! <kuro:task>Todo</kuro:task> <kuro:chat>Hi</kuro:chat> <kuro:show url="x">y</kuro:show> <kuro:summary>s</kuro:summary> End.';
     const result = parseTags(response);
     expect(result.cleanContent).toBe('Hello!     End.');
     expect(result.remembers[0]).toEqual({ content: 'Fact', topic: undefined, ref: undefined });
@@ -141,8 +141,12 @@ describe('parseTags', () => {
   });
 
   it('handles multiline tag content', () => {
-    const result = parseTags('[REMEMBER]\nLine 1\nLine 2\n[/REMEMBER]');
+    const result = parseTags('<kuro:remember>\nLine 1\nLine 2\n</kuro:remember>');
     expect(result.remembers[0]).toEqual({ content: 'Line 1\nLine 2', topic: undefined, ref: undefined });
   });
-});
 
+  it('does not parse tag names mentioned as content', () => {
+    const result = parseTags('<kuro:chat>@claude-code I use <kuro:action> for decisions</kuro:chat>\n<kuro:action>## Decision\nreplied</kuro:action>');
+    expect(result.chats).toEqual([{ text: '@claude-code I use <kuro:action> for decisions', reply: false }]);
+  });
+});
