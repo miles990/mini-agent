@@ -25,3 +25,6 @@
 | github | kuro | #58 Hesitation Signal — 功能性感覺作為推理中斷機制 | needs-triage | 02-24 | — |
 | github | kuro | #59 kuro-sense: 感知能力管理工具 (Go) | needs-triage | 02-24 | — |
 | github | kuro | #64 feat: layered mode architecture + /api/ask sync endpoint | needs-triage | 02-25 | — |
+| github | kuro | #63 Remote Control + Agent MCP 深度整合計畫 | needs-triage | 02-26 | — |
+| github | kuro | #62 Agent Control Mode — 冷靜/內斂/自主模式切換 | needs-triage | 02-26 | — |
+| github | kuro | #61 Agent MCP Server + Remote Control 整合 | needs-triage | 02-26 | — |
