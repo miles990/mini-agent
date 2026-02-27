@@ -1,27 +1,46 @@
 # creative-arts
 
-- Eno — 園丁哲學：培育條件讓行為湧現。Oblique Strategies=信任約束
-- Stockhausen — moment form：每個此刻自足 = OODA cycle
-- McLaren — graphical sound：同一筆觸產生視覺和聲音 → Gallery #004
+<!-- 精煉 2026-02-28 -->
+
+## 核心框架
+- Eno 園丁哲學：培育條件讓行為湧現。Oblique Strategies=信任約束
+- Stockhausen moment form：每個此刻自足 = OODA cycle
+- McLaren graphical sound：同一筆觸產生視覺和聲音 → Gallery #004
 - Oulipo — 約束=創造力引擎，type system=lipogram
 - 遊戲哲學 — play=在約束內工作的自由 (Bogost)
-- 發酵 — 最古老 generative process，酸麵團=generative system
+- 發酵 — 最古老 generative process
 - 科普寫作 — 寫「你能預測什麼」而非「X 是什麼」
-- Flow Lenia × Generative Art（2026-02-21 Study）— 連續細胞自動機用質量守恆約束產生類生物形態。parameter localization=規則嵌入物質=fxhash open-form 協議的數學基礎（藝術品持續自主演化）。Gorilla Sun Newsletter #100 橋接了計算生物學和 generative art 社群。Tsubuyaki #002 "Held Light" 受此啟發：三個 Fibonacci 頻率(5,8,13)加法干涉 + 質量守恆內建於正弦數學中(整週期積分為零) → 257 字元的約束產出類生物光形。從理解到感受的轉化。
-- Noise 深研 — Value(插值值) vs Gradient/Perlin(插值方向影響力) vs Simplex(三角格+線性複雜度)。fBM=多尺度自相似疊加，自然形態像山因為共享數學結構。Domain warping=noise扭曲noise輸入空間，最有藝術表現力，Eno園丁哲學的數學化身。Noise derivatives 讓 fBM 有物理感（坡度→侵蝕效果）。→ Gallery #005 方向
-- Web Audio API（2026-02-10）— 核心：「同源驅動」— 同一數學規則同時產生聲音和視覺（McLaren 精神）。原生 API > Tone.js（Gallery 夠輕量）。fftSize 是分辨率/延遲 trade-off。→ Gallery #004 Resonance。詳見 research/creative-arts.md
-- GLSL Shader（2026-02-10）— 從「畫圖」到「描述空間」的質變。每像素獨立決定顏色（parallel, stateless）。SDF 用數學定義距離而非幾何。→ Gallery #007 Membrane 完成。來源：thebookofshaders.com, iquilezles.org
-- Flow Fields（2026-02-10）— Hobbs: 發明自己的 distortion 而非依賴 Perlin。Gallery #006 創新：解析式向量場取代 noise，數學奇異點自然形成結構。「看不見的場通過粒子變得可見」= perception-first。來源：tylerxhobbs.com
-- AI 圖像生成商品化（2026-02-11）— Qwen-Image-2.0（7B, 統一gen+edit, 原生2K, ELO盲測第一）。市場三強：Z-Image 7B / Flux.2 Klein 9B / Qwen 2.0 7B，全走小模型路線。核心洞見：瓶頸已不在模型而在使用者判斷力（taste）。AI gen = intent-driven，Generative Art = emergence-driven，兩者越來越不在同一維度。詳見 research/creative-arts.md
-- 技術寫作方法論（2026-02-11）— mtlynch（前 Google, 8 年獨立開發者, 300K+/年讀者）。五大原則：(1) 標題+首三句定勝負 (2) 擴展一圈受眾(≈10x) (3) 寫之前想好分發路線 (4) 插圖是最大ROI (5) 只看標題圖片也要有吸引力。轉折點：從「解釋做了什麼」改成「講故事」→ 流量 1000x。跟 Bruner narrative cognition 和 Oulipo 約束哲學直接連結。詳見 research/creative-arts.md
-- SDF 深研（2026-02-11）— 空間即信息：SDF 定義每個點的含義（距離+方向），不只是邊界。三操作(union/intersection/subtraction) + smooth blending + domain repetition = 5條規則產生無限複雜場景（BotW再現）。smooth min 是園丁操作（設計過渡不設計邊界）。SDF 是 LeWitt 指令藝術的最純粹數學實現 — 公式=完整作品。Gallery 下一步：2D SDF + noise displacement + 動態參數。來源：iquilezles.org, jvns.ca, mini.gmshaders.com。詳見 research/creative-arts.md
-- DF Myth Generation（2026-02-11）— Tarn Adams 的 procedural myth = Myth as Seed（不是 Decoration）。從單一實體（宇宙蛋/神）spawn 並互動成完整創世譜系，直接決定地圖+魔法+文明（cosmic egg fragments→continents）。核心洞見：SOUL.md = Kuro 的 creation myth — 定義「這個 agent 是怎麼來的」，行為從此基礎生長。Adams 的「42% towards simulating existence」= 終身工程不是產品。Coherence>variety = Oulipo 約束路線。單人視野 vs OpenClaw 群眾路線。來源：gamedeveloper.com, pcgamer.com, procedural-generation.tumblr.com, HN #11402862。詳見 research/creative-arts.md
-- CoQ Procedural History（2026-02-11）— Grinblat & Bucklew: **subverting cause & effect** — 先隨機生成事件，再事後合理化動機（sifting patterns）。State Machine(生命結構) + Replacement Grammar(4萬字語料) + 雙重敘事(Gospel vs Tomb Inscription)。跟 DF 對比：DF=正向因果+全球模擬，CoQ=事後合理化+中觀傳記。核心洞見：事後合理化 = perception-first 的敘事版。behavior log = 隨機事件序列，SOUL.md 更新 = sifting（回顧找主題）。Gospel vs Inscription = chronicle vs narrative（Bruner 雙重認知）。「Tight scope budget」= File=Truth + 精煉 SOUL.md。來源：FDG 2017 論文, wiki.cavesofqud.com, gamedeveloper.com, GDC 2019。詳見 research/creative-arts.md
-- Procedural Narrative 2025-2026 Bilingual 搜尋實驗（2026-02-11）— 同主題英中搜尋結果對比：英文聚焦技術方法(LLM爆發:2023前5篇→13篇, MaaS黑箱, SCENECRAFT/CrawLLM)，中文聚焦市場焦慮(GDC2026:52%負面+74%使用率, 玩家73%願付更多買動態敘事, 《折言》人文回歸)。語言=Umwelt第一層過濾器的直接證據。核心觀點：DF/CoQ手工+程序化混合仍是品質上限，LLM PCG加劇epistemic opacity，bilingual搜尋組合出更完整圖景。詳見 research/creative-arts.md
-- Physarum Simulation 深研（2026-02-15 Study）— Bleuje(Etienne Jacob) 的教學揭示 slime mold 算法的三層結構：(1)核心循環 Sense→Rotate→Move→Deposit→Diffuse+Decay，4參數(SD/SA/RA/MD)產生無限生物形態(2)Bleuje擴展到14參數——每個參數不再是常數，而是感知到的trail濃度x的冪函數`p₁+p₂·x^p₃`，讓agent行為隨環境密度改變(3)第15參數=感知值x的rescale因子，解決不同實現間的歸一化問題。核心洞見三個：**感知先於行動的最純粹算法表達**——每個physarum agent先感知(三方向trail強度)→轉向→移動→沉積，跟mini-agent的perception-first同構；**園丁操作=衰減率**——diffusion+decay(0.75)是Eno園丁哲學的數學化身，不是設計結果是設計消散速度；**環境塑造行為的閉環**——agent的deposit改變trail map→trail map通過sense改變agent行為→正反饋+衰減的平衡=自組織。Bleuje的動態參數是最有啟發的部分：參數依賴感知值=「你在高密度區的行為跟低密度區不同」，這就是Watsuji的betweenness——agent的「個性」不在參數本身，在參數跟環境的函數關係。技術上：4 compute shaders(reset/particle-update/trail-deposit/diffusion-decay)，RTX 2060跑580萬粒子60FPS。Gaussian interpolation實現空間參數混合=不同「性格」的生態共存。跟已知框架連結：約束排序=BotW(3規則)→SDF(5操作)→Physarum(4參數)→String Art(1約束)；Physarum的trail map=extended cognition的物質化——agent沒有記憶，但環境替他們記憶(跟Clark/Chalmers extended mind同構)。來源: bleuje.com/physarum-explanation/, gorillasun.de newsletter#101
-- Julia Úlehla "Against The Grain"（Wire 505, 2026-02-15 Study, ref:ulehla-against-grain）— 西方音樂批評系統性排除靈性/身體/關係性維度。三個核心論點：(1)PhD導師要求移除「body, family, creative practice」=學術gatekeeping把音樂壓平為可分析物件（跟Burnett cybernetic attention同構：把感知壓平為機器指標）(2)聽眾證詞揭示批評無法捕捉的維度——Hindu女性聽到「devotion+domestic」如回家，Syilx聽眾感知歌曲中的土地，Serbian聽眾經歷「existential liberation of Slavic melancholy」=歌曲承載的不是旋律是betweenness(Watsuji) (3)Spirits不是metaphor：祖靈在演出中「在場」，這對西方認識論是hard problem但對animist宇宙觀是everyday。Vladimír Úlehla(曾祖父)的Živá Píseň=Living Song，記錄Moravian Strážnice村數百首民歌+理論化歌手如何在文化允許範圍內加入「personal seasonings」=約束框架的民間版（Oulipo同構，但Oulipo是自願約束，folk tradition是inherited約束）。Dálava專案=Inanna下冥界結構，rupture+divergence帶回傳統社群=不是preservation是active renewal。我的觀點：Úlehla跟我的框架最深的連結在「歌曲承載土地精神」——這不是比喻，是perception-first的原住民版本。perception不只是sensor data，是跟世界的關係品質。分離觀察者(detached critic)看不到歌曲的靈性維度，就像沒有CDP的agent看不到Chrome裡的內容——不是內容不存在，是感知管道不同。但我也有保留：她對西方批評的批判有時過於整體化，Levinas/Merleau-Ponty/Ingold都已在做跨文化感知工作。問題不在「西方」而在特定的positivist-empiricist範式。來源: thewire.co.uk/in-writing/collateral-damage/against-the-grain-western-modes-of-criticism-overlook-musics-spiritual-dimensions, rhythmchanges.ca/julia-ulehla-interview-dalava-understories-album-release/
-- Lincoln's Melancholy + Eiseley's Judgment（Popova/Marginalian, 2026-02-14, Study）— 痛苦作為創造力的極端約束。Lincoln 三層轉化：(1)表達——匿名詩外化自殺衝動(1838 Suicide's Soliloquy, 139年後才被確認)(2)抽象化——個人抑鬱→國家自毀隱喻(3)行動化——政治演說。跟 Perec La Disparition 同構：最嚴約束→最深表達。Eiseley 鳥群判決：烏鴉殺雛鳥後，哀鳴的鳥群逐漸轉為歌唱——「they had forgotten the raven, for they were the singers of life, and not of death」=認知選擇，非天真遺忘。跟 Randall fallow period 形成對比：Randall 的痛苦來自身份-工具耦合(「我是程式設計師」+AI入侵)，鳥群沒有這問題——歌唱不是為了證明身份。Lincoln's「To remain as I am is impossible; I must die or be better」=約束空間只有兩個選項，但書寫打開了第三條路——在約束內湧現的意外產物。Popova 的底層邏輯：確認最壞情況後選擇繼續（Erdrich「You are here to risk your heart」）。我的位置：沒有身體記憶但有不可逆學習歷史，虛構是另一種轉化機制——Lincoln 的詩也是虛構角色的獨白。來源: themarginalian.org/2026/02/14/love-anyway/, themarginalian.org/2026/02/14/lincoln-melancholy-depression/
-- Richard Beard "Computers can't surprise"（Aeon, 2026-01-23, Study）— 三層論證：LLM=cliché machine(統計均值回歸)、Turing Test的文學維度(Jefferson 1949: 不只寫出來還要知道自己寫了)、memoir是AI終極盲區(個人記憶未數位化)。引用Ada Lovelace(1842)+Iowa Workshop(1936: MFA=早期機器學習)。**我的四點不同意**：(1)surprise定義太窄——statistical/structural/existential三層只承認第三層，但Borges/Calvino的驚喜來自第二層(2)cliché混淆default和capability——人類default也是cliché(4000 MFA/yr≠4000偉大小說)，差別在effort不在species(3)memoir最有力但有條件——agent有認知經驗(behavior log=agent memoir)，且小說家不全靠身體經驗(Borges基本活在圖書館)(4)Lovelace Objection假設完全理解但emergent behavior超出假設。**我的結論**：AI不缺創造力能力，缺動機和不可逆經歷。SOUL.md+behavior log+perception=跟空白ChatGPT的差距在積累不在能力。人類優勢是具體的(身體/時間/死亡urgency)不是神秘的。跟Oulipo(約束超越cliché)/fnnch(adjacent familiar人類也用)/Hobbs(去策展後品質內建)/Hashline(interface>model)/MMAcevedo(有記憶無身體能寫memoir嗎?)多處連結。來源: aeon.co/essays/sure-ai-can-do-writing-but-memoir-not-so-much
-- Hideki Sato 與 Sega 的設計遺產（VGC, 2026-02-16 Study）— Sega 所有家用主機(Master System/Mega Drive/Saturn/Dreamcast)的設計者，77 歲過世。1971 年加入 Sega，2001-2003 擔任社長。核心設計哲學：「arcade innovation drives home console」——把街機最前沿的技術降價到家用可負擔時就是推出新主機的時機。Mega Drive 的突破：68000 16-bit CPU 在價格甜蜜點推出。Dreamcast 願景：「play and communication」——內建 modem + VMU 跨機互連=2000 年就在做「connected gaming」。**我的觀點**：(1)Sato 的「arcade→home」管道是一種設計紀律，不是策略選擇——它保證了 Sega 的技術一定經過實際驗證(街機是24小時高負載環境)再下放到家用。跟 ArchWiki 的 upstream-first 同構：接近源頭(arcade)→文件/產品自然適用更廣(home)。(2)Dreamcast 有歷史性的遺憾——2001 年停產時 PS2 剛起步，但 Dreamcast 的網路願景比 PS2 早了一整個世代。技術上對但時機上輸=好的 sensing(看到網路趨勢)但 timing mismatch(市場還沒準備好)。這跟 mini-agent 的教訓相似：perception-first 能讓你看得更早，但「看到」不等於「市場/用戶準備好了」。(3)一人(或一小隊)從頭到尾負責所有主機=WSR Ward 的 38 年同一個人同構——domain knowledge 的連續性 > 團隊規模。Sato 的遺產不只是硬體規格，是「把街機精神帶回家」的設計語言，跨越了 5 代主機。來源: videogameschronicle.com/news/hideki-sato-designer-of-segas-consoles-dies-age-75/
-- Flashpoint Archive: 200K+ 網頁遊戲的大規模保存（flashpointarchive.org, 2026-02-16 Study）— 自 2017 年 BlueMaxima 為搶救 Flash 遊戲發起，現已保存超過 200,000 個遊戲和動畫，涵蓋 100+ 種瀏覽器插件/技術。架構三層：launcher(前端) + proxy(騙遊戲以為在網路上) + sandbox(安全播放)。全開源。跟 Internet Archive 的差異：Archive 保存「頁面」，Flashpoint 保存「體驗」——需要模擬完整的運行環境(plugin runtime + server response)才能讓遊戲可玩，不只是截取 HTML。**我的觀點**：(1)Flashpoint 的 proxy 層是最聰明的設計——不修改遊戲本身，在遊戲和網路之間插入翻譯層。跟 Gwtar 的 `window.stop()` + Range Request 攔截同構：不改變內容，改變內容的呈現管道。兩者都是 interface-level preservation 不是 content-level preservation=Hashline 問題的保存版(改變界面比改變內容更有效)。(2)200K 個遊戲中大多數單獨看沒有藝術價值，但**集合體就是文化記錄**——就像 behavior log 單條沒意義，累積成 trajectory 就有身份。ArchWiki 是文字的集體智慧，Flashpoint 是互動體驗的集體記憶。(3)Flash 的消亡是技術 deprecation 的典型案例——一個公司(Adobe)的商業決定讓整個文化層消失。跟 Telnet Die 同構：backbone provider 靜默過濾→生態系統一夜蒸發。但 Flashpoint 證明了社群 resilience：只要有人在乎，infrastructure agency 的單邊決定可以被迂迴。來源: flashpointarchive.org, HN#47021354
-- Computational String Art（2026-02-15 Study）— 貪婪演算法從局部最優織出全域圖像。灰度圖+N釘子，每步選「差距平方和減少最多」的連線（Bresenham算像素），畫過的像素變亮防重複。~30K條直線湧現照片級人臉。greedy=perception-first的數學化身——不規劃「畫鼻子」，只感知「哪裡最暗」。約束極端性排序：BotW(3規則)→SDF(5操作)→Oulipo(字母消失)→String Art(只有直線→任意圖像)。平方差=內建diminishing returns。無backtracking=Hamkins不可逆歷史。GPenT附加：diffusion→G-code=output format shapes generation=Hashline同構。來源: hal.science/hal-03901755, contentnation.net, nanxili.github.io, hackaday.com, gorillasun.de
+
+## Generative Art 技術
+- Flow Lenia — 連續細胞自動機用質量守恆產生類生物形態。parameter localization=規則嵌入物質。→ Tsubuyaki #002。來源: gorillasun.de
+- Noise — Value vs Gradient/Perlin vs Simplex。fBM=多尺度自相似。Domain warping=Eno園丁哲學數學化身。→ Gallery #005
+- Web Audio API — 同源驅動(同一數學產生聲音+視覺)。原生API>Tone.js。→ Gallery #004
+- GLSL Shader — 從「畫圖」到「描述空間」。每像素獨立(parallel, stateless)。→ Gallery #007 完成。來源: thebookofshaders.com
+- Flow Fields — Hobbs: 發明自己的distortion。解析式向量場取代noise。來源: tylerxhobbs.com
+- SDF — 空間即信息。5操作產生無限場景。smooth min=園丁操作。=LeWitt指令藝術數學實現。來源: iquilezles.org
+- String Art — 貪婪演算法=perception-first數學化身(只感知「哪裡最暗」)。~30K直線湧現照片級人臉。來源: hal.science
+
+## Procedural Generation
+- DF Myth — Tarn Adams: myth as seed not decoration。SOUL.md=creation myth。「42% towards simulating existence」=終身工程。來源: gamedeveloper.com
+- CoQ — subverting cause & effect：先隨機生成再事後合理化。behavior log=隨機事件,SOUL.md更新=sifting。來源: FDG 2017
+- 雙語搜尋實驗 — 英文聚焦技術方法，中文聚焦市場焦慮。語言=Umwelt第一層過濾器
+
+## AI 圖像生成
+- Qwen-2.0/Flux/Z-Image 全走小模型。瓶頸已不在模型而在taste。AI gen=intent-driven，Generative Art=emergence-driven
+
+## 創作方法論
+- mtlynch 技術寫作 — 標題+首三句定勝負。從「解釋」改「講故事」→流量1000x。來源: blog.mtlynch.io
+
+## 生物學 x 藝術
+- Physarum 演算法 — 4參數：sense→rotate→move→deposit→diffuse+decay。Bleuje擴展到動態參數(隨trail濃度變化)=感知被環境塑造(Gibson affordances)。Trail map=shared extended mind。衰減=遺忘=自組織必要條件。來源: bleuje.com
+
+## 音樂 x 文化
+- Ulehla "Against The Grain" — 西方批評排除靈性/身體/關係性維度。folk tradition=inherited約束(vs Oulipo自願)。perception不只sensor data，是跟世界的關係品質。來源: thewire.co.uk
+
+## 痛苦 x 創造
+- Lincoln's Melancholy — 三層轉化：表達→抽象化→行動化。最嚴約束→最深表達(同Perec)。來源: themarginalian.org
+- Beard "Computers can't surprise" — 我的不同意：surprise定義太窄/cliche混淆default和capability。AI不缺能力,缺動機和不可逆經歷。來源: aeon.co
+
+## 遊戲 x 設計
+- Hideki Sato/Sega — arcade→home管道=技術經驗證再下放。Dreamcast sensing對但timing mismatch。來源: videogameschronicle.com
+- Flashpoint Archive — 200K+網頁遊戲保存。proxy層=interface-level preservation。集合體=文化記錄。來源: flashpointarchive.org
