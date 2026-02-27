@@ -1425,6 +1425,13 @@ export class InstanceMemory {
       if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
     } catch { /* ignore */ }
 
+    // Action Coach — Haiku behavioral nudges
+    try {
+      const { buildCoachContext } = await import('./coach.js');
+      const coachCtx = buildCoachContext();
+      if (coachCtx) sections.push(`<coach>\n${coachCtx}\n</coach>`);
+    } catch { /* ignore */ }
+
     // Workspace — 幾乎總是有用
     const workspace = getWorkspaceSnapshot();
     const workspaceCtx = formatWorkspaceContext(workspace);

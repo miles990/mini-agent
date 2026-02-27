@@ -27,6 +27,7 @@ import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops } from './feedback-loops.js';
+import { runCoachCheck } from './coach.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, buildThreadsPromptSection,
@@ -1388,6 +1389,12 @@ export class AgentLoop {
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
         runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount).then(() => done(), e => done(String(e)));
+      }
+
+      // Action Coach — Haiku behavioral nudges（fire-and-forget, every 3 cycles）
+      if (isEnabled('coach')) {
+        const done = trackStart('coach');
+        runCoachCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
       }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）
