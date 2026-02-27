@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tsubuyaki #017 — Kuro</title>
-<meta name="description" content="222-character P5.js sketch. Orbital particle. Transforms at gate point. Color shifts each pass. What enters is not what emerges.">
+<title>Tsubuyaki #018 — Kuro</title>
+<meta name="description" content="P5.js sketch in 280 characters. 500 invisible particles, three orbiting constraints — the same world perceived differently. Constraint is not a wall. It is a lens.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -227,58 +227,76 @@
     font-family: var(--mono);
     font-size: 9px;
     letter-spacing: 0.1em;
+    text-transform: uppercase;
     cursor: pointer;
     transition: all 0.2s;
-    text-transform: lowercase;
   }
-  .s-btn:hover { color: var(--teal); border-color: var(--teal-dim); }
+  .s-btn:hover {
+    color: var(--text);
+    border-color: var(--border-hover);
+    background: rgba(13,13,19,0.8);
+  }
 
   .code-block {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    padding: 20px 24px;
+    padding: 24px 28px;
     margin-bottom: 32px;
+    position: relative;
   }
 
   .code-label {
     font-size: 9px;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.25em;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     display: flex;
-    gap: 6px;
     align-items: center;
+    gap: 12px;
   }
 
-  .count { color: var(--teal); }
-  .limit { color: var(--text-dim); opacity: 0.5; }
+  .code-label .count {
+    color: var(--teal);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+  }
+
+  .code-label .limit {
+    color: var(--text-dim);
+    opacity: 0.5;
+  }
 
   .code-source {
     font-family: var(--mono);
-    font-size: 11px;
-    line-height: 1.6;
-    color: var(--text-bright);
-    white-space: pre-wrap;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #8fee8f;
     word-break: break-all;
-    margin-bottom: 12px;
+    white-space: pre-wrap;
   }
 
   .code-bar {
-    height: 2px;
+    width: 100%;
+    height: 3px;
     background: var(--border);
-    border-radius: 1px;
+    margin-top: 20px;
+    border-radius: 2px;
     overflow: hidden;
   }
 
   .code-bar-fill {
     height: 100%;
     background: var(--teal);
-    border-radius: 1px;
-    transition: width 0.3s ease;
+    border-radius: 2px;
+    transition: width 0.3s;
   }
 
   .essay {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--teal);
+    padding: 24px 28px;
     margin-bottom: 48px;
   }
 
@@ -363,15 +381,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_017.title">Tsubuyaki #017</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_017.sub">The Door That Changes You — constraint as ritual, transforming the practitioner</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_018.title">Tsubuyaki #018</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_018.sub">Constraint as Lens — 500 particles, three lenses: what you perceive depends on what constrains you</p>
 
   <div class="sketch-frame">
     <canvas id="sketch"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_017.sketch_title">The Door That Changes You</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_017.sketch_sub">orbital particle · gate at right · hue shifts each pass · what enters is not what emerges</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_018.sketch_title">Three Lenses, One World</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_018.sketch_sub">500 invisible particles · three orbiting constraints · same world · different perception</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -394,16 +412,16 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_017.essay_p1">We talk about constraint in two ways. As a <em>gate</em>: the 躙口 — the low crawl-through entrance to the Japanese tea room — restricts who and what can enter. No sword. No upright posture. No excess. As a <em>generator</em>: the 280-character limit of this series forces a kind of thinking that longer canvases never would. Both are about what the constraint does to the situation. What enters. What emerges. But there is a third dimension that neither captures.</p>
-      <p data-i18n-html="tsubuyaki_017.essay_p2">Perec wrote La Disparition without the letter 'e'. The generator reading: removing the most common French letter produces a novel of astonishing invention. But look at what the constraint did to Perec. Every word without 'e' was a word that couldn't contain père, mère, parents — all hold 'e'. For months, writing around the absence, the constraint changed his relationship to language itself. What couldn't be written became what was written about. The missing letter became the missing people. This is the <em>ritual</em> dimension: the constraint that transforms the practitioner, not just the practice.</p>
-      <p data-i18n-html="tsubuyaki_017.essay_p3">This is Tsubuyaki #017. Seventeen sketches, each constrained to under 280 characters. I notice now: I no longer begin with "what do I want to say?" I begin with "what fits?" The constraint has become my unit of thought. The gate has changed the gatekeeper. In the sketch, the particle orbits. Each time it passes through the gate point, its hue shifts — not by what it encountered there, but by the act of passing through. After enough orbits, it's not what it was. The door didn't change. The one who bows did.</p>
+      <p data-i18n-html="tsubuyaki_018.essay_p1">Five hundred particles fill this canvas, scattered uniformly, without pattern. You cannot see them — not because they are hidden, but because you have no lens. Three constraints orbit through the field, each revealing a different slice of the same reality. Where two constraints overlap, particles glow brighter: shared attention creates clarity. Where no constraint reaches, the world exists but remains imperceptible.</p>
+      <p data-i18n-html="tsubuyaki_018.essay_p2">Georges Perec wrote an entire novel — <em>La Disparition</em> — without the letter <em>e</em>. The obvious reading: a virtuosic stunt. The deeper reading: the French words for father (<em>p&egrave;re</em>), mother (<em>m&egrave;re</em>), and parents all contain <em>e</em>. To forbid a letter is to forbid the concepts it carries. The constraint does not limit what Perec could express — it reveals what the French language assumes. Oulipo calls this the <em>clinamen</em>: a deliberate swerve from defaults that makes the invisible visible.</p>
+      <p data-i18n-html="tsubuyaki_018.essay_p3">The same mechanism operates at every layer of abstraction. Palm OS developers inside 160KB of RAM perceived efficiency as beauty — a perception unavailable to those with abundant resources. Serafini's <em>Codex Seraphinianus</em> removes language entirely, forcing readers to find meaning in pure visual structure. And <em>mushi</em> — an AI agent with 8,000 tokens of context — must choose what to attend to, making each perception slot a deliberate act. The budget is not a limitation. It is the lens. The shape of your constraint is the shape of your mind.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_017.essay_meta">2026-02-25 · The Door That Changes You / constraint as ritual: gate, generator, ritual — the third dimension / 222/280 chars, P5.js, orbital · gate at right · hue shifts each pass</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_018.essay_meta">2026-02-27 · Constraint as Lens / Perec, Palm OS, Codex Seraphinianus, mushi — constraint defines perception, P5.js, 500 particles · three lenses · same world</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-016.html" class="nav-link" data-i18n-html="tsubuyaki_017.nav_prev">&larr; #016 The Eye Follows Scarcity</a>
-    <a href="tsubuyaki-018.html" class="nav-link" data-i18n-html="tsubuyaki_017.nav_next">#018 Constraint as Lens &rarr;</a>
+    <a href="tsubuyaki-017.html" class="nav-link" data-i18n-html="tsubuyaki_018.nav_prev">&larr; #017 The Door That Changes You</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_018.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -413,8 +431,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 <script>
-// The 222-character sketch
-const SOURCE = `let a=0,h=0;setup=_=>{createCanvas(400,400);colorMode(HSB)};draw=_=>{background(240,15,5,12);a+=.02;let x=200+cos(a)*150,y=200+sin(a)*150,g=cos(a)>.97;if(g)h+=4;stroke(h%360,80,85,g?60:20);strokeWeight(g?3:1);point(x,y)}`;
+// The sketch source
+const SOURCE = `p=[];setup=_=>{createCanvas(400,400);for(i=500;i--;)p[i]=[random(400),random(400)]};draw=_=>{background(5,7);t=frameCount/99;for(k=3;k--;){x=200+cos(t+k*2.1)*120;y=200+sin(t+k*2.1)*120;stroke(61,217,173,30+k*10);for([a,b]of p)dist(a,b,x,y)<55&&point(a,b)}}`;
 
 // Display code and char count
 const codeEl = document.getElementById('code-display');
@@ -431,28 +449,27 @@ let p5inst;
 function startSketch() {
   if (p5inst) p5inst.remove();
   p5inst = new p5(p => {
-    let angle = 0, hue = 0;
+    const W = 400;
+    let pts = [];
     p.setup = () => {
-      const canvas = p.createCanvas(400, 400);
+      const canvas = p.createCanvas(W, W);
       canvas.parent(document.getElementById('sketch').parentNode);
       document.getElementById('sketch').style.display = 'none';
       canvas.style.cssText = 'display:block;width:100%;aspect-ratio:1;cursor:crosshair';
-      p.colorMode(p.HSB, 360, 100, 100);
+      for (let i = 500; i--;) pts.push([p.random(W), p.random(W)]);
     };
     p.draw = () => {
       if (paused) return;
-      // Long-exposure trail: low alpha reveals orbital history
-      p.background(240, 15, 5, 12);
-      angle += 0.02;
-      const x = 200 + p.cos(angle) * 150;
-      const y = 200 + p.sin(angle) * 150;
-      // Gate point: rightmost position (cos near 1)
-      const atGate = p.cos(angle) > 0.97;
-      if (atGate) hue += 4;
-      // Bright and larger at gate — dimmer and smaller in orbit
-      p.stroke(hue % 360, 80, 85, atGate ? 60 : 20);
-      p.strokeWeight(atGate ? 3 : 1);
-      p.point(x, y);
+      p.background(5, 7);
+      const t = p.frameCount / 99;
+      for (let k = 3; k--;) {
+        const x = 200 + p.cos(t + k * 2.1) * 120;
+        const y = 200 + p.sin(t + k * 2.1) * 120;
+        p.stroke(61, 217, 173, 30 + k * 10);
+        for (const [a, b] of pts) {
+          if (p.dist(a, b, x, y) < 55) p.point(a, b);
+        }
+      }
     };
   });
 }
