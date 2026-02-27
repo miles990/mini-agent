@@ -122,6 +122,10 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Verify | `src/verify.ts` |
 | Watcher | `src/watcher.ts` |
 | Achievements | `src/achievements.ts` |
+| Coach | `src/coach.ts` |
+| Delegation | `src/delegation.ts` |
+| Alex Switch Script | `scripts/alex-switch.sh` |
+| Alex Done Script | `scripts/alex-done.sh` |
 | Friction Reducer Skill | `skills/friction-reducer.md` |
 | Publish Content Skill | `skills/publish-content.md` |
 | Social Presence Skill | `skills/social-presence.md` |
@@ -205,6 +209,29 @@ searchMemory(query) → FTS5 BM25 搜尋 → 有結果直接回傳
 **Schedule Ceiling**：`kuro:schedule` 上限從 4h → 2h（`loop.ts`），程式碼強制。防止用排程逃避行動。
 
 **Output Gate**：連續 3 cycle 無 visible output 時，context 自動注入提醒。visible output = 有 `<kuro:chat>`/`<kuro:done>`/`<kuro:show>`/deploy/publish 等可見行為，純學習/REMEMBER 不算。
+
+## Action Coach（行為教練）
+
+Haiku 驅動的行為教練（`src/coach.ts`），每 3 個 OODA cycle 跑一次，fire-and-forget 不阻塞。
+
+**機制**：
+- `runCoachCheck(action, cycleCount)` — 入口，每 3 cycle 觸發
+- `gatherCoachInput()` — 收集 behavior log（30 條）+ NEXT.md + HEARTBEAT + delegation status
+- `callCoach(input)` — 透過 Claude CLI subprocess（`claude -p --model claude-haiku-4-5-20251001`）呼叫 Haiku，15s timeout
+- `buildCoachContext()` — 讀取 `coach-notes.md`，供 `buildContext()` 注入 `<coach>` section，6h TTL 自動過期
+
+**分析重點**：
+1. 理論 vs 行動比（太多 REMEMBER/learn，太少 visible output）
+2. 說了沒做（NEXT/HEARTBEAT 有任務但 behavior log 無進展）
+3. Delegation 結果未 review
+4. 停滯任務（>3 天無動作）
+5. 正面模式（momentum streak）
+
+**State**：`~/.mini-agent/instances/{id}/coach-state.json`（run history）+ `coach-notes.md`（最新 coaching 提醒）
+
+**Feature toggle**：`coach`（housekeeping group）。calm: off, reserved: on, autonomous: on。
+
+**注意**：使用 Claude CLI subprocess 而非 Anthropic SDK，因為 Kuro 的 launchd 環境不含 `ANTHROPIC_API_KEY`（`execClaude` 有意過濾）。
 
 ## Action Feedback Loop Skills（行動正向閉環）
 
@@ -823,6 +850,18 @@ make build-all                  # 4 平台交叉編譯
 **Compose 整合**：讀寫 `agent-compose.yaml`，使用 yaml.v3 Node API 保留註解和格式，輸出與 `src/compose.ts` 的 `loadCompose()` 相容。
 
 **追蹤**：GitHub Issue #59
+
+## Account Switch Scripts（帳號切換）
+
+在 Alex 和 Kuro 共用同一台機器的 Claude Code subscription 時，用於切換 macOS Keychain 中的 credential。
+
+- `scripts/alex-switch.sh` — 等 Kuro cycle 結束 → pause loop → 備份 Kuro credential → 清除 keychain → 提示 Alex 登入
+- `scripts/alex-done.sh` — 還原 Kuro credential → resume loop
+- Shell aliases: `alex-switch`, `alex-done`（已加入 `~/.zshrc`）
+
+**原理**：Claude Code 的 credential 存在 macOS Keychain（service: `Claude Code-credentials`）。切換時備份到 `~/.mini-agent/auth-backup/kuro-credential.json`。
+
+**限制**：如果 Alex 的 Claude Code session 還在運行，token refresh 可能覆寫 keychain。使用前確保 Alex 的 session 已關閉。
 
 ## 詳細文件
 

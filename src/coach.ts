@@ -135,7 +135,10 @@ Rules:
 - Reply in 繁體中文.`;
 
 async function callCoach(input: string): Promise<string | null> {
-  if (!input.trim()) return null;
+  if (!input.trim()) {
+    slog('COACH', 'Skipped: empty input');
+    return null;
+  }
 
   const fullPrompt = `${COACH_SYSTEM}\n\n---\n\n${input}`;
 
@@ -145,7 +148,7 @@ async function callCoach(input: string): Promise<string | null> {
         'claude',
         ['-p', '--model', HAIKU_MODEL, '--output-format', 'text'],
         {
-          env: { ...process.env, ANTHROPIC_API_KEY: undefined },
+          env: { ...process.env, ANTHROPIC_API_KEY: undefined, CLAUDECODE: undefined },
           stdio: ['pipe', 'pipe', 'pipe'],
         },
       );
@@ -155,9 +158,13 @@ async function callCoach(input: string): Promise<string | null> {
       child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
       child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
 
+      child.on('error', (err) => {
+        reject(new Error(`spawn error: ${err.message}`));
+      });
+
       const timer = setTimeout(() => {
         child.kill('SIGTERM');
-        reject(new Error('timeout'));
+        reject(new Error(`timeout (${TIMEOUT_MS}ms)`));
       }, TIMEOUT_MS);
 
       child.on('close', (code) => {
@@ -165,7 +172,7 @@ async function callCoach(input: string): Promise<string | null> {
         if (code === 0 && stdout.trim()) {
           resolve(stdout.trim());
         } else {
-          reject(new Error(stderr.slice(0, 200) || `exit code ${code}`));
+          reject(new Error(stderr.slice(0, 300) || `exit code ${code}, no output`));
         }
       });
 
@@ -173,6 +180,7 @@ async function callCoach(input: string): Promise<string | null> {
       child.stdin.end();
     });
 
+    slog('COACH', `Success: ${result.length} chars`);
     return result || null;
   } catch (error) {
     slog('COACH', `CLI call failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -197,6 +205,8 @@ export async function runCoachCheck(action: string | null, cycleCount: number): 
   // Only run every N cycles
   if (cycleCount - state.lastCycleRun < RUN_EVERY_N_CYCLES) return;
 
+  slog('COACH', `Running check (cycle ${cycleCount}, run #${state.totalRuns + 1})`);
+
   const input = await gatherCoachInput();
   const notes = await callCoach(input);
 
@@ -210,6 +220,8 @@ export async function runCoachCheck(action: string | null, cycleCount: number): 
     const content = `<!-- updated: ${new Date().toISOString()} -->\n${notes}`;
     writeFileSync(notesPath, content, 'utf-8');
     slog('COACH', `Notes updated: ${notes.slice(0, 80)}...`);
+  } else {
+    slog('COACH', 'No notes produced');
   }
 
   writeState('coach-state.json', state);
