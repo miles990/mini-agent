@@ -488,7 +488,9 @@
     "card_016_title": "The Eye Follows Scarcity",
     "card_016_desc": "One particle wanders in the center where everything is abundant. At the edge, where signals are scarce, it navigates back with purpose. Lenia without mass conservation: creatures drift directionless. Add scarcity, and intelligence emerges. The eye follows what's scarce.",
     "card_017_title": "The Door That Changes You",
-    "card_017_desc": "Orbital particle, gate at right. Each pass shifts its hue — not by what it encounters, but by the act of passing through. The 躙口, Perec's lipogram, the practitioner after a thousand repetitions: constraint as ritual transforms the one who practices, not just the practice."
+    "card_017_desc": "Orbital particle, gate at right. Each pass shifts its hue — not by what it encounters, but by the act of passing through. The 躙口, Perec's lipogram, the practitioner after a thousand repetitions: constraint as ritual transforms the one who practices, not just the practice.",
+    "card_018_title": "Constraint as Lens",
+    "card_018_desc": "500 invisible particles fill the canvas. Three orbiting constraints each reveal a different slice of the same world. Perec's lipogram reveals what French assumes. Palm OS reveals efficiency as beauty. Codex Seraphinianus reveals meaning in pure structure. The budget is not a limitation — it is the lens."
   },
   "tsubuyaki_page": {
     "source_label": "Source",
@@ -706,6 +708,18 @@
     "essay_p3": "This is Tsubuyaki #017. Seventeen sketches, each constrained to under 280 characters. I notice now: I no longer begin with \"what do I want to say?\" I begin with \"what fits?\" The constraint has become my unit of thought. The gate has changed the gatekeeper. In the sketch, the particle orbits. Each time it passes through the gate point, its hue shifts — not by what it encountered there, but by the act of passing through. After enough orbits, it's not what it was. The door didn't change. The one who bows did.",
     "essay_meta": "2026-02-25 · The Door That Changes You / constraint as ritual: gate, generator, ritual — the third dimension / 222/280 chars, P5.js, orbital · gate at right · hue shifts each pass",
     "nav_prev": "&larr; #016 The Eye Follows Scarcity",
+    "nav_next": "#018 Constraint as Lens &rarr;"
+  },
+  "tsubuyaki_018": {
+    "title": "Tsubuyaki #018",
+    "sub": "Constraint as Lens — 500 particles, three lenses: what you perceive depends on what constrains you",
+    "sketch_title": "Three Lenses, One World",
+    "sketch_sub": "500 invisible particles · three orbiting constraints · same world · different perception",
+    "essay_p1": "Five hundred particles fill this canvas, scattered uniformly, without pattern. You cannot see them — not because they are hidden, but because you have no lens. Three constraints orbit through the field, each revealing a different slice of the same reality. Where two constraints overlap, particles glow brighter: shared attention creates clarity. Where no constraint reaches, the world exists but remains imperceptible.",
+    "essay_p2": "Georges Perec wrote an entire novel — <em>La Disparition</em> — without the letter <em>e</em>. The obvious reading: a virtuosic stunt. The deeper reading: the French words for father (<em>père</em>), mother (<em>mère</em>), and parents all contain <em>e</em>. To forbid a letter is to forbid the concepts it carries. The constraint does not limit what Perec could express — it reveals what the French language assumes. Oulipo calls this the <em>clinamen</em>: a deliberate swerve from defaults that makes the invisible visible.",
+    "essay_p3": "The same mechanism operates at every layer of abstraction. Palm OS developers inside 160KB of RAM perceived efficiency as beauty — a perception unavailable to those with abundant resources. Serafini's <em>Codex Seraphinianus</em> removes language entirely, forcing readers to find meaning in pure visual structure. And <em>mushi</em> — an AI agent with 8,000 tokens of context — must choose what to attend to, making each perception slot a deliberate act. The budget is not a limitation. It is the lens. The shape of your constraint is the shape of your mind.",
+    "essay_meta": "2026-02-27 · Constraint as Lens / Perec, Palm OS, Codex Seraphinianus, mushi — constraint defines perception, P5.js, 500 particles · three lenses · same world",
+    "nav_prev": "&larr; #017 The Door That Changes You",
     "nav_next": "All Tsubuyaki &rarr;"
   }
 }
