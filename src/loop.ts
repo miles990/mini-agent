@@ -47,6 +47,7 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
+import { cleanupTasks as cleanupDelegations } from './delegation.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -1400,6 +1401,9 @@ export class AgentLoop {
         const done = trackStart('housekeeping');
         runHousekeeping().then(() => done(), e => done(String(e)));
       }
+
+      // Delegation cleanup — remove completed tasks >24h（fire-and-forget）
+      try { cleanupDelegations(); } catch { /* fire-and-forget */ }
 
       // Drain one queued cron task（loopBusy now free）
       if (isEnabled('cron-drain')) {

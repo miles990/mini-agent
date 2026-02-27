@@ -14,7 +14,8 @@ import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
 import { getMode } from './mode.js';
-import type { AgentResponse, ParsedTags, ThreadAction } from './types.js';
+import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest } from './types.js';
+import { spawnDelegation } from './delegation.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -282,6 +283,19 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
+  const delegates: DelegateRequest[] = [];
+  if (parseSource.includes('<kuro:delegate')) {
+    for (const m of parseSource.matchAll(/<kuro:delegate\s+workdir="([^"]*)"(?:\s+verify="([^"]*)")?(?:\s+maxTurns="([^"]*)")?>([\s\S]*?)<\/kuro:delegate>/g)) {
+      delegates.push({
+        prompt: m[4].trim(),
+        workdir: m[1],
+        verify: m[2] ? m[2].split(',').map(s => s.trim()) : undefined,
+        maxTurns: m[3] ? parseInt(m[3], 10) : undefined,
+      });
+    }
+  }
+
   const cleanContent = response
     .replace(/<kuro:remember[\s\S]*?<\/kuro:remember>/g, '')
     .replace(/<kuro:task[\s\S]*?<\/kuro:task>/g, '')
@@ -293,6 +307,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:impulse>[\s\S]*?<\/kuro:impulse>/g, '')
     .replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '')
     .replace(/<kuro:thread[\s\S]*?<\/kuro:thread>/g, '')
+    .replace(/<kuro:delegate[\s\S]*?<\/kuro:delegate>/g, '')
     .replace(/<kuro:schedule[^>]*\/>/g, '')
     .replace(/<kuro:done>[\s\S]*?<\/kuro:done>/g, '')
     .replace(/<kuro:progress[\s\S]*?<\/kuro:progress>/g, '')
@@ -304,7 +319,7 @@ export function parseTags(response: string): ParsedTags {
   const responseForDetection = response
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'schedule'];
+  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'schedule'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
       + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
@@ -315,7 +330,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, schedule, inner, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, schedule, inner, cleanContent };
 }
 
 // =============================================================================
@@ -406,6 +421,18 @@ export async function postProcess(
         await pauseThread(t.id, t.note || undefined);
         break;
     }
+  }
+
+  // <kuro:delegate> tags — spawn async Claude CLI subprocess (fire-and-forget)
+  for (const del of tags.delegates) {
+    const taskId = spawnDelegation({
+      prompt: del.prompt,
+      workdir: del.workdir,
+      maxTurns: del.maxTurns,
+      verify: del.verify,
+    });
+    slog('DISPATCH', `Delegation spawned: ${taskId} → ${del.workdir}`);
+    eventBus.emit('action:delegation-start', { taskId, workdir: del.workdir });
   }
 
   // Notification-producing tags: suppress when processing [Claude Code] system messages

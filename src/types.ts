@@ -304,6 +304,14 @@ export interface CreativeImpulse {
   expressedAt?: string;   // 被表達的時間
 }
 
+/** Delegation 請求（從 <kuro:delegate> tag 解析） */
+export interface DelegateRequest {
+  prompt: string;
+  workdir: string;
+  maxTurns?: number;
+  verify?: string[];
+}
+
 /** 解析後的 Agent 標籤 */
 export interface ParsedTags {
   remembers: Array<{ content: string; topic?: string; ref?: string }>;
@@ -317,6 +325,7 @@ export interface ParsedTags {
   summaries: string[];
   dones: string[];
   progresses: Array<{ task: string; content: string }>;
+  delegates: DelegateRequest[];
   schedule?: { next: string; reason: string };
   inner?: string;
   cleanContent: string;

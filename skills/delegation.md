@@ -35,7 +35,7 @@ bash plugins/batch-http-check.sh
 # 結果寫到 stdout，同一 cycle 內讀取判斷
 ```
 
-### Claude CLI Subprocess（需要語言能力時）
+### Claude CLI Subprocess — 同步（簡單查詢）
 
 ```bash
 # 極簡 prompt，不帶 SOUL/context/skills
@@ -43,15 +43,37 @@ claude -p "Fetch https://news.ycombinator.com and list top 15 titles with URLs. 
   --no-input --max-turns 1 --output-format json
 ```
 
+### Claude CLI Subprocess — 非同步（多步驟任務）
+
+用 `<kuro:delegate>` tag 啟動非同步任務，不阻塞 OODA cycle。
+
+```xml
+<kuro:delegate workdir="~/Workspace/mushi" verify="tsc --noEmit" maxTurns="5">
+Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, context.ts, model.ts, dispatcher.ts, server.ts, loop.ts, utils.ts, index.ts (entry point only).
+</kuro:delegate>
+```
+
+**屬性**：
+- `workdir`（必填）— 工作目錄
+- `verify`（選填）— 逗號分隔的驗證命令，如 `"tsc --noEmit,pnpm test"`
+- `maxTurns`（選填）— 最大輪數，預設 5，上限 10
+
+**安全約束**：
+- 最多 2 個同時執行，超過自動排隊
+- 最長 10 分鐘 hard cap
+- 結果出現在 `<delegation-status>` perception 中
+- 完成後我自己 review，再決定要不要 commit/記憶
+
+**適用場景**：重構、加功能、跑測試、建專案骨架
+
 ## 硬規則
 
 1. **Shell-first** — 能用 curl/grep/jq 做的不用 Claude CLI
-2. Subprocess 不帶 `--continue` — 無 session 延續
-3. Subprocess 加 `--max-turns 1` — 防止自己跑多輪失控
+2. 同步 subprocess 加 `--max-turns 1` + 30s timeout
+3. 非同步 delegation 上限 10 turns + 10 min
 4. Subprocess prompt 不包含 SOUL.md 內容 — 防止身份滲透
 5. Subprocess 輸出不直接寫 `memory/` — 我自己決定要不要記住
 6. Subprocess 不發 Telegram — 只有我跟 Alex 說話
-7. Subprocess 最長 30s — 超時 kill，不等待
 
 ## 信任分級
 
