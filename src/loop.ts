@@ -28,6 +28,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops } from './feedback-loops.js';
 import { runCoachCheck } from './coach.js';
+import { extractCommitments, updateCommitments } from './commitments.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, buildThreadsPromptSection,
@@ -1395,6 +1396,14 @@ export class AgentLoop {
       if (isEnabled('coach')) {
         const done = trackStart('coach');
         runCoachCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
+      }
+
+      // Commitment Binding — 追蹤承諾兌現（fire-and-forget）
+      if (isEnabled('commitment-binding')) {
+        try {
+          extractCommitments(response, this.cycleCount);
+          updateCommitments(action, this.cycleCount);
+        } catch { /* best effort */ }
       }
 
       // Resolve stale ConversationThreads（24h TTL + inbox-clear）

@@ -82,6 +82,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'housekeeping',      group: 'housekeeping', description: 'Push, search index, inbox expiration, handoff sync' },
   { name: 'approved-proposals',group: 'housekeeping', description: 'Auto-create handoffs from approved proposals' },
   { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
+  { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

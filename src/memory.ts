@@ -1432,6 +1432,13 @@ export class InstanceMemory {
       if (coachCtx) sections.push(`<coach>\n${coachCtx}\n</coach>`);
     } catch { /* ignore */ }
 
+    // Commitment Binding — 承諾追蹤
+    try {
+      const { buildCommitmentsContext } = await import('./commitments.js');
+      const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
+      if (commitCtx) sections.push(`<commitments>\n${commitCtx}\n</commitments>`);
+    } catch { /* ignore */ }
+
     // Workspace — 幾乎總是有用
     const workspace = getWorkspaceSnapshot();
     const workspaceCtx = formatWorkspaceContext(workspace);
