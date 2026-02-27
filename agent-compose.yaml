@@ -107,6 +107,7 @@ agents:
       - ./skills/action-from-learning.md
       - ./skills/delegation.md
       - ./skills/github-ops.md
+      - ./skills/kuro-github.md
       - ./skills/discussion-facilitation.md
       - ./skills/discussion-participation.md
       - ./skills/self-diagnosis.md
