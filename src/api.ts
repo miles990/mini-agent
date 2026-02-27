@@ -1920,7 +1920,7 @@ export function createApi(port = 3001): express.Express {
       return;
     }
 
-    const validFrom = ['alex', 'kuro', 'claude-code'];
+    const validFrom = ['alex', 'kuro', 'claude-code', 'mushi'];
     if (!validFrom.includes(from)) {
       res.status(400).json({ error: `from must be one of: ${validFrom.join(', ')}` });
       return;
