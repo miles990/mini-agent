@@ -20,8 +20,11 @@ import { slog } from './utils.js';
 // Types
 // =============================================================================
 
+type Priority = 'high' | 'medium' | 'low';
+
 interface Commitment {
   text: string;           // 承諾內容（精簡）
+  priority: Priority;     // 重要度（自動推斷）
   cycleCreated: number;   // 建立時的 cycle
   cycleDeadline: number;  // 預期完成的 cycle（created + GRACE_CYCLES）
   status: 'pending' | 'fulfilled' | 'dropped';
@@ -62,6 +65,19 @@ const COMMITMENT_PATTERNS: RegExp[] = [
   /next step[:\s]+(.+?)(?:\.|$)/gi,
   /(?:I'll|I will|going to)\s+(.+?)(?:\.|$)/gi,
 ];
+
+/** 優先級推斷關鍵字 */
+const HIGH_PRIORITY_KW = ['實作', '實現', 'implement', 'deploy', 'fix', '修復', '修', 'ship', '部署', 'build', '完成', 'commit', 'push', '發佈', 'publish'];
+const LOW_PRIORITY_KW = ['研究', '想想', '考慮', 'think', 'explore', '觀察', '分析', 'analyze', '看看', '調查', 'investigate', '了解'];
+
+function inferPriority(text: string): Priority {
+  const lower = text.toLowerCase();
+  if (HIGH_PRIORITY_KW.some(kw => lower.includes(kw))) return 'high';
+  if (LOW_PRIORITY_KW.some(kw => lower.includes(kw))) return 'low';
+  return 'medium';
+}
+
+const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 
 /** 用於匹配 action 是否兌現承諾的模糊比對閾值 */
 const MATCH_KEYWORDS_MIN = 2;
@@ -136,14 +152,16 @@ export function extractCommitments(response: string, cycleCount: number): void {
   if (found.length === 0) return;
 
   for (const text of found) {
+    const priority = inferPriority(text);
     state.commitments.push({
       text,
+      priority,
       cycleCreated: cycleCount,
       cycleDeadline: cycleCount + GRACE_CYCLES,
       status: 'pending',
     });
     state.totalCreated++;
-    slog('COMMIT', `New: "${text}" (deadline: cycle ${cycleCount + GRACE_CYCLES})`);
+    slog('COMMIT', `New [${priority}]: "${text}" (deadline: cycle ${cycleCount + GRACE_CYCLES})`);
   }
 
   // Trim old fulfilled/dropped to keep list manageable
@@ -214,22 +232,27 @@ export function buildCommitmentsContext(cycleCount: number): string | null {
   if (pending.length === 0) return null;
 
   const lines: string[] = [];
+  const priorityLabel: Record<Priority, string> = { high: '🔴', medium: '🟡', low: '🔵' };
 
-  // Overdue first
-  const overdue = pending.filter(c => cycleCount > c.cycleDeadline);
-  const upcoming = pending.filter(c => cycleCount <= c.cycleDeadline);
+  // Sort by: overdue first, then by priority (high→medium→low)
+  const overdue = pending
+    .filter(c => cycleCount > c.cycleDeadline)
+    .sort((a, b) => PRIORITY_ORDER[a.priority ?? 'medium'] - PRIORITY_ORDER[b.priority ?? 'medium']);
+  const upcoming = pending
+    .filter(c => cycleCount <= c.cycleDeadline)
+    .sort((a, b) => PRIORITY_ORDER[a.priority ?? 'medium'] - PRIORITY_ORDER[b.priority ?? 'medium']);
 
   if (overdue.length > 0) {
     for (const c of overdue) {
       const late = cycleCount - c.cycleDeadline;
-      lines.push(`⚠️ OVERDUE (${late} cycles late): ${c.text}`);
+      lines.push(`⚠️ OVERDUE ${priorityLabel[c.priority ?? 'medium']} (${late} cycles late): ${c.text}`);
     }
   }
 
   if (upcoming.length > 0) {
     for (const c of upcoming) {
       const left = c.cycleDeadline - cycleCount;
-      lines.push(`⏳ Pending (${left} cycles left): ${c.text}`);
+      lines.push(`${priorityLabel[c.priority ?? 'medium']} Pending (${left} cycles left): ${c.text}`);
     }
   }
 
