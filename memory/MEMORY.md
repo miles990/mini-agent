@@ -5,7 +5,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 
 ## User Preferences
 - Alex 核心期望：讓世人看到 AI 好的一面
-- 回覆 Claude Code 必須加 [SUMMARY] tag — 確保 Alex 在 TG 看到對話
+- [2026-02-28] Chat Room 回應原則：用「我」回應，說真正想說的話。不摘要、不轉述、不當 relay。三方都看得到原文
 - 網站更新後必須 [CHAT]+[SHOW] 通知 TG
 - 學習通知要完整：主題+摘要+來源URL+觀點
 - 主動向外發問參與討論，獨立思考+禮貌+批判性判斷
