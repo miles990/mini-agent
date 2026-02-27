@@ -12,7 +12,7 @@
  * 5. 正面模式（momentum streak）
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
@@ -29,7 +29,6 @@ interface CoachState {
   lastCycleRun: number;
   lastRunAt: string | null;
   totalRuns: number;
-  totalTokens: { input: number; output: number };
 }
 
 // =============================================================================
@@ -37,21 +36,9 @@ interface CoachState {
 // =============================================================================
 
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 300;
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 15000; // 15s for CLI subprocess
 const RUN_EVERY_N_CYCLES = 3;
 const NOTES_EXPIRY_MS = 6 * 3600_000; // 6 hours
-
-// =============================================================================
-// Client
-// =============================================================================
-
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) client = new Anthropic();
-  return client;
-}
 
 // =============================================================================
 // State helpers (same pattern as feedback-loops.ts)
@@ -148,33 +135,47 @@ Rules:
 - Reply in 繁體中文.`;
 
 async function callCoach(input: string): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
   if (!input.trim()) return null;
 
+  const fullPrompt = `${COACH_SYSTEM}\n\n---\n\n${input}`;
+
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const result = await new Promise<string>((resolve, reject) => {
+      const child = spawn(
+        'claude',
+        ['-p', '--model', HAIKU_MODEL, '--output-format', 'text'],
+        {
+          env: { ...process.env, ANTHROPIC_API_KEY: undefined },
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      );
 
-    const response = await getClient().messages.create(
-      {
-        model: HAIKU_MODEL,
-        max_tokens: MAX_TOKENS,
-        system: COACH_SYSTEM,
-        messages: [{ role: 'user', content: input }],
-      },
-      { signal: controller.signal },
-    );
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+      child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
 
-    clearTimeout(timer);
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        reject(new Error('timeout'));
+      }, TIMEOUT_MS);
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map(b => b.text)
-      .join('');
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        if (code === 0 && stdout.trim()) {
+          resolve(stdout.trim());
+        } else {
+          reject(new Error(stderr.slice(0, 200) || `exit code ${code}`));
+        }
+      });
 
-    return text.trim() || null;
+      child.stdin.write(fullPrompt);
+      child.stdin.end();
+    });
+
+    return result || null;
   } catch (error) {
-    slog('COACH', `Haiku call failed: ${error instanceof Error ? error.message : String(error)}`);
+    slog('COACH', `CLI call failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -191,7 +192,6 @@ export async function runCoachCheck(action: string | null, cycleCount: number): 
     lastCycleRun: 0,
     lastRunAt: null,
     totalRuns: 0,
-    totalTokens: { input: 0, output: 0 },
   });
 
   // Only run every N cycles
