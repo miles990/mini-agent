@@ -665,6 +665,17 @@ export class AgentLoop {
       if (data.source === 'auto-commit' || String(data.detail ?? '').includes('auto-commit')) {
         metadata.isAutoCommit = true;
       }
+      // Last action type: helps mushi distinguish "just idled" vs "just acted"
+      if (this.lastAction) {
+        const idle = /no action|穩態|無需行動|nothing to do/i.test(this.lastAction);
+        metadata.lastActionType = idle ? 'idle' : 'action';
+      } else {
+        metadata.lastActionType = 'none';
+      }
+      // Whether perceptions changed since last build
+      metadata.perceptionChanged = perceptionStreams.version !== this.lastPerceptionVersion;
+      // Cycle count for context
+      metadata.cycleCount = this.cycleCount;
 
       const body = JSON.stringify({
         trigger: source,

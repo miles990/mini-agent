@@ -507,12 +507,15 @@ export class TelegramPoller {
       slog('TELEGRAM', `Batched ${count} messages`);
     }
 
+    // Extract last message text for instant routing classification
+    const lastText = this.messageBuffer[this.messageBuffer.length - 1]?.text ?? '';
+
     // Clear buffer — messages are already in inbox (written by handleUpdate)
     this.messageBuffer.length = 0;
 
-    // Emit events to trigger OODA cycle
-    eventBus.emit('trigger:telegram', { messageCount: count }, { priority: 'P1', source: 'autonomic' });
-    eventBus.emit('trigger:telegram-user', { messageCount: count }, { priority: 'P1', source: 'autonomic' });
+    // Emit events to trigger OODA cycle (text enables mushi instant routing)
+    eventBus.emit('trigger:telegram', { messageCount: count, text: lastText }, { priority: 'P1', source: 'autonomic' });
+    eventBus.emit('trigger:telegram-user', { messageCount: count, text: lastText }, { priority: 'P1', source: 'autonomic' });
   }
 
   // ---------------------------------------------------------------------------
