@@ -2039,15 +2039,22 @@ export class InstanceMemory {
     if (!raw) return raw;
 
     const now = Date.now();
+    const THREE_DAYS = 3 * 86_400_000;
     const SEVEN_DAYS = 7 * 86_400_000;
-    const THIRTY_DAYS = 30 * 86_400_000;
 
-    // Sections that are always loaded in full (small, critical)
+    // Experiment 3: MEMORY.md budget cap (2026-02-28)
+    // Data: MEMORY.md ~14.7K chars (42% of context), citation rate 0.8%.
+    // Budget limits non-critical sections; always-full sections exempt.
+    const MEMORY_BUDGET = 6000;
+
+    // Sections that are always loaded in full (small, critical, exempt from budget)
     const alwaysFullSections = ['User Preferences', 'Important Facts', 'Important Decisions'];
 
     const lines = raw.split('\n');
     const result: string[] = [];
     let isAlwaysFullSection = false;
+    let budgetChars = 0;
+    let budgetExceeded = false;
     let olderCount = 0;
 
     for (const line of lines) {
@@ -2059,6 +2066,7 @@ export class InstanceMemory {
           olderCount = 0;
         }
         isAlwaysFullSection = alwaysFullSections.some(s => sectionMatch[1].includes(s));
+        budgetExceeded = false; // Reset per section (budget only limits non-critical content)
         result.push(line);
         continue;
       }
@@ -2069,24 +2077,42 @@ export class InstanceMemory {
         continue;
       }
 
-      // Always-full sections: keep everything
+      // Always-full sections: keep everything (exempt from budget)
       if (isAlwaysFullSection) {
         result.push(line);
         continue;
       }
 
-      // Dated entries: tier by age
+      // Budget exceeded for this section: count remaining dated entries
+      if (budgetExceeded) {
+        if (line.match(/^- \[/)) olderCount++;
+        else if (line.trim()) result.push(line); // keep non-entry lines (blank, comments)
+        continue;
+      }
+
+      // Dated entries: tier by age + budget
       const dateMatch = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
       if (dateMatch) {
         const age = now - new Date(dateMatch[1]).getTime();
-        if (age <= SEVEN_DAYS) {
-          result.push(line);
-        } else if (age <= THIRTY_DAYS) {
-          const truncated = line.length > 100 ? line.slice(0, 100) + '...' : line;
-          result.push(truncated);
+        let entry: string;
+        if (age <= THREE_DAYS) {
+          entry = line;
+        } else if (age <= SEVEN_DAYS) {
+          entry = line.length > 120 ? line.slice(0, 120) + '...' : line;
         } else {
           olderCount++;
+          continue;
         }
+
+        // Budget check
+        if (budgetChars + entry.length > MEMORY_BUDGET) {
+          budgetExceeded = true;
+          olderCount++;
+          continue;
+        }
+
+        result.push(entry);
+        budgetChars += entry.length;
         continue;
       }
 
