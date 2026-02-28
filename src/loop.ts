@@ -819,7 +819,7 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     if (isEnabled('mushi-triage') && !isDM && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
-      this.mushiTriage(triageSource, {}).catch(() => {});
+      this.mushiTriage(triageSource, { source: reason, detail: reason }).catch(() => {});
     }
 
     try {
