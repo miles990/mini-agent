@@ -653,8 +653,8 @@ export class AgentLoop {
 
   private static readonly MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
 
-  /** Ask mushi to classify a trigger as wake/skip. Shadow mode: log only, never blocks. */
-  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<void> {
+  /** Ask mushi to classify a trigger as wake/skip. Returns decision or null (offline/error = fail-open). */
+  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<'wake' | 'skip' | null> {
     try {
       const metadata: Record<string, unknown> = {};
       // Include last think age for context
@@ -690,15 +690,16 @@ export class AgentLoop {
         signal: AbortSignal.timeout(3000),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const result = await res.json() as { action?: string; reason?: string; latencyMs?: number; method?: string };
 
-      // Shadow mode: just log the decision for analysis
       const emoji = result.action === 'skip' ? '⏭' : '✅';
       slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
       eventBus.emit('log:info', { tag: 'mushi-triage', source, action: result.action, latencyMs: result.latencyMs, method: result.method });
+      return (result.action === 'skip' || result.action === 'wake') ? result.action as 'wake' | 'skip' : null;
     } catch {
-      // mushi offline or timeout — silently ignore
+      // mushi offline or timeout — fail-open (proceed with cycle)
+      return null;
     }
   }
 
@@ -892,7 +893,8 @@ export class AgentLoop {
 
     this.lastCycleTime = Date.now();
 
-    // mushi triage — shadow mode: log decision but always proceed with cycle
+    // mushi triage — active mode: skip cycle if mushi says skip
+    // DM sources always bypass (hard rule). Fail-open if mushi offline.
     // Placed here (not in handleEvent) so ALL cycle entry points are covered:
     // heartbeat timer, priority drain, direct-message queue, and event-driven triggers
     const reason = this.triggerReason ?? '';
@@ -900,7 +902,14 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     if (isEnabled('mushi-triage') && !isDM && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
-      this.mushiTriage(triageSource, { source: reason, detail: reason }).catch(() => {});
+      const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
+      if (decision === 'skip') {
+        slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
+        if (this.running && !this.paused) {
+          this.scheduleHeartbeat();
+        }
+        return;
+      }
     }
 
     try {
