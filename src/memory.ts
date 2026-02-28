@@ -1375,13 +1375,18 @@ export class InstanceMemory {
       if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
     }
 
-    const capabilities = await getCapabilitiesSnapshot(this.instanceId);
-    const capabilitiesCtx = formatCapabilitiesContext(capabilities);
-    if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
-
     // ── 條件載入（根據相關性）──
+    // Citation-driven optimization: sections with 0 citations in 916 cycles
+    // are moved from always-load to conditional-load (Experiment 1, 2026-02-28)
     const isRelevant = (keywords: string[]) =>
       mode === 'full' || keywords.some(k => contextHint.includes(k));
+
+    // Capabilities — 0 citations/916 cycles, ~881 chars. Load when asking about tools/plugins
+    if (isRelevant(['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'])) {
+      const capabilities = await getCapabilitiesSnapshot(this.instanceId);
+      const capabilitiesCtx = formatCapabilitiesContext(capabilities);
+      if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
+    }
 
     // Process — 在問 debug/performance/memory 時才載入
     if (isRelevant(['process', 'memory', 'cpu', 'pid', 'debug', 'slow', 'performance', 'kill'])) {
@@ -1436,19 +1441,23 @@ export class InstanceMemory {
       if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
     } catch { /* ignore */ }
 
-    // Action Coach — Haiku behavioral nudges
-    try {
-      const { buildCoachContext } = await import('./coach.js');
-      const coachCtx = buildCoachContext();
-      if (coachCtx) sections.push(`<coach>\n${coachCtx}\n</coach>`);
-    } catch { /* ignore */ }
+    // Action Coach — 0 citations/916 cycles. Load when asking about behavior/habits
+    if (isRelevant(['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'])) {
+      try {
+        const { buildCoachContext } = await import('./coach.js');
+        const coachCtx = buildCoachContext();
+        if (coachCtx) sections.push(`<coach>\n${coachCtx}\n</coach>`);
+      } catch { /* ignore */ }
+    }
 
-    // Commitment Binding — 承諾追蹤
-    try {
-      const { buildCommitmentsContext } = await import('./commitments.js');
-      const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
-      if (commitCtx) sections.push(`<commitments>\n${commitCtx}\n</commitments>`);
-    } catch { /* ignore */ }
+    // Commitment Binding — 0 citations/916 cycles. Load when asking about promises/commitments
+    if (isRelevant(['commitment', 'promise', 'overdue', 'committed', 'pledge'])) {
+      try {
+        const { buildCommitmentsContext } = await import('./commitments.js');
+        const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
+        if (commitCtx) sections.push(`<commitments>\n${commitCtx}\n</commitments>`);
+      } catch { /* ignore */ }
+    }
 
     // Workspace — 幾乎總是有用
     const workspace = getWorkspaceSnapshot();
