@@ -471,7 +471,14 @@ export class AgentLoop {
       const memory = getMemory();
       let context = await memory.buildContext({ mode: 'minimal' });
 
-      // Append MEMORY.md excerpt (same as /api/ask)
+      // FTS5 memory search — dynamic context enrichment based on question
+      const ftsResults = await memory.searchMemory(text, 8);
+      if (ftsResults.length > 0) {
+        const relevantEntries = ftsResults.map(r => `[${r.source}] ${r.content}`).join('\n');
+        context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;
+      }
+
+      // Append MEMORY.md excerpt (fallback: FTS5 may not index everything)
       const memContent = await readMemory();
       if (memContent) {
         context += `\n\n<memory>\n${memContent.slice(0, 2000)}\n</memory>`;
@@ -490,6 +497,17 @@ export class AgentLoop {
           context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
         }
       } catch { /* no conversations today */ }
+
+      // Cached perception — inject key sections (free, already collected)
+      try {
+        const cached = perceptionStreams.getCachedResults();
+        const importantNames = ['state-changes', 'tasks', 'telegram-inbox', 'chat-room-inbox', 'github-issues'];
+        const relevant = cached.filter(r => importantNames.includes(r.name));
+        if (relevant.length > 0) {
+          const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
+          context += `\n\n<cached_perception>\n${perceptionLines}\n</cached_perception>`;
+        }
+      } catch { /* perception not available */ }
 
       // Reserved mode: include working memory
       if (getMode().mode === 'reserved') {
@@ -557,6 +575,18 @@ export class AgentLoop {
       return;
     }
 
+    // mushi instant routing — DM sources with message text get classified
+    const messageText = (agentEvent.data?.text as string) ?? '';
+    if (isEnabled('mushi-triage') && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
+      const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
+      this.mushiInstantRoute(event.source, messageText, roomMsgId).catch(() => {
+        // Fail-open: mushi down → fall through to normal cycle
+        this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}`;
+        this.runCycle();
+      });
+      return;
+    }
+
     // If agent process is busy (held by cron etc), preempt first
     if (isLoopBusy()) {
       slog('LOOP', `[unified] Preempting busy state for ${event.source}`);
@@ -575,6 +605,46 @@ export class AgentLoop {
     this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}${detail}`;
 
     this.runCycle();
+  }
+
+  /**
+   * mushi instant routing — ask mushi if this DM should be handled instantly.
+   * instant → quickReply path (enriched /api/ask, < 20s)
+   * wake → normal OODA cycle
+   */
+  private async mushiInstantRoute(source: string, text: string, replyTo?: string): Promise<void> {
+    try {
+      const metadata: Record<string, unknown> = { messageText: text };
+      if (this.lastCycleTime > 0) {
+        metadata.lastThinkAgo = Math.round((Date.now() - this.lastCycleTime) / 1000);
+      }
+
+      const res = await fetch(AgentLoop.MUSHI_TRIAGE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger: source, source, metadata }),
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (!res.ok) throw new Error(`mushi ${res.status}`);
+      const result = await res.json() as { action?: string; reason?: string; latencyMs?: number };
+
+      if (result.action === 'instant') {
+        slog('MUSHI', `⚡ instant: ${source} → quickReply (${result.latencyMs}ms) — ${result.reason}`);
+        eventBus.emit('log:info', { tag: 'mushi-instant', source, latencyMs: result.latencyMs, reason: result.reason });
+        // Use quickReply path (enriched /api/ask context)
+        await this.quickReply(source, text, replyTo);
+        return;
+      }
+
+      // wake or unknown → normal OODA cycle
+      slog('MUSHI', `✅ wake: ${source} → cycle (${result.latencyMs}ms) — ${result.reason}`);
+      this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
+      this.runCycle();
+    } catch {
+      // Fail-open: mushi error → normal cycle
+      throw new Error('mushi-instant-failed');
+    }
   }
 
   // ---------------------------------------------------------------------------
