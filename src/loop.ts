@@ -579,11 +579,7 @@ export class AgentLoop {
     const messageText = (agentEvent.data?.text as string) ?? '';
     if (isEnabled('mushi-triage') && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
-      this.mushiInstantRoute(event.source, messageText, roomMsgId).catch(() => {
-        // Fail-open: mushi down → fall through to normal cycle
-        this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}`;
-        this.runCycle();
-      });
+      this.mushiInstantRoute(event.source, messageText, roomMsgId);
       return;
     }
 
@@ -641,9 +637,11 @@ export class AgentLoop {
       slog('MUSHI', `✅ wake: ${source} → cycle (${result.latencyMs}ms) — ${result.reason}`);
       this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
       this.runCycle();
-    } catch {
-      // Fail-open: mushi error → normal cycle
-      throw new Error('mushi-instant-failed');
+    } catch (err) {
+      // Fail-open: mushi error → normal cycle directly
+      slog('MUSHI', `⚡ instant-route failed (${err instanceof Error ? err.message : 'unknown'}), falling back to cycle`);
+      this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
+      this.runCycle();
     }
   }
 
