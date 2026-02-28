@@ -573,7 +573,57 @@ export class AgentLoop {
       ? `: ${JSON.stringify(agentEvent.data).slice(0, 100)}`
       : '';
     this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}${detail}`;
+
+    // mushi triage — shadow mode: log the decision but always proceed with cycle
+    if (isEnabled('mushi-triage') && !AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
+      this.mushiTriage(event.source, agentEvent.data).catch(() => {});
+    }
+
     this.runCycle();
+  }
+
+  // ---------------------------------------------------------------------------
+  // mushi Triage — shadow mode (fire-and-forget, log only)
+  // ---------------------------------------------------------------------------
+
+  private static readonly MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
+
+  /** Ask mushi to classify a trigger as wake/skip. Shadow mode: log only, never blocks. */
+  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<void> {
+    try {
+      const metadata: Record<string, unknown> = {};
+      // Include last think age for context
+      if (this.lastCycleTime > 0) {
+        metadata.lastThinkAgo = Math.round((Date.now() - this.lastCycleTime) / 1000);
+      }
+      // Auto-commit detection from data
+      if (data.source === 'auto-commit' || String(data.detail ?? '').includes('auto-commit')) {
+        metadata.isAutoCommit = true;
+      }
+
+      const body = JSON.stringify({
+        trigger: source,
+        source: String(data.source ?? source),
+        metadata,
+      });
+
+      const res = await fetch(AgentLoop.MUSHI_TRIAGE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (!res.ok) return;
+      const result = await res.json() as { action?: string; reason?: string; latencyMs?: number; method?: string };
+
+      // Shadow mode: just log the decision for analysis
+      const emoji = result.action === 'skip' ? '⏭' : '✅';
+      slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
+      eventBus.emit('log:info', { tag: 'mushi-triage', source, action: result.action, latencyMs: result.latencyMs, method: result.method });
+    } catch {
+      // mushi offline or timeout — silently ignore
+    }
   }
 
   /** Event handler — bound to `this` for subscribe/unsubscribe */

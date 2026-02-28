@@ -83,6 +83,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'approved-proposals',group: 'housekeeping', description: 'Auto-create handoffs from approved proposals' },
   { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
+  { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle (shadow mode: log only)' },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },
