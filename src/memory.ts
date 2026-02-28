@@ -1648,6 +1648,12 @@ export class InstanceMemory {
         topicHeat = JSON.parse(heatRaw) as Record<string, number>;
       } catch { /* no heat data — treat all as cold */ }
 
+      // Experiment 2: Total topic-memory budget (2026-02-28)
+      // Data: topic-memory swings 0-17K chars, cited 1/918 cycles.
+      // Budget caps total chars, excess topics downgraded to summary.
+      const TOPIC_MEMORY_BUDGET = 6000;
+      let topicCharsUsed = 0;
+
       const loadedTopics: string[] = [];
       for (const topic of topics) {
         const keywords = topicKeywords[topic] ?? [topic];
@@ -1675,7 +1681,17 @@ export class InstanceMemory {
               : content;
             if (topicContent.length > 4000) topicContent = topicContent.slice(0, 4000) + '\n[... truncated]';
             topicContent = addTemporalMarkers(topicContent);
-            sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
+            // Budget check: downgrade to summary if over budget
+            const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
+            if (topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
+              const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
+              const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
+              sections.push(summarySection);
+              topicCharsUsed += summarySection.length;
+            } else {
+              sections.push(section);
+              topicCharsUsed += section.length;
+            }
             loadedTopics.push(topic);
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
@@ -1692,7 +1708,17 @@ export class InstanceMemory {
               topicContent = truncateTopicMemory(content, 'summary');
             }
             topicContent = addTemporalMarkers(topicContent);
-            sections.push(`<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`);
+            // Budget check: downgrade matched content to summary if over budget
+            const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
+            if (isDirectMatch && topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
+              const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
+              const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
+              sections.push(summarySection);
+              topicCharsUsed += summarySection.length;
+            } else {
+              sections.push(section);
+              topicCharsUsed += section.length;
+            }
             loadedTopics.push(topic);
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
