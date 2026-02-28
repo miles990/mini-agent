@@ -863,6 +863,45 @@ make build-all                  # 4 平台交叉編譯
 
 **限制**：如果 Alex 的 Claude Code session 還在運行，token refresh 可能覆寫 keychain。使用前確保 Alex 的 session 已關閉。
 
+## mushi — System 1 直覺層
+
+mushi 是獨立的輕量級 agent（`~/Workspace/mushi/`），用 Taalas HC1（硬體化 Llama 3.1 8B，~800ms）作為 Kuro 的 System 1 快速判斷層。
+
+**設計理念**：Kahneman 雙系統 — mushi = System 1（快速、便宜、模式匹配），Kuro via Claude = System 2（慢速、昂貴、深度推理）。mushi 的價值不是讓 cycle 更快，是讓不必要的 cycle 不發生。
+
+**架構**：
+```
+Trigger 事件 → mushi triage（800ms, HC1）→ wake/skip 分類
+                                              ↓
+                               skip: 省掉完整 OODA cycle（~50K tokens）
+                               wake: 正常啟動 Claude cycle
+```
+
+**API 端點**（`localhost:3000`）：
+
+| 端點 | 功能 | 延遲 |
+|------|------|------|
+| `POST /api/triage` | Trigger 分類（wake/skip），硬規則 + HC1 | 0ms（規則）/ ~800ms（LLM） |
+| `POST /api/dedup` | 重複偵測（`[REMEMBER]` 寫入前查重） | ~700ms |
+| `POST /api/consensus` | 討論收斂偵測 | ~800ms |
+| `GET /health` | 健康檢查 | 0ms |
+
+**mini-agent 整合**（`src/loop.ts`）：
+- Feature flag: `mushi-triage`（reserved + autonomous 預設開啟）
+- `mushiTriage()` — fire-and-forget，不阻塞 cycle
+- Direct message sources（telegram/room/chat）繞過 triage，永遠直通
+- mushi 離線時靜默跳過（fail-silent）
+- **Shadow mode**：目前只記 log（`slog('MUSHI', ...)`），不攔截 cycle。收集數據驗證準確率後再上線
+
+**Triage 硬規則**：telegram/room/chat/alert/mobile → 永遠 wake（0ms，不走 LLM）
+
+**Token 節省預估**：平日 40% 空 cycle × ~50K tokens/cycle ≈ **每天省 ~1M tokens**
+
+**mushi repo**：`~/Workspace/mushi/`（獨立 repo，獨立部署）
+- Config: `agent.yaml`（provider: taalas, model: llama3.1-8B, fallback: ollama/qwen2.5:3b）
+- Server: `src/server.ts`
+- Model: `src/model.ts`（支援 taalas/ollama/openai-compatible）
+
 ## 詳細文件
 
 > 詳細架構、感知系統、Web Access 說明在 `memory/ARCHITECTURE.md`
