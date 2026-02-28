@@ -33,6 +33,7 @@ import {
   updateInstanceConfig,
   listInstances,
   getCurrentInstanceId,
+  getInstanceDir,
 } from './instance.js';
 import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, getCronQueueSize, stopCronTasks } from './cron.js';
@@ -924,6 +925,34 @@ export function createApi(port = 3001): express.Express {
   function saveModeState(mode: ModeName): void {
     fsPromises.writeFile(getModeStatePath(), JSON.stringify({ mode }), 'utf-8').catch(() => {});
   }
+
+  // GET /api/priority — 取得當前 priority focus
+  app.get('/api/priority', (_req: Request, res: Response) => {
+    const focusPath = path.join(getInstanceDir(getCurrentInstanceId()), 'priority-focus.txt');
+    try {
+      if (fs.existsSync(focusPath)) {
+        res.json({ focus: fs.readFileSync(focusPath, 'utf-8').trim() });
+      } else {
+        res.json({ focus: null });
+      }
+    } catch { res.json({ focus: null }); }
+  });
+
+  // POST /api/priority — 設定 priority focus
+  // Body: { focus: string } or { focus: null } to clear
+  app.post('/api/priority', (req: Request, res: Response) => {
+    const { focus } = req.body ?? {};
+    const focusPath = path.join(getInstanceDir(getCurrentInstanceId()), 'priority-focus.txt');
+    if (!focus) {
+      try { fs.unlinkSync(focusPath); } catch { /* ok */ }
+      slog('PRIORITY', 'Focus cleared');
+      res.json({ ok: true, focus: null });
+    } else {
+      fs.writeFileSync(focusPath, String(focus).slice(0, 500), 'utf-8');
+      slog('PRIORITY', `Focus set: ${String(focus).slice(0, 80)}`);
+      res.json({ ok: true, focus: String(focus).slice(0, 500) });
+    }
+  });
 
   app.get('/api/mode', (_req: Request, res: Response) => {
     res.json(getMode());

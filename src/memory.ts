@@ -1330,6 +1330,17 @@ export class InstanceMemory {
     // ── 必載入（核心感知）──
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
+    // ── Priority Focus（最顯眼位置 — 每個 cycle 開頭都會看到）──
+    try {
+      const focusPath = path.join(getInstanceDir(this.instanceId), 'priority-focus.txt');
+      if (existsSync(focusPath)) {
+        const focus = readFileSync(focusPath, 'utf-8').trim();
+        if (focus) {
+          sections.push(`<priority-focus>\n⚡ #1 PRIORITY: ${focus}\nDoes your chosen action serve this priority? If not, why is it more important?\n</priority-focus>`);
+        }
+      }
+    } catch { /* ignore */ }
+
     // ── Temporal Sense（時間感）──
     const temporalCtx = await buildTemporalSection();
     if (temporalCtx) {
