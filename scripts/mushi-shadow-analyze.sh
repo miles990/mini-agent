@@ -318,4 +318,122 @@ PYEOF
 fi
 
 echo ""
+
+# --- Part 4: Trigger Distribution (mushi addressable market) ---
+echo "--- Trigger Distribution & Addressable Market ---"
+python3 << 'PYEOF'
+import re, os
+from collections import defaultdict
+
+server_log_path = os.environ.get("SERVER_LOG", os.path.expanduser("~/.mini-agent/instances/f6616363/logs/server.log"))
+
+cycles = []
+current_trigger = None
+
+trigger_re = re.compile(r'\[LOOP\] #\d+ 🎯 Mode: \w+ \(triggered by: (.+?)\)')
+action_re = re.compile(r'\[LOOP\] #\d+ 🧠')
+noaction_re = re.compile(r'\[LOOP\] #\d+ 💤')
+
+with open(server_log_path) as f:
+    for line in f:
+        m = trigger_re.search(line)
+        if m:
+            raw = m.group(1)
+            # Classify into categories
+            if raw.startswith('room:') or (raw.startswith('room') and '"source":"room' in raw):
+                t = "room (direct)"
+            elif raw.startswith('room (yielded') or raw.startswith('room (unified'):
+                t = "room (yielded/unified)"
+            elif 'telegram-user' in raw:
+                t = "telegram-user (direct)"
+            elif raw.startswith('telegram'):
+                t = "telegram (system)"
+            elif raw.startswith('heartbeat'):
+                t = "heartbeat"
+            elif raw.startswith('startup'):
+                t = "startup"
+            elif 'alert' in raw:
+                t = "alert"
+            elif raw.startswith('cron'):
+                t = "cron"
+            elif raw.startswith('chat'):
+                t = "chat (direct)"
+            elif 'focus-co' in raw:
+                t = "workspace:focus-context"
+            elif 'state-ch' in raw:
+                t = "workspace:state-changes"
+            elif 'perception' in raw or 'percept' in raw:
+                t = "workspace:perception"
+            elif 'tasks' in raw:
+                t = "workspace:tasks"
+            elif 'mobile' in raw:
+                t = "workspace:mobile"
+            elif 'chat-roo' in raw:
+                t = "workspace:chat-room"
+            elif 'claude-c' in raw:
+                t = "workspace:claude-code"
+            elif 'direct-message' in raw:
+                t = "direct-message (queued)"
+            elif raw.startswith('workspace'):
+                t = "workspace (other)"
+            else:
+                t = raw[:25]
+            current_trigger = t
+            continue
+
+        if action_re.search(line) and current_trigger:
+            cycles.append({"trigger": current_trigger, "outcome": "action"})
+            current_trigger = None
+        elif noaction_re.search(line) and current_trigger:
+            cycles.append({"trigger": current_trigger, "outcome": "no-action"})
+            current_trigger = None
+
+if not cycles:
+    print("No trigger data found in server.log")
+    import sys; sys.exit(0)
+
+DIRECT = {"room (direct)", "telegram-user (direct)", "chat (direct)"}
+
+stats = defaultdict(lambda: {"total": 0, "action": 0, "noaction": 0})
+for c in cycles:
+    stats[c["trigger"]]["total"] += 1
+    if c["outcome"] == "action":
+        stats[c["trigger"]]["action"] += 1
+    else:
+        stats[c["trigger"]]["noaction"] += 1
+
+print(f"Total cycles with trigger info: {len(cycles)}")
+print(f"")
+print(f"{'Trigger':<30} {'Total':>6} {'Action':>7} {'NoAct':>6} {'NoAct%':>7}  {'Note'}")
+print("-" * 85)
+
+direct_total = direct_noaction = nondirect_total = nondirect_noaction = 0
+
+for trigger, s in sorted(stats.items(), key=lambda x: -x[1]["noaction"]):
+    pct = s["noaction"] / s["total"] * 100 if s["total"] > 0 else 0
+    is_direct = trigger in DIRECT
+    note = "bypasses mushi" if is_direct else ""
+    print(f"{trigger:<30} {s['total']:>6} {s['action']:>7} {s['noaction']:>6} {pct:>6.1f}%  {note}")
+    if is_direct:
+        direct_total += s["total"]
+        direct_noaction += s["noaction"]
+    else:
+        nondirect_total += s["total"]
+        nondirect_noaction += s["noaction"]
+
+print(f"")
+print(f"Direct msg cycles (bypass mushi):  {direct_total:>5} total, {direct_noaction:>4} no-action ({direct_noaction/direct_total*100:.1f}%)" if direct_total else "Direct msg cycles: 0")
+print(f"Non-direct (mushi addressable):    {nondirect_total:>5} total, {nondirect_noaction:>4} no-action ({nondirect_noaction/nondirect_total*100:.1f}%)" if nondirect_total else "Non-direct cycles: 0")
+if nondirect_total and len(cycles):
+    print(f"")
+    print(f"Mushi addressable market: {nondirect_total}/{len(cycles)} = {nondirect_total/len(cycles)*100:.1f}% of all cycles")
+    savings = nondirect_noaction * 50000
+    print(f"Max saveable tokens:      {savings:,} ({savings/1_000_000:.1f}M)")
+    print(f"Top waste sources:")
+    nondirect_stats = {k:v for k,v in stats.items() if k not in DIRECT}
+    for trigger, s in sorted(nondirect_stats.items(), key=lambda x: -x[1]["noaction"])[:5]:
+        print(f"  {trigger:<28} {s['noaction']:>4} no-action cycles ({s['noaction']*50000/1_000_000:.1f}M tokens)")
+PYEOF
+
+echo ""
 echo "=== End of Analysis ==="
