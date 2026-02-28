@@ -574,11 +574,6 @@ export class AgentLoop {
       : '';
     this.triggerReason = event.source === 'telegram' ? 'telegram-user' : `${event.source}${detail}`;
 
-    // mushi triage — shadow mode: log the decision but always proceed with cycle
-    if (isEnabled('mushi-triage') && !AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
-      this.mushiTriage(event.source, agentEvent.data).catch(() => {});
-    }
-
     this.runCycle();
   }
 
@@ -815,6 +810,17 @@ export class AgentLoop {
     this.calmWake = false;
 
     this.lastCycleTime = Date.now();
+
+    // mushi triage — shadow mode: log decision but always proceed with cycle
+    // Placed here (not in handleEvent) so ALL cycle entry points are covered:
+    // heartbeat timer, priority drain, direct-message queue, and event-driven triggers
+    const reason = this.triggerReason ?? '';
+    const isDM = [...AgentLoop.DIRECT_MESSAGE_SOURCES].some(s => reason.startsWith(s))
+      || reason.startsWith('direct-message');
+    if (isEnabled('mushi-triage') && !isDM && reason) {
+      const triageSource = reason.split(/[:(]/)[0].trim();
+      this.mushiTriage(triageSource, {}).catch(() => {});
+    }
 
     try {
       await this.cycle();
