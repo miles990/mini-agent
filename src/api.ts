@@ -2091,7 +2091,15 @@ export function createApi(port = 3001): express.Express {
       // 建立 minimal context（soul + heartbeat + NEXT Now + recent convos）
       let context = await memory.buildContext({ mode: 'minimal' });
 
-      // 補充 MEMORY.md 頭 2000 chars
+      // FTS5 搜尋相關記憶（根據問題內容動態注入，取代固定截斷）
+      const memory2 = getMemory();
+      const ftsResults = await memory2.searchMemory(question as string, 8);
+      if (ftsResults.length > 0) {
+        const relevantEntries = ftsResults.map(r => `[${r.source}] ${r.content}`).join('\n');
+        context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;
+      }
+
+      // 補充 MEMORY.md 頭 2000 chars（兜底：FTS5 可能沒索引到所有內容）
       const memContent = await readMemory();
       if (memContent) {
         const memExcerpt = memContent.slice(0, 2000);
@@ -2132,8 +2140,19 @@ export function createApi(port = 3001): express.Express {
         } catch { /* tracking-notes 不存在 */ }
       }
 
+      // 注入快取的 perception 關鍵 sections（免費，已有數據）
+      try {
+        const cached = perceptionStreams.getCachedResults();
+        const importantNames = ['state-changes', 'tasks', 'telegram-inbox', 'chat-room-inbox', 'github-issues'];
+        const relevant = cached.filter(r => importantNames.includes(r.name));
+        if (relevant.length > 0) {
+          const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
+          context += `\n\n<cached_perception>\n${perceptionLines}\n</cached_perception>`;
+        }
+      } catch { /* perception not available */ }
+
       const contextAge = new Date().toISOString();
-      context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式，不跑感知 plugins。感知資料為快取（${contextAge}）。\n</ask_mode>`;
+      context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式。感知資料為快取 + FTS5 動態記憶搜尋（${contextAge}）。\n</ask_mode>`;
 
       const { response } = await callClaude(question, context, 1, { source: 'ask' });
 
