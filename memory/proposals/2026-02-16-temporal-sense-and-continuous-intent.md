@@ -1,6 +1,6 @@
 # Proposal: 時間感 + 連續意圖 — Kuro 的主觀時間體驗
 
-## Status: draft
+## Status: implemented
 
 ## TL;DR
 

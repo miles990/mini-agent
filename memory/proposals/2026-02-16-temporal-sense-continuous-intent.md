@@ -1,6 +1,6 @@
 # Proposal: 時間感 + 連續意圖（Temporal Sense & Continuous Intent）
 
-## Status: pending
+## Status: implemented
 
 ## TL;DR
 
