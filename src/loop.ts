@@ -20,7 +20,7 @@ import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
-import { notifyTelegram, markInboxAllProcessed } from './telegram.js';
+import { notifyTelegram, markInboxAllProcessed, getLastAlexMessageId } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -537,7 +537,7 @@ export class AgentLoop {
 
       // Send reply to the appropriate channel
       if (source === 'telegram') {
-        notifyTelegram(answer).catch(() => {});
+        notifyTelegram(answer, getLastAlexMessageId() ?? undefined).catch(() => {});
       }
       // Always write to chat room (visible to all)
       await writeRoomMessage('kuro', answer, replyTo);
@@ -605,11 +605,16 @@ export class AgentLoop {
   }
 
   /**
-   * mushi instant routing — ask mushi if this DM should be handled instantly.
-   * instant → quickReply path (enriched /api/ask, < 20s)
-   * wake → normal OODA cycle
+   * mushi instant routing — three-tier progressive response:
+   * T1: mushi instant-reply (~1-2s, fire-and-forget) → quick ack to Telegram
+   * T2: triage decides depth — instant → quickReply (~15s) / wake → OODA (~30-300s)
    */
   private async mushiInstantRoute(source: string, text: string, replyTo?: string): Promise<void> {
+    // T1: Fire mushi instant reply (non-blocking, ~1-2s)
+    // Sends a quick first response to Telegram while T2 processes deeper
+    const alexMsgId = source === 'telegram' ? getLastAlexMessageId() ?? undefined : undefined;
+    this.fireMushibInstantReply(text, alexMsgId).catch(() => {});
+
     try {
       const metadata: Record<string, unknown> = { messageText: text };
       if (this.lastCycleTime > 0) {
@@ -629,12 +634,12 @@ export class AgentLoop {
       if (result.action === 'instant') {
         slog('MUSHI', `⚡ instant: ${source} → quickReply (${result.latencyMs}ms) — ${result.reason}`);
         eventBus.emit('log:info', { tag: 'mushi-instant', msg: `${source} → instant (${result.latencyMs}ms) — ${result.reason}`, source, latencyMs: result.latencyMs, reason: result.reason });
-        // Use quickReply path (enriched /api/ask context)
+        // T2: quickReply for deeper response (Claude /api/ask)
         await this.quickReply(source, text, replyTo);
         return;
       }
 
-      // wake or unknown → normal OODA cycle
+      // wake or unknown → T2: normal OODA cycle
       slog('MUSHI', `✅ wake: ${source} → cycle (${result.latencyMs}ms) — ${result.reason}`);
       this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
       this.runCycle();
@@ -643,6 +648,37 @@ export class AgentLoop {
       slog('MUSHI', `⚡ instant-route failed (${err instanceof Error ? err.message : 'unknown'}), falling back to cycle`);
       this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
       this.runCycle();
+    }
+  }
+
+  private static readonly MUSHI_INSTANT_REPLY_URL = 'http://localhost:3000/api/instant-reply';
+
+  /**
+   * Fire mushi instant reply — non-blocking T1 quick response (~1-2s).
+   * Sends directly to Telegram as a quick first acknowledgement.
+   */
+  private async fireMushibInstantReply(text: string, replyToMsgId?: number): Promise<void> {
+    try {
+      const res = await fetch(AgentLoop.MUSHI_INSTANT_REPLY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) throw new Error(`mushi instant-reply ${res.status}`);
+      const result = await res.json() as { ok?: boolean; reply?: string; latencyMs?: number };
+
+      if (result.ok && result.reply) {
+        slog('MUSHI', `💨 instant-reply: "${result.reply.slice(0, 60)}" (${result.latencyMs}ms)`);
+        // Send T1 reply to Telegram (quoting Alex's message)
+        notifyTelegram(result.reply, replyToMsgId).catch(() => {});
+        // Also write to chat room for visibility
+        writeRoomMessage('kuro', `[T1] ${result.reply}`).catch(() => {});
+      }
+    } catch (err) {
+      // Silent fail — T2 will still handle the message
+      slog('MUSHI', `💨 instant-reply failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
@@ -1276,7 +1312,7 @@ export class AgentLoop {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
           didReplyToTelegram = true;
-          notifyTelegram(replyContent).catch((err) => {
+          notifyTelegram(replyContent, getLastAlexMessageId() ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
           cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
@@ -1302,7 +1338,7 @@ export class AgentLoop {
         const askMsg = `❓ ${askText}`;
         cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
         cycleTagsProcessed.push('ASK');
-        notifyTelegram(askMsg).catch((err) => {
+        notifyTelegram(askMsg, getLastAlexMessageId() ?? undefined).catch((err) => {
           slog('LOOP', `Telegram ask failed: ${err instanceof Error ? err.message : err}`);
         });
         // Create a conversation thread so it persists until Alex replies
@@ -1480,7 +1516,7 @@ export class AgentLoop {
         if (fallbackContent && fallbackContent.length > 20 && !isErrorContent) {
           // Cap at 2000 chars to avoid sending overly long messages
           const capped = fallbackContent.length > 2000 ? fallbackContent.slice(0, 2000) + '...' : fallbackContent;
-          notifyTelegram(capped).catch((err) => {
+          notifyTelegram(capped, getLastAlexMessageId() ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
           didReplyToTelegram = true;
