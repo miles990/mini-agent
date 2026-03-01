@@ -26,10 +26,6 @@ const LOCAL_CONFIG_FILE = path.join(LOCAL_CONFIG_DIR, 'config.json');
  * Configuration schema
  */
 export interface Config {
-  /** Proactive schedule (cron expression) */
-  proactiveSchedule: string;
-  /** Auto-start proactive on server start */
-  proactiveAutoStart: boolean;
   /** Default model (if supported) */
   model: string;
   /** Output directory for generated files */
@@ -44,8 +40,6 @@ export interface Config {
  * Default configuration
  */
 export const DEFAULT_CONFIG: Config = {
-  proactiveSchedule: '*/30 * * * *',
-  proactiveAutoStart: false,
   model: 'default',
   outputDir: '.',
   maxSearchResults: 5,
@@ -57,7 +51,6 @@ export const DEFAULT_CONFIG: Config = {
  */
 function globalDefaultsToConfig(defaults: GlobalDefaults): Partial<Config> {
   return {
-    proactiveSchedule: defaults.proactiveSchedule,
     maxSearchResults: defaults.maxSearchResults,
     claudeTimeout: defaults.claudeTimeout,
   };

@@ -9,31 +9,12 @@
 export type InstanceRole = 'master' | 'worker' | 'standalone';
 
 /**
- * Proactive 觸發器類型
- */
-export interface ProactiveTrigger {
-  type: 'cron' | 'event' | 'webhook';
-  schedule?: string;
-  event?: string;
-  action: string;
-}
-
-/**
  * 角色定義
  */
 export interface Persona {
   description?: string;
   systemPrompt?: string;
   skills?: string[];
-}
-
-/**
- * Proactive 配置
- */
-export interface ProactiveConfig {
-  enabled: boolean;
-  schedule?: string;
-  triggers?: ProactiveTrigger[];
 }
 
 /**
@@ -64,7 +45,7 @@ export interface InstanceConfig {
   role: InstanceRole;
   port: number;
   persona?: Persona;
-  proactive?: ProactiveConfig;
+  proactive?: { enabled: boolean; schedule?: string };
   memory?: MemoryConfig;
   createdAt?: string;
   updatedAt?: string;

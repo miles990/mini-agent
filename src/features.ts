@@ -63,7 +63,6 @@ const FEATURES: FeatureInfo[] = [
   { name: 'instant-digest',    group: 'digest',        description: 'Instant content digestion — forwarded messages, URLs, /d command bypass OODA' },
 
   // ── Core ──
-  { name: 'cooperative-yield',  group: 'core',         description: 'Signal-based cooperative yield (vs kill-based preemption)' },
   { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },
   { name: 'ooda-loop',         group: 'core',         description: 'OODA cycle (main agent loop)' },
   { name: 'cron',              group: 'core',         description: 'Scheduled cron tasks' },
@@ -83,7 +82,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'approved-proposals',group: 'housekeeping', description: 'Auto-create handoffs from approved proposals' },
   { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
-  { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle (shadow mode: log only)' },
+  { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

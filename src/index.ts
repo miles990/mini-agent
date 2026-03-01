@@ -15,9 +15,7 @@ export type {
   GlobalConfig,
   GlobalDefaults,
   CreateInstanceOptions,
-  ProactiveTrigger,
   Persona,
-  ProactiveConfig as ProactiveInstanceConfig,
   MemoryConfig,
   Task,
   MemoryEntry,
@@ -32,7 +30,7 @@ export type {
 export { callClaude, type Message } from './agent.js';
 
 // Dispatcher
-export { parseTags, postProcess, getSystemPrompt, Semaphore } from './dispatcher.js';
+export { parseTags, postProcess, getSystemPrompt } from './dispatcher.js';
 
 // Memory (instance-aware)
 export {
@@ -50,14 +48,6 @@ export {
   addTask,
   buildContext,
 } from './memory.js';
-
-// Proactive
-export {
-  startProactive,
-  stopProactive,
-  triggerHeartbeat,
-  type ProactiveConfig,
-} from './proactive.js';
 
 // Cron
 export {
