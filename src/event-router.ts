@@ -117,13 +117,15 @@ export class DeterministicRouter implements EventRouter {
       unchangedCounts.set(event.source, 0);
     }
 
-    // Rule 4: 冷卻期 — 同 source 10s 內不重複觸發
-    const lastSeen = recentEvents.get(event.source);
-    const now = event.ts.getTime();
-    if (lastSeen && (now - lastSeen) < COOLDOWN_MS) {
-      return { priority: event.priority, lane: 'deferred', reason: 'cooldown' };
+    // Rule 4: 冷卻期 — 同 source 10s 內不重複觸發（P0/P1 永遠跳過：direct messages 不可被 cooldown 擋）
+    if (event.priority >= Priority.P2) {
+      const lastSeen = recentEvents.get(event.source);
+      const now = event.ts.getTime();
+      if (lastSeen && (now - lastSeen) < COOLDOWN_MS) {
+        return { priority: event.priority, lane: 'deferred', reason: 'cooldown' };
+      }
+      recentEvents.set(event.source, now);
     }
-    recentEvents.set(event.source, now);
 
     // Default
     return { priority: event.priority, lane: 'normal', reason: 'normal processing' };

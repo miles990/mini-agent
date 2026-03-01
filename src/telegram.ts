@@ -513,8 +513,10 @@ export class TelegramPoller {
     // Clear buffer — messages are already in inbox (written by handleUpdate)
     this.messageBuffer.length = 0;
 
-    // Emit events to trigger OODA cycle (text enables mushi instant routing)
-    eventBus.emit('trigger:telegram', { messageCount: count, text: lastText }, { priority: 'P1', source: 'autonomic' });
+    // Emit trigger:telegram-user only (P0).
+    // DO NOT emit trigger:telegram here — it shares router source 'telegram' with trigger:telegram-user,
+    // and arriving 1ms earlier poisons the 10s cooldown timer, causing the P0 event to be deferred.
+    // Perception stream refresh happens via trigger:telegram { source: 'mark-processed' } after cycle ends.
     eventBus.emit('trigger:telegram-user', { messageCount: count, text: lastText }, { priority: 'P1', source: 'autonomic' });
   }
 

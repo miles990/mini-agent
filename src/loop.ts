@@ -322,6 +322,7 @@ export class AgentLoop {
   // ── Direct Message Wake (trigger loop cycle on direct messages: telegram, room, chat) ──
   private directMessageWakeQueue = 0;
   private lastTelegramWake = 0;
+  private busyRetryCount = 0;
   private static readonly TELEGRAM_WAKE_THROTTLE = 5_000;        // 5s throttle
 
   // ── Cooperative Yield (Layer 3) ──
@@ -941,9 +942,9 @@ export class AgentLoop {
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
       // ── Inbox recovery: upgrade to telegram-priority if pending telegram items exist ──
-      // Handles cases where trigger:telegram-user was dropped (e.g. router cooldown pollution).
-      // Must run before isTelegramUser so all downstream checks (skip, cooldown, active-hours,
-      // priority prefix, inbox marking) see the correct value.
+      // Defense-in-depth: catches edge cases where trigger:telegram-user didn't start the cycle
+      // (e.g. arrived during pause, process restart, or any future routing bug).
+      // Must run before isTelegramUser so all downstream checks see the correct value.
       const inboxItemsEarly = readPendingInbox();
       if (inboxItemsEarly.some(i => i.source === 'telegram') && !this.triggerReason?.startsWith('telegram-user')) {
         this.triggerReason = 'telegram-user (inbox-recovery)';
@@ -1139,6 +1140,23 @@ export class AgentLoop {
         eventBus.emit('action:loop', { event: 'cycle.preempted', cycleCount: this.cycleCount });
         // Don't clear checkpoint — leave it for crash recovery
         return null;
+      }
+
+      // Busy recovery: Claude was held by another call (e.g. cron task).
+      // For DM triggers, schedule retry instead of silently dropping Alex's message.
+      if (duration === 0 && response.includes('正在處理另一個請求') && isDirectMessage) {
+        if (this.busyRetryCount < 3) {
+          this.busyRetryCount++;
+          const delay = 3000 * this.busyRetryCount; // 3s, 6s, 9s backoff
+          slog('LOOP', `Claude busy during ${currentTriggerReason} — retry ${this.busyRetryCount}/3 in ${delay / 1000}s`);
+          this.triggerReason = currentTriggerReason;
+          setTimeout(() => this.runCycle(), delay);
+          return null;
+        }
+        slog('LOOP', `Claude busy during ${currentTriggerReason} — max retries, will catch via inbox recovery`);
+        this.busyRetryCount = 0;
+      } else {
+        this.busyRetryCount = 0;
       }
 
       // 結構化記錄 Claude 呼叫
