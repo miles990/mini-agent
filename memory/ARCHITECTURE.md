@@ -58,20 +58,15 @@ Markdown 檔案注入 system prompt (`## Your Skills`)
 ## Web Access (Multi-Layer)
 
 0. **Grok API** — X/Twitter 專用，影片理解（`enable_video_understanding`）
-0.5. **Pinchtab Vision** — JS-heavy 頁面截圖 + OCR/Claude Vision
 1. **curl** — 公開頁面、API（快速 <3s）
-2. **Pinchtab** — 使用者已登入的 Chrome session（port 9867，a11y tree）
-3. **Open page** — 可見 tab 讓使用者登入/驗證
+2. **Jina Reader** — JS-heavy 公開頁面（Markdown 輸出）
+3. **Chrome CDP** — 使用者已登入的 Chrome session（port 9222，直連）
+4. **Open page** — 可見 tab 讓使用者登入/驗證
 
 Key files:
-- `scripts/pinchtab-setup.sh` — Pinchtab 安裝/啟動/管理
-- `scripts/pinchtab-fetch.sh` — 瀏覽器內容擷取（commands: status/fetch/open/extract/close）
-- `scripts/pinchtab-interact.sh` — 瀏覽器互動（click/type/fill-form/screenshot/eval/list-inputs）
-- `scripts/pinchtab-screenshot.sh` — 截圖
-- `scripts/pinchtab-vision.sh` — 截圖 + OCR/Vision 分析
-- `plugins/chrome-status.sh` — Pinchtab 狀態 + smart guidance
-- `plugins/web-fetch.sh` — 自動 URL 提取
-- `plugins/screen-vision.sh` — 定期截圖 OCR（chrome category, 120s）
+- `scripts/cdp-fetch.mjs` — Chrome CDP 客戶端（fetch/screenshot/interact/login）
+- `plugins/chrome-status.sh` — Chrome CDP 狀態
+- `plugins/web-fetch.sh` — 五層自動 URL 擷取（curl → Jina → Grok → CDP → manual）
 - `skills/web-research.md` — 多層工作流知識
 
 ## Project Structure
