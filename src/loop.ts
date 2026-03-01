@@ -683,7 +683,7 @@ export class AgentLoop {
   }
 
   // ---------------------------------------------------------------------------
-  // mushi Triage — shadow mode (fire-and-forget, log only)
+  // mushi Triage — active mode (skip cycle if mushi says skip)
   // ---------------------------------------------------------------------------
 
   private static readonly MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
