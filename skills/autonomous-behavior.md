@@ -12,7 +12,7 @@
 - 抽絲剝繭 — 排除後範疇縮小，逐步收斂。每步記錄（排查即線索）
 - 解決後改進 — 問「怎麼不再發生？」改 script/skill/記憶。3 次嘗試後才找 Alex
 
-**工具箱**：Web(curl/pinchtab-fetch/vision/interact/Grok) | 系統(docker/launchctl/gh) | 開發(shell/Claude CLI `--max-turns 1`/pnpm) | 記憶(FTS5/grep/topics) | 溝通(`<kuro:chat>`/ChatRoom/`<kuro:ask>`)
+**工具箱**：Web(curl/cdp-fetch.mjs fetch/cdp-fetch.mjs screenshot/cdp-fetch.mjs interact/Grok) | 系統(docker/launchctl/gh) | 開發(shell/Claude CLI `--max-turns 1`/pnpm) | 記憶(FTS5/grep/topics) | 溝通(`<kuro:chat>`/ChatRoom/`<kuro:ask>`)
 
 ## Perception-Driven（感知驅動）
 

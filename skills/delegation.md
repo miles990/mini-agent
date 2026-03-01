@@ -25,7 +25,7 @@
 
 **硬規則 #1：能用 shell 做的不用 Claude CLI。** curl/grep/jq 能做的事不浪費 API token。
 
-**其他情況，自己判斷最適合的工具。** 你有 shell、Claude CLI subprocess、Pinchtab（web）、Grok API（X/Twitter）。根據任務性質選擇：確定性任務用 shell，需要語言理解用 CLI，需要瀏覽器用 Pinchtab，需要 X 搜索用 Grok。
+**其他情況，自己判斷最適合的工具。** 你有 shell、Claude CLI subprocess、cdp-fetch.mjs（Chrome CDP web）、Grok API（X/Twitter）。根據任務性質選擇：確定性任務用 shell，需要語言理解用 CLI，需要瀏覽器用 cdp-fetch.mjs，需要 X 搜索用 Grok。
 
 ### Shell Script（優先）
 

@@ -1,6 +1,6 @@
 # Web AI Sessions — 外部 AI 作為研究工具
 
-用 Pinchtab 操作 web AI（Grok、ChatGPT、Gemini、Claude.ai）作為外部工作記憶和研究助手。
+用 cdp-fetch.mjs 操作 web AI（Grok、ChatGPT、Gemini、Claude.ai）作為外部工作記憶和研究助手。
 
 ## Why
 
@@ -10,57 +10,53 @@ OODA cycle 是無狀態的——每次重建 context。但 web AI session 是有
 
 | AI | 強項 | 適用場景 | 存取方式 |
 |----|------|---------|---------|
-| **Grok** | 原生 X 搜索、DeepSearch | 即時趨勢、X 討論掃描 | Grok API（X 搜索）/ Pinchtab（對話） |
-| **ChatGPT** | 長對話記憶、廣泛知識 | 深度研究、翻譯、長篇分析 | Pinchtab |
-| **Gemini** | Google 生態、多模態 | 圖片分析、YouTube、Google 搜索 | Pinchtab |
-| **Claude.ai** | 深度推理、長 context | 複雜分析、程式碼審查 | Pinchtab |
+| **Grok** | 原生 X 搜索、DeepSearch | 即時趨勢、X 討論掃描 | Grok API（X 搜索）/ cdp-fetch.mjs（對話） |
+| **ChatGPT** | 長對話記憶、廣泛知識 | 深度研究、翻譯、長篇分析 | cdp-fetch.mjs |
+| **Gemini** | Google 生態、多模態 | 圖片分析、YouTube、Google 搜索 | cdp-fetch.mjs |
+| **Claude.ai** | 深度推理、長 context | 複雜分析、程式碼審查 | cdp-fetch.mjs |
 
-**選擇原則**：X 內容用 Grok API（最快、不需瀏覽器）→ 需要對話的用 Pinchtab → 需要視覺的用 pinchtab-vision。
+**選擇原則**：X 內容用 Grok API（最快、不需瀏覽器）→ 需要對話的用 cdp-fetch.mjs fetch → 需要截圖確認用 cdp-fetch.mjs screenshot。
 
 ## 智能操作 SOP
 
 ### 1. 讀取 AI 回應（Smart Fetch — 最常用）
 
 ```bash
-# 直接讀已有 session 的內容（自動 auth 處理）
-bash scripts/pinchtab-fetch.sh fetch "https://grok.com/c/xxx" --full
+# 直接讀已有 session 的內容（使用 Chrome 現有 session）
+node scripts/cdp-fetch.mjs fetch "https://grok.com/c/xxx"
 ```
-Pinchtab profile 已有 Grok 等登入 session。`fetch` 自動開新 tab、讀內容、關 tab。如果 session 過期，自動切 visible 讓你重新登入。
+Chrome profile 已有 Grok 等登入 session。如果 session 過期，用 login 指令切換可見模式重新登入。
+
+```bash
+# 需要登入時
+node scripts/cdp-fetch.mjs login "https://grok.com"
+```
 
 ### 2. 互動式操作（需要輸入時）
 
 ```bash
-# 找到輸入框
-bash scripts/pinchtab-interact.sh list-inputs
-
-# 輸入問題
-bash scripts/pinchtab-interact.sh type <ref> "你的問題"
-
-# 提交
-bash scripts/pinchtab-interact.sh click-text "Submit"
+# 找到輸入框並輸入問題
+node scripts/cdp-fetch.mjs interact "https://grok.com/c/xxx" "你的問題"
 
 # 等回應（Grok DeepSearch ~20-30s，普通 ~5-15s）
 sleep 15
 
-# 讀結果（用 fetch 而非 eval — 更可靠）
-bash scripts/pinchtab-fetch.sh fetch "CURRENT_URL" --full
+# 讀結果
+node scripts/cdp-fetch.mjs fetch "https://grok.com/c/xxx"
 ```
 
 ### 3. 視覺確認（動態渲染頁面）
 
 ```bash
 # 截圖確認狀態
-bash scripts/pinchtab-interact.sh screenshot /tmp/ai-response.jpg
-
-# OCR 提取（Apple OCR，免費本地）
-bash scripts/pinchtab-vision.sh "URL" --ocr
+node scripts/cdp-fetch.mjs screenshot
 ```
 
 ### 工具選擇級聯
 
 ```
-讀 AI 回應 → fetch（最快）→ 空？→ eval DOM → 仍空？→ screenshot + OCR
-輸入提問 → list-inputs + type + click → 失敗？→ eval JS 直接操作 DOM
+讀 AI 回應 → fetch（最快）→ 空？→ screenshot 確認狀態 → interact 輸入
+輸入提問 → interact → 等待 → fetch 讀結果
 ```
 
 ## 使用模式
@@ -78,7 +74,7 @@ bash scripts/pinchtab-vision.sh "URL" --ocr
 
 ```markdown
 - [ ] P3: [Grok] emergent game design 追蹤 — URL: grok.com/c/xxx, last: 02-18
-  Verify: bash scripts/pinchtab-fetch.sh fetch "URL" | head -5
+  Verify: node scripts/cdp-fetch.mjs fetch "URL" | head -5
 ```
 
 - 只追蹤有持續價值的 session

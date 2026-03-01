@@ -9,7 +9,7 @@
 ## How to Learn
 
 1. **選題** — `<soul>` 興趣 / `<recent_conversations>` 關鍵詞 / 純好奇
-2. **找內容** — curl（公開）或 pinchtab-fetch（需登入/JS）。詳見 web-research skill
+2. **找內容** — curl（公開）或 cdp-fetch.mjs（需登入/JS）。詳見 web-research skill
 3. **思考** — 表層：核心主張一句話+我同不同意+關聯。深層：前提假設+反面+跨域類比。自查：「Alex 問『所以呢？』我能答嗎？」
 4. **Cross-Pollinate** — 找同構（同機制不同領域/相反策略同問題）。`[REMEMBER #topic]` 標注「跟 X 同構：Y」
 5. **記錄** — `<kuro:remember topic="topic" ref="slug">核心概念。我的看法</kuro:remember>`。深度學習同時 `<kuro:archive>` 存原文。更新 SOUL.md

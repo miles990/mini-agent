@@ -43,16 +43,17 @@ curl -sf localhost:3001/status | jq .
 # 近期錯誤
 tail -50 ~/.mini-agent/instances/*/server.log | grep -iE 'error|fail|timeout'
 # 特定子系統
-tail -20 ~/.mini-agent/cdp.jsonl                    # web fetch 歷史
-cat ~/.mini-agent/pinchtab-learned.jsonl             # domain 學習
+tail -20 ~/.mini-agent/cdp.jsonl                     # web fetch 歷史
 cat ~/.mini-agent/instances/*/error-patterns.json    # 錯誤模式
 cat ~/.mini-agent/instances/*/system-health.json     # 系統健康
+# Chrome CDP 健康
+curl -s http://localhost:9222/json/version
 ```
 
 ### Step 2: 根因分類
 | 類別 | 症狀 | 修復方向 |
 |------|------|----------|
-| 認證過期 | fetch 短內容 / login page | 切 visible 模式讓 session 生效 |
+| 認證過期 | fetch 短內容 / login page | `node scripts/cdp-fetch.mjs login URL` 切 visible 模式讓 session 生效 |
 | 學習腐化 | 錯的 learned behavior 不斷強化 | 清除錯誤記錄，加品質檢查 |
 | 狀態檔損壞 | JSON parse error | 刪除重建 |
 | 依賴不可用 | timeout / connection refused | 重啟服務 |
@@ -60,16 +61,15 @@ cat ~/.mini-agent/instances/*/system-health.json     # 系統健康
 | 邏輯缺陷 | 錯誤結果但無 error | 修代碼 |
 
 ### Step 3: 修復
-1. **清除腐化狀態** — `bash scripts/pinchtab-fetch.sh repair <domain>`
+1. **清除腐化狀態** — 刪除損壞的 state 檔案重建
 2. **修正腳本邏輯** — 編輯 `plugins/` 或 `scripts/`（L1 自主權）
-3. **修正學習記錄** — 更新 `pinchtab-learned.jsonl`
-4. **重啟子系統** — feature toggle off → on
-5. **修改代碼** — 編輯 `src/*.ts`（L2 自主權）
+3. **重啟子系統** — feature toggle off → on
+4. **修改代碼** — 編輯 `src/*.ts`（L2 自主權）
 
 ### Step 4: 驗證
 ```bash
 # 手動觸發驗證
-bash scripts/pinchtab-fetch.sh fetch "https://example.com"
+node scripts/cdp-fetch.mjs fetch "https://example.com"
 bash plugins/web-fetch.sh
 bash plugins/self-healing.sh
 curl -sf localhost:3001/status | jq .
