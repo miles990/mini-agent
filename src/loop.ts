@@ -900,13 +900,17 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     if (isEnabled('mushi-triage') && !isDM && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
-      const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
-      if (decision === 'skip') {
-        slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
-        if (this.running && !this.paused) {
-          this.scheduleHeartbeat();
+      if (triageSource === 'alert') {
+        slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
+      } else {
+        const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
+        if (decision === 'skip') {
+          slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
+          if (this.running && !this.paused) {
+            this.scheduleHeartbeat();
+          }
+          return;
         }
-        return;
       }
     }
 
