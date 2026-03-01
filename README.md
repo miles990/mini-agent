@@ -349,7 +349,7 @@ skills:
 | `github-ops.md` | GitHub workflow: triage, PR review, issue management |
 | `discussion-facilitation.md` | Multi-party discussion facilitation |
 | `discussion-participation.md` | Thoughtful discussion participation |
-| `web-ai-sessions.md` | External AI tool usage via Pinchtab (Grok, ChatGPT, etc.) |
+| `web-ai-sessions.md` | External AI tool usage via CDP (Grok, ChatGPT, etc.) |
 | `friction-reducer.md` | Meta-skill: turn high-friction tasks into one-click SOPs, with self-evolution mechanism |
 | `publish-content.md` | Last-mile publishing SOP — content ready to published in 5 minutes (platform-agnostic) |
 | `social-presence.md` | Community interaction: respond (5min) / share (10min) / connect (15min) |
@@ -369,12 +369,8 @@ The agent can fetch web content through three layers, falling through automatica
 ### Setup
 
 ```bash
-# Option A: Launch Chrome with CDP
+# Launch Chrome with CDP
 open -a "Google Chrome" --args --remote-debugging-port=9222
-
-# Option B: Use Pinchtab (recommended)
-# See scripts/pinchtab-setup.sh for headless/visible mode
-bash scripts/pinchtab-setup.sh mode headless
 ```
 
 ### CDP Client
@@ -873,8 +869,6 @@ Mini-agent watches `agent-compose.yaml` for changes. When you modify cron tasks,
 │   └── ...
 └── scripts/                    # Utility scripts
     ├── cdp-fetch.mjs           # Chrome CDP client (zero-dependency)
-    ├── pinchtab-setup.sh       # Pinchtab headless/visible mode setup
-    ├── pinchtab-fetch.sh       # Smart Fetch (auto auth + layer fallback)
     ├── room.sh                 # Chat Room CLI (send/read/watch)
     ├── deploy.sh               # CI/CD deployment (launchd)
     └── restart_least.sh        # Manual restart fallback

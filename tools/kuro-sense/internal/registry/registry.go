@@ -68,27 +68,25 @@ func All() []Capability {
 			Dependencies: []Dependency{
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
 				{Name: "python3", Kind: KindBinary, Check: "python3", Required: true, Install: InstallHint{Method: InstallBrew, Package: "python@3.11"}},
-				{Name: "pinchtab", Kind: KindService, Check: "localhost:9867", Required: false},
 			},
 		},
 		{
 			Name: "web", Script: "./plugins/web-fetch.sh",
-			Description: "Web page fetching via Pinchtab",
+			Description: "Web page fetching via CDP + curl + Jina + Grok",
 			Category: CategoryChrome, DefaultOn: true, Timeout: 15000,
 			Dependencies: []Dependency{
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
-				{Name: "pinchtab", Kind: KindService, Check: "localhost:9867", Required: false},
+				{Name: "node", Kind: KindBinary, Check: "node", Required: false},
 				{Name: "XAI_API_KEY", Kind: KindEnvVar, Check: "XAI_API_KEY", Required: false},
 				{Name: "internet", Kind: KindNetwork, Check: "internet", Required: false},
 			},
 		},
 		{
 			Name: "screen-vision", Script: "./plugins/screen-vision.sh",
-			Description: "Screen OCR via Pinchtab + ocrmac",
+			Description: "Screen OCR via ocrmac",
 			Category: CategoryChrome, DefaultOn: false,
 			Dependencies: []Dependency{
 				{Name: "curl", Kind: KindBinary, Check: "curl", Required: true},
-				{Name: "pinchtab", Kind: KindService, Check: "localhost:9867", Required: true},
 				{Name: "ocrmac", Kind: KindPython, Check: "ocrmac", Required: true, Install: InstallHint{Method: InstallPip, Package: "ocrmac"}},
 				{Name: "camera", Kind: KindHardware, Check: "camera", Required: false},
 				{Name: "display", Kind: KindHardware, Check: "display", Required: true},
