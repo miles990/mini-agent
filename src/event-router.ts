@@ -24,7 +24,8 @@ export enum Priority {
 
 export type EventSource =
   | 'telegram' | 'room' | 'workspace' | 'cron'
-  | 'github' | 'mobile' | 'heartbeat' | 'chat' | 'alert';
+  | 'github' | 'mobile' | 'heartbeat' | 'chat' | 'alert'
+  | 'continuation';
 
 export interface UnifiedEvent {
   id: string;
@@ -176,6 +177,8 @@ export function classifyTrigger(
       return { source: 'heartbeat', priority: Priority.P3 };
     case 'trigger:telegram':
       return { source: 'telegram', priority: Priority.P2 };
+    case 'trigger:continuation':
+      return { source: 'continuation', priority: Priority.P1 };
     default:
       return { source: 'heartbeat', priority: Priority.P3 };
   }

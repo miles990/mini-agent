@@ -22,6 +22,7 @@ import { writeInboxItem } from './inbox.js';
 import { isEnabled } from './features.js';
 import { isLoopBusy } from './agent.js';
 import { digestContent, isDigestContent, formatInstantReply, type DigestEntry } from './digest-pipeline.js';
+import { findNextSection, NEXT_MD_PATH } from './triage.js';
 
 // =============================================================================
 // Types
@@ -1024,8 +1025,6 @@ export class TelegramPoller {
 // Auto-Enqueue to NEXT.md — 訊息入列，直到顯式完成才移除
 // =============================================================================
 
-const NEXT_MD_PATH = path.join(process.cwd(), 'memory', 'NEXT.md');
-
 /**
  * 自動將 Alex 的訊息寫入 NEXT.md 的 Next section。
  * 訊息會留在那裡直到 Kuro 用 <kuro:done> 標記完成。
@@ -1044,14 +1043,9 @@ async function autoEnqueueToNext(message: string, timestamp: string): Promise<vo
       const entry = `- [ ] P1: 回覆 Alex: "${preview}" (收到: ${timestamp})`;
 
       // 插入到 ## Next section 的末尾（在 --- 之前）
-      const nextHeader = '## Next(接下來做,按優先度排序)';
-      const nextIdx = content.indexOf(nextHeader);
-      if (nextIdx === -1) return;
-
-      // 找到 Next section 之後的下一個 --- 分隔線
-      const afterHeader = content.indexOf('\n', nextIdx);
-      const nextSeparator = content.indexOf('\n---', afterHeader);
-      if (nextSeparator === -1) return;
+      const nextSection = findNextSection(content);
+      if (!nextSection) return;
+      const { afterHeader, sectionEnd: nextSeparator } = nextSection;
 
       // 檢查 "(空)" 佔位符
       const sectionContent = content.slice(afterHeader, nextSeparator);
@@ -1072,8 +1066,8 @@ async function autoEnqueueToNext(message: string, timestamp: string): Promise<vo
   });
 }
 
-/** Export for use in <kuro:done> tag processing */
-export { NEXT_MD_PATH };
+// NEXT_MD_PATH now imported from triage.ts — re-export for backward compatibility
+export { NEXT_MD_PATH } from './triage.js';
 
 // =============================================================================
 // Singleton

@@ -48,7 +48,7 @@ import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, isIndexReady, rebui
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
-import { buildTaskProgressSection } from './housekeeping.js';
+import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1433,6 +1433,15 @@ export class InstanceMemory {
         if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
       }
     } catch { /* ignore */ }
+
+    // Stale Tasks（衰減警告 — 提醒自省）
+    const staleWarnings = readStaleTaskWarnings();
+    if (staleWarnings.length > 0) {
+      const staleLines = staleWarnings.map(w =>
+        `- ${w.priority} "${w.title}" — ${w.ageDays}天未推進 (created: ${w.created}, section: ${w.section})`
+      );
+      sections.push(`<stale-tasks>\n以下任務超齡未推進，考慮：降級、拆解、移到 backlog、或放棄。\n${staleLines.join('\n')}\n</stale-tasks>`);
+    }
 
     // Achievements + Output Gate（always load — identity reinforcement）
     try {

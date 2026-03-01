@@ -34,8 +34,8 @@ import {
   updateTemporalState, buildThreadsPromptSection,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { extractNextItems } from './triage.js';
-import { NEXT_MD_PATH } from './telegram.js';
+import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
+// NEXT_MD_PATH imported from triage.ts (canonical location)
 import { withFileLock } from './filelock.js';
 import { readPendingInbox, markAllInboxProcessed, markInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram } from './inbox.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
@@ -333,6 +333,11 @@ export class AgentLoop {
   // ── Interrupt storm guard (Layer 2) ──
   private lastPriorityDrainAt = 0;
   private static readonly PRIORITY_COOLDOWN = 10_000; // 同類 10s 冷卻
+
+  // ── Continuation Check (mushi System 1 exit actuator) ──
+  private static readonly MUSHI_CONTINUATION_URL = 'http://localhost:3000/api/continuation-check';
+  private consecutiveContinuations = 0;
+  private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
 
   // =========================================================================
   // Unified Event Handler — single entry point for all triggers
@@ -935,7 +940,8 @@ export class AgentLoop {
     const reason = this.triggerReason ?? '';
     const isDM = [...AgentLoop.DIRECT_MESSAGE_SOURCES].some(s => reason.startsWith(s))
       || reason.startsWith('direct-message');
-    if (isEnabled('mushi-triage') && !isDM && reason) {
+    const isContinuation = reason.startsWith('continuation');
+    if (isEnabled('mushi-triage') && !isDM && !isContinuation && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
@@ -2689,16 +2695,11 @@ async function markNextItemsDone(dones: string[]): Promise<void> {
       if (removed > 0) {
         const remainingItems = extractNextItems(content);
         if (remainingItems.length === 0) {
-          const nextHeader = '## Next(接下來做,按優先度排序)';
-          const nextIdx = content.indexOf(nextHeader);
-          if (nextIdx !== -1) {
-            const afterHeader = content.indexOf('\n', nextIdx);
-            const nextSeparator = content.indexOf('\n---', afterHeader);
-            if (nextSeparator !== -1) {
-              const between = content.slice(afterHeader, nextSeparator).trim();
-              if (!between) {
-                content = content.slice(0, afterHeader) + '\n\n(空)\n' + content.slice(nextSeparator);
-              }
+          const nextSection = findNextSection(content);
+          if (nextSection) {
+            const between = content.slice(nextSection.afterHeader, nextSection.sectionEnd).trim();
+            if (!between) {
+              content = content.slice(0, nextSection.afterHeader) + '\n\n(空)\n' + content.slice(nextSection.sectionEnd);
             }
           }
         }
