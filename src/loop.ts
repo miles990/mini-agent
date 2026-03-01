@@ -628,7 +628,7 @@ export class AgentLoop {
 
       if (result.action === 'instant') {
         slog('MUSHI', `⚡ instant: ${source} → quickReply (${result.latencyMs}ms) — ${result.reason}`);
-        eventBus.emit('log:info', { tag: 'mushi-instant', source, latencyMs: result.latencyMs, reason: result.reason });
+        eventBus.emit('log:info', { tag: 'mushi-instant', msg: `${source} → instant (${result.latencyMs}ms) — ${result.reason}`, source, latencyMs: result.latencyMs, reason: result.reason });
         // Use quickReply path (enriched /api/ask context)
         await this.quickReply(source, text, replyTo);
         return;
@@ -694,7 +694,7 @@ export class AgentLoop {
 
       const emoji = result.action === 'skip' ? '⏭' : '✅';
       slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
-      eventBus.emit('log:info', { tag: 'mushi-triage', source, action: result.action, latencyMs: result.latencyMs, method: result.method });
+      eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
       return (result.action === 'skip' || result.action === 'wake') ? result.action as 'wake' | 'skip' : null;
     } catch {
       // mushi offline or timeout — fail-open (proceed with cycle)

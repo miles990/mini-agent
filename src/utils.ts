@@ -24,7 +24,7 @@ export function setSlogPrefix(instanceId: string, name?: string): void {
 /** Timestamped console log for server.log observability */
 export function slog(tag: string, msg: string): void {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  const clean = msg.replace(/\r?\n/g, '\\n');
+  const clean = (msg ?? '').replace(/\r?\n/g, '\\n');
   const prefix = slogPrefix ? ` ${slogPrefix} |` : '';
   console.log(`${ts}${prefix} [${tag}] ${clean}`);
 }
