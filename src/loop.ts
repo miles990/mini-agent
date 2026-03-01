@@ -338,6 +338,7 @@ export class AgentLoop {
   private static readonly MUSHI_CONTINUATION_URL = 'http://localhost:3000/api/continuation-check';
   private consecutiveContinuations = 0;
   private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
+  private lastCycleHadSchedule = false;
 
   // =========================================================================
   // Unified Event Handler — single entry point for all triggers
@@ -743,6 +744,40 @@ export class AgentLoop {
     }
   }
 
+  /**
+   * Ask mushi whether to continue immediately after a cycle.
+   * Fail-closed: mushi offline or error → no continuation (normal heartbeat).
+   */
+  private async mushiContinuationCheck(): Promise<{ shouldContinue: boolean; deep: boolean } | null> {
+    try {
+      const { readPendingInbox } = await import('./inbox.js');
+      const hasUnprocessedInbox = readPendingInbox().length > 0;
+
+      const res = await fetch(AgentLoop.MUSHI_CONTINUATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hasUnprocessedInbox,
+          lastActionSummary: this.lastAction ?? 'no action',
+          inProgressWork: this.triggerReason ?? undefined,
+          source: this.triggerReason?.split(/[:(]/)[0]?.trim() ?? undefined,
+        }),
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (!res.ok) return null;
+      const result = await res.json() as {
+        ok?: boolean; shouldContinue?: boolean; deep?: boolean;
+        reason?: string; latencyMs?: number; method?: string;
+      };
+
+      slog('MUSHI', `🔄 continuation: ${result.shouldContinue ? 'YES' : 'no'} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
+      return { shouldContinue: !!result.shouldContinue, deep: !!result.deep };
+    } catch {
+      return null; // Fail-closed
+    }
+  }
+
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
     return this.handleUnifiedEvent(event);
@@ -961,6 +996,31 @@ export class AgentLoop {
       await this.cycle();
     } catch (err) {
       diagLog('loop.runCycle', err);
+    }
+
+    // Continuation check — mushi decides if we should immediately continue
+    // Skip if: kuro:schedule already set, loop paused, or mushi-triage disabled
+    if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule) {
+      if (this.consecutiveContinuations >= AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS) {
+        slog('MUSHI', `🔄 continuation capped (${AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS} consecutive), resetting`);
+        this.consecutiveContinuations = 0;
+      } else {
+        const result = await this.mushiContinuationCheck();
+        if (result?.shouldContinue) {
+          this.consecutiveContinuations++;
+          // Set short interval (30s) for continuation
+          this.currentInterval = 30_000;
+          eventBus.emit('trigger:continuation', {
+            consecutive: this.consecutiveContinuations,
+            deep: result.deep,
+          });
+          slog('MUSHI', `🔄 continuation #${this.consecutiveContinuations} — scheduling 30s`);
+        } else {
+          this.consecutiveContinuations = 0;
+        }
+      }
+    } else {
+      this.consecutiveContinuations = 0;
     }
 
     if (this.running && !this.paused) {
@@ -1406,6 +1466,7 @@ export class AgentLoop {
       });
 
       // <kuro:schedule> tag — Kuro 自主排程覆蓋
+      this.lastCycleHadSchedule = !!tags.schedule;
       if (tags.schedule) {
         const isNow = tags.schedule.next.trim().toLowerCase() === 'now';
         if (isNow) {
