@@ -410,8 +410,15 @@ export class TelegramPoller {
     // Write to inbox immediately
     this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
 
-    // Dual-write to unified inbox
-    writeInboxItem({ source: 'telegram', from: parsed.sender, content: parsed.text });
+    // Dual-write to unified inbox (with attachment meta)
+    writeInboxItem({
+      source: 'telegram', from: parsed.sender, content: parsed.text,
+      meta: {
+        ...(msg.voice ? { hasAttachment: 'voice' } : {}),
+        ...(msg.photo ? { hasAttachment: 'photo' } : {}),
+        ...(msg.document ? { hasAttachment: 'document' } : {}),
+      },
+    });
 
     // Auto-enqueue to NEXT.md so the message persists until explicitly handled
     autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});

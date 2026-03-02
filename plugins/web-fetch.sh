@@ -97,6 +97,20 @@ fi
 for URL in $URLS; do
   # Short domain for compact display
   DOMAIN=$(echo "$URL" | sed -E 's|https?://([^/]+).*|\1|' | sed 's/^www\.//')
+
+  # Skip if recently cached by prefetch (< 10 min)
+  url_hash=$(echo -n "$URL" | md5 -q 2>/dev/null || echo -n "$URL" | md5sum 2>/dev/null | cut -d' ' -f1)
+  cache_file="$WEB_CACHE_DIR/${url_hash:0:12}.txt"
+  if [[ -f "$cache_file" ]]; then
+    cache_age=$(( $(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || stat -c%Y "$cache_file" 2>/dev/null || echo 0) ))
+    if [[ "$cache_age" -lt 600 ]]; then
+      echo "[$DOMAIN] (cached ${cache_age}s ago)"
+      awk '/^---$/{found=1; next} found{print; count++; if(count>=30) exit}' "$cache_file"
+      echo ""
+      continue
+    fi
+  fi
+
   echo "[$DOMAIN]"
 
   # ── Layer 1: curl (fast, public pages) ──

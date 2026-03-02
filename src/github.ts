@@ -244,10 +244,10 @@ export async function autoTrackNewIssues(): Promise<void> {
   const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
-  let issues: Array<{ number: number; title: string; createdAt: string }>;
+  let issues: Array<{ number: number; title: string; createdAt: string; labels?: Array<{ name: string }> }>;
   try {
     const { stdout } = await execFileAsync(
-      'gh', ['issue', 'list', '--state', 'open', '--json', 'number,title,createdAt', '--limit', '20'],
+      'gh', ['issue', 'list', '--state', 'open', '--json', 'number,title,createdAt,labels', '--limit', '20'],
       { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
     );
     issues = JSON.parse(stdout);
@@ -291,7 +291,10 @@ export async function autoTrackNewIssues(): Promise<void> {
       source: 'github',
       from: 'system',
       content: `#${i.number} ${i.title}`,
-      meta: { issueNumber: String(i.number) },
+      meta: {
+        issueNumber: String(i.number),
+        ...(i.labels?.length ? { labels: i.labels.map(l => l.name).join(',') } : {}),
+      },
     });
   }
 

@@ -2014,6 +2014,7 @@ export function createApi(port = 3001): express.Express {
           meta: {
             roomMsgId: id,
             ...(replyTo ? { replyTo: replyTo as string } : {}),
+            ...(mentions.length > 0 ? { mentions: mentions.join(',') } : {}),
           },
         });
       }

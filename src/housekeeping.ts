@@ -10,7 +10,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { getCurrentInstanceId, getInstanceDir, getDataDir } from './instance.js';
-import { readPendingInbox, writeInboxItem, markInboxProcessed } from './inbox.js';
+import { readPendingInbox, writeInboxItem, markInboxProcessed, inboxCache } from './inbox.js';
 import { rebuildIndex } from './search.js';
 import { slog } from './utils.js';
 import { parseAllNextTasks, NEXT_MD_PATH } from './triage.js';
@@ -251,10 +251,11 @@ export async function refreshSearchIndex(): Promise<void> {
 // =============================================================================
 
 const EXPIRE_REPLIED_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const EXPIRE_SEEN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const STALE_PENDING_CYCLES = 3;
 
 /**
- * 清理 >7d replied items + pending >3 cycles 升級 priority。
+ * 清理 >7d replied items + >3d seen items + pending >3 cycles 升級 priority。
  */
 export async function expireOldInboxItems(): Promise<void> {
   const instanceId = getCurrentInstanceId();
@@ -277,6 +278,12 @@ export async function expireOldInboxItems(): Promise<void> {
         continue; // drop
       }
 
+      // Remove old seen items
+      if (item.status === 'seen' && age > EXPIRE_SEEN_MS) {
+        changed = true;
+        continue; // drop
+      }
+
       updated.push(line);
     } catch {
       updated.push(line);
@@ -285,6 +292,7 @@ export async function expireOldInboxItems(): Promise<void> {
 
   if (changed) {
     fs.writeFileSync(inboxPath, updated.join('\n') + '\n');
+    inboxCache.invalidate();
   }
 }
 

@@ -7,6 +7,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import os from 'node:os';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { slog } from './utils.js';
 import type { InboxItem } from './types.js';
@@ -19,6 +21,118 @@ function getInboxPath(): string {
   const instanceId = getCurrentInstanceId();
   return path.join(getInstanceDir(instanceId), 'inbox.jsonl');
 }
+
+// =============================================================================
+// InboxCache — 記憶體快取層
+// =============================================================================
+
+class InboxCache {
+  private items: InboxItem[] = [];
+  private pendingItems: InboxItem[] = [];
+  private _version = 0;
+  private _dirty = true;
+  private pendingMarks = new Map<string, 'seen' | 'replied'>();
+
+  get version(): number { return this._version; }
+
+  invalidate(): void { this._dirty = true; }
+
+  /** Write-through: writeInboxItem 後同步更新 */
+  pushItem(item: InboxItem): void {
+    this.items.push(item);
+    if (item.status === 'pending') {
+      this.pendingItems.push(item);
+      this.pendingItems.sort((a, b) =>
+        a.priority !== b.priority ? a.priority - b.priority : a.ts.localeCompare(b.ts));
+    }
+    this._version++;
+  }
+
+  /** 讀取 pending — dirty 時重讀磁碟，否則回傳快取 */
+  getPending(): InboxItem[] {
+    if (this._dirty) this.reload();
+    return this.pendingItems;
+  }
+
+  /** 讀取全部（mark/expiry 用） */
+  getAll(): InboxItem[] {
+    if (this._dirty) this.reload();
+    return this.items;
+  }
+
+  /** Batch mark 後更新記憶體狀態 */
+  applyMarks(ids: Set<string>, status: 'seen' | 'replied'): void {
+    for (const item of this.items) {
+      if (ids.has(item.id)) item.status = status;
+    }
+    this.rebuildPending();
+    this._version++;
+  }
+
+  /** Queue a mark for batch flush */
+  queueMark(id: string, status: 'seen' | 'replied'): void {
+    const existing = this.pendingMarks.get(id);
+    if (existing === 'replied') return; // 不降級
+    this.pendingMarks.set(id, status);
+  }
+
+  /** Flush all queued marks in a single disk write */
+  flushMarks(): void {
+    if (this.pendingMarks.size === 0) return;
+    try {
+      const inboxPath = getInboxPath();
+      if (!fs.existsSync(inboxPath)) { this.pendingMarks.clear(); return; }
+      const idMap = this.pendingMarks;
+      const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
+      const updated = lines.map(line => {
+        try {
+          const item = JSON.parse(line) as InboxItem;
+          const newStatus = idMap.get(item.id);
+          if (newStatus) { item.status = newStatus; return JSON.stringify(item); }
+        } catch { /* keep original */ }
+        return line;
+      });
+      fs.writeFileSync(inboxPath, updated.join('\n') + '\n');
+      // 同步快取
+      for (const [id, status] of idMap) {
+        for (const item of this.items) {
+          if (item.id === id) { item.status = status; break; }
+        }
+      }
+      this.rebuildPending();
+      this._version++;
+      this.pendingMarks.clear();
+    } catch (err) {
+      slog('INBOX', `flushMarks failed: ${err instanceof Error ? err.message : err}`);
+      // pendingMarks intentionally NOT cleared — retry on next cycle
+    }
+  }
+
+  private rebuildPending(): void {
+    this.pendingItems = this.items
+      .filter(i => i.status === 'pending')
+      .sort((a, b) =>
+        a.priority !== b.priority ? a.priority - b.priority : a.ts.localeCompare(b.ts));
+  }
+
+  private reload(): void {
+    try {
+      const inboxPath = getInboxPath();
+      if (!fs.existsSync(inboxPath)) { this.items = []; this.pendingItems = []; }
+      else {
+        const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
+        this.items = [];
+        for (const line of lines) {
+          try { this.items.push(JSON.parse(line)); } catch { /* skip */ }
+        }
+        this.rebuildPending();
+      }
+    } catch { this.items = []; this.pendingItems = []; }
+    this._dirty = false;
+  }
+}
+
+export const inboxCache = new InboxCache();
 
 // =============================================================================
 // Priority Rules（純 TypeScript，零 LLM）
@@ -53,6 +167,32 @@ export function assignPriority(
 }
 
 // =============================================================================
+// URL Extraction + Content Detection
+// =============================================================================
+
+const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
+
+/** 提取 URLs，去重，最多 5 個。自動移除尾部標點符號 */
+export function extractUrls(text: string): string[] {
+  const raw = text.match(URL_RE) || [];
+  return [...new Set(raw.map(u => u.replace(/[.,;:!?]+$/, '')))].slice(0, 5);
+}
+
+/** 偵測內容類型 */
+function detectContentType(content: string): 'url' | 'question' | 'command' | 'info' {
+  const urls = extractUrls(content);
+  const urlChars = urls.reduce((sum, u) => sum + u.length, 0);
+  if (urls.length > 0 && urlChars / content.trim().length > 0.5) return 'url';
+  if (/[?？]/.test(content)) return 'question';
+  if (/^[!/]/.test(content.trim())) return 'command';
+  return 'info';
+}
+
+function urlToHash(url: string): string {
+  return crypto.createHash('md5').update(url).digest('hex').slice(0, 12);
+}
+
+// =============================================================================
 // Write
 // =============================================================================
 
@@ -60,7 +200,7 @@ export function assignPriority(
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
 
 /**
- * 寫入統一 inbox。自動分配 priority + 5min 去重。
+ * 寫入統一 inbox。自動分配 priority + 5min 去重 + meta 豐富化 + URL 預取。
  * 回傳 id，若去重跳過回傳 null。
  */
 export function writeInboxItem(
@@ -73,27 +213,39 @@ export function writeInboxItem(
       fs.mkdirSync(dir, { recursive: true });
     }
 
+    // JSONL compaction: >200 行時壓縮
+    if (fs.existsSync(inboxPath)) {
+      const lineCount = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean).length;
+      if (lineCount > 200) {
+        compactInbox(inboxPath);
+      }
+    }
+
     const now = new Date();
     const ts = now.toISOString();
 
-    // 5min 去重：same content + from → skip
-    if (fs.existsSync(inboxPath)) {
-      const cutoff = now.getTime() - DEDUP_WINDOW_MS;
-      const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
-      // 只檢查最近 20 行（效能）
-      const recentLines = lines.slice(-20);
-      for (const line of recentLines) {
-        try {
-          const existing = JSON.parse(line) as InboxItem;
-          if (
-            existing.from === item.from &&
-            existing.content === item.content &&
-            new Date(existing.ts).getTime() > cutoff
-          ) {
-            return null; // 去重
-          }
-        } catch { /* malformed line, skip */ }
+    // 5min 去重：same content + from → skip（用快取避免磁碟讀取）
+    const allItems = inboxCache.getAll();
+    const cutoff = now.getTime() - DEDUP_WINDOW_MS;
+    const recentItems = allItems.slice(-20);
+    for (const existing of recentItems) {
+      if (
+        existing.from === item.from &&
+        existing.content === item.content &&
+        new Date(existing.ts).getTime() > cutoff
+      ) {
+        return null; // 去重
       }
+    }
+
+    // Enrich meta: extract URLs + detect content type
+    const urls = extractUrls(item.content);
+    const enrichedMeta: Record<string, string> = { ...(item.meta ?? {}) };
+    if (urls.length > 0 && !enrichedMeta.urls) {
+      enrichedMeta.urls = urls.join(',');
+    }
+    if (!enrichedMeta.contentType) {
+      enrichedMeta.contentType = detectContentType(item.content);
     }
 
     const id = `${ts.slice(0, 10)}-${ts.slice(11, 13)}${ts.slice(14, 16)}${ts.slice(17, 19)}-${item.source.slice(0, 3)}`;
@@ -107,15 +259,40 @@ export function writeInboxItem(
       content: item.content,
       ts,
       status: 'pending',
-      meta: item.meta,
+      meta: Object.keys(enrichedMeta).length > 0 ? enrichedMeta : undefined,
     };
 
     fs.appendFileSync(inboxPath, JSON.stringify(entry) + '\n');
+    inboxCache.pushItem(entry);
+
+    // Fire-and-forget URL prefetch
+    if (urls.length > 0) {
+      prefetchUrls(urls).catch(() => {});
+    }
+
     return id;
   } catch (err) {
     slog('INBOX', `writeInboxItem failed: ${err instanceof Error ? err.message : err}`);
     return null;
   }
+}
+
+function compactInbox(inboxPath: string): void {
+  try {
+    const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
+    const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+    const kept = lines.filter(line => {
+      try {
+        const item = JSON.parse(line) as InboxItem;
+        return item.status === 'pending' || new Date(item.ts).getTime() > cutoff24h;
+      } catch { return true; }
+    });
+    if (kept.length < lines.length) {
+      fs.writeFileSync(inboxPath, kept.join('\n') + '\n');
+      inboxCache.invalidate();
+      slog('INBOX', `Compacted: ${lines.length} → ${kept.length} lines`);
+    }
+  } catch { /* compaction failure non-critical */ }
 }
 
 // =============================================================================
@@ -124,34 +301,10 @@ export function writeInboxItem(
 
 /**
  * 讀取所有 pending items，按 priority 排序（P0 first）。
+ * 使用 InboxCache — dirty 時重讀磁碟，否則回傳快取。
  */
 export function readPendingInbox(): InboxItem[] {
-  try {
-    const inboxPath = getInboxPath();
-    if (!fs.existsSync(inboxPath)) return [];
-
-    const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
-    const items: InboxItem[] = [];
-
-    for (const line of lines) {
-      try {
-        const item = JSON.parse(line) as InboxItem;
-        if (item.status === 'pending') {
-          items.push(item);
-        }
-      } catch { /* malformed line, skip */ }
-    }
-
-    // Sort: priority asc, then ts asc (oldest first within same priority)
-    items.sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority;
-      return a.ts.localeCompare(b.ts);
-    });
-
-    return items;
-  } catch {
-    return [];
-  }
+  return inboxCache.getPending();
 }
 
 // =============================================================================
@@ -186,6 +339,7 @@ export function markInboxProcessed(ids: string[], status: 'seen' | 'replied'): v
     }
 
     fs.writeFileSync(inboxPath, updated.join('\n') + '\n');
+    inboxCache.applyMarks(idSet, status);
   } catch (err) {
     slog('INBOX', `markInboxProcessed failed: ${err instanceof Error ? err.message : err}`);
   }
@@ -197,17 +351,11 @@ export function markInboxProcessed(ids: string[], status: 'seen' | 'replied'): v
  */
 export function hasRecentUnrepliedTelegram(hoursBack: number = 4): boolean {
   try {
-    const inboxPath = getInboxPath();
-    if (!fs.existsSync(inboxPath)) return false;
-    const lines = fs.readFileSync(inboxPath, 'utf-8').split('\n').filter(Boolean);
     const cutoff = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
-    for (const line of lines) {
-      try {
-        const item = JSON.parse(line) as InboxItem;
-        if (item.source === 'telegram' && item.status === 'seen' && item.ts >= cutoff) {
-          return true;
-        }
-      } catch { /* skip malformed */ }
+    for (const item of inboxCache.getAll()) {
+      if (item.source === 'telegram' && item.status === 'seen' && item.ts >= cutoff) {
+        return true;
+      }
     }
     return false;
   } catch {
@@ -275,25 +423,191 @@ export function detectModeFromInbox(
 }
 
 // =============================================================================
-// Formatting（for buildContext）
+// Batch Mark（loop.ts 用）
+// =============================================================================
+
+export function queueInboxMark(id: string, status: 'seen' | 'replied'): void {
+  inboxCache.queueMark(id, status);
+}
+
+export function flushInboxMarks(): void {
+  inboxCache.flushMarks();
+}
+
+// =============================================================================
+// Formatting（for buildContext）— 內容感知呈現
 // =============================================================================
 
 /**
- * 格式化 inbox items 為簡潔文字，注入到 context。
+ * 格式化 inbox items，依 priority 調整預覽長度，內嵌 URL 預取內容。
  */
 export function formatInboxSection(items: InboxItem[]): string {
   if (items.length === 0) return '';
+  const lines: string[] = [];
+  let totalUrlChars = 0; // 全局 URL 內嵌上限 5000 chars
 
-  const lines = items.slice(0, 15).map(i => {
-    const time = i.ts.slice(11, 16); // HH:MM
+  for (const i of items.slice(0, 15)) {
+    const time = i.ts.slice(11, 16);
     const sourceTag = i.source === 'telegram' ? `telegram:${i.from}`
       : i.source === 'room' ? `room:${i.from}`
       : i.source === 'github' ? `github:${i.meta?.issueNumber ? '#' + i.meta.issueNumber : 'issue'}`
-      : i.source === 'handoff' ? `handoff`
+      : i.source === 'handoff' ? 'handoff'
       : `${i.source}:${i.from}`;
-    const preview = i.content.replace(/\n/g, ' ').slice(0, 120);
-    return `P${i.priority} [${sourceTag}] ${time} — ${preview}`;
-  });
 
+    // 依 priority 調整預覽長度
+    const maxLen = i.priority <= 1 ? 500 : i.priority <= 2 ? 300 : 150;
+    const preview = i.content.replace(/\n/g, ' ').slice(0, maxLen);
+    let line = `P${i.priority} [${sourceTag}] ${time} — ${preview}`;
+
+    // GitHub: 顯示 labels
+    if (i.meta?.labels) line += ` [${i.meta.labels}]`;
+
+    // 內嵌 URL 預取內容（依 priority 分級，total cap 5000）
+    if (i.meta?.urls && totalUrlChars < 5000) {
+      const urlCap = i.priority <= 1 ? 1500 : 500; // P0/P1: 1500, P2+: 500
+      const urls = i.meta.urls.split(',').slice(0, 2);
+      for (const url of urls) {
+        if (totalUrlChars >= 5000) break;
+        const cached = readWebCache(url);
+        if (cached) {
+          const domain = url.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
+          const remaining = Math.min(urlCap, 5000 - totalUrlChars);
+          const snippet = cached.replace(/\n/g, ' ').slice(0, remaining);
+          line += `\n  [${domain}] ${snippet}`;
+          totalUrlChars += snippet.length;
+        }
+      }
+    }
+
+    lines.push(line);
+  }
   return lines.join('\n');
+}
+
+// =============================================================================
+// URL Prefetch + Web Cache
+// =============================================================================
+
+const WEB_CACHE_DIR = path.join(os.homedir(), '.mini-agent', 'web-cache');
+
+async function prefetchUrls(urls: string[]): Promise<void> {
+  if (!fs.existsSync(WEB_CACHE_DIR)) fs.mkdirSync(WEB_CACHE_DIR, { recursive: true });
+
+  for (const url of urls.slice(0, 3)) {
+    try {
+      const hash = urlToHash(url);
+      const cachePath = path.join(WEB_CACHE_DIR, `${hash}.txt`);
+
+      // 跳過最近快取（< 1h）
+      if (fs.existsSync(cachePath)) {
+        const stat = fs.statSync(cachePath);
+        if (Date.now() - stat.mtimeMs < 3600_000) continue;
+      }
+
+      let text = '', title = '', layer = '';
+
+      // X/Twitter → Grok API 優先
+      if (/x\.com|twitter\.com/i.test(url)) {
+        const apiKey = loadEnvKey('XAI_API_KEY');
+        if (apiKey) {
+          const result = await fetchViaGrok(url, apiKey);
+          if (result) { text = result; layer = 'grok'; }
+        }
+      }
+
+      // Fallback: HTTP fetch + HTML strip
+      if (!text) {
+        const result = await fetchViaHttp(url);
+        if (result) { text = result.text; title = result.title; layer = 'http'; }
+      }
+
+      if (text && text.length > 50) {
+        writeWebCache(url, layer, text, title);
+      }
+    } catch { /* fire-and-forget */ }
+  }
+}
+
+function loadEnvKey(key: string): string | undefined {
+  if (process.env[key]) return process.env[key];
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    const content = fs.readFileSync(envPath, 'utf-8');
+    const match = content.match(new RegExp(`^${key}=(.+)$`, 'm'));
+    return match?.[1]?.replace(/\s*#.*$/, '').trim();
+  } catch { return undefined; }
+}
+
+async function fetchViaGrok(url: string, apiKey: string): Promise<string | null> {
+  try {
+    const resp = await fetch('https://api.x.ai/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'grok-4-1-fast',
+        tools: [{ type: 'x_search' }],
+        instructions: 'Read this tweet/post and return its full content: author, text, engagement stats. Plain text, no markdown.',
+        input: url,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json() as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
+    const msg = data.output?.find(o => o.type === 'message');
+    const text = msg?.content?.find(c => c.type === 'output_text')?.text;
+    return text && text.length > 50 ? text : null;
+  } catch { return null; }
+}
+
+async function fetchViaHttp(url: string): Promise<{ text: string; title: string } | null> {
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MiniAgent/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!resp.ok) return null;
+    const ct = resp.headers.get('content-type') ?? '';
+    if (!ct.includes('text/html') && !ct.includes('text/plain')) return null;
+    const html = await resp.text();
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    const title = titleMatch?.[1]?.trim() ?? '';
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ').trim();
+    return text.length > 50 ? { text: text.slice(0, 50_000), title } : null;
+  } catch { return null; }
+}
+
+function writeWebCache(url: string, layer: string, content: string, title?: string): void {
+  try {
+    const hash = urlToHash(url);
+    const cachePath = path.join(WEB_CACHE_DIR, `${hash}.txt`);
+    const header = [
+      `URL: ${url}`,
+      title ? `Title: ${title}` : '',
+      `Layer: ${layer}`,
+      `Fetched: ${new Date().toISOString()}`,
+      '---',
+    ].filter(Boolean).join('\n');
+    fs.writeFileSync(cachePath, header + '\n' + content);
+    fs.appendFileSync(
+      path.join(WEB_CACHE_DIR, 'manifest.jsonl'),
+      JSON.stringify({ ts: new Date().toISOString(), url, layer, len: content.length, file: `${hash}.txt` }) + '\n',
+    );
+  } catch { /* cache write failure OK */ }
+}
+
+/** 讀取 web-cache，回傳 null 如果不存在或過期 */
+export function readWebCache(url: string): string | null {
+  try {
+    const hash = urlToHash(url);
+    const cachePath = path.join(WEB_CACHE_DIR, `${hash}.txt`);
+    if (!fs.existsSync(cachePath)) return null;
+    const content = fs.readFileSync(cachePath, 'utf-8');
+    const bodyStart = content.indexOf('---\n');
+    return bodyStart >= 0 ? content.slice(bodyStart + 4).trim() : null;
+  } catch { return null; }
 }

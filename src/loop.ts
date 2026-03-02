@@ -37,7 +37,7 @@ import {
 import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
 // NEXT_MD_PATH imported from triage.ts (canonical location)
 import { withFileLock } from './filelock.js';
-import { readPendingInbox, markAllInboxProcessed, markInboxProcessed, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram } from './inbox.js';
+import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage } from './observability.js';
@@ -1607,23 +1607,22 @@ export class AgentLoop {
       markClaudeCodeInboxProcessed();
       markChatRoomInboxProcessed(response, tags, action);
 
-      // Mark unified inbox items as processed.
+      // Mark unified inbox items as processed (batch — single disk write).
       // Non-telegram cycles must NOT touch telegram-source items — leave them pending
       // so the telegram drain cycle can properly process them with priority prefix.
-      // If we mark them 'seen' here, the drain cycle's markAllInboxProcessed('replied')
-      // won't find them (it only updates 'pending' items), leaving them stuck at 'seen'
-      // even when Kuro actually replied.
       const isTelegramCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
       if (isTelegramCycle) {
-        markAllInboxProcessed(didReplyToTelegram ? 'replied' : 'seen');
+        for (const item of readPendingInbox()) {
+          queueInboxMark(item.id, didReplyToTelegram ? 'replied' : 'seen');
+        }
       } else {
-        // Only mark non-telegram items; telegram items stay pending for drain cycle
-        const allPending = readPendingInbox();
-        const nonTelegramPending = allPending.filter(i => i.source !== 'telegram');
-        if (nonTelegramPending.length > 0) {
-          markInboxProcessed(nonTelegramPending.map(i => i.id), 'seen');
+        for (const item of readPendingInbox()) {
+          if (item.source !== 'telegram') {
+            queueInboxMark(item.id, 'seen');
+          }
         }
       }
+      flushInboxMarks(); // 單次磁碟寫入
 
       // Refresh telegram-inbox perception cache so next cycle sees cleared state
       // (telegram-inbox is event-driven, won't refresh unless triggered)
