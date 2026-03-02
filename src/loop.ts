@@ -617,10 +617,8 @@ export class AgentLoop {
    * T2: triage decides depth — instant → quickReply (~15s) / wake → OODA (~30-300s)
    */
   private async mushiInstantRoute(source: string, text: string, replyTo?: string): Promise<void> {
-    // T1: Fire mushi instant reply (non-blocking, ~1-2s)
-    // Sends a quick first response to Telegram while T2 processes deeper
-    const alexMsgId = source === 'telegram' ? getLastAlexMessageId() ?? undefined : undefined;
-    this.fireMushibInstantReply(text, alexMsgId).catch(() => {});
+    // T1 instant-reply removed — low-quality mushi responses created noise
+    // mushi's value is triage (wake/skip/instant routing), not direct replies
 
     try {
       const metadata: Record<string, unknown> = { messageText: text };
@@ -658,36 +656,7 @@ export class AgentLoop {
     }
   }
 
-  private static readonly MUSHI_INSTANT_REPLY_URL = 'http://localhost:3000/api/instant-reply';
-
-  /**
-   * Fire mushi instant reply — non-blocking T1 quick response (~1-2s).
-   * Sends directly to Telegram as a quick first acknowledgement.
-   */
-  private async fireMushibInstantReply(text: string, replyToMsgId?: number): Promise<void> {
-    try {
-      const res = await fetch(AgentLoop.MUSHI_INSTANT_REPLY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!res.ok) throw new Error(`mushi instant-reply ${res.status}`);
-      const result = await res.json() as { ok?: boolean; reply?: string; latencyMs?: number };
-
-      if (result.ok && result.reply) {
-        slog('MUSHI', `💨 instant-reply: "${result.reply.slice(0, 60)}" (${result.latencyMs}ms)`);
-        // Send T1 reply to Telegram (quoting Alex's message)
-        notifyTelegram(result.reply, replyToMsgId).catch(() => {});
-        // Also write to chat room for visibility
-        writeRoomMessage('kuro', `[T1] ${result.reply}`).catch(() => {});
-      }
-    } catch (err) {
-      // Silent fail — T2 will still handle the message
-      slog('MUSHI', `💨 instant-reply failed: ${err instanceof Error ? err.message : 'unknown'}`);
-    }
-  }
+  // mushi instant-reply (T1) removed — kept triage (T2) only
 
   // ---------------------------------------------------------------------------
   // mushi Triage — active mode (skip cycle if mushi says skip)
