@@ -178,25 +178,33 @@ export class TelegramPoller {
   // Reactions
   // ---------------------------------------------------------------------------
 
-  private async setReaction(chatId: string, messageId: number, emoji: string): Promise<void> {
+  private async setReaction(chatId: string, messageId: number, emoji: string | null): Promise<void> {
     try {
+      const reaction = emoji ? [{ type: 'emoji', emoji }] : [];
       const resp = await fetch(`https://api.telegram.org/bot${this.token}/setMessageReaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
           message_id: messageId,
-          reaction: [{ type: 'emoji', emoji }],
+          reaction,
         }),
       });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({})) as Record<string, unknown>;
         slog('TELEGRAM', `Reaction failed (${resp.status}): ${data?.description ?? resp.statusText}`);
-      } else {
+      } else if (emoji) {
         slog('TELEGRAM', `${emoji} msg#${messageId}`);
       }
     } catch (err) {
       slog('TELEGRAM', `Reaction error: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  /** 清除 Alex 最新訊息上的 reaction（回覆後呼叫） */
+  clearLastReaction(): void {
+    if (this.lastAlexMessageId) {
+      this.setReaction(this.chatId, this.lastAlexMessageId, null).catch(() => {});
     }
   }
 
@@ -1372,6 +1380,11 @@ export function markInboxAllProcessed(didReply = false): void {
 /** Get the Telegram message_id of Alex's last message (for reply threading) */
 export function getLastAlexMessageId(): number | null {
   return pollerInstance?.getLastAlexMessageId() ?? null;
+}
+
+/** 清除 Alex 最新訊息上的 👀 reaction */
+export function clearLastReaction(): void {
+  pollerInstance?.clearLastReaction();
 }
 
 /**

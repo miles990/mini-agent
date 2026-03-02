@@ -20,7 +20,7 @@ import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
-import { notifyTelegram, markInboxAllProcessed, getLastAlexMessageId } from './telegram.js';
+import { notifyTelegram, markInboxAllProcessed, getLastAlexMessageId, clearLastReaction } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -544,6 +544,7 @@ export class AgentLoop {
       // Send reply to the appropriate channel
       if (source === 'telegram') {
         notifyTelegram(answer, getLastAlexMessageId() ?? undefined).catch(() => {});
+        clearLastReaction();
       }
       // Always write to chat room (visible to all)
       await writeRoomMessage('kuro', answer, replyTo);
@@ -1596,6 +1597,11 @@ export class AgentLoop {
       // If telegram-user cycle finished without ANY reply to Alex, log warning
       if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
         slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex`);
+      }
+
+      // Clear 👀 reaction after reply — Alex 不需要看到「已讀」在回覆後仍停留
+      if (currentTriggerReason?.startsWith('telegram-user') && didReplyToTelegram) {
+        clearLastReaction();
       }
 
       // 檢查 approved proposals → 自動建立 handoff
