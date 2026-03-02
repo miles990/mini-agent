@@ -9,7 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, type CycleMode } from './memory.js';
-import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
+import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
@@ -41,6 +41,90 @@ export class Semaphore {
   stats(): { active: number; waiting: number; max: number } {
     return { active: this.current, waiting: this.waiters.length, max: this.max };
   }
+}
+
+// =============================================================================
+// Remember Classifier — Learning→Perception 自動閉環 Phase 1
+// 分類 <kuro:remember> 條目，actionable 類型寫入 pending-improvements.jsonl
+// =============================================================================
+
+type RememberCategory = 'fact' | 'tool-preference' | 'error-pattern' | 'system-improvement' | 'learning';
+
+const TOOL_PATTERNS = [
+  /優先序|優先用|優先走|first.*choice|prefer.*tool/i,
+  /curl|cdp-fetch|grok.*api|chrome.*cdp|cli.*subprocess/i,
+  /不要用.*改用|改用.*不要用|效果.*好|效果.*差/i,
+  /工具選擇|tool.*select|which.*tool|best.*tool/i,
+  /fallback|備選|替代方案/i,
+];
+
+const ERROR_PATTERNS = [
+  /error\s*review|錯誤.*review/i,
+  /timeout|TIMEOUT|超時/i,
+  /修復.*錯誤|fix.*error|bug.*fix/i,
+  /根因|root.*cause|診斷|diagnos/i,
+  /失敗.*模式|failure.*pattern|error.*pattern/i,
+  /crash|崩潰|掛掉/i,
+];
+
+const IMPROVEMENT_PATTERNS = [
+  /改進|improve|優化|optimiz/i,
+  /應該.*改|should.*change|需要.*修/i,
+  /下一步.*修|next.*fix|待改善/i,
+  /自動化|automat|script.*化/i,
+  /加.*檢查|add.*check|加.*驗證/i,
+  /防止.*再發|prevent.*recur/i,
+];
+
+const LEARNING_PATTERNS = [
+  /來源[:：]\s*http/i,
+  /研究|study|deep\s*dive|scan/i,
+  /論文|paper|arXiv|HN\s*\d+pts/i,
+  /核心.*洞見|key.*insight|主張/i,
+  /我的觀點|我的判斷|我認為|my.*view/i,
+];
+
+export function classifyRemember(content: string, topic?: string): RememberCategory {
+  // Topic-based hints (high confidence)
+  if (topic) {
+    const t = topic.toLowerCase();
+    if (t.includes('error') || t.includes('debug')) return 'error-pattern';
+    if (t.includes('tool') || t.includes('agent-tools')) return 'tool-preference';
+  }
+
+  // Pattern matching (score-based — highest wins)
+  const scores: Record<RememberCategory, number> = {
+    'fact': 0, 'tool-preference': 0, 'error-pattern': 0,
+    'system-improvement': 0, 'learning': 0,
+  };
+
+  for (const p of TOOL_PATTERNS) if (p.test(content)) scores['tool-preference']++;
+  for (const p of ERROR_PATTERNS) if (p.test(content)) scores['error-pattern']++;
+  for (const p of IMPROVEMENT_PATTERNS) if (p.test(content)) scores['system-improvement']++;
+  for (const p of LEARNING_PATTERNS) if (p.test(content)) scores['learning']++;
+
+  const max = Math.max(...Object.values(scores));
+  if (max === 0) return 'fact';
+
+  // Return highest scoring category
+  const entries = Object.entries(scores) as Array<[RememberCategory, number]>;
+  return entries.reduce((a, b) => b[1] > a[1] ? b : a)[0];
+}
+
+const ACTIONABLE_CATEGORIES: ReadonlySet<RememberCategory> = new Set([
+  'tool-preference', 'error-pattern', 'system-improvement',
+]);
+
+async function logPendingImprovement(entry: {
+  category: RememberCategory;
+  content: string;
+  topic?: string;
+  timestamp: string;
+}): Promise<void> {
+  const instanceDir = getInstanceDir(getCurrentInstanceId());
+  const filePath = path.join(instanceDir, 'pending-improvements.jsonl');
+  const line = JSON.stringify(entry) + '\n';
+  await fs.appendFile(filePath, line, 'utf-8');
 }
 
 // =============================================================================
@@ -371,7 +455,19 @@ export async function postProcess(
     } else {
       await memory.appendMemory(rem.content);
     }
-    eventBus.emit('action:memory', { content: rem.content, topic: rem.topic });
+
+    // Learning→Perception classifier: categorize + log actionable items
+    const category = classifyRemember(rem.content, rem.topic);
+    eventBus.emit('action:memory', { content: rem.content, topic: rem.topic, category });
+    if (ACTIONABLE_CATEGORIES.has(category)) {
+      logPendingImprovement({
+        category,
+        content: rem.content,
+        topic: rem.topic,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {}); // fire-and-forget
+    }
+    slog('CLASSIFY', `[${category}] ${rem.content.slice(0, 80)}...`);
   }
 
   if (tags.archive) {
