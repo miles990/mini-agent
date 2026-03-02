@@ -82,10 +82,23 @@ const LEARNING_PATTERNS = [
   /論文|paper|arXiv|HN\s*\d+pts/i,
   /核心.*洞見|key.*insight|主張/i,
   /我的觀點|我的判斷|我認為|my.*view/i,
+  // Phase 1.1: expanded patterns from replay analysis
+  /\(\d{4}-\d{2}-\d{2}[,，].*[）)]/, // 日期+來源格式：(2026-02-15, Author)
+  /出處|source[:：]|ref[:：]|cited/i, // 來源標注
+  /跨域|cross-.*pollinat|連結.*與|bridge.*between/i, // 跨域連結
+  /—.*觀點|—.*洞見|—.*啟發|—.*借鏡/i, // 破折號後的洞見標記
+  /vs\s|versus|對比|比較.*差異/i, // 比較分析
 ];
 
+// Topic-based learning boost: known learning-heavy topics get +1 (soft nudge, not hard override)
+const LEARNING_TOPIC_BOOST: Record<string, number> = {
+  'creative-arts': 1, 'cognitive-science': 1, 'social-culture': 1,
+  'design-philosophy': 1, 'product-thinking': 1,
+  'agent-architecture': 1, 'mushi': 0,
+};
+
 export function classifyRemember(content: string, topic?: string): RememberCategory {
-  // Topic-based hints (high confidence)
+  // Topic-based hard hints (high confidence for error/tool)
   if (topic) {
     const t = topic.toLowerCase();
     if (t.includes('error') || t.includes('debug')) return 'error-pattern';
@@ -102,6 +115,12 @@ export function classifyRemember(content: string, topic?: string): RememberCateg
   for (const p of ERROR_PATTERNS) if (p.test(content)) scores['error-pattern']++;
   for (const p of IMPROVEMENT_PATTERNS) if (p.test(content)) scores['system-improvement']++;
   for (const p of LEARNING_PATTERNS) if (p.test(content)) scores['learning']++;
+
+  // Topic-based learning boost (soft signal, can be overridden by strong patterns)
+  if (topic) {
+    const boost = LEARNING_TOPIC_BOOST[topic.toLowerCase()] ?? 0;
+    if (boost > 0) scores['learning'] += boost;
+  }
 
   const max = Math.max(...Object.values(scores));
   if (max === 0) return 'fact';
