@@ -17,7 +17,7 @@
 **自己判斷**。看 URL、看你對這個網站的經驗、看 Chrome CDP 是否可用（`curl -s http://localhost:9222/json/version`）。
 
 常見情境（參考，不是規則）：
-- X/Twitter 連結 → Grok API 效果最好（能讀 replies、engagement）
+- X/Twitter 連結（tweet、article、thread）→ **必須用 Grok API**（能讀 replies、engagement、展開引用）。不要用 CDP 讀 X 內容
 - Facebook、Reddit 等社群 → cdp-fetch.mjs（Chrome profile 已有登入 session）
 - GitHub、新聞、文件 → curl 通常就夠
 - 內容是空的 → 可能是 JS 渲染，試 cdp-fetch.mjs fetch

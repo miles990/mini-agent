@@ -490,8 +490,10 @@ export function formatInboxSection(items: InboxItem[]): string {
 
 const WEB_CACHE_DIR = path.join(os.homedir(), '.mini-agent', 'web-cache');
 
-async function prefetchUrls(urls: string[]): Promise<void> {
+async function prefetchUrls(urls: string[], depth = 0): Promise<void> {
   if (!fs.existsSync(WEB_CACHE_DIR)) fs.mkdirSync(WEB_CACHE_DIR, { recursive: true });
+
+  const secondaryUrls: string[] = [];
 
   for (const url of urls.slice(0, 3)) {
     try {
@@ -523,8 +525,22 @@ async function prefetchUrls(urls: string[]): Promise<void> {
 
       if (text && text.length > 50) {
         writeWebCache(url, layer, text, title);
+
+        // 二層追蹤：從預取內容中提取引用 URL（只追一層，depth=0→1）
+        if (depth === 0) {
+          const linkedUrls = extractUrls(text).filter(u =>
+            u !== url && !urls.includes(u) && // 排除自身和已有的
+            !/localhost|127\.0\.0\.1/.test(u), // 排除內部
+          );
+          secondaryUrls.push(...linkedUrls);
+        }
       }
     } catch { /* fire-and-forget */ }
+  }
+
+  // 遞歸預取二層 URL（最多 2 個，depth+1 防止無限遞歸）
+  if (depth === 0 && secondaryUrls.length > 0) {
+    await prefetchUrls(secondaryUrls.slice(0, 2), 1).catch(() => {});
   }
 }
 
@@ -540,16 +556,23 @@ function loadEnvKey(key: string): string | undefined {
 
 async function fetchViaGrok(url: string, apiKey: string): Promise<string | null> {
   try {
+    // X article URL → 更長 timeout + 展開指令
+    const isArticle = /x\.com\/i\/article|x\.com\/\w+\/article/i.test(url);
+    const instructions = isArticle
+      ? 'Read this X article in full. Return the complete text content, author, and any key points. Plain text, no markdown.'
+      : 'Read this tweet/post and return its full content: author, text, engagement stats. If it quotes or links to another post/article, include that content too. Plain text, no markdown.';
+    const timeout = isArticle ? 30000 : 15000;
+
     const resp = await fetch('https://api.x.ai/v1/responses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'grok-4-1-fast',
         tools: [{ type: 'x_search' }],
-        instructions: 'Read this tweet/post and return its full content: author, text, engagement stats. Plain text, no markdown.',
+        instructions,
         input: url,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeout),
     });
     if (!resp.ok) return null;
     const data = await resp.json() as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
