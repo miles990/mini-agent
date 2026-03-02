@@ -18,7 +18,7 @@ import { callClaude, preemptLoopCycle, isLoopBusy, bumpLoopGeneration } from './
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
-import { parseTags } from './dispatcher.js';
+import { parseTags, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
 import { notifyTelegram, markInboxAllProcessed, getLastAlexMessageId, clearLastReaction } from './telegram.js';
 import { eventBus } from './event-bus.js';
@@ -539,6 +539,12 @@ export class AgentLoop {
         } else {
           memory.appendMemory(rem.content).catch(() => {});
         }
+        // Learning→Perception classifier (fire-and-forget)
+        const category = classifyRemember(rem.content, rem.topic);
+        if (ACTIONABLE_CATEGORIES.has(category)) {
+          logPendingImprovement({ category, content: rem.content, topic: rem.topic, timestamp: new Date().toISOString() }).catch(() => {});
+        }
+        slog('CLASSIFY', `[${category}] ${rem.content.slice(0, 80)}...`);
       }
 
       // Send reply to the appropriate channel
@@ -1324,7 +1330,18 @@ export class AgentLoop {
         } else {
           await memory.appendMemory(rem.content);
         }
-        eventBus.emit('action:memory', { content: rem.content, topic: rem.topic });
+        // Learning→Perception classifier: categorize + log actionable items
+        const category = classifyRemember(rem.content, rem.topic);
+        eventBus.emit('action:memory', { content: rem.content, topic: rem.topic, category });
+        if (ACTIONABLE_CATEGORIES.has(category)) {
+          logPendingImprovement({
+            category,
+            content: rem.content,
+            topic: rem.topic,
+            timestamp: new Date().toISOString(),
+          }).catch(() => {}); // fire-and-forget
+        }
+        slog('CLASSIFY', `[${category}] ${rem.content.slice(0, 80)}...`);
         cycleSideEffects.push(`remember:${rem.topic ?? 'MEMORY.md'}`);
         cycleTagsProcessed.push('REMEMBER');
       }

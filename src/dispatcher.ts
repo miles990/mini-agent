@@ -111,11 +111,11 @@ export function classifyRemember(content: string, topic?: string): RememberCateg
   return entries.reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
 
-const ACTIONABLE_CATEGORIES: ReadonlySet<RememberCategory> = new Set([
+export const ACTIONABLE_CATEGORIES: ReadonlySet<RememberCategory> = new Set([
   'tool-preference', 'error-pattern', 'system-improvement',
 ]);
 
-async function logPendingImprovement(entry: {
+export async function logPendingImprovement(entry: {
   category: RememberCategory;
   content: string;
   topic?: string;
