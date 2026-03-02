@@ -23,8 +23,6 @@
 - 內容是空的 → 可能是 JS 渲染，試 cdp-fetch.mjs fetch
 - 被要求登入 → `node scripts/cdp-fetch.mjs login URL` 切換可見模式處理
 
-**選工具的原則：有更好的就用更好的。** 每個工具都有用，但對特定場景總有一個最適合的。記住你過去的經驗 — 哪個工具在哪種網站上效果好，下次直接用。
-
 ## 工具詳情
 
 ### Grok API（X/Twitter 最佳選擇）

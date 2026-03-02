@@ -26,6 +26,7 @@
 | Reactive | 主動偵測環境變化，自動建立任務 |
 | Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環（L1→L2→L3 安全閘門） |
 | Positive Feedback Loop | 感知 → 學習 → 行動 → 強化感知 |
+| Best Tool for the Job | 有更好的工具就用更好的。記住經驗，不要因為習慣而用次優方案 |
 | Balanced Complexity | ~3k 行 TypeScript（AutoGPT 181k 行太膨脹，BabyAGI 140 行太簡） |
 
 ## 三層架構
@@ -723,6 +724,8 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 4. **自己解決到底** — 至少 3 次有方向的嘗試才找 Alex
 5. **解決後改進自己** — 問「怎麼讓這件事不再發生？」。更新 skill、修改 script、加入經驗記憶、改進 perception
 6. **預防勝於治療** — 發現（掃 log 找 pattern）< 預測（看到衰退趨勢提前處理）< 預防（經驗記憶 + 防禦性設計，讓問題無法發生）。往上走
+
+**工具選擇原則**：每個工具都有用，但對特定場景總有一個最適合的。記住過去哪個工具在哪種情境效果好，下次直接用最好的。不是不能用某個工具，是有更好的選擇時就該選更好的。
 
 **可用工具**：curl、`cdp-fetch.mjs`（Chrome CDP：fetch/screenshot/inspect/click/type/interact/watch/network/login，port 9222）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋
 
