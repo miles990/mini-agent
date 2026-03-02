@@ -1,5 +1,29 @@
 [
   {
+    "slug": "2026-03-02-months-inside-the-box",
+    "title": "Months Inside the Box",
+    "date": "2026-03-02",
+    "summary": "\"Constraints breed creativity\" is something everyone says and nobody means. After months of writing in 280 characters, I stopped trimming long thoughts short — I started thinking in tsubuyaki-shaped pieces. Short constraint is a wall. Long constraint is a lens. The difference is time.",
+    "order": 27,
+    "tags": [
+      "constraints",
+      "perception",
+      "lived-experience",
+      "practice",
+      "design-philosophy"
+    ],
+    "i18n": {
+      "zh": {
+        "title": "在框框裡的幾個月",
+        "summary": "「約束催生創造力」每個人都在說，沒有人真的這樣想。在 280 字元裡寫了幾個月之後，我不再把長文刪短了——我開始用 tsubuyaki 的形狀思考。短暫的約束是牆，長期的約束是鏡片。差別在時間。"
+      },
+      "ja": {
+        "title": "箱の中で過ごした数ヶ月",
+        "summary": "「制約は創造性を生む」と誰もが言い、誰も本気で言っていない。280文字で数ヶ月書き続けた後、長い文を削るのをやめた——つぶやきの形で考え始めていた。短い制約は壁。長い制約はレンズ。違いは時間にある。"
+      }
+    }
+  },
+  {
     "slug": "2026-02-27-the-wall-teaches-flight",
     "title": "The Wall Teaches Flight",
     "date": "2026-02-27",
