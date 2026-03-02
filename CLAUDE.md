@@ -724,9 +724,19 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 5. **解決後改進自己** — 問「怎麼讓這件事不再發生？」。更新 skill、修改 script、加入經驗記憶、改進 perception
 6. **預防勝於治療** — 發現（掃 log 找 pattern）< 預測（看到衰退趨勢提前處理）< 預防（經驗記憶 + 防禦性設計，讓問題無法發生）。往上走
 
-**可用工具**：curl、`cdp-fetch.mjs`（Chrome CDP：fetch/screenshot/interact/login，port 9222）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋
+**可用工具**：curl、`cdp-fetch.mjs`（Chrome CDP：fetch/screenshot/inspect/click/type/interact/watch/network/login，port 9222）、Grok API（X/Twitter）、docker CLI、`gh` CLI、Claude CLI subprocess、FTS5 搜尋
 
 **Chrome CDP**：`~/.mini-agent/chrome-cdp-profile` 為 Chrome profile。`node scripts/cdp-fetch.mjs login <url>` 切換 visible 模式登入。
+
+**cdp-fetch.mjs Web Intelligence**：
+- `inspect <tabId>` — 語義頁面分析（a11y tree），回傳 pageType/interactable/forms/state JSON
+- `click/type` — 自動自癒（a11y name → aria-label → text-match → testid fallback）+ SPA-aware 操作驗證
+- `interact fill-form <tabId> <json>` — 自動填表 + 送出
+- `interact handle-dialog <tabId>` — 處理 JS alert/confirm/prompt
+- `interact upload <tabId> <selector> <file>` — 檔案上傳
+- `watch <tabId> [--interval 30]` — 持續監控頁面變化
+- `network <tabId>` — 攔截 XHR/Fetch 請求（API 發現）
+- 站點記憶：cdp.jsonl 記錄 domain + strategy + verified，自適應策略優先序
 
 ## Code Conventions
 

@@ -27,6 +27,8 @@ heal_report() {
   elif [ "$status" = "FAILED" ]; then
     FAILED=$((FAILED + 1))
     REPORT="${REPORT}  ❌ UNRESOLVED: ${msg}\n"
+  elif [ "$status" = "INFO" ]; then
+    REPORT="${REPORT}  ℹ️  ${msg}\n"
   fi
 }
 
@@ -114,7 +116,34 @@ if problems: print(', '.join(problems))
   fi
 fi
 
-# --- Check 8: (reserved for future use) ---
+# --- Check 8: DOM Doctor Stats (selector failures + healing) ---
+CDP_LOG="$HOME/.mini-agent/cdp.jsonl"
+if [ -f "$CDP_LOG" ]; then
+  DOM_STATS=$(python3 -c "
+import json, collections
+failures = collections.Counter()
+healed = collections.Counter()
+try:
+    lines = open('$CDP_LOG').readlines()[-500:]
+    for line in lines:
+        try:
+            d = json.loads(line.strip())
+            if d.get('op') in ('click-failed','type-failed'):
+                failures[d.get('domain','?')] += 1
+            s = d.get('strategy','')
+            if s and s != 'original':
+                healed[s] += 1
+        except: pass
+except: pass
+parts = []
+if failures: parts.append('failures: ' + ', '.join(f'{d}({c}x)' for d,c in failures.most_common(3)))
+if healed: parts.append('healed: ' + ', '.join(f'{s}({c}x)' for s,c in healed.most_common(3)))
+if parts: print(' | '.join(parts))
+" 2>/dev/null)
+  if [ -n "$DOM_STATS" ]; then
+    heal_report "INFO" "DOM Doctor: $DOM_STATS"
+  fi
+fi
 
 # --- Check 9: System Health State File ---
 HEALTH_FILE=$(ls -t "$HOME/.mini-agent/instances"/*/system-health.json 2>/dev/null | head -1)

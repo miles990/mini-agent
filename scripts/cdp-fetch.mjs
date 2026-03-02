@@ -2,25 +2,33 @@
 /**
  * Chrome DevTools Protocol (CDP) Browser Tool — Zero Dependencies
  *
- * Complete browser automation: fetch, screenshot, interact, login.
+ * Complete browser automation with semantic understanding (a11y tree),
+ * self-healing element resolution, and action verification.
  * Auto-manages Chrome lifecycle (headless by default, visible for login).
  *
  * Usage:
- *   node cdp-fetch.mjs status                       # Chrome status + open tabs
+ *   node cdp-fetch.mjs status                           # Chrome status + open tabs
  *   node cdp-fetch.mjs fetch <url> [--full|--offset N]  # Fetch page content
- *   node cdp-fetch.mjs screenshot <url> [output.png] # Screenshot a page
- *   node cdp-fetch.mjs open <url>                    # Open visible tab
- *   node cdp-fetch.mjs extract [tabId]               # Extract content from tab
- *   node cdp-fetch.mjs close <tabId>                 # Close a tab
- *   node cdp-fetch.mjs login <url>                   # Switch to visible for login
- *   node cdp-fetch.mjs headless                      # Switch back to headless
- *   node cdp-fetch.mjs eval <tabId> <js>             # Run JavaScript in tab
- *   node cdp-fetch.mjs click <tabId> <selector>      # Click element
- *   node cdp-fetch.mjs type <tabId> <selector> <text> # Type into element
- *   node cdp-fetch.mjs scroll <tabId> [down|up|N]    # Scroll page
+ *   node cdp-fetch.mjs screenshot <url> [output.png]    # Screenshot a page
+ *   node cdp-fetch.mjs open <url>                       # Open visible tab
+ *   node cdp-fetch.mjs extract [tabId]                  # Extract content from tab
+ *   node cdp-fetch.mjs close <tabId>                    # Close a tab
+ *   node cdp-fetch.mjs login <url>                      # Switch to visible for login
+ *   node cdp-fetch.mjs headless                         # Switch back to headless
+ *   node cdp-fetch.mjs eval <tabId> <js>                # Run JavaScript in tab
+ *   node cdp-fetch.mjs click <tabId> <selector>         # Click (self-healing + verify)
+ *   node cdp-fetch.mjs type <tabId> <selector> <text>   # Type (self-healing + verify)
+ *   node cdp-fetch.mjs scroll <tabId> [down|up|N] [--until "text"]  # Smart scroll
+ *   node cdp-fetch.mjs inspect <tabId>                  # Semantic page analysis (a11y tree)
+ *   node cdp-fetch.mjs interact fill-form <tabId> <json>   # Auto-fill form
+ *   node cdp-fetch.mjs interact handle-dialog <tabId>      # Handle JS dialog
+ *   node cdp-fetch.mjs interact upload <tabId> <sel> <file> # Upload file
+ *   node cdp-fetch.mjs interact download <url> [dir]        # Download via CDP
+ *   node cdp-fetch.mjs watch <tabId> [--interval 30]    # Monitor page changes
+ *   node cdp-fetch.mjs network <tabId>                  # Intercept XHR/Fetch
  */
 
-import { appendFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
@@ -41,9 +49,194 @@ const CDP_LOG_FILE = join(CDP_LOG_DIR, 'cdp.jsonl');
 function logCdpOp(op, detail = {}) {
   try {
     mkdirSync(CDP_LOG_DIR, { recursive: true });
+    // Auto-extract domain for site memory
+    if (detail.url && !detail.domain) {
+      try { detail.domain = new URL(detail.url).hostname; } catch {}
+    }
     const entry = JSON.stringify({ ts: new Date().toISOString(), op, ...detail });
     appendFileSync(CDP_LOG_FILE, entry + '\n');
   } catch { /* logging should never break operations */ }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ─── PageState (In-Memory Page Model) ───────────────────────────────────────
+// Shadow DOM — in-memory page state cache, avoids unnecessary CDP round-trips.
+// Write operations invalidate, read operations use cache.
+
+const pageStateCache = new Map(); // tabId → PageState
+
+class PageState {
+  constructor(tabId) {
+    this.tabId = tabId;
+    this.axNodes = null;       // a11y tree nodes
+    this.meta = null;          // { url, title, bodyLen }
+    this.interactable = null;  // parsed interactable elements
+    this.pageType = null;      // login/form/article/dashboard/search/error/unknown
+    this.pageMode = null;      // static/spa/streaming
+    this.ts = 0;               // last refresh time
+    this.valid = false;        // invalidation flag
+  }
+
+  isStale() {
+    return !this.valid || (Date.now() - this.ts > 30_000); // 30s max age
+  }
+
+  invalidate() { this.valid = false; }
+
+  async ensureFresh(ws) {
+    if (!this.isStale()) return;
+
+    const [axResult, metaResult] = await Promise.all([
+      cdpCommand(ws, 'Accessibility.getFullAXTree', {}),
+      cdpCommand(ws, 'Runtime.evaluate', {
+        expression: `JSON.stringify({url:location.href,title:document.title,bodyLen:document.body?.innerHTML.length||0})`,
+        returnByValue: true,
+      }),
+    ]);
+
+    this.axNodes = axResult.nodes || [];
+    this.meta = JSON.parse(metaResult.result?.value || '{}');
+    this.interactable = extractInteractable(this.axNodes);
+    const classification = classifyPage(this.axNodes, this.meta);
+    this.pageType = classification.type;
+    this.pageMode = classification.mode;
+    this.ts = Date.now();
+    this.valid = true;
+  }
+
+  // ── Pure memory operations (0ms, zero CDP calls) ──
+
+  findByRole(role, nameHint) {
+    return this.axNodes?.find(n =>
+      n.role?.value === role &&
+      n.name?.value?.toLowerCase().includes(nameHint.toLowerCase())
+    );
+  }
+
+  findByName(nameHint) {
+    const interactableRoles = ['button', 'link', 'textbox', 'combobox', 'checkbox', 'menuitem', 'tab', 'radio'];
+    const hint = nameHint.toLowerCase();
+    return this.axNodes?.find(n =>
+      interactableRoles.includes(n.role?.value) &&
+      n.name?.value?.toLowerCase().includes(hint)
+    );
+  }
+
+  getForms() { return extractForms(this.axNodes); }
+  getState() { return detectPageState(this.axNodes, this.meta); }
+  getSummary() {
+    return {
+      url: this.meta?.url, title: this.meta?.title,
+      pageType: this.pageType, pageMode: this.pageMode,
+      interactable: this.interactable,
+      forms: this.getForms(),
+      state: this.getState(),
+      nodeCount: this.axNodes?.length || 0,
+      cacheAge: Date.now() - this.ts,
+    };
+  }
+}
+
+function getPageState(tabId) {
+  if (!pageStateCache.has(tabId)) pageStateCache.set(tabId, new PageState(tabId));
+  return pageStateCache.get(tabId);
+}
+
+function extractInteractable(nodes) {
+  const roles = ['button', 'link', 'textbox', 'combobox', 'checkbox', 'menuitem', 'tab', 'radio', 'searchbox', 'slider'];
+  const cap = (nodes?.length || 0) > 5000 ? 100 : 50; // dynamic cap: giant pages get 100
+  const result = [];
+  for (const n of (nodes || [])) {
+    if (result.length >= cap) break;
+    if (roles.includes(n.role?.value) && n.name?.value) {
+      result.push({
+        role: n.role.value,
+        name: n.name.value.slice(0, 80),
+        nodeId: n.nodeId,
+        backendDOMNodeId: n.backendDOMNodeId,
+        ...(n.value?.value != null ? { value: String(n.value.value).slice(0, 40) } : {}),
+      });
+    }
+  }
+  return result;
+}
+
+function classifyPage(nodes, meta) {
+  const names = (nodes || []).map(n => (n.name?.value || '').toLowerCase()).join(' ');
+  const roles = (nodes || []).map(n => n.role?.value || '');
+  const url = (meta?.url || '').toLowerCase();
+  const bodyLen = meta?.bodyLen || 0;
+
+  // Error pages
+  if (url.includes('404') || url.includes('error') || names.includes('page not found') || names.includes('not found'))
+    return { type: 'error', mode: 'static' };
+  if (bodyLen === 0 && (meta?.title || '').match(/5\d\d|error|timeout/i))
+    return { type: 'error', mode: 'static' };
+
+  // Page type
+  let type = 'unknown';
+  const hasPassword = roles.includes('textbox') && names.match(/password|密碼/);
+  const hasLogin = names.match(/log\s?in|sign\s?in|登入|登錄/);
+  if (hasPassword || hasLogin) type = 'login';
+  else if (roles.filter(r => r === 'textbox' || r === 'combobox').length >= 2) type = 'form';
+  else if (roles.filter(r => r === 'searchbox' || (r === 'textbox' && names.includes('search'))).length > 0) type = 'search';
+  else if (names.match(/dashboard|儀表板|overview/)) type = 'dashboard';
+  else if (bodyLen > 2000 && roles.filter(r => r === 'heading').length >= 2) type = 'article';
+
+  // Page mode: static / spa / streaming
+  let mode = 'static';
+  if (names.match(/react|next|angular|vue|__next|__nuxt/) || url.match(/#\/|\/app\/|\/dashboard/)) mode = 'spa';
+
+  return { type, mode };
+}
+
+function extractForms(nodes) {
+  const forms = [];
+  const fieldRoles = ['textbox', 'combobox', 'checkbox', 'radio', 'searchbox', 'slider'];
+  const fields = (nodes || []).filter(n => fieldRoles.includes(n.role?.value) && n.name?.value);
+  if (fields.length === 0) return forms;
+
+  // Group fields as a single form (a11y tree doesn't always have explicit form groups)
+  const formFields = fields.map(n => ({
+    role: n.role.value,
+    name: n.name.value.slice(0, 60),
+    nodeId: n.nodeId,
+    backendDOMNodeId: n.backendDOMNodeId,
+    ...(n.value?.value != null ? { value: String(n.value.value).slice(0, 40) } : {}),
+  }));
+
+  // Find nearby submit button
+  const submitBtn = (nodes || []).find(n =>
+    n.role?.value === 'button' &&
+    (n.name?.value || '').toLowerCase().match(/submit|send|login|sign|確認|送出|登入/)
+  );
+
+  forms.push({
+    fields: formFields,
+    ...(submitBtn ? { submitButton: { name: submitBtn.name.value, nodeId: submitBtn.nodeId, backendDOMNodeId: submitBtn.backendDOMNodeId } } : {}),
+  });
+
+  return forms;
+}
+
+function detectPageState(nodes, meta) {
+  const names = (nodes || []).map(n => (n.name?.value || '').toLowerCase()).join(' ');
+  const bodyLen = meta?.bodyLen || 0;
+
+  // Readable text estimation (nodes with text role and long names)
+  const readableTextLen = (nodes || [])
+    .filter(n => n.role?.value === 'StaticText' || n.role?.value === 'paragraph' || n.role?.value === 'heading')
+    .reduce((sum, n) => sum + (n.name?.value?.length || 0), 0);
+
+  return {
+    loggedIn: !!(names.match(/log\s?out|sign\s?out|登出|profile|avatar|my account/)),
+    hasPaywall: !!(names.match(/subscribe|paywall|premium|unlock|付費/)),
+    isLoading: !!(names.match(/loading|spinner|載入中/) && bodyLen < 500),
+    hasCookieConsent: !!(names.match(/cookie|consent|accept all|accept cookies|同意/)),
+    hasMainContent: bodyLen > 500 && readableTextLen > 200,
+    readableTextLen,
+  };
 }
 
 // ─── Chrome Lifecycle ────────────────────────────────────────────────────────
@@ -531,18 +724,30 @@ async function cmdClick(tabId, selector) {
   logCdpOp('click', { tabId, selector });
 
   try {
-    const result = await cdpCommand(ws, 'Runtime.evaluate', {
-      expression: `
-        (() => {
-          const el = document.querySelector(${JSON.stringify(selector)});
-          if (!el) return 'NOT_FOUND: ' + ${JSON.stringify(selector)};
-          el.click();
-          return 'Clicked: ' + (el.textContent || '').trim().slice(0, 50);
-        })()
-      `,
-      returnByValue: true,
-    });
-    console.log(result.result?.value);
+    const before = await snapshotState(ws);
+    const resolved = await resolveElement(ws, tabId, selector);
+
+    if (!resolved) {
+      console.log(`NOT_FOUND: ${selector}`);
+      logCdpOp('click-failed', { tabId, selector, domain: extractDomain(before.url) });
+      return;
+    }
+
+    // Execute click
+    if (resolved.strategy === 'a11y' && resolved.objectId) {
+      await clickByObjectId(ws, resolved.objectId);
+    } else {
+      await clickByStrategy(ws, selector, resolved.strategy);
+    }
+
+    // Invalidate PageState + verify
+    getPageState(tabId).invalidate();
+    const domain = extractDomain(before.url);
+    const changes = await verifyAction(ws, before, 'click', domain);
+    const healTag = resolved.strategy !== 'original' ? ` (healed: ${resolved.strategy})` : '';
+    const verifyTag = changes.length > 0 ? ` ✓ (${changes.join(', ')})` : ' ⚠ no visible change';
+    console.log(`Clicked: ${resolved.text}${healTag}${verifyTag}`);
+    logCdpOp('click-result', { tabId, selector, strategy: resolved.strategy, verified: changes.length > 0, domain });
   } finally {
     if (ws?.readyState === WebSocket.OPEN) ws.close();
   }
@@ -554,38 +759,489 @@ async function cmdType(tabId, selector, text) {
   logCdpOp('type', { tabId, selector, text: text.slice(0, 30) });
 
   try {
+    const before = await snapshotState(ws);
+    const resolved = await resolveElement(ws, tabId, selector);
+
+    if (!resolved) {
+      console.log(`NOT_FOUND: ${selector}`);
+      logCdpOp('type-failed', { tabId, selector, domain: extractDomain(before.url) });
+      return;
+    }
+
     // Focus the element
-    await cdpCommand(ws, 'Runtime.evaluate', {
-      expression: `document.querySelector(${JSON.stringify(selector)})?.focus()`,
-    });
+    if (resolved.strategy === 'a11y' && resolved.objectId) {
+      await focusByObjectId(ws, resolved.objectId);
+    } else {
+      await focusByStrategy(ws, selector, resolved.strategy);
+    }
 
     // Type character by character via Input.dispatchKeyEvent
     for (const char of text) {
-      await cdpCommand(ws, 'Input.dispatchKeyEvent', {
-        type: 'keyDown', text: char,
-      });
-      await cdpCommand(ws, 'Input.dispatchKeyEvent', {
-        type: 'keyUp', text: char,
-      });
+      await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', text: char });
+      await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', text: char });
     }
-    console.log(`Typed ${text.length} chars into ${selector}`);
+
+    // Invalidate + verify
+    getPageState(tabId).invalidate();
+    const domain = extractDomain(before.url);
+    const changes = await verifyAction(ws, before, 'type', domain);
+    const healTag = resolved.strategy !== 'original' ? ` (healed: ${resolved.strategy})` : '';
+    console.log(`Typed ${text.length} chars into ${resolved.text}${healTag}`);
+    logCdpOp('type-result', { tabId, selector, strategy: resolved.strategy, domain });
   } finally {
     if (ws?.readyState === WebSocket.OPEN) ws.close();
   }
 }
 
-async function cmdScroll(tabId, direction = 'down') {
+async function cmdScroll(tabId, direction = 'down', untilText = null) {
   await ensureChrome();
   const { ws } = await connectToTarget(tabId);
-  logCdpOp('scroll', { tabId, direction });
+  logCdpOp('scroll', { tabId, direction, until: untilText });
 
   try {
     const pixels = direction === 'up' ? -600 : direction === 'down' ? 600 : parseInt(direction) || 600;
-    await cdpCommand(ws, 'Runtime.evaluate', {
-      expression: `window.scrollBy(0, ${pixels})`,
-    });
-    console.log(`Scrolled ${pixels}px`);
+
+    if (untilText) {
+      // Smart scroll: scroll until target text found or content stops changing
+      let lastLen = 0;
+      let stableCount = 0;
+      for (let i = 0; i < 20; i++) {
+        await cdpCommand(ws, 'Runtime.evaluate', { expression: `window.scrollBy(0, ${Math.abs(pixels)})` });
+        await sleep(500);
+        const check = await cdpCommand(ws, 'Runtime.evaluate', {
+          expression: `JSON.stringify({ found: document.body.innerText.includes(${JSON.stringify(untilText)}), len: document.body.innerHTML.length })`,
+          returnByValue: true,
+        });
+        const { found, len } = JSON.parse(check.result?.value || '{}');
+        if (found) { console.log(`Found "${untilText}" after ${i + 1} scrolls`); return; }
+        if (len === lastLen) stableCount++; else { stableCount = 0; lastLen = len; }
+        if (stableCount >= 3) { console.log(`Content stopped changing after ${i + 1} scrolls. "${untilText}" not found.`); return; }
+      }
+      console.log(`Reached max scrolls (20). "${untilText}" not found.`);
+    } else {
+      await cdpCommand(ws, 'Runtime.evaluate', { expression: `window.scrollBy(0, ${pixels})` });
+      console.log(`Scrolled ${pixels}px`);
+    }
   } finally {
+    if (ws?.readyState === WebSocket.OPEN) ws.close();
+  }
+}
+
+// ─── Snapshot & Verify ──────────────────────────────────────────────────────
+
+function extractDomain(url) {
+  if (!url) return undefined;
+  try { return new URL(url).hostname; } catch { return undefined; }
+}
+
+async function snapshotState(ws) {
+  const result = await cdpCommand(ws, 'Runtime.evaluate', {
+    expression: `JSON.stringify({ url: location.href, title: document.title, bodyLen: document.body?.innerHTML.length || 0 })`,
+    returnByValue: true,
+  });
+  return JSON.parse(result.result?.value || '{}');
+}
+
+// SPA-aware verify: wait for DOM to settle, not just a fixed sleep
+async function verifyAction(ws, before, action, domain) {
+  let after, lastLen = before.bodyLen, stableCount = 0;
+  for (let i = 0; i < 10; i++) {
+    await sleep(300);
+    after = await snapshotState(ws);
+    if (after.bodyLen === lastLen) stableCount++;
+    else { stableCount = 0; lastLen = after.bodyLen; }
+    if (stableCount >= 2 || after.url !== before.url) break;
+  }
+  after = after || await snapshotState(ws);
+  const changes = [];
+  if (after.url !== before.url) changes.push(`navigated: ${after.url}`);
+  if (after.title !== before.title) changes.push(`title: ${after.title}`);
+  if (Math.abs(after.bodyLen - before.bodyLen) > 100) changes.push('dom-changed');
+  logCdpOp(changes.length ? 'verify-ok' : 'verify-no-change', { action, changes, domain });
+  return changes;
+}
+
+// ─── Site Memory (Adaptive Strategy Selection) ──────────────────────────────
+
+function getPreferredStrategies(domain) {
+  if (!domain) return ['original', 'a11y', 'aria-label', 'text-match', 'testid'];
+  try {
+    const data = readFileSync(CDP_LOG_FILE, 'utf-8');
+    const lines = data.trim().split('\n').slice(-200); // last 200 entries
+    const stats = {}; // strategy → { ok: 0, fail: 0 }
+    for (const line of lines) {
+      try {
+        const d = JSON.parse(line);
+        if (d.domain !== domain) continue;
+        if (d.op === 'click-result' || d.op === 'type-result') {
+          const s = d.strategy || 'original';
+          if (!stats[s]) stats[s] = { ok: 0, fail: 0 };
+          stats[s].ok++;
+        } else if (d.op === 'click-failed' || d.op === 'type-failed') {
+          if (!stats['original']) stats['original'] = { ok: 0, fail: 0 };
+          stats['original'].fail++;
+        }
+      } catch { /* skip bad lines */ }
+    }
+    // Sort by success rate, then by total count
+    const sorted = Object.entries(stats)
+      .map(([s, c]) => ({ s, rate: c.ok / (c.ok + c.fail + 1), total: c.ok + c.fail }))
+      .sort((a, b) => b.rate - a.rate || b.total - a.total)
+      .map(x => x.s);
+    // Fill in missing strategies
+    const allStrategies = ['original', 'a11y', 'aria-label', 'text-match', 'testid'];
+    const result = [...sorted, ...allStrategies.filter(s => !sorted.includes(s))];
+    return result;
+  } catch {
+    return ['original', 'a11y', 'aria-label', 'text-match', 'testid'];
+  }
+}
+
+// ─── Resolve Element (Multi-Strategy Self-Healing) ──────────────────────────
+
+async function resolveElement(ws, tabId, selector) {
+  // Strategy 1: Original CSS selector
+  const cssResult = await cdpCommand(ws, 'Runtime.evaluate', {
+    expression: `(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return null;
+      return { text: (el.textContent || '').trim().slice(0, 50), tag: el.tagName };
+    })()`,
+    returnByValue: true,
+  });
+  if (cssResult.result?.value) {
+    return { strategy: 'original', text: cssResult.result.value.text };
+  }
+
+  // Strategy 2: a11y name match (0ms memory search)
+  const state = getPageState(tabId);
+  await state.ensureFresh(ws);
+  const axMatch = state.findByName(selector);
+  if (axMatch?.backendDOMNodeId) {
+    // Resolve a11y node to DOM node for interaction
+    try {
+      const resolved = await cdpCommand(ws, 'DOM.resolveNode', { backendNodeId: axMatch.backendDOMNodeId });
+      if (resolved.object?.objectId) {
+        return { strategy: 'a11y', objectId: resolved.object.objectId, text: axMatch.name?.value || selector, axNode: axMatch };
+      }
+    } catch { /* DOM.resolveNode can fail for detached nodes */ }
+  }
+
+  // Strategy 3: CSS fallback (aria-label, text content, data-testid)
+  const fallbackResult = await cdpCommand(ws, 'Runtime.evaluate', {
+    expression: `(() => {
+      const sel = ${JSON.stringify(selector)};
+      const lower = sel.toLowerCase();
+      // Try aria-label
+      let el = document.querySelector('[aria-label*="' + sel.replace(/"/g, '\\\\"') + '"]');
+      if (el) return { text: (el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 50), tag: el.tagName, method: 'aria-label' };
+      // Try text content match
+      const all = document.querySelectorAll('button, a, input, [role="button"], [role="link"]');
+      for (const e of all) {
+        if ((e.textContent || '').toLowerCase().includes(lower) || (e.getAttribute('aria-label') || '').toLowerCase().includes(lower)) {
+          return { text: (e.textContent || '').trim().slice(0, 50), tag: e.tagName, method: 'text-match' };
+        }
+      }
+      // Try data-testid
+      el = document.querySelector('[data-testid*="' + sel.replace(/"/g, '\\\\"') + '"]');
+      if (el) return { text: (el.textContent || '').trim().slice(0, 50), tag: el.tagName, method: 'testid' };
+      return null;
+    })()`,
+    returnByValue: true,
+  });
+  if (fallbackResult.result?.value) {
+    const fb = fallbackResult.result.value;
+    return { strategy: fb.method, text: fb.text };
+  }
+
+  return null; // Not found by any strategy
+}
+
+// Execute click via objectId (for a11y-resolved elements)
+async function clickByObjectId(ws, objectId) {
+  await cdpCommand(ws, 'Runtime.callFunctionOn', {
+    objectId, functionDeclaration: 'function() { this.click(); }',
+  });
+}
+
+// Execute click via selector or fallback strategy
+async function clickByStrategy(ws, selector, strategy) {
+  if (strategy === 'a11y') return; // handled by clickByObjectId
+  // For original/aria-label/text-match/testid — re-query and click
+  const strat = strategy === 'original' ? JSON.stringify(selector) : null;
+  const expression = strategy === 'original'
+    ? `document.querySelector(${JSON.stringify(selector)})?.click()`
+    : `(() => {
+        const sel = ${JSON.stringify(selector)};
+        const lower = sel.toLowerCase();
+        ${strategy === 'aria-label' ? `const el = document.querySelector('[aria-label*="' + sel.replace(/"/g, '\\\\"') + '"]'); if (el) { el.click(); return true; }` : ''}
+        ${strategy === 'text-match' ? `const all = document.querySelectorAll('button, a, input, [role="button"], [role="link"]'); for (const e of all) { if ((e.textContent || '').toLowerCase().includes(lower) || (e.getAttribute('aria-label') || '').toLowerCase().includes(lower)) { e.click(); return true; } }` : ''}
+        ${strategy === 'testid' ? `const el = document.querySelector('[data-testid*="' + sel.replace(/"/g, '\\\\"') + '"]'); if (el) { el.click(); return true; }` : ''}
+        return false;
+      })()`;
+  await cdpCommand(ws, 'Runtime.evaluate', { expression });
+}
+
+// Focus element by strategy (for type command)
+async function focusByObjectId(ws, objectId) {
+  await cdpCommand(ws, 'Runtime.callFunctionOn', {
+    objectId, functionDeclaration: 'function() { this.focus(); }',
+  });
+}
+
+async function focusByStrategy(ws, selector, strategy) {
+  if (strategy === 'a11y') return; // handled by focusByObjectId
+  const expression = strategy === 'original'
+    ? `document.querySelector(${JSON.stringify(selector)})?.focus()`
+    : `(() => {
+        const sel = ${JSON.stringify(selector)};
+        const lower = sel.toLowerCase();
+        ${strategy === 'aria-label' ? `const el = document.querySelector('[aria-label*="' + sel.replace(/"/g, '\\\\"') + '"]'); if (el) el.focus();` : ''}
+        ${strategy === 'text-match' ? `const all = document.querySelectorAll('input, textarea, [contenteditable], [role="textbox"]'); for (const e of all) { if ((e.getAttribute('aria-label') || e.getAttribute('placeholder') || '').toLowerCase().includes(lower)) { e.focus(); break; } }` : ''}
+        ${strategy === 'testid' ? `const el = document.querySelector('[data-testid*="' + sel.replace(/"/g, '\\\\"') + '"]'); if (el) el.focus();` : ''}
+      })()`;
+  await cdpCommand(ws, 'Runtime.evaluate', { expression });
+}
+
+async function cmdInspect(tabId) {
+  await ensureChrome();
+  const { ws } = await connectToTarget(tabId);
+  logCdpOp('inspect', { tabId });
+
+  try {
+    const state = getPageState(tabId);
+    await state.ensureFresh(ws);
+    const summary = state.getSummary();
+    console.log(JSON.stringify(summary, null, 2));
+    logCdpOp('inspect-result', {
+      tabId, url: state.meta?.url, pageType: state.pageType,
+      pageMode: state.pageMode,
+      interactableCount: state.interactable?.length || 0,
+      domain: state.meta?.url ? (() => { try { return new URL(state.meta.url).hostname; } catch { return undefined; } })() : undefined,
+    });
+  } finally {
+    if (ws?.readyState === WebSocket.OPEN) ws.close();
+  }
+}
+
+async function cmdInteract(subCmd, tabId, argsExtra) {
+  await ensureChrome();
+  const { ws } = await connectToTarget(tabId);
+  logCdpOp('interact', { tabId, subCmd });
+
+  try {
+    switch (subCmd) {
+      case 'fill-form': {
+        let formData;
+        try { formData = JSON.parse(argsExtra[0]); } catch { console.error('Invalid JSON. Usage: interact fill-form <tabId> \'{"field":"value"}\''); return; }
+
+        const state = getPageState(tabId);
+        await state.ensureFresh(ws);
+        const forms = state.getForms();
+        let filled = 0;
+
+        for (const [fieldName, value] of Object.entries(formData)) {
+          // Find matching field in form
+          const field = forms[0]?.fields?.find(f => f.name.toLowerCase().includes(fieldName.toLowerCase()));
+          if (field?.backendDOMNodeId) {
+            try {
+              const resolved = await cdpCommand(ws, 'DOM.resolveNode', { backendNodeId: field.backendDOMNodeId });
+              if (resolved.object?.objectId) {
+                await cdpCommand(ws, 'Runtime.callFunctionOn', {
+                  objectId: resolved.object.objectId,
+                  functionDeclaration: 'function() { this.focus(); }',
+                });
+                for (const char of String(value)) {
+                  await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', text: char });
+                  await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', text: char });
+                }
+                filled++;
+              }
+            } catch { /* skip unresolvable fields */ }
+          } else {
+            // Fallback: try resolveElement
+            const resolved = await resolveElement(ws, tabId, fieldName);
+            if (resolved) {
+              if (resolved.strategy === 'a11y' && resolved.objectId) {
+                await focusByObjectId(ws, resolved.objectId);
+              } else {
+                await focusByStrategy(ws, fieldName, resolved.strategy);
+              }
+              for (const char of String(value)) {
+                await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', text: char });
+                await cdpCommand(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', text: char });
+              }
+              filled++;
+            }
+          }
+        }
+
+        state.invalidate();
+
+        // Try to find and click submit button
+        if (forms[0]?.submitButton?.backendDOMNodeId) {
+          const before = await snapshotState(ws);
+          try {
+            const resolved = await cdpCommand(ws, 'DOM.resolveNode', { backendNodeId: forms[0].submitButton.backendDOMNodeId });
+            if (resolved.object?.objectId) {
+              await clickByObjectId(ws, resolved.object.objectId);
+              state.invalidate();
+              const changes = await verifyAction(ws, before, 'fill-form-submit', extractDomain(before.url));
+              const verifyTag = changes.length > 0 ? ` ✓ (${changes.join(', ')})` : '';
+              console.log(`Filled ${filled} field(s), submitted${verifyTag}`);
+            }
+          } catch {
+            console.log(`Filled ${filled} field(s), submit button not clickable`);
+          }
+        } else {
+          console.log(`Filled ${filled} field(s), no submit button found`);
+        }
+        break;
+      }
+      case 'handle-dialog': {
+        const action = argsExtra[0] || 'accept';
+        const shouldAccept = action !== 'dismiss';
+        await cdpCommand(ws, 'Page.enable', {});
+        // Register handler for dialogs
+        const dialogPromise = new Promise((resolve) => {
+          const handler = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.method === 'Page.javascriptDialogOpening') {
+              ws.removeEventListener('message', handler);
+              cdpCommand(ws, 'Page.handleJavaScriptDialog', { accept: shouldAccept })
+                .then(() => resolve(msg.params))
+                .catch(() => resolve(msg.params));
+            }
+          };
+          ws.addEventListener('message', handler);
+          // Timeout after 10s
+          setTimeout(() => { ws.removeEventListener('message', handler); resolve(null); }, 10_000);
+        });
+        console.log(`Waiting for dialog (will ${shouldAccept ? 'accept' : 'dismiss'})...`);
+        const result = await dialogPromise;
+        if (result) {
+          console.log(`Dialog handled: "${result.message?.slice(0, 100)}" → ${shouldAccept ? 'accepted' : 'dismissed'}`);
+        } else {
+          console.log('No dialog appeared within 10s');
+        }
+        break;
+      }
+      case 'upload': {
+        const inputSelector = argsExtra[0];
+        const filePath = argsExtra[1];
+        if (!inputSelector || !filePath) { console.error('Usage: interact upload <tabId> <selector> <filepath>'); return; }
+        // Find the file input node
+        const nodeResult = await cdpCommand(ws, 'Runtime.evaluate', {
+          expression: `(() => {
+            const el = document.querySelector(${JSON.stringify(inputSelector)});
+            return el ? true : false;
+          })()`,
+          returnByValue: true,
+        });
+        if (!nodeResult.result?.value) { console.log(`NOT_FOUND: ${inputSelector}`); return; }
+        // Get DOM node ID
+        const doc = await cdpCommand(ws, 'DOM.getDocument', {});
+        const found = await cdpCommand(ws, 'DOM.querySelector', { nodeId: doc.root.nodeId, selector: inputSelector });
+        if (!found.nodeId) { console.log(`Cannot resolve DOM node: ${inputSelector}`); return; }
+        await cdpCommand(ws, 'DOM.setFileInputFiles', { files: [filePath], nodeId: found.nodeId });
+        console.log(`Uploaded: ${filePath} → ${inputSelector}`);
+        getPageState(tabId).invalidate();
+        break;
+      }
+      case 'download': {
+        const url = argsExtra[0];
+        const outputDir = argsExtra[1] || '/tmp';
+        if (!url) { console.error('Usage: interact download <url> [outputDir]'); return; }
+        await cdpCommand(ws, 'Browser.setDownloadBehavior', {
+          behavior: 'allowAndName', downloadPath: outputDir,
+        });
+        await cdpCommand(ws, 'Page.navigate', { url });
+        console.log(`Download initiated: ${url} → ${outputDir}`);
+        break;
+      }
+      default:
+        console.error(`Unknown interact sub-command: ${subCmd}`);
+        console.error('Available: fill-form, handle-dialog, upload, download');
+    }
+  } finally {
+    if (ws?.readyState === WebSocket.OPEN) ws.close();
+  }
+}
+
+async function cmdWatch(tabId, intervalSec = 30) {
+  await ensureChrome();
+  const { ws } = await connectToTarget(tabId);
+  logCdpOp('watch', { tabId, interval: intervalSec });
+
+  let lastHash = null;
+  let changeCount = 0;
+
+  const tick = async () => {
+    try {
+      const state = await snapshotState(ws);
+      const hash = `${state.bodyLen}|${state.title}`;
+      if (lastHash && hash !== lastHash) {
+        changeCount++;
+        const domain = extractDomain(state.url);
+        console.log(`[${new Date().toISOString()}] CHANGED (#${changeCount}): ${state.title} (bodyLen: ${state.bodyLen})`);
+        logCdpOp('watch-change', { tabId, url: state.url, domain, changeCount });
+        getPageState(tabId).invalidate();
+      } else if (!lastHash) {
+        console.log(`[${new Date().toISOString()}] Watching: ${state.title} (interval: ${intervalSec}s)`);
+      }
+      lastHash = hash;
+    } catch (err) {
+      console.error(`[${new Date().toISOString()}] Watch error: ${err.message}`);
+    }
+  };
+
+  await tick(); // Initial check
+  const timer = setInterval(tick, intervalSec * 1000);
+
+  // Run indefinitely until process is killed
+  process.on('SIGINT', () => { clearInterval(timer); if (ws?.readyState === WebSocket.OPEN) ws.close(); process.exit(0); });
+  process.on('SIGTERM', () => { clearInterval(timer); if (ws?.readyState === WebSocket.OPEN) ws.close(); process.exit(0); });
+  // Keep alive
+  await new Promise(() => {});
+}
+
+async function cmdNetwork(tabId) {
+  await ensureChrome();
+  const { ws } = await connectToTarget(tabId);
+  logCdpOp('network', { tabId });
+
+  try {
+    await cdpCommand(ws, 'Network.enable', {});
+    let count = 0;
+
+    ws.addEventListener('message', (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.method === 'Network.requestWillBeSent') {
+          const p = msg.params;
+          if (p.type === 'XHR' || p.type === 'Fetch') {
+            count++;
+            const entry = {
+              ts: new Date().toISOString(),
+              method: p.request.method,
+              url: p.request.url.slice(0, 200),
+              type: p.type,
+            };
+            console.log(JSON.stringify(entry));
+            logCdpOp('network-request', { ...entry, domain: extractDomain(p.request.url) });
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    });
+
+    console.error(`Intercepting XHR/Fetch requests on tab ${tabId}... (Ctrl+C to stop)`);
+
+    process.on('SIGINT', () => { console.error(`\nCaptured ${count} request(s).`); if (ws?.readyState === WebSocket.OPEN) ws.close(); process.exit(0); });
+    process.on('SIGTERM', () => { if (ws?.readyState === WebSocket.OPEN) ws.close(); process.exit(0); });
+    // Keep alive
+    await new Promise(() => {});
+  } catch (err) {
+    console.error(`Network error: ${err.message}`);
     if (ws?.readyState === WebSocket.OPEN) ws.close();
   }
 }
@@ -617,18 +1273,18 @@ const [cmd, ...args] = process.argv.slice(2);
 // Parse flags
 const flags = {};
 const positional = [];
-for (const arg of args) {
+const flagsWithValue = new Set(['--offset', '--interval', '--until']);
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
   if (arg === '--full') flags.full = true;
   else if (arg === '--compact') flags.compact = true;
-  else if (arg.startsWith('--offset')) { /* handled next */ }
-  else if (args[args.indexOf(arg) - 1] === '--offset') flags.offset = parseInt(arg);
+  else if (arg === '--json') flags.json = true;
+  else if (flagsWithValue.has(arg) && i + 1 < args.length) { flags[arg.slice(2)] = args[++i]; }
+  else if (arg.match(/^--(offset|interval|until)=(.+)$/)) { const m = arg.match(/^--(\w+)=(.+)$/); flags[m[1]] = m[2]; }
   else positional.push(arg);
 }
-// Handle --offset=N format
-for (const arg of args) {
-  const m = arg.match(/^--offset[= ](\d+)$/);
-  if (m) flags.offset = parseInt(m[1]);
-}
+if (flags.offset) flags.offset = parseInt(flags.offset);
+if (flags.interval) flags.interval = parseInt(flags.interval);
 
 try {
   switch (cmd) {
@@ -674,33 +1330,58 @@ try {
       await cmdType(positional[0], positional[1], positional.slice(2).join(' '));
       break;
     case 'scroll':
-      if (!positional[0]) { console.error('Usage: cdp-fetch.mjs scroll <tabId> [down|up|N]'); process.exit(1); }
-      await cmdScroll(positional[0], positional[1]);
+      if (!positional[0]) { console.error('Usage: cdp-fetch.mjs scroll <tabId> [down|up|N] [--until "text"]'); process.exit(1); }
+      await cmdScroll(positional[0], positional[1], flags.until || null);
+      break;
+    case 'interact':
+      if (!positional[0] || !positional[1]) { console.error('Usage: cdp-fetch.mjs interact <sub-cmd> <tabId> [args...]'); process.exit(1); }
+      await cmdInteract(positional[0], positional[1], positional.slice(2));
+      break;
+    case 'watch':
+      if (!positional[0]) { console.error('Usage: cdp-fetch.mjs watch <tabId> [--interval 30]'); process.exit(1); }
+      await cmdWatch(positional[0], flags.interval || 30);
+      break;
+    case 'network':
+      if (!positional[0]) { console.error('Usage: cdp-fetch.mjs network <tabId>'); process.exit(1); }
+      await cmdNetwork(positional[0]);
+      break;
+    case 'inspect':
+      if (!positional[0]) { console.error('Usage: cdp-fetch.mjs inspect <tabId>'); process.exit(1); }
+      await cmdInspect(positional[0]);
       break;
     case 'cleanup':
       await cmdCleanup();
       break;
     default:
-      console.log('cdp-fetch — Chrome browser tool (CDP, zero dependencies)');
+      console.log('cdp-fetch — Chrome browser tool with Web Intelligence (CDP, zero dependencies)');
       console.log('');
       console.log('Content:');
-      console.log('  fetch <url> [--full|--offset N]   Fetch page content');
-      console.log('  screenshot <url> [output.png]     Screenshot a page');
-      console.log('  open <url>                        Open visible tab');
-      console.log('  extract <tabId>                   Extract content from tab');
-      console.log('  close <tabId>                     Close a tab');
+      console.log('  fetch <url> [--full|--offset N]       Fetch page content');
+      console.log('  screenshot <url> [output.png]         Screenshot a page');
+      console.log('  open <url>                            Open visible tab');
+      console.log('  extract <tabId>                       Extract content from tab');
+      console.log('  close <tabId>                         Close a tab');
       console.log('');
       console.log('Chrome management:');
-      console.log('  status                            Chrome status + open tabs');
-      console.log('  cleanup                           Close all blank tabs');
-      console.log('  login [url]                       Switch to visible for login');
-      console.log('  headless                          Switch back to headless');
+      console.log('  status                                Chrome status + open tabs');
+      console.log('  cleanup                               Close all blank tabs');
+      console.log('  login [url]                           Switch to visible for login');
+      console.log('  headless                              Switch back to headless');
       console.log('');
-      console.log('Interact:');
-      console.log('  eval <tabId> <js>                 Run JavaScript in tab');
-      console.log('  click <tabId> <selector>          Click element');
-      console.log('  type <tabId> <selector> <text>    Type into element');
-      console.log('  scroll <tabId> [down|up|N]        Scroll page');
+      console.log('Interact (self-healing + verify):');
+      console.log('  eval <tabId> <js>                     Run JavaScript in tab');
+      console.log('  click <tabId> <selector>              Click element (a11y self-heal)');
+      console.log('  type <tabId> <selector> <text>        Type into element (a11y self-heal)');
+      console.log('  scroll <tabId> [down|up|N] [--until]  Scroll (smart-scroll with target)');
+      console.log('');
+      console.log('Intelligence:');
+      console.log('  inspect <tabId>                       Semantic page analysis (a11y tree)');
+      console.log('  interact fill-form <tabId> <json>     Auto-fill form fields');
+      console.log('  interact handle-dialog <tabId>        Handle JS dialogs');
+      console.log('  interact upload <tabId> <sel> <file>  Upload file');
+      console.log('  interact download <url> [outputDir]   Download via CDP');
+      console.log('  watch <tabId> [--interval 30]         Monitor page changes');
+      console.log('  network <tabId>                       Intercept XHR/Fetch requests');
       console.log('');
       console.log('Chrome auto-starts headless on first use. Profile persists logins.');
       console.log(`Profile: ${PROFILE_DIR}`);
