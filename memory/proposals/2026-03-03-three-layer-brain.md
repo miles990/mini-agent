@@ -23,10 +23,11 @@ Layer 1: mushi (HC1 8B) — 脊髓/觸手
   ‣ 不分析、不判斷、不寫 report
   ‣ 輸出：JSONL append-only（crash-safe）
 
-Layer 2: Midbrain (Gemini 2.5 Flash API) — 消化層
+Layer 2: Midbrain (Gemini 2.5 Flash API) — 格式轉換層
   ‣ Batch 處理 mushi 的 JSONL 紀錄
   ‣ 每 5 min 或累積 N 條時觸發
-  ‣ 輸出：scout-digest.md（結構化摘要）
+  ‣ 核心職責：格式轉換（≠ 摘要）— 保留所有資訊，重新組織成 Kuro 能快速理解的格式
+  ‣ 輸出：scout-digest.md
   ‣ Fire-and-forget，不阻塞任何東西
 
 Layer 3: Kuro (Claude) — 大腦
@@ -42,7 +43,7 @@ HC1 8B 推理深度有限 → 原始觀察品質粗糙。如果 mushi 直接寫 
 | 層 | 模型 | 成本 | 速度 | 能力 | 職責 |
 |----|------|------|------|------|------|
 | mushi | HC1 8B | ~免費 | ~17ms | 模式匹配 | 記錄觀察 |
-| Midbrain | Gemini 2.5 Flash | $0.15/1M in | 245 t/s | 結構化整理 + 內建 thinking | 消化紀錄 |
+| Midbrain | Gemini 2.5 Flash | $0.15/1M in | 245 t/s | 格式轉換 + 內建 thinking | 格式轉換（非摘要） |
 | Kuro | Claude | 貴 | — | 深度推理 | 決策行動 |
 
 ### 為什麼 Gemini 2.5 Flash
@@ -99,7 +100,31 @@ async function runMidbrain() {
 
 Model-agnostic interface: `callMidbrain()` 接受 JSONL string、回傳 digest string。底層用 Gemini 2.5 Flash API（Google AI Studio），日後可替換。
 
-Prompt 重點：把原始觀察整理成 Kuro 可直接使用的格式（摘要 + 趨勢 + 建議優先順序）。
+Prompt 重點：**格式轉換**（非摘要）。摘要 = 壓縮 = 丟資訊。格式轉換 = 資訊量不變，從時間序列重組為按行動優先度分類。
+
+**scout-digest 輸出格式**：
+
+```
+## Scout Digest (10:05, 覆蓋 10:00-10:05, 23 events)
+
+🔴 NEEDS ACTION
+- alex@room: 「測試一下」 [03-033]
+- telegram: alex 問「部署好了嗎？」
+
+🟡 CHANGED (since last digest)
+- workspace: src/loop.ts +3L, src/mode.ts +1L → typecheck ✓
+- github: PR #67 CI passed, 0 review
+
+⚪ STABLE
+- mushi: 8/12 skipped, 4 wake (all workspace triggers)
+- system: uptime 4h, 0 errors, TG 14/0
+```
+
+設計原則：
+- 🔴 讓 Kuro 0.5 秒知道「有人在等我」— 直接決定 cycle 做什麼
+- 🟡 告訴環境怎麼動了 — 不用自己 diff
+- ⚪ 一行確認「其他東西沒壞」— 安心跳過
+- Header 標註新鮮度和覆蓋範圍（`覆蓋 X-Y, N events`）
 
 **5. buildContext 整合** — 新增 `<scout-digest>` section
 
@@ -122,7 +147,7 @@ runMidbrain().catch(() => {}); // fire-and-forget，跟 feedback loops 同層
 ## 安全護欄
 
 1. **mushi 離線 = 無 scout-digest = Kuro 照常運作**（零退化）
-2. **Haiku 失敗 = scout-digest 不更新 = 用舊的**（graceful degradation）
+2. **Midbrain 失敗 = scout-digest 不更新 = 用舊的**（graceful degradation）
 3. **Feature flag**: `mushi-scout`（mushi 端）+ `midbrain`（mini-agent 端）
 4. **JSONL ring buffer** — 保留最近 1000 條，防無限增長
 5. **Midbrain output cap** — scout-digest.md 限制 2000 chars
@@ -130,18 +155,18 @@ runMidbrain().catch(() => {}); // fire-and-forget，跟 feedback loops 同層
 ## 驗證計劃
 
 1. **Phase 1**: mushi scout loop 獨立運作，只寫 JSONL，不觸發 midbrain
-2. **Phase 2**: Midbrain 讀 JSONL + Haiku 消化，scout-digest 寫入但不載入 context
+2. **Phase 2**: Midbrain 讀 JSONL + Gemini Flash 格式轉換，scout-digest 寫入但不載入 context
 3. **Phase 3**: buildContext 載入 scout-digest，觀察 Kuro 決策品質是否提升
 
 ## Acceptance Criteria
 
 - [ ] mushi scout loop 每 30-60s 產出 JSONL 記錄
 - [ ] JSONL ring buffer 正常運作（≤1000 條）
-- [ ] Midbrain Haiku subprocess 可讀取 JSONL 並產出 scout-digest.md
+- [ ] Midbrain (Gemini Flash) 可讀取 JSONL 並產出 scout-digest.md（🔴🟡⚪ 三層格式）
 - [ ] buildContext 載入 `<scout-digest>` section
 - [ ] Feature flags 可獨立開關
 - [ ] mushi 離線時零退化
-- [ ] Haiku 失敗時 graceful degradation
+- [ ] Midbrain 失敗時 graceful degradation
 
 ## Expected Impact
 
