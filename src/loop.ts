@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { callClaude, preemptLoopCycle, isLoopBusy, bumpLoopGeneration } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, bumpLoopGeneration } from './agent.js';
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -381,9 +381,8 @@ export class AgentLoop {
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
 
-  // ── Quick Reply (parallel response during cycling) ──
-  private quickReplyInFlight = false;
-  private quickReplyRecord: { question: string; answer: string; source: string; ts: string } | null = null;
+  // ── Foreground Reply (parallel response during cycling — replaces quickReply) ──
+  private foregroundReplyRecord: { question: string; answer: string; source: string; ts: string } | null = null;
 
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
@@ -481,7 +480,7 @@ export class AgentLoop {
       const text = (agentEvent.data?.text as string) ?? '';
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
       if (text) {
-        this.quickReply(event.source, text, roomMsgId).catch(() => {});
+        this.foregroundReply(event.source, text, roomMsgId).catch(() => {});
       }
     }
 
@@ -540,17 +539,16 @@ export class AgentLoop {
   }
 
   /**
-   * Quick Reply — parallel response while a cycle is in progress.
-   * Uses minimal context (same as /api/ask) to reply immediately without
-   * interrupting the current cycle. Fire-and-forget.
+   * Foreground Reply — independent lane for DM response while a cycle is in progress.
+   * Uses focused context (richer than old quickReply) via callClaude with source='foreground'.
+   * The foreground lane has its own busy tracking in agent.ts, independent of the loop lane.
    */
-  private async quickReply(source: string, text: string, replyTo?: string): Promise<void> {
-    if (this.quickReplyInFlight) return; // one at a time
-    this.quickReplyInFlight = true;
+  private async foregroundReply(source: string, text: string, replyTo?: string): Promise<void> {
+    if (isForegroundBusy()) return; // one at a time — tracked by agent.ts
 
     try {
       const memory = getMemory();
-      let context = await memory.buildContext({ mode: 'minimal' });
+      let context = await memory.buildContext({ mode: 'focused' });
 
       // Topic memory — keyword-matched topic loading (same as OODA, budget-capped)
       const topicContext = await memory.loadTopicsForQuery(text);
@@ -563,12 +561,6 @@ export class AgentLoop {
       if (ftsResults.length > 0) {
         const relevantEntries = ftsResults.map(r => `[${r.source}] ${r.content}`).join('\n');
         context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;
-      }
-
-      // Append MEMORY.md excerpt (fallback: FTS5 may not index everything)
-      const memContent = await readMemory();
-      if (memContent) {
-        context += `\n\n<memory>\n${memContent.slice(0, 2000)}\n</memory>`;
       }
 
       // Append today's recent chat room messages
@@ -596,17 +588,15 @@ export class AgentLoop {
         }
       } catch { /* perception not available */ }
 
-      // Reserved mode: include working memory
-      if (getMode().mode === 'reserved') {
-        const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-        try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim()}\n</inner_notes>`; } catch {}
-        const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
-        try { const c = fs.readFileSync(trackingPath, 'utf-8'); if (c.trim()) context += `\n\n<tracking_notes>\n${c.trim()}\n</tracking_notes>`; } catch {}
-      }
+      // Working memory (all modes, not just reserved)
+      const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+      try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim()}\n</inner_notes>`; } catch {}
+      const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
+      try { const c = fs.readFileSync(trackingPath, 'utf-8'); if (c.trim()) context += `\n\n<tracking_notes>\n${c.trim()}\n</tracking_notes>`; } catch {}
 
-      context += `\n\n<quick_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是快速回覆模式——直接對話回應，不需要做 OODA 分析。你的深度思考會繼續進行，之後有需要補充的可以再說。\n</quick_reply_mode>`;
+      context += `\n\n<foreground_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。直接對話回應，之後有需要補充的可以再說。\n</foreground_reply_mode>`;
 
-      const { response } = await callClaude(text, context, 1, { source: 'ask' });
+      const { response } = await callClaude(text, context, 1, { source: 'foreground' });
 
       // Parse tags, extract clean content
       const tags = parseTags(response);
@@ -636,14 +626,12 @@ export class AgentLoop {
       await writeRoomMessage('kuro', answer, replyTo);
 
       // Record for next cycle awareness
-      this.quickReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString() };
+      this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString() };
 
-      slog('LOOP', `[quick-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
-      eventBus.emit('action:loop', { event: 'quick-reply', source, answerLength: answer.length });
+      slog('LOOP', `[foreground-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
+      eventBus.emit('action:loop', { event: 'foreground-reply', source, answerLength: answer.length });
     } catch (err) {
-      slog('ERROR', `[quick-reply] Failed: ${err instanceof Error ? err.message : err}`);
-    } finally {
-      this.quickReplyInFlight = false;
+      slog('ERROR', `[foreground-reply] Failed: ${err instanceof Error ? err.message : err}`);
     }
   }
 
@@ -674,9 +662,9 @@ export class AgentLoop {
     if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
       if (this.cycling) {
-        // Loop busy → quickReply (parallel, lightweight, non-blocking)
-        slog('LOOP', `[dm-route] ${event.source} → quickReply (loop cycling)`);
-        this.quickReply(event.source, messageText, roomMsgId).catch(() => {});
+        // Loop busy → foreground lane (parallel, independent, non-blocking)
+        slog('LOOP', `[dm-route] ${event.source} → foreground (loop cycling)`);
+        this.foregroundReply(event.source, messageText, roomMsgId).catch(() => {});
         return;
       }
       // Loop idle → full OODA cycle
@@ -709,7 +697,7 @@ export class AgentLoop {
   /**
    * mushi instant routing — three-tier progressive response:
    * T1: mushi instant-reply (~1-2s, fire-and-forget) → quick ack to Telegram
-   * T2: triage decides depth — instant → quickReply (~15s) / wake → OODA (~30-300s)
+   * T2: triage decides depth — instant → foreground (~15s) / wake → OODA (~30-300s)
    */
   private async mushiInstantRoute(source: string, text: string, replyTo?: string): Promise<void> {
     // T1 instant-reply removed — low-quality mushi responses created noise
@@ -732,10 +720,10 @@ export class AgentLoop {
       const result = await res.json() as { action?: string; reason?: string; latencyMs?: number };
 
       if (result.action === 'instant') {
-        slog('MUSHI', `⚡ instant: ${source} → quickReply (${result.latencyMs}ms) — ${result.reason}`);
+        slog('MUSHI', `⚡ instant: ${source} → foreground (${result.latencyMs}ms) — ${result.reason}`);
         eventBus.emit('log:info', { tag: 'mushi-instant', msg: `${source} → instant (${result.latencyMs}ms) — ${result.reason}`, source, latencyMs: result.latencyMs, reason: result.reason });
-        // T2: quickReply for deeper response (Claude /api/ask)
-        await this.quickReply(source, text, replyTo);
+        // T2: foreground reply for deeper response (independent lane)
+        await this.foregroundReply(source, text, replyTo);
         return;
       }
 
@@ -1076,9 +1064,9 @@ export class AgentLoop {
             detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
             decay_h: 24,
           });
-          // Use quickReply path — minimal context (~5K tokens, 5-15s)
+          // Use foreground lane — focused context for quick cycle
           const triggerText = `[Quick cycle — trigger: ${reason}] 這是輕量 cycle，用快取感知資料快速檢查。如有需要行動的事項就處理，沒有就簡短確認狀態。不需要完整 OODA 分析。`;
-          await this.quickReply(triageSource, triggerText);
+          await this.foregroundReply(triageSource, triggerText);
           this.lastCycleTime = Date.now();
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
@@ -1258,11 +1246,11 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
-      // Quick Reply record: if a parallel reply was sent during the previous cycle
-      const quickReplySuffix = this.quickReplyRecord
-        ? `\n\nDuring your previous cycle, a ${this.quickReplyRecord.source} message arrived and was answered via quick-reply (parallel, lightweight). Question: "${this.quickReplyRecord.question.slice(0, 200)}" → Your quick answer: "${this.quickReplyRecord.answer.slice(0, 200)}". Only follow up if you have something substantive to add.`
+      // Foreground Reply record: if a parallel reply was sent during the previous cycle
+      const foregroundReplySuffix = this.foregroundReplyRecord
+        ? `\n\nDuring your previous cycle, a ${this.foregroundReplyRecord.source} message arrived and was answered via foreground lane (parallel, independent). Question: "${this.foregroundReplyRecord.question.slice(0, 200)}" → Your foreground answer: "${this.foregroundReplyRecord.answer.slice(0, 200)}". Only follow up if you have something substantive to add.`
         : '';
-      this.quickReplyRecord = null; // one-shot
+      this.foregroundReplyRecord = null; // one-shot
 
       // Rule-based triage from unified inbox（零 LLM 成本）
       // Re-use inboxItemsEarly — already read above for inbox-recovery check
@@ -1331,7 +1319,7 @@ export class AgentLoop {
         : '';
       if (this.workJournalContext) this.workJournalContext = null; // one-shot: 用完即清
 
-      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + quickReplySuffix + hesitationReviewSuffix + workJournalSuffix;
+      const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
