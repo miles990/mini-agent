@@ -1,3 +1,6 @@
+---
+keywords: [mockus, huizinga, garden, homo ludens, ireland, ubi, basic income, amanuensis, jacobson, nabokov, tolstoy, olmec, stela, baez, literary labor, fluorite, dan koe, spiral dynamics, randall, fallow, kanchipuram, barbed wire, trust]
+---
 # social-culture
 
 <!-- 整理於 2026-02-13, 精煉 2026-02-28 -->

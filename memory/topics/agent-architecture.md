@@ -1,3 +1,7 @@
+---
+keywords: [autogpt, babyagi, langchain, crewai, context engineering, framework, openviking, memskill, coderlm, manus, smolagents, openclaw, ooda, perception-driven, multi-agent, agent framework, docker, ollama, openrouter, benchmark, model comparison, deobald, telnet, greynoise, pahud, netnewswire, winter, neurosymbolic, datalog, lemmer-webber, ace, total recall, write gate, skillsbench, gemini, gpt, deep think, codex-spark, agentic, opc-skills, seo-geo, apptopia, memory system]
+negative_keywords: [anthropic]
+---
 # agent-architecture
 
 ## 信任架構

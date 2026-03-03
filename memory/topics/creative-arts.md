@@ -1,3 +1,6 @@
+---
+keywords: [oulipo, marker, eno, stockhausen, fischinger, visual music, dälek, hayward, hip-hop, shoegaze, semantic ablation, contact improvisation, generative art, nastruzzi, music, song, unseen, ablation, mmaevedo, footwork, živa píseň, reaction-diffusion]
+---
 # creative-arts
 
 <!-- 精煉 2026-02-28 -->
