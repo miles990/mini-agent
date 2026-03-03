@@ -14,6 +14,7 @@ import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
 import { getMode } from './mode.js';
+import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest } from './types.js';
 import { spawnDelegation } from './delegation.js';
 
@@ -143,6 +144,31 @@ export async function logPendingImprovement(entry: {
   const filePath = path.join(instanceDir, 'pending-improvements.jsonl');
   const line = JSON.stringify(entry) + '\n';
   await fs.appendFile(filePath, line, 'utf-8');
+}
+
+// =============================================================================
+// Mushi Dedup — REMEMBER 寫入前查重（fail-open）
+// =============================================================================
+
+const MUSHI_DEDUP_URL = 'http://localhost:3000/api/dedup';
+
+async function mushiDedup(
+  text: string,
+  existing: string[],
+): Promise<{ isDuplicate: boolean; similarity: number; matchedEntry?: string } | null> {
+  if (existing.length === 0) return null;
+  try {
+    const res = await fetch(MUSHI_DEDUP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, existing }),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    return await res.json() as { isDuplicate: boolean; similarity: number; matchedEntry?: string };
+  } catch {
+    return null; // fail-open: mushi 離線 → 正常寫入
+  }
 }
 
 // =============================================================================
@@ -468,6 +494,19 @@ export async function postProcess(
 
   // 3. Process tags
   for (const rem of tags.remembers) {
+    // Dedup check — ask mushi if this is a near-duplicate
+    if (isEnabled('mushi-dedup')) {
+      const existing = rem.topic
+        ? await memory.getRecentTopicBullets(rem.topic, 20)
+        : await memory.getRecentMemoryBullets(20);
+      const dedup = await mushiDedup(rem.content, existing);
+      if (dedup?.isDuplicate) {
+        slog('DEDUP', `SKIP (${dedup.similarity.toFixed(2)}) — matched: ${dedup.matchedEntry?.slice(0, 60)}`);
+        eventBus.emit('log:info', { tag: 'dedup', msg: `skipped: ${rem.content.slice(0, 60)}`, ...dedup });
+        continue;
+      }
+    }
+
     if (rem.topic) {
       await memory.appendTopicMemory(rem.topic, rem.content, rem.ref);
     } else {

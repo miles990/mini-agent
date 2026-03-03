@@ -947,6 +947,18 @@ export class InstanceMemory {
     }
   }
 
+  /** Extract recent bullet entries from MEMORY.md (for dedup comparison) */
+  async getRecentMemoryBullets(limit = 20): Promise<string[]> {
+    const content = await this.readMemory();
+    return content.split('\n').filter(l => l.startsWith('- ')).slice(-limit);
+  }
+
+  /** Extract recent bullet entries from topics/{topic}.md (for dedup comparison) */
+  async getRecentTopicBullets(topic: string, limit = 20): Promise<string[]> {
+    const content = await this.readTopicMemory(topic);
+    return content.split('\n').filter(l => l.startsWith('- ')).slice(-limit);
+  }
+
   /**
    * Load topic memories matching a query string (keyword matching).
    * Reusable for quickReply, /api/ask, or any context that needs topic enrichment.
