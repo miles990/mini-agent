@@ -1537,6 +1537,18 @@ export class AgentLoop {
         memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
       }
 
+      // <kuro:inner> tag — working memory (cross-cycle scratch pad)
+      if (tags.inner) {
+        const mode = getMode();
+        if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
+          const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
+          const tmpPath = innerPath + '.tmp';
+          fs.writeFileSync(tmpPath, tags.inner, 'utf-8');
+          fs.renameSync(tmpPath, innerPath);
+          slog('INNER', `Working memory updated (${mode.mode})`);
+        }
+      }
+
       // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
       // Must run BEFORE action:chat emission to prevent duplicate sends
       let didReplyToTelegram = false;
