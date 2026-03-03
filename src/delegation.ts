@@ -16,6 +16,7 @@ import path from 'node:path';
 import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
+import type { DelegationTaskType } from './types.js';
 
 // =============================================================================
 // Types
@@ -23,12 +24,14 @@ import { eventBus } from './event-bus.js';
 
 export interface DelegationTask {
   id?: string;
+  type?: DelegationTaskType;
   prompt: string;
   workdir: string;
   maxTurns?: number;
   timeoutMs?: number;
   verify?: string[];
   allowedTools?: string[];
+  context?: string;
 }
 
 export interface VerifyResult {
@@ -39,6 +42,7 @@ export interface VerifyResult {
 
 export interface TaskResult {
   id: string;
+  type?: DelegationTaskType;
   status: 'running' | 'completed' | 'failed' | 'timeout';
   startedAt: string;
   completedAt?: string;
@@ -58,6 +62,15 @@ const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
+
+// Type-specific defaults for non-code delegation tasks
+const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number }> = {
+  code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000 },
+  learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000 },
+  research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000 },
+  create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000 },
+  review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000 },
+};
 
 // =============================================================================
 // State
@@ -86,10 +99,12 @@ function getDelegationDir(taskId: string): string {
 export function spawnDelegation(task: DelegationTask): string {
   const taskId = task.id ?? `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-  // Enforce hard caps
-  const maxTurns = Math.min(task.maxTurns ?? DEFAULT_TURNS, MAX_TURNS_CAP);
-  const timeoutMs = Math.min(task.timeoutMs ?? DEFAULT_TIMEOUT, MAX_TIMEOUT_CAP);
-  const allowedTools = task.allowedTools ?? DEFAULT_TOOLS;
+  // Resolve type-specific defaults
+  const taskType = task.type ?? 'code';
+  const typeDefaults = TYPE_DEFAULTS[taskType];
+  const maxTurns = Math.min(task.maxTurns ?? typeDefaults.maxTurns, MAX_TURNS_CAP);
+  const timeoutMs = Math.min(task.timeoutMs ?? typeDefaults.timeoutMs, MAX_TIMEOUT_CAP);
+  const allowedTools = task.allowedTools ?? typeDefaults.tools;
 
   // Resolve workdir (expand ~)
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
@@ -177,16 +192,22 @@ function startTask(task: DelegationTask): void {
 
   const result: TaskResult = {
     id: taskId,
+    type: task.type ?? 'code',
     status: 'running',
     startedAt: new Date().toISOString(),
     output: '',
   };
 
+  // Build prompt — prepend context if provided
+  const fullPrompt = task.context
+    ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
+    : task.prompt;
+
   // Build Claude CLI args
   // --setting-sources user: skip project CLAUDE.md to prevent identity confusion
   // --append-system-prompt: explicitly define subprocess as a task executor (no agent identity)
   const args = [
-    '-p', task.prompt,
+    '-p', fullPrompt,
     '--no-input',
     '--max-turns', String(task.maxTurns),
     '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
@@ -199,11 +220,7 @@ function startTask(task: DelegationTask): void {
   const child = spawn('claude', args, {
     cwd: task.workdir,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: {
-      ...process.env,
-      // Prevent subprocess from reading agent identity
-      MINI_AGENT_DELEGATION: '1',
-    },
+    env: { ...process.env },
   });
 
   activeTasks.set(taskId, { process: child, result });
@@ -272,6 +289,9 @@ function startTask(task: DelegationTask): void {
     activeTasks.delete(taskId);
     completedTasks.set(taskId, result);
 
+    // Write to lane-output/ for main cycle consumption
+    writeLaneOutput(result);
+
     const verifyStr = result.verifyResults
       ? ` (${result.verifyResults.filter(v => v.passed).length}/${result.verifyResults.length} verify passed)`
       : '';
@@ -299,6 +319,21 @@ function startTask(task: DelegationTask): void {
 
     dequeueNext();
   });
+}
+
+/**
+ * Write task result to lane-output/ for main cycle consumption.
+ */
+function writeLaneOutput(result: TaskResult): void {
+  try {
+    const instanceId = getCurrentInstanceId();
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
+    fs.mkdirSync(laneDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(laneDir, `${result.id}.json`),
+      JSON.stringify(result, null, 2)
+    );
+  } catch { /* best effort */ }
 }
 
 function dequeueNext(): void {

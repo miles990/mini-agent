@@ -85,6 +85,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await', defaultEnabled: false },
+  { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess', defaultEnabled: false },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

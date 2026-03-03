@@ -285,10 +285,14 @@ export interface CreativeImpulse {
   expressedAt?: string;   // 被表達的時間
 }
 
+/** Delegation task types */
+export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review';
+
 /** Delegation 請求（從 <kuro:delegate> tag 解析） */
 export interface DelegateRequest {
   prompt: string;
   workdir: string;
+  type?: DelegationTaskType;
   maxTurns?: number;
   verify?: string[];
 }
