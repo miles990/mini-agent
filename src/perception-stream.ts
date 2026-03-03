@@ -222,6 +222,19 @@ class PerceptionStreamManager {
   }
 
   /**
+   * Count how many perception sections changed since last context build.
+   * More changes = more likely the next cycle will be productive.
+   */
+  getChangedCount(): number {
+    let count = 0;
+    for (const [name, entry] of this.streams) {
+      if (!entry.hash) continue;
+      if (this.lastBuildHashes.get(name) !== entry.hash) count++;
+    }
+    return count;
+  }
+
+  /**
    * Get detailed status for all perception streams (for dashboard/API).
    */
   getStatus(): Array<{

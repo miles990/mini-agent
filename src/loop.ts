@@ -704,8 +704,9 @@ export class AgentLoop {
       } else {
         metadata.lastActionType = 'none';
       }
-      // Whether perceptions changed since last build
+      // Perception change signals — count is more useful than boolean for triage
       metadata.perceptionChanged = perceptionStreams.version !== this.lastPerceptionVersion;
+      metadata.perceptionChangedCount = perceptionStreams.getChangedCount();
       // Cycle count for context
       metadata.cycleCount = this.cycleCount;
 
