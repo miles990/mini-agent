@@ -86,6 +86,7 @@ const FEATURES: FeatureInfo[] = [
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },
+  { name: 'streaming-notify',  group: 'notification', description: 'Use sendMessageDraft for progressive message streaming (Bot API 9.3+)' },
 ];
 
 const featureMap = new Map<string, FeatureInfo>(FEATURES.map(f => [f.name, f]));

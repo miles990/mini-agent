@@ -325,11 +325,11 @@ export class TelegramPoller {
       return this.sendMessage(text, parseMode, options?.replyToMessageId);
     }
 
-    // Stream drafts (all except the last — that becomes the final message)
+    // Stream drafts as plain text (partial Markdown with unclosed * or ** will fail)
     let accumulated = '';
     for (let i = 0; i < sentences.length - 1; i++) {
       accumulated += (accumulated ? ' ' : '') + sentences[i];
-      const result = await this.sendMessageDraft(draftId, accumulated, parseMode || undefined);
+      const result = await this.sendMessageDraft(draftId, accumulated);
       if (!result.ok) {
         // Draft failed — fall back to direct send
         slog('TELEGRAM', `Draft streaming failed at chunk ${i}, falling back to sendMessage`);
@@ -338,7 +338,7 @@ export class TelegramPoller {
       await new Promise(r => setTimeout(r, delay));
     }
 
-    // Final message — persists the full text
+    // Final message — persists the full text with formatting
     return this.sendMessage(text, parseMode, options?.replyToMessageId);
   }
 
@@ -1313,6 +1313,16 @@ function splitIntoSentences(text: string): string[] {
  */
 export async function notifyTelegram(message: string, replyToMessageId?: number): Promise<boolean> {
   if (!isEnabled('telegram-notify')) return false;
+
+  // Use streaming for longer messages when feature is enabled (Bot API 9.3+)
+  if (isEnabled('streaming-notify') && message.length >= 200) {
+    try {
+      return await notifyTelegramStreaming(message, { replyToMessageId });
+    } catch {
+      // Streaming failed — fall through to regular path
+    }
+  }
+
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 
@@ -1364,20 +1374,17 @@ export async function notifyTelegramStreaming(
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 
-  // For short messages, just send directly
-  if (message.length < 200) {
-    return notifyTelegram(message, options?.replyToMessageId);
-  }
-
-  // Split by paragraphs, stream each paragraph
-  const paragraphs = message.split(/\n\n+/).filter(c => c.trim());
+  // Split by paragraphs, then pre-split oversized paragraphs
+  const rawChunks = message.split(/\n\n+/).filter(c => c.trim());
+  const chunks = rawChunks.flatMap(c => c.length > 4000 ? smartSplitText(c, 4000) : [c]);
   let allOk = true;
 
-  for (let i = 0; i < paragraphs.length; i++) {
-    const chunk = paragraphs[i];
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
     const replyId = i === 0 ? options?.replyToMessageId : undefined;
 
     const result = await poller.sendStreamingMessage(chunk, {
+      parseMode: 'Markdown',
       chunkDelay: options?.chunkDelay ?? 80,
       replyToMessageId: replyId,
     });
@@ -1385,9 +1392,23 @@ export async function notifyTelegramStreaming(
     if (result.ok) {
       notifSent++;
     } else {
-      notifFailed++;
-      allOk = false;
+      // Retry with plain text, no streaming
+      await new Promise(r => setTimeout(r, 1000));
+      const retry = await poller.sendMessage(chunk, '', replyId);
+      if (retry.ok) {
+        notifSent++;
+      } else {
+        slog('TELEGRAM', `Streaming notification failed: ${retry.error} [${chunk.slice(0, 60)}]`);
+        notifFailed++;
+        allOk = false;
+        queueFailedNotification(chunk);
+      }
     }
+  }
+
+  // On success, attempt to drain queued notifications (fire-and-forget)
+  if (allOk) {
+    drainNotificationQueue(poller).catch(() => {});
   }
 
   return allOk;

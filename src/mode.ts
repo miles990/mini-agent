@@ -83,6 +83,7 @@ const MODES: Record<ModeName, ModeDefinition> = {
       'auto-push': true,
       'approved-proposals': true,
       'telegram-notify': true,
+      'streaming-notify': true,
       'coach': true,
       'commitment-binding': true,
       'mushi-triage': true,
