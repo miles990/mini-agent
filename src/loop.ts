@@ -178,6 +178,79 @@ function loadWorkJournal(limit: number = 5): WorkJournalEntry[] {
   } catch { return []; }
 }
 
+// =============================================================================
+// Trail — Shared Attention History (黏菌 Chemical Gradient)
+// =============================================================================
+
+interface TrailEntry {
+  ts: string;
+  agent: 'kuro' | 'mushi';
+  type: 'focus' | 'cite' | 'triage' | 'scout';
+  decision?: 'wake' | 'skip';
+  topics: string[];
+  detail: string;
+  decay_h: number;
+}
+
+const TRAIL_MAX_ENTRIES = 500; // ~24h at normal cycle rate
+
+function getTrailPath(): string {
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  return path.join(homeDir, '.mini-agent', 'trail.jsonl');
+}
+
+function writeTrailEntry(entry: TrailEntry): void {
+  const filePath = getTrailPath();
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
+
+    // Ring buffer: trim to TRAIL_MAX_ENTRIES
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    if (lines.length > TRAIL_MAX_ENTRIES) {
+      fs.writeFileSync(filePath, lines.slice(-TRAIL_MAX_ENTRIES).join('\n') + '\n', 'utf-8');
+    }
+  } catch { /* fire-and-forget */ }
+}
+
+function extractTrailTopics(
+  triggerReason: string | null,
+  topicList: string[],
+  sideEffects: string[],
+  action: string | null,
+): string[] {
+  const topics = new Set<string>();
+
+  // From trigger reason (e.g., "telegram-user", "workspace", "heartbeat:cron")
+  if (triggerReason) {
+    const triggerBase = triggerReason.split(/[:\s]/)[0];
+    if (triggerBase) topics.add(triggerBase);
+  }
+
+  // From remember topics
+  for (const t of topicList) topics.add(t);
+
+  // From side effects (e.g., "remember:mushi", "chat:...")
+  for (const se of sideEffects) {
+    const [type, target] = se.split(':');
+    if (type === 'remember' && target) topics.add(target);
+  }
+
+  // From action text — extract mentioned topic-like keywords
+  if (action) {
+    const knownTopics = ['mushi', 'portfolio', 'inner-voice', 'x-twitter', 'github', 'devto', 'learning'];
+    for (const kw of knownTopics) {
+      if (action.toLowerCase().includes(kw)) topics.add(kw);
+    }
+  }
+
+  return [...topics];
+}
+
 function formatWorkJournalContext(entries: WorkJournalEntry[]): string {
   const lines = entries.map(e => {
     const tagsStr = e.tags.length > 0 ? ` [${e.tags.join(',')}]` : '';
@@ -1553,6 +1626,23 @@ export class AgentLoop {
         action,
         topics: touchedTopics,
       }).catch(() => {});
+
+      // ── Write Trail Entry (fire-and-forget, shared attention history) ──
+      {
+        const trailTopics = extractTrailTopics(currentTriggerReason, topicList, cycleSideEffects, action);
+        const detailParts: string[] = [];
+        if (currentTriggerReason) detailParts.push(`trigger: ${currentTriggerReason}`);
+        if (action) detailParts.push(`decision: ${action.slice(0, 200)}`);
+        if (cycleTagsProcessed.length > 0) detailParts.push(`tags: ${cycleTagsProcessed.join(',')}`);
+        writeTrailEntry({
+          ts: new Date().toISOString(),
+          agent: 'kuro',
+          type: 'focus',
+          topics: trailTopics,
+          detail: detailParts.join('; '),
+          decay_h: 24,
+        });
+      }
 
       // ── Telegram Reply fallback（telegram-user 但無 <kuro:chat> tag → 用 cleanContent） ──
       // Use didReplyToTelegram instead of tags.chats.length === 0 because chats are
