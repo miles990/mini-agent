@@ -285,6 +285,7 @@ function startChrome(headless = true) {
   const args = [
     `--remote-debugging-port=${CDP_PORT}`,
     `--user-data-dir=${PROFILE_DIR}`,
+    '--profile-directory=Default',
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-background-timer-throttling',
@@ -455,8 +456,21 @@ function detectAuthPage(content) {
     'password', 'captcha', 'verify', '驗證', 'authenticate',
     'access denied', '403', 'forbidden', 'unauthorized',
   ];
-  const lower = (content.title + ' ' + content.text.slice(0, 500)).toLowerCase();
-  return indicators.some(i => lower.includes(i));
+  const titleLower = content.title.toLowerCase();
+  const textLower = content.text.slice(0, 500).toLowerCase();
+  const combined = titleLower + ' ' + textLower;
+  const matchCount = indicators.filter(i => combined.includes(i)).length;
+
+  // Title contains auth keyword → likely auth page
+  if (indicators.some(i => titleLower.includes(i))) return true;
+
+  // Short content + any auth indicator → likely auth page
+  if (content.text.length < 300 && matchCount >= 1) return true;
+
+  // Long content needs multiple auth indicators to be flagged
+  if (matchCount >= 3) return true;
+
+  return false;
 }
 
 function formatContent(content, offset = 0, maxLen = MAX_CONTENT, { compact = false } = {}) {
