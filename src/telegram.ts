@@ -23,6 +23,7 @@ import { isEnabled } from './features.js';
 import { isLoopBusy } from './agent.js';
 import { digestContent, isDigestContent, formatInstantReply, type DigestEntry } from './digest-pipeline.js';
 import { findNextSection, NEXT_MD_PATH } from './triage.js';
+import { writeRoomMessage } from './observability.js';
 
 // =============================================================================
 // Types
@@ -510,6 +511,9 @@ export class TelegramPoller {
         ...(msg.document ? { hasAttachment: 'document' } : {}),
       },
     });
+
+    // Sync TG message to Chat Room conversation log (record-only, no trigger)
+    writeRoomMessage('alex', parsed.text).catch(() => {});
 
     // Auto-enqueue to NEXT.md so the message persists until explicitly handled
     autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});

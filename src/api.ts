@@ -51,7 +51,7 @@ import { loadGlobalConfig } from './instance.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
 import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
-import { eventBus } from './event-bus.js';
+import { eventBus, debounce } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
@@ -1931,6 +1931,12 @@ export function createApi(port = 3001): express.Express {
   // Team Chat Room
   // =============================================================================
 
+  // Debounce room triggers — Claude Code 連發多則時只觸發一次 cycle（5s 窗口）
+  const emitRoomTriggerDebounced = debounce(
+    (data: Record<string, unknown>) => eventBus.emit('trigger:room', data),
+    5_000,
+  );
+
   // Serve chat-room.html
   app.get('/chat-ui', (_req: Request, res: Response) => {
     const htmlPath = path.join(process.cwd(), 'chat-room.html');
@@ -2003,7 +2009,7 @@ export function createApi(port = 3001): express.Express {
         content = content.replace('## Pending\n', `## Pending\n${inboxEntry}\n`);
         await fsPromises.writeFile(inboxPath, content, 'utf-8');
 
-        eventBus.emit('trigger:room', { source: 'room-api', from, text, roomMsgId: id });
+        emitRoomTriggerDebounced({ source: 'room-api', from, text, roomMsgId: id });
       }
 
       // Dual-write to unified inbox
