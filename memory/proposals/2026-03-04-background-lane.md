@@ -42,7 +42,7 @@ Kuro 的 OODA loop 有一個結構性限制：**一次只能做一件事**。
 
 ### 改動 1：解除「只能寫程式」限制
 
-**現狀**：`DelegationTask` 只有 `prompt` + `workdir` + `allowedTools`（預設 Bash/Read/Write/Edit/Glob/Grep），subprocess 設 `MINI_AGENT_DELEGATION=1` 阻止讀 SOUL。
+**現狀**：`DelegationTask` 只有 `prompt` + `workdir` + `allowedTools`（預設 Bash/Read/Write/Edit/Glob/Grep），subprocess 用 `--setting-sources user`（跳過 CLAUDE.md）+ `--append-system-prompt`（定義無身份執行器）隔離身份。
 
 **改動**：加 `type` 欄位區分任務類型，不同類型帶不同 context。
 
@@ -73,7 +73,7 @@ Type-specific 預設：
 | `review` | Bash,Read,Glob,Grep | error log + system health | 3 | 3min |
 
 **安全邊界（不變）**：
-- Subprocess 不讀 SOUL.md（`MINI_AGENT_DELEGATION=1` 保留）
+- Subprocess 不讀 SOUL.md 和 CLAUDE.md（`--setting-sources user` 跳過專案設定 + `--append-system-prompt` 定義無身份執行器）
 - Subprocess 不寫 `memory/`（主 cycle 決定要不要 REMEMBER）
 - Subprocess 不發 Telegram（只有 Kuro 跟 Alex 說話）
 - 結果回來後由主 cycle 的 Kuro 判斷採用
@@ -122,7 +122,7 @@ Foreground lane 的 context：SOUL + inbox + today's Chat Room recent + topic me
 
 完成後 emit `action:delegation-complete`（已有）+ 寫結果到 `lane-output/` 目錄。
 
-**主 Cycle 讀取**：`buildContext()` 掃 `lane-output/` 目錄，未處理的結果注入 `<background-completed>` section：
+**主 Cycle 讀取**：`buildContext()` 掃 `lane-output/` 目錄，未處理的結果注入 `<background-completed>` section（上限 2000 chars，超過只保留最近完成的結果，其餘保留在 `lane-output/` 讓主 cycle 按需讀取）：
 
 ```xml
 <background-completed>
@@ -206,10 +206,31 @@ Foreground lane 的 context：SOUL + inbox + today's Chat Room recent + topic me
 |------|------|
 | 記憶衝突 | Background 不寫 `memory/`，結果由主 cycle merge |
 | Subprocess 失控 | `maxTurns` cap + timeout（沿用 delegation 現有機制） |
-| 資源過載 | `MAX_CONCURRENT = 2` 背景上限（可配置） |
+| 資源過載 | Background max 2，見下方資源表 |
 | Feature flag | `background-lane` flag，關掉 = 退回純循序 |
-| 身份滲透 | `MINI_AGENT_DELEGATION=1` 保留，subprocess 不讀 SOUL |
+| 身份滲透 | `--setting-sources user` + `--append-system-prompt`（跳過 CLAUDE.md + 定義無身份執行器） |
 | 通知混亂 | 只有主 cycle 的 Kuro 發 Telegram，背景不發 |
+| Context 膨脹 | `<background-completed>` 上限 2000 chars，超過只保留最近結果 |
+
+### 資源並行上限
+
+| Lane | Max Concurrent | 說明 |
+|------|---------------|------|
+| Main OODA | 1 | `loopBusy` guard 互斥 |
+| Foreground | 1 | 只在 main 忙時啟動 |
+| Background | 2 | `MAX_CONCURRENT` 可配置 |
+| **Total** | **4** | Worst case: main + foreground + 2 background |
+
+**API rate limit 考量**：4 concurrent Claude processes 在 Anthropic API tier 內（每分鐘上限遠高於此）。系統資源方面，每個 subprocess 是獨立 Node 進程（~50MB RSS），4 個 = ~200MB 額外記憶體，在 16GB 機器上可接受。
+
+### Concurrent Action vs Background Lane
+
+| 機制 | 目的 | 時機 | 結果處理 |
+|------|------|------|---------|
+| **Concurrent Action**（Phase 2 已實作） | Housekeeping（auto-commit, feedback loops, cleanup） | `callClaude()` await 期間 | Fire-and-forget，不需要主 cycle merge |
+| **Background Lane**（本提案） | Substantive work（學習、研究、review） | 主 cycle 判斷後 spawn | 結果寫 `lane-output/`，主 cycle merge |
+
+兩者正交：Concurrent Action 做機械維護，Background Lane 做有價值的工作。
 
 ## 回退
 
