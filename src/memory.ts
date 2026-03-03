@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, unlinkSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
@@ -1544,6 +1544,12 @@ export class InstanceMemory {
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
 
+    // ── Background Completed（lane-output 結果，主 cycle 決定如何處理）──
+    const bgSection = buildBackgroundCompletedSection(this.instanceId);
+    if (bgSection) {
+      sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
+    }
+
     // ── Trail（注意力歷史 — mushi scout + kuro focus 的共享梯度）──
     const trailCtx = readTrailSection();
     if (trailCtx) {
@@ -2248,6 +2254,95 @@ function truncateTopicMemory(content: string, level: 'brief' | 'summary' = 'brie
   // brief: title + count + last 1 entry
   const recent = entries.slice(-1);
   return `${title}\n(${total} entries, latest)\n${recent.join('\n')}`;
+}
+
+// =============================================================================
+// Background Completed — lane-output 結果讀取+清理
+// =============================================================================
+
+const LANE_OUTPUT_CAP = 2000; // chars cap for <background-completed> section
+
+/** Read lane-output/ directory and format results for buildContext injection */
+function buildBackgroundCompletedSection(instanceId: string): string | null {
+  try {
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
+    if (!existsSync(laneDir)) return null;
+
+    const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
+    if (files.length === 0) return null;
+
+    const results: Array<{ id: string; type?: string; status: string; output: string; completedAt?: string }> = [];
+    for (const file of files) {
+      try {
+        const raw = readFileSync(path.join(laneDir, file), 'utf-8');
+        const data = JSON.parse(raw);
+        results.push(data);
+      } catch { continue; }
+    }
+
+    if (results.length === 0) return null;
+
+    // Sort by completedAt (most recent first)
+    results.sort((a, b) => {
+      const ta = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const tb = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return tb - ta;
+    });
+
+    // Format with cap
+    let totalChars = 0;
+    const lines: string[] = [];
+    for (const r of results) {
+      const typeStr = r.type ? `[${r.type}]` : '';
+      const outputSnippet = r.output.replace(/\n/g, ' ').slice(0, 300);
+      const line = `- ${typeStr} ${r.id} ${r.status}: ${outputSnippet}`;
+      if (totalChars + line.length > LANE_OUTPUT_CAP && lines.length > 0) {
+        lines.push(`(${results.length - lines.length} more results in lane-output/)`);
+        break;
+      }
+      lines.push(line);
+      totalChars += line.length;
+    }
+
+    return lines.join('\n');
+  } catch {
+    return null;
+  }
+}
+
+/** Clean up all lane-output files (called after cycle processes them) */
+export function cleanupLaneOutput(instanceId: string): void {
+  try {
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
+    if (!existsSync(laneDir)) return;
+
+    const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
+    for (const file of files) {
+      try {
+        unlinkSync(path.join(laneDir, file));
+      } catch { /* best effort */ }
+    }
+  } catch { /* best effort */ }
+}
+
+/** Clean up lane-output files older than 24h (fire-and-forget housekeeping) */
+export function cleanupStaleLaneOutput(instanceId: string): void {
+  try {
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
+    if (!existsSync(laneDir)) return;
+
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
+    for (const file of files) {
+      try {
+        const filePath = path.join(laneDir, file);
+        const st = statSync(filePath);
+        if (st.mtimeMs < cutoff) {
+          unlinkSync(filePath);
+        }
+      } catch { /* best effort */ }
+    }
+  } catch { /* best effort */ }
 }
 
 // =============================================================================

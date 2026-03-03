@@ -50,6 +50,7 @@ import {
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations } from './delegation.js';
+import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -1890,6 +1891,13 @@ export class AgentLoop {
 
       // Delegation cleanup — remove completed tasks >24h（fire-and-forget）
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
+
+      // Lane-output cleanup — processed results + stale >24h（fire-and-forget）
+      try {
+        const instanceId = getCurrentInstanceId();
+        cleanupLaneOutput(instanceId);
+        cleanupStaleLaneOutput(instanceId);
+      } catch { /* fire-and-forget */ }
 
       // Drain one queued cron task（loopBusy now free）
       if (isEnabled('cron-drain')) {
