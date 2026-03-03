@@ -1031,9 +1031,7 @@ export class AgentLoop {
     if (!this.running || (this.paused && !this.calmWake)) return;
     this.calmWake = false;
 
-    this.lastCycleTime = Date.now();
-
-    // mushi triage — active mode: skip cycle if mushi says skip
+    // mushi triage — BEFORE updating lastCycleTime so lastThinkAgo reflects actual gap
     // DM sources always bypass (hard rule). Fail-open if mushi offline.
     // Placed here (not in handleEvent) so ALL cycle entry points are covered:
     // heartbeat timer, priority drain, direct-message queue, and event-driven triggers
@@ -1059,6 +1057,7 @@ export class AgentLoop {
             detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
             decay_h: 24,
           });
+          this.lastCycleTime = Date.now(); // Update after triage to prevent rapid re-trigger
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
           }
@@ -1066,6 +1065,8 @@ export class AgentLoop {
         }
       }
     }
+
+    this.lastCycleTime = Date.now();
 
     try {
       await this.cycle();
