@@ -186,7 +186,7 @@ interface TrailEntry {
   ts: string;
   agent: 'kuro' | 'mushi';
   type: 'focus' | 'cite' | 'triage' | 'scout';
-  decision?: 'wake' | 'skip';
+  decision?: 'wake' | 'skip' | 'quick';
   topics: string[];
   detail: string;
   decay_h: number;
@@ -759,7 +759,7 @@ export class AgentLoop {
   private static readonly MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
 
   /** Ask mushi to classify a trigger as wake/skip. Returns decision or null (offline/error = fail-open). */
-  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<'wake' | 'skip' | null> {
+  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<'wake' | 'skip' | 'quick' | null> {
     try {
       const metadata: Record<string, unknown> = {};
       // Include last think age for context
@@ -799,10 +799,11 @@ export class AgentLoop {
       if (!res.ok) return null;
       const result = await res.json() as { action?: string; reason?: string; latencyMs?: number; method?: string };
 
-      const emoji = result.action === 'skip' ? '⏭' : '✅';
+      const emoji = result.action === 'skip' ? '⏭' : result.action === 'quick' ? '⚡' : '✅';
       slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
       eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
-      return (result.action === 'skip' || result.action === 'wake') ? result.action as 'wake' | 'skip' : null;
+      const validActions = ['skip', 'wake', 'quick'];
+      return validActions.includes(result.action ?? '') ? result.action as 'wake' | 'skip' | 'quick' : null;
     } catch {
       // mushi offline or timeout — fail-open (proceed with cycle)
       return null;
@@ -1058,6 +1059,26 @@ export class AgentLoop {
             decay_h: 24,
           });
           this.lastCycleTime = Date.now(); // Update after triage to prevent rapid re-trigger
+          if (this.running && !this.paused) {
+            this.scheduleHeartbeat();
+          }
+          return;
+        }
+        if (decision === 'quick') {
+          slog('MUSHI', `⚡ Quick cycle — trigger: ${triageSource}`);
+          writeTrailEntry({
+            ts: new Date().toISOString(),
+            agent: 'mushi',
+            type: 'scout',
+            decision: 'quick',
+            topics: [triageSource],
+            detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
+            decay_h: 24,
+          });
+          // Use quickReply path — minimal context (~5K tokens, 5-15s)
+          const triggerText = `[Quick cycle — trigger: ${reason}] 這是輕量 cycle，用快取感知資料快速檢查。如有需要行動的事項就處理，沒有就簡短確認狀態。不需要完整 OODA 分析。`;
+          await this.quickReply(triageSource, triggerText);
+          this.lastCycleTime = Date.now();
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
           }
