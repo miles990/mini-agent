@@ -36,6 +36,7 @@ interface FeatureInfo {
   name: string;
   group: string;
   description: string;
+  defaultEnabled?: boolean; // default: true
 }
 
 interface FeaturesFile {
@@ -83,6 +84,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
+  { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await', defaultEnabled: false },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },
@@ -102,9 +104,9 @@ function defaultStats(): FeatureStats {
   return { totalRuns: 0, totalMs: 0, errors: 0, lastRunAt: null, lastError: null, lastDurationMs: 0 };
 }
 
-// Initialize all features as enabled
+// Initialize features with their defaults (true unless explicitly set)
 for (const f of FEATURES) {
-  states.set(f.name, true);
+  states.set(f.name, f.defaultEnabled ?? true);
   stats.set(f.name, defaultStats());
 }
 

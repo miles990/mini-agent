@@ -222,6 +222,18 @@ class PerceptionStreamManager {
   }
 
   /**
+   * Force immediate refresh of all active streams.
+   * Used by concurrent-action to refresh perception caches during callClaude await.
+   */
+  async refreshAll(): Promise<void> {
+    if (!this.running) return;
+    const promises = [...this.streams.values()].map(entry =>
+      this.tick(entry).catch(() => {})
+    );
+    await Promise.allSettled(promises);
+  }
+
+  /**
    * Count how many perception sections changed since last context build.
    * More changes = more likely the next cycle will be productive.
    */

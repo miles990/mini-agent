@@ -1126,6 +1126,44 @@ export class AgentLoop {
   }
 
   // ---------------------------------------------------------------------------
+  // Concurrent Tasks — run during callClaude await (Phase 2)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Read-only + housekeeping tasks that run in parallel with callClaude().
+   * perception refresh, autoCommit+autoPush of previous cycle's changes.
+   * Returns count of new inbox items detected during execution.
+   */
+  private async runConcurrentTasks(): Promise<number> {
+    const tasks: Promise<void>[] = [];
+
+    // 1. Perception refresh — all streams get fresh caches
+    tasks.push(
+      perceptionStreams.refreshAll().catch(() => {})
+    );
+
+    // 2. Auto-commit + auto-push (previous cycle's leftover changes)
+    if (isEnabled('auto-commit')) {
+      tasks.push(
+        autoCommitMemory(null).then(() => {
+          if (isEnabled('auto-push')) {
+            return autoPushIfAhead().catch(() => {});
+          }
+        }).catch(() => {})
+      );
+    }
+
+    await Promise.allSettled(tasks);
+
+    // 3. Inbox pre-check — detect new items that arrived during Claude thinking
+    try {
+      return readPendingInbox().length;
+    } catch {
+      return 0;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Core Cycle — Task Mode + Autonomous Mode
   // ---------------------------------------------------------------------------
 
@@ -1325,12 +1363,32 @@ export class AgentLoop {
       // JIT skill loading: use triage intent if available, fallback to heuristic
       const cycleMode = cycleIntent?.mode ?? this.detectCycleMode(context, currentTriggerReason);
 
-      const { response, systemPrompt, fullPrompt, duration, preempted } = await callClaude(prompt, context, 2, {
-        rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount }),
-        source: 'loop',
-        onPartialOutput,
-        cycleMode,
-      });
+      // Phase 2: Concurrent Action — run perception refresh + housekeeping during Claude await
+      const concurrentPromise = isEnabled('concurrent-action')
+        ? (() => {
+            const done = trackStart('concurrent-action');
+            return this.runConcurrentTasks()
+              .then(inboxCount => { done(); return inboxCount; })
+              .catch(e => { done(String(e)); return 0; });
+          })()
+        : Promise.resolve(0);
+
+      const [claudeResult, newInboxCount] = await Promise.all([
+        callClaude(prompt, context, 2, {
+          rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount }),
+          source: 'loop',
+          onPartialOutput,
+          cycleMode,
+        }),
+        concurrentPromise,
+      ]);
+
+      const { response, systemPrompt, fullPrompt, duration, preempted } = claudeResult;
+
+      // Inbox urgency: new items arrived during Claude thinking → schedule fast next cycle
+      if (newInboxCount > 0 && isEnabled('concurrent-action')) {
+        slog('LOOP', `[concurrent] ${newInboxCount} inbox items detected during Claude await — scheduling fast next`);
+      }
 
       // Phase 1b: Handle preemption
       if (preempted) {
@@ -1765,7 +1823,9 @@ export class AgentLoop {
       }
 
       // Auto-commit → then auto-push（sequential，防止 push 在 commit 完成前觸發 CI/CD reset）
-      if (isEnabled('auto-commit')) {
+      // When concurrent-action is enabled, commit+push already ran during callClaude await.
+      // This fallback handles current cycle's changes (from parseTags) — committed next cycle's concurrent phase.
+      if (isEnabled('auto-commit') && !isEnabled('concurrent-action')) {
         const done = trackStart('auto-commit');
         autoCommitMemory(action)
           .then(() => {
