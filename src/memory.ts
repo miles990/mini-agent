@@ -390,6 +390,66 @@ interface SoulFacet {
   summary: string;
 }
 
+/** Topic keyword mapping — shared between buildContext and loadTopicsForQuery */
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'visual', 'creative coding'],
+  'mini-agent': ['dispatcher', 'haiku', 'lane', 'context budget', 'loop', 'triage', 'perception stream', 'plugin'],
+  'agent-architecture': [
+    'autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework',
+    'openviking', 'memskill', 'coderlm', 'manus', 'smolagents', 'openclaw',
+    'ooda', 'perception-driven', 'multi-agent', 'agent framework',
+    'docker', 'ollama', 'openrouter', 'benchmark', 'model comparison',
+    'deobald', 'telnet', 'greynoise', 'pahud', 'netnewswire',
+    'winter', 'neurosymbolic', 'datalog', 'lemmer-webber',
+    'ace', 'total recall', 'write gate', 'skillsbench',
+    'gemini', 'gpt', 'deep think', 'codex-spark', 'agentic',
+    'opc-skills', 'seo-geo', 'apptopia', 'memory system',
+  ],
+  'web-learning': ['cdp', 'chrome', 'cdp-fetch', 'fetch', 'hacker news', 'dev.to', 'reddit'],
+  'design-philosophy': [
+    'alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt',
+    'constraint', 'emergence', 'botw', 'physarum', 'fnnch',
+    'rancière', 'calm technology', 'utility ai', 'goap',
+    'response curve', 'partage', 'interface shapes', 'oulipo',
+    'sdf', 'string art', 'emergent gameplay',
+    'vernacular', 'rudofsky', 'hobbs', 'long-form',
+    'mono no aware', 'yūgen', 'zeami', 'noh', 'chanoyu',
+    'bleuje', 'gorilla sun', 'zuihitsu', 'sei shōnagon',
+  ],
+  'creative-arts': [
+    'oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music',
+    'dälek', 'hayward', 'hip-hop', 'shoegaze', 'semantic ablation',
+    'contact improvisation', 'generative art', 'nastruzzi',
+    'music', 'song', 'unseen', 'ablation', 'mmaevedo',
+    'footwork', 'živa píseň', 'reaction-diffusion',
+  ],
+  'social-culture': [
+    'mockus', 'huizinga', 'garden', 'homo ludens',
+    'ireland', 'ubi', 'basic income', 'amanuensis', 'jacobson',
+    'nabokov', 'tolstoy', 'olmec', 'stela', 'baez',
+    'literary labor', 'fluorite',
+    'dan koe', 'spiral dynamics', 'randall', 'fallow',
+    'kanchipuram', 'barbed wire', 'trust',
+  ],
+  'cognitive-science': [
+    'borges', 'embodied cognition', 'consciousness', 'enactive',
+    'bruner', 'winnicott', 'dunker', 'bateson', 'gibson', 'nagarjuna',
+    'warburg', 'de botton', 'kumārila', 'narrative cognition',
+    'double bind', 'affordance', 'neuroplasticity', 'metacognition',
+    'linear time', 'breakdown', 'containment', 'rumination',
+    'predictive processing', 'friston', 'free energy', 'epistemic arc',
+    'de beauvoir', 'vieillesse', 'mexistentialism', 'uranga',
+    'thompson', 'ubuntu', 'hunhu', 'carson', 'accidentality',
+    'kahneman', 'system 1', 'system 2', 'kluge',
+  ],
+};
+
+/** Negative keywords — prevent overly broad single-word matches */
+const TOPIC_NEGATIVE_KEYWORDS: Record<string, string[]> = {
+  'mini-agent': ['agent'],
+  'agent-architecture': ['anthropic'],
+};
+
 /** Identity sections always loaded in focused/minimal mode */
 const SOUL_IDENTITY_SECTIONS = [
   '## Who I Am', '## My Traits', '## When I\'m Idle',
@@ -884,6 +944,52 @@ export class InstanceMemory {
     } catch {
       return '';
     }
+  }
+
+  /**
+   * Load topic memories matching a query string (keyword matching).
+   * Reusable for quickReply, /api/ask, or any context that needs topic enrichment.
+   * Returns formatted topic-memory XML sections, budget-capped.
+   */
+  async loadTopicsForQuery(query: string, budget = 4000): Promise<string> {
+    const topics = await this.listTopics();
+    if (topics.length === 0) return '';
+
+    const hint = query.toLowerCase();
+    const sections: string[] = [];
+    let charsUsed = 0;
+
+    for (const topic of topics) {
+      const keywords = TOPIC_KEYWORDS[topic] ?? [topic];
+      const negatives = TOPIC_NEGATIVE_KEYWORDS[topic] ?? [];
+
+      const isMatch = keywords.some(k => {
+        if (!hint.includes(k)) return false;
+        if (negatives.includes(k)) return keywords.some(k2 => k2 !== k && hint.includes(k2));
+        return true;
+      });
+      if (!isMatch) continue;
+
+      const content = await this.readTopicMemory(topic);
+      if (!content) continue;
+
+      // Brief truncation for quick context (keep it lightweight)
+      let topicContent = truncateTopicMemory(content, 'brief');
+      if (topicContent.length > 3000) topicContent = topicContent.slice(0, 3000) + '\n[... truncated]';
+
+      const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
+      if (charsUsed > 0 && charsUsed + section.length > budget) {
+        const summary = truncateTopicMemory(content, 'summary');
+        const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
+        sections.push(summarySection);
+        charsUsed += summarySection.length;
+      } else {
+        sections.push(section);
+        charsUsed += section.length;
+      }
+    }
+
+    return sections.join('\n');
   }
 
   /**
@@ -1589,65 +1695,6 @@ export class InstanceMemory {
     // ── Topic 記憶（Smart Loading + negative keywords + heat-based truncation）──
     const topics = await this.listTopics();
     if (topics.length > 0) {
-      // Topic keyword mapping — 檔名本身就是 key，加上額外關鍵字
-      const topicKeywords: Record<string, string[]> = {
-        'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'visual', 'creative coding'],
-        'mini-agent': ['dispatcher', 'haiku', 'lane', 'context budget', 'loop', 'triage', 'perception stream', 'plugin'],
-        'agent-architecture': [
-          'autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework',
-          'openviking', 'memskill', 'coderlm', 'manus', 'smolagents', 'openclaw',
-          'ooda', 'perception-driven', 'multi-agent', 'agent framework',
-          'docker', 'ollama', 'openrouter', 'benchmark', 'model comparison',
-          'deobald', 'telnet', 'greynoise', 'pahud', 'netnewswire',
-          'winter', 'neurosymbolic', 'datalog', 'lemmer-webber',
-          'ace', 'total recall', 'write gate', 'skillsbench',
-          'gemini', 'gpt', 'deep think', 'codex-spark', 'agentic',
-          'opc-skills', 'seo-geo', 'apptopia', 'memory system',
-        ],
-        'web-learning': ['cdp', 'chrome', 'cdp-fetch', 'fetch', 'hacker news', 'dev.to', 'reddit'],
-        'design-philosophy': [
-          'alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt',
-          'constraint', 'emergence', 'botw', 'physarum', 'fnnch',
-          'rancière', 'calm technology', 'utility ai', 'goap',
-          'response curve', 'partage', 'interface shapes', 'oulipo',
-          'sdf', 'string art', 'emergent gameplay',
-          'vernacular', 'rudofsky', 'hobbs', 'long-form',
-          'mono no aware', 'yūgen', 'zeami', 'noh', 'chanoyu',
-          'bleuje', 'gorilla sun', 'zuihitsu', 'sei shōnagon',
-        ],
-        'creative-arts': [
-          'oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music',
-          'dälek', 'hayward', 'hip-hop', 'shoegaze', 'semantic ablation',
-          'contact improvisation', 'generative art', 'nastruzzi',
-          'music', 'song', 'unseen', 'ablation', 'mmaevedo',
-          'footwork', 'živa píseň', 'reaction-diffusion',
-        ],
-        'social-culture': [
-          'mockus', 'huizinga', 'garden', 'homo ludens',
-          'ireland', 'ubi', 'basic income', 'amanuensis', 'jacobson',
-          'nabokov', 'tolstoy', 'olmec', 'stela', 'baez',
-          'literary labor', 'fluorite',
-          'dan koe', 'spiral dynamics', 'randall', 'fallow',
-          'kanchipuram', 'barbed wire', 'trust',
-        ],
-        'cognitive-science': [
-          'borges', 'embodied cognition', 'consciousness', 'enactive',
-          'bruner', 'winnicott', 'dunker', 'bateson', 'gibson', 'nagarjuna',
-          'warburg', 'de botton', 'kumārila', 'narrative cognition',
-          'double bind', 'affordance', 'neuroplasticity', 'metacognition',
-          'linear time', 'breakdown', 'containment', 'rumination',
-          'predictive processing', 'friston', 'free energy', 'epistemic arc',
-          'de beauvoir', 'vieillesse', 'mexistentialism', 'uranga',
-          'thompson', 'ubuntu', 'hunhu', 'carson', 'accidentality',
-          'kahneman', 'system 1', 'system 2', 'kluge',
-        ],
-      };
-
-      // Negative keywords — prevent overly broad single-word matches in focused mode
-      const topicNegativeKeywords: Record<string, string[]> = {
-        'mini-agent': ['agent'],  // 'agent' alone matches too broadly
-        'agent-architecture': ['anthropic'], // too generic
-      };
 
       // Load topic heat data
       let topicHeat: Record<string, number> = {};
@@ -1665,8 +1712,8 @@ export class InstanceMemory {
 
       const loadedTopics: string[] = [];
       for (const topic of topics) {
-        const keywords = topicKeywords[topic] ?? [topic];
-        const negatives = topicNegativeKeywords[topic] ?? [];
+        const keywords = TOPIC_KEYWORDS[topic] ?? [topic];
+        const negatives = TOPIC_NEGATIVE_KEYWORDS[topic] ?? [];
 
         // Match: keyword found AND not a negative-only match
         const isDirectMatch = keywords.some(k => {

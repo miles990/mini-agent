@@ -2092,9 +2092,14 @@ export function createApi(port = 3001): express.Express {
       // 建立 minimal context（soul + heartbeat + NEXT Now + recent convos）
       let context = await memory.buildContext({ mode: 'minimal' });
 
+      // Topic memory — keyword-matched topic loading
+      const topicContext = await memory.loadTopicsForQuery(question as string);
+      if (topicContext) {
+        context += `\n\n${topicContext}`;
+      }
+
       // FTS5 搜尋相關記憶（根據問題內容動態注入，取代固定截斷）
-      const memory2 = getMemory();
-      const ftsResults = await memory2.searchMemory(question as string, 8);
+      const ftsResults = await memory.searchMemory(question as string, 8);
       if (ftsResults.length > 0) {
         const relevantEntries = ftsResults.map(r => `[${r.source}] ${r.content}`).join('\n');
         context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;

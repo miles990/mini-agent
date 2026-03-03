@@ -478,6 +478,12 @@ export class AgentLoop {
       const memory = getMemory();
       let context = await memory.buildContext({ mode: 'minimal' });
 
+      // Topic memory — keyword-matched topic loading (same as OODA, budget-capped)
+      const topicContext = await memory.loadTopicsForQuery(text);
+      if (topicContext) {
+        context += `\n\n${topicContext}`;
+      }
+
       // FTS5 memory search — dynamic context enrichment based on question
       const ftsResults = await memory.searchMemory(text, 8);
       if (ftsResults.length > 0) {
