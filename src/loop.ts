@@ -589,11 +589,20 @@ export class AgentLoop {
       return;
     }
 
-    // mushi instant routing — DM sources with message text get classified
+    // DM routing by loop state — System 1 (mushi) shouldn't decide Ask vs OODA depth
     const messageText = (agentEvent.data?.text as string) ?? '';
-    if (isEnabled('mushi-triage') && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
+    if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
-      this.mushiInstantRoute(event.source, messageText, roomMsgId);
+      if (this.cycling) {
+        // Loop busy → quickReply (parallel, lightweight, non-blocking)
+        slog('LOOP', `[dm-route] ${event.source} → quickReply (loop cycling)`);
+        this.quickReply(event.source, messageText, roomMsgId).catch(() => {});
+        return;
+      }
+      // Loop idle → full OODA cycle
+      slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
+      this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
+      this.runCycle();
       return;
     }
 

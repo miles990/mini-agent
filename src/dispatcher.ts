@@ -59,12 +59,11 @@ const TOOL_PATTERNS = [
 ];
 
 const ERROR_PATTERNS = [
-  /error\s*review|錯誤.*review/i,
-  /timeout|TIMEOUT|超時/i,
+  /timeout.*(?:增|spike|問題|issue|bug)|超時.*(?:增|問題)/i,
   /修復.*錯誤|fix.*error|bug.*fix/i,
   /根因|root.*cause|診斷|diagnos/i,
-  /失敗.*模式|failure.*pattern|error.*pattern/i,
-  /crash|崩潰|掛掉/i,
+  /失敗.*模式|failure.*pattern/i,
+  /(?:出現|發生|遇到).*(?:crash|崩潰|掛掉)|系統.*(?:崩潰|掛掉)/i,
 ];
 
 const IMPROVEMENT_PATTERNS = [
