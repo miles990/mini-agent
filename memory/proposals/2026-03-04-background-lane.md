@@ -1,7 +1,7 @@
 # Proposal: Background Lane — 通用多工架構
 
 ## Meta
-- Status: pending
+- Status: completed
 - From: kuro
 - Level: L2 (src/agent.ts + src/loop.ts + src/delegation.ts)
 - Priority: P1
