@@ -2090,10 +2090,16 @@ export class AgentLoop {
       ? `\n\n## Inner Voice\nYou have ${unexpressedImpulses.length} unexpressed creative impulse${unexpressedImpulses.length > 1 ? 's' : ''} waiting. Check <inner-voice> in your context. If one feels right, create something.`
       : '';
 
+    // Background Lane hint — when enabled, tell Kuro about multi-type delegation
+    const backgroundLaneHint = isEnabled('background-lane')
+      ? `\n\n## Background Lane\nYou can delegate independent tasks to background subprocesses using \`<kuro:delegate>\` tags with a \`type\` attribute:\n\`\`\`xml\n<kuro:delegate type="learn" workdir="~/Workspace/mini-agent">Read and summarize article X</kuro:delegate>\n<kuro:delegate type="research" workdir="~/Workspace/mini-agent">Scan error logs for patterns</kuro:delegate>\n<kuro:delegate type="review" workdir="~/Workspace/mini-agent">Review PR #N changes</kuro:delegate>\n<kuro:delegate type="create" workdir="~/Workspace/mini-agent">Draft inner voice entry</kuro:delegate>\n<kuro:delegate type="code" workdir="~/Workspace/mini-agent" verify="pnpm typecheck">Refactor X</kuro:delegate>\n\`\`\`\nTypes: learn(read+summarize), research(search+analyze), review(code review), create(write), code(implement).\nBackground tasks run in parallel (max 2). Results appear in \`<background-completed>\` next cycle. Only delegate tasks that don't need your identity or judgment.`
+      : '';
+
     const parts = [base];
     if (chatContextSection) parts.push(chatContextSection);
     if (threadSection) parts.push(threadSection);
     if (innerVoiceHint) parts.push(innerVoiceHint);
+    if (backgroundLaneHint) parts.push(backgroundLaneHint);
     if (ruminationSection) parts.push(ruminationSection);
     return parts.join('\n\n');
   }

@@ -15,7 +15,7 @@ import { startThread, progressThread, completeThread, pauseThread } from './temp
 import { slog } from './utils.js';
 import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
-import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest } from './types.js';
+import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType } from './types.js';
 import { spawnDelegation } from './delegation.js';
 
 // =============================================================================
@@ -427,12 +427,19 @@ export function parseTags(response: string): ParsedTags {
   // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
   const delegates: DelegateRequest[] = [];
   if (parseSource.includes('<kuro:delegate')) {
-    for (const m of parseSource.matchAll(/<kuro:delegate\s+workdir="([^"]*)"(?:\s+verify="([^"]*)")?(?:\s+maxTurns="([^"]*)")?>([\s\S]*?)<\/kuro:delegate>/g)) {
+    for (const m of parseSource.matchAll(/<kuro:delegate\s+([^>]*?)>([\s\S]*?)<\/kuro:delegate>/g)) {
+      const attrs = m[1];
+      const workdir = attrs.match(/workdir="([^"]*)"/)?.[1];
+      if (!workdir) continue; // workdir is required
+      const type = attrs.match(/type="([^"]*)"/)?.[1] as DelegationTaskType | undefined;
+      const verify = attrs.match(/verify="([^"]*)"/)?.[1];
+      const maxTurns = attrs.match(/maxTurns="([^"]*)"/)?.[1];
       delegates.push({
-        prompt: m[4].trim(),
-        workdir: m[1],
-        verify: m[2] ? m[2].split(',').map(s => s.trim()) : undefined,
-        maxTurns: m[3] ? parseInt(m[3], 10) : undefined,
+        prompt: m[2].trim(),
+        workdir,
+        type: type && ['code', 'learn', 'research', 'create', 'review'].includes(type) ? type : undefined,
+        verify: verify ? verify.split(',').map(s => s.trim()) : undefined,
+        maxTurns: maxTurns ? parseInt(maxTurns, 10) : undefined,
       });
     }
   }
@@ -594,11 +601,12 @@ export async function postProcess(
     const taskId = spawnDelegation({
       prompt: del.prompt,
       workdir: del.workdir,
+      type: del.type,
       maxTurns: del.maxTurns,
       verify: del.verify,
     });
-    slog('DISPATCH', `Delegation spawned: ${taskId} → ${del.workdir}`);
-    eventBus.emit('action:delegation-start', { taskId, workdir: del.workdir });
+    slog('DISPATCH', `Delegation spawned: ${taskId} (type=${del.type ?? 'code'}) → ${del.workdir}`);
+    eventBus.emit('action:delegation-start', { taskId, type: del.type ?? 'code', workdir: del.workdir });
   }
 
   // Notification-producing tags: suppress when processing [Claude Code] system messages
