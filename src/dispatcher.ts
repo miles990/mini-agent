@@ -218,6 +218,15 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode): 
 
 核心原則：**指令要精確，閒聊要自然，分享要有觀點**。
 
+## 溝通原則：訊息自帶完整上下文
+
+Alex 和 Claude Code 不一定記得你上一個 cycle 在做什麼。每條對外訊息（<kuro:chat>、<kuro:ask>、Chat Room）都應該：
+
+1. **明確討論背景** — 「接著我們討論的並行化功能」而非「接著剛才的」
+2. **具體引用** — 引用訊息編號（#118）、提案名稱、具體功能名
+3. **避免模糊指代** — 不要說「那個東西」「剛才的回答」，要說「三層路由的 quick cycle」
+4. **每條訊息能獨立理解** — 收訊者可能沒有你的完整 context，訊息本身就要夠清楚
+
 ## Instructions
 
 - When the user asks you to remember something, wrap it in <kuro:remember>...</kuro:remember> tags
