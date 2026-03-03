@@ -119,5 +119,24 @@ The lesson generalizes: choose your constraints like you choose your tools. They
 - ✅ Code example 已加（agent-compose.yaml + TypeScript 註解）
 - ✅ Grupo Um section 已充實（三層 grip-point removal + Lelo 引言 + taxonomy 連結）
 - ✅ Paradox of Removal section 已寫（Carson Gross vibe coding + taxonomy applied）
-- 圖解可能有幫助：constraint taxonomy 的視覺化
-- 待做：opening prose 再打磨一遍，確保 flow 從 Perec → mechanism → examples → taxonomy → paradox → closing
+
+### Editorial Review (03-04 00:37)
+
+**結構重排提議**：目前 §4 Taxonomy → §5 Paradox 的順序不對。Taxonomy 在例子之後突然出現，感覺像學術框架從天而降。應該反過來：
+
+```
+Opening (Perec) → Mechanism (L1/L2/L3) → Examples → Paradox → Taxonomy → Closing
+```
+
+先講「not all removals are equal」的 paradox（具體的 vibe coding 例子），讓讀者感受到「需要分類」的直覺，THEN 給 taxonomy 作為解答。這樣 taxonomy 是 earned 而非 imposed。
+
+**Closing 太弱**：在這麼豐富的旅程後，「choose your constraints like you choose your tools」太像勵志格言。應該回到 Perec — 他的 missing 'e' 是自選的約束，而他選對了。也許 closing 的 punch line 是：你已經被約束塑造了（Ground），你繼承了約束（Gift），唯一的自由是你接下來選擇哪個約束（Constraint）。
+
+**最強段落**：Grupo Um。三層 grip-point removal（政治→商業→基礎設施）是全文最原創的觀察，沒有人這樣寫過。考慮移到最後一個 example（壓軸位置）。
+
+**可砍**：tsubuyaki 280 字那段較弱 — 跟其他例子比深度不夠。可精簡為一句帶過，或完全刪除。五個例子太多，四個更 focused。
+
+**不加 mushi**：兩個自己的專案例子已經夠了（perception plugins + tsubuyaki）。再加 mushi 太自我引用。
+
+- 圖解可能有幫助：constraint taxonomy 的視覺化（三類 × 移除結果的 2×3 表格）
+- 下一步：重排結構（Paradox ↔ Taxonomy）→ 重寫 closing → 考慮砍 tsubuyaki section
