@@ -282,7 +282,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
   // 不指定 --model → 走訂閱預設（Max = Opus）
   // 可透過 CLAUDE_MODEL env 覆蓋
-  const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose'];
+  // --strict-mcp-config without --mcp-config → zero MCP servers loaded
+  //   Subprocess is Kuro's internal brain — it shouldn't communicate with itself via MCP
+  const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose', '--strict-mcp-config'];
   if (process.env.CLAUDE_MODEL) {
     args.push('--model', process.env.CLAUDE_MODEL);
   }
