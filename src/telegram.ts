@@ -269,8 +269,13 @@ export class TelegramPoller {
 
   /**
    * Stream a partial message to the user while it's being generated.
-   * Drafts with the same draft_id are animated (progressive text reveal).
+   * Drafts with the same draft_id animate progressively (text reveal effect).
    * The draft is ephemeral — call sendMessage afterwards to persist.
+   * Bot API 9.3+, available to all bots since 9.5 (March 2026).
+   *
+   * @param draftId - Unique non-zero identifier. Same ID = animated transitions.
+   * @param text - Partial message text (1-4096 chars).
+   * @param parseMode - Optional formatting mode.
    */
   async sendMessageDraft(draftId: number, text: string, parseMode?: 'Markdown' | 'HTML' | ''): Promise<SendResult> {
     try {
@@ -307,7 +312,8 @@ export class TelegramPoller {
 
   /**
    * Stream a message progressively via drafts, then finalize with sendMessage.
-   * Text is split into sentences/lines and sent as incrementally growing drafts.
+   * Uses position-based slicing to preserve original text formatting (newlines, spacing).
+   * Each draft shows text.slice(0, position) — growing prefix of the original text.
    */
   async sendStreamingMessage(text: string, options?: {
     parseMode?: 'Markdown' | 'HTML' | '';
@@ -318,27 +324,25 @@ export class TelegramPoller {
     const delay = options?.chunkDelay ?? 80;
     const draftId = (Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
-    // Build progressive chunks (each includes all previous text)
-    const sentences = splitIntoSentences(text);
-    if (sentences.length <= 1) {
-      // Short message — just send directly
+    // Find natural breakpoints for progressive text reveal
+    const positions = findStreamPositions(text);
+    if (positions.length === 0) {
+      // No good breakpoints — just send directly
       return this.sendMessage(text, parseMode, options?.replyToMessageId);
     }
 
     // Stream drafts as plain text (partial Markdown with unclosed * or ** will fail)
-    let accumulated = '';
-    for (let i = 0; i < sentences.length - 1; i++) {
-      accumulated += (accumulated ? ' ' : '') + sentences[i];
-      const result = await this.sendMessageDraft(draftId, accumulated);
+    for (const pos of positions) {
+      const partial = text.slice(0, pos);
+      const result = await this.sendMessageDraft(draftId, partial);
       if (!result.ok) {
-        // Draft failed — fall back to direct send
-        slog('TELEGRAM', `Draft streaming failed at chunk ${i}, falling back to sendMessage`);
+        slog('TELEGRAM', `Draft streaming failed at pos ${pos}, falling back to sendMessage`);
         return this.sendMessage(text, parseMode, options?.replyToMessageId);
       }
       await new Promise(r => setTimeout(r, delay));
     }
 
-    // Final message — persists the full text with formatting
+    // Final sendMessage persists the full text with formatting (replaces ephemeral draft)
     return this.sendMessage(text, parseMode, options?.replyToMessageId);
   }
 
@@ -1277,30 +1281,32 @@ function splitLongLine(line: string, maxLen: number): string[] {
 }
 
 // =============================================================================
-// Sentence Splitting for Streaming
+// Stream Position Finding for Draft Streaming
 // =============================================================================
 
 /**
- * Split text into sentence-level units for progressive streaming.
- * Preserves newlines as split points. Returns at least 1 element.
+ * Find natural breakpoints in text for progressive streaming via sendMessageDraft.
+ * Returns character positions where the text can be sliced (text.slice(0, pos)).
+ * Breakpoints are at line breaks and sentence endings, with minimum gap to avoid flicker.
  */
-function splitIntoSentences(text: string): string[] {
-  // First split by newlines
-  const lines = text.split('\n').filter(l => l.trim());
-  if (lines.length === 0) return [text];
+function findStreamPositions(text: string, minGap = 30): number[] {
+  const positions: number[] = [];
+  let lastPos = 0;
 
-  // Then split long lines by sentence boundaries
-  const result: string[] = [];
-  for (const line of lines) {
-    if (line.length < 100) {
-      result.push(line);
-      continue;
+  for (let i = 0; i < text.length - 1; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+    const isLineBreak = ch === '\n';
+    const isSentenceEnd = (ch === '.' || ch === '!' || ch === '?' || ch === '。' || ch === '！' || ch === '？')
+      && (next === ' ' || next === '\n');
+
+    if ((isLineBreak || isSentenceEnd) && (i + 1 - lastPos >= minGap)) {
+      positions.push(i + 1);
+      lastPos = i + 1;
     }
-    // Split by sentence-ending punctuation
-    const sentences = line.split(/(?<=[.!?。！？])\s+/).filter(s => s.trim());
-    result.push(...(sentences.length > 0 ? sentences : [line]));
   }
-  return result.length > 0 ? result : [text];
+
+  return positions;
 }
 
 // =============================================================================
@@ -1363,8 +1369,8 @@ export async function notifyTelegram(message: string, replyToMessageId?: number)
 }
 
 /**
- * Streaming Telegram 通知 — 透過 sendMessageDraft 漸進式顯示，最後 sendMessage 定稿
- * 適合長訊息，讓用戶即時看到內容生成過程
+ * Streaming Telegram 通知 — 透過 sendMessageDraft 漸進式顯示，最後 sendMessage 定稿。
+ * 短訊息（≤4096 chars）作為一則統一流式發送；長訊息分段各自流式。
  */
 export async function notifyTelegramStreaming(
   message: string,
@@ -1374,7 +1380,28 @@ export async function notifyTelegramStreaming(
   const poller = pollerInstance;
   if (!poller || !message.trim()) return false;
 
-  // Split by paragraphs, then pre-split oversized paragraphs
+  // Short enough for one message — stream as unified draft sequence
+  if (message.length <= 4096) {
+    const result = await poller.sendStreamingMessage(message, {
+      parseMode: 'Markdown',
+      chunkDelay: options?.chunkDelay ?? 80,
+      replyToMessageId: options?.replyToMessageId,
+    });
+    if (result.ok) {
+      notifSent++;
+      return true;
+    }
+    // Fallback to plain text direct send
+    await new Promise(r => setTimeout(r, 1000));
+    const retry = await poller.sendMessage(message, '', options?.replyToMessageId);
+    if (retry.ok) { notifSent++; return true; }
+    slog('TELEGRAM', `Streaming notification failed: ${retry.error}`);
+    notifFailed++;
+    queueFailedNotification(message);
+    return false;
+  }
+
+  // Longer messages — split into chunks and stream each
   const rawChunks = message.split(/\n\n+/).filter(c => c.trim());
   const chunks = rawChunks.flatMap(c => c.length > 4000 ? smartSplitText(c, 4000) : [c]);
   let allOk = true;
