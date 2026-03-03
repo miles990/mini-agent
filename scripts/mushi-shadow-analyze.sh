@@ -7,13 +7,17 @@
 
 set -euo pipefail
 
-INSTANCE_DIR="${HOME}/.mini-agent/instances/${MINI_AGENT_INSTANCE:-f6616363}"
+if [[ -z "${MINI_AGENT_INSTANCE:-}" ]]; then
+  echo "ERROR: MINI_AGENT_INSTANCE env var not set." >&2
+  exit 1
+fi
+INSTANCE_DIR="${HOME}/.mini-agent/instances/${MINI_AGENT_INSTANCE}"
 SERVER_LOG="${INSTANCE_DIR}/logs/server.log"
 BEHAVIOR_DIR="${INSTANCE_DIR}/logs/behavior"
 DAYS="${1:-7}"
 
 echo "=== mushi Shadow Mode Analysis ==="
-echo "Instance: ${MINI_AGENT_INSTANCE:-f6616363}"
+echo "Instance: ${MINI_AGENT_INSTANCE}"
 echo "Period: last ${DAYS} days"
 echo ""
 
@@ -24,7 +28,7 @@ import json, os, sys
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-log_dir = os.environ.get("BEHAVIOR_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363"), "logs/behavior"))
+log_dir = os.environ.get("BEHAVIOR_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "default"), "logs/behavior"))
 days = int(os.environ.get("DAYS", "7"))
 
 today = datetime.now()
@@ -126,7 +130,7 @@ else
 import json, os, re, sys
 from datetime import datetime, timedelta
 
-instance_dir = os.environ.get("INSTANCE_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363")))
+instance_dir = os.environ.get("INSTANCE_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "default")))
 server_log = os.path.join(instance_dir, "logs", "server.log")
 behavior_dir = os.path.join(instance_dir, "logs", "behavior")
 
@@ -325,7 +329,7 @@ python3 << 'PYEOF'
 import re, os
 from collections import defaultdict
 
-server_log_path = os.environ.get("SERVER_LOG", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363"), "logs/server.log"))
+server_log_path = os.environ.get("SERVER_LOG", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "default"), "logs/server.log"))
 
 cycles = []
 current_trigger = None

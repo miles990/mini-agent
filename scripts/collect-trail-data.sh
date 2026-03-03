@@ -4,7 +4,11 @@
 # 給定日期（預設今天），收集該週（Mon-Sun）的學習素材供 Kuro 整理成 trails/YYYY-WNN.md
 set -euo pipefail
 
-INSTANCE_DIR="$HOME/.mini-agent/instances/${MINI_AGENT_INSTANCE:-f6616363}"
+if [[ -z "${MINI_AGENT_INSTANCE:-}" ]]; then
+  echo "ERROR: MINI_AGENT_INSTANCE env var not set. Set it or run: export MINI_AGENT_INSTANCE=\$(cat ~/.mini-agent/current-instance 2>/dev/null || echo default)" >&2
+  exit 1
+fi
+INSTANCE_DIR="$HOME/.mini-agent/instances/${MINI_AGENT_INSTANCE}"
 BEHAVIOR_DIR="$INSTANCE_DIR/logs/behavior"
 TOPICS_DIR="memory/topics"
 CONVERSATIONS_DIR="memory/conversations"
