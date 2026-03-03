@@ -163,16 +163,21 @@ async function main() {
 
   server.tool(
     'agent_read_messages',
-    `Read today's Chat Room messages (${agentName} + Alex + Claude Code)`,
+    `Read today's Chat Room messages (${agentName} + Alex + Claude Code). Use 'since' to get only messages after a specific ID.`,
     {
       date: z.string().optional().describe('Date in YYYY-MM-DD format (default: today)'),
+      since: z.string().optional().describe('Only return messages after this message ID (e.g. "2026-03-04-042")'),
     },
-    async ({ date }) => {
+    async ({ date, since }) => {
       try {
         const d = date || new Date().toISOString().slice(0, 10);
-        const data = await agentGet(`/api/room?date=${d}`) as { messages?: unknown[] };
+        const data = await agentGet(`/api/room?date=${d}`) as { messages?: Array<{ id: string }> };
         if (!data?.messages?.length) return textResult('No messages today.');
-        return textResult(JSON.stringify(data.messages, null, 2));
+        const msgs = since
+          ? data.messages.filter(m => m.id > since)
+          : data.messages;
+        if (!msgs.length) return textResult(`No messages after ${since}.`);
+        return textResult(JSON.stringify(msgs, null, 2));
       } catch (e) {
         return errorResult(`Failed to read messages: ${e instanceof Error ? e.message : e}`);
       }
@@ -277,13 +282,19 @@ async function main() {
 
   server.tool(
     'agent_chat',
-    `Send a message to ${agentName} via Chat Room (one-way, doesn't wait for reply)`,
-    { message: z.string().describe('Message to send') },
-    async ({ message }) => {
+    `Send a message to ${agentName} via Chat Room (one-way, doesn't wait for reply). Returns the message ID for threading.`,
+    {
+      message: z.string().describe('Message to send'),
+      replyTo: z.string().optional().describe('Message ID to reply to (for threading)'),
+    },
+    async ({ message, replyTo }) => {
       try {
         const text = message.includes(mention) ? message : `${mention} ${message}`;
-        await agentPost('/api/room', { from: 'claude-code', text });
-        return textResult(`Message sent to ${agentName}.`);
+        const body: Record<string, string> = { from: 'claude-code', text };
+        if (replyTo) body.replyTo = replyTo;
+        const res = await agentPost('/api/room', body) as { id?: string };
+        const id = res?.id ?? 'unknown';
+        return textResult(`Message sent to ${agentName}. (id: ${id})`);
       } catch (e) {
         return errorResult(`Failed to send message: ${e instanceof Error ? e.message : e}`);
       }
@@ -292,9 +303,12 @@ async function main() {
 
   server.tool(
     'agent_discuss',
-    `Send a message to ${agentName} and wait for a response (up to 5 min). Works in all modes — calm mode uses direct message wake.`,
-    { message: z.string().describe('Message to send') },
-    async ({ message }) => {
+    `Send a message to ${agentName} and wait for a response (up to 5 min). Returns { text, messageId } for multi-turn threading. Use replyTo to continue a conversation thread.`,
+    {
+      message: z.string().describe('Message to send'),
+      replyTo: z.string().optional().describe('Message ID to reply to (for multi-turn threading)'),
+    },
+    async ({ message, replyTo }) => {
       try {
         // 1. Get current latest message ID
         const today = new Date().toISOString().slice(0, 10);
@@ -303,11 +317,14 @@ async function main() {
           ? before.messages[before.messages.length - 1].id
           : '';
 
-        // 2. Send message with mention
+        // 2. Send message with mention + optional replyTo
         const text = message.includes(mention) ? message : `${mention} ${message}`;
-        await agentPost('/api/room', { from: 'claude-code', text });
+        const body: Record<string, string> = { from: 'claude-code', text };
+        if (replyTo) body.replyTo = replyTo;
+        const sendRes = await agentPost('/api/room', body) as { id?: string };
+        const sentMessageId = sendRes?.id ?? '';
 
-        // 3. Poll for agent reply
+        // 3. Poll for agent reply (threading-aware)
         const nameLower = agentName.toLowerCase();
         const deadline = Date.now() + DISCUSS_TIMEOUT;
         let lastProgressAt = Date.now();
@@ -316,15 +333,20 @@ async function main() {
           await new Promise(r => setTimeout(r, DISCUSS_POLL_INTERVAL));
 
           const current = await agentGet(`/api/room?date=${today}`) as {
-            messages?: Array<{ id: string; from: string; text: string }>
+            messages?: Array<{ id: string; from: string; text: string; replyTo?: string }>
           };
 
           if (current?.messages) {
-            const reply = current.messages.find(
+            // Priority: find a reply that threads back to our sent message
+            const threadedReply = sentMessageId
+              ? current.messages.find(m => m.from === nameLower && m.replyTo === sentMessageId)
+              : null;
+            // Fallback: any new message from agent after lastId
+            const reply = threadedReply ?? current.messages.find(
               m => m.from === nameLower && m.id > lastId,
             );
             if (reply) {
-              return textResult(reply.text);
+              return textResult(JSON.stringify({ text: reply.text, messageId: reply.id }));
             }
           }
 
@@ -335,7 +357,11 @@ async function main() {
           }
         }
 
-        return textResult(`${agentName} did not respond within ${DISCUSS_TIMEOUT / 1000}s. The message was sent — ${agentName} may respond later in the Chat Room.`);
+        return textResult(JSON.stringify({
+          text: `${agentName} did not respond within ${DISCUSS_TIMEOUT / 1000}s. The message was sent — ${agentName} may respond later in the Chat Room.`,
+          messageId: null,
+          sentMessageId,
+        }));
       } catch (e) {
         return errorResult(`Discussion failed: ${e instanceof Error ? e.message : e}`);
       }

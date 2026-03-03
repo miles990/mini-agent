@@ -389,6 +389,8 @@ export class AgentLoop {
 
   // ── Event-Driven Scheduling (Phase 2b) ──
   private triggerReason: string | null = null;
+  /** Room message ID that triggered this cycle (for threading replies back) */
+  private triggerRoomMsgId: string | null = null;
   private lastCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
@@ -670,6 +672,7 @@ export class AgentLoop {
       // Loop idle → full OODA cycle
       slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
+      this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
       this.runCycle();
       return;
     }
@@ -1556,7 +1559,7 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
-        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
+        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId });
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
       }
@@ -1580,7 +1583,7 @@ export class AgentLoop {
           content: askText.slice(0, 200),
           source: 'kuro:ask',
         }).catch(() => {});
-        eventBus.emit('action:chat', { text: askText, blocking: true });
+        eventBus.emit('action:chat', { text: askText, blocking: true, roomReplyTo: this.triggerRoomMsgId });
       }
 
       for (const show of tags.shows) {
@@ -1896,6 +1899,7 @@ export class AgentLoop {
       return action;
     } finally {
       this.cycling = false;
+      this.triggerRoomMsgId = null;
       this.clearSafetyValve();
 
       // Cooperative yield: drain pending priority first

@@ -140,8 +140,9 @@ function handleChatEvent(e: AgentEvent): void {
   slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
 
-  // Bridge to Chat Room — fire-and-forget (no replyTo for Kuro's direct chats)
-  writeRoomMessage('kuro', text).catch(() => {});
+  // Bridge to Chat Room — fire-and-forget, threading through roomReplyTo if present
+  const roomReplyTo = e.data.roomReplyTo as string | undefined;
+  writeRoomMessage('kuro', text, roomReplyTo).catch(() => {});
 }
 
 // =============================================================================
