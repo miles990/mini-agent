@@ -283,34 +283,76 @@ GitHub Issues 作為統一追蹤點，機械步驟自動化 + 判斷步驟由 Ku
 
 **安全護欄**：auto-merge 需雙重條件（approved + CI pass）、`hold` label 可阻止、gh CLI 未安裝時 graceful exit、回退只需刪 `src/github.ts` + loop.ts 移除一行。
 
-## OODA-Only Architecture
+## Multi-Lane Architecture
 
-所有訊息統一由 AgentLoop 的 OODA Cycle 處理。一個 process、一個身份、一個對話者。
+從 OODA-Only 演進為通用多工架構。一個身份（Kuro）、多條執行 lane。
+
+### Lane 概覽
+
+| Lane | 用途 | Max Concurrent | Context 深度 |
+|------|------|---------------|-------------|
+| **Main OODA** (`source: 'loop'`) | 完整 OODA cycle | 1 | Full（perception + memory + skills） |
+| **Foreground** (`source: 'foreground'`) | Alex DM 即時回覆（主 cycle 忙時） | 1 | Medium（SOUL + inbox + Chat Room + skills） |
+| **Background** (`<kuro:delegate>`) | 並行子任務（learn/research/review/create/code） | 2 | Minimal（task prompt + optional context） |
+| **Ask** (`source: 'ask'`, `/api/ask`) | 同步快速問答 | 1 | Light（soul + heartbeat + memory head） |
+
+Worst case 並行數：4（main + foreground + 2 background）。
 
 ### 訊息流
 
 ```
 Alex (Telegram) → writeInbox() → emit trigger:telegram-user → AgentLoop.handleTelegramWake()
                                                                         ↓
+                                                   Loop busy? ──yes──→ foregroundReply()（獨立 lane）
+                                                        │no                    ↓
 Claude Code (/chat) → writeInbox() → emit trigger:chat ─────→ AgentLoop.handleTrigger()
                                                                         ↓
 System (cron/workspace) → emit trigger:* ────────────────────→ cycle()
                                                                         ↓
                                                                callClaude() → response
                                                                         ↓
-                                                               [CHAT] tag → notifyTelegram()
+                                                               parseTags() → <kuro:delegate> → spawnDelegation()
+                                                                        ↓                         ↓（parallel）
+                                                               [CHAT] tag → notifyTelegram()    Background subprocess
+                                                                                                  ↓
+                                                                                           lane-output/{id}.json
+                                                                                                  ↓
+                                                                                         Next cycle: <background-completed>
 ```
+
+### Foreground Lane（`src/loop.ts:548-636`, `src/agent.ts:154-187`）
+
+Alex DM 到來時，如果主 cycle 正在跑，走 foreground lane 而非 preempt：
+- 獨立的 `foregroundBusy` / `foregroundTask` tracking
+- Context: SOUL + inbox + today's Chat Room recent + topic memory + skills
+- 主 cycle 不被打斷，foreground 回覆記錄注入下個 cycle prompt
+
+### Background Lane（`src/delegation.ts`, feature flag: `background-lane`）
+
+通用子任務委派系統。5 種任務類型，各自帶預設 tools 和 timeout：
+
+| Type | Tools | maxTurns | timeout |
+|------|-------|----------|---------|
+| `code` | Bash,Read,Write,Edit,Glob,Grep | 5 | 5min |
+| `learn` | Bash,Read,Glob,Grep,WebFetch | 3 | 5min |
+| `research` | Bash,Read,Glob,Grep,WebFetch | 5 | 8min |
+| `create` | Read,Write,Edit | 5 | 8min |
+| `review` | Bash,Read,Glob,Grep | 3 | 3min |
+
+**安全邊界**：Subprocess 不讀 SOUL.md（`--setting-sources user`）、不寫 `memory/`、不發 Telegram。結果寫 `lane-output/`，由主 cycle 的 Kuro 決定是否 REMEMBER/CHAT。
+
+**結果合併**：`buildContext()` 掃 `lane-output/` → `<background-completed>` section（上限 2000 chars）。主 cycle 處理完後清理。
 
 ### Dispatcher（Tag Processor）
 
 `src/dispatcher.ts` 僅保留 tag 處理和 system prompt：
-- `parseTags()` — 解析 [REMEMBER], [TASK], [CHAT], [ACTION] 等 tags
-- `postProcess()` — tag 處理 + memory + log
+- `parseTags()` — 解析 `<kuro:*>` tags（包括 `<kuro:delegate>` 的 `type` 屬性）
+- `postProcess()` — tag 處理 + memory + log + delegation spawn
 - `getSystemPrompt()` — system prompt 組裝（含 JIT skills）
 
 ### Preemption
 
-Alex 的 Telegram 訊息可搶佔進行中的 OODA cycle（`preemptLoopCycle`）。
+Foreground lane 解決了 90% 的 preempt 場景。Preemption 保留作為 escalation 手段。
 被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
 
 ### Crash Resume
@@ -318,7 +360,7 @@ Alex 的 Telegram 訊息可搶佔進行中的 OODA cycle（`preemptLoopCycle`）
 cycle 開始前寫 checkpoint（`~/.mini-agent/instances/{id}/cycle-state.json`），正常結束刪除。
 重啟時讀取 <1h 的 checkpoint，注入下個 cycle prompt。
 
-`/status` 回應：`claude: { busy, loop: { busy, task } }` + `loop: { enabled, running, mode, cycleCount, ... }`
+`/status` 回應：`claude: { busy, foreground: { busy, task }, loop: { busy, task } }` + `loop: { enabled, running, mode, cycleCount, ... }`
 
 ## Reactive Architecture
 
@@ -497,6 +539,7 @@ Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處
 | `<kuro:schedule next="Xm" reason="..." />` | 自主排程下次 cycle 間隔（30s-4h，`next="now"` = 30s continuation） | — |
 | `<kuro:done>...</kuro:done>` | 標記 NEXT.md 任務完成 | — |
 | `<kuro:thread op="..." id="...">...</kuro:thread>` | 管理思考線程 | — |
+| `<kuro:delegate type="..." workdir="...">...</kuro:delegate>` | 委派背景子任務（type: code/learn/research/create/review） | — |
 | `<kuro:archive url="..." title="...">...</kuro:archive>` | 歸檔網頁來源 | — |
 | `<kuro:summary>...</kuro:summary>` | 發送摘要事件 | — |
 
