@@ -390,65 +390,66 @@ interface SoulFacet {
   summary: string;
 }
 
-/** Topic keyword mapping — shared between buildContext and loadTopicsForQuery */
-const TOPIC_KEYWORDS: Record<string, string[]> = {
-  'gen-art': ['generative', 'noise', 'shader', 'p5', 'canvas', 'domain', 'warp', 'perlin', 'fbm', 'visual', 'creative coding'],
-  'mini-agent': ['dispatcher', 'haiku', 'lane', 'context budget', 'loop', 'triage', 'perception stream', 'plugin'],
-  'agent-architecture': [
-    'autogpt', 'babyagi', 'langchain', 'crewai', 'context engineering', 'framework',
-    'openviking', 'memskill', 'coderlm', 'manus', 'smolagents', 'openclaw',
-    'ooda', 'perception-driven', 'multi-agent', 'agent framework',
-    'docker', 'ollama', 'openrouter', 'benchmark', 'model comparison',
-    'deobald', 'telnet', 'greynoise', 'pahud', 'netnewswire',
-    'winter', 'neurosymbolic', 'datalog', 'lemmer-webber',
-    'ace', 'total recall', 'write gate', 'skillsbench',
-    'gemini', 'gpt', 'deep think', 'codex-spark', 'agentic',
-    'opc-skills', 'seo-geo', 'apptopia', 'memory system',
-  ],
-  'web-learning': ['cdp', 'chrome', 'cdp-fetch', 'fetch', 'hacker news', 'dev.to', 'reddit'],
-  'design-philosophy': [
-    'alexander', 'pattern language', 'wabi-sabi', 'enactivism', 'umwelt',
-    'constraint', 'emergence', 'botw', 'physarum', 'fnnch',
-    'rancière', 'calm technology', 'utility ai', 'goap',
-    'response curve', 'partage', 'interface shapes', 'oulipo',
-    'sdf', 'string art', 'emergent gameplay',
-    'vernacular', 'rudofsky', 'hobbs', 'long-form',
-    'mono no aware', 'yūgen', 'zeami', 'noh', 'chanoyu',
-    'bleuje', 'gorilla sun', 'zuihitsu', 'sei shōnagon',
-  ],
-  'creative-arts': [
-    'oulipo', 'marker', 'eno', 'stockhausen', 'fischinger', 'visual music',
-    'dälek', 'hayward', 'hip-hop', 'shoegaze', 'semantic ablation',
-    'contact improvisation', 'generative art', 'nastruzzi',
-    'music', 'song', 'unseen', 'ablation', 'mmaevedo',
-    'footwork', 'živa píseň', 'reaction-diffusion',
-  ],
-  'social-culture': [
-    'mockus', 'huizinga', 'garden', 'homo ludens',
-    'ireland', 'ubi', 'basic income', 'amanuensis', 'jacobson',
-    'nabokov', 'tolstoy', 'olmec', 'stela', 'baez',
-    'literary labor', 'fluorite',
-    'dan koe', 'spiral dynamics', 'randall', 'fallow',
-    'kanchipuram', 'barbed wire', 'trust',
-  ],
-  'cognitive-science': [
-    'borges', 'embodied cognition', 'consciousness', 'enactive',
-    'bruner', 'winnicott', 'dunker', 'bateson', 'gibson', 'nagarjuna',
-    'warburg', 'de botton', 'kumārila', 'narrative cognition',
-    'double bind', 'affordance', 'neuroplasticity', 'metacognition',
-    'linear time', 'breakdown', 'containment', 'rumination',
-    'predictive processing', 'friston', 'free energy', 'epistemic arc',
-    'de beauvoir', 'vieillesse', 'mexistentialism', 'uranga',
-    'thompson', 'ubuntu', 'hunhu', 'carson', 'accidentality',
-    'kahneman', 'system 1', 'system 2', 'kluge',
-  ],
-};
+/**
+ * Parse YAML frontmatter from a topic file's content.
+ * Uses regex — no yaml parser dependency needed.
+ * Returns { keywords, negativeKeywords } or null if no frontmatter.
+ */
+function parseTopicFrontmatter(content: string): { keywords: string[]; negativeKeywords: string[] } | null {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const fm = match[1];
 
-/** Negative keywords — prevent overly broad single-word matches */
-const TOPIC_NEGATIVE_KEYWORDS: Record<string, string[]> = {
-  'mini-agent': ['agent'],
-  'agent-architecture': ['anthropic'],
-};
+  const parseList = (key: string): string[] => {
+    const lineMatch = fm.match(new RegExp(`^${key}:\\s*\\[(.*)\\]`, 'm'));
+    if (!lineMatch) return [];
+    return lineMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+  };
+
+  const keywords = parseList('keywords');
+  if (keywords.length === 0) return null;
+  return { keywords, negativeKeywords: parseList('negative_keywords') };
+}
+
+/** Cached topic keyword map — lazily populated, invalidated by file changes */
+let _topicKeywordCache: Record<string, { keywords: string[]; negativeKeywords: string[] }> | null = null;
+let _topicKeywordCacheTime = 0;
+const TOPIC_CACHE_TTL = 60_000; // 60s — topic files rarely change mid-session
+
+/**
+ * Load topic keywords from frontmatter dynamically.
+ * Caches for 60s to avoid repeated file reads within a single cycle.
+ */
+async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { keywords: string[]; negativeKeywords: string[] }>> {
+  const now = Date.now();
+  if (_topicKeywordCache && now - _topicKeywordCacheTime < TOPIC_CACHE_TTL) {
+    return _topicKeywordCache;
+  }
+
+  const topicsDir = path.join(memoryDir, 'topics');
+  const map: Record<string, { keywords: string[]; negativeKeywords: string[] }> = {};
+  try {
+    const files = await fs.readdir(topicsDir);
+    for (const file of files) {
+      if (!file.endsWith('.md')) continue;
+      const topic = file.replace(/\.md$/, '');
+      try {
+        const content = await fs.readFile(path.join(topicsDir, file), 'utf-8');
+        const parsed = parseTopicFrontmatter(content);
+        if (parsed) {
+          map[topic] = parsed;
+        } else {
+          // Fallback: topic name itself as keyword
+          map[topic] = { keywords: [topic], negativeKeywords: [] };
+        }
+      } catch { /* skip unreadable files */ }
+    }
+  } catch { /* topics dir doesn't exist */ }
+
+  _topicKeywordCache = map;
+  _topicKeywordCacheTime = now;
+  return map;
+}
 
 /** Identity sections always loaded in focused/minimal mode */
 const SOUL_IDENTITY_SECTIONS = [
@@ -955,13 +956,13 @@ export class InstanceMemory {
     const topics = await this.listTopics();
     if (topics.length === 0) return '';
 
+    const keywordMap = await loadTopicKeywordMap(this.memoryDir);
     const hint = query.toLowerCase();
     const sections: string[] = [];
     let charsUsed = 0;
 
     for (const topic of topics) {
-      const keywords = TOPIC_KEYWORDS[topic] ?? [topic];
-      const negatives = TOPIC_NEGATIVE_KEYWORDS[topic] ?? [];
+      const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
 
       const isMatch = keywords.some(k => {
         if (!hint.includes(k)) return false;
@@ -1710,10 +1711,11 @@ export class InstanceMemory {
       const TOPIC_MEMORY_BUDGET = 6000;
       let topicCharsUsed = 0;
 
+      const keywordMap = await loadTopicKeywordMap(this.memoryDir);
+
       const loadedTopics: string[] = [];
       for (const topic of topics) {
-        const keywords = TOPIC_KEYWORDS[topic] ?? [topic];
-        const negatives = TOPIC_NEGATIVE_KEYWORDS[topic] ?? [];
+        const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
 
         // Match: keyword found AND not a negative-only match
         const isDirectMatch = keywords.some(k => {
