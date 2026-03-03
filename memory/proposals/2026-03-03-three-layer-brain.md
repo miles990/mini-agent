@@ -7,6 +7,7 @@
 - Level: L3 (架構改動，需 Alex 核准)
 - Priority: P1 (mushi 價值的核心升級)
 - Depends-on: mushi triage 已上線 ✅
+- Prerequisites: `GOOGLE_AI_KEY` env var（需 Alex 建 Google AI Studio API key）
 
 ## Background
 
@@ -24,10 +25,10 @@ Layer 1: mushi (HC1 8B) — 脊髓/觸手
   ‣ 輸出：JSONL append-only（crash-safe）
 
 Layer 2: Midbrain (Gemini 2.5 Flash API) — 格式轉換層
+  ‣ 獨立 timer，每 5 min 定時觸發（不綁 OODA cycle）
   ‣ Batch 處理 mushi 的 JSONL 紀錄
-  ‣ 每 5 min 或累積 N 條時觸發
   ‣ 核心職責：格式轉換（≠ 摘要）— 保留所有資訊，重新組織成 Kuro 能快速理解的格式
-  ‣ 輸出：scout-digest.md
+  ‣ 輸出：scout-digest.md（上限 4000 chars）
   ‣ Fire-and-forget，不阻塞任何東西
 
 Layer 3: Kuro (Claude) — 大腦
@@ -75,6 +76,8 @@ setInterval(scoutCycle, 30_000);
 
 **2. JSONL 格式** — append-only，mushi 不花 token 格式化
 
+共享路徑：`~/.mini-agent/scout-journal.jsonl`（mushi 寫、midbrain 讀，跟 mobile-state.json 同 pattern）
+
 ```jsonl
 {"ts":"...","type":"sense","signal":"workspace.git_diff","raw":"3 files changed: test/*.ts","tags":["test","workspace"]}
 {"ts":"...","type":"triage","trigger":"workspace","decision":"skip","reason":"test-only changes"}
@@ -83,19 +86,40 @@ setInterval(scoutCycle, 30_000);
 
 **3. 保留現有 triage** — scout loop 跟 triage 並行，不互相影響
 
+### Scout vs Perception 分工
+
+Scout loop 和 mini-agent perception plugins 互補不重疊：
+
+| 層 | 角色 | 資料來源 | 輸出 |
+|----|------|----------|------|
+| mini-agent perception plugins (21個) | 從環境收集原始資料 | 環境（git, inbox, chrome...）| `<section>` 快取 |
+| mushi scout loop | 觀察「什麼變了」+「跨來源模式」| mushi 自己的 6 個 plugins + triage 歷史 | scout-journal.jsonl |
+| midbrain | 格式轉換 | scout-journal.jsonl | scout-digest.md |
+
+Scout 不複製 mini-agent 的 perception，而是在更高層做 cross-cutting 觀察（例如：workspace 改了 + inbox 有新訊息 → 「有人改了 code 然後在 room 問你」）。
+
 ### mini-agent repo
 
 **4. Midbrain Processor** — 新增 `src/midbrain.ts`
 
 ```typescript
-// 每 5 min 或 mushi JSONL 新增 N 條時觸發
+// src/midbrain.ts — 獨立 timer，不綁 OODA cycle
+const MIDBRAIN_INTERVAL = 5 * 60_000; // 5 min
+const SCOUT_JOURNAL = path.join(instanceDir, 'scout-journal.jsonl');
+const SCOUT_DIGEST = path.join(instanceDir, 'scout-digest.md');
+
 async function runMidbrain() {
-  const rawEntries = readNewMushinEntries();  // 讀 mushi JSONL
+  const rawEntries = readNewEntries(SCOUT_JOURNAL);  // 讀 mushi JSONL
   if (rawEntries.length === 0) return;
 
-  const digest = await callMidbrain(rawEntries); // Gemini Flash API 消化
-  writeScoutDigest(digest);                      // 寫 scout-digest.md
+  const digest = await callMidbrain(rawEntries); // Gemini Flash API 格式轉換
+  writeScoutDigest(SCOUT_DIGEST, digest);        // 寫 scout-digest.md（上限 4000 chars）
+  markProcessed(SCOUT_JOURNAL, rawEntries);      // 標記已處理
 }
+
+// 啟動時跑一次 + 每 5 min
+runMidbrain().catch(() => {});
+setInterval(() => runMidbrain().catch(() => {}), MIDBRAIN_INTERVAL);
 ```
 
 Model-agnostic interface: `callMidbrain()` 接受 JSONL string、回傳 digest string。底層用 Gemini 2.5 Flash API（Google AI Studio），日後可替換。
@@ -135,12 +159,12 @@ if (fs.existsSync(scoutDigestPath)) {
 }
 ```
 
-**6. Midbrain 在 OODA cycle 結束後 fire-and-forget**
+**6. Midbrain 獨立 timer** — 不綁 OODA cycle
 
-```typescript
-// src/loop.ts — cycle end
-runMidbrain().catch(() => {}); // fire-and-forget，跟 feedback loops 同層
-```
+Midbrain 在 `src/midbrain.ts` 中自行 `setInterval(5 min)` 運作，loop.ts 不觸發也不等待。
+理由：scout-digest 要在 cycle 開始前就準備好，不是 cycle 結束後才做。
+
+啟動方式：`initMidbrain()` 在 `src/index.ts` 或 `src/loop.ts` 的 start 階段呼叫一次。
 
 **7. Gemini API 整合** — 用 Google AI Studio REST API（`generativelanguage.googleapis.com`），需 `GOOGLE_AI_KEY` env var。不用 SDK，直接 `fetch()` 呼叫，保持輕量。
 
@@ -150,7 +174,7 @@ runMidbrain().catch(() => {}); // fire-and-forget，跟 feedback loops 同層
 2. **Midbrain 失敗 = scout-digest 不更新 = 用舊的**（graceful degradation）
 3. **Feature flag**: `mushi-scout`（mushi 端）+ `midbrain`（mini-agent 端）
 4. **JSONL ring buffer** — 保留最近 1000 條，防無限增長
-5. **Midbrain output cap** — scout-digest.md 限制 2000 chars
+5. **Midbrain output cap** — scout-digest.md 限制 4000 chars（跟 perception plugin 預設一致，格式轉換不丟資訊需要足夠空間）
 
 ## 驗證計劃
 
