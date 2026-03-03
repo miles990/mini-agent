@@ -6,6 +6,7 @@
 
 | 工具 | 強項 | 特性 |
 |------|------|------|
+| `bash scripts/search-web.sh` | **結構化搜尋** | SearXNG 多引擎聚合，回傳 title/url/snippet |
 | `curl -sL` | 公開靜態頁面 | 最快（<1s），無 JS/session |
 | `node scripts/cdp-fetch.mjs fetch` | 需登入 + JS-heavy | 使用 Chrome 現有 session，直連 CDP port 9222 |
 | `node scripts/cdp-fetch.mjs screenshot` | 視覺確認 | 截圖當前頁面 |
@@ -17,6 +18,7 @@
 **自己判斷**。看 URL、看你對這個網站的經驗、看 Chrome CDP 是否可用（`curl -s http://localhost:9222/json/version`）。
 
 常見情境（參考，不是規則）：
+- **想找某個主題的文章/來源** → `search-web.sh`（多引擎聚合，比 curl 猜 URL 更有效率）
 - X/Twitter 連結 → Grok API 效果最好（能讀 replies、engagement、展開引用），CDP 作為 fallback
 - Facebook、Reddit 等社群 → cdp-fetch.mjs（Chrome profile 已有登入 session）
 - GitHub、新聞、文件 → curl 通常就夠
@@ -39,6 +41,18 @@ curl -s --max-time 45 "https://api.x.ai/v1/responses" \
 ```
 - 解析：response → `output[]` → type `message` → `content[]` → type `output_text` → `text`
 - 影片理解：`enable_video_understanding: true`
+
+### search-web.sh（結構化搜尋 — 主題探索首選）
+```bash
+bash scripts/search-web.sh "query"                          # 預設 10 筆
+bash scripts/search-web.sh "query" --limit 5                # 限制筆數
+bash scripts/search-web.sh "query" --lang zh                # 中文優先
+bash scripts/search-web.sh "query" --engines google,bing    # 指定引擎
+```
+- 使用本地 SearXNG（port 8888），隱私友善，多引擎聚合
+- 回傳結構化結果：title + URL + snippet
+- 適合：找主題文章、競品研究、學習來源掃描
+- **搜到有興趣的 → 用 curl 或 cdp-fetch.mjs 讀全文**
 
 ### cdp-fetch.mjs（主力工具）
 ```bash
