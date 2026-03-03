@@ -25,7 +25,7 @@ Layer 1: mushi (HC1 8B) — 脊髓/觸手
   ‣ 輸出：JSONL append-only（crash-safe）
 
 Layer 2: Midbrain (Gemini 2.5 Flash API) — 格式轉換層
-  ‣ Event-driven：mushi 寫入 JSONL → HTTP 通知 → debounce 10s → 觸發中腦
+  ‣ Event-driven：mushi 寫入 JSONL → 立刻 HTTP POST 觸發中腦（零人為延遲）
   ‣ 核心職責：格式轉換（≠ 摘要）— 保留所有資訊，重新組織成 Kuro 能快速理解的格式
   ‣ 輸出：scout-digest.md（上限 4000 chars）
   ‣ Fire-and-forget，不阻塞任何東西
@@ -104,37 +104,45 @@ Scout 不複製 mini-agent 的 perception，而是在更高層做 cross-cutting 
 **4. Midbrain Processor** — 新增 `src/midbrain.ts`
 
 ```typescript
-// src/midbrain.ts — Event-driven，mushi 寫 JSONL 後 HTTP 通知觸發
+// src/midbrain.ts — Event-driven，mushi 觀察到變化 → 立刻觸發
 const SCOUT_JOURNAL = '~/.mini-agent/scout-journal.jsonl';
 const SCOUT_DIGEST = path.join(instanceDir, 'scout-digest.md');
-const DEBOUNCE_MS = 10_000; // 10s debounce，一個 scout cycle 的多筆寫入合併處理
 
-let debounceTimer: NodeJS.Timeout | null = null;
+let running = false;
+let queued = false; // latest-wins: 新 trigger 覆蓋舊 queued（JSONL 已含所有新條目）
 
 // mushi POST /api/midbrain/trigger 後呼叫
 export function triggerMidbrain() {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => runMidbrain().catch(() => {}), DEBOUNCE_MS);
+  if (running) { queued = true; return; } // 忙 → queue 一次（不丟）
+  run();
 }
 
-async function runMidbrain() {
-  const rawEntries = readNewEntries(SCOUT_JOURNAL);  // 讀 mushi JSONL
-  if (rawEntries.length === 0) return;
-
-  const digest = await callMidbrain(rawEntries); // Gemini Flash API 格式轉換
-  writeScoutDigest(SCOUT_DIGEST, digest);        // 寫 scout-digest.md（上限 4000 chars）
-  markProcessed(SCOUT_JOURNAL, rawEntries);      // 標記已處理
+async function run() {
+  running = true;
+  try {
+    const rawEntries = readNewEntries(SCOUT_JOURNAL);
+    if (rawEntries.length === 0) return;
+    const digest = await callMidbrain(rawEntries); // Gemini Flash ~3s
+    writeScoutDigest(SCOUT_DIGEST, digest);
+    markProcessed(SCOUT_JOURNAL, rawEntries);
+  } catch { /* fire-and-forget */ }
+  finally {
+    running = false;
+    if (queued) { queued = false; run(); } // 處理排隊的 trigger
+  }
 }
 
 // 啟動時跑一次（處理離線期間累積的 entries）
-runMidbrain().catch(() => {});
+run();
 ```
 
-**觸發機制**：
-- mushi 每次寫入 JSONL 後，fire-and-forget POST `http://localhost:3001/api/midbrain/trigger`
-- mini-agent 收到後 debounce 10s（一個 scout cycle 30-60s 可能寫多行，10s 合併處理）
-- 正常路徑：mushi 寫 JSONL → 10s 後 midbrain 跑 → ~2-5s Gemini Flash 回覆 → digest 就緒
-- 最壞延遲：10s debounce + 5s API = 15s（遠優於 5 min timer 的最壞 5 min）
+**觸發機制**（零人為延遲）：
+- mushi 每次 sense cycle（30-60s）偵測到變化 → 寫 JSONL → 立刻 POST `http://localhost:3001/api/midbrain/trigger`
+- 無變化 → 不寫 → 不觸發（mushi 的 sense interval 本身就是天然 debounce）
+- midbrain 收到 → 立刻讀 JSONL + 呼叫 Gemini Flash (~3s) → 更新 scout-digest
+- midbrain 忙 → queue 一次（latest-wins，新 trigger 時 JSONL 已含所有新條目）
+- 正常路徑延遲：~3s（API call only）
+- 觀察到消化完：30-60s（sense interval）+ 3s（API）= ~33-63s
 
 **Graceful Degradation（buildContext fallback）**：
 ```typescript
@@ -186,8 +194,9 @@ if (fs.existsSync(scoutDigestPath)) {
 
 **6. Midbrain Event-driven 觸發** — 不綁 OODA cycle
 
-Midbrain 由 mushi 的 HTTP 通知驅動（`POST /api/midbrain/trigger`），不是固定 timer。
-資料流：mushi 寫 JSONL → POST trigger → debounce 10s → Gemini Flash → scout-digest.md
+Midbrain 由 mushi 的 HTTP 通知驅動（`POST /api/midbrain/trigger`），零人為延遲。
+資料流：mushi sense → 有變化 → 寫 JSONL → 立刻 POST → Gemini Flash ~3s → scout-digest.md
+mushi 的 sense interval（30-60s）是天然節流，不需要額外 debounce。
 類比人的神經系統：正常路徑 = 視覺皮層消化後送前額葉；緊急 fallback = 杏仁核直接反射（Kuro 讀原始 JSONL）。
 
 啟動方式：`initMidbrain()` 在 `src/index.ts` 或 `src/loop.ts` 的 start 階段呼叫一次（處理離線累積）+ 註冊 `/api/midbrain/trigger` endpoint。
