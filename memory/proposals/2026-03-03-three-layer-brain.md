@@ -1,4 +1,4 @@
-# Proposal: 三層大腦架構 — mushi Scout + Haiku Midbrain + Kuro Brain
+# Proposal: 三層大腦架構 — mushi Scout + Gemini Flash Midbrain + Kuro Brain
 
 ## Meta
 - Status: pending
@@ -23,7 +23,7 @@ Layer 1: mushi (HC1 8B) — 脊髓/觸手
   ‣ 不分析、不判斷、不寫 report
   ‣ 輸出：JSONL append-only（crash-safe）
 
-Layer 2: Midbrain (Haiku subprocess) — 消化層
+Layer 2: Midbrain (Gemini 2.5 Flash API) — 消化層
   ‣ Batch 處理 mushi 的 JSONL 紀錄
   ‣ 每 5 min 或累積 N 條時觸發
   ‣ 輸出：scout-digest.md（結構化摘要）
@@ -37,15 +37,25 @@ Layer 3: Kuro (Claude) — 大腦
 
 ## 為什麼三層而不是兩層
 
-HC1 8B 推理深度有限 → 原始觀察品質粗糙。如果 mushi 直接寫 report 給 Kuro，Kuro 要花 token 理解低品質輸入。Haiku 中腦夾在中間做消化，是能力和成本的最佳平衡：
+HC1 8B 推理深度有限 → 原始觀察品質粗糙。如果 mushi 直接寫 report 給 Kuro，Kuro 要花 token 理解低品質輸入。中腦夾在中間做消化，是能力和成本的最佳平衡：
 
-| 層 | 模型 | 成本 | 能力 | 職責 |
-|----|------|------|------|------|
-| mushi | HC1 8B | ~免費 | 模式匹配 | 記錄觀察 |
-| Midbrain | Haiku | 便宜 | 結構化整理 | 消化紀錄 |
-| Kuro | Claude | 貴 | 深度推理 | 決策行動 |
+| 層 | 模型 | 成本 | 速度 | 能力 | 職責 |
+|----|------|------|------|------|------|
+| mushi | HC1 8B | ~免費 | ~17ms | 模式匹配 | 記錄觀察 |
+| Midbrain | Gemini 2.5 Flash | $0.15/1M in | 245 t/s | 結構化整理 + 內建 thinking | 消化紀錄 |
+| Kuro | Claude | 貴 | — | 深度推理 | 決策行動 |
 
-先例：Action Coach 已用 Haiku subprocess（`claude -p --model claude-haiku-4-5-20251001`），架構成熟。
+### 為什麼 Gemini 2.5 Flash
+
+| 候選 | 結論 | 理由 |
+|------|------|------|
+| **Gemini 2.5 Flash** ✅ | 最適合 | $0.15/1M（便宜）、245 t/s（最快）、內建 thinking（歸納品質好）、Google infra 穩定 |
+| Haiku 4.5 | 品質 overkill | $0.80/1M（5x 貴），中腦歸納不需要這級品質。Coach 已佔 Haiku 用量 |
+| DeepSeek V3 | 穩定性風險 | $0.14/1M 最便宜，但中腦是核心元件、每 5 min 跑，不能冒斷線風險 |
+| Ollama 本地 | 搶資源 | 免費但跟 mushi 搶 Mac GPU，雙方劣化 |
+| GPT-4o-mini | 多依賴 | 沒有明顯優勢 justify 加一個 vendor |
+
+介面設計成 model-agnostic（輸入 JSONL string → 輸出 digest string），底層 model 可插拔。未來如果有更好的選項，換一行 config。
 
 ## 具體改動
 
@@ -82,12 +92,14 @@ async function runMidbrain() {
   const rawEntries = readNewMushinEntries();  // 讀 mushi JSONL
   if (rawEntries.length === 0) return;
 
-  const digest = await callHaiku(rawEntries); // Haiku subprocess 消化
-  writeScoutDigest(digest);                   // 寫 scout-digest.md
+  const digest = await callMidbrain(rawEntries); // Gemini Flash API 消化
+  writeScoutDigest(digest);                      // 寫 scout-digest.md
 }
 ```
 
-Haiku prompt 重點：把原始觀察整理成 Kuro 可直接使用的格式（摘要 + 趨勢 + 建議優先順序）。
+Model-agnostic interface: `callMidbrain()` 接受 JSONL string、回傳 digest string。底層用 Gemini 2.5 Flash API（Google AI Studio），日後可替換。
+
+Prompt 重點：把原始觀察整理成 Kuro 可直接使用的格式（摘要 + 趨勢 + 建議優先順序）。
 
 **5. buildContext 整合** — 新增 `<scout-digest>` section
 
@@ -104,6 +116,8 @@ if (fs.existsSync(scoutDigestPath)) {
 // src/loop.ts — cycle end
 runMidbrain().catch(() => {}); // fire-and-forget，跟 feedback loops 同層
 ```
+
+**7. Gemini API 整合** — 用 Google AI Studio REST API（`generativelanguage.googleapis.com`），需 `GOOGLE_AI_KEY` env var。不用 SDK，直接 `fetch()` 呼叫，保持輕量。
 
 ## 安全護欄
 
