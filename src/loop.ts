@@ -1049,6 +1049,16 @@ export class AgentLoop {
         const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
         if (decision === 'skip') {
           slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
+          // Trail: skip = scouting, not discarding. Record what was seen.
+          writeTrailEntry({
+            ts: new Date().toISOString(),
+            agent: 'mushi',
+            type: 'scout',
+            decision: 'skip',
+            topics: [triageSource],
+            detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
+            decay_h: 24,
+          });
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
           }
