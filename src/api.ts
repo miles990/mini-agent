@@ -447,6 +447,7 @@ export function createApi(port = 3001): express.Express {
       claude: {
         busy: isClaudeBusy(),
         loop: laneStatus.loop,
+        foreground: laneStatus.foreground,
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
       cron: { active: getCronTaskCount(), queued: getCronQueueSize() },

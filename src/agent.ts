@@ -119,7 +119,7 @@ function classifyError(error: unknown): ErrorClassification {
 // Lane Types
 // =============================================================================
 
-export type CallSource = 'loop' | 'ask';
+export type CallSource = 'loop' | 'ask' | 'foreground';
 
 interface TaskInfo {
   prompt: string;
@@ -142,17 +142,23 @@ function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string;
 }
 
 // =============================================================================
-// Loop Lane Busy Lock (OODA-Only)
+// Lane Busy Locks
 // =============================================================================
 
+// Loop Lane (OODA cycle)
 let loopBusy = false;
 let loopTask: TaskInfo | null = null;
 let loopChildPid: number | null = null;
 let loopGeneration = 0; // Bumped on preemption — callClaude detects mismatch
 
-/** 查詢 Claude CLI 是否正在執行 */
+// Foreground Lane (DM response while loop is busy)
+let foregroundBusy = false;
+let foregroundTask: TaskInfo | null = null;
+let foregroundChildPid: number | null = null;
+
+/** 查詢是否有任何 lane 正在執行 Claude CLI */
 export function isClaudeBusy(): boolean {
-  return loopBusy;
+  return loopBusy || foregroundBusy;
 }
 
 /** 查詢 loop lane 是否忙碌 */
@@ -160,17 +166,24 @@ export function isLoopBusy(): boolean {
   return loopBusy;
 }
 
-/** 查詢目前正在處理的任務 */
-export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
-  return formatTask(loopTask);
+/** 查詢 foreground lane 是否忙碌 */
+export function isForegroundBusy(): boolean {
+  return foregroundBusy;
 }
 
-/** 查詢 loop lane 狀態 */
+/** 查詢目前正在處理的任務 */
+export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
+  return formatTask(loopTask) ?? formatTask(foregroundTask);
+}
+
+/** 查詢所有 lane 狀態 */
 export function getLaneStatus(): {
   loop: { busy: boolean; task: ReturnType<typeof formatTask> };
+  foreground: { busy: boolean; task: ReturnType<typeof formatTask> };
 } {
   return {
     loop: { busy: loopBusy, task: formatTask(loopTask) },
+    foreground: { busy: foregroundBusy, task: formatTask(foregroundTask) },
   };
 }
 
@@ -288,9 +301,11 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       },
     );
 
-    // Track PID for loop lane (preemption support)
+    // Track PID for lane management (preemption support)
     if (source === 'loop') {
       loopChildPid = child.pid ?? null;
+    } else if (source === 'foreground') {
+      foregroundChildPid = child.pid ?? null;
     }
 
     let resultText = '';
@@ -315,6 +330,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
           if (!settled) {
             settled = true;
             if (source === 'loop') loopChildPid = null;
+            else if (source === 'foreground') foregroundChildPid = null;
             const duration = Date.now() - startTs;
             slog('CLAUDE', `Force-resolve: close event not received 10s after SIGKILL (pid ${child.pid}), elapsed=${(duration / 1000).toFixed(1)}s`);
             reject(Object.assign(new Error('Claude CLI force-resolved: close event timeout after SIGKILL'), {
@@ -382,6 +398,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       // Clear PID tracking
       if (source === 'loop') {
         loopChildPid = null;
+      } else if (source === 'foreground') {
+        foregroundChildPid = null;
       }
 
       // 處理 buffer 中剩餘的不完整行
@@ -428,6 +446,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       clearTimeout(timer);
       if (source === 'loop') {
         loopChildPid = null;
+      } else if (source === 'foreground') {
+        foregroundChildPid = null;
       }
       reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
@@ -617,12 +637,23 @@ export async function callClaude(
     } catch { /* proceed with original */ }
   }
 
-  // Busy helpers (OODA-Only: single loop lane)
-  // 'ask' source runs in parallel — no busy guard, no loop state tracking
+  // Busy helpers — each lane tracks its own busy/task state independently
+  // 'ask' source runs in parallel — no busy guard, no state tracking
   const isLoopSource = source === 'loop';
-  const isBusy = () => isLoopSource && loopBusy;
-  const setBusy = (v: boolean) => { if (isLoopSource) loopBusy = v; };
-  const setTask = (v: TaskInfo | null) => { if (isLoopSource) loopTask = v; };
+  const isFgSource = source === 'foreground';
+  const isBusy = () => {
+    if (isLoopSource) return loopBusy;
+    if (isFgSource) return foregroundBusy;
+    return false; // 'ask' has no busy guard
+  };
+  const setBusy = (v: boolean) => {
+    if (isLoopSource) loopBusy = v;
+    if (isFgSource) foregroundBusy = v;
+  };
+  const setTask = (v: TaskInfo | null) => {
+    if (isLoopSource) loopTask = v;
+    if (isFgSource) foregroundTask = v;
+  };
 
   // Busy guard — 防止同一 lane 並發呼叫（only for loop source）
   if (isBusy()) {
