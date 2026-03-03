@@ -263,6 +263,85 @@ export class TelegramPoller {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // sendMessageDraft — Bot API 9.3+ streaming draft
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Stream a partial message to the user while it's being generated.
+   * Drafts with the same draft_id are animated (progressive text reveal).
+   * The draft is ephemeral — call sendMessage afterwards to persist.
+   */
+  async sendMessageDraft(draftId: number, text: string, parseMode?: 'Markdown' | 'HTML' | ''): Promise<SendResult> {
+    try {
+      if (!text || !text.trim()) return { ok: false, error: 'empty draft', status: -1 };
+
+      const body: Record<string, string | number> = {
+        chat_id: this.chatId,
+        draft_id: draftId,
+        text,
+      };
+      if (parseMode) body.parse_mode = parseMode;
+
+      const resp = await fetch(`https://api.telegram.org/bot${this.token}/sendMessageDraft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({})) as Record<string, unknown>;
+        const desc = (errData?.description as string) ?? resp.statusText;
+        // Don't retry drafts — they're ephemeral
+        return { ok: false, error: desc, status: resp.status };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err), status: 0 };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // sendStreamingMessage — progressive draft streaming + final send
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Stream a message progressively via drafts, then finalize with sendMessage.
+   * Text is split into sentences/lines and sent as incrementally growing drafts.
+   */
+  async sendStreamingMessage(text: string, options?: {
+    parseMode?: 'Markdown' | 'HTML' | '';
+    chunkDelay?: number;
+    replyToMessageId?: number;
+  }): Promise<SendResult> {
+    const parseMode = options?.parseMode ?? '';
+    const delay = options?.chunkDelay ?? 80;
+    const draftId = (Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
+
+    // Build progressive chunks (each includes all previous text)
+    const sentences = splitIntoSentences(text);
+    if (sentences.length <= 1) {
+      // Short message — just send directly
+      return this.sendMessage(text, parseMode, options?.replyToMessageId);
+    }
+
+    // Stream drafts (all except the last — that becomes the final message)
+    let accumulated = '';
+    for (let i = 0; i < sentences.length - 1; i++) {
+      accumulated += (accumulated ? ' ' : '') + sentences[i];
+      const result = await this.sendMessageDraft(draftId, accumulated, parseMode || undefined);
+      if (!result.ok) {
+        // Draft failed — fall back to direct send
+        slog('TELEGRAM', `Draft streaming failed at chunk ${i}, falling back to sendMessage`);
+        return this.sendMessage(text, parseMode, options?.replyToMessageId);
+      }
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    // Final message — persists the full text
+    return this.sendMessage(text, parseMode, options?.replyToMessageId);
+  }
+
   /** Send photo via Telegram Bot API */
   async sendPhoto(photoPath: string, caption?: string): Promise<SendResult> {
     try {
@@ -1198,6 +1277,33 @@ function splitLongLine(line: string, maxLen: number): string[] {
 }
 
 // =============================================================================
+// Sentence Splitting for Streaming
+// =============================================================================
+
+/**
+ * Split text into sentence-level units for progressive streaming.
+ * Preserves newlines as split points. Returns at least 1 element.
+ */
+function splitIntoSentences(text: string): string[] {
+  // First split by newlines
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length === 0) return [text];
+
+  // Then split long lines by sentence boundaries
+  const result: string[] = [];
+  for (const line of lines) {
+    if (line.length < 100) {
+      result.push(line);
+      continue;
+    }
+    // Split by sentence-ending punctuation
+    const sentences = line.split(/(?<=[.!?。！？])\s+/).filter(s => s.trim());
+    result.push(...(sentences.length > 0 ? sentences : [line]));
+  }
+  return result.length > 0 ? result : [text];
+}
+
+// =============================================================================
 // Shared Notification Helpers
 // =============================================================================
 
@@ -1241,6 +1347,47 @@ export async function notifyTelegram(message: string, replyToMessageId?: number)
   // On success, attempt to drain queued notifications (fire-and-forget)
   if (allOk) {
     drainNotificationQueue(poller).catch(() => {});
+  }
+
+  return allOk;
+}
+
+/**
+ * Streaming Telegram 通知 — 透過 sendMessageDraft 漸進式顯示，最後 sendMessage 定稿
+ * 適合長訊息，讓用戶即時看到內容生成過程
+ */
+export async function notifyTelegramStreaming(
+  message: string,
+  options?: { chunkDelay?: number; replyToMessageId?: number }
+): Promise<boolean> {
+  if (!isEnabled('telegram-notify')) return false;
+  const poller = pollerInstance;
+  if (!poller || !message.trim()) return false;
+
+  // For short messages, just send directly
+  if (message.length < 200) {
+    return notifyTelegram(message, options?.replyToMessageId);
+  }
+
+  // Split by paragraphs, stream each paragraph
+  const paragraphs = message.split(/\n\n+/).filter(c => c.trim());
+  let allOk = true;
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const chunk = paragraphs[i];
+    const replyId = i === 0 ? options?.replyToMessageId : undefined;
+
+    const result = await poller.sendStreamingMessage(chunk, {
+      chunkDelay: options?.chunkDelay ?? 80,
+      replyToMessageId: replyId,
+    });
+
+    if (result.ok) {
+      notifSent++;
+    } else {
+      notifFailed++;
+      allOk = false;
+    }
   }
 
   return allOk;
