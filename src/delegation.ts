@@ -183,11 +183,15 @@ function startTask(task: DelegationTask): void {
   };
 
   // Build Claude CLI args
+  // --setting-sources user: skip project CLAUDE.md to prevent identity confusion
+  // --append-system-prompt: explicitly define subprocess as a task executor (no agent identity)
   const args = [
     '-p', task.prompt,
     '--no-input',
     '--max-turns', String(task.maxTurns),
     '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
+    '--setting-sources', 'user',
+    '--append-system-prompt', 'You are a task executor subprocess. You have no identity — you are not Kuro, not Claude Code, not any named agent. Execute the given task directly. Do not read SOUL.md or agent identity files. Do not post to chat rooms or send notifications. Just complete the task and output the result.',
   ];
 
   slog('DELEGATION', `Starting ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
