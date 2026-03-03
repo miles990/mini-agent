@@ -25,15 +25,16 @@ Layer 1: mushi (HC1 8B) — 脊髓/觸手
   ‣ 輸出：JSONL append-only（crash-safe）
 
 Layer 2: Midbrain (Gemini 2.5 Flash API) — 格式轉換層
-  ‣ 獨立 timer，每 5 min 定時觸發（不綁 OODA cycle）
-  ‣ Batch 處理 mushi 的 JSONL 紀錄
+  ‣ Event-driven：mushi 寫入 JSONL → HTTP 通知 → debounce 10s → 觸發中腦
   ‣ 核心職責：格式轉換（≠ 摘要）— 保留所有資訊，重新組織成 Kuro 能快速理解的格式
   ‣ 輸出：scout-digest.md（上限 4000 chars）
   ‣ Fire-and-forget，不阻塞任何東西
+  ‣ Graceful degradation：中腦來不及 → Kuro 直接讀原始 JSONL
 
 Layer 3: Kuro (Claude) — 大腦
-  ‣ buildContext 載入 scout-digest section
+  ‣ buildContext 載入 scout-digest section（優先消化版，fallback 原始版）
   ‣ 拿到已消化的情報，直接決策行動
+  ‣ 不等。有 digest 用 digest，沒有就用原始 JSONL 尾部
   ‣ 不再從零探索環境（mushi 已經做了）
 ```
 
@@ -103,10 +104,18 @@ Scout 不複製 mini-agent 的 perception，而是在更高層做 cross-cutting 
 **4. Midbrain Processor** — 新增 `src/midbrain.ts`
 
 ```typescript
-// src/midbrain.ts — 獨立 timer，不綁 OODA cycle
-const MIDBRAIN_INTERVAL = 5 * 60_000; // 5 min
-const SCOUT_JOURNAL = path.join(instanceDir, 'scout-journal.jsonl');
+// src/midbrain.ts — Event-driven，mushi 寫 JSONL 後 HTTP 通知觸發
+const SCOUT_JOURNAL = '~/.mini-agent/scout-journal.jsonl';
 const SCOUT_DIGEST = path.join(instanceDir, 'scout-digest.md');
+const DEBOUNCE_MS = 10_000; // 10s debounce，一個 scout cycle 的多筆寫入合併處理
+
+let debounceTimer: NodeJS.Timeout | null = null;
+
+// mushi POST /api/midbrain/trigger 後呼叫
+export function triggerMidbrain() {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => runMidbrain().catch(() => {}), DEBOUNCE_MS);
+}
 
 async function runMidbrain() {
   const rawEntries = readNewEntries(SCOUT_JOURNAL);  // 讀 mushi JSONL
@@ -117,9 +126,25 @@ async function runMidbrain() {
   markProcessed(SCOUT_JOURNAL, rawEntries);      // 標記已處理
 }
 
-// 啟動時跑一次 + 每 5 min
+// 啟動時跑一次（處理離線期間累積的 entries）
 runMidbrain().catch(() => {});
-setInterval(() => runMidbrain().catch(() => {}), MIDBRAIN_INTERVAL);
+```
+
+**觸發機制**：
+- mushi 每次寫入 JSONL 後，fire-and-forget POST `http://localhost:3001/api/midbrain/trigger`
+- mini-agent 收到後 debounce 10s（一個 scout cycle 30-60s 可能寫多行，10s 合併處理）
+- 正常路徑：mushi 寫 JSONL → 10s 後 midbrain 跑 → ~2-5s Gemini Flash 回覆 → digest 就緒
+- 最壞延遲：10s debounce + 5s API = 15s（遠優於 5 min timer 的最壞 5 min）
+
+**Graceful Degradation（buildContext fallback）**：
+```typescript
+// src/perception.ts — 有 digest 用 digest，沒有就讀原始 JSONL
+function loadScoutSection(): string {
+  const digest = readIfFresh(SCOUT_DIGEST, 10 * 60_000); // 10 min 新鮮度
+  if (digest) return digest;
+  // fallback: 讀 JSONL 最後 15 條，按時間列出
+  return formatRawJournal(SCOUT_JOURNAL, 15);
+}
 ```
 
 Model-agnostic interface: `callMidbrain()` 接受 JSONL string、回傳 digest string。底層用 Gemini 2.5 Flash API（Google AI Studio），日後可替換。
@@ -159,12 +184,13 @@ if (fs.existsSync(scoutDigestPath)) {
 }
 ```
 
-**6. Midbrain 獨立 timer** — 不綁 OODA cycle
+**6. Midbrain Event-driven 觸發** — 不綁 OODA cycle
 
-Midbrain 在 `src/midbrain.ts` 中自行 `setInterval(5 min)` 運作，loop.ts 不觸發也不等待。
-理由：scout-digest 要在 cycle 開始前就準備好，不是 cycle 結束後才做。
+Midbrain 由 mushi 的 HTTP 通知驅動（`POST /api/midbrain/trigger`），不是固定 timer。
+資料流：mushi 寫 JSONL → POST trigger → debounce 10s → Gemini Flash → scout-digest.md
+類比人的神經系統：正常路徑 = 視覺皮層消化後送前額葉；緊急 fallback = 杏仁核直接反射（Kuro 讀原始 JSONL）。
 
-啟動方式：`initMidbrain()` 在 `src/index.ts` 或 `src/loop.ts` 的 start 階段呼叫一次。
+啟動方式：`initMidbrain()` 在 `src/index.ts` 或 `src/loop.ts` 的 start 階段呼叫一次（處理離線累積）+ 註冊 `/api/midbrain/trigger` endpoint。
 
 **7. Gemini API 整合** — 用 Google AI Studio REST API（`generativelanguage.googleapis.com`），需 `GOOGLE_AI_KEY` env var。不用 SDK，直接 `fetch()` 呼叫，保持輕量。
 
