@@ -1544,6 +1544,12 @@ export class InstanceMemory {
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
 
+    // ── Trail（注意力歷史 — mushi scout + kuro focus 的共享梯度）──
+    const trailCtx = readTrailSection();
+    if (trailCtx) {
+      sections.push(`<trail>\n${trailCtx}\n</trail>`);
+    }
+
     // Decision quality warning（feedback loop injection）
     const qualityFlagPath = path.join(getInstanceDir(this.instanceId), 'decision-quality-warning.flag');
     try {
@@ -2242,6 +2248,67 @@ function truncateTopicMemory(content: string, level: 'brief' | 'summary' = 'brie
   // brief: title + count + last 1 entry
   const recent = entries.slice(-1);
   return `${title}\n(${total} entries, latest)\n${recent.join('\n')}`;
+}
+
+// =============================================================================
+// Trail — 注意力歷史（mushi + kuro 共寫的化學梯度）
+// =============================================================================
+
+/** Read trail.jsonl and format as compact context section */
+function readTrailSection(): string | null {
+  try {
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const trailPath = path.join(homeDir, '.mini-agent', 'trail.jsonl');
+    if (!existsSync(trailPath)) return null;
+
+    const raw = readFileSync(trailPath, 'utf-8').trim();
+    if (!raw) return null;
+
+    const lines = raw.split('\n').filter(Boolean);
+    // Filter to recent entries (last 2h)
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    const entries: Array<{
+      ts: string; agent: string; type: string;
+      decision?: string; topics: string[]; detail: string;
+    }> = [];
+
+    for (const line of lines.slice(-50)) {
+      try {
+        const entry = JSON.parse(line);
+        if (new Date(entry.ts).getTime() >= cutoff) {
+          entries.push(entry);
+        }
+      } catch { continue; }
+    }
+
+    if (entries.length === 0) return null;
+
+    // Compact format: one line per entry
+    const formatted = entries.slice(-20).map(e => {
+      const time = e.ts.split('T')[1]?.split('.')[0]?.slice(0, 5) ?? '';
+      const icon = e.type === 'scout' ? '🔍' : e.type === 'focus' ? '⚡' : e.type === 'triage' ? '🔀' : '📌';
+      const decision = e.decision ? `[${e.decision}]` : '';
+      const topics = e.topics.join(',');
+      return `${time} ${icon} ${e.agent} ${decision} ${topics}: ${e.detail.slice(0, 80)}`;
+    }).join('\n');
+
+    // Topic frequency (hot topics = what deserves attention)
+    const topicCounts: Record<string, number> = {};
+    for (const e of entries) {
+      for (const t of e.topics) {
+        topicCounts[t] = (topicCounts[t] ?? 0) + 1;
+      }
+    }
+    const hot = Object.entries(topicCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([t, c]) => `${t}(${c})`)
+      .join(', ');
+
+    return `Recent ${entries.length} entries (last 2h)\nHot: ${hot}\n${formatted}`;
+  } catch {
+    return null;
+  }
 }
 
 // =============================================================================
