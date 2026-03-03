@@ -182,7 +182,7 @@ tail -f ~/.mini-agent/instances/*/server.log | grep 'concurrent'
 ## Future（Phase 3+）
 
 1. **Concurrent Action Channel**：Claude await 期間不只讀，也做確定性行動（例如 auto-commit、cleanup）
-2. **Parallel Channel for DM**：Alex 訊息不 preempt，而是開 Channel B 用 `/api/ask` 快速回覆
+2. **Parallel Claude Channel**：Alex 訊息不 preempt，而是開第二個 Claude session 平行處理。不限於 `/api/ask` 的最小 context — 可以是完整 Claude session，前提是任務價值證明 token 消耗合理。場景：Channel A 跑深度學習，Channel B 同時回覆 Alex 訊息或處理 handoff
 3. **mushi 反饋閉環**：concurrent task 結果作為 mushi 的 enrichment input，改善下次 triage
 
 ## mushi 價值延伸
