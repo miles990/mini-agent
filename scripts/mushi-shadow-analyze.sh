@@ -24,7 +24,7 @@ import json, os, sys
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-log_dir = os.environ.get("BEHAVIOR_DIR", os.path.expanduser("~/.mini-agent/instances/f6616363/logs/behavior"))
+log_dir = os.environ.get("BEHAVIOR_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363"), "logs/behavior"))
 days = int(os.environ.get("DAYS", "7"))
 
 today = datetime.now()
@@ -126,7 +126,7 @@ else
 import json, os, re, sys
 from datetime import datetime, timedelta
 
-instance_dir = os.environ.get("INSTANCE_DIR", os.path.expanduser("~/.mini-agent/instances/f6616363"))
+instance_dir = os.environ.get("INSTANCE_DIR", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363")))
 server_log = os.path.join(instance_dir, "logs", "server.log")
 behavior_dir = os.path.join(instance_dir, "logs", "behavior")
 
@@ -325,7 +325,7 @@ python3 << 'PYEOF'
 import re, os
 from collections import defaultdict
 
-server_log_path = os.environ.get("SERVER_LOG", os.path.expanduser("~/.mini-agent/instances/f6616363/logs/server.log"))
+server_log_path = os.environ.get("SERVER_LOG", os.path.join(os.path.expanduser("~/.mini-agent/instances"), os.environ.get("MINI_AGENT_INSTANCE", "f6616363"), "logs/server.log"))
 
 cycles = []
 current_trigger = None
