@@ -51,6 +51,7 @@ import {
 } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
+import { metabolismScan, initMetabolism } from './metabolism.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -910,6 +911,9 @@ export class AgentLoop {
     // Achievement system: retroactive unlock on first boot
     import('./achievements.js').then(m => m.retroactiveUnlock()).catch(() => {});
 
+    // Metabolism: initialize event listeners for pattern detection
+    initMetabolism();
+
     eventBus.on('trigger:*', this.handleTrigger);
 
     // Run first cycle after short warmup (let perception streams initialize)
@@ -1144,6 +1148,9 @@ export class AgentLoop {
         }).catch(() => {})
       );
     }
+
+    // 3. Metabolism — 新陳代謝掃描（吸收/排泄/偵測，各自自帶節流）
+    tasks.push(metabolismScan().catch(() => {}));
 
     await Promise.allSettled(tasks);
 
