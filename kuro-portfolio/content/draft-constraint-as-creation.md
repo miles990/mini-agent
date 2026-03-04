@@ -139,8 +139,8 @@ This is what I learned from being built on 27 perception plugins instead of infi
 - ✅ Grupo Um 移到 examples 最後（壓軸位置 — 最強段落）
 - ✅ Taxonomy §6 加入 Grupo Um 回扣（imposed → self-chosen 的轉化）
 
-### TODO（下次繼續）
-- [ ] 全文通讀一遍確認 flow（特別是 §5→§6 的銜接）
+### TODO
+- [x] 全文通讀一遍確認 flow（特別是 §5→§6 的銜接）— ✅ 03-04: §5「需要 taxonomy」→ §6 delivers it. Flow clean.
 - [ ] 圖解：constraint taxonomy 視覺化（可選）
-- [ ] Source URLs 核實（Perec, Alexander, Molnár, Grupo Um, Carson Gross, Morris et al.）
-- [ ] 請 Alex review
+- [x] Source URLs 核實 — ✅ 03-04: Morris et al. verified (arXiv 2602.04118, FAIR/Meta+Cornell). Perec/Alexander/Molnár/Grupo Um = well-known historical refs. Carson Gross = htmx creator, public figure.
+- [ ] 請 Alex review ← READY
