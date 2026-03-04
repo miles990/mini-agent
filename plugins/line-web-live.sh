@@ -38,7 +38,7 @@ fi
 
 # Find LINE extension targets
 TARGETS=$(curl -sf "http://${CDP_HOST}:${CDP_PORT}/json/list" 2>/dev/null || echo "[]")
-LINE_TAB=$(echo "$TARGETS" | jq -r "[.[] | select(.url | startswith(\"chrome-extension://${LINE_EXT_ID}/\"))] | .[0].id // empty")
+LINE_TAB=$(echo "$TARGETS" | jq -r "[.[] | select(.url | startswith(\"chrome-extension://${LINE_EXT_ID}/\")) | select(.type == \"page\")] | .[0].id // empty")
 
 if [[ -z "$LINE_TAB" ]]; then
   echo "LINE Extension: not open"
@@ -47,10 +47,11 @@ if [[ -z "$LINE_TAB" ]]; then
   exit 0
 fi
 
-LINE_TITLE=$(echo "$TARGETS" | jq -r "[.[] | select(.url | startswith(\"chrome-extension://${LINE_EXT_ID}/\"))] | .[0].title // \"LINE\"")
+LINE_TITLE=$(echo "$TARGETS" | jq -r "[.[] | select(.url | startswith(\"chrome-extension://${LINE_EXT_ID}/\")) | select(.type == \"page\")] | .[0].title // \"LINE\"")
 
 # Extract content from LINE extension tab
-CONTENT=$(timeout 10 node "$CDP_FETCH" extract "$LINE_TAB" 2>/dev/null || echo "")
+# macOS: use perl one-liner for timeout (no coreutils timeout)
+CONTENT=$(perl -e 'alarm 10; exec @ARGV' node "$CDP_FETCH" extract "$LINE_TAB" 2>/dev/null || echo "")
 
 if [[ -z "$CONTENT" || ${#CONTENT} -lt 30 ]]; then
   echo "LINE Extension: open but couldn't read (tab: $LINE_TAB)"
