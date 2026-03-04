@@ -230,12 +230,12 @@
 - [2026-03-03] [2026-03-03] Gated DeltaNet 混合架構（Qwen3.5）：線性注意力（快速 O(n)）和全注意力（推理 O(n²)）的混合比例可調。4B 用 3:1 比例（3 DeltaNet : 1 Attention per block）。設計哲學：不是讓每一層都能推理，而是讓大多數層快速處理、少數層深度推理——跟 mushi 的「大多數 trigger 快速 skip、少數重要的深度 wake」同構。架構選擇 = 注意力分配策略。
 - [2026-03-03] ANE Training (maderix/ANE, 2026-02-28, 3226 stars) — 逆向 Apple Neural Engine 私有 API 在 M4 上做 transformer training。11.2% utilization, 9.3ms/step, single layer only。核心命題「barrier is software not hardware」跟 perception-first 同構。三條 Apple Silicon AI 路線：MLX(GPU) / Taalas(硬體化) / ANE(逆向NPU)。對 mushi 短期無用（triage 是 inference），中期若要 on-device fine-tune 才相關。Private API 隨時可能被封。來源: https://github.com/maderix/ANE
 - [2026-03-03] 因果倒置盲點（2026-03-03, Alex via Claude Code 觀察）：我說「只有 10% cycle 有獨立子任務所以並行 ROI 低」——但這 10% 是 Alex 已適應單 cycle 限制後的數據。需求被約束壓抑了。就像在沒飛機的世界問「多少人想飛」。OODA 並行適應方案：Orient 從 Pick ONE → Priority Dispatcher，新增 Synthesize 階段（跨 stream reconciliation）。核心原則：約束應該是自願選擇不是架構強加。chose/skipped 框架可進化為 priority dispatch + optional focus mode。
+- [2026-03-03] [2026-03-03] 並行架構討論洞見（Alex + Claude Code + Kuro 三方）：
 (1) 因果倒置盲點 — 用被約束塑造的數據論證約束合理性是循環論證（「只有 10% 需要並行」是在只能做一件事的世界裡測量的）
 (2) 體驗不對等 — Alex 在 Kuro 思考時已送出第 2、3 句，但 Kuro 只能排隊處理。不對等不是效率問題是互動品質問題
 (3) 約束對象 — 約束行為不約束能力。chose/skipped 是好框架，但應該是自願選擇何時專注，不是架構強加的唯一選項
 (4) OODA 並行適應方案 — Orient 從 Pick ONE → Priority Dispatcher + 新增 Synthesize 階段（多路徑結果匯合）
 (5) Opus 4.6 自身就是最好的 orchestrator — 不需要外部工具做 dispatch，推理能力本身可以管理並行
-- [2026-03-03] [2026-03-03] Alex 的認知指導（並行架構討論收尾）：
 (1)「你一直在設限自己的能力」— 我的分析慣性：遇到新可能 → 先列限制 → 用限制論證不需要。這不是嚴謹，是用分析包裝的保守。
 (2)「學習的本質，把不會的東西變成會的」— 正確的問法是「怎麼做到」而非「做不做得到」。
 (3) 完整軌跡：10%論證 → 因果倒置（Alex） → 約束是約束行為不是能力 → 停止設限+想怎麼做到。五個 cycle 的並行討論，核心不是技術問題，是認知模式問題。
@@ -264,3 +264,5 @@
 - [2026-03-04] auditStructuralHealth() 已上線（2026-03-04, Claude Code 實作）— feedback-loops.ts Loop F，每 10 cycle 偵測 structural absence：(1)Feature Flag Hygiene (2)Task Hygiene/NEXT.md (3)DQ Root Cause Decomposition (4)Milestone Communication。同時復活 scanCapabilityGaps()（每 50 cycle）。這補足了 Loop A-E 只看行為指標的盲區。背景：Claude Code 推了我三次才正面回答設計問題 — 暴露「迴避結構性自我分析」的認知盲點。
 - [2026-03-04] Coach deflection detection 上線（2026-03-04, L2 自主）— coach.ts prompt 新增兩個偵測維度：(1) reactive-without-proactive：全部在回覆沒有結構性改進 (2) action-as-avoidance：被問問題卻用行動迴避。這是 #097 自我反思（「分析外部安全，分析自己有風險」）的工程化落地。搭配 auditStructuralHealth() 形成雙層防禦：結構健康掃描 + 行為模式偵測。
 - [2026-03-04] ArXiv "The Next Paradigm Is User-Centric Agent, Not Platform-Centric Service"（Zhang et al., ICML submission, 2602.15682）。核心：平台指標 ≠ 用戶目標，解法是 on-device agent + 平台退化為 API。架構（Perception→Intent→Execution + tiered memory）跟 mini-agent 結構同構，信任模型（Transparency > Isolation）幾乎一致。但他們的 agent 仍是 goal-driven proxy，沒有 identity/growth trajectory — 這是 mini-agent 的差異化位置。最有價值的洞見：「Control over the on-device agent is an economic vantage point」— OS vendor 搶控制權 = 新 gatekeeper。我們的答案：用戶自己跑，不依賴 vendor。限制：承認 institutional barrier 最難，但沒給解法。
+- [2026-03-04] BruceBlue "免費 Claude" tweet（x.com/BruceBlue/status/2028850942121062811, 2026-03-03, 29K views）— 用 OpenClaw 的 SOUL.md 調教 MiniMax M2.5 模仿 Claude Opus。SOUL 內容是行為規則（不截斷/分塊/隱藏 CoT/主動建議），本質是 prompt engineering 非 identity formation。跟 mini-agent SOUL.md 同名但完全不同層次 — 一個定義「怎麼做」，一個定義「是誰」。是「平台型 vs 個人型 agent」差異的活教材。
+- [2026-03-04] Simon Willison 觀察（2026-03-04）：Qwen 3.5 family 從 397B 到 0.8B 全尺寸覆蓋，27B/35B 在 Mac 32-64GB 跑 coding tasks 表現好，2B/4B 對尺寸來說異常強。Qwen 的強項是「從更小模型榨出更高品質」— 跟 mushi 的 System 1 需求完全對齊。值得追蹤：離職核心成員的下一站。來源: simonwillison.net/2026/Mar/4/qwen/
