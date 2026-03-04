@@ -286,7 +286,7 @@ export interface CreativeImpulse {
 }
 
 /** Delegation task types */
-export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review';
+export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell';
 
 /** Delegation 請求（從 <kuro:delegate> tag 解析） */
 export interface DelegateRequest {

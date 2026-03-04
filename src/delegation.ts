@@ -1,7 +1,9 @@
 /**
  * Delegation — Async Task Executor
  *
- * 讓 Kuro 從 OODA cycle 委派多步驟 coding task 給 Claude CLI subprocess。
+ * 讓 Kuro 從 OODA cycle 委派任務。支援兩種 executor：
+ * - Claude CLI subprocess（code/learn/research/create/review）— 需要語言理解
+ * - Shell executor（shell）— 直接跑 bash 命令，零 Claude token
  * Fire-and-forget：spawnDelegation() 立即返回 taskId，不阻塞主 loop。
  *
  * Safety:
@@ -70,6 +72,7 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
   research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000 },
   create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000 },
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000 },
+  shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000 },
 };
 
 // =============================================================================
@@ -198,31 +201,41 @@ function startTask(task: DelegationTask): void {
     output: '',
   };
 
-  // Build prompt — prepend context if provided
-  const fullPrompt = task.context
-    ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-    : task.prompt;
+  // Branch: shell executor (zero Claude tokens) vs Claude CLI executor
+  const taskType = task.type ?? 'code';
+  let child: ChildProcess;
 
-  // Build Claude CLI args
-  // --setting-sources user: skip project CLAUDE.md to prevent identity confusion
-  // --append-system-prompt: subprocess acts on behalf of Kuro (the delegator)
-  const args = [
-    '-p', fullPrompt,
-    '--no-input',
-    '--max-turns', String(task.maxTurns),
-    '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
-    '--setting-sources', 'user',
-    '--strict-mcp-config',
-    '--append-system-prompt', 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.',
-  ];
+  if (taskType === 'shell') {
+    // Shell executor — run prompt as bash command directly
+    slog('DELEGATION', `Starting shell ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawn('bash', ['-c', task.prompt], {
+      cwd: task.workdir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+  } else {
+    // Claude CLI executor
+    const fullPrompt = task.context
+      ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
+      : task.prompt;
 
-  slog('DELEGATION', `Starting ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    const args = [
+      '-p', fullPrompt,
+      '--no-input',
+      '--max-turns', String(task.maxTurns),
+      '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
+      '--setting-sources', 'user',
+      '--strict-mcp-config',
+      '--append-system-prompt', 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.',
+    ];
 
-  const child = spawn('claude', args, {
-    cwd: task.workdir,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env },
-  });
+    slog('DELEGATION', `Starting ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawn('claude', args, {
+      cwd: task.workdir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+  }
 
   activeTasks.set(taskId, { process: child, result });
 
