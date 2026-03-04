@@ -521,8 +521,10 @@ export async function postProcess(
 
   // 2. Parse tags
   const tags = parseTags(response);
+  const tagsProcessed: string[] = [];
 
   // 3. Process tags
+  if (tags.remembers.length > 0) tagsProcessed.push('remember');
   for (const rem of tags.remembers) {
     // Dedup check — ask mushi if this is a near-duplicate
     if (isEnabled('mushi-dedup')) {
@@ -558,6 +560,7 @@ export async function postProcess(
   }
 
   if (tags.archive) {
+    tagsProcessed.push('archive');
     memory.archiveSource(tags.archive.url, tags.archive.title, tags.archive.content, {
       mode: tags.archive.mode,
     }).catch(() => {}); // fire-and-forget
@@ -565,12 +568,14 @@ export async function postProcess(
   }
 
   // <kuro:impulse> tags — persist creative impulses to inner voice buffer
+  if (tags.impulses.length > 0) tagsProcessed.push('impulse');
   for (const impulse of tags.impulses) {
     memory.addImpulse(impulse).catch(() => {}); // fire-and-forget
   }
 
   // <kuro:inner> tag — working memory, active in reserved + autonomous mode
   if (tags.inner) {
+    tagsProcessed.push('inner');
     const mode = getMode();
     if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
       // Atomic write: tmp → rename，防止 snapshot 讀到半寫狀態
@@ -583,12 +588,14 @@ export async function postProcess(
     }
   }
 
+  if (tags.tasks.length > 0) tagsProcessed.push('task');
   for (const t of tags.tasks) {
     await memory.addTask(t.content, t.schedule);
     eventBus.emit('action:task', { content: t.content });
   }
 
   // <kuro:thread> tags
+  if (tags.threads.length > 0) tagsProcessed.push('thread');
   for (const t of tags.threads) {
     switch (t.op) {
       case 'start':
@@ -607,6 +614,7 @@ export async function postProcess(
   }
 
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
+  if (tags.delegates.length > 0) tagsProcessed.push('delegate');
   for (const del of tags.delegates) {
     const taskId = spawnDelegation({
       prompt: del.prompt,
@@ -625,18 +633,22 @@ export async function postProcess(
   // Notification-producing tags: suppress when processing [Claude Code] system messages
   // to prevent interleaving with Alex↔Kuro TG conversation
   if (!meta.suppressChat) {
+    if (tags.shows.length > 0) tagsProcessed.push('show');
     for (const show of tags.shows) {
       eventBus.emit('action:show', { desc: show.desc, url: show.url });
     }
 
+    if (tags.chats.length > 0) tagsProcessed.push('chat');
     for (const chat of tags.chats) {
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 
+    if (tags.asks.length > 0) tagsProcessed.push('ask');
     for (const ask of tags.asks) {
-      // ask processing handled by loop.ts
+      eventBus.emit('action:chat', { text: ask, blocking: true });
     }
 
+    if (tags.summaries.length > 0) tagsProcessed.push('summary');
     for (const summary of tags.summaries) {
       eventBus.emit('action:summary', { text: summary });
     }
@@ -672,5 +684,6 @@ export async function postProcess(
     content: tags.cleanContent,
     shouldRemember: tags.remembers[0]?.content,
     taskAdded: tags.tasks[0]?.content,
+    tagsProcessed: tagsProcessed.length > 0 ? tagsProcessed : undefined,
   };
 }

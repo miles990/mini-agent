@@ -156,6 +156,7 @@ export interface AgentResponse {
   content: string;
   shouldRemember?: string;
   taskAdded?: string;
+  tagsProcessed?: string[];
 }
 
 // =============================================================================

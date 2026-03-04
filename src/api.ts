@@ -54,7 +54,7 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
-import { parseTags } from './dispatcher.js';
+import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity } from './activity-journal.js';
 
 // =============================================================================
@@ -2009,6 +2009,85 @@ export function createApi(port = 3001): express.Express {
     });
   });
 
+  // =============================================================================
+  // Claude Code HTTP Hooks — 取代 command hook，直接用 in-memory 狀態
+  // =============================================================================
+
+  app.post('/api/hooks/claude-code', (_req: Request, res: Response) => {
+    try {
+      const body = _req.body as Record<string, unknown>;
+      const hookEvent = (body.hook_event_name as string) || 'unknown';
+
+      // Get agent name
+      const instanceId = getCurrentInstanceId();
+      const config = loadInstanceConfig(instanceId);
+      const name = config?.name || 'Agent';
+      const nameLower = name.toLowerCase();
+
+      // Get loop/claude status (in-memory, zero cost)
+      const loopStatus = loopRef ? loopRef.getStatus() : null;
+      const laneStatus = getLaneStatus();
+      const mode = getMode();
+
+      // Get recent agent reply from today's Chat Room
+      let recentReply = '';
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+        if (fs.existsSync(convPath)) {
+          const raw = fs.readFileSync(convPath, 'utf-8');
+          const lines = raw.split('\n').filter(Boolean);
+          // Scan from end to find last agent message
+          for (let i = lines.length - 1; i >= 0; i--) {
+            try {
+              const msg = JSON.parse(lines[i]);
+              if (msg.from === nameLower) {
+                const text = msg.text || '';
+                recentReply = text.length > 200 ? text.slice(0, 200) + '...' : text;
+                break;
+              }
+            } catch { /* skip malformed line */ }
+          }
+        }
+      } catch { /* non-critical */ }
+
+      // Build context text
+      const parts: string[] = [
+        `[${name} 即時狀態]`,
+        `- Loop: ${mode.mode} (running=${loopStatus?.running ?? false}, cycles=${loopStatus?.cycleCount ?? 0})`,
+        `- Claude busy: ${isClaudeBusy()}`,
+      ];
+
+      if (laneStatus.foreground.busy) {
+        parts.push(`- Foreground: busy (${laneStatus.foreground.task?.prompt?.slice(0, 60) || 'unknown'})`);
+      }
+
+      if (recentReply) {
+        parts.push(`- ${name} 最近回覆: ${recentReply}`);
+      }
+
+      parts.push(`- 可用 MCP 工具: agent_discuss, agent_chat, agent_status, agent_context, agent_logs`);
+
+      const contextText = parts.join('\n');
+
+      // For SessionStart: also include env exports
+      if (hookEvent === 'SessionStart') {
+        // Return as plain text — Claude Code adds it as additionalContext
+        res.type('text/plain').send(contextText);
+        return;
+      }
+
+      // For UserPromptSubmit and all other events: return plain text context
+      res.type('text/plain').send(contextText);
+
+      slog('HOOK', `Claude Code ${hookEvent} → ${contextText.length} chars`);
+    } catch (error) {
+      // Non-blocking: return 200 with empty body on error (graceful degradation)
+      slog('ERROR', `Hook failed: ${error instanceof Error ? error.message : error}`);
+      res.status(200).send('');
+    }
+  });
+
   // POST /api/ask — 同步問答端點（always-on，不受 OODA mode 影響）
   app.post('/api/ask', async (req: Request, res: Response) => {
     const { question } = req.body as { question?: unknown };
@@ -2093,20 +2172,22 @@ export function createApi(port = 3001): express.Express {
 
       const { response } = await callClaude(question, context, 1, { source: 'ask' });
 
-      // 處理 <kuro:remember> tags（fire-and-forget）
-      const tags = parseTags(response);
-      for (const rem of tags.remembers) {
-        if (rem.topic) {
-          memory.appendTopicMemory(rem.topic, rem.content, rem.ref).catch(() => {});
-        } else {
-          memory.appendMemory(rem.content).catch(() => {});
-        }
-      }
+      // Process all tags via unified postProcess (remember, delegate, inner, etc.)
+      const result = await postProcess(question as string, response, {
+        lane: 'ask',
+        duration: 0,
+        source: 'ask',
+        systemPrompt: '',
+        context: '',
+        skipHistory: true,
+        suppressChat: true,
+      });
 
-      res.json({ ok: true, answer: tags.cleanContent, contextAge });
+      res.json({ ok: true, answer: result.content, contextAge });
       writeActivity({
         lane: 'ask',
-        summary: `Q: ${(question as string).slice(0, 80)} → A: ${(tags.cleanContent ?? '').slice(0, 80)}`,
+        summary: `Q: ${(question as string).slice(0, 80)} → A: ${(result.content ?? '').slice(0, 80)}`,
+        tags: result.tagsProcessed,
       });
     } catch (error) {
       slog('ERROR', `Ask failed: ${error instanceof Error ? error.message : error}`);

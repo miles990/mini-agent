@@ -143,6 +143,14 @@ export function spawnDelegation(task: DelegationTask): string {
   }
 
   startTask(normalizedTask);
+
+  // Write activity journal on delegation start (visible to ask/foreground lanes)
+  writeActivity({
+    lane: 'background',
+    summary: `started ${taskType}: ${task.prompt.slice(0, 120)}`,
+    tags: ['started'],
+  });
+
   return taskId;
 }
 

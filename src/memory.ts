@@ -2037,6 +2037,12 @@ export class InstanceMemory {
       .join('\n');
     sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);
 
+    // ── Background Completed（delegation results visible to ask lane）──
+    const bgSection = buildBackgroundCompletedSection(this.instanceId);
+    if (bgSection) {
+      sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
+    }
+
     // ── Activity Journal（cross-lane awareness）──
     const { formatActivityJournal } = await import('./activity-journal.js');
     const activityJournal = formatActivityJournal(800);

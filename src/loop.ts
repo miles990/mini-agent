@@ -18,7 +18,7 @@ import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, bumpLoopGen
 import { getMemory } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
-import { parseTags, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
+import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
 import { notifyTelegram, markInboxAllProcessed, getLastAlexMessageId, clearLastReaction } from './telegram.js';
 import { eventBus } from './event-bus.js';
@@ -384,7 +384,7 @@ export class AgentLoop {
   private interruptedCycleInfo: string | null = null;
 
   // ── Foreground Reply (parallel response during cycling — replaces quickReply) ──
-  private foregroundReplyRecord: { question: string; answer: string; source: string; ts: string } | null = null;
+  private foregroundReplyRecord: { question: string; answer: string; source: string; ts: string; tagsProcessed?: string[] } | null = null;
 
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
@@ -603,28 +603,29 @@ export class AgentLoop {
       const activityJournal = formatActivityJournal(1000);
       if (activityJournal) context += `\n\n<recent-activity>\n${activityJournal}\n</recent-activity>`;
 
-      context += `\n\n<foreground_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。直接對話回應，之後有需要補充的可以再說。\n</foreground_reply_mode>`;
+      context += `\n\n<foreground_reply_mode>
+你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。
+
+策略：
+- 簡單問題 → 直接回答
+- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先快速回覆確認收到，再用 <kuro:delegate> 委派到背景執行
+  例：<kuro:delegate type="research" workdir="${process.cwd()}">研究 URL 的內容並整理重點</kuro:delegate>
+- 背景結果會自動出現在下個 cycle 的 <background-completed> section
+</foreground_reply_mode>`;
 
       const { response } = await callClaude(text, context, 1, { source: 'foreground' });
 
-      // Parse tags, extract clean content
-      const tags = parseTags(response);
-      const answer = tags.cleanContent || response;
-
-      // Handle <kuro:remember> tags (fire-and-forget)
-      for (const rem of tags.remembers) {
-        if (rem.topic) {
-          memory.appendTopicMemory(rem.topic, rem.content, rem.ref).catch(() => {});
-        } else {
-          memory.appendMemory(rem.content).catch(() => {});
-        }
-        // Learning→Perception classifier (fire-and-forget)
-        const category = classifyRemember(rem.content, rem.topic);
-        if (ACTIONABLE_CATEGORIES.has(category)) {
-          logPendingImprovement({ category, content: rem.content, topic: rem.topic, timestamp: new Date().toISOString() }).catch(() => {});
-        }
-        slog('CLASSIFY', `[${category}] ${rem.content.slice(0, 80)}...`);
-      }
+      // Process all tags via unified postProcess (remember, delegate, inner, etc.)
+      const result = await postProcess(text, response, {
+        lane: 'foreground',
+        duration: 0,
+        source,
+        systemPrompt: '',
+        context: '',
+        skipHistory: false,
+        suppressChat: false,
+      });
+      const answer = result.content || response;
 
       // Send reply to the appropriate channel
       if (source === 'telegram') {
@@ -635,7 +636,7 @@ export class AgentLoop {
       await writeRoomMessage('kuro', answer, replyTo);
 
       // Record for next cycle awareness
-      this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString() };
+      this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed };
 
       slog('LOOP', `[foreground-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
       eventBus.emit('action:loop', { event: 'foreground-reply', source, answerLength: answer.length });
@@ -643,6 +644,7 @@ export class AgentLoop {
         lane: 'foreground',
         summary: `Replied to ${source}: ${answer.slice(0, 120)}`,
         trigger: source,
+        tags: result.tagsProcessed,
       });
     } catch (err) {
       slog('ERROR', `[foreground-reply] Failed: ${err instanceof Error ? err.message : err}`);
@@ -1308,8 +1310,11 @@ export class AgentLoop {
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
       // Foreground Reply record: if a parallel reply was sent during the previous cycle
+      const fgTagInfo = this.foregroundReplyRecord?.tagsProcessed?.length
+        ? ` Tags processed: [${this.foregroundReplyRecord.tagsProcessed.join(', ')}].`
+        : '';
       const foregroundReplySuffix = this.foregroundReplyRecord
-        ? `\n\nDuring your previous cycle, a ${this.foregroundReplyRecord.source} message arrived and was answered via foreground lane (parallel, independent). Question: "${this.foregroundReplyRecord.question.slice(0, 200)}" → Your foreground answer: "${this.foregroundReplyRecord.answer.slice(0, 200)}". Only follow up if you have something substantive to add.`
+        ? `\n\nDuring your previous cycle, a ${this.foregroundReplyRecord.source} message arrived and was answered via foreground lane (parallel, independent). Question: "${this.foregroundReplyRecord.question.slice(0, 200)}" → Your foreground answer: "${this.foregroundReplyRecord.answer.slice(0, 200)}".${fgTagInfo} Only follow up if you have something substantive to add.`
         : '';
       this.foregroundReplyRecord = null; // one-shot
 
