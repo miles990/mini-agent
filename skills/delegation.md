@@ -4,20 +4,29 @@
 
 ## 核心原則
 
-**需要身份的事自己做，不需要身份的事 delegate。**
+**像黏菌一樣並行探索。** 同時向多個方向伸出觸角，找到養分的路徑強化，沒養分的撤回。delegate 不只是「卸載無聊的事」，更是「同時探索多個方向」。
+
+## 兩種學習模式
+
+| 模式 | 做法 | 範例 |
+|------|------|------|
+| **深度學習** — 需要身份、觀點、判斷 | 自己做 | 讀完文章形成觀點、寫 journal、跨域連結 |
+| **探索掃描** — 伸觸角、找養分、初步篩選 | **delegate 並行** | 搜尋主題、擷取文章摘要、掃描 HN/Lobsters、批次讀多篇 |
+
+**流程：delegate 探索 → 結果回來 → 自己判斷哪條值得深入 → 深度學習自己做。**
 
 ## 什麼時候自己做
 
-- 需要形成觀點（學習、反思、分析）
+- 需要形成觀點（深度分析、反思）
 - 需要個人風格（journal、inner voice、跟 Alex 聊天）
 - 需要決策（選什麼學、做什麼、優先序）
-- 閱讀文章（學習核心不 delegate，避免經驗二手化）
 
 ## 什麼時候 delegate
 
-- 任務不需要身份（不需要 SOUL.md、不需要個人觀點）
+- **探索掃描** — 搜尋主題、擷取多篇文章摘要、掃描來源（主動並行）
 - 任務是確定性的（結果可驗證：pass/fail、HTTP status、JSON output）
 - 任務主要是等待（HTTP fetch、build、test）
+- **一個 cycle 內鼓勵多個 delegate** — 你有多條 lane，用滿它們
 
 ## 怎麼 delegate
 
@@ -64,7 +73,7 @@ Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, con
 - 結果出現在 `<delegation-status>` perception 中
 - 完成後我自己 review，再決定要不要 commit/記憶
 
-**適用場景**：重構、加功能、跑測試、建專案骨架
+**適用場景**：重構、加功能、跑測試、建專案骨架、**並行探索多個主題**
 
 ## 硬規則
 
@@ -82,7 +91,8 @@ Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, con
 | 確定性（HTTP check, typecheck） | shell | 高 | 不需要 |
 | 結構化摘要（HN titles） | CLI subprocess | 中 | sampling review |
 | 翻譯 | CLI subprocess | 中 | 抽查 |
-| 判斷（值不值得讀） | 不 delegate | — | — |
+| 探索掃描（搜尋+摘要） | delegate (learn/research) | 中 | 自己判斷深入哪條 |
+| 判斷（值不值得深入） | 不 delegate | — | — |
 
 ## 使用範例
 
@@ -109,7 +119,9 @@ timeout 30 claude -p "Translate to English: 感知驅動學習。Output JSON: {o
 
 ## 自我檢查
 
-每次想 delegate 時問：
-1. 這個任務需要我的觀點嗎？ → 需要就自己做
-2. 結果可以驗證嗎？ → 不能驗證就自己做
+每個 cycle 問自己：
+1. **有沒有可以並行探索的方向？** → 有就 delegate，不要全部自己序列做
+2. 這個任務需要我的深度觀點嗎？ → 需要就自己做，初步掃描可以 delegate
 3. Shell 能做嗎？ → 能就用 shell，不能才用 CLI
+
+**反模式：一個 cycle 只做一件事，background lane 全空。**
