@@ -415,6 +415,7 @@ export class AgentLoop {
   private consecutiveContinuations = 0;
   private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
   private lastCycleHadSchedule = false;
+  private concurrentInboxDetected = false;
 
   // =========================================================================
   // Unified Event Handler — single entry point for all triggers
@@ -1116,6 +1117,14 @@ export class AgentLoop {
       this.consecutiveContinuations = 0;
     }
 
+    // Concurrent inbox override — highest priority interval adjustment
+    // Applies AFTER adjustInterval + kuro:schedule + continuation check
+    // Only if Kuro didn't explicitly set a schedule (respect Kuro's intent)
+    if (this.concurrentInboxDetected && !this.lastCycleHadSchedule) {
+      this.currentInterval = 30_000;
+      slog('LOOP', `[concurrent-inbox] Overriding interval to 30s for pending inbox items`);
+    }
+
     if (this.running && !this.paused) {
       this.scheduleHeartbeat();
     }
@@ -1169,6 +1178,7 @@ export class AgentLoop {
   private async cycle(): Promise<string | null> {
     if (this.cycling) return null;
     this.cycling = true;
+    this.concurrentInboxDetected = false;
     const logger = getLogger();
 
     try {
@@ -1384,9 +1394,10 @@ export class AgentLoop {
 
       const { response, systemPrompt, fullPrompt, duration, preempted } = claudeResult;
 
-      // Inbox urgency: new items arrived during Claude thinking → schedule fast next cycle
+      // Inbox urgency: new items arrived during Claude thinking → flag for fast scheduling
       if (newInboxCount > 0 && isEnabled('concurrent-action')) {
-        slog('LOOP', `[concurrent] ${newInboxCount} inbox items detected during Claude await — scheduling fast next`);
+        this.concurrentInboxDetected = true;
+        slog('LOOP', `[concurrent] ${newInboxCount} inbox items detected during Claude await — will schedule fast next`);
       }
 
       // Phase 1b: Handle preemption
