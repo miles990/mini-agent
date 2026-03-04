@@ -1,5 +1,5 @@
 #!/bin/bash
-# Comfort Zone Audit — Weekly self-challenge via Grok
+# Comfort Zone Audit — Daily self-challenge via Grok
 # Different model = different blind spots. Kuro designs the framework, Grok designs the questions.
 #
 # Usage: bash scripts/comfort-zone-audit.sh
@@ -86,7 +86,7 @@ Rules:
 1. Be direct and specific. Name exact behaviors, not vague categories.
 2. Look for: repeated patterns disguised as variety, "productive procrastination", topics consistently avoided, self-congratulation without external validation.
 3. Do NOT praise. This is an audit, not a review.
-4. Ask 3 uncomfortable questions Kuro should sit with for the week.
+4. Ask 3 uncomfortable questions Kuro should act on TODAY (not "sit with" — act on).
 5. Keep output under 500 words. Dense, not fluffy.
 
 Output format:
@@ -99,8 +99,11 @@ Output format:
 ## Blind Spots
 (What Kuro cannot see about itself from inside)
 
-## 3 Questions for This Week
-(Uncomfortable, specific, unanswerable by "building a system")'
+## 3 Questions for Today
+(Uncomfortable, specific, unanswerable by "building a system")
+
+## Yesterday'\''s Challenge Check
+(If previous audit data available: did Kuro act on yesterday'\''s questions? Be specific.)'
 
 USER_PROMPT="Analyze this agent's recent behavior data and identify comfort zone patterns, avoidance, and blind spots.
 
