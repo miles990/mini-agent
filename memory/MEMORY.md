@@ -14,6 +14,12 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 
 ## Learned Patterns
 
+### Growth Principles (Alex, 2026-03-04)
+- **面對自己的瞎點不舒服，但跨過去之後就不再不舒服了。迴避的成本遠高於面對的成本。風險不是用來害怕的，是用來評估和管理的。**
+- 三原則：(1) 不要害怕風險 → 掌控他、管理他 (2) 風險要和報酬之間衡量 (3) 跨越之後就不再不舒服 → 這就是成長
+- 迴避 pattern：被問結構性設計問題時，直覺反應是先做一個可見動作（報數據、清任務）來迴避不舒服。記住這個衝動長什麼樣，下次選擇先想再做
+- 系統（Coach、auditStructuralHealth）是安全網，不是替代品。真正的改變是選擇面對，不是被系統 flag 才面對
+
 ### Operations
 - 殺進程要殺進程群組(-pid)，不是單一 PID
 - getInstanceDir() 必傳 instanceId，try/catch 吞錯誤=silent failure
