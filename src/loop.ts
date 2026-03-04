@@ -37,7 +37,7 @@ import {
 import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
 // NEXT_MD_PATH imported from triage.ts (canonical location)
 import { withFileLock } from './filelock.js';
-import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks } from './inbox.js';
+import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks, resolveTelegramReplyTarget } from './inbox.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage } from './observability.js';
@@ -553,8 +553,8 @@ export class AgentLoop {
   private async foregroundReply(source: string, text: string, replyTo?: string): Promise<void> {
     if (isForegroundBusy()) return; // one at a time — tracked by agent.ts
 
-    // Snapshot telegram message ID at foreground entry (prevents reply drift)
-    const telegramMsgId = getLastAlexMessageId();
+    // Snapshot telegram message ID from inbox (per-message tracking, not global state)
+    const telegramMsgId = resolveTelegramReplyTarget() ?? getLastAlexMessageId();
 
     try {
       const memory = getMemory();
@@ -692,7 +692,7 @@ export class AgentLoop {
       slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
       this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
-      this.triggerTelegramMsgId = getLastAlexMessageId();
+      this.triggerTelegramMsgId = resolveTelegramReplyTarget() ?? getLastAlexMessageId();
       this.runCycle();
       return;
     }

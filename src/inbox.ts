@@ -423,6 +423,21 @@ export function detectModeFromInbox(
 }
 
 // =============================================================================
+// Telegram Reply Target Resolution
+// =============================================================================
+
+/**
+ * 從 pending inbox 解析 telegram reply target。
+ * 回傳第一筆 pending telegram 訊息的 message_id（最早的未處理訊息）。
+ * 比全域 lastAlexMessageId 更精準：inbox 是 immutable per-message 追蹤。
+ */
+export function resolveTelegramReplyTarget(): number | null {
+  const pending = inboxCache.getPending();
+  const tgItem = pending.find(i => i.source === 'telegram' && i.meta?.telegramMsgId);
+  return tgItem?.meta?.telegramMsgId ? Number(tgItem.meta.telegramMsgId) : null;
+}
+
+// =============================================================================
 // Batch Mark（loop.ts 用）
 // =============================================================================
 

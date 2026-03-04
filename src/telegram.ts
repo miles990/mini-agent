@@ -496,6 +496,7 @@ export class TelegramPoller {
     writeInboxItem({
       source: 'telegram', from: parsed.sender, content: parsed.text,
       meta: {
+        telegramMsgId: String(msg.message_id),
         ...(msg.voice ? { hasAttachment: 'voice' } : {}),
         ...(msg.photo ? { hasAttachment: 'photo' } : {}),
         ...(msg.document ? { hasAttachment: 'document' } : {}),
