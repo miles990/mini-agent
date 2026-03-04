@@ -84,11 +84,11 @@ for marker in ['版本紀錄', '← 上一篇', '← 回到列表']:
 # Clean up
 lines = raw.strip().split('\n')
 # Skip empty lines and UI chrome
-skip = {'☀️','分享','LINE 分享','複製連結','↑',''}
+skip = {'☀️','分享','LINE 分享','複製連結','↑','','← 回到列表'}
 result = []
 for line in lines:
     stripped = line.strip()
-    if stripped and stripped not in skip and not stripped.endswith('篇'):
+    if stripped and stripped not in skip and not stripped.endswith('篇') and not stripped.startswith('←'):
         result.append(stripped)
 # Join and cap
 output = '\n'.join(result)
