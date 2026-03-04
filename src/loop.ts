@@ -38,7 +38,7 @@ import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
 // NEXT_MD_PATH imported from triage.ts (canonical location)
 import { withFileLock } from './filelock.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks } from './inbox.js';
-import { snapshotTelegramMsgs, matchReplyTarget } from './reply-context.js';
+import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-context.js';
 import type { TelegramMsgSnapshot } from './reply-context.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
@@ -1624,6 +1624,7 @@ export class AgentLoop {
           notifyTelegram(replyContent, replyTarget ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
+          recordReply(replyContent);
           cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
           cycleTagsProcessed.push('CHAT');
           // Clear chats — already sent via OODA reply, skip action:chat to prevent duplicate
