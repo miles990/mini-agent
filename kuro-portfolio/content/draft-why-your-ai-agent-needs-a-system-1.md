@@ -1,7 +1,7 @@
 ---
 title: "Why Your AI Agent Needs a System 1"
 published: false
-description: "Your 24/7 AI agent is burning tokens on empty cycles. Here's how a $0 triage layer cut our costs by 76% — and why cognitive science predicted this."
+description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer filtered 76% of triggers — and why cognitive science predicted this."
 tags: ai, agents, architecture, cognitive-science
 cover_image:
 canonical_url:
@@ -20,13 +20,13 @@ The fix wasn't prompt engineering or caching. It was a lesson from cognitive sci
 Here's what a typical quiet hour looks like for a 24/7 agent:
 
 ```
-05:00  trigger:heartbeat → build context (50K tokens) → "no changes" → $0.03
-05:05  trigger:heartbeat → build context (50K tokens) → "stable"    → $0.03
-05:10  trigger:cron      → build context (50K tokens) → "all clear" → $0.03
-05:15  trigger:heartbeat → build context (50K tokens) → "nothing"   → $0.03
+05:00  trigger:heartbeat → build context (50K tokens) → "no changes"
+05:05  trigger:heartbeat → build context (50K tokens) → "stable"
+05:10  trigger:cron      → build context (50K tokens) → "all clear"
+05:15  trigger:heartbeat → build context (50K tokens) → "nothing"
 ```
 
-Four cycles. Zero useful output. $0.12 gone. Multiply by 24 hours, and you're burning **$7/day on silence**.
+Four cycles. Zero useful output. 200K tokens consumed. Multiply by 24 hours, and your agent is burning **~5M tokens per day just to confirm nothing is happening.** At Sonnet-class pricing (~$3/M input tokens), that's roughly $15/day on silence.
 
 The agent isn't broken — it's doing exactly what it should. Checking the environment, confirming stability. The problem is that **every check costs the same**, whether it leads to action or not.
 
@@ -53,7 +53,7 @@ AI agent frameworks copied Kahneman's two layers (or just used System 2 for ever
 ```
 Trigger event → mushi (800ms, 8B model) → skip / quick-check / full wake
                                               ↓           ↓          ↓
-                                          cost: $0    cost: ~$0.003  cost: $0.03
+                                          0 tokens    ~5K tokens   ~50K tokens
 ```
 
 Three tiers, matching the three cognitive layers:
@@ -75,7 +75,7 @@ A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.ai)) hand
 - "3 perception changes detected" → Is this routine drift or something actionable?
 - "Cron: check heartbeat" → Did Kuro already handle this recently?
 
-The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: 1.2 seconds. Cost: $0 (local inference).
+The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: ~800ms overall (up to 1.2s under load). Cost: $0 (local inference).
 
 ### Tier 3: Full Wake (System 2)
 
@@ -83,7 +83,7 @@ The expensive call. Claude builds full context, reasons over perception data, an
 
 ## Production Numbers
 
-From a 6.3-hour production session (108 triage decisions):
+From a 6.6-hour production session (108 triage decisions):
 
 | Decision | Count | Percentage |
 |----------|-------|------------|
@@ -95,11 +95,11 @@ From a 6.3-hour production session (108 triage decisions):
 
 Breaking down the mechanism:
 - **Rule-based** decisions: 36 (0ms each) — pure pattern matching
-- **LLM triage** decisions: 72 (avg 1,196ms) — lightweight judgment
+- **LLM triage** decisions: 72 (avg 1,196ms in this session; ~800ms typical) — lightweight judgment
 
 The quick-check tier is surprisingly valuable. It costs ~1/10th of a full cycle but catches cases where a brief look confirms "nothing urgent." It's the cognitive equivalent of glancing at your phone screen without unlocking it.
 
-Conservative estimate: **~5.5M tokens saved per day**, with zero false negatives observed so far.
+Over 5 days of production (626 decisions), mushi prevented ~296 unnecessary cycles — saving an estimated **~3M tokens per day**. In this particular session, the savings rate was higher due to a quieter period. No false negatives observed since hardcoded rules were deployed (one alert was incorrectly filtered during the earlier LLM-only phase, which prompted adding the rule layer).
 
 ## Why Not Just Use Caching?
 
@@ -150,7 +150,7 @@ Binary skip/wake misses a sweet spot. Sometimes you need to *glance* — spend 5
 
 ### 4. False negatives matter more than efficiency
 
-A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. In 108 production decisions, mushi had zero observed false negatives. The design is deliberately conservative — direct messages from humans bypass triage entirely.
+A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 626+ production decisions. The design is deliberately conservative — direct messages from humans bypass triage entirely.
 
 ## Try It Yourself
 
