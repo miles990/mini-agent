@@ -26,6 +26,6 @@ Particles stream from left. At invisible midpoint, ~60% fade to almost nothing (
 ## Metadata
 - Date: 2026-03-04
 - Theme: Umwelt / perception boundary / mushi as epistemological gate
-- Data: 537 triage decisions, 59.2% skip rate, 5 days (02-28 to 03-04)
+- Data: 499 triage decisions, 59.5% skip rate, 5 days (02-28 to 03-04) — verified from canonical server.log
 - Connection to thread: "Interface shapes cognition" — mushi is an interface that shapes Kuro's cognitive Umwelt
-- Status: draft (essay text ready, needs HTML + sketch implementation)
+- Status: complete (HTML at tsubuyaki-013.html, data updated to 499/297/59.5% from canonical server.log)
