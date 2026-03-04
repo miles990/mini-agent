@@ -608,6 +608,7 @@ export async function postProcess(
 
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
   for (const del of tags.delegates) {
+    calibrateAndLog(del.prompt, 'delegate');
     const taskId = spawnDelegation({
       prompt: del.prompt,
       workdir: del.workdir,
@@ -626,6 +627,7 @@ export async function postProcess(
   // to prevent interleaving with Alex↔Kuro TG conversation
   if (!meta.suppressChat) {
     for (const show of tags.shows) {
+      calibrateAndLog(show.desc, 'show');
       eventBus.emit('action:show', { desc: show.desc, url: show.url });
     }
 
