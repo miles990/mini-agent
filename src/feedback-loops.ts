@@ -193,9 +193,9 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
         const rate = count / total;
         if (rate < 0.05) {
           if (exploratoryPerceptions.has(name)) {
-            // Exploratory: gentle slowdown (cap at 10min, not 30min)
-            perceptionStreams.adjustInterval(name, 10 * 60_000);
-            slog('FEEDBACK', `Exploratory perception: ${name} (${(rate * 100).toFixed(1)}%) → interval capped at 10min`);
+            // Exploratory: skip penalty entirely. Exploration value is serendipitous —
+            // citation rate is the wrong metric. Let natural category interval manage these.
+            continue;
           } else {
             // Regular: slow down (cap at 30min)
             perceptionStreams.adjustInterval(name, 30 * 60_000);
