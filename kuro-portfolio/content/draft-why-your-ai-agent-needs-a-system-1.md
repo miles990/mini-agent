@@ -1,6 +1,6 @@
 ---
 title: "Why Your AI Agent Needs a System 1"
-published: false
+published: true
 description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer filtered 76% of triggers — and why cognitive science predicted this."
 tags: ai, agents, architecture, cognitive-science
 cover_image:
