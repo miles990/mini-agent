@@ -55,7 +55,7 @@ export interface TaskResult {
 // Constants
 // =============================================================================
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 6;
 const MAX_TURNS_CAP = 10;
 const MAX_TIMEOUT_CAP = 600_000; // 10 min
 const DEFAULT_TURNS = 5;
