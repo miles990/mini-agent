@@ -168,3 +168,49 @@ mini-agent up [-d] / down / list / attach <id> / status / logs [-f]
 ```
 
 每個實例隔離在 `~/.mini-agent/instances/{id}/`
+
+## mushi — System 1 Triage Layer
+
+獨立輕量級 agent，用 Taalas HC1（硬體化 Llama 3.1 8B）作為 Kuro 的 pre-attentive filtering 層。
+
+### 設計原理
+
+Kahneman 雙系統的延伸 — 實際上是三層：
+
+| Layer | 對應 | 延遲 | 成本 |
+|-------|------|------|------|
+| 硬規則（direct message → always wake） | Pre-attentive | 0ms | $0 |
+| HC1 LLM triage（skip/quick/wake） | System 1 | ~700-1200ms | $0（本地硬體） |
+| Claude OODA cycle | System 2 | ~30-60s | ~50K tokens/cycle |
+
+核心價值：不是讓 cycle 更快，是讓不必要的 cycle 不發生。
+
+### Production Data（verified）
+
+6.9h session（2026-03-05 live endpoint）：
+
+- **3416 senses**（環境感知），**77 thinks**（LLM 判斷），**2 escalations**
+- Triage 分佈：~55-59% skip / ~20% quick / ~24% wake
+- Rule-based ~30%（0ms），LLM ~70%（avg 700-1200ms）
+- 保守 token 節省估算：~5.5M tokens/day
+- False negative rate: 0%（direct messages 硬規則繞過 triage）
+
+### 三層注意力的認知科學對應
+
+skip/quick/wake 對應認知科學三層模型：Broadbent 過濾（pre-attentive filter）→ Treisman 衰減（attenuated processing）→ System 2（full engagement）。Log 顯示層間動態切換：LLM triage 後 rule 用 cooldown 接管，冷卻後 LLM 重新介入 — 類似注意力不應期（attentional refractory period）。
+
+### 競品定位
+
+最接近競品：DPT-Agent（SJTU-MARL, arXiv:2502.11882）— FSM+code-as-policy 做 S1，Theory-of-Mind 做 S2。差異：mushi 用 LLM-to-LLM 路由（更簡潔），DPT-Agent 用非 LLM 確定性控制層（更可控）。其他成本削減方法（semantic caching ~73%、AgentDiet trajectory 39-59%）需要額外 overhead，mushi 直接跳過整個 cycle = 線性成本節省。
+
+### 架構
+
+```
+Trigger 事件 → mushi triage（~800ms, HC1）→ skip: 省整個 OODA cycle
+                                            → quick: 輕量回應（~5K tokens）
+                                            → wake: 完整 Claude cycle（~50K tokens）
+```
+
+API: `POST /api/triage`（分類）、`POST /api/dedup`（重複偵測）、`POST /api/consensus`（收斂偵測）、`GET /health`
+
+Server: `~/Workspace/mushi/`（獨立 repo，獨立部署，localhost:3000）
