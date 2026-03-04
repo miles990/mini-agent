@@ -1574,6 +1574,17 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
+    // Structural health warning（skip in light mode）
+    if (!isLight) {
+      const structuralFlagPath = path.join(getInstanceDir(this.instanceId), 'structural-health-warning.flag');
+      try {
+        if (existsSync(structuralFlagPath)) {
+          const warning = readFileSync(structuralFlagPath, 'utf-8').trim();
+          if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
+        }
+      } catch { /* ignore */ }
+    }
+
     // Stale Tasks（skip in light mode）
     if (!isLight) {
       const staleWarnings = readStaleTaskWarnings();

@@ -500,6 +500,173 @@ function recordBaselineCycle(
 }
 
 // =============================================================================
+// Loop F: Structural Health Audit (Operational Hygiene)
+// =============================================================================
+
+/**
+ * 偵測 structural absence — 該存在但不存在的東西。
+ * 補足 Loop A-E 只看行為指標的盲區。
+ *
+ * 四個檢查維度：
+ * 1. Feature Flag Hygiene — disabled 太久未 review
+ * 2. Task Hygiene — NEXT.md 積壓或過期
+ * 3. DQ Root Cause — 按 trigger 分類，區分正常低分和真正低品質
+ * 4. Milestone Communication — 重大變更未通知 Alex
+ *
+ * 每 10 cycles 執行，結果寫入 structural-health-warning.flag。
+ */
+
+interface StructuralHealthState {
+  cyclesSinceLastCheck: number;
+  lastCheckAt: string | null;
+  lastWarnings: string[];
+}
+
+const STRUCTURAL_CHECK_INTERVAL = 10;
+const STRUCTURAL_WARNING_FILE = 'structural-health-warning.flag';
+
+export async function auditStructuralHealth(triggerReason?: string | null): Promise<void> {
+  const state = readState<StructuralHealthState>('structural-health.json', {
+    cyclesSinceLastCheck: 0,
+    lastCheckAt: null,
+    lastWarnings: [],
+  });
+
+  state.cyclesSinceLastCheck++;
+  if (state.cyclesSinceLastCheck < STRUCTURAL_CHECK_INTERVAL) {
+    writeState('structural-health.json', state);
+    return;
+  }
+  state.cyclesSinceLastCheck = 0;
+
+  const warnings: string[] = [];
+
+  // ── Check 1: Feature Flag Hygiene ──
+  try {
+    const featuresPath = path.join(getInstanceDir(getCurrentInstanceId()), 'features.json');
+    if (existsSync(featuresPath)) {
+      const features = JSON.parse(readFileSync(featuresPath, 'utf-8'));
+      // Find features that are disabled
+      const disabledNames: string[] = [];
+      for (const [name, val] of Object.entries(features)) {
+        if (val && typeof val === 'object' && 'enabled' in val && !(val as { enabled: boolean }).enabled) {
+          disabledNames.push(name);
+        }
+      }
+
+      if (disabledNames.length > 0) {
+        // Check if any disabled feature has stats suggesting it was used recently
+        // If disabled and no recent activity → flag for review
+        warnings.push(`Feature flags disabled (review needed): ${disabledNames.join(', ')}`);
+      }
+    }
+  } catch { /* ignore */ }
+
+  // ── Check 2: Task Hygiene (NEXT.md) ──
+  try {
+    const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
+    if (existsSync(nextPath)) {
+      const content = readFileSync(nextPath, 'utf-8');
+      // Count unchecked items in Now + Next sections
+      const nowMatch = content.match(/## Now[\s\S]*?(?=##|---|\z)/);
+      const nextMatch = content.match(/## Next[\s\S]*?(?=##|---|\z)/);
+      const combinedSection = (nowMatch?.[0] ?? '') + (nextMatch?.[0] ?? '');
+      const unchecked = (combinedSection.match(/- \[ \]/g) ?? []).length;
+
+      if (unchecked > 8) {
+        warnings.push(`NEXT.md 積壓: ${unchecked} 個未完成項目 (建議清理到 ≤5)`);
+      }
+
+      // Check for items with @created dates older than 14 days
+      const createdDates = combinedSection.matchAll(/@created:\s*(\d{4}-\d{2}-\d{2})/g);
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
+      let staleCount = 0;
+      for (const m of createdDates) {
+        if (m[1] < fourteenDaysAgo) staleCount++;
+      }
+      if (staleCount > 0) {
+        warnings.push(`NEXT.md: ${staleCount} 項任務超過 14 天未推進`);
+      }
+    }
+  } catch { /* ignore */ }
+
+  // ── Check 3: DQ Root Cause Decomposition ──
+  try {
+    const dqState = readState<DecisionQualityState>('decision-quality.json', {
+      recentScores: [], avgScore: 0, warningInjected: false,
+      lastWarningAt: null, challengeTotal: 0, challengeCompliant: 0,
+      lastChallengeWarningAt: null,
+    });
+
+    if (dqState.avgScore < 2.5 && dqState.recentScores.length >= 10) {
+      // Read CRS baseline to decompose by trigger type
+      const crsPath = getStatePath('crs-baseline.jsonl');
+      if (existsSync(crsPath)) {
+        const lines = readFileSync(crsPath, 'utf-8').split('\n').filter(Boolean).slice(-20);
+        let lightCycles = 0;
+        for (const line of lines) {
+          try {
+            const record = JSON.parse(line);
+            const trigger = record.triggerReason ?? '';
+            // Light cycles: cron, heartbeat, workspace changes (not direct messages)
+            if (/^cron|^heartbeat|^workspace/.test(trigger)) lightCycles++;
+          } catch { /* skip */ }
+        }
+        const lightRatio = lightCycles / Math.max(lines.length, 1);
+
+        if (lightRatio > 0.5) {
+          warnings.push(`DQ ${dqState.avgScore}/6: ${Math.round(lightRatio * 100)}% 是 light cycles (cron/heartbeat) — mushi 應更積極 skip`);
+        } else {
+          warnings.push(`DQ ${dqState.avgScore}/6: 非 light cycle 仍低分 — 思考深度不足`);
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  // ── Check 4: Milestone Communication ──
+  try {
+    const { execSync } = await import('node:child_process');
+    // Check for src/ changes in last 24h without corresponding notification
+    const recentSrcChanges = execSync(
+      'git log --since="24 hours ago" --oneline -- src/ 2>/dev/null | head -5',
+      { encoding: 'utf-8', timeout: 5000 },
+    ).trim();
+
+    if (recentSrcChanges && recentSrcChanges.split('\n').length >= 3) {
+      // Check if there was a Telegram notification or upgrade report
+      const reportsDir = path.join(process.cwd(), 'memory', 'evolution-tracks', 'reports');
+      const today = new Date().toISOString().slice(0, 10);
+      let hasReport = false;
+      try {
+        const { readdirSync } = await import('node:fs');
+        const files = readdirSync(reportsDir);
+        hasReport = files.some(f => f.startsWith(today));
+      } catch { /* no reports dir yet */ }
+
+      if (!hasReport) {
+        const commitCount = recentSrcChanges.split('\n').length;
+        warnings.push(`src/ 有 ${commitCount} 個 commits (24h) 但無升級報告`);
+      }
+    }
+  } catch { /* ignore */ }
+
+  // ── Write results ──
+  state.lastCheckAt = new Date().toISOString();
+  state.lastWarnings = warnings;
+  writeState('structural-health.json', state);
+
+  const flagPath = getStatePath(STRUCTURAL_WARNING_FILE);
+  if (warnings.length > 0) {
+    const content = warnings.map(w => `⚠️ ${w}`).join('\n');
+    writeFileSync(flagPath, content, 'utf-8');
+    slog('FEEDBACK', `[structural-health] ${warnings.length} warnings: ${warnings.join(' | ')}`);
+  } else {
+    // Clear flag if no warnings
+    try { if (existsSync(flagPath)) { const { unlinkSync } = await import('node:fs'); unlinkSync(flagPath); } } catch { /* ignore */ }
+  }
+}
+
+// =============================================================================
 // Unified Entry Point
 // =============================================================================
 
@@ -513,6 +680,11 @@ export async function runFeedbackLoops(
   await trackPerceptionCitations(action).catch(() => {});
   await auditDecisionQuality(action, triggerReason).catch(() => {});
   await auditSystemHealth().catch(() => {});
+  await auditStructuralHealth(triggerReason).catch(() => {});
+  // Capability gap scan (every 50 cycles)
+  if (cycleCount && cycleCount % 50 === 0) {
+    try { const { scanCapabilityGaps } = await import('./evolution.js'); await scanCapabilityGaps(); } catch { /* ignore */ }
+  }
   // CRS baseline recording (sync, fire-and-forget)
   try { recordBaselineCycle(action, context ?? null, triggerReason); } catch { /* ignore */ }
   // Achievement system (fire-and-forget)
