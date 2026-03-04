@@ -289,6 +289,10 @@ function startChrome(headless = true) {
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-background-timer-throttling',
+    // Anti-automation detection (Scrapling-inspired stealth)
+    '--disable-blink-features=AutomationControlled',
+    '--disable-features=AutomationControlled',
+    '--disable-infobars',
   ];
 
   if (headless) {
@@ -545,6 +549,11 @@ async function cmdFetch(url, flags = {}) {
     ws = await connectWs(wsUrl);
     await cdpCommand(ws, 'Page.enable');
     await cdpCommand(ws, 'Runtime.enable');
+
+    // Anti-automation: override navigator.webdriver before page load (stealth)
+    await cdpCommand(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+      source: 'Object.defineProperty(navigator, "webdriver", { get: () => undefined });'
+    }).catch(() => {});
 
     const loadPromise = waitForEvent(ws, 'Page.loadEventFired', TIMEOUT);
     await cdpCommand(ws, 'Page.navigate', { url });

@@ -20,7 +20,6 @@ Usage:
 
 import sys
 import json
-import hashlib
 import re
 from datetime import datetime, timezone
 
