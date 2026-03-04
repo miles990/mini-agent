@@ -44,6 +44,7 @@ import { writeRoomMessage } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
+import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import type { LoopState } from './event-router.js';
 import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
@@ -598,6 +599,10 @@ export class AgentLoop {
       const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
       try { const c = fs.readFileSync(trackingPath, 'utf-8'); if (c.trim()) context += `\n\n<tracking_notes>\n${c.trim()}\n</tracking_notes>`; } catch {}
 
+      // Activity Journal (cross-lane awareness)
+      const activityJournal = formatActivityJournal(1000);
+      if (activityJournal) context += `\n\n<recent-activity>\n${activityJournal}\n</recent-activity>`;
+
       context += `\n\n<foreground_reply_mode>\n你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。直接對話回應，之後有需要補充的可以再說。\n</foreground_reply_mode>`;
 
       const { response } = await callClaude(text, context, 1, { source: 'foreground' });
@@ -634,6 +639,11 @@ export class AgentLoop {
 
       slog('LOOP', `[foreground-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
       eventBus.emit('action:loop', { event: 'foreground-reply', source, answerLength: answer.length });
+      writeActivity({
+        lane: 'foreground',
+        summary: `Replied to ${source}: ${answer.slice(0, 120)}`,
+        trigger: source,
+      });
     } catch (err) {
       slog('ERROR', `[foreground-reply] Failed: ${err instanceof Error ? err.message : err}`);
     }
@@ -1777,6 +1787,15 @@ export class AgentLoop {
         trigger: currentTriggerReason,
         tags: cycleTagsProcessed,
         sideEffects: cycleSideEffects,
+      });
+
+      // ── Write Activity Journal (fire-and-forget, cross-lane awareness) ──
+      writeActivity({
+        lane: 'ooda',
+        summary: action || 'no-action',
+        trigger: currentTriggerReason ?? undefined,
+        tags: cycleTagsProcessed.length > 0 ? cycleTagsProcessed : undefined,
+        duration,
       });
 
       // ── Update Temporal State (fire-and-forget) ──

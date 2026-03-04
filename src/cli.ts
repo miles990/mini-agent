@@ -56,6 +56,7 @@ import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } f
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { initObservability } from './observability.js';
+import { initActivityJournal } from './activity-journal.js';
 import { perceptionStreams } from './perception-stream.js';
 import type { InstanceConfig } from './types.js';
 
@@ -1267,6 +1268,7 @@ async function runChat(port: number): Promise<void> {
       console.log(`Cron: ${cronCount} task(s) active`);
     }
     initObservability();
+    initActivityJournal();
     if (agentLoop) {
       agentLoop.start();
     }

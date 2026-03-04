@@ -1555,6 +1555,15 @@ export class InstanceMemory {
       }
     }
 
+    // ── Activity Journal（skip in light mode）──
+    if (!isLight) {
+      const { formatActivityJournal } = await import('./activity-journal.js');
+      const activityJournal = formatActivityJournal();
+      if (activityJournal) {
+        sections.push(`<recent-activity>\n${activityJournal}\n</recent-activity>`);
+      }
+    }
+
     // ── Trail（skip in light mode）──
     if (!isLight) {
       const trailCtx = readTrailSection();
@@ -2011,6 +2020,13 @@ export class InstanceMemory {
       })
       .join('\n');
     sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);
+
+    // ── Activity Journal（cross-lane awareness）──
+    const { formatActivityJournal } = await import('./activity-journal.js');
+    const activityJournal = formatActivityJournal(800);
+    if (activityJournal) {
+      sections.push(`<recent-activity>\n${activityJournal}\n</recent-activity>`);
+    }
 
     return sections.join('\n\n');
   }

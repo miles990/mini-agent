@@ -55,6 +55,7 @@ import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { parseTags } from './dispatcher.js';
+import { initActivityJournal, writeActivity } from './activity-journal.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -2103,6 +2104,10 @@ export function createApi(port = 3001): express.Express {
       }
 
       res.json({ ok: true, answer: tags.cleanContent, contextAge });
+      writeActivity({
+        lane: 'ask',
+        summary: `Q: ${(question as string).slice(0, 80)} → A: ${(tags.cleanContent ?? '').slice(0, 80)}`,
+      });
     } catch (error) {
       slog('ERROR', `Ask failed: ${error instanceof Error ? error.message : error}`);
       res.status(500).json({ error: 'Ask failed' });
@@ -2327,6 +2332,7 @@ if (isMain) {
   initFeatures();
 
   initObservability();
+  initActivityJournal();
 
   const server = app.listen(port, () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);

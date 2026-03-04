@@ -19,6 +19,7 @@ import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import type { DelegationTaskType, DelegationProvider } from './types.js';
+import { writeActivity } from './activity-journal.js';
 
 // =============================================================================
 // Types
@@ -343,6 +344,12 @@ function startTask(task: DelegationTask): void {
 
     // Emit event for perception
     eventBus.emit('action:delegation-complete', { taskId, status: result.status });
+    writeActivity({
+      lane: 'background',
+      summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,
+      tags: [result.status],
+      duration: result.duration,
+    });
 
     // Dequeue next
     dequeueNext();
@@ -360,6 +367,12 @@ function startTask(task: DelegationTask): void {
 
     slog('DELEGATION', `Error ${taskId}: ${err.message}`);
     eventBus.emit('action:delegation-complete', { taskId, status: 'failed' });
+    writeActivity({
+      lane: 'background',
+      summary: `${result.type ?? 'code'} failed: ${err.message.slice(0, 100)}`,
+      tags: ['failed'],
+      duration: result.duration,
+    });
 
     dequeueNext();
   });
