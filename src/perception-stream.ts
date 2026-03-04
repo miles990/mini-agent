@@ -36,6 +36,10 @@ interface StreamEntry {
   timeoutCount: number;
   totalRunMs: number;
   runCount: number;
+  // ── Auto-restart tracking ──
+  consecutiveFailures: number;
+  restartCount: number;
+  lastRestartAt: Date | null;
 }
 
 // Category → interval mapping
@@ -76,6 +80,7 @@ class PerceptionStreamManager {
   private running = false;
   private _version = 0;
   private lastBuildHashes = new Map<string, string>();
+  private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
 
   get version(): number {
     return this._version;
@@ -102,11 +107,14 @@ class PerceptionStreamManager {
         timeoutCount: 0,
         totalRunMs: 0,
         runCount: 0,
+        consecutiveFailures: 0,
+        restartCount: 0,
+        lastRestartAt: null,
       };
 
       this.streams.set(p.name, entry);
 
-      // Initial run
+      // Initial run (don't await — fire-and-forget)
       this.tick(entry);
 
       // Schedule by category
@@ -127,15 +135,19 @@ class PerceptionStreamManager {
       const summary = [...cats.entries()].map(([c, n]) => `${c}:${n}`).join(' ');
       slog('PERCEPTION', `Streams started: ${this.streams.size} plugins (${summary})`);
     }
+
+    // Health check: detect stale plugins and auto-restart (every 5 min)
+    this.healthCheckTimer = setInterval(() => this.healthCheck(), 5 * 60_000);
   }
 
   stop(): void {
+    if (this.healthCheckTimer) clearInterval(this.healthCheckTimer);
+    this.healthCheckTimer = null;
     for (const entry of this.streams.values()) {
       if (entry.timer) clearInterval(entry.timer);
     }
     this.streams.clear();
     this.running = false;
-    // (debounce removed — perception changes no longer trigger cycles)
   }
 
   isActive(): boolean {
@@ -258,6 +270,7 @@ class PerceptionStreamManager {
     avgMs: number;
     timeouts: number;
     runCount: number;
+    restarts: number;
     healthy: boolean;
   }> {
     const now = Date.now();
@@ -277,6 +290,7 @@ class PerceptionStreamManager {
         avgMs: e.runCount > 0 ? Math.round(e.totalRunMs / e.runCount) : 0,
         timeouts: e.timeoutCount,
         runCount: e.runCount,
+        restarts: e.restartCount,
         healthy,
       };
     });
@@ -285,6 +299,56 @@ class PerceptionStreamManager {
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
+
+  /**
+   * Periodic health check — detect stale plugins and auto-restart.
+   * A plugin is stale if it hasn't successfully updated in 5x its interval (min 5 min).
+   * Max 3 restarts per plugin to prevent restart storms.
+   */
+  private healthCheck(): void {
+    const now = Date.now();
+    for (const [name, entry] of this.streams) {
+      const category = getCategory(name);
+      const interval = INTERVALS[category] ?? INTERVALS.heartbeat;
+      if (interval === 0) continue; // skip event-driven plugins
+
+      const ageMs = entry.updatedAt ? now - entry.updatedAt.getTime() : now;
+      const staleThreshold = Math.max(interval * 5, 5 * 60_000);
+
+      if (ageMs > staleThreshold && entry.restartCount < 3) {
+        slog('PERCEPTION', `[auto-restart] ${name}: stale for ${Math.round(ageMs / 1000)}s, restarting (attempt ${entry.restartCount + 1}/3)`);
+        this.restartPlugin(name);
+      } else if (ageMs > staleThreshold && entry.restartCount >= 3) {
+        // Already exhausted restarts — log once at debug level, don't spam
+      }
+    }
+  }
+
+  /**
+   * Restart a stale plugin: clear old timer, reset failure counters,
+   * restore default interval, and do an immediate tick.
+   */
+  private restartPlugin(name: string): void {
+    const entry = this.streams.get(name);
+    if (!entry) return;
+
+    if (entry.timer) clearInterval(entry.timer);
+
+    entry.timeoutCount = 0;
+    entry.consecutiveFailures = 0;
+    entry.restartCount++;
+    entry.lastRestartAt = new Date();
+
+    // Immediate tick
+    this.tick(entry);
+
+    // Restore default interval
+    const category = getCategory(name);
+    const interval = INTERVALS[category] ?? INTERVALS.heartbeat;
+    if (interval > 0) {
+      entry.timer = setInterval(() => this.tick(entry), interval);
+    }
+  }
 
   private async tick(entry: StreamEntry): Promise<void> {
     if (!this.running) return;
@@ -310,11 +374,18 @@ class PerceptionStreamManager {
         ),
       ]);
       entry.timeoutCount = 0; // reset on success
+      // Recovery: if plugin was failing, restore default interval
+      if (entry.consecutiveFailures > 0) {
+        const prevFailures = entry.consecutiveFailures;
+        entry.consecutiveFailures = 0;
+        this.restoreDefaultInterval(entry.perception.name);
+        slog('PERCEPTION', `[recovered] ${entry.perception.name} after ${prevFailures} consecutive failures`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       slog('PERCEPTION', `[degraded] ${entry.perception.name}: ${msg}`);
       entry.timeoutCount++;
-      // 超時或錯誤：保留上次結果，不更新
+      entry.consecutiveFailures++;
       return;
     }
     entry.lastDurationMs = Date.now() - start;
