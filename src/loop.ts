@@ -1254,7 +1254,7 @@ export class AgentLoop {
       const memory = getMemory();
       // Light mode for DM-triggered cycles: minimal context for fast response
       const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
-      const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount });
+      const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
@@ -1425,7 +1425,7 @@ export class AgentLoop {
 
       const [claudeResult, newInboxCount] = await Promise.all([
         callClaude(prompt, context, 2, {
-          rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount }),
+          rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined }),
           source: 'loop',
           onPartialOutput,
           cycleMode,

@@ -1400,6 +1400,7 @@ export class InstanceMemory {
     relevanceHint?: string;
     mode?: 'full' | 'focused' | 'minimal' | 'light';
     cycleCount?: number;
+    trigger?: string;
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
     const isLight = mode === 'light';
@@ -1410,6 +1411,19 @@ export class InstanceMemory {
       return this.buildMinimalContext();
     }
 
+    // ── Trigger-Aware Context Budgeting ──
+    // Different triggers need different context emphasis.
+    // heartbeat cycles don't need 10 conversations; continuation cycles don't need 6K topic memory.
+    const triggerBase = options?.trigger?.split(/[:(]/)[0]?.trim() ?? '';
+    const triggerBudgets: Record<string, { conversations: number; topicMemory: number; extraHints: string[] }> = {
+      heartbeat:     { conversations: 5,  topicMemory: 4000, extraHints: ['task', 'schedule', 'heartbeat'] },
+      workspace:     { conversations: 5,  topicMemory: 4000, extraHints: ['workspace', 'git', 'file', 'change'] },
+      cron:          { conversations: 3,  topicMemory: 3000, extraHints: ['cron', 'schedule', 'task'] },
+      continuation:  { conversations: 3,  topicMemory: 2000, extraHints: [] },
+      startup:       { conversations: 10, topicMemory: 6000, extraHints: [] },
+    };
+    const tBudget = mode === 'focused' ? (triggerBudgets[triggerBase] ?? null) : null;
+
     const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
       this.readHeartbeat(),
@@ -1418,7 +1432,7 @@ export class InstanceMemory {
 
     // 使用 Hot buffer 中的對話（截斷長回覆節省 token）
     const MAX_CONVERSATION_ENTRY_CHARS = 1000;
-    const MAX_CONVERSATIONS = isLight ? 5 : mode === 'focused' ? 10 : this.hotLimit;
+    const MAX_CONVERSATIONS = isLight ? 5 : (tBudget?.conversations ?? (mode === 'focused' ? 10 : this.hotLimit));
     const conversations = this.conversationBuffer
       .slice(-MAX_CONVERSATIONS)
       .map(c => {
@@ -1432,12 +1446,13 @@ export class InstanceMemory {
       })
       .join('\n');
 
-    // 從最近對話提取上下文關鍵字
+    // 從最近對話提取上下文關鍵字 + trigger-derived hints
     const recentHint = this.conversationBuffer
       .slice(-3)
       .map(c => c.content.toLowerCase())
       .join(' ');
-    const contextHint = hint || recentHint;
+    const triggerHints = tBudget?.extraHints?.join(' ') ?? '';
+    const contextHint = [hint, recentHint, triggerHints].filter(Boolean).join(' ');
 
     // Server 環境資訊
     const now = new Date();
@@ -1774,7 +1789,8 @@ export class InstanceMemory {
       // Experiment 2: Total topic-memory budget (2026-02-28)
       // Data: topic-memory swings 0-17K chars, cited 1/918 cycles.
       // Budget caps total chars, excess topics downgraded to summary.
-      const TOPIC_MEMORY_BUDGET = 6000;
+      // Trigger-aware: continuation/cron cycles get smaller budgets (less context needed).
+      const TOPIC_MEMORY_BUDGET = tBudget?.topicMemory ?? 6000;
       let topicCharsUsed = 0;
 
       const keywordMap = await loadTopicKeywordMap(this.memoryDir);

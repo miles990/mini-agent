@@ -80,7 +80,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
-  { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await', defaultEnabled: false },
+  { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },
   { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess', defaultEnabled: false },
 
   // ── Notification ──
