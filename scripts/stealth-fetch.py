@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet
 # /// script
-# dependencies = ["httpx[http2]", "certifi"]
+# dependencies = ["httpx[http2]"]
 # requires-python = ">=3.10"
 # ///
 """
@@ -24,8 +24,6 @@ import hashlib
 import re
 from datetime import datetime, timezone
 
-import ssl
-import certifi
 import httpx
 
 # ─── Browser Fingerprint Profiles ────────────────────────────────────────────

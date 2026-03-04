@@ -1,12 +1,15 @@
 #!/bin/bash
-# Web 五層擷取感知 — curl → Jina Reader → Grok(X) → CDP → 人工
+# Web 自適應擷取感知 — Adaptive Domain Router + Multi-Layer Cascade
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 #
-# 每層都有內容品質驗證 — 防止「成功但內容是垃圾」的靜默失敗
-# Compact output: 精簡版注入 context，完整版存到 web-cache/
+# Evolution (2026-03-05):
+#   - Adaptive routing: remember which layer works for each domain
+#   - Function-based layers: try preferred first, then cascade
+#   - Scrapling-inspired: stealth curl + HTTP/2 + profile rotation + quality gate
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CDP_FETCH="$SCRIPT_DIR/scripts/cdp-fetch.mjs"
+STEALTH_FETCH="$SCRIPT_DIR/scripts/stealth-fetch.py"
 
 # Load .env for API keys (XAI_API_KEY etc.) — launchd doesn't pass them
 if [[ -f "$SCRIPT_DIR/.env" ]]; then
@@ -37,12 +40,9 @@ if [[ -z "$URLS" ]]; then
 fi
 
 # ─── Full Content Cache ───────────────────────────────────────────────────────
-# 完整來源資料存到磁碟，context 只注入精簡版
 WEB_CACHE_DIR="$HOME/.mini-agent/web-cache"
 mkdir -p "$WEB_CACHE_DIR"
 
-# cache_content URL LAYER FULL_CONTENT [TITLE]
-# Saves full content to disk
 cache_content() {
   local url="$1" layer="$2" content="$3" title="${4:-}"
   local url_hash
@@ -50,7 +50,6 @@ cache_content() {
   local short_hash="${url_hash:0:12}"
   local cache_file="$WEB_CACHE_DIR/${short_hash}.txt"
 
-  # Write full content
   {
     echo "URL: $url"
     [[ -n "$title" ]] && echo "Title: $title"
@@ -60,7 +59,6 @@ cache_content() {
     echo "$content"
   } > "$cache_file"
 
-  # Append to manifest (JSONL, append-only)
   local content_len=${#content}
   echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"url\":\"$url\",\"layer\":\"$layer\",\"len\":$content_len,\"file\":\"${short_hash}.txt\"}" \
     >> "$WEB_CACHE_DIR/manifest.jsonl" 2>/dev/null
@@ -70,22 +68,46 @@ cache_content() {
 find "$WEB_CACHE_DIR" -name '*.txt' -mtime +7 -delete 2>/dev/null &
 
 # ─── Content Quality Gate ─────────────────────────────────────────────────────
-# 通用品質驗證 — 防止「有輸出但沒用」的靜默失敗
 is_content_useful() {
   local content="$1" url="$2"
   local content_len=${#content}
 
-  # Check for known restriction messages
   local restrict_count
   restrict_count=$(echo "$content" | head -30 | grep -ciE '目前無法查看此內容|此內容目前無法顯示|this content isn.t available|sorry.*this page isn.t available|content.unavailable|you must log in to continue|受限制的內容' || true)
   [[ "$restrict_count" -ge 1 ]] && return 1
 
-  # Social media: short content = likely restriction page
+  local cf_count
+  cf_count=$(echo "$content" | head -50 | grep -ciE 'cf-browser-verification|challenge-platform|just a moment|checking your browser|enable javascript and cookies|please wait while we verify' || true)
+  [[ "$cf_count" -ge 2 ]] && return 1
+
+  local bot_count
+  bot_count=$(echo "$content" | head -50 | grep -ciE 'bot detected|automated access|please verify you are human|unusual traffic' || true)
+  [[ "$bot_count" -ge 1 ]] && return 1
+
   if echo "$url" | grep -qiE 'facebook\.com|instagram\.com|threads\.net|x\.com|twitter\.com'; then
     [[ "$content_len" -lt 500 ]] && return 1
   fi
 
   return 0
+}
+
+# ─── Adaptive Domain Router ──────────────────────────────────────────────────
+# Learn from past fetches: which layer worked best for each domain?
+get_preferred_layer() {
+  local domain="$1"
+  local manifest="$WEB_CACHE_DIR/manifest.jsonl"
+  [[ -f "$manifest" ]] || return
+
+  # Find most recent successful fetch for this domain
+  local match
+  match=$(grep -F "$domain" "$manifest" 2>/dev/null | tail -1)
+  [[ -z "$match" ]] && return
+
+  local layer
+  layer=$(echo "$match" | jq -r '.layer // empty' 2>/dev/null)
+  # Normalize legacy layer names
+  [[ "$layer" == "http" ]] && layer="curl"
+  echo "$layer"
 }
 
 # Check if Chrome CDP is available (port 9222)
@@ -94,11 +116,199 @@ if curl -s --max-time 2 "http://localhost:${CDP_PORT:-9222}/json/version" > /dev
   CDP_AVAILABLE=true
 fi
 
+# ─── Layer Functions ─────────────────────────────────────────────────────────
+# Each returns 0 on success (sets _OUT, _TITLE), 1 on failure.
+# On success, also calls cache_content.
+
+_OUT=""
+_TITLE=""
+
+try_curl() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  local content
+  content=$(curl -sL --max-time 8 --max-filesize 1048576 \
+    -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+    -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
+    -H "Accept-Language: en-US,en;q=0.9" \
+    -H "Accept-Encoding: gzip, deflate, br" \
+    -H "Sec-CH-UA: \"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"" \
+    -H "Sec-CH-UA-Mobile: ?0" \
+    -H "Sec-CH-UA-Platform: \"macOS\"" \
+    -H "Sec-Fetch-Dest: document" \
+    -H "Sec-Fetch-Mode: navigate" \
+    -H "Sec-Fetch-Site: none" \
+    -H "Sec-Fetch-User: ?1" \
+    -H "Upgrade-Insecure-Requests: 1" \
+    -H "DNT: 1" \
+    --compressed \
+    "$url" 2>/dev/null)
+
+  [[ $? -ne 0 || -z "$content" ]] && return 1
+
+  local is_auth
+  is_auth=$(echo "$content" | head -100 | grep -ciE 'sign.in|log.in|login|password|captcha|verify|驗證|登入|403|forbidden|unauthorized' || true)
+  local content_len=${#content}
+
+  [[ "$is_auth" -ge 2 || "$content_len" -le 200 ]] && return 1
+  is_content_useful "$content" "$url" || return 1
+
+  if echo "$content" | head -5 | grep -qi '<html\|<!doctype'; then
+    _TITLE=$(echo "$content" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
+    local full_text
+    full_text=$(echo "$content" \
+      | sed 's/<script[^>]*>.*<\/script>//gi' \
+      | sed 's/<style[^>]*>.*<\/style>//gi' \
+      | sed 's/<[^>]*>//g' \
+      | tr -s '[:space:]' ' ')
+    cache_content "$url" "curl" "$full_text" "$_TITLE"
+    _OUT="${full_text:0:1000}"
+  else
+    cache_content "$url" "curl" "$content"
+    _OUT="${content:0:1000}"
+  fi
+  return 0
+}
+
+try_jina() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  local result
+  result=$(curl -sL --max-time 15 \
+    -H "Accept: text/markdown" \
+    "https://r.jina.ai/$url" 2>/dev/null)
+
+  [[ $? -ne 0 || ${#result} -le 200 ]] && return 1
+  is_content_useful "$result" "$url" || return 1
+
+  local auth_count
+  auth_count=$(echo "$result" | head -20 | grep -ciE 'sign.in|log.in|login|password|captcha|403|forbidden|unauthorized' || true)
+  [[ "$auth_count" -ge 2 ]] && return 1
+
+  cache_content "$url" "jina" "$result"
+  _OUT=$(echo "$result" | head -30)
+  return 0
+}
+
+try_stealth() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  command -v uv &>/dev/null || return 1
+  [[ -f "$STEALTH_FETCH" ]] || return 1
+
+  local json_result
+  json_result=$(uv run --quiet "$STEALTH_FETCH" "$url" --json 2>/dev/null)
+  [[ $? -ne 0 || -z "$json_result" ]] && return 1
+
+  local content title content_len
+  content=$(echo "$json_result" | jq -r '.content // empty' 2>/dev/null)
+  title=$(echo "$json_result" | jq -r '.title // empty' 2>/dev/null)
+  content_len=${#content}
+
+  [[ "$content_len" -le 200 ]] && return 1
+  is_content_useful "$content" "$url" || return 1
+
+  cache_content "$url" "stealth" "$content" "$title"
+  _TITLE="$title"
+  _OUT="${content:0:1000}"
+  return 0
+}
+
+try_grok() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  # Grok only works for X/Twitter URLs
+  echo "$url" | grep -qiE 'x\.com|twitter\.com' || return 1
+  [[ -n "${XAI_API_KEY:-}" ]] || return 1
+
+  local response
+  response=$(curl -s --connect-timeout 5 --max-time 15 "https://api.x.ai/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $XAI_API_KEY" \
+    -d "{
+      \"model\": \"grok-4-1-fast\",
+      \"tools\": [{\"type\": \"x_search\"}],
+      \"instructions\": \"Read this tweet/post and return its full content: author, text, engagement stats. Plain text, no markdown.\",
+      \"input\": \"$url\"
+    }" 2>/dev/null)
+
+  local text
+  text=$(echo "$response" | jq -r '
+    [.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | first // empty
+  ' 2>/dev/null)
+
+  [[ -z "$text" || ${#text} -le 50 ]] && return 1
+
+  cache_content "$url" "grok" "$text"
+  _OUT=$(echo "$text" | head -25)
+  return 0
+}
+
+try_cdp() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  [[ "$CDP_AVAILABLE" == "true" ]] || return 1
+  [[ -f "$CDP_FETCH" ]] || return 1
+
+  local result
+  result=$(node "$CDP_FETCH" fetch "$url" 2>/dev/null)
+  [[ $? -ne 0 || -z "$result" ]] && return 1
+
+  if echo "$result" | head -1 | grep -q "AUTH_REQUIRED"; then
+    _OUT="Login required\nTo access: node scripts/cdp-fetch.mjs open \"$url\""
+    return 0  # "success" in that we got a definitive answer
+  fi
+
+  is_content_useful "$result" "$url" || return 1
+
+  cache_content "$url" "cdp" "$result"
+  _OUT=$(echo "$result" | sed '/^--- Links ---$/,$d' | head -30)
+  return 0
+}
+
+# ─── Fetch Orchestrator ──────────────────────────────────────────────────────
+# Tries preferred layer first (from domain history), then cascades through all.
+fetch_url() {
+  local url="$1" domain="$2"
+  _OUT="" ; _TITLE=""
+
+  # Adaptive routing: check domain history
+  local preferred
+  preferred=$(get_preferred_layer "$domain")
+
+  # Default cascade order
+  local layers="curl jina stealth grok cdp"
+
+  if [[ -n "$preferred" ]]; then
+    # Try preferred first
+    if "try_$preferred" "$url" 2>/dev/null; then
+      return 0
+    fi
+    # Preferred failed — remove it from cascade to avoid double-trying
+    layers=$(echo "$layers" | sed "s/$preferred//")
+  fi
+
+  # Normal cascade
+  for layer in $layers; do
+    if "try_$layer" "$url" 2>/dev/null; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+# ─── Main Loop ───────────────────────────────────────────────────────────────
+
 for URL in $URLS; do
-  # Short domain for compact display
   DOMAIN=$(echo "$URL" | sed -E 's|https?://([^/]+).*|\1|' | sed 's/^www\.//')
 
-  # Skip if recently cached by prefetch (< 10 min)
+  # Skip if recently cached (< 10 min)
   url_hash=$(echo -n "$URL" | md5 -q 2>/dev/null || echo -n "$URL" | md5sum 2>/dev/null | cut -d' ' -f1)
   cache_file="$WEB_CACHE_DIR/${url_hash:0:12}.txt"
   if [[ -f "$cache_file" ]]; then
@@ -113,105 +323,14 @@ for URL in $URLS; do
 
   echo "[$DOMAIN]"
 
-  # ── Layer 1: curl (fast, public pages) ──
-  CONTENT=$(curl -sL --max-time 8 --max-filesize 1048576 \
-    -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
-    "$URL" 2>/dev/null)
-
-  if [[ $? -eq 0 ]] && [[ -n "$CONTENT" ]]; then
-    IS_AUTH=$(echo "$CONTENT" | head -100 | grep -ciE 'sign.in|log.in|login|password|captcha|verify|驗證|登入|403|forbidden|unauthorized' || true)
-    CONTENT_LEN=${#CONTENT}
-
-    if [[ "$IS_AUTH" -lt 2 ]] && [[ "$CONTENT_LEN" -gt 200 ]] && is_content_useful "$CONTENT" "$URL"; then
-      if echo "$CONTENT" | head -5 | grep -qi '<html\|<!doctype'; then
-        TITLE=$(echo "$CONTENT" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
-        FULL_TEXT=$(echo "$CONTENT" \
-          | sed 's/<script[^>]*>.*<\/script>//gi' \
-          | sed 's/<style[^>]*>.*<\/style>//gi' \
-          | sed 's/<[^>]*>//g' \
-          | tr -s '[:space:]' ' ')
-        # Cache full text, output compact version
-        cache_content "$URL" "curl" "$FULL_TEXT" "$TITLE"
-        [[ -n "$TITLE" ]] && echo "$TITLE"
-        echo "${FULL_TEXT:0:1000}"
-      else
-        cache_content "$URL" "curl" "$CONTENT"
-        echo "${CONTENT:0:1000}"
-      fi
-      echo ""
-      continue
+  if fetch_url "$URL" "$DOMAIN"; then
+    [[ -n "$_TITLE" ]] && echo "$_TITLE"
+    [[ -n "$_OUT" ]] && echo -e "$_OUT"
+  else
+    echo "Cannot fetch — requires login or is inaccessible"
+    if echo "$URL" | grep -qiE 'x\.com|twitter\.com' && [[ -z "${XAI_API_KEY:-}" ]]; then
+      echo "Tip: Set XAI_API_KEY for X/Twitter"
     fi
-  fi
-
-  # ── Layer 2: Jina Reader (JS-heavy public pages) ──
-  JINA_RESULT=$(curl -sL --max-time 15 \
-    -H "Accept: text/markdown" \
-    "https://r.jina.ai/$URL" 2>/dev/null)
-  JINA_EXIT=$?
-  JINA_LEN=${#JINA_RESULT}
-
-  if [[ $JINA_EXIT -eq 0 ]] && [[ "$JINA_LEN" -gt 200 ]] && is_content_useful "$JINA_RESULT" "$URL"; then
-    JINA_AUTH=$(echo "$JINA_RESULT" | head -20 | grep -ciE 'sign.in|log.in|login|password|captcha|403|forbidden|unauthorized' || true)
-    if [[ "$JINA_AUTH" -lt 2 ]]; then
-      cache_content "$URL" "jina" "$JINA_RESULT"
-      echo "$JINA_RESULT" | head -30
-      echo ""
-      continue
-    fi
-  fi
-
-  # ── Layer 3: Grok x_search (X/Twitter native access) ──
-  IS_X_URL=$(echo "$URL" | grep -oiE 'x\.com|twitter\.com' || true)
-  if [[ -n "$IS_X_URL" ]] && [[ -n "${XAI_API_KEY:-}" ]]; then
-    GROK_RESPONSE=$(curl -s --connect-timeout 5 --max-time 15 "https://api.x.ai/v1/responses" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $XAI_API_KEY" \
-      -d "{
-        \"model\": \"grok-4-1-fast\",
-        \"tools\": [{\"type\": \"x_search\"}],
-        \"instructions\": \"Read this tweet/post and return its full content: author, text, engagement stats. Plain text, no markdown.\",
-        \"input\": \"$URL\"
-      }" 2>/dev/null)
-
-    GROK_TEXT=$(echo "$GROK_RESPONSE" | jq -r '
-      [.output[]? | select(.type == "message") | .content[]? | select(.type == "output_text") | .text] | first // empty
-    ' 2>/dev/null)
-
-    if [[ -n "$GROK_TEXT" ]] && [[ ${#GROK_TEXT} -gt 50 ]]; then
-      cache_content "$URL" "grok" "$GROK_TEXT"
-      echo "$GROK_TEXT" | head -25
-      echo ""
-      continue
-    fi
-  fi
-
-  # ── Layer 4: Chrome CDP (authenticated pages) ──
-  if [[ "$CDP_AVAILABLE" == "true" ]] && [[ -f "$CDP_FETCH" ]]; then
-    # Fetch full content for cache, output compact (no links)
-    CDP_RESULT_FULL=$(node "$CDP_FETCH" fetch "$URL" 2>/dev/null)
-    CDP_EXIT=$?
-
-    if [[ $CDP_EXIT -eq 0 ]] && [[ -n "$CDP_RESULT_FULL" ]]; then
-      if echo "$CDP_RESULT_FULL" | head -1 | grep -q "AUTH_REQUIRED"; then
-        echo "Login required"
-        echo "To access: node scripts/cdp-fetch.mjs open \"$URL\""
-        echo ""
-        continue
-      elif is_content_useful "$CDP_RESULT_FULL" "$URL"; then
-        cache_content "$URL" "cdp" "$CDP_RESULT_FULL"
-        # Output compact: skip links section
-        echo "$CDP_RESULT_FULL" | sed '/^--- Links ---$/,$d' | head -30
-        echo ""
-        continue
-      fi
-      # Content not useful — fall through to Layer 5
-    fi
-  fi
-
-  # ── Layer 5: Cannot access — report clearly ──
-  echo "Cannot fetch — requires login or is inaccessible"
-  if [[ -n "$IS_X_URL" ]] && [[ -z "${XAI_API_KEY:-}" ]]; then
-    echo "Tip: Set XAI_API_KEY for X/Twitter"
   fi
   echo ""
 done
