@@ -1243,7 +1243,9 @@ export class AgentLoop {
 
       // ── Observe ──
       const memory = getMemory();
-      const context = await memory.buildContext({ mode: 'focused', cycleCount: this.cycleCount });
+      // Light mode for DM-triggered cycles: minimal context for fast response
+      const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
+      const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount });
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {

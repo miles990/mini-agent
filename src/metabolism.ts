@@ -12,6 +12,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { slog } from './utils.js';
@@ -25,6 +26,10 @@ let lastPatternScanAt = 0;
 let lastStaleScanAt = 0;
 let lastFrictionScanAt = 0;
 let newRememberSinceLastScan = false;
+
+// Track topic content hashes to skip unchanged topics (survives in-memory across cycles,
+// and prevents re-scanning after restart since content hasn't changed)
+const topicContentHashes = new Map<string, string>();
 
 const STALE_SCAN_INTERVAL = 6 * 60 * 60_000; // 6h
 const FRICTION_SCAN_INTERVAL = 60 * 60_000;    // 1h
@@ -118,8 +123,16 @@ async function detectPatterns(): Promise<void> {
   const logEntries: string[] = [];
 
   for (const topic of topics) {
-    const bullets = await memory.getRecentTopicBullets(topic, 50);
-    if (bullets.length < 3) continue;
+    // Hash-check: skip topics whose content hasn't changed since last scan
+    const content = await memory.readTopicMemory(topic);
+    const contentHash = createHash('md5').update(content).digest('hex');
+    if (topicContentHashes.get(topic) === contentHash) continue;
+
+    const bullets = content.split('\n').filter(l => l.startsWith('- ')).slice(-50);
+    if (bullets.length < 3) {
+      topicContentHashes.set(topic, contentHash);
+      continue;
+    }
 
     // Pairwise similarity check: compare each bullet against others
     // Use a simple approach: check each bullet against the rest, find clusters
@@ -170,6 +183,10 @@ async function detectPatterns(): Promise<void> {
         }));
       }
     }
+
+    // Update hash after processing — re-read because removeBulletFromTopic may have changed the file
+    const updatedContent = await memory.readTopicMemory(topic);
+    topicContentHashes.set(topic, createHash('md5').update(updatedContent).digest('hex'));
   }
 
   // Write metabolism log

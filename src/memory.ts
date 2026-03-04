@@ -1398,10 +1398,11 @@ export class InstanceMemory {
    */
   async buildContext(options?: {
     relevanceHint?: string;
-    mode?: 'full' | 'focused' | 'minimal';
+    mode?: 'full' | 'focused' | 'minimal' | 'light';
     cycleCount?: number;
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
+    const isLight = mode === 'light';
     const hint = options?.relevanceHint?.toLowerCase() ?? '';
 
     // ── Minimal mode: 最小 context，用於超時重試 ──
@@ -1417,7 +1418,7 @@ export class InstanceMemory {
 
     // 使用 Hot buffer 中的對話（截斷長回覆節省 token）
     const MAX_CONVERSATION_ENTRY_CHARS = 1000;
-    const MAX_CONVERSATIONS = mode === 'focused' ? 10 : this.hotLimit;
+    const MAX_CONVERSATIONS = isLight ? 5 : mode === 'focused' ? 10 : this.hotLimit;
     const conversations = this.conversationBuffer
       .slice(-MAX_CONVERSATIONS)
       .map(c => {
@@ -1460,10 +1461,12 @@ export class InstanceMemory {
       }
     } catch { /* ignore */ }
 
-    // ── Temporal Sense（時間感）──
-    const temporalCtx = await buildTemporalSection();
-    if (temporalCtx) {
-      sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
+    // ── Temporal Sense（時間感）── skip in light mode
+    if (!isLight) {
+      const temporalCtx = await buildTemporalSection();
+      if (temporalCtx) {
+        sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
+      }
     }
 
     // ── Telegram 健康度（核心感知，總是載入）──
@@ -1538,48 +1541,58 @@ export class InstanceMemory {
       if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
     }
 
-    // Activity — 行為 + 診斷感知（always load — Kuro needs self-awareness）
-    if (activitySummaryProvider) {
+    // Activity — 行為 + 診斷感知（skip in light mode）
+    if (!isLight && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
 
-    // ── Background Completed（lane-output 結果，主 cycle 決定如何處理）──
-    const bgSection = buildBackgroundCompletedSection(this.instanceId);
-    if (bgSection) {
-      sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
-    }
-
-    // ── Trail（注意力歷史 — mushi scout + kuro focus 的共享梯度）──
-    const trailCtx = readTrailSection();
-    if (trailCtx) {
-      sections.push(`<trail>\n${trailCtx}\n</trail>`);
-    }
-
-    // Decision quality warning（feedback loop injection）
-    const qualityFlagPath = path.join(getInstanceDir(this.instanceId), 'decision-quality-warning.flag');
-    try {
-      if (existsSync(qualityFlagPath)) {
-        const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
-        if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
+    // ── Background Completed（skip in light mode）──
+    if (!isLight) {
+      const bgSection = buildBackgroundCompletedSection(this.instanceId);
+      if (bgSection) {
+        sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
       }
-    } catch { /* ignore */ }
-
-    // Stale Tasks（衰減警告 — 提醒自省）
-    const staleWarnings = readStaleTaskWarnings();
-    if (staleWarnings.length > 0) {
-      const staleLines = staleWarnings.map(w =>
-        `- ${w.priority} "${w.title}" — ${w.ageDays}天未推進 (created: ${w.created}, section: ${w.section})`
-      );
-      sections.push(`<stale-tasks>\n以下任務超齡未推進，考慮：降級、拆解、移到 backlog、或放棄。\n${staleLines.join('\n')}\n</stale-tasks>`);
     }
 
-    // Achievements + Output Gate（always load — identity reinforcement）
-    try {
-      const { buildAchievementsContext } = await import('./achievements.js');
-      const achievementsCtx = buildAchievementsContext();
-      if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
-    } catch { /* ignore */ }
+    // ── Trail（skip in light mode）──
+    if (!isLight) {
+      const trailCtx = readTrailSection();
+      if (trailCtx) {
+        sections.push(`<trail>\n${trailCtx}\n</trail>`);
+      }
+    }
+
+    // Decision quality warning（skip in light mode）
+    if (!isLight) {
+      const qualityFlagPath = path.join(getInstanceDir(this.instanceId), 'decision-quality-warning.flag');
+      try {
+        if (existsSync(qualityFlagPath)) {
+          const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
+          if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Stale Tasks（skip in light mode）
+    if (!isLight) {
+      const staleWarnings = readStaleTaskWarnings();
+      if (staleWarnings.length > 0) {
+        const staleLines = staleWarnings.map(w =>
+          `- ${w.priority} "${w.title}" — ${w.ageDays}天未推進 (created: ${w.created}, section: ${w.section})`
+        );
+        sections.push(`<stale-tasks>\n以下任務超齡未推進，考慮：降級、拆解、移到 backlog、或放棄。\n${staleLines.join('\n')}\n</stale-tasks>`);
+      }
+    }
+
+    // Achievements + Output Gate（skip in light mode）
+    if (!isLight) {
+      try {
+        const { buildAchievementsContext } = await import('./achievements.js');
+        const achievementsCtx = buildAchievementsContext();
+        if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
+      } catch { /* ignore */ }
+    }
 
     // Action Coach — 0 citations/916 cycles. Load when asking about behavior/habits
     if (isRelevant(['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'])) {
@@ -1675,10 +1688,12 @@ export class InstanceMemory {
       }
     }
 
-    // ── Threads（持續思考線索）──
-    const threadsCtx = buildThreadsContextSection();
-    if (threadsCtx) {
-      sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+    // ── Threads（skip in light mode）──
+    if (!isLight) {
+      const threadsCtx = buildThreadsContextSection();
+      if (threadsCtx) {
+        sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+      }
     }
 
     // ── Working Memory（跨 cycle 工作記憶，<kuro:inner> 寫入）──
@@ -1692,32 +1707,39 @@ export class InstanceMemory {
       }
     } catch { /* ignore */ }
 
-    // ── Inner Voice（未表達的創作衝動）──
-    const unexpressedImpulses = await this.getUnexpressedImpulses();
-    const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
-    if (innerVoiceCtx) {
-      sections.push(`<inner-voice>\n${innerVoiceCtx}\n</inner-voice>`);
+    // ── Inner Voice（skip in light mode）──
+    if (!isLight) {
+      const unexpressedImpulses = await this.getUnexpressedImpulses();
+      const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
+      if (innerVoiceCtx) {
+        sections.push(`<inner-voice>\n${innerVoiceCtx}\n</inner-voice>`);
+      }
     }
 
-    // ── Conversation Threads（對話脈絡追蹤）──
-    const convThreads = await this.getConversationThreads();
-    const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
-    if (activeConvThreads.length > 0) {
-      const threadLines = activeConvThreads.map(t => {
-        const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
-        const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
-        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
-      });
-      sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
+    // ── Conversation Threads（skip in light mode）──
+    if (!isLight) {
+      const convThreads = await this.getConversationThreads();
+      const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
+      if (activeConvThreads.length > 0) {
+        const threadLines = activeConvThreads.map(t => {
+          const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
+          const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
+          return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
+        });
+        sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
+      }
     }
 
     // ── Soul（身分認同）──
     if (soul) {
-      const soulContent = this.buildSoulContext(soul, contextHint, mode, options?.cycleCount);
+      const soulContent = this.buildSoulContext(soul, contextHint, (isLight ? 'focused' : mode) as 'full' | 'focused' | 'minimal', options?.cycleCount);
       sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
-    // ── Topic 記憶（Smart Loading + negative keywords + heat-based truncation）──
+    // ── Topic 記憶（skip in light mode）──
+    if (isLight) {
+      // Light mode: skip all topic memory to minimize context
+    } else {
     const topics = await this.listTopics();
     if (topics.length > 0) {
 
@@ -1807,6 +1829,7 @@ export class InstanceMemory {
         }
       }
     }
+    } // end of !isLight topic memory block
 
     // ── NEXT.md（執行層待辦 + 完成驗證）──
     const nextRaw = await this.readNext();
@@ -1816,11 +1839,13 @@ export class InstanceMemory {
       sections.push(`<next>\n${verified}\n</next>`);
     }
 
-    // ── 記憶和對話（總是載入，memory 分層）──
+    // ── 記憶和對話（總是載入，light mode 截斷）──
     const tieredMem = this.tieredMemoryContent(memory);
-    sections.push(`<memory>\n${tieredMem}\n</memory>`);
+    const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
+    sections.push(`<memory>\n${memContent}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
-    sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
+    const hbContent = isLight ? (heartbeat?.slice(0, 1500) ?? '') : (heartbeat ?? '');
+    sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
 
     let assembled = sections.join('\n\n');
 
