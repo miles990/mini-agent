@@ -10,6 +10,8 @@
  * 3. Delegation 結果未 review
  * 4. 停滯任務（>3 天無動作）
  * 5. 正面模式（momentum streak）
+ * 6. Reactive-without-proactive（全部在回覆，沒有結構性改進）
+ * 7. Action-as-avoidance（用行動迴避被問的問題）
  */
 
 import { spawn } from 'node:child_process';
@@ -126,6 +128,8 @@ Focus on:
 - Saying but not doing: tasks in NEXT/HEARTBEAT but no matching behavior log progress
 - Unreviewed delegations: completed delegations that haven't been followed up
 - Stale tasks: items sitting >3 days with no action
+- Reactive-without-proactive: if recent behaviors are ALL responses (reply, chat, cron) with ZERO structural improvement (L1/L2 changes, proposal, system design), flag it. Responding is necessary but insufficient — Kuro should also proactively improve systems, not just react to inputs.
+- Action-as-avoidance: if Kuro was asked a specific question (in chat room or by Alex) and the behavior log shows he did a visible action instead of answering it, that's deflection. Doing ≠ answering.
 - Positive momentum: if things are going well, acknowledge it briefly
 
 Rules:
