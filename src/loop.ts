@@ -1598,6 +1598,7 @@ export class AgentLoop {
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
+          calibrateAndLog(replyContent, 'chat');
           didReplyToTelegram = true;
           notifyTelegram(replyContent, getLastAlexMessageId() ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
@@ -1623,6 +1624,7 @@ export class AgentLoop {
 
       // ── Process <kuro:ask> tags — blocking questions that need Alex's reply ──
       for (const askText of tags.asks) {
+        calibrateAndLog(askText, 'ask');
         const askMsg = `❓ ${askText}`;
         cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
         cycleTagsProcessed.push('ASK');
