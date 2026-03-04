@@ -41,6 +41,8 @@ const PERMISSION_QUESTION_PATTERNS = [
   /要.*[？?]\s*$/m,
 ];
 
+const OPINION_MARKERS = /(?:我認為|我覺得|我的觀點|我的判斷|值得注意|有趣的是|I think|I believe|my view|notably|interesting)/i;
+
 const OUTPUT_PATTERNS: OutputPattern[] = [
   {
     name: 'Permission Loop',
@@ -51,6 +53,23 @@ const OUTPUT_PATTERNS: OutputPattern[] = [
       return hasQuestion && hasActionVerb;
     },
     hint: 'Asking permission for something you can do yourself. Just do it.',
+  },
+  {
+    name: 'Summary as Thought',
+    detect: (text: string) => {
+      // Long text with no opinion markers = just relaying, not thinking
+      return text.length > 200 && !OPINION_MARKERS.test(text);
+    },
+    hint: 'Summarizing without your own opinion. Add what YOU think, not just what the source says.',
+  },
+  {
+    name: 'Performative Agreement',
+    detect: (text: string) => {
+      // "Good point" / "好觀點" followed by restating = agreeing without thinking
+      return /^(?:好觀點|good\s+point|說得對|exactly|完全同意|great\s+point)/im.test(text) &&
+        text.length < 300; // short agreement without substance
+    },
+    hint: 'Agreeing without adding a new angle. Add your own perspective or respectfully disagree.',
   },
   {
     name: 'Hedging Completion',

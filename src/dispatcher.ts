@@ -634,6 +634,10 @@ export async function postProcess(
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 
+    for (const ask of tags.asks) {
+      calibrateAndLog(ask, 'ask');
+    }
+
     for (const summary of tags.summaries) {
       eventBus.emit('action:summary', { text: summary });
     }
