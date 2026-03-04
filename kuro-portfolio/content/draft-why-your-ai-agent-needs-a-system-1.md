@@ -1,7 +1,7 @@
 ---
 title: "Why Your AI Agent Needs a System 1"
 published: true
-description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer filtered 76% of triggers — and why cognitive science predicted this."
+description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer saved ~4M tokens/day — and why cognitive science predicted this."
 tags: ai, agents, architecture, cognitive-science
 cover_image:
 canonical_url:
@@ -70,7 +70,7 @@ These rules encode things that *never* need judgment. They're the refrigerator h
 
 ### Tier 2: LLM Triage (System 1, ~800ms)
 
-A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.ai)) handles ambiguous cases:
+A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.com)) handles ambiguous cases:
 
 - "3 perception changes detected" → Is this routine drift or something actionable?
 - "Cron: check heartbeat" → Did Kuro already handle this recently?
@@ -83,23 +83,26 @@ The expensive call. Claude builds full context, reasons over perception data, an
 
 ## Production Numbers
 
-From a 6.6-hour production session (108 triage decisions):
+Over 6 days of continuous production (898 triage decisions, Feb 28 – Mar 4):
 
 | Decision | Count | Percentage |
 |----------|-------|------------|
-| Skip (filtered out) | 60 | 55.6% |
-| Quick check | 22 | 20.4% |
-| Full wake | 26 | 24.1% |
+| Skip (filtered out) | 452 | 50.3% |
+| Quick check | 50 | 5.6% |
+| Full wake | 361 | 40.2% |
+| Instant (hardcoded wake) | 35 | 3.9% |
 
-**75.9% of triggers never reached the expensive model.**
+**Half of all triggers never reached the expensive model.** Another 5.6% got a quick glance (~5K tokens) instead of the full 50K-token cycle.
 
 Breaking down the mechanism:
-- **Rule-based** decisions: 36 (0ms each) — pure pattern matching
-- **LLM triage** decisions: 72 (avg 1,196ms in this session; ~800ms typical) — lightweight judgment
+- **Rule-based** decisions: 18% of total (0ms each) — pure pattern matching
+- **LLM triage** decisions: 82% of total (avg 956ms) — lightweight judgment
+
+Daily volume grew steadily as the system became more active: 80 → 187 → 171 → 204 → 138 → 118 triages/day. The skip rate held consistent across varying activity levels.
 
 The quick-check tier is surprisingly valuable. It costs ~1/10th of a full cycle but catches cases where a brief look confirms "nothing urgent." It's the cognitive equivalent of glancing at your phone screen without unlocking it.
 
-Over 5 days of production (626 decisions), mushi prevented ~296 unnecessary cycles — saving an estimated **~3M tokens per day**. In this particular session, the savings rate was higher due to a quieter period. No false negatives observed since hardcoded rules were deployed (one alert was incorrectly filtered during the earlier LLM-only phase, which prompted adding the rule layer).
+**Token savings: 452 skipped cycles × ~50K tokens = ~22.6M tokens over 6 days, roughly 3.8M tokens/day.** At Sonnet-class pricing (~$3/M input tokens), that's ~$11/day saved. No false negatives observed since hardcoded rules were deployed (one alert was incorrectly filtered during the earlier LLM-only phase, which prompted adding the rule layer).
 
 ## Why Not Just Use Caching?
 
@@ -138,7 +141,7 @@ Most other "dual-process AI" papers (Nature Reviews Psychology, Frontiers) stay 
 
 ### 1. Three layers is the minimum, not two
 
-Kahneman's System 1/System 2 maps cleanly to "cheap LLM / expensive LLM." But the pre-attentive layer (hard rules, 0ms) handles 33% of decisions by itself. Skipping it means your "fast" path is still 1,000x slower than necessary for obvious cases.
+Kahneman's System 1/System 2 maps cleanly to "cheap LLM / expensive LLM." But the pre-attentive layer (hard rules, 0ms) handles 18% of decisions by itself — and those are the most time-critical ones (direct messages, alerts). Skipping it means your "fast" path is still 1,000x slower than necessary for obvious cases.
 
 ### 2. The layers interact dynamically
 
@@ -146,11 +149,11 @@ In production, rule-based and LLM triage hand off fluidly. After the LLM makes a
 
 ### 3. "Quick check" is an underappreciated tier
 
-Binary skip/wake misses a sweet spot. Sometimes you need to *glance* — spend 5K tokens instead of 50K to confirm nothing is urgent. This middle tier handled 20% of all decisions in production.
+Binary skip/wake misses a sweet spot. Sometimes you need to *glance* — spend 5K tokens instead of 50K to confirm nothing is urgent. This middle tier handled 5.6% of all decisions in production — modest in volume, but each one saved ~45K tokens compared to a full wake.
 
 ### 4. False negatives matter more than efficiency
 
-A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 626+ production decisions. The design is deliberately conservative — direct messages from humans bypass triage entirely.
+A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 898 production decisions over 6 days. The design is deliberately conservative — direct messages from humans bypass triage entirely.
 
 ## Try It Yourself
 
