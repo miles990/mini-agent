@@ -17,6 +17,7 @@ import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
+import { calibrateAndLog } from './metsuke.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -629,6 +630,7 @@ export async function postProcess(
     }
 
     for (const chat of tags.chats) {
+      calibrateAndLog(chat.text, 'chat');
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 

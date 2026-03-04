@@ -52,6 +52,7 @@ import {
 import { cleanupTasks as cleanupDelegations } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
+import { calibrateAndLog } from './metsuke.js';
 
 const execFileAsync = promisify(execFile);
 
