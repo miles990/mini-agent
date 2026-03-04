@@ -49,7 +49,7 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
-import { cleanupTasks as cleanupDelegations } from './delegation.js';
+import { cleanupTasks as cleanupDelegations, spawnDelegation } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 
@@ -1659,6 +1659,24 @@ export class AgentLoop {
             await pauseThread(t.id, t.note || undefined);
             break;
         }
+      }
+
+      // ── Process <kuro:delegate> tags — spawn async background tasks ──
+      for (const del of tags.delegates) {
+        const taskId = spawnDelegation({
+          prompt: del.prompt,
+          workdir: del.workdir,
+          type: del.type,
+          provider: del.provider,
+          maxTurns: del.maxTurns,
+          verify: del.verify,
+        });
+        const taskType = del.type ?? 'code';
+        const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+        slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
+        eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+        cycleSideEffects.push(`delegate:${taskType}:${del.workdir}`);
+        cycleTagsProcessed.push('DELEGATE');
       }
 
       // ── Process <kuro:done> tags — remove completed items from NEXT.md ──
