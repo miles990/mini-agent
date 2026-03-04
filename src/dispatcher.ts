@@ -17,7 +17,6 @@ import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
-import { calibrateAndLog } from './metsuke.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -609,7 +608,6 @@ export async function postProcess(
 
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
   for (const del of tags.delegates) {
-    calibrateAndLog(del.prompt, 'delegate');
     const taskId = spawnDelegation({
       prompt: del.prompt,
       workdir: del.workdir,
@@ -628,17 +626,15 @@ export async function postProcess(
   // to prevent interleaving with Alex↔Kuro TG conversation
   if (!meta.suppressChat) {
     for (const show of tags.shows) {
-      calibrateAndLog(show.desc, 'show');
       eventBus.emit('action:show', { desc: show.desc, url: show.url });
     }
 
     for (const chat of tags.chats) {
-      calibrateAndLog(chat.text, 'chat');
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 
     for (const ask of tags.asks) {
-      calibrateAndLog(ask, 'ask');
+      // ask processing handled by loop.ts
     }
 
     for (const summary of tags.summaries) {

@@ -118,7 +118,6 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   'social-presence': ['social', 'community', 'follower', 'engage', 'interact'],
   'social-monitor': ['notification', 'reply', 'mention', 'comment', 'response', 'feedback'],
   'grow-audience': ['audience', 'growth', 'marketing', 'seo', 'discover', 'promote', 'visibility'],
-  'metsuke-self-check': ['metsuke', 'evasion', 'avoidance', 'performative', 'comfort zone', 'self-check', 'calibrate', 'pattern'],
 };
 
 /**
@@ -129,10 +128,10 @@ export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
 const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
   learn: ['autonomous-behavior', 'web-learning', 'web-research', 'web-ai-sessions'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'kuro-github', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence', 'social-monitor', 'grow-audience', 'metsuke-self-check'],
+  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'kuro-github', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence', 'social-monitor', 'grow-audience'],
   task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops', 'server-admin', 'github-ops', 'kuro-github', 'verified-development', 'code-review'],
   respond: [], // empty = fall through to keyword matching
-  reflect: ['autonomous-behavior', 'metsuke-self-check'],
+  reflect: ['autonomous-behavior'],
 };
 
 /** 註冊自訂感知和 Skills */
@@ -1572,15 +1571,6 @@ export class InstanceMemory {
           const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
           if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
         }
-      } catch { /* ignore */ }
-    }
-
-    // Metsuke behavioral calibration stats（skip in light mode）
-    if (!isLight) {
-      try {
-        const { buildMetsukeContext } = await import('./metsuke.js');
-        const metsukeCtx = buildMetsukeContext();
-        if (metsukeCtx) sections.push(`<metsuke>\n${metsukeCtx}\n</metsuke>`);
       } catch { /* ignore */ }
     }
 

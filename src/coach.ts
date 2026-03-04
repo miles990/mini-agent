@@ -22,7 +22,6 @@ import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
 import { listTasks } from './delegation.js';
 import { slog } from './utils.js';
-import { getMetsukeStats } from './metsuke.js';
 
 // =============================================================================
 // Types
@@ -111,16 +110,6 @@ async function gatherCoachInput(): Promise<string> {
     if (tasks.length > 0) {
       const lines = tasks.map(t => `- [${t.status}] ${t.id} (${t.duration ? `${Math.round(t.duration / 1000)}s` : 'running'})`);
       parts.push(`## Delegations\n${lines.join('\n')}`);
-    }
-  } catch { /* best effort */ }
-
-  // 5. Metsuke behavioral calibration stats
-  try {
-    const stats = getMetsukeStats();
-    const detections = Object.entries(stats.detections).filter(([, c]) => c > 0);
-    if (detections.length > 0 || stats.totalDecisionChecks > 0) {
-      const lines = detections.map(([name, count]) => `- ${name}: ${count}×`);
-      parts.push(`## Metsuke (${stats.totalDecisionChecks} decisions checked)\n${lines.length > 0 ? lines.join('\n') : 'No patterns detected'}`);
     }
   } catch { /* best effort */ }
 

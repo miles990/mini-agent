@@ -52,7 +52,6 @@ import {
 import { cleanupTasks as cleanupDelegations } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
-import { calibrateAndLog } from './metsuke.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -777,22 +776,6 @@ export class AgentLoop {
       metadata.perceptionChangedCount = perceptionStreams.getChangedCount();
       // Cycle count for context
       metadata.cycleCount = this.cycleCount;
-      // Metsuke avoidance signals — let mushi know if Kuro is in a pattern
-      try {
-        const { getMetsukeStats } = await import('./metsuke.js');
-        const stats = getMetsukeStats();
-        const recent = stats.recentCategories.slice(-6);
-        if (recent.length >= 4) {
-          metadata.metsukeRecentCategories = recent;
-        }
-        const activePatterns = Object.entries(stats.detections)
-          .filter(([, c]) => c > 0)
-          .map(([name]) => name);
-        if (activePatterns.length > 0) {
-          metadata.metsukeActivePatterns = activePatterns;
-        }
-      } catch { /* metsuke not critical */ }
-
       const body = JSON.stringify({
         trigger: source,
         source: String(data.source ?? source),
@@ -1613,7 +1596,6 @@ export class AgentLoop {
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
-          calibrateAndLog(replyContent, 'chat');
           didReplyToTelegram = true;
           notifyTelegram(replyContent, getLastAlexMessageId() ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
@@ -1626,7 +1608,6 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
-        calibrateAndLog(chat.text, 'chat');
         eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId });
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
@@ -1639,7 +1620,6 @@ export class AgentLoop {
 
       // ── Process <kuro:ask> tags — blocking questions that need Alex's reply ──
       for (const askText of tags.asks) {
-        calibrateAndLog(askText, 'ask');
         const askMsg = `❓ ${askText}`;
         cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
         cycleTagsProcessed.push('ASK');

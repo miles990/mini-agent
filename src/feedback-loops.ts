@@ -17,7 +17,6 @@ import { getLogger } from './logging.js';
 import { perceptionStreams } from './perception-stream.js';
 import { slog } from './utils.js';
 import { getMemory } from './memory.js';
-import { trackDecisionPatterns } from './metsuke.js';
 
 // =============================================================================
 // Types
@@ -682,10 +681,6 @@ export async function runFeedbackLoops(
   await auditDecisionQuality(action, triggerReason).catch(() => {});
   await auditSystemHealth().catch(() => {});
   await auditStructuralHealth(triggerReason).catch(() => {});
-  // Metsuke decision calibration — track behavioral patterns every cycle
-  if (action) {
-    try { trackDecisionPatterns(action); } catch { /* fire-and-forget */ }
-  }
   // Capability gap scan (every 50 cycles)
   if (cycleCount && cycleCount % 50 === 0) {
     try { const { scanCapabilityGaps } = await import('./evolution.js'); await scanCapabilityGaps(); } catch { /* ignore */ }
