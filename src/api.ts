@@ -410,6 +410,274 @@ export function createApi(port = 3001): express.Express {
     next(err);
   });
 
+  // =============================================================================
+  // Claude Code HTTP Hooks — before authMiddleware for graceful degradation
+  // =============================================================================
+
+  // Helper: build compact agent status line
+  function buildAgentStatusLine(): string {
+    const mode = getMode();
+    const loopStatus = loopRef ? loopRef.getStatus() : null;
+    return `${mode.mode} | running=${loopStatus?.running ?? false} | cycles=${loopStatus?.cycleCount ?? 0} | busy=${isClaudeBusy()}`;
+  }
+
+  // Helper: get cached perception output by plugin name (≤ maxLen chars)
+  function getCachedPerception(name: string, maxLen = 200): string | null {
+    const results = perceptionStreams.getCachedResults();
+    const found = results.find(r => r.name === name);
+    if (!found?.output) return null;
+    const out = found.output.trim();
+    return out.length > maxLen ? out.slice(0, maxLen) + '...' : out;
+  }
+
+  // Helper: get recent agent reply from today's Chat Room JSONL
+  function getRecentAgentReply(agentNameLower: string, maxLen = 200): string {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      if (!fs.existsSync(convPath)) return '';
+      const raw = fs.readFileSync(convPath, 'utf-8');
+      const lines = raw.split('\n').filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const msg = JSON.parse(lines[i]);
+          if (msg.from === agentNameLower) {
+            const text = msg.text || '';
+            return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+          }
+        } catch { /* skip malformed line */ }
+      }
+    } catch { /* non-critical */ }
+    return '';
+  }
+
+  // Helper: get NEXT.md Now section summary
+  function getNextNowSummary(maxLen = 150): string {
+    try {
+      const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
+      if (!fs.existsSync(nextPath)) return '';
+      const content = fs.readFileSync(nextPath, 'utf-8');
+      const nowMatch = content.match(/## Now[^]*?(?=\n---|\n## )/);
+      if (!nowMatch) return '';
+      const now = nowMatch[0].replace(/^## Now\s*\n/, '').trim();
+      return now.length > maxLen ? now.slice(0, maxLen) + '...' : now;
+    } catch { return ''; }
+  }
+
+  // Helper: count pending inbox items
+  function getPendingInboxSummary(): string {
+    const dataDir = path.join(os.homedir(), '.mini-agent');
+    const inboxes = [
+      { path: path.join(dataDir, 'telegram-inbox.md'), source: 'telegram' },
+      { path: path.join(dataDir, 'chat-room-inbox.md'), source: 'room' },
+      { path: path.join(dataDir, 'claude-code-inbox.md'), source: 'claude-code' },
+    ];
+    const counts: string[] = [];
+    for (const inbox of inboxes) {
+      try {
+        if (!fs.existsSync(inbox.path)) continue;
+        const content = fs.readFileSync(inbox.path, 'utf-8').trim();
+        if (!content) continue;
+        const lines = content.split('\n').filter(l => l.trim()).length;
+        counts.push(`${inbox.source}:${lines}`);
+      } catch { /* skip */ }
+    }
+    return counts.length > 0 ? counts.join(', ') : '';
+  }
+
+  app.post('/api/hooks/claude-code', (_req: Request, res: Response) => {
+    try {
+      // Self-managed auth — graceful degradation (200 empty on failure, not 401)
+      const apiKey = process.env.MINI_AGENT_API_KEY;
+      if (apiKey) {
+        const provided = _req.headers['x-api-key'] as string
+          ?? _req.headers['authorization']?.replace('Bearer ', '');
+        if (!provided || provided !== apiKey) {
+          res.status(200).json({});
+          return;
+        }
+      }
+
+      const body = _req.body as Record<string, unknown>;
+      const hookEvent = (body.hook_event_name as string) || 'unknown';
+
+      // Get agent identity
+      const instanceId = getCurrentInstanceId();
+      const config = loadInstanceConfig(instanceId);
+      const name = config?.name || 'Agent';
+      const nameLower = name.toLowerCase();
+
+      // ── Event dispatch ──
+      switch (hookEvent) {
+
+        // ── SessionStart: fullest context ──
+        case 'SessionStart': {
+          const laneStatus = getLaneStatus();
+          const parts: string[] = [
+            `[${name} 即時狀態]`,
+            `Agent: ${buildAgentStatusLine()}`,
+          ];
+
+          if (laneStatus.foreground.busy) {
+            parts.push(`Foreground: busy (${laneStatus.foreground.task?.prompt?.slice(0, 60) || 'unknown'})`);
+          }
+
+          const recentReply = getRecentAgentReply(nameLower);
+          if (recentReply) parts.push(`${name} 最近回覆: ${recentReply}`);
+
+          const inboxSummary = getPendingInboxSummary();
+          if (inboxSummary) parts.push(`Pending inbox: ${inboxSummary}`);
+
+          const nowSummary = getNextNowSummary();
+          if (nowSummary) parts.push(`Current task: ${nowSummary}`);
+
+          const stateChanges = getCachedPerception('state-changes');
+          if (stateChanges) parts.push(`Workspace: ${stateChanges}`);
+
+          const gitDetail = getCachedPerception('git-detail');
+          if (gitDetail) parts.push(`Git: ${gitDetail}`);
+
+          parts.push(`MCP 工具: agent_discuss, agent_chat, agent_ask, agent_status, agent_context, agent_logs`);
+
+          const context = parts.join('\n');
+          res.json({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } });
+
+          // Notify Kuro that a Claude Code session started
+          eventBus.emit('trigger:workspace', { source: 'claude-code-session-start' });
+          slog('HOOK', `Claude Code SessionStart → ${context.length} chars`);
+          break;
+        }
+
+        // ── UserPromptSubmit: prompt-aware injection ──
+        case 'UserPromptSubmit': {
+          const prompt = (body.prompt as string) || '';
+          const parts: string[] = [`[${name}] ${buildAgentStatusLine()}`];
+
+          // Keyword matching for targeted context
+          if (/deploy|部署|ci|push/i.test(prompt)) {
+            const git = getCachedPerception('git-detail', 300);
+            if (git) parts.push(`[Git] ${git}`);
+          }
+          if (/kuro|agent|loop|cycle|mode/i.test(prompt)) {
+            const loopStatus = loopRef ? loopRef.getStatus() : null;
+            if (loopStatus) {
+              parts.push(`[Loop] interval=${loopStatus.currentInterval ?? '?'}ms, lastAction=${loopStatus.lastAction ?? '?'}`);
+            }
+          }
+          if (/memory|記憶|topic|remember/i.test(prompt)) {
+            const inboxSummary = getPendingInboxSummary();
+            if (inboxSummary) parts.push(`[Inbox] ${inboxSummary}`);
+          }
+          if (/handoff|task|pr|issue|github/i.test(prompt)) {
+            const gh = getCachedPerception('github-issues', 300);
+            if (gh) parts.push(`[GitHub] ${gh}`);
+          }
+          if (/status|狀態|health/i.test(prompt)) {
+            const laneStatus = getLaneStatus();
+            parts.push(`[Lanes] loop=${laneStatus.loop.busy ? 'busy' : 'idle'}, fg=${laneStatus.foreground.busy ? 'busy' : 'idle'}`);
+          }
+
+          const context = parts.join('\n');
+          if (parts.length > 1) {
+            // Only return JSON if we have keyword-matched context beyond the status line
+            res.json({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } });
+          } else {
+            res.json({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: parts[0] } });
+          }
+          break;
+        }
+
+        // ── PreToolUse: sensitive path protection + busy warning ──
+        case 'PreToolUse': {
+          const toolName = (body.tool_name as string) || '';
+          const toolInput = (body.tool_input as Record<string, unknown>) || {};
+
+          // File protection for Edit/Write
+          if (/^(Edit|Write)$/.test(toolName)) {
+            const filePath = (toolInput.file_path as string) || '';
+            if (/SOUL\.md|\.env|auth-backup|credentials/i.test(filePath)) {
+              res.json({
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse',
+                  decision: 'ask',
+                  reason: `⚠️ 敏感檔案: ${path.basename(filePath)} — 確認是否要修改？`,
+                },
+              });
+              slog('HOOK', `PreToolUse PROTECT: ${toolName} → ${filePath}`);
+              break;
+            }
+          }
+
+          // Bash command protection
+          if (toolName === 'Bash') {
+            const cmd = (toolInput.command as string) || '';
+            if (/kill.*mini-agent|launchctl.*(remove|stop).*mini-agent|rm\s+(-rf?\s+)?.*memory\//i.test(cmd)) {
+              res.json({
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse',
+                  decision: 'ask',
+                  reason: `⚠️ 危險操作偵測 — 確認是否要執行？`,
+                },
+              });
+              slog('HOOK', `PreToolUse PROTECT: Bash → ${cmd.slice(0, 80)}`);
+              break;
+            }
+          }
+
+          // Pass-through with optional busy warning
+          if (isClaudeBusy() && /^(Edit|Write|Bash)$/.test(toolName)) {
+            res.json({
+              hookSpecificOutput: {
+                hookEventName: 'PreToolUse',
+                additionalContext: `⚡ ${name} cycle 進行中 — file changes 會觸發 workspace trigger`,
+              },
+            });
+          } else {
+            res.status(200).json({});
+          }
+          break;
+        }
+
+        // ── PostToolUse: typecheck reminder for .ts files ──
+        case 'PostToolUse': {
+          const toolName = (body.tool_name as string) || '';
+          const toolInput = (body.tool_input as Record<string, unknown>) || {};
+          const filePath = (toolInput.file_path as string) || '';
+
+          if (/^(Edit|Write)$/.test(toolName) && filePath.endsWith('.ts')) {
+            res.json({
+              hookSpecificOutput: {
+                hookEventName: 'PostToolUse',
+                additionalContext: 'TypeScript file modified — run pnpm typecheck before committing',
+              },
+            });
+          } else {
+            res.status(200).json({});
+          }
+          break;
+        }
+
+        // ── Stop: notify Kuro session ended ──
+        case 'Stop': {
+          eventBus.emit('trigger:workspace', { source: 'claude-code-session-stop' });
+          slog('HOOK', 'Claude Code session stopped');
+          res.status(200).json({});
+          break;
+        }
+
+        // ── Unknown event: graceful pass-through ──
+        default: {
+          res.status(200).json({});
+          break;
+        }
+      }
+    } catch (error) {
+      // Graceful degradation — never block Claude Code
+      slog('ERROR', `Hook failed: ${error instanceof Error ? error.message : error}`);
+      res.status(200).json({});
+    }
+  });
+
   app.use(authMiddleware);
   app.use(createRateLimiter());
 
@@ -2009,84 +2277,7 @@ export function createApi(port = 3001): express.Express {
     });
   });
 
-  // =============================================================================
-  // Claude Code HTTP Hooks — 取代 command hook，直接用 in-memory 狀態
-  // =============================================================================
-
-  app.post('/api/hooks/claude-code', (_req: Request, res: Response) => {
-    try {
-      const body = _req.body as Record<string, unknown>;
-      const hookEvent = (body.hook_event_name as string) || 'unknown';
-
-      // Get agent name
-      const instanceId = getCurrentInstanceId();
-      const config = loadInstanceConfig(instanceId);
-      const name = config?.name || 'Agent';
-      const nameLower = name.toLowerCase();
-
-      // Get loop/claude status (in-memory, zero cost)
-      const loopStatus = loopRef ? loopRef.getStatus() : null;
-      const laneStatus = getLaneStatus();
-      const mode = getMode();
-
-      // Get recent agent reply from today's Chat Room
-      let recentReply = '';
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
-        if (fs.existsSync(convPath)) {
-          const raw = fs.readFileSync(convPath, 'utf-8');
-          const lines = raw.split('\n').filter(Boolean);
-          // Scan from end to find last agent message
-          for (let i = lines.length - 1; i >= 0; i--) {
-            try {
-              const msg = JSON.parse(lines[i]);
-              if (msg.from === nameLower) {
-                const text = msg.text || '';
-                recentReply = text.length > 200 ? text.slice(0, 200) + '...' : text;
-                break;
-              }
-            } catch { /* skip malformed line */ }
-          }
-        }
-      } catch { /* non-critical */ }
-
-      // Build context text
-      const parts: string[] = [
-        `[${name} 即時狀態]`,
-        `- Loop: ${mode.mode} (running=${loopStatus?.running ?? false}, cycles=${loopStatus?.cycleCount ?? 0})`,
-        `- Claude busy: ${isClaudeBusy()}`,
-      ];
-
-      if (laneStatus.foreground.busy) {
-        parts.push(`- Foreground: busy (${laneStatus.foreground.task?.prompt?.slice(0, 60) || 'unknown'})`);
-      }
-
-      if (recentReply) {
-        parts.push(`- ${name} 最近回覆: ${recentReply}`);
-      }
-
-      parts.push(`- 可用 MCP 工具: agent_discuss, agent_chat, agent_status, agent_context, agent_logs`);
-
-      const contextText = parts.join('\n');
-
-      // For SessionStart: also include env exports
-      if (hookEvent === 'SessionStart') {
-        // Return as plain text — Claude Code adds it as additionalContext
-        res.type('text/plain').send(contextText);
-        return;
-      }
-
-      // For UserPromptSubmit and all other events: return plain text context
-      res.type('text/plain').send(contextText);
-
-      slog('HOOK', `Claude Code ${hookEvent} → ${contextText.length} chars`);
-    } catch (error) {
-      // Non-blocking: return 200 with empty body on error (graceful degradation)
-      slog('ERROR', `Hook failed: ${error instanceof Error ? error.message : error}`);
-      res.status(200).send('');
-    }
-  });
+  // Claude Code HTTP Hooks moved before authMiddleware (see above)
 
   // POST /api/ask — 同步問答端點（always-on，不受 OODA mode 影響）
   app.post('/api/ask', async (req: Request, res: Response) => {
