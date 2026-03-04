@@ -14,6 +14,7 @@ import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
 import { getLogger } from './logging.js';
 import { notify, getLastAlexMessageId } from './telegram.js';
+import { recordReply } from './reply-context.js';
 
 // =============================================================================
 // Init — 註冊所有 subscribers
@@ -139,6 +140,7 @@ function handleChatEvent(e: AgentEvent): void {
     ? (e.data.telegramMsgId as number | undefined) ?? getLastAlexMessageId() ?? undefined
     : undefined;
   notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal', replyToMsgId);
+  recordReply(text);
   slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
 
