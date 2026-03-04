@@ -59,7 +59,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 OODA cycle 不發生。
 
-- [ ] **mushi Phase 2: 數據驅動驗證** — heartbeat 硬規則已上線（530fe5c, 0ms vs 773ms）。需要：累積 1 週數據 → 量化 token 節省 → 寫成案例。Verify: `grep -c '"method":"rule"' ~/Workspace/mushi/logs/server.log`
+- [ ] **mushi Phase 2: 數據驅動驗證** — 數據快照 03-05: 112 triage/17h, skip 55%(62), wake 24%(27), quick 21%(23)。規則 0ms 佔 34%(38), LLM avg 803ms。估算節省 ~3.1M tokens。需要：累積到 1 週 → 量化完整 token 節省 → 寫成案例。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
 - [ ] **mushi 架構文檔** — 給 Alex 和未來讀者看的：為什麼 System 1 + System 2 比單一 LLM 好
 
 ### 持續做的事（不是任務，是生活方式）
