@@ -24,6 +24,28 @@ if [[ -z "$XAI_API_KEY" ]]; then
   exit 1
 fi
 
+# --- Avoidance trigger mode ---
+# If --check-trigger: only run audit if no visible external action in last 24h
+if [[ "${1:-}" == "--check-trigger" ]]; then
+  BEHAVIOR_LOG_FILE="$INSTANCE_DIR/logs/behavior.jsonl"
+  if [[ ! -f "$BEHAVIOR_LOG_FILE" ]]; then
+    exit 0  # No log = can't check
+  fi
+  # Look for visible actions in last 24h: chat, show, done, publish, deploy
+  CUTOFF=$(date -v-24H +%Y-%m-%dT%H:%M 2>/dev/null || date -d '24 hours ago' +%Y-%m-%dT%H:%M 2>/dev/null)
+  VISIBLE=$(tail -200 "$BEHAVIOR_LOG_FILE" | grep -E '"action":"(chat|show|done|publish|deploy|room)"' | while IFS= read -r line; do
+    TS=$(echo "$line" | grep -o '"timestamp":"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [[ "$TS" > "$CUTOFF" ]]; then echo "$line"; fi
+  done)
+  if [[ -n "$VISIBLE" ]]; then
+    # Has visible actions — no avoidance detected, exit silently
+    exit 0
+  fi
+  echo "⚠ AVOIDANCE TRIGGER: No visible external action in 24h. Running emergency audit."
+  echo ""
+  # Fall through to full audit
+fi
+
 # --- Gather data for Grok ---
 
 # Recent behavior log (last 50 entries)
