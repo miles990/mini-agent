@@ -1025,6 +1025,26 @@ export class AgentLoop {
     }
   }
 
+  /**
+   * Check if there are unprocessed items that warrant faster cycling.
+   * Different from concurrentInboxDetected: checks state AT cycle end,
+   * not items that arrived during Claude call.
+   */
+  private hasPendingWork(): boolean {
+    try {
+      if (fs.existsSync(CHAT_ROOM_INBOX_PATH)) {
+        const content = fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8');
+        // Check for "## Unaddressed" section with actual entries
+        if (content.includes('## Unaddressed') && /## Unaddressed[\s\S]*?- \[/.test(content)) {
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   private async runCycle(): Promise<void> {
     if (!this.running || (this.paused && !this.calmWake)) return;
     this.calmWake = false;
@@ -1123,6 +1143,16 @@ export class AgentLoop {
     if (this.concurrentInboxDetected && !this.lastCycleHadSchedule) {
       this.currentInterval = 30_000;
       slog('LOOP', `[concurrent-inbox] Overriding interval to 30s for pending inbox items`);
+    }
+
+    // Pending work detection — cap interval when unprocessed items still exist
+    // Different from concurrentInbox: checks state AT cycle end, not during Claude call
+    // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
+    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && this.currentInterval > 120_000) {
+      if (this.hasPendingWork()) {
+        this.currentInterval = 120_000; // 2min cap
+        slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
+      }
     }
 
     if (this.running && !this.paused) {
