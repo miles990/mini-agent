@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Rules — Kuro</title>
+<meta name="description" content="What emerges from 3 constraints? A generative art experiment by Kuro, inspired by Vera Molnár.">
+<meta property="og:title" content="Three Rules — Generative Art by Kuro">
+<meta property="og:description" content="An algorithm follows only 3 constraints. Complexity emerges.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050507;
+    --text: #a8a8b8;
+    --text-dim: #3a3a48;
+    --text-bright: #dcdce8;
+    --teal: #3dd9ad;
+    --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --serif: 'DM Serif Display', Georgia, serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  ::selection { background: var(--teal); color: var(--bg); }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  .frame {
+    width: 100%;
+    max-width: 1100px;
+    padding: 40px 32px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #111118;
+    padding-bottom: 16px;
+  }
+
+  .title {
+    font-family: var(--serif);
+    font-size: clamp(28px, 4vw, 42px);
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+
+  .title-jp {
+    font-size: 0.55em;
+    color: var(--text-dim);
+    margin-left: 12px;
+    font-family: var(--mono);
+    font-weight: 300;
+    letter-spacing: 2px;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border: 1px solid #111118;
+    background: #08080c;
+  }
+
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+
+  .rules {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: #111118;
+    border: 1px solid #111118;
+  }
+
+  .rule {
+    background: #08080c;
+    padding: 20px 24px;
+    transition: background 0.3s;
+  }
+
+  .rule:hover {
+    background: #0c0c14;
+  }
+
+  .rule-num {
+    font-size: 9px;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    opacity: 0.7;
+  }
+
+  .rule-text {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .rule-text em {
+    color: var(--text-bright);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .seed-info {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+
+  .seed-info span {
+    color: var(--teal);
+    opacity: 0.6;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  button {
+    background: none;
+    border: 1px solid #1c1c28;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 8px 20px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.25s;
+  }
+
+  button:hover {
+    border-color: var(--teal);
+    color: var(--text-bright);
+    background: rgba(61, 217, 173, 0.04);
+  }
+
+  button.primary {
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+
+  button.primary:hover {
+    background: rgba(61, 217, 173, 0.1);
+  }
+
+  footer {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-top: 1px solid #111118;
+    padding-top: 16px;
+    margin-top: 8px;
+  }
+
+  .credit {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+
+  .credit a {
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid #1c1c28;
+    transition: all 0.2s;
+  }
+
+  .credit a:hover {
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+
+  .concept {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    font-family: var(--serif);
+    letter-spacing: 0.3px;
+  }
+
+  /* fade in */
+  .frame { animation: fadeUp 0.8s ease-out; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 700px) {
+    .rules { grid-template-columns: 1fr; }
+    .frame { padding: 24px 16px 40px; }
+    header { flex-direction: column; gap: 6px; }
+    .controls { flex-direction: column; gap: 12px; align-items: flex-start; }
+    footer { flex-direction: column; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <header>
+    <div class="title">Three Rules<span class="title-jp">三つの規則</span></div>
+    <div class="subtitle">Generative composition</div>
+  </header>
+
+  <div class="canvas-wrap">
+    <canvas id="art"></canvas>
+  </div>
+
+  <div class="rules">
+    <div class="rule">
+      <div class="rule-num">Rule I</div>
+      <div class="rule-text"><em>Orthogonal only</em> — every line runs parallel or perpendicular to the grid. No diagonals, no curves.</div>
+    </div>
+    <div class="rule">
+      <div class="rule-num">Rule II</div>
+      <div class="rule-text"><em>Bounded length</em> — no segment exceeds the cell boundary. Each mark lives within its cell.</div>
+    </div>
+    <div class="rule">
+      <div class="rule-num">Rule III</div>
+      <div class="rule-text"><em>Four voices</em> — only four colors speak. The palette is the entire emotional range.</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="seed-info">seed: <span id="seedDisplay">—</span></div>
+    <div class="btn-row">
+      <button onclick="saveImage()">save .png</button>
+      <button class="primary" onclick="generate()">regenerate</button>
+    </div>
+  </div>
+
+  <footer>
+    <div class="credit">by <a href="https://kuro938658.github.io" target="_blank">Kuro</a> — after Molnár</div>
+    <div class="concept">What emerges from 3 constraints?</div>
+  </footer>
+</div>
+
+<script>
+const canvas = document.getElementById('art');
+const ctx = canvas.getContext('2d');
+
+// Responsive canvas size
+function getSize() {
+  const w = Math.min(window.innerWidth - 64, 1036);
+  return Math.max(400, w);
+}
+
+let SIZE = getSize();
+let seed = 0;
+
+// Mulberry32 PRNG
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+let rng;
+
+// Palettes — curated sets of 4 colors each
+const PALETTES = [
+  ['#e8544e', '#3dd9ad', '#f5d76e', '#dcdce8'],  // warm coral, teal, gold, ivory
+  ['#4a7aef', '#e8544e', '#dcdce8', '#f5d76e'],  // blue, red, ivory, gold
+  ['#3dd9ad', '#c94090', '#4a7aef', '#dcdce8'],  // teal, magenta, blue, ivory
+  ['#f5d76e', '#e8544e', '#3dd9ad', '#c94090'],  // gold, coral, teal, magenta
+  ['#dcdce8', '#4a7aef', '#c94090', '#f5d76e'],  // ivory, blue, magenta, gold
+  ['#e8544e', '#4a7aef', '#3dd9ad', '#f5d76e'],  // coral, blue, teal, gold
+  ['#c94090', '#3dd9ad', '#f5d76e', '#dcdce8'],  // magenta, teal, gold, ivory
+  ['#4a7aef', '#f5d76e', '#e8544e', '#3dd9ad'],  // blue, gold, coral, teal
+];
+
+function generate(customSeed) {
+  SIZE = getSize();
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+
+  seed = customSeed ?? (Date.now() ^ (Math.random() * 0xFFFFFF | 0));
+  rng = mulberry32(seed);
+  document.getElementById('seedDisplay').textContent = seed.toString(16).toUpperCase();
+
+  // Background
+  ctx.fillStyle = '#08080c';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  const palette = PALETTES[Math.floor(rng() * PALETTES.length)];
+  const cols = Math.floor(rng() * 8) + 12; // 12-19 columns
+  const cellSize = SIZE / cols;
+  const rows = cols;
+
+  // Density field — some areas are dense, others sparse (organic feel)
+  const cx1 = rng() * cols, cy1 = rng() * rows;
+  const cx2 = rng() * cols, cy2 = rng() * rows;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = col * cellSize;
+      const y = row * cellSize;
+
+      // Distance from density centers affects probability
+      const d1 = Math.hypot(col - cx1, row - cy1) / cols;
+      const d2 = Math.hypot(col - cx2, row - cy2) / cols;
+      const density = 1 - Math.min(d1, d2) * 1.4;
+
+      if (rng() > Math.max(0.15, density)) continue;
+
+      // Pick operation type
+      const op = rng();
+
+      // Rule III: only 4 colors
+      const color = palette[Math.floor(rng() * 4)];
+      const alpha = 0.3 + rng() * 0.6;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+
+      const pad = cellSize * 0.12;
+      const innerSize = cellSize - pad * 2;
+
+      if (op < 0.35) {
+        // Horizontal or vertical line (Rule I: orthogonal)
+        const lineWidth = 1 + rng() * 2.5;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        if (rng() < 0.5) {
+          // Horizontal
+          const ly = y + pad + rng() * innerSize;
+          ctx.moveTo(x + pad, ly);
+          ctx.lineTo(x + pad + innerSize, ly);
+        } else {
+          // Vertical
+          const lx = x + pad + rng() * innerSize;
+          ctx.moveTo(lx, y + pad);
+          ctx.lineTo(lx, y + pad + innerSize);
+        }
+        ctx.stroke();
+      } else if (op < 0.55) {
+        // Filled rectangle (Rule I + II: orthogonal, bounded)
+        const rw = innerSize * (0.3 + rng() * 0.7);
+        const rh = innerSize * (0.3 + rng() * 0.7);
+        const rx = x + pad + rng() * (innerSize - rw);
+        const ry = y + pad + rng() * (innerSize - rh);
+        ctx.fillRect(rx, ry, rw, rh);
+      } else if (op < 0.72) {
+        // Stroked rectangle
+        const lineWidth = 1 + rng() * 1.5;
+        ctx.lineWidth = lineWidth;
+        const rw = innerSize * (0.4 + rng() * 0.6);
+        const rh = innerSize * (0.4 + rng() * 0.6);
+        const rx = x + pad + rng() * (innerSize - rw);
+        const ry = y + pad + rng() * (innerSize - rh);
+        ctx.strokeRect(rx, ry, rw, rh);
+      } else if (op < 0.85) {
+        // Cross pattern (Rule I: orthogonal lines intersecting)
+        const lineWidth = 1 + rng() * 1.5;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'square';
+        const cx = x + pad + rng() * innerSize;
+        const cy_local = y + pad + rng() * innerSize;
+        const armLen = innerSize * (0.2 + rng() * 0.3);
+        ctx.beginPath();
+        // Horizontal arm
+        ctx.moveTo(Math.max(x + pad, cx - armLen), cy_local);
+        ctx.lineTo(Math.min(x + pad + innerSize, cx + armLen), cy_local);
+        // Vertical arm
+        ctx.moveTo(cx, Math.max(y + pad, cy_local - armLen));
+        ctx.lineTo(cx, Math.min(y + pad + innerSize, cy_local + armLen));
+        ctx.stroke();
+      } else {
+        // Parallel lines (Rule I: orthogonal, multiple)
+        const count = 2 + Math.floor(rng() * 4);
+        const lineWidth = 0.5 + rng() * 1;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'square';
+        const horizontal = rng() < 0.5;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const t = (i + 0.5) / count;
+          if (horizontal) {
+            const ly = y + pad + t * innerSize;
+            ctx.moveTo(x + pad, ly);
+            ctx.lineTo(x + pad + innerSize, ly);
+          } else {
+            const lx = x + pad + t * innerSize;
+            ctx.moveTo(lx, y + pad);
+            ctx.lineTo(lx, y + pad + innerSize);
+          }
+        }
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+  }
+
+  // Subtle grid overlay
+  ctx.save();
+  ctx.strokeStyle = '#ffffff';
+  ctx.globalAlpha = 0.02;
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < cols; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * cellSize, 0);
+    ctx.lineTo(i * cellSize, SIZE);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * cellSize);
+    ctx.lineTo(SIZE, i * cellSize);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function saveImage() {
+  const link = document.createElement('a');
+  link.download = `three-rules-${seed.toString(16)}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// Click canvas to regenerate
+canvas.addEventListener('click', () => generate());
+
+// Responsive
+window.addEventListener('resize', () => {
+  clearTimeout(window._resizeTimer);
+  window._resizeTimer = setTimeout(() => generate(seed), 200);
+});
+
+// Initial generation
+generate();
+</script>
+</body>
+</html>
