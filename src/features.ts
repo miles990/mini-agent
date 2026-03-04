@@ -5,7 +5,7 @@
  * 狀態持久化到 features.json（File=Truth），重啟後保留。
  *
  * Usage:
- *   if (!isEnabled('digest-bot')) return;
+ *   if (!isEnabled('ooda-loop')) return;
  *   const done = trackStart('auto-commit');
  *   try { ... } finally { done(); }
  */
@@ -58,10 +58,6 @@ export interface FeatureReport {
 const FEATURES: FeatureInfo[] = [
   // ── Polling (continuous loops) ──
   { name: 'telegram-poller',   group: 'polling',      description: 'Telegram message long-polling' },
-  { name: 'digest-bot',        group: 'polling',      description: 'AI Research Digest bot polling + daily broadcast' },
-
-  // ── Digest ──
-  { name: 'instant-digest',    group: 'digest',        description: 'Instant content digestion — forwarded messages, URLs, /d command bypass OODA' },
 
   // ── Core ──
   { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },

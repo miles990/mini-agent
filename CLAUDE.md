@@ -109,8 +109,6 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 | Claude Code Sessions Plugin | `plugins/claude-code-sessions.sh` |
 | Dashboard | `dashboard.html` |
 | Config | `src/config.ts` |
-| Digest Bot | `src/digest-bot.ts` |
-| Digest Pipeline | `src/digest-pipeline.ts` |
 | Features | `src/features.ts` |
 | FileLock | `src/filelock.ts` |
 | Housekeeping | `src/housekeeping.ts` |

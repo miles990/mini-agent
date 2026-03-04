@@ -41,8 +41,6 @@ import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
-import { createDigestBot, getDigestBot } from './digest-bot.js';
-import { digestContent, getDigestEntries, generateInstantDailyDigest, isDigestContent, formatInstantReply } from './digest-pipeline.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -454,11 +452,6 @@ export function createApi(port = 3001): express.Express {
       telegram: {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
-      },
-      digestBot: {
-        enabled: !!getDigestBot(),
-        running: getDigestBot()?.isRunning() ?? false,
-        subscribers: getDigestBot()?.getSubscriberCount() ?? 0,
       },
       provider: {
         primary: getProvider(),
@@ -888,9 +881,6 @@ export function createApi(port = 3001): express.Express {
     if (name === 'telegram-poller') {
       const poller = getTelegramPoller();
       if (poller) { newState ? poller.start() : poller.stop(); }
-    } else if (name === 'digest-bot') {
-      const bot = getDigestBot();
-      if (bot) { newState ? bot.start() : bot.stop(); }
     }
 
     res.json({ name, enabled: newState });
@@ -1879,54 +1869,6 @@ export function createApi(port = 3001): express.Express {
   // Instant Digest — API-first content digestion
   // =============================================================================
 
-  // POST /api/digest — digest content (channel-agnostic entry point)
-  app.post('/api/digest', async (req: Request, res: Response) => {
-    const { content, url, type, channel, metadata } = req.body ?? {};
-
-    if (!content && !url) {
-      res.status(400).json({ error: 'content or url is required' });
-      return;
-    }
-
-    try {
-      const entry = await digestContent({
-        content: content ?? url ?? '',
-        url,
-        type,
-        channel: channel ?? 'api',
-        metadata,
-      });
-      res.json({
-        ok: true,
-        id: entry.id,
-        category: entry.category,
-        summary: entry.summary,
-        tags: entry.tags,
-        ts: entry.ts,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'Digest failed' });
-    }
-  });
-
-  // GET /api/digest — list entries for a date
-  app.get('/api/digest', (req: Request, res: Response) => {
-    const date = req.query.date as string | undefined;
-    const entries = getDigestEntries(date);
-    res.json({ date: date ?? new Date().toISOString().slice(0, 10), count: entries.length, entries });
-  });
-
-  // GET /api/digest/daily — formatted daily summary
-  app.get('/api/digest/daily', async (req: Request, res: Response) => {
-    const date = req.query.date as string | undefined;
-    try {
-      const summary = await generateInstantDailyDigest(date);
-      res.json({ date: date ?? new Date().toISOString().slice(0, 10), summary });
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to generate daily digest' });
-    }
-  });
-
   // =============================================================================
   // Team Chat Room
   // =============================================================================
@@ -1967,25 +1909,6 @@ export function createApi(port = 3001): express.Express {
       const id = await writeRoomMessage(from, text, replyTo as string | undefined);
       const now = new Date();
       const timestamp = now.toISOString();
-
-      // Instant Digest — channel-agnostic fast reply for digest-eligible room messages
-      if (from !== 'kuro' && isEnabled('instant-digest') && isDigestContent(text, false)) {
-        const urlMatch = text.match(/https?:\/\/\S+/);
-        digestContent({
-          content: text.startsWith('/d ') ? text.slice(3).trim() : text,
-          url: urlMatch?.[0],
-          type: urlMatch ? 'url' as const : 'note' as const,
-          channel: 'room',
-          metadata: { from, roomMsgId: id },
-        }).then(async (entry) => {
-          const reply = formatInstantReply(entry);
-          await writeRoomMessage('kuro', reply, id);
-          eventBus.emit('action:digest', { id: entry.id, category: entry.category }, { priority: 'P2', source: 'instant-digest' });
-        }).catch(err => {
-          slog('ROOM', `Instant digest error: ${err instanceof Error ? err.message : err}`);
-        });
-        // Continue — message also goes to inbox for OODA evaluation
-      }
 
       // Parse mentions for inbox logic
       const mentions: string[] = [];
@@ -2403,9 +2326,6 @@ if (isMain) {
   // ── Feature Toggles ──
   initFeatures();
 
-  // ── Digest Bot (separate TG bot for AI paper digests) ──
-  const digestBot = createDigestBot();
-
   initObservability();
 
   const server = app.listen(port, () => {
@@ -2431,10 +2351,6 @@ if (isMain) {
     if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
     }
-    if (digestBot && isEnabled('digest-bot')) {
-      digestBot.start();
-    }
-
     // OODA-Only: no queue to restore
   });
 
@@ -2489,7 +2405,6 @@ if (isMain) {
     if (loopRef) loopRef.stop();
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
-    if (digestBot) digestBot.stop();
 
     // Wait for in-flight Claude CLI call to finish
     if (isClaudeBusy()) {
