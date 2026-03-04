@@ -1,13 +1,15 @@
 /**
- * Reply Context — 智能 Telegram 回覆目標解析
+ * Reply Context — 智能 Telegram 回覆脈絡管理
  *
- * 從多條 pending 訊息中，根據回覆內容的脈絡關係，
- * 自適應地選擇最相關的訊息作為 reply_to_message_id。
+ * 三層自適應邏輯：
+ * 1. Acknowledgment 偵測 — 「好」「OK」「了解」等不需要回覆
+ * 2. 脈絡覆蓋檢查 — 已回覆的主題，相關訊息不再重複回
+ * 3. Content matching — 多條待回覆時，找最相關的作為 reply_to_message_id
  *
- * 策略：
- * - 0 條 pending → fallback getLastAlexMessageId()
- * - 1 條 → 直接用它
- * - N 條 → content matching 找最相關的（CJK bigram + English word + number overlap）
+ * 保留回覆的判斷：
+ * - 有問號 → 追問，需要回覆
+ * - 有 URL → 新資訊，需要回覆
+ * - 內容長度 > 閾值且有新關鍵詞 → 需要回覆
  */
 
 import { readPendingInbox } from './inbox.js';
@@ -23,17 +25,47 @@ export interface TelegramMsgSnapshot {
 }
 
 // =============================================================================
-// Snapshot
+// Reply History — 記錄最近回覆的內容（in-memory ring buffer）
+// =============================================================================
+
+interface ReplyRecord {
+  text: string;
+  ts: number;
+}
+
+const replyHistory: ReplyRecord[] = [];
+const HISTORY_TTL = 30 * 60 * 1000; // 30min
+const MAX_HISTORY = 20;
+
+/**
+ * 記錄一次回覆的內容。每次 Kuro 發 telegram 回覆後呼叫。
+ * 用於判斷後續訊息的脈絡是否已被覆蓋。
+ */
+export function recordReply(text: string): void {
+  replyHistory.push({ text, ts: Date.now() });
+  // Cleanup
+  const cutoff = Date.now() - HISTORY_TTL;
+  while (replyHistory.length > MAX_HISTORY || (replyHistory.length > 0 && replyHistory[0].ts < cutoff)) {
+    replyHistory.shift();
+  }
+}
+
+// =============================================================================
+// Snapshot — 帶脈絡過濾的快照
 // =============================================================================
 
 /**
- * Snapshot pending telegram messages at cycle/foreground entry.
- * Captures immutable state before async operations can change inbox.
+ * Snapshot pending telegram messages, filtering out:
+ * - Pure acknowledgments (不需要回覆)
+ * - Messages whose context is already covered by recent replies
+ *
+ * 保留：追問（有 ?）、新資訊（有 URL）、新主題
  */
 export function snapshotTelegramMsgs(): TelegramMsgSnapshot[] {
   const pending = readPendingInbox();
   return pending
     .filter(i => i.source === 'telegram' && i.meta?.telegramMsgId)
+    .filter(i => needsResponse(i.content))
     .map(i => ({
       msgId: Number(i.meta!.telegramMsgId),
       content: i.content,
@@ -41,7 +73,61 @@ export function snapshotTelegramMsgs(): TelegramMsgSnapshot[] {
 }
 
 // =============================================================================
-// Match
+// Needs Response — 判斷訊息是否需要回覆
+// =============================================================================
+
+const ACK_PATTERNS = /^(好[的啊吧]?|嗯+|ok[ay]*|sure|got\s*it|收到|了解|知道了|沒問題|明白|thanks?|thx|np|fine|alright|對|行|可以|讚|棒|不錯|看到了|noted)$/i;
+
+function needsResponse(content: string): boolean {
+  const trimmed = content.trim();
+
+  // Questions — always need response
+  if (/[?？]/.test(trimmed)) return true;
+
+  // URLs — new information
+  if (/https?:\/\//.test(trimmed)) return true;
+
+  // Pure acknowledgment pattern
+  if (ACK_PATTERNS.test(trimmed)) return false;
+
+  // Very short messages without question/URL — likely acknowledgment
+  if (trimmed.length <= 4) return false;
+
+  // Check against recent reply history (context coverage)
+  if (isContextCovered(trimmed)) return false;
+
+  return true;
+}
+
+/**
+ * 檢查訊息的脈絡是否已被最近的回覆覆蓋。
+ * 從 Kuro 的回覆文字（較長、較豐富）中提取 tokens，
+ * 看新訊息的 tokens 有多少已出現在回覆中。
+ */
+function isContextCovered(content: string): boolean {
+  if (replyHistory.length === 0) return false;
+
+  const cutoff = Date.now() - HISTORY_TTL;
+  const recentReplies = replyHistory.filter(r => r.ts >= cutoff);
+  if (recentReplies.length === 0) return false;
+
+  // Join all recent replies as the "coverage pool"
+  const coveragePool = recentReplies.map(r => r.text).join('\n').toLowerCase();
+  const tokens = extractTokens(content.toLowerCase());
+  if (tokens.length === 0) return false;
+
+  let matches = 0;
+  for (const token of tokens) {
+    if (coveragePool.includes(token)) matches++;
+  }
+
+  // High coverage + message is short → context already addressed
+  const score = matches / tokens.length;
+  return score >= 0.5;
+}
+
+// =============================================================================
+// Match — 從候選中找最相關的 reply target
 // =============================================================================
 
 /**
@@ -58,8 +144,8 @@ export function matchReplyTarget(
   if (candidates.length === 0) return getLastAlexMessageId();
   if (candidates.length === 1) return candidates[0].msgId;
 
-  // Score each candidate by content relevance
-  let best = candidates[candidates.length - 1]; // default: latest (most likely trigger)
+  // Score each candidate by content relevance to the response
+  let best = candidates[candidates.length - 1]; // default: latest
   let bestScore = -1;
 
   for (const c of candidates) {
@@ -94,7 +180,7 @@ const STOP_WORDS = new Set([
 
 /**
  * 計算回覆文字與候選訊息的相關度分數（0-1）。
- * 混合 English word + CJK bigram + number matching。
+ * 提取候選訊息的 tokens，看多少比例出現在回覆文字中。
  */
 function computeRelevance(response: string, candidateContent: string): number {
   const responseLower = response.toLowerCase();
