@@ -288,11 +288,15 @@ export interface CreativeImpulse {
 /** Delegation task types */
 export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell';
 
+/** Delegation executor provider */
+export type DelegationProvider = 'claude' | 'codex';
+
 /** Delegation 請求（從 <kuro:delegate> tag 解析） */
 export interface DelegateRequest {
   prompt: string;
   workdir: string;
   type?: DelegationTaskType;
+  provider?: DelegationProvider;
   maxTurns?: number;
   verify?: string[];
 }

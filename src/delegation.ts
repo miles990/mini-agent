@@ -18,7 +18,7 @@ import path from 'node:path';
 import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
-import type { DelegationTaskType } from './types.js';
+import type { DelegationTaskType, DelegationProvider } from './types.js';
 
 // =============================================================================
 // Types
@@ -27,6 +27,7 @@ import type { DelegationTaskType } from './types.js';
 export interface DelegationTask {
   id?: string;
   type?: DelegationTaskType;
+  provider?: DelegationProvider;
   prompt: string;
   workdir: string;
   maxTurns?: number;
@@ -66,13 +67,13 @@ const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
 
 // Type-specific defaults for non-code delegation tasks
-const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number }> = {
-  code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000 },
-  learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000 },
-  research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000 },
-  create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000 },
-  review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000 },
-  shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000 },
+const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number; provider: DelegationProvider }> = {
+  code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'codex' },
+  learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000, provider: 'codex' },
+  research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000, provider: 'codex' },
+  create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
+  review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
+  shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
 };
 
 // =============================================================================
@@ -201,9 +202,11 @@ function startTask(task: DelegationTask): void {
     output: '',
   };
 
-  // Branch: shell executor (zero Claude tokens) vs Claude CLI executor
+  // Branch: shell executor / codex executor / claude CLI executor
   const taskType = task.type ?? 'code';
+  const provider = task.provider ?? TYPE_DEFAULTS[taskType].provider;
   let child: ChildProcess;
+  const isCodex = taskType !== 'shell' && provider === 'codex';
 
   if (taskType === 'shell') {
     // Shell executor — run prompt as bash command directly
@@ -213,6 +216,28 @@ function startTask(task: DelegationTask): void {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
+  } else if (isCodex) {
+    // Codex CLI executor — cheaper than Claude for code/learn/research
+    const codexArgs = ['exec', '--dangerously-bypass-approvals-and-sandbox', '--json'];
+    if (process.env.CODEX_MODEL) {
+      codexArgs.push('-m', process.env.CODEX_MODEL);
+    }
+    const codexEnv = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => k !== 'OPENAI_API_KEY'),
+    );
+    const fullPrompt = task.context
+      ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
+      : task.prompt;
+
+    slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawn('codex', codexArgs, {
+      cwd: task.workdir,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: codexEnv,
+      detached: true,
+    });
+    child.stdin!.write(fullPrompt);
+    child.stdin!.end();
   } else {
     // Claude CLI executor
     const fullPrompt = task.context
@@ -229,7 +254,7 @@ function startTask(task: DelegationTask): void {
       '--append-system-prompt', 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.',
     ];
 
-    slog('DELEGATION', `Starting ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('claude', args, {
       cwd: task.workdir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -271,10 +296,15 @@ function startTask(task: DelegationTask): void {
       fs.writeFileSync(outputPath, output);
     } catch { /* best effort */ }
 
-    // Tail output for result
-    result.output = output.length > OUTPUT_TAIL_CHARS
-      ? output.slice(-OUTPUT_TAIL_CHARS)
-      : output;
+    // Tail output for result — parse codex JSONL to extract agent_message text
+    if (isCodex) {
+      const parsed = parseCodexOutput(output);
+      result.output = parsed || (output.length > OUTPUT_TAIL_CHARS ? output.slice(-OUTPUT_TAIL_CHARS) : output);
+    } else {
+      result.output = output.length > OUTPUT_TAIL_CHARS
+        ? output.slice(-OUTPUT_TAIL_CHARS)
+        : output;
+    }
 
     // Only update status if not already set to timeout
     if (result.status !== 'timeout') {
@@ -358,6 +388,23 @@ function dequeueNext(): void {
   // Remove the placeholder entry
   activeTasks.delete(next.task.id!);
   startTask(next.task);
+}
+
+/**
+ * Parse Codex CLI JSONL output to extract the last agent_message text.
+ */
+function parseCodexOutput(raw: string): string {
+  let lastMessage = '';
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line) as { type?: string; item?: { type?: string; text?: string } };
+      if (event.type === 'item.completed' && event.item?.type === 'agent_message' && event.item.text) {
+        lastMessage = event.item.text;
+      }
+    } catch { /* ignore malformed JSONL lines */ }
+  }
+  return lastMessage;
 }
 
 async function runVerifyCommands(commands: string[], workdir: string): Promise<VerifyResult[]> {
