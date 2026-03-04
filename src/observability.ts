@@ -134,8 +134,10 @@ function handleChatEvent(e: AgentEvent): void {
   const text = e.data.text as string;
   const isReply = e.data.reply as boolean | undefined;
 
-  // Delayed reply: quote Alex's original message via reply_to_message_id
-  const replyToMsgId = isReply ? getLastAlexMessageId() ?? undefined : undefined;
+  // Delayed reply: prefer snapshot from cycle/foreground entry, fallback to global state
+  const replyToMsgId = isReply
+    ? (e.data.telegramMsgId as number | undefined) ?? getLastAlexMessageId() ?? undefined
+    : undefined;
   notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal', replyToMsgId);
   slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
   logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));

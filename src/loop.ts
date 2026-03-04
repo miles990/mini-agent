@@ -393,6 +393,8 @@ export class AgentLoop {
   private triggerReason: string | null = null;
   /** Room message ID that triggered this cycle (for threading replies back) */
   private triggerRoomMsgId: string | null = null;
+  /** Telegram message ID snapshot at cycle start (prevents reply drift when Alex sends new msgs during cycle) */
+  private triggerTelegramMsgId: number | null = null;
   private lastCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
@@ -551,6 +553,9 @@ export class AgentLoop {
   private async foregroundReply(source: string, text: string, replyTo?: string): Promise<void> {
     if (isForegroundBusy()) return; // one at a time — tracked by agent.ts
 
+    // Snapshot telegram message ID at foreground entry (prevents reply drift)
+    const telegramMsgId = getLastAlexMessageId();
+
     try {
       const memory = getMemory();
       let context = await memory.buildContext({ mode: 'focused' });
@@ -629,7 +634,7 @@ export class AgentLoop {
 
       // Send reply to the appropriate channel
       if (source === 'telegram') {
-        notifyTelegram(answer, getLastAlexMessageId() ?? undefined).catch(() => {});
+        notifyTelegram(answer, telegramMsgId ?? undefined).catch(() => {});
         clearLastReaction();
       }
       // Always write to chat room (visible to all)
@@ -687,6 +692,7 @@ export class AgentLoop {
       slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
       this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
+      this.triggerTelegramMsgId = getLastAlexMessageId();
       this.runCycle();
       return;
     }
@@ -1612,7 +1618,7 @@ export class AgentLoop {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
           didReplyToTelegram = true;
-          notifyTelegram(replyContent, getLastAlexMessageId() ?? undefined).catch((err) => {
+          notifyTelegram(replyContent, this.triggerTelegramMsgId ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
           cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
@@ -1623,7 +1629,7 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
-        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId });
+        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: this.triggerTelegramMsgId });
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
       }
@@ -1638,7 +1644,7 @@ export class AgentLoop {
         const askMsg = `❓ ${askText}`;
         cycleSideEffects.push(`ask:${askText.slice(0, 60)}`);
         cycleTagsProcessed.push('ASK');
-        notifyTelegram(askMsg, getLastAlexMessageId() ?? undefined).catch((err) => {
+        notifyTelegram(askMsg, this.triggerTelegramMsgId ?? undefined).catch((err) => {
           slog('LOOP', `Telegram ask failed: ${err instanceof Error ? err.message : err}`);
         });
         // Create a conversation thread so it persists until Alex replies
@@ -1647,7 +1653,7 @@ export class AgentLoop {
           content: askText.slice(0, 200),
           source: 'kuro:ask',
         }).catch(() => {});
-        eventBus.emit('action:chat', { text: askText, blocking: true, roomReplyTo: this.triggerRoomMsgId });
+        eventBus.emit('action:chat', { text: askText, blocking: true, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: this.triggerTelegramMsgId });
       }
 
       for (const show of tags.shows) {
@@ -1861,7 +1867,7 @@ export class AgentLoop {
         if (fallbackContent && fallbackContent.length > 20 && !isErrorContent) {
           // Cap at 2000 chars to avoid sending overly long messages
           const capped = fallbackContent.length > 2000 ? fallbackContent.slice(0, 2000) + '...' : fallbackContent;
-          notifyTelegram(capped, getLastAlexMessageId() ?? undefined).catch((err) => {
+          notifyTelegram(capped, this.triggerTelegramMsgId ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
           didReplyToTelegram = true;
@@ -1991,6 +1997,7 @@ export class AgentLoop {
     } finally {
       this.cycling = false;
       this.triggerRoomMsgId = null;
+      this.triggerTelegramMsgId = null;
       this.clearSafetyValve();
 
       // Cooperative yield: drain pending priority first
