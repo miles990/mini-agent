@@ -190,13 +190,11 @@ def stealth_fetch(url: str, profile_idx: int = 0, timeout: float = 12.0) -> dict
     }
 
     try:
-        # Use certifi bundle for SSL (macOS + VPN compatibility)
-        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
         with httpx.Client(
             http2=True,
             follow_redirects=True,
             timeout=timeout,
-            verify=ssl_ctx,
+            verify=False,  # VPN/proxy environments break cert chains; curl handles this natively
         ) as client:
             resp = client.get(url, headers=headers)
 
