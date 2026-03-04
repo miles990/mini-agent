@@ -777,6 +777,21 @@ export class AgentLoop {
       metadata.perceptionChangedCount = perceptionStreams.getChangedCount();
       // Cycle count for context
       metadata.cycleCount = this.cycleCount;
+      // Metsuke avoidance signals — let mushi know if Kuro is in a pattern
+      try {
+        const { getMetsukeStats } = await import('./metsuke.js');
+        const stats = getMetsukeStats();
+        const recent = stats.recentCategories.slice(-6);
+        if (recent.length >= 4) {
+          metadata.metsukeRecentCategories = recent;
+        }
+        const activePatterns = Object.entries(stats.detections)
+          .filter(([, c]) => c > 0)
+          .map(([name]) => name);
+        if (activePatterns.length > 0) {
+          metadata.metsukeActivePatterns = activePatterns;
+        }
+      } catch { /* metsuke not critical */ }
 
       const body = JSON.stringify({
         trigger: source,

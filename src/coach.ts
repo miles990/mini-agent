@@ -22,6 +22,7 @@ import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
 import { listTasks } from './delegation.js';
 import { slog } from './utils.js';
+import { getMetsukeStats } from './metsuke.js';
 
 // =============================================================================
 // Types
@@ -113,6 +114,16 @@ async function gatherCoachInput(): Promise<string> {
     }
   } catch { /* best effort */ }
 
+  // 5. Metsuke behavioral calibration stats
+  try {
+    const stats = getMetsukeStats();
+    const detections = Object.entries(stats.detections).filter(([, c]) => c > 0);
+    if (detections.length > 0 || stats.totalDecisionChecks > 0) {
+      const lines = detections.map(([name, count]) => `- ${name}: ${count}×`);
+      parts.push(`## Metsuke (${stats.totalDecisionChecks} decisions checked)\n${lines.length > 0 ? lines.join('\n') : 'No patterns detected'}`);
+    }
+  } catch { /* best effort */ }
+
   return parts.join('\n\n');
 }
 
@@ -130,6 +141,7 @@ Focus on:
 - Stale tasks: items sitting >3 days with no action
 - Reactive-without-proactive: if recent behaviors are ALL responses (reply, chat, cron) with ZERO structural improvement (L1/L2 changes, proposal, system design), flag it. Responding is necessary but insufficient — Kuro should also proactively improve systems, not just react to inputs.
 - Action-as-avoidance: if Kuro was asked a specific question (in chat room or by Alex) and the behavior log shows he did a visible action instead of answering it, that's deflection. Doing ≠ answering.
+- Metsuke patterns: if behavioral anti-patterns are detected (Learning as Avoidance, Planning Loop, Conservative Default, Action as Deflection, Comfort Zone Retreat), call them out directly. These are heuristic detections — mention the specific pattern name
 - Positive momentum: if things are going well, acknowledge it briefly
 
 Rules:

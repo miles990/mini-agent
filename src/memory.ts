@@ -1575,6 +1575,15 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
+    // Metsuke behavioral calibration stats（skip in light mode）
+    if (!isLight) {
+      try {
+        const { buildMetsukeContext } = await import('./metsuke.js');
+        const metsukeCtx = buildMetsukeContext();
+        if (metsukeCtx) sections.push(`<metsuke>\n${metsukeCtx}\n</metsuke>`);
+      } catch { /* ignore */ }
+    }
+
     // Structural health warning（skip in light mode）
     if (!isLight) {
       const structuralFlagPath = path.join(getInstanceDir(this.instanceId), 'structural-health-warning.flag');
