@@ -181,14 +181,26 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
         'temporal', 'capabilities',
       ]);
 
+      // Exploratory perceptions: low citation is expected (deferred value).
+      // Cap slowdown at 10min instead of 30min to keep exploration alive.
+      const exploratoryPerceptions = new Set([
+        'x-feed', 'x-digest', 'scout-digest',
+      ]);
+
       for (const [name, count] of Object.entries(state.citations)) {
         if (corePerceptions.has(name)) continue;
 
         const rate = count / total;
         if (rate < 0.05) {
-          // Low citation: slow down (cap at 30min)
-          perceptionStreams.adjustInterval(name, 30 * 60_000);
-          slog('FEEDBACK', `Low citation rate: ${name} (${(rate * 100).toFixed(1)}%) → interval increased`);
+          if (exploratoryPerceptions.has(name)) {
+            // Exploratory: gentle slowdown (cap at 10min, not 30min)
+            perceptionStreams.adjustInterval(name, 10 * 60_000);
+            slog('FEEDBACK', `Exploratory perception: ${name} (${(rate * 100).toFixed(1)}%) → interval capped at 10min`);
+          } else {
+            // Regular: slow down (cap at 30min)
+            perceptionStreams.adjustInterval(name, 30 * 60_000);
+            slog('FEEDBACK', `Low citation rate: ${name} (${(rate * 100).toFixed(1)}%) → interval increased`);
+          }
         } else if (rate >= 0.15) {
           // High citation: restore to category default
           perceptionStreams.restoreDefaultInterval(name);
