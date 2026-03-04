@@ -1610,6 +1610,7 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
+        calibrateAndLog(chat.text, 'chat');
         eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId });
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
