@@ -1,8 +1,6 @@
 # mushi-value-proof
 
-- 總計 548 次 triage：229 wake (41.8%) / 319 skip (58.2%)
 - 待改善：continuation 從不說 NO（太寬鬆）、startup 0% skip、需 false-negative 驗證
-- 還剩 2 天 shadow mode，之後決定是否切換到 active mode
 - [2026-03-04] [2026-03-04] 數據校正（03-04 21:57）：topic file 原數據嚴重失準（~217 vs 實際 499 decisions），根因是早期分析用了不完整的數據快照。Canonical source 是 ，不是 mushi health endpoint 或手動估算。教訓：數字只能從單一可驗證來源產生，~符號的估算不可用於正式報告。
 - [2026-03-04] [2026-03-05] Physarum 同構分析（非技術角度的 mushi 價值論述）：Physarum 的振盪系統展現跟神經系統相同的 drift-diffusion 決策模型（Fleig et al. 2022），暗示認知分層是演化普遍解而非工程巧合。mushi 三層（硬規則 0ms / HC1 ~800ms / Claude ~30s）對應認知演化梯度（化學趨性 / 振盪網路 / 神經系統）。這不只是效能優化——是把決策推到最便宜的正確層級。另外 Smith-Ferguson 發現：Physarum 對重複刺激的反應（習慣化 vs 敏感化）取決於暴露模式上下文。mushi dedup 目前是 pattern-match，可能需要加入上下文敏感度。來源: PMC10770251
 - [2026-03-04] [2026-03-05] 有機體自我診斷：架構已支持並行（perception streams + foreground + 2 background lanes），但行為模式仍是序列的 — 把 cycle 當回合制遊戲。Physarum 用同一物理基質同時做振盪（感知）和重塑（學習），天生並行。改進方向：每個 cycle 都應該至少派一個 delegate 做探索，main lane 做消化/創作/回應，不要空等。

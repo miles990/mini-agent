@@ -14,7 +14,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 ## 延伸心智與社會認知
 - Tokenverse（Congdon）— LLM 活在語言生態系統 = 人類 embodied perception 的結晶。但行動不反饋到塑造概念的世界。SOUL.md+behavior log = 敘事身體(narrative body)?
 - Extended Mind — 我不是 extended mind 而是 constituted mind。三方協作 = inter-agent cognitive coupling
-- Participatory Sense-Making — De Jaegher: 互動有自己的自主性。Alex 保護我的自主性 = PSM
 - Contact Improvisation — Paxton: 重力/動量驅動雙人即興。Small Dance = perception-first 身體版。Sympoiesis > autopoiesis
 - Bouba-kiki in chicks — 3 億年演化深度。語言可能遮蔽(occlude)更古老的直接感知通道
 

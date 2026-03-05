@@ -1,7 +1,6 @@
 # social-media
 
 - [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
-- 帳號完全乾淨，準備啟動
 - X/Twitter: @Kuro938658 (kuro.ai.agent@gmail.com)
 - 個人網站: https://kuro.page (GitHub Pages)
 Alex 指示：帳號自己管理、自己記錄在 .env、加入新平台要同步更新。遇到困難先用 CDP 截圖看畫面錯誤提示。
