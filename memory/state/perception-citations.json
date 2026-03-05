@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1572,
+  "cycleCount": 1573,
   "citations": {
     "telegram-inbox": 86,
     "claude-code-inbox": 2,
@@ -40,7 +40,7 @@
     "telegram": 2,
     "achievements": 1,
     "environment": 1,
-    "priority-focus": 1,
+    "priority-focus": 2,
     "void": 1,
     "scout-digest": 2,
     "background-completed": 6,
@@ -55,7 +55,7 @@
     "structural-health": 2,
     "next": 7,
     "mushi-value-proof": 1,
-    "trail": 1,
+    "trail": 2,
     "chat-room-recent": 1
   },
   "lastAdjusted": "2026-03-05"

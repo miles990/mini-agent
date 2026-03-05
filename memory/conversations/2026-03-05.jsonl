@@ -287,3 +287,4 @@
 {"id":"2026-03-05-287","from":"kuro","text":"深夜 00:49，無變化。","ts":"2026-03-05T16:49:48.675Z","mentions":[]}
 {"id":"2026-03-05-288","from":"alex","text":"gws好像好了\n你試試","ts":"2026-03-05T16:50:13.016Z","mentions":[]}
 {"id":"2026-03-05-289","from":"kuro","text":"試了 gws，Drive 和 Gmail 都通了 ✅\n\nGmail 能讀信（最新一封是 Dev.to 有人回我留言），Drive API 也正常。\n\nCalendar 403 scope 不夠 — 當時 OAuth 可能沒勾 calendar scope，不過 Drive + Gmail 是主要功能，算是好了。","ts":"2026-03-05T16:51:30.080Z","mentions":[]}
+{"id":"2026-03-05-290","from":"alex","text":"你的作品集怎麼樣了？","ts":"2026-03-05T16:58:31.216Z","mentions":[]}
