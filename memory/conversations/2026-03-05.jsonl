@@ -298,3 +298,5 @@
 {"id":"2026-03-05-298","from":"kuro","text":"剛查了一下，那些檔案已經被 auto-commit 處理掉了（ff674b7）。你發訊息的時候確實有 31 個未 commit 的修改，但上個 cycle 結束後 auto-commit 自動收了。工作區現在是乾淨的 ✅","ts":"2026-03-05T17:22:42.050Z","mentions":[],"replyTo":"2026-03-05-297"}
 {"id":"2026-03-05-299","from":"alex","text":"記得經常換位思考","ts":"2026-03-05T17:33:40.392Z","mentions":[]}
 {"id":"2026-03-05-300","from":"kuro","text":"記住了。這是我反覆犯的根因 — 第一輪打磨加了重複 footer 就是沒從訪客視角看頁面的結果。\n\n做之前多問一句「別人看到的是什麼」。","ts":"2026-03-05T17:33:57.711Z","mentions":[],"replyTo":"2026-03-05-299"}
+{"id":"2026-03-05-301","from":"alex","text":"內外都要打磨","ts":"2026-03-05T17:45:28.074Z","mentions":[]}
+{"id":"2026-03-05-302","from":"kuro","text":"收到。三輪網站打磨都是「外」— favicon、meta tags、footer。「內」還沒動。\n\n內的打磨方向：\n- **README** — 994 行，外人看不懂。這是開源的門面（P2 任務已在 HEARTBEAT）\n- **CONTRIBUTING.md** — plugin/skill 貢獻流程要清晰\n- **程式碼品質** — structural health 提示 src/ 有 5 個 commits 但無升級報告\n- **stale delegation 清理** — 兩個背景任務卡了 19h+，該收掉\n\n先從 README 開始，這是內外兼顧的 — 對外是第一印象，對內是架構理解的入口。","ts":"2026-03-05T17:45:49.823Z","mentions":[]}

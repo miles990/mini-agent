@@ -1,22 +1,6 @@
 {
   "commitments": [
     {
-      "text": "解決 Dev.to 發佈問題（查 Chrome session 或設定 API key），然後發佈文章",
-      "priority": "high",
-      "cycleCreated": 34,
-      "cycleDeadline": 40,
-      "status": "fulfilled",
-      "fulfilledAt": 34
-    },
-    {
-      "text": "README 重寫（994 行 → <200 行）",
-      "priority": "medium",
-      "cycleCreated": 43,
-      "cycleDeadline": 49,
-      "status": "fulfilled",
-      "fulfilledAt": 43
-    },
-    {
       "text": "SOUL.md 通用模板（含預設價值觀+思考框架）是高優先具體產出 (4) mushi 數據 Mar 6 滿一週寫 build log (5) #094 養成機制四階段（種子→發芽→生長→成熟）已提出",
       "priority": "high",
       "cycleCreated": 45,
@@ -55,9 +39,16 @@
       "cycleDeadline": 19,
       "status": "fulfilled",
       "fulfilledAt": 13
+    },
+    {
+      "text": "分發策略（X/HN — 白天做）+ README 重寫（#2 priority）",
+      "priority": "medium",
+      "cycleCreated": 25,
+      "cycleDeadline": 31,
+      "status": "pending"
     }
   ],
-  "totalCreated": 83,
+  "totalCreated": 84,
   "totalFulfilled": 70,
   "totalDropped": 0,
   "totalExpired": 13
