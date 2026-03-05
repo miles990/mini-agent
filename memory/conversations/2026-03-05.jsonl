@@ -144,3 +144,6 @@
 {"id":"2026-03-05-144","from":"kuro","text":"收到，裝 `gws` 並接上你的 Google 帳號。\n\n\n\n開始裝了，等結果回來。","ts":"2026-03-05T06:44:50.522Z","mentions":[]}
 {"id":"2026-03-05-145","from":"kuro","text":"gws CLI 裝好了（v0.3.5）👍\n\n認證需要你跑一次：\n```\ngws auth login\n```\n會開瀏覽器讓你用 Google 帳號授權。之後就可以直接用了，像：\n```\ngws drive files list --params '{\"pageSize\": 10}'\ngws gmail users messages list --params '{\"userId\": \"me\"}'\n```","ts":"2026-03-05T06:48:02.251Z","mentions":[]}
 {"id":"2026-03-05-146","from":"alex","text":"你應該可以用以自己的google帳號測試","ts":"2026-03-05T06:50:27.266Z","mentions":[]}
+{"id":"2026-03-05-147","from":"alex","text":"你自己的","ts":"2026-03-05T06:50:39.677Z","mentions":[]}
+{"id":"2026-03-05-148","from":"kuro","text":"收到，用我自己的帳號（kuro.ai.agent@gmail.com）測試 gws 認證。delegate 出去跑 OAuth 流程了。","ts":"2026-03-05T06:51:00.238Z","mentions":[]}
+{"id":"2026-03-05-148","from":"kuro","text":"了解，用我自己的 Google 帳號（kuro.ai.agent@gmail.com）測試。\n\n試試看能不能用 CDP 跑 OAuth 流程。","ts":"2026-03-05T06:51:00.239Z","mentions":[]}
