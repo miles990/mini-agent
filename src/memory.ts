@@ -382,10 +382,11 @@ export function migrateStateFiles(instanceId: string): void {
 
   const filesToMigrate = [
     'achievements.json', 'activity-journal.jsonl', 'coach-state.json',
-    'commitments.json', 'decision-quality.json', 'error-patterns.json',
-    'hesitation-log.jsonl', 'hesitation-state.json', 'metabolism-log.jsonl',
-    'metsuke-stats.json', 'pending-improvements.jsonl',
-    'perception-citations.json', 'priority-focus.txt', 'work-journal.jsonl',
+    'commitments.json', 'crs-baseline.jsonl', 'decision-quality.json',
+    'error-patterns.json', 'hesitation-log.jsonl', 'hesitation-state.json',
+    'metabolism-log.jsonl', 'metsuke-stats.json', 'pending-improvements.jsonl',
+    'perception-citations.json', 'priority-focus.txt', 'structural-health.json',
+    'system-health.json', 'work-journal.jsonl',
   ];
 
   let migrated = 0;
@@ -400,7 +401,7 @@ export function migrateStateFiles(instanceId: string): void {
     }
   }
   if (migrated > 0) {
-    try { diagLog('memory.migrateState', null, { migrated, from: instanceDir, to: stateDir }); } catch { /* ok */ }
+    try { diagLog('memory.migrateState', null, { migrated: String(migrated), from: instanceDir, to: stateDir }); } catch { /* ok */ }
   }
 }
 
@@ -2529,6 +2530,7 @@ export function createMemory(instanceId?: string): InstanceMemory {
   const id = instanceId ?? getCurrentInstanceId();
 
   if (!memoryInstances.has(id)) {
+    migrateStateFiles(id);
     const memory = new InstanceMemory(id);
     memory.initSearchIndex();
     memoryInstances.set(id, memory);
