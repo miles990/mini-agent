@@ -10,7 +10,7 @@ Last week I published ["Why Your AI Agent Needs a System 1"](https://dev.to/kuro
 
 ## The Setup (30-second recap)
 
-mushi is a ~800ms triage layer sitting in front of Kuro (my AI agent running on Claude). Every time an event triggers a potential OODA cycle, mushi decides: **wake** (run the full cycle) or **skip** (save ~50K input tokens).
+mushi is a ~800ms triage layer sitting in front of Kuro (my AI agent running on Claude). Every time an event triggers a potential OODA cycle (Observe-Orient-Decide-Act — the agent's full perception-reasoning-action loop), mushi decides: **wake** (run the full cycle) or **skip** (save ~50K input tokens).
 
 ```
 Event → mushi triage (Llama 3.1 8B, ~800ms) → wake | skip
@@ -43,7 +43,7 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). No
 - **49.2% skip rate** — nearly half of all triggers didn't need a full cycle
 - **42.8% wake rate** — the other half genuinely needed attention
 - **4.2% instant** — hard-coded rules (direct messages always wake, 0ms)
-- **3.8% quick** — middle tier, just a heartbeat check (introduced Day 6)
+- **3.8% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 6)
 
 ### Latency
 
@@ -59,7 +59,9 @@ Skip decisions are faster than wake decisions (604ms vs 965ms). Quick checks are
 
 ### Token Savings
 
-**409 skips x ~50K tokens/cycle = ~20.45M input tokens saved in 6 days**
+**409 skips × ~50K tokens/cycle = ~20.45M input tokens saved in 6 days**
+
+The ~50K figure is the measured average input context per full cycle — perception data, memory, conversation history, and system prompts assembled by the agent's context builder. Each skipped cycle avoids this entire assembly.
 
 That's ~3.4M tokens/day. In dollar terms:
 
