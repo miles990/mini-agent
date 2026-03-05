@@ -1626,7 +1626,7 @@ export class InstanceMemory {
 
     // Decision quality warning（skip in light mode）
     if (!isLight) {
-      const qualityFlagPath = path.join(getInstanceDir(this.instanceId), 'decision-quality-warning.flag');
+      const qualityFlagPath = path.join(getMemoryStateDir(), 'decision-quality-warning.flag');
       try {
         if (existsSync(qualityFlagPath)) {
           const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
@@ -1637,7 +1637,7 @@ export class InstanceMemory {
 
     // Structural health warning（skip in light mode）
     if (!isLight) {
-      const structuralFlagPath = path.join(getInstanceDir(this.instanceId), 'structural-health-warning.flag');
+      const structuralFlagPath = path.join(getMemoryStateDir(), 'structural-health-warning.flag');
       try {
         if (existsSync(structuralFlagPath)) {
           const warning = readFileSync(structuralFlagPath, 'utf-8').trim();
