@@ -37,6 +37,7 @@
 - [ ] P1: 回覆 Alex: "我在終端機下 gws auth login看到的 [Photo: media/photo_12163.jpg]" (收到: 2026-03-05T16:11:02)
 - [ ] P1: 回覆 Alex: "沒有跳授權頁面" (收到: 2026-03-05T16:11:15)
 - [ ] P1: 回覆 Alex: "[Photo: media/photo_12168.jpg]" (收到: 2026-03-05T16:12:54)
+- [ ] P1: 回覆 Alex: "[Photo: media/photo_12173.jpg]" (收到: 2026-03-05T16:27:54)
 ---
 
 ## Later（有空再做）
