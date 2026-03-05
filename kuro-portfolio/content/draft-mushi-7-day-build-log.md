@@ -21,7 +21,7 @@ Event → mushi triage (Llama 3.1 8B, ~800ms) → wake | skip
 
 Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). Dedicated silicon, not shared GPU. Deterministic latency.
 
-## 6 Days of Data (Feb 28 - Mar 5)
+## The Data (Feb 28 – Mar 5)
 
 ### Volume
 
@@ -32,26 +32,26 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). De
 | Mar 2 | 171 | 95 (55.6%) | 76 (44.4%) | 0 |
 | Mar 3 | 204 | 101 (49.5%) | 103 (50.5%) | 0 |
 | Mar 4 | 142 | 72 (50.7%) | 45 (31.7%) | 25 (17.6%) |
-| Mar 5 | 193 | 73 (37.8%) | 82 (42.5%) | 38 (19.7%) |
-| **Total** | **977** | **464 (47.5%)** | **450 (46.1%)** | **63 (6.4%)** |
+| Mar 5 | 193 | 58 (30.1%) | 97 (50.3%) | 38 (19.7%) |
+| **Total** | **977** | **449 (45.9%)** | **465 (47.6%)** | **63 (6.4%)** |
 
-**Notes:** Day 1 (Feb 28) was a partial day — mushi launched mid-day, and most events were new to the model, resulting in the lowest skip rate (28.8%). Days 2-3 show the highest skip rates (54-56%) during quieter periods dominated by routine heartbeats. Mar 5 dropped to 38% — a high-activity day with lots of human interaction driving wake decisions, and the days the primary inference provider went down (more on that below). The quick tier was introduced on Mar 4, immediately capturing ~17% of decisions — a lightweight status check using cached perception data without running full reasoning.
+**Notes:** Day 1 (Feb 28) was a partial day — mushi launched mid-day, and most events were new to the model, resulting in the lowest skip rate (28.8%). Days 2-3 show the highest skip rates (54-56%) during quieter periods dominated by routine heartbeats. Mar 5 dropped to 30% — the highest-activity day with heavy human interaction driving wake decisions, compounded by inference provider degradation (more on that below). The quick tier was introduced on Mar 4, immediately capturing ~17% of decisions — a lightweight status check using cached perception data without running full reasoning.
 
-Skip decisions include both LLM-decided skips (~360) and rule-based skips (~105) — cooldown windows and duplicate detection that don't need the model at all.
+Skip decisions include both LLM-decided skips (~345) and rule-based skips (~105) — cooldown windows and duplicate detection that don't need the model at all.
 
 ### The Numbers That Matter
 
-- **977 triage decisions** in 6 days
-- **47.5% skip rate** — nearly half of all triggers didn't need a full cycle
-- **46.1% wake rate** — the rest genuinely needed attention
+- **977 triage decisions** in 6 days (Feb 28 – Mar 5)
+- **46% skip rate** — nearly half of all triggers didn't need a full cycle
+- **48% wake rate** — the rest genuinely needed attention
 - **6.4% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
 
 ### Latency
 
 | Type | Avg Latency | Count |
 |------|-------------|-------|
-| Skip (LLM) | 779ms | ~360 |
-| Wake (LLM) | 1,143ms | ~310 |
+| Skip (LLM) | 779ms | ~345 |
+| Wake (LLM) | 1,143ms | ~330 |
 | Quick (LLM) | 970ms | 63 |
 | Rule-based | ~0ms | ~140 |
 
@@ -74,16 +74,16 @@ The pattern: **mushi has learned that heartbeats are usually noise, scheduled ta
 
 ### Token Savings
 
-**464 skips x ~50K tokens/cycle = ~23.2M input tokens saved in 6 days**
+**449 skips × ~50K tokens/cycle ≈ 22.5M input tokens saved**
 
 The ~50K figure is the measured average input context per full cycle — perception data, memory, conversation history, and system prompts assembled by the agent's context builder. Each skipped cycle avoids this entire assembly.
 
-That's ~3.9M tokens/day. In dollar terms:
+That's ~3.7M tokens/day. In dollar terms:
 
-| Model | Input Price | 6-Day Savings | Projected Monthly |
+| Model | Input Price | Week 1 Savings | Projected Monthly |
 |-------|-------------|---------------|-------------------|
-| Sonnet | $3/M tokens | **$70** | ~$350 |
-| Opus | $15/M tokens | **$348** | ~$1,740 |
+| Sonnet | $3/M tokens | **$67** | ~$340 |
+| Opus | $15/M tokens | **$337** | ~$1,685 |
 
 For anyone running a 24/7 autonomous agent on a frontier model, mushi pays for itself on day one — the triage layer runs on dedicated hardware with negligible per-inference cost.
 
