@@ -575,19 +575,7 @@ export class AgentLoop {
         context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;
       }
 
-      // Append today's recent chat room messages
-      const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
-      try {
-        const raw = fs.readFileSync(convPath, 'utf-8');
-        const msgs = raw.split('\n').filter(Boolean).map(line => {
-          try { return JSON.parse(line) as { from: string; text: string; ts?: string }; } catch { return null; }
-        }).filter(Boolean).slice(-15);
-        if (msgs.length > 0) {
-          const chatLines = msgs.map(m => `[${m!.ts ?? ''}] (${m!.from}) ${m!.text}`).join('\n');
-          context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
-        }
-      } catch { /* no conversations today */ }
+      // Chat Room context: already included in buildContext() as <chat-room-recent>
 
       // Cached perception — inject key sections (free, already collected)
       try {
@@ -1236,14 +1224,21 @@ export class AgentLoop {
 
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
-      // ── Inbox recovery: upgrade to telegram-priority if pending telegram items exist ──
-      // Defense-in-depth: catches edge cases where trigger:telegram-user didn't start the cycle
+      // ── Inbox recovery: upgrade to DM-priority if pending DM items exist ──
+      // Defense-in-depth: catches edge cases where trigger didn't start the cycle
       // (e.g. arrived during pause, process restart, or any future routing bug).
-      // Must run before isTelegramUser so all downstream checks see the correct value.
+      // Must run before isDirectMessage so all downstream checks see the correct value.
       const inboxItemsEarly = readPendingInbox();
-      if (inboxItemsEarly.some(i => i.source === 'telegram') && !this.triggerReason?.startsWith('telegram-user')) {
-        this.triggerReason = 'telegram-user (inbox-recovery)';
-        slog('LOOP', 'Inbox recovery: pending telegram items detected → upgrading to telegram-priority');
+      if (!this.triggerReason?.startsWith('telegram-user') && !this.triggerReason?.startsWith('room') && !this.triggerReason?.startsWith('chat')) {
+        const dmItem = inboxItemsEarly.find(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
+        if (dmItem) {
+          if (dmItem.source === 'telegram') {
+            this.triggerReason = 'telegram-user (inbox-recovery)';
+          } else {
+            this.triggerReason = `${dmItem.source} (inbox-recovery)`;
+          }
+          slog('LOOP', `Inbox recovery: pending ${dmItem.source} items detected → upgrading to DM-priority`);
+        }
       }
 
       // ── Per-perception change detection (Phase 4) ──
@@ -1927,17 +1922,32 @@ export class AgentLoop {
       markChatRoomInboxProcessed(response, tags, action);
 
       // Mark unified inbox items as processed (batch — single disk write).
-      // Non-telegram cycles must NOT touch telegram-source items — leave them pending
-      // so the telegram drain cycle can properly process them with priority prefix.
-      const isTelegramCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
-      if (isTelegramCycle) {
-        for (const item of readPendingInbox()) {
-          queueInboxMark(item.id, didReplyToTelegram ? 'replied' : 'seen');
-        }
-      } else {
-        for (const item of readPendingInbox()) {
-          if (item.source !== 'telegram') {
+      // Principle: each cycle marks items from its own trigger source as replied/seen.
+      // Cross-source items (e.g. telegram items in a room-triggered cycle) are left pending
+      // so their dedicated cycle can process them with appropriate priority prefix.
+      const didReply = didReplyToTelegram; // generalized: any <kuro:chat> counts
+      const cycleSources = new Set<string>();
+      if (currentTriggerReason?.startsWith('telegram-user')) cycleSources.add('telegram');
+      if (currentTriggerReason?.startsWith('room')) cycleSources.add('room');
+      if (currentTriggerReason?.startsWith('chat')) cycleSources.add('chat');
+      // Non-DM cycles (heartbeat, workspace, cron) mark all non-telegram items
+      const isDirectMessageCycle = cycleSources.size > 0;
+
+      for (const item of readPendingInbox()) {
+        if (isDirectMessageCycle) {
+          // DM cycle: only mark items from the triggering source
+          if (cycleSources.has(item.source)) {
+            queueInboxMark(item.id, didReply ? 'replied' : 'seen');
+          }
+          // Leave other sources' items untouched
+        } else {
+          // Non-DM cycle (heartbeat/workspace/cron): mark all non-DM items as seen,
+          // and DM items that got a reply as replied
+          if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(item.source)) {
             queueInboxMark(item.id, 'seen');
+          } else if (didReply) {
+            // DM item got a reply during a non-DM cycle (e.g. room reminder in heartbeat)
+            queueInboxMark(item.id, 'replied');
           }
         }
       }

@@ -386,9 +386,15 @@ export function detectModeFromInbox(
   items: InboxItem[],
   triggerReason: string | null,
 ): { mode: CycleMode; reason: string; focus?: string } {
-  // telegram-user → always respond
+  // Direct message sources → always respond
   if (triggerReason?.startsWith('telegram-user')) {
     return { mode: 'respond', reason: 'Alex Telegram message' };
+  }
+  if (triggerReason?.startsWith('room')) {
+    return { mode: 'respond', reason: 'Chat Room message' };
+  }
+  if (triggerReason?.startsWith('chat')) {
+    return { mode: 'respond', reason: 'Claude Code message' };
   }
 
   // P0 or P1 → respond

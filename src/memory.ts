@@ -2131,6 +2131,24 @@ export class InstanceMemory {
       sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }
 
+    // ── Chat Room Recent（對話脈絡 — 統一格式，所有 lane 共用）──
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
+      const raw = await fs.readFile(convPath, 'utf-8');
+      const msgs = raw.split('\n').filter(Boolean).map(line => {
+        try { return JSON.parse(line) as { id: string; from: string; text: string; ts?: string; replyTo?: string }; } catch { return null; }
+      }).filter(Boolean).slice(-15);
+      if (msgs.length > 0) {
+        const chatLines = msgs.map(m => {
+          const reply = m!.replyTo ? ` ↩${m!.replyTo}` : '';
+          const text = m!.text.length > 200 ? m!.text.slice(0, 200) + '...' : m!.text;
+          return `[${m!.id}] ${m!.from}${reply}: ${text}`;
+        }).join('\n');
+        sections.push(`<chat-room-recent>\n${chatLines}\n</chat-room-recent>`);
+      }
+    } catch { /* no conversations today */ }
+
     // 最近 5 則對話
     const recentConvos = this.conversationBuffer
       .slice(-5)

@@ -2350,19 +2350,7 @@ export function createApi(port = 3001): express.Express {
         context += `\n\n<memory>\n${memExcerpt}\n</memory>`;
       }
 
-      // 補充今日 Chat Room 最近 15 條
-      const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
-      try {
-        const raw = await fsPromises.readFile(convPath, 'utf-8');
-        const msgs = raw.split('\n').filter(Boolean).map(line => {
-          try { return JSON.parse(line) as { from: string; text: string; ts?: string }; } catch { return null; }
-        }).filter(Boolean).slice(-15);
-        if (msgs.length > 0) {
-          const chatLines = msgs.map(m => `[${m!.ts ?? ''}] (${m!.from}) ${m!.text}`).join('\n');
-          context += `\n\n<chat_room_today>\n${chatLines}\n</chat_room_today>`;
-        }
-      } catch { /* no conversations today */ }
+      // Chat Room context: already included in buildContext() as <chat-room-recent>
 
       // reserved mode 下：附加 inner-notes（工作記憶）+ tracking-notes（追蹤快照）
       const currentModeReport = getMode();
