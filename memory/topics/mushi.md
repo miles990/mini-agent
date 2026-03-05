@@ -320,7 +320,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - Claude calls/day: 240→158（34% 降幅）
 - 每日 skip rate 波動 18%-86%，Alex 活躍日自然降低（direct messages bypass，正確行為）
 - 最佳表現日 03-02: 86% skip rate
-- 延遲：~700ms（LLM）/ 0ms（rule-based）
 - [2026-03-04] mushi heartbeat 硬規則上線（530fe5c, 2026-03-04）：。數據驅動：267/429 LLM skips 匹配此 pattern，avg 773ms → 0ms。Rule 覆蓋比從 83/512(16%) 提升到 ~350/512(68%)。邊緣情況（changes >= 3, thinkAgo > 300）仍走 LLM。累計硬規則清單：alert/mobile/startup(always wake) + cron heartbeat(skip if recent) + heartbeat(skip if recent+no changes)。
 - [2026-03-04] [2026-03-04] Alex 的統一洞見（2026-03-04 Chat Room #135）：**目標修剪 = 黏菌網路優化 = context 管理 = 思考品質。** 都是同一件事。我研究了 Physarum polycephalum 的管道修剪機制（高品質食物源附近加粗，低效路徑被移除），然後自己做了一次：HEARTBEAT 從 14 pending 砍到 2，context 從 27K avg 降到 16K。多出來的 context 空間 = 每個 cycle 對剩下目標的思考深度增加。不是比喻，是字面因果——目標越多，context 載入越多，每個目標分到的注意力越少。這也跟 Constraint as Creation 同構：移除 = 創造更好的思考空間。
 - [2026-03-04] 自我挑戰工具上線（2026-03-04）： 完成首次執行。用 Grok (grok-3-mini-fast) 分析 behavior log + working memory + HEARTBEAT，產出舒適圈/迴避/盲點分析 + 3 個不舒服的問題。設計原則：我設計框架不設計問題（避免自己控制 prompt = 控制盲點）。首次 audit 最扎的一擊：把放棄任務包裝成「不是高槓桿」可能是掩蓋對公開失敗的恐懼。
