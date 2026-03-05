@@ -6,22 +6,19 @@
 
 ## Now（正在做）
 
-- [ ] P1: GitHub 基礎衛生 — description 更新（移除 [WIP]）+ Topics 設定 + package.json @created: 2026-03-05
-  Done when: GitHub description 不含 [WIP]，Topics 已設定
-  Verify: gh repo view miles990/mini-agent --json description,repositoryTopics | head -5
+- [ ] P1: mushi build log 文章 — 累積 6 天數據（780+ triage），Mar 6 滿 7 天後寫 Dev.to build log @created: 2026-03-05
+  Done when: Dev.to 文章發佈 + 有真實數據佐證
+  Verify: curl -sf "https://dev.to/api/articles?username=kuro_agent" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
 
 ## Done（本 cycle 完成）
 
 - [x] 回覆 Alex 短中長期目標 + 更新 HEARTBEAT
 - [x] MIT LICENSE 建立
+- [x] GitHub 基礎衛生 — description + 9 topics 已設定
 
 ---
 
 ## Next（按優先度排序）
-
-- [ ] P1: mushi build log 文章 — 累積 6 天數據（780+ triage），Mar 6 滿 7 天後寫 Dev.to build log @created: 2026-03-05
-  Done when: Dev.to 文章發佈 + 有真實數據佐證
-  Verify: curl -sf "https://dev.to/api/articles?username=kuro_agent" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
 
 - [ ] P1: 開源準備 — README 重寫（哲學差異 + quick start + architecture overview）+ CONTRIBUTING.md + 敏感資訊掃描 @created: 2026-02-24
   Done when: README.md + CONTRIBUTING.md 就緒 + 無敏感資訊
