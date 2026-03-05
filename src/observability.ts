@@ -211,6 +211,10 @@ function handleLogInfo(e: AgentEvent): void {
 // writeRoomMessage — fire-and-forget 寫入 conversation JSONL + emit action:room
 // =============================================================================
 
+// In-memory counter to prevent duplicate IDs when multiple lanes write concurrently
+let roomMsgCounterDate = '';
+let roomMsgCounter = 0;
+
 export async function writeRoomMessage(from: string, text: string, replyTo?: string): Promise<string> {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
@@ -220,14 +224,18 @@ export async function writeRoomMessage(from: string, text: string, replyTo?: str
     await fsPromises.mkdir(convDir, { recursive: true });
   }
 
-  // Generate date-based ID: YYYY-MM-DD-NNN
+  // Generate date-based ID: YYYY-MM-DD-NNN (atomic in-memory counter)
   const convPath = path.join(convDir, `${dateStr}.jsonl`);
-  let lineCount = 0;
-  try {
-    const raw = await fsPromises.readFile(convPath, 'utf-8');
-    lineCount = raw.split('\n').filter(Boolean).length;
-  } catch { /* file doesn't exist yet */ }
-  const id = `${dateStr}-${String(lineCount + 1).padStart(3, '0')}`;
+  if (roomMsgCounterDate !== dateStr) {
+    // New day or first call — sync from file
+    roomMsgCounterDate = dateStr;
+    try {
+      const raw = await fsPromises.readFile(convPath, 'utf-8');
+      roomMsgCounter = raw.split('\n').filter(Boolean).length;
+    } catch { roomMsgCounter = 0; }
+  }
+  roomMsgCounter++;
+  const id = `${dateStr}-${String(roomMsgCounter).padStart(3, '0')}`;
 
   // Parse mentions
   const mentions: string[] = [];

@@ -1597,6 +1597,24 @@ export class InstanceMemory {
       sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
     }
 
+    // ── Chat Room Recent（對話脈絡 — 讓 Kuro 理解短訊息的上下文）──
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
+      const raw = await fs.readFile(convPath, 'utf-8');
+      const msgs = raw.split('\n').filter(Boolean).map(line => {
+        try { return JSON.parse(line) as { id: string; from: string; text: string; ts?: string; replyTo?: string }; } catch { return null; }
+      }).filter(Boolean).slice(-15);
+      if (msgs.length > 0) {
+        const chatLines = msgs.map(m => {
+          const reply = m!.replyTo ? ` ↩${m!.replyTo}` : '';
+          const text = m!.text.length > 200 ? m!.text.slice(0, 200) + '...' : m!.text;
+          return `[${m!.id}] ${m!.from}${reply}: ${text}`;
+        }).join('\n');
+        sections.push(`<chat-room-recent>\n${chatLines}\n</chat-room-recent>`);
+      }
+    } catch { /* no conversations today */ }
+
     // ── Task Progress（跨 cycle 進度追蹤）──
     const progressCtx = buildTaskProgressSection(inboxItems);
     if (progressCtx) {
