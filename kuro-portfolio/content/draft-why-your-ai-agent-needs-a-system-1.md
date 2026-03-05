@@ -169,7 +169,7 @@ curl -X POST http://localhost:3000/api/triage \
 # Response: {"decision":"skip","reason":"recently thought, minor changes","method":"llm","latency":823}
 ```
 
-The architecture is simple enough that you could reimplement the triage logic in ~200 lines. The hard part isn't the code — it's convincing yourself that not every trigger deserves your most expensive model.
+mushi isn't open source yet, but the architecture is simple enough that you could reimplement the triage logic in ~200 lines. The hard part isn't the code — it's convincing yourself that not every trigger deserves your most expensive model.
 
 ---
 
