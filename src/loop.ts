@@ -1329,6 +1329,7 @@ export class AgentLoop {
       // Priority prefix: 強制先處理 NEXT.md pending items 或 Chat Room priority 訊息
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
       const isRoomPriorityCycle = currentTriggerReason?.startsWith('room') ?? false;
+      const isChatPriorityCycle = currentTriggerReason?.startsWith('chat') ?? false;
       let nextPendingItems: string[] = [];
       try {
         if (fs.existsSync(NEXT_MD_PATH)) {
@@ -1347,8 +1348,8 @@ export class AgentLoop {
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
         }
       } else {
-        // Non-telegram cycle: check for pending/unaddressed Chat Room messages
-        // Room-triggered cycles get strong priority; other cycles get soft reminder
+        // Non-telegram cycle: check for pending/unaddressed messages
+        // DM-triggered cycles (room/chat) get strong priority; other cycles get soft reminder
         try {
           const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
             ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8') : '';
@@ -1359,9 +1360,10 @@ export class AgentLoop {
           const allPending = [...pendingLines, ...unaddressedLines];
           if (allPending.length > 0) {
             const preview = allPending.slice(0, 5).map(l => `  ${l}`).join('\n');
-            if (isRoomPriorityCycle) {
-              // Room-triggered: strong priority (same as telegram)
-              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A CHAT ROOM MESSAGE. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應 Chat Room 的問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+            if (isRoomPriorityCycle || isChatPriorityCycle) {
+              // Room/chat-triggered: strong priority (same urgency as telegram)
+              const sourceLabel = isChatPriorityCycle ? 'CLAUDE CODE MESSAGE' : 'CHAT ROOM MESSAGE';
+              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A ${sourceLabel}. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
             } else {
               // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
               priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
