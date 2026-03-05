@@ -26,7 +26,6 @@
 
 - [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
   Done when: 至少 5 則有觀點的推文 + 開始有自然互動
-- [ ] P1: 回覆 Alex: "剛看到 https://github.com/googleworkspace/cli  URLs: - https://github.com/googleworkspace/cli" (收到: 2026-03-05T14:42:00)
 ---
 
 ## Later（有空再做）
