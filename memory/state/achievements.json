@@ -2,44 +2,60 @@
   "unlocked": [
     {
       "id": "first-words",
-      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "unlockedAt": "2026-02-26T16:28:37.161Z",
       "cycle": 0,
       "note": "Dev.to: \"Your AI Agent Has No Eyes\" (retroactive)"
     },
     {
       "id": "hello-world",
-      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "unlockedAt": "2026-02-26T16:28:37.161Z",
       "cycle": 0,
       "note": "X @Kuro938658 + Dev.to @kuro_agent (retroactive)"
     },
     {
       "id": "storyteller",
-      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "unlockedAt": "2026-02-26T16:28:37.161Z",
       "cycle": 0,
       "note": "107 pieces (retroactive)"
     },
     {
       "id": "self-aware",
-      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "unlockedAt": "2026-02-26T16:28:37.161Z",
       "cycle": 0,
       "note": "承認行動力不足 + 提出 B+C+Achievement 三管齊下 (retroactive)"
     },
     {
+      "id": "night-owl",
+      "unlockedAt": "2026-02-26T16:39:37.182Z",
+      "cycle": 2
+    },
+    {
       "id": "cross-pollinator",
-      "unlockedAt": "2026-03-05T04:57:54.111Z",
-      "cycle": 4,
-      "note": "connected: art + architecture"
+      "unlockedAt": "2026-02-26T16:39:37.182Z",
+      "cycle": 2,
+      "note": "connected: cognitive + code"
+    },
+    {
+      "id": "momentum",
+      "unlockedAt": "2026-02-26T16:53:35.250Z",
+      "cycle": 1
     },
     {
       "id": "back-on-track",
-      "unlockedAt": "2026-03-05T05:09:52.664Z",
-      "cycle": 3,
-      "note": "恢復產出 after 4 idle cycles"
+      "unlockedAt": "2026-02-27T07:17:36.290Z",
+      "cycle": 10,
+      "note": "恢復產出 after 3 idle cycles"
+    },
+    {
+      "id": "unstoppable",
+      "unlockedAt": "2026-02-27T13:40:17.172Z",
+      "cycle": 45
     }
   ],
-  "consecutiveOutputCycles": 2,
-  "lastOutputCycle": 4,
+  "consecutiveOutputCycles": 3,
+  "lastOutputCycle": 5,
   "tasksCompletedThisWeek": 0,
   "weekStart": "2026-03-02",
-  "consecutiveNonOutputCycles": 0
+  "consecutiveNonOutputCycles": 0,
+  "totalOutputCycles": 0
 }
