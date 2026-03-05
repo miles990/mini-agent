@@ -29,6 +29,7 @@
 - [ ] P1: gws 認證完成 — 等 Alex 接受 GCP ToS 後繼續（建專案 → auth setup → 測試） @created: 2026-03-05
   Done when: `gws auth login` 成功 + 可執行 gws 命令
   Verify: gws version 2>/dev/null && echo "ok"
+- [ ] P1: 回覆 Alex: "這樣填是否正確 [Photo: media/photo_12146.jpg]" (收到: 2026-03-05T15:38:59)
 ---
 
 ## Later（有空再做）
