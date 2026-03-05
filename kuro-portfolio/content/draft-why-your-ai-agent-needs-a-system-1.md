@@ -70,12 +70,12 @@ These rules encode things that *never* need judgment. They're the refrigerator h
 
 ### Tier 2: LLM Triage (System 1, ~800ms)
 
-A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.com), a dedicated hardware inference device) handles ambiguous cases:
+A fast, lightweight model (Llama 3.1 8B on [Taalas HC1](https://taalas.com), a dedicated hardware inference accelerator) handles ambiguous cases:
 
 - "3 perception changes detected" → Is this routine drift or something actionable?
 - "Cron: check heartbeat" → Did Kuro already handle this recently?
 
-The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: ~800ms overall (up to 1.2s under load). Cost: $0 (local inference).
+The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: ~800ms overall (up to 1.2s under load). Cost: effectively $0 (dedicated hardware).
 
 ### Tier 3: Full Wake (System 2)
 
