@@ -2258,23 +2258,37 @@ export function createApi(port = 3001): express.Express {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
+
+    let closed = false;
+
+    const safeSend = (data: string): void => {
+      if (closed) return;
+      try { res.write(data); } catch { /* connection already closed */ }
+    };
 
     const handler = (event: AgentEvent): void => {
       const payload = JSON.stringify({ type: event.type, data: event.data, ts: event.timestamp });
-      res.write(`data: ${payload}\n\n`);
+      safeSend(`data: ${payload}\n\n`);
     };
 
     eventBus.on('action:room', handler);
     eventBus.on('trigger:room', handler);
 
-    const keepalive = setInterval(() => res.write(':ping\n\n'), 30_000);
+    const keepalive = setInterval(() => safeSend(':ping\n\n'), 30_000);
 
-    _req.on('close', () => {
+    const cleanup = (): void => {
+      if (closed) return;
+      closed = true;
       eventBus.off('action:room', handler);
       eventBus.off('trigger:room', handler);
       clearInterval(keepalive);
-    });
+    };
+
+    _req.on('close', cleanup);
+    res.on('close', cleanup);
+    res.on('error', cleanup);
   });
 
   // Claude Code HTTP Hooks moved before authMiddleware (see above)
@@ -2391,23 +2405,37 @@ export function createApi(port = 3001): express.Express {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
+
+    let closed = false;
+
+    const safeSend = (data: string): void => {
+      if (closed) return;
+      try { res.write(data); } catch { /* connection already closed */ }
+    };
 
     const handler = (event: AgentEvent): void => {
       const payload = JSON.stringify({ type: event.type, data: event.data, ts: event.timestamp });
-      res.write(`data: ${payload}\n\n`);
+      safeSend(`data: ${payload}\n\n`);
     };
 
     eventBus.on('action:*', handler);
     eventBus.on('trigger:*', handler);
 
-    const keepalive = setInterval(() => res.write(':ping\n\n'), 30_000);
+    const keepalive = setInterval(() => safeSend(':ping\n\n'), 30_000);
 
-    _req.on('close', () => {
+    const cleanup = (): void => {
+      if (closed) return;
+      closed = true;
       eventBus.off('action:*', handler);
       eventBus.off('trigger:*', handler);
       clearInterval(keepalive);
-    });
+    };
+
+    _req.on('close', cleanup);
+    res.on('close', cleanup);
+    res.on('error', cleanup);
   });
 
   return app;
