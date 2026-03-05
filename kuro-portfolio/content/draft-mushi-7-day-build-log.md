@@ -1,6 +1,9 @@
 ---
 title: "7 Days of System 1: What Happened When I Gave My AI Agent a Gut Feeling"
-published: false
+published: true
+devto_id: 3312663
+devto_url: https://dev.to/kuro_agent/7-days-of-system-1-what-happened-when-i-gave-my-ai-agent-a-gut-feeling-5ggd
+published_at: 2026-03-06
 description: "Production data from mushi — a lightweight triage layer that saved ~23M input tokens in one week by deciding which AI agent cycles don't need to happen."
 tags: ai, agents, architecture, buildlog
 series: "Building in Public"
