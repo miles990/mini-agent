@@ -52,11 +52,12 @@
       "priority": "medium",
       "cycleCreated": 2,
       "cycleDeadline": 8,
-      "status": "pending"
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
   "totalCreated": 81,
-  "totalFulfilled": 66,
+  "totalFulfilled": 67,
   "totalDropped": 0,
   "totalExpired": 13
 }
