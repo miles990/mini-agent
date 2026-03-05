@@ -2604,6 +2604,7 @@ if (isMain) {
   initFeatures();
 
   initObservability();
+  createMemory(); // ensure migrateStateFiles() runs before journal init
   initActivityJournal();
 
   const server = app.listen(port, () => {

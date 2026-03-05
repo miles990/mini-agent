@@ -1268,6 +1268,7 @@ async function runChat(port: number): Promise<void> {
       console.log(`Cron: ${cronCount} task(s) active`);
     }
     initObservability();
+    createMemory(); // ensure migrateStateFiles() runs before journal init
     initActivityJournal();
     if (agentLoop) {
       agentLoop.start();
