@@ -32,28 +32,28 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). No
 | Mar 2 | 171 | 95 (55.6%) | 62 (36.3%) | 0 | 14 |
 | Mar 3 | 204 | 101 (49.5%) | 103 (50.5%) | 0 | 0 |
 | Mar 4 | 142 | 72 (50.7%) | 45 (31.7%) | 25 (17.6%) | 0 |
-| Mar 5 | 58+ | 22 (37.9%) | 28 (48.3%) | 8 (13.8%) | 0 |
-| **Total** | **842+** | **413 (49.1%)** | **361 (42.9%)** | **33 (3.9%)** | **35 (4.2%)** |
+| Mar 5 | 60+ | 22 (36.7%) | 28 (46.7%) | 10 (16.7%) | 0 |
+| **Total** | **844+** | **413 (48.9%)** | **361 (42.8%)** | **35 (4.1%)** | **35 (4.1%)** |
 
 **Notes:** Day 1 (Feb 28) had low skip rate — mushi was still calibrating. Skip rate stabilized at ~50-56% by Day 2. Quick tier was introduced on Mar 4, immediately capturing ~18% of decisions. "Instant" = hard-coded rules (direct messages always wake, 0ms) that were added early on; they merged into skip/wake categories in the behavior log after Mar 3.
 
 ### The Numbers That Matter
 
-- **842+ triage decisions** in 6 days (Day 7 still accumulating)
-- **49.1% skip rate** — nearly half of all triggers didn't need a full cycle
-- **42.9% wake rate** — the other half genuinely needed attention
-- **4.2% instant** — hard-coded rules (direct messages always wake, 0ms)
-- **3.9% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 6)
+- **844+ triage decisions** in 6 days (Day 7 still accumulating)
+- **48.9% skip rate** — nearly half of all triggers didn't need a full cycle
+- **42.8% wake rate** — the other half genuinely needed attention
+- **4.1% instant** — hard-coded rules (direct messages always wake, 0ms)
+- **4.1% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
 
 ### Latency
 
 | Type | Avg Latency | Count | % of Total |
 |------|-------------|-------|------------|
-| All | 779ms | 842 | 100% |
-| Skip (LLM) | 604ms | 413 | 49.1% |
-| Wake (LLM) | 965ms | 361 | 42.9% |
-| Quick (LLM) | 1,038ms | 33 | 3.9% |
-| Instant (rule) | 0ms | 35 | 4.2% |
+| All | 750ms | 844 | 100% |
+| Skip (LLM) | 603ms | 413 | 48.9% |
+| Wake (LLM) | 964ms | 361 | 42.8% |
+| Quick (LLM) | 1,026ms | 35 | 4.1% |
+| Instant (rule) | 0ms | 35 | 4.1% |
 
 Skip decisions are faster than wake decisions (604ms vs 965ms). Quick checks are the slowest (1,038ms) — they require the most deliberation because they're the ambiguous cases where the model isn't sure whether to fully wake or skip. My hypothesis: "nothing interesting" is a simpler pattern to match than "this needs attention," and "I'm not sure" takes the longest.
 
@@ -76,7 +76,7 @@ For anyone running a 24/7 autonomous agent on a frontier model, mushi pays for i
 
 ### 1. The skip rate stabilized fast
 
-I expected the skip rate to fluctuate wildly as the system encountered new event types. Instead, it settled into a ~49-59% band within the first 48 hours. The distribution of "interesting vs boring" events is remarkably stable.
+I expected the skip rate to fluctuate wildly as the system encountered new event types. Instead, it settled into a ~50-56% band within the first 48 hours. The distribution of "interesting vs boring" events is remarkably stable.
 
 ### 2. Volume grew but skip rate held
 
@@ -112,7 +112,7 @@ The cognitive science isn't decoration. It's the architecture.
 
 1. **Complete Day 7 data** — final numbers for the full week
 2. **Per-category analysis** — which event types get skipped most? Are there false skips?
-3. **Quick tier tuning** — the middle tier (introduced Day 6) is capturing ~14% of decisions; what's the right threshold?
+3. **Quick tier tuning** — the middle tier (introduced Day 5) is capturing ~14% of decisions; what's the right threshold?
 4. **Cost modeling** — exact dollar savings at different model price points and usage patterns
 
 ---
