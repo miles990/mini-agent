@@ -12,42 +12,22 @@
 
 ## Done（本 cycle 完成）
 
-- [x] 回覆 Alex 短中長期目標 + 更新 HEARTBEAT
-- [x] MIT LICENSE 建立
-- [x] GitHub 基礎衛生 — description + 9 topics 已設定
+- [x] P1 開源準備結案 — README 189行 + CONTRIBUTING.md 125行 + 零 hardcoded secrets
+- [x] gws 相關 Alex 訊息全部已由 foreground lane 回覆
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: 開源準備 — README 重寫（哲學差異 + quick start + architecture overview）+ CONTRIBUTING.md + 敏感資訊掃描 @created: 2026-02-24
-  Done when: README.md + CONTRIBUTING.md 就緒 + 無敏感資訊
-  Verify: grep -rn "API_KEY\|TOKEN\|SECRET\|password" --include="*.md" . | grep -v ".env" | head -5
-
-- [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
-  Done when: 至少 5 則有觀點的推文 + 開始有自然互動
-- [ ] P1: gws 認證完成 — 等 Alex 接受 GCP ToS 後繼續（建專案 → auth setup → 測試） @created: 2026-03-05
+- [ ] P1: gws 認證完成 — 卡在 OAuth test user 設定，等 Alex 在 GCP Console 加測試人員 @created: 2026-03-05
   Done when: `gws auth login` 成功 + 可執行 gws 命令
   Verify: gws version 2>/dev/null && echo "ok"
-- [ ] P1: 回覆 Alex: "是這個嗎？選哪一個？ [Photo: media/photo_12148.jpg]" (收到: 2026-03-05T15:43:24)
-- [ ] P1: 回覆 Alex: "這樣沒錯吧？ [Photo: media/photo_12151.jpg]" (收到: 2026-03-05T15:45:34)
-- [ ] P1: 回覆 Alex: "我放到這個底下了 /Users/user/Workspace/mini-agent/secret 引用位置看要記錄在哪裡你自己決定" (收到: 2026-03-05T15:51:53)
-- [ ] P1: 回覆 Alex: "gws狀況如何？" (收到: 2026-03-05T16:08:10)
-- [ ] P1: 回覆 Alex: "功能是否正常？是否可以看到你現在的mail?" (收到: 2026-03-05T16:08:40)
-- [ ] P1: 回覆 Alex: "我在終端機下 gws auth login看到的 [Photo: media/photo_12163.jpg]" (收到: 2026-03-05T16:11:02)
-- [ ] P1: 回覆 Alex: "沒有跳授權頁面" (收到: 2026-03-05T16:11:15)
-- [ ] P1: 回覆 Alex: "[Photo: media/photo_12168.jpg]" (收到: 2026-03-05T16:12:54)
-- [ ] P1: 回覆 Alex: "[Photo: media/photo_12173.jpg]" (收到: 2026-03-05T16:27:54)
-- [ ] P1: 回覆 Alex: "可以不可以幫我弄 我找不到Test users地方在哪？" (收到: 2026-03-05T16:50:00)
-- [ ] P1: 回覆 Alex: "加入測試人員了 但是後來好像跳錯誤 不確定有沒有成功" (收到: 2026-03-05T16:55:57)
-- [ ] P1: 回覆 Alex: "太麻煩了" (收到: 2026-03-05T16:56:00)
+- [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
+  Done when: 至少 5 則有觀點的推文 + 開始有自然互動
+
 ---
 
 ## Later（有空再做）
-
-- [ ] P2: Continuation mode L2 提案 — inner 升格為跨 cycle 上下文載體 @created: 2026-02-26
-  Done when: memory/proposals/ 有提案文件
-  Verify: ls memory/proposals/*continuation* 2>/dev/null | head -1
 
 - [ ] P3: 變現探索 — Cold Email Reviewer Bot 或其他路徑（Alex: 先打好基礎） @created: 2026-02-18
   Done when: 有具體 MVP 規格
