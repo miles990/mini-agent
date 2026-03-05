@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "SOUL.md 通用模板（含預設價值觀+思考框架）是高優先具體產出 (4) mushi 數據 Mar 6 滿一週寫 build log (5) #094 養成機制四階段（種子→發芽→生長→成熟）已提出",
-      "priority": "high",
-      "cycleCreated": 45,
-      "cycleDeadline": 51,
-      "status": "fulfilled",
-      "fulfilledAt": 45
-    },
-    {
       "text": "note it for later",
       "priority": "medium",
       "cycleCreated": 2,
@@ -47,10 +39,18 @@
       "cycleDeadline": 31,
       "status": "fulfilled",
       "fulfilledAt": 27
+    },
+    {
+      "text": "從訪客視角再通讀一次確認順暢；考慮 install.sh 的 pnpm 依賴問題（NEXT 中期任務）；mushi 分發前置準備（README ready 後）",
+      "priority": "low",
+      "cycleCreated": 34,
+      "cycleDeadline": 40,
+      "status": "fulfilled",
+      "fulfilledAt": 34
     }
   ],
-  "totalCreated": 84,
-  "totalFulfilled": 71,
+  "totalCreated": 85,
+  "totalFulfilled": 72,
   "totalDropped": 0,
   "totalExpired": 13
 }
