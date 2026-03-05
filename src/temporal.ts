@@ -10,7 +10,6 @@
  * buildContext 時注入 <temporal> section（硬上限 800 chars）
  */
 
-import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 
@@ -50,30 +49,50 @@ export interface TemporalState {
 }
 
 // =============================================================================
-// State I/O
+// State I/O — in-memory cache + dirty flag
 // =============================================================================
+
+let cachedState: TemporalState | null = null;
+let stateDirty = false;
 
 function getTemporalPath(): string {
   return path.join(process.cwd(), 'memory', 'temporal.json');
 }
 
-async function loadState(): Promise<TemporalState> {
-  try {
-    const raw = await fs.readFile(getTemporalPath(), 'utf-8');
-    return JSON.parse(raw) as TemporalState;
-  } catch {
-    return {
-      updatedAt: new Date().toISOString(),
-      topicHeat: {},
-      recentDays: [],
-      activeThreads: [],
-    };
-  }
+function getDefaultState(): TemporalState {
+  return {
+    updatedAt: new Date().toISOString(),
+    topicHeat: {},
+    recentDays: [],
+    activeThreads: [],
+  };
 }
 
-async function saveState(state: TemporalState): Promise<void> {
+function getCachedState(): TemporalState {
+  if (!cachedState) {
+    try {
+      const raw = fsSync.readFileSync(getTemporalPath(), 'utf-8');
+      cachedState = JSON.parse(raw) as TemporalState;
+    } catch {
+      cachedState = getDefaultState();
+    }
+  }
+  return cachedState;
+}
+
+function markDirty(state: TemporalState): void {
   state.updatedAt = new Date().toISOString();
-  await fs.writeFile(getTemporalPath(), JSON.stringify(state, null, 2), 'utf-8');
+  cachedState = state;
+  stateDirty = true;
+}
+
+/** Flush dirty state to disk. Call once at cycle end. */
+export function flushTemporalState(): void {
+  if (!stateDirty || !cachedState) return;
+  try {
+    fsSync.writeFileSync(getTemporalPath(), JSON.stringify(cachedState, null, 2), 'utf-8');
+  } catch { /* best effort */ }
+  stateDirty = false;
 }
 
 // =============================================================================
@@ -126,7 +145,7 @@ export async function updateTemporalState(cycleResult: {
   action: string | null;
   topics?: string[];  // 本次 cycle 觸碰的 topics
 }): Promise<void> {
-  const state = await loadState();
+  const state = getCachedState();
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
@@ -200,7 +219,7 @@ export async function updateTemporalState(cycleResult: {
     (now.getTime() - new Date(bootDate + 'T00:00:00').getTime()) / 86_400_000,
   ) + 1);
 
-  await saveState(state);
+  markDirty(state);
 }
 
 // =============================================================================
@@ -208,7 +227,7 @@ export async function updateTemporalState(cycleResult: {
 // =============================================================================
 
 export async function startThread(id: string, title: string, note: string): Promise<boolean> {
-  const state = await loadState();
+  const state = getCachedState();
   const activeCount = state.activeThreads.filter(t => t.status === 'active').length;
   if (activeCount >= 3) return false; // 超過上限
 
@@ -225,12 +244,12 @@ export async function startThread(id: string, title: string, note: string): Prom
     status: 'active',
   });
 
-  await saveState(state);
+  markDirty(state);
   return true;
 }
 
 export async function progressThread(id: string, note: string): Promise<boolean> {
-  const state = await loadState();
+  const state = getCachedState();
   const thread = state.activeThreads.find(t => t.id === id);
   if (!thread) return false;
 
@@ -244,12 +263,12 @@ export async function progressThread(id: string, note: string): Promise<boolean>
     thread.status = 'active'; // resume on progress
   }
 
-  await saveState(state);
+  markDirty(state);
   return true;
 }
 
 export async function completeThread(id: string, note?: string): Promise<boolean> {
-  const state = await loadState();
+  const state = getCachedState();
   const thread = state.activeThreads.find(t => t.id === id);
   if (!thread) return false;
 
@@ -259,12 +278,12 @@ export async function completeThread(id: string, note?: string): Promise<boolean
     thread.progressNotes.push(formatProgressNote(note));
   }
 
-  await saveState(state);
+  markDirty(state);
   return true;
 }
 
 export async function pauseThread(id: string, note?: string): Promise<boolean> {
-  const state = await loadState();
+  const state = getCachedState();
   const thread = state.activeThreads.find(t => t.id === id);
   if (!thread) return false;
 
@@ -273,7 +292,7 @@ export async function pauseThread(id: string, note?: string): Promise<boolean> {
     thread.progressNotes.push(formatProgressNote(note));
   }
 
-  await saveState(state);
+  markDirty(state);
   return true;
 }
 
@@ -289,12 +308,7 @@ function formatProgressNote(note: string): string {
 const TEMPORAL_MAX_CHARS = 800;
 
 export async function buildTemporalSection(): Promise<string | null> {
-  let state: TemporalState;
-  try {
-    state = await loadState();
-  } catch {
-    return null;
-  }
+  const state = getCachedState();
 
   // No data yet
   if (Object.keys(state.topicHeat).length === 0 && state.recentDays.length === 0) {
@@ -419,12 +433,7 @@ function detectThreadConvergence(threads: ActiveThread[]): string[] {
 // =============================================================================
 
 export async function buildThreadsPromptSection(): Promise<string | null> {
-  let state: TemporalState;
-  try {
-    state = await loadState();
-  } catch {
-    return null;
-  }
+  const state = getCachedState();
 
   const activeThreads = state.activeThreads.filter(t => t.status === 'active');
   if (activeThreads.length === 0) return null;

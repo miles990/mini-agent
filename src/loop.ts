@@ -26,12 +26,12 @@ import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
-import { runFeedbackLoops } from './feedback-loops.js';
+import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
 import { runCoachCheck } from './coach.js';
 import { extractCommitments, updateCommitments } from './commitments.js';
 import { drainCronQueue } from './cron.js';
 import {
-  updateTemporalState, buildThreadsPromptSection,
+  updateTemporalState, buildThreadsPromptSection, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
@@ -1823,7 +1823,7 @@ export class AgentLoop {
         mode: this.currentMode,
         action,
         topics: touchedTopics,
-      }).catch(() => {});
+      }).then(() => flushTemporalState()).catch(() => { flushTemporalState(); });
 
       // ── Write Trail Entry (fire-and-forget, shared attention history) ──
       {
@@ -1954,10 +1954,11 @@ export class AgentLoop {
         githubAutoActions().then(() => done(), e => done(String(e)));
       }
 
-      // Intelligent feedback loops（fire-and-forget）
+      // Intelligent feedback loops（fire-and-forget）+ deferred flush
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount).then(() => done(), e => done(String(e)));
+        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount)
+          .then(() => { flushFeedbackState(); done(); }, e => { flushFeedbackState(); done(String(e)); });
       }
 
       // Action Coach — Haiku behavioral nudges（fire-and-forget, every 3 cycles）

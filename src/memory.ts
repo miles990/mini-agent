@@ -369,6 +369,37 @@ export function getMemoryStateDir(): string {
   return dir;
 }
 
+// =============================================================================
+// Flag file cache — small flag files read by buildContext with 60s TTL
+// =============================================================================
+
+const flagCache = new Map<string, { content: string | null; mtime: number }>();
+const FLAG_CACHE_TTL = 60_000; // 60s
+
+/** Read a small flag file with 60s TTL cache. Returns trimmed content or null. */
+export function readFlagCached(flagPath: string): string | null {
+  const cached = flagCache.get(flagPath);
+  if (cached && Date.now() - cached.mtime < FLAG_CACHE_TTL) return cached.content;
+  try {
+    if (!existsSync(flagPath)) {
+      flagCache.set(flagPath, { content: null, mtime: Date.now() });
+      return null;
+    }
+    const content = readFileSync(flagPath, 'utf-8').trim();
+    const result = content || null;
+    flagCache.set(flagPath, { content: result, mtime: Date.now() });
+    return result;
+  } catch {
+    flagCache.set(flagPath, { content: null, mtime: Date.now() });
+    return null;
+  }
+}
+
+/** Invalidate a specific flag cache entry (call after writing flag file). */
+export function invalidateFlagCache(flagPath: string): void {
+  flagCache.delete(flagPath);
+}
+
 /**
  * 一次性遷移：從 instanceDir 搬持久狀態檔案到 memory/state/
  * 只搬尚未存在於目標的檔案（不覆蓋）
@@ -454,22 +485,30 @@ function parseTopicFrontmatter(content: string): { keywords: string[]; negativeK
   return { keywords, negativeKeywords: parseList('negative_keywords') };
 }
 
-/** Cached topic keyword map — lazily populated, invalidated by file changes */
+/** Cached topic keyword map — invalidated by directory mtime change or appendTopicMemory */
 let _topicKeywordCache: Record<string, { keywords: string[]; negativeKeywords: string[] }> | null = null;
-let _topicKeywordCacheTime = 0;
-const TOPIC_CACHE_TTL = 60_000; // 60s — topic files rarely change mid-session
+let _topicKeywordDirMtime = 0;
 
 /**
  * Load topic keywords from frontmatter dynamically.
- * Caches for 60s to avoid repeated file reads within a single cycle.
+ * Uses directory mtime for invalidation — avoids re-reading files unless topics/ changed.
  */
 async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { keywords: string[]; negativeKeywords: string[] }>> {
-  const now = Date.now();
-  if (_topicKeywordCache && now - _topicKeywordCacheTime < TOPIC_CACHE_TTL) {
-    return _topicKeywordCache;
+  const topicsDir = path.join(memoryDir, 'topics');
+
+  // Check directory mtime for invalidation (single stat vs N file reads)
+  try {
+    const dirStat = await fs.stat(topicsDir);
+    const currentMtime = dirStat.mtimeMs;
+    if (_topicKeywordCache && currentMtime === _topicKeywordDirMtime) {
+      return _topicKeywordCache;
+    }
+    _topicKeywordDirMtime = currentMtime;
+  } catch {
+    // topics dir doesn't exist — return empty
+    return _topicKeywordCache ?? {};
   }
 
-  const topicsDir = path.join(memoryDir, 'topics');
   const map: Record<string, { keywords: string[]; negativeKeywords: string[] }> = {};
   try {
     const files = await fs.readdir(topicsDir);
@@ -487,11 +526,16 @@ async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { 
         }
       } catch { /* skip unreadable files */ }
     }
-  } catch { /* topics dir doesn't exist */ }
+  } catch { /* topics dir read failed */ }
 
   _topicKeywordCache = map;
-  _topicKeywordCacheTime = now;
   return map;
+}
+
+/** Invalidate topic keyword cache (called after appendTopicMemory) */
+function invalidateTopicKeywordCache(): void {
+  _topicKeywordCache = null;
+  _topicKeywordDirMtime = 0;
 }
 
 /** Identity sections always loaded in focused/minimal mode */
@@ -646,6 +690,8 @@ export class InstanceMemory {
         await fs.writeFile(topicPath, `# ${topic}\n\n${entry}`, 'utf-8');
       }
     });
+
+    invalidateTopicKeywordCache();
   }
 
   // =========================================================================
@@ -1520,15 +1566,12 @@ export class InstanceMemory {
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
     // ── Priority Focus（最顯眼位置 — 每個 cycle 開頭都會看到）──
-    try {
-      const focusPath = path.join(getMemoryStateDir(), 'priority-focus.txt');
-      if (existsSync(focusPath)) {
-        const focus = readFileSync(focusPath, 'utf-8').trim();
-        if (focus) {
-          sections.push(`<priority-focus>\n⚡ #1 PRIORITY: ${focus}\nDoes your chosen action serve this priority? If not, why is it more important?\n</priority-focus>`);
-        }
+    {
+      const focus = readFlagCached(path.join(getMemoryStateDir(), 'priority-focus.txt'));
+      if (focus) {
+        sections.push(`<priority-focus>\n⚡ #1 PRIORITY: ${focus}\nDoes your chosen action serve this priority? If not, why is it more important?\n</priority-focus>`);
       }
-    } catch { /* ignore */ }
+    }
 
     // ── Temporal Sense（時間感）── skip in light mode
     if (!isLight) {
@@ -1643,24 +1686,14 @@ export class InstanceMemory {
 
     // Decision quality warning（skip in light mode）
     if (!isLight) {
-      const qualityFlagPath = path.join(getMemoryStateDir(), 'decision-quality-warning.flag');
-      try {
-        if (existsSync(qualityFlagPath)) {
-          const warning = readFileSync(qualityFlagPath, 'utf-8').trim();
-          if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
-        }
-      } catch { /* ignore */ }
+      const warning = readFlagCached(path.join(getMemoryStateDir(), 'decision-quality-warning.flag'));
+      if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
     }
 
     // Structural health warning（skip in light mode）
     if (!isLight) {
-      const structuralFlagPath = path.join(getMemoryStateDir(), 'structural-health-warning.flag');
-      try {
-        if (existsSync(structuralFlagPath)) {
-          const warning = readFileSync(structuralFlagPath, 'utf-8').trim();
-          if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
-        }
-      } catch { /* ignore */ }
+      const warning = readFlagCached(path.join(getMemoryStateDir(), 'structural-health-warning.flag'));
+      if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
     }
 
     // Stale Tasks（skip in light mode）

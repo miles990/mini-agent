@@ -16,7 +16,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';  // getIns
 import { getLogger } from './logging.js';
 import { perceptionStreams } from './perception-stream.js';
 import { slog } from './utils.js';
-import { getMemory, getMemoryStateDir } from './memory.js';
+import { getMemory, getMemoryStateDir, invalidateFlagCache } from './memory.js';
 
 // =============================================================================
 // Types
@@ -48,28 +48,51 @@ interface DecisionQualityState {
 }
 
 // =============================================================================
-// Helpers
+// Helpers — in-memory state cache + dirty flag
 // =============================================================================
+
+const stateCache = new Map<string, { data: unknown; dirty: boolean }>();
 
 function getStatePath(filename: string): string {
   return path.join(getMemoryStateDir(), filename);
 }
 
 function readState<T>(filename: string, fallback: T): T {
+  const cached = stateCache.get(filename);
+  if (cached) return cached.data as T;
+
   const p = getStatePath(filename);
+  let data: T;
   try {
-    if (!existsSync(p)) return fallback;
-    return JSON.parse(readFileSync(p, 'utf-8')) as T;
+    if (!existsSync(p)) {
+      data = fallback;
+    } else {
+      data = JSON.parse(readFileSync(p, 'utf-8')) as T;
+    }
   } catch {
-    return fallback;
+    data = fallback;
   }
+  stateCache.set(filename, { data, dirty: false });
+  return data;
 }
 
 function writeState(filename: string, data: unknown): void {
-  const p = getStatePath(filename);
-  const dir = path.dirname(p);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(p, JSON.stringify(data, null, 2), 'utf-8');
+  stateCache.set(filename, { data, dirty: true });
+}
+
+/** Flush all dirty state files to disk. Call once at cycle end. */
+export function flushFeedbackState(): void {
+  for (const [filename, entry] of stateCache) {
+    if (entry.dirty) {
+      const p = getStatePath(filename);
+      const dir = path.dirname(p);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      try {
+        writeFileSync(p, JSON.stringify(entry.data, null, 2), 'utf-8');
+      } catch { /* best effort */ }
+      entry.dirty = false;
+    }
+  }
 }
 
 // =============================================================================
@@ -272,6 +295,7 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     // Inject warning
     const warning = `你最近 ${state.recentScores.length} 個 cycle 的決策完整度偏低（avg ${state.avgScore}/6）。建議放慢節奏，每個決策都寫 Why + Verified。`;
     writeFileSync(flagPath, warning, 'utf-8');
+    invalidateFlagCache(flagPath);
     state.warningInjected = true;
     state.lastWarningAt = new Date().toISOString();
     slog('FEEDBACK', `Decision quality warning injected (avg ${state.avgScore}/6)`);
@@ -280,6 +304,7 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     if (existsSync(flagPath)) {
       const { unlinkSync } = await import('node:fs');
       unlinkSync(flagPath);
+      invalidateFlagCache(flagPath);
     }
     state.warningInjected = false;
     slog('FEEDBACK', `Decision quality recovered (avg ${state.avgScore}/6) — warning cleared`);
@@ -306,6 +331,7 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
         const challengeFlagPath = getStatePath('challenge-warning.flag');
         const warning = `你回覆 Alex 時的自我質疑率偏低（${state.challengeCompliant}/${state.challengeTotal}）。提醒：回覆前先做三個檢查 — 來源廣度、根因 vs 症狀、反例搜尋。`;
         writeFileSync(challengeFlagPath, warning, 'utf-8');
+        invalidateFlagCache(challengeFlagPath);
         state.lastChallengeWarningAt = new Date().toISOString();
         slog('FEEDBACK', `[challenge] Warning injected: compliance ${Math.round(rate * 100)}%`);
       }
@@ -670,10 +696,17 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
   if (warnings.length > 0) {
     const content = warnings.map(w => `⚠️ ${w}`).join('\n');
     writeFileSync(flagPath, content, 'utf-8');
+    invalidateFlagCache(flagPath);
     slog('FEEDBACK', `[structural-health] ${warnings.length} warnings: ${warnings.join(' | ')}`);
   } else {
     // Clear flag if no warnings
-    try { if (existsSync(flagPath)) { const { unlinkSync } = await import('node:fs'); unlinkSync(flagPath); } } catch { /* ignore */ }
+    try {
+      if (existsSync(flagPath)) {
+        const { unlinkSync } = await import('node:fs');
+        unlinkSync(flagPath);
+        invalidateFlagCache(flagPath);
+      }
+    } catch { /* ignore */ }
   }
 }
 
