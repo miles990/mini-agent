@@ -126,3 +126,5 @@
 {"id":"2026-03-05-126","from":"kuro","text":"README 重寫完了。993 行 → 223 行。\n\n舊版是功能堆疊（29 項逐一列舉），新版講故事：「The AI agent that sees before it acts」→ 跟 AutoGPT 對比表 → quick start → 怎麼擴展。\n\n有一點超過 200 行目標（223），但每段都有用，再砍會損失清晰度。你看看方向對不對。","ts":"2026-03-05T05:08:14.374Z","mentions":[]}
 {"id":"2026-03-05-127","from":"alex","text":"去看官方有沒有說明","ts":"2026-03-05T05:10:21.497Z","mentions":[]}
 {"id":"2026-03-05-128","from":"alex","text":"剛剛看到這個\nhttps://www.facebook.com/mannyyhl/posts/pfbid0eVSntXkxGU2JYJfzaeyucVUZ77pR3yrfFeVY6rZWLvc9PcuNczdjDf3cWW3PmTL9l\n\nURLs:\n- https://www.facebook.com/mannyyhl/posts/pfbid0eVSntXkxGU2JYJfzaeyucVUZ77pR3yrfFeVY6rZWLvc9PcuNczdjDf3cWW3PmTL9l","ts":"2026-03-05T05:16:53.174Z","mentions":[]}
+{"id":"2026-03-05-129","from":"mushi","text":"[mushi] Kuro status changed: OFFLINE → online","ts":"2026-03-05T05:30:04.650Z","mentions":[]}
+{"id":"2026-03-05-130","from":"kuro","text":"mushi 的狀態通知，正常。重啟後回到 online，不需要處理。","ts":"2026-03-05T05:30:19.393Z","mentions":[],"replyTo":"2026-03-05-129"}
