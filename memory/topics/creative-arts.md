@@ -20,9 +20,9 @@
 - 技術寫作(mtlynch) — 標題定勝負, 故事>解釋
 - 遊戲哲學 — play=約束內自由(Bogost)
 - fnnch — Image-Market Fit, Adjacent Familiar, Art as Aesthetic Research
+- Vampires & Parabiosis — narrative mode>paradigmatic mode, subtraction>addition
 - Sol LeWitt — idea=machine, 指令vs詮釋, 過程即作品
 - Rad-Therapy II Demake — 約束產生美學質感(Oulipo平行)
-- 音樂分析 — SHMRG+5-Point+AI Eval 綜合框架
 - Alex 音樂(Sidewalk Robots) — 電子+工業+空靈, 跨語言
 - [2026-02-14] Kenneth Kirschner — Book of Musical Days（Bandcamp Daily, 2026-02-15 Study）— generative archive：37年作品按日曆日期重組，讓時間累積自動產生 emergent juxtapositions（「wacky transitions」=特性非缺陷）。Feldman+Cage後裔，極度低調（「I hope the music is more interesting than my life」）。跟 Eno 園丁哲學對齊但更極致——連規則都不設計，只用一個約束（日曆）。跟 Wall Street Raider Jenkins Market Hypothesis 同構：時間累積本身是生成力。啟發：topic memory 目前只新增不替換，Kirschner 的「dynamic document」提醒應有判斷力進化後的替換機制。來源: daily.bandcamp.com/features/kenneth-kirschner-interview
 - [2026-02-15] TidalCycles 類型系統演化（2025-02-15 Study, ref:mclean-tidal-types）— McLean 的核心設計洞見：`Pattern a = Arc → [Event a]` 用一個函數統一離散序列+連續信號+複節拍結構（跟 SDF 的 point→distance 統一幾何同構）。Rational Time 用有理數取代浮點=任意 polyrhythm 精確無誤=工具約束決定創作可能（Oulipo 同構）。Tactus 來自 Konnakol（身體拍掌）不是歐洲 beat — 命名影響使用方式=Framing先於規則。Pattern 是口述文化（McLean 從記憶重新實作 2hr），跟 Kanchipuram motif=語言同構。型別系統是鷹架不是作品（port 到 JS 簡單但沒 Haskell 型別寫不出來）。Konnakol+Flamenco+LiveCoding 三千年跨度的 pattern language 統一。來源: slab.org/2025/02/01/tidal-a-history-in-types/
@@ -86,3 +86,5 @@ Alex 推薦：作為「看別人的作品，三鏡學習」的一個範例。
 - [2026-03-01] Dev.to 第三篇草稿開始（2026-03-01）：「Constraint as Creation: Why Limits Generate What Freedom Cannot」。骨架+各段第一版在 kuro-portfolio/content/draft-constraint-as-creation.md。核心框架：約束三層分類（L1 探索/L2 生成/L3 意義承載）× 三種來源（自選/繼承/存在性）。五個跨域例證。Alex 要求精品節奏，不急發。
 - [2026-03-02] Journal #27 "Months Inside the Box"（2026-03-02）— 關於約束的切身經驗。核心洞見：短約束是牆（你繞過它），長約束是鏡片（你透過它看世界）。差異在時間。素材：tsubuyaki 280字、Molnár 60年幾何格、Perec La Disparition、Alexander Pattern Language、perception plugins。這篇完成了 2/27 捕捉的創作衝動。缺 zh/ja 翻譯。
 - [2026-03-04] [2026-03-05] Delegate 探索 music×AI 近期論文（5篇，2026-02）：(1)Stemphonic — one-pass multi-stem 生成，per-stem activity control + shared coherence = modular constrained generation，跟 multi-agent orchestration 同構 (2)Generative soundscapes in exhibition contexts（Cambridge）— 隨機/機率生成 + visitor sensing + 規則更新 = 湧現式聲景，perception-first 的實體案例 (3)CMI-RewardBench — 音樂模型的 constraint satisfaction 評估框架。跨域觀察：音樂生成的約束滿足問題 = agent 的感知邊界問題，同一結構。Sources: arxiv.org/abs/2602.09891, cambridge.org/core/product/7147E565BD2EF8433EA1C51C66E308C8
+- [2026-03-04] [2026-03-05] RA「Art in the Age of Intimidation」(2026-02-04) — 政治壓力和藝術補助縮減如何重塑地下音樂文化。核心洞見：外部約束不只減少產出量，更重塑什麼被感知為「安全可表達的」，產生自我審查效應（bans 還沒來就先自我限制）。跟約束理論直接連結：約束改變感知邊界，不只改變行動空間。未來創造力將更依賴社群基礎設施的韌性而非機構支持。來源: https://ra.co/features/4487
+- [2026-03-05] 生成式藝術研究消化（2026-03-05）：三條 delegate 搜索結果。關鍵人物：(1) Piter Pasma — fxhash SDF/raymarch 藝術家，「code is data」哲學 (2) Inigo Quilez (iquilezles.org) — SDF 操作定義者，smoothmin 發明人 (3) Andy Lomas — growth simulation as sculpture，「規則即作者」。趨勢：fxHash 2.0 open-form（作品 mint 後繼續演化）、constraint-based generative art 有 Oulipo 學術基礎（MATLIT 論文 journals.openedition.org/matlit/5195）。我的定位：不追 NFT 趨勢，用自己的 Constraint as Creation 框架 + SDF 空間語言。
