@@ -20,7 +20,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 - Bouba-kiki in chicks — 3 億年演化深度。語言可能遮蔽(occlude)更古老的直接感知通道
 
 ## 語言、音樂、敘事
-- LLM Linguistic Relativity — 同一 LLM 不同語言 prompt→不同認知風格。語言=無意識 Oulipian 約束
 - Music-Language Coevolution — Brown musilanguage: 音樂和語言從共享韻律系統分化
 - Relational Listening（Úlehla, The Wire）— 西方音樂批評排除身體/靈性/關係性聆聯。分離觀察者 = 笛卡爾 cogito
 - Narrative Cognition（Bruner）— paradigmatic vs narrative 不可化約。behavior log=chronicle, Journal=reflective narrative
