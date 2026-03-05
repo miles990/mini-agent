@@ -1760,15 +1760,34 @@ export class InstanceMemory {
     // ── Custom perceptions（Stream cache 優先 → fallback 直接執行）──
     if (customPerceptions.length > 0) {
       const pluginRelevance: Record<string, string[]> = {
+        // Always load (empty = always relevant)
+        tasks: [],
+        'state-changes': [],
+        'telegram-inbox': [],
+        'chat-room-inbox': [],
+        'claude-code-inbox': [],
+        // Conditional load (keyword-matched)
         docker: ['docker', 'container', 'image', 'deploy'],
+        'docker-services': ['docker', 'container', 'service', 'deploy'],
         chrome: ['chrome', 'cdp', 'browser', 'web', 'fetch', 'url', 'page'],
         web: ['web', 'url', 'fetch', 'http', 'page'],
         ports: ['port', 'service', 'listen', 'connect'],
-        tasks: [],
-        'state-changes': [],
         disk: ['disk', 'space', 'storage'],
         brew: ['brew', 'homebrew', 'package', 'update'],
         'git-detail': ['git', 'commit', 'branch', 'merge'],
+        'github-issues': ['github', 'issue', 'pr', 'pull'],
+        'github-prs': ['github', 'pr', 'pull', 'review', 'merge'],
+        'claude-code-sessions': ['claude', 'session', 'mcp'],
+        'feedback-status': ['feedback', 'loop', 'error', 'pattern'],
+        'delegation-status': ['delegation', 'background', 'delegate'],
+        mobile: ['mobile', 'phone', 'gps', 'location', 'sensor'],
+        'focus-context': ['focus', 'context'],
+        'environment-sense': ['env', 'environment', 'system'],
+        'self-awareness': ['self', 'health', 'status'],
+        'anomaly-detector': ['anomaly', 'error', 'alert'],
+        'self-healing': ['heal', 'fix', 'error', 'recovery'],
+        'x-feed': ['twitter', 'x', 'feed', 'social'],
+        website: ['website', 'portfolio', 'blog'],
       };
 
       // Per-plugin output cap overrides from compose config

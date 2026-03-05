@@ -51,7 +51,7 @@ import { initObservability, writeRoomMessage } from './observability.js';
 import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
 import { eventBus, debounce } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
-import { perceptionStreams } from './perception-stream.js';
+import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
@@ -377,10 +377,10 @@ function parseCognitionEntry(entry: BehaviorLogEntry): CognitionEntry | null {
 }
 
 // =============================================================================
-// Auto-detect ConversationThread from Room messages (Alex only, conservative)
+// Auto-detect ConversationThread from DM messages (all sources, conservative)
 // =============================================================================
 
-async function autoDetectRoomThread(msgId: string, text: string): Promise<void> {
+export async function autoDetectThread(text: string, source: string, msgId?: string): Promise<void> {
   const memory = getMemory();
   const hasQuestion = /[?？]/.test(text);
   const hasUrl = /https?:\/\/[^\s]+/.test(text);
@@ -391,8 +391,8 @@ async function autoDetectRoomThread(msgId: string, text: string): Promise<void> 
   await memory.addConversationThread({
     type,
     content: text.slice(0, 200),
-    source: 'room:alex',
-    roomMsgId: msgId,
+    source,
+    ...(msgId ? { roomMsgId: msgId } : {}),
   });
 }
 
@@ -895,6 +895,9 @@ export function createApi(port = 3001): express.Express {
 
       // Dual-write to unified inbox
       writeInboxItem({ source: 'claude-code', from: 'claude-code', content: message });
+
+      // Auto-detect conversation threads from Claude Code questions/URLs (fire-and-forget)
+      autoDetectThread(message, 'chat:claude-code').catch(() => {});
 
       // Emit trigger:chat to wake idle AgentLoop immediately
       eventBus.emit('trigger:chat', { source: 'chat-api', messageCount: 1 });
@@ -2241,9 +2244,9 @@ export function createApi(port = 3001): express.Express {
         });
       }
 
-      // Auto-detect conversation threads (only for Alex's messages) — fire-and-forget
-      if (from === 'alex') {
-        autoDetectRoomThread(id, text).catch(() => {});
+      // Auto-detect conversation threads (Alex + Claude Code messages) — fire-and-forget
+      if (from === 'alex' || from === 'claude-code') {
+        autoDetectThread(text, `room:${from}`, id).catch(() => {});
       }
 
       slog('ROOM', `[${id}] ${from}: ${text.slice(0, 80)}`);
@@ -2375,8 +2378,7 @@ export function createApi(port = 3001): express.Express {
       // 注入快取的 perception 關鍵 sections（免費，已有數據）
       try {
         const cached = perceptionStreams.getCachedResults();
-        const importantNames = ['state-changes', 'tasks', 'telegram-inbox', 'chat-room-inbox', 'github-issues'];
-        const relevant = cached.filter(r => importantNames.includes(r.name));
+        const relevant = cached.filter(r => IMPORTANT_PERCEPTION_NAMES.includes(r.name as typeof IMPORTANT_PERCEPTION_NAMES[number]));
         if (relevant.length > 0) {
           const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
           context += `\n\n<cached_perception>\n${perceptionLines}\n</cached_perception>`;

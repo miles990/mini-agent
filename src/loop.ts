@@ -23,7 +23,7 @@ import type { ParsedTags } from './types.js';
 import { notifyTelegram, clearLastReaction } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
-import { perceptionStreams } from './perception-stream.js';
+import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';

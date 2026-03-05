@@ -497,6 +497,11 @@ export class TelegramPoller {
       },
     });
 
+    // Auto-detect conversation threads from Alex's questions/URLs (fire-and-forget)
+    import('./api.js').then(({ autoDetectThread }) =>
+      autoDetectThread(parsed.text, `telegram:${parsed.sender}`).catch(() => {})
+    ).catch(() => {});
+
     // Sync TG message to Chat Room conversation log (record-only, no trigger)
     writeRoomMessage('alex', parsed.text).catch(() => {});
 

@@ -70,6 +70,18 @@ function getCategory(name: string): string {
   return CATEGORY_MAP[name] ?? 'heartbeat';
 }
 
+/**
+ * 所有 lane（foreground, ask, etc.）在輕量 context 中應載入的 perception plugins。
+ * 統一定義，避免各 lane 硬編碼不同清單。
+ */
+export const IMPORTANT_PERCEPTION_NAMES = [
+  'state-changes',
+  'tasks',
+  'telegram-inbox',
+  'chat-room-inbox',
+  'github-issues',
+] as const;
+
 // =============================================================================
 // PerceptionStreamManager
 // =============================================================================
@@ -192,6 +204,12 @@ class PerceptionStreamManager {
     for (const [name, entry] of this.streams) {
       if (entry.hash) {
         this.lastBuildHashes.set(name, entry.hash);
+      }
+    }
+    // Prune hashes for plugins no longer in streams (prevent unbounded growth)
+    for (const key of this.lastBuildHashes.keys()) {
+      if (!this.streams.has(key)) {
+        this.lastBuildHashes.delete(key);
       }
     }
   }
