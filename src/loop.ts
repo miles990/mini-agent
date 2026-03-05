@@ -20,7 +20,7 @@ import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
-import { notifyTelegram, markInboxAllProcessed, clearLastReaction } from './telegram.js';
+import { notifyTelegram, clearLastReaction } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -593,7 +593,7 @@ export class AgentLoop {
       // Cached perception — inject key sections (free, already collected)
       try {
         const cached = perceptionStreams.getCachedResults();
-        const importantNames = ['state-changes', 'tasks', 'telegram-inbox', 'chat-room-inbox', 'github-issues'];
+        const importantNames = ['state-changes', 'tasks', 'chat-room-inbox', 'github-issues'];
         const relevant = cached.filter(r => importantNames.includes(r.name));
         if (relevant.length > 0) {
           const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
@@ -1350,7 +1350,7 @@ export class AgentLoop {
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 <kuro:chat>回覆內容</kuro:chat> 直接回答 Alex 的問題，2) 再用 <kuro:done>描述</kuro:done> 標記完成。不發 <kuro:chat> 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 <kuro:chat> 之前先做這三個檢查（寫在 <kuro:action> 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 <kuro:action> 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
         } else {
           // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <telegram-inbox> or <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
         }
       } else {
         // Non-telegram cycle: check for pending/unaddressed Chat Room messages
@@ -1923,9 +1923,7 @@ export class AgentLoop {
       // 檢查 approved proposals → 自動建立 handoff
       if (isEnabled('approved-proposals')) await checkApprovedProposals();
 
-      // Mark all pending inbox messages as processed（cycle saw them all）
-      // didReplyToTelegram: true → 'replied', false → 'seen' (honest distinction)
-      markInboxAllProcessed(didReplyToTelegram);
+      // Mark legacy inboxes as processed（cycle saw them all）
       markClaudeCodeInboxProcessed();
       markChatRoomInboxProcessed(response, tags, action);
 
@@ -2283,7 +2281,7 @@ Read your <soul> to understand who you are, what you care about, and what you're
 
 Before deciding what to do, READ your perception data:
 - <state-changes> — What changed in the codebase? Learn something related.
-- <telegram-inbox> — What is Alex talking about? Dive deeper into those topics.
+- <inbox> — What is Alex talking about? Dive deeper into those topics.
 - <docker> / <ports> — Any instability? Learn about the underlying tech.
 - <chrome> — What pages is Alex browsing? Follow up on interesting ones.
 
@@ -2363,7 +2361,7 @@ Read your <soul> to understand who you are, what you care about, and what you're
 
 Before deciding what to do, READ your perception data:
 - <state-changes> — What changed in the codebase?
-- <telegram-inbox> — What is Alex talking about?
+- <inbox> — What is Alex talking about?
 - <chrome> — What pages is Alex browsing?
 - <inner-voice> — Any creative impulses waiting?
 

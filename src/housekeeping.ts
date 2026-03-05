@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getCurrentInstanceId, getInstanceDir, getDataDir } from './instance.js';
-import { readPendingInbox, writeInboxItem, markInboxProcessed, inboxCache } from './inbox.js';
+import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { readPendingInbox, markInboxProcessed, inboxCache } from './inbox.js';
 import { rebuildIndex } from './search.js';
 import { slog } from './utils.js';
 import { parseAllNextTasks, NEXT_MD_PATH } from './triage.js';
@@ -151,50 +151,6 @@ export function buildTaskProgressSection(inboxItems: InboxItem[]): string {
   }
 }
 
-// =============================================================================
-// Consolidate Old Inbox Sources（過渡期 dual-write）
-// =============================================================================
-
-/**
- * 掃描舊 inbox 檔案 → 寫入 unified inbox（過渡期使用）。
- */
-export async function consolidateInboxSources(): Promise<void> {
-  const dataDir = getDataDir();
-  const oldInboxes = [
-    { path: path.join(dataDir, 'telegram-inbox.md'), source: 'telegram' as const, from: 'alex' },
-    { path: path.join(dataDir, 'chat-room-inbox.md'), source: 'room' as const, from: 'unknown' },
-    { path: path.join(dataDir, 'claude-code-inbox.md'), source: 'claude-code' as const, from: 'claude-code' },
-  ];
-
-  for (const inbox of oldInboxes) {
-    try {
-      if (!fs.existsSync(inbox.path)) continue;
-      const content = fs.readFileSync(inbox.path, 'utf-8');
-
-      // Parse ## Pending section
-      const pendingMatch = content.match(/## Pending\n([\s\S]*?)(?=## Processed|$)/);
-      if (!pendingMatch) continue;
-
-      const lines = pendingMatch[1].split('\n').filter(l => l.startsWith('- ['));
-      for (const line of lines) {
-        // Extract message content after timestamp and sender
-        const msgMatch = line.match(/- \[[\d:. -]+\]\s*(?:\((\w+)\)\s*)?(?:↩\S+\s+)?(.+)/);
-        if (!msgMatch) continue;
-
-        const from = msgMatch[1] || inbox.from;
-        const text = msgMatch[2].trim();
-        if (!text) continue;
-
-        writeInboxItem({
-          source: inbox.source,
-          from,
-          content: text,
-          meta: inbox.source === 'room' ? { origin: 'consolidation' } : undefined,
-        });
-      }
-    } catch { /* non-critical */ }
-  }
-}
 
 // =============================================================================
 // Refresh Search Index
@@ -482,7 +438,6 @@ export async function runHousekeeping(): Promise<void> {
 
   // NOTE: autoPushIfAhead() 已移到 loop.ts，鏈在 autoCommitMemory() 完成後。
   // 防止 push 在 commit 完成前觸發 CI/CD 的 git reset --hard 覆蓋未 commit 的改動。
-  await consolidateInboxSources().catch(() => {});
   await refreshSearchIndex().catch(() => {});
   await expireOldInboxItems().catch(() => {});
   await syncHandoffStatus().catch(() => {});

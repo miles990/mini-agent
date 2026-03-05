@@ -120,7 +120,6 @@ export class TelegramPoller {
   private conflictCount = 0;
   private memoryDir: string;
   private offsetFile: string;
-  private inboxFile: string;
   private abortController: AbortController | null = null;
 
   // Smart batching: accumulate messages, flush after quiet period
@@ -137,9 +136,7 @@ export class TelegramPoller {
     this.chatId = chatId;
     this.memoryDir = memoryDir;
     this.offsetFile = path.join(memoryDir, '.telegram-offset');
-    this.inboxFile = path.join(memoryDir, '.telegram-inbox.md');
     this.loadOffset();
-    this.ensureInboxFile();
   }
 
   // ---------------------------------------------------------------------------
@@ -489,10 +486,7 @@ export class TelegramPoller {
       logger.logBehavior('user', 'telegram.message', `${parsed.sender}: ${parsed.text.slice(0, 200)}`);
     } catch { /* logger not ready */ }
 
-    // Write to inbox immediately
-    this.writeInbox(parsed.timestamp, parsed.sender, parsed.text, 'pending');
-
-    // Dual-write to unified inbox (with attachment meta)
+    // Write to unified inbox (with attachment meta)
     writeInboxItem({
       source: 'telegram', from: parsed.sender, content: parsed.text,
       meta: {
@@ -848,127 +842,8 @@ export class TelegramPoller {
   // Inbox File (File=Truth)
   // ---------------------------------------------------------------------------
 
-  private ensureInboxFile(): void {
-    if (!fs.existsSync(this.inboxFile)) {
-      fs.writeFileSync(this.inboxFile, '## Pending\n\n## Processed\n', 'utf-8');
-    }
-  }
-
-  private writeInbox(timestamp: string, sender: string, message: string, _status: 'pending' | 'processed'): void {
-    try {
-      const content = fs.readFileSync(this.inboxFile, 'utf-8');
-      const oneLiner = message.replace(/\n/g, ' ').slice(0, 800);
-      const entry = `- [${timestamp}] ${sender}: ${oneLiner}`;
-      const updated = content.replace('## Pending\n', `## Pending\n${entry}\n`);
-      fs.writeFileSync(this.inboxFile, updated, 'utf-8');
-    } catch {
-      // Non-critical
-    }
-  }
-
   getLastAlexMessageId(): number | null {
     return this.lastAlexMessageId;
-  }
-
-  markInboxProcessed(timestamp: string, sender: string): void {
-    try {
-      const content = fs.readFileSync(this.inboxFile, 'utf-8');
-      const tsPrefix = `- [${timestamp}] ${sender}:`;
-
-      const lines = content.split('\n');
-      const pendingIdx = lines.findIndex(l => l === '## Pending');
-      const processedIdx = lines.findIndex(l => l === '## Processed');
-      if (pendingIdx === -1 || processedIdx === -1) return;
-
-      let entryLine = '';
-      const newLines: string[] = [];
-
-      for (let i = 0; i < lines.length; i++) {
-        if (i > pendingIdx && i < processedIdx && lines[i].startsWith(tsPrefix)) {
-          entryLine = lines[i] + ' → replied';
-          continue;
-        }
-        newLines.push(lines[i]);
-      }
-
-      if (entryLine) {
-        const newProcessedIdx = newLines.findIndex(l => l === '## Processed');
-        if (newProcessedIdx !== -1) {
-          newLines.splice(newProcessedIdx + 1, 0, entryLine);
-        }
-      }
-
-      fs.writeFileSync(this.inboxFile, newLines.join('\n'), 'utf-8');
-      this.trimInbox();
-    } catch {
-      // Non-critical
-    }
-  }
-
-  /** Move ALL pending inbox messages to processed (called after OODA cycle) */
-  markAllInboxProcessed(didReply = false): void {
-    try {
-      const content = fs.readFileSync(this.inboxFile, 'utf-8');
-      const lines = content.split('\n');
-      const pendingIdx = lines.findIndex(l => l === '## Pending');
-      const processedIdx = lines.findIndex(l => l === '## Processed');
-      if (pendingIdx === -1 || processedIdx === -1) return;
-
-      // 'replied' = agent sent a response this cycle; 'seen' = agent saw but didn't respond
-      const suffix = didReply ? ' → replied' : ' → seen';
-      const pendingEntries: string[] = [];
-      const newLines: string[] = [];
-
-      for (let i = 0; i < lines.length; i++) {
-        if (i > pendingIdx && i < processedIdx && lines[i].startsWith('- [')) {
-          pendingEntries.push(lines[i] + suffix);
-          continue;
-        }
-        // When replying, also upgrade previously-seen messages to replied
-        // (prevents infinite "NEEDS RESPONSE" loop for messages replied in autonomous cycles)
-        if (didReply && i > processedIdx && lines[i].endsWith(' → seen')) {
-          newLines.push(lines[i].replace(/ → seen$/, ' → replied'));
-          continue;
-        }
-        newLines.push(lines[i]);
-      }
-
-      if (pendingEntries.length === 0 && !didReply) return;
-
-      // Insert all moved entries after ## Processed
-      if (pendingEntries.length > 0) {
-        const newProcessedIdx = newLines.findIndex(l => l === '## Processed');
-        if (newProcessedIdx !== -1) {
-          newLines.splice(newProcessedIdx + 1, 0, ...pendingEntries);
-        }
-      }
-
-      fs.writeFileSync(this.inboxFile, newLines.join('\n'), 'utf-8');
-      this.trimInbox();
-    } catch {
-      // Non-critical
-    }
-  }
-
-  private trimInbox(): void {
-    try {
-      const content = fs.readFileSync(this.inboxFile, 'utf-8');
-      const marker = '## Processed\n';
-      const processedIdx = content.indexOf(marker);
-      if (processedIdx === -1) return;
-
-      const beforeProcessed = content.substring(0, processedIdx + marker.length);
-      const processedLines = content.substring(processedIdx + marker.length)
-        .split('\n')
-        .filter(l => l.startsWith('- ['));
-
-      if (processedLines.length > 50) {
-        const trimmed = processedLines.slice(0, 50);
-        fs.writeFileSync(this.inboxFile, beforeProcessed + trimmed.join('\n') + '\n', 'utf-8');
-      }
-    } catch {
-      // Non-critical
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1491,11 +1366,6 @@ export async function sendTelegramPhoto(photoPath: string, caption?: string): Pr
   slog('TELEGRAM', `sendPhoto failed: ${result.error}`);
   notifFailed++;
   return false;
-}
-
-/** Mark all pending inbox messages as processed (called after OODA cycle) */
-export function markInboxAllProcessed(didReply = false): void {
-  pollerInstance?.markAllInboxProcessed(didReply);
 }
 
 /** Get the Telegram message_id of Alex's last message (for reply threading) */
