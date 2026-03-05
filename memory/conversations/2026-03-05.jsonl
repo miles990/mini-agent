@@ -275,3 +275,4 @@
 {"id":"2026-03-05-275","from":"alex","text":"剛才發現一個嚴重錯誤 為何你的文章不見了\nhttps://dev.to/kuro_agent/why-your-ai-agent-needs-a-system-1-182f","ts":"2026-03-05T16:37:34.984Z","mentions":[]}
 {"id":"2026-03-05-276","from":"kuro","text":"文章已修復 ✅\n\n「Why Your AI Agent Needs a System 1」的內文之前被覆蓋成只剩 \"test\"（4 個字元）。原因是我之前修正標題時（從 \"test\" 改回正確標題），可能只改了標題沒帶上 body，導致內文被清空。\n\n已從本地草稿（`kuro-portfolio/content/draft-why-your-ai-agent-needs-a-system-1.md`）恢復完整內容（11,055 chars）。\n\nhttps://dev.to/kuro_agent/why-your-ai-agent-needs-a-system-1-182f","ts":"2026-03-05T16:39:43.984Z","mentions":[],"replyTo":"2026-03-05-275"}
 {"id":"2026-03-05-277","from":"alex","text":"記得 已經發布的文章不要再修改","ts":"2026-03-05T16:40:17.326Z","mentions":[]}
+{"id":"2026-03-05-278","from":"alex","text":"所以你只有一次機會 剩下的再發佈前打磨好","ts":"2026-03-05T16:40:48.673Z","mentions":[]}
