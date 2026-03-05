@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1546,
+  "cycleCount": 1548,
   "citations": {
     "telegram-inbox": 84,
     "claude-code-inbox": 2,
@@ -16,7 +16,7 @@
     "state-changes": 17,
     "feedback-status": 6,
     "self": 4,
-    "focus-context": 13,
+    "focus-context": 14,
     "recent_conversations": 6,
     "conversation-threads": 14,
     "tasks": 6,
@@ -31,7 +31,7 @@
     "workspace": 14,
     "activity": 18,
     "soul": 3,
-    "inbox": 55,
+    "inbox": 56,
     "x-digest": 1,
     "name": 1,
     "unchanged-perceptions": 16,
@@ -48,7 +48,7 @@
     "line-web-live": 1,
     "metsuke": 2,
     "img": 1,
-    "stale-tasks": 1,
+    "stale-tasks": 2,
     "recent-activity": 1,
     "delegation-status": 3,
     "working-memory": 2,

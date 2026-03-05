@@ -45,7 +45,8 @@
       "priority": "medium",
       "cycleCreated": 44,
       "cycleDeadline": 50,
-      "status": "pending"
+      "status": "fulfilled",
+      "fulfilledAt": 22
     },
     {
       "text": "我需要在這個專案裡啟用 Google Drive API + 建 OAuth credentials，這些我可以用 gcloud CLI 處理",
@@ -57,7 +58,7 @@
     }
   ],
   "totalCreated": 83,
-  "totalFulfilled": 69,
+  "totalFulfilled": 70,
   "totalDropped": 0,
   "totalExpired": 13
 }
