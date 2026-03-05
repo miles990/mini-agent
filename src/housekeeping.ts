@@ -443,6 +443,59 @@ export async function runHousekeeping(): Promise<void> {
   await syncHandoffStatus().catch(() => {});
   await decayStaleTasks().catch(() => {});
 
-  // 低頻：每 10 cycle 才執行
-  // Future: deduplicateMemory(), cleanupConversationThreads()
+  // 低頻：每 10 cycle 掃描 instance 目錄下的過期臨時資源
+  if (cycleCounter % 10 === 0) {
+    await sweepInstanceDir().catch(() => {});
+  }
+}
+
+// =============================================================================
+// Instance Directory Sweep — 通用過期資源清理
+// =============================================================================
+
+const SWEEP_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48h
+
+/**
+ * 掃描 instance 目錄下已知的臨時子目錄，刪除過期檔案/目錄。
+ * Catch-all 防護：即使個別模組的清理邏輯有遺漏，也能在這裡兜底。
+ */
+async function sweepInstanceDir(): Promise<void> {
+  const instanceId = getCurrentInstanceId();
+  const instDir = getInstanceDir(instanceId);
+  const cutoff = Date.now() - SWEEP_MAX_AGE_MS;
+
+  // 需要掃描的臨時子目錄及其 entry 前綴
+  const targets = [
+    { subdir: 'delegations', prefix: 'del-' },
+    { subdir: 'lane-output', prefix: '' },
+    { subdir: 'task-progress', prefix: '' },
+  ];
+
+  let swept = 0;
+  for (const { subdir, prefix } of targets) {
+    const dir = path.join(instDir, subdir);
+    if (!fs.existsSync(dir)) continue;
+
+    try {
+      for (const entry of fs.readdirSync(dir)) {
+        if (prefix && !entry.startsWith(prefix)) continue;
+        const fullPath = path.join(dir, entry);
+        try {
+          const stat = fs.statSync(fullPath);
+          if (stat.mtimeMs < cutoff) {
+            if (stat.isDirectory()) {
+              fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+              fs.unlinkSync(fullPath);
+            }
+            swept++;
+          }
+        } catch { /* best effort */ }
+      }
+    } catch { /* best effort */ }
+  }
+
+  if (swept > 0) {
+    slog('HOUSEKEEPING', `swept ${swept} stale temp resource(s) from instance dir`);
+  }
 }
