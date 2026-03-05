@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1535,
+  "cycleCount": 1536,
   "citations": {
     "telegram-inbox": 82,
     "claude-code-inbox": 2,
@@ -37,7 +37,7 @@
     "unchanged-perceptions": 16,
     "topic-memory": 1,
     "github-prs": 1,
-    "telegram": 1,
+    "telegram": 2,
     "achievements": 1,
     "environment": 1,
     "priority-focus": 1,

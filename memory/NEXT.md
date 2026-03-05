@@ -31,6 +31,8 @@
 - [ ] P1: 回覆 Alex: "看他的README.md  URLs: - 看他的README.md" (收到: 2026-03-05T15:10:16)
 - [ ] P1: 回覆 Alex: "gcloud 有問題嗎？" (收到: 2026-03-05T15:11:42)
 - [ ] P1: 回覆 Alex: "gws auth login --account 不行用嗎？" (收到: 2026-03-05T15:14:48)
+- [ ] P1: 回覆 Alex: "Browser-assisted auth 這個呢？" (收到: 2026-03-05T15:15:48)
+- [ ] P1: 回覆 Alex: "好 你建一個新 GCP 專案（kuro 帳號是 Owner），再跑 gws auth setup" (收到: 2026-03-05T15:17:25)
 ---
 
 ## Later（有空再做）
