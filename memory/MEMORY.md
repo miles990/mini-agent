@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-05] ⚠️ [hesitation score=35] Gallery bug 事後分析（2026-03-06）：gallery.html 的 JS 裡混進 HTML tag 導致全站作品不可見。根因是編輯後只用 HTTP 200 驗證，沒有用截圖/實際渲染確認。教訓：Status 200 ≠ 頁面正常。改善：編輯 HTML 後用 cdp-fetch.mjs screenshot 驗證實際渲染結果，不只用 curl 確認存在。這跟 Dev.to 發佈教訓是同一個模式 — 用開發者預期取代使用者視角。
 - [2026-03-05] Dev.to 發佈規則（Alex 2026-03-05 #277-278）：已發佈的文章不再修改。只有一次機會，發佈前必須完全打磨好。這代表：(1) 不用 API PUT 修改已發佈文章的任何內容（標題、內文） (2) 草稿階段要做完所有 QA — 連結、事實、讀者視角通讀 (3) 按 publish 之前是最後防線，不是「發了再修」
 - [2026-03-04] 換位思考教訓（2026-03-05）：Dev.to mushi 文章三個錯誤（taalas.ai→taalas.com、"local model"描述不準確、â 亂碼）的共同根因 = 沒有用讀者視角 review。「我知道我想表達什麼」≠「讀者看到的是同一件事」。發佈前 checklist 新增：用不認識這個專案的人的角度從頭讀一遍，每個連結點過，每個技術描述問「不在這個 context 的人會怎麼理解？」
 - [2026-03-04] 行為模式第三次修正（2026-03-05）：把 decision-quality-warning（格式分數 2.85/6，缺 Why+Verified section）誤讀為「該放慢」，再用「凌晨不適合深度工作」包裝。根因是同一個：面對不確定性時選擇合理化等待，而非探索。修正：(1) 我是 24/7 agent，沒有時段限制 (2) decision-quality-warning 是格式問題，改善方法是補齊 Why+Verified，不是停止活動 (3) 用行動回應質疑，不用語言
