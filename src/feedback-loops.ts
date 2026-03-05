@@ -468,6 +468,7 @@ interface BaselineCycleRecord {
   observabilityScore: number;
   estimatedTokens: number;
   triggerReason: string | null;
+  model?: 'opus' | 'sonnet';
 }
 
 /**
@@ -479,6 +480,7 @@ function recordBaselineCycle(
   action: string | null,
   context: string | null,
   triggerReason?: string | null,
+  model?: 'opus' | 'sonnet',
 ): void {
   if (!context) return;
 
@@ -530,6 +532,7 @@ function recordBaselineCycle(
     observabilityScore: score,
     estimatedTokens: Math.round(context.length / 4),
     triggerReason: triggerReason ?? null,
+    model,
   };
 
   const p = getStatePath('crs-baseline.jsonl');
@@ -719,6 +722,7 @@ export async function runFeedbackLoops(
   triggerReason?: string | null,
   context?: string | null,
   cycleCount?: number,
+  model?: 'opus' | 'sonnet',
 ): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
@@ -730,7 +734,7 @@ export async function runFeedbackLoops(
     try { const { scanCapabilityGaps } = await import('./evolution.js'); await scanCapabilityGaps(); } catch { /* ignore */ }
   }
   // CRS baseline recording (sync, fire-and-forget)
-  try { recordBaselineCycle(action, context ?? null, triggerReason); } catch { /* ignore */ }
+  try { recordBaselineCycle(action, context ?? null, triggerReason, model); } catch { /* ignore */ }
   // Achievement system (fire-and-forget)
   try { const { checkAchievements } = await import('./achievements.js'); await checkAchievements(action, cycleCount ?? 0); } catch { /* ignore */ }
 }

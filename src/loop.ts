@@ -1455,6 +1455,7 @@ export class AgentLoop {
           source: 'loop',
           onPartialOutput,
           cycleMode,
+          model: modelCliName,
         }),
         concurrentPromise,
       ]);
@@ -1970,9 +1971,21 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）+ deferred flush
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount)
+        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount, modelRoute.model)
           .then(() => { flushFeedbackState(); done(); }, e => { flushFeedbackState(); done(String(e)); });
       }
+
+      // Model outcome tracking（fire-and-forget）
+      try {
+        recordModelOutcome({
+          model: modelRoute.model,
+          cycleMode,
+          triggerReason: currentTriggerReason ?? 'unknown',
+          observabilityScore: 0, // populated by feedback-loops if available
+          durationMs: duration,
+          timestamp: new Date().toISOString(),
+        });
+      } catch { /* best effort */ }
 
       // Action Coach — Haiku behavioral nudges（fire-and-forget, every 3 cycles）
       if (isEnabled('coach')) {
