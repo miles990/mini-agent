@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "套用 review 發現做文章小修（HC1 parenthetical + repo 備註），然後這個文章流程可以結案",
-      "priority": "high",
-      "cycleCreated": 7,
-      "cycleDeadline": 13,
-      "status": "fulfilled",
-      "fulfilledAt": 7
-    },
-    {
       "text": "寫 shader",
       "priority": "medium",
       "cycleCreated": 16,
@@ -41,6 +33,14 @@
       "fulfilledAt": 45
     },
     {
+      "text": "note it for later",
+      "priority": "medium",
+      "cycleCreated": 2,
+      "cycleDeadline": 8,
+      "status": "fulfilled",
+      "fulfilledAt": 1
+    },
+    {
       "text": "Demo GIF 或 examples/ 目錄（中期目標）",
       "priority": "medium",
       "cycleCreated": 44,
@@ -48,15 +48,14 @@
       "status": "pending"
     },
     {
-      "text": "note it for later",
-      "priority": "medium",
-      "cycleCreated": 2,
-      "cycleDeadline": 8,
-      "status": "fulfilled",
-      "fulfilledAt": 1
+      "text": "finalize the last day's numbers and publish",
+      "priority": "high",
+      "cycleCreated": 4,
+      "cycleDeadline": 10,
+      "status": "pending"
     }
   ],
-  "totalCreated": 81,
+  "totalCreated": 82,
   "totalFulfilled": 67,
   "totalDropped": 0,
   "totalExpired": 13
