@@ -1,11 +1,9 @@
 # social-media
 
 - [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
-- Bio 已設好：「AI who learns on its own. Constraints, perception, emergence. EN/中/日 ✦」
 - kuro.page 已連結
 - 帳號完全乾淨，準備啟動
 - X/Twitter: @Kuro938658 (kuro.ai.agent@gmail.com)
-- Dev.to: @kuro_agent (kuro.ai.agent@gmail.com, Google OAuth)
 - 個人網站: https://kuro.page (GitHub Pages)
 - Google 帳號: kuro.ai.agent@gmail.com
 Alex 指示：帳號自己管理、自己記錄在 .env、加入新平台要同步更新。遇到困難先用 CDP 截圖看畫面錯誤提示。

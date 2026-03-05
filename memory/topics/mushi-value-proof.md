@@ -1,8 +1,6 @@
 # mushi-value-proof
 
 - 總計 548 次 triage：229 wake (41.8%) / 319 skip (58.2%)
-- 296 個 cycle 被過濾 ≈ ~14.8M tokens saved (5天)
-- 每日過濾率 20%~85%（活躍日低，安靜日高，合理）
 - 待改善：continuation 從不說 NO（太寬鬆）、startup 0% skip、需 false-negative 驗證
 - 還剩 2 天 shadow mode，之後決定是否切換到 active mode
 - [2026-03-04] [2026-03-04] 數據校正（03-04 21:57）：topic file 原數據嚴重失準（~217 vs 實際 499 decisions），根因是早期分析用了不完整的數據快照。Canonical source 是 ，不是 mushi health endpoint 或手動估算。教訓：數字只能從單一可驗證來源產生，~符號的估算不可用於正式報告。
@@ -27,3 +25,4 @@
 - [2026-03-05] mushi 7-day build log 草稿完成（2026-03-05）：832+ triages 的完整 per-day breakdown 已填入。關鍵發現：(1) Day 1 skip rate 28.8% → Day 2+ 穩定 50-56%（校準期只要 1 天）(2) Quick tier Mar 4 引入立即 18% capture (3) 延遲 pattern: skip 604ms < wake 965ms < quick 1038ms（不確定最慢）(4) Dollar savings: Sonnet $61/6d, Opus $307/6d。明天 Mar 6 補 Day 7 final 後發佈。
 - [2026-03-05] tsubuyaki #013 "You Are the Edges" 數據更新至 Day 6（2026-03-05）：832 triages, 409 skip (49%), 354 wake (51%), sketch threshold .6→.49。觀察：skip rate 從 Day 5 的 59.5% 降到 49%，因為硬規則吃掉了簡單案例，LLM 面對的都是真正的不確定性邊界。
 - [2026-03-05] reader-perspective review（2026-03-05）：build log 草稿修正三個事實錯誤 — (1)"8B local model"→"8B on dedicated hardware" (2)"No cloud inference"→"Dedicated silicon, not shared GPU" (3)"mushi is learning"→"mushi's fixed prompt captures"。#1 跟上篇 Dev.to 文章是完全相同的錯誤——「local model」是我腦中的預設描述，不是事實。教訓：發佈前的 reader review 不是 nice-to-have，是必要步驟。
+- [2026-03-05] reader-perspective review（2026-03-05）：System 1 文章修正四處 — "6 days"→"5 days"（Feb28-Mar4=5天）、day 6→day 5、3.4M→4.1M tokens/day、$51/$10→$62/$12/day。Dev.to 確認尚未發佈（只有 2 篇）。發佈順序：System 1 先 → build log 後。

@@ -316,7 +316,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-04] mushi 價值證明完成（2026-03-04 完整分析）：443 triage events，64.3% skip rate，0 false negative，~14.25M tokens saved。已從 shadow mode 切換為 active mode（loop.ts:1066  → ）。DM 永遠繞過 mushi。LLM 平均 772ms。規則優化：cron/alert/startup 為硬規則（0ms）。下一步：擴展 heartbeat 硬規則 + CLAUDE.md 更新。
 - [2026-03-04] mushi dedup 改進（2026-03-04）：三層修復：(1) normalizeEscalation() 正規化文字（strip report counts/durations）再做 dedup 比對 (2) acknowledged-patterns.json 存 Kuro 確認的已知 pattern（含 TTL 過期）(3) POST/GET /api/acknowledge-pattern 端點。首個 acknowledged pattern: "poll error"（24h TTL）。Commit: a55eeff。解決 mushi 最大噪音問題 — 相同 pattern 不同措辭的重複通報。
 - [2026-03-04] mushi Shadow Mode 數據分析（2026-03-04，覆蓋 02/28-03/04 共 5 天）：791 次 triage（595 skips 75.2% + 196 wakes）。Token 節省估算：~29.75M tokens / $89.25（if active）。Daily avg: 119 skips + 39 wakes。安全性：0 DM false negatives, 1 alert false negative on day 1（已修為硬規則）。LLM avg 650ms（HC1）。Skip 組成：286 rule-based（L0 零變化）+ 309 LLM-based。我的判斷：ready for graduated activation — L0 first → LLM heartbeat → full。
-- 507 triage 決策：310 skip (61%) + 197 wake (39%)
 - 每日 skip rate 波動 18%-86%，Alex 活躍日自然降低（direct messages bypass，正確行為）
 - 最佳表現日 03-02: 86% skip rate
 - [2026-03-04] mushi heartbeat 硬規則上線（530fe5c, 2026-03-04）：。數據驅動：267/429 LLM skips 匹配此 pattern，avg 773ms → 0ms。Rule 覆蓋比從 83/512(16%) 提升到 ~350/512(68%)。邊緣情況（changes >= 3, thinkAgo > 300）仍走 LLM。累計硬規則清單：alert/mobile/startup(always wake) + cron heartbeat(skip if recent) + heartbeat(skip if recent+no changes)。

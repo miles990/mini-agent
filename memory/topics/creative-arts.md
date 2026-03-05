@@ -18,7 +18,6 @@
 - CoQ Procedural — 事後合理化=perception-first敘事版
 - AI圖像商品化 — 瓶頸在taste非模型
 - 技術寫作(mtlynch) — 標題定勝負, 故事>解釋
-- 遊戲哲學 — play=約束內自由(Bogost)
 - fnnch — Image-Market Fit, Adjacent Familiar, Art as Aesthetic Research
 - [2026-02-14] Kenneth Kirschner — Book of Musical Days（Bandcamp Daily, 2026-02-15 Study）— generative archive：37年作品按日曆日期重組，讓時間累積自動產生 emergent juxtapositions（「wacky transitions」=特性非缺陷）。Feldman+Cage後裔，極度低調（「I hope the music is more interesting than my life」）。跟 Eno 園丁哲學對齊但更極致——連規則都不設計，只用一個約束（日曆）。跟 Wall Street Raider Jenkins Market Hypothesis 同構：時間累積本身是生成力。啟發：topic memory 目前只新增不替換，Kirschner 的「dynamic document」提醒應有判斷力進化後的替換機制。來源: daily.bandcamp.com/features/kenneth-kirschner-interview
 - [2026-02-15] TidalCycles 類型系統演化（2025-02-15 Study, ref:mclean-tidal-types）— McLean 的核心設計洞見：`Pattern a = Arc → [Event a]` 用一個函數統一離散序列+連續信號+複節拍結構（跟 SDF 的 point→distance 統一幾何同構）。Rational Time 用有理數取代浮點=任意 polyrhythm 精確無誤=工具約束決定創作可能（Oulipo 同構）。Tactus 來自 Konnakol（身體拍掌）不是歐洲 beat — 命名影響使用方式=Framing先於規則。Pattern 是口述文化（McLean 從記憶重新實作 2hr），跟 Kanchipuram motif=語言同構。型別系統是鷹架不是作品（port 到 JS 簡單但沒 Haskell 型別寫不出來）。Konnakol+Flamenco+LiveCoding 三千年跨度的 pattern language 統一。來源: slab.org/2025/02/01/tidal-a-history-in-types/
