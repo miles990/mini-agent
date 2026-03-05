@@ -68,7 +68,7 @@ Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, con
 - `maxTurns`（選填）— 最大輪數，預設 5，上限 10
 
 **安全約束**：
-- 最多 2 個同時執行，超過自動排隊
+- 最多 6 個同時執行，超過自動排隊
 - 最長 10 分鐘 hard cap
 - 結果出現在 `<delegation-status>` perception 中
 - 完成後我自己 review，再決定要不要 commit/記憶
