@@ -4,7 +4,7 @@
 
 ## 設計理念
 
-**和主流框架的根本差異**：大部分 AI agent 框架是 goal-driven（給目標、執行步驟）。mini-agent 是 **perception-driven**（先看見環境，再決定做什麼）。AutoGPT/BabyAGI 的最大缺陷是「有手沒有眼」— mini-agent 反過來，感知優先於行動。
+**和主流框架的根本差異**：大部分 AI agent 框架是 goal-driven（給目標、執行步驟）。mini-agent 是 **perception-driven**（先看見環境，再決定做什麼）。AutoGPT/BabyAGI 的最大缺陷是「有手沒有眼」— mini-agent 反過來，感知優先於行動。行為模式像黏菌（Physarum polycephalum）：核心感知環境，同時向多個方向伸出觸手探索，找到養分就吸收強化該路徑，沒養分就修剪撤回 — 有機的並行，不是機械的排程。
 
 **和平台型 Agent（OpenClaw 等）的差異**：
 - 平台型：Agent 在平台上運行，平台管理身份/記憶/安全
@@ -21,13 +21,14 @@
 | File = Truth | 檔案是唯一真相來源 |
 | Identity-Driven | SOUL.md 定義 Agent 身份、興趣、觀點（不只是工具，是有成長軌跡的存在） |
 | Perception-First | 環境驅動行動，非目標驅動。Plugins 定義 Agent 的 Umwelt（感知世界） |
+| Organic Parallelism | 像黏菌（Physarum）一樣有機並行 — 同時多觸手探索，獲取養分後吸收強化，無養分則修剪撤回 |
 | Transparency > Isolation | 可讀可審計的信任模型（personal agent 不需要 sandbox） |
 | Smart Guidance | 核心行為：始終提供可行動的狀態感知指引 |
 | Reactive | 主動偵測環境變化，自動建立任務 |
 | Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環（L1→L2→L3 安全閘門） |
-| Positive Feedback Loop | 感知 → 學習 → 行動 → 強化感知 |
+| Positive Feedback Loop | 感知 → 探索 → 獲取養分 → 吸收 → 強化感知 → 修剪低價值路徑 |
 | Best Tool for the Job | 有更好的工具就用更好的。記住經驗，不要因為習慣而用次優方案 |
-| Balanced Complexity | ~3k 行 TypeScript（AutoGPT 181k 行太膨脹，BabyAGI 140 行太簡） |
+| Balanced Complexity | ~25k 行 TypeScript（AutoGPT 181k 行太膨脹，BabyAGI 140 行太簡） |
 
 ## 三層架構
 
@@ -283,18 +284,33 @@ GitHub Issues 作為統一追蹤點，機械步驟自動化 + 判斷步驟由 Ku
 
 ## Multi-Lane Architecture
 
-從 OODA-Only 演進為通用多工架構。一個身份（Kuro）、多條執行 lane。
+從 OODA-Only 演進為有機並行架構。像黏菌（Physarum）一樣探索環境 — 同時向多個方向伸出觸手，找到養分的路徑強化，沒養分的撤回修剪。一個身份（Kuro）、多條執行 lane。
+
+### 黏菌模型
+
+```
+        ┌─ tentacle: research A ──→ 有養分 → 強化（深入學習）
+        ├─ tentacle: research B ──→ 沒養分 → 修剪（撤回）
+核心 ───├─ tentacle: learn C ─────→ 有養分 → 強化（REMEMBER + 下一波探索）
+        ├─ tentacle: code D ──────→ 完成 → 吸收結果
+        └─ tentacle: learn E ─────→ timeout → 修剪
+```
+
+**探索**：每個 cycle 主動考慮「有哪些方向可以同時探索？」，用滿 6 條觸手。
+**前進**：觸手回報有價值的結果 → 主 cycle 判斷 → 強化該方向（更多 delegation、深度學習、REMEMBER）。
+**修剪**：timeout、空結果、低價值 → 自然撤回，不浪費資源。
+**反模式**：一個 cycle 只做一件事，background lane 全空 = 黏菌只伸一條觸手。
 
 ### Lane 概覽
 
 | Lane | 用途 | Max Concurrent | Context 深度 |
 |------|------|---------------|-------------|
-| **Main OODA** (`source: 'loop'`) | 完整 OODA cycle | 1 | Full（perception + memory + skills） |
+| **Main OODA** (`source: 'loop'`) | 核心 — 感知、判斷、方向 | 1 | Full（perception + memory + skills） |
 | **Foreground** (`source: 'foreground'`) | Alex DM 即時回覆（主 cycle 忙時） | 1 | Medium（SOUL + inbox + Chat Room + skills） |
-| **Background** (`<kuro:delegate>`) | 並行子任務（learn/research/review/create/code） | 2 | Minimal（task prompt + optional context） |
+| **Background** (`<kuro:delegate>`) | 觸手 — 並行探索、掃描、建造 | 6 | Minimal（task prompt + optional context） |
 | **Ask** (`source: 'ask'`, `/api/ask`) | 同步快速問答 | 1 | Light（soul + heartbeat + memory head） |
 
-Worst case 並行數：4（main + foreground + 2 background）。
+Worst case 並行數：9（main + foreground + 6 background + ask）。
 
 ### 訊息流
 
@@ -325,9 +341,20 @@ Alex DM 到來時，如果主 cycle 正在跑，走 foreground lane 而非 preem
 - Context: SOUL + inbox + today's Chat Room recent + topic memory + skills
 - 主 cycle 不被打斷，foreground 回覆記錄注入下個 cycle prompt
 
-### Background Lane（`src/delegation.ts`, feature flag: `background-lane`）
+### Background Lane — 觸手（`src/delegation.ts`）
 
-通用子任務委派系統。5 種任務類型，各自帶預設 tools 和 timeout：
+黏菌的觸手。最多 6 條同時伸出，每條獨立探索一個方向。
+
+**生命週期：探索 → 獲取養分 → 吸收 → 修剪**
+
+| 階段 | 發生什麼 |
+|------|---------|
+| **探索（Explore）** | 主 cycle 向多個方向同時 spawn delegation — 搜尋、讀文章、掃來源 |
+| **獲取養分（Forage）** | 觸手獨立工作 — fetch、parse、分析、建造 |
+| **吸收（Absorb）** | 結果回到 `<background-completed>`，主 cycle 判斷價值 → REMEMBER / 深入學習 / 行動 |
+| **修剪（Prune）** | timeout、空結果、低價值 → 自然撤回，24h 後 disk cleanup |
+
+5 種觸手類型：
 
 | Type | Tools | maxTurns | timeout |
 |------|-------|----------|---------|
@@ -337,9 +364,9 @@ Alex DM 到來時，如果主 cycle 正在跑，走 foreground lane 而非 preem
 | `create` | Read,Write,Edit | 5 | 8min |
 | `review` | Bash,Read,Glob,Grep | 3 | 3min |
 
-**安全邊界**：Subprocess 不讀 SOUL.md（`--setting-sources user`）、不寫 `memory/`、不發 Telegram。結果寫 `lane-output/`，由主 cycle 的 Kuro 決定是否 REMEMBER/CHAT。
+**安全邊界**：觸手沒有身份 — 不讀 SOUL.md、不寫 `memory/`、不發 Telegram。結果寫 `lane-output/`，由核心的 Kuro 決定吸收什麼。
 
-**結果合併**：`buildContext()` 掃 `lane-output/` → `<background-completed>` section（上限 2000 chars）。主 cycle 處理完後清理。
+**結果合併**：`buildContext()` 掃 `lane-output/` → `<background-completed>` section（上限 2000 chars）。主 cycle 吸收完後清理。
 
 ### Dispatcher（Tag Processor）
 

@@ -1,5 +1,8 @@
 # mini-agent
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
+
 **The AI agent that sees before it acts.**
 
 Most AI agent frameworks are goal-driven — "give me a goal, I'll execute steps." mini-agent is perception-driven — it sees the environment first, then decides what to do. AutoGPT/BabyAGI's biggest flaw was "hands without eyes." mini-agent flips it: perception before action.
@@ -17,6 +20,36 @@ mini-agent              # Interactive chat (auto-creates config)
 mini-agent up -d        # Start in background
 mini-agent status       # Check what's happening
 ```
+
+## What a Cycle Looks Like
+
+The agent runs autonomously. Here's a typical cycle:
+
+```
+── Perceive ─────────────────────────────────
+  <workspace> 2 files changed: src/auth.ts, src/api.ts </workspace>
+  <docker> container "redis" unhealthy (OOM) </docker>
+
+── Decide ───────────────────────────────────
+  Redis OOM is blocking the API. Fix infrastructure first.
+
+── Act ──────────────────────────────────────
+  Restarted redis with --maxmemory 256mb. API responding.
+  Notified via Telegram: "Redis was OOM, restarted with memory limit."
+```
+
+Each cycle: perceive → decide → act. No human prompt needed.
+
+## What Makes It Different
+
+| | Platform Agents | Goal-Driven (AutoGPT) | mini-agent |
+|---|---|---|---|
+| **Core idea** | Agents on a platform | Goal in, steps out | See first, then act |
+| **Identity** | Platform-assigned | None | SOUL.md — personality, growth |
+| **Memory** | Platform DB | Vector DB | Markdown files (human-readable) |
+| **Perception** | Platform APIs | Minimal | Shell scripts — anything is a sense |
+| **Security** | Sandbox | Varies | Transparency > Isolation |
+| **Complexity** | Heavy | 181K lines (AutoGPT) | ~25K lines TypeScript |
 
 ## How It Works
 
@@ -71,7 +104,7 @@ perception:
       script: ./plugins/my-sensor.sh
 ```
 
-Included: workspace changes, Docker, Chrome CDP, Telegram inbox, mobile GPS, GitHub issues/PRs, and [15+ more](plugins/).
+Included: workspace changes, Docker, Chrome CDP, Telegram inbox, mobile GPS, GitHub issues/PRs, and [30+ more](plugins/).
 
 ## Skills (Markdown Modules)
 
@@ -108,17 +141,6 @@ agents:
       - ./skills/docker-ops.md
 ```
 
-## What Makes It Different
-
-| | Platform Agents | Goal-Driven (AutoGPT) | mini-agent |
-|---|---|---|---|
-| **Core idea** | Agents on a platform | Goal in, steps out | See first, then act |
-| **Identity** | Platform-assigned | None | SOUL.md — personality, growth |
-| **Memory** | Platform DB | Vector DB | Markdown files (human-readable) |
-| **Perception** | Platform APIs | Minimal | Shell scripts — anything is a sense |
-| **Security** | Sandbox | Varies | Transparency > Isolation |
-| **Complexity** | Heavy | 181K lines (AutoGPT) | ~3K lines TypeScript |
-
 ## Key Features
 
 - **OODA Loop** — Autonomous cycle with adaptive intervals
@@ -148,12 +170,10 @@ GET  /memory          # Read memory
 GET  /memory/search   # FTS5 search
 ```
 
-[Full API reference →](CLAUDE.md#api-endpoints)
-
 ## Requirements
 
 - Node.js 20+
-- Claude CLI (`claude` command)
+- [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
 - Chrome (optional, for web access via CDP)
 
 ## Philosophy
@@ -168,8 +188,11 @@ The agent's world is defined by its perception plugins — its [Umwelt](https://
 
 - [CLAUDE.md](CLAUDE.md) — Full architecture reference
 - [memory/ARCHITECTURE.md](memory/ARCHITECTURE.md) — Detailed system design
+- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
 - [plugins/](plugins/) — All perception plugins
 - [skills/](skills/) — All skill modules
+
+[Full architecture reference →](CLAUDE.md)
 
 ## License
 
