@@ -75,7 +75,7 @@ A fast, lightweight model (Llama 3.1 8B on [Taalas HC1](https://taalas.com), a d
 - "3 perception changes detected" → Is this routine drift or something actionable?
 - "Cron: check heartbeat" → Did Kuro already handle this recently?
 
-The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: ~800ms overall (up to 1.2s under load). Cost: effectively $0 (dedicated hardware).
+The model sees a compressed snapshot — not the full 50K-token context, just enough to pattern-match. Average latency: ~800ms (P99 under 3s). Cost: effectively $0 (dedicated hardware).
 
 ### Tier 3: Full Wake (System 2)
 
