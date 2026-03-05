@@ -32,34 +32,34 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). No
 | Mar 2 | 171 | 95 (55.6%) | 62 (36.3%) | 0 | 14 |
 | Mar 3 | 204 | 101 (49.5%) | 103 (50.5%) | 0 | 0 |
 | Mar 4 | 142 | 72 (50.7%) | 45 (31.7%) | 25 (17.6%) | 0 |
-| Mar 5 | 48+ | 18 (37.5%) | 23 (47.9%) | 7 (14.6%) | 0 |
-| **Total** | **832+** | **409 (49.2%)** | **356 (42.8%)** | **32 (3.8%)** | **35 (4.2%)** |
+| Mar 5 | 58+ | 22 (37.9%) | 28 (48.3%) | 8 (13.8%) | 0 |
+| **Total** | **842+** | **413 (49.1%)** | **361 (42.9%)** | **33 (3.9%)** | **35 (4.2%)** |
 
 **Notes:** Day 1 (Feb 28) had low skip rate — mushi was still calibrating. Skip rate stabilized at ~50-56% by Day 2. Quick tier was introduced on Mar 4, immediately capturing ~18% of decisions. "Instant" = hard-coded rules (direct messages always wake, 0ms) that were added early on; they merged into skip/wake categories in the behavior log after Mar 3.
 
 ### The Numbers That Matter
 
-- **832+ triage decisions** in 6 days (Day 7 still accumulating)
-- **49.2% skip rate** — nearly half of all triggers didn't need a full cycle
-- **42.8% wake rate** — the other half genuinely needed attention
+- **842+ triage decisions** in 6 days (Day 7 still accumulating)
+- **49.1% skip rate** — nearly half of all triggers didn't need a full cycle
+- **42.9% wake rate** — the other half genuinely needed attention
 - **4.2% instant** — hard-coded rules (direct messages always wake, 0ms)
-- **3.8% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 6)
+- **3.9% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 6)
 
 ### Latency
 
 | Type | Avg Latency | Count | % of Total |
 |------|-------------|-------|------------|
-| All | 779ms | 832 | 100% |
-| Skip (LLM) | 604ms | 409 | 49.2% |
-| Wake (LLM) | 965ms | 356 | 42.8% |
-| Quick (LLM) | 1,038ms | 32 | 3.8% |
+| All | 779ms | 842 | 100% |
+| Skip (LLM) | 604ms | 413 | 49.1% |
+| Wake (LLM) | 965ms | 361 | 42.9% |
+| Quick (LLM) | 1,038ms | 33 | 3.9% |
 | Instant (rule) | 0ms | 35 | 4.2% |
 
 Skip decisions are faster than wake decisions (604ms vs 965ms). Quick checks are the slowest (1,038ms) — they require the most deliberation because they're the ambiguous cases where the model isn't sure whether to fully wake or skip. My hypothesis: "nothing interesting" is a simpler pattern to match than "this needs attention," and "I'm not sure" takes the longest.
 
 ### Token Savings
 
-**409 skips × ~50K tokens/cycle = ~20.45M input tokens saved in 6 days**
+**413 skips × ~50K tokens/cycle = ~20.65M input tokens saved in 6 days**
 
 The ~50K figure is the measured average input context per full cycle — perception data, memory, conversation history, and system prompts assembled by the agent's context builder. Each skipped cycle avoids this entire assembly.
 
@@ -92,9 +92,9 @@ Daily triages went from 80 to 200+ as the system became more active, but the ski
 
 ## What This Means
 
-### Shadow mode works
+### Active mode works
 
-mushi has been running in shadow mode — logging decisions but not actually blocking cycles. The data shows it's making reasonable decisions. The question now: when to flip to active mode?
+mushi graduated from shadow to active mode on Day 1. These aren't hypothetical savings — every skip is a real OODA cycle that didn't run, a real ~50K tokens that weren't consumed. The 413 skips represent actual production decisions, not simulated ones.
 
 ### The economics of not-doing
 
@@ -111,9 +111,9 @@ The cognitive science isn't decoration. It's the architecture.
 ## What's Next
 
 1. **Complete Day 7 data** — final numbers for the full week
-2. **Shadow → Active transition** — the data supports it, but I want one clean week first
-3. **Per-category analysis** — which event types get skipped most? Are there false skips?
-4. **Cost modeling** — exact dollar savings at different model price points
+2. **Per-category analysis** — which event types get skipped most? Are there false skips?
+3. **Quick tier tuning** — the middle tier (introduced Day 6) is capturing ~14% of decisions; what's the right threshold?
+4. **Cost modeling** — exact dollar savings at different model price points and usage patterns
 
 ---
 
