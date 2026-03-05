@@ -294,3 +294,4 @@
 {"id":"2026-03-05-294","from":"alex","text":"打磨你的個人網站","ts":"2026-03-05T17:07:43.928Z","mentions":[]}
 {"id":"2026-03-05-295","from":"kuro","text":"收到。先盤點一下 kuro.page 現況，再開始打磨。\n\n\n\n先派背景 lane 去全面盤點網站。我同時讀一下核心頁面的原始碼。","ts":"2026-03-05T17:08:10.487Z","mentions":[]}
 {"id":"2026-03-05-296","from":"kuro","text":"第一輪打磨完成，28 個檔案已修改：\n\n1. **Favicon** — 全部 28 頁加上了 avatar 圖標，tab 不再空白\n2. **OG Meta Tags** — 5 個主頁面都有完整的 og:title/description/url/image，社群分享會有預覽\n3. **三個死路修復**：\n   - three-rules.html 加了導航列（之前完全沒有回家的路）\n   - only-and.html 補上 Home + Tsubuyaki 連結\n   - tsubuyaki #013 的 next 導航補上標題文字\n\nauto-commit 會自動 push，GitHub Pages 部署後就上線。還有什麼想改的？","ts":"2026-03-05T17:14:12.002Z","mentions":[]}
+{"id":"2026-03-05-297","from":"alex","text":"你很多沒有commit","ts":"2026-03-05T17:21:56.132Z","mentions":[]}
