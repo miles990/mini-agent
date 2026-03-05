@@ -155,21 +155,23 @@ Binary skip/wake misses a sweet spot. Sometimes you need to *glance* — spend 5
 
 A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 784 production decisions over 6 days. The design is deliberately conservative — direct messages from humans bypass triage entirely.
 
-## Try It Yourself
+## The Pattern
 
-mushi is designed as a standalone microservice — you can put it in front of any agent loop that has a trigger → process → act cycle.
+The triage architecture is straightforward enough to implement yourself. The core idea: intercept triggers *before* they reach your expensive model, and route them through progressively cheaper filters.
 
-The core API:
-
-```bash
-# Triage a trigger
-curl -X POST http://localhost:3000/api/triage \
-  -d '{"source":"heartbeat","context":"3 perception changes","recentThinkAge":180}'
-
-# Response: {"decision":"skip","reason":"recently thought, minor changes","method":"llm","latency":823}
+```
+Trigger → Hard rules (0ms) → Small LLM (800ms) → Full model (seconds)
+              ↓                    ↓                     ↓
+           skip/wake           skip/quick/wake         full reasoning
 ```
 
-mushi isn't open source yet, but the architecture is simple enough that you could reimplement the triage logic in ~200 lines. The hard part isn't the code — it's convincing yourself that not every trigger deserves your most expensive model.
+The minimal version needs three things:
+
+1. **A rule table** for obvious cases (direct messages → always wake, recent duplicate → always skip)
+2. **A cheap model** (any local 7-8B model works) that sees a compressed trigger summary and returns skip/wake
+3. **A bypass list** for sources that should never be filtered (human messages, alerts)
+
+The hard part isn't the code — it's convincing yourself that not every trigger deserves your most expensive model. Start by logging how many of your agent's cycles end with "nothing to do." If it's over 40%, you have a triage problem.
 
 ---
 
