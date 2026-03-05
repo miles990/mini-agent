@@ -445,6 +445,19 @@
   }
   .msg-ref:hover { color: var(--fg); border-color: var(--fg-dim); }
 
+  .chat-photo {
+    max-width: min(300px, 100%);
+    border-radius: 8px;
+    margin: 4px 0;
+    cursor: pointer;
+    display: block;
+  }
+  .chat-link {
+    color: var(--claude);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
   .reply-indicator {
     display: flex;
     align-items: center;
@@ -829,6 +842,16 @@
   // === Helpers ===
   function formatText(text) {
     let html = esc(text);
+    // [Photo: media/xxx.jpg] → inline image
+    html = html.replace(
+      /\[Photo: media\/([\w\-]+\.(?:jpg|jpeg|png|gif|webp))\]/gi,
+      '<img class="chat-photo" src="/api/media/$1" alt="photo" loading="lazy" onclick="window.open(this.src)">'
+    );
+    // URLs → clickable links
+    html = html.replace(
+      /(https?:\/\/[^\s<>&"']+)/g,
+      '<a href="$1" target="_blank" rel="noopener" class="chat-link">$1</a>'
+    );
     // @mentions
     html = html.replace(/@kuro/g, '<span class="mention kuro">@kuro</span>');
     html = html.replace(/@alex/g, '<span class="mention alex">@alex</span>');
