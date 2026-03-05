@@ -61,3 +61,26 @@ if [ -n "$recent" ]; then
         echo "  $line"
     done
 fi
+
+# Show recent conversation context from JSONL (last 8 messages)
+# This gives thread context so Kuro understands what ambiguous messages like "先做" refer to
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+TODAY=$(date -u +%Y-%m-%d)
+CONV_FILE="$PROJECT_DIR/memory/conversations/$TODAY.jsonl"
+
+if [ -f "$CONV_FILE" ] && [ "$pending" -gt 0 ]; then
+    echo ""
+    echo "--- Recent conversation (thread context) ---"
+    tail -8 "$CONV_FILE" 2>/dev/null | while IFS= read -r line; do
+        from=$(echo "$line" | sed -n 's/.*"from":"\([^"]*\)".*/\1/p')
+        id=$(echo "$line" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+        text=$(echo "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p' | head -c 150)
+        reply=$(echo "$line" | sed -n 's/.*"replyTo":"\([^"]*\)".*/\1/p')
+        if [ -n "$from" ] && [ -n "$text" ]; then
+            reply_hint=""
+            [ -n "$reply" ] && reply_hint=" ↩$reply"
+            echo "  [$id] $from$reply_hint: $text"
+        fi
+    done
+fi
