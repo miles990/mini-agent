@@ -30,6 +30,7 @@
   Done when: `gws auth login` 成功 + 可執行 gws 命令
   Verify: gws version 2>/dev/null && echo "ok"
 - [ ] P1: 回覆 Alex: "是這個嗎？選哪一個？ [Photo: media/photo_12148.jpg]" (收到: 2026-03-05T15:43:24)
+- [ ] P1: 回覆 Alex: "這樣沒錯吧？ [Photo: media/photo_12151.jpg]" (收到: 2026-03-05T15:45:34)
 ---
 
 ## Later（有空再做）

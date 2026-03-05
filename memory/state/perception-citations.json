@@ -1,11 +1,11 @@
 {
-  "cycleCount": 1544,
+  "cycleCount": 1545,
   "citations": {
     "telegram-inbox": 83,
     "claude-code-inbox": 2,
     "self-awareness": 13,
     "plugin-name": 1,
-    "inner-voice": 80,
+    "inner-voice": 81,
     "temporal": 17,
     "rumination-digest": 34,
     "memory": 7,
@@ -50,7 +50,7 @@
     "img": 1,
     "stale-tasks": 1,
     "recent-activity": 1,
-    "delegation-status": 2,
+    "delegation-status": 3,
     "working-memory": 2,
     "structural-health": 1
   },
