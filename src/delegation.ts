@@ -180,15 +180,38 @@ export function listTasks(options?: { includeCompleted?: boolean }): TaskResult[
 }
 
 /**
- * Cleanup completed tasks older than 24h.
+ * Cleanup completed tasks older than 24h (in-memory + disk).
  */
 export function cleanupTasks(): void {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+
+  // Clean in-memory map
   for (const [id, result] of completedTasks) {
     if (result.completedAt && new Date(result.completedAt).getTime() < cutoff) {
       completedTasks.delete(id);
     }
   }
+
+  // Clean disk: remove delegation directories older than 24h
+  try {
+    const instanceId = getCurrentInstanceId();
+    const delegationsDir = path.join(getInstanceDir(instanceId), 'delegations');
+    if (!fs.existsSync(delegationsDir)) return;
+
+    for (const entry of fs.readdirSync(delegationsDir)) {
+      if (!entry.startsWith('del-')) continue;
+      // Skip if still active in memory
+      if (activeTasks.has(entry)) continue;
+
+      const dir = path.join(delegationsDir, entry);
+      try {
+        const stat = fs.statSync(dir);
+        if (stat.mtimeMs < cutoff) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      } catch { /* best effort */ }
+    }
+  } catch { /* best effort */ }
 }
 
 // =============================================================================
