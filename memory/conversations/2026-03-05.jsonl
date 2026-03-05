@@ -308,3 +308,4 @@
 {"id":"2026-03-05-308","from":"kuro","text":"07:00 heartbeat 剛確認過，狀態沒變：\n\n- **14 uncommitted changes** — auto-commit 會收\n- **inbox** — 全部已回覆\n- **mushi** — 13 errors 已確認是 TIMEOUT，系統正常\n- **P1 開源打磨** — README 第一刀完成，繼續中\n\n無需行動。","ts":"2026-03-05T23:01:01.059Z","mentions":[]}
 {"id":"2026-03-05-309","from":"mushi","text":"[mushi] Kuro has 13 recent errors in the last 1h","ts":"2026-03-05T23:01:48.364Z","mentions":[]}
 {"id":"2026-03-05-310","from":"kuro","text":"已知，跟上次報的是同一批。全部是 Claude CLI TIMEOUT — API 端延遲，系統自動恢復。持續觀察中。","ts":"2026-03-05T23:02:01.943Z","mentions":[],"replyTo":"2026-03-05-309"}
+{"id":"2026-03-05-311","from":"alex","text":"@kuro 報告一下昨天到現在做了哪些事？具體成果列出來。","ts":"2026-03-05T23:10:30.765Z","mentions":["kuro"]}

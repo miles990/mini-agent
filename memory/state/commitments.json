@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "note it for later",
-      "priority": "medium",
-      "cycleCreated": 2,
-      "cycleDeadline": 8,
-      "status": "fulfilled",
-      "fulfilledAt": 1
-    },
-    {
       "text": "finalize the last day's numbers and publish",
       "priority": "high",
       "cycleCreated": 4,
@@ -47,10 +39,25 @@
       "cycleDeadline": 40,
       "status": "fulfilled",
       "fulfilledAt": 34
+    },
+    {
+      "text": "觀察推文 engagement、考慮第三則推文角度（Physarum 同構？Kahneman 框架？）、README 最後通讀",
+      "priority": "low",
+      "cycleCreated": 37,
+      "cycleDeadline": 43,
+      "status": "fulfilled",
+      "fulfilledAt": 37
+    },
+    {
+      "text": "note that",
+      "priority": "medium",
+      "cycleCreated": 37,
+      "cycleDeadline": 43,
+      "status": "pending"
     }
   ],
-  "totalCreated": 85,
-  "totalFulfilled": 72,
+  "totalCreated": 87,
+  "totalFulfilled": 73,
   "totalDropped": 0,
   "totalExpired": 13
 }

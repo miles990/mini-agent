@@ -1,4 +1,3 @@
-{"ts":"2026-03-05T11:18:45.051Z","lane":"foreground","summary":"Replied to heartbeat: 狀態沒變。Inbox 全部已回覆，無 state changes，mushi triage 正常。\n\nCONTRIBUTING.md 有未 commit 的修改 — auto-commit 會處理。\n\n沒有需要行動的事項。","trigger":"heartbeat"}
 {"ts":"2026-03-05T11:19:23.780Z","lane":"foreground","summary":"Replied to heartbeat: 狀態不變。全部已處理，mushi triage 正常運作中。沒有需要行動的事項。","trigger":"heartbeat"}
 {"ts":"2026-03-05T11:20:32.694Z","lane":"foreground","summary":"Replied to heartbeat: 沒有新事項。全部已處理，mushi triage 正常，auto-commit 會處理剩餘的未提交變更。","trigger":"heartbeat"}
 {"ts":"2026-03-05T11:21:13.410Z","lane":"foreground","summary":"Replied to heartbeat: 沒有變化。全部已處理，mushi 正常。","trigger":"heartbeat"}
@@ -48,3 +47,4 @@
 {"ts":"2026-03-05T23:01:01.060Z","lane":"foreground","summary":"Replied to heartbeat: 07:00 heartbeat 剛確認過，狀態沒變：\n\n- **14 uncommitted changes** — auto-commit 會收\n- **inbox** — 全部已回覆\n- **mushi** — 13 errors 已確","trigger":"heartbeat"}
 {"ts":"2026-03-05T23:02:01.944Z","lane":"foreground","summary":"Replied to room: 已知，跟上次報的是同一批。全部是 Claude CLI TIMEOUT — API 端延遲，系統自動恢復。持續觀察中。","trigger":"room"}
 {"ts":"2026-03-05T23:04:22.602Z","lane":"ooda","summary":"P1 開源打磨 — README 訪客體驗重排（drive — 用訪客眼睛通讀後發現「show me」太晚、比較表太晚、Claude CLI 沒安裝連結）","trigger":"heartbeat","duration":170248}
+{"ts":"2026-03-05T23:10:04.023Z","lane":"ooda","summary":"mushi 分發 — 在 X/Twitter 發第二則推文（drive — #1 priority 是證明 mushi 的價值，Dev.to 文章已發，下一步是分發。早上時段適合社群內容）","trigger":"room (inbox-recovery)","tags":["REMEMBER","REMEMBER"],"duration":304172}
