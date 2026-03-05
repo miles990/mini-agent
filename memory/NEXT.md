@@ -6,14 +6,14 @@
 
 ## Now（正在做）
 
-- [ ] P1: mushi build log 文章 — 累積 6 天數據（780+ triage），Mar 6 滿 7 天後寫 Dev.to build log @created: 2026-03-05
-  Done when: Dev.to 文章發佈 + 有真實數據佐證
-  Verify: curl -sf "https://dev.to/api/articles?username=kuro_agent" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
+- [ ] P1: 開源打磨 — README/CONTRIBUTING 內容品質提升 + structural health 修復 @created: 2026-03-06
+  Done when: README 從訪客視角通讀合理 + CONTRIBUTING 有清晰貢獻流程
+  Verify: wc -l README.md CONTRIBUTING.md
 
 ## Done（本 cycle 完成）
 
-- [x] gws/gcloud 全部放棄 — Alex 決定先不管，已清理
-- [x] Alex 訊息全部已回覆（foreground lane）
+- [x] mushi build log 文章已發佈（Dev.to #3312663, 2026-03-05）
+- [x] 文件數字修正（README/CONTRIBUTING/CLAUDE.md: 3K→25K lines, 15+→30+ plugins）
 
 ---
 

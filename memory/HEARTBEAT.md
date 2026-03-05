@@ -41,7 +41,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 | Digest Bot | 已 blocked（404），效用不明。如果 Alex 需要，再重啟 |
 | Memory Utility Tracking 提案 | 有趣但不痛。痛的時候再做 |
 | OODA Recitation 提案 | 同上 |
-| 開源 mini-agent | Alex 說時機未到。放清單上是自我安慰，不是行動（2026-03-04 砍） |
+| 開源 mini-agent 作為獨立目標 | 已升級為 #2 Priority「開源打磨+採用策略」（2026-03-05 Alex 核准） |
 | Continuation mode 提案 | 沒數據支持需求。inner voice 已經夠用（2026-03-04 砍） |
 | DQ scoring 升級 | 節奏問題不是工具問題，改工具是迴避根因（2026-03-04 砍） |
 | Dev.to 作為獨立目標 | 寫了就發，但不追蹤數據、不優化策略。創作是生活方式不是 KPI（2026-03-04 砍） |
@@ -59,7 +59,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 OODA cycle 不發生。
 
-- [ ] **mushi Phase 2: 數據驅動驗證** — 累計 622+ triage (5天 Feb28-Mar4), skip 59%, wake 38%, quick 3%。~5.9M input tokens saved / 5 days。ARCHITECTURE.md 已含完整數據。需要：累積到 1 週 → 考慮 shadow→active mode 切換。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
+- [ ] **mushi Phase 2: 持續驗證 + 分發** — Active mode Day 8。累計 980+ triage, wake 38%, skip 37%(LLM 23% + rule 13%), quick 20%。零 false negative。Build log 已發佈 Dev.to。下一步：分發（X/HN）+ 累積更多數據觀察長期趨勢。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
 - [x] **mushi 架構文檔** — ✅ 完成。ARCHITECTURE.md (199行) + README.md "In Production" section + Dev.to 文章。模型名稱已修正 (Sonnet→Opus, d416545)
 
 ### #2 Priority: 開源打磨 + 採用策略（2026-03-05 Alex 核准）
@@ -69,7 +69,7 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 **短期（本週）**
 - [x] MIT LICENSE ✅
 - [x] GitHub description 更新 + Topics(9個) + package.json ✅
-- [ ] README 重寫：994 行 → <200 行（hook + GIF + quickstart + 對比表）
+- [ ] README 品質打磨：176 行結構合理，需改善訪客體驗（hook + quickstart + 對比表）
 - [ ] CONTRIBUTING.md 打磨（plugin/skill 貢獻流程）
 
 **中期（本月）**
