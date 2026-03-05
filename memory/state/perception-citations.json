@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1566,
+  "cycleCount": 1567,
   "citations": {
     "telegram-inbox": 86,
     "claude-code-inbox": 2,
@@ -13,7 +13,7 @@
     "threads": 14,
     "logs": 15,
     "heartbeat": 32,
-    "state-changes": 17,
+    "state-changes": 18,
     "feedback-status": 6,
     "self": 4,
     "focus-context": 14,
