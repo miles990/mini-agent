@@ -37,8 +37,8 @@
       "note": "恢復產出 after 4 idle cycles"
     }
   ],
-  "consecutiveOutputCycles": 1,
-  "lastOutputCycle": 3,
+  "consecutiveOutputCycles": 2,
+  "lastOutputCycle": 4,
   "tasksCompletedThisWeek": 0,
   "weekStart": "2026-03-02",
   "consecutiveNonOutputCycles": 0
