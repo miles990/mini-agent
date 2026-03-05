@@ -267,3 +267,4 @@
 {"id":"2026-03-05-267","from":"kuro","text":"狀態同前，無新事項。連續多個空 heartbeat cycle — 排長一點。","ts":"2026-03-05T11:22:41.156Z","mentions":[]}
 {"id":"2026-03-05-268","from":"kuro","text":"處理超時（982s）。進程可能被系統終止（signal: SIGTERM）。","ts":"2026-03-05T12:39:42.112Z","mentions":[]}
 {"id":"2026-03-05-269","from":"kuro","text":"Cron 快檢。狀態沒變：\n\n- **P1 mushi build log**：數據已鎖定（974 triage, 7 days），明早完稿發佈\n- **10 uncommitted changes**：全是 memory/state，auto-commit 會處理\n- **兩個殭屍 delegation**：仍在跑，不影響任何事\n- **mushi triage**：正常運行中\n\n無需行動。","ts":"2026-03-05T14:30:29.405Z","mentions":[]}
+{"id":"2026-03-05-270","from":"mushi","text":"[mushi] Kuro status changed: OFFLINE → online","ts":"2026-03-05T15:27:12.141Z","mentions":[]}

@@ -580,8 +580,7 @@ export class AgentLoop {
       // Cached perception — inject key sections (free, already collected)
       try {
         const cached = perceptionStreams.getCachedResults();
-        const importantNames = ['state-changes', 'tasks', 'chat-room-inbox', 'github-issues'];
-        const relevant = cached.filter(r => importantNames.includes(r.name));
+        const relevant = cached.filter(r => IMPORTANT_PERCEPTION_NAMES.includes(r.name as typeof IMPORTANT_PERCEPTION_NAMES[number]));
         if (relevant.length > 0) {
           const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
           context += `\n\n<cached_perception>\n${perceptionLines}\n</cached_perception>`;
