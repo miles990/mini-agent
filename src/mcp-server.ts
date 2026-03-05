@@ -148,6 +148,22 @@ async function main() {
   );
 
   server.tool(
+    'agent_activity',
+    `Get ${agentName}'s recent activity timeline (cross-lane: OODA, foreground, background, ask)`,
+    { limit: z.number().optional().describe('Number of entries to return (default: 20, max: 50)') },
+    async ({ limit }) => {
+      try {
+        const l = limit ?? 20;
+        const data = await agentGet(`/api/activity?limit=${l}`) as { entries?: unknown[]; count?: number };
+        if (!data?.entries?.length) return textResult('No recent activity.');
+        return textResult(JSON.stringify(data.entries, null, 2));
+      } catch (e) {
+        return errorResult(`Failed to get activity: ${e instanceof Error ? e.message : e}`);
+      }
+    },
+  );
+
+  server.tool(
     'agent_memory_search',
     `Search ${agentName}'s memory (topics, MEMORY.md, etc.)`,
     { query: z.string().describe('Search query') },

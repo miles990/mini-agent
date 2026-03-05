@@ -55,7 +55,7 @@ import { perceptionStreams } from './perception-stream.js';
 import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
-import { initActivityJournal, writeActivity } from './activity-journal.js';
+import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1638,6 +1638,13 @@ export function createApi(port = 3001): express.Express {
   // =============================================================================
   // Dashboard
   // =============================================================================
+
+  // Activity Journal API — 跨 lane 活動時間線
+  app.get('/api/activity', (_req: Request, res: Response) => {
+    const limit = Math.min(parseInt(_req.query.limit as string || '20', 10), 50);
+    const entries = readRecentActivity(limit);
+    res.json({ entries, count: entries.length });
+  });
 
   // Learning digest API — 從 behavior log 提取每日學習心得
   app.get('/api/dashboard/learning', (req: Request, res: Response) => {

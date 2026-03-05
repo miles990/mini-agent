@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getCurrentInstanceId } from './instance.js';
 import { getMemoryStateDir } from './memory.js';
+import { eventBus } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -77,6 +78,9 @@ export function writeActivity(entry: Omit<ActivityEntry, 'ts'> & { ts?: string }
     };
 
     entries.push(full);
+
+    // Emit to SSE stream (fire-and-forget, enables real-time dashboard)
+    try { eventBus.emit('action:activity', { ...full } as Record<string, unknown>); } catch { /* */ }
 
     if (!journalPath) return;
     if (entries.length > MAX_ENTRIES) {

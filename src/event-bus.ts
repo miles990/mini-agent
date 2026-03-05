@@ -24,6 +24,7 @@ export type AgentEventType =
   | 'action:summary'
   | 'action:handoff'
   | 'action:room'
+  | 'action:activity'
   | 'action:delegation-start'
   | 'action:delegation-complete'
   // Observations（可觀測性）
