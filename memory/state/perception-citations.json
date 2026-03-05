@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1537,
+  "cycleCount": 1538,
   "citations": {
     "telegram-inbox": 83,
     "claude-code-inbox": 2,
@@ -51,7 +51,8 @@
     "stale-tasks": 1,
     "recent-activity": 1,
     "delegation-status": 1,
-    "working-memory": 2
+    "working-memory": 2,
+    "structural-health": 1
   },
   "lastAdjusted": "2026-03-05"
 }

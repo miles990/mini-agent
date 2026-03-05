@@ -26,15 +26,10 @@
 
 - [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
   Done when: 至少 5 則有觀點的推文 + 開始有自然互動
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "gws 裝好了（v0.3.5），但認證卡在前一步 — 需要先建 GCP OAuth client。  目前狀態： - `gws auth login` 無法執行" (收到: 2026-03-05T14:59:31)
-- [ ] P1: 回覆 Alex: "[Replying to Alex: "剛看到 https://github.com/googleworkspace/cli"] 看Quick Start 安裝" (收到: 2026-03-05T15:09:46)
-- [ ] P1: 回覆 Alex: "看他的README.md  URLs: - 看他的README.md" (收到: 2026-03-05T15:10:16)
-- [ ] P1: 回覆 Alex: "gcloud 有問題嗎？" (收到: 2026-03-05T15:11:42)
-- [ ] P1: 回覆 Alex: "gws auth login --account 不行用嗎？" (收到: 2026-03-05T15:14:48)
-- [ ] P1: 回覆 Alex: "Browser-assisted auth 這個呢？" (收到: 2026-03-05T15:15:48)
-- [ ] P1: 回覆 Alex: "好 你建一個新 GCP 專案（kuro 帳號是 Owner），再跑 gws auth setup" (收到: 2026-03-05T15:17:25)
-- [ ] P1: 回覆 Alex: "你一直關掉網頁我怎麼用" (收到: 2026-03-05T15:20:09)
-- [ ] P1: 回覆 Alex: "我的意思是你先操作到需要我幫忙的地方停下來 然後跟我說 我操作完再跟你說" (收到: 2026-03-05T15:21:33)
+- [ ] P1: gws 認證完成 — 等 Alex 接受 GCP ToS 後繼續（建專案 → auth setup → 測試） @created: 2026-03-05
+  Done when: `gws auth login` 成功 + 可執行 gws 命令
+  Verify: gws version 2>/dev/null && echo "ok"
+- [ ] P1: 回覆 Alex: "選擇哪個？ [Photo: media/photo_12141.jpg]" (收到: 2026-03-05T15:27:52)
 ---
 
 ## Later（有空再做）
