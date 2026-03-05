@@ -55,6 +55,7 @@ import {
 import { cleanupTasks as cleanupDelegations, spawnDelegation } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
+import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -1425,6 +1426,18 @@ export class AgentLoop {
 
       // JIT skill loading: use triage intent if available, fallback to heuristic
       const cycleMode = cycleIntent?.mode ?? this.detectCycleMode(context, currentTriggerReason);
+
+      // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
+      const modelRoute = routeModel({
+        triggerReason: currentTriggerReason,
+        cycleMode,
+        hasDirectMessage: !!isDirectMessage,
+        hasInbox: inboxItems.length > 0,
+      });
+      const modelCliName = getModelCliName(modelRoute.model);
+      if (modelRoute.model === 'sonnet') {
+        slog('MODEL', `→ Sonnet (${modelRoute.reason})`);
+      }
 
       // Phase 2: Concurrent Action — run perception refresh + housekeeping during Claude await
       const concurrentPromise = isEnabled('concurrent-action')

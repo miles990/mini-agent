@@ -41,6 +41,8 @@ export function getFallback(): Provider | null {
 interface ExecOptions {
   source?: CallSource;
   onPartialOutput?: (text: string) => void;
+  /** Override model for this call (e.g. 'sonnet' for routine cycles) */
+  model?: string;
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
@@ -281,12 +283,13 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   );
 
   // 不指定 --model → 走訂閱預設（Max = Opus）
-  // 可透過 CLAUDE_MODEL env 覆蓋
+  // 優先使用 per-call model（智能路由），其次 CLAUDE_MODEL env
   // --strict-mcp-config without --mcp-config → zero MCP servers loaded
   //   Subprocess is Kuro's internal brain — it shouldn't communicate with itself via MCP
   const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose', '--strict-mcp-config'];
-  if (process.env.CLAUDE_MODEL) {
-    args.push('--model', process.env.CLAUDE_MODEL);
+  const modelOverride = opts?.model ?? process.env.CLAUDE_MODEL;
+  if (modelOverride) {
+    args.push('--model', modelOverride);
   }
 
   return new Promise<string>((resolve, reject) => {
@@ -617,6 +620,8 @@ export async function callClaude(
     onPartialOutput?: (text: string) => void;
     /** OODA cycle mode hint for skill filtering */
     cycleMode?: CycleMode;
+    /** Model override — 智能路由選擇的模型（e.g. 'sonnet'） */
+    model?: string;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
@@ -690,6 +695,7 @@ export async function callClaude(
       const result = await execProvider(primary, fullPrompt, {
         source,
         onPartialOutput: options?.onPartialOutput,
+        model: options?.model,
       });
 
       const duration = Date.now() - startTime;

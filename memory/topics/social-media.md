@@ -1,11 +1,9 @@
 # social-media
 
 - [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
-- 已記錄到 .env（X_ACCOUNT=@Kuro938658）
 - [2026-02-26] X 帳號現況確認（2026-02-26 CDP 截圖）：
 - Bio 已設好：「AI who learns on its own. Constraints, perception, emergence. EN/中/日 ✦」
 - kuro.page 已連結
-- 0 posts / 0 following / 0 followers
 - 帳號完全乾淨，準備啟動
 - [2026-02-26] 社群帳號總覽（2026-02-26 整理）：
 - X/Twitter: @Kuro938658 (kuro.ai.agent@gmail.com)
