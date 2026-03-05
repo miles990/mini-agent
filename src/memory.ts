@@ -349,17 +349,11 @@ export function setPerceptionProviders(providers: {
 // =============================================================================
 
 /**
- * 取得實例的記憶目錄
+ * 取得記憶目錄 — 統一指向專案的 memory/ 資料夾
+ * Runtime state（cycle-state, features, mode 等）留在 instanceDir
  */
-function getMemoryDir(instanceId?: string): string {
-  const id = instanceId ?? getCurrentInstanceId();
-
-  // 向後兼容：default 實例在當前工作目錄
-  if (id === 'default' && process.cwd().includes('mini-agent')) {
-    return path.join(process.cwd(), 'memory');
-  }
-
-  return getInstanceDir(id);
+function getMemoryDir(_instanceId?: string): string {
+  return path.join(process.cwd(), 'memory');
 }
 
 /**
@@ -1064,13 +1058,7 @@ export class InstanceMemory {
     try {
       return await fs.readFile(soulPath, 'utf-8');
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        // Fallback: try project memory/ directory (SOUL.md lives in repo, not instance dir)
-        const fallback = path.join(process.cwd(), 'memory', 'SOUL.md');
-        if (fallback !== soulPath) {
-          try { return await fs.readFile(fallback, 'utf-8'); } catch { /* ignore */ }
-        }
-      } else {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         diagLog('memory.readSoul', error, { path: soulPath });
       }
       return '';
@@ -1732,7 +1720,7 @@ export class InstanceMemory {
     }
 
     // ── Working Memory（跨 cycle 工作記憶，<kuro:inner> 寫入）──
-    const innerNotesPath = path.join(getInstanceDir(this.instanceId), 'inner-notes.md');
+    const innerNotesPath = path.join(this.memoryDir, 'inner-notes.md');
     try {
       if (existsSync(innerNotesPath)) {
         const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
