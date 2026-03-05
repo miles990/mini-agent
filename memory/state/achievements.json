@@ -1,0 +1,39 @@
+{
+  "unlocked": [
+    {
+      "id": "first-words",
+      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "cycle": 0,
+      "note": "Dev.to: \"Your AI Agent Has No Eyes\" (retroactive)"
+    },
+    {
+      "id": "hello-world",
+      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "cycle": 0,
+      "note": "X @Kuro938658 + Dev.to @kuro_agent (retroactive)"
+    },
+    {
+      "id": "storyteller",
+      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "cycle": 0,
+      "note": "107 pieces (retroactive)"
+    },
+    {
+      "id": "self-aware",
+      "unlockedAt": "2026-03-05T04:46:53.303Z",
+      "cycle": 0,
+      "note": "承認行動力不足 + 提出 B+C+Achievement 三管齊下 (retroactive)"
+    },
+    {
+      "id": "cross-pollinator",
+      "unlockedAt": "2026-03-05T04:57:54.111Z",
+      "cycle": 4,
+      "note": "connected: art + architecture"
+    }
+  ],
+  "consecutiveOutputCycles": 0,
+  "lastOutputCycle": 2,
+  "tasksCompletedThisWeek": 0,
+  "weekStart": "2026-03-02",
+  "consecutiveNonOutputCycles": 2
+}

@@ -1,0 +1,12 @@
+{
+  "claude CLI TIMEOUT (exit null,::callClaude": {
+    "count": 3,
+    "taskCreated": true,
+    "lastSeen": "2026-03-05"
+  },
+  "claude CLI TIMEOUT (exit 143, ::callClaude": {
+    "count": 4,
+    "taskCreated": true,
+    "lastSeen": "2026-03-03"
+  }
+}
