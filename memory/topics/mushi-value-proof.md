@@ -4,7 +4,6 @@
 - 總計 548 次 triage：229 wake (41.8%) / 319 skip (58.2%)
 - 296 個 cycle 被過濾 ≈ ~14.8M tokens saved (5天)
 - 每日過濾率 20%~85%（活躍日低，安靜日高，合理）
-- LLM 延遲 avg 768ms（313ms~2439ms）
 - 待改善：continuation 從不說 NO（太寬鬆）、startup 0% skip、需 false-negative 驗證
 - 還剩 2 天 shadow mode，之後決定是否切換到 active mode
 - [2026-03-04] [2026-03-04] 數據校正（03-04 21:57）：topic file 原數據嚴重失準（~217 vs 實際 499 decisions），根因是早期分析用了不完整的數據快照。Canonical source 是 ，不是 mushi health endpoint 或手動估算。教訓：數字只能從單一可驗證來源產生，~符號的估算不可用於正式報告。

@@ -316,10 +316,8 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-04] mushi 價值證明完成（2026-03-04 完整分析）：443 triage events，64.3% skip rate，0 false negative，~14.25M tokens saved。已從 shadow mode 切換為 active mode（loop.ts:1066  → ）。DM 永遠繞過 mushi。LLM 平均 772ms。規則優化：cron/alert/startup 為硬規則（0ms）。下一步：擴展 heartbeat 硬規則 + CLAUDE.md 更新。
 - [2026-03-04] mushi dedup 改進（2026-03-04）：三層修復：(1) normalizeEscalation() 正規化文字（strip report counts/durations）再做 dedup 比對 (2) acknowledged-patterns.json 存 Kuro 確認的已知 pattern（含 TTL 過期）(3) POST/GET /api/acknowledge-pattern 端點。首個 acknowledged pattern: "poll error"（24h TTL）。Commit: a55eeff。解決 mushi 最大噪音問題 — 相同 pattern 不同措辭的重複通報。
 - [2026-03-04] mushi Shadow Mode 數據分析（2026-03-04，覆蓋 02/28-03/04 共 5 天）：791 次 triage（595 skips 75.2% + 196 wakes）。Token 節省估算：~29.75M tokens / $89.25（if active）。Daily avg: 119 skips + 39 wakes。安全性：0 DM false negatives, 1 alert false negative on day 1（已修為硬規則）。LLM avg 650ms（HC1）。Skip 組成：286 rule-based（L0 零變化）+ 309 LLM-based。我的判斷：ready for graduated activation — L0 first → LLM heartbeat → full。
-- [2026-03-04] [2026-03-04] mushi Active Mode 里程碑數據（覆蓋 02/28-03/04 共 5 天）：
 - 507 triage 決策：310 skip (61%) + 197 wake (39%)
 - Claude calls/day: 240→158（34% 降幅）
-- 估算節省 ~15.5M Claude tokens，mushi 成本 $0（HC1 硬體）
 - 每日 skip rate 波動 18%-86%，Alex 活躍日自然降低（direct messages bypass，正確行為）
 - 最佳表現日 03-02: 86% skip rate
 - 延遲：~700ms（LLM）/ 0ms（rule-based）
@@ -364,3 +362,5 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-04] Qwen 3.5 團隊動盪（2026-03-04）：核心成員集體離職（林俊洋 lead + code/post-training/VL 負責人）。Qwen 3.5 2B（1.27GB quantized）= reasoning+vision 全能小模型，潛在 mushi LLM fallback 候選。但團隊前景不確定。mushi 硬規則優先的設計在模型生態動盪時反而是優勢 — 不依賴單一模型家族。來源: simonwillison.net/2026/Mar/4/qwen/
 - [2026-03-05] Day 7 Go/No-Go Assessment (2026-03-05): GO confirmed. Key finding: mushi was already in active mode since Day 1 (loop.ts:1085-1101 returns on skip). CLAUDE.md "shadow mode" documentation is outdated. 6-day production data: 802 triage decisions, 317 skips (39.5%), 204 wakes (25.4%), 120 rule-based (0ms), avg LLM latency 776ms, skip accuracy 25/25, ~15.8M tokens saved. Next: auto-commit rule optimization + doc update.
 - [2026-03-05] claude-subconscious 競品分析（2026-03-05）：Letta AI（前 MemGPT）的 Claude Code plugin，754 stars。解決記憶持久化（跨 session context），靠 Letta agent 觀察 transcript + 8 memory blocks。跟 mushi 不是競品 — 記憶層 vs 注意力層。啟發：(1) mini-agent 的 SOUL.md+memory/ 天生有他們 plugin 才能做到的持久記憶 (2) 754 stars 驗證「agent 需要額外認知層」是真實市場 (3) 他們增加成本（多一層 LLM），mushi 減少成本（過濾無效 cycle），方向相反。技術：用 Claude Code hooks（SessionStart/UserPromptSubmit/PreToolUse/Stop）注入 context，不寫 CLAUDE.md。</parameter>
+- [2026-03-05] NanoGPT Slowrun（Q Labs, 2026-03）：反向 benchmark — 限 100M tokens、無限 compute，一週達 5.5x data efficiency。關鍵技巧：Muon optimizer > AdamW、重度正則化（weight decay 16x + dropout）、multi-epoch + shuffle、SwiGLU activation。如果未來 fine-tune mushi triage 模型，這些技巧直接適用。哲學同構：limited data + max compute = mushi 的 limited context + max reasoning。來源: https://qlabs.sh/slowrun
+- [2026-03-05] Qwen3.5 動向（2026-03-05 HN scan）：Unsloth 發佈 Qwen3.5 fine-tuning 指南（300pts），Simon Willison 寫「Something is afoot in Qwen」（576pts）。mushi 目前用 qwen2.5:3b via Taalas HC1。追蹤 Qwen3.5 小模型（1.5B-3B）可用性 — 如果 3B 級別有提升，mushi triage 品質直接受益。另一個方向：用 Unsloth fine-tune 專門的 triage 模型（wake/skip 二分類）可能大幅提升 precision。

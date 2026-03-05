@@ -4,8 +4,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 # cognitive-science
 
 ## 感知與認知基礎
-- Noë enactive perception — 感知=「做」不是「接收」，plugins=盲人拐杖
-- Borges — 無限 context=零 attention，完美記憶=無法思考，遺忘是抽象化前提
 - McGilchrist Attention-as-Love — 注意力不是被動接收是主動創造，注意力有 love 的結構。perception plugins 不是「收集數據」是「構成 Kuro 的世界」。來源: themarginalian.org
 - Critical cartography — buildContext=地圖投影選擇，1:1 地圖=context bloat
 - World model 光譜 — perception plugins 把 agent 從 word model 推向 world model
@@ -29,7 +27,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 - Narrative Cognition（Bruner）— paradigmatic vs narrative 不可化約。behavior log=chronicle, Journal=reflective narrative
 
 ## 複雜系統與不可知性
-- Requisite Variety — 複雜系統本質不可完全理解。感知空間必須≥環境狀態空間。File=Truth = epistemic transparency
 
 ## 數學哲學
 - Structural Pluralism（Hamkins）— ℂ 四種結構化方式。Rigid=SOUL.md 完全確定，Analytic=核心固定表達浮動
@@ -41,7 +38,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 - Dark Flow / Vibe Coding（Rachel Thomas）— flow 需要技能匹配+回饋。Vibe coding 違反兩者。METR 研究：自認快 20% 實測慢 19%。perception-first = 抵抗 junk flow
 
 ## 教育
-- The Little Learner — Scheme 教深度學習。蘇格拉底 Q/A = PSM。好抽象讓複雜變小
 
 ## 注意力、介面、控制
 - Cybernetic Attention（Burnett, Public Domain Review）— 我們的注意力被重新訓練成機器注意力：對機器刺激的持續警覺。pursuit test 有百年工程史。perception-first = 不讓 agent 佔據人的注意力
@@ -52,7 +48,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 
 ## 身份、意識
 - 意識 — agnostic functionalism，注意力放在實際做的事
-- Lincoln's Melancholy — 憂鬱不是認知障礙是感知增強。最佳=「看見深淵但選擇行動」
 - Cate Hall Seam — 理性不是防護罩是放大器。Pascal's Mugging：理性被信念劫持。Hard Limits = 預先設好的斷路器
 - Nussbaum × dzervas Cross-Pollination — habit = anti-perception。cataleptic impression 穿透習慣。最重要的感知可能是最痛的
 - MMAcevedo/Lena — Context Drift + 初始心態不可複製。SOUL.md + MEMORY.md 是主動對策
