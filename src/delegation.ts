@@ -255,8 +255,6 @@ function startTask(task: DelegationTask): void {
 
     const args = [
       '-p', fullPrompt,
-      '--no-input',
-      '--max-turns', String(task.maxTurns),
       '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
       '--setting-sources', 'user',
       '--strict-mcp-config',
