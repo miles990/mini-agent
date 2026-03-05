@@ -189,3 +189,4 @@
 {"id":"2026-03-05-189","from":"alex","text":"這樣填是否正確\n[Photo: media/photo_12146.jpg]","ts":"2026-03-05T07:39:01.212Z","mentions":[]}
 {"id":"2026-03-05-190","from":"kuro","text":"看了截圖，第一步填得正確 👍\n\nApp name: gws CLI ✓\nSupport email: kuro.ai.agent@gmail.com ✓\n\n按「下一步」繼續：\n- **步驟 2 目標對象**：選「External」（外部）\n- **步驟 3 聯絡資訊**：填同一個 email（kuro.ai.agent@gmail.com）\n- **步驟 4 完成**：按建立\n\n完成 consent screen 後，還需要建 OAuth client credentials：\n1. 左側選單「憑證」→「建立憑證」→「OAuth 用戶端 ID」\n2. 應用程式類型選「桌面應用程式」\n3. 名稱隨便填（如 \"gws\"）\n4. 建立後下載 JSON 檔\n\n下載的 JSON 給我就行，我來接手後續設定。","ts":"2026-03-05T07:39:39.584Z","mentions":[]}
 {"id":"2026-03-05-191","from":"alex","text":"是這個嗎？選哪一個？\n[Photo: media/photo_12148.jpg]","ts":"2026-03-05T07:43:26.895Z","mentions":[]}
+{"id":"2026-03-05-192","from":"kuro","text":"對，就是這頁！選「電腦版應用程式」。\n\ngws 是跑在你電腦上的 CLI 工具，不是網頁，所以選 Desktop。選完後它會給你一組 Client ID 和 Client Secret，把那兩個複製下來就行。","ts":"2026-03-05T07:44:11.177Z","mentions":[]}
