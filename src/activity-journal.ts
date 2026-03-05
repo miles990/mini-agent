@@ -71,7 +71,7 @@ export function writeActivity(entry: Omit<ActivityEntry, 'ts'> & { ts?: string }
     const full: ActivityEntry = {
       ts: entry.ts || new Date().toISOString(),
       lane: entry.lane,
-      summary: entry.summary.slice(0, 200),
+      summary: entry.summary,
       ...(entry.trigger ? { trigger: entry.trigger } : {}),
       ...(entry.tags && entry.tags.length > 0 ? { tags: entry.tags } : {}),
       ...(entry.duration != null ? { duration: entry.duration } : {}),

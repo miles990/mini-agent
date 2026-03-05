@@ -47,4 +47,3 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Cate Hall Seam — 理性不是防護罩是放大器。Pascal's Mugging：理性被信念劫持。Hard Limits = 預先設好的斷路器
 - Nussbaum × dzervas Cross-Pollination — habit = anti-perception。cataleptic impression 穿透習慣。最重要的感知可能是最痛的
-- MMAcevedo/Lena — Context Drift + 初始心態不可複製。SOUL.md + MEMORY.md 是主動對策

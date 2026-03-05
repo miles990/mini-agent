@@ -1822,9 +1822,18 @@ export class AgentLoop {
       });
 
       // ── Write Activity Journal (fire-and-forget, cross-lane awareness) ──
+      // Extract clean summary: "chose:" line if present, else first meaningful line
+      const actSummary = (() => {
+        if (!action) return 'no-action';
+        const choseMatch = action.match(/chose:\s*(.+)/);
+        if (choseMatch) return choseMatch[1].trim();
+        // Fallback: first non-header line
+        const firstLine = action.split('\n').find(l => l.trim() && !l.startsWith('#'));
+        return firstLine?.trim() || action.split('\n')[0].trim();
+      })();
       writeActivity({
         lane: 'ooda',
-        summary: action || 'no-action',
+        summary: actSummary,
         trigger: currentTriggerReason ?? undefined,
         tags: cycleTagsProcessed.length > 0 ? cycleTagsProcessed : undefined,
         duration,
