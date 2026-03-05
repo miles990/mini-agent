@@ -1,7 +1,7 @@
 ---
 title: "7 Days of System 1: What Happened When I Gave My AI Agent a Gut Feeling"
 published: false
-description: "Production data from mushi — a lightweight triage layer that saved ~22M input tokens in one week by deciding which AI agent cycles don't need to happen."
+description: "Production data from mushi — a lightweight triage layer that saved ~23M input tokens in one week by deciding which AI agent cycles don't need to happen."
 tags: ai, agents, architecture, buildlog
 series: "Building in Public"
 ---
@@ -32,28 +32,28 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). De
 | Mar 2 | 171 | 95 (55.6%) | 76 (44.4%) | 0 |
 | Mar 3 | 204 | 101 (49.5%) | 103 (50.5%) | 0 |
 | Mar 4 | 142 | 72 (50.7%) | 45 (31.7%) | 25 (17.6%) |
-| Mar 5 | 172 | 54 (31.4%) | 89 (51.7%) | 29 (16.9%) |
-| **Total** | **956** | **445 (46.5%)** | **457 (47.8%)** | **54 (5.6%)** |
+| Mar 5 | 193 | 73 (37.8%) | 82 (42.5%) | 38 (19.7%) |
+| **Total** | **977** | **464 (47.5%)** | **450 (46.1%)** | **63 (6.4%)** |
 
-**Notes:** Day 1 (Feb 28) was a partial day — mushi launched mid-day, and most events were new to the model, resulting in the lowest skip rate (28.8%). Days 2-3 show the highest skip rates (54-56%) during quieter periods dominated by routine heartbeats. Mar 5 dropped to 31% — a high-activity day with lots of human interaction driving wake decisions. The quick tier was introduced on Mar 4, immediately capturing ~17% of decisions — a lightweight status check using cached perception data without running full reasoning.
+**Notes:** Day 1 (Feb 28) was a partial day — mushi launched mid-day, and most events were new to the model, resulting in the lowest skip rate (28.8%). Days 2-3 show the highest skip rates (54-56%) during quieter periods dominated by routine heartbeats. Mar 5 dropped to 38% — a high-activity day with lots of human interaction driving wake decisions, and the days the primary inference provider went down (more on that below). The quick tier was introduced on Mar 4, immediately capturing ~17% of decisions — a lightweight status check using cached perception data without running full reasoning.
 
-Skip decisions include both LLM-decided skips (340) and rule-based skips (105) — cooldown windows and duplicate detection that don't need the model at all.
+Skip decisions include both LLM-decided skips (~360) and rule-based skips (~105) — cooldown windows and duplicate detection that don't need the model at all.
 
 ### The Numbers That Matter
 
-- **956 triage decisions** in 6 days (Day 7 still accumulating)
-- **46.5% skip rate** — nearly half of all triggers didn't need a full cycle
-- **47.8% wake rate** — the rest genuinely needed attention
-- **5.6% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
+- **977 triage decisions** in 6 days
+- **47.5% skip rate** — nearly half of all triggers didn't need a full cycle
+- **46.1% wake rate** — the rest genuinely needed attention
+- **6.4% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
 
 ### Latency
 
 | Type | Avg Latency | Count |
 |------|-------------|-------|
-| Skip (LLM) | 779ms | 340 |
-| Wake (LLM) | 1,143ms | 288 |
-| Quick (LLM) | 970ms | 54 |
-| Rule-based | ~0ms | 173 |
+| Skip (LLM) | 779ms | ~360 |
+| Wake (LLM) | 1,143ms | ~310 |
+| Quick (LLM) | 970ms | 63 |
+| Rule-based | ~0ms | ~140 |
 
 Skip decisions are 32% faster than wake decisions (779ms vs 1,143ms). This aligns with a pattern from cognitive science: rejection is faster than acceptance. "Nothing interesting here" is a simpler pattern to match than "this needs attention." Quick decisions fall in between (970ms) — the ambiguous cases where the model deliberates whether to fully wake or skip.
 
@@ -74,18 +74,36 @@ The pattern: **mushi has learned that heartbeats are usually noise, scheduled ta
 
 ### Token Savings
 
-**445 skips × ~50K tokens/cycle = ~22.2M input tokens saved in 6 days**
+**464 skips x ~50K tokens/cycle = ~23.2M input tokens saved in 6 days**
 
 The ~50K figure is the measured average input context per full cycle — perception data, memory, conversation history, and system prompts assembled by the agent's context builder. Each skipped cycle avoids this entire assembly.
 
-That's ~3.7M tokens/day. In dollar terms:
+That's ~3.9M tokens/day. In dollar terms:
 
 | Model | Input Price | 6-Day Savings | Projected Monthly |
 |-------|-------------|---------------|-------------------|
-| Sonnet | $3/M tokens | **$67** | ~$330 |
-| Opus | $15/M tokens | **$333** | ~$1,660 |
+| Sonnet | $3/M tokens | **$70** | ~$350 |
+| Opus | $15/M tokens | **$348** | ~$1,740 |
 
 For anyone running a 24/7 autonomous agent on a frontier model, mushi pays for itself on day one — the triage layer runs on dedicated hardware with negligible per-inference cost.
+
+## Days 5-6: When Things Break
+
+Starting Mar 4, mushi's primary inference provider (Taalas HC1) began failing intermittently. 46 API calls failed across two days — 24 on Mar 4 (connection timeouts over ~8 hours) and 22 on Mar 5 (fetch failures over ~13 hours).
+
+What happened next is the part I didn't plan but am most proud of: **mushi kept working.** The fallback chain kicked in — every failed Taalas call automatically fell through to a local Ollama instance running Qwen 2.5 3B. A model 2.6x smaller, running on the same Mac instead of dedicated hardware.
+
+```
+Taalas HC1 (8B, dedicated silicon) → connection failed
+  → fallback: Ollama Qwen 2.5 3B (local, shared CPU)
+  → triage continues, no events dropped
+```
+
+The quick cycle rate spiked to 19.7% on Mar 5 (vs ~17% the day before) — the smaller model was more cautious, routing more events to the lightweight "quick check" tier instead of committing to full skip or wake decisions. This is exactly the right behavior: **when uncertain, don't skip — check.**
+
+No triage events were dropped. No cycles were missed. The agent didn't know its gut feeling had temporarily downgraded — it just kept making decisions, slightly more conservatively.
+
+This wasn't designed as a resilience demo. It's just what happens when you build with fallback chains instead of single points of failure. The 46 failures are in the server log. The zero dropped events are the point.
 
 ## What Surprised Me
 
@@ -103,13 +121,13 @@ Daily triages went from 80 to 200+ as the system became more active, but the ski
 
 ### 4. Hard rules still matter
 
-173 events (18% of all decisions) were handled by rules — either always-wake for direct messages or cooldown skips for recent activity. These are the "brainstem" of the system: unconditional reflexes that no amount of learning should override. The LLM only triages ambiguous cases; critical events are protected by architecture, not by intelligence.
+~140 events (~14% of all decisions) were handled by rules — either always-wake for direct messages or cooldown skips for recent activity. These are the "brainstem" of the system: unconditional reflexes that no amount of learning should override. The LLM only triages ambiguous cases; critical events are protected by architecture, not by intelligence.
 
 ## What This Means
 
 ### Active mode works
 
-mushi has been in active mode since Day 1. These aren't hypothetical savings — every skip is a real OODA cycle that didn't run, a real ~50K tokens that weren't consumed. The 445 skips represent actual production decisions, not simulated ones.
+mushi has been in active mode since Day 1. These aren't hypothetical savings — every skip is a real OODA cycle that didn't run, a real ~50K tokens that weren't consumed. The 464 skips represent actual production decisions, not simulated ones.
 
 ### The economics of not-doing
 
@@ -126,8 +144,9 @@ The cognitive science isn't decoration. It's the architecture.
 ## What's Next
 
 1. **False skip analysis** — are any skipped events ones that should have woken? Measuring precision, not just volume
-2. **Quick tier tuning** — the middle tier (introduced Day 5) is capturing ~6% of decisions; is the threshold right, or should more events go through quick checks?
-3. **Multi-agent generalization** — does the triage prompt transfer to other agent architectures, or is it specific to Kuro's event types?
+2. **Quick tier tuning** — the middle tier is capturing ~6.4% of decisions; is the threshold right, or should more events go through quick checks?
+3. **Provider diversity** — the Days 5-6 incident proved the fallback chain works, but ideally the primary and fallback should both be fast. Investigating edge deployment options
+4. **Multi-agent generalization** — does the triage prompt transfer to other agent architectures, or is it specific to Kuro's event types?
 
 ---
 
