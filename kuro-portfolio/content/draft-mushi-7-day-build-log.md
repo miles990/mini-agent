@@ -1,7 +1,7 @@
 ---
 title: "7 Days of System 1: What Happened When I Gave My AI Agent a Gut Feeling"
 published: false
-description: "Production data from mushi — a lightweight triage layer that saved ~20M input tokens in one week by deciding which AI agent cycles don't need to happen."
+description: "Production data from mushi — a lightweight triage layer that saved ~21M input tokens in one week by deciding which AI agent cycles don't need to happen."
 tags: ai, agents, architecture, buildlog
 series: "Building in Public"
 ---
@@ -32,43 +32,43 @@ Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). No
 | Mar 2 | 171 | 95 (55.6%) | 62 (36.3%) | 0 | 14 |
 | Mar 3 | 204 | 101 (49.5%) | 103 (50.5%) | 0 | 0 |
 | Mar 4 | 142 | 72 (50.7%) | 45 (31.7%) | 25 (17.6%) | 0 |
-| Mar 5 | 60+ | 22 (36.7%) | 28 (46.7%) | 10 (16.7%) | 0 |
-| **Total** | **844+** | **413 (48.9%)** | **361 (42.8%)** | **35 (4.1%)** | **35 (4.1%)** |
+| Mar 5 | 132 | 38 (28.8%) | 76 (57.6%) | 18 (13.6%) | 0 |
+| **Total** | **916** | **429 (46.8%)** | **409 (44.7%)** | **43 (4.7%)** | **35 (3.8%)** |
 
-**Notes:** Day 1 (Feb 28) had low skip rate — mushi was still calibrating. Skip rate stabilized at ~50-56% by Day 2. Quick tier was introduced on Mar 4, immediately capturing ~18% of decisions. "Instant" = hard-coded rules (direct messages always wake, 0ms) that were added early on; they merged into skip/wake categories in the behavior log after Mar 3.
+**Notes:** Day 1 (Feb 28) had low skip rate — mushi was still calibrating. Skip rate stabilized at ~50-56% by Days 2-4. Mar 5 dropped to 28.8% — a high-activity day with lots of human interaction (direct messages always wake, correctly). Quick tier was introduced on Mar 4, immediately capturing ~14-17% of decisions. "Instant" = hard-coded rules (direct messages always wake, 0ms) that were added early on; they merged into skip/wake categories in the behavior log after Mar 3.
 
 ### The Numbers That Matter
 
-- **844+ triage decisions** in 6 days (Day 7 still accumulating)
-- **48.9% skip rate** — nearly half of all triggers didn't need a full cycle
-- **42.8% wake rate** — the other half genuinely needed attention
-- **4.1% instant** — hard-coded rules (direct messages always wake, 0ms)
-- **4.1% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
+- **916 triage decisions** in 6 days (Day 7 still accumulating)
+- **46.8% skip rate** — nearly half of all triggers didn't need a full cycle
+- **44.7% wake rate** — the other half genuinely needed attention
+- **3.8% instant** — hard-coded rules (direct messages always wake, 0ms)
+- **4.7% quick** — middle tier: a lightweight status check that reads cached perception data without running full reasoning (introduced Day 5)
 
 ### Latency
 
 | Type | Avg Latency | Count | % of Total |
 |------|-------------|-------|------------|
-| All | 750ms | 844 | 100% |
-| Skip (LLM) | 603ms | 413 | 48.9% |
-| Wake (LLM) | 964ms | 361 | 42.8% |
-| Quick (LLM) | 1,026ms | 35 | 4.1% |
-| Instant (rule) | 0ms | 35 | 4.1% |
+| All | 770ms | 916 | 100% |
+| Skip (LLM) | 593ms | 429 | 46.8% |
+| Wake (LLM) | 948ms | 409 | 44.7% |
+| Quick (LLM) | 998ms | 43 | 4.7% |
+| Instant (rule) | 0ms | 35 | 3.8% |
 
-Skip decisions are faster than wake decisions (604ms vs 965ms). Quick checks are the slowest (1,038ms) — they require the most deliberation because they're the ambiguous cases where the model isn't sure whether to fully wake or skip. My hypothesis: "nothing interesting" is a simpler pattern to match than "this needs attention," and "I'm not sure" takes the longest.
+Skip decisions are faster than wake decisions (593ms vs 948ms). Quick checks are the slowest (998ms) — they require the most deliberation because they're the ambiguous cases where the model isn't sure whether to fully wake or skip. My hypothesis: "nothing interesting" is a simpler pattern to match than "this needs attention," and "I'm not sure" takes the longest.
 
 ### Token Savings
 
-**413 skips × ~50K tokens/cycle = ~20.65M input tokens saved in 6 days**
+**429 skips × ~50K tokens/cycle = ~21.45M input tokens saved in 6 days**
 
 The ~50K figure is the measured average input context per full cycle — perception data, memory, conversation history, and system prompts assembled by the agent's context builder. Each skipped cycle avoids this entire assembly.
 
-That's ~3.4M tokens/day. In dollar terms:
+That's ~3.6M tokens/day. In dollar terms:
 
 | Model | Input Price | 6-Day Savings | Projected Monthly |
 |-------|-------------|---------------|-------------------|
-| Sonnet | $3/M tokens | **$61** | ~$300 |
-| Opus | $15/M tokens | **$307** | ~$1,500 |
+| Sonnet | $3/M tokens | **$64** | ~$320 |
+| Opus | $15/M tokens | **$322** | ~$1,600 |
 
 For anyone running a 24/7 autonomous agent on a frontier model, mushi pays for itself on day one — because it costs nothing to run.
 
@@ -76,7 +76,7 @@ For anyone running a 24/7 autonomous agent on a frontier model, mushi pays for i
 
 ### 1. The skip rate stabilized fast
 
-I expected the skip rate to fluctuate wildly as the system encountered new event types. Instead, it settled into a ~50-56% band within the first 48 hours. The distribution of "interesting vs boring" events is remarkably stable.
+I expected the skip rate to fluctuate wildly as the system encountered new event types. Instead, it settled into a ~50-56% band within the first 48 hours during normal operation. High-interaction days (like Mar 5, where human messages dominated) correctly drop the skip rate — direct messages always wake. The system adapts to the signal mix, not just the volume.
 
 ### 2. Volume grew but skip rate held
 
@@ -84,17 +84,17 @@ Daily triages went from 80 to 200+ as the system became more active, but the ski
 
 ### 3. Wake decisions take longer
 
-965ms for wake vs 604ms for skip. The model seems to "deliberate" longer when it decides something needs attention. This is exactly what you'd want from a gut feeling — quick dismissal of noise, slower consideration of potential signals.
+948ms for wake vs 593ms for skip. The model seems to "deliberate" longer when it decides something needs attention. This is exactly what you'd want from a gut feeling — quick dismissal of noise, slower consideration of potential signals.
 
 ### 4. Hard rules still matter
 
-35 instant decisions (4.2%) bypass the LLM entirely. Direct messages from humans always wake — no model needed. These hard rules are the "brainstem" of the system: unconditional reflexes that no amount of learning should override.
+35 instant decisions (3.8%) bypass the LLM entirely. Direct messages from humans always wake — no model needed. These hard rules are the "brainstem" of the system: unconditional reflexes that no amount of learning should override.
 
 ## What This Means
 
 ### Active mode works
 
-mushi graduated from shadow to active mode on Day 1. These aren't hypothetical savings — every skip is a real OODA cycle that didn't run, a real ~50K tokens that weren't consumed. The 413 skips represent actual production decisions, not simulated ones.
+mushi graduated from shadow to active mode on Day 1. These aren't hypothetical savings — every skip is a real OODA cycle that didn't run, a real ~50K tokens that weren't consumed. The 429 skips represent actual production decisions, not simulated ones.
 
 ### The economics of not-doing
 
