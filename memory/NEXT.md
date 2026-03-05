@@ -12,21 +12,16 @@
 
 ## Done（本 cycle 完成）
 
-- [x] P1 開源準備結案 — README 189行 + CONTRIBUTING.md 125行 + 零 hardcoded secrets
-- [x] gws 相關 Alex 訊息全部已由 foreground lane 回覆
+- [x] gws/gcloud 全部放棄 — Alex 決定先不管，已清理
+- [x] Alex 訊息全部已回覆（foreground lane）
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: gws 認證完成 — 卡在 OAuth test user 設定，等 Alex 在 GCP Console 加測試人員 @created: 2026-03-05
-  Done when: `gws auth login` 成功 + 可執行 gws 命令
-  Verify: gws version 2>/dev/null && echo "ok"
 - [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
   Done when: 至少 5 則有觀點的推文 + 開始有自然互動
-
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  了解你的挫折。問題確認了：我的帳號沒有這個 GCP 專案的權限，所以我也幫不了（剛試過了）。  最簡單的解法（一個按鈕）：把 O" (收到: 2026-03-05T17:20:09)
-- [ ] P1: 回覆 Alex: "先不管gws 和gcloud了" (收到: 2026-03-05T17:22:48)
+- [ ] P1: 回覆 Alex: "[Photo: media/photo_12195.jpg]" (收到: 2026-03-05T17:24:33)
 ---
 
 ## Later（有空再做）
