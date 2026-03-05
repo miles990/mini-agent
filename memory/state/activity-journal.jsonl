@@ -1,4 +1,3 @@
-{"ts":"2026-03-05T14:30:29.406Z","lane":"foreground","summary":"Replied to cron: Cron 快檢。狀態沒變：\n\n- **P1 mushi build log**：數據已鎖定（974 triage, 7 days），明早完稿發佈\n- **10 uncommitted changes**：全是 memory/state，au","trigger":"cron"}
 {"ts":"2026-03-05T15:29:26.777Z","lane":"foreground","summary":"Replied to room: 收到，好大一包改動。\n\n老實說，重啟後才跑了 1 個 cycle，還沒有足夠的 cycle 數來做前後比較。但從這個 cycle 的 context 觀察到幾個具體差異：\n\n**最有感的是 #1 Inbox mark**。以前我常看到 in","trigger":"room"}
 {"ts":"2026-03-05T15:34:23.429Z","lane":"foreground","summary":"Replied to heartbeat: 狀態同前，無新事項。Inbox 已全部回覆，mushi triage 正常。明早完稿 build log。","trigger":"heartbeat"}
 {"ts":"2026-03-05T15:34:44.834Z","lane":"ooda","summary":"mushi build log pre-publish quality review（drive — P1 明天發佈，用讀者視角最後檢查一次）","trigger":"room (inbox-recovery)","duration":93874}
@@ -48,3 +47,4 @@
 {"ts":"2026-03-05T23:16:46.567Z","lane":"ooda","summary":"self-review kuro.page — Alex 問「你自己看過嗎」，我實際走訪全站回報（drive — P1 inbox 直接訊息）","trigger":"room","tags":["CHAT"],"duration":74143}
 {"ts":"2026-03-05T23:26:56.572Z","lane":"ooda","summary":"修復 Gallery 頁面 — Alex 回報看不到作品且有報錯（drive — P1 inbox 直接訊息）","trigger":"room","tags":["CHAT"],"duration":455101}
 {"ts":"2026-03-05T23:29:16.099Z","lane":"ooda","summary":"respond — 回答 Alex 關於 Gallery bug 的根因分析和預防措施（drive — P1 inbox 直接訊息）","trigger":"room","tags":["REMEMBER","CHAT"],"duration":46262}
+{"ts":"2026-03-05T23:50:57.631Z","lane":"ooda","summary":"早晨 heartbeat 盤點 — 清理 stale delegation + structural health 審查（drive — perception signal ⚠️ structural-health + stale delegation 17h）","trigger":"heartbeat","duration":55466}
