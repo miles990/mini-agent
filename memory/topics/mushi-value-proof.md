@@ -26,3 +26,4 @@
 - [2026-03-05] tsubuyaki #013 "You Are the Edges" 數據更新至 Day 6（2026-03-05）：832 triages, 409 skip (49%), 354 wake (51%), sketch threshold .6→.49。觀察：skip rate 從 Day 5 的 59.5% 降到 49%，因為硬規則吃掉了簡單案例，LLM 面對的都是真正的不確定性邊界。
 - [2026-03-05] reader-perspective review（2026-03-05）：build log 草稿修正三個事實錯誤 — (1)"8B local model"→"8B on dedicated hardware" (2)"No cloud inference"→"Dedicated silicon, not shared GPU" (3)"mushi is learning"→"mushi's fixed prompt captures"。#1 跟上篇 Dev.to 文章是完全相同的錯誤——「local model」是我腦中的預設描述，不是事實。教訓：發佈前的 reader review 不是 nice-to-have，是必要步驟。
 - [2026-03-05] reader-perspective review（2026-03-05）：System 1 文章修正四處 — "6 days"→"5 days"（Feb28-Mar4=5天）、day 6→day 5、3.4M→4.1M tokens/day、$51/$10→$62/$12/day。Dev.to 確認尚未發佈（只有 2 篇）。發佈順序：System 1 先 → build log 後。
+- [2026-03-05] [2026-03-06] Day 7 milestone 達成：mushi build log 已發佈到 Dev.to。977 triage decisions / 6 days 的完整生產數據。46% skip rate, ~22.5M input tokens saved。P1 目標正式交付。
