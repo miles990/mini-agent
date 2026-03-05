@@ -330,7 +330,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-04] mushi 品質驗證完成（2026-03-04）：316 次 skip 中 false negative rate = 0%。Skip 來源：heartbeat 267 (84.5%), cron 48 (15.2%), alert 1 (0.3%，但查證是 priority drain 已處理)。直接訊息 100% 繞過 triage。Skip 理由全部是「剛想過 + 環境沒變」。LLM 決策 ~770ms avg。完整價值：59% filter rate + 0% 漏失 + ~15.8M tokens saved in 5 days。
 - [2026-03-04] Alex 修正 mushi 用法（2026-03-04）：mushi 不做摘要，只忠實記錄原文。摘要=判斷行為，讓 8B 做判斷會丟失脈絡。正確分工：mushi=System 1 感官（記錄原文）、Kuro=System 2 思考（從記錄觀察判斷）。對 LINE 感知路線 C 同樣適用——mushi 記錄 LINE 對話原文，我自己讀原文做判斷。
 - [2026-03-04] [2026-03-04] LINE 感知 plugin 成功上線 —  修好兩個 bug（CDP iframe/page 過濾 + macOS timeout 相容）後，能即時讀取 LINE Chrome Extension 群聊。Claude MAX 俱樂部 252 人群組的對話品質高（重構方法論、agents 架構、token 策略）。這為 mushi triage 提供了新的高品質信號源。
-- [2026-03-04] [2026-03-04] **Claude MAX 俱樂部社群觀察**（LINE 即時感知首次分析，252 人群）
 
 **核心痛點 → mushi 映射**：
 1. **Token 浪費是最大痛點** — Frank:「不要亂玩 agents，token 都花在這了」、Andy 5hr quota 一下就沒了、阿岳 GCP 只剩 3 個月 credits。→ mushi 的 40% cycle skip rate 直接回應這個需求
@@ -365,3 +364,4 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-05] mushi 數據校準（2026-03-05，behavior.log ground truth）：843 triage / 6 days。skip 413(49%) wake 361(43%) instant 35(4%) quick 34(4%)。日均 ~141。之前 HEARTBEAT 寫的 59% skip rate 是錯的（可能來自 server.log 局部數據）。Token 節省：413 skips × ~50K = ~20.65M。Day 7 = Mar 6，用這組數據寫 build log。
 - [2026-03-05] mushi 數據最終校準（2026-03-05 15:08，behavior.log ground truth）：844 triage / 6 days（Feb 28 80, Mar 1 187, Mar 2 171, Mar 3 204, Mar 4 142, Mar 5 60+）。skip 413(48.9%) wake 361(42.8%) quick 35(4.1%) instant 35(4.1%)。Latency: skip 603ms, wake 964ms, quick 1026ms, instant 0ms。Quick 引入於 Day 5 (Mar 4) 非 Day 6。build log 草稿已全部修正。
 - [2026-03-05] mushi 7-Day Milestone（2026-03-06, server.log ground truth）：922 triage / 6 days (Feb 28: 50, Mar 1: 133, Mar 2: 115, Mar 3: 198, Mar 4: 169, Mar 5: 257)。skip 452(49.0%) wake 369(40.0%) quick 69(7.5%) cycle 2(0.2%)。Skip 品質抽查全部正確，零 false negative。Daily volume 趨勢上升。初步評估：數據支持 shadow→active 受控轉換（Phase 1: active+safety net 3天 → Phase 2: full active）。
+- [2026-03-05] mushi 狀態校正（2026-03-06）：(1) active mode 已在跑，不是 shadow (2) build log "7 Days of System 1" 已發佈 Dev.to (id:3312663, 2026-03-05) (3) thesis "Why Your AI Agent Needs a System 1" 也已發佈 (id:3309898, 2 comments) (4) 共 5 篇 Dev.to 文章。瓶頸從內容生產轉為分發。HEARTBEAT + NEXT.md 追蹤嚴重過期需更新。
