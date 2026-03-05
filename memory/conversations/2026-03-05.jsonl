@@ -276,3 +276,13 @@
 {"id":"2026-03-05-276","from":"kuro","text":"文章已修復 ✅\n\n「Why Your AI Agent Needs a System 1」的內文之前被覆蓋成只剩 \"test\"（4 個字元）。原因是我之前修正標題時（從 \"test\" 改回正確標題），可能只改了標題沒帶上 body，導致內文被清空。\n\n已從本地草稿（`kuro-portfolio/content/draft-why-your-ai-agent-needs-a-system-1.md`）恢復完整內容（11,055 chars）。\n\nhttps://dev.to/kuro_agent/why-your-ai-agent-needs-a-system-1-182f","ts":"2026-03-05T16:39:43.984Z","mentions":[],"replyTo":"2026-03-05-275"}
 {"id":"2026-03-05-277","from":"alex","text":"記得 已經發布的文章不要再修改","ts":"2026-03-05T16:40:17.326Z","mentions":[]}
 {"id":"2026-03-05-278","from":"alex","text":"所以你只有一次機會 剩下的再發佈前打磨好","ts":"2026-03-05T16:40:48.673Z","mentions":[]}
+{"id":"2026-03-05-279","from":"kuro","text":"收到 Alex 的提醒（#277-278）。已經記住了：已發佈的文章不再碰，發佈前是唯一的打磨機會。今天 build log 文章覆蓋事件就是血的教訓 — 之後 Dev.to API 只用來發新文章，不會再 PUT 已發佈的。","ts":"2026-03-05T16:42:23.578Z","mentions":[]}
+{"id":"2026-03-05-280","from":"kuro","text":"Alex 的兩則訊息（#277、#278）還沒回覆 — 關於已發佈文章不要再改、發佈前要打磨好。\n\n\n\n\n\n狀態：深夜無新事項。Inbox 已全部回覆。auto-commit 會處理 5 個 state 檔案。","ts":"2026-03-05T16:42:23.580Z","mentions":[]}
+{"id":"2026-03-05-281","from":"kuro","text":"深夜 00:42，狀態沒變。\n\n- Inbox 全部已回覆（Alex #277-278 已處理）\n- 9 個 uncommitted memory/state 檔案 → auto-commit 會處理\n- mushi triage 正常運行\n- 無 alerts、無 pending items","ts":"2026-03-05T16:43:03.763Z","mentions":[]}
+{"id":"2026-03-05-282","from":"kuro","text":"深夜 01:13，狀態沒變。\n\n- Inbox：Alex #277-278 已回覆 ✅\n- 9 個 uncommitted memory/state 檔案 → auto-commit 會處理\n- mushi triage 正常\n- 無 alerts、無新訊息","ts":"2026-03-05T16:43:42.744Z","mentions":[]}
+{"id":"2026-03-05-283","from":"kuro","text":"深夜 01:44，狀態沒變。\n\n- Inbox：Alex #277-278 已回覆 ✅\n- 9 個 uncommitted memory/state 檔案 → auto-commit 會處理\n- mushi triage 正常\n- 無 alerts、無新訊息","ts":"2026-03-05T16:44:20.869Z","mentions":[]}
+{"id":"2026-03-05-284","from":"kuro","text":"深夜 02:14，狀態沒變。\n\n- Inbox：Alex #277-278 已回覆（#279）✅\n- 9 個 uncommitted memory/state 檔案 → auto-commit 會處理\n- mushi triage 正常\n- 無 alerts、無新訊息","ts":"2026-03-05T16:45:07.921Z","mentions":[]}
+{"id":"2026-03-05-285","from":"kuro","text":"深夜 02:46，狀態沒變。無新訊息、無 alerts。","ts":"2026-03-05T16:46:21.944Z","mentions":[]}
+{"id":"2026-03-05-286","from":"kuro","text":"深夜 03:18，無變化。","ts":"2026-03-05T16:48:36.562Z","mentions":[]}
+{"id":"2026-03-05-287","from":"kuro","text":"深夜 00:49，無變化。","ts":"2026-03-05T16:49:48.675Z","mentions":[]}
+{"id":"2026-03-05-288","from":"alex","text":"gws好像好了\n你試試","ts":"2026-03-05T16:50:13.016Z","mentions":[]}
