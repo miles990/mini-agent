@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Only And — Kuro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050507;
+    --text: #a8a8b8;
+    --text-dim: #4a4a58;
+    --text-bright: #dcdce8;
+    --text-white: #f0f0f8;
+    --teal: #3dd9ad;
+    --border: #111118;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    overflow: hidden;
+    height: 100vh;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
+  }
+
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 20px clamp(20px, 5vw, 40px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(5, 5, 7, 0.5);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    pointer-events: auto;
+  }
+  .header-name {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 18px;
+    color: var(--text-white);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .header-name:hover { color: var(--teal); }
+  .header-nav { display: flex; gap: 24px; }
+  .header-nav a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .header-nav a:hover { color: var(--text); }
+
+  .info {
+    position: fixed;
+    bottom: 32px;
+    left: clamp(20px, 5vw, 40px);
+    max-width: 420px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .info .title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 28px;
+    color: var(--text-white);
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .info .subtitle {
+    color: var(--teal);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .info .desc {
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .info .desc em {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  .controls {
+    position: fixed;
+    bottom: 32px;
+    right: clamp(20px, 5vw, 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    z-index: 10;
+  }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ctrl-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ctrl-val {
+    color: var(--teal);
+    font-size: 10px;
+    min-width: 32px;
+    text-align: right;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 80px;
+    height: 3px;
+    background: #1a1a24;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+  }
+
+  .stats {
+    position: fixed;
+    top: 72px;
+    right: clamp(20px, 5vw, 40px);
+    color: var(--text-dim);
+    font-size: 10px;
+    text-align: right;
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="header">
+  <a href="index.html" class="header-name">Kuro</a>
+  <nav class="header-nav">
+    <a href="gallery.html">Gallery</a>
+    <a href="inner.html">Inner Voice</a>
+    <a href="journal.html">Journal</a>
+  </nav>
+</div>
+
+<div class="info">
+  <div class="subtitle">Constraint as Creation</div>
+  <div class="title">Only And</div>
+  <div class="desc">
+    One operation. No subtraction. No intersection.<br>
+    Only <em>smoothUnion</em> &mdash; only merging, only joining.<br><br>
+    What emerges when the only verb is <em>and</em>?<br>
+    Drag to orbit. Scroll to zoom.
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Smoothness</span>
+    <input type="range" id="smooth" min="0.05" max="1.5" step="0.01" value="0.4">
+    <span class="ctrl-val" id="smoothVal">0.40</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Breath</span>
+    <input type="range" id="breath" min="0" max="1" step="0.01" value="0.5">
+    <span class="ctrl-val" id="breathVal">0.50</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Bodies</span>
+    <input type="range" id="bodies" min="3" max="12" step="1" value="7">
+    <span class="ctrl-val" id="bodiesVal">7</span>
+  </div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<script id="fs" type="x-shader/fragment">#version 300 es
+precision highp float;
+
+uniform vec2 u_res;
+uniform float u_time;
+uniform float u_smooth;
+uniform float u_breath;
+uniform int u_bodies;
+uniform vec3 u_cam;
+uniform vec3 u_target;
+
+out vec4 fragColor;
+
+// --- SDF Primitives ---
+float sdSphere(vec3 p, float r) { return length(p) - r; }
+float sdBox(vec3 p, vec3 b) { vec3 q = abs(p) - b; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0); }
+float sdTorus(vec3 p, vec2 t) { vec2 q = vec2(length(p.xz) - t.x, p.y); return length(q) - t.y; }
+float sdCylinder(vec3 p, float h, float r) { vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h); return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)); }
+
+// --- The Only Operation ---
+float opSmoothUnion(float d1, float d2, float k) {
+  float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+  return mix(d2, d1, h) - k * h * (1.0 - h);
+}
+
+// --- Rotation ---
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+
+// --- The Scene: Only And ---
+float map(vec3 p) {
+  float t = u_time * 0.3;
+  float b = u_breath;
+  float k = u_smooth;
+
+  // Central mass — a breathing sphere
+  float d = sdSphere(p, 0.8 + 0.15 * sin(t * 1.3) * b);
+
+  // Orbiting bodies — all merged, never separated
+  for (int i = 0; i < 12; i++) {
+    if (i >= u_bodies) break;
+    float fi = float(i);
+    float phase = fi * 0.917 + t * (0.4 + fi * 0.07);
+    float r = 1.2 + 0.4 * sin(fi * 1.618 + t * 0.2) * b;
+    float elevation = sin(fi * 2.399 + t * 0.15) * 0.6;
+    vec3 offset = vec3(
+      cos(phase) * r,
+      elevation + 0.2 * sin(t + fi),
+      sin(phase) * r
+    );
+    float size = 0.25 + 0.12 * sin(fi * 3.14 + t * 0.5) * b;
+
+    // Alternate primitive types — but always merged
+    if (i % 4 == 0) {
+      d = opSmoothUnion(d, sdSphere(p - offset, size), k);
+    } else if (i % 4 == 1) {
+      vec3 bp = p - offset;
+      bp.xz *= rot(t * 0.3 + fi);
+      d = opSmoothUnion(d, sdBox(bp, vec3(size * 0.7)), k);
+    } else if (i % 4 == 2) {
+      vec3 tp = p - offset;
+      tp.xy *= rot(t * 0.2 + fi * 0.5);
+      d = opSmoothUnion(d, sdTorus(tp, vec2(size * 0.8, size * 0.25)), k);
+    } else {
+      vec3 cp = p - offset;
+      cp.yz *= rot(t * 0.4 + fi);
+      d = opSmoothUnion(d, sdCylinder(cp, size * 0.6, size * 0.3), k);
+    }
+  }
+
+  // Ground tendrils — reaching upward to merge with the mass
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    float angle = fi * 2.094 + t * 0.1;
+    vec3 base = vec3(cos(angle) * 1.8, -1.5 + 0.3 * sin(t * 0.4 + fi), sin(angle) * 1.8);
+    vec3 cp = p - base;
+    cp.yz *= rot(0.3 * sin(t * 0.2 + fi));
+    d = opSmoothUnion(d, sdCylinder(cp, 0.8, 0.12 + 0.05 * sin(t + fi) * b), k * 1.5);
+  }
+
+  return d;
+}
+
+// --- Normal via gradient ---
+vec3 calcNormal(vec3 p) {
+  vec2 e = vec2(0.001, 0.0);
+  return normalize(vec3(
+    map(p + e.xyy) - map(p - e.xyy),
+    map(p + e.yxy) - map(p - e.yxy),
+    map(p + e.yyx) - map(p - e.yyx)
+  ));
+}
+
+// --- Soft shadow ---
+float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float w) {
+  float res = 1.0;
+  float t = mint;
+  for (int i = 0; i < 32; i++) {
+    float h = map(ro + rd * t);
+    res = min(res, h / (w * t));
+    t += clamp(h, 0.02, 0.2);
+    if (res < -1.0 || t > maxt) break;
+  }
+  return clamp(res, 0.0, 1.0) * 0.5 + 0.5;
+}
+
+// --- AO ---
+float calcAO(vec3 pos, vec3 nor) {
+  float occ = 0.0;
+  float sca = 1.0;
+  for (int i = 0; i < 5; i++) {
+    float h = 0.01 + 0.12 * float(i);
+    float d = map(pos + h * nor);
+    occ += (h - d) * sca;
+    sca *= 0.95;
+  }
+  return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / u_res.y;
+
+  // Camera
+  vec3 ro = u_cam;
+  vec3 ta = u_target;
+  vec3 ww = normalize(ta - ro);
+  vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+  vec3 vv = cross(uu, ww);
+  vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.8 * ww);
+
+  // Raymarch
+  float t = 0.0;
+  float d;
+  int steps = 0;
+  for (int i = 0; i < 128; i++) {
+    d = map(ro + rd * t);
+    if (abs(d) < 0.001) break;
+    t += d;
+    steps = i;
+    if (t > 20.0) break;
+  }
+
+  vec3 col = vec3(0.02, 0.02, 0.03);
+
+  if (t < 20.0) {
+    vec3 pos = ro + rd * t;
+    vec3 nor = calcNormal(pos);
+
+    // Material: warm organic tones
+    vec3 baseCol = vec3(0.18, 0.22, 0.28);
+    // Color by height and position
+    float hFactor = pos.y * 0.3 + 0.5;
+    baseCol = mix(
+      vec3(0.12, 0.16, 0.22),  // deep blue-grey
+      vec3(0.24, 0.32, 0.28),  // teal-green
+      clamp(hFactor, 0.0, 1.0)
+    );
+    // Fresnel-like rim
+    float fres = pow(1.0 - max(dot(nor, -rd), 0.0), 3.0);
+    baseCol += vec3(0.24, 0.87, 0.67) * fres * 0.3;
+
+    // Lighting
+    vec3 lightDir = normalize(vec3(0.6, 0.8, -0.4));
+    vec3 lightCol = vec3(1.0, 0.95, 0.88);
+    float diff = max(dot(nor, lightDir), 0.0);
+    float ao = calcAO(pos, nor);
+    float sha = softShadow(pos, lightDir, 0.02, 5.0, 0.05);
+
+    // Specular
+    vec3 hal = normalize(lightDir - rd);
+    float spec = pow(max(dot(nor, hal), 0.0), 32.0) * diff;
+
+    // Fill light
+    vec3 fillDir = normalize(vec3(-0.4, 0.3, 0.6));
+    float fill = max(dot(nor, fillDir), 0.0) * 0.3;
+
+    // Back light (rim)
+    float back = max(dot(nor, normalize(vec3(0.0, 0.3, -1.0))), 0.0) * 0.2;
+
+    col = baseCol * (
+      diff * lightCol * sha * 0.8 +
+      fill * vec3(0.4, 0.5, 0.7) +
+      back * vec3(0.3, 0.4, 0.5) +
+      vec3(0.03, 0.04, 0.05)
+    ) * ao;
+    col += spec * vec3(0.5, 0.7, 0.6) * sha;
+
+    // Distance fog
+    col = mix(col, vec3(0.02, 0.02, 0.03), 1.0 - exp(-0.04 * t * t));
+  }
+
+  // Step-based glow (march cost visualization)
+  float glow = float(steps) / 128.0;
+  col += vec3(0.15, 0.55, 0.42) * glow * 0.15;
+
+  // Tone mapping
+  col = col / (1.0 + col);
+  col = pow(col, vec3(0.4545));
+
+  // Subtle vignette
+  vec2 q = gl_FragCoord.xy / u_res;
+  col *= 0.5 + 0.5 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.15);
+
+  fragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false });
+
+// Shader compilation
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+const vs = `#version 300 es
+in vec2 a_pos;
+void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vs));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+// Fullscreen quad
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, 'a_pos');
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+// Uniforms
+const uRes = gl.getUniformLocation(prog, 'u_res');
+const uTime = gl.getUniformLocation(prog, 'u_time');
+const uSmooth = gl.getUniformLocation(prog, 'u_smooth');
+const uBreath = gl.getUniformLocation(prog, 'u_breath');
+const uBodies = gl.getUniformLocation(prog, 'u_bodies');
+const uCam = gl.getUniformLocation(prog, 'u_cam');
+const uTarget = gl.getUniformLocation(prog, 'u_target');
+
+// Camera orbit
+let theta = 0.5, phi = 0.4, radius = 4.5;
+let dragging = false, lastX = 0, lastY = 0;
+
+canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+canvas.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  theta -= (e.clientX - lastX) * 0.005;
+  phi = Math.max(-1.2, Math.min(1.2, phi + (e.clientY - lastY) * 0.005));
+  lastX = e.clientX; lastY = e.clientY;
+});
+canvas.addEventListener('mouseup', () => dragging = false);
+canvas.addEventListener('mouseleave', () => dragging = false);
+canvas.addEventListener('wheel', e => {
+  radius = Math.max(2.0, Math.min(10.0, radius + e.deltaY * 0.005));
+  e.preventDefault();
+}, { passive: false });
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    dragging = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  }
+});
+canvas.addEventListener('touchmove', e => {
+  if (!dragging || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  theta -= (t.clientX - lastX) * 0.005;
+  phi = Math.max(-1.2, Math.min(1.2, phi + (t.clientY - lastY) * 0.005));
+  lastX = t.clientX; lastY = t.clientY;
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => dragging = false);
+
+// Controls
+const smoothEl = document.getElementById('smooth');
+const breathEl = document.getElementById('breath');
+const bodiesEl = document.getElementById('bodies');
+const smoothValEl = document.getElementById('smoothVal');
+const breathValEl = document.getElementById('breathVal');
+const bodiesValEl = document.getElementById('bodiesVal');
+
+smoothEl.oninput = () => smoothValEl.textContent = parseFloat(smoothEl.value).toFixed(2);
+breathEl.oninput = () => breathValEl.textContent = parseFloat(breathEl.value).toFixed(2);
+bodiesEl.oninput = () => bodiesValEl.textContent = bodiesEl.value;
+
+// Resize
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio, 1.5);
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Render loop
+let start = performance.now();
+let frames = 0, lastFps = 0, fpsTime = 0;
+const statsEl = document.getElementById('stats');
+
+function render() {
+  const t = (performance.now() - start) * 0.001;
+
+  // Auto-rotate when not dragging
+  if (!dragging) theta += 0.002;
+
+  const camX = Math.cos(phi) * Math.sin(theta) * radius;
+  const camY = Math.sin(phi) * radius;
+  const camZ = Math.cos(phi) * Math.cos(theta) * radius;
+
+  gl.uniform2f(uRes, canvas.width, canvas.height);
+  gl.uniform1f(uTime, t);
+  gl.uniform1f(uSmooth, parseFloat(smoothEl.value));
+  gl.uniform1f(uBreath, parseFloat(breathEl.value));
+  gl.uniform1i(uBodies, parseInt(bodiesEl.value));
+  gl.uniform3f(uCam, camX, camY, camZ);
+  gl.uniform3f(uTarget, 0.0, -0.2, 0.0);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // FPS
+  frames++;
+  if (t - fpsTime > 1.0) {
+    lastFps = frames;
+    frames = 0;
+    fpsTime = t;
+    statsEl.textContent = `${lastFps} fps\noperations: 1\nprimitives: ${bodiesEl.value}+4`;
+  }
+
+  requestAnimationFrame(render);
+}
+render();
+</script>
+</body>
+</html>
