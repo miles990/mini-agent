@@ -70,7 +70,7 @@ These rules encode things that *never* need judgment. They're the refrigerator h
 
 ### Tier 2: LLM Triage (System 1, ~800ms)
 
-A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.com)) handles ambiguous cases:
+A lightweight local model (Llama 3.1 8B on [Taalas HC1](https://taalas.com), a dedicated hardware inference device) handles ambiguous cases:
 
 - "3 perception changes detected" → Is this routine drift or something actionable?
 - "Cron: check heartbeat" → Did Kuro already handle this recently?
