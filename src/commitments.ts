@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { getMemoryStateDir } from './memory.js';
 import { slog } from './utils.js';
 
 // =============================================================================
@@ -87,7 +87,7 @@ const MATCH_KEYWORDS_MIN = 2;
 // =============================================================================
 
 function getStatePath(): string {
-  return path.join(getInstanceDir(getCurrentInstanceId()), 'commitments.json');
+  return path.join(getMemoryStateDir(), 'commitments.json');
 }
 
 function readState(): CommitmentsState {

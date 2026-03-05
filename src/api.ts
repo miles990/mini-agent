@@ -39,7 +39,7 @@ import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, getCronQueueSize, stopCronTasks } from './cron.js';
 import { AgentLoop, parseInterval } from './loop.js';
 import { findComposeFile, readComposeFile } from './compose.js';
-import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions } from './memory.js';
+import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, getMemoryStateDir } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
@@ -1188,7 +1188,7 @@ export function createApi(port = 3001): express.Express {
 
   // GET /api/priority — 取得當前 priority focus
   app.get('/api/priority', (_req: Request, res: Response) => {
-    const focusPath = path.join(getInstanceDir(getCurrentInstanceId()), 'priority-focus.txt');
+    const focusPath = path.join(getMemoryStateDir(), 'priority-focus.txt');
     try {
       if (fs.existsSync(focusPath)) {
         res.json({ focus: fs.readFileSync(focusPath, 'utf-8').trim() });
@@ -1202,7 +1202,7 @@ export function createApi(port = 3001): express.Express {
   // Body: { focus: string } or { focus: null } to clear
   app.post('/api/priority', (req: Request, res: Response) => {
     const { focus } = req.body ?? {};
-    const focusPath = path.join(getInstanceDir(getCurrentInstanceId()), 'priority-focus.txt');
+    const focusPath = path.join(getMemoryStateDir(), 'priority-focus.txt');
     if (!focus) {
       try { fs.unlinkSync(focusPath); } catch { /* ok */ }
       slog('PRIORITY', 'Focus cleared');

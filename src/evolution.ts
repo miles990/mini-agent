@@ -175,8 +175,8 @@ export async function scanCapabilityGaps(): Promise<string> {
 
   // 1. Check for error patterns (failure-driven gaps)
   try {
-    const { getCurrentInstanceId, getInstanceDir } = await import('./instance.js');
-    const errorPatternsPath = path.join(getInstanceDir(getCurrentInstanceId()), 'error-patterns.json');
+    const { getMemoryStateDir } = await import('./memory.js');
+    const errorPatternsPath = path.join(getMemoryStateDir(), 'error-patterns.json');
     const raw = await fs.readFile(errorPatternsPath, 'utf-8');
     const patterns = JSON.parse(raw);
     if (Array.isArray(patterns)) {
@@ -189,8 +189,8 @@ export async function scanCapabilityGaps(): Promise<string> {
 
   // 2. Check metabolism log for unresolved flags
   try {
-    const { getCurrentInstanceId, getInstanceDir } = await import('./instance.js');
-    const metaLogPath = path.join(getInstanceDir(getCurrentInstanceId()), 'metabolism-log.jsonl');
+    const { getMemoryStateDir: getStateDir } = await import('./memory.js');
+    const metaLogPath = path.join(getStateDir(), 'metabolism-log.jsonl');
     const raw = await fs.readFile(metaLogPath, 'utf-8');
     const flagged = raw.split('\n').filter(Boolean)
       .map(l => { try { return JSON.parse(l); } catch { return null; } })

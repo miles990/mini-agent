@@ -9,7 +9,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { getCurrentInstanceId } from './instance.js';
+import { getMemoryStateDir } from './memory.js';
 
 // =============================================================================
 // Types
@@ -45,7 +46,7 @@ export function initActivityJournal(): void {
   try {
     const instanceId = getCurrentInstanceId();
     if (!instanceId) return;
-    journalPath = path.join(getInstanceDir(instanceId), 'activity-journal.jsonl');
+    journalPath = path.join(getMemoryStateDir(), 'activity-journal.jsonl');
 
     if (fs.existsSync(journalPath)) {
       const lines = fs.readFileSync(journalPath, 'utf-8').trim().split('\n').filter(Boolean);

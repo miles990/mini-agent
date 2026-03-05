@@ -8,8 +8,8 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
-import { getMemory, getSkillsPrompt, type CycleMode } from './memory.js';
-import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { getMemory, getSkillsPrompt, getMemoryStateDir, type CycleMode } from './memory.js';
+import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
@@ -140,8 +140,7 @@ export async function logPendingImprovement(entry: {
   topic?: string;
   timestamp: string;
 }): Promise<void> {
-  const instanceDir = getInstanceDir(getCurrentInstanceId());
-  const filePath = path.join(instanceDir, 'pending-improvements.jsonl');
+  const filePath = path.join(getMemoryStateDir(), 'pending-improvements.jsonl');
   const line = JSON.stringify(entry) + '\n';
   await fs.appendFile(filePath, line, 'utf-8');
 }

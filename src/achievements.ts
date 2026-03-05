@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { getMemoryStateDir } from './memory.js';
 import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
 
@@ -148,8 +148,7 @@ const ACHIEVEMENTS: Achievement[] = [
 // =============================================================================
 
 function getStatePath(): string {
-  const dir = getInstanceDir(getCurrentInstanceId());
-  return path.join(dir, 'achievements.json');
+  return path.join(getMemoryStateDir(), 'achievements.json');
 }
 
 const DEFAULT_STATE: AchievementState = {

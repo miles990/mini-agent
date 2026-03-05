@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, unlinkSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
@@ -354,6 +354,54 @@ export function setPerceptionProviders(providers: {
  */
 function getMemoryDir(_instanceId?: string): string {
   return path.join(process.cwd(), 'memory');
+}
+
+/**
+ * 取得持久狀態目錄 — memory/state/
+ * 存放 achievements、feedback loops、journals 等有長期價值的狀態檔案
+ * 與 instanceDir（ephemeral runtime）分離
+ */
+export function getMemoryStateDir(): string {
+  const dir = path.join(process.cwd(), 'memory', 'state');
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
+ * 一次性遷移：從 instanceDir 搬持久狀態檔案到 memory/state/
+ * 只搬尚未存在於目標的檔案（不覆蓋）
+ */
+export function migrateStateFiles(instanceId: string): void {
+  const stateDir = getMemoryStateDir();
+  const instanceDir = path.join(
+    process.env.HOME ?? '/tmp', '.mini-agent', 'instances', instanceId
+  );
+  if (!existsSync(instanceDir)) return;
+
+  const filesToMigrate = [
+    'achievements.json', 'activity-journal.jsonl', 'coach-state.json',
+    'commitments.json', 'decision-quality.json', 'error-patterns.json',
+    'hesitation-log.jsonl', 'hesitation-state.json', 'metabolism-log.jsonl',
+    'metsuke-stats.json', 'pending-improvements.jsonl',
+    'perception-citations.json', 'priority-focus.txt', 'work-journal.jsonl',
+  ];
+
+  let migrated = 0;
+  for (const file of filesToMigrate) {
+    const src = path.join(instanceDir, file);
+    const dst = path.join(stateDir, file);
+    if (existsSync(src) && !existsSync(dst)) {
+      try {
+        copyFileSync(src, dst);
+        migrated++;
+      } catch { /* ignore individual failures */ }
+    }
+  }
+  if (migrated > 0) {
+    try { diagLog('memory.migrateState', null, { migrated, from: instanceDir, to: stateDir }); } catch { /* ok */ }
+  }
 }
 
 /**
@@ -1455,7 +1503,7 @@ export class InstanceMemory {
 
     // ── Priority Focus（最顯眼位置 — 每個 cycle 開頭都會看到）──
     try {
-      const focusPath = path.join(getInstanceDir(this.instanceId), 'priority-focus.txt');
+      const focusPath = path.join(getMemoryStateDir(), 'priority-focus.txt');
       if (existsSync(focusPath)) {
         const focus = readFileSync(focusPath, 'utf-8').trim();
         if (focus) {

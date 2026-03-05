@@ -12,11 +12,11 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
-import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { getInstanceDir, getCurrentInstanceId } from './instance.js';  // getInstanceDir kept for features.json (ephemeral)
 import { getLogger } from './logging.js';
 import { perceptionStreams } from './perception-stream.js';
 import { slog } from './utils.js';
-import { getMemory } from './memory.js';
+import { getMemory, getMemoryStateDir } from './memory.js';
 
 // =============================================================================
 // Types
@@ -52,8 +52,7 @@ interface DecisionQualityState {
 // =============================================================================
 
 function getStatePath(filename: string): string {
-  const dir = getInstanceDir(getCurrentInstanceId());
-  return path.join(dir, filename);
+  return path.join(getMemoryStateDir(), filename);
 }
 
 function readState<T>(filename: string, fallback: T): T {

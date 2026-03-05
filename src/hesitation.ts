@@ -14,7 +14,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
-import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { getMemoryStateDir } from './memory.js';
 import { slog } from './utils.js';
 import type { ParsedTags } from './types.js';
 
@@ -220,7 +220,7 @@ export function applyHesitation(
 
 function getStatePath(): string {
   try {
-    return path.join(getInstanceDir(getCurrentInstanceId()), 'hesitation-state.json');
+    return path.join(getMemoryStateDir(), 'hesitation-state.json');
   } catch {
     return '';
   }
@@ -228,7 +228,7 @@ function getStatePath(): string {
 
 function getLogPath(): string {
   try {
-    return path.join(getInstanceDir(getCurrentInstanceId()), 'hesitation-log.jsonl');
+    return path.join(getMemoryStateDir(), 'hesitation-log.jsonl');
   } catch {
     return '';
   }

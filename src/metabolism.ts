@@ -13,8 +13,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { getMemory } from './memory.js';
-import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { getMemory, getMemoryStateDir } from './memory.js';
+import { getCurrentInstanceId } from './instance.js';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 
@@ -191,8 +191,7 @@ async function detectPatterns(): Promise<void> {
 
   // Write metabolism log
   if (logEntries.length > 0) {
-    const instanceDir = getInstanceDir(getCurrentInstanceId());
-    const logPath = path.join(instanceDir, 'metabolism-log.jsonl');
+    const logPath = path.join(getMemoryStateDir(), 'metabolism-log.jsonl');
     await fs.appendFile(logPath, logEntries.join('\n') + '\n', 'utf-8');
   }
 
@@ -284,8 +283,7 @@ async function detectStaleKnowledge(): Promise<void> {
   }
 
   if (logEntries.length > 0) {
-    const instanceDir = getInstanceDir(getCurrentInstanceId());
-    const logPath = path.join(instanceDir, 'metabolism-log.jsonl');
+    const logPath = path.join(getMemoryStateDir(), 'metabolism-log.jsonl');
     await fs.appendFile(logPath, logEntries.join('\n') + '\n', 'utf-8');
   }
 

@@ -15,7 +15,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, bumpLoopGeneration } from './agent.js';
-import { getMemory } from './memory.js';
+import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
@@ -157,7 +157,7 @@ function getWorkJournalPath(): string | null {
   try {
     const instanceId = getCurrentInstanceId();
     if (!instanceId) return null;
-    return path.join(getInstanceDir(instanceId), 'work-journal.jsonl');
+    return path.join(getMemoryStateDir(), 'work-journal.jsonl');
   } catch { return null; }
 }
 

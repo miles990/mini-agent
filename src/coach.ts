@@ -17,7 +17,8 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { getCurrentInstanceId } from './instance.js';
+import { getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
 import { listTasks } from './delegation.js';
@@ -47,7 +48,7 @@ const NOTES_EXPIRY_MS = 6 * 3600_000; // 6 hours
 // =============================================================================
 
 function getStatePath(filename: string): string {
-  return path.join(getInstanceDir(getCurrentInstanceId()), filename);
+  return path.join(getMemoryStateDir(), filename);
 }
 
 function readState<T>(filename: string, fallback: T): T {
