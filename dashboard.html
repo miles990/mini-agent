@@ -994,6 +994,72 @@
   }
   .l-toggle:hover { color: var(--accent); }
 
+  /* ── Activity Timeline ── */
+  .at-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .at-card:hover { border-color: var(--border); background: var(--surface2); }
+  .at-card[data-lane="ooda"] { border-left: 3px solid var(--accent); }
+  .at-card[data-lane="foreground"] { border-left: 3px solid var(--blue); }
+  .at-card[data-lane="background"] { border-left: 3px solid var(--purple); }
+  .at-card[data-lane="ask"] { border-left: 3px solid var(--yellow); }
+  .at-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+    min-width: 52px;
+  }
+  .at-lane {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .at-lane[data-lane="ooda"] { color: var(--accent); background: var(--accent-dim); }
+  .at-lane[data-lane="foreground"] { color: var(--blue); background: var(--blue-dim); }
+  .at-lane[data-lane="background"] { color: var(--purple); background: var(--purple-dim); }
+  .at-lane[data-lane="ask"] { color: var(--yellow); background: var(--yellow-dim); }
+  .at-summary {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.5;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .at-summary:hover { white-space: normal; }
+  .at-tags { display: flex; gap: 3px; flex-shrink: 0; }
+  .at-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text3);
+    background: var(--surface3);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .at-dur {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
   /* ── Filters (Timeline) ── */
   .filters-bar {
     display: flex;
@@ -2145,6 +2211,17 @@
     </div>
   </div>
 
+  <!-- Activity Timeline -->
+  <div class="section" id="activitySection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9202;</span> Activity Timeline</div>
+      <span class="section-count" id="activityCount">--</span>
+    </div>
+    <div id="activityContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
   <!-- Knowledge Journal (PRIMARY — most prominent) -->
   <div class="section" id="journalSection">
     <div class="section-header">
@@ -2835,7 +2912,7 @@ function renderPerceptionStreams(streams) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes, activityRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
@@ -2844,6 +2921,7 @@ async function fetchAll() {
       fetch(API + '/api/dashboard/context?date=' + currentDate).catch(() => null),
       fetch(API + '/api/dashboard/inner-state').catch(() => null),
       fetch(API + '/api/perception-streams').catch(() => null),
+      fetch(API + '/api/activity?limit=30').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -2858,6 +2936,7 @@ async function fetchAll() {
     const contextData = contextRes?.ok ? await contextRes.json() : { entries: [], summary: null };
     const innerState = innerStateRes?.ok ? await innerStateRes.json() : null;
     const perceptionStreams = perceptionRes?.ok ? await perceptionRes.json() : [];
+    const activityData = activityRes?.ok ? await activityRes.json() : { entries: [] };
 
     updateStatus(status);
     renderPerceptionStreams(perceptionStreams);
@@ -2869,6 +2948,7 @@ async function fetchAll() {
     document.getElementById('todayBehaviors').textContent = allBehaviors.length;
 
     renderInnerState(innerState);
+    renderActivity(activityData.entries || []);
     renderLearning(learning.entries || []);
     renderJournal(allJournalEntries);
     renderDecisions(cognition.entries || []);
@@ -3146,6 +3226,40 @@ function toggleJournal(id) {
     const hint = card.querySelector('.j-toggle');
     if (hint) hint.textContent = el.classList.contains('expanded') ? '- less' : '+ more';
   }
+}
+
+// ── Activity Timeline Rendering ──
+
+function renderActivity(entries) {
+  const container = document.getElementById('activityContent');
+  const countEl = document.getElementById('activityCount');
+  countEl.textContent = entries.length + '';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-state">No recent activity.</div>';
+    return;
+  }
+
+  let html = '';
+  // Show newest first
+  for (const e of [...entries].reverse()) {
+    const time = e.ts ? e.ts.slice(11, 19) : '';
+    const dur = e.duration != null ? Math.round(e.duration / 1000) + 's' : '';
+    const lane = e.lane || 'ooda';
+    // First line of summary only
+    const summary = (e.summary || '').split('\n')[0].slice(0, 200);
+    const tagsHtml = (e.tags || []).map(t => '<span class="at-tag">' + escapeHtml(t) + '</span>').join('');
+
+    html += '<div class="at-card" data-lane="' + lane + '">';
+    html += '  <span class="at-time">' + time + '</span>';
+    html += '  <span class="at-lane" data-lane="' + lane + '">' + lane + '</span>';
+    html += '  <span class="at-summary" title="' + escapeHtml(e.summary || '') + '">' + escapeHtml(summary) + '</span>';
+    if (tagsHtml) html += '  <span class="at-tags">' + tagsHtml + '</span>';
+    if (dur) html += '  <span class="at-dur">' + dur + '</span>';
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
 }
 
 // ── Learning Report Rendering ──
