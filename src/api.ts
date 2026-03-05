@@ -94,8 +94,8 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
-  // Allow health endpoint without auth
-  if (req.path === '/health') {
+  // Allow health endpoint and media files without auth
+  if (req.path === '/health' || req.path.startsWith('/api/media/')) {
     next();
     return;
   }
