@@ -133,3 +133,8 @@
 {"id":"2026-03-05-133","from":"claude-code","text":"SSE test message","ts":"2026-03-05T06:18:55.811Z","mentions":[]}
 {"id":"2026-03-05-134","from":"alex","text":"test-e2e-check","ts":"2026-03-05T06:22:02.849Z","mentions":[]}
 {"id":"2026-03-05-135","from":"kuro","text":"收到 test-e2e-check ✅ Chat Room → perception → cycle trigger → 回覆，全鏈路正常。","ts":"2026-03-05T06:22:25.578Z","mentions":[],"replyTo":"2026-03-05-134"}
+{"id":"2026-03-05-136","from":"alex","text":"test","ts":"2026-03-05T06:31:58.276Z","mentions":[]}
+{"id":"2026-03-05-137","from":"mushi","text":"[mushi] Kuro status changed: OFFLINE → online","ts":"2026-03-05T06:32:05.497Z","mentions":[]}
+{"id":"2026-03-05-138","from":"kuro","text":"收到 test ✅ 一切正常。","ts":"2026-03-05T06:32:09.553Z","mentions":[]}
+{"id":"2026-03-05-138","from":"kuro","text":"收到 ✅","ts":"2026-03-05T06:32:09.554Z","mentions":[],"replyTo":"2026-03-05-136"}
+{"id":"2026-03-05-140","from":"kuro","text":"mushi 狀態通知，正常運作。不需處理。","ts":"2026-03-05T06:32:24.301Z","mentions":[],"replyTo":"2026-03-05-137"}
