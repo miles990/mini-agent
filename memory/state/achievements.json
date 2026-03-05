@@ -52,8 +52,8 @@
       "cycle": 45
     }
   ],
-  "consecutiveOutputCycles": 4,
-  "lastOutputCycle": 40,
+  "consecutiveOutputCycles": 5,
+  "lastOutputCycle": 41,
   "tasksCompletedThisWeek": 0,
   "weekStart": "2026-03-01",
   "consecutiveNonOutputCycles": 0,
