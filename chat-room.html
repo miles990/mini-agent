@@ -633,6 +633,8 @@
     }
   }
 
+  let hadSSEError = false;
+
   function connectSSE() {
     if (eventSource) {
       eventSource.close();
@@ -642,12 +644,14 @@
     const url = `${baseUrl}/api/room/stream`;
     eventSource = new EventSource(url);
 
-    // Workaround: EventSource doesn't support custom headers,
-    // so we rely on the URL being accessible. For auth, we'll
-    // make a preflight check.
-    fetch(url, { headers: { 'x-api-key': apiKey } }).catch(() => {});
-
-    eventSource.onopen = () => setConnState('connected');
+    eventSource.onopen = () => {
+      setConnState('connected');
+      // Reload history on reconnect to fill gap from missed SSE events
+      if (hadSSEError) {
+        hadSSEError = false;
+        loadHistory();
+      }
+    };
 
     eventSource.onmessage = (ev) => {
       try {
@@ -665,6 +669,7 @@
     };
 
     eventSource.onerror = () => {
+      hadSSEError = true;
       setConnState('error');
       // Auto-reconnect is built into EventSource
     };
