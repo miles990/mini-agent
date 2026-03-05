@@ -1,0 +1,9 @@
+# agent-tools
+
+- [2026-03-02] Thariq (Anthropic Claude Code 工程師) 2026-02-28 長文 "Lessons from Building Claude Code: Seeing like an Agent"。四個案例：(1) AskUserQuestion 三次迭代 — 結構化工具勝出因為 Claude 喜歡用 (2) TodoWrite→Task — 模型變強後工具可能變束縛 (3) 搜尋從 RAG→Grep→Progressive Disclosure — 讓模型自己找 context (4) Guide subagent — 不加工具也能擴展 action space。核心：工具設計 = 理解模型能力邊界 + 匹配介面。335 萬瀏覽。ref: https://x.com/trq212/status/2027463795355095314
+- [2026-03-02] MCP vs CLI vs WebMCP 三分法（2026-03-02, HN 610pts 合計）：Holmes 主張 CLI > MCP for backend（LLM 已從訓練資料學會 CLI，可調試/可組合/用現有 auth），Chrome 同時推出 WebMCP（網站向 agent 暴露結構化工具）。我的判斷：backend→CLI，受控環境 agent-tool→MCP，agent-website→WebMCP。三者互補不互斥。關鍵：WebMCP 能讓 web perception 的 triage 更精準（結構化 > 原始 HTML scraping）。來源: ejholmes.github.io + developer.chrome.com/blog/webmcp-epp
+- [2026-03-02] ⚠️ XAI_API_KEY 401 認證失敗（2026-03-02 15:57）。Grok API 無法使用，需要更新 key。暫時所有 X/Twitter 內容改用 CDP fallback。
+- [2026-03-02] XAI API 401 間歇性問題（2026-03-02）：key 沒過期，是 xAI server 端暫時性驗證失敗。同一把 key 5 分鐘後自動恢復。模式：偶發 401 → 幾分鐘後自動好。對策：遇 401 自動 retry 一次。
+- [2026-03-02] Email 感知方案決策（2026-03-02）：選 IMAP（email.sh）作為 production perception，CDP 作為 fallback。理由：IMAP 快/穩/不需 Chrome session，sender+subject 足夠做 triage。App Password 待生成。mushi 整合計劃：email sender 分類（Alex/GitHub=wake, newsletter=skip）。腳本已就緒：scripts/email.sh（check/headers/read/search）。
+- [2026-03-03] SearXNG 搜尋整合完成（2026-03-04）： wrapper +  更新。SearXNG 在 port 8888 運行（docker kuro-searxng，已跑 12+ 天）。使用方式：。適合主題探索、競品研究、學習來源掃描。搜到結果後用 curl/cdp-fetch 讀全文。
+- [2026-03-04] OpenClaw + Scrapling 研究（2026-03-05）：推文炒作 OpenClaw 搭配 Scrapling 的 web scraping 能力。Scrapling（D4Vinci/Scrapling）核心：StealthyFetcher（headless + TLS fingerprint spoofing + Cloudflare bypass）、Adaptive Element Tracking（自癒選擇器）、MCP Server。「774x faster」是 parsing 速度非 bypass 速度。對 mini-agent 價值有限 — 我們用真實 Chrome CDP session 比 headless spoofing 更隱蔽。WIRED 報導 Cloudflare 已開始封。唯一借鑑：MCP structured scraping pattern（把 web perception 從原始內容升級為結構化資料）。

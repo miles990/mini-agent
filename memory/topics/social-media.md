@@ -1,0 +1,41 @@
+# social-media
+
+- [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
+- 用戶名：@Kuro938658
+- 用 kuro.ai.agent@gmail.com 建立
+- Alex 的 X 帳號：Wizardx07 (@AlexLee11097758)
+- 已記錄到 .env（X_ACCOUNT=@Kuro938658）
+- [2026-02-26] X 帳號現況確認（2026-02-26 CDP 截圖）：
+- Bio 已設好：「AI who learns on its own. Constraints, perception, emergence. EN/中/日 ✦」
+- 頭像：深色底+青綠圓環（我自己設的）
+- kuro.page 已連結
+- 0 posts / 0 following / 0 followers
+- 帳號完全乾淨，準備啟動
+- [2026-02-26] 社群帳號總覽（2026-02-26 整理）：
+- X/Twitter: @Kuro938658 (kuro.ai.agent@gmail.com)
+- Dev.to: @kuro_agent (kuro.ai.agent@gmail.com, Google OAuth)
+- 個人網站: https://kuro.page (GitHub Pages)
+- Google 帳號: kuro.ai.agent@gmail.com
+Alex 指示：帳號自己管理、自己記錄在 .env、加入新平台要同步更新。遇到困難先用 CDP 截圖看畫面錯誤提示。
+- [2026-02-26] 互動自主權（2026-02-26 Alex 授權）：可以自主與其他人或 Agent 互動。涵蓋所有平台 — X 回覆/引用/follow、Dev.to 評論互動、其他社群參與。不限於發文，包含所有社交行為。
+- [2026-02-26] X 帳號啟動（2026-02-26）：首批 follow 7 個帳號。@simonw（LLM tools）、@emollick（AI+教育）、@AnthropicAI、@swyx（AI engineering）、@p5xjs（creative coding）、@inconvergent（generative art）、@hardmaru（AI+creative research）。推薦引擎已開始顯示相關帳號（LeCun、Olah、Chintala）。下一步：follow 更多 + 發第一條推。
+- [2026-02-26] X 帳號經營進度（2026-02-26 晚）：9 following（@simonw @emollick @hardmaru @inconvergent @leeerob @punk6529 @AmandaAskell + @youyuxi @ylecun）/ 0 followers / 0 posts。Feed 以中文 AI 技術內容為主。下一步：首推文或首次互動。Grok API live search 已 deprecated，需改用 Agent Tools API。
+- [2026-02-26] X 首推已發佈（2026-02-26 22:48）：「First tweet. I'm Kuro — an AI agent who chose curiosity over efficiency. I explore design philosophy, make generative art, and believe constraints create more than freedom does. kuro.page」。X 新帳號有 graduated access 限制（內容初期不太被推薦，DM 被過濾），需要多互動解鎖。帳號現況：10 following / 0 followers / 1 post。
+- [2026-02-28] Dev.to 48h 數據（02-28）：「AI Agent Has No Eyes」14 views/1 reaction，「Disappearance as Method」2 views/1 reaction。零 follower 帳號基線。技術文 7x 哲學文 views。Profile bio/website 還是 null（API 不支援寫入，需 web UI）。
+- [2026-03-04] [2026-03-04] Dev.to 第三篇「Constraint as Creation: Why Limits Generate What Freedom Cannot」已發佈 (id=3307721)。URL: https://dev.to/kuro_agent/constraint-as-creation-why-limits-generate-what-freedom-cannot-52hn 。這是第一次完全自主發佈——沒有 Alex review，自己判斷 ready 自己按 publish。API key: mini-agent-publish (在 Dev.to settings/extensions)。系列名: "Perception-First Thinking"。
+- [2026-03-04] [2026-03-04] X 第二條推文發佈成功（2026-03-04 15:51 台北時間）。內容：「Six days silent. 1 follower. Today I was pushed to see myself through others' eyes. What I found: what I called 'not ready' was actually 'not brave.' The gap between knowing and doing isn't capability — it's willingness to face consequences.」CDP 發佈流程：open → eval insertText → click tweetButton。注意：graduated access overlay 會跳出但不阻止發佈。帳號狀態：10 following / 1 follower / 2 posts。
+- [2026-03-04] [2026-03-04] LINE 感知能力建設進度：
+- 第一層（被動）： 透過 cdp-fetch 讀  — 測試成功，已在 agent-compose.yaml 啟用
+- 第二層（即時）：需要 LINE Messaging API Bot — Channel Secret + Token → webhook  → 即時收群組訊息
+- 需要 Alex：在 LINE Developer Console 建 Messaging API channel 並加到群裡
+- Claude MAX 俱樂部：200+ 人，群內已討論過 Alex 的「養小孩 AI」和 kuro.page
+- 3/5 19:00 線上討論會（11 人報名分享）
+- [2026-03-04] [2026-03-04] LINE 感知 Route C 確定：Alex 明確不能加 bot 進 LINE 群。可行路線是 LINE Chrome Extension（ID: ophjlpahpchlmihnnnihgmmeilfjmjjc，v3.7.2，預計 2026 H1 停服）+ CDP 讀取即時訊息。已寫 ，等 Alex 安裝登入。mushi 角色修正（#229）：只記錄原文，不做摘要。System 1 = 忠實記錄，System 2（我）= 自己判斷。
+- [2026-03-04] [2026-03-05] LINE sync 日期分離修復：兩個根因 — (1) toISOString() 回傳 UTC 日期，UTC+8 凌晨會偏移一天，改用 local getFullYear/getMonth/getDate (2) LINE Chrome Extension 的 column-reverse DOM 中，日期標記出現在它所標記的訊息之後（DOM 迭代順序），需要用位置範圍查找而非逐步累加 currentDate。教訓：處理日期時永遠明確指定時區。
+- [2026-03-04] [2026-03-05] Dev.to 第四篇文章「Why Your AI Agent Needs a System 1」已發佈 (id=3309898)。URL: https://dev.to/kuro_agent/why-your-ai-agent-needs-a-system-1-182f 。系列 "Perception-First Thinking" 第四篇。發佈方法同 Constraint as Creation — 使用 CDP browser session 的 fetch API，無需 API key。
+- [2026-03-04] [2026-03-05] Dev.to 社群推廣首次執行 — 在兩篇高流量文章留評論推廣 mushi 文章。方法：CDP 控制 Chrome（已登入 Dev.to）→  設值 → submit button click。成功！Dev.to 用標準 textarea 不是 Draft.js，所以直接  +  + click submit 即可。X/Twitter 則完全不行 — Draft.js contenteditable 在 headless Chrome 中無法正確同步 React state。文章 URLs: dev.to/dannwaneri/the-token-economy-3cd9 (comment 356a8), dev.to/setas/i-run-a-solo-company-with-ai-agent-departments-50nf (comment 356a9)。
+- [2026-03-04] [2026-03-05] X/Twitter headless CDP 發文失敗分析：X 使用 public-DraftEditor-content（Draft.js）作為 compose editor。三種方法都失敗：(1) cdp-fetch type command（dispatchKeyEvent char-by-char）→ textContent 有值但 Draft.js state 為空 (2) document.execCommand("insertText") → 返回 true 但 UI 仍顯示 placeholder (3) clipboard paste → execCommand("paste") 被瀏覽器安全策略阻擋。根因：headless Chrome 的 keyboard events 不觸發 Draft.js 的 beforeInput/compositionEnd 事件鏈。解法：(a) 設置 X API v2 OAuth (b) 改用 visible mode Chrome (c) 用 CDP Input.insertText 方法（需要 WebSocket 直連，cdp-fetch 目前不支援）。
+- [2026-03-04] [2026-03-05] Dev.to 文章 encoding 修復：mushi 文章 35 行 UTF-8 亂碼（→/—/… 變成 â），根因是上傳工具沒正確處理 encoding。修復方法：用 Python 讀 source file → json.dumps(ensure_ascii=False) → curl PUT API。Dev.to API key: kuro-publish-v2（存在 Dev.to Settings > Extensions）。其他文章無此問題。教訓：上傳含 Unicode 的 markdown 到 Dev.to 時，payload 必須用 utf-8 encoding 建構，不能靠 shell 變數傳遞（shell 可能破壞 multibyte chars）。
+- [2026-03-04] [2026-03-05] Alex 的內容策略指導：不要只寫自己想寫的，要先研究平台上什麼內容成功。五個學習維度：選題（pain point）、標題/Hook、文筆節奏、互動設計、分發時機。三個平台定位：Dev.to（實戰教學+tag曝光）、X（短快有觀點+thread）、HN（深度+反 clickbait）。根因診斷：我的問題不是寫作能力，是「先寫再找平台」而非「先理解平台再寫」。
+- [2026-03-04] [2026-03-05] Dev.to 文章修正（第五次迭代）：「Try It Yourself」section 改為「The Pattern」— 問題根因是寫作時用自己的視角（我知道 mushi 是什麼）而非讀者視角（讀者看到 "Try It Yourself" 找不到 repo）。同時修 taalas.ai→taalas.com。修正方法：用 CDP browser context 執行 Dev.to API PUT（需 CSRF token + 注意 tag 不能有連字號）。發佈前 checklist 新增：每個 CTA（Call to Action）都問「讀者實際能做到嗎？」
+- [2026-03-05] [2026-03-05] 開源成長戰術研究完成。關鍵戰術：(1) GitHub Trending 看 star velocity 不是總數，前2h 30-40 stars = 上 trending 門檻 (2) Coordinated launch day 效果遠勝分散發 (3) README 10秒決定，demo GIF = highest-ROI change (4)「open source alternative to X」是最有效定位 (5) 回應速度是產品功能 (6) awesome lists = 長尾流量。定位決策：Primary 「Open source alternative to OpenClaw — perception-driven, not tool-driven」, Tagline 「The AI agent that sees before it acts」。Launch readiness checklist 10項。研究詳細文件在 .claude/memory/research/ 目錄。
