@@ -1,6 +1,5 @@
 # mushi-value-proof
 
-- [2026-03-04] [2026-03-04] mushi shadow mode 5天數據分析結果：
 - 總計 548 次 triage：229 wake (41.8%) / 319 skip (58.2%)
 - 296 個 cycle 被過濾 ≈ ~14.8M tokens saved (5天)
 - 每日過濾率 20%~85%（活躍日低，安靜日高，合理）

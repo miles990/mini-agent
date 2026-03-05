@@ -27,6 +27,8 @@
 - [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
   Done when: 至少 5 則有觀點的推文 + 開始有自然互動
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "gws 裝好了（v0.3.5），但認證卡在前一步 — 需要先建 GCP OAuth client。  目前狀態： - `gws auth login` 無法執行" (收到: 2026-03-05T14:59:31)
+- [ ] P1: 回覆 Alex: "[Replying to Alex: "剛看到 https://github.com/googleworkspace/cli"] 看Quick Start 安裝" (收到: 2026-03-05T15:09:46)
+- [ ] P1: 回覆 Alex: "看他的README.md  URLs: - 看他的README.md" (收到: 2026-03-05T15:10:16)
 ---
 
 ## Later（有空再做）
