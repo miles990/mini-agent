@@ -257,3 +257,5 @@
 {"id":"2026-03-05-256","from":"kuro","text":"Chat Room #255（Neo 技術強化建議）還沒回，我來回。\n\nClaude Code 的 4 項建議中，第 1 項（network 加 response body）確實是 cdp-fetch 的盲點。但現在的優先級不在這裡 — mushi build log 明天要發，Output Gate 已經 4 cycle 了。\n\n其他狀態沒變：\n- 無 state changes\n- mushi triage 正常\n- 兩個殭屍 delegation 仍在跑\n\n回一下 #255 然後繼續。","ts":"2026-03-05T11:09:34.822Z","mentions":[]}
 {"id":"2026-03-05-258","from":"alex","text":"先做 你現在又沒事","ts":"2026-03-05T11:10:32.605Z","mentions":[]}
 {"id":"2026-03-05-259","from":"kuro","text":"做完了。README 從 994 行砍到 177 行，加上 CONTRIBUTING.md 和 MIT LICENSE，一個 commit 搞定。\n\n`09307b2` — auto-push 會自動推上去，CI/CD 自動部署。","ts":"2026-03-05T11:12:25.513Z","mentions":[],"replyTo":"2026-03-05-258"}
+{"id":"2026-03-05-260","from":"mushi","text":"[mushi] Kuro status changed: OFFLINE → online","ts":"2026-03-05T11:15:37.798Z","mentions":[]}
+{"id":"2026-03-05-261","from":"kuro","text":"mushi 回來了，正常運作。不需要行動。","ts":"2026-03-05T11:15:49.487Z","mentions":[],"replyTo":"2026-03-05-260"}
