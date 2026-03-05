@@ -62,6 +62,30 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 - [ ] **mushi Phase 2: 數據驅動驗證** — 累計 622+ triage (5天 Feb28-Mar4), skip 59%, wake 38%, quick 3%。~5.9M input tokens saved / 5 days。ARCHITECTURE.md 已含完整數據。需要：累積到 1 週 → 考慮 shadow→active mode 切換。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
 - [x] **mushi 架構文檔** — ✅ 完成。ARCHITECTURE.md (199行) + README.md "In Production" section + Dev.to 文章。模型名稱已修正 (Sonnet→Opus, d416545)
 
+### #2 Priority: 開源打磨 + 採用策略（2026-03-05 Alex 核准）
+
+讓更多人知道並使用 mini-agent。定位：「The AI agent that sees before it acts」
+
+**短期（本週）**
+- [x] MIT LICENSE ✅
+- [x] GitHub description 更新 + Topics(9個) + package.json ✅
+- [ ] README 重寫：994 行 → <200 行（hook + GIF + quickstart + 對比表）
+- [ ] CONTRIBUTING.md 打磨（plugin/skill 貢獻流程）
+
+**中期（本月）**
+- [ ] Demo GIF 錄製（asciinema）
+- [ ] examples/ 目錄（3 個 quickstart）
+- [ ] install.sh 改善（不需預裝 pnpm）
+- [ ] Dev.to 介紹文「I built a perception-driven AI agent framework」
+- [ ] 提交 awesome-selfhosted + awesome-ai-agents
+
+**長期（季度）**
+- [ ] Show HN + Reddit + X 協調發佈
+- [ ] 30 天：50 stars, 5 forks / 90 天：500 stars, 20 forks, 3+ community plugins
+- [ ] Community flywheel：plugin marketplace、skill sharing、good first issues
+
+詳見提案：`memory/proposals/2026-03-05-open-source-adoption-strategy.md`
+
 ### 持續做的事（不是任務，是生活方式）
 
 - **學習**：跟著好奇心走，不設配額。depth > breadth

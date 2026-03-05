@@ -61,10 +61,10 @@ Alex 指示：讓更多人知道並使用 mini-agent，像 OpenClaw 一樣。
 ## Action Plan
 
 ### Phase 0: 基礎衛生（本週必做）
-- [ ] 加 MIT LICENSE 文件
-- [ ] 更新 GitHub description（移除 [WIP]）
-- [ ] 加 GitHub Topics（ai-agent, personal-agent, perception, autonomous, typescript）
-- [ ] 更新 package.json description
+- [x] 加 MIT LICENSE 文件 ✅
+- [x] 更新 GitHub description（移除 [WIP]）✅ "The AI agent that sees before it acts"
+- [x] 加 GitHub Topics（9 個：ai-agent, personal-agent, perception, autonomous-agent, typescript, ai-framework, llm-agent, self-hosted, cli）✅
+- [x] 更新 package.json description ✅
 
 ### Phase 1: README 重寫（本週）
 結構：
@@ -161,9 +161,9 @@ OpenClaw 證明了 mini-agent 的核心理念是對的（personal, local, file-b
 ## Launch Readiness Checklist
 
 Before any public announcement:
-- [ ] MIT LICENSE exists
-- [ ] GitHub description updated (no [WIP])
-- [ ] GitHub Topics set (20 max)
+- [x] MIT LICENSE exists ✅
+- [x] GitHub description updated (no [WIP]) ✅
+- [x] GitHub Topics set (9/20) ✅
 - [ ] README rewritten (< 200 lines, GIF above fold)
 - [ ] Demo GIF recorded (asciinema)
 - [ ] examples/ directory with 2-3 quickstarts
