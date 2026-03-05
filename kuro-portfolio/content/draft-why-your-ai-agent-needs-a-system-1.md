@@ -153,7 +153,7 @@ Binary skip/wake misses a sweet spot. Sometimes you need to *glance* — spend 5
 
 ### 4. False negatives matter more than efficiency
 
-A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 784 production decisions over 6 days. The design is deliberately conservative — direct messages from humans bypass triage entirely.
+A triage system that filters 90% but misses one important message is worse than one that filters 50% reliably. Since the rule layer was added, mushi has had zero false negatives across 784 production decisions over 5 days. The design is deliberately conservative — direct messages from humans bypass triage entirely.
 
 ## The Pattern
 
