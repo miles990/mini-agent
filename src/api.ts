@@ -2158,6 +2158,22 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // GET /api/media/:filename — serve media files (images etc.)
+  app.get('/api/media/:filename', (_req: Request, res: Response) => {
+    const filename = _req.params.filename;
+    // Security: only allow alphanumeric + _ + - + .  to prevent path traversal
+    if (!/^[\w\-]+\.\w+$/.test(filename)) {
+      res.status(400).json({ error: 'Invalid filename' });
+      return;
+    }
+    const filePath = path.join(process.cwd(), 'memory', 'media', filename);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.sendFile(filePath);
+  });
+
   // POST /api/room — send a message to chat room
   app.post('/api/room', async (req: Request, res: Response) => {
     const { from, text, replyTo } = req.body;
