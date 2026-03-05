@@ -1,8 +1,7 @@
 {
-  "cyclesSinceLastCheck": 9,
-  "lastCheckAt": "2026-03-05T08:56:58.193Z",
+  "cyclesSinceLastCheck": 0,
+  "lastCheckAt": "2026-03-05T09:47:04.601Z",
   "lastWarnings": [
-    "NEXT.md 積壓: 16 個未完成項目 (建議清理到 ≤5)",
     "src/ 有 5 個 commits (24h) 但無升級報告"
   ]
 }
