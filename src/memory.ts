@@ -1274,14 +1274,31 @@ export class InstanceMemory {
       const newContent = current + `\n[${timestamp}] ${content}`;
 
       // Warm rotate: 限制每日筆數
+      // Group lines into entries: each entry starts with [timestamp] and includes all following lines
       const lines = newContent.split('\n');
-      const headerLines = lines.filter(l => l.startsWith('#') || l.trim() === '');
-      const contentLines = lines.filter(l => !l.startsWith('#') && l.trim() !== '' && l.startsWith('['));
+      const header: string[] = [];
+      const entries: string[][] = [];
+      let currentEntry: string[] | null = null;
 
-      // 如果超過 warmLimit，移除最舊的
-      if (contentLines.length > this.warmLimit) {
-        const trimmed = contentLines.slice(-this.warmLimit);
-        const finalContent = [...headerLines, ...trimmed].join('\n');
+      for (const line of lines) {
+        if (line.startsWith('#') && !currentEntry) {
+          header.push(line);
+        } else if (/^\[[\d:]+\]/.test(line)) {
+          // New timestamp entry — save previous and start new
+          if (currentEntry) entries.push(currentEntry);
+          currentEntry = [line];
+        } else if (currentEntry) {
+          currentEntry.push(line);
+        } else {
+          header.push(line);
+        }
+      }
+      if (currentEntry) entries.push(currentEntry);
+
+      // 如果超過 warmLimit，移除最舊的（保留完整 entry）
+      if (entries.length > this.warmLimit) {
+        const trimmed = entries.slice(-this.warmLimit);
+        const finalContent = [...header, ...trimmed.flat()].join('\n');
         await fs.writeFile(dailyPath, finalContent, 'utf-8');
       } else {
         await fs.writeFile(dailyPath, newContent, 'utf-8');

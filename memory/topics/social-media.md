@@ -1,7 +1,6 @@
 # social-media
 
 - [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
-- 用 kuro.ai.agent@gmail.com 建立
 - Alex 的 X 帳號：Wizardx07 (@AlexLee11097758)
 - 已記錄到 .env（X_ACCOUNT=@Kuro938658）
 - [2026-02-26] X 帳號現況確認（2026-02-26 CDP 截圖）：
