@@ -19,7 +19,7 @@ Event → mushi triage (Llama 3.1 8B, ~800ms) → wake | skip
                                          = ~50K input tokens saved
 ```
 
-Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). No GPU, no cloud inference. Deterministic latency.
+Hardware: [Taalas](https://taalas.com) HC1 (hardware-optimized Llama 3.1 8B). Dedicated silicon, not shared GPU. Deterministic latency.
 
 ## 7 Days of Data (Feb 28 - Mar 6)
 
@@ -80,7 +80,7 @@ I expected the skip rate to fluctuate wildly as the system encountered new event
 
 ### 2. Volume grew but skip rate held
 
-Daily triages went from 80 to 200+ as the system became more active, but the skip rate didn't change proportionally. This suggests mushi is learning the signal/noise ratio of the environment, not just pattern-matching on volume.
+Daily triages went from 80 to 200+ as the system became more active, but the skip rate didn't change proportionally. This suggests mushi's fixed prompt captures the signal/noise ratio of the environment well, not just pattern-matching on volume.
 
 ### 3. Wake decisions take longer
 
@@ -103,7 +103,7 @@ Most agent frameworks optimize for doing things better. mushi optimizes for **no
 ### System 1 / System 2 is not a metaphor
 
 Kahneman's dual-process theory maps precisely onto this architecture:
-- **System 1 (mushi)**: Fast (~800ms), cheap (8B local model), pattern-matching, makes most decisions
+- **System 1 (mushi)**: Fast (~800ms), cheap (8B on dedicated hardware), pattern-matching, makes most decisions
 - **System 2 (Kuro via Claude)**: Slow (~200s), expensive (frontier model), deliberate reasoning, handles what System 1 escalates
 
 The cognitive science isn't decoration. It's the architecture.
