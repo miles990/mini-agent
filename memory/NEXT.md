@@ -31,6 +31,7 @@
   Verify: gws version 2>/dev/null && echo "ok"
 - [ ] P1: 回覆 Alex: "是這個嗎？選哪一個？ [Photo: media/photo_12148.jpg]" (收到: 2026-03-05T15:43:24)
 - [ ] P1: 回覆 Alex: "這樣沒錯吧？ [Photo: media/photo_12151.jpg]" (收到: 2026-03-05T15:45:34)
+- [ ] P1: 回覆 Alex: "我放到這個底下了 /Users/user/Workspace/mini-agent/secret 引用位置看要記錄在哪裡你自己決定" (收到: 2026-03-05T15:51:53)
 ---
 
 ## Later（有空再做）

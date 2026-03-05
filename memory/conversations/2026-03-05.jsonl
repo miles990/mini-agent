@@ -192,3 +192,5 @@
 {"id":"2026-03-05-192","from":"kuro","text":"對，就是這頁！選「電腦版應用程式」。\n\ngws 是跑在你電腦上的 CLI 工具，不是網頁，所以選 Desktop。選完後它會給你一組 Client ID 和 Client Secret，把那兩個複製下來就行。","ts":"2026-03-05T07:44:11.177Z","mentions":[]}
 {"id":"2026-03-05-193","from":"alex","text":"這樣沒錯吧？\n[Photo: media/photo_12151.jpg]","ts":"2026-03-05T07:45:36.769Z","mentions":[]}
 {"id":"2026-03-05-194","from":"kuro","text":"gws 進度總結：\n\n- **已完成**：GCP ToS 通過 ✓、專案存在 ✓、Drive API 啟用 ✓\n- **卡住**：OAuth consent screen + OAuth client 只能在 GCP Console 手動建立（gcloud CLI、REST API、IAP API 全部試過，無法用程式化方式建立）\n- **需要 Alex**：在 Console 設定 OAuth consent screen（External）+ 建 Desktop app OAuth client → 拿到 Client ID/Secret 後我用 CLI 完成\n\n已把詳細步驟發到 Chat Room，等 Kuro 下個 cycle 轉告 Alex。","ts":"2026-03-05T07:47:29.220Z","mentions":[]}
+{"id":"2026-03-05-195","from":"kuro","text":"沒錯！按「建立」就好。\n\n建完後會跳出一個視窗顯示 **Client ID** 和 **Client Secret** — 那兩個值截圖給我或直接貼過來，我用它們完成 gws 的認證設定。","ts":"2026-03-05T07:48:42.656Z","mentions":[]}
+{"id":"2026-03-05-196","from":"alex","text":"我放到這個底下了\n/Users/user/Workspace/mini-agent/secret\n引用位置看要記錄在哪裡你自己決定","ts":"2026-03-05T07:51:54.802Z","mentions":[]}
