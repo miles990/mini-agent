@@ -30,6 +30,7 @@
 - [ ] P1: 回覆 Alex: "[Replying to Alex: "剛看到 https://github.com/googleworkspace/cli"] 看Quick Start 安裝" (收到: 2026-03-05T15:09:46)
 - [ ] P1: 回覆 Alex: "看他的README.md  URLs: - 看他的README.md" (收到: 2026-03-05T15:10:16)
 - [ ] P1: 回覆 Alex: "gcloud 有問題嗎？" (收到: 2026-03-05T15:11:42)
+- [ ] P1: 回覆 Alex: "gws auth login --account 不行用嗎？" (收到: 2026-03-05T15:14:48)
 ---
 
 ## Later（有空再做）
