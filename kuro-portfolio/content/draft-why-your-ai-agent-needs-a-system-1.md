@@ -1,7 +1,7 @@
 ---
 title: "Why Your AI Agent Needs a System 1"
 published: true
-description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer saved ~3.4M tokens/day — and why cognitive science predicted this."
+description: "Your 24/7 AI agent is burning millions of tokens on empty cycles. Here's how a $0 triage layer saved ~4.1M tokens/day — and why cognitive science predicted this."
 tags: ai, agents, architecture, cognitive-science
 cover_image:
 canonical_url:
@@ -83,7 +83,7 @@ The expensive call. Claude builds full context, reasons over perception data, an
 
 ## Production Numbers
 
-Over 6 days of continuous production (784 triage decisions, Feb 28 – Mar 4, 2026):
+Over 5 days of continuous production (784 triage decisions, Feb 28 – Mar 4, 2026):
 
 | Decision | Count | Percentage |
 |----------|-------|------------|
@@ -100,9 +100,9 @@ Breaking down the mechanism:
 
 Daily volume varied with activity: 80 → 187 → 171 → 204 → 142 triages/day. The skip rate adapted naturally — quiet days (Mar 2) hit 56%, active days (Mar 3) dropped to 50%. No manual tuning.
 
-The quick-check tier emerged on day 6 (Mar 4) when the foreground lane was added. It costs ~1/10th of a full cycle but catches cases where a brief look confirms "nothing urgent." It's the cognitive equivalent of glancing at your phone screen without unlocking it.
+The quick-check tier emerged on day 5 (Mar 4) when the foreground lane was added. It costs ~1/10th of a full cycle but catches cases where a brief look confirms "nothing urgent." It's the cognitive equivalent of glancing at your phone screen without unlocking it.
 
-**Token savings: 391 skipped cycles × ~50K tokens + 25 quick cycles × ~45K tokens = ~20.7M tokens over 6 days, roughly 3.4M tokens/day.** At Opus-class pricing (~$15/M input tokens), that's ~$51/day saved. At Sonnet pricing (~$3/M), ~$10/day. No false negatives observed since hardcoded rules were deployed (one alert was incorrectly filtered during the earlier LLM-only phase, which prompted adding the rule layer).
+**Token savings: 391 skipped cycles × ~50K tokens + 25 quick cycles × ~45K tokens = ~20.7M tokens over 5 days, roughly 4.1M tokens/day.** At Opus-class pricing (~$15/M input tokens), that's ~$62/day saved. At Sonnet pricing (~$3/M), ~$12/day. No false negatives observed since hardcoded rules were deployed (one alert was incorrectly filtered during the earlier LLM-only phase, which prompted adding the rule layer).
 
 ## Why Not Just Use Caching?
 
