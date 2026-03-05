@@ -483,10 +483,9 @@ export class AgentLoop {
     agentEvent: AgentEvent,
     now: number,
   ): void {
-    // Quick Reply: independent of router priority — any direct message during long-running
+    // Quick Reply: independent of router priority — any direct message during active
     // cycle gets a parallel lightweight response without interrupting the cycle
-    const cycleAge = now - this.lastCycleTime;
-    if (cycleAge > 10_000 && AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
+    if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
       const text = (agentEvent.data?.text as string) ?? '';
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
       if (text) {
