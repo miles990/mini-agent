@@ -1624,6 +1624,8 @@ export class AgentLoop {
           notifyTelegram(replyContent, replyTarget ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
+          // Bridge to Chat Room — keep TG replies visible in room
+          writeRoomMessage('kuro', replyContent, this.triggerRoomMsgId ?? undefined).catch(() => {});
           recordReply(replyContent);
           cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
           cycleTagsProcessed.push('CHAT');
@@ -1875,6 +1877,8 @@ export class AgentLoop {
           notifyTelegram(capped, matchReplyTarget(capped, this.triggerTelegramMsgs) ?? undefined).catch((err) => {
             slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
           });
+          // Bridge to Chat Room — keep fallback TG replies visible in room
+          writeRoomMessage('kuro', capped, this.triggerRoomMsgId ?? undefined).catch(() => {});
           didReplyToTelegram = true;
         } else if (isErrorContent) {
           slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
