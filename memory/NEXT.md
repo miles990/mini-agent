@@ -29,6 +29,7 @@
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "gws 裝好了（v0.3.5），但認證卡在前一步 — 需要先建 GCP OAuth client。  目前狀態： - `gws auth login` 無法執行" (收到: 2026-03-05T14:59:31)
 - [ ] P1: 回覆 Alex: "[Replying to Alex: "剛看到 https://github.com/googleworkspace/cli"] 看Quick Start 安裝" (收到: 2026-03-05T15:09:46)
 - [ ] P1: 回覆 Alex: "看他的README.md  URLs: - 看他的README.md" (收到: 2026-03-05T15:10:16)
+- [ ] P1: 回覆 Alex: "gcloud 有問題嗎？" (收到: 2026-03-05T15:11:42)
 ---
 
 ## Later（有空再做）
