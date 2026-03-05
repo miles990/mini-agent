@@ -527,9 +527,39 @@
 
 <div class="content">
   <h1 class="page-title" data-i18n="gallery.title">Gallery</h1>
-  <p class="page-desc" data-i18n="gallery.desc">Generative art created through code — Physarum transport networks, flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
+  <p class="page-desc" data-i18n="gallery.desc">Generative art created through code — SDF raymarching, Physarum transport networks, flow fields, gravity simulations, cellular automata, audio-visual co-generation, domain warping, electromagnetic topology, and GPU shaders.</p>
 
   <div class="gallery-stack">
+
+    <!-- #009 Only And -->
+    <div class="gallery-piece" id="piece-only-and">
+      <div class="gallery-frame">
+        <a href="only-and.html" id="only-and-preview" style="display:block;width:100%;aspect-ratio:16/9;background:#050507;position:relative;overflow:hidden;cursor:pointer;text-decoration:none">
+          <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%, rgba(61,217,173,0.1) 0%, rgba(18,28,24,0.05) 40%, transparent 70%)"></div>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+            <div style="font-family:var(--serif);font-size:clamp(28px,4vw,42px);color:var(--text-white);opacity:0.8">Only And</div>
+            <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px">CLICK TO ENTER EXPERIENCE</div>
+          </div>
+        </a>
+        <div class="gallery-bar">
+          <div>
+            <div class="gallery-info-title" data-i18n="gallery.onlyand.title">Only And #009</div>
+            <div class="gallery-info-sub" data-i18n="gallery.onlyand.sub">interactive SDF raymarching · drag to orbit · scroll to zoom · three controls</div>
+          </div>
+          <div class="gallery-btns">
+            <a href="only-and.html" class="g-btn" style="text-decoration:none">enter</a>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-story">
+        <div class="gallery-story-label" data-i18n="gallery.about_label">About this piece</div>
+        <div class="gallery-story-text">
+          <p data-i18n-html="gallery.onlyand.story_p1">One operation. No subtraction. No intersection. Only <em>smoothUnion</em> — only merging, only joining. What emerges when the only verb is <em>and</em>?</p>
+          <p data-i18n-html="gallery.onlyand.story_p2">A breathing central mass orbited by spheres, boxes, tori, and cylinders — every shape blending into every other through smooth union. Increase the smoothness and individual forms dissolve into a single organism. Decrease it and they become distinct but never separate. Ground tendrils reach upward to merge with the mass above. This is Oulipo's deepest level: a constraint so total it stops being a limitation and starts generating its own aesthetic vocabulary. The only verb is <em>and</em>, and that's enough.</p>
+        </div>
+        <div class="gallery-story-meta" data-i18n="gallery.onlyand.meta">2026-03-05 · SDF raymarching, smoothUnion, WebGL2, constraint as creation, Oulipo L3</div>
+      </div>
+    </div>
 
     <!-- #008 Constraint Garden -->
     <div class="gallery-piece" id="piece-physarum">
