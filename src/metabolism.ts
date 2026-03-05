@@ -12,6 +12,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { withFileLock } from './filelock.js';
 import { createHash } from 'node:crypto';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getCurrentInstanceId } from './instance.js';
@@ -203,17 +204,19 @@ async function detectPatterns(): Promise<void> {
 
 async function removeBulletFromTopic(topic: string, bullet: string): Promise<void> {
   const memory = getMemory();
-  const content = await memory.readTopicMemory(topic);
-  if (!content) return;
+  const topicPath = path.join(process.cwd(), 'memory', 'topics', `${topic}.md`);
 
-  // Remove the exact line
-  const lines = content.split('\n');
-  const filtered = lines.filter(line => line.trim() !== bullet.trim());
+  await withFileLock(topicPath, async () => {
+    const content = await memory.readTopicMemory(topic);
+    if (!content) return;
 
-  if (filtered.length < lines.length) {
-    const topicPath = path.join(process.cwd(), 'memory', 'topics', `${topic}.md`);
-    await fs.writeFile(topicPath, filtered.join('\n'), 'utf-8');
-  }
+    const lines = content.split('\n');
+    const filtered = lines.filter(line => line.trim() !== bullet.trim());
+
+    if (filtered.length < lines.length) {
+      await fs.writeFile(topicPath, filtered.join('\n'), 'utf-8');
+    }
+  });
 }
 
 // =============================================================================
@@ -262,10 +265,16 @@ async function detectStaleKnowledge(): Promise<void> {
 
     if (staleLines.length === 0) continue;
 
-    // Auto-archive: remove stale lines from topic file
-    const filtered = lines.filter(l => !staleLines.includes(l));
+    // Auto-archive: remove stale lines from topic file (locked to prevent race with appendTopicMemory)
     const topicPath = path.join(process.cwd(), 'memory', 'topics', `${topic}.md`);
-    await fs.writeFile(topicPath, filtered.join('\n'), 'utf-8');
+    await withFileLock(topicPath, async () => {
+      // Re-read inside lock to avoid TOCTOU
+      const freshContent = await memory.readTopicMemory(topic);
+      if (!freshContent) return;
+      const freshLines = freshContent.split('\n');
+      const filtered = freshLines.filter(l => !staleLines.includes(l));
+      await fs.writeFile(topicPath, filtered.join('\n'), 'utf-8');
+    });
 
     for (const stale of staleLines) {
       logEntries.push(JSON.stringify({
