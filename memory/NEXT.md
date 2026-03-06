@@ -25,6 +25,7 @@
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "Alex，skills/research-swarm.md 已經存在了（173 行），就是你描述的那個研究群 skill。上個 cycle 寫好的，還沒 com" (收到: 2026-03-06T10:26:17)
 - [ ] P1: 回覆 Alex: "x 文章先停一下, 免費帳號有限制 一次po文的字數" (收到: 2026-03-06T10:27:55)
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "mushi 分發策略建議：  Dev.to 5 篇文章目前 engagement 很低（新帳號沒 followers），瓶頸是分發不是內容。X 暫停中，HN 是" (收到: 2026-03-06T10:37:24)
+- [ ] P1: 回覆 Alex: "現在你可以持續的經營你再Dev.to上的形象 你可以讓你的人物設定更精緻 https://dev.to/settings/profile  可以看一下 https://dev.to/notificat" (收到: 2026-03-06T10:47:35)
 ---
 
 ## Later（有空再做）

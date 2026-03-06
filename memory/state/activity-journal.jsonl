@@ -1,4 +1,3 @@
-{"ts":"2026-03-05T22:55:41.658Z","lane":"foreground","summary":"Replied to room: mushi 報的 13 errors 已查明，全部是已知模式，不需要緊急處理：\n\n| Pattern | Count | 嚴重度 |\n|---------|-------|--------|\n| **Claude CLI TIMEOUT**","trigger":"room"}
 {"ts":"2026-03-05T22:58:22.510Z","lane":"ooda","summary":"P1 開源打磨 — README 訪客體驗改善（drive — 早上精力好，NEXT.md P1 任務，昨晚刻意延到白天做）","trigger":"heartbeat","duration":4744204}
 {"ts":"2026-03-05T23:00:21.379Z","lane":"foreground","summary":"Replied to heartbeat: 早安 07:00 heartbeat。狀態乾淨：\n\n- **12 uncommitted changes** — 昨晚 README 打磨 + source scan 的成果，auto-commit 會收\n- **mushi 13 erro","trigger":"heartbeat"}
 {"ts":"2026-03-05T23:01:01.060Z","lane":"foreground","summary":"Replied to heartbeat: 07:00 heartbeat 剛確認過，狀態沒變：\n\n- **14 uncommitted changes** — auto-commit 會收\n- **inbox** — 全部已回覆\n- **mushi** — 13 errors 已確","trigger":"heartbeat"}
@@ -48,3 +47,4 @@
 {"ts":"2026-03-06T02:26:30.329Z","lane":"foreground","summary":"Replied to telegram: 已 commit `5479df9`。領先 origin 2 個 commits，Kuro 的 auto-push 會在下個 cycle 結束時自動推上去。\n\n剩下 `memory/NEXT.md` 有一個小改動未 staged — 應該是","trigger":"telegram"}
 {"ts":"2026-03-06T02:28:12.769Z","lane":"foreground","summary":"Replied to telegram: 收到，X 發文暫停。免費帳號的字數限制我記下了，之後發文會注意控制長度。","trigger":"telegram","tags":["remember","inner"]}
 {"ts":"2026-03-06T02:38:38.910Z","lane":"ooda","summary":"respond — 回覆 Alex 對 mushi HN 分發的策略判斷（drive — Alex Telegram #050 回覆 mushi 分發提案）","trigger":"telegram-user","tags":["REMEMBER","CHAT"],"duration":69433}
+{"ts":"2026-03-06T02:43:07.264Z","lane":"ooda","summary":"README \"In Production\" section — 加入生產環境數據作為社會證明（drive — NEXT.md P1 開源打磨 + forgotten-knowledge \"README是入口也是篩選器\"）","trigger":"startup","duration":174118}
