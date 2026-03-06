@@ -21,6 +21,7 @@
 
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
+- [ ] P1: 回覆 Alex: "我剛剛想到這個 這個可能是你最好理解網頁的在人類眼中的運作方式 https://github.com/web-infra-dev/midscene  URLs: - https://github.co" (收到: 2026-03-07T01:11:13)
 ---
 
 ## Later（有空再做）
