@@ -56,7 +56,11 @@ const PROTECTED_SECTIONS = new Set([
   'chat-room-recent',
 ]);
 
-/** Keywords for conditional loading when a section is demoted */
+/**
+ * Keywords for conditional loading when a section is demoted.
+ * Only sections actually gated by shouldLoad() in memory.ts are listed here.
+ * Sections using only `!isLight` guard are NOT tracked (no effect if demoted).
+ */
 export const SECTION_KEYWORDS: Record<string, string[]> = {
   temporal: ['time', 'schedule', 'when', 'date', 'calendar'],
   capabilities: ['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'],
@@ -68,17 +72,8 @@ export const SECTION_KEYWORDS: Record<string, string[]> = {
   activity: ['activity', 'behavior', 'action', 'recent'],
   trail: ['trail', 'decision', 'triage', 'scout'],
   achievements: ['achievement', 'milestone', 'ship', 'momentum'],
-  coach: ['coach', 'habit', 'behavior', 'pattern', 'streak'],
+  coach: ['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'],
   commitments: ['commitment', 'promise', 'overdue', 'committed', 'pledge'],
-  'background-completed': ['background', 'delegation', 'delegate', 'completed'],
-  'recent-activity': ['activity', 'journal', 'recent'],
-  threads: ['thread', 'thinking'],
-  'working-memory': ['inner', 'working', 'scratch'],
-  'inner-voice': ['impulse', 'voice', 'creative'],
-  'conversation-threads': ['conversation', 'thread', 'pending', 'question'],
-  'stale-tasks': ['stale', 'task', 'overdue'],
-  'structural-health': ['structural', 'health', 'warning'],
-  'decision-quality-warning': ['quality', 'decision', 'warning'],
 };
 
 // =============================================================================

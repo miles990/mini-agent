@@ -182,12 +182,14 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
     lastAdjusted: '',
   });
 
-  // Extract referenced <section-name> from action text
-  const refs = action.matchAll(/<(\w[\w-]+)>/g);
-  for (const m of refs) {
-    const name = m[1];
-    // Skip common XML-like tags that aren't perception sections
-    if (['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol'].includes(name)) continue;
+  // Extract referenced <section-name> from action text (shared by citation tracking + optimizer)
+  const skipTags = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol']);
+  const citedSections: string[] = [];
+  for (const m of action.matchAll(/<(\w[\w-]+)>/g)) {
+    if (!skipTags.has(m[1])) citedSections.push(m[1]);
+  }
+
+  for (const name of citedSections) {
     state.citations[name] = (state.citations[name] ?? 0) + 1;
   }
 
@@ -236,16 +238,9 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
 
   writeState('perception-citations.json', state);
 
-  // Feed citation data to context optimizer
+  // Feed citation data to context optimizer (reuses citedSections extracted above)
   try {
     const { getContextOptimizer } = await import('./context-optimizer.js');
-    const citedSections: string[] = [];
-    for (const m of action.matchAll(/<(\w[\w-]+)>/g)) {
-      const name = m[1];
-      if (!['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol'].includes(name)) {
-        citedSections.push(name);
-      }
-    }
     const opt = getContextOptimizer();
     opt.recordCycle({ citedSections });
     opt.save();

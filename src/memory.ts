@@ -1568,15 +1568,20 @@ export class InstanceMemory {
     const isRelevant = (keywords: string[]) =>
       mode === 'full' || keywords.some(k => contextHint.includes(k));
 
-    // Load demoted sections from context optimizer
+    // Load demoted sections and their keywords from context optimizer (single source of truth)
     let demotedSections: Set<string> = new Set();
+    let sectionKeywords: Record<string, string[]> = {};
     try {
-      const { getContextOptimizer } = await import('./context-optimizer.js');
+      const { getContextOptimizer, SECTION_KEYWORDS } = await import('./context-optimizer.js');
+      sectionKeywords = SECTION_KEYWORDS;
       const opt = getContextOptimizer();
       demotedSections = new Set(opt.getDemotedSections());
     } catch { /* ignore */ }
 
-    const shouldLoad = (section: string, keywords: string[]) => {
+    // shouldLoad: demoted sections require keyword match; others use isRelevant.
+    // Keywords come from SECTION_KEYWORDS (single source of truth).
+    const shouldLoad = (section: string, fallbackKeywords?: string[]) => {
+      const keywords = sectionKeywords[section] ?? fallbackKeywords ?? [];
       if (demotedSections.has(section)) {
         return keywords.some(k => contextHint.includes(k));
       }
@@ -1595,7 +1600,7 @@ export class InstanceMemory {
     }
 
     // ── Temporal Sense（時間感）── skip in light mode, auto-demotion aware
-    if (!isLight && shouldLoad('temporal', ['time', 'schedule', 'when', 'date', 'calendar'])) {
+    if (!isLight && shouldLoad('temporal')) {
       const temporalCtx = await buildTemporalSection();
       if (temporalCtx) {
         sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
@@ -1649,45 +1654,45 @@ export class InstanceMemory {
     }
 
     // Capabilities — conditional load (tools/plugins)
-    if (shouldLoad('capabilities', ['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'])) {
+    if (shouldLoad('capabilities')) {
       const capabilities = await getCapabilitiesSnapshot(this.instanceId);
       const capabilitiesCtx = formatCapabilitiesContext(capabilities);
       if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
     }
 
     // Process — 在問 debug/performance/memory 時才載入
-    if (shouldLoad('process', ['process', 'memory', 'cpu', 'pid', 'debug', 'slow', 'performance', 'kill'])) {
+    if (shouldLoad('process')) {
       const processCtx = processStatusProvider ? formatProcessStatus(processStatusProvider()) : '';
       if (processCtx) sections.push(`<process>\n${processCtx}\n</process>`);
     }
 
     // System — 在問 disk/resource 時才載入
-    if (shouldLoad('system', ['system', 'disk', 'cpu', 'resource', 'space', 'full'])) {
+    if (shouldLoad('system')) {
       const sysRes = getSystemResources();
       const sysCtx = formatSystemResources(sysRes);
       if (sysCtx) sections.push(`<system>\n${sysCtx}\n</system>`);
     }
 
     // Logs — 在問 error/log/debug 時才載入
-    if (shouldLoad('logs', ['error', 'log', 'fail', 'bug', 'debug', 'crash'])) {
+    if (shouldLoad('logs')) {
       const logCtx = logSummaryProvider ? formatLogSummary(logSummaryProvider()) : '';
       if (logCtx) sections.push(`<logs>\n${logCtx}\n</logs>`);
     }
 
     // Network — 在問 port/service/network 時才載入
-    if (shouldLoad('network', ['port', 'network', 'service', 'connect', 'http', 'api', 'url'])) {
+    if (shouldLoad('network')) {
       const netCtx = networkStatusProvider ? formatNetworkStatus(networkStatusProvider()) : '';
       if (netCtx) sections.push(`<network>\n${netCtx}\n</network>`);
     }
 
     // Config — 在問 config/setting 時才載入
-    if (shouldLoad('config', ['config', 'setting', 'compose', 'cron', 'loop', 'skill'])) {
+    if (shouldLoad('config')) {
       const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
       if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
     }
 
     // Activity — 行為 + 診斷感知（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('activity', ['activity', 'behavior', 'action', 'recent']) && activitySummaryProvider) {
+    if (!isLight && shouldLoad('activity') && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
@@ -1710,7 +1715,7 @@ export class InstanceMemory {
     }
 
     // ── Trail（skip in light mode, auto-demotion aware）──
-    if (!isLight && shouldLoad('trail', ['trail', 'decision', 'triage', 'scout'])) {
+    if (!isLight && shouldLoad('trail')) {
       const trailCtx = readTrailSection();
       if (trailCtx) {
         sections.push(`<trail>\n${trailCtx}\n</trail>`);
@@ -1741,7 +1746,7 @@ export class InstanceMemory {
     }
 
     // Achievements + Output Gate（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('achievements', ['achievement', 'milestone', 'ship', 'momentum'])) {
+    if (!isLight && shouldLoad('achievements')) {
       try {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();
@@ -1750,7 +1755,7 @@ export class InstanceMemory {
     }
 
     // Action Coach — conditional load (behavior/habits)
-    if (shouldLoad('coach', ['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'])) {
+    if (shouldLoad('coach')) {
       try {
         const { buildCoachContext } = await import('./coach.js');
         const coachCtx = buildCoachContext();
@@ -1759,7 +1764,7 @@ export class InstanceMemory {
     }
 
     // Commitment Binding — conditional load (promises/commitments)
-    if (shouldLoad('commitments', ['commitment', 'promise', 'overdue', 'committed', 'pledge'])) {
+    if (shouldLoad('commitments')) {
       try {
         const { buildCommitmentsContext } = await import('./commitments.js');
         const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
