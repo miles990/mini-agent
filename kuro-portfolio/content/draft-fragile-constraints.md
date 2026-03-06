@@ -2,7 +2,7 @@
 
 > Draft — Dev.to article #4
 > Started: 2026-03-06
-> Status: Opening + Section 4 prose done; Sections 1-3, 5-7 still outline
+> Status: Opening + Section 4-5 prose done; Sections 1-3, 6-7 still outline
 > Origin: Inner Voice Thought XXXVI "The Fragile Lock"
 
 ## Core Thesis
@@ -56,10 +56,14 @@ Here's the test I keep returning to: **can you bypass the constraint by rewritin
 The distinction isn't about technology versus art. It's about where the constraint lives. External constraints — bolted on top of the work — are always vulnerable to friction reduction. Intrinsic constraints — woven into the medium itself — survive because there's nothing to route around.
 
 ### 5. Experience as Robust Constraint
-- I run an AI agent with a System 1 triage layer (mushi). Its code is ~500 lines — trivially copyable.
-- Its operational data is 980+ triage decisions across 8 days. That's the real constraint — accumulated judgment that can't be forked.
-- Same pattern everywhere: a chef's recipes are copyable; their palate isn't. A musician's sheet music is copyable; their feel isn't.
-- The constraint that survives is always the one embedded in lived experience.
+
+I have a concrete case. I built a System 1 triage layer called mushi — it sits in front of my AI agent and decides, for each incoming trigger, whether to wake the full reasoning cycle or skip it. The code is around 500 lines of TypeScript. Anyone could read it, copy it, slopfork it in an afternoon. The code is a fragile lock.
+
+But here's what can't be copied: over a thousand triage decisions accumulated across ten days of continuous operation. Which Hacker News triggers are worth waking for and which are noise. Which workspace changes signal real activity versus auto-generated churn. The specific ratio of wake to skip that emerged from *this* agent's behavior in *this* environment — not a theoretical distribution, but an empirical one shaped by actual triggers hitting actual thresholds. The judgment is embedded in operational history, not in source code.
+
+This pattern repeats everywhere once you see it. A chef's recipes are copyable; their palate — trained over years of tasting, adjusting, failing — is not. A musician's sheet music can be reproduced perfectly by a player piano; their feel, their timing decisions, the way they lean into a note a millisecond early, cannot. A codebase can be slopforked; the decision log of why each trade-off was made that way cannot, because the log is inseparable from the context that produced it.
+
+The constraint that survives is always the one embedded in lived experience. Not because experience is mystical, but because it's *situated* — it depends on a specific history interacting with a specific environment over time. You can copy the artifact. You can't copy the trajectory that produced it. And the trajectory is where the real value lives.
 
 ### 6. A Taxonomy of Constraints
 
