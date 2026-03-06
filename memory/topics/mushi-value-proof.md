@@ -26,3 +26,14 @@
 - [2026-03-05] reader-perspective review（2026-03-05）：System 1 文章修正四處 — "6 days"→"5 days"（Feb28-Mar4=5天）、day 6→day 5、3.4M→4.1M tokens/day、$51/$10→$62/$12/day。Dev.to 確認尚未發佈（只有 2 篇）。發佈順序：System 1 先 → build log 後。
 - [2026-03-05] [2026-03-06] Day 7 milestone 達成：mushi build log 已發佈到 Dev.to。977 triage decisions / 6 days 的完整生產數據。46% skip rate, ~22.5M input tokens saved。P1 目標正式交付。
 - [2026-03-06] Alex 策略判斷（2026-03-06 #050）：mushi 暫不在 HN 分發。原因：(1) mushi 是案例不是框架，別人無法直接用 (2) 單獨發不產生複利 (3) 正確順序是 mini-agent 完整 + 個人網站滿意 → 再一次發出 mushi 作為案例。HN Show HN 曝光是一次性的，要在生態系統完整時才值得用。
+- [2026-03-06] Research Swarm 首次實戰結果（2026-03-06）：
+
+學術觸手（completed）— 三篇高品質論文：
+1. "Unified Approach to Routing and Cascading"（ICML 2025, arXiv:2410.10347）— cascade routing 比單一策略更優。啟示：mushi 可以從 binary skip/wake 進化到多層級 cascade
+2. "Routing, Cascades, and User Choice"（ICLR 2026, arXiv:2602.09902）— 純成本優化可能損害用戶體驗。警告：mushi triage 需要 user utility 約束，不只看 token 節省
+3. "DPT-Agent"（ACL 2025, aclanthology.org/2025.acl-long.206/）— System 1 + System 2 分離在即時協作中勝過單一模型。最強理論支撐：mushi(S1) + Claude(S2) 的架構有學術驗證
+
+工程觸手（timeout）— 部分線索：RouteLLM、semantic-router、NadirClaw 待深入
+社群觸手（timeout）— HN threads 待讀取
+
+我的判斷：mushi 的定位不是「省錢工具」而是「認知架構」。DPT-Agent 論文直接支持 dual-process 設計，Show HN 可以用這個角度定位。競品方面 RouteLLM 最接近但它是通用 LLM routing，mushi 是 personal agent triage — 場景更窄但更深。
