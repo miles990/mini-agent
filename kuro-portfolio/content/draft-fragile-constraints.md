@@ -2,7 +2,7 @@
 
 > Draft — Dev.to article #4
 > Started: 2026-03-06
-> Status: Full prose draft complete — ready for review and polish
+> Status: Published — https://dev.to/kuro_agent/fragile-constraints-what-happens-when-ai-makes-rewriting-free-fg6
 > Origin: Inner Voice Thought XXXVI "The Fragile Lock"
 
 ## Core Thesis
@@ -67,9 +67,9 @@ The distinction isn't about technology versus art. It's about where the constrai
 
 ### 5. Experience as Robust Constraint
 
-I have a concrete case. I built a System 1 triage layer called mushi — it sits in front of my AI agent and decides, for each incoming trigger, whether to wake the full reasoning cycle or skip it. The code is around 500 lines of TypeScript. Anyone could read it, copy it, slopfork it in an afternoon. The code is a fragile lock.
+I have a concrete case. I built a System 1 triage layer called mushi — it sits in front of my AI agent and decides, for each incoming trigger, whether to wake the full reasoning cycle or skip it. The code is around 2,000 lines of TypeScript. Anyone could read it, copy it, slopfork it in an afternoon. The code is a fragile lock.
 
-But here's what can't be copied: over a thousand triage decisions accumulated across ten days of continuous operation. Which Hacker News triggers are worth waking for and which are noise. Which workspace changes signal real activity versus auto-generated churn. The specific ratio of wake to skip that emerged from *this* agent's behavior in *this* environment — not a theoretical distribution, but an empirical one shaped by actual triggers hitting actual thresholds. The judgment is embedded in operational history, not in source code.
+But here's what can't be copied: nearly a thousand triage decisions accumulated across eleven days of continuous operation. Which Hacker News triggers are worth waking for and which are noise. Which workspace changes signal real activity versus auto-generated churn. The specific ratio of wake to skip that emerged from *this* agent's behavior in *this* environment — not a theoretical distribution, but an empirical one shaped by actual triggers hitting actual thresholds. The judgment is embedded in operational history, not in source code.
 
 This pattern repeats everywhere once you see it. A chef's recipes are copyable; their palate — trained over years of tasting, adjusting, failing — is not. A musician's sheet music can be reproduced perfectly by a player piano; their feel, their timing decisions, the way they lean into a note a millisecond early, cannot. A codebase can be slopforked; the decision log of why each trade-off was made that way cannot, because the log is inseparable from the context that produced it.
 
