@@ -10,6 +10,8 @@
  * - memory.ts buildContext(): controls section loading via shouldLoad()
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { readState, writeState } from './feedback-loops.js';
 import { slog } from './utils.js';
 
@@ -187,6 +189,98 @@ export class ContextOptimizer {
   /** Get current state for inspection */
   getState(): SectionDemotionState {
     return this.state;
+  }
+}
+
+// =============================================================================
+// Cold Storage — MEMORY.md entry migration
+// =============================================================================
+
+/**
+ * Identify MEMORY.md entries older than threshold in non-protected sections.
+ */
+export function identifyColdEntries(content: string, maxAgeDays: number): string[] {
+  const cutoff = Date.now() - maxAgeDays * 86_400_000;
+  const protectedSections = ['User Preferences', 'Important Facts', 'Important Decisions'];
+
+  const lines = content.split('\n');
+  const cold: string[] = [];
+  let inProtected = false;
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^## (.+)/);
+    if (sectionMatch) {
+      inProtected = protectedSections.some(s => sectionMatch[1].includes(s));
+      continue;
+    }
+    if (inProtected) continue;
+
+    const dateMatch = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
+    if (dateMatch) {
+      const entryDate = new Date(dateMatch[1]).getTime();
+      if (entryDate < cutoff) {
+        cold.push(line);
+      }
+    }
+  }
+
+  return cold;
+}
+
+/**
+ * Move cold entries from MEMORY.md to cold-storage.md.
+ * Returns count of migrated entries.
+ */
+export function migrateToColdStorage(
+  memoryDir: string,
+  maxAgeDays = 30,
+): { migrated: number } {
+  const memoryPath = path.join(memoryDir, 'MEMORY.md');
+  if (!fs.existsSync(memoryPath)) return { migrated: 0 };
+
+  const content = fs.readFileSync(memoryPath, 'utf-8');
+  const coldEntries = identifyColdEntries(content, maxAgeDays);
+
+  if (coldEntries.length === 0) return { migrated: 0 };
+
+  // Remove cold entries from MEMORY.md
+  const coldSet = new Set(coldEntries);
+  const updatedLines = content.split('\n').filter(line => !coldSet.has(line));
+  fs.writeFileSync(memoryPath, updatedLines.join('\n'));
+
+  // Append to cold-storage.md
+  const coldPath = path.join(memoryDir, 'cold-storage.md');
+  const date = new Date().toISOString().slice(0, 10);
+  const header = fs.existsSync(coldPath) ? '' : '# Cold Storage\n\nEntries migrated from MEMORY.md (still searchable via FTS5).\n\n';
+  const section = `\n## Migrated ${date}\n${coldEntries.join('\n')}\n`;
+  fs.appendFileSync(coldPath, header + section);
+
+  return { migrated: coldEntries.length };
+}
+
+// =============================================================================
+// Display
+// =============================================================================
+
+/** Format context health for injection into buildContext */
+export function formatContextHealth(): string | null {
+  try {
+    const opt = getContextOptimizer();
+    const state = opt.getState();
+
+    const demoted = opt.getDemotedSections();
+    const observing = Object.entries(state.observation)
+      .map(([name, obs]) => `${name}(${obs.remainingCycles} cycles left)`);
+
+    const lines = [
+      `Cycles tracked: ${state.totalCycles}`,
+      `Demoted sections: ${demoted.length > 0 ? demoted.join(', ') : 'none'}`,
+      `In observation: ${observing.length > 0 ? observing.join(', ') : 'none'}`,
+    ];
+
+    return lines.join('\n');
+  } catch {
+    return null;
   }
 }
 

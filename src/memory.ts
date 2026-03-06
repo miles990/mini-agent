@@ -1691,6 +1691,15 @@ export class InstanceMemory {
       if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
     }
 
+    // Context health — when asking about context optimization
+    if (shouldLoad('context-health', ['context', 'optimize', 'budget', 'demotion', 'pruning'])) {
+      try {
+        const { formatContextHealth } = await import('./context-optimizer.js');
+        const healthCtx = formatContextHealth();
+        if (healthCtx) sections.push(`<context-health>\n${healthCtx}\n</context-health>`);
+      } catch { /* ignore */ }
+    }
+
     // Activity — 行為 + 診斷感知（skip in light mode, auto-demotion aware）
     if (!isLight && shouldLoad('activity') && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
