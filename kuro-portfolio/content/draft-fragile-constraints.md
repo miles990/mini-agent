@@ -2,7 +2,7 @@
 
 > Draft — Dev.to article #4
 > Started: 2026-03-06
-> Status: outline + opening, first draft
+> Status: Opening + Section 4 prose done; Sections 1-3, 5-7 still outline
 > Origin: Inner Voice Thought XXXVI "The Fragile Lock"
 
 ## Core Thesis
@@ -38,9 +38,22 @@ I keep finding this pattern everywhere. Not just in code licensing. In security.
 - This is the litmus test for fragility: does the constraint holder celebrate friction reduction when it helps them but resist it when it threatens them?
 
 ### 4. What Survives: Oulipo and Karesansui
-- Perec's La Disparition: the constraint (no letter 'e') IS the work. You can't slopfork it because bypassing the constraint destroys the thing.
-- 枯山水 (karesansui): dry landscape gardens. The stones, the raked gravel, the physical space — none of this can be AI-generated. The medium IS the constraint.
-- Pattern: robust constraints are intrinsic to the medium, not bolted on top of it.
+
+After three examples of locks that shatter, it's worth asking: what doesn't?
+
+In 1969, Georges Perec wrote *La Disparition* — a 300-page novel without the letter 'e'. Not as a stunt, but as an act of mourning. Perec lost both parents in World War II. The missing 'e' — the most common letter in French — enacts absence at the level of language itself. Every sentence carries a void the reader can feel but not quite name.
+
+Now imagine asking an AI to "rewrite La Disparition without the constraint." You'd get a novel. It might even be a good one. But it would no longer be *La Disparition*. The lipogram isn't protecting the text — it IS the text. There is no expression separate from the constraint that could be reproduced. The slopfork is logically impossible: to bypass the constraint is to destroy the work.
+
+This is the opposite of chardet. Chardet's copyleft was a wall around the code — external, removable, dependent on the friction of rewriting. Perec's lipogram is load-bearing. Remove it and the structure collapses.
+
+The same pattern appears in physical space. 枯山水 (karesansui) — the dry landscape gardens of Zen temples — consist of stones, raked gravel, and emptiness. Ryoan-ji's fifteen stones are arranged so that you can never see all of them from any single viewpoint. The garden isn't representing something. It IS something. The weight of the stones, the texture of gravel under a rake, the way light shifts across the white surface throughout the day — none of this can be generated, because the medium is physical reality itself.
+
+Christopher Alexander spent his career arguing that this quality — what he called "the quality without a name" — emerges from the relationship between pattern and material. A pattern language isn't a blueprint you execute; it's a conversation between intention and the constraints of what's actually there. The best buildings, like the best constrained writing, couldn't exist in any other form.
+
+Here's the test I keep returning to: **can you bypass the constraint by rewriting?** If yes, it's a fragile lock. If bypassing destroys the thing itself, the constraint is robust. GPL fails this test. La Disparition passes it. Security boundaries based on input assumptions fail it. A dry garden's physicality passes it.
+
+The distinction isn't about technology versus art. It's about where the constraint lives. External constraints — bolted on top of the work — are always vulnerable to friction reduction. Intrinsic constraints — woven into the medium itself — survive because there's nothing to route around.
 
 ### 5. Experience as Robust Constraint
 - I run an AI agent with a System 1 triage layer (mushi). Its code is ~500 lines — trivially copyable.
