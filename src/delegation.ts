@@ -127,6 +127,35 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
 // Forge — Worktree Isolation (Slime Mold Model)
 // =============================================================================
 
+/**
+ * Build a macOS sandbox-exec profile that denies writes to mainDir but allows the worktree.
+ * Returns null on non-macOS or if sandbox-exec is unavailable.
+ */
+function buildSandboxProfile(mainDir: string, worktreeDir: string): string | null {
+  if (process.platform !== 'darwin') return null;
+  try { execSync('which sandbox-exec', { stdio: 'ignore' }); } catch { return null; }
+
+  const home = process.env.HOME ?? '/tmp';
+  // Allow writes to: worktree, temp dirs, home config dirs (npm/bun/nvm caches)
+  // Deny writes to: main project directory
+  return `(version 1)
+(allow default)
+(deny file-write* (subpath "${mainDir}"))
+(allow file-write*
+  (subpath "${worktreeDir}")
+  (subpath "/tmp")
+  (subpath "/private/tmp")
+  (subpath "/private/var")
+  (subpath "/dev")
+  (subpath "${home}/.npm")
+  (subpath "${home}/.bun")
+  (subpath "${home}/.nvm")
+  (subpath "${home}/.cache")
+  (subpath "${home}/.config")
+  (subpath "${home}/Library")
+)`;
+}
+
 // Resolve forge-lite.sh: prefer plugin (always latest) → fallback to bundled copy
 const FORGE_LITE_BUNDLED = new URL('../scripts/forge-lite.sh', import.meta.url).pathname;
 const FORGE_LITE_PLUGIN = path.join(
@@ -473,7 +502,15 @@ function startTask(task: DelegationTask): void {
     } catch { /* best effort */ }
   }
 
-  // Forge prompt hint (soft guidance — real enforcement is the post-execution revert above)
+  // Forge sandbox: kernel-level file write isolation (macOS sandbox-exec)
+  const sandboxProfile = forgeWorktreePath
+    ? buildSandboxProfile(path.resolve(task.workdir), path.resolve(forgeWorktreePath))
+    : null;
+  if (sandboxProfile && forgeWorktreePath) {
+    slog('DELEGATION', `Sandbox enabled for ${taskId}: writes blocked to ${task.workdir}`);
+  }
+
+  // Forge prompt hint (soft guidance — sandbox is the real enforcement)
   const forgeConstraint = forgeWorktreePath
     ? `\n\nYou are working in an isolated git worktree: ${forgeWorktreePath}\nUse only relative paths. All changes will be merged back to main when complete.`
     : '';
@@ -503,12 +540,22 @@ function startTask(task: DelegationTask): void {
       : task.prompt) + forgeConstraint;
 
     slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    child = spawn('codex', codexArgs, {
-      cwd: effectiveWorkdir,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: codexEnv,
-      detached: true,
-    });
+    if (sandboxProfile) {
+      // Wrap codex in sandbox-exec for kernel-level write isolation
+      child = spawn('sandbox-exec', ['-p', sandboxProfile, 'codex', ...codexArgs], {
+        cwd: effectiveWorkdir,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: codexEnv,
+        detached: true,
+      });
+    } else {
+      child = spawn('codex', codexArgs, {
+        cwd: effectiveWorkdir,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: codexEnv,
+        detached: true,
+      });
+    }
     child.stdin!.write(fullPrompt);
     child.stdin!.end();
   } else {
@@ -517,8 +564,7 @@ function startTask(task: DelegationTask): void {
       ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
       : task.prompt) + forgeConstraint;
 
-    const systemPrompt = 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.'
-      + (forgeWorktreePath ? ` Work ONLY within ${forgeWorktreePath}. Never use absolute paths outside this directory.` : '');
+    const systemPrompt = 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.';
 
     const args = [
       '-p', fullPrompt,
@@ -529,11 +575,20 @@ function startTask(task: DelegationTask): void {
     ];
 
     slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    child = spawn('claude', args, {
-      cwd: effectiveWorkdir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
-    });
+    if (sandboxProfile) {
+      // Wrap claude in sandbox-exec for kernel-level write isolation
+      child = spawn('sandbox-exec', ['-p', sandboxProfile, 'claude', ...args], {
+        cwd: effectiveWorkdir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+      });
+    } else {
+      child = spawn('claude', args, {
+        cwd: effectiveWorkdir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+      });
+    }
   }
 
   activeTasks.set(taskId, { process: child, result });
