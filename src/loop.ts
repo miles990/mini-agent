@@ -53,7 +53,7 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
-import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations } from './delegation.js';
+import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, cleanupOrphanDelegations, forgeRecover } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
@@ -916,6 +916,8 @@ export class AgentLoop {
       slog('JOURNAL', `Loaded ${journalEntries.length} work journal entries from previous instance`);
     }
 
+    // Recover forge worktree state (clean up crash state, prune stale worktrees)
+    try { forgeRecover(process.cwd()); } catch { /* fire-and-forget */ }
     // Recover stale delegations from previous instance (kill orphans, release forge slots)
     try { recoverStaleDelegations(); } catch { /* fire-and-forget */ }
 

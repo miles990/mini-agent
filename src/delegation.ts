@@ -127,15 +127,24 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
 // Forge — Worktree Isolation (Slime Mold Model)
 // =============================================================================
 
-const FORGE_LITE = new URL('../scripts/forge-lite.sh', import.meta.url).pathname;
+// Resolve forge-lite.sh: prefer plugin (always latest) → fallback to bundled copy
+const FORGE_LITE_BUNDLED = new URL('../scripts/forge-lite.sh', import.meta.url).pathname;
+const FORGE_LITE_PLUGIN = path.join(
+  process.env.HOME ?? '', '.claude/plugins/marketplaces/forge/scripts/forge-lite.sh'
+);
+const FORGE_LITE = fs.existsSync(FORGE_LITE_PLUGIN) ? FORGE_LITE_PLUGIN : FORGE_LITE_BUNDLED;
+
+function forgeExec(cmd: string, workdir: string, timeoutMs = 15_000): string {
+  return execSync(`bash "${FORGE_LITE}" ${cmd}`, {
+    cwd: workdir, encoding: 'utf-8', timeout: timeoutMs,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
 
 function forgeCreate(taskId: string, workdir: string): string | null {
   try {
     if (!fs.existsSync(FORGE_LITE)) return null;
-    const output = execSync(`bash "${FORGE_LITE}" create "${taskId}" --caller-pid ${process.pid}`, {
-      cwd: workdir, encoding: 'utf-8', timeout: 15_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
+    const output = forgeExec(`create "${taskId}" --caller-pid ${process.pid}`, workdir);
     // Last line is the worktree path (git output precedes it)
     return output.split('\n').pop()!.trim();
   } catch {
@@ -145,10 +154,7 @@ function forgeCreate(taskId: string, workdir: string): string | null {
 
 function forgeYolo(worktreePath: string, mainDir: string, message: string): boolean {
   try {
-    execSync(`bash "${FORGE_LITE}" yolo "${worktreePath}" "${message}"`, {
-      cwd: mainDir, encoding: 'utf-8', timeout: 120_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    forgeExec(`yolo "${worktreePath}" "${message}"`, mainDir, 120_000);
     return true;
   } catch {
     return false;
@@ -157,11 +163,47 @@ function forgeYolo(worktreePath: string, mainDir: string, message: string): bool
 
 function forgeCleanup(worktreePath: string, mainDir: string): void {
   try {
-    execSync(`bash "${FORGE_LITE}" cleanup "${worktreePath}"`, {
-      cwd: mainDir, encoding: 'utf-8', timeout: 15_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    forgeExec(`cleanup "${worktreePath}"`, mainDir);
   } catch { /* best effort */ }
+}
+
+/**
+ * Run forge-lite.sh recover on startup — cleans up crash state and stale worktrees.
+ */
+export function forgeRecover(workdir: string): void {
+  try {
+    if (!fs.existsSync(FORGE_LITE)) return;
+    const output = forgeExec('recover', workdir, 30_000);
+    if (output) slog('FORGE', output);
+  } catch { /* best effort */ }
+}
+
+/**
+ * Get forge slot status — returns parsed slot info for monitoring/API.
+ */
+export interface ForgeSlotStatus {
+  total: number;
+  busy: number;
+  free: number;
+  source: 'plugin' | 'bundled';
+}
+
+export function forgeStatus(workdir: string): ForgeSlotStatus | null {
+  try {
+    if (!fs.existsSync(FORGE_LITE)) return null;
+    const output = forgeExec('status', workdir);
+    // Last line: "total=3 busy=1 free=2"
+    const lastLine = output.split('\n').pop() ?? '';
+    const total = parseInt(lastLine.match(/total=(\d+)/)?.[1] ?? '0');
+    const busy = parseInt(lastLine.match(/busy=(\d+)/)?.[1] ?? '0');
+    const free = parseInt(lastLine.match(/free=(\d+)/)?.[1] ?? '0');
+    return {
+      total, busy, free,
+      source: FORGE_LITE === FORGE_LITE_PLUGIN ? 'plugin' : 'bundled',
+    };
+  } catch {
+    return null;
+  }
 }
 
 function logForgeOutcome(taskId: string, outcome: ForgeOutcome, status: string, durationMs?: number): void {

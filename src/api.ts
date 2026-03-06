@@ -56,6 +56,7 @@ import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
+import { forgeStatus } from './delegation.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -734,6 +735,7 @@ export function createApi(port = 3001): express.Express {
         notifications: getNotificationStats(),
       },
       mushi,
+      forge: forgeStatus(process.cwd()),
       provider: {
         primary: getProvider(),
         fallback: getFallback(),
