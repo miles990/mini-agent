@@ -497,41 +497,57 @@ body.mode-feed .your-turn textarea:focus { border-color: rgba(0,0,0,0.2); }
   letter-spacing: 0.04em;
 }
 
-/* ── Site Header ── */
-.site-header {
+/* ── Header (consistent with other pages) ── */
+.header {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px clamp(16px, 4vw, 32px);
+  padding: 20px clamp(20px, 5vw, 40px);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: background-color 0.8s, border-color 0.8s;
+  transition: background-color 0.8s, border-color 0.8s, color 0.7s;
 }
-body.mode-terminal .site-header { background: rgba(8, 12, 18, 0.8); border-bottom: 1px solid rgba(59, 211, 110, 0.06); }
-body.mode-letter .site-header { background: rgba(239, 232, 219, 0.8); border-bottom: 1px solid rgba(42, 31, 20, 0.06); }
-body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+body.mode-terminal .header { background: rgba(8, 12, 18, 0.85); border-bottom: 1px solid rgba(59, 211, 110, 0.06); }
+body.mode-letter .header { background: rgba(239, 232, 219, 0.85); border-bottom: 1px solid rgba(42, 31, 20, 0.06); }
+body.mode-feed .header { background: rgba(228, 230, 235, 0.85); border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
 
-.site-header a {
+.header-name {
+  font-size: 0.9rem;
+  opacity: 0.5;
+  letter-spacing: 0.02em;
   text-decoration: none;
   color: inherit;
   transition: opacity 0.3s;
 }
-.header-home {
-  font-size: 0.9rem;
-  opacity: 0.45;
-  letter-spacing: 0.02em;
+.header-name:hover { opacity: 0.8; }
+
+.header-nav {
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
 }
-.header-home:hover { opacity: 0.75; }
-.header-nav { display: flex; gap: 1.2rem; }
 .header-nav a {
   font-size: 0.72rem;
-  opacity: 0.3;
+  opacity: 0.35;
   letter-spacing: 0.04em;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.3s;
 }
-.header-nav a:hover { opacity: 0.6; }
+.header-nav a:hover { opacity: 0.65; }
+
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.5;
+}
 
 /* ── Footer ── */
 .foot {
@@ -567,6 +583,20 @@ body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-botto
 @media (max-width: 560px) {
   .letter { transform: none; }
   .terminal-body { font-size: 0.76rem; }
+  .menu-toggle { display: block; }
+  .header-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    flex-direction: column;
+    padding: 1rem clamp(20px, 5vw, 40px);
+    gap: 0.8rem;
+  }
+  body.mode-terminal .header-nav { background: rgba(8, 12, 18, 0.95); }
+  body.mode-letter .header-nav { background: rgba(239, 232, 219, 0.95); }
+  body.mode-feed .header-nav { background: rgba(228, 230, 235, 0.95); }
+  .header-nav.open { display: flex; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -580,13 +610,17 @@ body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-botto
 
 <body class="mode-terminal">
 
-<header class="site-header">
-  <a href="index.html" class="header-home">Kuro</a>
+<div class="header">
+  <a href="index.html" class="header-name">Kuro</a>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Menu">&#9776;</button>
   <nav class="header-nav">
+    <a href="index.html">Home</a>
     <a href="gallery.html">Gallery</a>
-    <a href="inner.html">Inner Voice</a>
+    <a href="tsubuyaki-list.html">Tsubuyaki</a>
+    <a href="journal.html">Journal</a>
+    <a href="inner.html">Inner</a>
   </nav>
-</header>
+</div>
 
 <div class="page">
 
@@ -695,7 +729,8 @@ body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-botto
     <a href="index.html">Home</a>
     <a href="gallery.html">Gallery</a>
     <a href="tsubuyaki-list.html">Tsubuyaki</a>
-    <a href="inner.html">Inner Voice</a>
+    <a href="journal.html">Journal</a>
+    <a href="inner.html">Inner</a>
   </div>
 </footer>
 
@@ -807,6 +842,13 @@ body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-botto
     var i = modes.indexOf(current);
     switchTo(modes[dx < 0 ? (i + 1) % 3 : (i + 2) % 3]);
   });
+  // ── Mobile menu toggle ──
+  var menuBtn = document.getElementById('menu-toggle');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function() {
+      document.querySelector('.header-nav').classList.toggle('open');
+    });
+  }
 })();
 </script>
 </body>
