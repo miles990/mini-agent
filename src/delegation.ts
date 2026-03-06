@@ -128,17 +128,27 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
 // =============================================================================
 
 /**
- * Build a macOS sandbox-exec profile that denies writes to mainDir but allows the worktree.
- * Returns null on non-macOS or if sandbox-exec is unavailable.
+ * Cross-platform sandbox: kernel-level file write isolation for forge worktrees.
+ * - macOS: sandbox-exec (Seatbelt framework)
+ * - Linux: Landlock LSM (kernel 5.13+) via Python helper
+ * - Other: null (fallback to detect+revert)
+ *
+ * Returns a wrapper that prefixes spawn args, or null if unavailable.
  */
-function buildSandboxProfile(mainDir: string, worktreeDir: string): string | null {
-  if (process.platform !== 'darwin') return null;
-  try { execSync('which sandbox-exec', { stdio: 'ignore' }); } catch { return null; }
+interface SandboxWrapper {
+  cmd: string;
+  prefixArgs: string[];
+  platform: 'sandbox-exec' | 'landlock';
+}
 
+const LANDLOCK_HELPER = new URL('../scripts/landlock-sandbox.py', import.meta.url).pathname;
+
+function buildSandbox(mainDir: string, worktreeDir: string): SandboxWrapper | null {
   const home = process.env.HOME ?? '/tmp';
-  // Allow writes to: worktree, temp dirs, home config dirs (npm/bun/nvm caches)
-  // Deny writes to: main project directory
-  return `(version 1)
+
+  if (process.platform === 'darwin') {
+    try { execSync('which sandbox-exec', { stdio: 'ignore' }); } catch { return null; }
+    const profile = `(version 1)
 (allow default)
 (deny file-write* (subpath "${mainDir}"))
 (allow file-write*
@@ -154,6 +164,22 @@ function buildSandboxProfile(mainDir: string, worktreeDir: string): string | nul
   (subpath "${home}/.config")
   (subpath "${home}/Library")
 )`;
+    return { cmd: 'sandbox-exec', prefixArgs: ['-p', profile], platform: 'sandbox-exec' };
+  }
+
+  if (process.platform === 'linux') {
+    // Landlock via Python helper (kernel 5.13+, zero dependencies)
+    if (fs.existsSync(LANDLOCK_HELPER)) {
+      try { execSync('python3 --version', { stdio: 'ignore' }); } catch { return null; }
+      return {
+        cmd: 'python3',
+        prefixArgs: [LANDLOCK_HELPER, '--deny', mainDir, '--allow', worktreeDir, '--'],
+        platform: 'landlock',
+      };
+    }
+  }
+
+  return null;
 }
 
 // Resolve forge-lite.sh: prefer plugin (always latest) → fallback to bundled copy
@@ -502,12 +528,12 @@ function startTask(task: DelegationTask): void {
     } catch { /* best effort */ }
   }
 
-  // Forge sandbox: kernel-level file write isolation (macOS sandbox-exec)
-  const sandboxProfile = forgeWorktreePath
-    ? buildSandboxProfile(path.resolve(task.workdir), path.resolve(forgeWorktreePath))
+  // Forge sandbox: kernel-level file write isolation (macOS sandbox-exec / Linux Landlock)
+  const sandbox = forgeWorktreePath
+    ? buildSandbox(path.resolve(task.workdir), path.resolve(forgeWorktreePath))
     : null;
-  if (sandboxProfile && forgeWorktreePath) {
-    slog('DELEGATION', `Sandbox enabled for ${taskId}: writes blocked to ${task.workdir}`);
+  if (sandbox) {
+    slog('DELEGATION', `Sandbox (${sandbox.platform}) enabled for ${taskId}: writes blocked to ${task.workdir}`);
   }
 
   // Forge prompt hint (soft guidance — sandbox is the real enforcement)
@@ -540,20 +566,13 @@ function startTask(task: DelegationTask): void {
       : task.prompt) + forgeConstraint;
 
     slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    if (sandboxProfile) {
-      // Wrap codex in sandbox-exec for kernel-level write isolation
-      child = spawn('sandbox-exec', ['-p', sandboxProfile, 'codex', ...codexArgs], {
-        cwd: effectiveWorkdir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: codexEnv,
-        detached: true,
+    if (sandbox) {
+      child = spawn(sandbox.cmd, [...sandbox.prefixArgs, 'codex', ...codexArgs], {
+        cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: codexEnv, detached: true,
       });
     } else {
       child = spawn('codex', codexArgs, {
-        cwd: effectiveWorkdir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: codexEnv,
-        detached: true,
+        cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: codexEnv, detached: true,
       });
     }
     child.stdin!.write(fullPrompt);
@@ -575,18 +594,13 @@ function startTask(task: DelegationTask): void {
     ];
 
     slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    if (sandboxProfile) {
-      // Wrap claude in sandbox-exec for kernel-level write isolation
-      child = spawn('sandbox-exec', ['-p', sandboxProfile, 'claude', ...args], {
-        cwd: effectiveWorkdir,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+    if (sandbox) {
+      child = spawn(sandbox.cmd, [...sandbox.prefixArgs, 'claude', ...args], {
+        cwd: effectiveWorkdir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env },
       });
     } else {
       child = spawn('claude', args, {
-        cwd: effectiveWorkdir,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+        cwd: effectiveWorkdir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env },
       });
     }
   }
