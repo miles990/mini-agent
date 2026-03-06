@@ -2000,7 +2000,7 @@ export class InstanceMemory {
     }
 
     // ── 記憶和對話（總是載入，light mode 截斷）──
-    const tieredMem = this.tieredMemoryContent(memory);
+    const tieredMem = await this.tieredMemoryContent(memory, contextHint);
     const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
@@ -2332,8 +2332,12 @@ export class InstanceMemory {
   /**
    * Memory 分層載入 — 近期全載、中期摘要、舊的省略
    * Kuro 提案：7天全載、7-30天 key only、30天+按需
+   *
+   * Smart Loading: When contextHint is provided and FTS5 returns results,
+   * entries in smart-load sections are filtered to only include FTS5-matched
+   * entries (plus recent entries within 3 days as safety net).
    */
-  private tieredMemoryContent(raw: string): string {
+  private async tieredMemoryContent(raw: string, contextHint?: string): Promise<string> {
     if (!raw) return raw;
 
     const now = Date.now();
@@ -2348,22 +2352,45 @@ export class InstanceMemory {
     // Sections that are always loaded in full (small, critical, exempt from budget)
     const alwaysFullSections = ['User Preferences', 'Important Facts', 'Important Decisions'];
 
+    // Sections where FTS5 smart loading applies (entries filtered by relevance)
+    const smartLoadSections = ['Learned Patterns', 'TODO', 'Operations', 'Future Improvements'];
+
+    // Build FTS5 match set when contextHint is available
+    let ftsMatchSet: Set<string> | null = null;
+    if (contextHint) {
+      try {
+        const { searchMemoryEntries } = await import('./search.js');
+        const matched = searchMemoryEntries(this.memoryDir, contextHint, 15);
+        if (matched.length > 0) {
+          // Build lookup set using first 80 chars of content for fast matching
+          ftsMatchSet = new Set(matched.map(m => m.content.slice(0, 80)));
+        }
+      } catch {
+        // FTS5 not available — fall through to normal tiered loading
+      }
+    }
+
     const lines = raw.split('\n');
     const result: string[] = [];
     let isAlwaysFullSection = false;
+    let isSmartLoadSection = false;
     let budgetChars = 0;
     let budgetExceeded = false;
     let olderCount = 0;
+    let skippedBySmartLoad = 0;
 
     for (const line of lines) {
       // Section headers
       const sectionMatch = line.match(/^## (.+)/);
       if (sectionMatch) {
-        if (olderCount > 0) {
-          result.push(`(${olderCount} older entries available via search)`);
+        if (olderCount > 0 || skippedBySmartLoad > 0) {
+          const total = olderCount + skippedBySmartLoad;
+          result.push(`(${total} more entries available via search)`);
           olderCount = 0;
+          skippedBySmartLoad = 0;
         }
         isAlwaysFullSection = alwaysFullSections.some(s => sectionMatch[1].includes(s));
+        isSmartLoadSection = ftsMatchSet !== null && smartLoadSections.some(s => sectionMatch[1].includes(s));
         budgetExceeded = false; // Reset per section (budget only limits non-critical content)
         result.push(line);
         continue;
@@ -2388,18 +2415,36 @@ export class InstanceMemory {
         continue;
       }
 
-      // Dated entries: tier by age + budget
+      // Dated entries: tier by age + budget + smart load
       const dateMatch = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
       if (dateMatch) {
         const age = now - new Date(dateMatch[1]).getTime();
+
+        // Smart load filter: in smart-load sections, skip entries not matched by FTS5
+        // Safety net: always keep entries within 3 days regardless
+        if (isSmartLoadSection && age > THREE_DAYS) {
+          // Extract content after the date tag for FTS5 matching
+          const entryContent = line.replace(/^- \[\d{4}-\d{2}-\d{2}\] /, '');
+          const contentKey = entryContent.slice(0, 80);
+          if (!ftsMatchSet!.has(contentKey)) {
+            skippedBySmartLoad++;
+            continue;
+          }
+        }
+
         let entry: string;
         if (age <= THREE_DAYS) {
           entry = line;
         } else if (age <= SEVEN_DAYS) {
           entry = line.length > 120 ? line.slice(0, 120) + '...' : line;
         } else {
-          olderCount++;
-          continue;
+          // For smart-load matched entries beyond 7 days, still include (truncated)
+          if (isSmartLoadSection) {
+            entry = line.length > 120 ? line.slice(0, 120) + '...' : line;
+          } else {
+            olderCount++;
+            continue;
+          }
         }
 
         // Budget check
@@ -2418,8 +2463,9 @@ export class InstanceMemory {
       result.push(line);
     }
 
-    if (olderCount > 0) {
-      result.push(`(${olderCount} older entries available via search)`);
+    if (olderCount > 0 || skippedBySmartLoad > 0) {
+      const total = olderCount + skippedBySmartLoad;
+      result.push(`(${total} more entries available via search)`);
     }
 
     return result.join('\n');

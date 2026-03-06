@@ -199,6 +199,46 @@ export function searchMemoryFTS(query: string, limit = 5): MemoryEntry[] {
 }
 
 /**
+ * Search MEMORY.md entries specifically, with auto-index on first call.
+ * Used by buildContext() for smart MEMORY.md loading.
+ */
+export function searchMemoryEntries(
+  memoryDir: string,
+  query: string,
+  limit = 10,
+): Array<{ source: string; date: string; content: string }> {
+  if (!db) return [];
+
+  // Auto-index if empty
+  if (!isIndexReady()) {
+    indexMemoryFiles(memoryDir);
+  }
+
+  try {
+    // Sanitize FTS5 special operators: quotes, brackets, boolean ops, slashes
+    const sanitized = query.replace(/["""*{}()^~[\]/\\:\-+]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!sanitized) return [];
+
+    const rows = db.prepare(`
+      SELECT source, date, content, rank
+      FROM memory_fts
+      WHERE memory_fts MATCH ?
+        AND source = 'MEMORY.md'
+      ORDER BY rank
+      LIMIT ?
+    `).all(sanitized, limit) as Array<{ source: string; date: string; content: string; rank: number }>;
+
+    return rows.map(row => ({
+      source: row.source,
+      date: row.date,
+      content: row.content,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 全量重建索引（刪表重建）
  */
 export function rebuildIndex(memoryDir: string): number {
