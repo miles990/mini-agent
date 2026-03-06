@@ -15,13 +15,13 @@
     1,
     1,
     1,
-    1,
     4,
     5,
     4,
-    5
+    5,
+    4
   ],
-  "avgScore": 1.7,
+  "avgScore": 1.85,
   "warningInjected": true,
   "lastWarningAt": "2026-03-06T02:38:39.012Z",
   "challengeTotal": 6,
