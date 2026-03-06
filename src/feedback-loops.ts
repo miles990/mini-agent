@@ -57,7 +57,7 @@ function getStatePath(filename: string): string {
   return path.join(getMemoryStateDir(), filename);
 }
 
-function readState<T>(filename: string, fallback: T): T {
+export function readState<T>(filename: string, fallback: T): T {
   const cached = stateCache.get(filename);
   if (cached) return cached.data as T;
 
@@ -76,7 +76,7 @@ function readState<T>(filename: string, fallback: T): T {
   return data;
 }
 
-function writeState(filename: string, data: unknown): void {
+export function writeState(filename: string, data: unknown): void {
   stateCache.set(filename, { data, dirty: true });
 }
 
