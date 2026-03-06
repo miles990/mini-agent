@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "開源打磨 README/CONTRIBUTING（P1，一直被推後）",
-      "priority": "medium",
-      "cycleCreated": 54,
-      "cycleDeadline": 60,
-      "status": "fulfilled",
-      "fulfilledAt": 55
-    },
-    {
       "text": "CONTRIBUTING.md 微調（如果需要）、或處理 Alex TG 待回覆的 Three Rooms 互動問題",
       "priority": "medium",
       "cycleCreated": 55,
@@ -47,10 +39,18 @@
       "cycleDeadline": 8,
       "status": "fulfilled",
       "fulfilledAt": 2
+    },
+    {
+      "text": "觸發真實 code delegation 做 end-to-end 驗證（worktree 建立 → 工作 → merge/cleanup → forge-log.jsonl 寫入）",
+      "priority": "medium",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
-  "totalCreated": 97,
-  "totalFulfilled": 81,
+  "totalCreated": 98,
+  "totalFulfilled": 82,
   "totalDropped": 0,
   "totalExpired": 16
 }
