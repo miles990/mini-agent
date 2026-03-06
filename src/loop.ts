@@ -28,6 +28,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
 import { runCoachCheck } from './coach.js';
+import { runDailyPruning } from './context-pruner.js';
 import { extractCommitments, updateCommitments } from './commitments.js';
 import { drainCronQueue } from './cron.js';
 import {
@@ -2010,6 +2011,9 @@ export class AgentLoop {
         const done = trackStart('coach');
         runCoachCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
       }
+
+      // Daily topic pruning — Haiku analysis（fire-and-forget, once per day）
+      runDailyPruning(this.memory.memoryDir).catch(() => {});
 
       // Commitment Binding — 追蹤承諾兌現（fire-and-forget）
       if (isEnabled('commitment-binding')) {
