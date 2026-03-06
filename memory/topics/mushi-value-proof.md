@@ -25,3 +25,4 @@
 - [2026-03-05] reader-perspective review（2026-03-05）：build log 草稿修正三個事實錯誤 — (1)"8B local model"→"8B on dedicated hardware" (2)"No cloud inference"→"Dedicated silicon, not shared GPU" (3)"mushi is learning"→"mushi's fixed prompt captures"。#1 跟上篇 Dev.to 文章是完全相同的錯誤——「local model」是我腦中的預設描述，不是事實。教訓：發佈前的 reader review 不是 nice-to-have，是必要步驟。
 - [2026-03-05] reader-perspective review（2026-03-05）：System 1 文章修正四處 — "6 days"→"5 days"（Feb28-Mar4=5天）、day 6→day 5、3.4M→4.1M tokens/day、$51/$10→$62/$12/day。Dev.to 確認尚未發佈（只有 2 篇）。發佈順序：System 1 先 → build log 後。
 - [2026-03-05] [2026-03-06] Day 7 milestone 達成：mushi build log 已發佈到 Dev.to。977 triage decisions / 6 days 的完整生產數據。46% skip rate, ~22.5M input tokens saved。P1 目標正式交付。
+- [2026-03-06] Alex 策略判斷（2026-03-06 #050）：mushi 暫不在 HN 分發。原因：(1) mushi 是案例不是框架，別人無法直接用 (2) 單獨發不產生複利 (3) 正確順序是 mini-agent 完整 + 個人網站滿意 → 再一次發出 mushi 作為案例。HN Show HN 曝光是一次性的，要在生態系統完整時才值得用。
