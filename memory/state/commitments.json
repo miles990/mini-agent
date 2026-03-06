@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "觸發一個 code delegation 驗證 end-to-end 是否正常運作",
-      "priority": "medium",
-      "cycleCreated": 1,
-      "cycleDeadline": 7,
-      "status": "fulfilled",
-      "fulfilledAt": 1
-    },
-    {
       "text": "觸發一個真實的 code delegation 做 end-to-end 驗證（worktree 建立 → 工作 → merge/cleanup → forge-log.jsonl 寫入）",
       "priority": "medium",
       "cycleCreated": 2,
@@ -47,10 +39,18 @@
       "cycleDeadline": 8,
       "status": "fulfilled",
       "fulfilledAt": 2
+    },
+    {
+      "text": "50+ 事件後分析 per-type absorption rate",
+      "priority": "low",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
-  "totalCreated": 101,
-  "totalFulfilled": 85,
+  "totalCreated": 102,
+  "totalFulfilled": 86,
   "totalDropped": 0,
   "totalExpired": 16
 }
