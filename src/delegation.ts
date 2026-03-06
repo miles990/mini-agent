@@ -141,10 +141,14 @@ function forgeExec(cmd: string, workdir: string, timeoutMs = 15_000): string {
   }).trim();
 }
 
-function forgeCreate(taskId: string, workdir: string): string | null {
+// Task types that don't need dependency installation (pure docs/review work)
+const NO_INSTALL_TYPES: Set<DelegationTaskType> = new Set(['create', 'review', 'learn', 'research']);
+
+function forgeCreate(taskId: string, workdir: string, taskType?: DelegationTaskType): string | null {
   try {
     if (!fs.existsSync(FORGE_LITE)) return null;
-    const output = forgeExec(`create "${taskId}" --caller-pid ${process.pid}`, workdir);
+    const noInstall = taskType && NO_INSTALL_TYPES.has(taskType) ? ' --no-install' : '';
+    const output = forgeExec(`create "${taskId}" --caller-pid ${process.pid}${noInstall}`, workdir);
     // Last line is the worktree path (git output precedes it)
     return output.split('\n').pop()!.trim();
   } catch {
@@ -438,17 +442,17 @@ function startTask(task: DelegationTask): void {
   // Branch: shell executor / codex executor / claude CLI executor
   const taskType = task.type ?? 'code';
   const provider = task.provider ?? TYPE_DEFAULTS[taskType].provider;
-  // Forge worktree for code tasks — slime mold isolation
+  // Forge worktree for non-shell tasks — slime mold isolation
   let effectiveWorkdir = task.workdir;
   let forgeWorktreePath: string | null = null;
-  if (taskType === 'code') {
+  if (taskType !== 'shell') {
     if (task.forgeWorktree && fs.existsSync(task.forgeWorktree)) {
       // Resume: reuse existing forge worktree (has partial work)
       forgeWorktreePath = task.forgeWorktree;
       effectiveWorkdir = forgeWorktreePath;
       slog('DELEGATION', `Forge resume worktree: ${forgeWorktreePath}`);
     } else {
-      forgeWorktreePath = forgeCreate(taskId, task.workdir);
+      forgeWorktreePath = forgeCreate(taskId, task.workdir, taskType);
       if (forgeWorktreePath) {
         effectiveWorkdir = forgeWorktreePath;
         slog('DELEGATION', `Forge worktree: ${forgeWorktreePath}`);
