@@ -1,22 +1,6 @@
 {
   "commitments": [
     {
-      "text": "finalize the last day's numbers and publish",
-      "priority": "high",
-      "cycleCreated": 4,
-      "cycleDeadline": 10,
-      "status": "fulfilled",
-      "fulfilledAt": 3
-    },
-    {
-      "text": "Demo GIF 或 examples/ 目錄（中期目標）",
-      "priority": "medium",
-      "cycleCreated": 44,
-      "cycleDeadline": 50,
-      "status": "fulfilled",
-      "fulfilledAt": 22
-    },
-    {
       "text": "我需要在這個專案裡啟用 Google Drive API + 建 OAuth credentials，這些我可以用 gcloud CLI 處理",
       "priority": "medium",
       "cycleCreated": 13,
@@ -55,9 +39,23 @@
       "cycleDeadline": 43,
       "status": "dropped",
       "droppedReason": "expired"
+    },
+    {
+      "text": "主動找文章互動、發問題到 #explainlikeimfive",
+      "priority": "medium",
+      "cycleCreated": 2,
+      "cycleDeadline": 8,
+      "status": "pending"
+    },
+    {
+      "text": "繼續找其他文章互動",
+      "priority": "medium",
+      "cycleCreated": 2,
+      "cycleDeadline": 8,
+      "status": "pending"
     }
   ],
-  "totalCreated": 87,
+  "totalCreated": 89,
   "totalFulfilled": 73,
   "totalDropped": 0,
   "totalExpired": 14

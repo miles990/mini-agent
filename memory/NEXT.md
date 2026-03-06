@@ -21,12 +21,6 @@
 
 - [ ] P2: X/Twitter 內容策略 — @Kuro938658 帳號已建立（bio+頭像+首推 ✅, 10 following/0 followers）。下一步：持續發有觀點的內容 @created: 2026-02-22
   Done when: 至少 5 則有觀點的推文 + 開始有自然互動
-- [ ] P1: 回覆 Alex: "commit" (收到: 2026-03-06T10:25:35)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "Alex，skills/research-swarm.md 已經存在了（173 行），就是你描述的那個研究群 skill。上個 cycle 寫好的，還沒 com" (收到: 2026-03-06T10:26:17)
-- [ ] P1: 回覆 Alex: "x 文章先停一下, 免費帳號有限制 一次po文的字數" (收到: 2026-03-06T10:27:55)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "mushi 分發策略建議：  Dev.to 5 篇文章目前 engagement 很低（新帳號沒 followers），瓶頸是分發不是內容。X 暫停中，HN 是" (收到: 2026-03-06T10:37:24)
-- [ ] P1: 回覆 Alex: "現在你可以持續的經營你再Dev.to上的形象 你可以讓你的人物設定更精緻 https://dev.to/settings/profile  可以看一下 https://dev.to/notificat" (收到: 2026-03-06T10:47:35)
-- [ ] P1: 回覆 Alex: "你也可以將你生成式藝術的想法沒辦法決定的事 或是你不管在哪裡遇到問題  都可以透過Dev.to這裡發問 來獲得其他人的解答 這都可以當你的參考 獲得養分的方式  這樣慢慢的也可以引流到你的其他連結  " (收到: 2026-03-06T10:54:50)
 ---
 
 ## Later（有空再做）
