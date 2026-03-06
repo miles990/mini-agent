@@ -163,6 +163,7 @@ cmd_merge() {
   if ! git -C "$worktree" diff --quiet || ! git -C "$worktree" diff --cached --quiet; then
     echo "[merge] Committing uncommitted changes in worktree..." >&2
     git -C "$worktree" add -A
+    git -C "$worktree" reset HEAD -- node_modules 2>/dev/null || true
     git -C "$worktree" commit -m "$message"
   fi
 
