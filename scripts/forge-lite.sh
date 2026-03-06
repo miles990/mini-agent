@@ -14,7 +14,7 @@
 # Before merge, rebase onto main reduces conflicts from concurrent work.
 #
 # Usage:
-#   forge-lite.sh create <task-name> [--files "a.ts,b.ts"]  → Create worktree + branch
+#   forge-lite.sh create <task-name> [--files "a.ts,b.ts"] [--no-install]  → Create worktree + branch
 #   forge-lite.sh verify <worktree-path>          → Run typecheck + tests
 #   forge-lite.sh merge <worktree-path> [message]  → Merge to main + cleanup
 #   forge-lite.sh yolo <worktree-path> [message]   → Verify + merge in one shot
@@ -369,11 +369,12 @@ cmd_create() {
   shift
 
   # Parse options
-  local declared_files="" caller_pid="0"
+  local declared_files="" caller_pid="0" no_install=false
   while [ $# -gt 0 ]; do
     case "$1" in
       --files) declared_files="${2:-}"; shift 2 ;;
       --caller-pid) caller_pid="${2:-0}"; shift 2 ;;
+      --no-install) no_install=true; shift ;;
       *) shift ;;
     esac
   done
@@ -432,7 +433,11 @@ cmd_create() {
     echo "[create] All $FORGE_SLOTS slots busy, using dedicated worktree" >&2
     worktree_dir="$MAIN_DIR/../$(basename "$MAIN_DIR")-forge-$task_name"
     git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
-    install_deps "$worktree_dir"
+    if [ "$no_install" = false ]; then
+      install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
+    else
+      echo "[create] Skipping dependency install (--no-install)" >&2
+    fi
   elif [ -d "$worktree_dir" ]; then
     # Reuse existing slot — reset to main, create new branch
     local old_branch
@@ -443,11 +448,19 @@ cmd_create() {
     git -C "$worktree_dir" checkout -b "$branch" main 2>&1
     git -C "$worktree_dir" clean -fd 2>/dev/null || true
     git -C "$worktree_dir" checkout -- . 2>/dev/null || true
-    install_deps "$worktree_dir"
+    if [ "$no_install" = false ]; then
+      install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
+    else
+      echo "[create] Skipping dependency install (--no-install)" >&2
+    fi
   else
     # Create new slot
     git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
-    install_deps "$worktree_dir"
+    if [ "$no_install" = false ]; then
+      install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
+    else
+      echo "[create] Skipping dependency install (--no-install)" >&2
+    fi
   fi
 
   # Mark as in use (branch + caller PID + timestamp for liveness detection)
