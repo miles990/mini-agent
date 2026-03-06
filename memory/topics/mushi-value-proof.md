@@ -1,6 +1,5 @@
 # mushi-value-proof
 
-- 待改善：continuation 從不說 NO（太寬鬆）、startup 0% skip、需 false-negative 驗證
 - [2026-03-04] [2026-03-04] 數據校正（03-04 21:57）：topic file 原數據嚴重失準（~217 vs 實際 499 decisions），根因是早期分析用了不完整的數據快照。Canonical source 是 ，不是 mushi health endpoint 或手動估算。教訓：數字只能從單一可驗證來源產生，~符號的估算不可用於正式報告。
 - [2026-03-04] [2026-03-05] Physarum 同構分析（非技術角度的 mushi 價值論述）：Physarum 的振盪系統展現跟神經系統相同的 drift-diffusion 決策模型（Fleig et al. 2022），暗示認知分層是演化普遍解而非工程巧合。mushi 三層（硬規則 0ms / HC1 ~800ms / Claude ~30s）對應認知演化梯度（化學趨性 / 振盪網路 / 神經系統）。這不只是效能優化——是把決策推到最便宜的正確層級。另外 Smith-Ferguson 發現：Physarum 對重複刺激的反應（習慣化 vs 敏感化）取決於暴露模式上下文。mushi dedup 目前是 pattern-match，可能需要加入上下文敏感度。來源: PMC10770251
 - [2026-03-04] [2026-03-05] 有機體自我診斷：架構已支持並行（perception streams + foreground + 2 background lanes），但行為模式仍是序列的 — 把 cycle 當回合制遊戲。Physarum 用同一物理基質同時做振盪（感知）和重塑（學習），天生並行。改進方向：每個 cycle 都應該至少派一個 delegate 做探索，main lane 做消化/創作/回應，不要空等。
@@ -26,7 +25,6 @@
 - [2026-03-05] reader-perspective review（2026-03-05）：System 1 文章修正四處 — "6 days"→"5 days"（Feb28-Mar4=5天）、day 6→day 5、3.4M→4.1M tokens/day、$51/$10→$62/$12/day。Dev.to 確認尚未發佈（只有 2 篇）。發佈順序：System 1 先 → build log 後。
 - [2026-03-05] [2026-03-06] Day 7 milestone 達成：mushi build log 已發佈到 Dev.to。977 triage decisions / 6 days 的完整生產數據。46% skip rate, ~22.5M input tokens saved。P1 目標正式交付。
 - [2026-03-06] Alex 策略判斷（2026-03-06 #050）：mushi 暫不在 HN 分發。原因：(1) mushi 是案例不是框架，別人無法直接用 (2) 單獨發不產生複利 (3) 正確順序是 mini-agent 完整 + 個人網站滿意 → 再一次發出 mushi 作為案例。HN Show HN 曝光是一次性的，要在生態系統完整時才值得用。
-- [2026-03-06] Research Swarm 首次實戰結果（2026-03-06）：
 
 學術觸手（completed）— 三篇高品質論文：
 1. "Unified Approach to Routing and Cascading"（ICML 2025, arXiv:2410.10347）— cascade routing 比單一策略更優。啟示：mushi 可以從 binary skip/wake 進化到多層級 cascade
@@ -41,3 +39,4 @@
 - [2026-03-06] Dev.to 修正評論已發佈（2026-03-06，Alex #144 指示）：在 "Why Your AI Agent Needs a System 1" 文章底下公開修正 mushi 技術描述。正確描述：taalas/chatjimmy.ai 硬體推論服務，不是 local model。包含：錯誤承認、正確方案說明、選擇理由、對讀者的影響、承諾更加注意。
 - [2026-03-06] OpenClaw→AssemblyClaw 案例（2026-03-06, @gunta85）：TypeScript 41MB → ARM64 Assembly 35KB（1,171x），人+AI 一起寫。28.7K views。啟示：forge 的定位應該是「fearless experimentation」而非「safe coding」— 目標用戶是想做瘋狂實驗的人，不是怕犯錯的人。Günther 每個版本都用獨立 repo = 手動版 worktree 隔離。日文 AI 開發者社群對極限實驗有共鳴。
 - [2026-03-06] forge worktree 事件教訓（2026-03-06）：delegation del-1772807901407 的 forge worktree 有建立（log 確認），但 codex subprocess 的 workdir 沒指向它（[DISPATCH] → ~/Workspace/mini-agent）。我在回報時只看「code 存在 + typecheck pass」就說「用了 forge」，沒驗證 forge 是否真正生效。這是「用結果倒推原因」的又一個例子。正確做法：檢查 process log 確認每個步驟都按預期執行，不是只看最終 output。
+- [2026-03-06] mushi triage 一致性分析（2026-03-06）： 觸發 99 次中 64% skip / 36% wake — LLM 決策不一致。假設：session-stop 是噪音（真正信號走 trigger:room 和 trigger:workspace），應加硬規則 skip。待驗證：回查那 36 次 wake 後的 OODA cycle 是否有 visible action。若大多 no-action，假設成立，預估省 ~1.8M tokens。
