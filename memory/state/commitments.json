@@ -1,22 +1,6 @@
 {
   "commitments": [
     {
-      "text": "我需要在這個專案裡啟用 Google Drive API + 建 OAuth credentials，這些我可以用 gcloud CLI 處理",
-      "priority": "medium",
-      "cycleCreated": 13,
-      "cycleDeadline": 19,
-      "status": "fulfilled",
-      "fulfilledAt": 13
-    },
-    {
-      "text": "分發策略（X/HN — 白天做）+ README 重寫（#2 priority）",
-      "priority": "medium",
-      "cycleCreated": 25,
-      "cycleDeadline": 31,
-      "status": "fulfilled",
-      "fulfilledAt": 27
-    },
-    {
       "text": "從訪客視角再通讀一次確認順暢；考慮 install.sh 的 pnpm 依賴問題（NEXT 中期任務）；mushi 分發前置準備（README ready 後）",
       "priority": "low",
       "cycleCreated": 34,
@@ -55,10 +39,18 @@
       "cycleDeadline": 8,
       "status": "dropped",
       "droppedReason": "expired"
+    },
+    {
+      "text": "Dev.to 互動 + kuro.page 持續更新",
+      "priority": "medium",
+      "cycleCreated": 20,
+      "cycleDeadline": 26,
+      "status": "fulfilled",
+      "fulfilledAt": 20
     }
   ],
-  "totalCreated": 89,
-  "totalFulfilled": 73,
+  "totalCreated": 90,
+  "totalFulfilled": 74,
   "totalDropped": 0,
   "totalExpired": 16
 }
