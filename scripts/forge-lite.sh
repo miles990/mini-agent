@@ -443,11 +443,11 @@ cmd_create() {
     local old_branch
     old_branch=$(git -C "$worktree_dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || old_branch=""
     git -C "$worktree_dir" checkout --detach HEAD 2>/dev/null || true
+    git -C "$worktree_dir" clean -fd 2>/dev/null || true
+    git -C "$worktree_dir" checkout -- . 2>/dev/null || true
     [ -n "$old_branch" ] && [ "$old_branch" != "HEAD" ] && \
       git -C "$MAIN_DIR" branch -D "$old_branch" 2>/dev/null || true
     git -C "$worktree_dir" checkout -b "$branch" main 2>&1
-    git -C "$worktree_dir" clean -fd 2>/dev/null || true
-    git -C "$worktree_dir" checkout -- . 2>/dev/null || true
     if [ "$no_install" = false ]; then
       install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
     else

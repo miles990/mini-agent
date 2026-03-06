@@ -216,7 +216,8 @@ function forgeCreate(taskId: string, workdir: string, taskType?: DelegationTaskT
     const output = forgeExec(`create "${taskId}" --caller-pid ${process.pid}${noInstall}`, workdir);
     // Last line is the worktree path (git output precedes it)
     return output.split('\n').pop()!.trim();
-  } catch {
+  } catch (e) {
+    slog('FORGE', `forgeCreate failed for ${taskId}: ${(e as Error).message?.split('\n')[0] ?? e}`);
     return null;
   }
 }
