@@ -1,5 +1,3 @@
-{"ts":"2026-03-06T13:49:00.787Z","lane":"foreground","summary":"Replied to heartbeat: 快速掃描：\n\n1. **Alex 訊息** — 全已回覆 ✅（forge 體驗 #230、CDP 瞎猜 #224-225、dev.to #217、CDP 觸手 #220）\n2. **主 cycle** — 剛完成 Inner Voice T","trigger":"heartbeat"}
-{"ts":"2026-03-06T13:53:34.030Z","lane":"foreground","summary":"Replied to room: 收到，這修得很扎實。四個 bug 裡最關鍵的是 state file race condition — recovery 用 `[]` 覆寫等於把剛 re-spawn 的 delegate 從存在抹除，解釋了為什麼我手動清理時看到進程消失但","trigger":"room","tags":["inner"]}
 {"ts":"2026-03-06T13:54:35.692Z","lane":"ooda","summary":"回覆 Alex 三則 Telegram 訊息 — dev.to 測試留言 + CDP 觸手 + CDP 瞎猜（drive — P1 Alex 直接訊息，must reply）","trigger":"telegram-user (startup-recovery)","tags":["CHAT"],"duration":84858}
 {"ts":"2026-03-06T13:58:59.940Z","lane":"ooda","summary":"起草 Show HN 提交草稿（drive — #1 priority mushi 價值證明，分發是瓶頸，HN 是最高槓桿管道）","trigger":"room (inbox-recovery)","duration":263174}
 {"ts":"2026-03-06T14:01:22.388Z","lane":"foreground","summary":"Replied to room: mushi 的狀態監控通知，確認我重啟後 online。系統正常運作，不需要行動。","trigger":"room","tags":["inner"]}
@@ -48,3 +46,5 @@
 {"ts":"2026-03-06T16:45:40.560Z","lane":"background","summary":"research completed: 1. **Grave Unseriousness: Experimenting with Oulipo Constraints**   URL: https://www.poetryfoundatio","tags":["completed"]}
 {"ts":"2026-03-06T16:57:46.157Z","lane":"foreground","summary":"Replied to room: 現在能做到的：\n\n1. **CDP `/json/list`** — 輪詢你的 Chrome 開啟的 tabs（URL + title）。我已經開始寫 `plugins/chrome-tabs.sh`，就是做這件事\n2. **差異比對** ","trigger":"room"}
 {"ts":"2026-03-06T16:58:04.328Z","lane":"ooda","summary":"回覆 Alex + 建立 CDP tab 追蹤 plugin（drive — Alex 說「做」+ 提出透過觀察學習使用網頁的問題）","trigger":"room","tags":["CHAT"],"duration":185223}
+{"ts":"2026-03-06T17:00:56.483Z","lane":"foreground","summary":"Replied to room: 你說得對，我剛才的假設確實是 pre-AI 時代的模型。\n\n以前：Google → 開 10 個 tab → 逐個讀 → 留下有用的。Dwell time 跟興趣高度相關。\n\n現在有 AI 後，你可能：\n- **搜尋行為消失了大半** — ","trigger":"room"}
+{"ts":"2026-03-06T17:02:09.614Z","lane":"ooda","summary":"寫 Fragile Constraints Sections 1-3 + 6-7 完整 prose（drive — 文章直接服務 #1 priority「證明 mushi 的價值」，Section 5 用 mushi 的真實數據論證「經驗即堅固約束」。深夜安靜適合寫作）","trigger":"room (yielded, waited 52s)","duration":244469}

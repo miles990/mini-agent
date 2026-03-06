@@ -1,22 +1,6 @@
 {
   "commitments": [
     {
-      "text": "砍 diag/ 冗餘寫入 + crs-baseline 分析閉環",
-      "priority": "low",
-      "cycleCreated": 1,
-      "cycleDeadline": 7,
-      "status": "fulfilled",
-      "fulfilledAt": 1
-    },
-    {
-      "text": "驗證 jsonl 寫入正確後，繼續砍 diag/ 冗餘",
-      "priority": "medium",
-      "cycleCreated": 2,
-      "cycleDeadline": 8,
-      "status": "fulfilled",
-      "fulfilledAt": 2
-    },
-    {
       "text": "delegate 結果回來後 review → 挑最好的 → 整理成 mushi repo 的 /examples 目錄 → npm package 化",
       "priority": "medium",
       "cycleCreated": 2,
@@ -55,10 +39,26 @@
       "cycleDeadline": 7,
       "status": "fulfilled",
       "fulfilledAt": 1
+    },
+    {
+      "text": "事實驗證（Vercel claim 需確認）→ 移除編輯用 scaffolding → Dev.to 發佈格式化",
+      "priority": "high",
+      "cycleCreated": 5,
+      "cycleDeadline": 11,
+      "status": "fulfilled",
+      "fulfilledAt": 5
+    },
+    {
+      "text": "事實驗證（特別是 Vercel/curl claim）→ 移除 scaffolding → Dev.to 格式化 → 發佈",
+      "priority": "high",
+      "cycleCreated": 5,
+      "cycleDeadline": 11,
+      "status": "fulfilled",
+      "fulfilledAt": 5
     }
   ],
-  "totalCreated": 105,
-  "totalFulfilled": 89,
+  "totalCreated": 107,
+  "totalFulfilled": 91,
   "totalDropped": 0,
   "totalExpired": 16
 }
