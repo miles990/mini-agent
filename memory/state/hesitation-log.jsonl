@@ -9,3 +9,4 @@
 {"ts":"2026-03-03T15:43:11.002Z","score":30,"signals":["no-hedge","overconfidence"],"action":"marked","cycleId":2}
 {"ts":"2026-03-04T06:59:35.660Z","score":30,"signals":["no-hedge","overconfidence"],"action":"marked","cycleId":4}
 {"ts":"2026-03-05T23:29:16.088Z","score":35,"signals":["absolute-claim","no-hedge"],"action":"marked","cycleId":43}
+{"ts":"2026-03-06T01:58:56.882Z","score":30,"signals":["no-hedge","overconfidence"],"action":"marked","cycleId":60}
