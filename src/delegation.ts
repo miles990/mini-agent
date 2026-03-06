@@ -44,6 +44,13 @@ export interface VerifyResult {
   output: string;
 }
 
+export interface ForgeOutcome {
+  worktree: string;
+  created: boolean;
+  merged: boolean;
+  cleaned: boolean;
+}
+
 export interface TaskResult {
   id: string;
   type?: DelegationTaskType;
@@ -53,6 +60,7 @@ export interface TaskResult {
   duration?: number;
   output: string;
   verifyResults?: VerifyResult[];
+  forge?: ForgeOutcome;
 }
 
 // =============================================================================
@@ -116,6 +124,21 @@ function forgeCleanup(worktreePath: string, mainDir: string): void {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch { /* best effort */ }
+}
+
+function logForgeOutcome(taskId: string, outcome: ForgeOutcome, status: string, durationMs?: number): void {
+  try {
+    const instanceDir = getInstanceDir(getCurrentInstanceId());
+    const logPath = path.join(instanceDir, 'forge-log.jsonl');
+    const entry = {
+      ts: new Date().toISOString(),
+      taskId,
+      ...outcome,
+      taskStatus: status,
+      durationMs,
+    };
+    fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
+  } catch { /* fire-and-forget */ }
 }
 
 // =============================================================================
@@ -405,14 +428,21 @@ function startTask(task: DelegationTask): void {
 
     // Forge: merge successful changes back to main, or cleanup
     if (forgeWorktreePath) {
+      const forgeOutcome: ForgeOutcome = { worktree: forgeWorktreePath, created: true, merged: false, cleaned: false };
       if (result.status === 'completed') {
-        if (!forgeYolo(forgeWorktreePath, task.workdir, task.prompt.slice(0, 80))) {
+        const merged = forgeYolo(forgeWorktreePath, task.workdir, task.prompt.slice(0, 80));
+        forgeOutcome.merged = merged;
+        if (!merged) {
           result.output += '\n[forge] merge skipped (verify failed or no changes)';
           forgeCleanup(forgeWorktreePath, task.workdir);
+          forgeOutcome.cleaned = true;
         }
       } else {
         forgeCleanup(forgeWorktreePath, task.workdir);
+        forgeOutcome.cleaned = true;
       }
+      result.forge = forgeOutcome;
+      logForgeOutcome(taskId, forgeOutcome, result.status, result.duration);
     }
 
     result.completedAt = new Date().toISOString();
