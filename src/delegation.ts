@@ -494,18 +494,30 @@ function startTask(task: DelegationTask): void {
   });
 
   // Timeout handler
+  let processExited = false;
+  const killChild = (signal: NodeJS.Signals) => {
+    try {
+      // For detached processes (codex), kill the entire process group
+      if (isCodex && child.pid) {
+        process.kill(-child.pid, signal);
+      } else {
+        child.kill(signal);
+      }
+    } catch { /* already dead */ }
+  };
   const timeout = setTimeout(() => {
     slog('DELEGATION', `Timeout ${taskId} after ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s`);
-    child.kill('SIGTERM');
+    killChild('SIGTERM');
     // Give it 5s to clean up, then force kill
     setTimeout(() => {
-      if (!child.killed) child.kill('SIGKILL');
+      if (!processExited) killChild('SIGKILL');
     }, 5000);
     result.status = 'timeout';
   }, task.timeoutMs ?? DEFAULT_TIMEOUT);
 
   // Completion handler — try/finally ensures cleanup ALWAYS runs (no zombie tasks)
   child.on('close', async (code) => {
+    processExited = true;
     clearTimeout(timeout);
 
     try {
@@ -697,12 +709,15 @@ export function recoverStaleDelegations(): void {
     let cleaned = 0;
 
     for (const entry of entries) {
-      // Kill orphan process if still alive
+      // Kill orphan process (and its process group) if still alive
       try {
-        process.kill(entry.pid, 0);
+        process.kill(entry.pid, 0); // test if alive
         slog('DELEGATION', `Killing orphan pid ${entry.pid} (${entry.taskId})`);
+        // Kill process group first (handles detached codex subprocesses)
+        try { process.kill(-entry.pid, 'SIGTERM'); } catch { /* not a group leader */ }
         process.kill(entry.pid, 'SIGTERM');
         setTimeout(() => {
+          try { process.kill(-entry.pid, 'SIGKILL'); } catch {}
           try { process.kill(entry.pid, 'SIGKILL'); } catch {}
         }, 3000);
       } catch { /* already dead — good */ }
@@ -750,8 +765,18 @@ export function recoverStaleDelegations(): void {
       }
     }
 
-    // Clear state file
-    fs.writeFileSync(filePath, '[]');
+    // Remove only the recovered entries — preserve any new ones added by re-spawned tasks.
+    // (spawnDelegation → startTask → saveToStateFile adds new entries during recovery)
+    const recoveredIds = new Set(entries.map(e => e.taskId));
+    try {
+      let current: ActiveDelegationState[] = [];
+      try { current = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch {}
+      const remaining = current.filter(e => !recoveredIds.has(e.taskId));
+      fs.writeFileSync(filePath, JSON.stringify(remaining));
+    } catch {
+      // Fallback: clear if read fails
+      fs.writeFileSync(filePath, '[]');
+    }
     slog('DELEGATION', `Recovery complete: ${resumed} resumed, ${cleaned} cleaned`);
   } catch (err) {
     slog('DELEGATION', `Recovery error: ${err}`);
@@ -763,17 +788,52 @@ export function recoverStaleDelegations(): void {
 // =============================================================================
 
 /**
- * Periodic health check. Kills tasks stuck beyond MAX_TIMEOUT_CAP + 30s grace.
+ * Periodic health check. Two thresholds:
+ * - MAX_TIMEOUT_CAP + 30s: try to kill (SIGKILL process group + direct)
+ * - MAX_TIMEOUT_CAP * 2: force-finalize (remove from activeTasks, write result)
  * Call from OODA cycle housekeeping.
  */
 export function watchdogDelegations(): void {
   const now = Date.now();
+  const forceThreshold = MAX_TIMEOUT_CAP * 2; // 20 min — absolute last resort
   for (const [taskId, { process: child, result }] of activeTasks) {
     if (!result.startedAt) continue;
     const elapsed = now - new Date(result.startedAt).getTime();
-    if (elapsed > MAX_TIMEOUT_CAP + 30_000) {
+
+    if (elapsed > forceThreshold) {
+      // Force-finalize: task is hopelessly stuck, clean up everything
+      slog('DELEGATION', `Watchdog: force-finalizing stuck ${taskId} (${Math.round(elapsed / 1000)}s)`);
+      try {
+        if (child?.pid) {
+          try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+          try { child.kill('SIGKILL'); } catch {}
+        }
+      } catch {}
+
+      result.status = 'timeout';
+      result.completedAt = new Date().toISOString();
+      result.duration = elapsed;
+      result.output = result.output || '(watchdog: force-finalized — process stuck beyond 2x timeout)';
+
+      activeTasks.delete(taskId);
+      completedTasks.set(taskId, result);
+      writeLaneOutput(result);
+      persistDelegationResult(result);
+      try {
+        const dir = getDelegationDir(taskId);
+        fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2));
+      } catch {}
+      removeFromStateFile(taskId);
+      dequeueNext();
+    } else if (elapsed > MAX_TIMEOUT_CAP + 30_000) {
+      // Try to kill (process group + direct)
       slog('DELEGATION', `Watchdog: killing stuck ${taskId} (${Math.round(elapsed / 1000)}s)`);
-      try { child?.kill('SIGKILL'); } catch {}
+      try {
+        if (child?.pid) {
+          try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+        }
+        child?.kill('SIGKILL');
+      } catch {}
     }
   }
 }
