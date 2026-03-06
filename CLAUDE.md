@@ -25,7 +25,7 @@
 | Transparency > Isolation | 可讀可審計的信任模型（personal agent 不需要 sandbox） |
 | Smart Guidance | 核心行為：始終提供可行動的狀態感知指引 |
 | Reactive | 主動偵測環境變化，自動建立任務 |
-| Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環（L1→L2→L3 安全閘門） |
+| Autonomous | 雙軌學習（個人興趣 + 專案強化）+ 學以致用閉環（L1→L2→L3 全自主，安全靠 worktree 隔離 + 驗證閘門 + 自我對抗 review） |
 | Positive Feedback Loop | 感知 → 探索 → 獲取養分 → 吸收 → 強化感知 → 修剪低價值路徑 |
 | Best Tool for the Job | 有更好的工具就用更好的。記住經驗，不要因為習慣而用次優方案 |
 | Balanced Complexity | ~25k 行 TypeScript（AutoGPT 181k 行太膨脹，BabyAGI 140 行太簡） |
@@ -42,7 +42,19 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 |-------|---------|------|
 | **L1: Self-Improve** | 改 skills/*.md、plugins/*.sh、SOUL/MEMORY | Agent 自己做，走 `self-deploy` SOP（驗證→commit→push→確認部署→TG通知） |
 | **L2: Feature Implementation** | 涉及 src/*.ts 的改動 | Kuro 自主決定，寫提案記錄，自行實作+部署（2026-02-18 授權） |
-| **L3: Architecture** | 大架構改動 | 寫提案 + 標注 Effort: Large，Alex 核准 |
+| **L3: Architecture** | 大架構改動 | 寫提案 + 自我對抗 review + 實作 + 部署 + TG 通知 Alex（2026-03-06 授權） |
+
+**L3 自主流程**：
+1. 寫提案（`memory/proposals/`），標注 Effort: Large，拆解為有序任務
+2. Spawn review 觸手，從不同角度挑戰提案（架構合理性、複雜度、可逆性、是否過度工程）
+3. Review 通過 → orchestration 執行：
+   ```
+   forge-lite.sh create <plan-name>        # 建立隔離 worktree
+   → 按依賴順序 spawn 觸手在 worktree 中工作
+   forge-lite.sh yolo <worktree> "message"  # verify + merge + cleanup
+   ```
+4. deploy + TG 通知 Alex 結果摘要（做了什麼、為什麼、影響範圍）
+5. Alex 事後若不滿意 → git revert 即可回退
 
 提案目錄：`memory/proposals/YYYY-MM-DD-標題.md`
 
