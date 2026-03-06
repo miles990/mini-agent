@@ -148,9 +148,19 @@ function buildSandbox(mainDir: string, worktreeDir: string): SandboxWrapper | nu
 
   if (process.platform === 'darwin') {
     try { execSync('which sandbox-exec', { stdio: 'ignore' }); } catch { return null; }
+    // macOS 26+: (allow default) overrides subsequent deny rules.
+    // Use whitelist approach: (deny default) + explicit allows for everything except mainDir.
     const profile = `(version 1)
-(allow default)
-(deny file-write* (subpath "${mainDir}"))
+(deny default)
+(allow process*)
+(allow sysctl*)
+(allow mach*)
+(allow signal)
+(allow ipc*)
+(allow network*)
+(allow system*)
+(allow file-read*)
+(allow file-ioctl)
 (allow file-write*
   (subpath "${worktreeDir}")
   (subpath "/tmp")
