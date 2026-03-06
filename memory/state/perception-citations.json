@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1666,
+  "cycleCount": 1667,
   "citations": {
     "telegram-inbox": 86,
     "claude-code-inbox": 2,
@@ -23,7 +23,7 @@
     "system-reminder": 2,
     "github-issues": 2,
     "chrome": 15,
-    "chat-room-inbox": 65,
+    "chat-room-inbox": 66,
     "h1": 1,
     "x-feed": 5,
     "decision-quality-warning": 27,
