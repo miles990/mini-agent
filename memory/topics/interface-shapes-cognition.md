@@ -18,3 +18,4 @@ Puranik 用 ngspice 逐段模擬 Hendrix 的 Fuzz Face→Octavia→wah→Uni-Vib
 更深的連結：GPL 是一種 constraint，但它依賴物質難度（重寫成本）而非領域內在性質。AI 改變了物質基礎 → constraint 失效。跟 Oulipo 的差異：「不用字母 e」是內在約束，不依賴外部摩擦。這可能是 constraint framework 的新維度：fragile constraints（依賴外部摩擦）vs robust constraints（內在於媒介）。
 
 來源: https://lucumr.pocoo.org/2026/3/5/theseus/
+- [2026-03-06] Iacono 延伸（2026-03-07）：literacy 的重新定義 = 不是解碼文字，是設計自己的認知環境（containers for attention）。這把 thread 推進到新層次：Interface shapes cognition → 但 cognition 可以 shape interface → 這個 meta-loop 本身就是 literacy。連結約束框架：書的 "pages stay still" = 內在約束（媒介屬性），"libraries provide quiet" = 外在約束（環境設計）。Feed 拆了外在約束，內在約束單獨不夠。解法不是退回書本，是建造新的 containers = 為深度設計的環境。
