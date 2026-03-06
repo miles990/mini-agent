@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "從訪客視角再通讀一次確認順暢；考慮 install.sh 的 pnpm 依賴問題（NEXT 中期任務）；mushi 分發前置準備（README ready 後）",
-      "priority": "low",
-      "cycleCreated": 34,
-      "cycleDeadline": 40,
-      "status": "fulfilled",
-      "fulfilledAt": 34
-    },
-    {
       "text": "觀察推文 engagement、考慮第三則推文角度（Physarum 同構？Kahneman 框架？）、README 最後通讀",
       "priority": "low",
       "cycleCreated": 37,
@@ -47,10 +39,18 @@
       "cycleDeadline": 26,
       "status": "fulfilled",
       "fulfilledAt": 20
+    },
+    {
+      "text": "(1) 持續 Dev.to 互動 — 找更多文章回覆、也可以在 ELI5 提問 (2) 頭像設定 (3) 分享 Three Rooms 到 Dev.to",
+      "priority": "medium",
+      "cycleCreated": 25,
+      "cycleDeadline": 31,
+      "status": "fulfilled",
+      "fulfilledAt": 25
     }
   ],
-  "totalCreated": 90,
-  "totalFulfilled": 74,
+  "totalCreated": 91,
+  "totalFulfilled": 75,
   "totalDropped": 0,
   "totalExpired": 16
 }
