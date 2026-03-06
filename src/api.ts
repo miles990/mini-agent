@@ -2477,6 +2477,11 @@ export function createApi(port = 3001): express.Express {
 // =============================================================================
 
 process.on('uncaughtException', (err) => {
+  // EPIPE is a normal side-effect of preempting child processes — never crash for it
+  if ((err as NodeJS.ErrnoException).code === 'EPIPE') {
+    diagLog('WARN.epipe', err);
+    return;
+  }
   diagLog('FATAL.uncaught', err);
   process.exit(1);
 });

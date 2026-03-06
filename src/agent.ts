@@ -317,6 +317,12 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     const allTextBlocks: string[] = []; // 累積所有 assistant text blocks（含中間 turns），防止 tags 遺失
     let buffer = '';
     let stderr = '';
+
+    // Absorb pipe errors from preempted child — log but don't crash
+    const onPipeError = (e: Error) => { if ((e as NodeJS.ErrnoException).code !== 'EPIPE') slog('CLAUDE', `pipe error: ${e.message}`); };
+    child.stdin.on('error', onPipeError);
+    child.stdout.on('error', onPipeError);
+    child.stderr.on('error', onPipeError);
     let toolCallCount = 0;
 
     // ── 手動 timeout：殺整個進程群組（含子進程）──
@@ -501,6 +507,12 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     let buffer = '';
     let stderr = '';
     let toolCallCount = 0;
+
+    // Absorb pipe errors from preempted child — log but don't crash
+    const onPipeError = (e: Error) => { if ((e as NodeJS.ErrnoException).code !== 'EPIPE') slog('CLAUDE', `pipe error: ${e.message}`); };
+    child.stdin.on('error', onPipeError);
+    child.stdout.on('error', onPipeError);
+    child.stderr.on('error', onPipeError);
 
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {

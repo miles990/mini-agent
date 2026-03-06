@@ -158,11 +158,8 @@ export function classifyTrigger(
   switch (eventType) {
     case 'trigger:telegram-user':
       return { source: 'telegram', priority: Priority.P0 };
-    case 'trigger:room': {
-      const text = (data?.text as string) ?? '';
-      const isQuestion = text.includes('@kuro') && (text.includes('?') || text.includes('？'));
-      return { source: 'room', priority: isQuestion ? Priority.P1 : Priority.P2 };
-    }
+    case 'trigger:room':
+      return { source: 'room', priority: Priority.P1 };
     case 'trigger:workspace':
       return { source: 'workspace', priority: Priority.P2 };
     case 'trigger:cron':

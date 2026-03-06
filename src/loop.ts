@@ -687,14 +687,20 @@ export class AgentLoop {
       return;
     }
 
-    // If agent process is busy (held by cron etc), preempt first
+    // If agent process is busy — only P0 (telegram-user) can preempt.
+    // Lower priority events queue up and wait for the current work to finish.
     if (isLoopBusy()) {
-      slog('LOOP', `[unified] Preempting busy state for ${event.source}`);
-      preemptLoopCycle();
-      setTimeout(() => {
-        this.triggerReason = `${event.source} (unified)`;
-        this.runCycle();
-      }, 500);
+      if (event.priority <= Priority.P0) {
+        slog('LOOP', `[unified] Preempting busy state for ${event.source} (P${event.priority})`);
+        preemptLoopCycle();
+        setTimeout(() => {
+          this.triggerReason = `${event.source} (unified)`;
+          this.runCycle();
+        }, 500);
+      } else {
+        slog('LOOP', `[unified] Busy — queuing ${event.source} (P${event.priority}), will run after current work`);
+        this.directMessageWakeQueue++;
+      }
       return;
     }
 
