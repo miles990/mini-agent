@@ -387,10 +387,22 @@ Alex DM 到來時，如果主 cycle 正在跑，走 foreground lane 而非 preem
 - `postProcess()` — tag 處理 + memory + log + delegation spawn
 - `getSystemPrompt()` — system prompt 組裝（含 JIT skills）
 
+### Event Priority
+
+人類訊息統一 P0，系統事件依重要性分級。只有 P0 有權 preempt 正在執行的 cycle，其他排隊等待。
+
+| Priority | 事件 | 說明 |
+|----------|------|------|
+| **P0** | `trigger:telegram-user`, `trigger:room`, `trigger:chat` | 人類訊息 — 可 preempt |
+| **P1** | `trigger:alert` | 系統告警 |
+| **P2** | `trigger:workspace`, `trigger:cron` | 環境變化、排程 |
+| **P3** | `trigger:mobile`, `trigger:heartbeat` | 低優先級感知 |
+
 ### Preemption
 
-Foreground lane 解決了 90% 的 preempt 場景。Preemption 保留作為 escalation 手段。
+Foreground lane 解決了 90% 的 preempt 場景。Preemption 僅限 P0 事件（人類訊息），非 P0 事件遇到 busy 排隊等待而非 kill。
 被搶佔的 cycle 下次自動接續（`interruptedCycleInfo`）。Generation counter 防止 timing race。
+子進程 pipe error（含 EPIPE）由 error handler 吸收，不會冒泡為 uncaughtException 導致主進程退出。
 
 ### Crash Resume
 
