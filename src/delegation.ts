@@ -204,6 +204,38 @@ function logDelegationLifecycle(result: TaskResult, provider: DelegationProvider
   } catch { /* fire-and-forget */ }
 }
 
+const JOURNAL_MAX_ENTRIES = 100;
+
+/**
+ * Persist delegation result (including output summary) to a rolling journal.
+ * This ensures tentacle knowledge survives beyond the one-cycle <background-completed> window.
+ */
+function persistDelegationResult(result: TaskResult): void {
+  try {
+    const instanceDir = getInstanceDir(getCurrentInstanceId());
+    const journalPath = path.join(instanceDir, 'delegation-journal.jsonl');
+
+    const entry = {
+      ts: result.completedAt ?? new Date().toISOString(),
+      id: result.id,
+      type: result.type ?? 'code',
+      status: result.status,
+      durationMs: result.duration,
+      forgeMerged: result.forge?.merged ?? false,
+      output: result.output.slice(0, 2000),
+    };
+    fs.appendFileSync(journalPath, JSON.stringify(entry) + '\n');
+
+    // Rolling cap: trim to last JOURNAL_MAX_ENTRIES
+    try {
+      const lines = fs.readFileSync(journalPath, 'utf-8').split('\n').filter(Boolean);
+      if (lines.length > JOURNAL_MAX_ENTRIES + 20) {
+        fs.writeFileSync(journalPath, lines.slice(-JOURNAL_MAX_ENTRIES).join('\n') + '\n');
+      }
+    } catch { /* trim is best-effort */ }
+  } catch { /* fire-and-forget */ }
+}
+
 // =============================================================================
 // State
 // =============================================================================
@@ -542,6 +574,7 @@ function startTask(task: DelegationTask): void {
       result.completedAt ??= new Date().toISOString();
       result.duration ??= Date.now() - new Date(result.startedAt).getTime();
       logDelegationLifecycle(result, provider);
+      persistDelegationResult(result);
       try { fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2)); } catch {}
       activeTasks.delete(taskId);
       completedTasks.set(taskId, result);
