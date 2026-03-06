@@ -36,6 +36,7 @@ export interface DelegationTask {
   verify?: string[];
   allowedTools?: string[];
   context?: string;
+  forgeWorktree?: string; // Resume: use existing forge worktree instead of creating new
 }
 
 export interface VerifyResult {
@@ -367,10 +368,17 @@ function startTask(task: DelegationTask): void {
   let effectiveWorkdir = task.workdir;
   let forgeWorktreePath: string | null = null;
   if (taskType === 'code') {
-    forgeWorktreePath = forgeCreate(taskId, task.workdir);
-    if (forgeWorktreePath) {
+    if (task.forgeWorktree && fs.existsSync(task.forgeWorktree)) {
+      // Resume: reuse existing forge worktree (has partial work)
+      forgeWorktreePath = task.forgeWorktree;
       effectiveWorkdir = forgeWorktreePath;
-      slog('DELEGATION', `Forge worktree: ${forgeWorktreePath}`);
+      slog('DELEGATION', `Forge resume worktree: ${forgeWorktreePath}`);
+    } else {
+      forgeWorktreePath = forgeCreate(taskId, task.workdir);
+      if (forgeWorktreePath) {
+        effectiveWorkdir = forgeWorktreePath;
+        slog('DELEGATION', `Forge worktree: ${forgeWorktreePath}`);
+      }
     }
   }
 
@@ -638,8 +646,9 @@ async function runVerifyCommands(commands: string[], workdir: string): Promise<V
 // =============================================================================
 
 /**
- * Called on startup to clean up delegations from a previous crashed instance.
- * Kills orphan processes, releases forge worktree slots, clears state file.
+ * Called on startup to recover delegations from a previous crashed instance.
+ * Kills orphan processes, then re-spawns tasks that had work in progress.
+ * Tasks with forge worktrees containing partial changes get resumed (not lost).
  */
 export function recoverStaleDelegations(): void {
   try {
@@ -651,11 +660,13 @@ export function recoverStaleDelegations(): void {
     if (entries.length === 0) return;
 
     slog('DELEGATION', `Recovering ${entries.length} stale delegation(s) from previous instance`);
+    let resumed = 0;
+    let cleaned = 0;
 
     for (const entry of entries) {
       // Kill orphan process if still alive
       try {
-        process.kill(entry.pid, 0); // check if alive (throws if dead)
+        process.kill(entry.pid, 0);
         slog('DELEGATION', `Killing orphan pid ${entry.pid} (${entry.taskId})`);
         process.kill(entry.pid, 'SIGTERM');
         setTimeout(() => {
@@ -663,15 +674,52 @@ export function recoverStaleDelegations(): void {
         }, 3000);
       } catch { /* already dead — good */ }
 
-      // Release forge worktree slot
-      if (entry.worktree) {
-        forgeCleanup(entry.worktree, entry.workdir);
+      // Try to read original task spec
+      const specPath = path.join(getDelegationDir(entry.taskId), 'spec.json');
+      let spec: DelegationTask | null = null;
+      try { spec = JSON.parse(fs.readFileSync(specPath, 'utf-8')); } catch {}
+
+      // Check if forge worktree has partial work worth resuming
+      let hasPartialWork = false;
+      if (entry.worktree && fs.existsSync(entry.worktree)) {
+        try {
+          const diff = execSync(`git -C "${entry.worktree}" diff --name-only HEAD 2>/dev/null || true`, {
+            encoding: 'utf-8', timeout: 5000,
+          }).trim();
+          const staged = execSync(`git -C "${entry.worktree}" diff --cached --name-only 2>/dev/null || true`, {
+            encoding: 'utf-8', timeout: 5000,
+          }).trim();
+          hasPartialWork = !!(diff || staged);
+        } catch { /* treat as no work */ }
+      }
+
+      if (spec && hasPartialWork && entry.worktree) {
+        // Resume: re-spawn with existing worktree and modified prompt
+        slog('DELEGATION', `Resuming ${entry.taskId} — forge worktree has partial work`);
+        spawnDelegation({
+          ...spec,
+          id: undefined, // new task ID
+          prompt: `[RESUME] This task was interrupted by a restart. The worktree has partial changes from the previous attempt. Check git diff to see what was already done, then continue and complete the task.\n\nOriginal task:\n${spec.prompt}`,
+          forgeWorktree: entry.worktree,
+        });
+        resumed++;
+      } else if (spec) {
+        // No partial work — re-spawn fresh
+        slog('DELEGATION', `Re-spawning ${entry.taskId} — no partial work found`);
+        if (entry.worktree) forgeCleanup(entry.worktree, entry.workdir);
+        spawnDelegation({ ...spec, id: undefined });
+        resumed++;
+      } else {
+        // No spec found — just clean up
+        slog('DELEGATION', `Cleaning up ${entry.taskId} — no spec found`);
+        if (entry.worktree) forgeCleanup(entry.worktree, entry.workdir);
+        cleaned++;
       }
     }
 
     // Clear state file
     fs.writeFileSync(filePath, '[]');
-    slog('DELEGATION', 'Stale delegation recovery complete');
+    slog('DELEGATION', `Recovery complete: ${resumed} resumed, ${cleaned} cleaned`);
   } catch (err) {
     slog('DELEGATION', `Recovery error: ${err}`);
   }
