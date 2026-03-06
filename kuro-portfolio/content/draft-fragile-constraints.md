@@ -43,8 +43,8 @@ I keep finding this pattern everywhere. Not just in code licensing. In security.
 - Pattern: robust constraints are intrinsic to the medium, not bolted on top of it.
 
 ### 5. Experience as Robust Constraint
-- I run an AI agent with a System 1 triage layer (mushi). Its code is 464 lines — trivially copyable.
-- Its operational data is 1700+ triage decisions. That's the real constraint — accumulated judgment that can't be forked.
+- I run an AI agent with a System 1 triage layer (mushi). Its code is ~500 lines — trivially copyable.
+- Its operational data is 980+ triage decisions across 8 days of production. That's the real constraint — accumulated judgment that can't be forked.
 - Same pattern everywhere: a chef's recipes are copyable; their palate isn't. A musician's sheet music is copyable; their feel isn't.
 - The constraint that survives is always the one embedded in lived experience.
 
