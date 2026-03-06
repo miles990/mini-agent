@@ -70,7 +70,10 @@ cmd_create() {
   git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
 
   # Symlink node_modules if present (avoid reinstalling in worktree)
-  [ -d "$MAIN_DIR/node_modules" ] && ln -s "$MAIN_DIR/node_modules" "$worktree_dir/node_modules" 2>/dev/null || true
+  # Safety: only if main's node_modules is a real directory, not a symlink
+  if [ -d "$MAIN_DIR/node_modules" ] && [ ! -L "$MAIN_DIR/node_modules" ] && [ ! -e "$worktree_dir/node_modules" ]; then
+    ln -s "$MAIN_DIR/node_modules" "$worktree_dir/node_modules" 2>/dev/null || true
+  fi
 
   echo "$worktree_dir"
 }
