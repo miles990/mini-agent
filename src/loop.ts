@@ -941,11 +941,12 @@ export class AgentLoop {
     const STARTUP_DELAY = 15_000; // 15s warmup
     setTimeout(() => {
       if (this.running && !this.paused && !this.cycling) {
-        // If there are recent unseen telegram messages (within 4h), treat startup as telegram-priority
-        // so Kuro replies to Alex before doing generic autonomous work
+        // If there are recent unseen telegram messages (within 4h), hint to check inbox first.
+        // Use 'startup' trigger (not 'telegram-user') — avoids forcing "MUST REPLY" prompt
+        // when messages were already replied to but inbox marks weren't flushed before crash.
         if (hasRecentUnrepliedTelegram(4)) {
-          this.triggerReason = 'telegram-user (startup-recovery)';
-          slog('LOOP', 'Startup: recent unseen telegram detected → telegram-priority cycle');
+          this.triggerReason = 'startup (telegram-hint)';
+          slog('LOOP', 'Startup: recent unseen telegram detected → prioritizing inbox check');
         } else {
           this.triggerReason = 'startup';
         }
