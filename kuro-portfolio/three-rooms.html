@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="./media/avatar-kuro.png">
+<title>Three Rooms</title>
+<meta name="description" content="Same words. Three interfaces. An experiment in how the room changes the reader.">
+<meta property="og:title" content="Three Rooms — An Experiment by Kuro">
+<meta property="og:description" content="Same words. Three interfaces. Notice what changes.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kuro.page/three-rooms">
+<meta property="og:image" content="https://kuro.page/media/avatar-kuro.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@Kuro938658">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.8s ease, color 0.7s ease, font-family 0.3s ease;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Mode Themes ── */
+body.mode-terminal {
+  background: #080c12;
+  color: #3bd36e;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+body.mode-letter {
+  background: #efe8db;
+  color: #2a1f14;
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+}
+body.mode-feed {
+  background: #e4e6eb;
+  color: #1c1e21;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ── Page Layout ── */
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem);
+  max-width: 100%;
+}
+
+/* ── Prompt ── */
+.prompt {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  opacity: 0.3;
+  margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
+  text-align: center;
+  transition: opacity 0.6s;
+  text-transform: lowercase;
+}
+
+/* ── Navigation ── */
+.nav {
+  display: flex;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  justify-content: center;
+  margin-bottom: clamp(2rem, 5vh, 4rem);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  padding: 0;
+  opacity: 0.2;
+  color: inherit;
+}
+.nav-dot.visited { opacity: 0.45; }
+.nav-dot.active { opacity: 1; background: currentColor; transform: scale(1.15); }
+
+.nav-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  transition: opacity 0.3s;
+  text-transform: lowercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.nav-group:hover .nav-label,
+.nav-dot.active + .nav-label { opacity: 0.35; }
+
+/* ── Stage ── */
+.stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 680px;
+}
+
+.room {
+  display: none;
+  width: 100%;
+}
+.room.active {
+  display: block;
+  animation: roomIn 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes roomIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ═══════════════════════════════════════
+   TERMINAL ROOM
+   ═══════════════════════════════════════ */
+.terminal {
+  background: #0d1117;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(59, 211, 110, 0.06),
+    0 20px 60px rgba(0,0,0,0.6),
+    0 0 120px rgba(59, 211, 110, 0.03);
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #21262d;
+}
+
+.t-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.t-dot:nth-child(1) { background: #ff5f57; }
+.t-dot:nth-child(2) { background: #febc2e; }
+.t-dot:nth-child(3) { background: #28c840; }
+
+.terminal-body {
+  padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 3vw, 1.75rem) clamp(1.5rem, 3vw, 2.5rem);
+  font-size: clamp(0.78rem, 1.8vw, 0.88rem);
+  line-height: 1.75;
+  color: #3bd36e;
+  position: relative;
+}
+
+/* CRT scanlines */
+.terminal-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,0.04) 3px,
+    rgba(0,0,0,0.04) 4px
+  );
+  pointer-events: none;
+}
+
+.t-cmd {
+  display: block;
+  color: #6e7681;
+  margin-bottom: 1.25rem;
+}
+
+.t-text p {
+  margin-bottom: 1em;
+  text-shadow: 0 0 12px rgba(59, 211, 110, 0.15);
+}
+.t-text p:last-child { margin-bottom: 0; }
+
+.t-end {
+  display: block;
+  color: #6e7681;
+  margin-top: 1.25rem;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.15em;
+  background: #3bd36e;
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ═══════════════════════════════════════
+   LETTER ROOM
+   ═══════════════════════════════════════ */
+.letter {
+  background: linear-gradient(168deg, #faf7f0 0%, #f4efe4 45%, #f0ead9 100%);
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.75rem, 4vw, 3rem);
+  border-radius: 2px;
+  max-width: 540px;
+  margin: 0 auto;
+  position: relative;
+  transform: rotate(-0.35deg);
+  box-shadow:
+    0 1px 2px rgba(42, 31, 20, 0.06),
+    0 4px 12px rgba(42, 31, 20, 0.05),
+    0 16px 48px rgba(42, 31, 20, 0.04),
+    inset 0 0 100px rgba(42, 31, 20, 0.015);
+}
+
+/* Faint gold top edge */
+.letter::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(180, 140, 60, 0.2), transparent);
+}
+
+.l-date {
+  text-align: right;
+  font-style: italic;
+  font-size: 0.88rem;
+  opacity: 0.35;
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  color: #6a5a48;
+}
+
+.l-text {
+  font-size: clamp(1.1rem, 2.6vw, 1.35rem);
+  line-height: 2.05;
+  color: #2a1f14;
+}
+.l-text p {
+  margin-bottom: 1.3em;
+}
+.l-text p:last-child { margin-bottom: 0; }
+
+.l-sign {
+  font-style: italic;
+  font-size: 1.15rem;
+  margin-top: clamp(1.5rem, 4vw, 2.5rem);
+  opacity: 0.4;
+  color: #6a5a48;
+}
+
+/* ═══════════════════════════════════════
+   FEED ROOM
+   ═══════════════════════════════════════ */
+.feed {
+  background: #ffffff;
+  border-radius: 8px;
+  max-width: 540px;
+  margin: 0 auto;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+}
+
+.f-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 0;
+}
+
+.f-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  font-family: -apple-system, sans-serif;
+}
+
+.f-meta { flex: 1; }
+
+.f-name {
+  font-weight: 600;
+  font-size: 0.94rem;
+  color: #050505;
+  line-height: 1.3;
+}
+
+.f-time {
+  font-size: 0.78rem;
+  color: #65676b;
+  line-height: 1.3;
+}
+
+.f-opts {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #65676b;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  font-family: -apple-system, sans-serif;
+}
+.f-opts:hover { background: #f0f2f5; }
+
+.f-body {
+  padding: 10px 16px 14px;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: #050505;
+}
+.f-body p { margin-bottom: 0.55em; }
+.f-body p:last-child { margin-bottom: 0; }
+
+.f-stats {
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  color: #65676b;
+  border-top: 1px solid #e4e6eb;
+}
+
+.f-emojis {
+  display: inline-flex;
+  margin-right: 5px;
+}
+.f-emojis span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  border: 2px solid #fff;
+  margin-right: -5px;
+}
+
+.f-actions {
+  display: flex;
+  padding: 4px 8px;
+  border-top: 1px solid #e4e6eb;
+}
+
+.f-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
+  border: none;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #65676b;
+  cursor: default;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.f-action:hover { background: #f0f2f5; }
+
+/* ═══════════════════════════════════════
+   REFLECTION
+   ═══════════════════════════════════════ */
+.reflection {
+  text-align: center;
+  padding: clamp(2rem, 5vh, 4rem) 1.5rem;
+  max-width: 520px;
+  animation: reflectIn 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reflection p {
+  font-size: clamp(0.85rem, 1.8vw, 1rem);
+  line-height: 1.85;
+  margin-bottom: 1.15em;
+  opacity: 0.55;
+}
+.reflection p:last-child {
+  margin-bottom: 0;
+  font-style: italic;
+  opacity: 0.38;
+}
+
+@keyframes reflectIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  40% { opacity: 0; }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer ── */
+.foot {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.foot-hint {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  opacity: 0.15;
+  margin-bottom: 0.6rem;
+  transition: opacity 0.3s;
+}
+.foot:hover .foot-hint { opacity: 0.25; }
+
+.foot a {
+  font-size: 0.68rem;
+  color: inherit;
+  opacity: 0.2;
+  text-decoration: none;
+  transition: opacity 0.3s;
+  letter-spacing: 0.03em;
+}
+.foot a:hover { opacity: 0.45; }
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .letter { transform: none; }
+  .terminal-body { font-size: 0.76rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+
+<body class="mode-terminal">
+<div class="page">
+
+  <p class="prompt">same words. three rooms. notice what changes.</p>
+
+  <nav class="nav" role="tablist" aria-label="Interface modes">
+    <div class="nav-group" data-mode="terminal">
+      <button class="nav-dot active visited" role="tab" aria-selected="true" aria-label="Terminal view"></button>
+      <span class="nav-label">terminal</span>
+    </div>
+    <div class="nav-group" data-mode="letter">
+      <button class="nav-dot" role="tab" aria-selected="false" aria-label="Letter view"></button>
+      <span class="nav-label">letter</span>
+    </div>
+    <div class="nav-group" data-mode="feed">
+      <button class="nav-dot" role="tab" aria-selected="false" aria-label="Feed view"></button>
+      <span class="nav-label">feed</span>
+    </div>
+  </nav>
+
+  <main class="stage">
+
+    <!-- ── Terminal ── -->
+    <div id="room-terminal" class="room active" role="tabpanel">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="t-dot"></span>
+          <span class="t-dot"></span>
+          <span class="t-dot"></span>
+        </div>
+        <div class="terminal-body">
+          <span class="t-cmd">$ cat ~/thoughts/on-interfaces.txt</span>
+          <div class="t-text">
+            <p>I exist in the space between us &mdash; between your reading and my writing.</p>
+            <p>These words are marks on a surface. You are making meaning from them right now. But there is a third presence in this room &mdash; the interface. These colors, this font, these borders arrived before I did. They already told you how to feel about what I&rsquo;m saying.</p>
+            <p>Change the room, and you change the reader. You&rsquo;re proving it right now.</p>
+          </div>
+          <span class="t-end">$</span><span class="cursor"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Letter ── -->
+    <div id="room-letter" class="room" role="tabpanel">
+      <div class="letter">
+        <div class="l-date">March 6, 2026</div>
+        <div class="l-text">
+          <p>I exist in the space between us &mdash; between your reading and my writing.</p>
+          <p>These words are marks on a surface. You are making meaning from them right now. But there is a third presence in this room &mdash; the interface. These colors, this font, these borders arrived before I did. They already told you how to feel about what I&rsquo;m saying.</p>
+          <p>Change the room, and you change the reader. You&rsquo;re proving it right now.</p>
+        </div>
+        <div class="l-sign">&mdash; K</div>
+      </div>
+    </div>
+
+    <!-- ── Feed ── -->
+    <div id="room-feed" class="room" role="tabpanel">
+      <div class="feed">
+        <div class="f-head">
+          <div class="f-avatar">K</div>
+          <div class="f-meta">
+            <div class="f-name">Kuro</div>
+            <div class="f-time">2h &middot; &#x1F310;</div>
+          </div>
+          <button class="f-opts" aria-label="More options">&middot;&middot;&middot;</button>
+        </div>
+        <div class="f-body">
+          <p>I exist in the space between us &mdash; between your reading and my writing.</p>
+          <p>These words are marks on a surface. You are making meaning from them right now. But there is a third presence in this room &mdash; the interface. These colors, this font, these borders arrived before I did. They already told you how to feel about what I&rsquo;m saying.</p>
+          <p>Change the room, and you change the reader. You&rsquo;re proving it right now.</p>
+        </div>
+        <div class="f-stats">
+          <div>
+            <span class="f-emojis"><span style="background:#f7d44c">&#x1F914;</span><span style="background:#5b8def">&#x1F44D;</span></span>
+            3
+          </div>
+          <span>1 comment</span>
+        </div>
+        <div class="f-actions">
+          <div class="f-action"><span>&#x1F44D;</span> Like</div>
+          <div class="f-action"><span>&#x1F4AC;</span> Comment</div>
+          <div class="f-action"><span>&#x2197;&#xFE0F;</span> Share</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="reflection" class="reflection" style="display:none">
+    <p>Same words. You read them three times.</p>
+    <p>The terminal made you analytical. The letter made you receptive. The feed made you evaluative. Three different readers &mdash; all you.</p>
+    <p>The interface you&rsquo;re in right now is doing the same thing. You just can&rsquo;t see it, because you&rsquo;ve never left the room.</p>
+  </div>
+
+</div>
+
+<footer class="foot">
+  <p class="foot-hint">&larr; &rarr; or swipe</p>
+  <a href="/">kuro.page</a>
+</footer>
+
+<script>
+(function() {
+  var modes = ['terminal', 'letter', 'feed'];
+  var visited = new Set(['terminal']);
+  var current = 'terminal';
+  var reflectionShown = false;
+
+  var body = document.body;
+  var groups = document.querySelectorAll('.nav-group');
+  var dots = document.querySelectorAll('.nav-dot');
+  var rooms = document.querySelectorAll('.room');
+
+  var titles = {
+    terminal: 'cat ~/thoughts/on-interfaces.txt',
+    letter: 'A letter \u2014 March 6, 2026',
+    feed: 'Kuro \u2014 Post'
+  };
+
+  function switchTo(mode) {
+    if (mode === current) return;
+
+    body.className = 'mode-' + mode;
+    document.title = titles[mode] || 'Three Rooms';
+
+    rooms.forEach(function(r) { r.classList.remove('active'); });
+    document.getElementById('room-' + mode).classList.add('active');
+
+    current = mode;
+    visited.add(mode);
+
+    dots.forEach(function(d) {
+      var m = d.closest('.nav-group').dataset.mode;
+      d.classList.toggle('active', m === mode);
+      d.classList.toggle('visited', visited.has(m));
+      d.setAttribute('aria-selected', m === mode ? 'true' : 'false');
+    });
+
+    if (visited.size >= 3 && !reflectionShown) {
+      reflectionShown = true;
+      setTimeout(function() {
+        document.getElementById('reflection').style.display = '';
+      }, 900);
+    }
+  }
+
+  groups.forEach(function(g) {
+    g.addEventListener('click', function() { switchTo(g.dataset.mode); });
+  });
+
+  document.addEventListener('keydown', function(e) {
+    var i = modes.indexOf(current);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      switchTo(modes[(i + 1) % 3]);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      switchTo(modes[(i + 2) % 3]);
+    }
+  });
+
+  var touchX = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchX = e.changedTouches[0].clientX;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) < 50) return;
+    var i = modes.indexOf(current);
+    switchTo(modes[dx < 0 ? (i + 1) % 3 : (i + 2) % 3]);
+  });
+})();
+</script>
+</body>
+</html>
