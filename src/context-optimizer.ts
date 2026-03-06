@@ -104,6 +104,9 @@ export class ContextOptimizer {
     this.state.totalCycles++;
     const citedSet = new Set(citedSections);
 
+    // Track sections newly promoted this cycle (skip observation tick for them)
+    const newlyPromoted = new Set<string>();
+
     // All known sections (from SECTION_KEYWORDS + already tracked)
     const allTracked = new Set([
       ...Object.keys(SECTION_KEYWORDS),
@@ -124,6 +127,7 @@ export class ContextOptimizer {
             promotedAt: new Date().toISOString(),
             remainingCycles: OBSERVATION_CYCLES,
           };
+          newlyPromoted.add(section);
           slog('CTX-OPT', `Auto-promoted: ${section} (cited while demoted → observation period)`);
         }
       } else {
@@ -146,20 +150,16 @@ export class ContextOptimizer {
       }
     }
 
-    // Tick observation periods
+    // Tick observation periods (skip sections just promoted this cycle)
     for (const [section, obs] of Object.entries(this.state.observation)) {
-      if (citedSet.has(section)) {
-        // Cited during observation — good, keep observing
-        obs.remainingCycles--;
-      } else {
-        obs.remainingCycles--;
-      }
+      if (newlyPromoted.has(section)) continue;
+      obs.remainingCycles--;
 
       if (obs.remainingCycles <= 0) {
         // Observation complete
         delete this.state.observation[section];
-        // If not cited during observation, reset zero count from where we are
-        // (it will naturally accumulate again toward demotion)
+        // Zero count continues from where it is — will naturally accumulate
+        // toward demotion again if section remains uncited
       }
     }
   }

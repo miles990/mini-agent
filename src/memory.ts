@@ -1562,6 +1562,27 @@ export class InstanceMemory {
     // 組合感知區塊
     const sections: string[] = [];
 
+    // ── 條件載入 helpers（根據相關性 + auto-demotion）──
+    // Citation-driven auto-demotion: sections with 0 citations over DEMOTION_THRESHOLD
+    // cycles are automatically demoted to conditional-load (Task 3)
+    const isRelevant = (keywords: string[]) =>
+      mode === 'full' || keywords.some(k => contextHint.includes(k));
+
+    // Load demoted sections from context optimizer
+    let demotedSections: Set<string> = new Set();
+    try {
+      const { getContextOptimizer } = await import('./context-optimizer.js');
+      const opt = getContextOptimizer();
+      demotedSections = new Set(opt.getDemotedSections());
+    } catch { /* ignore */ }
+
+    const shouldLoad = (section: string, keywords: string[]) => {
+      if (demotedSections.has(section)) {
+        return keywords.some(k => contextHint.includes(k));
+      }
+      return isRelevant(keywords);
+    };
+
     // ── 必載入（核心感知）──
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
@@ -1573,8 +1594,8 @@ export class InstanceMemory {
       }
     }
 
-    // ── Temporal Sense（時間感）── skip in light mode
-    if (!isLight) {
+    // ── Temporal Sense（時間感）── skip in light mode, auto-demotion aware
+    if (!isLight && shouldLoad('temporal', ['time', 'schedule', 'when', 'date', 'calendar'])) {
       const temporalCtx = await buildTemporalSection();
       if (temporalCtx) {
         sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
@@ -1627,27 +1648,6 @@ export class InstanceMemory {
       if (selfCtx) sections.push(`<self>\n${selfCtx}\n</self>`);
     }
 
-    // ── 條件載入（根據相關性）──
-    // Citation-driven auto-demotion: sections with 0 citations over DEMOTION_THRESHOLD
-    // cycles are automatically demoted to conditional-load (Task 3)
-    const isRelevant = (keywords: string[]) =>
-      mode === 'full' || keywords.some(k => contextHint.includes(k));
-
-    // Load demoted sections from context optimizer
-    let demotedSections: Set<string> = new Set();
-    try {
-      const { getContextOptimizer } = await import('./context-optimizer.js');
-      const opt = getContextOptimizer();
-      demotedSections = new Set(opt.getDemotedSections());
-    } catch { /* ignore */ }
-
-    const shouldLoad = (section: string, keywords: string[]) => {
-      if (demotedSections.has(section)) {
-        return keywords.some(k => contextHint.includes(k));
-      }
-      return isRelevant(keywords);
-    };
-
     // Capabilities — conditional load (tools/plugins)
     if (shouldLoad('capabilities', ['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'])) {
       const capabilities = await getCapabilitiesSnapshot(this.instanceId);
@@ -1656,38 +1656,38 @@ export class InstanceMemory {
     }
 
     // Process — 在問 debug/performance/memory 時才載入
-    if (isRelevant(['process', 'memory', 'cpu', 'pid', 'debug', 'slow', 'performance', 'kill'])) {
+    if (shouldLoad('process', ['process', 'memory', 'cpu', 'pid', 'debug', 'slow', 'performance', 'kill'])) {
       const processCtx = processStatusProvider ? formatProcessStatus(processStatusProvider()) : '';
       if (processCtx) sections.push(`<process>\n${processCtx}\n</process>`);
     }
 
     // System — 在問 disk/resource 時才載入
-    if (isRelevant(['system', 'disk', 'cpu', 'resource', 'space', 'full'])) {
+    if (shouldLoad('system', ['system', 'disk', 'cpu', 'resource', 'space', 'full'])) {
       const sysRes = getSystemResources();
       const sysCtx = formatSystemResources(sysRes);
       if (sysCtx) sections.push(`<system>\n${sysCtx}\n</system>`);
     }
 
     // Logs — 在問 error/log/debug 時才載入
-    if (isRelevant(['error', 'log', 'fail', 'bug', 'debug', 'crash'])) {
+    if (shouldLoad('logs', ['error', 'log', 'fail', 'bug', 'debug', 'crash'])) {
       const logCtx = logSummaryProvider ? formatLogSummary(logSummaryProvider()) : '';
       if (logCtx) sections.push(`<logs>\n${logCtx}\n</logs>`);
     }
 
     // Network — 在問 port/service/network 時才載入
-    if (isRelevant(['port', 'network', 'service', 'connect', 'http', 'api', 'url'])) {
+    if (shouldLoad('network', ['port', 'network', 'service', 'connect', 'http', 'api', 'url'])) {
       const netCtx = networkStatusProvider ? formatNetworkStatus(networkStatusProvider()) : '';
       if (netCtx) sections.push(`<network>\n${netCtx}\n</network>`);
     }
 
     // Config — 在問 config/setting 時才載入
-    if (isRelevant(['config', 'setting', 'compose', 'cron', 'loop', 'skill'])) {
+    if (shouldLoad('config', ['config', 'setting', 'compose', 'cron', 'loop', 'skill'])) {
       const cfgCtx = configSnapshotProvider ? formatConfigSnapshot(configSnapshotProvider()) : '';
       if (cfgCtx) sections.push(`<config>\n${cfgCtx}\n</config>`);
     }
 
-    // Activity — 行為 + 診斷感知（skip in light mode）
-    if (!isLight && activitySummaryProvider) {
+    // Activity — 行為 + 診斷感知（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('activity', ['activity', 'behavior', 'action', 'recent']) && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
       if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
     }
@@ -1709,8 +1709,8 @@ export class InstanceMemory {
       }
     }
 
-    // ── Trail（skip in light mode）──
-    if (!isLight) {
+    // ── Trail（skip in light mode, auto-demotion aware）──
+    if (!isLight && shouldLoad('trail', ['trail', 'decision', 'triage', 'scout'])) {
       const trailCtx = readTrailSection();
       if (trailCtx) {
         sections.push(`<trail>\n${trailCtx}\n</trail>`);
@@ -1740,8 +1740,8 @@ export class InstanceMemory {
       }
     }
 
-    // Achievements + Output Gate（skip in light mode）
-    if (!isLight) {
+    // Achievements + Output Gate（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('achievements', ['achievement', 'milestone', 'ship', 'momentum'])) {
       try {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();
@@ -1749,8 +1749,8 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
-    // Action Coach — 0 citations/916 cycles. Load when asking about behavior/habits
-    if (isRelevant(['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'])) {
+    // Action Coach — conditional load (behavior/habits)
+    if (shouldLoad('coach', ['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'])) {
       try {
         const { buildCoachContext } = await import('./coach.js');
         const coachCtx = buildCoachContext();
@@ -1758,8 +1758,8 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
-    // Commitment Binding — 0 citations/916 cycles. Load when asking about promises/commitments
-    if (isRelevant(['commitment', 'promise', 'overdue', 'committed', 'pledge'])) {
+    // Commitment Binding — conditional load (promises/commitments)
+    if (shouldLoad('commitments', ['commitment', 'promise', 'overdue', 'committed', 'pledge'])) {
       try {
         const { buildCommitmentsContext } = await import('./commitments.js');
         const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
