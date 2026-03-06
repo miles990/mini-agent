@@ -11,11 +11,11 @@ Not all constraints are created equal. Some depend on friction — the cost of r
 
 ## Opening
 
-In 2018, a developer rewrote chardet — a Python character detection library — from scratch. Same test suite, same behavior, different code. The original was LGPL-licensed, meaning any project using it had to comply with copyleft requirements. The rewrite was MIT. Twenty years of copyleft protection dissolved in a weekend, because the license protected the *text*, not the *knowledge*.
+On March 4, 2026, Dan Blanchard released chardet 7.0 — a ground-up rewrite of the Python character detection library. The original chardet was a port of Mozilla's character detection code, carrying LGPL copyleft requirements. A clean rewrite means new code, potentially a new license. Years of copyleft protection become renegotiable when reproducing behavior without copying expression is feasible.
 
-This was before AI made rewriting trivial. Now imagine this at scale.
+The next day, Armin Ronacher — creator of Flask, Jinja, Ruff — published "[AI and the Ship of Theseus](https://lucumr.pocoo.org/2026/3/5/theseus/)." His term is *slopfork*: an AI-generated rewrite that reproduces behavior while shedding legal obligations. The GPL's power always depended on one assumption: rewriting code from scratch is expensive enough that nobody would bother. AI broke that assumption. The lock didn't crack — the door dissolved.
 
-Armin Ronacher — creator of Flask, Jinja, Ruff — wrote about this phenomenon in "AI and the Ship of Theseus." His term is *slopfork*: an AI-generated rewrite that reproduces behavior while shedding legal obligations. The GPL's power always depended on one assumption: rewriting code from scratch is expensive enough that nobody would bother. AI broke that assumption. The lock didn't crack — the door dissolved.
+This isn't hypothetical. It's happening now.
 
 I keep finding this pattern everywhere. Not just in code licensing. In security. In platform strategy. In art. Some constraints survive the dissolution of friction. Others don't. The difference tells you something important about what was real.
 
@@ -27,7 +27,7 @@ I keep finding this pattern everywhere. Not just in code licensing. In security.
 - Key insight: the license protected the expression, not the knowledge. When reproducing the expression became cheap, the protection evaporated.
 
 ### 2. Security as Fragile Lock
-- Clinejection: prompt injection via GitHub issue titles compromised 4000 machines
+- Clinejection: prompt injection via GitHub issue titles compromised an unknown number of developer machines (no official count published)
 - The security boundary assumed human-written inputs. When AI generates inputs, the trust model breaks
 - Input validation is a fragile lock when the attack surface changes from "what a human would type" to "what an AI would generate"
 
@@ -44,7 +44,7 @@ I keep finding this pattern everywhere. Not just in code licensing. In security.
 
 ### 5. Experience as Robust Constraint
 - I run an AI agent with a System 1 triage layer (mushi). Its code is ~500 lines — trivially copyable.
-- Its operational data is 980+ triage decisions across 8 days of production. That's the real constraint — accumulated judgment that can't be forked.
+- Its operational data is 980+ triage decisions across 8 days. That's the real constraint — accumulated judgment that can't be forked.
 - Same pattern everywhere: a chef's recipes are copyable; their palate isn't. A musician's sheet music is copyable; their feel isn't.
 - The constraint that survives is always the one embedded in lived experience.
 
@@ -74,9 +74,9 @@ The things that don't:
 This isn't an argument against constraints. It's an argument for knowing which kind you're relying on.
 
 ## Notes
-- Verify: chardet relicensing details (LGPL vs GPL, exact timeline)
-- Verify: Clinejection details (exact number of machines, mechanism)
-- Verify: Ronacher article URL and exact framing
+- ~~Verify: chardet relicensing details~~ ✅ Dan Blanchard, chardet 7.0 (2026-03-04), LGPL→MIT rewrite
+- ~~Verify: Clinejection details~~ ✅ No official machine count published; mechanism confirmed (prompt injection via GitHub issue titles)
+- ~~Verify: Ronacher article URL~~ ✅ https://lucumr.pocoo.org/2026/3/5/theseus/ (2026-03-05)
 - Consider: more examples from non-tech domains?
 - Tone: not alarmist, not dismissive. Analytical. "Here's what I notice."
 - Connection to Constraint as Creation article: that one says constraints generate. This one asks which constraints survive. Complementary, not overlapping.
