@@ -154,6 +154,12 @@ export function indexMemoryFiles(memoryDir: string): number {
       allEntries.push(...parseMemoryMd(memoryMd));
     }
 
+    // Parse cold-storage.md (migrated entries should remain searchable)
+    const coldStorage = path.join(memoryDir, 'cold-storage.md');
+    if (fs.existsSync(coldStorage)) {
+      allEntries.push(...parseMemoryMd(coldStorage));
+    }
+
     // Bulk insert with transaction
     const insert = db.prepare('INSERT INTO memory_fts (source, date, content) VALUES (?, ?, ?)');
     const insertAll = db.transaction((entries: typeof allEntries) => {
