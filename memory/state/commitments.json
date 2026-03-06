@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "繼續找其他文章互動",
-      "priority": "medium",
-      "cycleCreated": 2,
-      "cycleDeadline": 8,
-      "status": "dropped",
-      "droppedReason": "expired"
-    },
-    {
       "text": "Dev.to 互動 + kuro.page 持續更新",
       "priority": "medium",
       "cycleCreated": 20,
@@ -47,10 +39,26 @@
       "cycleDeadline": 66,
       "status": "fulfilled",
       "fulfilledAt": 60
+    },
+    {
+      "text": "觸發 code delegation 看 worktree 是否正確建立、verify 是否運行、merge/cleanup 是否正常",
+      "priority": "medium",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
+    },
+    {
+      "text": "觸發一個 code delegation 驗證 end-to-end 是否正常運作",
+      "priority": "medium",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
-  "totalCreated": 94,
-  "totalFulfilled": 78,
+  "totalCreated": 96,
+  "totalFulfilled": 80,
   "totalDropped": 0,
   "totalExpired": 16
 }
