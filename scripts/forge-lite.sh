@@ -88,10 +88,16 @@ cmd_create() {
 
   git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
 
-  # Symlink node_modules if present (avoid reinstalling in worktree)
-  # Safety: only if main's node_modules is a real directory, not a symlink
-  if [ -d "$MAIN_DIR/node_modules" ] && [ ! -L "$MAIN_DIR/node_modules" ] && [ ! -e "$worktree_dir/node_modules" ]; then
-    ln -s "$MAIN_DIR/node_modules" "$worktree_dir/node_modules" 2>/dev/null || true
+  # Install dependencies in worktree (fast with warm cache, no symlink bugs)
+  detect_commands "$worktree_dir"
+  if [ -f "$worktree_dir/pnpm-lock.yaml" ]; then
+    (cd "$worktree_dir" && pnpm install --frozen-lockfile 2>&1) || true
+  elif [ -f "$worktree_dir/bun.lockb" ]; then
+    (cd "$worktree_dir" && bun install --frozen-lockfile 2>&1) || true
+  elif [ -f "$worktree_dir/yarn.lock" ]; then
+    (cd "$worktree_dir" && yarn install --frozen-lockfile 2>&1) || true
+  elif [ -f "$worktree_dir/package-lock.json" ]; then
+    (cd "$worktree_dir" && npm ci 2>&1) || true
   fi
 
   echo "$worktree_dir"
