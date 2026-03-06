@@ -335,6 +335,20 @@ export async function autoPushIfAhead(): Promise<void> {
     const ahead = parseInt(revList.trim(), 10);
     if (!ahead || ahead === 0) return;
 
+    // Rebase on remote first to avoid non-fast-forward rejection
+    // -X theirs: auto-resolve conflicts with remote version (state files change every cycle)
+    try {
+      await execFileAsync(
+        'git', ['pull', '--rebase', '-X', 'theirs', 'origin', 'main'],
+        { cwd, encoding: 'utf-8', timeout: 30000 },
+      );
+    } catch {
+      // Rebase failed — abort and skip this push (next cycle will retry)
+      try { await execFileAsync('git', ['rebase', '--abort'], { cwd, timeout: 5000 }); } catch { /* already clean */ }
+      slog('HOUSEKEEPING', 'auto-push skipped: rebase failed, will retry next cycle');
+      return;
+    }
+
     // Push
     await execFileAsync(
       'git', ['push', 'origin', 'main'],
