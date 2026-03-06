@@ -706,8 +706,19 @@ export function createApi(port = 3001): express.Express {
   });
 
   // Unified status — 聚合所有子系統狀態 (OODA-Only)
-  app.get('/status', (_req: Request, res: Response) => {
+  app.get('/status', async (_req: Request, res: Response) => {
     const laneStatus = getLaneStatus();
+
+    // Fetch mushi health (non-blocking, short timeout)
+    let mushi: Record<string, unknown> | null = null;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2000);
+      const mushiRes = await fetch('http://localhost:3000/health', { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (mushiRes.ok) mushi = await mushiRes.json() as Record<string, unknown>;
+    } catch { /* mushi offline — ok */ }
+
     res.json({
       instance: getCurrentInstanceId(),
       uptime: Math.floor(process.uptime()),
@@ -722,6 +733,7 @@ export function createApi(port = 3001): express.Express {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
       },
+      mushi,
       provider: {
         primary: getProvider(),
         fallback: getFallback(),
