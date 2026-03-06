@@ -1,7 +1,6 @@
 {
   "recentScores": [
     3,
-    3,
     2,
     4,
     4,
@@ -19,9 +18,10 @@
     1,
     3,
     3,
-    3
+    3,
+    4
   ],
-  "avgScore": 2.95,
+  "avgScore": 3,
   "warningInjected": true,
   "lastWarningAt": "2026-03-06T02:38:39.012Z",
   "challengeTotal": 4,
