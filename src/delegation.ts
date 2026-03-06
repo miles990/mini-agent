@@ -460,6 +460,24 @@ function startTask(task: DelegationTask): void {
     }
   }
 
+  // Forge isolation: snapshot main dir git state BEFORE delegate runs
+  // After delegate finishes, any new dirty files in main = isolation leak → auto-revert
+  let mainDirtyBefore = new Set<string>();
+  if (forgeWorktreePath) {
+    try {
+      const status = execSync('git status --porcelain', { cwd: task.workdir, encoding: 'utf-8' });
+      for (const line of status.split('\n')) {
+        const file = line.slice(3).trim();
+        if (file) mainDirtyBefore.add(file);
+      }
+    } catch { /* best effort */ }
+  }
+
+  // Forge prompt hint (soft guidance — real enforcement is the post-execution revert above)
+  const forgeConstraint = forgeWorktreePath
+    ? `\n\nYou are working in an isolated git worktree: ${forgeWorktreePath}\nUse only relative paths. All changes will be merged back to main when complete.`
+    : '';
+
   let child: ChildProcess;
   const isCodex = taskType !== 'shell' && provider === 'codex';
 
@@ -480,9 +498,9 @@ function startTask(task: DelegationTask): void {
     const codexEnv = Object.fromEntries(
       Object.entries(process.env).filter(([k]) => k !== 'OPENAI_API_KEY'),
     );
-    const fullPrompt = task.context
+    const fullPrompt = (task.context
       ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-      : task.prompt;
+      : task.prompt) + forgeConstraint;
 
     slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('codex', codexArgs, {
@@ -495,16 +513,19 @@ function startTask(task: DelegationTask): void {
     child.stdin!.end();
   } else {
     // Claude CLI executor
-    const fullPrompt = task.context
+    const fullPrompt = (task.context
       ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-      : task.prompt;
+      : task.prompt) + forgeConstraint;
+
+    const systemPrompt = 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.'
+      + (forgeWorktreePath ? ` Work ONLY within ${forgeWorktreePath}. Never use absolute paths outside this directory.` : '');
 
     const args = [
       '-p', fullPrompt,
       '--allowedTools', (task.allowedTools ?? DEFAULT_TOOLS).join(','),
       '--setting-sources', 'user',
       '--strict-mcp-config',
-      '--append-system-prompt', 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.',
+      '--append-system-prompt', systemPrompt,
     ];
 
     slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
@@ -592,6 +613,33 @@ function startTask(task: DelegationTask): void {
         if (!allPassed && result.status === 'completed') {
           result.status = 'failed';
         }
+      }
+
+      // Forge isolation enforcement: detect and revert leaked changes in main dir
+      if (forgeWorktreePath) {
+        try {
+          const statusAfter = execSync('git status --porcelain', { cwd: task.workdir, encoding: 'utf-8' });
+          const leaked: string[] = [];
+          for (const line of statusAfter.split('\n')) {
+            const file = line.slice(3).trim();
+            if (file && !mainDirtyBefore.has(file)) leaked.push(file);
+          }
+          if (leaked.length > 0) {
+            slog('FORGE', `Isolation breach detected in ${taskId}: ${leaked.length} file(s) leaked to main dir — reverting`);
+            for (const file of leaked) {
+              try {
+                // Revert tracked files, remove untracked files
+                const statusLine = statusAfter.split('\n').find(l => l.slice(3).trim() === file) ?? '';
+                if (statusLine.startsWith('?')) {
+                  fs.unlinkSync(path.join(task.workdir, file));
+                } else {
+                  execSync(`git checkout -- "${file}"`, { cwd: task.workdir });
+                }
+              } catch { /* best effort per file */ }
+            }
+            result.output += `\n[forge] isolation breach: ${leaked.length} file(s) reverted from main dir (${leaked.slice(0, 5).join(', ')})`;
+          }
+        } catch { /* best effort */ }
       }
 
       // Forge: merge successful changes back to main, or cleanup
