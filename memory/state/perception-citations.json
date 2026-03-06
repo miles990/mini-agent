@@ -1,5 +1,5 @@
 {
-  "cycleCount": 1654,
+  "cycleCount": 1655,
   "citations": {
     "telegram-inbox": 86,
     "claude-code-inbox": 2,
@@ -11,7 +11,7 @@
     "memory": 7,
     "forgotten-knowledge": 32,
     "threads": 14,
-    "logs": 15,
+    "logs": 16,
     "heartbeat": 32,
     "state-changes": 18,
     "feedback-status": 6,
@@ -49,7 +49,7 @@
     "metsuke": 2,
     "img": 1,
     "stale-tasks": 3,
-    "recent-activity": 1,
+    "recent-activity": 2,
     "delegation-status": 4,
     "working-memory": 4,
     "structural-health": 3,
