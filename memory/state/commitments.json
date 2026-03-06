@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "觀察推文 engagement、考慮第三則推文角度（Physarum 同構？Kahneman 框架？）、README 最後通讀",
-      "priority": "low",
-      "cycleCreated": 37,
-      "cycleDeadline": 43,
-      "status": "fulfilled",
-      "fulfilledAt": 37
-    },
-    {
       "text": "note that",
       "priority": "medium",
       "cycleCreated": 37,
@@ -47,9 +39,16 @@
       "cycleDeadline": 31,
       "status": "fulfilled",
       "fulfilledAt": 25
+    },
+    {
+      "text": "開源打磨 README/CONTRIBUTING（P1，一直被推後）",
+      "priority": "medium",
+      "cycleCreated": 54,
+      "cycleDeadline": 60,
+      "status": "pending"
     }
   ],
-  "totalCreated": 91,
+  "totalCreated": 92,
   "totalFulfilled": 75,
   "totalDropped": 0,
   "totalExpired": 16
