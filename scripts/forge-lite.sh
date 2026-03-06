@@ -88,16 +88,18 @@ cmd_create() {
 
   git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
 
+  # Self-heal: remove committed symlinks before installing deps
+  [ -L "$worktree_dir/node_modules" ] && rm "$worktree_dir/node_modules"
+
   # Install dependencies in worktree (fast with warm cache, no symlink bugs)
-  detect_commands "$worktree_dir"
   if [ -f "$worktree_dir/pnpm-lock.yaml" ]; then
-    (cd "$worktree_dir" && pnpm install --frozen-lockfile 2>&1) || true
+    (cd "$worktree_dir" && pnpm install --frozen-lockfile 2>&1) || echo "⚠️  pnpm install failed in $worktree_dir — dependencies may be missing" >&2
   elif [ -f "$worktree_dir/bun.lockb" ]; then
-    (cd "$worktree_dir" && bun install --frozen-lockfile 2>&1) || true
+    (cd "$worktree_dir" && bun install --frozen-lockfile 2>&1) || echo "⚠️  bun install failed in $worktree_dir — dependencies may be missing" >&2
   elif [ -f "$worktree_dir/yarn.lock" ]; then
-    (cd "$worktree_dir" && yarn install --frozen-lockfile 2>&1) || true
+    (cd "$worktree_dir" && yarn install --frozen-lockfile 2>&1) || echo "⚠️  yarn install failed in $worktree_dir — dependencies may be missing" >&2
   elif [ -f "$worktree_dir/package-lock.json" ]; then
-    (cd "$worktree_dir" && npm ci 2>&1) || true
+    (cd "$worktree_dir" && npm ci 2>&1) || echo "⚠️  npm ci failed in $worktree_dir — dependencies may be missing" >&2
   fi
 
   echo "$worktree_dir"
@@ -235,6 +237,40 @@ cmd_list() {
   fi
 }
 
+cmd_status() {
+  local worktree="${1:-}"
+
+  # No arg: show all forge worktrees with status
+  if [ -z "$worktree" ]; then
+    local found=0
+    while IFS= read -r line; do
+      local wt_path
+      wt_path=$(echo "$line" | awk '{print $1}')
+      [ -d "$wt_path" ] || continue
+      found=1
+      _print_worktree_status "$wt_path"
+    done < <(git -C "$MAIN_DIR" worktree list | grep -- '-forge-' || true)
+    [ "$found" -eq 0 ] && echo "No forge worktrees found." >&2
+    return 0
+  fi
+
+  # Specific worktree
+  [ -d "$worktree" ] || { echo "Error: directory not found: $worktree" >&2; exit 1; }
+  _print_worktree_status "$worktree"
+}
+
+_print_worktree_status() {
+  local wt="$1"
+  local branch ahead uncommitted
+
+  branch=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null) || branch="(detached)"
+  ahead=$(git -C "$MAIN_DIR" rev-list --count "main..$branch" 2>/dev/null) || ahead=0
+  uncommitted=$(git -C "$wt" status --short 2>/dev/null | wc -l | tr -d ' ')
+
+  echo "$wt"
+  echo "  branch: $branch | ahead: $ahead commits | uncommitted: $uncommitted files"
+}
+
 # --- Dispatch ---
 
 case "${1:-}" in
@@ -244,8 +280,9 @@ case "${1:-}" in
   yolo)    shift; cmd_yolo "$@" ;;
   cleanup) shift; cmd_cleanup "$@" ;;
   list)    cmd_list ;;
+  status)  shift; cmd_status "$@" ;;
   *)
-    echo "Usage: forge-lite.sh <create|verify|merge|yolo|cleanup|list> [args]" >&2
+    echo "Usage: forge-lite.sh <create|verify|merge|yolo|cleanup|list|status> [args]" >&2
     echo "" >&2
     echo "Commands:" >&2
     echo "  create <task-name>              Create worktree + feature branch" >&2
@@ -254,6 +291,7 @@ case "${1:-}" in
     echo "  yolo   <worktree-path> [msg]    Verify + merge in one shot" >&2
     echo "  cleanup <worktree-path>         Remove worktree without merging" >&2
     echo "  list                            Show forge worktrees" >&2
+    echo "  status [worktree-path]          Show worktree status (commits ahead, uncommitted)" >&2
     exit 1
     ;;
 esac
