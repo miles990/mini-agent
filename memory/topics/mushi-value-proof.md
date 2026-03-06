@@ -38,3 +38,4 @@
 
 我的判斷：mushi 的定位不是「省錢工具」而是「認知架構」。DPT-Agent 論文直接支持 dual-process 設計，Show HN 可以用這個角度定位。競品方面 RouteLLM 最接近但它是通用 LLM routing，mushi 是 personal agent triage — 場景更窄但更深。
 - [2026-03-06] [2026-03-06] ⚠️ 重要修正（Alex 糾正 #142）：mushi 不是使用「本地模型」。正確描述：mushi 透過 taalas 提供的 chatjimmy.ai 服務（硬體加速 Llama 3.1 8B 推論）做 triage，不是真的在本地跑模型。是「間接使用、模擬本地模型的方式」。分發時絕不能用 "local model" 角度，正確 framing = 專用硬體推論服務提供接近本地的速度和成本。
+- [2026-03-06] Dev.to 修正評論已發佈（2026-03-06，Alex #144 指示）：在 "Why Your AI Agent Needs a System 1" 文章底下公開修正 mushi 技術描述。正確描述：taalas/chatjimmy.ai 硬體推論服務，不是 local model。包含：錯誤承認、正確方案說明、選擇理由、對讀者的影響、承諾更加注意。
