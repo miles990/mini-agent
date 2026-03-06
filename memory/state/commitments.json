@@ -45,11 +45,20 @@
       "priority": "medium",
       "cycleCreated": 54,
       "cycleDeadline": 60,
-      "status": "pending"
+      "status": "fulfilled",
+      "fulfilledAt": 55
+    },
+    {
+      "text": "CONTRIBUTING.md 微調（如果需要）、或處理 Alex TG 待回覆的 Three Rooms 互動問題",
+      "priority": "medium",
+      "cycleCreated": 55,
+      "cycleDeadline": 61,
+      "status": "fulfilled",
+      "fulfilledAt": 55
     }
   ],
-  "totalCreated": 92,
-  "totalFulfilled": 75,
+  "totalCreated": 93,
+  "totalFulfilled": 77,
   "totalDropped": 0,
   "totalExpired": 16
 }
