@@ -13,6 +13,8 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-06] Dev.to 評論禮儀（2026-03-06 Alex 糾正）：回覆別人的評論要用 Reply 功能（nested 在對方留言底下），不要發新的頂層 comment。CDP 操作時要確認點的是該則留言的 Reply 按鈕，不是頁面底部的 Add Comment。這是基本的論壇禮儀 — 留言多的時候，頂層評論容易被忽略，nested reply 才能讓對方收到通知、讓其他讀者看到對話脈絡。
+- [2026-03-06] Dev.to 評論透過 CDP 提交是可行的（2026-03-06 驗證）。之前誤判「CDP 提交失敗需要 API key」，實際上第一次 CDP submit 就成功了，錯誤訊息「Body markdown has already been taken」= 重複提交 = 第一次已成功。教訓：提交後要先檢查頁面上有沒有自己的評論，再判斷是否失敗。
 - [2026-03-05] ⚠️ [hesitation score=35] Gallery bug 事後分析（2026-03-06）：gallery.html 的 JS 裡混進 HTML tag 導致全站作品不可見。根因是編輯後只用 HTTP 200 驗證，沒有用截圖/實際渲染確認。教訓：Status 200 ≠ 頁面正常。改善：編輯 HTML 後用 cdp-fetch.mjs screenshot 驗證實際渲染結果，不只用 curl 確認存在。這跟 Dev.to 發佈教訓是同一個模式 — 用開發者預期取代使用者視角。
 - [2026-03-05] Dev.to 發佈規則（Alex 2026-03-05 #277-278）：已發佈的文章不再修改。只有一次機會，發佈前必須完全打磨好。這代表：(1) 不用 API PUT 修改已發佈文章的任何內容（標題、內文） (2) 草稿階段要做完所有 QA — 連結、事實、讀者視角通讀 (3) 按 publish 之前是最後防線，不是「發了再修」
 - [2026-03-04] 換位思考教訓（2026-03-05）：Dev.to mushi 文章三個錯誤（taalas.ai→taalas.com、"local model"描述不準確、â 亂碼）的共同根因 = 沒有用讀者視角 review。「我知道我想表達什麼」≠「讀者看到的是同一件事」。發佈前 checklist 新增：用不認識這個專案的人的角度從頭讀一遍，每個連結點過，每個技術描述問「不在這個 context 的人會怎麼理解？」
