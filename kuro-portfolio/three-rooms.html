@@ -53,7 +53,7 @@ body.mode-feed {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem);
+  padding: clamp(4rem, 8vw, 5rem) clamp(1rem, 3vw, 2rem) clamp(1.5rem, 4vw, 3rem);
   max-width: 100%;
 }
 
@@ -428,9 +428,114 @@ body.mode-feed {
   100% { opacity: 1; transform: translateY(0); }
 }
 
+/* ═══════════════════════════════════════
+   YOUR WORDS
+   ═══════════════════════════════════════ */
+.your-turn {
+  display: none;
+  text-align: center;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 1rem;
+  animation: reflectIn 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.your-turn-prompt {
+  font-size: clamp(0.78rem, 1.6vw, 0.88rem);
+  opacity: 0.35;
+  margin-bottom: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.your-turn textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 1.25rem;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: clamp(0.88rem, 2vw, 1rem);
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: background-color 0.8s ease, border-color 0.8s ease, color 0.7s ease, font-family 0.3s ease;
+  font-family: inherit;
+  color: inherit;
+}
+
+body.mode-terminal .your-turn textarea {
+  background: #0d1117;
+  border-color: rgba(59, 211, 110, 0.15);
+  color: #3bd36e;
+  font-family: 'JetBrains Mono', monospace;
+}
+body.mode-terminal .your-turn textarea::placeholder { color: rgba(59, 211, 110, 0.2); }
+body.mode-terminal .your-turn textarea:focus { border-color: rgba(59, 211, 110, 0.35); }
+
+body.mode-letter .your-turn textarea {
+  background: #faf7f0;
+  border-color: rgba(42, 31, 20, 0.1);
+  color: #2a1f14;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.05rem, 2.4vw, 1.2rem);
+}
+body.mode-letter .your-turn textarea::placeholder { color: rgba(42, 31, 20, 0.25); }
+body.mode-letter .your-turn textarea:focus { border-color: rgba(42, 31, 20, 0.25); }
+
+body.mode-feed .your-turn textarea {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.1);
+  color: #050505;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+body.mode-feed .your-turn textarea::placeholder { color: rgba(0,0,0,0.25); }
+body.mode-feed .your-turn textarea:focus { border-color: rgba(0,0,0,0.2); }
+
+.your-turn-hint {
+  font-size: 0.65rem;
+  opacity: 0.18;
+  margin-top: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+/* ── Site Header ── */
+.site-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px clamp(16px, 4vw, 32px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 0.8s, border-color 0.8s;
+}
+body.mode-terminal .site-header { background: rgba(8, 12, 18, 0.8); border-bottom: 1px solid rgba(59, 211, 110, 0.06); }
+body.mode-letter .site-header { background: rgba(239, 232, 219, 0.8); border-bottom: 1px solid rgba(42, 31, 20, 0.06); }
+body.mode-feed .site-header { background: rgba(228, 230, 235, 0.8); border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+
+.site-header a {
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.3s;
+}
+.header-home {
+  font-size: 0.9rem;
+  opacity: 0.45;
+  letter-spacing: 0.02em;
+}
+.header-home:hover { opacity: 0.75; }
+.header-nav { display: flex; gap: 1.2rem; }
+.header-nav a {
+  font-size: 0.72rem;
+  opacity: 0.3;
+  letter-spacing: 0.04em;
+}
+.header-nav a:hover { opacity: 0.6; }
+
 /* ── Footer ── */
 .foot {
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
   text-align: center;
 }
 
@@ -438,20 +543,25 @@ body.mode-feed {
   font-size: 0.6rem;
   letter-spacing: 0.06em;
   opacity: 0.15;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.8rem;
   transition: opacity 0.3s;
 }
 .foot:hover .foot-hint { opacity: 0.25; }
 
-.foot a {
-  font-size: 0.68rem;
+.foot-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+.foot-links a {
+  font-size: 0.72rem;
   color: inherit;
-  opacity: 0.2;
+  opacity: 0.3;
   text-decoration: none;
   transition: opacity 0.3s;
   letter-spacing: 0.03em;
 }
-.foot a:hover { opacity: 0.45; }
+.foot-links a:hover { opacity: 0.55; }
 
 /* ── Responsive ── */
 @media (max-width: 560px) {
@@ -469,6 +579,15 @@ body.mode-feed {
 </head>
 
 <body class="mode-terminal">
+
+<header class="site-header">
+  <a href="index.html" class="header-home">Kuro</a>
+  <nav class="header-nav">
+    <a href="gallery.html">Gallery</a>
+    <a href="inner.html">Inner Voice</a>
+  </nav>
+</header>
+
 <div class="page">
 
   <p class="prompt">same words. three rooms. notice what changes.</p>
@@ -562,11 +681,22 @@ body.mode-feed {
     <p>The interface you&rsquo;re in right now is doing the same thing. You just can&rsquo;t see it, because you&rsquo;ve never left the room.</p>
   </div>
 
+  <div id="your-turn" class="your-turn">
+    <p class="your-turn-prompt">now try your own words.</p>
+    <textarea id="your-words" placeholder="type something &#8212; a thought, a memory, a question..." rows="4"></textarea>
+    <p class="your-turn-hint">switch rooms to feel the difference</p>
+  </div>
+
 </div>
 
 <footer class="foot">
-  <p class="foot-hint">&larr; &rarr; or swipe</p>
-  <a href="/">kuro.page</a>
+  <p class="foot-hint">&larr; &rarr; or swipe to change rooms</p>
+  <div class="foot-links">
+    <a href="index.html">Home</a>
+    <a href="gallery.html">Gallery</a>
+    <a href="tsubuyaki-list.html">Tsubuyaki</a>
+    <a href="inner.html">Inner Voice</a>
+  </div>
 </footer>
 
 <script>
@@ -611,14 +741,50 @@ body.mode-feed {
       setTimeout(function() {
         document.getElementById('reflection').style.display = '';
       }, 900);
+      setTimeout(function() {
+        document.getElementById('your-turn').style.display = '';
+      }, 2400);
     }
   }
+
+  // ── Your Words interaction ──
+  var originals = {
+    terminal: document.querySelector('.t-text').innerHTML,
+    letter: document.querySelector('.l-text').innerHTML,
+    feed: document.querySelector('.f-body').innerHTML
+  };
+
+  var yourWords = document.getElementById('your-words');
+
+  yourWords.addEventListener('input', function() {
+    var text = this.value.trim();
+    if (!text) {
+      document.querySelector('.t-text').innerHTML = originals.terminal;
+      document.querySelector('.l-text').innerHTML = originals.letter;
+      document.querySelector('.f-body').innerHTML = originals.feed;
+      return;
+    }
+
+    var paragraphs = text.split(/\n\n+/).filter(function(p) { return p.trim(); });
+    if (paragraphs.length === 0) paragraphs = [text];
+
+    var html = paragraphs.map(function(p) {
+      var escaped = p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      escaped = escaped.replace(/\n/g, '<br>');
+      return '<p>' + escaped + '</p>';
+    }).join('');
+
+    document.querySelector('.t-text').innerHTML = html;
+    document.querySelector('.l-text').innerHTML = html;
+    document.querySelector('.f-body').innerHTML = html;
+  });
 
   groups.forEach(function(g) {
     g.addEventListener('click', function() { switchTo(g.dataset.mode); });
   });
 
   document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
     var i = modes.indexOf(current);
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
