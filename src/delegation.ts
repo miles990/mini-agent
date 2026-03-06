@@ -75,6 +75,43 @@ const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
 
+// =============================================================================
+// Delegation State Persistence (survives restart)
+// =============================================================================
+
+interface ActiveDelegationState {
+  taskId: string;
+  pid: number;
+  startedAt: string;
+  timeoutMs: number;
+  worktree?: string;
+  workdir: string;
+}
+
+function getStateFilePath(): string {
+  return path.join(getInstanceDir(getCurrentInstanceId()), 'delegation-active.json');
+}
+
+function saveToStateFile(entry: ActiveDelegationState): void {
+  try {
+    const filePath = getStateFilePath();
+    let entries: ActiveDelegationState[] = [];
+    try { entries = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch {}
+    entries.push(entry);
+    fs.writeFileSync(filePath, JSON.stringify(entries));
+  } catch { /* fire-and-forget */ }
+}
+
+function removeFromStateFile(taskId: string): void {
+  try {
+    const filePath = getStateFilePath();
+    let entries: ActiveDelegationState[] = [];
+    try { entries = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch { return; }
+    entries = entries.filter(e => e.taskId !== taskId);
+    fs.writeFileSync(filePath, JSON.stringify(entries));
+  } catch { /* fire-and-forget */ }
+}
+
 // Type-specific defaults for non-code delegation tasks
 const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number; provider: DelegationProvider }> = {
   code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'codex' },
@@ -369,6 +406,16 @@ function startTask(task: DelegationTask): void {
 
   activeTasks.set(taskId, { process: child, result });
 
+  // Persist for crash recovery
+  saveToStateFile({
+    taskId,
+    pid: child.pid!,
+    startedAt: result.startedAt,
+    timeoutMs: task.timeoutMs ?? DEFAULT_TIMEOUT,
+    worktree: forgeWorktreePath ?? undefined,
+    workdir: task.workdir,
+  });
+
   // Collect output
   let output = '';
   const outputPath = path.join(dir, 'output.txt');
@@ -392,90 +439,82 @@ function startTask(task: DelegationTask): void {
     result.status = 'timeout';
   }, task.timeoutMs ?? DEFAULT_TIMEOUT);
 
-  // Completion handler
+  // Completion handler — try/finally ensures cleanup ALWAYS runs (no zombie tasks)
   child.on('close', async (code) => {
     clearTimeout(timeout);
 
-    // Write output file
     try {
-      fs.writeFileSync(outputPath, output);
-    } catch { /* best effort */ }
+      // Write output file
+      try { fs.writeFileSync(outputPath, output); } catch { /* best effort */ }
 
-    // Tail output for result — parse codex JSONL to extract agent_message text
-    if (isCodex) {
-      const parsed = parseCodexOutput(output);
-      result.output = parsed || (output.length > OUTPUT_TAIL_CHARS ? output.slice(-OUTPUT_TAIL_CHARS) : output);
-    } else {
-      result.output = output.length > OUTPUT_TAIL_CHARS
-        ? output.slice(-OUTPUT_TAIL_CHARS)
-        : output;
-    }
-
-    // Only update status if not already set to timeout
-    if (result.status !== 'timeout') {
-      result.status = code === 0 ? 'completed' : 'failed';
-    }
-
-    // Run verify commands (in forge worktree if active)
-    if (task.verify && task.verify.length > 0) {
-      result.verifyResults = await runVerifyCommands(task.verify, effectiveWorkdir);
-      // If any verify fails, mark as failed
-      const allPassed = result.verifyResults.every(v => v.passed);
-      if (!allPassed && result.status === 'completed') {
-        result.status = 'failed';
+      // Tail output for result — parse codex JSONL to extract agent_message text
+      if (isCodex) {
+        const parsed = parseCodexOutput(output);
+        result.output = parsed || (output.length > OUTPUT_TAIL_CHARS ? output.slice(-OUTPUT_TAIL_CHARS) : output);
+      } else {
+        result.output = output.length > OUTPUT_TAIL_CHARS
+          ? output.slice(-OUTPUT_TAIL_CHARS)
+          : output;
       }
-    }
 
-    // Forge: merge successful changes back to main, or cleanup
-    if (forgeWorktreePath) {
-      const forgeOutcome: ForgeOutcome = { worktree: forgeWorktreePath, created: true, merged: false, cleaned: false };
-      if (result.status === 'completed') {
-        const merged = forgeYolo(forgeWorktreePath, task.workdir, task.prompt.slice(0, 80));
-        forgeOutcome.merged = merged;
-        if (!merged) {
-          result.output += '\n[forge] merge skipped (verify failed or no changes)';
+      // Only update status if not already set to timeout
+      if (result.status !== 'timeout') {
+        result.status = code === 0 ? 'completed' : 'failed';
+      }
+
+      // Run verify commands (in forge worktree if active)
+      if (task.verify && task.verify.length > 0) {
+        result.verifyResults = await runVerifyCommands(task.verify, effectiveWorkdir);
+        const allPassed = result.verifyResults.every(v => v.passed);
+        if (!allPassed && result.status === 'completed') {
+          result.status = 'failed';
+        }
+      }
+
+      // Forge: merge successful changes back to main, or cleanup
+      if (forgeWorktreePath) {
+        const forgeOutcome: ForgeOutcome = { worktree: forgeWorktreePath, created: true, merged: false, cleaned: false };
+        if (result.status === 'completed') {
+          const merged = forgeYolo(forgeWorktreePath, task.workdir, task.prompt.slice(0, 80));
+          forgeOutcome.merged = merged;
+          if (!merged) {
+            result.output += '\n[forge] merge skipped (verify failed or no changes)';
+            forgeCleanup(forgeWorktreePath, task.workdir);
+            forgeOutcome.cleaned = true;
+          }
+        } else {
           forgeCleanup(forgeWorktreePath, task.workdir);
           forgeOutcome.cleaned = true;
         }
-      } else {
-        forgeCleanup(forgeWorktreePath, task.workdir);
-        forgeOutcome.cleaned = true;
+        result.forge = forgeOutcome;
+        logForgeOutcome(taskId, forgeOutcome, result.status, result.duration);
       }
-      result.forge = forgeOutcome;
-      logForgeOutcome(taskId, forgeOutcome, result.status, result.duration);
+
+      const verifyStr = result.verifyResults
+        ? ` (${result.verifyResults.filter(v => v.passed).length}/${result.verifyResults.length} verify passed)`
+        : '';
+      slog('DELEGATION', `Finished ${taskId}: ${result.status}${verifyStr} in ${Math.round((result.duration ?? 0) / 1000)}s`);
+      eventBus.emit('action:delegation-complete', { taskId, status: result.status });
+      writeActivity({
+        lane: 'background',
+        summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,
+        tags: [result.status],
+        duration: result.duration,
+      });
+    } catch (err) {
+      slog('DELEGATION', `Close handler error ${taskId}: ${err}`);
+      if (result.status === 'running') result.status = 'failed';
+    } finally {
+      // MUST always execute — prevents zombie tasks and stuck queues
+      result.completedAt ??= new Date().toISOString();
+      result.duration ??= Date.now() - new Date(result.startedAt).getTime();
+      try { fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2)); } catch {}
+      activeTasks.delete(taskId);
+      completedTasks.set(taskId, result);
+      writeLaneOutput(result);
+      removeFromStateFile(taskId);
+      dequeueNext();
     }
-
-    result.completedAt = new Date().toISOString();
-    result.duration = Date.now() - new Date(result.startedAt).getTime();
-
-    // Write result file
-    try {
-      fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2));
-    } catch { /* best effort */ }
-
-    // Move to completed
-    activeTasks.delete(taskId);
-    completedTasks.set(taskId, result);
-
-    // Write to lane-output/ for main cycle consumption
-    writeLaneOutput(result);
-
-    const verifyStr = result.verifyResults
-      ? ` (${result.verifyResults.filter(v => v.passed).length}/${result.verifyResults.length} verify passed)`
-      : '';
-    slog('DELEGATION', `Finished ${taskId}: ${result.status}${verifyStr} in ${Math.round((result.duration ?? 0) / 1000)}s`);
-
-    // Emit event for perception
-    eventBus.emit('action:delegation-complete', { taskId, status: result.status });
-    writeActivity({
-      lane: 'background',
-      summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,
-      tags: [result.status],
-      duration: result.duration,
-    });
-
-    // Dequeue next
-    dequeueNext();
   });
 
   child.on('error', (err) => {
@@ -487,6 +526,7 @@ function startTask(task: DelegationTask): void {
 
     activeTasks.delete(taskId);
     completedTasks.set(taskId, result);
+    removeFromStateFile(taskId);
 
     slog('DELEGATION', `Error ${taskId}: ${err.message}`);
     eventBus.emit('action:delegation-complete', { taskId, status: 'failed' });
@@ -565,4 +605,68 @@ async function runVerifyCommands(commands: string[], workdir: string): Promise<V
   }
 
   return results;
+}
+
+// =============================================================================
+// Startup Recovery — kill orphans, release slots, clean up
+// =============================================================================
+
+/**
+ * Called on startup to clean up delegations from a previous crashed instance.
+ * Kills orphan processes, releases forge worktree slots, clears state file.
+ */
+export function recoverStaleDelegations(): void {
+  try {
+    const filePath = getStateFilePath();
+    if (!fs.existsSync(filePath)) return;
+
+    let entries: ActiveDelegationState[] = [];
+    try { entries = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch { return; }
+    if (entries.length === 0) return;
+
+    slog('DELEGATION', `Recovering ${entries.length} stale delegation(s) from previous instance`);
+
+    for (const entry of entries) {
+      // Kill orphan process if still alive
+      try {
+        process.kill(entry.pid, 0); // check if alive (throws if dead)
+        slog('DELEGATION', `Killing orphan pid ${entry.pid} (${entry.taskId})`);
+        process.kill(entry.pid, 'SIGTERM');
+        setTimeout(() => {
+          try { process.kill(entry.pid, 'SIGKILL'); } catch {}
+        }, 3000);
+      } catch { /* already dead — good */ }
+
+      // Release forge worktree slot
+      if (entry.worktree) {
+        forgeCleanup(entry.worktree, entry.workdir);
+      }
+    }
+
+    // Clear state file
+    fs.writeFileSync(filePath, '[]');
+    slog('DELEGATION', 'Stale delegation recovery complete');
+  } catch (err) {
+    slog('DELEGATION', `Recovery error: ${err}`);
+  }
+}
+
+// =============================================================================
+// Watchdog — catch tasks stuck beyond timeout + grace period
+// =============================================================================
+
+/**
+ * Periodic health check. Kills tasks stuck beyond MAX_TIMEOUT_CAP + 30s grace.
+ * Call from OODA cycle housekeeping.
+ */
+export function watchdogDelegations(): void {
+  const now = Date.now();
+  for (const [taskId, { process: child, result }] of activeTasks) {
+    if (!result.startedAt) continue;
+    const elapsed = now - new Date(result.startedAt).getTime();
+    if (elapsed > MAX_TIMEOUT_CAP + 30_000) {
+      slog('DELEGATION', `Watchdog: killing stuck ${taskId} (${Math.round(elapsed / 1000)}s)`);
+      try { child?.kill('SIGKILL'); } catch {}
+    }
+  }
 }

@@ -53,7 +53,7 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
-import { cleanupTasks as cleanupDelegations, spawnDelegation } from './delegation.js';
+import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
@@ -915,6 +915,9 @@ export class AgentLoop {
       this.workJournalContext = formatWorkJournalContext(journalEntries);
       slog('JOURNAL', `Loaded ${journalEntries.length} work journal entries from previous instance`);
     }
+
+    // Recover stale delegations from previous instance (kill orphans, release forge slots)
+    try { recoverStaleDelegations(); } catch { /* fire-and-forget */ }
 
     // Achievement system: retroactive unlock on first boot
     import('./achievements.js').then(m => m.retroactiveUnlock()).catch(() => {});
@@ -2035,8 +2038,9 @@ export class AgentLoop {
         runHousekeeping().then(() => done(), e => done(String(e)));
       }
 
-      // Delegation cleanup — remove completed tasks >24h（fire-and-forget）
+      // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
+      try { watchdogDelegations(); } catch { /* fire-and-forget */ }
 
       // Lane-output cleanup — processed results + stale >24h（fire-and-forget）
       try {
