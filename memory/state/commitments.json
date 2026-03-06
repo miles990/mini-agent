@@ -46,10 +46,18 @@
       "cycleCreated": 2,
       "cycleDeadline": 8,
       "status": "pending"
+    },
+    {
+      "text": "把這個定位寫成可引用的文件或融入 Dev.to 文章",
+      "priority": "medium",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
-  "totalCreated": 103,
-  "totalFulfilled": 86,
+  "totalCreated": 104,
+  "totalFulfilled": 87,
   "totalDropped": 0,
   "totalExpired": 16
 }
