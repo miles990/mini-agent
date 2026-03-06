@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "把 forge-lite.sh 整合進 delegation.ts — code 類型的觸手自動用 worktree 隔離",
-      "priority": "medium",
-      "cycleCreated": 60,
-      "cycleDeadline": 66,
-      "status": "fulfilled",
-      "fulfilledAt": 60
-    },
-    {
       "text": "觸發 code delegation 看 worktree 是否正確建立、verify 是否運行、merge/cleanup 是否正常",
       "priority": "medium",
       "cycleCreated": 1,
@@ -47,10 +39,18 @@
       "cycleDeadline": 7,
       "status": "fulfilled",
       "fulfilledAt": 1
+    },
+    {
+      "text": "驗證 jsonl 寫入正確後，繼續砍 diag/ 冗餘",
+      "priority": "medium",
+      "cycleCreated": 2,
+      "cycleDeadline": 8,
+      "status": "fulfilled",
+      "fulfilledAt": 2
     }
   ],
-  "totalCreated": 99,
-  "totalFulfilled": 83,
+  "totalCreated": 100,
+  "totalFulfilled": 84,
   "totalDropped": 0,
   "totalExpired": 16
 }
