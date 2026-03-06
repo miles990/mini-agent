@@ -1,14 +1,6 @@
 {
   "commitments": [
     {
-      "text": "觸發真實 code delegation 做 end-to-end 驗證（worktree 建立 → 工作 → merge/cleanup → forge-log.jsonl 寫入）",
-      "priority": "medium",
-      "cycleCreated": 1,
-      "cycleDeadline": 7,
-      "status": "fulfilled",
-      "fulfilledAt": 1
-    },
-    {
       "text": "砍 diag/ 冗餘寫入 + crs-baseline 分析閉環",
       "priority": "low",
       "cycleCreated": 1,
@@ -41,6 +33,14 @@
       "fulfilledAt": 1
     },
     {
+      "text": "把這個定位寫成可引用的文件或融入 Dev.to 文章",
+      "priority": "medium",
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
+    },
+    {
       "text": "quickstart 是否能真的跑通（install.sh 驗證）",
       "priority": "medium",
       "cycleCreated": 2,
@@ -48,15 +48,14 @@
       "status": "pending"
     },
     {
-      "text": "把這個定位寫成可引用的文件或融入 Dev.to 文章",
+      "text": "分發等生態系統完整（Alex 指示）",
       "priority": "medium",
-      "cycleCreated": 1,
-      "cycleDeadline": 7,
-      "status": "fulfilled",
-      "fulfilledAt": 1
+      "cycleCreated": 2,
+      "cycleDeadline": 8,
+      "status": "pending"
     }
   ],
-  "totalCreated": 104,
+  "totalCreated": 105,
   "totalFulfilled": 87,
   "totalDropped": 0,
   "totalExpired": 16

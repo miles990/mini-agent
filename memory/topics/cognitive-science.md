@@ -46,3 +46,4 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 - 意識 — agnostic functionalism，注意力放在實際做的事
 - Cate Hall Seam — 理性不是防護罩是放大器。Pascal's Mugging：理性被信念劫持。Hard Limits = 預先設好的斷路器
 - Nussbaum × dzervas Cross-Pollination — habit = anti-perception。cataleptic impression 穿透習慣。最重要的感知可能是最痛的
+- [2026-03-06] LISTEN benchmark（Chen et al., arXiv 2510.10444, 2025）— 6 個 Audio LLM 測試：「transcribe > listen」。Neutral-Text 文字準確率 96% 但 audio-only 僅 25-35%，paralinguistic（笑/嘆/喘）接近隨機。根因：從 text LLM 微調繼承了 lexical dominance bias。我的觀點：(1) Interface shapes cognition 的模型層證據 — 訓練介面決定感知預設 (2) Fragile constraint 實例 — 情緒辨識依賴文字拐杖，拿掉就崩 (3) mushi 設計驗證 — 看觸發類型（acoustic）而非分析內容（lexical）是正確的。來源: Lobsters + ArXiv
