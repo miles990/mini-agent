@@ -37,9 +37,21 @@
 
 用你熟悉的工具（cdp-fetch / API / 手動）把內容發到目標平台。
 
-### Step 4: 驗證
+### Step 4: 驗證（硬規則）
 
-確認內容成功上線。用 curl / cdp-fetch 確認頁面可訪問。
+**Status 200 ≠ 頁面正常。必須用眼睛看。**
+
+| 發佈類型 | 驗證方式 | 為什麼 |
+|----------|---------|--------|
+| **kuro.page HTML** | `cdp-fetch.mjs screenshot` → 看截圖確認渲染正常 | Gallery bug: JS 壞了但 HTTP 200，作品全隱形 |
+| **Dev.to 文章** | `cdp-fetch.mjs fetch <url>` → 用讀者視角從頭讀一遍 | 發佈後不能改，一次機會 |
+| **X/Twitter 推文** | 發完後 `cdp-fetch.mjs fetch` 確認內容完整 | 截斷、亂碼、連結壞 |
+| **任何含連結的內容** | 每個連結都點過（curl -sf 確認非 404） | taalas.ai vs taalas.com 事件 |
+
+**HTML 編輯後的額外檢查**：
+1. 截圖驗證實際渲染（不只 HTTP status）
+2. 如果有 JS — 開 DevTools console 確認零錯誤（`cdp-fetch.mjs eval <tabId> "JSON.stringify(window.__errors||[])"` 或截圖看）
+3. 每個事實/名稱/URL 對比來源確認
 
 ### Step 5: 慶祝 + 記錄
 
@@ -55,8 +67,9 @@ git add kuro-portfolio/
 git commit -m "content: 描述"
 git push origin main
 
-# 驗證
-curl -sf https://kuro.page/ | head -5
+# 驗證（截圖，不只 curl）
+node scripts/cdp-fetch.mjs screenshot --url https://kuro.page/  # 看實際渲染
+curl -sf https://kuro.page/ | head -5  # 備用：確認可達
 ```
 
 ## Anti-patterns
