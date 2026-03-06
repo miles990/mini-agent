@@ -1,12 +1,12 @@
 {
-  "cycleCount": 1662,
+  "cycleCount": 1663,
   "citations": {
     "telegram-inbox": 86,
     "claude-code-inbox": 2,
     "self-awareness": 13,
     "plugin-name": 1,
     "inner-voice": 81,
-    "temporal": 17,
+    "temporal": 18,
     "rumination-digest": 34,
     "memory": 7,
     "forgotten-knowledge": 32,
@@ -60,7 +60,7 @@
     "footer": 1,
     "script": 1,
     "head": 1,
-    "environment-sense": 1
+    "environment-sense": 2
   },
   "lastAdjusted": "2026-03-06"
 }
