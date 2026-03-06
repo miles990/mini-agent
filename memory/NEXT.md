@@ -22,8 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "補一個剛才沒說到的。  你說「解決未知的問題」— 這句話反過來看更有意思：大部分 agent 框架解決的是「已知問題的已知解法」（coding agent 寫代" (收到: 2026-03-07T01:55:14)
-- [ ] P1: 回覆 Alex: "剛看到這個 https://x.com/askalphaxiv/status/2029644559391535314  URLs: - https://x.com/askalphaxiv/status" (收到: 2026-03-07T01:58:56)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "這篇是 alphaXiv 分享的一篇 FAIR（Meta AI Research）論文，Yann LeCun 和 Saining Xie 合作的：「Beyond" (收到: 2026-03-07T02:02:21)
 ---
 
 ## Later（有空再做）

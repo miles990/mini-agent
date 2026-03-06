@@ -45,18 +45,20 @@
       "priority": "high",
       "cycleCreated": 6,
       "cycleDeadline": 12,
-      "status": "pending"
+      "status": "dropped",
+      "droppedReason": "expired"
     },
     {
       "text": "實驗 cdp-fetch screenshot + Claude Vision 的組合，建立「先看後讀」的感知流程",
       "priority": "medium",
       "cycleCreated": 7,
       "cycleDeadline": 13,
-      "status": "pending"
+      "status": "dropped",
+      "droppedReason": "expired"
     }
   ],
   "totalCreated": 109,
   "totalFulfilled": 91,
   "totalDropped": 0,
-  "totalExpired": 16
+  "totalExpired": 18
 }
