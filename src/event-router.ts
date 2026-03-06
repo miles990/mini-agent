@@ -159,13 +159,13 @@ export function classifyTrigger(
     case 'trigger:telegram-user':
       return { source: 'telegram', priority: Priority.P0 };
     case 'trigger:room':
-      return { source: 'room', priority: Priority.P1 };
+      return { source: 'room', priority: Priority.P0 };
     case 'trigger:workspace':
       return { source: 'workspace', priority: Priority.P2 };
     case 'trigger:cron':
       return { source: 'cron', priority: Priority.P2 };
     case 'trigger:chat':
-      return { source: 'chat', priority: Priority.P1 };
+      return { source: 'chat', priority: Priority.P0 };
     case 'trigger:alert':
       return { source: 'alert', priority: Priority.P1 };
     case 'trigger:mobile':

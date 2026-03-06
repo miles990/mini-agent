@@ -55,6 +55,7 @@ import {
 } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, cleanupOrphanDelegations, forgeRecover } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
+import { trackNutrientSignals } from './nutrient.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 
@@ -2049,6 +2050,9 @@ export class AgentLoop {
       // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
       try { watchdogDelegations(); } catch { /* fire-and-forget */ }
+
+      // Nutrient tracking — measure delegation result absorption (fire-and-forget)
+      try { trackNutrientSignals(action, response); } catch { /* fire-and-forget */ }
 
       // Lane-output cleanup — processed results + stale >24h（fire-and-forget）
       try {
