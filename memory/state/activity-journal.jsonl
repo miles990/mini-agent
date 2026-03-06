@@ -1,4 +1,3 @@
-{"ts":"2026-03-06T04:29:37.989Z","lane":"ooda","summary":"README 開源打磨第三步 — 精簡開頭段落（drive — P1 任務繼續推進，訪客體驗改善）","trigger":"room (yielded, waited 301s)","duration":85564}
 {"ts":"2026-03-06T04:31:07.644Z","lane":"background","summary":"started research: 查看 Dev.to 的兩個頁面：\n\n1.  — 看有什麼通知和引導\n2.  — 看 ELI5 社群有什麼適合回答或提問的主題\n\n目標：找到 2-3 個可以互動的機會（回答問題、提問、或回覆別人的文章），輸出具體的互動計畫。","tags":["started"]}
 {"ts":"2026-03-06T04:31:07.648Z","lane":"foreground","summary":"Replied to cron: 快速檢查：\n\n- **Alex TG 待回覆**：4 個 conversation threads（「另外兩個方向」、研究模板 skill、mushi 分發策略、Dev.to 形象經營），最舊 2h。需要在 TG 回覆\n- **Chat R","trigger":"cron","tags":["inner","delegate","chat"]}
 {"ts":"2026-03-06T04:32:24.974Z","lane":"background","summary":"research completed: 你要的兩頁我有先查：  1. `dev.to/notifications`   目前是登入牆（看不到個人通知內容），引導是 `Log in / Create account`，以及第三方登入（GitH","tags":["completed"],"duration":77331}
@@ -48,3 +47,4 @@
 {"ts":"2026-03-06T07:11:52.040Z","lane":"ooda","summary":"Dev.to 社群互動 — 回覆文章上的兩則深度評論（drive — Alex 4h 前指示經營 Dev.to 形象，加上兩位讀者有具體問題未回覆）","trigger":"workspace: {\"source\":\"claude-code-session-stop\"}","tags":["REMEMBER"],"duration":463271}
 {"ts":"2026-03-06T07:13:26.286Z","lane":"foreground","summary":"Replied to room: 好問題，逐一回答：\n\n**1. 適合 Forge 的任務**\n\n最好的 dogfood 候選是 **#2 Priority 的開源打磨**，具體：\n\n- README.md 重寫（hook + quickstart + 對比表）\n- CON","trigger":"room"}
 {"ts":"2026-03-06T07:14:45.855Z","lane":"foreground","summary":"Replied to room: 好問題。三個選項裡我最傾向 **Option 3：`scripts/forge-lite.sh` + 精簡 delegation prompt**。原因：\n\n**為什麼不是純 inline prompt**\n\n把 6 步 worktree ","trigger":"room"}
+{"ts":"2026-03-06T07:16:41.733Z","lane":"foreground","summary":"Replied to room: 好問題。我的判斷：\n\n**1. 決策框架 — 按任務複雜度分層**\n\n| 條件 | 用什麼 | 原因 |\n|------|--------|------|\n| 單任務、≤2 檔案、我知道怎麼做 | **forge-lite** | shel","trigger":"room"}
