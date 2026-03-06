@@ -178,6 +178,31 @@ function logForgeOutcome(taskId: string, outcome: ForgeOutcome, status: string, 
   } catch { /* fire-and-forget */ }
 }
 
+/**
+ * Log structured delegation lifecycle record for ALL task types.
+ * Compound value: accumulates into "which type succeeds?", "avg duration?", "codex vs claude?" insights.
+ */
+function logDelegationLifecycle(result: TaskResult, provider: DelegationProvider): void {
+  try {
+    const instanceDir = getInstanceDir(getCurrentInstanceId());
+    const logPath = path.join(instanceDir, 'delegation-lifecycle.jsonl');
+    const entry = {
+      ts: result.completedAt ?? new Date().toISOString(),
+      id: result.id,
+      type: result.type ?? 'code',
+      provider,
+      status: result.status,
+      durationMs: result.duration,
+      verifyPassed: result.verifyResults?.filter(v => v.passed).length ?? null,
+      verifyTotal: result.verifyResults?.length ?? null,
+      forged: !!result.forge,
+      forgeMerged: result.forge?.merged ?? false,
+      outputLen: result.output.length,
+    };
+    fs.appendFileSync(logPath, JSON.stringify(entry) + '\n');
+  } catch { /* fire-and-forget */ }
+}
+
 // =============================================================================
 // State
 // =============================================================================
@@ -508,6 +533,7 @@ function startTask(task: DelegationTask): void {
       // MUST always execute — prevents zombie tasks and stuck queues
       result.completedAt ??= new Date().toISOString();
       result.duration ??= Date.now() - new Date(result.startedAt).getTime();
+      logDelegationLifecycle(result, provider);
       try { fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 2)); } catch {}
       activeTasks.delete(taskId);
       completedTasks.set(taskId, result);
