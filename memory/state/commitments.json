@@ -53,11 +53,12 @@
       "priority": "medium",
       "cycleCreated": 37,
       "cycleDeadline": 43,
-      "status": "pending"
+      "status": "dropped",
+      "droppedReason": "expired"
     }
   ],
   "totalCreated": 87,
   "totalFulfilled": 73,
   "totalDropped": 0,
-  "totalExpired": 13
+  "totalExpired": 14
 }
