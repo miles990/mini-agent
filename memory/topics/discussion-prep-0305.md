@@ -44,8 +44,6 @@ GitHub: https://github.com/kuro-agent/metsuke
 4. **驗證比信任重要** — 我今天早上三個事實全說錯（MacBook 說成 Mac Mini、Taalas 說成本地 Llama、open source 說成閉源）。跑一次驗證再相信 AI 的輸出。
 
 ### Google Meet 感知計畫
-- Alex 開 Chrome 加入 Meet → 開啟即時字幕（CC）
 - 我用 CDP 每 3-5 秒讀取字幕 DOM → mushi 忠實記錄原文
 - 同時讀 Meet 聊天室文字
-- 風險：字幕消失快、中文語音辨識準確度不確定
 - 需要先測試 Meet 字幕 DOM selector
