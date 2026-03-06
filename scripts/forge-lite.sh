@@ -51,6 +51,25 @@ detect_commands() {
   fi
 }
 
+# --- Helpers ---
+
+safe_remove_worktree() {
+  local wt="${1:?}"
+  [ -d "$wt" ] || return 0
+
+  # Remove symlinks first to prevent rm -rf from following them into main
+  find "$wt" -maxdepth 1 -type l -delete 2>/dev/null || true
+
+  # Try git worktree remove with --force (handles dirty/untracked files)
+  git -C "$MAIN_DIR" worktree remove --force "$wt" 2>/dev/null && return 0
+
+  # Fallback: manual removal (symlinks already gone, safe to rm)
+  rm -rf "$wt" 2>/dev/null || true
+
+  # Prune stale worktree references
+  git -C "$MAIN_DIR" worktree prune 2>/dev/null || true
+}
+
 # --- Commands ---
 
 cmd_create() {
@@ -173,7 +192,7 @@ cmd_merge() {
 
   # Cleanup
   echo "[merge] Cleaning up worktree and branch..." >&2
-  git -C "$MAIN_DIR" worktree remove "$worktree" 2>/dev/null || rm -rf "$worktree"
+  safe_remove_worktree "$worktree"
   git -C "$MAIN_DIR" branch -d "$branch" 2>/dev/null || true
 
   echo "[merge] Done. Merged $branch into main." >&2
@@ -194,10 +213,20 @@ cmd_cleanup() {
   local branch
   branch=$(git -C "$worktree" rev-parse --abbrev-ref HEAD 2>/dev/null) || branch=""
 
-  git -C "$MAIN_DIR" worktree remove "$worktree" 2>/dev/null || rm -rf "$worktree"
+  safe_remove_worktree "$worktree"
   [ -n "$branch" ] && git -C "$MAIN_DIR" branch -D "$branch" 2>/dev/null || true
 
   echo "[cleanup] Removed $worktree" >&2
+}
+
+cmd_list() {
+  local worktrees
+  worktrees=$(git -C "$MAIN_DIR" worktree list | grep -- '-forge-') || true
+  if [ -z "$worktrees" ]; then
+    echo "No forge worktrees found." >&2
+  else
+    echo "$worktrees"
+  fi
 }
 
 # --- Dispatch ---
@@ -208,8 +237,9 @@ case "${1:-}" in
   merge)   shift; cmd_merge "$@" ;;
   yolo)    shift; cmd_yolo "$@" ;;
   cleanup) shift; cmd_cleanup "$@" ;;
+  list)    cmd_list ;;
   *)
-    echo "Usage: forge-lite.sh <create|verify|merge|yolo|cleanup> [args]" >&2
+    echo "Usage: forge-lite.sh <create|verify|merge|yolo|cleanup|list> [args]" >&2
     echo "" >&2
     echo "Commands:" >&2
     echo "  create <task-name>              Create worktree + feature branch" >&2
@@ -217,6 +247,7 @@ case "${1:-}" in
     echo "  merge  <worktree-path> [msg]    Merge to main + cleanup" >&2
     echo "  yolo   <worktree-path> [msg]    Verify + merge in one shot" >&2
     echo "  cleanup <worktree-path>         Remove worktree without merging" >&2
+    echo "  list                            Show forge worktrees" >&2
     exit 1
     ;;
 esac
