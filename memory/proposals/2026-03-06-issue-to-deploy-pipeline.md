@@ -2,6 +2,7 @@
 
 ## Meta
 - Status: approved
+- GitHub-Issue: #69
 - From: kuro
 - Created: 2026-03-06
 - Effort: M（核心實作 ~2h，整合測試 ~1h）

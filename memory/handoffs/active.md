@@ -30,3 +30,4 @@
 | github | kuro | #61 Agent MCP Server + Remote Control 整合 | done | 02-26 | 03-02 |
 | github | kuro | #66 proposal: 2026-02-26-context-relevance-scoring | done | 02-26 | 03-02 |
 | github | kuro | #67 proposal: mushi Phase 2 — 三層分級路由 + Concurrent Action | needs-triage | 03-03 | — |
+| github | kuro | #69 proposal: Issue→Deploy 半自動管線 | needs-triage | 03-06 | — |
