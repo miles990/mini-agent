@@ -696,13 +696,15 @@ function startTask(task: DelegationTask): void {
       }
 
       // Forge isolation enforcement: detect and revert leaked changes in main dir
+      // Exclude dirs that Kuro's own loop modifies concurrently (not written by delegations)
+      const CONCURRENT_DIRS = ['memory/state/', 'memory/conversations/', 'memory/topics/'];
       if (forgeWorktreePath) {
         try {
           const statusAfter = execSync('git status --porcelain', { cwd: task.workdir, encoding: 'utf-8' });
           const leaked: string[] = [];
           for (const line of statusAfter.split('\n')) {
             const file = line.slice(3).trim();
-            if (file && !mainDirtyBefore.has(file)) leaked.push(file);
+            if (file && !mainDirtyBefore.has(file) && !CONCURRENT_DIRS.some(d => file.startsWith(d))) leaked.push(file);
           }
           if (leaked.length > 0) {
             slog('FORGE', `Isolation breach detected in ${taskId}: ${leaked.length} file(s) leaked to main dir — reverting`);
