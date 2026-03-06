@@ -44,7 +44,7 @@ import {
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
-import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, isIndexReady, rebuildIndex } from './search.js';
+import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries, isIndexReady, rebuildIndex } from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
@@ -2000,7 +2000,7 @@ export class InstanceMemory {
     }
 
     // ── 記憶和對話（總是載入，light mode 截斷）──
-    const tieredMem = await this.tieredMemoryContent(memory, contextHint);
+    const tieredMem = this.tieredMemoryContent(memory, contextHint);
     const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
@@ -2337,12 +2337,13 @@ export class InstanceMemory {
    * entries in smart-load sections are filtered to only include FTS5-matched
    * entries (plus recent entries within 3 days as safety net).
    */
-  private async tieredMemoryContent(raw: string, contextHint?: string): Promise<string> {
+  private tieredMemoryContent(raw: string, contextHint?: string): string {
     if (!raw) return raw;
 
     const now = Date.now();
     const THREE_DAYS = 3 * 86_400_000;
     const SEVEN_DAYS = 7 * 86_400_000;
+    const CONTENT_MATCH_KEY_LEN = 80;
 
     // Experiment 3: MEMORY.md budget cap (2026-02-28)
     // Data: MEMORY.md ~14.7K chars (42% of context), citation rate 0.8%.
@@ -2359,11 +2360,9 @@ export class InstanceMemory {
     let ftsMatchSet: Set<string> | null = null;
     if (contextHint) {
       try {
-        const { searchMemoryEntries } = await import('./search.js');
         const matched = searchMemoryEntries(this.memoryDir, contextHint, 15);
         if (matched.length > 0) {
-          // Build lookup set using first 80 chars of content for fast matching
-          ftsMatchSet = new Set(matched.map(m => m.content.slice(0, 80)));
+          ftsMatchSet = new Set(matched.map(m => m.content.slice(0, CONTENT_MATCH_KEY_LEN)));
         }
       } catch {
         // FTS5 not available — fall through to normal tiered loading
@@ -2425,8 +2424,8 @@ export class InstanceMemory {
         if (isSmartLoadSection && age > THREE_DAYS) {
           // Extract content after the date tag for FTS5 matching
           const entryContent = line.replace(/^- \[\d{4}-\d{2}-\d{2}\] /, '');
-          const contentKey = entryContent.slice(0, 80);
-          if (!ftsMatchSet!.has(contentKey)) {
+          const contentKey = entryContent.slice(0, CONTENT_MATCH_KEY_LEN);
+          if (!ftsMatchSet?.has(contentKey)) {
             skippedBySmartLoad++;
             continue;
           }

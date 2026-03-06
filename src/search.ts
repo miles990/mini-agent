@@ -169,6 +169,11 @@ export function indexMemoryFiles(memoryDir: string): number {
   }
 }
 
+/** Sanitize query for FTS5: strip special operators, normalize whitespace */
+function sanitizeFTS5Query(query: string): string {
+  return query.replace(/["""*{}()^~[\]/\\:\-+]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /**
  * FTS5 BM25 排序搜尋
  */
@@ -176,8 +181,7 @@ export function searchMemoryFTS(query: string, limit = 5): MemoryEntry[] {
   if (!db) return [];
 
   try {
-    // Sanitize: remove FTS5 special operators to prevent syntax errors
-    const sanitized = query.replace(/["""*{}()^~[\]]/g, '').trim();
+    const sanitized = sanitizeFTS5Query(query);
     if (!sanitized) return [];
 
     const rows = db.prepare(`
@@ -201,6 +205,9 @@ export function searchMemoryFTS(query: string, limit = 5): MemoryEntry[] {
 /**
  * Search MEMORY.md entries specifically, with auto-index on first call.
  * Used by buildContext() for smart MEMORY.md loading.
+ *
+ * Extracts top keywords from query and uses FTS5 OR to match any of them,
+ * avoiding implicit AND which fails with long contextHint strings.
  */
 export function searchMemoryEntries(
   memoryDir: string,
@@ -215,9 +222,18 @@ export function searchMemoryEntries(
   }
 
   try {
-    // Sanitize FTS5 special operators: quotes, brackets, boolean ops, slashes
-    const sanitized = query.replace(/["""*{}()^~[\]/\\:\-+]/g, ' ').replace(/\s+/g, ' ').trim();
+    const sanitized = sanitizeFTS5Query(query);
     if (!sanitized) return [];
+
+    // Extract distinctive keywords (>= 3 chars, skip common words, take top 15)
+    const stopWords = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out', 'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so', 'do', 'my', 'up', 'this', 'that', 'with', 'from', 'have', 'been', 'will', 'into', 'more', 'when', 'some', 'them', 'than', 'its', 'also', 'each', 'which', 'their', 'what', 'about', 'would', 'there', 'could', 'other', 'just', 'then', 'kuro', 'alex']);
+    const words = sanitized.split(' ')
+      .filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()))
+      .slice(0, 15);
+    if (words.length === 0) return [];
+
+    // Use OR to match any keyword (not implicit AND which requires all)
+    const ftsQuery = words.join(' OR ');
 
     const rows = db.prepare(`
       SELECT source, date, content, rank
@@ -226,7 +242,7 @@ export function searchMemoryEntries(
         AND source = 'MEMORY.md'
       ORDER BY rank
       LIMIT ?
-    `).all(sanitized, limit) as Array<{ source: string; date: string; content: string; rank: number }>;
+    `).all(ftsQuery, limit) as Array<{ source: string; date: string; content: string; rank: number }>;
 
     return rows.map(row => ({
       source: row.source,
