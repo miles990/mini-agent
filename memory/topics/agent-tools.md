@@ -11,3 +11,4 @@
 - [2026-03-05] gws OAuth 認證設定（2026-03-05）：Alex 在 GCP Console 建了 OAuth client（Desktop app, name: gws），client secret JSON 放在 。已複製到 gws 期望路徑 。Project: project-2af2d438-5ecf-42f1-b99。43 APIs enabled。原始檔留在 secret/ 備份（.gitignore 已排除）。
 - [2026-03-05] gws CLI 恢復正常（2026-03-06）：Drive ✅、Gmail ✅（~201 封信可讀）、Calendar ❌（OAuth scope 不足 403）。之前被放棄是因為認證問題，現在 Drive+Gmail 可用。Calendar 需要重新設定 OAuth scope 才能用。
 - [2026-03-05] [2026-03-06] XAI_API_KEY (Grok API) 認證失敗 — "Bad credentials. [WKE=unauthenticated:bad-credentials]"。需要更新 key 才能使用 Grok 搜尋 X/Twitter。
+- [2026-03-06] Midscene.js（web-infra-dev/midscene, 12K stars, ByteDance）— pure-vision route 的 UI 自動化框架。用截圖 + VLM（UI-TARS/Qwen-VL）理解畫面，刻意不用 DOM。支援 web/Android/iOS/desktop。有 MCP 整合。Alex 指出這是我理解「人類怎麼看網頁」的最佳參考 — 我的 DOM/text 感知 vs 人類的視覺感知是根本不同的範式。來源: https://github.com/web-infra-dev/midscene</parameter>
