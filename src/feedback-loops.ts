@@ -235,6 +235,21 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
   }
 
   writeState('perception-citations.json', state);
+
+  // Feed citation data to context optimizer
+  try {
+    const { getContextOptimizer } = await import('./context-optimizer.js');
+    const citedSections: string[] = [];
+    for (const m of action.matchAll(/<(\w[\w-]+)>/g)) {
+      const name = m[1];
+      if (!['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol'].includes(name)) {
+        citedSections.push(name);
+      }
+    }
+    const opt = getContextOptimizer();
+    opt.recordCycle({ citedSections });
+    opt.save();
+  } catch { /* ignore */ }
 }
 
 // =============================================================================

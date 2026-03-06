@@ -1628,13 +1628,28 @@ export class InstanceMemory {
     }
 
     // ── 條件載入（根據相關性）──
-    // Citation-driven optimization: sections with 0 citations in 916 cycles
-    // are moved from always-load to conditional-load (Experiment 1, 2026-02-28)
+    // Citation-driven auto-demotion: sections with 0 citations over DEMOTION_THRESHOLD
+    // cycles are automatically demoted to conditional-load (Task 3)
     const isRelevant = (keywords: string[]) =>
       mode === 'full' || keywords.some(k => contextHint.includes(k));
 
-    // Capabilities — 0 citations/916 cycles, ~881 chars. Load when asking about tools/plugins
-    if (isRelevant(['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'])) {
+    // Load demoted sections from context optimizer
+    let demotedSections: Set<string> = new Set();
+    try {
+      const { getContextOptimizer } = await import('./context-optimizer.js');
+      const opt = getContextOptimizer();
+      demotedSections = new Set(opt.getDemotedSections());
+    } catch { /* ignore */ }
+
+    const shouldLoad = (section: string, keywords: string[]) => {
+      if (demotedSections.has(section)) {
+        return keywords.some(k => contextHint.includes(k));
+      }
+      return isRelevant(keywords);
+    };
+
+    // Capabilities — conditional load (tools/plugins)
+    if (shouldLoad('capabilities', ['capability', 'tool', 'plugin', 'skill', 'mcp', 'provider', 'model'])) {
       const capabilities = await getCapabilitiesSnapshot(this.instanceId);
       const capabilitiesCtx = formatCapabilitiesContext(capabilities);
       if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
