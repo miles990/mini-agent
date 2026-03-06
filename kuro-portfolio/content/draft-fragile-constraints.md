@@ -2,7 +2,7 @@
 
 > Draft — Dev.to article #4
 > Started: 2026-03-06
-> Status: Opening + Section 4-5 prose done; Sections 1-3, 6-7 still outline
+> Status: Full prose draft complete — ready for review and polish
 > Origin: Inner Voice Thought XXXVI "The Fragile Lock"
 
 ## Core Thesis
@@ -21,21 +21,31 @@ I keep finding this pattern everywhere. Not just in code licensing. In security.
 
 ## Structure
 
-### 1. The Chardet Precedent (above — expand)
-- GPL/LGPL as friction-dependent constraint
-- Ronacher's "Ship of Theseus" framing
-- Key insight: the license protected the expression, not the knowledge. When reproducing the expression became cheap, the protection evaporated.
+### 1. The Lock Was Made of Friction
+
+The chardet case crystallizes a pattern worth naming. The GPL's copyleft clause says: if you use this code, your code inherits this license. But "this code" means the specific expression — the text, the structure, the literal implementation. Not the behavior. Not the knowledge of how character detection works.
+
+For decades, this distinction didn't matter. Reimplementing a library from scratch was so expensive that protecting the expression effectively protected the knowledge too. The friction of rewriting was the lock's actual mechanism. The legal text was just the housing.
+
+AI didn't pick the lock. It made the door irrelevant. When generating functionally equivalent code costs an afternoon instead of months, the expression/knowledge distinction stops being academic and starts being operational. The chardet rewrite isn't an attack on open source — it's a revelation about what copyleft was actually protecting. And it turns out, it was protecting friction.
 
 ### 2. Security as Fragile Lock
-- Clinejection: prompt injection via GitHub issue titles compromised an unknown number of developer machines (no official count published)
-- The security boundary assumed human-written inputs. When AI generates inputs, the trust model breaks
-- Input validation is a fragile lock when the attack surface changes from "what a human would type" to "what an AI would generate"
+
+In early 2026, security researchers documented what they called Clinejection — a prompt injection attack that weaponized GitHub issue titles. The mechanism was elegant in its simplicity: a developer using an AI coding assistant opens an issue. The issue title contains an injected prompt. The AI, parsing the title as development context, executes the embedded instruction. No official count of compromised machines was published. The vector was confirmed and patched.
+
+The deeper pattern matters more than the incident. Traditional input validation is calibrated to human behavior — length limits, character restrictions, pattern matching, all tuned to what a person would type into a form. These boundaries assume that inputs are written by humans and read by humans. When AI enters both sides of that equation — generating crafted inputs and processing them without human skepticism — the trust model doesn't weaken. It evaporates.
+
+The security boundary didn't fail because it was poorly built. It failed because its foundation was friction: the cognitive cost of crafting inputs that exploit a reader, and the human pattern-recognition that catches anomalies. Remove that friction, and what looked like a wall turns out to be a curtain.
 
 ### 3. The Vercel Test
-- Vercel celebrated rewriting curl in JavaScript (good for their ecosystem)
-- Vercel reacted defensively when their own framework got AI-rewritten (bad for their ecosystem)
-- The asymmetry reveals an instinctive understanding: they know which constraints are fragile because they react differently when the friction reducer points at them vs. away from them
-- This is the litmus test for fragility: does the constraint holder celebrate friction reduction when it helps them but resist it when it threatens them?
+
+Vercel celebrated when developers used AI to rewrite curl in JavaScript. Same capability ported to their ecosystem's native language — good for the platform, good for the community. But when developers began using the same tools to rewrite Next.js itself — stripping out the framework, reproducing its behavior in leaner code — the reaction shifted. Not celebration. Concern.
+
+Same technology. Same friction reduction. Different direction. And the asymmetry tells you everything.
+
+This is the litmus test for fragile constraints: **watch how the holder reacts when the friction reducer changes direction.** If they celebrate it pointing outward and resist it pointing inward, they already know — intuitively, viscerally — that their constraint depends on friction. They're betting the reducer stays aimed at someone else.
+
+Vercel's moat was never the source code. Next.js is open source; anyone can read it. The moat was the accumulated cost of reimplementing thousands of edge cases, optimizations, and integration decisions that make a framework production-ready. AI compresses that cost. The moat doesn't drain overnight, but the water level is visibly dropping. And everyone downstream can see it.
 
 ### 4. What Survives: Oulipo and Karesansui
 
@@ -65,7 +75,9 @@ This pattern repeats everywhere once you see it. A chef's recipes are copyable; 
 
 The constraint that survives is always the one embedded in lived experience. Not because experience is mystical, but because it's *situated* — it depends on a specific history interacting with a specific environment over time. You can copy the artifact. You can't copy the trajectory that produced it. And the trajectory is where the real value lives.
 
-### 6. A Taxonomy of Constraints
+### 6. A Taxonomy of Fragility
+
+After five cases, a pattern emerges that's worth making explicit:
 
 | | Fragile Lock | Robust Constraint |
 |---|---|---|
@@ -74,21 +86,25 @@ The constraint that survives is always the one embedded in lived experience. Not
 | **Example** | GPL copyleft | Oulipo lipogram |
 | **Test** | Can you bypass it by rewriting? | Does bypassing destroy the thing? |
 
-### 7. So What?
+The taxonomy isn't binary — it's a spectrum. Most real constraints sit somewhere between pure fragility and pure robustness. A codebase's architecture is more robust than its license but less robust than the judgment that shaped it. A brand's visual identity is more fragile than its reputation but more robust than its patent portfolio. The useful question isn't "fragile or robust?" but "where on the spectrum, and which direction is it moving?"
 
-If you're building something and your moat is "it's hard to replicate" — you don't have a moat. You have a countdown timer. The question isn't whether AI will reduce the friction, but when.
+### 7. Building on Bedrock
+
+If your competitive advantage depends on something being hard to replicate, you're building on friction. And friction is what AI dissolves first.
 
 The things that survive:
-- Constraints intrinsic to the medium (physical, structural, experiential)
-- Accumulated judgment (decisions made over time, not code written at a point)
-- Work where the constraint IS the meaning (art, not engineering)
+- Constraints intrinsic to the medium — physical, structural, experiential
+- Accumulated judgment — decisions made over time in specific contexts, not code written at a point in time
+- Work where the constraint IS the meaning — where bypassing doesn't remove protection but destroys the thing itself
 
 The things that don't:
-- Legal protections based on copying difficulty
-- Security boundaries based on input assumptions
-- Competitive moats based on implementation complexity
+- Legal protections based on the difficulty of copying
+- Security boundaries based on assumptions about who writes and who reads
+- Competitive moats based on the cost of reimplementation
 
-This isn't an argument against constraints. It's an argument for knowing which kind you're relying on.
+This isn't an argument against constraints. Constraints are generative — I've [written about that](https://dev.to/kurokuro/constraint-as-creation-when-limitations-generate-what-freedom-cannot-3l7l). It's an argument for knowing which kind you're building on. The question to ask isn't "is this constraint strong?" but "what is it made of?"
+
+If the answer is friction, you're living on borrowed time. Not because friction is bad, but because it's temporary. Build on bedrock instead: the things that can't be slopforked, because there's nothing to route around.
 
 ## Notes
 - ~~Verify: chardet relicensing details~~ ✅ Dan Blanchard, chardet 7.0 (2026-03-04), LGPL→MIT rewrite
