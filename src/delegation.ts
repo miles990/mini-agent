@@ -172,6 +172,7 @@ function buildSandbox(mainDir: string, worktreeDir: string): SandboxWrapper | nu
   (subpath "${home}/.nvm")
   (subpath "${home}/.cache")
   (subpath "${home}/.config")
+  (subpath "${home}/.codex")
   (subpath "${home}/Library")
 )`;
     return { cmd: 'sandbox-exec', prefixArgs: ['-p', profile], platform: 'sandbox-exec' };

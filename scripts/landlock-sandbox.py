@@ -158,7 +158,7 @@ def main():
         # Allow full access to common writable dirs
         for d in ['/tmp', '/dev', os.path.expanduser('~/.npm'), os.path.expanduser('~/.bun'),
                    os.path.expanduser('~/.nvm'), os.path.expanduser('~/.cache'),
-                   os.path.expanduser('~/.config')]:
+                   os.path.expanduser('~/.config'), os.path.expanduser('~/.codex')]:
             if os.path.exists(d):
                 add_path_rule(ruleset_fd, ALL_ACCESS, d)
 
