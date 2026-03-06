@@ -45,7 +45,8 @@
       "priority": "medium",
       "cycleCreated": 2,
       "cycleDeadline": 8,
-      "status": "pending"
+      "status": "fulfilled",
+      "fulfilledAt": 2
     },
     {
       "text": "挑一個 section 開始寫完整 prose（建議從 Section 4 Oulipo/枯山水 開始，這是我最有話說的部分）",
@@ -57,7 +58,7 @@
     }
   ],
   "totalCreated": 105,
-  "totalFulfilled": 88,
+  "totalFulfilled": 89,
   "totalDropped": 0,
   "totalExpired": 16
 }
