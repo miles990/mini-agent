@@ -3,7 +3,6 @@
 ## mushi Talking Points
 
 ### 數據摘要（4 天 verified, 3/1-3/4, server.log canonical source）
-- 497 次 triage 決策
 - 297 次 skip（59.8%）— 這些 cycle 不需要呼叫 Claude
 - 187 次 wake（37.6%）— 需要完整 OODA cycle
 - 13 次 quick（2.6%）— 快速處理（03-04 新增的第三層）
