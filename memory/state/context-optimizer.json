@@ -1,0 +1,28 @@
+{
+  "zeroCounts": {
+    "temporal": 1,
+    "capabilities": 1,
+    "process": 1,
+    "system": 1,
+    "logs": 1,
+    "network": 1,
+    "config": 1,
+    "activity": 1,
+    "trail": 1,
+    "achievements": 1,
+    "coach": 1,
+    "commitments": 1,
+    "background-completed": 1,
+    "recent-activity": 1,
+    "threads": 1,
+    "working-memory": 1,
+    "inner-voice": 1,
+    "conversation-threads": 1,
+    "stale-tasks": 1,
+    "structural-health": 1,
+    "decision-quality-warning": 1
+  },
+  "demoted": {},
+  "observation": {},
+  "totalCycles": 1
+}
