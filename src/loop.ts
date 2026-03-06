@@ -2013,7 +2013,7 @@ export class AgentLoop {
       }
 
       // Daily topic pruning — Haiku analysis（fire-and-forget, once per day）
-      runDailyPruning(this.memory.memoryDir).catch(() => {});
+      runDailyPruning(getMemory().getMemoryDir()).catch(() => {});
 
       // Commitment Binding — 追蹤承諾兌現（fire-and-forget）
       if (isEnabled('commitment-binding')) {
