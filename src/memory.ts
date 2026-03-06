@@ -2630,6 +2630,53 @@ export function cleanupStaleLaneOutput(instanceId: string): void {
 // Trail — 注意力歷史（mushi + kuro 共寫的化學梯度）
 // =============================================================================
 
+export interface TrailEntry {
+  ts: string;
+  agent: string;
+  type: string;
+  decision?: string;
+  topics: string[];
+  detail: string;
+  count?: number;
+}
+
+/** Deduplicate trail entries: merge same pattern >3 times into single entry with count */
+export function deduplicateTrailEntries(entries: TrailEntry[]): TrailEntry[] {
+  if (entries.length <= 3) return entries;
+
+  // Group by pattern key: agent + type + decision
+  const groups = new Map<string, TrailEntry[]>();
+  const order: string[] = [];
+
+  for (const e of entries) {
+    const key = `${e.agent}|${e.type}|${e.decision ?? ''}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+      order.push(key);
+    }
+    groups.get(key)!.push(e);
+  }
+
+  const result: TrailEntry[] = [];
+  for (const key of order) {
+    const group = groups.get(key)!;
+    if (group.length > 3) {
+      const latest = group[group.length - 1];
+      const allTopics = [...new Set(group.flatMap(e => e.topics))];
+      result.push({
+        ...latest,
+        topics: allTopics,
+        detail: group[0].detail,
+        count: group.length,
+      });
+    } else {
+      result.push(...group);
+    }
+  }
+
+  return result;
+}
+
 /** Read trail.jsonl and format as compact context section */
 function readTrailSection(): string | null {
   try {
@@ -2659,13 +2706,15 @@ function readTrailSection(): string | null {
 
     if (entries.length === 0) return null;
 
-    // Compact format: one line per entry
-    const formatted = entries.slice(-20).map(e => {
+    // Compact format: one line per entry (dedup repeated patterns first)
+    const deduped = deduplicateTrailEntries(entries);
+    const formatted = deduped.slice(-20).map(e => {
       const time = e.ts.split('T')[1]?.split('.')[0]?.slice(0, 5) ?? '';
       const icon = e.type === 'scout' ? '🔍' : e.type === 'focus' ? '⚡' : e.type === 'triage' ? '🔀' : '📌';
       const decision = e.decision ? `[${e.decision}]` : '';
       const topics = e.topics.join(',');
-      return `${time} ${icon} ${e.agent} ${decision} ${topics}: ${e.detail.slice(0, 80)}`;
+      const countSuffix = e.count ? ` (x${e.count})` : '';
+      return `${time} ${icon} ${e.agent} ${decision} ${topics}: ${e.detail.slice(0, 80)}${countSuffix}`;
     }).join('\n');
 
     // Topic frequency (hot topics = what deserves attention)
