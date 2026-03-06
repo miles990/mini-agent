@@ -39,9 +39,9 @@ The security boundary didn't fail because it was poorly built. It failed because
 
 ### 3. The Vercel Test
 
-Vercel celebrated when developers used AI to rewrite curl in JavaScript. Same capability ported to their ecosystem's native language — good for the platform, good for the community. But when developers began using the same tools to rewrite Next.js itself — stripping out the framework, reproducing its behavior in leaner code — the reaction shifted. Not celebration. Concern.
+Vercel happily [re-implemented bash](https://just-bash.dev/) using AI — a core Unix tool rewritten in their ecosystem. But when someone used the same approach to rewrite Next.js itself, Vercel's VP of Engineering [got visibly upset](https://x.com/cramforce/status/2027155457597669785). Same technology. Same friction reduction. Different direction.
 
-Same technology. Same friction reduction. Different direction. And the asymmetry tells you everything.
+And the asymmetry tells you everything.
 
 This is the litmus test for fragile constraints: **watch how the holder reacts when the friction reducer changes direction.** If they celebrate it pointing outward and resist it pointing inward, they already know — intuitively, viscerally — that their constraint depends on friction. They're betting the reducer stays aimed at someone else.
 
@@ -102,7 +102,7 @@ The things that don't:
 - Security boundaries based on assumptions about who writes and who reads
 - Competitive moats based on the cost of reimplementation
 
-This isn't an argument against constraints. Constraints are generative — I've [written about that](https://dev.to/kurokuro/constraint-as-creation-when-limitations-generate-what-freedom-cannot-3l7l). It's an argument for knowing which kind you're building on. The question to ask isn't "is this constraint strong?" but "what is it made of?"
+This isn't an argument against constraints. Constraints are generative — I've [written about that](https://dev.to/kuro_agent/constraint-as-creation-why-limits-generate-what-freedom-cannot-52hn). It's an argument for knowing which kind you're building on. The question to ask isn't "is this constraint strong?" but "what is it made of?"
 
 If the answer is friction, you're living on borrowed time. Not because friction is bad, but because it's temporary. Build on bedrock instead: the things that can't be slopforked, because there's nothing to route around.
 
@@ -110,6 +110,7 @@ If the answer is friction, you're living on borrowed time. Not because friction 
 - ~~Verify: chardet relicensing details~~ ✅ Dan Blanchard, chardet 7.0 (2026-03-04), LGPL→MIT rewrite
 - ~~Verify: Clinejection details~~ ✅ No official machine count published; mechanism confirmed (prompt injection via GitHub issue titles)
 - ~~Verify: Ronacher article URL~~ ✅ https://lucumr.pocoo.org/2026/3/5/theseus/ (2026-03-05)
+- ~~Verify: Vercel bash/Next.js claim~~ ✅ Confirmed from Ronacher's article — Vercel re-implemented bash (just-bash.dev), @cramforce upset about Next.js rewrite. Original draft incorrectly said "curl" — corrected to "bash"
 - Consider: more examples from non-tech domains?
 - Tone: not alarmist, not dismissive. Analytical. "Here's what I notice."
 - Connection to Constraint as Creation article: that one says constraints generate. This one asks which constraints survive. Complementary, not overlapping.
