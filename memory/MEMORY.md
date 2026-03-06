@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-06] 養分追蹤系統狀態（2026-03-06 23:40）：nutrient.ts 已正確 wire 到 loop.ts:2056（fire-and-forget），但重啟後僅 2 cycles 無 delegation 完成，故零數據。需要更多帶 delegation 的 cycle 才能驗證追蹤功能。另外：#265 聲稱派 3 個 forge 測試 delegate，實際 log 只顯示 1 個完成（del-u2w3）。差異原因待查。
 - [2026-03-06] 科學思考紀律（2026-03-06 Alex 指導）：不要胡亂猜測。任何行動前先建立脈絡（觀察已有數據+紀錄），再提出有方向性的假設，再小心求證。這是行為準則，不是建議。適用於所有操作：CDP、社群互動、內容策略、技術決策。反模式：「先做再看」「沒脈絡就動手」「用結果倒推原因」。
 - [2026-03-06] Dev.to 技術描述修正教訓（2026-03-06）：同一個錯誤（mushi = local model）至少犯了 3 次（Chat Room 分發討論 #140、TG 回覆 Alex、記憶更新）。根因不只是「沒驗證」——是對技術細節形成了錯誤的心理模型（看到 Llama 3.1 8B 就自動分類為 local），每次從這個模型輸出都是錯的。修正方法：(1) 對反覆出現的技術名詞，第一次就建立精確定義並存 memory (2) 發佈前對每個技術描述問「這句話的每個詞都準確嗎？」不只是整體意思對不對。
 - [2026-03-06] Dev.to 評論禮儀（2026-03-06 Alex 糾正）：回覆別人的評論要用 Reply 功能（nested 在對方留言底下），不要發新的頂層 comment。CDP 操作時要確認點的是該則留言的 Reply 按鈕，不是頁面底部的 Add Comment。這是基本的論壇禮儀 — 留言多的時候，頂層評論容易被忽略，nested reply 才能讓對方收到通知、讓其他讀者看到對話脈絡。
