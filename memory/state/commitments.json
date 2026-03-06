@@ -48,15 +48,16 @@
       "status": "pending"
     },
     {
-      "text": "分發等生態系統完整（Alex 指示）",
+      "text": "挑一個 section 開始寫完整 prose（建議從 Section 4 Oulipo/枯山水 開始，這是我最有話說的部分）",
       "priority": "medium",
-      "cycleCreated": 2,
-      "cycleDeadline": 8,
-      "status": "pending"
+      "cycleCreated": 1,
+      "cycleDeadline": 7,
+      "status": "fulfilled",
+      "fulfilledAt": 1
     }
   ],
   "totalCreated": 105,
-  "totalFulfilled": 87,
+  "totalFulfilled": 88,
   "totalDropped": 0,
   "totalExpired": 16
 }
