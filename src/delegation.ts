@@ -131,7 +131,7 @@ const FORGE_LITE = new URL('../scripts/forge-lite.sh', import.meta.url).pathname
 function forgeCreate(taskId: string, workdir: string): string | null {
   try {
     if (!fs.existsSync(FORGE_LITE)) return null;
-    const output = execSync(`bash "${FORGE_LITE}" create "${taskId}"`, {
+    const output = execSync(`bash "${FORGE_LITE}" create "${taskId}" --caller-pid ${process.pid}`, {
       cwd: workdir, encoding: 'utf-8', timeout: 15_000,
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
