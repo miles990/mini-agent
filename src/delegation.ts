@@ -12,7 +12,7 @@
  * - Subprocess 不讀 SOUL.md、不寫 memory/、不發 Telegram
  */
 
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
@@ -76,6 +76,47 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
 };
+
+// =============================================================================
+// Forge — Worktree Isolation (Slime Mold Model)
+// =============================================================================
+
+const FORGE_LITE = new URL('../scripts/forge-lite.sh', import.meta.url).pathname;
+
+function forgeCreate(taskId: string, workdir: string): string | null {
+  try {
+    if (!fs.existsSync(FORGE_LITE)) return null;
+    const output = execSync(`bash "${FORGE_LITE}" create "${taskId}"`, {
+      cwd: workdir, encoding: 'utf-8', timeout: 15_000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    // Last line is the worktree path (git output precedes it)
+    return output.split('\n').pop()!.trim();
+  } catch {
+    return null;
+  }
+}
+
+function forgeYolo(worktreePath: string, mainDir: string, message: string): boolean {
+  try {
+    execSync(`bash "${FORGE_LITE}" yolo "${worktreePath}" "${message}"`, {
+      cwd: mainDir, encoding: 'utf-8', timeout: 120_000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function forgeCleanup(worktreePath: string, mainDir: string): void {
+  try {
+    execSync(`bash "${FORGE_LITE}" cleanup "${worktreePath}"`, {
+      cwd: mainDir, encoding: 'utf-8', timeout: 15_000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch { /* best effort */ }
+}
 
 // =============================================================================
 // State
@@ -237,6 +278,17 @@ function startTask(task: DelegationTask): void {
   // Branch: shell executor / codex executor / claude CLI executor
   const taskType = task.type ?? 'code';
   const provider = task.provider ?? TYPE_DEFAULTS[taskType].provider;
+  // Forge worktree for code tasks — slime mold isolation
+  let effectiveWorkdir = task.workdir;
+  let forgeWorktreePath: string | null = null;
+  if (taskType === 'code') {
+    forgeWorktreePath = forgeCreate(taskId, task.workdir);
+    if (forgeWorktreePath) {
+      effectiveWorkdir = forgeWorktreePath;
+      slog('DELEGATION', `Forge worktree: ${forgeWorktreePath}`);
+    }
+  }
+
   let child: ChildProcess;
   const isCodex = taskType !== 'shell' && provider === 'codex';
 
@@ -244,7 +296,7 @@ function startTask(task: DelegationTask): void {
     // Shell executor — run prompt as bash command directly
     slog('DELEGATION', `Starting shell ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('bash', ['-c', task.prompt], {
-      cwd: task.workdir,
+      cwd: effectiveWorkdir,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
@@ -263,7 +315,7 @@ function startTask(task: DelegationTask): void {
 
     slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('codex', codexArgs, {
-      cwd: task.workdir,
+      cwd: effectiveWorkdir,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: codexEnv,
       detached: true,
@@ -286,7 +338,7 @@ function startTask(task: DelegationTask): void {
 
     slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('claude', args, {
-      cwd: task.workdir,
+      cwd: effectiveWorkdir,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
@@ -341,13 +393,25 @@ function startTask(task: DelegationTask): void {
       result.status = code === 0 ? 'completed' : 'failed';
     }
 
-    // Run verify commands
+    // Run verify commands (in forge worktree if active)
     if (task.verify && task.verify.length > 0) {
-      result.verifyResults = await runVerifyCommands(task.verify, task.workdir);
+      result.verifyResults = await runVerifyCommands(task.verify, effectiveWorkdir);
       // If any verify fails, mark as failed
       const allPassed = result.verifyResults.every(v => v.passed);
       if (!allPassed && result.status === 'completed') {
         result.status = 'failed';
+      }
+    }
+
+    // Forge: merge successful changes back to main, or cleanup
+    if (forgeWorktreePath) {
+      if (result.status === 'completed') {
+        if (!forgeYolo(forgeWorktreePath, task.workdir, task.prompt.slice(0, 80))) {
+          result.output += '\n[forge] merge skipped (verify failed or no changes)';
+          forgeCleanup(forgeWorktreePath, task.workdir);
+        }
+      } else {
+        forgeCleanup(forgeWorktreePath, task.workdir);
       }
     }
 
