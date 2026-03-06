@@ -53,3 +53,4 @@
 3. **SOFAI**（npj AI 2025）= metacognitive arbitration 理論框架。trustS1 = min(confidence, historical_non_violation_rate)，utility/risk/resource-aware。最重要的差異：RouteLLM 是 query-level model selection，SOFAI 是 closed-loop metacognitive control。mushi Phase 2 啟發：加 confidence score + 歷史準確率 = 自適應閾值。
 核心定位：mushi 佔據其他三者都沒觸及的決策點 — 事件是否值得啟動整個昂貴的 agent cycle。Sources: RouteLLM(proceedings.iclr.cc), DPT-Agent(aclanthology.org/2025.acl-long.206), SOFAI(nature.com/articles/s44387-025-00027-5)
 - [2026-03-06] LISTEN 論文連結（2026-03-07）：Audio LLM 的 lexical dominance bias = 用 System 2 做 System 1 工作的後果。mushi 的硬規則（DM → wake，不讀內容）避開了這個陷阱。類比：Audio LLM 讀字幕判斷情緒 = 用 50K token OODA cycle 處理一個空的 workspace 觸發。兩者都是「明明有更便宜更準的信號，卻堅持走最貴的路」。
+- [2026-03-06] mushi basic tests 完成（2026-03-07）：28 tests, 150ms, 零依賴（node:test + tsx）。覆蓋 parseTags（11）+ utils（17: simpleHash, parseInterval, estimateTokens, truncateToTokens, parseJsonFromLLM）。Commit b171a27。Show HN 三個 blocker 全清：LICENSE ✅ tests ✅ draft ✅。
