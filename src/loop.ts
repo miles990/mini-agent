@@ -57,8 +57,11 @@ import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelega
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
 import { detectCitations } from './nutrient-router.js';
+import { recordCycleNutrient } from './cycle-nutrient.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
+import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
+import { isVisibleOutput } from './achievements.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -2053,6 +2056,19 @@ export class AgentLoop {
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
       try { watchdogDelegations(); } catch { /* fire-and-forget */ }
 
+      // Route tracking — record full cycle path for slime mold optimization (fire-and-forget)
+      try {
+        const route = buildCycleRoute(
+          currentTriggerReason ?? 'unknown',
+          modelRoute.model,
+          context,
+          action,
+          isVisibleOutput(action),
+          duration,
+        );
+        recordCycleRoute(route);
+      } catch { /* fire-and-forget */ }
+
       // Nutrient tracking — measure delegation result absorption (fire-and-forget)
       try { trackNutrientSignals(action, response); } catch { /* fire-and-forget */ }
 
@@ -2066,6 +2082,30 @@ export class AgentLoop {
             detectCitations(response, contextDomains);
           }
         }
+      } catch { /* fire-and-forget */ }
+
+      // Unified cycle nutrient tracking — slime mold efficiency metrics (fire-and-forget)
+      try {
+        const outputTags: string[] = [];
+        if (tags.chats.length > 0) outputTags.push('chat');
+        if (tags.shows.length > 0) outputTags.push('show');
+        if (tags.dones.length > 0) outputTags.push('done');
+        if (tags.summaries.length > 0) outputTags.push('summary');
+        if (tags.remembers.length > 0) outputTags.push('remember');
+        if (tags.delegates.length > 0) outputTags.push('delegate');
+        if (tags.archive) outputTags.push('archive');
+        if (tags.impulses.length > 0) outputTags.push('impulse');
+        if (tags.tasks.length > 0) outputTags.push('task');
+        if (tags.asks.length > 0) outputTags.push('ask');
+        recordCycleNutrient({
+          trigger: currentTriggerReason ?? 'unknown',
+          context,
+          action,
+          response,
+          outputTags,
+          delegationsSpawned: tags.delegates.length,
+          durationMs: duration,
+        });
       } catch { /* fire-and-forget */ }
 
       // Lane-output cleanup — processed results + stale >24h（fire-and-forget）

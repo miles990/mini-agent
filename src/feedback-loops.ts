@@ -743,6 +743,10 @@ export async function runFeedbackLoops(
   if (cycleCount && cycleCount % 50 === 0) {
     try { const { scanCapabilityGaps } = await import('./evolution.js'); await scanCapabilityGaps(); } catch { /* ignore */ }
   }
+  // Route-based pruning (every 50 cycles, slime mold model)
+  if (cycleCount && cycleCount % 50 === 0) {
+    try { const { applyRoutePruning } = await import('./route-tracker.js'); applyRoutePruning(); } catch { /* ignore */ }
+  }
   // CRS baseline recording (sync, fire-and-forget)
   try { recordBaselineCycle(action, context ?? null, triggerReason, model); } catch { /* ignore */ }
   // Achievement system (fire-and-forget)

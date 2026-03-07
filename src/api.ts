@@ -755,6 +755,16 @@ export function createApi(port = 3001): express.Express {
   });
 
   // =============================================================================
+  // Route Efficiency — slime mold nutrient path metrics
+  app.get('/api/routes', (_req: Request, res: Response) => {
+    try {
+      const { getRouteEfficiency } = require('./route-tracker.js');
+      res.json(getRouteEfficiency());
+    } catch (err) {
+      res.status(500).json({ error: 'Route stats unavailable' });
+    }
+  });
+
   // Instance Management
   // =============================================================================
 

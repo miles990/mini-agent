@@ -1743,6 +1743,15 @@ export class InstanceMemory {
       if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
     }
 
+    // Route Efficiency（skip in light mode — slime mold nutrient path metrics）
+    if (!isLight) {
+      try {
+        const { buildRouteSection } = await import('./route-tracker.js');
+        const routeCtx = buildRouteSection();
+        if (routeCtx) sections.push(`<route-efficiency>\n${routeCtx}\n</route-efficiency>`);
+      } catch { /* ignore */ }
+    }
+
     // Stale Tasks（skip in light mode）
     if (!isLight) {
       const staleWarnings = readStaleTaskWarnings();
