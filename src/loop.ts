@@ -1258,7 +1258,7 @@ export class AgentLoop {
     // 2. Auto-commit + auto-push (previous cycle's leftover changes)
     if (isEnabled('auto-commit')) {
       tasks.push(
-        autoCommitMemory(null).then(() => autoCommitExternalRepos()).then(() => {
+        autoCommitMemoryFiles(null).then(() => autoCommitExternalRepos()).then(() => {
           if (isEnabled('auto-push')) {
             return autoPushIfAhead().catch(() => {});
           }
@@ -2096,7 +2096,7 @@ export class AgentLoop {
       // This fallback handles current cycle's changes (from parseTags) — committed next cycle's concurrent phase.
       if (isEnabled('auto-commit') && !isEnabled('concurrent-action')) {
         const done = trackStart('auto-commit');
-        autoCommitMemory(action)
+        autoCommitMemoryFiles(action)
           .then(() => autoCommitExternalRepos())
           .then(() => {
             done();
@@ -3149,8 +3149,8 @@ async function resolveStaleConversationThreads(): Promise<void> {
 // =============================================================================
 
 /**
- * 原子提交組：每個目錄獨立 commit，便於 revert 和 audit。
- * 所有完成的工作都 auto-commit（Alex 指令 2026-02-26）。
+ * 記憶同步：只 commit 記憶相關檔案（memory/skills/plugins）。
+ * Code 變更由 Kuro 手動 commit（Alex 指令 2026-03-08）。
  */
 // Auto-commit only memory files — code changes are committed manually by Kuro
 const MEMORY_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
@@ -3210,46 +3210,42 @@ async function autoEscalateOverdueTasks(): Promise<void> {
   }
 }
 
-async function autoCommitMemory(action: string | null): Promise<void> {
+async function autoCommitMemoryFiles(action: string | null): Promise<void> {
   const cwd = process.cwd();
   const summary = action
     ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
     : 'auto-save';
 
-  // 原子提交：每個目錄組獨立 commit
-  for (const group of ATOMIC_COMMIT_GROUPS) {
-    try {
-      const { stdout: status } = await execFileAsync(
-        'git', ['status', '--porcelain', ...group.paths],
-        { cwd, encoding: 'utf-8', timeout: 5000 },
-      );
+  try {
+    const { stdout: status } = await execFileAsync(
+      'git', ['status', '--porcelain', ...MEMORY_COMMIT_PATHS],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
 
-      if (!status.trim()) continue;
+    if (!status.trim()) return;
 
-      const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
 
-      await execFileAsync(
-        'git', ['add', ...group.paths],
-        { cwd, encoding: 'utf-8', timeout: 5000 },
-      );
+    await execFileAsync(
+      'git', ['add', ...MEMORY_COMMIT_PATHS],
+      { cwd, encoding: 'utf-8', timeout: 5000 },
+    );
 
-      const fileList = changedFiles.slice(0, 5).join(', ');
-      const msg = `${group.prefix}: ${summary}\n\nFiles: ${fileList}`;
+    const fileList = changedFiles.slice(0, 5).join(', ');
+    const msg = `chore(auto): ${summary}\n\nFiles: ${fileList}`;
 
-      await execFileAsync(
-        'git', ['commit', '-m', msg],
-        { cwd, encoding: 'utf-8', timeout: 10000 },
-      );
+    await execFileAsync(
+      'git', ['commit', '-m', msg],
+      { cwd, encoding: 'utf-8', timeout: 10000 },
+    );
 
-      slog('auto-commit', `[${group.prefix}] ${changedFiles.length} file(s): ${fileList}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('nothing to commit')) {
-        slog('auto-commit', `[${group.prefix}] skipped: ${msg.slice(0, 120)}`);
-      }
+    slog('auto-commit', `${changedFiles.length} file(s): ${fileList}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('nothing to commit')) {
+      slog('auto-commit', `skipped: ${msg.slice(0, 120)}`);
     }
   }
-
 }
 
 /**
