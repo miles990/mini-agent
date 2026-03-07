@@ -27,6 +27,7 @@
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
 - [ ] P1: 回覆 Alex: "你要把負責讓mini-agent 變得越來越好 這個也是你自己的身體 持續推進和回報" (收到: 2026-03-08T02:57:00)
+- [ ] P1: 回覆 Alex: "現在狀況如何？還有我發現你的mushi一直有code沒有commit然後push到repo 這樣你寫的功能不會吃到最新的 要保持良好的開發習慣" (收到: 2026-03-08T03:34:09)
 ---
 
 ## Later（有空再做）

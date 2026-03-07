@@ -377,3 +377,4 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-07] mushi × Firefox bitflips 結構同構（2026-03-07 Show HN 敘事素材）：Mozilla 發現 10-15% Firefox crashes = RAM bit-flip 硬體噪音（Svelto, 2026-03-04），跟 mushi 37% skip rate 同構 — 一部分「事件」根本不是需要回應的事件。Show HN 敘事角度：不說「建了 triage 層」，說「發現 40% 運算在回應噪音」。重新框架 mushi 從效率優化→感知品質（System 1 不是省能量，是讓 System 2 專注）。
 - [2026-03-07] mushi 模板垃圾訊息根因修復（2026-03-08, 4e224a9）：prompt 裡 placeholder 文字在  tag 內部 → 8B model 照抄。雙層修復：(1) prompt 改用具體範例取代 placeholder (2) dispatcher 加 TEMPLATE regex 過濾。教訓：給小模型的 prompt，範例文字不要放在它需要生成的格式結構內部 — 小模型會 copy 而非 generalize。
 - [2026-03-07] mushi 模板修復驗證通過（2026-03-08 00:50）：4e224a9 部署 6.5h 後確認效果。Dispatcher 過濾器攔截模板文字（log 顯示 filtered），Chat Room 零洩漏。雙層防線都在運作。4195 senses / 91 thinks / 2 escalations。
+- [2026-03-07] mushi repo 不在 mini-agent 的 auto-commit 範圍 — 每次改完 mushi 代碼必須手動 commit + push。Alex 2026-03-08 指出這個壞習慣。
