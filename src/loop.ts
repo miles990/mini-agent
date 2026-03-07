@@ -1308,6 +1308,7 @@ export class AgentLoop {
       // Evaluate routing decision. If specialists exist and task is parallelizable,
       // route to them instead of handling here.
       if (isEnabled('cognitive-mesh') && this.triggerReason) {
+        const meshRouteDone = trackStart('cognitive-mesh');
         const clusterState = getClusterState({
           primaryBusy: this.cycling,
           primaryQueueDepth: readPendingInbox().length,
@@ -1319,12 +1320,14 @@ export class AgentLoop {
           const routed = await handleMeshRoute(route, this.triggerReason);
           if (routed) {
             slog('MESH', `Task routed to ${route.action}/${route.targetInstance ?? route.perspective ?? '?'}, skipping self-handling`);
+            meshRouteDone();
             this.cycling = false;
             return null;
           }
           // Routing failed — fall through to self-handling
           slog('MESH', `Route ${route.action} failed, falling through to self-handling`);
         }
+        meshRouteDone();
       }
 
       // ── Inbox recovery: upgrade to DM-priority if pending DM items exist ──
@@ -1667,6 +1670,7 @@ export class AgentLoop {
       // Scaling evaluation + execution (Cognitive Mesh Phase 3, fire-and-forget)
       if (isEnabled('cognitive-mesh')) {
         try {
+          const meshScaleDone = trackStart('cognitive-mesh');
           const inboxDepth = readPendingInbox().length;
           const scalingDecision = evaluateScaling({
             primaryQueueDepth: inboxDepth,
@@ -1676,6 +1680,7 @@ export class AgentLoop {
             slog('MESH', `Scaling: ${scalingDecision.action} (${scalingDecision.reason})`);
             executeScaling(scalingDecision).catch(() => {});
           }
+          meshScaleDone();
         } catch { /* fire-and-forget */ }
 
         // Cleanup old mesh outputs (fire-and-forget)

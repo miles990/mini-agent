@@ -91,7 +91,17 @@ export function routeTask(
     };
   }
 
-  // 3. Check if there's an idle specialist that matches
+  // 3. Routine triggers → always self (not worth parallelizing)
+  const ROUTINE_TRIGGERS = new Set(['heartbeat', 'cron', 'mobile', 'delegation-complete']);
+  if (ROUTINE_TRIGGERS.has(triggerBase)) {
+    return {
+      action: 'self',
+      reason: 'routine-self',
+      priority: 'P3',
+    };
+  }
+
+  // 4. Check if there's an idle specialist that matches
   const specialist = findIdleSpecialist(state.neighbors, triggerBase);
   if (specialist) {
     return {
@@ -102,7 +112,7 @@ export function routeTask(
     };
   }
 
-  // 4. If primary is busy + task is parallelizable + room to spawn
+  // 5. If primary is busy + task is parallelizable + room to spawn
   if (
     state.primaryBusy &&
     isParallelizable(triggerBase, triggerData) &&
@@ -116,7 +126,7 @@ export function routeTask(
     };
   }
 
-  // 5. If primary is busy + can't spawn → queue
+  // 6. If primary is busy + can't spawn → queue
   if (state.primaryBusy && state.primaryQueueDepth > 0) {
     return {
       action: 'queue',
@@ -125,7 +135,7 @@ export function routeTask(
     };
   }
 
-  // 6. Default → handle self
+  // 7. Default → handle self
   return {
     action: 'self',
     reason: 'default',
