@@ -72,7 +72,8 @@ export function routeTask(
   state: ClusterState,
 ): RouteDecision {
   // 1. Direct messages → always self (identity required)
-  const triggerBase = triggerType.replace('trigger:', '');
+  // Strip 'trigger:' prefix AND any metadata suffix like "(yielded, waited 301s)"
+  const triggerBase = triggerType.replace('trigger:', '').replace(/\s*\(.*$/, '').trim();
   if (DIRECT_MESSAGE_SOURCES.has(triggerBase)) {
     return {
       action: 'self',
