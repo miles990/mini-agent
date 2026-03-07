@@ -11,10 +11,7 @@
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, bumpLoopGeneration } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
@@ -36,9 +33,7 @@ import {
   updateTemporalState, buildThreadsPromptSection, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
-// NEXT_MD_PATH imported from triage.ts (canonical location)
-import { withFileLock } from './filelock.js';
+import { extractNextItems, NEXT_MD_PATH } from './triage.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-context.js';
 import type { TelegramMsgSnapshot } from './reply-context.js';
@@ -54,6 +49,13 @@ import { buildMeshCompletedSection, cleanupMeshOutputs } from './perspective.js'
 import { handleMeshRoute, executeScaling } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed } from './inbox-processor.js';
+import {
+  parseBehaviorConfig, parseInterval,
+  checkApprovedProposals, resolveStaleConversationThreads,
+  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos,
+  markNextItemsDone, writeContextSnapshot,
+} from './cycle-tasks.js';
+import type { BehaviorConfig, BehaviorMode } from './cycle-tasks.js';
 import type { LoopState } from './event-router.js';
 import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
@@ -68,8 +70,6 @@ import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
-
-const execFileAsync = promisify(execFile);
 
 // =============================================================================
 // Cycle Checkpoint (Phase 1c)
@@ -282,17 +282,9 @@ function formatWorkJournalContext(entries: WorkJournalEntry[]): string {
 // Types
 // =============================================================================
 
-export interface BehaviorMode {
-  name: string;
-  weight: number;
-  description: string;
-}
-
-export interface BehaviorConfig {
-  modes: BehaviorMode[];
-  cooldowns: { afterAction: number; afterNoAction: number };
-  focus?: { topic: string; why?: string; until?: string };
-}
+// BehaviorMode, BehaviorConfig — moved to cycle-tasks.ts (re-exported below for api.ts/cli.ts)
+export { parseBehaviorConfig, parseInterval } from './cycle-tasks.js';
+export type { BehaviorMode, BehaviorConfig } from './cycle-tasks.js';
 
 export interface AgentLoopConfig {
   /** 循環間隔 ms（預設 300000 = 5 分鐘） */
@@ -2663,461 +2655,10 @@ Rules:
 
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/** Parse memory/behavior.md content into BehaviorConfig */
-export function parseBehaviorConfig(content: string): BehaviorConfig | null {
-  try {
-    // Parse modes: ### name + Weight: N + description line(s)
-    const modes: BehaviorMode[] = [];
-    const modeRegex = /### (\S+)\s*\nWeight:\s*(\d+)\s*\n([\s\S]*?)(?=\n###|\n## |$)/g;
-    let match: RegExpExecArray | null;
-
-    // Only search within ## Modes section
-    const modesSection = content.match(/## Modes\s*\n([\s\S]*?)(?=\n## [^M]|$)/);
-    if (!modesSection) return null;
-
-    while ((match = modeRegex.exec(modesSection[1])) !== null) {
-      const weight = Math.max(0, Math.min(100, parseInt(match[2], 10)));
-      const desc = match[3].trim();
-      if (desc) {
-        modes.push({ name: match[1], weight, description: desc });
-      }
-    }
-
-    if (modes.length === 0) return null;
-
-    // Normalize weights to sum to 100
-    const totalWeight = modes.reduce((sum, m) => sum + m.weight, 0);
-    if (totalWeight > 0 && totalWeight !== 100) {
-      for (const m of modes) {
-        m.weight = Math.round((m.weight / totalWeight) * 100);
-      }
-    }
-
-    // Parse cooldowns
-    const afterActionMatch = content.match(/after-action:\s*(\d+)/);
-    const afterNoActionMatch = content.match(/after-no-action:\s*(\d+)/);
-    const cooldowns = {
-      afterAction: afterActionMatch ? Math.max(1, Math.min(10, parseInt(afterActionMatch[1], 10))) : 0,
-      afterNoAction: afterNoActionMatch ? Math.max(1, Math.min(10, parseInt(afterNoActionMatch[1], 10))) : 0,
-    };
-
-    // Parse focus
-    const topicMatch = content.match(/^topic:\s*(.+)/m);
-    const whyMatch = content.match(/^why:\s*(.+)/m);
-    const untilMatch = content.match(/^until:\s*(.+)/m);
-    const topic = topicMatch?.[1]?.trim();
-    const focus = topic
-      ? { topic, why: whyMatch?.[1]?.trim(), until: untilMatch?.[1]?.trim() }
-      : undefined;
-
-    return { modes, cooldowns, focus };
-  } catch {
-    return null;
-  }
-}
-
-/** Parse interval string like "5m", "30s", "1h" to milliseconds */
-export function parseInterval(str: string): number {
-  const match = str.match(/^(\d+)(s|m|h)$/);
-  if (!match) return DEFAULT_CONFIG.intervalMs;
-
-  const value = parseInt(match[1], 10);
-  switch (match[2]) {
-    case 's': return value * 1000;
-    case 'm': return value * 60_000;
-    case 'h': return value * 3_600_000;
-    default: return DEFAULT_CONFIG.intervalMs;
-  }
-}
-
-// =============================================================================
-// Handoff — Approved Proposals → Handoff Files
-// =============================================================================
-
-/**
- * 檢查 memory/proposals/ 中 Status: approved 的提案，
- * 自動在 memory/handoffs/ 建立對應的 handoff 任務檔案
- */
-async function checkApprovedProposals(): Promise<void> {
-  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
-  const handoffsDir = path.join(process.cwd(), 'memory', 'handoffs');
-
-  if (!fs.existsSync(proposalsDir)) return;
-  if (!fs.existsSync(handoffsDir)) {
-    fs.mkdirSync(handoffsDir, { recursive: true });
-  }
-
-  let files: string[];
-  try {
-    files = fs.readdirSync(proposalsDir).filter(f => f.endsWith('.md') && f !== 'README.md');
-  } catch {
-    return;
-  }
-
-  for (const file of files) {
-    try {
-      const content = fs.readFileSync(path.join(proposalsDir, file), 'utf-8');
-
-      // 只處理 Status: approved（不是 implemented, draft, rejected 等）
-      if (!content.includes('Status: approved')) continue;
-
-      // 對應的 handoff 檔案名稱
-      const handoffFile = path.join(handoffsDir, file);
-      if (fs.existsSync(handoffFile)) continue; // 已建立過
-
-      // 從 proposal 提取資訊
-      const titleMatch = content.match(/^# Proposal:\s*(.+)/m);
-      const title = titleMatch?.[1]?.trim() ?? file.replace('.md', '');
-      const tldrMatch = content.match(/## TL;DR\s*\n\n([\s\S]*?)(?=\n## )/);
-      const tldr = tldrMatch?.[1]?.trim() ?? '';
-
-      const now = new Date().toISOString();
-      const handoffContent = `# Handoff: ${title}
-
-## Meta
-- Status: pending
-- From: kuro
-- To: claude-code
-- Created: ${now}
-- Proposal: proposals/${file}
-
-## Task
-${tldr}
-
-See the full proposal at \`memory/proposals/${file}\` for details, alternatives, and acceptance criteria.
-
-## Log
-- ${now.slice(0, 16)} [kuro] Auto-created handoff from approved proposal
-`;
-
-      fs.writeFileSync(handoffFile, handoffContent, 'utf-8');
-      eventBus.emit('action:handoff', { file, title });
-      slog('HANDOFF', `Auto-created handoff for: ${title}`);
-
-      // 通知 Claude Code（寫入 inbox）
-      try {
-        const inboxPath = path.join(
-          process.env.HOME ?? '/tmp', '.mini-agent', 'claude-code-inbox.md',
-        );
-        if (fs.existsSync(inboxPath)) {
-          const inboxContent = fs.readFileSync(inboxPath, 'utf-8');
-          const ts = new Date().toLocaleString('sv-SE', {
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          }).slice(0, 16);
-          const msg = `- [${ts}] [Handoff] 新任務待處理：${title}（來自 proposal: ${file}）`;
-          const updated = inboxContent.replace('## Pending\n', `## Pending\n${msg}\n`);
-          fs.writeFileSync(inboxPath, updated, 'utf-8');
-        }
-      } catch { /* notification non-critical */ }
-
-      // Telegram 通知 Alex
-      notifyTelegram(`📋 新 Handoff：${title}\n來源：proposals/${file}\n指派：claude-code`).catch(() => {});
-    } catch {
-      // 單一檔案失敗不影響其他
-    }
-  }
-}
+// Post-cycle standalone functions extracted to src/cycle-tasks.ts:
+// parseBehaviorConfig, parseInterval, checkApprovedProposals,
+// resolveStaleConversationThreads, autoEscalateOverdueTasks,
+// autoCommitMemoryFiles, autoCommitExternalRepos, markNextItemsDone,
+// writeContextSnapshot
 
 // Inbox processing extracted to src/inbox-processor.ts
-// Imports: CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed
-
-/**
- * Resolve stale ConversationThreads. Runs every cycle (fire-and-forget).
- *
- * Rules:
- * - ALL thread types: auto-expire after 24h (same TTL as inbox messages)
- * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
- *   (prevents Kuro from re-responding to already-processed messages)
- */
-async function resolveStaleConversationThreads(): Promise<void> {
-  const memory = getMemory();
-  const threads = await memory.getConversationThreads();
-  const now = Date.now();
-  const TTL_MS = 24 * 60 * 60 * 1000; // 24h
-
-  const toResolve: string[] = [];
-
-  // Rule 1: Auto-expire threads older than 24h
-  // Exception: 'kuro:ask' threads — Alex may take days to reply to <kuro:ask> questions
-  for (const t of threads) {
-    if (t.resolvedAt) continue;
-    if (t.source === 'kuro:ask') continue;
-    const ageMs = now - new Date(t.createdAt).getTime();
-    if (ageMs > TTL_MS) {
-      toResolve.push(t.id);
-    }
-  }
-
-  // Rule 2: Resolve room threads when inbox is clear
-  const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
-    ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8')
-    : '';
-  const hasPending = /## Pending\n- \[/.test(inboxContent);
-  const hasUnaddressed = /## Unaddressed\n- \[/.test(inboxContent);
-
-  if (!hasPending && !hasUnaddressed) {
-    for (const t of threads) {
-      if (t.resolvedAt) continue;
-      if (!t.source?.startsWith('room:')) continue;
-      if (!toResolve.includes(t.id)) {
-        toResolve.push(t.id);
-      }
-    }
-  }
-
-  // Resolve via Memory API (handles correct instance path)
-  for (const id of toResolve) {
-    await memory.resolveConversationThread(id);
-  }
-}
-
-// =============================================================================
-// Auto-Commit — cycle 結束後自動 commit（按目錄原子提交）
-// =============================================================================
-
-/**
- * 記憶同步：只 auto-commit memory/ 目錄。
- * skills/ 和 plugins/ 跟功能搭配使用，由 Kuro 手動 commit。
- * Code 變更也由 Kuro 手動 commit（Alex 指令 2026-03-08）。
- */
-const MEMORY_COMMIT_PATHS = ['memory/'];
-
-// External repos — only Kuro's own projects (not all of ~/Workspace/)
-const KURO_EXTERNAL_REPOS = [
-  path.join(os.homedir(), 'Workspace', 'mushi'),
-  path.join(os.homedir(), 'Workspace', 'metsuke'),
-];
-
-// =============================================================================
-// Auto-Escalate Overdue Tasks — 逾期任務升壓
-// =============================================================================
-
-/**
- * 掃描 HEARTBEAT.md 中 @due: 已過期的未完成任務，升級為 P0。
- * Fire-and-forget，每個 OODA cycle 結束後呼叫。
- */
-async function autoEscalateOverdueTasks(): Promise<void> {
-  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
-  if (!fs.existsSync(heartbeatPath)) return;
-
-  try {
-    let content = fs.readFileSync(heartbeatPath, 'utf-8');
-    const today = new Date().toISOString().slice(0, 10);
-    let escalated = 0;
-
-    // 找到所有含 @due: 的未完成任務
-    const lines = content.split('\n');
-    const updated = lines.map(line => {
-      // 只處理未完成的 checkbox 行
-      if (!line.match(/^\s*- \[ \]/)) return line;
-      const dueMatch = line.match(/@due:(\d{4}-\d{2}-\d{2})/);
-      if (!dueMatch) return line;
-
-      const dueDate = dueMatch[1];
-      if (dueDate > today) return line; // 未過期
-
-      // 已經是 P0 → 不重複升級
-      if (line.includes('P0')) return line;
-
-      // 升級為 P0
-      escalated++;
-      // 替換 P1/P2/P3 為 P0，或在 checkbox 後加上 P0
-      if (line.match(/P[1-3]/)) {
-        return line.replace(/P[1-3]/, 'P0 ⚠️OVERDUE');
-      }
-      return line.replace('- [ ] ', '- [ ] P0 ⚠️OVERDUE ');
-    });
-
-    if (escalated > 0) {
-      fs.writeFileSync(heartbeatPath, updated.join('\n'), 'utf-8');
-      slog('ESCALATE', `Promoted ${escalated} overdue task(s) to P0 in HEARTBEAT.md`);
-    }
-  } catch {
-    // 靜默失敗
-  }
-}
-
-async function autoCommitMemoryFiles(action: string | null): Promise<void> {
-  const cwd = process.cwd();
-  const summary = action
-    ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
-    : 'auto-save';
-
-  try {
-    const { stdout: status } = await execFileAsync(
-      'git', ['status', '--porcelain', ...MEMORY_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
-
-    if (!status.trim()) return;
-
-    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
-
-    await execFileAsync(
-      'git', ['add', ...MEMORY_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
-
-    const fileList = changedFiles.slice(0, 5).join(', ');
-    const msg = `chore(auto): ${summary}\n\nFiles: ${fileList}`;
-
-    await execFileAsync(
-      'git', ['commit', '-m', msg],
-      { cwd, encoding: 'utf-8', timeout: 10000 },
-    );
-
-    slog('auto-commit', `${changedFiles.length} file(s): ${fileList}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes('nothing to commit')) {
-      slog('auto-commit', `skipped: ${msg.slice(0, 120)}`);
-    }
-  }
-}
-
-/**
- * Auto-commit+push external repos (separate git repos like mushi).
- * Fire-and-forget, called after autoCommitMemory.
- */
-async function autoCommitExternalRepos(): Promise<void> {
-  for (const dir of KURO_EXTERNAL_REPOS) {
-    const entry = path.basename(dir);
-    try {
-      // Must exist and be a git repo
-      if (!fs.existsSync(path.join(dir, '.git'))) continue;
-
-      const { stdout: status } = await execFileAsync(
-        'git', ['status', '--porcelain'],
-        { cwd: dir, encoding: 'utf-8', timeout: 5000 },
-      );
-
-      if (!status.trim()) continue;
-
-      const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
-
-      await execFileAsync(
-        'git', ['add', '-A'],
-        { cwd: dir, encoding: 'utf-8', timeout: 5000 },
-      );
-
-      const fileList = changedFiles.slice(0, 5).join(', ');
-      const msg = `chore(auto): auto-save\n\nFiles: ${fileList}`;
-
-      await execFileAsync(
-        'git', ['commit', '-m', msg],
-        { cwd: dir, encoding: 'utf-8', timeout: 10000 },
-      );
-
-      // Push if remote exists
-      try {
-        await execFileAsync(
-          'git', ['push', 'origin', 'HEAD'],
-          { cwd: dir, encoding: 'utf-8', timeout: 30000 },
-        );
-      } catch { /* no remote or push failed — commit is still saved locally */ }
-
-      slog('auto-commit-ext', `[${entry}] ${changedFiles.length} file(s) committed+pushed: ${fileList}`);
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (!errMsg.includes('nothing to commit')) {
-        slog('auto-commit-ext', `[${entry}] skipped: ${errMsg.slice(0, 120)}`);
-      }
-    }
-  }
-}
-
-// =============================================================================
-// <kuro:done> Tag — 從 NEXT.md 移除已完成項目
-// =============================================================================
-
-/**
- * 將 NEXT.md 中匹配的項目標記為完成（移除 checkbox）。
- * 匹配邏輯：<kuro:done> 的描述包含 NEXT.md 項目的關鍵字即視為匹配。
- */
-async function markNextItemsDone(dones: string[]): Promise<void> {
-  await withFileLock(NEXT_MD_PATH, async () => {
-    try {
-      if (!fs.existsSync(NEXT_MD_PATH)) return;
-      let content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-      let removed = 0;
-
-      for (const done of dones) {
-        // 找到 Next section 中的 pending items
-        const items = extractNextItems(content);
-        if (items.length === 0) break;
-
-        // 嘗試匹配：取 <kuro:done> 描述的前 30 字和每個 item 比對
-        const doneNorm = done.toLowerCase().slice(0, 80);
-        const matched = items.find(item => {
-          const itemNorm = item.toLowerCase();
-          // 精確匹配 timestamp（如果 <kuro:done> 包含 timestamp）
-          const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
-          if (tsMatch && itemNorm.includes(tsMatch[0])) return true;
-          // 模糊匹配：Alex 訊息前 20 字
-          const previewMatch = itemNorm.match(/回覆 Alex: "(.{10,30})"/);
-          if (previewMatch && doneNorm.includes(previewMatch[1].toLowerCase().slice(0, 15))) return true;
-          // 最寬鬆：只要 <kuro:done> 提到 "alex" 且 item 是 "回覆 Alex"
-          if (doneNorm.includes('alex') && itemNorm.includes('回覆 alex')) return true;
-          return false;
-        });
-
-        if (matched) {
-          // 移除匹配的行
-          content = content.replace(matched + '\n', '');
-          removed++;
-        }
-      }
-
-      // 如果 Next section 變空了，加回 "(空)"
-      if (removed > 0) {
-        const remainingItems = extractNextItems(content);
-        if (remainingItems.length === 0) {
-          const nextSection = findNextSection(content);
-          if (nextSection) {
-            const between = content.slice(nextSection.afterHeader, nextSection.sectionEnd).trim();
-            if (!between) {
-              content = content.slice(0, nextSection.afterHeader) + '\n\n(空)\n' + content.slice(nextSection.sectionEnd);
-            }
-          }
-        }
-        fs.writeFileSync(NEXT_MD_PATH, content, 'utf-8');
-        slog('DONE', `Marked ${removed} item(s) done in NEXT.md`);
-      }
-    } catch {
-      // Non-critical
-    }
-  });
-}
-
-// =============================================================================
-// Context Snapshot (Cognitive Mesh Phase 2)
-// =============================================================================
-
-/**
- * Write a context snapshot for cross-instance awareness.
- * Other instances can read this to understand what this instance is focused on.
- * Fire-and-forget — never blocks cycle.
- */
-async function writeContextSnapshot(
-  cycleCount: number,
-  contextSize: number,
-  mode: string,
-): Promise<void> {
-  const instanceId = getCurrentInstanceId();
-  const dir = getInstanceDir(instanceId);
-  const snapshotPath = path.join(dir, 'context-snapshot.json');
-
-  const snapshot = {
-    instanceId,
-    timestamp: new Date().toISOString(),
-    cycleCount,
-    contextSize,
-    mode,
-  };
-
-  fs.writeFileSync(snapshotPath, JSON.stringify(snapshot));
-}

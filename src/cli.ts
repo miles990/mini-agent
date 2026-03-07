@@ -57,7 +57,8 @@ import {
 } from './compose.js';
 import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } from './cron.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
-import { AgentLoop, parseInterval } from './loop.js';
+import { AgentLoop } from './loop.js';
+import { parseInterval } from './cycle-tasks.js';
 import { initObservability } from './observability.js';
 import { initActivityJournal } from './activity-journal.js';
 import { perceptionStreams } from './perception-stream.js';

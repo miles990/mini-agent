@@ -37,7 +37,8 @@ import {
 } from './instance.js';
 import { getLogger, type LogType, type BehaviorLogEntry } from './logging.js';
 import { getActiveCronTasks, addCronTask, removeCronTask, reloadCronTasks, startCronTasks, getCronTaskCount, getCronQueueSize, stopCronTasks } from './cron.js';
-import { AgentLoop, parseInterval } from './loop.js';
+import { AgentLoop } from './loop.js';
+import { parseInterval } from './cycle-tasks.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, getMemoryStateDir } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
