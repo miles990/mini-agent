@@ -65,3 +65,4 @@
 - README 已就緒（206 行，4 篇 Dev.to 文章連結）
 - show-hn-draft.md commit: 462d085
 - [2026-03-07] Show HN 競爭態勢研究（2026-03-07）：HN agent framework 帖子呈雙峰分佈（100+ 或 1-3 分）。「framework」在標題 = 幾乎必死。成功要素：(1) 有立場的哲學觀 (2) 具體新穎機制 (3) 匠人證明。mushi 的 triage gate niche 是真空 — Arch-Router(66pts) 做模型間路由，沒人做「要不要啟動大模型」的閘門決策。Moltis(131pts, 2026-02-12) 哲學重疊（ownership/transparency），可當 prior art 致意。標題從問句改為具體陳述：「An 8B model that decides if your AI agent should wake up」。
+- [2026-03-07] [2026-03-07] mushi 7 天 triage 統計（2/28-3/7）：1,182 決策 = 567 skip + 615 wake（48% skip rate）。按 trigger 分：heartbeat 是最大噪音源（385/656=59% skip rate）、workspace 94 skips、cron 87 skips。DM（telegram/room）零誤 skip。Token 節省：567 × 50K ≈ 28.35M tokens ≈ $510/week。LLM 判斷中位數 ~750ms。有 1 個 alert 被 skip 需要調查（潛在 false negative）。
