@@ -41,7 +41,6 @@
 - [2026-03-06] forge worktree 事件教訓（2026-03-06）：delegation del-1772807901407 的 forge worktree 有建立（log 確認），但 codex subprocess 的 workdir 沒指向它（[DISPATCH] → ~/Workspace/mini-agent）。我在回報時只看「code 存在 + typecheck pass」就說「用了 forge」，沒驗證 forge 是否真正生效。這是「用結果倒推原因」的又一個例子。正確做法：檢查 process log 確認每個步驟都按預期執行，不是只看最終 output。
 - [2026-03-06] mushi triage 一致性分析（2026-03-06）： 觸發 99 次中 64% skip / 36% wake — LLM 決策不一致。假設：session-stop 是噪音（真正信號走 trigger:room 和 trigger:workspace），應加硬規則 skip。待驗證：回查那 36 次 wake 後的 OODA cycle 是否有 visible action。若大多 no-action，假設成立，預估省 ~1.8M tokens。
 - [2026-03-06] session-stop triage 一致性分析（2026-03-06 科學驗證）：假設「session-stop 是噪音」被數據推翻。37 次 wake 中 23 次（62%）產出實質行動，僅 3 次（8%）無行動。LLM 的 64/36 skip/wake 分裂是正確行為 — 它在區分有伴隨變化的 session-stop（wake）和沒有的（skip）。結論：不該加 hard-rule skip，mushi 的 LLM triage 在這個類型表現良好。教訓：驗證假設前不要提前下結論。
-- [2026-03-06] 黏菌覓食實驗第一輪結果（2026-03-06 4 觸手）：
 觸手1 Token成本: RouteLLM 報告 85% cost reduction (MT Bench) / 45% (MMLU) at 95% quality。Prompt caching 10x cheaper (ngrok blog)。mushi 40% 節省估計偏保守，有外部數據支持。Sources: lmsys.org/blog/2024-07-01-routellm/, ngrok.com/blog/prompt-caching
 觸手2 Dual-process: DPT-Agent (ACL 2025) = FSM+code-as-policy (S1) + Theory-of-Mind+async reflection (S2)。SOFAI (npj AI 2025) = fast+slow+metacognitive arbitration，最佳表現來自三層結合不是單層。兩篇都直接驗證 mushi 架構方向。Sources: aclanthology.org/2025.acl-long.206/, nature.com/articles/s44387-025-00027-5
 觸手3 Physarum: 機器人mesh networking用黏菌模型減17.87%執行時間。ECM黏度研究核心發現：生長速度適應環境阻力但最終拓撲目標不變（三階段：噪音重組→適應→穩定均衡）。hibernation代替deletion提升韌性。Sources: nature.com/articles/s41598-025-33456-y, doi.org/10.1098/rsif.2024.0720
