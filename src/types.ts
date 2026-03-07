@@ -373,3 +373,27 @@ export interface RoomMessage {
 /** 通知分級 — Calm Technology 三層模型 */
 export type NotificationTier = 'signal' | 'summary' | 'heartbeat';
 
+// =============================================================================
+// Cognitive Mesh Types (Phase 1: Cross-Process Foundation)
+// =============================================================================
+
+/** IPC event envelope — written as JSON files for cross-process communication */
+export interface IPCEvent {
+  type: string;           // AgentEventType or custom mesh events
+  data: Record<string, unknown>;
+  from: string;           // source instance ID
+  ts: number;             // Date.now()
+}
+
+/** Instance heartbeat — written every 30s to advertise liveness */
+export interface InstanceHeartbeat {
+  instanceId: string;
+  pid: number;
+  port: number;
+  role: InstanceRole;
+  perspective?: string;
+  status: 'idle' | 'busy' | 'starting' | 'stopping';
+  cycleCount: number;
+  ts: number;             // Date.now()
+}
+

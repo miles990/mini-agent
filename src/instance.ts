@@ -16,6 +16,7 @@ import type {
   CreateInstanceOptions,
   InstanceRole,
   InstanceStatus,
+  InstanceHeartbeat,
 } from './types.js';
 import { diagLog } from './utils.js';
 
@@ -764,4 +765,130 @@ export function getOrCreateDefaultInstance(): InstanceConfig {
  */
 export function getCurrentInstanceId(): string {
   return process.env.MINI_AGENT_INSTANCE || 'default';
+}
+
+// =============================================================================
+// Instance Heartbeat (Cross-Process Liveness)
+// =============================================================================
+
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_STALE_MS = 90_000; // 3x interval — assume dead after this
+
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let heartbeatState: Partial<InstanceHeartbeat> = {};
+
+/**
+ * Start broadcasting heartbeat for this instance.
+ * Other instances read these files to discover neighbors.
+ */
+export function startHeartbeat(opts: {
+  instanceId: string;
+  port: number;
+  role: InstanceRole;
+}): void {
+  heartbeatState = {
+    instanceId: opts.instanceId,
+    pid: process.pid,
+    port: opts.port,
+    role: opts.role,
+    status: 'starting',
+    cycleCount: 0,
+  };
+
+  // Write immediately, then every 30s
+  writeHeartbeat();
+  heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
+}
+
+/**
+ * Update heartbeat status (called by loop on state changes).
+ */
+export function updateHeartbeat(update: Partial<Pick<InstanceHeartbeat, 'status' | 'cycleCount' | 'perspective'>>): void {
+  Object.assign(heartbeatState, update);
+}
+
+/**
+ * Stop heartbeat broadcasting. Removes heartbeat file.
+ */
+export function stopHeartbeat(): void {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
+  // Remove heartbeat file on clean shutdown
+  if (heartbeatState.instanceId) {
+    const hbPath = getHeartbeatPath(heartbeatState.instanceId);
+    try { fs.unlinkSync(hbPath); } catch { /* ok */ }
+  }
+}
+
+/**
+ * Read all live instance heartbeats (excluding self).
+ */
+export function getNeighborHeartbeats(): InstanceHeartbeat[] {
+  const instancesDir = path.join(getDataDir(), 'instances');
+  const neighbors: InstanceHeartbeat[] = [];
+  const now = Date.now();
+  const myId = heartbeatState.instanceId;
+
+  try {
+    const dirs = fs.readdirSync(instancesDir, { withFileTypes: true });
+    for (const dir of dirs) {
+      if (!dir.isDirectory() || dir.name === myId) continue;
+
+      const hbPath = path.join(instancesDir, dir.name, 'heartbeat.json');
+      try {
+        const raw = fs.readFileSync(hbPath, 'utf-8');
+        const hb: InstanceHeartbeat = JSON.parse(raw);
+        if (now - hb.ts < HEARTBEAT_STALE_MS) {
+          neighbors.push(hb);
+        }
+      } catch { /* missing or malformed — skip */ }
+    }
+  } catch { /* instances dir doesn't exist */ }
+
+  return neighbors;
+}
+
+/**
+ * Check if another instance is alive by its heartbeat.
+ */
+export function isInstanceAlive(targetInstanceId: string): boolean {
+  const hbPath = getHeartbeatPath(targetInstanceId);
+  try {
+    const raw = fs.readFileSync(hbPath, 'utf-8');
+    const hb: InstanceHeartbeat = JSON.parse(raw);
+    return Date.now() - hb.ts < HEARTBEAT_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function getHeartbeatPath(id: string): string {
+  return path.join(getDataDir(), 'instances', id, 'heartbeat.json');
+}
+
+function writeHeartbeat(): void {
+  if (!heartbeatState.instanceId) return;
+
+  const hb: InstanceHeartbeat = {
+    instanceId: heartbeatState.instanceId,
+    pid: heartbeatState.pid ?? process.pid,
+    port: heartbeatState.port ?? 0,
+    role: heartbeatState.role ?? 'standalone',
+    perspective: heartbeatState.perspective,
+    status: heartbeatState.status ?? 'idle',
+    cycleCount: heartbeatState.cycleCount ?? 0,
+    ts: Date.now(),
+  };
+
+  const hbPath = getHeartbeatPath(hb.instanceId);
+  try {
+    const dir = path.dirname(hbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(hbPath, JSON.stringify(hb));
+  } catch { /* non-fatal */ }
 }
