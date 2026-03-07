@@ -737,8 +737,9 @@ function startTask(task: DelegationTask): void {
             forgeOutcome.cleaned = true;
           }
         } else {
-          forgeCleanup(forgeWorktreePath, task.workdir);
-          forgeOutcome.cleaned = true;
+          // Failed/timeout: keep worktree for diagnosis (2h TTL, cleaned by forgeRecover)
+          slog('FORGE', `Keeping failed worktree ${forgeWorktreePath} for diagnosis (2h TTL)`);
+          forgeOutcome.cleaned = false;
         }
         result.forge = forgeOutcome;
         logForgeOutcome(taskId, forgeOutcome, result.status, result.duration);
