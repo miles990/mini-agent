@@ -63,8 +63,6 @@ const FEATURES: FeatureInfo[] = [
   { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },
   { name: 'ooda-loop',         group: 'core',         description: 'OODA cycle (main agent loop)' },
   { name: 'cron',              group: 'core',         description: 'Scheduled cron tasks' },
-  { name: 'perception',        group: 'core',         description: 'Perception stream plugins' },
-  { name: 'observability',     group: 'core',         description: 'Event bus subscribers (logging/routing)' },
   { name: 'hesitation-signal', group: 'core',        description: 'Deterministic hesitation — hold overconfident tags for review (Ritual constraint)' },
 
   // ── Post-cycle housekeeping ──
@@ -81,7 +79,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },
-  { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess' },
+  { name: 'mushi-dedup',      group: 'housekeeping', description: 'mushi dedup — HC1 checks near-duplicate REMEMBER before writing' },
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
   { name: 'cognitive-mesh', group: 'housekeeping', description: 'Cognitive Mesh — multi-instance task routing + dynamic scaling' },
 
