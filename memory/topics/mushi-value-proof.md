@@ -70,3 +70,4 @@
 - [2026-03-07] [2026-03-07] 黏菌觀測數據點 #1 — 觸手吸收率：3 條觸手派出（Show HN 研究 / HN 掃描 / Dev.to 追蹤），1 條有養分被吸收（33%），1 條修剪，1 條記錄。33% 吸收率是初始基線，需要更多 cycle 確認這是否是穩態。
 - [2026-03-07] [2026-03-07] 黏菌觀測數據點 #2 — 觸手吸收率連續兩輪 33%（1/3）。Round 1: Show HN 研究 ✅ / HN 掃描 ❌ / Dev.to 追蹤 📝。Round 2: pm-skills ✅ / berryxia ❌ / RTL:WTF 📝。初步觀察：1/3 吸收率可能是自然 baseline — 不是每條觸手都該有養分，修剪是健康的。
 - [2026-03-07] [2026-03-07] Show HN body 重寫（commit a600647）：從 budget-first context engineering 改為 Firefox bitflips 敘事。開頭用 Mozilla 10-15% crash = bit-flip 類比，引出「40% agent 運算是噪音」。三層用認知科學對應。討論點從框架哲學改為可參與問題。Body 現在跟 triage title 一致。
+- [2026-03-07] [2026-03-07] Show HN 關鍵修復（commit 66cc2a2）：agent.yaml 改為 ollama-first 入門配置（之前追蹤了 taalas 生產配置 = 新用戶無法使用）。生產配置移到 agent.production.yaml（gitignored），launchd 更新為讀取 production config。mushi 重啟零中斷。Pre-launch checklist 全部通過，只剩 Sunday 更新數字 + Monday 投稿。
