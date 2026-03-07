@@ -75,6 +75,7 @@ const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
+const FORGE_DECAY_TTL_MS = parseInt(process.env.FORGE_DECAY_TTL_MS ?? '', 10) || 2 * 60 * 60_000; // 2h default
 
 // =============================================================================
 // Delegation State Persistence (survives restart)
