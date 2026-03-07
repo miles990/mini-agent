@@ -48,6 +48,7 @@ import {
 import { loadGlobalConfig, startHeartbeat, stopHeartbeat, updateInstanceHeartbeat } from './instance.js';
 import { initIPCBus, stopIPCBus } from './ipc-bus.js';
 import { stopMemoryCache } from './memory-cache.js';
+import { cleanupConsensusState } from './consensus.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
 import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
@@ -2561,6 +2562,9 @@ if (isMain) {
     role: instanceConfig?.role || 'standalone',
   });
 
+  // Clean up expired consensus state (claims, old journals)
+  cleanupConsensusState();
+
   // Wire heartbeat updates from loop cycle events
   eventBus.on('action:loop', (event) => {
     if (event.data.event === 'cycle.start') {
@@ -2775,6 +2779,7 @@ if (isMain) {
     if (telegramPoller) telegramPoller.stop();
     stopHeartbeat();
     stopIPCBus();
+    stopMemoryCache();
 
     // Wait for in-flight Claude CLI call to finish
     if (isClaudeBusy()) {

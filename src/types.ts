@@ -397,3 +397,40 @@ export interface InstanceHeartbeat {
   ts: number;             // Date.now()
 }
 
+// =============================================================================
+// Cognitive Mesh Types (Phase 3b: Perspective System)
+// =============================================================================
+
+/** Perspective configuration — defines what a Specialist instance loads */
+export interface PerspectiveConfig {
+  perception: 'all' | string[];   // which perception plugins to load
+  skills: 'all' | string[];       // which skills to load
+  canWriteMemory: boolean;         // can write to memory/ directly
+  canSendTelegram: boolean;        // can send Telegram notifications
+  maxConcurrent: number;           // max instances with this perspective
+}
+
+/** Scaling configuration from compose v2 */
+export interface ScalingCompose {
+  max_instances?: number;
+  idle_timeout?: string;          // "5m", "30s"
+  min_task_duration?: string;     // "30s"
+}
+
+/** Compose v2 agent with perspectives */
+export interface ComposeAgentV2 extends ComposeAgent {
+  perspectives?: Record<string, PerspectiveConfig>;
+  scaling?: ScalingCompose;
+}
+
+/** Mesh task output — written by Specialists, read by Primary */
+export interface MeshTaskOutput {
+  taskId: string;
+  instanceId: string;
+  perspective: string;
+  status: 'completed' | 'failed';
+  result: string;
+  startedAt: string;
+  completedAt: string;
+}
+

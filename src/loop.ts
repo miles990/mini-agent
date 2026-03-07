@@ -47,6 +47,9 @@ import { writeRoomMessage } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
+import { routeTask, getClusterState } from './task-router.js';
+import { evaluateScaling } from './scaling.js';
+import { buildMeshCompletedSection, cleanupMeshOutputs } from './perspective.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import type { LoopState } from './event-router.js';
 import {
@@ -1291,6 +1294,24 @@ export class AgentLoop {
 
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
 
+      // ── Task Routing (Cognitive Mesh Phase 3) ──
+      // Evaluate routing decision. If specialists exist and task is parallelizable,
+      // route to them instead of handling here. Currently logs decision for observability;
+      // actual forwarding/spawning activates when Perspective System (Phase 3b) is ready.
+      if (isEnabled('cognitive-mesh') && this.triggerReason) {
+        const clusterState = getClusterState({
+          primaryBusy: this.cycling,
+          primaryQueueDepth: readPendingInbox().length,
+          maxInstances: 3,
+        });
+        const route = routeTask(this.triggerReason, {}, clusterState);
+        if (route.action !== 'self') {
+          slog('MESH', `Route: ${route.action} (${route.reason}) for trigger=${this.triggerReason}`);
+          // Future: forward/spawn/queue handling here
+          // For now, fall through to self-handling
+        }
+      }
+
       // ── Inbox recovery: upgrade to DM-priority if pending DM items exist ──
       // Defense-in-depth: catches edge cases where trigger didn't start the cycle
       // (e.g. arrived during pause, process restart, or any future routing bug).
@@ -1326,10 +1347,13 @@ export class AgentLoop {
       const memory = getMemory();
       // Light mode for DM-triggered cycles: minimal context for fast response
       const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
-      const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
+      let context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
+
+      // Mesh outputs from Specialist instances (Cognitive Mesh Phase 3b)
+      const meshSection = isEnabled('cognitive-mesh') ? buildMeshCompletedSection() : '';
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
@@ -1461,6 +1485,11 @@ export class AgentLoop {
       if (this.workJournalContext) this.workJournalContext = null; // one-shot: 用完即清
 
       const prompt = priorityPrefix + await this.buildAutonomousPrompt() + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
+
+      // Append mesh outputs to context if any (Cognitive Mesh Phase 3b)
+      if (meshSection) {
+        context += '\n' + meshSection;
+      }
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -1619,6 +1648,20 @@ export class AgentLoop {
       });
       const decision = action ? `${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
+
+      // Scaling evaluation (Cognitive Mesh Phase 3, fire-and-forget)
+      if (isEnabled('cognitive-mesh')) {
+        try {
+          const inboxDepth = readPendingInbox().length;
+          const scalingDecision = evaluateScaling({
+            primaryQueueDepth: inboxDepth,
+            hasParallelizableTasks: inboxDepth > 0,
+          });
+          if (scalingDecision.action !== 'none') {
+            slog('MESH', `Scaling: ${scalingDecision.action} (${scalingDecision.reason})`);
+          }
+        } catch { /* fire-and-forget */ }
+      }
 
       // Record for next cycle (only last cycle, no accumulation)
       this.previousCycleInfo = `Mode: ${this.currentMode}, Action: ${decision}, Duration: ${(duration / 1000).toFixed(1)}s`;

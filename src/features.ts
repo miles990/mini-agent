@@ -83,6 +83,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },
   { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess', defaultEnabled: false },
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
+  { name: 'cognitive-mesh', group: 'housekeeping', description: 'Cognitive Mesh — multi-instance task routing + dynamic scaling', defaultEnabled: false },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

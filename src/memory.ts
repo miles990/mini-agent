@@ -13,6 +13,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { cachedReadFile } from './memory-cache.js';
 import { execFileSync } from 'node:child_process';
 import {
   getCurrentInstanceId,
@@ -626,7 +627,7 @@ export class InstanceMemory {
   async readMemory(): Promise<string> {
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
     try {
-      return await fs.readFile(memoryPath, 'utf-8');
+      return cachedReadFile(memoryPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         diagLog('memory.readMemory', error, { path: memoryPath });
@@ -1100,7 +1101,7 @@ export class InstanceMemory {
   async readNext(): Promise<string> {
     const nextPath = path.join(this.memoryDir, 'NEXT.md');
     try {
-      return await fs.readFile(nextPath, 'utf-8');
+      return cachedReadFile(nextPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         diagLog('memory.readNext', error, { path: nextPath });
@@ -1151,7 +1152,7 @@ export class InstanceMemory {
   async readSoul(): Promise<string> {
     const soulPath = path.join(this.memoryDir, 'SOUL.md');
     try {
-      return await fs.readFile(soulPath, 'utf-8');
+      return cachedReadFile(soulPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         diagLog('memory.readSoul', error, { path: soulPath });
@@ -1166,7 +1167,7 @@ export class InstanceMemory {
   async readHeartbeat(): Promise<string> {
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
     try {
-      return await fs.readFile(heartbeatPath, 'utf-8');
+      return cachedReadFile(heartbeatPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         diagLog('memory.readHeartbeat', error, { path: heartbeatPath });
