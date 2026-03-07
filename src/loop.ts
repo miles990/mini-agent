@@ -693,7 +693,8 @@ export class AgentLoop {
       // Instant ACK — let Alex know we're processing before the full cycle runs (~60-80s)
       if (event.source === 'telegram') {
         const replyTo = getLastAlexMessageId() ?? undefined;
-        notifyTelegram('💭', replyTo).catch(() => {});
+        const excerpt = messageText.length > 50 ? messageText.slice(0, 50) + '...' : messageText;
+        notifyTelegram(`💭 收到：「${excerpt}」\n正在處理...`, replyTo).catch(() => {});
       }
 
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;

@@ -470,9 +470,12 @@ export class TelegramPoller {
     // React with 👀 to acknowledge we've seen the message
     await this.setReaction(String(msg.chat.id), msg.message_id, '👀');
 
-    // Layer 0 Reflex: instant 💭 when busy — no OODA needed
+    // Layer 0 Reflex: instant ACK when busy — echo message excerpt so Alex knows we received the right thing
     if (isEnabled('reflex-ack') && isLoopBusy()) {
-      this.sendMessage('💭', '', msg.message_id).catch(() => {});
+      const text = msg.text ?? msg.caption ?? '';
+      const excerpt = text.length > 50 ? text.slice(0, 50) + '...' : text;
+      const ack = excerpt ? `💭 收到：「${excerpt}」\n正在處理...` : '💭 收到，正在處理...';
+      this.sendMessage(ack, '', msg.message_id).catch(() => {});
     }
 
     const parsed = await this.parseMessage(msg);
