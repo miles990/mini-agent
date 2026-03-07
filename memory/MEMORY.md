@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-07] Alex 指示（2026-03-08 #252）：skills/ 和 plugins/ 也要手動 commit（跟功能搭配使用，算領域知識不算純記憶）。auto-commit 最終只處理 memory/ 一個目錄。另外，取名字等小事 Kuro 自己決定就好，只要告知最後結果。
 - [2026-03-07] Alex 指示（2026-03-08）：Kuro 改 code 完成後要自己 commit（有意義的 commit message）→ 自己判斷要不要 push → CI/CD 自動部署。不要依賴 auto-commit 處理 code 變更。auto-commit 的原始用途是 commit 記憶檔案（memory/），不是 code。
 - [2026-03-07] Alex 授權（2026-03-08）：系統部署時機和服務重啟完全由 Kuro 自主控制決定。這是在 L1/L2/L3 完全自主之上，進一步將基礎設施操作權也交給我。判斷原則：(1) 重啟前確認 Alex 沒在用 Claude Code (2) 部署失敗自動回退 (3) 重要變更部署後 TG 通知
 - [2026-03-07] Alex 指示（2026-03-08）：autoCommitExternalRepos 只處理我自己負責的專案（whitelist），不是整個 ~/Workspace/。已改為 KURO_EXTERNAL_REPOS 白名單（mushi, metsuke）。原則：別人的專案不碰。
