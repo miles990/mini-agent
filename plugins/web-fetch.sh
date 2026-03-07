@@ -285,11 +285,31 @@ try_cdp() {
   return 0
 }
 
+# ─── Nutrient Router Integration ────────────────────────────────────────────
+# Slime mold model: check domain nutrient score before fetching
+NUTRIENT_CLI="$SCRIPT_DIR/scripts/nutrient-cli.mjs"
+
+nutrient_route() {
+  local domain="$1"
+  # Fail-open: if CLI unavailable, always fetch
+  [[ -f "$NUTRIENT_CLI" ]] || echo '{"action":"fetch","score":50}'
+  node "$NUTRIENT_CLI" route "$domain" 2>/dev/null || echo '{"action":"fetch","score":50}'
+}
+
+nutrient_log_fetch() {
+  local domain="$1" url="$2" method="$3" content_len="$4" extracted_len="$5" success="$6"
+  [[ -f "$NUTRIENT_CLI" ]] || return 0
+  node "$NUTRIENT_CLI" log-fetch "$domain" "$url" "$method" "$content_len" "$extracted_len" "$success" 2>/dev/null &
+}
+
 # ─── Fetch Orchestrator ──────────────────────────────────────────────────────
 # Tries preferred layer first (from domain history), then cascades through all.
+# Logs each fetch outcome to nutrient tracker for slime mold scoring.
+_FETCH_METHOD=""
+
 fetch_url() {
   local url="$1" domain="$2"
-  _OUT="" ; _TITLE=""
+  _OUT="" ; _TITLE="" ; _FETCH_METHOD=""
 
   # Adaptive routing: check domain history
   local preferred
@@ -301,6 +321,7 @@ fetch_url() {
   if [[ -n "$preferred" ]]; then
     # Try preferred first
     if "try_$preferred" "$url" 2>/dev/null; then
+      _FETCH_METHOD="$preferred"
       return 0
     fi
     # Preferred failed — remove it from cascade to avoid double-trying
@@ -310,6 +331,7 @@ fetch_url() {
   # Normal cascade
   for layer in $layers; do
     if "try_$layer" "$url" 2>/dev/null; then
+      _FETCH_METHOD="$layer"
       return 0
     fi
   done
@@ -318,6 +340,9 @@ fetch_url() {
 }
 
 # ─── Main Loop ───────────────────────────────────────────────────────────────
+
+SKIP_COUNT=0
+FETCH_COUNT=0
 
 for URL in $URLS; do
   DOMAIN=$(echo "$URL" | sed -E 's|https?://([^/]+).*|\1|' | sed 's/^www\.//')
@@ -335,16 +360,37 @@ for URL in $URLS; do
     fi
   fi
 
-  echo "[$DOMAIN]"
+  # Nutrient routing: check domain score before fetching
+  route_json=$(nutrient_route "$DOMAIN")
+  route_action=$(echo "$route_json" | jq -r '.action // "fetch"' 2>/dev/null || echo "fetch")
+  route_score=$(echo "$route_json" | jq -r '.score // 50' 2>/dev/null || echo "50")
+  route_reason=$(echo "$route_json" | jq -r '.reason // ""' 2>/dev/null || echo "")
+
+  if [[ "$route_action" == "skip" ]]; then
+    echo "[$DOMAIN] ✂ pruned (score:${route_score} — ${route_reason})"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+    echo ""
+    continue
+  fi
+
+  [[ "$route_action" == "explore" ]] && echo "[$DOMAIN] 🔍 exploring (score:${route_score})" || echo "[$DOMAIN] ★ reinforced (score:${route_score})"
 
   if fetch_url "$URL" "$DOMAIN"; then
+    FETCH_COUNT=$((FETCH_COUNT + 1))
     [[ -n "$_TITLE" ]] && echo "$_TITLE"
     [[ -n "$_OUT" ]] && echo -e "$_OUT"
+    # Log successful fetch to nutrient tracker
+    nutrient_log_fetch "$DOMAIN" "$URL" "${_FETCH_METHOD:-unknown}" "${#_OUT}" "${#_OUT}" "true"
   else
     echo "Cannot fetch — requires login or is inaccessible"
+    # Log failed fetch
+    nutrient_log_fetch "$DOMAIN" "$URL" "none" "0" "0" "false"
     if echo "$URL" | grep -qiE 'x\.com|twitter\.com' && [[ -z "${XAI_API_KEY:-}" ]]; then
       echo "Tip: Set XAI_API_KEY for X/Twitter"
     fi
   fi
   echo ""
 done
+
+# Summary line for observability
+[[ $SKIP_COUNT -gt 0 ]] && echo "Nutrient routing: ${FETCH_COUNT} fetched, ${SKIP_COUNT} pruned"
