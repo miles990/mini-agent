@@ -51,6 +51,7 @@ import { router, createEvent, classifyTrigger, logRoute, Priority } from './even
 import { routeTask, getClusterState } from './task-router.js';
 import { evaluateScaling } from './scaling.js';
 import { buildMeshCompletedSection, cleanupMeshOutputs } from './perspective.js';
+import { handleMeshRoute, executeScaling, drainMeshQueue } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import type { LoopState } from './event-router.js';
 import {
@@ -1316,8 +1317,14 @@ export class AgentLoop {
         const route = routeTask(this.triggerReason, {}, clusterState);
         if (route.action !== 'self') {
           slog('MESH', `Route: ${route.action} (${route.reason}) for trigger=${this.triggerReason}`);
-          // Future: forward/spawn/queue handling here
-          // For now, fall through to self-handling
+          const routed = await handleMeshRoute(route, this.triggerReason);
+          if (routed) {
+            slog('MESH', `Task routed to ${route.action}/${route.targetInstance ?? route.perspective ?? '?'}, skipping self-handling`);
+            this.cycling = false;
+            return null;
+          }
+          // Routing failed — fall through to self-handling
+          slog('MESH', `Route ${route.action} failed, falling through to self-handling`);
         }
       }
 
@@ -1658,7 +1665,7 @@ export class AgentLoop {
       const decision = action ? `${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
-      // Scaling evaluation (Cognitive Mesh Phase 3, fire-and-forget)
+      // Scaling evaluation + execution (Cognitive Mesh Phase 3, fire-and-forget)
       if (isEnabled('cognitive-mesh')) {
         try {
           const inboxDepth = readPendingInbox().length;
@@ -1668,8 +1675,12 @@ export class AgentLoop {
           });
           if (scalingDecision.action !== 'none') {
             slog('MESH', `Scaling: ${scalingDecision.action} (${scalingDecision.reason})`);
+            executeScaling(scalingDecision).catch(() => {});
           }
         } catch { /* fire-and-forget */ }
+
+        // Cleanup old mesh outputs (fire-and-forget)
+        try { cleanupMeshOutputs(); } catch { /* ok */ }
       }
 
       // Record for next cycle (only last cycle, no accumulation)

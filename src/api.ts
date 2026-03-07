@@ -2346,6 +2346,28 @@ export function createApi(port = 3001): express.Express {
 
   // Claude Code HTTP Hooks moved before authMiddleware (see above)
 
+  // POST /api/mesh/task — receive forwarded task from another instance (Cognitive Mesh)
+  app.post('/api/mesh/task', async (req: Request, res: Response) => {
+    const { trigger, from } = req.body as { trigger?: string; from?: string };
+    if (!trigger || typeof trigger !== 'string') {
+      res.status(400).json({ error: 'trigger is required' });
+      return;
+    }
+
+    slog('MESH', `Received forwarded task: trigger=${trigger} from=${from ?? 'unknown'}`);
+
+    // Wake the loop with the forwarded trigger
+    if (loopRef) {
+      eventBus.emit(`trigger:${trigger.split(' ')[0]}` as any, {
+        forwarded: true,
+        from,
+        originalTrigger: trigger,
+      });
+    }
+
+    res.json({ ok: true, received: trigger });
+  });
+
   // POST /api/ask — 同步問答端點（always-on，不受 OODA mode 影響）
   app.post('/api/ask', async (req: Request, res: Response) => {
     const { question } = req.body as { question?: unknown };
