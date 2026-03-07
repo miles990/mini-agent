@@ -21,7 +21,7 @@ import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import type { ParsedTags } from './types.js';
-import { notifyTelegram, clearLastReaction } from './telegram.js';
+import { notifyTelegram, clearLastReaction, getLastAlexMessageId } from './telegram.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
@@ -689,6 +689,13 @@ export class AgentLoop {
       }
       // Loop idle → full OODA cycle
       slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
+
+      // Instant ACK — let Alex know we're processing before the full cycle runs (~60-80s)
+      if (event.source === 'telegram') {
+        const replyTo = getLastAlexMessageId() ?? undefined;
+        notifyTelegram('💭', replyTo).catch(() => {});
+      }
+
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
       this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
       this.triggerTelegramMsgs = snapshotTelegramMsgs();
