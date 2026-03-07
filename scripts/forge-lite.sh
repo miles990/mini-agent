@@ -14,17 +14,21 @@
 # Before merge, rebase onto main reduces conflicts from concurrent work.
 #
 # Usage:
-#   forge-lite.sh create <task-name> [--files "a.ts,b.ts"] [--no-install]  → Create worktree + branch
-#   forge-lite.sh verify <worktree-path>          → Run typecheck + tests
-#   forge-lite.sh merge <worktree-path> [message]  → Merge to main + cleanup
-#   forge-lite.sh yolo <worktree-path> [message]   → Verify + merge in one shot
-#   forge-lite.sh cleanup <worktree-path>          → Remove worktree without merging
-#   forge-lite.sh status                           → Show slot states (busy/free/abandoned)
-#   forge-lite.sh recover                          → Recover from a previous crash
+#   forge-lite.sh create <task-name> [--files "a.ts,b.ts"] [--no-install] [--json]
+#   forge-lite.sh verify <worktree-path>
+#   forge-lite.sh merge <worktree-path> [message]
+#   forge-lite.sh yolo <worktree-path> [message]     # verify + merge in one shot
+#   forge-lite.sh cleanup <worktree-path>
+#   forge-lite.sh status [--json]                     # alias: list, ls
+#   forge-lite.sh recover
+#   forge-lite.sh help
 #
-# Exit code 2 = file overlap with busy slot (caller should wait and retry)
+# Agent-friendly output:
+#   - stdout = parseable result (path, JSON, or key=value)
+#   - stderr = human-readable log messages
+#   - --json flag on create/status for structured output
 #
-# Exit codes: 0 = success, 1 = failure (details on stderr)
+# Exit codes: 0 = success, 1 = failure, 2 = file overlap (retry later)
 
 set -euo pipefail
 
@@ -35,9 +39,27 @@ MAIN_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 
 LOCK_FILE="$MAIN_DIR/.git/forge-lite.lock"
 STATE_FILE="$MAIN_DIR/.git/forge-lite-state"
-STALE_HOURS=24
-FORGE_SLOTS=3
-SLOT_STALE_MINUTES=60
+STALE_HOURS="${FORGE_STALE_HOURS:-24}"            # auto-prune worktrees older than this
+FORGE_SLOTS="${FORGE_SLOTS:-3}"                    # number of persistent worktree slots
+SLOT_STALE_MINUTES="${FORGE_SLOT_TTL_MINUTES:-60}" # slot abandoned after this (fallback for PID check)
+
+# ============================================================
+# Human-readable helpers
+# ============================================================
+
+human_age() {
+  local seconds="${1:?}"
+  if [ "$seconds" -lt 60 ]; then
+    echo "${seconds}s"
+  elif [ "$seconds" -lt 3600 ]; then
+    echo "$(( seconds / 60 ))m"
+  elif [ "$seconds" -lt 86400 ]; then
+    local h=$(( seconds / 3600 )) m=$(( (seconds % 3600) / 60 ))
+    [ "$m" -gt 0 ] && echo "${h}h${m}m" || echo "${h}h"
+  else
+    echo "$(( seconds / 86400 ))d"
+  fi
+}
 
 # ============================================================
 # Safety infrastructure
@@ -369,12 +391,13 @@ cmd_create() {
   shift
 
   # Parse options
-  local declared_files="" caller_pid="0" no_install=false
+  local declared_files="" caller_pid="0" no_install=false json_mode=false
   while [ $# -gt 0 ]; do
     case "$1" in
       --files) declared_files="${2:-}"; shift 2 ;;
       --caller-pid) caller_pid="${2:-0}"; shift 2 ;;
       --no-install) no_install=true; shift ;;
+      --json) json_mode=true; shift ;;
       *) shift ;;
     esac
   done
@@ -474,7 +497,13 @@ cmd_create() {
   fi
 
   clear_state
-  echo "$worktree_dir"
+  if [ "$json_mode" = true ]; then
+    local slot_num
+    slot_num=$(basename "$worktree_dir" | grep -oE '[0-9]+$' || echo "0")
+    echo "{\"path\":\"$worktree_dir\",\"branch\":\"$branch\",\"slot\":$slot_num}"
+  else
+    echo "$worktree_dir"
+  fi
 }
 
 cmd_verify() {
@@ -632,29 +661,68 @@ cmd_cleanup() {
 }
 
 cmd_status() {
+  local json_mode=false
+  [ "${1:-}" = "--json" ] && json_mode=true
+
   local base_dir="$MAIN_DIR/../$(basename "$MAIN_DIR")-forge"
   local total=0 busy=0 free=0
+  local now
+  now=$(date +%s)
+  local json_slots=""
 
   for i in $(seq 1 $FORGE_SLOTS); do
     local slot="${base_dir}-${i}"
     total=$((total + 1))
-    if [ -d "$slot" ] && [ -f "$slot/.forge-in-use" ]; then
-      if is_slot_abandoned "$slot/.forge-in-use"; then
-        echo "slot $i: abandoned (branch=$SLOT_BRANCH pid=$SLOT_PID) — reclaimable" >&2
-        free=$((free + 1))
+    local state="free" branch="" pid="" age_s=0 files="" cached=false
+
+    if [ -d "$slot" ]; then
+      cached=true
+      if [ -f "$slot/.forge-in-use" ]; then
+        read_slot_marker "$slot/.forge-in-use" || true
+        branch="$SLOT_BRANCH" pid="$SLOT_PID"
+        [ -n "$SLOT_TS" ] && [ "$SLOT_TS" != "0" ] && age_s=$(( now - SLOT_TS ))
+        [ -f "$slot/.forge-files" ] && files=$(cat "$slot/.forge-files" | tr '\n' ',' | sed 's/,$//')
+
+        if is_slot_abandoned "$slot/.forge-in-use"; then
+          state="abandoned"
+          free=$((free + 1))
+        else
+          state="busy"
+          busy=$((busy + 1))
+        fi
       else
-        local files=""
-        [ -f "$slot/.forge-files" ] && files=" files=$(cat "$slot/.forge-files" | tr '\n' ',')"
-        echo "slot $i: busy (branch=$SLOT_BRANCH pid=$SLOT_PID${files})" >&2
-        busy=$((busy + 1))
+        free=$((free + 1))
       fi
     else
-      echo "slot $i: free" >&2
       free=$((free + 1))
+    fi
+
+    if [ "$json_mode" = true ]; then
+      [ -n "$json_slots" ] && json_slots="$json_slots,"
+      json_slots="$json_slots{\"slot\":$i,\"state\":\"$state\",\"branch\":\"$branch\",\"pid\":\"$pid\",\"age_s\":$age_s,\"files\":\"$files\",\"cached\":$cached,\"path\":\"$slot\"}"
+    else
+      case "$state" in
+        busy)
+          local age_str=""
+          [ "$age_s" -gt 0 ] && age_str=" $(human_age $age_s)"
+          echo "slot $i: busy (branch=$branch pid=$pid${age_str}${files:+ files=$files})" >&2 ;;
+        abandoned)
+          echo "slot $i: abandoned (branch=$branch pid=$pid) — reclaimable" >&2 ;;
+        free)
+          [ "$cached" = true ] && echo "slot $i: free (cached)" >&2 || echo "slot $i: free" >&2 ;;
+      esac
     fi
   done
 
-  echo "total=$total busy=$busy free=$free"
+  local crash_state=""
+  [ -f "$STATE_FILE" ] && crash_state=$(cat "$STATE_FILE")
+
+  if [ "$json_mode" = true ]; then
+    echo "{\"total\":$total,\"busy\":$busy,\"free\":$free,\"slots\":[$json_slots]${crash_state:+,\"crash_state\":\"$crash_state\"}}"
+  else
+    [ -n "$crash_state" ] && echo "crash_state: $crash_state" >&2
+    echo "total=$total busy=$busy free=$free"
+  fi
 }
 
 cmd_recover() {
@@ -725,12 +793,14 @@ cmd_recover() {
 
 # Acquire lock for all commands except recover (which cleans up locks)
 case "${1:-}" in
-  recover|status) ;;
-  "") ;;
+  recover|status|list|ls|help|-h|--help|"") ;;
   *) acquire_lock ;;
 esac
 
-preflight_check "${1:-help}"
+case "${1:-}" in
+  help|-h|--help|"") ;;
+  *) preflight_check "${1:-help}" ;;
+esac
 
 case "${1:-}" in
   create)  shift; cmd_create "$@" ;;
@@ -738,19 +808,46 @@ case "${1:-}" in
   merge)   shift; cmd_merge "$@" ;;
   yolo)    shift; cmd_yolo "$@" ;;
   cleanup) shift; cmd_cleanup "$@" ;;
-  status)  cmd_status ;;
+  status|list|ls)  shift; cmd_status "$@" ;;
   recover) cmd_recover ;;
+  help|-h|--help|"")
+    cat >&2 <<'HELP'
+forge-lite — Crash-proof worktree isolation for AI agent subprocesses
+
+Usage: forge-lite.sh <command> [args]
+
+Commands:
+  create  <task-name> [opts]     Create worktree + feature branch
+  verify  <worktree-path>        Run build + typecheck + tests
+  merge   <worktree-path> [msg]  Rebase + merge to main + cleanup
+  yolo    <worktree-path> [msg]  Verify + merge in one shot
+  status  [--json]               Show slot states (alias: list, ls)
+  cleanup <worktree-path>        Remove worktree without merging
+  recover                        Recover from a previous crash
+
+Create options:
+  --files "a.ts,b.ts"    Declare files to detect overlap with busy slots
+  --caller-pid <pid>     PID for liveness tracking (slot auto-reclaim)
+  --no-install           Skip dependency installation
+  --json                 Output JSON: {"path","branch","slot"}
+
+Output:
+  create  → stdout: worktree path (or JSON with --json)
+  status  → stdout: total=N busy=N free=N (or JSON with --json)
+  All log messages → stderr (safe to parse stdout)
+
+Environment variables:
+  FORGE_SLOTS              Number of persistent slots (default: 3)
+  FORGE_SLOT_TTL_MINUTES   Slot abandoned timeout in minutes (default: 60)
+  FORGE_STALE_HOURS        Auto-prune worktrees older than this (default: 24)
+  FORGE_DECAY_TTL_MS       Failed worktree decay TTL in ms (used by delegation.ts)
+
+Exit codes: 0 = success, 1 = failure, 2 = file overlap (retry later)
+HELP
+    exit 1
+    ;;
   *)
-    echo "Usage: forge-lite.sh <create|verify|merge|yolo|cleanup|status|recover> [args]" >&2
-    echo "" >&2
-    echo "Commands:" >&2
-    echo "  create <task-name>              Create worktree + feature branch" >&2
-    echo "  verify <worktree-path>          Run typecheck + tests" >&2
-    echo "  merge  <worktree-path> [msg]    Merge to main + cleanup" >&2
-    echo "  yolo   <worktree-path> [msg]    Verify + merge in one shot" >&2
-    echo "  cleanup <worktree-path>         Remove worktree without merging" >&2
-    echo "  status                          Show slot states (busy/free/abandoned)" >&2
-    echo "  recover                         Recover from a previous crash" >&2
+    echo "Unknown command: $1 — run 'forge-lite.sh help'" >&2
     exit 1
     ;;
 esac
