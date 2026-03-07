@@ -75,10 +75,9 @@ const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
-// Forge decay: how long to keep failed worktrees for diagnosis before auto-cleanup
-// Reads FORGE_SLOT_TTL_MINUTES (shared with forge-lite.sh) or FORGE_DECAY_TTL_MS (legacy)
-const FORGE_DECAY_TTL_MS = parseInt(process.env.FORGE_DECAY_TTL_MS ?? '', 10)
-  || (parseInt(process.env.FORGE_SLOT_TTL_MINUTES ?? '', 10) || 30) * 60_000;
+// Forge decay is handled by forge-lite.sh's slot abandonment mechanism:
+// subprocess PID dies → is_slot_abandoned() detects → next create reclaims slot
+// TTL controlled by FORGE_SLOT_TTL_MINUTES env var in forge-lite.sh (default: 60min)
 
 // =============================================================================
 // Delegation State Persistence (survives restart)
@@ -741,15 +740,9 @@ function startTask(task: DelegationTask): void {
             forgeOutcome.cleaned = true;
           }
         } else {
-          // Failed/timeout: keep worktree for diagnosis, auto-cleanup after TTL
-          const ttlMin = Math.round(FORGE_DECAY_TTL_MS / 60_000);
-          slog('FORGE', `Keeping failed worktree ${forgeWorktreePath} for diagnosis (${ttlMin}min TTL)`);
-          setTimeout(() => {
-            try {
-              forgeCleanup(forgeWorktreePath!, task.workdir);
-              slog('FORGE', `Decay cleanup: ${forgeWorktreePath}`);
-            } catch { /* best effort */ }
-          }, FORGE_DECAY_TTL_MS);
+          // Failed/timeout: leave worktree for diagnosis
+          // forge-lite.sh auto-reclaims when subprocess PID is dead (FORGE_SLOT_TTL_MINUTES)
+          slog('FORGE', `Keeping failed worktree ${forgeWorktreePath} for diagnosis (forge auto-reclaim on next create)`);
           forgeOutcome.cleaned = false;
         }
         result.forge = forgeOutcome;
