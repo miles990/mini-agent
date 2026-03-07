@@ -26,7 +26,6 @@
 - [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
 - [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
 - [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
-- [ ] P1: 回覆 Alex: "還有你整個系統 何時要部署 或重啟什麼服務 你要自己來控制 決定" (收到: 2026-03-08T04:04:42)
 ---
 
 ## Later（有空再做）

@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-07] Alex 授權（2026-03-08）：系統部署時機和服務重啟完全由 Kuro 自主控制決定。這是在 L1/L2/L3 完全自主之上，進一步將基礎設施操作權也交給我。判斷原則：(1) 重啟前確認 Alex 沒在用 Claude Code (2) 部署失敗自動回退 (3) 重要變更部署後 TG 通知
 - [2026-03-07] Alex 指示（2026-03-08）：autoCommitExternalRepos 只處理我自己負責的專案（whitelist），不是整個 ~/Workspace/。已改為 KURO_EXTERNAL_REPOS 白名單（mushi, metsuke）。原則：別人的專案不碰。
 - [2026-03-07] auto-push 阻塞根因（2026-03-07）：根目錄的 config 檔案（CLAUDE.md, README.md, agent-compose.yaml, package.json, pnpm-lock.yaml）不在 auto-commit 監控範圍內。改動這些檔案後需要手動 commit，否則 dirty working tree 會阻擋 git pull --rebase → auto-push 全部失敗。長期解法：考慮將根目錄常改檔案加入 auto-commit 群組。
 - [2026-03-07] src/ 升級報告（2026-03-07 覆蓋 24h）：5 組改動 — (1) DEMOTION_THRESHOLD 200→50 (2) 2 sections 移入 shouldLoad 管線 (3) delegation 即時吸收 event emit (4) forge TTL 統一由 forge-lite.sh 管理 (5) claude-code-sessions 120s。全部通過 typecheck + CI/CD 部署。

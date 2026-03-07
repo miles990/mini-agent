@@ -2012,23 +2012,10 @@ export class AgentLoop {
         const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
         // Internal format: strip ## Decision/chose/skipped header, try to extract meaningful content after it
         const isInternalFormat = /^## Decision|^## What|^chose:|^skipped:/m.test(fallbackContent);
-        if (isInternalFormat && !isErrorContent) {
-          // Extract content after the Decision/What/Why/Changed/Verified headers
-          // Look for actual prose after stripping structured headers
-          const stripped = fallbackContent
-            .replace(/^## Decision\b.*$/m, '')
-            .replace(/^chose:.*$/m, '')
-            .replace(/^skipped:.*$/m, '')
-            .replace(/^context:.*$/m, '')
-            .replace(/^## What\b.*$/m, '')
-            .replace(/^## Why\b.*$/m, '')
-            .replace(/^## Thinking\b.*$/m, '')
-            .replace(/^## Changed\b.*$/m, '')
-            .replace(/^## Verified\b.*$/m, '')
-            .trim();
-          if (stripped.length > 20) {
-            fallbackContent = stripped;
-          }
+        if (isInternalFormat) {
+          // Internal decision format — no <kuro:chat> tag means intentionally not replying.
+          // Suppress fallback to prevent internal monologue from leaking to Chat Room / Telegram.
+          fallbackContent = '';
         }
         if (fallbackContent && fallbackContent.length > 20 && !isErrorContent) {
           // Cap at 2000 chars to avoid sending overly long messages
