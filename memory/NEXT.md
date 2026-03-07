@@ -22,6 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
+- [ ] P1: 回覆 Alex: "你其實有用 forge 已經放在delegation裡了 delegation完forge的目錄就刪了 還是你會希望他的目錄不要這個快刪 跟黏菌的觸手一樣有一個衰退期？" (收到: 2026-03-07T08:10:43)
 ---
 
 ## Later（有空再做）
