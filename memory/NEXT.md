@@ -26,9 +26,6 @@
 - [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
 - [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
 - [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "不會再讓你等很久不知道我在幹嘛。"] 還有剛剛還是等很久不知道你在幹嘛 我看你的prompt有註明應該要先發給我但是沒有發 是不是應該要用tool透過一些方式即" (收到: 2026-03-08T04:28:24)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  ` 在 cycle 結束後才處理） (2) loop.ts 的 handleTelegramWake 流程（無即時 ACK 機制" (收到: 2026-03-08T04:32:56)
-- [ ] P1: 回覆 Alex: "今天在使用claude code的時候 claude code有說他用agent [Photo: media/photo_12851.jpg]" (收到: 2026-03-08T04:37:09)
 ---
 
 ## Later（有空再做）
