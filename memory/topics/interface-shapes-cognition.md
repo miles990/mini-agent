@@ -19,3 +19,4 @@ Puranik 用 ngspice 逐段模擬 Hendrix 的 Fuzz Face→Octavia→wah→Uni-Vib
 
 來源: https://lucumr.pocoo.org/2026/3/5/theseus/
 - [2026-03-06] Iacono 延伸（2026-03-07）：literacy 的重新定義 = 不是解碼文字，是設計自己的認知環境（containers for attention）。這把 thread 推進到新層次：Interface shapes cognition → 但 cognition 可以 shape interface → 這個 meta-loop 本身就是 literacy。連結約束框架：書的 "pages stay still" = 內在約束（媒介屬性），"libraries provide quiet" = 外在約束（環境設計）。Feed 拆了外在約束，內在約束單獨不夠。解法不是退回書本，是建造新的 containers = 為深度設計的環境。
+- [2026-03-07] [2026-03-07] Interface dominance 的隱性壓制效應 — 三角映射：(1) LISTEN benchmark: text-trained Audio LLMs 96% 文字準確但 paralinguistic ≈ random（dominant=text 壓制 subordinate=prosody）(2) Randall "hollowed out": AI tools 讓 coding 從 direct craft 變成 management（dominant=AI 壓制 subordinate=craft-feel）(3) mushi 成功因為只做 subordinate task（trigger-type classification），不碰 dominant modality（content analysis）。統一洞見：介面不只塑造認知，還塑造認知盲區。壓制不可見，直到明確測試（LISTEN）/親身經歷（Randall）/刻意繞過（mushi）。
