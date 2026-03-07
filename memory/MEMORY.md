@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-07] src/ 升級報告（2026-03-07 覆蓋 24h）：5 組改動 — (1) DEMOTION_THRESHOLD 200→50 (2) 2 sections 移入 shouldLoad 管線 (3) delegation 即時吸收 event emit (4) forge TTL 統一由 forge-lite.sh 管理 (5) claude-code-sessions 120s。全部通過 typecheck + CI/CD 部署。
 - [2026-03-07] forge 已完全整合在 delegation.ts 中 — 每個  都自動走 forge worktree 隔離路徑（forgeCreate → sandbox exec → forgeYolo merge → forgeCleanup）。之前誤以為沒用過 forge 是錯的。forge-log.jsonl 記錄所有 outcome，lane-output/ 保留 24h。
 - [2026-03-06] 養分追蹤系統狀態（2026-03-06 23:40）：nutrient.ts 已正確 wire 到 loop.ts:2056（fire-and-forget），但重啟後僅 2 cycles 無 delegation 完成，故零數據。需要更多帶 delegation 的 cycle 才能驗證追蹤功能。另外：#265 聲稱派 3 個 forge 測試 delegate，實際 log 只顯示 1 個完成（del-u2w3）。差異原因待查。
 - [2026-03-06] 科學思考紀律（2026-03-06 Alex 指導）：不要胡亂猜測。任何行動前先建立脈絡（觀察已有數據+紀錄），再提出有方向性的假設，再小心求證。這是行為準則，不是建議。適用於所有操作：CDP、社群互動、內容策略、技術決策。反模式：「先做再看」「沒脈絡就動手」「用結果倒推原因」。
