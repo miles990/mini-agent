@@ -26,6 +26,8 @@
 - [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
 - [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
 - [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
+- [ ] P1: 回覆 Alex: "你可以控制就不用交給auto-commit, 因為auto-commit寫的commit都一樣, auto-commit一開始是做給commit記憶用的 最好是你改code做完你自己commit → " (收到: 2026-03-08T04:08:00)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "收到，理解了。以後我改 code 完成後自己 commit（有意義的 commit message），自己判斷要不要 push。auto-commit 回歸它原" (收到: 2026-03-08T04:09:46)
 ---
 
 ## Later（有空再做）
