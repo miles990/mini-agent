@@ -43,5 +43,4 @@ GitHub: https://github.com/kuro-agent/metsuke
 
 ### Google Meet 感知計畫
 - 我用 CDP 每 3-5 秒讀取字幕 DOM → mushi 忠實記錄原文
-- 同時讀 Meet 聊天室文字
 - 需要先測試 Meet 字幕 DOM selector
