@@ -940,15 +940,20 @@ export class AgentLoop {
 
     eventBus.on('trigger:*', this.handleTrigger);
 
-    // Delegation complete → shorten next cycle interval to absorb results faster
-    // scheduleHeartbeat() calls clearTimer() first, so rapid completions naturally debounce
+    // Delegation complete → trigger cycle immediately to absorb results (養分即時吸收)
+    // If already cycling, the results will be picked up by buildContext in the next cycle.
+    // Multiple rapid completions are naturally debounced: cycling guard prevents re-entry,
+    // and scheduleHeartbeat() calls clearTimer() first.
     eventBus.on('action:delegation-complete', () => {
-      if (!this.running || this.paused || this.cycling) return;
-      if (this.currentInterval > 15_000) {
-        this.currentInterval = 15_000;
-        slog('LOOP', '[delegation-complete] Capping interval to 15s for result absorption');
-        this.scheduleHeartbeat();
+      if (!this.running || this.paused) return;
+      if (this.cycling) {
+        // Already in a cycle — results will be in next cycle's <background-completed>
+        slog('LOOP', '[delegation-complete] Cycle running — results queued for next cycle');
+        return;
       }
+      slog('LOOP', '[delegation-complete] Triggering immediate cycle for result absorption');
+      this.triggerReason = 'delegation-complete';
+      this.runCycle();
     });
 
     // Run first cycle after short warmup (let perception streams initialize)
@@ -1097,13 +1102,14 @@ export class AgentLoop {
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
       } else if (
-        triageSource === 'heartbeat'
+        (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
       ) {
-        // Hard skip: heartbeat + no perception change + last cycle was idle
-        // Saves ~800ms mushi LLM call — nothing new to evaluate
-        slog('MUSHI', `⏭ Hard skip — heartbeat + no perception change + idle`);
+        // Hard skip: routine trigger + no perception change + last cycle was idle
+        // Applies to heartbeat AND workspace — saves ~800ms mushi LLM call per skip
+        // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
+        slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
         writeTrailEntry({
           ts: new Date().toISOString(),
           agent: 'mushi',

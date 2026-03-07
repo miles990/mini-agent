@@ -1522,7 +1522,10 @@ export class InstanceMemory {
       continuation:  { conversations: 3,  topicMemory: 2000, extraHints: [] },
       startup:       { conversations: 10, topicMemory: 6000, extraHints: [] },
     };
-    const tBudget = mode === 'focused' ? (triggerBudgets[triggerBase] ?? null) : null;
+    // Trigger-aware budgeting: apply to ALL modes (not just focused).
+    // DM triggers (telegram/room/chat) are NOT in the table → get null → full loading.
+    // Non-DM triggers (heartbeat/workspace/cron) get lighter budgets → smaller context.
+    const tBudget = triggerBudgets[triggerBase] ?? null;
 
     const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
@@ -1714,8 +1717,8 @@ export class InstanceMemory {
       }
     }
 
-    // ── Activity Journal（skip in light mode）──
-    if (!isLight) {
+    // ── Activity Journal（skip in light mode, auto-demotion aware）──
+    if (!isLight && shouldLoad('recent-activity')) {
       const { formatActivityJournal } = await import('./activity-journal.js');
       const activityJournal = formatActivityJournal();
       if (activityJournal) {
@@ -1731,20 +1734,20 @@ export class InstanceMemory {
       }
     }
 
-    // Decision quality warning（skip in light mode）
-    if (!isLight) {
+    // Decision quality warning（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('decision-quality-warning')) {
       const warning = readFlagCached(path.join(getMemoryStateDir(), 'decision-quality-warning.flag'));
       if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
     }
 
-    // Structural health warning（skip in light mode）
-    if (!isLight) {
+    // Structural health warning（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('structural-health')) {
       const warning = readFlagCached(path.join(getMemoryStateDir(), 'structural-health-warning.flag'));
       if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
     }
 
-    // Route Efficiency（skip in light mode — slime mold nutrient path metrics）
-    if (!isLight) {
+    // Route Efficiency（skip in light mode — slime mold nutrient path metrics, auto-demotion aware）
+    if (!isLight && shouldLoad('route-efficiency')) {
       try {
         const { buildRouteSection } = await import('./route-tracker.js');
         const routeCtx = buildRouteSection();
@@ -1752,8 +1755,8 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
-    // Stale Tasks（skip in light mode）
-    if (!isLight) {
+    // Stale Tasks（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('stale-tasks')) {
       const staleWarnings = readStaleTaskWarnings();
       if (staleWarnings.length > 0) {
         const staleLines = staleWarnings.map(w =>

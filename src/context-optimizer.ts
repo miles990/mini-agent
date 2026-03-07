@@ -76,6 +76,11 @@ export const SECTION_KEYWORDS: Record<string, string[]> = {
   achievements: ['achievement', 'milestone', 'ship', 'momentum'],
   coach: ['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'],
   commitments: ['commitment', 'promise', 'overdue', 'committed', 'pledge'],
+  'route-efficiency': ['route', 'efficiency', 'nutrient', 'slime', 'path', 'forge'],
+  'stale-tasks': ['stale', 'overdue', 'stuck', 'abandon', 'backlog'],
+  'recent-activity': ['activity', 'behavior', 'journal', 'recent action', 'what did'],
+  'decision-quality-warning': ['quality', 'decision', 'score', 'depth', 'dq'],
+  'structural-health': ['health', 'structural', 'report', 'upgrade', 'commit'],
 };
 
 // =============================================================================

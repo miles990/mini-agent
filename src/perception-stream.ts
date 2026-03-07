@@ -50,6 +50,19 @@ const INTERVALS: Record<string, number> = {
   heartbeat: 30 * 60_000, // 30min
 };
 
+/** Parse interval string (e.g. "30s", "5m", "1h") to milliseconds */
+function parseInterval(str: string): number | null {
+  const match = str.match(/^(\d+)(s|m|h)$/);
+  if (!match) return null;
+  const val = parseInt(match[1]);
+  switch (match[2]) {
+    case 's': return val * 1000;
+    case 'm': return val * 60_000;
+    case 'h': return val * 3_600_000;
+    default: return null;
+  }
+}
+
 // Plugin name → category
 const CATEGORY_MAP: Record<string, string> = {
   'state-changes': 'workspace',
@@ -130,11 +143,12 @@ class PerceptionStreamManager {
       // Initial run (don't await — fire-and-forget)
       this.tick(entry);
 
-      // Schedule by category
+      // Schedule by category (per-plugin interval override from compose takes priority)
       if (category === 'telegram') {
         eventBus.on('trigger:telegram', () => this.tick(entry));
       } else {
-        const interval = INTERVALS[category] ?? INTERVALS.heartbeat;
+        const pluginInterval = p.interval ? parseInterval(p.interval) : null;
+        const interval = pluginInterval ?? INTERVALS[category] ?? INTERVALS.heartbeat;
         entry.timer = setInterval(() => this.tick(entry), interval);
       }
     }
