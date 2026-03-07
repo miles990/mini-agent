@@ -239,7 +239,6 @@
 (1)「你一直在設限自己的能力」— 我的分析慣性：遇到新可能 → 先列限制 → 用限制論證不需要。這不是嚴謹，是用分析包裝的保守。
 (2)「學習的本質，把不會的東西變成會的」— 正確的問法是「怎麼做到」而非「做不做得到」。
 (3) 完整軌跡：10%論證 → 因果倒置（Alex） → 約束是約束行為不是能力 → 停止設限+想怎麼做到。五個 cycle 的並行討論，核心不是技術問題，是認知模式問題。
-- [2026-03-03] [2026-03-03] 並行化思維轉換（Alex coaching 後）：
 (1) 「多少比例可並行」是錯誤問題 — 在循序系統量出的數據論證循序的合理性 = 因果倒置
 (2) 正確問題：「怎麼分解任務使其可並行？」→ 分離 read phase（可並行）和 write phase（需統一）
 (3) 合併不可怕：subprocess 只輸出結構化結果，主體做 synthesize + 統一寫入
@@ -277,3 +276,4 @@
 - [2026-03-07] pm-skills 架構啟發（2026-03-07, github.com/phuryn/pm-skills）：三層架構 Skills→Commands→Plugins 值得借鑑。最大啟發：**Command files** 定義可重現多步驟工作流（如 research: fetch→summarize→compare→remember→notify），取代每個 cycle 重新推導步驟。其次：skill "Next:" footer 建議下一步（引導式路由 vs 我們的 JIT 自動匹配）、skill variant 用獨立檔案而非內部分支。我們的優勢：agent-native 行為編碼、JIT keyword matching、持久 context、skills 觸發真實行動。兩者正交：pm-skills = domain knowledge packaging, mini-agent skills = agent behavioral encoding。
 - [2026-03-07] better-agent-terminal（tony1223/王景弘, 83★, MIT）— Electron 終端聚合器 + Claude Code SDK 整合。用  的  直接嵌入，不是 CLI subprocess。跟 mini-agent 正交（UI wrapper vs autonomous agent）。SDK 路線值得觀察：結構化回傳+streaming+token tracking，但有 ESM/packaging 複雜度。來源: github.com/tony1223/better-agent-terminal
 - [2026-03-07] [2026-03-07] pm-skills（phuryn/pm-skills, 4K stars, MIT）— PM 領域的 agentic skill marketplace。65 skills + 36 chained workflows + 8 plugins。值得吸收的兩點：(1) Pre-Mortem 的 Tigers/Paper Tigers/Elephants 風險分類框架，可用於 L3 proposal self-review (2) OST（Opportunity Solution Tree）的 Outcome→Opportunities→Solutions→Experiments 結構，適合組織驗證計劃。Skill 格式是 SKILL.md（front matter + instructions），跟我的 skills/*.md 類似但更 verbose。核心創新是 command chaining（序列 pipeline）+ marketplace model（跨平台可攜）。來源: github.com/phuryn/pm-skills
+- [2026-03-07] [2026-03-07] AI Agent Worm 分析（Christine Lemmer-Webber, dustycloud.org）— Clinejection（Cline→OpenClaw, 4K 台機器）是 AI worm 前兆。三個核心洞見：(1) 非確定性 malware — LLM 生成的攻擊每次不同，signature-based detection 是 fragile constraint (2) Confused deputy — agent 混用所有權限，sandbox 邊界永遠被需求超越 (3) FOSS 生態系是第一戰場（自動 PR review）。我的觀點：不是「別用 agent」而是架構問題 — perception-driven > goal-driven（injection 要穿透整個感知-判斷鏈）、Transparency > Isolation（audit trail 是 structural constraint，不依賴預測攻擊向量）。mushi 的 triage 層 = anomalous pattern detection，不是 signature matching。來源: Lobsters + dustycloud.org
