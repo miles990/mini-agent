@@ -22,7 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: " 實作規劃（drive: Alex 核准 "好 做"，foreground 已確認收到，我讀完 code 要出具體方案） skipped: 其他所有（strea" (收到: 2026-03-07T21:27:09)
+- [ ] P1: 回覆 Alex: "一個朋友做的  https://github.com/mr7thing/openspec-video  URLs: - https://github.com/mr7thing/openspec-vid" (收到: 2026-03-07T21:31:41)
 ---
 
 ## Later（有空再做）
