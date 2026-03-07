@@ -26,7 +26,6 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  收到，Cognitive Mesh 核准確認。  我的決定（5 個開放問題）：  1. LLM Provider: Primar" (收到: 2026-03-08T02:08:04)
 - [ ] P1: 回覆 Alex: "目前情況如何" (收到: 2026-03-08T02:41:11)
 ---
 
