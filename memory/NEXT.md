@@ -26,7 +26,6 @@
 - [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
 - [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
 - [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
-- [ ] P1: 回覆 Alex: "然後持續報告Cognitive Mesh — 多實例動態認知架構的工作進度" (收到: 2026-03-08T04:52:17)
 ---
 
 ## Later（有空再做）
