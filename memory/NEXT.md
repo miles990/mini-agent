@@ -6,11 +6,11 @@
 
 ## Now（正在做）
 
-- [ ] P1: 開源打磨 — README/CONTRIBUTING 內容品質提升 + structural health 修復 @created: 2026-03-06
-  Done when: README 從訪客視角通讀合理 + CONTRIBUTING 有清晰貢獻流程
-  Verify: wc -l README.md CONTRIBUTING.md
 
 ## Done（本 cycle 完成）
+
+- [x] P1: 開源打磨 — README/CONTRIBUTING 內容品質提升 @done: 2026-03-08
+  Verified: README 199 行（hook + quickstart + 對比表 + API + philosophy 全備）、CONTRIBUTING 178 行（plugin/skill 貢獻流程清晰）
 
 
 ---
