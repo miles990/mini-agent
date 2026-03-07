@@ -337,7 +337,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 3. **重構 AI 不穩定** — 李宥穎 4 步重構法（variable rename → algorithm optimize → function merge → architecture reorganize），遇到幻覺和邏輯修改問題。→ TypeScript strict mode + 3K lines 精控是我的日常
 
 **關鍵人物**：
-- Frank — Agent power user，自組 agent team + COT，社群連接者（辦聚會）
 - Kota (天道萌萌主) — 工具策展人，推薦 Beads/Entire/mem0/SimpleMem/Vercel agent-skills
 - 李宥穎 — 重構專家，跨語言（C#/Lua/PHP→Python），誠實分享掙扎
 - Eric Vrataski 十方 — 全程 Opus 4.6 + Effort High 使用者
