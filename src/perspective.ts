@@ -1,126 +1,15 @@
 /**
- * Perspective System — Cognitive Mesh Phase 3b
+ * Mesh Output — Cognitive Mesh result flow-back
  *
- * Same identity (SOUL.md), different attention focus.
- * Each Perspective defines which perceptions and skills to load,
- * reducing context size for Specialist instances.
- *
- * Primary: full context (~50K chars)
- * chat:    base + 3 perceptions + 2 skills (~15K chars, 30%)
- * research: base + 4 perceptions + 2 skills (~20K chars, 40%)
- * code:    base + 4 perceptions + 2 skills (~18K chars, 36%)
+ * Primary instance consumes task outputs from Specialist instances.
+ * Specialists write JSON files to mesh-output/, Primary reads and deletes them.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type { PerspectiveConfig, MeshTaskOutput, ComposeAgentV2 } from './types.js';
-import type { PerspectiveType } from './task-router.js';
+import type { MeshTaskOutput } from './types.js';
 import { getDataDir } from './instance.js';
 import { slog } from './utils.js';
-
-// =============================================================================
-// Default Perspectives
-// =============================================================================
-
-const DEFAULT_PERSPECTIVES: Record<PerspectiveType, PerspectiveConfig> = {
-  primary: {
-    perception: 'all',
-    skills: 'all',
-    canWriteMemory: true,
-    canSendTelegram: true,
-    maxConcurrent: 1,
-  },
-  chat: {
-    perception: ['telegram-inbox', 'chat-room-inbox', 'focus-context'],
-    skills: ['web-research', 'discussion-participation'],
-    canWriteMemory: false,
-    canSendTelegram: true,
-    maxConcurrent: 1,
-  },
-  research: {
-    perception: ['web', 'chrome', 'x-feed', 'environment-sense'],
-    skills: ['web-research', 'web-learning'],
-    canWriteMemory: false,
-    canSendTelegram: false,
-    maxConcurrent: 2,
-  },
-  code: {
-    perception: ['workspace', 'state-changes', 'github-issues', 'github-prs'],
-    skills: ['debug-helper', 'github-ops'],
-    canWriteMemory: false,
-    canSendTelegram: false,
-    maxConcurrent: 2,
-  },
-};
-
-// Active perspective for this instance
-let currentPerspective: PerspectiveType = 'primary';
-let perspectiveConfig: PerspectiveConfig = DEFAULT_PERSPECTIVES.primary;
-
-// =============================================================================
-// Perspective Management
-// =============================================================================
-
-/**
- * Set the perspective for this instance.
- */
-export function setPerspective(perspective: PerspectiveType, config?: PerspectiveConfig): void {
-  currentPerspective = perspective;
-  perspectiveConfig = config ?? DEFAULT_PERSPECTIVES[perspective] ?? DEFAULT_PERSPECTIVES.primary;
-}
-
-/**
- * Get current perspective.
- */
-export function getCurrentPerspective(): PerspectiveType {
-  return currentPerspective;
-}
-
-/**
- * Get current perspective config.
- */
-export function getPerspectiveConfig(): PerspectiveConfig {
-  return perspectiveConfig;
-}
-
-/**
- * Check if a perception plugin should be loaded for current perspective.
- */
-export function shouldLoadPerception(pluginName: string): boolean {
-  if (perspectiveConfig.perception === 'all') return true;
-  return perspectiveConfig.perception.includes(pluginName);
-}
-
-/**
- * Check if a skill should be loaded for current perspective.
- */
-export function shouldLoadSkill(skillName: string): boolean {
-  if (perspectiveConfig.skills === 'all') return true;
-  return perspectiveConfig.skills.includes(skillName);
-}
-
-/**
- * Get default perspective config by type.
- */
-export function getDefaultPerspective(type: PerspectiveType): PerspectiveConfig {
-  return DEFAULT_PERSPECTIVES[type] ?? DEFAULT_PERSPECTIVES.primary;
-}
-
-// =============================================================================
-// Compose v2 Integration
-// =============================================================================
-
-/**
- * Load perspectives from compose v2 agent config.
- * Falls back to defaults if no perspectives defined (v1 compat).
- */
-export function loadPerspectives(agent: ComposeAgentV2): Record<string, PerspectiveConfig> {
-  if (agent.perspectives) {
-    return agent.perspectives;
-  }
-  // v1 compatibility: no perspectives = pure primary
-  return { primary: DEFAULT_PERSPECTIVES.primary };
-}
 
 // =============================================================================
 // Mesh Output (Result Flow-back)
@@ -128,24 +17,12 @@ export function loadPerspectives(agent: ComposeAgentV2): Record<string, Perspect
 
 const MESH_OUTPUT_DIR = 'mesh-output';
 
-/**
- * Get the mesh output directory path.
- */
 function getMeshOutputDir(): string {
   const dir = path.join(getDataDir(), MESH_OUTPUT_DIR);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
   return dir;
-}
-
-/**
- * Write task output (called by Specialist instances).
- */
-export function writeMeshOutput(output: MeshTaskOutput): void {
-  const dir = getMeshOutputDir();
-  const filename = `${output.taskId}.json`;
-  fs.writeFileSync(path.join(dir, filename), JSON.stringify(output, null, 2));
 }
 
 /**

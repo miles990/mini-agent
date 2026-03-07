@@ -51,7 +51,7 @@ import { router, createEvent, classifyTrigger, logRoute, Priority } from './even
 import { routeTask, getClusterState } from './task-router.js';
 import { evaluateScaling } from './scaling.js';
 import { buildMeshCompletedSection, cleanupMeshOutputs } from './perspective.js';
-import { handleMeshRoute, executeScaling, drainMeshQueue } from './mesh-handler.js';
+import { handleMeshRoute, executeScaling } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import type { LoopState } from './event-router.js';
 import {

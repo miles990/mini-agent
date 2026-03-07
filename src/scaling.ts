@@ -58,7 +58,7 @@ export function setScalingConfig(partial: Partial<ScalingConfig>): void {
   config = { ...config, ...partial };
 }
 
-export function getScalingConfig(): ScalingConfig {
+function getScalingConfig(): ScalingConfig {
   return { ...config };
 }
 

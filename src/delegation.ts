@@ -430,15 +430,6 @@ export function spawnDelegation(task: DelegationTask): string {
 }
 
 /**
- * Get result of a delegation task.
- */
-export function getTaskResult(taskId: string): TaskResult | null {
-  const active = activeTasks.get(taskId);
-  if (active) return active.result;
-  return completedTasks.get(taskId) ?? null;
-}
-
-/**
  * List all tasks (active + optionally completed).
  */
 export function listTasks(options?: { includeCompleted?: boolean }): TaskResult[] {

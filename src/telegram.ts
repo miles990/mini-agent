@@ -1353,11 +1353,6 @@ export function flushSummary(): string | null {
   return digest;
 }
 
-/** 取得 summary buffer 目前的筆數（供 /status 用） */
-export function getSummaryBufferSize(): number {
-  return summaryBuffer.length;
-}
-
 /**
  * 發送圖片到 Telegram（使用 TelegramPoller.sendPhoto）
  */
@@ -1386,31 +1381,4 @@ export function clearLastReaction(): void {
   pollerInstance?.clearLastReaction();
 }
 
-/**
- * Chrome CDP 截圖並發送到 Telegram
- * 依賴 Chrome CDP 運行，失敗時靜默返回 false
- */
-export async function notifyScreenshot(caption?: string): Promise<boolean> {
-  const poller = pollerInstance;
-  if (!poller) return false;
 
-  const screenshotPath = '/tmp/mini-agent-screenshot.png';
-
-  try {
-    const { execFile: execFileCb } = await import('node:child_process');
-    const { promisify } = await import('node:util');
-    const execFileAsync = promisify(execFileCb);
-
-    const scriptPath = path.join(
-      import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
-      '..', 'scripts', 'cdp-fetch.mjs',
-    );
-
-    await execFileAsync('node', [scriptPath, 'screenshot', '', screenshotPath], { timeout: 15000 });
-  } catch {
-    slog('TELEGRAM', 'Screenshot failed: Chrome CDP not available');
-    return false;
-  }
-
-  return sendTelegramPhoto(screenshotPath, caption);
-}
