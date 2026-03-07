@@ -67,13 +67,14 @@ describe('ContextOptimizer', () => {
 
     it('resets counter when section is cited', () => {
       const opt = new ContextOptimizer();
+      const SUB_THRESHOLD = DEMOTION_THRESHOLD - 1;
 
-      // Run 150 cycles with no citations
-      for (let i = 0; i < 150; i++) {
+      // Run cycles below threshold — should NOT demote
+      for (let i = 0; i < SUB_THRESHOLD; i++) {
         opt.recordCycle({ citedSections: [] });
       }
 
-      expect(opt.getState().zeroCounts['temporal']).toBe(150);
+      expect(opt.getState().zeroCounts['temporal']).toBe(SUB_THRESHOLD);
 
       // Cite 'temporal' — should reset counter
       opt.recordCycle({ citedSections: ['temporal'] });
@@ -81,13 +82,13 @@ describe('ContextOptimizer', () => {
       expect(opt.getState().zeroCounts['temporal']).toBe(0);
       expect(opt.isDemoted('temporal')).toBe(false);
 
-      // Run another 150 cycles — should NOT demote (counter was reset)
-      for (let i = 0; i < 150; i++) {
+      // Run same number of cycles again — should NOT demote (counter was reset, still below threshold)
+      for (let i = 0; i < SUB_THRESHOLD; i++) {
         opt.recordCycle({ citedSections: [] });
       }
 
       expect(opt.isDemoted('temporal')).toBe(false);
-      expect(opt.getState().zeroCounts['temporal']).toBe(150);
+      expect(opt.getState().zeroCounts['temporal']).toBe(SUB_THRESHOLD);
     });
   });
 

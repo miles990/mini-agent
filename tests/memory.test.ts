@@ -248,12 +248,12 @@ describe('InstanceMemory', () => {
 
       await fs.writeFile(
         path.join(topicsDir, 'gen-art.md'),
-        '# Gen Art\n- Perlin noise techniques\n',
+        '---\nkeywords: [gen-art, generative, art, noise]\n---\n# Gen Art\n- Perlin noise techniques\n',
         'utf-8'
       );
       await fs.writeFile(
         path.join(topicsDir, 'mini-agent.md'),
-        '# Mini Agent\n- Dispatcher architecture\n',
+        '---\nkeywords: [mini-agent, dispatcher, architecture]\n---\n# Mini Agent\n- Dispatcher architecture\n',
         'utf-8'
       );
       await fs.writeFile(
@@ -362,12 +362,12 @@ describe('InstanceMemory', () => {
       ).join('\n');
       await fs.writeFile(
         path.join(topicsDir, 'gen-art.md'),
-        `# Gen Art Topics\n${entries}\n`,
+        `---\nkeywords: [gen-art, generative, art]\n---\n# Gen Art Topics\n${entries}\n`,
         'utf-8'
       );
       await fs.writeFile(
         path.join(topicsDir, 'mini-agent.md'),
-        `# Mini Agent Topics\n${entries}\n`,
+        `---\nkeywords: [mini-agent, dispatcher, architecture]\n---\n# Mini Agent Topics\n${entries}\n`,
         'utf-8'
       );
     });

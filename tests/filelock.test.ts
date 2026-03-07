@@ -1,9 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { withFileLock } from '../src/filelock.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
+
+const tmpDir = nodePath.join(os.tmpdir(), 'mini-agent-filelock-test');
+
+function tmpPath(name: string): string {
+  const p = nodePath.join(tmpDir, name);
+  fs.mkdirSync(nodePath.dirname(p), { recursive: true });
+  return p;
+}
+
+afterEach(() => {
+  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ok */ }
+});
 
 describe('withFileLock', () => {
   it('should execute operation and return result', async () => {
-    const result = await withFileLock('/fake/path', async () => {
+    const result = await withFileLock(tmpPath('basic'), async () => {
       return 42;
     });
     expect(result).toBe(42);
@@ -11,19 +26,17 @@ describe('withFileLock', () => {
 
   it('should serialize concurrent operations on same path', async () => {
     const order: number[] = [];
-    const path = '/test/concurrent';
+    const p = tmpPath('concurrent');
 
     const op = (id: number, delayMs: number) =>
-      withFileLock(path, async () => {
+      withFileLock(p, async () => {
         order.push(id);
         await new Promise((r) => setTimeout(r, delayMs));
         order.push(id * 10);
       });
 
-    // Launch 3 concurrent operations on same path
     await Promise.all([op(1, 20), op(2, 10), op(3, 5)]);
 
-    // Should run in sequence: 1 starts, 1 finishes, then 2, then 3
     expect(order[0]).toBe(1);
     expect(order[1]).toBe(10);
     expect(order[2]).toBe(2);
@@ -35,30 +48,27 @@ describe('withFileLock', () => {
   it('should allow concurrent operations on different paths', async () => {
     const started: string[] = [];
 
-    const op = (p: string) =>
-      withFileLock(p, async () => {
-        started.push(p);
+    const op = (name: string) =>
+      withFileLock(tmpPath(name), async () => {
+        started.push(name);
         await new Promise((r) => setTimeout(r, 10));
       });
 
-    await Promise.all([op('/path/a'), op('/path/b'), op('/path/c')]);
+    await Promise.all([op('a'), op('b'), op('c')]);
 
-    // All 3 should have started (different paths = no waiting)
     expect(started).toHaveLength(3);
   });
 
   it('should release lock even if operation throws', async () => {
-    const path = '/test/error';
+    const p = tmpPath('error');
 
-    // First operation throws
     await expect(
-      withFileLock(path, async () => {
+      withFileLock(p, async () => {
         throw new Error('boom');
       })
     ).rejects.toThrow('boom');
 
-    // Second operation should still work (lock was released)
-    const result = await withFileLock(path, async () => 'ok');
+    const result = await withFileLock(p, async () => 'ok');
     expect(result).toBe('ok');
   });
 });
