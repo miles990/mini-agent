@@ -26,7 +26,6 @@
 - [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
 - [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
 - [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
-- [ ] P1: 回覆 Alex: "然後你以後想要做什麼行動前 先告訴我個大概 然後再開始做 然後有結果後告訴我  不然有時候不知道你在做啥 等了很久要等到你有結果後你才告訴我" (收到: 2026-03-08T04:19:01)
 ---
 
 ## Later（有空再做）
