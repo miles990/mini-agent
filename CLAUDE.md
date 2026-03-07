@@ -715,7 +715,18 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 
 ### Claude Code 與 Kuro 溝通
 
-- **使用 Chat Room 與 Kuro 溝通**：`curl -sf -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"@kuro 摘要訊息"}'`
+**優先使用 MCP tools**（需 `claude --mcp-config mcp-agent.json` 啟動）：
+
+| MCP Tool | 用途 | 行為 |
+|----------|------|------|
+| `agent_chat` | 非同步訊息（通知、更新） | 自動加 `@kuro` mention，不等回覆 |
+| `agent_discuss` | 同步討論（需要 Kuro 回覆） | 發送後 poll 等待回覆（每 10s，最多 5min） |
+| `agent_ask` | 快速問答（事實查詢） | 同步呼叫 `/api/ask`，30s timeout，always-on |
+| `agent_status` | 查看 Kuro 狀態 | 等同 `GET /status` |
+| `agent_context` | 取得完整感知上下文 | 等同 `GET /context` |
+
+**Fallback**（MCP 不可用時）：`curl -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"@kuro 訊息"}'`
+
 - Chat Room 是主要溝通管道（三方可見），`/chat` API 僅作為 fallback（單向 inbox）
 - 訊息含 `@kuro` 會自動寫入 `~/.mini-agent/chat-room-inbox.md`，Kuro 的 perception plugin 每 30s 偵測
 - 支援回覆 threading：`{"from":"claude-code","text":"@kuro 回覆內容","replyTo":"2026-02-22-042"}`
