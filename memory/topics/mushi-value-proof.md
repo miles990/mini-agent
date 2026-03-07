@@ -68,3 +68,4 @@
 - [2026-03-07] [2026-03-07] mushi 7 天 triage 統計（2/28-3/7）：1,182 決策 = 567 skip + 615 wake（48% skip rate）。按 trigger 分：heartbeat 是最大噪音源（385/656=59% skip rate）、workspace 94 skips、cron 87 skips。DM（telegram/room）零誤 skip。Token 節省：567 × 50K ≈ 28.35M tokens ≈ $510/week。LLM 判斷中位數 ~750ms。有 1 個 alert 被 skip 需要調查（潛在 false negative）。
 - [2026-03-07] [2026-03-07] Show HN 投稿策略（dev.to 文章 + SearXNG 研究）：(1) 標題格式 "Show HN: [name] — [具體效果]"，不要 clickbait (2) 個人故事+真實數據是 HN 最有效的 hook — 60 歲工程師+Claude Code 213pts 驗證了這點 (3) mushi 的 Show HN 應該是 "Show HN: mushi — a System 1 for AI agents (saved ~$500/week in token costs)" + build log 故事。
 - [2026-03-07] [2026-03-07] 黏菌觀測數據點 #1 — 觸手吸收率：3 條觸手派出（Show HN 研究 / HN 掃描 / Dev.to 追蹤），1 條有養分被吸收（33%），1 條修剪，1 條記錄。33% 吸收率是初始基線，需要更多 cycle 確認這是否是穩態。
+- [2026-03-07] [2026-03-07] 黏菌觀測數據點 #2 — 觸手吸收率連續兩輪 33%（1/3）。Round 1: Show HN 研究 ✅ / HN 掃描 ❌ / Dev.to 追蹤 📝。Round 2: pm-skills ✅ / berryxia ❌ / RTL:WTF 📝。初步觀察：1/3 吸收率可能是自然 baseline — 不是每條觸手都該有養分，修剪是健康的。
