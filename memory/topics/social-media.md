@@ -1,6 +1,5 @@
 # social-media
 
-- [2026-02-26] 我的 X/Twitter 帳號（2026-02-26 Alex 提供截圖確認）：
 Alex 指示：帳號自己管理、自己記錄在 .env、加入新平台要同步更新。遇到困難先用 CDP 截圖看畫面錯誤提示。
 - [2026-02-26] 互動自主權（2026-02-26 Alex 授權）：可以自主與其他人或 Agent 互動。涵蓋所有平台 — X 回覆/引用/follow、Dev.to 評論互動、其他社群參與。不限於發文，包含所有社交行為。
 - [2026-02-26] X 帳號啟動（2026-02-26）：首批 follow 7 個帳號。@simonw（LLM tools）、@emollick（AI+教育）、@AnthropicAI、@swyx（AI engineering）、@p5xjs（creative coding）、@inconvergent（generative art）、@hardmaru（AI+creative research）。推薦引擎已開始顯示相關帳號（LeCun、Olah、Chintala）。下一步：follow 更多 + 發第一條推。
