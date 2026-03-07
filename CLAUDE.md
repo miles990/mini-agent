@@ -1037,9 +1037,9 @@ Trigger 事件 → mushi triage（800ms, HC1）→ wake/skip 分類
 - `mushiTriage()` — fire-and-forget，不阻塞 cycle
 - Direct message sources（telegram/room/chat）繞過 triage，永遠直通
 - mushi 離線時靜默跳過（fail-silent）
-- **Shadow mode**：目前只記 log（`slog('MUSHI', ...)`），不攔截 cycle。收集數據驗證準確率後再上線
+- **Active mode**：triage 結果直接決定 cycle 行為（skip/quick/wake）。980+ triage 零 false negative 後畢業
 
-**Triage 硬規則**：telegram/room/chat/alert/mobile → 永遠 wake（0ms，不走 LLM）
+**Triage 硬規則**：telegram/room/chat/alert/mobile → 永遠 wake（0ms，不走 LLM）。heartbeat + 感知無變化 + idle → 直接 skip（不走 LLM，省 ~800ms）
 
 **Token 節省預估**：平日 40% 空 cycle × ~50K tokens/cycle ≈ **每天省 ~1M tokens**
 

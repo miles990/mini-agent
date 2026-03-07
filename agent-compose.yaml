@@ -56,6 +56,7 @@ agents:
         - name: website
           script: ./plugins/website-monitor.sh
           timeout: 15000
+          interval: "60m"
         - name: self-awareness
           script: ./plugins/self-awareness.sh
         - name: mobile
@@ -70,16 +71,22 @@ agents:
           script: ./plugins/anomaly-detector.sh
         - name: self-healing
           script: ./plugins/self-healing.sh
+          interval: "60m"
         - name: docker-services
           script: ./plugins/docker-services.sh
+          interval: "60m"
         - name: github-issues
           script: ./plugins/github-issues.sh
+          interval: "60m"
         - name: github-prs
           script: ./plugins/github-prs.sh
+          interval: "60m"
         - name: feedback-status
           script: ./plugins/feedback-status.sh
+          interval: "60m"
         - name: claude-code-sessions
           script: ./plugins/claude-code-sessions.sh
+          interval: "5m"
         - name: x-feed
           script: ./plugins/x-perception.sh
           timeout: 35000

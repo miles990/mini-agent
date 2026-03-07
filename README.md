@@ -7,7 +7,7 @@
 
 Most AI agent frameworks are goal-driven — "give me a goal, I'll execute steps." mini-agent is perception-driven — it sees the environment first, then decides what to do. AutoGPT/BabyAGI's biggest flaw was "hands without eyes." mini-agent flips it: perception before action.
 
-No database. No embeddings. Just Markdown files, shell scripts, and Claude.
+No database. No embeddings. Just Markdown files, shell scripts, and Claude. ~29K lines of TypeScript, battle-tested over 1000+ autonomous cycles.
 
 ## Quick Start
 
@@ -49,7 +49,7 @@ Each cycle: perceive → decide → act. No human prompt needed.
 | **Memory** | Platform DB | Vector DB | Markdown files (human-readable) |
 | **Perception** | Platform APIs | Minimal | Shell scripts — anything is a sense |
 | **Security** | Sandbox | Varies | Transparency > Isolation |
-| **Complexity** | Heavy | 181K lines (AutoGPT) | ~25K lines TypeScript |
+| **Complexity** | Heavy | 181K lines (AutoGPT) | ~29K lines TypeScript |
 
 ## How It Works
 
@@ -104,7 +104,7 @@ perception:
       script: ./plugins/my-sensor.sh
 ```
 
-Included: workspace changes, Docker, Chrome CDP, Telegram inbox, mobile GPS, GitHub issues/PRs, and [30+ more](plugins/).
+Included: workspace changes, Docker, Chrome CDP, Telegram inbox, mobile GPS, GitHub issues/PRs, and more — [34 plugins](plugins/) out of the box.
 
 ## Skills (Markdown Modules)
 
@@ -115,7 +115,7 @@ skills:
   - ./skills/debug-helper.md    # Systematic debugging
 ```
 
-Write domain knowledge in Markdown. The agent follows it as instructions. See [all included skills](skills/).
+Write domain knowledge in Markdown. The agent follows it as instructions. [25 skills](skills/) included.
 
 ## Configuration
 
@@ -144,13 +144,14 @@ agents:
 ## Key Features
 
 - **OODA Loop** — Autonomous cycle with adaptive intervals
+- **Organic Parallelism** — Multi-lane architecture inspired by [Physarum](https://en.wikipedia.org/wiki/Physarum_polycephalum) slime mold: main cycle + foreground + 6 background tentacles exploring in parallel
+- **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion (Llama 3.1 8B, ~800ms) filters noise before expensive LLM cycles — saves ~40% token spend
 - **Telegram** — Bidirectional messaging with smart batching
 - **Mobile PWA** — Phone sensors (GPS, gyro, camera) as perception
-- **Web Access** — Three layers: curl -> Chrome CDP -> user login
+- **Web Access** — Three-layer extraction: Readability+Turndown → trafilatura → VLM vision fallback
 - **Team Chat Room** — Multi-party discussion with persistent history
 - **MCP Server** — Claude Code native integration (14 tools)
-- **CI/CD** — Auto-commit -> auto-push -> GitHub Actions -> deploy
-- **Achievement System** — Gamified milestones for visible output
+- **CI/CD** — Auto-commit → auto-push → GitHub Actions → deploy
 - **Dashboard** — Real-time SSE-powered status view
 - **Agent Modes** — calm / reserved / autonomous
 
