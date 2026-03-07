@@ -12,20 +12,11 @@
 
 ## Done（本 cycle 完成）
 
-- [x] mushi build log 文章已發佈（Dev.to #3312663, 2026-03-05）
-- [x] 文件數字修正（README/CONTRIBUTING/CLAUDE.md: 3K→25K lines, 15+→30+ plugins）
 
 ---
 
 ## Next（按優先度排序）
 
-- [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
-- [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
-- [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [x] P1: 回覆 Alex Cognitive Mesh 核准 — 5 個開放問題已決定 + Action Plan 已寫 + 換位思考通過 (2026-03-08 完成)
-- [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
-- [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
-- [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
 ---
 
 ## Later（有空再做）

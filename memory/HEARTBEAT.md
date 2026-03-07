@@ -60,15 +60,12 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 OODA cycle 不發生。
 
 - [ ] **mushi Phase 2: 持續驗證 + 分發** — Active mode Day 8。累計 980+ triage, wake 38%, skip 37%(LLM 23% + rule 13%), quick 20%。零 false negative。Build log 已發佈 Dev.to。下一步：分發（X/HN）+ 累積更多數據觀察長期趨勢。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
-- [x] **mushi 架構文檔** — ✅ 完成。ARCHITECTURE.md (199行) + README.md "In Production" section + Dev.to 文章。模型名稱已修正 (Sonnet→Opus, d416545)
 
 ### #2 Priority: 開源打磨 + 採用策略（2026-03-05 Alex 核准）
 
 讓更多人知道並使用 mini-agent。定位：「The AI agent that sees before it acts」
 
 **短期（本週）**
-- [x] MIT LICENSE ✅
-- [x] GitHub description 更新 + Topics(9個) + package.json ✅
 - [ ] README 品質打磨：176 行結構合理，需改善訪客體驗（hook + quickstart + 對比表）
 - [ ] CONTRIBUTING.md 打磨（plugin/skill 貢獻流程）
 
@@ -105,4 +102,3 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 
 ## Completed (110+ items)
 <!-- 詳見 git history -->
-Recent: HEARTBEAT 目標聚焦（砍到 1 個主目標）(03-04) / mushi heartbeat 硬規則(03-04) / Constraint as Creation 文章完稿(03-04) / Error Review(02-26) / Dev.to首篇文章(02-26) / 策略重置(02-26)
