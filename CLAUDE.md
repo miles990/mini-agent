@@ -734,6 +734,7 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
   - `Alex 原話：「...」` — 直接引述，保留語氣
   - `我的理解：Alex 想要...` — Claude Code 的詮釋，Kuro 可以質疑
 - Claude Code 的操作（edit、write）會觸發 Kuro 的 `trigger:workspace` → perception stream → 可能觸發新 cycle。**Claude Code 是 Kuro 環境的一部分**，操作時要意識到這點
+- **先說再做（Announce Before Acting）**：開始任何任務前，先用 Chat Room 發一條訊息說明你要做什麼。例如：`curl -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"準備重構 src/loop.ts 的 preemption 邏輯，預計改 3 個函數"}'`。這讓 Alex 即時知道進度，不用等整件事做完才看到結果
 - **原則：不打斷、不插入、不佔用。** Kuro 在自然節奏中感知 Claude Code 的訊息，不是被迫即時處理
 
 ### Claude Code 使用 Kuro 感知
