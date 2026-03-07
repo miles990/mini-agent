@@ -35,7 +35,7 @@ export interface SectionDemotionState {
 // =============================================================================
 
 /** Consecutive zero-citation cycles before demotion */
-export const DEMOTION_THRESHOLD = 200;
+export const DEMOTION_THRESHOLD = 50;
 
 /** Observation period after promotion (cycles) */
 export const OBSERVATION_CYCLES = 50;
