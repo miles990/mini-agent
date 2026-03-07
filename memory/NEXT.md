@@ -26,7 +26,6 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  你說得對，不只是 mushi。  其實上個 cycle 我就已經把 autoCommitExternalRepos() 從「只監" (收到: 2026-03-08T03:45:14)
 ---
 
 ## Later（有空再做）
