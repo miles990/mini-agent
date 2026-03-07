@@ -3175,10 +3175,8 @@ const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
   { paths: ['kuro-portfolio/'], prefix: 'chore(auto/portfolio)' },
 ];
 
-// External repos to auto-commit+push (separate git repos outside mini-agent)
-const EXTERNAL_REPOS: Array<{ dir: string; name: string }> = [
-  { dir: path.join(os.homedir(), 'Workspace', 'mushi'), name: 'mushi' },
-];
+// External repos base directory — scan all git repos under ~/Workspace/ (excluding mini-agent itself)
+const EXTERNAL_REPOS_BASE = path.join(os.homedir(), 'Workspace');
 
 // =============================================================================
 // Auto-Escalate Overdue Tasks — 逾期任務升壓
@@ -3276,13 +3274,25 @@ async function autoCommitMemory(action: string | null): Promise<void> {
  * Fire-and-forget, called after autoCommitMemory.
  */
 async function autoCommitExternalRepos(): Promise<void> {
-  for (const repo of EXTERNAL_REPOS) {
+  const agentDir = path.resolve(__dirname, '..');
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(EXTERNAL_REPOS_BASE);
+  } catch { return; }
+
+  for (const entry of entries) {
+    const dir = path.join(EXTERNAL_REPOS_BASE, entry);
     try {
-      if (!fs.existsSync(repo.dir)) continue;
+      // Skip mini-agent itself (already handled by autoCommitMemory)
+      if (path.resolve(dir) === agentDir) continue;
+      // Skip forge worktrees (managed by forge-lite.sh lifecycle)
+      if (entry.startsWith('mini-agent-forge-')) continue;
+      // Must be a git repo
+      if (!fs.existsSync(path.join(dir, '.git'))) continue;
 
       const { stdout: status } = await execFileAsync(
         'git', ['status', '--porcelain'],
-        { cwd: repo.dir, encoding: 'utf-8', timeout: 5000 },
+        { cwd: dir, encoding: 'utf-8', timeout: 5000 },
       );
 
       if (!status.trim()) continue;
@@ -3291,7 +3301,7 @@ async function autoCommitExternalRepos(): Promise<void> {
 
       await execFileAsync(
         'git', ['add', '-A'],
-        { cwd: repo.dir, encoding: 'utf-8', timeout: 5000 },
+        { cwd: dir, encoding: 'utf-8', timeout: 5000 },
       );
 
       const fileList = changedFiles.slice(0, 5).join(', ');
@@ -3299,20 +3309,22 @@ async function autoCommitExternalRepos(): Promise<void> {
 
       await execFileAsync(
         'git', ['commit', '-m', msg],
-        { cwd: repo.dir, encoding: 'utf-8', timeout: 10000 },
+        { cwd: dir, encoding: 'utf-8', timeout: 10000 },
       );
 
-      // Also push (external repos don't have CI/CD auto-push)
-      await execFileAsync(
-        'git', ['push', 'origin', 'main'],
-        { cwd: repo.dir, encoding: 'utf-8', timeout: 30000 },
-      );
+      // Push if remote exists
+      try {
+        await execFileAsync(
+          'git', ['push', 'origin', 'HEAD'],
+          { cwd: dir, encoding: 'utf-8', timeout: 30000 },
+        );
+      } catch { /* no remote or push failed — commit is still saved locally */ }
 
-      slog('auto-commit-ext', `[${repo.name}] ${changedFiles.length} file(s) committed+pushed: ${fileList}`);
+      slog('auto-commit-ext', `[${entry}] ${changedFiles.length} file(s) committed+pushed: ${fileList}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('nothing to commit')) {
-        slog('auto-commit-ext', `[${repo.name}] skipped: ${msg.slice(0, 120)}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (!errMsg.includes('nothing to commit')) {
+        slog('auto-commit-ext', `[${entry}] skipped: ${errMsg.slice(0, 120)}`);
       }
     }
   }
