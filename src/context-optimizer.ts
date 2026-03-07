@@ -92,6 +92,14 @@ export class ContextOptimizer {
       observation: {},
       totalCycles: 0,
     });
+
+    // Clean up zeroCounts for sections not in SECTION_KEYWORDS
+    // (legacy entries that can't be properly demoted — no keywords = never loadable)
+    for (const key of Object.keys(this.state.zeroCounts)) {
+      if (!SECTION_KEYWORDS[key]) {
+        delete this.state.zeroCounts[key];
+      }
+    }
   }
 
   /**
@@ -112,6 +120,8 @@ export class ContextOptimizer {
 
     for (const section of allTracked) {
       if (PROTECTED_SECTIONS.has(section)) continue;
+      // Only track sections with defined keywords — demoting without keywords makes them permanently unreachable
+      if (!SECTION_KEYWORDS[section]) continue;
 
       if (citedSet.has(section)) {
         // Section was cited — reset zero count

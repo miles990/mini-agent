@@ -940,6 +940,17 @@ export class AgentLoop {
 
     eventBus.on('trigger:*', this.handleTrigger);
 
+    // Delegation complete → shorten next cycle interval to absorb results faster
+    eventBus.on('action:delegation-complete', () => {
+      if (!this.running || this.paused || this.cycling) return;
+      // Cap interval to 60s so results are absorbed promptly (not immediately — avoid rapid re-trigger)
+      if (this.currentInterval > 60_000) {
+        this.currentInterval = 60_000;
+        slog('LOOP', '[delegation-complete] Capping interval to 60s for result absorption');
+        this.scheduleHeartbeat(); // Re-schedule with shorter interval
+      }
+    });
+
     // Run first cycle after short warmup (let perception streams initialize)
     // instead of waiting the full heartbeat interval
     const STARTUP_DELAY = 15_000; // 15s warmup
@@ -1099,6 +1110,12 @@ export class AgentLoop {
             detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
             decay_h: 24,
           });
+          // Count skipped cycles into context-optimizer (zero citations accelerates demotion)
+          import('./context-optimizer.js').then(({ getContextOptimizer }) => {
+            const opt = getContextOptimizer();
+            opt.recordCycle({ citedSections: [] });
+            opt.save();
+          }).catch(() => {});
           this.lastCycleTime = Date.now(); // Update after triage to prevent rapid re-trigger
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
