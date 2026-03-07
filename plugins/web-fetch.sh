@@ -155,15 +155,29 @@ try_curl() {
   is_content_useful "$content" "$url" || return 1
 
   if echo "$content" | head -5 | grep -qi '<html\|<!doctype'; then
-    _TITLE=$(echo "$content" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
-    local full_text
-    full_text=$(echo "$content" \
-      | sed 's/<script[^>]*>.*<\/script>//gi' \
-      | sed 's/<style[^>]*>.*<\/style>//gi' \
-      | sed 's/<[^>]*>//g' \
-      | tr -s '[:space:]' ' ')
-    cache_content "$url" "curl" "$full_text" "$_TITLE"
-    _OUT="${full_text:0:1000}"
+    # Try Readability extraction first, fallback to sed
+    local extracted
+    extracted=$(echo "$content" | node "$SCRIPT_DIR/scripts/extract-content.mjs" --url "$url" 2>/dev/null)
+    local extracted_words
+    extracted_words=$(echo "$extracted" | tail -n +2 | wc -w | tr -d ' ')
+    if [[ -n "$extracted" && "$extracted_words" -gt 50 ]]; then
+      _TITLE=$(echo "$extracted" | head -1)
+      local full_text
+      full_text=$(echo "$extracted" | tail -n +2)
+      cache_content "$url" "curl" "$full_text" "$_TITLE"
+      _OUT="${full_text:0:1000}"
+    else
+      # Fallback: sed-based extraction
+      _TITLE=$(echo "$content" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
+      local full_text
+      full_text=$(echo "$content" \
+        | sed 's/<script[^>]*>.*<\/script>//gi' \
+        | sed 's/<style[^>]*>.*<\/style>//gi' \
+        | sed 's/<[^>]*>//g' \
+        | tr -s '[:space:]' ' ')
+      cache_content "$url" "curl" "$full_text" "$_TITLE"
+      _OUT="${full_text:0:1000}"
+    fi
   else
     cache_content "$url" "curl" "$content"
     _OUT="${content:0:1000}"
