@@ -1306,8 +1306,7 @@ export class AgentLoop {
 
       // ── Task Routing (Cognitive Mesh Phase 3) ──
       // Evaluate routing decision. If specialists exist and task is parallelizable,
-      // route to them instead of handling here. Currently logs decision for observability;
-      // actual forwarding/spawning activates when Perspective System (Phase 3b) is ready.
+      // route to them instead of handling here.
       if (isEnabled('cognitive-mesh') && this.triggerReason) {
         const clusterState = getClusterState({
           primaryBusy: this.cycling,
