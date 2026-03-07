@@ -1,8 +1,15 @@
 #!/bin/bash
-# Web 自適應擷取感知 — Adaptive Domain Router + Multi-Layer Cascade
+# Web 自適應擷取感知 — Three-Layer Extraction + Adaptive Domain Router
 # stdout 會被包在 <web>...</web> 中注入 Agent context
 #
-# Evolution (2026-03-05):
+# Three-Layer Architecture (2026-03-07):
+#   Layer 1a: Readability + Turndown → LLM-optimized markdown (primary)
+#   Layer 1b: Trafilatura (Python) → clean text fallback
+#   Layer 1c: sed regex → last-resort text extraction
+#   Layer 2:  VLM visual extraction (screenshot → Claude Vision)
+#   Layer 3:  Adaptive fetch cascade (curl/jina/stealth/grok/cdp)
+#
+# Previous evolution (2026-03-05):
 #   - Adaptive routing: remember which layer works for each domain
 #   - Function-based layers: try preferred first, then cascade
 #   - Scrapling-inspired: stealth curl + HTTP/2 + profile rotation + quality gate
@@ -155,27 +162,43 @@ try_curl() {
   is_content_useful "$content" "$url" || return 1
 
   if echo "$content" | head -5 | grep -qi '<html\|<!doctype'; then
-    # Try Readability extraction first, fallback to sed
-    local extracted
+    # Three-layer content extraction:
+    #   Layer 1a: Readability + Turndown markdown (best quality)
+    #   Layer 1b: Trafilatura (Python, better boilerplate removal for some sites)
+    #   Layer 1c: sed fallback (last resort)
+    local extracted full_text extracted_words
+
+    # Layer 1a: Readability → Markdown
     extracted=$(echo "$content" | node "$SCRIPT_DIR/scripts/extract-content.mjs" --url "$url" 2>/dev/null)
-    local extracted_words
     extracted_words=$(echo "$extracted" | tail -n +2 | wc -w | tr -d ' ')
+
     if [[ -n "$extracted" && "$extracted_words" -gt 50 ]]; then
       _TITLE=$(echo "$extracted" | head -1)
-      local full_text
       full_text=$(echo "$extracted" | tail -n +2)
-      cache_content "$url" "curl" "$full_text" "$_TITLE"
+      cache_content "$url" "curl+readability" "$full_text" "$_TITLE"
       _OUT="${full_text:0:1000}"
-    else
-      # Fallback: sed-based extraction
+
+    # Layer 1b: Trafilatura fallback
+    elif command -v uv &>/dev/null && [[ -f "$SCRIPT_DIR/scripts/extract-content-py.py" ]]; then
+      extracted=$(echo "$content" | uv run --quiet "$SCRIPT_DIR/scripts/extract-content-py.py" "$url" 2>/dev/null)
+      extracted_words=$(echo "$extracted" | tail -n +2 | wc -w | tr -d ' ')
+      if [[ -n "$extracted" && "$extracted_words" -gt 30 ]]; then
+        _TITLE=$(echo "$extracted" | head -1)
+        full_text=$(echo "$extracted" | tail -n +2)
+        cache_content "$url" "curl+trafilatura" "$full_text" "$_TITLE"
+        _OUT="${full_text:0:1000}"
+      fi
+    fi
+
+    # Layer 1c: sed fallback (if both extractors failed)
+    if [[ -z "$_OUT" ]]; then
       _TITLE=$(echo "$content" | grep -oi '<title[^>]*>[^<]*</title>' | sed 's/<[^>]*>//g' | head -1)
-      local full_text
       full_text=$(echo "$content" \
         | sed 's/<script[^>]*>.*<\/script>//gi' \
         | sed 's/<style[^>]*>.*<\/style>//gi' \
         | sed 's/<[^>]*>//g' \
         | tr -s '[:space:]' ' ')
-      cache_content "$url" "curl" "$full_text" "$_TITLE"
+      cache_content "$url" "curl+sed" "$full_text" "$_TITLE"
       _OUT="${full_text:0:1000}"
     fi
   else
@@ -285,6 +308,25 @@ try_cdp() {
   return 0
 }
 
+try_vlm() {
+  local url="$1"
+  _OUT="" ; _TITLE=""
+
+  [[ "$CDP_AVAILABLE" == "true" ]] || return 1
+  [[ -f "$SCRIPT_DIR/scripts/vlm-extract.sh" ]] || return 1
+
+  local result
+  result=$(bash "$SCRIPT_DIR/scripts/vlm-extract.sh" "$url" 2>/dev/null)
+  [[ $? -ne 0 || -z "$result" || ${#result} -lt 50 ]] && return 1
+
+  _TITLE=$(echo "$result" | head -1 | sed 's/^#\+ //')
+  local full_text
+  full_text=$(echo "$result")
+  cache_content "$url" "vlm" "$full_text" "$_TITLE"
+  _OUT="${full_text:0:1000}"
+  return 0
+}
+
 # ─── Nutrient Router Integration ────────────────────────────────────────────
 # Slime mold model: check domain nutrient score before fetching
 NUTRIENT_CLI="$SCRIPT_DIR/scripts/nutrient-cli.mjs"
@@ -315,8 +357,8 @@ fetch_url() {
   local preferred
   preferred=$(get_preferred_layer "$domain")
 
-  # Default cascade order
-  local layers="curl jina stealth grok cdp"
+  # Default cascade order (vlm = Layer 2 visual fallback, last resort)
+  local layers="curl jina stealth grok cdp vlm"
 
   if [[ -n "$preferred" ]]; then
     # Try preferred first
