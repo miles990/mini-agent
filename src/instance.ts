@@ -803,7 +803,7 @@ export function startHeartbeat(opts: {
 /**
  * Update heartbeat status (called by loop on state changes).
  */
-export function updateHeartbeat(update: Partial<Pick<InstanceHeartbeat, 'status' | 'cycleCount' | 'perspective'>>): void {
+export function updateInstanceHeartbeat(update: Partial<Pick<InstanceHeartbeat, 'status' | 'cycleCount' | 'perspective'>>): void {
   Object.assign(heartbeatState, update);
 }
 

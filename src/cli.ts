@@ -41,7 +41,10 @@ import {
   loadGlobalConfig,
   listInstances,
   getCurrentInstanceId,
+  startHeartbeat,
+  stopHeartbeat,
 } from './instance.js';
+import { initIPCBus, stopIPCBus } from './ipc-bus.js';
 import { getLogger, type LogType, type LogEntry, type ClaudeLogEntry } from './logging.js';
 import {
   findComposeFile,

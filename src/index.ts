@@ -88,7 +88,15 @@ export {
   getCurrentInstanceId,
   getOrCreateDefaultInstance,
   validateInstanceId,
+  startHeartbeat,
+  updateInstanceHeartbeat,
+  stopHeartbeat,
+  getNeighborHeartbeats,
+  isInstanceAlive,
 } from './instance.js';
+
+// IPC Bus
+export { initIPCBus, emitIPC, stopIPCBus } from './ipc-bus.js';
 
 // Config
 export {

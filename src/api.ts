@@ -45,7 +45,9 @@ import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
 } from './workspace.js';
-import { loadGlobalConfig } from './instance.js';
+import { loadGlobalConfig, startHeartbeat, stopHeartbeat, updateInstanceHeartbeat } from './instance.js';
+import { initIPCBus, stopIPCBus } from './ipc-bus.js';
+import { stopMemoryCache } from './memory-cache.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
 import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
@@ -2551,6 +2553,23 @@ if (isMain) {
     setLoopRef(loop);
   }
 
+  // ── Cross-Process Infrastructure (Cognitive Mesh Phase 1) ──
+  initIPCBus(instanceId);
+  startHeartbeat({
+    instanceId,
+    port,
+    role: instanceConfig?.role || 'standalone',
+  });
+
+  // Wire heartbeat updates from loop cycle events
+  eventBus.on('action:loop', (event) => {
+    if (event.data.event === 'cycle.start') {
+      updateInstanceHeartbeat({ status: 'busy', cycleCount: (event.data.cycleCount as number) || 0 });
+    } else if (event.data.event === 'cycle.end') {
+      updateInstanceHeartbeat({ status: 'idle' });
+    }
+  });
+
   // ── Self-awareness ──
   const startedAt = new Date().toISOString();
 
@@ -2754,6 +2773,8 @@ if (isMain) {
     if (loopRef) loopRef.stop();
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
+    stopHeartbeat();
+    stopIPCBus();
 
     // Wait for in-flight Claude CLI call to finish
     if (isClaudeBusy()) {

@@ -1328,6 +1328,9 @@ export class AgentLoop {
       const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
       const context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
 
+      // Context snapshot for cross-instance awareness (fire-and-forget)
+      writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
+
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
         eventBus.emit('trigger:alert', { cycle: this.cycleCount });
@@ -3279,4 +3282,33 @@ async function markNextItemsDone(dones: string[]): Promise<void> {
       // Non-critical
     }
   });
+}
+
+// =============================================================================
+// Context Snapshot (Cognitive Mesh Phase 2)
+// =============================================================================
+
+/**
+ * Write a context snapshot for cross-instance awareness.
+ * Other instances can read this to understand what this instance is focused on.
+ * Fire-and-forget — never blocks cycle.
+ */
+async function writeContextSnapshot(
+  cycleCount: number,
+  contextSize: number,
+  mode: string,
+): Promise<void> {
+  const instanceId = getCurrentInstanceId();
+  const dir = getInstanceDir(instanceId);
+  const snapshotPath = path.join(dir, 'context-snapshot.json');
+
+  const snapshot = {
+    instanceId,
+    timestamp: new Date().toISOString(),
+    cycleCount,
+    contextSize,
+    mode,
+  };
+
+  fs.writeFileSync(snapshotPath, JSON.stringify(snapshot));
 }
