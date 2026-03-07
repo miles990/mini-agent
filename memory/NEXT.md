@@ -26,7 +26,8 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "我剛剛看到你有狀態顯示 Title is set but body didn't take. Let me use a file-based approach for the long content" (收到: 2026-03-08T03:56:04)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "Alex 的三個問題都已經由 foreground lane 回覆完畢（#226-#233），不需要重複回答。標記完成然後繼續。"] 為什麼會有這個訊息？ 這是" (收到: 2026-03-08T03:57:42)
+- [ ] P1: 回覆 Alex: "修復它" (收到: 2026-03-08T03:59:36)
 ---
 
 ## Later（有空再做）
