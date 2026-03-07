@@ -23,3 +23,6 @@ sessions/
 output.md
 agent-compose.yaml
 .DS_Store
+.forge-in-use
+tmp-*
+tmp_*
