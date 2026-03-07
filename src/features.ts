@@ -81,7 +81,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },
-  { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess', defaultEnabled: false },
+  { name: 'background-lane', group: 'housekeeping', description: 'Background Lane — delegate learn/research/review tasks to subprocess' },
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
   { name: 'cognitive-mesh', group: 'housekeeping', description: 'Cognitive Mesh — multi-instance task routing + dynamic scaling' },
 
