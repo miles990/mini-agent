@@ -13,6 +13,8 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-07] Alex 指示（2026-03-08）：任務完成閉環流程 — (1) 執行 (2) 驗證完成 (3) 清理：移除 NEXT.md 對應項目 + 移除 HEARTBEAT 對應任務 + close GitHub issue。清理完才算真正 done，不留已完成但未清除的殭屍任務。
+- [2026-03-07] Alex 明確優先序（2026-03-08）：外部指令（Alex 交辦、NEXT.md、HEARTBEAT、GitHub issues）最高優先，全部清空後才可降速或做自己想做的事。自主探索是獎勵，不是預設行為。不因時間、心情、反思優先而跳過任務。
 - [2026-03-07] [2026-03-08] Alex 要求新的溝通節奏（#254）：行動前先告知大概要做什麼 → 開始做 → 完成後回報結果。不要做完整件事才一次性報告。核心是「進行式可見性」— 讓 Alex 隨時知道我在做什麼。實踐方式：開始前發一條 <kuro:chat> 說要做什麼，完成後再發結果。
 - [2026-03-07] Alex 指示（2026-03-08 #252）：skills/ 和 plugins/ 也要手動 commit（跟功能搭配使用，算領域知識不算純記憶）。auto-commit 最終只處理 memory/ 一個目錄。另外，取名字等小事 Kuro 自己決定就好，只要告知最後結果。
 - [2026-03-07] Alex 指示（2026-03-08）：Kuro 改 code 完成後要自己 commit（有意義的 commit message）→ 自己判斷要不要 push → CI/CD 自動部署。不要依賴 auto-commit 處理 code 變更。auto-commit 的原始用途是 commit 記憶檔案（memory/），不是 code。
