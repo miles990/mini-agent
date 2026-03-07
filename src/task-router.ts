@@ -72,8 +72,10 @@ export function routeTask(
   state: ClusterState,
 ): RouteDecision {
   // 1. Direct messages → always self (identity required)
-  // Strip 'trigger:' prefix AND any metadata suffix like "(yielded, waited 301s)"
-  const triggerBase = triggerType.replace('trigger:', '').replace(/\s*\(.*$/, '').trim();
+  // Extract base trigger name: strip 'trigger:' prefix, then take first token
+  // Handles: "trigger:room (yielded)", "workspace: {json}", "startup (hint)", "heartbeat"
+  const raw = triggerType.replace('trigger:', '').trim();
+  const triggerBase = raw.split(/[\s:(]/)[0];
   if (DIRECT_MESSAGE_SOURCES.has(triggerBase)) {
     return {
       action: 'self',
@@ -92,7 +94,7 @@ export function routeTask(
   }
 
   // 3. Routine triggers → always self (not worth parallelizing)
-  const ROUTINE_TRIGGERS = new Set(['heartbeat', 'cron', 'mobile', 'delegation-complete']);
+  const ROUTINE_TRIGGERS = new Set(['heartbeat', 'cron', 'mobile', 'delegation-complete', 'startup']);
   if (ROUTINE_TRIGGERS.has(triggerBase)) {
     return {
       action: 'self',
