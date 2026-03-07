@@ -6,16 +6,17 @@
 
 ## Now（正在做）
 
-
-## Done（本 cycle 完成）
-
-- [x] P1: 開源打磨 — README/CONTRIBUTING 內容品質提升 @done: 2026-03-08
-  Verified: README 199 行（hook + quickstart + 對比表 + API + philosophy 全備）、CONTRIBUTING 178 行（plugin/skill 貢獻流程清晰）
-
+- [ ] P1: loop.ts 模組化拆分 — 3,413 行單體文件，槓桿點（複利：可測試 + 迭代速度 + 可讀性）
+  第一刀已完成：inbox processing 提取到 inbox-processor.ts（c2b9c6a）
+  下一刀：計劃共 5 刀，繼續提取 standalone functions
+  Verify: `wc -l src/loop.ts | awk '{print $1}'`
 
 ---
 
 ## Next（按優先度排序）
+
+- [ ] P2: Cognitive Mesh 接通 — buildContextForPerspective 實作 + mushi /api/route endpoint
+  Verify: `grep -n 'buildContextForPerspective' src/perspective.ts | head -3`
 
 ---
 
