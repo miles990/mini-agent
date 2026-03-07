@@ -26,6 +26,7 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
+- [ ] P1: 回覆 Alex: "你要把負責讓mini-agent 變得越來越好 這個也是你自己的身體 持續推進和回報" (收到: 2026-03-08T02:57:00)
 ---
 
 ## Later（有空再做）
