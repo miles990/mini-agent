@@ -11,6 +11,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -1257,7 +1258,7 @@ export class AgentLoop {
     // 2. Auto-commit + auto-push (previous cycle's leftover changes)
     if (isEnabled('auto-commit')) {
       tasks.push(
-        autoCommitMemory(null).then(() => {
+        autoCommitMemory(null).then(() => autoCommitExternalRepos()).then(() => {
           if (isEnabled('auto-push')) {
             return autoPushIfAhead().catch(() => {});
           }
@@ -2109,6 +2110,7 @@ export class AgentLoop {
       if (isEnabled('auto-commit') && !isEnabled('concurrent-action')) {
         const done = trackStart('auto-commit');
         autoCommitMemory(action)
+          .then(() => autoCommitExternalRepos())
           .then(() => {
             done();
             if (isEnabled('auto-push')) {
@@ -3173,6 +3175,11 @@ const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
   { paths: ['kuro-portfolio/'], prefix: 'chore(auto/portfolio)' },
 ];
 
+// External repos to auto-commit+push (separate git repos outside mini-agent)
+const EXTERNAL_REPOS: Array<{ dir: string; name: string }> = [
+  { dir: path.join(os.homedir(), 'Workspace', 'mushi'), name: 'mushi' },
+];
+
 // =============================================================================
 // Auto-Escalate Overdue Tasks — 逾期任務升壓
 // =============================================================================
@@ -3262,6 +3269,53 @@ async function autoCommitMemory(action: string | null): Promise<void> {
     }
   }
 
+}
+
+/**
+ * Auto-commit+push external repos (separate git repos like mushi).
+ * Fire-and-forget, called after autoCommitMemory.
+ */
+async function autoCommitExternalRepos(): Promise<void> {
+  for (const repo of EXTERNAL_REPOS) {
+    try {
+      if (!fs.existsSync(repo.dir)) continue;
+
+      const { stdout: status } = await execFileAsync(
+        'git', ['status', '--porcelain'],
+        { cwd: repo.dir, encoding: 'utf-8', timeout: 5000 },
+      );
+
+      if (!status.trim()) continue;
+
+      const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+
+      await execFileAsync(
+        'git', ['add', '-A'],
+        { cwd: repo.dir, encoding: 'utf-8', timeout: 5000 },
+      );
+
+      const fileList = changedFiles.slice(0, 5).join(', ');
+      const msg = `chore(auto): auto-save\n\nFiles: ${fileList}`;
+
+      await execFileAsync(
+        'git', ['commit', '-m', msg],
+        { cwd: repo.dir, encoding: 'utf-8', timeout: 10000 },
+      );
+
+      // Also push (external repos don't have CI/CD auto-push)
+      await execFileAsync(
+        'git', ['push', 'origin', 'main'],
+        { cwd: repo.dir, encoding: 'utf-8', timeout: 30000 },
+      );
+
+      slog('auto-commit-ext', `[${repo.name}] ${changedFiles.length} file(s) committed+pushed: ${fileList}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('nothing to commit')) {
+        slog('auto-commit-ext', `[${repo.name}] skipped: ${msg.slice(0, 120)}`);
+      }
+    }
+  }
 }
 
 // =============================================================================
