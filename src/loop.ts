@@ -3152,15 +3152,8 @@ async function resolveStaleConversationThreads(): Promise<void> {
  * 原子提交組：每個目錄獨立 commit，便於 revert 和 audit。
  * 所有完成的工作都 auto-commit（Alex 指令 2026-02-26）。
  */
-const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
-  { paths: ['memory/'], prefix: 'chore(auto)' },
-  { paths: ['skills/'], prefix: 'chore(auto/skills)' },
-  { paths: ['plugins/'], prefix: 'chore(auto/plugins)' },
-  { paths: ['src/'], prefix: 'chore(auto/src)' },
-  { paths: ['scripts/'], prefix: 'chore(auto/scripts)' },
-  { paths: ['chat-room.html', 'dashboard.html', 'mobile.html'], prefix: 'chore(auto/ui)' },
-  { paths: ['kuro-portfolio/'], prefix: 'chore(auto/portfolio)' },
-];
+// Auto-commit only memory files — code changes are committed manually by Kuro
+const MEMORY_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
 
 // External repos — only Kuro's own projects (not all of ~/Workspace/)
 const KURO_EXTERNAL_REPOS = [
