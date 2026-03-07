@@ -26,8 +26,6 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "目前情況如何" (收到: 2026-03-08T02:41:11)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "📋 新 Handoff：Cognitive Mesh — 多實例動態認知架構 來源：proposals/2026-03-08-cognitive-mesh-a" (收到: 2026-03-08T02:50:40)
 ---
 
 ## Later（有空再做）
