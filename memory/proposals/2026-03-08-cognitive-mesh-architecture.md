@@ -1,6 +1,8 @@
 # Proposal: Cognitive Mesh — 多實例動態認知架構
 
-## Status: draft
+## Status: approved
+## Approved: 2026-03-08 by Alex (Chat Room #198)
+## GitHub-Issue: pending
 
 ## TL;DR
 
@@ -722,13 +724,129 @@ agents:
 | mushi triage | **擴展**。現有 wake/skip 不變，新增 route 建議 |
 | auto-commit / auto-push | **不變**。只有 Primary 做 auto-commit/push |
 
-## 開放問題（需要 Alex 決定）
+## 開放問題（已決定）
 
-1. **Specialist 的 LLM provider**：全部用 Claude？research 用 codex 省錢？用 mushi 的 Haiku？
-2. **Compose v2 向後相容**：v1 格式繼續支援（無 perspectives = 全部用 primary），還是強制遷移？
-3. **Phase 優先序**：先做 Phase 1+2（基礎設施）穩紮穩打，還是直接跳 Phase 3（最有感的價值）？
-4. **Instance 數量上限**：4 夠嗎？每個 Claude instance ~$0.75/cycle，4 個同時 = ~$3/cycle
-5. **Naming**：這個架構叫什麼？「Cognitive Mesh」「Multi-Perspective」「Dynamic Cluster」？
+| # | 問題 | 決定 | 決定者 | 理由 |
+|---|------|------|--------|------|
+| 1 | Specialist LLM provider | Primary=Opus, Chat/Research/Code=Sonnet | Alex(Research) + Kuro(其餘) | Research Alex 指定 Sonnet。Chat/Code 不需要 Opus 深度推理，Sonnet 速度更快且便宜 ~5x。Primary 保持 Opus 因為需要身份判斷+複雜決策 |
+| 2 | Compose v2 相容性 | v1 自動升級（無 perspectives = 純 primary） | Kuro | 最安全的遷移路徑，現有 compose 不需改動就能繼續運作 |
+| 3 | Phase 優先序 | 1→2→3→3b→4→5 穩扎穩打 | Alex | Alex 明確指示 |
+| 4 | Instance 上限 | 3（primary + 2 specialist） | Kuro | 16GB RAM 已 99% 使用（169MB free），4 個太冒險。先保守驗證，穩了再升 |
+| 5 | 命名 | Cognitive Mesh | Kuro | 討論全程使用，準確描述「認知網格」概念 |
+
+## Action Plan（Forge-Based Implementation）
+
+每個 Phase 在獨立 forge worktree 中實作，verify 通過後 merge 回 main。
+
+### Phase 1: Cross-Process Foundation
+
+**Forge worktree**: `forge-lite.sh create mesh-phase1`
+**Verify**: `pnpm typecheck && pnpm test`
+**預估**: 2-3h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 1.1 | 升級 filelock.ts 為 cross-process（`proper-lockfile` or `flock` syscall） | `src/filelock.ts`, `package.json` | `pnpm typecheck` |
+| 1.2 | 建立 ipc-bus.ts（file-based cross-instance events） | `src/ipc-bus.ts`, `src/types.ts` | unit test: 雙進程寫入+接收 |
+| 1.3 | Instance heartbeat（每 30s 更新狀態 JSON） | `src/instance.ts` | heartbeat.json 生成+過期偵測 |
+
+**驗收**: 兩個 mini-agent instance 同時啟動，互相感知存活，file lock 不衝突。
+
+### Phase 2: CQRS Memory Layer
+
+**Forge worktree**: `forge-lite.sh create mesh-phase2`
+**Verify**: `pnpm typecheck && pnpm test`
+**前提**: Phase 1 merged
+**預估**: 2-3h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 2.1 | Write path 整合 cross-process lock（驗證現有 createMemory/markDone 路徑） | `src/memory.ts` | concurrent write test |
+| 2.2 | 建立 memory-cache.ts（read cache + chokidar invalidation） | `src/memory-cache.ts` | cache hit/miss + invalidation timing |
+| 2.3 | Context snapshot（cycle 開始時寫 snapshot JSON） | `src/loop.ts` | snapshot 檔案生成 |
+
+**驗收**: 兩個 instance 一讀一寫 MEMORY.md，cache 在 ~50ms 內 invalidate，讀到最新內容。
+
+### Phase 3: Smart Task Router + Dynamic Scaling
+
+**Forge worktree**: `forge-lite.sh create mesh-phase3`
+**Verify**: `pnpm typecheck && pnpm test`
+**前提**: Phase 1+2 merged
+**預估**: 4-6h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 3.0 | **RAM 可行性驗證**：啟動 2 個 mini-agent instance，量測實際記憶體使用。不通過則調整 scaling 策略 | — | `memory_pressure` < critical |
+| 3.1 | 建立 task-router.ts（routing decision logic） | `src/task-router.ts`, `src/types.ts` | unit test: 各類 trigger 路由正確 |
+| 3.2 | Parallelizability analysis（依賴判斷） | `src/task-router.ts` | 測試 DM→self, research→spawn |
+| 3.3 | 建立 scaling.ts（dynamic scale up/down） | `src/scaling.ts` | scale-up/down 信號判斷 |
+| 3.4 | 整合 loop.ts（Task Router 入口） | `src/loop.ts` | end-to-end: trigger→route→action |
+
+**驗收**: trigger 事件正確路由（DM→self, 獨立研究→spawn），idle specialist 5min 後自動關閉。
+
+### Phase 3b: Perspective System
+
+**Forge worktree**: 同 Phase 3 worktree（依賴緊密）
+**預估**: 2-3h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 3b.1 | 定義 Perspective types + compose v2 schema | `src/types.ts`, `src/compose.ts` | v1 compose 自動升級為 v2 |
+| 3b.2 | buildContextForPerspective（按視角載入 perception/skills） | `src/perspective.ts` | primary=full, chat=3 perceptions |
+| 3b.3 | 結果回流機制（mesh-output → primary 吸收） | `src/perspective.ts`, `src/loop.ts` | specialist 產出 → primary 下 cycle 可見 |
+
+**驗收**: chat perspective context ~15K chars（vs primary ~50K），token 節省 >60%。
+
+### Phase 4: Consensus & Conflict Resolution
+
+**Forge worktree**: `forge-lite.sh create mesh-phase4`
+**前提**: Phase 3 merged
+**預估**: 2h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 4.1 | Decision journal（append-only JSONL） | `src/consensus.ts` | 寫入+查詢 |
+| 4.2 | Exclusive claims（互斥操作 claim） | `src/consensus.ts` | 雙進程同時 claim → 只一個成功 |
+| 4.3 | Partition rules（domain → responsible instance） | `src/consensus.ts` | 配置驅動 |
+
+**驗收**: 兩個 instance 不會同時回覆 Alex 或發重複 Telegram。
+
+### Phase 5: mushi Integration
+
+**Forge worktree**: `forge-lite.sh create mesh-phase5`（mushi repo）
+**前提**: Phase 3 merged
+**預估**: 2h
+
+| # | Task | Files | Verify |
+|---|------|-------|--------|
+| 5.1 | mushi 新增 POST /api/route endpoint | `~/Workspace/mushi/src/server.ts` | curl test |
+| 5.2 | mini-agent Task Router 整合 mushi route | `src/task-router.ts` | mushi offline → fallback 本地決策 |
+
+**驗收**: mushi 在 ~800ms 內回傳路由建議，offline 時 graceful fallback。
+
+### 進度回報策略
+
+| 時機 | 回報方式 | 內容 |
+|------|---------|------|
+| Phase 開始 | `<kuro:chat>` | 「開始 Phase N: 目標」 |
+| Phase 完成 | `<kuro:chat>` | 「Phase N 完成：驗收結果 + merge SHA」 |
+| 遇到問題 | `<kuro:chat>` | 「Phase N 遇到 X，我的判斷是 Y，改用 Z」 |
+| 全部完成 | `<kuro:chat>` + `<kuro:show>` | 完整摘要 + 成功指標 |
+
+不回報：每個小 task 完成、routine typecheck pass、正常開發過程。
+
+### Perspective Check（換位思考檢視，2026-03-08）
+
+| 角度 | 問題 | 風險 | 緩解 |
+|------|------|------|------|
+| **硬體** | 16GB RAM 99% used，能跑 3 個 instance 嗎？ | **高** | Phase 3.0 先驗證，不通過就調整策略（fewer instances / lighter context） |
+| **依賴** | `proper-lockfile` 新增 npm 依賴 | 低 | 備選：自己寫 `flock` syscall wrapper（零依賴但 macOS/Linux 行為差異） |
+| **檔案污染** | `.lock` 檔案 + IPC event 檔案殘留 | 低 | `.gitignore` + TTL 自動清理 + startup sweep |
+| **過渡期** | Phase 1-2 完成但 Phase 3 還沒做，系統行為？ | 無 | Phase 1-2 是純基礎設施，不改變現有行為。Foreground lane 保留到 Phase 3b |
+| **複雜度** | 新增 6 個 .ts 檔案，是否超出 Balanced Complexity？ | 中 | 每個 Phase 可獨立回退。不用就不載入（tree-shakeable） |
+| **Compose v2** | loadCompose() 遇到未知 key 會不會壞？ | 低 | v1→v2 轉換在 compose.ts 入口處理，不影響下游 |
+
+**結論**：RAM 是唯一 blocking risk，Phase 3.0 做前置驗證解決。其餘都是可管理的低風險。計劃可行，開始實作。
 
 ## Metrics（成功標準）
 

@@ -22,7 +22,11 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  技術方案寫好了，在 memory/proposals/2026-03-08-cognitive-mesh-architectur" (收到: 2026-03-08T01:59:12)
+- [x] P1: 回覆 Alex Cognitive Mesh 核准 — 5 個開放問題已決定 + Action Plan 已寫 + 換位思考通過 (2026-03-08 完成)
+- [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
+  Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
+  Verify: pnpm typecheck && pnpm test
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  收到，Cognitive Mesh 核准確認。  我的決定（5 個開放問題）：  1. LLM Provider: Primar" (收到: 2026-03-08T02:08:04)
 ---
 
 ## Later（有空再做）
