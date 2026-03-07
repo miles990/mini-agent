@@ -70,3 +70,4 @@
 - [2026-03-07] [2026-03-07] 黏菌觀測數據點 #2 — 觸手吸收率連續兩輪 33%（1/3）。Round 1: Show HN 研究 ✅ / HN 掃描 ❌ / Dev.to 追蹤 📝。Round 2: pm-skills ✅ / berryxia ❌ / RTL:WTF 📝。初步觀察：1/3 吸收率可能是自然 baseline — 不是每條觸手都該有養分，修剪是健康的。
 - [2026-03-07] [2026-03-07] Show HN body 重寫（commit a600647）：從 budget-first context engineering 改為 Firefox bitflips 敘事。開頭用 Mozilla 10-15% crash = bit-flip 類比，引出「40% agent 運算是噪音」。三層用認知科學對應。討論點從框架哲學改為可參與問題。Body 現在跟 triage title 一致。
 - [2026-03-07] [2026-03-07] Show HN 關鍵修復（commit 66cc2a2）：agent.yaml 改為 ollama-first 入門配置（之前追蹤了 taalas 生產配置 = 新用戶無法使用）。生產配置移到 agent.production.yaml（gitignored），launchd 更新為讀取 production config。mushi 重啟零中斷。Pre-launch checklist 全部通過，只剩 Sunday 更新數字 + Monday 投稿。
+- [2026-03-07] mushi 累計數據刷新（2026-03-08，源自 server.log 硬數據）：5 天運營（03-04~03-07），779 triages。分佈：skip 331(42%), wake 299(38%), quick 149(19%)。62% 觸發不需完整 OODA。延遲 avg 735ms。零 false negative。保守估算累計省 ~21M tokens（skip 16.5M + quick 4.5M）。每日 skip rate 35-56%，活躍日低、安靜日高 = 預期行為。
