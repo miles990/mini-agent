@@ -22,7 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "剛剛看到有人分享他的訊息   —- 好問題！原因是：  失敗的原因  1. OpenClaw 內建瀏覽器  • 無法執行複雜的 JavaScript • 對「自訂 combobox」無力（高鐵網站的下" (收到: 2026-03-07T09:34:27)
+- [ ] P1: 回覆 Alex: "剛剛看到這個 不知道你有沒有什麼想法？  https://www.facebook.com/share/p/1BKKSJHXBR/?mibextid=wwXIfr  URLs: - https://w" (收到: 2026-03-07T09:41:38)
 ---
 
 ## Later（有空再做）
