@@ -7,7 +7,6 @@
 - 187 次 wake（37.6%）— 需要完整 OODA cycle
 - 13 次 quick（2.6%）— 快速處理（03-04 新增的第三層）
 - LLM 決策 395 次 (79.5%)，avg 786ms（Taalas HC1 硬體推論）
-- 規則判斷 102 次 (20.5%)，0ms
 - Addressable filter rate: 69.8%（heartbeat + cron 觸發中被過濾的比例）
 - 預估節省：~15.37M tokens / 4 天 ≈ ~3.8M tokens/天
 - 安全記錄：0 escalation, DM 全 bypass, cron 僅 1 次誤 skip
