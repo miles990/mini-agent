@@ -941,13 +941,13 @@ export class AgentLoop {
     eventBus.on('trigger:*', this.handleTrigger);
 
     // Delegation complete → shorten next cycle interval to absorb results faster
+    // scheduleHeartbeat() calls clearTimer() first, so rapid completions naturally debounce
     eventBus.on('action:delegation-complete', () => {
       if (!this.running || this.paused || this.cycling) return;
-      // Cap interval to 60s so results are absorbed promptly (not immediately — avoid rapid re-trigger)
-      if (this.currentInterval > 60_000) {
-        this.currentInterval = 60_000;
-        slog('LOOP', '[delegation-complete] Capping interval to 60s for result absorption');
-        this.scheduleHeartbeat(); // Re-schedule with shorter interval
+      if (this.currentInterval > 15_000) {
+        this.currentInterval = 15_000;
+        slog('LOOP', '[delegation-complete] Capping interval to 15s for result absorption');
+        this.scheduleHeartbeat();
       }
     });
 
@@ -1096,6 +1096,33 @@ export class AgentLoop {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
+      } else if (
+        triageSource === 'heartbeat'
+        && perceptionStreams.version === this.lastPerceptionVersion
+        && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
+      ) {
+        // Hard skip: heartbeat + no perception change + last cycle was idle
+        // Saves ~800ms mushi LLM call — nothing new to evaluate
+        slog('MUSHI', `⏭ Hard skip — heartbeat + no perception change + idle`);
+        writeTrailEntry({
+          ts: new Date().toISOString(),
+          agent: 'mushi',
+          type: 'scout',
+          decision: 'skip',
+          topics: [triageSource],
+          detail: `hard-rule: no-perception-change + idle`,
+          decay_h: 24,
+        });
+        import('./context-optimizer.js').then(({ getContextOptimizer }) => {
+          const opt = getContextOptimizer();
+          opt.recordCycle({ citedSections: [] });
+          opt.save();
+        }).catch(() => {});
+        this.lastCycleTime = Date.now();
+        if (this.running && !this.paused) {
+          this.scheduleHeartbeat();
+        }
+        return;
       } else {
         const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
         if (decision === 'skip') {
