@@ -75,7 +75,10 @@ const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
-const FORGE_DECAY_TTL_MS = parseInt(process.env.FORGE_DECAY_TTL_MS ?? '', 10) || 2 * 60 * 60_000; // 2h default
+// Forge decay: how long to keep failed worktrees for diagnosis before auto-cleanup
+// Reads FORGE_SLOT_TTL_MINUTES (shared with forge-lite.sh) or FORGE_DECAY_TTL_MS (legacy)
+const FORGE_DECAY_TTL_MS = parseInt(process.env.FORGE_DECAY_TTL_MS ?? '', 10)
+  || (parseInt(process.env.FORGE_SLOT_TTL_MINUTES ?? '', 10) || 30) * 60_000;
 
 // =============================================================================
 // Delegation State Persistence (survives restart)
