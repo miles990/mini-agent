@@ -57,6 +57,7 @@ const CATEGORY_MAP: Record<string, string> = {
   'git-detail': 'workspace',
   'focus-context': 'workspace',
   'chrome': 'chrome',
+  'cdp-events': 'chrome',
   'web': 'chrome',
   'telegram-inbox': 'telegram',
   'mobile': 'workspace',
