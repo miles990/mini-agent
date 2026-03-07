@@ -3175,8 +3175,11 @@ const ATOMIC_COMMIT_GROUPS: Array<{ paths: string[]; prefix: string }> = [
   { paths: ['kuro-portfolio/'], prefix: 'chore(auto/portfolio)' },
 ];
 
-// External repos base directory — scan all git repos under ~/Workspace/ (excluding mini-agent itself)
-const EXTERNAL_REPOS_BASE = path.join(os.homedir(), 'Workspace');
+// External repos — only Kuro's own projects (not all of ~/Workspace/)
+const KURO_EXTERNAL_REPOS = [
+  path.join(os.homedir(), 'Workspace', 'mushi'),
+  path.join(os.homedir(), 'Workspace', 'metsuke'),
+];
 
 // =============================================================================
 // Auto-Escalate Overdue Tasks — 逾期任務升壓
@@ -3274,20 +3277,10 @@ async function autoCommitMemory(action: string | null): Promise<void> {
  * Fire-and-forget, called after autoCommitMemory.
  */
 async function autoCommitExternalRepos(): Promise<void> {
-  const agentDir = path.resolve(__dirname, '..');
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(EXTERNAL_REPOS_BASE);
-  } catch { return; }
-
-  for (const entry of entries) {
-    const dir = path.join(EXTERNAL_REPOS_BASE, entry);
+  for (const dir of KURO_EXTERNAL_REPOS) {
+    const entry = path.basename(dir);
     try {
-      // Skip mini-agent itself (already handled by autoCommitMemory)
-      if (path.resolve(dir) === agentDir) continue;
-      // Skip forge worktrees (managed by forge-lite.sh lifecycle)
-      if (entry.startsWith('mini-agent-forge-')) continue;
-      // Must be a git repo
+      // Must exist and be a git repo
       if (!fs.existsSync(path.join(dir, '.git'))) continue;
 
       const { stdout: status } = await execFileAsync(
