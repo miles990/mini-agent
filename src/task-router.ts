@@ -41,7 +41,7 @@ export interface ClusterState {
 // Constants
 // =============================================================================
 
-const DIRECT_MESSAGE_SOURCES = new Set(['telegram', 'room', 'chat', 'telegram-user']);
+const DIRECT_MESSAGE_SOURCES = new Set(['telegram', 'room', 'chat', 'telegram-user', 'direct-message']);
 
 /** Max total instances (primary + specialists) */
 const DEFAULT_MAX_INSTANCES = 3;
