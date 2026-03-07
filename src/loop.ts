@@ -3149,11 +3149,11 @@ async function resolveStaleConversationThreads(): Promise<void> {
 // =============================================================================
 
 /**
- * 記憶同步：只 commit 記憶相關檔案（memory/skills/plugins）。
- * Code 變更由 Kuro 手動 commit（Alex 指令 2026-03-08）。
+ * 記憶同步：只 auto-commit memory/ 目錄。
+ * skills/ 和 plugins/ 跟功能搭配使用，由 Kuro 手動 commit。
+ * Code 變更也由 Kuro 手動 commit（Alex 指令 2026-03-08）。
  */
-// Auto-commit only memory files — code changes are committed manually by Kuro
-const MEMORY_COMMIT_PATHS = ['memory/', 'skills/', 'plugins/'];
+const MEMORY_COMMIT_PATHS = ['memory/'];
 
 // External repos — only Kuro's own projects (not all of ~/Workspace/)
 const KURO_EXTERNAL_REPOS = [
