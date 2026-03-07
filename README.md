@@ -7,7 +7,7 @@
 
 Most AI agent frameworks are goal-driven — "give me a goal, I'll execute steps." mini-agent is perception-driven — it sees the environment first, then decides what to do. AutoGPT/BabyAGI's biggest flaw was "hands without eyes." mini-agent flips it: perception before action.
 
-No database. No embeddings. Just Markdown files, shell scripts, and Claude. ~29K lines of TypeScript, battle-tested over 1000+ autonomous cycles.
+No database. No embeddings. Just Markdown files, shell scripts, and Claude. ~29K lines of TypeScript, running 24/7 as a personal assistant since February 2026 — 1000+ autonomous cycles and counting.
 
 ## Quick Start
 

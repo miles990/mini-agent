@@ -56,7 +56,7 @@ perception:
 - Exit 0 on success; non-zero exits are logged but don't crash the agent
 - Test by running `bash plugins/my-sensor.sh` directly
 
-See [plugins/](plugins/) for 30+ examples.
+See [plugins/](plugins/) for 34 examples.
 
 ### 2. Write a Skill (Markdown module)
 
@@ -112,7 +112,7 @@ Open an issue with:
 ## Project Structure
 
 ```
-src/           # TypeScript source (~25K lines)
+src/           # TypeScript source (~29K lines)
 plugins/       # Perception plugins (shell scripts)
 skills/        # Markdown knowledge modules
 scripts/       # Utility scripts

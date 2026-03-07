@@ -10,8 +10,9 @@ INSTALL_DIR="$HOME/.mini-agent"
 echo "Installing mini-agent..."
 
 # Check dependencies
-command -v node >/dev/null 2>&1 || { echo "Error: Node.js is required"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "Error: Node.js 20+ is required"; exit 1; }
 command -v pnpm >/dev/null 2>&1 || { echo "Error: pnpm is required (npm i -g pnpm)"; exit 1; }
+command -v claude >/dev/null 2>&1 || { echo "Error: Claude CLI is required (npm i -g @anthropic-ai/claude-code)"; exit 1; }
 
 # Clone or update
 if [ -d "$INSTALL_DIR" ]; then
@@ -39,5 +40,5 @@ echo "✓ mini-agent installed!"
 echo ""
 echo "Usage:"
 echo "  mini-agent              # Interactive chat"
-echo "  mini-agent server       # HTTP API"
-echo "  echo '...' | mini-agent # Pipe mode"
+echo "  mini-agent up -d        # Start in background"
+echo "  mini-agent status       # Check what's happening"
