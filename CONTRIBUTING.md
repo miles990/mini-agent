@@ -19,6 +19,24 @@ pnpm build
 pnpm typecheck
 ```
 
+## Development
+
+```bash
+pnpm build              # Compile TypeScript
+pnpm typecheck           # Type-check without emitting
+pnpm test                # Run tests (vitest)
+pnpm test:watch          # Run tests in watch mode
+```
+
+To run the agent locally, create a `.env` file with at minimum:
+
+```bash
+MINI_AGENT_INSTANCE=dev
+PORT=3001
+```
+
+Then `node dist/cli.js` to start, or `node dist/cli.js up` to run the daemon. See `README.md` for full environment variable reference.
+
 ## Good First Contributions
 
 ### 1. Write a Perception Plugin (easiest)
@@ -105,9 +123,11 @@ Open an issue with:
 ### 4. Code Changes
 
 1. Fork and branch (`git checkout -b fix/description`)
-2. Make changes
-3. Run `pnpm typecheck` and `pnpm test`
-4. Open a PR with a clear description
+2. Make changes — TypeScript strict mode, keep it minimal
+3. Run `pnpm typecheck` and `pnpm test` — both must pass
+4. Open a PR with a clear description of **what** changed and **why**
+
+Look for issues labeled [`good first issue`](https://github.com/miles990/mini-agent/labels/good%20first%20issue) for starter tasks.
 
 ## Project Structure
 
@@ -139,6 +159,13 @@ All changes should pass these checks:
 | **Transparency** | Does any tracking add <5% cycle time? |
 | **Reversibility** | Can this be reverted in <1 minute? |
 | **No Dead Code** | Are there paths that never execute? |
+
+## PR Review Process
+
+- PRs are reviewed for correctness, alignment with design constraints, and code quality
+- Plugin/skill PRs are typically reviewed faster — they're self-contained
+- Code PRs (`src/`) require `pnpm typecheck` and `pnpm test` to pass
+- Keep PRs focused — one change per PR is easier to review
 
 ## Communication
 
