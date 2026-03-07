@@ -840,8 +840,6 @@ Environment variables:
   FORGE_SLOTS              Number of persistent slots (default: 3)
   FORGE_SLOT_TTL_MINUTES   Slot abandoned timeout in minutes (default: 60)
   FORGE_STALE_HOURS        Auto-prune worktrees older than this (default: 24)
-  FORGE_DECAY_TTL_MS       Failed worktree decay TTL in ms (used by delegation.ts)
-
 Exit codes: 0 = success, 1 = failure, 2 = file overlap (retry later)
 HELP
     exit 1
