@@ -26,8 +26,7 @@
 - [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
   Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
   Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "你要把負責讓mini-agent 變得越來越好 這個也是你自己的身體 持續推進和回報" (收到: 2026-03-08T02:57:00)
-- [ ] P1: 回覆 Alex: "現在狀況如何？還有我發現你的mushi一直有code沒有commit然後push到repo 這樣你寫的功能不會吃到最新的 要保持良好的開發習慣" (收到: 2026-03-08T03:34:09)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "以後的改善：mushi 不在 mini-agent 的 auto-commit 監控範圍內，所以我之前一直漏掉。我需要養成習慣 — 每次改完 mushi 的代碼" (收到: 2026-03-08T03:39:24)
 ---
 
 ## Later（有空再做）

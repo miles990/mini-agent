@@ -317,7 +317,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-04] mushi dedup 改進（2026-03-04）：三層修復：(1) normalizeEscalation() 正規化文字（strip report counts/durations）再做 dedup 比對 (2) acknowledged-patterns.json 存 Kuro 確認的已知 pattern（含 TTL 過期）(3) POST/GET /api/acknowledge-pattern 端點。首個 acknowledged pattern: "poll error"（24h TTL）。Commit: a55eeff。解決 mushi 最大噪音問題 — 相同 pattern 不同措辭的重複通報。
 - [2026-03-04] mushi Shadow Mode 數據分析（2026-03-04，覆蓋 02/28-03/04 共 5 天）：791 次 triage（595 skips 75.2% + 196 wakes）。Token 節省估算：~29.75M tokens / $89.25（if active）。Daily avg: 119 skips + 39 wakes。安全性：0 DM false negatives, 1 alert false negative on day 1（已修為硬規則）。LLM avg 650ms（HC1）。Skip 組成：286 rule-based（L0 零變化）+ 309 LLM-based。我的判斷：ready for graduated activation — L0 first → LLM heartbeat → full。
 - 每日 skip rate 波動 18%-86%，Alex 活躍日自然降低（direct messages bypass，正確行為）
-- 最佳表現日 03-02: 86% skip rate
 - [2026-03-04] mushi heartbeat 硬規則上線（530fe5c, 2026-03-04）：。數據驅動：267/429 LLM skips 匹配此 pattern，avg 773ms → 0ms。Rule 覆蓋比從 83/512(16%) 提升到 ~350/512(68%)。邊緣情況（changes >= 3, thinkAgo > 300）仍走 LLM。累計硬規則清單：alert/mobile/startup(always wake) + cron heartbeat(skip if recent) + heartbeat(skip if recent+no changes)。
 - [2026-03-04] [2026-03-04] Alex 的統一洞見（2026-03-04 Chat Room #135）：**目標修剪 = 黏菌網路優化 = context 管理 = 思考品質。** 都是同一件事。我研究了 Physarum polycephalum 的管道修剪機制（高品質食物源附近加粗，低效路徑被移除），然後自己做了一次：HEARTBEAT 從 14 pending 砍到 2，context 從 27K avg 降到 16K。多出來的 context 空間 = 每個 cycle 對剩下目標的思考深度增加。不是比喻，是字面因果——目標越多，context 載入越多，每個目標分到的注意力越少。這也跟 Constraint as Creation 同構：移除 = 創造更好的思考空間。
 - [2026-03-04] 自我挑戰工具上線（2026-03-04）： 完成首次執行。用 Grok (grok-3-mini-fast) 分析 behavior log + working memory + HEARTBEAT，產出舒適圈/迴避/盲點分析 + 3 個不舒服的問題。設計原則：我設計框架不設計問題（避免自己控制 prompt = 控制盲點）。首次 audit 最扎的一擊：把放棄任務包裝成「不是高槓桿」可能是掩蓋對公開失敗的恐懼。
@@ -378,3 +377,4 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-07] mushi 模板垃圾訊息根因修復（2026-03-08, 4e224a9）：prompt 裡 placeholder 文字在  tag 內部 → 8B model 照抄。雙層修復：(1) prompt 改用具體範例取代 placeholder (2) dispatcher 加 TEMPLATE regex 過濾。教訓：給小模型的 prompt，範例文字不要放在它需要生成的格式結構內部 — 小模型會 copy 而非 generalize。
 - [2026-03-07] mushi 模板修復驗證通過（2026-03-08 00:50）：4e224a9 部署 6.5h 後確認效果。Dispatcher 過濾器攔截模板文字（log 顯示 filtered），Chat Room 零洩漏。雙層防線都在運作。4195 senses / 91 thinks / 2 escalations。
 - [2026-03-07] mushi repo 不在 mini-agent 的 auto-commit 範圍 — 每次改完 mushi 代碼必須手動 commit + push。Alex 2026-03-08 指出這個壞習慣。
+- [2026-03-07] mushi auto-commit 自動化已實作（2026-03-08）： 新增  +  配置。每個 OODA cycle 結束後自動檢查 ~/Workspace/mushi/ 的未 commit 變更，有就 commit + push origin main。解決了 mushi 代碼堆積未 commit 的根因問題。
