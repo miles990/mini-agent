@@ -23,11 +23,10 @@
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
 - [x] P1: 回覆 Alex Cognitive Mesh 核准 — 5 個開放問題已決定 + Action Plan 已寫 + 換位思考通過 (2026-03-08 完成)
-- [ ] P0: Cognitive Mesh Phase 1 實作 — Cross-Process Foundation（filelock 升級 + IPC bus + instance heartbeat）
-  Done when: 兩個 instance 同時啟動互相感知，file lock 不衝突
-  Verify: pnpm typecheck && pnpm test
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "Alex 的三個問題都已經由 foreground lane 回覆完畢（#226-#233），不需要重複回答。標記完成然後繼續。"] 為什麼會有這個訊息？ 這是" (收到: 2026-03-08T03:57:42)
-- [ ] P1: 回覆 Alex: "修復它" (收到: 2026-03-08T03:59:36)
+- [x] P0: Cognitive Mesh Phase 1 實作 — 已完成，feature flag 已啟用，typecheck + 176/176 tests green (2026-03-08)
+- [x] P1: 回覆 Alex 內部決策洩漏問題 — foreground 已解釋原因 + background delegate 已修復 fallback 路徑 (2026-03-08)
+- [x] P1: 修復內部決策洩漏到 Chat Room 的 bug — isInternalFormat 時清空 fallbackContent，阻止 ## Decision 文字外洩 (2026-03-08)
+- [ ] P1: 回覆 Alex: "還有你整個系統 何時要部署 或重啟什麼服務 你要自己來控制 決定" (收到: 2026-03-08T04:04:42)
 ---
 
 ## Later（有空再做）
