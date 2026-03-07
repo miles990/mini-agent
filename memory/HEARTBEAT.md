@@ -67,7 +67,7 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 
 **中期（本月）**
 - [ ] Demo GIF 錄製（asciinema）
-- [ ] examples/ 目錄（3 個 quickstart）
+- [x] examples/ 目錄（3 個 quickstart）— minimal, code-watcher, journal (792e5fe)
 - [ ] install.sh 改善（不需預裝 pnpm）
 - [ ] Dev.to 介紹文「I built a perception-driven AI agent framework」
 - [ ] 提交 awesome-selfhosted + awesome-ai-agents
