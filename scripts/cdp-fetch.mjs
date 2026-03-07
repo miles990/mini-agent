@@ -279,6 +279,17 @@ function killChrome() {
   return true;
 }
 
+function isRunningVisible() {
+  const pid = findChromePid();
+  if (!pid) return false;
+  try {
+    const args = execSync(`ps -p ${pid} -o args=`, { encoding: 'utf-8', timeout: 3000 });
+    return !args.includes('--headless');
+  } catch {
+    return false;
+  }
+}
+
 function startChrome(headless = true) {
   mkdirSync(PROFILE_DIR, { recursive: true });
 
@@ -310,7 +321,22 @@ function startChrome(headless = true) {
 }
 
 async function ensureChrome() {
-  if (await cdpAvailable()) return true;
+  if (await cdpAvailable()) {
+    // If Chrome was left in visible mode (e.g., after login), auto-switch to headless
+    if (isRunningVisible()) {
+      console.error('[CDP Chrome is visible — switching to headless for background operation...]');
+      killChrome();
+      await sleep(1500);
+      startChrome(true);
+      for (let i = 0; i < 30; i++) {
+        await sleep(500);
+        if (await cdpAvailable()) return true;
+      }
+      console.error('Failed to restart Chrome in headless mode.');
+      process.exit(1);
+    }
+    return true;
+  }
 
   // Chrome not running — start headless
   console.error('[auto-starting Chrome headless...]');
@@ -516,7 +542,7 @@ async function cmdStatus() {
   const version = await fetch(`${CDP_BASE}/json/version`, { signal: AbortSignal.timeout(3000) }).then(r => r.json());
   const targets = await listTargets();
   const pages = targets.filter(t => t.type === 'page');
-  const isHeadless = (version.Browser || '').toLowerCase().includes('headless');
+  const isHeadless = (version.Browser || '').toLowerCase().includes('headless') || !isRunningVisible();
 
   console.log(`Chrome CDP: AVAILABLE (${CDP_BASE})`);
   console.log(`Browser: ${version.Browser}`);
