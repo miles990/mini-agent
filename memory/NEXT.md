@@ -22,7 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "剛剛看到這個 不知道你有沒有什麼想法？  https://www.facebook.com/share/p/1BKKSJHXBR/?mibextid=wwXIfr  URLs: - https://w" (收到: 2026-03-07T09:41:38)
+- [ ] P1: 回覆 Alex: "剛剛看到這個 可以關注一下他的這個專案 這個是引入外部的agent 來持續改善他的專案  https://www.facebook.com/share/1AAHfqQdJw/?mibextid=wwX" (收到: 2026-03-07T09:49:19)
 ---
 
 ## Later（有空再做）
