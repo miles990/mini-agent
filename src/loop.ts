@@ -27,6 +27,8 @@ import { githubAutoActions } from './github.js';
 import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
 import { runCoachCheck } from './coach.js';
 import { runDailyPruning } from './context-pruner.js';
+import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
+import type { TriageContext, ContinuationContext } from './mushi-client.js';
 import { extractCommitments, updateCommitments } from './commitments.js';
 import { drainCronQueue } from './cron.js';
 import {
@@ -207,7 +209,6 @@ export class AgentLoop {
   private static readonly PRIORITY_COOLDOWN = 10_000; // 同類 10s 冷卻
 
   // ── Continuation Check (mushi System 1 exit actuator) ──
-  private static readonly MUSHI_CONTINUATION_URL = 'http://localhost:3000/api/continuation-check';
   private consecutiveContinuations = 0;
   private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
   private lastCycleHadSchedule = false;
@@ -510,144 +511,6 @@ export class AgentLoop {
     this.runCycle();
   }
 
-  /**
-   * mushi instant routing — three-tier progressive response:
-   * T1: mushi instant-reply (~1-2s, fire-and-forget) → quick ack to Telegram
-   * T2: triage decides depth — instant → foreground (~15s) / wake → OODA (~30-300s)
-   */
-  private async mushiInstantRoute(source: string, text: string, replyTo?: string): Promise<void> {
-    // T1 instant-reply removed — low-quality mushi responses created noise
-    // mushi's value is triage (wake/skip/instant routing), not direct replies
-
-    try {
-      const metadata: Record<string, unknown> = { messageText: text };
-      if (this.lastCycleTime > 0) {
-        metadata.lastThinkAgo = Math.round((Date.now() - this.lastCycleTime) / 1000);
-      }
-
-      const res = await fetch(AgentLoop.MUSHI_TRIAGE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trigger: source, source, metadata }),
-        signal: AbortSignal.timeout(3000),
-      });
-
-      if (!res.ok) throw new Error(`mushi ${res.status}`);
-      const result = await res.json() as { action?: string; reason?: string; latencyMs?: number };
-
-      if (result.action === 'instant') {
-        slog('MUSHI', `⚡ instant: ${source} → foreground (${result.latencyMs}ms) — ${result.reason}`);
-        eventBus.emit('log:info', { tag: 'mushi-instant', msg: `${source} → instant (${result.latencyMs}ms) — ${result.reason}`, source, latencyMs: result.latencyMs, reason: result.reason });
-        // T2: foreground reply for deeper response (independent lane)
-        await this.foregroundReply(source, text, replyTo);
-        return;
-      }
-
-      // wake or unknown → T2: normal OODA cycle
-      slog('MUSHI', `✅ wake: ${source} → cycle (${result.latencyMs}ms) — ${result.reason}`);
-      this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
-      this.runCycle();
-    } catch (err) {
-      // Fail-open: mushi error → normal cycle directly
-      slog('MUSHI', `⚡ instant-route failed (${err instanceof Error ? err.message : 'unknown'}), falling back to cycle`);
-      this.triggerReason = source === 'telegram' ? 'telegram-user' : source;
-      this.runCycle();
-    }
-  }
-
-  // mushi instant-reply (T1) removed — kept triage (T2) only
-
-  // ---------------------------------------------------------------------------
-  // mushi Triage — active mode (skip cycle if mushi says skip)
-  // ---------------------------------------------------------------------------
-
-  private static readonly MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
-
-  /** Ask mushi to classify a trigger as wake/skip. Returns decision or null (offline/error = fail-open). */
-  private async mushiTriage(source: string, data: Record<string, unknown>): Promise<'wake' | 'skip' | 'quick' | null> {
-    try {
-      const metadata: Record<string, unknown> = {};
-      // Include last think age for context
-      if (this.lastCycleTime > 0) {
-        metadata.lastThinkAgo = Math.round((Date.now() - this.lastCycleTime) / 1000);
-      }
-      // Auto-commit detection from data
-      if (data.source === 'auto-commit' || String(data.detail ?? '').includes('auto-commit')) {
-        metadata.isAutoCommit = true;
-      }
-      // Last action type: helps mushi distinguish "just idled" vs "just acted"
-      if (this.lastAction) {
-        const idle = /no action|穩態|無需行動|nothing to do/i.test(this.lastAction);
-        metadata.lastActionType = idle ? 'idle' : 'action';
-      } else {
-        metadata.lastActionType = 'none';
-      }
-      // Perception change signals — count is more useful than boolean for triage
-      metadata.perceptionChanged = perceptionStreams.version !== this.lastPerceptionVersion;
-      metadata.perceptionChangedCount = perceptionStreams.getChangedCount();
-      // Cycle count for context
-      metadata.cycleCount = this.cycleCount;
-      const body = JSON.stringify({
-        trigger: source,
-        source: String(data.source ?? source),
-        metadata,
-      });
-
-      const res = await fetch(AgentLoop.MUSHI_TRIAGE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        signal: AbortSignal.timeout(3000),
-      });
-
-      if (!res.ok) return null;
-      const result = await res.json() as { action?: string; reason?: string; latencyMs?: number; method?: string };
-
-      const emoji = result.action === 'skip' ? '⏭' : result.action === 'quick' ? '⚡' : '✅';
-      slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
-      eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
-      const validActions = ['skip', 'wake', 'quick'];
-      return validActions.includes(result.action ?? '') ? result.action as 'wake' | 'skip' | 'quick' : null;
-    } catch {
-      // mushi offline or timeout — fail-open (proceed with cycle)
-      return null;
-    }
-  }
-
-  /**
-   * Ask mushi whether to continue immediately after a cycle.
-   * Fail-closed: mushi offline or error → no continuation (normal heartbeat).
-   */
-  private async mushiContinuationCheck(): Promise<{ shouldContinue: boolean; deep: boolean } | null> {
-    try {
-      const { readPendingInbox } = await import('./inbox.js');
-      const hasUnprocessedInbox = readPendingInbox().length > 0;
-
-      const res = await fetch(AgentLoop.MUSHI_CONTINUATION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hasUnprocessedInbox,
-          lastActionSummary: this.lastAction ?? 'no action',
-          inProgressWork: this.triggerReason ?? undefined,
-          source: this.triggerReason?.split(/[:(]/)[0]?.trim() ?? undefined,
-        }),
-        signal: AbortSignal.timeout(3000),
-      });
-
-      if (!res.ok) return null;
-      const result = await res.json() as {
-        ok?: boolean; shouldContinue?: boolean; deep?: boolean;
-        reason?: string; latencyMs?: number; method?: string;
-      };
-
-      slog('MUSHI', `🔄 continuation: ${result.shouldContinue ? 'YES' : 'no'} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
-      return { shouldContinue: !!result.shouldContinue, deep: !!result.deep };
-    } catch {
-      return null; // Fail-closed
-    }
-  }
-
   /** Event handler — bound to `this` for subscribe/unsubscribe */
   private handleTrigger = (event: AgentEvent): void => {
     return this.handleUnifiedEvent(event);
@@ -922,7 +785,15 @@ export class AgentLoop {
         }
         return;
       } else {
-        const decision = await this.mushiTriage(triageSource, { source: reason, detail: reason });
+        const triageCtx: TriageContext = {
+          lastCycleTime: this.lastCycleTime,
+          lastAction: this.lastAction,
+          lastPerceptionVersion: this.lastPerceptionVersion,
+          currentPerceptionVersion: perceptionStreams.version,
+          perceptionChangedCount: perceptionStreams.getChangedCount(),
+          cycleCount: this.cycleCount,
+        };
+        const decision = await mushiTriage(triageSource, { source: reason, detail: reason }, triageCtx);
         if (decision === 'skip') {
           slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
           // Trail: skip = scouting, not discarding. Record what was seen.
@@ -985,7 +856,8 @@ export class AgentLoop {
         slog('MUSHI', `🔄 continuation capped (${AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS} consecutive), resetting`);
         this.consecutiveContinuations = 0;
       } else {
-        const result = await this.mushiContinuationCheck();
+        const contCtx: ContinuationContext = { lastAction: this.lastAction, triggerReason: this.triggerReason };
+        const result = await mushiContinuationCheck(contCtx);
         if (result?.shouldContinue) {
           this.consecutiveContinuations++;
           // Set short interval (30s) for continuation
