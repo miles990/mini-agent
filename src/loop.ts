@@ -1512,6 +1512,15 @@ export class AgentLoop {
           })()
         : Promise.resolve(0);
 
+      // Streaming chat — fire <kuro:chat> tags as soon as they're detected during generation
+      const streamedChatTexts = new Set<string>();
+      const onStreamChat = (text: string, reply: boolean) => {
+        streamedChatTexts.add(text);
+        const telegramMsgId = matchReplyTarget(text, this.triggerTelegramMsgs);
+        eventBus.emit('action:chat', { text, reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId });
+        slog('STREAM', `Chat streamed: ${text.slice(0, 80)}`);
+      };
+
       const [claudeResult, newInboxCount] = await Promise.all([
         callClaude(prompt, context, 2, {
           rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined }),
@@ -1519,6 +1528,7 @@ export class AgentLoop {
           onPartialOutput,
           cycleMode,
           model: modelCliName,
+          onStreamChat,
         }),
         concurrentPromise,
       ]);
@@ -1690,9 +1700,24 @@ export class AgentLoop {
         }
       }
 
+      // ── Filter out chats already sent via streaming ──
+      let didReplyToTelegram = false;
+      if (streamedChatTexts.size > 0) {
+        const before = tags.chats.length;
+        tags.chats = tags.chats.filter(c => !streamedChatTexts.has(c.text));
+        if (before !== tags.chats.length) {
+          slog('STREAM', `Filtered ${before - tags.chats.length} already-streamed chat(s)`);
+          didReplyToTelegram = true; // streamed chats count as replied
+        }
+        // Record side effects for streamed chats
+        for (const text of streamedChatTexts) {
+          cycleSideEffects.push(`chat:${text.slice(0, 60)}`);
+          cycleTagsProcessed.push('CHAT');
+        }
+      }
+
       // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
       // Must run BEFORE action:chat emission to prevent duplicate sends
-      let didReplyToTelegram = false;
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {

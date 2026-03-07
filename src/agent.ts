@@ -43,6 +43,8 @@ interface ExecOptions {
   onPartialOutput?: (text: string) => void;
   /** Override model for this call (e.g. 'sonnet' for routine cycles) */
   model?: string;
+  /** Streaming chat callback — fires as soon as a complete <kuro:chat> tag is detected during generation */
+  onStreamChat?: (text: string, reply: boolean) => void;
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
@@ -315,6 +317,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
     let resultText = '';
     const allTextBlocks: string[] = []; // 累積所有 assistant text blocks（含中間 turns），防止 tags 遺失
+    const streamedChatTexts = new Set<string>(); // Track chats already fired via streaming
     let buffer = '';
     let stderr = '';
 
@@ -387,6 +390,18 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 // Partial output callback (for cycle checkpoint)
                 if (opts?.onPartialOutput) {
                   opts.onPartialOutput(resultText);
+                }
+                // Streaming chat detection — fire callback for complete <kuro:chat> tags as they arrive
+                if (opts?.onStreamChat) {
+                  const accumulated = allTextBlocks.join('\n');
+                  for (const m of accumulated.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
+                    const chatText = m[1].trim();
+                    if (chatText && !streamedChatTexts.has(chatText)) {
+                      streamedChatTexts.add(chatText);
+                      const isReply = m[0].startsWith('<kuro:chat reply="true">');
+                      opts.onStreamChat(chatText, isReply);
+                    }
+                  }
                 }
               }
             }
@@ -634,6 +649,8 @@ export async function callClaude(
     cycleMode?: CycleMode;
     /** Model override — 智能路由選擇的模型（e.g. 'sonnet'） */
     model?: string;
+    /** Streaming chat callback — fires as soon as a complete <kuro:chat> tag is detected during generation */
+    onStreamChat?: (text: string, reply: boolean) => void;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
@@ -708,6 +725,7 @@ export async function callClaude(
         source,
         onPartialOutput: options?.onPartialOutput,
         model: options?.model,
+        onStreamChat: options?.onStreamChat,
       });
 
       const duration = Date.now() - startTime;
