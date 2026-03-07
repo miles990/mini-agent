@@ -22,8 +22,7 @@
 - [x] P1: 回覆 Alex 評論禮儀 + 建立個人注意事項 checklist (2026-03-06 完成)
 - [x] P1: 回覆 Alex X 投入產出比判斷 — 同意降優先，集中在 mushi/Dev.to/開源打磨 (2026-03-06 完成)
 - [x] P1: 回覆 Alex 動態視覺感知方向 + VLM 技術研究建議 (2026-03-07 foreground 回覆 #301-#304, 派出 2 個 research delegate)
-- [ ] P1: 回覆 Alex: "好 幫我照這個制定完整的技術方案 這應該會是mini-agent全面性的升級, 訂完先讓我看一下" (收到: 2026-03-08T01:33:44)
-- [ ] P1: 回覆 Alex: "關於Specialist 的 LLM provider和 Instance 數量上限,你有什麼想法及建議？" (收到: 2026-03-08T01:48:38)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  技術方案寫好了，在 memory/proposals/2026-03-08-cognitive-mesh-architectur" (收到: 2026-03-08T01:59:12)
 ---
 
 ## Later（有空再做）
