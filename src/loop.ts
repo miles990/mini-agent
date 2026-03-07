@@ -56,6 +56,7 @@ import {
 import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, cleanupOrphanDelegations, forgeRecover } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
+import { detectCitations } from './nutrient-router.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 
@@ -2054,6 +2055,18 @@ export class AgentLoop {
 
       // Nutrient tracking — measure delegation result absorption (fire-and-forget)
       try { trackNutrientSignals(action, response); } catch { /* fire-and-forget */ }
+
+      // Nutrient router — detect domain citations in response (slime mold feedback, fire-and-forget)
+      try {
+        const webResult = perceptionStreams.getCachedResults().find(r => r.name === 'web');
+        if (webResult?.output) {
+          const domainMatches = webResult.output.matchAll(/\[([^\]]+)\]/g);
+          const contextDomains = [...domainMatches].map(m => m[1].replace(/ \(cached.*$/, '').trim()).filter(d => d.includes('.'));
+          if (contextDomains.length > 0) {
+            detectCitations(response, contextDomains);
+          }
+        }
+      } catch { /* fire-and-forget */ }
 
       // Lane-output cleanup — processed results + stale >24h（fire-and-forget）
       try {
