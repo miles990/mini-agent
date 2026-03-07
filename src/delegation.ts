@@ -738,8 +738,15 @@ function startTask(task: DelegationTask): void {
             forgeOutcome.cleaned = true;
           }
         } else {
-          // Failed/timeout: keep worktree for diagnosis (2h TTL, cleaned by forgeRecover)
-          slog('FORGE', `Keeping failed worktree ${forgeWorktreePath} for diagnosis (2h TTL)`);
+          // Failed/timeout: keep worktree for diagnosis, auto-cleanup after TTL
+          const ttlMin = Math.round(FORGE_DECAY_TTL_MS / 60_000);
+          slog('FORGE', `Keeping failed worktree ${forgeWorktreePath} for diagnosis (${ttlMin}min TTL)`);
+          setTimeout(() => {
+            try {
+              forgeCleanup(forgeWorktreePath!, task.workdir);
+              slog('FORGE', `Decay cleanup: ${forgeWorktreePath}`);
+            } catch { /* best effort */ }
+          }, FORGE_DECAY_TTL_MS);
           forgeOutcome.cleaned = false;
         }
         result.forge = forgeOutcome;
