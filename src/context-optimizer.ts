@@ -311,8 +311,3 @@ export function getContextOptimizer(): ContextOptimizer {
   }
   return instance;
 }
-
-/** Reset singleton (for testing) */
-export function resetContextOptimizer(): void {
-  instance = null;
-}
