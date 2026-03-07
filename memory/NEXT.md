@@ -6,10 +6,8 @@
 
 ## Now（正在做）
 
-- [ ] P1: loop.ts 模組化拆分 — 3,413 行單體文件，槓桿點（複利：可測試 + 迭代速度 + 可讀性）
-  第一刀已完成：inbox processing 提取到 inbox-processor.ts（c2b9c6a）
-  下一刀：計劃共 5 刀，繼續提取 standalone functions
-  Verify: `wc -l src/loop.ts | awk '{print $1}'`
+- [ ] P1: 證明 mushi 的價值 — 分發（X/HN/Reddit）+ 累積更多 triage 數據觀察長期趨勢
+  Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
 
 ---
 
