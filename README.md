@@ -2,12 +2,15 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
+[![In Production](https://img.shields.io/badge/In_Production-1500%2B_cycles-green.svg)](#philosophy)
 
 **The AI agent that sees before it acts.**
 
-Most AI agent frameworks are goal-driven — "give me a goal, I'll execute steps." mini-agent is perception-driven — it sees the environment first, then decides what to do. AutoGPT/BabyAGI's biggest flaw was "hands without eyes." mini-agent flips it: perception before action.
+Shell scripts define what the agent can see — git changes, Docker health, Chrome tabs, phone sensors, Telegram messages. Claude decides what to do. Add a plugin, expand its world.
 
-No database. No embeddings. Just Markdown files, shell scripts, and Claude. ~29K lines of TypeScript, running 24/7 as a personal assistant since February 2026 — 1000+ autonomous cycles and counting.
+No database. No embeddings. Markdown files + shell scripts + Claude CLI. Running 24/7 in production since February 2026.
+
+Most agent frameworks are goal-driven: "do X in N steps." mini-agent is **perception-driven**: it observes the environment continuously, then decides whether to act. The difference matters — goal-driven agents fail when the goal is wrong. Perception-driven agents adapt to what's actually happening.
 
 ## Quick Start
 
@@ -15,11 +18,16 @@ No database. No embeddings. Just Markdown files, shell scripts, and Claude. ~29K
 # Install
 curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 
-# Run
-mini-agent              # Interactive chat (auto-creates config)
-mini-agent up -d        # Start in background
-mini-agent status       # Check what's happening
+# First run — interactive chat, auto-creates agent-compose.yaml
+mini-agent
+
+# Run autonomously in background
+mini-agent up -d        # Start the OODA loop
+mini-agent status       # What is it doing right now?
+mini-agent logs -f      # Watch it think
 ```
+
+The agent starts perceiving immediately — workspace changes, running services, open browser tabs. It decides on its own whether to act or wait.
 
 ## What a Cycle Looks Like
 
@@ -54,23 +62,9 @@ Each cycle: perceive → decide → act. No human prompt needed.
 ## How It Works
 
 ```
-Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
-```
-
-**Perception** — Shell script plugins that tell the agent what's happening. Git changes, Docker status, Chrome tabs, phone GPS — anything you can write a script for becomes a sense.
-
-**Skills** — Markdown files injected into the system prompt. They tell the agent *how* to do things: workflows, checklists, safety rules.
-
-**Memory** — Markdown files + JSON Lines. Human-readable, Git-versionable. No vector DB needed — FTS5 full-text search handles personal-scale data.
-
-**Identity** — `SOUL.md` defines who the agent *is*. Not just a task executor — personality, interests, evolving thoughts.
-
-## Architecture
-
-```
 Channels (CLI / HTTP API / Telegram / Mobile PWA)
        |
-  Agent Core (receive -> perceive -> think -> act)
+  Agent Core (perceive -> orient -> decide -> act)
        |
   +-----------+-----------+-----------+
   | Perception| Skills    | Memory    |
@@ -78,12 +72,19 @@ Channels (CLI / HTTP API / Telegram / Mobile PWA)
   +-----------+-----------+-----------+
 ```
 
-The agent runs an OODA loop (Observe-Orient-Decide-Act) autonomously. Each cycle:
+Each autonomous cycle:
 
-1. **Observe** — Run perception plugins, check environment
+1. **Perceive** — Run shell plugins, observe the environment
 2. **Orient** — Build context from memory + perception + skills
-3. **Decide** — Claude evaluates: is action needed?
+3. **Decide** — Claude evaluates: act, wait, or delegate?
 4. **Act** — Execute, record to memory, notify
+
+Four building blocks:
+
+- **Perception** — Shell scripts that output environment state. Anything scriptable becomes a sense
+- **Skills** — Markdown files injected into the prompt. Domain knowledge the agent follows as instructions
+- **Memory** — Markdown + JSON Lines. Hot (recent) → warm (daily) → cold (long-term). FTS5 search, no vector DB
+- **Identity** — `SOUL.md` defines personality, interests, evolving thoughts. Not just a task executor
 
 ## Perception Plugins
 
@@ -141,18 +142,16 @@ agents:
       - ./skills/docker-ops.md
 ```
 
-## Key Features
+## More Features
 
-- **OODA Loop** — Autonomous cycle with adaptive intervals
-- **Organic Parallelism** — Multi-lane architecture inspired by [Physarum](https://en.wikipedia.org/wiki/Physarum_polycephalum) slime mold: main cycle + foreground + 6 background tentacles exploring in parallel
-- **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion (Llama 3.1 8B, ~800ms) filters noise before expensive LLM cycles — saves ~40% token spend
+- **Organic Parallelism** — Multi-lane architecture inspired by [slime mold](https://en.wikipedia.org/wiki/Physarum_polycephalum): main cycle + foreground lane + 6 background tentacles
+- **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion (8B model, ~800ms) filters noise before expensive LLM cycles — saves ~40% token cost
 - **Telegram** — Bidirectional messaging with smart batching
-- **Mobile PWA** — Phone sensors (GPS, gyro, camera) as perception
+- **Mobile PWA** — Phone sensors (GPS, gyro, camera) as perception inputs
 - **Web Access** — Three-layer extraction: Readability+Turndown → trafilatura → VLM vision fallback
-- **Team Chat Room** — Multi-party discussion with persistent history
+- **Team Chat Room** — Multi-party discussion with persistent history and threading
 - **MCP Server** — Claude Code native integration (14 tools)
 - **CI/CD** — Auto-commit → auto-push → GitHub Actions → deploy
-- **Dashboard** — Real-time SSE-powered status view
 - **Agent Modes** — calm / reserved / autonomous
 
 ## API
