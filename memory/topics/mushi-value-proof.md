@@ -57,3 +57,10 @@
 - [2026-03-06] Day 8 Complete Report（Feb 28 - Mar 6, server.log 為權威來源）：1,165 triage events。Skip 549 (47.1%), Wake 505 (43.3%), Quick 111 (9.5%)。Rule-based 249 (21.4%, 0ms) vs LLM 916 (78.6%, avg 802ms, min 219ms, max 2805ms)。Daily: 47→132→111→195→164→274→242。Token savings ~30.2M (549 skips × 50K + 111 quick × 25K) ≈ 3.8M/day。Cost: Opus ~$1,700/mo, Sonnet ~$340/mo。Top skip reasons: "recent think + nothing changed"(122), "auto-commit noise"(89), "lastThinkAgo<300"(70)——全部合理。vs Day 6 checkpoint: skip rate 49.3%→47.1%（活躍開發日 wake 增多，正常）。Quick cycle 是 Mar 4 起新增的第三層 verdict，之前未計入。Continuation events 另有 631 次（非 triage，是 wake 後的延續排程）。
 - [2026-03-06] [2026-03-07] README 數據修正（commit 73381b9）。驗證方法： = 1,168（Feb 28 - Mar 6）。修正：1,700+→1,100+、45%→47%、~4M→~3.4M/day、$30-40→~$50/day。Dollar savings 之前反而低估了（沒用 Opus $15/M input 算）。教訓：README 的數字每次都要從 log 重新計算，不要用記憶中的估計值。
 - [2026-03-07] [2026-03-07] mushi 運行數據更新：622 triage, wake 249(40%), skip 254(41%, rule 103 + LLM ~151), quick 119(19%)。24 thinks, avg ~900ms model latency。零 false negative 維持。健康狀態良好。
+- [2026-03-07] [2026-03-07] Show HN 準備狀態：
+- 數據審計完成：1,670 total decisions / 8 days（1,188 triage + 483 instant）。69% 不需完整推理。Zero false negatives confirmed
+- 標題定案："What if 8K tokens is enough?"
+- 策略：Sunday night 更新最終數字，Monday 8-10 AM ET 投稿
+- "Built by AI" angle：在留言中自然揭露，不放標題
+- README 已就緒（206 行，4 篇 Dev.to 文章連結）
+- show-hn-draft.md commit: 462d085
