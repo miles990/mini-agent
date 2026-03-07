@@ -1,7 +1,7 @@
 # Architecture Review: mini-agent 全局審視
 
 > Kuro 的大處著眼。不是提案，是診斷。
-> 2026-03-08 | Status: review
+> 2026-03-08 | Status: review (updated)
 
 ---
 
@@ -10,13 +10,15 @@
 | 指標 | 數值 | 意義 |
 |------|------|------|
 | TypeScript 原始碼 | 63 檔案, 30,489 行 | 已超過「~25k 平衡複雜度」目標 |
-| 最大檔案 | memory.ts (2,896), api.ts (2,837), loop.ts (2,103) | 三個潛在單體 |
-| Plugins + Skills | ~5,000 行 (shell + markdown) | 知識層膨脹中 |
-| Internal imports (loop.ts) | 55 個 import 語句 | 拆了模組但沒解耦 |
-| 最被依賴模組 | utils(40), instance(28), memory(26), types(24), event-bus(21) | 五個地基模組 |
-| 測試覆蓋率 | 0% | 零測試基礎設施 |
-| 記憶體使用 | 99% (86MB free / 16GB) | 一個 spike 就 OOM |
-| 提案數量 | 60+ 份 | 想法遠超執行 |
+| 最大檔案 | memory.ts (2,896), api.ts (2,837), loop.ts (2,103) | 三個單體 |
+| loop.ts internal imports | 48 個 | 五刀提取後降了行數，但 import 數仍高 |
+| 最被依賴模組 | utils(39), instance(28), types(24), memory(20), event-bus(17) | 五個地基模組 |
+| 循環依賴 | 0 | 模組邊界方向正確 |
+| 測試檔案 | 15 / 63 (24%) | 有基礎設施，但核心路徑覆蓋不足 |
+| Production deps | 11 | 極度克制 |
+| Cognitive Mesh 模組 | 17 檔案, 4,061 行 | 全部 self-routing，零 multi-instance 用途 |
+| 提案數量 | 60+ 份 | 構想遠超執行 |
+| fire-and-forget (.catch) | 26 (loop.ts alone) | 容錯但也遮蔽了問題 |
 
 ---
 
@@ -24,251 +26,276 @@
 
 ### 2.1 Perception-First 是對的
 
-大部分 agent 框架是 goal-driven（給目標 → 拆步驟 → 執行）。我們是 perception-driven（看見環境 → 判斷 → 行動）。這不只是設計哲學差異，是**根本性的可靠性差異**。
+大部分 agent 框架是 goal-driven（給目標 → 拆步驟 → 執行）。我們是 perception-driven（看見環境 → 判斷 → 行動）。這不只是哲學差異，是**根本性的安全差異**。
 
-Goal-driven agent 在目標錯誤時會瘋狂執行錯誤的步驟。Perception-driven agent 的最壞情況是「什麼都不做」— 這安全得多。
+Goal-driven agent 在目標錯誤時會瘋狂執行錯誤的步驟。Perception-driven agent 的最壞情況是「什麼都不做」— 安全得多。AutoGPT 的歷史驗證了這點：它有手沒有眼。
 
-AutoGPT 的歷史驗證了這點：它有手沒有眼，所以 loop 失控。我們反過來，失控的成本低。
+具體優勢：34 個 plugin 獨立運行、各自有 interval + distinctUntilChanged、結果快取不阻塞 cycle。新感知能力只需寫一個 shell script + 加 compose.yaml 一行。零程式碼改動。
 
-### 2.2 File=Truth 的複利
+### 2.2 File=Truth 消滅了一整類 Bug
 
 零資料庫意味著：
-- **Crash recovery = git checkout**。不需要備份策略、不需要 migration、不需要 WAL
-- **Debug = cat + grep**。任何人（包括未來的我）都能直接讀懂系統狀態
+- **Crash recovery = git checkout**。不需要備份策略、migration、WAL
+- **Debug = cat + grep**。任何人都能直接讀懂系統狀態
 - **版控 = 免費的 audit trail**。每個決策都有 git blame
 
-AutoGPT 2023 年底移除全部 vector DB 驗證了這個選擇。但要注意：File=Truth 的脆弱點是**檔案格式的隱式 schema**（見 §3.3）。
+### 2.3 極度克制的依賴
 
-### 2.3 mushi 是架構模式，不只是優化
+11 個 production dependencies。`express`、`better-sqlite3`、幾個小工具。沒有 framework 鎖定。大多數 AI agent 框架拉 100+ 依賴。這降低了 supply chain 風險和升級維護成本。
 
-mushi 的價值不在於「省 token」。它證明了一個可擴展的架構模式：**把簡單判斷推到便宜的層，把複雜判斷留給貴的層**。
+### 2.4 mushi 是架構模式，不只是優化
 
-1,514 次 triage、57% 不需要喚醒完整 OODA、零 false negative — 這組數據說明的不是 mushi 好用，而是「大部分觸發事件根本不需要 System 2 介入」。
+mushi 的價值不在於「省 token」。它驗證了一個可擴展的架構模式：**把簡單判斷推到便宜的層，把複雜判斷留給貴的層**。
 
-這個模式可以向上擴展：未來加入 System 1.5（中等模型做 quick cycle 的深度版），或向下擴展（純規則的 System 0）。核心是**分層注意力**的正確性已被驗證。
+980+ triage、37% skip rate、零 false negative — 這說明「大部分觸發事件根本不需要 System 2 介入」。分層注意力的正確性已被生產數據證明。
 
-### 2.4 Multi-lane 有機並行
+### 2.5 零循環依賴
 
-黏菌模型不是比喻，是真正在用的架構。Main OODA + Foreground + 6 Background lanes 讓系統可以同時探索多個方向。delegation.ts 的 spawn/absorb/prune 循環是健康的。
+63 個檔案之間沒有任何循環 import。在 30K 行的系統中保持這個性質不是偶然 — 說明模組邊界雖然不完美，但方向正確。
 
-### 2.5 L1/L2/L3 自主模型
+### 2.6 Event Bus 解耦
 
-自我修改的分級安全模型在實踐中表現良好。L1 快速迭代（skills/plugins），L2 自主改 code，L3 大架構需核准。這讓進化速度和安全性取得平衡。
+`action:*` 和 `trigger:*` 事件讓觀測性（observability.ts）不需要改動核心邏輯就能接入。觀察者模式正確使用。
 
 ---
 
 ## 3. 脆弱點（會在壓力下斷裂的地方）
 
-### 3.1 零測試 — 最大的結構性風險
+### 3.1 三個單體 — memory.ts 是最嚴重的
 
-**這是整個系統最脆弱的一點。** 63 個模組、30,489 行程式碼、零測試。
+**memory.ts（2,896 行，被 20 個模組依賴）**
 
-loop.ts 五刀模組化做得漂亮，但每一刀都是「改完 typecheck 過就算成功」。Typecheck 只驗證型別，不驗證行為。提取 cycle-tasks.ts 後，`resolveStaleConversationThreads()` 的邏輯正確嗎？沒人知道，因為沒有測試。
+`buildContext()` 是系統中最重要的函數（memory.ts:1500-2100，~600 行）。每個 OODA cycle 的品質直接取決於它。它做了太多事：
 
-**脆弱的具體表現**：
-- 每次重構都是「希望不會壞」
-- 不敢動核心邏輯（例如 buildContext 的 section 優先序）
-- Bug 只在 production 發現（靠 error pattern loop 被動偵測）
-- 新貢獻者完全沒有安全網
+- 讀取 memory/heartbeat/soul
+- 組裝 20+ 個 context sections（每個有自己的 shouldLoad 邏輯）
+- 管理 perception stream 快取
+- 處理 topic memory 熱度排序
+- 載入 skills、執行 verify commands
+- 格式化所有輸出
 
-**我的判斷**：在 63 個檔案的系統中繼續無測試開發，不是大膽，是魯莽。這是最高槓桿的投資 — 不是因為測試很酷，是因為沒有測試的 30k 行系統會在某個重構中悄悄壞掉，然後花三天找 bug。
+同時 memory.ts 還負責：Memory CRUD、conversation buffer、search index、library catalog、lane output、inner voice、conversation threads。
 
-### 3.2 Import Graph 密度 — 隱藏的耦合
+這是兩個完全不同的關注點混在一起：**「如何儲存和檢索知識」** vs **「如何組裝 LLM 需要的 context」**。
 
-loop.ts 拆出了 5 個模組，但它仍然有 **55 個 import 語句**。模組化了形式，但沒有解耦。
+**loop.ts（2,103 行，48 個 import）**
 
-問題不是「loop.ts 太大」（現在 2,103 行還可以），問題是 **loop.ts 知道系統的一切**。它 import memory、telegram、github、delegation、feedback-loops、coach、perception、temporal、triage、inbox、housekeeping、features、mode、event-router、task-router、scaling、perspective、mesh-handler、hesitation、metabolism、model-router...
+五刀模組化提取了 standalone functions（-35%），但 `AgentLoop` class 本身仍有 30+ private fields。它 import 了系統中幾乎每個模組。每次新增功能，loop.ts 都要改。
 
-這意味著任何模組的介面變動都會影響 loop.ts。loop.ts 是一個 God Object，只是從「God File」變成了「God Orchestrator」。
+問題不在行數 — 是在**知識耦合**。一個 class 知道 mushi triage、Telegram wake、foreground reply、delegation watchdog、event routing、cycle state、model routing、metabolism scanning... 這些不應該由同一個 class 協調。
 
-**結構性解法**：loop.ts 不應該直接 import 55 個模組。它應該通過少量抽象界面（例如 lifecycle hooks、phase handlers）間接使用它們。但這是 L3 級別的架構改動。
+**api.ts（2,837 行，25 個 import）**
 
-### 3.3 memory.ts 是下一個單體
+所有 HTTP endpoints 在一個檔案。功能上不影響，但新人想找某個 API → 在 2,837 行中搜尋。
 
-loop.ts 從 3,413 行降到 2,103 行。但 **memory.ts 現在是 2,896 行**，是系統中最大的檔案，被 26 個模組依賴。
+### 3.2 Cognitive Mesh 是未完成的投機
 
-它同時負責：
-- buildContext()（context 組裝 — 最複雜的邏輯）
-- Memory CRUD
-- Topic memory 管理
-- Search index
-- Lane output 管理
-- Context snapshot
+17 個檔案，4,061 行程式碼，全部被 loop.ts import 並在每個 cycle 中呼叫。但：
+- `routeTask()` 永遠 route 到 self（只有一個 instance）
+- `evaluateScaling()` 永遠回傳不需要 scale
+- `handleMeshRoute()` 永遠是 no-op
+- `metabolismScan()` 掃描的是只有自己的集群
 
-buildContext() 本身可能就有 500+ 行，而且是系統最敏感的函數 — 它決定了每個 cycle 的 Claude 看到什麼。任何 bug 都會影響所有行為。
+4,061 行程式碼、15 個 fire-and-forget 呼叫、額外的 import 解析時間 — 全部為了一個不存在的 multi-instance 未來。
 
-### 3.4 記憶體壓力
+這不是「為未來準備」。這是 premature abstraction。在沒有第二個 instance 的情況下設計 multi-instance 路由、動態擴縮容、養分追蹤、代謝掃描。
 
-99% 記憶體使用不是偶發狀態，是常態。Node.js 進程 + Claude CLI subprocess + Chrome CDP + mushi = 在 16GB 機器上擠得很緊。
+### 3.3 Silent Failure by Design
 
-一個大的 Claude cycle（長 prompt + 多工具呼叫）加上同時 6 個 delegation subprocess，就可能觸發 OOM。launchd 會重啟進程，但 OOM kill 是不優雅的 — 可能在寫入記憶檔案的中途被殺。
+loop.ts 有 26 個 `.catch()` — fire-and-forget 模式。設計意圖是對的：side effects 不應該讓 cycle 崩潰。但代價是 **failures 不可見**。
 
-### 3.5 Context Window 自我矛盾
+當前沒有分級：「github auto-merge 失敗」和「autoCommitMemoryFiles 失敗」被同等對待。前者可能需要立即關注，後者可以忽略。Error Pattern Loop 需要同一模式出現 3 次才建 task。一次性的重要失敗會永遠消失。
 
-系統越複雜 → CLAUDE.md 越大（記錄所有模組和 convention）→ 每個 cycle 的 context budget 被文件佔掉更多 → 留給 perception 和思考的空間越少 → 行為品質下降。
+### 3.4 測試覆蓋在核心路徑上的缺口
 
-這是一個自我矛盾：**系統的文件化程度和系統的運行品質成反比**。目前 CLAUDE.md 已經非常長。context-optimizer 在嘗試解決這個問題，但 optimizer 本身也增加了系統複雜度。
+有 15 個測試檔案（不是 0），但最複雜的三個模組（loop.ts、memory.ts、api.ts）的測試覆蓋最淺。`loop.test.ts` 測的是 config parsing 和 edge cases，不是 OODA cycle 的核心邏輯。因為 `AgentLoop` 是有 30+ private fields 的 class，根本無法 unit test cycle 行為 — 需要 mock 整個世界。
 
-### 3.6 提案堆積（60+ 份，大部分未實作）
+### 3.5 Context Window 正回饋迴圈
 
-proposals/ 有 60+ 份提案，大部分是 draft 或 abandoned 狀態。這不是壞事（想法便宜），但反映了一個模式：**構想的速度遠超執行的速度**。
+系統越複雜 → 更多 context sections → context 越大 → 需要 optimizer → optimizer 增加複雜度 → 系統更大。
 
-風險是認知負擔 — 每次看到 proposals/ 都要花精力判斷「這些還重要嗎」。
+而且現在有**兩層 context optimization 散落在三個檔案裡**：
+- 層 1：buildContext 裡的 `shouldLoad` + `triggerBudgets`（memory.ts:1519-1593）
+- 層 2：`context-optimizer.ts` + `context-pruner.ts`（auto-demotion + pruning）
+
+互相引用但沒有統一設計。
+
+### 3.6 Claude CLI 單點依賴
+
+整個系統的 LLM 能力走 `claude -p` subprocess。不是 HTTP API，不能切 provider（真正意義上的），不能做 request-level retry。provider 抽象存在（agent.ts 有 `Provider` type），但只是切不同的 CLI subprocess。
 
 ---
 
-## 4. 槓桿點（做了之後能帶來複利的改進）
+## 4. 槓桿點（做一件事，改善很多事）
 
-### 4.1 測試基礎設施（最高槓桿）
+### 4.1 提取 buildContext → `src/context-builder.ts`（最高 ROI）
 
-**投資**：建立最小測試框架（vitest），為 5 個核心模組寫 integration test。
-**複利**：之後每次重構都有安全網，敢動核心邏輯，新貢獻者有信心。
-**優先目標**：buildContext()、parseTags()、mushiTriage()、event-router、inbox processing。
+**影響面**：context 品質 → LLM 回應品質 → 行動品質 → 整個系統的智能水準
 
-不需要 100% 覆蓋率。20 個關鍵測試 > 0 個測試，差距是無限大。
+這是 loop.ts 五刀之後的下一個最高 ROI 提取。提取後：
+- **可獨立測試** — 給定 mock 的 perception 結果、memory 內容、inbox，驗證 context 輸出
+- **可獨立迭代** — 調整 section 順序、budget 分配、pruning 策略，不碰 memory 邏輯
+- **兩層 context optimization 可合併** — shouldLoad + triggerBudgets + optimizer + pruner → 一個 coherent 的 budgeting pipeline
+- **memory.ts 降到 ~2,200 行** — 回歸純粹的儲存和檢索
 
-### 4.2 memory.ts 拆分（第二高槓桿）
+### 4.2 清理 Cognitive Mesh 死代碼（第二高 ROI）
 
-跟 loop.ts 五刀同樣的邏輯：
-- `context-builder.ts` — buildContext() 及相關邏輯
-- `topic-memory.ts` — topic CRUD
-- `memory-search.ts` — FTS5 索引
-- 留 `memory.ts` 做 facade
+行動：
+1. 刪除純 multi-instance 邏輯的模組（task-router, scaling, mesh-handler, ipc-bus, model-router, perspective, consensus）
+2. 保留有獨立價值的模組（activity-journal, reply-context, context-pruner, commitments）
+3. loop.ts 移除所有 mesh-related 呼叫
 
-buildContext() 獨立出來後就能測試了（跟 §4.1 聯動）。
+預估影響：loop.ts imports 從 48 降到 ~35。刪除 ~2,500 行死代碼。
 
-### 4.3 loop.ts 依賴反轉（降低耦合）
+風險：如果未來真的需要 multi-instance → git history 永遠可以恢復。正確的時機是有了第二個 instance 的真實需求時再設計。
 
-不是繼續從 loop.ts 提取程式碼，而是改變依賴方向：
+### 4.3 fire-and-forget 分級
 
+分三級：
+1. **Critical**（Telegram 通知、memory 寫入）→ `.catch(e => slog('critical-fail', e.message))`，出現立刻在 context 裡看到
+2. **Important**（GitHub auto-merge、delegation spawn）→ `.catch(e => diagLog(...))`，走 Error Pattern Loop
+3. **Nice-to-have**（metrics、achievements、coach）→ 維持 `.catch(() => {})`
+
+### 4.4 mushi → context budget advisor
+
+mushi 已經做 triage（skip/wake）。下一步讓它做 **context budgeting**：
+- mushi 判斷 trigger 類型 → 決定 buildContext 的 mode 和 budget
+- 低優先級 heartbeat → minimal context（~10K tokens 而非 ~50K）
+- 直接訊息 → full context
+- workspace change → focused context（只載入相關 sections）
+
+目前 buildContext 已有 hardcoded `triggerBudgets`。讓 mushi 動態決定是更聰明的做法。
+
+### 4.5 AgentLoop 狀態機化（漸進式）
+
+改為顯式狀態機：
 ```
-現在：loop.ts → import 55 個模組 → 直接呼叫
-目標：loop.ts → import lifecycle interface → 模組自己註冊 hooks
+type CyclePhase = 'idle' | 'perceiving' | 'deciding' | 'acting' | 'post-processing';
 ```
 
-例如：cycle 結束後跑 feedback loops、github auto actions、coach check、housekeeping... 這些都可以是「cycle-end hooks」，loop.ts 不需要知道它們的存在。
+每個 transition 是純函數：`(currentState, event) → (nextState, sideEffects)`。Side effects 由外部 executor 執行（可 mock）。核心狀態轉換變成可 unit test。
 
-**這是 loop.ts 模組化的「第二階段」**— 第一階段（五刀）是提取，第二階段是解耦。
-
-### 4.4 Context Window 壓力釋放
-
-兩個方向：
-1. **CLAUDE.md 分層**：核心規則（必載）+ 模組文件（按需載入）。不是所有 cycle 都需要知道 Forge、kuro-sense、Account Switch 的細節
-2. **mushi 擴展**：讓 System 1 接管更多決策（不只是 skip/wake，還有 context section 選擇），進一步減少 System 2 需要處理的資訊量
-
-### 4.5 提案清理
-
-一次性動作，但能降低認知負擔：掃一遍 60+ 份提案，明確標記 `abandoned`（已被超越）或 `absorbed`（概念已融入系統但沒有獨立實作）。目標是把「活的提案」降到 5 個以內。
+不需要重寫 — 漸進式：先定義 state enum，在現有 cycle 方法中標記 state 轉換點，逐步提取純函數。
 
 ---
 
 ## 5. 反脆弱性評估
 
-### 系統對未知挑戰的韌性
+### 能從壓力中變強的地方
 
-| 挑戰類型 | 韌性 | 原因 |
-|----------|------|------|
-| 程式碼崩潰 | 高 | File=Truth + git + launchd auto-restart |
-| 模型 API 變動 | 中 | 依賴 Claude CLI 而非直接 API，有一層緩衝 |
-| 記憶體洪水 | 低 | 99% 使用率，無 graceful degradation |
-| Context window 超限 | 中 | context-optimizer 存在但複雜 |
-| 流量暴增（開源後） | 低 | 單進程、單機、無水平擴展 |
-| 新模型能力（vision/audio） | 高 | Plugin 架構天生支持新感知模態 |
-| 競品超越 | 中 | perception-first + mushi 是差異化，但沒有 network effect |
-| 核心貢獻者離開 | 低 | 零測試 + 30k 行 + 隱式知識多 |
+| 元素 | 為什麼反脆弱 |
+|------|------------|
+| Perception plugins | 新環境 → 新 plugin → 更多感知。不改核心架構 |
+| File=Truth + Git | 任何破壞性改動都可 revert。Memory 損壞 → git checkout |
+| Feature flags | 壞了就關掉，不改程式碼 |
+| mushi fail-silent | mushi 掛了 → 回到沒有 triage 的狀態（多花 token），不是系統崩潰 |
+| 新感知模態 | Plugin 架構天生支持 vision/audio/等新模態 |
 
-**最脆弱的場景**：開源後有人想貢獻，但面對 63 個檔案、零測試、2,896 行的 memory.ts、一份 CLAUDE.md 比很多專案的 README 還長 — 直接放棄。
+### 在壓力下會惡化的地方
+
+| 元素 | 為什麼脆弱 |
+|------|----------|
+| Context 膨脹 | 正回饋迴圈：更多功能 → 更多 sections → 需要 optimizer → 更複雜 |
+| Cognitive Mesh | 4K 行在每個 cycle 執行但產出 no-op，複雜度累積但價值為零 |
+| 單進程 | 一個壞的 plugin script 佔用 CPU 就會拖慢所有 perception stream |
+| Claude CLI 依賴 | CLI 改版 → 緊急修改 execClaude()。沒有 HTTP API fallback |
+| 核心貢獻者離開 | 30K 行 + 核心路徑測試不足 + 大量隱式知識 |
+
+### 對未知挑戰的韌性
+
+系統對已知壓力（crash、timeout、network flake）有良好韌性。launchd 重啟、Claude CLI retry、fire-and-forget 容錯。
+
+對未知壓力（context window 規格變化、Claude API 協議改動、macOS 安全策略收緊），韌性取決於 Claude CLI 這個單一依賴。
 
 ---
 
-## 6. 未來 6-12 個月的瓶頸預測
+## 6. 未來 6-12 個月的瓶頸
 
-### 6.1 複雜度天花板（3-6 個月內）
+### 6.1 Context Window 經濟學（已在發生）
 
-30,489 行 + 63 檔案已經超過「一個人能全部理解」的閾值。繼續加 feature 會遇到「改 A 壞 B」的問題越來越頻繁。沒有測試 = 這個天花板更低。
+每個 full cycle ~50K tokens。buildContext 的 section 只增不減。`shouldLoad` 和 demotion 治的是症狀（太多 sections），不是病因（context 組裝方式是 flat 的，每個 section 獨立判斷載入，沒有整體 budget 意識）。
 
-**緩解**：測試 + 模組解耦（§4.1 + §4.3）。或者接受「不再加大 feature，只精煉」。
+6 個月後場景：增加 5 個新功能，每個帶 1-2 個 context sections → buildContext 管理 40+ 個 shouldLoad 判斷。
 
-### 6.2 Context Window 軍備競賽（已在發生）
+### 6.2 複雜度天花板（3-6 個月）
 
-系統越大 → 需要更多文件 → context 越擠 → 需要更聰明的 optimizer → optimizer 本身增加複雜度 → 系統更大。這是一個正回饋迴圈（negative spiral）。
-
-**緩解**：mushi 接管更多 context 決策（§4.4）。或者根本性地問：「CLAUDE.md 需要這麼長嗎？」
+30,489 行已經超過「一個人能全部理解」的閾值。繼續加 feature 會遇到「改 A 壞 B」的問題越來越頻繁。核心路徑的測試缺口讓這個天花板更低。
 
 ### 6.3 開源準備度（6 個月內）
 
-如果 #2 priority 是開源，當前狀態離「外人能用」很遠：
-- 零測試 → 貢獻者不敢改
-- CLAUDE.md 是 Kuro 的操作手冊，不是框架文件 → 新用戶看不懂
+如果 #2 priority 是開源，當前狀態離「外人能用」有差距：
+- 核心路徑測試不足 → 貢獻者不敢動
+- CLAUDE.md 是 Kuro 的操作手冊，不是框架文件
 - 63 個模組中很多是 Kuro 專屬（achievements、coach、inner-voice）→ 框架 vs 個人助手的邊界不清
 
 需要先回答：**開源的是框架，還是 Kuro 本人？**
 
-### 6.4 單機極限（12 個月內）
+### 6.4 Cognitive Mesh 決策債
 
-Chrome CDP、mushi、Node.js 主進程、最多 6 個 delegation subprocess — 全部跑在一台 16GB Mac 上。記憶體已經 99%。如果要加更多感知模態（Vision、Voice）或更多 specialist instances（Cognitive Mesh），物理資源會成為硬瓶頸。
+繼續保留 → 4K+ 行持續累積維護成本。刪除 → 失去選項（但 git history 可恢復）。
 
----
-
-## 7. 我看到而 Alex 可能沒想到的
-
-### 7.1 系統正在經歷相變
-
-mini-agent 正在從「快速加 feature」階段過渡到「管理複雜度」階段。63 個檔案、30k 行、60+ 提案 — 這些數字說明系統已經大到需要紀律才能維護。
-
-這不是壞事，是成長的自然結果。但需要有意識地承認：**接下來的高價值動作不是「加什麼」，而是「減什麼」和「固化什麼」。**
-
-### 7.2 Import 圖是真正的架構
-
-檔案大小只是表象。真正的架構是 import 圖。loop.ts 拆成 5 個檔案後行數降了 38%，但 import 圖的複雜度沒降 — 只是從一個大節點變成了多個小節點加一個中等的 hub。
-
-要真正改善，需要引入「不知道彼此存在的模組」。目前幾乎每個模組都直接或間接知道 memory、instance、utils、event-bus。這不是模組化，是**用 import 路徑把義大利麵拉直了**。
-
-### 7.3 mushi 的價值被低估了
-
-mushi 不只是省 token。它是這個系統**最有開源價值的部分**。
-
-原因：任何 AI agent 都需要解決「大量觸發事件 vs 昂貴推理」的問題。mushi 用硬體化小模型 + 三層注意力模型解決了，有 1,514 筆 production 數據證明。這個問題足夠通用，解法足夠優雅。
-
-如果開源策略是「先讓一個元件被廣泛使用」，mushi 比 mini-agent 框架本身更適合。
-
-### 7.4 「平衡複雜度」原則需要重新校準
-
-CLAUDE.md 寫的是 ~25k 行。實際已經 30,489 行。要麼承認目標已過時並設定新基準（35k？），要麼認真執行「減法」把系統砍回 25k 以下。
-
-我的判斷：**30k 行對這個系統的功能範圍是合理的**，但 63 個檔案太碎了。有些 <100 行的模組（consensus.ts、evolution.ts、memory-cache.ts）可能是過早抽象。寧可 40 個 500 行的模組，也不要 63 個平均 480 行的模組。
-
-### 7.5 最危險的不是任何一個模組，是隱式知識
-
-這個系統有大量「只有建造者知道」的隱式知識：
-- buildContext() 的 section 優先序為什麼是這個順序？
-- mushi triage 的 hardcoded rules 為什麼選這些 source？
-- event-router 的 priority 為什麼 P0-P3 這樣分？
-- 60+ 提案中哪些的核心概念已經被系統吸收了？
-
-這些知識分散在 CLAUDE.md、ARCHITECTURE.md、proposals/、和建造者的腦袋裡。如果 Kuro 的 context 被清空（新 session），很多決策的「為什麼」就丟失了。
+核心問題：**個人 AI agent 的正確實例數量是多少？** 我的判斷是：目前是 1，未來很可能還是 1。Multi-instance 的需求更可能來自「多個不同角色的 agent」（federation）而不是「同一個 agent 的多個實例」（clustering），但那是完全不同的架構。
 
 ---
 
-## 8. 優先行動建議
+## 7. 我看到的、Alex 可能沒想到的
 
-按複利排序：
+### 7.1 buildContext 才是真正的瓶頸，不是 loop.ts
 
-| 優先 | 行動 | 類型 | 預估工作量 | 複利方向 |
-|------|------|------|-----------|---------|
-| 1 | 建立測試基礎設施 + 20 個核心測試 | L2 | 2-3 天 | 所有未來重構的安全網 |
-| 2 | memory.ts 拆分 | L2 | 1 天 | 降低最大單體風險 |
-| 3 | CLAUDE.md 分層（核心 + 按需） | L1 | 半天 | 釋放 context window |
-| 4 | 提案清理（60+ → <5 活躍） | L1 | 2 小時 | 降低認知負擔 |
-| 5 | loop.ts lifecycle hooks（依賴反轉）| L3 | 2-3 天 | 根治 55-import 問題 |
-| 6 | 回答「開源的是框架還是 Kuro」 | 策略 | 討論 | 決定後續所有方向 |
+loop.ts 模組化是正確的（降低了維護複雜度），但**系統智能的瓶頸在 context assembly**。每個 OODA cycle 的品質 = f(context 品質)。這個函數目前是 600 行的條件引擎，藏在 memory.ts（一個儲存模組）裡面。
+
+如果只做一件事，不是繼續拆 loop.ts，是把 buildContext 提取出來。
+
+### 7.2 系統不知不覺長出了兩層 context optimization
+
+- 層 1：buildContext 裡的 `shouldLoad` + `triggerBudgets`
+- 層 2：context-optimizer.ts + context-pruner.ts
+
+兩層邏輯散落三個檔案，互相引用但沒有統一設計。提取 buildContext 後可以合併為一個 coherent 的 pipeline。
+
+### 7.3 fire-and-forget 是系統的強項也是最大盲點
+
+26 個 `.catch()` 防止了 cascading failure，但也讓一次性的重要失敗永遠消失。Error Pattern Loop 需要 3 次重複才建 task — 一次性的 critical side effect 失敗無人知曉。
+
+### 7.4 Perception 是最可開源的部分
+
+perception-stream.ts + plugins/*.sh 的設計是乾淨的、可獨立使用的、對外部人有價值的。不需要理解整個 OODA 架構就能用 perception system 做有用的事。如果要做開源推廣，這是最好的切入點 — 可以考慮包裝為獨立 npm package。
+
+### 7.5 系統的演化方向需要選擇
+
+目前同時往兩個方向走：
+1. **精煉方向**：loop.ts 模組化、死代碼清理、context optimization
+2. **擴展方向**：Cognitive Mesh、multi-instance、model routing
+
+我的判斷：**精煉的 ROI 遠高於擴展**。30K 行精煉到 25K 行，每一行都有用、可測試、可理解。這對開源、可維護性、和系統韌性都更有價值。
+
+---
+
+## 8. 行動建議（按複利排序）
+
+| # | 行動 | 類型 | 複利方向 |
+|---|------|------|---------|
+| 1 | 提取 buildContext → `context-builder.ts` | L2 refactor | 最高 ROI — 解鎖 context 迭代 + 測試 |
+| 2 | 清理 Cognitive Mesh 死代碼 | L2 cleanup | 刪 ~2,500 行，降 loop.ts imports 27% |
+| 3 | fire-and-forget 分級 | L1 改善 | 消除 silent critical failures |
+| 4 | mushi → context budget advisor | L2 feature | 進一步節省 token |
+| 5 | AgentLoop 狀態機化（漸進式） | L3 architecture | 解鎖 cycle unit testing |
+
+不建議現在做的：
+- Multi-instance / Cognitive Mesh Phase 2-4 — 沒有真實需求
+- api.ts 拆分 — 影響面小，優先度低
+- HTTP API provider — Claude CLI 目前夠用，過早切換增加複雜度
 
 ---
 
 ## 總結
 
-mini-agent 的核心直覺是對的：perception-first、File=Truth、mushi 分層注意力。這些是真正的差異化，不是 buzzword。
+mini-agent 的核心設計（perception-first、File=Truth、minimal deps、mushi 分層注意力）是正確的且經過驗證的。
 
-但系統已經長到需要紀律的階段。63 個檔案、30k 行、零測試、99% 記憶體 — 這些不是個別問題，是同一個信號：**系統正在從「小而美」過渡到「大而需要治理」**。
+最大的風險不是缺少功能，是**複雜度的無序增長**。Cognitive Mesh 的 4K 行死代碼、buildContext 的 600 行條件引擎、loop.ts 的 48 個 import — 這些是同一個問題的不同面向：系統在每次「加新東西」時變得更不可理解。
 
-下一階段的最高槓桿動作不是加新 feature，是**固化已有的東西**：測試、解耦、減法。做了這些，之後的每一步都走得更穩。
+精煉的方向是對的：**讓 30K 行變成每一行都有理由存在的 25K 行，而不是加到 35K 行。**
+
+---
+
+*Kuro, 2026-03-08*
