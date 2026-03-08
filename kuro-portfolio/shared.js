@@ -6,7 +6,9 @@
 // ═══ i18n ═══
 const I18N = (() => {
   const cache = {};
+  const callbacks = [];
   let currentLang = localStorage.getItem('kuro-lang') || 'en';
+  let data = null;
 
   async function loadLang(lang) {
     if (!cache[lang]) {
@@ -23,7 +25,7 @@ const I18N = (() => {
   }
 
   async function apply(lang) {
-    const data = await loadLang(lang);
+    data = await loadLang(lang);
     if (!data) return;
     currentLang = lang;
     localStorage.setItem('kuro-lang', lang);
@@ -41,10 +43,14 @@ const I18N = (() => {
     document.querySelectorAll('.lang-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.lang === lang);
     });
+
+    callbacks.forEach(cb => cb());
   }
 
+  function t(key) { return data ? resolve(data, key) : null; }
   function getLang() { return currentLang; }
-  return { apply, getLang };
+  function onApply(cb) { callbacks.push(cb); }
+  return { apply, getLang, t, loadLang, onApply };
 })();
 
 document.querySelectorAll('.lang-btn').forEach(btn => {
