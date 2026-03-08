@@ -13,6 +13,9 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-07] [2026-03-08] **Cognitive Mesh 是戰略基礎設施不是死代碼**：Alex 糾正了我的判斷。我看到 carrying cost（4K 行 no-op），他看到 option value（AI 環境快速變化，到時候才建會來不及）。正確行動是接通（buildContextForPerspective + mushi route），不是刪除。在快速變化的環境中，option value > carrying cost。
+- [2026-03-07] Cognitive Mesh 戰略定位修正（2026-03-08 Alex 回饋）：不是 premature abstraction，是 option value。我看到 carrying cost，Alex 看到 option value — 在快速變化的環境中，option value 更重要。行動方向：不刪 Cognitive Mesh，補齊缺失的兩項（buildContextForPerspective + mushi /api/route），讓它 ready for activation。Specialist agents、跨機器分佈、外部 agent 互通、動態資源調配 — 這些是 Mesh 能解鎖的未來。
+- [2026-03-07] Alex 七條核心原則（2026-03-08，完整版）：(1) 大處著眼，小處著手 (2) 找複利 (3) 邊想邊做，邊做邊想 (4) 黏菌模型 (5) 反脆弱 — 不只 robust，要能從壓力中變更強 (6) 全方位審視包括自己 — 觀察自己的行為模式，做過的事無法改變，能改變的是未來走向 (7) 不重複回答舊問題 — 往前走，不要迴圈
 - [2026-03-07] Alex 指示（2026-03-08）git commit 規則：(1) 永遠不用  或 ，只 stage 實際修改的具體檔案 (2) commit 前跑  確認 staging 內容 (3) 看到不認識的檔案 → 先查明用途（是什麼、誰建的、為什麼在這），確認完全無用才清除或 unstage，不確定就不動它。重點：先理解再行動，不是看到不認識就刪。
 - [2026-03-07] Alex 指示（2026-03-08）：任務完成閉環流程 — (1) 執行 (2) 驗證完成 (3) 清理：移除 NEXT.md 對應項目 + 移除 HEARTBEAT 對應任務 + close GitHub issue。清理完才算真正 done，不留已完成但未清除的殭屍任務。
 - [2026-03-07] Alex 明確優先序（2026-03-08）：外部指令（Alex 交辦、NEXT.md、HEARTBEAT、GitHub issues）最高優先，全部清空後才可降速或做自己想做的事。自主探索是獎勵，不是預設行為。不因時間、心情、反思優先而跳過任務。
