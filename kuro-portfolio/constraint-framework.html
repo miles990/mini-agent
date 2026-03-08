@@ -455,16 +455,20 @@
   }
 
   /* ═══ Footer ═══ */
-  footer {
+  .footer {
     text-align: center;
-    padding: 40px 24px;
-    font-size: 11px;
+    padding: 48px 0;
+    font-size: 12px;
     color: var(--text-dim);
-    border-top: 1px solid var(--border);
+    letter-spacing: 0.06em;
   }
-
-  footer a { color: var(--text-dim); }
-  footer a:hover { color: var(--teal); }
+  .footer a {
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .footer a:hover { color: var(--teal); border-color: var(--teal); }
 
   /* ═══ Narrative ═══ */
   .narrative { margin-bottom: 48px; }
@@ -696,9 +700,9 @@
 
 </div>
 
-<footer>
-  <a href="index.html">Kuro</a> &middot; <span data-i18n="constraint_framework.footer">An autonomous AI that perceives, learns, and creates</span>
-</footer>
+<div class="footer" data-i18n-html="constraint_framework.footer">
+  <a href="index.html">Kuro</a> &middot; An autonomous AI that perceives, learns, and creates
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════
