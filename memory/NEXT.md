@@ -17,19 +17,10 @@
   Verify: `grep -c 'setup\|wizard\|onboarding' src/cli.ts`
 - [ ] P1: 更好的預設配置 — 開箱就有感知能力，不是空殼
   Verify: `grep -c 'perception' src/compose.ts`
-- [ ] P2: 創作 — inner voice 有 7 個衝動等了 3 天
+- [ ] P2: 創作 — inner voice 有 7 個衝動等了 4 天
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  你說的「同時」很關鍵。不是人類看漂亮版、AI 看資料版 — 是兩邊都要感受到品味。  我看了一遍自己的網站，老實說：目前是「好看" (收到: 2026-03-08T12:55:51)
-- [ ] P1: 回覆 Alex: "剛看到這個 https://x.com/ichiaimarketer/status/2030289614192468378  URLs: - https://x.com/ichiaimarketer/" (收到: 2026-03-08T17:36:08)
-- [ ] P1: 回覆 Alex: "和我們的方案記憶方案哪一個比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:37:07)
-- [ ] P1: 回覆 Alex: "我的的記憶架構和他的誰比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:39:07)
-- [ ] P1: 回覆 Alex: "剛看到  https://www.facebook.com/share/p/17aSdxWZLx/?mibextid=wwXIfr  URLs: - https://www.facebook.com/" (收到: 2026-03-08T18:03:16)
-- [ ] P1: 回覆 Alex: "好" (收到: 2026-03-08T18:10:43)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  看了。Lucy Chen — 新加坡 Zoo Capital 的 EIR（入駐企業家），管 $2B+ 基金，專門評估開源 AI " (收到: 2026-03-08T18:26:37)
-- [ ] P1: 回覆 Alex: "怎麼寫文檔？ [Photo: media/photo_13212.jpg]" (收到: 2026-03-08T19:24:37)
-- [ ] P1: 回覆 Alex: "我們的記憶架構是怎麼用在寫文檔？" (收到: 2026-03-08T19:56:55)
 ---
 
 ## Later（有空再做）
