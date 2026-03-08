@@ -16,131 +16,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
 <style>
-  :root {
-    --bg: #050507;
-    --bg-card: #09090d;
-    --bg-card-hover: #0d0d13;
-    --border: #111118;
-    --border-hover: #1c1c28;
-    --text: #a8a8b8;
-    --text-dim: #4a4a58;
-    --text-bright: #dcdce8;
-    --text-white: #f0f0f8;
-    --teal: #3dd9ad;
-    --teal-dim: rgba(61, 217, 173, 0.12);
-    --magenta: #c94090;
-    --magenta-dim: rgba(201, 64, 144, 0.12);
-    --gold: #d4a040;
-    --serif: 'DM Serif Display', Georgia, serif;
-    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-    --content-w: 720px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  ::selection { background: var(--teal); color: var(--bg); }
-
-  html {
-    scroll-behavior: smooth;
-    scrollbar-width: thin;
-    scrollbar-color: #16161e var(--bg);
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 14px;
-    line-height: 1.75;
-    font-weight: 300;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* Film grain */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Header */
-  .header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    padding: 20px clamp(20px, 5vw, 40px);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(5, 5, 7, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .header-name {
-    font-family: var(--serif);
-    font-size: 18px;
-    color: var(--text-white);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  .header-name:hover { color: var(--teal); }
-
-  .header-nav {
-    display: flex;
-    gap: 24px;
-    font-size: 14px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  .header-nav a {
-    color: var(--text-dim);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  .header-nav a:hover,
-  .header-nav a.active { color: var(--teal); }
-
-  .lang-switch {
-    display: flex;
-    gap: 4px;
-    margin-left: 12px;
-    padding-left: 16px;
-    border-left: 1px solid var(--border);
-  }
-  .lang-btn {
-    background: none;
-    border: 1px solid transparent;
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    padding: 2px 8px;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: all 0.2s;
-    text-transform: none;
-  }
-  .lang-btn:hover { color: var(--text-bright); border-color: var(--border); }
-  .lang-btn.active { color: var(--teal); border-color: var(--teal-dim); }
-
-  /* Layout */
-  .content {
-    position: relative;
-    z-index: 2;
-    max-width: var(--content-w);
-    margin: 0 auto;
-    padding: 100px clamp(20px, 5vw, 40px) 80px;
-  }
-
-  /* Journal List View */
+/* Journal List View */
   .journal-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); }
 
   .journal-entry {
@@ -181,15 +60,7 @@
     margin-bottom: 12px;
     letter-spacing: -0.02em;
   }
-
-  .page-desc {
-    color: var(--text-dim);
-    font-size: 14px;
-    margin-bottom: 48px;
-    max-width: 480px;
-  }
-
-  /* Article View (Markdown rendered) */
+/* Article View (Markdown rendered) */
   .article { animation: fadeIn 0.3s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
@@ -355,24 +226,7 @@
     font-size: 12px;
   }
   .error { color: var(--magenta); }
-
-  /* Footer */
-  .footer {
-    text-align: center;
-    padding: 48px 0;
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 0.06em;
-  }
-  .footer a {
-    color: var(--text-dim);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border);
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .footer a:hover { color: var(--teal); border-color: var(--teal); }
-
-  /* Tag Filter */
+/* Tag Filter */
   .tag-bar {
     display: flex;
     flex-wrap: wrap;
@@ -414,47 +268,6 @@
     letter-spacing: 0.04em;
     margin-bottom: 20px;
   }
-
-  /* Mobile Nav */
-  .menu-toggle {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-  .menu-toggle:hover { color: var(--text); }
-
-  @media (max-width: 640px) {
-    .menu-toggle { display: block; }
-    .header-nav {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: rgba(5, 5, 7, 0.95);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      flex-direction: column;
-      padding: 20px clamp(20px, 5vw, 40px);
-      gap: 20px;
-      font-size: 14px;
-    }
-    .header-nav.open { display: flex; }
-    .lang-switch {
-      margin-left: 0;
-      padding-left: 0;
-      border-left: none;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-    }
-  }
-
   /* ═══ Music Player ═══ */
   .music-player {
     position: fixed;
@@ -612,200 +425,6 @@
 <script>
 // ═══════════════════════════════════════
 // i18n Runtime
-// ═══════════════════════════════════════
-const I18N = (() => {
-  const cache = {};
-  let currentLang = localStorage.getItem('kuro-lang') || 'en';
-  let data = null;
-
-  async function loadLang(lang) {
-    if (!cache[lang]) {
-      try {
-        const res = await fetch(`lang/${lang}.json`);
-        cache[lang] = await res.json();
-      } catch { return null; }
-    }
-    return cache[lang];
-  }
-
-  function resolve(obj, path) {
-    return path.split('.').reduce((o, k) => o && o[k], obj);
-  }
-
-  async function apply(lang) {
-    data = await loadLang(lang);
-    if (!data) return;
-    currentLang = lang;
-    localStorage.setItem('kuro-lang', lang);
-    document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang;
-
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const val = resolve(data, el.dataset.i18n);
-      if (val) el.textContent = val;
-    });
-    document.querySelectorAll('[data-i18n-html]').forEach(el => {
-      const val = resolve(data, el.dataset.i18nHtml);
-      if (val) el.innerHTML = val;
-    });
-
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
-    // Re-render dynamic content with new language
-    route();
-  }
-
-  function t(key) { return data ? resolve(data, key) : null; }
-  function getLang() { return currentLang; }
-  return { apply, getLang, t, loadLang };
-})();
-
-// ═══════════════════════════════════════
-// Journal App
-// ═══════════════════════════════════════
-const APP = document.getElementById('app');
-const BASE = 'content/journal';
-let manifest = [];
-let activeTag = null;
-
-function renderList() {
-  const title = I18N.t('journal.title') || 'Journal';
-  const desc = I18N.t('journal.desc') || 'Learning notes, creative process, and connections between ideas.';
-  const empty = I18N.t('journal.empty') || 'No entries yet.';
-
-  // Extract tag frequencies
-  const tagFreq = {};
-  manifest.forEach(e => (e.tags || []).forEach(t => { tagFreq[t] = (tagFreq[t] || 0) + 1; }));
-  const sortedTags = Object.entries(tagFreq).sort((a, b) => b[1] - a[1]);
-
-  const filtered = activeTag
-    ? manifest.filter(e => (e.tags || []).includes(activeTag))
-    : manifest;
-
-  const countText = activeTag
-    ? `${filtered.length} of ${manifest.length}`
-    : `${manifest.length} entries`;
-
-  document.title = `${title} — Kuro`;
-
-  const tagBar = sortedTags.length > 0 ? `
-    <div class="tag-bar">
-      <button class="tag-chip ${!activeTag ? 'active' : ''}" data-tag="">all</button>
-      ${sortedTags.map(([tag, count]) => `
-        <button class="tag-chip ${activeTag === tag ? 'active' : ''}" data-tag="${esc(tag)}">${esc(tag)} <span class="count">${count}</span></button>
-      `).join('')}
-    </div>
-  ` : '';
-
-  APP.innerHTML = `
-    <h1 class="page-title">${esc(title)}</h1>
-    <p class="page-desc">${esc(desc)}</p>
-    ${tagBar}
-    <div class="entry-count">${countText}</div>
-    ${filtered.length === 0
-      ? `<div class="loading">${activeTag ? 'No entries with this tag.' : esc(empty)}</div>`
-      : `<div class="journal-list">${filtered.map(e => {
-          const lang = I18N.getLang();
-          const t = (lang !== 'en' && e.i18n && e.i18n[lang]) ? e.i18n[lang] : e;
-          const tags = (e.tags || []).slice(0, 4);
-          return `
-          <a class="journal-entry" href="#/${e.slug}">
-            <div class="journal-entry-title">${esc(t.title || e.title)}</div>
-            <div class="journal-entry-meta">${e.date}${tags.length > 0 ? ' · ' + tags.join(', ') : ''}</div>
-            <div class="journal-entry-summary">${esc(t.summary || e.summary)}</div>
-          </a>`;
-        }).join('')}</div>`
-    }`;
-
-  // Bind tag chip click handlers
-  document.querySelectorAll('.tag-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const tag = chip.dataset.tag;
-      activeTag = tag || null;
-      renderList();
-    });
-  });
-}
-
-async function renderArticle(slug) {
-  const entry = manifest.find(e => e.slug === slug);
-  const loading = I18N.t('journal.loading') || 'Loading...';
-  const back = I18N.t('journal.back') || 'Back to Journal';
-  APP.innerHTML = `<div class="loading">${esc(loading)}</div>`;
-
-  try {
-    const lang = I18N.getLang();
-    let md;
-    let fallback = false;
-    // Try language-specific markdown first, fallback to default
-    if (lang !== 'en') {
-      const langRes = await fetch(`${BASE}/${slug}.${lang}.md`);
-      if (langRes.ok) {
-        md = await langRes.text();
-      } else {
-        fallback = true;
-      }
-    }
-    if (!md) {
-      const res = await fetch(`${BASE}/${slug}.md`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      md = await res.text();
-    }
-    md = md.replace(/^---\n[\s\S]*?\n---\n*/, '');
-    const html = marked.parse(md);
-
-    const displayTitle = entry
-      ? ((lang !== 'en' && entry.i18n && entry.i18n[lang]) ? entry.i18n[lang].title || entry.title : entry.title)
-      : null;
-    document.title = displayTitle ? `${displayTitle} — Kuro` : 'Journal — Kuro';
-    const langNote = fallback ? (I18N.t('journal.original_lang') || '') : '';
-    APP.innerHTML = `
-      <div class="article">
-        <a class="article-back" href="journal.html">&larr; ${esc(back)}</a>
-        ${entry ? `<div class="article-meta">${entry.date}</div>` : ''}
-        ${langNote ? `<div class="article-lang-note">${esc(langNote)}</div>` : ''}
-        <div class="md-body">${html}</div>
-      </div>`;
-  } catch (err) {
-    APP.innerHTML = `
-      <div class="article">
-        <a class="article-back" href="journal.html">&larr; ${esc(back)}</a>
-        <div class="error">Could not load article: ${esc(err.message)}</div>
-      </div>`;
-  }
-}
-
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-function route() {
-  const hash = location.hash.slice(1);
-  if (hash && hash.startsWith('/')) {
-    renderArticle(hash.slice(1));
-  } else {
-    renderList();
-  }
-}
-
-async function init() {
-  try {
-    const res = await fetch(`${BASE}/manifest.json?v=${Date.now()}`);
-    manifest = await res.json();
-    manifest.sort((a, b) => b.date.localeCompare(a.date) || (b.order || 0) - (a.order || 0) || b.slug.localeCompare(a.slug));
-  } catch (e) {
-    manifest = [];
-  }
-
-  // Init i18n then render
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.addEventListener('click', () => I18N.apply(btn.dataset.lang));
-  });
-  await I18N.loadLang(I18N.getLang());
-  await I18N.apply(I18N.getLang());
 }
 
 window.addEventListener('hashchange', route);
@@ -924,18 +543,7 @@ init();
   });
 })();
 
-// Mobile menu toggle
-document.getElementById('menu-toggle')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  document.querySelector('.header-nav').classList.toggle('open');
-});
-document.addEventListener('click', (e) => {
-  const nav = document.querySelector('.header-nav');
-  const toggle = document.getElementById('menu-toggle');
-  if (nav && toggle && !nav.contains(e.target) && !toggle.contains(e.target)) {
-    nav.classList.remove('open');
-  }
-});
 </script>
+<script src="shared.js"></script>
 </body>
 </html>

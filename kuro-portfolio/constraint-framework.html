@@ -16,55 +16,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <style>
-  :root {
-    --bg: #050507;
-    --bg-card: #09090d;
-    --bg-hover: #0d0d13;
-    --border: #111118;
-    --border-hover: #1c1c28;
-    --text: #a8a8b8;
-    --text-dim: #4a4a58;
-    --text-bright: #dcdce8;
-    --text-white: #f0f0f8;
-    --teal: #3dd9ad;
-    --teal-fill: rgba(61, 217, 173, 0.12);
-    --teal-stroke: rgba(61, 217, 173, 0.7);
-    --magenta: #c94090;
-    --magenta-fill: rgba(201, 64, 144, 0.12);
-    --magenta-stroke: rgba(201, 64, 144, 0.7);
-    --gold: #d4a040;
-    --gold-fill: rgba(212, 160, 64, 0.12);
-    --gold-stroke: rgba(212, 160, 64, 0.7);
-    --serif: 'DM Serif Display', Georgia, serif;
-    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  ::selection { background: var(--teal); color: var(--bg); }
-
-  html {
-    scroll-behavior: smooth;
-    scrollbar-width: thin;
-    scrollbar-color: #16161e var(--bg);
-  }
-
-  body {
-    background: var(--bg);
-    background-image:
-      linear-gradient(rgba(17,17,24,0.25) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(17,17,24,0.25) 1px, transparent 1px);
-    background-size: 48px 48px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 14px;
-    line-height: 1.75;
-    font-weight: 300;
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
-
-  a { color: var(--teal); text-decoration: none; }
+a { color: var(--teal); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
   .container {
@@ -72,98 +26,6 @@
     margin: 0 auto;
     padding: 100px 24px 80px;
   }
-
-  /* ═══ Header Nav ═══ */
-  .header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    padding: 20px clamp(20px, 5vw, 40px);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(5, 5, 7, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-  }
-  .header-name {
-    font-family: var(--serif);
-    font-size: 18px;
-    color: var(--text-white);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  .header-name:hover { color: var(--teal); }
-  .header-nav {
-    display: flex;
-    gap: 24px;
-    font-size: 14px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .header-nav a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
-  .header-nav a:hover, .header-nav a.active { color: var(--teal); }
-  .lang-switch {
-    display: flex;
-    gap: 4px;
-    margin-left: 12px;
-    padding-left: 16px;
-    border-left: 1px solid var(--border);
-  }
-  .lang-btn {
-    background: none;
-    border: 1px solid transparent;
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    padding: 2px 6px;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: all 0.2s;
-  }
-  .lang-btn:hover { color: var(--text-bright); border-color: var(--border); }
-  .lang-btn.active { color: var(--teal); border-color: rgba(61, 217, 173, 0.12); }
-  .menu-toggle {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px 8px;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-  .menu-toggle:hover { color: var(--text); }
-  @media (max-width: 640px) {
-    .menu-toggle { display: block; }
-    .header-nav {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: rgba(5, 5, 7, 0.95);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      flex-direction: column;
-      padding: 20px clamp(20px, 5vw, 40px);
-      gap: 20px;
-      font-size: 14px;
-    }
-    .header-nav.open { display: flex; }
-    .lang-switch {
-      margin-left: 0;
-      padding-left: 0;
-      border-left: none;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-    }
-  }
-
   h1 {
     font-family: var(--serif);
     font-size: clamp(32px, 5vw, 48px);
@@ -225,15 +87,8 @@
   .legend-name { transition: color 0.2s; }
 
   /* ═══ Specimens ═══ */
-  .section-label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-dim);
-    margin-bottom: 16px;
-  }
-
-  .specimens {
+  .section
+.specimens {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -312,19 +167,9 @@
     gap: 4px;
   }
 
-  .slider-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-
-  .dim-label {
-    font-size: 11px;
-    color: var(--text-bright);
-    font-weight: 500;
-  }
-
-  .dim-value {
+  .slider
+.dim
+.dim-value {
     font-size: 11px;
     color: var(--teal);
     min-width: 20px;
@@ -439,13 +284,8 @@
     transition: width 0.5s ease, background 0.5s ease;
   }
 
-  .score-label {
-    font-size: 12px;
-    color: var(--text-dim);
-    min-width: 36px;
-  }
-
-  .score-value {
+  .score
+.score-value {
     font-size: 12px;
     font-weight: 500;
     min-width: 28px;
@@ -453,24 +293,7 @@
     font-variant-numeric: tabular-nums;
     transition: color 0.3s;
   }
-
-  /* ═══ Footer ═══ */
-  .footer {
-    text-align: center;
-    padding: 48px 0;
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 0.06em;
-  }
-  .footer a {
-    color: var(--text-dim);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border);
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .footer a:hover { color: var(--teal); border-color: var(--teal); }
-
-  /* ═══ Narrative ═══ */
+/* ═══ Narrative ═══ */
   .narrative { margin-bottom: 48px; }
 
   .hook {
@@ -481,15 +304,8 @@
     margin-bottom: 12px;
   }
 
-  .hook-body {
-    color: var(--text);
-    font-size: 14px;
-    line-height: 1.85;
-    max-width: 600px;
-    margin-bottom: 28px;
-  }
-
-  .stories {
+  .hook-
+.stories {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
@@ -572,11 +388,8 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  .container > * {
-    animation: fadeIn 0.5s ease both;
-  }
-
-  .container > :nth-child(1) { animation-delay: 0s; }
+  .container >
+.container > :nth-child(1) { animation-delay: 0s; }
   .container > :nth-child(2) { animation-delay: 0.05s; }
   .container > :nth-child(3) { animation-delay: 0.1s; }
   .container > :nth-child(4) { animation-delay: 0.15s; }
@@ -1058,95 +871,7 @@ setTimeout(() => {
   toggleSpecimen(botw);
 }, 300);
 
-// Mobile nav
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.querySelector('.header-nav').classList.toggle('open');
-});
-document.addEventListener('click', e => {
-  const nav = document.querySelector('.header-nav');
-  if (nav.classList.contains('open') && !e.target.closest('.header-nav') && !e.target.closest('.menu-toggle')) {
-    nav.classList.remove('open');
-  }
-});
-
-// I18N
-const I18N = (() => {
-  const cache = {};
-  let currentLang = localStorage.getItem('kuro-lang') || 'en';
-  async function loadLang(lang) {
-    if (!cache[lang]) {
-      try { const res = await fetch(`lang/${lang}.json`); cache[lang] = await res.json(); } catch { return null; }
-    }
-    return cache[lang];
-  }
-  function resolve(obj, path) { return path.split('.').reduce((o, k) => o && o[k], obj); }
-  async function apply(lang) {
-    const data = await loadLang(lang);
-    if (!data) return;
-    currentLang = lang;
-    localStorage.setItem('kuro-lang', lang);
-    document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang;
-    document.querySelectorAll('[data-i18n]').forEach(el => { const v = resolve(data, el.dataset.i18n); if (v) el.textContent = v; });
-    document.querySelectorAll('[data-i18n-html]').forEach(el => { const v = resolve(data, el.dataset.i18nHtml); if (v) el.innerHTML = v; });
-    document.querySelectorAll('.lang-btn').forEach(btn => { btn.classList.toggle('active', btn.dataset.lang === lang); });
-    updateI18nDynamic(data);
-  }
-  return { apply, getLang() { return currentLang; } };
-})();
-
-function updateI18nDynamic(data) {
-  const cf = data.constraint_framework;
-  if (!cf) return;
-  // Update DIMS
-  if (cf.dims) {
-    DIMS.forEach((d, i) => {
-      const t = cf.dims[d.key];
-      if (t) {
-        d.label = t.label || DIMS_DEFAULT[i].label;
-        d.q = t.q || DIMS_DEFAULT[i].q;
-        d.lo = t.lo || DIMS_DEFAULT[i].lo;
-        d.hi = t.hi || DIMS_DEFAULT[i].hi;
-      }
-    });
-  }
-  // Update CASES
-  if (cf.cases) {
-    CASES.forEach((c, i) => {
-      const t = cf.cases[c.id];
-      if (t) {
-        c.name = t.name || CASES_DEFAULT[i].name;
-        c.desc = t.desc || CASES_DEFAULT[i].desc;
-      }
-    });
-  }
-  // Re-render slider labels
-  DIMS.forEach((d, i) => {
-    const group = slidersEl.children[i];
-    if (!group) return;
-    group.querySelector('.dim-label').textContent = d.label;
-    group.querySelector('.dim-question').textContent = d.q;
-    const labels = group.querySelectorAll('.slider-labels span');
-    if (labels[0]) labels[0].textContent = d.lo;
-    if (labels[1]) labels[1].textContent = d.hi;
-  });
-  // Re-render specimen buttons
-  document.querySelectorAll('.specimen').forEach(btn => {
-    const c = CASES.find(x => x.id === btn.dataset.id);
-    if (c) btn.textContent = c.name;
-  });
-  // Update active specimen desc
-  if (activeCase) {
-    const c = CASES.find(x => x.id === activeCase);
-    if (c) document.getElementById('specimen-desc').textContent = c.desc;
-  }
-  // Re-draw radar (updates canvas labels)
-  drawRadar();
-  updateInsight();
-}
-
-document.querySelectorAll('.lang-btn').forEach(btn => { btn.addEventListener('click', () => I18N.apply(btn.dataset.lang)); });
-I18N.apply(I18N.getLang());
-
 </script>
+<script src="shared.js"></script>
 </body>
 </html>
