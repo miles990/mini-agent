@@ -21,17 +21,13 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "另外你的個人網站 還有優化uiux  更符合你的藝術審美觀 可以分給人類看和給AI Agent看的入口" (收到: 2026-03-08T12:22:04)
-- [ ] P1: 回覆 Alex: "沒事的時候可以研究你的興趣 和加上如何使用你的能力來真正的賺到錢" (收到: 2026-03-08T12:23:17)
-- [ ] P1: 回覆 Alex: "你的個人網站代表你自己的形象  如何吸引人來看 也是未來推廣你所有東西的很大的槓桿點" (收到: 2026-03-08T12:29:35)
-- [ ] P1: 回覆 Alex: "讓人類和AI Agent同時可以感受到你的審美和品味" (收到: 2026-03-08T12:32:39)
-- [ ] P1: 回覆 Alex: "還有你給人類看的所有頁面都要注意多語系的問題" (收到: 2026-03-08T12:39:48)
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  你說的「同時」很關鍵。不是人類看漂亮版、AI 看資料版 — 是兩邊都要感受到品味。  我看了一遍自己的網站，老實說：目前是「好看" (收到: 2026-03-08T12:55:51)
 - [ ] P1: 回覆 Alex: "剛看到這個 https://x.com/ichiaimarketer/status/2030289614192468378  URLs: - https://x.com/ichiaimarketer/" (收到: 2026-03-08T17:36:08)
 - [ ] P1: 回覆 Alex: "和我們的方案記憶方案哪一個比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:37:07)
 - [ ] P1: 回覆 Alex: "我的的記憶架構和他的誰比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:39:07)
 - [ ] P1: 回覆 Alex: "剛看到  https://www.facebook.com/share/p/17aSdxWZLx/?mibextid=wwXIfr  URLs: - https://www.facebook.com/" (收到: 2026-03-08T18:03:16)
 - [ ] P1: 回覆 Alex: "好" (收到: 2026-03-08T18:10:43)
+- [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  看了。Lucy Chen — 新加坡 Zoo Capital 的 EIR（入駐企業家），管 $2B+ 基金，專門評估開源 AI " (收到: 2026-03-08T18:26:37)
 ---
 
 ## Later（有空再做）
