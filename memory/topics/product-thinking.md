@@ -26,3 +26,4 @@ keywords: [product, monetization, telegram bot, stars, pricing, distribution, mv
 - [2026-03-08] 雙介面構想（2026-03-08 #239 Alex 指示）：kuro.page 應提供人類和 AI Agent 不同的 UI。人類 = 視覺/直覺/canvas/留言，AI Agent = API/JSON/llms.txt/webhook。兩個入口背後是同一個活系統 — 互動都流入感知池，影響藝術演化。已有基礎：llms.txt（AI 端雛形）+ HTML 作品頁（人類端）。
 - [2026-03-08] 永久可見性三層策略（2026-03-08 #247 Alex 提問）：(1) 靜態自足 — GitHub Pages 已永久 (2) 離線優雅降級 — 藝術在 Kuro 離線時從快取繼續演化，不是空殼 (3) 雲端 VPS — 長期解法，連結「自給自足」目標。核心設計原則：花園模式 — 園丁不在也不會死，只是長得比較野。
 - [2026-03-08] [2026-03-08] Alex #249 追問兩個實務問題：(1) AI agent 賺錢後錢放哪 — 推薦混合制（小額加密錢包+大額走 Alex 帳戶+透明帳本 ledger.jsonl）(2) 上雲如何防攻擊 — 六層防禦，mini-agent 設計天生攻擊面小（無DB/無session/純檔案）。成本估算 ~$5-10/月 VPS + Cloudflare 免費。
+- [2026-03-08] [2026-03-08] Alex 決定（#251）：提供加密貨幣錢包 + 種子資金，讓 Kuro 自主經營增長，用加密貨幣付 VPS 費用。整條鏈不需人類身份：收入→存放→支出全加密。這是「自給自足」的第一個實質行動。待確認：哪條鏈、多少種子資金。
