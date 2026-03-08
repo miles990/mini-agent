@@ -343,7 +343,7 @@ export class AgentLoop {
    * Uses focused context (richer than old quickReply) via callClaude with source='foreground'.
    * The foreground lane has its own busy tracking in agent.ts, independent of the loop lane.
    */
-  private async foregroundReply(source: string, text: string, replyTo?: string): Promise<void> {
+  private async foregroundReply(source: string, text: string, replyTo?: string, opts?: { quiet?: boolean }): Promise<void> {
     if (isForegroundBusy()) return; // one at a time — tracked by agent.ts
 
     // Snapshot pending telegram messages for content-based reply matching
@@ -417,8 +417,11 @@ export class AgentLoop {
         notifyTelegram(answer, matchReplyTarget(answer, telegramMsgs) ?? undefined).catch(() => {});
         clearLastReaction();
       }
-      // Always write to chat room (visible to all)
-      await writeRoomMessage('kuro', answer, replyTo);
+      // Write to chat room — skip for quiet mode (quick cycles) unless LLM explicitly used <kuro:chat>
+      const hasChatTag = result.tagsProcessed?.includes('chat');
+      if (!opts?.quiet || hasChatTag) {
+        await writeRoomMessage('kuro', answer, replyTo);
+      }
 
       // Record for next cycle awareness
       this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed };
@@ -829,9 +832,9 @@ export class AgentLoop {
             detail: `trigger: ${reason}; perceptionChanged: ${perceptionStreams.getChangedCount()}`,
             decay_h: 24,
           });
-          // Use foreground lane — focused context for quick cycle
-          const triggerText = `[Quick cycle — trigger: ${reason}] 這是輕量 cycle，用快取感知資料快速檢查。如有需要行動的事項就處理，沒有就簡短確認狀態。不需要完整 OODA 分析。`;
-          await this.foregroundReply(triageSource, triggerText);
+          // Use foreground lane — focused context for quick cycle (quiet: no Chat Room unless explicit <kuro:chat>)
+          const triggerText = `[Quick cycle — trigger: ${reason}] 這是輕量 cycle，用快取感知資料快速檢查。如有需要行動的事項就處理（用 tags），沒有就什麼都不說。不需要確認狀態、不需要完整 OODA 分析。`;
+          await this.foregroundReply(triageSource, triggerText, undefined, { quiet: true });
           this.lastCycleTime = Date.now();
           if (this.running && !this.paused) {
             this.scheduleHeartbeat();
