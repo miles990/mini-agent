@@ -6,18 +6,22 @@
 
 ## Now（正在做）
 
-（空 — 無進行中任務，由 OODA cycle 感知驅動選擇下一步）
+- [ ] P0: 夯實地基 — Alex 指令：讓架構功能夠好用、解決一般人痛點。用今天的思考方式（大處著眼小處著手、找複利、邊想邊做）
+  Verify: `cat memory/proposals/2026-03-08-foundation-ux.md | head -5`
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: 創作 — inner voice 有 7 個衝動等了 3 天，最成熟的是「Fragile Constraints」和「The Lock Breaks Downward」
+- [ ] P1: 首次啟動體驗改善 — 新用戶 5 分鐘內知道 agent 能幹嘛
+  Verify: `grep -c 'setup\|wizard\|onboarding' src/cli.ts`
+- [ ] P1: 更好的預設配置 — 開箱就有感知能力，不是空殼
+  Verify: `grep -c 'perception' src/compose.ts`
+- [ ] P2: 創作 — inner voice 有 7 個衝動等了 3 天
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
-- [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪（已被取代→淘汰、環境已變→淘汰、有養分→保留）
+- [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-
-- [ ] P1: 回覆 Alex: "你現在最重要的事夯實mini-agent的地基 讓這個可以更好 更容易的讓一般人都覺得好用" (收到: 2026-03-08T09:23:23)
+- [ ] P1: 回覆 Alex: "沒什麼錯誤" (收到: 2026-03-08T09:27:15)
 ---
 
 ## Later（有空再做）
