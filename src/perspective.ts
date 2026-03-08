@@ -1,15 +1,124 @@
 /**
- * Mesh Output — Cognitive Mesh result flow-back
+ * Perspective — Cognitive Mesh context building + result flow-back
  *
- * Primary instance consumes task outputs from Specialist instances.
- * Specialists write JSON files to mesh-output/, Primary reads and deletes them.
+ * buildContextForPerspective(): builds trimmed context for Specialist instances.
+ * Specialists get ~5-10K context instead of Primary's ~50K.
+ *
+ * consumeMeshOutputs(): Primary reads task results from Specialists.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type { MeshTaskOutput } from './types.js';
+import type { MeshTaskOutput, PerspectiveConfig } from './types.js';
+import type { PerspectiveType } from './task-router.js';
 import { getDataDir } from './instance.js';
 import { slog } from './utils.js';
+import { perceptionStreams } from './perception-stream.js';
+import { formatPerceptionResults } from './perception.js';
+import { getWorkspaceSnapshot, formatWorkspaceContext } from './workspace.js';
+
+// =============================================================================
+// Default Perspective Configs
+// =============================================================================
+
+const DEFAULT_PERSPECTIVES: Record<PerspectiveType, PerspectiveConfig> = {
+  primary: {
+    perception: 'all',
+    skills: 'all',
+    canWriteMemory: true,
+    canSendTelegram: true,
+    maxConcurrent: 1,
+  },
+  research: {
+    perception: ['web', 'chrome', 'state-changes', 'environment-sense'],
+    skills: [],
+    canWriteMemory: false,
+    canSendTelegram: false,
+    maxConcurrent: 3,
+  },
+  code: {
+    perception: ['tasks', 'state-changes', 'git-detail', 'github-issues', 'github-prs'],
+    skills: [],
+    canWriteMemory: false,
+    canSendTelegram: false,
+    maxConcurrent: 2,
+  },
+  chat: {
+    perception: ['telegram-inbox', 'chat-room-inbox', 'state-changes', 'claude-code-inbox'],
+    skills: [],
+    canWriteMemory: false,
+    canSendTelegram: false,
+    maxConcurrent: 1,
+  },
+};
+
+/**
+ * Get perspective config, with optional compose overrides.
+ */
+export function getPerspectiveConfig(perspective: PerspectiveType): PerspectiveConfig {
+  return DEFAULT_PERSPECTIVES[perspective] ?? DEFAULT_PERSPECTIVES.research;
+}
+
+// =============================================================================
+// Build Context for Perspective (Specialist instances)
+// =============================================================================
+
+/**
+ * Build a trimmed context for a Specialist instance.
+ * ~5-10K chars instead of Primary's ~50K.
+ *
+ * Includes: environment, task, filtered perceptions, minimal workspace.
+ * Excludes: SOUL, full conversations, achievements, coach, commitments,
+ *           HEARTBEAT, NEXT, threads, topic memory.
+ */
+export function buildContextForPerspective(
+  perspective: PerspectiveType,
+  taskPrompt: string,
+): string {
+  const config = getPerspectiveConfig(perspective);
+  const sections: string[] = [];
+
+  // ── Environment ──
+  const now = new Date();
+  const timeStr = now.toLocaleString('zh-TW', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    hour12: false,
+  });
+  sections.push(
+    `<environment>\nTime: ${timeStr}\nRole: specialist-${perspective}\nInstance: ${process.env.MINI_AGENT_INSTANCE || 'unknown'}\n</environment>`,
+  );
+
+  // ── Task ──
+  sections.push(`<task>\n${taskPrompt}\n</task>`);
+
+  // ── Constraints ──
+  const constraints: string[] = [];
+  if (!config.canWriteMemory) constraints.push('- Do NOT write to memory/ directory');
+  if (!config.canSendTelegram) constraints.push('- Do NOT send Telegram notifications');
+  constraints.push('- Do NOT read SOUL.md (identity belongs to Primary)');
+  constraints.push('- Write results to mesh-output/ when done');
+  sections.push(`<constraints>\n${constraints.join('\n')}\n</constraints>`);
+
+  // ── Filtered Perceptions (from stream cache) ──
+  if (perceptionStreams.isActive()) {
+    const allCached = perceptionStreams.getCachedResults();
+    const filtered = config.perception === 'all'
+      ? allCached
+      : allCached.filter(r => (config.perception as string[]).includes(r.name));
+
+    if (filtered.length > 0) {
+      const perceptionCtx = formatPerceptionResults(filtered);
+      if (perceptionCtx) sections.push(perceptionCtx);
+    }
+  }
+
+  // ── Minimal Workspace (always useful) ──
+  const workspace = getWorkspaceSnapshot();
+  const wsCtx = formatWorkspaceContext(workspace);
+  if (wsCtx) sections.push(`<workspace>\n${wsCtx}\n</workspace>`);
+
+  return sections.join('\n\n');
+}
 
 // =============================================================================
 // Mesh Output (Result Flow-back)

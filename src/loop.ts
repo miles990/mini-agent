@@ -45,9 +45,9 @@ import { writeRoomMessage } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
-import { routeTask, getClusterState } from './task-router.js';
+import { routeTask, getClusterState, type PerspectiveType } from './task-router.js';
 import { evaluateScaling } from './scaling.js';
-import { buildMeshCompletedSection, cleanupMeshOutputs } from './perspective.js';
+import { buildMeshCompletedSection, buildContextForPerspective, cleanupMeshOutputs } from './perspective.js';
 import { handleMeshRoute, executeScaling } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import {
@@ -1014,9 +1014,26 @@ export class AgentLoop {
 
       // ── Observe ──
       const memory = getMemory();
+
+      // Specialist detection: use slim context (~5-10K) instead of full (~50K)
+      let specialistPerspective: PerspectiveType | null = null;
+      if (isEnabled('cognitive-mesh')) {
+        try {
+          const perspPath = path.join(getInstanceDir(getCurrentInstanceId()), 'perspective.json');
+          if (fs.existsSync(perspPath)) {
+            const { perspective } = JSON.parse(fs.readFileSync(perspPath, 'utf-8'));
+            if (perspective && perspective !== 'primary') {
+              specialistPerspective = perspective as PerspectiveType;
+            }
+          }
+        } catch { /* not a specialist — use full context */ }
+      }
+
       // Light mode for DM-triggered cycles: minimal context for fast response
       const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
-      let context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
+      let context = specialistPerspective
+        ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
+        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
