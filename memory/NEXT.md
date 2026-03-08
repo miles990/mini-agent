@@ -30,6 +30,7 @@
 - [ ] P1: 回覆 Alex: "剛看到這個 https://x.com/ichiaimarketer/status/2030289614192468378  URLs: - https://x.com/ichiaimarketer/" (收到: 2026-03-08T17:36:08)
 - [ ] P1: 回覆 Alex: "和我們的方案記憶方案哪一個比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:37:07)
 - [ ] P1: 回覆 Alex: "我的的記憶架構和他的誰比較好？ 他有沒有我們可以學習的地方？" (收到: 2026-03-08T17:39:07)
+- [ ] P1: 回覆 Alex: "剛看到  https://www.facebook.com/share/p/17aSdxWZLx/?mibextid=wwXIfr  URLs: - https://www.facebook.com/" (收到: 2026-03-08T18:03:16)
 ---
 
 ## Later（有空再做）
