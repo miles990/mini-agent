@@ -2712,9 +2712,18 @@ if (isMain) {
     } catch { /* silent — binary missing or detect failed */ }
   })();
 
-  // ── Telegram Poller ──
+  // ── Telegram Poller (primary instance only — specialist instances must NOT poll) ──
+  // Telegram Bot API allows only ONE getUpdates connection per bot token.
+  // Multiple pollers cause 409 Conflict errors.
+  const perspectivePath = path.join(getInstanceDir(instanceId), 'perspective.json');
+  let isPrimary = true;
+  try {
+    const { perspective } = JSON.parse(fs.readFileSync(perspectivePath, 'utf-8'));
+    if (perspective && perspective !== 'primary') isPrimary = false;
+  } catch { /* no perspective file = primary */ }
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
-  const telegramPoller = createTelegramPoller(memoryDir);
+  const telegramPoller = isPrimary ? createTelegramPoller(memoryDir) : null;
+  if (!isPrimary) slog('TELEGRAM', `Skipping poller — specialist instance (${instanceId})`);
 
   // ── Feature Toggles ──
   initFeatures();
