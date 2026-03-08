@@ -81,6 +81,7 @@ export const SECTION_KEYWORDS: Record<string, string[]> = {
   'recent-activity': ['activity', 'behavior', 'journal', 'recent action', 'what did'],
   'decision-quality-warning': ['quality', 'decision', 'score', 'depth', 'dq'],
   'structural-health': ['health', 'structural', 'report', 'upgrade', 'commit'],
+  'problem-alignment': ['alignment', 'priority', 'problem', 'direction', 'focus', 'wrong question'],
 };
 
 // =============================================================================

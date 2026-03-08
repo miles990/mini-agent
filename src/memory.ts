@@ -1754,6 +1754,12 @@ export class InstanceMemory {
       if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
     }
 
+    // Problem alignment warning（skip in light mode, auto-demotion aware）
+    if (!isLight && shouldLoad('problem-alignment', ['alignment', 'priority', 'problem', 'direction', 'focus'])) {
+      const warning = readFlagCached(path.join(getMemoryStateDir(), 'problem-alignment-warning.flag'));
+      if (warning) sections.push(`<problem-alignment>\n${warning}\n</problem-alignment>`);
+    }
+
     // Structural health warning（skip in light mode, auto-demotion aware）
     if (!isLight && shouldLoad('structural-health')) {
       const warning = readFlagCached(path.join(getMemoryStateDir(), 'structural-health-warning.flag'));
@@ -1954,7 +1960,7 @@ export class InstanceMemory {
     if (isLight) {
       // Light mode: skip all topic memory to minimize context
     } else {
-    const topics = await this.listTopics();
+    let topics = await this.listTopics();
     if (topics.length > 0) {
 
       // Load topic heat data
@@ -1964,6 +1970,15 @@ export class InstanceMemory {
         const heatRaw = await fs.readFile(heatPath, 'utf-8');
         topicHeat = JSON.parse(heatRaw) as Record<string, number>;
       } catch { /* no heat data — treat all as cold */ }
+
+      // Sort topics by compound interest score (high-compound topics load first within budget)
+      try {
+        const { getCompoundScores } = await import('./feedback-loops.js');
+        const compoundScores = getCompoundScores();
+        if (Object.keys(compoundScores).length > 0) {
+          topics = [...topics].sort((a, b) => (compoundScores[b] ?? 0) - (compoundScores[a] ?? 0));
+        }
+      } catch { /* ignore — compound scores not yet computed */ }
 
       // Experiment 2: Total topic-memory budget (2026-02-28)
       // Data: topic-memory swings 0-17K chars, cited 1/918 cycles.

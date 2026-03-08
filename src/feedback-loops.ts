@@ -724,6 +724,245 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
 }
 
 // =============================================================================
+// Loop G: Compound Interest Score (Cross-Topic Citation Tracking)
+// =============================================================================
+
+interface CompoundScoreState {
+  lastScanCycle: number;
+  /** topic → list of other topics that reference it */
+  referencedBy: Record<string, string[]>;
+  /** topic → compound interest score (number of unique cross-references) */
+  scores: Record<string, number>;
+  /** Top compound topics (sorted desc by score) */
+  topCompound: string[];
+}
+
+const COMPOUND_SCAN_INTERVAL = 20;
+
+/**
+ * 掃描 topics/*.md 的跨主題引用，計算複利分數。
+ * 被越多不同主題引用的知識 = 越高複利 = 越值得優先載入。
+ * 每 20 cycles 執行一次全量掃描。
+ */
+export async function trackCompoundInterest(cycleCount: number): Promise<void> {
+  const state = readState<CompoundScoreState>('compound-scores.json', {
+    lastScanCycle: 0,
+    referencedBy: {},
+    scores: {},
+    topCompound: [],
+  });
+
+  if (cycleCount - state.lastScanCycle < COMPOUND_SCAN_INTERVAL) return;
+
+  const topicsDir = path.join(process.cwd(), 'memory', 'topics');
+  if (!existsSync(topicsDir)) return;
+
+  const { readdirSync } = await import('node:fs');
+  const topicFiles = readdirSync(topicsDir).filter((f: string) => f.endsWith('.md'));
+  const topicNames = topicFiles.map((f: string) => f.replace('.md', ''));
+
+  // Read all topic contents
+  const topicContents: Record<string, string> = {};
+  for (const file of topicFiles) {
+    try {
+      topicContents[file.replace('.md', '')] = readFileSync(
+        path.join(topicsDir, file), 'utf-8',
+      ).toLowerCase();
+    } catch { /* skip unreadable */ }
+  }
+
+  // Build cross-reference map: for each topic, which other topics mention it?
+  const referencedBy: Record<string, string[]> = {};
+  for (const name of topicNames) {
+    referencedBy[name] = [];
+  }
+
+  for (const [sourceTopic, content] of Object.entries(topicContents)) {
+    for (const targetTopic of topicNames) {
+      if (sourceTopic === targetTopic) continue;
+
+      // Check if source content mentions target topic name
+      const variants = [
+        targetTopic,                      // "agent-architecture"
+        targetTopic.replace(/-/g, ' '),   // "agent architecture"
+      ];
+
+      if (variants.some(v => content.includes(v))) {
+        if (!referencedBy[targetTopic].includes(sourceTopic)) {
+          referencedBy[targetTopic].push(sourceTopic);
+        }
+      }
+    }
+  }
+
+  // Calculate scores
+  const scores: Record<string, number> = {};
+  for (const [topic, refs] of Object.entries(referencedBy)) {
+    scores[topic] = refs.length;
+  }
+
+  // Top compound topics (2+ cross-references)
+  const topCompound = Object.entries(scores)
+    .filter(([, score]) => score >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name]) => name);
+
+  state.lastScanCycle = cycleCount;
+  state.referencedBy = referencedBy;
+  state.scores = scores;
+  state.topCompound = topCompound;
+
+  writeState('compound-scores.json', state);
+
+  if (topCompound.length > 0) {
+    slog('FEEDBACK', `[compound] Top cross-referenced: ${topCompound.slice(0, 5).map(t => `${t}(${scores[t]})`).join(', ')}`);
+  }
+}
+
+/** Get compound scores for topic loading prioritization */
+export function getCompoundScores(): Record<string, number> {
+  const state = readState<CompoundScoreState>('compound-scores.json', {
+    lastScanCycle: 0, referencedBy: {}, scores: {}, topCompound: [],
+  });
+  return state.scores;
+}
+
+// =============================================================================
+// Loop H: Problem Alignment Audit (Am I solving the right problem?)
+// =============================================================================
+
+interface ProblemAlignmentState {
+  cyclesSinceLastCheck: number;
+  lastCheckAt: string | null;
+  alignmentHistory: number[];
+  warningActive: boolean;
+  lastWarningAt: string | null;
+}
+
+const ALIGNMENT_CHECK_INTERVAL = 10;
+const ALIGNMENT_WARNING_FILE = 'problem-alignment-warning.flag';
+const ALIGNMENT_WINDOW = 5; // Track last 5 checks
+
+/**
+ * 偵測行動是否和 stated priorities 對齊。
+ * 讀取 NEXT.md "Now" section 的優先事項，比對最近 action 文字。
+ * 持續低對齊 → 注入「你在回答正確的問題嗎？」校正提醒。
+ * 每 10 cycles 執行。
+ */
+export async function auditProblemAlignment(action: string | null): Promise<void> {
+  const state = readState<ProblemAlignmentState>('problem-alignment.json', {
+    cyclesSinceLastCheck: 0,
+    lastCheckAt: null,
+    alignmentHistory: [],
+    warningActive: false,
+    lastWarningAt: null,
+  });
+
+  state.cyclesSinceLastCheck++;
+  if (state.cyclesSinceLastCheck < ALIGNMENT_CHECK_INTERVAL) {
+    writeState('problem-alignment.json', state);
+    return;
+  }
+  state.cyclesSinceLastCheck = 0;
+
+  // ── Extract priority keywords from NEXT.md "Now" section ──
+  const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
+  let priorityKeywords: string[] = [];
+  try {
+    if (existsSync(nextPath)) {
+      const content = readFileSync(nextPath, 'utf-8');
+      const nowMatch = content.match(/## Now[\s\S]*?(?=\n## |\n---)/);
+      if (nowMatch) {
+        const nowText = nowMatch[0].toLowerCase();
+        // Extract meaningful words (3+ chars, skip common/code words)
+        const stopWords = new Set([
+          'the', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has',
+          'are', 'was', 'were', 'been', 'will', 'would', 'could', 'should',
+          'not', 'but', 'all', 'can', 'had', 'her', 'his', 'how', 'its',
+          'may', 'new', 'now', 'old', 'our', 'out', 'own', 'say', 'she',
+          'too', 'use', 'way', 'who', 'did', 'get', 'let', 'put', 'run',
+          'verify', 'grep', 'cat', 'head', 'done', 'todo', 'next', 'check',
+        ]);
+        const words = nowText.match(/[a-z\u4e00-\u9fff]{3,}/g) ?? [];
+        priorityKeywords = [...new Set(words.filter(w => !stopWords.has(w)))].slice(0, 15);
+      }
+    }
+  } catch { /* ignore */ }
+
+  if (priorityKeywords.length === 0) {
+    writeState('problem-alignment.json', state);
+    return;
+  }
+
+  // ── Build action text from current action + recent CRS baselines ──
+  let actionText = '';
+  if (action) actionText += ' ' + action.toLowerCase();
+
+  // Read recent CRS baselines for citation context
+  try {
+    const crsPath = getStatePath('crs-baseline.jsonl');
+    if (existsSync(crsPath)) {
+      const lines = readFileSync(crsPath, 'utf-8').split('\n').filter(Boolean).slice(-10);
+      for (const line of lines) {
+        try {
+          const record = JSON.parse(line);
+          if (record.citations) actionText += ' ' + (record.citations as string[]).join(' ');
+          if (record.triggerReason) actionText += ' ' + record.triggerReason;
+        } catch { /* skip */ }
+      }
+    }
+  } catch { /* ignore */ }
+
+  // ── Calculate alignment score ──
+  let matches = 0;
+  for (const keyword of priorityKeywords) {
+    if (actionText.includes(keyword)) matches++;
+  }
+  const score = priorityKeywords.length > 0 ? matches / priorityKeywords.length : 1;
+
+  // Track alignment over time
+  state.alignmentHistory.push(Number(score.toFixed(2)));
+  if (state.alignmentHistory.length > ALIGNMENT_WINDOW) {
+    state.alignmentHistory = state.alignmentHistory.slice(-ALIGNMENT_WINDOW);
+  }
+
+  // Average alignment over window
+  const avgAlignment = state.alignmentHistory.length > 0
+    ? state.alignmentHistory.reduce((s, v) => s + v, 0) / state.alignmentHistory.length
+    : 1;
+
+  state.lastCheckAt = new Date().toISOString();
+
+  const flagPath = getStatePath(ALIGNMENT_WARNING_FILE);
+  const cooldownOk = !state.lastWarningAt ||
+    (Date.now() - new Date(state.lastWarningAt).getTime()) > 12 * 3600_000;
+
+  if (avgAlignment < 0.15 && state.alignmentHistory.length >= 3 && cooldownOk) {
+    // Sustained low alignment — inject correction prompt
+    const warning = `問題校正：最近的行動和 NEXT.md 優先事項對齊度偏低（${Math.round(avgAlignment * 100)}%）。\n問自己：「我在回答正確的問題嗎？」\n當前優先：${priorityKeywords.slice(0, 5).join(', ')}`;
+    writeFileSync(flagPath, warning, 'utf-8');
+    invalidateFlagCache(flagPath);
+    state.warningActive = true;
+    state.lastWarningAt = new Date().toISOString();
+    slog('FEEDBACK', `[alignment] Problem misalignment: avg ${Math.round(avgAlignment * 100)}% — warning injected`);
+  } else if (avgAlignment >= 0.3 && state.warningActive) {
+    // Alignment recovered — clear warning
+    try {
+      if (existsSync(flagPath)) {
+        const { unlinkSync } = await import('node:fs');
+        unlinkSync(flagPath);
+        invalidateFlagCache(flagPath);
+      }
+    } catch { /* ignore */ }
+    state.warningActive = false;
+    slog('FEEDBACK', `[alignment] Problem alignment recovered: ${Math.round(avgAlignment * 100)}%`);
+  }
+
+  writeState('problem-alignment.json', state);
+}
+
+// =============================================================================
 // Unified Entry Point
 // =============================================================================
 
@@ -739,6 +978,10 @@ export async function runFeedbackLoops(
   await auditDecisionQuality(action, triggerReason).catch(() => {});
   await auditSystemHealth().catch(() => {});
   await auditStructuralHealth(triggerReason).catch(() => {});
+  // Loop G: Compound interest scoring (cross-topic citation tracking)
+  if (cycleCount) await trackCompoundInterest(cycleCount).catch(() => {});
+  // Loop H: Problem alignment audit (am I solving the right problem?)
+  await auditProblemAlignment(action).catch(() => {});
   // Capability gap scan (every 50 cycles)
   if (cycleCount && cycleCount % 50 === 0) {
     try { const { scanCapabilityGaps } = await import('./evolution.js'); await scanCapabilityGaps(); } catch { /* ignore */ }
