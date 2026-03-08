@@ -54,6 +54,7 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
       skills: [
         './skills/debug-helper.md',
         './skills/project-manager.md',
+        './skills/thinking-framework.md',
       ],
     },
   },
@@ -99,6 +100,7 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
       skills: [
         './skills/debug-helper.md',
         './skills/project-manager.md',
+        './skills/thinking-framework.md',
       ],
     },
   },

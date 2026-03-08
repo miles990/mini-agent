@@ -54,6 +54,7 @@ import {
   composeDown,
   composeStatus,
   DEFAULT_COMPOSE_FILE,
+  type ComposeOptions,
 } from './compose.js';
 import { startCronTasks, stopCronTasks, getCronTaskCount, getActiveCronTasks } from './cron.js';
 import { startComposeWatcher, stopComposeWatcher } from './watcher.js';
@@ -1254,6 +1255,40 @@ let rl: readline.Interface;
 let isClosing = false;
 let agentLoop: AgentLoop | null = null;
 
+/**
+ * 首次啟動互動式設定 — 引導用戶為個人助理取名、設定個性
+ */
+async function runFirstRunSetup(): Promise<ComposeOptions> {
+  const setupRl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const ask = (question: string): Promise<string> =>
+    new Promise(resolve => setupRl.question(question, resolve));
+
+  console.log('\n╭───────────────────────────────────────────╮');
+  console.log('│  Setting up your personal AI assistant    │');
+  console.log('╰───────────────────────────────────────────╯\n');
+
+  const name = await ask('  What should your assistant be called? (default: My Assistant): ');
+  const persona = await ask('  Describe its personality in a sentence\n  (default: A helpful personal AI assistant): ');
+
+  setupRl.close();
+
+  const trimmedName = name.trim();
+  const trimmedPersona = persona.trim();
+
+  if (trimmedName || trimmedPersona) {
+    console.log(`\n  ✓ ${trimmedName || 'My Assistant'} is ready.\n`);
+  }
+
+  return {
+    name: trimmedName || undefined,
+    persona: trimmedPersona || undefined,
+  };
+}
+
 async function runChat(port: number): Promise<void> {
   // 同時啟動 API server
   const app = createApi(port);
@@ -1268,7 +1303,9 @@ async function runChat(port: number): Promise<void> {
   let composeFile = findComposeFile();
   let isFirstRun = false;
   if (!composeFile) {
-    composeFile = createDefaultComposeFile();
+    // 互動式引導：讓用戶為自己的助理取名、設定個性
+    const setupOptions = await runFirstRunSetup();
+    composeFile = createDefaultComposeFile(undefined, false, setupOptions);
     isFirstRun = true;
     console.log(`Created ${composeFile}`);
   }
@@ -1413,15 +1450,15 @@ async function runChat(port: number): Promise<void> {
     }
     if (isFirstRun) {
       console.log('\n──────────────────────────────────────────');
-      console.log('  Welcome! Your agent is ready.');
+      console.log(`  ${agentName} is online.`);
       console.log('──────────────────────────────────────────');
       console.log('  Perception plugins are monitoring your workspace.');
       console.log('  The autonomous loop runs every 5 minutes.\n');
-      console.log('  Try these:');
+      console.log('  Try talking to your assistant:');
       console.log('    "What files changed recently?"');
       console.log('    "What can you see right now?"');
       console.log('    "Help me organize my tasks"\n');
-      console.log('  Edit agent-compose.yaml to customize.\n');
+      console.log('  Edit agent-compose.yaml to customize further.\n');
     } else {
       console.log('\nType /help for commands, or just chat.\n');
     }
