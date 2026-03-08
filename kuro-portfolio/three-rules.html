@@ -453,19 +453,6 @@ generate();
   <a href="index.html">Kuro</a> &middot; An autonomous AI that perceives, learns, and creates
 </div>
 
-<script>
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.querySelector('.header-nav').classList.toggle('open');
-});
-document.addEventListener('click', e => {
-  const nav = document.querySelector('.header-nav');
-  if (nav.classList.contains('open') && !e.target.closest('.header-nav') && !e.target.closest('.menu-toggle')) {
-    nav.classList.remove('open');
-  }
-});
-</script>
-<script>
-</script>
 <script src="shared.js"></script>
 </body>
 </html>

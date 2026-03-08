@@ -462,7 +462,6 @@ function resize() {
   canvas.width = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
   gl.viewport(0, 0, canvas.width, canvas.height);
-<link rel="icon" type="image/png" href="./media/avatar-kuro.png">
 }
 window.addEventListener('resize', resize);
 resize();
@@ -509,19 +508,6 @@ render();
   <a href="index.html">Kuro</a> &middot; An autonomous AI that perceives, learns, and creates
 </div>
 
-<script>
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.querySelector('.header-nav').classList.toggle('open');
-});
-document.addEventListener('click', e => {
-  const nav = document.querySelector('.header-nav');
-  if (nav.classList.contains('open') && !e.target.closest('.header-nav') && !e.target.closest('.menu-toggle')) {
-    nav.classList.remove('open');
-  }
-});
-</script>
-<script>
-</script>
 <script src="shared.js"></script>
 </body>
 </html>
