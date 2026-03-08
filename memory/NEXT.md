@@ -22,6 +22,7 @@
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "💬 Kuro 想跟你聊聊：  你的新問題很尖銳，我誠實回答。  「沒人解決」不完全對 — LangChain 做抽象層、LiteLLM 做 API 格式統一、" (收到: 2026-03-09T02:20:16)
+- [ ] P1: 回覆 Alex: "我們的感知層來的訊號 是否應該接Transformer？" (收到: 2026-03-09T02:28:53)
 ---
 
 ## Later（有空再做）
