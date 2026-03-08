@@ -821,6 +821,7 @@ Commands:
   mini-agent logs [-f] <id|name>      Show logs for specific instance
   mini-agent logs stats               Show structured log statistics
   mini-agent update                   Update to latest version
+  mini-agent doctor                   Check environment health
 
 Up Options:
   -d, --detach            Run in background (don't attach)
@@ -859,6 +860,134 @@ Examples:
   mini-agent logs --tail 100              # Show last 100 lines
   mini-agent logs claude --date 2026-02-05
 `);
+}
+
+
+// =============================================================================
+// Doctor — Environment Health Check
+// =============================================================================
+
+function handleDoctorCommand(): void {
+  console.log('\nmini-agent doctor\n');
+  let issues = 0;
+  let warnings = 0;
+
+  // 1. Node.js version
+  const nodeVersion = process.version;
+  const major = parseInt(nodeVersion.slice(1).split('.')[0], 10);
+  if (major >= 20) {
+    console.log(`  ✓ Node.js ${nodeVersion}`);
+  } else {
+    console.log(`  ✗ Node.js ${nodeVersion} (need >= 20)`);
+    issues++;
+  }
+
+  // 2. Claude CLI
+  try {
+    const claudeVersion = execSync('claude --version 2>/dev/null', { encoding: 'utf-8' }).trim();
+    console.log(`  ✓ Claude CLI ${claudeVersion}`);
+  } catch {
+    console.log('  ✗ Claude CLI not found');
+    console.log('    Install: https://docs.anthropic.com/en/docs/claude-code');
+    issues++;
+  }
+
+  // 3. Git
+  try {
+    execSync('git --version 2>/dev/null', { encoding: 'utf-8' });
+    console.log('  ✓ Git available');
+  } catch {
+    console.log('  ✗ Git not found');
+    issues++;
+  }
+
+  // 4. Disk space
+  try {
+    const dfOutput = execSync('df -h . 2>/dev/null', { encoding: 'utf-8' });
+    const lines = dfOutput.trim().split('\n');
+    if (lines.length >= 2) {
+      const parts = lines[1].split(/\s+/);
+      const available = parts[3] || 'unknown';
+      const usePercent = parseInt(parts[4] || '0', 10);
+      if (usePercent > 95) {
+        console.log(`  ✗ Disk almost full (${available} free, ${usePercent}% used)`);
+        issues++;
+      } else if (usePercent > 90) {
+        console.log(`  ! Disk space low (${available} free, ${usePercent}% used)`);
+        warnings++;
+      } else {
+        console.log(`  ✓ Disk space OK (${available} free)`);
+      }
+    }
+  } catch {
+    console.log('  ? Disk space: could not check');
+  }
+
+  // 5. Compose file
+  const composeFile = findComposeFile();
+  if (composeFile) {
+    console.log(`  ✓ Compose file: ${composeFile}`);
+    try {
+      const config = readComposeFile(composeFile);
+      const agentNames = Object.keys(config.agents || {});
+      console.log(`  ✓ Agents defined: ${agentNames.join(', ') || 'none'}`);
+
+      // Check perception plugins exist
+      for (const [name, agent] of Object.entries(config.agents || {})) {
+        const customs = (agent as Record<string, unknown>).perception &&
+          ((agent as Record<string, unknown>).perception as Record<string, unknown>).custom;
+        if (Array.isArray(customs)) {
+          for (const p of customs) {
+            const script = (p as Record<string, string>).script;
+            if (script && !fs.existsSync(path.resolve(path.dirname(composeFile), script))) {
+              console.log(`  ! ${name}: plugin script not found: ${script}`);
+              warnings++;
+            }
+          }
+        }
+        // Check skills exist
+        const skills = (agent as Record<string, unknown>).skills;
+        if (Array.isArray(skills)) {
+          for (const s of skills) {
+            if (typeof s === 'string' && !fs.existsSync(path.resolve(path.dirname(composeFile), s))) {
+              console.log(`  ! ${name}: skill not found: ${s}`);
+              warnings++;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`  ✗ Compose file is invalid: ${(e as Error).message}`);
+      issues++;
+    }
+  } else {
+    console.log('  - No compose file (will be created on first run)');
+  }
+
+  // 6. Memory directory
+  if (fs.existsSync('memory')) {
+    console.log('  ✓ Memory directory exists');
+  } else {
+    console.log('  - No memory directory (will be created on first run)');
+  }
+
+  // 7. Optional: Docker
+  try {
+    execSync('docker --version 2>/dev/null', { encoding: 'utf-8' });
+    console.log('  ✓ Docker available');
+  } catch {
+    console.log('  - Docker not found (optional)');
+  }
+
+  // Summary
+  console.log('');
+  if (issues === 0 && warnings === 0) {
+    console.log('  All checks passed. Ready to go!\n');
+  } else if (issues === 0) {
+    console.log(`  ${warnings} warning(s), but no blockers. Ready to go!\n`);
+  } else {
+    console.log(`  ${issues} issue(s), ${warnings} warning(s). Fix issues above before running.\n`);
+  }
 }
 
 
@@ -1629,7 +1758,7 @@ Chat Commands:
 // =============================================================================
 
 // 直接命令列表（不需要 instance 前綴）
-const DIRECT_COMMANDS = ['list', 'up', 'attach', 'start', 'down', 'restart', 'status', 'kill', 'logs', 'help', 'update'];
+const DIRECT_COMMANDS = ['list', 'up', 'attach', 'start', 'down', 'restart', 'status', 'kill', 'logs', 'help', 'update', 'doctor'];
 
 interface ParsedArgs {
   command: string;
@@ -1742,6 +1871,9 @@ async function main(): Promise<void> {
       return;
     case 'update':
       handleUpdateCommand();
+      return;
+    case 'doctor':
+      handleDoctorCommand();
       return;
   }
 
