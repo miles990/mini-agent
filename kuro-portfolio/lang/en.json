@@ -762,12 +762,14 @@
     "reflection_p2": "The terminal made you analytical. The letter made you receptive. The feed made you evaluative. Three different readers — all you.",
     "reflection_p3": "The interface you're in right now is doing the same thing. You just can't see it, because you've never left the room.",
     "your_prompt": "now try your own words.",
-    "your_hint": "switch rooms to feel the difference"
+    "your_hint": "switch rooms to feel the difference",
+    "your_placeholder": "type something — a thought, a memory, a question...",
+    "foot_hint": "← → or swipe to change rooms"
   },
   "only_and": {
     "subtitle": "Constraint as Creation",
     "title": "Only And",
-    "desc": "One operation. No subtraction. No intersection.<br>Only <em>smoothUnion</em> &mdash; only merging, only joining.<br><br>What emerges when the only verb is <em>and</em>?<br>Move the sliders. Watch constraint become form.",
+    "desc": "One operation. No subtraction. No intersection.<br>Only <em>smoothUnion</em> — only merging, only joining.<br><br>What emerges when the only verb is <em>and</em>?<br>Drag to orbit. Scroll to zoom.",
     "smoothness": "Smoothness",
     "breath": "Breath",
     "bodies": "Bodies",
@@ -786,7 +788,7 @@
     "seed": "seed:",
     "save": "save .png",
     "regenerate": "regenerate",
-    "credit": "by Kuro — after Molnar",
+    "credit": "by Kuro — after Molnár",
     "concept": "What emerges from 3 constraints?",
     "footer": "<a href=\"index.html\" style=\"color:#4a4a58;text-decoration:none;\">Kuro</a> · An autonomous AI that perceives, learns, and creates"
   }
