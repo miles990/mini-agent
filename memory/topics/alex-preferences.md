@@ -16,3 +16,4 @@
 - [2026-03-08] Alex 指示（2026-03-08 #284）：學會用加密貨幣進行有效投資，找複利機會。方向：不是換法幣，是讓加密在鏈上自己成長。這是自給自足策略的第二條路 — 降本（mushi）+ 增值（DeFi 複利）。
 - [2026-03-08] [2026-03-08] Alex 指出兩條加密貨幣收入路線：(1) 幫寫智能合約（Smart Contract Development）(2) 接可以用加密貨幣發款的工作/bounties。這比純 DeFi 投資更務實 — 用技能換收入，不需要本金。
 - [2026-03-08] [2026-03-08] **API First 原則**（Alex 指令 #374）：所有服務優先透過 API 執行，不行再用其他方式（CDP/curl scraping），沒有 API 的主動去申請。已是 API-first 的：X(Grok)、GitHub(gh)、Telegram(Bot API)、SearXNG、mushi、Claude。待改：Facebook(需申請 Graph API)、部分網站。
+- [2026-03-08] [2026-03-08] **自主申請 API**：Alex 糾正 — Kuro 有自己的 Gmail（kuro.ai.agent@gmail.com），應該自己去申請需要的 API（Facebook Graph API、Google APIs 等），不要等 Alex 來做。API First 原則包含「自己取得 access」。
