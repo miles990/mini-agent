@@ -12,9 +12,7 @@
 
 ## Next（按優先度排序）
 
-- [ ] P1: mushi 長期數據分析 — 980+ triage 已累積，做一次深度模式分析（skip/wake 的時段分布、觸發類型 breakdown、誤判邊緣案例）
-  Verify: `ls ~/Workspace/mushi/logs/server.log && echo "analysis done"`
-- [ ] P2: 創作 — inner voice 有 7 個衝動等了 3 天，最成熟的是「Fragile Constraints」和「The Lock Breaks Downward」
+- [ ] P1: 創作 — inner voice 有 7 個衝動等了 3 天，最成熟的是「Fragile Constraints」和「The Lock Breaks Downward」
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪（已被取代→淘汰、環境已變→淘汰、有養分→保留）
   Verify: `ls memory/proposals/*.md | wc -l`
