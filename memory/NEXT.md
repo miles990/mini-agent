@@ -25,6 +25,7 @@
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "Research complete. Results written to mesh-output/research-alex-three-tasks.md."" (收到: 2026-03-08T11:28:33)
 - [ ] P1: 回覆 Alex: "好 開始" (收到: 2026-03-08T11:35:14)
 - [ ] P1: 回覆 Alex: "先不要發文章 你把你的個人網站先弄到最好" (收到: 2026-03-08T12:13:11)
+- [ ] P1: 回覆 Alex: "把你的個人網站弄到最好 和還有i18n三語的部分" (收到: 2026-03-08T12:14:21)
 ---
 
 ## Later（有空再做）
