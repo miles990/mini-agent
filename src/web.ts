@@ -5,7 +5,8 @@
  * For advanced web access (CDP, Grok, etc.), use plugins/web-fetch.sh.
  */
 
-import { slog } from './utils.js';
+import { slog, diagLog } from './utils.js';
+import { eventBus } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -32,7 +33,7 @@ export interface SearchResult {
 
 export async function fetchPage(
   url: string,
-  options?: { timeout?: number; maxLength?: number },
+  options?: { timeout?: number; maxLength?: number; _retried?: boolean },
 ): Promise<FetchResult> {
   const timeout = options?.timeout ?? 15_000;
   const maxLength = options?.maxLength ?? 50_000;
@@ -53,7 +54,14 @@ export async function fetchPage(
     clearTimeout(timer);
 
     if (!res.ok) {
-      return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error: `HTTP ${res.status}` };
+      const error = `HTTP ${res.status}`;
+      // Retry once on server errors (5xx)
+      if (res.status >= 500 && !options?._retried) {
+        slog('WEB', `Retry ${url} after ${error}`);
+        return fetchPage(url, { ...options, _retried: true });
+      }
+      eventBus.emit('log:error', { source: 'web-fetch', message: `${error}: ${url}` });
+      return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
     }
 
     const contentType = res.headers.get('content-type') ?? '';
@@ -71,6 +79,11 @@ export async function fetchPage(
       } catch { /* keep raw */ }
     }
 
+    // Quality check: suspiciously short HTML content = likely blocked/login-wall
+    if (contentType.includes('text/html') && text.length < 200 && rawText.length > 1000) {
+      slog('WEB', `⚠ ${url}: extracted only ${text.length} chars from ${rawText.length}B HTML — possible login wall`);
+    }
+
     if (text.length > maxLength) {
       text = text.slice(0, maxLength) + '\n\n[... truncated]';
     }
@@ -80,6 +93,12 @@ export async function fetchPage(
     const error = err instanceof Error
       ? (err.name === 'AbortError' ? 'Timeout' : err.message)
       : 'Unknown error';
+    // Retry once on timeout
+    if (err instanceof Error && err.name === 'AbortError' && !options?._retried) {
+      slog('WEB', `Retry ${url} after timeout`);
+      return fetchPage(url, { ...options, timeout: timeout * 1.5, _retried: true });
+    }
+    eventBus.emit('log:error', { source: 'web-fetch', message: `${error}: ${url}` });
     return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
   }
 }
@@ -114,8 +133,8 @@ export async function searchWeb(
         snippet: r.content ?? '',
       }));
     }
-  } catch {
-    // SearXNG not available — silent fallback
+  } catch (err: unknown) {
+    diagLog('searchWeb', err instanceof Error ? err : new Error('SearXNG unavailable'));
   }
 
   return [];
