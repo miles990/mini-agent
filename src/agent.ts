@@ -294,6 +294,17 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     args.push('--model', modelOverride);
   }
 
+  // CLAUDE.md JIT: run subprocess in isolated cwd (no CLAUDE.md) to prevent
+  // CLI from loading full project instructions. JIT-filtered content is already
+  // included in the system prompt via getSystemPrompt() → getClaudeMdJIT().
+  // --add-dir allows subprocess tools to access project files.
+  const projectDir = process.cwd();
+  const subprocessCwd = path.join(process.env.HOME ?? '/tmp', '.mini-agent', 'subprocess-cwd');
+  if (!existsSync(subprocessCwd)) {
+    mkdirSync(subprocessCwd, { recursive: true });
+  }
+  args.push('--add-dir', projectDir);
+
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     let timedOut = false;
@@ -303,6 +314,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       args,
       {
         env,
+        cwd: subprocessCwd,
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: true, // 建立新進程群組，方便整體 kill
       },

@@ -63,6 +63,7 @@ import { parseInterval } from './cycle-tasks.js';
 import { initObservability } from './observability.js';
 import { initActivityJournal } from './activity-journal.js';
 import { perceptionStreams } from './perception-stream.js';
+import { initClaudeMdJIT } from './claudemd-jit.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -1492,6 +1493,7 @@ async function runChat(port: number): Promise<void> {
     }
     initObservability();
     createMemory(); // ensure migrateStateFiles() runs before journal init
+    initClaudeMdJIT(); // parse CLAUDE.md sections for JIT loading
     initActivityJournal();
     if (agentLoop) {
       agentLoop.start();

@@ -49,6 +49,7 @@ import {
 import { loadGlobalConfig, startHeartbeat, stopHeartbeat, updateInstanceHeartbeat } from './instance.js';
 import { initIPCBus, stopIPCBus } from './ipc-bus.js';
 import { stopMemoryCache } from './memory-cache.js';
+import { initClaudeMdJIT } from './claudemd-jit.js';
 import { cleanupConsensusState } from './consensus.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
@@ -2730,6 +2731,7 @@ if (isMain) {
 
   initObservability();
   createMemory(); // ensure migrateStateFiles() runs before journal init
+  initClaudeMdJIT(); // parse CLAUDE.md sections for JIT loading
   initActivityJournal();
 
   const server = app.listen(port, () => {

@@ -9,6 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, getMemoryStateDir, type CycleMode } from './memory.js';
+import { getClaudeMdJIT } from './claudemd-jit.js';
 import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
@@ -281,6 +282,10 @@ Alex 和 Claude Code 不一定記得你上一個 cycle 在做什麼。每條對�
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
 ${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
+  // JIT CLAUDE.md — keyword-matched project docs (replaces full CLAUDE.md loaded by CLI)
+  const jitContent = getClaudeMdJIT(relevanceHint);
+  return jitContent ? `\n\n## Project Documentation\n${jitContent}` : '';
+})()}${(() => {
   const hint = getConversationHint();
   return hint ? `\n\n## 當前對話情境\n${hint}` : '';
 })()}`;
