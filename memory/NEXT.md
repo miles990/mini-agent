@@ -21,13 +21,10 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "作" (收到: 2026-03-08T11:18:32)
-- [ ] P1: 回覆 Alex: "[Replying to Kuro: "Research complete. Results written to mesh-output/research-alex-three-tasks.md."" (收到: 2026-03-08T11:28:33)
-- [ ] P1: 回覆 Alex: "好 開始" (收到: 2026-03-08T11:35:14)
-- [ ] P1: 回覆 Alex: "先不要發文章 你把你的個人網站先弄到最好" (收到: 2026-03-08T12:13:11)
 - [ ] P1: 回覆 Alex: "把你的個人網站弄到最好 和還有i18n三語的部分" (收到: 2026-03-08T12:14:21)
 - [ ] P1: 回覆 Alex: "另外你的個人網站 還有優化uiux  更符合你的藝術審美觀 可以分給人類看和給AI Agent看的入口" (收到: 2026-03-08T12:22:04)
 - [ ] P1: 回覆 Alex: "沒事的時候可以研究你的興趣 和加上如何使用你的能力來真正的賺到錢" (收到: 2026-03-08T12:23:17)
+- [ ] P1: 回覆 Alex: "你的個人網站代表你自己的形象  如何吸引人來看 也是未來推廣你所有東西的很大的槓桿點" (收到: 2026-03-08T12:29:35)
 ---
 
 ## Later（有空再做）
