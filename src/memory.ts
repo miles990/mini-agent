@@ -1718,6 +1718,19 @@ export class InstanceMemory {
       }
     }
 
+    // ── Web Fetch Results（from <kuro:fetch> tags, one-shot consumption）──
+    if (!isLight) {
+      const webResultsPath = path.join(getMemoryStateDir(), 'web-fetch-results.md');
+      try {
+        const webResults = await fs.readFile(webResultsPath, 'utf-8');
+        if (webResults.trim()) {
+          sections.push(`<web-fetch-results>\n${webResults.slice(0, 12000)}\n</web-fetch-results>`);
+          // One-shot: delete after injection so it doesn't repeat
+          await fs.unlink(webResultsPath).catch(() => {});
+        }
+      } catch { /* file doesn't exist — normal */ }
+    }
+
     // ── Activity Journal（skip in light mode, auto-demotion aware）──
     if (!isLight && shouldLoad('recent-activity')) {
       const { formatActivityJournal } = await import('./activity-journal.js');
@@ -2226,6 +2239,16 @@ export class InstanceMemory {
     if (bgSection) {
       sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
     }
+
+    // ── Web Fetch Results ──
+    const webResultsPath2 = path.join(getMemoryStateDir(), 'web-fetch-results.md');
+    try {
+      const webResults2 = await fs.readFile(webResultsPath2, 'utf-8');
+      if (webResults2.trim()) {
+        sections.push(`<web-fetch-results>\n${webResults2.slice(0, 12000)}\n</web-fetch-results>`);
+        await fs.unlink(webResultsPath2).catch(() => {});
+      }
+    } catch { /* normal — no pending results */ }
 
     // ── Activity Journal（cross-lane awareness）──
     const { formatActivityJournal } = await import('./activity-journal.js');

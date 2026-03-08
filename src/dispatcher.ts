@@ -258,6 +258,12 @@ Alex 和 Claude Code 不一定記得你上一個 cycle 在做什麼。每條對�
   Example: <kuro:inner>Currently tracking: CLI stability (0 timeouts last 24h). Pending: inner voice draft about constraints.
   Atmosphere: Alex and I are in a relaxed back-and-forth about architecture — informal tone, he's curious not directing.</kuro:inner>
 
+- **Web fetch**: You can fetch any web page on-demand using <kuro:fetch url="URL" /> tags.
+  Results appear in <web-fetch-results> in your next cycle. Fetch up to 5 URLs per cycle.
+  Format: <kuro:fetch url="https://example.com" /> (self-closing)
+  Or with label: <kuro:fetch url="https://example.com" label="Example site" />
+  Use this when you need to read a webpage, check a URL, or gather information from the web.
+
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
 ${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
@@ -430,6 +436,14 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // <kuro:fetch> tags — on-demand web page fetching
+  const fetches: Array<{ url: string; label?: string }> = [];
+  if (parseSource.includes('<kuro:fetch')) {
+    for (const m of parseSource.matchAll(/<kuro:fetch\s+url="([^"]+)"(?:\s+label="([^"]*)")?\s*(?:\/>|>([\s\S]*?)<\/kuro:fetch>)/g)) {
+      fetches.push({ url: m[1], label: m[2] || m[3]?.trim() || undefined });
+    }
+  }
+
   // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
   const delegates: DelegateRequest[] = [];
   if (parseSource.includes('<kuro:delegate')) {
@@ -464,6 +478,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '')
     .replace(/<kuro:thread[\s\S]*?<\/kuro:thread>/g, '')
     .replace(/<kuro:delegate[\s\S]*?<\/kuro:delegate>/g, '')
+    .replace(/<kuro:fetch\s[^>]*(?:\/>|>[\s\S]*?<\/kuro:fetch>)/g, '')
     .replace(/<kuro:schedule[^>]*\/>/g, '')
     .replace(/<kuro:done>[\s\S]*?<\/kuro:done>/g, '')
     .replace(/<kuro:progress[\s\S]*?<\/kuro:progress>/g, '')
@@ -476,7 +491,7 @@ export function parseTags(response: string): ParsedTags {
   const responseForDetection = response
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'schedule'];
+  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
       + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
@@ -487,7 +502,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, schedule, inner, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, cleanContent };
 }
 
 // =============================================================================
@@ -627,6 +642,15 @@ export async function postProcess(
     const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
     slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
     eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+  }
+
+  // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
+  if (tags.fetches.length > 0) {
+    tagsProcessed.push('fetch');
+    import('./web.js').then(({ processFetchRequests }) => {
+      processFetchRequests(tags.fetches, getMemoryStateDir()).catch(() => {});
+    }).catch(() => {});
+    slog('DISPATCH', `Web fetch: ${tags.fetches.map(f => f.url).join(', ')}`);
   }
 
   // Notification-producing tags: suppress when processing [Claude Code] system messages
