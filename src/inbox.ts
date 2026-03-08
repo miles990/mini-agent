@@ -364,6 +364,24 @@ export function hasRecentUnrepliedTelegram(hoursBack: number = 4): boolean {
 }
 
 /**
+ * Get unprocessed high-priority inbox items (P0/P1) within time window.
+ * Checks both 'pending' (never processed) and 'seen' (read but not replied).
+ * Used as safety net on startup — even if Event WAL fails, inbox has the data.
+ */
+export function getUnprocessedHighPriority(hoursBack: number = 4): InboxItem[] {
+  try {
+    const cutoff = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+    return inboxCache.getAll().filter(item =>
+      item.priority <= 1 &&
+      (item.status === 'pending' || item.status === 'seen') &&
+      item.ts >= cutoff
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 標記所有 pending items。
  */
 export function markAllInboxProcessed(status: 'seen' | 'replied'): void {

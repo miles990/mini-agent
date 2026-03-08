@@ -36,7 +36,9 @@ import {
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { extractNextItems, NEXT_MD_PATH } from './triage.js';
-import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, queueInboxMark, flushInboxMarks } from './inbox.js';
+import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
+import { savePendingState, loadAndClearPendingState } from './event-wal.js';
+import type { PendingPriorityState } from './event-wal.js';
 import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-context.js';
 import type { TelegramMsgSnapshot } from './reply-context.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
@@ -585,6 +587,14 @@ export class AgentLoop {
       slog('JOURNAL', `Loaded ${journalEntries.length} work journal entries from previous instance`);
     }
 
+    // Phase 1e: Restore pending priority events from WAL
+    const walState = loadAndClearPendingState();
+    if (walState?.pendingPriority) {
+      this.pendingPriority = walState.pendingPriority;
+      this.directMessageWakeQueue = walState.directMessageWakeQueue;
+      slog('LOOP', `Restored pending priority from WAL: ${walState.pendingPriority.reason} (${walState.pendingPriority.messageCount} msg)`);
+    }
+
     // Recover forge worktree state (clean up crash state, prune stale worktrees)
     try { forgeRecover(process.cwd()); } catch { /* fire-and-forget */ }
     // Recover stale delegations from previous instance (kill orphans, release forge slots)
@@ -619,10 +629,22 @@ export class AgentLoop {
     const STARTUP_DELAY = 15_000; // 15s warmup
     setTimeout(() => {
       if (this.running && !this.paused && !this.cycling) {
-        // If there are recent unseen telegram messages (within 4h), hint to check inbox first.
-        // Use 'startup' trigger (not 'telegram-user') — avoids forcing "MUST REPLY" prompt
-        // when messages were already replied to but inbox marks weren't flushed before crash.
-        if (hasRecentUnrepliedTelegram(4)) {
+        // Priority 1: WAL-restored pending priority → drain immediately
+        if (this.pendingPriority) {
+          const drainSource = this.pendingPriority.reason.startsWith('telegram') ? 'telegram-user' : this.pendingPriority.reason.split('-')[0];
+          this.triggerReason = `${drainSource} (restored from WAL)`;
+          slog('LOOP', `Startup: draining WAL-restored priority: ${this.pendingPriority.reason}`);
+          // Clear pendingPriority — cycle will see inbox items directly via buildContext
+          this.pendingPriority = null;
+          this.directMessageWakeQueue = 0;
+        }
+        // Priority 2: Inbox has unprocessed P0/P1 items (safety net even without WAL)
+        else if (getUnprocessedHighPriority(4).length > 0) {
+          this.triggerReason = 'startup (unprocessed-P0/P1)';
+          slog('LOOP', 'Startup: unprocessed P0/P1 inbox items detected → prioritizing');
+        }
+        // Priority 3: Legacy check for 'seen' telegram items
+        else if (hasRecentUnrepliedTelegram(4)) {
           this.triggerReason = 'startup (telegram-hint)';
           slog('LOOP', 'Startup: recent unseen telegram detected → prioritizing inbox check');
         } else {
@@ -637,6 +659,11 @@ export class AgentLoop {
   }
 
   stop(): void {
+    // Persist pending priority to WAL before clearing (survives restart)
+    if (this.pendingPriority) {
+      savePendingState(this.pendingPriority, this.directMessageWakeQueue);
+    }
+
     this.running = false;
     eventBus.off('trigger:*', this.handleTrigger);
     this.clearTimer();
@@ -1955,7 +1982,11 @@ export class AgentLoop {
         const drainStartWait = Date.now();
         const maxBusyWait = 120_000;
         const tryDrainPriority = () => {
-          if (!this.running) return;
+          if (!this.running) {
+            // Process shutting down — persist to WAL for next startup
+            savePendingState(pp, 0);
+            return;
+          }
           // Pending priority came from P0/P1 direct messages — re-arm calm wake for drain
           if (this.paused) this.calmWake = true;
           if (isLoopBusy() && Date.now() - drainStartWait < maxBusyWait) {
