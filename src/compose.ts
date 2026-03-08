@@ -49,6 +49,22 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
             name: 'self-awareness',
             script: './plugins/self-awareness.sh',
           },
+          {
+            name: 'chat-room-inbox',
+            script: './plugins/chat-room-inbox.sh',
+          },
+          {
+            name: 'claude-code-inbox',
+            script: './plugins/claude-code-inbox.sh',
+          },
+          {
+            name: 'delegation-status',
+            script: './plugins/delegation-status.sh',
+          },
+          {
+            name: 'anomaly-detector',
+            script: './plugins/anomaly-detector.sh',
+          },
         ],
       },
       skills: [

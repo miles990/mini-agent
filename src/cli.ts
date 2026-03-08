@@ -1289,6 +1289,53 @@ async function runFirstRunSetup(): Promise<ComposeOptions> {
   };
 }
 
+interface PluginHealthStatus {
+  name: string;
+  script: string;
+  exists: boolean;
+  executable: boolean;
+}
+
+function getPluginHealthStatus(
+  perceptions: Array<{ name: string; script: string }>,
+  composeDir: string,
+): PluginHealthStatus[] {
+  return perceptions.map(plugin => {
+    const resolved = path.resolve(composeDir, plugin.script);
+    let executable = false;
+    let exists = false;
+
+    try {
+      const stat = fs.statSync(resolved);
+      exists = true;
+      executable = (stat.mode & 0o111) !== 0;
+    } catch {
+      exists = false;
+      executable = false;
+    }
+
+    return {
+      name: plugin.name,
+      script: plugin.script,
+      exists,
+      executable,
+    };
+  });
+}
+
+function describeCapability(pluginName: string): string {
+  const descriptions: Record<string, string> = {
+    tasks: 'HEARTBEAT task tracking',
+    'state-changes': 'workspace change detection',
+    'self-awareness': 'agent runtime self-status',
+    'chat-room-inbox': 'team chat inbox monitoring',
+    'claude-code-inbox': 'Claude Code inbox monitoring',
+    'delegation-status': 'background delegation status',
+    'anomaly-detector': 'anomaly signals from behavior logs',
+  };
+  return descriptions[pluginName] || 'custom perception stream';
+}
+
 async function runChat(port: number): Promise<void> {
   // 同時啟動 API server
   const app = createApi(port);
@@ -1426,10 +1473,11 @@ async function runChat(port: number): Promise<void> {
     skills: currentAgent?.skills,
   });
 
+  const composeDir = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
+
   // Phase 4: 啟動 perception streams
   if (enabledPerceptions && enabledPerceptions.length > 0) {
-    const cwd = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
-    perceptionStreams.start(enabledPerceptions, cwd);
+    perceptionStreams.start(enabledPerceptions, composeDir);
   }
 
   const server = app.listen(port, () => {
@@ -1449,10 +1497,32 @@ async function runChat(port: number): Promise<void> {
       console.log(`Hot reload: enabled`);
     }
     if (isFirstRun) {
+      const health = getPluginHealthStatus(enabledPerceptions ?? [], composeDir);
+      const healthyCount = health.filter(p => p.exists && p.executable).length;
+
       console.log('\n──────────────────────────────────────────');
       console.log(`  ${agentName} is online.`);
       console.log('──────────────────────────────────────────');
-      console.log('  Perception plugins are monitoring your workspace.');
+      console.log('  Capability overview:');
+      if (enabledPerceptions && enabledPerceptions.length > 0) {
+        for (const plugin of enabledPerceptions) {
+          console.log(`    - ${plugin.name}: ${describeCapability(plugin.name)}`);
+        }
+      } else {
+        console.log('    - No perception plugins enabled');
+      }
+      console.log('');
+      console.log(`  Plugin health check: ${healthyCount}/${health.length} ready`);
+      for (const plugin of health) {
+        if (plugin.exists && plugin.executable) {
+          console.log(`    ✓ ${plugin.name} (${plugin.script})`);
+        } else if (!plugin.exists) {
+          console.log(`    ✗ ${plugin.name} missing: ${plugin.script}`);
+        } else {
+          console.log(`    ! ${plugin.name} not executable: ${plugin.script}`);
+        }
+      }
+      console.log('');
       console.log('  The autonomous loop runs every 5 minutes.\n');
       console.log('  Try talking to your assistant:');
       console.log('    "What files changed recently?"');
