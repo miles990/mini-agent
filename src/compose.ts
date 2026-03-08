@@ -24,12 +24,36 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
     assistant: {
       name: 'My Assistant',
       port: 3001,
-      persona: 'A helpful personal AI assistant',
+      persona: 'A helpful personal AI assistant that monitors your workspace and helps you stay organized.',
+      loop: {
+        enabled: true,
+        interval: '5m',
+      },
       cron: [
         {
           schedule: '*/30 * * * *',
           task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
         },
+      ],
+      perception: {
+        custom: [
+          {
+            name: 'tasks',
+            script: './plugins/task-tracker.sh',
+          },
+          {
+            name: 'state-changes',
+            script: './plugins/state-watcher.sh',
+          },
+          {
+            name: 'self-awareness',
+            script: './plugins/self-awareness.sh',
+          },
+        ],
+      },
+      skills: [
+        './skills/debug-helper.md',
+        './skills/project-manager.md',
       ],
     },
   },
@@ -45,12 +69,36 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
     assistant: {
       name: 'My Assistant',
       port: 3001,
-      persona: 'A helpful personal AI assistant',
+      persona: 'A helpful personal AI assistant that monitors your workspace and helps you stay organized.',
+      loop: {
+        enabled: true,
+        interval: '5m',
+      },
       cron: [
         {
           schedule: '*/30 * * * *',
           task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
         },
+      ],
+      perception: {
+        custom: [
+          {
+            name: 'tasks',
+            script: './plugins/task-tracker.sh',
+          },
+          {
+            name: 'state-changes',
+            script: './plugins/state-watcher.sh',
+          },
+          {
+            name: 'self-awareness',
+            script: './plugins/self-awareness.sh',
+          },
+        ],
+      },
+      skills: [
+        './skills/debug-helper.md',
+        './skills/project-manager.md',
       ],
     },
   },
@@ -104,34 +152,23 @@ export function generateComposeTemplate(example = false, options?: ComposeOption
   if (example) {
     template = EXAMPLE_COMPOSE_TEMPLATE;
   } else if (options && (options.name || options.port || options.persona)) {
-    // 使用自定義參數
-    template = {
-      version: '1',
-      paths: {
-        memory: './memory',
-        logs: './logs',
-      },
-      agents: {
-        assistant: {
-          name: options.name || 'My Assistant',
-          port: options.port || 3001,
-          persona: options.persona || 'A helpful personal AI assistant',
-          cron: [
-            {
-              schedule: '*/30 * * * *',
-              task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
-            },
-          ],
-        },
-      },
-    };
+    // 使用自定義參數，保留完整預設配置
+    template = structuredClone(DEFAULT_COMPOSE_TEMPLATE);
+    const agent = template.agents.assistant;
+    if (options.name) agent.name = options.name;
+    if (options.port) agent.port = options.port;
+    if (options.persona) agent.persona = options.persona;
   } else {
     template = DEFAULT_COMPOSE_TEMPLATE;
   }
 
   const header = `# Agent Compose File
-# 使用方式: mini-agent up [-d]
-# 參考: https://github.com/miles990/mini-agent
+# Usage: mini-agent up [-d]
+# Docs: https://github.com/miles990/mini-agent
+#
+# perception.custom — shell scripts that define what the agent can see
+# skills — markdown files that define what the agent knows how to do
+# loop — autonomous cycle (perceive → decide → act)
 
 `;
 

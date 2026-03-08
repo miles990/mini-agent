@@ -1137,8 +1137,10 @@ async function runChat(port: number): Promise<void> {
 
   // 讀取或建立 compose 檔案
   let composeFile = findComposeFile();
+  let isFirstRun = false;
   if (!composeFile) {
     composeFile = createDefaultComposeFile();
+    isFirstRun = true;
     console.log(`Created ${composeFile}`);
   }
 
@@ -1280,7 +1282,20 @@ async function runChat(port: number): Promise<void> {
     if (watcherResult.watching) {
       console.log(`Hot reload: enabled`);
     }
-    console.log('\nType /help for commands, or just chat.\n');
+    if (isFirstRun) {
+      console.log('\n──────────────────────────────────────────');
+      console.log('  Welcome! Your agent is ready.');
+      console.log('──────────────────────────────────────────');
+      console.log('  Perception plugins are monitoring your workspace.');
+      console.log('  The autonomous loop runs every 5 minutes.\n');
+      console.log('  Try these:');
+      console.log('    "What files changed recently?"');
+      console.log('    "What can you see right now?"');
+      console.log('    "Help me organize my tasks"\n');
+      console.log('  Edit agent-compose.yaml to customize.\n');
+    } else {
+      console.log('\nType /help for commands, or just chat.\n');
+    }
     prompt();
   });
 
