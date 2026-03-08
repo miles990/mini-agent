@@ -21,8 +21,8 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "剛剛看到到  https://www.facebook.com/share/p/17bncPM3pE/?mibextid=wwXIfr  URLs: - https://www.facebook.co" (收到: 2026-03-09T01:19:14)
 - [ ] P1: 回覆 Alex: "那對於他說的這個問題怎麼解決？ [Photo: media/photo_13233.jpg]" (收到: 2026-03-09T01:31:30)
+- [ ] P1: 回覆 Alex: "我想回文的話回什麼好 拿我們的架構可以說服他們嗎？" (收到: 2026-03-09T01:37:50)
 ---
 
 ## Later（有空再做）
