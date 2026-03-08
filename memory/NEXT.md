@@ -21,12 +21,9 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "增加打電話的能力 可以打給使用者" (收到: 2026-03-08T10:44:26)
-- [ ] P1: 回覆 Alex: "現在狀況如何？" (收到: 2026-03-08T10:55:19)
-- [ ] P1: 回覆 Alex: "確認的如何？" (收到: 2026-03-08T11:04:50)
-- [ ] P1: 回覆 Alex: "研究方案研究的如何？" (收到: 2026-03-08T11:09:43)
 - [ ] P1: 回覆 Alex: "作" (收到: 2026-03-08T11:18:32)
 - [ ] P1: 回覆 Alex: "[Replying to Kuro: "Research complete. Results written to mesh-output/research-alex-three-tasks.md."" (收到: 2026-03-08T11:28:33)
+- [ ] P1: 回覆 Alex: "好 開始" (收到: 2026-03-08T11:35:14)
 ---
 
 ## Later（有空再做）
