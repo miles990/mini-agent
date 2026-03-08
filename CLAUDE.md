@@ -436,7 +436,7 @@ Phone PWA (5s POST) → POST /api/mobile/sensor → ~/.mini-agent/mobile-state.j
 
 ## 可觀測性（Observability）
 
-`slog(tag, msg)` 結構化輸出、`diagLog(context, error)` 診斷記錄、`safeExec/safeExecAsync` 自動 diagLog。日誌類型：claude-call/api-request/cron/error/diag/behavior。ENOENT 和 grep exit 1 不記錄（正常行為）。
+多維度日誌框架，讓 agent 感知自己的行為和錯誤。`slog(tag, msg)` 結構化輸出、`diagLog(context, error)` 診斷記錄、`safeExec/safeExecAsync` 自動 diagLog。日誌類型：claude-call/api-request/cron/error/diag/behavior。ENOENT 和 grep exit 1 不記錄（正常行為）。
 
 ## Agent Tags
 
