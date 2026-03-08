@@ -13,7 +13,7 @@
 
 ## Next（按優先度排序）
 
-- [ ] P2: Cognitive Mesh 接通 — buildContextForPerspective 實作 + mushi /api/route endpoint
+- [x] P2: Cognitive Mesh 接通 — buildContextForPerspective 實作 + mushi /api/route endpoint ✅ 兩端驗證通過 (2026-03-08)
   Verify: `grep -n 'buildContextForPerspective' src/perspective.ts | head -3`
 
 ---
