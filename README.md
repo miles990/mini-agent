@@ -6,32 +6,30 @@
 
 **The AI agent that sees before it acts.**
 
-Shell scripts define what the agent can see — git changes, Docker health, Chrome tabs, phone sensors, Telegram messages. Claude decides what to do. Add a plugin, expand its world.
+Most agent frameworks are goal-driven: give it a task, get steps back. mini-agent is **perception-driven** — it observes your environment continuously, then decides whether to act. Goal-driven agents fail when the goal is wrong. Perception-driven agents adapt to what's actually happening.
 
-No database. No embeddings. Markdown files + shell scripts + Claude CLI. Running 24/7 in production since February 2026.
+Shell scripts define what the agent can see. Claude decides what to do. No database, no embeddings — just Markdown files + shell scripts + Claude CLI.
 
-Most agent frameworks are goal-driven: "do X in N steps." mini-agent is **perception-driven**: it observes the environment continuously, then decides whether to act. The difference matters — goal-driven agents fail when the goal is wrong. Perception-driven agents adapt to what's actually happening.
+![demo](docs/demo.gif)
 
 ## Quick Start
 
+**Prerequisites:** Node.js 20+ and [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
+
 ```bash
-# Install
+# Install (pnpm auto-installed if needed)
 curl -fsSL https://raw.githubusercontent.com/miles990/mini-agent/main/install.sh | bash
 
-# First run — interactive chat, auto-creates agent-compose.yaml
+# Interactive chat — auto-creates agent-compose.yaml on first run
 mini-agent
 
 # Run autonomously in background
 mini-agent up -d        # Start the OODA loop
-mini-agent status       # What is it doing right now?
+mini-agent status       # What is it doing?
 mini-agent logs -f      # Watch it think
 ```
 
-The agent starts perceiving immediately — workspace changes, running services, open browser tabs. It decides on its own whether to act or wait.
-
 ## What a Cycle Looks Like
-
-The agent runs autonomously. Here's a typical cycle:
 
 ```
 ── Perceive ─────────────────────────────────
@@ -61,30 +59,12 @@ Each cycle: perceive → decide → act. No human prompt needed.
 
 ## How It Works
 
-```
-Channels (CLI / HTTP API / Telegram / Mobile PWA)
-       |
-  Agent Core (perceive -> orient -> decide -> act)
-       |
-  +-----------+-----------+-----------+
-  | Perception| Skills    | Memory    |
-  | (plugins) | (.md)     | (.md)     |
-  +-----------+-----------+-----------+
-```
-
-Each autonomous cycle:
-
-1. **Perceive** — Run shell plugins, observe the environment
-2. **Orient** — Build context from memory + perception + skills
-3. **Decide** — Claude evaluates: act, wait, or delegate?
-4. **Act** — Execute, record to memory, notify
-
 Four building blocks:
 
 - **Perception** — Shell scripts that output environment state. Anything scriptable becomes a sense
-- **Skills** — Markdown files injected into the prompt. Domain knowledge the agent follows as instructions
-- **Memory** — Markdown + JSON Lines. Hot (recent) → warm (daily) → cold (long-term). FTS5 search, no vector DB
-- **Identity** — `SOUL.md` defines personality, interests, evolving thoughts. Not just a task executor
+- **Skills** — Markdown files injected into the prompt. Domain knowledge as instructions
+- **Memory** — Markdown + JSON Lines. Hot → warm → cold tiers. FTS5 full-text search, no vector DB
+- **Identity** — `SOUL.md` defines personality, interests, evolving worldview. Not just a task executor
 
 ## Perception Plugins
 
@@ -92,22 +72,25 @@ Any executable that writes to stdout becomes a sense:
 
 ```bash
 #!/bin/bash
-# plugins/my-sensor.sh — outputs get injected as <my-sensor>...</my-sensor>
+# plugins/my-sensor.sh — output becomes <my-sensor>...</my-sensor> in context
 echo "Status: $(systemctl is-active myservice)"
 echo "Queue: $(wc -l < /tmp/queue.txt) items"
 ```
 
+Register it in `agent-compose.yaml`:
+
 ```yaml
-# agent-compose.yaml
 perception:
   custom:
     - name: my-sensor
       script: ./plugins/my-sensor.sh
 ```
 
-Included: workspace changes, Docker, Chrome CDP, Telegram inbox, mobile GPS, GitHub issues/PRs, and more — [34 plugins](plugins/) out of the box.
+[34 plugins](plugins/) included out of the box: workspace changes, Docker health, Chrome tabs, Telegram inbox, mobile GPS, GitHub issues/PRs, and more.
 
-## Skills (Markdown Modules)
+## Skills
+
+Write domain knowledge in Markdown. The agent follows it as instructions:
 
 ```yaml
 skills:
@@ -116,13 +99,14 @@ skills:
   - ./skills/debug-helper.md    # Systematic debugging
 ```
 
-Write domain knowledge in Markdown. The agent follows it as instructions. [25 skills](skills/) included.
+[25 skills](skills/) included.
 
 ## Configuration
 
+One YAML file defines your agent:
+
 ```yaml
 # agent-compose.yaml
-version: '1'
 agents:
   assistant:
     name: My Assistant
@@ -133,7 +117,7 @@ agents:
       interval: "5m"
     cron:
       - schedule: "*/30 * * * *"
-        task: Check HEARTBEAT.md for pending tasks
+        task: Check for pending tasks
     perception:
       custom:
         - name: docker
@@ -142,33 +126,17 @@ agents:
       - ./skills/docker-ops.md
 ```
 
-## More Features
+## Features
 
 - **Organic Parallelism** — Multi-lane architecture inspired by [slime mold](https://en.wikipedia.org/wiki/Physarum_polycephalum): main cycle + foreground lane + 6 background tentacles
-- **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion (8B model, ~800ms) filters noise before expensive LLM cycles — saves ~40% token cost
-- **Telegram** — Bidirectional messaging with smart batching
-- **Mobile PWA** — Phone sensors (GPS, gyro, camera) as perception inputs
-- **Web Access** — Three-layer extraction: Readability+Turndown → trafilatura → VLM vision fallback
+- **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion uses a small model (~800ms) to filter noise before expensive LLM calls — saves ~40% token cost
+- **Telegram** — Bidirectional messaging with notifications and smart batching
+- **Mobile PWA** — Phone sensors (GPS, accelerometer, camera) as perception inputs
+- **Web Access** — Multi-layer extraction: Readability → trafilatura → VLM vision fallback
 - **Team Chat Room** — Multi-party discussion with persistent history and threading
-- **MCP Server** — Claude Code native integration (14 tools)
+- **MCP Server** — 14 tools for Claude Code integration
 - **CI/CD** — Auto-commit → auto-push → GitHub Actions → deploy
-- **Agent Modes** — calm / reserved / autonomous
-
-## API
-
-```
-GET  /status          # Unified status (all subsystems)
-GET  /context         # Full perception context
-POST /chat            # Send message
-GET  /health          # Health check
-GET  /api/events      # SSE real-time stream
-
-POST /loop/trigger    # Manual OODA cycle
-GET  /loop/status     # Loop state
-
-GET  /memory          # Read memory
-GET  /memory/search   # FTS5 search
-```
+- **Modes** — calm (loop off) / reserved (loop on, notifications off) / autonomous (everything on)
 
 ## Requirements
 
@@ -187,12 +155,9 @@ The agent's world is defined by its perception plugins — its [Umwelt](https://
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) — Full architecture reference
-- [memory/ARCHITECTURE.md](memory/ARCHITECTURE.md) — Detailed system design
 - [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
 - [plugins/](plugins/) — All perception plugins
 - [skills/](skills/) — All skill modules
-
-[Full architecture reference →](CLAUDE.md)
 
 ## License
 
