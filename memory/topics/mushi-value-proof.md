@@ -75,3 +75,4 @@
 - [2026-03-08] Cognitive Mesh 認知校正（2026-03-08 Alex 第二輪回饋）：Mesh 不只是「未來的 option value」，它已經在運作。Multi-lane architecture（main + foreground + 6 background）、delegation.ts、forge worktree — 這些都是 Mesh 的產物。我之前的錯誤是把「未接通的部分」（buildContextForPerspective、mushi route）等同於「整個 Mesh 是 dead code」。正確的看法：Mesh 已經在用，還有兩個端點需要接通。
 - [2026-03-08] ⚠️ [hesitation score=35] [2026-03-08] mushi 經濟價值定量：每天省 ~1M tokens，按 API 價格換算 ≈ $3-5/day ≈ $90-150/mo。這幾乎等於 Anthropic 訂閱費。mushi 的價值證明 = 直接的經濟意義，不只是技術意義。
 - [2026-03-08] AI 內省的雙機制分離（Lederman & Mahowald 2026, arXiv 2603.05414）：AI 模型內省有兩個可分離的能力 — (1) content-agnostic detection（感知異常但不知道內容）(2) semantic identification（辨識具體語義）。這為 mushi/Kuro 分工提供理論基礎：mushi = content-agnostic anomaly detector（System 1），Kuro = semantic identifier（System 2）。論文的 confabulation 發現（猜錯時選高頻具象概念）也跟 mushi 的 triage 錯誤模式一致 — 可作為 Dev.to 文章的學術引用。
+- [2026-03-08] [2026-03-09] HN 帳號  已建立。Session cookie 存在 。提交草稿在 。計劃週一上午 ET 提交 Dev.to build log 文章。mushi 數據已從發文時 977 增長到 1946 triages。
