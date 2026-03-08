@@ -45,7 +45,7 @@ import { writeRoomMessage } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
-import { routeTask, getClusterState, type PerspectiveType } from './task-router.js';
+import { routeTask, mushiRoute, getClusterState, type PerspectiveType } from './task-router.js';
 import { evaluateScaling } from './scaling.js';
 import { buildMeshCompletedSection, buildContextForPerspective, cleanupMeshOutputs } from './perspective.js';
 import { handleMeshRoute, executeScaling } from './mesh-handler.js';
@@ -965,7 +965,9 @@ export class AgentLoop {
           primaryQueueDepth: readPendingInbox().length,
           maxInstances: 3,
         });
-        const route = routeTask(this.triggerReason, {}, clusterState);
+        // Try mushi AI routing first (~800ms), fall back to rule-based
+        const mushiDecision = isEnabled('mushi-triage') ? await mushiRoute(this.triggerReason, clusterState) : null;
+        const route = mushiDecision ?? routeTask(this.triggerReason, {}, clusterState);
         if (route.action !== 'self') {
           slog('MESH', `Route: ${route.action} (${route.reason}) for trigger=${this.triggerReason}`);
           const routed = await handleMeshRoute(route, this.triggerReason);
