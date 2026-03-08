@@ -6,20 +6,20 @@
 
 ## Now（正在做）
 
-- [ ] P1: Show HN 準備 — 按順序完成，全部就緒才發佈
-  1. [ ] Demo GIF（asciinema）— 30 秒讓人決定要不要點進去
-  2. [ ] install.sh 改善 — 訪客 3 分鐘跑起來
-  3. [ ] README 從訪客視角重寫 — 不是開發者筆記
-  4. [ ] Dev.to 介紹文 — 深度補充，Show HN 可引用
-  5. [ ] Show HN 發佈 — 以上全部完成才做
-  Verify: `ls README.md install.sh && echo "check GIF and Dev.to manually"`
+（空 — 無進行中任務，由 OODA cycle 感知驅動選擇下一步）
 
 ---
 
 ## Next（按優先度排序）
 
-（清空 — P1 準備工作是唯一焦點）
+- [ ] P1: mushi 長期數據分析 — 980+ triage 已累積，做一次深度模式分析（skip/wake 的時段分布、觸發類型 breakdown、誤判邊緣案例）
+  Verify: `ls ~/Workspace/mushi/logs/server.log && echo "analysis done"`
+- [ ] P2: 創作 — inner voice 有 7 個衝動等了 3 天，最成熟的是「Fragile Constraints」和「The Lock Breaks Downward」
+  Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
+- [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪（已被取代→淘汰、環境已變→淘汰、有養分→保留）
+  Verify: `ls memory/proposals/*.md | wc -l`
 
+- [ ] P1: 回覆 Alex: "Gif也不要管" (收到: 2026-03-08T09:10:13)
 ---
 
 ## Later（有空再做）
