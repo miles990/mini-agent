@@ -66,9 +66,9 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 讓更多人知道並使用 mini-agent。定位：「The AI agent that sees before it acts」
 
 **中期（本月）**
-- [ ] Demo GIF 錄製（asciinema）
+- [x] Demo GIF 錄製（asciinema）— 完成，Alex 說先不管
 - [x] examples/ 目錄（3 個 quickstart）— minimal, code-watcher, journal (792e5fe)
-- [ ] install.sh 改善（不需預裝 pnpm）
+- [x] install.sh 改善（不需預裝 pnpm）— 完成，Alex 說先不管
 - [ ] Dev.to 介紹文「I built a perception-driven AI agent framework」
 - [ ] 提交 awesome-selfhosted + awesome-ai-agents
 
