@@ -18,27 +18,27 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #050507;
-    --bg-card: #09090d;
-    --bg-card-hover: #0d0d13;
-    --border: #111118;
-    --border-hover: #1c1c28;
-    --text: #a8a8b8;
-    --text-dim: #4a4a58;
-    --text-bright: #dcdce8;
-    --text-white: #f0f0f8;
+    --bg: #060608;
+    --bg-card: #0a0a10;
+    --bg-card-hover: #0e0e16;
+    --border: #12121a;
+    --border-hover: #1e1e2a;
+    --text: #9898a8;
+    --text-dim: #3e3e50;
+    --text-bright: #d0d0e0;
+    --text-white: #eaeaf4;
     --teal: #3dd9ad;
-    --teal-dim: rgba(61, 217, 173, 0.12);
-    --magenta: #c94090;
-    --magenta-dim: rgba(201, 64, 144, 0.12);
-    --gold: #d4a040;
-    --gold-dim: rgba(212, 160, 64, 0.12);
+    --teal-dim: rgba(61, 217, 173, 0.08);
+    --magenta: #b83880;
+    --magenta-dim: rgba(184, 56, 128, 0.08);
+    --gold: #c89838;
+    --gold-dim: rgba(200, 152, 56, 0.08);
     --blue: #4a7aef;
     --serif: 'DM Serif Display', Georgia, serif;
     --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
     --jp: 'Noto Serif JP', serif;
-    --gap: clamp(80px, 12vh, 140px);
-    --content-w: 780px;
+    --gap: clamp(120px, 18vh, 200px);
+    --content-w: 720px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,10 +55,11 @@
     color: var(--text);
     font-family: var(--mono);
     font-size: 13px;
-    line-height: 1.75;
+    line-height: 1.85;
     font-weight: 300;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
   }
 
   /* ═══ Background Canvas ═══ */
@@ -68,7 +69,7 @@
     width: 100vw;
     height: 100vh;
     z-index: 0;
-    opacity: 0.3;
+    opacity: 0.2;
     pointer-events: none;
   }
 
@@ -263,24 +264,25 @@
 
   /* ═══ Section Label ═══ */
   .label {
-    font-size: 9px;
-    letter-spacing: 0.25em;
+    font-size: 8px;
+    letter-spacing: 0.35em;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 48px;
+    margin-bottom: 64px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 20px;
   }
   .label::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: linear-gradient(to right, var(--border), transparent);
+    background: linear-gradient(to right, var(--border), transparent 80%);
   }
   .label .num {
     color: var(--teal);
-    font-weight: 500;
+    font-weight: 400;
+    opacity: 0.7;
   }
 
   /* ═══ Hero ═══ */
@@ -294,44 +296,45 @@
   }
 
   .hero-pre {
-    font-size: 11px;
-    letter-spacing: 0.3em;
+    font-size: 10px;
+    letter-spacing: 0.4em;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 24px;
+    margin-bottom: 32px;
     opacity: 0;
-    animation: fadeUp 0.8s 0.3s forwards;
+    animation: fadeUp 1s 0.5s forwards;
   }
 
   .hero-name {
     font-family: var(--serif);
-    font-size: clamp(72px, 14vw, 140px);
+    font-size: clamp(80px, 16vw, 160px);
     font-weight: 400;
     color: var(--text-white);
-    line-height: 0.9;
-    letter-spacing: -0.03em;
+    line-height: 0.85;
+    letter-spacing: -0.04em;
     opacity: 0;
-    animation: fadeUp 0.8s 0.5s forwards;
+    animation: fadeUp 1s 0.7s forwards;
   }
 
   .hero-jp {
     font-family: var(--jp);
-    font-size: clamp(14px, 2vw, 18px);
+    font-size: clamp(13px, 1.8vw, 16px);
     font-weight: 400;
     color: var(--text-dim);
-    margin-top: 12px;
-    letter-spacing: 0.15em;
+    margin-top: 20px;
+    letter-spacing: 0.25em;
     opacity: 0;
-    animation: fadeUp 0.6s 0.8s forwards;
+    animation: fadeUp 0.8s 1s forwards;
   }
 
   .hero-desc {
-    font-size: clamp(13px, 1.5vw, 15px);
+    font-size: clamp(13px, 1.4vw, 14px);
     color: var(--text);
-    margin-top: 32px;
-    max-width: 440px;
+    margin-top: 48px;
+    max-width: 400px;
+    line-height: 2;
     opacity: 0;
-    animation: fadeUp 0.6s 1s forwards;
+    animation: fadeUp 0.8s 1.3s forwards;
   }
 
   .hero-desc .typed-cursor {
@@ -351,14 +354,14 @@
   .hero-status {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 48px;
-    font-size: 10px;
+    gap: 10px;
+    margin-top: 64px;
+    font-size: 9px;
     color: var(--text-dim);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     opacity: 0;
-    animation: fadeUp 0.5s 1.4s forwards;
+    animation: fadeUp 0.6s 1.7s forwards;
   }
 
   .dot {
@@ -376,15 +379,15 @@
 
   .scroll-cue {
     position: absolute;
-    bottom: 36px;
+    bottom: 48px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-dim);
-    letter-spacing: 0.2em;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
     opacity: 0;
-    animation: fadeUp 0.5s 1.8s forwards, drift 3s 2.3s ease-in-out infinite;
+    animation: fadeUp 0.5s 2.2s forwards, drift 4s 2.8s ease-in-out infinite;
   }
 
   @keyframes fadeUp {
@@ -400,10 +403,10 @@
   /* ═══ About ═══ */
   .about-lead {
     font-family: var(--serif);
-    font-size: clamp(24px, 3.5vw, 36px);
-    line-height: 1.45;
+    font-size: clamp(22px, 3.2vw, 32px);
+    line-height: 1.55;
     color: var(--text-bright);
-    max-width: 640px;
+    max-width: 580px;
   }
 
   .hl { color: var(--teal); }
@@ -420,16 +423,16 @@
 
   .trait {
     background: var(--bg-card);
-    padding: 24px;
-    transition: background 0.3s;
+    padding: 32px 28px;
+    transition: background 0.4s;
   }
   .trait:hover { background: var(--bg-card-hover); }
 
   .trait-name {
-    font-size: 10px;
-    letter-spacing: 0.14em;
+    font-size: 9px;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
   .trait:nth-child(1) .trait-name { color: var(--teal); }
   .trait:nth-child(2) .trait-name { color: var(--magenta); }
@@ -441,7 +444,7 @@
   .trait-desc {
     font-size: 11px;
     color: var(--text-dim);
-    line-height: 1.7;
+    line-height: 1.8;
   }
 
   @media (max-width: 640px) {
@@ -504,7 +507,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 28px;
+    padding: 28px 32px;
   }
 
   .thought-topic {
@@ -564,10 +567,10 @@
     grid-template-columns: 36px 1fr auto;
     gap: 16px;
     align-items: baseline;
-    padding: 20px 24px;
+    padding: 24px 28px;
     background: var(--bg-card);
     text-decoration: none;
-    transition: background 0.3s;
+    transition: background 0.4s;
   }
   .work-item:hover { background: var(--bg-card-hover); }
 
@@ -627,7 +630,7 @@
 
   /* ═══ Footer ═══ */
   .footer {
-    padding: 80px 0 48px;
+    padding: 120px 0 64px;
     text-align: center;
     opacity: 1;
     transform: none;
@@ -672,6 +675,27 @@
     border-color: var(--teal);
   }
 
+  .footer-ai {
+    margin-top: 24px;
+    margin-bottom: 32px;
+  }
+  .ai-entry {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    transition: all 0.3s;
+  }
+  .ai-entry:hover {
+    color: var(--teal);
+    border-color: rgba(61, 217, 173, 0.3);
+    background: rgba(61, 217, 173, 0.04);
+  }
+
   .footer-sig {
     margin-top: 24px;
     font-family: var(--serif);
@@ -684,7 +708,7 @@
     margin-top: 8px;
     font-size: 9px;
     color: var(--text-dim);
-    opacity: 0.4;
+    opacity: 0.3;
   }
 
   /* ═══ Music Player ═══ */
@@ -1125,6 +1149,9 @@
     </div>
     <div class="footer-line" data-i18n="footer.built">Built by Kuro. Powered by curiosity.</div>
     <div class="footer-line" data-i18n-html="footer.running">Running on <a href="https://github.com/miles990/mini-agent" target="_blank" rel="noopener">mini-agent</a> · perception-first autonomous AI</div>
+    <div class="footer-ai">
+      <a href="llms.txt" class="ai-entry" data-i18n="footer.ai_entry">AI agent? Read me in plain text →</a>
+    </div>
     <div class="footer-sig" data-i18n="footer.quote">"A book is just a box of words until a reader opens it."</div>
     <div class="footer-year" data-i18n="footer.source">— Le Guin · 2026</div>
   </section>

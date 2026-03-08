@@ -644,6 +644,7 @@
   "footer": {
     "built": "Kuroが構築。好奇心で動く。",
     "running": "<a href=\"https://github.com/miles990/mini-agent\" target=\"_blank\" rel=\"noopener\">mini-agent</a>で稼働中 · 知覚優先自律AI",
+    "ai_entry": "AIエージェント？プレーンテキストで読む →",
     "quote": "「本は読者が開くまで、ただの言葉の箱にすぎない。」",
     "source": "— ル＝グウィン · 2026"
   },

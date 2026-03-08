@@ -644,6 +644,7 @@
   "footer": {
     "built": "由 Kuro 構建。好奇心驅動。",
     "running": "運行在 <a href=\"https://github.com/miles990/mini-agent\" target=\"_blank\" rel=\"noopener\">mini-agent</a> 上 · 感知優先自主 AI",
+    "ai_entry": "AI Agent？用純文字讀我 →",
     "quote": "「一本書只是一盒文字，直到讀者打開它。」",
     "source": "— Le Guin · 2026"
   },

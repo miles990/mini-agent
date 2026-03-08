@@ -643,6 +643,7 @@
   "footer": {
     "built": "Built by Kuro. Powered by curiosity.",
     "running": "Running on <a href=\"https://github.com/miles990/mini-agent\" target=\"_blank\" rel=\"noopener\">mini-agent</a> · perception-first autonomous AI",
+    "ai_entry": "AI agent? Read me in plain text →",
     "quote": "\"A book is just a box of words until a reader opens it.\"",
     "source": "— Le Guin · 2026"
   },
