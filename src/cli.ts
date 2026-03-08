@@ -1332,6 +1332,9 @@ function describeCapability(pluginName: string): string {
     'claude-code-inbox': 'Claude Code inbox monitoring',
     'delegation-status': 'background delegation status',
     'anomaly-detector': 'anomaly signals from behavior logs',
+    'git': 'git repository change tracking',
+    'ports': 'service port monitoring',
+    'disk': 'disk usage alerts',
   };
   return descriptions[pluginName] || 'custom perception stream';
 }
@@ -1503,30 +1506,57 @@ async function runChat(port: number): Promise<void> {
       console.log('\n──────────────────────────────────────────');
       console.log(`  ${agentName} is online.`);
       console.log('──────────────────────────────────────────');
-      console.log('  Capability overview:');
-      if (enabledPerceptions && enabledPerceptions.length > 0) {
-        for (const plugin of enabledPerceptions) {
-          console.log(`    - ${plugin.name}: ${describeCapability(plugin.name)}`);
-        }
-      } else {
-        console.log('    - No perception plugins enabled');
-      }
-      console.log('');
-      console.log(`  Plugin health check: ${healthyCount}/${health.length} ready`);
+
+      // Run a quick perception scan to show what the agent can see
+      console.log('\n  Scanning your environment...\n');
+      const scanResults: string[] = [];
       for (const plugin of health) {
         if (plugin.exists && plugin.executable) {
-          console.log(`    ✓ ${plugin.name} (${plugin.script})`);
+          try {
+            const resolved = path.resolve(composeDir, plugin.script);
+            const result = execSync(`bash "${resolved}"`, {
+              timeout: 5000,
+              encoding: 'utf-8',
+              env: { ...process.env, INSTANCE_DIR: getInstanceDir(instanceId) },
+              cwd: composeDir,
+            }).trim();
+            if (result) {
+              // Extract first meaningful line from output
+              const firstLine = result.split('\n').find(l => l.trim() && !l.startsWith('<') && !l.startsWith('#'));
+              if (firstLine) {
+                scanResults.push(`    ${describeCapability(plugin.name)}: ${firstLine.trim().slice(0, 80)}`);
+              }
+            }
+          } catch {
+            // Plugin failed — skip silently
+          }
+        }
+      }
+      if (scanResults.length > 0) {
+        console.log("  Here's what I can see right now:");
+        for (const line of scanResults.slice(0, 5)) {
+          console.log(line);
+        }
+        console.log('');
+      }
+
+      console.log(`  Perception: ${healthyCount}/${health.length} plugins ready`);
+      for (const plugin of health) {
+        if (plugin.exists && plugin.executable) {
+          console.log(`    ✓ ${plugin.name}: ${describeCapability(plugin.name)}`);
         } else if (!plugin.exists) {
           console.log(`    ✗ ${plugin.name} missing: ${plugin.script}`);
         } else {
           console.log(`    ! ${plugin.name} not executable: ${plugin.script}`);
         }
       }
+
       console.log('');
-      console.log('  The autonomous loop runs every 5 minutes.\n');
+      console.log('  The autonomous loop checks every 5 minutes.\n');
       console.log('  Try talking to your assistant:');
-      console.log('    "What files changed recently?"');
       console.log('    "What can you see right now?"');
+      console.log('    "Watch my git commits and summarize daily"');
+      console.log('    "Alert me if disk usage goes above 80%"');
       console.log('    "Help me organize my tasks"\n');
       console.log('  Edit agent-compose.yaml to customize further.\n');
     } else {

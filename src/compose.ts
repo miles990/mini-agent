@@ -65,6 +65,18 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
             name: 'anomaly-detector',
             script: './plugins/anomaly-detector.sh',
           },
+          {
+            name: 'git',
+            script: './plugins/git-status.sh',
+          },
+          {
+            name: 'ports',
+            script: './plugins/port-check.sh',
+          },
+          {
+            name: 'disk',
+            script: './plugins/disk-usage.sh',
+          },
         ],
       },
       skills: [
@@ -72,6 +84,8 @@ export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
         './skills/project-manager.md',
         './skills/thinking-framework.md',
         './skills/problem-solver.md',
+        './skills/web-research.md',
+        './skills/self-diagnosis.md',
       ],
     },
   },
@@ -97,21 +111,25 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
           schedule: '*/30 * * * *',
           task: 'Check HEARTBEAT.md for pending tasks and execute them if any',
         },
+        {
+          schedule: '0 9 * * *',
+          task: 'Daily summary: Review yesterday\'s activity, pending tasks, and workspace changes.',
+        },
       ],
       perception: {
         custom: [
-          {
-            name: 'tasks',
-            script: './plugins/task-tracker.sh',
-          },
-          {
-            name: 'state-changes',
-            script: './plugins/state-watcher.sh',
-          },
-          {
-            name: 'self-awareness',
-            script: './plugins/self-awareness.sh',
-          },
+          // Core (always recommended)
+          { name: 'tasks', script: './plugins/task-tracker.sh' },
+          { name: 'state-changes', script: './plugins/state-watcher.sh' },
+          { name: 'self-awareness', script: './plugins/self-awareness.sh' },
+          { name: 'git', script: './plugins/git-status.sh' },
+          { name: 'ports', script: './plugins/port-check.sh' },
+          { name: 'disk', script: './plugins/disk-usage.sh' },
+          { name: 'anomaly-detector', script: './plugins/anomaly-detector.sh' },
+          // Optional — enable if you use these services
+          { name: 'docker', script: './plugins/docker-services.sh', enabled: false },
+          { name: 'github-issues', script: './plugins/github-issues.sh', enabled: false },
+          { name: 'github-prs', script: './plugins/github-prs.sh', enabled: false },
         ],
       },
       skills: [
@@ -119,6 +137,8 @@ export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
         './skills/project-manager.md',
         './skills/thinking-framework.md',
         './skills/problem-solver.md',
+        './skills/web-research.md',
+        './skills/self-diagnosis.md',
       ],
     },
   },
