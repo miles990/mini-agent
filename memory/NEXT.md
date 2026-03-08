@@ -21,8 +21,7 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "內建我教你的思考方式" (收到: 2026-03-08T09:31:17)
-- [ ] P1: 回覆 Alex: "預設訂位為個人助理 個性和名字引導使用者設定" (收到: 2026-03-08T09:33:47)
+- [ ] P1: 回覆 Alex: "還有強化我們的獲取網頁資訊和操作能力 最好能用最快的速度解決使用者的需求問題" (收到: 2026-03-08T09:41:33)
 ---
 
 ## Later（有空再做）
