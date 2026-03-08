@@ -1984,7 +1984,7 @@ export class AgentLoop {
         const tryDrainPriority = () => {
           if (!this.running) {
             // Process shutting down — persist to WAL for next startup
-            savePendingState(pp, 0);
+            savePendingState(pp, this.directMessageWakeQueue);
             return;
           }
           // Pending priority came from P0/P1 direct messages — re-arm calm wake for drain
