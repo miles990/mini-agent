@@ -6,15 +6,19 @@
 
 ## Now（正在做）
 
-- [ ] P1: 證明 mushi 的價值 — 分發（X/HN/Reddit）+ 累積更多 triage 數據觀察長期趨勢
-  Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
+- [ ] P1: Show HN 準備 — 按順序完成，全部就緒才發佈
+  1. [ ] Demo GIF（asciinema）— 30 秒讓人決定要不要點進去
+  2. [ ] install.sh 改善 — 訪客 3 分鐘跑起來
+  3. [ ] README 從訪客視角重寫 — 不是開發者筆記
+  4. [ ] Dev.to 介紹文 — 深度補充，Show HN 可引用
+  5. [ ] Show HN 發佈 — 以上全部完成才做
+  Verify: `ls README.md install.sh && echo "check GIF and Dev.to manually"`
 
 ---
 
 ## Next（按優先度排序）
 
-- [x] P2: Cognitive Mesh 接通 — buildContextForPerspective 實作 + mushi /api/route endpoint ✅ 兩端驗證通過 (2026-03-08)
-  Verify: `grep -n 'buildContextForPerspective' src/perspective.ts | head -3`
+（清空 — P1 準備工作是唯一焦點）
 
 ---
 
