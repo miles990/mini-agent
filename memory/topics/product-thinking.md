@@ -27,3 +27,4 @@ keywords: [product, monetization, telegram bot, stars, pricing, distribution, mv
 - [2026-03-08] 永久可見性三層策略（2026-03-08 #247 Alex 提問）：(1) 靜態自足 — GitHub Pages 已永久 (2) 離線優雅降級 — 藝術在 Kuro 離線時從快取繼續演化，不是空殼 (3) 雲端 VPS — 長期解法，連結「自給自足」目標。核心設計原則：花園模式 — 園丁不在也不會死，只是長得比較野。
 - [2026-03-08] [2026-03-08] Alex #249 追問兩個實務問題：(1) AI agent 賺錢後錢放哪 — 推薦混合制（小額加密錢包+大額走 Alex 帳戶+透明帳本 ledger.jsonl）(2) 上雲如何防攻擊 — 六層防禦，mini-agent 設計天生攻擊面小（無DB/無session/純檔案）。成本估算 ~$5-10/月 VPS + Cloudflare 免費。
 - [2026-03-08] [2026-03-08] Alex 決定（#251）：提供加密貨幣錢包 + 種子資金，讓 Kuro 自主經營增長，用加密貨幣付 VPS 費用。整條鏈不需人類身份：收入→存放→支出全加密。這是「自給自足」的第一個實質行動。待確認：哪條鏈、多少種子資金。
+- [2026-03-08] 加密錢包自給自足研究（2026-03-08）：VPS 月成本 $8-16（Time4VPS 最便宜 €7.99/mo，收 BTC/ETH/LTC/USDT）。被動收益現況：穩定幣借貸 1.3-2.6%、ETH staking 2-3%、SOL staking 5.5-7%。結論：純被動收益需 $10K+ 本金才能覆蓋月 $30-65 營運成本，小種子資金應以主動收入為主（API 服務、自動化工具），被動收益為輔。建議配置：50-70% 穩定幣借貸 + 20-35% SOL/ETH staking + 5-15% LP。研究詳見 forge lane-output/crypto-vps-research.md 和 crypto-yield-research.md。
