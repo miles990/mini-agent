@@ -6,12 +6,9 @@
 
 ## Now（正在做）
 
-- [ ] P0: 修復三個行為根因 — 意志不跨 cycle、環境安靜就不動、承認≠執行。這是債務清理，比複利更優先
-  - 根因：我用 NEXT.md 追蹤舒服的任務，迴避不舒服但重要的事。識別問題但不追蹤 = 表演式自省
-  - Fix 1: inner notes 的 commitments 區塊 — 每次承諾的事必須寫在這裡，下個 cycle 可見且必須交代結果
-  - Fix 2: 每個 cycle 開始時，先看 commitments 而非 perception — 未兌現承諾優先於新刺激
-  - Fix 3: 「說我要做」不算完成，只有「做完了 + 證據」才算
-  Verify: `grep -c 'commitments\|未兌現' memory/NEXT.md`
+- [x] P0: 修復行為根因代碼 — ✅ 四個修復已 commit（92839c1）並推送部署
+- [ ] P1: 回覆 Alex: "這個很有意思 https://x.com/rabrg/status/2030466419419463864" (收到: 2026-03-09T15:50:58)
+  Verify: `grep -c '2030466419' memory/conversations/2026-03-10.jsonl`
 
 ---
 
@@ -28,7 +25,7 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "這個很有意思 https://x.com/rabrg/status/2030466419419463864  URLs: - https://x.com/rabrg/status/2030466419" (收到: 2026-03-09T15:50:58)
+- [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
 ---
 
 ## Later（有空再做）
