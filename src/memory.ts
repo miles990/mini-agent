@@ -2536,28 +2536,6 @@ export class InstanceMemory {
   }
 
   /**
-   * @deprecated Use buildSoulContext() instead. Kept for git revert safety.
-   * 截取 SOUL.md 到核心身份部分（Who I Am, My Traits, When I'm Idle）
-   * 跳過 Learning Interests, My Thoughts, Project Evolution 等大區塊
-   */
-  private truncateSoulToIdentity(soul: string): string {
-    // 找到第一個非核心 section 的位置
-    const cutoffSections = ['## Learning Interests', '## My Thoughts', '## Project Evolution', '## What I\'m Tracking'];
-    let cutoffIndex = soul.length;
-    for (const section of cutoffSections) {
-      const idx = soul.indexOf(section);
-      if (idx >= 0 && idx < cutoffIndex) {
-        cutoffIndex = idx;
-      }
-    }
-    const truncated = soul.slice(0, cutoffIndex).trimEnd();
-    if (cutoffIndex < soul.length) {
-      return truncated + '\n\n[... truncated for minimal context mode ...]';
-    }
-    return truncated;
-  }
-
-  /**
    * Memory 分層載入 — 近期全載、中期摘要、舊的省略
    * Kuro 提案：7天全載、7-30天 key only、30天+按需
    *

@@ -208,7 +208,7 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
  * Rules:
  * - Replied room threads: auto-resolve after 1h (cooldown for context)
  * - Non-room thread types: auto-expire after 24h
- * - If thread id/sourceId appears in chat-room-inbox, skip TTL expiry
+ * - If thread id/roomMsgId appears in chat-room-inbox, skip TTL expiry
  * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
  */
 export async function resolveStaleConversationThreads(): Promise<void> {
@@ -229,9 +229,7 @@ export async function resolveStaleConversationThreads(): Promise<void> {
   }
 
   const isPinnedByInbox = (thread: (typeof threads)[number]): boolean => {
-    // Backward compatibility: some persisted thread records may carry legacy sourceId.
-    const sourceId = (thread as (typeof thread) & { sourceId?: string }).sourceId;
-    const candidates = [thread.id, sourceId, thread.roomMsgId].filter(Boolean) as string[];
+    const candidates = [thread.id, thread.roomMsgId].filter(Boolean) as string[];
     return candidates.some(id => inboxContent.includes(id));
   };
 
@@ -250,7 +248,7 @@ export async function resolveStaleConversationThreads(): Promise<void> {
   // Exceptions:
   // - 'kuro:ask' threads — Alex may take days to reply
   // - Room threads — Rule 3 handles these (expire when inbox is clear)
-  // - Threads pinned by inbox message references (id/sourceId/roomMsgId)
+  // - Threads pinned by inbox message references (id/roomMsgId)
   for (const t of threads) {
     if (t.resolvedAt) continue;
     if (toResolve.includes(t.id)) continue;
