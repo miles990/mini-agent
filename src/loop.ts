@@ -751,15 +751,14 @@ export class AgentLoop {
       );
     }
 
-    // Hard cap: when NEXT.md has P0 items, don't idle beyond 5 minutes
-    // "Important work pending" = no slowing down, regardless of environment
+    // Hard cap: when NEXT.md has P0 items, don't idle beyond 3 minutes
     try {
-      if (this.currentInterval > 300_000 && fs.existsSync(NEXT_MD_PATH)) {
+      if (this.currentInterval > 180_000 && fs.existsSync(NEXT_MD_PATH)) {
         const nextContent = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
         const items = extractNextItems(nextContent);
         if (items.some(item => item.includes('P0'))) {
-          this.currentInterval = 300_000; // 5min cap
-          slog('LOOP', `[next-p0] Capping interval to 5min — NEXT.md has P0 items`);
+          this.currentInterval = 180_000; // 3min cap
+          slog('LOOP', `[next-p0] Capping interval to 3min — NEXT.md has P0 items`);
         }
       }
     } catch { /* non-critical */ }
@@ -1215,12 +1214,13 @@ export class AgentLoop {
           }
         } catch { /* non-critical */ }
 
-        // NEXT.md P0 reminder for non-telegram cycles — don't let important work stall
-        if (nextPendingItems.some(item => item.includes('P0'))) {
-          const p0Items = nextPendingItems.filter(item => item.includes('P0')).slice(0, 3);
-          const p0Preview = p0Items.map(i => `  「${i.slice(0, 100)}」`).join('\n');
-          priorityPrefix += `\n⚠️ NEXT.md has P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
-        }
+      }
+
+      // NEXT.md P0 reminder — applies to ALL triggers, not just non-telegram
+      if (nextPendingItems.some(item => item.includes('P0'))) {
+        const p0Items = nextPendingItems.filter(item => item.includes('P0')).slice(0, 3);
+        const p0Preview = p0Items.map(i => `  「${i.slice(0, 100)}」`).join('\n');
+        priorityPrefix += `\n⚠️ NEXT.md has P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
       }
 
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
