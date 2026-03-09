@@ -194,6 +194,32 @@ export function indexMemoryFiles(memoryDir: string): number {
       allEntries.push(...parseMemoryMd(coldStorage));
     }
 
+    // Parse HEARTBEAT.md (active tasks — searchable for context)
+    const heartbeatMd = path.join(memoryDir, 'HEARTBEAT.md');
+    if (fs.existsSync(heartbeatMd)) {
+      allEntries.push(...parseTopicEntries(heartbeatMd));
+    }
+
+    // Parse proposals/*.md (strategic decisions)
+    const proposalsDir = path.join(memoryDir, 'proposals');
+    if (fs.existsSync(proposalsDir)) {
+      const proposalFiles = fs.readdirSync(proposalsDir).filter(f => f.endsWith('.md'));
+      for (const file of proposalFiles) {
+        const filePath = path.join(proposalsDir, file);
+        try {
+          const text = fs.readFileSync(filePath, 'utf-8');
+          // Extract date from filename (YYYY-MM-DD-title.md)
+          const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+          const date = dateMatch ? dateMatch[1] : '';
+          // Index the whole proposal as one entry (truncated to 2000 chars)
+          const content = text.replace(/^#.*\n/gm, '').trim().slice(0, 2000);
+          if (content.length > 20) {
+            allEntries.push({ source: `proposals/${file}`, date, content });
+          }
+        } catch { /* skip */ }
+      }
+    }
+
     // Bulk insert with transaction
     const insert = db.prepare('INSERT INTO memory_fts (source, date, content) VALUES (?, ?, ?)');
     const insertAll = db.transaction((entries: typeof allEntries) => {

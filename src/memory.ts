@@ -1423,12 +1423,11 @@ export class InstanceMemory {
     return limit ? conversations.slice(-limit) : conversations;
   }
 
-  private async readTodayChatRoomMessages(limit: number): Promise<ChatRoomMessage[]> {
+  private async readChatRoomMessages(date: string, limit?: number): Promise<ChatRoomMessage[]> {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
+      const convPath = path.join(this.memoryDir, 'conversations', `${date}.jsonl`);
       const raw = await fs.readFile(convPath, 'utf-8');
-      return raw.split('\n')
+      const msgs = raw.split('\n')
         .filter(Boolean)
         .map(line => {
           try {
@@ -1437,8 +1436,8 @@ export class InstanceMemory {
             return null;
           }
         })
-        .filter((m): m is ChatRoomMessage => !!m && !!m.id && !!m.from && typeof m.text === 'string')
-        .slice(-limit);
+        .filter((m): m is ChatRoomMessage => !!m && !!m.id && !!m.from && typeof m.text === 'string');
+      return limit ? msgs.slice(-limit) : msgs;
     } catch {
       return [];
     }
@@ -1450,20 +1449,73 @@ export class InstanceMemory {
     return `[${msg.id}] ${msg.from}${reply}: ${text}`;
   }
 
+  /**
+   * Thread-aware conversation loading:
+   * 1. Load last 10 recent messages
+   * 2. Follow replyTo chains backward to include full thread context
+   * 3. FTS5 search for topic-related older messages
+   * 4. Cross-day: load yesterday's last 5 messages for continuity
+   */
   private async buildChatRoomContextSection(contextHint: string): Promise<string | null> {
-    const recent = await this.readTodayChatRoomMessages(10);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Load all today's messages for thread chain resolution
+    const allToday = await this.readChatRoomMessages(today);
+    const recent = allToday.slice(-10);
+
+    // Thread chain expansion: follow replyTo chains backward
+    const msgIndex = new Map(allToday.map(m => [m.id, m]));
+    const threadMsgs = new Map<string, ChatRoomMessage>();
+    const collectThread = (msgId: string | undefined, depth: number) => {
+      if (!msgId || depth > 20 || threadMsgs.has(msgId)) return;
+      const msg = msgIndex.get(msgId);
+      if (msg) {
+        threadMsgs.set(msg.id, msg);
+        collectThread(msg.replyTo, depth + 1);
+      }
+    };
+    for (const msg of recent) {
+      collectThread(msg.replyTo, 0);
+    }
+
+    // Cross-day: yesterday's replyTo targets may be in yesterday's file
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const missingReplyIds = [...threadMsgs.values()]
+      .filter(m => m.replyTo && !msgIndex.has(m.replyTo) && m.replyTo.startsWith(yesterday))
+      .map(m => m.replyTo!);
+    if (missingReplyIds.length > 0) {
+      const yesterdayMsgs = await this.readChatRoomMessages(yesterday);
+      const yesterdayIndex = new Map(yesterdayMsgs.map(m => [m.id, m]));
+      for (const id of missingReplyIds) {
+        const msg = yesterdayIndex.get(id);
+        if (msg) threadMsgs.set(msg.id, msg);
+      }
+    }
+
+    // Remove thread messages that are already in recent
+    const recentIds = new Set(recent.map(m => m.id));
+    const threadOnly = [...threadMsgs.values()]
+      .filter(m => !recentIds.has(m.id))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    // FTS5 related messages (topic search)
     const related = contextHint
       ? searchConversations(this.memoryDir, contextHint, 5)
       : [];
+    const allIncludedIds = new Set([...recentIds, ...threadOnly.map(m => m.id)]);
+    const relatedOld = related.filter(m => !allIncludedIds.has(m.id)).slice(0, 5);
 
-    const recentIds = new Set(recent.map(m => m.id));
-    const relatedOld = related.filter(m => !recentIds.has(m.id)).slice(0, 5);
-
-    const recentLines = recent.map(m => this.formatChatRoomLine(m));
-    const relatedLines = relatedOld.map(m => this.formatChatRoomLine(m));
-    const lines = recentLines.length > 0 && relatedLines.length > 0
-      ? [...recentLines, '--- related history ---', ...relatedLines]
-      : [...recentLines, ...relatedLines];
+    // Assemble: thread context → recent → related
+    const lines: string[] = [];
+    if (threadOnly.length > 0) {
+      lines.push(...threadOnly.map(m => this.formatChatRoomLine(m)));
+      lines.push('--- recent ---');
+    }
+    lines.push(...recent.map(m => this.formatChatRoomLine(m)));
+    if (relatedOld.length > 0) {
+      lines.push('--- related history ---');
+      lines.push(...relatedOld.map(m => this.formatChatRoomLine(m)));
+    }
 
     if (lines.length === 0) return null;
     return `<chat-room-recent>\n${lines.join('\n')}\n</chat-room-recent>`;

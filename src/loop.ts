@@ -56,8 +56,10 @@ import {
   saveCycleCheckpoint, clearCycleCheckpoint, loadStaleCheckpoint,
   writeWorkJournal, loadWorkJournal, formatWorkJournalContext,
   writeTrailEntry, extractTrailTopics,
+  saveReasoningSnapshot, loadReasoningHistory, formatReasoningContext,
+  extractDecisionSection, extractInnerNotes,
 } from './cycle-state.js';
-import type { CycleCheckpoint, WorkJournalEntry, TrailEntry } from './cycle-state.js';
+import type { CycleCheckpoint, WorkJournalEntry, TrailEntry, ReasoningSnapshot } from './cycle-state.js';
 import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed } from './inbox-processor.js';
 import {
   parseBehaviorConfig, parseInterval,
@@ -1111,9 +1113,12 @@ export class AgentLoop {
       const currentTriggerReason = this.triggerReason;
       this.triggerReason = null;
 
-      const previousCycleSuffix = this.previousCycleInfo
-        ? `\n\nPrevious cycle: ${this.previousCycleInfo}`
-        : '';
+      // Reasoning Continuity: inject last 3 cycles' reasoning into prompt
+      const reasoningHistory = loadReasoningHistory(3);
+      const reasoningSection = formatReasoningContext(reasoningHistory);
+      const previousCycleSuffix = reasoningSection
+        ? `\n\n${reasoningSection}`
+        : (this.previousCycleInfo ? `\n\nPrevious cycle: ${this.previousCycleInfo}` : '');
 
       // Phase 1b+1c: Inject interrupted cycle context (one-shot)
       const interruptedReason = this.interruptedCycleInfo?.includes('timeout') ? 'timed out — 拆成更小的步驟'
@@ -1685,6 +1690,23 @@ export class AgentLoop {
         tags: cycleTagsProcessed,
         sideEffects: cycleSideEffects,
       });
+
+      // ── Save Reasoning Snapshot (fire-and-forget, cross-cycle continuity) ──
+      {
+        const decisionText = extractDecisionSection(response);
+        const innerNotesText = extractInnerNotes(response);
+        const rememberTopics = tags.remembers.filter(r => r.topic).map(r => r.topic!);
+        if (decisionText || innerNotesText) {
+          saveReasoningSnapshot({
+            ts: new Date().toISOString(),
+            cycle: this.cycleCount,
+            trigger: currentTriggerReason,
+            decision: decisionText,
+            innerNotes: innerNotesText,
+            keyInsights: rememberTopics,
+          });
+        }
+      }
 
       // ── Write Activity Journal (fire-and-forget, cross-lane awareness) ──
       // Skip no-action cycles — they're noise in the activity timeline

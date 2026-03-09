@@ -146,6 +146,94 @@ export function formatWorkJournalContext(entries: WorkJournalEntry[]): string {
 }
 
 // =============================================================================
+// Reasoning Continuity — Cross-cycle reasoning preservation
+// =============================================================================
+
+export interface ReasoningSnapshot {
+  ts: string;
+  cycle: number;
+  trigger: string | null;
+  decision: string;       // ## Decision section (chose/skipped/context)
+  innerNotes: string | null;  // <kuro:inner> content if present
+  keyInsights: string[];  // remember topics from this cycle
+}
+
+const REASONING_MAX_ENTRIES = 10;
+
+function getReasoningPath(): string | null {
+  try {
+    return path.join(getMemoryStateDir(), 'reasoning-history.jsonl');
+  } catch { return null; }
+}
+
+/** Extract ## Decision section from Claude response */
+export function extractDecisionSection(response: string): string {
+  // Try inside <kuro:action> first
+  const actionMatch = response.match(/<kuro:action>([\s\S]*?)<\/kuro:action>/);
+  const searchIn = actionMatch ? actionMatch[1] : response;
+
+  // Extract from ## Decision to next ## header or end
+  const decisionMatch = searchIn.match(/## Decision\n([\s\S]*?)(?=\n## |\n<kuro:|$)/);
+  if (decisionMatch) return decisionMatch[1].trim().slice(0, 500);
+
+  // Fallback: extract chose/skipped lines
+  const choseMatch = searchIn.match(/chose:\s*(.+)/);
+  const skippedMatch = searchIn.match(/skipped:\s*(.+)/);
+  const contextMatch = searchIn.match(/context:\s*(.+)/);
+  const parts: string[] = [];
+  if (choseMatch) parts.push(`chose: ${choseMatch[1].trim()}`);
+  if (skippedMatch) parts.push(`skipped: ${skippedMatch[1].trim()}`);
+  if (contextMatch) parts.push(`context: ${contextMatch[1].trim()}`);
+  return parts.join('\n').slice(0, 500) || '';
+}
+
+/** Extract <kuro:inner> content from response */
+export function extractInnerNotes(response: string): string | null {
+  const match = response.match(/<kuro:inner>([\s\S]*?)<\/kuro:inner>/);
+  return match ? match[1].trim().slice(0, 800) : null;
+}
+
+export function saveReasoningSnapshot(entry: ReasoningSnapshot): void {
+  const filePath = getReasoningPath();
+  if (!filePath) return;
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
+    // Ring buffer
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    if (lines.length > REASONING_MAX_ENTRIES) {
+      fs.writeFileSync(filePath, lines.slice(-REASONING_MAX_ENTRIES).join('\n') + '\n', 'utf-8');
+    }
+  } catch { /* fire-and-forget */ }
+}
+
+export function loadReasoningHistory(limit: number = 3): ReasoningSnapshot[] {
+  const filePath = getReasoningPath();
+  if (!filePath || !fs.existsSync(filePath)) return [];
+  try {
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    return lines.slice(-limit).map(l => JSON.parse(l) as ReasoningSnapshot);
+  } catch { return []; }
+}
+
+export function formatReasoningContext(entries: ReasoningSnapshot[]): string {
+  if (entries.length === 0) return '';
+  const sections = entries.map(e => {
+    const lines: string[] = [`**Cycle #${e.cycle}** (${e.trigger ?? 'auto'}, ${new Date(e.ts).toLocaleTimeString('en-US', { hour12: false })})`];
+    if (e.decision) lines.push(e.decision);
+    if (e.keyInsights.length > 0) lines.push(`Saved: ${e.keyInsights.join(', ')}`);
+    if (e.innerNotes) lines.push(`Working memory: ${e.innerNotes.slice(0, 200)}`);
+    return lines.join('\n');
+  });
+  return `<reasoning-continuity>
+Your reasoning from recent cycles — use this to maintain thought continuity and avoid repeating decisions:
+
+${sections.join('\n---\n')}
+</reasoning-continuity>`;
+}
+
+// =============================================================================
 // Trail — Shared Attention History (Chemical Gradient)
 // =============================================================================
 
