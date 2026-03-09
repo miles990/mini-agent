@@ -19,11 +19,8 @@
   Verify: `grep -c 'perception' src/compose.ts`
 - [ ] P2: 創作 — inner voice 有 7 個衝動等了 4 天
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
-- [ ] P2: 提案修剪 — 60+ 提案需要黏菌式修剪
+- [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "我們的系統架構是否還能減少 進到claude的token使用量？ 如何做？ 有什麼看法及推薦？ 什麼最值得做？" (收到: 2026-03-09T02:37:53)
-- [ ] P1: 回覆 Alex: "System Prompt 壓縮 會不會遺失重要資訊？ 如果我不想遺失的話有沒有辦法？ 如何做？" (收到: 2026-03-09T02:44:50)
-- [ ] P1: 回覆 Alex: "Karpathy 的 autoresearch 有什麼我們可以學習或借鏡的地方？如何做？" (收到: 2026-03-09T04:45:22)
 ---
 
 ## Later（有空再做）
