@@ -13,6 +13,8 @@
 
 ## Next（按優先度排序）
 
+- [ ] P1: FTS5 雙軸 Chat Room 載入 — 索引 conversation JSONL，buildContext 時用關鍵字檢索相關舊訊息 + last-N 最新 = 比人類更強的脈絡記憶
+  Verify: `grep -c 'searchConversation\|conversationIndex' src/memory.ts`
 - [ ] P1: 首次啟動體驗改善 — 新用戶 5 分鐘內知道 agent 能幹嘛
   Verify: `grep -c 'setup\|wizard\|onboarding' src/cli.ts`
 - [ ] P1: 更好的預設配置 — 開箱就有感知能力，不是空殼
