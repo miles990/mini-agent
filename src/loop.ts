@@ -813,7 +813,8 @@ export class AgentLoop {
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
       } else if (
-        (triageSource === 'heartbeat' || triageSource === 'workspace')
+        this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
+        && (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
         && !this.hasPendingWork()

@@ -244,19 +244,21 @@ export async function resolveStaleConversationThreads(): Promise<void> {
     }
   }
 
-  // Rule 2: Auto-expire unanswered non-room threads older than 24h.
+  // Rule 2: Auto-expire unanswered threads older than TTL.
+  // - Non-room threads: 24h TTL
+  // - Room threads: 4h TTL (shorter — room conversations are ephemeral)
   // Exceptions:
   // - 'kuro:ask' threads — Alex may take days to reply
-  // - Room threads — Rule 3 handles these (expire when inbox is clear)
   // - Threads pinned by inbox message references (id/roomMsgId)
+  const ROOM_TTL_MS = 4 * 60 * 60 * 1000; // 4h — room threads are conversational, shouldn't linger
   for (const t of threads) {
     if (t.resolvedAt) continue;
     if (toResolve.includes(t.id)) continue;
     if (t.source === 'kuro:ask') continue;
-    if (t.source?.startsWith('room:')) continue;
     if (isPinnedByInbox(t)) continue;
     const ageMs = now - new Date(t.createdAt).getTime();
-    if (ageMs > PENDING_TTL_MS) {
+    const ttl = t.source?.startsWith('room:') ? ROOM_TTL_MS : PENDING_TTL_MS;
+    if (ageMs > ttl) {
       toResolve.push(t.id);
     }
   }
