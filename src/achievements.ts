@@ -218,14 +218,9 @@ export function isVisibleOutput(action: string | null): boolean {
   // Explicit output signals
   if (OUTPUT_PATTERNS.some(p => p.test(action))) return true;
 
-  // If action is purely learning, not output
-  if (LEARN_PATTERNS.some(p => p.test(action))) return false;
-
-  // Has a Decision trace with chose: something that's not learning → count it
-  if (/^## Decision/m.test(action) && /^chose:/m.test(action)) {
-    return true;
-  }
-
+  // Everything else (including Decision traces without explicit output) is not visible output.
+  // "Acknowledging a problem" or "choosing to analyze" is NOT output — only concrete
+  // deliverables (chat, show, done, deploy, publish, merge, etc.) count.
   return false;
 }
 

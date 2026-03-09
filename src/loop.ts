@@ -750,6 +750,19 @@ export class AgentLoop {
         maxInterval,
       );
     }
+
+    // Hard cap: when NEXT.md has P0 items, don't idle beyond 5 minutes
+    // "Important work pending" = no slowing down, regardless of environment
+    try {
+      if (this.currentInterval > 300_000 && fs.existsSync(NEXT_MD_PATH)) {
+        const nextContent = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
+        const items = extractNextItems(nextContent);
+        if (items.some(item => item.includes('P0'))) {
+          this.currentInterval = 300_000; // 5min cap
+          slog('LOOP', `[next-p0] Capping interval to 5min — NEXT.md has P0 items`);
+        }
+      }
+    } catch { /* non-critical */ }
   }
 
   /**
@@ -759,10 +772,18 @@ export class AgentLoop {
    */
   private hasPendingWork(): boolean {
     try {
+      // Check chat room inbox
       if (fs.existsSync(CHAT_ROOM_INBOX_PATH)) {
         const content = fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8');
-        // Check for "## Unaddressed" section with actual entries
         if (content.includes('## Unaddressed') && /## Unaddressed[\s\S]*?- \[/.test(content)) {
+          return true;
+        }
+      }
+      // Check NEXT.md for unchecked P0 items — important work shouldn't slow down
+      if (fs.existsSync(NEXT_MD_PATH)) {
+        const nextContent = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
+        const items = extractNextItems(nextContent);
+        if (items.some(item => item.includes('P0'))) {
           return true;
         }
       }
@@ -1193,6 +1214,13 @@ export class AgentLoop {
             }
           }
         } catch { /* non-critical */ }
+
+        // NEXT.md P0 reminder for non-telegram cycles — don't let important work stall
+        if (nextPendingItems.some(item => item.includes('P0'))) {
+          const p0Items = nextPendingItems.filter(item => item.includes('P0')).slice(0, 3);
+          const p0Preview = p0Items.map(i => `  「${i.slice(0, 100)}」`).join('\n');
+          priorityPrefix += `\n⚠️ NEXT.md has P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
+        }
       }
 
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
