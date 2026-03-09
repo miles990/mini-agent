@@ -11,6 +11,39 @@ import path from 'node:path';
 import type { MemoryEntry } from './types.js';
 
 let db: Database.Database | null = null;
+let conversationIndexSignature: string | null = null;
+
+const SEARCH_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out',
+  'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so', 'do', 'my', 'up', 'this',
+  'that', 'with', 'from', 'have', 'been', 'will', 'into', 'more', 'when', 'some', 'them', 'than',
+  'its', 'also', 'each', 'which', 'their', 'what', 'about', 'would', 'there', 'could', 'other',
+  'just', 'then', 'kuro', 'alex',
+]);
+
+interface ConversationFtsEntry {
+  id: string;
+  source: string;
+  sender: string;
+  text: string;
+  ts: string;
+  replyTo: string;
+}
+
+function ensureConversationTable(): void {
+  if (!db) return;
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(
+      id UNINDEXED,
+      source UNINDEXED,
+      sender,
+      text,
+      ts UNINDEXED,
+      reply_to UNINDEXED,
+      tokenize="unicode61"
+    );
+  `);
+}
 
 /**
  * 初始化 FTS5 搜尋索引
@@ -33,6 +66,7 @@ export function initSearchIndex(dbPath: string): void {
         tokenize="unicode61"
       );
     `);
+    ensureConversationTable();
   } catch (error) {
     db = null;
     // Silently fail — grep fallback will handle search
@@ -180,6 +214,109 @@ function sanitizeFTS5Query(query: string): string {
   return query.replace(/["""*{}()^~[\]/\\:\-+]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function extractFTSKeywords(query: string, maxWords = 15): string[] {
+  const sanitized = sanitizeFTS5Query(query);
+  if (!sanitized) return [];
+  return sanitized
+    .split(' ')
+    .filter(w => w.length >= 2 && !SEARCH_STOP_WORDS.has(w.toLowerCase()))
+    .slice(0, maxWords);
+}
+
+function parseConversationEntries(memoryDir: string): ConversationFtsEntry[] {
+  const conversationsDir = path.join(memoryDir, 'conversations');
+  if (!fs.existsSync(conversationsDir)) return [];
+
+  const entries: ConversationFtsEntry[] = [];
+  const files = fs.readdirSync(conversationsDir)
+    .filter(file => file.endsWith('.jsonl'))
+    .sort();
+
+  for (const file of files) {
+    const filePath = path.join(conversationsDir, file);
+    const fileDate = file.replace(/\.jsonl$/, '');
+    const fallbackTs = `${fileDate}T00:00:00.000Z`;
+
+    try {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      for (const line of raw.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line) as Record<string, unknown>;
+          const id = typeof parsed.id === 'string' ? parsed.id : '';
+          const sender = typeof parsed.from === 'string' ? parsed.from : '';
+          const text = typeof parsed.text === 'string' ? parsed.text : '';
+          const tsValue = typeof parsed.ts === 'string'
+            ? parsed.ts
+            : typeof parsed.timestamp === 'string'
+              ? parsed.timestamp
+              : fallbackTs;
+          const replyTo = typeof parsed.replyTo === 'string' ? parsed.replyTo : '';
+          if (!id || !sender || !text.trim()) continue;
+          entries.push({
+            id,
+            source: file,
+            sender,
+            text,
+            ts: tsValue,
+            replyTo,
+          });
+        } catch {
+          // Skip malformed JSONL line
+        }
+      }
+    } catch {
+      // Skip unreadable file
+    }
+  }
+
+  return entries;
+}
+
+function computeConversationSignature(memoryDir: string): string {
+  const conversationsDir = path.join(memoryDir, 'conversations');
+  if (!fs.existsSync(conversationsDir)) return 'missing';
+
+  try {
+    const files = fs.readdirSync(conversationsDir)
+      .filter(file => file.endsWith('.jsonl'))
+      .sort();
+    const parts = [String(files.length)];
+    for (const file of files) {
+      const stat = fs.statSync(path.join(conversationsDir, file));
+      parts.push(`${file}:${stat.size}:${Math.floor(stat.mtimeMs)}`);
+    }
+    return parts.join('|');
+  } catch {
+    return 'error';
+  }
+}
+
+function reindexConversations(memoryDir: string): number {
+  if (!db) return 0;
+  ensureConversationTable();
+
+  try {
+    const entries = parseConversationEntries(memoryDir);
+    const clear = db.prepare('DELETE FROM conversation_fts');
+    const insert = db.prepare(`
+      INSERT INTO conversation_fts (id, source, sender, text, ts, reply_to)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const tx = db.transaction((rows: ConversationFtsEntry[]) => {
+      clear.run();
+      for (const row of rows) {
+        insert.run(row.id, row.source, row.sender, row.text, row.ts, row.replyTo);
+      }
+    });
+    tx(entries);
+    conversationIndexSignature = computeConversationSignature(memoryDir);
+    return entries.length;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * FTS5 BM25 排序搜尋
  */
@@ -228,14 +365,7 @@ export function searchMemoryEntries(
   }
 
   try {
-    const sanitized = sanitizeFTS5Query(query);
-    if (!sanitized) return [];
-
-    // Extract distinctive keywords (>= 3 chars, skip common words, take top 15)
-    const stopWords = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out', 'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so', 'do', 'my', 'up', 'this', 'that', 'with', 'from', 'have', 'been', 'will', 'into', 'more', 'when', 'some', 'them', 'than', 'its', 'also', 'each', 'which', 'their', 'what', 'about', 'would', 'there', 'could', 'other', 'just', 'then', 'kuro', 'alex']);
-    const words = sanitized.split(' ')
-      .filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()))
-      .slice(0, 15);
+    const words = extractFTSKeywords(query, 15);
     if (words.length === 0) return [];
 
     // Use OR to match any keyword (not implicit AND which requires all)
@@ -261,6 +391,57 @@ export function searchMemoryEntries(
 }
 
 /**
+ * Search chat-room conversation history with FTS5.
+ * Auto-creates and lazily refreshes index when conversation JSONL files change.
+ */
+export function searchConversations(
+  memoryDir: string,
+  query: string,
+  limit = 5,
+): Array<{ id: string; from: string; text: string; ts: string; replyTo?: string; source: string }> {
+  if (!db) return [];
+  ensureConversationTable();
+
+  const signature = computeConversationSignature(memoryDir);
+  if (conversationIndexSignature !== signature) {
+    reindexConversations(memoryDir);
+  }
+
+  try {
+    const words = extractFTSKeywords(query, 20);
+    if (words.length === 0) return [];
+    const ftsQuery = words.join(' OR ');
+
+    const rows = db.prepare(`
+      SELECT id, source, sender, text, ts, reply_to, rank
+      FROM conversation_fts
+      WHERE conversation_fts MATCH ?
+      ORDER BY rank
+      LIMIT ?
+    `).all(ftsQuery, limit) as Array<{
+      id: string;
+      source: string;
+      sender: string;
+      text: string;
+      ts: string;
+      reply_to: string;
+      rank: number;
+    }>;
+
+    return rows.map(row => ({
+      id: row.id,
+      from: row.sender,
+      text: row.text,
+      ts: row.ts,
+      ...(row.reply_to ? { replyTo: row.reply_to } : {}),
+      source: row.source,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 全量重建索引（刪表重建）
  */
 export function rebuildIndex(memoryDir: string): number {
@@ -268,6 +449,7 @@ export function rebuildIndex(memoryDir: string): number {
 
   try {
     db.exec('DROP TABLE IF EXISTS memory_fts');
+    db.exec('DROP TABLE IF EXISTS conversation_fts');
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
         source,
@@ -276,6 +458,8 @@ export function rebuildIndex(memoryDir: string): number {
         tokenize="unicode61"
       );
     `);
+    ensureConversationTable();
+    conversationIndexSignature = null;
     return indexMemoryFiles(memoryDir);
   } catch {
     return 0;
@@ -302,5 +486,6 @@ export function closeSearchIndex(): void {
   if (db) {
     db.close();
     db = null;
+    conversationIndexSignature = null;
   }
 }

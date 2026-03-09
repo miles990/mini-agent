@@ -206,26 +206,38 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
  * Resolve stale ConversationThreads. Runs every cycle (fire-and-forget).
  *
  * Rules:
- * - ALL thread types: auto-expire after 24h
+ * - Non-room thread types: auto-expire after 48h
+ * - If thread id/sourceId appears in chat-room-inbox, skip TTL expiry
  * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
  */
 export async function resolveStaleConversationThreads(): Promise<void> {
   const memory = getMemory();
   const threads = await memory.getConversationThreads();
   const now = Date.now();
-  const TTL_MS = 24 * 60 * 60 * 1000; // 24h
+  const TTL_MS = 48 * 60 * 60 * 1000; // 48h
 
   const toResolve: string[] = [];
+  const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
+    ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8')
+    : '';
 
-  // Rule 1: Auto-expire threads older than 24h
+  const isPinnedByInbox = (thread: (typeof threads)[number]): boolean => {
+    // Backward compatibility: some persisted thread records may carry legacy sourceId.
+    const sourceId = (thread as (typeof thread) & { sourceId?: string }).sourceId;
+    const candidates = [thread.id, sourceId, thread.roomMsgId].filter(Boolean) as string[];
+    return candidates.some(id => inboxContent.includes(id));
+  };
+
+  // Rule 1: Auto-expire threads older than 48h
   // Exceptions:
   // - 'kuro:ask' threads — Alex may take days to reply
   // - Room threads — Rule 2 handles these (expire when inbox is clear)
-  //   24h TTL was causing premature expiry → repeated responses to old messages
+  // - Threads pinned by inbox message references (id/sourceId/roomMsgId)
   for (const t of threads) {
     if (t.resolvedAt) continue;
     if (t.source === 'kuro:ask') continue;
     if (t.source?.startsWith('room:')) continue;
+    if (isPinnedByInbox(t)) continue;
     const ageMs = now - new Date(t.createdAt).getTime();
     if (ageMs > TTL_MS) {
       toResolve.push(t.id);
@@ -233,9 +245,6 @@ export async function resolveStaleConversationThreads(): Promise<void> {
   }
 
   // Rule 2: Resolve room threads when inbox is clear
-  const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
-    ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8')
-    : '';
   const hasPending = /## Pending\n- \[/.test(inboxContent);
   const hasUnaddressed = /## Unaddressed\n- \[/.test(inboxContent);
 

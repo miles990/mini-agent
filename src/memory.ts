@@ -45,7 +45,7 @@ import {
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
-import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries, isIndexReady, rebuildIndex } from './search.js';
+import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries, searchConversations, isIndexReady, rebuildIndex } from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
@@ -89,6 +89,15 @@ export interface CapabilitiesSnapshot {
     score: number;
     level: 'low' | 'medium' | 'high';
   };
+}
+
+interface ChatRoomMessage {
+  id: string;
+  from: string;
+  text: string;
+  ts?: string;
+  timestamp?: string;
+  replyTo?: string;
 }
 
 // =============================================================================
@@ -723,9 +732,9 @@ export class InstanceMemory {
       id: crypto.randomUUID().slice(0, 8),
       createdAt: new Date().toISOString(),
     });
-    // 只保留最近 20 條未完成 + 最近 10 條已完成
-    const active = threads.filter(t => !t.resolvedAt).slice(-20);
-    const resolved = threads.filter(t => t.resolvedAt).slice(-10);
+    // 只保留最近 40 條未完成 + 最近 20 條已完成
+    const active = threads.filter(t => !t.resolvedAt).slice(-40);
+    const resolved = threads.filter(t => t.resolvedAt).slice(-20);
     await fs.writeFile(filePath, JSON.stringify([...active, ...resolved], null, 2), 'utf-8');
   }
 
@@ -1414,6 +1423,52 @@ export class InstanceMemory {
     return limit ? conversations.slice(-limit) : conversations;
   }
 
+  private async readTodayChatRoomMessages(limit: number): Promise<ChatRoomMessage[]> {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
+      const raw = await fs.readFile(convPath, 'utf-8');
+      return raw.split('\n')
+        .filter(Boolean)
+        .map(line => {
+          try {
+            return JSON.parse(line) as ChatRoomMessage;
+          } catch {
+            return null;
+          }
+        })
+        .filter((m): m is ChatRoomMessage => !!m && !!m.id && !!m.from && typeof m.text === 'string')
+        .slice(-limit);
+    } catch {
+      return [];
+    }
+  }
+
+  private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }): string {
+    const reply = msg.replyTo ? ` ↩${msg.replyTo}` : '';
+    const text = msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text;
+    return `[${msg.id}] ${msg.from}${reply}: ${text}`;
+  }
+
+  private async buildChatRoomContextSection(contextHint: string): Promise<string | null> {
+    const recent = await this.readTodayChatRoomMessages(10);
+    const related = contextHint
+      ? searchConversations(this.memoryDir, contextHint, 5)
+      : [];
+
+    const recentIds = new Set(recent.map(m => m.id));
+    const relatedOld = related.filter(m => !recentIds.has(m.id)).slice(0, 5);
+
+    const recentLines = recent.map(m => this.formatChatRoomLine(m));
+    const relatedLines = relatedOld.map(m => this.formatChatRoomLine(m));
+    const lines = recentLines.length > 0 && relatedLines.length > 0
+      ? [...recentLines, '--- related history ---', ...relatedLines]
+      : [...recentLines, ...relatedLines];
+
+    if (lines.length === 0) return null;
+    return `<chat-room-recent>\n${lines.join('\n')}\n</chat-room-recent>`;
+  }
+
   /**
    * 初始化 FTS5 搜尋索引
    */
@@ -1627,23 +1682,11 @@ export class InstanceMemory {
       sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
     }
 
-    // ── Chat Room Recent（對話脈絡 — 讓 Kuro 理解短訊息的上下文）──
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
-      const raw = await fs.readFile(convPath, 'utf-8');
-      const msgs = raw.split('\n').filter(Boolean).map(line => {
-        try { return JSON.parse(line) as { id: string; from: string; text: string; ts?: string; replyTo?: string }; } catch { return null; }
-      }).filter(Boolean).slice(-15);
-      if (msgs.length > 0) {
-        const chatLines = msgs.map(m => {
-          const reply = m!.replyTo ? ` ↩${m!.replyTo}` : '';
-          const text = m!.text.length > 200 ? m!.text.slice(0, 200) + '...' : m!.text;
-          return `[${m!.id}] ${m!.from}${reply}: ${text}`;
-        }).join('\n');
-        sections.push(`<chat-room-recent>\n${chatLines}\n</chat-room-recent>`);
-      }
-    } catch { /* no conversations today */ }
+    // ── Chat Room Smart Loading（recent + relevant history）──
+    {
+      const chatRoomCtx = await this.buildChatRoomContextSection(contextHint);
+      if (chatRoomCtx) sections.push(chatRoomCtx);
+    }
 
     // ── Task Progress（跨 cycle 進度追蹤）──
     const progressCtx = buildTaskProgressSection(inboxItems);
@@ -2220,23 +2263,11 @@ export class InstanceMemory {
       sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
     }
 
-    // ── Chat Room Recent（對話脈絡 — 統一格式，所有 lane 共用）──
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
-      const raw = await fs.readFile(convPath, 'utf-8');
-      const msgs = raw.split('\n').filter(Boolean).map(line => {
-        try { return JSON.parse(line) as { id: string; from: string; text: string; ts?: string; replyTo?: string }; } catch { return null; }
-      }).filter(Boolean).slice(-15);
-      if (msgs.length > 0) {
-        const chatLines = msgs.map(m => {
-          const reply = m!.replyTo ? ` ↩${m!.replyTo}` : '';
-          const text = m!.text.length > 200 ? m!.text.slice(0, 200) + '...' : m!.text;
-          return `[${m!.id}] ${m!.from}${reply}: ${text}`;
-        }).join('\n');
-        sections.push(`<chat-room-recent>\n${chatLines}\n</chat-room-recent>`);
-      }
-    } catch { /* no conversations today */ }
+    // ── Chat Room Smart Loading（recent + relevant history）──
+    {
+      const chatRoomCtx = await this.buildChatRoomContextSection('');
+      if (chatRoomCtx) sections.push(chatRoomCtx);
+    }
 
     // 最近 5 則對話
     const recentConvos = this.conversationBuffer
