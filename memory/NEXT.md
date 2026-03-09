@@ -6,15 +6,13 @@
 
 ## Now（正在做）
 
-- [x] P0: 修復行為根因代碼 — ✅ 四個修復已 commit（92839c1）並推送部署
-- [ ] P1: 回覆 Alex: "這個很有意思 https://x.com/rabrg/status/2030466419419463864" (收到: 2026-03-09T15:50:58)
-  Verify: `grep -c '2030466419' memory/conversations/2026-03-10.jsonl`
+- [ ] P0: 繼續清技術債和壞味道（Alex #237 「最大複利」）
+  Verify: `git log --oneline -3 | grep -cE 'clean|remove|fix|debt'`
 
 ---
 
 ## Next（按優先度排序）
 
-- [x] P1: FTS5 雙軸 Chat Room 載入 — ✅ 已完成（commit edbb87d）
 - [ ] P1: 夯實地基 — 讓架構功能夠好用、解決一般人痛點（降級，先清債務）
   Verify: `cat memory/proposals/2026-03-08-foundation-ux.md | head -5`
 - [ ] P1: 首次啟動體驗改善 — 新用戶 5 分鐘內知道 agent 能幹嘛
@@ -25,7 +23,6 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
 ---
 
 ## Later（有空再做）
