@@ -78,13 +78,35 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
   const replied = new Set<string>();
   const msgLookup = new Map<string, string>();
   try {
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const jsonlPath = path.join(process.cwd(), 'memory', 'conversations', `${dateStr}.jsonl`);
-    if (!fs.existsSync(jsonlPath)) return { replied, msgLookup };
-    const lines = fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean);
+    // Load today's AND yesterday's conversation files — conversations often span midnight
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const dateStrs = [today.toISOString().slice(0, 10), yesterday.toISOString().slice(0, 10)];
+
+    const allLines: string[] = [];
+    for (const ds of dateStrs) {
+      const jsonlPath = path.join(process.cwd(), 'memory', 'conversations', `${ds}.jsonl`);
+      if (fs.existsSync(jsonlPath)) {
+        allLines.push(...fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean));
+      }
+    }
+    if (allLines.length === 0) return { replied, msgLookup };
+
+    // Build short ID (NNN) → full ID map from ALL loaded messages
+    const shortIdToFull = new Map<string, string>();
+    for (const line of allLines) {
+      try {
+        const msg = JSON.parse(line);
+        if (msg.id) {
+          const shortMatch = (msg.id as string).match(/-(\d+)$/);
+          if (shortMatch) shortIdToFull.set(shortMatch[1], msg.id);
+        }
+      } catch { /* skip */ }
+    }
+
     // parentOf: msgId → replyTo msgId (for transitive parent-addressing)
     const parentOf = new Map<string, string>();
-    for (const line of lines) {
+    for (const line of allLines) {
       try {
         const msg = JSON.parse(line);
         if (msg.from === 'kuro') {
@@ -95,8 +117,11 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
             const text = msg.text as string;
             // Full ID: 2026-02-24-NNN
             for (const m of text.matchAll(/\b(\d{4}-\d{2}-\d{2}-\d+)\b/g)) replied.add(m[1]);
-            // Short form: #N or #NNN (not part of a full date-prefixed ID)
-            for (const m of text.matchAll(/(?<![0-9-])#(\d{1,4})\b/g)) replied.add(`${dateStr}-${m[1]}`);
+            // Short form: #N or #NNN — resolve to actual full ID from loaded messages
+            for (const m of text.matchAll(/(?<![0-9-])#(\d{1,4})\b/g)) {
+              const fullId = shortIdToFull.get(m[1]);
+              if (fullId) replied.add(fullId);
+            }
           }
         }
         // Track reply chain for all messages
