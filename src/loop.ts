@@ -950,11 +950,17 @@ export class AgentLoop {
     // 2. Auto-commit + auto-push (previous cycle's leftover changes)
     if (isEnabled('auto-commit')) {
       tasks.push(
-        autoCommitMemoryFiles(null).then(() => autoCommitExternalRepos()).then(() => {
-          if (isEnabled('auto-push')) {
-            return autoPushIfAhead().catch(() => {});
-          }
-        }).catch(() => {})
+        autoCommitMemoryFiles(null)
+          .then(() => {
+            try { getMemory().updateConversationSearchIndex(); } catch { /* best effort */ }
+          })
+          .then(() => autoCommitExternalRepos())
+          .then(() => {
+            if (isEnabled('auto-push')) {
+              return autoPushIfAhead().catch(() => {});
+            }
+          })
+          .catch(() => {})
       );
     }
 
@@ -1849,6 +1855,9 @@ export class AgentLoop {
       if (isEnabled('auto-commit') && !isEnabled('concurrent-action')) {
         const done = trackStart('auto-commit');
         autoCommitMemoryFiles(action)
+          .then(() => {
+            try { memory.updateConversationSearchIndex(); } catch { /* best effort */ }
+          })
           .then(() => autoCommitExternalRepos())
           .then(() => {
             done();

@@ -45,7 +45,10 @@ import {
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
-import { initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries, searchConversations, isIndexReady, rebuildIndex } from './search.js';
+import {
+  initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries,
+  searchConversations, isIndexReady, rebuildIndex, indexConversationsIncremental,
+} from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
@@ -1450,13 +1453,47 @@ export class InstanceMemory {
   }
 
   /**
-   * Thread-aware conversation loading:
+   * 從 trigger + inbox 提取本 cycle 檢索關鍵字（給 chat room 相關歷史檢索）
+   */
+  private extractCycleKeywords(
+    trigger: string | undefined,
+    inboxItems: Array<{ from: string; content: string; source: string }>,
+  ): string {
+    const triggerText = (trigger ?? '').toLowerCase();
+    const inboxText = inboxItems
+      .map(item => `${item.from} ${item.source} ${item.content}`)
+      .join(' ')
+      .toLowerCase();
+    const combined = `${triggerText} ${inboxText}`
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/[^a-z0-9\u4e00-\u9fff\s_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!combined) return '';
+
+    const stopWords = new Set([
+      'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out',
+      'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so', 'do', 'my', 'up', 'this',
+      'that', 'with', 'from', 'have', 'been', 'will', 'into', 'more', 'when', 'some', 'them', 'than',
+      'its', 'also', 'each', 'which', 'their', 'what', 'about', 'would', 'there', 'could', 'other',
+      'just', 'then', 'kuro', 'alex',
+    ]);
+
+    const words = combined
+      .split(' ')
+      .filter(word => word.length >= 2 && !stopWords.has(word))
+      .slice(0, 20);
+    return words.join(' ');
+  }
+
+  /**
+   * Thread-aware recent conversation loading:
    * 1. Load last 10 recent messages
    * 2. Follow replyTo chains backward to include full thread context
-   * 3. FTS5 search for topic-related older messages
-   * 4. Cross-day: load yesterday's last 5 messages for continuity
+   * 3. Cross-day: load yesterday's reply targets when needed
    */
-  private async buildChatRoomContextSection(contextHint: string): Promise<string | null> {
+  private async buildChatRoomRecentSection(): Promise<string | null> {
     const today = new Date().toISOString().slice(0, 10);
 
     // Load all today's messages for thread chain resolution
@@ -1498,27 +1535,34 @@ export class InstanceMemory {
       .filter(m => !recentIds.has(m.id))
       .sort((a, b) => a.id.localeCompare(b.id));
 
-    // FTS5 related messages (topic search)
-    const related = contextHint
-      ? searchConversations(this.memoryDir, contextHint, 5)
-      : [];
-    const allIncludedIds = new Set([...recentIds, ...threadOnly.map(m => m.id)]);
-    const relatedOld = related.filter(m => !allIncludedIds.has(m.id)).slice(0, 5);
-
-    // Assemble: thread context → recent → related
+    // Assemble: thread context → recent
     const lines: string[] = [];
     if (threadOnly.length > 0) {
       lines.push(...threadOnly.map(m => this.formatChatRoomLine(m)));
       lines.push('--- recent ---');
     }
     lines.push(...recent.map(m => this.formatChatRoomLine(m)));
-    if (relatedOld.length > 0) {
-      lines.push('--- related history ---');
-      lines.push(...relatedOld.map(m => this.formatChatRoomLine(m)));
-    }
 
     if (lines.length === 0) return null;
     return `<chat-room-recent>\n${lines.join('\n')}\n</chat-room-recent>`;
+  }
+
+  private buildChatRoomRelevantSection(
+    query: string,
+    excludeIds: Set<string>,
+  ): string | null {
+    if (!query.trim()) return null;
+    const related = searchConversations(this.memoryDir, query, 30)
+      .filter(m => !excludeIds.has(m.id))
+      .slice(0, 10);
+    if (related.length === 0) return null;
+    const lines = related.map(m => this.formatChatRoomLine({
+      id: m.id,
+      from: m.from,
+      text: m.text,
+      replyTo: m.replyTo,
+    }));
+    return `<chat-room-relevant>\n${lines.join('\n')}\n</chat-room-relevant>`;
   }
 
   /**
@@ -1526,10 +1570,14 @@ export class InstanceMemory {
    */
   initSearchIndex(): void {
     const dbPath = path.join(getInstanceDir(this.instanceId), 'memory-index.db');
-    initSearchIndex(dbPath);
+    initSearchIndex(dbPath, this.memoryDir);
     if (!isIndexReady()) {
       indexMemoryFiles(this.memoryDir);
     }
+  }
+
+  updateConversationSearchIndex(): number {
+    return indexConversationsIncremental(this.memoryDir);
   }
 
   /**
@@ -1734,10 +1782,21 @@ export class InstanceMemory {
       sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
     }
 
+    const cycleKeywords = this.extractCycleKeywords(
+      options?.trigger,
+      inboxItems.map(item => ({ from: item.from, content: item.content, source: item.source })),
+    );
+
     // ── Chat Room Smart Loading（recent + relevant history）──
     {
-      const chatRoomCtx = await this.buildChatRoomContextSection(contextHint);
-      if (chatRoomCtx) sections.push(chatRoomCtx);
+      const chatRoomRecent = await this.buildChatRoomRecentSection();
+      if (chatRoomRecent) sections.push(chatRoomRecent);
+
+      const todayIds = new Set(
+        (await this.readChatRoomMessages(new Date().toISOString().slice(0, 10))).map(m => m.id),
+      );
+      const chatRoomRelevant = this.buildChatRoomRelevantSection(cycleKeywords || contextHint, todayIds);
+      if (chatRoomRelevant) sections.push(chatRoomRelevant);
     }
 
     // ── Task Progress（跨 cycle 進度追蹤）──
@@ -2323,7 +2382,7 @@ export class InstanceMemory {
 
     // ── Chat Room Smart Loading（recent + relevant history）──
     {
-      const chatRoomCtx = await this.buildChatRoomContextSection('');
+      const chatRoomCtx = await this.buildChatRoomRecentSection();
       if (chatRoomCtx) sections.push(chatRoomCtx);
     }
 

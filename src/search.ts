@@ -11,7 +11,6 @@ import path from 'node:path';
 import type { MemoryEntry } from './types.js';
 
 let db: Database.Database | null = null;
-let conversationIndexSignature: string | null = null;
 
 const SEARCH_STOP_WORDS = new Set([
   'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out',
@@ -45,10 +44,31 @@ function ensureConversationTable(): void {
   `);
 }
 
+function ensureConversationIndexStateTable(): void {
+  if (!db) return;
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_fts_state (
+      source TEXT PRIMARY KEY,
+      indexed_lines INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
+function getConversationRowCount(): number {
+  if (!db) return 0;
+  try {
+    const row = db.prepare('SELECT COUNT(*) AS count FROM conversation_fts').get() as { count: number };
+    return row.count;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * 初始化 FTS5 搜尋索引
  */
-export function initSearchIndex(dbPath: string): void {
+export function initSearchIndex(dbPath: string, memoryDir?: string): void {
   try {
     const dir = path.dirname(dbPath);
     if (!fs.existsSync(dir)) {
@@ -67,6 +87,12 @@ export function initSearchIndex(dbPath: string): void {
       );
     `);
     ensureConversationTable();
+    ensureConversationIndexStateTable();
+
+    // Conversation index bootstrap: first startup with empty table.
+    if (memoryDir && getConversationRowCount() === 0) {
+      indexConversationsIncremental(memoryDir);
+    }
   } catch (error) {
     db = null;
     // Silently fail — grep fallback will handle search
@@ -299,28 +325,10 @@ function parseConversationEntries(memoryDir: string): ConversationFtsEntry[] {
   return entries;
 }
 
-function computeConversationSignature(memoryDir: string): string {
-  const conversationsDir = path.join(memoryDir, 'conversations');
-  if (!fs.existsSync(conversationsDir)) return 'missing';
-
-  try {
-    const files = fs.readdirSync(conversationsDir)
-      .filter(file => file.endsWith('.jsonl'))
-      .sort();
-    const parts = [String(files.length)];
-    for (const file of files) {
-      const stat = fs.statSync(path.join(conversationsDir, file));
-      parts.push(`${file}:${stat.size}:${Math.floor(stat.mtimeMs)}`);
-    }
-    return parts.join('|');
-  } catch {
-    return 'error';
-  }
-}
-
 function reindexConversations(memoryDir: string): number {
   if (!db) return 0;
   ensureConversationTable();
+  ensureConversationIndexStateTable();
 
   try {
     const entries = parseConversationEntries(memoryDir);
@@ -334,10 +342,141 @@ function reindexConversations(memoryDir: string): number {
       for (const row of rows) {
         insert.run(row.id, row.source, row.sender, row.text, row.ts, row.replyTo);
       }
+      db!.prepare('DELETE FROM conversation_fts_state').run();
+      const upsertState = db!.prepare(`
+        INSERT INTO conversation_fts_state (source, indexed_lines, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(source) DO UPDATE SET
+          indexed_lines = excluded.indexed_lines,
+          updated_at = excluded.updated_at
+      `);
+      const nowIso = new Date().toISOString();
+      const lineCountBySource = new Map<string, number>();
+      for (const row of rows) {
+        lineCountBySource.set(row.source, (lineCountBySource.get(row.source) ?? 0) + 1);
+      }
+      for (const [source, count] of lineCountBySource) {
+        upsertState.run(source, count, nowIso);
+      }
     });
     tx(entries);
-    conversationIndexSignature = computeConversationSignature(memoryDir);
     return entries.length;
+  } catch {
+    return 0;
+  }
+}
+
+function parseConversationLines(
+  sourceFile: string,
+  lines: string[],
+  startLine: number,
+): ConversationFtsEntry[] {
+  const fileDate = sourceFile.replace(/\.jsonl$/, '');
+  const fallbackTs = `${fileDate}T00:00:00.000Z`;
+  const entries: ConversationFtsEntry[] = [];
+
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !line.trim()) continue;
+    try {
+      const parsed = JSON.parse(line) as Record<string, unknown>;
+      const id = typeof parsed.id === 'string' ? parsed.id : '';
+      const sender = typeof parsed.from === 'string' ? parsed.from : '';
+      const text = typeof parsed.text === 'string' ? parsed.text : '';
+      const tsValue = typeof parsed.ts === 'string'
+        ? parsed.ts
+        : typeof parsed.timestamp === 'string'
+          ? parsed.timestamp
+          : fallbackTs;
+      const replyTo = typeof parsed.replyTo === 'string' ? parsed.replyTo : '';
+      if (!id || !sender || !text.trim()) continue;
+      entries.push({
+        id,
+        source: sourceFile,
+        sender,
+        text,
+        ts: tsValue,
+        replyTo,
+      });
+    } catch {
+      // Skip malformed JSONL line
+    }
+  }
+
+  return entries;
+}
+
+export function indexConversationsIncremental(memoryDir: string): number {
+  if (!db) return 0;
+  ensureConversationTable();
+  ensureConversationIndexStateTable();
+
+  const conversationsDir = path.join(memoryDir, 'conversations');
+  if (!fs.existsSync(conversationsDir)) return 0;
+
+  try {
+    const files = fs.readdirSync(conversationsDir)
+      .filter(file => file.endsWith('.jsonl'))
+      .sort();
+
+    const getState = db.prepare(
+      'SELECT indexed_lines FROM conversation_fts_state WHERE source = ?',
+    );
+    const deleteSource = db.prepare('DELETE FROM conversation_fts WHERE source = ?');
+    const insert = db.prepare(`
+      INSERT INTO conversation_fts (id, source, sender, text, ts, reply_to)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const upsertState = db.prepare(`
+      INSERT INTO conversation_fts_state (source, indexed_lines, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(source) DO UPDATE SET
+        indexed_lines = excluded.indexed_lines,
+        updated_at = excluded.updated_at
+    `);
+    const deleteState = db.prepare('DELETE FROM conversation_fts_state WHERE source = ?');
+
+    const tx = db.transaction((jsonlFiles: string[]) => {
+      let insertedTotal = 0;
+      const liveFiles = new Set(jsonlFiles);
+      const existingStateRows = db!.prepare('SELECT source FROM conversation_fts_state').all() as Array<{ source: string }>;
+      for (const row of existingStateRows) {
+        if (!liveFiles.has(row.source)) {
+          deleteSource.run(row.source);
+          deleteState.run(row.source);
+        }
+      }
+
+      for (const file of jsonlFiles) {
+        const filePath = path.join(conversationsDir, file);
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const lines = raw.split('\n').filter(line => line.length > 0);
+
+        const state = getState.get(file) as { indexed_lines: number } | undefined;
+        let startLine = state?.indexed_lines ?? 0;
+        const totalLines = lines.length;
+
+        // File truncated or rotated: rebuild this source.
+        if (startLine > totalLines) {
+          deleteSource.run(file);
+          startLine = 0;
+        }
+
+        if (startLine < totalLines) {
+          const rows = parseConversationLines(file, lines, startLine);
+          for (const row of rows) {
+            insert.run(row.id, row.source, row.sender, row.text, row.ts, row.replyTo);
+            insertedTotal++;
+          }
+        }
+
+        upsertState.run(file, totalLines, new Date().toISOString());
+      }
+
+      return insertedTotal;
+    });
+
+    return tx(files) as number;
   } catch {
     return 0;
   }
@@ -427,11 +566,8 @@ export function searchConversations(
 ): Array<{ id: string; from: string; text: string; ts: string; replyTo?: string; source: string }> {
   if (!db) return [];
   ensureConversationTable();
-
-  const signature = computeConversationSignature(memoryDir);
-  if (conversationIndexSignature !== signature) {
-    reindexConversations(memoryDir);
-  }
+  ensureConversationIndexStateTable();
+  indexConversationsIncremental(memoryDir);
 
   try {
     const words = extractFTSKeywords(query, 20);
@@ -485,7 +621,8 @@ export function rebuildIndex(memoryDir: string): number {
       );
     `);
     ensureConversationTable();
-    conversationIndexSignature = null;
+    ensureConversationIndexStateTable();
+    db.exec('DELETE FROM conversation_fts_state');
     return indexMemoryFiles(memoryDir);
   } catch {
     return 0;
@@ -512,6 +649,5 @@ export function closeSearchIndex(): void {
   if (db) {
     db.close();
     db = null;
-    conversationIndexSignature = null;
   }
 }
