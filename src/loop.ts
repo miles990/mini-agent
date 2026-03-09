@@ -29,7 +29,7 @@ import { runCoachCheck } from './coach.js';
 import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
 import type { TriageContext, ContinuationContext } from './mushi-client.js';
-import { extractCommitments, updateCommitments } from './commitments.js';
+import { extractCommitments, updateCommitments, hasOverdueCommitments } from './commitments.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, flushTemporalState,
@@ -786,6 +786,10 @@ export class AgentLoop {
           return true;
         }
       }
+      // Check overdue high-priority commitments — said it, now do it
+      if (hasOverdueCommitments(this.cycleCount)) {
+        return true;
+      }
       return false;
     } catch {
       return false;
@@ -812,10 +816,12 @@ export class AgentLoop {
         (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
+        && !this.hasPendingWork()
       ) {
-        // Hard skip: routine trigger + no perception change + last cycle was idle
+        // Hard skip: routine trigger + no perception change + last cycle was idle + no P0 work
         // Applies to heartbeat AND workspace — saves ~800ms mushi LLM call per skip
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
+        // GUARD: never skip if NEXT.md has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
         writeTrailEntry({
           ts: new Date().toISOString(),

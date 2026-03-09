@@ -222,6 +222,21 @@ export function updateCommitments(action: string | null, cycleCount: number): vo
 // =============================================================================
 
 /**
+ * 檢查是否有 overdue 的 high-priority 承諾。
+ * 用於 hasPendingWork() — 讓 interval cap 對未兌現的重要承諾生效。
+ */
+export function hasOverdueCommitments(cycleCount: number): boolean {
+  try {
+    const state = readState();
+    return state.commitments.some(
+      c => c.status === 'pending' && c.priority === 'high' && cycleCount > c.cycleDeadline
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 產生 <commitments> section 供 buildContext() 注入。
  * 只在有 pending 承諾時才回傳。
  */
