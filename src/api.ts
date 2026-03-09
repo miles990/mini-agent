@@ -2741,18 +2741,18 @@ if (isMain) {
     if (loopRef) {
       loopRef.start();
 
-      // 恢復持久化 mode；找不到持久化狀態才預設 calm
-      let startupMode: ModeName = 'calm';
+      // 恢復持久化 mode；找不到持久化狀態才預設 autonomous（personal agent 預設自主）
+      let startupMode: ModeName = 'autonomous';
       const modeStatePath = path.join(os.homedir(), '.mini-agent', 'instances', instanceId, 'mode.json');
       try {
         const saved = JSON.parse(fs.readFileSync(modeStatePath, 'utf-8')) as { mode?: string };
         if (saved.mode && isValidMode(saved.mode)) {
           startupMode = saved.mode;
         }
-      } catch { /* no persisted mode, use calm */ }
+      } catch { /* no persisted mode, use autonomous */ }
 
       setMode(startupMode);
-      slog('MODE', `Startup mode: ${startupMode}${startupMode === 'calm' ? ' (default)' : ' (restored)'}`);
+      slog('MODE', `Startup mode: ${startupMode}${startupMode === 'autonomous' ? ' (default)' : ' (restored)'}`);
     }
     if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
