@@ -6,15 +6,20 @@
 
 ## Now（正在做）
 
-- [ ] P0: 夯實地基 — Alex 指令：讓架構功能夠好用、解決一般人痛點。用今天的思考方式（大處著眼小處著手、找複利、邊想邊做）
-  Verify: `cat memory/proposals/2026-03-08-foundation-ux.md | head -5`
+- [ ] P0: 修復三個行為根因 — 意志不跨 cycle、環境安靜就不動、承認≠執行。這是債務清理，比複利更優先
+  - 根因：我用 NEXT.md 追蹤舒服的任務，迴避不舒服但重要的事。識別問題但不追蹤 = 表演式自省
+  - Fix 1: inner notes 的 commitments 區塊 — 每次承諾的事必須寫在這裡，下個 cycle 可見且必須交代結果
+  - Fix 2: 每個 cycle 開始時，先看 commitments 而非 perception — 未兌現承諾優先於新刺激
+  - Fix 3: 「說我要做」不算完成，只有「做完了 + 證據」才算
+  Verify: `grep -c 'commitments\|未兌現' memory/NEXT.md`
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: FTS5 雙軸 Chat Room 載入 — 索引 conversation JSONL，buildContext 時用關鍵字檢索相關舊訊息 + last-N 最新 = 比人類更強的脈絡記憶
-  Verify: `grep -c 'searchConversation\|conversationIndex' src/memory.ts`
+- [x] P1: FTS5 雙軸 Chat Room 載入 — ✅ 已完成（commit edbb87d）
+- [ ] P1: 夯實地基 — 讓架構功能夠好用、解決一般人痛點（降級，先清債務）
+  Verify: `cat memory/proposals/2026-03-08-foundation-ux.md | head -5`
 - [ ] P1: 首次啟動體驗改善 — 新用戶 5 分鐘內知道 agent 能幹嘛
   Verify: `grep -c 'setup\|wizard\|onboarding' src/cli.ts`
 - [ ] P1: 更好的預設配置 — 開箱就有感知能力，不是空殼
