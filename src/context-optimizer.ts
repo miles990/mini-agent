@@ -312,3 +312,7 @@ export function getContextOptimizer(): ContextOptimizer {
   }
   return instance;
 }
+
+export function resetContextOptimizer(): void {
+  instance = null;
+}

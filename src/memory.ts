@@ -2034,7 +2034,10 @@ export class InstanceMemory {
     // ── Conversation Threads（skip in light mode）──
     if (!isLight) {
       const convThreads = await this.getConversationThreads();
-      const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
+      const activeConvThreads = convThreads
+        .filter(t => !t.resolvedAt)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10);
       if (activeConvThreads.length > 0) {
         const threadLines = activeConvThreads.map(t => {
           const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
@@ -2305,7 +2308,10 @@ export class InstanceMemory {
 
     // Conversation Threads（對話脈絡追蹤）
     const convThreads = await this.getConversationThreads();
-    const activeConvThreads = convThreads.filter(t => !t.resolvedAt);
+    const activeConvThreads = convThreads
+      .filter(t => !t.resolvedAt)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10);
     if (activeConvThreads.length > 0) {
       const threadLines = activeConvThreads.map(t => {
         const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);

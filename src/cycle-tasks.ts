@@ -206,7 +206,8 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
  * Resolve stale ConversationThreads. Runs every cycle (fire-and-forget).
  *
  * Rules:
- * - Non-room thread types: auto-expire after 48h
+ * - Replied room threads: auto-resolve after 1h (cooldown for context)
+ * - Non-room thread types: auto-expire after 24h
  * - If thread id/sourceId appears in chat-room-inbox, skip TTL expiry
  * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
  */
@@ -214,12 +215,18 @@ export async function resolveStaleConversationThreads(): Promise<void> {
   const memory = getMemory();
   const threads = await memory.getConversationThreads();
   const now = Date.now();
-  const TTL_MS = 48 * 60 * 60 * 1000; // 48h
+  const PENDING_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+  const REPLIED_RESOLVE_MS = 60 * 60 * 1000; // 1h
 
   const toResolve: string[] = [];
   const inboxContent = fs.existsSync(CHAT_ROOM_INBOX_PATH)
     ? fs.readFileSync(CHAT_ROOM_INBOX_PATH, 'utf-8')
     : '';
+  const repliedAtByMsgId = new Map<string, number>();
+  for (const m of inboxContent.matchAll(/\[(\d{4}-\d{2}-\d{2}-\d+)\][^\n]*→\s*replied\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/g)) {
+    const repliedAtMs = new Date(m[2].replace(' ', 'T') + ':00').getTime();
+    if (Number.isFinite(repliedAtMs)) repliedAtByMsgId.set(m[1], repliedAtMs);
+  }
 
   const isPinnedByInbox = (thread: (typeof threads)[number]): boolean => {
     // Backward compatibility: some persisted thread records may carry legacy sourceId.
@@ -228,23 +235,35 @@ export async function resolveStaleConversationThreads(): Promise<void> {
     return candidates.some(id => inboxContent.includes(id));
   };
 
-  // Rule 1: Auto-expire threads older than 48h
-  // Exceptions:
-  // - 'kuro:ask' threads — Alex may take days to reply
-  // - Room threads — Rule 2 handles these (expire when inbox is clear)
-  // - Threads pinned by inbox message references (id/sourceId/roomMsgId)
+  // Rule 1: Replied room threads auto-resolve after 1h.
   for (const t of threads) {
     if (t.resolvedAt) continue;
-    if (t.source === 'kuro:ask') continue;
-    if (t.source?.startsWith('room:')) continue;
-    if (isPinnedByInbox(t)) continue;
-    const ageMs = now - new Date(t.createdAt).getTime();
-    if (ageMs > TTL_MS) {
+    if (!t.roomMsgId) continue;
+    const repliedAtMs = repliedAtByMsgId.get(t.roomMsgId);
+    if (!repliedAtMs) continue;
+    if (now - repliedAtMs >= REPLIED_RESOLVE_MS) {
       toResolve.push(t.id);
     }
   }
 
-  // Rule 2: Resolve room threads when inbox is clear
+  // Rule 2: Auto-expire unanswered non-room threads older than 24h.
+  // Exceptions:
+  // - 'kuro:ask' threads — Alex may take days to reply
+  // - Room threads — Rule 3 handles these (expire when inbox is clear)
+  // - Threads pinned by inbox message references (id/sourceId/roomMsgId)
+  for (const t of threads) {
+    if (t.resolvedAt) continue;
+    if (toResolve.includes(t.id)) continue;
+    if (t.source === 'kuro:ask') continue;
+    if (t.source?.startsWith('room:')) continue;
+    if (isPinnedByInbox(t)) continue;
+    const ageMs = now - new Date(t.createdAt).getTime();
+    if (ageMs > PENDING_TTL_MS) {
+      toResolve.push(t.id);
+    }
+  }
+
+  // Rule 3: Resolve room threads when inbox is clear.
   const hasPending = /## Pending\n- \[/.test(inboxContent);
   const hasUnaddressed = /## Unaddressed\n- \[/.test(inboxContent);
 

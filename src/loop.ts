@@ -1902,7 +1902,7 @@ export class AgentLoop {
         } catch { /* best effort */ }
       }
 
-      // Resolve stale ConversationThreads（24h TTL + inbox-clear）
+      // Resolve stale ConversationThreads（replied 1h auto-resolve + 24h TTL + inbox-clear）
       if (isEnabled('stale-threads')) {
         const done = trackStart('stale-threads');
         resolveStaleConversationThreads().then(() => done(), e => done(String(e)));

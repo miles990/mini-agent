@@ -70,7 +70,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'auto-push',         group: 'housekeeping', description: 'Auto push unpushed commits to origin/main' },
   { name: 'github-automation', group: 'housekeeping', description: 'Auto create issues, merge PRs, track issues' },
   { name: 'feedback-loops',    group: 'housekeeping', description: 'Error patterns, perception citations, decision quality' },
-  { name: 'stale-threads',     group: 'housekeeping', description: 'Resolve expired conversation threads (24h TTL)' },
+  { name: 'stale-threads',     group: 'housekeeping', description: 'Resolve stale conversation threads (replied 1h, pending 24h TTL)' },
   { name: 'auto-escalate',     group: 'housekeeping', description: 'Promote overdue HEARTBEAT tasks to P0' },
   { name: 'cron-drain',        group: 'housekeeping', description: 'Drain one queued cron task per cycle' },
   { name: 'housekeeping',      group: 'housekeeping', description: 'Push, search index, inbox expiration, handoff sync' },

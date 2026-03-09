@@ -273,7 +273,10 @@ export async function buildAutonomousPrompt(
 
   // Inject conversation threads for chat mode awareness
   const convThreads = await memory.getConversationThreads();
-  const pendingConvThreads = convThreads.filter(t => !t.resolvedAt);
+  const pendingConvThreads = convThreads
+    .filter(t => !t.resolvedAt)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
   let chatContextSection = '';
   if (pendingConvThreads.length > 0) {
     const items = pendingConvThreads.map(t => `- [${t.type}] ${t.content}`).join('\n');
