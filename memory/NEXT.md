@@ -21,6 +21,7 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
+- [ ] P1: 回覆 Alex: "這個很有意思 https://x.com/rabrg/status/2030466419419463864  URLs: - https://x.com/rabrg/status/2030466419" (收到: 2026-03-09T15:50:58)
 ---
 
 ## Later（有空再做）
