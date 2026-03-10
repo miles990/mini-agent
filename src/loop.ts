@@ -217,6 +217,7 @@ export class AgentLoop {
   private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
   private lastCycleHadSchedule = false;
   private concurrentInboxDetected = false;
+  private lastCycleMeshQueued = false;
 
   // =========================================================================
   // Unified Event Handler — single entry point for all triggers
@@ -913,8 +914,9 @@ export class AgentLoop {
     }
 
     // Continuation check — mushi decides if we should immediately continue
-    // Skip if: kuro:schedule already set, loop paused, or mushi-triage disabled
-    if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule) {
+    // Skip if: kuro:schedule already set, loop paused, mushi-triage disabled, or cycle was mesh-queued
+    // Mesh-queued cycles didn't run Claude — no work was done, continuation is meaningless
+    if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule && !this.lastCycleMeshQueued) {
       if (this.consecutiveContinuations >= AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS) {
         slog('MUSHI', `🔄 continuation capped (${AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS} consecutive), resetting`);
         this.consecutiveContinuations = 0;
@@ -949,7 +951,8 @@ export class AgentLoop {
     // Pending work detection — cap interval when unprocessed items still exist
     // Different from concurrentInbox: checks state AT cycle end, not during Claude call
     // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
-    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && this.currentInterval > 120_000) {
+    // Skip for mesh-queued cycles — they can't process work, capping interval just causes re-queue
+    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && !this.lastCycleMeshQueued && this.currentInterval > 120_000) {
       if (this.hasPendingWork()) {
         this.currentInterval = 120_000; // 2min cap
         slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
@@ -1016,6 +1019,7 @@ export class AgentLoop {
     if (this.cycling) return null;
     this.cycling = true;
     this.concurrentInboxDetected = false;
+    this.lastCycleMeshQueued = false;
     const logger = getLogger();
 
     try {
@@ -1043,6 +1047,8 @@ export class AgentLoop {
           if (routed) {
             slog('MESH', `Task routed to ${route.action}/${route.targetInstance ?? route.perspective ?? '?'}, skipping self-handling`);
             meshRouteDone();
+            this.lastCycleMeshQueued = true;
+            this.cycleCount--; // Don't count mesh-queued as real cycle
             this.cycling = false;
             return null;
           }
