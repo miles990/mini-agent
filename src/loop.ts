@@ -1647,6 +1647,14 @@ export class AgentLoop {
       // ── Process <kuro:progress> tags — task progress tracking ──
       trackTaskProgress(tags);
 
+      // Auto-detect lastAction from objective signals when <kuro:action> is absent
+      // Fixes: observability shouldn't depend on LLM remembering to write a tag
+      if (!action && cycleTagsProcessed.length > 0) {
+        const autoAction = `[Auto] ${cycleTagsProcessed.join(', ')}`;
+        this.lastAction = autoAction;
+        action = autoAction;
+      }
+
       const metrics = this.updateDailyMetrics(this.currentMode, rememberInCycle, similarity);
       eventBus.emit('action:loop', {
         event: 'metrics',
