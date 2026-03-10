@@ -19,7 +19,7 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
-import { createGoal, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
+import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
