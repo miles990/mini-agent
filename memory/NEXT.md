@@ -26,6 +26,7 @@
 - [ ] P1: 回覆 Alex: "這個也很有意思 可能會對你學習新知識有幫助 https://x.com/ihtesham2005/status/2030214970353602806  URLs: - https://x.com/i" (收到: 2026-03-10T17:54:36)
 - [ ] P1: 回覆 Alex: "這裡面的skill對你有幫助嗎？ https://github.com/miles990/claude-domain-skills  URLs: - https://github.com/miles9" (收到: 2026-03-10T17:57:25)
 - [ ] P1: 回覆 Alex: "剛看到這個 https://x.com/dotey/status/2031231856071372830  URLs: - https://x.com/dotey/status/20312318560" (收到: 2026-03-10T18:21:55)
+- [ ] P1: 回覆 Alex: "剛看到這個 https://github.com/karpathy/agenthub  URLs: - https://github.com/karpathy/agenthub" (收到: 2026-03-10T18:23:57)
 ---
 
 ## Later（有空再做）
