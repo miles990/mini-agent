@@ -19,10 +19,18 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
-import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
-import { addIndexEntry } from './memory-index.js';
-import { createTask, updateTask, deleteTask, loadTaskQueue, type VerifyResult } from './task-queue.js';
-import { detectAndRecordCommitmentGaps } from './commitment-gate.js';
+import {
+  addIndexEntry,
+  appendMemoryIndexEntry,
+  updateMemoryIndexEntry,
+  deleteMemoryIndexEntry,
+  queryMemoryIndexSync,
+  createTask,
+  updateTask,
+  findLatestOpenGoal,
+  detectAndRecordCommitments,
+  type VerifyResult,
+} from './memory-index.js';
 
 // =============================================================================
 // Remember Classifier — Learning→Perception 自動閉環 Phase 1
@@ -684,10 +692,12 @@ export async function postProcess(
     }
   }
 
+  const memoryDir = memory.getMemoryDir();
+
   if (tags.tasks.length > 0) tagsProcessed.push('task');
   for (const t of tags.tasks) {
     await memory.addTask(t.content, t.schedule);
-    createTask({ type: 'task', title: t.content, status: t.schedule ? 'pending' : 'in_progress' });
+    createTask(memoryDir, { type: 'task', title: t.content, status: t.schedule ? 'pending' : 'in_progress' }).catch(() => {});
     eventBus.emit('action:task', { content: t.content });
   }
 
@@ -698,39 +708,37 @@ export async function postProcess(
         ...v,
         updatedAt: new Date().toISOString(),
       }));
-      createTask({
+      createTask(memoryDir, {
         type: action.type ?? 'task',
         title: action.title,
         status: action.status ?? 'pending',
         verify,
         origin: action.origin,
         priority: action.priority,
-      });
+      }).catch(() => {});
       continue;
     }
 
     if (action.op === 'update' && action.id) {
-      const current = loadTaskQueue().find(item => item.id === action.id);
-      const currentGoalMeta = current?.type === 'goal'
-        ? { origin: current.origin, priority: current.priority }
-        : { origin: undefined, priority: undefined };
+      const current = queryMemoryIndexSync(memoryDir, { id: action.id, limit: 1 })[0];
+      const currentPayload = (current?.payload ?? {}) as Record<string, unknown>;
       const verifyPatch: VerifyResult[] | undefined = action.verify
         ? action.verify.map(v => ({ ...v, updatedAt: new Date().toISOString() }))
         : undefined;
-      updateTask(action.id, {
-        type: action.type ?? current?.type,
-        title: action.title ?? current?.title,
+      updateTask(memoryDir, action.id, {
+        type: action.type ?? (current?.type as 'task' | 'goal' | undefined),
+        title: action.title ?? current?.summary,
         status: action.status ?? current?.status,
-        origin: action.origin ?? currentGoalMeta.origin,
-        priority: action.priority ?? currentGoalMeta.priority,
-        verify: verifyPatch ?? current?.verify,
+        origin: action.origin ?? (currentPayload.origin as string | undefined),
+        priority: action.priority ?? (currentPayload.priority as number | undefined),
+        verify: verifyPatch ?? (currentPayload.verify as VerifyResult[] | undefined),
         staleWarning: undefined,
-      });
+      }).catch(() => {});
       continue;
     }
 
     if (action.op === 'delete' && action.id) {
-      deleteTask(action.id);
+      deleteMemoryIndexEntry(memoryDir, action.id).catch(() => {});
     }
   }
 
@@ -770,63 +778,45 @@ export async function postProcess(
     eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
   }
 
-  // <kuro:goal*> tags — goal state machine (fire-and-forget)
-  const findLatestOpenGoal = (title: string): ReturnType<typeof loadTaskQueue>[number] | undefined => {
-    const lowerTitle = title.toLowerCase();
-    const matches = loadTaskQueue()
-      .filter(item =>
-        item.type === 'goal'
-        && (item.status === 'pending' || item.status === 'in_progress')
-        && (item.title.toLowerCase() === lowerTitle || item.title.toLowerCase().includes(lowerTitle) || lowerTitle.includes(item.title.toLowerCase()))
-      )
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    return matches[0];
-  };
-
+  // <kuro:goal*> tags — goal state machine (fire-and-forget, writes to memory-index)
   if (tags.goal) {
     tagsProcessed.push('goal');
-    createGoal(tags.goal.description, tags.goal.origin);
-    createTask({
+    createTask(memoryDir, {
       type: 'goal',
       title: tags.goal.description,
       status: 'in_progress',
       origin: tags.goal.origin,
-    });
+    }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `created: ${tags.goal.description.slice(0, 80)}` });
   } else if (tags.goalQueue) {
     tagsProcessed.push('goal-queue');
-    queueGoal(tags.goalQueue.description, tags.goalQueue.origin, tags.goalQueue.priority);
-    createTask({
+    createTask(memoryDir, {
       type: 'goal',
       title: tags.goalQueue.description,
       status: 'pending',
       origin: tags.goalQueue.origin,
       priority: tags.goalQueue.priority,
-    });
+    }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `queued: ${tags.goalQueue.description.slice(0, 80)}` });
   } else if (tags.goalAdvance) {
     tagsProcessed.push('goal-advance');
-    advanceGoalPhase(tags.goalAdvance);
-    const item = findLatestOpenGoal(tags.goalAdvance);
-    if (item) updateTask(item.id, { status: 'in_progress', staleWarning: undefined });
+    const item = findLatestOpenGoal(memoryDir, tags.goalAdvance);
+    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `phase advanced: ${tags.goalAdvance.slice(0, 80)}` });
   } else if (tags.goalDone) {
     tagsProcessed.push('goal-done');
-    completeGoal(tags.goalDone);
-    const item = findLatestOpenGoal(tags.goalDone);
-    if (item) updateTask(item.id, { status: 'completed', staleWarning: undefined });
+    const item = findLatestOpenGoal(memoryDir, tags.goalDone);
+    if (item) updateTask(memoryDir, item.id, { status: 'completed', staleWarning: undefined }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `completed: ${tags.goalDone.slice(0, 80)}` });
   } else if (tags.goalAbandon) {
     tagsProcessed.push('goal-abandon');
-    abandonGoal(tags.goalAbandon);
-    const item = findLatestOpenGoal(tags.goalAbandon);
-    if (item) updateTask(item.id, { status: 'abandoned', staleWarning: undefined });
+    const item = findLatestOpenGoal(memoryDir, tags.goalAbandon);
+    if (item) updateTask(memoryDir, item.id, { status: 'abandoned', staleWarning: undefined }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `abandoned: ${tags.goalAbandon.slice(0, 80)}` });
   } else if (tags.goalProgress) {
     tagsProcessed.push('goal-progress');
-    progressGoal(tags.goalProgress);
-    const item = findLatestOpenGoal(tags.goalProgress);
-    if (item) updateTask(item.id, { status: 'in_progress', staleWarning: undefined });
+    const item = findLatestOpenGoal(memoryDir, tags.goalProgress);
+    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).catch(() => {});
   }
 
   // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
@@ -862,8 +852,8 @@ export async function postProcess(
     }
   }
 
-  // 4. Commitment Gate — fire-and-forget tracking for untagged commitments
-  detectAndRecordCommitmentGaps(response, tags)
+  // 4. Commitment Gate — fire-and-forget tracking for untagged commitments (writes to memory-index)
+  detectAndRecordCommitments(memoryDir, response, tags)
     .then((added) => {
       if (added > 0) slog('COMMIT', `Detected ${added} untracked commitment(s)`);
     })

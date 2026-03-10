@@ -53,8 +53,7 @@ import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
-import { buildTaskQueueSection } from './task-queue.js';
-import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics } from './memory-index.js';
+import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection } from './memory-index.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1763,7 +1762,7 @@ export class InstanceMemory {
       sections.push(`<task-progress>\n${progressCtx}\n</task-progress>`);
     }
 
-    const taskQueueCtx = buildTaskQueueSection();
+    const taskQueueCtx = buildTaskQueueSection(this.memoryDir);
     if (taskQueueCtx) {
       sections.push(taskQueueCtx);
     }
