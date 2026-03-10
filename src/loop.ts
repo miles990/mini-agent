@@ -1976,7 +1976,7 @@ export class AgentLoop {
       // Resolve stale ConversationThreads（replied 1h auto-resolve + 24h TTL + inbox-clear）
       if (isEnabled('stale-threads')) {
         const done = trackStart('stale-threads');
-        resolveStaleConversationThreads().then(() => done(), e => done(String(e)));
+        resolveStaleConversationThreads(action ?? undefined).then(() => done(), e => done(String(e)));
       }
 
       // Housekeeping pipeline（fire-and-forget）

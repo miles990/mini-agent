@@ -211,7 +211,7 @@ See the full proposal at \`memory/proposals/${file}\` for details, alternatives,
  * - If thread id/roomMsgId appears in chat-room-inbox, skip TTL expiry
  * - Room threads: also resolve when chat-room-inbox has no pending/unaddressed
  */
-export async function resolveStaleConversationThreads(): Promise<void> {
+export async function resolveStaleConversationThreads(actionText?: string): Promise<void> {
   const memory = getMemory();
   const threads = await memory.getConversationThreads();
   const now = Date.now();
@@ -232,6 +232,21 @@ export async function resolveStaleConversationThreads(): Promise<void> {
     const candidates = [thread.id, thread.roomMsgId].filter(Boolean) as string[];
     return candidates.some(id => inboxContent.includes(id));
   };
+
+  // Rule 0: Auto-resolve threads whose URL was referenced in this cycle's action.
+  // Fixes: Telegram share threads being re-answered every cycle because they lack
+  // a "replied" marker. If the action text contains the thread's URL, it's been addressed.
+  if (actionText) {
+    const urlsInAction: string[] = actionText.match(/https?:\/\/[^\s<>"]+/g) ?? [];
+    for (const t of threads) {
+      if (t.resolvedAt) continue;
+      if (toResolve.includes(t.id)) continue;
+      const urlsInThread: string[] = t.content.match(/https?:\/\/[^\s<>"]+/g) ?? [];
+      if (urlsInThread.some(u => urlsInAction.includes(u))) {
+        toResolve.push(t.id);
+      }
+    }
+  }
 
   // Rule 1: Replied room threads auto-resolve after 1h.
   for (const t of threads) {
