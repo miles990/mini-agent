@@ -186,10 +186,21 @@ function extractKeyTerms(text: string): string[] {
 function isMessageAddressed(
   sender: string, messageText: string,
   response: string, chatTags: Array<{ text: string; reply: boolean }>, action: string | null,
+  msgId?: string,
 ): boolean {
   const senderLower = sender.toLowerCase();
   const terms = extractKeyTerms(messageText);
   const meaningfulTerms = terms.filter(t => t.length > 3); // skip short/common words
+
+  // 0. Message ID reference — batch replies like "統一回覆 #155/#196/#199" or "2026-03-09-155"
+  if (msgId) {
+    const searchable = response + ' ' + (action ?? '');
+    // Match short form #NNN (last segment of YYYY-MM-DD-NNN)
+    const shortId = msgId.split('-').pop();
+    if (shortId && searchable.includes(`#${shortId}`)) return true;
+    // Match full form YYYY-MM-DD-NNN
+    if (searchable.includes(msgId)) return true;
+  }
 
   // 1. Has <kuro:chat> tags → check CHAT content specifically (not full response)
   if (chatTags.length > 0) {
@@ -271,8 +282,8 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
 
       // Check 1: Kuro replied to this message in the room (via replyTo in JSONL)
       const repliedInRoom = isRepliedInRoom(msgId, sender, text, replied, msgLookup);
-      // Check 2: Text-based matching (CHAT tags, ACTION keywords)
-      const addressed = repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action);
+      // Check 2: Text-based matching (CHAT tags, ACTION keywords, msgId references)
+      const addressed = repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action, msgId);
 
       if (addressed) {
         const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
@@ -299,8 +310,8 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
 
       // Check 1: Kuro replied to this message in the room
       const repliedInRoom = isRepliedInRoom(msgId, sender, text, replied, msgLookup);
-      // Check 2: Text-based matching
-      if (repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action)) {
+      // Check 2: Text-based matching + msgId references
+      if (repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action, msgId)) {
         const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`- [${originalTs}] (${sender}) ${text} → ${suffix} ${nowStr}`);
         continue;
