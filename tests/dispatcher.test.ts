@@ -29,6 +29,24 @@ describe('parseTags', () => {
     expect(result.tasks[0]).toEqual({ content: 'Do something', schedule: undefined });
   });
 
+  it('parses <kuro:task-queue> create tag', () => {
+    const result = parseTags('<kuro:task-queue op="create" type="goal" status="in_progress" origin="perception" priority="1" verify="typecheck:pass,test:unknown">Implement queue</kuro:task-queue>');
+    expect(result.taskQueueActions[0]).toEqual({
+      op: 'create',
+      id: undefined,
+      type: 'goal',
+      status: 'in_progress',
+      origin: 'perception',
+      priority: 1,
+      verify: [
+        { name: 'typecheck', status: 'pass', detail: undefined },
+        { name: 'test', status: 'unknown', detail: undefined },
+      ],
+      title: 'Implement queue',
+    });
+    expect(result.cleanContent).toBe('');
+  });
+
   it('parses <kuro:chat> tags', () => {
     const result = parseTags('Text <kuro:chat>Hello Alex</kuro:chat> more <kuro:chat>Another chat</kuro:chat>');
     expect(result.chats).toEqual([{ text: 'Hello Alex', reply: false }, { text: 'Another chat', reply: false }]);
@@ -67,6 +85,7 @@ describe('parseTags', () => {
     const result = parseTags('Just a normal response.');
     expect(result.remembers).toEqual([]);
     expect(result.tasks).toEqual([]);
+    expect(result.taskQueueActions).toEqual([]);
     expect(result.chats).toEqual([]);
     expect(result.shows).toEqual([]);
     expect(result.summaries).toEqual([]);

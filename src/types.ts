@@ -306,6 +306,16 @@ export interface DelegateRequest {
 export interface ParsedTags {
   remembers: Array<{ content: string; topic?: string; ref?: string }>;
   tasks: Array<{ content: string; schedule?: string }>;
+  taskQueueActions: Array<{
+    op: 'create' | 'update' | 'delete';
+    id?: string;
+    type?: 'task' | 'goal';
+    status?: 'pending' | 'in_progress' | 'completed' | 'abandoned';
+    origin?: string;
+    priority?: number;
+    verify?: Array<{ name: string; status: 'pass' | 'fail' | 'unknown'; detail?: string }>;
+    title?: string;
+  }>;
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
   impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;
   threads: ThreadAction[];
@@ -427,4 +437,3 @@ export interface MeshTaskOutput {
   startedAt: string;
   completedAt: string;
 }
-

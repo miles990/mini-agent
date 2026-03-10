@@ -53,6 +53,7 @@ import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
+import { buildTaskQueueSection } from './task-queue.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics } from './memory-index.js';
 
 // =============================================================================
@@ -1760,6 +1761,11 @@ export class InstanceMemory {
     const progressCtx = buildTaskProgressSection(inboxItems);
     if (progressCtx) {
       sections.push(`<task-progress>\n${progressCtx}\n</task-progress>`);
+    }
+
+    const taskQueueCtx = buildTaskQueueSection();
+    if (taskQueueCtx) {
+      sections.push(taskQueueCtx);
     }
 
     const selfStatus = selfStatusProvider?.();

@@ -21,7 +21,7 @@ import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 import { addIndexEntry } from './memory-index.js';
-import { detectAndRecordCommitmentGaps } from './commitment-gate.js';
+import { createTask, updateTask, deleteTask, loadTaskQueue, type VerifyResult } from './task-queue.js';
 
 // =============================================================================
 // Remember Classifier — Learning→Perception 自動閉環 Phase 1
@@ -232,6 +232,10 @@ Alex 和 Claude Code 不一定記得你上一個 cycle 在做什麼。每條對�
   Example: <kuro:task schedule="every 5 minutes">Write a haiku to output.md with timestamp</kuro:task>
   Example: <kuro:task schedule="daily at 9am">Send daily summary</kuro:task>
 
+- For unified task queue operations, use <kuro:task-queue>...</kuro:task-queue> tags
+  Format: <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned" id="optional-id" origin="optional" priority="optional" verify="name:pass|fail|unknown[:detail],...">title</kuro:task-queue>
+  Example: <kuro:task-queue op="create" type="goal" status="in_progress" origin="perception" verify="typecheck:pass,test:unknown">實作統一 Task Queue</kuro:task-queue>
+
 - When you open a webpage, display results, or create something the user should see, wrap it in <kuro:show>...</kuro:show> tags
   This sends a Telegram notification so the user doesn't miss it.
   Format: <kuro:show url="URL">description</kuro:show>
@@ -326,6 +330,45 @@ export function parseTags(response: string): ParsedTags {
   if (parseSource.includes('<kuro:task')) {
     for (const m of parseSource.matchAll(/<kuro:task(?:\s+schedule="([^"]*)")?>([\s\S]*?)<\/kuro:task>/g)) {
       tasks.push({ content: m[2].trim(), schedule: m[1] || undefined });
+    }
+  }
+
+  const taskQueueActions: ParsedTags['taskQueueActions'] = [];
+  if (parseSource.includes('<kuro:task-queue')) {
+    for (const m of parseSource.matchAll(/<kuro:task-queue\s+([^>]*?)>([\s\S]*?)<\/kuro:task-queue>/g)) {
+      const attrs = m[1];
+      const op = (attrs.match(/op="([^"]*)"/)?.[1] ?? 'create') as ParsedTags['taskQueueActions'][number]['op'];
+      if (!['create', 'update', 'delete'].includes(op)) continue;
+      const id = attrs.match(/id="([^"]*)"/)?.[1];
+      const type = attrs.match(/type="([^"]*)"/)?.[1] as ParsedTags['taskQueueActions'][number]['type'];
+      const status = attrs.match(/status="([^"]*)"/)?.[1] as ParsedTags['taskQueueActions'][number]['status'];
+      const origin = attrs.match(/origin="([^"]*)"/)?.[1];
+      const priorityRaw = attrs.match(/priority="([^"]*)"/)?.[1];
+      const priority = priorityRaw ? parseInt(priorityRaw, 10) : undefined;
+      const verifyRaw = attrs.match(/verify="([^"]*)"/)?.[1];
+      const verify = verifyRaw
+        ? verifyRaw.split(',').map(token => token.trim()).filter(Boolean).map(entry => {
+          const [namePart, statusPart, detailPart] = entry.split(':');
+          const name = (namePart ?? '').trim();
+          const parsedStatus = (statusPart ?? 'unknown').trim();
+          const safeStatus: 'pass' | 'fail' | 'unknown' =
+            parsedStatus === 'pass' || parsedStatus === 'fail' || parsedStatus === 'unknown'
+              ? parsedStatus
+              : 'unknown';
+          const detail = detailPart ? detailPart.trim() : undefined;
+          return { name, status: safeStatus, detail };
+        }).filter(v => v.name.length > 0)
+        : undefined;
+      taskQueueActions.push({
+        op,
+        id,
+        type: type === 'task' || type === 'goal' ? type : undefined,
+        status: status && ['pending', 'in_progress', 'completed', 'abandoned'].includes(status) ? status : undefined,
+        origin,
+        priority: Number.isNaN(priority) ? undefined : priority,
+        verify,
+        title: m[2].trim() || undefined,
+      });
     }
   }
 
@@ -497,6 +540,7 @@ export function parseTags(response: string): ParsedTags {
   const cleanContent = response
     .replace(/<kuro:remember[\s\S]*?<\/kuro:remember>/g, '')
     .replace(/<kuro:task[\s\S]*?<\/kuro:task>/g, '')
+    .replace(/<kuro:task-queue[\s\S]*?<\/kuro:task-queue>/g, '')
     .replace(/<kuro:archive[\s\S]*?<\/kuro:archive>/g, '')
     .replace(/<kuro:show[\s\S]*?<\/kuro:show>/g, '')
     .replace(/<kuro:chat[\s\S]*?<\/kuro:chat>/g, '')
@@ -525,7 +569,7 @@ export function parseTags(response: string): ParsedTags {
   const responseForDetection = response
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
       + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
@@ -536,7 +580,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, cleanContent };
 }
 
 // =============================================================================
@@ -642,7 +686,51 @@ export async function postProcess(
   if (tags.tasks.length > 0) tagsProcessed.push('task');
   for (const t of tags.tasks) {
     await memory.addTask(t.content, t.schedule);
+    createTask({ type: 'task', title: t.content, status: t.schedule ? 'pending' : 'in_progress' });
     eventBus.emit('action:task', { content: t.content });
+  }
+
+  if (tags.taskQueueActions.length > 0) tagsProcessed.push('task-queue');
+  for (const action of tags.taskQueueActions) {
+    if (action.op === 'create' && action.title) {
+      const verify: VerifyResult[] | undefined = action.verify?.map(v => ({
+        ...v,
+        updatedAt: new Date().toISOString(),
+      }));
+      createTask({
+        type: action.type ?? 'task',
+        title: action.title,
+        status: action.status ?? 'pending',
+        verify,
+        origin: action.origin,
+        priority: action.priority,
+      });
+      continue;
+    }
+
+    if (action.op === 'update' && action.id) {
+      const current = loadTaskQueue().find(item => item.id === action.id);
+      const currentGoalMeta = current?.type === 'goal'
+        ? { origin: current.origin, priority: current.priority }
+        : { origin: undefined, priority: undefined };
+      const verifyPatch: VerifyResult[] | undefined = action.verify
+        ? action.verify.map(v => ({ ...v, updatedAt: new Date().toISOString() }))
+        : undefined;
+      updateTask(action.id, {
+        type: action.type ?? current?.type,
+        title: action.title ?? current?.title,
+        status: action.status ?? current?.status,
+        origin: action.origin ?? currentGoalMeta.origin,
+        priority: action.priority ?? currentGoalMeta.priority,
+        verify: verifyPatch ?? current?.verify,
+        staleWarning: undefined,
+      });
+      continue;
+    }
+
+    if (action.op === 'delete' && action.id) {
+      deleteTask(action.id);
+    }
   }
 
   // <kuro:thread> tags
@@ -682,29 +770,62 @@ export async function postProcess(
   }
 
   // <kuro:goal*> tags — goal state machine (fire-and-forget)
+  const findLatestOpenGoal = (title: string): ReturnType<typeof loadTaskQueue>[number] | undefined => {
+    const lowerTitle = title.toLowerCase();
+    const matches = loadTaskQueue()
+      .filter(item =>
+        item.type === 'goal'
+        && (item.status === 'pending' || item.status === 'in_progress')
+        && (item.title.toLowerCase() === lowerTitle || item.title.toLowerCase().includes(lowerTitle) || lowerTitle.includes(item.title.toLowerCase()))
+      )
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return matches[0];
+  };
+
   if (tags.goal) {
     tagsProcessed.push('goal');
     createGoal(tags.goal.description, tags.goal.origin);
+    createTask({
+      type: 'goal',
+      title: tags.goal.description,
+      status: 'in_progress',
+      origin: tags.goal.origin,
+    });
     eventBus.emit('log:info', { tag: 'goal', msg: `created: ${tags.goal.description.slice(0, 80)}` });
   } else if (tags.goalQueue) {
     tagsProcessed.push('goal-queue');
     queueGoal(tags.goalQueue.description, tags.goalQueue.origin, tags.goalQueue.priority);
+    createTask({
+      type: 'goal',
+      title: tags.goalQueue.description,
+      status: 'pending',
+      origin: tags.goalQueue.origin,
+      priority: tags.goalQueue.priority,
+    });
     eventBus.emit('log:info', { tag: 'goal', msg: `queued: ${tags.goalQueue.description.slice(0, 80)}` });
   } else if (tags.goalAdvance) {
     tagsProcessed.push('goal-advance');
     advanceGoalPhase(tags.goalAdvance);
+    const item = findLatestOpenGoal(tags.goalAdvance);
+    if (item) updateTask(item.id, { status: 'in_progress', staleWarning: undefined });
     eventBus.emit('log:info', { tag: 'goal', msg: `phase advanced: ${tags.goalAdvance.slice(0, 80)}` });
   } else if (tags.goalDone) {
     tagsProcessed.push('goal-done');
     completeGoal(tags.goalDone);
+    const item = findLatestOpenGoal(tags.goalDone);
+    if (item) updateTask(item.id, { status: 'completed', staleWarning: undefined });
     eventBus.emit('log:info', { tag: 'goal', msg: `completed: ${tags.goalDone.slice(0, 80)}` });
   } else if (tags.goalAbandon) {
     tagsProcessed.push('goal-abandon');
     abandonGoal(tags.goalAbandon);
+    const item = findLatestOpenGoal(tags.goalAbandon);
+    if (item) updateTask(item.id, { status: 'abandoned', staleWarning: undefined });
     eventBus.emit('log:info', { tag: 'goal', msg: `abandoned: ${tags.goalAbandon.slice(0, 80)}` });
   } else if (tags.goalProgress) {
     tagsProcessed.push('goal-progress');
     progressGoal(tags.goalProgress);
+    const item = findLatestOpenGoal(tags.goalProgress);
+    if (item) updateTask(item.id, { status: 'in_progress', staleWarning: undefined });
   }
 
   // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
