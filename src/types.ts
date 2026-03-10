@@ -320,6 +320,8 @@ export interface ParsedTags {
   schedule?: { next: string; reason: string };
   inner?: string;
   goal?: { description: string; origin?: string };
+  goalQueue?: { description: string; origin?: string; priority?: number };
+  goalAdvance?: string;
   goalProgress?: string;
   goalDone?: string;
   goalAbandon?: string;
