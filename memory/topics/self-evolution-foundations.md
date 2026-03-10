@@ -1,5 +1,7 @@
 # self-evolution-foundations
 
+> **Archived 2026-03-11**: 內容已吸收至 self-healing（error patterns）、web-learning（source diversity）、loop.ts（context budgeting fix 0b78a3a）。保留作為演化軌跡記錄。
+
 - [2026-02-13] 2026-02-13：目前應先做「行為基線觀察」而非立即調 weight。重點監控 no-action 比例與長延遲 claude.call；一週後再調整更穩健。
 - [2026-02-22] 2026-02-23 Error Review 發現：02-21 是災難日（15 errors, 66% no-action），root cause 是 prompt >73K chars。0b78a3a dynamic context budgeting fix 剛部署（02-22 23:32），待驗證。02-22 的 52 次 SIGTERM 是正常 preemption 不是 error。Claude call 平均 202s 仍然很高。
 - [2026-02-22] 2026-02-23 Error Review：02-21 災難日（15 TIMEOUT，prompt >73K chars）→ 02-22 恢復（2 errors，↓87%）。0b78a3a dynamic context budgeting fix 有效。殘餘問題：avg call 200s（61% >120s），x-perception.sh 偶爾 crash。下次 review 重點：monitoring context budgeting 是否持續降低 avg duration。
