@@ -492,6 +492,16 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // <kuro:understand> tags — understanding entries for cognitive graph
+  const understands: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
+  if (parseSource.includes('<kuro:understand')) {
+    for (const m of parseSource.matchAll(/<kuro:understand(?:\s+refs="([^"]*)")?(?:\s+tags="([^"]*)")?>([\s\S]*?)<\/kuro:understand>/g)) {
+      const refs = m[1] ? m[1].split(',').map(s => s.trim()).filter(Boolean) : [];
+      const tags = m[2] ? m[2].split(',').map(s => s.trim()).filter(Boolean) : undefined;
+      understands.push({ content: m[3].trim(), refs, tags });
+    }
+  }
+
   // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
   const delegates: DelegateRequest[] = [];
   if (parseSource.includes('<kuro:delegate')) {
@@ -571,6 +581,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:goal-progress>[\s\S]*?<\/kuro:goal-progress>/g, '')
     .replace(/<kuro:goal-done>[\s\S]*?<\/kuro:goal-done>/g, '')
     .replace(/<kuro:goal-abandon>[\s\S]*?<\/kuro:goal-abandon>/g, '')
+    .replace(/<kuro:understand[\s\S]*?<\/kuro:understand>/g, '')
     .trim();
 
   // Fuzzy detection — warn on malformed tags (open without matching close)
@@ -589,7 +600,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, cleanContent };
 }
 
 // =============================================================================
@@ -740,6 +751,20 @@ export async function postProcess(
     if (action.op === 'delete' && action.id) {
       deleteMemoryIndexEntry(memoryDir, action.id).catch(() => {});
     }
+  }
+
+  // <kuro:understand> tags — understanding entries for cognitive graph
+  if (tags.understands.length > 0) tagsProcessed.push('understand');
+  for (const u of tags.understands) {
+    appendMemoryIndexEntry(memoryDir, {
+      type: 'understanding',
+      status: 'active',
+      summary: u.content.length > 200 ? u.content.slice(0, 197) + '...' : u.content,
+      refs: u.refs,
+      tags: u.tags,
+      payload: u.content.length > 200 ? { full: u.content } : undefined,
+    }).catch(() => {}); // fire-and-forget
+    slog('UNDERSTAND', `${u.content.slice(0, 80)}...`);
   }
 
   // <kuro:thread> tags

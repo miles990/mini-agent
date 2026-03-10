@@ -335,6 +335,7 @@ export interface ParsedTags {
   goalProgress?: string;
   goalDone?: string;
   goalAbandon?: string;
+  understands: Array<{ content: string; refs: string[]; tags?: string[] }>;
   cleanContent: string;
 }
 
