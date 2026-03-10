@@ -1181,7 +1181,7 @@ export async function notifyTelegram(message: string, replyToMessageId?: number)
  * Streaming Telegram 通知 — 透過 sendMessageDraft 漸進式顯示，最後 sendMessage 定稿。
  * 短訊息（≤4096 chars）作為一則統一流式發送；長訊息分段各自流式。
  */
-export async function notifyTelegramStreaming(
+async function notifyTelegramStreaming(
   message: string,
   options?: { chunkDelay?: number; replyToMessageId?: number }
 ): Promise<boolean> {
@@ -1353,23 +1353,6 @@ export function flushSummary(): string | null {
   return digest;
 }
 
-/**
- * 發送圖片到 Telegram（使用 TelegramPoller.sendPhoto）
- */
-export async function sendTelegramPhoto(photoPath: string, caption?: string): Promise<boolean> {
-  const poller = pollerInstance;
-  if (!poller) return false;
-
-  const result = await poller.sendPhoto(photoPath, caption);
-  if (result.ok) {
-    notifSent++;
-    return true;
-  }
-
-  slog('TELEGRAM', `sendPhoto failed: ${result.error}`);
-  notifFailed++;
-  return false;
-}
 
 /** Get the Telegram message_id of Alex's last message (for reply threading) */
 export function getLastAlexMessageId(): number | null {

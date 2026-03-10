@@ -390,7 +390,7 @@ const flagCache = new Map<string, { content: string | null; mtime: number }>();
 const FLAG_CACHE_TTL = 60_000; // 60s
 
 /** Read a small flag file with 60s TTL cache. Returns trimmed content or null. */
-export function readFlagCached(flagPath: string): string | null {
+function readFlagCached(flagPath: string): string | null {
   const cached = flagCache.get(flagPath);
   if (cached && Date.now() - cached.mtime < FLAG_CACHE_TTL) return cached.content;
   try {
@@ -2783,7 +2783,7 @@ export interface TrailEntry {
 }
 
 /** Deduplicate trail entries: merge same pattern >3 times into single entry with count */
-export function deduplicateTrailEntries(entries: TrailEntry[]): TrailEntry[] {
+function deduplicateTrailEntries(entries: TrailEntry[]): TrailEntry[] {
   if (entries.length <= 3) return entries;
 
   // Group by pattern key: agent + type + decision
