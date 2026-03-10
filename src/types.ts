@@ -417,19 +417,6 @@ export interface PerspectiveConfig {
   maxConcurrent: number;           // max instances with this perspective
 }
 
-/** Scaling configuration from compose v2 */
-export interface ScalingCompose {
-  max_instances?: number;
-  idle_timeout?: string;          // "5m", "30s"
-  min_task_duration?: string;     // "30s"
-}
-
-/** Compose v2 agent with perspectives */
-export interface ComposeAgentV2 extends ComposeAgent {
-  perspectives?: Record<string, PerspectiveConfig>;
-  scaling?: ScalingCompose;
-}
-
 /** Mesh task output — written by Specialists, read by Primary */
 export interface MeshTaskOutput {
   taskId: string;

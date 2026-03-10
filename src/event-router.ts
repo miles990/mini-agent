@@ -71,14 +71,6 @@ export interface LoopState {
   perceptionChanged: boolean;
 }
 
-/** Priority SLA — 每個等級的處理時限（cycles） */
-export const PRIORITY_SLA: Record<Priority, number> = {
-  [Priority.P0]: 0,
-  [Priority.P1]: 1,
-  [Priority.P2]: 3,
-  [Priority.P3]: 10,
-};
-
 // =============================================================================
 // Deterministic Router (Phase 1)
 // =============================================================================
