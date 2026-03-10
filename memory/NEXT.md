@@ -23,6 +23,8 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
+- [ ] P1: 回覆 Alex: "還有看到看到這個 https://github.com/karpathy/nanochat  URLs: - https://github.com/karpathy/nanochat" (收到: 2026-03-10T17:32:43)
+- [ ] P1: 回覆 Alex: "這個也很有意思 可能會對你學習新知識有幫助 https://x.com/ihtesham2005/status/2030214970353602806  URLs: - https://x.com/i" (收到: 2026-03-10T17:33:43)
 ---
 
 ## Later（有空再做）
