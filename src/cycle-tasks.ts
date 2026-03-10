@@ -233,9 +233,9 @@ export async function resolveStaleConversationThreads(actionText?: string): Prom
     return candidates.some(id => inboxContent.includes(id));
   };
 
-  // Rule 0: Auto-resolve threads whose URL was referenced in this cycle's action.
+  // Rule 0: Auto-resolve threads whose URL was referenced in this cycle's response.
   // Fixes: Telegram share threads being re-answered every cycle because they lack
-  // a "replied" marker. If the action text contains the thread's URL, it's been addressed.
+  // a "replied" marker. If the full response contains the thread's URL, it's been addressed.
   if (actionText) {
     const urlsInAction: string[] = actionText.match(/https?:\/\/[^\s<>"]+/g) ?? [];
     for (const t of threads) {
@@ -243,6 +243,24 @@ export async function resolveStaleConversationThreads(actionText?: string): Prom
       if (toResolve.includes(t.id)) continue;
       const urlsInThread: string[] = t.content.match(/https?:\/\/[^\s<>"]+/g) ?? [];
       if (urlsInThread.some(u => urlsInAction.includes(u))) {
+        toResolve.push(t.id);
+      }
+    }
+  }
+
+  // Rule 0.5: When Kuro chatted this cycle, auto-resolve old telegram share/question threads.
+  // These threads lack a "replied" marker (no roomMsgId), so Rule 1 can't catch them.
+  // If Kuro produced <kuro:chat> in this cycle, it likely addressed the share visible in context.
+  const SHARE_CHAT_RESOLVE_AGE_MS = 30 * 60 * 1000; // 30min — don't resolve brand-new shares
+  if (actionText && /<kuro:chat>/.test(actionText)) {
+    for (const t of threads) {
+      if (t.resolvedAt) continue;
+      if (toResolve.includes(t.id)) continue;
+      if (t.source?.startsWith('room:')) continue; // room threads have their own rules (Rule 1/3)
+      if (t.source === 'kuro:ask') continue; // ask threads wait for Alex
+      if (t.type !== 'share' && t.type !== 'question') continue;
+      const ageMs = now - new Date(t.createdAt).getTime();
+      if (ageMs >= SHARE_CHAT_RESOLVE_AGE_MS) {
         toResolve.push(t.id);
       }
     }
@@ -260,19 +278,23 @@ export async function resolveStaleConversationThreads(actionText?: string): Prom
   }
 
   // Rule 2: Auto-expire unanswered threads older than TTL.
-  // - Non-room threads: 24h TTL
+  // - Telegram share/question threads: 2h TTL (Kuro should respond within a few cycles)
+  // - Other non-room threads: 24h TTL
   // - Room threads: 4h TTL (shorter — room conversations are ephemeral)
   // Exceptions:
   // - 'kuro:ask' threads — Alex may take days to reply
   // - Threads pinned by inbox message references (id/roomMsgId)
   const ROOM_TTL_MS = 4 * 60 * 60 * 1000; // 4h — room threads are conversational, shouldn't linger
+  const TELEGRAM_SHARE_TTL_MS = 2 * 60 * 60 * 1000; // 2h — safety net for shares not caught by Rule 0/0.5
   for (const t of threads) {
     if (t.resolvedAt) continue;
     if (toResolve.includes(t.id)) continue;
     if (t.source === 'kuro:ask') continue;
     if (isPinnedByInbox(t)) continue;
     const ageMs = now - new Date(t.createdAt).getTime();
-    const ttl = t.source?.startsWith('room:') ? ROOM_TTL_MS : PENDING_TTL_MS;
+    const isRoom = t.source?.startsWith('room:');
+    const isTelegramShare = !isRoom && (t.type === 'share' || t.type === 'question');
+    const ttl = isRoom ? ROOM_TTL_MS : isTelegramShare ? TELEGRAM_SHARE_TTL_MS : PENDING_TTL_MS;
     if (ageMs > ttl) {
       toResolve.push(t.id);
     }
