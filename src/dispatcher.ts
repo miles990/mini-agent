@@ -20,6 +20,7 @@ import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, Delegati
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
+import { addIndexEntry } from './memory-index.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -616,6 +617,9 @@ export async function postProcess(
     } else {
       await memory.appendMemory(rem.content);
     }
+
+    // Update memory index (fire-and-forget)
+    addIndexEntry(memory.getMemoryDir(), rem.content, rem.topic).catch(() => {});
 
     // Learning→Perception classifier: categorize + log actionable items
     const category = classifyRemember(rem.content, rem.topic);
