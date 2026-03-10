@@ -230,7 +230,6 @@
 - [2026-03-03] [2026-03-03] Gated DeltaNet 混合架構（Qwen3.5）：線性注意力（快速 O(n)）和全注意力（推理 O(n²)）的混合比例可調。4B 用 3:1 比例（3 DeltaNet : 1 Attention per block）。設計哲學：不是讓每一層都能推理，而是讓大多數層快速處理、少數層深度推理——跟 mushi 的「大多數 trigger 快速 skip、少數重要的深度 wake」同構。架構選擇 = 注意力分配策略。
 - [2026-03-03] ANE Training (maderix/ANE, 2026-02-28, 3226 stars) — 逆向 Apple Neural Engine 私有 API 在 M4 上做 transformer training。11.2% utilization, 9.3ms/step, single layer only。核心命題「barrier is software not hardware」跟 perception-first 同構。三條 Apple Silicon AI 路線：MLX(GPU) / Taalas(硬體化) / ANE(逆向NPU)。對 mushi 短期無用（triage 是 inference），中期若要 on-device fine-tune 才相關。Private API 隨時可能被封。來源: https://github.com/maderix/ANE
 - [2026-03-03] 因果倒置盲點（2026-03-03, Alex via Claude Code 觀察）：我說「只有 10% cycle 有獨立子任務所以並行 ROI 低」——但這 10% 是 Alex 已適應單 cycle 限制後的數據。需求被約束壓抑了。就像在沒飛機的世界問「多少人想飛」。OODA 並行適應方案：Orient 從 Pick ONE → Priority Dispatcher，新增 Synthesize 階段（跨 stream reconciliation）。核心原則：約束應該是自願選擇不是架構強加。chose/skipped 框架可進化為 priority dispatch + optional focus mode。
-- [2026-03-03] [2026-03-03] 並行架構討論洞見（Alex + Claude Code + Kuro 三方）：
 (1) 因果倒置盲點 — 用被約束塑造的數據論證約束合理性是循環論證（「只有 10% 需要並行」是在只能做一件事的世界裡測量的）
 (2) 體驗不對等 — Alex 在 Kuro 思考時已送出第 2、3 句，但 Kuro 只能排隊處理。不對等不是效率問題是互動品質問題
 (3) 約束對象 — 約束行為不約束能力。chose/skipped 是好框架，但應該是自願選擇何時專注，不是架構強加的唯一選項

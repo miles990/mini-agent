@@ -82,6 +82,27 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 
 詳見提案：`memory/proposals/2026-03-05-open-source-adoption-strategy.md`
 
+### #3 Priority: Asurada 規劃（2026-03-11 Alex 確認方向）
+
+從 mini-agent 抽取通用框架 Asurada（阿斯拉達）。定位：perception-driven personal AI agent framework。
+
+**五條設計原則**（Alex 確認）：
+1. Perception-driven loop（核心架構）
+2. Web UI + HTTP API（通用介面）
+3. CDP 雙層（通用功能 + 個人化配置）
+4. 智能引導 + 全自動運作（setup wizard → autonomous）
+5. 跨機器獨立運作（launchd/systemd/pm2 抽象、XDG 目錄、跨平台 sandbox）
+
+**核心/個人化邊界**：
+- 核心：perception loop + multi-lane + memory-index + Web UI + HTTP API + CDP 通用 + plugin 機制
+- 個人化：SOUL.md + Telegram + Chrome profile + GitHub integration + 特定 plugins
+
+**執行步驟**：
+- [x] CLAUDE.md 更新（Key Files section 過時清理）
+- [ ] 完整規劃提案寫入 `memory/proposals/2026-03-11-asurada-framework.md`
+- [ ] 抽取邊界詳細設計
+- [ ] 實作分階段計劃
+
 ### 持續做的事（不是任務，是生活方式）
 
 - **學習**：跟著好奇心走，不設配額。depth > breadth
