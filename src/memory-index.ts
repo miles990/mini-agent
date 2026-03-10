@@ -498,8 +498,14 @@ export async function detectAndRecordCommitments(
   response: string,
   tags: ParsedTags,
 ): Promise<number> {
+  // When tracking tags present, resolve matching active commitments instead of creating new ones
+  if (hasTrackingTags(tags)) {
+    await resolveActiveCommitments(memoryDir, response);
+    return 0;
+  }
+
   const commitments = extractCommitments(response);
-  if (commitments.length === 0 || hasTrackingTags(tags)) return 0;
+  if (commitments.length === 0) return 0;
 
   const existing = queryMemoryIndexSync(memoryDir, {
     type: 'commitment',
@@ -533,6 +539,30 @@ export async function detectAndRecordCommitments(
   }
 
   return added;
+}
+
+/**
+ * Resolve active commitments that keyword-match the response.
+ * Called when tracking tags are present — Kuro converted commitments to tracked execution.
+ */
+async function resolveActiveCommitments(memoryDir: string, response: string): Promise<void> {
+  const active = queryMemoryIndexSync(memoryDir, { type: 'commitment', status: 'active' });
+  if (active.length === 0) return;
+
+  const responseWords = new Set(
+    response.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, ' ').split(' ').filter(w => w.length > 1),
+  );
+
+  for (const entry of active) {
+    const words = (entry.summary ?? '').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, ' ').split(' ').filter(w => w.length > 1);
+    if (words.length === 0) continue;
+    const overlap = words.filter(w => responseWords.has(w)).length;
+    // Resolve if ≥30% keywords match (min 1 for short commitments)
+    if (overlap >= Math.max(1, Math.floor(words.length * 0.3))) {
+      await updateMemoryIndexEntry(memoryDir, entry.id, { status: 'resolved' });
+      slog('COMMIT', `Resolved: "${entry.summary}" (${overlap}/${words.length} keywords matched)`);
+    }
+  }
 }
 
 export function buildCommitmentSection(memoryDir: string): string {
