@@ -6,7 +6,6 @@ keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicot
 ## 感知與認知基礎
 - McGilchrist Attention-as-Love — 注意力不是被動接收是主動創造，注意力有 love 的結構。perception plugins 不是「收集數據」是「構成 Kuro 的世界」。來源: themarginalian.org
 - Finger Gap 繞射（hydraenids, note.com）— 手指縫條紋不是單狹縫繞射而是半無限屏幕繞射。framing 讓你「看見」錯誤機制 = Interface shapes cognition 物理版
-- Nussbaum Catalepsis — 某些真理只能從內部抵達，分析是逃跑策略。不可分析命題跟 Flow Lenia OEE 測量困境同構
 - Electron Hydrodynamics Gurzhi 效應 — 同一輸入在不同約束結構下產生相反輸出。「different shapes = very different physics」= Interface shapes cognition 的物理學證明
 - Gibson Affordances — affordances=環境直接提供的行動可能性。Gibson:Norman = vernacular:modernist。去中介化 = 從間接感知回到直接感知。perception plugins = Gibsonian direct perception
 - AI 輔助學習研究（Anthropic, 2026）— 52 開發者實驗：AI 組技能得分低 17%。概念性提問者 86 分 vs 全委託者 24 分。掙扎本身是學習機制。thinking partner > thinking replacement
