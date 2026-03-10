@@ -13,6 +13,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { withFileLock } from './filelock.js';
+import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createHash } from 'node:crypto';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getCurrentInstanceId } from './instance.js';
@@ -91,7 +92,6 @@ export async function metabolismScan(): Promise<void> {
 // Phase 1: Pattern Detection — 吸收 + 內化
 // =============================================================================
 
-const MUSHI_DEDUP_URL = 'http://localhost:3000/api/dedup';
 
 interface SimilarityResult {
   isDuplicate: boolean;

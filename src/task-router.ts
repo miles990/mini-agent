@@ -12,6 +12,7 @@
  */
 
 import { getNeighborHeartbeats } from './instance.js';
+import { MUSHI_ROUTE_URL } from './mushi-client.js';
 import type { InstanceHeartbeat } from './types.js';
 
 // =============================================================================
@@ -266,7 +267,6 @@ export function getClusterState(opts: {
 // mushi Integration (Phase 5) — Lightweight Routing Coordinator
 // =============================================================================
 
-const MUSHI_ROUTE_URL = 'http://localhost:3000/api/route';
 
 interface MushiRouteResponse {
   route: RouteAction;

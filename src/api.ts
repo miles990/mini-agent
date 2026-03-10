@@ -27,6 +27,7 @@ import {
   findCitedBy,
 } from './memory.js';
 import { getConfig, updateConfig, resetConfig, DEFAULT_CONFIG } from './config.js';
+import { MUSHI_HEALTH_URL } from './mushi-client.js';
 import {
   getInstanceManager,
   loadInstanceConfig,
@@ -720,7 +721,7 @@ export function createApi(port = 3001): express.Express {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 2000);
-      const mushiRes = await fetch('http://localhost:3000/health', { signal: ctrl.signal });
+      const mushiRes = await fetch(MUSHI_HEALTH_URL, { signal: ctrl.signal });
       clearTimeout(timer);
       if (mushiRes.ok) mushi = await mushiRes.json() as Record<string, unknown>;
     } catch { /* mushi offline — ok */ }

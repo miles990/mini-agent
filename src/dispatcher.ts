@@ -18,6 +18,7 @@ import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
+import { MUSHI_DEDUP_URL } from './mushi-client.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -150,7 +151,6 @@ export async function logPendingImprovement(entry: {
 // Mushi Dedup — REMEMBER 寫入前查重（fail-open）
 // =============================================================================
 
-const MUSHI_DEDUP_URL = 'http://localhost:3000/api/dedup';
 
 async function mushiDedup(
   text: string,

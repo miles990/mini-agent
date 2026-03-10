@@ -6,8 +6,12 @@
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 
-const MUSHI_TRIAGE_URL = 'http://localhost:3000/api/triage';
-const MUSHI_CONTINUATION_URL = 'http://localhost:3000/api/continuation-check';
+export const MUSHI_BASE_URL = 'http://localhost:3000';
+export const MUSHI_TRIAGE_URL = `${MUSHI_BASE_URL}/api/triage`;
+export const MUSHI_CONTINUATION_URL = `${MUSHI_BASE_URL}/api/continuation-check`;
+export const MUSHI_DEDUP_URL = `${MUSHI_BASE_URL}/api/dedup`;
+export const MUSHI_ROUTE_URL = `${MUSHI_BASE_URL}/api/route`;
+export const MUSHI_HEALTH_URL = `${MUSHI_BASE_URL}/health`;
 
 // ── Triage ──────────────────────────────────────────────────────────────────
 
