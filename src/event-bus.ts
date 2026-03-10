@@ -120,20 +120,6 @@ export function debounce<A extends unknown[]>(
   return debounced;
 }
 
-export function throttle<A extends unknown[]>(
-  fn: (...args: A) => void,
-  ms: number,
-): (...args: A) => void {
-  let last = 0;
-  return (...args: A): void => {
-    const now = Date.now();
-    if (now - last >= ms) {
-      last = now;
-      fn(...args);
-    }
-  };
-}
-
 export function distinctUntilChanged<T>(
   hashFn: (value: T) => string,
 ): (value: T) => boolean {

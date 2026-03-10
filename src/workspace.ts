@@ -12,7 +12,6 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { diagLog } from './utils.js';
-import { eventBus, debounce } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -732,25 +731,3 @@ export function formatActivitySummary(summary: ActivitySummary): string {
 // #8 Workspace Change Detection (Event Bus integration)
 // =============================================================================
 
-let lastGitDiff: string | null = null;
-
-/**
- * 檢查 workspace 是否有變化（git diff），有變化時 emit trigger:workspace
- * 使用 debounce 防止連續觸發（30s）
- */
-export const emitWorkspaceChange = debounce((cwd?: string): void => {
-  const dir = cwd || process.cwd();
-  try {
-    const diff = execFileSync('git', ['diff', '--stat', 'HEAD'], {
-      cwd: dir, encoding: 'utf-8', timeout: 3000,
-    }).trim();
-
-    if (diff && diff !== lastGitDiff) {
-      const fileCount = diff.split('\n').length - 1; // last line is summary
-      lastGitDiff = diff;
-      eventBus.emit('trigger:workspace', { files: fileCount, diff: diff.slice(0, 200) });
-    }
-  } catch {
-    // git not available or not a repo — silent
-  }
-}, 30_000);

@@ -155,7 +155,7 @@ export function formatPerceptionResults(
  * 載入 Markdown skill 檔案
  * 檔名即 skill 名稱，內容直接注入 system prompt
  */
-export function loadSkill(skillPath: string, cwd?: string): { name: string; content: string } | null {
+function loadSkill(skillPath: string, cwd?: string): { name: string; content: string } | null {
   const resolved = path.isAbsolute(skillPath)
     ? skillPath
     : path.resolve(cwd ?? process.cwd(), skillPath);
