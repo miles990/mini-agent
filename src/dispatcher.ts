@@ -21,6 +21,7 @@ import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 import { addIndexEntry } from './memory-index.js';
+import { detectAndRecordCommitmentGaps } from './commitment-gate.js';
 
 // =============================================================================
 // Remember Classifier — Learning→Perception 自動閉環 Phase 1
@@ -739,25 +740,12 @@ export async function postProcess(
     }
   }
 
-  // 4. Commitment safety net — detect untracked action promises in chat
-  // Previous ConversationThread-based tracking was too noisy (「讓我/我會」triggered broadly).
-  // This lighter approach: auto-append to inner-notes when chat contains strong commitment
-  // language but no delegate/task/inner tag was produced. Next cycle sees it in <inner_notes>.
-  if (tags.chats.length > 0 && !tagsProcessed.includes('delegate') && !tagsProcessed.includes('task') && !tagsProcessed.includes('inner')) {
-    const commitmentPattern = /我現在就|現在就去|馬上(?:去|做|處理|申請)|立刻(?:去|做|處理)|我[^\n]{0,6}開始(?:處理|做|申請)/;
-    const untracked = tags.chats.find(c => commitmentPattern.test(c.text));
-    if (untracked) {
-      const commitment = untracked.text.slice(0, 200);
-      const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-      // Append commitment to existing inner-notes (don't overwrite)
-      const existing = await fs.readFile(innerPath, 'utf-8').catch(() => '');
-      const marker = `\n\n⚠ PENDING COMMITMENT (auto-detected): ${commitment}`;
-      if (!existing.includes(commitment.slice(0, 50))) {
-        await fs.writeFile(innerPath, existing + marker, 'utf-8').catch(() => {});
-        slog('COMMIT', `Untracked commitment detected in chat — auto-saved to inner-notes`);
-      }
-    }
-  }
+  // 4. Commitment Gate — fire-and-forget tracking for untagged commitments
+  detectAndRecordCommitmentGaps(response, tags)
+    .then((added) => {
+      if (added > 0) slog('COMMIT', `Detected ${added} untracked commitment(s)`);
+    })
+    .catch(() => {});
 
   // 5. Log call
   logger.logClaudeCall(

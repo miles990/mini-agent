@@ -14,6 +14,7 @@ import { parseBehaviorConfig } from './cycle-tasks.js';
 import type { BehaviorConfig } from './cycle-tasks.js';
 import { eventBus } from './event-bus.js';
 import { buildGoalSection } from './goal-state.js';
+import { buildCommitmentGateSection } from './commitment-gate.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -303,9 +304,11 @@ export async function buildAutonomousPrompt(
 
   // Goal section — injected first (highest priority when active)
   const goalSection = buildGoalSection();
+  const commitmentGateSection = buildCommitmentGateSection();
 
   const parts = [base];
   if (goalSection) parts.push(goalSection);
+  if (commitmentGateSection) parts.push(commitmentGateSection);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);

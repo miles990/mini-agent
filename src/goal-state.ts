@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
 import { slog } from './utils.js';
+import { clearCommitmentGapsForGoal } from './commitment-gate.js';
 
 /** Goal execution phases — the lifecycle every goal follows */
 export type GoalPhase =
@@ -132,6 +133,10 @@ export function createGoal(description: string, origin?: string): ActiveGoal {
   };
 
   state.active = goal;
+  const cleared = clearCommitmentGapsForGoal(description);
+  if (cleared > 0) {
+    slog('COMMIT', `Cleared ${cleared} commitment gap(s) for goal: ${description.slice(0, 60)}`);
+  }
 
   // Remove from queue if it was queued
   state.queue = state.queue.filter(q => q.description !== description);
