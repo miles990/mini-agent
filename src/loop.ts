@@ -199,9 +199,9 @@ export class AgentLoop {
 
   // ── Direct Message Wake (trigger loop cycle on direct messages: telegram, room, chat) ──
   private directMessageWakeQueue = 0;
-  private lastTelegramWake = 0;
+  private lastDMWake = 0;
   private busyRetryCount = 0;
-  private static readonly TELEGRAM_WAKE_THROTTLE = 5_000;        // 5s throttle
+  private static readonly DM_WAKE_THROTTLE = 5_000;              // 5s throttle for all DM sources
 
   // ── Cooperative Yield (Layer 3) ──
   private pendingPriority: { reason: string; arrivedAt: number; messageCount: number } | null = null;
@@ -246,10 +246,11 @@ export class AgentLoop {
     const now = Date.now();
     const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
 
-    // Source-specific throttle (preserves existing behavior)
-    if (source === 'telegram' && priority === Priority.P0) {
-      if (now - this.lastTelegramWake < AgentLoop.TELEGRAM_WAKE_THROTTLE) return;
-      this.lastTelegramWake = now;
+    // Source-specific throttle for all DM sources (telegram, room, chat)
+    // Prevents rapid burst of messages from cascading into multiple cycles
+    if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(source) && priority === Priority.P0) {
+      if (now - this.lastDMWake < AgentLoop.DM_WAKE_THROTTLE) return;
+      this.lastDMWake = now;
     }
 
     const event = createEvent(source, priority, null, agentEvent.data);
