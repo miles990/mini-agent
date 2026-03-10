@@ -537,6 +537,8 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:inner>[\s\S]*?<\/kuro:inner>/g, '')
     .replace(/<kuro:check>[\s\S]*?<\/kuro:check>/g, '')
     .replace(/<kuro:goal(?:\s[^>]*)?>[\s\S]*?<\/kuro:goal>/g, '')
+    .replace(/<kuro:goal-queue(?:\s[^>]*)?>[\s\S]*?<\/kuro:goal-queue>/g, '')
+    .replace(/<kuro:goal-advance>[\s\S]*?<\/kuro:goal-advance>/g, '')
     .replace(/<kuro:goal-progress>[\s\S]*?<\/kuro:goal-progress>/g, '')
     .replace(/<kuro:goal-done>[\s\S]*?<\/kuro:goal-done>/g, '')
     .replace(/<kuro:goal-abandon>[\s\S]*?<\/kuro:goal-abandon>/g, '')
@@ -558,7 +560,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalProgress, goalDone, goalAbandon, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, cleanContent };
 }
 
 // =============================================================================
