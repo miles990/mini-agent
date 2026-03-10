@@ -492,6 +492,16 @@ export function parseTags(response: string): ParsedTags {
     const match = parseSource.match(/<kuro:goal(?:\s+origin="([^"]*)")?>([\s\S]*?)<\/kuro:goal>/);
     if (match) goal = { description: match[2].trim(), origin: match[1] || undefined };
   }
+  let goalQueue: { description: string; origin?: string; priority?: number } | undefined;
+  if (parseSource.includes('<kuro:goal-queue>') || parseSource.includes('<kuro:goal-queue ')) {
+    const match = parseSource.match(/<kuro:goal-queue(?:\s+origin="([^"]*)")?(?:\s+priority="([^"]*)")?>([\s\S]*?)<\/kuro:goal-queue>/);
+    if (match) goalQueue = { description: match[3].trim(), origin: match[1] || undefined, priority: match[2] ? parseInt(match[2], 10) : undefined };
+  }
+  let goalAdvance: string | undefined;
+  if (parseSource.includes('<kuro:goal-advance>')) {
+    const match = parseSource.match(/<kuro:goal-advance>([\s\S]*?)<\/kuro:goal-advance>/);
+    if (match) goalAdvance = match[1].trim();
+  }
   let goalProgress: string | undefined;
   if (parseSource.includes('<kuro:goal-progress>')) {
     const match = parseSource.match(/<kuro:goal-progress>([\s\S]*?)<\/kuro:goal-progress>/);
