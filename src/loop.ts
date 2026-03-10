@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, bumpLoopGeneration } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, bumpLoopGeneration } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -64,7 +64,7 @@ import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProces
 import {
   parseBehaviorConfig, parseInterval,
   checkApprovedProposals, resolveStaleConversationThreads,
-  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitCodeFiles, autoCommitExternalRepos,
+  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos,
   markNextItemsDone, writeContextSnapshot,
 } from './cycle-tasks.js';
 import type { BehaviorConfig, BehaviorMode } from './cycle-tasks.js';
@@ -208,7 +208,7 @@ export class AgentLoop {
   // ── Cooperative Yield (Layer 3) ──
   private pendingPriority: { reason: string; arrivedAt: number; messageCount: number } | null = null;
   private safetyValveTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly SAFETY_VALVE_TIMEOUT = 300_000; // 5min
+  private static readonly SAFETY_VALVE_TIMEOUT = 90_000; // 90s — P0 = human waiting, can't wait 5min
 
   // ── Interrupt storm guard (Layer 2) ──
   private lastPriorityDrainAt = 0;
@@ -352,7 +352,12 @@ export class AgentLoop {
    * The foreground lane has its own busy tracking in agent.ts, independent of the loop lane.
    */
   private async foregroundReply(source: string, text: string, replyTo?: string, opts?: { quiet?: boolean }): Promise<void> {
-    if (isForegroundBusy()) return; // one at a time — tracked by agent.ts
+    if (isForegroundBusy()) {
+      // Abort stale foreground if it's been running > 30s — make room for new P0
+      abortForeground();
+      // Small delay for process cleanup
+      await new Promise(r => setTimeout(r, 500));
+    }
 
     // Snapshot pending telegram messages for content-based reply matching
     const telegramMsgs = snapshotTelegramMsgs();
@@ -995,7 +1000,6 @@ export class AgentLoop {
           .then(() => {
             try { getMemory().updateConversationSearchIndex(); } catch { /* best effort */ }
           })
-          .then(() => autoCommitCodeFiles())
           .then(() => autoCommitExternalRepos())
           .then(() => {
             if (isEnabled('auto-push')) {
@@ -1919,7 +1923,6 @@ export class AgentLoop {
           .then(() => {
             try { memory.updateConversationSearchIndex(); } catch { /* best effort */ }
           })
-          .then(() => autoCommitCodeFiles())
           .then(() => autoCommitExternalRepos())
           .then(() => {
             done();

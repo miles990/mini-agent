@@ -221,6 +221,19 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
   return { preempted: true, partialOutput: partial };
 }
 
+/** Abort foreground lane — kill running foreground process to make room for new P0 */
+export function abortForeground(): boolean {
+  if (!foregroundBusy || !foregroundChildPid) return false;
+  const pid = foregroundChildPid;
+  try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
+  setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 3000);
+  foregroundBusy = false;
+  foregroundTask = null;
+  foregroundChildPid = null;
+  slog('PREEMPT', `Aborted foreground process (pid: ${pid}) for incoming P0`);
+  return true;
+}
+
 /** Bump generation without kill — for safety valve when process is in retry backoff */
 export function bumpLoopGeneration(): void {
   loopGeneration++;
