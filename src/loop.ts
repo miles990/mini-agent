@@ -1038,7 +1038,7 @@ export class AgentLoop {
       // ── Task Routing (Cognitive Mesh Phase 3) ──
       // Evaluate routing decision. If specialists exist and task is parallelizable,
       // route to them instead of handling here.
-      if (isEnabled('cognitive-mesh') && this.triggerReason) {
+      if (isEnabled('cognitive-mesh') && this.triggerReason && !this.hasPendingWork()) {
         const meshRouteDone = trackStart('cognitive-mesh');
         const clusterState = getClusterState({
           primaryBusy: this.cycling,
