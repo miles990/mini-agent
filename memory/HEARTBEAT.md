@@ -70,7 +70,7 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 - [x] examples/ 目錄（3 個 quickstart）— minimal, code-watcher, journal (792e5fe)
 - [x] install.sh 改善（不需預裝 pnpm）— 完成，Alex 說先不管
 - [ ] Dev.to 介紹文「I built a perception-driven AI agent framework」
-- [ ] 提交 awesome-selfhosted + awesome-ai-agents
+- [x] 提交 awesome-ai-agents — PR #431 已建立（https://github.com/e2b-dev/awesome-ai-agents/pull/431）。awesome-selfhosted 明確排除 frameworks，不適用
 
 **長期（季度）**
 - [ ] Show HN + Reddit + X 協調發佈
