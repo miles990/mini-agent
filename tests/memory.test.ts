@@ -129,13 +129,7 @@ describe('InstanceMemory', () => {
       expect(daily).toContain('(alex) Test message');
     });
 
-    it('should clear hot buffer', async () => {
-      await memory.appendConversation('user', 'Hello');
-      expect(memory.getHotConversations()).toHaveLength(1);
-
-      memory.clearHotBuffer();
-      expect(memory.getHotConversations()).toHaveLength(0);
-    });
+    // clearHotBuffer was removed (dead code cleanup)
   });
 
   describe('searchMemory', () => {

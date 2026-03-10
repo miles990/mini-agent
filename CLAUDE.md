@@ -68,7 +68,7 @@ Perception (See)  +  Skills (Know How)  +  Claude CLI (Execute)
 
 **Infrastructure**: `src/event-bus.ts`, `src/event-router.ts`, `src/telegram.ts`, `src/instance.ts`, `src/compose.ts`, `src/cron.ts`, `src/search.ts`, `src/mode.ts`, `src/mcp-server.ts`（config: `mcp-agent.json`）
 
-**Subsystems**: `src/feedback-loops.ts`, `src/achievements.ts`, `src/coach.ts`, `src/delegation.ts`, `src/github.ts`, `src/hesitation.ts`, `src/triage.ts`, `src/verify.ts`
+**Subsystems**: `src/feedback-loops.ts`, `src/achievements.ts`, `src/coach.ts`, `src/delegation.ts`, `src/github.ts`, `src/goal-state.ts`, `src/hesitation.ts`, `src/triage.ts`, `src/verify.ts`
 
 **Cognitive Mesh**: `src/ipc-bus.ts`, `src/task-router.ts`, `src/scaling.ts`, `src/mesh-handler.ts`, `src/perspective.ts`, `src/consensus.ts`, `src/memory-cache.ts`, `src/filelock.ts`
 
@@ -459,6 +459,10 @@ Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處
 | `<kuro:delegate type="..." workdir="...">...</kuro:delegate>` | 委派背景子任務（type: code/learn/research/create/review） | — |
 | `<kuro:archive url="..." title="...">...</kuro:archive>` | 歸檔網頁來源 | — |
 | `<kuro:summary>...</kuro:summary>` | 發送摘要事件 | — |
+| `<kuro:goal>...</kuro:goal>` | 建立/切換 active goal（跨 cycle 鎖定） | — |
+| `<kuro:goal-progress>...</kuro:goal-progress>` | 記錄目標進展 | — |
+| `<kuro:goal-done>...</kuro:goal-done>` | 標記目標完成 | — |
+| `<kuro:goal-abandon>...</kuro:goal-abandon>` | 明確放棄目標 | — |
 
 ## Telegram 通知系統
 
@@ -467,8 +471,6 @@ Agent 回應中的特殊標籤（XML namespace 格式），系統自動解析處
 | Function | 用途 |
 |----------|------|
 | `notifyTelegram(msg)` | 可靠通知（帶重試 + 失敗計數） |
-| `sendTelegramPhoto(path, caption?)` | 發送圖片 |
-| `notifyScreenshot(caption?)` | Chrome CDP 截圖 + 發送到 TG |
 | `getNotificationStats()` | 取得 sent/failed 計數 |
 
 通知統計透過 `<telegram>` 感知 section 注入 OODA context，Kuro 可以看到自己的通知健康度。

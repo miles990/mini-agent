@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AgentEventBus, debounce, throttle, distinctUntilChanged } from '../src/event-bus.js';
+import { AgentEventBus, debounce, distinctUntilChanged } from '../src/event-bus.js';
 import type { AgentEvent } from '../src/event-bus.js';
 
 describe('AgentEventBus', () => {
@@ -140,44 +140,6 @@ describe('debounce', () => {
     vi.advanceTimersByTime(100);
 
     expect(fn).toHaveBeenCalledWith('a', 'b');
-  });
-});
-
-describe('throttle', () => {
-  it('executes immediately on first call', () => {
-    const fn = vi.fn();
-    const throttled = throttle(fn, 100);
-
-    throttled();
-    expect(fn).toHaveBeenCalledOnce();
-  });
-
-  it('blocks calls within interval', () => {
-    const fn = vi.fn();
-    const throttled = throttle(fn, 100);
-    const now = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValue(now);
-
-    throttled();
-    expect(fn).toHaveBeenCalledOnce();
-
-    vi.spyOn(Date, 'now').mockReturnValue(now + 50);
-    throttled();
-    expect(fn).toHaveBeenCalledOnce(); // still 1
-
-    vi.spyOn(Date, 'now').mockReturnValue(now + 100);
-    throttled();
-    expect(fn).toHaveBeenCalledTimes(2);
-
-    vi.restoreAllMocks();
-  });
-
-  it('passes arguments to original function', () => {
-    const fn = vi.fn();
-    const throttled = throttle(fn, 100);
-
-    throttled('x', 42);
-    expect(fn).toHaveBeenCalledWith('x', 42);
   });
 });
 
