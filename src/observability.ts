@@ -215,7 +215,25 @@ function handleLogInfo(e: AgentEvent): void {
 let roomMsgCounterDate = '';
 let roomMsgCounter = 0;
 
+// Track replyTo targets kuro has already replied to — prevents duplicate threading
+// First reply goes through threaded, subsequent replies become standalone messages
+const kuroRepliedTo = new Map<string, number>();
+
 export async function writeRoomMessage(from: string, text: string, replyTo?: string): Promise<string> {
+  // Dedup: if kuro already replied to this replyTo target, drop threading
+  if (from === 'kuro' && replyTo) {
+    if (kuroRepliedTo.has(replyTo)) {
+      slog('DEDUP', `Dropping replyTo ${replyTo} — kuro already replied`);
+      replyTo = undefined;
+    } else {
+      kuroRepliedTo.set(replyTo, Date.now());
+      // Cleanup entries older than 1 hour
+      for (const [k, ts] of kuroRepliedTo) {
+        if (Date.now() - ts > 3600_000) kuroRepliedTo.delete(k);
+      }
+    }
+  }
+
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
 
