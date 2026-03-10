@@ -15,7 +15,7 @@ import path from 'node:path';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';  // getInstanceDir kept for features.json (ephemeral)
 import { getLogger } from './logging.js';
 import { perceptionStreams } from './perception-stream.js';
-import { slog } from './utils.js';
+import { slog, readJsonFile } from './utils.js';
 import { getMemory, getMemoryStateDir, invalidateFlagCache } from './memory.js';
 
 // =============================================================================
@@ -61,17 +61,7 @@ export function readState<T>(filename: string, fallback: T): T {
   const cached = stateCache.get(filename);
   if (cached) return cached.data as T;
 
-  const p = getStatePath(filename);
-  let data: T;
-  try {
-    if (!existsSync(p)) {
-      data = fallback;
-    } else {
-      data = JSON.parse(readFileSync(p, 'utf-8')) as T;
-    }
-  } catch {
-    data = fallback;
-  }
+  const data = readJsonFile(getStatePath(filename), fallback);
   stateCache.set(filename, { data, dirty: false });
   return data;
 }

@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
-import { slog } from './utils.js';
+import { slog, readJsonFile } from './utils.js';
 
 // =============================================================================
 // Types
@@ -91,13 +91,7 @@ function getStatePath(): string {
 }
 
 function readState(): CommitmentsState {
-  const p = getStatePath();
-  try {
-    if (!existsSync(p)) return { commitments: [], totalCreated: 0, totalFulfilled: 0, totalDropped: 0, totalExpired: 0 };
-    return JSON.parse(readFileSync(p, 'utf-8')) as CommitmentsState;
-  } catch {
-    return { commitments: [], totalCreated: 0, totalFulfilled: 0, totalDropped: 0, totalExpired: 0 };
-  }
+  return readJsonFile(getStatePath(), { commitments: [], totalCreated: 0, totalFulfilled: 0, totalDropped: 0, totalExpired: 0 } as CommitmentsState);
 }
 
 function writeState(state: CommitmentsState): void {

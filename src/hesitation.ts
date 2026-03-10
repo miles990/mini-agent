@@ -15,7 +15,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
-import { slog } from './utils.js';
+import { slog, readJsonFile } from './utils.js';
 import type { ParsedTags } from './types.js';
 
 // =============================================================================
@@ -237,12 +237,7 @@ function getLogPath(): string {
 function loadState(): HesitationState {
   const p = getStatePath();
   if (!p) return { heldTags: [], errorPatterns: [] };
-  try {
-    if (!existsSync(p)) return { heldTags: [], errorPatterns: [] };
-    return JSON.parse(readFileSync(p, 'utf-8'));
-  } catch {
-    return { heldTags: [], errorPatterns: [] };
-  }
+  return readJsonFile(p, { heldTags: [], errorPatterns: [] } as HesitationState);
 }
 
 function saveState(state: HesitationState): void {

@@ -22,7 +22,7 @@ import { getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
 import { listTasks } from './delegation.js';
-import { slog } from './utils.js';
+import { slog, readJsonFile } from './utils.js';
 
 // =============================================================================
 // Types
@@ -52,13 +52,7 @@ function getStatePath(filename: string): string {
 }
 
 function readState<T>(filename: string, fallback: T): T {
-  const p = getStatePath(filename);
-  try {
-    if (!existsSync(p)) return fallback;
-    return JSON.parse(readFileSync(p, 'utf-8')) as T;
-  } catch {
-    return fallback;
-  }
+  return readJsonFile(getStatePath(filename), fallback);
 }
 
 function writeState(filename: string, data: unknown): void {

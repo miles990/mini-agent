@@ -15,7 +15,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
 import { eventBus } from './event-bus.js';
-import { slog } from './utils.js';
+import { slog, readJsonFile } from './utils.js';
 
 // =============================================================================
 // Types
@@ -169,13 +169,7 @@ function getMonday(d: Date): string {
 }
 
 export function readAchievementState(): AchievementState {
-  const p = getStatePath();
-  try {
-    if (!existsSync(p)) return { ...DEFAULT_STATE };
-    return { ...DEFAULT_STATE, ...JSON.parse(readFileSync(p, 'utf-8')) };
-  } catch {
-    return { ...DEFAULT_STATE };
-  }
+  return { ...DEFAULT_STATE, ...readJsonFile<Partial<AchievementState>>(getStatePath(), {}) };
 }
 
 function writeAchievementState(state: AchievementState): void {
