@@ -568,8 +568,9 @@ cmd_merge() {
   # Check if there are uncommitted changes
   if ! git -C "$worktree" diff --quiet || ! git -C "$worktree" diff --cached --quiet; then
     echo "[merge] Committing uncommitted changes in worktree..." >&2
-    git -C "$worktree" add -A
-    git -C "$worktree" reset HEAD -- node_modules 2>/dev/null || true
+    # Only stage tracked files + new src files; respect .gitignore
+    git -C "$worktree" add -u
+    git -C "$worktree" add src/ tests/ scripts/ plugins/ skills/ tools/ 2>/dev/null || true
     git -C "$worktree" commit -m "$message"
   fi
 
@@ -585,6 +586,14 @@ cmd_merge() {
   ahead=$(git -C "$MAIN_DIR" rev-list --count "main..$branch" 2>/dev/null) || ahead=0
   if [ "$ahead" -eq 0 ]; then
     echo "Error: branch $branch has no commits ahead of main" >&2
+    exit 1
+  fi
+
+  # Safety: ensure main staging area is clean before merge
+  # Prevents unrelated staged files from being included in the merge commit
+  if ! git -C "$MAIN_DIR" diff --cached --quiet 2>/dev/null; then
+    echo "[merge] ERROR: main has staged changes — refusing to merge." >&2
+    echo "[merge] Unstage with: git -C $MAIN_DIR reset HEAD" >&2
     exit 1
   fi
 

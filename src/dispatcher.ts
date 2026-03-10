@@ -22,6 +22,7 @@ import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 import { addIndexEntry } from './memory-index.js';
 import { createTask, updateTask, deleteTask, loadTaskQueue, type VerifyResult } from './task-queue.js';
+import { detectAndRecordCommitmentGaps } from './commitment-gate.js';
 
 // =============================================================================
 // Remember Classifier — Learning→Perception 自動閉環 Phase 1
