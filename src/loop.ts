@@ -35,7 +35,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { extractNextItems, NEXT_MD_PATH } from './triage.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription } from './memory-index.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import type { PendingPriorityState } from './event-wal.js';
@@ -65,7 +65,7 @@ import {
   parseBehaviorConfig, parseInterval,
   checkApprovedProposals, resolveStaleConversationThreads,
   autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos,
-  markNextItemsDone, writeContextSnapshot,
+  writeContextSnapshot,
 } from './cycle-tasks.js';
 import type { BehaviorConfig, BehaviorMode } from './cycle-tasks.js';
 import {
@@ -766,15 +766,11 @@ export class AgentLoop {
       );
     }
 
-    // Hard cap: when NEXT.md has P0 items, don't idle beyond 3 minutes
+    // Hard cap: when memory-index has P0 items, don't idle beyond 3 minutes
     try {
-      if (this.currentInterval > 180_000 && fs.existsSync(NEXT_MD_PATH)) {
-        const nextContent = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-        const items = extractNextItems(nextContent);
-        if (items.some(item => item.includes('P0'))) {
-          this.currentInterval = 180_000; // 3min cap
-          slog('LOOP', `[next-p0] Capping interval to 3min — NEXT.md has P0 items`);
-        }
+      if (this.currentInterval > 180_000 && hasP0Tasks(path.join(process.cwd(), 'memory'))) {
+        this.currentInterval = 180_000; // 3min cap
+        slog('LOOP', `[next-p0] Capping interval to 3min — memory-index has P0 items`);
       }
     } catch { /* non-critical */ }
   }
@@ -793,13 +789,9 @@ export class AgentLoop {
           return true;
         }
       }
-      // Check NEXT.md for unchecked P0 items — important work shouldn't slow down
-      if (fs.existsSync(NEXT_MD_PATH)) {
-        const nextContent = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-        const items = extractNextItems(nextContent);
-        if (items.some(item => item.includes('P0'))) {
-          return true;
-        }
+      // Check memory-index for P0 items — important work shouldn't slow down
+      if (hasP0Tasks(path.join(process.cwd(), 'memory'))) {
+        return true;
       }
       // Check overdue high-priority commitments — said it, now do it
       if (hasOverdueCommitments(this.cycleCount)) {
@@ -841,7 +833,7 @@ export class AgentLoop {
         // Hard skip: routine trigger + no perception change + last cycle was idle + no P0 work
         // Applies to heartbeat AND workspace — saves ~800ms mushi LLM call per skip
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
-        // GUARD: never skip if NEXT.md has P0 items or inbox has unaddressed messages
+        // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
         writeTrailEntry({
           ts: new Date().toISOString(),
@@ -1201,15 +1193,14 @@ export class AgentLoop {
       const inboxItems = inboxItemsEarly;
       const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason);
 
-      // Priority prefix: 強制先處理 NEXT.md pending items 或 Chat Room priority 訊息
+      // Priority prefix: 強制先處理 memory-index pending items 或 Chat Room priority 訊息
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
       const isRoomPriorityCycle = currentTriggerReason?.startsWith('room') ?? false;
       const isChatPriorityCycle = currentTriggerReason?.startsWith('chat') ?? false;
+      const memDir = path.join(process.cwd(), 'memory');
       let nextPendingItems: string[] = [];
       try {
-        if (fs.existsSync(NEXT_MD_PATH)) {
-          nextPendingItems = extractNextItems(fs.readFileSync(NEXT_MD_PATH, 'utf-8'));
-        }
+        nextPendingItems = getPendingTaskPreviews(memDir);
       } catch { /* non-critical */ }
 
       // Priority prefix 在 telegram-user 或 room cycle 觸發
@@ -1217,9 +1208,9 @@ export class AgentLoop {
       if (isTelegramUserCycle) {
         if (nextPendingItems.length > 0) {
           const itemsPreview = nextPendingItems.slice(0, 3).map(i => `  「${i.slice(0, 80)}」`).join('\n');
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（在 NEXT.md）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 <kuro:chat>回覆內容</kuro:chat> 直接回答 Alex 的問題，2) 再用 <kuro:done>描述</kuro:done> 標記完成。不發 <kuro:chat> 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 <kuro:chat> 之前先做這三個檢查（寫在 <kuro:action> 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 <kuro:action> 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
+          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（pending tasks）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 <kuro:chat>回覆內容</kuro:chat> 直接回答 Alex 的問題，2) 再用 <kuro:done>描述</kuro:done> 標記完成。不發 <kuro:chat> 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 <kuro:chat> 之前先做這三個檢查（寫在 <kuro:action> 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 <kuro:action> 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
         } else {
-          // telegram-user 觸發但 NEXT.md 沒 pending items（可能已被 triage 清掉）
+          // telegram-user 觸發但 memory-index 沒 pending items（可能已被 triage 清掉）
           priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
         }
       } else {
@@ -1248,11 +1239,11 @@ export class AgentLoop {
 
       }
 
-      // NEXT.md P0 reminder — applies to ALL triggers, not just non-telegram
-      if (nextPendingItems.some(item => item.includes('P0'))) {
-        const p0Items = nextPendingItems.filter(item => item.includes('P0')).slice(0, 3);
-        const p0Preview = p0Items.map(i => `  「${i.slice(0, 100)}」`).join('\n');
-        priorityPrefix += `\n⚠️ NEXT.md has P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
+      // P0 reminder — applies to ALL triggers, not just non-telegram
+      const p0Previews = getP0TaskPreviews(memDir);
+      if (p0Previews.length > 0) {
+        const p0Preview = p0Previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
+        priorityPrefix += `\n⚠️ P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
       }
 
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
@@ -1657,9 +1648,9 @@ export class AgentLoop {
         cycleTagsProcessed.push('DELEGATE');
       }
 
-      // ── Process <kuro:done> tags — remove completed items from NEXT.md ──
+      // ── Process <kuro:done> tags — mark tasks completed in memory-index ──
       if (tags.dones.length > 0) {
-        markNextItemsDone(tags.dones).catch(() => {});
+        markTaskDoneByDescription(path.join(process.cwd(), 'memory'), tags.dones).catch(() => {});
         // <kuro:done> → task-progress linkage
         for (const done of tags.dones) {
           markTaskProgressDone(done);
@@ -2245,7 +2236,7 @@ export class AgentLoop {
 // Post-cycle standalone functions extracted to src/cycle-tasks.ts:
 // parseBehaviorConfig, parseInterval, checkApprovedProposals,
 // resolveStaleConversationThreads, autoEscalateOverdueTasks,
-// autoCommitMemoryFiles, autoCommitExternalRepos, markNextItemsDone,
+// autoCommitMemoryFiles, autoCommitExternalRepos,
 // writeContextSnapshot
 
 // Inbox processing extracted to src/inbox-processor.ts

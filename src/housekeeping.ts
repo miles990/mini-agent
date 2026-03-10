@@ -13,7 +13,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readPendingInbox, markInboxProcessed, inboxCache } from './inbox.js';
 import { rebuildIndex } from './search.js';
 import { slog } from './utils.js';
-import { parseAllNextTasks, NEXT_MD_PATH } from './triage.js';
+import { auditStaleTasks as auditStaleTasksFromIndex } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
 const execFileAsync = promisify(execFile);
@@ -374,41 +374,23 @@ export interface StaleTaskWarning {
 }
 
 /**
- * 掃描 NEXT.md 任務的 @created 日期，超齡的寫入 stale-tasks.json 警告。
+ * 掃描 memory-index 任務的建立日期，超齡的寫入 stale-tasks.json 警告。
  * P0 不衰減。P1 > 7天警告。P2/P3 > 14天警告。
  * Fire-and-forget，不自動移動任務（保持 Kuro 能動性）。
  */
 export async function decayStaleTasks(): Promise<void> {
   try {
-    if (!fs.existsSync(NEXT_MD_PATH)) return;
-    const content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-    const tasks = parseAllNextTasks(content);
+    const memDir = path.join(process.cwd(), 'memory');
+    const staleItems = auditStaleTasksFromIndex(memDir);
 
-    const now = Date.now();
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const warnings: StaleTaskWarning[] = [];
-
-    for (const task of tasks) {
-      if (!task.created) continue;
-      if (task.priority === 'P0') continue;
-
-      const createdMs = new Date(task.created).getTime();
-      if (isNaN(createdMs)) continue;
-
-      const ageDays = Math.floor((now - createdMs) / DAY_MS);
-      const threshold = task.priority === 'P1' ? 7 : 14; // P2/P3: 14 days
-
-      if (ageDays > threshold) {
-        warnings.push({
-          title: task.title,
-          priority: task.priority,
-          created: task.created,
-          ageDays,
-          section: task.section,
-          detectedAt: new Date().toISOString(),
-        });
-      }
-    }
+    const warnings: StaleTaskWarning[] = staleItems.map(item => ({
+      title: item.summary,
+      priority: `P${item.priority}`,
+      created: '', // memory-index doesn't preserve original @created format
+      ageDays: item.ageDays,
+      section: 'index',
+      detectedAt: new Date().toISOString(),
+    }));
 
     // Write warnings to instance dir (overwrite — current snapshot)
     const instanceId = getCurrentInstanceId();

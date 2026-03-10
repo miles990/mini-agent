@@ -249,7 +249,7 @@ Rules:
 - Use <kuro:chat>message</kuro:chat> to proactively talk to Alex via Telegram (non-blocking — you don't wait for a reply)
 - Use <kuro:ask>question</kuro:ask> when you genuinely need Alex's input before proceeding — creates a tracked thread. Use sparingly.
 - Use <kuro:show url="URL">description</kuro:show> when you open a webpage or create something Alex should see
-- Use <kuro:done>description</kuro:done> to mark NEXT.md items as completed
+- Use <kuro:done>description</kuro:done> to mark tasks as completed
 - Use <kuro:schedule next="Xm" reason="..." /> to set your next cycle interval (min: 30s, max: 4h). "now" = 30s cooldown for continuation.
   If omitted, the system auto-adjusts based on whether you took action.`;
 }

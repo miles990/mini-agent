@@ -168,7 +168,7 @@ function isParallelizable(triggerBase: string, data: Record<string, unknown>): b
 }
 
 function isSharedResource(resource: string): boolean {
-  const shared = ['MEMORY.md', 'HEARTBEAT.md', 'SOUL.md', 'NEXT.md'];
+  const shared = ['MEMORY.md', 'HEARTBEAT.md', 'SOUL.md', 'index/relations.jsonl'];
   return shared.some(s => resource.includes(s));
 }
 

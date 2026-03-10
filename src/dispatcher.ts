@@ -440,7 +440,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  // <kuro:done> tags — mark NEXT.md items as completed
+  // <kuro:done> tags — mark tasks as completed in memory-index
   const dones: string[] = [];
   if (parseSource.includes('<kuro:done>')) {
     for (const m of parseSource.matchAll(/<kuro:done>([\s\S]*?)<\/kuro:done>/g)) {

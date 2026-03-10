@@ -63,6 +63,7 @@ import { getMode, setMode, isValidMode, setLoopController, getModeNames, type Mo
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 import { forgeStatus } from './delegation.js';
+import { getNowTaskSummary, getTasksSnapshot } from './memory-index.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -458,16 +459,11 @@ export function createApi(port = 3001): express.Express {
     return '';
   }
 
-  // Helper: get NEXT.md Now section summary
+  // Helper: get task summary from memory-index
   function getNextNowSummary(maxLen = 150): string {
     try {
-      const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
-      if (!fs.existsSync(nextPath)) return '';
-      const content = fs.readFileSync(nextPath, 'utf-8');
-      const nowMatch = content.match(/## Now[^]*?(?=\n---|\n## )/);
-      if (!nowMatch) return '';
-      const now = nowMatch[0].replace(/^## Now\s*\n/, '').trim();
-      return now.length > maxLen ? now.slice(0, maxLen) + '...' : now;
+      const memDir = path.join(process.cwd(), 'memory');
+      return getNowTaskSummary(memDir, maxLen);
     } catch { return ''; }
   }
 
@@ -1270,15 +1266,8 @@ export function createApi(port = 3001): express.Express {
     if (previousMode === 'autonomous' && mode === 'reserved') {
       void (async () => {
         try {
-          const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
-          let nextContent = '';
-          try { nextContent = await fsPromises.readFile(nextPath, 'utf-8'); } catch { /* ok */ }
-          // 擷取 in-progress 任務（含 Now + Next sections）
-          const inProgressLines = nextContent
-            .split('\n')
-            .filter(l => /- \[.\]/.test(l))
-            .slice(0, 20)
-            .join('\n');
+          // 擷取 in-progress 任務（from memory-index）
+          const inProgressLines = getTasksSnapshot(path.join(process.cwd(), 'memory'));
 
           const snapshot = [
             '# Tracking Snapshot',

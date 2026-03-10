@@ -49,11 +49,11 @@ import {
   initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries,
   searchConversations, isIndexReady, indexConversationsIncremental,
 } from './search.js';
-import { runVerify } from './verify.js';
+// runVerify import removed — verify logic now in memory-index.ts
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
-import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection } from './memory-index.js';
+import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1099,56 +1099,8 @@ export class InstanceMemory {
     return sections.join('\n');
   }
 
-  /**
-   * 讀取 NEXT.md（執行層待辦清單）
-   */
-  async readNext(): Promise<string> {
-    const nextPath = path.join(this.memoryDir, 'NEXT.md');
-    try {
-      return cachedReadFile(nextPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        diagLog('memory.readNext', error, { path: nextPath });
-      }
-      return '';
-    }
-  }
-
-  /**
-   * 提取 NEXT.md 的 Now + Next sections（跳過 Later 和規則）
-   */
-  private extractActiveNext(content: string): string {
-    const cutoffMarkers = ['## Later', '## 規則'];
-    let cutoff = content.length;
-    for (const marker of cutoffMarkers) {
-      const idx = content.indexOf(marker);
-      if (idx >= 0 && idx < cutoff) cutoff = idx;
-    }
-    return content.slice(0, cutoff).trim();
-  }
-
-  /**
-   * 執行 NEXT.md 中的 Verify 命令，回傳標註驗證結果的內容
-   * 每個 Verify 命令後附加 ✅ PASSED 或 ❌ NOT YET
-   */
-  private async verifyNextTasks(content: string): Promise<string> {
-    if (!content) return '';
-    const lines = content.split('\n');
-    const result: string[] = [];
-
-    for (const line of lines) {
-      result.push(line);
-      const verifyMatch = line.match(/^\s*- Verify:\s*(.+)/);
-      if (verifyMatch) {
-        const { passed, details } = await runVerify(verifyMatch[1].trim(), this.memoryDir);
-        const status = passed ? '✅ PASSED' : '❌ NOT YET';
-        const msg = details.map(d => d.message).filter(Boolean).join('; ');
-        result.push(`  - **Status: ${status}**${msg ? ` (${msg})` : ''}`);
-      }
-    }
-
-    return result.join('\n');
-  }
+  // readNext / extractActiveNext / verifyNextTasks removed
+  // — replaced by buildNextContextSection() in memory-index.ts
 
   /**
    * 讀取 SOUL.md（Agent 身分認同）
@@ -2212,12 +2164,10 @@ export class InstanceMemory {
     }
     } // end of !isLight topic memory block
 
-    // ── NEXT.md（執行層待辦 + 完成驗證）──
-    const nextRaw = await this.readNext();
-    if (nextRaw) {
-      const activeNext = this.extractActiveNext(nextRaw);
-      const verified = await this.verifyNextTasks(activeNext);
-      sections.push(`<next>\n${verified}\n</next>`);
+    // ── Task index（from memory-index, replaces NEXT.md）──
+    const nextSection = await buildNextContextSection(this.memoryDir);
+    if (nextSection) {
+      sections.push(`<next>\n${nextSection}\n</next>`);
     }
 
     // ── 記憶和對話（總是載入，light mode 截斷）──
@@ -2345,11 +2295,10 @@ export class InstanceMemory {
       sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
     }
 
-    // NEXT.md — 只載入 Now section（minimal mode 不跑驗證）
-    const nextRaw = await this.readNext();
-    if (nextRaw) {
-      const nowMatch = nextRaw.match(/## Now[^]*?(?=\n---|\n## )/);
-      if (nowMatch) sections.push(`<next>\n${nowMatch[0].trim()}\n</next>`);
+    // Task index — minimal mode (Now section only, no verify)
+    const nextSection = await buildNextContextSection(this.memoryDir, { minimal: true });
+    if (nextSection) {
+      sections.push(`<next>\n${nextSection}\n</next>`);
     }
 
     // Unified Inbox（對話回覆需要看到收到的訊息）

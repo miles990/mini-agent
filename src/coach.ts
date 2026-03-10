@@ -81,12 +81,13 @@ async function gatherCoachInput(): Promise<string> {
     }
   } catch { /* best effort */ }
 
-  // 2. NEXT.md tasks
+  // 2. Task index (from memory-index, replaces NEXT.md)
   try {
-    const memory = getMemory();
-    const next = await memory.readNext();
-    if (next) {
-      parts.push(`## NEXT.md\n${next.slice(0, 1500)}`);
+    const { getTaskSummaryForCoach } = await import('./memory-index.js');
+    const memDir = path.join(process.cwd(), 'memory');
+    const taskSummary = getTaskSummaryForCoach(memDir);
+    if (taskSummary) {
+      parts.push(`## Tasks\n${taskSummary}`);
     }
   } catch { /* best effort */ }
 

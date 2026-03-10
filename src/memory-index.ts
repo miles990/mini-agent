@@ -10,6 +10,7 @@
  */
 
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -575,6 +576,279 @@ export async function compactMemoryIndex(
 
   invalidateIndexCache();
   return { before: lineCount, after: map.size };
+}
+
+// =============================================================================
+// NEXT.md Replacement — Task Queries & Context Building
+// =============================================================================
+
+function getTaskPriority(entry: MemoryIndexEntry): number {
+  return ((entry.payload as Record<string, unknown> | undefined)?.priority as number) ?? 2;
+}
+
+function getTaskPayload(entry: MemoryIndexEntry): Record<string, unknown> {
+  return (entry.payload ?? {}) as Record<string, unknown>;
+}
+
+/** Quick check: are there any P0 tasks pending? Used by loop.ts for interval capping and skip guards. */
+export function hasP0Tasks(memoryDir: string): boolean {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+  return tasks.some(t => getTaskPriority(t) === 0);
+}
+
+/** Get pending task preview strings (similar to old extractNextItems output). */
+export function getPendingTaskPreviews(memoryDir: string): string[] {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  }).sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+
+  return tasks.map(t => `- [ ] P${getTaskPriority(t)}: ${t.summary ?? t.id}`);
+}
+
+/** Get P0 task preview strings for priority prefix injection. */
+export function getP0TaskPreviews(memoryDir: string): string[] {
+  return queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  })
+    .filter(t => getTaskPriority(t) === 0)
+    .map(t => `P0: ${t.summary ?? t.id}`);
+}
+
+/**
+ * Mark tasks done by fuzzy description match.
+ * Replaces cycle-tasks.ts markNextItemsDone.
+ */
+export async function markTaskDoneByDescription(
+  memoryDir: string,
+  descriptions: string[],
+): Promise<number> {
+  let totalMarked = 0;
+
+  for (const done of descriptions) {
+    const doneNorm = done.toLowerCase().slice(0, 200);
+    const tasks = queryMemoryIndexSync(memoryDir, {
+      type: ['task', 'goal'],
+      status: ['pending', 'in_progress'],
+    });
+
+    const matched = tasks.find(task => {
+      const summary = (task.summary ?? '').toLowerCase();
+      if (!summary) return false;
+      if (doneNorm.includes(summary.slice(0, 40)) || summary.includes(doneNorm.slice(0, 40))) return true;
+      const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
+      if (tsMatch && summary.includes(tsMatch[0])) return true;
+      if (doneNorm.includes('alex') && summary.includes('回覆 alex')) return true;
+      const doneWords = new Set(doneNorm.match(/[\w\u4e00-\u9fff]{2,}/g) ?? []);
+      const summaryWords = summary.match(/[\w\u4e00-\u9fff]{2,}/g) ?? [];
+      if (summaryWords.length > 0) {
+        const overlap = summaryWords.filter(w => doneWords.has(w)).length;
+        if (overlap / summaryWords.length > 0.6) return true;
+      }
+      return false;
+    });
+
+    if (matched) {
+      await updateMemoryIndexEntry(memoryDir, matched.id, { status: 'completed' });
+      slog('DONE', `Marked task done: ${matched.summary?.slice(0, 60)}`);
+      totalMarked++;
+    }
+  }
+
+  return totalMarked;
+}
+
+/**
+ * Auto-enqueue Alex's Telegram message as a task.
+ * Replaces telegram.ts autoEnqueueToNext.
+ */
+export async function enqueueAlexMessage(
+  memoryDir: string,
+  message: string,
+  timestamp: string,
+): Promise<void> {
+  const existing = queryMemoryIndexSync(memoryDir, { type: 'task', source: 'telegram' });
+  if (existing.some(e => (getTaskPayload(e).alexTimestamp as string) === timestamp)) return;
+
+  const preview = message.replace(/\n/g, ' ').slice(0, 100);
+  await appendMemoryIndexEntry(memoryDir, {
+    type: 'task',
+    status: 'pending',
+    summary: `回覆 Alex: "${preview}"`,
+    source: 'telegram',
+    payload: { priority: 1, alexTimestamp: timestamp, section: 'next' },
+  });
+  slog('NEXT', `Enqueued: ${preview.slice(0, 40)}`);
+}
+
+/**
+ * Build <next> context section from memory-index.
+ * Replaces memory.ts readNext + extractActiveNext + verifyNextTasks.
+ */
+export async function buildNextContextSection(
+  memoryDir: string,
+  options: { minimal?: boolean; runVerify?: boolean } = {},
+): Promise<string> {
+  const { minimal = false, runVerify = !minimal } = options;
+
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+  if (tasks.length === 0) return '';
+
+  const inProgress = tasks.filter(t => t.status === 'in_progress')
+    .sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+  const pending = tasks.filter(t => t.status === 'pending')
+    .sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+
+  if (minimal) {
+    if (inProgress.length === 0) return '';
+    const lines = ['## Now（正在做）', ''];
+    for (const t of inProgress) {
+      lines.push(`- [ ] P${getTaskPriority(t)}: ${t.summary}`);
+    }
+    return lines.join('\n');
+  }
+
+  const lines: string[] = ['# NEXT', '', '---', ''];
+
+  if (inProgress.length > 0) {
+    lines.push('## Now（正在做）', '');
+    for (const t of inProgress) {
+      lines.push(`- [ ] P${getTaskPriority(t)}: ${t.summary}`);
+      const verifyCmd = getTaskPayload(t).verifyCommand as string | undefined;
+      if (verifyCmd) {
+        lines.push(`  Verify: \`${verifyCmd}\``);
+        if (runVerify) lines.push(`  - **Status: ${runVerifyCommand(verifyCmd, memoryDir)}**`);
+      }
+    }
+    lines.push('', '---', '');
+  }
+
+  if (pending.length > 0) {
+    lines.push('## Next（按優先度排序）', '');
+    for (const t of pending.slice(0, 10)) {
+      lines.push(`- [ ] P${getTaskPriority(t)}: ${t.summary}`);
+      const verifyCmd = getTaskPayload(t).verifyCommand as string | undefined;
+      if (verifyCmd) {
+        lines.push(`  Verify: \`${verifyCmd}\``);
+        if (runVerify) lines.push(`  - **Status: ${runVerifyCommand(verifyCmd, memoryDir)}**`);
+      }
+    }
+    lines.push('---');
+  }
+
+  return lines.join('\n');
+}
+
+function runVerifyCommand(cmd: string, cwd: string): string {
+  const cleanCmd = cmd.startsWith('`') && cmd.endsWith('`') ? cmd.slice(1, -1) : cmd;
+  try {
+    execSync(cleanCmd, { cwd, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    return '✅ PASSED';
+  } catch {
+    return '❌ NOT YET';
+  }
+}
+
+/** Get task hygiene info for feedback-loops.ts structural health checks. */
+export function getTaskHygieneInfo(memoryDir: string): { pendingCount: number; staleCount: number } {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+  const fourteenDaysAgo = Date.now() - 14 * 86400_000;
+  let staleCount = 0;
+  for (const t of tasks) {
+    const created = getTaskPayload(t).created as string | undefined;
+    if (created) {
+      const createdMs = new Date(created).getTime();
+      if (!isNaN(createdMs) && createdMs < fourteenDaysAgo && getTaskPriority(t) > 0) staleCount++;
+    }
+  }
+  return { pendingCount: tasks.length, staleCount };
+}
+
+/** Get priority keywords from in_progress tasks for alignment checks. */
+export function getPriorityKeywords(memoryDir: string): string[] {
+  const inProgress = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: 'in_progress',
+  });
+  if (inProgress.length === 0) return [];
+  const text = inProgress.map(t => (t.summary ?? '').toLowerCase()).join(' ');
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has',
+    'are', 'was', 'were', 'been', 'will', 'would', 'could', 'should',
+    'not', 'but', 'all', 'can', 'had', 'her', 'his', 'how', 'its',
+    'may', 'new', 'now', 'old', 'our', 'out', 'own', 'say', 'she',
+    'too', 'use', 'way', 'who', 'did', 'get', 'let', 'put', 'run',
+    'verify', 'grep', 'cat', 'head', 'done', 'todo', 'next', 'check',
+  ]);
+  const words = text.match(/[a-z\u4e00-\u9fff]{3,}/g) ?? [];
+  return [...new Set(words.filter(w => !stopWords.has(w)))].slice(0, 15);
+}
+
+/** Get Now task summary for API status endpoint. */
+export function getNowTaskSummary(memoryDir: string, maxLen = 150): string {
+  const inProgress = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: 'in_progress',
+  }).sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+  if (inProgress.length === 0) return '';
+  const text = inProgress.map(t => `P${getTaskPriority(t)}: ${t.summary}`).join('; ');
+  return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+}
+
+/** Get all tasks snapshot for mode-switch tracking notes. */
+export function getTasksSnapshot(memoryDir: string): string {
+  return queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  })
+    .sort((a, b) => getTaskPriority(a) - getTaskPriority(b))
+    .slice(0, 20)
+    .map(t => `- [${t.status === 'in_progress' ? 'x' : ' '}] P${getTaskPriority(t)}: ${t.summary}`)
+    .join('\n');
+}
+
+/** Get task summary for coach input. */
+export function getTaskSummaryForCoach(memoryDir: string): string {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  }).sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
+  if (tasks.length === 0) return '';
+  return tasks.slice(0, 15)
+    .map(t => `- [${t.status}] P${getTaskPriority(t)}: ${t.summary}`)
+    .join('\n');
+}
+
+/** Decay stale tasks — flag tasks pending too long. P0 never decays. P1 > 7d. P2/P3 > 14d. */
+export function auditStaleTasks(memoryDir: string): Array<{ id: string; summary: string; ageDays: number; priority: number }> {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+  const now = Date.now();
+  const DAY_MS = 86400_000;
+  const stale: Array<{ id: string; summary: string; ageDays: number; priority: number }> = [];
+  for (const t of tasks) {
+    const priority = getTaskPriority(t);
+    if (priority === 0) continue;
+    const created = getTaskPayload(t).created as string | undefined;
+    const createdMs = created ? new Date(created).getTime() : new Date(t.ts).getTime();
+    if (isNaN(createdMs)) continue;
+    const ageDays = Math.floor((now - createdMs) / DAY_MS);
+    const threshold = priority === 1 ? 7 : 14;
+    if (ageDays >= threshold) stale.push({ id: t.id, summary: t.summary ?? t.id, ageDays, priority });
+  }
+  return stale;
 }
 
 // =============================================================================

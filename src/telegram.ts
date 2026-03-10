@@ -17,11 +17,10 @@ import { getLogger } from './logging.js';
 import { diagLog } from './utils.js';
 import type { NotificationTier } from './types.js';
 import { eventBus } from './event-bus.js';
-import { withFileLock } from './filelock.js';
 import { writeInboxItem } from './inbox.js';
 import { isEnabled } from './features.js';
 import { isLoopBusy } from './agent.js';
-import { findNextSection, NEXT_MD_PATH } from './triage.js';
+import { enqueueAlexMessage } from './memory-index.js';
 import { writeRoomMessage } from './observability.js';
 
 // =============================================================================
@@ -508,8 +507,8 @@ export class TelegramPoller {
     // Sync TG message to Chat Room conversation log (record-only, no trigger)
     writeRoomMessage('alex', parsed.text).catch(() => {});
 
-    // Auto-enqueue to NEXT.md so the message persists until explicitly handled
-    autoEnqueueToNext(parsed.text, parsed.timestamp).catch(() => {});
+    // Auto-enqueue to memory-index so the message persists until explicitly handled
+    enqueueAlexMessage(path.join(process.cwd(), 'memory'), parsed.text, parsed.timestamp).catch(() => {});
 
     // Add to buffer and schedule flush
     this.messageBuffer.push(parsed);
@@ -928,53 +927,7 @@ export class TelegramPoller {
   }
 }
 
-// =============================================================================
-// Auto-Enqueue to NEXT.md — 訊息入列，直到顯式完成才移除
-// =============================================================================
-
-/**
- * 自動將 Alex 的訊息寫入 NEXT.md 的 Next section。
- * 訊息會留在那裡直到 Kuro 用 <kuro:done> 標記完成。
- * 使用 withFileLock 防止併發寫入。
- */
-async function autoEnqueueToNext(message: string, timestamp: string): Promise<void> {
-  await withFileLock(NEXT_MD_PATH, async () => {
-    try {
-      if (!fs.existsSync(NEXT_MD_PATH)) return;
-      const content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-
-      // 去重：比對 timestamp prefix，避免同一條訊息重複入列
-      if (content.includes(`(收到: ${timestamp})`)) return;
-
-      const preview = message.replace(/\n/g, ' ').slice(0, 100);
-      const entry = `- [ ] P1: 回覆 Alex: "${preview}" (收到: ${timestamp})`;
-
-      // 插入到 ## Next section 的末尾（在 --- 之前）
-      const nextSection = findNextSection(content);
-      if (!nextSection) return;
-      const { afterHeader, sectionEnd: nextSeparator } = nextSection;
-
-      // 檢查 "(空)" 佔位符
-      const sectionContent = content.slice(afterHeader, nextSeparator);
-      let updated: string;
-      if (sectionContent.includes('(空)')) {
-        // 替換 "(空)" 為新項目
-        updated = content.slice(0, afterHeader) + '\n\n' + entry + '\n' + content.slice(nextSeparator);
-      } else {
-        // 在 --- 之前插入新項目
-        updated = content.slice(0, nextSeparator) + '\n' + entry + content.slice(nextSeparator);
-      }
-
-      fs.writeFileSync(NEXT_MD_PATH, updated, 'utf-8');
-      slog('NEXT', `Enqueued: ${preview.slice(0, 40)}`);
-    } catch {
-      // Non-critical — don't block message processing
-    }
-  });
-}
-
-// NEXT_MD_PATH now imported from triage.ts — re-export for backward compatibility
-export { NEXT_MD_PATH } from './triage.js';
+// autoEnqueueToNext removed — replaced by enqueueAlexMessage in memory-index.ts
 
 // =============================================================================
 // Singleton

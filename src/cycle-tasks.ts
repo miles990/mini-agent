@@ -14,8 +14,7 @@ import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { notifyTelegram } from './telegram.js';
 import { getMemory } from './memory.js';
-import { withFileLock } from './filelock.js';
-import { extractNextItems, findNextSection, NEXT_MD_PATH } from './triage.js';
+// markNextItemsDone removed — loop.ts now calls markTaskDoneByDescription from memory-index.ts directly
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { CHAT_ROOM_INBOX_PATH } from './inbox-processor.js';
 
@@ -465,57 +464,7 @@ export async function autoCommitExternalRepos(): Promise<void> {
   }
 }
 
-// =============================================================================
-// <kuro:done> Tag — mark NEXT.md items as completed
-// =============================================================================
-
-export async function markNextItemsDone(dones: string[]): Promise<void> {
-  await withFileLock(NEXT_MD_PATH, async () => {
-    try {
-      if (!fs.existsSync(NEXT_MD_PATH)) return;
-      let content = fs.readFileSync(NEXT_MD_PATH, 'utf-8');
-      let removed = 0;
-
-      for (const done of dones) {
-        const items = extractNextItems(content);
-        if (items.length === 0) break;
-
-        const doneNorm = done.toLowerCase().slice(0, 80);
-        const matched = items.find(item => {
-          const itemNorm = item.toLowerCase();
-          const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
-          if (tsMatch && itemNorm.includes(tsMatch[0])) return true;
-          const previewMatch = itemNorm.match(/回覆 Alex: "(.{10,30})"/);
-          if (previewMatch && doneNorm.includes(previewMatch[1].toLowerCase().slice(0, 15))) return true;
-          if (doneNorm.includes('alex') && itemNorm.includes('回覆 alex')) return true;
-          return false;
-        });
-
-        if (matched) {
-          content = content.replace(matched + '\n', '');
-          removed++;
-        }
-      }
-
-      if (removed > 0) {
-        const remainingItems = extractNextItems(content);
-        if (remainingItems.length === 0) {
-          const nextSection = findNextSection(content);
-          if (nextSection) {
-            const between = content.slice(nextSection.afterHeader, nextSection.sectionEnd).trim();
-            if (!between) {
-              content = content.slice(0, nextSection.afterHeader) + '\n\n(空)\n' + content.slice(nextSection.sectionEnd);
-            }
-          }
-        }
-        fs.writeFileSync(NEXT_MD_PATH, content, 'utf-8');
-        slog('DONE', `Marked ${removed} item(s) done in NEXT.md`);
-      }
-    } catch {
-      // Non-critical
-    }
-  });
-}
+// markNextItemsDone removed — replaced by markTaskDoneByDescription in memory-index.ts
 
 // =============================================================================
 // Context Snapshot (Cognitive Mesh Phase 2)

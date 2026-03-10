@@ -549,7 +549,7 @@ function recordBaselineCycle(
  *
  * 四個檢查維度：
  * 1. Feature Flag Hygiene — disabled 太久未 review
- * 2. Task Hygiene — NEXT.md 積壓或過期
+ * 2. Task Hygiene — memory-index 積壓或過期
  * 3. DQ Root Cause — 按 trigger 分類，區分正常低分和真正低品質
  * 4. Milestone Communication — 重大變更未通知 Alex
  *
@@ -602,31 +602,17 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
     }
   } catch { /* ignore */ }
 
-  // ── Check 2: Task Hygiene (NEXT.md) ──
+  // ── Check 2: Task Hygiene (memory-index) ──
   try {
-    const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
-    if (existsSync(nextPath)) {
-      const content = readFileSync(nextPath, 'utf-8');
-      // Count unchecked items in Now + Next sections
-      const nowMatch = content.match(/## Now[\s\S]*?(?=##|---|\z)/);
-      const nextMatch = content.match(/## Next[\s\S]*?(?=##|---|\z)/);
-      const combinedSection = (nowMatch?.[0] ?? '') + (nextMatch?.[0] ?? '');
-      const unchecked = (combinedSection.match(/- \[ \]/g) ?? []).length;
+    const { getTaskHygieneInfo } = await import('./memory-index.js');
+    const memDir = path.join(process.cwd(), 'memory');
+    const { pendingCount, staleCount } = getTaskHygieneInfo(memDir);
 
-      if (unchecked > 8) {
-        warnings.push(`NEXT.md 積壓: ${unchecked} 個未完成項目 (建議清理到 ≤5)`);
-      }
-
-      // Check for items with @created dates older than 14 days
-      const createdDates = combinedSection.matchAll(/@created:\s*(\d{4}-\d{2}-\d{2})/g);
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
-      let staleCount = 0;
-      for (const m of createdDates) {
-        if (m[1] < fourteenDaysAgo) staleCount++;
-      }
-      if (staleCount > 0) {
-        warnings.push(`NEXT.md: ${staleCount} 項任務超過 14 天未推進`);
-      }
+    if (pendingCount > 8) {
+      warnings.push(`Task 積壓: ${pendingCount} 個未完成項目 (建議清理到 ≤5)`);
+    }
+    if (staleCount > 0) {
+      warnings.push(`Tasks: ${staleCount} 項任務超過 14 天未推進`);
     }
   } catch { /* ignore */ }
 
@@ -836,7 +822,7 @@ const ALIGNMENT_WINDOW = 5; // Track last 5 checks
 
 /**
  * 偵測行動是否和 stated priorities 對齊。
- * 讀取 NEXT.md "Now" section 的優先事項，比對最近 action 文字。
+ * 讀取 memory-index in_progress 任務的優先事項，比對最近 action 文字。
  * 持續低對齊 → 注入「你在回答正確的問題嗎？」校正提醒。
  * 每 10 cycles 執行。
  */
@@ -856,28 +842,12 @@ export async function auditProblemAlignment(action: string | null): Promise<void
   }
   state.cyclesSinceLastCheck = 0;
 
-  // ── Extract priority keywords from NEXT.md "Now" section ──
-  const nextPath = path.join(process.cwd(), 'memory', 'NEXT.md');
+  // ── Extract priority keywords from memory-index in_progress tasks ──
   let priorityKeywords: string[] = [];
   try {
-    if (existsSync(nextPath)) {
-      const content = readFileSync(nextPath, 'utf-8');
-      const nowMatch = content.match(/## Now[\s\S]*?(?=\n## |\n---)/);
-      if (nowMatch) {
-        const nowText = nowMatch[0].toLowerCase();
-        // Extract meaningful words (3+ chars, skip common/code words)
-        const stopWords = new Set([
-          'the', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has',
-          'are', 'was', 'were', 'been', 'will', 'would', 'could', 'should',
-          'not', 'but', 'all', 'can', 'had', 'her', 'his', 'how', 'its',
-          'may', 'new', 'now', 'old', 'our', 'out', 'own', 'say', 'she',
-          'too', 'use', 'way', 'who', 'did', 'get', 'let', 'put', 'run',
-          'verify', 'grep', 'cat', 'head', 'done', 'todo', 'next', 'check',
-        ]);
-        const words = nowText.match(/[a-z\u4e00-\u9fff]{3,}/g) ?? [];
-        priorityKeywords = [...new Set(words.filter(w => !stopWords.has(w)))].slice(0, 15);
-      }
-    }
+    const { getPriorityKeywords } = await import('./memory-index.js');
+    const memDir = path.join(process.cwd(), 'memory');
+    priorityKeywords = getPriorityKeywords(memDir);
   } catch { /* ignore */ }
 
   if (priorityKeywords.length === 0) {
@@ -930,7 +900,7 @@ export async function auditProblemAlignment(action: string | null): Promise<void
 
   if (avgAlignment < 0.15 && state.alignmentHistory.length >= 3 && cooldownOk) {
     // Sustained low alignment — inject correction prompt
-    const warning = `問題校正：最近的行動和 NEXT.md 優先事項對齊度偏低（${Math.round(avgAlignment * 100)}%）。\n問自己：「我在回答正確的問題嗎？」\n當前優先：${priorityKeywords.slice(0, 5).join(', ')}`;
+    const warning = `問題校正：最近的行動和任務優先事項對齊度偏低（${Math.round(avgAlignment * 100)}%）。\n問自己：「我在回答正確的問題嗎？」\n當前優先：${priorityKeywords.slice(0, 5).join(', ')}`;
     writeFileSync(flagPath, warning, 'utf-8');
     invalidateFlagCache(flagPath);
     state.warningActive = true;
