@@ -707,6 +707,14 @@ export async function postProcess(
     tagsProcessed.push('goal');
     createGoal(tags.goal.description, tags.goal.origin);
     eventBus.emit('log:info', { tag: 'goal', msg: `created: ${tags.goal.description.slice(0, 80)}` });
+  } else if (tags.goalQueue) {
+    tagsProcessed.push('goal-queue');
+    queueGoal(tags.goalQueue.description, tags.goalQueue.origin, tags.goalQueue.priority);
+    eventBus.emit('log:info', { tag: 'goal', msg: `queued: ${tags.goalQueue.description.slice(0, 80)}` });
+  } else if (tags.goalAdvance) {
+    tagsProcessed.push('goal-advance');
+    advanceGoalPhase(tags.goalAdvance);
+    eventBus.emit('log:info', { tag: 'goal', msg: `phase advanced: ${tags.goalAdvance.slice(0, 80)}` });
   } else if (tags.goalDone) {
     tagsProcessed.push('goal-done');
     completeGoal(tags.goalDone);
