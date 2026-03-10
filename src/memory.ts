@@ -53,6 +53,7 @@ import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
+import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics } from './memory-index.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -2069,6 +2070,32 @@ export class InstanceMemory {
       sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
+    // ── Memory Index（多維度索引摘要）──
+    // Auto-build index on first use; subsequent updates are incremental via dispatcher
+    let indexRelevantTopics: Set<string> | null = null;
+    if (!isLight) {
+      try {
+        if (!isIndexBuilt(this.memoryDir)) {
+          // Cold start: build index (fire-and-forget, don't block context build)
+          buildMemoryIndex(this.memoryDir).catch(() => {});
+        } else {
+          // Load manifest summary
+          const manifestCtx = await getManifestContext(this.memoryDir, 2000);
+          if (manifestCtx) {
+            sections.push(`<memory-index>\n${manifestCtx}\n</memory-index>`);
+          }
+
+          // Use index to find relevant topics for this context
+          if (contextHint) {
+            const relevant = await getRelevantTopics(this.memoryDir, contextHint);
+            if (relevant.length > 0) {
+              indexRelevantTopics = new Set(relevant.map(r => r.topic));
+            }
+          }
+        }
+      } catch { /* index not available — fall through to keyword matching */ }
+    }
+
     // ── Topic 記憶（skip in light mode）──
     if (isLight) {
       // Light mode: skip all topic memory to minimize context
@@ -2107,12 +2134,14 @@ export class InstanceMemory {
         const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
 
         // Match: keyword found AND not a negative-only match
-        const isDirectMatch = keywords.some(k => {
+        // Also match if index identifies this topic as relevant (Phase 2 integration)
+        const isKeywordMatch = keywords.some(k => {
           if (!contextHint.includes(k)) return false;
           // If this keyword is in negatives, require additional keyword match
           if (negatives.includes(k)) return keywords.some(k2 => k2 !== k && contextHint.includes(k2));
           return true;
         });
+        const isDirectMatch = isKeywordMatch || (indexRelevantTopics?.has(topic) ?? false);
 
         const heat = topicHeat[topic] ?? 0;
 
