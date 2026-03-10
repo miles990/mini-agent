@@ -59,7 +59,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 OODA cycle 不發生。
 
-- [ ] **mushi Phase 2: 持續驗證 + 分發** — Active mode Day 8。累計 980+ triage, wake 38%, skip 37%(LLM 23% + rule 13%), quick 20%。零 false negative。Build log 已發佈 Dev.to。下一步：分發（X/HN）+ 累積更多數據觀察長期趨勢。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
+- [ ] **mushi Phase 2: 持續驗證 + 分發** — Active mode Day 14。累計 3,560 triage — skip 1,930(54.2%), wake 1,163(32.7%), quick 467(13.1%)。零 false negative。Build log 已發佈 Dev.to。HN 提交被 auto-killed（karma=1）。下一步：awesome lists PR + Dev.to 深化互動 + 養 HN karma。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
 
 ### #2 Priority: 開源打磨 + 採用策略（2026-03-05 Alex 核准）
 
