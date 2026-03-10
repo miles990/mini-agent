@@ -79,7 +79,7 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
-import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, cleanupOrphanDelegations, forgeRecover } from './delegation.js';
+import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, forgeRecover } from './delegation.js';
 import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
 import { detectCitations } from './nutrient-router.js';

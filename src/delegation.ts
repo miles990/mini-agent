@@ -956,61 +956,6 @@ export function recoverStaleDelegations(): void {
   }
 }
 
-/**
- * Disk-based orphan cleanup — catches delegations that fell through all other safety nets.
- * Scans delegations/ for directories with spec.json but no result.json that are old enough.
- * Called after recoverStaleDelegations() on startup.
- */
-export function cleanupOrphanDelegations(): void {
-  try {
-    const instanceId = getCurrentInstanceId();
-    const delegationsDir = path.join(getInstanceDir(instanceId), 'delegations');
-    if (!fs.existsSync(delegationsDir)) return;
-
-    const cutoffMs = MAX_TIMEOUT_CAP * 2; // 20 min
-    const now = Date.now();
-    let cleaned = 0;
-
-    for (const entry of fs.readdirSync(delegationsDir)) {
-      if (!entry.startsWith('del-')) continue;
-      const dir = path.join(delegationsDir, entry);
-      const specPath = path.join(dir, 'spec.json');
-      const resultPath = path.join(dir, 'result.json');
-
-      // Skip if already has result or no spec
-      if (fs.existsSync(resultPath) || !fs.existsSync(specPath)) continue;
-      // Skip if still active in memory
-      if (activeTasks.has(entry)) continue;
-
-      // Check age
-      try {
-        const stat = fs.statSync(specPath);
-        const age = now - stat.mtimeMs;
-        if (age < cutoffMs) continue;
-
-        slog('DELEGATION', `Orphan cleanup: ${entry} (${Math.round(age / 1000)}s old, no result.json)`);
-
-        const result: TaskResult = {
-          id: entry,
-          status: 'timeout',
-          startedAt: stat.mtime.toISOString(),
-          completedAt: new Date().toISOString(),
-          duration: age,
-          output: '(orphan cleanup: process lost across restart, no result produced)',
-        };
-
-        fs.writeFileSync(resultPath, JSON.stringify(result, null, 2));
-        writeLaneOutput(result);
-        persistDelegationResult(result);
-        cleaned++;
-      } catch { /* best effort */ }
-    }
-
-    if (cleaned > 0) {
-      slog('DELEGATION', `Orphan cleanup: finalized ${cleaned} abandoned delegation(s)`);
-    }
-  } catch { /* best effort */ }
-}
 
 // =============================================================================
 // Watchdog — catch tasks stuck beyond timeout + grace period

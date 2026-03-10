@@ -5,7 +5,7 @@
  *
  * - slog: Timestamped console log for server.log observability
  * - diagLog: 統一診斷記錄（slog + error JSONL）
- * - safeExec / safeExecAsync: 統一 try/catch wrapper
+ * - safeExec: 統一 try/catch wrapper
  */
 
 import { getLogger } from './logging.js';
@@ -70,7 +70,7 @@ export function diagLog(context: string, error: unknown, snapshot?: Record<strin
 }
 
 // =============================================================================
-// safeExec / safeExecAsync — 統一 try/catch wrapper
+// safeExec — 統一 try/catch wrapper
 // =============================================================================
 
 /**
@@ -95,24 +95,3 @@ export function safeExec<T>(
   }
 }
 
-/**
- * 非同步安全執行：自動 diagLog 錯誤
- *
- * @param fn - 要執行的非同步函數
- * @param context - 診斷 context 名稱
- * @param fallback - 錯誤時的 fallback 值
- * @param snapshot - 現場 key-value
- */
-export async function safeExecAsync<T>(
-  fn: () => Promise<T>,
-  context: string,
-  fallback: T,
-  snapshot?: Record<string, string>,
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    diagLog(context, error, snapshot);
-    return fallback;
-  }
-}

@@ -62,7 +62,6 @@ const FEATURES: FeatureInfo[] = [
   // ── Core ──
   { name: 'reflex-ack',         group: 'core',         description: 'Instant 💭 reaction when busy (Layer 0 reflex)' },
   { name: 'ooda-loop',         group: 'core',         description: 'OODA cycle (main agent loop)' },
-  { name: 'cron',              group: 'core',         description: 'Scheduled cron tasks' },
   { name: 'hesitation-signal', group: 'core',        description: 'Deterministic hesitation — hold overconfident tags for review (Ritual constraint)' },
 
   // ── Post-cycle housekeeping ──
