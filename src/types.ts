@@ -319,6 +319,10 @@ export interface ParsedTags {
   fetches: Array<{ url: string; label?: string }>;
   schedule?: { next: string; reason: string };
   inner?: string;
+  goal?: { description: string; origin?: string };
+  goalProgress?: string;
+  goalDone?: string;
+  goalAbandon?: string;
   cleanContent: string;
 }
 

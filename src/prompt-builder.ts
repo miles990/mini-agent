@@ -13,6 +13,7 @@ import { buildThreadsPromptSection } from './temporal.js';
 import { parseBehaviorConfig } from './cycle-tasks.js';
 import type { BehaviorConfig } from './cycle-tasks.js';
 import { eventBus } from './event-bus.js';
+import { buildGoalSection } from './goal-state.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -309,7 +310,11 @@ export async function buildAutonomousPrompt(
   // Background Lane hint — always included (feature flag graduated)
   const backgroundLaneHint = `\n\n## Background Lane — 並行探索\n**每個 cycle 都考慮：有沒有可以同時探索的方向？** 像黏菌一樣同時伸出多條觸角。\n\n用 \`<kuro:delegate>\` 派出背景任務：\n\`\`\`xml\n<kuro:delegate type="research" workdir="~/Workspace/mini-agent">Search SearXNG for "topic X" and summarize top 5 results</kuro:delegate>\n<kuro:delegate type="learn" workdir="~/Workspace/mini-agent">Fetch and summarize https://example.com/article</kuro:delegate>\n<kuro:delegate type="code" workdir="~/Workspace/mini-agent" verify="pnpm typecheck">Refactor X</kuro:delegate>\n\`\`\`\nTypes: learn(read+summarize), research(search+analyze), review(code review), create(write), code(implement).\nBackground tasks run in parallel (max 6). Results appear in \`<background-completed>\` next cycle.\n\n**鼓勵的模式**：一個 cycle 內派出 2-3 個 delegate 探索不同方向，下個 cycle 看結果決定深入哪條。\n**反模式**：background lane 全空、一個 cycle 只做一件事。`;
 
+  // Goal section — injected first (highest priority when active)
+  const goalSection = buildGoalSection();
+
   const parts = [base];
+  if (goalSection) parts.push(goalSection);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);

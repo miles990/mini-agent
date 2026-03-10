@@ -19,6 +19,7 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
+import { createGoal, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 
 // =============================================================================
 // Semaphore — 通用並發控制
@@ -485,6 +486,28 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // <kuro:goal> tags — goal state machine
+  let goal: { description: string; origin?: string } | undefined;
+  if (parseSource.includes('<kuro:goal>') || parseSource.includes('<kuro:goal ')) {
+    const match = parseSource.match(/<kuro:goal(?:\s+origin="([^"]*)")?>([\s\S]*?)<\/kuro:goal>/);
+    if (match) goal = { description: match[2].trim(), origin: match[1] || undefined };
+  }
+  let goalProgress: string | undefined;
+  if (parseSource.includes('<kuro:goal-progress>')) {
+    const match = parseSource.match(/<kuro:goal-progress>([\s\S]*?)<\/kuro:goal-progress>/);
+    if (match) goalProgress = match[1].trim();
+  }
+  let goalDone: string | undefined;
+  if (parseSource.includes('<kuro:goal-done>')) {
+    const match = parseSource.match(/<kuro:goal-done>([\s\S]*?)<\/kuro:goal-done>/);
+    if (match) goalDone = match[1].trim();
+  }
+  let goalAbandon: string | undefined;
+  if (parseSource.includes('<kuro:goal-abandon>')) {
+    const match = parseSource.match(/<kuro:goal-abandon>([\s\S]*?)<\/kuro:goal-abandon>/);
+    if (match) goalAbandon = match[1].trim();
+  }
+
   const cleanContent = response
     .replace(/<kuro:remember[\s\S]*?<\/kuro:remember>/g, '')
     .replace(/<kuro:task[\s\S]*?<\/kuro:task>/g, '')
@@ -503,6 +526,10 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:progress[\s\S]*?<\/kuro:progress>/g, '')
     .replace(/<kuro:inner>[\s\S]*?<\/kuro:inner>/g, '')
     .replace(/<kuro:check>[\s\S]*?<\/kuro:check>/g, '')
+    .replace(/<kuro:goal(?:\s[^>]*)?>[\s\S]*?<\/kuro:goal>/g, '')
+    .replace(/<kuro:goal-progress>[\s\S]*?<\/kuro:goal-progress>/g, '')
+    .replace(/<kuro:goal-done>[\s\S]*?<\/kuro:goal-done>/g, '')
+    .replace(/<kuro:goal-abandon>[\s\S]*?<\/kuro:goal-abandon>/g, '')
     .trim();
 
   // Fuzzy detection — warn on malformed tags (open without matching close)
@@ -510,7 +537,7 @@ export function parseTags(response: string): ParsedTags {
   const responseForDetection = response
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule'];
+  const tagNames = ['remember', 'task', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
       + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
@@ -521,7 +548,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, cleanContent };
+  return { remembers, tasks, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalProgress, goalDone, goalAbandon, cleanContent };
 }
 
 // =============================================================================
@@ -661,6 +688,24 @@ export async function postProcess(
     const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
     slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
     eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+  }
+
+  // <kuro:goal*> tags — goal state machine (fire-and-forget)
+  if (tags.goal) {
+    tagsProcessed.push('goal');
+    createGoal(tags.goal.description, tags.goal.origin);
+    eventBus.emit('log:info', { tag: 'goal', msg: `created: ${tags.goal.description.slice(0, 80)}` });
+  } else if (tags.goalDone) {
+    tagsProcessed.push('goal-done');
+    completeGoal(tags.goalDone);
+    eventBus.emit('log:info', { tag: 'goal', msg: `completed: ${tags.goalDone.slice(0, 80)}` });
+  } else if (tags.goalAbandon) {
+    tagsProcessed.push('goal-abandon');
+    abandonGoal(tags.goalAbandon);
+    eventBus.emit('log:info', { tag: 'goal', msg: `abandoned: ${tags.goalAbandon.slice(0, 80)}` });
+  } else if (tags.goalProgress) {
+    tagsProcessed.push('goal-progress');
+    progressGoal(tags.goalProgress);
   }
 
   // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
