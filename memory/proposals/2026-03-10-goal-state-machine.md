@@ -1,6 +1,7 @@
 # Proposal: Goal State — Perception + Goal 並行架構
 
 ## Status: approved
+GitHub-Issue: #70
 Effort: M (~1-2h)
 Level: L2
 
