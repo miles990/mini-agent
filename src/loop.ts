@@ -195,6 +195,8 @@ export class AgentLoop {
   /** Snapshot of pending telegram messages at cycle start (for content-based reply matching) */
   private triggerTelegramMsgs: TelegramMsgSnapshot[] = [];
   private lastCycleTime = 0;
+  /** Tracks when a real cycle (not skip) last completed — used for mushi triage accuracy */
+  private lastCompletedCycleTime = 0;
   private static readonly MIN_CYCLE_INTERVAL = 30_000;           // 30s throttle
 
   // ── Direct Message Wake (trigger loop cycle on direct messages: telegram, room, chat) ──
@@ -813,7 +815,11 @@ export class AgentLoop {
     const isDM = [...AgentLoop.DIRECT_MESSAGE_SOURCES].some(s => reason.startsWith(s))
       || reason.startsWith('direct-message');
     const isContinuation = reason.startsWith('continuation');
-    if (isEnabled('mushi-triage') && !isDM && !isContinuation && reason) {
+    const hasP0 = this.hasPendingWork();
+    if (hasP0 && !isDM) {
+      slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
+    }
+    if (isEnabled('mushi-triage') && !isDM && !isContinuation && !hasP0 && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
@@ -850,7 +856,7 @@ export class AgentLoop {
         return;
       } else {
         const triageCtx: TriageContext = {
-          lastCycleTime: this.lastCycleTime,
+          lastCycleTime: this.lastCompletedCycleTime || this.lastCycleTime,
           lastAction: this.lastAction,
           lastPerceptionVersion: this.lastPerceptionVersion,
           currentPerceptionVersion: perceptionStreams.version,
@@ -909,6 +915,7 @@ export class AgentLoop {
 
     try {
       await this.cycle();
+      this.lastCompletedCycleTime = Date.now();
     } catch (err) {
       diagLog('loop.runCycle', err);
     }
