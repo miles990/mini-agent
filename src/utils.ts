@@ -8,6 +8,7 @@
  * - safeExec: 統一 try/catch wrapper
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import { getLogger } from './logging.js';
 
 // =============================================================================
@@ -66,6 +67,22 @@ export function diagLog(context: string, error: unknown, snapshot?: Record<strin
     logger.logDiag(context, error, snapshot);
   } catch {
     // Logger 尚未初始化時（啟動階段），至少 slog 已經記錄了
+  }
+}
+
+// =============================================================================
+// readJsonFile — 安全讀取 JSON 檔案
+// =============================================================================
+
+/**
+ * 安全讀取 JSON 檔案：不存在或解析失敗時回傳 fallback
+ */
+export function readJsonFile<T>(filePath: string, fallback: T): T {
+  try {
+    if (!existsSync(filePath)) return fallback;
+    return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
+  } catch {
+    return fallback;
   }
 }
 
