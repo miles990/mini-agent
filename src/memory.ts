@@ -2801,7 +2801,7 @@ export function cleanupStaleLaneOutput(instanceId: string): void {
 // Trail — 注意力歷史（mushi + kuro 共寫的化學梯度）
 // =============================================================================
 
-export interface TrailEntry {
+interface TrailReadEntry {
   ts: string;
   agent: string;
   type: string;
@@ -2812,11 +2812,11 @@ export interface TrailEntry {
 }
 
 /** Deduplicate trail entries: merge same pattern >3 times into single entry with count */
-function deduplicateTrailEntries(entries: TrailEntry[]): TrailEntry[] {
+function deduplicateTrailEntries(entries: TrailReadEntry[]): TrailReadEntry[] {
   if (entries.length <= 3) return entries;
 
   // Group by pattern key: agent + type + decision
-  const groups = new Map<string, TrailEntry[]>();
+  const groups = new Map<string, TrailReadEntry[]>();
   const order: string[] = [];
 
   for (const e of entries) {
@@ -2828,7 +2828,7 @@ function deduplicateTrailEntries(entries: TrailEntry[]): TrailEntry[] {
     groups.get(key)!.push(e);
   }
 
-  const result: TrailEntry[] = [];
+  const result: TrailReadEntry[] = [];
   for (const key of order) {
     const group = groups.get(key)!;
     if (group.length > 3) {

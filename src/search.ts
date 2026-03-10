@@ -643,7 +643,7 @@ export function isIndexReady(): boolean {
 }
 
 /**
- * 關閉資料庫連線
+ * 關閉資料庫連線（test cleanup 用）
  */
 export function closeSearchIndex(): void {
   if (db) {
@@ -651,3 +651,4 @@ export function closeSearchIndex(): void {
     db = null;
   }
 }
+

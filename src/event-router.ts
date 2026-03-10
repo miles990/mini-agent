@@ -40,7 +40,7 @@ export interface UnifiedEvent {
  * 路由決策 — 型別系統強制無 skip/drop。
  * 事件只能被延遲（lane 調整），不能被消滅。
  */
-export interface RouteDecision {
+interface RouteDecision {
   priority: Priority;
   lane: 'preempt' | 'immediate' | 'normal' | 'deferred';
   reason: string;

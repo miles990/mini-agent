@@ -1,7 +1,7 @@
 /**
  * Dispatcher — Tag Processor + System Prompt (OODA-Only)
  *
- * 保留 parseTags / postProcess / getSystemPrompt / Semaphore / getConversationHint
+ * 保留 parseTags / postProcess / getSystemPrompt / getConversationHint
  * 所有訊息統一由 Loop Lane (OODA cycle) 處理。
  */
 
@@ -21,32 +21,6 @@ import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createGoal, queueGoal, advanceGoalPhase, progressGoal, completeGoal, abandonGoal } from './goal-state.js';
 import { addIndexEntry } from './memory-index.js';
-
-// =============================================================================
-// Semaphore — 通用並發控制
-// =============================================================================
-
-export class Semaphore {
-  private current = 0;
-  private waiters: Array<() => void> = [];
-  constructor(private readonly max: number) {}
-
-  async acquire(): Promise<void> {
-    if (this.current < this.max) { this.current++; return; }
-    await new Promise<void>(r => this.waiters.push(r));
-    this.current++;
-  }
-
-  release(): void {
-    this.current--;
-    const next = this.waiters.shift();
-    if (next) next();
-  }
-
-  stats(): { active: number; waiting: number; max: number } {
-    return { active: this.current, waiting: this.waiters.length, max: this.max };
-  }
-}
 
 // =============================================================================
 // Remember Classifier — Learning→Perception 自動閉環 Phase 1

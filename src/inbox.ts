@@ -381,15 +381,6 @@ export function getUnprocessedHighPriority(hoursBack: number = 4): InboxItem[] {
   }
 }
 
-/**
- * 標記所有 pending items。
- */
-export function markAllInboxProcessed(status: 'seen' | 'replied'): void {
-  const pending = readPendingInbox();
-  if (pending.length === 0) return;
-  markInboxProcessed(pending.map(i => i.id), status);
-}
-
 // =============================================================================
 // Cycle Mode Detection（替代 Haiku triageCycleIntent）
 // =============================================================================

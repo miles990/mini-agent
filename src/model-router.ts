@@ -116,22 +116,6 @@ export function recordModelOutcome(outcome: ModelOutcome): void {
   }
 }
 
-/** Get model usage stats for observability */
-export function getModelStats(): {
-  opus: { count: number; avgScore: number; avgDurationMs: number };
-  sonnet: { count: number; avgScore: number; avgDurationMs: number };
-} {
-  const opus = recentOutcomes.filter(o => o.model === 'opus');
-  const sonnet = recentOutcomes.filter(o => o.model === 'sonnet');
-
-  const avg = (arr: ModelOutcome[], key: 'observabilityScore' | 'durationMs') =>
-    arr.length ? Math.round(arr.reduce((s, o) => s + o[key], 0) / arr.length * 100) / 100 : 0;
-
-  return {
-    opus: { count: opus.length, avgScore: avg(opus, 'observabilityScore'), avgDurationMs: avg(opus, 'durationMs') },
-    sonnet: { count: sonnet.length, avgScore: avg(sonnet, 'observabilityScore'), avgDurationMs: avg(sonnet, 'durationMs') },
-  };
-}
 
 /** Get CLI model name for the tier */
 export function getModelCliName(tier: ModelTier): string | undefined {
