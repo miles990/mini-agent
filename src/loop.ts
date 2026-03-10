@@ -64,7 +64,7 @@ import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProces
 import {
   parseBehaviorConfig, parseInterval,
   checkApprovedProposals, resolveStaleConversationThreads,
-  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos,
+  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitCodeFiles, autoCommitExternalRepos,
   markNextItemsDone, writeContextSnapshot,
 } from './cycle-tasks.js';
 import type { BehaviorConfig, BehaviorMode } from './cycle-tasks.js';
@@ -995,6 +995,7 @@ export class AgentLoop {
           .then(() => {
             try { getMemory().updateConversationSearchIndex(); } catch { /* best effort */ }
           })
+          .then(() => autoCommitCodeFiles())
           .then(() => autoCommitExternalRepos())
           .then(() => {
             if (isEnabled('auto-push')) {
@@ -1918,6 +1919,7 @@ export class AgentLoop {
           .then(() => {
             try { memory.updateConversationSearchIndex(); } catch { /* best effort */ }
           })
+          .then(() => autoCommitCodeFiles())
           .then(() => autoCommitExternalRepos())
           .then(() => {
             done();
