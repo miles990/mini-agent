@@ -2184,13 +2184,17 @@ export class InstanceMemory {
               topicContent = truncateTopicMemory(content, 'summary');
             }
             topicContent = addTemporalMarkers(topicContent);
-            // Budget check: downgrade matched content to summary if over budget
+            // Budget check: skip non-matching topics once budget exceeded
             const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
-            if (isDirectMatch && topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
-              const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
-              const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
-              sections.push(summarySection);
-              topicCharsUsed += summarySection.length;
+            if (topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
+              if (isDirectMatch) {
+                // Direct matches downgrade to summary
+                const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
+                const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
+                sections.push(summarySection);
+                topicCharsUsed += summarySection.length;
+              }
+              // Non-matching topics: simply skip once over budget
             } else {
               sections.push(section);
               topicCharsUsed += section.length;

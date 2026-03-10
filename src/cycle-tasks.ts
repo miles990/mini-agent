@@ -369,7 +369,6 @@ export async function autoEscalateOverdueTasks(): Promise<void> {
 // =============================================================================
 
 const MEMORY_COMMIT_PATHS = ['memory/'];
-const CODE_COMMIT_PATHS = ['src/', 'scripts/', 'plugins/', 'skills/'];
 
 // External repos — only Kuro's own projects
 const KURO_EXTERNAL_REPOS = [
@@ -415,53 +414,6 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
   }
 }
 
-/**
- * Auto-commit code files (src/, scripts/, plugins/, skills/) with typecheck gate.
- * Only commits if `pnpm typecheck` passes — prevents broken code from being auto-deployed.
- * Fire-and-forget, called after autoCommitMemoryFiles.
- */
-export async function autoCommitCodeFiles(): Promise<void> {
-  const cwd = process.cwd();
-
-  try {
-    const { stdout: status } = await execFileAsync(
-      'git', ['status', '--porcelain', ...CODE_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
-
-    if (!status.trim()) return;
-
-    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
-
-    // Typecheck gate — must pass before committing code
-    try {
-      await execFileAsync('pnpm', ['typecheck'], { cwd, encoding: 'utf-8', timeout: 30000 });
-    } catch {
-      slog('auto-commit-code', `blocked: typecheck failed (${changedFiles.length} file(s) not committed)`);
-      return;
-    }
-
-    await execFileAsync(
-      'git', ['add', ...CODE_COMMIT_PATHS],
-      { cwd, encoding: 'utf-8', timeout: 5000 },
-    );
-
-    const fileList = changedFiles.slice(0, 5).join(', ');
-    const msg = `chore(auto): auto-commit code\n\nFiles: ${fileList}`;
-
-    await execFileAsync(
-      'git', ['commit', '-m', msg],
-      { cwd, encoding: 'utf-8', timeout: 10000 },
-    );
-
-    slog('auto-commit-code', `${changedFiles.length} file(s): ${fileList}`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes('nothing to commit')) {
-      slog('auto-commit-code', `skipped: ${msg.slice(0, 120)}`);
-    }
-  }
-}
 
 /**
  * Auto-commit+push external repos (separate git repos like mushi).

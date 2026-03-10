@@ -272,21 +272,12 @@ export async function buildAutonomousPrompt(
 
   const memory = getMemory();
 
-  // Inject conversation threads for chat mode awareness
-  const convThreads = await memory.getConversationThreads();
-  const pendingConvThreads = convThreads
-    .filter(t => !t.resolvedAt)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10);
+  // Conversation threads already injected by buildContext() as <conversation-threads> section.
+  // Only inject chat-mode time awareness here.
   let chatContextSection = '';
-  if (pendingConvThreads.length > 0) {
-    const items = pendingConvThreads.map(t => `- [${t.type}] ${t.content}`).join('\n');
-    chatContextSection = `\n\n## 待跟進的對話\nRecent promises, questions, and shared URLs to follow up on:\n${items}`;
-  }
-  // Time awareness for chat mode
   const chatHour = new Date().getHours();
   if (chatHour >= 0 && chatHour < 8) {
-    chatContextSection += '\n\n⚠️ 現在是深夜 — 除非很重要，否則不要發訊息打擾 Alex。';
+    chatContextSection = '\n\n⚠️ 現在是深夜 — 除非很重要，否則不要發訊息打擾 Alex。';
   }
 
   // Inject active threads hint
