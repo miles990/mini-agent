@@ -26,7 +26,6 @@ import { eventBus } from './event-bus.js';
 
 let lastPatternScanAt = 0;
 let lastStaleScanAt = 0;
-let lastFrictionScanAt = 0;
 let newRememberSinceLastScan = false;
 
 // Track topic content hashes to skip unchanged topics (survives in-memory across cycles,
@@ -34,7 +33,6 @@ let newRememberSinceLastScan = false;
 const topicContentHashes = new Map<string, string>();
 
 const STALE_SCAN_INTERVAL = 6 * 60 * 60_000; // 6h
-const FRICTION_SCAN_INTERVAL = 60 * 60_000;    // 1h
 const STALE_THRESHOLD_DAYS = 30;
 const HIGH_SIMILARITY = 0.85;
 
@@ -72,14 +70,6 @@ export async function metabolismScan(): Promise<void> {
     lastStaleScanAt = now;
     tasks.push(detectStaleKnowledge().catch(err => {
       slog('METABOLISM', `detectStaleKnowledge error: ${err instanceof Error ? err.message : err}`);
-    }));
-  }
-
-  // 偵測：每 1h
-  if (now - lastFrictionScanAt >= FRICTION_SCAN_INTERVAL) {
-    lastFrictionScanAt = now;
-    tasks.push(detectFriction().catch(err => {
-      slog('METABOLISM', `detectFriction error: ${err instanceof Error ? err.message : err}`);
     }));
   }
 
@@ -322,11 +312,3 @@ async function isEntryReferenced(snippet: string): Promise<boolean> {
 }
 
 // =============================================================================
-// Phase 4: Friction Detection — 主動偵測（placeholder）
-// =============================================================================
-
-async function detectFriction(): Promise<void> {
-  // Phase 4: scan behavior log for repeated manual patterns
-  // → auto-suggest skill/script creation
-  // Placeholder: structure is in place, logic to be implemented
-}
