@@ -439,6 +439,9 @@ export class AgentLoop {
       // Record for next cycle awareness
       this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed };
 
+      // Mark inbox items as processed — prevents main cycle from re-responding to same message
+      try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
+
       // Update lastAction so /status reflects foreground activity (visibility fix)
       this.lastAction = `[Foreground] Replied to ${source}: ${answer.slice(0, 100)}`;
 
