@@ -47,7 +47,7 @@ import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.j
 import { perceptionStreams } from './perception-stream.js';
 import {
   initSearchIndex, indexMemoryFiles, searchMemoryFTS, searchMemoryEntries,
-  searchConversations, isIndexReady, rebuildIndex, indexConversationsIncremental,
+  searchConversations, isIndexReady, indexConversationsIncremental,
 } from './search.js';
 import { runVerify } from './verify.js';
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
@@ -980,15 +980,6 @@ export class InstanceMemory {
     await fs.writeFile(this.getImpulseBufferPath(), JSON.stringify(impulses, null, 2), 'utf-8');
   }
 
-  async markImpulseExpressed(id: string): Promise<void> {
-    const impulses = await this.getImpulses();
-    const target = impulses.find(i => i.id === id);
-    if (target) {
-      target.expressedAt = new Date().toISOString();
-      await fs.writeFile(this.getImpulseBufferPath(), JSON.stringify(impulses, null, 2), 'utf-8');
-    }
-  }
-
   async getUnexpressedImpulses(): Promise<import('./types.js').CreativeImpulse[]> {
     const impulses = await this.getImpulses();
     const now = Date.now();
@@ -1270,27 +1261,6 @@ export class InstanceMemory {
   }
 
   /**
-   * 取得過期任務
-   */
-  async getOverdueTasks(): Promise<string[]> {
-    const heartbeat = await this.readHeartbeat();
-    const now = new Date();
-    const overdue: string[] = [];
-
-    for (const line of heartbeat.split('\n')) {
-      if (!line.includes('- [ ]')) continue;
-      const dueMatch = line.match(/@due:(\d{4}-\d{2}-\d{2})/);
-      if (dueMatch) {
-        const dueDate = new Date(dueMatch[1]);
-        if (dueDate < now) {
-          overdue.push(line.replace(/^\s*- \[ \]\s*/, '').replace(/\s*<!--.*-->/, ''));
-        }
-      }
-    }
-    return overdue;
-  }
-
-  /**
    * 讀取今日日記
    */
   async readDailyNotes(): Promise<string> {
@@ -1393,13 +1363,6 @@ export class InstanceMemory {
    */
   getHotConversations(): ConversationEntry[] {
     return [...this.conversationBuffer];
-  }
-
-  /**
-   * 清空 Hot buffer
-   */
-  clearHotBuffer(): void {
-    this.conversationBuffer = [];
   }
 
   /**
@@ -1578,13 +1541,6 @@ export class InstanceMemory {
 
   updateConversationSearchIndex(): number {
     return indexConversationsIncremental(this.memoryDir);
-  }
-
-  /**
-   * 重建搜尋索引
-   */
-  rebuildSearchIndex(): number {
-    return rebuildIndex(this.memoryDir);
   }
 
   /**
