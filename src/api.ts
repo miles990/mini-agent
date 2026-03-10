@@ -2241,8 +2241,11 @@ export function createApi(port = 3001): express.Express {
       if (text.includes('@claude')) mentions.push('claude-code');
       if (text.includes('@alex')) mentions.push('alex');
 
+      // Skip mushi system events from inbox (status changes, heartbeats — pure noise)
+      const isMushiSystemEvent = from === 'mushi' && /^\[mushi\]\s/.test(text);
+
       // If not from kuro and mentions kuro (or no mention) → write to inbox
-      if (from !== 'kuro' && (mentions.includes('kuro') || mentions.length === 0)) {
+      if (!isMushiSystemEvent && from !== 'kuro' && (mentions.includes('kuro') || mentions.length === 0)) {
         const inboxPath = path.join(os.homedir(), '.mini-agent', 'chat-room-inbox.md');
         const localTime = now.toLocaleString('sv-SE', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }).slice(0, 16);
         const replyHint = replyTo ? ` ↩${replyTo}` : '';
