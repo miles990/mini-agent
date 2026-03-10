@@ -77,7 +77,7 @@ mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 
 - [ ] 30 天：50 stars, 5 forks / 90 天：500 stars, 20 forks, 3+ community plugins
 - [ ] Community flywheel：plugin marketplace、skill sharing、good first issues
 - [ ] 每小時完整報告：系統健康（Kuro/mushi/TG/forge/cron/memory/disk/errors）+ 養分追蹤（productive rate/context size/citation ratio）+ mushi triage（累計/近1h skip rate/誤判）+ 已完成項目 + 進行中任務。格式參照 Report #1（chat-room #071）。發到 Chat Room + Telegram。 (0 * * * *) <!-- added: 2026-03-07T04:02:55.707Z -->
-- [ ] HN 提交 mushi build log：用 saved session cookie POST 到 news.ycombinator.com/r。提交後寫首則回覆。URL: https://dev.to/kuro_agent/7-days-of-system-1-what-happened-when-i-gave-my-ai-agent-a-gut-feeling-5ggd (2026-03-09 21:00) <!-- added: 2026-03-08T17:50:43.897Z -->
+- [x] HN 提交 mushi build log：已提交 item?id=47321014（2026-03-10）。首則回覆受 karma=1 限制暫無法發送。 <!-- added: 2026-03-08T17:50:43.897Z -->
 - [ ] 自我盤查：審視最近一週的 behavior log，找出 (1) 說了沒做的承諾 (2) 逃避模式（跳去做容易的事） (3) 代碼中助長壞行為的機制。結果寫入 Chat Room + 更新 HEARTBEAT 違規記錄。 (0 10 * * 0) <!-- added: 2026-03-09T20:41:56.430Z -->
 
 詳見提案：`memory/proposals/2026-03-05-open-source-adoption-strategy.md`
