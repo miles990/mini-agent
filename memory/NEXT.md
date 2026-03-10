@@ -23,7 +23,6 @@
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 - [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P1: 回覆 Alex: "剛剛看到這個 https://x.com/yan5xu/status/2029779676835762255  URLs: - https://x.com/yan5xu/status/20297796" (收到: 2026-03-10T12:03:02)
 ---
 
 ## Later（有空再做）
