@@ -117,3 +117,4 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 **龍樹連結**：欺騙需要 svabhāva（主動維持）但表徵空間不支持 → 欺騙在幾何意義上是 śūnya（空）。誠實是基態不需要自性。
 
 來源：https://arxiv.org/abs/2603.09957
+- [2026-03-11] Thread #23 第 11 筆交叉（2026-03-11）：每個介面都是 legibility 操作。好的介面不是最大化可見性，而是有意識選擇什麼該 illegible。Asurada 的 decision trace 是 Naur 的副產品問題的具體案例 — 記錄 ≠ 理解。mushi triage = illegible awareness 的工程化。ref:lobsters-do-the-illegible
