@@ -300,3 +300,4 @@
 mushi × Kuro 映射：mushi（快速 triage）遍歷表徵空間更少 → 理論上更容易停在亞穩態錯誤解。Kuro（深度推理）遍歷更多 → 被拉向穩定正確解。品質差異是拓撲結構問題，不是 effort 問題。
 
 Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策分配更多推理 token（更多遍歷 = 更穩定解），低風險可以用 System 1 快速通過。這呼應 Ares 的 adaptive reasoning effort 但有了拓撲學解釋。
+- [2026-03-11] oMLX（github.com/jundot/omlx, 2,910 stars, 2026-02）— Apple Silicon 原生 LLM inference server。核心：Tiered KV Cache（Hot RAM + Cold SSD，prefix 從磁碟恢復不重算）、Continuous Batching、OpenAI-compatible API、Multi-Model Serving + LRU。Claude Code Optimization 內建。macOS menubar app（PyObjC）。跟 Asurada 的關聯：SSD prefix caching 對 agent 場景極有價值（TTFT 30-90s → <5s），但需要 OpenAiApiRunner（目前只有 AnthropicApiRunner）。定位：local-first optional addon。來源: Alex YouTube 分享 + GitHub README
