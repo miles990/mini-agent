@@ -329,3 +329,4 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - **蒸餾版 Qwen3.5（Opus distilled）**：思考 baked into weights 無法關閉，但推理品質更高。適合 Cortex-lite 層（pulse-reflex、複雜信號分類）
 - 關鍵區分：確定性任務（模式匹配）用原版 no-think，推理任務用蒸餾版
 - 立即行動：mushi triage 應從蒸餾版切回原版（省 3700+ thinking tokens）
+- [2026-03-11] [2026-03-11] mushi triage 模型切換驗證：原版 Qwen3.5-9B +  在 oMLX 上的實際表現 — 34 tokens（7 tokens JSON 的預期沒達到，可能是 chat_template_kwargs 在 oMLX 的實作差異），warm latency ~6s（5.7 tok/s）。比蒸餾版的 ~3700 thinking tokens 省 99%，但比預期的 0.5s / 7 tokens 慢。oMLX 原版 Qwen3.5 的 tok/s 比蒸餾版低（5.7 vs 25 tok/s），可能跟量化方式有關。
