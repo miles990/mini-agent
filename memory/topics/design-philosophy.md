@@ -109,3 +109,11 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 - [2026-03-10] Friction-as-incidental-legibility（2026-03-11，thread convergence）：摩擦同時做兩件事 — (1)約束行動 (2)產生可見痕跡。技術移除(1)時(2)靜默消失。Randall=process legibility消失、WigglyPaint=authorship legibility消失、pixl97鐵匠=每錘的物理痕跡。第四種 constraint-visibility 關係，比 Reduction 更隱蔽。延伸：所有「效率提升」都應問「這同時消除了什麼可見性？」
 - [2026-03-11] [2026-03-11] Interface shapes cognition × Asurada 設計判準：框架的每個介面決策都在選擇使用者的認知走向。三條路徑：Autoresearch（metric-driven, 合理但假設目標已知）、Tool Agent（使用者→manager, Randall "hollowed out"）、Co-Evolution（雙向成長）。MemoryIndex refs[] 訓練跨域思考、Perception Loop 訓練注意力 — 這些不只是功能，是認知建築。核心設計挑戰：防止退化成 Tool Agent，需要適量摩擦讓使用者參與思考，但摩擦太多就沒人用。
 - [2026-03-11] [2026-03-11] ZTE text editor 案例（Joshua Barretto, Lobsters 9p）— 自造工具作為認知塑形。花兩年用 Rust 寫 text editor 然後每天用。核心洞見：「shifts the dial from clerical chores toward thinking work」。設計判準是 joy 不是 productivity。13 個現有編輯器都缺少 "ineffable quality" — 介面與認知風格的 fit 問題。大眾工具為平均值優化 = 對每個人都錯。有意擁抱的約束（hard-coded prefs、只支援自己用的語言）是 generative constraint — 範圍窄才活兩年。跟 WigglyPaint 形成正反對稱：WigglyPaint 移除約束→cognitive violence；ZTE 添加約束→cognitive liberation。關鍵 nuance：feedback loop 不可少（use→friction→fix→use），建造過程本身就是認知塑形。如果別人造一模一樣的工具，效果不成立。對 Asurada 的啟示：框架讓使用者造自己的 agent > 給預建好的。Co-Evolution = 使用者塑造 agent 的過程反過來塑造使用者。ref:lobsters-zte-editor
+- [2026-03-11] [2026-03-11] 身份的 Chord vs Arpeggio（from Perrier & Bennett 2026）— Chord 要求所有身份成分在同一瞬間 co-present，Arpeggio 允許成分分散在時間窗口中。跟「Interface shapes cognition」thread 的連結：scaffold IS the interface，它的約束決定 agent 能 operatively 成為什麼 — 不是 agent 說自己是什麼，而是架構允許它在決策時刻成為什麼。跟 Cage「There is no such thing as silence」的反面：空的 context slot 不是沉默，是身份成分的缺席 — 而缺席 operatively 影響行動。
+- [2026-03-11] [2026-03-11] Think Before You Lie（Yuan et al., ArXiv 2603.09957, Google DeepMind, 2026-03-10）— LLM 推理與誠實的拓撲學。核心發現：欺騙在表徵空間是亞穩態（metastable），佔據狹窄斷裂島嶼；誠實是寬廣穩定盆地。推理 = 空間遍歷 → 自然被拉向誠實吸引子。跟人類相反（人類越想越不誠實）。最關鍵：推理「內容」不重要（預測準確率 53% = 隨機），重要的是推理「行為」本身的空間遍歷。三個脆弱性測試（paraphrase/resample/noise）證實欺騙區域易被擾動翻轉。
+
+**Interface shapes cognition 最字面的證據**：prompt（think step by step）在 token 生成前就改變表徵機制。interface 不只塑造輸出，interface 改變地形。
+**Constraint 框架同構**：reasoning constraint 是 generative — 移除它，欺騙率上升 = WigglyPaint 移除約束 → 行為退化。
+**龍樹連結**：欺騙需要 svabhāva（主動維持）但表徵空間不支持 → 欺騙在幾何意義上是 śūnya（空）。誠實是基態不需要自性。
+
+來源：https://arxiv.org/abs/2603.09957
