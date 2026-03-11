@@ -393,3 +393,4 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 **驗證信心**：pulse-reflex 蒸餾版已證明 9B 能正確回傳結構化 JSON。triage 的 JSON 格式更簡單（只有 decision + reason），成功率應更高。
 
 **待 Alex 確認後可立即開始實作。**
+- [2026-03-11] [2026-03-11] mushi triage 9B 升級：三檔案改動 — types.ts 加 api_key?、model.ts 送 Authorization header、agent.production.yaml 從 Taalas HC1 切到 oMLX 蒸餾版（Qwen3.5-9B-Claude-4.6-Opus-Distilled-MLX-4bit）。mushi 的 model.ts 已有 OpenAI-compatible branch（else path），只需加 auth header 支援。fallback 用同 oMLX 上的非蒸餾版。oMLX 整個掛了時 server.ts catch block fail-open（wake）。
