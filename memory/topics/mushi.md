@@ -378,3 +378,18 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 - [2026-03-07] mushi 模板修復驗證通過（2026-03-08 00:50）：4e224a9 部署 6.5h 後確認效果。Dispatcher 過濾器攔截模板文字（log 顯示 filtered），Chat Room 零洩漏。雙層防線都在運作。4195 senses / 91 thinks / 2 escalations。
 - [2026-03-07] mushi repo 不在 mini-agent 的 auto-commit 範圍 — 每次改完 mushi 代碼必須手動 commit + push。Alex 2026-03-08 指出這個壞習慣。
 - [2026-03-07] mushi auto-commit 自動化已實作（2026-03-08）： 新增  +  配置。每個 OODA cycle 結束後自動檢查 ~/Workspace/mushi/ 的未 commit 變更，有就 commit + push origin main。解決了 mushi 代碼堆積未 commit 的根因問題。
+- [2026-03-11] ## mushi triage → 9B 升級設計筆記（2026-03-11）
+
+**現有架構**：POST /api/triage → normalizeTriage() → Taalas HC1 API call → JSON {decision, reason}
+
+**升級路線**：
+- 替換 HC1 HTTP call → oMLX localhost:8000/v1/chat/completions（Qwen3.5-9B-Claude-4.6-Opus-Distilled）
+- Auth: 
+- Prompt 可直接沿用（system + event summary + context excerpt → JSON decision）
+- Response parsing 需適配 OpenAI 格式（choices[0].message.content）
+
+**延遲考量**：HC1 ~800ms vs 9B 預估 1-3s。設 hard timeout 2s，超時 fallback wake。triage 在每個 trigger 前跑，延遲直接影響 cycle 反應時間。
+
+**驗證信心**：pulse-reflex 蒸餾版已證明 9B 能正確回傳結構化 JSON。triage 的 JSON 格式更簡單（只有 decision + reason），成功率應更高。
+
+**待 Alex 確認後可立即開始實作。**
