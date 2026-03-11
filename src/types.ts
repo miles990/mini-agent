@@ -336,6 +336,7 @@ export interface ParsedTags {
   goalDone?: string;
   goalAbandon?: string;
   understands: Array<{ content: string; refs: string[]; tags?: string[] }>;
+  directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }>;
   cleanContent: string;
 }
 

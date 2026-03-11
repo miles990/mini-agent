@@ -2087,6 +2087,8 @@ export class InstanceMemory {
       const keywordMap = await loadTopicKeywordMap(this.memoryDir);
 
       const loadedTopics: string[] = [];
+      const INDEX_EXTRA_TOPIC_CAP = 2; // Max extra topics recommended by memory-index (not keyword-matched)
+      let indexExtraCount = 0;
       for (const topic of topics) {
         const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
 
@@ -2098,7 +2100,13 @@ export class InstanceMemory {
           if (negatives.includes(k)) return keywords.some(k2 => k2 !== k && contextHint.includes(k2));
           return true;
         });
-        const isDirectMatch = isKeywordMatch || (indexRelevantTopics?.has(topic) ?? false);
+        // Memory-index boosting: cap extra topics to prevent context bloat
+        const isIndexMatch = !isKeywordMatch && (indexRelevantTopics?.has(topic) ?? false);
+        if (isIndexMatch && indexExtraCount >= INDEX_EXTRA_TOPIC_CAP) {
+          continue; // Skip — already at cap for index-only recommendations
+        }
+        const isDirectMatch = isKeywordMatch || isIndexMatch;
+        if (isIndexMatch && isDirectMatch) indexExtraCount++;
 
         const heat = topicHeat[topic] ?? 0;
 

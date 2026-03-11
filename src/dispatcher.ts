@@ -502,6 +502,16 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // <kuro:direction-change> tags — strategy drift audit trail
+  const directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
+  if (parseSource.includes('<kuro:direction-change')) {
+    for (const m of parseSource.matchAll(/<kuro:direction-change(?:\s+refs="([^"]*)")?(?:\s+tags="([^"]*)")?>([\s\S]*?)<\/kuro:direction-change>/g)) {
+      const refs = m[1] ? m[1].split(',').map(s => s.trim()).filter(Boolean) : [];
+      const tags = m[2] ? m[2].split(',').map(s => s.trim()).filter(Boolean) : undefined;
+      directionChanges.push({ content: m[3].trim(), refs, tags });
+    }
+  }
+
   // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
   const delegates: DelegateRequest[] = [];
   if (parseSource.includes('<kuro:delegate')) {
@@ -582,6 +592,7 @@ export function parseTags(response: string): ParsedTags {
     .replace(/<kuro:goal-done>[\s\S]*?<\/kuro:goal-done>/g, '')
     .replace(/<kuro:goal-abandon>[\s\S]*?<\/kuro:goal-abandon>/g, '')
     .replace(/<kuro:understand[\s\S]*?<\/kuro:understand>/g, '')
+    .replace(/<kuro:direction-change[\s\S]*?<\/kuro:direction-change>/g, '')
     .trim();
 
   // Fuzzy detection — warn on malformed tags (open without matching close)
@@ -589,7 +600,7 @@ export function parseTags(response: string): ParsedTags {
   const responseForDetection = response
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`\n]+`/g, '');
-  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change'];
   for (const tag of tagNames) {
     const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
       + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
@@ -600,7 +611,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, cleanContent };
 }
 
 // =============================================================================
@@ -765,6 +776,20 @@ export async function postProcess(
       payload: u.content.length > 200 ? { full: u.content } : undefined,
     }).catch(() => {}); // fire-and-forget
     slog('UNDERSTAND', `${u.content.slice(0, 80)}...`);
+  }
+
+  // <kuro:direction-change> tags — strategy drift audit trail
+  if (tags.directionChanges.length > 0) tagsProcessed.push('direction-change');
+  for (const dc of tags.directionChanges) {
+    appendMemoryIndexEntry(memoryDir, {
+      type: 'direction-change',
+      status: 'active',
+      summary: dc.content.length > 200 ? dc.content.slice(0, 197) + '...' : dc.content,
+      refs: dc.refs,
+      tags: dc.tags,
+      payload: dc.content.length > 200 ? { full: dc.content } : undefined,
+    }).catch(() => {}); // fire-and-forget
+    slog('DIRECTION', `${dc.content.slice(0, 80)}...`);
   }
 
   // <kuro:thread> tags

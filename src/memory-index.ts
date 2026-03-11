@@ -918,14 +918,42 @@ export async function getRelevantTopics(
   memoryDir: string,
   query: string,
 ): Promise<Array<{ topic: string; matchCount: number }>> {
-  const q = query.toLowerCase();
-  const entries = queryMemoryIndexSync(memoryDir, { type: 'remember', limit: 500 });
+  // Multi-word tokenization: split query into tokens, any token match counts
+  const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 2);
+  if (tokens.length === 0) return [];
+
+  // Search across all entry types (remember + direction-change + understanding)
+  const entries = queryMemoryIndexSync(memoryDir, { limit: 500 });
   const counts = new Map<string, number>();
 
   for (const e of entries) {
-    if (!e.topic || !e.summary) continue;
-    if (!e.summary.toLowerCase().includes(q)) continue;
-    counts.set(e.topic, (counts.get(e.topic) ?? 0) + 1);
+    const summary = (e.summary ?? '').toLowerCase();
+    const entryTags = (e.tags ?? []).map(t => t.toLowerCase());
+    const entryRefs = e.refs.map(r => r.toLowerCase());
+
+    const matchesAny = tokens.some(t =>
+      summary.includes(t) ||
+      entryTags.some(tag => tag.includes(t)) ||
+      entryRefs.some(ref => ref.includes(t)),
+    );
+
+    if (!matchesAny) continue;
+
+    // Direct topic match: entry has a topic field → boost that topic
+    if (e.topic) {
+      counts.set(e.topic, (counts.get(e.topic) ?? 0) + 1);
+    }
+
+    // Cross-topic boosting from direction-change / understanding refs
+    // refs like "topic:agent-architecture" boost that topic
+    if (e.type === 'direction-change' || e.type === 'understanding') {
+      for (const ref of e.refs) {
+        const topicRef = ref.match(/^topic:(.+)/);
+        if (topicRef) {
+          counts.set(topicRef[1], (counts.get(topicRef[1]) ?? 0) + 1);
+        }
+      }
+    }
   }
 
   return [...counts.entries()]
