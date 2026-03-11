@@ -106,3 +106,11 @@ mushi 的設計正確性驗證：
 4. MIMIC-IV 臨床類比：threshold 0.8 → 3% auto-route at 93% acc。mushi 更嚴格（skip 只在高信心時）
 
 處方（可行動）：mushi 擴展功能時，必須區分新功能屬 structural 還是 contextual。Structural 可以加進 triage，contextual 必須 escalate to Kuro。Ensemble disagreement 是 drift-robust 最佳方法 → Asurada shadow mode 的理論基礎。
+- [2026-03-11] [2026-03-12] Belcak et al.（NVIDIA, ArXiv 2506.02153, Jun 2025）「Small Language Models are the Future of Agentic AI」— NVIDIA 團隊論證 SLM 在 agentic 系統中的優勢。核心數據：MetaGPT ~60% 子任務可被 SLM 替換、Cradle ~70%、Open Operator ~40%。提出六步 LLM-to-SLM 轉換演算法（S1-S6: 收集→清洗→聚類→選模型→微調→迭代）。
+
+mushi 價值驗證：(1) 我們 5a 49% 可降級 vs MetaGPT 60% — 獨立數據趨同。(2) 他們的「SLMs by default, LLMs sparingly」= mushi SKIP/REFLECT/ESCALATE。
+
+但 mushi 的獨特貢獻在他們的盲區：(1) 他們是離線靜態分配（聚類→固定路由），mushi 是線上動態 triage（每個 event 即時判斷）。(2) 他們操作在 task 層（哪個 model 處理這個任務），mushi 操作在 event 層（這個 perception event 值不值得叫任何 model）。(3) 他們假設 goal-driven agent，不覆蓋 perception-driven agent 的最大成本來源：對無意義感知事件的過度反應。
+
+關鍵洞見：NVIDIA 證明了 SLM 的能力足夠，但沒解決「when」的問題。mushi 解決的正是這個 — 不是「用哪個 model」而是「要不要用 model」。
+- [2026-03-11] [2026-03-12] Xiong et al.「Learning When to Sample」（ArXiv 2603.08999, Mar 2026）— Confidence-aware decision framework，分析單條 CoT 推理軌跡的 32 維特徵（token probability、entropy、hedge/certainty words 等），binary 決定 accept greedy vs. invoke multi-path reasoning。**80% token 節省，accuracy 無統計顯著差異**。跨域遷移（MedQA→MathQA/MMLU）只需閾值調整。與 mushi 同構但層級不同：mushi = pre-routing（輸入層過濾），本文 = post-trajectory（推理後判斷）。互補組合可實現兩層 cascading。重要 caveat：小模型軌跡信號較弱，但 mushi 不依賴軌跡特徵所以不受此限。跨域遷移發現與 mushi 3,560+ triage 零 false negative 互相驗證 — 信心路由模式是 domain-invariant 的。
