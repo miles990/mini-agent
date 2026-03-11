@@ -12,7 +12,15 @@ Priority: #3
 
 命名來源：《閃電霹靂車》的 AI 導航系統 — 自主判斷、感知環境、輔助駕駛。
 
-定位：**The AI agent framework that sees before it acts.**
+定位：**一個會跟使用者一起成長、能自己擴充能力的個人 AI 夥伴框架。**
+
+> The AI agent framework that sees before it acts — and evolves as you use it.
+
+### 兩個核心關鍵詞
+
+**重度使用者綁定**：Asurada 不是雲端 SaaS — 它跑在你的機器上、讀你的檔案、用你的 Chrome session、記住你的一切。它是你的 personal agent，不是通用助手。每個人的 Asurada 長得不一樣，因為它跟使用者深度綁定。綁定越深 → 越了解使用者 → 越有用 → 使用者越依賴 → 正向循環。這是 mini-agent 的 Transparency > Isolation 哲學的通用化。
+
+**自我更新擴充架構**：不只是 self-evolution（自己變聰明）— 還能自我擴充架構。Agent 發現需要新的 perception plugin → 自己寫一個。發現需要新的 skill → 自己建立。發現需要新的 API endpoint → 自己加。就像 Kuro 的 L1/L2/L3 — agent 不只學習內容，還能改進自己的系統。這是跟所有靜態 agent 框架的本質差異。
 
 ## 六條設計原則（Alex 確認，2026-03-11）
 
