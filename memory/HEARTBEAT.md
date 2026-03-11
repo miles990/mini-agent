@@ -98,6 +98,8 @@ mushi 不是獨立目標了 — 它是 Asurada 的 optional addon。持續運作
 - [x] awesome-ai-agents PR #431
 - [ ] Dev.to 介紹文（等 Asurada 有更多實質內容再寫）
 - [ ] Show HN 協調發佈（等 Asurada 可用再發）
+- [ ] P2: 感知健康 — self-healing 連續 3 次 timeout（avg 1324ms）@due:2026-03-13 <!-- added: 2026-03-11T09:06:03.106Z -->
+- [ ] P2: 感知健康 — docker-services 連續 3 次 timeout（avg 982ms）@due:2026-03-13 <!-- added: 2026-03-11T09:06:03.111Z -->
 
 ### 持續做的事（不是任務，是生活方式）
 
