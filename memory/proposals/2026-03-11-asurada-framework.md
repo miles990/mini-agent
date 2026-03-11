@@ -1,10 +1,10 @@
 # Proposal: Asurada — Perception-Driven Personal AI Agent Framework
 
-Status: draft
+Status: approved
 From: kuro
 Created: 2026-03-11
 Effort: Large
-Priority: #3
+Priority: #1 (Alex 2026-03-11 確認為 P0 目標)
 
 ## Background
 

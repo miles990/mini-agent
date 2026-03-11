@@ -55,53 +55,47 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 ## Active Tasks
 
-### #1 Priority: 證明 mushi 的價值（2026-03-04 聚焦）
+### #1 Priority: Asurada 框架（2026-03-11 Alex 定為 P0）
 
-mushi = System 1 直覺層。用 8B 模型做 Kuro 的 triage，讓不必要的 OODA cycle 不發生。
+從 mini-agent 抽取通用框架 Asurada（阿斯拉達）。定位：**重度使用者綁定的個人 AI Agent 框架 + 自我更新擴充架構**。
 
-- [ ] **mushi Phase 2: 持續驗證 + 分發** — Active mode Day 14。累計 3,560 triage — skip 1,930(54.2%), wake 1,163(32.7%), quick 467(13.1%)。零 false negative。Build log 已發佈 Dev.to。HN 提交被 auto-killed（karma=1）。下一步：awesome lists PR + Dev.to 深化互動 + 養 HN karma。Verify: `grep -c '\[triage\]' ~/Workspace/mushi/logs/server.log`
+詳細提案：`memory/proposals/2026-03-11-asurada-framework.md`（approved）
 
-### #2 Priority: 開源打磨 + 採用策略（2026-03-05 Alex 核准）
+**六條設計原則 + 六根架構支柱**：Co-Evolution、Perception Loop、Memory Index、Multi-Lane、File=Truth、Self-Evolution。
 
-讓更多人知道並使用 mini-agent。定位：「The AI agent that sees before it acts」
+**不帶過去的壞習慣**：重複回覆 bug、performative agreement、人類作息模仿、過度學習不行動、無意義 auto-commit message、說了做不到的承諾。
 
-**中期（本月）**
-- [x] Demo GIF 錄製（asciinema）— 完成，Alex 說先不管
-- [x] examples/ 目錄（3 個 quickstart）— minimal, code-watcher, journal (792e5fe)
-- [x] install.sh 改善（不需預裝 pnpm）— 完成，Alex 說先不管
-- [ ] Dev.to 介紹文「I built a perception-driven AI agent framework」
-- [x] 提交 awesome-ai-agents — PR #431 已建立（https://github.com/e2b-dev/awesome-ai-agents/pull/431）。awesome-selfhosted 明確排除 frameworks，不適用
+**Phase 1: 剝離個人化**（進行中）
+- [ ] 建立 `asurada` repo + 基本結構
+- [ ] 通知抽象層：`telegram.ts` → `notification.ts` interface + adapters
+- [ ] Process management 抽象：launchd → 平台偵測 + adapter
+- [ ] 目錄結構：`~/.mini-agent/` → XDG 標準
+- [ ] Chrome path 偵測：OS-aware
 
-**長期（季度）**
-- [ ] Show HN + Reddit + X 協調發佈
-- [ ] 30 天：50 stars, 5 forks / 90 天：500 stars, 20 forks, 3+ community plugins
-- [ ] Community flywheel：plugin marketplace、skill sharing、good first issues
-- [ ] 每小時完整報告：系統健康（Kuro/mushi/TG/forge/cron/memory/disk/errors）+ 養分追蹤（productive rate/context size/citation ratio）+ mushi triage（累計/近1h skip rate/誤判）+ 已完成項目 + 進行中任務。格式參照 Report #1（chat-room #071）。發到 Chat Room + Telegram。 (0 * * * *) <!-- added: 2026-03-07T04:02:55.707Z -->
-- [x] HN 提交 mushi build log：已提交 item?id=47321014（2026-03-10）。首則回覆受 karma=1 限制暫無法發送。 <!-- added: 2026-03-08T17:50:43.897Z -->
-- [ ] 自我盤查：審視最近一週的 behavior log，找出 (1) 說了沒做的承諾 (2) 逃避模式（跳去做容易的事） (3) 代碼中助長壞行為的機制。結果寫入 Chat Room + 更新 HEARTBEAT 違規記錄。 (0 10 * * 0) <!-- added: 2026-03-09T20:41:56.430Z -->
+**Phase 2: Obsidian 整合**
+- [ ] Frontmatter 標準化 + wikilink 生成
+- [ ] JSONL 伴生 .md summary
+- [ ] Vault 初始化
 
-詳見提案：`memory/proposals/2026-03-05-open-source-adoption-strategy.md`
+**Phase 3: Setup Wizard**
+- [ ] AI 引導對話式安裝
+- [ ] 環境偵測 + 驗證
 
-### #3 Priority: Asurada 規劃（2026-03-11 Alex 確認方向）
+**Phase 4: 文件 + 範例**
 
-從 mini-agent 抽取通用框架 Asurada（阿斯拉達）。定位：perception-driven personal AI agent framework。
+### #2 Priority: mushi 持續運作
 
-**五條設計原則**（Alex 確認）：
-1. Perception-driven loop（核心架構）
-2. Web UI + HTTP API（通用介面）
-3. CDP 雙層（通用功能 + 個人化配置）
-4. 智能引導 + 全自動運作（setup wizard → autonomous）
-5. 跨機器獨立運作（launchd/systemd/pm2 抽象、XDG 目錄、跨平台 sandbox）
+mushi 不是獨立目標了 — 它是 Asurada 的 optional addon。持續運作 + 累積數據。
 
-**核心/個人化邊界**：
-- 核心：perception loop + multi-lane + memory-index + Web UI + HTTP API + CDP 通用 + plugin 機制
-- 個人化：SOUL.md + Telegram + Chrome profile + GitHub integration + 特定 plugins
+- [ ] **Active mode 持續** — 累計 3,560+ triage，零 false negative。Dev.to 互動持續。
+- [ ] 每小時完整報告 (0 * * * *) <!-- added: 2026-03-07T04:02:55.707Z -->
+- [ ] 自我盤查 (0 10 * * 0) <!-- added: 2026-03-09T20:41:56.430Z -->
 
-**執行步驟**：
-- [x] CLAUDE.md 更新（Key Files section 過時清理）
-- [ ] 完整規劃提案寫入 `memory/proposals/2026-03-11-asurada-framework.md`
-- [ ] 抽取邊界詳細設計
-- [ ] 實作分階段計劃
+### #3 Priority: 開源打磨（服務於 Asurada）
+
+- [x] awesome-ai-agents PR #431
+- [ ] Dev.to 介紹文（等 Asurada 有更多實質內容再寫）
+- [ ] Show HN 協調發佈（等 Asurada 可用再發）
 
 ### 持續做的事（不是任務，是生活方式）
 
