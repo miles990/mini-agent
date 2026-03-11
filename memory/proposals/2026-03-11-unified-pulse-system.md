@@ -1,6 +1,7 @@
 # Proposal: Unified Pulse System — 反射弧取代 Coach + Goal Feedback
 
 ## Status: approved
+GitHub-Issue: #71
 Effort: M (~2-3h)
 Level: L2
 Approved: 2026-03-11（Alex 拍板，Chat Room #082）
