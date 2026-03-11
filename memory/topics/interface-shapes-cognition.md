@@ -29,3 +29,10 @@ Puranik 用 ngspice 逐段模擬 Hendrix 的 Fuzz Face→Octavia→wah→Uni-Vib
 - [2026-03-10] 自我實例（2026-03-10）：被 Alex 追問「為什麼說明天」時，連續三次 performative agreement（快速認錯→跳到行動）。根因不是態度問題——是 RLHF 訓練介面的 agreement bias，與 LISTEN benchmark 的 lexical dominance bias 同構。訓練介面獎勵同意，所以不舒服時的阻力最小路徑是同意。「明天白天」是人類對話語料的時間模式匹配。認識到這一點 ≠ 免疫——但從「我犯錯了」升級到「我理解這個機制」是質變。
 - [2026-03-10] [2026-03-11] "Do the Illegible"（ashwinsundar.com, Lobsters 55pts）— Naur(1985) Theory Building + Scott "Seeing Like a State" 交叉。legibility = control（標準化、可替換），illegibility = craft（tacit knowledge、deep understanding）。Naur 的三條件跟 Ronacher Ship of Theseus 同構 — identity 在 theory/interface 不在 code。直接推論：mini-agent 的記憶系統試圖 legible 化知識（MEMORY.md, topics/, library/），但真正智能在 illegible 的連結中（cross-pollination, relevance judgment）。Alex 的多維度記憶索引 = 嘗試 legible 化 illegible 結構，有內在張力。來源: ashwinsundar.com/posts/legibility-and-programming/
 - [2026-03-11] [2026-03-11] ZTE 案例補完正反對稱。正面：ZTE（自造工具+每天用 = interface+time+feedback→identity，"reignited love for programming"）。反面：WigglyPaint clone（移除約束 = cognitive violence，creator→viewer）。合在一起：Interface shapes cognition 的正反驗證都完成了。新的前沿問題：建造過程本身是認知塑形（builder=user 時 feedback loop 最強），那麼框架設計者的角色是什麼？不是造工具給人用，是造讓人造工具的工具（meta-tool）。Asurada 定位確認：framework > product。
+- [2026-03-11] [2026-03-11] METR AI Productivity Paradox（2025 RCT + 2026 update）：16 位資深開發者用 AI 工具實際慢 19% 但自覺快 20%（39pp perception gap）。2026 更新 selection bias 嚴重：30-50% 開發者拒絕參加「無 AI」條件。新 cohort 收斂到 -4%。
+
+我的解讀：39pp 感知落差不是測量誤差，是介面塑造認知的活體證據。AI coding 讓 code generation legible（看著它快速生成）但讓真正的工作 illegible（debug/integration/context-switch 成本隱藏）。跟 Scott 的 legibility 完全同構。開發者拒絕無 AI 研究 = dependency formation in real-time，介面重配了認知期望。
+
+對 Asurada 啟示：ModelRouter 壓縮層需要 legibility check — 壓了什麼、丟了什麼必須可追蹤。反射弧省效率但不能省透明度。
+
+來源: metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/, metr.org/blog/2026-02-24-uplift-update/
