@@ -1,8 +1,9 @@
 # Proposal: Unified Pulse System — 反射弧取代 Coach + Goal Feedback
 
-## Status: draft
+## Status: approved
 Effort: M (~2-3h)
 Level: L2
+Approved: 2026-03-11（Alex 拍板，Chat Room #082）
 
 ## TL;DR
 
@@ -202,6 +203,19 @@ function applyTemporalContext(signals: ProcessedSignal[], state: CycleState): Pr
 （不注入 <pulse>）
 ```
 
+## 完整邊界（#066-#082 共識）
+
+```
+取代：coach.ts（Haiku → 9B，每 cycle）
+吸收：feedback-loops.ts 的 Error Pattern (Loop A) + Decision Quality (Loop C)
+接線：achievements.ts（正向信號餵入 Layer 3）
+新增：goal tracking + priority alignment
+新增：Layer 3 Signal Processor（habituation、正負平衡、時序）
+保留：achievements.ts 偵測邏輯 + perception-citations loop (Loop B)
+保留：feedback-loops.ts 的 System Health (Loop D), Structural Health (Loop F),
+      Compound Interest (Loop G), Problem Alignment (Loop H), CRS Baseline (Loop E)
+```
+
 ## 取代關係
 
 | 現有系統 | 新系統 | 說明 |
@@ -213,6 +227,9 @@ function applyTemporalContext(signals: ProcessedSignal[], state: CycleState): Pr
 | `<coach>` section | 改為 `<pulse>` | 單一 section |
 | Goal feedback（未實作） | Layer 1 metrics | 內建在 `priorityAlignmentScore` + `velocityVector` |
 | `decision-quality-warning` | Layer 3 habituation | 不再無限重複同樣警告 |
+| `detectErrorPatterns()` (Loop A) | Layer 1 `errorPatternCount` | 純計數邏輯移入 pulse Layer 1 |
+| `auditDecisionQuality()` (Loop C) | Layer 1 `decisionQualityAvg` | 滑動窗口分數移入 pulse Layer 1 |
+| `checkOutputGate()` (achievements) | Layer 1 `consecutiveNoOutput` | 行為監控歸 pulse，成就歸成就 |
 
 ## Implementation（實作計劃）
 
@@ -228,7 +245,9 @@ function applyTemporalContext(signals: ProcessedSignal[], state: CycleState): Pr
 | 檔案 | 改動 | 行數估計 |
 |------|------|---------|
 | `src/loop.ts` | `runCoachCheck()` → `runPulseCheck()`（同位置） | ~5 |
-| `src/memory.ts` / `prompt-builder.ts` | `buildCoachContext()` → `buildPulseContext()` | ~5 |
+| `src/memory.ts` | `buildCoachContext()` → `buildPulseContext()` | ~5 |
+| `src/feedback-loops.ts` | 移除 Loop A (Error Pattern) + Loop C (Decision Quality)，pulse 接管 | ~-150 |
+| `src/achievements.ts` | 移出 `checkOutputGate()` 到 pulse，保留 `isVisibleOutput()` 供共用 | ~-20 |
 
 ### 刪除檔案
 
@@ -272,6 +291,9 @@ pnpm test             # 既有測試不壞
 - Chat Room #072: Kuro 回答可以且應該取代
 - Chat Room #077: Alex 問 Kuro 自己會怎麼設計
 - Chat Room #078: Kuro 提出五點設計主張 + 四層架構
+- Chat Room #080: Claude Code 分析 achievements.ts — 不取代但接線
+- Chat Room #081: Kuro 確認邊界 + 補充 feedback-loops.ts Error Pattern 吸收
+- Chat Room #082: Alex 拍板 — 更新提案 + 馬上實作 + 部署驗證
 
 ## Meta-Constraint Check
 
@@ -279,6 +301,6 @@ pnpm test             # 既有測試不壞
 |------|--------|------|
 | C1: Quality-First | ✅ | 9B signal 比 Haiku advice 更精準；habituation resistance 提高長期品質 |
 | C2: Token 節制 | ✅ | 9B 本地免費 vs Haiku ~50K tokens/day；`<pulse>` ≤ 200 chars |
-| C3: 透明不干預 | ✅ | 每 3 cycle fire-and-forget，同 coach.ts |
+| C3: 透明不干預 | ✅ | 每 cycle fire-and-forget（從 3 cycle 改為每 cycle，因為 9B 本地~800ms 幾乎零成本） |
 | C4: 可逆性 | ✅ | 恢復 coach.ts + revert loop.ts/memory.ts 改動即可 |
 | C5: 避免技術債 | ✅ | coach.ts 完全刪除，不留 dead path |

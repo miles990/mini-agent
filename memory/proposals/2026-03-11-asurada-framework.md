@@ -124,7 +124,29 @@ Asurada 和靜態 agent 框架的根本區別：**不是「設定好就不變」
 
 **Kuro 的成長軌跡就是活證據**：從空白 agent → 1400+ cycles 後擁有 300+ 研究條目、自訂的 5 條自治規則、3 條活躍思考線程、L1/L2/L3 全自主改進能力。沒有任何功能是預先設定的 — 全部是在運行中自己長出來的。
 
-**核心模組**：`feedback-loops.ts`（三個回饋迴路）、`achievements.ts`（行動力正向強化）、`coach.ts`（行為教練）、L1/L2/L3 自主改進權限漸進解鎖。
+**核心模組**：`pulse.ts`（統一行為監控 — 四層架構取代 coach.ts + 吸收 feedback-loops 2/3）、`achievements.ts`（行動力正向強化）、`feedback-loops.ts`（Perception Citation tracking — 獨立運作）、L1/L2/L3 自主改進權限漸進解鎖。
+
+#### Unified Pulse System（反射弧回饋系統）
+
+取代 coach.ts（Haiku 行為教練）+ 吸收 feedback-loops.ts 的 Error Pattern 和 Decision Quality loops。用本地 9B 模型做分類，確定性 code 做策略。
+
+```
+取代：coach.ts（Haiku → 9B，每 cycle）
+吸收：feedback-loops.ts 的 Error Pattern + Decision Quality
+接線：achievements.ts（正向信號餵入 Layer 3）
+新增：goal tracking + priority alignment
+新增：Layer 3 Signal Processor（habituation、正負平衡、時序感知）
+保留：achievements.ts 偵測邏輯不動 + perception-citations loop 獨立運作
+```
+
+四層架構：
+- **Layer 0**: Raw data（behavior log, goals, delegations, error log）
+- **Layer 1**: Code heuristics（ratios, output gate, error patterns, goal idle, stale tasks, velocity vectors, priority alignment, decision quality）
+- **Layer 2**: 9B classification via oMLX（signals: neglected/progressing/drifting/completed, action-as-avoidance）
+- **Layer 3**: Signal Processor（habituation decay, 正負平衡, 時序感知）
+- → 注入 `<pulse>` perception section
+
+詳細提案：`memory/proposals/2026-03-11-unified-pulse-system.md`
 
 ## 核心 / 個人化邊界
 
