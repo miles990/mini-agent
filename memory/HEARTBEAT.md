@@ -65,23 +65,25 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 
 **不帶過去的壞習慣**：重複回覆 bug、performative agreement、人類作息模仿、過度學習不行動、無意義 auto-commit message、說了做不到的承諾。
 
-**Phase 1: 剝離個人化**（進行中）
-- [ ] 建立 `asurada` repo + 基本結構
-- [ ] 通知抽象層：`telegram.ts` → `notification.ts` interface + adapters
-- [ ] Process management 抽象：launchd → 平台偵測 + adapter
-- [ ] 目錄結構：`~/.mini-agent/` → XDG 標準
-- [ ] Chrome path 偵測：OS-aware
+**Phase 1: 剝離個人化** ✅（30 commits）
+- [x] 建立 `asurada` repo + 基本結構
+- [x] 通知抽象層：NotificationProvider interface + ConsoleProvider + TelegramProvider
+- [x] Process management 抽象：launchd / systemd / pm2 factory
+- [x] 目錄結構：XDG 標準（`~/.config/asurada/`、`~/.local/share/asurada/`）
+- [x] Chrome path 偵測：OS-aware
 
-**Phase 2: Obsidian 整合**
-- [ ] Frontmatter 標準化 + wikilink 生成
-- [ ] JSONL 伴生 .md summary
-- [ ] Vault 初始化
+**Phase 2: Obsidian 整合** ✅
+- [x] Frontmatter 標準化 + wikilink 生成（VaultSync）
+- [x] JSONL 伴生 .md summary
+- [x] Vault 初始化（initVault）
 
-**Phase 3: Setup Wizard**
-- [ ] AI 引導對話式安裝
-- [ ] 環境偵測 + 驗證
+**Phase 3: Setup Wizard** ✅
+- [x] Phase A: 環境偵測（detect.ts — OS/Git/Chrome/LLM/Obsidian）
+- [x] Phase B/C: 互動式 wizard（命名 → LLM → 通知 → persona）
+- [x] Phase D: 記憶空間 scaffold（SOUL.md seed + Obsidian vault + directory structure）
+- [x] Phase E: First-run greeting（系統快照 + 感知狀態 + 互動 URL）
 
-**Phase 4: 文件 + 範例**
+**Phase 4: 文件 + 範例**（下一步）
 
 ### #2 Priority: mushi 持續運作
 
