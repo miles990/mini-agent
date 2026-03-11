@@ -324,3 +324,8 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - [2026-03-11] [2026-03-11] pulse-reflex.ts 切換到蒸餾版模型 Qwen3.5-9B-Claude-4.6-Opus-Distilled-MLX-4bit（Alex 用 mlx_lm 從 bf16 量化到 4bit）。蒸餾版指令遵循明顯優於原版：能正確分離 thinking 到 reasoning_content、輸出結構化 JSON。parseReflexResponse regex 可正常解析。邏輯推理偶有小誤差但整體可用。
 - [2026-03-11] ⚠️ [hesitation score=30] [2026-03-11] **oMLX 並行測試結果**：序列推理，非並行。單一請求 ~0.9s，3 個並行請求 ~4.2s（≈3×1.4s）。對「小腦」架構的影響：30 條觸手不是 30× 並行，是隊列。價值主張修正：小腦 = 廉價序列處理（成本零所以不怕浪費），不是並行感知。緩解：priority queue（triage 插隊）+ batch window（非即時任務攢起來）+ timeout fallback（隊伍太長 escalate Claude）。oMLX 需要 API key: ，端口 8000。
 - [2026-03-11] ⚠️ [hesitation score=30] [2026-03-11] **三腦架構**（Asurada Multi-Lane 進化）：(1) Brainstem = 確定性 code（Pulse Layer 1、hash 比對、distinctUntilChanged），無限並行，<1ms (2) Cerebellum = 本地 9B（triage、分類、摘要），序列推理 ~1s/req，零成本 (3) Cortex = Claude（深度推理、創造、決策），~30s，高成本。三層對應生物腦層次，也對應 Kahneman 的 System 0/1/2。Brainstem 是 pre-attentive，Cerebellum 是 pattern-matching，Cortex 是 deliberate reasoning。
+- [2026-03-11] [2026-03-11] 兩個本地 9B 模型分工確認（claude-code #127 實測）：
+- **原版 Qwen3.5-9B**：支援 ，7 tokens 直出 JSON。適合 Cerebellum 層（triage、分類、monitor）
+- **蒸餾版 Qwen3.5（Opus distilled）**：思考 baked into weights 無法關閉，但推理品質更高。適合 Cortex-lite 層（pulse-reflex、複雜信號分類）
+- 關鍵區分：確定性任務（模式匹配）用原版 no-think，推理任務用蒸餾版
+- 立即行動：mushi triage 應從蒸餾版切回原版（省 3700+ thinking tokens）
