@@ -74,7 +74,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'cron-drain',        group: 'housekeeping', description: 'Drain one queued cron task per cycle' },
   { name: 'housekeeping',      group: 'housekeeping', description: 'Push, search index, inbox expiration, handoff sync' },
   { name: 'approved-proposals',group: 'housekeeping', description: 'Auto-create handoffs from approved proposals' },
-  { name: 'coach',             group: 'housekeeping', description: 'Action Coach — Haiku behavioral accountability (every 3 cycles)' },
+  { name: 'pulse',             group: 'housekeeping', description: 'Unified Pulse System — behavioral signals via heuristics + local 9B (every cycle)' },
   { name: 'commitment-binding',group: 'housekeeping', description: 'Commitment Binding — track and display promise fulfillment' },
   { name: 'mushi-triage',     group: 'housekeeping', description: 'mushi trigger triage — HC1 classifies triggers before OODA cycle, skips low-signal triggers' },
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },

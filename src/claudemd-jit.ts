@@ -65,8 +65,8 @@ const SECTION_KEYWORDS: Record<string, string[]> = {
   'Achievement System（行動力正向強化）': [
     'achievement', 'milestone', 'unlock', 'output gate', 'schedule ceiling',
   ],
-  'Action Coach（行為教練）': [
-    'coach', 'haiku', 'behavior', 'coach-notes', 'coaching',
+  'Unified Pulse System（反射弧回饋）': [
+    'pulse', 'reflex', 'signal', 'habituation', 'behavioral', 'momentum',
   ],
   'Action Feedback Loop Skills（行動正向閉環）': [
     'friction', 'publish', 'social-presence', 'social-monitor', 'grow-audience',

@@ -74,7 +74,7 @@ export const SECTION_KEYWORDS: Record<string, string[]> = {
   activity: ['activity', 'behavior', 'action', 'recent'],
   trail: ['trail', 'decision', 'triage', 'scout'],
   achievements: ['achievement', 'milestone', 'ship', 'momentum'],
-  coach: ['coach', 'habit', 'behavior', 'pattern', 'streak', 'action ratio'],
+  pulse: ['pulse', 'habit', 'behavior', 'pattern', 'streak', 'action ratio', 'momentum', 'signal'],
   commitments: ['commitment', 'promise', 'overdue', 'committed', 'pledge'],
   'route-efficiency': ['route', 'efficiency', 'nutrient', 'slime', 'path', 'forge'],
   'stale-tasks': ['stale', 'overdue', 'stuck', 'abandon', 'backlog'],

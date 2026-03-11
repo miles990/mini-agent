@@ -87,7 +87,7 @@ const COMMITMENT_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
 const COMMITMENT_PATTERN =
-  /(?:收到|我來修|我來處理|我馬上|馬上(?:修|做|處理|去)|我現在就|我去做|i['']ll fix|i will fix|i['']ll handle|i['']ll do it)/i;
+  /(?:我來修|我來處理|我馬上|馬上(?:修|做|處理|去)|我現在就|我去做|i['']ll fix|i will fix|i['']ll handle|i['']ll do it)/i;
 
 // =============================================================================
 // Helpers
@@ -844,18 +844,6 @@ export function getTasksSnapshot(memoryDir: string): string {
     .sort((a, b) => getTaskPriority(a) - getTaskPriority(b))
     .slice(0, 20)
     .map(t => `- [${t.status === 'in_progress' ? 'x' : ' '}] P${getTaskPriority(t)}: ${t.summary}`)
-    .join('\n');
-}
-
-/** Get task summary for coach input. */
-export function getTaskSummaryForCoach(memoryDir: string): string {
-  const tasks = queryMemoryIndexSync(memoryDir, {
-    type: ['task', 'goal'],
-    status: ['pending', 'in_progress'],
-  }).sort((a, b) => getTaskPriority(a) - getTaskPriority(b));
-  if (tasks.length === 0) return '';
-  return tasks.slice(0, 15)
-    .map(t => `- [${t.status}] P${getTaskPriority(t)}: ${t.summary}`)
     .join('\n');
 }
 

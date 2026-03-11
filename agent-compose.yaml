@@ -75,6 +75,7 @@ agents:
         - name: docker-services
           script: ./plugins/docker-services.sh
           interval: "60m"
+          enabled: false
         - name: github-issues
           script: ./plugins/github-issues.sh
           interval: "60m"

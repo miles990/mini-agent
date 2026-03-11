@@ -25,7 +25,7 @@ import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stre
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
-import { runCoachCheck } from './coach.js';
+import { runPulseCheck } from './pulse.js';
 import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
 import type { TriageContext, ContinuationContext } from './mushi-client.js';
@@ -1953,10 +1953,10 @@ export class AgentLoop {
         });
       } catch { /* best effort */ }
 
-      // Action Coach — Haiku behavioral nudges（fire-and-forget, every 3 cycles）
-      if (isEnabled('coach')) {
-        const done = trackStart('coach');
-        runCoachCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
+      // Unified Pulse System — deterministic heuristics + optional 9B（fire-and-forget, every cycle）
+      {
+        const done = trackStart('pulse');
+        runPulseCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
       }
 
       // Daily topic pruning — Haiku analysis（fire-and-forget, once per day）

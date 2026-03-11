@@ -426,9 +426,9 @@ export function migrateStateFiles(instanceId: string): void {
   if (!existsSync(instanceDir)) return;
 
   const filesToMigrate = [
-    'achievements.json', 'activity-journal.jsonl', 'coach-state.json',
-    'commitments.json', 'crs-baseline.jsonl', 'decision-quality.json',
-    'error-patterns.json', 'hesitation-log.jsonl', 'hesitation-state.json',
+    'achievements.json', 'activity-journal.jsonl', 'pulse-state.json',
+    'commitments.json', 'crs-baseline.jsonl',
+    'hesitation-log.jsonl', 'hesitation-state.json',
     'metabolism-log.jsonl', 'metsuke-stats.json', 'pending-improvements.jsonl',
     'perception-citations.json', 'priority-focus.txt', 'structural-health.json',
     'system-health.json', 'work-journal.jsonl',
@@ -1863,12 +1863,12 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
-    // Action Coach — conditional load (behavior/habits)
-    if (shouldLoad('coach')) {
+    // Unified Pulse System — behavioral signals (replaces coach)
+    if (shouldLoad('pulse')) {
       try {
-        const { buildCoachContext } = await import('./coach.js');
-        const coachCtx = buildCoachContext();
-        if (coachCtx) sections.push(`<coach>\n${coachCtx}\n</coach>`);
+        const { buildPulseContext } = await import('./pulse.js');
+        const pulseCtx = buildPulseContext();
+        if (pulseCtx) sections.push(`<pulse>\n${pulseCtx}\n</pulse>`);
       } catch { /* ignore */ }
     }
 

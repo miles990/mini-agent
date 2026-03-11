@@ -68,7 +68,7 @@ export function getPerspectiveConfig(perspective: PerspectiveType): PerspectiveC
  * ~5-10K chars instead of Primary's ~50K.
  *
  * Includes: environment, task, filtered perceptions, minimal workspace.
- * Excludes: SOUL, full conversations, achievements, coach, commitments,
+ * Excludes: SOUL, full conversations, achievements, pulse, commitments,
  *           HEARTBEAT, NEXT, threads, topic memory.
  */
 export function buildContextForPerspective(
