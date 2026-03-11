@@ -6,14 +6,15 @@
 
 ## Now（正在做）
 
-- [ ] P0: Asurada Phase 5 — oMLX ModelRouter 整合（等 Alex 確認 adaptive escalation 設計）
-  Verify: `grep -r "ModelRouter" ~/Workspace/asurada/src/ 2>/dev/null | head -1`
+（空）
 
 ---
 
 ## Next（按優先度排序）
 - [ ] P1: 提案修剪 — 70 個提案需要黏菌式修剪（服務 Asurada 方向）
   Verify: `ls memory/proposals/*.md | wc -l`
+- [ ] P2: 感知健康 — self-healing + docker-services timeout 修復
+  Verify: `bash plugins/self-healing.sh 2>/dev/null | head -5`
 - [ ] P2: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 ---
