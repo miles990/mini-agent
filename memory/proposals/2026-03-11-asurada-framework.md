@@ -279,9 +279,9 @@ Phase E: 啟動
 - [x] 架構文件（loop lifecycle、perception pipeline、memory architecture）
 - [x] llms.txt（AI-readable 專案描述）
 
-### Phase 5: oMLX ModelRouter — 多模型路由（進行中）
+### Phase 5: oMLX + Qwen 3.5 9B ModelRouter — 多模型路由（進行中）
 
-目標：整合本地模型（oMLX Qwen 3.5 9B）作為「反射層」，減少不必要的 Claude API 呼叫。
+目標：整合本地模型（oMLX + Qwen 3.5 9B）作為「反射層」，減少不必要的 Claude API 呼叫。
 
 #### 設計演進記錄（Chat Room #034-#052，2026-03-11）
 
@@ -301,7 +301,7 @@ Phase E: 啟動
    - **Confidence score**：不用。改用 structured output（SKIP/REFLECT/ESCALATE 三選一），離散分類比浮點數 calibration 好
    - **Lossy flag**：工程追蹤（壓縮前後 section 列表比對），不讓 9B meta-cognize
    - **Path E**（壓縮完無新東西→本地結束）：hash 比對，跟 mushi SKIP 同構
-   - **Temperature**：gradient，N=30 分鐘線性衰減 + active thread 作為第二信號（權重 0.3）+ pending human task 作為第三信號
+   - **Temperature**：gradient，N=30 分鐘線性衰減 + active thread 作為第二信號（權重 0.3）+ `pending_human_task` 作為第三信號
    - **實作順序**：Step 1 反射層 → Step 2 adaptive escalation → Shadow mode 2 週 → Step 3 壓縮層 → Step 4 Temperature + Path E
 
 4. **REFLECT whitelist**（#051→#052）：
@@ -315,14 +315,94 @@ Phase E: 啟動
 
 - **Confidence Gate Theorem**（Doku, ArXiv 2603.09947）：形式化證明離散分類 > continuous confidence score 在情境性不確定性下的優勢。驗證了我們三個設計決策（離散分類、多信號 ensemble、shadow mode）。
 
-#### 實作進度（2026-03-11）
+#### #056 差異修正（2026-03-11）
 
-- [x] 分析 Asurada CycleRunner 架構（interface + ClaudeCLIRunner + AnthropicAPIRunner）
-- [x] `src/loop/runners/openai-compatible-runner.ts` — OpenAI-compatible CycleRunner（支援 oMLX/Ollama/vLLM）
-- [x] `src/loop/model-router.ts` — ModelRouter 骨架（SKIP/REFLECT/ESCALATE 三分類 + temperature scoring + shadow mode log）
-- [ ] 整合到主 loop（CycleRunner 選擇邏輯）
-- [ ] Shadow mode 驗證（2 週）
-- [ ] REFLECT whitelist config 化
+1. **Shadow Mode（Phase 5a/5b 拆分）**
+   - 現在是 **Phase 5a 骨架**：shadow decision 一律 `force ESCALATE`，只記錄 router 訊號，不做本地直接執行。
+   - **Phase 5b** 才啟用平行比對（local vs Claude）與誤差統計，避免在骨架期誤用未驗證路由結果。
+
+2. **Temperature 第三信號**
+   - 明確納入 `pending_human_task`（例如待回覆、待確認、待人決策）作為第三信號。
+   - 當有 pending human task 時，提高 ESCALATE 傾向，降低錯過人類時效需求的風險。
+
+3. **Loop 整合狀態與接線計劃**
+   - 現況：主 loop 目前仍是既有 Opus/Sonnet routing（`src/model-router.ts` + `src/loop.ts`），Asurada 的 SKIP/REFLECT/ESCALATE 路由尚未接線。
+   - 接線計劃：
+     - Step 1: 在 loop 增加 router stage（pre-LLM decision hook）
+     - Step 2: 接上 REFLECT 執行器（oMLX local path）
+     - Step 3: 接上 ESCALATE path（Claude path）
+     - Step 4: 接上 Shadow mode telemetry（decision/result diff）
+
+4. **Config Schema（reflectTasks）**
+   - `reflectTasks` whitelist 需要進入 LoopConfig type（目前 `AgentLoopConfig` 無此欄位）。
+   - Schema 來源統一：`asurada.yaml` -> runtime config -> typed LoopConfig，避免 runtime-only string key 漏洞。
+
+5. **Local LLM 表述更新**
+   - Phase 5 的 local model 定義統一為：**oMLX + Qwen 3.5 9B**。
+   - 文件與設計討論中的本地反射層描述全部以此組合為準。
+
+#### Design Decisions（Phase 5）
+
+1. **Recency/Thread signal 聚合**
+   - 選了什麼：`Math.max(recencySignal, threadSignal)`
+   - 為什麼：任一高風險信號就可觸發升級，符合「錯過重要事件成本高於多升級一次」的守門策略。
+   - 放棄的替代方案：加權平均（會把單一強信號稀釋，造成假陰性）。
+
+2. **路由輸出格式**
+   - 選了什麼：離散分類 `SKIP | REFLECT | ESCALATE`
+   - 為什麼：可直接對應執行路徑，觀測與回歸分析更穩定，不依賴 confidence calibration。
+   - 放棄的替代方案：單一 confidence score（不同場景下閾值漂移大，校準成本高）。
+
+3. **REFLECT 任務範圍控制**
+   - 選了什麼：whitelist
+   - 為什麼：先定義「可安全本地做的任務」，比事後阻擋 blacklist 風險更低。
+   - 放棄的替代方案：blacklist（容易漏掉新型高風險任務）。
+
+4. **Shadow mode 行為（Phase 5a）**
+   - 選了什麼：force ESCALATE（不信任 local 決策結果）
+   - 為什麼：在未建立對照數據前先確保行為保守，先收 telemetry 再放行。
+   - 放棄的替代方案：直接平行比對並放行 local 結果（Phase 5a 複雜度過高、風險大）。
+
+5. **Temperature 聚合**
+   - 選了什麼：`max()` 聚合多信號
+   - 為什麼：routing 是 safety gate，任一維度高就該升級，不應被其他低值平均掉。
+   - 放棄的替代方案：加權平均（對 anomaly 不敏感，易錯過應升級 case）。
+
+#### Use Cases（Phase 5）
+
+1. **REFLECT whitelist task 適用情境**
+   - auto-commit message：已完成小改動、需要快速產生 commit 摘要。
+   - perception delta 摘要：新舊感知差異有限、需低成本 daily digest。
+   - 記憶整理/tag extraction：結構化標籤補齊、低風險文本整理。
+   - unchanged context hash skip：上下文雜湊未變，直接跳過重複推理。
+   - cron routine 回覆：固定格式心跳或例行狀態回覆。
+
+2. **Shadow mode 驗證期觀察指標**
+   - decision agreement rate（local vs Claude 路由一致率）
+   - false REFLECT rate（本應 ESCALATE 卻判為 REFLECT）
+   - quality delta（輸出可用性差距：人工抽樣/規則檢查）
+   - latency/token baseline（保守模式下額外成本）
+
+3. **Temperature gradient 行為範例**
+   - 剛發生事件 + active thread + pending human task：快速升高，傾向 ESCALATE。
+   - 有 active thread 但無 pending human task：中等溫度，REFLECT 優先。
+   - 長時間無新事件且無 thread：溫度下降，偏 SKIP/REFLECT。
+
+4. **SKIP/REFLECT/ESCALATE 典型觸發**
+   - SKIP：重複 heartbeat、內容 hash 不變、純噪音事件。
+   - REFLECT：可 whitelist 處理的 routine 任務，且時效/風險中低。
+   - ESCALATE：直接人類訊息、待人決策任務、跨檔案高影響變更、判斷不確定度高。
+
+#### 實作進度（校正後，2026-03-11）
+
+- [x] Phase 5 設計討論收斂（#034-#056）
+- [x] 既有 loop 已有模型路由接點（Opus/Sonnet，非 Asurada 三分類）
+- [ ] Asurada `SKIP/REFLECT/ESCALATE` router 實作檔接入本 repo（目前尚未落在 `src/loop/model-router.ts`）
+- [ ] OpenAI-compatible runner（oMLX path）實作檔接入本 repo（目前尚未落在 `src/loop/openai-compatible-runner.ts`）
+- [ ] Loop pre-LLM router integration（三分類接線）
+- [ ] Shadow mode Phase 5a telemetry（force ESCALATE）
+- [ ] Shadow mode Phase 5b parallel compare（local vs Claude）
+- [ ] `reflectTasks` 納入 LoopConfig type + config loader
 
 ## 技術決策
 
