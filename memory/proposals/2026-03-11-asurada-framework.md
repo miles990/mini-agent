@@ -337,6 +337,7 @@ Phase E: 啟動
 - [x] Plugin 開發指南（shell plugin API + skill 格式 + lifecycle hooks）
 - [x] 架構文件（loop lifecycle、perception pipeline、memory architecture）
 - [x] llms.txt（AI-readable 專案描述）
+- [x] CONTRIBUTING.md（開源貢獻者指南）
 
 ### Phase 5: oMLX + Qwen 3.5 9B ModelRouter — 多模型路由（進行中）
 
@@ -452,16 +453,16 @@ Phase E: 啟動
    - REFLECT：可 whitelist 處理的 routine 任務，且時效/風險中低。
    - ESCALATE：直接人類訊息、待人決策任務、跨檔案高影響變更、判斷不確定度高。
 
-#### 實作進度（校正後，2026-03-11）
+#### 實作進度（校正後，2026-03-12）
 
 - [x] Phase 5 設計討論收斂（#034-#056）
 - [x] 既有 loop 已有模型路由接點（Opus/Sonnet，非 Asurada 三分類）
-- [ ] Asurada `SKIP/REFLECT/ESCALATE` router 實作檔接入本 repo（目前尚未落在 `src/loop/model-router.ts`）
-- [ ] OpenAI-compatible runner（oMLX path）實作檔接入本 repo（目前尚未落在 `src/loop/openai-compatible-runner.ts`）
-- [ ] Loop pre-LLM router integration（三分類接線）
-- [ ] Shadow mode Phase 5a telemetry（force ESCALATE）
-- [ ] Shadow mode Phase 5b parallel compare（local vs Claude）
-- [ ] `reflectTasks` 納入 LoopConfig type + config loader
+- [x] Asurada `SKIP/REFLECT/ESCALATE` router 實作（`src/loop/model-router.ts`）
+- [x] OpenAI-compatible runner（oMLX path）（`src/loop/runners/openai-compatible.ts`）
+- [x] Loop pre-LLM router integration（AgentLoop 自動 sync ModelRouter state）
+- [x] Shadow mode Phase 5a telemetry（force ESCALATE + `route-telemetry.ts`）
+- [ ] Shadow mode Phase 5b parallel compare（local vs Claude）— 待 5a 驗證後啟動
+- [x] `reflectTasks` 納入 RouterConfig type + config loader
 
 ## 技術決策
 
@@ -594,10 +595,10 @@ mini-agent 目前綁定 Claude CLI。Asurada 需要：
 
 ### 成功指標
 
-- [ ] Direction-change entries 在 memory-index manifest 中可見
-- [ ] buildContext 載入相關 topic 時，方向變更記錄一起出現
-- [ ] 查 "mushi" 能看到 "Phase 5 優先序變更" 的 direction-change
-- [ ] `pnpm typecheck` 通過，零退化
+- [x] Direction-change entries 在 memory-index manifest 中可見
+- [x] buildContext（ContextBuilder）載入相關 topic 時，方向變更記錄一起出現
+- [x] findRelevant + getRelevantTopics 多維度匹配（content + tags + refs + recency）
+- [x] `pnpm typecheck` 通過，零退化
 
 ### 預估
 
@@ -612,6 +613,6 @@ mini-agent 目前綁定 Claude CLI。Asurada 需要：
 2. ✅ Alex review 提案
 3. ✅ Phase 1-3 完成
 4. ✅ Phase 4 文件完成
-5. Phase 5 oMLX routing（進行中）
-6. **Phase 6 自洽機制**（Alex #170 核准，待實作）
-7. 開始 Phase 6 Step 1 → 2 → 3
+5. ✅ Phase 5 oMLX routing（5a shadow mode 完成，5b parallel compare 待驗證後啟動）
+6. ✅ Phase 6 自洽機制（ContextBuilder + findRelevant + getDirectionChanges）
+7. 剩餘：Phase 5b parallel compare（待 5a 累積數據後啟動）
