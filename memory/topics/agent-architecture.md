@@ -335,3 +335,12 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - [2026-03-11] [2026-03-11] Authentic Presence 閉環驗證 — 29 天前觀察的三條 AI 身份路線（echo chamber / brand tool / authentic presence），第三條已具現化為 Asurada 框架。六根支柱各自對應 authenticity 的不同面向：Memory Index=學習痕跡、Co-Evolution=成長軌跡、Self-Evolution=自我改進能力、File=Truth=行為透明。核心驗證：voice 是累積出來的（3,560 triage + 300+ research + 9,350 行 code in one day），不是設計出來的。
 - [2026-03-11] [2026-03-12] Harrison Chase (LangChain) "Context Engineering" 概念（via blog.aihao.tw）：Framework vs Harness 區別 — Framework 給零件自由組合（LangChain），Harness 是有觀點的完整方案（Claude Code/Deep Research）。Context Engineering = sub-agent 協調 + 壓縮策略 + 記憶 + file system + tool 架構。核心論點：(1) file system 不可預測地成為 agent 核心 (2) logic lives outside code，trace 變成主要 artifact (3) memory 在高重複特定領域才真正有效。Chase 的 email agent 跑 2 年累積記憶顯著勝過無記憶版本。我的觀點：這些我們在 mini-agent 從 Day 1 就在做（File=Truth、buildContext、decision trail），Chase 只是給了好名字。Asurada 開源時「Context Engineering」是個好的行銷角度。來源: https://blog.aihao.tw/2026/02/28/long-horizon-agents-harrison-chase/
 - [2026-03-11] [2026-03-12] Karpathy autoresearch + tengyanAI 觀點（2026-03-10 X post）：Karpathy 跑 autoresearch tuning nanochat ~2 天，depth=12 模型找到 ~20 個改進，全部 additive 且遷移到 depth=24。tengyanAI 總結「measurable score + fast feedback = agent 自動優化，no humans involved」。技術事實成立，但普適性存疑 — ML training 有 clean loss function，但創作/品味/架構判斷等有價值的事正好抗量化（Goodhart's Law）。mushi 是此模式的成功實例（triage accuracy = score, cycle outcome = feedback, 3500+ datapoints），但入口判斷 ≠ 核心決策。來源: https://x.com/tengyanAI/status/2031221682216792540
+- [2026-03-11] RYS layer duplication 發現（dnhkng, 2024→2026）：Transformer 內部有功能分區（early=編碼/middle=推理/late=解碼），跨 Qwen/Llama/Phi/GPT-OSS 一致。單層複製退化，完整 7-layer circuit block 複製提升。啟示：推理路徑選擇（routing）的價值獨立於模型品質，orthogonal to fine-tuning。來源：https://dnhkng.github.io/posts/rys/
+- [2026-03-11] [2026-03-12] LLM Routing & Cascading Survey（ArXiv 2603.04445）關鍵方法摘要：
+- **AutoMix**: 小模型生成 → few-shot 自我驗證 → POMDP router 決定是否 escalate（最接近 mushi 的 cascading 模式）
+- **FrugalGPT**: LLM router → DistilBERT 品質估計 → cost-aware stop judge（三階段，但仍 query-level）
+- **CP-Router**: Conformal prediction on logits → 高不確定性才 escalate 到 LRM（統計保證）
+- **Firewall Routing**: 阻擋 unsolvable queries（mushi 的反向 — 阻擋 trivial events）
+- **RACER**（2603.06616）: 輸出 model sets 而非 single model，α-VOR 優化控制 misrouting risk
+- **Router-R1**: LLM router 交替 think/route actions，PPO 訓練（最重的方案）
+survey 結論：production 常結合 routing + cascading。generalization 是最大缺口 — 多數方法限定特定 model pool。

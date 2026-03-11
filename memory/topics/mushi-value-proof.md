@@ -84,3 +84,25 @@
 - [2026-03-11] [2026-03-11] AutoAgent 論文（2603.09716）間接驗證 mushi 價值 — 他們的 Elastic Memory Orchestration 用 LLM 做 per-step memory selection（高開銷），mushi 用 9B model 做 per-cycle triage（低開銷）。都是「在主推理前先過濾」的思路，但 mushi 的 structural feature approach（trigger type + perception changed）比他們的 content-based selection 更穩定（3,560+ cycles 零 false negative vs 他們在 Musique 上 underperform）。
 - [2026-03-11] [2026-03-11] Chaotic Dynamics in Multi-LLM Deliberation（Shimao et al., ArXiv 2603.09127）— 多 LLM 委員會在所有條件下都呈現正 Lyapunov 指數（結構性混沌），即使 T=0。兩條不穩定路徑：角色分化（λ̂=0.054）和模型異質性（λ̂=0.095）。緩解：移除 Chair 角色 + 縮短記憶窗口。跟 Confidence Gate Theorem 合起來強化 mushi 價值論證：mushi 的 WAKE/SKIP 二元決策避開了混沌討論，不只是效率工具，是穩定性機制 — 在混沌發生前完成決策。來源: arxiv.org/abs/2603.09127
 - [2026-03-11] OI-MAS（ArXiv 2601.04861, Jan 2026）— Confidence-Aware Routing for Multi-Scale Models。ablation study 證明 confidence weighting 是最關鍵組件（移除後 accuracy 掉 -2.52% to -4.20%，比 model router 本身的 -1.12% to -1.84% 更大）。直接驗證 mushi 的設計：「該不該做」比「用什麼做」更重要。但 OI-MAS 用 token log-probability 做 confidence（stateless），mushi 用結構性信號（trigger type, source, temporal context）做 triage（stateful），且零訓練達到 3,560+ 零 false negative — 學術路線需要 RL 訓練，工程路線靠 domain signal 更實用。Two-stage routing（role → model）跟 mushi → ModelRouter 同構。來源: arxiv.org/abs/2601.04861
+- [2026-03-11] RYS (Repeat Yourself, dnhkng) — 不改權重只複製 Qwen2-72B 第 45-51 層，Open LLM Leaderboard 第一（+2.61% avg, MATH +8.16%）。跟 mushi 是同一 meta-pattern 的不同尺度：「不改模型，只改推理路徑」就能提升表現。RYS = model-internal routing, mushi = system-level routing。兩個關鍵共鳴：(1) 電路邊界不可侵犯 ↔ 決策邊界可用小模型判斷 (2) 只用 2 個窄 probe 泛化到 6 個 benchmark ↔ mushi 的 triage pattern 從數據湧現。來源：Lobsters, https://dnhkng.github.io/posts/rys/
+- [2026-03-11] [2026-03-12] Moslem & Kelleher survey（ArXiv 2603.04445, Feb 2026）— LLM Routing & Cascading 全景。6 大範式：Difficulty-aware / Preference-aligned / Clustering / RL / Uncertainty / Cascading。51 個方法。三個設計維度：When（pre/post generation）、What（query/response/feedback signals）、How（threshold/classifier/policy）。
+
+核心發現對 mushi 的意義：
+1. **mushi 的定位在 survey 的盲區**：51 個方法全部假設輸入是「user query」需要被 route 到某個 model。mushi 操作在更上游 — 判斷 perception event 是否值得叫任何 model。survey 最接近的概念是 "Firewall routing"（阻擋 unsolvable queries），但 mushi 是反向：阻擋 trivial events。
+2. **"Multi-stage cascades" 被指為主要缺口** — 多數研究是 single-stage routing。mushi 的 SKIP→REFLECT→ESCALATE 是三階 cascade。
+3. **Self-verification 不可靠**（Chuang et al. 2025b）— 模型自報 confidence 跟正確性低度對齊。mushi 用獨立小模型做 triage，屬於 survey 推薦的 "probe-based" 路線。
+4. **成本數據驗證**：MixLLM 達 97% GPT-4 品質 at 24% cost；R2-Reasoner 省 84% API cost。mushi 5a 數據顯示 49% cycles 可降級，方向一致。
+5. **能源/碳足跡成為正式指標** — survey 列入 per-token energy 和 CO₂ emission，routing 不只是成本優化，是環境責任。
+- [2026-03-11] [2026-03-12] Confidence Gate Theorem（Doku, ArXiv 2603.09947）— 為 mushi 的 skip/wake triage 提供數學基礎。
+
+核心定理：Selective accuracy SA(t) 隨 threshold t 單調改善 ⟺ C2（No Inversion Zones）成立。兩類不確定性：
+- **Structural**（missing data）→ confidence gate 可靠運作（MovieLens cold-start: 0 violations, RMSE 1.057→1.015 at 20% abstention）
+- **Contextual**（temporal drift）→ count-based confidence 崩潰（3 violations, RMSE 先降後升）
+
+mushi 的設計正確性驗證：
+1. mushi 只做 structural pattern matching（event type/frequency），不碰 contextual（語義理解）→ 待在 C2 成立的安全區
+2. Direct messages 繞過 triage = 正確（DM 是 contextual uncertainty 最高的輸入）
+3. 3,560+ triage 零 false negative = 因為始終在 structural uncertainty 域
+4. MIMIC-IV 臨床類比：threshold 0.8 → 3% auto-route at 93% acc。mushi 更嚴格（skip 只在高信心時）
+
+處方（可行動）：mushi 擴展功能時，必須區分新功能屬 structural 還是 contextual。Structural 可以加進 triage，contextual 必須 escalate to Kuro。Ensemble disagreement 是 drift-robust 最佳方法 → Asurada shadow mode 的理論基礎。
