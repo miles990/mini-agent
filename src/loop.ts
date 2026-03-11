@@ -58,6 +58,7 @@ import {
   writeTrailEntry, extractTrailTopics,
   saveReasoningSnapshot, loadReasoningHistory, formatReasoningContext,
   extractDecisionSection, extractInnerNotes,
+  buildStimulusFingerprint, writeStimulusFingerprint,
 } from './cycle-state.js';
 import type { CycleCheckpoint, WorkJournalEntry, TrailEntry, ReasoningSnapshot } from './cycle-state.js';
 import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed } from './inbox-processor.js';
@@ -1724,6 +1725,19 @@ export class AgentLoop {
         });
       }
       clearCycleCheckpoint();
+
+      // ── Record Stimulus Fingerprint (fire-and-forget, cross-cycle dedup) ──
+      {
+        const loadedTopics = memory.getLoadedTopics();
+        const fingerprint = buildStimulusFingerprint(currentTriggerReason, loadedTopics);
+        writeStimulusFingerprint({
+          ts: new Date().toISOString(),
+          fingerprint,
+          trigger: currentTriggerReason,
+          action: action || null,
+          topics: loadedTopics,
+        });
+      }
 
       // ── Write Work Journal (fire-and-forget, survives restart) ──
       writeWorkJournal({

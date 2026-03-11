@@ -234,6 +234,76 @@ ${sections.join('\n---\n')}
 }
 
 // =============================================================================
+// Stimulus Fingerprint — Cross-cycle duplicate-response prevention
+// =============================================================================
+
+export interface StimulusFingerprintEntry {
+  ts: string;
+  fingerprint: string;
+  trigger: string | null;
+  action: string | null;
+  topics: string[];
+}
+
+const STIMULUS_FINGERPRINT_MAX_ENTRIES = 200;
+const STIMULUS_FINGERPRINT_WINDOW_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+function getStimulusFingerprintPath(): string | null {
+  try {
+    return path.join(getMemoryStateDir(), 'stimulus-fingerprints.jsonl');
+  } catch { return null; }
+}
+
+export function buildStimulusFingerprint(
+  triggerReason: string | null,
+  loadedTopics: string[],
+): string {
+  try {
+    const triggerBase = (triggerReason ?? 'auto').split(/[:(]/)[0]?.trim().toLowerCase() || 'auto';
+    const normalizedTopics = [...new Set(loadedTopics.map(t => t.trim().toLowerCase()).filter(Boolean))].sort();
+    return `${triggerBase}|${normalizedTopics.join(',')}`;
+  } catch {
+    return 'auto|';
+  }
+}
+
+export function hasRecentStimulusFingerprint(fingerprint: string): boolean {
+  const filePath = getStimulusFingerprintPath();
+  if (!filePath || !fs.existsSync(filePath)) return false;
+  try {
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    if (lines.length === 0) return false;
+
+    const now = Date.now();
+    for (const line of lines.slice(-50).reverse()) {
+      try {
+        const entry = JSON.parse(line) as StimulusFingerprintEntry;
+        const age = now - new Date(entry.ts).getTime();
+        if (age > STIMULUS_FINGERPRINT_WINDOW_MS) break;
+        if (entry.fingerprint === fingerprint) return true;
+      } catch { continue; }
+    }
+    return false;
+  } catch { return false; }
+}
+
+export function writeStimulusFingerprint(entry: StimulusFingerprintEntry): void {
+  const filePath = getStimulusFingerprintPath();
+  if (!filePath) return;
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
+
+    const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
+    if (lines.length > STIMULUS_FINGERPRINT_MAX_ENTRIES) {
+      fs.writeFileSync(filePath, lines.slice(-STIMULUS_FINGERPRINT_MAX_ENTRIES).join('\n') + '\n', 'utf-8');
+    }
+  } catch { /* fire-and-forget */ }
+}
+
+// =============================================================================
 // Trail — Shared Attention History (Chemical Gradient)
 // =============================================================================
 

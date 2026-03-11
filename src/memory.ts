@@ -54,6 +54,7 @@ import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } 
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
+import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -603,6 +604,7 @@ export class InstanceMemory {
 
   // Utility counter: track topic load frequency
   private topicLoadCounts = new Map<string, number>();
+  private loadedTopics: string[] = [];
 
   // SubSoul: last facet load record (for checkpoint data collection)
   private lastSoulFacetRecord: {
@@ -632,6 +634,10 @@ export class InstanceMemory {
    */
   getTopicUtility(): Record<string, number> {
     return Object.fromEntries(this.topicLoadCounts);
+  }
+
+  getLoadedTopics(): string[] {
+    return [...this.loadedTopics];
   }
 
   /**
@@ -2056,6 +2062,7 @@ export class InstanceMemory {
     // ── Topic 記憶（skip in light mode）──
     if (isLight) {
       // Light mode: skip all topic memory to minimize context
+      this.loadedTopics = [];
     } else {
     let topics = await this.listTopics();
     if (topics.length > 0) {
@@ -2169,6 +2176,13 @@ export class InstanceMemory {
           }
         }
       }
+      this.loadedTopics = loadedTopics;
+      const stimulusFingerprint = buildStimulusFingerprint(options?.trigger ?? null, loadedTopics);
+      if (hasRecentStimulusFingerprint(stimulusFingerprint)) {
+        sections.push('<stimulus-dedup>\nRecent cycles likely already addressed this same stimulus fingerprint. Avoid repeating the same response unless there is new information.\n</stimulus-dedup>');
+      }
+    } else {
+      this.loadedTopics = [];
     }
     } // end of !isLight topic memory block
 
