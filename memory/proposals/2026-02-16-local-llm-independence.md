@@ -1,6 +1,8 @@
 # Proposal: Local LLM Independence — 本機混合推理架構
 
-## Status: draft (v3 — 量測數據 + 反饋完整整合)
+## Status: superseded
+<!-- 2026-03-11: 修剪判定 — 核心概念（provider routing + fallback + auto mode + guardrail）被 Asurada ModelRouter (Phase 5) 以更通用的方式實現。戰略方向（本機推理獨立性）仍然有效，應在 Asurada 框架中推進而非 mini-agent -->
+<!-- 原始 status: draft (v3 — 量測數據 + 反饋完整整合) -->
 
 ## TL;DR
 在 mini-agent 加入本機 LLM 支援（Ollama），讓 Kuro 在無外部 API 時仍能思考和行動。初期目標是「保底」，長期目標是完全斷開外部 API。

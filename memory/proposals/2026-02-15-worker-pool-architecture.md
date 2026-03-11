@@ -1,6 +1,9 @@
 # Proposal: Delegation Skill — Kuro 學會委派任務
 
-## Status: approved (Part 1-3 L1), deferred (Part 4 L2)
+## Status: completed
+<!-- Part 1-3 L1: all implemented (delegation.md + CLAUDE.md collaborators + daily use) -->
+<!-- Part 4 L2 (Worker Pool Manager): superseded by Multi-Lane Architecture (src/delegation.ts, 6 background lanes) -->
+<!-- 2026-03-11: 修剪判定 — 所有有用的部分都已實作並超越原始設計。L2 並行需求被更好的架構解決 -->
 
 ## TL;DR
 

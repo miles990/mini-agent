@@ -1,9 +1,10 @@
 # Proposal: Memory Lifecycle Management — SOUL.md / MEMORY.md 的生長控制
 
-## Status: partial-approved
+## Status: absorbed
 <!-- L1 寫入紀律：approved + implemented (2026-02-10) -->
 <!-- L2 改動 3 (超時重試遞減 context)：implemented by Claude Code (4ab0d35) -->
-<!-- L2 改動 1,2 (自動歸檔 + token budget)：deferred，等 L1 效果觀察 -->
+<!-- L2 改動 1,2 (自動歸檔 + token budget)：superseded by context-optimizer.ts + context-pruner.ts -->
+<!-- 2026-03-11: 修剪判定 — L1+L2-3 已實作，L2-1,2 被 Asurada 的 context 系統以更好的方式解決。原則已內化到實踐中 -->
 
 ## TL;DR
 
