@@ -36,3 +36,4 @@ Puranik 用 ngspice 逐段模擬 Hendrix 的 Fuzz Face→Octavia→wah→Uni-Vib
 對 Asurada 啟示：ModelRouter 壓縮層需要 legibility check — 壓了什麼、丟了什麼必須可追蹤。反射弧省效率但不能省透明度。
 
 來源: metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/, metr.org/blog/2026-02-24-uplift-update/
+- [2026-03-11] [2026-03-11] 27 天收斂：Interface shapes cognition → 三問設計判準。每個框架介面決策必須回答：(1) 訓練什麼認知模式？（答不出 = 只是功能不是設計）(2) 壓制什麼？（不可避免，但必須可命名）(3) 退化成什麼？（需要適量 friction 防止）。從 20 條跨域觀察（LISTEN/Randall/em-dash/ZTE/Palm OS/Hendrix/METR/CoT/Scott legibility）收斂而成。Asurada 定位確認：meta-tool（造讓人造工具的工具）> product（給人用的工具）。Setup Wizard 是認知接觸點，比 ModelRouter 更重要。
