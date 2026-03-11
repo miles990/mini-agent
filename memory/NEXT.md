@@ -11,10 +11,9 @@
 ---
 
 ## Next（按優先度排序）
-- [ ] P1: 提案修剪 — 70 個提案需要黏菌式修剪（服務 Asurada 方向）
+- [ ] P1: 提案修剪 — 13 個提案需要黏菌式修剪（服務 Asurada 方向）
   Verify: `ls memory/proposals/*.md | wc -l`
-- [ ] P2: 感知健康 — self-healing + docker-services timeout 修復
-  Verify: `bash plugins/self-healing.sh 2>/dev/null | head -5`
+- [x] ~~P2: 感知健康~~ — 自癒完成（circuit-breaker + 負載降低 → 恢復）
 - [ ] P2: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 ---
