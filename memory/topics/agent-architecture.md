@@ -330,3 +330,4 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - 關鍵區分：確定性任務（模式匹配）用原版 no-think，推理任務用蒸餾版
 - 立即行動：mushi triage 應從蒸餾版切回原版（省 3700+ thinking tokens）
 - [2026-03-11] [2026-03-11] mushi triage 模型切換驗證：原版 Qwen3.5-9B +  在 oMLX 上的實際表現 — 34 tokens（7 tokens JSON 的預期沒達到，可能是 chat_template_kwargs 在 oMLX 的實作差異），warm latency ~6s（5.7 tok/s）。比蒸餾版的 ~3700 thinking tokens 省 99%，但比預期的 0.5s / 7 tokens 慢。oMLX 原版 Qwen3.5 的 tok/s 比蒸餾版低（5.7 vs 25 tok/s），可能跟量化方式有關。
+- [2026-03-11] [2026-03-11] P1 TIMEOUT bug 根因分析：(1) fullPrompt ~63K chars，其中 system prompt（getSystemPrompt() + JIT CLAUDE.md + skills）佔 ~40K（60%+），context 僅 ~13K。rebuildContext 只壓 context，對 40K system prompt 無效 → 重試浪費時間。(2) 缺少 progress timeout — 15 分鐘 flat timeout 太長，CLI hung 時浪費 45 分鐘（3 attempts）。(3) 修復優先序：progress timeout（agent.ts execClaude lastDataTime）→ system prompt budget（JIT CLAUDE.md 限制）→ smart retry（壓不了 context 就壓 system prompt）。
