@@ -11,9 +11,10 @@
 ---
 
 ## Next（按優先度排序）
-- [ ] P1: 提案修剪 — 13 個提案需要黏菌式修剪（服務 Asurada 方向）
-  Verify: `ls memory/proposals/*.md | wc -l`
+- [x] ~~P1: 提案修剪~~ — 完成（13→7，歸檔 2 個 + 更新 3 個）
 - [x] ~~P2: 感知健康~~ — 自癒完成（circuit-breaker + 負載降低 → 恢復）
+- [ ] P1: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），等 Alex review 後開始 Cut 1-3
+  Verify: `grep -c 'Status: approved' memory/proposals/2026-03-12-asurada-integration-plan.md`
 - [ ] P2: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 ---
