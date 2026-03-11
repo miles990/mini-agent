@@ -22,7 +22,7 @@ import { slog } from './utils.js';
 const OMLX_BASE_URL = process.env.OMLX_BASE_URL ?? 'http://localhost:8000';
 const OMLX_MODEL = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
 const OMLX_API_KEY = process.env.OMLX_API_KEY ?? 'omlx-local';
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 20000;
 
 // =============================================================================
 // 9B Classification
@@ -72,7 +72,7 @@ export async function classifyWithReflex(
           { role: 'system', content: REFLEX_SYSTEM },
           { role: 'user', content: input },
         ],
-        max_tokens: 256,
+        max_tokens: 800,
         temperature: 0.1,
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
