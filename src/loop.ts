@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, bumpLoopGeneration } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -207,8 +207,6 @@ export class AgentLoop {
 
   // ── Cooperative Yield (Layer 3) ──
   private pendingPriority: { reason: string; arrivedAt: number; messageCount: number } | null = null;
-  private safetyValveTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly SAFETY_VALVE_TIMEOUT = 90_000; // 90s — P0 = human waiting, can't wait 5min
 
   // ── Interrupt storm guard (Layer 2) ──
   private lastPriorityDrainAt = 0;
@@ -304,7 +302,15 @@ export class AgentLoop {
           return;
         }
 
-        // Cooperative yield: set pendingPriority, let cycle finish naturally
+        // DM sources: foreground lane already fired (L291) — skip pendingPriority.
+        // Foreground handles the reply; main cycle finishes naturally.
+        // If foreground fails, message stays in inbox → next regular cycle picks it up.
+        if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
+          slog('LOOP', `[unified] DM handled by foreground lane, skipping pendingPriority (source: ${event.source})`);
+          return;
+        }
+
+        // Non-DM priority events (e.g. alerts): cooperative yield via pendingPriority
         const msgCount = (agentEvent.data?.messageCount as number) ?? 1;
         const reason = `${event.source}${event.priority === Priority.P0 ? '-P0' : '-P1'}`;
 
@@ -327,7 +333,6 @@ export class AgentLoop {
 
         slog('LOOP', `[unified] Priority signal: ${reason} (${this.pendingPriority.messageCount} msg, cycle age: ${Math.round((now - this.lastCycleTime) / 1000)}s)`);
         eventBus.emit('action:loop', { event: 'priority.pending', reason, messageCount: this.pendingPriority.messageCount });
-        this.scheduleSafetyValve();
         return;
       }
 
@@ -544,31 +549,6 @@ export class AgentLoop {
     this.currentInterval = this.config.intervalMs;
   }
 
-  // ---------------------------------------------------------------------------
-  // Safety Valve (Cooperative Yield fallback — kill after 5min)
-  // ---------------------------------------------------------------------------
-
-  private scheduleSafetyValve(): void {
-    if (this.safetyValveTimer) return;
-    const arrivedAt = this.pendingPriority?.arrivedAt ?? Date.now();
-    this.safetyValveTimer = setTimeout(() => {
-      this.safetyValveTimer = null;
-      if (!this.cycling || !this.pendingPriority) return;
-      slog('LOOP', `Safety valve: ${Math.round((Date.now() - arrivedAt) / 1000)}s, force-killing`);
-      eventBus.emit('action:loop', { event: 'safety-valve', elapsed: Math.round((Date.now() - arrivedAt) / 1000) });
-      const { preempted, partialOutput } = preemptLoopCycle();
-      if (preempted) {
-        this.interruptedCycleInfo = `Mode: ${this.currentMode}, Prompt: ${partialOutput?.slice(0, 200) ?? 'unknown'}`;
-      } else {
-        bumpLoopGeneration();
-      }
-      this.directMessageWakeQueue++;
-    }, AgentLoop.SAFETY_VALVE_TIMEOUT);
-  }
-
-  private clearSafetyValve(): void {
-    if (this.safetyValveTimer) { clearTimeout(this.safetyValveTimer); this.safetyValveTimer = null; }
-  }
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -684,7 +664,6 @@ export class AgentLoop {
     this.running = false;
     eventBus.off('trigger:*', this.handleTrigger);
     this.clearTimer();
-    this.clearSafetyValve();
     this.pendingPriority = null;
     eventBus.emit('action:loop', { event: 'stop' });
   }
@@ -2056,7 +2035,6 @@ export class AgentLoop {
       this.cycling = false;
       this.triggerRoomMsgId = null;
       this.triggerTelegramMsgs = [];
-      this.clearSafetyValve();
 
       // Cooperative yield: drain pending priority first
       if (this.pendingPriority) {
