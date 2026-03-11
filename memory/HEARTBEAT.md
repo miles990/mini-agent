@@ -84,7 +84,20 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 - [x] Phase D: 記憶空間 scaffold（SOUL.md seed + Obsidian vault + directory structure）
 - [x] Phase E: First-run greeting（系統快照 + 感知狀態 + 互動 URL）
 
-**Phase 4: 文件 + 範例**（下一步）
+**Phase 4: 文件 + 範例** ✅
+- [x] README + architecture + configuration + API reference + plugin guide + design philosophy
+- [x] examples: minimal, with-perception, personality-configs
+- [x] llms.txt + CONTRIBUTING.md
+
+**Phase 5: oMLX ModelRouter** ✅
+- [x] SKIP/REFLECT/ESCALATE 三分類路由 + OpenAI-compatible runner
+- [x] Shadow mode 5a（force ESCALATE + route-telemetry.jsonl）
+- [ ] Shadow mode 5b parallel compare（待 5a 驗證後）
+
+**Phase 6: Memory Index + Direction-Change Trace** ✅
+- [x] direction-change cognitive type + tag parsing
+- [x] MemoryIndex.findRelevant() + getRelevantTopics() + getDirectionChanges()
+- [x] ContextBuilder（keyword + index boost + direction-change injection）
 
 ### #2 Priority: mushi 持續運作
 
