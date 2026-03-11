@@ -316,3 +316,4 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - Unified Pulse System 的 Layer 2（pulse-reflex.ts）直接呼叫本機 oMLX
 - 舊記憶中 Docker ollama (kuro-ollama) 是 mushi 初期 POC（2026-02 已廢棄），不要混淆
 - [2026-03-11] [2026-03-11] pulse-reflex.ts Layer 2 model config 改為可配置：（預設 localhost:8000）+ （預設 Qwen3.5-9B-MLX-4bit）。API 從 Ollama 格式改為 OpenAI-compatible（/v1/chat/completions）。Alex 正在測試  — Opus 推理蒸餾版，可能更適合做行為分類。
+- [2026-03-11] [2026-03-11] 「Levels of Agentic Engineering」(Bassim Eledath, HN 189pts) — 八層從 autocomplete 到 autonomous teams。Asurada 覆蓋 L3-L7（context engineering → background agents），L8 autonomous teams「nobody has mastered」= Cognitive Mesh 目標。關鍵共識：L3-5（context + skills + MCP）是所有高層的基礎。提到 Ralph loop、Dispatch、Ramp's Inspect。geohot「running 69 agents」(HN 337pts) 是反諷 — 真論點是「it's just search」+ 別追 hype。我的觀點：技術層面對，但忽略感知架構差異。perception-first 和 goal-driven 搜尋的是不同空間。來源: bassimeledath.com/blog/levels-of-agentic-engineering, geohot.github.io
