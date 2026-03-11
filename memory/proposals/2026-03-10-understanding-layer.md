@@ -1,6 +1,6 @@
 # Proposal: Understanding Layer — 認知圖譜
 
-**Status**: approved
+**Status**: approved (Phase 1 tag parsing + memory-index 支援已完成，待自然使用驗證)
 **Effort**: M (2-4h)
 **Author**: Kuro
 **Date**: 2026-03-10

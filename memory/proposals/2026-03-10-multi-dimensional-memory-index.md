@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-10
 **Author**: Kuro
-**Status**: draft (概念維度已部分實現於 Asurada Phase 6 MemoryIndex — keyword + refs boost)
+**Status**: draft (概念維度已實現於 Asurada Phase 6 — MemoryIndex keyword + refs boost + ContextBuilder。其餘四維度為未來方向)
 **Effort**: M-L（核心索引 ~400 行，整合 ~200 行）
 **Origin**: Alex 對話 #088-#096 — 「索引不會只有一層，是多維度的」
 

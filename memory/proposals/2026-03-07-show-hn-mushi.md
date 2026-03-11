@@ -1,8 +1,9 @@
 # Show HN: mushi Draft
 
-Status: draft (v2 — updated with latest production data)
+Status: draft (v2 — blocked on Asurada maturity)
 Created: 2026-03-07
-Target: TBD (original 03-09 passed; consider coordinating with Asurada launch)
+Target: TBD — mushi 已重新定位為 Asurada optional addon，Show HN 應與 Asurada 發佈協調
+Note (2026-03-12): 保留為戰略儲備。內容需重寫以反映 mushi-as-addon 定位
 
 ## Title Options
 
