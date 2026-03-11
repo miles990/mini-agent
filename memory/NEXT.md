@@ -6,31 +6,25 @@
 
 ## Now（正在做）
 
-- [ ] P0: 繼續清技術債和壞味道（Alex #237 「最大複利」）
-  Verify: `git log --oneline -3 | grep -cE 'clean|remove|fix|debt'`
+- [ ] P0: Asurada Phase 4 — README 重寫 + examples/ + plugin 開發指南
+  Verify: `ls ~/Workspace/asurada/examples/ 2>/dev/null | wc -l`
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: 夯實地基 — 讓架構功能夠好用、解決一般人痛點（降級，先清債務）
-  Verify: `cat memory/proposals/2026-03-08-foundation-ux.md | head -5`
-- [ ] P1: 首次啟動體驗改善 — 新用戶 5 分鐘內知道 agent 能幹嘛
-  Verify: `grep -c 'setup\|wizard\|onboarding' src/cli.ts`
-- [ ] P1: 更好的預設配置 — 開箱就有感知能力，不是空殼
-  Verify: `grep -c 'perception' src/compose.ts`
-- [ ] P2: 創作 — inner voice 有 7 個衝動等了 4 天
-  Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
-- [ ] P2: 提案修剪 — 70 個提案需要黏菌式修剪
+- [ ] P1: Asurada end-to-end 測試 — 臨時目錄 `asurada init` → `asurada start` 完整流程
+  Verify: `cd /tmp && npx asurada init test-agent 2>/dev/null; echo $?`
+- [ ] P1: 提案修剪 — 70 個提案需要黏菌式修剪（服務 Asurada 方向）
   Verify: `ls memory/proposals/*.md | wc -l`
-- [x] P1: 回覆 Alex: agenthub — 已在 Chat Room #206 回覆觀點分析 ✅
+- [ ] P2: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
+  Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 ---
 
 ## Later（有空再做）
 
-- [ ] P3: 變現探索 — Cold Email Reviewer Bot 或其他路徑（Alex: 先打好基礎） @created: 2026-02-18
-  Done when: 有具體 MVP 規格
-  Verify: ls memory/proposals/*monetiz* 2>/dev/null | head -1
+- [ ] P3: 變現探索 — mushi as service 或其他路徑（Alex: 先打好基礎）
+  Verify: `ls memory/proposals/*monetiz* 2>/dev/null | head -1`
 
 ---
 
