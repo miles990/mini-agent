@@ -315,3 +315,4 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - 不需要 Docker Desktop，不需要 ollama daemon
 - Unified Pulse System 的 Layer 2（pulse-reflex.ts）直接呼叫本機 oMLX
 - 舊記憶中 Docker ollama (kuro-ollama) 是 mushi 初期 POC（2026-02 已廢棄），不要混淆
+- [2026-03-11] [2026-03-11] pulse-reflex.ts Layer 2 model config 改為可配置：（預設 localhost:8000）+ （預設 Qwen3.5-9B-MLX-4bit）。API 從 Ollama 格式改為 OpenAI-compatible（/v1/chat/completions）。Alex 正在測試  — Opus 推理蒸餾版，可能更適合做行為分類。
