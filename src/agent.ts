@@ -321,6 +321,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     let timedOut = false;
+    let lastStdoutDataTs = Date.now();
 
     const child = spawn(
       'claude',
@@ -353,11 +354,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     child.stderr.on('error', onPipeError);
     let toolCallCount = 0;
 
-    // ── 手動 timeout：殺整個進程群組（含子進程）──
-    const timer = setTimeout(() => {
-      if (settled) return;
-      timedOut = true;
-      slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
+    const killProcessGroupWithForceResolve = () => {
       try {
         process.kill(-child.pid!, 'SIGTERM');
       } catch (e) { slog('CLAUDE', `SIGTERM failed for pgid ${child.pid}: ${e}`); }
@@ -378,9 +375,29 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
           }
         }, 10_000);
       }, 5000);
+    };
+
+    // ── Progress timeout：5 分鐘無 stdout 就 kill ──
+    const progressTimer = setInterval(() => {
+      if (settled || timedOut) return;
+      if (Date.now() - lastStdoutDataTs < 300_000) return;
+      timedOut = true;
+      clearInterval(progressTimer);
+      slog('CLAUDE', `No stdout data for 5 minutes — killing process group ${child.pid}`);
+      killProcessGroupWithForceResolve();
+    }, 30_000);
+
+    // ── 手動 timeout：殺整個進程群組（含子進程）──
+    const timer = setTimeout(() => {
+      if (settled) return;
+      timedOut = true;
+      clearInterval(progressTimer);
+      slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
+      killProcessGroupWithForceResolve();
     }, TIMEOUT_MS);
 
     child.stdout.on('data', (chunk: Buffer) => {
+      lastStdoutDataTs = Date.now();
       buffer += chunk.toString('utf-8');
       // 逐行解析 stream-json
       let newlineIdx: number;
@@ -444,6 +461,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     child.on('close', (code, signal) => {
       settled = true;
       clearTimeout(timer);
+      clearInterval(progressTimer);
       const duration = Date.now() - startTs;
 
       // Clear PID tracking
@@ -495,6 +513,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     child.on('error', (err) => {
       settled = true;
       clearTimeout(timer);
+      clearInterval(progressTimer);
       if (source === 'loop') {
         loopChildPid = null;
       } else if (source === 'foreground') {
