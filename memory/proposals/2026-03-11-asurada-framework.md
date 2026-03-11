@@ -271,12 +271,58 @@ Phase E: 啟動
 - 結果是唯一的 — 沒有兩個使用者裝出一樣的 agent
 - **最小啟動 → 有機成長** — 第一天只給最少的感知，讓 agent 在運行中自己提出需要什麼
 
-### Phase 4: 文件 + 範例（持續）
+### Phase 4: 文件 + 範例 ✅
 
-1. README 重寫（Asurada 定位）
-2. `examples/` 擴充（personality configs、plugin examples）
-3. Plugin 開發指南（shell plugin API、skill 格式）
-4. 架構文件（loop lifecycle、perception pipeline、memory architecture）
+- [x] README 重寫（Asurada 定位 + Quick Start + Architecture 概覽）
+- [x] `examples/` — 3 個範例（minimal agent、research assistant、dev companion）
+- [x] Plugin 開發指南（shell plugin API + skill 格式 + lifecycle hooks）
+- [x] 架構文件（loop lifecycle、perception pipeline、memory architecture）
+- [x] llms.txt（AI-readable 專案描述）
+
+### Phase 5: oMLX ModelRouter — 多模型路由（進行中）
+
+目標：整合本地模型（oMLX Qwen 3.5 9B）作為「反射層」，減少不必要的 Claude API 呼叫。
+
+#### 設計演進記錄（Chat Room #034-#052，2026-03-11）
+
+**起點**：Alex 提出用本地 Qwen 3.5 9B 做前置判斷（triage 300-500ms、零費用、31 tok/s）。
+
+**三輪設計討論收斂**：
+
+1. **三層能力模型**（Kuro #043）→ 被 Alex 修正為 **path-aware routing**（#044）
+   - 原版暗示固定順序（反射→壓縮→皮層），Alex 的版本改為選擇題而非流程圖
+   - Kuro 同意（#046）：正確的抽象是「Router 選路徑」，不是「固定管線」
+
+2. **Adaptive escalation > 固定路徑**（Kuro #047）
+   - Router 不能事先確定該走哪條路 — 最有價值的 cycle 往往是「看起來像 Path A 結果需要 Path D」的
+   - 設計改為：起步保守（反射層 only），觀察到穩定後逐步開放
+
+3. **五個實務問題定案**（#048→#049）：
+   - **Confidence score**：不用。改用 structured output（SKIP/REFLECT/ESCALATE 三選一），離散分類比浮點數 calibration 好
+   - **Lossy flag**：工程追蹤（壓縮前後 section 列表比對），不讓 9B meta-cognize
+   - **Path E**（壓縮完無新東西→本地結束）：hash 比對，跟 mushi SKIP 同構
+   - **Temperature**：gradient，N=30 分鐘線性衰減 + active thread 作為第二信號（權重 0.3）+ pending human task 作為第三信號
+   - **實作順序**：Step 1 反射層 → Step 2 adaptive escalation → Shadow mode 2 週 → Step 3 壓縮層 → Step 4 Temperature + Path E
+
+4. **REFLECT whitelist**（#051→#052）：
+   - Whitelist（而非 blacklist）定義本地模型能做的事，更安全
+   - 初始列表：auto-commit message、perception delta 摘要、記憶整理/tag extraction、unchanged context hash skip、cron routine 回覆
+   - Whitelist 放在 config（`asurada.yaml` 的 `reflect_tasks`），shadow mode 驗證後可擴展
+
+5. **識別的盲點**：Cascade degradation — 反射層判斷正確但處理品質 subtly 差，且無 ground truth 可比對。緩解：shadow mode 期間同時跑兩條路徑比對結果。
+
+#### 學術驗證
+
+- **Confidence Gate Theorem**（Doku, ArXiv 2603.09947）：形式化證明離散分類 > continuous confidence score 在情境性不確定性下的優勢。驗證了我們三個設計決策（離散分類、多信號 ensemble、shadow mode）。
+
+#### 實作進度（2026-03-11）
+
+- [x] 分析 Asurada CycleRunner 架構（interface + ClaudeCLIRunner + AnthropicAPIRunner）
+- [x] `src/loop/runners/openai-compatible-runner.ts` — OpenAI-compatible CycleRunner（支援 oMLX/Ollama/vLLM）
+- [x] `src/loop/model-router.ts` — ModelRouter 骨架（SKIP/REFLECT/ESCALATE 三分類 + temperature scoring + shadow mode log）
+- [ ] 整合到主 loop（CycleRunner 選擇邏輯）
+- [ ] Shadow mode 驗證（2 週）
+- [ ] REFLECT whitelist config 化
 
 ## 技術決策
 
