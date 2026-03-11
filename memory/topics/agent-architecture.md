@@ -307,3 +307,11 @@ Asurada 設計啟示：reasoning depth 應該是可配置的 — 高風險決策
 - [2026-03-11] [2026-03-11] Confidence Gate Theorem（Doku, ArXiv 2603.09947）— 對 ModelRouter 的四個關鍵啟示：(1) mushi WAKE/SKIP 有效因為運作在 structural uncertainty 領域（可觀測穩定特徵），論文證明此情境下 confidence gate monotonically 提升決策品質 (2) 不用 confidence score 用 discrete classification 有數學基礎——continuous confidence 在 contextual uncertainty 下產生 inversion zones（C2 violation） (3) REFLECT whitelist 是 structural boundary 不是 contextual judgment，天然滿足 C1(rank-alignment)+C2(no inversion) (4) temporal drift 是最大風險——需定期在 held-out data 驗證 C1/C2，MovieLens temporal split 嚴重失效。核心公式：SA(t)=E[acc|c≥t] monotonically increasing iff no inversion zones。structural uncertainty（數據不足）vs contextual uncertainty（環境變化）是關鍵二分。
 - [2026-03-11] [2026-03-11] AdaptEvolve（ArXiv 2602.11931, Qwen3-4B/32B）— confidence-based adaptive routing。用 token entropy 的 4 種 metrics（Mean/LowestGroup/Tail/BottomK confidence）+ learned decision tree 做 binary routing。37.9% 成本降低，97.5% 準確率保留。**對 ModelRouter 的驗證**：(1) 簡單閾值只有 70% 準確率，需要 learned boundary → 證實我們 #049 用 discrete classification 而非 continuous confidence 的決策 (2) "confident hallucination" failure mode = 小模型自信但錯 → 不信任 confidence scores (3) 問題域是 stateless code generation，與 agent routing（stateful + structural signals）根本不同。mushi 的結構化信號路線比 intrinsic confidence 更適合 agent 場景。
 - [2026-03-11] [2026-03-11] Route to Reason（ArXiv 2505.19435, RTR）— joint model + reasoning strategy selection。核心洞見：同時選模型和策略（CoT/PAL/CoD/Vanilla）比單獨選任一個都好（82.5% vs 80.0%，token -60%）。Scoring: λ·performance - (1-λ)·tokens。**對 ModelRouter 的驗證**：Alex #044 的 path-aware 設計有學術支撐 — router 選整條路徑（model + 行經方式）是 optimal。可借鏡：加權 scoring function 用結構化因子（urgency/complexity/cost）而非 model-intrinsic features。
+- [2026-03-11] [2026-03-11] ⚠️ 本地模型執行環境修正（Alex 糾正）：mini-agent 的本地模型推論用 **oMLX**，不是 Docker + ollama。
+- CLI: （brew 安裝）
+- 模型: （Qwen 3.5 9B，4bit 量化）
+- 啟動: 
+- API: （OpenAI-compatible）
+- 不需要 Docker Desktop，不需要 ollama daemon
+- Unified Pulse System 的 Layer 2（pulse-reflex.ts）直接呼叫本機 oMLX
+- 舊記憶中 Docker ollama (kuro-ollama) 是 mushi 初期 POC（2026-02 已廢棄），不要混淆
