@@ -9,10 +9,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 HEALED=0
 
-# macOS-compatible timeout (GNU timeout not available by default)
+# macOS-compatible timeout — background + kill (perl alarm can't kill docker)
 _timeout() {
   local secs="$1"; shift
-  perl -e 'alarm shift; exec @ARGV' "$secs" "$@" 2>/dev/null
+  "$@" &
+  local pid=$!
+  ( sleep "$secs"; kill "$pid" 2>/dev/null ) &
+  local watchdog=$!
+  wait "$pid" 2>/dev/null
+  local ret=$?
+  kill "$watchdog" 2>/dev/null
+  wait "$watchdog" 2>/dev/null
+  return $ret
 }
 
 FAILED=0

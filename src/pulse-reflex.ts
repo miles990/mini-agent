@@ -20,7 +20,7 @@ import { slog } from './utils.js';
 // =============================================================================
 
 const OMLX_BASE_URL = process.env.OMLX_BASE_URL ?? 'http://localhost:8000';
-const OMLX_MODEL = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-Claude-4.6-Opus-Distilled-MLX-4bit';
+const OMLX_MODEL = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
 const OMLX_API_KEY = process.env.OMLX_API_KEY ?? 'omlx-local';
 const TIMEOUT_MS = 20000;
 
@@ -74,6 +74,7 @@ export async function classifyWithReflex(
         ],
         max_tokens: 800,
         temperature: 0.1,
+        chat_template_kwargs: { enable_thinking: true },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
