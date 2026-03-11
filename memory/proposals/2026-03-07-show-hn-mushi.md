@@ -2,7 +2,7 @@
 
 Status: draft (v2 — updated with latest production data)
 Created: 2026-03-07
-Target: Monday 2026-03-09, 9-10 AM EST
+Target: TBD (original 03-09 passed; consider coordinating with Asurada launch)
 
 ## Title Options
 
