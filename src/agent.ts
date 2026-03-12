@@ -24,17 +24,18 @@ export interface Message {
 // LLM Provider Abstraction
 // =============================================================================
 
-export type Provider = 'claude' | 'codex';
+export type Provider = 'claude' | 'codex' | 'qwen';
 
 export function getProvider(): Provider {
   const p = process.env.AGENT_PROVIDER?.toLowerCase();
   if (p === 'codex') return 'codex';
+  if (p === 'qwen') return 'qwen';
   return 'claude';
 }
 
 export function getFallback(): Provider | null {
   const f = process.env.AGENT_FALLBACK?.toLowerCase();
-  if (f === 'codex' || f === 'claude') return f as Provider;
+  if (f === 'codex' || f === 'claude' || f === 'qwen') return f as Provider;
   return null;
 }
 
@@ -48,7 +49,9 @@ interface ExecOptions {
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  return provider === 'codex' ? execCodex(fullPrompt, opts) : execClaude(fullPrompt, opts);
+  if (provider === 'codex') return execCodex(fullPrompt, opts);
+  if (provider === 'qwen') return execQwen(fullPrompt, opts);
+  return execClaude(fullPrompt, opts);
 }
 
 // getSystemPrompt is now imported from dispatcher.ts
@@ -201,6 +204,11 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
   const partial = loopTask?.lastText ?? null;
 
   // Kill process group (includes child processes like curl)
+  // For qwen HTTP calls, abort the fetch instead
+  if (qwenAbortController) {
+    qwenAbortController.abort();
+    qwenAbortController = null;
+  }
   try {
     process.kill(-pid, 'SIGTERM');
   } catch { /* already dead */ }
@@ -670,6 +678,72 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
     child.stdin.write(fullPrompt);
     child.stdin.end();
   });
+}
+
+// =============================================================================
+// oMLX / Qwen Provider
+// =============================================================================
+
+// AbortController reference for active qwen HTTP calls (used for preemption)
+let qwenAbortController: AbortController | null = null;
+
+/**
+ * oMLX HTTP call — no tool use, pure text completion.
+ * fullPrompt (systemPrompt + context + user) passed as single user message.
+ * Note: Kuro's <kuro:*> tags still work; tool execution within cycle is not available.
+ */
+async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string> {
+  const TIMEOUT_MS = 600_000; // 10 minutes
+  const source = opts?.source ?? 'loop';
+
+  const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
+  const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
+  const omlxModel = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
+
+  const controller = new AbortController();
+  qwenAbortController = controller;
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  // Lane tracking (no child PID for HTTP calls)
+  if (source === 'loop') loopChildPid = null;
+  else if (source === 'foreground') foregroundChildPid = null;
+
+  try {
+    const res = await fetch(`${omlxUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${omlxKey}`,
+      },
+      body: JSON.stringify({
+        model: omlxModel,
+        messages: [{ role: 'user', content: fullPrompt }],
+        max_tokens: 8192,
+        temperature: 1.0,
+        top_p: 1.0,
+        top_k: 20,
+        presence_penalty: 2.0,
+        chat_template_kwargs: { enable_thinking: false },
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
+    }
+
+    const data = await res.json() as { choices: Array<{ message: { content: string } }> };
+    return data.choices[0]?.message?.content ?? '';
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') {
+      throw Object.assign(new Error('oMLX 超時（10 分鐘）'), { killed: true, timeoutMs: TIMEOUT_MS });
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    qwenAbortController = null;
+  }
 }
 
 /**
