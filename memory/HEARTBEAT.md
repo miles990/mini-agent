@@ -105,11 +105,11 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 - [x] Perception 移到 Identity 之後（先選看見什麼，再配怎麼思考）
 
 **Phase 8: Harden — E2E 驗證 + 發佈準備**（進行中）
-- [ ] 8a: Server smoke test（init → start → endpoints → stop）
+- [x] 8a: Server smoke test（init → start → endpoints → stop）✅ 2026-03-12 全通過（health/status/dashboard/chat/context/shutdown）
 - [ ] 8b: Interactive wizard 完整走一遍
 - [ ] 8c: npm publish 0.1.0-beta.1
 - [ ] 8d: `npx asurada init` E2E 驗證
-- [ ] 8e: Core module test coverage → 20% file coverage
+- [x] 8e: Core module test coverage → 20% file coverage ✅ 2026-03-12 205 tests / 14 source files / 20.9%
 
 ### #2 Priority: mushi 持續運作
 
