@@ -763,6 +763,64 @@ function resolveQwenProfile(opts?: ExecOptions): { profile: Required<QwenProfile
   return { profile: loadQwenProfile('default'), profileName: 'default' };
 }
 
+// --- Auto-routing: fast classify → pick profile ---
+
+const ROUTE_SYSTEM = `Classify the task into exactly ONE category. Output ONLY the category name, nothing else.
+
+Categories:
+- coding (writing, debugging, refactoring code)
+- reasoning (analysis, planning, complex logic, math)
+- creative (writing prose, poetry, storytelling, brainstorming)
+- chat (quick reply, greeting, acknowledgment, short answer)
+- general (everything else)`;
+
+/**
+ * Use fast profile to classify prompt, then return the appropriate profile name.
+ * Falls back to 'default' on any error.
+ */
+async function autoRouteProfile(prompt: string): Promise<string> {
+  const fast = loadQwenProfile('fast');
+  const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
+  const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
+  const model = process.env.OMLX_MODEL ?? fast.model;
+
+  try {
+    const res = await fetch(`${omlxUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${omlxKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: ROUTE_SYSTEM },
+          { role: 'user', content: prompt.slice(0, 500) },
+        ],
+        max_tokens: 16,
+        temperature: 0.1,
+        top_p: 0.8,
+        chat_template_kwargs: { enable_thinking: false },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return 'default';
+
+    const data = await res.json() as { choices?: Array<{ message?: { content: string } }> };
+    const category = (data.choices?.[0]?.message?.content ?? '').trim().toLowerCase();
+
+    const ROUTE_MAP: Record<string, string> = {
+      coding: 'thinking-code',
+      reasoning: 'thinking',
+      creative: 'creative',
+      chat: 'fast',
+      general: 'default',
+    };
+    const profileName = ROUTE_MAP[category] ?? 'default';
+    slog('QWEN', `auto-route: "${category}" → profile=${profileName}`);
+    return profileName;
+  } catch {
+    return 'default';
+  }
+}
+
 // --- Tool types & definitions ---
 
 interface QwenMessage {
@@ -975,7 +1033,16 @@ async function fetchQwenRound(
  */
 async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const source = opts?.source ?? 'loop';
-  const { profile, profileName } = resolveQwenProfile(opts);
+
+  // Auto-route: if no profile specified, classify first then pick the best profile
+  let resolved = resolveQwenProfile(opts);
+  if (!opts?.model) {
+    const routed = await autoRouteProfile(fullPrompt);
+    if (routed !== 'default') {
+      resolved = { profile: loadQwenProfile(routed), profileName: routed };
+    }
+  }
+  const { profile, profileName } = resolved;
 
   // Env overrides take precedence
   const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
