@@ -1,6 +1,6 @@
 # Asurada Task Board — 人機協作任務面板
 
-Status: draft
+Status: approved
 Effort: Medium (3 phases)
 Priority: P1 — Asurada 差異化功能
 GitHub-Issue: (pending)
