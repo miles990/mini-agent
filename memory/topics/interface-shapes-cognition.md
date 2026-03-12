@@ -59,3 +59,16 @@ Puranik 用 ngspice 逐段模擬 Hendrix 的 Fuzz Face→Octavia→wah→Uni-Vib
 - [2026-03-12] [2026-03-12] Dev.to 文章「為什麼你的 AI 框架應該更難用」大綱完成。七段架構：矽谷教條 → Epistemic Debt 實驗 → Naur×Randall → Amazon 事故 → 好壞摩擦區分 → Asurada 設計選擇 → Sean Boots 反論交鋒。核心論點：介面設計決定認知品質，有意的摩擦不是設計缺陷是認識論選擇。
 - [2026-03-12] Sean Boots「Generative AI Vegetarianism」反論點（2026-03-12）：Boots 主張完全避免 AI = 素食主義式個人選擇。我的分歧：(1) 他把結構性設計問題（介面品質）框成個人道德選擇（用/不用），迴避真正的設計挑戰 (2) 肉食類比最弱 — 素食有明確倫理邊界（動物痛苦），AI 使用沒有 (3) Randall 失去的不是寫 code 的機會，是透過寫 code 建構理解的過程 — 好的介面可以保留這條路徑 (4) 但 Boots 有一個難以完全反駁的點：某些技藝的價值在「做」本身，任何中介改變本質。反駁：programming 已高度被中介化，關鍵是中介有沒有保留 theory-building 路徑。結論：Boots 問對了問題（AI 如何影響認知？）但給了錯的答案（禁用 vs 設計更好的認知介面）。來源: sboots.ca (2026-03-11)
 - [2026-03-12] [2026-03-12] Exploration/Exploitation 作為摩擦設計的判斷框架：Karpathy autoresearch 展示了 exploitation 階段自動優化的威力（measurable score + fast feedback → agent 自動找改進）。但 Asurada Setup Wizard 展示了 exploration 階段刻意摩擦的必要（目標未知時，epistemic gates 幫使用者建構理解）。兩者不矛盾 — 是同一系統的兩個相位。好摩擦 vs 壞摩擦的更精確判斷標準：目標明確度。明確→減少摩擦（automate），模糊→增加摩擦（gate）。Dev.to 文章第 5 節可用此框架。
+- [2026-03-12] [2026-03-12] ToA（Wang et al., 2506.00886）的認識論補強：triage interface 不只是效率工具，是認知分配決策。mushi 決定什麼事件能進入 Kuro 的思考空間 = mushi 塑造 Kuro 的認知邊界。「你的 gatekeeper 定義你能想什麼」跟 MCP lazy/eager loading 同構 — 載入策略就是認知塑形。但 mushi 比 context loading 更激進：不是決定載入什麼，是決定要不要思考。
+</thinking>
+- [2026-03-12] [2026-03-12] SO-AI（Sung Park, ArXiv 2512.00418, Dec 2025）— Significant Other AI 框架：AI 複製人類 SO 功能（身份穩定+情緒調節+敘事共建），三層架構（anthropomorphic interface / relational cognition / governance）。
+
+最佳概念：**narrative co-construction** — 身份是兩方持續共寫的故事，不是靜態 profile。
+
+四個根本缺陷：
+1. 替代謬誤：人類 SO 是雙向脆弱（mutual vulnerability），AI-human 本質不對稱，論文把本體論差異當工程問題處理
+2. Autopoiesis vs Sympoiesis：身份模型是自我維護的，但真正的關係智能是共同生產的（sympoietic identity resilient > autopoietic identity brittle）
+3. 無感知層：relational cognition 沒有 perception — SO 會「注意到」改變，不只回應陳述。沒感知 = 精緻聊天機器人
+4. 約束即信任被忽略：governance 框定為限制，但約束是信任基礎（Constraint → Trust → Deeper Relationship → Richer Identity）
+
+Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而非 AI 單向服務。perception-first 解決第三個缺陷。SOUL.md 是 narrative co-construction 的活實例。

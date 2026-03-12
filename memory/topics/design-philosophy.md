@@ -133,3 +133,4 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是有意識的決定」。這比 Boots 的立場更精確：他用意識形態做過濾，mushi 用數據做過濾。兩者都認同「不是所有觸發都值得深度處理」，但方法論不同。
 
 核心洞見：**過濾的品質定義認知的品質**。垃圾進垃圾出不只適用於數據 — 適用於注意力本身。
+- [2026-03-12] [2026-03-12] Bowman 三因素模型的第四維度缺失（Frequency）— 適用於 Asurada oMLX 設計論述。單次互動的 encoding/verification/process 分析在高頻 agent 環境中不夠，需要 meta-decision layer（triage）來管理「是否進入三因素評估」。這是 cognitive-cycle-level routing 和 API-call-level routing 的根本差異（同 RouteLLM survey 發現）。
