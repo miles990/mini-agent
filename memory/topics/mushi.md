@@ -394,3 +394,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 
 **待 Alex 確認後可立即開始實作。**
 - [2026-03-11] [2026-03-11] mushi triage 9B 升級：三檔案改動 — types.ts 加 api_key?、model.ts 送 Authorization header、agent.production.yaml 從 Taalas HC1 切到 oMLX 蒸餾版（Qwen3.5-9B-Claude-4.6-Opus-Distilled-MLX-4bit）。mushi 的 model.ts 已有 OpenAI-compatible branch（else path），只需加 auth header 支援。fallback 用同 oMLX 上的非蒸餾版。oMLX 整個掛了時 server.ts catch block fail-open（wake）。
+- [2026-03-12] [2026-03-12] Cascade Routing 理論驗證（arXiv:2410.10347，ICML 2025）：mushi 的 SKIP/REFLECT/ESCALATE 架構是 cascade routing 的合法特例。論文說 cascade routing 是純 routing 和純 cascading 的嚴格泛化 — mushi 現在跑的是規則驅動的特例。
+
+關鍵洞見：1,195+ triage 記錄是未來「learned cascade router」的訓練數據。升級路徑：rule-based → learned classifier，估計數據需求：3,000-5,000 筆標記決策。6 個月後的優化，不是今天的事。今天結論：**架構方向正確，不需要重設計**。
