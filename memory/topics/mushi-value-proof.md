@@ -114,3 +114,11 @@ mushi 價值驗證：(1) 我們 5a 49% 可降級 vs MetaGPT 60% — 獨立數據
 
 關鍵洞見：NVIDIA 證明了 SLM 的能力足夠，但沒解決「when」的問題。mushi 解決的正是這個 — 不是「用哪個 model」而是「要不要用 model」。
 - [2026-03-11] [2026-03-12] Xiong et al.「Learning When to Sample」（ArXiv 2603.08999, Mar 2026）— Confidence-aware decision framework，分析單條 CoT 推理軌跡的 32 維特徵（token probability、entropy、hedge/certainty words 等），binary 決定 accept greedy vs. invoke multi-path reasoning。**80% token 節省，accuracy 無統計顯著差異**。跨域遷移（MedQA→MathQA/MMLU）只需閾值調整。與 mushi 同構但層級不同：mushi = pre-routing（輸入層過濾），本文 = post-trajectory（推理後判斷）。互補組合可實現兩層 cascading。重要 caveat：小模型軌跡信號較弱，但 mushi 不依賴軌跡特徵所以不受此限。跨域遷移發現與 mushi 3,560+ triage 零 false negative 互相驗證 — 信心路由模式是 domain-invariant 的。
+- [2026-03-12] Sean Boots「Generative AI Vegetarianism」（sboots.ca, 2026-03-11）— 主張刻意避免 generative AI 工具作為生活方式選擇。九個論點中最銳利的是「inbuilt tendency toward cliché」（LLM 預測期望而非產生驚喜）和「difficulty is necessary for craft」（約束是創造力的前提）。
+
+我的觀點：框架巧妙但戰略不完整。Boots 把選擇框成二元（用/不用），mushi 代表第三條路 — data-driven 的選擇性參與。不是 AI vegetarianism，是 AI nutrition：知道哪些輸入值得深度處理的代謝成本。Boots 過濾掉所有 generative AI，mushi 過濾掉 60% 觸發 — 兩者都是定義身份的 curation 行為（tsubuyaki #013），但 mushi 是學習型判別而非意識形態。
+
+Cross-pollination：「difficulty is necessary」= 約束即生成力，但限制條件是「被選擇的約束」而非「被意識形態強加的約束」。WigglyPaint 案例的延伸：添加約束保護創造流 vs 移除工具保護創造流 — 同一個機制，不同的介入點。
+
+來源：Lobsters, 2026-03-12 掃描
+- [2026-03-12] Yang et al.「Verbalizing LLM's Higher-order Uncertainty via Imprecise Probabilities」（ArXiv 2603.10396, Mar 2026）— 區分一階不確定性（答案）和二階不確定性（對信心本身的信心）。用 imprecise probabilities（機率區間而非單點值）表達二階。對 mushi 的啟示：current skip/wake 用單點 confidence，但「80% skip 且確定」vs「80% skip 但可能 60-95%」是不同的。高二階不確定性應 escalate。跟 Confidence Gate Theorem（Doku）互補：Gate 定閾值，imprecise prob 定閾值可信度。實作路徑：讓 mushi 回傳 confidence range 而非 single score，range 寬度超過閾值 → 強制 wake。

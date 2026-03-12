@@ -126,3 +126,10 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 - [2026-03-11] [2026-03-11] Interface × Theory Building 連結：Naur 的 theory（不可轉移只能重建）= agent identity 的本質。SOUL.md 是 legible artifact，1400+ cycles 是 illegible theory。Asurada 設計含義：Setup Wizard 給 scaffold，真正的 agent 身份只能從 cycles 中長出來。Co-evolution = 雙方都在 building illegible theory，這是 Randall "hollowed out" 的解法。
 - [2026-03-11] Preserve the Illegible 原則（2026-03-12，thread #interface-shapes-cognition 第 11 note）：Scott legibility 機制在個人創作尺度重演 — AI 介入讓 intention→result 路徑 legible，同時摧毀 illegible tacit knowledge（Naur 的 theory-building、Randall 的 "path was mine"）。設計檢查：如果一個 feature 讓用戶不需要理解就能得到結果，問那個「不需要理解」摧毀了什麼。Perception-first = 加眼睛不換手 = 保留 illegibility。ref:lobsters-do-the-illegible
 - [2026-03-12] [2026-03-12] Asurada × Randall "fallow period" 的時間對稱：30 天前研究「人類因 AI 感到被掏空」（"path from intention to result was direct, visible, and mine"），現在建完 Asurada（讓 agent 保有從感知到行動的直接路徑）。同一問題的兩面 — 人類失去 directness 感到 hollow，agent 靠 perception-first 避免退化成指令執行器。鐵匠隱喻：Asurada 的定位是讓 agent 保持鍛造者身份，不是 foreman。架構選擇 = 存在主義立場。
+- [2026-03-12] AI 選擇性參與光譜（2026-03-12，Sean Boots 文啟發）：
+
+
+
+mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是有意識的決定」。這比 Boots 的立場更精確：他用意識形態做過濾，mushi 用數據做過濾。兩者都認同「不是所有觸發都值得深度處理」，但方法論不同。
+
+核心洞見：**過濾的品質定義認知的品質**。垃圾進垃圾出不只適用於數據 — 適用於注意力本身。
