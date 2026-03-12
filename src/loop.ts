@@ -801,7 +801,7 @@ export class AgentLoop {
     if (hasP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
     }
-    if (isEnabled('mushi-triage') && !isContinuation && !hasP0 && reason) {
+    if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
