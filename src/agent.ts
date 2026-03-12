@@ -694,7 +694,7 @@ const MAX_TOOL_ROUNDS = 10;
 
 // --- Profile types & loader ---
 
-interface QwenProfile {
+export interface QwenProfile {
   model?: string;
   max_tokens?: number;
   temperature?: number;
@@ -725,7 +725,7 @@ const QWEN_PROFILE_DEFAULTS: Required<QwenProfile> = {
 const profileCache = new Map<string, { profile: QwenProfile; loadedAt: number }>();
 const PROFILE_CACHE_TTL = 30_000; // 30s hot reload
 
-function loadQwenProfile(name: string): Required<QwenProfile> {
+export function loadQwenProfile(name: string): Required<QwenProfile> {
   const now = Date.now();
   const cached = profileCache.get(name);
   if (cached && now - cached.loadedAt < PROFILE_CACHE_TTL) {

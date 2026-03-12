@@ -14,15 +14,7 @@
 
 import type { PulseMetrics, PulseSignal } from './pulse.js';
 import { slog } from './utils.js';
-
-// =============================================================================
-// Constants
-// =============================================================================
-
-const OMLX_URL = process.env.OMLX_URL ?? 'http://localhost:8000';
-const OMLX_MODEL = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
-const OMLX_KEY = process.env.OMLX_KEY ?? 'omlx-local';
-const TIMEOUT_MS = 20000;
+import { loadQwenProfile } from './agent.js';
 
 // =============================================================================
 // 9B Classification
@@ -60,26 +52,32 @@ export async function classifyWithReflex(
   if (!input) return [];
 
   try {
-    const response = await fetch(`${OMLX_URL}/v1/chat/completions`, {
+    const profile = loadQwenProfile('fast');
+    const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
+    const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
+    const model = process.env.OMLX_MODEL ?? profile.model;
+
+    const response = await fetch(`${omlxUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OMLX_KEY}`,
+        'Authorization': `Bearer ${omlxKey}`,
       },
       body: JSON.stringify({
-        model: OMLX_MODEL,
+        model,
         messages: [
           { role: 'system', content: REFLEX_SYSTEM },
           { role: 'user', content: input },
         ],
         max_tokens: 800,
-        temperature: 0.7,
-        top_p: 0.8,
-        top_k: 20,
-        presence_penalty: 1.5,
-        chat_template_kwargs: { enable_thinking: false },
+        temperature: profile.temperature,
+        top_p: profile.top_p,
+        top_k: profile.top_k,
+        presence_penalty: profile.presence_penalty,
+        ...(profile.repetition_penalty > 0 ? { repetition_penalty: profile.repetition_penalty } : {}),
+        chat_template_kwargs: { enable_thinking: profile.enable_thinking },
       }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(profile.timeout_ms),
     });
 
     if (!response.ok) {
