@@ -73,8 +73,11 @@ export async function classifyWithReflex(
           { role: 'user', content: input },
         ],
         max_tokens: 800,
-        temperature: 0.1,
-        chat_template_kwargs: { enable_thinking: true },
+        temperature: 0.7,
+        top_p: 0.8,
+        top_k: 20,
+        presence_penalty: 1.5,
+        chat_template_kwargs: { enable_thinking: false },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
