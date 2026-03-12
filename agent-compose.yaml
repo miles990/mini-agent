@@ -72,6 +72,7 @@ agents:
         - name: self-healing
           script: ./plugins/self-healing.sh
           interval: "60m"
+          timeout: 30000
         - name: docker-services
           script: ./plugins/docker-services.sh
           interval: "60m"

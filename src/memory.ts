@@ -1623,6 +1623,7 @@ export class InstanceMemory {
     // 從最近對話提取上下文關鍵字 + trigger-derived hints
     const recentHint = this.conversationBuffer
       .slice(-3)
+      .filter(c => c.role !== 'assistant')
       .map(c => c.content.toLowerCase())
       .join(' ');
     const triggerHints = tBudget?.extraHints?.join(' ') ?? '';
