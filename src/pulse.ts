@@ -656,16 +656,9 @@ export async function runPulseCheck(
   // Layer 1 → Signals
   let signals = metricsToSignals(metrics);
 
-  // Layer 2: 9B classification (if available)
-  try {
-    const { classifyWithReflex } = await import('./pulse-reflex.js');
-    const reflexSignals = await classifyWithReflex(metrics, action);
-    if (reflexSignals.length > 0) {
-      signals = [...signals, ...reflexSignals];
-    }
-  } catch {
-    // oMLX unavailable — Layer 1 signals alone are sufficient
-  }
+  // Layer 2 (9B classification) removed — oMLX pulse-reflex retired.
+  // Reason: 0.3% citation rate, auto-demoted after 50 zero-citation cycles.
+  // Layer 1 heuristics alone are sufficient.
 
   // Layer 3: Process signals
   const processed = processSignals(signals, metrics, state, action);
