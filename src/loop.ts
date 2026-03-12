@@ -191,6 +191,7 @@ export class AgentLoop {
 
   // ── Event-Driven Scheduling (Phase 2b) ──
   private triggerReason: string | null = null;
+  private triggerMessageText: string | null = null;
   /** Room message ID that triggered this cycle (for threading replies back) */
   private triggerRoomMsgId: string | null = null;
   /** Snapshot of pending telegram messages at cycle start (for content-based reply matching) */
@@ -507,6 +508,7 @@ export class AgentLoop {
       }
 
       this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
+      this.triggerMessageText = messageText || null;
       this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
       this.triggerTelegramMsgs = snapshotTelegramMsgs();
       this.runCycle();
@@ -788,7 +790,7 @@ export class AgentLoop {
     this.calmWake = false;
 
     // mushi triage — BEFORE updating lastCycleTime so lastThinkAgo reflects actual gap
-    // DM sources always bypass (hard rule). Fail-open if mushi offline.
+    // DMs now go through triage (mushi classifies as quick/wake). Fail-open if mushi offline.
     // Placed here (not in handleEvent) so ALL cycle entry points are covered:
     // heartbeat timer, priority drain, direct-message queue, and event-driven triggers
     const reason = this.triggerReason ?? '';
@@ -799,7 +801,7 @@ export class AgentLoop {
     if (hasP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
     }
-    if (isEnabled('mushi-triage') && !isDM && !isContinuation && !hasP0 && reason) {
+    if (isEnabled('mushi-triage') && !isContinuation && !hasP0 && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
@@ -843,7 +845,7 @@ export class AgentLoop {
           perceptionChangedCount: perceptionStreams.getChangedCount(),
           cycleCount: this.cycleCount,
         };
-        const decision = await mushiTriage(triageSource, { source: reason, detail: reason }, triageCtx);
+        const decision = await mushiTriage(triageSource, { source: reason, detail: reason }, triageCtx, this.triggerMessageText ?? undefined);
         if (decision === 'skip') {
           slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
           // Trail: skip = scouting, not discarding. Record what was seen.
@@ -1142,6 +1144,7 @@ export class AgentLoop {
         : '';
       const currentTriggerReason = this.triggerReason;
       this.triggerReason = null;
+      this.triggerMessageText = null;
 
       // Reasoning Continuity: inject last 3 cycles' reasoning into prompt
       const reasoningHistory = loadReasoningHistory(3);

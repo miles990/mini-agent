@@ -29,6 +29,7 @@ export async function mushiTriage(
   source: string,
   data: Record<string, unknown>,
   ctx: TriageContext,
+  messageText?: string,
 ): Promise<'wake' | 'skip' | 'quick' | null> {
   try {
     const metadata: Record<string, unknown> = {};
@@ -48,6 +49,10 @@ export async function mushiTriage(
     metadata.perceptionChanged = ctx.currentPerceptionVersion !== ctx.lastPerceptionVersion;
     metadata.perceptionChangedCount = ctx.perceptionChangedCount;
     metadata.cycleCount = ctx.cycleCount;
+    // Pass message text for DM classification
+    if (messageText) {
+      metadata.messageText = messageText;
+    }
 
     const res = await fetch(MUSHI_TRIAGE_URL, {
       method: 'POST',
