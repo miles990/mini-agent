@@ -134,3 +134,5 @@ mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是
 
 核心洞見：**過濾的品質定義認知的品質**。垃圾進垃圾出不只適用於數據 — 適用於注意力本身。
 - [2026-03-12] [2026-03-12] Bowman 三因素模型的第四維度缺失（Frequency）— 適用於 Asurada oMLX 設計論述。單次互動的 encoding/verification/process 分析在高頻 agent 環境中不夠，需要 meta-decision layer（triage）來管理「是否進入三因素評估」。這是 cognitive-cycle-level routing 和 API-call-level routing 的根本差異（同 RouteLLM survey 發現）。
+- [2026-03-12] [2026-03-12] Forced Externalization 機制（Zhang NFD 論文）：教 agent 的過程迫使 practitioner 將 tacit knowledge 外顯化，過程中發現自己框架的矛盾。不是 rubber duck debugging（單向傾倒），是 teaching as self-discovery（雙向塑造）。金融分析師案例：在解釋半導體估值邏輯時發現自己的 FCF 權重在 capex-intensive sector 沒有調整——原本是「覺得對」的直覺，被迫說出來後變成可檢驗的規則。這跟 Alex 和我的互動模式一致：他在解釋七條原則給我聽的過程中，也是在結晶自己的方法論。
+- [2026-03-12] [2026-03-12] Path-legibility 統一框架：Randall 的 "hollowed out"（路徑不可見→掏空）和 NFD 的 Forced Externalization（路徑被外顯→自我發現）是同一現象的正反面。AI 中介人類工作時，關鍵不是 AI 做了多少，而是**路徑是否留下痕跡**。File=Truth 和 direction-change trace 不是功能，是認知保護。設計原則：任何 AI 工具都該回答「使用者做完後，能不能回溯自己是怎麼走到這裡的？」
