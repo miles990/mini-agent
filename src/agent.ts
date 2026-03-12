@@ -4,8 +4,8 @@
  * Single loop lane: callClaude() → execProvider() → response
  */
 
-import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
+import { spawn, execSync as execSyncChild } from 'node:child_process';
+import { appendFileSync, mkdirSync, existsSync, readFileSync as readFileSyncFs } from 'node:fs';
 import path from 'node:path';
 import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
@@ -681,63 +681,358 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
 }
 
 // =============================================================================
-// oMLX / Qwen Provider
+// oMLX / Qwen Provider (config-driven, tool use + streaming + thinking)
+//
+// Config files: llm/qwen/{profile}.json
+// Profile selection: opts.model matches profile name → load that config
+//                    otherwise → llm/qwen/default.json
+// Env overrides: OMLX_URL, OMLX_KEY, OMLX_MODEL take precedence over JSON
 // =============================================================================
 
-// AbortController reference for active qwen HTTP calls (used for preemption)
 let qwenAbortController: AbortController | null = null;
+const MAX_TOOL_ROUNDS = 10;
+
+// --- Profile types & loader ---
+
+interface QwenProfile {
+  model?: string;
+  max_tokens?: number;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  presence_penalty?: number;
+  repetition_penalty?: number;
+  enable_thinking?: boolean;
+  tools_enabled?: boolean;
+  timeout_ms?: number;
+}
+
+// Qwen3 official recommended defaults (non-thinking mode)
+// repetition_penalty: 0 = not sent (thinking mode should omit it)
+const QWEN_PROFILE_DEFAULTS: Required<QwenProfile> = {
+  model: 'Qwen3.5-9B-MLX-4bit',
+  max_tokens: 8192,
+  temperature: 0.7,
+  top_p: 0.8,
+  top_k: 20,
+  presence_penalty: 1.5,
+  repetition_penalty: 0,
+  enable_thinking: false,
+  tools_enabled: true,
+  timeout_ms: 600_000,
+};
+
+const profileCache = new Map<string, { profile: QwenProfile; loadedAt: number }>();
+const PROFILE_CACHE_TTL = 30_000; // 30s hot reload
+
+function loadQwenProfile(name: string): Required<QwenProfile> {
+  const now = Date.now();
+  const cached = profileCache.get(name);
+  if (cached && now - cached.loadedAt < PROFILE_CACHE_TTL) {
+    return { ...QWEN_PROFILE_DEFAULTS, ...cached.profile };
+  }
+
+  const profilePath = path.join(process.cwd(), 'llm', 'qwen', `${name}.json`);
+  let profile: QwenProfile = {};
+  try {
+    profile = JSON.parse(readFileSyncFs(profilePath, 'utf-8')) as QwenProfile;
+    profileCache.set(name, { profile, loadedAt: now });
+  } catch {
+    // File not found or parse error — use defaults
+  }
+
+  return { ...QWEN_PROFILE_DEFAULTS, ...profile };
+}
+
+/** Resolve which profile to use: opts.model as profile name, or 'default' */
+function resolveQwenProfile(opts?: ExecOptions): { profile: Required<QwenProfile>; profileName: string } {
+  const candidate = opts?.model;
+  if (candidate) {
+    // Check if it's a profile name (file exists)
+    const profilePath = path.join(process.cwd(), 'llm', 'qwen', `${candidate}.json`);
+    try {
+      readFileSyncFs(profilePath);
+      return { profile: loadQwenProfile(candidate), profileName: candidate };
+    } catch {
+      // Not a profile name — treat as model override on default profile
+      const p = loadQwenProfile('default');
+      p.model = candidate;
+      return { profile: p, profileName: 'default' };
+    }
+  }
+  return { profile: loadQwenProfile('default'), profileName: 'default' };
+}
+
+// --- Tool types & definitions ---
+
+interface QwenMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: QwenToolCall[];
+  tool_call_id?: string;
+}
+
+interface QwenToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+const QWEN_TOOLS = [
+  {
+    type: 'function' as const,
+    function: {
+      name: 'search_memory',
+      description: 'Search agent memory and topics by keyword',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string', description: 'Search keywords' } },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'read_file',
+      description: 'Read a file (max 8KB returned)',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'Absolute file path' } },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'run_command',
+      description: 'Execute shell command (10s timeout, max 8KB output)',
+      parameters: {
+        type: 'object',
+        properties: { command: { type: 'string', description: 'Shell command' } },
+        required: ['command'],
+      },
+    },
+  },
+];
+
+// --- Tool execution ---
+
+async function executeQwenToolCall(call: QwenToolCall): Promise<string> {
+  try {
+    const args = JSON.parse(call.function.arguments) as Record<string, string>;
+    switch (call.function.name) {
+      case 'search_memory': {
+        const { searchMemory } = await import('./memory.js');
+        const results = await searchMemory(args.query);
+        return JSON.stringify(results.slice(0, 5));
+      }
+      case 'read_file':
+        return readFileSyncFs(args.path, 'utf-8').slice(0, 8000);
+      case 'run_command':
+        return execSyncChild(args.command, { timeout: 10_000, encoding: 'utf-8' }).slice(0, 8000);
+      default:
+        return `Unknown tool: ${call.function.name}`;
+    }
+  } catch (e) {
+    return `Error: ${(e as Error).message}`;
+  }
+}
+
+// --- Streaming round ---
+
+interface QwenRoundResult {
+  content: string;
+  toolCalls: QwenToolCall[];
+}
+
+async function streamQwenRound(
+  url: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+  signal: AbortSignal,
+  opts?: ExecOptions,
+): Promise<QwenRoundResult> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ...body, stream: true, stream_options: { include_usage: true } }),
+    signal,
+  });
+  if (!res.ok) {
+    throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
+  }
+
+  let content = '';
+  const toolCallsMap = new Map<number, QwenToolCall>();
+  let lastCbLen = 0;
+  let chatSearchPos = 0;
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+      try {
+        const chunk = JSON.parse(line.slice(6)) as {
+          choices: Array<{
+            delta: {
+              content?: string;
+              tool_calls?: Array<{
+                index: number; id?: string; type?: string;
+                function?: { name?: string; arguments?: string };
+              }>;
+            };
+          }>;
+        };
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        if (delta.content) {
+          content += delta.content;
+          if (opts?.onPartialOutput && content.length - lastCbLen >= 100) {
+            opts.onPartialOutput(content);
+            lastCbLen = content.length;
+          }
+          if (opts?.onStreamChat && content.length > chatSearchPos) {
+            const tail = content.slice(chatSearchPos);
+            const m = tail.match(/<kuro:chat(\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/);
+            if (m) {
+              opts.onStreamChat(m[2].trim(), !!m[1]);
+              chatSearchPos += m.index! + m[0].length;
+            }
+          }
+        }
+
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const existing = toolCallsMap.get(tc.index);
+            if (existing) {
+              if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+            } else {
+              toolCallsMap.set(tc.index, {
+                id: tc.id ?? `call_${tc.index}`,
+                type: 'function',
+                function: { name: tc.function?.name ?? '', arguments: tc.function?.arguments ?? '' },
+              });
+            }
+          }
+        }
+      } catch { /* malformed chunk */ }
+    }
+  }
+
+  if (opts?.onPartialOutput && content.length > lastCbLen) opts.onPartialOutput(content);
+  return { content, toolCalls: Array.from(toolCallsMap.values()).filter(tc => tc.function.name) };
+}
+
+// --- Non-streaming round ---
+
+async function fetchQwenRound(
+  url: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+  signal: AbortSignal,
+): Promise<QwenRoundResult> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ...body, stream: false }),
+    signal,
+  });
+  if (!res.ok) {
+    throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
+  }
+  const data = await res.json() as {
+    choices: Array<{ message: { content: string | null; tool_calls?: QwenToolCall[] } }>;
+  };
+  const msg = data.choices[0]?.message;
+  return { content: msg?.content ?? '', toolCalls: msg?.tool_calls ?? [] };
+}
+
+// --- Main entry ---
 
 /**
- * oMLX HTTP call — no tool use, pure text completion.
- * fullPrompt (systemPrompt + context + user) passed as single user message.
- * Note: Kuro's <kuro:*> tags still work; tool execution within cycle is not available.
+ * oMLX HTTP call — config-driven from llm/qwen/{profile}.json
+ *
+ * Features:
+ * - Profile selection: opts.model='thinking' → loads llm/qwen/thinking.json
+ * - Tool use: search_memory, read_file, run_command (multi-round, max 10)
+ * - Streaming: auto-enabled when onPartialOutput/onStreamChat callbacks present
+ * - Thinking mode: per-profile enable_thinking flag
+ * - Env overrides: OMLX_URL, OMLX_KEY, OMLX_MODEL override profile values
+ *
+ * <kuro:*> tags still work (parsed by dispatcher after final response).
  */
 async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = 600_000; // 10 minutes
   const source = opts?.source ?? 'loop';
+  const { profile, profileName } = resolveQwenProfile(opts);
 
+  // Env overrides take precedence
   const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
   const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
-  const omlxModel = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
+  const model = process.env.OMLX_MODEL ?? profile.model;
 
   const controller = new AbortController();
   qwenAbortController = controller;
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), profile.timeout_ms);
 
-  // Lane tracking (no child PID for HTTP calls)
   if (source === 'loop') loopChildPid = null;
   else if (source === 'foreground') foregroundChildPid = null;
 
-  try {
-    const res = await fetch(`${omlxUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${omlxKey}`,
-      },
-      body: JSON.stringify({
-        model: omlxModel,
-        messages: [{ role: 'user', content: fullPrompt }],
-        max_tokens: 8192,
-        temperature: 1.0,
-        top_p: 1.0,
-        top_k: 20,
-        presence_penalty: 2.0,
-        chat_template_kwargs: { enable_thinking: false },
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
+  const url = `${omlxUrl}/v1/chat/completions`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${omlxKey}`,
+  };
+  const messages: QwenMessage[] = [{ role: 'user', content: fullPrompt }];
+  const useStreaming = !!(opts?.onPartialOutput || opts?.onStreamChat);
 
-    if (!res.ok) {
-      throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
+  slog('QWEN', `profile=${profileName} model=${model} thinking=${profile.enable_thinking} tools=${profile.tools_enabled}`);
+
+  try {
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const body: Record<string, unknown> = {
+        model,
+        messages,
+        max_tokens: profile.max_tokens,
+        temperature: profile.temperature,
+        top_p: profile.top_p,
+        top_k: profile.top_k,
+        presence_penalty: profile.presence_penalty,
+        ...(profile.repetition_penalty > 0 ? { repetition_penalty: profile.repetition_penalty } : {}),
+        chat_template_kwargs: { enable_thinking: profile.enable_thinking },
+        ...(profile.tools_enabled ? { tools: QWEN_TOOLS } : {}),
+      };
+
+      const result = (useStreaming && round === 0)
+        ? await streamQwenRound(url, headers, body, controller.signal, opts)
+        : await fetchQwenRound(url, headers, body, controller.signal);
+
+      if (!result.toolCalls.length) return result.content;
+
+      slog('QWEN', `tool round ${round + 1}: ${result.toolCalls.map(c => c.function.name).join(', ')}`);
+      messages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
+
+      for (const call of result.toolCalls) {
+        const toolResult = await executeQwenToolCall(call);
+        messages.push({ role: 'tool', content: toolResult, tool_call_id: call.id });
+      }
     }
 
-    const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-    return data.choices[0]?.message?.content ?? '';
+    return messages.filter(m => m.role === 'assistant').pop()?.content ?? '';
   } catch (e) {
     if ((e as Error).name === 'AbortError') {
-      throw Object.assign(new Error('oMLX 超時（10 分鐘）'), { killed: true, timeoutMs: TIMEOUT_MS });
+      throw Object.assign(new Error('oMLX 超時'), { killed: true, timeoutMs: profile.timeout_ms });
     }
     throw e;
   } finally {

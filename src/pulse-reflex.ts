@@ -19,9 +19,9 @@ import { slog } from './utils.js';
 // Constants
 // =============================================================================
 
-const OMLX_BASE_URL = process.env.OMLX_BASE_URL ?? 'http://localhost:8000';
+const OMLX_URL = process.env.OMLX_URL ?? 'http://localhost:8000';
 const OMLX_MODEL = process.env.OMLX_MODEL ?? 'Qwen3.5-9B-MLX-4bit';
-const OMLX_API_KEY = process.env.OMLX_API_KEY ?? 'omlx-local';
+const OMLX_KEY = process.env.OMLX_KEY ?? 'omlx-local';
 const TIMEOUT_MS = 20000;
 
 // =============================================================================
@@ -60,11 +60,11 @@ export async function classifyWithReflex(
   if (!input) return [];
 
   try {
-    const response = await fetch(`${OMLX_BASE_URL}/v1/chat/completions`, {
+    const response = await fetch(`${OMLX_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OMLX_API_KEY}`,
+        'Authorization': `Bearer ${OMLX_KEY}`,
       },
       body: JSON.stringify({
         model: OMLX_MODEL,

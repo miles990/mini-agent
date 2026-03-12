@@ -1,0 +1,11 @@
+{
+  "model": "Qwen3.5-9B-MLX-4bit",
+  "max_tokens": 32768,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "top_k": 20,
+  "presence_penalty": 1.5,
+  "enable_thinking": true,
+  "tools_enabled": true,
+  "timeout_ms": 600000
+}

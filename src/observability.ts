@@ -13,8 +13,54 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
 import { getLogger } from './logging.js';
-import { notify, getLastAlexMessageId } from './telegram.js';
+import { notify, notifyTelegram, getLastAlexMessageId } from './telegram.js';
 import { recordReply } from './reply-context.js';
+
+// =============================================================================
+// sendChat — 統一的 chat 發送閘門（dedup + Telegram + Room + record）
+// =============================================================================
+
+const recentlySentChats = new Map<string, number>();
+
+/**
+ * 統一 chat 發送口。所有 chat→Telegram 路徑都經過這裡，內建 60s 去重。
+ * @returns true if sent, false if deduplicated
+ */
+export function sendChat(text: string, opts?: {
+  reply?: boolean;
+  telegramMsgId?: number;
+  roomReplyTo?: string;
+  /** true = DM 回覆（不加 💬 prefix），false/undefined = 主動聊天 */
+  directReply?: boolean;
+}): boolean {
+  const key = text.trim().replace(/\s+/g, ' ');
+  const now = Date.now();
+  const prev = recentlySentChats.get(key);
+  if (prev && now - prev < 60_000) {
+    slog('DEDUP', `Chat skipped (duplicate within 60s): ${text.slice(0, 60)}`);
+    return false;
+  }
+  recentlySentChats.set(key, now);
+  // Prune stale entries
+  if (recentlySentChats.size > 50) {
+    for (const [k, t] of recentlySentChats) {
+      if (now - t > 120_000) recentlySentChats.delete(k);
+    }
+  }
+
+  const replyToMsgId = opts?.reply
+    ? (opts.telegramMsgId ?? getLastAlexMessageId() ?? undefined)
+    : undefined;
+  const tgText = opts?.directReply ? text : `💬 Kuro 想跟你聊聊：\n\n${text}`;
+  notifyTelegram(tgText, replyToMsgId).catch(err => {
+    slog('LOOP', `Telegram chat failed: ${err instanceof Error ? err.message : err}`);
+  });
+  recordReply(text);
+  writeRoomMessage('kuro', text, opts?.roomReplyTo).catch(() => {});
+  slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
+  getLogger().logBehavior('agent', 'telegram.chat', text.slice(0, 200));
+  return true;
+}
 
 // =============================================================================
 // Init — 註冊所有 subscribers
@@ -131,22 +177,11 @@ function handleTaskEvent(e: AgentEvent): void {
 // =============================================================================
 
 function handleChatEvent(e: AgentEvent): void {
-  const logger = getLogger();
-  const text = e.data.text as string;
-  const isReply = e.data.reply as boolean | undefined;
-
-  // Delayed reply: prefer snapshot from cycle/foreground entry, fallback to global state
-  const replyToMsgId = isReply
-    ? (e.data.telegramMsgId as number | undefined) ?? getLastAlexMessageId() ?? undefined
-    : undefined;
-  notify(`💬 Kuro 想跟你聊聊：\n\n${text}`, 'signal', replyToMsgId);
-  recordReply(text);
-  slog('LOOP', `💬 Chat to Alex: ${text.slice(0, 80)}${replyToMsgId ? ` (reply_to:${replyToMsgId})` : ''}`);
-  logger.logBehavior('agent', 'telegram.chat', text.slice(0, 200));
-
-  // Bridge to Chat Room — fire-and-forget, threading through roomReplyTo if present
-  const roomReplyTo = e.data.roomReplyTo as string | undefined;
-  writeRoomMessage('kuro', text, roomReplyTo).catch(() => {});
+  sendChat(e.data.text as string, {
+    reply: e.data.reply as boolean | undefined,
+    telegramMsgId: e.data.telegramMsgId as number | undefined,
+    roomReplyTo: e.data.roomReplyTo as string | undefined,
+  });
 }
 
 // =============================================================================

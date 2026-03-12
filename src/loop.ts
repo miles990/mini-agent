@@ -43,7 +43,7 @@ import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-con
 import type { TelegramMsgSnapshot } from './reply-context.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
-import { writeRoomMessage } from './observability.js';
+import { writeRoomMessage, sendChat } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
@@ -1539,18 +1539,18 @@ export class AgentLoop {
       }
 
       // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
-      // Must run BEFORE action:chat emission to prevent duplicate sends
+      // Uses unified sendChat() gateway for dedup
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
         const replyContent = tags.chats.map(c => c.text).join('\n\n');
         if (replyContent) {
           didReplyToTelegram = true;
           const replyTarget = matchReplyTarget(replyContent, this.triggerTelegramMsgs);
-          notifyTelegram(replyContent, replyTarget ?? undefined).catch((err) => {
-            slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
+          sendChat(replyContent, {
+            reply: true,
+            telegramMsgId: replyTarget ?? undefined,
+            roomReplyTo: this.triggerRoomMsgId ?? undefined,
+            directReply: true,
           });
-          // Bridge to Chat Room — keep TG replies visible in room
-          writeRoomMessage('kuro', replyContent, this.triggerRoomMsgId ?? undefined).catch(() => {});
-          recordReply(replyContent);
           cycleSideEffects.push(`chat:${replyContent.slice(0, 60)}`);
           cycleTagsProcessed.push('CHAT');
           // Clear chats — already sent via OODA reply, skip action:chat to prevent duplicate

@@ -335,6 +335,16 @@ export async function autoPushIfAhead(): Promise<void> {
     const ahead = parseInt(revList.trim(), 10);
     if (!ahead || ahead === 0) return;
 
+    // Stash any uncommitted changes before rebase (Claude Code edits, etc.)
+    let stashed = false;
+    try {
+      const { stdout: stashOut } = await execFileAsync(
+        'git', ['stash', 'push', '-u', '-m', 'auto-push: pre-rebase stash'],
+        { cwd, encoding: 'utf-8', timeout: 10000 },
+      );
+      stashed = !stashOut.includes('No local changes');
+    } catch { /* no changes to stash — fine */ }
+
     // Rebase on remote first to avoid non-fast-forward rejection
     // -X theirs: auto-resolve conflicts with remote version (state files change every cycle)
     try {
@@ -345,8 +355,18 @@ export async function autoPushIfAhead(): Promise<void> {
     } catch {
       // Rebase failed — abort and skip this push (next cycle will retry)
       try { await execFileAsync('git', ['rebase', '--abort'], { cwd, timeout: 5000 }); } catch { /* already clean */ }
+      if (stashed) { try { await execFileAsync('git', ['stash', 'pop'], { cwd, timeout: 10000 }); } catch { /* conflict — stash stays */ } }
       slog('HOUSEKEEPING', 'auto-push skipped: rebase failed, will retry next cycle');
       return;
+    }
+
+    // Restore stashed changes
+    if (stashed) {
+      try {
+        await execFileAsync('git', ['stash', 'pop'], { cwd, encoding: 'utf-8', timeout: 10000 });
+      } catch {
+        slog('HOUSEKEEPING', 'stash pop had conflicts — changes preserved in stash');
+      }
     }
 
     // Push
