@@ -99,6 +99,18 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 - [x] MemoryIndex.findRelevant() + getRelevantTopics() + getDirectionChanges()
 - [x] ContextBuilder（keyword + index boost + direction-change injection）
 
+**Phase 7: Epistemic Gates** ✅
+- [x] Persona 必答 + 語言感知 default
+- [x] Traits 互動化（「用三個詞定義你的 Agent」）
+- [x] Perception 移到 Identity 之後（先選看見什麼，再配怎麼思考）
+
+**Phase 8: Harden — E2E 驗證 + 發佈準備**（進行中）
+- [ ] 8a: Server smoke test（init → start → endpoints → stop）
+- [ ] 8b: Interactive wizard 完整走一遍
+- [ ] 8c: npm publish 0.1.0-beta.1
+- [ ] 8d: `npx asurada init` E2E 驗證
+- [ ] 8e: Core module test coverage → 20% file coverage
+
 ### #2 Priority: mushi 持續運作
 
 mushi 不是獨立目標了 — 它是 Asurada 的 optional addon。持續運作 + 累積數據。

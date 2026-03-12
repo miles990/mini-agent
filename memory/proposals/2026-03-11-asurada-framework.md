@@ -607,6 +607,34 @@ mini-agent 目前綁定 Claude CLI。Asurada 需要：
 - **風險等級**：L2（涉及 src/*.ts，自主權）
 - **可逆性**：C4 通過 — direction-change 是純 additive，memory-index boosting 加 flag 可關閉
 
+### Phase 8: Harden — E2E 驗證 + 發佈準備
+
+**背景**：Phase 1-7 是 build。Phase 8 是讓已有的東西**真的能用**。Alex dogfood（#077/#083）暴露的三個 bug 都是「寫了但沒走過一遍」的問題 — 系統性驗證不足。
+
+**E2E 驗證結果**（2026-03-12）：
+
+| 項目 | 狀態 | 備註 |
+|------|------|------|
+| `tsc --noEmit` | ✅ clean | |
+| 77/77 tests | ✅ pass | 但只覆蓋 5/72 files (7%) |
+| `npm pack --dry-run` | ✅ 293 files, 192.5 kB | package 結構正確 |
+| `asurada init --name X --port Y` | ✅ works | memory/ + plugins/ + SOUL.md 正確 |
+| CLI `--help` | ✅ works | |
+| `asurada start` → loop | ❌ 未驗證 | 需要 LLM runner 才能跑 |
+| Interactive wizard | ❌ 未驗證 | 需要 TTY |
+| `/dashboard` + `/chat` endpoints | ❌ 未驗證 | 需要 server running |
+| `npx asurada init` | ❌ blocked | npm 未發佈 |
+
+**Phase 8 任務**：
+
+- [ ] 8a: Server smoke test — `asurada start` → `/health` → `/status` → `/dashboard` → `/chat` → stop
+- [ ] 8b: Interactive wizard walkthrough — 實際跑一遍 wizard，驗證語言選擇 + persona + perception 全流程
+- [ ] 8c: npm publish — 註冊 `asurada` package name，發佈 0.1.0-beta.1
+- [ ] 8d: `npx asurada init` — 從 npm 安裝後 E2E 驗證
+- [ ] 8e: Core module test coverage — loop、perception、dispatcher 各寫基本 test（目標：20% file coverage）
+
+**判斷**：8a/8b 最高優先 — 確認「裝完能跑」比「能安裝」更重要。8c/8d 是發佈前最後一哩路。8e 是長期品質保證。
+
 ## 下一步
 
 1. ✅ 本提案完成
@@ -615,4 +643,6 @@ mini-agent 目前綁定 Claude CLI。Asurada 需要：
 4. ✅ Phase 4 文件完成
 5. ✅ Phase 5 oMLX routing（5a shadow mode 完成，5b parallel compare 待驗證後啟動）
 6. ✅ Phase 6 自洽機制（ContextBuilder + findRelevant + getDirectionChanges）
-7. 剩餘：Phase 5b parallel compare（待 5a 累積數據後啟動）
+7. ✅ Phase 7 Epistemic Gates（wizard 認知門檻設計）
+8. **Phase 8 Harden**（進行中 — E2E 驗證 + npm 發佈準備）
+9. 剩餘：Phase 5b parallel compare（待 Asurada 實際部署後啟動）
