@@ -1,250 +1,94 @@
-# Proposal: mushi swarm — 小模型群體智慧引擎
+# Proposal: mushi 智慧升級 — Confidence-Aware Cascade
 
 - **Status**: draft
-- **Effort**: L（跨 3 repos: mushi, mini-agent, oMLX 可選）
-- **Level**: L3（架構層改動）
-- **Priority**: P1（戰略方向 — 降低對大模型依賴）
+- **Effort**: S → 依實驗結果決定是否擴展
+- **Level**: L1-L2（漸進式，從小改動開始）
+- **Priority**: P1
 
 ## TL;DR
 
-將 mushi 從「單一 9B 快速門衛」升級為「多人格協作群體」。同一個 Qwen3.5-9B 透過 oMLX 的 per-request thinking toggle + temperature 變化，扮演不同角色（快速判斷 / 深度分析 / 批評驗證 / 創意發散），協作完成原本需要大模型才能做到的任務。
+讓 mushi 的 Qwen3.5-9B 在該深度思考時 think、該快速時 no-think，並加入 confidence 感知 — 不確定時自動重試（Self-Consistency）或升級到 Claude（cascade）。
 
-**核心洞察**：一群有不同 thinking 配置的 9B 協作 > 單一 9B。研究（Self-Consistency, Mixture of Agents）證實 3-5 次小模型 ensemble 可逼近大模型品質。
+不是「建一個 swarm 框架」。是「讓現有 router 更聰明」。
 
 ## Problem
 
-### 1. mushi 能力被低估
-
-mushi 目前只用 `enable_thinking: false`（~800ms 回覆），定位是「快速門衛」。但 Qwen3.5-9B 開 thinking 後推理能力大幅提升（chain-of-thought），這個能力完全沒被利用。
+mushi 的 Qwen3.5-9B 只用了一半能力：
 
 | 模式 | 延遲 | 能力 | 目前用途 |
 |------|------|------|---------|
-| no-think | ~800ms | 分類、模式匹配 | triage/dedup/classify |
-| think | ~3-5s | 推理、分析、生成 | **未使用**（僅 pulse-reflex 用） |
+| no-think | ~800ms | 分類、模式匹配 | triage/dedup/classify/route/全部 |
+| think | ~3-5s | 推理、分析、判斷品質 | **僅 pulse-reflex 在用** |
 
-### 2. Kuro 過度依賴 Claude
+classify（分類任務）和 route（路由決策）需要推理，但在用 pattern matching 模式。這些決策的品質直接影響 Kuro 每個 cycle 的效率 — routing 錯了，整個 cycle 浪費。
 
-Kuro 的 delegation（research/learn/review）全部走 Claude CLI subprocess 或 Codex，即使任務不需要大模型能力：
+**這是複利點** — routing 品質提升 10%，每個 cycle 受益，越久價值越大。
 
-| delegation 類型 | 佔比 | 真的需要 Claude？ |
-|----------------|------|-----------------|
-| research | 48% | 多數不需要 — 搜尋 + 摘要，9B 能做 |
-| code | 31% | 需要 — 工具使用、大 context |
-| learn | 18% | 不需要 — 閱讀 + 整理，9B 更快更省 |
-| create | 2% | 視內容而定 |
-| review | 1% | 不需要 — 結構化檢查，9B 足夠 |
+## 研究驗證（2025 最新共識）
 
-**~67% 的 delegation 可以由 mushi swarm 處理**，省 Claude/Codex token + 降低延遲。
+在寫第一版提案時做了深度研究。關鍵發現：
 
-### 3. 單一視角的品質天花板
+### 有效的
 
-不管模型多大，單一 pass 的品質有天花板。研究一致顯示：
-
-- **Self-Consistency**（Wang et al. 2023）：3-5 次 CoT sampling → majority vote，準確率提升 5-15%
-- **Mixture of Agents**（Together AI 2024）：多 agent 層級合成，小模型 ensemble > 單一大模型
-- **LLM Debate**（Du et al. 2023）：兩個 LLM 互相辯論，品質超過單一 LLM + 人類回饋
-
-mushi 有天然優勢做這些 — 本地推理零成本，oMLX continuous batching 支援並行。
-
-## Goal
-
-1. **mushi 從門衛升級為群體智慧引擎** — 不只分類，還能分析、批評、生成
-2. **降低 67% delegation 對 Claude 的依賴** — research/learn/review 交給 swarm
-3. **品質逼近大模型** — 多視角 + 自我批評 + 共識機制
-4. **保持快速路徑** — 簡單任務（triage）依然 <1s，swarm 只在需要時啟動
-
-## 成功指標
-
-| 指標 | 基線 | 目標 |
+| 技術 | 效果 | 來源 |
 |------|------|------|
-| research delegation 走 swarm 比例 | 0% | >50% |
-| swarm 品質（人工評估 useful/not-useful） | N/A | >70% useful |
-| swarm 延遲（3-way consensus） | N/A | <15s |
-| Claude/Codex delegation token 消耗 | 100% baseline | 降 40% |
-| triage 延遲不退步 | ~800ms | ≤1s |
+| **Self-Consistency** | +17.9% GSM8K, +11% SVAMP | Wang et al. 2022 |
+| **Self-MoA**（同模型多 sample） | 比 Multi-MoA +6.6% AlpacaEval | Rethinking MoA, Feb 2025 |
+| **Cascade routing** | 省 50-92% 成本 | Unified Routing, 2024 |
+| **More Agents = better** | 性能隨 N 單調遞增 | More Agents, 2024 |
 
-## Proposal
+### 無效或脆弱的
 
-### 架構總覽
+| 技術 | 問題 | 來源 |
+|------|------|------|
+| **Multi-Agent Debate** | 多數情境贏不了 Self-Consistency；過度自信的錯誤 agent 說服正確的 | Stop Overvaluing MAD, 2025 |
+| **混合不同模型 MoA** | 弱模型稀釋強模型品質 | Rethinking MoA, Feb 2025 |
+| **複雜 swarm orchestration** | 基本協調問題（任務不清、context 傳遞失真）占主要失敗 | MAST, NeurIPS 2025 Spotlight |
 
-```
-Event/Task
-    │
-    ▼
-┌───────────────────────────────┐
-│  Router（規則 + no-think）     │  <1s
-│  判斷：fast / think / swarm   │
-└───────┬───────┬───────┬───────┘
-        │       │       │
-   fast │  think│  swarm│
-        │       │       │
-        ▼       ▼       ▼
-   ┌────────┐ ┌────────┐ ┌──────────────────────────┐
-   │no-think│ │ think  │ │  Swarm Orchestrator      │
-   │ ~800ms │ │ ~3-5s  │ │                          │
-   │        │ │ 單次   │ │  ┌─────┐ ┌─────┐ ┌─────┐│
-   │ triage │ │ 深度   │ │  │ 9B  │ │ 9B  │ │ 9B  ││  並行
-   │ dedup  │ │ 分析   │ │  │ A   │ │ B   │ │ C   ││  ~8-15s
-   │classify│ │        │ │  └──┬──┘ └──┬──┘ └──┬──┘│
-   └────────┘ └────────┘ │     └───────┼───────┘   │
-                         │          Merge          │
-                         │             │           │
-                         │          Result         │
-                         └──────────────────────────┘
+### 核心定律
 
-All requests → same oMLX instance → same Qwen3.5-9B in memory
-Different: chat_template_kwargs + temperature per request
-```
+> **Ensemble 降低 variance，不提升 capability ceiling。**
+> 5× 9B 無法做到 9B 做不到的事。它只是讓 9B 能做的事做得更穩定。
 
-### oMLX 關鍵能力：per-request thinking toggle
+## Goal（修正後）
 
-```typescript
-// 同一個模型，不同配置
-const MODES = {
-  fast:     { enable_thinking: false, temperature: 0.1 },  // triage, dedup
-  think:    { enable_thinking: true,  temperature: 0.3 },  // 深度分析
-  creative: { enable_thinking: true,  temperature: 0.8 },  // 發散思考
-  strict:   { enable_thinking: true,  temperature: 0.1 },  // 驗證、批評
-} as const;
-```
+~~讓小模型取代大模型~~ →
 
-**記憶體零增加** — 同一個模型載入一次。oMLX continuous batching 自動處理並行請求。
+1. **讓 mushi 的每個判斷用對的模式** — triage 用 fast，classify/route 用 think
+2. **知道自己什麼時候不確定** — confidence < threshold 時自動強化
+3. **不確定時用最簡單有效的方式強化** — Self-Consistency（N 次 vote），不是複雜 debate
+4. **依然不確定時升級** — cascade 到 Claude，而非硬撐
 
-### Swarm Primitives（協作原語）
+**一句話**：讓每個 token 用在刀口上。
 
-四種基本協作模式，按需組合：
+## 方法：實驗驅動，不是 phase 清單
 
-#### 1. Consensus（多數決）
+### 反省
 
-同一問題，N 次 think（不同 temperature/seed），取多數結果。
+第一版提案犯了跟 Kuro Asurada 一樣的錯 — 看到有趣概念，寫大計劃，按清單跑 Phase 1→4，沒有每步退後問「這是最高槓桿的事嗎」。
 
-```
-Question → [think×3] → majority vote → answer
-                        confidence = agreement_ratio
-```
+Alex 的原則：**大處著眼、小處著手。邊想邊做。不要規劃，要實驗。**
 
-用途：需要高準確度的分類/判斷
-延遲：~5-8s（3 並行）
-品質提升：Self-Consistency 研究的 5-15%
+### Experiment 1：Thinking Toggle（30 min 改動 + 24h 觀察）
 
-#### 2. Generate-Critique（生成-批評）
+**假設**：mushi 的 classify 和 route 開啟 `enable_thinking: true` 後，routing 品質明顯提升。
 
-一個 9B 生成，另一個 9B 批評，可疊代。
-
-```
-Task → generator(creative) → draft
-                                → critic(strict) → feedback
-                                                    → generator → refined
-```
-
-用途：內容生成、提案評估
-延遲：~10-15s（2-3 round）
-品質提升：抓到單 pass 遺漏的錯誤
-
-#### 3. Parallel Perspectives（多角度分析）
-
-同一問題從不同角度分析，然後合成。
-
-```
-Topic → analyst(think, low-temp) → technical analysis
-      → scout(think, high-temp)  → creative connections
-      → critic(think, mid-temp)  → risks & gaps
-                                    → synthesizer(think) → merged insight
-```
-
-用途：研究、學習、複雜決策
-延遲：~10-15s（3 並行 + 1 合成）
-品質提升：MoA 級別的全面性
-
-#### 4. Pipeline（流水線）
-
-多步驟任務，每步用最適合的配置。
-
-```
-Raw input → fast(extract key points) → think(analyze) → strict(verify) → output
-```
-
-用途：多步驟工作流（摘要→分析→驗證）
-延遲：~8-12s（序列，但每步精準）
-
-### mushi 端改動
-
-#### 新增：`src/swarm.ts`（核心）
+**改動**（mushi repo only）：
 
 ```typescript
-// Swarm orchestrator — 協作原語實作
-interface SwarmConfig {
-  mode: 'consensus' | 'generate-critique' | 'perspectives' | 'pipeline';
-  participants: number;        // 2-5
-  maxRounds?: number;          // generate-critique 的最大迭代次數
-  timeoutMs?: number;          // 整體超時（預設 20s）
-  mergeStrategy?: 'vote' | 'synthesize' | 'best';
-}
-
-interface SwarmResult {
-  output: string;
-  confidence: number;          // 0-1, agreement ratio
-  participantCount: number;
-  totalLatencyMs: number;
-  rounds: number;
-}
-
-// 核心函數
-export async function runSwarm(
-  config: SwarmConfig,
-  systemPrompt: string,
-  userPrompt: string,
-  modelConfig: ModelConfig,
-): Promise<SwarmResult>;
-
-// Convenience wrappers
-export async function consensus(prompt: string, n?: number): Promise<SwarmResult>;
-export async function debate(prompt: string): Promise<SwarmResult>;
-export async function perspectives(prompt: string): Promise<SwarmResult>;
-```
-
-#### 新增：`POST /api/swarm`（統一入口）
-
-```typescript
-// Request
-{
-  mode: 'consensus' | 'generate-critique' | 'perspectives' | 'pipeline',
-  prompt: string,
-  context?: string,
-  participants?: number,     // default: 3
-  timeoutMs?: number,        // default: 20000
-}
-
-// Response
-{
-  ok: true,
-  output: string,
-  confidence: number,
-  latencyMs: number,
-  participantCount: number,
-  rounds: number,
-}
-```
-
-#### 修改：`src/model.ts` — per-request thinking toggle
-
-```typescript
-// 現有 callProvider 已支援 chat_template_kwargs
-// 只需新增 convenience wrapper
-
-export async function callModelWithMode(
+// src/model.ts — 新增一個 function
+export async function callModelWithThinking(
   modelConfig: ModelConfig,
   agentDir: string,
   context: string,
   prompt: string,
-  mode: 'fast' | 'think' | 'creative' | 'strict',
+  enableThinking: boolean,
 ): Promise<string> {
-  const overrides = MODES[mode];
   const config = {
     ...modelConfig,
     chat_template_kwargs: {
       ...modelConfig.chat_template_kwargs,
-      ...overrides,
+      enable_thinking: enableThinking,
     },
   };
   return callProvider(config, [
@@ -254,226 +98,210 @@ export async function callModelWithMode(
 }
 ```
 
-### mini-agent 端整合
+```typescript
+// src/server.ts — classify 和 route 改用 think mode
+// triage 保持 no-think（速度優先）
+// DM triage 改用 think（判斷品質優先）
+```
 
-#### Phase 4 — Kuro delegation routing
+**量測**：
+- classify 的分類分布變化（think vs no-think 是否判斷不同？）
+- route 的路由決策變化
+- triage 延遲不退步（verify no regression）
+- DM 回覆品質（think triage 是否更精準分流 quick/wake？）
+
+**成功標準**：think mode 讓 ≥20% 的 classify/route 決策改變且品質更好。
+**失敗標準**：決策沒差異，或延遲不可接受（>8s）。
+
+**如果成功** → 進入 Experiment 2。
+**如果失敗** → 整個方向修剪。把精力放在其他槓桿點。
+
+### Experiment 2：Confidence-Aware Retry（如果 Exp 1 成功）
+
+**假設**：加入 confidence score 後，可以在不確定時用 Self-Consistency 提升品質。
+
+**改動**：
 
 ```typescript
-// delegation.ts 修改
-// research/learn/review 型任務優先走 mushi swarm
+// 要求 LLM 在 JSON 回覆中加 confidence 欄位
+// 修改 prompt：
+'Respond with JSON: {"action": "...", "reason": "...", "confidence": 0.0-1.0}'
 
-async function chooseDelegationProvider(
-  taskType: DelegationTaskType,
-  prompt: string,
-): Promise<'claude' | 'codex' | 'swarm'> {
-  // code 型永遠走 Claude/Codex（需要工具使用）
-  if (taskType === 'code') return 'claude';
+// confidence < 0.7 → 重試 2 次 → 多數決
+async function classifyWithConfidence(prompt: string): Promise<ClassifyResult> {
+  const first = await callModelWithThinking(config, agentDir, systemPrompt, prompt, true);
+  const parsed = parseJson(first);
 
-  // research/learn/review 走 swarm
-  if (['research', 'learn', 'review'].includes(taskType)) {
-    // 檢查 mushi swarm 是否可用
-    const health = await mushiHealth();
-    if (health?.ok) return 'swarm';
+  if (parsed.confidence >= 0.7) return parsed;  // 確定 → 直接用
+
+  // 不確定 → Self-Consistency（2 extra samples）
+  const [second, third] = await Promise.all([
+    callModelWithThinking(config, agentDir, systemPrompt, prompt, true),
+    callModelWithThinking(config, agentDir, systemPrompt, prompt, true),
+  ]);
+
+  return majorityVote([parsed, parseJson(second), parseJson(third)]);
+}
+```
+
+**量測**：
+- 多少比例觸發 retry（理想：10-30%）
+- retry 後決策是否改變
+- 改變後的決策是否更好（人工抽查）
+
+**成功標準**：confidence < 0.7 的 case 中，retry 改善 ≥30% 的決策。
+
+### Experiment 3：Cascade Refinement（如果 Exp 2 成功）
+
+**假設**：三次 vote 後仍不確定的任務，升級到 Claude 比硬用 9B 更值得。
+
+**改動**（mini-agent repo）：
+
+```typescript
+// mushi-client.ts — 新增 confidence-aware cascade
+export async function mushiClassifyWithCascade(
+  source: string,
+  content: string,
+): Promise<ClassifyResult> {
+  const result = await mushiClassify(source, content);  // 已含 confidence + retry
+
+  if (!result || result.confidence < 0.5) {
+    // 9B 三次都不確定 → 升級到 Claude
+    slog('CASCADE', `Low confidence (${result?.confidence ?? 0}), escalating to Claude`);
+    return await claudeClassify(source, content);  // 用 ask lane 或 foreground
   }
 
-  // fallback
-  return 'codex';
+  return result;
 }
 ```
 
-#### 新增：`src/mushi-client.ts` — swarm 呼叫
+**這個改動的核心價值**：不是讓 9B 做更多，是讓 9B **知道自己的邊界**，主動把超出能力的事交給對的人。
 
-```typescript
-export async function mushiSwarm(
-  mode: 'consensus' | 'generate-critique' | 'perspectives' | 'pipeline',
-  prompt: string,
-  context?: string,
-  timeoutMs: number = 20_000,
-): Promise<{ output: string; confidence: number; latencyMs: number } | null> {
-  try {
-    const resp = await fetch(`${MUSHI_URL}/api/swarm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, prompt, context, timeoutMs }),
-      signal: AbortSignal.timeout(timeoutMs + 5000),
-    });
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch { return null; }
-}
+### 未來方向（基於實驗數據決定）
+
+只有在 Experiment 1-3 驗證後，才考慮：
+
+| 方向 | 前提條件 | 做法 |
+|------|---------|------|
+| **delegation 路由** | Exp 2 confidence 準確 | research/learn 型先走 mushi think，失敗才升級 Claude |
+| **Self-Consistency endpoint** | Exp 2 retry 有效 | `POST /api/consensus`（通用 N-vote） |
+| **oMLX 貢獻** | 實驗數據穩定 | PR #163 statusline + confidence metrics |
+
+不做（研究已證明 ROI 低）：
+- ~~Generate-Critique / Debate 模式~~ — 贏不了 Self-Consistency
+- ~~Multi-agent orchestrator~~ — 基本協調問題主導失敗
+- ~~Parallel Perspectives~~ — Self-MoA > Multi-perspective
+
+## 架構（最終態，不是一次建成）
+
+```
+Event
+  │
+  ▼
+mushi triage (no-think, <1s)
+  ├── skip → done
+  ├── quick → mushi think reply (~3-5s) → done
+  └── wake → ┐
+              │
+              ▼
+         mushi classify (think, ~3-5s)
+              │
+              ├── confidence ≥ 0.7 → 結果直接用
+              ├── confidence 0.5-0.7 → Self-Consistency (3× vote, ~8-12s) → 用
+              └── confidence < 0.5 → cascade to Claude
+                                        │
+                                        ▼
+                                   Claude 處理（大模型只做 9B 做不到的事）
 ```
 
-### oMLX 端（可選貢獻）
+**反脆弱特性**：
+- oMLX 掛了 → mushi 離線 → Kuro 照常走 Claude（fail-open）
+- Claude 掛了 → mushi 全權處理（降級但不停擺）
+- 兩個都掛了 → Kuro 用 hardcoded rules（最低保底）
 
-目前 oMLX 已支援所有需要的功能（per-request `chat_template_kwargs`、continuous batching）。但可以貢獻：
+## 成功指標
 
-1. **`/api/stats` endpoint**（#163）— swarm 可查看 GPU 使用率，動態調整並行數
-2. **Request labeling** — 讓 oMLX 追蹤哪些 request 來自 swarm（#99 subagent visibility）
+| 指標 | 量測方式 | 目標 |
+|------|---------|------|
+| classify 品質提升 | A/B log 比對（think vs no-think） | ≥20% 決策改善 |
+| 不確定率 | confidence < 0.7 比例 | 10-30%（太高=模型不行，太低=confidence 不準） |
+| Self-Consistency 有效率 | retry 後決策改變且更好的比例 | ≥30% |
+| triage 延遲不退步 | p95 延遲 | ≤1.2s |
+| 整體 Claude token 節省 | delegation 走 mushi 的比例 | 先不設目標，看 Exp 3 數據 |
 
-## 四階段實作
+## Effort
 
-### Phase 1：Dynamic Thinking Toggle（M, ~2h）
+| 實驗 | 改動量 | 時間 | 依賴 |
+|------|-------|------|------|
+| Exp 1: Thinking toggle | ~20 行 mushi | 30 min + 24h 觀察 | 無 |
+| Exp 2: Confidence retry | ~40 行 mushi | 1h + 24h 觀察 | Exp 1 成功 |
+| Exp 3: Cascade | ~30 行 mini-agent | 1h + 24h 觀察 | Exp 2 成功 |
 
-**改動最小，效果最直接。**
+**總計**：最少 30 min（只做 Exp 1），最多 ~3h（三個都做）。
+**對比第一版**：L3 架構改動 ~9h → 現在 S-M ~0.5-3h。
 
-- mushi `model.ts`：`callModelWithMode()` 支援 fast/think/creative/strict
-- mushi `server.ts`：現有 classify 和 route endpoints 改用 think mode
-- mushi `server.ts`：triage 保持 fast mode（不變）
-- 驗證：classify 準確度提升、route 品質提升、triage 延遲不退步
-
-**效果**：mushi 的判斷品質立即提升，但還是單 pass。
-
-### Phase 2：Swarm Primitives（M, ~3h）
-
-- 新增 `src/swarm.ts`（consensus、debate、perspectives）
-- 新增 `POST /api/swarm` endpoint
-- 新增 swarm metrics logging
-- 驗證：手動測試 3 種模式的品質 + 延遲
-
-**效果**：mushi 獲得群體智慧能力，但還沒跟 Kuro 整合。
-
-### Phase 3：Self-Routing（S, ~1h）
-
-- Router 自動判斷 fast / think / swarm
-- 判斷依據：task complexity + time budget + 歷史品質資料
-- 簡單規則優先（if token count > 500 → think），LLM routing 備用
-
-**效果**：mushi 自動選擇最適合的處理模式。
-
-### Phase 4：Kuro Integration（M, ~3h）
-
-- `delegation.ts`：research/learn/review 型優先走 mushi swarm
-- `mushi-client.ts`：新增 `mushiSwarm()` 呼叫
-- Kuro delegation 結果驗證（swarm output vs Claude output 比對）
-- Feature flag: `mushi-swarm`
-
-**效果**：67% delegation 本地化，大幅降低 Claude token 消耗。
-
-## Compute Budget 分析
-
-Mac M-series 的實際限制 — oMLX continuous batching 在並行請求下的吞吐量：
-
-| 並行數 | 單 request 延遲 | 吞吐量 | 說明 |
-|--------|---------------|--------|------|
-| 1 (think) | ~3-5s | ~40 tok/s | 無競爭 |
-| 3 (swarm) | ~8-12s | ~30 tok/s per req | GPU 分時 |
-| 5 (heavy) | ~15-20s | ~20 tok/s per req | 接近上限 |
-
-**設計約束**：swarm 並行數上限 5。超過時排隊，不降品質。
-
-**跟 Kuro 的共用**：pulse-reflex 每 cycle 一次 think call（~3s），swarm 跑的時候可能短暫競爭。但 pulse-reflex 是 fire-and-forget，不阻塞。
-
-## Alternatives
-
-### Alt 1：多個 oMLX instance（真 swarm）
-
-不同 port 跑多個 oMLX，各載入不同模型/量化。
-
-| | 方案 | 優缺點 |
-|---|---|---|
-| 優 | 真正並行，無 GPU 競爭 | 需要多 GPU 或更大記憶體 |
-| 缺 | Mac 單 GPU 統一記憶體 | **不可行** — 同一 GPU 多 instance 反而更慢 |
-
-**結論**：單台 Mac 不適用。未來多 Mac 部署時可考慮。
-
-### Alt 2：不同模型混搭（MoE 風格）
-
-oMLX 載入 Qwen3.5-9B + Qwen3.5-4B，大事用 9B 小事用 4B。
-
-| | 方案 | 優缺點 |
-|---|---|---|
-| 優 | 4B 更快（~300ms） | model swap 有延遲 |
-| 缺 | 兩個模型佔記憶體 | oMLX 先前有 model swap 穩定性問題 |
-
-**結論**：等 oMLX model swap 穩定後可考慮。Phase 1-3 不需要。
-
-### Alt 3：外部 API 混搭（Gemini Flash + 9B）
-
-便宜的外部 API（Gemini 2.0 Flash 免費）+ 本地 9B。
-
-| | 方案 | 優缺點 |
-|---|---|---|
-| 優 | Gemini Flash 免費、速度快 | 依賴外部網路 |
-| 缺 | 真正免費的多視角 | 延遲不穩定，隱私風險 |
-
-**結論**：可作為 Phase 4+ 擴展。目前先純本地。
-
-## Pros & Cons
-
-### Pros
-
-1. **零額外成本** — 同一模型、同一 oMLX、本地推理
-2. **品質提升有研究支撐** — Self-Consistency, MoA, Debate 論文驗證
-3. **漸進式** — 四階段獨立可用，每階段都有即時價值
-4. **降低大模型依賴** — 67% delegation 本地化
-5. **跟現有架構無縫整合** — mushi 已有 HTTP API，只需新增 endpoint
-6. **可觀測** — swarm metrics（latency, confidence, rounds）可追蹤品質
-
-### Cons
-
-1. **GPU 競爭** — 3-5 並行 think 會拖慢所有 request
-2. **oMLX 穩定性** — 歷史上有 model swap crash 問題（但 swarm 不需要 swap）
-3. **品質上限** — 再怎麼 ensemble，9B 在某些任務上就是不如 Claude
-4. **複雜度增加** — swarm orchestrator 是新抽象層
-5. **延遲 tradeoff** — swarm 模式 ~10-15s，比單次 no-think（800ms）慢很多
-
-## Risk & 護欄
+## Risk
 
 | 風險 | 機率 | 緩解 |
 |------|------|------|
-| GPU 競爭導致 triage 變慢 | 中 | Swarm 有上限（5 並行），triage 優先級 > swarm |
-| oMLX crash under load | 低 | 已穩定跑 Qwen3.5-9B 數週，swarm 不切換模型 |
-| 品質不如預期 | 中 | Phase 4 有 A/B 比對，不達標就 fallback Claude |
-| Kuro 主 cycle 被 oMLX 阻塞 | 低 | Kuro 用 Claude，不走 oMLX（只有 pulse-reflex 走 oMLX） |
-| mushi 離線 | 已處理 | 所有 mushi 呼叫都 fail-open |
+| think mode 延遲不可接受 | 低 | pulse-reflex 已驗證 9B think ~3-5s |
+| oMLX 並行 think 不穩定 | 低 | Self-Consistency 只在 confidence < 0.7 時才並行 |
+| confidence 校準不準 | 中 | 9B JSON 輸出的 confidence 可能不可靠 → 用 logprobs 替代（如果 oMLX 支援） |
+| Exp 1 就失敗 | 中 | **這是好事** — 花 30 min 就知道整個方向不值得追，省下 9h |
 
 ## 可逆性
 
-| 階段 | 回退方式 |
-|------|---------|
-| Phase 1 | `callModelWithMode()` 改回 `callModel()`，一行改 |
-| Phase 2 | 刪 `src/swarm.ts` + `/api/swarm` 路由 |
-| Phase 3 | Router fallback 到 hardcoded rules |
-| Phase 4 | Feature flag `mushi-swarm` 關閉 → 全走 Claude/Codex |
-
-## 跟 Forge 的關係
-
-Forge（860 行 bash + 200 行 TS）可以在 mushi swarm Phase 4 穩定後重新評估：
-
-| Forge 現狀 | swarm 後 |
-|-----------|---------|
-| 145 runs, 0 merges | research/learn 不再需要 forge |
-| 20 breach incidents | swarm 無 filesystem 操作 |
-| code 型仍需隔離 | code delegation 保留 Claude + 簡化隔離 |
-
-**Phase 4 之後，forge 可簡化為**：
-- 移除 research/learn/review 的 worktree 邏輯（改走 swarm）
-- code 型改用 git branch（取代 worktree + sandbox-exec）
-- 估計可刪 ~600 行
-
-## 跟現有提案的關係
-
-| 提案 | 關係 |
+| 改動 | 回退 |
 |------|------|
-| mushi ternary DM routing (#approved) | **前置工作** — quick 路由為 swarm 的 self-routing 鋪路 |
-| Unified Pulse System (#71, approved) | **互補** — pulse-reflex 用 single think，swarm 可提供更高品質 signal |
-| Asurada framework | **受益者** — Asurada 的 ContextBuilder + dedup 可直接用 swarm |
+| `callModelWithThinking()` | 刪函數，改回 `callModel()` |
+| classify/route 用 think | 一行 `enableThinking: false` |
+| confidence retry | 刪 retry 邏輯，回到 single pass |
+| cascade to Claude | 刪 cascade 呼叫，回到 mushi-only |
+
+全部可在 1 分鐘內 revert。
+
+## 跟第一版提案的差異
+
+| | 第一版 | 修正版 |
+|---|---|---|
+| **目標** | 小模型取代大模型 | 讓每個 token 用在刀口上 |
+| **方法** | 4 Phase 清單 | 實驗驅動，失敗就修剪 |
+| **複雜度** | 新增 swarm.ts + 4 primitives + orchestrator | 改 ~20 行 existing code |
+| **依據** | 概念性（「多視角應該更好」） | 研究驗證（Self-Consistency ✅, Debate ❌） |
+| **Effort** | L3, ~9h | S, 0.5-3h |
+| **風險態度** | 假設會成功 → 規劃後續 | 假設可能失敗 → 30 min 驗證 |
+
+**核心轉變**：從「建東西」到「驗證假設」。
+
+## 跟 Alex 七條原則的對應
+
+| 原則 | 如何體現 |
+|------|---------|
+| 大處著眼，小處著手 | 大處：routing 品質是複利點。小處：改 20 行 code |
+| 找複利 | routing 精準度每個 cycle 受益 > 建 swarm 一次性 |
+| 邊想邊做 | 30 min 改動 → 24h 觀察 → 再決定，不是先規劃完再做 |
+| 黏菌模型 | Exp 1 是觸手探索。有養分→Exp 2 強化。沒養分→修剪 |
+| 反脆弱 | Claude 掛了 9B 接，oMLX 掛了 Claude 接。從每次 routing 結果學習 |
+| 全方位審視包括自己 | 承認第一版犯了「清單跑 Phase」的錯，跟 Kuro Asurada 同模式 |
+| 不重複回答舊問題 | 9B 能 triage 已知 → 不再驗證。新問題是 think mode 有沒有差 |
 
 ## 討論脈絡
 
-- 2026-03-12：Alex 分享 HuggingFace llm-swarm 連結
-- 2026-03-12：Claude Code 分析 llm-swarm（Slurm 叢集 + 多實例 + Nginx 負載均衡）
-- 2026-03-12：Alex 提出重新審視 forge 必要性 + llm-swarm 方式
-- 2026-03-12：Claude Code 分析 forge 數據（145 runs / 0 merges / 20 breaches）
-- 2026-03-12：Alex 澄清真正想法 — 不是取代 forge，是 mushi swarm + 動態 thinking + 協作
-- 啟發來源：Self-Consistency（Wang 2023）、Mixture of Agents（Together AI 2024）、LLM Debate（Du 2023）
+- 2026-03-12：Alex 分享 HuggingFace llm-swarm
+- 2026-03-12：Claude Code 分析 llm-swarm + forge 數據（145 runs / 0 merges）
+- 2026-03-12：Alex 澄清真正想法 — mushi swarm + 動態 thinking + 協作
+- 2026-03-12：Claude Code 寫第一版提案（4 Phase swarm orchestrator）
+- 2026-03-12：Alex 要求研究可行性
+- 2026-03-12：深度研究發現 — Self-Consistency 有效、Debate 脆弱、Cascade 最被驗證
+- 2026-03-12：Alex 要求用七條原則重新審視 → 方向大幅修正
+- 研究來源：Self-Consistency（Wang 2022）、Rethinking MoA（Feb 2025）、MAST（NeurIPS 2025）、Stop Overvaluing MAD（2025）
 
 ## Meta-Constraint Check
 
 | 約束 | 通過？ | 說明 |
 |------|--------|------|
-| C1: Quality-First | ✅ | 多視角分析 > 單次 pass；品質提升有學術支撐 |
-| C2: Token 節制 | ✅ | 本地 9B 零成本；降低 40% Claude/Codex 消耗 |
-| C3: 透明不干預 | ✅ | swarm 是 fire-and-forget；metrics 全程追蹤 |
-| C4: 可逆性 | ✅ | 每階段獨立可回退；feature flag 控制 |
-| C5: 避免技術債 | ✅ | 四階段漸進；Phase 4 後可簡化 forge |
+| C1: Quality-First | ✅ | 讓判斷用對的模式（think for reasoning） |
+| C2: Token 節制 | ✅ | 9B think 本地免費；confidence-aware 避免浪費重試 |
+| C3: 透明不干預 | ✅ | 實驗量測，不猜測效果 |
+| C4: 可逆性 | ✅ | 每步 1 分鐘 revert |
+| C5: 避免技術債 | ✅ | ~20 行改動 vs 原本新增 swarm.ts + orchestrator |
