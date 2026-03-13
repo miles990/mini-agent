@@ -7,5 +7,8 @@
   "presence_penalty": 0.0,
   "enable_thinking": true,
   "tools_enabled": true,
-  "timeout_ms": 600000
+  "timeout_ms": 600000,
+  "extra_body": {
+    "chat_template_kwargs": { "enable_thinking": true }
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "model": "Qwen3.5-9B-MLX-4bit",
+  "model": "Qwen3.5-0.8B-MLX-4bit",
   "max_tokens": 2048,
   "temperature": 0.7,
   "top_p": 0.8,
@@ -7,5 +7,8 @@
   "presence_penalty": 1.5,
   "enable_thinking": false,
   "tools_enabled": false,
-  "timeout_ms": 30000
+  "timeout_ms": 30000,
+  "extra_body": {
+    "chat_template_kwargs": { "enable_thinking": false }
+  }
 }

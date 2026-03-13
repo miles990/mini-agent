@@ -24,18 +24,18 @@ export interface Message {
 // LLM Provider Abstraction
 // =============================================================================
 
-export type Provider = 'claude' | 'codex' | 'qwen';
+export type Provider = 'claude' | 'codex' | 'local';
 
 export function getProvider(): Provider {
   const p = process.env.AGENT_PROVIDER?.toLowerCase();
   if (p === 'codex') return 'codex';
-  if (p === 'qwen') return 'qwen';
+  if (p === 'local') return 'local';
   return 'claude';
 }
 
 export function getFallback(): Provider | null {
   const f = process.env.AGENT_FALLBACK?.toLowerCase();
-  if (f === 'codex' || f === 'claude' || f === 'qwen') return f as Provider;
+  if (f === 'codex' || f === 'claude' || f === 'local') return f as Provider;
   return null;
 }
 
@@ -50,7 +50,7 @@ interface ExecOptions {
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
   if (provider === 'codex') return execCodex(fullPrompt, opts);
-  if (provider === 'qwen') return execQwen(fullPrompt, opts);
+  if (provider === 'local') return execLocal(fullPrompt, opts);
   return execClaude(fullPrompt, opts);
 }
 
@@ -196,34 +196,31 @@ export function getLaneStatus(): {
 
 /** 搶佔正在執行的 loop cycle（用於 Alex 的 TG 訊息優先處理） */
 export function preemptLoopCycle(): { preempted: boolean; partialOutput: string | null } {
-  if (!loopBusy || !loopChildPid) {
+  if (!loopBusy || (!loopChildPid && !loopAbortController)) {
     return { preempted: false, partialOutput: null };
   }
 
   const pid = loopChildPid;
   const partial = loopTask?.lastText ?? null;
 
-  // Kill process group (includes child processes like curl)
-  // For qwen HTTP calls, abort the fetch instead
-  if (qwenAbortController) {
-    qwenAbortController.abort();
-    qwenAbortController = null;
+  // Kill: abort HTTP call (local LLM) or process group (Claude/Codex)
+  if (loopAbortController) {
+    loopAbortController.abort();
+    loopAbortController = null;
   }
-  try {
-    process.kill(-pid, 'SIGTERM');
-  } catch { /* already dead */ }
-
-  // SIGKILL fallback after 3s
-  setTimeout(() => {
-    try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
-  }, 3000);
+  if (pid) {
+    try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
+    setTimeout(() => {
+      try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
+    }, 3000);
+  }
 
   loopGeneration++;
   loopBusy = false;
   loopTask = null;
   loopChildPid = null;
 
-  slog('PREEMPT', `Killed loop process group (pid: ${pid}), generation: ${loopGeneration}`);
+  slog('PREEMPT', `Killed loop ${pid ? `process group (pid: ${pid})` : 'HTTP call'}, generation: ${loopGeneration}`);
   eventBus.emit('action:loop', { event: 'preempted', partialOutput: partial?.slice(0, 100) });
 
   return { preempted: true, partialOutput: partial };
@@ -231,14 +228,20 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
 
 /** Abort foreground lane — kill running foreground process to make room for new P0 */
 export function abortForeground(): boolean {
-  if (!foregroundBusy || !foregroundChildPid) return false;
+  if (!foregroundBusy || (!foregroundChildPid && !foregroundAbortController)) return false;
   const pid = foregroundChildPid;
-  try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
-  setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 3000);
+  if (foregroundAbortController) {
+    foregroundAbortController.abort();
+    foregroundAbortController = null;
+  }
+  if (pid) {
+    try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
+    setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 3000);
+  }
   foregroundBusy = false;
   foregroundTask = null;
   foregroundChildPid = null;
-  slog('PREEMPT', `Aborted foreground process (pid: ${pid}) for incoming P0`);
+  slog('PREEMPT', `Aborted foreground ${pid ? `process (pid: ${pid})` : 'HTTP call'} for incoming P0`);
   return true;
 }
 
@@ -681,21 +684,27 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
 }
 
 // =============================================================================
-// oMLX / Qwen Provider (config-driven, tool use + streaming + thinking)
+// Local LLM Provider (OpenAI-compatible API — oMLX, ollama, vLLM, etc.)
 //
-// Config files: llm/qwen/{profile}.json
+// Config files: llm/profiles/{profile}.json
 // Profile selection: opts.model matches profile name → load that config
-//                    otherwise → llm/qwen/default.json
-// Env overrides: OMLX_URL, OMLX_KEY, OMLX_MODEL take precedence over JSON
+//                    otherwise → llm/profiles/default.json
+// Env fallbacks: LOCAL_LLM_URL, LOCAL_LLM_KEY (per-profile url/key/model take precedence)
 // =============================================================================
 
-let qwenAbortController: AbortController | null = null;
+// Per-lane abort controllers for HTTP-based providers (local LLM)
+let loopAbortController: AbortController | null = null;
+let foregroundAbortController: AbortController | null = null;
 const MAX_TOOL_ROUNDS = 10;
 
 // --- Profile types & loader ---
 
-export interface QwenProfile {
+export interface LocalProfile {
   model?: string;
+  /** Per-profile server URL (overrides LOCAL_LLM_URL) */
+  url?: string;
+  /** Per-profile API key (overrides LOCAL_LLM_KEY) */
+  key?: string;
   max_tokens?: number;
   temperature?: number;
   top_p?: number;
@@ -705,12 +714,16 @@ export interface QwenProfile {
   enable_thinking?: boolean;
   tools_enabled?: boolean;
   timeout_ms?: number;
+  /** Server-specific extra body params (e.g. oMLX chat_template_kwargs, ollama options) */
+  extra_body?: Record<string, unknown>;
 }
 
-// Qwen3 official recommended defaults (non-thinking mode)
+// Structural defaults only — model and server config come from profile JSON or env
 // repetition_penalty: 0 = not sent (thinking mode should omit it)
-const QWEN_PROFILE_DEFAULTS: Required<QwenProfile> = {
-  model: 'Qwen3.5-9B-MLX-4bit',
+const LOCAL_PROFILE_DEFAULTS: Required<LocalProfile> = {
+  model: process.env.LOCAL_LLM_MODEL || '',  // from env, or must be specified in profile JSON
+  url: '',   // empty = use LOCAL_LLM_URL env or http://localhost:8000
+  key: '',   // empty = use LOCAL_LLM_KEY env or 'local'
   max_tokens: 8192,
   temperature: 0.7,
   top_p: 0.8,
@@ -720,47 +733,48 @@ const QWEN_PROFILE_DEFAULTS: Required<QwenProfile> = {
   enable_thinking: false,
   tools_enabled: true,
   timeout_ms: 600_000,
+  extra_body: {},
 };
 
-const profileCache = new Map<string, { profile: QwenProfile; loadedAt: number }>();
+const profileCache = new Map<string, { profile: LocalProfile; loadedAt: number }>();
 const PROFILE_CACHE_TTL = 30_000; // 30s hot reload
 
-export function loadQwenProfile(name: string): Required<QwenProfile> {
+export function loadLocalProfile(name: string): Required<LocalProfile> {
   const now = Date.now();
   const cached = profileCache.get(name);
   if (cached && now - cached.loadedAt < PROFILE_CACHE_TTL) {
-    return { ...QWEN_PROFILE_DEFAULTS, ...cached.profile };
+    return { ...LOCAL_PROFILE_DEFAULTS, ...cached.profile };
   }
 
-  const profilePath = path.join(process.cwd(), 'llm', 'qwen', `${name}.json`);
-  let profile: QwenProfile = {};
+  const profilePath = path.join(process.cwd(), 'llm', 'profiles', `${name}.json`);
+  let profile: LocalProfile = {};
   try {
-    profile = JSON.parse(readFileSyncFs(profilePath, 'utf-8')) as QwenProfile;
+    profile = JSON.parse(readFileSyncFs(profilePath, 'utf-8')) as LocalProfile;
     profileCache.set(name, { profile, loadedAt: now });
   } catch {
     // File not found or parse error — use defaults
   }
 
-  return { ...QWEN_PROFILE_DEFAULTS, ...profile };
+  return { ...LOCAL_PROFILE_DEFAULTS, ...profile };
 }
 
 /** Resolve which profile to use: opts.model as profile name, or 'default' */
-function resolveQwenProfile(opts?: ExecOptions): { profile: Required<QwenProfile>; profileName: string } {
+function resolveLocalProfile(opts?: ExecOptions): { profile: Required<LocalProfile>; profileName: string } {
   const candidate = opts?.model;
   if (candidate) {
     // Check if it's a profile name (file exists)
-    const profilePath = path.join(process.cwd(), 'llm', 'qwen', `${candidate}.json`);
+    const profilePath = path.join(process.cwd(), 'llm', 'profiles', `${candidate}.json`);
     try {
       readFileSyncFs(profilePath);
-      return { profile: loadQwenProfile(candidate), profileName: candidate };
+      return { profile: loadLocalProfile(candidate), profileName: candidate };
     } catch {
       // Not a profile name — treat as model override on default profile
-      const p = loadQwenProfile('default');
+      const p = loadLocalProfile('default');
       p.model = candidate;
       return { profile: p, profileName: 'default' };
     }
   }
-  return { profile: loadQwenProfile('default'), profileName: 'default' };
+  return { profile: loadLocalProfile('default'), profileName: 'default' };
 }
 
 // --- Auto-routing: fast classify → pick profile ---
@@ -779,15 +793,15 @@ Categories:
  * Falls back to 'default' on any error.
  */
 async function autoRouteProfile(prompt: string): Promise<string> {
-  const fast = loadQwenProfile('fast');
-  const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
-  const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
-  const model = process.env.OMLX_MODEL ?? fast.model;
+  const fast = loadLocalProfile('fast');
+  const llmUrl = fast.url || process.env.LOCAL_LLM_URL || 'http://localhost:8000';
+  const llmKey = fast.key || process.env.LOCAL_LLM_KEY || 'local';
+  const model = fast.model;
 
   try {
-    const res = await fetch(`${omlxUrl}/v1/chat/completions`, {
+    const res = await fetch(`${llmUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${omlxKey}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${llmKey}` },
       body: JSON.stringify({
         model,
         messages: [
@@ -797,7 +811,7 @@ async function autoRouteProfile(prompt: string): Promise<string> {
         max_tokens: 16,
         temperature: 0.1,
         top_p: 0.8,
-        chat_template_kwargs: { enable_thinking: false },
+        ...(fast.extra_body || {}),
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -814,7 +828,7 @@ async function autoRouteProfile(prompt: string): Promise<string> {
       general: 'default',
     };
     const profileName = ROUTE_MAP[category] ?? 'default';
-    slog('QWEN', `auto-route: "${category}" → profile=${profileName}`);
+    slog('LOCAL', `auto-route: "${category}" → profile=${profileName}`);
     return profileName;
   } catch {
     return 'default';
@@ -823,20 +837,20 @@ async function autoRouteProfile(prompt: string): Promise<string> {
 
 // --- Tool types & definitions ---
 
-interface QwenMessage {
+interface LocalMessage {
   role: 'user' | 'assistant' | 'tool';
   content: string | null;
-  tool_calls?: QwenToolCall[];
+  tool_calls?: LocalToolCall[];
   tool_call_id?: string;
 }
 
-interface QwenToolCall {
+interface LocalToolCall {
   id: string;
   type: 'function';
   function: { name: string; arguments: string };
 }
 
-const QWEN_TOOLS = [
+const LOCAL_TOOLS = [
   {
     type: 'function' as const,
     function: {
@@ -877,7 +891,7 @@ const QWEN_TOOLS = [
 
 // --- Tool execution ---
 
-async function executeQwenToolCall(call: QwenToolCall): Promise<string> {
+async function executeLocalToolCall(call: LocalToolCall): Promise<string> {
   try {
     const args = JSON.parse(call.function.arguments) as Record<string, string>;
     switch (call.function.name) {
@@ -900,18 +914,18 @@ async function executeQwenToolCall(call: QwenToolCall): Promise<string> {
 
 // --- Streaming round ---
 
-interface QwenRoundResult {
+interface LocalRoundResult {
   content: string;
-  toolCalls: QwenToolCall[];
+  toolCalls: LocalToolCall[];
 }
 
-async function streamQwenRound(
+async function streamLocalRound(
   url: string,
   headers: Record<string, string>,
   body: Record<string, unknown>,
   signal: AbortSignal,
   opts?: ExecOptions,
-): Promise<QwenRoundResult> {
+): Promise<LocalRoundResult> {
   const res = await fetch(url, {
     method: 'POST',
     headers,
@@ -919,11 +933,11 @@ async function streamQwenRound(
     signal,
   });
   if (!res.ok) {
-    throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
+    throw Object.assign(new Error(`Local LLM error: ${res.status} ${res.statusText}`), { status: res.status });
   }
 
   let content = '';
-  const toolCallsMap = new Map<number, QwenToolCall>();
+  const toolCallsMap = new Map<number, LocalToolCall>();
   let lastCbLen = 0;
   let chatSearchPos = 0;
 
@@ -993,78 +1007,58 @@ async function streamQwenRound(
   return { content, toolCalls: Array.from(toolCallsMap.values()).filter(tc => tc.function.name) };
 }
 
-// --- Non-streaming round ---
-
-async function fetchQwenRound(
-  url: string,
-  headers: Record<string, string>,
-  body: Record<string, unknown>,
-  signal: AbortSignal,
-): Promise<QwenRoundResult> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ ...body, stream: false }),
-    signal,
-  });
-  if (!res.ok) {
-    throw Object.assign(new Error(`oMLX error: ${res.status} ${res.statusText}`), { status: res.status });
-  }
-  const data = await res.json() as {
-    choices: Array<{ message: { content: string | null; tool_calls?: QwenToolCall[] } }>;
-  };
-  const msg = data.choices[0]?.message;
-  return { content: msg?.content ?? '', toolCalls: msg?.tool_calls ?? [] };
-}
-
 // --- Main entry ---
 
 /**
- * oMLX HTTP call — config-driven from llm/qwen/{profile}.json
+ * Local LLM via OpenAI-compatible API — config-driven from llm/profiles/{profile}.json
  *
  * Features:
- * - Profile selection: opts.model='thinking' → loads llm/qwen/thinking.json
+ * - Profile selection: opts.model='thinking' → loads llm/profiles/thinking.json
  * - Tool use: search_memory, read_file, run_command (multi-round, max 10)
- * - Streaming: auto-enabled when onPartialOutput/onStreamChat callbacks present
+ * - Always streaming for better concurrent performance
  * - Thinking mode: per-profile enable_thinking flag
- * - Env overrides: OMLX_URL, OMLX_KEY, OMLX_MODEL override profile values
+ * - Per-profile url/key/model; env fallbacks: LOCAL_LLM_URL, LOCAL_LLM_KEY
  *
  * <kuro:*> tags still work (parsed by dispatcher after final response).
  */
-async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string> {
+async function execLocal(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const source = opts?.source ?? 'loop';
 
   // Auto-route: if no profile specified, classify first then pick the best profile
-  let resolved = resolveQwenProfile(opts);
+  let resolved = resolveLocalProfile(opts);
   if (!opts?.model) {
     const routed = await autoRouteProfile(fullPrompt);
     if (routed !== 'default') {
-      resolved = { profile: loadQwenProfile(routed), profileName: routed };
+      resolved = { profile: loadLocalProfile(routed), profileName: routed };
     }
   }
   const { profile, profileName } = resolved;
 
-  // Env overrides take precedence
-  const omlxUrl = process.env.OMLX_URL ?? 'http://localhost:8000';
-  const omlxKey = process.env.OMLX_KEY ?? 'omlx-local';
-  const model = process.env.OMLX_MODEL ?? profile.model;
+  // Priority: profile-specific → env → hardcoded default
+  const llmUrl = profile.url || process.env.LOCAL_LLM_URL || 'http://localhost:8000';
+  const llmKey = profile.key || process.env.LOCAL_LLM_KEY || 'local';
+  const model = profile.model; // already resolved via profile JSON → LOCAL_PROFILE_DEFAULTS chain
 
   const controller = new AbortController();
-  qwenAbortController = controller;
   const timer = setTimeout(() => controller.abort(), profile.timeout_ms);
 
-  if (source === 'loop') loopChildPid = null;
-  else if (source === 'foreground') foregroundChildPid = null;
+  // Track abort controller per-lane for preemption support
+  if (source === 'loop') {
+    loopChildPid = null;
+    loopAbortController = controller;
+  } else if (source === 'foreground') {
+    foregroundChildPid = null;
+    foregroundAbortController = controller;
+  }
 
-  const url = `${omlxUrl}/v1/chat/completions`;
+  const url = `${llmUrl}/v1/chat/completions`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${omlxKey}`,
+    'Authorization': `Bearer ${llmKey}`,
   };
-  const messages: QwenMessage[] = [{ role: 'user', content: fullPrompt }];
-  const useStreaming = !!(opts?.onPartialOutput || opts?.onStreamChat);
+  const messages: LocalMessage[] = [{ role: 'user', content: fullPrompt }];
 
-  slog('QWEN', `profile=${profileName} model=${model} thinking=${profile.enable_thinking} tools=${profile.tools_enabled}`);
+  slog('LOCAL', `profile=${profileName} model=${model} thinking=${profile.enable_thinking} tools=${profile.tools_enabled}`);
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -1077,21 +1071,20 @@ async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string>
         top_k: profile.top_k,
         presence_penalty: profile.presence_penalty,
         ...(profile.repetition_penalty > 0 ? { repetition_penalty: profile.repetition_penalty } : {}),
-        chat_template_kwargs: { enable_thinking: profile.enable_thinking },
-        ...(profile.tools_enabled ? { tools: QWEN_TOOLS } : {}),
+        ...(profile.extra_body || {}),
+        ...(profile.tools_enabled ? { tools: LOCAL_TOOLS } : {}),
       };
 
-      const result = (useStreaming && round === 0)
-        ? await streamQwenRound(url, headers, body, controller.signal, opts)
-        : await fetchQwenRound(url, headers, body, controller.signal);
+      // Always stream — better concurrent performance, callbacks fire only when present
+      const result = await streamLocalRound(url, headers, body, controller.signal, opts);
 
       if (!result.toolCalls.length) return result.content;
 
-      slog('QWEN', `tool round ${round + 1}: ${result.toolCalls.map(c => c.function.name).join(', ')}`);
+      slog('LOCAL', `tool round ${round + 1}: ${result.toolCalls.map(c => c.function.name).join(', ')}`);
       messages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
 
       for (const call of result.toolCalls) {
-        const toolResult = await executeQwenToolCall(call);
+        const toolResult = await executeLocalToolCall(call);
         messages.push({ role: 'tool', content: toolResult, tool_call_id: call.id });
       }
     }
@@ -1099,12 +1092,13 @@ async function execQwen(fullPrompt: string, opts?: ExecOptions): Promise<string>
     return messages.filter(m => m.role === 'assistant').pop()?.content ?? '';
   } catch (e) {
     if ((e as Error).name === 'AbortError') {
-      throw Object.assign(new Error('oMLX 超時'), { killed: true, timeoutMs: profile.timeout_ms });
+      throw Object.assign(new Error('Local LLM 超時'), { killed: true, timeoutMs: profile.timeout_ms });
     }
     throw e;
   } finally {
     clearTimeout(timer);
-    qwenAbortController = null;
+    if (source === 'loop') loopAbortController = null;
+    else if (source === 'foreground') foregroundAbortController = null;
   }
 }
 
