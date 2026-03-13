@@ -2674,7 +2674,7 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
     const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
     if (files.length === 0) return null;
 
-    const results: Array<{ id: string; type?: string; status: string; output: string; completedAt?: string }> = [];
+    const results: Array<{ id: string; type?: string; status: string; output: string; confidence?: number; completedAt?: string }> = [];
     for (const file of files) {
       try {
         const raw = readFileSync(path.join(laneDir, file), 'utf-8');
@@ -2697,8 +2697,9 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
     const lines: string[] = [];
     for (const r of results) {
       const typeStr = r.type ? `[${r.type}]` : '';
+      const confStr = r.confidence ? ` (confidence: ${r.confidence}/10)` : '';
       const outputSnippet = r.output.replace(/\n/g, ' ').slice(0, 300);
-      const line = `- ${typeStr} ${r.id} ${r.status}: ${outputSnippet}`;
+      const line = `- ${typeStr} ${r.id} ${r.status}${confStr}: ${outputSnippet}`;
       if (totalChars + line.length > LANE_OUTPUT_CAP && lines.length > 0) {
         lines.push(`(${results.length - lines.length} more results in lane-output/)`);
         break;

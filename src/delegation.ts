@@ -60,6 +60,7 @@ export interface TaskResult {
   completedAt?: string;
   duration?: number;
   output: string;
+  confidence?: number; // 1-10 self-assessed quality score from local LLM
   verifyResults?: VerifyResult[];
   forge?: ForgeOutcome;
 }
@@ -310,6 +311,7 @@ function logDelegationLifecycle(result: TaskResult, provider: Provider): void {
       provider,
       status: result.status,
       durationMs: result.duration,
+      confidence: result.confidence ?? null,
       verifyPassed: result.verifyResults?.filter(v => v.passed).length ?? null,
       verifyTotal: result.verifyResults?.length ?? null,
       forged: !!result.forge,
@@ -499,7 +501,12 @@ function buildDelegationPrompt(task: DelegationTask, forgeConstraint: string): s
   const base = task.context
     ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
     : task.prompt;
-  return base + forgeConstraint;
+  const provider = task.provider ?? TYPE_DEFAULTS[task.type ?? 'code'].provider;
+  // Local LLM: append confidence self-assessment instruction
+  const confidenceSuffix = provider === 'local'
+    ? '\n\nAt the very end of your response, rate your confidence in this answer on a scale of 1-10 using exactly this format: [CONFIDENCE: N]'
+    : '';
+  return base + forgeConstraint + confidenceSuffix;
 }
 
 // =============================================================================
@@ -691,6 +698,13 @@ function startTask(task: DelegationTask): void {
         result.output = output.length > OUTPUT_TAIL_CHARS
           ? output.slice(-OUTPUT_TAIL_CHARS)
           : output;
+      }
+
+      // Parse confidence self-assessment from local LLM output
+      const confMatch = result.output.match(/\[CONFIDENCE:\s*(\d+)\]/);
+      if (confMatch) {
+        result.confidence = Math.min(10, Math.max(1, parseInt(confMatch[1], 10)));
+        result.output = result.output.replace(/\s*\[CONFIDENCE:\s*\d+\]\s*$/, '').trim();
       }
 
       // Only update status if not already set to timeout

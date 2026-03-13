@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
@@ -375,9 +375,34 @@ const KURO_EXTERNAL_REPOS = [
   path.join(os.homedir(), 'Workspace', 'metsuke'),
 ];
 
+/**
+ * Use local LLM to generate a meaningful commit message from diff.
+ * Falls back to action summary if LLM fails.
+ */
+/**
+ * Use local LLM to generate a meaningful commit message from diff.
+ * Sync call (fire-and-forget context), falls back to action summary if LLM fails.
+ */
+function generateCommitMessage(diff: string, fileList: string, fallback: string): string {
+  if (!diff.trim() || diff.length < 20) return `chore(auto): ${fallback}\n\nFiles: ${fileList}`;
+  try {
+    const localScript = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../scripts/local-delegate.mjs');
+    const prompt = `Write a concise git commit message (1 line, max 72 chars) for these memory file changes. Use format "chore(memory): <description>". Only output the commit message, nothing else.\n\n${diff.slice(0, 2000)}`;
+    const stdout = execFileSync('node', [localScript], {
+      encoding: 'utf-8',
+      timeout: 30_000,
+      env: { ...process.env, LOCAL_LLM_PROFILE: 'fast' },
+      input: prompt,
+    });
+    const line = stdout.trim().split('\n')[0].slice(0, 120);
+    if (line.length > 10) return `${line}\n\nFiles: ${fileList}`;
+  } catch { /* fallback */ }
+  return `chore(auto): ${fallback}\n\nFiles: ${fileList}`;
+}
+
 export async function autoCommitMemoryFiles(action: string | null): Promise<void> {
   const cwd = process.cwd();
-  const summary = action
+  const fallbackSummary = action
     ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
     : 'auto-save';
 
@@ -396,8 +421,18 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
       { cwd, encoding: 'utf-8', timeout: 5000 },
     );
 
+    // Get staged diff for LLM commit message generation
     const fileList = changedFiles.slice(0, 5).join(', ');
-    const msg = `chore(auto): ${summary}\n\nFiles: ${fileList}`;
+    let diff = '';
+    try {
+      const { stdout: d } = await execFileAsync(
+        'git', ['diff', '--cached', '--stat', ...MEMORY_COMMIT_PATHS],
+        { cwd, encoding: 'utf-8', timeout: 5000 },
+      );
+      diff = d;
+    } catch { /* use fallback */ }
+
+    const msg = generateCommitMessage(diff, fileList, fallbackSummary);
 
     await execFileAsync(
       'git', ['commit', '-m', msg],

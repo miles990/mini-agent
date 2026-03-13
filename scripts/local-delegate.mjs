@@ -88,11 +88,15 @@ async function prefetchUrls(text) {
         return content ? { url, content } : null;
       }
 
-      // Convert GitHub repo URLs to raw README
+      // Convert GitHub repo URLs to raw README (try main, fallback master)
       let fetchUrl = url;
       let isJson = false;
       const ghRepo = url.match(/^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/?$/);
-      if (ghRepo) fetchUrl = `https://raw.githubusercontent.com/${ghRepo[1]}/${ghRepo[2]}/main/README.md`;
+      if (ghRepo) {
+        const base = `https://raw.githubusercontent.com/${ghRepo[1]}/${ghRepo[2]}`;
+        const mainRes = await fetch(`${base}/main/README.md`, { signal: AbortSignal.timeout(5_000) }).catch(() => null);
+        fetchUrl = mainRes?.ok ? `${base}/main/README.md` : `${base}/master/README.md`;
+      }
 
       // X/Twitter → fxtwitter API for tweet content
       const xMatch = url.match(/^https:\/\/(?:x|twitter)\.com\/(\w+)\/status\/(\d+)/);
