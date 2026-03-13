@@ -166,6 +166,13 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, m
   const config = loadInstanceConfig(instanceId);
 
   if (config?.persona?.systemPrompt) {
+    // Minimal mode: strip custom system prompt to bare identity (avoid timeout retry with full prompt)
+    if (mode === 'minimal') {
+      const personaDesc = config?.persona?.description
+        ? `You are ${config.persona.description}.\n\n`
+        : '';
+      return `${personaDesc}You are a personal AI assistant with memory and task capabilities.\n\n[Skills and project docs stripped for minimal retry — focus on completing the task with available context]`;
+    }
     return config.persona.systemPrompt;
   }
 

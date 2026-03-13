@@ -1282,31 +1282,15 @@ export async function callClaude(
       if (classified.retryable && attempt < maxRetries) {
         const delay = 30_000 * Math.pow(2, attempt); // 30s, 60s
 
-        // TIMEOUT 時嘗試縮減 context（最有效的重試策略）
+        // TIMEOUT 時直接用 minimal context + minimal system prompt
+        // 原因：EXIT 143 常因網路不穩或 API 回應慢，focused mode 基本無效只浪費重試次數
         if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
-          let retryMode: 'focused' | 'minimal' = attempt === 0 ? 'focused' : 'minimal';
           try {
             const prevLen = currentContext.length;
-            currentContext = await options.rebuildContext(retryMode);
-            // Hard cap: if focused mode didn't actually reduce size, escalate to minimal
-            if (retryMode === 'focused' && currentContext.length >= prevLen * 0.8) {
-              slog('RETRY', `focused mode ineffective (${prevLen} → ${currentContext.length}), escalating to minimal`);
-              retryMode = 'minimal';
-              currentContext = await options.rebuildContext(retryMode);
-            }
-            // Minimal mode: also strip skills/CLAUDE.md from system prompt (~54K savings)
-            const activeSystemPrompt = retryMode === 'minimal'
-              ? getSystemPrompt(prompt, options?.cycleMode, 'minimal')
-              : systemPrompt;
-            fullPrompt = `${activeSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-            // Safety net: if prompt is STILL too large after rebuild, force minimal everything
-            if (fullPrompt.length > PROMPT_HARD_CAP && retryMode !== 'minimal') {
-              slog('RETRY', `Post-rebuild prompt still ${fullPrompt.length} > ${PROMPT_HARD_CAP}, forcing minimal`);
-              currentContext = await options.rebuildContext('minimal');
-              const minSys = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
-              fullPrompt = `${minSys}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-            }
-            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (${retryMode} mode, sysPrompt ${activeSystemPrompt.length}), retrying in ${delay / 1000}s`);
+            currentContext = await options.rebuildContext('minimal');
+            const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+            fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal mode, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch (rebuildErr) {
             // Emergency fallback: even if rebuildContext fails, at least strip the system prompt
             slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed: ${rebuildErr}`);
