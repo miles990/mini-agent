@@ -346,7 +346,11 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   // included in the system prompt via getSystemPrompt() → getClaudeMdJIT().
   // --add-dir allows subprocess tools to access project files.
   const projectDir = process.cwd();
-  const subprocessCwd = path.join(process.env.HOME ?? '/tmp', '.mini-agent', 'subprocess-cwd');
+  // CRITICAL: subprocess-cwd must be OUTSIDE the .mini-agent git tree.
+  // ~/.mini-agent/ is a git checkout with a 43K CLAUDE.md — if subprocess runs inside it,
+  // Claude CLI auto-discovers and loads CLAUDE.md on top of our JIT-filtered system prompt,
+  // causing ~112K char total prompts → API timeout → EXIT143.
+  const subprocessCwd = path.join(process.env.HOME ?? '/tmp', '.mini-agent-subprocess');
   if (!existsSync(subprocessCwd)) {
     mkdirSync(subprocessCwd, { recursive: true });
   }
