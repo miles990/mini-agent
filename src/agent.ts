@@ -1175,7 +1175,15 @@ export async function callClaude(
         slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
       }
       slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars`);
-    } catch { /* proceed with original */ }
+    } catch (preErr) {
+      // Emergency fallback: strip system prompt to minimal even if context rebuild failed
+      slog('AGENT', `Context pre-reduce failed: ${preErr}, using minimal system prompt as fallback`);
+      try {
+        const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+        fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+        slog('AGENT', `Fallback: stripped system prompt ${systemPrompt.length} → ${minimalSystemPrompt.length}, total ${fullPrompt.length} chars`);
+      } catch { /* truly nothing we can do, proceed with original */ }
+    }
   }
 
   // Busy helpers — each lane tracks its own busy/task state independently
@@ -1291,9 +1299,24 @@ export async function callClaude(
               ? getSystemPrompt(prompt, options?.cycleMode, 'minimal')
               : systemPrompt;
             fullPrompt = `${activeSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+            // Safety net: if prompt is STILL too large after rebuild, force minimal everything
+            if (fullPrompt.length > PROMPT_HARD_CAP && retryMode !== 'minimal') {
+              slog('RETRY', `Post-rebuild prompt still ${fullPrompt.length} > ${PROMPT_HARD_CAP}, forcing minimal`);
+              currentContext = await options.rebuildContext('minimal');
+              const minSys = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+              fullPrompt = `${minSys}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+            }
             slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (${retryMode} mode, sysPrompt ${activeSystemPrompt.length}), retrying in ${delay / 1000}s`);
-          } catch {
-            slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed, retrying with same context in ${delay / 1000}s`);
+          } catch (rebuildErr) {
+            // Emergency fallback: even if rebuildContext fails, at least strip the system prompt
+            slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed: ${rebuildErr}`);
+            try {
+              const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+              fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+              slog('RETRY', `Emergency fallback: stripped sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length}, total ${fullPrompt.length} chars`);
+            } catch {
+              slog('RETRY', `Emergency fallback also failed, retrying with same ${fullPrompt.length} char prompt in ${delay / 1000}s`);
+            }
           }
         } else {
           slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
