@@ -28,19 +28,15 @@ interface ClaudeMdSection {
 // Section Classification
 // =============================================================================
 
-/** Core sections — always loaded regardless of context (~170 lines) */
+/** Core sections — always loaded regardless of context.
+ *  Keep this MINIMAL — every core section adds to every cycle's prompt.
+ *  Verbose reference sections (Key Files, Deploy, etc.) should be JIT. */
 const CORE_HEADINGS = new Set([
   '設計理念',
   '核心原則',
   '三層架構',
-  '學以致用閉環（Action from Learning）',
-  'Key Files',
-  'Commands',
-  'Environment',
-  'Deploy',
   '進化核心約束（Meta-Constraints）',
   'Code Conventions',
-  'Deployment',
   'Workflow',
   '詳細文件',
 ]);
@@ -50,7 +46,31 @@ const CORE_HEADINGS = new Set([
  * Keywords are lowercase for case-insensitive matching.
  * Sections not listed here and not in CORE_HEADINGS → always loaded (safe default).
  */
+/** Max chars for JIT output — prevents prompt bloat when many sections match.
+ *  System prompt is ~5K + this cap + skills + cycle prompt.
+ *  At 20K cap: total non-context ≈ 35-40K, leaving room for 30K+ context. */
+const JIT_OUTPUT_CAP = 20_000;
+
 const SECTION_KEYWORDS: Record<string, string[]> = {
+  '學以致用閉環（Action from Learning）': [
+    'l1', 'l2', 'l3', 'self-improve', 'action from learning', 'proposal', 'forge',
+  ],
+  'Key Files': [
+    'key file', 'src/', 'scripts/', 'plugins/', 'skills/', 'tools/',
+    'file structure', 'codebase',
+  ],
+  'Commands': [
+    'pnpm', 'mini-agent', 'command', 'build', 'test', 'typecheck',
+  ],
+  'Environment': [
+    'port', 'env', 'cdp_', 'telegram_', 'mini_agent_',
+  ],
+  'Deploy': [
+    'deploy', 'ci/cd', 'github actions', 'launchd', 'plist',
+  ],
+  'Deployment': [
+    'deploy', 'ci/cd', 'typecheck', 'push',
+  ],
   'Memory Architecture': [
     'memory', 'remember', 'topic', 'checkpoint', 'auto-commit', 'auto-push',
     'conversation', 'thread', 'NEXT.md', 'HEARTBEAT', 'buildcontext',
@@ -283,20 +303,30 @@ export function getClaudeMdJIT(hint?: string): string {
     }
   }
 
-  // Fallback: if zero JIT sections matched, load everything
-  // This prevents info loss when the hint doesn't contain expected keywords
+  // Fallback: if zero JIT sections matched, load core only (not everything)
+  // Loading everything defeats the purpose of JIT when no keywords match
   const coreOnlyCount = sectionsCache.filter(s => s.isCore || s.keywords.length === 0).length;
   if (selected.length <= coreOnlyCount) {
-    return sectionsCache.map(s => s.content).join('\n');
+    // Just use the already-selected core sections — don't load all
   }
 
-  // Add elision hint so the model knows content was filtered
-  const omittedCount = sectionsCache.length - selected.length;
+  // ── Size cap: prevent prompt bloat when many JIT sections match ──
+  let result = '';
+  let includedCount = 0;
+  for (const s of selected) {
+    if (result.length + s.content.length > JIT_OUTPUT_CAP && includedCount > 0) {
+      break; // Stop adding sections once cap is reached (always include at least 1)
+    }
+    result += (result ? '\n' : '') + s.content;
+    includedCount++;
+  }
+
+  const omittedCount = sectionsCache.length - includedCount;
   const elisionNote = omittedCount > 0
     ? `\n\n<!-- ${omittedCount} CLAUDE.md sections omitted (not relevant to current context). Full docs in CLAUDE.md file. -->\n`
     : '';
 
-  return selected.map(s => s.content).join('\n') + elisionNote;
+  return result + elisionNote;
 }
 
 /** Get stats for observability */

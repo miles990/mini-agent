@@ -2215,11 +2215,11 @@ export class InstanceMemory {
     let assembled = sections.join('\n\n');
 
     // ── Global context budget: dynamic based on skills overhead ──
-    // fullPrompt = systemPrompt(~4K) + CLAUDE.md JIT(~15-25K) + skills + context + cyclePrompt(~6-10K)
+    // fullPrompt = systemPrompt(~5K) + CLAUDE.md JIT(capped 20K) + skills + context + cyclePrompt(~10K)
     // PROMPT_HARD_CAP in agent.ts = 80K, so context budget = 80K - skills - nonContext
-    // NON_CONTEXT_BASE accounts for: system prompt base (~4K) + CLAUDE.md JIT (~15K) + cycle prompt + suffixes (~6K)
+    // NON_CONTEXT_BASE: system prompt (~5K) + CLAUDE.md JIT cap (20K) + cycle prompt + suffixes (~10K)
     const PROMPT_HARD_CAP = 80_000;
-    const NON_CONTEXT_BASE = 25_000; // system prompt + CLAUDE.md JIT + cycle prompt (was 8K — caused 69-86K prompts → EXIT143 timeouts)
+    const NON_CONTEXT_BASE = 35_000;
     const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
     // Most modes load a subset (~60%); use conservative estimate to avoid pre-reduce in callClaude
     const estimatedSkillsOverhead = Math.ceil(totalSkillsChars * 0.6);
