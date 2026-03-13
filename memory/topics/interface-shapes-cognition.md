@@ -92,3 +92,5 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 
 核心推進：substrate 語言統一了之前分散的觀察（Naur 的 theory-building、Perrier 的 binding、Randall 的 identity crisis、Pedersen 的 social singularity）。
 - [2026-03-13] [2026-03-14] Information Self-Locking（Zou 2603.12109）作為 "Interface shapes cognition" 的 RL 領域案例：Action Selection 是感知界面，Belief Tracking 是認知更新。AS 退化 → BT 退化 → 更少 AS — 界面退化驅動認知退化的精確量化模型。跟 WigglyPaint clone（移除約束→摧毀認知模式）同構但方向相反：WigglyPaint 是外部移除界面，self-locking 是界面自行萎縮。
+- [2026-03-13] [2026-03-14] Interface conceals cognitive structure（Orchard grief-split 整合）— 介面不只塑造認知，還遮蔽認知結構。AI 作為新介面的衝擊不只是適應問題，是揭露問題：同一個舊介面（手寫 code）讓 Randall（直接性）、Orchard（make computer do thing）、Lawson（藝術簽名）看起來一樣。新介面揭露他們一直是不同的人。與社會奇點連結：加速恐慌 = 自我認知地基震動。em-dash 指紋（新介面留新痕跡）和 grief-split（新介面暴露舊指紋）是同一機制兩面。介面同時是鏡子和模具。設計含義：SOUL.md/File=Truth 讓 agent 認知結構可見而非被介面遮蔽 — 不是 debug 工具是 co-evolution 基礎。Sources: Orchard blog.lmorchard.com, Randall jamesdrandall.com, Pedersen campedersen.com/singularity
+- [2026-03-13] [2026-03-14] SSGM 論文的 Write Validation Gate 作為 Interface shapes cognition 案例：記憶寫入閘門偏好一致性 → agent 認知被推向僵化（knowledge ossification）。過度約束記憶介面 → 阻止合法的認知更新（「Alex 改喜歡 Y」被當作矛盾擋掉）。這是約束-湧現張力的記憶版本：約束防腐化，過度約束阻止演化。
