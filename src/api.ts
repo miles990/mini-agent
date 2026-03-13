@@ -10,7 +10,7 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getLaneStatus, callClaude } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -742,6 +742,11 @@ export function createApi(port = 3001): express.Express {
         primary: getProvider(),
         fallback: getFallback(),
         codexModel: process.env.CODEX_MODEL || null,
+        perSource: {
+          loop: getProviderForSource('loop'),
+          foreground: getProviderForSource('foreground'),
+          ask: getProviderForSource('ask'),
+        },
       },
       features: (() => {
         const report = getFeatureReport();

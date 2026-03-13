@@ -16,7 +16,7 @@ import { startThread, progressThread, completeThread, pauseThread } from './temp
 import { slog } from './utils.js';
 import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
-import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, DelegationProvider } from './types.js';
+import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import {
@@ -520,14 +520,14 @@ export function parseTags(response: string): ParsedTags {
       const workdir = attrs.match(/workdir="([^"]*)"/)?.[1];
       if (!workdir) continue; // workdir is required
       const type = attrs.match(/type="([^"]*)"/)?.[1] as DelegationTaskType | undefined;
-      const provider = attrs.match(/provider="([^"]*)"/)?.[1] as DelegationProvider | undefined;
+      const provider = attrs.match(/provider="([^"]*)"/)?.[1] as Provider | undefined;
       const verify = attrs.match(/verify="([^"]*)"/)?.[1];
       const maxTurns = attrs.match(/maxTurns="([^"]*)"/)?.[1];
       delegates.push({
         prompt: m[2].trim(),
         workdir,
         type: type && ['code', 'learn', 'research', 'create', 'review', 'shell'].includes(type) ? type : undefined,
-        provider: provider && ['claude', 'codex'].includes(provider) ? provider : undefined,
+        provider: provider && ['claude', 'codex', 'local'].includes(provider) ? provider : undefined,
         verify: verify ? verify.split(',').map(s => s.trim()) : undefined,
         maxTurns: maxTurns ? parseInt(maxTurns, 10) : undefined,
       });

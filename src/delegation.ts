@@ -18,7 +18,7 @@ import path from 'node:path';
 import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
-import type { DelegationTaskType, DelegationProvider } from './types.js';
+import type { DelegationTaskType, Provider } from './types.js';
 import { writeActivity } from './activity-journal.js';
 
 // =============================================================================
@@ -28,7 +28,7 @@ import { writeActivity } from './activity-journal.js';
 export interface DelegationTask {
   id?: string;
   type?: DelegationTaskType;
-  provider?: DelegationProvider;
+  provider?: Provider;
   prompt: string;
   workdir: string;
   maxTurns?: number;
@@ -117,10 +117,10 @@ function removeFromStateFile(taskId: string): void {
 }
 
 // Type-specific defaults for non-code delegation tasks
-const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number; provider: DelegationProvider }> = {
+const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number; provider: Provider }> = {
   code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'codex' },
-  learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000, provider: 'codex' },
-  research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000, provider: 'codex' },
+  learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000, provider: 'local' },
+  research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000, provider: 'local' },
   create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
@@ -299,7 +299,7 @@ function logForgeOutcome(taskId: string, outcome: ForgeOutcome, status: string, 
  * Log structured delegation lifecycle record for ALL task types.
  * Compound value: accumulates into "which type succeeds?", "avg duration?", "codex vs claude?" insights.
  */
-function logDelegationLifecycle(result: TaskResult, provider: DelegationProvider): void {
+function logDelegationLifecycle(result: TaskResult, provider: Provider): void {
   try {
     const instanceDir = getInstanceDir(getCurrentInstanceId());
     const logPath = path.join(instanceDir, 'delegation-lifecycle.jsonl');
@@ -481,6 +481,28 @@ export function cleanupTasks(): void {
 }
 
 // =============================================================================
+// Spawn Helpers
+// =============================================================================
+
+function spawnWithSandbox(
+  cmd: string, args: string[],
+  opts: Parameters<typeof spawn>[2],
+  sandbox: SandboxWrapper | null,
+): ChildProcess {
+  if (sandbox) {
+    return spawn(sandbox.cmd, [...sandbox.prefixArgs, cmd, ...args], opts);
+  }
+  return spawn(cmd, args, opts);
+}
+
+function buildDelegationPrompt(task: DelegationTask, forgeConstraint: string): string {
+  const base = task.context
+    ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
+    : task.prompt;
+  return base + forgeConstraint;
+}
+
+// =============================================================================
 // Internal — Task Execution
 // =============================================================================
 
@@ -548,6 +570,7 @@ function startTask(task: DelegationTask): void {
     : '';
 
   let child: ChildProcess;
+  const isLocal = taskType !== 'shell' && provider === 'local';
   const isCodex = taskType !== 'shell' && provider === 'codex';
 
   if (taskType === 'shell') {
@@ -558,6 +581,16 @@ function startTask(task: DelegationTask): void {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
+  } else if (isLocal) {
+    // Local LLM executor — lightweight delegate via oMLX/OpenAI-compatible API
+    const fullPrompt = buildDelegationPrompt(task, forgeConstraint);
+    const localScript = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../scripts/local-delegate.mjs');
+    slog('DELEGATION', `Starting local ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawnWithSandbox('node', [localScript], {
+      cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env }, detached: true,
+    }, sandbox);
+    child.stdin!.write(fullPrompt);
+    child.stdin!.end();
   } else if (isCodex) {
     // Codex CLI executor — cheaper than Claude for code/learn/research
     const codexArgs = ['exec', '--dangerously-bypass-approvals-and-sandbox', '--json'];
@@ -567,27 +600,17 @@ function startTask(task: DelegationTask): void {
     const codexEnv = Object.fromEntries(
       Object.entries(process.env).filter(([k]) => k !== 'OPENAI_API_KEY'),
     );
-    const fullPrompt = (task.context
-      ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-      : task.prompt) + forgeConstraint;
+    const fullPrompt = buildDelegationPrompt(task, forgeConstraint);
 
     slog('DELEGATION', `Starting codex ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    if (sandbox) {
-      child = spawn(sandbox.cmd, [...sandbox.prefixArgs, 'codex', ...codexArgs], {
-        cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: codexEnv, detached: true,
-      });
-    } else {
-      child = spawn('codex', codexArgs, {
-        cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: codexEnv, detached: true,
-      });
-    }
+    child = spawnWithSandbox('codex', codexArgs, {
+      cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: codexEnv, detached: true,
+    }, sandbox);
     child.stdin!.write(fullPrompt);
     child.stdin!.end();
   } else {
     // Claude CLI executor
-    const fullPrompt = (task.context
-      ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-      : task.prompt) + forgeConstraint;
+    const fullPrompt = buildDelegationPrompt(task, forgeConstraint);
 
     const systemPrompt = 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.';
 
@@ -600,15 +623,9 @@ function startTask(task: DelegationTask): void {
     ];
 
     slog('DELEGATION', `Starting claude ${taskId}: "${task.prompt.slice(0, 80)}..." (max ${task.maxTurns} turns, ${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    if (sandbox) {
-      child = spawn(sandbox.cmd, [...sandbox.prefixArgs, 'claude', ...args], {
-        cwd: effectiveWorkdir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env },
-      });
-    } else {
-      child = spawn('claude', args, {
-        cwd: effectiveWorkdir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env },
-      });
-    }
+    child = spawnWithSandbox('claude', args, {
+      cwd: effectiveWorkdir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env },
+    }, sandbox);
   }
 
   activeTasks.set(taskId, { process: child, result });
@@ -639,8 +656,8 @@ function startTask(task: DelegationTask): void {
   let processExited = false;
   const killChild = (signal: NodeJS.Signals) => {
     try {
-      // For detached processes (codex), kill the entire process group
-      if (isCodex && child.pid) {
+      // For detached processes (codex/local), kill the entire process group
+      if ((isCodex || isLocal) && child.pid) {
         process.kill(-child.pid, signal);
       } else {
         child.kill(signal);

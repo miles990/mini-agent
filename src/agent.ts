@@ -24,7 +24,8 @@ export interface Message {
 // LLM Provider Abstraction
 // =============================================================================
 
-export type Provider = 'claude' | 'codex' | 'local';
+import type { Provider } from './types.js';
+export type { Provider } from './types.js';
 
 export function getProvider(): Provider {
   const p = process.env.AGENT_PROVIDER?.toLowerCase();
@@ -37,6 +38,28 @@ export function getFallback(): Provider | null {
   const f = process.env.AGENT_FALLBACK?.toLowerCase();
   if (f === 'codex' || f === 'claude' || f === 'local') return f as Provider;
   return null;
+}
+
+/** Source-to-provider default mapping.
+ *  Overridable via AGENT_PROVIDER_{SOURCE} (e.g. AGENT_PROVIDER_ASK=local) */
+const SOURCE_PROVIDER_DEFAULTS: Record<CallSource, Provider> = {
+  loop: 'claude',
+  foreground: 'claude',
+  ask: 'local',
+};
+
+export function getProviderForSource(source: CallSource): Provider {
+  // 1. Per-source env override: AGENT_PROVIDER_ASK=local
+  const envKey = `AGENT_PROVIDER_${source.toUpperCase()}`;
+  const envVal = process.env[envKey]?.toLowerCase();
+  if (envVal === 'claude' || envVal === 'codex' || envVal === 'local') return envVal;
+
+  // 2. Global override (backward compat)
+  const global = process.env.AGENT_PROVIDER?.toLowerCase();
+  if (global === 'claude' || global === 'codex' || global === 'local') return global as Provider;
+
+  // 3. Source-specific default
+  return SOURCE_PROVIDER_DEFAULTS[source];
 }
 
 interface ExecOptions {
@@ -1175,7 +1198,7 @@ export async function callClaude(
     };
   }
 
-  const primary = getProvider();
+  const primary = getProviderForSource(source);
   const startTime = Date.now();
   let lastErrorMessage = '重試次數已用盡。';
 

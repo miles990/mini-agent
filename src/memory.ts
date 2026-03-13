@@ -37,7 +37,7 @@ import type {
   ActivitySummary,
 } from './workspace.js';
 import { getTelegramPoller, getNotificationStats } from './telegram.js';
-import { getProvider, getFallback } from './agent.js';
+import { getProvider, getFallback, getProviderForSource } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry, ConversationThread } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
@@ -76,7 +76,7 @@ let skillsCache: Array<{ name: string; content: string }> = [];
 let toolAvailabilityCache: { checkedAt: number; values: Record<string, boolean> } | null = null;
 
 export interface CapabilitiesSnapshot {
-  provider: { primary: string; fallback: string | null };
+  provider: { primary: string; fallback: string | null; perSource?: Record<string, string> };
   skills: { count: number; names: string[] };
   plugins: { count: number; names: string[] };
   tools: {
@@ -293,7 +293,10 @@ async function readToolUseToday(instanceId: string): Promise<CapabilitiesSnapsho
 
 function formatCapabilitiesContext(cap: CapabilitiesSnapshot): string {
   const lines: string[] = [];
-  lines.push(`Provider: primary=${cap.provider.primary}${cap.provider.fallback ? ` fallback=${cap.provider.fallback}` : ''}`);
+  const perSourceStr = cap.provider.perSource
+    ? ` (loop=${cap.provider.perSource.loop} fg=${cap.provider.perSource.foreground} ask=${cap.provider.perSource.ask})`
+    : '';
+  lines.push(`Provider: primary=${cap.provider.primary}${cap.provider.fallback ? ` fallback=${cap.provider.fallback}` : ''}${perSourceStr}`);
   lines.push(`Skills (${cap.skills.count}): ${cap.skills.names.join(', ') || 'none'}`);
   lines.push(`Enabled plugins (${cap.plugins.count}): ${cap.plugins.names.join(', ') || 'none'}`);
 
@@ -326,7 +329,15 @@ export async function getCapabilitiesSnapshot(instanceId = getCurrentInstanceId(
   const toolUseToday = await readToolUseToday(instanceId);
 
   return {
-    provider: { primary: getProvider(), fallback: getFallback() },
+    provider: {
+      primary: getProvider(),
+      fallback: getFallback(),
+      perSource: {
+        loop: getProviderForSource('loop'),
+        foreground: getProviderForSource('foreground'),
+        ask: getProviderForSource('ask'),
+      },
+    },
     skills: { count: skillNames.length, names: skillNames },
     plugins: { count: pluginNames.length, names: pluginNames },
     tools: {
