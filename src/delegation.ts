@@ -587,7 +587,7 @@ function startTask(task: DelegationTask): void {
     const localScript = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../scripts/local-delegate.mjs');
     slog('DELEGATION', `Starting local ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawnWithSandbox('node', [localScript], {
-      cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env }, detached: true,
+      cwd: effectiveWorkdir, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, LOCAL_LLM_PROFILE: 'fast' }, detached: true,
     }, sandbox);
     child.stdin!.write(fullPrompt);
     child.stdin!.end();

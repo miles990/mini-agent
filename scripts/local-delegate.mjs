@@ -33,6 +33,7 @@ try {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(600_000), // 10 min
   });
   if (!res.ok) {
     process.stderr.write(`Local LLM error: ${res.status} ${res.statusText}\n`);
