@@ -2312,12 +2312,7 @@ export class InstanceMemory {
     const sections: string[] = [];
 
     // 環境
-    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[LIGHTWEIGHT CONTEXT: soul + inbox + recent conversations]\n</environment>`);
-
-    // TG 狀態（極小）
-    const tgPoller = getTelegramPoller();
-    const tgStats = getNotificationStats();
-    sections.push(`<telegram>\nConnected: ${tgPoller ? 'yes' : 'no'}\nNotifications: ${tgStats.sent} sent, ${tgStats.failed} failed\n</telegram>`);
+    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL CONTEXT: emergency retry — soul identity + active tasks + inbox only]\n</environment>`);
 
     // Soul — 只取核心身份
     if (soul) {
@@ -2325,15 +2320,22 @@ export class InstanceMemory {
       sections.push(`<soul>\n${soulContent}\n</soul>`);
     }
 
-    // Heartbeat — 完整保留（有 active tasks）
+    // Heartbeat — 只取 Active Tasks section（不是完整 HEARTBEAT）
+    // 完整 HEARTBEAT 佔 ~8.5K，Active Tasks 只佔 ~2K
     if (heartbeat) {
-      sections.push(`<heartbeat>\n${heartbeat}\n</heartbeat>`);
-    }
-
-    // Task index — minimal mode (Now section only, no verify)
-    const nextSection = await buildNextContextSection(this.memoryDir, { minimal: true });
-    if (nextSection) {
-      sections.push(`<next>\n${nextSection}\n</next>`);
+      const activeTasksHeader = '## Active Tasks';
+      const activeIdx = heartbeat.indexOf(activeTasksHeader);
+      if (activeIdx !== -1) {
+        // Find the next ## header after Active Tasks to extract just that section
+        const afterActive = heartbeat.indexOf('\n## ', activeIdx + activeTasksHeader.length);
+        const activeTasks = afterActive !== -1
+          ? heartbeat.slice(activeIdx, afterActive).trim()
+          : heartbeat.slice(activeIdx).trim();
+        sections.push(`<heartbeat>\n# HEARTBEAT (minimal)\n\n${activeTasks}\n</heartbeat>`);
+      } else {
+        // Fallback: truncate to first 2000 chars
+        sections.push(`<heartbeat>\n${heartbeat.slice(0, 2000)}\n[... truncated for minimal context ...]\n</heartbeat>`);
+      }
     }
 
     // Unified Inbox（對話回覆需要看到收到的訊息）
@@ -2343,30 +2345,9 @@ export class InstanceMemory {
       sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
     }
 
-    // Conversation Threads（對話脈絡追蹤）
-    const convThreads = await this.getConversationThreads();
-    const activeConvThreads = convThreads
-      .filter(t => !t.resolvedAt)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 10);
-    if (activeConvThreads.length > 0) {
-      const threadLines = activeConvThreads.map(t => {
-        const age = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 3600000);
-        const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
-        return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
-      });
-      sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
-    }
-
-    // ── Chat Room Smart Loading（recent + relevant history）──
-    {
-      const chatRoomCtx = await this.buildChatRoomRecentSection();
-      if (chatRoomCtx) sections.push(chatRoomCtx);
-    }
-
-    // 最近 5 則對話
+    // 最近 3 則對話（emergency retry 只需最小上下文）
     const recentConvos = this.conversationBuffer
-      .slice(-5)
+      .slice(-3)
       .map(c => {
         const time = c.timestamp.split('T')[1]?.split('.')[0] ?? '';
         const who = c.role === 'user' ? '(alex)' : '(kuro)';
@@ -2374,29 +2355,6 @@ export class InstanceMemory {
       })
       .join('\n');
     sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);
-
-    // ── Background Completed（delegation results visible to ask lane）──
-    const bgSection = buildBackgroundCompletedSection(this.instanceId);
-    if (bgSection) {
-      sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
-    }
-
-    // ── Web Fetch Results ──
-    const webResultsPath2 = path.join(getMemoryStateDir(), 'web-fetch-results.md');
-    try {
-      const webResults2 = await fs.readFile(webResultsPath2, 'utf-8');
-      if (webResults2.trim()) {
-        sections.push(`<web-fetch-results>\n${webResults2.slice(0, 12000)}\n</web-fetch-results>`);
-        await fs.unlink(webResultsPath2).catch(() => {});
-      }
-    } catch { /* normal — no pending results */ }
-
-    // ── Activity Journal（cross-lane awareness）──
-    const { formatActivityJournal } = await import('./activity-journal.js');
-    const activityJournal = formatActivityJournal(800);
-    if (activityJournal) {
-      sections.push(`<recent-activity>\n${activityJournal}\n</recent-activity>`);
-    }
 
     return sections.join('\n\n');
   }
