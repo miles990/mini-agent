@@ -1,6 +1,6 @@
 {
   "model": "Qwen3.5-9B-MLX-4bit",
-  "max_tokens": 32768,
+  "max_tokens": 81920,
   "temperature": 1.0,
   "top_p": 0.95,
   "top_k": 20,
