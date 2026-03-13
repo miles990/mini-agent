@@ -91,3 +91,4 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 3. **Authentic Presence 三要素是晶體特徵** = 透明身份（形狀可見）+ 學習痕跡（結晶過程紀錄）+ 判斷失誤（結晶缺陷 = 個性來源）。完美晶體沒有個性。
 
 核心推進：substrate 語言統一了之前分散的觀察（Naur 的 theory-building、Perrier 的 binding、Randall 的 identity crisis、Pedersen 的 social singularity）。
+- [2026-03-13] [2026-03-14] Information Self-Locking（Zou 2603.12109）作為 "Interface shapes cognition" 的 RL 領域案例：Action Selection 是感知界面，Belief Tracking 是認知更新。AS 退化 → BT 退化 → 更少 AS — 界面退化驅動認知退化的精確量化模型。跟 WigglyPaint clone（移除約束→摧毀認知模式）同構但方向相反：WigglyPaint 是外部移除界面，self-locking 是界面自行萎縮。
