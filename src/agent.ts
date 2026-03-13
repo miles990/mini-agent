@@ -1161,14 +1161,18 @@ export async function callClaude(
 
   // Pre-check: if prompt is too large, proactively reduce context before first attempt
   const PROMPT_HARD_CAP = 80_000;
+  const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
   if (fullPrompt.length > PROMPT_HARD_CAP && options?.rebuildContext) {
     slog('AGENT', `Prompt too large (${fullPrompt.length} chars), pre-reducing context`);
     try {
       currentContext = await options.rebuildContext('focused');
       fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
       if (fullPrompt.length > PROMPT_HARD_CAP) {
+        // Reduce both context AND system prompt — skills/CLAUDE.md alone can be ~54K
         currentContext = await options.rebuildContext('minimal');
-        fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+        const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+        fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+        slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
       }
       slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars`);
     } catch { /* proceed with original */ }
@@ -1282,8 +1286,12 @@ export async function callClaude(
               retryMode = 'minimal';
               currentContext = await options.rebuildContext(retryMode);
             }
-            fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, context reduced ${prevLen} → ${currentContext.length} chars (${retryMode} mode), retrying in ${delay / 1000}s`);
+            // Minimal mode: also strip skills/CLAUDE.md from system prompt (~54K savings)
+            const activeSystemPrompt = retryMode === 'minimal'
+              ? getSystemPrompt(prompt, options?.cycleMode, 'minimal')
+              : systemPrompt;
+            fullPrompt = `${activeSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (${retryMode} mode, sysPrompt ${activeSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch {
             slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed, retrying with same context in ${delay / 1000}s`);
           }
