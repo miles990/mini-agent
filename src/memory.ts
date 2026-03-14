@@ -1932,7 +1932,6 @@ Queries:`;
         // Always load (empty = always relevant)
         tasks: [],
         'state-changes': [],
-        'telegram-inbox': [],
         'chat-room-inbox': [],
         'claude-code-inbox': [],
         // Conditional load (keyword-matched)

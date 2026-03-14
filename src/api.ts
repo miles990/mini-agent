@@ -471,7 +471,6 @@ export function createApi(port = 3001): express.Express {
   function getPendingInboxSummary(): string {
     const dataDir = path.join(os.homedir(), '.mini-agent');
     const inboxes = [
-      { path: path.join(dataDir, 'telegram-inbox.md'), source: 'telegram' },
       { path: path.join(dataDir, 'chat-room-inbox.md'), source: 'room' },
       { path: path.join(dataDir, 'claude-code-inbox.md'), source: 'claude-code' },
     ];

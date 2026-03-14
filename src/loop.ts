@@ -490,31 +490,13 @@ export class AgentLoop {
       return;
     }
 
-    // DM routing by loop state — System 1 (mushi) shouldn't decide Ask vs OODA depth
+    // DM routing — all external messages always go to foreground lane (fast, focused response)
+    // OODA cycles are reserved for autonomous deep thinking, not message replies
     const messageText = (agentEvent.data?.text as string) ?? '';
     if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
-      if (this.cycling) {
-        // Loop busy → foreground lane (parallel, independent, non-blocking)
-        slog('LOOP', `[dm-route] ${event.source} → foreground (loop cycling)`);
-        this.foregroundReply(event.source, messageText, roomMsgId).catch(() => {});
-        return;
-      }
-      // Loop idle → full OODA cycle
-      slog('LOOP', `[dm-route] ${event.source} → OODA (loop idle)`);
-
-      // Instant ACK — let Alex know we're processing before the full cycle runs (~60-80s)
-      if (event.source === 'telegram') {
-        const replyTo = getLastAlexMessageId() ?? undefined;
-        const excerpt = messageText.length > 50 ? messageText.slice(0, 50) + '...' : messageText;
-        notifyTelegram(`💭 收到：「${excerpt}」\n正在處理...`, replyTo).catch(() => {});
-      }
-
-      this.triggerReason = event.source === 'telegram' ? 'telegram-user' : event.source;
-      this.triggerMessageText = messageText || null;
-      this.triggerRoomMsgId = (agentEvent.data?.roomMsgId as string) ?? null;
-      this.triggerTelegramMsgs = snapshotTelegramMsgs();
-      this.runCycle();
+      slog('LOOP', `[dm-route] ${event.source} → foreground`);
+      this.foregroundReply(event.source, messageText, roomMsgId).catch(() => {});
       return;
     }
 
@@ -1923,10 +1905,6 @@ export class AgentLoop {
         }
       }
       flushInboxMarks(); // 單次磁碟寫入
-
-      // Refresh telegram-inbox perception cache so next cycle sees cleared state
-      // (telegram-inbox is event-driven, won't refresh unless triggered)
-      eventBus.emit('trigger:telegram', { source: 'mark-processed' });
 
       // Escalate overdue HEARTBEAT tasks（fire-and-forget）
       if (isEnabled('auto-escalate')) {

@@ -63,7 +63,7 @@ const STATS_TTL = 5 * 60_000;      // Recompute every 5 min max
 
 // Perceptions that should never be pruned (core infrastructure)
 const CORE_PERCEPTIONS = new Set([
-  'tasks', 'state-changes', 'telegram-inbox', 'chat-room-inbox',
+  'tasks', 'state-changes', 'chat-room-inbox',
   'claude-code-inbox', 'self-awareness', 'focus-context',
   'environment-sense', 'github-issues',
 ]);

@@ -266,7 +266,7 @@ export function shouldPruneSection(sectionName: string, cycleCount: number): boo
  * High-citation sections keep full cap, others get reduced.
  */
 const HIGH_CITATION_SECTIONS = new Set([
-  'telegram-inbox', 'inner-voice', 'inbox', 'chat-room-inbox',
+  'inner-voice', 'inbox', 'chat-room-inbox',
   'rumination-digest', 'forgotten-knowledge', 'heartbeat',
   'decision-quality-warning',
 ]);

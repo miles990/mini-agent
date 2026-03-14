@@ -37,7 +37,6 @@ export function isAnalysisAvailable(): boolean {
 // =============================================================================
 
 const ANALYSIS_PROMPTS: Record<string, string> = {
-  'telegram-inbox': 'Summarize: how many pending messages? Who sent the most recent/urgent one and what is the topic? Reply in 1-2 sentences. If there are messages needing reply, start with "URGENT:".',
   tasks: 'Summarize: how many tasks by priority (P0/P1/P2)? Any overdue? What is the single most important pending task? Reply in 1-2 sentences. If there are overdue P0 tasks, start with "URGENT:".',
   docker: 'Summarize: how many containers running/stopped? Any unhealthy or restarting? Reply in 1-2 sentences. If any container is unhealthy or crashed, start with "URGENT:".',
   brew: 'Summarize: how many outdated packages? Any security-critical updates? Reply in 1-2 sentences. Just the count and whether any are security-related.',

@@ -53,8 +53,6 @@ agents:
           script: ./plugins/task-tracker.sh
         - name: state-changes
           script: ./plugins/state-watcher.sh
-        - name: telegram-inbox
-          script: ./plugins/telegram-inbox.sh
         - name: website
           script: ./plugins/website-monitor.sh
           timeout: 15000

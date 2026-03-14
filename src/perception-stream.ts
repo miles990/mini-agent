@@ -72,7 +72,6 @@ const CATEGORY_MAP: Record<string, string> = {
   'chrome': 'chrome',
   'cdp-events': 'chrome',
   'web': 'chrome',
-  'telegram-inbox': 'telegram',
   'mobile': 'workspace',
   'claude-code-inbox': 'workspace',
   'chat-room-inbox': 'workspace',
@@ -91,7 +90,6 @@ function getCategory(name: string): string {
 export const IMPORTANT_PERCEPTION_NAMES = [
   'state-changes',
   'tasks',
-  'telegram-inbox',
   'chat-room-inbox',
   'github-issues',
 ] as const;

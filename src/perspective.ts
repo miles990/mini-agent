@@ -44,7 +44,7 @@ const DEFAULT_PERSPECTIVES: Record<PerspectiveType, PerspectiveConfig> = {
     maxConcurrent: 2,
   },
   chat: {
-    perception: ['telegram-inbox', 'chat-room-inbox', 'state-changes', 'claude-code-inbox'],
+    perception: ['chat-room-inbox', 'state-changes', 'claude-code-inbox'],
     skills: [],
     canWriteMemory: false,
     canSendTelegram: false,
