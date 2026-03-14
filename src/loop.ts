@@ -415,15 +415,29 @@ export class AgentLoop {
 你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。
 
 策略：
-- 簡單問題 → 直接回答
-- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先快速回覆確認收到，再用 <kuro:delegate> 委派到背景執行
+- 用多個 <kuro:chat> 分段回覆——第一段在幾秒內送出核心回應，後續段落補充細節
+  例：<kuro:chat>簡短的核心回答</kuro:chat>（先送出）然後 <kuro:chat>補充的細節和想法</kuro:chat>（再送出）
+- 簡單問題 → 一段 <kuro:chat> 直接回答
+- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先一段 <kuro:chat> 快速回覆確認，再用 <kuro:delegate> 委派到背景執行
   例：<kuro:delegate type="research" workdir="${process.cwd()}">研究 URL 的內容並整理重點</kuro:delegate>
 - 背景結果會自動出現在下個 cycle 的 <background-completed> section
 </foreground_reply_mode>`;
 
-      const { response } = await callClaude(text, context, 1, { source: 'foreground' });
+      // Streaming chat — send <kuro:chat> tags to user as soon as they're detected during generation
+      const streamedChats = new Set<string>();
+      const onStreamChat = (chatText: string, reply: boolean) => {
+        streamedChats.add(chatText);
+        if (source === 'telegram') {
+          notifyTelegram(chatText, matchReplyTarget(chatText, telegramMsgs) ?? undefined).catch(() => {});
+        }
+        writeRoomMessage('kuro', chatText, replyTo).catch(() => {});
+        slog('STREAM', `[foreground] Chat streamed: ${chatText.slice(0, 80)}`);
+      };
+
+      const { response } = await callClaude(text, context, 1, { source: 'foreground', onStreamChat });
 
       // Process all tags via unified postProcess (remember, delegate, inner, etc.)
+      // Suppress chat sending — already streamed above via onStreamChat
       const result = await postProcess(text, response, {
         lane: 'foreground',
         duration: 0,
@@ -431,19 +445,21 @@ export class AgentLoop {
         systemPrompt: '',
         context: '',
         skipHistory: false,
-        suppressChat: false,
+        suppressChat: streamedChats.size > 0,
       });
       const answer = result.content || response;
 
-      // Send reply to the appropriate channel
-      if (source === 'telegram') {
-        notifyTelegram(answer, matchReplyTarget(answer, telegramMsgs) ?? undefined).catch(() => {});
+      // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
+      if (streamedChats.size === 0) {
+        if (source === 'telegram') {
+          notifyTelegram(answer, matchReplyTarget(answer, telegramMsgs) ?? undefined).catch(() => {});
+          clearLastReaction();
+        }
+        if (!opts?.quiet) {
+          await writeRoomMessage('kuro', answer, replyTo);
+        }
+      } else if (source === 'telegram') {
         clearLastReaction();
-      }
-      // Write to chat room — skip for quiet mode (quick cycles) unless LLM explicitly used <kuro:chat>
-      const hasChatTag = result.tagsProcessed?.includes('chat');
-      if (!opts?.quiet || hasChatTag) {
-        await writeRoomMessage('kuro', answer, replyTo);
       }
 
       // Record for next cycle awareness
