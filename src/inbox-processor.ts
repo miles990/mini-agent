@@ -45,7 +45,7 @@ Message: ${input.text_preview}
 Rules: direct question or request → RESPOND. Status update, notification, or already-handled → SKIP.
 Answer RESPOND or SKIP only.`;
 
-    const result = callLocalFast(prompt, 16, 5_000);
+    const result = callLocalFast(prompt, 16, 8_000);
     const answer = result.trim().toUpperCase();
 
     if (answer.startsWith('SKIP')) {

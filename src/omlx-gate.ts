@@ -4,11 +4,15 @@
  * 在 Claude CLI 呼叫前做快速判斷，減少不必要的 Claude 消耗。
  * 核心原則：oMLX 做 Gate（二元判斷），不做 Transform（內容轉換）。
  *
- * 四個替換點：
+ * 八個替換點：
  * R1: Perception 精簡 — 降低 output_cap + 移除低引用 sections（純邏輯，不用 LLM）
  * R2: Skills 篩選 — 改進 mode/keyword matching（純邏輯，不用 LLM）
  * R3: Cron gate — mtime 檢查 + 0.8B 二元分類，skip 空輪詢
  * R4: Context delta — hash 比對，skip 無變化 cycle（純邏輯，不用 LLM）
+ * R5: Context Profile — trigger 類型 → 預定義 section 載入策略（純邏輯）
+ * R6: Memory Index — FTS5 relational matching（純邏輯，在 memory-index.ts）
+ * R7: Keyword Extraction — 0.8B 從 trigger/inbox 提取關鍵字，改善 section matching
+ * R8: Response Cache — 相同 context hash 快取，避免重複 Claude 呼叫
  *
  * 0.8B 實測結論（2026-03-14）：
  * ✅ 二元分類 (yes/no) — 可靠
@@ -23,6 +27,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { eventBus } from './event-bus.js';
+import { notifyTelegram } from './telegram.js';
 
 // =============================================================================
 // Types
@@ -63,6 +68,10 @@ let lastContextHash = '';
 /** oMLX base URL and API key */
 const omlxUrl = () => process.env.LOCAL_LLM_URL || 'http://localhost:8000';
 const omlxKey = () => process.env.LOCAL_LLM_KEY || 'local';
+
+/** oMLX health check — consecutive timeout tracking */
+let consecutiveTimeouts = 0;
+let lastHealthAlertTs = 0;
 
 // =============================================================================
 // R3: Cron HEARTBEAT Gate
@@ -318,6 +327,252 @@ export function getSkillsExcludeSet(cycleMode: string | undefined, contextHint: 
 }
 
 // =============================================================================
+// R5: Context Profile System
+// =============================================================================
+
+/**
+ * Context profiles define which sections to load for each trigger type.
+ * Replaces scattered keyword/isLight checks with unified profile-based loading.
+ *
+ * Three tiers:
+ * - core: always loaded regardless of profile
+ * - standard: loaded for most profiles, skipped for lightweight ones
+ * - conditional: only loaded when keyword-matched or profile explicitly includes
+ */
+
+export type ContextProfile = 'dm' | 'cron' | 'heartbeat' | 'workspace' | 'autonomous' | 'continuation';
+
+export interface ProfileConfig {
+  /** Max conversations to include */
+  maxConversations: number;
+  /** Topic memory budget in chars */
+  topicBudget: number;
+  /** Whether to load deep context (threads, inner-voice, conversation-threads, trail) */
+  loadDeepContext: boolean;
+  /** Extra keywords to inject into contextHint for section matching */
+  extraHints: string[];
+  /** Sections to force-skip even if keyword-matched */
+  skipSections: Set<string>;
+}
+
+const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
+  dm: {
+    maxConversations: 15,
+    topicBudget: 6000,
+    loadDeepContext: true,
+    extraHints: [],
+    skipSections: new Set(),
+  },
+  heartbeat: {
+    maxConversations: 3,
+    topicBudget: 2000,
+    loadDeepContext: false,
+    extraHints: ['task', 'schedule', 'heartbeat'],
+    skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'commitments']),
+  },
+  cron: {
+    maxConversations: 3,
+    topicBudget: 2000,
+    loadDeepContext: false,
+    extraHints: ['cron', 'schedule', 'task'],
+    skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'commitments']),
+  },
+  workspace: {
+    maxConversations: 5,
+    topicBudget: 3000,
+    loadDeepContext: false,
+    extraHints: ['workspace', 'git', 'file', 'change'],
+    skipSections: new Set(['temporal', 'achievements', 'commitments']),
+  },
+  autonomous: {
+    maxConversations: 8,
+    topicBudget: 5000,
+    loadDeepContext: true,
+    extraHints: [],
+    skipSections: new Set(),
+  },
+  continuation: {
+    maxConversations: 3,
+    topicBudget: 2000,
+    loadDeepContext: false,
+    extraHints: [],
+    skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'stale-tasks']),
+  },
+};
+
+/**
+ * Classify a trigger string into a context profile.
+ * Pure logic — no LLM needed.
+ */
+export function classifyContextProfile(trigger: string | undefined): ContextProfile {
+  if (!trigger) return 'autonomous';
+  const t = trigger.toLowerCase();
+
+  // DM triggers — load everything
+  if (t.startsWith('telegram-user') || t.startsWith('room') || t.startsWith('chat')
+    || t.startsWith('direct-message') || t.startsWith('foreground')) return 'dm';
+
+  // Cron triggers
+  if (t.startsWith('cron:') || t.startsWith('cron(')) return 'cron';
+
+  // Heartbeat
+  if (t.includes('heartbeat')) return 'heartbeat';
+
+  // Workspace changes
+  if (t.startsWith('workspace') || t.startsWith('file-change') || t.startsWith('git-')) return 'workspace';
+
+  // Continuation from previous cycle
+  if (t.startsWith('continuation') || t === 'now') return 'continuation';
+
+  return 'autonomous';
+}
+
+/**
+ * Get the profile config for a trigger.
+ */
+export function getContextProfileConfig(trigger: string | undefined): ProfileConfig {
+  const profile = classifyContextProfile(trigger);
+  return CONTEXT_PROFILES[profile];
+}
+
+/**
+ * Check if a section should be loaded for the current profile.
+ * Returns false if the profile explicitly skips this section.
+ */
+export function shouldLoadForProfile(section: string, trigger: string | undefined): boolean {
+  const profile = classifyContextProfile(trigger);
+  const config = CONTEXT_PROFILES[profile];
+  return !config.skipSections.has(section);
+}
+
+// =============================================================================
+// R7: oMLX Keyword Extraction
+// =============================================================================
+
+/** Cache for extracted keywords — one per cycle, keyed by input hash */
+let keywordCache: { hash: string; keywords: string[] } | null = null;
+
+/**
+ * Extract keywords from trigger/inbox text using oMLX 0.8B.
+ * Returns extracted keywords or falls back to simple word extraction.
+ * Results are cached within the same cycle (same input = same output).
+ */
+export function extractKeywordsWithOMLX(text: string): string[] {
+  // Short text: just split words
+  if (text.length < 20) {
+    return text.toLowerCase().split(/\s+/).filter(w => w.length >= 2);
+  }
+
+  // Check cache
+  const hash = createHash('md5').update(text).digest('hex').slice(0, 8);
+  if (keywordCache?.hash === hash) return keywordCache.keywords;
+
+  // Cap input to 400 chars (0.8B reliable range)
+  const input = text.slice(0, 400);
+
+  try {
+    const prompt = `Extract 3-5 important keywords from this text. Output ONLY the keywords separated by commas, nothing else.
+
+Text: ${input}
+
+Keywords:`;
+
+    const result = callLocalFast(prompt, 64, 5_000);
+    const keywords = result.trim().toLowerCase()
+      .split(/[,，\s]+/)
+      .map(k => k.trim().replace(/[^a-z0-9\u4e00-\u9fff-]/g, ''))
+      .filter(k => k.length >= 2)
+      .slice(0, 8);
+
+    if (keywords.length > 0) {
+      keywordCache = { hash, keywords };
+      stats.totalSaved += 500; // rough estimate of better section matching savings
+      eventBus.emit('log:info', {
+        message: `[omlx-gate] R7: Extracted ${keywords.length} keywords: ${keywords.join(', ')}`,
+      });
+      return keywords;
+    }
+  } catch {
+    // Fall through to simple extraction
+  }
+
+  // Fallback: simple word extraction
+  const fallback = input.toLowerCase()
+    .split(/[\s,。！？!?.，]+/)
+    .filter(w => w.length >= 2)
+    .slice(0, 5);
+  keywordCache = { hash, keywords: fallback };
+  return fallback;
+}
+
+// =============================================================================
+// R8: Response Cache
+// =============================================================================
+
+interface CachedResponse {
+  response: string;
+  timestamp: number;
+}
+
+/** Context hash → cached response. Only for non-DM triggers. */
+const responseCache = new Map<string, CachedResponse>();
+
+/** Cache TTL: 5 minutes */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** Max cache entries */
+const CACHE_MAX_SIZE = 20;
+
+/**
+ * Check if we have a cached response for this context.
+ * Only caches non-DM cycles (cron, heartbeat, autonomous).
+ */
+export function getCachedResponse(contextHash: string, trigger: string | undefined): string | null {
+  // Never cache DM responses
+  const profile = classifyContextProfile(trigger);
+  if (profile === 'dm') return null;
+
+  const cached = responseCache.get(contextHash);
+  if (!cached) return null;
+
+  // Check TTL
+  if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+    responseCache.delete(contextHash);
+    return null;
+  }
+
+  stats.totalSaved += cached.response.length;
+  eventBus.emit('log:info', {
+    message: `[omlx-gate] R8: Cache hit for context hash ${contextHash.slice(0, 8)}, saved ~${Math.round(cached.response.length / 1000)}K`,
+  });
+  return cached.response;
+}
+
+/**
+ * Store a response in cache for future identical contexts.
+ */
+export function cacheResponse(contextHash: string, response: string, trigger: string | undefined): void {
+  const profile = classifyContextProfile(trigger);
+  if (profile === 'dm') return;
+
+  // Evict old entries if at capacity
+  if (responseCache.size >= CACHE_MAX_SIZE) {
+    const oldest = [...responseCache.entries()]
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
+    if (oldest) responseCache.delete(oldest[0]);
+  }
+
+  responseCache.set(contextHash, { response, timestamp: Date.now() });
+}
+
+/**
+ * Generate a hash for the full context (for cache keying).
+ */
+export function hashContext(context: string): string {
+  return createHash('md5').update(context).digest('hex');
+}
+
+// =============================================================================
 // Stats & Observability
 // =============================================================================
 
@@ -386,8 +641,19 @@ function callLocalLLM(model: string, prompt: string, maxTokens: number, timeoutM
     stdout = execFileSync('curl', args, opts);
   } catch {
     // Retry once — oMLX often responds fast on second attempt after cold-start timeout
-    stdout = execFileSync('curl', args, opts);
+    try {
+      stdout = execFileSync('curl', args, opts);
+    } catch {
+      consecutiveTimeouts++;
+      // Alert on 3 consecutive timeouts, throttle to once per 10 minutes
+      if (consecutiveTimeouts >= 3 && Date.now() - lastHealthAlertTs > 600_000) {
+        lastHealthAlertTs = Date.now();
+        notifyTelegram(`⚠️ oMLX health: ${consecutiveTimeouts} consecutive timeouts on ${model}`).catch(() => {});
+      }
+      throw new Error(`oMLX timeout (consecutive: ${consecutiveTimeouts})`);
+    }
   }
+  consecutiveTimeouts = 0; // reset on success
   const data = JSON.parse(stdout);
   return data.choices?.[0]?.message?.content ?? '';
 }

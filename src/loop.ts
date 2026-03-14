@@ -90,7 +90,7 @@ import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
-import { hasContextChanged, formatGateStats } from './omlx-gate.js';
+import { hasContextChanged, formatGateStats, hashContext, cacheResponse } from './omlx-gate.js';
 
 // =============================================================================
 // Types
@@ -1118,6 +1118,9 @@ export class AgentLoop {
         return null;
       }
 
+      // oMLX Gate R8: Compute context hash for response caching (store after Claude call)
+      const contextHash = hashContext(context);
+
       // Mesh outputs from Specialist instances (Cognitive Mesh Phase 3b)
       const meshSection = isEnabled('cognitive-mesh') ? buildMeshCompletedSection() : '';
 
@@ -1363,6 +1366,11 @@ export class AgentLoop {
         eventBus.emit('action:loop', { event: 'cycle.preempted', cycleCount: this.cycleCount });
         // Don't clear checkpoint — leave it for crash recovery
         return null;
+      }
+
+      // oMLX Gate R8: Store response in cache for future identical contexts
+      if (!preempted && response) {
+        cacheResponse(contextHash, response, currentTriggerReason ?? undefined);
       }
 
       // Busy recovery: Claude was held by another call (e.g. cron task).

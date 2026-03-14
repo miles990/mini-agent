@@ -56,7 +56,7 @@ import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
-import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast } from './omlx-gate.js';
+import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 
 // =============================================================================
@@ -1394,7 +1394,7 @@ export class InstanceMemory {
 Context: ${contextPreview}
 Queries:`;
 
-      const raw = callLocalFast(prompt, 64, 5_000);
+      const raw = callLocalFast(prompt, 64, 8_000);
       const cleaned = raw.trim().replace(/^queries:\s*/i, '');
       // Validate: must have actual content, not just punctuation
       if (cleaned.length >= 3 && /[a-z\u4e00-\u9fff]/i.test(cleaned)) {
@@ -1608,21 +1608,17 @@ Queries:`;
       return this.buildMinimalContext();
     }
 
-    // ── Trigger-Aware Context Budgeting ──
-    // Different triggers need different context emphasis.
-    // heartbeat cycles don't need 10 conversations; continuation cycles don't need 6K topic memory.
-    const triggerBase = options?.trigger?.split(/[:(]/)[0]?.trim() ?? '';
-    const triggerBudgets: Record<string, { conversations: number; topicMemory: number; extraHints: string[] }> = {
-      heartbeat:     { conversations: 5,  topicMemory: 4000, extraHints: ['task', 'schedule', 'heartbeat'] },
-      workspace:     { conversations: 5,  topicMemory: 4000, extraHints: ['workspace', 'git', 'file', 'change'] },
-      cron:          { conversations: 3,  topicMemory: 3000, extraHints: ['cron', 'schedule', 'task'] },
-      continuation:  { conversations: 3,  topicMemory: 2000, extraHints: [] },
-      startup:       { conversations: 10, topicMemory: 6000, extraHints: [] },
+    // ── R5: Context Profile System ──
+    // Unified profile-based budgeting replaces scattered triggerBudgets.
+    // Each profile defines conversations, topic budget, deep context, and section rules.
+    const contextProfile = classifyContextProfile(options?.trigger);
+    const profileConfig = getContextProfileConfig(options?.trigger);
+    // Backward compat: tBudget-like interface from profile
+    const tBudget = contextProfile === 'dm' ? null : {
+      conversations: profileConfig.maxConversations,
+      topicMemory: profileConfig.topicBudget,
+      extraHints: profileConfig.extraHints,
     };
-    // Trigger-aware budgeting: apply to ALL modes (not just focused).
-    // DM triggers (telegram/room/chat) are NOT in the table → get null → full loading.
-    // Non-DM triggers (heartbeat/workspace/cron) get lighter budgets → smaller context.
-    const tBudget = triggerBudgets[triggerBase] ?? null;
 
     const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
@@ -1646,14 +1642,25 @@ Queries:`;
       })
       .join('\n');
 
-    // 從最近對話提取上下文關鍵字 + trigger-derived hints
+    // 從最近對話提取上下文關鍵字 + trigger-derived hints + R7 oMLX keywords
     const recentHint = this.conversationBuffer
       .slice(-3)
       .filter(c => c.role !== 'assistant')
       .map(c => c.content.toLowerCase())
       .join(' ');
     const triggerHints = tBudget?.extraHints?.join(' ') ?? '';
-    const contextHint = [hint, recentHint, triggerHints].filter(Boolean).join(' ');
+
+    // R7: Use oMLX 0.8B to extract keywords from inbox/trigger for better section matching
+    let omlxKeywords = '';
+    if (recentHint.length > 20 || (options?.trigger && options.trigger.length > 20)) {
+      try {
+        const extractInput = [recentHint.slice(0, 200), options?.trigger ?? ''].filter(Boolean).join(' ');
+        const keywords = extractKeywordsWithOMLX(extractInput);
+        omlxKeywords = keywords.join(' ');
+      } catch { /* fail-open: no extra keywords */ }
+    }
+
+    const contextHint = [hint, recentHint, triggerHints, omlxKeywords].filter(Boolean).join(' ');
 
     // Server 環境資訊
     const now = new Date();
@@ -1700,8 +1707,8 @@ Queries:`;
       }
     }
 
-    // ── Temporal Sense（時間感）── skip in light mode, auto-demotion aware
-    if (!isLight && shouldLoad('temporal')) {
+    // ── Temporal Sense（時間感）── skip in light mode, profile-aware, auto-demotion aware
+    if (!isLight && shouldLoadForProfile('temporal', options?.trigger) && shouldLoad('temporal')) {
       const temporalCtx = await buildTemporalSection();
       if (temporalCtx) {
         sections.push(`<temporal>\n${temporalCtx}\n</temporal>`);
@@ -1841,8 +1848,8 @@ Queries:`;
       }
     }
 
-    // ── Trail（skip in light mode, auto-demotion aware）──
-    if (!isLight && shouldLoad('trail')) {
+    // ── Trail（skip in light mode, profile + auto-demotion aware）──
+    if (!isLight && shouldLoadForProfile('trail', options?.trigger) && shouldLoad('trail')) {
       const trailCtx = readTrailSection();
       if (trailCtx) {
         sections.push(`<trail>\n${trailCtx}\n</trail>`);
@@ -1867,8 +1874,8 @@ Queries:`;
       if (warning) sections.push(`<structural-health>\n${warning}\n</structural-health>`);
     }
 
-    // Route Efficiency（skip in light mode — slime mold nutrient path metrics, auto-demotion aware）
-    if (!isLight && shouldLoad('route-efficiency')) {
+    // Route Efficiency（skip in light mode — slime mold nutrient path metrics, profile + auto-demotion aware）
+    if (!isLight && shouldLoadForProfile('route-efficiency', options?.trigger) && shouldLoad('route-efficiency')) {
       try {
         const { buildRouteSection } = await import('./route-tracker.js');
         const routeCtx = buildRouteSection();
@@ -1876,8 +1883,8 @@ Queries:`;
       } catch { /* ignore */ }
     }
 
-    // Stale Tasks（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('stale-tasks')) {
+    // Stale Tasks（skip in light mode, profile + auto-demotion aware）
+    if (!isLight && shouldLoadForProfile('stale-tasks', options?.trigger) && shouldLoad('stale-tasks')) {
       const staleWarnings = readStaleTaskWarnings();
       if (staleWarnings.length > 0) {
         const staleLines = staleWarnings.map(w =>
@@ -1887,8 +1894,8 @@ Queries:`;
       }
     }
 
-    // Achievements + Output Gate（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('achievements')) {
+    // Achievements + Output Gate（skip in light mode, profile + auto-demotion aware）
+    if (!isLight && shouldLoadForProfile('achievements', options?.trigger) && shouldLoad('achievements')) {
       try {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();
@@ -1905,8 +1912,8 @@ Queries:`;
       } catch { /* ignore */ }
     }
 
-    // Commitment Binding — conditional load (promises/commitments)
-    if (shouldLoad('commitments')) {
+    // Commitment Binding — conditional load (promises/commitments), profile-aware
+    if (shouldLoadForProfile('commitments', options?.trigger) && shouldLoad('commitments')) {
       try {
         const { buildCommitmentsContext } = await import('./commitments.js');
         const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
@@ -2026,8 +2033,8 @@ Queries:`;
       }
     }
 
-    // ── Threads（skip in light mode）──
-    if (!isLight) {
+    // ── Threads（skip in light mode + non-deep profiles）──
+    if (!isLight && profileConfig.loadDeepContext) {
       const threadsCtx = buildThreadsContextSection();
       if (threadsCtx) {
         sections.push(`<threads>\n${threadsCtx}\n</threads>`);
@@ -2045,8 +2052,8 @@ Queries:`;
       }
     } catch { /* ignore */ }
 
-    // ── Inner Voice（skip in light mode）──
-    if (!isLight) {
+    // ── Inner Voice（skip in light mode + non-deep profiles）──
+    if (!isLight && profileConfig.loadDeepContext) {
       const unexpressedImpulses = await this.getUnexpressedImpulses();
       const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
       if (innerVoiceCtx) {
@@ -2054,8 +2061,8 @@ Queries:`;
       }
     }
 
-    // ── Conversation Threads（skip in light mode）──
-    if (!isLight) {
+    // ── Conversation Threads（skip in light mode + non-deep profiles）──
+    if (!isLight && profileConfig.loadDeepContext) {
       const convThreads = await this.getConversationThreads();
       const activeConvThreads = convThreads
         .filter(t => !t.resolvedAt)
@@ -2138,26 +2145,22 @@ Queries:`;
       const keywordMap = await loadTopicKeywordMap(this.memoryDir);
 
       const loadedTopics: string[] = [];
-      const INDEX_EXTRA_TOPIC_CAP = 2; // Max extra topics recommended by memory-index (not keyword-matched)
-      let indexExtraCount = 0;
+      // R6: Removed INDEX_EXTRA_TOPIC_CAP — FTS5-backed index provides scored results,
+      // budget control via TOPIC_MEMORY_BUDGET is sufficient to prevent bloat.
       for (const topic of topics) {
         const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
 
         // Match: keyword found AND not a negative-only match
-        // Also match if index identifies this topic as relevant (Phase 2 integration)
+        // Also match if index identifies this topic as relevant (R6: FTS5 + relational matching)
         const isKeywordMatch = keywords.some(k => {
           if (!contextHint.includes(k)) return false;
           // If this keyword is in negatives, require additional keyword match
           if (negatives.includes(k)) return keywords.some(k2 => k2 !== k && contextHint.includes(k2));
           return true;
         });
-        // Memory-index boosting: cap extra topics to prevent context bloat
+        // R6: Memory-index boosting — no hard cap, rely on budget control
         const isIndexMatch = !isKeywordMatch && (indexRelevantTopics?.has(topic) ?? false);
-        if (isIndexMatch && indexExtraCount >= INDEX_EXTRA_TOPIC_CAP) {
-          continue; // Skip — already at cap for index-only recommendations
-        }
         const isDirectMatch = isKeywordMatch || isIndexMatch;
-        if (isIndexMatch && isDirectMatch) indexExtraCount++;
 
         const heat = topicHeat[topic] ?? 0;
 

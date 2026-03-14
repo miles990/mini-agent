@@ -922,9 +922,27 @@ export async function getRelevantTopics(
   const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 2);
   if (tokens.length === 0) return [];
 
-  // Search across all entry types (remember + direction-change + understanding)
-  const entries = queryMemoryIndexSync(memoryDir, { limit: 500 });
   const counts = new Map<string, number>();
+
+  // Layer 1: FTS5 search (if available) — more accurate than token matching
+  try {
+    const { searchMemoryEntries, isIndexReady } = await import('./search.js');
+    if (isIndexReady()) {
+      // Use FTS5 for semantic search — extracts meaningful keywords automatically
+      const ftsResults = searchMemoryEntries(memoryDir, query, 30);
+      for (const result of ftsResults) {
+        // Extract topic name from source path (e.g. "topics/agent-architecture.md" → "agent-architecture")
+        const topicMatch = result.source.match(/topics\/([^.]+)\.md$/);
+        if (topicMatch) {
+          // FTS5 results are ranked by relevance — weight by position
+          counts.set(topicMatch[1], (counts.get(topicMatch[1]) ?? 0) + 2);
+        }
+      }
+    }
+  } catch { /* FTS5 not available — fall through to index matching */ }
+
+  // Layer 2: Memory index matching (existing logic, enhanced)
+  const entries = queryMemoryIndexSync(memoryDir, { limit: 500 });
 
   for (const e of entries) {
     const summary = (e.summary ?? '').toLowerCase();
@@ -959,4 +977,65 @@ export async function getRelevantTopics(
   return [...counts.entries()]
     .map(([topic, matchCount]) => ({ topic, matchCount }))
     .sort((a, b) => b.matchCount - a.matchCount);
+}
+
+/**
+ * R6: Get relevant entries (not just topics) for fine-grained context loading.
+ * Returns individual memory entries that match the query, with source info.
+ * This enables entry-level loading instead of loading entire topic files.
+ */
+export async function getRelevantEntries(
+  memoryDir: string,
+  query: string,
+  limit = 15,
+): Promise<Array<{ topic: string; summary: string; score: number }>> {
+  const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 2);
+  if (tokens.length === 0) return [];
+
+  const results: Array<{ topic: string; summary: string; score: number }> = [];
+
+  // FTS5 search for content-level matching
+  try {
+    const { searchMemoryEntries, isIndexReady } = await import('./search.js');
+    if (isIndexReady()) {
+      const ftsResults = searchMemoryEntries(memoryDir, query, limit);
+      for (const r of ftsResults) {
+        const topicMatch = r.source.match(/topics\/([^.]+)\.md$/);
+        if (topicMatch) {
+          results.push({
+            topic: topicMatch[1],
+            summary: r.content.slice(0, 200),
+            score: 2,
+          });
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Memory index entries
+  const entries = queryMemoryIndexSync(memoryDir, { limit: 200 });
+  for (const e of entries) {
+    if (!e.topic || !e.summary) continue;
+    const summary = e.summary.toLowerCase();
+    const matchCount = tokens.filter(t => summary.includes(t)).length;
+    if (matchCount > 0) {
+      results.push({
+        topic: e.topic,
+        summary: e.summary,
+        score: matchCount,
+      });
+    }
+  }
+
+  // Deduplicate by topic+summary prefix, sort by score
+  const seen = new Set<string>();
+  return results
+    .sort((a, b) => b.score - a.score)
+    .filter(r => {
+      const key = `${r.topic}:${r.summary.slice(0, 50)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
 }
