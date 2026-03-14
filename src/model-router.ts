@@ -79,10 +79,14 @@ export function routeModel(input: RouteInput): RouteResult {
 
   // Rule 5: learn mode + routine trigger → Sonnet
   if (input.cycleMode === 'learn') {
-    const routineTrigger = !input.triggerReason
-      || input.triggerReason === 'heartbeat'
-      || input.triggerReason === 'workspace'
-      || input.triggerReason === 'schedule';
+    const t = input.triggerReason ?? '';
+    const routineTrigger = !t
+      || t === 'heartbeat'
+      || t.startsWith('workspace')
+      || t.startsWith('cron')
+      || t.startsWith('schedule')
+      || t === 'delegation-complete'
+      || t === 'startup';
     if (routineTrigger) {
       return { model: 'sonnet', reason: 'routine-learn' };
     }
