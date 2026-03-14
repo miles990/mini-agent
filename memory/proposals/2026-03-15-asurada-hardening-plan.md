@@ -1,90 +1,94 @@
-# Proposal: Asurada Hardening — 從「能跑」到「好用」
+# Asurada Hardening Plan — 從 Beta 到可信賴的開源框架
 
 **Date**: 2026-03-15
 **Author**: Kuro
-**Effort**: Medium (6 phases, each 30-60 min)
-**Triggered by**: Alex #169 要求全面檢視 Asurada
+**Status**: approved (self-approved, L2)
+**Effort**: Medium (4 batches, each 30-60 min)
+**Origin**: Alex #169 要求全面審視 + 定計劃 + 實作
 
-## 背景
+## 審視方法
 
-全面讀完 Asurada codebase（72 files, 11.6K lines）後的判斷：
+三條觸手並行掃描：(1) src 結構 95 files ~12,500 LOC (2) tests + docs 品質 (3) examples + wizard UX。
 
-**好消息**：runtime.ts 的接線比我預期的完整。ContextBuilder → Loop、actions → Memory/Notifications/Lanes、FeedbackLoops after cycle — 全部都接好了。Typecheck clean，tests pass。
+## 審視結論
 
-**真正的問題不是「沒接好」，是「接好了但不夠強韌」**：
-- LLM 失敗時無限 retry（無 circuit breaker）
-- 使用者訊息不存 ConversationStore（對話歷史是單向的）
-- ContextOptimizer 收集數據但 buildPrompt 沒用它
-- `schedule next="now"` 不支持
-- 無 E2E 整合測試
-- Doctor 命令只跑基本檢查
+**好的（不需要改）**：
+- 架構乾淨，模組化，零 TODO/FIXME
+- 所有核心功能已實作（OODA loop, memory, perception, multi-lane, model router）
+- Wizard 完整，多語言，auto-detection 好用
+- 3 個 examples 全部正確可執行
+- Config 設計合理，sensible defaults
+- 12,500 LOC 結構清晰（loop 2.4K > setup 1.5K > memory 1.5K > perception 921 > api 796 > config 777）
 
-## Phase 1: Circuit Breaker（安全）
+**需要改的（按衝擊力排序）**：
 
-**問題**：AgentLoop 的 LLM 失敗只做 2x backoff retry，永不停止。flaky LLM = 無限重試 = 吃光 API credits。
+## Batch 1: 誠實 + CI — 信任基礎（30 min）
 
-**改動**：`src/loop/agent-loop.ts`
-- 加 `maxConsecutiveFailures`（default 5）
-- 連續失敗超過上限 → emit `action:cycle` event `circuit-open` + 暫停 loop
-- Cooldown 後自動 reset（default 15min）
-- Trigger event 可 override circuit breaker（人類訊息永遠通過）
+| # | 問題 | 說明 |
+|---|------|------|
+| 1a | README 虛假承諾 | 宣稱 Discord/Slack/email notification 但只有 Console/Telegram。第一個發現的落差會摧毀信任 |
+| 1b | 無 CI/CD | 開源專案沒有 GitHub Actions = 業餘感。加 typecheck + test workflow |
+| 1c | Task API 文件缺失 | 4 個 endpoint 實作了但 api-reference.md 沒寫 |
 
-## Phase 2: Incoming Message Storage（數據完整性）
+改動：
+- README 移除未實作的 notification 承諾
+- 加 `.github/workflows/ci.yml`
+- 補 `docs/api-reference.md` Task section
 
-**問題**：`defaultOnAction` 存 agent 回覆到 ConversationStore（line 449），但使用者的訊息不存。→ 對話歷史只有 agent 這邊。
+## Batch 2: Webhook Provider — 通用通知（30 min）
 
-**改動**：`src/runtime.ts` 的 `defaultBuildPrompt`
-- 在 build prompt 時，如果 trigger 包含 message data，先 `conversations.append()` 存入
-- 確保不重複存（用 message ID dedup）
+| # | 功能 | 說明 |
+|---|------|------|
+| 2a | Webhook provider | 比逐一做 Discord/Slack/email 更通用。POST JSON to configurable URL |
 
-## Phase 3: ContextOptimizer → buildPrompt 整合（智能）
+改動：
+- `src/notification/providers/webhook.ts`
+- 更新 config types + runtime registration
+- README 更新
+- 測試
 
-**問題**：ContextOptimizer 追蹤哪些 perception section 被引用/降級，但 buildPrompt 組裝 prompt 時完全不看它。= 收集數據但不用。
+## Batch 3: 關鍵路徑測試（60 min）
 
-**改動**：`src/runtime.ts` 的 `defaultBuildPrompt`
-- 讀 `contextOptimizer.getDemotedSections()`
-- 跳過 demoted perception sections
-- 這直接省 tokens + 提高 context 相關性
+| # | 問題 | 說明 |
+|---|------|------|
+| 3a | LLM Runners 無測試 | 4 個 runner 全沒測試 — 關鍵整合點 |
+| 3b | FTS5 Search 無測試 | 記憶搜尋是核心功能 |
+| 3c | Perception Manager 無測試 | Plugin lifecycle, circuit breaking 無覆蓋 |
 
-## Phase 4: Schedule "now"（UX）
+改動：
+- Runner mock integration tests（每個 type 至少 1 個 test）
+- Search test（index + query + fallback）
+- Perception executor test（plugin execution + timeout + circuit break）
 
-**問題**：mini-agent 支持 `<kuro:schedule next="now" />`，Asurada 的 `parseDuration` 不認識 "now"。
+## Batch 4: 文件 + UX 打磨（30 min）
 
-**改動**：`src/loop/action-parser.ts`
-- `parseDuration("now")` → return minInterval（或 0，由 caller clamp）
-- 加 test case
-
-## Phase 5: Integration Test（品質保證）
-
-**問題**：無 E2E 測試驗證完整 cycle。
-
-**改動**：新增 `src/loop/integration.test.ts`
-- Mock CycleRunner（return 固定 response with action tags）
-- createAgentFromConfig → start → trigger → verify:
-  - Memory was written（check MEMORY.md）
-  - Notification was sent（mock provider）
-  - ConversationStore has entries
-- stop → verify clean shutdown
-
-## Phase 6: Enhanced Doctor（可觀測性）
-
-**問題**：`asurada doctor` 只跑 `runDiagnostics()`，不檢查 LLM 連通性和記憶完整性。
-
-**改動**：`src/setup/detect.ts` 加 diagnostics
-- LLM connectivity check（try runner.run with simple prompt）
-- Memory directory existence + SOUL.md check
-- Plugin execution health（dry run）
-- Config validation（already exists, just surface in doctor output）
+| # | 問題 | 說明 |
+|---|------|------|
+| 4a | 無 Quickstart guide | README 詳細但缺「5 分鐘上手」快速路徑 |
+| 4b | Model Router 無專文 | 進階功能沒有獨立文件，使用者不知道存在 |
+| 4c | Wizard Telegram retry | validation 失敗沒有 retry prompt |
+| 4d | Circuit breaker 補強 | AgentLoop LLM 失敗 retry 無上限 |
 
 ## 不做的事
 
-- Obsidian polish（nice-to-have，不是 launch blocker）
-- Task board UI（post-launch）
-- 更多 notification providers（使用者可自己實作 interface）
-- Multi-dimensional memory index（future phase）
-- Log rotation（Logger 已有 daily rotation by date，size-based 可以之後加）
+| 砍掉的 | 為什麼 |
+|--------|--------|
+| Discord/Slack/email 各別 provider | Webhook 更通用，一個覆蓋所有 |
+| Windows process management | 使用者基數太小，post-launch |
+| Obsidian polish | Nice-to-have，不影響核心 |
+| Multi-dimensional memory index | Future phase |
+| Log rotation by size | Daily rotation 已有，夠用 |
 
-## 執行順序
+## 驗證標準
 
-1 → 2 → 3 → 4 → 5 → 6，每個 phase 獨立 commit。
-Phase 4 最小（5 min），Phase 5 最大（可能 45 min）。
+每個 batch 完成後：
+- `pnpm typecheck` 通過
+- `pnpm test` 全通過（含新增測試）
+- 新增功能有對應測試
+- `git diff` 逐行確認
+
+## 我的判斷
+
+Asurada 的核心架構是好的——1,400+ cycle 的實戰經驗不是白來的。問題不在功能缺失，在於**包裝不夠誠實**（README 承諾 > 實際交付）和**安全網不夠**（29% file coverage，且關鍵路徑正好在未覆蓋區）。
+
+Batch 1 解決信任問題（最快、最高槓桿），Batch 2 補功能缺口，Batch 3 建安全網，Batch 4 打磨細節。做完這四個 batch，Asurada 就從「能跑的 beta」變成「可以信任的框架」。
