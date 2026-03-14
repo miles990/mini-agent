@@ -17,6 +17,7 @@ import { diagLog } from './utils.js';
 import { notifyTelegram, notify, flushSummary } from './telegram.js';
 import type { CronTask } from './types.js';
 import { eventBus } from './event-bus.js';
+import { cronGate } from './omlx-gate.js';
 
 interface ScheduledCronTask {
   task: CronTask;
@@ -272,6 +273,14 @@ export async function drainCronQueue(): Promise<void> {
 
   logger.logCron('cron-task', item.task.task.slice(0, 100), item.task.schedule);
   logger.logBehavior('system', 'cron.execute', `[${item.task.schedule}] ${item.task.task.slice(0, 100)} (attempt ${item.retries + 1})`);
+
+  // oMLX Gate R3: skip cron tasks that don't need Claude
+  const gateResult = cronGate(item.task.task);
+  if (gateResult === 'skip') {
+    slog('CRON', `⏭ Skipped by oMLX gate: "${item.task.task.slice(0, 60)}"`);
+    logger.logBehavior('system', 'cron.gate-skip', `[omlx-gate] ${item.task.task.slice(0, 100)}`);
+    return;
+  }
 
   try {
     const context = await buildContext();

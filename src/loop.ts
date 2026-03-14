@@ -89,6 +89,7 @@ import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
+import { hasContextChanged, formatGateStats } from './omlx-gate.js';
 
 // =============================================================================
 // Types
@@ -124,6 +125,7 @@ export interface LoopStatus {
   currentInterval: number;
   mode: 'task' | 'autonomous' | 'idle';
   pendingPriority?: { reason: string; waitingMs: number };
+  omlxGate?: string;
 }
 
 const DEFAULT_CONFIG: AgentLoopConfig = {
@@ -686,6 +688,7 @@ export class AgentLoop {
   }
 
   getStatus(): LoopStatus {
+    const gateStatsStr = formatGateStats();
     return {
       running: this.running,
       paused: this.paused,
@@ -698,6 +701,7 @@ export class AgentLoop {
       ...(this.pendingPriority ? {
         pendingPriority: { reason: this.pendingPriority.reason, waitingMs: Date.now() - this.pendingPriority.arrivedAt },
       } : {}),
+      ...(gateStatsStr ? { omlxGate: gateStatsStr } : {}),
     };
   }
 
@@ -1103,6 +1107,15 @@ export class AgentLoop {
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
+
+      // oMLX Gate R4: Context delta detection — skip autonomous cycles with unchanged context
+      if (!isDirectMessage && !isCronTrigger && !hasContextChanged(context)) {
+        this.currentMode = 'idle';
+        this.adjustInterval(false);
+        slog('LOOP', `[omlx-gate] R4: Context unchanged, skipping cycle ${this.cycleCount}`);
+        eventBus.emit('action:loop', { event: 'context-delta-skip', cycleCount: this.cycleCount });
+        return null;
+      }
 
       // Mesh outputs from Specialist instances (Cognitive Mesh Phase 3b)
       const meshSection = isEnabled('cognitive-mesh') ? buildMeshCompletedSection() : '';

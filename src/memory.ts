@@ -56,6 +56,7 @@ import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
+import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap } from './omlx-gate.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -155,11 +156,15 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
   // 無 hint 且無 cycleMode → 全部載入（向後相容，CLI 模式）
   if (!hint && !cycleMode) return formatSkillsPrompt(skillsCache);
 
+  // oMLX Gate R2: get exclude set for current mode
+  const excludeSet = getSkillsExcludeSet(cycleMode, (hint ?? '').toLowerCase());
+
   // cycleMode 優先：用 skill 自宣告的 modes 篩選
   if (cycleMode) {
     const selected = skillsCache.filter(skill => {
       // skill 沒宣告 modes → 不在 mode 篩選中載入（等 keyword fallback）
       if (skill.modes.length === 0) return false;
+      if (excludeSet.has(skill.name)) return false; // R2: gate filter
       return skill.modes.includes(cycleMode);
     });
 
@@ -172,7 +177,8 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
   const lowerHint = (hint ?? '').toLowerCase();
   const selected = skillsCache.filter(skill => {
     // skill 沒宣告 keywords → 總是載入（保守策略）
-    if (skill.keywords.length === 0) return true;
+    if (skill.keywords.length === 0) return !excludeSet.has(skill.name); // R2: gate filter
+    if (excludeSet.has(skill.name)) return false; // R2: gate filter
     return skill.keywords.some(k => lowerHint.includes(k));
   });
 
@@ -1921,22 +1927,39 @@ export class InstanceMemory {
         } else {
           const cachedResults = perceptionStreams.getCachedResults();
           if (cachedResults.length > 0) {
-            // Plugin no-change 壓縮：unchanged sections 合併為一行摘要
+            const cycleNum = options?.cycleCount ?? 0;
+            // Plugin no-change 壓縮 + R1 low-citation pruning
             const changedResults: typeof cachedResults = [];
             const unchangedNames: string[] = [];
+            const prunedNames: string[] = [];
             for (const r of cachedResults) {
+              // R1: prune low-citation sections entirely
+              if (shouldPruneSection(r.name, cycleNum)) {
+                prunedNames.push(r.name);
+                continue;
+              }
               if (!perceptionStreams.hasChangedSinceLastBuild(r.name)) {
                 unchangedNames.push(r.name);
               } else {
                 changedResults.push(r);
               }
             }
-            // 只渲染有變化的 sections
-            const customCtx = formatPerceptionResults(changedResults, capOverrides);
+            // R1: apply reduced output caps for non-high-citation sections
+            const effectiveCaps = { ...capOverrides };
+            for (const r of changedResults) {
+              const defaultCap = capOverrides[r.name] ?? 4000;
+              effectiveCaps[r.name] = getEffectiveOutputCap(r.name, defaultCap);
+            }
+            // 只渲染有變化的 sections（with R1 reduced caps）
+            const customCtx = formatPerceptionResults(changedResults, effectiveCaps);
             if (customCtx) sections.push(customCtx);
             // 未變化的 sections：一行列表取代多個 XML 區塊
             if (unchangedNames.length > 0) {
               sections.push(`<unchanged-perceptions>\n${unchangedNames.join(', ')}\n</unchanged-perceptions>`);
+            }
+            // R1: pruned sections listed for transparency
+            if (prunedNames.length > 0) {
+              sections.push(`<pruned-perceptions reason="low-citation">\n${prunedNames.join(', ')}\n</pruned-perceptions>`);
             }
           }
         }
