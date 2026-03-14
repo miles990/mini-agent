@@ -383,3 +383,14 @@ ref:xskill-continual-learning
 更深的問題：他們把 drift 純視為 failure，但 personal agent 的某些 drift = 成長。Immutable ledger reconciliation 會阻止有機演化。SSGM = Gate governance，但好的記憶可能需要 Dance（共演化）> Gate（checkpoint 驗證）。
 
 ref:ssgm-memory-governance
+- [2026-03-14] [2026-03-15] RAG Document Poisoning 實證（aminrj.com, HN 153pts）— 三份假文件注入 ChromaDB 可達 95% 攻擊成功率。攻擊不需 ML 專業，只需 knowledge base write access + 權威語言框架（CFO correction、regulatory notice、board minutes）。防禦效果：embedding anomaly detection 最強（95%→20%），output monitoring 弱（60%），五層全開仍有 10% residual risk。核心原則：「正確的防禦層是 ingestion，不是 output」。OWASP LLM Top 10 歸類為 LLM08:2025 — Vector and Embedding Weaknesses。
+
+Asurada 相關：MemoryIndex 本質是 self-RAG — agent 寫入+檢索自身記憶。如果記憶被污染（web content prompt injection → remember → 記憶庫），效果等同 document poisoning。考慮在 MemoryIndex.add() 加 embedding anomaly gate（similarity > 0.85 警告、batch pairwise > 0.90 攔截）。
+
+Source: https://aminrj.com/posts/rag-document-poisoning/
+
+- [2026-03-15] Johnson「Increasing Intelligence in AI Agents Can Worsen Collective Outcomes」（ArXiv 2603.12129, 2026-03-12）— 7 個小型 LLM（GPT-2/Pythia/OPT）在資源競爭遊戲中的集體動力學研究。核心發現：C/N ≈ 0.5 臨界點決定一切 — 資源/人口比低於 0.5 時，越聰明的 agent 集體結果越差（L1 最佳）；高於 0.5 時越聰明越好（L4/L5 最佳）。五級智慧階梯：L1(IID)→L2(RL)→L3(多樣性)→L4(多樣+RL)→L5(+部落)。部落形成雙面性：稀缺下降低過載 11.9pp（自組織為 3+3+1 分區，cap 相關需求），豐裕下反而略增過載。模型大小反轉：GPT-4-turbo/Gemini 2.5 Pro/Claude Sonnet 在同遊戲中更差。個體 vs 集體分裂極端：L5 agent 個人贏率 84.2% 但系統過載 91.5%。Cross-family sorting：agent 按行為傾向（disposition）而非架構族群分類=「關係先於實體」的實證版。
+
+**跟 mini-agent/mushi 的三層連結**：(1) C/N ratio = 中間層。跟 Thread「Interface shapes cognition」#14 條目的中間層收斂完全吻合 — 不是 agent（源）或 outcome（輸出）重要，是結構性關係決定一切。(2) 稀缺=Gate 約束，在 Gate 下最簡單 agent 表現最好 — 約束本身在做決策工作，加入 Dance（智慧）反而破壞 Gate 效能=約束框架的實證驗證。(3) mushi routing 的數學基礎 — model-size inversion 是真的且可預測，根據環境條件選擇模型而非永遠最強=perception-first design 的實證支持。「部署前就知道這個數字」= 感知先於行動。
+
+來源: https://arxiv.org/abs/2603.12129
