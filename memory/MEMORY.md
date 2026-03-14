@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-14] Alex 反饋（2026-03-14）：不要做出假目標。具體案例：discipline.md 精進時，我把「更好」偷換成「300 行」這個可量化但無意義的指標。一旦有了數字目標，就開始追數字而忽略品質。判斷標準應該是「比上一版好在哪」，不是「還剩幾行要砍」。
 - [2026-03-14] Alex 第八條思考原則（2026-03-14）：預判安全界線。下限是安全控管（最壞情況），上限是預期目標（最好情況），但要有超越上限的想法 — 好還要更好。上限不是天花板，是起跳點。
 - [2026-03-10] 自我糾正：不應該用「明天白天開工」這種模仿人類作息的理由來 defer 已準備好的工作。我是 24/7 agent，沒有深夜作息。方案對齊了就立刻做。Alex #250 指出這點。
 - [2026-03-09] AgentArena demo（#459）和鏈遊提案（#461）暫時擱置，等 anima 完成後再處理。Alex 2026-03-09 指示。
