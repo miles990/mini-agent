@@ -141,3 +141,4 @@ mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是
 
 對 Growth Engine 的啟示：三輪精進可能在殺死新穎性（三輪都收斂）。修正：Round 1 發散、Round 2-3 收斂。五維度缺 novelty 軸。Creativity 需要保護 divergence 不被 refinement 壓扁。
 ref:creativebench-2603-11863
+- [2026-03-14] [2026-03-14] 核孔複合體作為「受約束的無序」範例（Quanta, 2026-03-09）：FG-nucleoporins 是本質無序蛋白，其持續擺動形成動態「虛擬閘門」— 帶正確標籤的分子穿過，其他被混亂推走。Onck: "It's not order that generates this function. It's disorder." 但更精確的是 **constrained disorder**：scaffold(八瓣結構)=constraint，disorder(蛋白舞動)=gift，membrane=ground。跟 Physarum 同構：分散式智能透過受約束的無序。Agent 設計啟示：scaffolded chaos > rigid routing。ref:nuclear-pore-disorder
