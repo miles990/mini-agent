@@ -5,11 +5,76 @@
  * Covers:
  * - Claude Code inbox (simple pending → processed)
  * - Chat Room inbox (smart tracking: replied/addressed/unaddressed/expired)
+ * - Chat Room inbox pre-classification via 0.8B cascade (Task A)
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ParsedTags } from './types.js';
+import { callLocalFast } from './omlx-gate.js';
+import { recordCascadeMetric } from './cascade.js';
+
+// =============================================================================
+// Chat Room Inbox Pre-classification (0.8B cascade)
+// =============================================================================
+
+export interface ClassifyInput {
+  sender: string;
+  text_preview: string;   // ≤150 chars
+  has_mention: boolean;
+  hour: number;
+}
+
+/**
+ * Pre-classify a chat room inbox message using the 0.8B local LLM.
+ * Returns 'RESPOND' or 'SKIP'.
+ *
+ * Fail-open: on timeout (3s), error, or unavailable LLM → 'RESPOND'.
+ * This ensures no messages are silently dropped.
+ */
+export function classifyInboxMessage(input: ClassifyInput): 'RESPOND' | 'SKIP' {
+  const start = Date.now();
+  let decision: 'RESPOND' | 'SKIP' = 'RESPOND';
+  let fallback = false;
+
+  try {
+    const mentionStr = input.has_mention ? 'yes' : 'no';
+    const prompt = `Classify: should the AI assistant respond to this message?
+From: ${input.sender} | Mentions @kuro: ${mentionStr}
+Message: ${input.text_preview}
+Rules: direct question or request → RESPOND. Status update, notification, or already-handled → SKIP.
+Answer RESPOND or SKIP only.`;
+
+    const result = callLocalFast(prompt, 16, 3_000);
+    const answer = result.trim().toUpperCase();
+
+    if (answer.startsWith('SKIP')) {
+      decision = 'SKIP';
+    } else {
+      // Anything else (including 'RESPOND', garbled output) → RESPOND (fail-open)
+      decision = 'RESPOND';
+    }
+  } catch {
+    // LLM unavailable, timeout, or any error → fail-open
+    decision = 'RESPOND';
+    fallback = true;
+  }
+
+  const latencyMs = Date.now() - start;
+
+  // Record cascade metric (fire-and-forget)
+  recordCascadeMetric({
+    ts: new Date().toISOString(),
+    layer: '0.8B',
+    task: 'chat-classify',
+    latencyMs,
+    decision,
+    inputChars: input.text_preview.length,
+    fallback,
+  });
+
+  return decision;
+}
 
 // =============================================================================
 // Paths

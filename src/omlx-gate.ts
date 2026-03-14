@@ -362,7 +362,7 @@ export function formatGateStats(): string {
  * Synchronous — blocks for up to timeoutMs.
  * Used only for binary classification (yes/no).
  */
-function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
+export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
   const stdout = execFileSync('node', [localDelegatePath], {
     encoding: 'utf-8',
     timeout: timeoutMs,

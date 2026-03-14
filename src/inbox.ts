@@ -12,6 +12,7 @@ import os from 'node:os';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { slog } from './utils.js';
 import type { InboxItem } from './types.js';
+import { classifyInboxMessage } from './inbox-processor.js';
 
 // =============================================================================
 // Path
@@ -455,13 +456,31 @@ export function flushInboxMarks(): void {
 
 /**
  * 格式化 inbox items，依 priority 調整預覽長度，內嵌 URL 預取內容。
+ * Chat room messages are pre-classified by 0.8B local LLM — SKIP messages
+ * are filtered out to save Claude tokens.
  */
 export function formatInboxSection(items: InboxItem[]): string {
   if (items.length === 0) return '';
   const lines: string[] = [];
   let totalUrlChars = 0; // 全局 URL 內嵌上限 5000 chars
+  let skippedCount = 0;
 
   for (const i of items.slice(0, 15)) {
+    // Chat room pre-classification: use 0.8B to filter noise
+    if (i.source === 'room') {
+      const hour = new Date(i.ts).getHours();
+      const classification = classifyInboxMessage({
+        sender: i.from,
+        text_preview: i.content.replace(/\n/g, ' ').slice(0, 150),
+        has_mention: i.content.includes('@kuro'),
+        hour,
+      });
+      if (classification === 'SKIP') {
+        skippedCount++;
+        continue;
+      }
+    }
+
     const time = i.ts.slice(11, 16);
     const sourceTag = i.source === 'telegram' ? `telegram:${i.from}`
       : i.source === 'room' ? `room:${i.from}`
@@ -496,6 +515,12 @@ export function formatInboxSection(items: InboxItem[]): string {
 
     lines.push(line);
   }
+
+  // Append skip summary so Claude knows messages were filtered
+  if (skippedCount > 0) {
+    lines.push(`(${skippedCount} chat-room message${skippedCount > 1 ? 's' : ''} auto-skipped by 0.8B pre-classifier)`);
+  }
+
   return lines.join('\n');
 }
 
