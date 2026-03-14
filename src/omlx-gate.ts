@@ -60,11 +60,9 @@ let lastHeartbeatMtime = 0;
 /** Last context hash for delta detection */
 let lastContextHash = '';
 
-/** Path to local-delegate.mjs */
-const localDelegatePath = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  '../scripts/local-delegate.mjs',
-);
+/** oMLX base URL and API key */
+const omlxUrl = () => process.env.LOCAL_LLM_URL || 'http://localhost:8000';
+const omlxKey = () => process.env.LOCAL_LLM_KEY || 'local';
 
 // =============================================================================
 // R3: Cron HEARTBEAT Gate
@@ -358,31 +356,45 @@ export function formatGateStats(): string {
 // =============================================================================
 
 /**
- * Call 0.8B via local-delegate.mjs with 'fast' profile.
- * Synchronous — blocks for up to timeoutMs.
- * Used only for binary classification (yes/no).
+ * Call local LLM via curl (sync). ~10ms overhead vs ~800ms for Node.js subprocess.
+ * Falls back gracefully on timeout/error (callers catch exceptions).
  */
-export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
-  const stdout = execFileSync('node', [localDelegatePath], {
-    encoding: 'utf-8',
-    timeout: timeoutMs,
-    env: { ...process.env, LOCAL_LLM_PROFILE: 'fast', LOCAL_LLM_MAX_TOKENS: String(maxTokens) },
-    input: prompt,
+function callLocalLLM(model: string, prompt: string, maxTokens: number, timeoutMs: number): string {
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: maxTokens,
+    temperature: 0.7,
+    top_p: 0.8,
+    top_k: 20,
+    presence_penalty: 1.5,
+    stream: false,
+    chat_template_kwargs: { enable_thinking: false },
   });
-  return stdout;
+  const stdout = execFileSync('curl', [
+    '-sf',
+    '--max-time', String(Math.ceil(timeoutMs / 1000)),
+    '-H', 'Content-Type: application/json',
+    '-H', `Authorization: Bearer ${omlxKey()}`,
+    '-d', '@-',
+    `${omlxUrl()}/v1/chat/completions`,
+  ], { encoding: 'utf-8', timeout: timeoutMs + 1000, input: body });
+  const data = JSON.parse(stdout);
+  return data.choices?.[0]?.message?.content ?? '';
 }
 
 /**
- * Call 9B via local-delegate.mjs with 'default' profile.
+ * Call 0.8B for binary classification (yes/no).
  * Synchronous — blocks for up to timeoutMs.
- * Used for short generative tasks (summaries, rewrites).
+ */
+export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
+  return callLocalLLM('Qwen3.5-0.8B-MLX-4bit', prompt, maxTokens, timeoutMs);
+}
+
+/**
+ * Call 9B for short generative tasks (summaries, rewrites).
+ * Synchronous — blocks for up to timeoutMs.
  */
 export function callLocalSmart(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
-  const stdout = execFileSync('node', [localDelegatePath], {
-    encoding: 'utf-8',
-    timeout: timeoutMs,
-    env: { ...process.env, LOCAL_LLM_PROFILE: 'default', LOCAL_LLM_MAX_TOKENS: String(maxTokens) },
-    input: prompt,
-  });
-  return stdout;
+  return callLocalLLM('Qwen3.5-9B-MLX-4bit', prompt, maxTokens, timeoutMs);
 }
