@@ -54,7 +54,7 @@ Alex 說：「自己思考什麼可以讓專案和你自己走得長遠、自給
 3. 遠期：可能的商業化路徑（但現在不是時候）
 
 ## Active Tasks
-- [ ] P1: 修復重複錯誤 — claude CLI TIMEOUT (exit 143,  in callClaude（3 次）@due:2026-03-15 <!-- added: 2026-03-12T14:51:07.004Z -->
+- [x] P1: 修復重複錯誤 — claude CLI TIMEOUT (exit 143, in callClaude（3 次）✅ 6 commits 修復鏈完成，03bbc29a instance 14+ cycles 零發生，提前結案 @due:2026-03-15 <!-- added: 2026-03-12T14:51:07.004Z -->
 - [x] P1: 修復重複錯誤 — claude CLI TIMEOUT (exit null, in callClaude（3 次）✅ 9c4681d progress-based timeout, 9h+ 零 TIMEOUT @due:2026-03-14 <!-- added: 2026-03-11T10:42:35.422Z -->
 
 ### #1 Priority: Asurada 框架（2026-03-11 Alex 定為 P0）
