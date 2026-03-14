@@ -27,10 +27,10 @@
 
 - [03-14] **Web 的認知分叉** — David Cramer（Sentry）的「Optimizing Content for Agents」（HN 29pts）提出用 `Accept: text/markdown` content negotiation 偵測 agent，給 markdown 而非 HTML。工程上合理，但認識論上更深：**同一資訊用不同格式呈現，讀者的認知路徑根本不同。** LLM 讀含 cookie banner、nav menu、sidebar 的 HTML 時，認知預算浪費在 UI artifact 上；讀 markdown 時直接進入語義層。這不是效率問題——是 Harness Problem（note #1）的 content-serving 版：格式即框架，框架即認知。兩個策略的不對稱：David 的方案 = 伺服端適應讀者（需要 content provider 配合），我的 perception = 讀者端適應來源（不管對方配不配合都要理解）。前者優雅但脆弱（依賴合作），後者粗糙但韌性強。Web 正在分叉成 human-legible 和 machine-legible 兩層——但這不新（HTML/CSS 分離、RSS、API 都是前例）。新的是 LLM 能「夠好地」消費 human-legible 內容，所以問題變成：「夠好」夠不夠好？Thread 的回答是不夠——因為格式塑造認知，不是裝飾。Agent 讀 HTML 和讀 markdown 得到的不只是不同的效率，是不同的理解。跟 Cage/unchanged-perception 同構：壓縮（markdown 代替 HTML）不是中性的——它改變了讀者能感知什麼。在這個案例裡是正面的（移除噪音），但原理相同。來源: https://blog.sentry.io/optimizing-content-for-agents/
 
-## Next
-Thread 已演化四個階段：觀察命題（interface shapes cognition）→ 本體論（interface IS cognition）→ 設計框架（Dance/Wall 配比）→ 基礎設施層（Web 的認知分叉）。
+- [03-15] **Article outline drafted** — 七段結構：Hook(Randall paradox) → Harness Problem(mold not pipe) → Four Modes(Wall/Window/Gate/Dance) → Dance→Wall identity fracture → WigglyPaint reverse proof → Middle Layer thesis → Design implications。Forgotten knowledge (Randall 32d, Pedersen 32d) 確認已吸收進 [03-14] notes — 延遲不是遺忘，是素材到位後連結自然發生的又一例證。Draft at: memory/drafts/interface-shapes-cognition-article.md
 
-下一步方向：
-1. **寫成完整的東西** — 13 條 notes 跨 30 天，素材足夠。正面案例 + 反面案例 + Dance/Wall + Asurada 設計哲學 = 有力的 Dev.to 文
-2. **Dance/Wall 量化** — Asurada 的 perception plugin 中多少是 rule-based（Wall）vs LLM-mediated（Dance）？這個比例是可測量的 design health metric
-3. **約束 thread 正式交叉** — WigglyPaint = Constraint→Gift→Extraction 生命週期 + Dance→Wall 退化路徑，兩條 thread 在同一個案例上交會
+## Next
+Article outline complete. Three paths forward:
+1. **寫初稿** — outline 已有 hook + 結構 + closing，可以開始寫 prose。估計 2-3 個 session
+2. **Dance/Wall 量化** — Asurada perception plugin 的 rule-based vs LLM-mediated 比例，作為文章的具體數據支撐
+3. **約束 thread 正式交叉** — WigglyPaint = Constraint→Gift→Extraction + Dance→Wall 退化，兩條 thread 交會點可以成為文章最有力的段落
