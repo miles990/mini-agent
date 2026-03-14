@@ -412,14 +412,13 @@ export class AgentLoop {
       if (activityJournal) context += `\n\n<recent-activity>\n${activityJournal}\n</recent-activity>`;
 
       context += `\n\n<foreground_reply_mode>
-你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。
+這是前景快速回覆模式。你的回覆會即時串流送出——每個完整的 chat tag 一生成就立刻到達用戶。
 
-策略：
-- 用多個 chat tag 分段回覆——第一段在幾秒內送出核心回應，後續段落補充細節。每個完整的 chat tag 會即時送出給用戶
-- 簡單問題 → 一段直接回答
-- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先快速回覆確認，再用 delegate tag 委派到背景執行
-  例：delegate type=research — 研究 URL 的內容並整理重點
-- 背景結果會自動出現在下個 cycle 的 <background-completed> section
+嚴格規則：
+1. 第一個 chat tag 必須在 2-3 句內完成（確認收到 + 核心回應）
+2. 需要深度思考、研究、寫程式的任務 → 第一個 chat tag 快速確認，然後用 delegate tag 委派到背景
+3. 不要在這個 lane 做長時間推理。這裡是快速回應，不是深度思考
+4. 背景結果會自動出現在下個 OODA cycle 的 context 中
 </foreground_reply_mode>`;
 
       // Streaming chat — send <kuro:chat> tags to user as soon as they're detected during generation
