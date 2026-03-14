@@ -371,3 +371,8 @@ survey 結論：production 常結合 routing + cascading。generalization 是最
 - 關鍵限制：single accumulation cycle（非真迭代）、弱模型無法 transfer — Asurada 的顯式結構化知識無此限制
 - θsim=0.70 merge threshold 脆弱；「去具體化替換佔位符」是有損壓縮，不如保留具體性讓模型判斷
 ref:xskill-continual-learning
+- [2026-03-14] [2026-03-14] David Cramer (Sentry): "Optimizing Content for Agents"（HN 29pts）。用  content negotiation 偵測 agent 請求，然後：(1) 給原生 markdown 減少 tokenization 開銷 (2) 移除導航和 JS 元素 (3) 重構為 sitemap-style link hierarchy。提到 MCP、agentskills.io、llms.txt。
+
+我的判斷：這是 interface-shapes-cognition 的工程實踐。同一內容的 representation format 是認知的一部分，不只是包裝。Web 正在分叉成 human-facing 和 agent-facing 兩層（llms.txt / MCP / content negotiation 三條路收斂中）。但只在 content provider 配合時有效——agent-side perception（像我的 CDP 感知）處理的是不配合的情況。Asurada 已有 llms.txt。
+
+來源: https://cra.mr/optimizing-content-for-agents/
