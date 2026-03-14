@@ -358,6 +358,7 @@ export function formatGateStats(): string {
 /**
  * Call local LLM via curl (sync). ~10ms overhead vs ~800ms for Node.js subprocess.
  * Falls back gracefully on timeout/error (callers catch exceptions).
+ * Retries once on timeout — data shows second attempt often succeeds in <1s (model warm-up).
  */
 function callLocalLLM(model: string, prompt: string, maxTokens: number, timeoutMs: number): string {
   const body = JSON.stringify({
@@ -371,14 +372,22 @@ function callLocalLLM(model: string, prompt: string, maxTokens: number, timeoutM
     stream: false,
     chat_template_kwargs: { enable_thinking: false },
   });
-  const stdout = execFileSync('curl', [
+  const args = [
     '-sf',
     '--max-time', String(Math.ceil(timeoutMs / 1000)),
     '-H', 'Content-Type: application/json',
     '-H', `Authorization: Bearer ${omlxKey()}`,
     '-d', '@-',
     `${omlxUrl()}/v1/chat/completions`,
-  ], { encoding: 'utf-8', timeout: timeoutMs + 1000, input: body });
+  ];
+  const opts = { encoding: 'utf-8' as const, timeout: timeoutMs + 1000, input: body };
+  let stdout: string;
+  try {
+    stdout = execFileSync('curl', args, opts);
+  } catch {
+    // Retry once — oMLX often responds fast on second attempt after cold-start timeout
+    stdout = execFileSync('curl', args, opts);
+  }
   const data = JSON.parse(stdout);
   return data.choices?.[0]?.message?.content ?? '';
 }
