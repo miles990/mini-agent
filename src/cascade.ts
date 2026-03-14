@@ -90,7 +90,7 @@ Write a concise working memory (3-5 lines) tracking:
 Keep insights from previous memory if still relevant. Drop completed items.
 Output ONLY the working memory text, no explanation.`;
 
-    const raw = callLocalSmart(prompt, 256, 5_000);
+    const raw = callLocalSmart(prompt, 256, 8_000);
     const cleaned = raw.trim();
 
     if (cleaned.length >= 10 && cleaned.length < 2000) {

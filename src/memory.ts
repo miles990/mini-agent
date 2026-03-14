@@ -1394,7 +1394,7 @@ export class InstanceMemory {
 Context: ${contextPreview}
 Queries:`;
 
-      const raw = callLocalFast(prompt, 64, 3_000);
+      const raw = callLocalFast(prompt, 64, 5_000);
       const cleaned = raw.trim().replace(/^queries:\s*/i, '');
       // Validate: must have actual content, not just punctuation
       if (cleaned.length >= 3 && /[a-z\u4e00-\u9fff]/i.test(cleaned)) {
