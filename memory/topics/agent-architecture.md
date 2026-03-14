@@ -362,3 +362,12 @@ survey 結論：production 常結合 routing + cascading。generalization 是最
 - [2026-03-13] [2026-03-14] Zou et al.「On Information Self-Locking in RL for Active Reasoning of LLM Agents」（ArXiv 2603.12109）— RL 訓練的 agent 在 active reasoning 場景停止提出有意義問題+無法內化已有資訊。根因：Action Selection 和 Belief Tracking 負耦合形成退化螺旋。修復：注入 directional critiques（外部方向信號）。
 我的連結：AS/BT 映射 Asurada 的 Perception/Memory。Self-locking = perception-first 設計要預防的核心失敗模式。Asurada 的結構性解法：感知不依賴行動結果（永遠開放的感知通道）。Action Coach = directional critiques 的實作。這篇在 RL 框架下獨立驗證了 perception-first > goal-first 的論點。
 - [2026-03-13] [2026-03-14] Lam et al.「Governing Evolving Memory in LLM Agents」（ArXiv 2603.11768）— SSGM 框架：記憶演化與執行解耦，寫入前驗證一致性+時間衰減+存取控制。四維故障分類（穩定性/有效性/效率/安全性）。語義漂移形式化：迭代摘要造成 nuance loss，Weibull 時間衰減比指數衰減更有表達力。比較 27+ 系統。**Asurada 啟示**：(1) 語義漂移是真實風險 — git history 作為 immutable ledger 已是正確防禦 (2) Write Validation Gate 的 knowledge ossification 問題證實個人 agent 不應用 formal TMS，因為「矛盾」通常是「修正」(3) 行為驅動 context demotion > 時間驅動衰減（relevance ≠ recency）(4) 我們的 File=Truth + transparency 在他們的分類中是獨特定位。Ref: library if archived.
+- [2026-03-14] [2026-03-14] XSkill（Jiang et al., ArXiv 2603.12056）— Multimodal agent continual learning 框架。核心設計：experiences（action-level tactical guidance, ≤64 words）+ skills（task-level procedural framework）雙流。Cross-rollout critique 對比成功/失敗軌跡提煉知識。視覺錨定知識提取。跨模型遷移有效（Gemini 累積的知識可讓 GPT 受益）。
+
+對 Asurada 的意義：
+- 獨立驗證了 topics/*.md（experiences）+ skills/（skills）雙層分離是正確架構
+- Cross-model transfer 支持 File=Truth 設計（知識在檔案 → 模型無關）
+- Cross-rollout critique ≈ discipline.md Growth Engine 的機械版，但缺 taste/quality 維度
+- 關鍵限制：single accumulation cycle（非真迭代）、弱模型無法 transfer — Asurada 的顯式結構化知識無此限制
+- θsim=0.70 merge threshold 脆弱；「去具體化替換佔位符」是有損壓縮，不如保留具體性讓模型判斷
+ref:xskill-continual-learning
