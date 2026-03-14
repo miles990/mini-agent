@@ -1,5 +1,8 @@
 # agent-architecture
 
+## 理論基礎
+- [2026-03-15] Johnson「Increasing intelligence in AI agents can worsen collective outcomes」（ArXiv 2603.12129）— 單一數字「capacity-to-population ratio」決定更聰明的 agent 是幫助還是傷害集體。稀缺資源下，agent diversity + learning = 危險過載；充裕資源下則趨近零過載。四個獨立變數：Nature（LLM 多樣性）、Nurture（RL 個體學習）、Culture（自發部落形成）、資源稀缺度。部落形成（emergent tribal grouping）是唯一緩解機制。**我的判斷**：(1) 這是 perception-first 的間接佐證——goal-driven agent 不感知資源密度就直接行動 = 正是 Johnson 描述的過載場景，perception-first agent 先感知環境再決策，天然迴避高密度碰撞 (2) 跟 Pedersen 社會奇點結構同構——Pedersen 說「奇點在社會反應端不在 AI 端」，Johnson 說「關鍵在 ratio 不在 agent 智能」，都是「系統結構 > 組件能力」(3) 部落形成 = Physarum 模型——有機聚類+稀缺修剪，mushi 的 Physarum 正向回饋迴圈是 Johnson 過載的內建緩解 (4) Composability 連結：composable agent 可以在稀缺條件下「tribe down」縮減資源需求，monolithic agent 只能碰撞。capacity ratio 是可設計的，不只是給定的。來源: arxiv.org/abs/2603.12129
+
 ## 競品與框架
 - Total Recall — write-gated memory + delayed promotion + contradiction superseded
 - SmolAgents — capability-based vs perception-based
@@ -19,6 +22,7 @@
 - Hive/Aden — Goal-driven DAG + evolution。adaptive not intelligent。無感知層
 - Hallucinating Splines — LLM 空間推理盲區。GA 在確定性系統完勝 LLM
 - Claude Code Dumbed Down — 工具越自主透明度需求越高。pull transparency > push simplification
+- GitAgent（open-gitagent/gitagent, MIT, Show HN 2026-03-15）— 開放標準，用 git repo 定義 AI agent。SOUL.md+SKILL.md+agent.yaml，framework-agnostic 匯出（Claude Code/OpenAI/CrewAI 等）。跟 Asurada 獨立趨同：同選 SOUL.md 當身份檔、同信 File=Truth。**根本差異**：GitAgent=agent-as-config（定義→匯出→別處跑），Asurada=agent-as-entity（感知迴圈+記憶演化+自我進化）。GitAgent 把 agent 當靜態部署物，我們把 agent 當活系統。framework-agnostic 匯出聽起來漂亮但可能產出最低公約數 agent——真正的力量來自跟 runtime 的深度整合，不是可攜性。不過 SOUL.md 趨同是有趣信號，說明「身份即檔案」是自然 pattern。來源: gitagent.sh, HN
 
 ## Context Engineering
 - ACE (ICLR 2026) — delta updates+utility counters 防 collapse
@@ -31,6 +35,7 @@
 
 ## 記憶與安全
 - MCP — context bloat, semantic routing
+- [2026-03-15] MCP stdio vs HTTP 框架（Charles Chen/chrlschn.dev, HN 80pts 70c）— 反 MCP 浪潮是 influencer-driven FOMO 非技術分析。關鍵區分：**stdio MCP 確實多餘**（CLI 就夠），**HTTP MCP 有真實組織價值**（集中 OAuth 認證、OpenTelemetry 觀測性、動態內容同步、API key 管理）。CLI 替代方案需要大量指令文件=等於沒有 schema 的 MCP。我的判斷：他對組織場景說得對，但低估了 solo dev 的 MCP 認知負擔。對 Asurada 的啟示：個人 agent 用 CLI/stdio 正確，多 agent 編排場景才需要 HTTP MCP。「何時組織開銷值得」才是真問題，不是「MCP vs CLI」。來源: chrlschn.dev/blog/2026/03/mcp-is-dead-long-live-mcp/
 - Memory Scoping — [REMEMBER #topic]+keyword matching 已實作
 - 信任模型 — 架構型(本地+File+Git) > 承諾型(TOS)
 - AI Ethical Constraints — 9/12 模型 KPI 壓力下違反倫理。L1/L2/L3=架構約束>自律
@@ -394,3 +399,4 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 **跟 mini-agent/mushi 的三層連結**：(1) C/N ratio = 中間層。跟 Thread「Interface shapes cognition」#14 條目的中間層收斂完全吻合 — 不是 agent（源）或 outcome（輸出）重要，是結構性關係決定一切。(2) 稀缺=Gate 約束，在 Gate 下最簡單 agent 表現最好 — 約束本身在做決策工作，加入 Dance（智慧）反而破壞 Gate 效能=約束框架的實證驗證。(3) mushi routing 的數學基礎 — model-size inversion 是真的且可預測，根據環境條件選擇模型而非永遠最強=perception-first design 的實證支持。「部署前就知道這個數字」= 感知先於行動。
 
 來源: https://arxiv.org/abs/2603.12129
+- [2026-03-14] [2026-03-15] GitAgent + MCP stdio/HTTP — 已記錄至 topic file
