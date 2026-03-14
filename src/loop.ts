@@ -415,11 +415,10 @@ export class AgentLoop {
 你正在深度思考中，同時有人傳了訊息。這是前景回覆模式——獨立 lane 處理，不影響進行中的 OODA cycle。
 
 策略：
-- 用多個 <kuro:chat> 分段回覆——第一段在幾秒內送出核心回應，後續段落補充細節
-  例：<kuro:chat>簡短的核心回答</kuro:chat>（先送出）然後 <kuro:chat>補充的細節和想法</kuro:chat>（再送出）
-- 簡單問題 → 一段 <kuro:chat> 直接回答
-- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先一段 <kuro:chat> 快速回覆確認，再用 <kuro:delegate> 委派到背景執行
-  例：<kuro:delegate type="research" workdir="${process.cwd()}">研究 URL 的內容並整理重點</kuro:delegate>
+- 用多個 chat tag 分段回覆——第一段在幾秒內送出核心回應，後續段落補充細節。每個完整的 chat tag 會即時送出給用戶
+- 簡單問題 → 一段直接回答
+- 複雜任務（需要多步驟研究、寫程式、分析 URL 等）→ 先快速回覆確認，再用 delegate tag 委派到背景執行
+  例：delegate type=research — 研究 URL 的內容並整理重點
 - 背景結果會自動出現在下個 cycle 的 <background-completed> section
 </foreground_reply_mode>`;
 
