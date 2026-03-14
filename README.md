@@ -130,7 +130,7 @@ agents:
 
 - **Organic Parallelism** — Multi-lane architecture inspired by [slime mold](https://en.wikipedia.org/wiki/Physarum_polycephalum): main cycle + foreground lane + 6 background tentacles
 - **System 1 Triage** — Optional [mushi](https://github.com/miles990/mushi) companion uses a small model (~800ms) to filter noise before expensive LLM calls — saves ~40% token cost
-- **Notifications** — Console output and Telegram (bidirectional messaging with smart batching). Webhook support planned
+- **Telegram** — Bidirectional messaging with notifications and smart batching
 - **Mobile PWA** — Phone sensors (GPS, accelerometer, camera) as perception inputs
 - **Web Access** — Multi-layer extraction: Readability → trafilatura → VLM vision fallback
 - **Team Chat Room** — Multi-party discussion with persistent history and threading
