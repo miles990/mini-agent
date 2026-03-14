@@ -56,7 +56,8 @@ import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
-import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap } from './omlx-gate.js';
+import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast } from './omlx-gate.js';
+import { recordCascadeMetric } from './cascade.js';
 
 // =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
@@ -1363,6 +1364,7 @@ export class InstanceMemory {
 
   /**
    * 從 trigger + inbox 提取本 cycle 檢索關鍵字（給 chat room 相關歷史檢索）
+   * Cascade: 0.8B 生成語義 query → fallback 機械式 stopword removal
    */
   private extractCycleKeywords(
     trigger: string | undefined,
@@ -1381,6 +1383,43 @@ export class InstanceMemory {
 
     if (!combined) return '';
 
+    // Try 0.8B semantic query generation first
+    const start = Date.now();
+    let fallback = false;
+    let result = '';
+
+    try {
+      const contextPreview = combined.slice(0, 300);
+      const prompt = `Given this context from an AI assistant's current cycle, generate 1-3 short search queries to find relevant past conversations and memories. Output only the queries, comma separated. No explanation.
+Context: ${contextPreview}
+Queries:`;
+
+      const raw = callLocalFast(prompt, 64, 3_000);
+      const cleaned = raw.trim().replace(/^queries:\s*/i, '');
+      // Validate: must have actual content, not just punctuation
+      if (cleaned.length >= 3 && /[a-z\u4e00-\u9fff]/i.test(cleaned)) {
+        result = cleaned;
+      } else {
+        fallback = true;
+      }
+    } catch {
+      fallback = true;
+    }
+
+    const latencyMs = Date.now() - start;
+    recordCascadeMetric({
+      ts: new Date().toISOString(),
+      layer: '0.8B',
+      task: 'memory-query',
+      latencyMs,
+      decision: fallback ? 'fallback' : result.slice(0, 80),
+      inputChars: combined.length,
+      fallback,
+    });
+
+    if (!fallback && result) return result;
+
+    // Fallback: mechanical stopword removal (original logic)
     const stopWords = new Set([
       'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was', 'one', 'our', 'out',
       'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so', 'do', 'my', 'up', 'this',
