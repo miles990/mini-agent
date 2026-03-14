@@ -7,7 +7,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { getMemoryStateDir } from './memory.js';
+import { callLocalSmart } from './omlx-gate.js';
+import { diagLog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -37,4 +40,80 @@ export function recordCascadeMetric(metric: CascadeMetric): void {
     const metricsPath = path.join(stateDir, 'cascade-metrics.jsonl');
     fs.appendFileSync(metricsPath, JSON.stringify(metric) + '\n');
   } catch { /* fire-and-forget */ }
+}
+
+// =============================================================================
+// Task B: Working Memory Update (9B)
+// =============================================================================
+
+/**
+ * Generate working memory update using 9B model.
+ * Called when Claude didn't emit <kuro:inner> in its response.
+ * Fail-open: on error, keeps existing inner-notes unchanged.
+ *
+ * @param memoryDir - path to the memory directory containing inner-notes.md
+ * @param response - the full Claude response text (truncated internally)
+ * @param tagsProcessed - list of tags that were processed this cycle
+ */
+export function generateWorkingMemory(
+  memoryDir: string,
+  response: string,
+  tagsProcessed: string[],
+): void {
+  const start = Date.now();
+  let fallback = false;
+
+  try {
+    // Read previous inner notes
+    const innerPath = path.join(memoryDir, 'inner-notes.md');
+    const prevInner = existsSync(innerPath)
+      ? readFileSync(innerPath, 'utf-8').trim().slice(0, 500)
+      : '(none)';
+
+    // Extract decision + action from response (first ~500 chars covers both)
+    const responsePreview = response.slice(0, 500);
+
+    const prompt = `Update the AI assistant's working memory based on this cycle's activity.
+
+Previous memory:
+${prevInner}
+
+This cycle's output:
+${responsePreview}
+
+Tags emitted: ${tagsProcessed.join(', ') || 'none'}
+
+Write a concise working memory (3-5 lines) tracking:
+1. Current task progress
+2. Important context for next cycle
+3. Atmosphere note (conversation tone and rhythm)
+Keep insights from previous memory if still relevant. Drop completed items.
+Output ONLY the working memory text, no explanation.`;
+
+    const raw = callLocalSmart(prompt, 256, 5_000);
+    const cleaned = raw.trim();
+
+    if (cleaned.length >= 10 && cleaned.length < 2000) {
+      // Atomic write
+      const tmpPath = innerPath + '.tmp';
+      fs.writeFileSync(tmpPath, cleaned, 'utf-8');
+      fs.renameSync(tmpPath, innerPath);
+      diagLog('CASCADE', `9B working memory updated (${cleaned.length} chars)`);
+    } else {
+      fallback = true;
+    }
+  } catch {
+    fallback = true;
+  }
+
+  const latencyMs = Date.now() - start;
+  recordCascadeMetric({
+    ts: new Date().toISOString(),
+    layer: '9B',
+    task: 'inner-update',
+    latencyMs,
+    decision: fallback ? 'fallback-keep' : 'updated',
+    inputChars: response.length,
+    fallback,
+  });
 }

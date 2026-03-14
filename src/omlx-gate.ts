@@ -371,3 +371,18 @@ export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_
   });
   return stdout;
 }
+
+/**
+ * Call 9B via local-delegate.mjs with 'default' profile.
+ * Synchronous — blocks for up to timeoutMs.
+ * Used for short generative tasks (summaries, rewrites).
+ */
+export function callLocalSmart(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
+  const stdout = execFileSync('node', [localDelegatePath], {
+    encoding: 'utf-8',
+    timeout: timeoutMs,
+    env: { ...process.env, LOCAL_LLM_PROFILE: 'default' },
+    input: prompt,
+  });
+  return stdout;
+}

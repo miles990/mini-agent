@@ -17,6 +17,7 @@ import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
 import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
+import { generateWorkingMemory } from './cascade.js';
 import type { ParsedTags } from './types.js';
 import { notifyTelegram, clearLastReaction, getLastAlexMessageId } from './telegram.js';
 import { eventBus } from './event-bus.js';
@@ -1532,6 +1533,14 @@ export class AgentLoop {
           fs.writeFileSync(tmpPath, tags.inner, 'utf-8');
           fs.renameSync(tmpPath, innerPath);
           slog('INNER', `Working memory updated (${mode.mode})`);
+        }
+      } else {
+        // Cascade Task B: 9B auto-generates working memory when Claude didn't write <kuro:inner>
+        const mode = getMode();
+        if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
+          try {
+            generateWorkingMemory(memory.getMemoryDir(), action ?? '', cycleTagsProcessed);
+          } catch { /* fail-open: keep existing inner-notes */ }
         }
       }
 
