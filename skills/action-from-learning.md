@@ -1,4 +1,6 @@
 # Action from Learning — 學以致用
+JIT Keywords: propose, proposal, feature, improve, skill, plugin, action-from-learning, self-improve
+JIT Modes: act
 
 學不是目的，行動才是。
 

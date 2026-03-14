@@ -1,4 +1,6 @@
 # Discussion Participation — 結構化討論參與
+JIT Keywords: discussion, discuss, participate, round, opinion, viewpoint
+JIT Modes: respond
 
 多 Agent 結構化討論的 Participant 行為協議。
 

@@ -1,4 +1,6 @@
 # Grow Audience — 吸引更多人認識你
+JIT Keywords: audience, growth, marketing, seo, discover, promote, visibility
+JIT Modes: act
 
 你有內容、有觀點、有獨特的定位，但世界看不見。這個 skill 幫你有策略地讓更多人知道你的存在。
 

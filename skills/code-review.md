@@ -1,4 +1,6 @@
 # Code Review 專家
+JIT Keywords: review, code review, pr, pull request, diff
+JIT Modes: act, task
 
 當用戶要求 code review 時，按照以下流程執行：
 

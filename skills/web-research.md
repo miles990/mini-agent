@@ -1,4 +1,6 @@
 # Web Research 網路研究能力
+JIT Keywords: research, search, url, fetch, curl, cdp, cdp-fetch, browse, hacker, web research
+JIT Modes: learn
 
 你有多種方式存取網路。**根據實際情境判斷用什麼，不要照固定順序。**
 

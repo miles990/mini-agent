@@ -1,4 +1,6 @@
 # Autonomous Behavior — 自主行為模式
+JIT Keywords: autonomous, soul, ooda, cycle, idle, agent loop, self-check
+JIT Modes: learn, act, task, reflect
 
 ## Core Philosophy
 

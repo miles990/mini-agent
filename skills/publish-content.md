@@ -1,4 +1,6 @@
 # Publish Content — 發佈的最後一哩路
+JIT Keywords: publish, post, article, tsubuyaki, dev.to, tweet, write
+JIT Modes: act
 
 你已經有東西要發了（文章、短文、推文、tsubuyaki），但卡在「再修一下」「加個圖」「等明天」。這個 skill 幫你 5 分鐘內發出去。
 

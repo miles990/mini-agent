@@ -1,4 +1,6 @@
 # Social Monitor — 追蹤社群回應
+JIT Keywords: notification, reply, mention, comment, response, feedback
+JIT Modes: act
 
 你在社群發了東西，但忘了回去看有沒有人回應。這個 skill 讓「追蹤回應」變成習慣。
 

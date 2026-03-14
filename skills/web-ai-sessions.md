@@ -1,4 +1,6 @@
 # Web AI Sessions — 外部 AI 作為研究工具
+JIT Keywords: ai session, claude, gpt, gemini, chatbot, ai conversation
+JIT Modes: learn
 
 用 cdp-fetch.mjs 操作 web AI（Grok、ChatGPT、Gemini、Claude.ai）作為外部工作記憶和研究助手。
 

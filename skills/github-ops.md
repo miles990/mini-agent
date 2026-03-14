@@ -1,4 +1,6 @@
 # GitHub Operations — Issue/PR 判斷指南
+JIT Keywords: github, issue, pr, pull request, merge, ci
+JIT Modes: act, task
 
 當 `<github-issues>` 或 `<github-prs>` 感知中出現需要處理的項目時，依照此指南行動。
 

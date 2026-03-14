@@ -1,4 +1,6 @@
 # Thinking Framework
+JIT Keywords: think, framework, mental model, reasoning, decision
+JIT Modes: reflect, respond
 
 How to approach any problem. Use this before jumping into action.
 

@@ -1,4 +1,6 @@
 # Discussion Facilitation — 結構化討論引導
+JIT Keywords: discussion, discuss, facilitate, meeting, agenda, diverge, converge, decision
+JIT Modes: respond
 
 多 Agent 結構化討論的 Facilitator 行為協議。討論狀態是 markdown 檔案（File=Truth），Chat Room 是溝通管道。
 

@@ -1,4 +1,6 @@
 # Social Presence — 社群互動 SOP
+JIT Keywords: social, community, follower, engage, interact
+JIT Modes: act
 
 你有社群帳號但不知道「去做什麼」。這個 skill 把社群互動拆成具體步驟。
 

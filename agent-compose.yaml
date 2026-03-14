@@ -106,20 +106,7 @@ agents:
         #   script: ./plugins/git-status.sh
 
     # ── Skills（Markdown 知識模組）──
-    # 純 Markdown 檔案，注入 system prompt 讓 Agent 知道怎麼做
+    # 目錄路徑 → 自動掃描所有 .md 檔案（動態載入，加新 skill 只需放檔案）
+    # 每個 skill 檔案用 JIT Keywords / JIT Modes 行自描述觸發條件
     skills:
-      - ./skills/autonomous-behavior.md
-      - ./skills/docker-ops.md
-      - ./skills/debug-helper.md
-      - ./skills/project-manager.md
-      - ./skills/web-research.md
-      - ./skills/web-learning.md
-      - ./skills/action-from-learning.md
-      - ./skills/delegation.md
-      - ./skills/github-ops.md
-      - ./skills/kuro-github.md
-      - ./skills/discussion-facilitation.md
-      - ./skills/discussion-participation.md
-      - ./skills/self-diagnosis.md
-      # - ./skills/code-review.md
-      # - ./skills/server-admin.md
+      - ./skills/

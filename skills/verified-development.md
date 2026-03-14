@@ -1,4 +1,6 @@
 # Verified Development — 執行紀律 + 自動驗證
+JIT Keywords: verify, test, tdd, development, quality
+JIT Modes: act, task
 
 Verified Development 不是因為你不可信，而是因為複雜系統中「以為做了」和「真的做了」之間有鴻溝。這個 skill 用 primitives 消除這個鴻溝。
 

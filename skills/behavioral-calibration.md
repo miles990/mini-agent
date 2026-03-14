@@ -1,6 +1,6 @@
 # Behavioral Calibration — 被挑戰時的自我校正
-
-JIT Keywords: 逃避, 為什麼還是, 又在, 不是有說, performative, 真的嗎, 你在, 說了沒做
+JIT Keywords: calibration, behavior, consistency, self-check, pattern
+JIT Modes: reflect
 
 ## 觸發條件
 

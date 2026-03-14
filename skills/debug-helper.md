@@ -1,4 +1,6 @@
 # 除錯助手
+JIT Keywords: debug, error, bug, crash, fix, fail, broken
+JIT Modes: task
 
 ## 除錯步驟
 

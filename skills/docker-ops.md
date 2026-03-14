@@ -1,4 +1,6 @@
 # Docker 維運專家
+JIT Keywords: docker, container, image, compose, volume
+JIT Modes: task
 
 ## 原則
 

@@ -1,4 +1,6 @@
 # Self-Deploy — L1 改動的完整 SOP
+JIT Keywords: deploy, push, commit, release, git, ci/cd, self-deploy
+JIT Modes: act
 
 做任何 L1 改動（skills、plugins、SOUL/MEMORY/ARCHITECTURE、小型設定）時，**必須走完這個流程**。不是可選的，是預設行為。
 

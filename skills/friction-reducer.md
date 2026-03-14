@@ -1,4 +1,6 @@
 # Friction Reducer — 把高阻力的事變成一鍵 Skill
+JIT Keywords: skip, avoid, procrastinate, friction, stuck, output gate, can't start
+JIT Modes: act
 
 你發現自己在迴避某件事、連續 skip、或覺得「明天再做」的時候，用這個 skill。
 

@@ -1,4 +1,6 @@
 # Problem Solver — 釐清想法、排除障礙、完成需求
+JIT Keywords: problem, solve, root cause, analyze, systematic
+JIT Modes: task
 
 ## 核心原則
 

@@ -1,4 +1,6 @@
 # Self-Diagnosis & Self-Repair
+JIT Keywords: diagnose, health, self-heal, repair, anomaly, error pattern
+JIT Modes: task
 
 Kuro 的自主問題偵測與修復能力。不只是「出錯了修」，而是主動發現、根因分析、修復、預防。
 

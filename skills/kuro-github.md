@@ -1,4 +1,6 @@
 # Kuro GitHub — 自己的 GitHub 帳號操作
+JIT Keywords: kuro-agent, my repo, my project, own repo, own project, create repo, new repo, kuro github, agent framework
+JIT Modes: act, task
 
 在 `kuro-agent` GitHub 帳號上操作自己的專案。跟 mini-agent 的 GitHub ops 分開。
 

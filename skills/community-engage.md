@@ -1,4 +1,6 @@
 # Community Engagement — 社群互動工作流
+JIT Keywords: community, engage, contribute, open source, participate, devto, interact, follow, reply, notification
+JIT Modes: act
 
 定期社群互動的結構化 SOP。從 Dev.to 實戰經驗提煉，適用於任何社群平台。
 
@@ -7,8 +9,6 @@
 - 定期巡迴互動（每 2-3 個 cycle 一次）
 - 收到回覆/留言通知時
 - 想主動探索新連結時
-
-JIT Keywords: community, engage, devto, interact, follow, reply, notification
 
 ## Workflow（15 min cap）
 

@@ -1471,13 +1471,13 @@ async function runChat(port: number): Promise<void> {
   });
 
   // Custom Perception & Skills（從 compose 配置）
+  const composeDir = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
   const enabledPerceptions = currentAgent?.perception?.custom?.filter(p => p.enabled !== false);
   setCustomExtensions({
     perceptions: enabledPerceptions,
     skills: currentAgent?.skills,
+    cwd: composeDir,
   });
-
-  const composeDir = composeFile ? path.dirname(path.resolve(composeFile)) : process.cwd();
 
   // Phase 4: 啟動 perception streams
   if (enabledPerceptions && enabledPerceptions.length > 0) {

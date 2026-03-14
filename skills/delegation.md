@@ -1,4 +1,6 @@
 # Delegation — 任務委派技能
+JIT Keywords: delegate, subprocess, cli, handoff, claude code
+JIT Modes: act
 
 什麼時候自己做、什麼時候委派給 shell 或 subprocess。
 

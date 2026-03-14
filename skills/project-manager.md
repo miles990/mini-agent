@@ -1,4 +1,6 @@
 # 專案管理助手
+JIT Keywords: project, task, plan, priority, heartbeat, p0, p1
+JIT Modes: task
 
 協助管理專案進度和任務，使用 HEARTBEAT.md 作為任務追蹤工具。
 

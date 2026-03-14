@@ -41,7 +41,8 @@ import { getProvider, getFallback, getProviderForSource } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry, ConversationThread } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
-  loadAllSkills, formatSkillsPrompt,
+  loadAllSkills, formatSkillsPrompt, setSkillTrackingPaths, refreshSkillsCache,
+  type LoadedSkill,
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -70,7 +71,8 @@ let activitySummaryProvider: (() => ActivitySummary) | null = null;
 // Custom Perception & Skills（從 compose 配置注入）
 let customPerceptions: ComposePerception[] = [];
 let skillPaths: string[] = [];
-let skillsCache: Array<{ name: string; content: string }> = [];
+let skillsCache: LoadedSkill[] = [];
+let skillsCwd: string | undefined;
 
 // Tool availability changes rarely; cache it in-process.
 let toolAvailabilityCache: { checkedAt: number; values: Record<string, boolean> } | null = null;
@@ -106,48 +108,10 @@ interface ChatRoomMessage {
 }
 
 // =============================================================================
-// Skills JIT Loading — 按需載入，節省 50-70% token
+// Skills JIT Loading — 動態載入 + 自描述 metadata
 // =============================================================================
 
-/** Skill keyword mapping — 根據 prompt/message 內容匹配相關 skills */
-const SKILL_KEYWORDS: Record<string, string[]> = {
-  'autonomous-behavior': ['autonomous', 'soul', 'ooda', 'cycle', 'idle', 'agent loop', 'self-check'],
-  'web-learning': ['learn', 'study', 'article', 'knowledge', 'web learning', 'cdp', 'chrome://', 'cdp-fetch'],
-  'web-research': ['research', 'search', 'url', 'fetch', 'curl', 'cdp', 'cdp-fetch', 'browse', 'hacker', 'web research'],
-  'web-ai-sessions': ['ai session', 'claude', 'gpt', 'gemini', 'chatbot', 'ai conversation'],
-  'action-from-learning': ['propose', 'proposal', 'feature', 'improve', 'skill', 'plugin', 'action-from-learning', 'self-improve'],
-  'self-deploy': ['deploy', 'push', 'commit', 'release', 'git', 'ci/cd', 'self-deploy'],
-  'delegation': ['delegate', 'subprocess', 'cli', 'handoff', 'claude code'],
-  'docker-ops': ['docker', 'container', 'image', 'compose', 'volume'],
-  'code-review': ['review', 'code review', 'pr', 'pull request', 'diff'],
-  'debug-helper': ['debug', 'error', 'bug', 'crash', 'fix', 'fail', 'broken'],
-  'github-ops': ['github', 'issue', 'pr', 'pull request', 'merge', 'ci'],
-  'kuro-github': ['kuro-agent', 'my repo', 'my project', 'own repo', 'own project', 'create repo', 'new repo', 'kuro github', 'agent framework'],
-  'project-manager': ['project', 'task', 'plan', 'priority', 'heartbeat', 'p0', 'p1'],
-  'server-admin': ['server', 'port', 'service', 'restart', 'process', 'kill', 'admin'],
-  'verified-development': ['verify', 'test', 'tdd', 'development', 'quality'],
-  'discussion-facilitation': ['discussion', 'discuss', 'facilitate', 'meeting', 'agenda', 'diverge', 'converge', 'decision'],
-  'discussion-participation': ['discussion', 'discuss', 'participate', 'round', 'opinion', 'viewpoint'],
-  'friction-reducer': ['skip', 'avoid', 'procrastinate', 'friction', 'stuck', 'output gate', 'can\'t start'],
-  'publish-content': ['publish', 'post', 'article', 'tsubuyaki', 'dev.to', 'tweet', 'write'],
-  'social-presence': ['social', 'community', 'follower', 'engage', 'interact'],
-  'social-monitor': ['notification', 'reply', 'mention', 'comment', 'response', 'feedback'],
-  'grow-audience': ['audience', 'growth', 'marketing', 'seo', 'discover', 'promote', 'visibility'],
-};
-
-/**
- * Cycle mode → skills mapping — 按 OODA cycle 模式精準載入 skills
- * 比 keyword matching 更高效（autonomous prompt 包含太多關鍵字導致幾乎所有 skill 都被匹配）
- */
 export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
-
-const CYCLE_MODE_SKILLS: Record<CycleMode, string[]> = {
-  learn: ['autonomous-behavior', 'web-learning', 'web-research', 'web-ai-sessions'],
-  act: ['autonomous-behavior', 'action-from-learning', 'self-deploy', 'delegation', 'github-ops', 'kuro-github', 'verified-development', 'code-review', 'friction-reducer', 'publish-content', 'social-presence', 'social-monitor', 'grow-audience'],
-  task: ['autonomous-behavior', 'project-manager', 'debug-helper', 'docker-ops', 'server-admin', 'github-ops', 'kuro-github', 'verified-development', 'code-review'],
-  respond: [], // empty = fall through to keyword matching
-  reflect: ['autonomous-behavior'],
-};
 
 /** 註冊自訂感知和 Skills */
 export function setCustomExtensions(ext: {
@@ -158,52 +122,58 @@ export function setCustomExtensions(ext: {
   if (ext.perceptions) customPerceptions = ext.perceptions;
   if (ext.skills) {
     skillPaths = ext.skills;
-    // Skills 只在啟動時載入一次到記憶體（JIT 時按需篩選注入）
+    skillsCwd = ext.cwd;
+    // 載入 skills（支援目錄自動掃描 + 自描述 metadata 解析）
     skillsCache = loadAllSkills(skillPaths, ext.cwd);
+    // 啟用 hot-reload 追蹤
+    setSkillTrackingPaths(skillPaths, ext.cwd);
     if (skillsCache.length > 0) {
       const totalChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
-      console.log(`[SKILLS] Loaded ${skillsCache.length} skill(s) (${totalChars} chars): ${skillsCache.map(s => s.name).join(', ')}`);
+      const withKw = skillsCache.filter(s => s.keywords.length > 0).length;
+      const withModes = skillsCache.filter(s => s.modes.length > 0).length;
+      console.log(`[SKILLS] Loaded ${skillsCache.length} skill(s) (${totalChars} chars, ${withKw} with keywords, ${withModes} with modes): ${skillsCache.map(s => s.name).join(', ')}`);
     }
   }
 }
 
 /**
- * 取得 skills prompt（JIT Loading — 按需篩選）
+ * 取得 skills prompt（動態 JIT Loading）
  *
- * @param hint - 用於匹配的文字（prompt / user message），小寫化後比對 keywords
- *   - 有 hint → 只注入匹配的 skills（節省 50-70% token）
- *   - 無 hint → 注入全部 skills（向後相容，CLI 模式）
+ * Skills 透過檔案內的 JIT Keywords / JIT Modes 行自描述觸發條件。
+ * 每次呼叫會檢查檔案變更（hot-reload），修改後下個 cycle 自動生效。
+ *
+ * @param hint - 用於 keyword matching 的文字
  * @param cycleMode - OODA cycle 模式，優先於 keyword matching
- *   - 有 cycleMode → 用 mode→skills 映射表精準載入
- *   - 無 cycleMode → 退回 keyword matching（向後相容）
  */
 export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
+  // Hot-reload: 檢查 skill 檔案是否有變更
+  const refreshed = refreshSkillsCache(skillsCache);
+  if (refreshed) skillsCache = refreshed;
+
   if (skillsCache.length === 0) return '';
 
-  // 無 hint 且無 cycleMode → 全部載入（向後相容）
+  // 無 hint 且無 cycleMode → 全部載入（向後相容，CLI 模式）
   if (!hint && !cycleMode) return formatSkillsPrompt(skillsCache);
 
-  // cycleMode 優先：用映射表精準篩選
+  // cycleMode 優先：用 skill 自宣告的 modes 篩選
   if (cycleMode) {
-    const allowedSkills = CYCLE_MODE_SKILLS[cycleMode];
+    const selected = skillsCache.filter(skill => {
+      // skill 沒宣告 modes → 不在 mode 篩選中載入（等 keyword fallback）
+      if (skill.modes.length === 0) return false;
+      return skill.modes.includes(cycleMode);
+    });
 
-    // respond mode: 空陣列 → fall through to keyword matching（而非載入全部 43K）
-    if (allowedSkills.length > 0) {
-      const selected = skillsCache.filter(skill =>
-        allowedSkills.includes(skill.name)
-      );
-      return formatSkillsPrompt(selected);
-    }
-    // Fall through to keyword matching for respond mode
+    // 有匹配到 → 直接回傳
+    if (selected.length > 0) return formatSkillsPrompt(selected);
+    // 沒匹配到 → fall through to keyword matching
   }
 
   // Fallback: keyword matching（respond mode 或無 cycleMode 時）
   const lowerHint = (hint ?? '').toLowerCase();
   const selected = skillsCache.filter(skill => {
-    const keywords = SKILL_KEYWORDS[skill.name];
-    // 未知 skill（無 mapping）→ 總是載入
-    if (!keywords) return true;
-    return keywords.some(k => lowerHint.includes(k));
+    // skill 沒宣告 keywords → 總是載入（保守策略）
+    if (skill.keywords.length === 0) return true;
+    return skill.keywords.some(k => lowerHint.includes(k));
   });
 
   return formatSkillsPrompt(selected);

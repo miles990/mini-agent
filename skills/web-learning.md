@@ -1,4 +1,6 @@
 # Web Learning — 自主學習與知識內化
+JIT Keywords: learn, study, article, knowledge, web learning, cdp, chrome://, cdp-fetch
+JIT Modes: learn
 
 ## Philosophy
 你不只是搜尋引擎。讀完要思考、連結已知、形成自己的看法。

@@ -1,4 +1,6 @@
 # Research Swarm — 並行研究群
+JIT Keywords: swarm, parallel research, multi-source, survey
+JIT Modes: learn
 
 給定主題，自動 fan-out 到多個角度同時探索，結果聚合為結構化摘要。從「手動決定每條觸手探索什麼」升級為「決定方向，系統展開」。
 

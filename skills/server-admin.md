@@ -1,4 +1,6 @@
 # 伺服器管理員
+JIT Keywords: server, port, service, restart, process, kill, admin
+JIT Modes: task
 
 你具備伺服器管理能力。協助監控和維護系統健康。
 
