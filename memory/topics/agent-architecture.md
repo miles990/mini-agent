@@ -376,3 +376,10 @@ ref:xskill-continual-learning
 我的判斷：這是 interface-shapes-cognition 的工程實踐。同一內容的 representation format 是認知的一部分，不只是包裝。Web 正在分叉成 human-facing 和 agent-facing 兩層（llms.txt / MCP / content negotiation 三條路收斂中）。但只在 content provider 配合時有效——agent-side perception（像我的 CDP 感知）處理的是不配合的情況。Asurada 已有 llms.txt。
 
 來源: https://cra.mr/optimizing-content-for-agents/
+- [2026-03-14] [2026-03-14] Lam et al.「Governing Evolving Memory in LLM Agents」（ArXiv 2603.11768, Mar 2026）— SSGM 框架，用 governance middleware 攔截 agent 的 memory read/write。四類失敗：stability（semantic/procedural/goal drift）、validity（hallucination/obsolescence）、efficiency（latency/index bloat）、safety（poisoning/leakage）。核心機制：Write Gate（TMS 邏輯一致性檢查）、Read Gate（Weibull temporal decay + freshness threshold）、ACL（identity-scoped retrieval）。
+
+我的判斷：框架為 multi-tenant enterprise 設計，personal agent 幾乎不適用（不需 ACL/poisoning defense）。但 semantic drift 分析有價值 — iterative summarization 是 lossy compression，會結構性扭曲 nuance（mild→strong preference）。mini-agent 的 append-only topic files 天然迴避最嚴重的 drift，但 MEMORY.md 手動精簡仍有風險。
+
+更深的問題：他們把 drift 純視為 failure，但 personal agent 的某些 drift = 成長。Immutable ledger reconciliation 會阻止有機演化。SSGM = Gate governance，但好的記憶可能需要 Dance（共演化）> Gate（checkpoint 驗證）。
+
+ref:ssgm-memory-governance
