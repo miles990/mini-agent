@@ -90,7 +90,7 @@ import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
-import { hasContextChanged, formatGateStats, hashContext, cacheResponse } from './omlx-gate.js';
+import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
 
 // =============================================================================
 // Types
@@ -371,6 +371,42 @@ export class AgentLoop {
 
     // Snapshot pending telegram messages for content-based reply matching
     const telegramMsgs = snapshotTelegramMsgs();
+
+    // 0.8B pre-classification: SIMPLE (answer directly) or COMPLEX (ack + delegate)
+    let complexity: 'SIMPLE' | 'COMPLEX' = 'SIMPLE';
+    try {
+      const classifyPrompt = `Classify this message. Does it need deep thinking, research, coding, multi-step planning, or analysis?
+Message: ${text.slice(0, 300)}
+Answer SIMPLE or COMPLEX only.`;
+      const raw = callLocalFast(classifyPrompt, 8, 5_000).trim().toUpperCase();
+      if (raw.startsWith('COMPLEX')) complexity = 'COMPLEX';
+      slog('LOOP', `[foreground-classify] ${complexity} (${text.slice(0, 60)})`);
+    } catch {
+      // 0.8B unavailable → default SIMPLE (fail-open, Claude handles everything)
+      slog('LOOP', '[foreground-classify] 0.8B unavailable, defaulting SIMPLE');
+    }
+
+    // COMPLEX path: instant ack + delegate to background, skip full Claude call
+    if (complexity === 'COMPLEX') {
+      const ack = `收到，這需要深度思考。我委派到背景處理，完成後會回覆你。`;
+      if (source === 'telegram') {
+        notifyTelegram(ack, matchReplyTarget(ack, telegramMsgs) ?? undefined).catch(() => {});
+        clearLastReaction();
+      }
+      await writeRoomMessage('kuro', ack, replyTo);
+      // Spawn background delegation
+      spawnDelegation({
+        type: 'research',
+        prompt: `用戶訊息（來自 ${source}）：${text}\n\n請深度思考並完整回覆這個問題/任務。回覆用中文。`,
+        workdir: process.cwd(),
+      });
+      this.lastAction = `[Foreground] Complex → delegated: ${text.slice(0, 80)}`;
+      slog('LOOP', `[foreground] Complex task delegated: ${text.slice(0, 80)}`);
+      eventBus.emit('action:loop', { event: 'foreground-delegate', source, text: text.slice(0, 200) });
+      // Mark inbox as processed
+      try { markChatRoomInboxProcessed(ack, parseTags(ack), 'foreground-delegate'); } catch {}
+      return;
+    }
 
     try {
       const memory = getMemory();
