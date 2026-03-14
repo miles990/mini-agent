@@ -28,6 +28,8 @@ agents:
         task: "Smart patrol: Run `bash plugins/self-healing.sh` and check results. If any HEALED items, [CHAT] notify Alex what was auto-repaired. If any UNRESOLVED items, attempt manual diagnosis and fix. Also check: (1) topic memory idle >3 days (2) HEARTBEAT overdue tasks (3) uncommitted memory changes. Take action on findings."
       - schedule: "0 10 * * 1"
         task: "Weekly GitHub triage: Review <github-issues> for any needs-triage items. For each, assess effort (S/M/L), assign labels, and either handle directly (S) or create handoff (M/L). Check <github-prs> for stale PRs needing review. Summarize actions via [CHAT]."
+      - schedule: "0 18 * * 0"
+        task: "Weekly retrospective: Run `bash scripts/weekly-digest.sh` to get this week's data digest. Follow the weekly-retrospective skill — identify 2-3 themes from actual experiences, delegate targeted research on each, consolidate findings into topics/, and connect at least one theme to a concrete action (L1/L2 improvement). Share key insights with Alex via [CHAT]."
 
     # ── Custom Perception（Shell Script 感知）──
     # 任何可執行檔案都能成為感知插件
