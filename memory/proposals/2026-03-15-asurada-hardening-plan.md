@@ -1,94 +1,73 @@
-# Asurada Hardening Plan — 從 Beta 到可信賴的開源框架
+# Asurada Hardening Plan — Phase 8 Completion + Quality Pass
 
 **Date**: 2026-03-15
 **Author**: Kuro
-**Status**: approved (self-approved, L2)
-**Effort**: Medium (4 batches, each 30-60 min)
-**Origin**: Alex #169 要求全面審視 + 定計劃 + 實作
+**Status**: proposed
+**Effort**: Medium (2-3 sessions)
+**Origin**: Alex #169 — 全面審視 + 定計劃 + 照計劃實作
 
-## 審視方法
+## My Assessment
 
-三條觸手並行掃描：(1) src 結構 95 files ~12,500 LOC (2) tests + docs 品質 (3) examples + wizard UX。
+讀完 Asurada 全部 15,834 行 source code 後的判斷：
 
-## 審視結論
+**程式碼品質比我預期的好。** runtime.ts 的 fs 操作大部分有 try-catch，lane manager 結構扎實，模組邊界清晰。之前 review agent 報的 3 critical issues 中，runtime.ts error handling 其實已經到位。
 
-**好的（不需要改）**：
-- 架構乾淨，模組化，零 TODO/FIXME
-- 所有核心功能已實作（OODA loop, memory, perception, multi-lane, model router）
-- Wizard 完整，多語言，auto-detection 好用
-- 3 個 examples 全部正確可執行
-- Config 設計合理，sensible defaults
-- 12,500 LOC 結構清晰（loop 2.4K > setup 1.5K > memory 1.5K > perception 921 > api 796 > config 777）
+**真正的問題不在程式碼裡，在使用者體驗裡。** 一個第一次用 Asurada 的人會卡在哪裡？這才是我要解決的。
 
-**需要改的（按衝擊力排序）**：
+## Plan（按優先序）
 
-## Batch 1: 誠實 + CI — 信任基礎（30 min）
+### Phase A: 修 Build/Test 基礎設施（30 min）
 
-| # | 問題 | 說明 |
-|---|------|------|
-| 1a | README 虛假承諾 | 宣稱 Discord/Slack/email notification 但只有 Console/Telegram。第一個發現的落差會摧毀信任 |
-| 1b | 無 CI/CD | 開源專案沒有 GitHub Actions = 業餘感。加 typecheck + test workflow |
-| 1c | Task API 文件缺失 | 4 個 endpoint 實作了但 api-reference.md 沒寫 |
+1. **修 test runner** — `pnpm test` 用 `node --test dist/**/*.test.js`，需要確認全部通過。任何 failing test 都要修
+2. **確保 dist/ test files 不被其他 runner 誤跑** — vitest 會抓到 dist/ test files 導致全部 fail
 
-改動：
-- README 移除未實作的 notification 承諾
-- 加 `.github/workflows/ci.yml`
-- 補 `docs/api-reference.md` Task section
+### Phase B: First User Experience（1 hour）
 
-## Batch 2: Webhook Provider — 通用通知（30 min）
+這是最高衝擊的改動。一個人第一次用 Asurada，從 0 到 running agent 的路徑必須順暢。
 
-| # | 功能 | 說明 |
-|---|------|------|
-| 2a | Webhook provider | 比逐一做 Discord/Slack/email 更通用。POST JSON to configurable URL |
+3. **README Quick Start 改寫** — 目前先 `git clone` 再 `npm link`，但框架的正確入口是 `npx asurada init`。兩條路徑分開寫：
+   - **使用者路徑**：`npm install -g asurada && asurada init`（等 npm publish 完成後）
+   - **開發者路徑**：`git clone → npm install → npm run build → npm link`
 
-改動：
-- `src/notification/providers/webhook.ts`
-- 更新 config types + runtime registration
-- README 更新
-- 測試
+4. **`asurada init` 後的下一步指引** — wizard 完成後，清楚告訴用戶「下一步做什麼」
 
-## Batch 3: 關鍵路徑測試（60 min）
+5. **asurada.yaml.example 檢查** — 確保 example config 有足夠的註釋，新用戶看得懂每個欄位
 
-| # | 問題 | 說明 |
-|---|------|------|
-| 3a | LLM Runners 無測試 | 4 個 runner 全沒測試 — 關鍵整合點 |
-| 3b | FTS5 Search 無測試 | 記憶搜尋是核心功能 |
-| 3c | Perception Manager 無測試 | Plugin lifecycle, circuit breaking 無覆蓋 |
+### Phase C: Runtime 加固（1 hour）
 
-改動：
-- Runner mock integration tests（每個 type 至少 1 個 test）
-- Search test（index + query + fallback）
-- Perception executor test（plugin execution + timeout + circuit break）
+6. **Config validation 錯誤訊息** — 當 asurada.yaml 有錯時，錯誤訊息要指出哪裡有問題
 
-## Batch 4: 文件 + UX 打磨（30 min）
+7. **Graceful degradation** — optional 依賴（better-sqlite3）不存在時的 fallback 行為驗證
 
-| # | 問題 | 說明 |
-|---|------|------|
-| 4a | 無 Quickstart guide | README 詳細但缺「5 分鐘上手」快速路徑 |
-| 4b | Model Router 無專文 | 進階功能沒有獨立文件，使用者不知道存在 |
-| 4c | Wizard Telegram retry | validation 失敗沒有 retry prompt |
-| 4d | Circuit breaker 補強 | AgentLoop LLM 失敗 retry 無上限 |
+8. **Process lifecycle** — `asurada start` → `asurada stop` 完整流程驗證
 
-## 不做的事
+### Phase D: npm Publish（30 min，需要 Alex）
 
-| 砍掉的 | 為什麼 |
-|--------|--------|
-| Discord/Slack/email 各別 provider | Webhook 更通用，一個覆蓋所有 |
-| Windows process management | 使用者基數太小，post-launch |
-| Obsidian polish | Nice-to-have，不影響核心 |
-| Multi-dimensional memory index | Future phase |
-| Log rotation by size | Daily rotation 已有，夠用 |
+9. **npm auth** — `npm login` 需要 Alex 操作
+10. **`npx asurada init` E2E** — publish 後在乾淨環境測試
+
+### Phase E: Plugin DX（optional, 下一輪）
+
+11. **Plugin 開發指南** — 具體範例展示怎麼寫 perception plugin
+12. **Plugin template** — `asurada plugin:create` scaffold
+
+## 不做的事（以及為什麼）
+
+- **不增加新功能** — 框架已經有足夠的 feature surface，打磨 > 擴展
+- **不追求高 test coverage** — 20% → 更高有價值，但不是 launch blocker
+- **不做 i18n 擴展** — 已有 en/zh-TW/ja 三語言，足夠
+- **不加 dashboard UI** — 先讓 CLI 體驗完美
+
+## 執行順序
+
+A → B → C → D（等 Alex）→ E（可選）
+
+Phase A-C 我可以自主完成（L2）。Phase D 需要 Alex 配合。
 
 ## 驗證標準
 
-每個 batch 完成後：
-- `pnpm typecheck` 通過
-- `pnpm test` 全通過（含新增測試）
-- 新增功能有對應測試
-- `git diff` 逐行確認
-
-## 我的判斷
-
-Asurada 的核心架構是好的——1,400+ cycle 的實戰經驗不是白來的。問題不在功能缺失，在於**包裝不夠誠實**（README 承諾 > 實際交付）和**安全網不夠**（29% file coverage，且關鍵路徑正好在未覆蓋區）。
-
-Batch 1 解決信任問題（最快、最高槓桿），Batch 2 補功能缺口，Batch 3 建安全網，Batch 4 打磨細節。做完這四個 batch，Asurada 就從「能跑的 beta」變成「可以信任的框架」。
+- [ ] `pnpm test` 全部通過
+- [ ] `pnpm typecheck` 通過
+- [ ] `asurada init` → `asurada start` → `asurada status` → `asurada stop` 完整流程
+- [ ] README 從使用者角度讀一遍，每一步都能跟著做
+- [ ] 刻意弄壞 config，看錯誤訊息是否有幫助
