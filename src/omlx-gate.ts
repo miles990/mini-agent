@@ -366,7 +366,7 @@ export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_
   const stdout = execFileSync('node', [localDelegatePath], {
     encoding: 'utf-8',
     timeout: timeoutMs,
-    env: { ...process.env, LOCAL_LLM_PROFILE: 'fast' },
+    env: { ...process.env, LOCAL_LLM_PROFILE: 'fast', LOCAL_LLM_MAX_TOKENS: String(maxTokens) },
     input: prompt,
   });
   return stdout;
@@ -381,7 +381,7 @@ export function callLocalSmart(prompt: string, maxTokens: number, timeoutMs = 15
   const stdout = execFileSync('node', [localDelegatePath], {
     encoding: 'utf-8',
     timeout: timeoutMs,
-    env: { ...process.env, LOCAL_LLM_PROFILE: 'default' },
+    env: { ...process.env, LOCAL_LLM_PROFILE: 'default', LOCAL_LLM_MAX_TOKENS: String(maxTokens) },
     input: prompt,
   });
   return stdout;

@@ -154,10 +154,11 @@ try {
   profileParams = JSON.parse(readFileSync(profilePath, 'utf-8'));
 } catch { /* use defaults */ }
 
+const maxTokensOverride = process.env.LOCAL_LLM_MAX_TOKENS ? parseInt(process.env.LOCAL_LLM_MAX_TOKENS, 10) : 0;
 const body = {
   model: profileParams.model || process.env.LOCAL_LLM_MODEL || '',
   messages: [{ role: 'user', content: prompt }],
-  max_tokens: profileParams.max_tokens || 8192,
+  max_tokens: maxTokensOverride || profileParams.max_tokens || 8192,
   temperature: profileParams.temperature ?? 0.7,
   top_p: profileParams.top_p ?? 0.8,
   stream: false,
