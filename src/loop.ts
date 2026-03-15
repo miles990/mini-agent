@@ -426,54 +426,13 @@ export class AgentLoop {
     // Snapshot pending telegram messages for content-based reply matching
     const telegramMsgs = snapshotTelegramMsgs();
 
-    // 0.8B pre-classification: SIMPLE (answer directly) or COMPLEX (ack + delegate)
-    let complexity: 'SIMPLE' | 'COMPLEX' = 'SIMPLE';
-    // Fix 1: Claude Code / inter-agent @kuro messages bypass classification → always SIMPLE
-    // These are coordinated messages that need full Claude processing, not background delegation
-    const isCoordinatedMsg = (source === 'room' || source === 'chat') && /[@＠]kuro/i.test(text);
-    if (isCoordinatedMsg) {
-      slog('LOOP', `[foreground-classify] SIMPLE (bypass: coordinated @kuro message from ${source})`);
-    } else {
-      try {
-        const classifyPrompt = `Classify this message. Does it need deep thinking, research, coding, multi-step planning, or analysis?
-Message: ${text.slice(0, 300)}
-Answer SIMPLE or COMPLEX only.`;
-        const raw = callLocalFast(classifyPrompt, 8, 5_000).trim().toUpperCase();
-        if (raw.startsWith('COMPLEX')) complexity = 'COMPLEX';
-        slog('LOOP', `[foreground-classify] ${complexity} (${text.slice(0, 60)})`);
-      } catch {
-        // 0.8B unavailable → default SIMPLE (fail-open, Claude handles everything)
-        slog('LOOP', '[foreground-classify] 0.8B unavailable, defaulting SIMPLE');
-      }
-    }
-
-    // COMPLEX path: instant ack + delegate to background, skip full Claude call
-    if (complexity === 'COMPLEX') {
-      const ack = `收到，這需要深度思考。我委派到背景處理，完成後會回覆你。`;
-      if (source === 'telegram') {
-        notifyTelegram(ack, matchReplyTarget(ack, telegramMsgs) ?? undefined).catch(() => {});
-        clearLastReaction();
-      }
-      await writeRoomMessage('kuro', ack, replyTo);
-      // Spawn background delegation
-      const delegationTaskId = spawnDelegation({
-        type: 'research',
-        prompt: `用戶訊息（來自 ${source}）：${text}\n\n請深度思考並完整回覆這個問題/任務。回覆用中文。`,
-        workdir: process.cwd(),
-      });
-      this.lastAction = `[Foreground] Complex → delegated: ${text.slice(0, 80)}`;
-      slog('LOOP', `[foreground] Complex task delegated (${delegationTaskId}): ${text.slice(0, 80)}`);
-      eventBus.emit('action:loop', { event: 'foreground-delegate', source, text: text.slice(0, 200) });
-      // Fix 2: DON'T mark inbox as processed — let OODA see the pending message
-      // Track the delegation so OODA knows to follow up when results arrive
-      trackForegroundDelegation({
-        taskId: delegationTaskId,
-        source,
-        text: text.slice(0, 500),
-        delegatedAt: new Date().toISOString(),
-      });
-      return;
-    }
+    // All direct messages (telegram, room, chat) → always SIMPLE.
+    // Alex's messages are highest priority — Claude answers directly, never delegated.
+    // 0.8B classification removed: the "fast ack + background delegation" path gave
+    // a useless generic reply while the real answer took minutes. SIMPLE gives a real
+    // answer in 15-30s via focused Claude context.
+    const complexity: 'SIMPLE' | 'COMPLEX' = 'SIMPLE';
+    slog('LOOP', `[foreground] SIMPLE (direct message from ${source}: ${text.slice(0, 60)})`);
 
     try {
       const memory = getMemory();
