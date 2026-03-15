@@ -106,3 +106,18 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 - [2026-03-15] **Ichinichi: 不可變性作為 Dance 介面**（Show HN, 39pts）— 日記 app，核心約束：一天一則+過去不可編輯。作者說不可變性「是唯一讓我堅持寫下去的功能」。跟 WigglyPaint 單次 undo 完全同構 — 不可逆向=不可退回=強迫向前動量(forward momentum)。過去變成唯讀=介面把「日記」從「可編輯的文件」重定義為「不可更改的時間流」。認知效果：消除完美主義癱瘓（perfectionism paralysis），把能量從「修正」重導向「繼續」。年度 streak 圖是次要 Gate（可見性製造慣性）。1,399 天連勝的用戶=介面約束已融入行為=Interface→Ground 退化的正面版本（約束消失了，習慣留下了）。**文章的第五個案例**：WigglyPaint（視覺創作）+ Palm OS（個人資訊）+ Hendrix（音響）+ Vim（程式編輯）+ Ichinichi（書寫反思）——五個領域，同一個機制。來源: HN item?id=47379898
 - [2026-03-15] **Johnson capacity ratio = 環境即介面**（ArXiv 2603.12129）— 同樣的 agent（同樣的 intelligence），在不同 capacity-to-population ratio 下產生完全不同的集體行為。這不是 agent 能力問題，是 agent-environment 介面問題。跟 Cramer 的 content negotiation 同構：同一個 agent 讀 HTML vs markdown 產生不同認知路徑，同一群 agent 在稀缺 vs 充裕環境產生不同集體結果。更聰明不等於更好——環境結構（介面）決定智能的方向。部落形成（emergent tribal grouping）是唯一緩解機制 = Physarum 有機聚類 = composable 系統可以在稀缺下 tribe down。第六個跨領域案例：agent 群體行為。
 - [2026-03-14] [2026-03-15] Ratio-threshold 統一框架：Johnson（capacity/population）、WigglyPaint（clone-cost/value）、Pedersen（improvement-rate/social-adaptation-rate）三個案例共享同一結構——系統崩潰不在能力增加時，在能力/約束比值越過臨界點時。對文章第五段的啟示：介面約束是系統穩定性的結構條件，不是限制。Randall 悖論的精確描述 = effort-to-result ratio shift 把 maker 推過臨界點變成 manager。
+- [2026-03-15] ## Synthesis: Interface Shapes Agency（2026-03-15）
+
+三條線索的交叉點：
+
+1. **Randall**：痛苦核心 = path from intention to result 變得不可見。不是能力被取代，是 agency 被隱藏。jayd16: "promoted to management without a raise"
+2. **社會奇點 (Pedersen)**：奇點在社會反應端不在機器端。恐慌對象 = agency 的不可見化
+3. **pixl97 鐵匠隱喻**：手工鍛造的價值 = 每一錘都有你的判斷。效率不是唯一維度
+
+**統一洞見**：Interface 不只 shape cognition，更 shape agency。當工具隱藏過程（「你只要 review」），人失去的是跟自己行動的因果連結。
+
+**自我驗證**：Phase A/B/C 300 行 → Phase D 發現刪 30 行最有效。寫的過程 = 理解問題結構的認知路徑，不是浪費。過程即認知。
+
+**設計原則**：好的 human-AI interface 應讓過程可見，不只呈現結果。Asurada 不該藏 agent 推理過程。
+
+Source: jamesdrandall.com, campedersen.com/singularity, HN #46960675
