@@ -1367,10 +1367,9 @@ export class InstanceMemory {
     }
   }
 
-  private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }, fullText = false): string {
+  private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }, noTruncate = false): string {
     const reply = msg.replyTo ? ` ↩${msg.replyTo}` : '';
-    const cap = fullText ? 500 : 200;
-    const text = msg.text.length > cap ? msg.text.slice(0, cap) + '...' : msg.text;
+    const text = noTruncate ? msg.text : (msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text);
     return `[${msg.id}] ${msg.from}${reply}: ${text}`;
   }
 
@@ -1519,11 +1518,19 @@ Queries:`;
       lines.push('--- recent ---');
     }
 
-    // Recent 5 messages: full text (500 chars cap)
+    // Recent 5 messages: full text, no truncation
     lines.push(...latestMsgs.map(m => this.formatChatRoomLine(m, true)));
 
     if (lines.length === 0) return null;
-    return `<chat-room-recent>\n${lines.join('\n')}\n</chat-room-recent>`;
+
+    // File pointer: Kuro can read the full JSONL for complete context on-demand
+    const convFile = path.join(this.memoryDir, 'conversations', `${today}.jsonl`);
+    const totalMsgs = allToday.length;
+    const fileHint = totalMsgs > recentFullCount
+      ? `\n[${totalMsgs} messages today. Full conversation: ${convFile} — read if you need more context]`
+      : '';
+
+    return `<chat-room-recent>\n${lines.join('\n')}${fileHint}\n</chat-room-recent>`;
   }
 
   private buildChatRoomRelevantSection(
