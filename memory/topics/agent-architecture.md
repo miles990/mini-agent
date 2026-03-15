@@ -402,3 +402,4 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 來源: https://arxiv.org/abs/2603.12129
 - [2026-03-14] [2026-03-15] GitAgent + MCP stdio/HTTP — 已記錄至 topic file
 - [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
+- [2026-03-15] [2026-03-15] Johnson "Increasing intelligence in AI agents can worsen collective outcomes" (ArXiv 2603.12129, 2026-03-12)。N=7 異質 LLM agent 資源競爭：C/N（容量/人口比）是唯一決定因素。C/N < 0.5 = 最簡 agent 最優，部落結構降 variance（Gift）；C/N > 0.5 = 複雜 agent 才有優勢，部落結構成為限制（Cage）。交叉點 C/N ≈ 0.5 = 約束極性翻轉的精確邊界。合作研究（Mori et al.）顯示 GPT-4-turbo/Gemini/Claude Sonnet 4.5 表現更差 — 更大模型 ≠ 更好。個體最優與集體崩潰可共存（C=1 時 followers 贏率 84.2%，系統過載 91.5%）。直接數學支撐 Interface IS Cognition Part 5 的 ratio-threshold 論點。ref:johnson-increasing-intelligence-2026
