@@ -22,6 +22,7 @@ import {
 } from './instance.js';
 import { withFileLock } from './filelock.js';
 import { diagLog } from './utils.js';
+import { eventBus } from './event-bus.js';
 import {
   getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus,
   getProcessStatus, formatProcessStatus,
@@ -884,9 +885,19 @@ export class InstanceMemory {
    * Cross-Pollination Digest: 從每個 topic 隨機抽 n 條 entry，放在一起找跨域連結
    * 注入 reflect mode prompt，幫助發現隱藏的知識連結
    */
-  async getCrossPollinationDigest(n = 2): Promise<string> {
-    const topics = await this.listTopics();
+  async getCrossPollinationDigest(n = 2, maxTopics = 8): Promise<string> {
+    let topics = await this.listTopics();
     if (topics.length === 0) return '';
+
+    // Shuffle and limit topics to control context budget
+    if (topics.length > maxTopics) {
+      const shuffled = [...topics];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      topics = shuffled.slice(0, maxTopics);
+    }
 
     const samples: string[] = [];
     for (const topic of topics) {
@@ -1598,6 +1609,8 @@ Queries:`;
     mode?: 'full' | 'focused' | 'minimal' | 'light';
     cycleCount?: number;
     trigger?: string;
+    /** Phase 0 preprocessing results — compressed perception summaries + heartbeat diff */
+    phase0Results?: import('./preprocess.js').Phase0Results;
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
     const isLight = mode === 'light';
@@ -1989,15 +2002,32 @@ Queries:`;
                 changedResults.push(r);
               }
             }
+            // Phase 0 P0b: Replace full perception output with 0.8B summaries when available
+            const p0Summaries = options?.phase0Results?.perceptionSummaries;
+            const summarizedResults: typeof changedResults = [];
+            const summarizedNames: string[] = [];
+            for (const r of changedResults) {
+              const summary = p0Summaries?.get(r.name);
+              if (summary) {
+                // Use 0.8B summary instead of full output
+                summarizedResults.push({ ...r, output: summary });
+                summarizedNames.push(r.name);
+              } else {
+                summarizedResults.push(r);
+              }
+            }
             // R1: apply reduced output caps for non-high-citation sections
             const effectiveCaps = { ...capOverrides };
-            for (const r of changedResults) {
+            for (const r of summarizedResults) {
               const defaultCap = capOverrides[r.name] ?? 4000;
               effectiveCaps[r.name] = getEffectiveOutputCap(r.name, defaultCap);
             }
-            // 只渲染有變化的 sections（with R1 reduced caps）
-            const customCtx = formatPerceptionResults(changedResults, effectiveCaps);
+            // 只渲染有變化的 sections（with R1 reduced caps + P0b summaries）
+            const customCtx = formatPerceptionResults(summarizedResults, effectiveCaps);
             if (customCtx) sections.push(customCtx);
+            if (summarizedNames.length > 0) {
+              eventBus.emit('log:info', { message: `[preprocess] P0b: ${summarizedNames.length} perception sections compressed: ${summarizedNames.join(', ')}` });
+            }
             // 未變化的 sections：一行列表取代多個 XML 區塊
             if (unchangedNames.length > 0) {
               sections.push(`<unchanged-perceptions>\n${unchangedNames.join(', ')}\n</unchanged-perceptions>`);
@@ -2243,7 +2273,22 @@ Queries:`;
     const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
     sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
-    const hbContent = isLight ? (heartbeat?.slice(0, 1500) ?? '') : (heartbeat ?? '');
+    // Phase 0 P0c: Use heartbeat diff instead of full content when available
+    const hbDiff = options?.phase0Results?.heartbeatDiff;
+    let hbContent: string;
+    if (isLight) {
+      hbContent = heartbeat?.slice(0, 1500) ?? '';
+    } else if (hbDiff) {
+      // P0c: Compressed heartbeat — diff summary + essential sections (Active Tasks header)
+      const activeTasksMatch = heartbeat?.match(/## Active Tasks[\s\S]*?(?=\n## |$)/);
+      const activeTasks = activeTasksMatch?.[0]?.slice(0, 1500) ?? '';
+      hbContent = `## Changes Since Last Cycle\n${hbDiff}\n\n${activeTasks}`;
+      eventBus.emit('log:info', {
+        message: `[preprocess] P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbContent.length} chars`,
+      });
+    } else {
+      hbContent = heartbeat ?? '';
+    }
     sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
 
     let assembled = sections.join('\n\n');

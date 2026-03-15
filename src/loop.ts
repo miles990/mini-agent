@@ -91,6 +91,8 @@ import { routeModel, getModelCliName, recordModelOutcome } from './model-router.
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
 import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
+import { runPhase0 } from './preprocess.js';
+import type { Phase0Results } from './preprocess.js';
 
 // =============================================================================
 // Types
@@ -1132,11 +1134,24 @@ Answer SIMPLE or COMPLEX only.`;
         } catch { /* not a specialist — use full context */ }
       }
 
+      // Phase 0: 0.8B concurrent preprocessing (perception summaries + heartbeat diff)
+      // Runs before buildContext so Claude receives compressed context.
+      // Skip for DM (speed matters) and specialist (different context path).
+      let phase0Results: Phase0Results | undefined;
+      if (!isDirectMessage && !specialistPerspective) {
+        try {
+          phase0Results = await runPhase0();
+        } catch (err) {
+          // Fail-open: Phase 0 failure = buildContext uses raw data
+          eventBus.emit('log:info', { message: `[preprocess] Phase 0 failed (fail-open): ${err instanceof Error ? err.message : err}` });
+        }
+      }
+
       // Light mode for DM-triggered cycles: minimal context for fast response
       const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
       let context = specialistPerspective
         ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
-        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined });
+        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results });
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});

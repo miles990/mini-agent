@@ -700,3 +700,209 @@ export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_
 export function callLocalSmart(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
   return callLocalLLM('Qwen3.5-9B-MLX-4bit', prompt, maxTokens, timeoutMs);
 }
+
+// =============================================================================
+// Async Local LLM — Phase B concurrent infrastructure
+// =============================================================================
+
+/**
+ * Circuit breaker state for async calls.
+ * 3 consecutive failures → 10 min cooldown (fail-open during cooldown).
+ */
+let circuitBreakerFailures = 0;
+let circuitBreakerOpenUntil = 0;
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
+function isCircuitOpen(): boolean {
+  if (circuitBreakerOpenUntil === 0) return false;
+  if (Date.now() >= circuitBreakerOpenUntil) {
+    // Cooldown expired — half-open: allow one attempt
+    circuitBreakerOpenUntil = 0;
+    circuitBreakerFailures = 0;
+    eventBus.emit('log:info', { message: '[omlx-gate] Circuit breaker: half-open, allowing attempt' });
+    return false;
+  }
+  return true;
+}
+
+function recordCircuitSuccess(): void {
+  circuitBreakerFailures = 0;
+  circuitBreakerOpenUntil = 0;
+}
+
+function recordCircuitFailure(): void {
+  circuitBreakerFailures++;
+  if (circuitBreakerFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    circuitBreakerOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+    eventBus.emit('log:info', {
+      message: `[omlx-gate] Circuit breaker OPEN: ${circuitBreakerFailures} consecutive failures, cooldown ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`,
+    });
+    notifyTelegram(`⚠️ oMLX circuit breaker open: ${circuitBreakerFailures} failures, 10min cooldown`).catch(() => {});
+  }
+}
+
+/** Get circuit breaker status for observability */
+export function getCircuitBreakerStatus(): { open: boolean; failures: number; cooldownRemaining: number } {
+  return {
+    open: isCircuitOpen(),
+    failures: circuitBreakerFailures,
+    cooldownRemaining: Math.max(0, circuitBreakerOpenUntil - Date.now()),
+  };
+}
+
+/**
+ * Async call to local LLM via fetch (non-blocking).
+ * Uses circuit breaker — returns null when circuit is open (fail-open).
+ * Retries once on failure (same as sync version).
+ */
+async function callLocalLLMAsync(
+  model: string,
+  prompt: string,
+  maxTokens: number,
+  timeoutMs: number,
+): Promise<string | null> {
+  if (isCircuitOpen()) {
+    eventBus.emit('log:info', { message: '[omlx-gate] Circuit breaker open, skipping async call' });
+    return null;
+  }
+
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: maxTokens,
+    temperature: 0.7,
+    top_p: 0.8,
+    top_k: 20,
+    presence_penalty: 1.5,
+    stream: false,
+    chat_template_kwargs: { enable_thinking: false },
+  });
+
+  const doFetch = async (): Promise<string> => {
+    const res = await fetch(`${omlxUrl()}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${omlxKey()}`,
+      },
+      body,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`oMLX HTTP ${res.status}`);
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return data.choices?.[0]?.message?.content ?? '';
+  };
+
+  try {
+    const result = await doFetch();
+    recordCircuitSuccess();
+    return result;
+  } catch {
+    // Retry once
+    try {
+      const result = await doFetch();
+      recordCircuitSuccess();
+      return result;
+    } catch {
+      recordCircuitFailure();
+      return null;
+    }
+  }
+}
+
+/**
+ * Async call to 0.8B. Returns null on failure (fail-open).
+ */
+export async function callLocalFastAsync(prompt: string, maxTokens: number, timeoutMs = 15_000): Promise<string | null> {
+  return callLocalLLMAsync('Qwen3.5-0.8B-MLX-4bit', prompt, maxTokens, timeoutMs);
+}
+
+// =============================================================================
+// Concurrent Execution
+// =============================================================================
+
+export interface LocalLLMTask {
+  id: string;
+  prompt: string;
+  maxTokens: number;
+  timeoutMs?: number;
+}
+
+export interface LocalLLMResult {
+  id: string;
+  content: string | null;
+  latencyMs: number;
+  error?: string;
+}
+
+/**
+ * Run multiple 0.8B tasks concurrently with a concurrency limit.
+ * Sweet spot: 2-3 concurrent (benchmark: 3 concurrent ~200ms, 15.1 req/s).
+ *
+ * Returns results in the same order as input tasks.
+ * Failed tasks have content=null and error set.
+ * Circuit breaker applies — if open, all tasks return null immediately.
+ */
+export async function callLocalConcurrent(
+  tasks: LocalLLMTask[],
+  maxConcurrency: number = 3,
+): Promise<LocalLLMResult[]> {
+  if (tasks.length === 0) return [];
+
+  // Circuit breaker short-circuit: all tasks fail-open
+  if (isCircuitOpen()) {
+    return tasks.map(t => ({
+      id: t.id,
+      content: null,
+      latencyMs: 0,
+      error: 'circuit-breaker-open',
+    }));
+  }
+
+  const results: LocalLLMResult[] = new Array(tasks.length);
+  let nextIdx = 0;
+
+  const runTask = async (taskIdx: number): Promise<void> => {
+    const task = tasks[taskIdx];
+    const start = Date.now();
+    try {
+      const content = await callLocalFastAsync(task.prompt, task.maxTokens, task.timeoutMs ?? 15_000);
+      results[taskIdx] = {
+        id: task.id,
+        content,
+        latencyMs: Date.now() - start,
+      };
+    } catch (err) {
+      results[taskIdx] = {
+        id: task.id,
+        content: null,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  };
+
+  // Semaphore-based concurrency control
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < Math.min(maxConcurrency, tasks.length); i++) {
+    workers.push((async () => {
+      while (nextIdx < tasks.length) {
+        const idx = nextIdx++;
+        await runTask(idx);
+      }
+    })());
+  }
+
+  await Promise.all(workers);
+
+  // Log aggregate metrics
+  const succeeded = results.filter(r => r.content !== null).length;
+  const totalLatency = results.reduce((sum, r) => sum + r.latencyMs, 0);
+  const avgLatency = tasks.length > 0 ? Math.round(totalLatency / tasks.length) : 0;
+  eventBus.emit('log:info', {
+    message: `[omlx-gate] Concurrent: ${succeeded}/${tasks.length} ok, avg ${avgLatency}ms, max-concurrency ${maxConcurrency}`,
+  });
+
+  return results;
+}

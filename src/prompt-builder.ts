@@ -286,7 +286,7 @@ export async function buildAutonomousPrompt(
   // Inject rumination material for reflect mode
   const [digest, forgotten, unexpressedImpulses] = await Promise.all([
     memory.getCrossPollinationDigest(1),
-    memory.getForgottenEntries(7, 5),
+    memory.getForgottenEntries(7, 3),
     memory.getUnexpressedImpulses(),
   ]);
   const ruminationSection = (digest || forgotten)

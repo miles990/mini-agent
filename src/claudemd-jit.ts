@@ -32,13 +32,8 @@ interface ClaudeMdSection {
  *  Keep this MINIMAL — every core section adds to every cycle's prompt.
  *  Verbose reference sections (Key Files, Deploy, etc.) should be JIT. */
 const CORE_HEADINGS = new Set([
-  '設計理念',
   '核心原則',
-  '三層架構',
   '進化核心約束（Meta-Constraints）',
-  'Code Conventions',
-  'Workflow',
-  '詳細文件',
 ]);
 
 /**
@@ -52,6 +47,25 @@ const CORE_HEADINGS = new Set([
 const JIT_OUTPUT_CAP = 20_000;
 
 const SECTION_KEYWORDS: Record<string, string[]> = {
+  '設計理念': [
+    'design', 'philosophy', 'perception-driven', 'goal-driven', 'physarum',
+    'transparency', 'isolation', 'audit', 'platform', '設計',
+  ],
+  '三層架構': [
+    'architecture', 'layer', '三層', 'perception', 'skills', 'execute',
+    'l1', 'l2', 'l3', 'proposal', 'forge',
+  ],
+  'Code Conventions': [
+    'code', 'convention', 'typescript', 'strict', 'import', 'naming',
+    'lint', 'field name', 'mismatch', 'html', 'cors',
+  ],
+  'Workflow': [
+    'workflow', 'commit', 'staging', 'plan', 'implement', 'typecheck',
+    'architecture decision', 'tool call', 'file edit',
+  ],
+  '詳細文件': [
+    'document', 'architecture.md', 'reference', 'detail',
+  ],
   '學以致用閉環（Action from Learning）': [
     'l1', 'l2', 'l3', 'self-improve', 'action from learning', 'proposal', 'forge',
   ],
