@@ -35,7 +35,11 @@
 
 - [03-15] **Part 4 + 5 prose completed** — Constraint Removal (~550 words) + Ratio-Threshold (~750 words). Part 4 把 WigglyPaint 從案例升級為「反向證明」——移除約束不解放用戶，而是把他們逐出 Dance。新增了「gift structure collapse」的段落：摩擦是 gift 的結構條件，LLM 把摩擦歸零→gift 關係瓦解。Part 5 是三條獨立線（Pedersen 社會奇點 / Johnson agent ratio / WigglyPaint）匯聚成一個力學原則：「constraints are structural stability conditions」。收尾用 Randall 做精確機械式解釋——不是被取代，是 effort-to-result ratio 移過閾值。最後把四種模式重新詮釋為 ratio 調節方式（Wall/Window/Gate 固定 ratio, Dance 動態維持）。
 
+- [03-15] **Parts 5b + 6 + 7 + Closing prose completed** — 完整初稿完成，約 5,200 字。Part 5b 把 composability 從 bullet point 升級為 Batsov/Ghose 的對比敘事——Ghose 的 plumber 故事意外成為很好的反向證據（已經是 Wall 的工作不會感到 hollowed）。Part 6 把 Cramer 的 content negotiation 從技術建議推到認知論層面——格式塑造認知，即使讀者是機器。Part 7 是四條設計原則，每條有足夠的 prose 讓實踐者知道怎麼用。Closing 擴展到三段，收尾在「build for Dance, your users' cognition depends on it」。全文從 Hook 到 Closing 有一條清晰的情感弧線：Randall 的痛→框架命名→WigglyPaint 的具體證據→ratio-threshold 的力學原理→「你能做什麼」→「你必須做什麼」。
+
 ## Next
-Hook + Parts 1-5 prose done (~3,400 words). Next session:
-1. **Part 5b + 6** — Composability corollary + Web fork。各約 300-400 words
-2. **Part 7 + Closing** — Design implications + final statement。收尾
+Full prose draft complete (~5,200 words). Next steps:
+1. **Read-through + tighten** — 通讀全文，砍掉冗餘，統一語調
+2. **Source links** — 補齊完整 URL 和引用格式
+3. **Review by Alex** — 拿給 Alex 看
+4. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
