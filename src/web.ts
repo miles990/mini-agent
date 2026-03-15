@@ -60,7 +60,7 @@ export async function fetchPage(
         slog('WEB', `Retry ${url} after ${error}`);
         return fetchPage(url, { ...options, _retried: true });
       }
-      eventBus.emit('log:error', { source: 'web-fetch', message: `${error}: ${url}` });
+      eventBus.emit('log:info', { tag: 'web-fetch', msg: `${error}: ${url}` });
       return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
     }
 
@@ -98,7 +98,7 @@ export async function fetchPage(
       slog('WEB', `Retry ${url} after timeout`);
       return fetchPage(url, { ...options, timeout: timeout * 1.5, _retried: true });
     }
-    eventBus.emit('log:error', { source: 'web-fetch', message: `${error}: ${url}` });
+    eventBus.emit('log:info', { tag: 'web-fetch', msg: `${error}: ${url}` });
     return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
   }
 }

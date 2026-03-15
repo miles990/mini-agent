@@ -81,10 +81,10 @@ export function loadBehaviorConfig(
       return { config, lastValidConfig: config };
     }
     // Parse failed — keep lastValidConfig, emit error
-    eventBus.emit('log:error', { message: 'parseBehaviorConfig returned null, keeping lastValidConfig' });
+    eventBus.emit('log:info', { tag: 'behavior', msg: 'parseBehaviorConfig returned null, keeping lastValidConfig' });
     return { config: lastValidConfig, lastValidConfig };
   } catch (err) {
-    eventBus.emit('log:error', { message: `loadBehaviorConfig error: ${err instanceof Error ? err.message : err}` });
+    eventBus.emit('log:info', { tag: 'behavior', msg: `loadBehaviorConfig error: ${err instanceof Error ? err.message : err}` });
     return { config: lastValidConfig, lastValidConfig };
   }
 }

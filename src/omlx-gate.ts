@@ -515,7 +515,7 @@ Keywords:`;
       keywordCache = { hash, keywords };
       stats.totalSaved += 500; // rough estimate of better section matching savings
       eventBus.emit('log:info', {
-        message: `[omlx-gate] R7: Extracted ${keywords.length} keywords: ${keywords.join(', ')}`,
+        tag: 'omlx-gate', msg: `R7: Extracted ${keywords.length} keywords: ${keywords.join(', ')}`,
       });
       return keywords;
     }
@@ -570,7 +570,7 @@ export function getCachedResponse(contextHash: string, trigger: string | undefin
 
   stats.totalSaved += cached.response.length;
   eventBus.emit('log:info', {
-    message: `[omlx-gate] R8: Cache hit for context hash ${contextHash.slice(0, 8)}, saved ~${Math.round(cached.response.length / 1000)}K`,
+    tag: 'omlx-gate', msg: `R8: Cache hit for context hash ${contextHash.slice(0, 8)}, saved ~${Math.round(cached.response.length / 1000)}K`,
   });
   return cached.response;
 }
@@ -901,7 +901,7 @@ export async function callLocalConcurrent(
   const totalLatency = results.reduce((sum, r) => sum + r.latencyMs, 0);
   const avgLatency = tasks.length > 0 ? Math.round(totalLatency / tasks.length) : 0;
   eventBus.emit('log:info', {
-    message: `[omlx-gate] Concurrent: ${succeeded}/${tasks.length} ok, avg ${avgLatency}ms, max-concurrency ${maxConcurrency}`,
+    tag: 'omlx-gate', msg: `Concurrent: ${succeeded}/${tasks.length} ok, avg ${avgLatency}ms, max-concurrency ${maxConcurrency}`,
   });
 
   return results;
