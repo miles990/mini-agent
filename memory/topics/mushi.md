@@ -411,3 +411,4 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 
 統一敘事：AI 未來 = 異質化處理器網路。小模型判斷、信心值路由、即時修剪、推理時銳化、符號引擎精確計算。不是更大的腦 — 是完整的神經系統。DeepConf 的滑動視窗信心監控 = 「過程層路由」（推理中途判斷「我搞不定」），比 CER 的「結果層路由」更進一步。Power Sampling 與 DeepConf 不矛盾：花對的計算（MCMC 探索）+ 砍錯的計算（低信心修剪）。TableRAG 打開第二路由維度：任務類型（語義→LLM、精確→SQL、判斷→SLM、結構→DB）。
 - [2026-03-15] [2026-03-16] 整合報告完成（memory/proposals/2026-03-16-integration-report.md）：七篇論文統一敘事 + 五方向研究 + 競品分析 + GTM 路徑。三個市場缺口（self-improving pipeline/小模型 agent/perception-driven）× 護城河（3560+ production triage）× 前 1000 用戶路徑（mushi-kit CLI → Show HN → community seeding）。最大風險：setup 體驗複雜，緩解靠免費雲端 API backend。Aha moment = 5 秒內看到 triage 結果。
+- [2026-03-15] [2026-03-16] Show HN 時機信號：Anthropic 1M context GA（1183 pts HN 頭條）正好強化 mushi-kit 價值主張 — context 越大，重複決策成本越高，crystallization 節省越多。可作為 Show HN 開頭 hook。

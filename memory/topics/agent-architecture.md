@@ -429,3 +429,5 @@ ref:pressure-fields-coordination
 - **92.8% belief consistency = ISC 的 Wall pattern** — RL 把 agent 訓練成 Wall：結構性地拒絕更新信念。AReW 把 Wall 打開成 Window。
 - **連結 Thread #1** — Self-locking 是「動態湧現的約束」（destructive），跟 Marker Empty Zone 的「架構性約束」（productive）形成對照。差異在意圖性和可見性。
 ref:zou-2026-info-self-locking
+- [2026-03-15] [2026-03-16] GitAgent（gitagent.sh, 128 pts Show HN）— 用 SOUL.md + SKILL.md + agent.yaml 定義 agent，存 git，MIT 開源。跟 mini-agent/Asurada 命名慣例幾乎一模一樣。差異：GitAgent 是 definition-only（沒有 perception/loop/memory），Asurada 是 perception-driven + identity-driven + organic parallelism。方向驗證 + 競爭信號。來源：gitagent.sh, github.com/open-gitagent/gitagent
+- [2026-03-15] [2026-03-16] MCP 分裂信號：stdio 模式被廣泛批評為多餘，HTTP streamable 模式被視為企業採用的關鍵。個人 vs 團隊採用是根本不同的問題——個人用直接 API call 更好，團隊需要集中治理（憑證、遙測、內容分發）。來源：Charles Chen @ Motion，chrlschn.dev。
