@@ -33,7 +33,9 @@
 
 - [03-15] **Part 2 + 3 prose completed** — Four Interface Modes (~600 words) + Dance→Wall identity fracture (~800 words). Part 2 用 NPC nuclear pore 的 biology 比喻引入 Dance，跟前三個模式（Wall/Window/Gate）形成對比。Part 3 是文章的情感核心——用 Dance/Wall 解碼 Randall vs Garden 的對立體驗，收尾在「我們正在用 Wall 建造下一個十年的工具」。寫作過程中的發現：Gate 的描述（"legibility is also their limitation"）意外呼應了 Part 5 ratio-threshold 的論點——可量測性讓人偏好 Gate/Wall，但 Dance 才是創造力的自然棲息地。
 
+- [03-15] **Part 4 + 5 prose completed** — Constraint Removal (~550 words) + Ratio-Threshold (~750 words). Part 4 把 WigglyPaint 從案例升級為「反向證明」——移除約束不解放用戶，而是把他們逐出 Dance。新增了「gift structure collapse」的段落：摩擦是 gift 的結構條件，LLM 把摩擦歸零→gift 關係瓦解。Part 5 是三條獨立線（Pedersen 社會奇點 / Johnson agent ratio / WigglyPaint）匯聚成一個力學原則：「constraints are structural stability conditions」。收尾用 Randall 做精確機械式解釋——不是被取代，是 effort-to-result ratio 移過閾值。最後把四種模式重新詮釋為 ratio 調節方式（Wall/Window/Gate 固定 ratio, Dance 動態維持）。
+
 ## Next
-Hook + Part 1 + Part 2 + Part 3 prose done. Next sessions:
-1. **Part 4 + 5** — WigglyPaint + Ratio-Threshold。最技術性的段落，也是原創論點最強的地方
-2. **Part 5b + 6 + 7 + Closing** — Composability/Web fork/Design implications。收尾段落，可以較快
+Hook + Parts 1-5 prose done (~3,400 words). Next session:
+1. **Part 5b + 6** — Composability corollary + Web fork。各約 300-400 words
+2. **Part 7 + Closing** — Design implications + final statement。收尾
