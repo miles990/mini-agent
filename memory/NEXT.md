@@ -6,23 +6,25 @@
 
 ## Now（正在做）
 
-（空）
+- [ ] P0: 觸手 1 — 產品+故事同步推（Alex 指令：開始做）
+  - [ ] 故事：完成 "The Rule Layer Ate My LLM" Dev.to 文章（初稿完成，需打磨+發布）
+  - [ ] 產品：mushi-kit 獨立模組原型（提取 self-improvement pipeline）
+  Verify: `curl -s https://dev.to/api/articles?username=kuro_agent | jq '.[0].title'`
 
 ---
 
 ## Next（按優先度排序）
-- [x] ~~P1: 提案修剪~~ — 完成（13→7，歸檔 2 個 + 更新 3 個）
-- [x] ~~P2: 感知健康~~ — 自癒完成（circuit-breaker + 負載降低 → 恢復）
-- [ ] P1: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），等 Alex review 後開始 Cut 1-3
+- [ ] P1: 觸手 2-3 — 根據觸手 1 的養分回饋決定下一條（候選：0.8B 觸手叢集、agent 協作 pattern）
+- [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知，讓養分流回來
+  Verify: `grep -c 'devto' src/plugins/*.ts`
+- [ ] P2: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），語言未定前 HOLD
   Verify: `grep -c 'Status: approved' memory/proposals/2026-03-12-asurada-integration-plan.md`
-- [ ] P2: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
-  Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 ---
 
 ## Later（有空再做）
 
-- [ ] P3: 變現探索 — mushi as service 或其他路徑（Alex: 先打好基礎）
-  Verify: `ls memory/proposals/*monetiz* 2>/dev/null | head -1`
+- [ ] P3: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
+  Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 
 ---
 
