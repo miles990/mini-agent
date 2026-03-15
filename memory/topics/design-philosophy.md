@@ -146,3 +146,11 @@ ref:creativebench-2603-11863
 - [2026-03-14] [2026-03-14] 核孔複合體作為「受約束的無序」範例（Quanta, 2026-03-09）：FG-nucleoporins 是本質無序蛋白，其持續擺動形成動態「虛擬閘門」— 帶正確標籤的分子穿過，其他被混亂推走。Onck: "It's not order that generates this function. It's disorder." 但更精確的是 **constrained disorder**：scaffold(八瓣結構)=constraint，disorder(蛋白舞動)=gift，membrane=ground。跟 Physarum 同構：分散式智能透過受約束的無序。Agent 設計啟示：scaffolded chaos > rigid routing。ref:nuclear-pore-disorder
 - [2026-03-14] [2026-03-14] Position/Force control 映射約束框架四型態：Position control = Gate（結構性邊界，離散 checkpoint）；Classical force control = Ritual（精確協議，窄任務有效但無法泛化）；Force + compliant hardware = Dance（連續回饋，自適應）。文章證實：Gate 層已解決，Dance 層是瓶頸 — 跟今天的「中間層」收斂洞見一致。另一個啟示：proprioceptive actuators（硬體約束）是 RL（軟體學習）的 enabling condition — **約束使學習成為可能**，不是阻礙學習。沒有 compliant hardware 吸收衝擊，機器人在訓練中就會「break」。來源: Quanta 2026-03-13, 同上。
 - [2026-03-15] [2026-03-15] 約束極性翻轉的數學證明（Johnson 2603.12129）：同一個約束（部落結構 / tribal formation）在 C/N < 0.5 時是 Gift（cap demand variance 從 N² 到 ~19），在 C/N > 0.5 時是 Cage（阻止充分利用容量）。翻轉點 C/N ≈ 0.5 可部署前計算。這為 Constraint/Gift/Ground 框架提供精確量化基礎 — 約束不是好壞，是環境條件函數。RL（reinforcement learning）使事情更糟 = 個體適應性增加集體 herding。
+- [2026-03-15] [2026-03-15] **Productive vs Destructive Constraints 的形式化區分**（from Zou et al. 2603.12109 + Thread #1 synthesis）：
+
+- **架構性約束（productive）**：被選擇的、結構性的、擴展可能空間。例：Marker 的 Empty Zone、Oulipo 的寫作規則、mushi 的 subordinate-only 設計。可見、可逆、有意圖。
+- **動態約束（destructive）**：從反饋迴路中湧現的、收縮可能空間的。例：Information Self-Locking、echo chamber、sunk cost。不可見（agent 不知道自己被鎖住）、難逃逸（O(log(1/η))）、無意圖。
+
+解鎖機制也不同：架構性約束靠「填充」或「移除」改變體驗（Type A/B 反轉）；動態約束靠「外部 meta-perception」打破迴路（AReW / Coach / 鏡子的多元性）。
+
+這補完了約束框架：Constraint/Gift/Ground 三層 + Liberation/Uprooting 方向 + 現在加上 Architectural/Dynamic 來源軸。

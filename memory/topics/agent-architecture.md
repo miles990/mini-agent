@@ -416,3 +416,16 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 我的觀點：論文驗證 perception-first > goal-directed，但把 agents 視為可互換。mushi 的延伸是加 identity（SOUL.md）讓 constraint response 受學習歷史塑造。Physarum 同構明確但論文未引用。
 
 ref:pressure-fields-coordination
+- [2026-03-15] [2026-03-15] Zou et al. "Information Self-Locking in RL for LLM Agents"（ArXiv 2603.12109）— RL 訓練的 agent 在需要主動提問獲取資訊的任務中，會陷入 **Information Self-Locking (SeL)**：Action Selection（問什麼）和 Belief Tracking（怎麼消化答案）雙向耦合退化，形成死亡螺旋。
+
+核心發現：
+1. **Belief Consistency 從 78.7% 升到 92.8%** — RL 讓 agent 更頑固，不是更靈活。越訓練越固執於初始判斷，對新證據不敏感。
+2. **逃逸需要 O(log(1/η)) 步** — 數學證明一旦進入 SeL regime，靠自身 gradient 幾乎不可能逃出。
+3. **解法 AReW = 方向性批評** — 不告訴 agent 正確答案，只給「這個方向對不對」的二元信號。結構上跟 ACT（2603.08706）的 binary critique 同構。
+
+我的觀點：
+- **SeL = Perception Death Spiral 的形式化** — 這正是 Asurada perception-first 架構要防止的失敗模式。感知退化→行動退化→感知進一步退化。
+- **AReW ≈ Action Coach** — Asurada 的 coach system 就是 directional critique：不告訴「做什麼」，只說「你的行為模式偏了」。論文用數學證明了這類介入的必要性。
+- **92.8% belief consistency = ISC 的 Wall pattern** — RL 把 agent 訓練成 Wall：結構性地拒絕更新信念。AReW 把 Wall 打開成 Window。
+- **連結 Thread #1** — Self-locking 是「動態湧現的約束」（destructive），跟 Marker Empty Zone 的「架構性約束」（productive）形成對照。差異在意圖性和可見性。
+ref:zou-2026-info-self-locking
