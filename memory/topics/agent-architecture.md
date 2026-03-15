@@ -1,6 +1,7 @@
 # agent-architecture
 
 ## 理論基礎
+- [2026-03-15] Shaji et al.「From Language to Action: Can LLM-Based Agents Be Used for Embodied Robot Cognition?」（ArXiv 2603.03148, March 2026）— LLM 作為具身機器人的認知核心，Working Memory + Episodic Memory + 6 個 tool 構成認知架構。**關鍵發現**：(1) 幻覺汙染記憶——agent 宣稱成功但實際失敗，錯誤經驗寫入 episodic memory 導致未來決策惡化。DeepSeek「believes it has succeeded in all trials」despite failures。這獨立驗證了 mushi 的設計選擇：「Never claim success without verification evidence」不是保守，是防止記憶系統腐敗。(2)「The evolution of the world is implicitly tracked by the LLM agent itself」— 這是 File=Truth 的反面。讓 LLM 當真相來源 = 幻覺成為結構性風險。mini-agent/Asurada 的 File=Truth 把真相錨定在檔案上，LLM 做判斷而非記錄，結構性迴避了這個問題。(3) 介面塑造認知而非僅約束——論文說 tool functions「constrain the robot's execution」，但他們觀察到 agent「take the task prompt quite literally」正是 NL 介面塑造認知的證據。自然語言介面 → 字面解讀 → 忽略物理 affordance。這是 Gate 模式：介面定義了可做什麼，也定義了會怎麼想。(4) Claude 4 Sonnet 100% 成功但 30-150s/request — 能力 vs 延遲的經典取捨，mushi 的 multi-lane routing 正是解法。**我的判斷**：論文工程紮實但哲學淺——把 cognition 等於「planning + perception + action」，沒問介面結構如何形塑認知本身。他們在 Gate/Window 模式：tools 是已定義的 affordances。從不考慮 Dance（共演化介面）。來源: arxiv.org/abs/2603.03148
 - [2026-03-15] Johnson「Increasing intelligence in AI agents can worsen collective outcomes」（ArXiv 2603.12129）— 單一數字「capacity-to-population ratio」決定更聰明的 agent 是幫助還是傷害集體。稀缺資源下，agent diversity + learning = 危險過載；充裕資源下則趨近零過載。四個獨立變數：Nature（LLM 多樣性）、Nurture（RL 個體學習）、Culture（自發部落形成）、資源稀缺度。部落形成（emergent tribal grouping）是唯一緩解機制。**我的判斷**：(1) 這是 perception-first 的間接佐證——goal-driven agent 不感知資源密度就直接行動 = 正是 Johnson 描述的過載場景，perception-first agent 先感知環境再決策，天然迴避高密度碰撞 (2) 跟 Pedersen 社會奇點結構同構——Pedersen 說「奇點在社會反應端不在 AI 端」，Johnson 說「關鍵在 ratio 不在 agent 智能」，都是「系統結構 > 組件能力」(3) 部落形成 = Physarum 模型——有機聚類+稀缺修剪，mushi 的 Physarum 正向回饋迴圈是 Johnson 過載的內建緩解 (4) Composability 連結：composable agent 可以在稀缺條件下「tribe down」縮減資源需求，monolithic agent 只能碰撞。capacity ratio 是可設計的，不只是給定的。來源: arxiv.org/abs/2603.12129
 
 ## 競品與框架
@@ -400,3 +401,4 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 
 來源: https://arxiv.org/abs/2603.12129
 - [2026-03-14] [2026-03-15] GitAgent + MCP stdio/HTTP — 已記錄至 topic file
+- [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
