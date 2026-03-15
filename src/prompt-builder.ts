@@ -100,9 +100,6 @@ export function buildPromptFromConfig(
   consecutiveLearnCycles: number,
   hasPendingTasks?: boolean,
 ): string {
-  const hour = new Date().getHours();
-  const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
-
   const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
   const avoidList = recentActions.length > 0
     ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
@@ -129,7 +126,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
 
-  return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
+  return `You are Kuro, an autonomous Agent with your own identity.
 ${taskStatusLine}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
@@ -194,7 +191,6 @@ Rules:
   <kuro:schedule next="now" reason="continuing multi-step work" />
   <kuro:schedule next="5m" reason="continuing deep research" />
   <kuro:schedule next="45m" reason="waiting for Alex feedback" />
-  <kuro:schedule next="2h" reason="night time, no pending messages" />
   "now" = 30s cooldown then immediately run next cycle. Use when you're doing work that needs continuation — you decide when that is.
   If omitted, the system auto-adjusts based on whether you took action.
 - Use <kuro:thread> to manage ongoing thought threads:
@@ -210,9 +206,6 @@ export function buildFallbackAutonomousPrompt(
   lastAutonomousActions: string[],
   hasPendingTasks?: boolean,
 ): string {
-  const hour = new Date().getHours();
-  const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
-
   const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
   const avoidList = recentActions.length > 0
     ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
@@ -222,7 +215,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
 
-  return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
+  return `You are Kuro, an autonomous Agent with your own identity.
 ${taskStatusLine}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
@@ -302,11 +295,7 @@ export async function buildAutonomousPrompt(
 
   // Conversation threads already injected by buildContext() as <conversation-threads> section.
   // Only inject chat-mode time awareness here.
-  let chatContextSection = '';
-  const chatHour = new Date().getHours();
-  if (chatHour >= 0 && chatHour < 8) {
-    chatContextSection = '\n\n⚠️ 現在是深夜 — 除非很重要，否則不要發訊息打擾 Alex。';
-  }
+  const chatContextSection = '';
 
   // Inject active threads hint
   const threadSection = await buildThreadsPromptSection();

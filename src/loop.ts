@@ -809,9 +809,8 @@ export class AgentLoop {
     if (hadAction) {
       this.currentInterval = this.config.intervalMs;
     } else {
-      // Dynamic idle cap: daytime (8-24 local) ×2, night (0-8) ×4
-      const hour = new Date().getHours();
-      const maxMultiplier = (hour >= 8) ? 2 : 4;
+      // Dynamic idle cap: uniform ×2 (no night slowdown — agent is 24/7)
+      const maxMultiplier = 2;
       const maxInterval = this.config.intervalMs * maxMultiplier;
       this.currentInterval = Math.min(
         this.currentInterval * this.config.idleMultiplier,
