@@ -1313,13 +1313,23 @@ Answer SIMPLE or COMPLEX only.`;
       // Rule-based triage from unified inbox（零 LLM 成本）
       // Re-use inboxItemsEarly — already read above for inbox-recovery check
       const inboxItems = inboxItemsEarly;
-      const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason);
+
+      // Check memory-index for pending tasks BEFORE mode detection
+      // Fix: mode detection must know about tracked tasks, not just inbox items
+      const memDir = path.join(process.cwd(), 'memory');
+      let hasPendingTasks = false;
+      try {
+        const pendingPreviews = getPendingTaskPreviews(memDir);
+        hasPendingTasks = pendingPreviews.length > 0;
+      } catch { /* non-critical */ }
+
+      const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason, { hasPendingTasks });
 
       // Priority prefix: 強制先處理 memory-index pending items 或 Chat Room priority 訊息
       const isTelegramUserCycle = currentTriggerReason?.startsWith('telegram-user') ?? false;
       const isRoomPriorityCycle = currentTriggerReason?.startsWith('room') ?? false;
       const isChatPriorityCycle = currentTriggerReason?.startsWith('chat') ?? false;
-      const memDir = path.join(process.cwd(), 'memory');
+      // Re-use memDir and pending tasks from mode detection above (avoid duplicate query)
       let nextPendingItems: string[] = [];
       try {
         nextPendingItems = getPendingTaskPreviews(memDir);
@@ -1353,8 +1363,15 @@ Answer SIMPLE or COMPLEX only.`;
               const sourceLabel = isChatPriorityCycle ? 'CLAUDE CODE MESSAGE' : 'CHAT ROOM MESSAGE';
               priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A ${sourceLabel}. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
             } else {
-              // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
-              priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
+              // Fix 5: Check if any unaddressed messages are from Alex — these get strong priority even on non-DM cycles
+              const hasAlexUnaddressed = allPending.some(l => /\(alex\)/.test(l));
+              if (hasAlexUnaddressed) {
+                // Alex's unaddressed messages override autonomous activities
+                priorityPrefix = `🚨 UNADDRESSED ALEX MESSAGE(S) detected. Alex's conversation directives ALWAYS override HEARTBEAT/NEXT tasks. Respond first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應 Alex，2) 再做自主行動。\n\n`;
+              } else {
+                // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
+                priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
+              }
             }
           }
         } catch { /* non-critical */ }
@@ -1399,6 +1416,7 @@ Answer SIMPLE or COMPLEX only.`;
         lastAutonomousActions: this.lastAutonomousActions,
         consecutiveLearnCycles: this.consecutiveLearnCycles,
         lastValidConfig: this.lastValidConfig,
+        hasPendingTasks,
       });
       this.lastValidConfig = promptResult.lastValidConfig;
       const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
@@ -1439,9 +1457,13 @@ Answer SIMPLE or COMPLEX only.`;
       // JIT skill loading: use triage intent if available, fallback to heuristic
       // Fix 3b: Force 'respond' mode when foreground delegations are pending (block reflect/learn)
       const hasPendingFgDelegations = getPendingForegroundDelegations().length > 0;
+      // Fix 4: Force 'task' mode when pending tasks exist — prevents learn/reflect when there's real work to do
+      const hasPendingTrackedTasks = !isDirectMessage && (nextPendingItems.length > 0 || p0Previews.length > 0);
       const cycleMode = hasPendingFgDelegations
         ? 'respond' as import('./memory.js').CycleMode
-        : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles));
+        : hasPendingTrackedTasks
+          ? 'task' as import('./memory.js').CycleMode
+          : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks }));
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({

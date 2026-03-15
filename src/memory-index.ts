@@ -716,6 +716,33 @@ export async function enqueueAlexMessage(
 }
 
 /**
+ * Auto-enqueue Alex's Chat Room message as a tracked task.
+ * Ensures conversation directives don't get lost after reply.
+ * Mirrors enqueueAlexMessage but for room source.
+ */
+export async function enqueueRoomDirective(
+  memoryDir: string,
+  message: string,
+  roomMsgId: string,
+  from: string,
+): Promise<void> {
+  // Dedup by roomMsgId
+  const existing = queryMemoryIndexSync(memoryDir, { type: 'task', source: 'room' });
+  if (existing.some(e => (getTaskPayload(e).roomMsgId as string) === roomMsgId)) return;
+
+  const preview = message.replace(/\n/g, ' ').slice(0, 100);
+  const priority = from === 'alex' ? 1 : 2; // Alex = P1, Claude Code = P2
+  await appendMemoryIndexEntry(memoryDir, {
+    type: 'task',
+    status: 'pending',
+    summary: `回覆 ${from}: "${preview}"`,
+    source: 'room',
+    payload: { priority, roomMsgId, from, section: 'next' },
+  });
+  slog('NEXT', `Enqueued room directive [${from}]: ${preview.slice(0, 40)}`);
+}
+
+/**
  * Build <next> context section from memory-index.
  * Replaces memory.ts readNext + extractActiveNext + verifyNextTasks.
  */

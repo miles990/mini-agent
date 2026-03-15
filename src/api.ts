@@ -63,7 +63,7 @@ import { getMode, setMode, isValidMode, setLoopController, getModeNames, type Mo
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 import { forgeStatus } from './delegation.js';
-import { getNowTaskSummary, getTasksSnapshot } from './memory-index.js';
+import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective } from './memory-index.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -2270,6 +2270,13 @@ export function createApi(port = 3001): express.Express {
       // Auto-detect conversation threads (Alex + Claude Code messages) — fire-and-forget
       if (from === 'alex' || from === 'claude-code') {
         autoDetectThread(text, `room:${from}`, id).catch(() => {});
+      }
+
+      // Auto-enqueue Alex's Chat Room messages as tracked tasks (same as Telegram auto-enqueue)
+      // This ensures conversation directives don't get lost after reply
+      if (from === 'alex') {
+        const memDir = path.join(process.cwd(), 'memory');
+        enqueueRoomDirective(memDir, text, id, from).catch(() => {});
       }
 
       slog('ROOM', `[${id}] ${from}: ${text.slice(0, 80)}`);

@@ -395,6 +395,7 @@ export type CycleMode = 'respond' | 'task' | 'act' | 'reflect' | 'learn';
 export function detectModeFromInbox(
   items: InboxItem[],
   triggerReason: string | null,
+  options?: { hasPendingTasks?: boolean },
 ): { mode: CycleMode; reason: string; focus?: string } {
   // Direct message sources → always respond
   if (triggerReason?.startsWith('telegram-user')) {
@@ -430,9 +431,18 @@ export function detectModeFromInbox(
     return { mode: 'act', reason: `${p2.length} P2 item(s)` };
   }
 
-  // heartbeat with no pending → reflect or learn
+  // heartbeat with no pending → reflect or learn (ONLY if no tracked tasks)
   if (triggerReason?.includes('heartbeat') && items.length === 0) {
+    if (options?.hasPendingTasks) {
+      return { mode: 'task', reason: 'heartbeat, but pending tasks exist in memory-index — work on them first' };
+    }
     return { mode: 'reflect', reason: 'heartbeat, no pending items' };
+  }
+
+  // If pending tasks exist in memory-index, prefer 'task' over default 'act'
+  // This prevents autonomous learn/reflect when tracked work is unfinished
+  if (options?.hasPendingTasks) {
+    return { mode: 'task', reason: 'pending tasks in memory-index — address before autonomous activity' };
   }
 
   return { mode: 'act', reason: 'default' };

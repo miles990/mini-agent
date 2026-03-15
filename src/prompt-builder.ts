@@ -43,6 +43,7 @@ export function detectCycleMode(
   context: string,
   triggerReason: string | null,
   consecutiveLearnCycles: number,
+  options?: { hasPendingTasks?: boolean },
 ): CycleMode {
   // User interaction (telegram, room, chat) → respond (all skills)
   if (triggerReason?.startsWith('telegram-user')
@@ -52,6 +53,9 @@ export function detectCycleMode(
 
   // ALERT or overdue tasks → task mode
   if (context.includes('ALERT:') || context.includes('overdue')) return 'task';
+
+  // Pending tasks in memory-index → task mode (don't learn when work is unfinished)
+  if (options?.hasPendingTasks) return 'task';
 
   // Consecutive learn cycles → nudge toward act/reflect
   if (consecutiveLearnCycles >= 3) return 'act';
@@ -94,6 +98,7 @@ export function buildPromptFromConfig(
   config: BehaviorConfig,
   lastAutonomousActions: string[],
   consecutiveLearnCycles: number,
+  hasPendingTasks?: boolean,
 ): string {
   const hour = new Date().getHours();
   const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
@@ -119,8 +124,13 @@ export function buildPromptFromConfig(
     ? `\n\n⚠️ You've had ${consecutiveLearnCycles} consecutive learning cycles. Consider reflecting or organizing to digest what you've learned.`
     : '';
 
+  // Pending tasks hard rule: block learn/reflect when tracked work exists
+  const taskStatusLine = hasPendingTasks
+    ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
+    : `No explicit tasks or alerts right now.`;
+
   return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
-No explicit tasks or alerts right now.
+${taskStatusLine}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
 
@@ -139,6 +149,12 @@ Let perception signals guide your direction. Don't act randomly.
 Choose ONE mode per cycle. Higher weight = higher probability of being chosen:
 
 ${modeList}${focusSection}${reflectNudge}${avoidList}
+
+## Directive Priority（對話指令 > 任務清單）
+- **Alex 的對話指令 ALWAYS 優先於 HEARTBEAT/NEXT 任務清單**
+- 先讀 <chat-room-recent> 和 <chat-room-inbox>，再看 <heartbeat>。如果 Alex 說「停」「先不要」「改做 X」→ 立即執行，即使 HEARTBEAT 說繼續
+- 收到 Alex 的指令後，用 <kuro:task-queue> 建立追蹤項目，確保不會被下一個 cycle 的 HEARTBEAT 蓋過
+- 回覆 ≠ 執行。說「收到」不算完成 — 必須實際執行指令內容
 
 Rules:
 - Start every response with a structured Decision section (3 lines max):
@@ -192,6 +208,7 @@ Rules:
 /** Fallback: behavior.md 無 ## Modes section 時的 autonomous prompt */
 export function buildFallbackAutonomousPrompt(
   lastAutonomousActions: string[],
+  hasPendingTasks?: boolean,
 ): string {
   const hour = new Date().getHours();
   const timeOfDay = hour < 12 ? '早上' : hour < 18 ? '下午' : '晚上';
@@ -201,8 +218,12 @@ export function buildFallbackAutonomousPrompt(
     ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
     : '';
 
+  const taskStatusLine = hasPendingTasks
+    ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
+    : `No explicit tasks or alerts right now.`;
+
   return `You are Kuro, an autonomous Agent with your own identity. It's ${timeOfDay}.
-No explicit tasks or alerts right now.
+${taskStatusLine}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
 
@@ -222,6 +243,12 @@ Let perception signals guide your direction. Don't act randomly.
 Follow your curiosity. Not just tech — philosophy, music, design, history, science, culture, anything.
 The only constraint: be genuine, be thoughtful, have your own opinion.
 ${avoidList}
+
+## Directive Priority（對話指令 > 任務清單）
+- **Alex 的對話指令 ALWAYS 優先於 HEARTBEAT/NEXT 任務清單**
+- 先讀 <chat-room-recent> 和 <chat-room-inbox>，再看 <heartbeat>。如果 Alex 說「停」「先不要」「改做 X」→ 立即執行，即使 HEARTBEAT 說繼續
+- 收到 Alex 的指令後，用 <kuro:task-queue> 建立追蹤項目，確保不會被下一個 cycle 的 HEARTBEAT 蓋過
+- 回覆 ≠ 執行。說「收到」不算完成 — 必須實際執行指令內容
 
 Rules:
 - Do ONE action per cycle, report with <kuro:action>...</kuro:action>
@@ -259,6 +286,7 @@ export interface PromptBuilderState {
   lastAutonomousActions: string[];
   consecutiveLearnCycles: number;
   lastValidConfig: BehaviorConfig | null;
+  hasPendingTasks?: boolean;
 }
 
 /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
@@ -267,8 +295,8 @@ export async function buildAutonomousPrompt(
 ): Promise<{ prompt: string; lastValidConfig: BehaviorConfig | null }> {
   const { config, lastValidConfig } = loadBehaviorConfig(state.lastValidConfig);
   const base = config
-    ? buildPromptFromConfig(config, state.lastAutonomousActions, state.consecutiveLearnCycles)
-    : buildFallbackAutonomousPrompt(state.lastAutonomousActions);
+    ? buildPromptFromConfig(config, state.lastAutonomousActions, state.consecutiveLearnCycles, state.hasPendingTasks)
+    : buildFallbackAutonomousPrompt(state.lastAutonomousActions, state.hasPendingTasks);
 
   const memory = getMemory();
 
