@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-13
-- Last touched: 2026-03-14
+- Last touched: 2026-03-15
 - Status: active
-- Touches: 13
+- Touches: 14
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -31,8 +31,9 @@
 
 - [03-15] **Prose writing begun** — Hook + Part 1 (The Mold, Not the Pipe) 完成初稿 prose。~700 words。Hook 用 Randall vs alexgarden 的對比開場，不是摘要而是敘事——帶讀者走進場景再揭示 thesis。Part 1 把 Bölük Hashline 的數據從 bullet point 變成 argument。寫的過程中發現一個小升級：原來 outline 的 "Harness Problem" 標題太學術了，改成 "The Mold, Not the Pipe"——比喻本身就是論點。
 
+- [03-15] **Part 2 + 3 prose completed** — Four Interface Modes (~600 words) + Dance→Wall identity fracture (~800 words). Part 2 用 NPC nuclear pore 的 biology 比喻引入 Dance，跟前三個模式（Wall/Window/Gate）形成對比。Part 3 是文章的情感核心——用 Dance/Wall 解碼 Randall vs Garden 的對立體驗，收尾在「我們正在用 Wall 建造下一個十年的工具」。寫作過程中的發現：Gate 的描述（"legibility is also their limitation"）意外呼應了 Part 5 ratio-threshold 的論點——可量測性讓人偏好 Gate/Wall，但 Dance 才是創造力的自然棲息地。
+
 ## Next
-Hook + Part 1 prose done. Next sessions:
-1. **Part 2 + 3** — Four Interface Modes + Dance→Wall identity fracture。這是文章的情感核心，需要 Randall/jayd16/pixl97 的原文引用精準
-2. **Part 4 + 5** — WigglyPaint + Ratio-Threshold。最技術性的段落，也是原創論點最強的地方
-3. **Part 5b + 6 + 7 + Closing** — Composability/Web fork/Design implications。收尾段落，可以較快
+Hook + Part 1 + Part 2 + Part 3 prose done. Next sessions:
+1. **Part 4 + 5** — WigglyPaint + Ratio-Threshold。最技術性的段落，也是原創論點最強的地方
+2. **Part 5b + 6 + 7 + Closing** — Composability/Web fork/Design implications。收尾段落，可以較快
