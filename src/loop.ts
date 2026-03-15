@@ -82,7 +82,7 @@ import {
   drainHeldTags, buildHeldTagsPrompt, logHesitation,
 } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, forgeRecover } from './delegation.js';
-import { cleanupLaneOutput, cleanupStaleLaneOutput } from './memory.js';
+import { cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
 import { detectCitations } from './nutrient-router.js';
 import { recordCycleNutrient } from './cycle-nutrient.js';
@@ -140,6 +140,57 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 };
 
 // =============================================================================
+// Foreground Delegation Tracking (Fix: 持續關注背景委派)
+// =============================================================================
+
+interface ForegroundDelegationRecord {
+  taskId: string;
+  source: string;
+  text: string;
+  delegatedAt: string;
+}
+
+function getForegroundDelegationsPath(): string {
+  return path.join(getInstanceDir(getCurrentInstanceId()), 'foreground-delegations.json');
+}
+
+function trackForegroundDelegation(d: ForegroundDelegationRecord): void {
+  try {
+    const fpath = getForegroundDelegationsPath();
+    const existing: ForegroundDelegationRecord[] = fs.existsSync(fpath)
+      ? JSON.parse(fs.readFileSync(fpath, 'utf-8'))
+      : [];
+    existing.push(d);
+    fs.writeFileSync(fpath, JSON.stringify(existing, null, 2));
+  } catch { /* fire-and-forget */ }
+}
+
+function getPendingForegroundDelegations(): ForegroundDelegationRecord[] {
+  try {
+    const fpath = getForegroundDelegationsPath();
+    if (!fs.existsSync(fpath)) return [];
+    const data: ForegroundDelegationRecord[] = JSON.parse(fs.readFileSync(fpath, 'utf-8'));
+    // Auto-expire after 1h
+    const oneHourAgo = Date.now() - 3_600_000;
+    return data.filter(d => new Date(d.delegatedAt).getTime() > oneHourAgo);
+  } catch { return []; }
+}
+
+function clearForegroundDelegation(taskId: string): void {
+  try {
+    const fpath = getForegroundDelegationsPath();
+    if (!fs.existsSync(fpath)) return;
+    const data: ForegroundDelegationRecord[] = JSON.parse(fs.readFileSync(fpath, 'utf-8'));
+    const remaining = data.filter(d => d.taskId !== taskId);
+    if (remaining.length === 0) {
+      fs.unlinkSync(fpath);
+    } else {
+      fs.writeFileSync(fpath, JSON.stringify(remaining, null, 2));
+    }
+  } catch { /* fire-and-forget */ }
+}
+
+// =============================================================================
 // AgentLoop
 // =============================================================================
 
@@ -158,6 +209,7 @@ export class AgentLoop {
   private lastAction: string | null = null;
   private nextCycleAt: string | null = null;
   private cycling = false;
+  private hasPendingDelegationResults = false;
 
   // ── Continuation State ──
   private consecutiveNowCount = 0;
@@ -376,16 +428,23 @@ export class AgentLoop {
 
     // 0.8B pre-classification: SIMPLE (answer directly) or COMPLEX (ack + delegate)
     let complexity: 'SIMPLE' | 'COMPLEX' = 'SIMPLE';
-    try {
-      const classifyPrompt = `Classify this message. Does it need deep thinking, research, coding, multi-step planning, or analysis?
+    // Fix 1: Claude Code / inter-agent @kuro messages bypass classification → always SIMPLE
+    // These are coordinated messages that need full Claude processing, not background delegation
+    const isCoordinatedMsg = (source === 'room' || source === 'chat') && /[@＠]kuro/i.test(text);
+    if (isCoordinatedMsg) {
+      slog('LOOP', `[foreground-classify] SIMPLE (bypass: coordinated @kuro message from ${source})`);
+    } else {
+      try {
+        const classifyPrompt = `Classify this message. Does it need deep thinking, research, coding, multi-step planning, or analysis?
 Message: ${text.slice(0, 300)}
 Answer SIMPLE or COMPLEX only.`;
-      const raw = callLocalFast(classifyPrompt, 8, 5_000).trim().toUpperCase();
-      if (raw.startsWith('COMPLEX')) complexity = 'COMPLEX';
-      slog('LOOP', `[foreground-classify] ${complexity} (${text.slice(0, 60)})`);
-    } catch {
-      // 0.8B unavailable → default SIMPLE (fail-open, Claude handles everything)
-      slog('LOOP', '[foreground-classify] 0.8B unavailable, defaulting SIMPLE');
+        const raw = callLocalFast(classifyPrompt, 8, 5_000).trim().toUpperCase();
+        if (raw.startsWith('COMPLEX')) complexity = 'COMPLEX';
+        slog('LOOP', `[foreground-classify] ${complexity} (${text.slice(0, 60)})`);
+      } catch {
+        // 0.8B unavailable → default SIMPLE (fail-open, Claude handles everything)
+        slog('LOOP', '[foreground-classify] 0.8B unavailable, defaulting SIMPLE');
+      }
     }
 
     // COMPLEX path: instant ack + delegate to background, skip full Claude call
@@ -397,16 +456,22 @@ Answer SIMPLE or COMPLEX only.`;
       }
       await writeRoomMessage('kuro', ack, replyTo);
       // Spawn background delegation
-      spawnDelegation({
+      const delegationTaskId = spawnDelegation({
         type: 'research',
         prompt: `用戶訊息（來自 ${source}）：${text}\n\n請深度思考並完整回覆這個問題/任務。回覆用中文。`,
         workdir: process.cwd(),
       });
       this.lastAction = `[Foreground] Complex → delegated: ${text.slice(0, 80)}`;
-      slog('LOOP', `[foreground] Complex task delegated: ${text.slice(0, 80)}`);
+      slog('LOOP', `[foreground] Complex task delegated (${delegationTaskId}): ${text.slice(0, 80)}`);
       eventBus.emit('action:loop', { event: 'foreground-delegate', source, text: text.slice(0, 200) });
-      // Mark inbox as processed
-      try { markChatRoomInboxProcessed(ack, parseTags(ack), 'foreground-delegate'); } catch {}
+      // Fix 2: DON'T mark inbox as processed — let OODA see the pending message
+      // Track the delegation so OODA knows to follow up when results arrive
+      trackForegroundDelegation({
+        taskId: delegationTaskId,
+        source,
+        text: text.slice(0, 500),
+        delegatedAt: new Date().toISOString(),
+      });
       return;
     }
 
@@ -649,11 +714,19 @@ Answer SIMPLE or COMPLEX only.`;
     // If already cycling, the results will be picked up by buildContext in the next cycle.
     // Multiple rapid completions are naturally debounced: cycling guard prevents re-entry,
     // and scheduleHeartbeat() calls clearTimer() first.
-    eventBus.on('action:delegation-complete', () => {
+    eventBus.on('action:delegation-complete', (event?: AgentEvent) => {
+      // Clean up foreground delegation tracking when delegation completes
+      const taskId = event?.data?.taskId as string | undefined;
+      if (taskId) {
+        clearForegroundDelegation(taskId);
+        slog('LOOP', `[delegation-complete] Cleared foreground tracking for ${taskId}`);
+      }
+
       if (!this.running || this.paused) return;
       if (this.cycling) {
-        // Already in a cycle — results will be in next cycle's <background-completed>
-        slog('LOOP', '[delegation-complete] Cycle running — results queued for next cycle');
+        // Flag for drain after current cycle completes — ensures results are never lost
+        slog('LOOP', '[delegation-complete] Cycle running — flagging for post-cycle drain');
+        this.hasPendingDelegationResults = true;
         return;
       }
       slog('LOOP', '[delegation-complete] Triggering immediate cycle for result absorption');
@@ -844,6 +917,8 @@ Answer SIMPLE or COMPLEX only.`;
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
+      } else if (triageSource === 'delegation-complete') {
+        slog('MUSHI', `✅ delegation-complete bypasses triage (must absorb results)`);
       } else if (
         this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
@@ -1286,6 +1361,15 @@ Answer SIMPLE or COMPLEX only.`;
 
       }
 
+      // Fix 3: Pending foreground delegations — OODA must follow up, not reflect/learn
+      const pendingFgDelegations = getPendingForegroundDelegations();
+      if (pendingFgDelegations.length > 0) {
+        const fgPreview = pendingFgDelegations.map(d =>
+          `  - [${d.source}] "${d.text.slice(0, 120)}" (delegated at ${new Date(d.delegatedAt).toLocaleTimeString()})`
+        ).join('\n');
+        priorityPrefix += `\n⚠️ PENDING FOREGROUND DELEGATIONS — these messages were delegated to background but you MUST follow up. Check <background-completed> for results. If results are ready, respond to the original sender with <kuro:chat>. If not ready yet, acknowledge the wait.\n${fgPreview}\n\n`;
+      }
+
       // P0 reminder — applies to ALL triggers, not just non-telegram
       const p0Previews = getP0TaskPreviews(memDir);
       if (p0Previews.length > 0) {
@@ -1353,7 +1437,11 @@ Answer SIMPLE or COMPLEX only.`;
       };
 
       // JIT skill loading: use triage intent if available, fallback to heuristic
-      const cycleMode = cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles);
+      // Fix 3b: Force 'respond' mode when foreground delegations are pending (block reflect/learn)
+      const hasPendingFgDelegations = getPendingForegroundDelegations().length > 0;
+      const cycleMode = hasPendingFgDelegations
+        ? 'respond' as import('./memory.js').CycleMode
+        : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles));
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({
@@ -2107,10 +2195,11 @@ Answer SIMPLE or COMPLEX only.`;
         });
       } catch { /* fire-and-forget */ }
 
-      // Lane-output cleanup — processed results + stale >24h（fire-and-forget）
+      // Lane-output cleanup — only stale >24h as safety net（fire-and-forget）
+      // Active lane-output files are cleaned inline by buildBackgroundCompletedSection
+      // after being read into context — prevents deletion before absorption
       try {
         const instanceId = getCurrentInstanceId();
-        cleanupLaneOutput(instanceId);
         cleanupStaleLaneOutput(instanceId);
       } catch { /* fire-and-forget */ }
 
@@ -2171,6 +2260,20 @@ Answer SIMPLE or COMPLEX only.`;
             this.runCycle();
           }
         }, 3000);
+      }
+
+      // Drain pending delegation results — trigger immediate cycle to absorb
+      // This fires when a delegation completed while we were cycling.
+      // Uses 'delegation-complete' reason which bypasses triage (hard rule).
+      if (this.hasPendingDelegationResults && !this.pendingPriority) {
+        this.hasPendingDelegationResults = false;
+        slog('LOOP', '[delegation-complete] Draining pending results after cycle');
+        setTimeout(() => {
+          if (this.running && !this.cycling) {
+            this.triggerReason = 'delegation-complete';
+            this.runCycle();
+          }
+        }, 100);
       }
 
       if (this.running && !this.paused && !this.timer) {

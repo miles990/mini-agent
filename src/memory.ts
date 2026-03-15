@@ -2787,6 +2787,12 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
       totalChars += line.length;
     }
 
+    // Inline cleanup: delete files only after successfully reading into context.
+    // This prevents lane-output from being cleaned up before absorption.
+    for (const file of files) {
+      try { unlinkSync(path.join(laneDir, file)); } catch { /* best effort */ }
+    }
+
     return lines.join('\n');
   } catch {
     return null;
