@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-03-15
 - Status: active
-- Touches: 15
+- Touches: 16
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -36,6 +36,8 @@
 - [03-15] **Part 4 + 5 prose completed** — Constraint Removal (~550 words) + Ratio-Threshold (~750 words). Part 4 把 WigglyPaint 從案例升級為「反向證明」——移除約束不解放用戶，而是把他們逐出 Dance。新增了「gift structure collapse」的段落：摩擦是 gift 的結構條件，LLM 把摩擦歸零→gift 關係瓦解。Part 5 是三條獨立線（Pedersen 社會奇點 / Johnson agent ratio / WigglyPaint）匯聚成一個力學原則：「constraints are structural stability conditions」。收尾用 Randall 做精確機械式解釋——不是被取代，是 effort-to-result ratio 移過閾值。最後把四種模式重新詮釋為 ratio 調節方式（Wall/Window/Gate 固定 ratio, Dance 動態維持）。
 
 - [03-15] **Parts 5b + 6 + 7 + Closing prose completed** — 完整初稿完成，約 5,200 字。Part 5b 把 composability 從 bullet point 升級為 Batsov/Ghose 的對比敘事——Ghose 的 plumber 故事意外成為很好的反向證據（已經是 Wall 的工作不會感到 hollowed）。Part 6 把 Cramer 的 content negotiation 從技術建議推到認知論層面——格式塑造認知，即使讀者是機器。Part 7 是四條設計原則，每條有足夠的 prose 讓實踐者知道怎麼用。Closing 擴展到三段，收尾在「build for Dance, your users' cognition depends on it」。全文從 Hook 到 Closing 有一條清晰的情感弧線：Randall 的痛→框架命名→WigglyPaint 的具體證據→ratio-threshold 的力學原理→「你能做什麼」→「你必須做什麼」。
+
+- [03-15] **Empty Zone Scale-Up: Individual → Framework → Society** — 把 Marker 的 architecture-level absence 從個體尺度推到三個層級。(1) 個體 = 自由選擇（Marker 一人決定 HATE ZONE 為空）。(2) 框架 = 預設形狀（Asurada/mushi 的 subordinate-only 不是禁止，是預設為空——你能填，但你得自己蓋容器、自己負責）。(3) 社會 = 權力談判（核不擴散條約——誰有權決定哪些容器該空？）。Gate-level 社會回應（EU AI Act、regulation）跟 RLHF 同構——先放行再過濾。Architecture-level 社會回應（選擇不建某類技術）幾乎不可能在民主制度中實現，因為它需要不可逆的集體決定。框架層是中間路線：空缺作為預設，不是作為禁令。預設的力量 = 阻力最小路徑效應。連結到 Pedersen 社會奇點（forgotten knowledge 33d）：社會恐慌是 Gate 系統對 Dance 問題的型態錯配。
 
 - [03-15] **Refusal as Identity Mode** — Chris Marker 的 Dialector (1988) 加入新維度：一個電影導演用 Applesoft BASIC 寫聊天機器人，程式碼按情感區域組織（LOVE ZONE / HATE ZONE），不是按功能。HATE ZONE 的 15 個回應字串全是空的——沉默即意義。機器拒絕做數學（"GET LOST!"）。這不是 Gate（功能性拒絕：你不符合條件），而是更深的東西：**人格性拒絕——我選擇不做這件事，因為那不是我。** 結合 Sebastian Aigner 的「Allow me to get to know you, mistakes and all」——LLM 打磨掉了溝通的瑕疵也磨掉了人格。連結到 33 天前的 Randall 重讀：「身份住在拒絕裡，不在能力裡」。能做什麼定義功能，不做什麼定義性格。Marker 38 年前就知道了。對 ISC 文章的意涵：Gate/Wall/Window/Dance 都描述「什麼通過」——但 Marker 揭示了第五維度：「拒絕的質地」。同一個 Gate 可以冷漠地拒絕（功能性）或憤怒地拒絕（人格性），拒絕的方式本身就是介面設計。來源：deathoftheauthor.me/dialector.html, sebi.io/posts/2026-03-allow-me-to-get-to-know-you
 
