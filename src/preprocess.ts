@@ -177,7 +177,7 @@ export async function runPhase0(): Promise<Phase0Results> {
   results.totalLatencyMs = Date.now() - start;
 
   eventBus.emit('log:info', {
-    message: `[preprocess] Phase 0 complete: ${tasks.length} tasks in ${results.totalLatencyMs}ms | `
+    tag: 'preprocess', msg: `Phase 0 complete: ${tasks.length} tasks in ${results.totalLatencyMs}ms | `
       + `perception summaries: ${results.perceptionSummaries.size}/${perceptionTasks.length} | `
       + `heartbeat diff: ${results.heartbeatDiff ? 'yes' : 'no'}`,
   });

@@ -1143,7 +1143,7 @@ Answer SIMPLE or COMPLEX only.`;
           phase0Results = await runPhase0();
         } catch (err) {
           // Fail-open: Phase 0 failure = buildContext uses raw data
-          eventBus.emit('log:info', { message: `[preprocess] Phase 0 failed (fail-open): ${err instanceof Error ? err.message : err}` });
+          eventBus.emit('log:info', { tag: 'preprocess', msg: `Phase 0 failed (fail-open): ${err instanceof Error ? err.message : err}` });
         }
       }
 

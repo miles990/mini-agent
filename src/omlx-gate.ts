@@ -137,7 +137,7 @@ export function cronGate(taskDescription: string): CronGateResult {
     stats.cronSkipped++;
     stats.totalSaved += 13000;
     eventBus.emit('log:info', {
-      message: `[omlx-gate] R3: HEARTBEAT content unchanged (hash), skipping Claude call`,
+      tag: 'omlx-gate', msg: `R3: HEARTBEAT content unchanged (hash), skipping Claude call`,
     });
     return 'skip';
   }
@@ -152,7 +152,7 @@ export function cronGate(taskDescription: string): CronGateResult {
       stats.cronSkipped++;
       stats.totalSaved += 13000;
       eventBus.emit('log:info', {
-        message: `[omlx-gate] R3: HEARTBEAT has no unchecked tasks (heuristic), skipping`,
+        tag: 'omlx-gate', msg: `R3: HEARTBEAT has no unchecked tasks (heuristic), skipping`,
       });
       return 'skip';
     }
@@ -174,7 +174,7 @@ Answer with ONLY "yes" or "no".`;
       stats.cronSkipped++;
       stats.totalSaved += 13000;
       eventBus.emit('log:info', {
-        message: `[omlx-gate] R3: HEARTBEAT tasks not actionable (0.8B), skipping`,
+        tag: 'omlx-gate', msg: `R3: HEARTBEAT tasks not actionable (0.8B), skipping`,
       });
       return 'skip';
     }
@@ -185,7 +185,7 @@ Answer with ONLY "yes" or "no".`;
   } catch (err) {
     // LLM call failed → pass through (fail-open)
     eventBus.emit('log:info', {
-      message: `[omlx-gate] R3: 0.8B call failed, passing through to Claude: ${err instanceof Error ? err.message : err}`,
+      tag: 'omlx-gate', msg: `R3: 0.8B call failed, passing through to Claude: ${err instanceof Error ? err.message : err}`,
     });
     stats.cronPassed++;
     return 'claude';
@@ -209,7 +209,7 @@ export function hasContextChanged(context: string): boolean {
     stats.contextDeltaSkipped++;
     stats.totalSaved += context.length;
     eventBus.emit('log:info', {
-      message: `[omlx-gate] R4: Context unchanged (hash match), cycle can be skipped`,
+      tag: 'omlx-gate', msg: `R4: Context unchanged (hash match), cycle can be skipped`,
     });
     return false;
   }
@@ -720,7 +720,7 @@ function isCircuitOpen(): boolean {
     // Cooldown expired — half-open: allow one attempt
     circuitBreakerOpenUntil = 0;
     circuitBreakerFailures = 0;
-    eventBus.emit('log:info', { message: '[omlx-gate] Circuit breaker: half-open, allowing attempt' });
+    eventBus.emit('log:info', { tag: 'omlx-gate', msg: 'Circuit breaker: half-open, allowing attempt' });
     return false;
   }
   return true;
@@ -736,7 +736,7 @@ function recordCircuitFailure(): void {
   if (circuitBreakerFailures >= CIRCUIT_BREAKER_THRESHOLD) {
     circuitBreakerOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
     eventBus.emit('log:info', {
-      message: `[omlx-gate] Circuit breaker OPEN: ${circuitBreakerFailures} consecutive failures, cooldown ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`,
+      tag: 'omlx-gate', msg: `Circuit breaker OPEN: ${circuitBreakerFailures} consecutive failures, cooldown ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`,
     });
     notifyTelegram(`⚠️ oMLX circuit breaker open: ${circuitBreakerFailures} failures, 10min cooldown`).catch(() => {});
   }
@@ -763,7 +763,7 @@ async function callLocalLLMAsync(
   timeoutMs: number,
 ): Promise<string | null> {
   if (isCircuitOpen()) {
-    eventBus.emit('log:info', { message: '[omlx-gate] Circuit breaker open, skipping async call' });
+    eventBus.emit('log:info', { tag: 'omlx-gate', msg: 'Circuit breaker open, skipping async call' });
     return null;
   }
 

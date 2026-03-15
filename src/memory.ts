@@ -2026,7 +2026,7 @@ Queries:`;
             const customCtx = formatPerceptionResults(summarizedResults, effectiveCaps);
             if (customCtx) sections.push(customCtx);
             if (summarizedNames.length > 0) {
-              eventBus.emit('log:info', { message: `[preprocess] P0b: ${summarizedNames.length} perception sections compressed: ${summarizedNames.join(', ')}` });
+              eventBus.emit('log:info', { tag: 'preprocess', msg: `P0b: ${summarizedNames.length} perception sections compressed: ${summarizedNames.join(', ')}` });
             }
             // 未變化的 sections：一行列表取代多個 XML 區塊
             if (unchangedNames.length > 0) {
@@ -2284,7 +2284,7 @@ Queries:`;
       const activeTasks = activeTasksMatch?.[0]?.slice(0, 1500) ?? '';
       hbContent = `## Changes Since Last Cycle\n${hbDiff}\n\n${activeTasks}`;
       eventBus.emit('log:info', {
-        message: `[preprocess] P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbContent.length} chars`,
+        tag: 'preprocess', msg: `P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbContent.length} chars`,
       });
     } else {
       hbContent = heartbeat ?? '';
