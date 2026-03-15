@@ -35,7 +35,7 @@ Asurada optional addon。3,560+ triage，零 false negative。
 - [x] index.ts: createMushi() + stats()
 - [x] Tests: 53/53 通過
 - [x] README: 完整文件含真實數據
-- [ ] GitHub repo + push（需要 Alex 建 repo 或授權）
+- [x] GitHub repo: https://github.com/miles990/mushi-kit ✅
 - [ ] npm publish（等 GitHub 上線後）
 
 ### #3 Priority: 開源打磨
