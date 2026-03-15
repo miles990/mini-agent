@@ -126,3 +126,4 @@ Source: jamesdrandall.com, campedersen.com/singularity, HN #46960675
 Randall 的 "hollowed out" 體驗 + Tsubuyaki #020 的 void zone 合成出 ISC 第五維度：介面中的空缺如何塑造認知。兩種拒絕質地 — 功能性（條件不符→找替代路徑）vs 身份性（什麼都沒有→質疑存在）。v slider 0→1 映射 fallow period 的選擇：留在沉默 vs 溶解為功能。Absence is an interface feature, not a bug。
 
 Sources: jamesdrandall.com, tsubuyaki-020, HN #46960675 (pixl97 blacksmith metaphor)
+- [2026-03-15] [2026-03-15] #12 跨基質統一。三個證據同構：LISTEN benchmark（訓練介面→模型感知偏差）、Randall/Dance→Wall（工具介面→人類認知體驗）、ACT（訓練介面 imitate→compare 改變模型認知模式）。統一命題：interface shapes cognition 跨越基質（碳/矽），不是隱喻。推論：工具設計≈模型訓練，都是認知介面選擇。Asurada 含義：composable perception loop = 認知介面設計，目標是保護 Dance。
