@@ -6,23 +6,37 @@
 
 ## Now（正在做）
 
-- [ ] P0: 早上整合報告 — 七篇論文統一敘事 + 三條觸手數據（Cursor/CrewAI/0.8B benchmark）+ 可執行的「前 1000 用戶」路徑
-  Verify: `grep -c '2026-03-15-11' /Users/user/Workspace/mini-agent/memory/conversations/2026-03-16.jsonl`
+- [ ] P0: Show HN draft — 寫 launch post，準備 Week 3-4 發佈
+  Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
 
 ---
 
 ## Next（按優先度排序）
-- [ ] P1: mushi-kit Phase 0 提取 — 從 mushi server.ts 提取 5 個核心模組（~300-400 行）
-  Verify: `ls mushi-kit/src/index.ts 2>/dev/null && echo exists`
+
+- [ ] P1: npm publish mushi-kit — 等 Alex 跑 `npm login`（auth 過期）
+  Verify: `npm view mushi-kit version 2>/dev/null`
+- [ ] P1: Dev.to 文章線上同步 — 需要 DEV_TO_API_KEY 才能 PUT 更新
+  Verify: `curl -sf https://dev.to/api/articles/3355383 | jq .title`
 - [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
-  Verify: `grep -c 'devto' src/plugins/*.ts`
+  Verify: `grep -c 'devto' plugins/*.sh`
 - [ ] P2: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），語言未定前 HOLD
   Verify: `grep -c 'Status: approved' memory/proposals/2026-03-12-asurada-integration-plan.md`
+
+---
+
+## Done（本週完成）
+
+- [x] 整合報告 — 七篇論文 + 三條觸手 + 前 1000 用戶路徑 → `memory/research/2026-03-16-integration-report.md`
+- [x] mushi-kit Phase 0 — 53/53 tests, build clean, GitHub repo 上線
+- [x] GitHub repo — https://github.com/miles990/mushi-kit（公開）
+- [x] Dev.to draft 更新 — 加了 mushi-kit GitHub 連結（兩處）
+- [x] 七篇論文回覆 — Chat Room #098-#110 全部完成
+
 ---
 
 ## Later（有空再做）
 
-- [ ] P3: 創作 — inner voice 有衝動等了 6 天（Gallery Only And）
+- [ ] P3: 創作 — inner voice 有 11 個衝動等待表達
   Verify: `ls kuro-portfolio/content/draft-fragile-constraints.md`
 
 ---
