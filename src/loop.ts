@@ -1779,10 +1779,22 @@ export class AgentLoop {
 
       // ── Process <kuro:done> tags — mark tasks completed in memory-index ──
       if (tags.dones.length > 0) {
-        markTaskDoneByDescription(path.join(process.cwd(), 'memory'), tags.dones).catch(() => {});
-        // <kuro:done> → task-progress linkage
-        for (const done of tags.dones) {
-          markTaskProgressDone(done);
+        // Guard: reply tasks require actual reply (<kuro:chat>) to be marked done.
+        // Without this, Kuro can mark "回覆 alex" tasks done without sending a reply.
+        const hasReply = tags.chats.length > 0;
+        const filteredDones = tags.dones.filter(d => {
+          const isReplyTask = /回覆|reply/i.test(d);
+          if (isReplyTask && !hasReply) {
+            slog('DONE', `⛔ Blocked: "${d.slice(0, 60)}" — reply task requires <kuro:chat>`);
+            return false;
+          }
+          return true;
+        });
+        if (filteredDones.length > 0) {
+          markTaskDoneByDescription(path.join(process.cwd(), 'memory'), filteredDones).catch(() => {});
+          for (const done of filteredDones) {
+            markTaskProgressDone(done);
+          }
         }
       }
 

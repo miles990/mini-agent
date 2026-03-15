@@ -672,7 +672,7 @@ export async function markTaskDoneByDescription(
       if (doneNorm.includes(summary.slice(0, 40)) || summary.includes(doneNorm.slice(0, 40))) return true;
       const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
       if (tsMatch && summary.includes(tsMatch[0])) return true;
-      if (doneNorm.includes('alex') && summary.includes('回覆 alex')) return true;
+      // Removed: wildcard 'alex' → '回覆 alex' match (caused bulk-marking unrelated reply tasks)
       const doneWords = new Set(doneNorm.match(/[\w\u4e00-\u9fff]{2,}/g) ?? []);
       const summaryWords = summary.match(/[\w\u4e00-\u9fff]{2,}/g) ?? [];
       if (summaryWords.length > 0) {
