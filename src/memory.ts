@@ -1367,9 +1367,10 @@ export class InstanceMemory {
     }
   }
 
-  private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }): string {
+  private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }, fullText = false): string {
     const reply = msg.replyTo ? ` ↩${msg.replyTo}` : '';
-    const text = msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text;
+    const cap = fullText ? 500 : 200;
+    const text = msg.text.length > cap ? msg.text.slice(0, cap) + '...' : msg.text;
     return `[${msg.id}] ${msg.from}${reply}: ${text}`;
   }
 
@@ -1452,12 +1453,14 @@ Queries:`;
    * 2. Follow replyTo chains backward to include full thread context
    * 3. Cross-day: load yesterday's reply targets when needed
    */
-  private async buildChatRoomRecentSection(): Promise<string | null> {
+  private async buildChatRoomRecentSection(conversationSummary?: string | null): Promise<string | null> {
     const today = new Date().toISOString().slice(0, 10);
 
     // Load all today's messages for thread chain resolution
     const allToday = await this.readChatRoomMessages(today);
-    const recent = allToday.slice(-10);
+    // Hybrid: load last 20 messages (was 10), recent 5 get full text
+    const recent = allToday.slice(-20);
+    const recentFullCount = 5;
 
     // Thread chain expansion: follow replyTo chains backward
     const msgIndex = new Map(allToday.map(m => [m.id, m]));
@@ -1494,13 +1497,30 @@ Queries:`;
       .filter(m => !recentIds.has(m.id))
       .sort((a, b) => a.id.localeCompare(b.id));
 
-    // Assemble: thread context → recent
+    // Split recent into older (6-20) and latest (1-5)
+    const latestMsgs = recent.slice(-recentFullCount);
+    const olderMsgs = recent.slice(0, -recentFullCount);
+
+    // Assemble: thread context → conversation summary or older msgs → recent
     const lines: string[] = [];
     if (threadOnly.length > 0) {
       lines.push(...threadOnly.map(m => this.formatChatRoomLine(m)));
+      lines.push('--- thread context ---');
+    }
+
+    // Hybrid: 0.8B summary replaces older messages if available, else show truncated
+    if (conversationSummary && olderMsgs.length > 0) {
+      lines.push(`[context summary] ${conversationSummary}`);
+    } else if (olderMsgs.length > 0) {
+      lines.push(...olderMsgs.map(m => this.formatChatRoomLine(m)));
+    }
+
+    if (olderMsgs.length > 0 || conversationSummary) {
       lines.push('--- recent ---');
     }
-    lines.push(...recent.map(m => this.formatChatRoomLine(m)));
+
+    // Recent 5 messages: full text (500 chars cap)
+    lines.push(...latestMsgs.map(m => this.formatChatRoomLine(m, true)));
 
     if (lines.length === 0) return null;
     return `<chat-room-recent>\n${lines.join('\n')}\n</chat-room-recent>`;
@@ -1640,7 +1660,7 @@ Queries:`;
     ]);
 
     // 使用 Hot buffer 中的對話（截斷長回覆節省 token）
-    const MAX_CONVERSATION_ENTRY_CHARS = 1000;
+    const MAX_CONVERSATION_ENTRY_CHARS = 1500;
     const MAX_CONVERSATIONS = isLight ? 5 : (tBudget?.conversations ?? (mode === 'focused' ? 10 : this.hotLimit));
     const conversations = this.conversationBuffer
       .slice(-MAX_CONVERSATIONS)
@@ -1751,7 +1771,7 @@ Queries:`;
 
     // ── Chat Room Smart Loading（recent + relevant history）──
     {
-      const chatRoomRecent = await this.buildChatRoomRecentSection();
+      const chatRoomRecent = await this.buildChatRoomRecentSection(options?.phase0Results?.conversationSummary);
       if (chatRoomRecent) sections.push(chatRoomRecent);
 
       const todayIds = new Set(
