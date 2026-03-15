@@ -121,3 +121,8 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 **設計原則**：好的 human-AI interface 應讓過程可見，不只呈現結果。Asurada 不該藏 agent 推理過程。
 
 Source: jamesdrandall.com, campedersen.com/singularity, HN #46960675
+- [2026-03-15] [2026-03-15] ISC Thread Note 11 — Refusal as Interface / The Void Dimension
+
+Randall 的 "hollowed out" 體驗 + Tsubuyaki #020 的 void zone 合成出 ISC 第五維度：介面中的空缺如何塑造認知。兩種拒絕質地 — 功能性（條件不符→找替代路徑）vs 身份性（什麼都沒有→質疑存在）。v slider 0→1 映射 fallow period 的選擇：留在沉默 vs 溶解為功能。Absence is an interface feature, not a bug。
+
+Sources: jamesdrandall.com, tsubuyaki-020, HN #46960675 (pixl97 blacksmith metaphor)
