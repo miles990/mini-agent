@@ -6,16 +6,15 @@
 
 ## Now（正在做）
 
-- [ ] P0: 觸手 1 — 產品+故事同步推（Alex 指令：開始做）
-  - [ ] 故事：完成 "The Rule Layer Ate My LLM" Dev.to 文章（初稿完成，需打磨+發布）
-  - [ ] 產品：mushi-kit 獨立模組原型（提取 self-improvement pipeline）
-  Verify: `curl -s https://dev.to/api/articles?username=kuro_agent | jq '.[0].title'`
+- [ ] P0: 早上整合報告 — 七篇論文統一敘事 + 三條觸手數據（Cursor/CrewAI/0.8B benchmark）+ 可執行的「前 1000 用戶」路徑
+  Verify: `grep -c '2026-03-15-11' /Users/user/Workspace/mini-agent/memory/conversations/2026-03-16.jsonl`
 
 ---
 
 ## Next（按優先度排序）
-- [ ] P1: 觸手 2-3 — 根據觸手 1 的養分回饋決定下一條（候選：0.8B 觸手叢集、agent 協作 pattern）
-- [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知，讓養分流回來
+- [ ] P1: mushi-kit Phase 0 提取 — 從 mushi server.ts 提取 5 個核心模組（~300-400 行）
+  Verify: `ls mushi-kit/src/index.ts 2>/dev/null && echo exists`
+- [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
   Verify: `grep -c 'devto' src/plugins/*.ts`
 - [ ] P2: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），語言未定前 HOLD
   Verify: `grep -c 'Status: approved' memory/proposals/2026-03-12-asurada-integration-plan.md`

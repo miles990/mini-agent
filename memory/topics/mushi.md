@@ -398,3 +398,15 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 
 關鍵洞見：1,195+ triage 記錄是未來「learned cascade router」的訓練數據。升級路徑：rule-based → learned classifier，估計數據需求：3,000-5,000 筆標記決策。6 個月後的優化，不是今天的事。今天結論：**架構方向正確，不需要重設計**。
 - [2026-03-14] [2026-03-14] mushi 與學術 cascade routing 的關係：mushi 解決的是更上游的問題（"when to think"），學術論文解決的是下游（"which model to think with"）。兩層可以堆疊。mushi 的 pre-task gating 在文獻中是空白地帶 — 沒有論文直接處理 agent loop 的 cycle-level triage。這是 mushi 的差異化核心。
+- [2026-03-15] **七篇論文綜合分析 — mushi 的完整學術骨架**（Alex 今晚直覺選讀）：
+
+| 論文 | 核心答案 | mushi 對應 |
+|------|---------|-----------|
+| NVIDIA SLM (iThome/datasciocean) | 60-70% 任務不需大模型；6步遷移演算法 | 三層路由前提；routing 跳過 fine-tune |
+| MIT ReDE-RF | 判斷≠生成，判斷快4-7倍 | triage = 判斷不生成 |
+| ACL 2025 CER | 信心值加權 > 多數決 | confidence threshold routing |
+| Meta DeepConf | 即時修剪低信心路徑，砍90%垃圾省84.7% token | 黏菌觸手修剪（同構：感知→評估→強化/修剪） |
+| ICLR 2026 Power Sampling | Base Model + MCMC 採樣 ≥ RL 訓練效果 | 榨乾 0.8B 潛力（不用 fine-tune） |
+| EMNLP 2025 TableRAG | 用對的處理器做對的事（SQL > LLM 猜） | 不只路由模型，路由處理器（二維路由） |
+
+統一敘事：AI 未來 = 異質化處理器網路。小模型判斷、信心值路由、即時修剪、推理時銳化、符號引擎精確計算。不是更大的腦 — 是完整的神經系統。DeepConf 的滑動視窗信心監控 = 「過程層路由」（推理中途判斷「我搞不定」），比 CER 的「結果層路由」更進一步。Power Sampling 與 DeepConf 不矛盾：花對的計算（MCMC 探索）+ 砍錯的計算（低信心修剪）。TableRAG 打開第二路由維度：任務類型（語義→LLM、精確→SQL、判斷→SLM、結構→DB）。
