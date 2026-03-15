@@ -7,8 +7,8 @@
  * 八個替換點：
  * R1: Perception 精簡 — 降低 output_cap + 移除低引用 sections（純邏輯，不用 LLM）
  * R2: Skills 篩選 — 改進 mode/keyword matching（純邏輯，不用 LLM）
- * R3: Cron gate — mtime 檢查 + 0.8B 二元分類，skip 空輪詢
- * R4: Context delta — hash 比對，skip 無變化 cycle（純邏輯，不用 LLM）
+ * R3: Cron gate — content hash + 0.8B 二元分類，skip 空輪詢（mtime 被 auto-commit 打敗，改用 content hash）
+ * R4: Context delta — volatile-stripped hash 比對，skip 無變化 cycle（純邏輯，不用 LLM）
  * R5: Context Profile — trigger 類型 → 預定義 section 載入策略（純邏輯）
  * R6: Memory Index — FTS5 relational matching（純邏輯，在 memory-index.ts）
  * R7: Keyword Extraction — 0.8B 從 trigger/inbox 提取關鍵字，改善 section matching
@@ -59,8 +59,8 @@ const stats: GateStats = {
   totalSaved: 0,
 };
 
-/** Last known mtime of HEARTBEAT.md */
-let lastHeartbeatMtime = 0;
+/** Last content hash of HEARTBEAT.md (replaces mtime — auto-commit defeats mtime check) */
+let lastHeartbeatContentHash = '';
 
 /** Last context hash for delta detection */
 let lastContextHash = '';
@@ -74,6 +74,31 @@ let consecutiveTimeouts = 0;
 let lastHealthAlertTs = 0;
 
 // =============================================================================
+// Volatile Content Stripping
+// =============================================================================
+
+/**
+ * Strip timestamps and other volatile fields that change every cycle
+ * but don't represent meaningful content changes.
+ * Used by R3 (HEARTBEAT hash) and R4 (context delta).
+ */
+function stripVolatileTimestamps(text: string): string {
+  return text
+    // ISO timestamps: 2026-03-15T10:56:12...
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^\s\])}<]*/g, 'TS')
+    // Slash timestamps: 2026/3/15 10:56:12
+    .replace(/\d{4}\/\d{1,2}\/\d{1,2}\s+\d{2}:\d{2}:\d{2}/g, 'TS')
+    // "Current time: ..." lines
+    .replace(/Current time:.*$/gm, 'Current time: TS')
+    // Instance IDs (change per restart, not per cycle, but strip for safety)
+    .replace(/Instance:\s*[0-9a-f]{8}/g, 'Instance: ID')
+    // Cycle count references
+    .replace(/[Cc]ycle\s*#?\d+/g, 'cycle #N')
+    // Unix timestamps (13-digit milliseconds)
+    .replace(/\b\d{13}\b/g, 'UTS');
+}
+
+// =============================================================================
 // R3: Cron HEARTBEAT Gate
 // =============================================================================
 
@@ -81,8 +106,8 @@ let lastHealthAlertTs = 0;
  * Gate a cron task — decide whether it needs Claude or can be skipped.
  *
  * Two-layer check:
- * 1. mtime check: if HEARTBEAT.md unchanged since last check → skip (zero LLM)
- * 2. 0.8B classification: read file content, binary yes/no for actionable tasks
+ * 1. content hash: if HEARTBEAT.md content unchanged (ignoring timestamps) → skip (zero LLM)
+ * 2. 0.8B classification: content changed → heuristic + binary yes/no for actionable tasks
  *
  * Only gates HEARTBEAT-related cron tasks. Others pass through.
  */
@@ -94,30 +119,32 @@ export function cronGate(taskDescription: string): CronGateResult {
 
   const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
 
-  // Layer 1: mtime check — zero cost
+  // Read file once for both Layer 1 (content hash) and Layer 2 (heuristic + 0.8B)
+  let content: string;
   try {
-    const stat = fs.statSync(heartbeatPath);
-    const mtime = stat.mtimeMs;
-
-    if (mtime === lastHeartbeatMtime && lastHeartbeatMtime > 0) {
-      // File unchanged since last check → skip
-      stats.cronSkipped++;
-      stats.totalSaved += 13000; // ~13K chars per HEARTBEAT Claude call
-      eventBus.emit('log:info', {
-        message: `[omlx-gate] R3: HEARTBEAT unchanged (mtime), skipping Claude call`,
-      });
-      return 'skip';
-    }
-
-    lastHeartbeatMtime = mtime;
+    content = fs.readFileSync(heartbeatPath, 'utf-8');
   } catch {
-    // File doesn't exist or can't stat → pass through to Claude
+    // File doesn't exist → pass through to Claude
     return 'claude';
   }
 
-  // Layer 2: 0.8B binary classification — file changed, check content
+  // Layer 1: content hash check — zero LLM cost
+  // (replaces mtime check — auto-commit changes mtime every cycle, defeating the gate)
+  const stableContent = stripVolatileTimestamps(content);
+  const contentHash = createHash('md5').update(stableContent).digest('hex');
+
+  if (contentHash === lastHeartbeatContentHash && lastHeartbeatContentHash !== '') {
+    stats.cronSkipped++;
+    stats.totalSaved += 13000;
+    eventBus.emit('log:info', {
+      message: `[omlx-gate] R3: HEARTBEAT content unchanged (hash), skipping Claude call`,
+    });
+    return 'skip';
+  }
+  lastHeartbeatContentHash = contentHash;
+
+  // Layer 2: 0.8B binary classification — content changed, check if actionable
   try {
-    const content = fs.readFileSync(heartbeatPath, 'utf-8');
 
     // Quick heuristic: no unchecked tasks marker → skip without LLM
     if (!content.includes('- [ ]') && !content.includes('- []')) {
@@ -176,7 +203,7 @@ Answer with ONLY "yes" or "no".`;
  * Returns true if context changed (should proceed), false if unchanged (can skip).
  */
 export function hasContextChanged(context: string): boolean {
-  const hash = createHash('md5').update(context).digest('hex');
+  const hash = createHash('md5').update(stripVolatileTimestamps(context)).digest('hex');
 
   if (hash === lastContextHash && lastContextHash !== '') {
     stats.contextDeltaSkipped++;
