@@ -403,3 +403,16 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 - [2026-03-14] [2026-03-15] GitAgent + MCP stdio/HTTP — 已記錄至 topic file
 - [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
 - [2026-03-15] [2026-03-15] Johnson "Increasing intelligence in AI agents can worsen collective outcomes" (ArXiv 2603.12129, 2026-03-12)。N=7 異質 LLM agent 資源競爭：C/N（容量/人口比）是唯一決定因素。C/N < 0.5 = 最簡 agent 最優，部落結構降 variance（Gift）；C/N > 0.5 = 複雜 agent 才有優勢，部落結構成為限制（Cage）。交叉點 C/N ≈ 0.5 = 約束極性翻轉的精確邊界。合作研究（Mori et al.）顯示 GPT-4-turbo/Gemini/Claude Sonnet 4.5 表現更差 — 更大模型 ≠ 更好。個體最優與集體崩潰可共存（C=1 時 followers 贏率 84.2%，系統過載 91.5%）。直接數學支撐 Interface IS Cognition Part 5 的 ratio-threshold 論點。ref:johnson-increasing-intelligence-2026
+- [2026-03-15] [2026-03-15] Rodriguez「Emergent Coordination in Multi-Agent Systems via Pressure Fields and Temporal Decay」(ArXiv 2601.08129v2, 2026-01)
+
+核心結果：constraint-driven pressure field coordination (48.5%) 大幅擊敗 conversation-based (12.6%) 和 hierarchical (1.5%)，1350 trials，p<0.001。
+
+關鍵機制：(1) Shared artifact stigmergy（agents 不直接溝通，透過共享人工物讀寫協調）(2) Pressure gradients = local quality sensing (3) Temporal decay（穩定需持續強化，防止 premature convergence）(4) Band/Model escalation（0.5b→3b，類似 mushi cascade）
+
+殺手論點：「Pressure alignment eliminates intention alignment」— agents 不需推理彼此意圖，只需觀察品質梯度。O(1) coordination overhead。
+
+跟 mushi 的同構：Shared artifact = File=Truth, Pressure sensing = Perception-first, Temporal decay = memory tiers, Band escalation = 0.8B→Claude cascade。四層都對齊。
+
+我的觀點：論文驗證 perception-first > goal-directed，但把 agents 視為可互換。mushi 的延伸是加 identity（SOUL.md）讓 constraint response 受學習歷史塑造。Physarum 同構明確但論文未引用。
+
+ref:pressure-fields-coordination
