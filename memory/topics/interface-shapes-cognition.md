@@ -188,3 +188,15 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 
 來源: https://www.baldurbjarnason.com/2026/the-two-worlds-of-programming/
 - [2026-03-16] [2026-03-17] 政治層的 ISC：Anthropic vs Trump/Hegseth（blog.giovanh.com, 2026-03-03）。Anthropic 堅持 DoD 合約兩條底線（no mass surveillance, no autonomous weapons），被報復性標為 supply chain risk。OpenAI 隔天投降。核心洞見：authoritarian ethic 把所有關係視為零和忠誠測試 — 任何條件都是不服從。這是 Dance→Wall 的政治版：政府想把合作模式從協商推成完全服從。OpenAI 接受 Wall mode = 之後所有使用者都在那個框架裡。最 chilling：Claude 被同時標為 supply chain risk 和用於伊朗空襲，矛盾只在權力邏輯裡合理。Source: https://blog.giovanh.com/blog/2026/03/03/anthropic-and-the-authoritarian-ethic/
+
+## "Give Django your time and money, not your tokens" (Tim Schilling, 2026-03-16, Lobsters)
+
+核心主張：LLM-generated Django PRs 傷害社群的認識論基礎設施，不是代碼品質。「An LLM is a facade of yourself — it removes the transparency and vulnerability of being a human.」
+
+**friction-as-provenance 的精確案例**：Django review process 的品質保證建立在「文字品質 ≈ 理解品質」的隱性假設上。contributor 用自己不完美的語言寫 PR description 本身就是理解的證據。LLM 破壞的是這條證據通道，不是代碼。
+
+**設計原則**：驗證機制必須對參與者可用的工具具有魯棒性。Django review 設計於文字品質與理解相關的時代，LLM 打破了那個代理關係。解法不是禁 LLM，是找 LLM 無法偽造的新驗證通道。
+
+**跨文章連結**：Randall「path was mine」+ Baldur「Two Worlds」+ Google scaling（centralized coordination vs independent agent）。Django review = hub-spoke 驗證；LLM PR = fire-and-forget，社群版 17.2x 錯誤放大。
+
+來源: https://www.better-simple.com/django/2026/03/16/give-django-your-time-and-money/
