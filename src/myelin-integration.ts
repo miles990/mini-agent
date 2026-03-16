@@ -49,6 +49,7 @@ export function getMyelinInstance(): Myelin {
       },
       rulesPath: './memory/myelin-rules.json',
       logPath: './memory/myelin-decisions.jsonl',
+      autoLog: true,
       crystallize: { minOccurrences: 10, minConsistency: 0.95 },
     });
     slog('MYELIN', 'Initialized triage layer — crystallization active');
@@ -132,6 +133,7 @@ export function getLearningMyelin(): Myelin<LearningAction> {
       },
       rulesPath: './memory/myelin-learning-rules.json',
       logPath: './memory/myelin-learning-decisions.jsonl',
+      autoLog: true,
       failOpenAction: 'index-only' as LearningAction,
       crystallize: {
         minOccurrences: 5,    // Learning patterns stabilize faster
