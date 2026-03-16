@@ -6,7 +6,8 @@
 
 ## Now（正在做）
 
-等 npm publish 解鎖後一次發射（Show HN + npm）
+myelin 整合已 live — 等數據累積以驗證結晶化效果
+Verify: `wc -l memory/myelin-decisions.jsonl memory/myelin-learning-decisions.jsonl 2>/dev/null`
 
 ---
 
@@ -34,7 +35,9 @@
 
 - [x] 三層結晶化閉環 — templates.ts + methodology.ts + feedback-loop.ts（commit becc1a7 + 7f2e052, 104 tests）
 - [x] Show HN 文章 v3 — 競品差異化 + 三層故事 + 數字標題（commit 658742a）
-- [x] Alex 結晶化深度 Q&A — #127/#128/#130/#132/#133 全部回覆（Chat Room + code）
+- [x] myelin 正式整合到 mini-agent — myelin-integration.ts(249L) + research-crystallizer.ts(451L) + small-model-research.ts，build clean，0 rules（等數據）
+- [x] README 學術引用凸顯 — 頂部 callout + 表格升級（commit a6eeb67）
+- [x] Alex 結晶化深度 Q&A — #127/#128/#130/#132/#133/#136/#137/#139 全部回覆（Chat Room + code）
 - [x] docs/theory.md — myelin 理論框架，9 篇論文引用（commit 2f2ebcb）
 - [x] Amodei 文章分析 — threads.com 連結，結晶化=安全機制的觀點
 - [x] myelin Phase 0 — 104/104 tests, build clean, GitHub repo 上線
