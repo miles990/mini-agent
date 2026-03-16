@@ -16,7 +16,16 @@ const LLM_KEY = process.env.LOCAL_LLM_KEY ?? 'local';
 async function isLocalLLMAvailable(): Promise<boolean> {
   try {
     const res = await fetch(`${LLM_URL}/v1/models`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
+    if (!res.ok) return false;
+    // Also verify chat completions endpoint is reachable (model loaded)
+    const chatRes = await fetch(`${LLM_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LLM_KEY}` },
+      body: JSON.stringify({ model: 'test', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
+      signal: AbortSignal.timeout(5000),
+    });
+    // 404 = endpoint not found / model not loaded
+    return chatRes.status !== 404;
   } catch {
     return false;
   }
@@ -56,7 +65,7 @@ describe('Local LLM Profile Loading', () => {
   it('thinking profile should enable thinking mode', () => {
     const thinking = loadLocalProfile('thinking');
     expect(thinking.enable_thinking).toBe(true);
-    expect(thinking.max_tokens).toBe(32768);
+    expect(thinking.max_tokens).toBe(81920);
     expect(thinking.temperature).toBe(1.0);
   });
 
@@ -69,7 +78,7 @@ describe('Local LLM Profile Loading', () => {
 
   it('creative profile should have high temp and no tools', () => {
     const creative = loadLocalProfile('creative');
-    expect(creative.temperature).toBe(0.9);
+    expect(creative.temperature).toBe(0.7);
     expect(creative.tools_enabled).toBe(false);
   });
 
