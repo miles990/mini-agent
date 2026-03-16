@@ -242,6 +242,43 @@ class BatchBuffer {
 }
 
 // =============================================================================
+// DelegationBatchBuffer — batch rapid delegation completions into one cycle
+// =============================================================================
+
+class DelegationBatchBuffer {
+  private pending: string[] = [];  // task IDs
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private windowMs: number;
+  private onFlush: (taskIds: string[], count: number) => void;
+
+  constructor(onFlush: (taskIds: string[], count: number) => void, windowMs = 10_000) {
+    this.onFlush = onFlush;
+    this.windowMs = windowMs;
+  }
+
+  /** Add a completed delegation. Resets the flush timer on each new completion. */
+  add(taskId?: string): void {
+    this.pending.push(taskId ?? 'unknown');
+
+    // Reset timer on each new completion (sliding window)
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), this.windowMs);
+  }
+
+  /** Force-flush pending completions (e.g. on shutdown). */
+  flush(): void {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.pending.length === 0) return;
+    const taskIds = [...this.pending];
+    const count = taskIds.length;
+    this.pending = [];
+    this.onFlush(taskIds, count);
+  }
+
+  get size(): number { return this.pending.length; }
+}
+
+// =============================================================================
 // AgentLoop
 // =============================================================================
 
@@ -294,6 +331,7 @@ export class AgentLoop {
   // ── Foreground Reply (parallel response during cycling — concurrent batch+pool) ──
   private foregroundReplyRecords: Array<{ question: string; answer: string; source: string; ts: string; tagsProcessed?: string[] }> = [];
   private batchBuffer: BatchBuffer;
+  private delegationBatchBuffer: DelegationBatchBuffer;
 
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
@@ -683,6 +721,21 @@ export class AgentLoop {
       (source, mergedText, replyTo) => this.executeForegroundCall(source, mergedText, replyTo).catch(() => {}),
       3000, // 3s window
     );
+    // DelegationBatchBuffer: collect rapid delegation completions into one cycle (10s sliding window)
+    this.delegationBatchBuffer = new DelegationBatchBuffer(
+      (_taskIds, count) => {
+        if (!this.running || this.paused) return;
+        if (this.cycling) {
+          slog('LOOP', `[delegation-batch] ${count} completions buffered but cycle running — flagging for post-cycle drain`);
+          this.hasPendingDelegationResults = true;
+          return;
+        }
+        slog('LOOP', `[delegation-batch] Flushing ${count} batched completion(s) → triggering single cycle`);
+        this.triggerReason = `delegation-batch(${count})`;
+        this.runCycle();
+      },
+      10_000, // 10s sliding window
+    );
   }
 
 
@@ -741,10 +794,9 @@ export class AgentLoop {
 
     eventBus.on('trigger:*', this.handleTrigger);
 
-    // Delegation complete → trigger cycle immediately to absorb results (養分即時吸收)
-    // If already cycling, the results will be picked up by buildContext in the next cycle.
-    // Multiple rapid completions are naturally debounced: cycling guard prevents re-entry,
-    // and scheduleHeartbeat() calls clearTimer() first.
+    // Delegation complete → batch into DelegationBatchBuffer (10s sliding window)
+    // Multiple rapid completions are collected and trigger ONE cycle to absorb all results.
+    // Myelin routing + foreground tracking happen immediately (fire-and-forget, no batching needed).
     eventBus.on('action:delegation-complete', (event?: AgentEvent) => {
       // Clean up foreground delegation tracking when delegation completes
       const taskId = event?.data?.taskId as string | undefined;
@@ -783,16 +835,10 @@ export class AgentLoop {
         }
       }
 
-      if (!this.running || this.paused) return;
-      if (this.cycling) {
-        // Flag for drain after current cycle completes — ensures results are never lost
-        slog('LOOP', '[delegation-complete] Cycle running — flagging for post-cycle drain');
-        this.hasPendingDelegationResults = true;
-        return;
-      }
-      slog('LOOP', '[delegation-complete] Triggering immediate cycle for result absorption');
-      this.triggerReason = 'delegation-complete';
-      this.runCycle();
+      // Buffer the completion — DelegationBatchBuffer handles the 10s sliding window
+      // and triggers a single cycle when the window expires
+      slog('LOOP', `[delegation-complete] Buffering completion${taskId ? ` (${taskId})` : ''} (buffer size: ${this.delegationBatchBuffer.size + 1})`);
+      this.delegationBatchBuffer.add(taskId);
     });
 
     // Run first cycle after short warmup (let perception streams initialize)
@@ -838,6 +884,7 @@ export class AgentLoop {
     this.running = false;
     eventBus.off('trigger:*', this.handleTrigger);
     this.clearTimer();
+    this.delegationBatchBuffer.flush(); // Drain pending delegation completions before shutdown
     this.pendingPriority = null;
     eventBus.emit('action:loop', { event: 'stop' });
   }
@@ -972,20 +1019,13 @@ export class AgentLoop {
     const hasP0 = this.hasPendingWork();
     if (hasP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
-      // Log bypass to myelin so it can learn from the pattern
-      import('./myelin-integration.js').then(({ logTriageBypass }) =>
-        logTriageBypass(reason.split(/[:(]/)[0].trim(), 'wake', 'P0 pending work')).catch(() => {});
     }
     if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
-        import('./myelin-integration.js').then(({ logTriageBypass }) =>
-          logTriageBypass('alert', 'wake', 'alert always wakes')).catch(() => {});
-      } else if (triageSource === 'delegation-complete') {
-        slog('MUSHI', `✅ delegation-complete bypasses triage (must absorb results)`);
-        import('./myelin-integration.js').then(({ logTriageBypass }) =>
-          logTriageBypass('delegation-complete', 'wake', 'must absorb results')).catch(() => {});
+      } else if (triageSource === 'delegation-complete' || triageSource === 'delegation-batch') {
+        slog('MUSHI', `✅ ${triageSource} bypasses triage (must absorb results)`);
       } else if (
         this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
@@ -998,8 +1038,6 @@ export class AgentLoop {
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
         // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
-        import('./myelin-integration.js').then(({ logTriageBypass }) =>
-          logTriageBypass(triageSource, 'skip', 'no perception change + idle')).catch(() => {});
         writeTrailEntry({
           ts: new Date().toISOString(),
           agent: 'mushi',
