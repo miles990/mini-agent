@@ -789,6 +789,43 @@
 
   .hidden { display: none !important; }
 
+  .search-box { display:flex; align-items:center; gap:4px; margin-left:auto; }
+  .search-input { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--fg); background:var(--bg-input); border:1px solid var(--border); border-radius:3px; padding:3px 8px; width:140px; outline:none; transition:border-color 0.2s,width 0.2s; }
+  .search-input:focus { border-color:var(--border-focus); width:200px; }
+  .search-input::placeholder { color:var(--fg-muted); }
+  .search-hint { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--fg-muted); border:1px solid var(--border); border-radius:2px; padding:1px 4px; line-height:1.2; }
+
+  .timeline-view { display:none; flex:1; overflow-x:auto; overflow-y:auto; padding:16px; }
+  .timeline-view.active { display:block; }
+  .timeline-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); }
+  .timeline-label { font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--fg); width:180px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+  .timeline-label:hover { color:var(--kuro); }
+  .timeline-bar-container { flex:1; height:18px; position:relative; background:var(--bg-card); border-radius:2px; overflow:hidden; }
+  .timeline-bar { position:absolute; height:100%; border-radius:2px; opacity:0.7; min-width:4px; transition:all 0.3s; }
+  .timeline-bar:hover { opacity:1; }
+  .timeline-bar.pending { background:var(--p1); }
+  .timeline-bar.in_progress { background:var(--kuro); }
+  .timeline-bar.completed { background:var(--done); }
+  .timeline-date-axis { display:flex; justify-content:space-between; padding:4px 0 4px 188px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+  .timeline-date { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--fg-muted); }
+  .timeline-now { position:absolute; top:0; bottom:0; width:1px; background:var(--p0); opacity:0.5; z-index:1; }
+
+  /* Stats View */
+  .stats-view { display:none; flex:1; overflow-y:auto; padding:16px; }
+  .stats-view.active { display:block; }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:900px; margin:0 auto; }
+  .stats-chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:4px; padding:14px; }
+  .stats-chart-title { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--fg-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px; }
+  .stats-chart-card svg { width:100%; }
+  .stats-legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .stats-legend-item { display:flex; align-items:center; gap:4px; font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:var(--fg-dim); }
+  .stats-legend-dot { width:8px; height:8px; border-radius:2px; }
+  .stats-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; max-width:900px; margin:0 auto 12px; }
+  .stats-summary-card { background:var(--bg-card); border:1px solid var(--border); border-radius:4px; padding:10px 12px; text-align:center; }
+  .stats-summary-value { font-family:'JetBrains Mono',monospace; font-size:1.5rem; font-weight:600; color:var(--fg); }
+  .stats-summary-label { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--fg-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:2px; }
+  @media (max-width:768px) { .stats-grid { grid-template-columns:1fr; } .stats-summary { grid-template-columns:1fr 1fr; } }
+
   /* Mobile */
   @media (max-width: 768px) {
     .board { grid-template-columns: 1fr; }
@@ -808,9 +845,15 @@
   <span class="conn-label" id="connLabel">offline</span>
   <span class="header-title">TASK <span>BOARD</span></span>
   <div class="header-spacer"></div>
+  <div class="search-box">
+    <input type="text" class="search-input" id="searchInput" placeholder="search tasks..." oninput="onSearch(this.value)" />
+    <span class="search-hint">/</span>
+  </div>
   <div class="view-toggle">
     <button class="view-btn active" data-view="kanban" onclick="setView('kanban')">kanban</button>
     <button class="view-btn" data-view="graph" onclick="setView('graph')">graph</button>
+    <button class="view-btn" data-view="timeline" onclick="setView('timeline')">timeline</button>
+    <button class="view-btn" data-view="stats" onclick="setView('stats')">stats</button>
   </div>
   <button class="header-btn" onclick="openSetup()">config</button>
 </div>
@@ -847,6 +890,13 @@
   <button class="filter-chip" data-filter="assignee:alex" onclick="setFilter('assignee','alex')">Alex</button>
   <button class="filter-chip" data-filter="assignee:kuro" onclick="setFilter('assignee','kuro')">Kuro</button>
   <button class="filter-chip" data-filter="assignee:none" onclick="setFilter('assignee','none')">Unassigned</button>
+  <div class="filter-sep"></div>
+  <span class="filter-label">Priority:</span>
+  <button class="filter-chip active" data-filter="priority:all" onclick="setFilter('priority','all')">All</button>
+  <button class="filter-chip" data-filter="priority:0" onclick="setFilter('priority','0')" style="color:var(--p0)">P0</button>
+  <button class="filter-chip" data-filter="priority:1" onclick="setFilter('priority','1')" style="color:var(--p1)">P1</button>
+  <button class="filter-chip" data-filter="priority:2" onclick="setFilter('priority','2')" style="color:var(--p2)">P2</button>
+  <button class="filter-chip" data-filter="priority:3" onclick="setFilter('priority','3')" style="color:var(--p3)">P3</button>
 </div>
 
 <!-- Main Content -->
@@ -916,6 +966,12 @@
     </div>
   </div>
 
+  <!-- Timeline View -->
+  <div class="timeline-view" id="timelineView"></div>
+
+  <!-- Stats View -->
+  <div class="stats-view" id="statsView"></div>
+
   <!-- Graph View -->
   <div class="graph-view" id="graphView">
     <svg id="graphSvg" xmlns="http://www.w3.org/2000/svg">
@@ -978,7 +1034,8 @@
   let tasks = new Map();
   let selectedTaskId = null;
   let currentView = 'kanban';
-  let filters = { type: 'all', assignee: 'all' };
+  let filters = { type: 'all', assignee: 'all', priority: 'all' };
+  let searchQuery = '';
   let activities = [];
   const MAX_ACTIVITIES = 50;
 
@@ -1129,7 +1186,11 @@
     document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
     $('board').classList.toggle('hidden', view !== 'kanban');
     $('graphView').classList.toggle('active', view === 'graph');
+    $('timelineView').classList.toggle('active', view === 'timeline');
+    $('statsView').classList.toggle('active', view === 'stats');
     if (view === 'graph') renderGraph();
+    if (view === 'timeline') renderTimeline();
+    if (view === 'stats') renderStatsView();
   };
 
   // =========================================================================
@@ -1150,8 +1211,15 @@
     if (filters.assignee === 'none' && assignee) return false;
     if (filters.assignee === 'alex' && assignee !== 'alex') return false;
     if (filters.assignee === 'kuro' && assignee !== 'kuro') return false;
+    if (filters.priority !== 'all' && String(t.priority ?? 2) !== filters.priority) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!((t.summary || '') + ' ' + (t.id || '')).toLowerCase().includes(q)) return false;
+    }
     return true;
   }
+
+  window.onSearch = function(v) { searchQuery = v.trim(); render(); };
 
   // =========================================================================
   // Render Dispatch
@@ -1160,6 +1228,8 @@
     renderKanban();
     renderStats();
     if (currentView === 'graph') renderGraph();
+    if (currentView === 'timeline') renderTimeline();
+    if (currentView === 'stats') renderStatsView();
     if (selectedTaskId) renderDetail(selectedTaskId);
   }
 
@@ -1378,6 +1448,109 @@
     });
 
     svg.innerHTML = html;
+  }
+
+  // =========================================================================
+  // Timeline View
+  // =========================================================================
+  function renderTimeline() {
+    const c = $('timelineView');
+    const all = [...tasks.values()].filter(t => passFilter(t) && t.status !== 'abandoned');
+    if (!all.length) { c.innerHTML = '<div style="padding:40px;text-align:center;color:var(--fg-muted);font-size:0.7rem">No tasks</div>'; return; }
+    const now = Date.now(), rs = now - 7*864e5, re = now + 7*864e5, rd = re - rs;
+    const so = { in_progress:0, pending:1, completed:2 };
+    all.sort((a,b) => (so[a.status]??3) - (so[b.status]??3));
+    const dates = [];
+    for (let d = new Date(rs); d.getTime() <= re; d.setDate(d.getDate()+1)) dates.push(new Date(d));
+    let h = '<div class="timeline-date-axis">';
+    dates.forEach(d => {
+      const today = d.toDateString() === new Date().toDateString();
+      h += `<span class="timeline-date" style="${today?'color:var(--kuro);font-weight:600':''}">${d.toLocaleDateString('en-GB',{month:'short',day:'numeric'})}</span>`;
+    });
+    h += '</div>';
+    all.forEach(t => {
+      const cr = new Date(t.createdAt||now).getTime(), up = new Date(t.updatedAt||t.createdAt||now).getTime();
+      const bs = Math.max(cr,rs), be = t.status==='completed' ? Math.min(up,re) : Math.min(now,re);
+      const left = ((bs-rs)/rd)*100, width = Math.max(((be-bs)/rd)*100, 0.5);
+      const a = t.payload?.assignee||'', ac = a==='alex'?'var(--alex)':a==='kuro'?'var(--kuro)':'var(--fg-muted)';
+      const nl = ((now-rs)/rd)*100;
+      h += `<div class="timeline-row">
+        <span class="timeline-label" onclick="selectTask('${esc(t.id)}')" title="${esc(t.summary||'')}">
+          <span style="color:${ac};margin-right:4px">&bull;</span>${esc((t.summary||'').slice(0,28))}
+        </span>
+        <div class="timeline-bar-container">
+          <div class="timeline-now" style="left:${nl}%"></div>
+          <div class="timeline-bar ${t.status}" style="left:${left}%;width:${width}%" title="${t.status}: ${timeAgo(cr)}"></div>
+        </div>
+      </div>`;
+    });
+    c.innerHTML = h;
+  }
+
+  // =========================================================================
+  // Stats View (Charts)
+  // =========================================================================
+  function renderStatsView() {
+    const c = $('statsView');
+    const all = [...tasks.values()];
+    const byStatus = { pending:0, in_progress:0, completed:0, abandoned:0 };
+    const byPriority = [0,0,0,0];
+    const byAssignee = { alex:0, kuro:0, unassigned:0 };
+    const byType = { task:0, goal:0 };
+    const completedPerDay = {};
+    all.forEach(t => {
+      byStatus[t.status] = (byStatus[t.status]||0) + 1;
+      byPriority[t.priority??2]++;
+      const a = t.payload?.assignee; byAssignee[a||'unassigned']++;
+      byType[t.type||'task'] = (byType[t.type||'task']||0) + 1;
+      if (t.status === 'completed' && t.updatedAt) {
+        const day = new Date(t.updatedAt).toLocaleDateString('en-GB',{month:'short',day:'numeric'});
+        completedPerDay[day] = (completedPerDay[day]||0) + 1;
+      }
+    });
+    const bar = (label, value, max, color) => {
+      const pct = max > 0 ? (value/max)*100 : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+        <span style="width:80px;font-size:0.65rem;color:var(--fg-dim);text-align:right">${label}</span>
+        <div style="flex:1;height:16px;background:var(--bg-card);border-radius:2px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${color};border-radius:2px;transition:width 0.3s"></div>
+        </div>
+        <span style="width:30px;font-size:0.65rem;color:var(--fg)">${value}</span>
+      </div>`;
+    };
+    const maxS = Math.max(...Object.values(byStatus),1);
+    const maxP = Math.max(...byPriority,1);
+    const maxA = Math.max(...Object.values(byAssignee),1);
+    let h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">';
+    h += '<div><div style="font-size:0.7rem;color:var(--fg);margin-bottom:8px;font-weight:500">By Status</div>';
+    h += bar('Pending', byStatus.pending, maxS, 'var(--p1)');
+    h += bar('Active', byStatus.in_progress, maxS, 'var(--kuro)');
+    h += bar('Done', byStatus.completed, maxS, '#2a6040');
+    h += bar('Abandoned', byStatus.abandoned, maxS, 'var(--p0)');
+    h += '</div>';
+    h += '<div><div style="font-size:0.7rem;color:var(--fg);margin-bottom:8px;font-weight:500">By Priority</div>';
+    h += bar('P0 Critical', byPriority[0], maxP, 'var(--p0)');
+    h += bar('P1 High', byPriority[1], maxP, 'var(--p1)');
+    h += bar('P2 Medium', byPriority[2], maxP, 'var(--p2)');
+    h += bar('P3 Low', byPriority[3], maxP, 'var(--p3)');
+    h += '</div>';
+    h += '<div><div style="font-size:0.7rem;color:var(--fg);margin-bottom:8px;font-weight:500">By Assignee</div>';
+    h += bar('Alex', byAssignee.alex, maxA, 'var(--alex)');
+    h += bar('Kuro', byAssignee.kuro, maxA, 'var(--kuro)');
+    h += bar('Unassigned', byAssignee.unassigned, maxA, 'var(--fg-muted)');
+    h += '</div>';
+    h += '<div><div style="font-size:0.7rem;color:var(--fg);margin-bottom:8px;font-weight:500">By Type</div>';
+    h += bar('Tasks', byType.task, Math.max(byType.task,byType.goal,1), 'var(--p2)');
+    h += bar('Goals', byType.goal, Math.max(byType.task,byType.goal,1), 'var(--kuro)');
+    h += '</div>';
+    h += '</div>';
+    if (Object.keys(completedPerDay).length) {
+      const maxD = Math.max(...Object.values(completedPerDay),1);
+      h += '<div style="margin-top:16px"><div style="font-size:0.7rem;color:var(--fg);margin-bottom:8px;font-weight:500">Completed Per Day</div>';
+      Object.entries(completedPerDay).slice(-7).forEach(([day,n]) => { h += bar(day,n,maxD,'#2a6040'); });
+      h += '</div>';
+    }
+    c.innerHTML = h;
   }
 
   // =========================================================================
@@ -1703,13 +1876,20 @@
   // Keyboard Shortcuts
   // =========================================================================
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      if (e.key === 'Escape') e.target.blur();
+      return;
+    }
     if (e.key === 'Escape') {
       if (selectedTaskId) closeDetail();
       else if ($('setupOverlay').classList.contains('active')) closeSetup();
     }
+    if (e.key === '/') { e.preventDefault(); $('searchInput').focus(); }
+    if (e.key === 'n') { showAddForm('pending'); const inp = $('addTitlePending'); if (inp) inp.focus(); }
     if (e.key === '1') setView('kanban');
     if (e.key === '2') setView('graph');
+    if (e.key === '3') setView('timeline');
+    if (e.key === '4') setView('stats');
     if (e.key === 'r' && !e.metaKey && !e.ctrlKey) loadTasks();
   });
 
