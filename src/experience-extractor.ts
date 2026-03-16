@@ -16,7 +16,32 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { slog } from './utils.js';
-import type { ExperienceRecord, ExperienceRule, RuleGuidanceItem } from './crystallization-types.js';
+// --- Type Definitions (inline — crystallization-types.ts does not exist) ---
+
+export interface ExperienceRecord {
+  taskType: string;
+  outcome: 'success' | 'failure' | 'partial';
+  action: string;
+  context: Record<string, unknown>;
+}
+
+export interface ExperienceRule {
+  id: string;
+  when: string;
+  then: string;
+  confidence: number;
+  supportCount: number;
+  counterCount: number;
+  createdAt: string;
+  lastApplied: string;
+  tags: string[];
+}
+
+export interface RuleGuidanceItem {
+  when: string;
+  then: string;
+  confidence: number;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
