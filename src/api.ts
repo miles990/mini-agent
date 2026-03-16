@@ -63,7 +63,7 @@ import { getMode, setMode, isValidMode, setLoopController, getModeNames, type Mo
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 import { forgeStatus } from './delegation.js';
-import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective } from './memory-index.js';
+import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry } from './memory-index.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -738,6 +738,7 @@ export function createApi(port = 3001): express.Express {
         notifications: getNotificationStats(),
       },
       mushi,
+      knowledge: (() => { try { const { getKBStatus } = require('./shared-knowledge.js'); return getKBStatus(); } catch { return null; } })(),
       forge: forgeStatus(process.cwd()),
       provider: {
         primary: getProvider(),
@@ -1430,6 +1431,83 @@ export function createApi(port = 3001): express.Express {
   });
 
   // =============================================================================
+  // Task Queue (memory-index based)
+  // =============================================================================
+
+  app.get('/api/task-queue', (_req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const tasks = queryMemoryIndexSync(memDir, {
+        type: ['task', 'goal'],
+        status: ['pending', 'in_progress', 'completed', 'abandoned'],
+      });
+      res.json({ tasks });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/task-queue', async (req: Request, res: Response) => {
+    try {
+      const { title, type, status, priority, origin, assignee } = req.body;
+      if (!title || typeof title !== 'string') {
+        res.status(400).json({ error: 'title is required' });
+        return;
+      }
+      const memDir = path.join(process.cwd(), 'memory');
+      const entry = await createTask(memDir, {
+        type: type ?? 'task',
+        title,
+        status: status ?? 'pending',
+        priority: priority !== undefined ? Number(priority) : undefined,
+        origin: origin ?? 'task-board',
+        assignee: assignee ?? undefined,
+      });
+      eventBus.emit('action:task', { content: title, entry });
+      res.json({ success: true, entry });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.patch('/api/task-queue/:id', async (req: Request, res: Response) => {
+    try {
+      const { title, status, priority, type, assignee } = req.body;
+      const memDir = path.join(process.cwd(), 'memory');
+      const updated = await updateTask(memDir, req.params.id, {
+        title,
+        status,
+        priority: priority !== undefined ? Number(priority) : undefined,
+        type,
+        assignee,
+      });
+      if (!updated) {
+        res.status(404).json({ error: 'task not found' });
+        return;
+      }
+      eventBus.emit('action:task', { content: updated.summary, entry: updated });
+      res.json({ success: true, entry: updated });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.delete('/api/task-queue/:id', async (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const ok = await deleteMemoryIndexEntry(memDir, req.params.id);
+      if (!ok) {
+        res.status(404).json({ error: 'task not found' });
+        return;
+      }
+      eventBus.emit('action:task', { content: `deleted:${req.params.id}` });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // =============================================================================
   // Heartbeat
   // =============================================================================
 
@@ -2073,6 +2151,15 @@ export function createApi(port = 3001): express.Express {
       res.sendFile(dashboardPath);
     } else {
       res.status(404).send('Dashboard not found');
+    }
+  });
+
+  app.get('/task-board', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'task-board.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('task-board.html not found');
     }
   });
 

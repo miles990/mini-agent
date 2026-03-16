@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Task Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #08090c;
+    --bg-elevated: #0e1017;
+    --bg-input: #12141c;
+    --bg-card: #10121a;
+    --border: #1a1d2a;
+    --border-focus: #2a2f42;
+    --fg: #c8cdd8;
+    --fg-dim: #5a6070;
+    --fg-muted: #3a3f50;
+    --alex: #f0a030;
+    --alex-bg: rgba(240, 160, 48, 0.06);
+    --kuro: #40e8a0;
+    --kuro-bg: rgba(64, 232, 160, 0.06);
+    --claude: #60a0f0;
+    --claude-bg: rgba(96, 160, 240, 0.06);
+    --p0: #e04050;
+    --p1: #f0a030;
+    --p2: #60a0f0;
+    --p3: #5a6070;
+    --scrollbar: #1a1d2a;
+    --scrollbar-hover: #2a2f42;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* === Header === */
+  .header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-elevated);
+    flex-shrink: 0;
+  }
+
+  .header-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--fg);
+  }
+  .header-title span { color: var(--fg-dim); }
+
+  .conn-indicator {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--fg-muted);
+    transition: background 0.5s;
+    flex-shrink: 0;
+  }
+  .conn-indicator.connected { background: var(--kuro); box-shadow: 0 0 6px rgba(64,232,160,0.4); }
+  .conn-indicator.error { background: #e04050; box-shadow: 0 0 6px rgba(224,64,80,0.4); }
+
+  .conn-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--fg-dim);
+  }
+
+  .header-spacer { flex: 1; }
+
+  .header-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--fg-dim);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .header-btn:hover { color: var(--fg); border-color: var(--border-focus); }
+  .header-btn.active { color: var(--kuro); border-color: var(--kuro); }
+
+  /* === Stats Bar === */
+  .stats-bar {
+    display: flex;
+    gap: 1px;
+    padding: 10px 20px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .stat-card {
+    flex: 1;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+  .stat-card:first-child { border-radius: 3px 0 0 3px; }
+  .stat-card:last-child { border-radius: 0 3px 3px 0; }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin-top: 2px;
+  }
+
+  /* === Setup Panel === */
+  .setup {
+    padding: 20px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .setup label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--fg-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .setup input {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .setup input:focus { border-color: var(--border-focus); }
+
+  .setup button {
+    padding: 8px 18px;
+    background: transparent;
+    color: var(--kuro);
+    border: 1px solid var(--kuro);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .setup button:hover { background: rgba(64,232,160,0.1); }
+
+  /* === Board === */
+  .board {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .column:last-child { border-right: none; }
+
+  .column-header {
+    padding: 10px 16px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .column-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+
+  .column-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--fg-muted);
+    background: var(--bg-card);
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .column-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .column-body::-webkit-scrollbar { width: 4px; }
+  .column-body::-webkit-scrollbar-track { background: transparent; }
+  .column-body::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+  .column-body::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+  /* Drop zone styling */
+  .column-body.drag-over {
+    background: rgba(64, 232, 160, 0.03);
+    outline: 1px dashed rgba(64, 232, 160, 0.2);
+    outline-offset: -4px;
+  }
+
+  /* === Task Card === */
+  .task-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    cursor: grab;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .task-card:hover { border-color: var(--border-focus); }
+  .task-card:active { cursor: grabbing; }
+  .task-card.dragging { opacity: 0.4; }
+
+  .task-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .priority-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+  }
+  .priority-badge.p0 { color: var(--p0); background: rgba(224,64,80,0.12); }
+  .priority-badge.p1 { color: var(--p1); background: rgba(240,160,48,0.12); }
+  .priority-badge.p2 { color: var(--p2); background: rgba(96,160,240,0.12); }
+  .priority-badge.p3 { color: var(--p3); background: rgba(90,96,112,0.12); }
+
+  .task-type-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--fg-muted);
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+  }
+
+  .task-card-title {
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--fg);
+    word-break: break-word;
+  }
+
+  .task-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  .task-origin {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--fg-muted);
+  }
+
+  .task-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--fg-muted);
+  }
+
+  .task-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--fg-muted);
+    opacity: 0.5;
+    margin-left: auto;
+  }
+
+  .task-card-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .task-card:hover .task-card-actions { opacity: 1; }
+
+  .task-action-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    transition: all 0.15s;
+  }
+  .task-action-btn:hover { color: var(--fg); border-color: var(--border-focus); }
+  .task-action-btn.delete:hover { color: var(--p0); border-color: var(--p0); }
+
+  /* === Add Task === */
+  .add-task-area {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .add-task-btn {
+    width: 100%;
+    padding: 6px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 3px;
+    color: var(--fg-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .add-task-btn:hover { border-color: var(--border-focus); color: var(--fg-dim); }
+
+  .add-task-form {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .add-task-form.active { display: flex; }
+
+  .add-task-form input, .add-task-form select {
+    padding: 6px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    outline: none;
+  }
+  .add-task-form input:focus, .add-task-form select:focus { border-color: var(--border-focus); }
+
+  .add-task-form .form-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .add-task-form .form-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .form-btn {
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .form-btn.cancel {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--fg-dim);
+  }
+  .form-btn.cancel:hover { border-color: var(--border-focus); color: var(--fg); }
+  .form-btn.submit {
+    background: none;
+    border: 1px solid var(--kuro);
+    color: var(--kuro);
+  }
+  .form-btn.submit:hover { background: rgba(64,232,160,0.1); }
+
+  /* === Filter Bar === */
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px 20px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .filter-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .filter-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--fg-dim);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-chip:hover { border-color: var(--border-focus); color: var(--fg); }
+  .filter-chip.active { border-color: var(--kuro); color: var(--kuro); }
+
+  .hidden { display: none !important; }
+
+  /* Animation */
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .task-card.new { animation: cardIn 0.2s ease-out; }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .board { grid-template-columns: 1fr; }
+    .column { border-right: none; border-bottom: 1px solid var(--border); }
+    .column:last-child { border-bottom: none; }
+    .setup-grid { grid-template-columns: 1fr; }
+    .stats-bar { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="conn-indicator" id="connDot"></div>
+  <span class="conn-label" id="connLabel">offline</span>
+  <div class="header-spacer"></div>
+  <span class="header-title">TASK <span>BOARD</span></span>
+  <div class="header-spacer"></div>
+  <button class="header-btn" id="setupToggle" onclick="toggleSetup()">config</button>
+</div>
+
+<div class="setup hidden" id="setupPanel">
+  <div class="setup-grid">
+    <div>
+      <label>Server URL</label>
+      <input id="serverUrl" type="url" placeholder="http://localhost:3001" />
+    </div>
+    <div>
+      <label>API Key</label>
+      <input id="apiKey" type="password" placeholder="MINI_AGENT_API_KEY" />
+    </div>
+    <button onclick="connect()">Connect</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat-card">
+    <div class="stat-label">Pending</div>
+    <div class="stat-value" id="statPending">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Active</div>
+    <div class="stat-value" id="statActive">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Done</div>
+    <div class="stat-value" id="statDone">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Goals</div>
+    <div class="stat-value" id="statGoals">-</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-chip active" data-filter="all" onclick="setFilter('all')">All</button>
+  <button class="filter-chip" data-filter="task" onclick="setFilter('task')">Tasks</button>
+  <button class="filter-chip" data-filter="goal" onclick="setFilter('goal')">Goals</button>
+</div>
+
+<div class="board" id="board">
+  <!-- Pending Column -->
+  <div class="column">
+    <div class="column-header">
+      <span class="column-title">Pending</span>
+      <span class="column-count" id="countPending">0</span>
+    </div>
+    <div class="column-body" id="colPending"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'pending')"></div>
+    <div class="add-task-area">
+      <button class="add-task-btn" id="addBtnPending" onclick="showAddForm('pending')">+ add task</button>
+      <div class="add-task-form" id="addFormPending">
+        <input type="text" placeholder="Task title..." id="addTitlePending" onkeydown="if(event.key==='Enter')submitAdd('pending');if(event.key==='Escape')hideAddForm('pending');" />
+        <div class="form-row">
+          <select id="addPriorityPending">
+            <option value="1">P1</option>
+            <option value="0">P0</option>
+            <option value="2">P2</option>
+            <option value="3">P3</option>
+          </select>
+          <select id="addTypePending">
+            <option value="task">Task</option>
+            <option value="goal">Goal</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button class="form-btn cancel" onclick="hideAddForm('pending')">cancel</button>
+          <button class="form-btn submit" onclick="submitAdd('pending')">add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Column -->
+  <div class="column">
+    <div class="column-header">
+      <span class="column-title">Active</span>
+      <span class="column-count" id="countActive">0</span>
+    </div>
+    <div class="column-body" id="colActive"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'in_progress')"></div>
+    <div class="add-task-area">
+      <button class="add-task-btn" onclick="showAddForm('active')">+ add task</button>
+      <div class="add-task-form" id="addFormActive">
+        <input type="text" placeholder="Task title..." id="addTitleActive" onkeydown="if(event.key==='Enter')submitAdd('active');if(event.key==='Escape')hideAddForm('active');" />
+        <div class="form-row">
+          <select id="addPriorityActive">
+            <option value="1">P1</option>
+            <option value="0">P0</option>
+            <option value="2">P2</option>
+            <option value="3">P3</option>
+          </select>
+          <select id="addTypeActive">
+            <option value="task">Task</option>
+            <option value="goal">Goal</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button class="form-btn cancel" onclick="hideAddForm('active')">cancel</button>
+          <button class="form-btn submit" onclick="submitAdd('active')">add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done Column -->
+  <div class="column">
+    <div class="column-header">
+      <span class="column-title">Done</span>
+      <span class="column-count" id="countDone">0</span>
+    </div>
+    <div class="column-body" id="colDone"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'completed')"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // === State ===
+  let baseUrl = '';
+  let apiKey = '';
+  let eventSource = null;
+  let connected = false;
+  let tasks = new Map(); // id → task entry
+  let activeFilter = 'all';
+
+  // === DOM ===
+  const $ = id => document.getElementById(id);
+  const $connDot = $('connDot');
+  const $connLabel = $('connLabel');
+  const $setupPanel = $('setupPanel');
+
+  // === Init from localStorage ===
+  const saved = localStorage.getItem('task-board-config');
+  if (saved) {
+    try {
+      const cfg = JSON.parse(saved);
+      $('serverUrl').value = cfg.url || '';
+      $('apiKey').value = cfg.key || '';
+      if (cfg.url && cfg.key) setTimeout(() => connect(), 100);
+      else $setupPanel.classList.remove('hidden');
+    } catch { $setupPanel.classList.remove('hidden'); }
+  } else {
+    $setupPanel.classList.remove('hidden');
+  }
+
+  // === Connection ===
+  window.toggleSetup = function() {
+    $setupPanel.classList.toggle('hidden');
+    $('setupToggle').textContent = $setupPanel.classList.contains('hidden') ? 'config' : 'close';
+  };
+
+  window.connect = function() {
+    baseUrl = $('serverUrl').value.replace(/\/$/, '');
+    apiKey = $('apiKey').value;
+    if (!baseUrl || !apiKey) return;
+
+    localStorage.setItem('task-board-config', JSON.stringify({ url: baseUrl, key: apiKey }));
+    $setupPanel.classList.add('hidden');
+    $('setupToggle').textContent = 'config';
+
+    loadTasks();
+    connectSSE();
+  };
+
+  function setConnState(state) {
+    connected = state === 'connected';
+    $connDot.className = 'conn-indicator ' + state;
+    $connLabel.textContent = state;
+  }
+
+  // === Load Tasks ===
+  async function loadTasks() {
+    try {
+      const res = await fetch(`${baseUrl}/api/task-queue`, {
+        headers: { 'x-api-key': apiKey }
+      });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+
+      tasks.clear();
+      (data.tasks || []).forEach(t => tasks.set(t.id, t));
+      renderBoard();
+    } catch (err) {
+      console.error('Failed to load tasks:', err);
+    }
+  }
+
+  // === SSE ===
+  let hadSSEError = false;
+
+  function connectSSE() {
+    if (eventSource) { eventSource.close(); eventSource = null; }
+
+    eventSource = new EventSource(`${baseUrl}/api/events`);
+
+    eventSource.onopen = () => {
+      setConnState('connected');
+      if (hadSSEError) { hadSSEError = false; loadTasks(); }
+    };
+
+    eventSource.onmessage = (ev) => {
+      try {
+        const payload = JSON.parse(ev.data);
+        if (payload.type === 'action:task') {
+          // Reload full state on any task change for consistency
+          loadTasks();
+        }
+      } catch {}
+    };
+
+    eventSource.onerror = () => {
+      hadSSEError = true;
+      setConnState('error');
+    };
+  }
+
+  // === Render ===
+  function renderBoard() {
+    const pending = [];
+    const active = [];
+    const done = [];
+
+    for (const [, t] of tasks) {
+      if (activeFilter !== 'all' && t.type !== activeFilter) continue;
+
+      if (t.status === 'pending') pending.push(t);
+      else if (t.status === 'in_progress') active.push(t);
+      else if (t.status === 'completed' || t.status === 'abandoned') done.push(t);
+    }
+
+    // Sort by priority (lower = higher priority), then by time (newer first)
+    const sortFn = (a, b) => {
+      const pa = a.payload?.priority ?? 2;
+      const pb = b.payload?.priority ?? 2;
+      if (pa !== pb) return pa - pb;
+      return b.ts.localeCompare(a.ts);
+    };
+
+    pending.sort(sortFn);
+    active.sort(sortFn);
+    done.sort((a, b) => b.ts.localeCompare(a.ts)); // Done: newest first
+
+    $('colPending').innerHTML = pending.map(t => renderCard(t)).join('');
+    $('colActive').innerHTML = active.map(t => renderCard(t)).join('');
+    $('colDone').innerHTML = done.slice(0, 50).map(t => renderCard(t)).join(''); // Limit done
+
+    $('countPending').textContent = pending.length;
+    $('countActive').textContent = active.length;
+    $('countDone').textContent = done.length;
+
+    // Stats
+    let goals = 0;
+    for (const [, t] of tasks) {
+      if (t.type === 'goal' && (t.status === 'pending' || t.status === 'in_progress')) goals++;
+    }
+    $('statPending').textContent = pending.length;
+    $('statActive').textContent = active.length;
+    $('statDone').textContent = done.length;
+    $('statGoals').textContent = goals;
+  }
+
+  function renderCard(t) {
+    const p = t.payload?.priority ?? 2;
+    const pClass = `p${p}`;
+    const pLabel = `P${p}`;
+    const origin = t.payload?.origin || t.source || '';
+    const ts = t.ts ? new Date(t.ts).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }) : '';
+    const shortId = t.id.replace(/^idx-/, '').slice(0, 8);
+    const typeBadge = t.type === 'goal' ? '<span class="task-type-badge">goal</span>' : '';
+    const title = esc(t.summary || '');
+
+    return `
+      <div class="task-card" draggable="true" data-id="${esc(t.id)}"
+           ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">
+        <div class="task-card-actions">
+          <button class="task-action-btn delete" onclick="deleteTask('${esc(t.id)}')" title="Delete">x</button>
+        </div>
+        <div class="task-card-header">
+          <span class="priority-badge ${pClass}">${pLabel}</span>
+          ${typeBadge}
+        </div>
+        <div class="task-card-title">${title}</div>
+        <div class="task-card-meta">
+          ${origin ? `<span class="task-origin">${esc(origin)}</span>` : ''}
+          <span class="task-time">${esc(ts)}</span>
+          <span class="task-id">${esc(shortId)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // === Drag & Drop ===
+  let dragId = null;
+
+  window.onDragStart = function(e) {
+    dragId = e.target.dataset.id;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragId);
+  };
+
+  window.onDragEnd = function(e) {
+    e.target.classList.remove('dragging');
+    dragId = null;
+    document.querySelectorAll('.column-body').forEach(c => c.classList.remove('drag-over'));
+  };
+
+  window.onDragOver = function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+  };
+
+  window.onDragLeave = function(e) {
+    e.currentTarget.classList.remove('drag-over');
+  };
+
+  window.onDrop = async function(e, newStatus) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+
+    const id = e.dataTransfer.getData('text/plain');
+    if (!id) return;
+
+    const task = tasks.get(id);
+    if (!task || task.status === newStatus) return;
+
+    // Optimistic update
+    task.status = newStatus;
+    renderBoard();
+
+    try {
+      const res = await fetch(`${baseUrl}/api/task-queue/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error(res.status);
+    } catch (err) {
+      console.error('Failed to update task:', err);
+      loadTasks(); // Revert on failure
+    }
+  };
+
+  // === Add Task ===
+  window.showAddForm = function(col) {
+    const form = $(`addForm${cap(col)}`);
+    const btn = col === 'pending' ? $('addBtnPending') : form.previousElementSibling;
+    if (btn) btn.classList.add('hidden');
+    form.classList.add('active');
+    $(`addTitle${cap(col)}`).focus();
+  };
+
+  window.hideAddForm = function(col) {
+    const form = $(`addForm${cap(col)}`);
+    form.classList.remove('active');
+    $(`addTitle${cap(col)}`).value = '';
+    const btn = col === 'pending' ? $('addBtnPending') : null;
+    if (btn) btn.classList.remove('hidden');
+    // For other columns, find the sibling button
+    const addBtns = form.parentElement.querySelectorAll('.add-task-btn');
+    addBtns.forEach(b => b.classList.remove('hidden'));
+  };
+
+  window.submitAdd = async function(col) {
+    const statusMap = { pending: 'pending', active: 'in_progress' };
+    const title = $(`addTitle${cap(col)}`).value.trim();
+    if (!title) return;
+
+    const priority = Number($(`addPriority${cap(col)}`).value);
+    const type = $(`addType${cap(col)}`).value;
+    const status = statusMap[col] || 'pending';
+
+    hideAddForm(col);
+
+    try {
+      const res = await fetch(`${baseUrl}/api/task-queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+        body: JSON.stringify({ title, priority, type, status, origin: 'task-board' }),
+      });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      if (data.entry) {
+        tasks.set(data.entry.id, data.entry);
+        renderBoard();
+      }
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    }
+  };
+
+  // === Delete Task ===
+  window.deleteTask = async function(id) {
+    const task = tasks.get(id);
+    if (!task) return;
+
+    // Optimistic removal
+    tasks.delete(id);
+    renderBoard();
+
+    try {
+      const res = await fetch(`${baseUrl}/api/task-queue/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'x-api-key': apiKey },
+      });
+      if (!res.ok) throw new Error(res.status);
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      loadTasks(); // Revert
+    }
+  };
+
+  // === Filter ===
+  window.setFilter = function(filter) {
+    activeFilter = filter;
+    document.querySelectorAll('.filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.filter === filter);
+    });
+    renderBoard();
+  };
+
+  // === Helpers ===
+  function esc(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function cap(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+})();
+</script>
+</body>
+</html>
