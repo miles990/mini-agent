@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, acquireForegroundSlot, releaseForegroundSlot } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, acquireForegroundSlot, releaseForegroundSlot, getLaneStatus } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -588,6 +588,22 @@ export class AgentLoop {
         const { buildRecentDelegationSummary } = await import('./delegation.js');
         const delegationSummary = buildRecentDelegationSummary();
         if (delegationSummary) context += `\n\n<recent-delegations>\n${delegationSummary}\n</recent-delegations>`;
+      } catch { /* best effort */ }
+
+      // Lane awareness — show what LOOP + other FG lanes are doing so this FG can avoid conflicts or collaborate
+      try {
+        const lanes = getLaneStatus();
+        const lines: string[] = [];
+        if (lanes.loop.busy && lanes.loop.task) {
+          lines.push(`LOOP: ${lanes.loop.task.prompt.slice(0, 120)} (tools=${lanes.loop.task.toolCalls}, last=${lanes.loop.task.lastTool ?? 'none'})`);
+        }
+        for (const s of lanes.foreground.slots) {
+          if (s.id === slotId || !s.task) continue; // skip self
+          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)} (tools=${s.task.toolCalls})`);
+        }
+        if (lines.length > 0) {
+          context += `\n\n<active-lanes>\n以下 lane 正在同時工作，避免修改相同檔案或重複工作。如果任務相關，可以互補而非重複：\n${lines.join('\n')}\n</active-lanes>`;
+        }
       } catch { /* best effort */ }
 
       context += `\n\n<foreground_reply_mode>
@@ -1418,6 +1434,19 @@ export class AgentLoop {
       try {
         const kbSummary = getKnowledgeSummary();
         if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
+      } catch { /* best effort */ }
+
+      // Lane awareness — show what FG lanes are doing so OODA can avoid conflicts or coordinate
+      try {
+        const lanes = getLaneStatus();
+        const lines: string[] = [];
+        for (const s of lanes.foreground.slots) {
+          if (!s.task) continue;
+          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)} (tools=${s.task.toolCalls}, last=${s.task.lastTool ?? 'none'})`);
+        }
+        if (lines.length > 0) {
+          context += `\n\n<active-lanes>\n以下 foreground lane 正在同時工作，避免修改相同檔案或重複工作。如果任務相關，可以協作互補：\n${lines.join('\n')}\n</active-lanes>`;
+        }
       } catch { /* best effort */ }
 
       const hasAlerts = context.includes('ALERT:');
