@@ -365,6 +365,51 @@ export async function maybeDistill(): Promise<boolean> {
       slog('MYELIN-RESEARCH', `Research distill: ${researchResult.stats.ruleCount} rules, ${researchResult.stats.principleCount} principles, methodology: ${researchResult.hasMethodology ? 'active' : 'building'}`);
     } catch { /* research crystallizer is optional */ }
 
+    // L2: Playbook distillation — crystallize response strategy patterns
+    try {
+      const { distillPlaybooks } = await import('./myelin-playbook.js');
+      const l2 = distillPlaybooks();
+      slog('MYELIN', `L2 Playbook distill: ${l2.rules} rules, ${l2.templates} templates`);
+    } catch { /* L2 is optional */ }
+
+    // L3: Skill library distillation — crystallize delegation patterns
+    try {
+      const { distillSkills } = await import('./myelin-skills.js');
+      const l3 = distillSkills();
+      slog('MYELIN', `L3 Skill distill: ${l3.rules} rules, ${l3.templates} templates, ${l3.skills} skills`);
+    } catch { /* L3 is optional */ }
+
+    // L4: ExpeL distillation — cross-episode experience extraction
+    try {
+      const { distillExpel } = await import('./myelin-expel.js');
+      const l4 = distillExpel();
+      slog('MYELIN', `L4 ExpeL distill: ${l4.myelin.rules.length} rules, ${l4.experience.newRules} new experience rules`);
+    } catch { /* L4 is optional */ }
+
+    // L5: Meta-cognitive compilation — aggregate L2-L4 into principles
+    try {
+      const { compileMeta, distillMeta } = await import('./myelin-meta.js');
+      const { getPlaybookStats } = await import('./myelin-playbook.js');
+      const { getSkillStats } = await import('./myelin-skills.js');
+      const { getExperienceRules } = await import('./myelin-expel.js');
+
+      const l2Stats = getPlaybookStats();
+      const l3Stats = getSkillStats();
+      const l4Rules = getExperienceRules();
+
+      compileMeta({
+        playbookHitRate: l2Stats.totalDecisions > 0 ? l2Stats.ruleCoverage / 100 : 0,
+        topPlaybooks: [],
+        skillReuseRate: l3Stats.totalDecisions > 0 ? l3Stats.ruleCoverage / 100 : 0,
+        topSkills: [],
+        experienceRuleCount: l4Rules.length,
+        recentSuccessRate: 0.7, // TODO: derive from recent episodes
+      });
+
+      const l5 = distillMeta();
+      slog('MYELIN', `L5 Meta distill: ${l5.rules} rules, ${l5.principles} principles`);
+    } catch { /* L5 is optional */ }
+
     return true;
   } catch (err) {
     slog('MYELIN', `Distill error: ${err instanceof Error ? err.message : 'unknown'}`);

@@ -900,6 +900,26 @@ export class AgentLoop {
         });
       } catch { /* fire-and-forget */ }
 
+      // L3: Skill library — record delegation outcome for pattern crystallization (fire-and-forget)
+      if (taskId) {
+        import('./delegation.js').then(({ getTaskResult }) => {
+          const result = getTaskResult(taskId!);
+          if (result) {
+            import('./myelin-skills.js').then(({ recordDelegationOutcome }) => {
+              recordDelegationOutcome({
+                taskType: result.type ?? delegationType ?? 'code',
+                promptFingerprint: (result.output ?? '').slice(0, 200),
+                toolsUsed: [],
+                duration: result.duration ?? 0,
+                success: result.status === 'completed',
+                outputQuality: result.confidence ?? 5,
+                outputLength: result.output?.length ?? 0,
+              });
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+
       // Buffer the completion — DelegationBatchBuffer handles the 10s sliding window
       // and triggers a single cycle when the window expires
       slog('LOOP', `[delegation-complete] Buffering completion${taskId ? ` (${taskId})` : ''} (buffer size: ${this.delegationBatchBuffer.size + 1})`);
@@ -2439,6 +2459,23 @@ export class AgentLoop {
           durationMs: duration,
           tags: cycleTagsProcessed,
         });
+      } catch { /* fire-and-forget */ }
+
+      // L4: ExpeL — record complete OODA episode for cross-context distillation (fire-and-forget)
+      try {
+        import('./myelin-expel.js').then(({ recordEpisode }) => {
+          recordEpisode({
+            ts: new Date().toISOString(),
+            trigger: currentTriggerReason ?? 'unknown',
+            intent: cycleTagsProcessed[0] ?? 'general',
+            contextSnapshot: `cycle=${this.cycleCount},model=${modelRoute.model}`,
+            decision: cycleTagsProcessed.includes('chat') ? 'reply' : cycleTagsProcessed.includes('delegate') ? 'delegate' : 'process',
+            actions: cycleTagsProcessed,
+            result: 'success',
+            durationMs: duration,
+            tags: cycleTagsProcessed,
+          });
+        }).catch(() => {});
       } catch { /* fire-and-forget */ }
 
       // Nutrient tracking — measure delegation result absorption (fire-and-forget)

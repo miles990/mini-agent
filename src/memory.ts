@@ -1988,6 +1988,42 @@ Queries:`;
       } catch { /* ignore */ }
     }
 
+    // L2: Playbook — match incoming message to response strategy (conditional)
+    if (!isLight && shouldLoad('playbook', ['playbook', 'myelin', 'crystalliz', '結晶'])) {
+      try {
+        const { matchPlaybook, formatPlaybookForPrompt } = await import('./myelin-playbook.js');
+        // Extract latest message from inbox or chat-room for matching
+        const latestMsg = inboxItems[0]?.content ?? '';
+        if (latestMsg.length > 5) {
+          const { strategy, result } = await matchPlaybook({
+            message: latestMsg,
+            source: inboxItems[0]?.source ?? options?.trigger ?? 'unknown',
+            hasUrl: /https?:\/\//.test(latestMsg),
+          });
+          const playbookXml = formatPlaybookForPrompt(strategy, result.method === 'rule' ? 0.95 : 0.75);
+          if (playbookXml) sections.push(playbookXml);
+        }
+      } catch { /* L2 is optional */ }
+    }
+
+    // L4: ExpeL — inject experience rules into context (conditional)
+    if (!isLight && shouldLoad('experience', ['experience', 'expel', 'episode', '經驗'])) {
+      try {
+        const { formatExperienceForPrompt } = await import('./myelin-expel.js');
+        const expCtx = formatExperienceForPrompt(3);
+        if (expCtx) sections.push(expCtx);
+      } catch { /* L4 is optional */ }
+    }
+
+    // L5: Meta — inject cognitive principles and self-model (conditional)
+    if (!isLight && shouldLoad('metacognition', ['meta', 'principle', '原則', 'cognitive'])) {
+      try {
+        const { formatMetaForPrompt } = await import('./myelin-meta.js');
+        const metaCtx = formatMetaForPrompt();
+        if (metaCtx) sections.push(metaCtx);
+      } catch { /* L5 is optional */ }
+    }
+
     // Commitment Binding — conditional load (promises/commitments), profile-aware
     if (shouldLoadForProfile('commitments', options?.trigger) && shouldLoad('commitments')) {
       try {
