@@ -2165,6 +2165,15 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  app.get('/board', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'board.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('board.html not found');
+    }
+  });
+
   // =============================================================================
   // Mobile Perception (Phase 1)
   // =============================================================================
