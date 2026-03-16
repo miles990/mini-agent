@@ -18,6 +18,8 @@ import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
 import { spawnDelegation } from './delegation.js';
+import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
+import { triageRouting } from './myelin-integration.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { triageLearningEvent } from './myelin-integration.js';
 import {
@@ -810,32 +812,90 @@ export async function postProcess(
   }
 
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
+  // Uses Task Graph for DAG decomposition: detect dependencies, merge related tasks, plan waves
   if (tags.delegates.length > 0) tagsProcessed.push('delegate');
-  for (const del of tags.delegates) {
-    // Methodology injection: prepend crystallized research methodology to learn/research prompts
-    let prompt = del.prompt;
-    if (del.type === 'learn' || del.type === 'research') {
-      try {
-        const { getCurrentMethodology } = await import('./research-crystallizer.js');
-        const methodology = getCurrentMethodology();
-        if (methodology?.guidanceText) {
-          prompt = `<research-methodology>\n${methodology.guidanceText}\n</research-methodology>\n\n${prompt}`;
-        }
-      } catch { /* methodology injection is optional */ }
+  if (tags.delegates.length > 1) {
+    // Multiple delegates → build DAG for intelligent scheduling
+    const taskInputs: TaskInput[] = tags.delegates.map(del => ({
+      type: del.type ?? 'code',
+      prompt: del.prompt,
+      workdir: del.workdir,
+      lane: 'background' as const,
+    }));
+    const graph = buildTaskGraph(taskInputs);
+    const plan = planExecution(graph);
+
+    // Log merge/dependency info
+    const mergedCount = graph.filter(n => n.status === 'merged').length;
+    const activeCount = graph.filter(n => n.status !== 'merged').length;
+    if (mergedCount > 0) {
+      slog('TASK-GRAPH', `DAG: ${tags.delegates.length} delegates → ${activeCount} active (${mergedCount} merged), ${plan.waves.length} wave(s)`);
     }
 
-    const taskId = spawnDelegation({
-      prompt,
-      workdir: del.workdir,
-      type: del.type,
-      provider: del.provider,
-      maxTurns: del.maxTurns,
-      verify: del.verify,
-    });
-    const taskType = del.type ?? 'code';
-    const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
-    slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
-    eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+    // Spawn by wave (wave 0 immediately, wave 1+ after dependencies — for now all immediate since delegation is fire-and-forget with internal queue)
+    for (const wave of plan.waves) {
+      for (const node of wave.tasks) {
+        // Methodology injection for learn/research
+        let prompt = node.prompt;
+        const taskType = node.type as DelegationTaskType;
+        if (taskType === 'learn' || taskType === 'research') {
+          try {
+            const { getCurrentMethodology } = await import('./research-crystallizer.js');
+            const methodology = getCurrentMethodology();
+            if (methodology?.guidanceText) {
+              prompt = `<research-methodology>\n${methodology.guidanceText}\n</research-methodology>\n\n${prompt}`;
+            }
+          } catch { /* methodology injection is optional */ }
+        }
+
+        // Find original delegate for provider/maxTurns/verify (merged nodes use surviving node's prompt)
+        const origDel = tags.delegates.find(d => d.prompt === node.prompt)
+          ?? tags.delegates.find(d => node.prompt.includes(d.prompt))
+          ?? tags.delegates[0];
+
+        const taskId = spawnDelegation({
+          prompt,
+          workdir: (node.metadata?.workdir as string) ?? origDel.workdir,
+          type: taskType,
+          provider: origDel.provider,
+          maxTurns: origDel.maxTurns,
+          verify: origDel.verify,
+        });
+        const resolvedProvider = origDel.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+        slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}, wave=${wave.wave}) → ${(node.metadata?.workdir as string) ?? origDel.workdir}`);
+        eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: (node.metadata?.workdir as string) ?? origDel.workdir });
+
+        // Feed routing decision to myelin for crystallization (fire-and-forget)
+        triageRouting({ type: 'route', taskType, prompt: node.prompt.slice(0, 300) }).catch(() => {});
+      }
+    }
+  } else {
+    // Single delegate — direct spawn (no DAG overhead)
+    for (const del of tags.delegates) {
+      let prompt = del.prompt;
+      if (del.type === 'learn' || del.type === 'research') {
+        try {
+          const { getCurrentMethodology } = await import('./research-crystallizer.js');
+          const methodology = getCurrentMethodology();
+          if (methodology?.guidanceText) {
+            prompt = `<research-methodology>\n${methodology.guidanceText}\n</research-methodology>\n\n${prompt}`;
+          }
+        } catch { /* methodology injection is optional */ }
+      }
+
+      const taskId = spawnDelegation({
+        prompt,
+        workdir: del.workdir,
+        type: del.type,
+        provider: del.provider,
+        maxTurns: del.maxTurns,
+        verify: del.verify,
+      });
+      const taskType = del.type ?? 'code';
+      const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+      slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
+      eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+    }
   }
 
   // <kuro:goal*> tags — goal state machine (fire-and-forget, writes to memory-index)

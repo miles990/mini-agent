@@ -92,6 +92,8 @@ import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
 import { isVisibleOutput } from './achievements.js';
 import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
 import { runPhase0 } from './preprocess.js';
+import { routeInboxItems } from './task-graph.js';
+import { triageRouting } from './myelin-integration.js';
 import type { Phase0Results } from './preprocess.js';
 
 // =============================================================================
@@ -1273,6 +1275,31 @@ export class AgentLoop {
       // (e.g. arrived during pause, process restart, or any future routing bug).
       // Must run before isDirectMessage so all downstream checks see the correct value.
       const inboxItemsEarly = readPendingInbox();
+
+      // ── Task Graph: intelligent inbox routing ──
+      // Route DM items: simple ones → foreground slots (parallel), complex → stay in OODA
+      const dmItems = inboxItemsEarly.filter(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
+      if (dmItems.length > 0) {
+        const routingDecisions = routeInboxItems(dmItems);
+        const fgItems = routingDecisions.filter(d => d.lane === 'foreground');
+        const oodaItems = routingDecisions.filter(d => d.lane === 'ooda');
+
+        // Fan out foreground-routed items to parallel slots (fire-and-forget)
+        for (const decision of fgItems) {
+          const item = decision.item;
+          // Log routing + feed to myelin for crystallization
+          slog('TASK-GRAPH', `Inbox route: ${item.id} → foreground (${decision.reason})`);
+          triageRouting({
+            type: 'route', taskType: 'reply', prompt: item.content,
+            complexity: 'low', isTechnical: false,
+          }).catch(() => {});
+          this.batchBuffer.add(item.source, item.content);
+        }
+        if (fgItems.length > 0) {
+          slog('TASK-GRAPH', `Routed ${fgItems.length} inbox items to foreground, ${oodaItems.length} stay in OODA`);
+        }
+      }
+
       if (!this.triggerReason?.startsWith('telegram-user') && !this.triggerReason?.startsWith('room') && !this.triggerReason?.startsWith('chat')) {
         const dmItem = inboxItemsEarly.find(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
         if (dmItem) {
