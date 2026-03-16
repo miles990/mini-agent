@@ -1476,32 +1476,68 @@ Queries:`;
       collectThread(msg.replyTo, 0);
     }
 
-    // Cross-day: yesterday's replyTo targets may be in yesterday's file
+    // Citation resolver: scan recent messages for #NNN references and pull cited messages into context
+    const recentIds = new Set(recent.map(m => m.id));
+    const citedMsgs = new Map<string, ChatRoomMessage>();
+    const citationPattern = /#(\d{3})\b/g;
+    const pendingYesterdayCitations: string[] = [];
+    for (const msg of recent) {
+      let match: RegExpExecArray | null;
+      citationPattern.lastIndex = 0;
+      while ((match = citationPattern.exec(msg.text)) !== null) {
+        const num = match[1];
+        const citedId = `${today}-${num}`;
+        if (!recentIds.has(citedId) && !citedMsgs.has(citedId)) {
+          const cited = msgIndex.get(citedId);
+          if (cited) {
+            citedMsgs.set(cited.id, cited);
+          } else {
+            // Not found today — try yesterday
+            pendingYesterdayCitations.push(num);
+          }
+        }
+      }
+    }
+
+    // Cross-day: yesterday's replyTo targets or cited messages may be in yesterday's file
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const missingReplyIds = [...threadMsgs.values()]
       .filter(m => m.replyTo && !msgIndex.has(m.replyTo) && m.replyTo.startsWith(yesterday))
       .map(m => m.replyTo!);
-    if (missingReplyIds.length > 0) {
+    if (missingReplyIds.length > 0 || pendingYesterdayCitations.length > 0) {
       const yesterdayMsgs = await this.readChatRoomMessages(yesterday);
       const yesterdayIndex = new Map(yesterdayMsgs.map(m => [m.id, m]));
       for (const id of missingReplyIds) {
         const msg = yesterdayIndex.get(id);
         if (msg) threadMsgs.set(msg.id, msg);
       }
+      for (const num of pendingYesterdayCitations) {
+        const citedId = `${yesterday}-${num}`;
+        if (!citedMsgs.has(citedId)) {
+          const msg = yesterdayIndex.get(citedId);
+          if (msg) citedMsgs.set(msg.id, msg);
+        }
+      }
     }
 
-    // Remove thread messages that are already in recent
-    const recentIds = new Set(recent.map(m => m.id));
+    // Remove thread/cited messages that are already in recent
     const threadOnly = [...threadMsgs.values()]
       .filter(m => !recentIds.has(m.id))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const citedOnly = [...citedMsgs.values()]
+      .filter(m => !recentIds.has(m.id) && !threadMsgs.has(m.id))
       .sort((a, b) => a.id.localeCompare(b.id));
 
     // Split recent into older (6-20) and latest (1-5)
     const latestMsgs = recent.slice(-recentFullCount);
     const olderMsgs = recent.slice(0, -recentFullCount);
 
-    // Assemble: thread context → conversation summary or older msgs → recent
+    // Assemble: cited → thread context → conversation summary or older msgs → recent
     const lines: string[] = [];
+    if (citedOnly.length > 0) {
+      lines.push(...citedOnly.map(m => this.formatChatRoomLine(m, true)));
+      lines.push('--- cited messages ---');
+    }
     if (threadOnly.length > 0) {
       lines.push(...threadOnly.map(m => this.formatChatRoomLine(m)));
       lines.push('--- thread context ---');
