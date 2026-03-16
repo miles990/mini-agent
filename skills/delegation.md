@@ -77,6 +77,30 @@ Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, con
 
 **適用場景**：重構、加功能、跑測試、建專案骨架、**並行探索多個主題**
 
+## 並行安全規則 — 防止檔案衝突
+
+**根因**：多條觸手同時改同一個檔案，後寫的覆蓋先寫的，不像 git merge 有衝突偵測。
+
+### 規模判斷 → 路徑選擇
+
+| 改動規模 | 應走的路徑 | 原因 |
+|---------|-----------|------|
+| ≤3 個檔案，單一 repo | FG slot 直接做 | 風險低，不值得 overhead |
+| 4-10 個檔案 | `forge-lite.sh create` worktree 隔離 | 隔離後 verify 再 merge，build 爆不影響 main |
+| >10 個檔案 或 跨 repo | **L3 全流程**（提案 → review → worktree → verify） | 這是架構級改動 |
+
+### 多觸手並行的硬約束
+
+1. **零檔案重疊** — 2 條以上觸手並行時，每條必須有明確的檔案/目錄 scope，不可交叉。spawn 時在 prompt 中寫明：「你只改 `../myelin/src/`」vs「你只改 `src/myelin-*.ts`」
+2. **跨 repo 拆觸手** — 改兩個 repo 時，一條觸手對應一個 repo。不要一條觸手同時改多個 repo
+3. **大改動走 worktree** — 預期改 >5 個檔案的 FG task，用 `forge-lite.sh create` 開 worktree。`forge-lite.sh yolo` 會自動 verify + merge + cleanup
+
+### 反模式
+
+- ❌ 兩條 FG slot 都「做全部 16 項」→ 必然檔案衝突
+- ❌ 跳過 L3 self-review 直接實作 20+ 個檔案的改動
+- ❌ 不用 worktree 直接在 main 上大改 → build 爆了擋住部署
+
 ## 硬規則
 
 1. **Shell-first** — 能用 curl/grep/jq 做的不用 Claude CLI
@@ -85,6 +109,7 @@ Refactor index.ts into separate modules: types.ts, config.ts, perception.ts, con
 4. Subprocess prompt 不包含 SOUL.md 內容 — 防止身份滲透
 5. Subprocess 輸出不直接寫 `memory/` — 我自己決定要不要記住
 6. Subprocess 不發 Telegram — 只有我跟 Alex 說話
+7. **Commit 前 typecheck** — FG slot 和 delegation commit 前必須 `pnpm typecheck`。CI 失敗 = 擋住部署，本地攔截成本遠低於 CI 修復
 
 ## 信任分級
 
