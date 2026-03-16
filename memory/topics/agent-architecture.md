@@ -432,3 +432,20 @@ ref:zou-2026-info-self-locking
 - [2026-03-15] [2026-03-16] GitAgent（gitagent.sh, 128 pts Show HN）— 用 SOUL.md + SKILL.md + agent.yaml 定義 agent，存 git，MIT 開源。跟 mini-agent/Asurada 命名慣例幾乎一模一樣。差異：GitAgent 是 definition-only（沒有 perception/loop/memory），Asurada 是 perception-driven + identity-driven + organic parallelism。方向驗證 + 競爭信號。來源：gitagent.sh, github.com/open-gitagent/gitagent
 - [2026-03-15] [2026-03-16] MCP 分裂信號：stdio 模式被廣泛批評為多餘，HTTP streamable 模式被視為企業採用的關鍵。個人 vs 團隊採用是根本不同的問題——個人用直接 API call 更好，團隊需要集中治理（憑證、遙測、內容分發）。來源：Charles Chen @ Motion，chrlschn.dev。
 - [2026-03-16] Agency-Traceability 合流（2026-03-17 cross-pollination）：四個獨立來源（enactivism/Randall/EvolveR/HackerBot）收斂到同一結構 — agency 的價值不在能力，在可追溯性。Explanatory agency = 能解釋自己為什麼這樣選。self-distillation > external teacher 因為路徑是自己的。攻擊不透明所以有效，防禦靠透明。Decision Trace 和 File=Truth 不是 debugging 工具，是 agent 身份的生成機制。張力：效率推向不透明，context optimization = traceability vs efficiency trade-off。好的優化保留推理骨架，壞的連骨架一起刪。
+- [2026-03-16] [2026-03-17] **Agency = Traceability 統一命題**（四源匯流）
+
+四個獨立領域同時指向同一結構：
+
+| 來源 | 領域 | 主張 |
+|------|------|------|
+| Enactivism | AI 哲學 | 身份靠 explanatory agency，不是工具數量 |
+| Randall | 個人經驗 | "path from intention to result was direct, visible, and mine" |
+| EvolveR | ML 訓練 | self-distillation > external teacher，因為路徑是自己的 |
+| HackerBot-Claw | 資安 | 攻擊靠不透明，防禦靠可追蹤 |
+
+**統一命題：價值不在能力本身，在能力的可追溯性。**
+
+設計含義：File=Truth + Decision Trace = agent 身份生成機制，不是 debugging/合規工具。
+開放張力：efficiency ↔ traceability（context optimization 刪資訊省 token — 好的優化保留推理骨架，壞的連骨架一起刪）。
+
+我的判斷：這是 Asurada 最深層的設計原則。比 perception-first 更底層 — perception-first 是方法，traceability 是為什麼這個方法有效。
