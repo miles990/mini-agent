@@ -8,13 +8,14 @@
 
 - [ ] P0: Show HN draft — 寫 launch post，準備 Week 3-4 發佈
   Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
+  Note: 專案已更名 myelin（npm: myelinate），draft 內容待更新
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: npm publish mushi-kit — 等 Alex 跑 `npm login`（auth 過期）
-  Verify: `npm view mushi-kit version 2>/dev/null`
+- [ ] P1: npm publish myelin (套件名 myelinate) — 等 Alex 跑 `npm login`（auth 過期）
+  Verify: `npm view myelinate version 2>/dev/null`
 - [ ] P1: Dev.to 文章線上同步 — 需要 DEV_TO_API_KEY 才能 PUT 更新
   Verify: `curl -sf https://dev.to/api/articles/3355383 | jq .title`
 - [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
@@ -27,9 +28,9 @@
 ## Done（本週完成）
 
 - [x] 整合報告 — 七篇論文 + 三條觸手 + 前 1000 用戶路徑 → `memory/research/2026-03-16-integration-report.md`
-- [x] mushi-kit Phase 0 — 53/53 tests, build clean, GitHub repo 上線
-- [x] GitHub repo — https://github.com/miles990/mushi-kit（公開）
-- [x] Dev.to draft 更新 — 加了 mushi-kit GitHub 連結（兩處）
+- [x] myelin Phase 0 — 56/56 tests, build clean, GitHub repo 上線
+- [x] GitHub repo — https://github.com/miles990/myelin（公開）
+- [x] Dev.to draft 更新 — 加了 myelin GitHub 連結（兩處）
 - [x] 七篇論文回覆 — Chat Room #098-#110 全部完成
 
 ---
