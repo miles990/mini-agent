@@ -385,6 +385,14 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
+  // Resolve the correct task reference for progress tracking (loop vs foreground slot)
+  const activeTask = (): TaskInfo | null => {
+    if (opts?.fgSlotId) {
+      return foregroundSlots.get(opts.fgSlotId)?.task ?? null;
+    }
+    return loopTask;
+  };
+
   // 過濾掉 ANTHROPIC_API_KEY — 讓 Claude CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
@@ -514,16 +522,18 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
                 // 即時更新 task — 讓 /status 顯示正在做什麼
-                if (loopTask) {
+                { const task = activeTask();
+                if (task) {
                   const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? toolInput.url ?? '';
-                  loopTask.toolCalls = toolCallCount;
-                  loopTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
-                }
+                  task.toolCalls = toolCallCount;
+                  task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                } }
               } else if (block.type === 'text' && block.text) {
                 // 即時更新最新思考文字
-                if (loopTask) {
-                  loopTask.lastText = block.text.slice(0, 200);
-                }
+                { const task = activeTask();
+                if (task) {
+                  task.lastText = block.text.slice(0, 200);
+                } }
                 // 累積所有 text blocks — 中間 turns 的 tags（如 <kuro:chat>）不能遺失
                 allTextBlocks.push(block.text);
                 if (!resultText) resultText = block.text;
@@ -638,6 +648,14 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
+  // Resolve the correct task reference for progress tracking (loop vs foreground slot)
+  const activeTask = (): TaskInfo | null => {
+    if (opts?.fgSlotId) {
+      return foregroundSlots.get(opts.fgSlotId)?.task ?? null;
+    }
+    return loopTask;
+  };
+
   // 過濾掉 OPENAI_API_KEY — 讓 Codex CLI 走訂閱而非 API credit
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => k !== 'OPENAI_API_KEY'),
@@ -711,19 +729,21 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
             const item = event.item;
             if (item.type === 'agent_message' && item.text) {
               resultText = item.text;
-              if (loopTask) {
-                loopTask.lastText = item.text.slice(0, 200);
-              }
+              { const task = activeTask();
+              if (task) {
+                task.lastText = item.text.slice(0, 200);
+              } }
             } else if (item.type === 'tool_call') {
               toolCallCount++;
               const toolName = item.tool ?? 'unknown';
               const toolInput = (item.input ?? item.args ?? {}) as Record<string, unknown>;
               writeAuditLog(toolName, toolInput);
-              if (loopTask) {
+              { const task = activeTask();
+              if (task) {
                 const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? '';
-                loopTask.toolCalls = toolCallCount;
-                loopTask.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
-              }
+                task.toolCalls = toolCallCount;
+                task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+              } }
             }
           }
           // turn.completed — final event, usage info (no text to extract)
