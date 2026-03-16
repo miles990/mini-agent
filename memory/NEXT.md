@@ -42,6 +42,8 @@
 - [x] myelin Phase 0 — 104/104 tests, build clean, GitHub repo 上線
 - [x] Dev.to "The Rule Layer Ate My LLM" 發布（2026-03-15）
 - [x] Crystallization 深度研究 — #084 完成，30+ 來源，結構化報告交付
+- [x] myelin feedback plan L1-L5 全實作 — 16 項反饋，126 tests pass（commit c1c606a）
+- [x] task-queue 衛生清理 — 95 tasks 全部 resolved，0 pending
 
 ---
 
