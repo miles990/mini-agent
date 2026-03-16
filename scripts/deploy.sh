@@ -61,18 +61,30 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 log "Building..."
 pnpm build
 
-# Sync CLI installation (~/.mini-agent)
+# Sync CLI installation (~/.mini-agent) — non-blocking, 60s timeout
 # mini-agent CLI 全域連結指向 ~/.mini-agent，CI/CD 只更新 Workspace 副本
-# 這裡同步確保 CLI 也是最新版本
+# 失敗不阻塞主部署
 CLI_DIR="$HOME/.mini-agent"
 if [ -d "$CLI_DIR/.git" ]; then
     log "Syncing CLI installation ($CLI_DIR)..."
-    cd "$CLI_DIR"
-    git fetch origin main && git reset --hard origin/main
-    pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-    pnpm build
-    cd "$DEPLOY_DIR"
-    log "CLI synced"
+    (
+        cd "$CLI_DIR"
+        git fetch origin main && git reset --hard origin/main
+        pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+        pnpm build
+    ) &
+    CLI_PID=$!
+    # Wait up to 60s, then give up
+    for i in $(seq 1 12); do
+        if ! kill -0 $CLI_PID 2>/dev/null; then break; fi
+        sleep 5
+    done
+    if kill -0 $CLI_PID 2>/dev/null; then
+        log "CLI sync timed out (60s), killing — main deploy continues"
+        kill $CLI_PID 2>/dev/null; wait $CLI_PID 2>/dev/null
+    else
+        wait $CLI_PID && log "CLI synced" || log "CLI sync failed (non-fatal)"
+    fi
 fi
 
 # Reset Telegram getUpdates state (prevent 409 Conflict from stale long-poll)

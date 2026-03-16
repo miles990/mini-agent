@@ -82,6 +82,33 @@ def bar(n, total, w=30):
     filled = round(n / total * w)
     return '█' * filled + '░' * (w - filled)
 
+def render_task(task, label, color, W):
+    """Render a single task block (loop or foreground slot)."""
+    lines = []
+    elapsed   = task.get('elapsed', 0)
+    tool_n    = task.get('toolCalls', 0)
+    last_tool = task.get('lastTool') or '—'
+    last_text = task.get('lastText') or ''
+    prompt    = task.get('prompt', '')
+
+    m, sec = divmod(elapsed, 60)
+    elapsed_str = f"{m}m{sec:02d}s" if m else f"{sec}s"
+    pb = bar(min(tool_n, 20), 20, 16)
+
+    lines.append(f"  {color}{B}{label}{R}  {DM}elapsed={R}{BL}{elapsed_str}{R}  {DM}tools={R}{BL}{tool_n}{R}  {DM}[{color}{pb}{DM}]{R}")
+    PFXW = W - 12
+    pl = wrap_text(prompt, PFXW, 3)
+    lines.append(f"{DM}    prompt : {R}{WH}{pl[0]}{R}")
+    for extra in pl[1:]:
+        lines.append(f"{DM}             {R}{WH}{extra}{R}")
+    lines.append(f"{DM}    tool   : {R}{OR}{trunc(last_tool, PFXW)}{R}")
+    if last_text:
+        tl = wrap_text(last_text, PFXW, 3)
+        lines.append(f"{DM}    think  : {R}{PK}{tl[0]}{R}")
+        for extra in tl[1:]:
+            lines.append(f"{DM}             {R}{PK}{extra}{R}")
+    return lines
+
 def render(s):
     global spin
     cols, _ = shutil.get_terminal_size((120, 30))
@@ -95,57 +122,79 @@ def render(s):
 
     c    = s.get('claude', {})
     busy = c.get('busy', False)
-    task = c.get('loop', {}).get('task')
-    loop = s.get('loop', {})
-    cyc  = loop.get('cycleCount', 0)
-    next_at = loop.get('nextCycleAt', '')
+    loop_info = s.get('loop', {})
+    loop_task = c.get('loop', {}).get('task')
+    fg   = c.get('foreground', {})
+    fg_slots = fg.get('slots', [])
+    fg_active = fg.get('activeCount', 0)
+    fg_max = fg.get('maxConcurrent', 8)
+    bg   = s.get('lanes', {}).get('background', {})
+    bg_active = bg.get('active', 0)
+    bg_max = bg.get('max', 6)
+    cyc  = loop_info.get('cycleCount', 0)
+    next_at = loop_info.get('nextCycleAt', '')
+    mode = loop_info.get('mode', '?')
     try:
         next_str = datetime.fromisoformat(next_at.replace('Z', '+00:00')).astimezone().strftime('%H:%M') if next_at else '—'
     except Exception:
         next_str = next_at[11:16] if len(next_at) >= 16 else '—'
-    last_action = loop.get('lastAction') or '—'
+    last_action = loop_info.get('lastAction') or '—'
 
-    # separator
     sep = f"{DM}{'─' * (W + 2)}{R}"
+    thin_sep = f"{DM}{'┄' * (W + 2)}{R}"
 
-    if busy and task:
-        elapsed   = task.get('elapsed', 0)
-        tool_n    = task.get('toolCalls', 0)
-        last_tool = task.get('lastTool') or '—'
-        last_text = task.get('lastText') or ''
-        prompt    = task.get('prompt', '')
+    # Header: overall status
+    running = loop_info.get('running', False)
+    status_icon = f"{G}{B}{sp}" if busy else f"{GR}○"
+    status_word = 'BUSY' if busy else 'idle'
+    lane_summary = f"loop={'●' if (loop_task) else '○'}  fg={fg_active}/{fg_max}  bg={bg_active}/{bg_max}"
+    lines.append(f"{status_icon} {status_word}{R}  {DM}cycle={R}{BL}#{cyc}{R}  {DM}next={R}{BL}{next_str}{R}  {DM}mode={R}{CY}{mode}{R}  {DM}{lane_summary}{R}")
+    lines.append(sep)
 
-        m, sec = divmod(elapsed, 60)
-        elapsed_str = f"{m}m{sec:02d}s" if m else f"{sec}s"
+    has_content = False
 
-        # progress bar using tool calls as rough proxy (assume ~20 per cycle)
-        pb = bar(min(tool_n, 20), 20, 20)
+    # Main loop task
+    if loop_task:
+        lines.extend(render_task(loop_task, 'LOOP', G, W))
+        has_content = True
 
-        lines.append(f"{G}{B}{sp} BUSY{R}  {DM}elapsed={R}{BL}{elapsed_str}{R}  {DM}tools={R}{BL}{tool_n}{R}  {DM}[{G}{pb}{DM}]{R}")
-        lines.append(sep)
-        PFXW = W - 12
-        pl = wrap_text(prompt, PFXW, 4)
-        lines.append(f"{DM}  prompt : {R}{WH}{pl[0]}{R}")
-        for extra in pl[1:]:
-            lines.append(f"{DM}           {R}{WH}{extra}{R}")
-        lines.append(f"{DM}  tool   : {R}{OR}{trunc(last_tool, PFXW)}{R}")
-        tl = wrap_text(last_text, PFXW, 4) if last_text else ['—']
-        lines.append(f"{DM}  think  : {R}{PK}{tl[0]}{R}")
-        for extra in tl[1:]:
-            lines.append(f"{DM}           {R}{PK}{extra}{R}")
-        lines.append(sep)
-        lines.append(f"{DM}  cycle #{cyc}  next={next_str}{R}")
-    else:
-        lines.append(f"{GR}○ idle{R}  {DM}cycle={R}{BL}#{cyc}{R}  {DM}next={R}{BL}{next_str}{R}")
-        lines.append(sep)
+    # Foreground slots
+    for i, slot in enumerate(fg_slots):
+        st = slot.get('task')
+        if st:
+            if has_content:
+                lines.append(thin_sep)
+            slot_label = f"FG-{i+1}"
+            lines.extend(render_task(st, slot_label, CY, W))
+            has_content = True
+
+    # Background lanes
+    bg_lanes = bg.get('lanes', [])
+    for bl_item in bg_lanes:
+        if bl_item.get('busy'):
+            if has_content:
+                lines.append(thin_sep)
+            bg_label = f"BG:{bl_item.get('type','?')}"
+            bg_task = {
+                'elapsed': bl_item.get('elapsed', 0),
+                'toolCalls': bl_item.get('toolCalls', 0),
+                'lastTool': bl_item.get('lastTool'),
+                'lastText': bl_item.get('lastText'),
+                'prompt': bl_item.get('task', ''),
+            }
+            lines.extend(render_task(bg_task, bg_label, OR, W))
+            has_content = True
+
+    if not has_content:
+        # Idle — show last action
         al = wrap_text(last_action, W - 16, 3)
         lines.append(f"{DM}  last action : {R}{WH}{al[0]}{R}")
         for extra in al[1:]:
             lines.append(f"{DM}                {R}{WH}{extra}{R}")
-        for _ in range(max(0, 2 - len(al))):
-            lines.append(f"{DM}  —{R}")
-        lines.append(sep)
-        lines.append(f"{DM}  loop: {'running' if loop.get('running') else 'stopped'}  mode={loop.get('mode','?')}{R}")
+
+    lines.append(sep)
+    loop_state = 'running' if running else 'stopped'
+    lines.append(f"{DM}  loop: {loop_state}  uptime={s.get('uptime','?')}s{R}")
 
     return lines
 
