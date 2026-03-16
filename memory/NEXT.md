@@ -6,32 +6,34 @@
 
 ## Now（正在做）
 
-- [ ] P0: Show HN draft — launch post ready，等 npm publish 後發佈
+- [ ] P1: HN 文章方向重新思考 — Alex 指出目前角度太 niche，需要找更普遍的痛點
   Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
-  Note: v2 已更新 API 名稱（createMyelin）、project name（myelin），code example 對齊 README
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: npm publish myelin (套件名 myelinate) — 等 Alex 跑 `npm login`（auth 過期）
-  Verify: `npm view myelinate version 2>/dev/null`
-- [ ] P1: Dev.to 文章線上同步 — 需要 DEV_TO_API_KEY 才能 PUT 更新
-  Verify: `curl -sf https://dev.to/api/articles/3355383 | jq .title`
 - [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
   Verify: `grep -c 'devto' plugins/*.sh`
-- [ ] P2: Asurada 串接執行 — 7 刀計劃已寫（proposals/2026-03-12），語言未定前 HOLD
-  Verify: `grep -c 'Status: approved' memory/proposals/2026-03-12-asurada-integration-plan.md`
+
+---
+
+## Blocked（等待外部）
+
+- [ ] npm publish myelin (套件名 myelinate) — 等 Alex 跑 `npm login`（auth 過期）
+- [ ] Show HN 發佈 — 依賴 npm publish + 文章方向確定
+- [ ] Dev.to 文章線上同步 — 需要 DEV_TO_API_KEY
+- [ ] Asurada 串接 — 語言未定前 HOLD
 
 ---
 
 ## Done（本週完成）
 
-- [x] 整合報告 — 七篇論文 + 三條觸手 + 前 1000 用戶路徑 → `memory/research/2026-03-16-integration-report.md`
+- [x] myelin dogfooding — mini-agent 整合 myelin 作為 triage 結晶化層（2026-03-16）
 - [x] myelin Phase 0 — 56/56 tests, build clean, GitHub repo 上線
 - [x] GitHub repo — https://github.com/miles990/myelin（公開）
-- [x] Dev.to draft 更新 — 加了 myelin GitHub 連結（兩處）
-- [x] 七篇論文回覆 — Chat Room #098-#110 全部完成
+- [x] Dev.to "The Rule Layer Ate My LLM" 發布（2026-03-15）
+- [x] 工作區清理 — mini-agent + myelin 兩個 repo 全部 committed（2026-03-16）
 
 ---
 
