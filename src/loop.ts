@@ -590,19 +590,32 @@ export class AgentLoop {
         if (delegationSummary) context += `\n\n<recent-delegations>\n${delegationSummary}\n</recent-delegations>`;
       } catch { /* best effort */ }
 
-      // Lane awareness — show what LOOP + other FG lanes are doing so this FG can avoid conflicts or collaborate
+      // Lane awareness — show what LOOP + other FG lanes are doing, with file-level coordination
       try {
         const lanes = getLaneStatus();
         const lines: string[] = [];
+        const claimedFiles: string[] = [];
         if (lanes.loop.busy && lanes.loop.task) {
-          lines.push(`LOOP: ${lanes.loop.task.prompt.slice(0, 120)} (tools=${lanes.loop.task.toolCalls}, last=${lanes.loop.task.lastTool ?? 'none'})`);
+          const files = lanes.loop.task.recentFiles;
+          const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
+          lines.push(`LOOP: ${lanes.loop.task.prompt.slice(0, 120)}${fileStr}`);
+          claimedFiles.push(...files);
         }
         for (const s of lanes.foreground.slots) {
-          if (s.id === slotId || !s.task) continue; // skip self
-          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)} (tools=${s.task.toolCalls})`);
+          if (s.id === slotId || !s.task) continue;
+          const files = s.task.recentFiles;
+          const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
+          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)}${fileStr}`);
+          claimedFiles.push(...files);
         }
         if (lines.length > 0) {
-          context += `\n\n<active-lanes>\n以下 lane 正在同時工作，避免修改相同檔案或重複工作。如果任務相關，可以互補而非重複：\n${lines.join('\n')}\n</active-lanes>`;
+          let section = '<active-lanes>\n以下 lane 正在同時工作：\n' + lines.join('\n');
+          if (claimedFiles.length > 0) {
+            section += `\n\n⚠ 這些檔案正被其他 lane 編輯，請勿修改：${[...new Set(claimedFiles)].map(f => f.split('/').pop()).join(', ')}`;
+          }
+          section += '\n\n協作原則：任務相關時，選擇互補的部分（例如他做 UI 你做 API，他做結構你做樣式）。不相關則各自進行。';
+          section += '\n</active-lanes>';
+          context += `\n\n${section}`;
         }
       } catch { /* best effort */ }
 
@@ -1436,16 +1449,26 @@ export class AgentLoop {
         if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
       } catch { /* best effort */ }
 
-      // Lane awareness — show what FG lanes are doing so OODA can avoid conflicts or coordinate
+      // Lane awareness — show what FG lanes are doing, with file-level coordination
       try {
         const lanes = getLaneStatus();
         const lines: string[] = [];
+        const claimedFiles: string[] = [];
         for (const s of lanes.foreground.slots) {
           if (!s.task) continue;
-          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)} (tools=${s.task.toolCalls}, last=${s.task.lastTool ?? 'none'})`);
+          const files = s.task.recentFiles;
+          const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
+          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)}${fileStr}`);
+          claimedFiles.push(...files);
         }
         if (lines.length > 0) {
-          context += `\n\n<active-lanes>\n以下 foreground lane 正在同時工作，避免修改相同檔案或重複工作。如果任務相關，可以協作互補：\n${lines.join('\n')}\n</active-lanes>`;
+          let section = '<active-lanes>\n以下 foreground lane 正在同時工作：\n' + lines.join('\n');
+          if (claimedFiles.length > 0) {
+            section += `\n\n⚠ 這些檔案正被 foreground lane 編輯，請勿修改：${[...new Set(claimedFiles)].map(f => f.split('/').pop()).join(', ')}`;
+          }
+          section += '\n\n協作原則：任務相關時，選擇互補的部分（例如他做 UI 你做 API，他做結構你做樣式）。不相關則各自進行。';
+          section += '\n</active-lanes>';
+          context += `\n\n${section}`;
         }
       } catch { /* best effort */ }
 

@@ -159,9 +159,10 @@ interface TaskInfo {
   toolCalls: number;
   lastTool: string | null;
   lastText: string | null;
+  recentFiles: Set<string>; // Files touched by Edit/Write/Read — for cross-lane coordination
 }
 
-function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
+function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null; recentFiles: string[] } | null {
   if (!task) return null;
   return {
     prompt: task.prompt,
@@ -170,6 +171,7 @@ function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string;
     toolCalls: task.toolCalls,
     lastTool: task.lastTool,
     lastText: task.lastText,
+    recentFiles: [...task.recentFiles].slice(-10), // last 10 files
   };
 }
 
@@ -527,6 +529,10 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                   const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? toolInput.url ?? '';
                   task.toolCalls = toolCallCount;
                   task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                  // Track files for cross-lane coordination
+                  if (toolInput.file_path && typeof toolInput.file_path === 'string') {
+                    task.recentFiles.add(toolInput.file_path);
+                  }
                 } }
               } else if (block.type === 'text' && block.text) {
                 // 即時更新最新思考文字
@@ -743,6 +749,10 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
                 const summary = toolInput.command ?? toolInput.file_path ?? toolInput.pattern ?? '';
                 task.toolCalls = toolCallCount;
                 task.lastTool = `${toolName}: ${String(summary).slice(0, 80)}`;
+                // Track files for cross-lane coordination
+                if (toolInput.file_path && typeof toolInput.file_path === 'string') {
+                  task.recentFiles.add(toolInput.file_path);
+                }
               } }
             }
           }
@@ -1337,7 +1347,7 @@ export async function callClaude(
 
     const genAtStart = loopGeneration;
     setBusy(true);
-    setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
+    setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null, recentFiles: new Set() });
 
     try {
       const result = await execProvider(primary, fullPrompt, {
@@ -1442,7 +1452,7 @@ export async function callClaude(
       if (fallback && fallback !== primary) {
         slog('FALLBACK', `${primary} failed after ${attempt + 1} attempt(s), trying ${fallback}`);
         setBusy(true);
-        setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null });
+        setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null, recentFiles: new Set() });
         try {
           const fbResult = await execProvider(fallback, fullPrompt, { source });
           const fbDuration = Date.now() - startTime;
