@@ -1211,7 +1211,7 @@
     if (filters.assignee === 'none' && assignee) return false;
     if (filters.assignee === 'alex' && assignee !== 'alex') return false;
     if (filters.assignee === 'kuro' && assignee !== 'kuro') return false;
-    if (filters.priority !== 'all' && String(t.priority ?? 2) !== filters.priority) return false;
+    if (filters.priority !== 'all' && String(t.payload?.priority ?? 2) !== filters.priority) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!((t.summary || '') + ' ' + (t.id || '')).toLowerCase().includes(q)) return false;
@@ -1500,7 +1500,7 @@
     const completedPerDay = {};
     all.forEach(t => {
       byStatus[t.status] = (byStatus[t.status]||0) + 1;
-      byPriority[t.priority??2]++;
+      byPriority[t.payload?.priority??2]++;
       const a = t.payload?.assignee; byAssignee[a||'unassigned']++;
       byType[t.type||'task'] = (byType[t.type||'task']||0) + 1;
       if (t.status === 'completed' && t.updatedAt) {
