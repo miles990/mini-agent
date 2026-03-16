@@ -1,5 +1,7 @@
 #!/bin/bash
-# deploy.sh — Stop → install → build → start via launchd → health check
+# deploy.sh — Build-before-Stop: build first, only stop+restart on success
+# This prevents the scenario where build fails after Kuro is already stopped,
+# leaving the service dead with no recovery.
 set -e
 
 DEPLOY_DIR="/Users/user/Workspace/mini-agent"
@@ -15,8 +17,22 @@ cd "$DEPLOY_DIR"
 
 log "Starting deployment..."
 
-# Stop — graceful shutdown（等任務完成再退出）
-log "Stopping existing service..."
+# ── Phase 1: Pull + Install + Build (Kuro still running) ──
+
+log "Pulling latest code..."
+git pull origin main 2>/dev/null || true
+
+log "Installing dependencies..."
+pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+log "Building..."
+pnpm build
+
+# Build succeeded — safe to stop and restart
+
+# ── Phase 2: Stop (only after successful build) ──
+
+log "Build successful, stopping existing service..."
 
 # 卸載所有 com.mini-agent.* launchd services（送 SIGTERM 觸發 graceful shutdown）
 for plist in "$HOME/Library/LaunchAgents"/com.mini-agent.*.plist; do
@@ -53,17 +69,9 @@ if [ -n "$PORT_PID" ]; then
     sleep 1
 fi
 
-# Install dependencies
-log "Installing dependencies..."
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-
-# Build
-log "Building..."
-pnpm build
+# ── Phase 3: Sync CLI + Reset Telegram ──
 
 # Sync CLI installation (~/.mini-agent) — non-blocking, 60s timeout
-# mini-agent CLI 全域連結指向 ~/.mini-agent，CI/CD 只更新 Workspace 副本
-# 失敗不阻塞主部署
 CLI_DIR="$HOME/.mini-agent"
 if [ -d "$CLI_DIR/.git" ]; then
     log "Syncing CLI installation ($CLI_DIR)..."
@@ -74,7 +82,6 @@ if [ -d "$CLI_DIR/.git" ]; then
         pnpm build
     ) &
     CLI_PID=$!
-    # Wait up to 60s, then give up
     for i in $(seq 1 12); do
         if ! kill -0 $CLI_PID 2>/dev/null; then break; fi
         sleep 5
@@ -95,11 +102,11 @@ if [ -f "$DEPLOY_DIR/.env" ]; then
     fi
 fi
 
-# Start — 用 CLI（內部走 launchd）
+# ── Phase 4: Start + Health Check ──
+
 log "Starting service..."
 node "$DEPLOY_DIR/dist/cli.js" up -d
 
-# Health check
 log "Running health check..."
 sleep 3
 if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
