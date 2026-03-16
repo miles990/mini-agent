@@ -19,6 +19,7 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
 import { spawnDelegation } from './delegation.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
+import { triageLearningEvent } from './myelin-integration.js';
 import {
   addIndexEntry,
   appendMemoryIndexEntry,
@@ -652,6 +653,18 @@ export async function postProcess(
       }).catch(() => {}); // fire-and-forget
     }
     slog('CLASSIFY', `[${category}] ${rem.content.slice(0, 80)}...`);
+
+    // Myelin learning crystallization — route learning-category memories through
+    // the learning myelin for pattern crystallization. Fire-and-forget: the result
+    // informs future triage but doesn't block the current cycle.
+    if (category === 'learning') {
+      triageLearningEvent({
+        source: 'remember',
+        topic: rem.topic,
+        content: rem.content,
+        category,
+      }).catch(() => {}); // fire-and-forget
+    }
   }
 
   if (tags.archive) {
@@ -745,6 +758,14 @@ export async function postProcess(
       payload: u.content.length > 200 ? { full: u.content } : undefined,
     }).catch(() => {}); // fire-and-forget
     slog('UNDERSTAND', `${u.content.slice(0, 80)}...`);
+
+    // Myelin: crystallize understanding patterns (fire-and-forget)
+    triageLearningEvent({
+      source: 'understand',
+      content: u.content,
+      refs: u.refs,
+      tags: u.tags,
+    }).catch(() => {});
   }
 
   // <kuro:direction-change> tags — strategy drift audit trail
@@ -759,6 +780,14 @@ export async function postProcess(
       payload: dc.content.length > 200 ? { full: dc.content } : undefined,
     }).catch(() => {}); // fire-and-forget
     slog('DIRECTION', `${dc.content.slice(0, 80)}...`);
+
+    // Myelin: crystallize direction-change patterns (fire-and-forget)
+    triageLearningEvent({
+      source: 'direction-change',
+      content: dc.content,
+      refs: dc.refs,
+      tags: dc.tags,
+    }).catch(() => {});
   }
 
   // <kuro:thread> tags
@@ -783,8 +812,20 @@ export async function postProcess(
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
   if (tags.delegates.length > 0) tagsProcessed.push('delegate');
   for (const del of tags.delegates) {
+    // Methodology injection: prepend crystallized research methodology to learn/research prompts
+    let prompt = del.prompt;
+    if (del.type === 'learn' || del.type === 'research') {
+      try {
+        const { getCurrentMethodology } = await import('./research-crystallizer.js');
+        const methodology = getCurrentMethodology();
+        if (methodology?.guidanceText) {
+          prompt = `<research-methodology>\n${methodology.guidanceText}\n</research-methodology>\n\n${prompt}`;
+        }
+      } catch { /* methodology injection is optional */ }
+    }
+
     const taskId = spawnDelegation({
-      prompt: del.prompt,
+      prompt,
       workdir: del.workdir,
       type: del.type,
       provider: del.provider,

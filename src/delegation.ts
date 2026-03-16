@@ -434,6 +434,11 @@ export function spawnDelegation(task: DelegationTask): string {
 /**
  * List all tasks (active + optionally completed).
  */
+/** Get a specific task result by ID (active or completed). */
+export function getTaskResult(taskId: string): TaskResult | undefined {
+  return activeTasks.get(taskId)?.result ?? completedTasks.get(taskId);
+}
+
 export function listTasks(options?: { includeCompleted?: boolean }): TaskResult[] {
   const results: TaskResult[] = [];
   for (const { result } of activeTasks.values()) {
@@ -775,7 +780,7 @@ function startTask(task: DelegationTask): void {
         ? ` (${result.verifyResults.filter(v => v.passed).length}/${result.verifyResults.length} verify passed)`
         : '';
       slog('DELEGATION', `Finished ${taskId}: ${result.status}${verifyStr} in ${Math.round((result.duration ?? 0) / 1000)}s`);
-      eventBus.emit('action:delegation-complete', { taskId, status: result.status });
+      eventBus.emit('action:delegation-complete', { taskId, status: result.status, type: result.type, outputPreview: result.output.slice(0, 500) });
       writeActivity({
         lane: 'background',
         summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,

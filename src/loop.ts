@@ -753,6 +753,36 @@ export class AgentLoop {
         slog('LOOP', `[delegation-complete] Cleared foreground tracking for ${taskId}`);
       }
 
+      // Myelin: route learn/research delegation results through learning crystallization
+      const delegationType = event?.data?.type as string | undefined;
+      if (delegationType === 'learn' || delegationType === 'research') {
+        const outputPreview = event?.data?.outputPreview as string | undefined;
+        import('./myelin-integration.js').then(({ triageLearningEvent }) =>
+          triageLearningEvent({
+            source: 'delegation-complete',
+            content: outputPreview ?? `${delegationType} delegation completed`,
+            delegationType,
+          }).catch(() => {}),
+        ).catch(() => {}); // fire-and-forget
+
+        // Research crystallization: extract structured patterns from delegation output
+        if (taskId) {
+          import('./delegation.js').then(({ getTaskResult }) => {
+            const result = getTaskResult(taskId!);
+            if (result?.status === 'completed' && result.output) {
+              import('./small-model-research.js').then(({ processResearchResult }) => {
+                processResearchResult(
+                  result.output,
+                  delegationType as 'learn' | 'research',
+                  result.duration ?? 0,
+                  result.confidence,
+                );
+              }).catch(() => {});
+            }
+          }).catch(() => {}); // fire-and-forget
+        }
+      }
+
       if (!this.running || this.paused) return;
       if (this.cycling) {
         // Flag for drain after current cycle completes — ensures results are never lost
@@ -2204,6 +2234,11 @@ export class AgentLoop {
         const done = trackStart('housekeeping');
         runHousekeeping().then(() => done(), e => done(String(e)));
       }
+
+      // Myelin distillation — periodic crystallization of triage + learning patterns (fire-and-forget)
+      try {
+        import('./myelin-integration.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
+      } catch { /* fire-and-forget */ }
 
       // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
