@@ -386,7 +386,7 @@ body::before {
   <div class="dp-actions"><button class="mbtn mbtn-p" id="dpEdit">Edit</button><button class="mbtn mbtn-d" id="dpDelete">Delete</button></div>
 </div>
 <div class="toast-container" id="toastContainer"></div>
-<div class="kbd-toast" id="kbdToast"><span><kbd>n</kbd> new task</span><span><kbd>/</kbd> search</span><span><kbd>d</kbd> DAG view</span><span><kbd>Esc</kbd> close</span><span><kbd>?</kbd> shortcuts</span></div>
+<div class="kbd-toast" id="kbdToast"><span><kbd>n</kbd> new task</span><span><kbd>/</kbd> search</span><span><kbd>d</kbd> DAG view</span><span><kbd>c</kbd> Charts</span><span><kbd>Esc</kbd> close</span><span><kbd>?</kbd> shortcuts</span></div>
 <script>
 let tasks=[],config={url:'',key:''},eventSource=null,currentView='kanban',activityVisible=true,sseRetryDelay=1000,sseRetryTimer=null,editingTaskId=null,detailTaskId=null;
 let filters={search:'',priority:'all',actor:'all',type:'all'};
@@ -431,6 +431,7 @@ function setupEvents(){
     if(e.key==='/'){e.preventDefault();document.getElementById('searchInput').focus()}
     else if(e.key==='n'){e.preventDefault();const b=document.querySelector('.atb[data-col="pending"]');if(b)b.click()}
     else if(e.key==='d'){e.preventDefault();switchView(currentView==='dag'?'kanban':'dag')}
+    else if(e.key==='c'){e.preventDefault();switchView(currentView==='charts'?'kanban':'charts')}
     else if(e.key==='Escape'){closeModal();closeDetail()}
     else if(e.key==='?'){const t=document.getElementById('kbdToast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000)}
   });
@@ -478,6 +479,8 @@ function render(){
   const total=aP.length+aA.length+aD.length,pct=total>0?Math.round(aD.length/total*100):0;
   document.getElementById('progressFill').style.width=pct+'%';document.getElementById('progressLabel').textContent=pct+'%';
   if(currentView==='dag')renderDAG();
+  if(currentView==='charts')renderCharts();
+  if(typeof updateMetrics==='function')updateMetrics();
   if(detailTaskId){const t=tasks.find(x=>x.id===detailTaskId);if(t)renderDetailBody(t)}
 }
 function sortT(a,b){const pa=a.payload?.priority??2,pb=b.payload?.priority??2;return pa!==pb?pa-pb:a.ts.localeCompare(b.ts)}
@@ -588,7 +591,7 @@ function renderDAG(){
   container.innerHTML='<svg class="dag-svg" viewBox="0 0 '+svgW+' '+svgH+'" width="'+svgW+'" height="'+svgH+'"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#363a45"/></marker><marker id="arrowhead-critical" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f87171"/></marker></defs>'+eS+nS+'</svg>';
 }
 
-function switchView(v){currentView=v;document.querySelectorAll('.view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));document.getElementById('kanbanView').style.display=v==='kanban'?'':'none';document.getElementById('dagView').classList.toggle('active',v==='dag');if(v==='dag')renderDAG()}
+function switchView(v){currentView=v;document.querySelectorAll('.view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));document.getElementById('kanbanView').style.display=v==='kanban'?'':'none';document.getElementById('dagView').classList.toggle('active',v==='dag');document.getElementById('chartsView').classList.toggle('active',v==='charts');if(v==='dag')renderDAG();if(v==='charts')renderCharts()}
 function addActivity(actor,text){const list=document.getElementById('activityList'),now=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),ac=actor==='human'?'ah2':'ak2',al=actor==='human'?'Human':'Agent',item=document.createElement('div');item.className='ai';item.innerHTML='<span class="at">'+now+'</span><span class="aa2 '+ac+'">'+al+'</span> '+esc(text);list.insertBefore(item,list.firstChild);while(list.children.length>100)list.removeChild(list.lastChild)}
 function showToast(message,type){const container=document.getElementById('toastContainer'),toast=document.createElement('div');toast.className='toast toast-'+(type||'info');toast.textContent=message;container.appendChild(toast);setTimeout(()=>{toast.style.animation='toastOut .3s ease-out forwards';setTimeout(()=>toast.remove(),300)},3000)}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -596,6 +599,42 @@ function trunc(s,n){if(!s)return'';return s.length>n?s.slice(0,n)+'...':s}
 function statusLabel(s){return{pending:'Pending',in_progress:'In Progress',completed:'Completed',abandoned:'Abandoned'}[s]||s}
 function statusColor(s){return{pending:{dim:'var(--blue-dim)',text:'var(--blue)'},in_progress:{dim:'var(--yellow-dim)',text:'var(--yellow)'},completed:{dim:'var(--green-dim)',text:'var(--green)'},abandoned:{dim:'var(--red-dim)',text:'var(--red)'}}[s]||{dim:'var(--blue-dim)',text:'var(--blue)'}}
 function priorityColor(p){return{0:{dim:'var(--red-dim)',text:'var(--red)'},1:{dim:'var(--orange-dim)',text:'var(--orange)'},2:{dim:'var(--surface3)',text:'var(--text3)'},3:{dim:'var(--surface3)',text:'var(--text3)'}}[p]||{dim:'var(--surface3)',text:'var(--text3)'}}
+
+// --- Metrics ---
+function updateMetrics(){
+  const all=tasks.filter(t=>t.status!=='abandoned'),aP=all.filter(t=>t.status==='pending'),aA=all.filter(t=>t.status==='in_progress'),aD=all.filter(t=>t.status==='completed');
+  document.getElementById('mTotal').textContent=all.length;
+  document.getElementById('mActive').textContent=aA.length;
+  document.getElementById('mCompleted').textContent=aD.length;
+  const pct=all.length>0?Math.round(aD.length/all.length*100):0;
+  document.getElementById('mCompletedPct').textContent=pct+'% done';
+  const agentDone=aD.filter(t=>getActor(t)==='agent').length;
+  document.getElementById('mAgentRatio').textContent=aD.length>0?Math.round(agentDone/aD.length*100)+'%':'—';
+}
+
+// --- Charts ---
+let chartInstances={};
+function renderCharts(){
+  Object.values(chartInstances).forEach(c=>c.destroy());chartInstances={};
+  const fontFamily="'JetBrains Mono',monospace";const textColor='#6b6f7b';const gridColor='#1c1e24';
+  Chart.defaults.font.family=fontFamily;Chart.defaults.color=textColor;
+  // Completion trend
+  const days=[];const counts=[];const now=new Date();
+  for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const key=d.toISOString().slice(0,10);days.push(d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'}));const ct=tasks.filter(t=>t.status==='completed'&&t.ts.slice(0,10)===key).length;counts.push(ct)}
+  chartInstances.trend=new Chart(document.getElementById('chartTrend'),{type:'line',data:{labels:days,datasets:[{label:'Completed',data:counts,borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,.1)',fill:true,tension:.3,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:gridColor},ticks:{stepSize:1,font:{size:9}}}}}});
+  // Priority distribution
+  const active=tasks.filter(t=>t.status==='pending'||t.status==='in_progress');
+  const pCounts=[0,1,2,3].map(p=>active.filter(t=>(t.payload?.priority??2)===p).length);
+  chartInstances.priority=new Chart(document.getElementById('chartPriority'),{type:'doughnut',data:{labels:['P0','P1','P2','P3'],datasets:[{data:pCounts,backgroundColor:['rgba(248,113,113,.7)','rgba(251,147,60,.7)','rgba(96,165,250,.5)','rgba(90,96,112,.4)'],borderColor:['#f87171','#fb923c','#60a5fa','#5a6070'],borderWidth:1}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8,usePointStyle:true,pointStyleWidth:8}}}}});
+  // Actor breakdown
+  const statuses=['pending','in_progress','completed'];const humanCounts=statuses.map(s=>tasks.filter(t=>t.status===s&&getActor(t)==='human').length);
+  const agentCounts=statuses.map(s=>tasks.filter(t=>t.status===s&&getActor(t)==='agent').length);
+  chartInstances.actor=new Chart(document.getElementById('chartActor'),{type:'bar',data:{labels:['Pending','In Progress','Completed'],datasets:[{label:'Human',data:humanCounts,backgroundColor:'rgba(251,147,60,.6)',borderColor:'#fb923c',borderWidth:1},{label:'Agent',data:agentCounts,backgroundColor:'rgba(94,234,212,.5)',borderColor:'#5eead4',borderWidth:1}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8,usePointStyle:true,pointStyleWidth:8}}},scales:{x:{stacked:true,grid:{color:gridColor},ticks:{font:{size:9}}},y:{stacked:true,grid:{color:gridColor},ticks:{font:{size:10}}}}}});
+}
+
+// Wire up metrics toggle
+document.getElementById('btnMetrics').onclick=()=>{const p=document.getElementById('metricsPanel'),b=document.getElementById('btnMetrics');p.classList.toggle('collapsed');b.classList.toggle('btn-on',!p.classList.contains('collapsed'))};
+document.getElementById('btnMetrics').classList.add('btn-on');
 </script>
 </body>
 </html>
