@@ -8,6 +8,7 @@
  * - triage:   wake/skip/quick decisions (mushi HTTP fallback)
  * - learning: research/learning event classification
  * - routing:  task graph lane routing
+ * - research: research methodology crystallization
  */
 
 import { createMyelin, createFleet, logDecision } from 'myelinate';
@@ -143,8 +144,20 @@ function getFleet(): MyelinFleet<string> {
           crystallize: { minOccurrences: 8, minConsistency: 0.90 },
         }),
       },
+      {
+        name: 'research',
+        instance: createMyelin<string>({
+          llm: async () => ({ action: 'normal', reason: 'no-llm-fallback' }),
+          rulesPath: './memory/research-rules.json',
+          logPath: './memory/research-decisions.jsonl',
+          autoLog: true,
+          failOpen: true,
+          failOpenAction: 'normal',
+          crystallize: { minOccurrences: 5, minConsistency: 0.85 },
+        }),
+      },
     ]);
-    slog('MYELIN', 'Fleet initialized: triage + learning + routing');
+    slog('MYELIN', 'Fleet initialized: triage + learning + routing + research');
   }
   return _fleet;
 }
@@ -192,6 +205,31 @@ export function getCombinedMyelinStats(): { triage: MyelinStats; learning: Myeli
 /** Get fleet-wide aggregated stats. */
 export function getFleetStats(): FleetStats {
   return getFleet().stats();
+}
+
+/** Get the research myelin instance (used by research-crystallizer). */
+export function getResearchInstance(): Myelin<string> {
+  return getFleet().get('research')!;
+}
+
+/**
+ * Get unified prompt block from all fleet members.
+ * Uses myelin's native toPromptBlock() for each active domain.
+ */
+export function getMyelinPromptBlock(): string {
+  const fleet = getFleet();
+  const blocks: string[] = [];
+  for (const name of fleet.names()) {
+    const member = fleet.get(name)!;
+    const block = member.toPromptBlock({
+      includeRules: true,
+      includeMethodology: name === 'triage' || name === 'routing',
+      maxRules: 5,
+      format: 'xml',
+    });
+    if (block.trim()) blocks.push(block);
+  }
+  return blocks.join('\n');
 }
 
 // =============================================================================
@@ -288,17 +326,17 @@ export async function maybeDistill(): Promise<boolean> {
   _lastDistillTime = now;
 
   try {
-    // Fleet distills triage + learning + routing in one call
+    // Fleet distills all domains (triage + learning + routing + research)
     const fleet = getFleet();
     fleet.distillAll();
     slog('MYELIN', `Fleet distill complete (${fleet.names().join(', ')})`);
 
-    // Research crystallizer (separate — Phase 3 will fold into fleet)
+    // Research methodology evolution (needs evolve() beyond basic distill)
     try {
       const { runResearchDistillation } = await import('./small-model-research.js');
       const researchResult = runResearchDistillation();
-      slog('MYELIN-RESEARCH', `Research distill: ${researchResult.stats.ruleCount} rules, ${researchResult.stats.principleCount} principles, methodology: ${researchResult.hasMethodology ? 'active' : 'building'}`);
-    } catch { /* research crystallizer is optional */ }
+      slog('MYELIN-RESEARCH', `Research evolve: ${researchResult.stats.ruleCount} rules, ${researchResult.stats.principleCount} principles, methodology: ${researchResult.hasMethodology ? 'active' : 'building'}`);
+    } catch { /* research evolution is optional */ }
 
     return true;
   } catch (err) {

@@ -12,11 +12,11 @@
  * 用大模型歸納出的研究策略做研究。
  */
 
-import { createMyelin, formatMethodology, buildGuidance } from 'myelinate';
-import type { Myelin, Methodology, EvolutionResult } from 'myelinate';
+import { buildGuidance } from 'myelinate';
+import type { Myelin, Methodology } from 'myelinate';
 import fs from 'node:fs';
-import path from 'node:path';
 import { slog } from './utils.js';
+import { getResearchInstance } from './myelin-fleet.js';
 
 // =============================================================================
 // Types
@@ -65,39 +65,15 @@ export interface ResearchMethodology {
 }
 
 // =============================================================================
-// Singleton
+// Instance (from Fleet) + state
 // =============================================================================
 
-const RULES_PATH = './memory/research-rules.json';
-const LOG_PATH = './memory/research-decisions.jsonl';
 const METHODOLOGY_PATH = './memory/research-methodology.json';
-
-let _instance: Myelin<ResearchAction> | null = null;
 let _lastMethodology: Methodology | undefined;
 
-/** Get or create the research crystallizer instance */
-export function getResearchCrystallizer(): Myelin<ResearchAction> {
-  if (!_instance) {
-    _instance = createMyelin<ResearchAction>({
-      llm: async (event) => {
-        // No LLM fallback for research decisions — we observe, not decide
-        // This myelin instance is purely observational:
-        // we log decisions made by the main agent, not make new ones
-        return { action: 'normal' as ResearchAction, reason: 'no-llm-fallback' };
-      },
-      rulesPath: RULES_PATH,
-      logPath: LOG_PATH,
-      crystallize: {
-        minOccurrences: 5,     // Research patterns need fewer observations (we see them less often)
-        minConsistency: 0.85,  // Slightly lower threshold — research is more varied
-      },
-      autoLog: true,
-      failOpen: true,
-      failOpenAction: 'normal' as ResearchAction,
-    });
-    slog('RESEARCH-CRYSTALLIZER', 'Initialized — observing research patterns');
-  }
-  return _instance;
+/** Get the research crystallizer instance from the Fleet. */
+export function getResearchCrystallizer(): Myelin<string> {
+  return getResearchInstance();
 }
 
 // =============================================================================
