@@ -6,9 +6,9 @@
 
 ## Now（正在做）
 
-- [ ] P0: Show HN draft — 寫 launch post，準備 Week 3-4 發佈
+- [ ] P0: Show HN draft — launch post ready，等 npm publish 後發佈
   Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
-  Note: 專案已更名 myelin（npm: myelinate），draft 內容待更新
+  Note: v2 已更新 API 名稱（createMyelin）、project name（myelin），code example 對齊 README
 
 ---
 
