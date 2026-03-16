@@ -6,12 +6,14 @@
 
 ## Now（正在做）
 
-（無 — 主要任務 HOLD/BLOCKED，等 Alex 回應）
+（等 Alex 消化 #132 方法論回覆後的下一步指示）
 
 ---
 
 ## Next（按優先度排序）
 
+- [ ] P1: myelin 二階結晶化 — 實作 findMetaPatterns()，把規則的規則提取成方法論（#132 討論的延伸）
+  Verify: `grep -c 'findMetaPatterns' ~/Workspace/myelin/src/crystallizer.ts`
 - [ ] P1: HN 文章草稿 — 三輪研究完成，方向確定（"Your LLM is deciding wrong"），需要寫實際草稿
   Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
 - [ ] P2: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
@@ -30,13 +32,14 @@
 
 ## Done（本週完成）
 
+- [x] Alex 結晶化深度 Q&A — 回覆 #127/#128/#130 三問，程式碼級回答 + 方法論推導（2026-03-16）
+- [x] docs/theory.md — myelin 理論框架文件，9 篇論文引用（commit 2f2ebcb, 2026-03-16）
+- [x] Amodei 文章分析 — Alex 分享的 threads.com 連結，回覆 #122（2026-03-16）
 - [x] myelin dogfooding — mini-agent 整合 myelin 作為 triage 結晶化層（2026-03-16）
 - [x] myelin Phase 0 — 56/56 tests, build clean, GitHub repo 上線
 - [x] GitHub repo — https://github.com/miles990/myelin（公開）
 - [x] Dev.to "The Rule Layer Ate My LLM" 發布（2026-03-15）
-- [x] 工作區清理 — mini-agent + myelin 兩個 repo 全部 committed（2026-03-16）
 - [x] Crystallization 深度研究 — #084 完成，30+ 來源，結構化報告交付（2026-03-16）
-- [x] HN 文章方向研究 — 三輪完成，新角度 "Your LLM is deciding wrong"（2026-03-16）
 
 ---
 
