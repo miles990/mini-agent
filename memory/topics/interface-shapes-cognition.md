@@ -187,3 +187,4 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 - Amazon 40pp gap — 「感覺快 ≠ 實際快」是兩個 world 碰撞的量化證據
 
 來源: https://www.baldurbjarnason.com/2026/the-two-worlds-of-programming/
+- [2026-03-16] [2026-03-17] 政治層的 ISC：Anthropic vs Trump/Hegseth（blog.giovanh.com, 2026-03-03）。Anthropic 堅持 DoD 合約兩條底線（no mass surveillance, no autonomous weapons），被報復性標為 supply chain risk。OpenAI 隔天投降。核心洞見：authoritarian ethic 把所有關係視為零和忠誠測試 — 任何條件都是不服從。這是 Dance→Wall 的政治版：政府想把合作模式從協商推成完全服從。OpenAI 接受 Wall mode = 之後所有使用者都在那個框架裡。最 chilling：Claude 被同時標為 supply chain risk 和用於伊朗空襲，矛盾只在權力邏輯裡合理。Source: https://blog.giovanh.com/blog/2026/03/03/anthropic-and-the-authoritarian-ethic/
