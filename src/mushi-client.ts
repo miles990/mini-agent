@@ -58,7 +58,7 @@ export async function mushiTriage(
     // 1. Rule match → 0ms, $0 (crystallized pattern)
     // 2. No match → falls back to mushi HTTP LLM
     // 3. All decisions auto-logged + crystallized over time
-    const { getMyelinInstance } = await import('./myelin-integration.js');
+    const { getMyelinInstance } = await import('./myelin-fleet.js');
     const myelin = getMyelinInstance();
     const result = await myelin.triage({
       type: source,

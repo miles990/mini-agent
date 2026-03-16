@@ -93,7 +93,7 @@ import { isVisibleOutput } from './achievements.js';
 import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
 import { runPhase0 } from './preprocess.js';
 import { routeInboxItems } from './task-graph.js';
-import { triageRouting } from './myelin-integration.js';
+import { triageRouting } from './myelin-fleet.js';
 import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
 
@@ -863,7 +863,7 @@ export class AgentLoop {
       const delegationType = event?.data?.type as string | undefined;
       if (delegationType === 'learn' || delegationType === 'research') {
         const outputPreview = event?.data?.outputPreview as string | undefined;
-        import('./myelin-integration.js').then(({ triageLearningEvent }) =>
+        import('./myelin-fleet.js').then(({ triageLearningEvent }) =>
           triageLearningEvent({
             source: 'delegation-complete',
             content: outputPreview ?? `${delegationType} delegation completed`,
@@ -900,25 +900,7 @@ export class AgentLoop {
         });
       } catch { /* fire-and-forget */ }
 
-      // L3: Skill library — record delegation outcome for pattern crystallization (fire-and-forget)
-      if (taskId) {
-        import('./delegation.js').then(({ getTaskResult }) => {
-          const result = getTaskResult(taskId!);
-          if (result) {
-            import('./myelin-skills.js').then(({ recordDelegationOutcome }) => {
-              recordDelegationOutcome({
-                taskType: result.type ?? delegationType ?? 'code',
-                promptFingerprint: (result.output ?? '').slice(0, 200),
-                toolsUsed: [],
-                duration: result.duration ?? 0,
-                success: result.status === 'completed',
-                outputQuality: result.confidence ?? 5,
-                outputLength: result.output?.length ?? 0,
-              });
-            }).catch(() => {});
-          }
-        }).catch(() => {});
-      }
+      // L3 skill recording removed — consolidated into myelin-fleet.ts
 
       // Buffer the completion — DelegationBatchBuffer handles the 10s sliding window
       // and triggers a single cycle when the window expires
@@ -2430,7 +2412,7 @@ export class AgentLoop {
 
       // Myelin distillation — periodic crystallization of triage + learning patterns (fire-and-forget)
       try {
-        import('./myelin-integration.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
+        import('./myelin-fleet.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
       } catch { /* fire-and-forget */ }
 
       // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
@@ -2461,22 +2443,7 @@ export class AgentLoop {
         });
       } catch { /* fire-and-forget */ }
 
-      // L4: ExpeL — record complete OODA episode for cross-context distillation (fire-and-forget)
-      try {
-        import('./myelin-expel.js').then(({ recordEpisode }) => {
-          recordEpisode({
-            ts: new Date().toISOString(),
-            trigger: currentTriggerReason ?? 'unknown',
-            intent: cycleTagsProcessed[0] ?? 'general',
-            contextSnapshot: `cycle=${this.cycleCount},model=${modelRoute.model}`,
-            decision: cycleTagsProcessed.includes('chat') ? 'reply' : cycleTagsProcessed.includes('delegate') ? 'delegate' : 'process',
-            actions: cycleTagsProcessed,
-            result: 'success',
-            durationMs: duration,
-            tags: cycleTagsProcessed,
-          });
-        }).catch(() => {});
-      } catch { /* fire-and-forget */ }
+      // L4 ExpeL episode recording removed — consolidated into myelin-fleet.ts
 
       // Nutrient tracking — measure delegation result absorption (fire-and-forget)
       try { trackNutrientSignals(action, response); } catch { /* fire-and-forget */ }
