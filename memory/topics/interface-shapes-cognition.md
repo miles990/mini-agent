@@ -142,3 +142,30 @@ Sources: jamesdrandall.com, tsubuyaki-020, HN #46960675 (pixl97 blacksmith metap
 
 ref:aeon-literacy-design-problem
 來源：https://aeon.co/essays/what-we-think-is-a-decline-in-literacy-is-a-design-problem
+- [2026-03-16] **"Codegen is not productivity" (antifound.com, 2026-03-16, Lobsters)**
+
+核心主張：LOC 不是生產力，LLM 加速了不重要的部分。但作者最有價值的觀點是 **premature implementation commitment**：LLM 跳過 low-fidelity prototype 階段，直接輸出 high-fidelity code，消滅了設計認知發生的中間空間。
+
+**我的 ISC 框架分析**：這是 **fidelity spectrum collapse** — prompt → production-fidelity code 的介面形狀壓扁了 sketch → wireframe → prototype → production 的認知光譜。每個中間階段都是思考發生的空間（disposable, low psychological weight），LLM 消滅了這些空間。跟 Marker 的空 HATE ZONE 同構：空不是缺席，是認知功能。
+
+作者附錄最有力的證詞：「I want nothing to do with the code these things generate」— 這是 Naur 1985 theory-building 的直接印證。沒有建構過程就沒有理論，代碼就是陌生的。
+
+**跟 Amazon 40pp 的連結**：介面讓你 *感覺* 快（code 瞬間出現），但認知負債在後面等著（維護、review、理解）。19% slower / feel 20% faster 的機制在這裡有了更精確的解釋：不是速度錯覺，是 fidelity spectrum 被壓扁後的認知時差。
+
+ref: antifound-codegen-not-productivity
+- [2026-03-16] **Cognitive Load Inversion（HN "LLMs can be exhausting", 258pts 171 comments）**
+
+AI 不減少認知負荷，而是*轉換*它：從 constructive（建構心智模型）到 evaluative（審查整合生成的 code）。社群規模的實證驗證 Randall + METR 39pp gap。
+
+關鍵聲音：
+- cglan：「LLMs 比手寫 code 更累...你很快撞到一個人能追蹤的極限」
+- qq66：傳統寫碼建構 data flow 心智模型，AI code 產生 black boxes，「像消防水管噴射...永遠無法真正安頓下來」
+- felixsells：**integration bottleneck** — 「模型快速產出乾淨的獨立函數...真正耗費心力的是知道那些函數該住在哪裡」
+- hombre_fatal：**decision overhead** — 「code 部分微不足道...跟決定要建什麼相比」
+- akhrail1996：**addictive loops** — 「LLM coding 上癮得要命...再一個功能、再一個 fix...然後你已經 4 小時了」
+
+**ISC 框架分析**：evaluative cognitive load 比 constructive load 更耗人，因為沒有 flow state、不建構理解、output 速度 ≠ comprehension 速度。felixsells 的 "integration bottleneck" 精確命名了 fidelity spectrum collapse 的下游效應——AI 消滅中間認知空間，人類被推向最難的部分（架構整合）卻沒有中間步驟的認知暖身。akhrail1996 的成癮迴路是新維度：介面不只塑造認知，還創造 compulsive behavior（variable reward + instant gratification → slot machine dynamics），疲勞在迴路中累積到認知品質崩潰。
+
+prmph 的解方（限制並行 session、維持架構控制）本質上是「用約束對抗約束缺席」— 人工重建 AI 消除的認知摩擦。
+
+來源: https://tomjohnell.com/llms-can-be-absolutely-exhausting/, HN#47391803
