@@ -1297,6 +1297,7 @@ export class AgentLoop {
         eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
         return null;
       }
+      const perceptionChanged = currentVersion !== this.lastPerceptionVersion;
       this.lastPerceptionVersion = currentVersion;
 
       // ── Observe ──
@@ -1329,8 +1330,11 @@ export class AgentLoop {
         }
       }
 
-      // Light mode for DM-triggered cycles: minimal context for fast response
-      const contextMode = isDirectMessage ? 'light' as const : 'focused' as const;
+      // Adaptive Cycle Depth: infer context weight from trigger + state
+      const contextMode = this.inferCycleWeight(this.triggerReason ?? '', {
+        hasNewInbox: inboxItemsEarly.length > 0,
+        perceptionChanged,
+      });
       let context = specialistPerspective
         ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
         : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results });
@@ -2505,6 +2509,42 @@ export class AgentLoop {
       rememberCount: this.dailyRememberCount,
       similarityRate,
     };
+  }
+
+  /**
+   * Adaptive Cycle Depth — infer context weight from trigger + cycle state.
+   * Returns one of 4 context depths:
+   *   minimal  (~5K)  — delegation-drain, only need delegation results + tasks
+   *   light    (~15K) — DM-triggered, fast response with essential context
+   *   focused  (~30K) — default, perception-aware context
+   *   full     (~50K) — reserved for future strategic deep cycles
+   */
+  private inferCycleWeight(trigger: string, opts: {
+    hasNewInbox: boolean;
+    perceptionChanged: boolean;
+  }): 'minimal' | 'light' | 'focused' | 'full' {
+    // Delegation drain — only need to see results, minimal context
+    if (trigger.startsWith('delegation') && !opts.hasNewInbox) {
+      return 'minimal';
+    }
+
+    // DM reply — light context (existing behavior)
+    if (['telegram', 'room', 'chat', 'direct-message'].some(s => trigger.startsWith(s))) {
+      return 'light';
+    }
+
+    // Continuation — keep focused depth
+    if (trigger.startsWith('continuation')) {
+      return 'focused';
+    }
+
+    // Perception changed significantly — need full awareness
+    if (opts.perceptionChanged) {
+      return 'focused';
+    }
+
+    // Default for scheduled/cron/heartbeat/startup
+    return 'focused';
   }
 
   /** Detect cycle mode for JIT skill loading — delegates to prompt-builder.ts */

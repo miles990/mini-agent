@@ -2437,9 +2437,10 @@ Queries:`;
   }
 
   /**
-   * Minimal context — 超時重試用
-   * 只載入：環境、TG 狀態、核心身份、heartbeat、最近 5 則對話
-   * 跳過：所有 perception、完整 memory、完整 soul
+   * Minimal context — delegation-drain + emergency retry
+   * 只載入：環境、核心身份、heartbeat (active tasks)、inbox、delegation results、
+   *         task index、working memory、最近 3 則對話
+   * 跳過：所有 perception、完整 memory、topic memory、完整 soul、achievements、coach
    */
   private async buildMinimalContext(): Promise<string> {
     const [heartbeat, soul] = await Promise.all([
@@ -2454,7 +2455,7 @@ Queries:`;
     const sections: string[] = [];
 
     // 環境
-    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL CONTEXT: emergency retry — soul identity + active tasks + inbox only]\n</environment>`);
+    sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL CONTEXT: delegation-drain / emergency retry — soul + tasks + delegation results + inbox only]\n</environment>`);
 
     // Soul — 只取核心身份
     if (soul) {
@@ -2487,7 +2488,30 @@ Queries:`;
       sections.push(`<inbox>\n${inboxCtx}\n</inbox>`);
     }
 
-    // 最近 3 則對話（emergency retry 只需最小上下文）
+    // Background Completed（delegation results — critical for delegation-drain cycles）
+    const bgSection = buildBackgroundCompletedSection(this.instanceId);
+    if (bgSection) {
+      sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
+    }
+
+    // Task index（current tasks from memory-index）
+    const nextSection = await buildNextContextSection(this.memoryDir, { minimal: true, runVerify: false });
+    if (nextSection) {
+      sections.push(`<next>\n${nextSection}\n</next>`);
+    }
+
+    // Working Memory（跨 cycle 工作記憶，<kuro:inner> 寫入）
+    const innerNotesPath = path.join(this.memoryDir, 'inner-notes.md');
+    try {
+      if (existsSync(innerNotesPath)) {
+        const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
+        if (innerContent) {
+          sections.push(`<working-memory>\n${innerContent}\n</working-memory>`);
+        }
+      }
+    } catch { /* ignore */ }
+
+    // 最近 3 則對話（minimal 只需最小上下文）
     const recentConvos = this.conversationBuffer
       .slice(-3)
       .map(c => {
