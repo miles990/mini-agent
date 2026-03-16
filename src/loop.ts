@@ -577,6 +577,19 @@ export class AgentLoop {
       const activityJournal = formatActivityJournal(1000);
       if (activityJournal) context += `\n\n<recent-activity>\n${activityJournal}\n</recent-activity>`;
 
+      // Knowledge Bus summary — cross-component patterns
+      try {
+        const kbSummary = getKnowledgeSummary();
+        if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
+      } catch { /* best effort */ }
+
+      // Recent delegation completions — cross-lane awareness (read-only, does not consume lane-output)
+      try {
+        const { buildRecentDelegationSummary } = await import('./delegation.js');
+        const delegationSummary = buildRecentDelegationSummary();
+        if (delegationSummary) context += `\n\n<recent-delegations>\n${delegationSummary}\n</recent-delegations>`;
+      } catch { /* best effort */ }
+
       context += `\n\n<foreground_reply_mode>
 這是前景快速回覆模式。你的回覆會即時串流送出——每個完整的 chat tag 一生成就立刻到達用戶。
 

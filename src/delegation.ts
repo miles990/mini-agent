@@ -354,6 +354,52 @@ function persistDelegationResult(result: TaskResult): void {
   } catch { /* fire-and-forget */ }
 }
 
+/**
+ * Build a compact summary of recent delegation completions from the journal.
+ * Read-only — does not consume or remove lane-output files.
+ * Used by foreground lane for cross-lane awareness.
+ */
+export function buildRecentDelegationSummary(maxAgeMs: number = 3_600_000, maxChars: number = 1500): string | null {
+  try {
+    const instanceDir = getInstanceDir(getCurrentInstanceId());
+    const journalPath = path.join(instanceDir, 'delegation-journal.jsonl');
+    if (!fs.existsSync(journalPath)) return null;
+
+    const raw = fs.readFileSync(journalPath, 'utf-8');
+    const lines = raw.split('\n').filter(Boolean);
+    if (lines.length === 0) return null;
+
+    const cutoff = Date.now() - maxAgeMs;
+    const recent: Array<{ ts: string; id: string; type: string; status: string; durationMs: number; output: string }> = [];
+
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (new Date(entry.ts).getTime() >= cutoff) {
+          recent.push(entry);
+        }
+      } catch { /* skip malformed lines */ }
+    }
+
+    if (recent.length === 0) return null;
+
+    // Format compact summary, newest first
+    recent.reverse();
+    let result = '';
+    for (const e of recent) {
+      const durSec = Math.round((e.durationMs ?? 0) / 1000);
+      const preview = (e.output ?? '').slice(0, 100).replace(/\n/g, ' ');
+      const line = `- [${e.type}] ${e.id}: ${e.status} (${durSec}s) — ${preview}\n`;
+      if (result.length + line.length > maxChars) break;
+      result += line;
+    }
+
+    return result.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // State
 // =============================================================================
@@ -361,6 +407,29 @@ function persistDelegationResult(result: TaskResult): void {
 const activeTasks = new Map<string, { process: ChildProcess; result: TaskResult }>();
 const completedTasks = new Map<string, TaskResult>();
 const queue: Array<{ task: DelegationTask; resolve: (id: string) => void }> = [];
+
+// =============================================================================
+// Sibling Awareness — let concurrent delegations know about each other
+// =============================================================================
+
+/** Get summaries of all currently running delegations for sibling awareness */
+export function getActiveDelegationSummaries(): Array<{ id: string; type: string; prompt: string }> {
+  const summaries: Array<{ id: string; type: string; prompt: string }> = [];
+  for (const [id, { result }] of activeTasks) {
+    if (result.status !== 'running') continue;
+    // Read original prompt from spec file (result doesn't store prompt)
+    let prompt = '';
+    try {
+      const specPath = path.join(getDelegationDir(id), 'spec.json');
+      const spec = JSON.parse(fs.readFileSync(specPath, 'utf-8')) as DelegationTask;
+      prompt = spec.prompt.slice(0, 120);
+    } catch {
+      prompt = '(unknown)';
+    }
+    summaries.push({ id, type: result.type ?? 'code', prompt });
+  }
+  return summaries;
+}
 
 // =============================================================================
 // Path Helpers
@@ -437,6 +506,55 @@ export function spawnDelegation(task: DelegationTask): string {
 /** Get a specific task result by ID (active or completed). */
 export function getTaskResult(taskId: string): TaskResult | undefined {
   return activeTasks.get(taskId)?.result ?? completedTasks.get(taskId);
+}
+
+/**
+ * Await a delegation task's completion. Returns the TaskResult when done.
+ * Used by Wave Chaining: Wave N+1 waits for Wave N to finish before spawning.
+ * If already completed, resolves immediately. Rejects on timeout.
+ */
+export function awaitDelegation(taskId: string, timeoutMs = 600_000): Promise<TaskResult> {
+  return new Promise((resolve, reject) => {
+    // Already completed?
+    const completed = completedTasks.get(taskId);
+    if (completed) { resolve(completed); return; }
+
+    // Not even tracked? Might have been cleaned up
+    const active = activeTasks.get(taskId);
+    if (!active) {
+      reject(new Error(`Unknown delegation: ${taskId}`));
+      return;
+    }
+
+    // Already finished (status changed but not yet moved to completedTasks)
+    if (active.result.status !== 'running') {
+      resolve(active.result);
+      return;
+    }
+
+    // Listen for completion event
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      eventBus.off('action:delegation-complete', handler);
+      reject(new Error(`awaitDelegation timeout: ${taskId} after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    const handler = (event?: { data: Record<string, unknown> }) => {
+      if (settled) return;
+      if (event?.data?.taskId !== taskId) return;
+      settled = true;
+      clearTimeout(timer);
+      eventBus.off('action:delegation-complete', handler);
+      // Fetch final result (might be in completedTasks by now)
+      const result = completedTasks.get(taskId) ?? activeTasks.get(taskId)?.result;
+      if (result) resolve(result);
+      else reject(new Error(`Result disappeared: ${taskId}`));
+    };
+
+    eventBus.on('action:delegation-complete', handler);
+  });
 }
 
 export function listTasks(options?: { includeCompleted?: boolean }): TaskResult[] {

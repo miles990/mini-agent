@@ -2528,6 +2528,13 @@ export function createApi(port = 3001): express.Express {
         }
       } catch { /* perception not available */ }
 
+      // Knowledge Bus summary — cross-component patterns
+      try {
+        const { getKnowledgeSummary } = await import('./shared-knowledge.js');
+        const kbSummary = getKnowledgeSummary();
+        if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
+      } catch { /* best effort */ }
+
       const contextAge = new Date().toISOString();
       context += `\n\n<ask_mode>\n這是 /api/ask 直接問答模式。感知資料為快取 + FTS5 動態記憶搜尋（${contextAge}）。\n</ask_mode>`;
 

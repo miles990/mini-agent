@@ -17,7 +17,7 @@ import { slog } from './utils.js';
 import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
-import { spawnDelegation } from './delegation.js';
+import { spawnDelegation, getActiveDelegationSummaries } from './delegation.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting } from './myelin-integration.js';
 import { observe as kbObserve } from './shared-knowledge.js';
@@ -815,6 +815,41 @@ export async function postProcess(
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
   // Uses Task Graph for DAG decomposition: detect dependencies, merge related tasks, plan waves
   if (tags.delegates.length > 0) tagsProcessed.push('delegate');
+
+  // Sibling awareness: build context so concurrent delegations know about each other
+  const SIBLING_CAP = 500;
+  const buildSiblingContext = (
+    excludePrompt: string,
+    sameWaveSiblings?: Array<{ type: string; prompt: string }>,
+  ): string => {
+    try {
+      const lines: string[] = [];
+      // Already-running delegations
+      for (const s of getActiveDelegationSummaries()) {
+        lines.push(`- [${s.type}] ${s.id}: ${s.prompt}`);
+      }
+      // Same-wave siblings (not yet started, only for DAG multi-delegate)
+      if (sameWaveSiblings) {
+        for (const s of sameWaveSiblings) {
+          if (s.prompt.slice(0, 120) === excludePrompt.slice(0, 120)) continue;
+          lines.push(`- [${s.type}] (pending): ${s.prompt.slice(0, 120)}`);
+        }
+      }
+      // Remove self (match by prompt prefix)
+      const filtered = lines.filter(l => !l.includes(excludePrompt.slice(0, 80)));
+      if (filtered.length === 0) return '';
+      let section = '<sibling-tasks>\nThese tasks are running concurrently. Avoid duplicating their work:\n';
+      let len = section.length;
+      for (const line of filtered) {
+        if (len + line.length + 1 > SIBLING_CAP) break;
+        section += line + '\n';
+        len += line.length + 1;
+      }
+      section += '</sibling-tasks>';
+      return section;
+    } catch { return ''; /* fire-and-forget */ }
+  };
+
   if (tags.delegates.length > 1) {
     // Multiple delegates → build DAG for intelligent scheduling
     const taskInputs: TaskInput[] = tags.delegates.map(del => ({
@@ -833,8 +868,30 @@ export async function postProcess(
       slog('TASK-GRAPH', `DAG: ${tags.delegates.length} delegates → ${activeCount} active (${mergedCount} merged), ${plan.waves.length} wave(s)`);
     }
 
-    // Spawn by wave (wave 0 immediately, wave 1+ after dependencies — for now all immediate since delegation is fire-and-forget with internal queue)
+    // Wave Chaining: spawn Wave 0 immediately, await completion before spawning Wave 1+
+    // Single-wave case: zero overhead (no await). Multi-wave: previous results injected into next wave's context.
+    let previousWaveResults: Array<{ taskId: string; type: string; output: string; status: string }> = [];
+
     for (const wave of plan.waves) {
+      // Collect same-wave sibling info for awareness injection
+      const waveSiblings = wave.tasks.map(n => ({
+        type: n.type as string,
+        prompt: n.prompt,
+      }));
+
+      // Build previous wave results context (only for wave 1+)
+      let waveChainCtx = '';
+      if (wave.wave > 0 && previousWaveResults.length > 0) {
+        const lines = previousWaveResults.map(r =>
+          `[${r.type}] ${r.taskId} (${r.status}): ${r.output.slice(0, 300).replace(/\n/g, ' ')}`
+        );
+        waveChainCtx = `<previous-wave-results wave="${wave.wave - 1}">\n${lines.join('\n')}\n</previous-wave-results>`;
+        // Cap at 2000 chars to avoid bloating delegation context
+        if (waveChainCtx.length > 2000) waveChainCtx = waveChainCtx.slice(0, 2000) + '\n...</previous-wave-results>';
+      }
+
+      const waveTaskIds: string[] = [];
+
       for (const node of wave.tasks) {
         // Methodology injection for learn/research
         let prompt = node.prompt;
@@ -854,6 +911,12 @@ export async function postProcess(
           ?? tags.delegates.find(d => node.prompt.includes(d.prompt))
           ?? tags.delegates[0];
 
+        // Sibling awareness context (includes running tasks + same-wave peers)
+        const siblingCtx = buildSiblingContext(node.prompt, waveSiblings);
+
+        // Combine all context: sibling awareness + previous wave results
+        const combinedCtx = [siblingCtx, waveChainCtx].filter(Boolean).join('\n') || undefined;
+
         const taskId = spawnDelegation({
           prompt,
           workdir: (node.metadata?.workdir as string) ?? origDel.workdir,
@@ -861,7 +924,9 @@ export async function postProcess(
           provider: origDel.provider,
           maxTurns: origDel.maxTurns,
           verify: origDel.verify,
+          context: combinedCtx,
         });
+        waveTaskIds.push(taskId);
         const resolvedProvider = origDel.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
         slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}, wave=${wave.wave}) → ${(node.metadata?.workdir as string) ?? origDel.workdir}`);
         eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: (node.metadata?.workdir as string) ?? origDel.workdir });
@@ -869,6 +934,22 @@ export async function postProcess(
         // Feed routing decision to myelin for crystallization (fire-and-forget)
         triageRouting({ type: 'route', taskType, prompt: node.prompt.slice(0, 300) }).catch(() => {});
         try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, wave: wave.wave, lane: 'background' }, tags: [taskType, `wave-${wave.wave}`] }); } catch { /* fire-and-forget */ }
+      }
+
+      // Wave Chaining: if there are more waves, await this wave's completion before proceeding
+      if (plan.waves.length > 1 && wave.wave < plan.waves.length - 1) {
+        slog('TASK-GRAPH', `Awaiting wave ${wave.wave} completion (${waveTaskIds.length} tasks) before spawning wave ${wave.wave + 1}`);
+        const { awaitDelegation } = await import('./delegation.js');
+        const results = await Promise.allSettled(
+          waveTaskIds.map(id => awaitDelegation(id, 630_000)) // 10.5min — slightly above delegation's 10min hard cap
+        );
+        previousWaveResults = results.map((r, i) => ({
+          taskId: waveTaskIds[i],
+          type: wave.tasks[i]?.type ?? 'code',
+          output: r.status === 'fulfilled' ? r.value.output : `(${r.status === 'rejected' ? r.reason?.message ?? 'failed' : 'unknown'})`,
+          status: r.status === 'fulfilled' ? r.value.status : 'failed',
+        }));
+        slog('TASK-GRAPH', `Wave ${wave.wave} complete: ${results.filter(r => r.status === 'fulfilled').length}/${results.length} succeeded`);
       }
     }
   } else {
@@ -885,6 +966,9 @@ export async function postProcess(
         } catch { /* methodology injection is optional */ }
       }
 
+      // Sibling awareness context (running tasks only — single delegate has no wave peers)
+      const siblingCtx = buildSiblingContext(del.prompt);
+
       const taskId = spawnDelegation({
         prompt,
         workdir: del.workdir,
@@ -892,6 +976,7 @@ export async function postProcess(
         provider: del.provider,
         maxTurns: del.maxTurns,
         verify: del.verify,
+        context: siblingCtx || undefined,
       });
       const taskType = del.type ?? 'code';
       const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
