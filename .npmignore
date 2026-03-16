@@ -1,0 +1,44 @@
+# Source & config
+src/
+tests/
+tsconfig.json
+vitest.config.ts
+.env
+.env.example
+
+# Personal data — NEVER publish
+memory/
+kuro-portfolio/
+skills/
+plugins/
+scripts/
+tools/
+llm/
+
+# Claude/AI config
+.claude/
+CLAUDE.md
+AGENTS.md
+SKILL.md
+CONTRIBUTING.md
+agent-compose.yaml
+mcp-agent.json
+mcp-stderr.log
+.mcp.json
+.forge-in-use
+
+# Frontend dashboards (not part of core package)
+dashboard.html
+chat-room.html
+mobile.html
+
+# Docker & CI
+docker/
+.github/
+
+# Misc
+mesh-output/
+install.sh
+uninstall.sh
+pnpm-lock.yaml
+.DS_Store
