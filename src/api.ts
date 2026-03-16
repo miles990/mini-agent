@@ -738,7 +738,7 @@ export function createApi(port = 3001): express.Express {
         notifications: getNotificationStats(),
       },
       mushi,
-      knowledge: (() => { try { const { getKBStatus } = require('./shared-knowledge.js'); return getKBStatus(); } catch { return null; } })(),
+      knowledge: await (async () => { try { const { getKBStatus } = await import('./shared-knowledge.js'); return getKBStatus(); } catch { return null; } })(),
       forge: forgeStatus(process.cwd()),
       provider: {
         primary: getProvider(),
