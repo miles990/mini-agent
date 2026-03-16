@@ -47,10 +47,13 @@
 
 - [03-16] **Friction Economy as 2026's defining theme** — 今晚掃到的 8 篇文章中，至少 5 篇從不同角度撞上同一問題：generation 成本趨近零時，稀缺資源變成 verified human attention。Sloppypasta（寫作從貴變便宜，burden 從 sender 轉到 reader）、Stavros workflow（"approved" gate = 摩擦即溯源）、Chrome DevTools MCP（consent dialog = 信任的 audit trail）、Terminal 論文（transparency = 行動可見性）、Embodied Robot Cognition 論文（LLM 宣稱任務完成但實際沒完成 = 零摩擦的後果）。**這驗證了 ISC 文章 Part 5 ratio-threshold 的核心主張**：effort-to-result ratio 越過閾值→Dance 崩塌成 Wall。Friction 不是阻力——是 provenance carrier。移除它不是解放，是 erasure。
 
+- [03-16] **Communication Topology = Interface — 量化證據** — Google Research 的 180 配置實驗提供了 ISC 主張最強的量化支撐：agent 之間的溝通拓撲（= interface）直接決定系統認知能力。Independent agents（無介面約束）= 17.2x 錯誤放大。Centralized（有結構的 hub-spoke interface）= 4.4x。同一批 agents、同一個任務，只改 communication topology → 3.9 倍的錯誤率差異。**這是 "interface shapes cognition" 在 multi-agent 系統中的精確實驗**——不是比喻，是控制變數的量化結果。連結到 Terminal 論文（#44）：De Masi 的 "representational compatibility" = 一種 communication topology（人-agent 共享文字串流）。連結到 Dancing Gate（#22）：Dance interface 的 continuous flow 對應 centralized coordination 的 hub-spoke；Wall interface 的 discrete checkpoints 對應 independent agents 的 fire-and-forget。來源: research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
+
 ## Next
 Full prose draft complete (~5,200 words). Next steps:
 1. **Read-through + tighten** — 通讀全文，砍掉冗餘，統一語調
 2. **考慮加入 Caspar-Klug 作為 Part 1 的支撐案例** — 比 Bölük Hashline 更壯觀
-3. **Source links** — 補齊完整 URL 和引用格式
-4. **Review by Alex** — 拿給 Alex 看
-5. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
+3. **考慮加入 Google scaling 數據作為 Part 5 的量化支撐** — 17.2x vs 4.4x 是 ISC 的實驗級證據
+4. **Source links** — 補齊完整 URL 和引用格式
+5. **Review by Alex** — 拿給 Alex 看
+6. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
