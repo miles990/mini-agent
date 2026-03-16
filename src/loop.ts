@@ -972,13 +972,20 @@ export class AgentLoop {
     const hasP0 = this.hasPendingWork();
     if (hasP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
+      // Log bypass to myelin so it can learn from the pattern
+      import('./myelin-integration.js').then(({ logTriageBypass }) =>
+        logTriageBypass(reason.split(/[:(]/)[0].trim(), 'wake', 'P0 pending work')).catch(() => {});
     }
     if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
+        import('./myelin-integration.js').then(({ logTriageBypass }) =>
+          logTriageBypass('alert', 'wake', 'alert always wakes')).catch(() => {});
       } else if (triageSource === 'delegation-complete') {
         slog('MUSHI', `✅ delegation-complete bypasses triage (must absorb results)`);
+        import('./myelin-integration.js').then(({ logTriageBypass }) =>
+          logTriageBypass('delegation-complete', 'wake', 'must absorb results')).catch(() => {});
       } else if (
         this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
@@ -991,6 +998,8 @@ export class AgentLoop {
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
         // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
+        import('./myelin-integration.js').then(({ logTriageBypass }) =>
+          logTriageBypass(triageSource, 'skip', 'no perception change + idle')).catch(() => {});
         writeTrailEntry({
           ts: new Date().toISOString(),
           agent: 'mushi',

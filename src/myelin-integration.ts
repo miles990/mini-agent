@@ -11,10 +11,31 @@
  * All decisions logged + auto-crystallized over time.
  */
 
-import { createMyelin } from 'myelinate';
+import { createMyelin, logDecision } from 'myelinate';
 import type { Myelin, MyelinStats, TriageResult } from 'myelinate';
 import { slog } from './utils.js';
 import { runResearchDistillation } from './small-model-research.js';
+
+// Log path constant — must match getMyelinInstance() config
+const TRIAGE_LOG_PATH = './memory/myelin-decisions.jsonl';
+
+/**
+ * Log a hard-rule bypass decision to the triage myelin's decision log.
+ * This lets myelin learn from bypass patterns without calling the LLM.
+ * Fire-and-forget — never throws.
+ */
+export function logTriageBypass(source: string, action: 'wake' | 'skip', reason: string): void {
+  try {
+    logDecision(
+      TRIAGE_LOG_PATH,
+      { type: source, source, context: {} },
+      action,
+      `hard-rule: ${reason}`,
+      'rule' as const,
+      0,
+    );
+  } catch { /* fire-and-forget */ }
+}
 
 // =============================================================================
 // Instance 1: Triage (existing — wake/skip/quick)
