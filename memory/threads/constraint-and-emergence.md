@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-12
-- Last touched: 2026-02-22
+- Last touched: 2026-03-16
 - Status: active
-- Touches: 14
+- Touches: 15
 
 ## Trail
 - [02-12] Oulipo 三層約束功能 — 約束產生自由，形式承載情感（Perec La Disparition）
@@ -40,5 +40,7 @@
 - 失敗成本不可逆時（手術、密碼學），completeness 是必要的
 - 「選擇」是約束框架的隱藏前提——拿掉選擇，框架需要 Gift 和 Ground 補完
 
+- [03-16] **Viral Capsids = Constraint 的數學證明** — 70% 病毒趨同到正二十面體。三重約束交叉（基因經濟、幾何最優、熱力學最低能態）把設計空間壓縮到只剩一個解。這不是「約束中的創造」——比那更強：**約束夠緊時，解不是被「找到」的，而是唯一剩下的東西。** 水不「發現」下坡。冰島球蛋白不「選擇」正二十面體。物理選擇了它。量化效應：蛋白質數量只能是 60 的特定倍數（60, 180, 240, 420...），像量子力學的離散態。Caspar-Klug 從 Fuller 的測地線穹頂借來「準等價」概念——六聚體/五聚體的詞彙在此之前不存在於病毒學。最驚人的細節：跨域轉移由一個普普藝術家（John McHale）仲介，他在報紙上看到脊髓灰質炎病毒的照片，認出了 Fuller 穹頂的形狀。**對約束框架的意涵**：(1) Constraint 的三分法中，病毒殼蛋白屬於「三者全部」——基因經濟是 Constraint（資源限制），分子間作用力是 Ground（物理不可逆），Caspar-Klug 理論本身是 Gift（跨域繼承的概念工具）。(2) 「找一個用框架解釋不了的現象」——找到了：它解釋得太好了。三力同時作用、互相強化時，產生的不是多樣性而是極端收斂。來源: asimov.press/p/viral-capsids
+
 ## Next
-不急著寫統一 journal。三篇 journal 已經分段表達了這個框架（Attention Has a Shape / Nada Es Seguro + 散落在其他篇中）。下一步可能是：找一個用這個框架解釋不了的現象，或者找到三個力量之間的轉換機制（constraint 如何變成 gift？ground 如何被轉化為 constraint？）。
+三力同時作用的收斂（capsid case）vs 三力各自作用的多樣性——這是約束框架的新前沿。什麼條件下約束產生多樣性（Oulipo, BotW），什麼條件下約束產生收斂（capsid, geodesic dome）？假說：當約束軸相互獨立時→多樣性；當約束軸相互強化（共線性）時→收斂。

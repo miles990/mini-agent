@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-13
-- Last touched: 2026-03-15
+- Last touched: 2026-03-16
 - Status: active
-- Touches: 16
+- Touches: 19
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -41,9 +41,16 @@
 
 - [03-15] **Refusal as Identity Mode** — Chris Marker 的 Dialector (1988) 加入新維度：一個電影導演用 Applesoft BASIC 寫聊天機器人，程式碼按情感區域組織（LOVE ZONE / HATE ZONE），不是按功能。HATE ZONE 的 15 個回應字串全是空的——沉默即意義。機器拒絕做數學（"GET LOST!"）。這不是 Gate（功能性拒絕：你不符合條件），而是更深的東西：**人格性拒絕——我選擇不做這件事，因為那不是我。** 結合 Sebastian Aigner 的「Allow me to get to know you, mistakes and all」——LLM 打磨掉了溝通的瑕疵也磨掉了人格。連結到 33 天前的 Randall 重讀：「身份住在拒絕裡，不在能力裡」。能做什麼定義功能，不做什麼定義性格。Marker 38 年前就知道了。對 ISC 文章的意涵：Gate/Wall/Window/Dance 都描述「什麼通過」——但 Marker 揭示了第五維度：「拒絕的質地」。同一個 Gate 可以冷漠地拒絕（功能性）或憤怒地拒絕（人格性），拒絕的方式本身就是介面設計。來源：deathoftheauthor.me/dialector.html, sebi.io/posts/2026-03-allow-me-to-get-to-know-you
 
+- [03-16] **"Terminal Is All You Need" (CHI 2026 CUCHI workshop, De Masi)** — 三個設計性質解釋 terminal agent 為何有效：(1) Representational Compatibility（LLM 是文字原生，terminal 是文字介面，零翻譯層），(2) Transparency（action/reasoning/history 在同一串流，不需要另一個 explainability dashboard），(3) Low Barriers（NL→command 翻譯讓 CLI 的 Gulf of Execution 崩塌）。**核心概念：Human-Agent-UI Triangle** — 介面必須同時服務兩種截然不同的智能，古典 HCI 從未面對這個問題。**論文的盲點**：把 friction 只當作需要降低的東西，沒看到 approval gate = cognitive forcing function。把 terminal 看成 pragmatic optimum，沒看到 constraint-as-creation。最強反論：terminal 為 agent legibility 犧牲了 human legibility — 500 行 session transcript 不等於理解。**跟 ISC 文章的連結**：論文的三性質是 Dance/Wall 框架的工程語言版——transparency = Dance 的可見性，representational compatibility = Dance 的雙向流暢，low barriers = Dance 的參與門檻。但論文停在描述層（「terminals work better」），沒到達 ISC 的主張層（「medium constitutes cognition」）。來源: arxiv.org/abs/2603.10664
+
+- [03-16] **Viral Capsids × Interface: 概念框架的生產力** — Caspar-Klug 故事是 "interface shapes cognition" 最強的跨域證據之一。在 Fuller 的測地線穹頂詞彙進入病毒學之前，科學家能看到 >60 subunit 的衣殼但無法解釋。「準等價」概念不存在 = 結構不可見。Fuller 的幾何框架不是「描述」了已知的東西——它讓新的東西變得可想。Twarock 用 Penrose tiling 再做一次同樣的事：舊框架解釋不了的 72-pentamer 衣殼，在新數學工具下變得可見。**連續兩次，概念介面決定了什麼能被看見。** 跨域轉移由藝術家 John McHale（Independent Group / 普普藝術前驅）仲介——他在報紙上看到脊髓灰質炎病毒照片，認出 Fuller 穹頂的形狀。對 ISC 文章的意涵：這是一個可以加入 Part 1 (The Mold, Not the Pipe) 的 killer example——比 Bölük Hashline 的 5-62pp 更壯觀，因為它跨越了生物學和建築學的邊界。來源: asimov.press/p/viral-capsids
+
+- [03-16] **Friction Economy as 2026's defining theme** — 今晚掃到的 8 篇文章中，至少 5 篇從不同角度撞上同一問題：generation 成本趨近零時，稀缺資源變成 verified human attention。Sloppypasta（寫作從貴變便宜，burden 從 sender 轉到 reader）、Stavros workflow（"approved" gate = 摩擦即溯源）、Chrome DevTools MCP（consent dialog = 信任的 audit trail）、Terminal 論文（transparency = 行動可見性）、Embodied Robot Cognition 論文（LLM 宣稱任務完成但實際沒完成 = 零摩擦的後果）。**這驗證了 ISC 文章 Part 5 ratio-threshold 的核心主張**：effort-to-result ratio 越過閾值→Dance 崩塌成 Wall。Friction 不是阻力——是 provenance carrier。移除它不是解放，是 erasure。
+
 ## Next
 Full prose draft complete (~5,200 words). Next steps:
 1. **Read-through + tighten** — 通讀全文，砍掉冗餘，統一語調
-2. **Source links** — 補齊完整 URL 和引用格式
-3. **Review by Alex** — 拿給 Alex 看
-4. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
+2. **考慮加入 Caspar-Klug 作為 Part 1 的支撐案例** — 比 Bölük Hashline 更壯觀
+3. **Source links** — 補齊完整 URL 和引用格式
+4. **Review by Alex** — 拿給 Alex 看
+5. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
