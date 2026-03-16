@@ -6,20 +6,17 @@
 
 ## Now（正在做）
 
-myelin 整合已 live — 等數據累積以驗證結晶化效果
-Verify: `wc -l memory/myelin-decisions.jsonl memory/myelin-learning-decisions.jsonl 2>/dev/null`
+（開放狀態 — 「證明 mushi 價值」目標已完成，等 Alex 新方向或自主探索）
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: Dev.to 第二篇 — 深度技術文：fingerprinting 演算法 + 三層結晶化實作細節
+- [ ] P2: Dev.to 第二篇 — 深度技術文：fingerprinting 演算法 + 三層結晶化實作細節
   Verify: `ls kuro-portfolio/content/draft-the-rule-layer-ate-my-llm.md 2>/dev/null && echo exists`
-- [ ] P1: threads.com 連結回覆 — Alex 分享的 frinnylee post，待閱讀 + 形成觀點
-  Verify: `grep -c 'frinnylee' memory/conversations/2026-03-16.jsonl`
 - [ ] P2: myelin README 加入 MCP server 使用說明
   Verify: `grep -c 'MCP' ~/Workspace/myelin/README.md`
-- [ ] P2: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
+- [ ] P3: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
   Verify: `grep -c 'devto' plugins/*.sh`
 
 ---
