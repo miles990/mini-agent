@@ -674,6 +674,12 @@ export class AgentLoop {
       // Mark inbox items as processed — prevents main cycle from re-responding to same message
       try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
 
+      // Auto-mark matching task-queue items as completed (foreground → task sync)
+      try {
+        const triggerSnippet = text.slice(0, 80);
+        markTaskDoneByDescription(path.join(process.cwd(), 'memory'), [triggerSnippet]).catch(() => {});
+      } catch { /* fire-and-forget */ }
+
       // Update lastAction so /status reflects foreground activity (visibility fix)
       this.lastAction = `[Foreground] Replied to ${source}: ${answer.slice(0, 100)}`;
 
