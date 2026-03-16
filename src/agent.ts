@@ -69,6 +69,8 @@ interface ExecOptions {
   model?: string;
   /** Streaming chat callback — fires as soon as a complete <kuro:chat> tag is detected during generation */
   onStreamChat?: (text: string, reply: boolean) => void;
+  /** Foreground slot ID for concurrent foreground tracking */
+  fgSlotId?: string;
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
@@ -181,14 +183,22 @@ let loopTask: TaskInfo | null = null;
 let loopChildPid: number | null = null;
 let loopGeneration = 0; // Bumped on preemption — callClaude detects mismatch
 
-// Foreground Lane (DM response while loop is busy)
-let foregroundBusy = false;
-let foregroundTask: TaskInfo | null = null;
-let foregroundChildPid: number | null = null;
+// Foreground Lane — concurrent slot-based tracking
+// Multiple DMs from different sources can run in parallel, up to MAX_FOREGROUND_CONCURRENT.
+// Each callClaude(source='foreground') gets a unique fgSlotId for independent busy/task/pid tracking.
+interface ForegroundSlotState {
+  busy: boolean;
+  task: TaskInfo | null;
+  pid: number | null;
+  abortController: AbortController | null;
+  startedAt: number;
+}
+const foregroundSlots = new Map<string, ForegroundSlotState>();
+const MAX_FOREGROUND_CONCURRENT = 8; // safety cap — real limit is API rate + system resources
 
 /** 查詢是否有任何 lane 正在執行 Claude CLI */
 export function isClaudeBusy(): boolean {
-  return loopBusy || foregroundBusy;
+  return loopBusy || [...foregroundSlots.values()].some(s => s.busy);
 }
 
 /** 查詢 loop lane 是否忙碌 */
@@ -196,24 +206,58 @@ export function isLoopBusy(): boolean {
   return loopBusy;
 }
 
-/** 查詢 foreground lane 是否忙碌 */
+/** 查詢 foreground lane 是否全部忙碌（所有 slot 都在用） */
 export function isForegroundBusy(): boolean {
-  return foregroundBusy;
+  return getForegroundActiveCount() >= MAX_FOREGROUND_CONCURRENT;
+}
+
+/** 取得目前活躍的 foreground slot 數量 */
+export function getForegroundActiveCount(): number {
+  return [...foregroundSlots.values()].filter(s => s.busy).length;
+}
+
+/** 取得或建立 foreground slot。回傳 slotId 或 null（已滿） */
+export function acquireForegroundSlot(): string | null {
+  if (getForegroundActiveCount() >= MAX_FOREGROUND_CONCURRENT) return null;
+  const id = `fg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  foregroundSlots.set(id, { busy: false, task: null, pid: null, abortController: null, startedAt: 0 });
+  return id;
+}
+
+/** 釋放 foreground slot */
+export function releaseForegroundSlot(id: string): void {
+  foregroundSlots.delete(id);
 }
 
 /** 查詢目前正在處理的任務 */
 export function getCurrentTask(): { prompt: string; startedAt: string; elapsed: number; toolCalls: number; lastTool: string | null; lastText: string | null } | null {
-  return formatTask(loopTask) ?? formatTask(foregroundTask);
+  const loopResult = formatTask(loopTask);
+  if (loopResult) return loopResult;
+  for (const slot of foregroundSlots.values()) {
+    if (slot.busy && slot.task) {
+      const result = formatTask(slot.task);
+      if (result) return result;
+    }
+  }
+  return null;
 }
 
 /** 查詢所有 lane 狀態 */
 export function getLaneStatus(): {
   loop: { busy: boolean; task: ReturnType<typeof formatTask> };
-  foreground: { busy: boolean; task: ReturnType<typeof formatTask> };
+  foreground: { busy: boolean; activeCount: number; maxConcurrent: number; task: ReturnType<typeof formatTask>; slots: Array<{ id: string; task: ReturnType<typeof formatTask> }> };
 } {
+  const activeSlots = [...foregroundSlots.entries()].filter(([, s]) => s.busy);
+  const firstTask = activeSlots.length > 0 ? formatTask(activeSlots[0][1].task) : null;
   return {
     loop: { busy: loopBusy, task: formatTask(loopTask) },
-    foreground: { busy: foregroundBusy, task: formatTask(foregroundTask) },
+    foreground: {
+      busy: activeSlots.length > 0,
+      activeCount: activeSlots.length,
+      maxConcurrent: MAX_FOREGROUND_CONCURRENT,
+      task: firstTask, // backward compat: first active task
+      slots: activeSlots.map(([id, s]) => ({ id, task: formatTask(s.task) })),
+    },
   };
 }
 
@@ -249,22 +293,37 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
   return { preempted: true, partialOutput: partial };
 }
 
-/** Abort foreground lane — kill running foreground process to make room for new P0 */
-export function abortForeground(): boolean {
-  if (!foregroundBusy || (!foregroundChildPid && !foregroundAbortController)) return false;
-  const pid = foregroundChildPid;
-  if (foregroundAbortController) {
-    foregroundAbortController.abort();
-    foregroundAbortController = null;
+/** Abort a foreground slot — kill running process to make room for new P0.
+ *  If slotId given, abort that specific slot. Otherwise abort the oldest active slot. */
+export function abortForeground(slotId?: string): boolean {
+  let targetId = slotId;
+  if (!targetId) {
+    // Find oldest active slot
+    let oldest: { id: string; startedAt: number } | null = null;
+    for (const [id, s] of foregroundSlots) {
+      if (s.busy && (!oldest || s.startedAt < oldest.startedAt)) {
+        oldest = { id, startedAt: s.startedAt };
+      }
+    }
+    if (!oldest) return false;
+    targetId = oldest.id;
+  }
+
+  const slot = foregroundSlots.get(targetId);
+  if (!slot) return false;
+
+  const pid = slot.pid;
+  if (slot.abortController) {
+    slot.abortController.abort();
   }
   if (pid) {
     try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
     setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 3000);
   }
-  foregroundBusy = false;
-  foregroundTask = null;
-  foregroundChildPid = null;
-  slog('PREEMPT', `Aborted foreground ${pid ? `process (pid: ${pid})` : 'HTTP call'} for incoming P0`);
+
+  // Clean up slot immediately — process close handler will no-op (slot already deleted)
+  foregroundSlots.delete(targetId);
+  slog('PREEMPT', `Aborted foreground slot ${targetId} ${pid ? `(pid: ${pid})` : '(HTTP call)'} for incoming P0`);
   return true;
 }
 
@@ -375,8 +434,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     // Track PID for lane management (preemption support)
     if (source === 'loop') {
       loopChildPid = child.pid ?? null;
-    } else if (source === 'foreground') {
-      foregroundChildPid = child.pid ?? null;
+    } else if (source === 'foreground' && opts?.fgSlotId) {
+      const slot = foregroundSlots.get(opts.fgSlotId);
+      if (slot) slot.pid = child.pid ?? null;
     }
 
     let resultText = '';
@@ -404,7 +464,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
           if (!settled) {
             settled = true;
             if (source === 'loop') loopChildPid = null;
-            else if (source === 'foreground') foregroundChildPid = null;
+            else if (source === 'foreground' && opts?.fgSlotId) foregroundSlots.delete(opts.fgSlotId);
             const duration = Date.now() - startTs;
             slog('CLAUDE', `Force-resolve: close event not received 10s after SIGKILL (pid ${child.pid}), elapsed=${(duration / 1000).toFixed(1)}s`);
             reject(Object.assign(new Error('Claude CLI force-resolved: close event timeout after SIGKILL'), {
@@ -505,8 +565,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       // Clear PID tracking
       if (source === 'loop') {
         loopChildPid = null;
-      } else if (source === 'foreground') {
-        foregroundChildPid = null;
+      } else if (source === 'foreground' && opts?.fgSlotId) {
+        const slot = foregroundSlots.get(opts.fgSlotId);
+        if (slot) slot.pid = null;
       }
 
       // 處理 buffer 中剩餘的不完整行
@@ -554,8 +615,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       clearInterval(progressTimer);
       if (source === 'loop') {
         loopChildPid = null;
-      } else if (source === 'foreground') {
-        foregroundChildPid = null;
+      } else if (source === 'foreground' && opts?.fgSlotId) {
+        const slot = foregroundSlots.get(opts.fgSlotId);
+        if (slot) slot.pid = null;
       }
       reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
@@ -721,7 +783,7 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
 
 // Per-lane abort controllers for HTTP-based providers (local LLM)
 let loopAbortController: AbortController | null = null;
-let foregroundAbortController: AbortController | null = null;
+// foreground abort controllers are now tracked per-slot in foregroundSlots
 const MAX_TOOL_ROUNDS = 10;
 
 // --- Profile types & loader ---
@@ -1073,9 +1135,9 @@ async function execLocal(fullPrompt: string, opts?: ExecOptions): Promise<string
   if (source === 'loop') {
     loopChildPid = null;
     loopAbortController = controller;
-  } else if (source === 'foreground') {
-    foregroundChildPid = null;
-    foregroundAbortController = controller;
+  } else if (source === 'foreground' && opts?.fgSlotId) {
+    const slot = foregroundSlots.get(opts.fgSlotId);
+    if (slot) { slot.pid = null; slot.abortController = controller; }
   }
 
   const url = `${llmUrl}/v1/chat/completions`;
@@ -1125,7 +1187,10 @@ async function execLocal(fullPrompt: string, opts?: ExecOptions): Promise<string
   } finally {
     clearTimeout(timer);
     if (source === 'loop') loopAbortController = null;
-    else if (source === 'foreground') foregroundAbortController = null;
+    else if (source === 'foreground' && opts?.fgSlotId) {
+      const slot = foregroundSlots.get(opts.fgSlotId);
+      if (slot) slot.abortController = null;
+    }
   }
 }
 
@@ -1152,6 +1217,8 @@ export async function callClaude(
     model?: string;
     /** Streaming chat callback — fires as soon as a complete <kuro:chat> tag is detected during generation */
     onStreamChat?: (text: string, reply: boolean) => void;
+    /** Foreground slot ID for concurrent foreground tracking */
+    fgSlotId?: string;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
@@ -1188,20 +1255,39 @@ export async function callClaude(
 
   // Busy helpers — each lane tracks its own busy/task state independently
   // 'ask' source runs in parallel — no busy guard, no state tracking
+  // Foreground uses per-slot tracking via fgSlotId for concurrent support
   const isLoopSource = source === 'loop';
   const isFgSource = source === 'foreground';
+  const fgSlotId = options?.fgSlotId;
   const isBusy = () => {
     if (isLoopSource) return loopBusy;
-    if (isFgSource) return foregroundBusy;
+    if (isFgSource) {
+      // Per-slot check: this specific slot is already busy
+      if (fgSlotId) {
+        const slot = foregroundSlots.get(fgSlotId);
+        return slot?.busy ?? false;
+      }
+      // No slot ID (legacy) — check global capacity
+      return isForegroundBusy();
+    }
     return false; // 'ask' has no busy guard
   };
   const setBusy = (v: boolean) => {
     if (isLoopSource) loopBusy = v;
-    if (isFgSource) foregroundBusy = v;
+    if (isFgSource && fgSlotId) {
+      const slot = foregroundSlots.get(fgSlotId);
+      if (slot) {
+        slot.busy = v;
+        if (v) slot.startedAt = Date.now();
+      }
+    }
   };
   const setTask = (v: TaskInfo | null) => {
     if (isLoopSource) loopTask = v;
-    if (isFgSource) foregroundTask = v;
+    if (isFgSource && fgSlotId) {
+      const slot = foregroundSlots.get(fgSlotId);
+      if (slot) slot.task = v;
+    }
   };
 
   // Busy guard — 防止同一 lane 並發呼叫（only for loop source）
@@ -1239,6 +1325,7 @@ export async function callClaude(
         onPartialOutput: options?.onPartialOutput,
         model: options?.model,
         onStreamChat: options?.onStreamChat,
+        fgSlotId,
       });
 
       const duration = Date.now() - startTime;

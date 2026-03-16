@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground } from './agent.js';
+import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, acquireForegroundSlot, releaseForegroundSlot } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
@@ -191,6 +191,57 @@ function clearForegroundDelegation(taskId: string): void {
 }
 
 // =============================================================================
+// BatchBuffer — per-source message batching for foreground lane
+// =============================================================================
+
+class BatchBuffer {
+  private buffers = new Map<string, {
+    messages: Array<{ text: string; replyTo?: string }>;
+    timer: ReturnType<typeof setTimeout>;
+  }>();
+  private windowMs: number;
+  private onFlush: (source: string, mergedText: string, replyTo?: string) => void;
+
+  constructor(onFlush: (source: string, mergedText: string, replyTo?: string) => void, windowMs = 3000) {
+    this.onFlush = onFlush;
+    this.windowMs = windowMs;
+  }
+
+  /** Add a message to the buffer. Flushes after windowMs of inactivity per source. */
+  add(source: string, text: string, replyTo?: string): void {
+    const existing = this.buffers.get(source);
+    if (existing) {
+      existing.messages.push({ text, replyTo });
+      clearTimeout(existing.timer);
+      existing.timer = setTimeout(() => this.flush(source), this.windowMs);
+      slog('BATCH', `Appended to ${source} buffer (${existing.messages.length} msgs, window reset)`);
+    } else {
+      const timer = setTimeout(() => this.flush(source), this.windowMs);
+      this.buffers.set(source, { messages: [{ text, replyTo }], timer });
+      slog('BATCH', `New buffer for ${source} (${this.windowMs}ms window)`);
+    }
+  }
+
+  private flush(source: string): void {
+    const buffer = this.buffers.get(source);
+    if (!buffer) return;
+    this.buffers.delete(source);
+
+    const mergedText = buffer.messages.map(m => m.text).join('\n');
+    const lastReplyTo = buffer.messages[buffer.messages.length - 1].replyTo;
+    slog('BATCH', `Flushed ${source}: ${buffer.messages.length} msg(s) → ${mergedText.length} chars`);
+    this.onFlush(source, mergedText, lastReplyTo);
+  }
+
+  /** Force-flush all pending buffers (e.g. on shutdown) */
+  flushAll(): void {
+    for (const source of [...this.buffers.keys()]) {
+      this.flush(source);
+    }
+  }
+}
+
+// =============================================================================
 // AgentLoop
 // =============================================================================
 
@@ -240,8 +291,9 @@ export class AgentLoop {
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
 
-  // ── Foreground Reply (parallel response during cycling — replaces quickReply) ──
-  private foregroundReplyRecord: { question: string; answer: string; source: string; ts: string; tagsProcessed?: string[] } | null = null;
+  // ── Foreground Reply (parallel response during cycling — concurrent batch+pool) ──
+  private foregroundReplyRecords: Array<{ question: string; answer: string; source: string; ts: string; tagsProcessed?: string[] }> = [];
+  private batchBuffer: BatchBuffer;
 
   // ── Per-perception change detection (Phase 4) ──
   private lastPerceptionVersion = -1;
@@ -340,12 +392,13 @@ export class AgentLoop {
     now: number,
   ): void {
     // Quick Reply: independent of router priority — any direct message during active
-    // cycle gets a parallel lightweight response without interrupting the cycle
+    // cycle gets a parallel lightweight response without interrupting the cycle.
+    // Messages are batched per-source (3s window) to merge rapid-fire messages.
     if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source)) {
       const text = (agentEvent.data?.text as string) ?? '';
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
       if (text) {
-        this.foregroundReply(event.source, text, roomMsgId).catch(() => {});
+        this.batchBuffer.add(event.source, text, roomMsgId);
       }
     }
 
@@ -411,28 +464,38 @@ export class AgentLoop {
   }
 
   /**
-   * Foreground Reply — independent lane for DM response while a cycle is in progress.
-   * Uses focused context (richer than old quickReply) via callClaude with source='foreground'.
-   * The foreground lane has its own busy tracking in agent.ts, independent of the loop lane.
+   * Foreground Reply — direct call (used by mushi quick cycle and legacy callers).
+   * For DM messages, prefer batchBuffer.add() which merges rapid-fire messages.
    */
   private async foregroundReply(source: string, text: string, replyTo?: string, opts?: { quiet?: boolean }): Promise<void> {
-    if (isForegroundBusy()) {
-      // Abort stale foreground if it's been running > 30s — make room for new P0
+    return this.executeForegroundCall(source, text, replyTo, opts);
+  }
+
+  /**
+   * Execute a foreground call — acquires a slot from the concurrent pool, builds context,
+   * calls Claude, processes tags, and releases the slot. Multiple calls from different
+   * sources can run in parallel (up to MAX_FOREGROUND_CONCURRENT in agent.ts).
+   * BatchBuffer flushes into this method after merging rapid-fire messages.
+   */
+  private async executeForegroundCall(source: string, text: string, replyTo?: string, opts?: { quiet?: boolean }): Promise<void> {
+    // Acquire a foreground slot from the concurrent pool
+    let slotId = acquireForegroundSlot();
+    if (!slotId) {
+      // Pool full — abort oldest to make room for new P0
+      slog('LOOP', `[foreground] Pool full, aborting oldest slot for ${source}`);
       abortForeground();
-      // Small delay for process cleanup
       await new Promise(r => setTimeout(r, 500));
+      slotId = acquireForegroundSlot();
+      if (!slotId) {
+        slog('ERROR', `[foreground] Failed to acquire slot after abort — dropping to OODA`);
+        return; // Message stays in inbox, next OODA cycle picks it up
+      }
     }
 
     // Snapshot pending telegram messages for content-based reply matching
     const telegramMsgs = snapshotTelegramMsgs();
 
-    // All direct messages (telegram, room, chat) → always SIMPLE.
-    // Alex's messages are highest priority — Claude answers directly, never delegated.
-    // 0.8B classification removed: the "fast ack + background delegation" path gave
-    // a useless generic reply while the real answer took minutes. SIMPLE gives a real
-    // answer in 15-30s via focused Claude context.
-    const complexity: 'SIMPLE' | 'COMPLEX' = 'SIMPLE';
-    slog('LOOP', `[foreground] SIMPLE (direct message from ${source}: ${text.slice(0, 60)})`);
+    slog('LOOP', `[foreground] slot=${slotId} (direct message from ${source}: ${text.slice(0, 60)})`);
 
     try {
       const memory = getMemory();
@@ -491,10 +554,10 @@ export class AgentLoop {
           notifyTelegram(chatText, matchReplyTarget(chatText, telegramMsgs) ?? undefined).catch(() => {});
         }
         writeRoomMessage('kuro', chatText, replyTo).catch(() => {});
-        slog('STREAM', `[foreground] Chat streamed: ${chatText.slice(0, 80)}`);
+        slog('STREAM', `[foreground:${slotId}] Chat streamed: ${chatText.slice(0, 80)}`);
       };
 
-      const { response } = await callClaude(text, context, 1, { source: 'foreground', onStreamChat });
+      const { response } = await callClaude(text, context, 1, { source: 'foreground', onStreamChat, fgSlotId: slotId });
 
       // Process all tags via unified postProcess (remember, delegate, inner, etc.)
       // Suppress chat sending — already streamed above via onStreamChat
@@ -522,8 +585,8 @@ export class AgentLoop {
         clearLastReaction();
       }
 
-      // Record for next cycle awareness
-      this.foregroundReplyRecord = { question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed };
+      // Record for next cycle awareness (supports multiple concurrent foreground replies)
+      this.foregroundReplyRecords.push({ question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed });
 
       // Mark inbox items as processed — prevents main cycle from re-responding to same message
       try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
@@ -531,7 +594,7 @@ export class AgentLoop {
       // Update lastAction so /status reflects foreground activity (visibility fix)
       this.lastAction = `[Foreground] Replied to ${source}: ${answer.slice(0, 100)}`;
 
-      slog('LOOP', `[foreground-reply] Replied to ${source} (${answer.length} chars) while cycle in progress`);
+      slog('LOOP', `[foreground:${slotId}] Replied to ${source} (${answer.length} chars)`);
       eventBus.emit('action:loop', { event: 'foreground-reply', source, answerLength: answer.length });
       writeActivity({
         lane: 'foreground',
@@ -540,7 +603,10 @@ export class AgentLoop {
         tags: result.tagsProcessed,
       });
     } catch (err) {
-      slog('ERROR', `[foreground-reply] Failed: ${err instanceof Error ? err.message : err}`);
+      slog('ERROR', `[foreground:${slotId}] Failed: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      // Always release the slot, even on error
+      releaseForegroundSlot(slotId);
     }
   }
 
@@ -567,12 +633,13 @@ export class AgentLoop {
     }
 
     // DM routing — all external messages always go to foreground lane (fast, focused response)
-    // OODA cycles are reserved for autonomous deep thinking, not message replies
+    // OODA cycles are reserved for autonomous deep thinking, not message replies.
+    // Messages are batched per-source (3s window) to merge rapid-fire messages.
     const messageText = (agentEvent.data?.text as string) ?? '';
     if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
-      slog('LOOP', `[dm-route] ${event.source} → foreground`);
-      this.foregroundReply(event.source, messageText, roomMsgId).catch(() => {});
+      slog('LOOP', `[dm-route] ${event.source} → batch buffer`);
+      this.batchBuffer.add(event.source, messageText, roomMsgId);
       return;
     }
 
@@ -611,6 +678,11 @@ export class AgentLoop {
   constructor(config: Partial<AgentLoopConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.currentInterval = this.config.intervalMs;
+    // BatchBuffer: merge rapid-fire DMs from same source into one foreground call
+    this.batchBuffer = new BatchBuffer(
+      (source, mergedText, replyTo) => this.executeForegroundCall(source, mergedText, replyTo).catch(() => {}),
+      3000, // 3s window
+    );
   }
 
 
@@ -1259,14 +1331,16 @@ export class AgentLoop {
         : '';
       this.interruptedCycleInfo = null; // one-shot: 用完即清
 
-      // Foreground Reply record: if a parallel reply was sent during the previous cycle
-      const fgTagInfo = this.foregroundReplyRecord?.tagsProcessed?.length
-        ? ` Tags processed: [${this.foregroundReplyRecord.tagsProcessed.join(', ')}].`
-        : '';
-      const foregroundReplySuffix = this.foregroundReplyRecord
-        ? `\n\nDuring your previous cycle, a ${this.foregroundReplyRecord.source} message arrived and was answered via foreground lane (parallel, independent). Question: "${this.foregroundReplyRecord.question.slice(0, 200)}" → Your foreground answer: "${this.foregroundReplyRecord.answer.slice(0, 200)}".${fgTagInfo} Only follow up if you have something substantive to add.`
-        : '';
-      this.foregroundReplyRecord = null; // one-shot
+      // Foreground Reply records: parallel replies sent during the previous cycle (supports concurrent)
+      let foregroundReplySuffix = '';
+      if (this.foregroundReplyRecords.length > 0) {
+        const fgLines = this.foregroundReplyRecords.map(r => {
+          const tagInfo = r.tagsProcessed?.length ? ` Tags: [${r.tagsProcessed.join(', ')}].` : '';
+          return `- ${r.source}: "${r.question.slice(0, 150)}" → "${r.answer.slice(0, 150)}"${tagInfo}`;
+        }).join('\n');
+        foregroundReplySuffix = `\n\nDuring your previous cycle, ${this.foregroundReplyRecords.length} message(s) were answered via foreground lane (parallel, independent):\n${fgLines}\nOnly follow up if you have something substantive to add.`;
+        this.foregroundReplyRecords = []; // one-shot: drain all
+      }
 
       // Rule-based triage from unified inbox（零 LLM 成本）
       // Re-use inboxItemsEarly — already read above for inbox-recovery check

@@ -521,7 +521,9 @@ export function createApi(port = 3001): express.Express {
           ];
 
           if (laneStatus.foreground.busy) {
-            parts.push(`Foreground: busy (${laneStatus.foreground.task?.prompt?.slice(0, 60) || 'unknown'})`);
+            const fgCount = laneStatus.foreground.activeCount;
+            const fgTask = laneStatus.foreground.task?.prompt?.slice(0, 60) || 'unknown';
+            parts.push(`Foreground: ${fgCount} active (${fgTask})`);
           }
 
           const recentReply = getRecentAgentReply(nameLower);
@@ -576,7 +578,7 @@ export function createApi(port = 3001): express.Express {
           }
           if (/status|狀態|health/i.test(prompt)) {
             const laneStatus = getLaneStatus();
-            parts.push(`[Lanes] loop=${laneStatus.loop.busy ? 'busy' : 'idle'}, fg=${laneStatus.foreground.busy ? 'busy' : 'idle'}`);
+            parts.push(`[Lanes] loop=${laneStatus.loop.busy ? 'busy' : 'idle'}, fg=${laneStatus.foreground.activeCount}/${laneStatus.foreground.maxConcurrent}`);
           }
 
           const context = parts.join('\n');
