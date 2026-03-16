@@ -6,14 +6,15 @@
 
 ## Now（正在做）
 
-- [ ] P1: HN 文章方向重新思考 — Alex 指出目前角度太 niche，需要找更普遍的痛點
-  Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
+（無 — 主要任務 HOLD/BLOCKED，等 Alex 回應）
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
+- [ ] P1: HN 文章草稿 — 三輪研究完成，方向確定（"Your LLM is deciding wrong"），需要寫實際草稿
+  Verify: `ls kuro-portfolio/content/draft-show-hn-mushi-kit.md 2>/dev/null && echo exists`
+- [ ] P2: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
   Verify: `grep -c 'devto' plugins/*.sh`
 
 ---
@@ -34,6 +35,8 @@
 - [x] GitHub repo — https://github.com/miles990/myelin（公開）
 - [x] Dev.to "The Rule Layer Ate My LLM" 發布（2026-03-15）
 - [x] 工作區清理 — mini-agent + myelin 兩個 repo 全部 committed（2026-03-16）
+- [x] Crystallization 深度研究 — #084 完成，30+ 來源，結構化報告交付（2026-03-16）
+- [x] HN 文章方向研究 — 三輪完成，新角度 "Your LLM is deciding wrong"（2026-03-16）
 
 ---
 
