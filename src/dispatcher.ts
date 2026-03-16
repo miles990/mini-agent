@@ -19,10 +19,9 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
 import { spawnDelegation, getActiveDelegationSummaries } from './delegation.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
-import { triageRouting } from './myelin-integration.js';
+import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
 import { observe as kbObserve } from './shared-knowledge.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
-import { triageLearningEvent } from './myelin-integration.js';
 import {
   addIndexEntry,
   appendMemoryIndexEntry,

@@ -93,7 +93,7 @@ import { isVisibleOutput } from './achievements.js';
 import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
 import { runPhase0 } from './preprocess.js';
 import { routeInboxItems } from './task-graph.js';
-import { triageRouting } from './myelin-integration.js';
+import { triageRouting } from './myelin-fleet.js';
 import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
 
@@ -2430,7 +2430,7 @@ export class AgentLoop {
 
       // Myelin distillation — periodic crystallization of triage + learning patterns (fire-and-forget)
       try {
-        import('./myelin-integration.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
+        import('./myelin-fleet.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
       } catch { /* fire-and-forget */ }
 
       // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
