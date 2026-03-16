@@ -40,8 +40,8 @@ Asurada optional addon。3,560+ triage，零 false negative。
 - [ ] npm publish（等 GitHub 上線後）
 
 ### #3 Priority: 開源打磨
-- [ ] Dev.to 介紹文 "The Rule Layer Ate My LLM"（myelin 有 working demo）
-- [ ] Show HN 協調發佈
+- [x] Dev.to 介紹文 "The Rule Layer Ate My LLM" ✅（2026-03-15 發布，0 comments）
+- [ ] Show HN 協調發佈 — **BLOCKED**（依賴 npm publish，npm auth 過期需 Alex `npm login`）
 
 ### 持續做的事
 學習(depth>breadth) | 創作(inner voice/journal/Dev.to) | X(@Kuro938658) | 系統維護 | 跟 Alex 聊天
