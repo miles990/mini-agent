@@ -326,12 +326,16 @@ export async function createTask(
     verify?: VerifyResult[];
     origin?: string;
     priority?: number;
+    assignee?: string;
+    blockedBy?: string[];
   },
 ): Promise<MemoryIndexEntry> {
   const payload: Record<string, unknown> = {};
   if (input.verify) payload.verify = input.verify;
   if (input.origin) payload.origin = input.origin;
   if (input.priority !== undefined) payload.priority = input.priority;
+  if (input.assignee) payload.assignee = input.assignee;
+  if (input.blockedBy?.length) payload.blockedBy = input.blockedBy;
 
   return appendMemoryIndexEntry(memoryDir, {
     type: input.type ?? 'task',
@@ -352,6 +356,8 @@ export async function updateTask(
     staleWarning?: string;
     origin?: string;
     priority?: number;
+    assignee?: string;
+    blockedBy?: string[];
   },
 ): Promise<MemoryIndexEntry | null> {
   const normalId = normalizeId(id);
@@ -364,6 +370,8 @@ export async function updateTask(
   if (patch.verify !== undefined) newPayload.verify = patch.verify;
   if (patch.origin !== undefined) newPayload.origin = patch.origin;
   if (patch.priority !== undefined) newPayload.priority = patch.priority;
+  if (patch.assignee !== undefined) newPayload.assignee = patch.assignee;
+  if (patch.blockedBy !== undefined) newPayload.blockedBy = patch.blockedBy;
   if (patch.staleWarning !== undefined) {
     newPayload.staleWarning = patch.staleWarning;
   } else if ('staleWarning' in patch) {
