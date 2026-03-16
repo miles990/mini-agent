@@ -33,7 +33,9 @@ export type AgentEventType =
   | 'log:behavior'
   | 'notification:signal'
   | 'notification:summary'
-  | 'notification:heartbeat';
+  | 'notification:heartbeat'
+  // Knowledge Bus
+  | 'kb:observe';
 
 export interface AgentEvent {
   type: AgentEventType;

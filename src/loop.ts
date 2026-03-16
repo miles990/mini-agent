@@ -94,6 +94,7 @@ import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLoc
 import { runPhase0 } from './preprocess.js';
 import { routeInboxItems } from './task-graph.js';
 import { triageRouting } from './myelin-integration.js';
+import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
 
 // =============================================================================
@@ -752,6 +753,9 @@ export class AgentLoop {
     this.running = true;
     this.paused = false;
 
+    // Initialize Shared Knowledge Bus
+    try { initSharedKnowledge(getInstanceDir(getCurrentInstanceId())); } catch { /* best effort */ }
+
     // Phase 1c: Recover interrupted cycle on startup
     const stale = loadStaleCheckpoint();
     if (stale) {
@@ -836,6 +840,17 @@ export class AgentLoop {
           }).catch(() => {}); // fire-and-forget
         }
       }
+
+      // KB: observe delegation completion (fire-and-forget)
+      try {
+        kbObserve({
+          source: 'delegation', type: 'outcome',
+          data: { taskId, delegationType: delegationType ?? 'unknown' },
+          outcome: (event?.data?.status as string) === 'completed' ? 'success' : 'fail',
+          durationMs: event?.data?.durationMs as number | undefined,
+          tags: [delegationType ?? 'code'],
+        });
+      } catch { /* fire-and-forget */ }
 
       // Buffer the completion — DelegationBatchBuffer handles the 10s sliding window
       // and triggers a single cycle when the window expires
@@ -1040,6 +1055,7 @@ export class AgentLoop {
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
         // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
+        try { kbObserve({ source: 'mushi', type: 'skip', data: { trigger: triageSource, reason: 'hard-rule: no-perception-change + idle' }, tags: [triageSource] }); } catch { /* fire-and-forget */ }
         writeTrailEntry({
           ts: new Date().toISOString(),
           agent: 'mushi',
@@ -1071,6 +1087,7 @@ export class AgentLoop {
         const decision = await mushiTriage(triageSource, { source: reason, detail: reason }, triageCtx, this.triggerMessageText ?? undefined);
         if (decision === 'skip') {
           slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
+          try { kbObserve({ source: 'mushi', type: 'skip', data: { trigger: triageSource, reason: 'mushi-triage' }, tags: [triageSource] }); } catch { /* fire-and-forget */ }
           // Trail: skip = scouting, not discarding. Record what was seen.
           writeTrailEntry({
             ts: new Date().toISOString(),
@@ -1383,6 +1400,12 @@ export class AgentLoop {
 
       // Mesh outputs from Specialist instances (Cognitive Mesh Phase 3b)
       const meshSection = isEnabled('cognitive-mesh') ? buildMeshCompletedSection() : '';
+
+      // Knowledge Bus summary — inject real-time cross-component patterns (fire-and-forget)
+      try {
+        const kbSummary = getKnowledgeSummary();
+        if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
+      } catch { /* best effort */ }
 
       const hasAlerts = context.includes('ALERT:');
       if (hasAlerts) {
@@ -1954,6 +1977,7 @@ export class AgentLoop {
         const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
         slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
         eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+        try { kbObserve({ source: 'delegation', type: 'spawn', data: { taskId, taskType, workdir: del.workdir }, tags: [taskType] }); } catch { /* fire-and-forget */ }
         cycleSideEffects.push(`delegate:${taskType}:${del.workdir}`);
         cycleTagsProcessed.push('DELEGATE');
       }
@@ -2333,6 +2357,17 @@ export class AgentLoop {
           duration,
         );
         recordCycleRoute(route);
+      } catch { /* fire-and-forget */ }
+
+      // KB: observe OODA cycle outcome (fire-and-forget)
+      try {
+        kbObserve({
+          source: 'ooda', type: 'outcome',
+          data: { cycleCount: this.cycleCount, trigger: currentTriggerReason, model: modelRoute.model, tagsProcessed: cycleTagsProcessed },
+          outcome: 'success',
+          durationMs: duration,
+          tags: cycleTagsProcessed,
+        });
       } catch { /* fire-and-forget */ }
 
       // Nutrient tracking — measure delegation result absorption (fire-and-forget)

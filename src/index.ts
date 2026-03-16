@@ -117,6 +117,14 @@ export {
 } from './consensus.js';
 export type { DecisionEntry, ExclusiveOperation } from './consensus.js';
 
+// Shared Knowledge Bus
+export {
+  initSharedKnowledge, observe as kbObserve, query as kbQuery,
+  stats as kbStats, patterns as kbPatterns,
+  getKnowledgeSummary, getKBStatus,
+} from './shared-knowledge.js';
+export type { KBEvent, KBFilter, KBStats, KBPattern, KBSource, KBEventType } from './shared-knowledge.js';
+
 // Config
 export {
   getConfig,

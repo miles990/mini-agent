@@ -20,6 +20,7 @@ import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, Delegati
 import { spawnDelegation } from './delegation.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting } from './myelin-integration.js';
+import { observe as kbObserve } from './shared-knowledge.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { triageLearningEvent } from './myelin-integration.js';
 import {
@@ -867,6 +868,7 @@ export async function postProcess(
 
         // Feed routing decision to myelin for crystallization (fire-and-forget)
         triageRouting({ type: 'route', taskType, prompt: node.prompt.slice(0, 300) }).catch(() => {});
+        try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, wave: wave.wave, lane: 'background' }, tags: [taskType, `wave-${wave.wave}`] }); } catch { /* fire-and-forget */ }
       }
     }
   } else {
@@ -895,6 +897,7 @@ export async function postProcess(
       const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
       slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
       eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+      try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, lane: 'background' }, tags: [taskType] }); } catch { /* fire-and-forget */ }
     }
   }
 
