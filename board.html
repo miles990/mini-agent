@@ -392,16 +392,18 @@ function hdrs(){const h={'Content-Type':'application/json'};if(config.key)h['x-a
 async function fetchTasks(){const r=await fetch(config.url+'/api/task-queue',{headers:hdrs()});if(!r.ok)throw new Error(r.status);const d=await r.json();tasks=d.tasks||[];updateLastUpdated();render()}
 function connectSSE(){
   if(eventSource)eventSource.close();if(sseRetryTimer){clearTimeout(sseRetryTimer);sseRetryTimer=null}
-  eventSource=new EventSource(config.url+'/api/events');
+  eventSource=new EventSource(config.url+'/api/events'+(config.key?'?key='+encodeURIComponent(config.key):''));
   eventSource.onopen=()=>{setConn('ok');sseRetryDelay=1000};
-  eventSource.onerror=()=>{setConn('error');eventSource.close();sseRetryTimer=setTimeout(()=>{sseRetryDelay=Math.min(sseRetryDelay*1.5,30000);connectSSE();fetchTasks()},sseRetryDelay)};
+  eventSource.onerror=()=>{setConn('error');eventSource.close();sseRetryTimer=setTimeout(()=>{sseRetryDelay=Math.min(sseRetryDelay*1.5,15000);connectSSE();fetchTasks()},sseRetryDelay)};
   eventSource.onmessage=ev=>{try{const p=JSON.parse(ev.data);if(p.type==='action:task')handleTaskEvent(p)}catch{}};
 }
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&config.url){fetchTasks().catch(()=>{});if(eventSource&&eventSource.readyState===2)connectSSE()}});
+setInterval(()=>{if(config.url)fetchTasks().catch(()=>{})},15000);
 function handleTaskEvent(payload){
   const{data}=payload;if(!data)return;const content=data.content||'',entry=data.entry;
   const origin=entry?.payload?.origin||entry?.source||'agent',isHuman=origin==='task-board'||origin==='human';
   if(content.startsWith('deleted:')){tasks=tasks.filter(t=>t.id!==content.replace('deleted:',''));addActivity(isHuman?'human':'agent','Deleted task');updateLastUpdated();render();return}
-  if(!entry)return;const idx=tasks.findIndex(t=>t.id===entry.id);
+  if(!entry){if(config.url)fetchTasks().catch(()=>{});return}const idx=tasks.findIndex(t=>t.id===entry.id);
   if(idx>=0){const old=tasks[idx].status;tasks[idx]=entry;addActivity(isHuman?'human':'agent',old!==entry.status?'Moved "'+trunc(entry.summary,35)+'" \u2192 '+statusLabel(entry.status):'Updated "'+trunc(entry.summary,35)+'"')}
   else{tasks.push(entry);addActivity(isHuman?'human':'agent','Created "'+trunc(entry.summary,35)+'"')}
   updateLastUpdated();render();
