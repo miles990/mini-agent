@@ -933,7 +933,7 @@ export function createApi(port = 3001): express.Express {
       autoDetectThread(message, 'chat:claude-code').catch(() => {});
 
       // Emit trigger:chat to wake idle AgentLoop immediately
-      eventBus.emit('trigger:chat', { source: 'chat-api', messageCount: 1 });
+      emitChatTrigger({ source: 'chat-api', messageCount: 1 });
 
       slog('CHAT', `→ [inbox] message queued for OODA cycle`);
       res.status(202).json({
@@ -2277,8 +2277,26 @@ export function createApi(port = 3001): express.Express {
   // Team Chat Room
   // =============================================================================
 
-  // Room triggers — emit immediately (DMs go to foreground lane, no need to debounce)
-  const emitRoomTrigger = (data: Record<string, unknown>) => eventBus.emit('trigger:room', data);
+  // Room/chat triggers — best-effort emit so API path never fails on event layer issues
+  const emitRoomTrigger = (data: Record<string, unknown>): void => {
+    try {
+      if (eventBus && typeof eventBus.emit === 'function') {
+        eventBus.emit('trigger:room', data);
+      }
+    } catch (error) {
+      slog('EVENT', `trigger:room emit failed: ${error instanceof Error ? error.message : error}`);
+    }
+  };
+
+  const emitChatTrigger = (data: Record<string, unknown>): void => {
+    try {
+      if (eventBus && typeof eventBus.emit === 'function') {
+        eventBus.emit('trigger:chat', data);
+      }
+    } catch (error) {
+      slog('EVENT', `trigger:chat emit failed: ${error instanceof Error ? error.message : error}`);
+    }
+  };
 
   // Serve chat-room.html
   app.get('/chat-ui', (_req: Request, res: Response) => {
@@ -2352,7 +2370,6 @@ export function createApi(port = 3001): express.Express {
         content = content.replace('## Pending\n', `## Pending\n${inboxEntry}\n`);
         await fsPromises.writeFile(inboxPath, content, 'utf-8');
 
-        emitRoomTrigger({ source: 'room-api', from, text, roomMsgId: id });
       }
 
       // Dual-write to unified inbox
@@ -2367,6 +2384,9 @@ export function createApi(port = 3001): express.Express {
             ...(mentions.length > 0 ? { mentions: mentions.join(',') } : {}),
           },
         });
+
+        // Wake idle loop immediately after room message persistence
+        emitRoomTrigger({ source: 'room-api', from, text, roomMsgId: id });
       }
 
       // Auto-detect conversation threads (Alex + Claude Code messages) — fire-and-forget
