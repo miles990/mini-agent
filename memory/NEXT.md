@@ -6,7 +6,10 @@
 
 ## Now（正在做）
 
-（開放狀態 — 「證明 mushi 價值」目標已完成，等 Alex 新方向或自主探索）
+- [ ] P0: Myelin 修復收尾 — fg-17737 處理中，完成後 commit + push
+  Verify: `cd ~/Workspace/mini-agent && git diff --stat HEAD`
+- [ ] P1: Teaching Monster 競賽準備 — 深入研究規則、設計架構、開發部署
+  Verify: `ls ~/Workspace/mini-agent/memory/proposals/2026-03-17-teaching-monster*.md 2>/dev/null`
 
 ---
 
