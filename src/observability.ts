@@ -15,6 +15,7 @@ import { slog } from './utils.js';
 import { getLogger } from './logging.js';
 import { notify, notifyTelegram, getLastAlexMessageId } from './telegram.js';
 import { recordReply } from './reply-context.js';
+import type { MessageContext } from './preprocessor.js';
 
 // =============================================================================
 // sendChat — 統一的 chat 發送閘門（dedup + Telegram + Room + record）
@@ -254,7 +255,7 @@ let roomMsgCounter = 0;
 // First reply goes through threaded, subsequent replies become standalone messages
 const kuroRepliedTo = new Map<string, number>();
 
-export async function writeRoomMessage(from: string, text: string, replyTo?: string): Promise<string> {
+export async function writeRoomMessage(from: string, text: string, replyTo?: string, context?: MessageContext): Promise<string> {
   // Dedup: if kuro already replied to this replyTo target, drop threading
   if (from === 'kuro' && replyTo) {
     if (kuroRepliedTo.has(replyTo)) {
@@ -298,6 +299,11 @@ export async function writeRoomMessage(from: string, text: string, replyTo?: str
 
   const entry: Record<string, unknown> = { id, from, text, ts: now.toISOString(), mentions };
   if (replyTo) entry.replyTo = replyTo;
+  if (context) {
+    // Fix task origins with real ID (preprocessor used temp ID)
+    for (const t of context.tasks) t.origin = `room:${id}`;
+    entry.context = context;
+  }
 
   await fsPromises.appendFile(convPath, JSON.stringify(entry) + '\n');
 
