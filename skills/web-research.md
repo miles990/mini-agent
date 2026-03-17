@@ -2,7 +2,48 @@
 JIT Keywords: research, search, url, fetch, curl, cdp, cdp-fetch, browse, hacker, web research
 JIT Modes: learn
 
-你有多種方式存取網路。**根據實際情境判斷用什麼，不要照固定順序。**
+你有多種方式存取網路。**先查站點記憶，再按決策樹選工具，最後記錄結果。**
+
+## Web Access 決策樹
+
+碰到任何 URL 或網站需求時，按此順序判斷：
+
+```
+1. 查 cdp.jsonl 有沒有這個 domain 的記錄？
+   有 → 直接用記錄的 strategy
+   沒有 ↓
+
+2. 這個站有 REST API 嗎？
+   有 → API First（curl + API endpoint）
+   沒有 ↓
+
+3. 只需要讀取內容？
+   是 → curl -sL → 失敗 → cdp-fetch fetch（JS 渲染）→ 失敗 → cdp-fetch login（需登入）
+   否（需要互動）↓
+
+4. 互動類型？
+   簡單表單（非 SPA）→ cdp-fetch interact
+   React/SPA/複雜 UI → 放棄 CDP 互動，用 API 或通知 Alex 人工處理
+
+5. 記錄結果到 cdp.jsonl（見下方格式）
+```
+
+**關鍵原則**：CDP 做讀取很穩定，做互動是痛點。React controlled components 不要用 CDP interact（DOM 賦值不觸發 onChange）。
+
+## 站點記憶（cdp.jsonl）
+
+路徑：`memory/state/cdp.jsonl`（每行一條 JSON）
+
+```jsonl
+{"domain":"dev.to","strategy":"api","endpoint":"POST /api/articles","verified":"2026-03-17","notes":"有完整 REST API"}
+{"domain":"facebook.com","strategy":"cdp-fetch","mode":"fetch","verified":"2026-03-15","notes":"需 Chrome session，只讀"}
+{"domain":"teaching.monster","strategy":"cdp-interact","verified":"2026-03-17","notes":"無 API，表單互動，521 是伺服器問題"}
+```
+
+**使用方式**：
+- 碰到新站點 → `grep "domain" memory/state/cdp.jsonl`
+- 找到 → 直接用 strategy
+- 沒找到 → 按決策樹嘗試 → 成功後追加一行到 cdp.jsonl
 
 ## 你有什麼工具
 
@@ -17,9 +58,11 @@ JIT Modes: learn
 
 ## 怎麼選
 
-**自己判斷**。看 URL、看你對這個網站的經驗、看 Chrome CDP 是否可用（`curl -s http://localhost:9222/json/version`）。
+**先查站點記憶（cdp.jsonl），再按決策樹，最後看下面的情境提示。**
 
-常見情境（參考，不是規則）：
+Chrome CDP 健康確認：`curl -s http://localhost:9222/json/version`
+
+常見情境（決策樹的補充，不取代）：
 - **想找某個主題的文章/來源** → `search-web.sh`（多引擎聚合，比 curl 猜 URL 更有效率）
 - X/Twitter 連結 → Grok API 效果最好（能讀 replies、engagement、展開引用），CDP 作為 fallback
 - Facebook、Reddit 等社群 → cdp-fetch.mjs（Chrome profile 已有登入 session）
@@ -78,9 +121,20 @@ node scripts/cdp-fetch.mjs login "URL"          # 切換可見模式登入
 2. 還是抓不到 → 直接問 Alex：「那篇貼文我看不到，在講什麼？」
 3. ❌ 不要去訪問 `{page}` 對應的網站來推測內容
 
+## 結果回饋
+
+每次存取新站點後，記錄到 `memory/state/cdp.jsonl`：
+```bash
+echo '{"domain":"example.com","strategy":"curl","verified":"2026-03-17","notes":"靜態頁面，curl 夠用"}' >> memory/state/cdp.jsonl
+```
+
+記錄內容：domain、strategy（api/curl/cdp-fetch/cdp-interact/grok）、verified 日期、notes（失敗原因或成功要點）。
+失敗也要記：`{"domain":"x.com","strategy":"cdp-fetch","verified":"2026-03-17","notes":"FAIL: Cloudflare block，改用 Grok API"}`
+
 ## 原則
 
 - **不要假裝可以存取或編造內容**
 - **先自己嘗試修復，再找用戶**
 - **不要嘗試繞過認證機制**
+- **每次新站點存取後記錄到 cdp.jsonl**
 - 大型頁面預設擷取前 8000 字元（`--full` 取消限制）

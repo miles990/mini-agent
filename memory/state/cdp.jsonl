@@ -1,0 +1,7 @@
+{"domain":"dev.to","strategy":"api","endpoint":"POST /api/articles","verified":"2026-03-17","notes":"有完整 REST API，不要用 CDP 操作 React 編輯器"}
+{"domain":"facebook.com","strategy":"cdp-fetch","mode":"fetch","verified":"2026-03-17","notes":"需 Chrome session，只讀取貼文內容"}
+{"domain":"x.com","strategy":"grok","verified":"2026-03-17","notes":"Grok API 原生 X 搜索，能讀 replies/engagement/影片"}
+{"domain":"github.com","strategy":"curl","verified":"2026-03-17","notes":"公開頁面 curl 夠用，gh CLI 做操作"}
+{"domain":"news.ycombinator.com","strategy":"curl","verified":"2026-03-17","notes":"靜態 HTML，curl 直讀"}
+{"domain":"teaching.monster","strategy":"cdp-interact","verified":"2026-03-17","notes":"無 API，表單互動。521 是伺服器問題不是 CDP 問題"}
+{"domain":"arxiv.org","strategy":"curl","verified":"2026-03-17","notes":"curl 讀摘要，PDF 用 cdp-fetch"}
