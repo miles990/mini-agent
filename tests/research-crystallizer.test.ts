@@ -12,6 +12,7 @@ import {
   recordResearchObservation,
   distillResearchMethodology,
   getCurrentMethodology,
+  _resetMethodologyForTest,
 } from '../src/research-crystallizer.js';
 
 import {
@@ -186,6 +187,18 @@ describe('processResearchResult', () => {
 });
 
 describe('getMethodologySummary', () => {
+  const realPath = './memory/research-methodology.json';
+  const backupPath = './memory/research-methodology.json.test-bak';
+
+  beforeEach(() => {
+    _resetMethodologyForTest();
+    try { fs.renameSync(realPath, backupPath); } catch {}
+  });
+
+  afterEach(() => {
+    try { fs.renameSync(backupPath, realPath); } catch {}
+  });
+
   it('returns message when no methodology exists', () => {
     const summary = getMethodologySummary();
     expect(summary).toContain('No research methodology');

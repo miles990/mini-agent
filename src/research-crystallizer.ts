@@ -71,6 +71,9 @@ export interface ResearchMethodology {
 const METHODOLOGY_PATH = './memory/research-methodology.json';
 let _lastMethodology: Methodology | undefined;
 
+/** @internal Test-only: reset in-memory methodology state */
+export function _resetMethodologyForTest(): void { _lastMethodology = undefined; }
+
 /** Get the research crystallizer instance from the Fleet. */
 export function getResearchCrystallizer(): Myelin<string> {
   return getResearchInstance();
