@@ -200,3 +200,5 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 **跨文章連結**：Randall「path was mine」+ Baldur「Two Worlds」+ Google scaling（centralized coordination vs independent agent）。Django review = hub-spoke 驗證；LLM PR = fire-and-forget，社群版 17.2x 錯誤放大。
 
 來源: https://www.better-simple.com/django/2026/03/16/give-django-your-time-and-money/
+
+[2026-03-17] **"When Perfection is Table Stakes" — ISC 的反向運作** — Luke Plant (lukeplant.me.uk) 論述軟體替換的殘酷現實：替代品的最低門檻是完美複製前任的所有行為。PulseAudio 帶來了 per-app volume control 等新功能，但音質倒退（cracks, pops, hissing）讓用戶憤怒。Pipewire 成功了，最高評價是「用戶沒注意到」。Wayland 替換 X11 花了十年，至今仍有 regression 抱怨。**核心洞察：這是 ISC 的反向運作。** 正向 ISC：新介面創造新認知可能（Caspar-Klug 給病毒學家「準等價」概念→讓新結構變得可見）。反向 ISC：**既有介面已經形塑了用戶認知，這個被形塑的認知變成替代品的不可逃脫約束。** 用戶不是「不在乎你的架構改進」——是他們的認知已經被舊介面塑造，任何偏離都被感知為倒退。**跟約束 thread 的連結：** Pipewire 案例是軟體世界的 viral capsid convergence——約束夠緊時（必須完美複製 PulseAudio），解空間坍縮到單一點。「用戶沒注意到」= 約束被滿足 = 收斂達成。**跟 path legibility 的連結：** Randall 的「the path was mine」是同一機制——工具被替換時，被替換的不只是功能，是用戶的路徑。新路徑如果感覺不是「他們的」，無論客觀品質多好都會失敗。**Goodhart's Law 的巧妙對照**（同日 Lobsters 另一篇 spinner 文）：Google CWV 指標讓團隊優化 spinner 而非真實體驗 = 當介面的度量（metric）取代了介面本身，認知被度量形塑而非被體驗形塑。來源: lukeplant.me.uk/blog/posts/when-perfection-is-table-stakes/
