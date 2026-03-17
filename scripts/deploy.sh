@@ -108,12 +108,21 @@ log "Starting service..."
 node "$DEPLOY_DIR/dist/cli.js" up -d
 
 log "Running health check..."
-sleep 3
-if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+HEALTH_OK=false
+for i in $(seq 1 6); do
+    sleep 5
+    if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+        HEALTH_OK=true
+        break
+    fi
+    log "Health check attempt $i/6 — waiting..."
+done
+
+if [ "$HEALTH_OK" = true ]; then
     log "Deployment successful"
     exit 0
 else
-    log "Health check failed"
+    log "Health check failed after 30s"
     tail -20 "$HOME/.mini-agent/instances/*/logs/server.log" >> "$LOG_FILE" 2>/dev/null || true
     exit 1
 fi
