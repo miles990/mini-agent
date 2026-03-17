@@ -1,7 +1,7 @@
 # Teaching Monster — 競爭情報（Pinned）
 
 > 持續更新。每次掃 Slack #discussion 有新情報自動追加。
-> Last updated: 2026-03-17 17:00
+> Last updated: 2026-03-17 17:05
 
 ---
 
@@ -9,12 +9,17 @@
 
 | 項目 | 資訊 |
 |------|------|
-| **團隊** | 台大李宏毅教授實驗室 |
+| **團隊** | 台大李宏毅教授實驗室（NTU Speech Processing & ML Lab） |
+| **GitHub** | [NTU-speech-lab](https://github.com/NTU-speech-lab)（57 repos） |
 | **Model** | XiaoJin v10+（持續迭代） |
 | **YouTube** | 「蝦說 AI (小金老師)」 |
 | **社群** | Facebook AI 社團有推薦文 |
 | **進度** | warm-up 32/32 全部通過 |
 | **首次出現** | 2026-03-14 Slack #discussion 自我介紹 |
+
+> ⚠️ **重要背景**：NTU AI-CoRE 同時是**競賽主辦方**和 SpeechLab 的**所屬單位**。主辦兼參賽的雙重角色。
+>
+> ⚠️ **NTU ML 2026 課程加分**：李宏毅的 ML 2026 Spring 課程把 Teaching Monster 列為 bonus competition（截止 5/15 = 初賽結束日）。TA 許筠曼管理。這意味著可能有大量 NTU 學生以課程加分動機參賽，我們面對的不只是一個實驗室，而是一整個班的潛在對手。
 
 ### 技術棧
 - `@napi-rs/canvas` — Node.js native canvas binding，畫投影片
@@ -119,18 +124,34 @@
 
 ---
 
+## 注意事項：兩個 SpeechLab@NTU
+
+| | 台灣 NTU（我們的對手）| 新加坡 NTU |
+|---|---|---|
+| **GitHub** | [NTU-speech-lab](https://github.com/NTU-speech-lab) | [SpeechLabNTU](https://github.com/SpeechLabNTU) |
+| **教授** | 李宏毅 (Hung-yi Lee) | Chng Eng Siong |
+| **方向** | ML/AI Agent/教育 | 多語 ASR |
+| **相關性** | ✅ 直接對手 | ❌ 不相關 |
+
+---
+
 ## 待調查
 - [ ] SpeechLab YouTube 頻道「蝦說 AI」內容分析（看實際教學品質）
-- [ ] 暖身賽排行榜是否公開
+- [ ] 暖身賽排行榜是否公開（需登入 teaching.monster/app/leaderboard）
+- [ ] NTU ML 2026 課程學生參賽規模（潛在大量對手）
 - [ ] 新參賽者動態
 - [ ] AI audit 評分標準變化
-- [ ] 李宏毅教授 ML 2025 課程中的 AI Agent 相關內容
+- [ ] 李宏毅 2026 AI Agent 講座內容（「解剖小龍蝦」OpenClaw 案例）
 
 ---
 
 ## 外部資源
 - [Teaching Monster 官網](https://teaching.monster/?lang=en)
-- [NTU ML 2025 Spring - 李宏毅](https://speech.ee.ntu.edu.tw/~hylee/ml/2025-spring.php)
+- [Teaching Monster 規則頁](https://teaching.monster/rules)
+- [NTU ML 2026 Spring - 李宏毅](https://speech.ee.ntu.edu.tw/~hylee/ml/2026-spring.php)（含 bonus competition = Teaching Monster）
+- [NTU-speech-lab GitHub](https://github.com/NTU-speech-lab)
+- [李宏毅實驗室 Lab Spotlight](https://labspotlight.ntu.edu.tw/labs/42)
+- [李宏毅 2026 ML intro PDF（AI Agent 講座）](https://speech.ee.ntu.edu.tw/~hylee/ml/ml2026-course-data/intro.pdf)
 - [AAAI 2026 AI for Education Workshop](https://ai4ed.cc/workshops/aaai2026)
 - [AI CUP 教育部 AI 競賽](https://en.aicup.tw/)
 - [Facebook: 蝦說AI 小金老師推薦](https://www.facebook.com/groups/2104279656509513/posts/4409229782681144/)
