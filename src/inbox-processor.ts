@@ -13,6 +13,7 @@ import * as path from 'path';
 import type { ParsedTags } from './types.js';
 import { callLocalFast } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
+import { resolveReplyTasksByRoomMsgId } from './memory-index.js';
 
 // =============================================================================
 // Chat Room Inbox Pre-classification (0.8B cascade)
@@ -332,6 +333,7 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
 
     const newUnaddressed: string[] = [];
     const newProcessed: string[] = [];
+    const resolvedMsgIds: string[] = [];
 
     // Process pending messages
     for (const line of pendingLines) {
@@ -353,6 +355,10 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
       if (addressed) {
         const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`${line} → ${suffix} ${nowStr}`);
+        // Auto-resolve matching reply task by roomMsgId (closes the create→complete loop)
+        if (msgId) {
+          resolvedMsgIds.push(msgId);
+        }
       } else {
         // Move to unaddressed with summary + unaddressed timestamp
         const summary = summarizeMessage(text);
@@ -379,6 +385,9 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
       if (repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action, msgId)) {
         const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`- [${originalTs}] (${sender}) ${text} → ${suffix} ${nowStr}`);
+        if (msgId && sender === 'alex') {
+          resolvedMsgIds.push(msgId);
+        }
         continue;
       }
 
@@ -407,5 +416,12 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
       '',
     ].join('\n');
     fs.writeFileSync(CHAT_ROOM_INBOX_PATH, newContent, 'utf-8');
+
+    // Auto-complete "回覆 alex" tasks whose inbox messages were addressed.
+    // Closes the loop: enqueueRoomDirective creates → inbox replied → task completed.
+    if (resolvedMsgIds.length > 0) {
+      const memDir = path.join(process.cwd(), 'memory');
+      resolveReplyTasksByRoomMsgId(memDir, resolvedMsgIds).catch(() => {});
+    }
   } catch { /* fire-and-forget */ }
 }

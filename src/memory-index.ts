@@ -732,6 +732,35 @@ export async function markTaskDoneByDescription(
 }
 
 /**
+ * Auto-complete reply tasks by roomMsgId.
+ * Called when inbox processing confirms a message was replied/addressed.
+ * This closes the loop: enqueueRoomDirective creates → inbox replied → task completed.
+ */
+export async function resolveReplyTasksByRoomMsgId(
+  memoryDir: string,
+  roomMsgIds: string[],
+): Promise<number> {
+  let resolved = 0;
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: 'task',
+    status: ['pending', 'in_progress'],
+  });
+
+  for (const msgId of roomMsgIds) {
+    const match = tasks.find(t => (getTaskPayload(t).roomMsgId as string) === msgId);
+    if (match) {
+      const updated = await updateMemoryIndexEntry(memoryDir, match.id, { status: 'completed' });
+      if (updated) {
+        eventBus.emit('action:task', { content: updated.summary, entry: updated });
+        slog('DONE', `Auto-resolved reply task: ${match.summary?.slice(0, 60)} (msgId=${msgId})`);
+        resolved++;
+      }
+    }
+  }
+  return resolved;
+}
+
+/**
  * Auto-enqueue Alex's Telegram message as a task.
  * Replaces telegram.ts autoEnqueueToNext.
  */
