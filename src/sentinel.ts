@@ -12,23 +12,51 @@ import path from 'node:path';
 import { eventBus, debounce } from './event-bus.js';
 import { slog } from './utils.js';
 
-/** Directories to watch recursively for file changes */
-const WATCH_DIRS = [
-  'memory/conversations',     // JSONL written by external tools
-  'memory/handoffs',          // Handoff status changes
+/** Directories to watch recursively — conversations get P0 (trigger:room), others get P2 (trigger:workspace) */
+const WATCH_DIRS_P0 = [
+  'memory/conversations',     // JSONL — room messages written by external tools
 ];
 
-/** Individual files to watch */
-const WATCH_FILES = [
-  'memory/state/chat-room-inbox.md',   // Written by shell plugin
+const WATCH_DIRS_P2 = [
+  'memory/handoffs',          // Handoff status changes
+  'memory/state',             // State files (inbox, metrics, etc.)
+];
+
+/** Individual files to watch (outside WATCH_DIRS coverage) */
+const WATCH_FILES: string[] = [
+  // chat-room-inbox.md is now covered by WATCH_DIRS_P2 'memory/state/'
 ];
 
 /** Start file watchers that emit events to the event bus */
 export function startSentinel(workdir: string): void {
   let watchCount = 0;
 
-  // Directory watchers (recursive)
-  for (const rel of WATCH_DIRS) {
+  // P0 directory watchers — conversations get trigger:room for instant wake
+  for (const rel of WATCH_DIRS_P0) {
+    const abs = path.join(workdir, rel);
+    if (!fs.existsSync(abs)) continue;
+
+    try {
+      const emit = debounce((_eventType: string, filename: string | null) => {
+        const filePath = path.join(rel, filename ?? '');
+        slog('SENTINEL', `Room file change: ${filePath}`);
+        eventBus.emit('trigger:room', {
+          source: 'sentinel',
+          path: filePath,
+        });
+      }, 500);
+
+      fs.watch(abs, { recursive: true }, (eventType, filename) => {
+        emit(eventType, filename);
+      });
+      watchCount++;
+    } catch {
+      // fs.watch can fail on some platforms/paths — non-fatal
+    }
+  }
+
+  // P2 directory watchers — general workspace events
+  for (const rel of WATCH_DIRS_P2) {
     const abs = path.join(workdir, rel);
     if (!fs.existsSync(abs)) continue;
 

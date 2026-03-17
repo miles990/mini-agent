@@ -54,6 +54,7 @@ import { initClaudeMdJIT } from './claudemd-jit.js';
 import { cleanupConsensusState } from './consensus.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
+import { preprocessMessage } from './preprocessor.js';
 import { initFeatures, isEnabled, setEnabled, toggle, getFeatureReport, getFeature, resetStats, getFeatureNames } from './features.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
@@ -2340,9 +2341,22 @@ export function createApi(port = 3001): express.Express {
     }
 
     try {
-      // Write message via writeRoomMessage (generates ID, writes JSONL, emits action:room)
-      const id = await writeRoomMessage(from, text, replyTo as string | undefined);
       const now = new Date();
+
+      // Preprocess: topic detection, intent classification, cluster assignment (zero LLM)
+      // Generate a temporary ID for task extraction (will be replaced by actual ID)
+      const tempId = `${now.toISOString().slice(0, 10)}-000`;
+      const msgContext = from !== 'kuro' ? preprocessMessage(text, from, tempId, now) : undefined;
+
+      // Write message via writeRoomMessage (generates ID, writes JSONL, emits action:room)
+      const id = await writeRoomMessage(from, text, replyTo as string | undefined, msgContext as Record<string, unknown> | undefined);
+
+      // Fix task origins with actual ID
+      if (msgContext?.tasks) {
+        for (const task of msgContext.tasks) {
+          task.origin = `room:${id}`;
+        }
+      }
       const timestamp = now.toISOString();
 
       // Parse mentions for inbox logic

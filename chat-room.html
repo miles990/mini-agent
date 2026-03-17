@@ -434,6 +434,102 @@
   .msg:hover .msg-id { opacity: 0.9; }
   .msg-id:hover { color: var(--fg-dim) !important; }
 
+  /* === Topic Badge === */
+  .topic-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    padding: 1px 6px;
+    border-radius: 8px;
+    opacity: 0.75;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+  .topic-badge:hover { opacity: 1; }
+
+  /* === Topic Filter Bar === */
+  .topic-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 20px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    min-height: 32px;
+  }
+  .topic-filter-bar.empty { display: none; }
+
+  .topic-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--fg-dim);
+    background: transparent;
+    transition: all 0.15s;
+    user-select: none;
+    letter-spacing: 0.02em;
+  }
+  .topic-chip:hover { border-color: var(--border-focus); color: var(--fg); }
+  .topic-chip.active {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--fg);
+    border-color: var(--fg-dim);
+  }
+
+  /* === Thread Line === */
+  .msg.has-thread {
+    position: relative;
+    margin-left: 8px;
+  }
+  .msg.has-thread::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    border-radius: 1px;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+  }
+  .msg.has-thread:hover::before { opacity: 0.9; }
+  .msg.alex.has-thread::before { background: var(--alex); }
+  .msg.kuro.has-thread::before { background: var(--kuro); }
+  .msg.claude-code.has-thread::before { background: var(--claude); }
+
+  /* Thread highlight on hover */
+  .msg.thread-highlight {
+    outline: 1px solid rgba(200, 205, 216, 0.1);
+    border-radius: 4px;
+  }
+
+  /* Topic filter: hidden messages */
+  .msg.topic-hidden { display: none; }
+
+  /* === Cluster Collapse === */
+  .cluster-summary {
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--fg-dim);
+    cursor: pointer;
+    border-left: 2px solid var(--fg-muted);
+    margin-left: 8px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+  .cluster-summary:hover { opacity: 1; color: var(--fg); }
+  .msg.cluster-collapsed { display: none; }
+
   /* Inline message ID link (referenced in text) */
   .msg-ref {
     font-family: 'JetBrains Mono', monospace;
@@ -516,6 +612,10 @@
     </div>
     <button onclick="connect()">Connect</button>
   </div>
+</div>
+
+<div class="topic-filter-bar empty" id="topicFilter">
+  <span class="topic-chip active" data-topic="all" onclick="filterByTopic('all')">all</span>
 </div>
 
 <div class="messages" id="messages">
@@ -704,7 +804,27 @@
     const el = document.createElement('div');
     el.className = `msg ${msg.from}`;
     if (msg.id) el.setAttribute('data-msg-id', msg.id);
+    if (msg.replyTo) el.setAttribute('data-reply-to', msg.replyTo);
     if (!animate) el.style.animation = 'none';
+
+    // Thread line: add class for messages with replyTo
+    if (msg.replyTo) el.classList.add('has-thread');
+
+    // Topic detection
+    const topic = (msg.context && msg.context.topic) || detectTopic(msg.text);
+    if (topic) {
+      el.dataset.topic = topic;
+      updateTopicFilter(topic);
+    }
+
+    // Cluster from preprocessor
+    const cluster = msg.context?.cluster;
+    if (cluster) el.dataset.cluster = cluster;
+
+    // Apply active filter
+    if (activeFilter !== 'all' && topic !== activeFilter) {
+      el.classList.add('topic-hidden');
+    }
 
     const time = msg.ts ? new Date(msg.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
     const displayName = msg.from === 'claude-code' ? 'claude-code' : msg.from;
@@ -726,6 +846,13 @@
       ? `<span class="msg-id" onclick="scrollToMsg('${esc(msg.id)}')" title="${esc(msg.id)}">${esc(shortId)}</span>`
       : '';
 
+    // Topic badge
+    let topicBadgeHtml = '';
+    if (topic) {
+      const color = topicColor(topic);
+      topicBadgeHtml = `<span class="topic-badge" style="background:${color.bg};color:${color.fg};border:1px solid ${color.border}" onclick="filterByTopic('${esc(topic)}')">${esc(topic)}</span>`;
+    }
+
     // Reply button
     const replyBtnHtml = msg.id
       ? `<button class="reply-btn" onclick="setReply('${esc(msg.id)}')">↩</button>`
@@ -738,9 +865,13 @@
         <span class="msg-sender">${esc(displayName)}</span>
         <span class="msg-time">${esc(time)}</span>
         ${idHtml}
+        ${topicBadgeHtml}
       </div>
       <div class="msg-text">${formatText(msg.text)}</div>
     `;
+
+    // Thread hover highlighting
+    setupThreadHover(el, msg.id, msg.replyTo);
 
     $messages.appendChild(el);
     if (animate || isNearBottom()) scrollBottom();
@@ -838,6 +969,181 @@
       addSystemMsg(`Message ${msgId} not loaded in current view`);
     }
   };
+
+  // === Topic Detection ===
+  const TOPIC_RULES = [
+    { keywords: ['競賽', 'teaching monster', 'teaching.monster', 'warm-up', '熱身', '提交影片', 'pipeline', 'speechlab', 'xiao', '教學法'], topic: 'teaching-monster' },
+    { keywords: ['myelin', 'crystallize', 'distill', 'bypass', 'cascade', 'myelinate'], topic: 'myelin' },
+    { keywords: ['mushi', 'route', 'triage', 'mushi-kit'], topic: 'mushi' },
+    { keywords: ['deploy', '部署', 'launchctl', '重啟', 'restart', 'CI/CD'], topic: 'ops' },
+    { keywords: ['memory', '記憶', 'MEMORY.md', 'topic memory', 'FTS5'], topic: 'memory' },
+    { keywords: ['asurada', 'framework', 'npm publish', 'npx'], topic: 'asurada' },
+    { keywords: ['chat-ui', 'chat room', 'topic badge', 'thread line', 'filter'], topic: 'chat-ui' },
+    { keywords: ['cycle', 'loop', 'OODA', 'preprocessor', 'sentinel', 'event emission', 'idle sleep'], topic: 'architecture' },
+    { keywords: ['slack', '#discussion', '#announcement', '#deprecated'], topic: 'slack' },
+  ];
+
+  function detectTopic(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    for (const rule of TOPIC_RULES) {
+      if (rule.keywords.some(kw => lower.includes(kw.toLowerCase()))) {
+        return rule.topic;
+      }
+    }
+    return null;
+  }
+
+  // Generate consistent color from topic name
+  function topicColor(topic) {
+    let hash = 0;
+    for (let i = 0; i < topic.length; i++) {
+      hash = topic.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = ((hash % 360) + 360) % 360;
+    return { bg: `hsla(${hue}, 50%, 50%, 0.12)`, fg: `hsl(${hue}, 60%, 65%)`, border: `hsla(${hue}, 50%, 50%, 0.3)` };
+  }
+
+  // Track topics for filter bar
+  const topicSet = new Set();
+  let activeFilter = 'all';
+  const $topicFilter = document.getElementById('topicFilter');
+
+  function updateTopicFilter(topic) {
+    if (!topic || topicSet.has(topic)) return;
+    topicSet.add(topic);
+    $topicFilter.classList.remove('empty');
+
+    const chip = document.createElement('span');
+    chip.className = 'topic-chip';
+    chip.dataset.topic = topic;
+    chip.textContent = topic;
+    const color = topicColor(topic);
+    chip.style.borderColor = color.border;
+    chip.style.color = color.fg;
+    chip.onclick = () => filterByTopic(topic);
+    $topicFilter.appendChild(chip);
+  }
+
+  window.filterByTopic = function(topic) {
+    activeFilter = topic;
+    // Update chip active states
+    $topicFilter.querySelectorAll('.topic-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.topic === topic);
+    });
+    // Filter messages
+    $messages.querySelectorAll('.msg').forEach(el => {
+      if (topic === 'all') {
+        el.classList.remove('topic-hidden');
+      } else {
+        const msgTopic = el.dataset.topic || '';
+        el.classList.toggle('topic-hidden', msgTopic !== topic);
+      }
+    });
+  };
+
+  // Thread hover: highlight all messages in same thread
+  function setupThreadHover(el, msgId, replyTo) {
+    if (!replyTo && !msgId) return;
+    el.addEventListener('mouseenter', () => {
+      // Find all messages in this thread chain
+      const chain = new Set();
+      if (replyTo) chain.add(replyTo);
+      if (msgId) chain.add(msgId);
+      // Find replies to this message
+      $messages.querySelectorAll('.msg[data-reply-to]').forEach(m => {
+        if (m.dataset.replyTo === msgId) chain.add(m.dataset.msgId);
+      });
+      chain.forEach(id => {
+        const target = $messages.querySelector(`[data-msg-id="${id}"]`);
+        if (target) target.classList.add('thread-highlight');
+      });
+    });
+    el.addEventListener('mouseleave', () => {
+      $messages.querySelectorAll('.thread-highlight').forEach(m => {
+        m.classList.remove('thread-highlight');
+      });
+    });
+  }
+
+  // === Cluster Collapse ===
+  // After all messages are loaded, group consecutive same-cluster messages
+  // and allow collapsing them into a summary line
+  function buildClusterCollapseUI() {
+    const msgs = Array.from($messages.querySelectorAll('.msg[data-cluster]'));
+    if (msgs.length === 0) return;
+
+    // Group consecutive same-cluster messages
+    const groups = [];
+    let current = { cluster: '', els: [] };
+
+    for (const el of msgs) {
+      const cluster = el.dataset.cluster;
+      if (cluster === current.cluster) {
+        current.els.push(el);
+      } else {
+        if (current.els.length >= 3) groups.push({ ...current });
+        current = { cluster, els: [el] };
+      }
+    }
+    if (current.els.length >= 3) groups.push(current);
+
+    // For each group of 3+ messages, add a collapse toggle
+    for (const group of groups) {
+      const first = group.els[0];
+      const topic = first.dataset.topic || 'misc';
+      const count = group.els.length;
+      const senders = [...new Set(group.els.map(e => {
+        const s = e.querySelector('.msg-sender');
+        return s ? s.textContent : '';
+      }))].join(', ');
+
+      const summary = document.createElement('div');
+      summary.className = 'cluster-summary';
+      summary.dataset.cluster = group.cluster;
+      summary.textContent = `${senders} — ${count} messages about ${topic}`;
+      summary.style.display = 'none'; // hidden by default (expanded)
+
+      summary.onclick = () => {
+        // Expand: show all messages, hide summary
+        group.els.forEach(e => e.classList.remove('cluster-collapsed'));
+        summary.style.display = 'none';
+      };
+
+      // Insert summary before first message in group
+      first.parentNode.insertBefore(summary, first);
+
+      // Add collapse button to first message header
+      const collapseBtn = document.createElement('span');
+      collapseBtn.className = 'msg-id';
+      collapseBtn.textContent = `[−${count - 1}]`;
+      collapseBtn.title = 'Collapse cluster';
+      collapseBtn.style.cursor = 'pointer';
+      collapseBtn.onclick = (e) => {
+        e.stopPropagation();
+        // Collapse: hide all but first, show summary after first
+        group.els.slice(1).forEach(el => el.classList.add('cluster-collapsed'));
+        summary.style.display = '';
+      };
+
+      const header = first.querySelector('.msg-header');
+      if (header) header.appendChild(collapseBtn);
+    }
+  }
+
+  // Run after history loads — use MutationObserver to detect when messages are done
+  let collapseTimeout = null;
+  const collapseObserver = new MutationObserver(() => {
+    clearTimeout(collapseTimeout);
+    collapseTimeout = setTimeout(() => {
+      // Remove old cluster UIs before rebuilding
+      $messages.querySelectorAll('.cluster-summary').forEach(e => e.remove());
+      $messages.querySelectorAll('.msg .msg-header [title="Collapse cluster"]').forEach(e => e.remove());
+      $messages.querySelectorAll('.cluster-collapsed').forEach(e => e.classList.remove('cluster-collapsed'));
+      buildClusterCollapseUI();
+    }, 500);
+  });
+  collapseObserver.observe($messages, { childList: true });
 
   // === Helpers ===
   function formatText(text) {
