@@ -2459,18 +2459,23 @@ export function createApi(port = 3001): express.Express {
       safeSend(`data: ${payload}\n\n`);
     };
 
-    eventBus.on('action:room', handler);
-    eventBus.on('trigger:room', handler);
-    eventBus.on('trigger:chat', handler);
+    const subscribedEvents: AgentEvent['type'][] = [
+      'action:room',
+      'trigger:room',
+      'trigger:chat',
+    ];
+    for (const eventType of subscribedEvents) {
+      eventBus.on(eventType, handler);
+    }
 
     const keepalive = setInterval(() => safeSend(':ping\n\n'), 30_000);
 
     const cleanup = (): void => {
       if (closed) return;
       closed = true;
-      eventBus.off('action:room', handler);
-      eventBus.off('trigger:room', handler);
-      eventBus.off('trigger:chat', handler);
+      for (const eventType of subscribedEvents) {
+        eventBus.off(eventType, handler);
+      }
       clearInterval(keepalive);
     };
 
