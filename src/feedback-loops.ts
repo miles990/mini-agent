@@ -262,16 +262,27 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     lastChallengeWarningAt: null,
   });
 
-  // Score current action's observability (0-6)
-  const hasDecision = /##\s*Decision|\[DECISION\]/i.test(action);
-  const hasWhat = /##\s*What|\*\*What/i.test(action);
-  const hasWhy = /##\s*Why|\*\*Why/i.test(action);
-  const hasThinking = /##\s*Thinking|\*\*Thinking/i.test(action);
-  const hasChanged = /##\s*Changed|\*\*Changed/i.test(action);
-  const hasVerified = /##\s*Verified|\*\*Verified/i.test(action);
+  // Fast cycle detection: inbox-recovery, alert, delegation-complete, hard-skip → floor score 2/6
+  const fastCyclePatterns = /inbox-recovery|alert|delegation-complete|hard-skip/i;
+  const isFastCycle = (triggerReason && fastCyclePatterns.test(triggerReason)) ||
+    action.length < 200;
 
-  const score = [hasDecision, hasWhat, hasWhy, hasThinking, hasChanged, hasVerified]
-    .filter(Boolean).length;
+  let score: number;
+  if (isFastCycle) {
+    // Fast cycles get floor score — they did the right thing by being fast
+    score = 2;
+  } else {
+    // Score current action's observability (0-6)
+    const hasDecision = /##\s*Decision|\[DECISION\]/i.test(action);
+    const hasWhat = /##\s*What|\*\*What/i.test(action);
+    const hasWhy = /##\s*Why|\*\*Why/i.test(action);
+    const hasThinking = /##\s*Thinking|\*\*Thinking/i.test(action);
+    const hasChanged = /##\s*Changed|\*\*Changed/i.test(action);
+    const hasVerified = /##\s*Verified|\*\*Verified/i.test(action);
+
+    score = [hasDecision, hasWhat, hasWhy, hasThinking, hasChanged, hasVerified]
+      .filter(Boolean).length;
+  }
 
   // Sliding window
   state.recentScores.push(score);
@@ -287,11 +298,11 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
   const flagPath = getStatePath(QUALITY_WARNING_FILE);
   const now = Date.now();
 
-  // Check if warning is needed (avg < 3.0 and cooldown > 24h)
+  // Check if warning is needed (avg < 1.5 and cooldown > 24h)
   const cooldownOk = !state.lastWarningAt ||
     (now - new Date(state.lastWarningAt).getTime()) > 24 * 3600_000;
 
-  if (state.avgScore < 3.0 && state.recentScores.length >= 10 && cooldownOk) {
+  if (state.avgScore < 1.5 && state.recentScores.length >= 10 && cooldownOk) {
     // Inject warning
     const warning = `你最近 ${state.recentScores.length} 個 cycle 的決策完整度偏低（avg ${state.avgScore}/6）。建議放慢節奏，每個決策都寫 Why + Verified。`;
     writeFileSync(flagPath, warning, 'utf-8');
