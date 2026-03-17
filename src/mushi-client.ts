@@ -54,24 +54,8 @@ export async function mushiTriage(
       metadata.messageText = messageText;
     }
 
-    // Prefer triage myelin domain when available; otherwise use mushi HTTP directly.
-    const { getMyelinInstance } = await import('./myelin-fleet.js');
-    const myelin = getMyelinInstance();
-    if (myelin) {
-      const result = await myelin.triage({
-        type: source,
-        source: String(data.source ?? source),
-        context: metadata,
-      });
-
-      const emoji = result.action === 'skip' ? '⏭' : result.action === 'quick' ? '⚡' : '✅';
-      slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
-      eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
-      const validActions = ['skip', 'wake', 'quick'];
-      return validActions.includes(result.action) ? result.action as 'wake' | 'skip' | 'quick' : null;
-    }
-
-    // Triage myelin domain removed — call mushi HTTP directly.
+    // Call mushi HTTP directly — triage myelin domain was removed because all
+    // triage decisions were hard-rule bypasses that could never crystallize.
     const res = await fetch(MUSHI_TRIAGE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

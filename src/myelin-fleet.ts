@@ -150,21 +150,10 @@ export function logTriageBypass(source: string, action: 'wake' | 'skip', reason:
   } catch { /* fire-and-forget */ }
 }
 
-/** Triage myelin domain has been removed from fleet. */
-export function getMyelinInstance(): Myelin<string> | null {
-  return null;
-}
-
-/** Get triage stats. */
-export function getMyelinStats(): MyelinStats | null {
-  return null;
-}
-
 /** Get stats from all active domains. */
-export function getCombinedMyelinStats(): { triage: MyelinStats | null; learning: MyelinStats; routing: MyelinStats } {
+export function getCombinedMyelinStats(): { learning: MyelinStats; routing: MyelinStats } {
   const fleet = getFleet();
   return {
-    triage: null,
     learning: fleet.get('learning')!.stats(),
     routing: fleet.get('routing')!.stats(),
   };
