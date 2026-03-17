@@ -162,3 +162,4 @@
 - **2026-03-17 17:05**: 深度研究更新 — NTU 課程加分機制、GitHub repos、兩個 SpeechLab 消歧義、李宏毅 AI Agent 講座連結
 - **2026-03-17 17:00**: 擴充版 — 加入 web research 結果、競爭態勢表、外部資源連結
 - **2026-03-17 09:00**: 初版建立 — Slack #discussion 直接掃描
+- [2026-03-17] [2026-03-17] teaching.monster 網站狀態更新：17:08 確認恢復（HTTP 200），之前 521 Cloudflare error 約持續數天。Clerk SDK 正常載入（publishable key: pk_live_Y2xlcmsudGVhY2hpbmcubW9uc3RlciQ）。
