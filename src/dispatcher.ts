@@ -942,7 +942,7 @@ export async function postProcess(
           context: combinedCtx,
         });
         waveTaskIds.push(taskId);
-        const resolvedProvider = origDel.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+        const resolvedProvider = origDel.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));
         slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}, wave=${wave.wave}) → ${(node.metadata?.workdir as string) ?? origDel.workdir}`);
         eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: (node.metadata?.workdir as string) ?? origDel.workdir });
 
@@ -994,7 +994,7 @@ export async function postProcess(
         context: siblingCtx || undefined,
       });
       const taskType = del.type ?? 'code';
-      const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+      const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));
       slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
       eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
       try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, lane: 'background' }, tags: [taskType] }); } catch { /* fire-and-forget */ }

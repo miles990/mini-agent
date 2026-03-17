@@ -2086,7 +2086,7 @@ export class AgentLoop {
           verify: del.verify,
         });
         const taskType = del.type ?? 'code';
-        const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['code', 'learn', 'research'].includes(taskType) ? 'codex' : 'claude'));
+        const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));
         slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
         eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
         try { kbObserve({ source: 'delegation', type: 'spawn', data: { taskId, taskType, workdir: del.workdir }, tags: [taskType] }); } catch { /* fire-and-forget */ }
