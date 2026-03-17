@@ -53,6 +53,7 @@ import { evaluateScaling } from './scaling.js';
 import { buildMeshCompletedSection, buildContextForPerspective, cleanupMeshOutputs } from './perspective.js';
 import { handleMeshRoute, executeScaling } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
+import { startSentinel } from './sentinel.js';
 import {
   saveCycleCheckpoint, clearCycleCheckpoint, loadStaleCheckpoint,
   writeWorkJournal, loadWorkJournal, formatWorkJournalContext,
@@ -868,6 +869,9 @@ export class AgentLoop {
 
     // Metabolism: initialize event listeners for pattern detection
     initMetabolism();
+
+    // Sentinel: watch file-based event sources not covered by API handlers
+    startSentinel(process.cwd());
 
     eventBus.on('trigger:*', this.handleTrigger);
 
