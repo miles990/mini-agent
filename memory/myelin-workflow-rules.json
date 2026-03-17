@@ -1,0 +1,89 @@
+[
+  {
+    "id": "workflow_proposal_gate",
+    "match": {
+      "type": "task-start",
+      "source": "ooda-cycle",
+      "context": {
+        "ideaClarity": "vague",
+        "fileImpact": { "gte": 3 }
+      }
+    },
+    "action": "write-proposal",
+    "reason": "seed: vague idea + 3+ files affected → write proposal first, not code. Why: prevents wasted work when requirements are unclear. Bailey regime formation: stable transitions come from constraints between steps, not fixed sequences.",
+    "createdAt": "2026-03-17T07:21:00.000Z",
+    "hitCount": 0
+  },
+  {
+    "id": "workflow_decompose_after_approval",
+    "match": {
+      "type": "proposal-status-change",
+      "source": "ooda-cycle",
+      "context": {
+        "status": "approved"
+      }
+    },
+    "action": "decompose-tasks",
+    "reason": "seed: approved proposal → decompose into sub-tasks in todo list, not monolithic execution. Why: task granularity enables progress tracking and parallel delegation.",
+    "createdAt": "2026-03-17T07:21:00.000Z",
+    "hitCount": 0
+  },
+  {
+    "id": "workflow_immediate_completion",
+    "match": {
+      "type": "task-done",
+      "source": "ooda-cycle",
+      "context": {
+        "verified": true
+      }
+    },
+    "action": "mark-and-continue",
+    "reason": "seed: task verified complete → immediately mark completed + start next task. Why: batching completions creates stale state and breaks momentum. Each completion is a start signal.",
+    "createdAt": "2026-03-17T07:21:00.000Z",
+    "hitCount": 0
+  },
+  {
+    "id": "workflow_analysis_must_act",
+    "match": {
+      "type": "analysis-complete",
+      "source": "ooda-cycle",
+      "context": {
+        "hasFix": true,
+        "sameTickAction": false
+      }
+    },
+    "action": "execute-or-delegate",
+    "reason": "seed: analysis that produces a fix MUST be followed by execution or delegation in the SAME cycle. No 'record to NEXT for later'. Why: Alex feedback 2026-03-17 — pattern of analyze→remember→no action is the #1 behavior gap. The 'record it' exit is too comfortable. If you found the fix, you do the fix.",
+    "createdAt": "2026-03-17T07:26:00.000Z",
+    "hitCount": 0
+  },
+  {
+    "id": "workflow_obstacle_self_first",
+    "match": {
+      "type": "obstacle-detected",
+      "source": "ooda-cycle",
+      "context": {
+        "hasToolsAvailable": true,
+        "attemptCount": { "lt": 3 }
+      }
+    },
+    "action": "try-self-first",
+    "reason": "seed: obstacle + available tools + fewer than 3 attempts → try yourself before escalating to Alex. Why: Alex feedback 2026-03-17 — default is to list blockers for Alex, but when pushed, Kuro solves them independently. Flip the default: act first, escalate after 3 genuine attempts.",
+    "createdAt": "2026-03-17T07:26:00.000Z",
+    "hitCount": 0
+  },
+  {
+    "id": "workflow_process_evolution",
+    "match": {
+      "type": "process-friction",
+      "source": "ooda-cycle",
+      "context": {
+        "frictionType": "any"
+      }
+    },
+    "action": "evolve-process",
+    "reason": "seed: friction in current workflow → update the workflow itself, not just push through. Why: processes that can't evolve become rigid SOPs. The constraint that keeps things alive is 'the process can change'.",
+    "createdAt": "2026-03-17T07:21:00.000Z",
+    "hitCount": 0
+  }
+]
