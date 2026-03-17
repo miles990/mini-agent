@@ -5,6 +5,7 @@
  * Dogfooding: mini-agent is myelin's primary validation ground.
  *
  * Domains:
+ * - triage:   bypass decision crystallization (wake/skip patterns)
  * - learning: research/learning event classification
  * - routing:  task graph lane routing
  * - research: research methodology crystallization
@@ -93,6 +94,24 @@ function getFleet(): MyelinFleet<string> {
   if (!_fleet) {
     _fleet = createFleet<string>([
       {
+        name: 'triage',
+        instance: createMyelin<string>({
+          llm: async (event) => {
+            // Triage bypass decisions are all rule-based — LLM fallback is unused
+            return { action: 'wake', reason: 'default-wake' };
+          },
+          rulesPath: './memory/myelin-triage-rules.json',
+          logPath: TRIAGE_LOG_PATH,
+          autoLog: false, // bypass decisions are logged manually via logTriageBypass
+          failOpenAction: 'wake',
+          crystallize: {
+            minOccurrences: 10,
+            minConsistency: 0.85,
+            methods: ['rule', 'llm'], // Include rule-based bypass decisions in crystallization
+          },
+        }),
+      },
+      {
         name: 'learning',
         instance: createMyelin<string>({
           llm: learningLLM,
@@ -151,9 +170,10 @@ export function logTriageBypass(source: string, action: 'wake' | 'skip', reason:
 }
 
 /** Get stats from all active domains. */
-export function getCombinedMyelinStats(): { learning: MyelinStats; routing: MyelinStats } {
+export function getCombinedMyelinStats(): { triage: MyelinStats; learning: MyelinStats; routing: MyelinStats } {
   const fleet = getFleet();
   return {
+    triage: fleet.get('triage')!.stats(),
     learning: fleet.get('learning')!.stats(),
     routing: fleet.get('routing')!.stats(),
   };
@@ -272,6 +292,7 @@ export async function triageRouting(event: {
 
 /** Known rules paths per domain — mirrors getFleet() config. */
 const RULES_PATHS: Record<string, string> = {
+  triage: './memory/myelin-triage-rules.json',
   learning: './memory/myelin-learning-rules.json',
   routing: './memory/myelin-routing-rules.json',
   research: './memory/research-rules.json',

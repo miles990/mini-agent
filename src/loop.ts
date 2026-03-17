@@ -384,17 +384,27 @@ export class AgentLoop {
 
     // When paused (calm mode), only allow direct messages through
     if (this.paused) {
-      if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') return;
+      if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') {
+        logTriageBypass('mark-processed', 'skip', 'paused-perception-refresh');
+        return;
+      }
       const { source } = classifyTrigger(agentEvent.type, agentEvent.data);
-      if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(source)) return;
+      if (!AgentLoop.DIRECT_MESSAGE_SOURCES.has(source)) {
+        logTriageBypass(source, 'skip', 'paused-non-dm');
+        return;
+      }
       this.calmWake = true;
+      logTriageBypass('calm-wake', 'wake', 'direct-message-during-pause');
       slog('LOOP', `[calm-wake] Direct message bypasses pause: ${agentEvent.type}`);
     }
 
     // mark-processed is a perception cache refresh, not a real message.
     // Must bypass router entirely — otherwise it updates the cooldown timer for 'telegram'
     // source, causing real P0 telegram-user events arriving within 10s to be deferred.
-    if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') return;
+    if (agentEvent.type === 'trigger:telegram' && agentEvent.data?.source === 'mark-processed') {
+      logTriageBypass('mark-processed', 'skip', 'perception-refresh');
+      return;
+    }
 
     const now = Date.now();
     const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
@@ -1088,14 +1098,21 @@ export class AgentLoop {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
       logTriageBypass('P0-pending', 'wake', 'pending work exists');
     }
+    // Log alert/delegation bypasses independently — NOT gated by hasP0 or mushi-triage flag
+    if (!isContinuation && reason) {
+      const bypassSrc = reason.split(/[:(]/)[0].trim();
+      if (bypassSrc === 'alert') {
+        logTriageBypass('alert', 'wake', 'alert always wakes');
+      } else if (bypassSrc === 'delegation-complete' || bypassSrc === 'delegation-batch') {
+        logTriageBypass(bypassSrc, 'wake', 'must absorb delegation results');
+      }
+    }
     if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
-        logTriageBypass('alert', 'wake', 'alert always wakes');
       } else if (triageSource === 'delegation-complete' || triageSource === 'delegation-batch') {
         slog('MUSHI', `✅ ${triageSource} bypasses triage (must absorb results)`);
-        logTriageBypass(triageSource, 'wake', 'must absorb delegation results');
       } else if (
         this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
@@ -1141,6 +1158,7 @@ export class AgentLoop {
         const decision = await mushiTriage(triageSource, { source: reason, detail: reason }, triageCtx, this.triggerMessageText ?? undefined);
         if (decision === 'skip') {
           slog('MUSHI', `⏭ Skipping cycle — trigger: ${triageSource}`);
+          logTriageBypass(triageSource, 'skip', 'mushi-triage-llm');
           try { kbObserve({ source: 'mushi', type: 'skip', data: { trigger: triageSource, reason: 'mushi-triage' }, tags: [triageSource] }); } catch { /* fire-and-forget */ }
           // Trail: skip = scouting, not discarding. Record what was seen.
           writeTrailEntry({
