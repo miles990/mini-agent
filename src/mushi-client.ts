@@ -54,23 +54,44 @@ export async function mushiTriage(
       metadata.messageText = messageText;
     }
 
-    // Route through myelin crystallization layer:
-    // 1. Rule match → 0ms, $0 (crystallized pattern)
-    // 2. No match → falls back to mushi HTTP LLM
-    // 3. All decisions auto-logged + crystallized over time
+    // Prefer triage myelin domain when available; otherwise use mushi HTTP directly.
     const { getMyelinInstance } = await import('./myelin-fleet.js');
     const myelin = getMyelinInstance();
-    const result = await myelin.triage({
-      type: source,
-      source: String(data.source ?? source),
-      context: metadata,
-    });
+    if (myelin) {
+      const result = await myelin.triage({
+        type: source,
+        source: String(data.source ?? source),
+        context: metadata,
+      });
 
-    const emoji = result.action === 'skip' ? '⏭' : result.action === 'quick' ? '⚡' : '✅';
-    slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
-    eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
+      const emoji = result.action === 'skip' ? '⏭' : result.action === 'quick' ? '⚡' : '✅';
+      slog('MUSHI', `${emoji} triage: ${source} → ${result.action} (${result.latencyMs}ms ${result.method}) — ${result.reason}`);
+      eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${result.action} (${result.latencyMs}ms ${result.method})`, source, action: result.action, latencyMs: result.latencyMs, method: result.method });
+      const validActions = ['skip', 'wake', 'quick'];
+      return validActions.includes(result.action) ? result.action as 'wake' | 'skip' | 'quick' : null;
+    }
+
+    // Triage myelin domain removed — call mushi HTTP directly.
+    const res = await fetch(MUSHI_TRIAGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trigger: source,
+        source: String(data.source ?? source),
+        metadata,
+      }),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const result = await res.json() as { action?: string; reason?: string; latencyMs?: number; method?: string };
+    const action = result.action ?? 'wake';
+    const latencyMs = typeof result.latencyMs === 'number' ? result.latencyMs : 0;
+    const method = result.method ?? 'llm';
+    const emoji = action === 'skip' ? '⏭' : action === 'quick' ? '⚡' : '✅';
+    slog('MUSHI', `${emoji} triage: ${source} → ${action} (${latencyMs}ms ${method}) — ${result.reason ?? 'mushi-http'}`);
+    eventBus.emit('log:info', { tag: 'mushi-triage', msg: `${source} → ${action} (${latencyMs}ms ${method})`, source, action, latencyMs, method });
     const validActions = ['skip', 'wake', 'quick'];
-    return validActions.includes(result.action) ? result.action as 'wake' | 'skip' | 'quick' : null;
+    return validActions.includes(action) ? action as 'wake' | 'skip' | 'quick' : null;
   } catch {
     // myelin/mushi offline or timeout — fail-open (proceed with cycle)
     return null;

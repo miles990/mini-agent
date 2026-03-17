@@ -5,7 +5,6 @@
  * Dogfooding: mini-agent is myelin's primary validation ground.
  *
  * Domains:
- * - triage:   wake/skip/quick decisions (mushi HTTP fallback)
  * - learning: research/learning event classification
  * - routing:  task graph lane routing
  * - research: research methodology crystallization
@@ -27,27 +26,6 @@ export type RoutingAction = TaskLane | 'merge';
 // =============================================================================
 // Heuristic functions (pure, no side effects)
 // =============================================================================
-
-/** Triage LLM fallback: call mushi HTTP for wake/skip/quick. */
-async function triageLLM(event: { type: string; source?: string; context?: Record<string, unknown> }) {
-  try {
-    const res = await fetch('http://localhost:3000/api/triage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trigger: event.type,
-        source: event.source ?? event.type,
-        metadata: event.context ?? {},
-      }),
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) throw new Error(`mushi HTTP ${res.status}`);
-    const result = await res.json() as { action?: string; reason?: string };
-    return { action: result.action ?? 'wake', reason: result.reason ?? 'mushi-llm' };
-  } catch {
-    return { action: 'wake', reason: 'mushi offline, fail-open' };
-  }
-}
 
 /** Learning LLM fallback: keyword-based classification. */
 async function learningLLM(event: { type: string; source?: string; context?: Record<string, unknown> }) {
@@ -115,16 +93,6 @@ function getFleet(): MyelinFleet<string> {
   if (!_fleet) {
     _fleet = createFleet<string>([
       {
-        name: 'triage',
-        instance: createMyelin<string>({
-          llm: triageLLM,
-          rulesPath: './memory/myelin-rules.json',
-          logPath: './memory/myelin-decisions.jsonl',
-          autoLog: true,
-          crystallize: { minOccurrences: 10, minConsistency: 0.95 },
-        }),
-      },
-      {
         name: 'learning',
         instance: createMyelin<string>({
           llm: learningLLM,
@@ -158,7 +126,7 @@ function getFleet(): MyelinFleet<string> {
         }),
       },
     ]);
-    slog('MYELIN', 'Fleet initialized: triage + learning + routing + research');
+    slog('MYELIN', 'Fleet initialized: learning + routing + research');
   }
   return _fleet;
 }
@@ -168,45 +136,35 @@ function getFleet(): MyelinFleet<string> {
 // =============================================================================
 
 const TRIAGE_LOG_PATH = './memory/myelin-decisions.jsonl';
-
-/** Sources with pre-seeded myelin rules — route through myelin for accurate stats. */
-const MYELIN_ROUTED_SOURCES = new Set(['P0-pending', 'alert', 'delegation-complete', 'delegation-batch']);
-
-/** Log a hard-rule bypass. Routes through myelin when a seed rule exists, falls back to direct log. */
+/** Log a hard-rule bypass directly (triage domain removed from fleet). */
 export function logTriageBypass(source: string, action: 'wake' | 'skip', reason: string): void {
   try {
-    if (MYELIN_ROUTED_SOURCES.has(source)) {
-      // Route through myelin — seed rules match instantly, hitCount tracked, stats accurate
-      getMyelinInstance().triage({ type: source, source, context: {} }).catch(() => {});
-    } else {
-      // Direct log for complex bypass conditions (hard-skip: heartbeat/workspace + idle)
-      logDecision(
-        TRIAGE_LOG_PATH,
-        { type: source, source, context: {} },
-        action,
-        `hard-rule: ${reason}`,
-        'rule' as const,
-        0,
-      );
-    }
+    logDecision(
+      TRIAGE_LOG_PATH,
+      { type: source, source, context: {} },
+      action,
+      `hard-rule: ${reason}`,
+      'rule' as const,
+      0,
+    );
   } catch { /* fire-and-forget */ }
 }
 
-/** Get the triage myelin instance (for mushi-client direct triage). */
-export function getMyelinInstance(): Myelin<string> {
-  return getFleet().get('triage')!;
+/** Triage myelin domain has been removed from fleet. */
+export function getMyelinInstance(): Myelin<string> | null {
+  return null;
 }
 
 /** Get triage stats. */
-export function getMyelinStats(): MyelinStats {
-  return getMyelinInstance().stats();
+export function getMyelinStats(): MyelinStats | null {
+  return null;
 }
 
 /** Get stats from all active domains. */
-export function getCombinedMyelinStats(): { triage: MyelinStats; learning: MyelinStats; routing: MyelinStats } {
+export function getCombinedMyelinStats(): { triage: MyelinStats | null; learning: MyelinStats; routing: MyelinStats } {
   const fleet = getFleet();
   return {
-    triage: fleet.get('triage')!.stats(),
+    triage: null,
     learning: fleet.get('learning')!.stats(),
     routing: fleet.get('routing')!.stats(),
   };
@@ -233,7 +191,7 @@ export function getMyelinPromptBlock(): string {
     const member = fleet.get(name)!;
     const block = member.toPromptBlock({
       includeRules: true,
-      includeMethodology: name === 'triage' || name === 'routing',
+      includeMethodology: name === 'routing',
       maxRules: 5,
       format: 'xml',
     });
@@ -325,7 +283,6 @@ export async function triageRouting(event: {
 
 /** Known rules paths per domain — mirrors getFleet() config. */
 const RULES_PATHS: Record<string, string> = {
-  triage: './memory/myelin-rules.json',
   learning: './memory/myelin-learning-rules.json',
   routing: './memory/myelin-routing-rules.json',
   research: './memory/research-rules.json',
