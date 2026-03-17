@@ -1775,6 +1775,30 @@ Queries:`;
     // ── 必載入（核心感知）──
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n</environment>`);
 
+    // ── Flip Test（one-shot reminder from postProcess ask-Alex detector）──
+    try {
+      const flipTestPath = path.join(getInstanceDir(this.instanceId), 'flip-test-pending.json');
+      const flipRaw = await fs.readFile(flipTestPath, 'utf-8').catch(() => null);
+      if (flipRaw) {
+        try {
+          const parsed = JSON.parse(flipRaw) as {
+            detected?: unknown;
+            output_excerpt?: unknown;
+            timestamp?: unknown;
+          };
+          const ts = typeof parsed.timestamp === 'string' ? Date.parse(parsed.timestamp) : Number.NaN;
+          const ageMs = Number.isFinite(ts) ? Date.now() - ts : Number.POSITIVE_INFINITY;
+          if (ageMs >= 0 && ageMs < 60 * 60 * 1000) {
+            const excerpt = typeof parsed.output_excerpt === 'string'
+              ? parsed.output_excerpt.trim()
+              : (typeof parsed.detected === 'string' ? parsed.detected : '（excerpt unavailable）');
+            sections.push(`<flip-test>\n⚠️ 上個 cycle 偵測到「依賴 Alex」模式：${excerpt}\n翻轉測試：如果 Alex 不在，你會怎麼做？那個答案就是第一步。\n先自己嘗試，至少 3 種方法，再考慮升級。\n</flip-test>`);
+          }
+        } catch { /* malformed JSON — ignore and consume once */ }
+        await fs.unlink(flipTestPath).catch(() => {});
+      }
+    } catch { /* fail-open: flip-test should never block context build */ }
+
     // ── Priority Focus（最顯眼位置 — 每個 cycle 開頭都會看到）──
     {
       const focus = readFlagCached(path.join(getMemoryStateDir(), 'priority-focus.txt'));

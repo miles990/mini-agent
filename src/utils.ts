@@ -23,11 +23,12 @@ export function setSlogPrefix(instanceId: string, name?: string): void {
 }
 
 /** Timestamped console log for server.log observability */
-export function slog(tag: string, msg: string): void {
+export function slog(tag: string, msg: string, meta?: unknown): void {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const clean = (msg ?? '').replace(/\r?\n/g, '\\n');
+  const metaJson = meta === undefined ? '' : ` ${JSON.stringify(meta)}`;
   const prefix = slogPrefix ? ` ${slogPrefix} |` : '';
-  console.log(`${ts}${prefix} [${tag}] ${clean}`);
+  console.log(`${ts}${prefix} [${tag}] ${clean}${metaJson}`);
 }
 
 // =============================================================================
@@ -111,4 +112,3 @@ export function safeExec<T>(
     return fallback;
   }
 }
-

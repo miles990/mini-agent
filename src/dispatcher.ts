@@ -10,7 +10,7 @@ import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, getMemoryStateDir, type CycleMode } from './memory.js';
 import { getClaudeMdJIT } from './claudemd-jit.js';
-import { loadInstanceConfig, getCurrentInstanceId } from './instance.js';
+import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
@@ -88,6 +88,37 @@ const LEARNING_TOPIC_BOOST: Record<string, number> = {
   'design-philosophy': 1, 'product-thinking': 1,
   'agent-architecture': 1, 'mushi': 0,
 };
+
+const ASK_ALEX_PATTERNS = [
+  'Alex 手動',
+  'Alex 幫忙',
+  '請 Alex',
+  'ask Alex',
+  '需要 Alex',
+  '等 Alex',
+  'Alex manually',
+  'Alex help',
+] as const;
+
+function detectAskAlexPattern(text: string): { matched: string; index: number } | null {
+  const lower = text.toLowerCase();
+  for (const pattern of ASK_ALEX_PATTERNS) {
+    const idx = lower.indexOf(pattern.toLowerCase());
+    if (idx >= 0) {
+      return {
+        matched: text.slice(idx, idx + pattern.length),
+        index: idx,
+      };
+    }
+  }
+  return null;
+}
+
+function buildOutputExcerpt(text: string, index: number, matchLength: number, radius = 50): string {
+  const start = Math.max(0, index - radius);
+  const end = Math.min(text.length, index + matchLength + radius);
+  return text.slice(start, end).replace(/\s+/g, ' ').trim();
+}
 
 export function classifyRemember(content: string, topic?: string): RememberCategory {
   // Topic-based hard hints (high confidence for error/tool)
@@ -1043,6 +1074,29 @@ export async function postProcess(
       if (added > 0) slog('COMMIT', `Detected ${added} untracked commitment(s)`);
     })
     .catch(() => {});
+
+  // Ask-Alex dependency detector — write one-shot flip-test state for next cycle.
+  try {
+    const hit = detectAskAlexPattern(response);
+    if (hit) {
+      const instanceId = getCurrentInstanceId();
+      const statePath = path.join(getInstanceDir(instanceId), 'flip-test-pending.json');
+      const excerpt = buildOutputExcerpt(response, hit.index, hit.matched.length, 50);
+      await fs.mkdir(path.dirname(statePath), { recursive: true });
+      await fs.writeFile(
+        statePath,
+        JSON.stringify({
+          detected: hit.matched,
+          output_excerpt: excerpt,
+          timestamp: new Date().toISOString(),
+        }, null, 2),
+        'utf-8',
+      );
+      slog('behavior', 'ask-Alex pattern detected — flip test triggered', { pattern: hit.matched });
+    }
+  } catch {
+    // fail-open: detection/storage must not block primary postProcess flow
+  }
 
   // 5. Log call
   logger.logClaudeCall(
