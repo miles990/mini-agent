@@ -1988,7 +1988,14 @@ Queries:`;
       } catch { /* ignore */ }
     }
 
-    // L2-L5 prompt injection removed — consolidated into myelin-fleet.ts
+    // Myelin crystallized knowledge — decision framework from accumulated patterns
+    if (shouldLoad('myelin-framework')) {
+      try {
+        const { getMyelinPromptBlock } = await import('./myelin-fleet.js');
+        const myelinBlock = getMyelinPromptBlock();
+        if (myelinBlock.trim()) sections.push(`<myelin-framework>\n${myelinBlock}\n</myelin-framework>`);
+      } catch { /* ignore — myelin not available */ }
+    }
 
     // Commitment Binding — conditional load (promises/commitments), profile-aware
     if (shouldLoadForProfile('commitments', options?.trigger) && shouldLoad('commitments')) {

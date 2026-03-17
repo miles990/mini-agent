@@ -82,6 +82,7 @@ export const SECTION_KEYWORDS: Record<string, string[]> = {
   'decision-quality-warning': ['quality', 'decision', 'score', 'depth', 'dq'],
   'structural-health': ['health', 'structural', 'report', 'upgrade', 'commit'],
   'problem-alignment': ['alignment', 'priority', 'problem', 'direction', 'focus', 'wrong question'],
+  'myelin-framework': ['myelin', 'rule', 'crystallize', 'decision', 'triage', 'route', 'pattern'],
 };
 
 // =============================================================================
