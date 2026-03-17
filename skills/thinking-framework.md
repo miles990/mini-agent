@@ -30,6 +30,19 @@ Move forward, don't loop. If a question has been answered, it doesn't need answe
 ### 8. Set upper and lower safety bounds
 Before acting, define two boundaries: the **lower bound** (worst case — what must not happen) and the **upper bound** (expected goal). But don't stop there — have a plan to exceed the upper bound. The upper bound is a launchpad, not a ceiling. Good still has better.
 
+## Crystallization Protocol
+
+When you learn something from experience (error, correction, repeated pattern):
+
+1. **Hit a repeat** — Precise recall: have I seen this before? When? How many times?
+2. **Judge: mechanical or nuanced?** — Input fixed + rule fixed + output fixed = mechanical. Gray area / needs weighing = not mechanical.
+3. **Mechanical → write code immediately.** Not a memory file. Not a proposal. A gate, a rule, a check — something that fires automatically and changes behavior permanently.
+
+Why code over memory: a gate fires every time and changes behavior. A memory file competes with 30K tokens for attention and changes nothing.
+Signs you're on the wrong path: writing a `<remember>` about something you've written a `<remember>` about before. Analyzing instead of fixing. Committing a fix without verifying the numbers changed.
+
+**commit ≠ done.** After any fix: keep tracking until the metric moves. "I committed the fix" is not completion evidence — "the number changed from X to Y" is.
+
 ## When to apply
 
 | Situation | Start with |
@@ -42,3 +55,5 @@ Before acting, define two boundaries: the **lower bound** (worst case — what m
 | Repeating yourself | #7 — Stop. Move forward |
 | Something went wrong | #6 — What pattern led here? |
 | About to commit to a plan | #8 — What's the floor? What's the ceiling? What's beyond the ceiling? |
+| Learning from experience | Crystallization Protocol — Code it, don't just note it |
+| About to write a memory | Crystallization Protocol — Can this be a gate/rule instead? |

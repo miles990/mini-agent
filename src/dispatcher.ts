@@ -66,6 +66,11 @@ const IMPROVEMENT_PATTERNS = [
   /自動化|automat|script.*化/i,
   /加.*檢查|add.*check|加.*驗證/i,
   /防止.*再發|prevent.*recur/i,
+  // Behavioral crystallization: catch self-observations that should become code, not memories
+  /又犯了|又做了|重複.*(?:錯|模式)|same.*(?:mistake|pattern)/i,
+  /發現自己|noticed.*myself|I keep|我一直/i,
+  /結晶|crystallize|寫成.*(?:gate|rule|code)|應該.*(?:gate|rule)/i,
+  /行為.*(?:沒變|沒改)|behavior.*(?:unchanged|didn't change)/i,
 ];
 
 const LEARNING_PATTERNS = [
@@ -720,6 +725,20 @@ export async function postProcess(
       const verifyPatch: VerifyResult[] | undefined = action.verify
         ? action.verify.map(v => ({ ...v, updatedAt: new Date().toISOString() }))
         : undefined;
+
+      // Verify-before-complete gate: block completion if any verify check is failing
+      const effectiveVerify = verifyPatch ?? (currentPayload.verify as VerifyResult[] | undefined);
+      if (action.status === 'completed' && effectiveVerify?.length) {
+        const failing = effectiveVerify.filter(v => v.status !== 'pass');
+        if (failing.length > 0) {
+          const names = failing.map(v => `${v.name}:${v.status}`).join(', ');
+          slog('GATE', `⛔ verify-before-complete: blocked completion of ${action.id} — failing: ${names}`);
+          eventBus.emit('log:info', { tag: 'verify-gate', msg: `Blocked task completion: ${names} not passing`, taskId: action.id });
+          // Downgrade to in_progress instead of completed
+          action.status = 'in_progress';
+        }
+      }
+
       try {
         const updated = await updateTask(memoryDir, action.id, {
           type: action.type ?? (current?.type as 'task' | 'goal' | undefined),
