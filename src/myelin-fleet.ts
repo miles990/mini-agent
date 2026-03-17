@@ -13,6 +13,7 @@
 
 import { createMyelin, createFleet, logDecision } from 'myelinate';
 import type { Myelin, MyelinStats, TriageResult, MyelinFleet, FleetStats } from 'myelinate';
+import { writeFileSync } from 'node:fs';
 import { slog } from './utils.js';
 import type { TaskLane } from './task-graph.js';
 
@@ -168,17 +169,26 @@ function getFleet(): MyelinFleet<string> {
 
 const TRIAGE_LOG_PATH = './memory/myelin-decisions.jsonl';
 
-/** Log a hard-rule bypass to triage decision log. Fire-and-forget. */
+/** Sources with pre-seeded myelin rules — route through myelin for accurate stats. */
+const MYELIN_ROUTED_SOURCES = new Set(['P0-pending', 'alert', 'delegation-complete', 'delegation-batch']);
+
+/** Log a hard-rule bypass. Routes through myelin when a seed rule exists, falls back to direct log. */
 export function logTriageBypass(source: string, action: 'wake' | 'skip', reason: string): void {
   try {
-    logDecision(
-      TRIAGE_LOG_PATH,
-      { type: source, source, context: {} },
-      action,
-      `hard-rule: ${reason}`,
-      'rule' as const,
-      0,
-    );
+    if (MYELIN_ROUTED_SOURCES.has(source)) {
+      // Route through myelin — seed rules match instantly, hitCount tracked, stats accurate
+      getMyelinInstance().triage({ type: source, source, context: {} }).catch(() => {});
+    } else {
+      // Direct log for complex bypass conditions (hard-skip: heartbeat/workspace + idle)
+      logDecision(
+        TRIAGE_LOG_PATH,
+        { type: source, source, context: {} },
+        action,
+        `hard-rule: ${reason}`,
+        'rule' as const,
+        0,
+      );
+    }
   } catch { /* fire-and-forget */ }
 }
 
@@ -313,6 +323,27 @@ export async function triageRouting(event: {
 // Distillation
 // =============================================================================
 
+/** Known rules paths per domain — mirrors getFleet() config. */
+const RULES_PATHS: Record<string, string> = {
+  triage: './memory/myelin-rules.json',
+  learning: './memory/myelin-learning-rules.json',
+  routing: './memory/myelin-routing-rules.json',
+  research: './memory/research-rules.json',
+};
+
+/** Persist in-memory rule hitCounts to disk. Called after distill. */
+function persistRuleHitCounts(): void {
+  const fleet = getFleet();
+  for (const name of fleet.names()) {
+    const path = RULES_PATHS[name];
+    if (!path) continue;
+    const rules = fleet.get(name)!.getRules();
+    if (rules.length > 0) {
+      writeFileSync(path, JSON.stringify(rules, null, 2) + '\n');
+    }
+  }
+}
+
 let _lastDistillTime = 0;
 const DISTILL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -326,19 +357,11 @@ export async function maybeDistill(): Promise<boolean> {
   _lastDistillTime = now;
 
   try {
-    // Per-domain smart distill — only distill domains with actual LLM decisions
+    // Per-domain smart distill — skip domains with no new decisions since last distill
     const fleet = getFleet();
     const distilled: string[] = [];
-    const skippedEmpty: string[] = [];
     for (const name of fleet.names()) {
       const instance = fleet.get(name)!;
-      const stats = instance.stats();
-      // Skip domains with 0 total decisions — they have no data to crystallize
-      // (e.g. triage domain where all decisions are hard-rule bypasses logged externally)
-      if (stats.totalDecisions === 0) {
-        skippedEmpty.push(name);
-        continue;
-      }
       const result = instance.maybeDistill({ minNewDecisions: 3, minIntervalMs: DISTILL_INTERVAL_MS });
       if (result) {
         distilled.push(name);
@@ -346,11 +369,14 @@ export async function maybeDistill(): Promise<boolean> {
       }
     }
     if (distilled.length > 0) {
-      const skipped = fleet.names().length - distilled.length - skippedEmpty.length;
-      slog('MYELIN', `Fleet distill: ${distilled.join(', ')} (${skipped} skipped — no new decisions${skippedEmpty.length > 0 ? `, ${skippedEmpty.join(', ')} skipped — no LLM decisions` : ''})`);
+      const skipped = fleet.names().length - distilled.length;
+      slog('MYELIN', `Fleet distill: ${distilled.join(', ')} (${skipped} skipped — no new decisions)`);
     } else {
-      slog('MYELIN', `Fleet distill: all domains skipped${skippedEmpty.length > 0 ? ` (${skippedEmpty.join(', ')}: no LLM decisions)` : ' — no new decisions'}`);
+      slog('MYELIN', 'Fleet distill: all domains skipped — no new decisions');
     }
+
+    // Persist rule hitCounts — myelin only saves on crystallize/optimize, not on rule match
+    try { persistRuleHitCounts(); } catch { /* fire-and-forget */ }
 
     // Research methodology evolution (needs evolve() beyond basic distill)
     try {

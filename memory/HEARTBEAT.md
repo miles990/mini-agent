@@ -31,6 +31,12 @@ Asurada optional addon。3,560+ triage，零 false negative。
 Phase 0 ✅ DONE（2026-03-16）— GitHub repo live, 56/56 tests, 結晶化引擎三層完整。
 Alex 確認價值已證明（2026-03-16 #156）。後續 npm publish 等 Alex 決定語言方向。
 
+**myelin 資料流健康度**（2026-03-17 追蹤）：
+- [x] bypass 資料回流：4 個 bypass 點現在通過 myelin seed rules 路由，hitCount 會累積
+- [x] hitCount 持久化：distill 後自動寫入磁碟（之前只存記憶體，重啟後歸零）
+- [x] distill 空轉：per-domain smart distill，無新決策則跳過
+- [ ] 驗證：重啟後確認 triage rules hitCount > 0、routing rules hitCount 持續增長
+
 ### #3 Priority: 開源打磨
 - [x] Dev.to 介紹文 "The Rule Layer Ate My LLM" ✅（2026-03-15 發布，0 comments）
 - [ ] Show HN 協調發佈 — **BLOCKED**（依賴 npm publish，npm auth 過期需 Alex `npm login`）
