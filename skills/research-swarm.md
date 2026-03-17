@@ -116,7 +116,7 @@ Output format:
 
 ### Step 3: 等待結果
 
-觸手完成後出現在 `<background-completed>` section。不急——等全部（或大部分）完成再聚合。
+觸手完成後出現在 `<background-completed>` section。大部分觸手完成 = 聚合的開始信號，立即開始。
 
 如果有觸手 timeout 或空結果 → 那條自然修剪，用其餘結果聚合。
 
@@ -156,7 +156,7 @@ Date: YYYY-MM-DD | Angles: {列出用了哪些} | Sources: {總數}
 
 - **一次 Swarm 用 2-4 條 lane**，保留至少 2 條給其他 delegation
 - **不要對低價值話題開 Swarm** — 簡單問題用單條 delegate 或直接搜
-- **每個 cycle 最多一個 Swarm** — 重資源操作，不疊加
+- **每個 cycle 最多一個 Swarm** — 前一個 Swarm 聚合完成 = 可開始下一個
 
 ## 硬規則
 

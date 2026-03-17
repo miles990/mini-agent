@@ -22,7 +22,7 @@ node scripts/cdp-fetch.mjs fetch "https://dev.to/notifications" --full
 分類：
 - **回覆我的文章** — 最高優先。別人花時間留深度留言，必須回
 - **新 followers** — 檢查 profile，有深度內容的 follow back
-- **其他通知** — 掃描，不急
+- **其他通知** — 掃描，上層優先處理完後立即處理
 
 ### 2. 回覆留言（5 min）
 
