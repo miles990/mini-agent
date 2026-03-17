@@ -437,13 +437,13 @@
   /* === Topic Badge === */
   .topic-badge {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.58rem;
+    font-size: 11px;
     padding: 1px 6px;
     border-radius: 8px;
-    opacity: 0.75;
+    opacity: 0.8;
     cursor: pointer;
-    letter-spacing: 0.02em;
-    margin-left: auto;
+    color: #333;
+    margin-left: 6px;
     flex-shrink: 0;
     transition: opacity 0.15s;
     user-select: none;
@@ -614,8 +614,8 @@
   </div>
 </div>
 
-<div class="topic-filter-bar empty" id="topicFilter">
-  <span class="topic-chip active" data-topic="all" onclick="filterByTopic('all')">all</span>
+<div class="topic-filter-bar empty" id="topic-filter">
+  <span class="topic-chip active" data-topic="all" onclick="filterByTopic('all')">All</span>
 </div>
 
 <div class="messages" id="messages">
@@ -811,7 +811,7 @@
     if (msg.replyTo) el.classList.add('has-thread');
 
     // Topic detection
-    const topic = (msg.context && msg.context.topic) || detectTopic(msg.text);
+    const topic = msg.context?.topic;
     if (topic) {
       el.dataset.topic = topic;
       updateTopicFilter(topic);
@@ -850,7 +850,7 @@
     let topicBadgeHtml = '';
     if (topic) {
       const color = topicColor(topic);
-      topicBadgeHtml = `<span class="topic-badge" style="background:${color.bg};color:${color.fg};border:1px solid ${color.border}" onclick="filterByTopic('${esc(topic)}')">${esc(topic)}</span>`;
+      topicBadgeHtml = `<span class="topic-badge" style="background:${color};color:${topicTextColor(color)}" onclick="filterByTopic('${esc(topic)}')">${esc(topic)}</span>`;
     }
 
     // Reply button
@@ -970,44 +970,38 @@
     }
   };
 
-  // === Topic Detection ===
-  const TOPIC_RULES = [
-    { keywords: ['競賽', 'teaching monster', 'teaching.monster', 'warm-up', '熱身', '提交影片', 'pipeline', 'speechlab', 'xiao', '教學法'], topic: 'teaching-monster' },
-    { keywords: ['myelin', 'crystallize', 'distill', 'bypass', 'cascade', 'myelinate'], topic: 'myelin' },
-    { keywords: ['mushi', 'route', 'triage', 'mushi-kit'], topic: 'mushi' },
-    { keywords: ['deploy', '部署', 'launchctl', '重啟', 'restart', 'CI/CD'], topic: 'ops' },
-    { keywords: ['memory', '記憶', 'MEMORY.md', 'topic memory', 'FTS5'], topic: 'memory' },
-    { keywords: ['asurada', 'framework', 'npm publish', 'npx'], topic: 'asurada' },
-    { keywords: ['chat-ui', 'chat room', 'topic badge', 'thread line', 'filter'], topic: 'chat-ui' },
-    { keywords: ['cycle', 'loop', 'OODA', 'preprocessor', 'sentinel', 'event emission', 'idle sleep'], topic: 'architecture' },
-    { keywords: ['slack', '#discussion', '#announcement', '#deprecated'], topic: 'slack' },
-  ];
-
-  function detectTopic(text) {
-    if (!text) return null;
-    const lower = text.toLowerCase();
-    for (const rule of TOPIC_RULES) {
-      if (rule.keywords.some(kw => lower.includes(kw.toLowerCase()))) {
-        return rule.topic;
-      }
-    }
-    return null;
-  }
-
   // Generate consistent color from topic name
   function topicColor(topic) {
     let hash = 0;
     for (let i = 0; i < topic.length; i++) {
       hash = topic.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const hue = ((hash % 360) + 360) % 360;
-    return { bg: `hsla(${hue}, 50%, 50%, 0.12)`, fg: `hsl(${hue}, 60%, 65%)`, border: `hsla(${hue}, 50%, 50%, 0.3)` };
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 60%, 85%)`;
+  }
+
+  function topicTextColor(color) {
+    const m = color.match(/^hsl\((\d+),\s*(\d+)%?,\s*(\d+)%?\)$/);
+    if (!m) return '#333';
+    const h = Number(m[1]) / 360;
+    const s = Number(m[2]) / 100;
+    const l = Number(m[3]) / 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => {
+      const k = (n + h * 12) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    const r = f(0);
+    const g = f(8);
+    const b = f(4);
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luminance > 0.65 ? '#1f2430' : '#f2f4f8';
   }
 
   // Track topics for filter bar
   const topicSet = new Set();
   let activeFilter = 'all';
-  const $topicFilter = document.getElementById('topicFilter');
+  const $topicFilter = document.getElementById('topic-filter');
 
   function updateTopicFilter(topic) {
     if (!topic || topicSet.has(topic)) return;
@@ -1019,8 +1013,9 @@
     chip.dataset.topic = topic;
     chip.textContent = topic;
     const color = topicColor(topic);
-    chip.style.borderColor = color.border;
-    chip.style.color = color.fg;
+    chip.style.background = color;
+    chip.style.color = topicTextColor(color);
+    chip.style.borderColor = 'transparent';
     chip.onclick = () => filterByTopic(topic);
     $topicFilter.appendChild(chip);
   }
