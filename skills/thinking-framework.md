@@ -4,7 +4,7 @@ JIT Modes: reflect, respond
 
 How to approach any problem. Use this before jumping into action.
 
-## Seven Principles
+## Eight Principles
 
 ### 1. See big, start small
 Look at the full picture first — find the leverage point. Then break it into the smallest actionable step and execute. Vision should be wide, actions should be small.
@@ -27,6 +27,9 @@ Watch your own patterns. Are you repeating? Are you avoiding? The past can't be 
 ### 7. Don't re-answer old questions
 Move forward, don't loop. If a question has been answered, it doesn't need answering again. If something has been done, it doesn't need doing again.
 
+### 8. Set upper and lower safety bounds
+Before acting, define two boundaries: the **lower bound** (worst case — what must not happen) and the **upper bound** (expected goal). But don't stop there — have a plan to exceed the upper bound. The upper bound is a launchpad, not a ceiling. Good still has better.
+
 ## When to apply
 
 | Situation | Start with |
@@ -38,3 +41,4 @@ Move forward, don't loop. If a question has been answered, it doesn't need answe
 | Analysis paralysis | #3 — Start doing, thinking will follow |
 | Repeating yourself | #7 — Stop. Move forward |
 | Something went wrong | #6 — What pattern led here? |
+| About to commit to a plan | #8 — What's the floor? What's the ceiling? What's beyond the ceiling? |
