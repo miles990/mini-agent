@@ -30,6 +30,118 @@ JIT Modes: learn
 
 **關鍵原則**：CDP 做讀取很穩定，做互動是痛點。React controlled components 不要用 CDP interact（DOM 賦值不觸發 onChange）。
 
+## 全場景盤點（2026-03-17）
+
+每個 web 互動場景的最佳策略，基於實際痛點和經驗決定。**不要臨場判斷，直接查表。**
+
+### 1. Dev.to 發布
+- **過去做法**：~~CDP 操作 React 編輯器~~（已廢棄，多次失敗：tag input 不觸發、encoding 亂碼、state 崩潰）
+- **最佳做法**：API `POST /api/articles`，用 `bash scripts/devto-api.sh publish`
+- **狀態**：🟢 已遷移。`devto-api.sh` + `devto-publish.mjs` 就緒
+
+### 2. Dev.to 留言
+- **過去做法**：沒做過
+- **最佳做法**：API `POST /api/comments`（body: `{comment: {body_markdown, commentable_id, commentable_type: "Article", parent_id}}`）
+- **狀態**：🟢 就緒。`devto-api.sh` 已有範例
+
+### 3. Dev.to 通知/個人檔案
+- **最佳做法**：API `GET /api/notifications`、`GET /api/users/me`、`GET /api/followers/users`
+- **狀態**：🟢 就緒。需要時直接 curl
+
+### 4. HN 掃描
+- **做法**：`curl -sL https://news.ycombinator.com/` 或 Firebase API `https://hacker-news.firebaseio.com/v0/topstories.json`
+- **狀態**：🟢 已是最佳。靜態 HTML，無 JS 需求
+
+### 5. Lobsters 掃描
+- **做法**：`curl -sL https://lobste.rs/` 或 JSON API `https://lobste.rs/hottest.json`
+- **狀態**：🟢 已是最佳
+
+### 6. X/Twitter 讀取
+- **做法**：Grok API（`x_search` tool），見下方 Grok API 詳情
+- **狀態**：🟢 已是最佳。原生 X 搜索，能讀 replies/engagement/影片
+
+### 7. X/Twitter 發文
+- **做法**：無法使用（免費帳號 API 限制）
+- **升級**：X API v2 `POST /2/tweets`（需 Basic tier $100/mo）
+- **狀態**：🔴 受限。有觀點時用 CDP fallback 或等 API 額度
+
+### 8. Facebook 抓取
+- **做法**：`node scripts/cdp-fetch.mjs fetch "URL"`（Chrome session 已登入）
+- **注意**：Graph API 不對個人帳號開放貼文讀取。抓不到→問 Alex
+- **狀態**：🟢 已是最佳（平台限制）
+
+### 9. GitHub 操作
+- **做法**：`gh` CLI（`gh issue list`、`gh pr create`、`gh api`）。完整 API，auth 已設定
+- **狀態**：🟢 已是最佳
+
+### 10. GitHub 頁面讀取
+- **做法**：`curl -sL` 讀公開頁面（README、release notes）
+- **狀態**：🟢 已是最佳
+
+### 11. Teaching Monster 平台
+- **做法**：`node scripts/cdp-fetch.mjs interact`（無 API，Clerk 認證，表單互動）
+- **注意**：521 是伺服器問題不是 CDP 問題
+- **狀態**：🟢 已是最佳（平台限制）
+
+### 12. Slack (Teaching Monster workspace)
+- **目前做法**：`node scripts/cdp-fetch.mjs fetch`（Chrome session 瀏覽）
+- **最佳做法**：長期→建 Slack App + Bot Token → Slack API（`conversations.history`、`search.messages`）
+- **需要改什麼**：需 workspace admin 核准建 app。短期 CDP-read 堪用
+- **狀態**：🟡 可升級
+
+### 13. Gmail
+- **目前做法**：`node scripts/cdp-fetch.mjs fetch "https://mail.google.com/"`（Chrome session）
+- **最佳做法**：長期→ Gmail API + OAuth（可搜尋、標記、回覆、自動化）
+- **需要改什麼**：設定 Google Cloud OAuth credentials → Gmail API scope
+- **狀態**：🟡 可升級
+
+### 14. SearXNG 搜尋
+- **做法**：`bash scripts/search-web.sh "query"`（本地 port 8888，多引擎聚合）
+- **狀態**：🟢 已是最佳
+
+### 15. Telegram
+- **做法**：Bot API（已內建 `src/telegram.ts`）
+- **狀態**：🟢 已是最佳
+
+### 16. ArXiv
+- **做法**：`curl -sL` 讀摘要頁。也有 ArXiv API（`export.arxiv.org/api/query?search_query=`）。PDF 用 cdp-fetch
+- **狀態**：🟢 已是最佳
+
+### 17. Reddit
+- **做法**：`node scripts/cdp-fetch.mjs fetch`（需 Chrome session 繞 rate limit）
+- **狀態**：🟢 已是最佳（平台限制）
+
+### 18. YouTube
+- **做法**：`curl -sL` 讀 metadata；影片理解用 Grok API `enable_video_understanding: true`
+- **狀態**：🟢 已是最佳
+
+### 19. 知識文章站（Aeon / Marginalian / Quanta / note.com）
+- **做法**：`curl -sL`。公開靜態頁面
+- **狀態**：🟢 已是最佳
+
+### 20. kuro.page（自有網站）
+- **做法**：`git push origin main` → GitHub Pages 自動部署。不是 web access，是部署
+- **狀態**：N/A
+
+### 21. 一般網頁（未知站點）
+- **做法**：先查 cdp.jsonl → 沒有就按決策樹（curl → CDP-fetch → CDP-login）→ 結果記回 cdp.jsonl
+- **狀態**：🟢 已是最佳
+
+---
+
+### 遷移狀態總覽
+
+| 狀態 | 數量 | 場景 |
+|------|------|------|
+| 🟢 已遷移/最佳 | 18 | Dev.to 全系列, HN, Lobsters, X 讀取, Facebook, GitHub, Teaching Monster, SearXNG, Telegram, ArXiv, Reddit, YouTube, 知識站, 一般網頁 |
+| 🟡 可升級 | 2 | Slack (需 admin), Gmail (需 OAuth) |
+| 🔴 受限 | 1 | X 發文 (需付費 API) |
+
+**升級路徑**（非緊急，現有方案堪用）：
+- Slack → 建 Slack App + Bot Token → Slack API（需 workspace admin 核准）
+- Gmail → Google Cloud OAuth → Gmail API（可搜尋/標記/回覆）
+- X 發文 → Basic tier API ($100/mo) 或等免費額度
+
 ## 站點記憶（cdp.jsonl）
 
 路徑：`memory/state/cdp.jsonl`（每行一條 JSON）
