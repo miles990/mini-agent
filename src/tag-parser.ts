@@ -154,9 +154,19 @@ function mergeRanges(ranges: Range[]): Range[] {
   return merged;
 }
 
-export function stripKuroTags(input: string, options?: ParseOptions): string {
+export function stripKuroTags(
+  input: string,
+  options?: ParseOptions & { exclude?: Set<string> },
+): string {
   const parsed = parseInternal(input, options);
-  const merged = mergeRanges(parsed.ranges);
+  const exclude = options?.exclude;
+  const ranges: Range[] = [];
+  for (const tag of parsed.tags) {
+    if (exclude && exclude.has(tag.name)) continue;
+    ranges.push({ start: tag.start, end: tag.end });
+  }
+  ranges.sort((a, b) => a.start - b.start);
+  const merged = mergeRanges(ranges);
   if (merged.length === 0) return input.trim();
 
   let cursor = 0;
