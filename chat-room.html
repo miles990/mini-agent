@@ -769,13 +769,10 @@
     eventSource.onmessage = (ev) => {
       try {
         const payload = JSON.parse(ev.data);
-        if (payload.type === 'action:room' || payload.type === 'action:chat') {
+        if (payload.type === 'action:room') {
           removeThinking();
-          const msg = payload.type === 'action:chat'
-            ? { from: 'kuro', text: payload.data.text, ts: payload.ts, id: payload.data.id }
-            : payload.data;
-          addMessage(msg, true);
-        } else if (payload.type === 'trigger:room') {
+          addMessage(payload.data, true);
+        } else if (payload.type === 'trigger:room' || payload.type === 'trigger:chat') {
           showThinking();
         }
       } catch {}

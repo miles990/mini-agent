@@ -2461,6 +2461,7 @@ export function createApi(port = 3001): express.Express {
 
     eventBus.on('action:room', handler);
     eventBus.on('trigger:room', handler);
+    eventBus.on('trigger:chat', handler);
 
     const keepalive = setInterval(() => safeSend(':ping\n\n'), 30_000);
 
@@ -2469,6 +2470,7 @@ export function createApi(port = 3001): express.Express {
       closed = true;
       eventBus.off('action:room', handler);
       eventBus.off('trigger:room', handler);
+      eventBus.off('trigger:chat', handler);
       clearInterval(keepalive);
     };
 
