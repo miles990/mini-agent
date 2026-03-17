@@ -61,6 +61,9 @@ export interface PulseMetrics {
   decisionQualityAvg: number;
   decisionQualityWindow: number;
 
+  // Analyze-without-action pattern (Alex feedback 2026-03-17)
+  analyzeWithoutActionStreak: number;
+
   // Positive indicators
   momentumStreak: number;
   creativeFlowActive: boolean;
@@ -148,6 +151,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     recurringErrorCount: 0,
     decisionQualityAvg: 0,
     decisionQualityWindow: 0,
+    analyzeWithoutActionStreak: 0,
     momentumStreak: 0,
     creativeFlowActive: false,
   };
@@ -161,6 +165,19 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
         /learn|research|remember|study/i.test(b.data.action ?? ''),
       ).length;
       metrics.learnVsActionRatio = learnCount / behaviors.length;
+
+      // ── Analyze-without-action streak ──
+      // Detects: consecutive ANALYZE/REMEMBER without ACTION (delegate/code/execute)
+      let analyzeStreak = 0;
+      for (let i = behaviors.length - 1; i >= 0; i--) {
+        const act = (behaviors[i].data.action ?? '').toLowerCase();
+        if (/analyze|remember|learn|research|study/.test(act)) {
+          analyzeStreak++;
+        } else if (/delegate|code|execute|deploy|fix|implement|commit|create/.test(act)) {
+          break;
+        }
+      }
+      metrics.analyzeWithoutActionStreak = analyzeStreak;
     }
   } catch { /* best effort */ }
 
@@ -514,6 +531,15 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
       severity: 'high',
       positive: false,
       detail: `${metrics.consecutiveNonOutputCycles} cycles without visible output`,
+    });
+  }
+
+  if (metrics.analyzeWithoutActionStreak >= 3) {
+    signals.push({
+      type: 'analyze-no-action',
+      severity: metrics.analyzeWithoutActionStreak >= 5 ? 'high' : 'medium',
+      positive: false,
+      detail: `${metrics.analyzeWithoutActionStreak} consecutive analyze/remember without action — execute or delegate now`,
     });
   }
 
