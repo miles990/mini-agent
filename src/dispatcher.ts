@@ -654,8 +654,12 @@ export async function postProcess(
   if (tags.tasks.length > 0) tagsProcessed.push('task');
   for (const t of tags.tasks) {
     await memory.addTask(t.content, t.schedule);
-    createTask(memoryDir, { type: 'task', title: t.content, status: t.schedule ? 'pending' : 'in_progress' }).catch(() => {});
-    eventBus.emit('action:task', { content: t.content });
+    try {
+      const entry = await createTask(memoryDir, { type: 'task', title: t.content, status: t.schedule ? 'pending' : 'in_progress' });
+      eventBus.emit('action:task', { content: t.content, entry });
+    } catch {
+      eventBus.emit('action:task', { content: t.content });
+    }
   }
 
   if (tags.taskQueueActions.length > 0) tagsProcessed.push('task-queue');
@@ -665,14 +669,17 @@ export async function postProcess(
         ...v,
         updatedAt: new Date().toISOString(),
       }));
-      createTask(memoryDir, {
-        type: action.type ?? 'task',
-        title: action.title,
-        status: action.status ?? 'pending',
-        verify,
-        origin: action.origin,
-        priority: action.priority,
-      }).catch(() => {});
+      try {
+        const entry = await createTask(memoryDir, {
+          type: action.type ?? 'task',
+          title: action.title,
+          status: action.status ?? 'pending',
+          verify,
+          origin: action.origin,
+          priority: action.priority,
+        });
+        eventBus.emit('action:task', { content: action.title, entry });
+      } catch { /* ignore */ }
       continue;
     }
 
@@ -682,20 +689,28 @@ export async function postProcess(
       const verifyPatch: VerifyResult[] | undefined = action.verify
         ? action.verify.map(v => ({ ...v, updatedAt: new Date().toISOString() }))
         : undefined;
-      updateTask(memoryDir, action.id, {
-        type: action.type ?? (current?.type as 'task' | 'goal' | undefined),
-        title: action.title ?? current?.summary,
-        status: action.status ?? current?.status,
-        origin: action.origin ?? (currentPayload.origin as string | undefined),
-        priority: action.priority ?? (currentPayload.priority as number | undefined),
-        verify: verifyPatch ?? (currentPayload.verify as VerifyResult[] | undefined),
-        staleWarning: undefined,
-      }).catch(() => {});
+      try {
+        const updated = await updateTask(memoryDir, action.id, {
+          type: action.type ?? (current?.type as 'task' | 'goal' | undefined),
+          title: action.title ?? current?.summary,
+          status: action.status ?? current?.status,
+          origin: action.origin ?? (currentPayload.origin as string | undefined),
+          priority: action.priority ?? (currentPayload.priority as number | undefined),
+          verify: verifyPatch ?? (currentPayload.verify as VerifyResult[] | undefined),
+          staleWarning: undefined,
+        });
+        if (updated) {
+          eventBus.emit('action:task', { content: updated.summary, entry: updated });
+        }
+      } catch { /* ignore */ }
       continue;
     }
 
     if (action.op === 'delete' && action.id) {
-      deleteMemoryIndexEntry(memoryDir, action.id).catch(() => {});
+      try {
+        await deleteMemoryIndexEntry(memoryDir, action.id);
+        eventBus.emit('action:task', { content: `deleted:${action.id}` });
+      } catch { /* ignore */ }
     }
   }
 
@@ -944,6 +959,8 @@ export async function postProcess(
       title: tags.goal.description,
       status: 'in_progress',
       origin: tags.goal.origin,
+    }).then(entry => {
+      eventBus.emit('action:task', { content: tags.goal!.description, entry });
     }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `created: ${tags.goal.description.slice(0, 80)}` });
   } else if (tags.goalQueue) {
@@ -954,27 +971,37 @@ export async function postProcess(
       status: 'pending',
       origin: tags.goalQueue.origin,
       priority: tags.goalQueue.priority,
+    }).then(entry => {
+      eventBus.emit('action:task', { content: tags.goalQueue!.description, entry });
     }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `queued: ${tags.goalQueue.description.slice(0, 80)}` });
   } else if (tags.goalAdvance) {
     tagsProcessed.push('goal-advance');
     const item = findLatestOpenGoal(memoryDir, tags.goalAdvance);
-    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).catch(() => {});
+    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).then(updated => {
+      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
+    }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `phase advanced: ${tags.goalAdvance.slice(0, 80)}` });
   } else if (tags.goalDone) {
     tagsProcessed.push('goal-done');
     const item = findLatestOpenGoal(memoryDir, tags.goalDone);
-    if (item) updateTask(memoryDir, item.id, { status: 'completed', staleWarning: undefined }).catch(() => {});
+    if (item) updateTask(memoryDir, item.id, { status: 'completed', staleWarning: undefined }).then(updated => {
+      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
+    }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `completed: ${tags.goalDone.slice(0, 80)}` });
   } else if (tags.goalAbandon) {
     tagsProcessed.push('goal-abandon');
     const item = findLatestOpenGoal(memoryDir, tags.goalAbandon);
-    if (item) updateTask(memoryDir, item.id, { status: 'abandoned', staleWarning: undefined }).catch(() => {});
+    if (item) updateTask(memoryDir, item.id, { status: 'abandoned', staleWarning: undefined }).then(updated => {
+      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
+    }).catch(() => {});
     eventBus.emit('log:info', { tag: 'goal', msg: `abandoned: ${tags.goalAbandon.slice(0, 80)}` });
   } else if (tags.goalProgress) {
     tagsProcessed.push('goal-progress');
     const item = findLatestOpenGoal(memoryDir, tags.goalProgress);
-    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).catch(() => {});
+    if (item) updateTask(memoryDir, item.id, { status: 'in_progress', staleWarning: undefined }).then(updated => {
+      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
+    }).catch(() => {});
   }
 
   // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
