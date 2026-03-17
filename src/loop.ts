@@ -93,7 +93,7 @@ import { isVisibleOutput } from './achievements.js';
 import { hasContextChanged, formatGateStats, hashContext, cacheResponse, callLocalFast } from './omlx-gate.js';
 import { runPhase0 } from './preprocess.js';
 import { routeInboxItems } from './task-graph.js';
-import { triageRouting } from './myelin-fleet.js';
+import { triageRouting, logTriageBypass } from './myelin-fleet.js';
 import { initSharedKnowledge, observe as kbObserve, getKnowledgeSummary } from './shared-knowledge.js';
 import type { Phase0Results } from './preprocess.js';
 
@@ -1086,13 +1086,16 @@ export class AgentLoop {
     const hasP0 = this.hasPendingWork();
     if (hasP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
+      logTriageBypass('P0-pending', 'wake', 'pending work exists');
     }
     if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
+        logTriageBypass('alert', 'wake', 'alert always wakes');
       } else if (triageSource === 'delegation-complete' || triageSource === 'delegation-batch') {
         slog('MUSHI', `✅ ${triageSource} bypasses triage (must absorb results)`);
+        logTriageBypass(triageSource, 'wake', 'must absorb delegation results');
       } else if (
         this.cycleCount > 1  // Never hard-skip first 2 cycles after restart — prevents idle loop from crash-resumed lastAction
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
@@ -1105,6 +1108,7 @@ export class AgentLoop {
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
         // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
         slog('MUSHI', `⏭ Hard skip — ${triageSource} + no perception change + idle`);
+        logTriageBypass(triageSource, 'skip', 'no-perception-change + idle');
         try { kbObserve({ source: 'mushi', type: 'skip', data: { trigger: triageSource, reason: 'hard-rule: no-perception-change + idle' }, tags: [triageSource] }); } catch { /* fire-and-forget */ }
         writeTrailEntry({
           ts: new Date().toISOString(),

@@ -326,10 +326,22 @@ export async function maybeDistill(): Promise<boolean> {
   _lastDistillTime = now;
 
   try {
-    // Fleet distills all domains (triage + learning + routing + research)
+    // Per-domain smart distill — only distill domains with new decisions
     const fleet = getFleet();
-    fleet.distillAll();
-    slog('MYELIN', `Fleet distill complete (${fleet.names().join(', ')})`);
+    const distilled: string[] = [];
+    for (const name of fleet.names()) {
+      const instance = fleet.get(name)!;
+      const result = instance.maybeDistill({ minNewDecisions: 3, minIntervalMs: DISTILL_INTERVAL_MS });
+      if (result) {
+        distilled.push(name);
+        slog('MYELIN', `${name} distilled: ${result.rules.length} rules, ${result.templates.length} templates`);
+      }
+    }
+    if (distilled.length > 0) {
+      slog('MYELIN', `Fleet distill: ${distilled.join(', ')} (${fleet.names().length - distilled.length} skipped — no new decisions)`);
+    } else {
+      slog('MYELIN', 'Fleet distill: all domains skipped — no new decisions');
+    }
 
     // Research methodology evolution (needs evolve() beyond basic distill)
     try {
@@ -338,7 +350,7 @@ export async function maybeDistill(): Promise<boolean> {
       slog('MYELIN-RESEARCH', `Research evolve: ${researchResult.stats.ruleCount} rules, ${researchResult.stats.principleCount} principles, methodology: ${researchResult.hasMethodology ? 'active' : 'building'}`);
     } catch { /* research evolution is optional */ }
 
-    return true;
+    return distilled.length > 0;
   } catch (err) {
     slog('MYELIN', `Distill error: ${err instanceof Error ? err.message : 'unknown'}`);
     return false;
