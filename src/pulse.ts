@@ -80,6 +80,7 @@ interface SignalHistoryEntry {
   consecutiveAppearances: number;
   lastActionChange: number;       // cycles since behavior changed after this signal
   lastPresented: string;          // ISO timestamp
+  crystallizationEscalated?: boolean;  // true = already created HEARTBEAT task for this persistent pattern
 }
 
 interface PulseState {
@@ -471,6 +472,7 @@ function detectBehaviorChange(state: PulseState, action: string | null): void {
     // Behavior changed — reset relevant signal counters
     for (const entry of Object.values(state.signalHistory)) {
       entry.lastActionChange = 0;
+      entry.crystallizationEscalated = false;  // allow re-escalation if pattern recurs
     }
     state.lastBehaviorHash = hash;
   }
@@ -663,6 +665,37 @@ export function buildPulseSection(signals: PulseSignal[]): string | null {
 }
 
 // =============================================================================
+// Crystallization Bridge: Pulse → HEARTBEAT (persistent signals become tasks)
+// =============================================================================
+
+const CRYSTALLIZATION_THRESHOLD = HABITUATION_THRESHOLD * 2;  // 10 cycles without behavior change
+
+/**
+ * When a pulse signal persists for CRYSTALLIZATION_THRESHOLD cycles without
+ * behavior change, escalate from text signal to HEARTBEAT task with
+ * crystallization framing.
+ *
+ * This is the bridge between "detecting a pattern" and "acting on it."
+ * Signals are hopes (depend on context window attention).
+ * Tasks are commitments (tracked until resolved).
+ *
+ * 2026-03-17: Born from the closed-loop experience — the realization that
+ * "signal → hope LLM notices" has the same failure mode as "memory → hope
+ * LLM remembers." Both depend on attention. Code doesn't.
+ */
+function escalateToCrystallization(signal: PulseSignal, history: SignalHistoryEntry): void {
+  try {
+    const memory = getMemory();
+    const taskText =
+      `P1: 結晶候選 — ${signal.type}（${history.consecutiveAppearances} cycles 無行為改變）\n` +
+      `Pattern: ${signal.detail ?? signal.type}\n` +
+      `機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory）`;
+    memory.addTask(taskText).catch(() => {});
+    slog('PULSE', `Crystallization escalation: ${signal.type} (${history.consecutiveAppearances}× no change) → HEARTBEAT task`);
+  } catch { /* best effort */ }
+}
+
+// =============================================================================
 // Entry Point
 // =============================================================================
 
@@ -697,6 +730,20 @@ export async function runPulseCheck(
   } else if (existsSync(pulsePath)) {
     // Clean up stale file
     try { unlinkSync(pulsePath); } catch { /* ok */ }
+  }
+
+  // Crystallization bridge: persistent signals → HEARTBEAT tasks
+  // When a signal survives 2× habituation threshold without behavior change,
+  // it's not a temporary blip — it's a structural pattern that needs code, not willpower.
+  for (const signal of processed) {
+    const history = state.signalHistory[signal.type];
+    if (history &&
+        history.consecutiveAppearances >= CRYSTALLIZATION_THRESHOLD &&
+        history.lastActionChange >= CRYSTALLIZATION_THRESHOLD &&
+        !history.crystallizationEscalated) {
+      escalateToCrystallization(signal, history);
+      history.crystallizationEscalated = true;
+    }
   }
 
   // Update state
