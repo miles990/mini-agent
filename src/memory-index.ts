@@ -358,6 +358,8 @@ export async function updateTask(
     priority?: number;
     assignee?: string;
     blockedBy?: string[];
+    pinned?: boolean;
+    pinContext?: string;
   },
 ): Promise<MemoryIndexEntry | null> {
   const normalId = normalizeId(id);
@@ -376,6 +378,12 @@ export async function updateTask(
     newPayload.staleWarning = patch.staleWarning;
   } else if ('staleWarning' in patch) {
     delete newPayload.staleWarning;
+  }
+  if (patch.pinned !== undefined) newPayload.pinned = patch.pinned;
+  if (patch.pinContext !== undefined) newPayload.pinContext = patch.pinContext;
+  if (patch.pinned === false) {
+    delete newPayload.pinned;
+    delete newPayload.pinContext;
   }
 
   return updateMemoryIndexEntry(memoryDir, normalId, {
@@ -464,6 +472,27 @@ export function buildTaskQueueSection(memoryDir: string): string {
   return ['<task-queue>', 'Unified queue (pending + in_progress):', ...lines, '</task-queue>'].join(
     '\n',
   );
+}
+
+export function buildPinnedTasksSection(memoryDir: string): string {
+  const all = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+  });
+  const pinned = all.filter(item => {
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
+    return payload.pinned === true;
+  });
+  if (pinned.length === 0) return '';
+
+  const lines = pinned.map(item => {
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
+    const ctx = payload.pinContext as string | undefined;
+    const status = item.status;
+    const ctxStr = ctx ? ` — ${ctx}` : '';
+    return `📌 [${status}] ${item.summary ?? item.id}${ctxStr}`;
+  });
+
+  return ['<pinned-tasks>', '持續關注項目（每個 cycle 掃一眼）:', ...lines, '</pinned-tasks>'].join('\n');
 }
 
 // =============================================================================

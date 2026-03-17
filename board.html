@@ -113,6 +113,10 @@ body::before{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
 .column.drag-over .col-body{background:var(--accent-glow)}
 .tc{background:var(--surface2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:9px 11px;cursor:grab;transition:all .15s;position:relative}
 .tc:hover{border-color:var(--border-hover);background:var(--surface3)}.tc:active{cursor:grabbing}.tc.dragging{opacity:.4;transform:scale(.97)}
+.tc.pinned{border-color:var(--yellow);border-left:3px solid var(--yellow);background:rgba(251,191,36,.04)}
+.tc.pinned:hover{border-color:var(--yellow);background:rgba(251,191,36,.08)}
+.pin-btn{opacity:.4;font-size:11px;background:none;border:none;cursor:pointer;padding:1px 3px}.pin-btn:hover{opacity:.8}.pin-btn.active{opacity:1;filter:drop-shadow(0 0 3px var(--yellow))}
+.pin-context{font-size:10px;color:var(--yellow);opacity:.8;margin:3px 0 1px;font-style:italic}
 .tc.new-card{animation:cardIn .25s ease-out}
 @keyframes cardIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .card-top{display:flex;align-items:center;gap:5px;margin-bottom:4px}
@@ -449,6 +453,7 @@ function renderCol(id,items){
   el.innerHTML=items.map(cardHTML).join('');
   el.querySelectorAll('.tc').forEach(c=>{c.setAttribute('draggable','true');c.ondragstart=e=>{c.classList.add('dragging');e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move'};c.ondragend=()=>c.classList.remove('dragging');c.onclick=e=>{if(e.target.closest('.ta'))return;openModal(c.dataset.id)}});
   el.querySelectorAll('.tab.delete').forEach(b=>{b.onclick=e=>{e.stopPropagation();deleteTask(b.dataset.id)}});
+  el.querySelectorAll('.tab.pin-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();togglePin(b.dataset.id)}});
 }
 function cardHTML(t){
   const p=t.payload?.priority??2,tc2=t.type==='goal'?'badge-goal':'badge-task',tl=t.type==='goal'?'goal':'task';
@@ -458,7 +463,11 @@ function cardHTML(t){
   const date=new Date(t.ts).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'});
   let vh='';const v=t.payload?.verify;
   if(v&&Array.isArray(v)&&v.length)vh='<div class="vd">'+v.map(x=>'<span class="'+(x.status||'unknown')+'" title="'+esc(x.name)+': '+x.status+(x.detail?' \u2014 '+esc(x.detail):'')+'"></span>').join('')+'</div>';
-  return '<div class="tc" data-id="'+t.id+'" draggable="true"><div class="ta"><button class="tab delete" data-id="'+t.id+'" title="Delete">&times;</button></div><div class="card-top"><span class="task-type '+tc2+'">'+tl+'</span><span class="pb p'+p+'">P'+p+'</span>'+vh+'<span class="ab '+ac+'">'+al+'</span></div><div class="task-title">'+esc(t.summary||t.id)+'</div><div class="task-meta">'+(origin?'<span class="task-origin">'+esc(origin)+'</span>':'')+'<span class="task-time">'+date+' '+time+'</span>'+(t.refs?.length?'<span>refs: '+t.refs.length+'</span>':'')+'</div></div>';
+  const isPinned=t.payload?.pinned===true;
+  const pinCls=isPinned?' pinned':'';
+  const pinBtn='<button class="tab pin-btn'+(isPinned?' active':'')+'" data-id="'+t.id+'" title="'+(isPinned?'Unpin':'Pin')+'">&#x1F4CC;</button>';
+  const pinCtx=isPinned&&t.payload?.pinContext?'<div class="pin-context">'+esc(t.payload.pinContext)+'</div>':'';
+  return '<div class="tc'+pinCls+'" data-id="'+t.id+'" draggable="true"><div class="ta">'+pinBtn+'<button class="tab delete" data-id="'+t.id+'" title="Delete">&times;</button></div><div class="card-top"><span class="task-type '+tc2+'">'+tl+'</span><span class="pb p'+p+'">P'+p+'</span>'+vh+'<span class="ab '+ac+'">'+al+'</span></div><div class="task-title">'+esc(t.summary||t.id)+'</div>'+pinCtx+'<div class="task-meta">'+(origin?'<span class="task-origin">'+esc(origin)+'</span>':'')+'<span class="task-time">'+date+' '+time+'</span>'+(t.refs?.length?'<span>refs: '+t.refs.length+'</span>':'')+'</div></div>';
 }
 function setupDragDrop(){
   document.querySelectorAll('.column').forEach(col=>{const status=col.dataset.status;
@@ -474,6 +483,18 @@ async function saveNewTask(col){
 }
 function cancelAdd(col){const form=document.querySelector('.atf[data-col="'+col+'"]'),btn=document.querySelector('.atb[data-col="'+col+'"]');form.classList.remove('active');form.querySelector('input').value='';if(btn)btn.style.display=''}
 async function deleteTask(id){try{await fetch(config.url+'/api/task-queue/'+id,{method:'DELETE',headers:hdrs()});tasks=tasks.filter(t=>t.id!==id);render()}catch(e){console.error('Delete:',e)}}
+async function togglePin(id){
+  const task=tasks.find(t=>t.id===id);if(!task)return;
+  const isPinned=task.payload?.pinned===true;
+  const newPinned=!isPinned;
+  let pinContext;
+  if(newPinned){pinContext=prompt('Pin 備註（可選，每個 cycle Kuro 會看到）:')||''}
+  try{
+    await fetch(config.url+'/api/task-queue/'+id,{method:'PATCH',headers:hdrs(),body:JSON.stringify({pinned:newPinned,pinContext:newPinned?pinContext:undefined,origin:'task-board'})});
+    if(!task.payload)task.payload={};task.payload.pinned=newPinned;if(newPinned&&pinContext)task.payload.pinContext=pinContext;else if(!newPinned){delete task.payload.pinned;delete task.payload.pinContext}
+    render()
+  }catch(e){console.error('Pin:',e)}
+}
 function openModal(taskId){
   const task=tasks.find(t=>t.id===taskId);if(!task)return;editingTaskId=taskId;
   document.getElementById('modalTitle').value=task.summary||'';document.getElementById('modalPriority').value=String(task.payload?.priority??2);

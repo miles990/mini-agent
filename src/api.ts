@@ -1473,7 +1473,7 @@ export function createApi(port = 3001): express.Express {
 
   app.patch('/api/task-queue/:id', async (req: Request, res: Response) => {
     try {
-      const { title, status, priority, type, assignee, blockedBy } = req.body;
+      const { title, status, priority, type, assignee, blockedBy, pinned, pinContext } = req.body;
       const memDir = path.join(process.cwd(), 'memory');
       const updated = await updateTask(memDir, req.params.id, {
         title,
@@ -1482,6 +1482,8 @@ export function createApi(port = 3001): express.Express {
         type,
         assignee,
         blockedBy: Array.isArray(blockedBy) ? blockedBy : undefined,
+        pinned: pinned !== undefined ? Boolean(pinned) : undefined,
+        pinContext: pinContext !== undefined ? String(pinContext) : undefined,
       });
       if (!updated) {
         res.status(404).json({ error: 'task not found' });
