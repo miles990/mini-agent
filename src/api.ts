@@ -110,7 +110,8 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   }
 
   const provided = req.headers['x-api-key'] as string
-    ?? req.headers['authorization']?.replace('Bearer ', '');
+    ?? req.headers['authorization']?.replace('Bearer ', '')
+    ?? (req.query.key as string | undefined);  // EventSource can't send headers — accept query param for SSE
 
   if (!provided || provided !== apiKey) {
     res.status(401).json({ error: 'Unauthorized: invalid or missing API key' });

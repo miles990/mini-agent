@@ -754,7 +754,7 @@
       eventSource = null;
     }
 
-    const url = `${baseUrl}/api/room/stream`;
+    const url = `${baseUrl}/api/room/stream${apiKey ? '?key=' + encodeURIComponent(apiKey) : ''}`;
     eventSource = new EventSource(url);
 
     eventSource.onopen = () => {

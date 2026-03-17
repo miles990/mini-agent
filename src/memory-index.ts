@@ -16,6 +16,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { withFileLock } from './filelock.js';
 import { slog, diagLog } from './utils.js';
+import { eventBus } from './event-bus.js';
 import type { ParsedTags } from './types.js';
 
 // =============================================================================
@@ -720,7 +721,8 @@ export async function markTaskDoneByDescription(
     });
 
     if (matched) {
-      await updateMemoryIndexEntry(memoryDir, matched.id, { status: 'completed' });
+      const updated = await updateMemoryIndexEntry(memoryDir, matched.id, { status: 'completed' });
+      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
       slog('DONE', `Marked task done: ${matched.summary?.slice(0, 60)}`);
       totalMarked++;
     }
@@ -742,13 +744,14 @@ export async function enqueueAlexMessage(
   if (existing.some(e => (getTaskPayload(e).alexTimestamp as string) === timestamp)) return;
 
   const preview = message.replace(/\n/g, ' ').slice(0, 100);
-  await appendMemoryIndexEntry(memoryDir, {
+  const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',
     summary: `回覆 Alex: "${preview}"`,
     source: 'telegram',
     payload: { priority: 1, alexTimestamp: timestamp, section: 'next' },
   });
+  eventBus.emit('action:task', { content: entry.summary, entry });
   slog('NEXT', `Enqueued: ${preview.slice(0, 40)}`);
 }
 
@@ -769,13 +772,14 @@ export async function enqueueRoomDirective(
 
   const preview = message.replace(/\n/g, ' ').slice(0, 100);
   const priority = from === 'alex' ? 1 : 2; // Alex = P1, Claude Code = P2
-  await appendMemoryIndexEntry(memoryDir, {
+  const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',
     summary: `回覆 ${from}: "${preview}"`,
     source: 'room',
     payload: { priority, roomMsgId, from, section: 'next' },
   });
+  eventBus.emit('action:task', { content: entry.summary, entry });
   slog('NEXT', `Enqueued room directive [${from}]: ${preview.slice(0, 40)}`);
 }
 

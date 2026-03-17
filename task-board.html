@@ -1155,7 +1155,7 @@
 
   function connectSSE() {
     if (eventSource) { eventSource.close(); eventSource = null; }
-    eventSource = new EventSource(`${baseUrl}/api/events`);
+    eventSource = new EventSource(`${baseUrl}/api/events${apiKey ? '?key=' + encodeURIComponent(apiKey) : ''}`);
 
     eventSource.onopen = () => {
       setConnState('connected');
