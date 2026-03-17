@@ -20,6 +20,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import type { DelegationTaskType, Provider } from './types.js';
 import { writeActivity } from './activity-journal.js';
+import { updateTask } from './memory-index.js';
 
 // =============================================================================
 // Types
@@ -29,6 +30,7 @@ export interface DelegationTask {
   id?: string;
   type?: DelegationTaskType;
   provider?: Provider;
+  originTask?: string; // task-queue entry ID — 完成後自動更新此 task
   prompt: string;
   workdir: string;
   maxTurns?: number;
@@ -899,6 +901,19 @@ function startTask(task: DelegationTask): void {
         : '';
       slog('DELEGATION', `Finished ${taskId}: ${result.status}${verifyStr} in ${Math.round((result.duration ?? 0) / 1000)}s`);
       eventBus.emit('action:delegation-complete', { taskId, status: result.status, type: result.type, outputPreview: result.output.slice(0, 500) });
+      // Phase 3b: Auto-update task-queue if this delegation has an originTask
+      if (task.originTask) {
+        const memDir = path.join(process.cwd(), 'memory');
+        updateTask(memDir, task.originTask, {
+          status: result.status === 'completed' ? 'completed' : 'pending',
+          verify: [{
+            name: 'delegate',
+            status: result.status === 'completed' ? 'pass' : 'fail',
+            detail: result.output.slice(0, 200),
+            updatedAt: new Date().toISOString(),
+          }],
+        }).catch(() => {});
+      }
       writeActivity({
         lane: 'background',
         summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,
