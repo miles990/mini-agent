@@ -385,7 +385,7 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
       if (repliedInRoom || isMessageAddressed(sender, text, response, tags.chats, action, msgId)) {
         const suffix = repliedInRoom ? 'replied' : (tags.chats.length > 0 ? 'replied' : 'addressed');
         newProcessed.push(`- [${originalTs}] (${sender}) ${text} → ${suffix} ${nowStr}`);
-        if (msgId && sender === 'alex') {
+        if (msgId) {
           resolvedMsgIds.push(msgId);
         }
         continue;
