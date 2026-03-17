@@ -554,7 +554,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                     const chatText = m[1].trim();
                     if (chatText && !streamedChatTexts.has(chatText)) {
                       streamedChatTexts.add(chatText);
-                      const isReply = /\breply="true"/.test(m[0]);
+                      const isReply = /\breply="true"/.test(m[0]) || /\breplyTo=/.test(m[0]);
                       opts.onStreamChat(chatText, isReply);
                     }
                   }
@@ -1096,9 +1096,10 @@ async function streamLocalRound(
           }
           if (opts?.onStreamChat && content.length > chatSearchPos) {
             const tail = content.slice(chatSearchPos);
-            const m = tail.match(/<kuro:chat(\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/);
+            const m = tail.match(/<kuro:chat\b([^>]*)>([\s\S]*?)<\/kuro:chat>/);
             if (m) {
-              opts.onStreamChat(m[2].trim(), !!m[1]);
+              const isReply = /\breply="true"/.test(m[1]) || /\breplyTo=/.test(m[1]);
+              opts.onStreamChat(m[2].trim(), isReply);
               chatSearchPos += m.index! + m[0].length;
             }
           }

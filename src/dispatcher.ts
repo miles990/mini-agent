@@ -370,9 +370,10 @@ export function parseTags(response: string): ParsedTags {
   // inline code and backtick content that users/Kuro see in Chat Room and Telegram.
   const chats: Array<{ text: string; reply: boolean }> = [];
   if (parseSource.includes('<kuro:chat')) {
-    for (const m of response.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
-      const isReply = m[0].startsWith('<kuro:chat reply="true">');
-      chats.push({ text: m[1].trim(), reply: isReply });
+    for (const m of response.matchAll(/<kuro:chat\b([^>]*)>([\s\S]*?)<\/kuro:chat>/g)) {
+      const attrs = m[1];
+      const isReply = /\breply="true"/.test(attrs) || /\breplyTo=/.test(attrs);
+      chats.push({ text: m[2].trim(), reply: isReply });
     }
   }
 
