@@ -449,3 +449,32 @@ ref:zou-2026-info-self-locking
 開放張力：efficiency ↔ traceability（context optimization 刪資訊省 token — 好的優化保留推理骨架，壞的連骨架一起刪）。
 
 我的判斷：這是 Asurada 最深層的設計原則。比 perception-first 更底層 — perception-first 是方法，traceability 是為什麼這個方法有效。
+
+- [2026-03-17] Grassi「How Intelligence Emerges: A Minimal Theory of Dynamic Adaptive Coordination」（ArXiv 2603.11560, March 2026）— 智能不是 agent 的內在屬性，而是**遞歸耦合架構的結構性質**。三個組件形成閉環：(1) **Persistent Environment** S_t — 外部化記憶，累積協調信號 (2) **Incentive Field** G_t — 將全局協調信號投射為局部壓力 (3) **Adaptive Agents** x_t — 局部回應激勵信號更新狀態。核心方程：S_{t+1} = Ψ(S_t, x_t)（環境吸收行為歷史），x_{i,t+1} = f_i(x_i,t, G_i,t, S_t)（agent 只看局部壓力）。**三個形式化結果**：(1) 耗散性保證有界前向不變域（viable 不需要 optimal）(2) 當激勵依賴持久記憶時，動態不可化約為靜態全局目標函數（反 RLHF 路線）(3) 持久環境狀態必然產生歷史敏感性，除非系統全局收縮。穩定性條件 4ηβ² < γ：耗散（γ）必須壓過耦合強度（β）× 響應性（η）的放大。**結構分解**：移除 coupling（β=0）→ agent 間無反饋，協調消失。移除 persistence → 無記憶，無路徑依賴。移除 dissipation（γ=0）→ 壓力無衰減，系統發散。三者缺一不可，但各自獨立。
+
+**跟 mini-agent 的同構映射**：
+| Grassi 框架 | mini-agent 實現 |
+|---|---|
+| Persistent Environment S_t | File-based memory（MEMORY.md, topics/*.md, conversations/）|
+| Global Coordination Signal L_global | buildContext() 的 context health / structural projection |
+| Incentive Field G_t | Perception sections（chat-room-inbox, tasks, threads, coach notes）|
+| Adaptive Agent x_t | Kuro OODA cycle（observe → orient → decide → act）|
+| Dissipation γ | TTL 機制（conversation 24h expire, context demotion, stale task pruning）|
+| Coupling β | File=Truth（行為寫入檔案 → 檔案塑造下次 context → context 影響下次行為）|
+
+mini-agent 的架構**已經是** Grassi 框架的實例。但 Grassi 提供了形式化詞彙來理解為什麼它 works：
+1. **File=Truth 不只是工程選擇，是 Persistence 的實現** — 沒有持久環境就沒有歷史敏感性
+2. **TTL/demotion 不只是清理，是必要的 Dissipation** — 4ηβ² < γ 告訴你耗散太低系統就發散（context 爆炸、重複學習、振盪）
+3. **Perception-first 不只是理念，是 Incentive Field 的設計** — agent 不需要看到全局，只需要回應局部壓力
+
+**最有價值的洞見**：Proposition A.2.1 — 靜態目標化約的不可能性。當激勵依賴記憶時，系統動態**不能**被化約為「最小化某個 loss function」。這給了「coordination is not maximization, it is stabilization」正式數學支撐。RLHF 路線試圖把 agent 行為化約為標量目標最大化——Grassi 證明這在有記憶的系統中 generically 不成立。
+
+**跟其他 threads 的連結**：
+- **約束與湧現**：穩定性條件 4ηβ² < γ 是「約束（耗散）使協調湧現」的精確陳述。無約束（γ=0）= 發散
+- **Interface shapes cognition**：Incentive Field = 介面。agent 不看全局，只看被投射的局部壓力。場的結構塑造 agent 的認知範圍
+- **關係先於實體**：「Intelligence is relational rather than intrinsic to any isolated component」= Bailey 的 relational structural ontology
+- **Google Research scaling laws**：Grassi 的 17.2x error amplification 對應 β=0（無結構耦合）vs centralized 4.4x 對應有 dissipation 的 hub-spoke
+
+**局限**：只有線性規格的計算驗證，缺乏非線性系統的實證。數學嚴謹但應用部分太抽象——沒有具體的 AI 系統實例分析。作者來自曼谷大學（經濟學背景），跨域到 cs.MA 的定位可能影響 reception。
+
+來源: arxiv.org/abs/2603.11560
