@@ -9,6 +9,7 @@
  * - learning: research/learning event classification
  * - routing:  task graph lane routing
  * - research: research methodology crystallization
+ * - workflow: development workflow decisions (propose/decompose/complete/evolve)
  */
 
 import { createMyelin, createFleet, logDecision } from 'myelinate';
@@ -23,6 +24,13 @@ import type { TaskLane } from './task-graph.js';
 
 export type LearningAction = 'deep-dive' | 'index-only' | 'connect' | 'defer';
 export type RoutingAction = TaskLane | 'merge';
+export type WorkflowAction = 'propose' | 'decompose' | 'complete' | 'evolve';
+
+const WORKFLOW_DOMAIN = {
+  domain: 'workflow',
+  description: '開發工作流程決策 — 提案/拆解/完成/流程演化',
+  seedRulesPath: 'memory/myelin-workflow-rules.json',
+} as const;
 
 // =============================================================================
 // Heuristic functions (pure, no side effects)
@@ -82,6 +90,25 @@ async function routingLLM(event: { type: string; source?: string; context?: Reco
     return { action: 'foreground', reason: 'simple reply' };
   }
   return { action: 'ooda', reason: 'default routing' };
+}
+
+/** Workflow LLM fallback: lifecycle-oriented workflow decisioning. */
+async function workflowLLM(event: { type: string; source?: string; context?: Record<string, unknown> }) {
+  const ctx = event.context ?? {};
+  const phase = String(ctx.phase ?? '').toLowerCase();
+  const text = String(ctx.content ?? '').toLowerCase();
+  const doneRatio = Number(ctx.doneRatio ?? 0);
+
+  if (phase === 'proposal' || /proposal|提案|scope|spec/.test(text)) {
+    return { action: 'propose', reason: 'proposal signal detected' };
+  }
+  if (phase === 'breakdown' || /拆解|breakdown|tasks|steps/.test(text)) {
+    return { action: 'decompose', reason: 'task breakdown signal detected' };
+  }
+  if (phase === 'done' || doneRatio >= 0.95 || /完成|done|closed/.test(text)) {
+    return { action: 'complete', reason: 'completion signal detected' };
+  }
+  return { action: 'evolve', reason: 'default to process evolution' };
 }
 
 // =============================================================================
@@ -144,8 +171,19 @@ function getFleet(): MyelinFleet<string> {
           crystallize: { minOccurrences: 5, minConsistency: 0.85 },
         }),
       },
+      {
+        name: WORKFLOW_DOMAIN.domain,
+        instance: createMyelin<string>({
+          llm: workflowLLM,
+          rulesPath: `./${WORKFLOW_DOMAIN.seedRulesPath}`,
+          logPath: './memory/myelin-workflow-decisions.jsonl',
+          autoLog: true,
+          failOpenAction: 'evolve',
+          crystallize: { minOccurrences: 5, minConsistency: 0.90 },
+        }),
+      },
     ]);
-    slog('MYELIN', 'Fleet initialized: learning + routing + research');
+    slog('MYELIN', 'Fleet initialized: learning + routing + research + workflow');
   }
   return _fleet;
 }
@@ -296,6 +334,7 @@ const RULES_PATHS: Record<string, string> = {
   learning: './memory/myelin-learning-rules.json',
   routing: './memory/myelin-routing-rules.json',
   research: './memory/research-rules.json',
+  [WORKFLOW_DOMAIN.domain]: `./${WORKFLOW_DOMAIN.seedRulesPath}`,
 };
 
 /** Persist in-memory rule hitCounts to disk. Called after distill. */

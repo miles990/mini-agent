@@ -2349,7 +2349,7 @@ export function createApi(port = 3001): express.Express {
       const msgContext = from !== 'kuro' ? preprocessMessage(text, from, tempId, now) : undefined;
 
       // Write message via writeRoomMessage (generates ID, writes JSONL, emits action:room)
-      const id = await writeRoomMessage(from, text, replyTo as string | undefined, msgContext as Record<string, unknown> | undefined);
+      const id = await writeRoomMessage(from, text, replyTo as string | undefined);
 
       // Fix task origins with actual ID
       if (msgContext?.tasks) {
