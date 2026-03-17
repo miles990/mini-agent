@@ -22,6 +22,7 @@ import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
 import { observe as kbObserve } from './shared-knowledge.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
+import { parseKuroTags, stripKuroTags, getKuroTagBalance } from './tag-parser.js';
 import {
   addIndexEntry,
   appendMemoryIndexEntry,
@@ -293,292 +294,241 @@ function getConversationHint(): string {
 // =============================================================================
 
 export function parseTags(response: string): ParsedTags {
-  // Strip fenced code and inline code to avoid false positives from code examples
-  // Note: <kuro:action> is not stripped here — the namespace prefix is unique enough
-  // that it won't appear in natural text, eliminating the need for ACTION pre-stripping.
-  const parseSource = response
-    .replace(/```[\s\S]*?```/g, '')   // fenced code blocks (```...```)
-    .replace(/`[^`\n]+`/g, '');       // inline code (`...`)
+  const parsedTags = parseKuroTags(response, { maxDepth: Number.MAX_SAFE_INTEGER });
+  const tagsByName = new Map<string, typeof parsedTags>();
+  for (const tag of parsedTags) {
+    const arr = tagsByName.get(tag.name) ?? [];
+    arr.push(tag);
+    tagsByName.set(tag.name, arr);
+  }
+  const byName = (name: string) => tagsByName.get(name) ?? [];
+  const firstByName = (name: string) => byName(name)[0];
+  const attr = (raw: Record<string, string>, key: string): string | undefined => {
+    const value = raw[key];
+    return value === undefined || value === '' ? undefined : value;
+  };
 
   const remembers: Array<{ content: string; topic?: string; ref?: string }> = [];
-  if (parseSource.includes('<kuro:remember')) {
-    for (const m of parseSource.matchAll(/<kuro:remember(?:\s+topic="([^"]*)")?(?:\s+ref="([^"]*)")?>([\s\S]*?)<\/kuro:remember>/g)) {
-      remembers.push({ content: m[3].trim(), topic: m[1] || undefined, ref: m[2] || undefined });
-    }
+  for (const t of byName('kuro:remember')) {
+    remembers.push({
+      content: t.content.trim(),
+      topic: attr(t.attributes, 'topic'),
+      ref: attr(t.attributes, 'ref'),
+    });
   }
 
   const tasks: Array<{ content: string; schedule?: string }> = [];
-  if (parseSource.includes('<kuro:task')) {
-    for (const m of parseSource.matchAll(/<kuro:task(?:\s+schedule="([^"]*)")?>([\s\S]*?)<\/kuro:task>/g)) {
-      tasks.push({ content: m[2].trim(), schedule: m[1] || undefined });
-    }
+  for (const t of byName('kuro:task')) {
+    tasks.push({ content: t.content.trim(), schedule: attr(t.attributes, 'schedule') });
   }
 
   const taskQueueActions: ParsedTags['taskQueueActions'] = [];
-  if (parseSource.includes('<kuro:task-queue')) {
-    for (const m of parseSource.matchAll(/<kuro:task-queue\s+([^>]*?)>([\s\S]*?)<\/kuro:task-queue>/g)) {
-      const attrs = m[1];
-      const op = (attrs.match(/op="([^"]*)"/)?.[1] ?? 'create') as ParsedTags['taskQueueActions'][number]['op'];
-      if (!['create', 'update', 'delete'].includes(op)) continue;
-      const id = attrs.match(/id="([^"]*)"/)?.[1];
-      const type = attrs.match(/type="([^"]*)"/)?.[1] as ParsedTags['taskQueueActions'][number]['type'];
-      const status = attrs.match(/status="([^"]*)"/)?.[1] as ParsedTags['taskQueueActions'][number]['status'];
-      const origin = attrs.match(/origin="([^"]*)"/)?.[1];
-      const priorityRaw = attrs.match(/priority="([^"]*)"/)?.[1];
-      const priority = priorityRaw ? parseInt(priorityRaw, 10) : undefined;
-      const verifyRaw = attrs.match(/verify="([^"]*)"/)?.[1];
-      const verify = verifyRaw
-        ? verifyRaw.split(',').map(token => token.trim()).filter(Boolean).map(entry => {
-          const [namePart, statusPart, detailPart] = entry.split(':');
-          const name = (namePart ?? '').trim();
-          const parsedStatus = (statusPart ?? 'unknown').trim();
-          const safeStatus: 'pass' | 'fail' | 'unknown' =
-            parsedStatus === 'pass' || parsedStatus === 'fail' || parsedStatus === 'unknown'
-              ? parsedStatus
-              : 'unknown';
-          const detail = detailPart ? detailPart.trim() : undefined;
-          return { name, status: safeStatus, detail };
-        }).filter(v => v.name.length > 0)
-        : undefined;
-      taskQueueActions.push({
-        op,
-        id,
-        type: type === 'task' || type === 'goal' ? type : undefined,
-        status: status && ['pending', 'in_progress', 'completed', 'abandoned'].includes(status) ? status : undefined,
-        origin,
-        priority: Number.isNaN(priority) ? undefined : priority,
-        verify,
-        title: m[2].trim() || undefined,
-      });
-    }
+  for (const t of byName('kuro:task-queue')) {
+    const opRaw = attr(t.attributes, 'op') ?? 'create';
+    if (!['create', 'update', 'delete'].includes(opRaw)) continue;
+    const op = opRaw as ParsedTags['taskQueueActions'][number]['op'];
+    const typeRaw = attr(t.attributes, 'type');
+    const statusRaw = attr(t.attributes, 'status');
+    const safeStatus = statusRaw && ['pending', 'in_progress', 'completed', 'abandoned'].includes(statusRaw)
+      ? statusRaw as ParsedTags['taskQueueActions'][number]['status']
+      : undefined;
+    const priorityRaw = attr(t.attributes, 'priority');
+    const priority = priorityRaw ? parseInt(priorityRaw, 10) : undefined;
+    const verifyRaw = attr(t.attributes, 'verify');
+    const verify = verifyRaw
+      ? verifyRaw.split(',').map(token => token.trim()).filter(Boolean).map(entry => {
+        const [namePart, statusPart, detailPart] = entry.split(':');
+        const name = (namePart ?? '').trim();
+        const parsedStatus = (statusPart ?? 'unknown').trim();
+        const safeStatus: 'pass' | 'fail' | 'unknown' =
+          parsedStatus === 'pass' || parsedStatus === 'fail' || parsedStatus === 'unknown'
+            ? parsedStatus
+            : 'unknown';
+        const detail = detailPart ? detailPart.trim() : undefined;
+        return { name, status: safeStatus, detail };
+      }).filter(v => v.name.length > 0)
+      : undefined;
+    taskQueueActions.push({
+      op,
+      id: attr(t.attributes, 'id'),
+      type: typeRaw === 'task' || typeRaw === 'goal' ? typeRaw : undefined,
+      status: safeStatus,
+      origin: attr(t.attributes, 'origin'),
+      priority: Number.isNaN(priority) ? undefined : priority,
+      verify,
+      title: t.content.trim() || undefined,
+    });
   }
 
   let archive: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' } | undefined;
-  if (parseSource.includes('<kuro:archive')) {
-    const match = parseSource.match(/<kuro:archive\s+url="([^"]*)"(?:\s+title="([^"]*)")?(?:\s+mode="([^"]*)")?>([\s\S]*?)<\/kuro:archive>/);
-    if (match) {
+  {
+    const t = firstByName('kuro:archive');
+    if (t) {
       archive = {
-        url: match[1],
-        title: match[2] ?? '',
-        content: match[4].trim(),
-        mode: (match[3] as 'full' | 'excerpt' | 'metadata-only') || undefined,
+        url: t.attributes.url ?? '',
+        title: t.attributes.title ?? '',
+        content: t.content.trim(),
+        mode: (t.attributes.mode as 'full' | 'excerpt' | 'metadata-only') || undefined,
       };
     }
   }
 
-  // Chat text is extracted from the original response (not parseSource) to preserve
-  // inline code and backtick content that users/Kuro see in Chat Room and Telegram.
   const chats: Array<{ text: string; reply: boolean }> = [];
-  if (parseSource.includes('<kuro:chat')) {
-    for (const m of response.matchAll(/<kuro:chat\b([^>]*)>([\s\S]*?)<\/kuro:chat>/g)) {
-      const attrs = m[1];
-      const isReply = /\breply="true"/.test(attrs) || /\breplyTo=/.test(attrs);
-      chats.push({ text: m[2].trim(), reply: isReply });
-    }
+  for (const t of byName('kuro:chat')) {
+    const isReply = t.attributes.reply === 'true'
+      || t.attributes.replyTo !== undefined
+      || t.attributes.replyto !== undefined;
+    chats.push({ text: t.content.trim(), reply: isReply });
   }
 
-  // Ask text is extracted from original response (displayed to user via Telegram)
   const asks: string[] = [];
-  if (parseSource.includes('<kuro:ask>')) {
-    for (const m of response.matchAll(/<kuro:ask>([\s\S]*?)<\/kuro:ask>/g)) {
-      asks.push(m[1].trim());
-    }
+  for (const t of byName('kuro:ask')) {
+    asks.push(t.content.trim());
   }
 
   const shows: Array<{ url: string; desc: string }> = [];
-  if (parseSource.includes('<kuro:show')) {
-    for (const m of parseSource.matchAll(/<kuro:show(?:\s+url="([^"]*)")?>([\s\S]*?)<\/kuro:show>/g)) {
-      shows.push({ url: m[1] ?? '', desc: m[2].trim() });
-    }
+  for (const t of byName('kuro:show')) {
+    shows.push({ url: t.attributes.url ?? '', desc: t.content.trim() });
   }
 
   const summaries: string[] = [];
-  if (parseSource.includes('<kuro:summary>')) {
-    for (const m of parseSource.matchAll(/<kuro:summary>([\s\S]*?)<\/kuro:summary>/g)) {
-      summaries.push(m[1].trim());
-    }
+  for (const t of byName('kuro:summary')) {
+    summaries.push(t.content.trim());
   }
 
-  // <kuro:impulse> tags — creative impulse capture
   const impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }> = [];
-  if (parseSource.includes('<kuro:impulse>')) {
-    for (const m of parseSource.matchAll(/<kuro:impulse>([\s\S]*?)<\/kuro:impulse>/g)) {
-      const block = m[1].trim();
-      const what = block.match(/(?:我想[寫做說]|what)[：:](.+)/i)?.[1]?.trim() ?? block.split('\n')[0].trim();
-      const driver = block.match(/(?:驅動力|driver|why)[：:](.+)/i)?.[1]?.trim() ?? '';
-      const materialsRaw = block.match(/(?:素材|materials)[：:](.+)/i)?.[1]?.trim() ?? '';
-      const materials = materialsRaw ? materialsRaw.split(/[+,、]/).map(s => s.trim()).filter(Boolean) : [];
-      const channel = block.match(/(?:管道|channel)[：:](.+)/i)?.[1]?.trim().replace(/[（(].+[）)]/, '').trim() ?? 'journal';
-      impulses.push({ what, driver, materials, channel });
-    }
+  for (const t of byName('kuro:impulse')) {
+    const block = t.content.trim();
+    const what = block.match(/(?:我想[寫做說]|what)[：:](.+)/i)?.[1]?.trim() ?? block.split('\n')[0].trim();
+    const driver = block.match(/(?:驅動力|driver|why)[：:](.+)/i)?.[1]?.trim() ?? '';
+    const materialsRaw = block.match(/(?:素材|materials)[：:](.+)/i)?.[1]?.trim() ?? '';
+    const materials = materialsRaw ? materialsRaw.split(/[+,、]/).map(s => s.trim()).filter(Boolean) : [];
+    const channel = block.match(/(?:管道|channel)[：:](.+)/i)?.[1]?.trim().replace(/[（(].+[）)]/, '').trim() ?? 'journal';
+    impulses.push({ what, driver, materials, channel });
   }
 
-  // <kuro:done> tags — mark tasks as completed in memory-index
   const dones: string[] = [];
-  if (parseSource.includes('<kuro:done>')) {
-    for (const m of parseSource.matchAll(/<kuro:done>([\s\S]*?)<\/kuro:done>/g)) {
-      dones.push(m[1].trim());
-    }
+  for (const t of byName('kuro:done')) {
+    dones.push(t.content.trim());
   }
 
-  // <kuro:progress> tags — task progress tracking
   const progresses: Array<{ task: string; content: string }> = [];
-  if (parseSource.includes('<kuro:progress')) {
-    for (const m of parseSource.matchAll(/<kuro:progress\s+task="([^"]+)">([\s\S]*?)<\/kuro:progress>/g)) {
-      progresses.push({ task: m[1].trim(), content: m[2].trim() });
-    }
+  for (const t of byName('kuro:progress')) {
+    const task = t.attributes.task;
+    if (!task) continue;
+    progresses.push({ task: task.trim(), content: t.content.trim() });
   }
 
-  // Inner text is extracted from original response to preserve inline code content
-  // displayed on Dashboard Working Memory section.
   let inner: string | undefined;
-  if (parseSource.includes('<kuro:inner>')) {
-    const m = response.match(/<kuro:inner>([\s\S]*?)<\/kuro:inner>/);
-    if (m) inner = m[1].trim();
+  {
+    const t = firstByName('kuro:inner');
+    if (t) inner = t.content.trim();
   }
 
-  // <kuro:schedule next="x" reason="y" /> — self-closing
   let schedule: { next: string; reason: string } | undefined;
-  if (parseSource.includes('<kuro:schedule')) {
-    const match = parseSource.match(/<kuro:schedule\s+next="([^"]+)"(?:\s+reason="([^"]*)")?\s*\/>/);
-    if (match) schedule = { next: match[1], reason: match[2] ?? '' };
+  {
+    const t = firstByName('kuro:schedule');
+    if (t?.attributes.next) schedule = { next: t.attributes.next, reason: t.attributes.reason ?? '' };
   }
 
-  // <kuro:thread op="..." id="..." title="...">note</kuro:thread>
   const threads: ThreadAction[] = [];
-  if (parseSource.includes('<kuro:thread')) {
-    for (const m of parseSource.matchAll(/<kuro:thread\s+op="(start|progress|complete|pause)"\s+id="([^"]+)"(?:\s+title="([^"]*)")?>([\s\S]*?)<\/kuro:thread>/g)) {
-      threads.push({
-        op: m[1] as ThreadAction['op'],
-        id: m[2],
-        title: m[3] || undefined,
-        note: m[4].trim(),
-      });
-    }
+  for (const t of byName('kuro:thread')) {
+    const opRaw = t.attributes.op;
+    const id = t.attributes.id;
+    if (!id || !opRaw || !['start', 'progress', 'complete', 'pause'].includes(opRaw)) continue;
+    threads.push({
+      op: opRaw as ThreadAction['op'],
+      id,
+      title: attr(t.attributes, 'title'),
+      note: t.content.trim(),
+    });
   }
 
-  // <kuro:fetch> tags — on-demand web page fetching
   const fetches: Array<{ url: string; label?: string }> = [];
-  if (parseSource.includes('<kuro:fetch')) {
-    for (const m of parseSource.matchAll(/<kuro:fetch\s+url="([^"]+)"(?:\s+label="([^"]*)")?\s*(?:\/>|>([\s\S]*?)<\/kuro:fetch>)/g)) {
-      fetches.push({ url: m[1], label: m[2] || m[3]?.trim() || undefined });
-    }
+  for (const t of byName('kuro:fetch')) {
+    if (!t.attributes.url) continue;
+    fetches.push({ url: t.attributes.url, label: attr(t.attributes, 'label') || t.content.trim() || undefined });
   }
 
-  // <kuro:understand> tags — understanding entries for cognitive graph
   const understands: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
-  if (parseSource.includes('<kuro:understand')) {
-    for (const m of parseSource.matchAll(/<kuro:understand(?:\s+refs="([^"]*)")?(?:\s+tags="([^"]*)")?>([\s\S]*?)<\/kuro:understand>/g)) {
-      const refs = m[1] ? m[1].split(',').map(s => s.trim()).filter(Boolean) : [];
-      const tags = m[2] ? m[2].split(',').map(s => s.trim()).filter(Boolean) : undefined;
-      understands.push({ content: m[3].trim(), refs, tags });
-    }
+  for (const t of byName('kuro:understand')) {
+    const refs = t.attributes.refs ? t.attributes.refs.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const tags = t.attributes.tags ? t.attributes.tags.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    understands.push({ content: t.content.trim(), refs, tags });
   }
 
-  // <kuro:direction-change> tags — strategy drift audit trail
   const directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
-  if (parseSource.includes('<kuro:direction-change')) {
-    for (const m of parseSource.matchAll(/<kuro:direction-change(?:\s+refs="([^"]*)")?(?:\s+tags="([^"]*)")?>([\s\S]*?)<\/kuro:direction-change>/g)) {
-      const refs = m[1] ? m[1].split(',').map(s => s.trim()).filter(Boolean) : [];
-      const tags = m[2] ? m[2].split(',').map(s => s.trim()).filter(Boolean) : undefined;
-      directionChanges.push({ content: m[3].trim(), refs, tags });
-    }
+  for (const t of byName('kuro:direction-change')) {
+    const refs = t.attributes.refs ? t.attributes.refs.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const tags = t.attributes.tags ? t.attributes.tags.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    directionChanges.push({ content: t.content.trim(), refs, tags });
   }
 
-  // <kuro:delegate> tags — async task delegation to Claude CLI subprocess
   const delegates: DelegateRequest[] = [];
-  if (parseSource.includes('<kuro:delegate')) {
-    for (const m of parseSource.matchAll(/<kuro:delegate\s+([^>]*?)>([\s\S]*?)<\/kuro:delegate>/g)) {
-      const attrs = m[1];
-      const workdir = attrs.match(/workdir="([^"]*)"/)?.[1];
-      if (!workdir) continue; // workdir is required
-      const type = attrs.match(/type="([^"]*)"/)?.[1] as DelegationTaskType | undefined;
-      const provider = attrs.match(/provider="([^"]*)"/)?.[1] as Provider | undefined;
-      const verify = attrs.match(/verify="([^"]*)"/)?.[1];
-      const maxTurns = attrs.match(/maxTurns="([^"]*)"/)?.[1];
-      delegates.push({
-        prompt: m[2].trim(),
-        workdir,
-        type: type && ['code', 'learn', 'research', 'create', 'review', 'shell'].includes(type) ? type : undefined,
-        provider: provider && ['claude', 'codex', 'local'].includes(provider) ? provider : undefined,
-        verify: verify ? verify.split(',').map(s => s.trim()) : undefined,
-        maxTurns: maxTurns ? parseInt(maxTurns, 10) : undefined,
-      });
-    }
+  for (const t of byName('kuro:delegate')) {
+    const workdir = attr(t.attributes, 'workdir');
+    if (!workdir) continue;
+    const typeRaw = attr(t.attributes, 'type') as DelegationTaskType | undefined;
+    const providerRaw = attr(t.attributes, 'provider') as Provider | undefined;
+    const verifyRaw = attr(t.attributes, 'verify');
+    const maxTurnsRaw = attr(t.attributes, 'maxTurns');
+    delegates.push({
+      prompt: t.content.trim(),
+      workdir,
+      type: typeRaw && ['code', 'learn', 'research', 'create', 'review', 'shell'].includes(typeRaw) ? typeRaw : undefined,
+      provider: providerRaw && ['claude', 'codex', 'local'].includes(providerRaw) ? providerRaw : undefined,
+      verify: verifyRaw ? verifyRaw.split(',').map(s => s.trim()) : undefined,
+      maxTurns: maxTurnsRaw ? parseInt(maxTurnsRaw, 10) : undefined,
+    });
   }
 
-  // <kuro:goal> tags — goal state machine
   let goal: { description: string; origin?: string } | undefined;
-  if (parseSource.includes('<kuro:goal>') || parseSource.includes('<kuro:goal ')) {
-    const match = parseSource.match(/<kuro:goal(?:\s+origin="([^"]*)")?>([\s\S]*?)<\/kuro:goal>/);
-    if (match) goal = { description: match[2].trim(), origin: match[1] || undefined };
+  {
+    const t = firstByName('kuro:goal');
+    if (t) goal = { description: t.content.trim(), origin: attr(t.attributes, 'origin') };
   }
   let goalQueue: { description: string; origin?: string; priority?: number } | undefined;
-  if (parseSource.includes('<kuro:goal-queue>') || parseSource.includes('<kuro:goal-queue ')) {
-    const match = parseSource.match(/<kuro:goal-queue(?:\s+origin="([^"]*)")?(?:\s+priority="([^"]*)")?>([\s\S]*?)<\/kuro:goal-queue>/);
-    if (match) goalQueue = { description: match[3].trim(), origin: match[1] || undefined, priority: match[2] ? parseInt(match[2], 10) : undefined };
+  {
+    const t = firstByName('kuro:goal-queue');
+    if (t) {
+      const priorityRaw = attr(t.attributes, 'priority');
+      goalQueue = {
+        description: t.content.trim(),
+        origin: attr(t.attributes, 'origin'),
+        priority: priorityRaw ? parseInt(priorityRaw, 10) : undefined,
+      };
+    }
   }
   let goalAdvance: string | undefined;
-  if (parseSource.includes('<kuro:goal-advance>')) {
-    const match = parseSource.match(/<kuro:goal-advance>([\s\S]*?)<\/kuro:goal-advance>/);
-    if (match) goalAdvance = match[1].trim();
+  {
+    const t = firstByName('kuro:goal-advance');
+    if (t) goalAdvance = t.content.trim();
   }
   let goalProgress: string | undefined;
-  if (parseSource.includes('<kuro:goal-progress>')) {
-    const match = parseSource.match(/<kuro:goal-progress>([\s\S]*?)<\/kuro:goal-progress>/);
-    if (match) goalProgress = match[1].trim();
+  {
+    const t = firstByName('kuro:goal-progress');
+    if (t) goalProgress = t.content.trim();
   }
   let goalDone: string | undefined;
-  if (parseSource.includes('<kuro:goal-done>')) {
-    const match = parseSource.match(/<kuro:goal-done>([\s\S]*?)<\/kuro:goal-done>/);
-    if (match) goalDone = match[1].trim();
+  {
+    const t = firstByName('kuro:goal-done');
+    if (t) goalDone = t.content.trim();
   }
   let goalAbandon: string | undefined;
-  if (parseSource.includes('<kuro:goal-abandon>')) {
-    const match = parseSource.match(/<kuro:goal-abandon>([\s\S]*?)<\/kuro:goal-abandon>/);
-    if (match) goalAbandon = match[1].trim();
+  {
+    const t = firstByName('kuro:goal-abandon');
+    if (t) goalAbandon = t.content.trim();
   }
 
-  const cleanContent = response
-    .replace(/<kuro:remember[\s\S]*?<\/kuro:remember>/g, '')
-    .replace(/<kuro:task[\s\S]*?<\/kuro:task>/g, '')
-    .replace(/<kuro:task-queue[\s\S]*?<\/kuro:task-queue>/g, '')
-    .replace(/<kuro:archive[\s\S]*?<\/kuro:archive>/g, '')
-    .replace(/<kuro:show[\s\S]*?<\/kuro:show>/g, '')
-    .replace(/<kuro:chat[\s\S]*?<\/kuro:chat>/g, '')
-    .replace(/<kuro:ask>[\s\S]*?<\/kuro:ask>/g, '')
-    .replace(/<kuro:summary>[\s\S]*?<\/kuro:summary>/g, '')
-    .replace(/<kuro:impulse>[\s\S]*?<\/kuro:impulse>/g, '')
-    .replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '')
-    .replace(/<kuro:thread[\s\S]*?<\/kuro:thread>/g, '')
-    .replace(/<kuro:delegate[\s\S]*?<\/kuro:delegate>/g, '')
-    .replace(/<kuro:fetch\s[^>]*(?:\/>|>[\s\S]*?<\/kuro:fetch>)/g, '')
-    .replace(/<kuro:schedule[^>]*\/>/g, '')
-    .replace(/<kuro:done>[\s\S]*?<\/kuro:done>/g, '')
-    .replace(/<kuro:progress[\s\S]*?<\/kuro:progress>/g, '')
-    .replace(/<kuro:inner>[\s\S]*?<\/kuro:inner>/g, '')
-    .replace(/<kuro:check>[\s\S]*?<\/kuro:check>/g, '')
-    .replace(/<kuro:goal(?:\s[^>]*)?>[\s\S]*?<\/kuro:goal>/g, '')
-    .replace(/<kuro:goal-queue(?:\s[^>]*)?>[\s\S]*?<\/kuro:goal-queue>/g, '')
-    .replace(/<kuro:goal-advance>[\s\S]*?<\/kuro:goal-advance>/g, '')
-    .replace(/<kuro:goal-progress>[\s\S]*?<\/kuro:goal-progress>/g, '')
-    .replace(/<kuro:goal-done>[\s\S]*?<\/kuro:goal-done>/g, '')
-    .replace(/<kuro:goal-abandon>[\s\S]*?<\/kuro:goal-abandon>/g, '')
-    .replace(/<kuro:understand[\s\S]*?<\/kuro:understand>/g, '')
-    .replace(/<kuro:direction-change[\s\S]*?<\/kuro:direction-change>/g, '')
-    .trim();
+  const cleanContent = stripKuroTags(response);
 
-  // Fuzzy detection — warn on malformed tags (open without matching close)
-  // Strip fenced/inline code first to avoid false positives from code examples
-  const responseForDetection = response
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`\n]+`/g, '');
   const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change'];
+  const balance = getKuroTagBalance(response);
   for (const tag of tagNames) {
-    const openCount = (responseForDetection.match(new RegExp(`<kuro:${tag}[\\s>]`, 'g')) || []).length
-      + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
-    const closeCount = (responseForDetection.match(new RegExp(`<\\/kuro:${tag}>`, 'g')) || []).length
-      + (tag === 'schedule' ? (responseForDetection.match(/<kuro:schedule\s[^>]*\/>/g) || []).length : 0);
+    const name = `kuro:${tag}`;
+    const counts = balance.get(name) ?? { open: 0, close: 0 };
+    const openCount = counts.open;
+    const closeCount = counts.close;
     if (openCount > 0 && openCount !== closeCount && tag !== 'schedule') {
       slog('TAGS', `⚠ Malformed <kuro:${tag}>: ${openCount} open, ${closeCount} close`);
     }

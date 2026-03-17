@@ -14,6 +14,7 @@ import { slog, diagLog } from './utils.js';
 import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
 import { eventBus } from './event-bus.js';
+import { createKuroChatStreamParser } from './tag-parser.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -451,7 +452,14 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
     let resultText = '';
     const allTextBlocks: string[] = []; // 累積所有 assistant text blocks（含中間 turns），防止 tags 遺失
-    const streamedChatTexts = new Set<string>(); // Track chats already fired via streaming
+    const chatStreamParser = opts?.onStreamChat
+      ? createKuroChatStreamParser((tag) => {
+        const isReply = tag.attributes.reply === 'true'
+          || tag.attributes.replyTo !== undefined
+          || tag.attributes.replyto !== undefined;
+        opts.onStreamChat?.(tag.content.trim(), isReply);
+      }, { maxDepth: Number.MAX_SAFE_INTEGER })
+      : null;
     let buffer = '';
     let stderr = '';
 
@@ -547,18 +555,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 if (opts?.onPartialOutput) {
                   opts.onPartialOutput(resultText);
                 }
-                // Streaming chat detection — fire callback for complete <kuro:chat> tags as they arrive
-                if (opts?.onStreamChat) {
-                  const accumulated = allTextBlocks.join('\n');
-                  for (const m of accumulated.matchAll(/<kuro:chat(?:\s+[^>]*)?>( [\s\S]*?)<\/kuro:chat>/g)) {
-                    const chatText = m[1].trim();
-                    if (chatText && !streamedChatTexts.has(chatText)) {
-                      streamedChatTexts.add(chatText);
-                      const isReply = /\breply="true"/.test(m[0]) || /\breplyTo=/.test(m[0]);
-                      opts.onStreamChat(chatText, isReply);
-                    }
-                  }
-                }
+                chatStreamParser?.write(block.text);
               }
             }
           } else if (event.type === 'result') {
@@ -585,6 +582,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         const slot = foregroundSlots.get(opts.fgSlotId);
         if (slot) slot.pid = null;
       }
+      chatStreamParser?.end();
 
       // 處理 buffer 中剩餘的不完整行
       if (buffer.trim()) {
@@ -635,6 +633,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         const slot = foregroundSlots.get(opts.fgSlotId);
         if (slot) slot.pid = null;
       }
+      chatStreamParser?.end();
       reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
 
@@ -1058,7 +1057,14 @@ async function streamLocalRound(
   let content = '';
   const toolCallsMap = new Map<number, LocalToolCall>();
   let lastCbLen = 0;
-  let chatSearchPos = 0;
+  const chatStreamParser = opts?.onStreamChat
+    ? createKuroChatStreamParser((tag) => {
+      const isReply = tag.attributes.reply === 'true'
+        || tag.attributes.replyTo !== undefined
+        || tag.attributes.replyto !== undefined;
+      opts.onStreamChat?.(tag.content.trim(), isReply);
+    }, { maxDepth: Number.MAX_SAFE_INTEGER })
+    : null;
 
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
@@ -1094,15 +1100,7 @@ async function streamLocalRound(
             opts.onPartialOutput(content);
             lastCbLen = content.length;
           }
-          if (opts?.onStreamChat && content.length > chatSearchPos) {
-            const tail = content.slice(chatSearchPos);
-            const m = tail.match(/<kuro:chat\b([^>]*)>([\s\S]*?)<\/kuro:chat>/);
-            if (m) {
-              const isReply = /\breply="true"/.test(m[1]) || /\breplyTo=/.test(m[1]);
-              opts.onStreamChat(m[2].trim(), isReply);
-              chatSearchPos += m.index! + m[0].length;
-            }
-          }
+          chatStreamParser?.write(delta.content);
         }
 
         if (delta.tool_calls) {
@@ -1123,6 +1121,7 @@ async function streamLocalRound(
     }
   }
 
+  chatStreamParser?.end();
   if (opts?.onPartialOutput && content.length > lastCbLen) opts.onPartialOutput(content);
   return { content, toolCalls: Array.from(toolCallsMap.values()).filter(tc => tc.function.name) };
 }
@@ -1481,4 +1480,3 @@ export async function callClaude(
   // 理論上不會到這裡，但 TypeScript 需要
   return { response: lastErrorMessage, systemPrompt, fullPrompt, duration: Date.now() - startTime };
 }
-
