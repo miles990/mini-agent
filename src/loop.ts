@@ -2733,10 +2733,12 @@ export class AgentLoop {
 
   /** Autonomous Mode — delegates to prompt-builder.ts */
   private async buildAutonomousPrompt(): Promise<string> {
+    const mode = getMode();
     const state: PromptBuilderState = {
       lastAutonomousActions: this.lastAutonomousActions,
       consecutiveLearnCycles: this.consecutiveLearnCycles,
       lastValidConfig: this.lastValidConfig,
+      controlMode: mode.mode,
     };
     const result = await buildAutonomousPromptFn(state);
     this.lastValidConfig = result.lastValidConfig;

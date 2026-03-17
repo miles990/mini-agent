@@ -99,6 +99,7 @@ export function buildPromptFromConfig(
   lastAutonomousActions: string[],
   consecutiveLearnCycles: number,
   hasPendingTasks?: boolean,
+  includeCycleResponsibilityGuide = true,
 ): string {
   const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
   const avoidList = recentActions.length > 0
@@ -125,9 +126,13 @@ export function buildPromptFromConfig(
   const taskStatusLine = hasPendingTasks
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
+  const cycleResponsibilityGuide = includeCycleResponsibilityGuide
+    ? `\n\n## Cycle 職責\n\n你的 cycle 只負責思考和決策：\n1. 看 task-queue 中的 pending 項目\n2. 評估優先序（P0 先做）\n3. 決定每個 task 怎麼處理：\n   - 小事（< 1 min）：直接用 <kuro:chat> 回覆\n   - 可委派：用 <kuro:delegate> 分配給觸手\n   - 需要你深度思考：留到下個 cycle\n4. 用 <kuro:task-queue op="update"> 更新狀態\n\n不要在 cycle 中做長時間操作。行動交給 delegate。`
+    : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
 ${taskStatusLine}
+${cycleResponsibilityGuide}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
 
@@ -205,6 +210,7 @@ Rules:
 export function buildFallbackAutonomousPrompt(
   lastAutonomousActions: string[],
   hasPendingTasks?: boolean,
+  includeCycleResponsibilityGuide = true,
 ): string {
   const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
   const avoidList = recentActions.length > 0
@@ -214,9 +220,13 @@ export function buildFallbackAutonomousPrompt(
   const taskStatusLine = hasPendingTasks
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
+  const cycleResponsibilityGuide = includeCycleResponsibilityGuide
+    ? `\n\n## Cycle 職責\n\n你的 cycle 只負責思考和決策：\n1. 看 task-queue 中的 pending 項目\n2. 評估優先序（P0 先做）\n3. 決定每個 task 怎麼處理：\n   - 小事（< 1 min）：直接用 <kuro:chat> 回覆\n   - 可委派：用 <kuro:delegate> 分配給觸手\n   - 需要你深度思考：留到下個 cycle\n4. 用 <kuro:task-queue op="update"> 更新狀態\n\n不要在 cycle 中做長時間操作。行動交給 delegate。`
+    : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
 ${taskStatusLine}
+${cycleResponsibilityGuide}
 
 Read your <soul> to understand who you are, what you care about, and what you're learning.
 
@@ -280,6 +290,7 @@ export interface PromptBuilderState {
   consecutiveLearnCycles: number;
   lastValidConfig: BehaviorConfig | null;
   hasPendingTasks?: boolean;
+  controlMode?: 'calm' | 'reserved' | 'autonomous' | 'custom';
 }
 
 /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
@@ -287,9 +298,20 @@ export async function buildAutonomousPrompt(
   state: PromptBuilderState,
 ): Promise<{ prompt: string; lastValidConfig: BehaviorConfig | null }> {
   const { config, lastValidConfig } = loadBehaviorConfig(state.lastValidConfig);
+  const includeCycleResponsibilityGuide = state.controlMode !== 'calm';
   const base = config
-    ? buildPromptFromConfig(config, state.lastAutonomousActions, state.consecutiveLearnCycles, state.hasPendingTasks)
-    : buildFallbackAutonomousPrompt(state.lastAutonomousActions, state.hasPendingTasks);
+    ? buildPromptFromConfig(
+      config,
+      state.lastAutonomousActions,
+      state.consecutiveLearnCycles,
+      state.hasPendingTasks,
+      includeCycleResponsibilityGuide,
+    )
+    : buildFallbackAutonomousPrompt(
+      state.lastAutonomousActions,
+      state.hasPendingTasks,
+      includeCycleResponsibilityGuide,
+    );
 
   const memory = getMemory();
 
