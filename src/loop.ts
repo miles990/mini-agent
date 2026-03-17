@@ -684,6 +684,15 @@ export class AgentLoop {
       // Mark inbox items as processed — prevents main cycle from re-responding to same message
       try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
 
+      // Mark unified inbox items as replied — prevents re-triggering foreground for same message
+      try {
+        const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+        for (const item of pending) {
+          queueInboxMark(item.id, 'replied');
+        }
+        if (pending.length > 0) flushInboxMarks();
+      } catch { /* fire-and-forget */ }
+
       // Auto-mark matching task-queue items as completed (foreground → task sync)
       try {
         const triggerSnippet = text.slice(0, 80);
