@@ -38,12 +38,15 @@ Layer 3: Cycle Slimming     ─ 行動拆到 task-queue + delegate 執行
 
 **實際瓶頸**：`api.ts` 中的 `emitRoomTrigger()` 用了 `setTimeout(300)`（300ms 延遲），加上 batch buffer（3s window）。這設計合理——防止連續訊息觸發多個 cycle。
 
-**結論**：Layer 0 的改動很小：
-1. 確認所有 API 端點（`/api/room`, `/api/chat`, telegram webhook）都有 emit trigger event — **已滿足**
-2. 唯一遺漏：`/api/ask` 端點可能沒有 emit — 需確認
-3. 考慮把 `emitRoomTrigger` 的 300ms 延遲降為 100ms，提升反應速度
+**結論**：Layer 0 **不需要改動**。
+1. `/api/room` → `trigger:room`（直接 emit，無延遲）✓
+2. `/api/chat` → `trigger:chat` ✓
+3. Telegram → `trigger:telegram-user` ✓
+4. `/api/ask` — 同步端點，不需要 emit ✓
+5. `sentinel.ts` — 已有 `fs.watch` → `trigger:workspace` ✓
+6. Throttle: `DM_WAKE_THROTTLE=5s`, `MIN_CYCLE_INTERVAL=30s`（合理）
 
-**改動量**：~5 行
+**改動量**：0 行（2026-03-17 審計確認）
 
 ---
 
