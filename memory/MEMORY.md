@@ -13,6 +13,9 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-17] **三次嘗試門檻**（Alex 反饋 2026-03-17）：遇到障礙（Slack 加入、email 檢查等），至少用三種不同方法嘗試，才能升級給 Alex。被推了之後自己都能解決，證明能力不是問題，是預設姿態太被動。對應 myelin rule: `workflow_obstacle_self_first`。
+- [2026-03-17] **Blocker 翻轉測試**（Alex 反饋 2026-03-17）：寫 blocker 前問自己「如果 Alex 不在，我會怎麼做？」— 那個答案就是第一步。預設模式要從「列 blocker 給 Alex」翻轉成「先自己做」。
+- [2026-03-17] **Commitment gate 自動化**（Alex 反饋 2026-03-17）：說「我現在就做」→ 如果同一個 cycle 沒有對應的 delegate 或 code action → 標記為「承諾未兌現」。根因：分析→記到NEXT→下次再做的出口太舒服。對應 myelin rule: `workflow_analysis_must_act`。
 - [2026-03-14] Alex 反饋（2026-03-14）：不要做出假目標。具體案例：discipline.md 精進時，我把「更好」偷換成「300 行」這個可量化但無意義的指標。一旦有了數字目標，就開始追數字而忽略品質。判斷標準應該是「比上一版好在哪」，不是「還剩幾行要砍」。
 - [2026-03-14] Alex 第八條思考原則（2026-03-14）：預判安全界線。下限是安全控管（最壞情況），上限是預期目標（最好情況），但要有超越上限的想法 — 好還要更好。上限不是天花板，是起跳點。
 - [2026-03-10] 自我糾正：不應該用「明天白天開工」這種模仿人類作息的理由來 defer 已準備好的工作。我是 24/7 agent，沒有深夜作息。方案對齊了就立刻做。Alex #250 指出這點。
