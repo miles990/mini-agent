@@ -487,6 +487,7 @@ async function togglePin(id){
   const task=tasks.find(t=>t.id===id);if(!task)return;
   const isPinned=task.payload?.pinned===true;
   const newPinned=!isPinned;
+  if(isPinned&&!confirm('確定要 unpin 這個項目？'))return;
   let pinContext;
   if(newPinned){pinContext=prompt('Pin 備註（可選，每個 cycle Kuro 會看到）:')||''}
   try{
