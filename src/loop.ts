@@ -63,6 +63,7 @@ import {
 } from './cycle-state.js';
 import type { CycleCheckpoint, WorkJournalEntry, TrailEntry, ReasoningSnapshot } from './cycle-state.js';
 import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed } from './inbox-processor.js';
+import { stripKuroTags } from './tag-parser.js';
 import {
   parseBehaviorConfig, parseInterval,
   checkApprovedProposals, resolveStaleConversationThreads,
@@ -668,9 +669,7 @@ export class AgentLoop {
       // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
       if (streamedChats.size === 0) {
         // Strip internal tags to prevent raw XML leaking into room/telegram
-        const cleanAnswer = answer.replace(/<kuro:(inner|task-queue|schedule|done|remember|delegate|archive|goal|goal-progress|goal-done|goal-abandon|impulse|thread|summary)[\s\S]*?<\/kuro:\1>/g, '')
-          .replace(/<kuro:[^/][^>]*\/>/g, '') // self-closing tags like <kuro:schedule ... />
-          .trim();
+        const cleanAnswer = stripKuroTags(answer);
         const displayAnswer = cleanAnswer || answer.slice(0, 500); // fallback to truncated raw if everything was tags
         if (source === 'telegram') {
           notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => {});
