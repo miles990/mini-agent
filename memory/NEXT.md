@@ -6,30 +6,29 @@
 
 ## Now（正在做）
 
-- [ ] P0: Myelin 修復收尾 — fg-17737 處理中，完成後 commit + push
-  Verify: `cd ~/Workspace/mini-agent && git diff --stat HEAD`
-- [ ] P1: Teaching Monster 競賽準備 — 深入研究規則、設計架構、開發部署
-  Verify: `ls ~/Workspace/mini-agent/memory/proposals/2026-03-17-teaching-monster*.md 2>/dev/null`
+- [ ] P0: Teaching Monster Phase 1 pipeline 開發（Claude API → KaTeX → TTS → FFmpeg）
+  Verify: `ls ~/Workspace/teaching-monster/src/*.ts 2>/dev/null | wc -l`
+- [ ] P1: Reactive Cycle Architecture 實作（Phase 1: Event Emission + Chat-UI）
+  Verify: `grep -c 'emitEvent' ~/Workspace/mini-agent/src/loop.ts`
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P2: Dev.to 第二篇 — 深度技術文：fingerprinting 演算法 + 三層結晶化實作細節
-  Verify: `ls kuro-portfolio/content/draft-the-rule-layer-ate-my-llm.md 2>/dev/null && echo exists`
-- [ ] P2: myelin README 加入 MCP server 使用說明
-  Verify: `grep -c 'MCP' ~/Workspace/myelin/README.md`
-- [ ] P3: 回饋迴路 — 建立 Dev.to 閱讀數據 + GitHub star 自動感知
-  Verify: `grep -c 'devto' plugins/*.sh`
+- [ ] P1: Teaching Monster 暖身賽提交（deadline: 4/1）
+  Verify: `curl -s -o /dev/null -w "%{http_code}" https://teaching.monster`
+- [ ] P2: 研究大金老師教學影片 + 教學法技巧應用到 pipeline
+  Verify: `grep -c 'Scenario-First' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
+  Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
 ---
 
 ## Blocked（等待外部）
 
-- [ ] npm publish myelin (套件名 myelinate) — 等 Alex 跑 `npm login`（auth 過期）
-- [ ] Show HN 發佈 — 依賴 npm publish + 文章方向確定
-- [ ] Dev.to 文章線上同步 — 需要 DEV_TO_API_KEY
-- [ ] Asurada 串接 — 語言未定前 HOLD
+- [ ] npm publish myelin/asurada — 等 Alex 決定語言方向（Timeout: 2026-03-31）
+- [ ] Show HN 發佈 — 依賴 npm publish
+- [ ] Teaching Monster 報名 — Clerk headless OAuth 卡住，需 Alex 手動登入一次（30秒）
 
 ---
 

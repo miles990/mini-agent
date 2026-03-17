@@ -11,33 +11,7 @@
 
 ## Active Tasks
 
-### #1 Priority: Asurada 框架（P0）
-個人 AI Agent 框架。提案：`memory/proposals/2026-03-11-asurada-framework.md`
-
-Phase 1-7 ✅（剝離個人化、Obsidian、Setup Wizard、文件範例、oMLX、Memory Index、Epistemic Gates）
-
-**Phase 8: Harden**（進行中）
-- [x] 8a: Server smoke test ✅
-- [x] 8b: Interactive wizard E2E ✅
-- [ ] 8c: npm publish 0.1.0-beta.1 — **HOLD**（Alex: 語言未定。Timeout: 2026-03-31 前 re-evaluate，無決定則主動提議）
-- [ ] 8d: `npx asurada init` E2E 驗證 — **HOLD**（依賴 8c。若 8c 超時，改為本地 E2E 驗證先行）
-- [x] 8e: Test coverage 20.9% ✅
-- [ ] Phase 5b: Shadow mode parallel compare — **HOLD**（Timeout: 2026-03-24 前啟動或刪除，不保留無限期 deferred）
-
-### #2 Priority: myelin（原 mushi-kit）✅ 價值已證明
-Asurada optional addon。3,560+ triage，零 false negative。
-專案名: myelin / npm 套件名: myelinate / API: createMyelin()
-
-Phase 0 ✅ DONE（2026-03-16）— GitHub repo live, 56/56 tests, 結晶化引擎三層完整。
-Alex 確認價值已證明（2026-03-16 #156）。後續 npm publish 等 Alex 決定語言方向。
-
-**myelin 資料流健康度**（2026-03-17 追蹤）：
-- [x] bypass 資料回流：4 個 bypass 點現在通過 myelin seed rules 路由，hitCount 會累積
-- [x] hitCount 持久化：distill 後自動寫入磁碟（之前只存記憶體，重啟後歸零）
-- [x] distill 空轉：per-domain smart distill，無新決策則跳過
-- [x] 驗證：重啟後 routing rules hitCount 持久化確認（rule_1=11, rule_2=2），triage domain 已移除（option 3）✅
-
-### #3 Priority: Teaching Monster 競賽（P1）
+### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
 **時程**：暖身賽 3/1-4/1 → 暖身賽2 4/1 → 初賽 5/1-5/15 → 決賽 6/12-13
@@ -51,6 +25,13 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [ ] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線）
 - [ ] End-to-end 測試
 - [ ] 暖身賽2 提交（4/1 前）
+
+### #2 Priority: Asurada 框架（HOLD — 等語言決定）
+Phase 1-7 ✅, Phase 8 Harden 進行中。8c/8d/5b 全 HOLD（Timeout: 2026-03-31）。
+
+### #3 Priority: myelin ✅ 價值已證明（背景觀察）
+Phase 0 DONE。資料流健康度全部修復（hitCount 持久化、bypass 回流、distill 空轉）。
+持續 dogfooding 觀察，npm publish 等語言方向確定。
 
 ### #4 Priority: 開源打磨
 - [x] Dev.to 介紹文 "The Rule Layer Ate My LLM" ✅（2026-03-15 發布，0 comments）
