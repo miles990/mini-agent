@@ -55,7 +55,7 @@ import {
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
-import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildNextContextSection } from './memory-index.js';
+import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
@@ -1833,6 +1833,11 @@ Queries:`;
     const taskQueueCtx = buildTaskQueueSection(this.memoryDir);
     if (taskQueueCtx) {
       sections.push(taskQueueCtx);
+    }
+
+    const pinnedCtx = buildPinnedTasksSection(this.memoryDir);
+    if (pinnedCtx) {
+      sections.push(pinnedCtx);
     }
 
     const selfStatus = selfStatusProvider?.();
