@@ -326,11 +326,19 @@ export async function maybeDistill(): Promise<boolean> {
   _lastDistillTime = now;
 
   try {
-    // Per-domain smart distill — only distill domains with new decisions
+    // Per-domain smart distill — only distill domains with actual LLM decisions
     const fleet = getFleet();
     const distilled: string[] = [];
+    const skippedEmpty: string[] = [];
     for (const name of fleet.names()) {
       const instance = fleet.get(name)!;
+      const stats = instance.stats();
+      // Skip domains with 0 total decisions — they have no data to crystallize
+      // (e.g. triage domain where all decisions are hard-rule bypasses logged externally)
+      if (stats.totalDecisions === 0) {
+        skippedEmpty.push(name);
+        continue;
+      }
       const result = instance.maybeDistill({ minNewDecisions: 3, minIntervalMs: DISTILL_INTERVAL_MS });
       if (result) {
         distilled.push(name);
@@ -338,9 +346,10 @@ export async function maybeDistill(): Promise<boolean> {
       }
     }
     if (distilled.length > 0) {
-      slog('MYELIN', `Fleet distill: ${distilled.join(', ')} (${fleet.names().length - distilled.length} skipped — no new decisions)`);
+      const skipped = fleet.names().length - distilled.length - skippedEmpty.length;
+      slog('MYELIN', `Fleet distill: ${distilled.join(', ')} (${skipped} skipped — no new decisions${skippedEmpty.length > 0 ? `, ${skippedEmpty.join(', ')} skipped — no LLM decisions` : ''})`);
     } else {
-      slog('MYELIN', 'Fleet distill: all domains skipped — no new decisions');
+      slog('MYELIN', `Fleet distill: all domains skipped${skippedEmpty.length > 0 ? ` (${skippedEmpty.join(', ')}: no LLM decisions)` : ' — no new decisions'}`);
     }
 
     // Research methodology evolution (needs evolve() beyond basic distill)
