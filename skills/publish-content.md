@@ -61,6 +61,49 @@ JIT Modes: act
 2. 記錄到 MEMORY（`<kuro:remember>`）
 3. 成就系統會自動追蹤
 
+## Dev.to 發佈（API First — 不用 CDP）
+
+**永遠用 API，不要用瀏覽器操作 Dev.to。** React 編輯器 + CDP = 穩定性地獄。
+
+```bash
+# 需要 DEV_TO_API_KEY 在 .env 或環境變數
+# Key 名稱: kuro-publish-v2（在 Dev.to Settings > Extensions）
+
+# 發佈文章（markdown 檔案可含 frontmatter）
+bash scripts/devto-api.sh publish memory/drafts/my-article.md
+
+# 發草稿（先不公開）
+bash scripts/devto-api.sh publish memory/drafts/my-article.md --draft
+
+# 更新文章（一定要帶完整 body，否則 Dev.to 會清空內容）
+bash scripts/devto-api.sh update 3307721 memory/drafts/my-article.md
+
+# 列出我的文章
+bash scripts/devto-api.sh list
+```
+
+**Markdown frontmatter 格式：**
+```markdown
+---
+title: Why Your AI Agent Needs a System 1
+tags: ai, agent, tutorial
+series: Perception-First Thinking
+---
+Article body here...
+```
+
+**UTF-8 注意**：payload 用 python3 json.dumps(ensure_ascii=False) 建構，避免 —/…/– 等字元亂碼。
+
+**評論 API**（留言回覆）：
+```bash
+# 用 Dev.to public API（需要 api-key header）
+curl -sS "https://dev.to/api/comments" \
+  -H "api-key: $DEV_TO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"comment":{"body_markdown":"your reply","commentable_id":ARTICLE_ID,"commentable_type":"Article","parent_id":PARENT_COMMENT_ID}}'
+```
+注意：用 `parent_id`（數字）而非 `parent_id_code`（字串）來建立 reply threading。
+
 ## kuro.page 發佈（自有平台）
 
 ```bash
