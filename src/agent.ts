@@ -550,11 +550,11 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 // Streaming chat detection — fire callback for complete <kuro:chat> tags as they arrive
                 if (opts?.onStreamChat) {
                   const accumulated = allTextBlocks.join('\n');
-                  for (const m of accumulated.matchAll(/<kuro:chat(?:\s+reply="true")?>([\s\S]*?)<\/kuro:chat>/g)) {
+                  for (const m of accumulated.matchAll(/<kuro:chat(?:\s+[^>]*)?>( [\s\S]*?)<\/kuro:chat>/g)) {
                     const chatText = m[1].trim();
                     if (chatText && !streamedChatTexts.has(chatText)) {
                       streamedChatTexts.add(chatText);
-                      const isReply = m[0].startsWith('<kuro:chat reply="true">');
+                      const isReply = /\breply="true"/.test(m[0]);
                       opts.onStreamChat(chatText, isReply);
                     }
                   }

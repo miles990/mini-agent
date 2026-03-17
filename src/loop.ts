@@ -667,12 +667,17 @@ export class AgentLoop {
 
       // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
       if (streamedChats.size === 0) {
+        // Strip internal tags to prevent raw XML leaking into room/telegram
+        const cleanAnswer = answer.replace(/<kuro:(inner|task-queue|schedule|done|remember|delegate|archive|goal|goal-progress|goal-done|goal-abandon|impulse|thread|summary)[\s\S]*?<\/kuro:\1>/g, '')
+          .replace(/<kuro:[^/][^>]*\/>/g, '') // self-closing tags like <kuro:schedule ... />
+          .trim();
+        const displayAnswer = cleanAnswer || answer.slice(0, 500); // fallback to truncated raw if everything was tags
         if (source === 'telegram') {
-          notifyTelegram(answer, matchReplyTarget(answer, telegramMsgs) ?? undefined).catch(() => {});
+          notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => {});
           clearLastReaction();
         }
         if (!opts?.quiet) {
-          await writeRoomMessage('kuro', answer, replyTo);
+          await writeRoomMessage('kuro', displayAnswer, replyTo);
         }
       } else if (source === 'telegram') {
         clearLastReaction();
