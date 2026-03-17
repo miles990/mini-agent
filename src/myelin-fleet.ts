@@ -14,7 +14,7 @@
 
 import { createMyelin, createFleet, logDecision } from 'myelinate';
 import type { Myelin, MyelinStats, TriageResult, MyelinFleet, FleetStats } from 'myelinate';
-import { writeFileSync } from 'node:fs';
+
 import { slog } from './utils.js';
 import type { TaskLane } from './task-graph.js';
 
@@ -328,25 +328,11 @@ export async function triageRouting(event: {
 // Distillation
 // =============================================================================
 
-/** Known rules paths per domain — mirrors getFleet() config. */
-const RULES_PATHS: Record<string, string> = {
-  triage: './memory/myelin-triage-rules.json',
-  learning: './memory/myelin-learning-rules.json',
-  routing: './memory/myelin-routing-rules.json',
-  research: './memory/research-rules.json',
-  [WORKFLOW_DOMAIN.domain]: `./${WORKFLOW_DOMAIN.seedRulesPath}`,
-};
-
-/** Persist in-memory rule hitCounts to disk. Called after distill. */
+/** Persist in-memory rule hitCounts to disk. Uses myelin's native persistRules(). */
 function persistRuleHitCounts(): void {
   const fleet = getFleet();
   for (const name of fleet.names()) {
-    const path = RULES_PATHS[name];
-    if (!path) continue;
-    const rules = fleet.get(name)!.getRules();
-    if (rules.length > 0) {
-      writeFileSync(path, JSON.stringify(rules, null, 2) + '\n');
-    }
+    fleet.get(name)!.persistRules();
   }
 }
 
