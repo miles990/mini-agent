@@ -78,6 +78,19 @@ const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
+const BROWSER_ROUTING_KEYWORDS = [
+  'CDP',
+  'click',
+  'login',
+  'OAuth',
+  '瀏覽器',
+  'browser',
+  'headless',
+  'puppeteer',
+  'Chrome',
+  'navigate',
+  'screenshot',
+] as const;
 // Forge decay is handled by forge-lite.sh's slot abandonment mechanism:
 // subprocess PID dies → is_slot_abandoned() detects → next create reclaims slot
 // TTL controlled by FORGE_SLOT_TTL_MINUTES env var in forge-lite.sh (default: 60min)
@@ -455,6 +468,18 @@ export function spawnDelegation(task: DelegationTask): string {
   // Resolve type-specific defaults
   const taskType = task.type ?? 'code';
   const typeDefaults = TYPE_DEFAULTS[taskType];
+  const originalProvider = task.provider ?? typeDefaults.provider;
+  const matchedKeywords = BROWSER_ROUTING_KEYWORDS.filter((keyword) =>
+    task.prompt.toLowerCase().includes(keyword.toLowerCase())
+  );
+  const shouldForceBrowserProvider = matchedKeywords.length > 0 && taskType !== 'code';
+  const provider = shouldForceBrowserProvider ? 'codex' : originalProvider;
+  if (shouldForceBrowserProvider && provider !== originalProvider) {
+    slog('behavior', 'delegation routing gate: browser task forced to codex', {
+      keywords: matchedKeywords,
+      originalProvider,
+    });
+  }
   const maxTurns = Math.min(task.maxTurns ?? typeDefaults.maxTurns, MAX_TURNS_CAP);
   const timeoutMs = Math.min(task.timeoutMs ?? typeDefaults.timeoutMs, MAX_TIMEOUT_CAP);
   const allowedTools = task.allowedTools ?? typeDefaults.tools;
@@ -465,6 +490,7 @@ export function spawnDelegation(task: DelegationTask): string {
   const normalizedTask: DelegationTask = {
     ...task,
     id: taskId,
+    provider,
     maxTurns,
     timeoutMs,
     allowedTools,
