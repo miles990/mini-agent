@@ -1071,11 +1071,19 @@ export class AgentLoop {
       );
     }
 
-    // Hard cap: when memory-index has P0 items, don't idle beyond 3 minutes
+    // Hard cap: don't idle too long when there's work to do
     try {
-      if (this.currentInterval > 180_000 && hasP0Tasks(path.join(process.cwd(), 'memory'))) {
-        this.currentInterval = 180_000; // 3min cap
+      const memDir = path.join(process.cwd(), 'memory');
+      if (this.currentInterval > 180_000 && hasP0Tasks(memDir)) {
+        this.currentInterval = 180_000; // 3min cap for P0
         slog('LOOP', `[next-p0] Capping interval to 3min — memory-index has P0 items`);
+      } else if (this.currentInterval > 1200_000) {
+        // Cap at 20min when ANY tasks are pending — todo list exists to be done, not to idle
+        const pendingTasks = getPendingTaskPreviews(memDir);
+        if (pendingTasks.length > 0) {
+          this.currentInterval = 1200_000; // 20min cap for P1/P2
+          slog('LOOP', `[next-tasks] Capping interval to 20min — ${pendingTasks.length} pending task(s)`);
+        }
       }
     } catch { /* non-critical */ }
   }
@@ -1094,8 +1102,10 @@ export class AgentLoop {
           return true;
         }
       }
-      // Check memory-index for P0 items — important work shouldn't slow down
-      if (hasP0Tasks(path.join(process.cwd(), 'memory'))) {
+      // Check memory-index for ANY pending tasks (P0-P2) — todo list exists to be done
+      const memDir = path.join(process.cwd(), 'memory');
+      const pendingTasks = getPendingTaskPreviews(memDir);
+      if (pendingTasks.length > 0) {
         return true;
       }
       // Check overdue high-priority commitments — said it, now do it
