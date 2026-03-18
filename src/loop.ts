@@ -686,6 +686,9 @@ export class AgentLoop {
       // Record for next cycle awareness (supports multiple concurrent foreground replies)
       this.foregroundReplyRecords.push({ question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed });
 
+      // Log FG action to behavior log — makes FG successes visible in <action-memory>
+      try { getLogger().logBehavior('agent', 'action.foreground', `[${source}] ${answer.slice(0, 500)}`); } catch { /* fire-and-forget */ }
+
       // Mark inbox items as processed — prevents main cycle from re-responding to same message
       try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
 

@@ -71,21 +71,38 @@ function extractCategories(text: string): string[] {
   return [...found];
 }
 
-/** Parse today's behavior log and extract action records */
+/** Get log file paths for the last N days */
+function getRecentLogPaths(instanceDir: string, days: number): string[] {
+  const paths: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getTime() - i * 86_400_000);
+    const dateStr = d.toISOString().slice(0, 10);
+    const p = path.join(instanceDir, 'logs', 'behavior', `${dateStr}.jsonl`);
+    if (fs.existsSync(p)) paths.push(p);
+  }
+  return paths;
+}
+
+/** Actions that should be captured from behavior log */
+const ACTION_TYPES = new Set(['action.autonomous', 'action.foreground', 'action.task']);
+
+/** Parse recent behavior logs (last 48h) and extract action records */
 export function parseActionRecords(instanceDir: string): ActionRecord[] {
-  const today = new Date().toISOString().slice(0, 10);
-  const logPath = path.join(instanceDir, 'logs', 'behavior', `${today}.jsonl`);
-  if (!fs.existsSync(logPath)) return [];
+  const logPaths = getRecentLogPaths(instanceDir, 2); // 48h = 2 days
+  if (logPaths.length === 0) return [];
 
   const now = Date.now();
   const records: ActionRecord[] = [];
 
+  for (const logPath of logPaths) {
   try {
     const lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(Boolean);
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
-        if (entry?.data?.action !== 'action.autonomous') continue;
+        const action = entry?.data?.action ?? '';
+        if (!ACTION_TYPES.has(action)) continue;
         const detail = entry.data.detail ?? '';
         if (!detail) continue;
 
@@ -110,6 +127,7 @@ export function parseActionRecords(instanceDir: string): ActionRecord[] {
       } catch { /* skip malformed line */ }
     }
   } catch { /* file read error */ }
+  } // end for logPaths
 
   return records;
 }
