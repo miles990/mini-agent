@@ -215,8 +215,10 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     const logger = getLogger();
     const behaviors = logger.queryBehaviorLogs(undefined, 50);
     if (behaviors.length > 0) {
+      // Use detail field (actual content), not action field (event type name like 'action.autonomous')
+      const getText = (b: (typeof behaviors)[number]) => `${b.data.action ?? ''} ${b.data.detail ?? ''}`;
       const learnCount = behaviors.filter(b =>
-        /learn|research|remember|study/i.test(b.data.action ?? ''),
+        /learn|research|remember|study/i.test(getText(b)),
       ).length;
       metrics.learnVsActionRatio = learnCount / behaviors.length;
 
@@ -224,10 +226,10 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
       // Detects: consecutive ANALYZE/REMEMBER without ACTION (delegate/code/execute)
       let analyzeStreak = 0;
       for (let i = behaviors.length - 1; i >= 0; i--) {
-        const act = (behaviors[i].data.action ?? '').toLowerCase();
-        if (/analyze|remember|learn|research|study/.test(act)) {
+        const text = getText(behaviors[i]).toLowerCase();
+        if (/analyze|remember|learn|research|study/.test(text)) {
           analyzeStreak++;
-        } else if (/delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline|tts|ffmpeg|curl|fetch|rebui/.test(act)) {
+        } else if (/delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline|tts|ffmpeg|curl|fetch|rebui/.test(text)) {
           break;
         }
       }
@@ -275,7 +277,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     const logger = getLogger();
     const recent = logger.queryBehaviorLogs(undefined, 3);
     metrics.creativeFlowActive = recent.some(b =>
-      /creat|journal|inner.voice|tsubuyaki|gallery|write|impulse/i.test(b.data.action ?? ''),
+      /creat|journal|inner.voice|tsubuyaki|gallery|write|impulse/i.test(`${b.data.action ?? ''} ${b.data.detail ?? ''}`),
     );
   } catch { /* best effort */ }
 
@@ -326,15 +328,18 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
           return goalKeywords.some(kw => lower.includes(kw));
         };
 
+        const getBehaviorText = (b: (typeof allBehaviors)[number]) =>
+          `${b.data.action ?? ''} ${b.data.detail ?? ''}`;
+
         const recent24h = allBehaviors.filter(b => {
           const age = now - new Date(b.timestamp).getTime();
-          return age < DAY_MS && matchesGoal(b.data.action ?? '');
+          return age < DAY_MS && matchesGoal(getBehaviorText(b));
         }).length;
 
         const prior24h = allBehaviors.filter(b => {
           const age = now - new Date(b.timestamp).getTime();
           return age >= DAY_MS && age < 2 * DAY_MS &&
-            matchesGoal(b.data.action ?? '');
+            matchesGoal(getBehaviorText(b));
         }).length;
 
         let trend: 'accelerating' | 'decelerating' | 'steady' | 'stalled' = 'steady';
