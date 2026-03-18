@@ -121,7 +121,7 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。` };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 15 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
+    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 30 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
@@ -384,7 +384,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = 900_000; // 15 minutes
+  const TIMEOUT_MS = 1_800_000; // 30 minutes
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
@@ -649,7 +649,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
  * 安全機制與 execClaude 相同：detached process group + 手動 timeout
  */
 async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
+  const TIMEOUT_MS = 1_800_000; // 30 minutes (same as Claude)
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
