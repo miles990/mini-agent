@@ -72,6 +72,10 @@ interface ExecOptions {
   onStreamChat?: (text: string, reply: boolean) => void;
   /** Foreground slot ID for concurrent foreground tracking */
   fgSlotId?: string;
+  /** Hard timeout in ms (default: 1_800_000 = 30min). FG lane should use shorter value. */
+  timeoutMs?: number;
+  /** No-progress timeout in ms (default: 300_000 = 5min). Kill if no stdout for this long. */
+  progressTimeoutMs?: number;
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
@@ -384,7 +388,8 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = 1_800_000; // 30 minutes
+  const TIMEOUT_MS = opts?.timeoutMs ?? 1_800_000; // default 30 minutes
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 300_000; // default 5 minutes
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
@@ -493,13 +498,13 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }, 5000);
     };
 
-    // ── Progress timeout：5 分鐘無 stdout 就 kill ──
+    // ── Progress timeout：無 stdout 就 kill（FG 用 progressTimeoutMs，預設 5 分鐘）──
     const progressTimer = setInterval(() => {
       if (settled || timedOut) return;
-      if (Date.now() - lastStdoutDataTs < 300_000) return;
+      if (Date.now() - lastStdoutDataTs < PROGRESS_TIMEOUT_MS) return;
       timedOut = true;
       clearInterval(progressTimer);
-      slog('CLAUDE', `No stdout data for 5 minutes — killing process group ${child.pid}`);
+      slog('CLAUDE', `No stdout data for ${PROGRESS_TIMEOUT_MS / 1000}s — killing process group ${child.pid}`);
       killProcessGroupWithForceResolve();
     }, 30_000);
 
@@ -1249,6 +1254,10 @@ export async function callClaude(
     onStreamChat?: (text: string, reply: boolean) => void;
     /** Foreground slot ID for concurrent foreground tracking */
     fgSlotId?: string;
+    /** Hard timeout in ms (default: 30min). FG lane should use shorter value. */
+    timeoutMs?: number;
+    /** No-progress timeout in ms (default: 5min). Kill if no stdout for this long. */
+    progressTimeoutMs?: number;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
@@ -1356,6 +1365,8 @@ export async function callClaude(
         model: options?.model,
         onStreamChat: options?.onStreamChat,
         fgSlotId,
+        timeoutMs: options?.timeoutMs,
+        progressTimeoutMs: options?.progressTimeoutMs,
       });
 
       const duration = Date.now() - startTime;

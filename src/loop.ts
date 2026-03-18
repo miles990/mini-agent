@@ -652,7 +652,14 @@ export class AgentLoop {
         slog('STREAM', `[foreground:${slotId}] Chat streamed: ${chatText.slice(0, 80)}`);
       };
 
-      const { response } = await callClaude(text, context, 1, { source: 'foreground', onStreamChat, fgSlotId: slotId });
+      const { response } = await callClaude(text, context, 2, {
+        source: 'foreground',
+        onStreamChat,
+        fgSlotId: slotId,
+        rebuildContext: async (mode) => {
+          return memory.buildContext({ mode });
+        },
+      });
 
       // Process all tags via unified postProcess (remember, delegate, inner, etc.)
       // Suppress chat sending — already streamed above via onStreamChat
