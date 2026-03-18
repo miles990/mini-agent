@@ -304,6 +304,10 @@ function startChrome(headless = true) {
     '--disable-blink-features=AutomationControlled',
     '--disable-features=AutomationControlled',
     '--disable-infobars',
+    // Prevent cache bloat (OptGuide ML models, Service Workers, etc.)
+    '--disable-features=AutomationControlled,OptimizationGuideModelDownloading,OptimizationHintsFetching',
+    '--disable-component-update',
+    '--disable-background-networking',
   ];
 
   if (headless) {
