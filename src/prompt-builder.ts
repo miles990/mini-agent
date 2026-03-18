@@ -298,7 +298,7 @@ export interface PromptBuilderState {
 /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
 export async function buildAutonomousPrompt(
   state: PromptBuilderState,
-): Promise<{ prompt: string; lastValidConfig: BehaviorConfig | null }> {
+): Promise<{ prompt: string; lastValidConfig: BehaviorConfig | null; researchLoopActive: boolean }> {
   const { config, lastValidConfig } = loadBehaviorConfig(state.lastValidConfig);
   const includeCycleResponsibilityGuide = state.controlMode !== 'calm';
   const base = config
@@ -344,16 +344,16 @@ export async function buildAutonomousPrompt(
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
 
-  // Research Loop Gate — detect consecutive research-only cycles and inject warning
-  const researchLoopWarning = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
+  // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
+  const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
-  if (researchLoopWarning) parts.push(researchLoopWarning);
+  if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);
   if (backgroundLaneHint) parts.push(backgroundLaneHint);
   if (ruminationSection) parts.push(ruminationSection);
-  return { prompt: parts.join('\n\n'), lastValidConfig };
+  return { prompt: parts.join('\n\n'), lastValidConfig, researchLoopActive: researchLoopResult !== null };
 }

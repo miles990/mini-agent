@@ -1734,11 +1734,15 @@ export class AgentLoop {
       const hasPendingFgDelegations = getPendingForegroundDelegations().length > 0;
       // Fix 4: Force 'task' mode when pending tasks exist — prevents learn/reflect when there's real work to do
       const hasPendingTrackedTasks = !isDirectMessage && (nextPendingItems.length > 0 || p0Previews.length > 0);
+      // Research Loop Gate: force 'act' mode when stuck in consecutive research-only cycles
+      const researchLoopForceAct = promptResult.researchLoopActive;
       const cycleMode = hasPendingFgDelegations
         ? 'respond' as import('./memory.js').CycleMode
         : hasPendingTrackedTasks
           ? 'task' as import('./memory.js').CycleMode
-          : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks }));
+          : researchLoopForceAct
+            ? 'act' as import('./memory.js').CycleMode
+            : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks }));
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({

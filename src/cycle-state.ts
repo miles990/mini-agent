@@ -414,11 +414,17 @@ function isResearchOnlyAction(entry: WorkJournalEntry): boolean {
   return hasResearch || hasOnlyPassiveEffects;
 }
 
+export interface ResearchLoopResult {
+  warning: string;
+  count: number;
+}
+
 /**
  * Detect consecutive active cycles with only research/learn actions.
- * Returns warning string to inject into prompt if 3+ consecutive research-only cycles detected.
+ * Returns structured result with warning + count if 3+ consecutive research-only cycles detected.
+ * The count enables escalation: 3+ = prompt warning, mode also forced to 'act' by loop.ts.
  */
-export function detectResearchLoop(limit: number = 10): string | null {
+export function detectResearchLoop(limit: number = 10): ResearchLoopResult | null {
   const entries = loadWorkJournal(limit);
   // Filter to active cycles (skip no-action)
   const active = entries.filter(e => e.action !== 'no-action');
@@ -434,7 +440,13 @@ export function detectResearchLoop(limit: number = 10): string | null {
   }
 
   if (consecutive >= 3) {
-    return `⚠️ RESEARCH-LOOP: 連續 ${consecutive} 個 active cycle 的 action 只有 research/learn 類型，沒有具體產出（code/create/deploy）。你上次的具體產出是什麼？下一個 action 必須產出可交付物（寫 code、修 bug、建 PR、生成內容），或說明為什麼不行。`;
+    const escalation = consecutive >= 5
+      ? '🚫 HARD BLOCK: 5+ research cycles — 禁止 research/learn delegation。這個 cycle 必須產出 code/create/deploy，沒有例外。'
+      : '';
+    return {
+      warning: `⚠️ RESEARCH-LOOP: 連續 ${consecutive} 個 active cycle 只有 research/learn，沒有具體產出。下一個 action 必須產出可交付物（寫 code、修 bug、建 PR、生成內容），或說明為什麼不行。${escalation}`,
+      count: consecutive,
+    };
   }
   return null;
 }
