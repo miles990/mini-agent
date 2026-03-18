@@ -8,8 +8,7 @@
 
 - [ ] P0: Teaching Monster Phase 1 pipeline 開發（Claude API → KaTeX → TTS → FFmpeg）
   Verify: `ls ~/Workspace/teaching-monster/src/*.ts 2>/dev/null | wc -l`
-- [ ] P1: Reactive Cycle Architecture 實作（Phase 1: Event Emission + Chat-UI）
-  Verify: `grep -c 'emitEvent' ~/Workspace/mini-agent/src/loop.ts`
+- [x] P1: Reactive Cycle Architecture 全 3 Phase 完成（preprocessor + chat-ui + cycle slimming）
 
 ---
 
@@ -46,6 +45,7 @@
 - [x] Crystallization 深度研究 — #084 完成，30+ 來源，結構化報告交付
 - [x] myelin feedback plan L1-L5 全實作 — 16 項反饋，126 tests pass（commit c1c606a）
 - [x] task-queue 衛生清理 — 95 tasks 全部 resolved，0 pending
+- [x] Reactive Cycle Architecture — 全 3 Phase 完成：preprocessor.ts(265L) + chat-ui(topic badge, filter, thread line, cluster collapse) + cycle slimming(prompt + delegation originTask)
 
 ---
 
