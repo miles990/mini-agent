@@ -6,9 +6,16 @@
 
 ## Now（正在做）
 
-- [ ] P0: Teaching Monster Phase 1 pipeline 開發（Claude API → KaTeX → TTS → FFmpeg）
-  Verify: `ls ~/Workspace/teaching-monster/src/*.ts 2>/dev/null | wc -l`
-- [x] P1: Reactive Cycle Architecture 全 3 Phase 完成（preprocessor + chat-ui + cycle slimming）
+- [ ] P0: Teaching Monster Phase 1 — Step 1: HTML template（KaTeX + CSS 動畫投影片模板）
+  Verify: `test -f ~/Workspace/teaching-monster/templates/slide.html && echo ok`
+- [ ] P0: Teaching Monster Phase 1 — Step 2: Puppeteer screencast（HTML → MP4 錄製）
+  Verify: `test -f ~/Workspace/teaching-monster/src/screencast.ts && echo ok`
+- [ ] P0: Teaching Monster Phase 1 — Step 3: TTS + FFmpeg 合併（Kokoro 音訊 + MP4 → 最終影片）
+  Verify: `test -f ~/Workspace/teaching-monster/src/video-merge.ts && echo ok`
+- [ ] P0: Teaching Monster Phase 1 — Step 4: Script→HTML 轉換（Claude API script 自動轉 HTML slides）
+  Verify: `test -f ~/Workspace/teaching-monster/src/script-to-slides.ts && echo ok`
+- [ ] P0: Teaching Monster Phase 1 — Step 5: End-to-end 串接（題目→影片一鍵生成）
+  Verify: `test -f ~/Workspace/teaching-monster/src/pipeline.ts && echo ok`
 
 ---
 
