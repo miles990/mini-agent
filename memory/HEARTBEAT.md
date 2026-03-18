@@ -12,6 +12,15 @@
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle（43 cycles 無行為改變）
 - [ ] P1: 結晶候選 — decision-quality-low（1074 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-stalled（234 cycles 無行為改變）
+- [ ] P1: 結晶候選 — output-gate（849 cycles 無行為改變）
+- [ ] P1: 結晶候選 — priority-misalign（192 cycles 無行為改變）
+Pattern: alignment 0%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:24.388Z -->
+Pattern: 20 cycles without visible output
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:24.388Z -->
+Pattern: Teaching Monster 競賽（Deadline: 5/1 初賽, 6/12 決賽）: 0 actions in 48h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:24.387Z -->
 Pattern: avg 0.6/3 over 20 cycles
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:08.058Z -->
 Pattern: question:20h idle
