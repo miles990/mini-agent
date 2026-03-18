@@ -529,15 +529,20 @@ function applyTemporalContext(
 }
 
 // Reset habituation counter when behavior actually changes
+// Uses behavioral CATEGORY (output vs non-output) instead of raw text hash.
+// Raw text changes every cycle (different action descriptions), which made
+// lastActionChange always 0-1, breaking habituation and crystallization.
 function detectBehaviorChange(state: PulseState, action: string | null): void {
-  const hash = action ? action.slice(0, 100) : '';
-  if (hash !== state.lastBehaviorHash) {
-    // Behavior changed — reset relevant signal counters
+  const category = action
+    ? (isVisibleOutput(action) ? 'output' : 'non-output')
+    : 'idle';
+  if (category !== state.lastBehaviorHash) {
+    // Behavior category changed — reset relevant signal counters
     for (const entry of Object.values(state.signalHistory)) {
       entry.lastActionChange = 0;
       entry.crystallizationEscalated = false;  // allow re-escalation if pattern recurs
     }
-    state.lastBehaviorHash = hash;
+    state.lastBehaviorHash = category;
   }
 }
 
