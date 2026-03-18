@@ -23,6 +23,7 @@ import {
 import { withFileLock } from './filelock.js';
 import { diagLog } from './utils.js';
 import { eventBus } from './event-bus.js';
+import { buildActionMemorySection } from './action-memory.js';
 import {
   getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus,
   getProcessStatus, formatProcessStatus,
@@ -2161,6 +2162,16 @@ Queries:`;
           }
         }
       }
+    }
+
+    // ── Action Memory（向內感知：近期成功行動 + 重複偵測）──
+    if (!isLight) {
+      try {
+        const actionMemory = buildActionMemorySection(getInstanceDir(getCurrentInstanceId()));
+        if (actionMemory) {
+          sections.push(`<action-memory>\n${actionMemory}\n</action-memory>`);
+        }
+      } catch { /* fire-and-forget */ }
     }
 
     // ── Threads（skip in light mode + non-deep profiles）──
