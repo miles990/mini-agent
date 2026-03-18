@@ -6,16 +6,11 @@
 
 ## Now（正在做）
 
-- [ ] P0: Teaching Monster Phase 1 — Step 1: HTML template（KaTeX + CSS 動畫投影片模板）
-  Verify: `test -f ~/Workspace/teaching-monster/templates/slide.html && echo ok`
-- [ ] P0: Teaching Monster Phase 1 — Step 2: Puppeteer screencast（HTML → MP4 錄製）
-  Verify: `test -f ~/Workspace/teaching-monster/src/screencast.ts && echo ok`
-- [ ] P0: Teaching Monster Phase 1 — Step 3: TTS + FFmpeg 合併（Kokoro 音訊 + MP4 → 最終影片）
-  Verify: `test -f ~/Workspace/teaching-monster/src/video-merge.ts && echo ok`
-- [ ] P0: Teaching Monster Phase 1 — Step 4: Script→HTML 轉換（Claude API script 自動轉 HTML slides）
-  Verify: `test -f ~/Workspace/teaching-monster/src/script-to-slides.ts && echo ok`
-- [ ] P0: Teaching Monster Phase 1 — Step 5: End-to-end 串接（題目→影片一鍵生成）
-  Verify: `test -f ~/Workspace/teaching-monster/src/pipeline.ts && echo ok`
+- [ ] P1: Teaching Monster 熱身賽第一輪 — 全部重新生成（regenerate），測試結果是否比第一次更好
+  Context: 目前 #3（4.3/5, 26/32），被 TestPipeline（Team 78, 4.4/5）超越。改善：字數提升、quality review 層、KaTeX SSR、crash handler、tunnel 穩定
+  Blocker: CDP Chrome 的 kuro.ai.agent Google session 過期，無法登入 Teaching Monster 平台觸發 regenerate。需要 Alex 協助登入 Google 或提供 Teaching Monster 密碼
+  Server ready: health OK, idle, tunnel running
+  Verify: `curl -s http://localhost:3456/health | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d['status']=='ok' else 'fail')"`
 
 ---
 
@@ -34,7 +29,7 @@
 
 - [ ] npm publish myelin/asurada — 等 Alex 決定語言方向（Timeout: 2026-03-31）
 - [ ] Show HN 發佈 — 依賴 npm publish
-- [ ] Teaching Monster 報名 — Clerk headless OAuth 卡住，需 Alex 手動登入一次（30秒）
+- [ ] Teaching Monster 平台 regenerate — CDP Chrome 的 kuro.ai.agent@gmail.com Google session 過期，需 Alex 在 CDP Chrome 登入 Google（kuro.ai.agent@gmail.com）或直接在平台上觸發 regenerate
 
 ---
 
