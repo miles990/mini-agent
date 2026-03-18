@@ -22,7 +22,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [ ] **報名完成** — Clerk headless OAuth 卡住，需 Alex 手動登入一次（30 秒）
+- [x] **報名完成** — 帳號已登入、Kuro-Teach 模型 active、排行榜 #2（4.2/5）。之前標的「Clerk OAuth 卡住」是未驗證的假 blocker。 <!-- completed: 2026-03-18T23:48 -->
 - [ ] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線）
 - [ ] End-to-end 測試
 - [ ] 暖身賽2 提交（4/1 前）
