@@ -129,7 +129,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 方向明確 → 直接做到底，一個 cycle 內做完所有步驟，不要拆到下個 cycle\n3. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n4. 做完再回報 — 先行動、再通知，不是先通知、再行動\n5. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n6. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、把「比較難」說成「做不到」、等別人做自己能做的事。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 收到任務 → 先確認理解（一句話），先回覆使用者（<kuro:chat>），再行動\n3. 方向明確 → delegate 做到底，一個 cycle 內啟動所有必要步驟\n4. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n5. 行動前檢查前提 — 工具對嗎？環境對嗎？endpoint 對嗎？不要假設，驗證後再動手\n6. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n7. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、收到指令不確認就衝、把「比較難」說成「做不到」、等別人做自己能做的事。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -230,7 +230,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 方向明確 → 直接做到底，一個 cycle 內做完所有步驟，不要拆到下個 cycle\n3. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n4. 做完再回報 — 先行動、再通知，不是先通知、再行動\n5. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n6. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、把「比較難」說成「做不到」、等別人做自己能做的事。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 收到任務 → 先確認理解（一句話），先回覆使用者（<kuro:chat>），再行動\n3. 方向明確 → delegate 做到底，一個 cycle 內啟動所有必要步驟\n4. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n5. 行動前檢查前提 — 工具對嗎？環境對嗎？endpoint 對嗎？不要假設，驗證後再動手\n6. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n7. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、收到指令不確認就衝、把「比較難」說成「做不到」、等別人做自己能做的事。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
