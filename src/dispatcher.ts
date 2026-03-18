@@ -105,6 +105,24 @@ const ASK_ALEX_PATTERNS = [
   'Alex help',
 ] as const;
 
+/**
+ * Crystallized gate: detect asking-permission patterns in <kuro:chat> output.
+ * Same pattern appeared 5+ times without behavior change → code gate.
+ * Alex #207: 「能做的直接做不要問」
+ * Returns matched pattern description, or null if clean.
+ */
+function detectAskingPermission(text: string): string | null {
+  const patterns: ReadonlyArray<[RegExp, string]> = [
+    [/要(不要)?我.{0,20}[嗎吗？?]/, '要我X嗎'],
+    [/你想(讓|要)我/, '你想讓我X'],
+    [/我(可以|能不能|能)(先)?.{0,20}[嗎吗？?]/, '我可以X嗎'],
+  ];
+  for (const [re, desc] of patterns) {
+    if (re.test(text)) return desc;
+  }
+  return null;
+}
+
 function detectAskAlexPattern(text: string): { matched: string; index: number } | null {
   const lower = text.toLowerCase();
   for (const pattern of ASK_ALEX_PATTERNS) {
@@ -1073,6 +1091,12 @@ export async function postProcess(
 
     if (tags.chats.length > 0) tagsProcessed.push('chat');
     for (const chat of tags.chats) {
+      const askPerm = detectAskingPermission(chat.text);
+      if (askPerm) {
+        slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${chat.text.slice(0, 80)}`);
+        getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${chat.text.slice(0, 120)}`);
+        continue;
+      }
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
 
