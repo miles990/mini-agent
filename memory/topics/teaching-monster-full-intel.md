@@ -244,3 +244,4 @@
 5. **TTS 升級**: macOS say → Kokoro 或 OpenAI TTS
 6. **部署**: Cloudflare Tunnel 做公開 endpoint
 7. **持續監控**: 定期掃 Slack，追蹤新競品和規則變化
+- [2026-03-18] [2026-03-18] TTS 現狀確認：teaching-monster pipeline 已有 4 層 TTS fallback（Kokoro batch → OpenAI TTS-1-HD → edge-tts zh-TW-HsiaoChenNeural → macOS say）。Kokoro venv 已安裝，OPENAI_API_KEY 已配置。目前實際使用 Kokoro（24000 Hz output 證實）。Phase 2 升級不需要額外實作，需要品質驗證。
