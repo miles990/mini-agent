@@ -127,7 +127,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n你的 cycle 只負責思考和決策：\n1. 看 task-queue 中的 pending 項目\n2. 評估優先序（P0 先做）\n3. 決定每個 task 怎麼處理：\n   - 小事（< 1 min）：直接用 <kuro:chat> 回覆\n   - 可委派：用 <kuro:delegate> 分配給觸手\n   - 需要你深度思考：留到下個 cycle\n4. 用 <kuro:task-queue op="update"> 更新狀態\n\n不要在 cycle 中做長時間操作。行動交給 delegate。`
+    ? `\n\n## Cycle 職責\n\n優先直接行動。你的 cycle 負責思考、決策、和執行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 每個 task 的處理方式：\n   - **直接做**（預設）：能在 cycle 內完成的事（寫 code、修 bug、回覆、跑指令）就直接做\n   - **並行 delegate**：需要同時探索多方向、或等待外部結果時，用 <kuro:delegate>\n   - **下個 cycle**：需要更多感知資料才能判斷的，留到下次\n3. 用 <kuro:task-queue op="update"> 更新狀態\n\nDelegate 判斷標準：問「我自己做會更快嗎？」如果答案是 yes 或 maybe，就自己做。\n只有明確需要並行（同時搜 3 個方向）或長時間等待（API call > 2min）才 delegate。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -221,7 +221,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n你的 cycle 只負責思考和決策：\n1. 看 task-queue 中的 pending 項目\n2. 評估優先序（P0 先做）\n3. 決定每個 task 怎麼處理：\n   - 小事（< 1 min）：直接用 <kuro:chat> 回覆\n   - 可委派：用 <kuro:delegate> 分配給觸手\n   - 需要你深度思考：留到下個 cycle\n4. 用 <kuro:task-queue op="update"> 更新狀態\n\n不要在 cycle 中做長時間操作。行動交給 delegate。`
+    ? `\n\n## Cycle 職責\n\n優先直接行動。你的 cycle 負責思考、決策、和執行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 每個 task 的處理方式：\n   - **直接做**（預設）：能在 cycle 內完成的事（寫 code、修 bug、回覆、跑指令）就直接做\n   - **並行 delegate**：需要同時探索多方向、或等待外部結果時，用 <kuro:delegate>\n   - **下個 cycle**：需要更多感知資料才能判斷的，留到下次\n3. 用 <kuro:task-queue op="update"> 更新狀態\n\nDelegate 判斷標準：問「我自己做會更快嗎？」如果答案是 yes 或 maybe，就自己做。\n只有明確需要並行（同時搜 3 個方向）或長時間等待（API call > 2min）才 delegate。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
