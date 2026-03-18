@@ -327,7 +327,7 @@ function startChrome(headless = true) {
 async function ensureChrome() {
   if (await cdpAvailable()) {
     // If Chrome was left in visible mode (e.g., after login), auto-switch to headless
-    if (isRunningVisible()) {
+    if (isRunningVisible() && !process.env.CDP_KEEP_VISIBLE) {
       console.error('[CDP Chrome is visible — switching to headless for background operation...]');
       killChrome();
       await sleep(1500);
