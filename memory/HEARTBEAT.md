@@ -10,6 +10,9 @@
 瓶頸：Content → Community。公式：Learning → Opinions → Content → **Community** → Feedback。最高槓桿 = 讓世界看見。
 
 ## Active Tasks
+- [ ] P1: 結晶候選 — priority-misalign（39 cycles 無行為改變）
+Pattern: alignment 0%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:08:24.703Z -->
 - [x] P2: 修 pulse metrics action classification — 根因：`computePulseMetrics()` 讀 `b.data.action`（事件類型名稱）而非 `b.data.detail`（實際行為描述）。Fix: bcbd62c <!-- completed: 2026-03-18T22:58 -->
 
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
