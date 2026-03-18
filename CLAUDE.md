@@ -633,6 +633,41 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - 精煉的 ROI 遠高於擴展 — 25K 行每行有理由 > 35K 行
 - 系統性方法要自己長出來 — 從實踐中觀察自己的模式，找到有效的，強化它
 
+## Task Queue 自動閉環
+
+Task-queue（`memory/index/relations.jsonl`）的生命週期管理，確保 tasks 不會無限堆積。
+
+**自動完成（reply tasks）**：`resolveReplyTasksByRoomMsgId()`（`src/memory-index.ts`）— 當 `markChatRoomInboxProcessed()` 確認訊息已被回覆/addressed，自動透過 `roomMsgId` 精確匹配完成對應的 reply task。覆蓋 main loop 和 foreground lane。
+
+**四層智能清理**：`cleanStaleTasks()`（`src/housekeeping.ts`），每個 housekeeping cycle 執行：
+
+| Layer | 對象 | 條件 | 動作 |
+|-------|------|------|------|
+| 1 | 回覆類 tasks | roomMsgId 匹配已回覆 OR >24h | → completed |
+| 2 | 垃圾 tasks | pattern match（test/debug/SSE）+ >24h | → abandoned |
+| 3 | Stale tasks | pending >7d / in_progress >14d（用最後更新時間） | → abandoned |
+| 4 | 歸檔清理 | completed/abandoned >30d | → tombstone 刪除 |
+
+排除：goals 不受 L3、pinned tasks 不清理、有 verify pass 的不自動清。
+
+**注意**：`relations.jsonl` 是 append-only（含歷史版本），`queryMemoryIndexSync` 會 dedup 取最新版本。直接讀 JSONL 行數不等於實際 active task 數量。
+
+## Cycle 職責（`prompt-builder.ts`）
+
+Kuro 的 OODA cycle prompt 指引思考和行動的平衡：
+
+- **每個 cycle 推進一步** — 思考、行動、或兩者並行（不是只思考/只行動）
+- **有方向時先回覆使用者** — 不要跑多個 cycle 而 Alex 不知道在幹嘛
+- **視情境而定** — 方向不明多想、方向明確直接做、大任務拆步驟
+- **Delegate 是並行探索，不是卸載工作** — 能自己做就不 delegate
+- **反模式** — 連續多個 cycle 只有研究/分析沒有產出
+
+`cycleResponsibilityGuide` 出現在兩處（buildPromptFromConfig 和 buildFallbackAutonomousPrompt），內容同步。
+
+## Output 清理（`tag-parser.ts`）
+
+`stripKuroTags()` 在 strip `kuro:*` tags 之後，額外 strip `<ktml:thinking>` 和 `<thinking>` blocks。這些是 local model（如 Qwen3.5）的 thinking 輸出，不應洩漏到 Chat Room 或 Telegram。
+
 ## Kuro Agent Debugging
 
 - **時間戳一律確認 UTC/本地時間再下結論**。server.log 用 ISO 格式（UTC），不要用人類直覺猜時間
@@ -707,6 +742,8 @@ Alex/Kuro 共用 Claude Code subscription 時切換 macOS Keychain credential。
 **API**：`POST /api/triage`（wake/skip）、`POST /api/dedup`（記憶查重）、`POST /api/consensus`（討論收斂）
 
 **整合**：Feature flag `mushi-triage`。Direct messages 繞過 triage 永遠直通。heartbeat + 無變化 → 直接 skip。mushi 離線時 fail-silent。Active mode：980+ triage 零 false negative 後畢業。每天省 ~1M tokens。
+
+**kuro-watcher**（`plugins/kuro-watcher.sh`）：health check 有 3 次重試 + `--connect-timeout 2 --max-time 5`，避免 Kuro server busy 時誤判 OFFLINE。status transition dedup 使用 single key `kuro-status-change`（`src/index.ts`），1 小時內只發一次通知。修改 mushi code 後需 `npm run build` + `launchctl kickstart -k gui/$(id -u)/com.mushi` 重啟。
 
 ## 詳細文件
 

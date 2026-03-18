@@ -13,7 +13,13 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readPendingInbox, markInboxProcessed, inboxCache } from './inbox.js';
 import { rebuildIndex } from './search.js';
 import { slog } from './utils.js';
-import { auditStaleTasks as auditStaleTasksFromIndex } from './memory-index.js';
+import {
+  auditStaleTasks as auditStaleTasksFromIndex,
+  queryMemoryIndexSync,
+  updateMemoryIndexEntry,
+  deleteMemoryIndexEntry,
+} from './memory-index.js';
+import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
 const execFileAsync = promisify(execFile);
@@ -381,8 +387,218 @@ export async function autoPushIfAhead(): Promise<void> {
 }
 
 // =============================================================================
-// Stale Task Decay — 任務衰減警告
+// Smart Task Cleanup — 四層自動清理（替換 decayStaleTasks）
 // =============================================================================
+
+export interface CleanupResult {
+  layer: 1 | 2 | 3 | 4;
+  id: string;
+  summary: string;
+  action: 'completed' | 'abandoned' | 'deleted';
+  reason: string;
+}
+
+const REPLY_TASK_PATTERN = /回覆\s*(alex|Alex)/i;
+const JUNK_TASK_PATTERN = /^(SSE test|SSE-realtime-test|delete me|test|debug|測試)/i;
+const DAY_MS = 86_400_000;
+
+/**
+ * 四層智能清理：
+ * L1: 回覆類 tasks — roomMsgId 匹配 OR >48h → completed
+ * L2: 垃圾 tasks — pattern match + >24h → abandoned
+ * L3: Stale tasks — pending >7d / in_progress >14d（用最後更新時間）→ abandoned
+ * L4: 歸檔清理 — completed/abandoned >30d → tombstone 刪除
+ *
+ * 排除：goals 不受 L3、pinned 不清理、有部分通過 verify 的不自動清
+ */
+export async function cleanStaleTasks(dryRun = false): Promise<CleanupResult[]> {
+  const memDir = path.join(process.cwd(), 'memory');
+  const results: CleanupResult[] = [];
+  const now = Date.now();
+
+  // --- Layer 1: 回覆類 tasks ---
+  const activeTasks = queryMemoryIndexSync(memDir, {
+    type: 'task',
+    status: ['pending', 'in_progress'],
+  });
+
+  // Load recent Chat Room conversations for reply matching
+  const replyMsgIds = loadRecentChatRoomReplies(memDir);
+
+  for (const task of activeTasks) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    if (payload.pinned) continue;
+
+    const isReplyTask = REPLY_TASK_PATTERN.test(task.summary ?? '');
+    if (!isReplyTask) continue;
+
+    const roomMsgId = payload.roomMsgId as string | undefined;
+    const taskAge = now - new Date(task.ts).getTime();
+    let matched = false;
+    let reason = '';
+
+    // Precise match: roomMsgId exists → check if Kuro replied to it
+    if (roomMsgId && replyMsgIds.has(roomMsgId)) {
+      matched = true;
+      reason = `roomMsgId ${roomMsgId} has been replied`;
+    }
+    // Time fallback: >24h → topic is stale
+    else if (taskAge > 24 * 60 * 60 * 1000) {
+      matched = true;
+      reason = `reply task >24h (${Math.floor(taskAge / DAY_MS)}d), topic expired`;
+    }
+
+    if (matched) {
+      if (!dryRun) {
+        await updateMemoryIndexEntry(memDir, task.id, { status: 'completed' }).catch(() => {});
+      }
+      results.push({ layer: 1, id: task.id, summary: task.summary ?? task.id, action: 'completed', reason });
+    }
+  }
+
+  // --- Layer 2: 垃圾 tasks ---
+  // Re-query because L1 may have changed some
+  const remainingActive = dryRun ? activeTasks : queryMemoryIndexSync(memDir, {
+    type: 'task',
+    status: ['pending', 'in_progress'],
+  });
+
+  for (const task of remainingActive) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    if (payload.pinned) continue;
+    // Skip tasks already handled by L1
+    if (results.some(r => r.id === task.id)) continue;
+
+    if (JUNK_TASK_PATTERN.test(task.summary ?? '')) {
+      const taskAge = now - new Date(task.ts).getTime();
+      if (taskAge > DAY_MS) {
+        if (!dryRun) {
+          await updateMemoryIndexEntry(memDir, task.id, { status: 'abandoned' }).catch(() => {});
+        }
+        results.push({ layer: 2, id: task.id, summary: task.summary ?? task.id, action: 'abandoned', reason: 'junk pattern match + >24h' });
+      }
+    }
+  }
+
+  // --- Layer 3: Decay 兜底 ---
+  const allActive = dryRun ? activeTasks : queryMemoryIndexSync(memDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+
+  for (const task of allActive) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    if (payload.pinned) continue;
+    if (task.type === 'goal') continue; // goals exempt from L3
+    if (results.some(r => r.id === task.id)) continue;
+
+    // Check partial verify pass — exempt if any verify passed
+    const verify = payload.verify as Array<{ status: string }> | undefined;
+    if (verify && verify.some(v => v.status === 'pass')) continue;
+
+    // Use last update time (ts), not creation time
+    const lastUpdate = new Date(task.ts).getTime();
+    const age = now - lastUpdate;
+
+    const threshold = task.status === 'in_progress' ? 14 * DAY_MS : 7 * DAY_MS;
+    if (age > threshold) {
+      if (!dryRun) {
+        await updateMemoryIndexEntry(memDir, task.id, { status: 'abandoned' }).catch(() => {});
+      }
+      const label = task.status === 'in_progress' ? 'in_progress >14d' : 'pending >7d';
+      results.push({ layer: 3, id: task.id, summary: task.summary ?? task.id, action: 'abandoned', reason: `${label} (last update: ${Math.floor(age / DAY_MS)}d ago)` });
+    }
+  }
+
+  // --- Layer 4: 歸檔清理 (tombstone) ---
+  const closedTasks = queryMemoryIndexSync(memDir, {
+    type: ['task', 'goal'],
+    status: ['completed', 'abandoned'],
+  });
+
+  for (const task of closedTasks) {
+    const age = now - new Date(task.ts).getTime();
+    if (age > 30 * DAY_MS) {
+      if (!dryRun) {
+        await deleteMemoryIndexEntry(memDir, task.id).catch(() => {});
+      }
+      results.push({ layer: 4, id: task.id, summary: task.summary ?? task.id, action: 'deleted', reason: `closed >30d (${Math.floor(age / DAY_MS)}d)` });
+    }
+  }
+
+  // Log results
+  if (results.length > 0) {
+    const byLayer = [1, 2, 3, 4].map(l => {
+      const items = results.filter(r => r.layer === l);
+      return items.length > 0 ? `L${l}:${items.length}` : null;
+    }).filter(Boolean).join(' ');
+    const mode = dryRun ? '[DRY-RUN] ' : '';
+    slog('HOUSEKEEPING', `${mode}cleanStaleTasks: ${results.length} tasks (${byLayer})`);
+  }
+
+  // Write results to instance dir for inspection
+  const instanceId = getCurrentInstanceId();
+  const resultPath = path.join(getInstanceDir(instanceId), 'task-cleanup-results.json');
+  if (results.length > 0) {
+    fs.writeFileSync(resultPath, JSON.stringify({ dryRun, ts: new Date().toISOString(), results }, null, 2));
+  } else if (fs.existsSync(resultPath)) {
+    fs.unlinkSync(resultPath);
+  }
+
+  return results;
+}
+
+/**
+ * Load recent Chat Room conversations and build a set of message IDs
+ * that Kuro has replied to (via replyTo field).
+ */
+function loadRecentChatRoomReplies(memDir: string): Set<string> {
+  const repliedTo = new Set<string>();
+  const convDir = path.join(memDir, 'conversations');
+  if (!fs.existsSync(convDir)) return repliedTo;
+
+  try {
+    const files = fs.readdirSync(convDir)
+      .filter(f => f.endsWith('.jsonl'))
+      .sort()
+      .slice(-7); // Last 7 days
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(convDir, file), 'utf-8');
+      for (const line of content.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line) as { from?: string; replyTo?: string; mentions?: string[] };
+          // Kuro's messages that reply to something
+          if (msg.from === 'kuro' && msg.replyTo) {
+            repliedTo.add(msg.replyTo);
+          }
+          // Also: any Kuro message mentioning alex counts as a reply
+          if (msg.from === 'kuro' && msg.mentions?.includes('alex')) {
+            // Can't precisely match, but these are "reply" signals
+          }
+        } catch { /* skip malformed lines */ }
+      }
+    }
+  } catch { /* non-critical */ }
+
+  return repliedTo;
+}
+
+// Dry-run flag — set to false after first successful dry-run reviewed by Alex
+let cleanupDryRunMode = true;
+
+/** Set dry-run mode for task cleanup (called after Alex approves first run) */
+export function setCleanupDryRunMode(enabled: boolean): void {
+  cleanupDryRunMode = enabled;
+}
+
+/** Get current dry-run mode */
+export function isCleanupDryRun(): boolean {
+  return cleanupDryRunMode;
+}
+
+// --- Legacy compatibility ---
 
 export interface StaleTaskWarning {
   title: string;
@@ -393,51 +609,14 @@ export interface StaleTaskWarning {
   detectedAt: string;
 }
 
-/**
- * 掃描 memory-index 任務的建立日期，超齡的寫入 stale-tasks.json 警告。
- * P0 不衰減。P1 > 7天警告。P2/P3 > 14天警告。
- * Fire-and-forget，不自動移動任務（保持 Kuro 能動性）。
- */
-export async function decayStaleTasks(): Promise<void> {
-  try {
-    const memDir = path.join(process.cwd(), 'memory');
-    const staleItems = auditStaleTasksFromIndex(memDir);
-
-    const warnings: StaleTaskWarning[] = staleItems.map(item => ({
-      title: item.summary,
-      priority: `P${item.priority}`,
-      created: '', // memory-index doesn't preserve original @created format
-      ageDays: item.ageDays,
-      section: 'index',
-      detectedAt: new Date().toISOString(),
-    }));
-
-    // Write warnings to instance dir (overwrite — current snapshot)
-    const instanceId = getCurrentInstanceId();
-    const stalePath = path.join(getInstanceDir(instanceId), 'stale-tasks.json');
-
-    if (warnings.length > 0) {
-      fs.writeFileSync(stalePath, JSON.stringify(warnings, null, 2));
-      slog('HOUSEKEEPING', `${warnings.length} stale task(s) detected`);
-    } else if (fs.existsSync(stalePath)) {
-      // No warnings → clean up old file
-      fs.unlinkSync(stalePath);
-    }
-  } catch { /* non-critical */ }
+export function readStaleTaskWarnings(): StaleTaskWarning[] {
+  // Now returns empty — cleanup results are in task-cleanup-results.json
+  return [];
 }
 
-/**
- * Read stale task warnings for context injection.
- */
-export function readStaleTaskWarnings(): StaleTaskWarning[] {
-  try {
-    const instanceId = getCurrentInstanceId();
-    const stalePath = path.join(getInstanceDir(instanceId), 'stale-tasks.json');
-    if (!fs.existsSync(stalePath)) return [];
-    return JSON.parse(fs.readFileSync(stalePath, 'utf-8'));
-  } catch {
-    return [];
-  }
+/** @deprecated Use cleanStaleTasks() instead */
+export async function decayStaleTasks(): Promise<void> {
+  await cleanStaleTasks(cleanupDryRunMode);
 }
 
 // =============================================================================
