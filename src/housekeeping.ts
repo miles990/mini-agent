@@ -586,7 +586,7 @@ function loadRecentChatRoomReplies(memDir: string): Set<string> {
 }
 
 // Dry-run flag — set to false after first successful dry-run reviewed by Alex
-let cleanupDryRunMode = true;
+let cleanupDryRunMode = false;
 
 /** Set dry-run mode for task cleanup (called after Alex approves first run) */
 export function setCleanupDryRunMode(enabled: boolean): void {
