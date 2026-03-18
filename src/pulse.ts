@@ -838,3 +838,23 @@ export function buildPulseContext(): string | null {
     return null;
   }
 }
+
+/**
+ * Hard gate: returns true when consecutive non-output cycles >= OUTPUT_GATE_THRESHOLD.
+ * Used by dispatcher to block delegation spawn until visible output is produced.
+ * Fail-open: returns false on any read error (don't block delegation on state corruption).
+ */
+export function isOutputGateActive(): boolean {
+  try {
+    const state = readPulseState();
+    if (state.recentOutputFlags.length === 0) return false;
+    let consecutive = 0;
+    for (let i = state.recentOutputFlags.length - 1; i >= 0; i--) {
+      if (!state.recentOutputFlags[i]) consecutive++;
+      else break;
+    }
+    return consecutive >= OUTPUT_GATE_THRESHOLD;
+  } catch {
+    return false;
+  }
+}

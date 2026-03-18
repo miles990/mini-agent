@@ -883,6 +883,17 @@ export async function postProcess(
     } catch { return ''; /* fire-and-forget */ }
   };
 
+  // Output gate: block delegation spawn after consecutive non-output cycles
+  if (tags.delegates.length > 0) {
+    try {
+      const { isOutputGateActive } = await import('./pulse.js');
+      if (isOutputGateActive()) {
+        slog('DISPATCH', `Output gate blocked ${tags.delegates.length} delegate(s) — produce visible output first`);
+        tags.delegates = [];
+      }
+    } catch { /* fail-open */ }
+  }
+
   if (tags.delegates.length > 1) {
     // Multiple delegates → build DAG for intelligent scheduling
     const taskInputs: TaskInput[] = tags.delegates.map(del => ({
