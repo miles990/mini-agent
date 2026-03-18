@@ -1,10 +1,14 @@
 /**
- * Rule-based message preprocessing (zero LLM):
- * - topic detection
- * - intent classification
- * - action task extraction
- * - short-window cluster assignment
+ * Rule-based preprocessing (zero LLM):
+ * - Message level: topic detection, intent classification, action task extraction, cluster assignment
+ * - Cycle level: perception snapshot, inbox enrichment, trigger classification
  */
+
+import { perceptionStreams } from './perception-stream.js';
+import { readPendingInbox } from './inbox.js';
+import { eventBus } from './event-bus.js';
+import type { InboxItem } from './types.js';
+
 export type Intent = 'action' | 'question' | 'info' | 'discussion' | 'approval';
 
 export interface MessageContext {
@@ -157,4 +161,104 @@ export function preprocessMessage(
   const cluster = assignCluster(topic, ts);
 
   return { topic, intent, tasks, cluster };
+}
+
+// =============================================================================
+// Cycle Preprocessing — perception snapshot + inbox enrichment before cycle
+// =============================================================================
+
+/** Direct message sources that trigger priority handling */
+const DM_SOURCES: ReadonlySet<string> = new Set(['telegram', 'room', 'chat']);
+
+export interface CycleContext {
+  triggerReason: string | null;
+  lastPerceptionVersion: number;
+  cycleCount: number;
+}
+
+export interface EnrichedInboxItem extends InboxItem {
+  context?: MessageContext;
+}
+
+export interface CyclePreprocessResult {
+  /** Whether perception data changed since last cycle */
+  perceptionChanged: boolean;
+  /** Current perception stream version */
+  currentPerceptionVersion: number;
+  /** Number of perception streams that changed */
+  perceptionChangedCount: number;
+  /** Whether trigger is a direct message (telegram/room/chat) */
+  isDirectMessage: boolean;
+  /** Whether trigger is a cron job */
+  isCron: boolean;
+  /** Classified trigger source (first segment before : or ( ) */
+  triggerSource: string;
+  /** Inbox items enriched with preprocessor metadata */
+  inboxItems: EnrichedInboxItem[];
+  /** DM items from inbox (subset of inboxItems) */
+  dmItems: EnrichedInboxItem[];
+  /** Preprocessing timestamp */
+  preprocessedAt: string;
+}
+
+/**
+ * Preprocesses perception data before cycle starts.
+ *
+ * Gathers perception state, enriches inbox items with rule-based metadata,
+ * and classifies the trigger — all zero-LLM. Fire-and-forget safe: errors
+ * in enrichment are caught per-item, never block the cycle.
+ */
+export function preprocessCycle(ctx: CycleContext): CyclePreprocessResult {
+  const { triggerReason, lastPerceptionVersion, cycleCount } = ctx;
+  const now = new Date();
+
+  // Perception snapshot
+  const currentPerceptionVersion = perceptionStreams.version;
+  const perceptionChanged = currentPerceptionVersion !== lastPerceptionVersion;
+  const perceptionChangedCount = perceptionStreams.getChangedCount();
+
+  // Trigger classification
+  const triggerSource = triggerReason?.split(/[:(]/)[0].trim() ?? '';
+  const isDirectMessage = DM_SOURCES.has(triggerSource)
+    || triggerReason?.startsWith('direct-message') === true;
+  const isCron = triggerReason?.startsWith('cron') === true;
+
+  // Inbox snapshot + enrichment (fire-and-forget per item)
+  let rawItems: InboxItem[];
+  try {
+    rawItems = readPendingInbox();
+  } catch {
+    rawItems = [];
+  }
+
+  const inboxItems: EnrichedInboxItem[] = rawItems.map(item => {
+    try {
+      const msgContext = preprocessMessage(item.content, item.from, item.id, new Date(item.ts));
+      return { ...item, context: msgContext };
+    } catch {
+      return item;
+    }
+  });
+
+  const dmItems = inboxItems.filter(i => DM_SOURCES.has(i.source));
+
+  // Emit observability event (fire-and-forget)
+  try {
+    eventBus.emit('log:info', {
+      tag: 'cycle-preprocess',
+      msg: `cycle=${cycleCount} perception=${perceptionChanged ? 'changed' : 'unchanged'}(v${currentPerceptionVersion}, Δ${perceptionChangedCount}) inbox=${inboxItems.length} dm=${dmItems.length} trigger=${triggerSource}`,
+    });
+  } catch { /* fire-and-forget */ }
+
+  return {
+    perceptionChanged,
+    currentPerceptionVersion,
+    perceptionChangedCount,
+    isDirectMessage,
+    isCron,
+    triggerSource,
+    inboxItems,
+    dmItems,
+    preprocessedAt: now.toISOString(),
+  };
 }
