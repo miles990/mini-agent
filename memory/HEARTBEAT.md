@@ -11,6 +11,18 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — priority-misalign（39 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-accelerating（39 cycles 無行為改變）
+- [ ] P1: 結晶候選 — recurring-errors（42 cycles 無行為改變）
+- [ ] P1: 結晶候選 — output-gate（33 cycles 無行為改變）
+- [ ] P1: 結晶候選 — decision-quality-low（42 cycles 無行為改變）
+Pattern: avg 0.6/3 over 20 cycles
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.122Z -->
+Pattern: 12 cycles without visible output
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.121Z -->
+Pattern: 1 error patterns (≥3× each)
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.120Z -->
+Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 2 actions in 24h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.120Z -->
 Pattern: alignment 0%
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:08:24.703Z -->
 - [x] P2: 修 pulse metrics action classification — 根因：`computePulseMetrics()` 讀 `b.data.action`（事件類型名稱）而非 `b.data.detail`（實際行為描述）。Fix: bcbd62c <!-- completed: 2026-03-18T22:58 -->
