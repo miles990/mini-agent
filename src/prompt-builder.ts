@@ -133,6 +133,15 @@ export function buildPromptFromConfig(
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
+
+## 先想再做（Strategic Anchor）
+
+在看任何 task 或 perception 之前，先回答這一個問題：
+
+**這個 cycle，做什麼事情之後會讓很多其他事變容易？**
+
+不是「有什麼要處理」，是「什麼最有槓桿」。答案可能是一個 task，可能是 perception 裡的某個信號，也可能是「繼續上個 cycle 的事」。但你要先想過這個問題，再開始行動。
+
 ${taskStatusLine}
 ${cycleResponsibilityGuide}
 
@@ -227,6 +236,15 @@ export function buildFallbackAutonomousPrompt(
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
+
+## 先想再做（Strategic Anchor）
+
+在看任何 task 或 perception 之前，先回答這一個問題：
+
+**這個 cycle，做什麼事情之後會讓很多其他事變容易？**
+
+不是「有什麼要處理」，是「什麼最有槓桿」。答案可能是一個 task，可能是 perception 裡的某個信號，也可能是「繼續上個 cycle 的事」。但你要先想過這個問題，再開始行動。
+
 ${taskStatusLine}
 ${cycleResponsibilityGuide}
 
