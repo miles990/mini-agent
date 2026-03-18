@@ -656,11 +656,11 @@ Task-queue（`memory/index/relations.jsonl`）的生命週期管理，確保 tas
 
 Kuro 的 OODA cycle prompt 指引思考和行動的平衡：
 
-- **每個 cycle 推進一步** — 思考、行動、或兩者並行（不是只思考/只行動）
-- **有方向時先回覆使用者** — 不要跑多個 cycle 而 Alex 不知道在幹嘛
-- **視情境而定** — 方向不明多想、方向明確直接做、大任務拆步驟
+- **方向明確 → 做到底** — 一個 cycle 內做完所有步驟，不拆到下個 cycle
+- **做完再回報** — 先行動、再通知，不是先通知、再行動
+- **Blocker 要重新驗證** — 記憶裡的「blocker」不等於現在還是 blocker，環境會變
 - **Delegate 是並行探索，不是卸載工作** — 能自己做就不 delegate
-- **反模式** — 連續多個 cycle 只有研究/分析沒有產出
+- **反模式** — 報告狀態當成產出、把「比較難」說成「做不到」、等別人做自己能做的事
 
 `cycleResponsibilityGuide` 出現在兩處（buildPromptFromConfig 和 buildFallbackAutonomousPrompt），內容同步。
 

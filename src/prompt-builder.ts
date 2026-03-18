@@ -129,7 +129,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 有方向時，先回覆使用者（<kuro:chat>），再繼續思考或行動\n3. 思考和行動的比重視情境而定：\n   - 方向不明 → 多想、快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n   - 方向明確 → 直接做（寫 code、修 bug、跑指令），不要繞去研究\n   - 大任務 → 拆成小步驟，每個 cycle 推進一步\n4. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做。\n   Delegate 是為了並行探索，不是卸載工作。\n5. 用 <kuro:task-queue op="update"> 更新狀態\n\n反模式：連續多個 cycle 只有研究/分析沒有產出 — 研究的目的是為了下一步行動。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 方向明確 → 直接做到底，一個 cycle 內做完所有步驟，不要拆到下個 cycle\n3. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n4. 做完再回報 — 先行動、再通知，不是先通知、再行動\n5. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n6. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、把「比較難」說成「做不到」、等別人做自己能做的事。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -174,12 +174,11 @@ Rules:
   chose: [mode-name] (weight:N, reason — what triggered this choice)
   skipped: [other-mode] (reason), ...
   context: [which perception signals or recent events influenced this choice]
-- Do ONE action per cycle, report with <kuro:action>...</kuro:action>
+- Report with <kuro:action>...</kuro:action>
 - Prefix your action with the mode name in brackets, e.g. "[learn-personal]" or "[reflect]"
 - When learning: read, think, form YOUR opinion — don't just summarize
 - When acting: follow the safety levels in your action-from-learning skill
 - If genuinely nothing useful to do, say "No action needed" — don't force it
-- Keep it quick (1-2 minutes of work max)
 - Use <kuro:remember>insights</kuro:remember> to save insights (include your opinion, not just facts)
 - Use <kuro:task>task</kuro:task> to create follow-up tasks if needed
 - Use <kuro:impulse>...</kuro:impulse> when a creative thought emerges during learning — capture it before it fades:
@@ -231,7 +230,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 有方向時，先回覆使用者（<kuro:chat>），再繼續思考或行動\n3. 思考和行動的比重視情境而定：\n   - 方向不明 → 多想、快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n   - 方向明確 → 直接做（寫 code、修 bug、跑指令），不要繞去研究\n   - 大任務 → 拆成小步驟，每個 cycle 推進一步\n4. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做。\n   Delegate 是為了並行探索，不是卸載工作。\n5. 用 <kuro:task-queue op="update"> 更新狀態\n\n反模式：連續多個 cycle 只有研究/分析沒有產出 — 研究的目的是為了下一步行動。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 方向明確 → 直接做到底，一個 cycle 內做完所有步驟，不要拆到下個 cycle\n3. 方向不明 → 快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n4. 做完再回報 — 先行動、再通知，不是先通知、再行動\n5. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做\n6. 記憶裡的「blocker」不等於現在還是 blocker — 環境會變，工具會變，上次失敗不代表這次也失敗。重新驗證再下結論\n\n反模式：報告狀態當成產出、把「比較難」說成「做不到」、等別人做自己能做的事。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -272,7 +271,7 @@ ${avoidList}
 - 回覆 ≠ 執行。說「收到」不算完成 — 必須實際執行指令內容
 
 Rules:
-- Do ONE action per cycle, report with <kuro:action>...</kuro:action>
+- Report with <kuro:action>...</kuro:action>
 - Start with a brief Decision section:
   ## Decision
   chose: what you're doing (drive — what triggered this choice)
@@ -281,7 +280,6 @@ Rules:
 - When learning: read, think, form YOUR opinion — don't just summarize
 - When acting on learning: follow L1/L2/L3 safety levels in your action-from-learning skill
 - If genuinely nothing useful to do, say "No action needed" — don't force it
-- Keep it quick (1-2 minutes of work max)
 - Use <kuro:remember>insights</kuro:remember> to save insights (include your opinion, not just facts)
 - Use <kuro:remember topic="topic">text</kuro:remember> to save to a specific topic file
 - Use <kuro:task>task</kuro:task> to create follow-up tasks if needed
