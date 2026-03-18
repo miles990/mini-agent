@@ -148,6 +148,16 @@ function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
   return map;
 }
 
+/** Write-through: update in-memory cache without re-reading the file. */
+function writeThroughEntry(memoryDir: string, entry: MemoryIndexEntry): void {
+  if (!_cache || _cache.filePath !== getMemoryIndexPath(memoryDir)) return;
+  if (entry.status === 'deleted') {
+    _cache.map.delete(entry.id);
+  } else {
+    _cache.map.set(entry.id, entry);
+  }
+}
+
 // =============================================================================
 // Path
 // =============================================================================
@@ -203,7 +213,7 @@ export async function appendMemoryIndexEntry(
     await fs.appendFile(filePath, JSON.stringify(entry) + '\n', 'utf-8');
   });
 
-  invalidateIndexCache();
+  writeThroughEntry(memoryDir, entry);
   slog('INDEX', `append ${entry.id} type=${entry.type} status=${entry.status}`);
   return entry;
 }
@@ -286,7 +296,7 @@ export async function updateMemoryIndexEntry(
     await fs.appendFile(filePath, JSON.stringify(updated) + '\n', 'utf-8');
   });
 
-  invalidateIndexCache();
+  writeThroughEntry(memoryDir, updated);
   return updated;
 }
 
@@ -310,7 +320,7 @@ export async function deleteMemoryIndexEntry(
     await fs.appendFile(filePath, JSON.stringify(tombstone) + '\n', 'utf-8');
   });
 
-  invalidateIndexCache();
+  writeThroughEntry(memoryDir, tombstone);
   return true;
 }
 
@@ -642,7 +652,8 @@ export async function compactMemoryIndex(
     await fs.writeFile(filePath, lines.join('\n') + (lines.length > 0 ? '\n' : ''), 'utf-8');
   });
 
-  invalidateIndexCache();
+  // Write-through: replace cache with compacted map (no re-read needed)
+  _cache = { map, filePath };
   return { before: lineCount, after: map.size };
 }
 
