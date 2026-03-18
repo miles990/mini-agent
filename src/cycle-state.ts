@@ -375,3 +375,66 @@ export function extractTrailTopics(
 
   return [...topics];
 }
+
+// =============================================================================
+// Research Loop Gate — detect consecutive research-only cycles
+// =============================================================================
+
+/** Check if a work journal entry represents research/learn-only activity (no concrete output) */
+function isResearchOnlyAction(entry: WorkJournalEntry): boolean {
+  const action = entry.action.toLowerCase();
+  const effects = entry.sideEffects;
+
+  // Has code/create delegation? → concrete output
+  if (effects.some(e => e.startsWith('delegate:code') || e.startsWith('delegate:create'))) return false;
+
+  // Concrete output keywords in action text
+  const concretePatterns = [
+    'commit', 'push', 'deploy', 'pr ', 'pull request',
+    'wrote', 'created', 'fixed', 'implemented', 'refactor',
+    'build', 'pipeline', 'generated', 'publish',
+    '生成', '建立', '修復', '實作', '部署', '寫了', '改了',
+  ];
+  if (concretePatterns.some(p => action.includes(p))) return false;
+
+  // Research/learn indicators
+  const researchPatterns = [
+    'research', 'learn', 'read', 'fetch', 'summarize', 'study',
+    'explore', 'investigate', 'analyze', 'review', 'scan',
+    '研究', '分析', '探索', '學習', '調查', '掃描',
+  ];
+  const hasResearch = researchPatterns.some(p => action.includes(p));
+
+  // Only passive effects (remember, chat, research/learn delegation)
+  const hasOnlyPassiveEffects = effects.length > 0 && effects.every(e =>
+    e.startsWith('remember:') || e.startsWith('chat:') ||
+    e.startsWith('delegate:research') || e.startsWith('delegate:learn'),
+  );
+
+  return hasResearch || hasOnlyPassiveEffects;
+}
+
+/**
+ * Detect consecutive active cycles with only research/learn actions.
+ * Returns warning string to inject into prompt if 3+ consecutive research-only cycles detected.
+ */
+export function detectResearchLoop(limit: number = 10): string | null {
+  const entries = loadWorkJournal(limit);
+  // Filter to active cycles (skip no-action)
+  const active = entries.filter(e => e.action !== 'no-action');
+  if (active.length < 3) return null;
+
+  let consecutive = 0;
+  for (let i = active.length - 1; i >= 0; i--) {
+    if (isResearchOnlyAction(active[i])) {
+      consecutive++;
+    } else {
+      break;
+    }
+  }
+
+  if (consecutive >= 3) {
+    return `⚠️ RESEARCH-LOOP: 連續 ${consecutive} 個 active cycle 的 action 只有 research/learn 類型，沒有具體產出（code/create/deploy）。你上次的具體產出是什麼？下一個 action 必須產出可交付物（寫 code、修 bug、建 PR、生成內容），或說明為什麼不行。`;
+  }
+  return null;
+}

@@ -14,6 +14,7 @@ import { parseBehaviorConfig } from './cycle-tasks.js';
 import type { BehaviorConfig } from './cycle-tasks.js';
 import { eventBus } from './event-bus.js';
 import { buildCommitmentSection } from './memory-index.js';
+import { detectResearchLoop } from './cycle-state.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -342,8 +343,12 @@ export async function buildAutonomousPrompt(
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
 
+  // Research Loop Gate — detect consecutive research-only cycles and inject warning
+  const researchLoopWarning = detectResearchLoop();
+
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
+  if (researchLoopWarning) parts.push(researchLoopWarning);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);
