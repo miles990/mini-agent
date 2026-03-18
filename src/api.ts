@@ -46,6 +46,8 @@ import { createTelegramPoller, getTelegramPoller, getNotificationStats } from '.
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
+  startNetworkStatusCollector, getNetworkStatusCached,
+  startLogSummaryCollector, getLogSummaryCached, getLogStatsCached,
 } from './workspace.js';
 import { loadGlobalConfig, startHeartbeat, stopHeartbeat, updateInstanceHeartbeat } from './instance.js';
 import { initIPCBus, stopIPCBus } from './ipc-bus.js';
@@ -2762,26 +2764,16 @@ if (isMain) {
     cronTasks: getActiveCronTasks().map(t => ({ schedule: t.schedule, task: t.task })),
   }));
 
-  // ── Perception Providers ──
+  // ── Background Collectors (mechanism-level fix: HTTP handlers never do sync I/O) ──
   const logger = getLogger();
-  const manager = getInstanceManager();
 
-  setPerceptionProviders({
-    process: () => getProcessStatus(
-      () => manager.listStatus()
-        .filter(s => s.id !== instanceId)
-        .map(s => ({ id: s.id, name: s.name, port: s.port, running: s.running })),
-      () => {
-        const stats = logger.query({ limit: 0 }); // just to get counts
-        const today = new Date().toISOString().split('T')[0];
-        const cLogs = logger.queryClaudeLogs(today, 0).length;
-        const aLogs = logger.queryApiLogs(today, 0).length;
-        const crLogs = logger.queryCronLogs(today, 0).length;
-        const eLogs = logger.queryErrorLogs(today, 0).length;
-        return { claude: cLogs, api: aLogs, cron: crLogs, error: eLogs };
-      },
-    ),
-    logs: () => getLogSummary(
+  // Network status: background polling every 30s, /status reads from cache
+  startNetworkStatusCollector(port);
+
+  // Log summary: background polling every 30s, /status reads from cache
+  startLogSummaryCollector(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const summary = getLogSummary(
       () => logger.queryErrorLogs(undefined, 5).map(e => ({
         time: e.timestamp.split('T')[1]?.split('.')[0] ?? '',
         message: e.data.context ? `[${e.data.context}] ${e.data.error}` : e.data.error,
@@ -2799,8 +2791,28 @@ if (isMain) {
               ? (e.data as { action: string }).action
               : `${(e.data as { request?: { method?: string; path?: string } }).request?.method ?? ''} ${(e.data as { request?: { method?: string; path?: string } }).request?.path ?? ''}`,
       })),
+    );
+    const stats = {
+      claude: logger.queryClaudeLogs(today, 0).length,
+      api: logger.queryApiLogs(today, 0).length,
+      cron: logger.queryCronLogs(today, 0).length,
+      error: logger.queryErrorLogs(today, 0).length,
+    };
+    return { summary, stats };
+  });
+
+  // ── Perception Providers (use cached data — zero sync I/O in handlers) ──
+  const manager = getInstanceManager();
+
+  setPerceptionProviders({
+    process: () => getProcessStatus(
+      () => manager.listStatus()
+        .filter(s => s.id !== instanceId)
+        .map(s => ({ id: s.id, name: s.name, port: s.port, running: s.running })),
+      () => getLogStatsCached(), // non-blocking: reads from background collector cache
     ),
-    network: () => getNetworkStatus(port),
+    logs: () => getLogSummaryCached() ?? { recentErrors: [], recentEvents: [] }, // non-blocking
+    network: () => getNetworkStatusCached() ?? { selfPortOpen: true, reachableServices: [] }, // non-blocking
     config: () => getConfigSnapshot(
       () => {
         if (!composeFile) return null;

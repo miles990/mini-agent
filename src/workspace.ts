@@ -10,8 +10,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import { diagLog } from './utils.js';
+
+const execFileAsync = promisify(execFile);
 
 // =============================================================================
 // Types
@@ -343,6 +346,44 @@ export function getLogSummary(
   };
 }
 
+// =============================================================================
+// Background Log Summary Collector (non-blocking)
+// =============================================================================
+
+let _logSummaryCache: LogSummary | null = null;
+let _logStatsCache: { claude: number; api: number; cron: number; error: number } | null = null;
+let _logCollectorTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Start background log summary collector.
+ * logProvider is called on background interval, results cached for HTTP handlers.
+ */
+export function startLogSummaryCollector(
+  logProvider: () => { summary: LogSummary; stats: { claude: number; api: number; cron: number; error: number } },
+  intervalMs = 30_000,
+): void {
+  if (_logCollectorTimer) return;
+  const collect = () => {
+    try {
+      const result = logProvider();
+      _logSummaryCache = result.summary;
+      _logStatsCache = result.stats;
+    } catch { /* fire-and-forget */ }
+  };
+  collect(); // immediate first run
+  _logCollectorTimer = setInterval(collect, intervalMs);
+}
+
+/** Read cached log summary (non-blocking). */
+export function getLogSummaryCached(): LogSummary | null {
+  return _logSummaryCache;
+}
+
+/** Read cached log stats (non-blocking). */
+export function getLogStatsCached(): { claude: number; api: number; cron: number; error: number } | null {
+  return _logStatsCache;
+}
+
 /**
  * 格式化日誌摘要
  */
@@ -509,6 +550,63 @@ export function getNetworkStatus(selfPort: number, servicesToCheck?: Array<{ nam
   }
 
   return { selfPortOpen, reachableServices: reachable };
+}
+
+// =============================================================================
+// Background Network Status Collector (non-blocking)
+// =============================================================================
+// Mechanism-level fix: HTTP handlers NEVER call sync I/O.
+// This collector runs on a background interval and updates in-memory cache.
+// All consumers read from cache — structurally impossible to block event loop.
+
+let _networkCache: NetworkStatus | null = null;
+let _networkCollectorTimer: ReturnType<typeof setInterval> | null = null;
+
+async function checkPortAsync(port: number): Promise<boolean> {
+  try {
+    await execFileAsync('lsof', ['-i', `:${port}`, '-P', '-n'], { timeout: 2000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function collectNetworkStatusAsync(selfPort: number, servicesToCheck?: Array<{ name: string; url: string }>): Promise<NetworkStatus> {
+  const selfPortOpen = await checkPortAsync(selfPort);
+  const reachable: NetworkStatus['reachableServices'] = [];
+  for (const svc of servicesToCheck ?? []) {
+    try {
+      const start = Date.now();
+      await execFileAsync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', '--connect-timeout', '2', svc.url], { timeout: 3000 });
+      reachable.push({ name: svc.name, url: svc.url, ok: true, latencyMs: Date.now() - start });
+    } catch {
+      reachable.push({ name: svc.name, url: svc.url, ok: false });
+    }
+  }
+  return { selfPortOpen, reachableServices: reachable };
+}
+
+/**
+ * Start background network status collector.
+ * Call once at server startup. All consumers use getNetworkStatusCached().
+ */
+export function startNetworkStatusCollector(selfPort: number, servicesToCheck?: Array<{ name: string; url: string }>, intervalMs = 30_000): void {
+  if (_networkCollectorTimer) return; // already running
+  const collect = () => {
+    collectNetworkStatusAsync(selfPort, servicesToCheck)
+      .then(status => { _networkCache = status; })
+      .catch(() => {}); // fire-and-forget
+  };
+  collect(); // immediate first run
+  _networkCollectorTimer = setInterval(collect, intervalMs);
+}
+
+/**
+ * Read cached network status (non-blocking, <1ms).
+ * Returns null if collector hasn't run yet.
+ */
+export function getNetworkStatusCached(): NetworkStatus | null {
+  return _networkCache;
 }
 
 /**
