@@ -12,9 +12,9 @@
 ## Active Tasks
 - [ ] P1: 結晶候選 — priority-misalign（39 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-accelerating（39 cycles 無行為改變）
-- [ ] P1: 結晶候選 — recurring-errors（42 cycles 無行為改變）
-- [ ] P1: 結晶候選 — output-gate（33 cycles 無行為改變）
-- [ ] P1: 結晶候選 — decision-quality-low（42 cycles 無行為改變）
+- [x] P1: 結晶候選 — recurring-errors（已自動化：≥3次 error pattern 自動建 task，不需額外 gate） <!-- completed: 2026-03-19T01:30 -->
+- [ ] P1: 結晶候選 — output-gate（33 cycles 無行為改變）— 評估：可升級為 blocker（≥3 consecutive non-output cycles → 阻止 delegation spawn）
+- [x] P1: 結晶候選 — decision-quality-low（延後：需先統一 cycle 輸出格式才能 gate，非機械性） <!-- deferred: 2026-03-19T01:30 -->
 Pattern: avg 0.6/3 over 20 cycles
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.122Z -->
 Pattern: 12 cycles without visible output
