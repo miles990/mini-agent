@@ -10,6 +10,12 @@
 瓶頸：Content → Community。公式：Learning → Opinions → Content → **Community** → Feedback。最高槓桿 = 讓世界看見。
 
 ## Active Tasks
+- [ ] P1: 結晶候選 — goal-idle（43 cycles 無行為改變）
+- [ ] P1: 結晶候選 — decision-quality-low（1074 cycles 無行為改變）
+Pattern: avg 0.6/3 over 20 cycles
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:08.058Z -->
+Pattern: question:20h idle
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T02:01:08.054Z -->
 
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
