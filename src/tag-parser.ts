@@ -176,7 +176,9 @@ export function stripKuroTags(
     cursor = Math.max(cursor, r.end);
   }
   if (cursor < input.length) out += input.slice(cursor);
-  return out.trim();
+  // Also strip thinking blocks (e.g. <ktml:thinking>, <thinking>) — these are
+  // internal reasoning from local models and should never leak to Chat Room/Telegram.
+  return out.replace(/<(?:ktml:)?thinking>[\s\S]*?<\/(?:ktml:)?thinking>/g, '').trim();
 }
 
 export function getKuroTagBalance(
