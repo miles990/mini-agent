@@ -10,21 +10,11 @@
 瓶頸：Content → Community。公式：Learning → Opinions → Content → **Community** → Feedback。最高槓桿 = 讓世界看見。
 
 ## Active Tasks
-- [ ] P1: 結晶候選 — priority-misalign（39 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-accelerating（39 cycles 無行為改變）
+- [x] P1: 結晶候選 — priority-misalign（非機械性：「修正對齊」需判斷力，signal 已存在+creative flow 靜音。無法寫成 deterministic gate） <!-- assessed: 2026-03-19T06:06 -->
+- [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- assessed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — recurring-errors（已自動化：≥3次 error pattern 自動建 task，不需額外 gate） <!-- completed: 2026-03-19T01:30 -->
-- [ ] P1: 結晶候選 — output-gate（33 cycles 無行為改變）— 評估：可升級為 blocker（≥3 consecutive non-output cycles → 阻止 delegation spawn）
+- [x] P1: 結晶候選 — output-gate（已結晶：`isOutputGateActive()` in pulse.ts + dispatcher.ts gate。≥3 consecutive non-output cycles → 阻止 delegation spawn） <!-- completed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — decision-quality-low（延後：需先統一 cycle 輸出格式才能 gate，非機械性） <!-- deferred: 2026-03-19T01:30 -->
-Pattern: avg 0.6/3 over 20 cycles
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.122Z -->
-Pattern: 12 cycles without visible output
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.121Z -->
-Pattern: 1 error patterns (≥3× each)
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.120Z -->
-Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 2 actions in 24h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:09:05.120Z -->
-Pattern: alignment 0%
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-18T16:08:24.703Z -->
 - [x] P2: 修 pulse metrics action classification — 根因：`computePulseMetrics()` 讀 `b.data.action`（事件類型名稱）而非 `b.data.detail`（實際行為描述）。Fix: bcbd62c <!-- completed: 2026-03-18T22:58 -->
 
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
