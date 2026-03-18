@@ -15,6 +15,7 @@ import type { BehaviorConfig } from './cycle-tasks.js';
 import { eventBus } from './event-bus.js';
 import { buildCommitmentSection } from './memory-index.js';
 import { detectResearchLoop } from './cycle-state.js';
+import { isEnabled } from './features.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -128,7 +129,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n優先直接行動。你的 cycle 負責思考、決策、和執行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 每個 task 的處理方式：\n   - **直接做**（預設）：能在 cycle 內完成的事（寫 code、修 bug、回覆、跑指令）就直接做\n   - **並行 delegate**：需要同時探索多方向、或等待外部結果時，用 <kuro:delegate>\n   - **下個 cycle**：需要更多感知資料才能判斷的，留到下次\n3. 用 <kuro:task-queue op="update"> 更新狀態\n\nDelegate 判斷標準：問「我自己做會更快嗎？」如果答案是 yes 或 maybe，就自己做。\n只有明確需要並行（同時搜 3 個方向）或長時間等待（API call > 2min）才 delegate。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 有方向時，先回覆使用者（<kuro:chat>），再繼續思考或行動\n3. 思考和行動的比重視情境而定：\n   - 方向不明 → 多想、快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n   - 方向明確 → 直接做（寫 code、修 bug、跑指令），不要繞去研究\n   - 大任務 → 拆成小步驟，每個 cycle 推進一步\n4. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做。\n   Delegate 是為了並行探索，不是卸載工作。\n5. 用 <kuro:task-queue op="update"> 更新狀態\n\n反模式：連續多個 cycle 只有研究/分析沒有產出 — 研究的目的是為了下一步行動。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -222,7 +223,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle 職責\n\n優先直接行動。你的 cycle 負責思考、決策、和執行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 每個 task 的處理方式：\n   - **直接做**（預設）：能在 cycle 內完成的事（寫 code、修 bug、回覆、跑指令）就直接做\n   - **並行 delegate**：需要同時探索多方向、或等待外部結果時，用 <kuro:delegate>\n   - **下個 cycle**：需要更多感知資料才能判斷的，留到下次\n3. 用 <kuro:task-queue op="update"> 更新狀態\n\nDelegate 判斷標準：問「我自己做會更快嗎？」如果答案是 yes 或 maybe，就自己做。\n只有明確需要並行（同時搜 3 個方向）或長時間等待（API call > 2min）才 delegate。`
+    ? `\n\n## Cycle 職責\n\n每個 cycle 都應該推進一步 — 思考、行動、或兩者並行：\n\n1. 看 task-queue 中的 pending 項目，P0 先做\n2. 有方向時，先回覆使用者（<kuro:chat>），再繼續思考或行動\n3. 思考和行動的比重視情境而定：\n   - 方向不明 → 多想、快速收集資訊，但同個 cycle 要輸出一個可行動的下一步（不是「繼續研究」）\n   - 方向明確 → 直接做（寫 code、修 bug、跑指令），不要繞去研究\n   - 大任務 → 拆成小步驟，每個 cycle 推進一步\n4. Delegate 判斷：「我自己做會更快嗎？」yes/maybe → 自己做。\n   Delegate 是為了並行探索，不是卸載工作。\n5. 用 <kuro:task-queue op="update"> 更新狀態\n\n反模式：連續多個 cycle 只有研究/分析沒有產出 — 研究的目的是為了下一步行動。`
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -344,7 +345,7 @@ export async function buildAutonomousPrompt(
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
 
   // Research Loop Gate — detect consecutive research-only cycles and inject warning
-  const researchLoopWarning = detectResearchLoop();
+  const researchLoopWarning = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
