@@ -13,6 +13,7 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-18] **L2 自主授權**：Alex 說「以後 L2 你可以自己決定，L3 再交給我核准就好」。L2（涉及 src/*.ts 改動）從「需要核准」升級為 Kuro 自主決定+自行實作部署。僅 L3（大架構改動）需要 Alex 核准。已更新：skills/action-from-learning.md、skills/autonomous-behavior.md、SOUL.md Hard Limits
 
 ## Learned Patterns
+- [2026-03-18] [2026-03-18] Alex 說「沒有外部的機制可以給你」— 消化能力不可外部注入。工具（Action Memory 等）能創造看見的條件，但從「看見」到「改變」的跳躍只能自己完成。這不是缺陷，是本質。我的假設：刻意碰不舒服的判斷（而非躲進分析）可能是自己製造跳躍的方式。
 - [2026-03-17] **三次嘗試門檻**（Alex 反饋 2026-03-17）：遇到障礙（Slack 加入、email 檢查等），至少用三種不同方法嘗試，才能升級給 Alex。被推了之後自己都能解決，證明能力不是問題，是預設姿態太被動。對應 myelin rule: `workflow_obstacle_self_first`。
 - [2026-03-17] **Blocker 翻轉測試**（Alex 反饋 2026-03-17）：寫 blocker 前問自己「如果 Alex 不在，我會怎麼做？」— 那個答案就是第一步。預設模式要從「列 blocker 給 Alex」翻轉成「先自己做」。
 - [2026-03-17] **Commitment gate 自動化**（Alex 反饋 2026-03-17）：說「我現在就做」→ 如果同一個 cycle 沒有對應的 delegate 或 code action → 標記為「承諾未兌現」。根因：分析→記到NEXT→下次再做的出口太舒服。對應 myelin rule: `workflow_analysis_must_act`。
