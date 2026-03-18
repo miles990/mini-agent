@@ -200,6 +200,10 @@ const OUTPUT_PATTERNS = [
   /\bcreated?\b.*(?:PR|issue|article|post)/i,
   /\b(?:wrote|寫了|發佈|posted)\b/i,
   /Verified:.*✅/,
+  /\bCDP\b/,  // Browser automation work
+  /\btunnel\b.*(?:rebuilt|updated|fixed|created)/i,  // Infra work
+  /\bpipeline\b.*(?:ran|tested|upgraded|fixed)/i,  // Pipeline execution
+  /\bendpoint\b.*(?:updated|verified|checked)/i,  // API ops
 ];
 
 /**

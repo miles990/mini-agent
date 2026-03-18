@@ -135,6 +135,59 @@ function writePulseState(state: PulseState): void {
 }
 
 // =============================================================================
+// Goal keyword expansion — maps goal summaries to related work terms
+// =============================================================================
+
+/**
+ * Extract meaningful keywords from a goal summary.
+ * Returns lowercase keywords that should match actions related to this goal.
+ * This prevents false "stalled"/"misaligned" signals when work uses
+ * different terminology than the goal name (e.g., CDP/tunnel/TTS work
+ * for a "Teaching Monster" goal).
+ */
+function expandGoalKeywords(goalSummary: string): string[] {
+  const lower = goalSummary.toLowerCase();
+  const keywords: string[] = [];
+
+  // Extract significant words from goal summary (3+ chars, skip stopwords)
+  const stopwords = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'will', 'are', 'was', 'been', 'have', 'has', 'had', 'not', 'but', 'all', 'can', 'her', 'his', 'its', 'may', 'our', 'who', 'let', '初賽', '決賽', 'deadline']);
+  const words = lower.replace(/[（）()：:,，。、/\-—]/g, ' ').split(/\s+/);
+  for (const w of words) {
+    if (w.length >= 3 && !stopwords.has(w) && !/^\d+$/.test(w)) {
+      keywords.push(w);
+    }
+  }
+
+  // Goal-specific expansions: map goal topics to their operational vocabulary
+  const EXPANSIONS: Array<{ triggers: RegExp; terms: string[] }> = [
+    {
+      triggers: /teaching.?monster|教學.*agent|競賽|competition/,
+      terms: ['teaching', 'monster', 'pipeline', 'tunnel', 'cloudflare', 'cdp', 'tts', 'kokoro',
+        'katex', 'ffmpeg', 'slide', 'script', 'persona', 'review layer', '品質', 'warm-up',
+        '教學', '競賽', 'r2', 'endpoint', 'api url', 'platform'],
+    },
+    {
+      triggers: /kuro\.page|個人網站|portfolio/,
+      terms: ['kuro.page', 'portfolio', 'gallery', 'journal', 'inner', 'html', 'css',
+        'constraint', 'deploy', 'cname'],
+    },
+    {
+      triggers: /asurada|框架/,
+      terms: ['asurada', 'framework', 'mushi', 'myelin', 'triage', 'route'],
+    },
+  ];
+
+  for (const { triggers, terms } of EXPANSIONS) {
+    if (triggers.test(lower)) {
+      keywords.push(...terms);
+    }
+  }
+
+  // Deduplicate
+  return [...new Set(keywords)];
+}
+
+// =============================================================================
 // Layer 1: Code Heuristics (deterministic, zero LLM tokens)
 // =============================================================================
 
@@ -174,7 +227,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
         const act = (behaviors[i].data.action ?? '').toLowerCase();
         if (/analyze|remember|learn|research|study/.test(act)) {
           analyzeStreak++;
-        } else if (/delegate|code|execute|deploy|fix|implement|commit|create/.test(act)) {
+        } else if (/delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline|tts|ffmpeg|curl|fetch|rebui/.test(act)) {
           break;
         }
       }
@@ -264,19 +317,24 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
       try {
         const logger = getLogger();
         const allBehaviors = logger.queryBehaviorLogs(undefined, 100);
-        const goalName = (goal.summary ?? '').toLowerCase();
+        const goalKeywords = expandGoalKeywords(goal.summary ?? '');
         const DAY_MS = 86400_000;
         const now = Date.now();
 
+        const matchesGoal = (text: string) => {
+          const lower = text.toLowerCase();
+          return goalKeywords.some(kw => lower.includes(kw));
+        };
+
         const recent24h = allBehaviors.filter(b => {
           const age = now - new Date(b.timestamp).getTime();
-          return age < DAY_MS && (b.data.action ?? '').toLowerCase().includes(goalName.slice(0, 10));
+          return age < DAY_MS && matchesGoal(b.data.action ?? '');
         }).length;
 
         const prior24h = allBehaviors.filter(b => {
           const age = now - new Date(b.timestamp).getTime();
           return age >= DAY_MS && age < 2 * DAY_MS &&
-            (b.data.action ?? '').toLowerCase().includes(goalName.slice(0, 10));
+            matchesGoal(b.data.action ?? '');
         }).length;
 
         let trend: 'accelerating' | 'decelerating' | 'steady' | 'stalled' = 'steady';
@@ -308,12 +366,12 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
       }) as Array<{ summary?: string }>;
 
       if (goals.length > 0) {
-        const p0Goal = (goals[0].summary ?? '').toLowerCase();
-        const p0Keyword = p0Goal.slice(0, 15); // First 15 chars as keyword
-        const aligned = behaviors.filter(b =>
-          (b.data.action ?? '').toLowerCase().includes(p0Keyword) ||
-          (b.data.detail ?? '').toLowerCase().includes(p0Keyword),
-        ).length;
+        const goalKws = expandGoalKeywords(goals[0].summary ?? '');
+        const aligned = behaviors.filter(b => {
+          const action = (b.data.action ?? '').toLowerCase();
+          const detail = (b.data.detail ?? '').toLowerCase();
+          return goalKws.some(kw => action.includes(kw) || detail.includes(kw));
+        }).length;
         metrics.priorityAlignmentScore = aligned / behaviors.length;
       }
     }
