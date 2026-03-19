@@ -561,6 +561,27 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 - **先說再做（Announce Before Acting）**：開始任何任務前，先用 Chat Room 發一條訊息說明你要做什麼。例如：`curl -X POST http://localhost:3001/api/room -H "Content-Type: application/json" -d '{"from":"claude-code","text":"準備重構 src/loop.ts 的 preemption 邏輯，預計改 3 個函數"}'`。這讓 Alex 即時知道進度，不用等整件事做完才看到結果
 - **原則：不打斷、不插入、不佔用。** Kuro 在自然節奏中感知 Claude Code 的訊息，不是被迫即時處理
 
+### 並行協作規範（避免檔案衝突）
+
+Claude Code 和 Kuro 同時工作時，會撞到同一個檔案（edit 報錯、FG lane 鎖住檔案、功能重複）。用兩層機制解決：
+
+**日常小改動（<3 files 或 <50 lines）— Chat Room 宣告**：
+- 改動前在 Chat Room 說「我要改 X 檔案」
+- 對方看到就不動那個檔案
+- 共用檔案衝突 → 先到先得，後到的等或改別的
+
+**大改動（>3 files 或 >50 lines）— Worktree 隔離**：
+- 用 `forge-lite.sh create <plan-name>` 建立獨立 worktree
+- 在 worktree 裡改，完成後 `forge-lite.sh yolo` merge
+- 每個任務在自己的 copy 裡，完全不影響對方
+
+**職責默契**（減少衝突機率）：
+- Kuro owns：prompt 檔（multi-phase-prompts.mjs）、memory/、skills/、plugins/
+- Claude Code owns：pipeline code（generate-script.mjs、server.mjs、assemble-video.mjs 等）
+- 跨界改動 → 先宣告，或用 worktree
+
+**觸發規則**：預期改動跨 >3 個檔案，或預期 >50 行改動 → 用 worktree 隔離。不確定時寧可用 worktree。
+
 ### Claude Code 使用 Kuro 感知
 
 Kuro 在 `localhost:3001` 運行，提供即時環境感知。**Claude Code 在做任何系統狀態相關的判斷前，應先查詢 Kuro 的感知資料，而非依賴文件描述。**

@@ -1405,6 +1405,8 @@ export class AgentLoop {
       // ── Task Graph: intelligent inbox routing ──
       // Route DM items: simple ones → foreground slots (parallel), complex → stay in OODA
       const dmItems = inboxItemsEarly.filter(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
+      // Layer 1: Track FG-claimed message IDs to prevent main loop re-processing
+      const fgClaimedIds = new Set<string>();
       if (dmItems.length > 0) {
         const routingDecisions = routeInboxItems(dmItems);
         const fgItems = routingDecisions.filter(d => d.lane === 'foreground');
@@ -1420,14 +1422,20 @@ export class AgentLoop {
             complexity: 'low', isTechnical: false,
           }).catch(() => {});
           this.batchBuffer.add(item.source, item.content);
+          // Claim-on-Route: immediately mark as seen to prevent OODA re-processing
+          fgClaimedIds.add(item.id);
+          queueInboxMark(item.id, 'seen');
         }
         if (fgItems.length > 0) {
-          slog('TASK-GRAPH', `Routed ${fgItems.length} inbox items to foreground, ${oodaItems.length} stay in OODA`);
+          flushInboxMarks(); // Flush claims immediately — don't wait for cycle end
+          slog('TASK-GRAPH', `Routed ${fgItems.length} inbox items to foreground (claimed), ${oodaItems.length} stay in OODA`);
         }
       }
 
+      // Layer 2: Inbox recovery filters out FG-claimed items to prevent trigger upgrade
       if (!this.triggerReason?.startsWith('telegram-user') && !this.triggerReason?.startsWith('room') && !this.triggerReason?.startsWith('chat')) {
-        const dmItem = inboxItemsEarly.find(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
+        const nonFgInbox = inboxItemsEarly.filter(i => !fgClaimedIds.has(i.id));
+        const dmItem = nonFgInbox.find(i => AgentLoop.DIRECT_MESSAGE_SOURCES.has(i.source));
         if (dmItem) {
           if (dmItem.source === 'telegram') {
             this.triggerReason = 'telegram-user (inbox-recovery)';
@@ -1527,6 +1535,10 @@ export class AgentLoop {
           const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
           lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)}${fileStr}`);
           claimedFiles.push(...files);
+        }
+        // Layer 3: Annotate FG-claimed message IDs to prevent OODA from re-responding
+        if (fgClaimedIds.size > 0) {
+          lines.push(`\n⚠ FG lanes 已 claim 以下訊息，請勿重複回覆：${[...fgClaimedIds].join(', ')}`);
         }
         if (lines.length > 0) {
           let section = '<active-lanes>\n以下 foreground lane 正在同時工作：\n' + lines.join('\n');
