@@ -15,6 +15,9 @@
 - [ ] P1: 結晶候選 — goal-idle（需 code gate：goal 超過 Xh 無 progress → 提醒）
 - [ ] P1: 結晶候選 — goal-stalled（需 code gate：goal 停滯 → 提醒）
 - [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
+Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T21:05:33.088Z -->
 Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 1 actions in 24h
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T20:27:14.074Z -->
 - [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- cleaned: 2026-03-20T03:40, was stale dup -->
