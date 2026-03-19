@@ -39,6 +39,7 @@ import {
 import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription } from './memory-index.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
+import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
 import type { PendingPriorityState } from './event-wal.js';
 import { snapshotTelegramMsgs, matchReplyTarget, recordReply } from './reply-context.js';
 import type { TelegramMsgSnapshot } from './reply-context.js';
@@ -451,7 +452,12 @@ export class AgentLoop {
       const text = (agentEvent.data?.text as string) ?? '';
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
       if (text) {
-        this.batchBuffer.add(event.source, text, roomMsgId);
+        // Claim message atomically — skip if already being processed by another lane
+        if (roomMsgId && !claimMessage(roomMsgId, 'foreground')) {
+          slog('LOOP', `[dedup] Skipping ${roomMsgId} in FG — already claimed`);
+        } else {
+          this.batchBuffer.add(event.source, text, roomMsgId);
+        }
       }
     }
 
@@ -728,8 +734,9 @@ export class AgentLoop {
     } catch (err) {
       slog('ERROR', `[foreground:${slotId}] Failed: ${err instanceof Error ? err.message : err}`);
     } finally {
-      // Always release the slot, even on error
+      // Always release the slot and message claim, even on error
       releaseForegroundSlot(slotId);
+      if (replyTo) releaseMessage(replyTo);
     }
   }
 
@@ -761,6 +768,10 @@ export class AgentLoop {
     const messageText = (agentEvent.data?.text as string) ?? '';
     if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(event.source) && messageText) {
       const roomMsgId = (agentEvent.data?.roomMsgId as string) ?? undefined;
+      if (roomMsgId && !claimMessage(roomMsgId, 'foreground')) {
+        slog('LOOP', `[dedup] Skipping ${roomMsgId} in FG — already claimed`);
+        return;
+      }
       slog('LOOP', `[dm-route] ${event.source} → batch buffer`);
       this.batchBuffer.add(event.source, messageText, roomMsgId);
       return;
@@ -1451,7 +1462,9 @@ export class AgentLoop {
             activeFgSenders.add(sender); // prevent subsequent items from same sender opening new lanes
           }
 
-          // Claim-on-Route: immediately mark as seen to prevent OODA re-processing
+          // Claim-on-Route: atomic in-memory claim + file mark for OODA re-processing prevention
+          const itemMsgId = item.meta?.roomMsgId;
+          if (itemMsgId) claimMessage(itemMsgId, 'foreground');
           fgClaimedIds.add(item.id);
           queueInboxMark(item.id, 'seen');
         }
@@ -1691,7 +1704,10 @@ export class AgentLoop {
             ?.split('\n').filter(l => l.startsWith('- [')) ?? [];
           const unaddressedLines = inboxContent.match(/## Unaddressed\n([\s\S]*?)(?=## Processed)/)?.[1]
             ?.split('\n').filter(l => l.startsWith('- [')) ?? [];
-          const allPending = [...pendingLines, ...unaddressedLines];
+          // Filter out messages already claimed by FG lane (prevents duplicate processing)
+          const extractMsgId = (line: string) => line.match(/\[(\d{4}-\d{2}-\d{2}-\d+)\]/)?.[1];
+          const allPending = [...pendingLines, ...unaddressedLines]
+            .filter(l => { const id = extractMsgId(l); return !id || !isMessageClaimed(id); });
           if (allPending.length > 0) {
             const preview = allPending.slice(0, 5).map(l => `  ${l}`).join('\n');
             if (isRoomPriorityCycle || isChatPriorityCycle) {
