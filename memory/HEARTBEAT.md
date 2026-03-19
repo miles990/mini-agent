@@ -13,6 +13,12 @@
 - [ ] P1: 結晶候選 — decision-quality-low（需先統一 cycle 輸出格式才能 gate，非機械性）
 - [ ] P1: 結晶候選 — unreviewed-delegations（需 code gate：delegation 完成後 N cycles 未 review → 提醒）
 - [ ] P1: 結晶候選 — goal-idle（需 code gate：goal 超過 Xh 無 progress → 提醒）
+- [ ] P1: 結晶候選 — goal-accelerating（25 cycles 無行為改變）
+- [ ] P1: 結晶候選 — recurring-errors（51 cycles 無行為改變）
+Pattern: 1 error patterns (≥3× each)
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T13:32:45.897Z -->
+Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 5 actions in 24h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T13:32:45.896Z -->
 - [x] P1: 結晶候選 — output-gate（已結晶：`isOutputGateActive()` in pulse.ts + dispatcher.ts gate） <!-- completed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — priority-misalign（非機械性，signal 已存在） <!-- assessed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- assessed: 2026-03-19T06:06 -->
