@@ -13,6 +13,12 @@
 - [ ] P1: 結晶候選 — output-gate（159 cycles 無行為改變）
 - [ ] P1: 結晶候選 — decision-quality-low（201 cycles 無行為改變）
 - [ ] P1: 結晶候選 — unreviewed-delegations（28 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-accelerating（138 cycles 無行為改變）
+- [ ] P1: 結晶候選 — priority-misalign（195 cycles 無行為改變）
+Pattern: alignment 0%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:12:34.556Z -->
+Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 3 actions in 24h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:12:34.555Z -->
 Pattern: question:6 completed but unreviewed
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:11:10.020Z -->
 Pattern: avg 0.6/3 over 20 cycles
