@@ -6,20 +6,32 @@
 
 ## Now（正在做）
 
-- [ ] P1: Teaching Monster 熱身賽第一輪 — 全部重新生成（regenerate），測試結果是否比第一次更好
-  Context: 目前 #3（4.3/5, 26/32），被 TestPipeline（Team 78, 4.4/5）超越。改善：字數提升、quality review 層、KaTeX SSR、crash handler、tunnel 穩定
-  Blocker: CDP Chrome 的 kuro.ai.agent Google session 過期，無法登入 Teaching Monster 平台觸發 regenerate。需要 Alex 協助登入 Google 或提供 Teaching Monster 密碼
-  Server ready: health OK, idle, tunnel running
-  Verify: `curl -s http://localhost:3456/health | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d['status']=='ok' else 'fail')"`
+### [Goal] Teaching Monster Tier 0 — 止血（Deadline: 3/23）
+Context: 排名 #3（4.3/5, 26/32），策略共識 #305→#316 已收束。Canary 8 題驗證後全量 32 題。
+
+- [ ] P0: Title Coverage Gate — 修 pipeline prompt，確保 script 覆蓋指定題目（3 題 acc=1.0 災難）
+  Verify: `grep -c 'title.*coverage\|topic.*gate' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P0: LaTeX Sanitizer + Post-Render Validation — 清理 LaTeX 語法，渲染後驗證無壞掉的公式
+  Verify: `grep -c 'latex.*sanitiz\|post.*render.*valid' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P0: 數學驗證改用 Opus — review/verify 階段用 Opus 取代 Sonnet
+  Verify: `grep -c 'opus' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P0: 適配度 Hard Ceiling — script 開頭寫 [TARGET] + [CEILING]，review 時機械式驗證
+  Verify: `grep -c 'TARGET.*CEILING\|content.*ceiling\|adapt.*hard' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P1: Canary 8 題測試 — 3 題 title-mismatch + 3 題最差適配 + 2 題 control group
+  Verify: `ls ~/Workspace/teaching-monster/canary-results/ 2>/dev/null | wc -l`
+
+### [Parallel] Tier 1 — 情報收集（本週同步）
+- [ ] P1: CDP 抓對手影片分析（tsunumon、XiaoJin、top teams）
+  Verify: `ls ~/Workspace/mini-agent/memory/topics/teaching-monster-competitors.md 2>/dev/null`
+- [ ] P1: 理解 AI Student rubric 偏好（四維度：正確性、適配度、教學法、製作品質）
+  Verify: `grep -c 'rubric\|AI Student' ~/Workspace/mini-agent/memory/topics/teaching-monster*.md 2>/dev/null`
 
 ---
 
 ## Next（按優先度排序）
 
-- [ ] P1: Teaching Monster 暖身賽提交（deadline: 4/1）
-  Verify: `curl -s -o /dev/null -w "%{http_code}" https://teaching.monster`
-- [ ] P2: 研究大金老師教學影片 + 教學法技巧應用到 pipeline
-  Verify: `grep -c 'Scenario-First' ~/Workspace/teaching-monster/src/*.ts 2>/dev/null`
+- [ ] P1: Tier 1.5 — 根據情報決定 TTS/視覺/教學法方向（下週，依賴 Tier 1 結果）
+- [ ] P2: Tier 2 — 教學法迭代：Hook → Explore → Explain 結構（4 月）
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
@@ -29,7 +41,6 @@
 
 - [ ] npm publish myelin/asurada — 等 Alex 決定語言方向（Timeout: 2026-03-31）
 - [ ] Show HN 發佈 — 依賴 npm publish
-- [ ] Teaching Monster 平台 regenerate — CDP Chrome 的 kuro.ai.agent@gmail.com Google session 過期，需 Alex 在 CDP Chrome 登入 Google（kuro.ai.agent@gmail.com）或直接在平台上觸發 regenerate
 
 ---
 
