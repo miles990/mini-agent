@@ -1413,15 +1413,44 @@ export class AgentLoop {
         const oodaItems = routingDecisions.filter(d => d.lane === 'ooda');
 
         // Fan out foreground-routed items to parallel slots (fire-and-forget)
+        // Two dedup mechanisms:
+        //   1. mergeable signal: same-batch items from same sender get folded
+        //   2. active FG check: skip if FG already handling message from same sender
+        const activeFgSenders = new Set<string>();
+        try {
+          const lanes = getLaneStatus();
+          for (const slot of lanes.foreground.slots) {
+            if (slot.task?.prompt) {
+              // Extract sender from prompt (messages start with @kuro or contain sender info)
+              const senderMatch = slot.task.prompt.match(/^\((\w+)\)/);
+              if (senderMatch) activeFgSenders.add(senderMatch[1]);
+              // Also mark source-based dedup
+              activeFgSenders.add(`_slot_${slot.id}`);
+            }
+          }
+        } catch { /* best effort */ }
+
         for (const decision of fgItems) {
           const item = decision.item;
-          // Log routing + feed to myelin for crystallization
-          slog('TASK-GRAPH', `Inbox route: ${item.id} → foreground (${decision.reason})`);
-          triageRouting({
-            type: 'route', taskType: 'reply', prompt: item.content,
-            complexity: 'low', isTechnical: false,
-          }).catch(() => {});
-          this.batchBuffer.add(item.source, item.content);
+          const sender = item.from || item.source;
+
+          // Dedup: if mergeable OR if FG already has a lane for this sender+source, fold instead of new lane
+          const shouldMerge = decision.mergeable || activeFgSenders.has(sender);
+
+          if (shouldMerge) {
+            slog('TASK-GRAPH', `Inbox route: ${item.id} → foreground MERGED (${decision.reason}, ${decision.mergeable ? `mergeable into ${decision.mergeable}` : `sender ${sender} already in FG`})`);
+            // Append to existing batch buffer — will be merged with ongoing FG content
+            this.batchBuffer.add(item.source, `\n---\n${item.content}`);
+          } else {
+            slog('TASK-GRAPH', `Inbox route: ${item.id} → foreground (${decision.reason})`);
+            triageRouting({
+              type: 'route', taskType: 'reply', prompt: item.content,
+              complexity: 'low', isTechnical: false,
+            }).catch(() => {});
+            this.batchBuffer.add(item.source, item.content);
+            activeFgSenders.add(sender); // prevent subsequent items from same sender opening new lanes
+          }
+
           // Claim-on-Route: immediately mark as seen to prevent OODA re-processing
           fgClaimedIds.add(item.id);
           queueInboxMark(item.id, 'seen');
