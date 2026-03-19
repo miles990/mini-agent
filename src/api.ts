@@ -10,7 +10,7 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -65,7 +65,7 @@ import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
-import { forgeStatus } from './delegation.js';
+import { forgeStatus, killAllDelegations } from './delegation.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry } from './memory-index.js';
 
 // =============================================================================
@@ -2973,19 +2973,11 @@ if (isMain) {
     stopIPCBus();
     stopMemoryCache();
 
-    // Wait for in-flight Claude CLI call to finish
-    if (isClaudeBusy()) {
-      slog('SERVER', 'Waiting for Claude CLI call to finish...');
-      const maxWait = 600_000; // 10 minutes (> 8 min timeout)
-      const start = Date.now();
-      while (isClaudeBusy() && Date.now() - start < maxWait) {
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (isClaudeBusy()) {
-        slog('SERVER', `Still busy after ${maxWait / 1000}s, forcing exit`);
-      } else {
-        slog('SERVER', `All tasks finished after ${((Date.now() - start) / 1000).toFixed(0)}s`);
-      }
+    // Kill all child processes (loop, foreground, delegations) to prevent orphans
+    const killedChildren = killAllChildProcesses();
+    const killedDelegations = killAllDelegations();
+    if (killedChildren + killedDelegations > 0) {
+      slog('SERVER', `Killed ${killedChildren} child + ${killedDelegations} delegation process(es)`);
     }
 
     // Graceful HTTP + HTTPS server close

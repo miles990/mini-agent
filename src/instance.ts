@@ -600,11 +600,23 @@ export class InstanceManager {
   }
 
   /**
-   * 停止實例（via launchctl unload）
+   * 停止實例（via launchctl unload）+ 清理子進程
    */
   stop(instanceId: string): boolean {
     const plistPath = getPlistPath(instanceId);
-    const { loaded } = getLaunchdStatus(instanceId);
+    const { loaded, pid } = getLaunchdStatus(instanceId);
+
+    // Kill child processes before unloading — prevents orphaned claude subprocesses
+    if (pid) {
+      try {
+        const children = execSync(`pgrep -P ${pid}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        if (children) {
+          for (const childPid of children.split('\n')) {
+            try { process.kill(parseInt(childPid), 'SIGTERM'); } catch { /* already dead */ }
+          }
+        }
+      } catch { /* no children or pgrep failed — fine */ }
+    }
 
     if (loaded) {
       try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }

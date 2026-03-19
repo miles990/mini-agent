@@ -334,6 +334,25 @@ export function abortForeground(slotId?: string): boolean {
   return true;
 }
 
+/**
+ * Kill all tracked child processes (loop + foreground lanes).
+ * Called during graceful shutdown to prevent orphaned claude subprocesses.
+ */
+export function killAllChildProcesses(): number {
+  let killed = 0;
+  if (loopChildPid) {
+    try { process.kill(-loopChildPid, 'SIGTERM'); killed++; } catch { /* already dead */ }
+    loopChildPid = null;
+  }
+  for (const [, slot] of foregroundSlots) {
+    if (slot.pid) {
+      try { process.kill(-slot.pid, 'SIGTERM'); killed++; } catch { /* already dead */ }
+      slot.pid = null;
+    }
+  }
+  return killed;
+}
+
 /** Bump generation without kill — for safety valve when process is in retry backoff */
 export function bumpLoopGeneration(): void {
   loopGeneration++;

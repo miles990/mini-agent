@@ -427,6 +427,20 @@ const queue: Array<{ task: DelegationTask; resolve: (id: string) => void }> = []
 // Sibling Awareness — let concurrent delegations know about each other
 // =============================================================================
 
+/**
+ * Kill all active delegation child processes.
+ * Called during graceful shutdown to prevent orphaned subprocesses.
+ */
+export function killAllDelegations(): number {
+  let killed = 0;
+  for (const [, { process: child }] of activeTasks) {
+    if (child?.pid) {
+      try { child.kill('SIGTERM'); killed++; } catch { /* already dead */ }
+    }
+  }
+  return killed;
+}
+
 /** Get summaries of all currently running delegations for sibling awareness */
 export function getActiveDelegationSummaries(): Array<{ id: string; type: string; prompt: string }> {
   const summaries: Array<{ id: string; type: string; prompt: string }> = [];
