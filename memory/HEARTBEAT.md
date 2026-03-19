@@ -21,6 +21,9 @@
 - [ ] P1: 結晶候選 — goal-idle（153 cycles 無行為改變）
 - [ ] P1: 結晶候選 — unreviewed-delegations（57 cycles 無行為改變）
 - [ ] P1: 結晶候選 — output-gate（180 cycles 無行為改變）
+- [ ] P1: 結晶候選 — priority-misalign（222 cycles 無行為改變）
+Pattern: alignment 20%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T06:45:31.480Z -->
 Pattern: 13 cycles without visible output
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T06:41:03.315Z -->
 Pattern: 1 completed but unreviewed
