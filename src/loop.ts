@@ -1444,6 +1444,18 @@ export class AgentLoop {
         for (const decision of fgItems) {
           const item = decision.item;
           const sender = item.from || item.source;
+          const itemMsgId = item.meta?.roomMsgId;
+
+          // Guard: skip if already claimed by event-driven FG path (prevents duplicate FG lanes)
+          if (itemMsgId && isMessageClaimed(itemMsgId)) {
+            slog('TASK-GRAPH', `Inbox route: ${item.id} → SKIPPED (already claimed: ${itemMsgId})`);
+            fgClaimedIds.add(item.id);
+            queueInboxMark(item.id, 'seen');
+            continue;
+          }
+
+          // Claim BEFORE batchBuffer.add — was after (L1467), causing race with event-driven path
+          if (itemMsgId) claimMessage(itemMsgId, 'foreground');
 
           // Dedup: if mergeable OR if FG already has a lane for this sender+source, fold instead of new lane
           const shouldMerge = decision.mergeable || activeFgSenders.has(sender);
@@ -1462,9 +1474,6 @@ export class AgentLoop {
             activeFgSenders.add(sender); // prevent subsequent items from same sender opening new lanes
           }
 
-          // Claim-on-Route: atomic in-memory claim + file mark for OODA re-processing prevention
-          const itemMsgId = item.meta?.roomMsgId;
-          if (itemMsgId) claimMessage(itemMsgId, 'foreground');
           fgClaimedIds.add(item.id);
           queueInboxMark(item.id, 'seen');
         }
