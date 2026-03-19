@@ -15,6 +15,9 @@
 - [ ] P1: 結晶候選 — goal-idle（需 code gate：goal 超過 Xh 無 progress → 提醒）
 - [ ] P1: 結晶候選 — goal-accelerating（25 cycles 無行為改變）
 - [ ] P1: 結晶候選 — recurring-errors（51 cycles 無行為改變）
+- [ ] P1: 結晶候選 — output-gate（27 cycles 無行為改變）
+Pattern: 18 cycles without visible output
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T13:33:40.331Z -->
 Pattern: 1 error patterns (≥3× each)
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T13:32:45.897Z -->
 Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 5 actions in 24h
