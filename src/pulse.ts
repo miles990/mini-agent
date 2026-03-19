@@ -81,6 +81,7 @@ interface SignalHistoryEntry {
   lastActionChange: number;       // cycles since behavior changed after this signal
   lastPresented: string;          // ISO timestamp
   crystallizationEscalated?: boolean;  // true = already created HEARTBEAT task for this persistent pattern
+  consecutiveAbsences?: number;   // cycles since this signal last appeared — for de-escalation
 }
 
 interface PulseState {
@@ -537,14 +538,19 @@ function detectBehaviorChange(state: PulseState, action: string | null): void {
     ? (isVisibleOutput(action) ? 'output' : 'non-output')
     : 'idle';
   if (category !== state.lastBehaviorHash) {
-    // Behavior category changed — reset relevant signal counters
+    // Behavior category changed — reset habituation counter only.
+    // crystallizationEscalated is NOT reset here: once a signal has been
+    // escalated to a HEARTBEAT task, re-escalation creates duplicates.
+    // Re-escalation is allowed only when the signal disappears and recurs
+    // (handled by consecutive-absence tracking below).
     for (const entry of Object.values(state.signalHistory)) {
       entry.lastActionChange = 0;
-      entry.crystallizationEscalated = false;  // allow re-escalation if pattern recurs
     }
     state.lastBehaviorHash = category;
   }
 }
+
+const ABSENCE_RESET_THRESHOLD = 5;  // signal absent N cycles → allow re-escalation
 
 export function processSignals(
   signals: PulseSignal[],
@@ -553,6 +559,23 @@ export function processSignals(
   action: string | null,
 ): PulseSignal[] {
   detectBehaviorChange(state, action);
+
+  // Track absent signals: if a previously-tracked signal is NOT in this cycle's
+  // signals, increment its absence counter. After ABSENCE_RESET_THRESHOLD cycles
+  // of absence, reset crystallizationEscalated so it can re-escalate if it recurs.
+  const presentTypes = new Set(signals.map(s => s.type));
+  for (const [type, entry] of Object.entries(state.signalHistory)) {
+    if (!presentTypes.has(type)) {
+      entry.consecutiveAbsences = (entry.consecutiveAbsences ?? 0) + 1;
+      if (entry.consecutiveAbsences >= ABSENCE_RESET_THRESHOLD) {
+        entry.crystallizationEscalated = false;
+        entry.consecutiveAppearances = 0;
+      }
+    } else {
+      entry.consecutiveAbsences = 0;
+    }
+  }
+
   let processed = applyHabituation(signals, state);
   processed = applyTemporalContext(processed, metrics);
   processed = balanceSignals(processed);
