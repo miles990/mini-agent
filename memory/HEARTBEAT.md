@@ -15,6 +15,9 @@
 - [ ] P1: 結晶候選 — unreviewed-delegations（28 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-accelerating（138 cycles 無行為改變）
 - [ ] P1: 結晶候選 — priority-misalign（195 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-idle（126 cycles 無行為改變）
+Pattern: 21h idle
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:13:06.138Z -->
 Pattern: alignment 0%
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:12:34.556Z -->
 Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 3 actions in 24h
