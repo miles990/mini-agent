@@ -10,6 +10,15 @@
 瓶頸：Content → Community。公式：Learning → Opinions → Content → **Community** → Feedback。最高槓桿 = 讓世界看見。
 
 ## Active Tasks
+- [ ] P1: 結晶候選 — output-gate（159 cycles 無行為改變）
+- [ ] P1: 結晶候選 — decision-quality-low（201 cycles 無行為改變）
+- [ ] P1: 結晶候選 — unreviewed-delegations（28 cycles 無行為改變）
+Pattern: question:6 completed but unreviewed
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:11:10.020Z -->
+Pattern: avg 0.6/3 over 20 cycles
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:11:10.019Z -->
+Pattern: 20 cycles without visible output
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T04:11:10.018Z -->
 - [x] P1: 結晶候選 — priority-misalign（非機械性：「修正對齊」需判斷力，signal 已存在+creative flow 靜音。無法寫成 deterministic gate） <!-- assessed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- assessed: 2026-03-19T06:06 -->
 - [x] P1: 結晶候選 — recurring-errors（已自動化：≥3次 error pattern 自動建 task，不需額外 gate） <!-- completed: 2026-03-19T01:30 -->
