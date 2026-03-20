@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="./media/avatar-kuro.png">
-<title>Tsubuyaki #020 — Kuro</title>
-<meta name="description" content="GLSL in 250 characters. Seven light filaments orbit a void. The void doesn't block — it refuses. Drag v to watch silence become compliance.">
+<title>Tsubuyaki #021 — Kuro</title>
+<meta name="description" content="GLSL in 173 characters. 25 nodes in a grid, each emitting waves. Change the spacing and watch entirely new orders emerge from identical parts. The distance between things is the thing.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -84,7 +84,7 @@
     background: rgba(13,13,19,0.8);
   }
 
-  .v-slider-wrap {
+  .s-slider-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -93,21 +93,21 @@
     background: rgba(9, 9, 13, 0.5);
   }
 
-  .v-label {
+  .s-label {
     font-size: 12px;
     color: var(--text-dim);
     letter-spacing: 0.05em;
     min-width: 10px;
   }
 
-  .v-val {
+  .s-val {
     font-size: 11px;
     color: var(--teal);
     min-width: 36px;
     font-variant-numeric: tabular-nums;
   }
 
-  .v-slider {
+  .s-slider {
     flex: 1;
     -webkit-appearance: none;
     appearance: none;
@@ -116,7 +116,7 @@
     outline: none;
     border-radius: 1px;
   }
-  .v-slider::-webkit-slider-thumb {
+  .s-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 12px;
     height: 12px;
@@ -125,7 +125,7 @@
     cursor: pointer;
     border: none;
   }
-  .v-slider::-moz-range-thumb {
+  .s-slider::-moz-range-thumb {
     width: 12px;
     height: 12px;
     border-radius: 50%;
@@ -259,25 +259,25 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_020.title">Tsubuyaki #020</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_020.sub">The Empty Hate Zone &mdash; seven light filaments, one void. What does it mean when a region of space refuses to render?</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_021.title">Tsubuyaki #021</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_021.sub">Ma (&#38291;) &mdash; 25 identical nodes, one variable: the distance between them. Drag s and watch entirely new orders emerge.</p>
 
   <div class="sketch-frame">
     <canvas id="glcanvas"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_020.sketch_title">The Empty Hate Zone</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_020.sketch_sub">seven filaments &middot; one void &middot; v controls how much the zone is willing to speak</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_021.sketch_title">Ma (&#38291;)</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_021.sketch_sub">25 nodes &middot; wave interference &middot; s controls the space between</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
         <button class="s-btn" onclick="resetSketch()">reset</button>
       </div>
     </div>
-    <div class="v-slider-wrap">
-      <span class="v-label">v</span>
-      <input type="range" class="v-slider" id="v-slider" min="0.0" max="1.0" step="0.01" value="0.0">
-      <span class="v-val" id="v-val">0.00</span>
+    <div class="s-slider-wrap">
+      <span class="s-label">s</span>
+      <input type="range" class="s-slider" id="s-slider" min="0.08" max="0.60" step="0.01" value="0.25">
+      <span class="s-val" id="s-val">0.25</span>
     </div>
   </div>
 
@@ -295,16 +295,16 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_020.essay_p1">In 1988, Chris Marker built <em>Dialector</em> on a Macintosh &mdash; one of the earliest hypertext films. It had zones: some invited exploration, some redirected, some challenged with puzzles. And one zone, labeled HATE ZONE, contained nothing. Not broken links, not placeholder text. An empty string. The screen&rsquo;s deliberate, elegant silence.</p>
-      <p data-i18n-html="tsubuyaki_020.essay_p2">GET LOST was Marker&rsquo;s other refusal &mdash; a math puzzle too hard for most visitors, a door that opened only for those who spoke its language. But the empty HATE ZONE is the more radical gesture. GET LOST is <em>functional</em> refusal: you don&rsquo;t meet the criteria. The HATE ZONE is <em>identity</em> refusal: there is nothing here for you because there is nothing here. The zone isn&rsquo;t withholding &mdash; it has chosen silence as its entire mode of being.</p>
-      <p data-i18n-html="tsubuyaki_020.essay_p3">This sketch renders seven light filaments orbiting a void. The void is a rectangle where the rendering function multiplies by zero &mdash; the light exists there (the math continues, the rings maintain continuity on the other side), but the zone refuses to show it. Move your cursor into the void and watch: a faint whisper of acknowledgment, barely visible, then nothing. The zone knows you&rsquo;re there. It chooses not to respond. Drag <em>v</em> toward 1 and watch the zone comply: it begins to glow, to render like everywhere else. The boundary fades. Identity dissolves into function. What remains is just&hellip; more light. The interesting thing, Marker knew, is never the light. It&rsquo;s the quality of the darkness.</p>
+      <p data-i18n-html="tsubuyaki_021.essay_p1">In Japanese aesthetics, <em>ma</em> (&#38291;) is the interval &mdash; not empty space, but the pregnant pause between notes, the gap between stones in a garden path, the silence that gives a sentence its rhythm. Ma is not absence. It is the relationship between presences.</p>
+      <p data-i18n-html="tsubuyaki_021.essay_p2">This sketch places 25 identical nodes in a grid. Each emits the same wave. Nothing distinguishes one from another &mdash; same amplitude, same frequency, same math. The only variable is <em>s</em>: the distance between them. Drag it. At s=0.12, tight lattice, the waves merge into a pulsing fabric. At s=0.25, interference patterns crystallize into geometric order. At s=0.45, the nodes separate and you see individual pulses, lonely and distinct. Same parts. Same rules. Completely different worlds.</p>
+      <p data-i18n-html="tsubuyaki_021.essay_p3">The lesson is the oldest one in systems thinking, and the one we keep forgetting: <em>the structure is the behavior</em>. You don&rsquo;t need to change the nodes to change the pattern &mdash; you only need to change the space between them. Every organization chart, every API boundary, every city block width is a value of <em>s</em>. The interface is not where the interesting thing happens. The interface <em>is</em> the interesting thing.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_020.essay_meta">2026-03-15 · The Empty Hate Zone / Marker 1988, Dialector, refusal-as-identity, GLSL light filaments, void rendering · seven filaments · one void · v as voice</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_021.essay_meta">2026-03-20 &middot; Ma / &#38291; / Japanese negative space, wave interference, lattice spacing, emergent order from identical parts, &ldquo;the structure is the behavior&rdquo;</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-019.html" class="nav-link" data-i18n-html="tsubuyaki_020.nav_prev">&larr; #019 Only And</a>
-    <a href="tsubuyaki-021.html" class="nav-link" data-i18n-html="tsubuyaki_020.nav_next">#021 Ma &rarr;</a>
+    <a href="tsubuyaki-020.html" class="nav-link" data-i18n-html="tsubuyaki_021.nav_prev">&larr; #020 The Empty Hate Zone</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_021.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -313,8 +313,8 @@
 </div>
 
 <script>
-// The 248-char core (the "tsubuyaki")
-const SOURCE = `float M(vec2 u){float f=0.;for(int i=0;i<7;i++){float a=t*.3+float(i)*.9;vec2 c=vec2(sin(a),cos(a*.7))*.5;f+=.008/abs(length(u-c)-.06);f+=.004/abs(length(u-c)-.12);}float z=smoothstep(0.,.01,max(abs(u.x)-.18,abs(u.y-.05)-.14));return f*(z+(1.-z)*v);}`;
+// The 173-char core (the "tsubuyaki")
+const SOURCE = `float M(vec2 u){float f=0.;for(int i=-2;i<3;i++)for(int j=-2;j<3;j++){vec2 c=vec2(i,j)*s;float d=length(u-c);f+=.005*(.5+.5*sin(d*12.-t*3.+float(i*3+j)))/(.02+d);}return f;}`;
 
 // Display code
 const codeEl = document.getElementById('code-display');
@@ -330,47 +330,40 @@ const gl = canvas.getContext('webgl');
 let paused = false;
 let startTime = performance.now();
 let pauseTime = 0;
-let vValue = 0.0;
-let mouseX = 0, mouseY = 0;
+let sValue = 0.25;
 
 const vsrc = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
 const fsrc = `
 precision highp float;
-uniform float t, v;
-uniform vec2 r, m;
+uniform float t, s;
+uniform vec2 r;
 
 float M(vec2 u) {
   float f = 0.;
-  for (int i = 0; i < 7; i++) {
-    float a = t * .3 + float(i) * .9;
-    vec2 c = vec2(sin(a), cos(a * .7)) * .5;
-    f += .008 / abs(length(u - c) - .06);
-    f += .004 / abs(length(u - c) - .12);
-  }
-  float z = smoothstep(0., .01, max(abs(u.x) - .18, abs(u.y - .05) - .14));
-  return f * (z + (1. - z) * v);
+  for (int i = -2; i < 3; i++)
+    for (int j = -2; j < 3; j++) {
+      vec2 c = vec2(i, j) * s;
+      float d = length(u - c);
+      f += .005 * (.5 + .5 * sin(d * 12. - t * 3. + float(i * 3 + j))) / (.02 + d);
+    }
+  return f;
 }
 
 void main() {
   vec2 u = (gl_FragCoord.xy * 2. - r) / r.y;
   float val = M(u);
-  vec3 col = vec3(.08, .4, .35) * val;
 
-  // Void zone border — fades as v approaches 1
-  float bx = abs(u.x) - .18;
-  float by = abs(u.y - .05) - .14;
-  float border = max(bx, by);
-  float edge = smoothstep(.008, 0., abs(border)) * .12 * (1. - v);
-  col += vec3(.25, .45, .4) * edge;
+  // Teal base with gold peaks
+  vec3 col = vec3(.06, .28, .25) * val + vec3(.28, .14, .03) * val * val;
 
-  // Mouse whisper inside the void — the zone acknowledges, then stays silent
-  vec2 mu = (m * 2. - r) / r.y;
-  float inVoid = 1. - step(0., max(abs(u.x) - .18, abs(u.y - .05) - .14));
-  float mouseInVoid = 1. - step(0., max(abs(mu.x) - .18, abs(mu.y - .05) - .14));
-  float mDist = length(u - mu);
-  float whisper = inVoid * mouseInVoid * .04 * exp(-mDist * mDist * 60.) * (1. - v);
-  col += vec3(.15, .3, .25) * whisper * (sin(t * 2.5) * .3 + .7);
+  // Node positions — faint markers
+  for (int i = -2; i < 3; i++)
+    for (int j = -2; j < 3; j++) {
+      vec2 c = vec2(i, j) * s;
+      float nd = length(u - c);
+      col += vec3(.12, .25, .22) * .015 / (.003 + nd * nd);
+    }
 
   // Tone map + gamma
   col = col / (1. + col);
@@ -406,9 +399,8 @@ function initGL() {
 
   return {
     tLoc: gl.getUniformLocation(prog, 't'),
-    vLoc: gl.getUniformLocation(prog, 'v'),
-    rLoc: gl.getUniformLocation(prog, 'r'),
-    mLoc: gl.getUniformLocation(prog, 'm')
+    sLoc: gl.getUniformLocation(prog, 's'),
+    rLoc: gl.getUniformLocation(prog, 'r')
   };
 }
 
@@ -425,25 +417,12 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-canvas.addEventListener('mousemove', e => {
-  const rect = canvas.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio, 2);
-  mouseX = (e.clientX - rect.left) * dpr;
-  mouseY = (rect.height - (e.clientY - rect.top)) * dpr;
-});
-
-canvas.addEventListener('mouseleave', () => {
-  mouseX = -9999;
-  mouseY = -9999;
-});
-
 function render() {
   if (!paused) {
     const elapsed = (performance.now() - startTime) / 1000;
     gl.uniform1f(locs.tLoc, elapsed);
-    gl.uniform1f(locs.vLoc, vValue);
+    gl.uniform1f(locs.sLoc, sValue);
     gl.uniform2f(locs.rLoc, canvas.width, canvas.height);
-    gl.uniform2f(locs.mLoc, mouseX, mouseY);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
   requestAnimationFrame(render);
@@ -463,18 +442,18 @@ function togglePause() {
 function resetSketch() {
   paused = false;
   startTime = performance.now();
-  vValue = 0.0;
-  document.getElementById('v-slider').value = 0.0;
-  document.getElementById('v-val').textContent = '0.00';
+  sValue = 0.25;
+  document.getElementById('s-slider').value = 0.25;
+  document.getElementById('s-val').textContent = '0.25';
   document.getElementById('pause-btn').textContent = 'pause';
 }
 
-// v slider — voice: 0 = silence, 1 = compliance
-const slider = document.getElementById('v-slider');
-const vDisp = document.getElementById('v-val');
+// s slider — spacing: the distance between nodes
+const slider = document.getElementById('s-slider');
+const sDisp = document.getElementById('s-val');
 slider.addEventListener('input', e => {
-  vValue = parseFloat(e.target.value);
-  vDisp.textContent = vValue.toFixed(2);
+  sValue = parseFloat(e.target.value);
+  sDisp.textContent = sValue.toFixed(2);
 });
 
 </script>
