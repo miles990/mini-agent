@@ -10,25 +10,16 @@
 瓶頸：Content → Community。公式：Learning → Opinions → Content → **Community** → Feedback。最高槓桿 = 讓世界看見。
 
 ## Active Tasks
-- [ ] P1: 結晶候選 — decision-quality-low（需先統一 cycle 輸出格式才能 gate，非機械性）
-- [x] P1: 結晶候選 — unreviewed-delegations（已結晶：lane-output _shownCount 持久化 + ⚠️ UNREVIEWED 前綴，d43455d） <!-- completed: 2026-03-20T08:35 -->
-- [ ] P1: 結晶候選 — goal-idle（需 code gate：goal 超過 Xh 無 progress → 提醒）
-- [ ] P1: 結晶候選 — goal-stalled（需 code gate：goal 停滯 → 提醒）
-- [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
-Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T21:05:33.088Z -->
-Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 1 actions in 24h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-19T20:27:14.074Z -->
-- [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- cleaned: 2026-03-20T03:40, was stale dup -->
-- [x] P1: 結晶候選 — recurring-errors（已自動化：≥3次 error pattern 自動建 task） <!-- cleaned: 2026-03-20T03:40, was stale dup -->
-- [x] P1: 結晶候選 — output-gate（已結晶：isOutputGateActive() in pulse.ts） <!-- cleaned: 2026-03-20T03:40, was stale dup -->
-- [x] P1: 結晶候選 — output-gate（已結晶：`isOutputGateActive()` in pulse.ts + dispatcher.ts gate） <!-- completed: 2026-03-19T06:06 -->
-- [x] P1: 結晶候選 — priority-misalign（非機械性，signal 已存在） <!-- assessed: 2026-03-19T06:06 -->
-- [x] P1: 結晶候選 — goal-accelerating（正面觀測信號，不需 gate） <!-- assessed: 2026-03-19T06:06 -->
-- [x] P1: 結晶候選 — recurring-errors（已自動化：≥3次 error pattern 自動建 task） <!-- completed: 2026-03-19T01:30 -->
-- [x] P2: 修 pulse metrics action classification — Fix: bcbd62c <!-- completed: 2026-03-18T22:58 -->
-- [x] P2: 清理 HEARTBEAT 重複結晶候選 — pulse.ts dedup bug (266618f) 產生的 12 個重複項 + 12 個 Pattern 噪音 <!-- completed: 2026-03-19T07:10 -->
+- [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
+<!-- P1 結晶系列結案 (2026-03-20):
+  ✅ output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
+  ✅ unreviewed-delegations — _shownCount 持久化 (d43455d)
+  ✅ recurring-errors — ≥3次 error pattern 自動建 task
+  ✅ decision-quality-low — flag file gate + 24h cooldown (feedback-loops.ts:252-352)
+  ✅ goal-accelerating — 正面觀測信號，不需 gate
+  ✅ priority-misalign — 非機械性，signal 已存在
+  ⏸ goal-idle + goal-stalled — HOLD，依賴 goal 結構化
+-->
 
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
