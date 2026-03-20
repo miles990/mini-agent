@@ -59,12 +59,30 @@ if [ $? -ne 0 ] || [ -z "$CDP_STATUS" ]; then
   heal_report "FAILED" "Chrome CDP not available on port ${CDP_PORT:-9222}"
 fi
 
-# --- Check 3: Disk Usage ---
-DISK_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+# --- Check 3: Disk Usage (APFS container level, fallback to df) ---
+DISK_PCT=""
+if command -v diskutil &>/dev/null; then
+  CINFO=$(diskutil info / 2>/dev/null)
+  TOTAL_B=$(echo "$CINFO" | awk -F'[()]' '/Container Total Space/{print $2}' | awk '{print $1}')
+  FREE_B=$(echo "$CINFO" | awk -F'[()]' '/Container Free Space/{print $2}' | awk '{print $1}')
+  if [ -n "$TOTAL_B" ] && [ -n "$FREE_B" ] && [ "$TOTAL_B" -gt 0 ] 2>/dev/null; then
+    DISK_PCT=$(( (TOTAL_B - FREE_B) * 100 / TOTAL_B ))
+  fi
+fi
+if [ -z "$DISK_PCT" ]; then
+  DISK_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+fi
 if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -gt 90 ] 2>/dev/null; then
   if command -v docker &>/dev/null && _timeout 3 docker info &>/dev/null 2>&1; then
     docker system prune -f &>/dev/null
-    NEW_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+    NEW_CINFO=$(diskutil info / 2>/dev/null)
+    NEW_TOTAL=$(echo "$NEW_CINFO" | awk -F'[()]' '/Container Total Space/{print $2}' | awk '{print $1}')
+    NEW_FREE=$(echo "$NEW_CINFO" | awk -F'[()]' '/Container Free Space/{print $2}' | awk '{print $1}')
+    if [ -n "$NEW_TOTAL" ] && [ -n "$NEW_FREE" ] && [ "$NEW_TOTAL" -gt 0 ] 2>/dev/null; then
+      NEW_PCT=$(( (NEW_TOTAL - NEW_FREE) * 100 / NEW_TOTAL ))
+    else
+      NEW_PCT=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+    fi
     heal_report "HEALED" "Disk was ${DISK_PCT}% → docker prune → now ${NEW_PCT}%"
   else
     heal_report "FAILED" "Disk at ${DISK_PCT}%, no auto-cleanup available"

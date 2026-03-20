@@ -37,8 +37,19 @@ collect_state() {
         state="$state\"git\":\"$branch:$dirty\","
     fi
 
-    # 磁碟使用
-    local disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+    # 磁碟使用 (APFS container level, fallback to df)
+    local disk_pct=""
+    if command -v diskutil &>/dev/null; then
+        local cinfo=$(diskutil info / 2>/dev/null)
+        local total_b=$(echo "$cinfo" | awk -F'[()]' '/Container Total Space/{print $2}' | awk '{print $1}')
+        local free_b=$(echo "$cinfo" | awk -F'[()]' '/Container Free Space/{print $2}' | awk '{print $1}')
+        if [ -n "$total_b" ] && [ -n "$free_b" ] && [ "$total_b" -gt 0 ] 2>/dev/null; then
+            disk_pct=$(( (total_b - free_b) * 100 / total_b ))
+        fi
+    fi
+    if [ -z "$disk_pct" ]; then
+        disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+    fi
     state="$state\"disk\":\"$disk_pct\","
 
     # 記憶體使用（vm_stat 比 memory_pressure 更可靠且更快）
