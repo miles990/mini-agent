@@ -13,6 +13,9 @@
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
 - [ ] P1: 結晶候選 — output-gate（58 cycles 無行為改變）
 - [ ] P1: 結晶候選 — recurring-errors（57 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
+Pattern: question:Teaching Monster 競賽（Deadline: 5/1 初賽, 6/12 決賽）: 31 actions in 24h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:53:12.240Z -->
 Pattern: 1 error patterns (≥3× each)
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:49:16.190Z -->
 Pattern: question:20 cycles without visible output
