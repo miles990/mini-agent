@@ -11,12 +11,12 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
-- [ ] P1: 結晶候選 — output-gate（58 cycles 無行為改變）
-- [ ] P1: 結晶候選 — recurring-errors（57 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
-- [ ] P1: 結晶候選 — priority-misalign（30 cycles 無行為改變）
-- [ ] P1: 結晶候選 — unreviewed-delegations（30 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-accelerating（15 cycles 無行為改變）
+- [x] P1: 結晶候選 — output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
+- [x] P1: 結晶候選 — recurring-errors — ≥3次 error pattern 自動建 task
+- [x] P1: 結晶候選 — goal-accelerating — 正面觀測信號，不需 gate
+- [x] P1: 結晶候選 — priority-misalign — 非機械性，signal 已存在
+- [x] P1: 結晶候選 — unreviewed-delegations — _shownCount 持久化 (d43455d)
+- [x] P1: 結晶候選 — goal-accelerating（duplicate，同上）
 Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 7 actions in 24h
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:42:17.012Z -->
 Pattern: 4 completed but unreviewed
