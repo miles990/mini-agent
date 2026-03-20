@@ -13,6 +13,9 @@
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
 - [ ] P1: 結晶候選 — unreviewed-delegations（42 cycles 無行為改變）
 - [ ] P1: 結晶候選 — decision-quality-low（21 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-idle（10 cycles 無行為改變）
+Pattern: question:12h idle
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T19:10:46.008Z -->
 Pattern: avg 1.3/3 over 20 cycles
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T15:38:53.962Z -->
 Pattern: 2 completed but unreviewed
