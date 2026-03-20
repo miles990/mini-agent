@@ -14,6 +14,9 @@
 - [ ] P1: 結晶候選 — unreviewed-delegations（42 cycles 無行為改變）
 - [ ] P1: 結晶候選 — decision-quality-low（21 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-idle（10 cycles 無行為改變）
+- [ ] P1: 結晶候選 — analyze-no-action（10 cycles 無行為改變）
+Pattern: question:13 consecutive analyze/remember without action — execute or delegate now
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T21:24:16.795Z -->
 Pattern: question:12h idle
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T19:10:46.008Z -->
 Pattern: avg 1.3/3 over 20 cycles
