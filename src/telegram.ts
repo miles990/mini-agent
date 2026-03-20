@@ -504,11 +504,11 @@ export class TelegramPoller {
       autoDetectThread(parsed.text, `telegram:${parsed.sender}`).catch(() => {})
     ).catch(() => {});
 
-    // Sync TG message to Chat Room conversation log (record-only, no trigger)
-    writeRoomMessage('alex', parsed.text).catch(() => {});
-
-    // Auto-enqueue to memory-index so the message persists until explicitly handled
-    enqueueAlexMessage(path.join(process.cwd(), 'memory'), parsed.text, parsed.timestamp).catch(() => {});
+    // Sync TG message to Chat Room conversation log, then enqueue task with roomMsgId
+    // so resolveReplyTasksByRoomMsgId can auto-complete it when replied.
+    writeRoomMessage('alex', parsed.text)
+      .then(roomMsgId => enqueueAlexMessage(path.join(process.cwd(), 'memory'), parsed.text, parsed.timestamp, roomMsgId))
+      .catch(() => {});
 
     // Add to buffer and schedule flush
     this.messageBuffer.push(parsed);

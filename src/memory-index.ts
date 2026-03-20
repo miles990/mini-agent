@@ -779,17 +779,20 @@ export async function enqueueAlexMessage(
   memoryDir: string,
   message: string,
   timestamp: string,
+  roomMsgId?: string,
 ): Promise<void> {
   const existing = queryMemoryIndexSync(memoryDir, { type: 'task', source: 'telegram' });
   if (existing.some(e => (getTaskPayload(e).alexTimestamp as string) === timestamp)) return;
 
   const preview = message.replace(/\n/g, ' ').slice(0, 100);
+  const payload: Record<string, unknown> = { priority: 1, alexTimestamp: timestamp, section: 'next' };
+  if (roomMsgId) payload.roomMsgId = roomMsgId;
   const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',
     summary: `回覆 Alex: "${preview}"`,
     source: 'telegram',
-    payload: { priority: 1, alexTimestamp: timestamp, section: 'next' },
+    payload,
   });
   eventBus.emit('action:task', { content: entry.summary, entry });
   slog('NEXT', `Enqueued: ${preview.slice(0, 40)}`);
