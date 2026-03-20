@@ -15,6 +15,9 @@
 - [ ] P1: 結晶候選 — decision-quality-low（21 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-idle（10 cycles 無行為改變）
 - [ ] P1: 結晶候選 — analyze-no-action（10 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
+Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T21:35:30.001Z -->
 Pattern: question:13 consecutive analyze/remember without action — execute or delegate now
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T21:24:16.795Z -->
 Pattern: question:12h idle
