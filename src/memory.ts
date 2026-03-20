@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
 import { cachedReadFile } from './memory-cache.js';
 import { execFileSync } from 'node:child_process';
 import {
@@ -2880,7 +2880,11 @@ function truncateTopicMemory(content: string, level: 'brief' | 'summary' = 'brie
 
 const LANE_OUTPUT_CAP = 2000; // chars cap for <background-completed> section
 
-/** Read lane-output/ directory and format results for buildContext injection */
+/** Read lane-output/ directory and format results for buildContext injection.
+ *  Results persist for up to MAX_SHOW_COUNT cycles (with ⚠️ UNREVIEWED prefix
+ *  after first show) so the main cycle has multiple chances to review them. */
+const MAX_SHOW_COUNT = 3;
+
 function buildBackgroundCompletedSection(instanceId: string): string | null {
   try {
     const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
@@ -2889,13 +2893,31 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
     const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
     if (files.length === 0) return null;
 
-    const results: Array<{ id: string; type?: string; status: string; output: string; confidence?: number; completedAt?: string }> = [];
+    const results: Array<{ id: string; type?: string; status: string; output: string; confidence?: number; completedAt?: string; _isReminder?: boolean }> = [];
+    const toDelete: string[] = [];
+    const toUpdate: Array<{ filePath: string; data: Record<string, unknown> }> = [];
+
     for (const file of files) {
       try {
-        const raw = readFileSync(path.join(laneDir, file), 'utf-8');
+        const filePath = path.join(laneDir, file);
+        const raw = readFileSync(filePath, 'utf-8');
         const data = JSON.parse(raw);
-        results.push(data);
+        const shownCount: number = data._shownCount ?? 0;
+
+        if (shownCount >= MAX_SHOW_COUNT) {
+          toDelete.push(filePath);
+          continue;
+        }
+
+        data._shownCount = shownCount + 1;
+        toUpdate.push({ filePath, data });
+        results.push({ ...data, _isReminder: shownCount > 0 });
       } catch { continue; }
+    }
+
+    // Clean up expired files
+    for (const f of toDelete) {
+      try { unlinkSync(f); } catch { /* best effort */ }
     }
 
     if (results.length === 0) return null;
@@ -2907,14 +2929,16 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
       return tb - ta;
     });
 
-    // Format with cap
+    // Format with cap — reminders get shorter snippets to save context
     let totalChars = 0;
     const lines: string[] = [];
     for (const r of results) {
+      const prefix = r._isReminder ? '⚠️ UNREVIEWED ' : '';
       const typeStr = r.type ? `[${r.type}]` : '';
       const confStr = r.confidence ? ` (confidence: ${r.confidence}/10)` : '';
-      const outputSnippet = r.output.replace(/\n/g, ' ').slice(0, 300);
-      const line = `- ${typeStr} ${r.id} ${r.status}${confStr}: ${outputSnippet}`;
+      const snippetLen = r._isReminder ? 150 : 300;
+      const outputSnippet = r.output.replace(/\n/g, ' ').slice(0, snippetLen);
+      const line = `- ${prefix}${typeStr} ${r.id} ${r.status}${confStr}: ${outputSnippet}`;
       if (totalChars + line.length > LANE_OUTPUT_CAP && lines.length > 0) {
         lines.push(`(${results.length - lines.length} more results in lane-output/)`);
         break;
@@ -2923,10 +2947,9 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
       totalChars += line.length;
     }
 
-    // Inline cleanup: delete files only after successfully reading into context.
-    // This prevents lane-output from being cleaned up before absorption.
-    for (const file of files) {
-      try { unlinkSync(path.join(laneDir, file)); } catch { /* best effort */ }
+    // Write back updated shownCount (persist for review, don't delete on first read)
+    for (const { filePath, data } of toUpdate) {
+      try { writeFileSync(filePath, JSON.stringify(data), 'utf-8'); } catch { /* best effort */ }
     }
 
     return lines.join('\n');
