@@ -11,7 +11,7 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — decision-quality-low（需先統一 cycle 輸出格式才能 gate，非機械性）
-- [ ] P1: 結晶候選 — unreviewed-delegations（需 code gate：delegation 完成後 N cycles 未 review → 提醒）
+- [x] P1: 結晶候選 — unreviewed-delegations（已結晶：lane-output _shownCount 持久化 + ⚠️ UNREVIEWED 前綴，d43455d） <!-- completed: 2026-03-20T08:35 -->
 - [ ] P1: 結晶候選 — goal-idle（需 code gate：goal 超過 Xh 無 progress → 提醒）
 - [ ] P1: 結晶候選 — goal-stalled（需 code gate：goal 停滯 → 提醒）
 - [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
