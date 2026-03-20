@@ -14,6 +14,12 @@
 - [ ] P1: 結晶候選 — output-gate（58 cycles 無行為改變）
 - [ ] P1: 結晶候選 — recurring-errors（57 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-accelerating（10 cycles 無行為改變）
+- [ ] P1: 結晶候選 — priority-misalign（30 cycles 無行為改變）
+- [ ] P1: 結晶候選 — unreviewed-delegations（30 cycles 無行為改變）
+Pattern: 4 completed but unreviewed
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:41:31.053Z -->
+Pattern: alignment 0%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:41:31.052Z -->
 Pattern: question:Teaching Monster 競賽（Deadline: 5/1 初賽, 6/12 決賽）: 31 actions in 24h
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:53:12.240Z -->
 Pattern: 1 error patterns (≥3× each)
