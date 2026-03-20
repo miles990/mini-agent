@@ -11,6 +11,12 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
+- [ ] P1: 結晶候選 — output-gate（58 cycles 無行為改變）
+- [ ] P1: 結晶候選 — recurring-errors（57 cycles 無行為改變）
+Pattern: 1 error patterns (≥3× each)
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:49:16.190Z -->
+Pattern: question:20 cycles without visible output
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:49:16.189Z -->
 <!-- P1 結晶系列結案 (2026-03-20):
   ✅ output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
   ✅ unreviewed-delegations — _shownCount 持久化 (d43455d)
