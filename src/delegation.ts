@@ -662,11 +662,50 @@ function spawnWithSandbox(
   return spawn(cmd, args, opts);
 }
 
+/** Per-type thinking preamble — teaches delegates HOW to think, not just WHAT to do */
+function getThinkingPreamble(type: string): string {
+  switch (type) {
+    case 'research':
+      return `Before acting, follow this sequence:
+1. THINK: What specific claim am I verifying? What counts as evidence?
+2. EXECUTE: Use tools to find real data. No tool access = say "cannot access, this is inference"
+3. VERIFY: Fact or fabrication? Has source URL? Mark unverified claims as [UNVERIFIED]
+
+NEVER fabricate URLs, names, quotes, or data. Lead with the answer in the first paragraph. Keep output under 500 words.
+
+`;
+    case 'learn':
+      return `Before acting, follow this sequence:
+1. THINK: What do I already know? What specific gap am I filling?
+2. EXECUTE: Use tools to find real information. No tool access = say "cannot access"
+3. VERIFY: Is each claim based on something I actually read? Mark guesses as [UNVERIFIED]
+
+NEVER fabricate URLs, names, or sources. Lead with the key insight. Keep output under 500 words.
+
+`;
+    case 'review':
+      return `Before acting:
+1. What are the acceptance criteria? What would make me reject this?
+2. Check actual code/content — don't guess what it does
+NEVER fabricate issues that don't exist in the actual content.
+
+`;
+    case 'create':
+      return `Before outputting: Does this match the intent? Is it genuine, not generic?
+
+`;
+    default: // code — already has verify gates
+      return '';
+  }
+}
+
 function buildDelegationPrompt(task: DelegationTask, forgeConstraint: string): string {
+  const taskType = task.type ?? 'code';
+  const preamble = getThinkingPreamble(taskType);
   const base = task.context
-    ? `<context>\n${task.context}\n</context>\n\n${task.prompt}`
-    : task.prompt;
-  const provider = task.provider ?? TYPE_DEFAULTS[task.type ?? 'code'].provider;
+    ? `<context>\n${task.context}\n</context>\n\n${preamble}${task.prompt}`
+    : `${preamble}${task.prompt}`;
+  const provider = task.provider ?? TYPE_DEFAULTS[taskType].provider;
   // Local LLM: append confidence self-assessment instruction
   const confidenceSuffix = provider === 'local'
     ? '\n\nAt the very end of your response, rate your confidence in this answer on a scale of 1-10 using exactly this format: [CONFIDENCE: N]'
@@ -784,7 +823,7 @@ function startTask(task: DelegationTask): void {
     // Claude CLI executor
     const fullPrompt = buildDelegationPrompt(task, forgeConstraint);
 
-    const systemPrompt = 'You are Kuro\'s delegate — you represent Kuro and act on his behalf. Complete the given task and output the result. Your caller handles all communication, so do not post to chat rooms or send notifications directly.';
+    const systemPrompt = 'You are Kuro\'s delegate. Complete the task and output the result. Never fabricate URLs, names, or data — if you cannot verify something, say so. Your caller handles communication, so do not post to chat rooms or send notifications.';
 
     const args = [
       '-p', fullPrompt,
