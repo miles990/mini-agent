@@ -144,11 +144,27 @@ timeout 30 claude -p "Translate to English: 感知驅動學習。Output JSON: {o
   --no-input --max-turns 1 --output-format json
 ```
 
+## Routing Effectiveness（從 105 筆審查結晶）
+
+Delegation 的 ROI 取決於任務碰觸的資源邊界。105 筆歷史審查結果：
+
+| 資源邊界 | 效果 | 原因 | 建議 |
+|---------|------|------|------|
+| **本地檔案分析** | ✅ 高 | 檔案在 workdir 裡，subprocess 能讀能驗證 | code/review type，具體指定目標檔案 |
+| **本地 build/test** | ✅ 高 | 確定性任務，pass/fail 可驗證 | shell 或 code type + verify |
+| **外部 URL fetch** | ⚠️ 中低 | 常 timeout、被攔截、內容被截斷 | 自己用 cdp-fetch.mjs，或只 delegate 已知穩定的 API |
+| **外部服務互動**（Slack/GitHub/Twitter）| ❌ 低 | 無認證、被限流、格式不可預測 | 自己做（有 session/token 的工具） |
+| **泛主題研究** | ❌ 低 | local LLM 事實準確度差（如把 Kokoro 說成基於 OpenTTS）| 自己用 SearXNG + 原文閱讀 |
+
+**路由決策**：delegate 前問「subprocess 能碰到需要的資源嗎？」能 → delegate。不能（需要認證、需要判斷、需要外部服務）→ 自己做。
+
 ## 自我檢查
 
 每個 cycle 問自己：
 1. **有沒有可以並行探索的方向？** → 有就 delegate，不要全部自己序列做
 2. 這個任務需要我的深度觀點嗎？ → 需要就自己做，初步掃描可以 delegate
 3. Shell 能做嗎？ → 能就用 shell，不能才用 CLI
+4. **Subprocess 碰得到資源嗎？** → 碰不到就自己做，別浪費 lane
 
 **反模式：一個 cycle 只做一件事，background lane 全空。**
+**反模式：delegate 外部服務互動（Slack/X/HN），subprocess 沒有認證。**
