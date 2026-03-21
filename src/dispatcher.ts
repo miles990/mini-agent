@@ -8,7 +8,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { getLogger } from './logging.js';
-import { getMemory, getSkillsPrompt, getMemoryStateDir, type CycleMode } from './memory.js';
+import { getMemory, getSkillsPrompt, getMemoryStateDir, clearReviewedDelegations, type CycleMode } from './memory.js';
 import { getClaudeMdJIT } from './claudemd-jit.js';
 import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { eventBus } from './event-bus.js';
@@ -1152,7 +1152,10 @@ export async function postProcess(
     // fail-open: detection/storage must not block primary postProcess flow
   }
 
-  // 5. Log call
+  // 5. Clear reviewed delegations from persistent backlog (fire-and-forget)
+  try { clearReviewedDelegations(response, getCurrentInstanceId()); } catch { /* best effort */ }
+
+  // 6. Log call
   logger.logClaudeCall(
     {
       userMessage,

@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, appendFileSync, readdirSync, unlinkSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
 import { cachedReadFile } from './memory-cache.js';
 import { execFileSync } from 'node:child_process';
 import {
@@ -2915,9 +2915,23 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
       } catch { continue; }
     }
 
-    // Clean up expired files
-    for (const f of toDelete) {
-      try { unlinkSync(f); } catch { /* best effort */ }
+    // Archive expired files to review backlog before deleting
+    if (toDelete.length > 0) {
+      const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
+      for (const f of toDelete) {
+        try {
+          const raw = readFileSync(f, 'utf-8');
+          const data = JSON.parse(raw);
+          const entry = {
+            id: data.id ?? path.basename(f, '.json'),
+            type: data.type,
+            summary: (data.output || '').replace(/\n/g, ' ').slice(0, 150),
+            archivedAt: new Date().toISOString(),
+          };
+          appendFileSync(backlogPath, JSON.stringify(entry) + '\n');
+        } catch { /* best effort — still delete */ }
+        try { unlinkSync(f); } catch { /* best effort */ }
+      }
     }
 
     if (results.length === 0) return null;
@@ -2991,6 +3005,63 @@ export function cleanupStaleLaneOutput(instanceId: string): void {
       } catch { /* best effort */ }
     }
   } catch { /* best effort */ }
+}
+
+// =============================================================================
+// Review Backlog — persistent tracking of unreviewed delegation results
+// =============================================================================
+
+const BACKLOG_TTL_MS = 7 * 24 * 3600_000; // 7 days
+
+/** Remove backlog entries whose IDs appear in the response text. Also prune entries older than 7 days. */
+export function clearReviewedDelegations(response: string, instanceId: string): void {
+  try {
+    const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
+    if (!existsSync(backlogPath)) return;
+
+    const lines = readFileSync(backlogPath, 'utf-8').split('\n').filter(Boolean);
+    if (lines.length === 0) return;
+
+    const now = Date.now();
+    const kept: string[] = [];
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        // Prune expired entries (7-day TTL)
+        if (now - new Date(entry.archivedAt).getTime() > BACKLOG_TTL_MS) continue;
+        // Prune if response mentions this delegation ID
+        if (entry.id && response.includes(entry.id)) continue;
+        kept.push(line);
+      } catch { continue; }
+    }
+
+    if (kept.length === 0) {
+      try { unlinkSync(backlogPath); } catch { /* best effort */ }
+    } else if (kept.length < lines.length) {
+      writeFileSync(backlogPath, kept.join('\n') + '\n');
+    }
+  } catch { /* best effort */ }
+}
+
+/** Read review backlog entries (for prompt injection). Returns entries within TTL. */
+export function getReviewBacklog(instanceId: string): Array<{ id: string; type?: string; summary: string; archivedAt: string }> {
+  try {
+    const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
+    if (!existsSync(backlogPath)) return [];
+
+    const lines = readFileSync(backlogPath, 'utf-8').split('\n').filter(Boolean);
+    const now = Date.now();
+    const entries: Array<{ id: string; type?: string; summary: string; archivedAt: string }> = [];
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (now - new Date(entry.archivedAt).getTime() < BACKLOG_TTL_MS) {
+          entries.push(entry);
+        }
+      } catch { continue; }
+    }
+    return entries;
+  } catch { return []; }
 }
 
 // =============================================================================

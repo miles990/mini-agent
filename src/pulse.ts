@@ -296,20 +296,26 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     metrics.staleTasks = stale.length;
   } catch { /* best effort */ }
 
-  // ── Unreviewed delegations (lane-output files shown 1+ times) ──
+  // ── Unreviewed delegations (lane-output files shown 1+ times + persistent backlog) ──
   try {
-    const laneDir = path.join(getInstanceDir(getCurrentInstanceId()), 'lane-output');
+    const instanceId = getCurrentInstanceId();
+    let count = 0;
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
     if (existsSync(laneDir)) {
       const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
-      let count = 0;
       for (const file of files) {
         try {
           const data = JSON.parse(readFileSync(path.join(laneDir, file), 'utf-8'));
           if ((data._shownCount ?? 0) >= 1) count++;
         } catch { continue; }
       }
-      metrics.unreviewedDelegations = count;
     }
+    // Also count persistent backlog entries
+    try {
+      const { getReviewBacklog } = await import('./memory.js');
+      count += getReviewBacklog(instanceId).length;
+    } catch { /* best effort */ }
+    metrics.unreviewedDelegations = count;
   } catch { /* best effort */ }
 
   // ── Goal idle detection ──

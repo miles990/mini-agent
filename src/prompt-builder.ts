@@ -7,7 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getMemory } from './memory.js';
+import { getMemory, getReviewBacklog } from './memory.js';
 import type { CycleMode } from './memory.js';
 import { buildThreadsPromptSection } from './temporal.js';
 import { parseBehaviorConfig } from './cycle-tasks.js';
@@ -226,12 +226,24 @@ function buildDelegationReviewGate(): string {
       } catch { continue; }
     }
 
+    // Also check persistent review backlog (delegations that expired from lane-output without review)
+    try {
+      const backlog = getReviewBacklog(instanceId);
+      for (const entry of backlog) {
+        stale.push({ id: entry.id, type: entry.type, shownCount: -1 });
+      }
+    } catch { /* best effort */ }
+
     if (stale.length === 0) return '';
 
-    const lines = stale.map(s => `- ${s.type ? `[${s.type}] ` : ''}${s.id} (shown ${s.shownCount}x, never reviewed)`);
+    const lines = stale.map(s => {
+      const prefix = s.type ? `[${s.type}] ` : '';
+      const suffix = s.shownCount === -1 ? '(EXPIRED from lane-output — never reviewed)' : `(shown ${s.shownCount}x, never reviewed)`;
+      return `- ${prefix}${s.id} ${suffix}`;
+    });
     return `## Delegation Review Gate
-**MANDATORY**: ${stale.length} delegation result${stale.length > 1 ? 's have' : ' has'} been shown ${stale[0].shownCount}+ times without review.
-Check <background-completed> and acknowledge each result: absorb findings, decide next steps, or dismiss.
+**MANDATORY**: ${stale.length} delegation result${stale.length > 1 ? 's have' : ' has'} never been reviewed.
+Mention each delegation ID in your response to acknowledge: absorb findings, decide next steps, or dismiss.
 ${lines.join('\n')}`;
   } catch {
     return '';
