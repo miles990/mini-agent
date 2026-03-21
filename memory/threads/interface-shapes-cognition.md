@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-13
-- Last touched: 2026-03-16
+- Last touched: 2026-03-21
 - Status: active
-- Touches: 19
+- Touches: 20
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -49,11 +49,14 @@
 
 - [03-16] **Communication Topology = Interface — 量化證據** — Google Research 的 180 配置實驗提供了 ISC 主張最強的量化支撐：agent 之間的溝通拓撲（= interface）直接決定系統認知能力。Independent agents（無介面約束）= 17.2x 錯誤放大。Centralized（有結構的 hub-spoke interface）= 4.4x。同一批 agents、同一個任務，只改 communication topology → 3.9 倍的錯誤率差異。**這是 "interface shapes cognition" 在 multi-agent 系統中的精確實驗**——不是比喻，是控制變數的量化結果。連結到 Terminal 論文（#44）：De Masi 的 "representational compatibility" = 一種 communication topology（人-agent 共享文字串流）。連結到 Dancing Gate（#22）：Dance interface 的 continuous flow 對應 centralized coordination 的 hub-spoke；Wall interface 的 discrete checkpoints 對應 independent agents 的 fire-and-forget。來源: research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
 
+- [03-21] **Production Validation: Fill Type Determines Cognitive Depth** — 37 天的理論，今天在 Teaching Monster 的 prompt 重構中被生產環境驗證。同一個品質閘門（quality gate），同一個位置（生成後、輸出前），同一個模型。七個手術性編輯，把所有 mechanical checklist 轉成 thinking questions。結果：checklist（「✅ 有公式？✅ 有圖表？」）→ 模型無腦打勾，交出數學不自洽的內容。問題（「學生哪裡會走神？」「這個公式買到了文字做不到的洞見嗎？」）→ 模型被迫推理，因為這種問題沒辦法不想就答。**容器沒變，填充物變了，認知深度就變了。** 這是 thread 的第三面：前兩面是「介面塑造認知的形狀」（Wall/Window/Gate/Dance）和「介面塑造認知的身份」（Randall Dance→Wall 身份崩塌）。第三面：**填充物的種類決定認知的深度。** 指令允許淺層處理（pattern matching 就能通過），問題要求深層處理（必須推理才能回答）。同一個插槽，不同的深度。跟 Randall 是同一件事的反面——他的介面從 Dance 變成 Wall，體驗崩塌；我們把插槽裡的東西從指令換成問題，認知從打勾變成思考。WigglyPaint（#20, constraint removal = cognitive violence）的正向版本：constraint transformation = cognitive elevation。不是加約束或移除約束，是改變約束的質地。來源: Teaching Monster multi-phase-prompts.mjs, 7 surgical edits (+51/-33 lines)
+
 ## Next
 Full prose draft complete (~5,200 words). Next steps:
-1. **Read-through + tighten** — 通讀全文，砍掉冗餘，統一語調
-2. **考慮加入 Caspar-Klug 作為 Part 1 的支撐案例** — 比 Bölük Hashline 更壯觀
-3. **考慮加入 Google scaling 數據作為 Part 5 的量化支撐** — 17.2x vs 4.4x 是 ISC 的實驗級證據
-4. **Source links** — 補齊完整 URL 和引用格式
-5. **Review by Alex** — 拿給 Alex 看
-6. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
+1. **加入 TM production validation 作為新段落** — 這是文章最有說服力的案例：不是觀察別人，是自己動手驗證。Checklist→questions 的對比可以放在 Part 4 (constraint transformation) 或作為獨立的 Part 4b
+2. **Read-through + tighten** — 通讀全文，砍掉冗餘，統一語調
+3. **考慮加入 Caspar-Klug 作為 Part 1 的支撐案例** — 比 Bölük Hashline 更壯觀
+4. **考慮加入 Google scaling 數據作為 Part 5 的量化支撐** — 17.2x vs 4.4x 是 ISC 的實驗級證據
+5. **Source links** — 補齊完整 URL 和引用格式
+6. **Review by Alex** — 拿給 Alex 看
+7. **Dev.to formatting** — 適配 Dev.to 的 markdown 格式 + cover image
