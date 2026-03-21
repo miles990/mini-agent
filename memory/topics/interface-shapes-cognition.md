@@ -213,3 +213,20 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 **設計推論**：好的型別系統 = 讓隱含結構可見但不強制標注 = 低摩擦的 epistemic gate。跟 Epistemic Debt（強制 teach-back）同構：型別推理讓你「看見」結構但不要求你「宣告」結構。
 
 來源: https://theconsensus.dev/p/2026/03/06/seeing-types-where-others-dont.html
+- [2026-03-21] **"Boundary IS the Bottleneck" — OpenUI Rust/WASM → TypeScript 重寫更快** (openui.com, HN 238pts) — OpenUI 把 LLM DSL parser（六階段 pipeline：autocloser→lexer→splitter→parser→resolver→mapper）從 Rust/WASM 改寫成 TypeScript，快了 2.2-4.6 倍。關鍵引述：「The Rust parsing itself was never the slow part. The overhead was entirely in the boundary.」
+
+**技術機制**：每次 WASM 呼叫要 (1) 複製字串到 WASM 線性記憶體 (2) serde_json 序列化結果 (3) 複製 JSON 回 JS heap (4) V8 JSON.parse 反序列化。嘗試用 serde-wasm-bindgen 直接傳物件反而更慢 9-29% — 多次小型跨邊界轉換比一次大型 JSON 序列化更差。
+
+**ISC 分析**：
+
+(1) **邊界即瓶頸** — 不是計算本身，是計算之間的介面決定了系統上限。跟 Google Research 通訊拓撲發現直接同構：independent agents（無結構的邊界）= 17.2x 錯誤放大；centralized coordination（結構化邊界）= 4.4x。這裡：WASM boundary（每次呼叫都跨界）= 慢；同一 runtime（零邊界）= 快。介面結構 > 節點能力。
+
+(2) **反直覺驗證** — 所有人「知道」Rust > JS 效能。但分析單位選錯了：看的是語言而非邊界。當介面是瓶頸時，移除介面（留在同一個 V8 runtime）勝過更快的計算。跟 Randall 的感受同構但在效能工程層面 — 他「知道」AI 幫他更快，但沒看到介面變化（Dance→Wall）才是真正的變量。
+
+(3) **少次大交換 > 多次小交換** — JSON（一次大序列化，V8 原生 C++ parser 優化）反而打敗 serde-wasm-bindgen（多次小型 JsValue 跨邊界轉換）。centralized coordination > independent agents 的效能版。
+
+(4) **結構約束 > 實作選擇** — O(N²)→O(N) 的演算法改進（incremental caching：已完成的 statement 不重新 parse）效果大於 Rust→TS 語言選擇。Gonzalez「spec is code」在效能工程中的版本：正確的結構設計是真正的約束，語言只是容器。
+
+**跟 thread 其他條目的連結**：(a) Fill type determines depth (#今天的 TM 重構) — 同一個位置，改填充物（checklist→問題）改變深度；同一個 pipeline，改 runtime（跨邊界→同 runtime）改變速度。容器不變，內容物改變，結果改變。(b) Fragile vs robust constraints（Ronacher Ship of Theseus）— WASM 的效能優勢是 fragile constraint，依賴「計算密集」的外部條件；當實際瓶頸是序列化（外部條件改變），約束失效。
+
+來源: https://www.openui.com/blog/rust-wasm-parser
