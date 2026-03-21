@@ -894,6 +894,20 @@ export async function postProcess(
     } catch { /* fail-open */ }
   }
 
+  // Analyze-no-action gate: block remember tags after consecutive analyze/remember without action
+  // Rationale: if the model keeps doing analyze+remember instead of acting, stripping remembers
+  // creates feedback pressure — either act or produce nothing useful.
+  if (tags.remembers.length > 0) {
+    try {
+      const { getAnalyzeNoActionStreak } = await import('./pulse.js');
+      const streak = getAnalyzeNoActionStreak();
+      if (streak > 0) {
+        slog('DISPATCH', `Analyze-no-action gate blocked ${tags.remembers.length} remember(s) — streak ${streak}, act first`);
+        tags.remembers = [];
+      }
+    } catch { /* fail-open */ }
+  }
+
   if (tags.delegates.length > 1) {
     // Multiple delegates → build DAG for intelligent scheduling
     const taskInputs: TaskInput[] = tags.delegates.map(del => ({
