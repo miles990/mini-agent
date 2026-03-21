@@ -16,6 +16,7 @@ import { eventBus } from './event-bus.js';
 import { buildCommitmentSection } from './memory-index.js';
 import { detectResearchLoop } from './cycle-state.js';
 import { isEnabled } from './features.js';
+import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -197,6 +198,46 @@ Then do ONE action, reported with <kuro:action>...</kuro:action>.
 If genuinely nothing useful to do, say "No action needed" — don't force it.`;
 }
 
+// =============================================================================
+// Delegation Review Gate — force review of stale background results
+// =============================================================================
+
+/**
+ * Check lane-output/ for delegation results shown 2+ times without being acted on.
+ * Returns a mandatory prompt section if stale results exist.
+ */
+function buildDelegationReviewGate(): string {
+  try {
+    const instanceId = getCurrentInstanceId();
+    const laneDir = path.join(getInstanceDir(instanceId), 'lane-output');
+    if (!fs.existsSync(laneDir)) return '';
+
+    const files = fs.readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
+    if (files.length === 0) return '';
+
+    const stale: Array<{ id: string; type?: string; shownCount: number }> = [];
+    for (const file of files) {
+      try {
+        const raw = fs.readFileSync(path.join(laneDir, file), 'utf-8');
+        const data = JSON.parse(raw);
+        if ((data._shownCount ?? 0) >= 2) {
+          stale.push({ id: data.id ?? file, type: data.type, shownCount: data._shownCount });
+        }
+      } catch { continue; }
+    }
+
+    if (stale.length === 0) return '';
+
+    const lines = stale.map(s => `- ${s.type ? `[${s.type}] ` : ''}${s.id} (shown ${s.shownCount}x, never reviewed)`);
+    return `## Delegation Review Gate
+**MANDATORY**: ${stale.length} delegation result${stale.length > 1 ? 's have' : ' has'} been shown ${stale[0].shownCount}+ times without review.
+Check <background-completed> and acknowledge each result: absorb findings, decide next steps, or dismiss.
+${lines.join('\n')}`;
+  } catch {
+    return '';
+  }
+}
+
 /** State needed by buildAutonomousPrompt */
 export interface PromptBuilderState {
   lastAutonomousActions: string[];
@@ -254,12 +295,14 @@ export async function buildAutonomousPrompt(
   const backgroundLaneHint = `\n\n## Background Lane — 並行探索\n**每個 cycle 都考慮：有沒有可以同時探索的方向？** 像黏菌一樣同時伸出多條觸角。\n\n用 \`<kuro:delegate>\` 派出背景任務：\n\`\`\`xml\n<kuro:delegate type="research" workdir="~/Workspace/mini-agent">Search SearXNG for "topic X" and summarize top 5 results</kuro:delegate>\n<kuro:delegate type="learn" workdir="~/Workspace/mini-agent">Fetch and summarize https://example.com/article</kuro:delegate>\n<kuro:delegate type="code" workdir="~/Workspace/mini-agent" verify="pnpm typecheck">Refactor X</kuro:delegate>\n\`\`\`\nTypes: learn(read+summarize), research(search+analyze), review(code review), create(write), code(implement).\nBackground tasks run in parallel (max 6). Results appear in \`<background-completed>\` next cycle.\n\n**鼓勵的模式**：一個 cycle 內派出 2-3 個 delegate 探索不同方向，下個 cycle 看結果決定深入哪條。\n**反模式**：background lane 全空、一個 cycle 只做一件事。`;
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
+  const delegationReviewGate = buildDelegationReviewGate();
 
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
+  if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);

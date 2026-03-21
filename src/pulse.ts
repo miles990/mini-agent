@@ -22,6 +22,8 @@ import { getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
 import { listTasks } from './delegation.js';
+import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { readdirSync } from 'node:fs';
 import { isVisibleOutput } from './achievements.js';
 import { slog, readJsonFile } from './utils.js';
 
@@ -290,15 +292,20 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     metrics.staleTasks = stale.length;
   } catch { /* best effort */ }
 
-  // ── Unreviewed delegations ──
+  // ── Unreviewed delegations (lane-output files shown 1+ times) ──
   try {
-    const tasks = listTasks({ includeCompleted: true });
-    // Count completed tasks in last hour (likely not yet reviewed)
-    const oneHourAgo = Date.now() - 3600_000;
-    metrics.unreviewedDelegations = tasks.filter(t =>
-      t.status === 'completed' &&
-      t.completedAt && new Date(t.completedAt).getTime() > oneHourAgo,
-    ).length;
+    const laneDir = path.join(getInstanceDir(getCurrentInstanceId()), 'lane-output');
+    if (existsSync(laneDir)) {
+      const files = readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
+      let count = 0;
+      for (const file of files) {
+        try {
+          const data = JSON.parse(readFileSync(path.join(laneDir, file), 'utf-8'));
+          if ((data._shownCount ?? 0) >= 1) count++;
+        } catch { continue; }
+      }
+      metrics.unreviewedDelegations = count;
+    }
   } catch { /* best effort */ }
 
   // ── Goal idle detection ──
