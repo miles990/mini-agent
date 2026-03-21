@@ -11,44 +11,13 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
-- [ ] P1: 結晶候選 — unreviewed-delegations（42 cycles 無行為改變）
-- [ ] P1: 結晶候選 — decision-quality-low（21 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-idle（10 cycles 無行為改變）
-- [ ] P1: 結晶候選 — analyze-no-action（10 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
-Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T21:35:30.001Z -->
-Pattern: question:13 consecutive analyze/remember without action — execute or delegate now
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T21:24:16.795Z -->
-Pattern: question:12h idle
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T19:10:46.008Z -->
-Pattern: avg 1.3/3 over 20 cycles
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T15:38:53.962Z -->
-Pattern: 2 completed but unreviewed
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T15:38:53.960Z -->
-- [x] P1: 結晶候選 — output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
-- [x] P1: 結晶候選 — recurring-errors — ≥3次 error pattern 自動建 task
-- [x] P1: 結晶候選 — goal-accelerating — 正面觀測信號，不需 gate
-- [x] P1: 結晶候選 — priority-misalign — 非機械性，signal 已存在
-- [x] P1: 結晶候選 — unreviewed-delegations — _shownCount 持久化 (d43455d)
-- [x] P1: 結晶候選 — goal-accelerating（duplicate，同上）
-Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 7 actions in 24h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:42:17.012Z -->
-Pattern: 4 completed but unreviewed
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:41:31.053Z -->
-Pattern: alignment 0%
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T07:41:31.052Z -->
-Pattern: question:Teaching Monster 競賽（Deadline: 5/1 初賽, 6/12 決賽）: 31 actions in 24h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:53:12.240Z -->
-Pattern: 1 error patterns (≥3× each)
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:49:16.190Z -->
-Pattern: question:20 cycles without visible output
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-20T06:49:16.189Z -->
-<!-- P1 結晶系列結案 (2026-03-20):
+<!-- P1 結晶系列結案 (2026-03-21):
+  所有機械性 pattern 已結晶為 code gate。僅 goal-idle + goal-stalled HOLD。
   ✅ output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
-  ✅ unreviewed-delegations — _shownCount 持久化 (d43455d)
+  ✅ unreviewed-delegations — _shownCount 持久化 (d43455d) + routing rules (79bcafb)
   ✅ recurring-errors — ≥3次 error pattern 自動建 task
   ✅ decision-quality-low — flag file gate + 24h cooldown (feedback-loops.ts:252-352)
+  ✅ analyze-no-action — pulse.ts analyzeWithoutActionStreak + prompt-builder.ts hard gate (threshold=5)
   ✅ goal-accelerating — 正面觀測信號，不需 gate
   ✅ priority-misalign — 非機械性，signal 已存在
   ⏸ goal-idle + goal-stalled — HOLD，依賴 goal 結構化
