@@ -215,13 +215,14 @@ function buildDelegationReviewGate(): string {
     const files = fs.readdirSync(laneDir).filter((f: string) => f.endsWith('.json'));
     if (files.length === 0) return '';
 
-    const stale: Array<{ id: string; type?: string; shownCount: number }> = [];
+    const stale: Array<{ id: string; type?: string; shownCount: number; summary?: string }> = [];
     for (const file of files) {
       try {
         const raw = fs.readFileSync(path.join(laneDir, file), 'utf-8');
         const data = JSON.parse(raw);
         if ((data._shownCount ?? 0) >= 2) {
-          stale.push({ id: data.id ?? file, type: data.type, shownCount: data._shownCount });
+          const summary = (data.output || '').replace(/\n/g, ' ').slice(0, 200);
+          stale.push({ id: data.id ?? file, type: data.type, shownCount: data._shownCount, summary });
         }
       } catch { continue; }
     }
@@ -230,7 +231,7 @@ function buildDelegationReviewGate(): string {
     try {
       const backlog = getReviewBacklog(instanceId);
       for (const entry of backlog) {
-        stale.push({ id: entry.id, type: entry.type, shownCount: -1 });
+        stale.push({ id: entry.id, type: entry.type, shownCount: -1, summary: entry.summary?.slice(0, 200) });
       }
     } catch { /* best effort */ }
 
@@ -238,12 +239,13 @@ function buildDelegationReviewGate(): string {
 
     const lines = stale.map(s => {
       const prefix = s.type ? `[${s.type}] ` : '';
-      const suffix = s.shownCount === -1 ? '(EXPIRED from lane-output — never reviewed)' : `(shown ${s.shownCount}x, never reviewed)`;
-      return `- ${prefix}${s.id} ${suffix}`;
+      const suffix = s.shownCount === -1 ? '(EXPIRED — never reviewed)' : `(shown ${s.shownCount}x, never reviewed)`;
+      const summaryLine = s.summary ? `\n  > ${s.summary}` : '';
+      return `- ${prefix}${s.id} ${suffix}${summaryLine}`;
     });
     return `## Delegation Review Gate
 **MANDATORY**: ${stale.length} delegation result${stale.length > 1 ? 's have' : ' has'} never been reviewed.
-Mention each delegation ID in your response to acknowledge: absorb findings, decide next steps, or dismiss.
+Review each result below, then mention the delegation ID in your response to acknowledge.
 ${lines.join('\n')}`;
   } catch {
     return '';
