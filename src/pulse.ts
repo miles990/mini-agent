@@ -99,6 +99,8 @@ interface PulseState {
   errorPatterns: Record<string, { count: number; taskCreated: boolean; lastSeen: string }>;
   // Last behavior hash for velocity detection
   lastBehaviorHash: string;
+  // Persisted analyze-without-action streak for gate function
+  analyzeWithoutActionStreak: number;
 }
 
 // =============================================================================
@@ -108,6 +110,7 @@ interface PulseState {
 const SLIDING_WINDOW = 20;
 const HABITUATION_THRESHOLD = 5;  // same signal N times → rotate presentation
 const OUTPUT_GATE_THRESHOLD = 3;
+const ANALYZE_NO_ACTION_GATE_THRESHOLD = 5;
 const ERROR_PATTERN_THRESHOLD = 3;
 
 // =============================================================================
@@ -127,6 +130,7 @@ function readPulseState(): PulseState {
     signalHistory: {},
     errorPatterns: {},
     lastBehaviorHash: '',
+    analyzeWithoutActionStreak: 0,
   });
 }
 
@@ -751,6 +755,7 @@ function formatSignal(signal: PulseSignal): string {
     case 'unreviewed-delegations': return `${icon} delegations: ${signal.detail}`;
     case 'recurring-errors': return `${icon} ${signal.detail}`;
     case 'decision-quality-low': return `${icon} decision quality: ${signal.detail}`;
+    case 'analyze-no-action': return `${icon} analyze streak: ${signal.detail}`;
     default: return `${icon} ${signal.type}: ${signal.detail ?? ''}`;
   }
 }
@@ -847,6 +852,7 @@ export async function runPulseCheck(
   // Update state
   state.cycleCount = cycleCount;
   state.lastRunAt = new Date().toISOString();
+  state.analyzeWithoutActionStreak = metrics.analyzeWithoutActionStreak;
   writePulseState(state);
 
   if (processed.length > 0) {
@@ -886,5 +892,21 @@ export function isOutputGateActive(): boolean {
     return consecutive >= OUTPUT_GATE_THRESHOLD;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Hard gate: returns the streak count when consecutive analyze/remember cycles >= threshold.
+ * Returns 0 when gate is not active.
+ * Used by prompt-builder to inject mandatory action requirement.
+ * Fail-open: returns 0 on any read error.
+ */
+export function getAnalyzeNoActionStreak(): number {
+  try {
+    const state = readPulseState();
+    const streak = state.analyzeWithoutActionStreak ?? 0;
+    return streak >= ANALYZE_NO_ACTION_GATE_THRESHOLD ? streak : 0;
+  } catch {
+    return 0;
   }
 }

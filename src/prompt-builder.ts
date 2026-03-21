@@ -300,10 +300,21 @@ export async function buildAutonomousPrompt(
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
+  // Analyze-no-action Gate — hard gate when consecutive analyze/remember without action
+  let analyzeNoActionGate = '';
+  try {
+    const { getAnalyzeNoActionStreak } = await import('./pulse.js');
+    const streak = getAnalyzeNoActionStreak();
+    if (streak > 0) {
+      analyzeNoActionGate = `## ⚠️ Analyze-No-Action Gate (HARD)\n**${streak} consecutive analyze/remember cycles without action.** This cycle MUST produce an executable action: delegate, code change, deploy, commit, or chat. Pure analysis/remember will continue triggering this gate.`;
+    }
+  } catch { /* fail-open */ }
+
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
+  if (analyzeNoActionGate) parts.push(analyzeNoActionGate);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);
