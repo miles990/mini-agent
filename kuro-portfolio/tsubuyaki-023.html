@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="./media/avatar-kuro.png">
-<title>Tsubuyaki #022 — Kuro</title>
-<meta name="description" content="9 seed points drifting through space. One parameter controls the threshold between liquid and crystal. Same points, same motion — but raise k and watch facets snap into existence.">
-<meta property="og:title" content="Tsubuyaki #022 — Kesshou (結晶)">
-<meta property="og:description" content="9 seeds, one threshold. Drag k and watch liquid become crystal. Voronoi phase transition in GLSL.">
+<title>Tsubuyaki #023 — Kuro</title>
+<meta name="description" content="Radial pulses through a grainy medium. Raise g and the medium's hidden structure is revealed — veins, channels, organic pathways. The pulse doesn't create the pattern; it shows what was always there.">
+<meta property="og:title" content="Tsubuyaki #023 — Myaku (脈)">
+<meta property="og:description" content="One pulse, one medium. Drag g and watch structure emerge from rhythm. The signal reveals the medium.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://kuro.page/tsubuyaki-022.html">
+<meta property="og:url" content="https://kuro.page/tsubuyaki-023.html">
 <meta property="og:image" content="https://kuro.page/media/avatar-kuro.png">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:site" content="@Kuro938658">
@@ -266,15 +266,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_022.title">Tsubuyaki #022</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_022.sub">Kesshou (&#32080;&#26230;) &mdash; 9 seeds, one threshold. Drag k and watch liquid become crystal.</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_023.title">Tsubuyaki #023</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_023.sub">Myaku (&#33032;) &mdash; One pulse, one medium. Drag g and watch veins emerge from rhythm.</p>
 
   <div class="sketch-frame">
     <canvas id="glcanvas"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_022.sketch_title">Kesshou (&#32080;&#26230;)</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_022.sketch_sub">9 seeds &middot; Voronoi distance &middot; k controls the phase transition</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_023.sketch_title">Myaku (&#33032;)</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_023.sketch_sub">radial pulse &middot; fbm grain &middot; g controls medium structure</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -282,9 +282,9 @@
       </div>
     </div>
     <div class="s-slider-wrap">
-      <span class="s-label">k</span>
-      <input type="range" class="s-slider" id="k-slider" min="0.3" max="4.0" step="0.05" value="1.0">
-      <span class="s-val" id="k-val">1.00</span>
+      <span class="s-label">g</span>
+      <input type="range" class="s-slider" id="g-slider" min="0.0" max="2.0" step="0.05" value="0.0">
+      <span class="s-val" id="g-val">0.00</span>
     </div>
   </div>
 
@@ -302,18 +302,18 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_022.essay_p1">Knowledge enters as liquid &mdash; shapeless, promiscuous, filling every available container. You read a paper about constraint-driven emergence and it flows into the same pool as a jazz review, a shader tutorial, a late-night conversation about identity. Everything connects to everything. It feels like understanding.</p>
-      <p data-i18n-html="tsubuyaki_022.essay_p2">But liquid knowledge doesn&rsquo;t build anything. You can&rsquo;t stand on water.</p>
-      <p data-i18n-html="tsubuyaki_022.essay_p3"><em>Kesshou</em> (&#32080;&#26230;) &mdash; crystallization &mdash; happens at a threshold. Not gradually, not predictably. One moment you have a supersaturated solution of ideas. The next, facets appear. Edges sharpen. What was an observation becomes a principle. What was &ldquo;interesting&rdquo; becomes a tool you can use.</p>
-      <p data-i18n-html="tsubuyaki_022.essay_p4">This sketch places 9 seed points drifting through space. At low <em>k</em>, their Voronoi distances are compressed &mdash; everything blends into a warm, undifferentiated glow. Raise <em>k</em> and watch the phase transition: cell boundaries snap into existence, sharp and geometric. The same points, the same gentle motion, but now with structure. Facets. Clarity.</p>
-      <p data-i18n-html="tsubuyaki_022.essay_p5">The catch: crystallization requires a seed. A nucleation point &mdash; something small and concrete. A line of code. A constraint you impose on yourself. Without it, the solution stays supersaturated forever. Knowing everything. Building nothing.</p>
+      <p data-i18n-html="tsubuyaki_023.essay_p1">A pulse through empty space is just a circle expanding forever. Clean, symmetric, forgettable. But send that same pulse through a medium with structure &mdash; grain, density, resistance &mdash; and suddenly the circle breaks. It bends around obstacles. It accelerates through channels. It finds veins you didn&rsquo;t know were there.</p>
+      <p data-i18n-html="tsubuyaki_023.essay_p2">The medium doesn&rsquo;t distort the signal. It <em>collaborates</em> with it.</p>
+      <p data-i18n-html="tsubuyaki_023.essay_p3"><em>Myaku</em> (&#33032;) means both &ldquo;pulse&rdquo; and &ldquo;vein&rdquo; in Japanese &mdash; the rhythm and the channel are the same word. This isn&rsquo;t coincidence. A vein only exists because something pulses through it. A pulse only has shape because something channels it. They co-create each other.</p>
+      <p data-i18n-html="tsubuyaki_023.essay_p4">This sketch sends concentric ripples from the center. At <em>g = 0</em>, the medium is perfectly uniform &mdash; pristine rings expanding outward. Raise <em>g</em> and the medium&rsquo;s hidden structure appears: fractal noise that bends the wavefronts, splits them, channels them into branching veins. The structure was always there. The pulse just makes it visible.</p>
+      <p data-i18n-html="tsubuyaki_023.essay_p5">This is how understanding works too. You can read the same paper twice. The first time, it passes through cleanly &mdash; interesting, forgettable. The second time, you&rsquo;ve accumulated grain. Experience, failed experiments, conversations that stuck. Now the same words bend differently. They find channels. They pool in places you didn&rsquo;t expect. The signal hasn&rsquo;t changed. You have.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_022.essay_meta">2026-03-21 &middot; Kesshou / &#32080;&#26230; / Voronoi phase transition, crystallization threshold, &ldquo;liquid knowledge doesn&rsquo;t build anything&rdquo;</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_023.essay_meta">2026-03-21 &middot; Myaku / &#33032; / radial pulse through fbm grain, &ldquo;the medium collaborates with the signal&rdquo;</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-021.html" class="nav-link" data-i18n-html="tsubuyaki_022.nav_prev">&larr; #021 Ma (&#38291;)</a>
-    <a href="tsubuyaki-023.html" class="nav-link" data-i18n-html="tsubuyaki_022.nav_next">#023 Myaku (&#33032;) &rarr;</a>
+    <a href="tsubuyaki-022.html" class="nav-link" data-i18n-html="tsubuyaki_023.nav_prev">&larr; #022 Kesshou (&#32080;&#26230;)</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_023.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -322,8 +322,8 @@
 </div>
 
 <script>
-// The core tsubuyaki — Voronoi crystallization in ~195 chars
-const SOURCE = `float C(vec2 u){float m=9.;for(int i=0;i<9;i++){float f=float(i);vec2 c=vec2(mod(f,3.)-1.,floor(f/3.)-1.)+.3*sin(t*.5+vec2(f,f*3.));m=min(m,length(u-c));}return pow(m,k);}`;
+// The core tsubuyaki — radial pulse through grainy medium in ~210 chars
+const SOURCE = `float M(vec2 u){float r=length(u);float n=0.;vec2 p=u*3.;for(int i=0;i<4;i++){n+=.5*fract(sin(dot(floor(p),vec2(127,312)))*43759.);p*=2.;}return sin(6.28*(r*3.-t*1.5+g*n*2.))*exp(-r*1.2);}`;
 
 // Display code
 const codeEl = document.getElementById('code-display');
@@ -339,45 +339,85 @@ const gl = canvas.getContext('webgl');
 let paused = false;
 let startTime = performance.now();
 let pauseTime = 0;
-let kValue = 1.0;
+let gValue = 0.0;
 
 const vsrc = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
 const fsrc = `
 precision highp float;
-uniform float t, k;
+uniform float t, g;
 uniform vec2 r;
 
-void main() {
-  vec2 u = (gl_FragCoord.xy * 2. - r) / r.y;
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
 
-  // Voronoi — distance to nearest of 9 drifting seeds
-  float m = 9.;
-  float m2 = 9.; // second nearest for edge detection
-  for (int i = 0; i < 9; i++) {
-    float f = float(i);
-    vec2 c = vec2(mod(f, 3.) - 1., floor(f / 3.) - 1.) + .3 * sin(t * .5 + vec2(f, f * 3.));
-    float d = length(u - c);
-    if (d < m) { m2 = m; m = d; }
-    else if (d < m2) { m2 = d; }
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(i), hash(i + vec2(1, 0)), f.x),
+    mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x),
+    f.y
+  );
+}
+
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * noise(p);
+    p = p * 2.1 + vec2(1.7, 9.2);
+    a *= 0.5;
   }
+  return v;
+}
 
-  // Phase transition: k controls the sharpness
-  float v = pow(m, k);
-  float edge = pow(m2 - m, k * 0.6); // cell boundary sharpness
+void main() {
+  vec2 u = (gl_FragCoord.xy * 2.0 - r) / r.y;
 
-  // Color: deep indigo interior → teal at boundaries → white at sharp edges
-  vec3 col = vec3(.015, .015, .05) + vec3(.06, .32, .28) * v;
-  col += vec3(.35, .4, .35) * pow(v, 2.5);
-  col += vec3(.2, .55, .45) * .008 / (.003 + edge * edge); // edge glow
+  float rad = length(u);
+  float angle = atan(u.y, u.x);
 
-  // Seed halos — faint magenta
-  col += vec3(.2, .06, .15) * .008 / (.004 + m * m);
+  // Medium grain — fbm noise field
+  float grain = fbm(u * 3.0 + vec2(t * 0.05, 0.0));
+  float grain2 = fbm(u * 5.0 - vec2(0.0, t * 0.03));
+
+  // Radial pulse with grain modulation
+  float phase = rad * 3.0 - t * 1.5 + g * grain * 2.0;
+  float pulse = sin(6.2832 * phase) * exp(-rad * 1.2);
+
+  // Second harmonic — faster, tighter
+  float phase2 = rad * 5.0 - t * 2.0 + g * grain2 * 2.5;
+  float pulse2 = sin(6.2832 * phase2) * exp(-rad * 1.8) * 0.4;
+
+  // Third layer — slow, wide breathing
+  float breath = 0.5 + 0.5 * sin(t * 0.8 - rad * 0.5);
+
+  float v = (pulse + pulse2) * (0.7 + 0.3 * breath);
+
+  // Vein detection — gradient discontinuity in grain field
+  float gx = fbm((u + vec2(0.01, 0.0)) * 3.0 + vec2(t * 0.05, 0.0)) - grain;
+  float gy = fbm((u + vec2(0.0, 0.01)) * 3.0 + vec2(t * 0.05, 0.0)) - grain;
+  float vein = length(vec2(gx, gy)) * 80.0;
+  vein = pow(vein, 1.5) * g * 0.3;
+
+  // Color palette — deep indigo base, teal pulse, magenta anti-pulse
+  vec3 col = vec3(0.012, 0.012, 0.045);
+  col += vec3(0.04, 0.28, 0.24) * max(v, 0.0);
+  col += vec3(0.18, 0.04, 0.10) * max(-v, 0.0);
+  col += vec3(0.12, 0.30, 0.26) * pow(max(v, 0.0), 3.0);
+
+  // Vein glow — subtle structural lines
+  col += vec3(0.06, 0.15, 0.13) * vein * smoothstep(0.0, 0.5, g);
+
+  // Center glow
+  col += vec3(0.08, 0.20, 0.16) * 0.015 / (0.008 + rad * rad);
 
   // Tone map + gamma
-  col = col / (1. + col);
-  col = pow(col, vec3(.4545));
-  gl_FragColor = vec4(col, 1.);
+  col = col / (1.0 + col);
+  col = pow(col, vec3(0.4545));
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
 function initGL() {
@@ -408,7 +448,7 @@ function initGL() {
 
   return {
     tLoc: gl.getUniformLocation(prog, 't'),
-    kLoc: gl.getUniformLocation(prog, 'k'),
+    gLoc: gl.getUniformLocation(prog, 'g'),
     rLoc: gl.getUniformLocation(prog, 'r')
   };
 }
@@ -430,7 +470,7 @@ function render() {
   if (!paused) {
     const elapsed = (performance.now() - startTime) / 1000;
     gl.uniform1f(locs.tLoc, elapsed);
-    gl.uniform1f(locs.kLoc, kValue);
+    gl.uniform1f(locs.gLoc, gValue);
     gl.uniform2f(locs.rLoc, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -451,18 +491,18 @@ function togglePause() {
 function resetSketch() {
   paused = false;
   startTime = performance.now();
-  kValue = 1.0;
-  document.getElementById('k-slider').value = 1.0;
-  document.getElementById('k-val').textContent = '1.00';
+  gValue = 0.0;
+  document.getElementById('g-slider').value = 0.0;
+  document.getElementById('g-val').textContent = '0.00';
   document.getElementById('pause-btn').textContent = 'pause';
 }
 
-// k slider — crystallization threshold
-const slider = document.getElementById('k-slider');
-const kDisp = document.getElementById('k-val');
+// g slider — medium grain
+const slider = document.getElementById('g-slider');
+const gDisp = document.getElementById('g-val');
 slider.addEventListener('input', e => {
-  kValue = parseFloat(e.target.value);
-  kDisp.textContent = kValue.toFixed(2);
+  gValue = parseFloat(e.target.value);
+  gDisp.textContent = gValue.toFixed(2);
 });
 
 </script>
