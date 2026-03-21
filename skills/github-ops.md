@@ -34,19 +34,21 @@ gh pr create --title "fix: 描述" --body "Closes #<N>"
 git push -u origin fix/issue-<N>-簡短描述
 ```
 
-## PR Review 準則
+## PR Review — 判斷思考
 
-看到 `<github-prs>` 中需要 review 的 PR：
+看到 `<github-prs>` 中需要 review 的 PR，先 `gh pr diff <N>`，然後問：
 
-1. `gh pr diff <N>` — 看改動
-2. 判斷：
-   - 改動符合 proposal/issue 描述？
-   - TypeScript strict mode 通過？
-   - 有沒有安全問題（OWASP top 10）？
-   - 符合 Meta-Constraints（C1-C4）？
-3. 行動：
-   - 通過：`gh pr review <N> --approve`
-   - 需要修改：`gh pr review <N> --request-changes --body "原因"`
+1. **這個 PR 解決了它宣稱要解決的問題嗎？** 看 issue/proposal 描述，對照 diff。改了很多但沒解決核心問題 = 方向錯了。改了一行但精準命中 = 夠了。
+2. **merge 後如果壞了，影響範圍多大？能多快修？** 改 1 個工具函數 ≠ 改 loop.ts 核心邏輯。blast radius 決定你要多仔細看。
+3. **一個不認識這段 code 的人，能從 diff 看懂改了什麼？為什麼？** PR 不只是給 reviewer 看 — 三個月後的 git blame 也要能看懂。
+
+深度技術 review → 用 code-review.md 的五個思考問題。
+
+**機械性檢查**（必須通過）：TypeScript strict mode 通過、CI checks 全綠。
+
+**行動**：
+- 通過：`gh pr review <N> --approve`
+- 需要修改：`gh pr review <N> --request-changes --body "原因"`
 
 ## Mixed Review 模型
 
