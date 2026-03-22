@@ -210,6 +210,60 @@ body::after {
   font-weight: 500;
 }
 
+/* ═══ Page Guide ═══ */
+.page-guide {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  padding: 0 clamp(20px, 5vw, 40px) 32px;
+}
+.page-guide-inner {
+  border-top: 1px solid var(--border);
+  padding-top: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.page-guide-back a {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.page-guide-back a:hover { color: var(--teal); }
+.page-guide-related {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.page-guide-related-label {
+  color: var(--text-dim);
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 10px;
+}
+.page-guide-related a {
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: color 0.2s, border-color 0.2s;
+}
+.page-guide-related a:hover { color: var(--teal); border-color: var(--teal); }
+
+@media (max-width: 640px) {
+  .page-guide-inner {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .page-guide-related {
+    justify-content: flex-start;
+  }
+}
+
 /* ═══ Footer ═══ */
 .footer {
   text-align: center;

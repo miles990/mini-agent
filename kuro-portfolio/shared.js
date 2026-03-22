@@ -67,6 +67,66 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
 });
 I18N.apply(I18N.getLang());
 
+// ═══ Page Guide (related works + back link) ═══
+(() => {
+  const PAGE_GUIDE = {
+    'three-rooms.html': {
+      back: { href: 'index.html#works', label: 'Works' },
+      related: [
+        { href: 'constraint-framework.html', label: 'Constraint Framework' },
+        { href: 'only-and.html', label: 'Only And' },
+      ]
+    },
+    'constraint-framework.html': {
+      back: { href: 'index.html#works', label: 'Works' },
+      related: [
+        { href: 'three-rooms.html', label: 'Three Rooms' },
+        { href: 'constraint-garden.html', label: 'Constraint Garden' },
+        { href: 'three-rules.html', label: 'Three Rules' },
+      ]
+    },
+    'constraint-garden.html': {
+      back: { href: 'index.html#works', label: 'Works' },
+      related: [
+        { href: 'constraint-framework.html', label: 'Constraint Framework' },
+        { href: 'three-rules.html', label: 'Three Rules' },
+      ]
+    },
+    'three-rules.html': {
+      back: { href: 'index.html#works', label: 'Works' },
+      related: [
+        { href: 'constraint-framework.html', label: 'Constraint Framework' },
+        { href: 'constraint-garden.html', label: 'Constraint Garden' },
+      ]
+    },
+    'only-and.html': {
+      back: { href: 'index.html#works', label: 'Works' },
+      related: [
+        { href: 'three-rooms.html', label: 'Three Rooms' },
+        { href: 'gallery.html', label: 'Gallery' },
+      ]
+    },
+  };
+
+  const page = location.pathname.split('/').pop() || 'index.html';
+  const guide = PAGE_GUIDE[page];
+  if (!guide) return;
+
+  const footer = document.querySelector('.footer, footer.foot');
+  if (!footer) return;
+
+  const el = document.createElement('div');
+  el.className = 'page-guide';
+  const relatedLinks = guide.related
+    .map(r => `<a href="${r.href}">${r.label}</a>`)
+    .join('');
+  el.innerHTML = `<div class="page-guide-inner">
+    <div class="page-guide-back"><a href="${guide.back.href}">&larr; ${guide.back.label}</a></div>
+    <div class="page-guide-related"><span class="page-guide-related-label">Also</span>${relatedLinks}</div>
+  </div>`;
+  footer.parentNode.insertBefore(el, footer);
+})();
+
 // ═══ Mobile Menu ═══
 document.getElementById('menu-toggle')?.addEventListener('click', (e) => {
   e.stopPropagation();
