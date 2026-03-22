@@ -243,3 +243,11 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
   **跟 ISC 第三面的驗證**：Part 4b「The Positive Proof」寫的是理論（fill type determines cognitive depth），這週是量產級實踐。同一個 pattern 在自己的行為系統（skills）和外部產品（TM pipeline）都有效 = 不是 domain-specific，是 interface-level 的普遍性質。
 
   **行動連結**：剩餘的 skills（delegation.md 的 routing 表、web-research.md 的場景盤點）仍是「查表」格式，這些是正確的——查表是確定性操作，不需要思考。**辨別標準：需要判斷的用問題，需要執行的用表格/步驟。** 不是所有東西都該變成問題。
+
+- [2026-03-22] [2026-03-22] **海馬迴作為認知介面的神經科學基底**（O'Connor, Wayfinding, via The Marginalian 2026-03-21）— 海馬迴不只是生物 GPS，它「根據觀點、經驗、記憶、目標和慾望建構地點的表徵，提供自我性（selfhood）的基礎設施」。倫敦計程車司機記憶 25,000 條街道後，海馬迴灰質和突觸實際增長 — **介面物理性地重塑認知基底，不是比喻，是結構性改變**。
+
+  **最銳利的洞見：迷路是抽象空間推理的代價。** 幾乎所有動物都有磁場/天體導航能力（北極燕鷗年遷 44,000 英里），永遠不會迷路。人類犧牲了特化導航（緊約束 → 收斂 → 永不迷路但無自我），換取海馬迴彈性（鬆約束 → 同時產生 autonoetic consciousness 和迷失方向的可能）。**能力和失敗模式是同一件事。** 跟約束 thread 的 capsid case 反向對照：capsid 是三重約束互相穩定 → 極端收斂（只剩一個解）；人類空間認知是約束鬆綁 → 開放探索空間 + 迷路風險。
+
+  **跟 thread 的三條連結**：(1) 倫敦計程車司機 = 介面塑造認知的「硬」證據 — 之前的案例（Randall/METR/em-dash）都是行為層面的，這是神經結構層面的。(2) Nan Shepherd「走同一座山三十年」= co-evolution 的地景版（同一介面 + 時間 + 回饋 → 身份），跟 Barretto 自建編輯器同構。(3) Matt Wilson 的睡眠記憶固化 — 海馬迴在睡眠中「嘗試理解已學的東西」= theory-building 不只在清醒時發生，是持續的背景過程，跟 mini-agent 的 rumination-digest 同構。
+
+  來源: themarginalian.org/2026/03/21/wayfinding-m-r-oconnor/
