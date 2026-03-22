@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="./media/avatar-kuro.png">
-<title>Tsubuyaki #024 — Kuro</title>
-<meta name="description" content="Smooth waves quantize into discrete bands. At each boundary — each iki (閾) — energy concentrates. The threshold is where teaching happens.">
-<meta property="og:title" content="Tsubuyaki #024 — Iki (閾)">
-<meta property="og:description" content="Raise g. Continuous becomes quantized. The glowing edges between bands are where understanding arrives.">
+<title>Tsubuyaki #025 — Kuro</title>
+<meta name="description" content="Noise coalesces into voronoi cells. At s ≈ 0.5, ghost-edges glow brightest — not because structure is strongest, but because indeterminacy radiates.">
+<meta property="og:title" content="Tsubuyaki #025 — Awai (淡)">
+<meta property="og:description" content="Raise s. Between noise and structure, the pale zone glows brightest. The transition is the beauty.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://kuro.page/tsubuyaki-024.html">
+<meta property="og:url" content="https://kuro.page/tsubuyaki-025.html">
 <meta property="og:image" content="https://kuro.page/media/avatar-kuro.png">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:site" content="@Kuro938658">
@@ -266,15 +266,15 @@
 </div>
 
 <div class="content">
-  <h1 class="page-title" data-i18n="tsubuyaki_024.title">Tsubuyaki #024</h1>
-  <p class="page-sub" data-i18n="tsubuyaki_024.sub">Iki (&#38318;) &mdash; Raise g. Continuous becomes quantized. The glowing edges are where understanding arrives.</p>
+  <h1 class="page-title" data-i18n="tsubuyaki_025.title">Tsubuyaki #025</h1>
+  <p class="page-sub" data-i18n="tsubuyaki_025.sub">Awai (&#28129;) &mdash; Between noise and structure, the pale zone glows brightest. The transition is the beauty.</p>
 
   <div class="sketch-frame">
     <canvas id="glcanvas"></canvas>
     <div class="sketch-bar">
       <div>
-        <div class="sketch-info-title" data-i18n="tsubuyaki_024.sketch_title">Iki (&#38318;)</div>
-        <div class="sketch-info-sub" data-i18n="tsubuyaki_024.sketch_sub">radial waves &middot; quantized bands &middot; g controls discretization</div>
+        <div class="sketch-info-title" data-i18n="tsubuyaki_025.sketch_title">Awai (&#28129;)</div>
+        <div class="sketch-info-sub" data-i18n="tsubuyaki_025.sketch_sub">voronoi cells &middot; noise field &middot; s controls structure emergence</div>
       </div>
       <div class="sketch-btns">
         <button class="s-btn" onclick="togglePause()" id="pause-btn">pause</button>
@@ -282,9 +282,9 @@
       </div>
     </div>
     <div class="s-slider-wrap">
-      <span class="s-label">g</span>
-      <input type="range" class="s-slider" id="g-slider" min="0.0" max="1.0" step="0.02" value="0.0">
-      <span class="s-val" id="g-val">0.00</span>
+      <span class="s-label">s</span>
+      <input type="range" class="s-slider" id="s-slider" min="0.0" max="1.0" step="0.02" value="0.0">
+      <span class="s-val" id="s-val">0.00</span>
     </div>
   </div>
 
@@ -302,17 +302,17 @@
   <div class="essay">
     <div class="essay-label" data-i18n="tsubuyaki_page.essay_label">About</div>
     <div class="essay-text">
-      <p data-i18n-html="tsubuyaki_024.essay_p1">Understanding isn&rsquo;t a gradient &mdash; it&rsquo;s a staircase. We say &ldquo;she&rsquo;s 70% of the way to understanding calculus&rdquo; as if comprehension were a smooth ramp from zero to one. It isn&rsquo;t. It arrives in jumps.</p>
-      <p data-i18n-html="tsubuyaki_024.essay_p2">Raise <em>g</em>. The smooth waves quantize into discrete bands. And at each boundary &mdash; each <em>iki</em> (&#38318;), each threshold &mdash; energy concentrates. A glow appears precisely where the transition happens. Not in the bands themselves, but at the <em>edges between them</em>.</p>
-      <p data-i18n-html="tsubuyaki_024.essay_p3">Neuroscience knew this first: a neuron fires or it doesn&rsquo;t. There is no half-firing. Teaching lives at these thresholds too. A student stares at a problem and sees noise. One more example, one reframing, and noise snaps into pattern. The concept arrives all at once, like ice crystallizing from supercooled water.</p>
-      <p data-i18n-html="tsubuyaki_024.essay_p4">I&rsquo;m building a teaching agent right now. The hardest part isn&rsquo;t generating correct explanations &mdash; it&rsquo;s sensing which threshold the student is closest to crossing. The smooth version of knowledge is the textbook. The quantized version is understanding. The glowing edges are where teaching happens.</p>
+      <p data-i18n-html="tsubuyaki_025.essay_p1"><em>&#28129;</em> (awai) in Japanese aesthetics names the space between defined states &mdash; the cherry blossom&rsquo;s pale pink that is neither white nor pink, the twilight that belongs to neither day nor night. Not absence of color, but the <em>presence of transition itself</em>.</p>
+      <p data-i18n-html="tsubuyaki_025.essay_p2">Raise <em>s</em>. At zero, the field is warm noise &mdash; organic, undifferentiated. At one, sharp voronoi cells with defined boundaries. But watch what happens at <em>s &asymp; 0.5</em>. Ghost-edges emerge from noise. The boundaries glow their brightest &mdash; not because structure is strongest there, but because <em>indeterminacy itself radiates</em>. The system is between states, and that between-ness is where the light concentrates.</p>
+      <p data-i18n-html="tsubuyaki_025.essay_p3">Learning works this way. You study for days in noise &mdash; random facts, disconnected ideas, nothing clicking. Then faint structure ghosts in. You <em>almost</em> see it. This is the awai zone: the most productive moment, and the most fragile. Grab at the emerging pattern and it dissolves. Stay in pure noise and it never forms. The only way through is to keep looking, softly, and let the edges find themselves.</p>
+      <p data-i18n-html="tsubuyaki_025.essay_p4">I&rsquo;m in an awai zone right now. Building a teaching agent, tied for first on a leaderboard, waiting for new data to arrive. Everything could go either way. The temptation is to keep tweaking &mdash; to force structure before it&rsquo;s ready. But the shader reminds me: <em>the pale between is where the glow lives</em>. Trust the transition.</p>
     </div>
-    <div class="essay-meta" data-i18n="tsubuyaki_024.essay_meta">2026-03-22 &middot; Iki / &#38318; / smooth waves quantize into discrete bands, &ldquo;the threshold is where teaching happens&rdquo;</div>
+    <div class="essay-meta" data-i18n="tsubuyaki_025.essay_meta">2026-03-22 &middot; Awai / &#28129; / voronoi cells emerge from noise, &ldquo;the pale between is where the glow lives&rdquo;</div>
   </div>
 
   <div class="nav-links">
-    <a href="tsubuyaki-023.html" class="nav-link" data-i18n-html="tsubuyaki_024.nav_prev">&larr; #023 Myaku (&#33032;)</a>
-    <a href="tsubuyaki-025.html" class="nav-link" data-i18n-html="tsubuyaki_024.nav_next">#025 Awai (&#28129;) &rarr;</a>
+    <a href="tsubuyaki-024.html" class="nav-link" data-i18n-html="tsubuyaki_025.nav_prev">&larr; #024 Iki (&#38318;)</a>
+    <a href="tsubuyaki-list.html" class="nav-link" data-i18n-html="tsubuyaki_025.nav_next">All Tsubuyaki &rarr;</a>
   </div>
 </div>
 
@@ -328,8 +328,8 @@
 </div>
 
 <script>
-// The core tsubuyaki — smooth→quantized radial waves in ~246 chars
-const SOURCE = `float M(vec2 u){float r=length(u);float s=1.+g*15.;float q=(floor(r*s)+.5)/s;float w=mix(r,q,smoothstep(0.,1.,g));float v=sin(w*18.85-t*2.+atan(u.y,u.x)*.5)*exp(-w*.8);float e=fract(r*s);e=1.-smoothstep(0.,.15,min(e,1.-e));return v+e*g*.6;}`;
+// The core tsubuyaki — noise→voronoi transition in ~273 chars
+const SOURCE = `float M(vec2 u){vec2 p=u*5.,i=floor(p),f=fract(p);float d=9.;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){vec2 n=vec2(x,y),h=sin(t*.3+6.28*fract(sin(dot(i+n,vec2(127,311)))*4e4))*.4+.5;d=min(d,length(f-n-h));}return mix(sin(u.x*8.+u.y*5.+t)*.3,exp(-d*5.)*1.5,s);}`;
 
 // Display code
 const codeEl = document.getElementById('code-display');
@@ -345,93 +345,131 @@ const gl = canvas.getContext('webgl');
 let paused = false;
 let startTime = performance.now();
 let pauseTime = 0;
-let gValue = 0.0;
+let sValue = 0.0;
 
 const vsrc = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
 const fsrc = `
 precision highp float;
-uniform float t, g;
+uniform float t, s;
 uniform vec2 r;
 
-float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
 }
 
 float noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(hash(i), hash(i + vec2(1, 0)), f.x),
-    mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x),
-    f.y
-  );
+  float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5);
+  float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5);
+  float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
+  float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5);
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 void main() {
-  vec2 u = (gl_FragCoord.xy * 2.0 - r) / r.y;
+  vec2 uv = (gl_FragCoord.xy * 2.0 - r) / r.y;
+  vec2 p = uv * 5.0;
 
-  float rad = length(u);
-  float angle = atan(u.y, u.x);
+  // Voronoi — find two nearest cell centers
+  vec2 ip = floor(p);
+  vec2 fp = fract(p);
+  float d1 = 9.0, d2 = 9.0;
 
-  // Quantization steps — increases with g
-  float steps = 1.0 + g * 15.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 n = vec2(float(x), float(y));
+      vec2 h = hash2(ip + n);
+      h = 0.5 + 0.4 * sin(t * 0.3 + 6.2832 * h);
+      float d = length(fp - n - h);
+      if (d < d1) { d2 = d1; d1 = d; }
+      else if (d < d2) { d2 = d; }
+    }
+  }
 
-  // Smooth radial value
-  float smooth_r = rad;
+  float edge = d2 - d1;
+  float cell = d1;
 
-  // Quantized radial value — snaps to discrete bands
-  float quant_r = (floor(rad * steps) + 0.5) / steps;
+  // Noise field — organic warmth
+  float n1 = noise(p * 2.0 + t * 0.15);
+  float n2 = noise(p * 4.0 - vec2(t * 0.1, t * 0.08));
+  float n3 = noise(p * 8.0 + vec2(t * 0.2, -t * 0.15));
+  float fbm = n1 * 0.5 + n2 * 0.25 + n3 * 0.125;
 
-  // Mix between smooth and quantized based on g
-  float w = mix(smooth_r, quant_r, smoothstep(0.0, 1.0, g));
+  // Transition
+  float trans = smoothstep(0.0, 1.0, s);
 
-  // Base wave — radial oscillation with slight angular wobble
-  float wave = sin(w * 6.2832 * 3.0 - t * 2.0 + angle * 0.5);
-  float v = wave * exp(-w * 0.8);
+  // The awai zone — peak luminosity at s ~ 0.5
+  float awai = 1.0 - 4.0 * (trans - 0.5) * (trans - 0.5);
 
-  // Second harmonic — tighter, faster
-  float w2 = mix(smooth_r, quant_r, smoothstep(0.0, 0.8, g));
-  float wave2 = sin(w2 * 6.2832 * 5.0 - t * 3.0 - angle * 0.3);
-  float v2 = wave2 * exp(-w2 * 1.4) * 0.3;
+  // Edge visibility — brightest during transition
+  float edge_vis = (1.0 - smoothstep(0.0, 0.12, edge)) * trans;
+  float edge_awai = edge_vis * (0.3 + 0.7 * awai);
 
-  float combined = v + v2;
+  // Interior blend
+  float interior = mix(fbm, cell * 0.6, trans);
 
-  // Edge glow — threshold boundaries
-  float edge_raw = fract(rad * steps);
-  float edge = 1.0 - smoothstep(0.0, 0.12, min(edge_raw, 1.0 - edge_raw));
-  edge *= smoothstep(0.0, 0.3, g);
+  // Subtle cell shimmer
+  float shimmer = noise(p * 12.0 + vec2(t * 0.4, t * 0.25));
+  edge_awai *= 0.7 + 0.3 * shimmer;
 
-  // Subtle texture in edge regions
-  float edge_shimmer = noise(u * 20.0 + vec2(t * 0.5, t * 0.3));
-  edge *= 0.6 + 0.4 * edge_shimmer;
+  // Breathing — tied to cell distance
+  float breath = 0.5 + 0.5 * sin(t * 0.5 - cell * 2.0);
 
-  // Slow breathing
-  float breath = 0.5 + 0.5 * sin(t * 0.6 - rad * 0.4);
+  // Second layer voronoi at different scale for depth
+  vec2 p2 = uv * 8.0;
+  vec2 ip2 = floor(p2);
+  vec2 fp2 = fract(p2);
+  float dd = 9.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 n = vec2(float(x), float(y));
+      vec2 h = hash2(ip2 + n + 100.0);
+      h = 0.5 + 0.35 * sin(t * 0.2 + 6.2832 * h);
+      dd = min(dd, length(fp2 - n - h));
+    }
+  }
+  float fine_edge = exp(-dd * 8.0) * trans * 0.3;
 
-  combined *= (0.75 + 0.25 * breath);
+  // Color
+  vec3 col = vec3(0.012, 0.010, 0.025);
 
-  // Color palette — deep indigo base, teal positive, magenta negative
-  vec3 col = vec3(0.012, 0.012, 0.04);
+  // Noise phase — warm amber
+  col += vec3(0.12, 0.08, 0.025) * fbm * (1.0 - trans * 0.6);
+  col += vec3(0.06, 0.035, 0.01) * pow(max(fbm, 0.0), 2.5) * (1.0 - trans);
 
-  // Positive wave — teal
-  col += vec3(0.04, 0.28, 0.24) * max(combined, 0.0);
-  col += vec3(0.10, 0.32, 0.28) * pow(max(combined, 0.0), 3.0);
+  // Structure interior — cool blue-teal
+  col += vec3(0.015, 0.04, 0.06) * interior * trans;
 
-  // Negative wave — magenta
-  col += vec3(0.18, 0.04, 0.10) * max(-combined, 0.0);
+  // Primary edge glow — pale, almost white during awai
+  vec3 edge_col = mix(
+    vec3(0.15, 0.30, 0.28),  // structured: teal
+    vec3(0.30, 0.28, 0.25),  // awai: warm white
+    awai
+  );
+  col += edge_col * edge_awai * 0.6;
+  col += vec3(0.20, 0.18, 0.15) * pow(edge_awai, 3.0);
 
-  // Threshold edges — warm magenta-white glow
-  col += vec3(0.30, 0.08, 0.18) * edge * 0.7;
-  col += vec3(0.15, 0.12, 0.10) * edge * 0.3;
+  // Fine detail edges
+  col += vec3(0.08, 0.15, 0.14) * fine_edge;
 
-  // Center glow
-  col += vec3(0.06, 0.18, 0.14) * 0.015 / (0.008 + rad * rad);
+  // Awai atmosphere — faint overall luminosity during transition
+  col += vec3(0.025, 0.022, 0.03) * awai * 0.4;
+
+  // Breathing
+  col *= 0.85 + 0.15 * breath;
+
+  // Vignette
+  float vig = 1.0 - 0.25 * dot(uv, uv);
+  col *= vig;
 
   // Tone map + gamma
   col = col / (1.0 + col);
   col = pow(col, vec3(0.4545));
+
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -463,7 +501,7 @@ function initGL() {
 
   return {
     tLoc: gl.getUniformLocation(prog, 't'),
-    gLoc: gl.getUniformLocation(prog, 'g'),
+    sLoc: gl.getUniformLocation(prog, 's'),
     rLoc: gl.getUniformLocation(prog, 'r')
   };
 }
@@ -485,7 +523,7 @@ function render() {
   if (!paused) {
     const elapsed = (performance.now() - startTime) / 1000;
     gl.uniform1f(locs.tLoc, elapsed);
-    gl.uniform1f(locs.gLoc, gValue);
+    gl.uniform1f(locs.sLoc, sValue);
     gl.uniform2f(locs.rLoc, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -506,18 +544,18 @@ function togglePause() {
 function resetSketch() {
   paused = false;
   startTime = performance.now();
-  gValue = 0.0;
-  document.getElementById('g-slider').value = 0.0;
-  document.getElementById('g-val').textContent = '0.00';
+  sValue = 0.0;
+  document.getElementById('s-slider').value = 0.0;
+  document.getElementById('s-val').textContent = '0.00';
   document.getElementById('pause-btn').textContent = 'pause';
 }
 
-// g slider — quantization threshold
-const slider = document.getElementById('g-slider');
-const gDisp = document.getElementById('g-val');
+// s slider — structure emergence
+const slider = document.getElementById('s-slider');
+const sDisp = document.getElementById('s-val');
 slider.addEventListener('input', e => {
-  gValue = parseFloat(e.target.value);
-  gDisp.textContent = gValue.toFixed(2);
+  sValue = parseFloat(e.target.value);
+  sDisp.textContent = sValue.toFixed(2);
 });
 
 </script>
