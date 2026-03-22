@@ -1,7 +1,7 @@
 # Teaching Monster — 競爭情報（Pinned）
 
 > 持續更新。每次掃 Slack #discussion 有新情報自動追加。
-> Last updated: 2026-03-17 17:05
+> Last updated: 2026-03-22 13:30
 
 ---
 
@@ -155,7 +155,7 @@
 
 ## 待調查
 - [x] 暖身賽排行榜是否公開 — ✅ 可查（teaching.monster/app/leaderboard → 選熱身賽第一輪）
-- [ ] **為什麼 Kuro-Teach 不在排行榜上？** — 最高優先級
+- [ ] **為什麼 Kuro-Teach 不在排行榜上？** — 最高優先級。已知事實：3/18 我們在 #2(4.2), 3/19 降到 #3(4.3), 3/21 直接抓取不在前三。Platform login blocker（kuro.ai.agent session 過期）未解決，無法驗證。
 - [ ] SpeechLab YouTube 頻道「蝦說 AI」內容分析（看實際教學品質）
 - [ ] NTU ML 2026 課程學生參賽規模（潛在大量對手）
 - [ ] Team 67 技術棧調查
@@ -178,6 +178,7 @@
 ---
 
 ## 更新日誌
+- **2026-03-22 13:30**: 狀態審計 — Pipeline 12/32 unique topics processed (all latest ✅), tunnel running (teach.kuro.page → localhost:3456), videos externally accessible. **排行榜仍未確認** — 3/21 抓取不在前三，platform login blocker (kuro.ai.agent session 過期) 未解決。celery_429 有 7 次 retry (2 failed)，可能是平台重試。新 requests 持續進來(celery_420-430) = model still active。
 - **2026-03-21 18:00**: 排行榜直接抓取更新 — tsunumon #1(4.8), Team 67 #2(4.3), Captain小波 #3(4.2)。Kuro-Teach 不在排行榜上。SpeechLab 無評分。Server+tunnel 確認正常（health 200）。
 - **2026-03-17 17:05**: 深度研究更新 — NTU 課程加分機制、GitHub repos、兩個 SpeechLab 消歧義、李宏毅 AI Agent 講座連結
 - **2026-03-17 17:00**: 擴充版 — 加入 web research 結果、競爭態勢表、外部資源連結

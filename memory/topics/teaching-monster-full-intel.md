@@ -120,7 +120,7 @@
 | **SpeechLab (小金)** | 32/32 ✅ | GPT-4o + ElevenLabs + @napi-rs/canvas | 高 |
 | **阿宇** | 未知 | Haiku+Sonnet 雙模型 pipeline | 中 |
 | **John Hsieh** | 未知 | Cloudflare Tunnel 部署 | 低 |
-| **我們** | **0/32** | Claude + TTS + 投影片渲染 | — |
+| **我們 (Kuro-Teach)** | **12/32** (new reqs) ⚠️ 不在排行榜(3/21) | Claude Sonnet + Kokoro TTS + KaTeX slides + quality review | — |
 
 ### SpeechLab 深度分析
 - 台大李宏毅實驗室，XiaoJin v10+
