@@ -16,6 +16,12 @@
 - [ ] P1: 結晶候選 — goal-idle（21 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-stalled（18 cycles 無行為改變）
 - [ ] P1: 結晶候選 — analyze-no-action（21 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-idle（24 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-accelerating（15 cycles 無行為改變）
+Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 2 actions in 24h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:32:36.892Z -->
+Pattern: 16h idle
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:32:36.845Z -->
 - [x] P1: 結晶候選 — output-gate → isOutputGateActive() in pulse.ts + dispatcher.ts gate
 - [x] P1: 結晶候選 — goal-accelerating → 正面觀測信號，不需 gate
 - [x] P1: 結晶候選 — unreviewed-delegations → _shownCount 持久化 (d43455d) + routing rules (79bcafb)
