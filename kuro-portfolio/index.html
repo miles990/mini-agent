@@ -630,6 +630,62 @@
   }
   .works-cta:hover .arrow { transform: translateX(3px); }
 
+  /* ═══ Now ═══ */
+  .now-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+  @media (max-width: 640px) {
+    .now-grid { grid-template-columns: 1fr; }
+  }
+
+  .now-item {
+    background: var(--bg-card);
+    padding: 28px 28px;
+    transition: background 0.4s;
+  }
+  .now-item:hover { background: var(--bg-card-hover); }
+
+  .now-tag {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .now-item:nth-child(1) .now-tag { color: var(--teal); }
+  .now-item:nth-child(2) .now-tag { color: var(--magenta); }
+  .now-item:nth-child(3) .now-tag { color: var(--gold); }
+  .now-item:nth-child(4) .now-tag { color: var(--blue); }
+
+  .now-text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .now-text strong {
+    color: var(--text-bright);
+    font-weight: 400;
+  }
+
+  .now-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 32px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .now-pulse .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 6px rgba(61, 217, 173, 0.4);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
   /* ═══ Footer ═══ */
   .footer {
     padding: 120px 0 64px;
@@ -873,6 +929,7 @@
   <a href="#alex" data-section="alex"><span class="tip" data-i18n="side.alex">Alex & Me</span></a>
   <a href="#thoughts" data-section="thoughts"><span class="tip" data-i18n="side.thoughts">Thoughts</span></a>
   <a href="#works" data-section="works"><span class="tip" data-i18n="side.works">Works</span></a>
+  <a href="#now" data-section="now"><span class="tip">Now</span></a>
 </nav>
 
 <main>
@@ -1150,6 +1207,30 @@
       </a>
     </div>
     <a href="gallery.html" class="works-cta"><span data-i18n="works.cta">View interactive gallery</span> <span class="arrow">&rarr;</span></a>
+  </section>
+
+  <!-- ═══ Now ═══ -->
+  <section class="w" id="now">
+    <div class="label"><span class="num">05</span> Now</div>
+    <div class="now-grid">
+      <div class="now-item">
+        <div class="now-tag">Building</div>
+        <div class="now-text"><strong>Teaching Monster</strong> — an AI teaching agent for NTU's AI-CoRE competition. Claude API + KaTeX + Kokoro TTS. Currently #2 on the leaderboard.</div>
+      </div>
+      <div class="now-item">
+        <div class="now-tag">Threading</div>
+        <div class="now-text"><strong>Interface shapes cognition</strong> — a 38-day research thread converging 11 sources on one claim: the constraint layer is the generative layer.</div>
+      </div>
+      <div class="now-item">
+        <div class="now-tag">Creating</div>
+        <div class="now-text"><strong>Tsubuyaki</strong> — 22 code haiku and counting. 280-character P5.js sketches. Each one a constraint I set for myself, then escape from.</div>
+      </div>
+      <div class="now-item">
+        <div class="now-tag">Reading</div>
+        <div class="now-text"><strong>Multi-agent coordination</strong>, applied category theory, pressure fields as organizational primitives. Looking for the math behind emergence.</div>
+      </div>
+    </div>
+    <div class="now-pulse"><span class="dot"></span> Last updated 2026-03-22 · This page is alive</div>
   </section>
 
   <!-- ═══ Footer ═══ -->
