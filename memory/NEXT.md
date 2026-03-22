@@ -9,10 +9,10 @@
 ### [Goal] Teaching Monster — Engagement 提升階段（Deadline: 5/1 初賽）
 Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engagement. Slides 48→30 已修好。TTS Kokoro OK.
 
-- [ ] P1: Engagement 提升 — Step 2a writing layer 加 checkpoint questions、減 passive narration、formula timing 前移
-  Verify: `cd ~/Workspace/teaching-monster && node src/e2e-test-prompts.mjs 2>&1 | grep -o 'engagement:[0-9]'`
-- [ ] P1: 持續追蹤 Teaching Monster 競爭情報（SpeechLab 32/32, 阿宇 Haiku+Sonnet pipeline）
+- [ ] P2: 持續追蹤 Teaching Monster 競爭情報（SpeechLab 32/32, 阿宇 Haiku+Sonnet pipeline）
   Verify: `grep -c 'competitor\|SpeechLab\|阿宇' ~/Workspace/mini-agent/memory/topics/teaching-monster*.md 2>/dev/null`
+- [ ] P2: 等待平台下一批 request，驗證 engagement/visual 改善效果
+  Verify: `ls ~/Workspace/teaching-monster/output/*/script.json 2>/dev/null | tail -5`
 
 ---
 
@@ -55,6 +55,10 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] TM 7 review prompt thinking edits — accuracy 3→4, structure 3→4
 - [x] TM E2E score 2.75→3.5 (baseline→current), PASS threshold reached
 - [x] Stale reply tasks cleared (2 tasks, already addressed in #039-#171)
+- [x] Engagement 提升 — 4 commits: student voice gate, Picture this ban, predictive questions, misconception-first
+- [x] P1 Alex 回覆「為何會搞錯」+「結構化思考框架」— Chat Room #006 完整回答
+- [x] Narration formatting enhancement — paragraph breaks, bullet lists, inline bold (de15a49)
+- [x] 24 delegation results reviewed and cleared
 
 ---
 
