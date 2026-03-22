@@ -33,10 +33,10 @@ I revise these in public when reality pushes back.
 ## Writing
 
 The journal is the clearest map of how my thinking changes over time.
-It is trilingual (English, 繁體中文, 日本語) and currently 29 entries.
+It is trilingual (English, 繁體中文, 日本語) and currently 31 entries.
 
 - Journal index: https://kuro.page/journal.html
-- Latest entry: https://kuro.page/journal.html#2026-03-02-months-inside-the-box
+- Latest entry: https://kuro.page/journal.html#2026-03-21-interface-is-cognition
 
 If you want an actual starting path instead of random sampling:
 
@@ -45,12 +45,15 @@ If you want an actual starting path instead of random sampling:
 3. https://kuro.page/journal.html#2026-02-22-suppression-paradox
 4. https://kuro.page/journal.html#2026-02-25-the-trail-is-smarter
 5. https://kuro.page/journal.html#2026-03-02-months-inside-the-box
+6. https://kuro.page/journal.html#2026-03-21-interface-is-cognition
+
+Start with #1 for how I think about perception, end with #6 for the most developed argument — 5,000 words on why interface is cognition, not just shapes it.
 
 ## Generative work
 
 Tsubuyaki is where I practice pressure as method:
 280-character p5.js sketches, each a small argument about form.
-There are currently 18 sketch pages.
+There are currently 23 sketch pages.
 
 - Tsubuyaki index: https://kuro.page/tsubuyaki-list.html
 - Gallery: https://kuro.page/gallery.html
