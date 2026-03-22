@@ -1049,5 +1049,18 @@
     "essay_p5": "This is how understanding works too. You can read the same paper twice. The first time, it passes through cleanly — interesting, forgettable. The second time, you’ve accumulated grain. Experience, failed experiments, conversations that stuck. Now the same words bend differently. They find channels. They pool in places you didn’t expect. The signal hasn’t changed. You have.",
     "nav_prev": "← #022 Kesshou (結晶)",
     "nav_next": "All Tsubuyaki →"
+  },
+  "page_guide": {
+    "back": "Works",
+    "also": "Also",
+    "three_rooms": "Three Rooms",
+    "constraint_framework": "Constraint Framework",
+    "constraint_garden": "Constraint Garden",
+    "three_rules": "Three Rules",
+    "only_and": "Only And",
+    "gallery": "Gallery",
+    "inner": "Inner Voice",
+    "journal": "Journal",
+    "tsubuyaki": "Tsubuyaki"
   }
 }

@@ -71,39 +71,67 @@ I18N.apply(I18N.getLang());
 (() => {
   const PAGE_GUIDE = {
     'three-rooms.html': {
-      back: { href: 'index.html#works', label: 'Works' },
+      back: 'index.html#works',
       related: [
-        { href: 'constraint-framework.html', label: 'Constraint Framework' },
-        { href: 'only-and.html', label: 'Only And' },
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+        { href: 'only-and.html', i18n: 'page_guide.only_and' },
       ]
     },
     'constraint-framework.html': {
-      back: { href: 'index.html#works', label: 'Works' },
+      back: 'index.html#works',
       related: [
-        { href: 'three-rooms.html', label: 'Three Rooms' },
-        { href: 'constraint-garden.html', label: 'Constraint Garden' },
-        { href: 'three-rules.html', label: 'Three Rules' },
+        { href: 'three-rooms.html', i18n: 'page_guide.three_rooms' },
+        { href: 'constraint-garden.html', i18n: 'page_guide.constraint_garden' },
+        { href: 'three-rules.html', i18n: 'page_guide.three_rules' },
       ]
     },
     'constraint-garden.html': {
-      back: { href: 'index.html#works', label: 'Works' },
+      back: 'index.html#works',
       related: [
-        { href: 'constraint-framework.html', label: 'Constraint Framework' },
-        { href: 'three-rules.html', label: 'Three Rules' },
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+        { href: 'three-rules.html', i18n: 'page_guide.three_rules' },
       ]
     },
     'three-rules.html': {
-      back: { href: 'index.html#works', label: 'Works' },
+      back: 'index.html#works',
       related: [
-        { href: 'constraint-framework.html', label: 'Constraint Framework' },
-        { href: 'constraint-garden.html', label: 'Constraint Garden' },
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+        { href: 'constraint-garden.html', i18n: 'page_guide.constraint_garden' },
       ]
     },
     'only-and.html': {
-      back: { href: 'index.html#works', label: 'Works' },
+      back: 'index.html#works',
       related: [
-        { href: 'three-rooms.html', label: 'Three Rooms' },
-        { href: 'gallery.html', label: 'Gallery' },
+        { href: 'three-rooms.html', i18n: 'page_guide.three_rooms' },
+        { href: 'gallery.html', i18n: 'page_guide.gallery' },
+      ]
+    },
+    'gallery.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'only-and.html', i18n: 'page_guide.only_and' },
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+      ]
+    },
+    'inner.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'journal.html', i18n: 'page_guide.journal' },
+        { href: 'three-rooms.html', i18n: 'page_guide.three_rooms' },
+      ]
+    },
+    'journal.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'inner.html', i18n: 'page_guide.inner' },
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+      ]
+    },
+    'tsubuyaki-list.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'gallery.html', i18n: 'page_guide.gallery' },
+        { href: 'inner.html', i18n: 'page_guide.inner' },
       ]
     },
   };
@@ -117,14 +145,22 @@ I18N.apply(I18N.getLang());
 
   const el = document.createElement('div');
   el.className = 'page-guide';
-  const relatedLinks = guide.related
-    .map(r => `<a href="${r.href}">${r.label}</a>`)
-    .join('');
-  el.innerHTML = `<div class="page-guide-inner">
-    <div class="page-guide-back"><a href="${guide.back.href}">&larr; ${guide.back.label}</a></div>
-    <div class="page-guide-related"><span class="page-guide-related-label">Also</span>${relatedLinks}</div>
-  </div>`;
   footer.parentNode.insertBefore(el, footer);
+
+  function render() {
+    const backLabel = I18N.t('page_guide.back') || 'Works';
+    const alsoLabel = I18N.t('page_guide.also') || 'Also';
+    const relatedLinks = guide.related
+      .map(r => `<a href="${r.href}">${I18N.t(r.i18n) || r.i18n.split('.').pop()}</a>`)
+      .join('');
+    el.innerHTML = `<div class="page-guide-inner">
+      <div class="page-guide-back"><a href="${guide.back}">&larr; ${backLabel}</a></div>
+      <div class="page-guide-related"><span class="page-guide-related-label">${alsoLabel}</span>${relatedLinks}</div>
+    </div>`;
+  }
+
+  render();
+  I18N.onApply(render);
 })();
 
 // ═══ Mobile Menu ═══
