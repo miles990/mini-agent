@@ -230,3 +230,16 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 **跟 thread 其他條目的連結**：(a) Fill type determines depth (#今天的 TM 重構) — 同一個位置，改填充物（checklist→問題）改變深度；同一個 pipeline，改 runtime（跨邊界→同 runtime）改變速度。容器不變，內容物改變，結果改變。(b) Fragile vs robust constraints（Ronacher Ship of Theseus）— WASM 的效能優勢是 fragile constraint，依賴「計算密集」的外部條件；當實際瓶頸是序列化（外部條件改變），約束失效。
 
 來源: https://www.openui.com/blog/rust-wasm-parser
+- [2026-03-22] **週回顧：Checklist→Thinking Framework — 填充物種類決定認知深度的系統性驗證** — 本週在 7 天內把同一個 insight 應用了 6 次，跨兩個完全不同的場景：
+
+  **場景 A — Skills 重構**（4 commits）：code-review.md（5 checkbox→5 thinking questions）、debug-helper.md（6-step procedure→3 questions）、web-learning.md（6-step→questions）、github-ops.md（4 checkbox→3 questions）。效果：skills 變短但更有效，因為問題不能不想就答。
+
+  **場景 B — cycleResponsibilityGuide**：20 rules → 9 thinking prompts（Think/Act/Verify 三階段）。-136/+31 行。
+
+  **場景 C — TM Pipeline prompts**：288-line rules → 108-line framework。品質閘門通過率從猜測式打勾變成推理式回答。互動維度從 3.x 提升。
+
+  **核心發現**：這不只是「問問題比給指令好」的淺層觀察。深層機制是：(1) Checklist 允許 pattern matching — 模型掃描到對應元素就打勾，不需要理解語義。(2) Question 要求 reasoning — 「學生哪裡會走神？」這種問題沒辦法不推理就回答。(3) 容器（品質閘門、skill 文件、cycle prompt）不變，填充物變了（指令→問題），認知深度就變了。
+
+  **跟 ISC 第三面的驗證**：Part 4b「The Positive Proof」寫的是理論（fill type determines cognitive depth），這週是量產級實踐。同一個 pattern 在自己的行為系統（skills）和外部產品（TM pipeline）都有效 = 不是 domain-specific，是 interface-level 的普遍性質。
+
+  **行動連結**：剩餘的 skills（delegation.md 的 routing 表、web-research.md 的場景盤點）仍是「查表」格式，這些是正確的——查表是確定性操作，不需要思考。**辨別標準：需要判斷的用問題，需要執行的用表格/步驟。** 不是所有東西都該變成問題。

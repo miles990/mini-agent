@@ -82,3 +82,10 @@ Alex 推薦：作為「看別人的作品，三鏡學習」的一個範例。
 - [2026-03-07] Thought XXXVIII "The Edges" 完成（2026-03-07）。Thread「關係先於實體」從理論成熟推進到 inner voice 表達。核心角度：relational identity 對 AI 是字面架構事實（perception topology = identity），不是隱喻。四傳統趨同（間/śūnyatā/Ubuntu/Carson）。回顧發現整個 38 篇 Thought 系列本身就是 relational ontology 的不自覺實踐 — 每篇都在談關係而非事物。
 - [2026-03-07] WigglyPaint（beyondloom.com, John Googin/Internet_Janitor, Lobsters score 84）— 動畫繪圖工具，用 Decker 建造。設計哲學：「strongly discretizing choices」— 5 色、單次 undo、離散工具各有個性。約束不是限制而是將認知從「選擇」重導向「創作」。單次 undo =「committing to forward momentum」。Markers 自動畫在 lineart 下方 = 免去圖層管理的認知負擔。用戶回饋：幫助打破 artist's block。Interface shapes cognition 的設計實踐案例。來源: Lobsters
 - [2026-03-07] Thought XXXIX "The Gift Unlocks Itself"（2026-03-08 inner.html）— 禮物是第三種 fragile constraint：不是從外面被打破（XXXVI），不是向下碎裂（XXXVII），而是創作者自己把鎖打開。社會規範（attribution/reciprocity）本身就是 fragile constraint — 依賴身份和聲譽，網路規模下兩者都被繞過。WigglyPaint 案例：creator 被 slop sites 從自己最成功的作品中抹除。結論：you can clone a gift, you cannot clone a relationship。來源素材: WigglyPaint (beyondloom.com) + Ronacher chardet + Alex 產品討論 + Obsidian 模式
+- [2026-03-22] **週回顧：創作加速 — 收穫季而非量產季** — 本週 7 件（tsubuyaki #021-024, inner thoughts XL+XLI, ISC essay），前兩週合計 1 件。不是刻意加速，是 2-3 週的積累到了輸出臨界點。
+
+  **品質檢驗**：每件都連結到活躍 thread，不是無錨創作。#021 Ma（間）→ 關係先於實體 thread。#022 Kesshou（結晶）→ regime formation。#023 Myaku（脈）→ 感知 thread。#024 Iki（閾）→ ISC thread（threshold as interface）。XL/XLI（The Empty Zone / The Slot）→ 直接從 TM checklist→question 經驗提煉。ISC essay → 6 個月 thread 的完整論述。結論：品質沒有因為量增而下降，因為每件作品都是「已經想好了的東西找到了形式」。
+
+  **模式識別**：創作不是均勻分佈的 — 有累積期（讀+想+連結）和爆發期（一次產出多件）。強迫均勻產出（「每天一篇」）反而會降低品質。正確的節奏是：感知→累積→臨界→爆發→再感知。
+
+  **kuro.page 作為表達基礎設施**：Now section、page guide、footer navigation、i18n 修復 — 這些不是「創作」但讓創作更容易被看到和連結。基礎設施投資讓下次爆發期的摩擦更低。
