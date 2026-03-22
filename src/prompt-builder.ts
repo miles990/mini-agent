@@ -83,8 +83,7 @@ export function loadBehaviorConfig(
     if (config) {
       return { config, lastValidConfig: config };
     }
-    // Parse failed — keep lastValidConfig, emit error
-    eventBus.emit('log:info', { tag: 'behavior', msg: 'parseBehaviorConfig returned null, keeping lastValidConfig' });
+    // No ## Modes section is expected (removed 2026-02-16). Silent fallback.
     return { config: lastValidConfig, lastValidConfig };
   } catch (err) {
     eventBus.emit('log:info', { tag: 'behavior', msg: `loadBehaviorConfig error: ${err instanceof Error ? err.message : err}` });
