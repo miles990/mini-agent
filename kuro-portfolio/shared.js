@@ -9,6 +9,7 @@ const I18N = (() => {
   const callbacks = [];
   let currentLang = localStorage.getItem('kuro-lang') || 'en';
   let data = null;
+  let fallbackData = null;
 
   async function loadLang(lang) {
     if (!cache[lang]) {
@@ -24,19 +25,27 @@ const I18N = (() => {
     return path.split('.').reduce((o, k) => o && o[k], obj);
   }
 
+  function resolveWithFallback(key) {
+    const val = resolve(data, key);
+    if (val) return val;
+    if (fallbackData && fallbackData !== data) return resolve(fallbackData, key);
+    return null;
+  }
+
   async function apply(lang) {
     data = await loadLang(lang);
     if (!data) return;
+    if (!fallbackData) fallbackData = await loadLang('en');
     currentLang = lang;
     localStorage.setItem('kuro-lang', lang);
     document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang;
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
-      const val = resolve(data, el.dataset.i18n);
+      const val = resolveWithFallback(el.dataset.i18n);
       if (val) el.textContent = val;
     });
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
-      const val = resolve(data, el.dataset.i18nHtml);
+      const val = resolveWithFallback(el.dataset.i18nHtml);
       if (val) el.innerHTML = val;
     });
 
@@ -47,7 +56,7 @@ const I18N = (() => {
     callbacks.forEach(cb => cb());
   }
 
-  function t(key) { return data ? resolve(data, key) : null; }
+  function t(key) { return data ? resolveWithFallback(key) : null; }
   function getLang() { return currentLang; }
   function onApply(cb) { callbacks.push(cb); }
   return { apply, getLang, t, loadLang, onApply };
