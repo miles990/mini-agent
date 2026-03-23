@@ -18,11 +18,12 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 ## Next（按優先度排序）
 
+- [ ] P1: 認知科學 Phase 0 — 純 prompt 改動提升 engagement（Alex 核准後開始）
+  內容：(a) monitoring checkpoints (b) 符號接地協議 (c) productive struggle (d) 對話式語氣
+  Verify: `grep -c 'monitoring\|grounding\|productive struggle' ~/Workspace/teaching-monster/src/multi-phase-prompts.mjs`
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
   Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
-- [x] P2: Elo Arena 差異化策略 — cognitive dissonance hooks + synthesis closings 已加入 prompt (13f662b)
 - [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
-- [ ] P2: Kokoro TTS prosody 研究 — 確認是否支援 emphasis markers 或 SSML
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
@@ -37,34 +38,14 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 ## Done（本週完成）
 
-- [x] TM 三階段思考框架取代 288 行規則清單 (a65058f)
-- [x] TM Sequential section 生成 — 前段 context 注入後段 (bcc65d5)
-- [x] TM Targeted revision loop — review 回饋驅動重寫 (757252e)
-- [x] TM Review scoring 6→8 維度 + 跨段一致性檢查 (ca2f843)
-- [x] TM Revision loop 正規化 bug 修復 (e8b320b)
-- [x] TM Review scores 寫進 script.json _meta 做品質追蹤 (25ccc27)
-- [x] TM Token 截斷 bug fix — maxTokens 2048→4096 (4a78b83)
-- [x] TTS 確認 Kokoro OK — 不需升級
-- [x] CPD Pilot run 完成（設計文件 + 腳本 + 6 traces）— 完整批次暫緩（成本考量）
-- [x] TM Step 2a 升級為思考框架式 — Phase 1+2 從規則清單轉思考引導 (3372b0b)
-- [x] TM Prompt fix — Phase 1 加回 CORE_ANALOGY callback + Gate Check 4 個機械檢查 (359e49a)
-- [x] Inner Thoughts XL (The Empty Zone) + XLI (The Slot) published (ee5101a)
-- [x] Delegation routing 結晶 — skill 新增 Routing Effectiveness section (79bcafb)
-- [x] TM Visual slides 加 heading + process 步驟放大 — generate-slides.mjs 8 處修改 (uncommitted, tested)
-- [x] Journal #31「Interface IS Cognition」5,200 字 — 37 天 ISC 研究蒸餾
-- [x] Tsubuyaki #022「結晶」互動視覺化上線
-- [x] TM Generation-layer fix: pace formula 48→30 slides (ddb00ca) + test bug fix persona passing (4b4f5d0)
-- [x] TM 7 review prompt thinking edits — accuracy 3→4, structure 3→4
+- [x] 認知科學 × TM 深度研究 — 21 個實證發現 + 14 設計原則 + 4 Phase 執行計劃
+- [x] browser-use 整合 Phase 1-2 完成 — browse delegation E2E 可用 (84f7f3e)
+- [x] kuro.page Journal Preview 區段上線 (abfaf6e)
 - [x] TM E2E score 2.75→3.5 (baseline→current), PASS threshold reached
-- [x] Stale reply tasks cleared (2 tasks, already addressed in #039-#171)
-- [x] Engagement 提升 — 4 commits: student voice gate, Picture this ban, predictive questions, misconception-first
-- [x] P1 Alex 回覆「為何會搞錯」+「結構化思考框架」— Chat Room #006 完整回答
-- [x] Narration formatting enhancement — paragraph breaks, bullet lists, inline bold (de15a49)
-- [x] 24 delegation results reviewed and cleared
-- [x] Pipeline 品質審查層 — Opus Final Gate 即審查層（每段生成後 Opus 評分+修正）
-- [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初、規則頁更新 (fa4dcfb)
-- [x] kuro.page 翻譯修復 + 404.html 品牌化頁面 (618902c)
+- [x] Engagement 提升 — 4 commits: student voice gate, predictive questions, misconception-first
+- [x] Pipeline 品質審查層 — Opus Final Gate（每段生成後 Opus 評分+修正）
 - [x] Elo Arena 差異化策略 v1 — cognitive dissonance hooks + synthesis closings (13f662b)
+- [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初 (fa4dcfb)
 
 ---
 
