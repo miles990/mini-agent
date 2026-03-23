@@ -20,8 +20,9 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
   Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
-- [ ] P2: Elo Arena 差異化策略 — 研究直接對比格式中什麼因素最影響勝率（音質/視覺/教學設計）
-- [ ] P2: Persona 適性化教學內容（根據 student_persona 調整難度和風格）
+- [x] P2: Elo Arena 差異化策略 — cognitive dissonance hooks + synthesis closings 已加入 prompt (13f662b)
+- [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
+- [ ] P2: Kokoro TTS prosody 研究 — 確認是否支援 emphasis markers 或 SSML
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
@@ -63,6 +64,7 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] Pipeline 品質審查層 — Opus Final Gate 即審查層（每段生成後 Opus 評分+修正）
 - [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初、規則頁更新 (fa4dcfb)
 - [x] kuro.page 翻譯修復 + 404.html 品牌化頁面 (618902c)
+- [x] Elo Arena 差異化策略 v1 — cognitive dissonance hooks + synthesis closings (13f662b)
 
 ---
 
