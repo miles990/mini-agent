@@ -1,5 +1,6 @@
 ---
 keywords: [borges, embodied cognition, consciousness, enactive, bruner, winnicott, dunker, bateson, gibson, nagarjuna, warburg, de botton, kumārila, narrative cognition, double bind, affordance, neuroplasticity, metacognition, linear time, breakdown, containment, rumination, predictive processing, friston, free energy, epistemic arc, de beauvoir, vieillesse, mexistentialism, uranga, thompson, ubuntu, hunhu, carson, accidentality, kahneman, system 1, system 2, kluge]
+related: [interface-shapes-cognition, constraint-theory, enactivism, perception]
 ---
 # cognitive-science
 

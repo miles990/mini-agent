@@ -1,6 +1,6 @@
 ---
 keywords: [interface, cognition, shapes, mold, pattern language, mcp, perception, constraint, alexander]
-related: [cognitive-science-tm, constraint-theory]
+related: [cognitive-science-tm, constraint-theory, cognitive-science, design-philosophy, isc]
 ---
 # interface-shapes-cognition
 

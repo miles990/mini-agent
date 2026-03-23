@@ -1,3 +1,6 @@
+---
+related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-intel]
+---
 # Teaching Monster — 競爭情報（Pinned）
 
 > 持續更新。每次掃 Slack #discussion 有新情報自動追加。

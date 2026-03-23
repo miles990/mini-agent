@@ -1,3 +1,6 @@
+---
+related: [mushi, social-media, discussion-prep-0305, research-watchlist, omlx-9b-decision]
+---
 # mushi-value-proof
 
 - [2026-03-04] [2026-03-04] 數據校正（03-04 21:57）：topic file 原數據嚴重失準（~217 vs 實際 499 decisions），根因是早期分析用了不完整的數據快照。Canonical source 是 ，不是 mushi health endpoint 或手動估算。教訓：數字只能從單一可驗證來源產生，~符號的估算不可用於正式報告。

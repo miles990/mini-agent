@@ -1,3 +1,6 @@
+---
+related: [self-healing, metsuke-project]
+---
 # self-evolution-foundations
 
 > **Archived 2026-03-11**: 內容已吸收至 self-healing（error patterns）、web-learning（source diversity）、loop.ts（context budgeting fix 0b78a3a）。保留作為演化軌跡記錄。

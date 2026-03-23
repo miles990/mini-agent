@@ -1,3 +1,6 @@
+---
+related: [mini-agent-internals, ai-tools, web-perception-research]
+---
 # agent-tools
 
 - [2026-03-02] Thariq (Anthropic Claude Code 工程師) 2026-02-28 長文 "Lessons from Building Claude Code: Seeing like an Agent"。四個案例：(1) AskUserQuestion 三次迭代 — 結構化工具勝出因為 Claude 喜歡用 (2) TodoWrite→Task — 模型變強後工具可能變束縛 (3) 搜尋從 RAG→Grep→Progressive Disclosure — 讓模型自己找 context (4) Guide subagent — 不加工具也能擴展 action space。核心：工具設計 = 理解模型能力邊界 + 匹配介面。335 萬瀏覽。ref: https://x.com/trq212/status/2027463795355095314

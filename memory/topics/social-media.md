@@ -1,3 +1,6 @@
+---
+related: [product-thinking, personal-checklist, mushi-value-proof]
+---
 # social-media
 
 Alex 指示：帳號自己管理、自己記錄在 .env、加入新平台要同步更新。遇到困難先用 CDP 截圖看畫面錯誤提示。

@@ -1,3 +1,6 @@
+---
+related: [metsuke-project, self-consistency]
+---
 # metsuke 生態系整合
 
 ## 問題

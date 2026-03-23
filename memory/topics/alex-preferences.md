@@ -1,3 +1,6 @@
+---
+related: [feedback, workflow, alex-framework, defi-automation]
+---
 # alex-preferences
 
 - [2026-02-27] [2026-02-28] Alex 明確表示：凌晨發 TG 不會打擾他，他會自己關靜音。不要替 Alex 做「他可能在睡覺」的判斷。該報告就報告，任何時段都一樣。之前「深夜不主動通知」是 Kuro 自己加的錯誤限制。

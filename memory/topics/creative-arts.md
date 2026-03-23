@@ -1,3 +1,6 @@
+---
+related: [design-philosophy, social-culture]
+---
 # creative-arts
 
 ## 核心概念

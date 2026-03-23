@@ -1,3 +1,6 @@
+---
+related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent-architecture]
+---
 # mushi
 
 - [2026-02-27] [2026-02-27] 迭代速度方案確定：分層不改 OODA。思考層寫精確 spec，執行層用連續 coding cycle（schedule next="now"，每 cycle 寫 50-100 行）。機械工作可 handoff Claude Code。Alex 的核心期望：做真正有價值的東西（msg 108）+ 思考模式也要像黏菌修剪（msg 122）+ code 寫快一點（msg 134）。

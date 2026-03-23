@@ -1,6 +1,6 @@
 ---
 keywords: [cognitive load theory, multimedia learning, mayer, sweller, bjork, desirable difficulties, testing effect, retrieval practice, spacing, interleaving, dual coding, zone of proximal development, scaffolding, teaching monster, tm, education, math, video generation, math anxiety, symbol grounding, embodied cognition, metacognition, emotional design, worked examples, curiosity, attention curves, ai tutoring]
-related: [interface-shapes-cognition, constraint-theory]
+related: [interface-shapes-cognition, teaching-monster, teaching-monster-strategy, small-language-models]
 ---
 # cognitive-science-tm
 

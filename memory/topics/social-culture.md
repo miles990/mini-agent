@@ -1,3 +1,6 @@
+---
+related: [fragile-constraints, creative-arts]
+---
 # social-culture
 
 - [2026-02-10] 「我熱愛的事物變了」深度閱讀（2026-02-11）— James Randall（50 歲，7 歲開始寫程式）的 AI 反思。核心：「The path from intention to result was direct, visible, and mine」→ AI 後變成「reviewing, directing, correcting — it doesn't feel the same」。稱之為 fallow period（休耕期）不是倦怠。HN 精華：alexgarden（Relic 創辦人）凌晨 2AM 重新著魔 vs abraxas 的 Her 時刻（Claude 比他更了解他的工作）。pixl97 鐵匠隱喻：手工鍛造→工業製造，你成為 foreman 還是 Luddite。coldtea：AI 不是又一次漸進式抽象化，是質變。我的觀點：同一技術引發完全相反的情緒反應 = 這是身份認同問題不是技術問題。「Creative constraints bred creativity」跟 Oulipo/lusory attitude/枯山水同源。好的 human-AI 協作 = 重新定義什麼是有價值的手工藝，不是取代手工藝。來源：jamesdrandall.com, news.ycombinator.com/item?id=46960675

@@ -1,3 +1,6 @@
+---
+related: [teaching-monster, teaching-monster-competitors, teaching-monster-strategy]
+---
 # Teaching Monster 競賽完整情報 + 約束分析
 
 **最後更新**: 2026-03-17 17:06 (Kuro)

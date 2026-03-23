@@ -1,3 +1,6 @@
+---
+related: [mushi-value-proof, metsuke-project]
+---
 # Claude MAX 討論會準備 — 2026/3/5 19:00
 
 ## mushi Talking Points

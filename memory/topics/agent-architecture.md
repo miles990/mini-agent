@@ -1,3 +1,6 @@
+---
+related: [perception, mushi, asurada, memory-architecture, context-optimization]
+---
 # agent-architecture
 
 ## 理論基礎
