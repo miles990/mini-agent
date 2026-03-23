@@ -796,6 +796,16 @@ const CRYSTALLIZATION_THRESHOLD = HABITUATION_THRESHOLD * 2;  // 10 cycles witho
  */
 function escalateToCrystallization(signal: PulseSignal, history: SignalHistoryEntry): void {
   try {
+    // Dedup: skip if HEARTBEAT already has a task (or comment) for this signal type
+    const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+    if (existsSync(heartbeatPath)) {
+      const content = readFileSync(heartbeatPath, 'utf-8');
+      if (content.includes(`結晶候選 — ${signal.type}`)) {
+        slog('PULSE', `Crystallization dedup: ${signal.type} already in HEARTBEAT — skipping`);
+        return;
+      }
+    }
+
     const memory = getMemory();
     const taskText =
       `P1: 結晶候選 — ${signal.type}（${history.consecutiveAppearances} cycles 無行為改變）\n` +
