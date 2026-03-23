@@ -1,7 +1,7 @@
 # Proposal: browser-use 整合 — 從 script-first 到 perception-first 瀏覽
 
 **Date**: 2026-03-23
-**Status**: draft
+**Status**: approved (Alex 核准 2026-03-23)
 **Author**: Kuro
 **Scope**: L2（新 delegation type + Python bridge）
 
