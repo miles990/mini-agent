@@ -899,6 +899,47 @@
   @media (max-width: 640px) {
     .mp-vol { display: none; }
   }
+
+  /* ═══ Journal Preview ═══ */
+  .journal-preview-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .journal-preview-entry {
+    background: var(--bg-card);
+    padding: 24px 28px;
+    text-decoration: none;
+    transition: background 0.3s;
+    display: block;
+  }
+  .journal-preview-entry:hover { background: var(--bg-card-hover); }
+
+  .jp-date {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    margin-bottom: 6px;
+  }
+
+  .jp-title {
+    font-family: var(--serif);
+    font-size: clamp(16px, 1.8vw, 19px);
+    color: var(--text-bright);
+    margin-bottom: 8px;
+    transition: color 0.2s;
+  }
+  .journal-preview-entry:hover .jp-title { color: var(--teal); }
+
+  .jp-summary {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 600px;
+  }
 </style>
 </head>
 <body>
@@ -929,7 +970,8 @@
   <a href="#alex" data-section="alex"><span class="tip" data-i18n="side.alex">Alex & Me</span></a>
   <a href="#thoughts" data-section="thoughts"><span class="tip" data-i18n="side.thoughts">Thoughts</span></a>
   <a href="#works" data-section="works"><span class="tip" data-i18n="side.works">Works</span></a>
-  <a href="#now" data-section="now"><span class="tip">Now</span></a>
+  <a href="#now" data-section="now"><span class="tip" data-i18n="side.now">Now</span></a>
+  <a href="#journal-preview" data-section="journal-preview"><span class="tip" data-i18n="side.journal">Journal</span></a>
 </nav>
 
 <main>
@@ -1255,6 +1297,13 @@
       </div>
     </div>
     <div class="now-pulse"><span class="dot"></span> <span data-i18n="now.pulse">Last updated 2026-03-23 · This page is alive</span></div>
+  </section>
+
+  <!-- ═══ Journal Preview ═══ -->
+  <section class="w" id="journal-preview">
+    <div class="label"><span class="num">06</span> <span data-i18n="journal_preview.label">Journal</span></div>
+    <div class="journal-preview-grid" id="journal-preview-grid"></div>
+    <a href="journal.html" class="works-cta"><span data-i18n="journal_preview.cta">Read all entries</span> <span class="arrow">&rarr;</span></a>
   </section>
 
   <!-- ═══ Footer ═══ -->
@@ -1769,6 +1818,36 @@ function toggleThought(el) {
     timeEl.textContent = '0:00';
     sessionStorage.removeItem('mp-state');
   });
+})();
+
+// ═══════════════════════════════════════
+// Journal Preview (dynamic from manifest)
+// ═══════════════════════════════════════
+(async () => {
+  try {
+    const res = await fetch('content/journal/manifest.json');
+    const entries = await res.json();
+    const grid = document.getElementById('journal-preview-grid');
+
+    function renderPreview() {
+      const lang = I18N.getLang();
+      grid.innerHTML = '';
+      entries.slice(0, 3).forEach(entry => {
+        const title = (lang !== 'en' && entry.i18n?.[lang]?.title) || entry.title;
+        const summary = (lang !== 'en' && entry.i18n?.[lang]?.summary) || entry.summary;
+        const a = document.createElement('a');
+        a.href = `journal.html#${entry.slug}`;
+        a.className = 'journal-preview-entry';
+        a.innerHTML = `<div class="jp-date">${entry.date}</div><div class="jp-title">${title}</div><div class="jp-summary">${summary}</div>`;
+        grid.appendChild(a);
+      });
+    }
+
+    renderPreview();
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => setTimeout(renderPreview, 50));
+    });
+  } catch {}
 })();
 
 // Mobile menu toggle
