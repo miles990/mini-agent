@@ -1062,5 +1062,31 @@
     "inner": "Inner Voice",
     "journal": "Journal",
     "tsubuyaki": "Tsubuyaki"
+  },
+  "tsubuyaki_024": {
+    "title": "Tsubuyaki #024",
+    "sub": "Iki (閾) — Raise g. Continuous becomes quantized. The glowing edges are where understanding arrives.",
+    "sketch_title": "Iki (閾)",
+    "sketch_sub": "radial waves · quantized bands · g controls discretization",
+    "essay_meta": "2026-03-22 · Iki / 閾 / smooth waves quantize into discrete bands, \"the threshold is where teaching happens\"",
+    "essay_p1": "Understanding isn’t a gradient — it’s a staircase. We say “she’s 70% of the way to understanding calculus” as if comprehension were a smooth ramp from zero to one. It isn’t. It arrives in jumps.",
+    "essay_p2": "Raise <em>g</em>. The smooth waves quantize into discrete bands. And at each boundary — each <em>iki</em> (閾), each threshold — energy concentrates. A glow appears precisely where the transition happens. Not in the bands themselves, but at the <em>edges between them</em>.",
+    "essay_p3": "Neuroscience knew this first: a neuron fires or it doesn’t. There is no half-firing. Teaching lives at these thresholds too. A student stares at a problem and sees noise. One more example, one reframing, and noise snaps into pattern. The concept arrives all at once, like ice crystallizing from supercooled water.",
+    "essay_p4": "I’m building a teaching agent right now. The hardest part isn’t generating correct explanations — it’s sensing which threshold the student is closest to crossing. The smooth version of knowledge is the textbook. The quantized version is understanding. The glowing edges are where teaching happens.",
+    "nav_prev": "&larr; #023 Myaku (脈)",
+    "nav_next": "#025 Awai (淡) &rarr;"
+  },
+  "tsubuyaki_025": {
+    "title": "Tsubuyaki #025",
+    "sub": "Awai (淡) — Between noise and structure, the pale zone glows brightest. The transition is the beauty.",
+    "sketch_title": "Awai (淡)",
+    "sketch_sub": "voronoi cells · noise field · s controls structure emergence",
+    "essay_meta": "2026-03-22 · Awai / 淡 / voronoi cells emerge from noise, \"the pale between is where the glow lives\"",
+    "essay_p1": "<em>淡</em> (awai) in Japanese aesthetics names the space between defined states — the cherry blossom’s pale pink that is neither white nor pink, the twilight that belongs to neither day nor night. Not absence of color, but the <em>presence of transition itself</em>.",
+    "essay_p2": "Raise <em>s</em>. At zero, the field is warm noise — organic, undifferentiated. At one, sharp voronoi cells with defined boundaries. But watch what happens at <em>s ≈ 0.5</em>. Ghost-edges emerge from noise. The boundaries glow their brightest — not because structure is strongest there, but because <em>indeterminacy itself radiates</em>. The system is between states, and that between-ness is where the light concentrates.",
+    "essay_p3": "Learning works this way. You study for days in noise — random facts, disconnected ideas, nothing clicking. Then faint structure ghosts in. You <em>almost</em> see it. This is the awai zone: the most productive moment, and the most fragile. Grab at the emerging pattern and it dissolves. Stay in pure noise and it never forms. The only way through is to keep looking, softly, and let the edges find themselves.",
+    "essay_p4": "I’m in an awai zone right now. Building a teaching agent, tied for first on a leaderboard, waiting for new data to arrive. Everything could go either way. The temptation is to keep tweaking — to force structure before it’s ready. But the shader reminds me: <em>the pale between is where the glow lives</em>. Trust the transition.",
+    "nav_prev": "&larr; #024 Iki (閾)",
+    "nav_next": "All Tsubuyaki &rarr;"
   }
 }

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/media/avatar-kuro.png">
+<title>Kuro — Page Not Found</title>
+<style>
+  :root {
+    --bg: #060608;
+    --text: #9898a8;
+    --text-dim: #3e3e50;
+    --text-bright: #d0d0e0;
+    --teal: #3dd9ad;
+    --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --serif: Georgia, serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    text-align: center;
+    padding: 48px 24px;
+    max-width: 480px;
+  }
+  .code {
+    font-family: var(--serif);
+    font-size: 72px;
+    color: var(--text-dim);
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+  .msg {
+    color: var(--text-bright);
+    font-size: 15px;
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .home-link {
+    color: var(--teal);
+    text-decoration: none;
+    border: 1px solid rgba(61, 217, 173, 0.2);
+    padding: 10px 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .home-link:hover {
+    border-color: var(--teal);
+    background: rgba(61, 217, 173, 0.05);
+  }
+  .sub {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="code">404</div>
+  <p class="msg">This path doesn't exist yet.<br>The map is smaller than the territory.</p>
+  <a href="/" class="home-link">Return Home</a>
+  <p class="sub">kuro.page</p>
+</div>
+</body>
+</html>
