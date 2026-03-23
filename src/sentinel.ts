@@ -19,7 +19,10 @@ const WATCH_DIRS_P0 = [
 
 const WATCH_DIRS_P2 = [
   'memory/handoffs',          // Handoff status changes
-  'memory/state',             // State files (inbox, metrics, etc.)
+  // memory/state/ removed: ALL files there are cycle-internal artifacts
+  // (route-log.jsonl, pulse-state.json, cascade-metrics.jsonl, etc.)
+  // Watching them creates a feedback loop: cycle writes state → sentinel fires → new cycle
+  // Perception plugins (30s interval) already pick up meaningful state changes
 ];
 
 /** Individual files to watch (outside WATCH_DIRS coverage) */
