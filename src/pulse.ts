@@ -95,6 +95,8 @@ interface PulseState {
   recentDecisionScores: number[];
   // Signal history for habituation resistance
   signalHistory: Record<string, SignalHistoryEntry>;
+  // Signal types that have been crystallized into code gates — never re-escalate
+  crystallizedTypes?: string[];
   // Error pattern tracking (absorbed from feedback-loops)
   errorPatterns: Record<string, { count: number; taskCreated: boolean; lastSeen: string }>;
   // Last behavior hash for velocity detection
@@ -844,7 +846,9 @@ export async function runPulseCheck(
   // Crystallization bridge: persistent signals → HEARTBEAT tasks
   // When a signal survives 2× habituation threshold without behavior change,
   // it's not a temporary blip — it's a structural pattern that needs code, not willpower.
+  const crystallized = new Set(state.crystallizedTypes ?? []);
   for (const signal of processed) {
+    if (crystallized.has(signal.type)) continue;  // already crystallized into code gate — skip forever
     const history = state.signalHistory[signal.type];
     if (history &&
         history.consecutiveAppearances >= CRYSTALLIZATION_THRESHOLD &&
@@ -864,6 +868,20 @@ export async function runPulseCheck(
   if (processed.length > 0) {
     slog('PULSE', `${processed.length} signals (${processed.filter(s => s.positive).length} positive, ${processed.filter(s => !s.positive).length} negative)`);
   }
+}
+
+/**
+ * Mark a signal type as permanently crystallized (resolved into a code gate).
+ * Crystallized signals are never re-escalated to HEARTBEAT tasks.
+ */
+export function markSignalCrystallized(signalType: string): void {
+  const state = readPulseState();
+  const types = new Set(state.crystallizedTypes ?? []);
+  if (types.has(signalType)) return;
+  types.add(signalType);
+  state.crystallizedTypes = [...types];
+  writePulseState(state);
+  slog('PULSE', `Signal "${signalType}" marked as permanently crystallized`);
 }
 
 /**
