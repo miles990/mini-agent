@@ -2280,12 +2280,13 @@ Queries:`;
       // Data: topic-memory swings 0-17K chars, cited 1/918 cycles.
       // Budget caps total chars, excess topics downgraded to summary.
       // Trigger-aware: continuation/cron cycles get smaller budgets (less context needed).
-      const TOPIC_MEMORY_BUDGET = tBudget?.topicMemory ?? 6000;
+      const TOPIC_MEMORY_BUDGET = tBudget?.topicMemory ?? 10000;
       let topicCharsUsed = 0;
 
       const keywordMap = await loadTopicKeywordMap(this.memoryDir);
 
       const loadedTopics: string[] = [];
+      const topicMenuItems: string[] = [];
       // R6: Removed INDEX_EXTRA_TOPIC_CAP — FTS5-backed index provides scored results,
       // budget control via TOPIC_MEMORY_BUDGET is sufficient to prevent bloat.
       for (const topic of topics) {
@@ -2312,18 +2313,19 @@ Queries:`;
           if (content) {
             const loadCount = this.topicLoadCounts.get(topic) ?? 0;
             // Heat-based truncation: high-heat topics get brief (already familiar), cold get full
+            // Per-topic cap: >6000 chars → brief mode (prevents giant topics monopolizing budget)
+            const PER_TOPIC_CAP = 6000;
             let topicContent = (loadCount >= 2 || heat >= 5)
               ? truncateTopicMemory(content, 'brief')
-              : content;
-            if (topicContent.length > 4000) topicContent = topicContent.slice(0, 4000) + '\n[... truncated]';
+              : (content.length > PER_TOPIC_CAP ? truncateTopicMemory(content, 'brief') : content);
             topicContent = addTemporalMarkers(topicContent);
-            // Budget check: downgrade to summary if over budget
+            // Budget check: over budget → add to menu instead
             const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
             if (topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
-              const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
-              const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
-              sections.push(summarySection);
-              topicCharsUsed += summarySection.length;
+              // Collect for menu instead of inline summary
+              const title = content.split('\n')[0] || topic;
+              const entryCount = content.split('\n').filter(l => l.startsWith('- [')).length;
+              topicMenuItems.push(`${topic}: ${title.replace(/^#+ /, '')} (${entryCount} entries)`);
             } else {
               sections.push(section);
               topicCharsUsed += section.length;
@@ -2332,27 +2334,27 @@ Queries:`;
             this.topicLoadCounts.set(topic, (this.topicLoadCounts.get(topic) ?? 0) + 1);
           }
         } else {
-          // full mode: 匹配的完整載入（capped），非匹配的只載 summary
+          // full mode: 匹配的完整載入，非匹配的只載 summary
           const content = await this.readTopicMemory(topic);
           if (content) {
+            const PER_TOPIC_CAP = 6000;
             let topicContent: string;
             if (isDirectMatch) {
-              topicContent = content;
-              if (topicContent.length > 4000) topicContent = topicContent.slice(0, 4000) + '\n[... truncated]';
+              // Per-topic cap: >6000 chars → brief mode (prevents giant topics monopolizing budget)
+              topicContent = content.length > PER_TOPIC_CAP ? truncateTopicMemory(content, 'brief') : content;
             } else {
               // Non-matching topics: always summary (just title + count)
               topicContent = truncateTopicMemory(content, 'summary');
             }
             topicContent = addTemporalMarkers(topicContent);
-            // Budget check: skip non-matching topics once budget exceeded
+            // Budget check: over budget → add to menu instead
             const section = `<topic-memory name="${topic}">\n${topicContent}\n</topic-memory>`;
             if (topicCharsUsed > 0 && topicCharsUsed + section.length > TOPIC_MEMORY_BUDGET) {
               if (isDirectMatch) {
-                // Direct matches downgrade to summary
-                const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
-                const summarySection = `<topic-memory name="${topic}">\n${summary}\n</topic-memory>`;
-                sections.push(summarySection);
-                topicCharsUsed += summarySection.length;
+                // Direct matches → menu instead of inline summary
+                const title = content.split('\n')[0] || topic;
+                const entryCount = content.split('\n').filter(l => l.startsWith('- [')).length;
+                topicMenuItems.push(`${topic}: ${title.replace(/^#+ /, '')} (${entryCount} entries)`);
               }
               // Non-matching topics: simply skip once over budget
             } else {
@@ -2366,7 +2368,7 @@ Queries:`;
       }
       // ── 1-hop related loading ──
       // After keyword-matched topics, load up to 3 related topics in summary mode.
-      // Strict 1-hop: no recursion into related-of-related.
+      // Strict 1-hop: no recursion into related-of-related. Budget-guarded.
       const loadedSet = new Set(loadedTopics);
       const relatedCandidates: string[] = [];
       for (const topic of loadedTopics) {
@@ -2378,6 +2380,7 @@ Queries:`;
         }
       }
       for (const relTopic of relatedCandidates.slice(0, 3)) {
+        if (topicCharsUsed >= TOPIC_MEMORY_BUDGET) break;
         const content = await this.readTopicMemory(relTopic);
         if (content) {
           const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
@@ -2386,6 +2389,12 @@ Queries:`;
           topicCharsUsed += section.length;
           loadedTopics.push(relTopic);
         }
+      }
+
+      // ── Topic menu (JIT awareness) ──
+      // Topics that exceeded budget are listed as a menu for on-demand loading in future cycles.
+      if (topicMenuItems.length > 0) {
+        sections.push(`<topic-menu>\n${topicMenuItems.join('\n')}\n</topic-menu>`);
       }
 
       this.loadedTopics = loadedTopics;
@@ -2893,8 +2902,8 @@ function truncateTopicMemory(content: string, level: 'brief' | 'summary' = 'brie
     return `${title}\n(${total} entries)`;
   }
 
-  // brief: title + count + last 1 entry
-  const recent = entries.slice(-1);
+  // brief: title + count + last 3 entries
+  const recent = entries.slice(-3);
   return `${title}\n(${total} entries, latest)\n${recent.join('\n')}`;
 }
 

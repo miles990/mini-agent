@@ -385,7 +385,7 @@ export interface ProfileConfig {
 const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
   dm: {
     maxConversations: 15,
-    topicBudget: 6000,
+    topicBudget: 10000,
     loadDeepContext: true,
     extraHints: [],
     skipSections: new Set(),
@@ -413,7 +413,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
   },
   autonomous: {
     maxConversations: 8,
-    topicBudget: 5000,
+    topicBudget: 8000,
     loadDeepContext: true,
     extraHints: [],
     skipSections: new Set(),
