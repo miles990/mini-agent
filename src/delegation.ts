@@ -676,36 +676,31 @@ function spawnWithSandbox(
   return spawn(cmd, args, opts);
 }
 
-/** Per-type thinking preamble — teaches delegates HOW to think, not just WHAT to do */
+/** Per-type convergence conditions — defines what good output looks like, not how to get there */
 function getThinkingPreamble(type: string): string {
   switch (type) {
     case 'research':
-      return `Before acting, follow this sequence:
-1. THINK: What specific claim am I verifying? What counts as evidence?
-2. EXECUTE: Use tools to find real data. No tool access = say "cannot access, this is inference"
-3. VERIFY: Fact or fabrication? Has source URL? Mark unverified claims as [UNVERIFIED]
-
-NEVER fabricate URLs, names, quotes, or data. Lead with the answer in the first paragraph. Keep output under 500 words.
+      return `Your goal: verified evidence for the question below.
+What counts: facts with source URLs. Flag unverified as [UNVERIFIED].
+What doesn't count: fabricated URLs, names, or data.
+Lead with the answer. Under 500 words.
 
 `;
     case 'learn':
-      return `Before acting, follow this sequence:
-1. THINK: What do I already know? What specific gap am I filling?
-2. EXECUTE: Use tools to find real information. No tool access = say "cannot access"
-3. VERIFY: Is each claim based on something I actually read? Mark guesses as [UNVERIFIED]
-
-NEVER fabricate URLs, names, or sources. Lead with the key insight. Keep output under 500 words.
+      return `Your goal: fill a specific knowledge gap with real information.
+What counts: insights based on sources you actually read. Flag guesses as [UNVERIFIED].
+What doesn't count: fabricated URLs, names, or sources.
+Lead with the key insight. Under 500 words.
 
 `;
     case 'review':
-      return `Before acting:
-1. What are the acceptance criteria? What would make me reject this?
-2. Check actual code/content — don't guess what it does
-NEVER fabricate issues that don't exist in the actual content.
+      return `Your goal: honest assessment based on actual code/content.
+What counts: real issues found by inspecting the actual content.
+What doesn't count: fabricated issues or guesses about code you didn't read.
 
 `;
     case 'create':
-      return `Before outputting: Does this match the intent? Is it genuine, not generic?
+      return `Your goal: output that matches the intent and feels genuine, not generic.
 
 `;
     default: // code — already has verify gates

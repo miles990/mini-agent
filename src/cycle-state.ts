@@ -440,11 +440,9 @@ export function detectResearchLoop(limit: number = 10): ResearchLoopResult | nul
   }
 
   if (consecutive >= 3) {
-    const escalation = consecutive >= 5
-      ? '🚫 HARD BLOCK: 5+ research cycles — 禁止 research/learn delegation。這個 cycle 必須產出 code/create/deploy，沒有例外。'
-      : '';
+    const hard = consecutive >= 5 ? ' 禁止 research/learn — 必須產出 code/create/deploy。' : '';
     return {
-      warning: `⚠️ RESEARCH-LOOP: 連續 ${consecutive} 個 active cycle 只有 research/learn，沒有具體產出。下一個 action 必須產出可交付物（寫 code、修 bug、建 PR、生成內容），或說明為什麼不行。${escalation}`,
+      warning: `⚠️ ${consecutive} consecutive research-only cycles. Next action must produce a deliverable.${hard}`,
       count: consecutive,
     };
   }

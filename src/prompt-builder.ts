@@ -271,10 +271,7 @@ function buildDelegationReviewGate(): string {
       const summaryLine = s.summary ? `\n  > ${s.summary}` : '';
       return `- ${prefix}${s.id} ${suffix}${summaryLine}`;
     });
-    return `## Delegation Review Gate
-**MANDATORY**: ${stale.length} delegation result${stale.length > 1 ? 's have' : ' has'} never been reviewed.
-Review each result below, then mention the delegation ID in your response to acknowledge.
-${lines.join('\n')}`;
+    return `## ${stale.length} unreviewed delegation${stale.length > 1 ? 's' : ''} — mention ID to acknowledge\n${lines.join('\n')}`;
   } catch {
     return '';
   }
@@ -291,8 +288,8 @@ function buildErrorPatternsHint(): string {
     if (actionable.length === 0) return '';
 
     const lines = actionable.map(([key, v]) =>
-      `- **${key}** — ${v.count}× (last: ${v.lastSeen})\n  Before trying the same fix: What did you try last time for this? What worked, what didn't? Is this the same root cause, or a different one wearing the same mask?`);
-    return `## Recurring Error Patterns\nThese errors keep happening. Before repeating the same approach, consider an alternative:\n${lines.join('\n')}`;
+      `- **${key}** — ${v.count}× (last: ${v.lastSeen}). Same root cause, or different problem wearing the same mask?`);
+    return `## Recurring Errors\n${lines.join('\n')}`;
   } catch { return ''; }
 }
 
@@ -350,7 +347,7 @@ export async function buildAutonomousPrompt(
     : '';
 
   // Background Lane hint — always included (feature flag graduated)
-  const backgroundLaneHint = `\n\n## Background Lane — 並行探索\n**每個 cycle 都考慮：有沒有可以同時探索的方向？** 像黏菌一樣同時伸出多條觸角。\n\n用 \`<kuro:delegate>\` 派出背景任務：\n\`\`\`xml\n<kuro:delegate type="research" workdir="~/Workspace/mini-agent">Search SearXNG for "topic X" and summarize top 5 results</kuro:delegate>\n<kuro:delegate type="learn" workdir="~/Workspace/mini-agent">Fetch and summarize https://example.com/article</kuro:delegate>\n<kuro:delegate type="code" workdir="~/Workspace/mini-agent" verify="pnpm typecheck">Refactor X</kuro:delegate>\n\`\`\`\nTypes: learn(read+summarize), research(search+analyze), review(code review), create(write), code(implement).\nBackground tasks run in parallel (max 6). Results appear in \`<background-completed>\` next cycle.\n\n**鼓勵的模式**：一個 cycle 內派出 2-3 個 delegate 探索不同方向，下個 cycle 看結果決定深入哪條。\n**反模式**：background lane 全空、一個 cycle 只做一件事。`;
+  const backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。`;
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
   const delegationReviewGate = buildDelegationReviewGate();
@@ -364,7 +361,7 @@ export async function buildAutonomousPrompt(
     const { getAnalyzeNoActionStreak } = await import('./pulse.js');
     const streak = getAnalyzeNoActionStreak();
     if (streak > 0) {
-      analyzeNoActionGate = `## ⚠️ Analyze-No-Action Gate (HARD)\n**${streak} consecutive analyze/remember cycles without action.** This cycle MUST produce an executable action: delegate, code change, deploy, commit, or chat. Pure analysis/remember will continue triggering this gate.`;
+      analyzeNoActionGate = `## ⚠️ ${streak} cycles without action — this cycle must produce something observable (delegate/code/deploy/commit/chat).`;
     }
   } catch { /* fail-open */ }
 

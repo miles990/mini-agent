@@ -629,10 +629,7 @@ export function buildCommitmentSection(memoryDir: string): string {
   if (gaps.length === 0) return '';
 
   const lines = gaps.map(g => `- [${g.ts}] ${g.summary}`);
-  return `## Commitment Gate
-Untracked commitments detected. Convert them into tracked execution this cycle.
-Use one of: <kuro:task>, <kuro:delegate>, <kuro:progress>, <kuro:goal>.
-${lines.join('\n')}`;
+  return `## ${gaps.length} untracked commitment${gaps.length > 1 ? 's' : ''} — convert to action (<kuro:task>, <kuro:delegate>, or <kuro:goal>)\n${lines.join('\n')}`;
 }
 
 // =============================================================================
