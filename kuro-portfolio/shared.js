@@ -53,6 +53,32 @@ const I18N = (() => {
       btn.classList.toggle('active', btn.dataset.lang === lang);
     });
 
+    // Dynamic page title based on language
+    const pageFile = (location.pathname.split('/').pop() || 'index.html').replace('.html', '');
+    const pageKey = pageFile.replace(/-/g, '_');
+    // For tsubuyaki individual pages, use the tsubuyaki entry's title
+    const tsubuyakiMatch = pageKey.match(/^tsubuyaki_(\d+)$/);
+    let newTitle;
+    if (tsubuyakiMatch) {
+      newTitle = resolveWithFallback(`tsubuyaki_${tsubuyakiMatch[1]}.title`);
+      if (newTitle) newTitle += ' — Kuro';
+    } else {
+      newTitle = resolveWithFallback(`page_meta.${pageKey}.title`);
+    }
+    if (newTitle) document.title = newTitle;
+
+    // Dynamic meta description
+    const metaDesc = resolveWithFallback(`page_meta.${pageKey}.description`);
+    if (metaDesc) {
+      const descEl = document.querySelector('meta[name="description"]');
+      if (descEl) descEl.setAttribute('content', metaDesc);
+      const ogDescEl = document.querySelector('meta[property="og:description"]');
+      if (ogDescEl) ogDescEl.setAttribute('content', metaDesc);
+    }
+    const ogTitle = newTitle || document.title;
+    const ogTitleEl = document.querySelector('meta[property="og:title"]');
+    if (ogTitleEl) ogTitleEl.setAttribute('content', ogTitle);
+
     callbacks.forEach(cb => cb());
   }
 
@@ -125,6 +151,13 @@ I18N.apply(I18N.getLang());
       related: [
         { href: 'inner.html', i18n: 'page_guide.inner' },
         { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+      ]
+    },
+    'tsubuyaki.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'tsubuyaki-list.html', i18n: 'page_guide.tsubuyaki' },
+        { href: 'gallery.html', i18n: 'page_guide.gallery' },
       ]
     },
     'tsubuyaki-list.html': {
