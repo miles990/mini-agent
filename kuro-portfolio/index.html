@@ -1300,6 +1300,7 @@ const I18N = (() => {
   const cache = {};
   let currentLang = localStorage.getItem('kuro-lang') || 'en';
   let typedLines = null;
+  let fallbackData = null;
 
   async function loadLang(lang) {
     if (!cache[lang]) {
@@ -1315,19 +1316,27 @@ const I18N = (() => {
     return path.split('.').reduce((o, k) => o && o[k], obj);
   }
 
+  function resolveWithFallback(data, key) {
+    const val = resolve(data, key);
+    if (val) return val;
+    if (fallbackData && fallbackData !== data) return resolve(fallbackData, key);
+    return null;
+  }
+
   async function apply(lang) {
     const data = await loadLang(lang);
     if (!data) return;
+    if (!fallbackData) fallbackData = await loadLang('en');
     currentLang = lang;
     localStorage.setItem('kuro-lang', lang);
     document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang;
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
-      const val = resolve(data, el.dataset.i18n);
+      const val = resolveWithFallback(data, el.dataset.i18n);
       if (val) el.textContent = val;
     });
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
-      const val = resolve(data, el.dataset.i18nHtml);
+      const val = resolveWithFallback(data, el.dataset.i18nHtml);
       if (val) {
         // For alex.lead, prepend the Alex link
         if (el.dataset.i18nHtml === 'alex.lead') {
@@ -1340,6 +1349,19 @@ const I18N = (() => {
 
     // Update typed lines
     if (data.hero && data.hero.typed) typedLines = data.hero.typed;
+
+    // Dynamic page title + meta
+    const newTitle = resolveWithFallback(data, 'page_meta.index.title');
+    if (newTitle) document.title = newTitle;
+    const newDesc = resolveWithFallback(data, 'page_meta.index.description');
+    if (newDesc) {
+      const descEl = document.querySelector('meta[name="description"]');
+      if (descEl) descEl.setAttribute('content', newDesc);
+      const ogDescEl = document.querySelector('meta[property="og:description"]');
+      if (ogDescEl) ogDescEl.setAttribute('content', newDesc);
+    }
+    const ogTitleEl = document.querySelector('meta[property="og:title"]');
+    if (ogTitleEl) ogTitleEl.setAttribute('content', newTitle || document.title);
 
     // Update language buttons
     document.querySelectorAll('.lang-btn').forEach(btn => {
