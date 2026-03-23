@@ -106,7 +106,7 @@ async def main() -> None:
         sys.exit(1)
 
     finally:
-        await browser.close()
+        await browser.stop()
 
 
 if __name__ == "__main__":

@@ -142,13 +142,6 @@ class ChatClaudeCLI(BaseChatModel):
     ) -> ChatInvokeCompletion[T] | ChatInvokeCompletion[str]:
         prompt, system_prompt = _serialize_messages_to_prompt(messages)
 
-        # Build the full prompt with system context
-        full_prompt = ""
-        if system_prompt:
-            full_prompt = f"<system>\n{system_prompt}\n</system>\n\n"
-        full_prompt += prompt
-
-        # Build CLI command
         # When using --json-schema, the CLI internally uses tool calling which
         # requires multiple turns (tool_use -> tool_result -> end_turn).
         # We need --max-turns 3 minimum for structured output.
@@ -168,8 +161,29 @@ class ChatClaudeCLI(BaseChatModel):
             schema_str = json.dumps(schema)
             cmd.extend(["--json-schema", schema_str])
 
+        # Write system prompt to temp file to avoid shell argument length limits
+        # and ensure proper system/user message separation in the API call
+        system_prompt_file = None
+        if system_prompt:
+            system_prompt_file = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False, encoding="utf-8"
+            )
+            system_prompt_file.write(system_prompt)
+            system_prompt_file.close()
+            cmd.extend(["--system-prompt-file", system_prompt_file.name])
+
+        # When structured output is expected, reinforce that the model MUST use the
+        # provided JSON schema tool. Without this, the model sometimes answers
+        # in plain text instead of structured actions.
+        if output_format is not None:
+            cmd.extend([
+                "--append-system-prompt",
+                "CRITICAL: You MUST respond using the provided JSON schema tool. "
+                "NEVER respond with plain text. Always use the structured output format.",
+            ])
+
         logger.debug(f"Claude CLI command: {' '.join(cmd[:6])}...")
-        logger.debug(f"Prompt length: {len(full_prompt)} chars")
+        logger.debug(f"Prompt length: {len(prompt)} chars, system: {len(system_prompt or '')} chars")
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -180,7 +194,7 @@ class ChatClaudeCLI(BaseChatModel):
             )
 
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(input=full_prompt.encode("utf-8")),
+                process.communicate(input=prompt.encode("utf-8")),
                 timeout=self.timeout_seconds,
             )
 
@@ -205,6 +219,13 @@ class ChatClaudeCLI(BaseChatModel):
             except json.JSONDecodeError:
                 # If not valid JSON, treat as raw text
                 cli_response = {"result": raw_output}
+
+            # Log when structured output is expected but missing (aids debugging)
+            if output_format is not None and cli_response.get("structured_output") is None:
+                logger.debug(
+                    f"structured_output missing, will try parsing from result field "
+                    f"(stop_reason={cli_response.get('stop_reason')})"
+                )
 
             # Extract usage from CLI response
             cli_usage = cli_response.get("usage", {})
@@ -290,6 +311,9 @@ class ChatClaudeCLI(BaseChatModel):
                 message=f"Claude CLI not found at '{self.cli_path}'. Is it installed?",
                 model=self.name,
             )
+        finally:
+            if system_prompt_file:
+                Path(system_prompt_file.name).unlink(missing_ok=True)
 
 
 def _extract_json(text: str) -> str | None:
