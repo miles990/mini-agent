@@ -17,6 +17,7 @@ import { buildCommitmentSection } from './memory-index.js';
 import { detectResearchLoop } from './cycle-state.js';
 import { isEnabled } from './features.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { readState } from './feedback-loops.js';
 
 // =============================================================================
 // Schedule Interval Parser
@@ -251,6 +252,21 @@ ${lines.join('\n')}`;
   }
 }
 
+/** Build error-patterns hint — inject recurring error patterns into cycle prompt for real-time awareness */
+function buildErrorPatternsHint(): string {
+  try {
+    const patterns = readState<Record<string, { count: number; taskCreated: boolean; lastSeen: string }>>('error-patterns.json', {});
+    const actionable = Object.entries(patterns)
+      .filter(([, v]) => v.count >= 3)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 5);
+    if (actionable.length === 0) return '';
+
+    const lines = actionable.map(([key, v]) => `- **${key}** — ${v.count}× (last: ${v.lastSeen})`);
+    return `## Recurring Error Patterns\nThese errors keep happening. Before repeating the same approach, consider an alternative:\n${lines.join('\n')}`;
+  } catch { return ''; }
+}
+
 /** State needed by buildAutonomousPrompt */
 export interface PromptBuilderState {
   lastAutonomousActions: string[];
@@ -323,11 +339,14 @@ export async function buildAutonomousPrompt(
     }
   } catch { /* fail-open */ }
 
+  const errorPatternsHint = buildErrorPatternsHint();
+
   const parts = [base];
   if (commitmentGateSection) parts.push(commitmentGateSection);
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (analyzeNoActionGate) parts.push(analyzeNoActionGate);
+  if (errorPatternsHint) parts.push(errorPatternsHint);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);
