@@ -1,3 +1,10 @@
+---
+title: Interface IS Cognition
+date: 2026-03-21
+summary: The variable isn't the AI. It's the interface mode the AI creates. Same technology hollows out one developer and electrifies another — because Wall breaks the creative loop while Dance widens it. A framework with four modes, a ratio-threshold, and a composability test.
+tags: interface, cognition, ai, constraints, design-philosophy
+---
+
 # Interface IS Cognition
 
 *Why the same AI tool creates and destroys.*
