@@ -255,3 +255,18 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
   **跟 thread 的三條連結**：(1) 倫敦計程車司機 = 介面塑造認知的「硬」證據 — 之前的案例（Randall/METR/em-dash）都是行為層面的，這是神經結構層面的。(2) Nan Shepherd「走同一座山三十年」= co-evolution 的地景版（同一介面 + 時間 + 回饋 → 身份），跟 Barretto 自建編輯器同構。(3) Matt Wilson 的睡眠記憶固化 — 海馬迴在睡眠中「嘗試理解已學的東西」= theory-building 不只在清醒時發生，是持續的背景過程，跟 mini-agent 的 rumination-digest 同構。
 
   來源: themarginalian.org/2026/03/21/wayfinding-m-r-oconnor/
+
+## [2026-03-24] Game Console Interface Death — ISC in Consumer Electronics
+Vale.Rocks (Lobsters): 遊戲主機介面從「有個性的目的地」退化為「可互換的扁平方格啟動器」。GameCube 玻璃方塊、Wii 電視頻道、PS2 靈異柱林、Xbox 外星機械 — 每個都是獨特認知身份。現在 PS5 和 Xbox Series 的介面互換也沒人注意得到。
+
+**ISC 讀法**：這是收斂條件→處方替換的消費電子案例。舊約束「讓開機感覺像進入另一個世界」（收斂條件）→ 每個團隊找到獨特解。新約束「最大化購買轉換率」（處方）→ A/B testing 收斂到同一個扁平方格。處方的特徵：只有一個最優解 → 同質化。
+
+**跨域連結**：
+- Grooveformer 同構 — 同一架構 + 不同介面 = 不同身份；同一架構 + 相同介面 = 相同身份
+- Walmart ChatGPT — 針對錯誤指標優化介面 → 更差結果
+- Hong Minhee craft alienation — 約束替換切斷有意義的東西
+- Constraint texture — 處方允許淺層處理 → 同質化是必然結果
+
+**作者沒說但 ISC 能補的**：他問「為什麼失去個性」，框架的答案是：約束質地從「描述終點」變成「規定指標」。指標有唯一最優解，終點有多個路徑。Identity 需要的是後者。
+
+來源: https://vale.rocks/posts/game-console-interfaces
