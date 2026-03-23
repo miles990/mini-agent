@@ -939,7 +939,12 @@ export function getAnalyzeNoActionStreak(): number {
   try {
     const state = readPulseState();
     const streak = state.analyzeWithoutActionStreak ?? 0;
-    return streak >= ANALYZE_NO_ACTION_GATE_THRESHOLD ? streak : 0;
+    // Time-aware threshold: deep night (02:00-07:00) no-action is correct judgment,
+    // not idle spinning. Relax threshold to avoid false pressure.
+    const hour = new Date().getHours();
+    const isDeepNight = hour >= 2 && hour < 7;
+    const threshold = isDeepNight ? 15 : ANALYZE_NO_ACTION_GATE_THRESHOLD;
+    return streak >= threshold ? streak : 0;
   } catch {
     return 0;
   }
