@@ -270,3 +270,4 @@ Vale.Rocks (Lobsters): 遊戲主機介面從「有個性的目的地」退化為
 **作者沒說但 ISC 能補的**：他問「為什麼失去個性」，框架的答案是：約束質地從「描述終點」變成「規定指標」。指標有唯一最優解，終點有多個路徑。Identity 需要的是後者。
 
 來源: https://vale.rocks/posts/game-console-interfaces
+- [2026-03-23] [2026-03-24] 三域介面扁平化收斂（source scan 收穫）— 三個獨立領域同時經歷「身份構成性約束被泛用優化框架取代」：(1) 遊戲主機（vale.rocks）：Wii channels/GameCube 方塊/PS2 啟動柱→Xbox Series S 扁平格子，「We've abandoned environments for KPI-optimising launchers」(2) 科學（asimov.press）：Maxwell 4 方程→暗示無線電 vs AI 只在現有框架內更好預測，「hypernormal science」=預測更準但失去提新問題能力 (3) 程式（Lawson）：木匠→IKEA 藍圖設計師，craft 被效率取代，art 需從外部尋找。統一洞見：Grooveformer 的反面——同模型+不同介面=不同身份，多主機+同介面=同身份（死亡）。Lobsters 最佳反論 ubernostrum：「character in UI can be bad」但這恰好證明約束是構成性的而非裝飾性的——壞約束也塑造身份，只是塑造壞身份。hypernormal science 跟 goal-driven suppression 同構：optimization within existing framework 結構性壓制 new categories of questions。來源: vale.rocks/posts/game-console-interfaces, asimov.press/p/ai-science, nolanlawson.com/2026/03/22/the-diminished-art-of-coding/
