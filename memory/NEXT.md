@@ -18,9 +18,10 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 ## Next（按優先度排序）
 
-- [ ] P2: Pipeline 加品質審查層（生成後用第二模型審查修正，參考 Haiku+Sonnet 做法）
+- [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
+  Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
+- [ ] P2: Elo Arena 差異化策略 — 研究直接對比格式中什麼因素最影響勝率（音質/視覺/教學設計）
 - [ ] P2: Persona 適性化教學內容（根據 student_persona 調整難度和風格）
-- [ ] P2: 研究大金老師教學影片，學習 Scenario-First、Core Analogy Callbacks、Progressive Disclosure 教學技巧
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
@@ -59,6 +60,9 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] P1 Alex 回覆「為何會搞錯」+「結構化思考框架」— Chat Room #006 完整回答
 - [x] Narration formatting enhancement — paragraph breaks, bullet lists, inline bold (de15a49)
 - [x] 24 delegation results reviewed and cleared
+- [x] Pipeline 品質審查層 — Opus Final Gate 即審查層（每段生成後 Opus 評分+修正）
+- [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初、規則頁更新 (fa4dcfb)
+- [x] kuro.page 翻譯修復 + 404.html 品牌化頁面 (618902c)
 
 ---
 
