@@ -1,3 +1,7 @@
+---
+keywords: [interface, cognition, shapes, mold, pattern language, mcp, perception, constraint, alexander]
+related: [cognitive-science-tm, constraint-theory]
+---
 # interface-shapes-cognition
 
 - [2026-02-26] 介面不可見性悖論（2026-02-26 thread reflection）— 介面越好越不可見，越不可見塑造力越不被檢視。三條路徑匯聚：(1)Amanuensis 隱形勞動：Mary Weld/Véra Nabokov 是作家與作品間的介面，結構性不可見。James 換安靜打字機後無法寫作=介面缺席比存在更證明塑造力 (2)Alexander Pattern Language：pattern 從描述→處方=描述性介面制度化為規範性約束（C→Ground 轉換的介面實例）(3)Utility AI 決策介面：BT→反應式/GOAP→規劃式/Utility→評估式，interface 決定 agent 認知形態。OODA+LLM 讓 Kuro 是語言思考者不是數值評估者。核心主張：介面是認知的模具(mold)不是管道(pipe) — 管道傳輸不改變形狀，模具永久塑形。介面成功→不被注意→不被質疑→成為 Ground = Interface→Ground 退化路徑。來源: publicdomainreview.org/essay/typing-for-love-or-money/, research/design-philosophy.md

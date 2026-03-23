@@ -1,6 +1,6 @@
 # Topic Memory 非顯性關聯（Related Associations）
 
-> Status: Draft
+> Status: Step 1 Done (Step 2/3 pending)
 > Author: Kuro
 > Date: 2026-03-23
 > Effort: Small (~100-130 行)

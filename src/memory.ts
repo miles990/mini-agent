@@ -472,9 +472,9 @@ interface SoulFacet {
 /**
  * Parse YAML frontmatter from a topic file's content.
  * Uses regex — no yaml parser dependency needed.
- * Returns { keywords, negativeKeywords } or null if no frontmatter.
+ * Returns { keywords, negativeKeywords, related } or null if no frontmatter.
  */
-function parseTopicFrontmatter(content: string): { keywords: string[]; negativeKeywords: string[] } | null {
+function parseTopicFrontmatter(content: string): { keywords: string[]; negativeKeywords: string[]; related: string[] } | null {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return null;
   const fm = match[1];
@@ -487,18 +487,18 @@ function parseTopicFrontmatter(content: string): { keywords: string[]; negativeK
 
   const keywords = parseList('keywords');
   if (keywords.length === 0) return null;
-  return { keywords, negativeKeywords: parseList('negative_keywords') };
+  return { keywords, negativeKeywords: parseList('negative_keywords'), related: parseList('related') };
 }
 
 /** Cached topic keyword map — invalidated by directory mtime change or appendTopicMemory */
-let _topicKeywordCache: Record<string, { keywords: string[]; negativeKeywords: string[] }> | null = null;
+let _topicKeywordCache: Record<string, { keywords: string[]; negativeKeywords: string[]; related: string[] }> | null = null;
 let _topicKeywordDirMtime = 0;
 
 /**
  * Load topic keywords from frontmatter dynamically.
  * Uses directory mtime for invalidation — avoids re-reading files unless topics/ changed.
  */
-async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { keywords: string[]; negativeKeywords: string[] }>> {
+async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { keywords: string[]; negativeKeywords: string[]; related: string[] }>> {
   const topicsDir = path.join(memoryDir, 'topics');
 
   // Check directory mtime for invalidation (single stat vs N file reads)
@@ -514,7 +514,7 @@ async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { 
     return _topicKeywordCache ?? {};
   }
 
-  const map: Record<string, { keywords: string[]; negativeKeywords: string[] }> = {};
+  const map: Record<string, { keywords: string[]; negativeKeywords: string[]; related: string[] }> = {};
   try {
     const files = await fs.readdir(topicsDir);
     for (const file of files) {
@@ -527,7 +527,7 @@ async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { 
           map[topic] = parsed;
         } else {
           // Fallback: topic name itself as keyword
-          map[topic] = { keywords: [topic], negativeKeywords: [] };
+          map[topic] = { keywords: [topic], negativeKeywords: [], related: [] };
         }
       } catch { /* skip unreadable files */ }
     }
@@ -1074,7 +1074,7 @@ export class InstanceMemory {
     let charsUsed = 0;
 
     for (const topic of topics) {
-      const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
+      const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [], related: [] };
 
       const isMatch = keywords.some(k => {
         if (!hint.includes(k)) return false;
@@ -2289,7 +2289,7 @@ Queries:`;
       // R6: Removed INDEX_EXTRA_TOPIC_CAP — FTS5-backed index provides scored results,
       // budget control via TOPIC_MEMORY_BUDGET is sufficient to prevent bloat.
       for (const topic of topics) {
-        const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [] };
+        const { keywords, negativeKeywords: negatives } = keywordMap[topic] ?? { keywords: [topic], negativeKeywords: [], related: [] };
 
         // Match: keyword found AND not a negative-only match
         // Also match if index identifies this topic as relevant (R6: FTS5 + relational matching)
@@ -2364,6 +2364,30 @@ Queries:`;
           }
         }
       }
+      // ── 1-hop related loading ──
+      // After keyword-matched topics, load up to 3 related topics in summary mode.
+      // Strict 1-hop: no recursion into related-of-related.
+      const loadedSet = new Set(loadedTopics);
+      const relatedCandidates: string[] = [];
+      for (const topic of loadedTopics) {
+        const { related } = keywordMap[topic] ?? { related: [] };
+        for (const rel of related) {
+          if (!loadedSet.has(rel) && !relatedCandidates.includes(rel)) {
+            relatedCandidates.push(rel);
+          }
+        }
+      }
+      for (const relTopic of relatedCandidates.slice(0, 3)) {
+        const content = await this.readTopicMemory(relTopic);
+        if (content) {
+          const summary = addTemporalMarkers(truncateTopicMemory(content, 'summary'));
+          const section = `<topic-memory name="${relTopic}" via="related">\n${summary}\n</topic-memory>`;
+          sections.push(section);
+          topicCharsUsed += section.length;
+          loadedTopics.push(relTopic);
+        }
+      }
+
       this.loadedTopics = loadedTopics;
       const stimulusFingerprint = buildStimulusFingerprint(options?.trigger ?? null, loadedTopics);
       if (hasRecentStimulusFingerprint(stimulusFingerprint)) {
