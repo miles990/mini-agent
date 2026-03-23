@@ -18,9 +18,8 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 ## Next（按優先度排序）
 
-- [ ] P1: 認知科學 Phase 0 — 純 prompt 改動提升 engagement（Alex 核准後開始）
-  內容：(a) monitoring checkpoints (b) 符號接地協議 (c) productive struggle (d) 對話式語氣
-  Verify: `grep -c 'monitoring\|grounding\|productive struggle' ~/Workspace/teaching-monster/src/multi-phase-prompts.mjs`
+- [ ] P1: 測試認知科學 prompt + gate-failure retry 對 TM 品質的實際影響
+  Verify: `grep 'Gate retry' ~/Workspace/teaching-monster/output/*/stdout.log 2>/dev/null | tail -3`
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
   Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
 - [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
@@ -43,7 +42,8 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] kuro.page Journal Preview 區段上線 (abfaf6e)
 - [x] TM E2E score 2.75→3.5 (baseline→current), PASS threshold reached
 - [x] Engagement 提升 — 4 commits: student voice gate, predictive questions, misconception-first
-- [x] Pipeline 品質審查層 — Opus Final Gate（每段生成後 Opus 評分+修正）
+- [x] Pipeline 品質審查層 — Opus Final Gate + gate-failure retry（自動重試+best-of-two 選擇）
+- [x] 認知科學 Phase 0 — Symbol Grounding + Productive Struggle + Error Example 注入 (1c82673)
 - [x] Elo Arena 差異化策略 v1 — cognitive dissonance hooks + synthesis closings (13f662b)
 - [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初 (fa4dcfb)
 
