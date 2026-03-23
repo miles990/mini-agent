@@ -19,6 +19,9 @@
 - [ ] P1: 結晶候選 — goal-idle（24 cycles 無行為改變）
 - [ ] P1: 結晶候選 — goal-accelerating（15 cycles 無行為改變）
 - [ ] P1: 結晶候選 — output-gate（69 cycles 無行為改變）
+- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
+Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-23T00:15:23.421Z -->
 Pattern: 20 cycles without visible output
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:34:55.011Z -->
 Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 2 actions in 24h
