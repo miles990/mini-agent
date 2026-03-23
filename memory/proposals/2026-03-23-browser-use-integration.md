@@ -212,7 +212,7 @@ task: "去 example.com 註冊新帳號，email 用 xxx@gmail.com"
 3. [ ] `.env` 加入各服務 credentials
 4. [x] `src/types.ts` 加 `'browse'` type
 5. [x] `src/delegation.ts` 加 browse executor（含 browse 獨立併發限制 max=1）
-6. [ ] 測試 Phase 1：Session 復用（HN、ArXiv — 無需登入）
+6. [x] 測試 Phase 1：Session 復用（HN — 無需登入）✅ 2026-03-23 — pipeline 跑通，structured output 有 4/6 retry warnings（ChatClaudeCLI → `--json-schema` 偶爾返回 plain text），但結果正確
 7. [ ] 測試 Phase 2：帳密登入（Teaching Monster Clerk）
 8. [ ] 測試 Phase 3：OAuth 流程（Google → Gmail）
 9. [ ] 測試 Phase 4：跨站鏈（註冊 + email 驗證）

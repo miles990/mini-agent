@@ -142,24 +142,13 @@ class ChatClaudeCLI(BaseChatModel):
     ) -> ChatInvokeCompletion[T] | ChatInvokeCompletion[str]:
         prompt, system_prompt = _serialize_messages_to_prompt(messages)
 
-        # When using --json-schema, the CLI internally uses tool calling which
-        # requires multiple turns (tool_use -> tool_result -> end_turn).
-        # We need --max-turns 3 minimum for structured output.
-        effective_max_turns = 3 if output_format is not None else self.max_turns
-
         cmd = [
             self.cli_path,
             "-p",
             "--output-format", "json",
             "--model", self.model,
-            "--max-turns", str(effective_max_turns),
+            "--max-turns", str(self.max_turns),
         ]
-
-        if output_format is not None:
-            # Get JSON schema from Pydantic model
-            schema = output_format.model_json_schema()
-            schema_str = json.dumps(schema)
-            cmd.extend(["--json-schema", schema_str])
 
         # Write system prompt to temp file to avoid shell argument length limits
         # and ensure proper system/user message separation in the API call
@@ -172,14 +161,17 @@ class ChatClaudeCLI(BaseChatModel):
             system_prompt_file.close()
             cmd.extend(["--system-prompt-file", system_prompt_file.name])
 
-        # When structured output is expected, reinforce that the model MUST use the
-        # provided JSON schema tool. Without this, the model sometimes answers
-        # in plain text instead of structured actions.
+        # For structured output: embed schema in prompt instead of --json-schema.
+        # --json-schema uses tool calling (needs 3 turns, ~67% retry rate).
+        # Prompt-based JSON is more reliable: 1 turn, model follows JSON instructions well.
         if output_format is not None:
+            schema = output_format.model_json_schema()
+            schema_str = json.dumps(schema)
             cmd.extend([
                 "--append-system-prompt",
-                "CRITICAL: You MUST respond using the provided JSON schema tool. "
-                "NEVER respond with plain text. Always use the structured output format.",
+                "CRITICAL: You MUST respond with ONLY a valid JSON object. "
+                "No explanation, no markdown, no code blocks — ONLY the raw JSON object.\n\n"
+                f"Required JSON Schema:\n{schema_str}",
             ])
 
         logger.debug(f"Claude CLI command: {' '.join(cmd[:6])}...")
@@ -221,9 +213,9 @@ class ChatClaudeCLI(BaseChatModel):
                 cli_response = {"result": raw_output}
 
             # Log when structured output is expected but missing (aids debugging)
-            if output_format is not None and cli_response.get("structured_output") is None:
+            if output_format is not None:
                 logger.debug(
-                    f"structured_output missing, will try parsing from result field "
+                    f"Parsing structured output from result field "
                     f"(stop_reason={cli_response.get('stop_reason')})"
                 )
 
@@ -255,20 +247,7 @@ class ChatClaudeCLI(BaseChatModel):
                     stop_reason=stop_reason,
                 )
             else:
-                # CLI puts parsed structured output in "structured_output" field
-                structured = cli_response.get("structured_output")
-                if structured is not None:
-                    try:
-                        validated = output_format.model_validate(structured)
-                        return ChatInvokeCompletion(
-                            completion=validated,
-                            usage=usage,
-                            stop_reason=stop_reason,
-                        )
-                    except Exception as e:
-                        logger.warning(f"structured_output validation failed: {e}")
-
-                # Fallback: try parsing from "result" text
+                # Primary: parse JSON from "result" field (prompt-based structured output)
                 response_text = cli_response.get("result", "")
                 try:
                     if isinstance(response_text, str):
