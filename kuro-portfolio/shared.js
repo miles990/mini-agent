@@ -167,6 +167,13 @@ I18N.apply(I18N.getLang());
         { href: 'inner.html', i18n: 'page_guide.inner' },
       ]
     },
+    'thread.html': {
+      back: 'index.html#works',
+      related: [
+        { href: 'constraint-framework.html', i18n: 'page_guide.constraint_framework' },
+        { href: 'three-rooms.html', i18n: 'page_guide.three_rooms' },
+      ]
+    },
   };
 
   const page = location.pathname.split('/').pop() || 'index.html';
