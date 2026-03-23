@@ -207,11 +207,11 @@ task: "去 example.com 註冊新帳號，email 用 xxx@gmail.com"
 
 ### 實作步驟（更新）
 
-1. [ ] 把 `chat_claude_cli.py` 從 workspace 移到 `scripts/`
-2. [ ] 新增 `scripts/browser-use-run.py`（含 credentials 解析 + 2FA 回報）
+1. [x] 把 `chat_claude_cli.py` 從 workspace 複製到 `scripts/`
+2. [x] 新增 `scripts/browser-use-run.py`（含 credentials 解析 + 2FA 回報）
 3. [ ] `.env` 加入各服務 credentials
-4. [ ] `src/types.ts` 加 `'browse'` type
-5. [ ] `src/delegation.ts` 加 browse executor（含 2FA 暫停 + Telegram 通知）
+4. [x] `src/types.ts` 加 `'browse'` type
+5. [x] `src/delegation.ts` 加 browse executor（含 browse 獨立併發限制 max=1）
 6. [ ] 測試 Phase 1：Session 復用（HN、ArXiv — 無需登入）
 7. [ ] 測試 Phase 2：帳密登入（Teaching Monster Clerk）
 8. [ ] 測試 Phase 3：OAuth 流程（Google → Gmail）

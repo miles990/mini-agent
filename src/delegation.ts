@@ -1,9 +1,10 @@
 /**
  * Delegation — Async Task Executor
  *
- * 讓 Kuro 從 OODA cycle 委派任務。支援兩種 executor：
+ * 讓 Kuro 從 OODA cycle 委派任務。支援三種 executor：
  * - Claude CLI subprocess（code/learn/research/create/review）— 需要語言理解
  * - Shell executor（shell）— 直接跑 bash 命令，零 Claude token
+ * - Browse executor（browse）— browser-use + ChatClaudeCLI Python subprocess
  * Fire-and-forget：spawnDelegation() 立即返回 taskId，不阻塞主 loop。
  *
  * Safety:
@@ -140,6 +141,7 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
   create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
+  browse:   { tools: [], maxTurns: 1, timeoutMs: 180_000, provider: 'claude' },
 };
 
 // =============================================================================
@@ -511,6 +513,18 @@ export function spawnDelegation(task: DelegationTask): string {
     workdir,
   };
 
+  // Browse concurrency limit (Chrome is resource-heavy — max 1 browse at a time)
+  if (taskType === 'browse') {
+    const activeBrowse = [...activeTasks.values()].filter(t => t.result.type === 'browse' && t.result.status === 'running');
+    if (activeBrowse.length >= 1) {
+      slog('DELEGATION', `Queued browse ${taskId} (1 browse already active)`);
+      queue.push({ task: normalizedTask, resolve: () => {} });
+      const result: TaskResult = { id: taskId, type: 'browse', status: 'running', startedAt: new Date().toISOString(), output: '(queued — browse slot busy)' };
+      activeTasks.set(taskId, { process: null as unknown as ChildProcess, result });
+      return taskId;
+    }
+  }
+
   // Check concurrency
   if (activeTasks.size >= MAX_CONCURRENT) {
     slog('DELEGATION', `Queued ${taskId} (${activeTasks.size}/${MAX_CONCURRENT} active)`);
@@ -739,7 +753,7 @@ function startTask(task: DelegationTask): void {
   // Forge worktree for non-shell tasks — slime mold isolation
   let effectiveWorkdir = task.workdir;
   let forgeWorktreePath: string | null = null;
-  if (taskType !== 'shell') {
+  if (taskType !== 'shell' && taskType !== 'browse') {
     if (task.forgeWorktree && fs.existsSync(task.forgeWorktree)) {
       // Resume: reuse existing forge worktree (has partial work)
       forgeWorktreePath = task.forgeWorktree;
@@ -784,7 +798,19 @@ function startTask(task: DelegationTask): void {
   const isLocal = taskType !== 'shell' && provider === 'local';
   const isCodex = taskType !== 'shell' && provider === 'codex';
 
-  if (taskType === 'shell') {
+  if (taskType === 'browse') {
+    // Browse executor — browser-use + ChatClaudeCLI (Python subprocess)
+    const browserUseVenv = path.resolve(process.env.HOME ?? '', '.mini-agent-subprocess/browser-use-workspace/.venv/bin/python');
+    const runnerScript = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../scripts/browser-use-run.py');
+    slog('DELEGATION', `Starting browse ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawn(browserUseVenv, [runnerScript], {
+      cwd: task.workdir,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+    child.stdin!.write(task.prompt);
+    child.stdin!.end();
+  } else if (taskType === 'shell') {
     // Shell executor — run prompt as bash command directly
     slog('DELEGATION', `Starting shell ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
     child = spawn('bash', ['-c', task.prompt], {

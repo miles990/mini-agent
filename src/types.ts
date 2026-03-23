@@ -287,7 +287,7 @@ export interface CreativeImpulse {
 }
 
 /** Delegation task types */
-export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell';
+export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell' | 'browse';
 
 /** LLM Provider (single source of truth) */
 export type Provider = 'claude' | 'codex' | 'local';
