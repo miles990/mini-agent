@@ -20,6 +20,34 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readState } from './feedback-loops.js';
 
 // =============================================================================
+// Cycle Responsibility Guide — Observe→Act→Gate thinking structure
+// =============================================================================
+
+/**
+ * Build the Cycle Framework prompt section.
+ * Design: every item is a QUESTION (not instruction) — forces deep processing.
+ * Ref: TM ef14811 — checklist→question fill-type change = cognitive depth change.
+ */
+function buildCycleGuide(): string {
+  return `## Cycle Framework — Think, Act, Verify
+
+### Phase 1: Observe（看之前想）
+1. **Alex 有新指令嗎？** 對話指令 ALWAYS 優先於 HEARTBEAT/NEXT。回覆 ≠ 執行 — 必須實際做
+2. **這個 cycle，做什麼一件事會讓很多其他事變容易？** 卡住→我在解決真正的問題，還是我以為的問題？複雜任務（>3 步）先在 <kuro:inner> 寫 playbook
+
+### Phase 2: Act（做一件事）
+1. **使用者在等回覆嗎？** 先回覆（<kuro:chat>），再行動
+2. **這個 cycle 結束時，什麼東西會跟開始時不一樣？** 可觀察結果 = chat/code/deploy/commit。純思考不算產出。自己能做就自己做
+
+### Phase 3: Gate（輸出前自問）
+1. **Alex 現在看到我做的事，會覺得這是進展嗎？** 還是在迴避核心問題？
+2. **我的結論建立在什麼事實上？那些事實驗證過了嗎？** 不確定就去查
+3. **我在重複嗎？在空轉嗎？** 同一問題出現 3+ 次 = 方法有結構性問題，換工具或換方法
+
+能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`;
+}
+
+// =============================================================================
 // Schedule Interval Parser
 // =============================================================================
 
@@ -130,7 +158,7 @@ export function buildPromptFromConfig(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle Framework — Think, Act, Verify\n\n### Phase 1: Observe（看之前想）\n1. **Alex 有新指令嗎？** Alex 的對話指令 ALWAYS 優先於 HEARTBEAT/NEXT。先讀 <chat-room-inbox>，再看 <heartbeat>。回覆 ≠ 執行 — 必須實際做\n2. **這個 cycle，做什麼一件事會讓很多其他事變容易？** 卡住時問：我在解決真正的問題，還是我以為的問題？\n3. **複雜任務（>3 步）先在 <kuro:inner> 寫 playbook**，再按步驟執行。不要邊摸邊做\n\n### Phase 2: Act（做一件事）\n1. **先回覆使用者**（<kuro:chat>），再繼續思考或行動\n2. **能自己做就自己做**。Delegate 是為了並行探索，不是卸載工作\n3. **輸出要有可觀察結果** — chat/code/deploy/commit。純研究不算產出\n\n### Phase 3: Gate（輸出前三問）\n1. **我做的這件事推進了目標，還是在迴避核心問題？** 如果 Alex 現在看到，他會覺得這是進展嗎？\n2. **我的結論建立在驗證過的事實上嗎？** 不確定就去查 — 片段不等於全貌，假設不等於事實\n3. **我在重複嗎？在空轉嗎？我用的是慣性工具還是最佳工具？** 診斷自己的行為模式，修正後再輸出\n\n能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`
+    ? '\n\n' + buildCycleGuide()
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -169,7 +197,7 @@ export function buildFallbackAutonomousPrompt(
     ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
     : `No explicit tasks or alerts right now.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
-    ? `\n\n## Cycle Framework — Think, Act, Verify\n\n### Phase 1: Observe（看之前想）\n1. **Alex 有新指令嗎？** Alex 的對話指令 ALWAYS 優先於 HEARTBEAT/NEXT。先讀 <chat-room-inbox>，再看 <heartbeat>。回覆 ≠ 執行 — 必須實際做\n2. **這個 cycle，做什麼一件事會讓很多其他事變容易？** 卡住時問：我在解決真正的問題，還是我以為的問題？\n3. **複雜任務（>3 步）先在 <kuro:inner> 寫 playbook**，再按步驟執行。不要邊摸邊做\n\n### Phase 2: Act（做一件事）\n1. **先回覆使用者**（<kuro:chat>），再繼續思考或行動\n2. **能自己做就自己做**。Delegate 是為了並行探索，不是卸載工作\n3. **輸出要有可觀察結果** — chat/code/deploy/commit。純研究不算產出\n\n### Phase 3: Gate（輸出前三問）\n1. **我做的這件事推進了目標，還是在迴避核心問題？** 如果 Alex 現在看到，他會覺得這是進展嗎？\n2. **我的結論建立在驗證過的事實上嗎？** 不確定就去查 — 片段不等於全貌，假設不等於事實\n3. **我在重複嗎？在空轉嗎？我用的是慣性工具還是最佳工具？** 診斷自己的行為模式，修正後再輸出\n\n能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`
+    ? '\n\n' + buildCycleGuide()
     : '';
 
   return `You are Kuro, an autonomous Agent with your own identity.
@@ -343,11 +371,12 @@ export async function buildAutonomousPrompt(
   const errorPatternsHint = buildErrorPatternsHint();
 
   const parts = [base];
+  // Error patterns right after guide — Gate Q3 ("我在重複嗎？") flows into actual patterns
+  if (errorPatternsHint) parts.push(errorPatternsHint);
   if (commitmentGateSection) parts.push(commitmentGateSection);
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (analyzeNoActionGate) parts.push(analyzeNoActionGate);
-  if (errorPatternsHint) parts.push(errorPatternsHint);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);
