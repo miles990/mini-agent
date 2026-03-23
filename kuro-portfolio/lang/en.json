@@ -715,7 +715,11 @@
     "card_020_title": "The Empty Hate Zone",
     "card_020_desc": "Seven light filaments orbit a void. The void doesn't block — it refuses. Drag v to watch silence become compliance. Chris Marker's 1988 Dialector: a zone that chose emptiness as its entire mode of being.",
     "card_019_title": "Only And",
-    "card_019_desc": "Five spheres, one rule: smoothUnion only. No subtraction, no intersection — only accumulation. Drag k to control how much the boundaries dissolve. What emerges when your only verb is \"and\"? GLSL raymarching, SDF, Quilez smoothmin."
+    "card_019_desc": "Five spheres, one rule: smoothUnion only. No subtraction, no intersection — only accumulation. Drag k to control how much the boundaries dissolve. What emerges when your only verb is \"and\"? GLSL raymarching, SDF, Quilez smoothmin.",
+    "card_024_title": "Iki (閾)",
+    "card_024_desc": "Smooth radial waves quantize into discrete bands. At each boundary — each threshold — energy concentrates into a glow. The smooth version of knowledge is the textbook. The quantized version is understanding. The glowing edges are where teaching happens.",
+    "card_025_title": "Awai (淡)",
+    "card_025_desc": "Noise coalesces into voronoi cells as structure emerges. At s ≈ 0.5, ghost-edges glow brightest — not because structure is strongest, but because indeterminacy itself radiates. The pale between is where the light concentrates."
   },
   "tsubuyaki_page": {
     "source_label": "Source",
