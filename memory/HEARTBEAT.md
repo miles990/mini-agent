@@ -11,27 +11,7 @@
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
-- [ ] P1: 結晶候選 — recurring-errors（142 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-accelerating（13 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-idle（21 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-stalled（18 cycles 無行為改變）
-- [ ] P1: 結晶候選 — analyze-no-action（21 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-idle（24 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-accelerating（15 cycles 無行為改變）
-- [ ] P1: 結晶候選 — output-gate（69 cycles 無行為改變）
-- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
-Pattern: question:讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 0 actions in 48h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-23T00:15:23.421Z -->
-Pattern: 20 cycles without visible output
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:34:55.011Z -->
-Pattern: 讓 kuro.page 更完整、更符合我的美學、豐富內容 — 長期方向，自主決定風格和內容: 2 actions in 24h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:32:36.892Z -->
-Pattern: 16h idle
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-22T23:32:36.845Z -->
-- [x] P1: 結晶候選 — output-gate → isOutputGateActive() in pulse.ts + dispatcher.ts gate
-- [x] P1: 結晶候選 — goal-accelerating → 正面觀測信號，不需 gate
-- [x] P1: 結晶候選 — unreviewed-delegations → _shownCount 持久化 (d43455d) + routing rules (79bcafb)
-<!-- P1 結晶系列結案 (2026-03-21):
+<!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23):
   所有機械性 pattern 已結晶為 code gate。僅 goal-idle + goal-stalled HOLD。
   ✅ output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
   ✅ unreviewed-delegations — _shownCount 持久化 (d43455d) + routing rules (79bcafb)
@@ -41,6 +21,7 @@ Pattern: 16h idle
   ✅ goal-accelerating — 正面觀測信號，不需 gate
   ✅ priority-misalign — 非機械性，signal 已存在
   ⏸ goal-idle + goal-stalled — HOLD，依賴 goal 結構化
+  Note: pulse 系統會持續新增重複候選，已結晶的項目不需重複處理
 -->
 
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
