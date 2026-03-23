@@ -262,7 +262,8 @@ function buildErrorPatternsHint(): string {
       .slice(0, 5);
     if (actionable.length === 0) return '';
 
-    const lines = actionable.map(([key, v]) => `- **${key}** — ${v.count}× (last: ${v.lastSeen})`);
+    const lines = actionable.map(([key, v]) =>
+      `- **${key}** — ${v.count}× (last: ${v.lastSeen})\n  Before trying the same fix: What did you try last time for this? What worked, what didn't? Is this the same root cause, or a different one wearing the same mask?`);
     return `## Recurring Error Patterns\nThese errors keep happening. Before repeating the same approach, consider an alternative:\n${lines.join('\n')}`;
   } catch { return ''; }
 }
