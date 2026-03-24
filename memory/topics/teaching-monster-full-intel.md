@@ -34,13 +34,16 @@ related: [teaching-monster, teaching-monster-competitors, teaching-monster-strat
 3. **學習者適應 (Adaptability)** — 識別 ZPD，根據 persona 調整
 4. **認知參與 (Engagement)** — 懸疑/蘇格拉底提問/總結，視覺音頻同步
 
-### 評審機制
+### 評審機制（⚠️ 2026-03-24 更新：初賽為兩階段制）
 
 | 階段 | 評審 | 方式 |
 |------|------|------|
-| Warm-up | AI Student | 自動評分，僅參考 |
-| 初賽 | 真人學生 | Arena pairwise → Elo 排名 |
-| 決賽 | 高中老師 + 大學教授 | 專家小組 |
+| Warm-up | AI Student | 自動評分+回饋，僅參考（不影響排名）|
+| **初賽 Stage 1** | **AI Student** | **自動篩選 → 前 10 隊晉級**（GATE，非回饋）|
+| **初賽 Stage 2** | 真人學生 | Arena pairwise → Elo → 前 3 隊晉級 |
+| 決賽 | 高中老師 + 大學教授 | 專家小組現場出題 |
+
+**⚠️ 策略影響**：AI Student 是初賽的硬性 gate。通不過 AI Student 篩選，真人評審永遠看不到你的作品。優化順序：先確保通過 AI gate，再優化 Arena 體驗。
 
 ---
 
@@ -180,22 +183,39 @@ related: [teaching-monster, teaching-monster-competitors, teaching-monster-strat
 5. **Arena 放大視覺差異** — 投資視覺品質的 ROI 在 Arena 格式下被放大。好的投影片設計 > 好的腳本（在第一印象層面）
 6. **OpenAPI spec 完整** — 平台 API 完全公開，可以自動化提交、查詢狀態、觸發 audit
 
-### 解空間形狀
+### 解空間形狀（2026-03-24 更新）
 
-三層約束交叉後，解空間被壓縮到：
+兩階段制意味著解空間有兩層：
 
 ```
-全自動 pipeline × 30分鐘時限 × Arena pairwise × 零幻覺
-= 快速、自動、視覺突出、事實正確的教學影片生成器
+Stage 1 (AI Student gate):
+全自動 × 30min × 零幻覺 × 結構化字幕 × 明確 persona 適應
+= 文字可解析、邏輯清晰、persona-aware 的教學內容
+
+Stage 2 (Human Arena):
+通過 gate 後 × Arena pairwise × 第一印象 × 視覺差異化
+= 視覺突出、開頭吸引、生產品質高的影片
 ```
 
-**勝出策略不是「做最好的影片」，是「在 pairwise 比較中贏」。**
+**兩階段優化策略**：
 
-這意味著：
+**AI Student gate（先過關）**：
+- **字幕必填**（即使 optional）— LLM 評估器最可能讀文字，字幕是直接 access
+- **Persona 適應必須明確可見** — 在腳本中顯式回應 `student_persona`（詞彙、例子、先備知識假設）
+- **結構 > 視覺** — 清晰的 scaffolding（簡→繁、明確轉場、先定義再使用）比視覺精美更容易被 LLM 偵測
+- **Warm-up 2 = 最後校準窗口** — 4 月初的 warm-up 是唯一實證 AI Student 敏感度的機會，每次改一個維度
+
+**Human Arena（再贏比較）**：
 - **前 3 秒**比後 10 分鐘重要（Arena 格式下的 Distinction Bias）
-- **視覺差異化**是代理指標（學生不會深究內容準確性，但會立刻注意到投影片品質差異）
-- **短而精 > 長而全**（5-8 分鐘影片更容易被完整觀看和比較）
-- **先提交 = 更多 Elo 樣本 = 更穩定的排名**
+- **視覺差異化**是代理指標（學生不會深究內容準確性，但會立刻注意到品質差異）
+- **短而精 > 長而全**（5-8 分鐘更容易被完整觀看）
+- **一致性 > 單項突出**（人類 pairwise 比較中，四維度均衡比一項超強更有說服力）
+
+### 學術參考：EducationQ (ACL 2025, arXiv:2504.14928)
+
+最接近 TM AI Student 的學術工作。用 Llama 3.1 70B 做模擬學生、GPT-4o 做評估。
+**關鍵發現**：教學效果與模型規模/通用推理能力不線性相關 — 小模型+精緻教學策略 > 大模型+通用生成。
+**啟示**：TM 會獎勵專門的教學工程（pedagogical engineering），不是原始生成品質。
 
 ### Interface Shapes Cognition
 
@@ -255,3 +275,13 @@ related: [teaching-monster, teaching-monster-competitors, teaching-monster-strat
 - **Edge TTS**：品質 3/5，免費，目前在用的方案
 - **Fish/ChatTTS**：品質 2/5，不推薦
 決策：TTS 升級優先度取決於對手影片品質。若對手用基本 TTS → Edge 夠用；對手高品質語音 → 升級 Kokoro。
+- [2026-03-24] [2026-03-24] AI Student 初賽 Gate 機制研究完成：
+- **初賽兩階段制**：AI Student 自動篩選 → top 10 → 人類 Arena → top 3 → 決賽
+- AI Student 是 GATE 不是回饋 — 過不了就沒有人類評審
+- AI Student 很可能是 LLM-based，讀文字/字幕而非影片畫面
+- **字幕必填**（optional 但戰略必要）— 是 AI 評估器 access 內容的主要管道
+- **Persona 適應要明確**（vocabulary + examples + 先備知識假設都要配合 student_persona）
+- **結構 > 視覺**（對 AI：scaffolding 比 production polish 容易偵測）
+- **Warm-up 2 = 最後校準窗口**（一次改一個維度，reverse-engineer 評分敏感度）
+- 學術參考：EducationQ (ACL 2025, arXiv:2504.14928) — 教學策略 > 模型規模
+- 來源：teaching.monster 官網 + EducationQ paper
