@@ -342,6 +342,50 @@ function logDelegationLifecycle(result: TaskResult, provider: Provider): void {
 const JOURNAL_MAX_ENTRIES = 100;
 
 /**
+ * Extract a useful summary from delegation output.
+ * Instead of blindly taking the first N chars (which captures THINK preambles),
+ * strips thinking blocks, looks for conclusion sections, or takes the last N chars.
+ */
+export function extractDelegationSummary(output: string, maxLen: number): string {
+  if (!output) return '';
+
+  let text = output;
+
+  // Strip thinking blocks
+  text = text.replace(/<ktml:thinking>[\s\S]*?<\/ktml:thinking>/g, '');
+  text = text.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
+
+  // Strip forge suffix noise
+  text = text.replace(/\[forge\] merge skipped \([^)]*\)\s*$/, '').trim();
+
+  const cleaned = text.replace(/\n/g, ' ').trim();
+  if (cleaned.length <= maxLen) return cleaned;
+
+  // Look for conclusion markers (heading-prefixed or bare with colon)
+  const conclusionMatch = text.match(
+    /#{2,3}\s*(?:\d+\.\s*)?(?:FINAL ANSWER|Conclusion|結論|Summary|摘要|Key Findings?|Results?|結果)/i
+  ) ?? text.match(
+    /(?:^|\n)\s*(?:結論|Conclusion|FINAL ANSWER)[：:]/i
+  );
+  if (conclusionMatch && conclusionMatch.index !== undefined) {
+    const fromConclusion = text.slice(conclusionMatch.index).replace(/\n/g, ' ').trim();
+    if (fromConclusion.length > 30) {
+      return fromConclusion.slice(0, maxLen);
+    }
+  }
+
+  // Check if output starts with a THINK/reasoning preamble
+  const startsWithThink = /^(?:#{1,3}\s*(?:\d+\.\s*)?THINK|I am verifying|Let me (?:think|analyze|verify))/i.test(text.trim());
+  if (startsWithThink) {
+    // Reasoning-heavy output — take the last N chars (conclusions are at the end)
+    return '…' + cleaned.slice(-(maxLen - 1));
+  }
+
+  // Output starts with content (not reasoning) — first N chars is fine
+  return cleaned.slice(0, maxLen);
+}
+
+/**
  * Persist delegation result (including output summary) to a rolling journal.
  * This ensures tentacle knowledge survives beyond the one-cycle <background-completed> window.
  */
@@ -405,7 +449,7 @@ export function buildRecentDelegationSummary(maxAgeMs: number = 3_600_000, maxCh
     let result = '';
     for (const e of recent) {
       const durSec = Math.round((e.durationMs ?? 0) / 1000);
-      const preview = (e.output ?? '').slice(0, 100).replace(/\n/g, ' ');
+      const preview = extractDelegationSummary(e.output ?? '', 100);
       const line = `- [${e.type}] ${e.id}: ${e.status} (${durSec}s) — ${preview}\n`;
       if (result.length + line.length > maxChars) break;
       result += line;
@@ -1016,7 +1060,7 @@ function startTask(task: DelegationTask): void {
       }
       writeActivity({
         lane: 'background',
-        summary: `${result.type ?? 'code'} ${result.status}: ${result.output.slice(0, 100).replace(/\n/g, ' ')}`,
+        summary: `${result.type ?? 'code'} ${result.status}: ${extractDelegationSummary(result.output, 100)}`,
         tags: [result.status],
         duration: result.duration,
       });

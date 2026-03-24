@@ -2958,7 +2958,7 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
           const entry = {
             id: data.id ?? path.basename(f, '.json'),
             type: data.type,
-            summary: (data.output || '').replace(/\n/g, ' ').slice(0, 150),
+            summary: extractDelegationSummaryInline(data.output || '', 150),
             archivedAt: new Date().toISOString(),
           };
           appendFileSync(backlogPath, JSON.stringify(entry) + '\n');
@@ -3038,6 +3038,32 @@ export function cleanupStaleLaneOutput(instanceId: string): void {
       } catch { /* best effort */ }
     }
   } catch { /* best effort */ }
+}
+
+// =============================================================================
+// Delegation Summary Extraction (inline to avoid circular imports with delegation.ts)
+// =============================================================================
+
+/** Extract conclusion from delegation output instead of blindly taking first N chars. */
+function extractDelegationSummaryInline(output: string, maxLen: number): string {
+  if (!output) return '';
+  let text = output
+    .replace(/<ktml:thinking>[\s\S]*?<\/ktml:thinking>/g, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
+    .replace(/\[forge\] merge skipped \([^)]*\)\s*$/, '')
+    .trim();
+  const cleaned = text.replace(/\n/g, ' ').trim();
+  if (cleaned.length <= maxLen) return cleaned;
+  const m = text.match(/#{2,3}\s*(?:\d+\.\s*)?(?:FINAL ANSWER|Conclusion|結論|Summary|摘要|Key Findings?|Results?|結果)/i)
+    ?? text.match(/(?:^|\n)\s*(?:結論|Conclusion|FINAL ANSWER)[：:]/i);
+  if (m && m.index !== undefined) {
+    const fromConclusion = text.slice(m.index).replace(/\n/g, ' ').trim();
+    if (fromConclusion.length > 30) return fromConclusion.slice(0, maxLen);
+  }
+  if (/^(?:#{1,3}\s*(?:\d+\.\s*)?THINK|I am verifying|Let me (?:think|analyze|verify))/i.test(text.trim())) {
+    return '…' + cleaned.slice(-(maxLen - 1));
+  }
+  return cleaned.slice(0, maxLen);
 }
 
 // =============================================================================
