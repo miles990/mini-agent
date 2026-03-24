@@ -2440,8 +2440,9 @@ Queries:`;
     // Anthropic API auto-caches identical prompt prefixes (~5min TTL).
     // By placing rarely-changing sections at the start of context,
     // the cacheable prefix extends beyond the system prompt into context.
-    // soul base (~2K) + workspace (~1K) + myelin + threads + memory-index ≈ 8-12K stable prefix.
-    const STABLE_FIRST = ['soul', 'workspace', 'myelin-framework', 'threads', 'memory-index'];
+    // soul (~2K) + memory (~4-8K) + heartbeat (~2-4K) + workspace (~1K) + myelin + threads + memory-index ≈ 15-20K stable prefix.
+    // Note: environment section (timestamp) changes every cycle — stays in restSections intentionally.
+    const STABLE_FIRST = ['soul', 'memory', 'heartbeat', 'workspace', 'myelin-framework', 'threads', 'memory-index'];
     const stableSet = new Set(STABLE_FIRST);
     const stableBuckets = new Map<string, string>();
     const restSections: string[] = [];
