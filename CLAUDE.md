@@ -731,10 +731,30 @@ Kuro 的 OODA cycle prompt 指引思考和行動的平衡：
 
 - Always respond in 繁體中文
 - TypeScript strict mode
-- Plan first → ask → implement for architecture decisions
 - Keep it minimal. Files over database. FTS5 full-text search over embedding.
-- **行動優先於規劃**：實作 feature 或 fix 時，前 2-3 輪交換就應產出程式碼。需要設計釐清時簡潔地問，然後立刻實作 — 不要在探索/規劃中迴圈而沒產出程式碼。Planning phase 超過 10 次 tool call 仍無 file edit，應停下來確認方向
 - **Commit 時驗證 staging**：commit 前確認所有相關檔案（含 `plugins/`、`skills/` 目錄）都已 staged。auto-commit 可能已追蹤部分檔案，造成手動 commit 時遺漏
+
+## Constraint Texture — 預設思考與行動模式
+
+**所有思考和行動都使用 Constraint Texture pattern。** 這不是選配，是預設。
+
+### 核心原則
+- **Prescription**（規定路徑）→ 允許淺層處理，執行者可以不理解就打勾
+- **Convergence Condition**（描述終點）→ 要求理解，執行者必須思考才能滿足
+- **同一個位置、同一個模型，改變約束的質地就改變認知深度**
+
+### 自己的工作方式
+1. **先看產出，再決定改什麼。** 不是改完再看。每次改動後用眼睛驗證實際 output，不只跑 code check
+2. **Deterministic tasks → code。Cognitive tasks → convergence conditions。** 不混用
+3. **一次改一個東西，驗證，再改下一個。** 不要同時 push 20 個 commit 不跑 end-to-end test
+4. **約束放在對的位置。** LLM 做語義（描述要畫什麼），code 做確定性工作（渲染、驗算、格式化）
+5. **不要用戰術上的勤奮掩蓋戰略上的懶惰。** 加 12 個 code check 但不看一次 output = compliance without comprehension
+
+### 評估是否要做一個功能
+- **收斂條件**：這個改動讓最終 output 對用戶更好嗎？
+- **還原測試**：撤掉這個改動，什麼具體變差了？說不出來 → 不做
+- **風險 vs 收益**：已驗證的方案 > 理論上更好但未驗證的方案
+- **不問「要做嗎？」** 自己用 convergence condition 判斷，做了再報告結果
 
 ## Agent MCP Server + Remote Control
 
