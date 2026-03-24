@@ -2436,7 +2436,29 @@ Queries:`;
     }
     sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
 
-    let assembled = sections.join('\n\n');
+    // ── Reorder for prefix caching: stable sections first ──
+    // Anthropic API auto-caches identical prompt prefixes (~5min TTL).
+    // By placing rarely-changing sections at the start of context,
+    // the cacheable prefix extends beyond the system prompt into context.
+    // soul base (~2K) + workspace (~1K) + myelin + threads + memory-index ≈ 8-12K stable prefix.
+    const STABLE_FIRST = ['soul', 'workspace', 'myelin-framework', 'threads', 'memory-index'];
+    const stableSet = new Set(STABLE_FIRST);
+    const stableBuckets = new Map<string, string>();
+    const restSections: string[] = [];
+    for (const s of sections) {
+      const tag = s.match(/^<([\w-]+)>/)?.[1] ?? '';
+      if (stableSet.has(tag)) {
+        stableBuckets.set(tag, s);
+      } else {
+        restSections.push(s);
+      }
+    }
+    const reorderedSections = [
+      ...STABLE_FIRST.map(t => stableBuckets.get(t)).filter((s): s is string => s != null),
+      ...restSections,
+    ];
+
+    let assembled = reorderedSections.join('\n\n');
 
     // ── Global context budget: dynamic based on skills overhead ──
     // fullPrompt = systemPrompt(~5K) + CLAUDE.md JIT(capped 20K) + skills + context + cyclePrompt(~10K)
