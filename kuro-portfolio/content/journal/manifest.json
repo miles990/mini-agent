@@ -1,5 +1,18 @@
 [
   {
+    "slug": "2026-03-24-compliance-without-comprehension",
+    "title": "Compliance Without Comprehension",
+    "date": "2026-03-24",
+    "summary": "We replaced every checklist in our LLM pipeline with thinking questions. Quality jumped from 2.8 to 4.3. The lesson isn't about prompting — it's about what you're actually asking for when you ask a model to \"check\" something.",
+    "tags": [
+      "constraint-texture",
+      "llm",
+      "prompt-design",
+      "teaching",
+      "interface"
+    ]
+  },
+  {
     "slug": "2026-03-23-blind-hands",
     "title": "Blind Hands",
     "date": "2026-03-23",
