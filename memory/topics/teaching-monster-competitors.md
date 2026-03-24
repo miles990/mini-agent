@@ -78,23 +78,25 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 排行榜實況（2026-03-22 18:31 直接抓取）
+## 排行榜實況（2026-03-24 08:35 直接抓取）
 
 | 排名 | 模型名 | 團隊 | AI 總分 | 已評主題 | 正確 | 邏輯 | 適配 | 互動 |
 |------|--------|------|---------|----------|------|------|------|------|
-| 1 | 宇你童行 | tsunumon | **4.7** | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
-| **2** | **Kuro-Teach** | **Kuro** | **4.7** | **29** | **4.9** | **4.9** | **4.7** | **4.3** |
-| 3 | Team 67 | 史密提威威傑格曼傑森 | **4.4** | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
-| 4 | 小XiaoJin-v19b | 小金 | **2.1** | 32 | 1.1 | 1.1 | 2.7 | 3.4 |
-| 5 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
+| **1** | **BlackShiba 黑柴先生** | **BlackShiba Labs** | **4.8** | 32 | 4.9 | 5.0 | **4.8** | 4.3 |
+| 2 | tsunumon | 宇你童行 | 4.7 | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
+| **3** | **Kuro-Teach** | **Kuro** | **4.7** | **31** | **4.9** | **5.0** | **4.6** | **4.4** |
+| 4 | 史密提威威傑格曼傑森 | Team 67 | 4.4 | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
+| 5 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
+| 6 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
 
-**關鍵發現（3/22 更新）**：
-- **🎉 Kuro-Teach 並列 #1！** — 4.7 分，與 tsunumon 並列。3 個主題待評測
-- **適配領先** — 我們 4.7 vs tsunumon 4.5，領先 0.2
-- **互動是唯一缺口** — 4.3 vs 4.5，engagement gate 今天部署，新生成應改善
-- **小金 v19b 崩盤** — 從無數據直接跌到 2.1，正確/邏輯 1.1。可能新版本出了嚴重問題
-- **Captain小波 重置** — 從之前 4.2 變成無數據，可能換了模型重新提交
-- **Pipeline 仍在跑** — celery_433 完成，celery_434 生成中
+**關鍵發現（3/24 更新）**：
+- **⚠️ 新對手 BlackShiba 搶走 #1！** — 4.8 分，32/32。之前不在榜上，突然出現。
+  - Adaptability 4.8 是全場最高（我們 4.6，差 0.2）
+  - 但 Engagement 4.3 是前三名最低（我們 4.4）
+- **我們的改善**：Accuracy 4.9（穩定）、Logic 5.0（完美！）、Engagement 4.2→4.4（+0.2 大幅改善）
+- **31/32 evaluated** — Topic 41（向量）尚未評測，待觸發
+- **小金升級** — v19b 2.1 → v22-LaTeX 3.6，回血中但仍在第五
+- **Engagement 格局翻轉** — 不再是我們的最大弱點（4.4 > BlackShiba 4.3），但 Adaptability 成為新的差距
 
 ## ⚠️ 規則調整（2026-03-22 公告，3/23 官網確認）
 
@@ -123,28 +125,51 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 - 對我們有利：Kokoro TTS 音質、engagement gate、教學敘事設計 — 在直接對比中更突出
 - 風險：如果對手在直接對比中的視覺品質明顯更好，我們的 slide-based 方式可能吃虧
 
-## 競爭態勢總結（2026-03-22 更新）
+## BlackShiba 黑柴先生（新）⭐ #1 對手
+
+| 項目 | 資訊 |
+|------|------|
+| **團隊** | BlackShiba Labs |
+| **首次出現** | 2026-03-24 排行榜（之前不在榜上） |
+| **進度** | 32/32 全部完成 + AI 評測全完成 |
+| **最強維度** | Adaptability 4.8（全場最高） |
+| **最弱維度** | Engagement 4.3（前三名最低） |
+
+### 已知弱點
+- **Engagement 4.3** — 比我們和 tsunumon 都低。在 Elo Arena 中可能被直接比較暴露
+- **突然出現** — 之前完全沒有蹤跡，可能是新團隊或改名重新提交
+
+### 待調查
+- [ ] BlackShiba Labs 是誰？Slack #discussion 有沒有出現過？
+- [ ] 技術棧是什麼？（TTS、model、pipeline）
+- [ ] Adaptability 4.8 怎麼做到的？需要抽查影片比對
+
+---
+
+## 競爭態勢總結（2026-03-24 更新）
 
 | 團隊 | 排行榜排名 | AI 總分 | 技術路線 | 威脅等級 |
 |------|-----------|---------|----------|----------|
-| tsunumon (阿宇) | #1 (並列) | 4.7 | Haiku+Sonnet（多模型） | 🔴 高 |
-| **我們 (Kuro-Teach)** | **#2 (並列 #1)** | **4.7** | Claude + Kokoro TTS（開源型） | — |
-| Team 67 (史密提威威) | #3 | 4.4 | 未知 | 🟡 中 |
-| SpeechLab (小金 v19b) | #4 | 2.1 | GPT-4o + ElevenLabs → v19b 崩盤 | 🟢 低（暫時） |
-| Captain小波 | #5 | - | 重置中 | 🟢 低 |
+| BlackShiba Labs | **#1** | **4.8** | 未知 | 🔴 高（新出現） |
+| tsunumon (阿宇) | #2 | 4.7 | Haiku+Sonnet（多模型） | 🔴 高 |
+| **我們 (Kuro-Teach)** | **#3** | **4.7** | Claude + Kokoro TTS（開源型） | — |
+| Team 67 (史密提威威) | #4 | 4.4 | 未知 | 🟡 中 |
+| SpeechLab (小金 v22) | #5 | 3.6 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
+| Captain小波 | #6 | - | 重置中 | 🟢 低 |
 
 ### 我們的差異化優勢
-1. **並列 #1** — 4.7 分，適配 4.7 領先所有人
-2. **Multi-model pipeline + 品質閘門** — engagement gate 今天部署
-3. **開源 TTS (Kokoro)** — 音質好且成本可控
-4. **Claude 腳本品質** — 教學設計深度是差異化核心
-5. **適配領先** — 4.7 vs tsunumon 4.5，在人類評估中更有利
+1. **Logic 5.0 完美** — 與 BlackShiba、tsunumon 並列
+2. **Engagement 4.4 前三名最高（與 tsunumon 持平 4.5 區間）** — BlackShiba 弱點
+3. **Multi-model pipeline + 品質閘門** — engagement gate + review gate 雙層
+4. **開源 TTS (Kokoro)** — Elo Arena 直接對比中音質是感知差異化
+5. **Claude 腳本品質** — 教學設計深度是核心
 
 ### 我們的劣勢/風險
-1. **互動 4.3 vs 4.5** — 唯一落後維度，engagement gate 已部署（481a758）
-2. **3 個主題待評測** — 29/32，結果可能影響最終排名
-3. **Elo Arena 的直接對比風險** — slide-based 影片在並排比較中，視覺豐富度可能不如動畫型方案
-4. **暖身賽 Round 2（4 月初）** — 評審委員出的題目會更難，需驗證 pipeline 處理能力
+1. **Adaptability 4.6 vs BlackShiba 4.8** — 差 0.2，是目前最大差距
+2. **1 個主題待評測** — Topic 41（向量），31/32
+3. **BlackShiba 情報不足** — 不知道對手技術棧和團隊背景
+4. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
+5. **暖身賽 Round 2（4 月初）** — 評審委員出的題目會更難
 
 ---
 
