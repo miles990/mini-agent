@@ -9,6 +9,12 @@
 ### [Goal] Teaching Monster — Engagement 提升階段（Deadline: 5/1 初賽）
 Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engagement. Slides 48→30 已修好。TTS Kokoro OK.
 
+- [ ] P1: TM Prompt 認知策略改進（承諾 #004, 2026-03-25）
+  1. Attention reset — 每 3-4 slides 加「換氣點」（真實世界連結/類比/語氣變化）
+  2. Symbol grounding — 每個新符號先有具體指涉物再教操作
+  3. 焦慮緩衝語言 — 難度跳躍處加承認難度的語言模式
+  4. Persona-adaptive — struggling learner = 步驟→解釋→再做一次
+  Verify: `grep -c 'attention_reset\|symbol_ground\|anxiety_buffer\|persona_adaptive' ~/Workspace/teaching-monster/src/multi-phase-prompts.mjs 2>/dev/null`
 - [ ] P2: 持續追蹤 Teaching Monster 競爭情報（SpeechLab 32/32, 阿宇 Haiku+Sonnet pipeline）
   Verify: `grep -c 'competitor\|SpeechLab\|阿宇' ~/Workspace/mini-agent/memory/topics/teaching-monster*.md 2>/dev/null`
 - [ ] P2: 等待平台下一批 request，驗證 engagement/visual 改善效果
