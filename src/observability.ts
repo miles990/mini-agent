@@ -256,6 +256,11 @@ let roomMsgCounter = 0;
 const kuroRepliedTo = new Map<string, number>();
 
 export async function writeRoomMessage(from: string, text: string, replyTo?: string, context?: MessageContext): Promise<string> {
+  // Guard: don't write empty messages — they pollute JSONL and cause false "replied" signals
+  if (!text || !text.trim()) {
+    slog('ROOM', `Skipped empty message from ${from}${replyTo ? ` (replyTo: ${replyTo})` : ''}`);
+    return '';
+  }
   // Dedup: if kuro already replied to this replyTo target, drop threading
   if (from === 'kuro' && replyTo) {
     if (kuroRepliedTo.has(replyTo)) {

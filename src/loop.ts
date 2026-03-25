@@ -685,12 +685,17 @@ export class AgentLoop {
         // Strip internal tags to prevent raw XML leaking into room/telegram
         const cleanAnswer = stripKuroTags(answer);
         const displayAnswer = cleanAnswer || answer.slice(0, 500); // fallback to truncated raw if everything was tags
-        if (source === 'telegram') {
-          notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => {});
-          clearLastReaction();
-        }
-        if (!opts?.quiet) {
-          await writeRoomMessage('kuro', displayAnswer, replyTo);
+        // Don't send empty replies — message stays pending, next cycle picks it up
+        if (displayAnswer.trim()) {
+          if (source === 'telegram') {
+            notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => {});
+            clearLastReaction();
+          }
+          if (!opts?.quiet) {
+            await writeRoomMessage('kuro', displayAnswer, replyTo);
+          }
+        } else {
+          slog('LOOP', `[foreground] Empty reply for ${source} — skipping, message stays pending`);
         }
       } else if (source === 'telegram') {
         clearLastReaction();

@@ -176,6 +176,9 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
       try {
         const msg = JSON.parse(line);
         if (msg.from === 'kuro') {
+          // Convergence condition: only count as "replied" if reply has substance
+          const replyText = typeof msg.text === 'string' ? msg.text.trim() : '';
+          if (!replyText) continue; // empty reply ≠ replied
           // Track explicit replyTo
           if (msg.replyTo) replied.add(msg.replyTo);
           // Also track message IDs mentioned in text (e.g. "看到了 #111" or "[2026-02-24-111]")
