@@ -72,9 +72,9 @@ interface ExecOptions {
   onStreamChat?: (text: string, reply: boolean) => void;
   /** Foreground slot ID for concurrent foreground tracking */
   fgSlotId?: string;
-  /** Hard timeout in ms (default: 1_800_000 = 30min). FG lane should use shorter value. */
+  /** Hard timeout in ms (default: 900_000 = 15min). FG lane should use shorter value. */
   timeoutMs?: number;
-  /** No-progress timeout in ms (default: 300_000 = 5min). Kill if no stdout for this long. */
+  /** No-progress timeout in ms (default: 180_000 = 3min). Kill if no stdout for this long. */
   progressTimeoutMs?: number;
 }
 
@@ -125,7 +125,7 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。` };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: '處理超時（超過 30 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。' };
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 15} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。` };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
