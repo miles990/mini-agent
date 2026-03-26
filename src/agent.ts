@@ -407,7 +407,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = opts?.timeoutMs ?? 1_800_000; // default 30 minutes
+  const TIMEOUT_MS = opts?.timeoutMs ?? 900_000; // default 15 minutes
   const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 180_000; // default 3 minutes
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
@@ -683,7 +683,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
  * 安全機制與 execClaude 相同：detached process group + 手動 timeout
  */
 async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = 1_800_000; // 30 minutes (same as Claude)
+  const TIMEOUT_MS = 900_000; // 15 minutes (same as Claude)
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
@@ -1283,7 +1283,7 @@ export async function callClaude(
     onStreamChat?: (text: string, reply: boolean) => void;
     /** Foreground slot ID for concurrent foreground tracking */
     fgSlotId?: string;
-    /** Hard timeout in ms (default: 30min). FG lane should use shorter value. */
+    /** Hard timeout in ms (default: 15min). FG lane should use shorter value. */
     timeoutMs?: number;
     /** No-progress timeout in ms (default: 5min). Kill if no stdout for this long. */
     progressTimeoutMs?: number;
