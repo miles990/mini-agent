@@ -14,6 +14,7 @@
 - **research ≠ action**：Alex 說「研究 X」不等於「把 X 改進程式碼」。能力是放大器不是指南針。（2026-03-25，源自 #029 事件）
 - **TM 暖身賽策略：儘量嘗試**：每次提交都是複利，不要等到完美才交。（持續至 4/1）
 - **X posting 需替代方案**：CDP 自動化被偵測，需要 API key 或非自動化方式。（2026-03-25）
+- **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
