@@ -9,7 +9,7 @@
  * Design: #207/#208 conversation consensus.
  */
 
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -127,15 +127,28 @@ function toEntryMap(lines: string[]): Map<string, MemoryIndexEntry> {
 // In-Memory Cache
 // =============================================================================
 
-let _cache: { map: Map<string, MemoryIndexEntry>; filePath: string } | null = null;
+let _cache: { map: Map<string, MemoryIndexEntry>; filePath: string; mtimeMs: number } | null = null;
 
 export function invalidateIndexCache(): void {
   _cache = null;
 }
 
+function getFileMtime(filePath: string): number {
+  try {
+    return statSync(filePath).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
 function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
   const filePath = getMemoryIndexPath(memoryDir);
-  if (_cache && _cache.filePath === filePath) return _cache.map;
+
+  // Invalidate cache if file was modified externally (e.g., by background delegation subprocess)
+  if (_cache && _cache.filePath === filePath) {
+    const currentMtime = getFileMtime(filePath);
+    if (currentMtime === _cache.mtimeMs) return _cache.map;
+  }
 
   let raw = '';
   try {
@@ -144,18 +157,21 @@ function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
     // File doesn't exist yet
   }
   const map = toEntryMap(raw.split('\n'));
-  _cache = { map, filePath };
+  _cache = { map, filePath, mtimeMs: getFileMtime(filePath) };
   return map;
 }
 
 /** Write-through: update in-memory cache without re-reading the file. */
 function writeThroughEntry(memoryDir: string, entry: MemoryIndexEntry): void {
-  if (!_cache || _cache.filePath !== getMemoryIndexPath(memoryDir)) return;
+  const filePath = getMemoryIndexPath(memoryDir);
+  if (!_cache || _cache.filePath !== filePath) return;
   if (entry.status === 'deleted') {
     _cache.map.delete(entry.id);
   } else {
     _cache.map.set(entry.id, entry);
   }
+  // Update mtime to match file after our write
+  _cache.mtimeMs = getFileMtime(filePath);
 }
 
 // =============================================================================
@@ -650,7 +666,7 @@ export async function compactMemoryIndex(
   });
 
   // Write-through: replace cache with compacted map (no re-read needed)
-  _cache = { map, filePath };
+  _cache = { map, filePath, mtimeMs: getFileMtime(filePath) };
   return { before: lineCount, after: map.size };
 }
 

@@ -583,7 +583,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
               }
             }
           } else if (event.type === 'result') {
-            resultText = event.result ?? resultText;
+            // Use || instead of ?? — empty string "" from event.result should NOT overwrite
+            // accumulated text blocks (Claude CLI 2.x stream-json may return "" for result)
+            resultText = event.result || resultText;
           }
         } catch { /* ignore malformed JSON lines */ }
       }
@@ -612,7 +614,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (buffer.trim()) {
         try {
           const event = JSON.parse(buffer.trim());
-          if (event.type === 'result') resultText = event.result ?? resultText;
+          if (event.type === 'result') resultText = event.result || resultText;
         } catch { /* ignore */ }
       }
 
@@ -633,12 +635,20 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (code !== 0 && !resultText) {
         reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
       } else {
+        // Fallback: if resultText is empty but we received text blocks during streaming,
+        // reconstruct from allTextBlocks. Claude CLI 2.x stream-json may return empty
+        // event.result when tool use is involved.
+        if (!resultText && allTextBlocks.length > 0) {
+          resultText = allTextBlocks.join('\n');
+          slog('TAGS', `Recovered response from ${allTextBlocks.length} streamed text block(s) (event.result was empty)`);
+        }
+
         // 檢查中間 text blocks 是否有 tags 被 result 事件覆蓋而遺失
         // result 事件只包含最後一個 assistant turn 的 text，中間 turns 的 tags 會被丟棄
-        const TAG_RE = /\[(CHAT|ASK|REMEMBER|SHOW|SUMMARY|TASK|ARCHIVE|IMPULSE|THREAD)\b/;
+        const TAG_RE = /<kuro:(chat|ask|remember|show|summary|task|archive|impulse|thread|action|delegate|done|schedule|inner|goal)/i;
         if (allTextBlocks.length > 1) {
           const intermediateWithTags = allTextBlocks.slice(0, -1).filter(b => TAG_RE.test(b));
-          if (intermediateWithTags.length > 0) {
+          if (intermediateWithTags.length > 0 && !TAG_RE.test(resultText)) {
             slog('TAGS', `Recovered ${intermediateWithTags.length} intermediate text block(s) with tags`);
             resultText = intermediateWithTags.join('\n') + '\n' + resultText;
           }
