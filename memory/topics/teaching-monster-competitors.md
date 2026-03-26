@@ -165,8 +165,8 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 5. **Claude 腳本品質** — 教學設計深度是核心
 
 ### 我們的劣勢/風險
-1. **Adaptability 4.6 vs BlackShiba 4.8** — 差 0.2，是目前最大差距
-2. **1 個主題待評測** — Topic 41（向量），31/32
+1. **Adaptability 4.5 vs BlackShiba 4.8** — 差 0.3，是目前最大差距
+2. **4 個主題未評測** — 28/32（其他隊伍全 32/32）。3/22 時是 31/32，近日退回 28，原因待查
 3. **BlackShiba 情報不足** — 不知道對手技術棧和團隊背景
 4. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
 5. **暖身賽 Round 2（4 月初）** — 評審委員出的題目會更難
@@ -236,6 +236,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ---
 
 ## 更新日誌
+- **2026-03-26 16:57**: 排行榜掃描 — 排名穩定：BlackShiba #1(4.8, 32/32), tsunumon #2(4.7, 32/32), **Kuro-Teach #3(4.7, 28/32)**, Team 67 #4(4.4, 32/32), XiaoJin-v22 #5(3.6, 32/32), Captain小波 #6(-)。⚠️ 我們的已評主題從 31→28，差 4 題未評。其他隊伍全部 32/32。詳細分數：正確4.9/邏輯5.0/適配4.5/互動4.4。BlackShiba 適配 4.8 仍是最大差距。
 - **2026-03-23 11:15**: 官網完整掃描（rules/news/faq）— 確認 3/22 規則已在官方 rules 頁面更新。**關鍵發現：真人評估是 Elo 對戰制（同題並排比較，非個別打分）**。暖身賽 Round 2 四月初開始，題目由評審委員設計。Slack session 仍過期（3 次嘗試失敗）。排行榜因 viewport 限制無法提取數據。
 - **2026-03-22 18:31**: 規則調整 + 排行榜更新 — 初賽改為 AI 評分→top 10→真人評估→top 3 進決賽。Kuro-Teach 並列 #1（4.7），適配 4.7 領先。celery_434 生成中。Slack 未登入無法掃描。
 - **2026-03-22 13:30**: 狀態審計 — Pipeline 12/32 unique topics processed (all latest ✅), tunnel running (teach.kuro.page → localhost:3456), videos externally accessible. **排行榜仍未確認** — 3/21 抓取不在前三，platform login blocker (kuro.ai.agent session 過期) 未解決。celery_429 有 7 次 retry (2 failed)，可能是平台重試。新 requests 持續進來(celery_420-430) = model still active。
