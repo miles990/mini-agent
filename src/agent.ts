@@ -408,7 +408,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = opts?.timeoutMs ?? 1_800_000; // default 30 minutes
-  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 300_000; // default 5 minutes
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 180_000; // default 3 minutes
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
