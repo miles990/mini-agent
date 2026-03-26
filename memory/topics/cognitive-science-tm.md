@@ -525,3 +525,31 @@ Phase 3（初賽前 — 架構改動）
 ### 自有驗證
 - 2026-03-21 TM prompt 重構 — Fill Type = Cognitive Depth
 - 2026-03-22 Quality gate 部署 — engagement gate + fact-check gate
+
+---
+
+## 競爭情報（Competitive Intelligence）
+
+### 暖身賽第一輪排行榜（competition 2, 最後更新 2026-03-27）
+
+| # | Model | Team | AI Total | Audited | 備註 |
+|---|-------|------|----------|---------|------|
+| 1 | BlackShiba | 黑柴先生 (BlackShiba Labs) | 4.8 | 32/32 | 新冠軍，滿審計 |
+| 2 | tsunumon | 宇你童行 | 4.7 | 32/32 | 穩定選手 |
+| 3 | Kuro-Teach | Kuro | 4.7 | 26/32 | **我們**，差 0.1 + 6 未審計 |
+| 4 | 史密提威威傑格曼傑森 | Team 67 | 4.4 | 32/32 | |
+| 5 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32/32 | LaTeX 方案 |
+| 6 | Sigoso Teaching AI | Captain小波 | 0 | 0 | 未提交 |
+
+**分析（2026-03-27）**：
+- BlackShiba 是新出現的強手，32/32 滿審計且拿到 4.8 分
+- 前三名差距極小（4.8/4.7/4.7），勝負在小數點
+- 我們的劣勢：audited 只有 26/32（少 6 題），補滿可能改變排名
+- 評分維度：accuracy, logic, adaptability, engagement — 我們在 accuracy+logic 滿分，adaptability+engagement 是失分點
+- 參考：competition 1（測試區）我們排名 #1（4.8 分），但那是測試環境
+
+### API 存取方法
+- Clerk JWT 短壽命（~60s），通過 `Clerk.session.getToken()` 刷新
+- Leaderboard: `GET /competitions/{id}/leaderboard`（需 Bearer token）
+- Competition 1 = 測試區（16 隊），Competition 2 = 暖身賽第一輪（6 隊）
+- 暖身賽2 尚未開放（competition 3+ 均 0 participants）
