@@ -73,7 +73,8 @@ fi
 # ── 讀取 sense-alerts.json（來自 self-healing / agent hooks）──
 if [ -f "$ALERTS_FILE" ]; then
   EXTRA_ALERTS=$(jq -r '
-    [.[] | select(.ts > (now - 3600) | tostring > "") |
+    (now - 3600 | strftime("%Y-%m-%dT%H:%M:%SZ")) as $cutoff |
+    [.[] | select(.ts > $cutoff) |
       if .type == "self-healed" then "🔧 \(.service) auto-restarted"
       elif .type == "api-status" then "⚠ \(.service) \(.status)"
       elif .type == "telegram-status" then "⚠ Telegram \(.status) (queue:\(.queueSize // "?"))"

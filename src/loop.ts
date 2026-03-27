@@ -370,6 +370,7 @@ export class AgentLoop {
   // ── Continuation Check (mushi System 1 exit actuator) ──
   private consecutiveContinuations = 0;
   private static readonly MAX_CONSECUTIVE_CONTINUATIONS = 5;
+  private continuationCooldownUntil = 0; // Unix timestamp — no continuation checks until this time
   private lastCycleHadSchedule = false;
   private concurrentInboxDetected = false;
   private lastCycleMeshQueued = false;
@@ -1271,9 +1272,13 @@ export class AgentLoop {
     // Skip if: kuro:schedule already set, loop paused, mushi-triage disabled, or cycle was mesh-queued
     // Mesh-queued cycles didn't run Claude — no work was done, continuation is meaningless
     if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule && !this.lastCycleMeshQueued) {
-      if (this.consecutiveContinuations >= AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS) {
-        slog('MUSHI', `🔄 continuation capped (${AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS} consecutive), resetting`);
+      if (Date.now() < this.continuationCooldownUntil) {
+        // In cooldown after hitting cap — skip continuation check entirely
         this.consecutiveContinuations = 0;
+      } else if (this.consecutiveContinuations >= AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS) {
+        slog('MUSHI', `🔄 continuation capped (${AgentLoop.MAX_CONSECUTIVE_CONTINUATIONS} consecutive), cooldown 5min`);
+        this.consecutiveContinuations = 0;
+        this.continuationCooldownUntil = Date.now() + 5 * 60_000;
       } else {
         const contCtx: ContinuationContext = { lastAction: this.lastAction, triggerReason: this.triggerReason };
         const result = await mushiContinuationCheck(contCtx);

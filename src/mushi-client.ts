@@ -104,7 +104,8 @@ export async function mushiContinuationCheck(ctx: ContinuationContext): Promise<
       body: JSON.stringify({
         hasUnprocessedInbox,
         lastActionSummary: ctx.lastAction ?? 'no action',
-        inProgressWork: ctx.triggerReason ?? undefined,
+        // triggerReason is WHY the cycle started, not whether work is in-progress
+        // Passing it as inProgressWork caused mushi LLM to hallucinate continuations
         source: ctx.triggerReason?.split(/[:(]/)[0]?.trim() ?? undefined,
       }),
       signal: AbortSignal.timeout(3000),
