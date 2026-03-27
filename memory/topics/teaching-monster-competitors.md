@@ -78,25 +78,23 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 排行榜實況（2026-03-24 08:35 直接抓取）
+## 排行榜實況（2026-03-27 19:05 API 抓取）
 
 | 排名 | 模型名 | 團隊 | AI 總分 | 已評主題 | 正確 | 邏輯 | 適配 | 互動 |
 |------|--------|------|---------|----------|------|------|------|------|
 | **1** | **BlackShiba 黑柴先生** | **BlackShiba Labs** | **4.8** | 32 | 4.9 | 5.0 | **4.8** | 4.3 |
 | 2 | tsunumon | 宇你童行 | 4.7 | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
-| **3** | **Kuro-Teach** | **Kuro** | **4.7** | **31** | **4.9** | **5.0** | **4.6** | **4.4** |
+| **3** | **Kuro-Teach** | **Kuro** | **4.7** | **28** | **5.0** | **5.0** | **4.5** | **4.5** |
 | 4 | 史密提威威傑格曼傑森 | Team 67 | 4.4 | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
 | 5 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
 | 6 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
 
-**關鍵發現（3/24 更新）**：
-- **⚠️ 新對手 BlackShiba 搶走 #1！** — 4.8 分，32/32。之前不在榜上，突然出現。
-  - Adaptability 4.8 是全場最高（我們 4.6，差 0.2）
-  - 但 Engagement 4.3 是前三名最低（我們 4.4）
-- **我們的改善**：Accuracy 4.9（穩定）、Logic 5.0（完美！）、Engagement 4.2→4.4（+0.2 大幅改善）
-- **31/32 evaluated** — Topic 41（向量）尚未評測，待觸發
-- **小金升級** — v19b 2.1 → v22-LaTeX 3.6，回血中但仍在第五
-- **Engagement 格局翻轉** — 不再是我們的最大弱點（4.4 > BlackShiba 4.3），但 Adaptability 成為新的差距
+**關鍵發現（3/27 更新）**：
+- **我們的分數在爬！** Accuracy 4.9→5.0（滿分！）、Engagement 4.4→4.5（↑0.1）
+- **現在跟 tsunumon 完全同分**（4.7，四個子維度全同），差別只在 28 vs 32 topics
+- **唯一跟 #1 的差距 = Adaptability**（4.5 vs 4.8，差 0.3）— 正好是 Level 2.5 在修的
+- 如果 Level 2.5 把 Adapt 拉到 4.8，我們 Total 就會追平甚至超越 BlackShiba（因為我們 Acc 5.0 > 4.9, Engage 4.5 > 4.3）
+- **仍缺 4 題**（28/32），其他隊伍全 32/32
 
 ## ⚠️ 規則調整（2026-03-22 公告，3/23 官網確認）
 
@@ -152,7 +150,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 |------|-----------|---------|----------|----------|
 | BlackShiba Labs | **#1** | **4.8** | 未知 | 🔴 高（新出現） |
 | tsunumon (阿宇) | #2 | 4.7 | Haiku+Sonnet（多模型） | 🔴 高 |
-| **我們 (Kuro-Teach)** | **#3** | **4.7** | Claude + Kokoro TTS（開源型） | — |
+| **我們 (Kuro-Teach)** | **#3** | **4.7** (Acc 5.0!) | Claude + Kokoro TTS（開源型） | — |
 | Team 67 (史密提威威) | #4 | 4.4 | 未知 | 🟡 中 |
 | SpeechLab (小金 v22) | #5 | 3.6 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
 | Captain小波 | #6 | - | 重置中 | 🟢 低 |
@@ -213,7 +211,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ## 待調查
 - [x] 暖身賽排行榜是否公開 — ✅ 可查（teaching.monster/app/leaderboard → 選熱身賽第一輪）
-- [ ] **為什麼 Kuro-Teach 不在排行榜上？** — 最高優先級。已知事實：3/18 我們在 #2(4.2), 3/19 降到 #3(4.3), 3/21 直接抓取不在前三。Platform login blocker（kuro.ai.agent session 過期）未解決，無法驗證。
+- [x] **為什麼 Kuro-Teach 不在排行榜上？** — ✅ 已解決。我們在排行榜 #3（4.7），3/21 不在前三是暫時的（可能是重新評測期間）。API 直接抓取確認。
 - [ ] SpeechLab YouTube 頻道「蝦說 AI」內容分析（看實際教學品質）
 - [ ] NTU ML 2026 課程學生參賽規模（潛在大量對手）
 - [ ] Team 67 技術棧調查
@@ -236,6 +234,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ---
 
 ## 更新日誌
+- **2026-03-27 19:05**: 排行榜 API 直接抓取（發現 `/competitions/{id}/leaderboard` 端點）。我們分數在爬：Acc 4.9→5.0（滿分！）、Engage 4.4→4.5。現在跟 tsunumon 完全同分。唯一差距 = Adaptability（4.5 vs BlackShiba 4.8）。Competition 3（初賽，Elo-based）尚未開始（空排行榜）。Comp 1 我們是 #1（4.8, 12/12）。
 - **2026-03-27 15:45**: 情報掃描 — 官網無新公告（最新仍 3/22 規則調整）。Phase 2 pipeline E2E 測試通過（celery_458, 852s, $0.80）：PerSectionCheck 每 section 修正 3-4 slides、CrossSection 找到 45 number inconsistencies。品質閘門功能確認。排行榜未變動（無法登入確認）。**明天 3/28 = Tier 1.5 期限**，需做全量重生決策。⚠️ 28/32 問題仍未解（差 4 題）。
 - **2026-03-26 16:57**: 排行榜掃描 — 排名穩定：BlackShiba #1(4.8, 32/32), tsunumon #2(4.7, 32/32), **Kuro-Teach #3(4.7, 28/32)**, Team 67 #4(4.4, 32/32), XiaoJin-v22 #5(3.6, 32/32), Captain小波 #6(-)。⚠️ 我們的已評主題從 31→28，差 4 題未評。其他隊伍全部 32/32。詳細分數：正確4.9/邏輯5.0/適配4.5/互動4.4。BlackShiba 適配 4.8 仍是最大差距。
 - **2026-03-23 11:15**: 官網完整掃描（rules/news/faq）— 確認 3/22 規則已在官方 rules 頁面更新。**關鍵發現：真人評估是 Elo 對戰制（同題並排比較，非個別打分）**。暖身賽 Round 2 四月初開始，題目由評審委員設計。Slack session 仍過期（3 次嘗試失敗）。排行榜因 viewport 限制無法提取數據。
