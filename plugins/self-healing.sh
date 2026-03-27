@@ -83,7 +83,11 @@ if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -gt 90 ] 2>/dev/null; then
         NEW_PCT=$(( (NEW_TOTAL - NEW_FREE) * 100 / NEW_TOTAL ))
       fi
     fi
-    heal_report "HEALED" "Disk was ${DISK_PCT}% → docker prune → now ${NEW_PCT}%"
+    if [ -n "$NEW_PCT" ] && [ "$NEW_PCT" -lt "$DISK_PCT" ]; then
+      heal_report "HEALED" "Disk was ${DISK_PCT}% → docker prune → now ${NEW_PCT}%"
+    else
+      heal_report "INFO" "Disk at ${DISK_PCT}% (docker prune had no effect — likely APFS snapshots)"
+    fi
   else
     heal_report "FAILED" "Disk at ${DISK_PCT}%, no auto-cleanup available"
   fi
