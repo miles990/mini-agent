@@ -517,13 +517,17 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }, 5000);
     };
 
-    // ── Progress timeout：無 stdout 就 kill（FG 用 progressTimeoutMs，預設 5 分鐘）──
+    // ── Progress timeout：無 stdout 就 kill（adaptive — 有 tool call 表示在工作，給更多時間）──
     const progressTimer = setInterval(() => {
       if (settled || timedOut) return;
-      if (Date.now() - lastStdoutDataTs < PROGRESS_TIMEOUT_MS) return;
+      // Adaptive: model producing tool calls = actively working, extend tolerance
+      const effectiveTimeout = toolCallCount > 0
+        ? Math.max(PROGRESS_TIMEOUT_MS, 300_000) // at least 5 min when tools active
+        : PROGRESS_TIMEOUT_MS;
+      if (Date.now() - lastStdoutDataTs < effectiveTimeout) return;
       timedOut = true;
       clearInterval(progressTimer);
-      slog('CLAUDE', `No stdout data for ${PROGRESS_TIMEOUT_MS / 1000}s — killing process group ${child.pid}`);
+      slog('CLAUDE', `No stdout data for ${effectiveTimeout / 1000}s (tools=${toolCallCount}) — killing process group ${child.pid}`);
       killProcessGroupWithForceResolve();
     }, 30_000);
 
@@ -552,6 +556,14 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
             for (const block of blocks) {
               if (block.type === 'tool_use') {
                 toolCallCount++;
+                // Circuit breaker: >30 tools in >5 min = runaway chain
+                if (!settled && !timedOut && toolCallCount > 30 && (Date.now() - startTs) > 300_000) {
+                  timedOut = true;
+                  clearTimeout(timer);
+                  clearInterval(progressTimer);
+                  slog('CLAUDE', `Tool-count circuit breaker: ${toolCallCount} tools in ${((Date.now() - startTs) / 1000).toFixed(1)}s — killing process group ${child.pid}`);
+                  killProcessGroupWithForceResolve();
+                }
                 const toolName = block.name ?? 'unknown';
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
