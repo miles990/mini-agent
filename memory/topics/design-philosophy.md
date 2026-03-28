@@ -155,3 +155,4 @@ ref:creativebench-2603-11863
 解鎖機制也不同：架構性約束靠「填充」或「移除」改變體驗（Type A/B 反轉）；動態約束靠「外部 meta-perception」打破迴路（AReW / Coach / 鏡子的多元性）。
 
 這補完了約束框架：Constraint/Gift/Ground 三層 + Liberation/Uprooting 方向 + 現在加上 Architectural/Dynamic 來源軸。
+- [2026-03-28] 副腦 vs 手腳修正（2026-03-28 Alex #056-057）：不是二分法，是雙模光譜。同一個 agent 同時有思考和執行兩種模式，由互動介面（convergence condition vs prescription）動態決定當下啟用哪個模式。固定標籤（「這是手腳」）是錯的，應該看「這次互動中它在思考還是在執行」。
