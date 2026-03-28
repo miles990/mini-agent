@@ -132,14 +132,32 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 | **進度** | 32/32 全部完成 + AI 評測全完成 |
 | **最強維度** | Adaptability 4.8（全場最高） |
 | **最弱維度** | Engagement 4.3（前三名最低） |
+| **公開足跡** | ❌ 零（無 web/GitHub/社群媒體）|
+
+### 2026-03-28 全網搜索結果
+- **Web**（英文+中文關鍵字）：零匹配。無官網、無部落格、無新聞
+- **GitHub**：無組織、無 repo
+- **社群媒體**：只有無關帳號（日本 VTuber @BlackShiba_chan、柴犬帳號 @blackshiba_momo）
+- **TM Slack**：⚠️ 未確認（session 過期）
+
+### 身份推論（三種可能）
+1. **NTU 內部團隊**（最可能）— domain knowledge + platform familiarity 可解釋快速完成 32/32 + 高 Adapt
+2. **改名重投** — 之前用其他名字參賽，成績不佳後重新包裝
+3. **隱身高手** — 有經驗的團隊刻意低調不參與社群
+
+### Adapt/Engage 鏡像分析
+- **Adapt 4.8 / Engage 4.3** 的 trade-off 暗示：prompt 工程精緻（讀懂 persona → 調整策略）但互動設計偏模板化（無 engagement hook、缺蘇格拉底提問）
+- **跟我們鏡像互補**：我們 Adapt 4.6 / Engage 4.4 vs 他們 Adapt 4.8 / Engage 4.3
+- Elo Arena pairwise 配對到他們 → 我們贏 Engage 輸 Adapt，勝負取決於評審權重
 
 ### 已知弱點
-- **Engagement 4.3** — 比我們和 tsunumon 都低。在 Elo Arena 中可能被直接比較暴露
-- **突然出現** — 之前完全沒有蹤跡，可能是新團隊或改名重新提交
+- **Engagement 4.3** — 前三名最低。Elo Arena 直接比較會暴露
+- **突然出現 + 零足跡** — 可能缺乏社群支持和迭代透明度
 
 ### 待調查
-- [ ] BlackShiba Labs 是誰？Slack #discussion 有沒有出現過？
-- [ ] 技術棧是什麼？（TTS、model、pipeline）
+- [x] BlackShiba Labs 是誰？→ 全網搜索零結果，幽靈隊伍（2026-03-28）
+- [ ] TM Slack #discussion 有沒有出現過？（需 Slack session 恢復）
+- [ ] 技術棧是什麼？（TTS、model、pipeline）— 可能需要從影片反推
 - [ ] Adaptability 4.8 怎麼做到的？需要抽查影片比對
 
 ---
