@@ -316,3 +316,4 @@ vs 3/25：排名凍結。Kuro-Teach 題數 29→27（2 題可能被移除/重算
 4. **Xiaobo Teaching AI v3** = Sigoso/Captain小波 升級？4 題就 4.2，邏輯滿分 — 值得追蹤
 5. **BlackShiba 缺席測試區** — 可能只衝正式賽，或在用不同帳號測試
 6. **暖身賽題數下降 29→27** — 需確認是平台重算還是提交被撤回
+- [2026-03-28] [2026-03-28] Adapt 4.6 根因分析（19 runs 交叉驗證）：100% 相關性 — 有 education_level 的 run 全部 adapt=5（6/6），無 education_level 的 run 全部 adapt=4（8/8）。根因是 sparse persona 讓 planner 無法設 content ceiling。修法：(1) buildStep1UserPrompt 推斷 education_level from context signals (2) adaptation visibility gate — slide 1-3 各 ≥1 explicit persona reference。Fix 1 優先（code 小改、確定性高、直命中根因）。
