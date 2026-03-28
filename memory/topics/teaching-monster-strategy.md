@@ -123,7 +123,8 @@ Slack 仍無法存取（Chrome 未登入 Slack workspace）。
 
 **新格局**：BlackShiba 搶走 #1（4.8）。我們 4.7 並列 #2（與 tsunumon）。
 **最大弱點轉變**：Engagement 已從 4.2→4.4 改善。新的最大差距是 Adaptability（vs BlackShiba -0.2）。
-**31/32 evaluated**：Topic 41（向量）尚未評測。
+**30/32 evaluated**（3/28 更新）：Accuracy 升至滿分 5.0（from 4.9），Topics 29→30。Adapt 仍 4.6 — Level 2.5（750faf7, 3/27 部署）尚未反映在多數 topic 分數中。
+**新對手**：Team-67-005（#4, 4.5/20題）Adapt 4.7 值得注意 — 只 20 題但適配已超過我們。
 
 ### 規則頁確認的 Warm-up 2 規格（2026-03-28 偵查）
 - **時間**：「4月初開始」（官方用語 "early April"，非精確日期）
