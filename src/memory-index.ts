@@ -493,7 +493,7 @@ export function buildTaskQueueSection(memoryDir: string): string {
         ? `verify: ${verify.slice(-3).map(v => `${v.name}:${v.status}`).join(', ')}`
         : 'verify: (none)';
     const stale = staleWarning ? ` | ⚠ ${staleWarning}` : '';
-    return `- [${item.status}] (${item.type}) ${item.summary ?? item.id} | ${verifyStr}${stale}`;
+    return `- [${item.status}] (${item.type}) ${item.summary ?? item.id} | id=${item.id} | ${verifyStr}${stale}`;
   });
 
   return ['<task-queue>', 'Unified queue (pending + in_progress):', ...lines, '</task-queue>'].join(

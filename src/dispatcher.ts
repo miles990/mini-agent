@@ -756,6 +756,11 @@ export async function postProcess(
       continue;
     }
 
+    if (action.op === 'update' && !action.id) {
+      slog('WARN', `task-queue update skipped: no id provided for "${action.title ?? '(no title)'}"`);
+      continue;
+    }
+
     if (action.op === 'update' && action.id) {
       const current = queryMemoryIndexSync(memoryDir, { id: action.id, limit: 1 })[0];
       const currentPayload = (current?.payload ?? {}) as Record<string, unknown>;
