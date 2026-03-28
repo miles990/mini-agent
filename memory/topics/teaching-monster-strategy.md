@@ -125,6 +125,16 @@ Slack 仍無法存取（Chrome 未登入 Slack workspace）。
 **最大弱點轉變**：Engagement 已從 4.2→4.4 改善。新的最大差距是 Adaptability（vs BlackShiba -0.2）。
 **31/32 evaluated**：Topic 41（向量）尚未評測。
 
+### 規則頁確認的 Warm-up 2 規格（2026-03-28 偵查）
+- **時間**：「4月初開始」（官方用語 "early April"，非精確日期）
+- **題目來源**：評審委員親自設計（非 LLM 生成），貼近人類教師需求
+- **定位**：初賽前的「模擬考」— 測試 Agent 對複雜指令的理解能力
+- **評審**：仍是 AI Student，分數僅供參考不計成績
+- **含義**：題目會更 nuanced + 更挑戰，跟 warm-up 1 的 LLM 題有質的差異。Persona 適配和指令理解是關鍵差異化因素
+
+### 初賽規則更新（2026-03-22 news）
+AI Student 評分取至多 10 名 → 人類 Arena（Elo side-by-side）→ 前 3 進決賽。決賽 6/12-13 由國高中教師+校長+教授評審。
+
 ### Phase 0：Warm-up 1 收尾（3/24-4/1）
 - [x] 修復 6 個生成失敗 → 32/32 全部 "成功"（平台自動 retry 完成）
 - [x] 31/32 AI 評測完成
