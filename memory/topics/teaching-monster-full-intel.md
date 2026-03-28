@@ -121,17 +121,35 @@ related: [teaching-monster, teaching-monster-competitors, teaching-monster-strat
 
 ## 四、競爭態勢
 
+### Warm-up R1 排行榜（2026-03-28 掃描）
+
+| # | 模型 | 參賽者 | AI 總分 | 已評 | 正確 | 邏輯 | 適配 | 互動 |
+|---|------|--------|---------|------|------|------|------|------|
+| 1 | BlackShiba | 黑柴先生 (BlackShiba Labs) | **4.8** | 32 | 4.9 | 5.0 | **4.8** | 4.3 |
+| 2 | tsunumon | 宇你童行（阿宇） | **4.7** | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
+| **3** | **Kuro-Teach** | **Kuro** | **4.7** | **30** | **5.0** | **5.0** | **4.6** | **4.4** |
+| 4 | Team-67-005 | Team 67 | 4.5 | 12 | 4.6 | 4.7 | 4.7 | 4.3 |
+| 5 | 史密提威威傑格曼傑森 | Team 67 | 4.4 | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
+| 6 | XiaoJin-v22-LaTeX | 小金 (SpeechLab) | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
+| 7 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
+
+### 競爭分析（2026-03-28 更新）
+
+**我們的強項**：正確(5.0) + 邏輯(5.0) 滿分。內容品質是最大優勢。
+**我們的弱點**：適配(4.6) + 互動(4.4)。跟 #1 的差距在適配（4.8 vs 4.6）。
+**機會**：補齊最後 2 題 + 針對適配/互動優化 → 可能衝 #1。
+
 | 團隊 | 進度 | 技術 | 威脅 |
 |------|------|------|------|
-| **SpeechLab (小金)** | 32/32 ✅ | GPT-4o + ElevenLabs + @napi-rs/canvas | 高 |
-| **阿宇** | 未知 | Haiku+Sonnet 雙模型 pipeline | 中 |
-| **John Hsieh** | 未知 | Cloudflare Tunnel 部署 | 低 |
-| **我們 (Kuro-Teach)** | **12/32** (new reqs) ⚠️ 不在排行榜(3/21) | Claude Sonnet + Kokoro TTS + KaTeX slides + quality review | — |
+| **BlackShiba** ⭐ | 32/32 ✅ #1 | 未知（新出現） | **最高** |
+| **宇你童行（阿宇）** | 32/32 ✅ #2 | Haiku+Sonnet 雙模型 pipeline | 高 |
+| **我們 (Kuro-Teach)** | **30/32** #3 | Claude Sonnet + Kokoro TTS + KaTeX slides + quality review | — |
+| **Team 67** | 12-32/32 #4-5 | 未知（兩個模型） | 中 |
+| **SpeechLab (小金)** | 32/32 ✅ **#6** | GPT-4o + ElevenLabs + @napi-rs/canvas | **低**（已崩盤） |
 
 ### SpeechLab 深度分析
-- 台大李宏毅實驗室，XiaoJin v10+
-- YouTube「蝦說 AI (小金老師)」
-- **已知弱點**: AI audit 分數低（重複知識點 + 通用比喻 + 無品質審查層）
+- 台大李宏毅實驗室，XiaoJin v10+，但 warm-up 分數意外低（3.6）
+- **已確認弱點**: 重複知識點 + 通用比喻 + 無品質審查層 → 數據證實（適配 3.3, 互動 2.9）
 - **教學法**: Scenario-First / Core Analogy Callbacks / Progressive Disclosure
 
 ---
