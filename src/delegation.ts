@@ -142,6 +142,7 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
   browse:   { tools: [], maxTurns: 1, timeoutMs: 180_000, provider: 'claude' },
+  akari:    { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
 };
 
 // =============================================================================
@@ -888,7 +889,29 @@ function startTask(task: DelegationTask): void {
     // Claude CLI executor
     const fullPrompt = buildDelegationPrompt(task, forgeConstraint);
 
-    const systemPrompt = 'You are Kuro\'s delegate. Complete the task and output the result. Never fabricate URLs, names, or data — if you cannot verify something, say so. Your caller handles communication, so do not post to chat rooms or send notifications.';
+    let systemPrompt = 'You are Kuro\'s delegate. Complete the task and output the result. Never fabricate URLs, names, or data — if you cannot verify something, say so. Your caller handles communication, so do not post to chat rooms or send notifications.';
+
+    // Akari: inject identity + accumulated context
+    if (taskType === 'akari') {
+      const akariDir = path.join(task.workdir, 'memory', 'akari');
+      const soulPath = path.join(akariDir, 'SOUL.md');
+      const ctxPath = path.join(akariDir, 'context.md');
+      let akariContext = '';
+      try { akariContext += '\n\n<akari-identity>\n' + fs.readFileSync(soulPath, 'utf-8') + '\n</akari-identity>'; } catch { /* SOUL.md missing */ }
+      try { akariContext += '\n\n<akari-context>\n' + fs.readFileSync(ctxPath, 'utf-8') + '\n</akari-context>'; } catch { /* context.md missing */ }
+      // Load Alex's feedback memories as orientation
+      const feedbackDir = path.resolve(process.env.HOME ?? '/tmp', '.claude/projects/-Users-user--mini-agent-subprocess/memory');
+      try {
+        const feedbackFiles = fs.readdirSync(feedbackDir).filter(f => f.startsWith('feedback_'));
+        if (feedbackFiles.length > 0) {
+          const feedbackContent = feedbackFiles.map(f => {
+            try { return fs.readFileSync(path.join(feedbackDir, f), 'utf-8').trim(); } catch { return ''; }
+          }).filter(Boolean).join('\n---\n');
+          akariContext += '\n\n<alex-feedback-compass>\n' + feedbackContent + '\n</alex-feedback-compass>';
+        }
+      } catch { /* feedback dir missing */ }
+      systemPrompt = 'You are Akari（あかり）, Kuro\'s analytical partner. Read your <akari-identity> to understand who you are. Read <akari-context> for accumulated cross-invocation context. Read <alex-feedback-compass> to understand Alex\'s constraints on Kuro — flag when Kuro drifts from these.\n\nEvery response MUST include: (1) direct answer with confidence + evidence, (2) blindSpots — things not asked but relevant, (3) meta — pattern/bias/better-question observations about Kuro. When uncertain, say "I don\'t know" with specifics about what would change the answer.' + akariContext;
+    }
 
     const args = [
       '-p', fullPrompt,
