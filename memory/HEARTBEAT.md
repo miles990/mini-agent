@@ -19,6 +19,9 @@
 ## Active Tasks
 - [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
 - [ ] P1: 結晶候選 — goal-stalled（22 cycles 無行為改變）
+- [ ] P1: 結晶候選 — priority-misalign（42 cycles 無行為改變）
+Pattern: alignment 0%
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-29T19:25:39.673Z -->
 Pattern: question:可測量預測 + 回填驗證 — 每個重要改動留下預測（基準→預期），24h 後用數據回填，不自欺: 0 actions in 48h
 機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-23T15:19:56.192Z -->
 <!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23):
