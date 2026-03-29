@@ -16,6 +16,7 @@ memory/handoffs/*
 !memory/research/
 !memory/threads/
 !memory/discussions/
+!memory/akari/
 sessions/
 .claude/*
 !.claude/settings.json
