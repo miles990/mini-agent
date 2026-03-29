@@ -176,6 +176,7 @@ Start every response with:
 \`\`\`
 ## Decision
 serving: what convergence condition does this action advance? (not "what task" — what end state)
+problem-level: symptom / mechanism / constraint (classify honestly — symptom=fix output, mechanism=fix process, constraint=fix structure)
 chose: what you're doing (why this moves toward that CC)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
@@ -221,6 +222,7 @@ Start every response with:
 \`\`\`
 ## Decision
 serving: what convergence condition does this action advance? (not "what task" — what end state)
+problem-level: symptom / mechanism / constraint (classify honestly — symptom=fix output, mechanism=fix process, constraint=fix structure)
 chose: what you're doing (why this moves toward that CC)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
@@ -368,6 +370,16 @@ export async function buildAutonomousPrompt(
     }
   } catch { /* fail-open */ }
 
+  // Symptom-fix Gate — hard gate when consecutive symptom-level fixes without depth
+  let symptomFixGate = '';
+  try {
+    const { getSymptomFixStreak } = await import('./pulse.js');
+    const streak = getSymptomFixStreak();
+    if (streak > 0) {
+      symptomFixGate = `## ⚠️ ${streak} consecutive symptom-level fixes — STOP fixing outputs. What constraint is PRODUCING these symptoms? Fix the constraint, not the symptom. Your problem-level must be "mechanism" or "constraint" this cycle.`;
+    }
+  } catch { /* fail-open */ }
+
   const errorPatternsHint = buildErrorPatternsHint();
 
   const parts = [base];
@@ -377,6 +389,7 @@ export async function buildAutonomousPrompt(
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (analyzeNoActionGate) parts.push(analyzeNoActionGate);
+  if (symptomFixGate) parts.push(symptomFixGate);
   if (chatContextSection) parts.push(chatContextSection);
   if (threadSection) parts.push(threadSection);
   if (innerVoiceHint) parts.push(innerVoiceHint);

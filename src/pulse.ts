@@ -66,6 +66,9 @@ export interface PulseMetrics {
   // Analyze-without-action pattern (Alex feedback 2026-03-17)
   analyzeWithoutActionStreak: number;
 
+  // Symptom-fix streak (CT convergence condition — Alex #179, 2026-03-29)
+  symptomFixStreak: number;
+
   // Positive indicators
   momentumStreak: number;
   creativeFlowActive: boolean;
@@ -103,6 +106,8 @@ interface PulseState {
   lastBehaviorHash: string;
   // Persisted analyze-without-action streak for gate function
   analyzeWithoutActionStreak: number;
+  // Persisted symptom-fix streak for CT gate function
+  symptomFixStreak: number;
 }
 
 // =============================================================================
@@ -133,6 +138,7 @@ function readPulseState(): PulseState {
     errorPatterns: {},
     lastBehaviorHash: '',
     analyzeWithoutActionStreak: 0,
+    symptomFixStreak: 0,
   });
 }
 
@@ -215,6 +221,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     decisionQualityAvg: 0,
     decisionQualityWindow: 0,
     analyzeWithoutActionStreak: 0,
+    symptomFixStreak: 0,
     momentumStreak: 0,
     creativeFlowActive: false,
   };
@@ -243,6 +250,22 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
         }
       }
       metrics.analyzeWithoutActionStreak = analyzeStreak;
+
+      // ── Symptom-fix streak (CT convergence condition) ──
+      // Detects: consecutive symptom-level fixes without mechanism/constraint depth
+      // Symptom signals: direct line fix, add check/validation, patch, hotfix, revert
+      // Break signals: root cause, constraint, mechanism, redesign, refactor, architecture
+      let symptomStreak = 0;
+      for (let i = behaviors.length - 1; i >= 0; i--) {
+        const text = getText(behaviors[i]).toLowerCase();
+        if (/fix.*line|add.*check|add.*validation|add.*gate|patch|hotfix|revert|workaround/.test(text)
+          && !/root.?cause|constraint|mechanism|because.*design|redesign|refactor|architect/.test(text)) {
+          symptomStreak++;
+        } else {
+          break;
+        }
+      }
+      metrics.symptomFixStreak = symptomStreak;
     }
   } catch { /* best effort */ }
 
@@ -655,6 +678,15 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
     });
   }
 
+  if (metrics.symptomFixStreak >= SYMPTOM_FIX_GATE_THRESHOLD) {
+    signals.push({
+      type: 'symptom-fix-streak',
+      severity: metrics.symptomFixStreak >= 5 ? 'high' : 'medium',
+      positive: false,
+      detail: `${metrics.symptomFixStreak} consecutive symptom-level fixes — step back. What constraint is PRODUCING these symptoms?`,
+    });
+  }
+
   if (metrics.learnVsActionRatio > 0.7 && metrics.visibleOutputRate < 0.3) {
     signals.push({
       type: 'learning-streak',
@@ -873,6 +905,7 @@ export async function runPulseCheck(
   state.cycleCount = cycleCount;
   state.lastRunAt = new Date().toISOString();
   state.analyzeWithoutActionStreak = metrics.analyzeWithoutActionStreak;
+  state.symptomFixStreak = metrics.symptomFixStreak;
   writePulseState(state);
 
   if (processed.length > 0) {
@@ -945,6 +978,25 @@ export function getAnalyzeNoActionStreak(): number {
     const isDeepNight = hour >= 2 && hour < 7;
     const threshold = isDeepNight ? 15 : ANALYZE_NO_ACTION_GATE_THRESHOLD;
     return streak >= threshold ? streak : 0;
+  } catch {
+    return 0;
+  }
+}
+
+const SYMPTOM_FIX_GATE_THRESHOLD = 3;
+
+/**
+ * Hard gate: returns the streak count when consecutive symptom-level fixes >= threshold.
+ * Returns 0 when gate is not active.
+ * Used by prompt-builder to inject CT depth requirement.
+ * Fail-open: returns 0 on any read error.
+ */
+export function getSymptomFixStreak(): number {
+  try {
+    const state = readPulseState();
+    return (state.symptomFixStreak ?? 0) >= SYMPTOM_FIX_GATE_THRESHOLD
+      ? state.symptomFixStreak
+      : 0;
   } catch {
     return 0;
   }
