@@ -398,3 +398,17 @@ Section Writing (write within the constrained scope)
 - **Teaching Plan** 是 prescription（列出要教什麼）
 - **Strategic Withholding** 把它轉化為 convergence condition（在有限時間內讓學生學到最多）
 - **省略的東西定義了保留的東西** — 跟 Cage 的「silence 不是空無」同構
+
+### ⚠️ 修正（2026-03-29）：機制已存在
+**Code review 發現** `multi-phase-prompts.mjs` 已完整實作 Strategic Withholding：
+- STEP1（line 321-336）：6 條省略判準，CRITICAL 等級，產出 `strategicWithholding.withheld[]`（含 handling: omit/tease/state-without-proving）
+- STEP2（line 1318-1321）：withheld list 作為 negative constraint 注入 section writer
+- STEP3（line 1070-1073）：withholding compliance 驗證 + 違規扣分
+- 認知預算：`cognitiveBudget.maxNewConcepts` + per-section density check
+
+**Akari tick-008 的「沒有減法站」判斷不準確** — 她分析時沒有 pipeline source code 可見性。機制存在且完善。
+
+**剩餘的真實問題**：
+1. 同一模型（STEP1）既規劃又省略 → 是否有「生產偏向」需要實際產出驗證
+2. 獨立 withholding stage（完整版）是否比 prompt-in-same-call 效果更好 → 需 A/B test
+3. 上述兩點都需要跑 pipeline 才能回答，等 Alex 觸發
