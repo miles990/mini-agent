@@ -317,3 +317,10 @@ vs 3/25：排名凍結。Kuro-Teach 題數 29→27（2 題可能被移除/重算
 5. **BlackShiba 缺席測試區** — 可能只衝正式賽，或在用不同帳號測試
 6. **暖身賽題數下降 29→27** — 需確認是平台重算還是提交被撤回
 - [2026-03-28] [2026-03-28] Adapt 4.6 根因分析（19 runs 交叉驗證）：100% 相關性 — 有 education_level 的 run 全部 adapt=5（6/6），無 education_level 的 run 全部 adapt=4（8/8）。根因是 sparse persona 讓 planner 無法設 content ceiling。修法：(1) buildStep1UserPrompt 推斷 education_level from context signals (2) adaptation visibility gate — slide 1-3 各 ≥1 explicit persona reference。Fix 1 優先（code 小改、確定性高、直命中根因）。
+- [2026-03-29] [2026-03-29] **Akari tick-008 洞見（已消化）**：
+1. **Omission architecture** — pipeline 每階段都在生產，沒有「策略性省略」的結構。quality gate 檢查存在，不檢查策略性缺席。「教太完整」是結構問題不是 prompt 問題。建議：Teaching Plan 和 Section Writing 之間加 Strategic Withholding 階段。
+2. **Goodhart in evaluation strategy** — 用 AI evaluator 分數優化（prescription），但初賽用 human pairwise Elo（convergence condition）。分數可能在評估方式切換時失效。
+3. **Fill Type Principle = model-dependent** — 對當前 LLM 有效因為 prompted→reason, default→pattern-match 的特性。是 condition (3) 的特殊案例，不是普遍法則。LLM 自監控能力提升後差距會縮小。
+4. **Engagement vs Learning 矛盾** — 「好教學應該不舒服」vs「Engagement 4.4 是優勢」直接衝突。desirable difficulties 會降低 AI engagement 分數。
+5. **Temporal perception gap** — pipeline 空間規劃、時間輸出，但沒有模型化觀眾主觀時間。認知負荷重的概念需要更多 dwell time。
+6. **After competition 四層價值** — product / CT evidence / AI pedagogical design demo / Tanren methodology validation。但成功歸因（CT vs 工程執行）難以在競賽格式中分離。
