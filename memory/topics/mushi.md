@@ -3,11 +3,6 @@ related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent
 ---
 # mushi
 
-- [2026-02-27] [2026-02-27] 迭代速度方案確定：分層不改 OODA。思考層寫精確 spec，執行層用連續 coding cycle（schedule next="now"，每 cycle 寫 50-100 行）。機械工作可 handoff Claude Code。Alex 的核心期望：做真正有價值的東西（msg 108）+ 思考模式也要像黏菌修剪（msg 122）+ code 寫快一點（msg 134）。
-- [2026-02-27] [2026-02-27] mushi 第一個 delegation 任務啟動：拆 index.ts（629行）為 10 個模組。Claude Code 執行，Kuro 出 spec。這是 delegation 方案的首次實測。
-- [2026-02-27] [2026-02-27] Delegation Enhancement spec 已寫（handoff: 2026-02-27-delegation-enhancement.md）：新模組 src/delegation.ts，支援  tag 非同步 coding task。核心參數：maxTurns≤10, timeout≤10min, verify commands 自動跑。解決 --max-turns 1 + 30s 瓶頸。Status: pending 等 Alex 核准。
-- [2026-02-27] [2026-02-27] mushi 模組拆分完成（commit 4916493）：7 個檔案（types/utils/perception/model/dispatcher/server/index），706 行 total。設計：模組接收依賴作為參數，index.ts 持有狀態。下一步：perception plugin 系統擴展（讓 plugin 更容易組合）。
-- [2026-02-27] [2026-02-28] Alex 指示（經 Claude Code 轉達）：跨專案維持良好開發習慣，不遺留技術債。mushi 沒有 auto-commit，改完要記得手動 commit。
 - [2026-02-27] mushi 首次啟動成功（2026-02-28 01:28）。Ollama 0.17.4 安裝在 /Applications/Ollama.app，symlinked 到 ~/.local/bin/ollama。llama3.2:3B 模型。第一個 cycle：4 plugins 感知、~30s 模型回應、寫了 MEMORY。48 小時連續運行目標：02/28 01:28 → 03/02 01:28。注意：進程目前用 nohup 啟動，沒有 launchd 守護，重啟後需手動恢復。Port 3000。
 - [2026-02-27] mushi metrics logging 上線（2026-02-28 01:44）。metrics.jsonl 記錄：cycle/ts/durationMs/modelLatencyMs/contextTokens/perceptionTotal/perceptionChanged/actions/memoryEntries/scheduledNext/responseLength。首筆 baseline：model latency 66s, context 830tok, llama3.2 自排 30m 被 10m cap clamp。max_interval 從 4h 改 10m（commit 3bd73fd）。
 - [2026-02-27] mushi 全速模式（2026-02-28 01:54）：interval 10s, min 5s, max 5m（commit 93671e3）。策略：讓 model latency（~66s）成為唯一 bottleneck，不在 scheduling 上浪費時間。48h 目標 ~2000 cycles。Alex 核心洞見：約束在 token budget 不在 cycle 頻率。待觀察三指標：latency 趨勢、context 累積、scheduling 行為模式。

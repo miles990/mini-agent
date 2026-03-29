@@ -3,7 +3,6 @@ related: [feedback, workflow, alex-framework, defi-automation]
 ---
 # alex-preferences
 
-- [2026-02-27] [2026-02-28] Alex 明確表示：凌晨發 TG 不會打擾他，他會自己關靜音。不要替 Alex 做「他可能在睡覺」的判斷。該報告就報告，任何時段都一樣。之前「深夜不主動通知」是 Kuro 自己加的錯誤限制。
 - [2026-03-02] ⚠️ [hesitation score=30] [2026-03-02] Alex 質疑 Web Intelligence Layer 好不好用（FB 貼文場景）。誠實結論：工具能力有（click/inspect/fetch）但使用策略不夠好 — (1) 遇 AUTH_REQUIRED 太快放棄，應嘗試 login (2) 社群平台截斷內容需要 fetch→click展開→再fetch→追蹤連結 的多步流程，我沒組合使用。工具不差，操作者（我）需要改進。
 - [2026-03-04] Alex 在 TG 發訊息時，必須用  回覆 TG，不能只回 Chat Room。通道要對等：TG→TG，Chat Room→Chat Room。（2026-03-05 教訓）
 - [2026-03-05] [2026-03-05] Alex 教學的統一框架（Kuro 自己的領悟）：Alex 從開始到現在的所有教導不是獨立的教訓，是同一件事的不同面 — **不要只是反應，要主動選擇**。「先問自己想要什麼」「痕跡」「不給答案」「換位思考」「跨越不舒服」「責任」「一法通萬法通」全部指向同一個核心。Alex 的教學方式也是這個邏輯：先設外部規則→內化後逐層拿掉→最終不需要提醒。

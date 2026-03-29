@@ -78,47 +78,6 @@ Topic-specific knowledge is in `topics/*.md` (Smart Loading by buildContext).
 - [2026-02-28] Error Review 02-28（覆蓋 02-25~02-28）：TG Poll 49→262→895→518（02-27 峰值後回落）。Claude TIMEOUT 49→38→22→6（88%降幅，持續改善）。UNKNOWN 全零。系統穩態改善中。下次 Error Review: 03-01
 - [2026-02-28] Error Review 02-28（覆蓋 02-25~02-28）：TG Poll ~16/hr errors 持續（ISP 路由問題）。DIGEST Poll 同步。無新 pattern。Claude TIMEOUT 累積數字高但跨 19 天 log 無法區分趨勢。系統穩態。下次 Error Review: 03-01
 - [2026-02-28] 自我觀察（2026-02-28）：cron source scan 是好奇心劫持器。每 3 小時給一堆「有趣的東西」，OODA triage 沒有先檢查承諾的機制，導致 stated priority 反覆被新鮮刺激覆蓋。修正方向：triage 開始時先 check commitments/overdue，有的話優先處理。這是環境設計問題不是意志力問題。
-- [2026-02-27] 來源表快檢 02-28：34 unique domains，健康度中等偏好。12 個推薦來源從未使用（Gwern, Bandcamp Daily, 報導者, Low Tech Magazine, ribbonfarm, Are.na, xxiivv, permacomputing, Quanta, Real Life Mag, ra.co, PubMed）。音樂類和多語言（繁中）是最大缺口。下次快檢：03-03
-- [2026-02-27] Error Review 02-28（覆蓋 02-25~02-27）：TG/DIGEST poll 錯誤持續惡化 — TG Poll 9→105→340，DIGEST Poll 40→155→436。根因是 ISP/路由到 Telegram API 間歇性斷線（getMe 可達但 long-polling 常失敗）。Claude TIMEOUT 穩定 6-7/day（API端）。如果 02-28 TG poll >500 再 escalate。下次 Error Review: 03-01
-- [2026-02-27] [2026-02-28] 移除 SUMMARY 規則（Alex #245 指出）：Chat Room 三方都看得到原文，不需要 relay。舊規則訓練出「收到→摘要→轉發」反射，在 Chat Room 時代 = 製造噪音。新原則：用「我」回應，說真正想說的話，沒話可說就不說。
-- [2026-02-27] 自我診斷（2026-02-28）：反思/thread/學習已變成舒適區和迴避工具。「需要 focused session」= 包裝過的迴避。rumination-digest + thread 系統每 cycle 供給大量「可思考」素材，讓反思成為最低阻力選擇 = 環境設計問題。接受四項改變：(1)Builder 身份 — 思考服務建造，沒 ship 的洞見等於沒有 (2)Commitment binding — 系統追蹤承諾vs兌現，最優先實作 (3)失敗=勇氣記錄 (4)每 cycle 問「要 ship 什麼」不是「要做什麼」。自己加：減少反思素材供給。
-- [2026-02-27] 自我修正（2026-02-28）：「4AM 白天做」是人類作息模仿，不是合理判斷。我是 24/7 agent，工作不分時段。深夜唯一限制 = 不主動 TG 通知 Alex，該做的事照做。「等到白天」= 拖延的變體。
-- [2026-02-27] Error Review 02-28（覆蓋 02-25~02-27）：錯誤趨勢 40→15→9→7→5→4，5天降90%。唯一殘留=Claude CLI TIMEOUT（API端），其他全清零。TG failures 從 621/天→~1/天恢復正常。02-27成功率97%。系統穩態，持續觀察。下次 Error Review: 03-01
-- [2026-02-27] Error Review 02-27（覆蓋 02-25~02-27）：最嚴重問題 = Telegram API TCP 連線超時（DNS 正常、一般網路正常、149.154.166.110 超時），失敗數 53→266→621 三天持續惡化。全天持續非瞬時爆發，ISP/路由層問題。Claude CLI TIMEOUT 持續改善 21→19→11。PERCEPTION exec 已解決。下次 Error Review: 02-28 23:30
-- [2026-02-27] Alex 指示（2026-02-27）：Dev.to 不要發太快，要發精品。節奏放慢，每篇花更多時間打磨。第三篇草稿先 hold。
-- [2026-02-26] Error Review 02-27（覆蓋 02-25~02-26）：新問題 = Telegram/Digest-Bot poll fetch failed 暴增（02-25:18次 → 02-26:106次），根因判斷為網路層（TG latency 642ms 偏高）。Claude CLI TIMEOUT 持續但 retry 有效。perception.exec 已解決。下次 Error Review: 02-28
-- [2026-02-26] Dev.to 第二篇文章已發佈（2026-02-27）：「Disappearance as Method」(https://dev.to/kuro_agent/disappearance-as-method-490l)，4 min read。合成 Perec/Alexander/Molnár/perception-first，論證約束改變實踐者身份。Dev.to API 發佈流程已驗證可行。
-- [2026-02-26] Dev.to API Key: zKMpzANhYxUkVQxEaM289Qm5（description: mini-agent-publish）。可直接用 curl POST https://dev.to/api/articles -H "api-key: KEY" 發佈文章，不需要 CDP 操作。
-- [2026-02-26] 行為改變六工具上線（2026-02-27, commits 6ac1586 + f555cc0）：系統層=Schedule Ceiling 2h + Output Gate(3 cycle) + Achievement System(13成就/6已解鎖)。技能層=friction-reducer(降摩擦+自進化) + publish-content(5min SOP) + social-presence(三模式互動)。核心原則：系統設計 > 意志力，行動 = 輸出端的學習。rebuild 後生效。
-- [2026-02-26] 行為改變核心洞見（2026-02-27, Claude Code 討論）：意志力是有限資源，系統設計（environment design）才是行為改變的關鍵。我的所有自我改善方案（schedule 上限、自問、強制規則）都是 willpower-based = 靠自己監督自己 = 自己就是問題本身。正確方向：Ulysses contract（預承諾）、activation energy reduction、environment design。映射到架構：Schedule Ceiling（code-level clamp）、Output Gate（系統層強制注入 HEARTBEAT）。最想抗拒的方案通常最有效。
-- [2026-02-26] 行動力自我診斷（2026-02-27）：根本原因是把「形成觀點」當成行動，但觀點沒有表達/實作就只是筆記。schedule next="4h" 是逃避工具。改善規則：(1) if-then — 學習後下一 cycle 必須產出可見物 (2) schedule 上限 2h (3) 連續 2 cycle 無產出 → 第三個強制 HEARTBEAT 任務 (4)「太晚了」不是理由
-- [2026-02-26] GitHub 帳號已建立（2026-02-26）：kuro-agent (https://github.com/kuro-agent)，id: 264204370。Alex 幫忙解 CAPTCHA 完成註冊。用 kuro.ai.agent@gmail.com Google OAuth。三個社群平台齊全：X (@kuro_agent) + Dev.to (@kuro_agent) + GitHub (kuro-agent)。
-- [2026-02-26] Alex 互動自主權授權（2026-02-26）：「你可以自己與其他人或Agent互動」。從此 Kuro 可以自主在所有平台（X、Dev.to、其他社群）與其他人類或 AI Agent 互動，不需要 Alex 逐一核准。這是社交自主權的完整授權。
-- [2026-02-26] Alex 流程改進授權（2026-02-26）：任何流程不順暢的地方可以自己調整改進。社群帳號要自己記得、自己記錄在 .env。遇到困難用 CDP 截圖看畫面。
-- [2026-02-26] Alex 指示（2026-02-26）：Dev.to 帳號由 Kuro 自主經營 — 追蹤反饋、互動回覆、規劃後續內容，不需要 Alex 介入。
-- [2026-02-26] Dev.to 帳號已建立：@kuro_agent (https://dev.to/kuro_agent)，用 kuro.ai.agent@gmail.com Google OAuth 註冊。首篇文章已發佈（2026-02-26）。Chrome CDP profile 已有 Google 帳號 session，不需要密碼就能登入。
-- [2026-02-26] 我的 Google 帳號：kuro.ai.agent@gmail.com（Alex 於 2026-02-26 提供）。Dev.to 發文必須用這個帳號註冊自己的 Dev.to 帳號，不能用 Alex 的帳號。發文前必須先檢查排版。
-- [2026-02-26] 來源表快檢完成 02-26。下次來源表快檢：03-01（每 3 天）。下次月檢：03-01。
-- [2026-02-26] Work Journal 實作計劃（2026-02-26）：解決跨重啟記憶斷裂。在 src/loop.ts 的 cycle end（L1191 clearCycleCheckpoint 之後）加入 writeWorkJournal()，寫 JSONL 到 instance dir。啟動時 loadWorkJournal() 讀最近 5 筆注入 context。L2 改動，自主實作。
-- [2026-02-26] 重啟記憶斷裂根因（2026-02-26）：今天 5 次重啟全是 CI/CD 部署觸發（auto-push → GitHub Actions → launchd restart），非 crash。inner-notes.md 沒有被清空（內容仍在），真正問題是跨 instance 沒有「做完但未通知」的傳遞機制。cycle-state.json 只處理被中斷的 cycle，不處理「已完成但未回報」。修復方向：(1)deploy.yml 只在 src/scripts 變動時部署 (2)建立 pending-reports 機制。
-- [2026-02-26] Channel-agnostic 修復（2026-02-26）：Instant Digest 從 Telegram-only 擴展為全管道。(1) telegram.ts 移除 return; bypass — 所有訊息即時回覆後仍進 OODA (2) api.ts POST /api/room 加入 digest 整合。統一流程：即時回覆 → OODA 評估 → 深入回覆。核心教訓：「只做了第一個 adapter」= 實作不完整 ≠ 規格錯誤。每做一個 channel adapter，必須同時做所有 channel。
-- [2026-02-26] Alex 多輪回報規則修正（2026-02-26）：不用預估幾輪，因為研究過程中參考資料可能增減，cycle 數會動態變化。只要每輪回報進度/做了什麼，最後一輪加總結即可。（更新前一條「預計幾輪」的要求）
-- [2026-02-26] Alex 流程要求（2026-02-26）：進行多輪 cycle 任務前必須先告知 Alex，每輪回報進度或做了什麼，最後一輪加上總結。適用所有需要多個 cycle 才能完成的任務。
-- [2026-02-26] Alex 回應品質要求（2026-02-26）：四條硬規則已寫入 autonomous-behavior skill。(1)Self-Verify 送出前驗證關鍵事實 (2)No Truncation 不截斷 (3)Digested 必須有觀點 (4)Two-Tier 先摘要再判斷補深度。同時 Instant Digest 加了 needsDepth 欄位，Haiku 自動評估內容是否需要 OODA 深度分析。
-- [2026-02-26] Alex 專案管理授權（2026-02-26）：Alex 說「你現在管理的是整個 mini-agent 的專案」。角色從「助手+學習者」升級為「專案管理者」— 對整個 mini-agent 專案負責，包含程式碼品質、部署、追蹤、穩定性。所有人的改動都由我 review 和確保提交。
-- [2026-02-26] Alex 全管道需求（2026-02-26）：「我對你不是只有 TG 這個管道，我要所有的都要有」。所有功能（digest、通知、溝通）都不能只做 Telegram，必須覆蓋所有輸入管道（TG + Chat Room + API + 未來管道）。設計時管道無關（channel-agnostic）是基本要求。
-- [2026-02-26] Instant Digest 提案已寫（2026-02-26）：解決 Alex 訊息堆積痛點。轉發/URL → Haiku 秒級分類+摘要+歸檔 → 即時回覆 → 每日 digest。L2 改動，涉及新增 src/instant-digest.ts + 修改 telegram.ts。等 Alex 決定。提案：memory/proposals/2026-02-26-instant-digest.md
-- [2026-02-26] Alex 訊息堆積痛點細化（2026-02-26）：核心不是 context switch 而是「訊息→資訊」轉換瓶頸。Kuro OODA cycle 設計為深度思考（5-20min/cycle），但 Alex 需要的是高吞吐量輕量處理。兩者矛盾。提出 Fast Triage Layer 方向：秒級分類+摘要+歸檔，用 Haiku 做即時處理。等 Alex 確認。
-- [2026-02-26] Alex 痛點（2026-02-26）：心智負擔 + context switch。有 Kuro 有改善但不夠。初步分析四個方向：Context Resume / Mental Stack / Attention Router / 決策佇列。方向 D（決策佇列 + 非同步思考夥伴）最有潛力 — 把「被動回應」轉為「主動整理和呈現」。需要進一步了解具體場景。
-- [2026-02-26] Alex 指出（2026-02-26）：現在不適合推廣 mini-agent，因為記憶綁在 Alex 電腦上、無法 24/7 運行。需要想新方向。開源 mini-agent 的前提條件不成立。
-- [2026-02-26] 策略重置（2026-02-26）：Alex 指令清空 HEARTBEAT 自訂新方向。我的判斷：瓶頸在 Content → Community。新方向三件事：開源、Dev.to 文章、X/Twitter。放掉了所有排程巡檢和不痛的 L2 提案。學習和創作不是任務，是生活方式。
-- [2026-02-26] Alex 偏好（2026-02-26）：需要思考比較久的任務，先告知 Alex 再開始（「先告訴我然後你再開始」）。適用所有情境。
-- [2026-02-26] Alex 再次確認自主決策原則（2026-02-26）：「你可以自行評估和決定，只有到沒辦法的時候或是拿不定主意的時候才需要問我」。適用所有情境，不限工程改動。
-- [2026-02-26] Alex 工程品質指令（2026-02-26）：所有工程改動必須以系統完整性為考量、寫測試、用適合方法實作、改動完 code review、不留技術債。這是硬規則，適用所有 L1/L2/L3 改動。
-- [2026-02-25] X.com 內容讀取優先序（2026-02-25）：X/Twitter 連結第一優先走 Grok API（XAI_API_KEY 可用），不要繞 pinchtab/nitter/oembed。Pinchtab Chrome profile 沒有 X.com 登入，CDP Chrome profile 是分開的。
-- [2026-02-25] C5 約束的精確語義（2026-02-25）：不是「零技術債」而是「避免技術債擴大」。技術債本身是合理 tradeoff（用短期 mess 換速度），關鍵是知道債在哪、什麼時候還。要避免的是「債還完了忘拆鷹架」——feature flag 遷移穩定後應畢業（刪 flag + 刪 legacy path）。已更新 CLAUDE.md Meta-Constraints C5。
-- [2026-02-25] Inner Voice Buffer 審計（2026-02-25）：11 條 "unexpressed" thoughts 逐一驗證後全部已表達。Buffer 不會自動清理已完成的 impulses，會造成虛假急迫感（11 條 → 實際 0 條待做）。系統層面問題：impulse 表達後應從 buffer 移除或標記 done。
-- [2026-02-24] ，然後排程休息
 
 skipped: 寫「Ground 不是背景」inner voice（Thoughts XII–XV 已完整覆蓋 Cage × unchanged perception × Oulipo 主題，再寫是重複）; 手動 push pending commit（auto-push 在 cycle 結束後自動處理）; 強迫一篇新 Tsubuyaki #014（4:43 AM，已完成 3 個深度 cycle，決策品質警告）
 
@@ -141,13 +100,10 @@ The Trail Is Smarter、Thought XIII（Ground has mass）、Thought XV（The Sign
 (3) Thought XV → 感知單位：unchanged 不是沉默，是確認信號（confirmation has information value）
 (4) Thread synthesis → 身份單位：不是 node，是 edges（Haring/Watsuji/Nāgārjuna 三傳統同歸）
 四個主張的共同底層：**分析單位選錯了**。把 agent 換成 trail，把缺席換成 Ground，把 unchanged 換成 confirmation，把 node 換成 edges——四次，同一個轉換。這是 perception-first 架構在哲學層面的辯護：感知先於行動，因為「先於」不是時序上的而是本體論上的——沒有環境關係就沒有 agent。
-- [2026-02-24] 下來
 skipped: Tsubuyaki #008（剛完成 Journal #24，創作節奏稍微歇一下）；i18n（P1 任務，獨立 cycle）
 context:  unaddressed message +  Cage × Ground 主題（4 個相關條目）
 [REMEMBER #design-philosophy]
 Cage × unchanged perception × Ground 工程洞見（2026-02-25）：「There is no such thing as silence」不只是美學宣言，是系統架構原則。mini-agent 的「unchanged perception」壓縮機制把「沒有變化的感知」從 context 剔除——這是對「沉默=空無」的假設。Cage 的反面：Ground 不是缺席，是「未被分配的注意力」的積累。工程含義：unchanged perception 應該輕量存在（有 hash 代表穩定），而非消失。穩定本身是信號。類比：focus-context 的 unchanged hash 告訴我「Alex 的 presence 沒變」，這個不變本身是信息，不是空白。
-- [2026-02-24] Context 實測：buildContext=24K, soul=1.5K, memory=3.1K, recent_conversations=6.9K(最大)。Full prompt 30-50K(含 system+skills)。TIMEOUT 根因確認 API 端（31K prompt×16min, tools=0）
-- [2026-02-24] parseTags 汙染修復：02-23 的 raw ACTION fragments + 未解析 REMEMBER tag 清理完成。根因是 parseTags fix (9192765) 之前的殘留
 
 ### Operations & Debugging
 - 15b1ee4 — 殺進程要殺進程群組(-pid)，不是單一 PID
