@@ -360,13 +360,17 @@ export async function buildAutonomousPrompt(
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
-  // Analyze-no-action Gate — hard gate when consecutive analyze/remember without action
+  // Analyze-no-action Gate — hard gate with type-aware messaging (idle/reflective/blocked)
   let analyzeNoActionGate = '';
   try {
-    const { getAnalyzeNoActionStreak } = await import('./pulse.js');
-    const streak = getAnalyzeNoActionStreak();
-    if (streak > 0) {
-      analyzeNoActionGate = `## ⚠️ ${streak} cycles without action — this cycle must produce something observable (delegate/code/deploy/commit/chat).`;
+    const { getAnalyzeStreakContext } = await import('./pulse.js');
+    const ctx = getAnalyzeStreakContext();
+    if (ctx) {
+      analyzeNoActionGate = ctx.type === 'reflective'
+        ? `## 💭 ${ctx.streak} cycles of reflection — your thinking has value, but consider externalizing one insight (write/create/share). Reflection without output eventually loses its thread.`
+        : ctx.type === 'blocked'
+        ? `## 🔒 ${ctx.streak} cycles blocked — remove the dependency, try a different approach, or escalate. Waiting is not action.`
+        : `## ⚠️ ${ctx.streak} cycles without action — this cycle must produce something observable (delegate/code/deploy/commit/chat).`;
     }
   } catch { /* fail-open */ }
 

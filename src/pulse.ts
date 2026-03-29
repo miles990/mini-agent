@@ -31,6 +31,8 @@ import { slog, readJsonFile } from './utils.js';
 // Types
 // =============================================================================
 
+export type AnalyzeStreakType = 'idle' | 'reflective' | 'blocked';
+
 export interface PulseMetrics {
   // Behavior ratios
   learnVsActionRatio: number;       // learn_count / total_actions
@@ -65,6 +67,8 @@ export interface PulseMetrics {
 
   // Analyze-without-action pattern (Alex feedback 2026-03-17)
   analyzeWithoutActionStreak: number;
+  // Sub-classification: idle (no activity), reflective (thinking/threads), blocked (waiting/dependency)
+  analyzeStreakType: AnalyzeStreakType;
 
   // Symptom-fix streak (CT convergence condition — Alex #179, 2026-03-29)
   symptomFixStreak: number;
@@ -106,6 +110,8 @@ interface PulseState {
   lastBehaviorHash: string;
   // Persisted analyze-without-action streak for gate function
   analyzeWithoutActionStreak: number;
+  // Sub-classification of the analyze streak
+  analyzeStreakType: AnalyzeStreakType;
   // Persisted symptom-fix streak for CT gate function
   symptomFixStreak: number;
 }
@@ -138,6 +144,7 @@ function readPulseState(): PulseState {
     errorPatterns: {},
     lastBehaviorHash: '',
     analyzeWithoutActionStreak: 0,
+    analyzeStreakType: 'idle' as AnalyzeStreakType,
     symptomFixStreak: 0,
   });
 }
@@ -221,6 +228,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     decisionQualityAvg: 0,
     decisionQualityWindow: 0,
     analyzeWithoutActionStreak: 0,
+    analyzeStreakType: 'idle' as AnalyzeStreakType,
     symptomFixStreak: 0,
     momentumStreak: 0,
     creativeFlowActive: false,
@@ -240,16 +248,29 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
       // ── Analyze-without-action streak ──
       // Detects: consecutive ANALYZE/REMEMBER without ACTION (delegate/code/execute)
+      // Sub-classifies: idle (generic), reflective (thinking/threads), blocked (waiting/dependency)
       let analyzeStreak = 0;
+      let reflectiveCount = 0, blockedCount = 0, idleCount = 0;
       for (let i = behaviors.length - 1; i >= 0; i--) {
         const text = getText(behaviors[i]).toLowerCase();
         if (/analyze|remember|learn|research|study/.test(text)) {
           analyzeStreak++;
+          if (/thread|reflect|think|inner.?voice|journal|isc|rumina|opinion|connect|synthesis|insight/.test(text)) {
+            reflectiveCount++;
+          } else if (/wait|block|hold|depend|alex|defer|pending|timeout|blocked/.test(text)) {
+            blockedCount++;
+          } else {
+            idleCount++;
+          }
         } else if (/delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline|tts|ffmpeg|curl|fetch|rebui/.test(text)) {
           break;
         }
       }
+      const streakType: AnalyzeStreakType =
+        reflectiveCount >= blockedCount && reflectiveCount >= idleCount ? 'reflective' :
+        blockedCount >= idleCount ? 'blocked' : 'idle';
       metrics.analyzeWithoutActionStreak = analyzeStreak;
+      metrics.analyzeStreakType = streakType;
 
       // ── Symptom-fix streak (CT convergence condition) ──
       // Detects: consecutive symptom-level fixes without mechanism/constraint depth
@@ -670,11 +691,16 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
   }
 
   if (metrics.analyzeWithoutActionStreak >= 3) {
+    const streakDetail = metrics.analyzeStreakType === 'reflective'
+      ? `${metrics.analyzeWithoutActionStreak} cycles of reflection — consider externalizing: write, share, or create something from your thinking`
+      : metrics.analyzeStreakType === 'blocked'
+      ? `${metrics.analyzeWithoutActionStreak} cycles blocked — unblock yourself (remove dependency, pivot approach) or escalate`
+      : `${metrics.analyzeWithoutActionStreak} consecutive analyze/remember without action — execute or delegate now`;
     signals.push({
       type: 'analyze-no-action',
       severity: metrics.analyzeWithoutActionStreak >= 5 ? 'high' : 'medium',
       positive: false,
-      detail: `${metrics.analyzeWithoutActionStreak} consecutive analyze/remember without action — execute or delegate now`,
+      detail: streakDetail,
     });
   }
 
@@ -905,6 +931,7 @@ export async function runPulseCheck(
   state.cycleCount = cycleCount;
   state.lastRunAt = new Date().toISOString();
   state.analyzeWithoutActionStreak = metrics.analyzeWithoutActionStreak;
+  state.analyzeStreakType = metrics.analyzeStreakType;
   state.symptomFixStreak = metrics.symptomFixStreak;
   writePulseState(state);
 
@@ -980,6 +1007,25 @@ export function getAnalyzeNoActionStreak(): number {
     return streak >= threshold ? streak : 0;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Returns streak count + type classification when gate is active.
+ * Type distinguishes reflective (thinking/threads) from blocked (waiting) from idle (generic).
+ * Fail-open: returns null on any error.
+ */
+export function getAnalyzeStreakContext(): { streak: number; type: AnalyzeStreakType } | null {
+  try {
+    const state = readPulseState();
+    const streak = state.analyzeWithoutActionStreak ?? 0;
+    const hour = new Date().getHours();
+    const isDeepNight = hour >= 2 && hour < 7;
+    const threshold = isDeepNight ? 15 : ANALYZE_NO_ACTION_GATE_THRESHOLD;
+    if (streak < threshold) return null;
+    return { streak, type: state.analyzeStreakType ?? 'idle' };
+  } catch {
+    return null;
   }
 }
 
