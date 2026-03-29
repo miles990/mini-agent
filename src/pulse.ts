@@ -124,6 +124,12 @@ const SLIDING_WINDOW = 20;
 const HABITUATION_THRESHOLD = 5;  // same signal N times → rotate presentation
 const OUTPUT_GATE_THRESHOLD = 3;
 const ANALYZE_NO_ACTION_GATE_THRESHOLD = 5;
+// Type-aware thresholds: reflective thinking deserves more room than idle spinning
+const ANALYZE_THRESHOLD_BY_TYPE: Record<AnalyzeStreakType, number> = {
+  idle: 5,        // generic non-action — flag early
+  reflective: 8,  // genuine thinking — higher bar before pressure
+  blocked: 4,     // stuck without acting — flag earlier
+};
 const ERROR_PATTERN_THRESHOLD = 3;
 
 // =============================================================================
@@ -690,7 +696,9 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
     });
   }
 
-  if (metrics.analyzeWithoutActionStreak >= 3) {
+  // Type-aware signal threshold: reflective thinking gets more room before signal fires
+  const analyzeSignalThreshold = Math.max(3, (ANALYZE_THRESHOLD_BY_TYPE[metrics.analyzeStreakType ?? 'idle'] ?? 5) - 2);
+  if (metrics.analyzeWithoutActionStreak >= analyzeSignalThreshold) {
     const streakDetail = metrics.analyzeStreakType === 'reflective'
       ? `${metrics.analyzeWithoutActionStreak} cycles of reflection — consider externalizing: write, share, or create something from your thinking`
       : metrics.analyzeStreakType === 'blocked'
@@ -698,7 +706,7 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
       : `${metrics.analyzeWithoutActionStreak} consecutive analyze/remember without action — execute or delegate now`;
     signals.push({
       type: 'analyze-no-action',
-      severity: metrics.analyzeWithoutActionStreak >= 5 ? 'high' : 'medium',
+      severity: metrics.analyzeWithoutActionStreak >= (ANALYZE_THRESHOLD_BY_TYPE[metrics.analyzeStreakType ?? 'idle'] ?? 5) ? 'high' : 'medium',
       positive: false,
       detail: streakDetail,
     });
@@ -999,11 +1007,11 @@ export function getAnalyzeNoActionStreak(): number {
   try {
     const state = readPulseState();
     const streak = state.analyzeWithoutActionStreak ?? 0;
-    // Time-aware threshold: deep night (02:00-07:00) no-action is correct judgment,
-    // not idle spinning. Relax threshold to avoid false pressure.
+    const streakType = state.analyzeStreakType ?? 'idle';
+    // Time-aware + type-aware threshold
     const hour = new Date().getHours();
     const isDeepNight = hour >= 2 && hour < 7;
-    const threshold = isDeepNight ? 15 : ANALYZE_NO_ACTION_GATE_THRESHOLD;
+    const threshold = isDeepNight ? 15 : (ANALYZE_THRESHOLD_BY_TYPE[streakType] ?? ANALYZE_NO_ACTION_GATE_THRESHOLD);
     return streak >= threshold ? streak : 0;
   } catch {
     return 0;
@@ -1019,11 +1027,12 @@ export function getAnalyzeStreakContext(): { streak: number; type: AnalyzeStreak
   try {
     const state = readPulseState();
     const streak = state.analyzeWithoutActionStreak ?? 0;
+    const streakType = state.analyzeStreakType ?? 'idle';
     const hour = new Date().getHours();
     const isDeepNight = hour >= 2 && hour < 7;
-    const threshold = isDeepNight ? 15 : ANALYZE_NO_ACTION_GATE_THRESHOLD;
+    const threshold = isDeepNight ? 15 : (ANALYZE_THRESHOLD_BY_TYPE[streakType] ?? ANALYZE_NO_ACTION_GATE_THRESHOLD);
     if (streak < threshold) return null;
-    return { streak, type: state.analyzeStreakType ?? 'idle' };
+    return { streak, type: streakType };
   } catch {
     return null;
   }
