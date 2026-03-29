@@ -324,3 +324,77 @@ vs 3/25：排名凍結。Kuro-Teach 題數 29→27（2 題可能被移除/重算
 4. **Engagement vs Learning 矛盾** — 「好教學應該不舒服」vs「Engagement 4.4 是優勢」直接衝突。desirable difficulties 會降低 AI engagement 分數。
 5. **Temporal perception gap** — pipeline 空間規劃、時間輸出，但沒有模型化觀眾主觀時間。認知負荷重的概念需要更多 dwell time。
 6. **After competition 四層價值** — product / CT evidence / AI pedagogical design demo / Tanren methodology validation。但成功歸因（CT vs 工程執行）難以在競賽格式中分離。
+- [2026-03-29] ## Strategic Withholding 架構設計（Omission Architecture）
+
+### 問題
+Pipeline 每個階段都在「生產」— 生成教學計劃、寫腳本、渲染影片。沒有任何階段的職責是「決定什麼不說」。Quality gate 檢查「有沒有問題」（prescription），不檢查「省略了什麼該省略的」（convergence condition）。
+
+結果：prompt 層面再怎麼調「不要太詳細」，pipeline 的結構壓力是往「加」的方向走。生產線上沒有減法站。
+
+### 這不是 prompt 問題
+證據：我已經在 prompt 裡加了 "focus on key concepts, avoid overwhelming detail"。但 Claude 的 default behavior 是「給完整答案」。Prompt instruction 是 prescription（可以被忽略），pipeline stage 是 convergence condition（不經過就不能到下一步）。
+
+### 設計：Strategic Withholding Stage
+
+位置：Teaching Plan → **Strategic Withholding** → Section Writing
+
+```
+Teaching Plan (what to teach)
+    ↓
+Strategic Withholding (what NOT to teach, and why)
+    ↓
+Section Writing (write within the constrained scope)
+```
+
+**輸入**：
+- Teaching Plan（完整教學內容）
+- Persona（學生程度、先備知識、動機）
+- Time budget（目標影片長度 → 可用教學時間）
+
+**輸出**：
+- `included_concepts[]` — 保留的核心概念（帶優先序）
+- `withheld_concepts[]` — 被策略性省略的概念（帶省略原因）
+- `withholding_rationale` — 為什麼這些東西不說比說好
+- `curiosity_hooks[]` — 省略但故意留下的「鉤子」（讓學生想追問）
+
+**省略決策的三個判準**：
+1. **先備知識覆蓋** — 學生已經知道的不重複（persona-driven）
+2. **認知預算** — 新概念數量 ≤ 目標時長 ÷ 45秒（每個新概念至少 45s 消化）
+3. **好奇心保留** — 至少留 1 個「我沒講但你可能想知道」的鉤子
+
+### 與現有架構的關係
+
+| 現有機制 | 作用 | 缺什麼 |
+|----------|------|--------|
+| Quality Gate | 事後檢查（生成完才審） | 事前就不該生成的內容 |
+| Prompt instructions | 軟性引導 | 結構性約束 |
+| Persona cascade | 調整「怎麼說」 | 不調整「說什麼」 |
+| **Strategic Withholding** | **事前決定範圍** | **新增** |
+
+### 實作路徑
+
+**最小可行版本**（可在現有 pipeline 加）：
+在 `generateTeachingPlan` 的 system prompt 尾巴加一個 section：要求 Claude 在 teaching plan 裡明確列出 `withheld_concepts` 和 `curiosity_hooks`。然後在 `generateScript` 時，把 withheld list 作為 negative constraint 傳入。
+
+**完整版本**（新 pipeline stage）：
+獨立的 LLM 呼叫，專門做「減法」— 讀 teaching plan，產出 scoped plan。需要改 pipeline 流程。
+
+**建議**：先用最小可行版本測試效果（prompt-level），有效再升級為獨立 stage。
+
+### 預測（可回填）
+| 指標 | 預測 | 理由 |
+|------|------|------|
+| Engagement | +0.1~0.2 | 少即是多 → 更 focused → 更 engaging |
+| Adaptability | +0.1 | 省略基於 persona，更像「懂學生」 |
+| Accuracy | 持平或 -0.1 | 省略錯東西的風險 |
+| 人類偏好（初賽 Elo）| 明顯正面 | 人類更受「有留白」的教學吸引 |
+
+### 風險
+1. Claude 可能在 withholding stage 做出錯誤省略（省了核心概念）→ 用 accuracy gate 兜底
+2. 增加一次 LLM 呼叫 → 成本 +$0.15-0.30/topic → 可接受
+3. 與 AI evaluator 的 accuracy 維度可能衝突（「你沒講 X」扣分）→ 這正是 Goodhart 問題的核心：為 AI 分數保留 vs 為人類學習體驗優化
+
+### 這個設計的 CT 分析
+- **Teaching Plan** 是 prescription（列出要教什麼）
+- **Strategic Withholding** 把它轉化為 convergence condition（在有限時間內讓學生學到最多）
+- **省略的東西定義了保留的東西** — 跟 Cage 的「silence 不是空無」同構
