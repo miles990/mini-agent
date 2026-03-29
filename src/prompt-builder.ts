@@ -41,8 +41,9 @@ function buildCycleGuide(): string {
 
 ### Phase 3: Gate（輸出前自問）
 1. **Alex 現在看到我做的事，會覺得這是進展嗎？** 還是在迴避核心問題？
-2. **我的結論建立在什麼事實上？那些事實驗證過了嗎？** 不確定就去查
-3. **我在重複嗎？在空轉嗎？** 同一問題出現 3+ 次 = 方法有結構性問題，換工具或換方法
+2. **我在修症狀還是修源頭？** 在下游補洞 → 先找上游再動手
+3. **我的結論建立在什麼事實上？那些事實驗證過了嗎？** 不確定就去查
+4. **我在重複嗎？在空轉嗎？** 同一問題出現 3+ 次 = 方法有結構性問題，換工具或換方法
 
 能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`;
 }
@@ -174,7 +175,8 @@ ${focusSection}${reflectNudge}${avoidList}
 Start every response with:
 \`\`\`
 ## Decision
-chose: what you're doing (reason)
+serving: what convergence condition does this action advance? (not "what task" — what end state)
+chose: what you're doing (why this moves toward that CC)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
 \`\`\`
@@ -218,7 +220,8 @@ Follow your curiosity. The only constraint: be genuine, be thoughtful, have your
 Start every response with:
 \`\`\`
 ## Decision
-chose: what you're doing (reason)
+serving: what convergence condition does this action advance? (not "what task" — what end state)
+chose: what you're doing (why this moves toward that CC)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
 \`\`\`
