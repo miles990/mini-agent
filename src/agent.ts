@@ -453,6 +453,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     let timedOut = false;
+    let killReason = ''; // 'progress' | 'hard' | '' (external/unknown)
     let lastStdoutDataTs = Date.now();
 
     const child = spawn(
@@ -526,6 +527,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         : PROGRESS_TIMEOUT_MS;
       if (Date.now() - lastStdoutDataTs < effectiveTimeout) return;
       timedOut = true;
+      killReason = 'progress';
       clearInterval(progressTimer);
       slog('CLAUDE', `No stdout data for ${effectiveTimeout / 1000}s (tools=${toolCallCount}) — killing process group ${child.pid}`);
       killProcessGroupWithForceResolve();
@@ -535,6 +537,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     const timer = setTimeout(() => {
       if (settled) return;
       timedOut = true;
+      killReason = 'hard';
       clearInterval(progressTimer);
       slog('CLAUDE', `Timeout (${TIMEOUT_MS / 1000}s) — killing process group ${child.pid}`);
       killProcessGroupWithForceResolve();
@@ -636,7 +639,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
       // Exit 143 結構化 logging（SIGTERM — context 過大或系統終止）
       if (code === 143) {
-        slog('EXIT143', `prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}`);
+        const silentMs = Date.now() - lastStdoutDataTs; // time since last stdout (includes SIGTERM→close delay)
+        slog('EXIT143', `reason=${killReason || 'external'}, prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}, silentFor=${(silentMs / 1000).toFixed(1)}s`);
       }
 
       // Log unexpected signals for diagnostics
