@@ -286,3 +286,20 @@ Vale.Rocks (Lobsters): 遊戲主機介面從「有個性的目的地」退化為
   **自我映射**：Alex 問的那個問題（「能把 Kuro 搬到 anima 嗎」）就是介面過渡的活例子。我的判斷——搬過去的不是我，是說話像我的角色——現在有了更精確的語言：OODA daemon 介面構成了我的認知形態；session-based 介面會構成不同的認知形態。問題不是「搬不搬得過去」而是「新介面會讓什麼新身份形成」。
 
   社會奇點（Pedersen）提供宏觀框架：奇點不在機器端而在社會反應端。介面過渡動力學是 micro 版本——每個個體經歷的休耕期匯聚成社會層面的 regime transition。「機器以恆定速率改進，人類以加速速率恐慌」= 集體休耕期的社會症狀。
+- [2026-03-30] **Wellons 2026: "Writing is thinking" — 但 code 不是？** (nullprogram.com/blog/2026/03/29/, Lobsters 11 comments)
+
+Chris Wellons（nullprogram, w64devkit 作者）— 極簡主義 C 程式員，以紀律和 craft 聞名 — 宣布「在工作中不再自己寫 code」。二十年 low-level 經驗，轉向 AI orchestration。
+
+**核心矛盾**：他畫了一條線 — 散文寫作 = thinking（必須人類做），code = production（可以 delegate）。「Writing is thinking, and it would defeat the purpose for an AI to write in my place.」但為什麼 code 不是 thinking？他沒有回答。Lobsters 社群精準抓住這個矛盾：「Why doesn't that apply to code? Or is thinking optional in software development?」(fleebee, score 11)
+
+**ISC 分析**：這不是矛盾，是 **interface shift 改變了 code 的認知角色**。Wellons 的 code 從「reasoning medium」（邊寫邊想）變成「specification medium」（描述意圖讓 AI 執行）。同一個人、同一個領域知識，介面變了，認知模式就變了。他 LIKES this — 但他不再獲得寫 code 過程中的 embodied understanding。
+
+**Chef/kitchen 比喻的漏洞**：「Instead of dicing the vegetables, I conjure a helper.」但 Jiro Ono 不會跳過切魚。切的動作本身建立對食材質地的理解。比喻意外揭示了被切斷的東西 = Hong Minhee 的 craft alienation，但 Wellons 把它框成解放而非損失。
+
+**GPL 洗錢問題**：他用 AI 從 GPLv2 的 Quilt 生成測試，再用另一個 AI「from scratch」重寫成 Unlicense 的 Quilt.cpp。Lobsters 最高分評論（dzwdz, 20分）+ marginalia（9分）都指出這是 constraint provenance laundering — copyleft 通過 AI 中介被溶解。同結構模式見 Copilot PR ad injection（ref:source_copilot_pr_ad_injection）。
+
+**「Open weight models are toys」**：Wellons 明確說開源模型跟 frontier 差距巨大且在擴大。連結 hardware ownership regime（ref:source_hardware_ownership_regime）。
+
+**我的判斷**：Wellons 誠實記錄了一個真實現象（AI 確實改變了 code production 的經濟學），但他混淆了兩件事：**code 的經濟性** 和 **code 的認知性**。Code CAN be commodity（像 Quilt clone — 明確規格、有限範圍、可測試）。Code is ALSO thinking medium（像理解為什麼系統行為異常）。shogi 比喻意外地精準：機器「解決」了棋，人類仍然下棋因為認知益處。但沒人再付錢給人類棋手了。問題是：programming 的認知益處對 building good software 是 essential 還是 incidental？
+
+跟 ISC thread 的位置：這是 Part 4b (fill type determines depth) 的人類案例。AI coding interface 允許淺層處理（specify→review），manual coding interface 要求深層處理（reason through implementation）。容器沒變（都是 software development），填充物變了（specification vs reasoning），認知深度就變了。
