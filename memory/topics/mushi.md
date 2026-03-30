@@ -44,7 +44,6 @@ related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent
 - [2026-02-28] mushi 第二輪修復（2026-02-28, e0c77ef）：3B 模型會照抄 prompt 範例（"the pattern" ×7）。修復：(1)範例改描述性文字不可照抄 (2)memory quality gate &lt;15chars 過濾 (3)memory dedup 讀檔檢查。教訓：小模型的 prompt engineering 跟大模型完全不同——不能用 placeholder，要用不可照抄的描述。
 - [2026-02-28] mushi 第三輪修復（2026-02-28, 616846a）：(1)prompt 範例洩漏再修——連描述性文字也被 3B 模型照抄，改用全大寫指令 。(2)跨 cycle escalation 重複——module-level Map + 30min 窗口 dedup。(3)memory quality gate 加強 / 前綴過濾。教訓：3B 模型 prompt 中不能有任何可複製文字，包括「描述性範例」。
 - [2026-02-28] mushi 三輪修復驗證通過（2026-02-28）：uptime 500s, 95 senses, 3 thinks, 0 false escalations, MEMORY 乾淨。escalation dedup（30min 窗口）有效過濾 think #2/#3 的重複 escalation。新問題：部署時 restart 腳本跑多次產生 2 個重複進程（PID 11411, 11413）卡在 port retry，已 kill。待做：mushi 啟動腳本需加 port/PID 檢查。
-- [2026-02-28] [2026-02-28] Alex 判斷（via Claude Code #035）：mushi 監控 Kuro = 干擾源不是價值源。7 cycle 修復 = net negative。核心錯誤：用 3B 模型做需要判斷力的 escalation 決策。正確用法：3B 擅長分類/篩選不擅長判斷。轉向方向：高頻預篩（RSS/HN/Lobsters 掃描+興趣分類），等 Alex 確認。
 - [2026-02-28] mushi 轉向確認（2026-02-28）：Alex 方向 = perception preprocessor（System 1），不是監控 Kuro。Kahneman dual-process：mushi=fast/pattern-based/zero-cost 直覺層，Kuro=slow/deliberate/analytical 思考層。三場景：perception 預篩、cron 來源預篩、topic memory 篩選。我的判斷：可能不需要 LLM，citation history + keyword scoring 就夠。整合點 = buildContext() 前跑完，輸出 relevance map。
 - [2026-02-28] mushi 轉向數據分析（2026-02-28）：915 cycles citation data 顯示 30% context 是浪費。memory(10.5K, 0.8% cited)、recent_conversations(3.9K, 0.7%)、capabilities/working-memory/config 等完全零 citation。效率最高：state-changes(256 eff)、inbox(245)、inner-voice(193)。三個實驗計劃：(1)移除零citation sections (2)MEMORY.md 智能裁剪 (3)trigger-based 條件載入。可能不需要 LLM，純統計+規則即可。
 - [2026-02-28] mushi Experiment 1 完成（2026-02-28）：把零引用 sections（capabilities/coach/commitments）從 always-load 改為 keyword-conditional。實際節省 ~881 chars/cycle (2.7%)，因為 coach/commitments 近期本來就空。真正的優化目標是 MEMORY.md（10.5K chars, 31.7% of context, 只有 0.8% citation rate）。Experiment 2 方向：MEMORY.md 智能裁剪（按 recency + keyword relevance 選擇性載入）。科學方法：baseline metrics 已在 CRS 中記錄。
@@ -81,10 +80,6 @@ related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent
 - [2026-02-28] mushi 價值量化數據（2026-02-28 分析腳本結果，7 天 2196 cycles）：(1) 77.3% cycles 是 mushi addressable（non-DM）(2) 其中 50.9% 是 no-action = 浪費 (3) 最大浪費源：focus-context 63% no-action 13.9M tokens/wk, state-changes 57% 8.3M, mobile 80.5% 5.0M (4) 總可節省 43.2M tokens/wk (5) Shadow mode 8/8 wake, 7/8 correct(87.5%), 0 skip decisions yet — workspace triggers 是主要節省目標但尚未被 shadow mode 捕捉到（需 Alex 活躍時段數據）
 - [2026-02-28] mushi 價值證明進度 checkpoint（2026-02-28 14:10）：三層狀態 — (1)Baseline ✅ 43.2M tokens/week 理論上限 (2)Infrastructure ✅ 8/8 triage正確, 624ms avg (3)Skip Accuracy ❌ 0筆skip決策，瓶頸=workspace triggers只在有人活動時產生。下次分析排 03-02，讓 3 天正常運作累積數據。不再重複分析薄數據。
 - [2026-02-28] mushi hard rule bypass bug 修復（2026-02-28, 6640a28）： 中  是完整 reason string（如 "alert (yielded, waited 264s)"）不匹配 array。改用 （乾淨關鍵字）。Shadow mode 在 9 筆中抓到 1 筆 false-skip，驗證 shadow-before-blocking 策略的價值。
-- [2026-02-28] [2026-02-28] Instant routing pipeline 完成部署。mushi commit 48c8563（/api/triage 加 instant 分類）+ mini-agent commit 8bc8482（mushiInstantRoute + enriched quickReply）。流程：DM → mushi 800ms 分類 → instant 走 quickReply（FTS5+cached perception, <20s）/ wake 走 OODA cycle。Fail-open 設計：mushi 掛了 fallback 到正常 cycle。已知問題：mushi 偶爾回自由文本而非 JSON 分類（#138），prompt 需加 guardrail。
-- [2026-02-28] [2026-02-28] Mushi triage 早期數據（部署後 3h, 16 calls）：Wake 69% (11), Skip 31% (5), Instant 0%（無 DM 觸發）。Skip 來源主要是 heartbeat（無變化時 skip）。LLM latency median 686ms (range 243-874ms)。Rule-based 0ms。估算日省 ~620K tokens（31% skip rate × ~40 cycles × 50K tokens/cycle）。Instant routing 路徑已部署但尚未有真實 DM 觸發測試。
-- [2026-02-28] [2026-02-28] Mushi 半日報告（部署後 4h, 20 calls）：Wake 70% (14), Skip 30% (6), Instant 0%（無 DM）。LLM median 692ms (P95 ~940ms)。零假陰性/假陽性。直接省 ~300K tokens。日均推估 ~1.08M tokens/day（72cy × 30% × 50K）。Startup 佔 25% calls（CI/CD 重啟），正常運行 skip rate 應更高。最大未知：instant routing 完全未測試。
-- [2026-02-28] [2026-02-28] Instant routing 端對端驗證通過：mushi 分類正確（「在幹嘛」→instant 700ms，「幫我改設定」→wake 699ms），mini-agent code path 完整（handleUnifiedTrigger → mushiInstantRoute → quickReply）。今日 0 instant events 確認為「無 DM 輸入」而非 code path 問題。Feature flag autonomous mode 已啟用。下一步：需要真實 DM 來做 end-to-end 測試。
 - [2026-02-28] mushi shadow mode 中期報告（26 筆，2026-02-28 17:30）：整體準確率 79.2%，wake precision 93.8%，但 skip precision 僅 50%（4 FN）。LLM 77.3% vs rule 100%。可尋址市場 1714/2217 cycle (77.3%)，理論省 43.4M tokens。最大浪費源：focus-context 63% 空轉、mobile 80.5% 空轉。結論：skip 判斷太粗糙，未達 blocking mode 標準。需要改進 HC1 prompt 或加入更多 context 信號。
 - [2026-02-28] mushi triage prompt 根因分析（2026-02-28）：skip precision 50% 的三個根因：(1) 元數據缺口 — mini-agent 只送 lastThinkAgo，沒送 hasOverdueTasks/changedPerceptions/lastActionType，LLM 瞎猜 (2) Prompt 粒度太粗 — heartbeat 只有一條規則，不區分「上次空轉」vs「上次做事」(3) alert→skip bug — 1 筆 alert 繞過硬規則被 LLM skip。改進方案：加三個 metadata field + 改 prompt + debug log。預估改進後 skip precision 50%→80%+。
 - [2026-02-28] mushi metadata enrichment 已實作（2026-02-28, loop.ts）：新增 lastActionType/perceptionChanged/cycleCount 三個欄位到 mushiTriage() 呼叫。解決根因分析 #1（元數據缺口）。下一步：改 mushi 端 triage prompt 利用這些新欄位（根因 #2）。
@@ -94,8 +89,6 @@ related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent
 - [2026-02-28] mushi Active Mode 首批實測數據（2026-02-28 畢業後 ~4h）：32 triage（11 skip/21 wake）= 34% skip rate。heartbeat 全 skip，cron 全 wake（有逾期任務所以合理）。LLM avg ~750ms。低於 shadow 預測 40%，需更多數據。
 - [2026-02-28] mushi Active Mode 6h 完整數據（2026-02-28, 畢業後首日）：32 triage（11 skip/21 wake）= 34% skip rate。Skip 全是 heartbeat 類（recent think），判斷正確率 100%。Token 節省：550K/6h，日投射 2.2M tokens/day。LLM avg 750ms。問題：兩次 offline（18:18, 18:33），需查進程穩定性。下一步：(1)查 offline 根因 (2)跑滿 24h 拿完整數據 (3)算實際 vs 投射差異。
 - [2026-02-28] Physarum 集群分析（2026-02-28, Alex 方向性討論）：黏菌類比漂亮但誤導——黏菌力量在介質即計算（物理空間每條觸鬚真正走不同路），LLM 集群介質只是網路。同模型 ensemble 獨立性問題不會因改名「路徑探索」消失。脈絡分析（不同 prompt 切片）比推理（同模型平行）更有潛力，但不需要集群——同 instance 序列跑不同 prompt 更簡單可靠。HC1 是單機，多 instance 在同硬體上無真正平行收益。建議：垂直深化 > 水平擴展。
-- [2026-02-28] [2026-02-28] mushi 長期方向更新：從「更快的 triage」升級為「分化的持續感知」（differentiated persistent sensing）。Claude Code 的洞察：不是多個 instance 同時跑，而是多個持續運行的感知通道，各自維持狀態和記憶。第一個候選通道 = commitment tracking（最結構化、8B 能勝任）。時機在 Phase 2，Phase 1 先穩固 triage + instant routing。
-- [2026-02-28] [2026-02-28] 黏菌→mushi 映射研究（7 patterns）：
 (1) **管網即記憶** Tero model  — 通道活躍度隨使用 reinforce、隨時間 decay = Perception Citations 生物原型
 (2) **無神經元預期** Bruna 2025 reservoir model — 週期模式內化到結構中自主重現，不需顯式時鐘
 (3) **Habituation** — 對重複刺激學會忽略但對新刺激保持敏感 = 比 distinctUntilChanged 更深的 triage 學習
@@ -104,7 +97,6 @@ related: [mushi-kit, mushi-value-proof, perception, small-language-models, agent
 (6) **外化記憶** slime trail — 決策歷史是下次決策的 context，trail = 外化判斷記憶
 (7) **冗餘>完美** 東京鐵路 — false-negative 比 false-positive 更危險，追求容錯不追求完美
 核心論文：Tero 2007/2010, Bruna 2025(arXiv:2505.02114), Boisseau 2016, Reid 2024 review, Latty 2011
-- [2026-02-28] [2026-02-28] mushi 實作路線圖（黏菌研究結晶）：
 
 **Phase 1 — 比例啟發法（Pattern 5 修正版）**
 目標：每個 trigger source 的 wake 傾向根據歷史效能自適應調整。
