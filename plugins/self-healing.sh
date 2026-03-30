@@ -113,7 +113,20 @@ if [ -d "$PROJECT_DIR/.git" ]; then
   fi
 fi
 
-# --- Check 6: Server Health Endpoint ---
+# --- Check 6: Puppeteer Chrome (TM video pipeline dependency) ---
+PUPPETEER_CHROME="$HOME/.cache/puppeteer/chrome"
+if [ -d "$HOME/Workspace/teaching-monster" ]; then
+  if [ ! -d "$PUPPETEER_CHROME" ] || [ -z "$(ls -A "$PUPPETEER_CHROME" 2>/dev/null)" ]; then
+    (cd "$HOME/Workspace/teaching-monster" && npx puppeteer browsers install chrome &>/dev/null)
+    if [ -d "$PUPPETEER_CHROME" ] && [ -n "$(ls -A "$PUPPETEER_CHROME" 2>/dev/null)" ]; then
+      heal_report "HEALED" "Puppeteer Chrome was missing → reinstalled"
+    else
+      heal_report "FAILED" "Puppeteer Chrome missing, auto-install failed"
+    fi
+  fi
+fi
+
+# --- Check 7: Server Health Endpoint ---
 HEALTH=$(curl -sf localhost:${PORT:-3001}/health 2>/dev/null)
 if [ $? -ne 0 ]; then
   heal_report "FAILED" "Health endpoint unreachable"
