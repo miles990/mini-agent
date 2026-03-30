@@ -74,7 +74,7 @@ interface ExecOptions {
   fgSlotId?: string;
   /** Hard timeout in ms (default: 900_000 = 15min). FG lane should use shorter value. */
   timeoutMs?: number;
-  /** No-progress timeout in ms (default: 180_000 = 3min). Kill if no stdout for this long. */
+  /** No-progress timeout in ms (default: 300_000 = 5min). Kill if no stdout for this long. */
   progressTimeoutMs?: number;
 }
 
@@ -408,7 +408,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = opts?.timeoutMs ?? 900_000; // default 15 minutes
-  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 180_000; // default 3 minutes
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 300_000; // default 5 minutes (raised from 3m — API slowness caused 7 exit-143s)
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
@@ -522,7 +522,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       if (settled || timedOut) return;
       // Adaptive: model producing tool calls = actively working, extend tolerance
       const effectiveTimeout = toolCallCount > 0
-        ? Math.max(PROGRESS_TIMEOUT_MS, 300_000) // at least 5 min when tools active
+        ? Math.max(PROGRESS_TIMEOUT_MS, 480_000) // at least 8 min when tools active
         : PROGRESS_TIMEOUT_MS;
       if (Date.now() - lastStdoutDataTs < effectiveTimeout) return;
       timedOut = true;
