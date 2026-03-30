@@ -557,6 +557,9 @@ export class AgentLoop {
 
     slog('LOOP', `[foreground] slot=${slotId} (direct message from ${source}: ${text.slice(0, 60)})`);
 
+    // Hoisted outside try so catch block can check if chat was streamed before crash
+    const streamedChats = new Set<string>();
+
     try {
       const memory = getMemory();
       let context = await memory.buildContext({ mode: 'focused' });
@@ -649,8 +652,14 @@ export class AgentLoop {
 </foreground_reply_mode>`;
 
       // Streaming chat — send <kuro:chat> tags to user as soon as they're detected during generation
-      const streamedChats = new Set<string>();
+      // Rate limit / error messages are intercepted and NOT forwarded to chat room (#124 bug fix)
+      const RATE_LIMIT_PATTERNS = [/you['']ve hit your limit/i, /resets? \d+[ap]m/i, /rate limit/i, /overloaded/i, /credit balance/i];
       const onStreamChat = (chatText: string, reply: boolean) => {
+        // Intercept rate limit / error leak — don't send to chat room
+        if (RATE_LIMIT_PATTERNS.some(p => p.test(chatText))) {
+          slog('STREAM', `[foreground:${slotId}] Intercepted rate-limit leak: ${chatText.slice(0, 80)}`);
+          return;
+        }
         streamedChats.add(chatText);
         if (source === 'telegram') {
           notifyTelegram(chatText, matchReplyTarget(chatText, telegramMsgs) ?? undefined).catch(() => {});
@@ -708,17 +717,39 @@ export class AgentLoop {
       // Log FG action to behavior log — makes FG successes visible in <action-memory>
       try { getLogger().logBehavior('agent', 'action.foreground', `[${source}] ${answer.slice(0, 500)}`); } catch { /* fire-and-forget */ }
 
-      // Mark inbox items as processed — prevents main cycle from re-responding to same message
-      try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
+      // Unfulfilled commitment detection (#130 structural fix):
+      // If chat was streamed with commitment language but no delegate tags were processed,
+      // DON'T mark inbox as fully processed — let main loop follow up.
+      const COMMITMENT_PATTERNS = [/交給背景/i, /背景.*研究/i, /delegate/i, /我.*去.*(?:挖|研究|分析|查)/i, /交給.*lane/i, /spawn.*tentacle/i];
+      const hasDelegateTag = result.tagsProcessed?.includes('delegate') ?? false;
+      const chatTexts = [...streamedChats].join(' ');
+      const hasUnfulfilledCommitment = streamedChats.size > 0
+        && !hasDelegateTag
+        && COMMITMENT_PATTERNS.some(p => p.test(chatTexts));
 
-      // Mark unified inbox items as replied — prevents re-triggering foreground for same message
-      try {
-        const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
-        for (const item of pending) {
-          queueInboxMark(item.id, 'replied');
-        }
-        if (pending.length > 0) flushInboxMarks();
-      } catch { /* fire-and-forget */ }
+      if (hasUnfulfilledCommitment) {
+        // Chat promised delegation but no delegate tag was processed.
+        // Leave inbox unprocessed so main loop picks it up.
+        slog('LOOP', `[foreground:${slotId}] ⚠ Unfulfilled commitment detected — chat promised delegation but no delegate tag found. Leaving for main loop.`);
+        writeActivity({
+          lane: 'foreground',
+          summary: `[UNFULFILLED] Promised delegation but no delegate spawned: ${chatTexts.slice(0, 120)}`,
+          trigger: source,
+          tags: result.tagsProcessed,
+        });
+      } else {
+        // Normal case: mark inbox items as processed — prevents main cycle from re-responding
+        try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
+
+        // Mark unified inbox items as replied — prevents re-triggering foreground for same message
+        try {
+          const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+          for (const item of pending) {
+            queueInboxMark(item.id, 'replied');
+          }
+          if (pending.length > 0) flushInboxMarks();
+        } catch { /* fire-and-forget */ }
+      }
 
       // Auto-mark matching task-queue items as completed (foreground → task sync)
       try {
@@ -739,6 +770,11 @@ export class AgentLoop {
       });
     } catch (err) {
       slog('ERROR', `[foreground:${slotId}] Failed: ${err instanceof Error ? err.message : err}`);
+      // If chat was already streamed before crash, the user saw a response but actions may not have run.
+      // Leave inbox unprocessed so main loop can follow up.
+      if (streamedChats.size > 0) {
+        slog('LOOP', `[foreground:${slotId}] ⚠ Crashed after streaming ${streamedChats.size} chat(s) — leaving inbox for main loop recovery.`);
+      }
     } finally {
       // Always release the slot and message claim, even on error
       releaseForegroundSlot(slotId);
