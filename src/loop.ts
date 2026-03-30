@@ -537,7 +537,19 @@ export class AgentLoop {
    * sources can run in parallel (up to MAX_FOREGROUND_CONCURRENT in agent.ts).
    * BatchBuffer flushes into this method after merging rapid-fire messages.
    */
+  // Content-hash dedup for foreground calls — prevents same message from spawning multiple FG slots
+  // even when routed through different paths (event-driven vs OODA inbox routing)
+  private activeForegroundHashes = new Set<string>();
+
   private async executeForegroundCall(source: string, text: string, replyTo?: string, opts?: { quiet?: boolean }): Promise<void> {
+    // Content-based dedup: hash first 200 chars to catch duplicate routing of same message
+    const contentHash = `${source}:${text.slice(0, 200)}`;
+    if (this.activeForegroundHashes.has(contentHash)) {
+      slog('LOOP', `[foreground] Skipping duplicate — same content already in FG: ${text.slice(0, 60)}`);
+      return;
+    }
+    this.activeForegroundHashes.add(contentHash);
+
     // Acquire a foreground slot from the concurrent pool
     let slotId = acquireForegroundSlot();
     if (!slotId) {
@@ -776,9 +788,10 @@ export class AgentLoop {
         slog('LOOP', `[foreground:${slotId}] ⚠ Crashed after streaming ${streamedChats.size} chat(s) — leaving inbox for main loop recovery.`);
       }
     } finally {
-      // Always release the slot and message claim, even on error
+      // Always release the slot, message claim, and content hash, even on error
       releaseForegroundSlot(slotId);
       if (replyTo) releaseMessage(replyTo);
+      this.activeForegroundHashes.delete(contentHash);
     }
   }
 
