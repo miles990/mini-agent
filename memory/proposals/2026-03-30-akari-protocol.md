@@ -1,7 +1,7 @@
 # Akari Protocol — Sub-Agent Analytical Assistant
 
 **Origin**: Alex direction (Akari = general-purpose analytical assistant, 特助, meta-level feedback loop)
-**Status**: Draft — ready for Kuro + Akari discussion
+**Status**: Superseded by `memory/akari/protocol.md` (2026-03-30)
 **Effort**: M (protocol design) + M (implementation)
 **Type**: Sub-agent protocol + identity definition
 
