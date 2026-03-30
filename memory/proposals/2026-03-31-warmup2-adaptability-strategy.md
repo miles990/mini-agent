@@ -1,8 +1,9 @@
 # Warmup 2 Adaptability Strategy
 
-**Status**: Ready to execute (pending pipeline release)
+**Status**: ✅ IMPLEMENTED (commit 7904497)
 **Date**: 2026-03-31
 **Context**: Warmup 2 starts ~April 1. Topics harder (closer to prelim difficulty).
+**Implementation**: All 3 prompt changes live in `multi-phase-prompts.mjs`. Pipeline restart required to generate videos.
 
 ## Current Position (Warmup 1 Final)
 
@@ -129,13 +130,14 @@ The goal: the evaluator hears DELIBERATE CHOICES, not accidental simplification.
 | Explicit Omission Narration | +0.1 on average | Makes invisible adaptation visible to evaluator |
 | **Combined** | **4.6 → 4.8+** | **Closes gap to #1** |
 
-## Implementation
+## Implementation — DONE ✅
 
-All three changes are prompt-only. Can be applied by editing `multi-phase-prompts.mjs`:
-1. Change 1 → `buildStep1SystemPrompt()` after section planning instructions
-2. Change 2 → `buildSectionWriterPrompt()` midpoint section
-3. Change 3 → `buildSectionWriterPrompt()` style rules
+All three changes implemented in `multi-phase-prompts.mjs` (commit 7904497):
+1. Change 1 → `STEP1_SYSTEM_PROMPT` lines 319-341 (Strategic Withholding + cognitive budget + categorization output)
+2. Change 2 → `buildStep2aUserPrompt()` line 1560-1565 (Persona Refresh at midpoint, conditional on sectionId ≥ halfway)
+3. Change 3 → `STEP2A_SYSTEM_PROMPT` lines 685-691 (Explicit Omission Narration with examples)
 
-**Effort**: ~30 minutes of prompt editing. No code changes. No pipeline changes.
-**Risk**: Low — additive prompt instructions, don't break existing flow.
-**Testing**: Need 2-3 hard-mismatch topics to verify (e.g., differential equations for junior high).
+GSAP derivation-reveal also integrated (commit 907f2be), dry-run passed (commit 211b4c9).
+
+**Remaining blocker**: Pipeline is STOPPED by Alex (#220). Need pipeline restart to generate warmup 2 videos.
+**Testing needed**: 2-3 hard-mismatch topics post-restart to verify adaptability improvement.
