@@ -1307,7 +1307,9 @@ export async function callClaude(
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
   // Pre-check: if prompt is too large, proactively reduce context before first attempt
-  const PROMPT_HARD_CAP = 80_000;
+  // Lowered from 80K → 60K (2026-03-30): 60-70K char prompts consistently caused EXIT143
+  // timeouts because they passed the old cap but were too large for reliable API processing.
+  const PROMPT_HARD_CAP = 60_000;
   const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
   if (fullPrompt.length > PROMPT_HARD_CAP && options?.rebuildContext) {
     slog('AGENT', `Prompt too large (${fullPrompt.length} chars), pre-reducing context`);
@@ -1396,8 +1398,9 @@ export async function callClaude(
     }
 
     const genAtStart = loopGeneration;
+    const attemptStartTime = Date.now();
     setBusy(true);
-    setTask({ prompt: prompt.slice(0, 200), startedAt: Date.now(), toolCalls: 0, lastTool: null, lastText: null, recentFiles: new Set() });
+    setTask({ prompt: prompt.slice(0, 200), startedAt: attemptStartTime, toolCalls: 0, lastTool: null, lastText: null, recentFiles: new Set() });
 
     try {
       const result = await execProvider(primary, fullPrompt, {
@@ -1427,6 +1430,7 @@ export async function callClaude(
       return { response: result.trim(), systemPrompt, fullPrompt, duration };
     } catch (error) {
       const duration = Date.now() - startTime;
+      const attemptDuration = Date.now() - attemptStartTime;
 
       // Preemption detection: don't retry if preempted
       if (source === 'loop' && loopGeneration !== genAtStart) {
@@ -1438,10 +1442,10 @@ export async function callClaude(
       const exitCode = (error as { status?: number })?.status;
       const classified = classifyError(error);
 
-      // Log error
+      // Log error — include both per-attempt and total duration for accurate debugging
       const logger = getLogger();
       logger.logError(
-        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${duration}ms, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
+        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${attemptDuration}ms this attempt, ${duration}ms total, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
         'callClaude'
       );
 
