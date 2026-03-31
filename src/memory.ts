@@ -954,6 +954,16 @@ export class InstanceMemory {
 
     if (forgotten.length === 0) return '';
     const selected = forgotten.sort((a, b) => b.ageDays - a.ageDays).slice(0, limit);
+
+    // Increment hits for surfaced entries so they don't resurface next cycle
+    for (const f of selected) {
+      const key = `${f.topic}:${f.entry.slice(2, 62)}`;
+      hits[key] = (hits[key] ?? 0) + 1;
+    }
+    try {
+      await fs.writeFile(hitsPath, JSON.stringify(hits, null, 2));
+    } catch { /* ignore write errors */ }
+
     return `<forgotten-knowledge>\n${selected.map(f =>
       `- [${f.topic}, ${f.ageDays}d ago] ${f.entry.slice(2)}`
     ).join('\n')}\n</forgotten-knowledge>`;
