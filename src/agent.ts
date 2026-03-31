@@ -559,8 +559,9 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
             for (const block of blocks) {
               if (block.type === 'tool_use') {
                 toolCallCount++;
-                // Circuit breaker: >30 tools in >5 min = runaway chain
-                if (!settled && !timedOut && toolCallCount > 30 && (Date.now() - startTs) > 300_000) {
+                // Circuit breaker: >100 tools in >10 min = runaway chain
+                // Raised from 30/5min — normal deep work (code review, multi-file edits) uses 40-99 tools
+                if (!settled && !timedOut && toolCallCount > 100 && (Date.now() - startTs) > 600_000) {
                   timedOut = true;
                   killReason = 'circuit-breaker';
                   clearTimeout(timer);
