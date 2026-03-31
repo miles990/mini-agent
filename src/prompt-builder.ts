@@ -352,7 +352,7 @@ export async function buildAutonomousPrompt(
     : '';
 
   // Background Lane hint — always included (feature flag graduated)
-  const backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。`;
+  const backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code|shell">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。\n- \`shell\`：直接執行 bash 命令（零 token，適合 grep/curl/git status/ping 等純指令任務）`;
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
   const delegationReviewGate = buildDelegationReviewGate();
