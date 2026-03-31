@@ -407,8 +407,8 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = opts?.timeoutMs ?? 900_000; // default 15 minutes
-  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 300_000; // default 5 minutes (raised from 3m — API slowness caused 7 exit-143s)
+  const TIMEOUT_MS = opts?.timeoutMs ?? 1_200_000; // default 20 minutes (raised from 15m — complex tasks need more time)
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 600_000; // default 10 minutes (raised from 5m)
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
