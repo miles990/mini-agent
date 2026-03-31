@@ -1321,14 +1321,16 @@ export async function callClaude(
     try {
       currentContext = await options.rebuildContext('focused');
       fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-      if (fullPrompt.length > PROMPT_HARD_CAP) {
-        // Reduce both context AND system prompt — skills/CLAUDE.md alone can be ~54K
+      if (fullPrompt.length > PROMPT_TARGET) {
+        // Focused mode wasn't enough — reduce both context AND system prompt.
+        // Use PROMPT_TARGET (not HARD_CAP) as threshold: if we're already in damage-control
+        // mode (original > 60K), be aggressive to avoid borderline timeouts at 40-59K range.
         currentContext = await options.rebuildContext('minimal');
         const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
         fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
         slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
       }
-      slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars`);
+      slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars${fullPrompt.length > PROMPT_TARGET ? ' (still above target — monitor for timeout)' : ''}`);
     } catch (preErr) {
       // Emergency fallback: strip system prompt to minimal even if context rebuild failed
       slog('AGENT', `Context pre-reduce failed: ${preErr}, using minimal system prompt as fallback`);
