@@ -2463,9 +2463,11 @@ Queries:`;
 
     // ── Global context budget: dynamic based on skills overhead ──
     // fullPrompt = systemPrompt(~5K) + CLAUDE.md JIT(capped 20K) + skills + context + cyclePrompt(~10K)
-    // PROMPT_HARD_CAP in agent.ts = 80K, so context budget = 80K - skills - nonContext
+    // Must match PROMPT_HARD_CAP in agent.ts (60K) — context + non-context must stay under this.
+    // Lowered from 80K → 60K (2026-03-31): aligned with agent.ts to prevent memory.ts from
+    // assembling oversized context that agent.ts immediately pre-reduces (wasted work + EXIT143 risk).
     // NON_CONTEXT_BASE: system prompt (~5K) + CLAUDE.md JIT cap (20K) + cycle prompt + suffixes (~10K)
-    const PROMPT_HARD_CAP = 80_000;
+    const PROMPT_HARD_CAP = 60_000;
     const NON_CONTEXT_BASE = 35_000;
     const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
     // Most modes load a subset (~60%); use conservative estimate to avoid pre-reduce in callClaude
