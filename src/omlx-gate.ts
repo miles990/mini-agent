@@ -770,16 +770,13 @@ async function callLocalLLMAsync(
 
   try {
     const result = await doFetch();
-    recordCircuitSuccess();
     return result;
   } catch {
     // Retry once
     try {
       const result = await doFetch();
-      recordCircuitSuccess();
       return result;
     } catch {
-      recordCircuitFailure();
       return null;
     }
   }
@@ -870,8 +867,15 @@ export async function callLocalConcurrent(
 
   await Promise.all(workers);
 
-  // Log aggregate metrics
+  // Batch-level circuit breaker accounting — one event per batch, not per concurrent call.
+  // Prevents a single slow batch (N tasks all timeout) from firing N recordCircuitFailure() calls.
   const succeeded = results.filter(r => r.content !== null).length;
+  if (succeeded > 0) {
+    recordCircuitSuccess();
+  } else {
+    recordCircuitFailure(); // counts as 1 bad batch, not N
+  }
+
   const totalLatency = results.reduce((sum, r) => sum + r.latencyMs, 0);
   const avgLatency = tasks.length > 0 ? Math.round(totalLatency / tasks.length) : 0;
   eventBus.emit('log:info', {

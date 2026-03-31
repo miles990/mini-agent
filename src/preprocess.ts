@@ -68,7 +68,7 @@ function buildPerceptionSummaryTasks(): LocalLLMTask[] {
       id: `perc:${r.name}`,
       prompt: `Summarize the key information in 1-2 sentences (max 60 words). If nothing notable, say "unchanged".\n\n${r.output.slice(0, 500)}`,
       maxTokens: 80,
-      timeoutMs: 5_000,
+      timeoutMs: 15_000,
     });
   }
 
@@ -113,7 +113,7 @@ function buildHeartbeatDiffTask(currentContent: string): LocalLLMTask | null {
     id: 'hb-diff',
     prompt: `What changed in this task list? Summarize in 1-3 sentences.\nChanges:\n${added}`,
     maxTokens: 120,
-    timeoutMs: 5_000,
+    timeoutMs: 15_000,
   };
 }
 
@@ -162,7 +162,7 @@ function buildConversationSummaryTask(): LocalLLMTask | null {
 對話：
 ${formatted}`,
       maxTokens: 200,
-      timeoutMs: 8_000,
+      timeoutMs: 15_000,
     };
   } catch { return null; }
 }
