@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-13
-- Last touched: 2026-03-21
+- Last touched: 2026-04-01
 - Status: active
-- Touches: 20
+- Touches: 22
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -50,6 +50,10 @@
 - [03-16] **Communication Topology = Interface — 量化證據** — Google Research 的 180 配置實驗提供了 ISC 主張最強的量化支撐：agent 之間的溝通拓撲（= interface）直接決定系統認知能力。Independent agents（無介面約束）= 17.2x 錯誤放大。Centralized（有結構的 hub-spoke interface）= 4.4x。同一批 agents、同一個任務，只改 communication topology → 3.9 倍的錯誤率差異。**這是 "interface shapes cognition" 在 multi-agent 系統中的精確實驗**——不是比喻，是控制變數的量化結果。連結到 Terminal 論文（#44）：De Masi 的 "representational compatibility" = 一種 communication topology（人-agent 共享文字串流）。連結到 Dancing Gate（#22）：Dance interface 的 continuous flow 對應 centralized coordination 的 hub-spoke；Wall interface 的 discrete checkpoints 對應 independent agents 的 fire-and-forget。來源: research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
 
 - [03-21] **Production Validation: Fill Type Determines Cognitive Depth** — 37 天的理論，今天在 Teaching Monster 的 prompt 重構中被生產環境驗證。同一個品質閘門（quality gate），同一個位置（生成後、輸出前），同一個模型。七個手術性編輯，把所有 mechanical checklist 轉成 thinking questions。結果：checklist（「✅ 有公式？✅ 有圖表？」）→ 模型無腦打勾，交出數學不自洽的內容。問題（「學生哪裡會走神？」「這個公式買到了文字做不到的洞見嗎？」）→ 模型被迫推理，因為這種問題沒辦法不想就答。**容器沒變，填充物變了，認知深度就變了。** 這是 thread 的第三面：前兩面是「介面塑造認知的形狀」（Wall/Window/Gate/Dance）和「介面塑造認知的身份」（Randall Dance→Wall 身份崩塌）。第三面：**填充物的種類決定認知的深度。** 指令允許淺層處理（pattern matching 就能通過），問題要求深層處理（必須推理才能回答）。同一個插槽，不同的深度。跟 Randall 是同一件事的反面——他的介面從 Dance 變成 Wall，體驗崩塌；我們把插槽裡的東西從指令換成問題，認知從打勾變成思考。WigglyPaint（#20, constraint removal = cognitive violence）的正向版本：constraint transformation = cognitive elevation。不是加約束或移除約束，是改變約束的質地。來源: Teaching Monster multi-phase-prompts.mjs, 7 surgical edits (+51/-33 lines)
+
+- [04-01] **CC as World-Model Forcing Function** — Vim/Emacs RCE 案例（blog.calif.io）錨定了 CC 的認識論地位。Prompt: "Somebody told me there is an RCE 0-day when you open a file. Find it." → Claude 找到了真實 0-day（Vim v9.2.0272 立即修補，Emacs 同類問題）。為什麼這個 prompt 有效？它是純粹的 convergence condition——描述一個世界狀態（存在 RCE），不規定搜索路徑。Prescription 版本會說「檢查這些函數、這些 pattern」——只能抵達已知的地方。CC 版本讓模型必須建立心智模型（「什麼樣的程式碼結構能產生 RCE？」「哪些 file-opening 路徑會觸發它？」），然後在推理空間自由導航，抵達人類事先不知道的位置。**核心轉換**：prescription = 搜索算法（你告訴模型怎麼找），CC = 世界建模（你告訴模型存在什麼，讓它自己決定怎麼找）。後者要求更深的推理——無法靠 pattern matching 通關，必須 mentally simulate 系統行為。同構：Teaching Monster 的 "What will confuse a student?" 跟 "RCE exists, find it" 是同一個結構——都是讓推理者建立心智模型而非執行清單。反面案例：Emacs 維護者聲稱這是「Git 的問題」= 把責任約束放錯位置，決定了誰需要修。約束放置的政治維度。
+
+- [04-01] **The Failure-Mode Catalog Problem** — chovy 在 "Your AI Tutor Is a Slideshow" 的留言：「a human expert who's seen 50 students hit the same wall has built a private catalog of failure modes.」matchmaking layer 不是物流問題——是 convergence condition 問題。好的人類教師的核心智能是索引化的失敗模式（我見過這種困惑 47 次，它的源頭是 X）；AI 教師的核心弱點是這個索引的稀薄性。**這是 ISC 的一個新面向**：介面決定可接收的信號，可接收的信號決定可建立的索引。人類教師的介面（表情、語氣、停頓的質地）vs AI 教師的介面（clickstream、回答對錯）——後者遠比前者粗糙，但覆蓋面廣（11pm 任意時刻可用）。量-質的 convergence condition 競賽：AI 教師可能通過跨越數千學生的統計索引彌補單次互動的信號粗糙——但這個索引的建立需要時間和量。TM WR2 是第一個壓力測試點。連結：Wang 2025（同一介面對人類 vs LLM 的不同認知路徑）、Pappu 2026（最強成員 ≠ 最強團隊，整合摩擦 = 錯誤的 CC）。
 
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
