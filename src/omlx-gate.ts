@@ -143,53 +143,34 @@ export function cronGate(taskDescription: string): CronGateResult {
   }
   lastHeartbeatContentHash = contentHash;
 
-  // Layer 2: 0.8B binary classification — content changed, check if actionable
-  try {
+  // Layer 2: Pure code classification — zero LLM, checks if unchecked tasks are actionable
+  // (Replaced 0.8B call — frees omlx GPU for Akari)
 
-    // Quick heuristic: no unchecked tasks marker → skip without LLM
-    if (!content.includes('- [ ]') && !content.includes('- []')) {
-      // No unchecked task markers in file
-      stats.cronSkipped++;
-      stats.totalSaved += 13000;
-      eventBus.emit('log:info', {
-        tag: 'omlx-gate', msg: `R3: HEARTBEAT has no unchecked tasks (heuristic), skipping`,
-      });
-      return 'skip';
-    }
-
-    // Has task markers — use 0.8B to check if any are actionable
-    const prompt = `You are a task classifier. Look at the HEARTBEAT content below.
-Does it contain UNCHECKED tasks (lines starting with "- [ ]") that should be executed NOW?
-Ignore completed tasks (lines with "- [x]").
-
-HEARTBEAT:
-${content.slice(0, 2000)}
-
-Answer with ONLY "yes" or "no".`;
-
-    const result = callLocalFast(prompt, 64);
-    const answer = result.trim().toLowerCase();
-
-    if (answer.startsWith('no')) {
-      stats.cronSkipped++;
-      stats.totalSaved += 13000;
-      eventBus.emit('log:info', {
-        tag: 'omlx-gate', msg: `R3: HEARTBEAT tasks not actionable (0.8B), skipping`,
-      });
-      return 'skip';
-    }
-
-    // 0.8B says yes → pass through to Claude
-    stats.cronPassed++;
-    return 'claude';
-  } catch (err) {
-    // LLM call failed → pass through (fail-open)
+  if (!content.includes('- [ ]') && !content.includes('- []')) {
+    stats.cronSkipped++;
+    stats.totalSaved += 13000;
     eventBus.emit('log:info', {
-      tag: 'omlx-gate', msg: `R3: 0.8B call failed, passing through to Claude: ${err instanceof Error ? err.message : err}`,
+      tag: 'omlx-gate', msg: `R3: HEARTBEAT has no unchecked tasks, skipping`,
     });
-    stats.cronPassed++;
-    return 'claude';
+    return 'skip';
   }
+
+  // Has unchecked tasks — check if any have actionable verbs
+  const lines = content.split('\n').filter(l => /^- \[ ?\]/.test(l.trim()));
+  const ACTION_VERBS = /\b(fix|implement|add|create|build|deploy|write|send|check|review|update|research|investigate|refactor|merge|push|test|publish|run)\b/i;
+  const hasActionable = lines.some(l => ACTION_VERBS.test(l));
+
+  if (!hasActionable) {
+    stats.cronSkipped++;
+    stats.totalSaved += 13000;
+    eventBus.emit('log:info', {
+      tag: 'omlx-gate', msg: `R3: HEARTBEAT has ${lines.length} unchecked tasks but none actionable (no action verbs), skipping`,
+    });
+    return 'skip';
+  }
+
+  stats.cronPassed++;
+  return 'claude';
 }
 
 // =============================================================================
@@ -484,52 +465,45 @@ let keywordCache: { hash: string; keywords: string[] } | null = null;
  * Returns extracted keywords or falls back to simple word extraction.
  * Results are cached within the same cycle (same input = same output).
  */
+/**
+ * R7: Pure code keyword extraction — zero LLM (frees omlx GPU for Akari)
+ * Uses TF-IDF-like scoring: filter stop words, prefer longer/rarer words
+ */
+const STOP_WORDS = new Set(['the','and','for','are','but','not','you','all','can','had','her','was','one','our','out','has','have','from','with','they','been','this','that','will','each','make','like','into','than','them','then','some','what','when','which','their','about','would','there','these','other','could','after','should','also','just','more','only','very','most','same','still','back','well','much','even','know','over','here','take','only','come','made','need','does','said','going','being','before','where','between','while','though','really','those','since','right','thing','doing','little','getting','during','looking','without','through','first','think','might','every','because','another','something','already','using','actually','possible','currently'])
+
 export function extractKeywordsWithOMLX(text: string): string[] {
-  // Short text: just split words
   if (text.length < 20) {
     return text.toLowerCase().split(/\s+/).filter(w => w.length >= 2);
   }
 
-  // Check cache
   const hash = createHash('md5').update(text).digest('hex').slice(0, 8);
   if (keywordCache?.hash === hash) return keywordCache.keywords;
 
-  // Cap input to 400 chars (0.8B reliable range)
-  const input = text.slice(0, 400);
+  const input = text.slice(0, 400).toLowerCase();
 
-  try {
-    const prompt = `Extract 3-5 important keywords from this text. Output ONLY the keywords separated by commas, nothing else.
+  // Extract words, filter stop words, score by length + uniqueness
+  const words = input
+    .replace(/[^\w\u4e00-\u9fff]+/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
 
-Text: ${input}
+  // Count frequency
+  const freq = new Map<string, number>();
+  for (const w of words) freq.set(w, (freq.get(w) ?? 0) + 1);
 
-Keywords:`;
+  // Score: longer words + moderate frequency preferred
+  const scored = [...freq.entries()]
+    .map(([word, count]) => ({ word, score: word.length * Math.min(count, 3) }))
+    .sort((a, b) => b.score - a.score);
 
-    const result = callLocalFast(prompt, 64, 5_000);
-    const keywords = result.trim().toLowerCase()
-      .split(/[,，\s]+/)
-      .map(k => k.trim().replace(/[^a-z0-9\u4e00-\u9fff-]/g, ''))
-      .filter(k => k.length >= 2)
-      .slice(0, 8);
+  const keywords = scored.slice(0, 5).map(s => s.word);
 
-    if (keywords.length > 0) {
-      keywordCache = { hash, keywords };
-      stats.totalSaved += 500; // rough estimate of better section matching savings
-      eventBus.emit('log:info', {
-        tag: 'omlx-gate', msg: `R7: Extracted ${keywords.length} keywords: ${keywords.join(', ')}`,
-      });
-      return keywords;
-    }
-  } catch {
-    // Fall through to simple extraction
-  }
-
-  // Fallback: simple word extraction
-  const fallback = input.toLowerCase()
-    .split(/[\s,。！？!?.，]+/)
-    .filter(w => w.length >= 2)
-    .slice(0, 5);
-  keywordCache = { hash, keywords: fallback };
-  return fallback;
+  keywordCache = { hash, keywords };
+  stats.totalSaved += 500;
+  eventBus.emit('log:info', {
+    tag: 'omlx-gate', msg: `R7: Extracted ${keywords.length} keywords: ${keywords.join(', ')}`,
+  });
+  return keywords;
 }
 
 // =============================================================================
