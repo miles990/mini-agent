@@ -52,8 +52,8 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [ ] End-to-end 測試
 - [ ] 暖身賽2 提交（4/1 前）
 
-### #2 Priority: Asurada 框架（HOLD — 等語言決定）
-Phase 1-7 ✅, Phase 8 Harden 進行中。8c/8d/5b 全 HOLD（Timeout: 2026-03-31）。
+### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
+Phase 1-7 ✅, Phase 8 Harden 進行中。8c(npm publish)/8d/5b 全 HOLD。Blocked on: npm auth (Alex `npm login`) + 語言方向決定。<!-- timeout 2026-03-31 expired, removed arbitrary deadline — blocked on Alex's decisions -->
 
 ### #3 Priority: myelin ✅ 價值已證明（背景觀察）
 Phase 0 DONE。資料流健康度全部修復（hitCount 持久化、bypass 回流、distill 空轉）。
