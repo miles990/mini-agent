@@ -562,6 +562,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 // Circuit breaker: >30 tools in >5 min = runaway chain
                 if (!settled && !timedOut && toolCallCount > 30 && (Date.now() - startTs) > 300_000) {
                   timedOut = true;
+                  killReason = 'circuit-breaker';
                   clearTimeout(timer);
                   clearInterval(progressTimer);
                   slog('CLAUDE', `Tool-count circuit breaker: ${toolCallCount} tools in ${((Date.now() - startTs) / 1000).toFixed(1)}s — killing process group ${child.pid}`);
