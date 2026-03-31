@@ -38,27 +38,21 @@ export function classifyInboxMessage(input: ClassifyInput): 'RESPOND' | 'SKIP' {
   let decision: 'RESPOND' | 'SKIP' = 'RESPOND';
   let fallback = false;
 
-  try {
-    const mentionStr = input.has_mention ? 'yes' : 'no';
-    const prompt = `Classify: should the AI assistant respond to this message?
-From: ${input.sender} | Mentions @kuro: ${mentionStr}
-Message: ${input.text_preview}
-Rules: direct question or request → RESPOND. Status update, notification, or already-handled → SKIP.
-Answer RESPOND or SKIP only.`;
+  // Pure code classification — zero LLM (frees omlx GPU for Akari)
+  const text = (input.text_preview || '').toLowerCase();
+  const sender = (input.sender || '').toLowerCase();
 
-    const result = callLocalFast(prompt, 16, 8_000);
-    const answer = result.trim().toUpperCase();
+  // SKIP patterns: status updates, notifications, bot messages
+  const SKIP_SENDERS = new Set(['mushi', 'system', 'bot', 'github']);
+  const SKIP_PATTERNS = /^\[?(mushi|system)\]|status changed|deployed|auto-commit|health check|✅|❌|🚀/i;
 
-    if (answer.startsWith('SKIP')) {
-      decision = 'SKIP';
-    } else {
-      // Anything else (including 'RESPOND', garbled output) → RESPOND (fail-open)
-      decision = 'RESPOND';
-    }
-  } catch {
-    // LLM unavailable, timeout, or any error → fail-open
+  if (SKIP_SENDERS.has(sender)) {
+    decision = 'SKIP';
+  } else if (!input.has_mention && SKIP_PATTERNS.test(text)) {
+    decision = 'SKIP';
+  } else {
+    // Default: RESPOND (fail-open — never miss a human message)
     decision = 'RESPOND';
-    fallback = true;
   }
 
   const latencyMs = Date.now() - start;

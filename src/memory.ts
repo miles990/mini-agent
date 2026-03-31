@@ -1410,20 +1410,20 @@ export class InstanceMemory {
     let fallback = false;
     let result = '';
 
+    // Pure code keyword extraction — zero LLM (frees omlx GPU for Akari)
+    // Same approach as omlx-gate R7: stop words + word scoring
     try {
-      const contextPreview = combined.slice(0, 300);
-      const prompt = `Given this context from an AI assistant's current cycle, generate 1-3 short search queries to find relevant past conversations and memories. Output only the queries, comma separated. No explanation.
-Context: ${contextPreview}
-Queries:`;
-
-      const raw = callLocalFast(prompt, 64, 8_000);
-      const cleaned = raw.trim().replace(/^queries:\s*/i, '');
-      // Validate: must have actual content, not just punctuation
-      if (cleaned.length >= 3 && /[a-z\u4e00-\u9fff]/i.test(cleaned)) {
-        result = cleaned;
-      } else {
-        fallback = true;
-      }
+      const contextPreview = combined.slice(0, 300).toLowerCase();
+      const STOP_WORDS = new Set(['the','and','for','are','but','not','you','all','can','had','was','one','has','have','from','with','they','this','that','will','each','make','like','into','than','them','then','some','what','when','which','their','about','would','there','these','other','could','after','should','also','just','more','only','very','most','same','still','back','well','much','even','know','over','here','take','come','need','does','said','going','being','before','where','while','using','currently','kuro','akari','alex','cycle','agent']);
+      const words = contextPreview.replace(/[^\w\u4e00-\u9fff]+/g, ' ').split(/\s+/)
+        .filter(w => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+      const freq = new Map<string, number>();
+      for (const w of words) freq.set(w, (freq.get(w) ?? 0) + 1);
+      const scored = [...freq.entries()]
+        .map(([word, count]) => ({ word, score: word.length * Math.min(count, 3) }))
+        .sort((a, b) => b.score - a.score);
+      result = scored.slice(0, 3).map(s => s.word).join(', ');
+      if (result.length < 3) fallback = true;
     } catch {
       fallback = true;
     }
