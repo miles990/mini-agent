@@ -650,7 +650,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount }));
       } else {
         // Fallback: if resultText is empty but we received text blocks during streaming,
         // reconstruct from allTextBlocks. Claude CLI 2.x stream-json may return empty
@@ -1460,15 +1460,20 @@ export async function callClaude(
       if (classified.retryable && attempt < maxRetries) {
         const delay = 30_000 * Math.pow(2, attempt); // 30s, 60s
 
-        // TIMEOUT 時直接用 minimal context + minimal system prompt
-        // 原因：EXIT 143 常因網路不穩或 API 回應慢，focused mode 基本無效只浪費重試次數
-        if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
+        // TIMEOUT retry strategy depends on whether Claude was actively working:
+        // tools=0 → API-side problem (rate limit, outage), rebuildContext is wasteful
+        // tools>0 → context/complexity problem, reduce context
+        const errToolCount = (error as { toolCallCount?: number })?.toolCallCount ?? -1;
+        if (classified.type === 'TIMEOUT' && errToolCount === 0) {
+          // Fast-fail path: API was unreachable, don't waste time rebuilding context
+          slog('RETRY', `TIMEOUT tools=0 on attempt ${attempt + 1} — API-side issue, skipping rebuildContext, retrying same prompt (${fullPrompt.length} chars) in ${delay / 1000}s`);
+        } else if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
           try {
             const prevLen = currentContext.length;
             currentContext = await options.rebuildContext('minimal');
             const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
             fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-            slog('RETRY', `TIMEOUT on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal mode, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
+            slog('RETRY', `TIMEOUT tools=${errToolCount} on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal mode, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch (rebuildErr) {
             // Emergency fallback: even if rebuildContext fails, at least strip the system prompt
             slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed: ${rebuildErr}`);
