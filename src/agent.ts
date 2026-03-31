@@ -125,7 +125,7 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。` };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 15} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。` };
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 25} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。` };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
@@ -408,7 +408,7 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  */
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = opts?.timeoutMs ?? 1_500_000; // default 25 minutes
-  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 600_000; // default 10 minutes (raised from 5m)
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 900_000; // default 15 minutes
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 
@@ -559,9 +559,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
             for (const block of blocks) {
               if (block.type === 'tool_use') {
                 toolCallCount++;
-                // Circuit breaker: >100 tools in >10 min = runaway chain
-                // Raised from 30/5min — normal deep work (code review, multi-file edits) uses 40-99 tools
-                if (!settled && !timedOut && toolCallCount > 100 && (Date.now() - startTs) > 600_000) {
+                // Circuit breaker: >150 tools in >20 min = runaway chain
+                if (!settled && !timedOut && toolCallCount > 150 && (Date.now() - startTs) > 1_200_000) {
                   timedOut = true;
                   killReason = 'circuit-breaker';
                   clearTimeout(timer);
