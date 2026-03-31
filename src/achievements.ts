@@ -183,12 +183,6 @@ function writeAchievementState(state: AchievementState): void {
 // Output Detection
 // =============================================================================
 
-const LEARN_PATTERNS = [
-  /\[(?:Track A|Track B|learn)/i,
-  /^chose:.*(?:學習|研究|閱讀|讀|read|research|study|explore)/im,
-  /^chose:.*(?:REMEMBER|記憶|筆記)/im,
-];
-
 const OUTPUT_PATTERNS = [
   /<kuro:chat>/,
   /<kuro:show/,

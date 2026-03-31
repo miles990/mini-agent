@@ -214,10 +214,11 @@ export async function refreshSearchIndex(): Promise<void> {
 
 const EXPIRE_REPLIED_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const EXPIRE_SEEN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-const STALE_PENDING_CYCLES = 3;
+// TODO: pending inbox items should escalate priority after N cycles of being ignored.
+// Currently only replied/seen items are handled. See PROMPT_TARGET precedent (7533c50).
 
 /**
- * 清理 >7d replied items + >3d seen items + pending >3 cycles 升級 priority。
+ * 清理 >7d replied items + >3d seen items。
  */
 export async function expireOldInboxItems(): Promise<void> {
   const instanceId = getCurrentInstanceId();

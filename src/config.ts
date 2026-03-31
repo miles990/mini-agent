@@ -20,7 +20,7 @@ import type { GlobalDefaults, InstanceConfig } from './types.js';
 
 // 本地配置目錄（向後兼容）
 const LOCAL_CONFIG_DIR = path.join(process.cwd(), 'memory');
-const LOCAL_CONFIG_FILE = path.join(LOCAL_CONFIG_DIR, 'config.json');
+// LOCAL_CONFIG_FILE removed — was declared but unused (config.json read via getInstanceConfig)
 
 /**
  * Configuration schema

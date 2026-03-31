@@ -47,8 +47,7 @@ const DIRECT_MESSAGE_SOURCES = new Set(['telegram', 'room', 'chat', 'telegram-us
 /** Max total instances (primary + specialists) */
 const DEFAULT_MAX_INSTANCES = 3;
 
-/** Don't spawn if task would take less than this */
-const MIN_SPAWN_DURATION_MS = 30_000;
+// TODO: MIN_SPAWN_DURATION_MS (30s) — was planned to skip spawning for quick tasks, never wired up
 
 /** Cooldown between consecutive spawns */
 const SPAWN_COOLDOWN_MS = 30_000;

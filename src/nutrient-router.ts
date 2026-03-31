@@ -71,7 +71,7 @@ const REINFORCE_THRESHOLD = 40;   // score >= 40 → reinforce (fetch eagerly)
 const PRUNE_THRESHOLD = 15;       // score < 15 → prune (skip unless exploring)
 const MIN_FETCHES_FOR_SCORING = 3; // need at least 3 fetches to judge
 const DECAY_DAYS = 14;            // events older than 14 days decay in weight
-const EXPLORE_BUDGET = 0.2;       // 20% of fetches for exploration
+// TODO: exploration budget (20% of fetches for unknown domains) — declared but never wired up
 
 // =============================================================================
 // Path Resolution

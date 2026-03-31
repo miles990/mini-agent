@@ -75,7 +75,6 @@ export interface TaskResult {
 const MAX_CONCURRENT = 6;
 const MAX_TURNS_CAP = 10;
 const MAX_TIMEOUT_CAP = 600_000; // 10 min
-const DEFAULT_TURNS = 5;
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
