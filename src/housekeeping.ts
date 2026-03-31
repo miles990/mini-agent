@@ -501,7 +501,7 @@ export async function cleanStaleTasks(dryRun = false): Promise<CleanupResult[]> 
     const lastUpdate = new Date(task.ts).getTime();
     const age = now - lastUpdate;
 
-    const threshold = task.status === 'in_progress' ? 14 * DAY_MS : 7 * DAY_MS;
+    const threshold = task.status === 'in_progress' ? 30 * DAY_MS : 14 * DAY_MS;
     if (age > threshold) {
       if (!dryRun) {
         await updateMemoryIndexEntry(memDir, task.id, { status: 'abandoned' }).catch(() => {});

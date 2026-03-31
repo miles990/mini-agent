@@ -763,11 +763,10 @@ export class AgentLoop {
         } catch { /* fire-and-forget */ }
       }
 
-      // Auto-mark matching task-queue items as completed (foreground → task sync)
-      try {
-        const triggerSnippet = text.slice(0, 80);
-        markTaskDoneByDescription(path.join(process.cwd(), 'memory'), [triggerSnippet]).catch(() => {});
-      } catch { /* fire-and-forget */ }
+      // FG lane does NOT auto-mark tasks as complete.
+      // Previous 80-char fuzzy matching caused false positives — unrelated tasks
+      // were marked complete because short snippets matched too broadly.
+      // Tasks are completed only by: explicit <kuro:done> tags or roomMsgId match.
 
       // Update lastAction so /status reflects foreground activity (visibility fix)
       this.lastAction = `[Foreground] Replied to ${source}: ${answer.slice(0, 100)}`;

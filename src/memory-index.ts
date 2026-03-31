@@ -731,7 +731,8 @@ export async function markTaskDoneByDescription(
     const matched = tasks.find(task => {
       const summary = (task.summary ?? '').toLowerCase();
       if (!summary) return false;
-      if (doneNorm.includes(summary.slice(0, 40)) || summary.includes(doneNorm.slice(0, 40))) return true;
+      // Require longer prefix match (60 chars min) to avoid false positives
+      if (summary.length >= 20 && doneNorm.includes(summary.slice(0, 60))) return true;
       const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
       if (tsMatch && summary.includes(tsMatch[0])) return true;
       // Removed: wildcard 'alex' → '回覆 alex' match (caused bulk-marking unrelated reply tasks)
@@ -739,7 +740,7 @@ export async function markTaskDoneByDescription(
       const summaryWords = summary.match(/[\w\u4e00-\u9fff]{2,}/g) ?? [];
       if (summaryWords.length > 0) {
         const overlap = summaryWords.filter(w => doneWords.has(w)).length;
-        if (overlap / summaryWords.length > 0.6) return true;
+        if (summaryWords.length >= 3 && overlap / summaryWords.length > 0.85) return true;
       }
       return false;
     });
