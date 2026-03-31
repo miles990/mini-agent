@@ -10,7 +10,7 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses, preemptLoopCycle, abortForeground } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -1747,6 +1747,30 @@ export function createApi(port = 3001): express.Express {
     }
     const action = await loopRef.trigger();
     res.json({ success: true, action, status: loopRef.getStatus() });
+  });
+
+  // Break: kill current running cycle immediately
+  app.post('/loop/break', (_req: Request, res: Response) => {
+    const loopResult = preemptLoopCycle();
+    res.json({ success: true, loop: loopResult });
+  });
+
+  // Break foreground: kill a specific or oldest FG slot
+  app.post('/fg/break', (_req: Request, res: Response) => {
+    const slotId = (_req.query.slot as string) || undefined;
+    const aborted = abortForeground(slotId);
+    res.json({ success: true, aborted });
+  });
+
+  // Break all: kill loop + all FG slots
+  app.post('/break', (_req: Request, res: Response) => {
+    const loopResult = preemptLoopCycle();
+    const lanes = getLaneStatus();
+    let fgAborted = 0;
+    for (const slot of lanes.foreground.slots) {
+      if (abortForeground(slot.id)) fgAborted++;
+    }
+    res.json({ success: true, loop: loopResult, fgAborted });
   });
 
   // =============================================================================
