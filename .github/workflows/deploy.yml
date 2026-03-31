@@ -13,10 +13,10 @@ on:
       - '.github/**'
   workflow_dispatch:
 
-# 防止同時部署
+# 短時間多次 push 只部署最後一次 — 取消排隊中的舊 deploy
 concurrency:
   group: deploy-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
