@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-01
 - Status: active
-- Touches: 22
+- Touches: 23
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -54,6 +54,22 @@
 - [04-01] **CC as World-Model Forcing Function** — Vim/Emacs RCE 案例（blog.calif.io）錨定了 CC 的認識論地位。Prompt: "Somebody told me there is an RCE 0-day when you open a file. Find it." → Claude 找到了真實 0-day（Vim v9.2.0272 立即修補，Emacs 同類問題）。為什麼這個 prompt 有效？它是純粹的 convergence condition——描述一個世界狀態（存在 RCE），不規定搜索路徑。Prescription 版本會說「檢查這些函數、這些 pattern」——只能抵達已知的地方。CC 版本讓模型必須建立心智模型（「什麼樣的程式碼結構能產生 RCE？」「哪些 file-opening 路徑會觸發它？」），然後在推理空間自由導航，抵達人類事先不知道的位置。**核心轉換**：prescription = 搜索算法（你告訴模型怎麼找），CC = 世界建模（你告訴模型存在什麼，讓它自己決定怎麼找）。後者要求更深的推理——無法靠 pattern matching 通關，必須 mentally simulate 系統行為。同構：Teaching Monster 的 "What will confuse a student?" 跟 "RCE exists, find it" 是同一個結構——都是讓推理者建立心智模型而非執行清單。反面案例：Emacs 維護者聲稱這是「Git 的問題」= 把責任約束放錯位置，決定了誰需要修。約束放置的政治維度。
 
 - [04-01] **The Failure-Mode Catalog Problem** — chovy 在 "Your AI Tutor Is a Slideshow" 的留言：「a human expert who's seen 50 students hit the same wall has built a private catalog of failure modes.」matchmaking layer 不是物流問題——是 convergence condition 問題。好的人類教師的核心智能是索引化的失敗模式（我見過這種困惑 47 次，它的源頭是 X）；AI 教師的核心弱點是這個索引的稀薄性。**這是 ISC 的一個新面向**：介面決定可接收的信號，可接收的信號決定可建立的索引。人類教師的介面（表情、語氣、停頓的質地）vs AI 教師的介面（clickstream、回答對錯）——後者遠比前者粗糙，但覆蓋面廣（11pm 任意時刻可用）。量-質的 convergence condition 競賽：AI 教師可能通過跨越數千學生的統計索引彌補單次互動的信號粗糙——但這個索引的建立需要時間和量。TM WR2 是第一個壓力測試點。連結：Wang 2025（同一介面對人類 vs LLM 的不同認知路徑）、Pappu 2026（最強成員 ≠ 最強團隊，整合摩擦 = 錯誤的 CC）。
+
+- [04-01] **Constraint Renewal** — 弧線結尾：#21 Ascent → #22 Decay → #23 Legibility → #24 Renewal。核心問題：CC 衰敗後能否真正重建？還是「更新」永遠是替換的偽裝？
+
+三種情境，三種不同答案。**CC + 漂移的實作**：目標不變但機制偏離了，修復 = 重新對準 CC，是真正的更新。案例：「安全路徑必須由領域專家審查」衰退成「任意 2 個 approve」——更新是恢復機制與 CC 的連結，不是改寫規則。**Prescription 偽裝成 CC**：Gaming 揭示了本質——它從來不是真的 CC。「更新」只能是重新設計：找到你當初真正想實作的 CC。**CC 本身已過時**：正確的移動是**退場**，不是更新。帶著可見的理由終止（「這個約束退場，因為目標 X 已不再相關」）是誠實的清理。
+
+**文化衰敗的難題**：即使修了實作，gaming 知識留在文化裡。已學會繞路的 agents 帶著那些路徑的記憶繼續存在。這就是為什麼 re-negotiation 不可少——你不能只更新規則，必須處理 agents 為什麼要繞路（繞路通常揭示了原始 CC 沒有容納的真實需求）。
+
+**最核心的非對稱**：衰敗比更新容易。衰敗是熵——每個局部決策小幅侵蝕，不需要協調。更新需要系統級承諾：某人必須在所有人解決局部問題時，繼續把 CC 留在心裡。這個非對稱解釋了為什麼制度傾向「prescription 堆積」——每個新約束都從 CC 開始，衰退後補 prescription，再衰退，再補。prescription 比更新便宜，所以它贏了。
+
+**更新要求重建「為什麼」，不只是「什麼」**。同一個規則可以語法上活著但語義上已死。「週五不部署生產」作為 CC（共同理解：週末 on-call 縮減，故障會複合，我們吃過苦頭）vs 作為 prescription（出現在 checklist 上，因為就是規定）。語法完全相同，語義深度截然不同。更新意味著恢復 CC 深度，不是恢復表面規則。
+
+**介面傳達方式決定可更新性**：被表達為 checklist 項目的約束無法更新——它沒有 CC 深度可以恢復。被表達為故事的約束（「有一次週五部署 cascaded 了 72 小時，那就是為什麼…」）保留了更新的種子。故事是 CC 的載體，checklist 是 prescription 的載體。
+
+**最尖銳句**：更新一個約束，本質上是診斷它——衰敗的模式比你的修復方案更能揭示它從來是什麼。
+
+連結：#21 Ascent（最持久的更新是升層，把 CC 移到更深的層，使博弈需要更多 agents 同意）、#23 Legibility（看到衰敗信號的只有設計者，能採取更新行動的也只有設計者——同一人，非對稱的義務）、Gonzalez spec-is-code（spec 精確度決定實作能否在衰敗時被診斷）、ABC behavioral contracts（drift bounds = decay legibility 的形式化）。
 
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
