@@ -54,7 +54,7 @@ if command -v docker &>/dev/null; then
 fi
 
 # --- Check 2: Chrome CDP (Browser) ---
-CDP_STATUS=$(node "$PROJECT_DIR/scripts/cdp-fetch.mjs" status 2>/dev/null)
+CDP_STATUS=$(_timeout 5 node "$PROJECT_DIR/scripts/cdp-fetch.mjs" status 2>/dev/null)
 if [ $? -ne 0 ] || [ -z "$CDP_STATUS" ]; then
   heal_report "FAILED" "Chrome CDP not available on port ${CDP_PORT:-9222}"
 fi
@@ -127,7 +127,7 @@ if [ -d "$HOME/Workspace/teaching-monster" ]; then
 fi
 
 # --- Check 7: Server Health Endpoint ---
-HEALTH=$(curl -sf localhost:${PORT:-3001}/health 2>/dev/null)
+HEALTH=$(curl -sf --max-time 3 http://127.0.0.1:${PORT:-3001}/health 2>/dev/null)
 if [ $? -ne 0 ]; then
   heal_report "FAILED" "Health endpoint unreachable"
 fi

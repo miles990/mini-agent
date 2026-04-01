@@ -44,7 +44,7 @@ const CORE_HEADINGS = new Set([
 /** Max chars for JIT output — prevents prompt bloat when many sections match.
  *  System prompt is ~5K + this cap + skills + cycle prompt.
  *  At 20K cap: total non-context ≈ 35-40K, leaving room for 30K+ context. */
-const JIT_OUTPUT_CAP = 20_000;
+const JIT_OUTPUT_CAP = 10_000;  // lowered from 20K: non-context overhead (system+skills+JIT+cycle) was ~45K, pushing total prompt over 60K HARD_CAP
 
 const SECTION_KEYWORDS: Record<string, string[]> = {
   '設計理念': [
