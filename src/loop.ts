@@ -684,8 +684,8 @@ export class AgentLoop {
         source: 'foreground',
         onStreamChat,
         fgSlotId: slotId,
-        rebuildContext: async (mode) => {
-          return memory.buildContext({ mode });
+        rebuildContext: async (mode, budget) => {
+          return memory.buildContext({ mode, contextBudget: budget });
         },
       });
 
@@ -1605,9 +1605,15 @@ export class AgentLoop {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
+      // Calculate context budget: PROMPT_HARD_CAP minus estimated non-context overhead
+      // prompt (~2-10K) + system prompt with skills/JIT (~20-35K) + separator/suffix (~1K)
+      const promptEstimate = 12_000; // cycle prompt + user prompt wrapper
+      const systemPromptEstimate = 25_000; // system prompt + JIT CLAUDE.md + skills (measured: typically 20-30K)
+      const contextBudget = 60_000 - promptEstimate - systemPromptEstimate; // ~23K available for context
+
       let context = specialistPerspective
         ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
-        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results });
+        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget });
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
@@ -1921,7 +1927,7 @@ export class AgentLoop {
 
       const [claudeResult, newInboxCount] = await Promise.all([
         callClaude(prompt, context, 2, {
-          rebuildContext: (mode) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined }),
+          rebuildContext: (mode, budget) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined, contextBudget: budget }),
           source: 'loop',
           onPartialOutput,
           cycleMode,

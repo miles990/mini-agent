@@ -1805,6 +1805,9 @@ export class InstanceMemory {
     trigger?: string;
     /** Phase 0 preprocessing results — compressed perception summaries + heartbeat diff */
     phase0Results?: import('./preprocess.js').Phase0Results;
+    /** Context budget in chars — caller calculates available space after system prompt + skills.
+     *  When provided, replaces the hardcoded NON_CONTEXT_BASE estimate. */
+    contextBudget?: number;
   }): Promise<string> {
     const mode = options?.mode ?? 'full';
     const isLight = mode === 'light';
@@ -2636,18 +2639,17 @@ export class InstanceMemory {
 
     slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
 
-    // ── Global context budget: dynamic based on skills overhead ──
-    // fullPrompt = systemPrompt(~5K) + CLAUDE.md JIT(capped 20K) + skills + context + cyclePrompt(~10K)
-    // Must match PROMPT_HARD_CAP in agent.ts (60K) — context + non-context must stay under this.
-    // Lowered from 80K → 60K (2026-03-31): aligned with agent.ts to prevent memory.ts from
-    // assembling oversized context that agent.ts immediately pre-reduces (wasted work + EXIT143 risk).
-    // NON_CONTEXT_BASE: system prompt (~5K) + CLAUDE.md JIT cap (20K) + cycle prompt + suffixes (~10K)
-    const PROMPT_HARD_CAP = 60_000;
-    const NON_CONTEXT_BASE = 35_000;
-    const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
-    // Most modes load a subset (~60%); use conservative estimate to avoid pre-reduce in callClaude
-    const estimatedSkillsOverhead = Math.ceil(totalSkillsChars * 0.6);
-    const CONTEXT_BUDGET = Math.min(60_000, Math.max(30_000, PROMPT_HARD_CAP - estimatedSkillsOverhead - NON_CONTEXT_BASE));
+    // ── Global context budget ──
+    // When caller provides contextBudget (calculated from actual system prompt size),
+    // use it directly. Otherwise fall back to conservative estimate.
+    const CONTEXT_BUDGET = options?.contextBudget
+      ?? (() => {
+        const PROMPT_HARD_CAP = 60_000;
+        const NON_CONTEXT_BASE = 35_000;
+        const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
+        const estimatedSkillsOverhead = Math.ceil(totalSkillsChars * 0.6);
+        return Math.min(60_000, Math.max(15_000, PROMPT_HARD_CAP - estimatedSkillsOverhead - NON_CONTEXT_BASE));
+      })();
     if (assembled.length > CONTEXT_BUDGET) {
       // Trim topic-memory sections first (largest, least essential)
       const topicPattern = /<topic-memory[^>]*>[\s\S]*?<\/topic-memory>/g;

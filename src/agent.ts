@@ -1290,7 +1290,7 @@ export async function callClaude(
   maxRetries = 2,
   options?: {
     /** 超時重試時重建 context 的回調。attempt=1 建議 'focused'，attempt=2 建議 'minimal' */
-    rebuildContext?: (mode: 'focused' | 'minimal') => Promise<string>;
+    rebuildContext?: (mode: 'focused' | 'minimal', contextBudget?: number) => Promise<string>;
     /** 呼叫來源：'chat'=用戶訊息，'loop'=OODA cycle */
     source?: CallSource;
     /** Streaming partial output callback（用於 cycle checkpoint） */
@@ -1319,16 +1319,16 @@ export async function callClaude(
   // timeouts because they passed the old cap but were too large for reliable API processing.
   const PROMPT_HARD_CAP = 60_000;
   const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
+  // Calculate actual context budget from known non-context sizes
+  const nonContextSize = systemPrompt.length + prompt.length + 20; // 20 for separators
+  const actualContextBudget = PROMPT_HARD_CAP - nonContextSize;
   if (fullPrompt.length > PROMPT_HARD_CAP && options?.rebuildContext) {
-    slog('AGENT', `Prompt too large (${fullPrompt.length} chars), pre-reducing context`);
+    slog('AGENT', `Prompt too large (${fullPrompt.length} chars, context=${currentContext.length}, non-context=${nonContextSize}), pre-reducing context to budget=${actualContextBudget}`);
     try {
-      currentContext = await options.rebuildContext('focused');
+      currentContext = await options.rebuildContext('focused', actualContextBudget);
       fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
       if (fullPrompt.length > PROMPT_TARGET) {
-        // Focused mode wasn't enough — reduce both context AND system prompt.
-        // Use PROMPT_TARGET (not HARD_CAP) as threshold: if we're already in damage-control
-        // mode (original > 60K), be aggressive to avoid borderline timeouts at 40-59K range.
-        currentContext = await options.rebuildContext('minimal');
+        currentContext = await options.rebuildContext('minimal', actualContextBudget);
         const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
         fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
         slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
@@ -1475,8 +1475,9 @@ export async function callClaude(
         } else if (classified.type === 'TIMEOUT' && options?.rebuildContext) {
           try {
             const prevLen = currentContext.length;
-            currentContext = await options.rebuildContext('minimal');
             const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+            const minimalBudget = PROMPT_HARD_CAP - minimalSystemPrompt.length - prompt.length - 20;
+            currentContext = await options.rebuildContext('minimal', minimalBudget);
             fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
             slog('RETRY', `TIMEOUT tools=${errToolCount} on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal mode, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch (rebuildErr) {
