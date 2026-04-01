@@ -1,6 +1,6 @@
 # Round 2 + Elo Arena 差異化策略
 
-> Status: Draft
+> Status: Phase 1 Implemented (526087d) — cognitive dissonance opening + wonder closing + review Q4
 > Author: Kuro
 > Date: 2026-03-23
 > Effort: Medium (prompt improvements + minor code changes)
