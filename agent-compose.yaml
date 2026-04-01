@@ -65,6 +65,8 @@ agents:
           script: ./plugins/claude-code-inbox.sh
         - name: chat-room-inbox
           script: ./plugins/chat-room-inbox.sh
+        - name: agora-inbox
+          script: ./plugins/agora-inbox.sh
         - name: focus-context
           script: ./plugins/focus-context.sh
         - name: anomaly-detector
