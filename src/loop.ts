@@ -2595,6 +2595,13 @@ export class AgentLoop {
       if (isEnabled('housekeeping')) {
         const done = trackStart('housekeeping');
         runHousekeeping().then(() => done(), e => done(String(e)));
+
+        // Topic summarization — update summaries for large topics (every 10 cycles, fire-and-forget)
+        if (this.cycleCount % 10 === 0) {
+          import('./memory-summarizer.js').then(({ runSummarizationCycle }) =>
+            runSummarizationCycle(memory.getMemoryDir())
+          ).catch(() => {});
+        }
       }
 
       // Myelin distillation — periodic crystallization of triage + learning patterns (fire-and-forget)
