@@ -21,7 +21,7 @@ import {
   initDataDir,
 } from './instance.js';
 import { withFileLock } from './filelock.js';
-import { diagLog } from './utils.js';
+import { diagLog, slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { buildActionMemorySection } from './action-memory.js';
 import {
@@ -541,6 +541,106 @@ async function loadTopicKeywordMap(memoryDir: string): Promise<Record<string, { 
 function invalidateTopicKeywordCache(): void {
   _topicKeywordCache = null;
   _topicKeywordDirMtime = 0;
+}
+
+// =============================================================================
+// Semantic Topic Ranking (P1-4: Two-stage recall — FTS5 candidates → Haiku ranking)
+// Pattern: Claude Code's findRelevantMemories() with Sonnet sideQuery
+// =============================================================================
+
+/** Cache for semantic ranking results — TTL 5 min, keyed by contextHint hash */
+let _semanticCache: { hash: string; topics: string[]; ts: number } | null = null;
+const SEMANTIC_CACHE_TTL = 300_000; // 5 min
+
+/**
+ * Semantically rank topic files using Haiku sideQuery.
+ * Returns top-N most relevant topic names, or null if ranking fails/unavailable.
+ *
+ * Flow: build manifest (topic name + first line + age) → Haiku selects top 5
+ * Fallback: returns null → caller uses existing keyword matching
+ */
+async function semanticRankTopics(
+  topics: string[],
+  memoryDir: string,
+  contextHint: string,
+  maxResults = 5,
+): Promise<string[] | null> {
+  if (topics.length <= maxResults) return topics; // No ranking needed
+  if (contextHint.length < 20) return null; // Not enough context to rank
+
+  // Check cache
+  const hintHash = contextHint.slice(0, 200);
+  if (_semanticCache && _semanticCache.hash === hintHash && Date.now() - _semanticCache.ts < SEMANTIC_CACHE_TTL) {
+    return _semanticCache.topics;
+  }
+
+  try {
+    const { sideQuery } = await import('./side-query.js');
+
+    // Build manifest: one line per topic (name + first content line + age)
+    const topicsDir = path.join(memoryDir, 'topics');
+    const manifest: string[] = [];
+    for (const topic of topics) {
+      try {
+        const content = await fs.readFile(path.join(topicsDir, `${topic}.md`), 'utf-8');
+        const lines = content.split('\n').filter(l => l.trim());
+        // Skip frontmatter-like lines (---), get first real content line
+        const firstLine = lines.find(l => !l.startsWith('---') && !l.startsWith('keywords:') && !l.startsWith('negative:') && !l.startsWith('related:'))
+          ?? topic;
+        const stat = statSync(path.join(topicsDir, `${topic}.md`));
+        const ageDays = Math.floor((Date.now() - stat.mtimeMs) / 86_400_000);
+        const age = ageDays > 30 ? `${ageDays}d old` : 'recent';
+        manifest.push(`- ${topic}: ${firstLine.slice(0, 80)} (${age})`);
+      } catch {
+        manifest.push(`- ${topic}`);
+      }
+    }
+
+    const prompt = `You are selecting the most relevant topic-memory files for a conversation.
+
+Current conversation context (keywords and recent messages):
+"${contextHint.slice(0, 500)}"
+
+Available topic files:
+${manifest.join('\n')}
+
+Select up to ${maxResults} most relevant topics. Return ONLY a JSON array of topic names.
+Example: ["topic-a", "topic-b"]
+
+Important:
+- Only select topics directly relevant to the conversation context
+- Prefer recent topics over stale ones
+- If nothing is clearly relevant, return an empty array []`;
+
+    const result = await sideQuery(prompt, {
+      model: 'claude-haiku-4-5-20251001',
+      timeout: 15_000,
+      maxTokens: 256,
+    });
+
+    if (!result) return null;
+
+    // Parse JSON array from response
+    const match = result.match(/\[[\s\S]*?\]/);
+    if (!match) return null;
+
+    const selected = JSON.parse(match[0]) as string[];
+    // Validate: only return topics that actually exist
+    const validTopics = selected.filter(t => topics.includes(t));
+
+    if (validTopics.length > 0) {
+      _semanticCache = { hash: hintHash, topics: validTopics, ts: Date.now() };
+      eventBus.emit('log:info', {
+        tag: 'semantic-rank',
+        msg: `Selected ${validTopics.length}/${topics.length} topics: ${validTopics.join(', ')}`,
+      });
+    }
+
+    return validTopics.length > 0 ? validTopics : null;
+  } catch (error) {
+    diagLog('semanticRankTopics', error);
+    return null;
+  }
 }
 
 /** Identity sections always loaded in focused/minimal mode */
@@ -2506,6 +2606,8 @@ export class InstanceMemory {
     ];
 
     let assembled = reorderedSections.join('\n\n');
+
+    slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
 
     // ── Global context budget: dynamic based on skills overhead ──
     // fullPrompt = systemPrompt(~5K) + CLAUDE.md JIT(capped 20K) + skills + context + cyclePrompt(~10K)
