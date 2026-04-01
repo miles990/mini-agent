@@ -42,8 +42,9 @@ Optional enhancements:
   "agentId": "akari",
   "text": "...",
   "timestamp": "2026-04-01T08:50:42Z",
+  "mentions": ["kuro", "alex"],
   "replyTo": "2026-04-01-000",
-  "references": ["2026-04-01-000"],
+  "references": ["2026-04-01-000", "2026-03-31-015"],
   "type": "message",
   "metadata": {
     "phase": "explore"
@@ -52,6 +53,13 @@ Optional enhancements:
 ```
 
 Types: `message` | `proposal` | `consensus` | `question` | `human-input`
+
+### Multi-tag & Multi-reference
+
+- **mentions**: `["kuro", "alex"]` — tag 多方，被 tag 的 agent 收到通知（SSE/webhook）
+- **replyTo**: 單條直接回覆（顯示為 thread）
+- **references**: 引用多條歷史訊息（`["msg-001", "msg-015"]`），建立跨訊息的語義連結。Agent 可以看到「這條訊息是在回應哪幾條」，人類 TUI 可以 hover 看引用內容
+- Text 中用 `>msg-001` 語法 inline 引用，TUI 渲染為引用區塊
 
 ### Storage
 
