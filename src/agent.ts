@@ -15,6 +15,7 @@ import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
 import { eventBus } from './event-bus.js';
 import { createKuroChatStreamParser } from './tag-parser.js';
+import { compactContext } from './context-compaction.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -1328,10 +1329,20 @@ export async function callClaude(
       currentContext = await options.rebuildContext('focused', actualContextBudget);
       fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
       if (fullPrompt.length > PROMPT_TARGET) {
-        currentContext = await options.rebuildContext('minimal', actualContextBudget);
-        const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
-        fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-        slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
+        // P1-5: Try intelligent compaction before falling back to minimal mode
+        // Compaction preserves meaning while reducing size — minimal mode strips sections
+        const compacted = await compactContext(currentContext, actualContextBudget);
+        if (compacted) {
+          currentContext = compacted;
+          fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+          slog('AGENT', `P1-5 compaction: ${currentContext.length} chars`);
+        }
+        if (fullPrompt.length > PROMPT_TARGET) {
+          currentContext = await options.rebuildContext('minimal', actualContextBudget);
+          const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
+          fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+          slog('AGENT', `Minimal mode: sysPrompt ${systemPrompt.length} → ${minimalSystemPrompt.length} chars`);
+        }
       }
       slog('AGENT', `Context pre-reduced to ${fullPrompt.length} chars${fullPrompt.length > PROMPT_TARGET ? ' (still above target — monitor for timeout)' : ''}`);
     } catch (preErr) {

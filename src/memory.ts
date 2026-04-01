@@ -62,6 +62,37 @@ import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLoc
 import { recordCascadeMetric } from './cascade.js';
 
 // =============================================================================
+// Write-time Dedup — Jaccard word similarity (zero LLM cost)
+// =============================================================================
+
+/**
+ * Check if a new memory entry is a duplicate of any recent entry.
+ * Uses Jaccard similarity on word sets — threshold 0.6.
+ */
+function isDuplicateEntry(newContent: string, recentBullets: string[]): boolean {
+  const newWords = new Set(newContent.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  if (newWords.size < 3) return false; // Too short to reliably compare
+
+  for (const bullet of recentBullets) {
+    // Strip date prefix [YYYY-MM-DD] from bullet
+    const text = bullet.replace(/^- \[\d{4}-\d{2}-\d{2}\]\s*/, '');
+    const bulletWords = new Set(text.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    if (bulletWords.size < 3) continue;
+
+    // Jaccard similarity = |intersection| / |union|
+    let intersection = 0;
+    for (const w of newWords) {
+      if (bulletWords.has(w)) intersection++;
+    }
+    const union = new Set([...newWords, ...bulletWords]).size;
+    const similarity = intersection / union;
+
+    if (similarity > 0.6) return true;
+  }
+  return false;
+}
+
+// =============================================================================
 // Perception Providers (外部注入，避免循環依賴)
 // =============================================================================
 
@@ -759,6 +790,9 @@ export class InstanceMemory {
 
   /**
    * 附加到長期記憶
+   *
+   * Includes write-time dedup: skips if Jaccard word similarity > 0.6
+   * with any of the 20 most recent entries (zero LLM cost).
    */
   async appendMemory(content: string, section = 'Learned Patterns'): Promise<void> {
     await ensureDir(this.memoryDir);
@@ -766,6 +800,16 @@ export class InstanceMemory {
 
     await withFileLock(memoryPath, async () => {
       const current = await this.readMemory();
+
+      // Write-time dedup: skip if similar entry exists in recent bullets
+      const recentBullets = current.split('\n').filter(l => l.startsWith('- ')).slice(-20);
+      if (recentBullets.length > 0 && isDuplicateEntry(content, recentBullets)) {
+        eventBus.emit('log:info', {
+          tag: 'memory-dedup',
+          msg: `skipped duplicate: ${content.slice(0, 80)}...`,
+        });
+        return;
+      }
 
       const timestamp = new Date().toISOString().split('T')[0];
       const entry = `\n- [${timestamp}] ${content}`;

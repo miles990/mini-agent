@@ -19,6 +19,7 @@ import {
   updateMemoryIndexEntry,
   deleteMemoryIndexEntry,
 } from './memory-index.js';
+import { migrateToColdStorage } from './context-optimizer.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -646,6 +647,96 @@ export async function runHousekeeping(): Promise<void> {
   // 低頻：每 10 cycle 掃描 instance 目錄下的過期臨時資源
   if (cycleCounter % 10 === 0) {
     await sweepInstanceDir().catch(() => {});
+    // P1-5: Memory consolidation — migrate old entries to cold storage
+    await consolidateMemory().catch(() => {});
+  }
+}
+
+// =============================================================================
+// Memory Consolidation — AutoDream-inspired Prune Phase
+// =============================================================================
+
+const CONSOLIDATION_LOCK_TTL = 24 * 60 * 60 * 1000; // Run at most once per 24h
+const MEMORY_MAX_LINES = 200; // AutoDream's enforced cap
+
+/**
+ * Memory consolidation: migrate cold entries + enforce MEMORY.md line cap.
+ * Runs every 10 housekeeping cycles (gated by 24h lock).
+ */
+async function consolidateMemory(): Promise<void> {
+  const instanceId = getCurrentInstanceId();
+  const instDir = getInstanceDir(instanceId);
+  const lockPath = path.join(instDir, '.consolidation-lock');
+
+  // 24h gate: skip if already ran recently
+  try {
+    const stat = fs.statSync(lockPath);
+    if (Date.now() - stat.mtimeMs < CONSOLIDATION_LOCK_TTL) return;
+  } catch { /* no lock file — proceed */ }
+
+  // Use project memory dir, not instance dir (MEMORY.md lives in project/memory/)
+  const memoryDir = path.join(process.cwd(), 'memory');
+  let actions = 0;
+
+  // Phase 1: Cold storage migration (entries >30 days in non-protected sections)
+  try {
+    const { migrated } = migrateToColdStorage(memoryDir, 30);
+    if (migrated > 0) {
+      slog('CONSOLIDATE', `migrated ${migrated} cold entries to cold-storage.md`);
+      actions += migrated;
+    }
+  } catch (err) {
+    slog('CONSOLIDATE', `cold storage migration failed: ${err}`);
+  }
+
+  // Phase 2: Enforce MEMORY.md line cap
+  try {
+    const memoryPath = path.join(memoryDir, 'MEMORY.md');
+    if (fs.existsSync(memoryPath)) {
+      const content = fs.readFileSync(memoryPath, 'utf-8');
+      const lines = content.split('\n');
+      if (lines.length > MEMORY_MAX_LINES) {
+        // Keep header + section structure, remove oldest bullet entries
+        // Strategy: find bullet lines (- [...]), remove oldest ones first
+        const headerLines: string[] = [];
+        const bulletEntries: { idx: number; line: string }[] = [];
+        const otherLines: { idx: number; line: string }[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].startsWith('- [')) {
+            bulletEntries.push({ idx: i, line: lines[i] });
+          } else if (lines[i].startsWith('#') || lines[i].trim() === '' || !lines[i].startsWith('- ')) {
+            otherLines.push({ idx: i, line: lines[i] });
+          } else {
+            bulletEntries.push({ idx: i, line: lines[i] });
+          }
+        }
+
+        // Calculate how many bullets to remove
+        const nonBulletCount = otherLines.length;
+        const maxBullets = MEMORY_MAX_LINES - nonBulletCount;
+        if (maxBullets > 0 && bulletEntries.length > maxBullets) {
+          // Keep newest bullets (at the end), remove oldest (at the start)
+          const keepBullets = new Set(
+            bulletEntries.slice(-maxBullets).map(b => b.idx)
+          );
+          const trimmed = lines.filter((_, i) =>
+            !bulletEntries.some(b => b.idx === i) || keepBullets.has(i)
+          );
+          fs.writeFileSync(memoryPath, trimmed.join('\n'));
+          slog('CONSOLIDATE', `MEMORY.md trimmed: ${lines.length} → ${trimmed.length} lines (removed ${bulletEntries.length - maxBullets} oldest entries)`);
+          actions++;
+        }
+      }
+    }
+  } catch (err) {
+    slog('CONSOLIDATE', `MEMORY.md trim failed: ${err}`);
+  }
+
+  // Update lock
+  fs.writeFileSync(lockPath, new Date().toISOString());
+  if (actions > 0) {
+    slog('CONSOLIDATE', `consolidation complete: ${actions} action(s)`);
   }
 }
 
