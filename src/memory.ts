@@ -565,7 +565,7 @@ async function semanticRankTopics(
   contextHint: string,
   maxResults = 5,
 ): Promise<string[] | null> {
-  if (topics.length <= maxResults) return topics; // No ranking needed
+  if (topics.length <= maxResults) return null; // Not enough topics to rank — defer to keyword matching
   if (contextHint.length < 20) return null; // Not enough context to rank
 
   // Check cache
