@@ -461,24 +461,17 @@ Section Writing (write within the constrained scope)
 3. **30分鐘限制 vs 我們平均 14 分鐘** — 有大量餘裕，可以加深不加快
 4. **「懸念設計」「蘇格拉底提問」** — AI evaluator 明確在找這些，我們的 micro-interaction 策略方向正確
 
-- [2026-04-01] ## WR2 品質抽查分析（2026-04-01 21:30）
+- [2026-04-01] ## WR2 品質抽查分析（2026-04-01 21:30, **修正 22:40**）
 
-### 重大發現：所有 WR2 requests 的 student_profile 為 null
-WR1 每題都有隨機學生 persona（年齡、學習風格、動機等），WR2 完全沒有。這代表：
-1. Adaptability 評分基準可能變化 — 沒有 persona 時「適配」可能改評「主題適配」而非「學生適配」
-2. 我們的 adaptation visibility 改進（f6309fb）在無 persona 時部分失效 — pipeline 必須自行推斷 level
-3. 題目由評審委員設計（非 LLM 生成），更 nuanced 更挑戰
-
-### Level Inference 品質
-Pipeline 在 null persona 下自行推斷教學 level：
-- ✅ 正確（~90%）：AP Physics→高中/大學，AP Bio→大學，AP CS→高中 AP 級
-- 🔴 嚴重偏差（1/28）：celery_445 AP Physics "Static Friction" → Elementary school (age 6-12)，完全移除公式/代數
-- 根因推測：prompt 沒有明確的「無 persona 時 default 到 AP level」的 instruction
+### ~~重大發現：所有 WR2 requests 的 student_profile 為 null~~ ❌ 事實錯誤
+**修正**：所有 27 個 WR2 requests 都有 student_persona（pipe-delimited 格式）。驗證方法：逐一讀取 `output/celery_*/_request.json`。
+- 有明確 education_level 的：Elementary / Junior high / Senior high / University / Working professional
+- 缺 education_level 的（~30%）：pipeline Layer 1.5 從 motivation + style 推斷，結果合理（exam→senior, derivation→college）
+- celery_445 "Elementary school" 是平台**故意**發的 persona，不是 inference 錯誤 — 測試 AP 課題能否適配小學生
 
 ### 影片時長
-28 支影片平均時長 ~14 分鐘（678-1181 秒）。比 WR1 重建後的平均長很多。
+28 支影片平均時長 ~14 分鐘（678-1181 秒）。30 分鐘限制下有大量餘裕。
 
-### 初賽前必修（Priority Action Items）
-- [ ] **FIX**: null persona fallback logic — 偵測 AP/IB topic 時 default 到對應 level（不是 random）
-- [ ] 確認 level inference prompt 有 "when no student profile is provided, infer level from course framework" 指令
-- [ ] 追蹤：AI evaluator 在 null persona 時的 Adaptability 評分行為（WR2 分數出來後比對）
+### 初賽真正需要的改進
+- [ ] 追蹤：WR2 分數出來後比對 persona 多樣性 vs Adaptability 分數（sparse persona 是否被扣分）
+- [ ] Elo Arena 對戰制：需研究 head-to-head 時什麼特質最突出（opening hook? visual quality? adaptation depth?）
