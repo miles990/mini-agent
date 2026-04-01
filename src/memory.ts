@@ -1757,6 +1757,42 @@ export class InstanceMemory {
     // 組合感知區塊
     const sections: string[] = [];
 
+    // Per-section soft caps — prevent any single section from dominating context
+    const SECTION_CAP: Record<string, number> = {
+      'web-fetch-results': 6000,
+      'chat-room-recent': 6000,
+      'chat-room-relevant': 4000,
+      'soul': 8000,
+      'heartbeat': 6000,
+      'situation-report': 6000,
+      'background-completed': 4000,
+      'capabilities': 3000,
+      'activity': 3000,
+      'recent-activity': 3000,
+      'action-memory': 3000,
+      'memory-index': 2000,
+      'trail': 2000,
+      'achievements': 2000,
+      'threads': 2000,
+      'conversation-threads': 2000,
+      'commitments': 2000,
+      'myelin-framework': 2000,
+      'pulse': 1500,
+      'route-efficiency': 1500,
+      'working-memory': 3000,
+      'inner-voice': 2000,
+    };
+    const DEFAULT_SECTION_CAP = 4000;
+
+    /** Push a section with automatic size capping */
+    const pushCapped = (tag: string, content: string) => {
+      const cap = SECTION_CAP[tag] ?? DEFAULT_SECTION_CAP;
+      if (content.length > cap) {
+        content = content.slice(0, cap) + `\n[... truncated from ${content.length} chars]`;
+      }
+      sections.push(`<${tag}>\n${content}\n</${tag}>`);
+    };
+
     // ── 條件載入 helpers（根據相關性 + auto-demotion）──
     // Citation-driven auto-demotion: sections with 0 citations over DEMOTION_THRESHOLD
     // cycles are automatically demoted to conditional-load (Task 3)
@@ -1885,7 +1921,7 @@ export class InstanceMemory {
     if (shouldLoad('capabilities')) {
       const capabilities = await getCapabilitiesSnapshot(this.instanceId);
       const capabilitiesCtx = formatCapabilitiesContext(capabilities);
-      if (capabilitiesCtx) sections.push(`<capabilities>\n${capabilitiesCtx}\n</capabilities>`);
+      if (capabilitiesCtx) pushCapped('capabilities', capabilitiesCtx);
     }
 
     // Process — 在問 debug/performance/memory 時才載入
@@ -1931,14 +1967,14 @@ export class InstanceMemory {
     // Activity — 行為 + 診斷感知（skip in light mode, auto-demotion aware）
     if (!isLight && shouldLoad('activity') && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
-      if (activityCtx) sections.push(`<activity>\n${activityCtx}\n</activity>`);
+      if (activityCtx) pushCapped('activity', activityCtx);
     }
 
     // ── Background Completed（skip in light mode）──
     if (!isLight) {
       const bgSection = buildBackgroundCompletedSection(this.instanceId);
       if (bgSection) {
-        sections.push(`<background-completed>\n${bgSection}\n</background-completed>`);
+        pushCapped('background-completed', bgSection);
       }
     }
 
@@ -1948,7 +1984,7 @@ export class InstanceMemory {
       try {
         const webResults = await fs.readFile(webResultsPath, 'utf-8');
         if (webResults.trim()) {
-          sections.push(`<web-fetch-results>\n${webResults.slice(0, 12000)}\n</web-fetch-results>`);
+          pushCapped('web-fetch-results', webResults.trim());
           // One-shot: delete after injection so it doesn't repeat
           await fs.unlink(webResultsPath).catch(() => {});
         }
@@ -1960,7 +1996,7 @@ export class InstanceMemory {
       const { formatActivityJournal } = await import('./activity-journal.js');
       const activityJournal = formatActivityJournal();
       if (activityJournal) {
-        sections.push(`<recent-activity>\n${activityJournal}\n</recent-activity>`);
+        pushCapped('recent-activity', activityJournal);
       }
     }
 
@@ -1968,7 +2004,7 @@ export class InstanceMemory {
     if (!isLight && shouldLoadForProfile('trail', options?.trigger) && shouldLoad('trail')) {
       const trailCtx = readTrailSection();
       if (trailCtx) {
-        sections.push(`<trail>\n${trailCtx}\n</trail>`);
+        pushCapped('trail', trailCtx);
       }
     }
 
@@ -2015,7 +2051,7 @@ export class InstanceMemory {
       try {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();
-        if (achievementsCtx) sections.push(`<achievements>\n${achievementsCtx}\n</achievements>`);
+        if (achievementsCtx) pushCapped('achievements', achievementsCtx);
       } catch { /* ignore */ }
     }
 
@@ -2024,7 +2060,7 @@ export class InstanceMemory {
       try {
         const { buildPulseContext } = await import('./pulse.js');
         const pulseCtx = buildPulseContext();
-        if (pulseCtx) sections.push(`<pulse>\n${pulseCtx}\n</pulse>`);
+        if (pulseCtx) pushCapped('pulse', pulseCtx);
       } catch { /* ignore */ }
     }
 
@@ -2033,7 +2069,7 @@ export class InstanceMemory {
       try {
         const { getMyelinPromptBlock } = await import('./myelin-fleet.js');
         const myelinBlock = getMyelinPromptBlock();
-        if (myelinBlock.trim()) sections.push(`<myelin-framework>\n${myelinBlock}\n</myelin-framework>`);
+        if (myelinBlock.trim()) pushCapped('myelin-framework', myelinBlock);
       } catch { /* ignore — myelin not available */ }
     }
 
@@ -2042,7 +2078,7 @@ export class InstanceMemory {
       try {
         const { buildCommitmentsContext } = await import('./commitments.js');
         const commitCtx = buildCommitmentsContext(options?.cycleCount ?? 0);
-        if (commitCtx) sections.push(`<commitments>\n${commitCtx}\n</commitments>`);
+        if (commitCtx) pushCapped('commitments', commitCtx);
       } catch { /* ignore */ }
     }
 
@@ -2093,7 +2129,7 @@ export class InstanceMemory {
         // Phase 4: 從 stream cache 讀取（不執行 shell scripts）
         const cachedReport = perceptionStreams.getCachedReport();
         if (cachedReport) {
-          sections.push(`<situation-report>\n${cachedReport}\n</situation-report>`);
+          pushCapped('situation-report', cachedReport);
         } else {
           const cachedResults = perceptionStreams.getCachedResults();
           if (cachedResults.length > 0) {
@@ -2165,7 +2201,7 @@ export class InstanceMemory {
           const results = await executeAllPerceptions(relevantPlugins);
           if (isAnalysisAvailable()) {
             const { report } = await analyzePerceptions(results);
-            if (report) sections.push(`<situation-report>\n${report}\n</situation-report>`);
+            if (report) pushCapped('situation-report', report);
           } else {
             const customCtx = formatPerceptionResults(results, capOverrides);
             if (customCtx) sections.push(customCtx);
@@ -2179,7 +2215,7 @@ export class InstanceMemory {
       try {
         const actionMemory = buildActionMemorySection(getInstanceDir(getCurrentInstanceId()));
         if (actionMemory) {
-          sections.push(`<action-memory>\n${actionMemory}\n</action-memory>`);
+          pushCapped('action-memory', actionMemory);
         }
       } catch { /* fire-and-forget */ }
     }
@@ -2188,7 +2224,7 @@ export class InstanceMemory {
     if (!isLight && profileConfig.loadDeepContext) {
       const threadsCtx = buildThreadsContextSection();
       if (threadsCtx) {
-        sections.push(`<threads>\n${threadsCtx}\n</threads>`);
+        pushCapped('threads', threadsCtx);
       }
     }
 
@@ -2198,7 +2234,7 @@ export class InstanceMemory {
       if (existsSync(innerNotesPath)) {
         const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
         if (innerContent) {
-          sections.push(`<working-memory>\n${innerContent}\n</working-memory>`);
+          pushCapped('working-memory', innerContent);
         }
       }
     } catch { /* ignore */ }
@@ -2208,7 +2244,7 @@ export class InstanceMemory {
       const unexpressedImpulses = await this.getUnexpressedImpulses();
       const innerVoiceCtx = this.buildInnerVoiceSection(unexpressedImpulses);
       if (innerVoiceCtx) {
-        sections.push(`<inner-voice>\n${innerVoiceCtx}\n</inner-voice>`);
+        pushCapped('inner-voice', innerVoiceCtx);
       }
     }
 
@@ -2225,14 +2261,14 @@ export class InstanceMemory {
           const roomLink = t.roomMsgId ? ` [room:${t.roomMsgId}]` : '';
           return `- [${t.type}] ${t.content} (${age}h ago, from: "${t.source.slice(0, 40)}"${roomLink})`;
         });
-        sections.push(`<conversation-threads>\nPending items from recent conversations:\n${threadLines.join('\n')}\n</conversation-threads>`);
+        pushCapped('conversation-threads', `Pending items from recent conversations:\n${threadLines.join('\n')}`);
       }
     }
 
     // ── Soul（身分認同）──
     if (soul) {
       const soulContent = this.buildSoulContext(soul, contextHint, (isLight ? 'focused' : mode) as 'full' | 'focused' | 'minimal', options?.cycleCount);
-      sections.push(`<soul>\n${soulContent}\n</soul>`);
+      pushCapped('soul', soulContent);
     }
 
     // ── Memory Index（多維度索引摘要）──
@@ -2247,7 +2283,7 @@ export class InstanceMemory {
           // Load manifest summary
           const manifestCtx = await getManifestContext(this.memoryDir, 2000);
           if (manifestCtx) {
-            sections.push(`<memory-index>\n${manifestCtx}\n</memory-index>`);
+            pushCapped('memory-index', manifestCtx);
           }
 
           // Use index to find relevant topics for this context
