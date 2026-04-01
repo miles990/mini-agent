@@ -5,7 +5,7 @@
 
 set -e
 
-KURO_API="http://localhost:3001"
+KURO_API="http://127.0.0.1:3001"
 KURO_EMAIL="kuro.ai.agent@gmail.com"
 KEYCHAIN_SERVICE="Claude Code-credentials"
 KEYCHAIN_ACCOUNT="user"

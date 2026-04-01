@@ -8,7 +8,7 @@
 #   room --watch             → SSE 即時監聽
 #   room --from kuro "訊息"  → 指定身份發訊息
 
-BASE_URL="${MINI_AGENT_URL:-http://localhost:3001}"
+BASE_URL="${MINI_AGENT_URL:-http://127.0.0.1:3001}"
 API_KEY="${MINI_AGENT_API_KEY}"
 AUTH_HEADER="x-api-key: $API_KEY"
 

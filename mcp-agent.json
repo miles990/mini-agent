@@ -5,7 +5,7 @@
       "args": ["dist/mcp-server.js"],
       "cwd": "/Users/user/Workspace/mini-agent",
       "env": {
-        "AGENT_URL": "http://localhost:3001",
+        "AGENT_URL": "http://127.0.0.1:3001",
         "MINI_AGENT_API_KEY": ""
       }
     }

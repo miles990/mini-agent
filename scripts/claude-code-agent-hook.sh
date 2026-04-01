@@ -5,7 +5,7 @@
 # stdout 作為 additionalContext 注入 Claude 的 context
 # 讓 Claude Code 自動知道 Agent 的最新狀態
 
-AGENT_URL="${AGENT_URL:-http://localhost:3001}"
+AGENT_URL="${AGENT_URL:-http://127.0.0.1:3001}"
 API_KEY="${MINI_AGENT_API_KEY:-}"
 
 AUTH_HEADER=""

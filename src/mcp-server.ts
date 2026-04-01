@@ -17,7 +17,7 @@ import { z } from 'zod/v3';
 // Config
 // =============================================================================
 
-const AGENT_URL = process.env.AGENT_URL || 'http://localhost:3001';
+const AGENT_URL = process.env.AGENT_URL || 'http://127.0.0.1:3001';
 const API_KEY = process.env.MINI_AGENT_API_KEY || '';
 const HTTP_TIMEOUT = 5_000;
 const DISCUSS_POLL_INTERVAL = 10_000;

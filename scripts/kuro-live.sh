@@ -8,7 +8,7 @@
 #   bash scripts/kuro-live.sh --url http://localhost:3001 --key YOUR_KEY --interval 2
 
 PORT="${PORT:-3001}"
-BASE_URL="http://localhost:${PORT}"
+BASE_URL="http://127.0.0.1:${PORT}"
 API_KEY="${MINI_AGENT_API_KEY:-}"
 INTERVAL=1
 

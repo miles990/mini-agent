@@ -6,7 +6,7 @@
 
 set -e
 
-KURO_API="http://localhost:3001"
+KURO_API="http://127.0.0.1:3001"
 KEYCHAIN_SERVICE="Claude Code-credentials"
 BACKUP_DIR="$HOME/.mini-agent/auth-backup"
 

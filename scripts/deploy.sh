@@ -111,7 +111,7 @@ log "Running health check..."
 HEALTH_OK=false
 for i in $(seq 1 6); do
     sleep 5
-    if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+    if curl -sf http://127.0.0.1:3001/health > /dev/null 2>&1; then
         HEALTH_OK=true
         break
     fi
