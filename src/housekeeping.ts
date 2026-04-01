@@ -317,6 +317,8 @@ export async function syncHandoffStatus(): Promise<void> {
 const NO_DEPLOY_FLAG = '.no-deploy';
 
 /**
+ * @DANGEROUS _reason: pushes commits to remote origin — visible to others, cannot be easily undone without force-push
+ *
  * 如果 local ahead of origin/main → git push origin main。
  * 安全護欄：只 push main、.no-deploy flag 可阻止、fire-and-forget。
  */
@@ -404,6 +406,8 @@ const JUNK_TASK_PATTERN = /^(SSE test|SSE-realtime-test|delete me|test|debug|測
 const DAY_MS = 86_400_000;
 
 /**
+ * @DANGEROUS _reason: permanently deletes or status-changes tasks in relations.jsonl — changes are append-only but semantically irreversible
+ *
  * 四層智能清理：
  * L1: 回覆類 tasks — roomMsgId 匹配 OR >48h → completed
  * L2: 垃圾 tasks — pattern match + >24h → abandoned

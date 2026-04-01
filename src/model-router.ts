@@ -52,6 +52,18 @@ const DIRECT_MESSAGE_TRIGGERS = ['telegram-user', 'room', 'chat', 'direct-messag
  * 7. Default → Opus (safety)
  */
 export function routeModel(input: RouteInput): RouteResult {
+  const result = _routeModelInternal(input);
+  // Decision provenance: log WHY this model was chosen
+  logDecisionProvenance({
+    subsystem: 'model-router',
+    decision: result.model,
+    reason: result.reason,
+    inputs: { trigger: input.triggerReason, mode: input.cycleMode, dm: input.hasDirectMessage, inbox: input.hasInbox },
+  });
+  return result;
+}
+
+function _routeModelInternal(input: RouteInput): RouteResult {
   // Gate: feature toggle
   if (!isEnabled('sonnet-routing')) {
     return { model: 'opus', reason: 'feature-disabled' };
@@ -126,4 +138,33 @@ export function getModelCliName(tier: ModelTier): string | undefined {
   // undefined = use subscription default (Opus)
   if (tier === 'opus') return undefined;
   return 'sonnet';
+}
+
+// =============================================================================
+// Decision Provenance — Claude Code pattern: record WHY, not just WHAT
+// =============================================================================
+
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
+
+interface DecisionProvenance {
+  ts: string;
+  subsystem: 'model-router' | 'task-router' | 'delegation' | 'event-router';
+  decision: string;
+  reason: string;
+  inputs: Record<string, unknown>;
+}
+
+const provenancePath = (): string => {
+  const stateDir = path.join(process.cwd(), 'memory', 'state');
+  if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
+  return path.join(stateDir, 'decision-provenance.jsonl');
+};
+
+/** Log a decision with its provenance — for debugging and pulse analysis */
+export function logDecisionProvenance(entry: Omit<DecisionProvenance, 'ts'>): void {
+  try {
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...entry });
+    appendFileSync(provenancePath(), line + '\n');
+  } catch { /* fire-and-forget */ }
 }

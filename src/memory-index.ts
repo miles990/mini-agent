@@ -1028,10 +1028,14 @@ export async function getManifestContext(memoryDir: string, budget = 2000): Prom
   const entries = queryMemoryIndexSync(memoryDir, { limit: 200 });
   if (entries.length === 0) return '';
 
+  const now = Date.now();
   const lines: string[] = [];
   let used = 0;
   for (const e of entries) {
-    const line = `- [${e.type}/${e.status}] ${e.topic ?? 'memory'} ${e.summary ?? e.id}`;
+    // Memory freshness marker (Claude Code pattern: "This memory is N days old")
+    const ageDays = Math.floor((now - new Date(e.ts).getTime()) / 86_400_000);
+    const freshness = ageDays > 90 ? ' ⚠stale' : ageDays > 30 ? ` ${ageDays}d` : '';
+    const line = `- [${e.type}/${e.status}] ${e.topic ?? 'memory'} ${e.summary ?? e.id}${freshness}`;
     if (used + line.length + 1 > budget) break;
     lines.push(line);
     used += line.length + 1;

@@ -88,10 +88,13 @@ async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecO
 
 /**
  * 錯誤分類結果
+ * message: 人類可讀的描述
+ * modelGuidance: 給 model 的下一步指引（Claude Code 設計原則: error messages are model context）
  */
 interface ErrorClassification {
   type: 'TIMEOUT' | 'RATE_LIMIT' | 'NOT_FOUND' | 'PERMISSION' | 'MAX_BUFFER' | 'UNKNOWN';
   message: string;
+  modelGuidance: string;
   retryable: boolean;
 }
 
@@ -109,35 +112,35 @@ function classifyError(error: unknown): ErrorClassification {
   const combined = `${msg}\n${stderr}`.toLowerCase();
 
   if (combined.includes('enoent') || combined.includes('not found')) {
-    return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。' };
+    return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。', modelGuidance: 'Claude CLI is not installed or not in PATH. This is a system configuration issue — do not retry. Report to user and suggest checking PATH.' };
   }
   // Exit 143 = SIGTERM (128+15) — context 過大或系統資源不足
   if (exitCode === 143) {
-    return { type: 'TIMEOUT', retryable: true, message: 'Claude CLI 被 SIGTERM 終止（exit 143）。可能是 context 過大或系統資源不足。' };
+    return { type: 'TIMEOUT', retryable: true, message: 'Claude CLI 被 SIGTERM 終止（exit 143）。可能是 context 過大或系統資源不足。', modelGuidance: 'Context was likely too large. On retry, use a more focused prompt — strip non-essential context, reduce conversation history, and focus on the core task only.' };
   }
   // Duration-based timeout detection — catches race conditions where timedOut flag wasn't set
   // (e.g. process killed externally by OOM or system pressure before our timer fired)
   if (duration && timeoutMs && duration > timeoutMs * 0.9 && exitCode === null) {
-    return { type: 'TIMEOUT', retryable: true, message: `處理超時（${Math.round(duration / 1000)}s）。進程可能被系統終止${signal ? `（signal: ${signal}）` : ''}。` };
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（${Math.round(duration / 1000)}s）。進程可能被系統終止${signal ? `（signal: ${signal}）` : ''}。`, modelGuidance: 'Process likely killed by OOM or system pressure. On retry, reduce context size significantly and simplify the request.' };
   }
   // External signal detection — process terminated by signal but not our timeout
   if (signal && exitCode === null && !killed) {
-    return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。` };
+    return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。`, modelGuidance: `Process killed by signal ${signal}. This is likely a system resource issue — reduce context size on retry.` };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 25} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。` };
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 25} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。`, modelGuidance: 'The task took too long. On retry, break it into smaller steps — do one thing at a time instead of trying to accomplish everything in a single call.' };
   }
   if (combined.includes('maxbuffer')) {
-    return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。' };
+    return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。', modelGuidance: 'Response exceeded output buffer. Do NOT retry with the same prompt. Reformulate to request a shorter, more focused response — e.g., ask for a summary instead of full content.' };
   }
   if (combined.includes('credit balance') || combined.includes('billing')) {
-    return { type: 'RATE_LIMIT', retryable: false, message: 'Anthropic API 餘額不足。Claude Lane 已設定走 CLI 訂閱，請確認 ANTHROPIC_API_KEY 未洩漏到子進程。' };
+    return { type: 'RATE_LIMIT', retryable: false, message: 'Anthropic API 餘額不足。Claude Lane 已設定走 CLI 訂閱，請確認 ANTHROPIC_API_KEY 未洩漏到子進程。', modelGuidance: 'API credits exhausted. Do NOT retry — this requires human intervention (billing). Switch to local model if available, or defer the task.' };
   }
   if (combined.includes('rate limit') || combined.includes('429')) {
-    return { type: 'RATE_LIMIT', retryable: true, message: 'Claude API 達到速率限制，稍後自動重試。' };
+    return { type: 'RATE_LIMIT', retryable: true, message: 'Claude API 達到速率限制，稍後自動重試。', modelGuidance: 'Rate limited — automatic retry with backoff is handling this. Do not change your strategy or prompt, just wait.' };
   }
   if (combined.includes('access denied') || (combined.includes('permission') && !combined.includes('skip-permissions'))) {
-    return { type: 'PERMISSION', retryable: false, message: '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。' };
+    return { type: 'PERMISSION', retryable: false, message: '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。', modelGuidance: 'Permission denied. Do NOT retry the same operation. Try an alternative approach that does not require elevated permissions, or report to user.' };
   }
 
   // Try to extract useful info from stderr
@@ -145,11 +148,11 @@ function classifyError(error: unknown): ErrorClassification {
     const lines = stderr.trim().split('\n').filter((l: string) => l.trim());
     const lastLine = lines[lines.length - 1] || '';
     if (lastLine.length > 10 && lastLine.length < 300) {
-      return { type: 'UNKNOWN', retryable: true, message: `Claude CLI 執行失敗：${lastLine}` };
+      return { type: 'UNKNOWN', retryable: true, message: `Claude CLI 執行失敗：${lastLine}`, modelGuidance: `Unexpected error: "${lastLine}". On retry, try simplifying the prompt. If this recurs, it may be a systemic issue — log it and move on.` };
     }
   }
 
-  return { type: 'UNKNOWN', retryable: true, message: '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。' };
+  return { type: 'UNKNOWN', retryable: true, message: '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。', modelGuidance: 'Unknown error occurred. On retry, simplify the request. If this keeps happening, defer the task and report the issue.' };
 }
 
 // =============================================================================
@@ -1456,7 +1459,7 @@ export async function callClaude(
         'callClaude'
       );
 
-      lastErrorMessage = classified.message;
+      lastErrorMessage = `${classified.message}\n[Model Guidance: ${classified.modelGuidance}]`;
 
       // 如果可重試且還有機會，等待後重試
       if (classified.retryable && attempt < maxRetries) {
@@ -1538,7 +1541,7 @@ export async function callClaude(
         }
       }
 
-      return { response: classified.message, systemPrompt, fullPrompt, duration };
+      return { response: `${classified.message}\n[Model Guidance: ${classified.modelGuidance}]`, systemPrompt, fullPrompt, duration };
     } finally {
       setBusy(false);
       setTask(null);

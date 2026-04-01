@@ -78,6 +78,8 @@ const MAX_TIMEOUT_CAP = 600_000; // 10 min
 const DEFAULT_TIMEOUT = 300_000; // 5 min
 const DEFAULT_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
 const OUTPUT_TAIL_CHARS = 5000;
+/** @DANGEROUS _reason: unbounded output accumulation caused Claude Code's 36.8GB memory incident */
+const MAX_OUTPUT_BUFFER_CHARS = 200_000; // 200KB hard cap on raw output accumulation
 const BROWSER_ROUTING_KEYWORDS = [
   'CDP',
   'click',
@@ -253,6 +255,7 @@ function forgeYolo(worktreePath: string, mainDir: string, message: string): bool
   }
 }
 
+/** @DANGEROUS _reason: merges worktree changes into main directory, then deletes worktree — irreversible file changes */
 function forgeCleanup(worktreePath: string, mainDir: string): void {
   try {
     forgeExec(`cleanup "${worktreePath}"`, mainDir);
@@ -943,11 +946,19 @@ function startTask(task: DelegationTask): void {
   const outputPath = path.join(dir, 'output.txt');
 
   child.stdout?.on('data', (chunk: Buffer) => {
-    output += chunk.toString();
+    if (output.length < MAX_OUTPUT_BUFFER_CHARS) {
+      output += chunk.toString();
+      if (output.length >= MAX_OUTPUT_BUFFER_CHARS) {
+        output = output.slice(0, MAX_OUTPUT_BUFFER_CHARS) + `\n[TRUNCATED: output exceeded ${MAX_OUTPUT_BUFFER_CHARS} chars — keeping first ${MAX_OUTPUT_BUFFER_CHARS} chars]`;
+        slog('DELEGATION', `Output buffer cap reached for ${taskId} (${MAX_OUTPUT_BUFFER_CHARS} chars)`);
+      }
+    }
   });
 
   child.stderr?.on('data', (chunk: Buffer) => {
-    output += chunk.toString();
+    if (output.length < MAX_OUTPUT_BUFFER_CHARS) {
+      output += chunk.toString();
+    }
   });
 
   // Timeout handler

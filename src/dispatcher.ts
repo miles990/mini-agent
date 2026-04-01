@@ -7,6 +7,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { appendFileSync } from 'node:fs';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, getMemoryStateDir, clearReviewedDelegations, type CycleMode } from './memory.js';
 import { getClaudeMdJIT } from './claudemd-jit.js';
@@ -1190,7 +1191,38 @@ export async function postProcess(
   // 5. Clear reviewed delegations from persistent backlog (fire-and-forget)
   try { clearReviewedDelegations(response, getCurrentInstanceId()); } catch { /* best effort */ }
 
-  // 6. Log call
+  // 6. Passive memory extraction heuristic (Claude Code pattern: lightweight, zero LLM cost)
+  // Detects implicit feedback/corrections that model didn't explicitly [REMEMBER]
+  if (tags.remembers.length === 0 && userMessage.length > 10) {
+    const userLower = userMessage.toLowerCase();
+    const correctionPatterns = [
+      /不[是要對]這樣/, /別這[樣麼]做/, /不要[再用]/, /錯了/, /不是這個/,
+      /stop\s+(doing|using)/i, /don'?t\s+(do|use|add)/i, /wrong/i, /no[,.]?\s+(not|don)/i,
+    ];
+    const referencePatterns = [
+      /https?:\/\/\S+/, // URLs — potential reference memories
+    ];
+
+    const isCorrection = correctionPatterns.some(p => p.test(userMessage));
+    const hasNewUrl = referencePatterns.some(p => p.test(userMessage));
+
+    if (isCorrection || hasNewUrl) {
+      const pendingPath = path.join(memory.getMemoryDir(), 'pending-memories.jsonl');
+      const entry = {
+        ts: new Date().toISOString(),
+        type: isCorrection ? 'feedback' : 'reference',
+        trigger: isCorrection ? 'correction-detected' : 'url-detected',
+        userMessage: userMessage.slice(0, 300),
+        context: tags.cleanContent.slice(0, 200),
+      };
+      try {
+        appendFileSync(pendingPath, JSON.stringify(entry) + '\n');
+        slog('PASSIVE-EXTRACT', `${entry.type}: ${entry.trigger} — "${userMessage.slice(0, 80)}"`);
+      } catch { /* fire-and-forget */ }
+    }
+  }
+
+  // 7. Log call
   logger.logClaudeCall(
     {
       userMessage,
