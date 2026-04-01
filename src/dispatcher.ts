@@ -665,6 +665,16 @@ export async function postProcess(
     // Update memory index (fire-and-forget)
     addIndexEntry(memory.getMemoryDir(), rem.content, rem.topic).catch(() => {});
 
+    // Semantic enrichment — generate synonyms/translations for FTS5 (fire-and-forget)
+    import('./search.js').then(({ enrichMemoryEntry, updateEnrichment }) => {
+      enrichMemoryEntry(rem.content).then(enriched => {
+        if (enriched) {
+          const source = rem.topic ? `${rem.topic}.md` : 'MEMORY.md';
+          updateEnrichment(source, rem.content, enriched);
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+
     // Learning→Perception classifier: categorize + log actionable items
     const category = classifyRemember(rem.content, rem.topic);
     eventBus.emit('action:memory', { content: rem.content, topic: rem.topic, category });
