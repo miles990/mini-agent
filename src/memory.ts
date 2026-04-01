@@ -989,9 +989,15 @@ export class InstanceMemory {
    * Cross-Pollination Digest: 從每個 topic 隨機抽 n 條 entry，放在一起找跨域連結
    * 注入 reflect mode prompt，幫助發現隱藏的知識連結
    */
-  async getCrossPollinationDigest(n = 2, maxTopics = 8): Promise<string> {
+  async getCrossPollinationDigest(n = 2, maxTopics = 8, excludeTopics?: Set<string>): Promise<string> {
     let topics = await this.listTopics();
     if (topics.length === 0) return '';
+
+    // P1-7: Exclude topics already loaded in buildContext to avoid duplicate surfacing
+    if (excludeTopics && excludeTopics.size > 0) {
+      topics = topics.filter(t => !excludeTopics.has(t));
+      if (topics.length === 0) return '';
+    }
 
     // Shuffle and limit topics to control context budget
     if (topics.length > maxTopics) {
@@ -1027,7 +1033,7 @@ export class InstanceMemory {
    * Forgotten Entries: 找出 hit count = 0 且 age > maxAge 天的 topic entries
    * 利用 .topic-hits.json 判斷「被遺忘的知識」
    */
-  async getForgottenEntries(maxAgeDays = 7, limit = 5): Promise<string> {
+  async getForgottenEntries(maxAgeDays = 7, limit = 5, excludeTopics?: Set<string>): Promise<string> {
     const hitsPath = path.join(this.memoryDir, '.topic-hits.json');
     let hits: Record<string, number> = {};
     try {
@@ -1042,6 +1048,8 @@ export class InstanceMemory {
 
     const topics = await this.listTopics();
     for (const topic of topics) {
+      // P1-7: Skip topics already loaded in buildContext
+      if (excludeTopics && excludeTopics.has(topic)) continue;
       const content = await this.readTopicMemory(topic);
       if (!content) continue;
       for (const line of content.split('\n').filter(l => l.startsWith('- ['))) {

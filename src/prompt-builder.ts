@@ -337,9 +337,11 @@ export async function buildAutonomousPrompt(
   const threadSection = await buildThreadsPromptSection();
 
   // Inject rumination material for reflect mode
+  // P1-7: Exclude topics already loaded in buildContext to avoid duplicate surfacing
+  const alreadySurfaced = new Set(memory.getLoadedTopics());
   const [digest, forgotten, unexpressedImpulses] = await Promise.all([
-    memory.getCrossPollinationDigest(1),
-    memory.getForgottenEntries(7, 3),
+    memory.getCrossPollinationDigest(1, 8, alreadySurfaced),
+    memory.getForgottenEntries(7, 3, alreadySurfaced),
     memory.getUnexpressedImpulses(),
   ]);
   const ruminationSection = (digest || forgotten)
