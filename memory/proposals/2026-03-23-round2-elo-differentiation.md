@@ -65,16 +65,19 @@
 **風險**：中。視覺改動需要修改 generate-slides.mjs，且需要測試渲染效果。
 **優先級**：比 prompt 改進低，因為改動成本較高。
 
-### 4. Non-STEM Topic Handling（非 STEM 題目準備）
+### 4. Non-STEM Topic Handling（非 STEM 題目準備） ✅ DONE (901e6b7)
 
 **問題**：Round 2 是評審出題，可能出現更 nuanced 或跨領域的題目。目前 prompt 偏重 STEM 公式處理。
 
-**改進**：
-- 強化非 STEM 的 `latex_content` 指引 — 歷史時間軸、生物結構圖、程式 pseudocode 的具體範例
-- 加入 "interdisciplinary bridge" 指引 — 當題目橫跨多學科時的處理策略
-- 確保 ZPD 分析也適用於非公式型知識
+**已落地**：
+- ✅ Planning: structural element budget 取代 formula budget（非 STEM 用 timelines, cause-effect chains, concept maps）
+- ✅ Planning: interdisciplinary bridge 策略（從學生強項領域切入）
+- ✅ Section design: "formalize" 定義擴展到所有學科（thesis statement, literary device, design pattern）
+- ✅ Script gen: structural element density 概念（跟 formula density 平行）
+- ✅ Review: 非 STEM structural element 檢查 + interdisciplinary bridge 驗證
+- ✅ ZPD 分析本身已是學科中立的（問 prior knowledge + misconceptions，不假設公式）
 
-**風險**：低。Prompt 擴展，不改架構。
+**風險**：低。純 prompt 擴展，零 pipeline 邏輯改動。
 
 ### 5. Kokoro TTS Prosody Enhancement（語音表現力）
 
