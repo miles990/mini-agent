@@ -83,9 +83,26 @@ export function initSearchIndex(dbPath: string, memoryDir?: string): void {
         source,
         date,
         content,
+        enriched,
         tokenize="unicode61"
       );
     `);
+
+    // Schema migration: detect missing enriched column → rebuild
+    try {
+      const cols = db.prepare("PRAGMA table_info(memory_fts)").all() as Array<{ name: string }>;
+      if (cols.length > 0 && !cols.some(c => c.name === 'enriched')) {
+        db.exec('DROP TABLE IF EXISTS memory_fts');
+        db.exec(`
+          CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+            source, date, content, enriched,
+            tokenize="unicode61"
+          );
+        `);
+        if (memoryDir) indexMemoryFiles(memoryDir);
+      }
+    } catch { /* FTS5 PRAGMA may fail — ignore, CREATE IF NOT EXISTS handles it */ }
+
     ensureConversationTable();
     ensureConversationIndexStateTable();
 
@@ -247,10 +264,10 @@ export function indexMemoryFiles(memoryDir: string): number {
     }
 
     // Bulk insert with transaction
-    const insert = db.prepare('INSERT INTO memory_fts (source, date, content) VALUES (?, ?, ?)');
+    const insert = db.prepare('INSERT INTO memory_fts (source, date, content, enriched) VALUES (?, ?, ?, ?)');
     const insertAll = db.transaction((entries: typeof allEntries) => {
       for (const entry of entries) {
-        insert.run(entry.source, entry.date, entry.content);
+        insert.run(entry.source, entry.date, entry.content, '');
       }
     });
 
@@ -617,6 +634,7 @@ export function rebuildIndex(memoryDir: string): number {
         source,
         date,
         content,
+        enriched,
         tokenize="unicode61"
       );
     `);
