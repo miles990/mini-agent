@@ -580,6 +580,11 @@ async function cmdFetch(url, flags = {}) {
     await cdpCommand(ws, 'Page.enable');
     await cdpCommand(ws, 'Runtime.enable');
 
+    // Set viewport (avoid responsive "screen too small" pages)
+    await cdpCommand(ws, 'Emulation.setDeviceMetricsOverride', {
+      width: 1280, height: 960, deviceScaleFactor: 2, mobile: false,
+    }).catch(() => {});
+
     // Anti-automation: override navigator.webdriver before page load (stealth)
     await cdpCommand(ws, 'Page.addScriptToEvaluateOnNewDocument', {
       source: 'Object.defineProperty(navigator, "webdriver", { get: () => undefined });'
