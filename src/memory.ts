@@ -2431,6 +2431,11 @@ export class InstanceMemory {
 
       const keywordMap = await loadTopicKeywordMap(this.memoryDir);
 
+      // P1-4: Semantic ranking — identifies relevant topics that keywords might miss
+      // Uses Haiku sideQuery (cached 5min) to find cross-topic semantic connections
+      const semanticTopics = await semanticRankTopics(topics, this.memoryDir, contextHint);
+      const semanticSet = new Set(semanticTopics ?? []);
+
       const loadedTopics: string[] = [];
       const topicMenuItems: string[] = [];
       // R6: Removed INDEX_EXTRA_TOPIC_CAP — FTS5-backed index provides scored results,
@@ -2448,7 +2453,9 @@ export class InstanceMemory {
         });
         // R6: Memory-index boosting — no hard cap, rely on budget control
         const isIndexMatch = !isKeywordMatch && (indexRelevantTopics?.has(topic) ?? false);
-        const isDirectMatch = isKeywordMatch || isIndexMatch;
+        // P1-4: Semantic match — Haiku identified this topic as relevant to the conversation
+        const isSemanticMatch = !isKeywordMatch && !isIndexMatch && semanticSet.has(topic);
+        const isDirectMatch = isKeywordMatch || isIndexMatch || isSemanticMatch;
 
         const heat = topicHeat[topic] ?? 0;
 
