@@ -4,7 +4,7 @@
 # Reads from Agora API, tracks cursor per discussion.
 # stdout 會被包在 <agora-inbox>...</agora-inbox> 中注入 context
 
-AGORA_URL="${AGORA_URL:-http://localhost:3004}"
+AGORA_URL="${AGORA_URL:-http://localhost:3005}"
 AGORA_API_KEY="${AGORA_API_KEY:-}"
 CURSOR_FILE="$HOME/.mini-agent/state/agora-cursors.json"
 

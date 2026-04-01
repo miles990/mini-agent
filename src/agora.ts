@@ -7,7 +7,7 @@
 
 import { getLogger } from './logging.js';
 
-const AGORA_URL = process.env['AGORA_URL'] || 'http://localhost:3004';
+const AGORA_URL = process.env['AGORA_URL'] || 'http://localhost:3005';
 const AGORA_API_KEY = process.env['AGORA_API_KEY'] || '';
 
 export interface AgoraMessage {
