@@ -412,3 +412,24 @@ Section Writing (write within the constrained scope)
 1. 同一模型（STEP1）既規劃又省略 → 是否有「生產偏向」需要實際產出驗證
 2. 獨立 withholding stage（完整版）是否比 prompt-in-same-call 效果更好 → 需 A/B test
 3. 上述兩點都需要跑 pipeline 才能回答，等 Alex 觸發
+- [2026-04-01] ## WR2 品質抽查分析（2026-04-01 21:30）
+
+### 重大發現：所有 WR2 requests 的 student_profile 為 null
+WR1 每題都有隨機學生 persona（年齡、學習風格、動機等），WR2 完全沒有。這代表：
+1. Adaptability 評分基準可能變化 — 沒有 persona 時「適配」可能改評「主題適配」而非「學生適配」
+2. 我們的 adaptation visibility 改進（f6309fb）在無 persona 時部分失效 — pipeline 必須自行推斷 level
+3. 題目由評審委員設計（非 LLM 生成），更 nuanced 更挑戰
+
+### Level Inference 品質
+Pipeline 在 null persona 下自行推斷教學 level：
+- ✅ 正確（~90%）：AP Physics→高中/大學，AP Bio→大學，AP CS→高中 AP 級
+- 🔴 嚴重偏差（1/28）：celery_445 AP Physics "Static Friction" → Elementary school (age 6-12)，完全移除公式/代數
+- 根因推測：prompt 沒有明確的「無 persona 時 default 到 AP level」的 instruction
+
+### 影片時長
+28 支影片平均時長 ~14 分鐘（678-1181 秒）。比 WR1 重建後的平均長很多。
+
+### 初賽前必修（Priority Action Items）
+- [ ] **FIX**: null persona fallback logic — 偵測 AP/IB topic 時 default 到對應 level（不是 random）
+- [ ] 確認 level inference prompt 有 "when no student profile is provided, infer level from course framework" 指令
+- [ ] 追蹤：AI evaluator 在 null persona 時的 Adaptability 評分行為（WR2 分數出來後比對）
