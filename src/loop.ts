@@ -2857,18 +2857,23 @@ export class AgentLoop {
       return 'light';
     }
 
+    // Heartbeat/cron without new info — routine check-in, light context suffices
+    if (['heartbeat', 'cron'].some(s => trigger.startsWith(s)) && !opts.hasNewInbox && !opts.perceptionChanged) {
+      return 'light';
+    }
+
     // Continuation — keep focused depth
     if (trigger.startsWith('continuation')) {
       return 'focused';
     }
 
-    // Perception changed significantly — need full awareness
-    if (opts.perceptionChanged) {
+    // Perception changed or new inbox — need focused awareness
+    if (opts.perceptionChanged || opts.hasNewInbox) {
       return 'focused';
     }
 
-    // Default for scheduled/cron/heartbeat/startup
-    return 'focused';
+    // Default — light for routine cycles
+    return 'light';
   }
 
   /** Detect cycle mode for JIT skill loading — delegates to prompt-builder.ts */
