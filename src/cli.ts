@@ -1484,7 +1484,7 @@ async function runChat(port: number): Promise<void> {
     perceptionStreams.start(enabledPerceptions, composeDir);
   }
 
-  const server = app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     console.log(`Mini-Agent - Memory + Cron + Loop`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);

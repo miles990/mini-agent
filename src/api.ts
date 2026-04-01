@@ -2916,7 +2916,7 @@ if (isMain) {
   initClaudeMdJIT(); // parse CLAUDE.md sections for JIT loading
   initActivityJournal();
 
-  const server = app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
     const cronCount = getCronTaskCount();
     if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
