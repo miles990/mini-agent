@@ -5,8 +5,50 @@
  * For advanced web access (CDP, Grok, etc.), use plugins/web-fetch.sh.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { slog, diagLog } from './utils.js';
 import { eventBus } from './event-bus.js';
+
+// =============================================================================
+// Grok API — X/Twitter fetch (primary for x.com / twitter.com URLs)
+// =============================================================================
+
+function xaiKey(): string | undefined {
+  if (process.env['XAI_API_KEY']) return process.env['XAI_API_KEY'];
+  try {
+    const content = readFileSync(join(process.cwd(), '.env'), 'utf-8');
+    const m = content.match(/^XAI_API_KEY=(.+)$/m);
+    return m?.[1]?.replace(/\s*#.*$/, '').trim();
+  } catch { return undefined; }
+}
+
+async function grokFetch(url: string): Promise<string | null> {
+  const apiKey = xaiKey();
+  if (!apiKey) return null;
+  try {
+    const isArticle = /x\.com\/i\/article|x\.com\/\w+\/article/i.test(url);
+    const instructions = isArticle
+      ? 'Read this X article in full. Return the complete text content, author, and any key points. Plain text, no markdown.'
+      : 'Read this tweet/post and return its full content: author, text, engagement stats. If it quotes or links to another post/article, include that too. Plain text, no markdown.';
+    const resp = await fetch('https://api.x.ai/v1/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'grok-4',
+        tools: [{ type: 'x_search' }],
+        instructions,
+        input: url,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json() as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
+    const msg = data.output?.find(o => o.type === 'message');
+    const text = msg?.content?.find(c => c.type === 'output_text')?.text;
+    return text && text.length > 50 ? text : null;
+  } catch { return null; }
+}
 
 // =============================================================================
 // Types
@@ -37,6 +79,16 @@ export async function fetchPage(
 ): Promise<FetchResult> {
   const timeout = options?.timeout ?? 15_000;
   const maxLength = options?.maxLength ?? 50_000;
+
+  // X/Twitter → Grok API first (native access, no login wall)
+  if (/x\.com|twitter\.com/i.test(url)) {
+    const grokText = await grokFetch(url);
+    if (grokText) {
+      slog('WEB', `✓ ${url} via grok (${grokText.length}B)`);
+      return { url, title: '', text: grokText, byteLength: grokText.length, fetchedAt: new Date().toISOString() };
+    }
+    slog('WEB', `grok failed for ${url}, falling back to http`);
+  }
 
   try {
     const controller = new AbortController();

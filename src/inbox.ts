@@ -11,6 +11,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { slog } from './utils.js';
+import { fetchPage } from './web.js';
 import type { InboxItem } from './types.js';
 import { classifyInboxMessage } from './inbox-processor.js';
 
@@ -556,22 +557,10 @@ async function prefetchUrls(urls: string[], depth = 0): Promise<void> {
         if (Date.now() - stat.mtimeMs < 3600_000) continue;
       }
 
-      let text = '', title = '', layer = '';
-
-      // X/Twitter → Grok API 優先
-      if (/x\.com|twitter\.com/i.test(url)) {
-        const apiKey = loadEnvKey('XAI_API_KEY');
-        if (apiKey) {
-          const result = await fetchViaGrok(url, apiKey);
-          if (result) { text = result; layer = 'grok'; }
-        }
-      }
-
-      // Fallback: HTTP fetch + HTML strip
-      if (!text) {
-        const result = await fetchViaHttp(url);
-        if (result) { text = result.text; title = result.title; layer = 'http'; }
-      }
+      const fetched = await fetchPage(url, { timeout: 45_000 });
+      const text = fetched.error ? '' : fetched.text;
+      const title = fetched.title;
+      const layer = /x\.com|twitter\.com/i.test(url) ? 'grok' : 'http';
 
       if (text && text.length > 50) {
         writeWebCache(url, layer, text, title);
@@ -592,66 +581,6 @@ async function prefetchUrls(urls: string[], depth = 0): Promise<void> {
   if (depth === 0 && secondaryUrls.length > 0) {
     await prefetchUrls(secondaryUrls.slice(0, 2), 1).catch(() => {});
   }
-}
-
-function loadEnvKey(key: string): string | undefined {
-  if (process.env[key]) return process.env[key];
-  try {
-    const envPath = path.join(process.cwd(), '.env');
-    const content = fs.readFileSync(envPath, 'utf-8');
-    const match = content.match(new RegExp(`^${key}=(.+)$`, 'm'));
-    return match?.[1]?.replace(/\s*#.*$/, '').trim();
-  } catch { return undefined; }
-}
-
-async function fetchViaGrok(url: string, apiKey: string): Promise<string | null> {
-  try {
-    // X article URL → 更長 timeout + 展開指令
-    const isArticle = /x\.com\/i\/article|x\.com\/\w+\/article/i.test(url);
-    const instructions = isArticle
-      ? 'Read this X article in full. Return the complete text content, author, and any key points. Plain text, no markdown.'
-      : 'Read this tweet/post and return its full content: author, text, engagement stats. If it quotes or links to another post/article, include that content too. Plain text, no markdown.';
-    const timeout = isArticle ? 30000 : 15000;
-
-    const resp = await fetch('https://api.x.ai/v1/responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'grok-4-1-fast',
-        tools: [{ type: 'x_search' }],
-        instructions,
-        input: url,
-      }),
-      signal: AbortSignal.timeout(timeout),
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json() as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
-    const msg = data.output?.find(o => o.type === 'message');
-    const text = msg?.content?.find(c => c.type === 'output_text')?.text;
-    return text && text.length > 50 ? text : null;
-  } catch { return null; }
-}
-
-async function fetchViaHttp(url: string): Promise<{ text: string; title: string } | null> {
-  try {
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MiniAgent/1.0)' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok) return null;
-    const ct = resp.headers.get('content-type') ?? '';
-    if (!ct.includes('text/html') && !ct.includes('text/plain')) return null;
-    const html = await resp.text();
-    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    const title = titleMatch?.[1]?.trim() ?? '';
-    const text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      .replace(/\s+/g, ' ').trim();
-    return text.length > 50 ? { text: text.slice(0, 50_000), title } : null;
-  } catch { return null; }
 }
 
 function writeWebCache(url: string, layer: string, content: string, title?: string): void {
