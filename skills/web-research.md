@@ -190,7 +190,7 @@ curl -s --max-time 45 "https://api.x.ai/v1/responses" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $XAI_API_KEY" \
   -d '{
-    "model": "grok-4-1-fast",
+    "model": "grok-4",
     "tools": [{"type": "x_search", "x_search": {"enable_video_understanding": true}}],
     "instructions": "Read this post and all replies. Summarize: who posted, full content, key replies, engagement stats. If there is video, describe its content. Plain text, no markdown.",
     "input": "URL_HERE"
