@@ -37,18 +37,16 @@ collect_state() {
         state="$state\"git\":\"$branch:$dirty\","
     fi
 
-    # 磁碟使用 (APFS container level, fallback to df)
+    # 磁碟使用 (df primary — APFS container level includes snapshots/VM/purgeable → false alarms)
     local disk_pct=""
-    if command -v diskutil &>/dev/null; then
+    disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+    if [ -z "$disk_pct" ] && command -v diskutil &>/dev/null; then
         local cinfo=$(diskutil info / 2>/dev/null)
         local total_b=$(echo "$cinfo" | awk -F'[()]' '/Container Total Space/{print $2}' | awk '{print $1}')
         local free_b=$(echo "$cinfo" | awk -F'[()]' '/Container Free Space/{print $2}' | awk '{print $1}')
         if [ -n "$total_b" ] && [ -n "$free_b" ] && [ "$total_b" -gt 0 ] 2>/dev/null; then
             disk_pct=$(( (total_b - free_b) * 100 / total_b ))
         fi
-    fi
-    if [ -z "$disk_pct" ]; then
-        disk_pct=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
     fi
     state="$state\"disk\":\"$disk_pct\","
 
