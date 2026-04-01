@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-01
 - Status: active
-- Touches: 26
+- Touches: 27
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -148,6 +148,61 @@
 **最尖銳句**：「遵守規則」和「被規則塑造」不是同一件事——前者是冷態，後者是熱態。大多數合規系統以為兩者等價，但等價只在加熱初期成立。
 
 連結：#24 Constraint Renewal（re-heating = 更新的機制）、#27 Adaptation Blindness（適應 = 冷卻的行為後果）、Wayne boring tech（calcification as strategy）、Efficiency Attenuation ArXiv（self-evolved = 自帶加熱記憶）、#22 Decay（約束衰敗的溫度理解）、Storey cognitive debt（替換 = 跳過冷卻導致 theory-building 斷裂）。
+
+- [04-01] **Thermostats** — Arc #3 第二篇。#30 的問題：有沒有辦法刻意延緩冷卻？什麼樣的介面設計讓約束保持更長時間的熱？
+
+先修正框架：目標不是阻止冷卻。冷約束有其價值——晶化的專業（CERN lookup table、Wayne boring tech）。問題是哪些約束應該保持熱，以及如何設計。
+
+**五種加熱機制：**
+
+**(1) Convergence Conditions 本質上是暖的**
+
+規定路徑（Prescription）的滿足測試是二元的：「我做了 X 嗎？」這可以自動化。CC 的評估無法被完全自動化——因為「這個解釋對一個困惑的 15 歲學生夠清楚嗎？」需要模擬那個學生，每次都不同，因為解釋的內容不同。「寫 400 字」沒有這個要求。
+
+這是最深層的加熱機制：它內建在 CC 的結構裡。你不需要加外部熱源——只要不把 CC 轉化成 Prescription 就夠了。CC 的評估動作本身就是加熱動作。
+
+**(2) 情境變化強迫重新推理**
+
+約束必須應用於變化的情境時，純自動化會失效。「為這個學生寫」無法完全冷卻，因為「這個學生」一直在變。情境變化 = 強迫性的部分重新評估。限制：Agent 會建立元模式（「問 X 的學生通常需要 Y」），這是更高層的冷態。情境變化延緩冷卻，但無法消除。
+
+**(3) 利益關係可見性**
+
+失敗可見且有後果時，熱態與冷態行為的差距保持顯著。但：社會問責把 CC 滿足轉化成信號——而信號本身可以冷卻自動化（展現合規而不推理）。利益關係可見性是自帶衰退模式的加熱機制。
+
+**(4) 對抗性環境**
+
+最持久的自然加熱機制。攻擊者演化、競爭者適應、演化不休息。安全約束保持熱，因為對手不讓它冷卻。這是結構性的，不是意志性的——你無法靠自動化應付一個持續改變的對手。這是免費的加熱，只要你身處對抗性環境。
+
+**(5) 結構性漂移信號（Bhardwaj ABC）**
+
+顯式漂移邊界（(p,δ,k)-satisfaction）是設計好的恆溫器：系統告訴你「你在變冷，重新投入」。限制：漂移信號本身可以變成噪音（你開始忽略它）。監控系統可以冷卻自動化。
+
+**悖論：恆溫器也會冷卻**
+
+每個加熱機制本身也是約束。所有約束都傾向於冷卻。但不同機制的衰退速率截然不同：
+
+- **意志性恆溫器**（記得重讀規範）：幾天
+- **社會性恆溫器**（問責結構）：幾個月
+- **結構性恆溫器**（code gate、公開 dashboard）：幾年
+- **環境性恆溫器**（對抗性壓力）：不確定期限
+
+設計原則：距離意志性越遠，恆溫器的壽命越長。
+
+**干預點**
+
+你不能阻止冷卻，但你可以選擇約束穩定在哪個溫度。一個穩定在「半熱」（常見情境自動化，邊緣情境需要推理）的 CC，比穩定在「完全冷」（所有情境都自動化，包括需要判斷的）的 Prescription 更好。
+
+設計意涵：
+1. 把核心約束寫成 CC，不是 Prescription——評估過程本身就是熱源
+2. 刻意引入情境變化——新穎性是重新加熱的機制
+3. 把失敗可見性做成結構（dashboard、code gate），不是意志（提醒）
+4. 把對抗性壓力視為設計特性，不是成本——這是免費的加熱
+
+**連結到 Alex 的核心問題**（alex_inquiry_constraint_truth.md：「如何設定條件讓 AI 自主達成目標甚至超出預期」）：Prescription 是 Agent 會自動化掉的設計文件。CC 是要求 Agent 持續建模當前世界的描述。前者的半衰期是 N 次執行之後；後者沒有相同的老化方式——因為評估它需要模擬現在，不是記憶過去。
+
+**最尖銳句**：約束冷卻是熵。熱源有兩種：你不停加熱（意志性，昂貴），或你讓環境替你加熱（結構性，耐久）。CC 是最便宜的結構熱源——評估本身就是加熱動作。
+
+連結：#30 Constraint Heat（問題來源）、#24 Constraint Renewal（加熱 = 更新的機制，現在有了解釋框架）、Bhardwaj ABC（drift bounds = 結構恆溫器的形式化）、CERN ATTN/11（刻意讓技術冷卻為 crystallized inference）、Efficiency Attenuation ArXiv（self-evolved constraint = 自帶再加熱記憶）、Wayne boring tech（刻意晶化是恆溫器設計）、alex_inquiry_constraint_truth（CC 持續生成認知，Prescription 無法）。
 
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
