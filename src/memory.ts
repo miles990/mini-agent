@@ -577,20 +577,23 @@ async function semanticRankTopics(
   try {
     const { sideQuery } = await import('./side-query.js');
 
-    // Build manifest: one line per topic (name + first content line + age)
+    // Build manifest: one line per topic (name + description/first-line + age)
     const topicsDir = path.join(memoryDir, 'topics');
     const manifest: string[] = [];
     for (const topic of topics) {
       try {
         const content = await fs.readFile(path.join(topicsDir, `${topic}.md`), 'utf-8');
         const lines = content.split('\n').filter(l => l.trim());
-        // Skip frontmatter-like lines (---), get first real content line
-        const firstLine = lines.find(l => !l.startsWith('---') && !l.startsWith('keywords:') && !l.startsWith('negative:') && !l.startsWith('related:'))
-          ?? topic;
+        // Prefer frontmatter `description:` field (curated, concise) over first content line
+        const descLine = lines.find(l => l.startsWith('description:'));
+        const desc = descLine
+          ? descLine.slice('description:'.length).trim().replace(/^["']|["']$/g, '')
+          : (lines.find(l => !l.startsWith('---') && !l.startsWith('keywords:') && !l.startsWith('negative:') && !l.startsWith('related:') && !l.startsWith('description:'))
+            ?? topic);
         const stat = statSync(path.join(topicsDir, `${topic}.md`));
         const ageDays = Math.floor((Date.now() - stat.mtimeMs) / 86_400_000);
         const age = ageDays > 30 ? `${ageDays}d old` : 'recent';
-        manifest.push(`- ${topic}: ${firstLine.slice(0, 80)} (${age})`);
+        manifest.push(`- ${topic}: ${desc.slice(0, 120)} (${age})`);
       } catch {
         manifest.push(`- ${topic}`);
       }
