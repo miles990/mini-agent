@@ -599,6 +599,13 @@ async function semanticRankTopics(
       }
     }
 
+    // Load cross-topic map for relationship hints (if available)
+    let crossTopicHint = '';
+    try {
+      const mapPath = path.join(topicsDir, '.summaries', '_cross-topic-map.md');
+      crossTopicHint = readFileSync(mapPath, 'utf-8').replace(/^<!--.*-->\n/gm, '').replace(/^#.*\n/gm, '').trim();
+    } catch { /* no map available */ }
+
     const prompt = `You are selecting the most relevant topic-memory files for a conversation.
 
 Current conversation context (keywords and recent messages):
@@ -606,6 +613,7 @@ Current conversation context (keywords and recent messages):
 
 Available topic files:
 ${manifest.join('\n')}
+${crossTopicHint ? `\nKnown topic relationships:\n${crossTopicHint}` : ''}
 
 Select up to ${maxResults} most relevant topics. Return ONLY a JSON array of topic names.
 Example: ["topic-a", "topic-b"]
@@ -613,6 +621,7 @@ Example: ["topic-a", "topic-b"]
 Important:
 - Only select topics directly relevant to the conversation context
 - Prefer recent topics over stale ones
+- Consider topic relationships — if one topic is relevant, related topics may be too
 - If nothing is clearly relevant, return an empty array []`;
 
     const result = await sideQuery(prompt, {

@@ -263,6 +263,26 @@ export function indexMemoryFiles(memoryDir: string): number {
       }
     }
 
+    // Parse topic summaries (Layer 1 — condensed, high-signal for search)
+    const summariesDir = path.join(topicsDir, '.summaries');
+    if (fs.existsSync(summariesDir)) {
+      const summaryFiles = fs.readdirSync(summariesDir).filter(f => f.endsWith('.md') && !f.startsWith('_'));
+      for (const file of summaryFiles) {
+        try {
+          const content = fs.readFileSync(path.join(summariesDir, file), 'utf-8')
+            .replace(/^<!--.*-->\n/gm, '').trim();
+          if (content.length > 10) {
+            const topic = file.replace(/\.md$/, '');
+            allEntries.push({
+              source: `summary:${topic}`,
+              date: new Date().toISOString().split('T')[0],
+              content,
+            });
+          }
+        } catch { /* skip */ }
+      }
+    }
+
     // Bulk insert with transaction
     const insert = db.prepare('INSERT INTO memory_fts (source, date, content, enriched) VALUES (?, ?, ?, ?)');
     const insertAll = db.transaction((entries: typeof allEntries) => {
