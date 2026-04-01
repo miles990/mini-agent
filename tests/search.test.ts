@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { initSearchIndex, closeSearchIndex } from '../src/search.js';
+import {
+  initSearchIndex,
+  closeSearchIndex,
+  updateEnrichment,
+  enrichMemoryEntry,
+  searchMemoryFTS,
+} from '../src/search.js';
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,5 +56,56 @@ describe('search enrichment', () => {
     const columns = info.map(r => r.name);
     expect(columns).toContain('enriched');
     db.close();
+  });
+
+  describe('updateEnrichment', () => {
+    it('should update enriched column and make entry searchable by enriched terms', () => {
+      initSearchIndex(dbPath);
+
+      // Insert a test entry directly via the DB
+      const db = new Database(dbPath);
+      db.prepare('INSERT INTO memory_fts (source, date, content, enriched) VALUES (?, ?, ?, ?)')
+        .run('MEMORY.md', '2026-04-01', '部署失敗了，CI pipeline timeout', '');
+      db.close();
+
+      // Update enrichment
+      const result = updateEnrichment('MEMORY.md', '部署失敗了', 'deploy fail failure 上線 出錯 錯誤 release error');
+      expect(result).toBe(true);
+
+      // Verify: search by an enriched term should find the entry
+      const hits = searchMemoryFTS('deploy');
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].content).toContain('部署失敗了');
+    });
+
+    it('should return false when no matching entry exists', () => {
+      initSearchIndex(dbPath);
+      const result = updateEnrichment('nonexistent.md', 'no such content', 'enriched terms');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for empty enriched string', () => {
+      initSearchIndex(dbPath);
+      const result = updateEnrichment('MEMORY.md', 'some content', '   ');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when db is not initialized', () => {
+      // Don't call initSearchIndex — db is null
+      const result = updateEnrichment('MEMORY.md', 'content', 'enriched');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('enrichMemoryEntry', () => {
+    it('should return empty string for short content (< 10 chars)', async () => {
+      const result = await enrichMemoryEntry('short');
+      expect(result).toBe('');
+    });
+
+    it('should return empty string for empty content', async () => {
+      const result = await enrichMemoryEntry('');
+      expect(result).toBe('');
+    });
   });
 });

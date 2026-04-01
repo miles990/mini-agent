@@ -661,6 +661,66 @@ export function isIndexReady(): boolean {
 }
 
 /**
+ * 更新指定記憶條目的 enriched 欄位（同義詞、翻譯、標籤）
+ * Fire-and-forget — 失敗不影響搜尋功能
+ *
+ * FTS5 不支援 UPDATE，需要 DELETE + INSERT。
+ * FTS5 也不支援 WHERE LIKE，所以先查出 source 匹配的所有 rows，
+ * 再在 JS 中用 content prefix 過濾。
+ */
+export function updateEnrichment(source: string, contentSnippet: string, enriched: string): boolean {
+  if (!db || !enriched.trim()) return false;
+  try {
+    const prefix = contentSnippet.slice(0, 100);
+
+    // FTS5 tables don't support LIKE or arbitrary WHERE — scan all rows and filter in JS.
+    // Personal memory is <1000 entries, so full scan is fine.
+    const rows = db.prepare(`
+      SELECT rowid, source, date, content FROM memory_fts
+    `).all() as Array<{ rowid: number; source: string; date: string; content: string }>;
+
+    const row = rows.find(r => r.source === source && r.content.startsWith(prefix));
+    if (!row) return false;
+
+    db.prepare('DELETE FROM memory_fts WHERE rowid = ?').run(row.rowid);
+    db.prepare('INSERT INTO memory_fts (source, date, content, enriched) VALUES (?, ?, ?, ?)')
+      .run(row.source, row.date, row.content, enriched);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 用 Haiku 為記憶條目生成語義豐富化標籤
+ * Returns: 同義詞、翻譯、相關概念（空格分隔）
+ * Fire-and-forget safe — returns empty string on failure
+ */
+export async function enrichMemoryEntry(content: string): Promise<string> {
+  if (content.length < 10) return '';
+
+  try {
+    const { sideQuery } = await import('./side-query.js');
+    const prompt = `Given this memory entry, generate search-friendly synonyms, translations (Chinese↔English), and related terms. Return ONLY a single line of space-separated terms, no explanations.
+
+Entry: "${content.slice(0, 300)}"
+
+Example input: "部署失敗了"
+Example output: deploy fail failure 上線 出錯 錯誤 release error 發布 deployment`;
+
+    const result = await sideQuery(prompt, {
+      model: 'claude-haiku-4-5-20251001',
+      timeout: 10_000,
+      maxTokens: 128,
+    });
+
+    return result?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * 關閉資料庫連線（test cleanup 用）
  */
 export function closeSearchIndex(): void {
