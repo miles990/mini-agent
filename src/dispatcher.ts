@@ -591,9 +591,21 @@ export function parseTags(response: string): ParsedTags {
     if (t) goalAbandon = t.content.trim();
   }
 
+  const agoraPosts: ParsedTags['agoraPosts'] = [];
+  for (const t of byName('kuro:agora-post')) {
+    const discussion = attr(t.attributes, 'discussion');
+    if (!discussion) continue;
+    agoraPosts.push({
+      discussion,
+      text: t.content.trim(),
+      replyTo: attr(t.attributes, 'replyTo') || attr(t.attributes, 'replyto'),
+      type: attr(t.attributes, 'type'),
+    });
+  }
+
   const cleanContent = stripKuroTags(response);
 
-  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post'];
   const balance = getKuroTagBalance(response);
   for (const tag of tagNames) {
     const name = `kuro:${tag}`;
@@ -605,7 +617,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, cleanContent };
 }
 
 // =============================================================================
@@ -874,6 +886,22 @@ export async function postProcess(
       case 'pause':
         await pauseThread(t.id, t.note || undefined);
         break;
+    }
+  }
+
+  // <kuro:agora-post> tags — post messages to Agora discussions
+  if (tags.agoraPosts.length > 0) tagsProcessed.push('agora-post');
+  for (const ap of tags.agoraPosts) {
+    try {
+      const { postMessage: agoraPost } = await import('./agora.js');
+      await agoraPost(ap.discussion, ap.text, {
+        replyTo: ap.replyTo,
+        type: ap.type as 'message' | 'proposal' | 'consensus' | 'question' | 'human-input' | undefined,
+      });
+      slog('AGORA', `Posted to ${ap.discussion}: ${ap.text.slice(0, 80)}`);
+      eventBus.emit('action:agora', { discussion: ap.discussion, text: ap.text.slice(0, 100) });
+    } catch (err) {
+      slog('AGORA', `Failed to post to ${ap.discussion}: ${err}`);
     }
   }
 

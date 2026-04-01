@@ -337,6 +337,7 @@ export interface ParsedTags {
   goalAbandon?: string;
   understands: Array<{ content: string; refs: string[]; tags?: string[] }>;
   directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }>;
+  agoraPosts: Array<{ discussion: string; text: string; replyTo?: string; type?: string }>;
   cleanContent: string;
 }
 

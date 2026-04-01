@@ -27,6 +27,7 @@ export type AgentEventType =
   | 'action:activity'
   | 'action:delegation-start'
   | 'action:delegation-complete'
+  | 'action:agora'
   // Observations（可觀測性）
   | 'log:info'
   | 'log:error'
