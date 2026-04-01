@@ -327,6 +327,28 @@ class PerceptionStreamManager {
     });
   }
 
+  /**
+   * Detect if the machine is likely sleeping (macOS suspend).
+   * Returns true if ALL non-event-driven perceptions are stale beyond threshold.
+   * When true, Claude CLI calls would be wasted (SIGTERM → exit 143).
+   */
+  isMachineSleeping(thresholdMs = 5 * 60_000): boolean {
+    const now = Date.now();
+    let checked = 0;
+
+    for (const [, entry] of this.streams) {
+      const category = getCategory(entry.perception.name);
+      if (category === 'telegram') continue; // event-driven, skip
+
+      checked++;
+      const ageMs = entry.updatedAt ? now - entry.updatedAt.getTime() : Infinity;
+      // If ANY non-event-driven stream updated recently, machine is awake
+      if (ageMs < thresholdMs) return false;
+    }
+
+    return checked > 0; // true only if we checked streams and all are stale
+  }
+
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------

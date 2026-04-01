@@ -1307,6 +1307,16 @@ export class AgentLoop {
       }
     }
 
+    // Sleep detection — skip Claude calls when machine appears suspended
+    // All non-event-driven perceptions stale >5min = machine likely sleeping
+    // Claude CLI would get SIGTERM'd (exit 143) anyway, so don't waste the call
+    if (perceptionStreams.isMachineSleeping()) {
+      slog('LOOP', `💤 Sleep detected — all perceptions stale >5min, skipping cycle`);
+      this.currentInterval = 60_000; // poll every 1min for wake-up
+      this.scheduleHeartbeat();
+      return;
+    }
+
     this.lastCycleTime = Date.now();
 
     try {
