@@ -20,6 +20,69 @@ const SEARCH_STOP_WORDS = new Set([
   'just', 'then', 'kuro', 'alex',
 ]);
 
+/**
+ * 雙語同義詞典 — 純程式碼，零延遲，零 LLM 成本
+ * 雙向映射：任何一個詞都能找到同組的其他詞
+ */
+const SYNONYM_GROUPS: string[][] = [
+  ['部署', 'deploy', 'deployment', '上線', 'release', '發布'],
+  ['失敗', 'fail', 'failure', 'error', '錯誤', '出錯'],
+  ['記憶', 'memory', 'remember', '記住', '記錄'],
+  ['搜尋', 'search', 'find', '查詢', 'query', '檢索'],
+  ['學習', 'learn', 'learning', '研究', 'study'],
+  ['任務', 'task', 'job', '工作', '待辦'],
+  ['測試', 'test', 'testing', '驗證', 'verify'],
+  ['修復', 'fix', 'bug', '修正', 'repair', 'patch'],
+  ['效能', 'performance', '速度', 'speed', 'latency', '延遲'],
+  ['設定', 'config', 'configuration', 'setting', '配置'],
+  ['建立', 'create', 'build', '建構', '製作'],
+  ['刪除', 'delete', 'remove', '移除', '清除'],
+  ['更新', 'update', 'upgrade', '升級', '改版'],
+  ['安全', 'security', 'safe', '防護'],
+  ['通知', 'notify', 'notification', 'alert', '告警'],
+  ['排程', 'schedule', 'cron', '定時'],
+  ['感知', 'perception', 'sense', 'detect', '偵測'],
+  ['架構', 'architecture', 'structure', '結構'],
+  ['重構', 'refactor', 'refactoring', '整理'],
+  ['文件', 'document', 'doc', '文檔', '說明'],
+  ['約束', 'constraint', 'restriction', 'limit', '限制'],
+  ['介面', 'interface', 'boundary', '邊界'],
+  ['觸手', 'delegate', 'delegation', 'tentacle', '委派'],
+  ['提案', 'proposal', 'plan', '計劃', '方案'],
+  ['競賽', 'competition', 'contest', '比賽'],
+  ['監控', 'monitor', 'monitoring', 'watch', '追蹤'],
+];
+
+const _synonymLookup = new Map<string, Set<string>>();
+for (const group of SYNONYM_GROUPS) {
+  const lower = group.map(w => w.toLowerCase());
+  for (const word of lower) {
+    if (!_synonymLookup.has(word)) _synonymLookup.set(word, new Set());
+    for (const syn of lower) {
+      if (syn !== word) _synonymLookup.get(word)!.add(syn);
+    }
+  }
+}
+
+/**
+ * 擴展查詢詞 — 加入雙語同義詞
+ * Pure code, 零延遲, 零 LLM 成本
+ */
+export function expandQuery(query: string): string[] {
+  const words = query.toLowerCase().split(/\s+/).filter(w => w.length >= 2);
+  const expanded = new Set(words);
+
+  for (const word of words) {
+    const synonyms = _synonymLookup.get(word);
+    if (synonyms) {
+      for (const syn of synonyms) expanded.add(syn);
+    }
+  }
+
+  // Cap to avoid absurdly long FTS5 queries
+  return [...expanded].slice(0, 30);
+}
+
 interface ConversationFtsEntry {
   id: string;
   source: string;
@@ -529,13 +592,17 @@ export function searchMemoryFTS(query: string, limit = 5): MemoryEntry[] {
     const sanitized = sanitizeFTS5Query(query);
     if (!sanitized) return [];
 
+    // Query expansion: add bilingual synonyms for cross-language recall
+    const expanded = expandQuery(sanitized);
+    const ftsQuery = expanded.join(' OR ');
+
     const rows = db.prepare(`
       SELECT source, date, content, rank
       FROM memory_fts
       WHERE memory_fts MATCH ?
       ORDER BY rank
       LIMIT ?
-    `).all(sanitized, limit) as Array<{ source: string; date: string; content: string; rank: number }>;
+    `).all(ftsQuery, limit) as Array<{ source: string; date: string; content: string; rank: number }>;
 
     return rows.map(row => ({
       source: row.source,
@@ -570,8 +637,9 @@ export function searchMemoryEntries(
     const words = extractFTSKeywords(query, 15);
     if (words.length === 0) return [];
 
-    // Use OR to match any keyword (not implicit AND which requires all)
-    const ftsQuery = words.join(' OR ');
+    // Expand with bilingual synonyms, then OR-join for cross-language recall
+    const expanded = expandQuery(words.join(' '));
+    const ftsQuery = expanded.join(' OR ');
 
     const rows = db.prepare(`
       SELECT source, date, content, rank
@@ -609,7 +677,8 @@ export function searchConversations(
   try {
     const words = extractFTSKeywords(query, 20);
     if (words.length === 0) return [];
-    const ftsQuery = words.join(' OR ');
+    const expanded = expandQuery(words.join(' '));
+    const ftsQuery = expanded.join(' OR ');
 
     const rows = db.prepare(`
       SELECT id, source, sender, text, ts, reply_to, rank
