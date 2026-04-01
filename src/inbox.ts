@@ -560,7 +560,7 @@ async function prefetchUrls(urls: string[], depth = 0): Promise<void> {
       const fetched = await fetchPage(url, { timeout: 45_000 });
       const text = fetched.error ? '' : fetched.text;
       const title = fetched.title;
-      const layer = /x\.com|twitter\.com/i.test(url) ? 'grok' : 'http';
+      const layer = fetched.error ? 'error' : 'auto';
 
       if (text && text.length > 50) {
         writeWebCache(url, layer, text, title);

@@ -1,12 +1,14 @@
 /**
- * Built-in Web Capabilities — zero-dependency web fetch + search
+ * Built-in Web Capabilities — multi-layer web fetch + search
  *
- * Uses Node's built-in fetch API. No external tools required.
- * For advanced web access (CDP, Grok, etc.), use plugins/web-fetch.sh.
+ * Fallback chain:
+ *   X/Twitter URLs: Grok API → gsd-browser → CDP → plain HTTP
+ *   General URLs:   gsd-browser → CDP → plain HTTP
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
 import { slog, diagLog } from './utils.js';
 import { eventBus } from './event-bus.js';
 
@@ -51,6 +53,55 @@ async function grokFetch(url: string): Promise<string | null> {
 }
 
 // =============================================================================
+// gsd-browser — Rust browser automation CLI (headless Chrome)
+// =============================================================================
+
+function execAsync(cmd: string, args: string[], timeout: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(cmd, args, { timeout, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
+    child.stdin?.end();
+  });
+}
+
+async function gsdBrowserFetch(url: string): Promise<string | null> {
+  try {
+    // Navigate and wait for network idle
+    await execAsync('gsd-browser', ['navigate', url], 30_000);
+    await execAsync('gsd-browser', ['wait-for', '--condition', 'network_idle'], 15_000);
+    // Extract readable text via JS eval
+    const text = await execAsync('gsd-browser', [
+      'eval',
+      `(function(){const a=document.querySelector('article,main,[role="main"],.content,#content');const t=(a||document.body).innerText;return t})()`,
+    ], 10_000);
+    const clean = text.trim();
+    if (clean.length > 100) return clean;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
+// CDP — Chrome DevTools Protocol via cdp-fetch.mjs
+// =============================================================================
+
+const CDP_FETCH_SCRIPT = join(process.cwd(), 'scripts', 'cdp-fetch.mjs');
+
+async function cdpFetch(url: string): Promise<string | null> {
+  try {
+    const stdout = await execAsync('node', [CDP_FETCH_SCRIPT, 'fetch', url], 30_000);
+    const text = stdout.trim();
+    if (text.length > 100) return text;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -79,17 +130,48 @@ export async function fetchPage(
 ): Promise<FetchResult> {
   const timeout = options?.timeout ?? 15_000;
   const maxLength = options?.maxLength ?? 50_000;
+  const isXTwitter = /x\.com|twitter\.com/i.test(url);
 
-  // X/Twitter → Grok API first (native access, no login wall)
-  if (/x\.com|twitter\.com/i.test(url)) {
+  // ── Layer 1 (X/Twitter only): Grok API — native X access, no login wall ──
+  if (isXTwitter) {
     const grokText = await grokFetch(url);
     if (grokText) {
       slog('WEB', `✓ ${url} via grok (${grokText.length}B)`);
-      return { url, title: '', text: grokText, byteLength: grokText.length, fetchedAt: new Date().toISOString() };
+      return makeResult(url, '', grokText, maxLength, 'grok');
     }
-    slog('WEB', `grok failed for ${url}, falling back to http`);
+    slog('WEB', `grok miss for ${url}, trying gsd-browser`);
   }
 
+  // ── Layer 2: gsd-browser — headless Chrome with full JS rendering ──
+  const gsdText = await gsdBrowserFetch(url);
+  if (gsdText) {
+    slog('WEB', `✓ ${url} via gsd-browser (${gsdText.length}B)`);
+    return makeResult(url, '', gsdText, maxLength, 'gsd-browser');
+  }
+  slog('WEB', `gsd-browser miss for ${url}, trying cdp`);
+
+  // ── Layer 3: CDP — Chrome DevTools Protocol via cdp-fetch.mjs ──
+  const cdpText = await cdpFetch(url);
+  if (cdpText) {
+    slog('WEB', `✓ ${url} via cdp (${cdpText.length}B)`);
+    return makeResult(url, '', cdpText, maxLength, 'cdp');
+  }
+  slog('WEB', `cdp miss for ${url}, falling back to http`);
+
+  // ── Layer 4: Plain HTTP — last resort ──
+  return plainHttpFetch(url, { timeout, maxLength, _retried: options?._retried });
+}
+
+function makeResult(url: string, title: string, text: string, maxLength: number, _layer: string): FetchResult {
+  const truncated = text.length > maxLength ? text.slice(0, maxLength) + '\n\n[... truncated]' : text;
+  return { url, title, text: truncated, byteLength: text.length, fetchedAt: new Date().toISOString() };
+}
+
+async function plainHttpFetch(
+  url: string,
+  opts: { timeout: number; maxLength: number; _retried?: boolean },
+): Promise<FetchResult> {
+  const { timeout, maxLength } = opts;
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -107,10 +189,9 @@ export async function fetchPage(
 
     if (!res.ok) {
       const error = `HTTP ${res.status}`;
-      // Retry once on server errors (5xx)
-      if (res.status >= 500 && !options?._retried) {
+      if (res.status >= 500 && !opts._retried) {
         slog('WEB', `Retry ${url} after ${error}`);
-        return fetchPage(url, { ...options, _retried: true });
+        return plainHttpFetch(url, { ...opts, _retried: true });
       }
       eventBus.emit('log:info', { tag: 'web-fetch', msg: `${error}: ${url}` });
       return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
@@ -131,7 +212,6 @@ export async function fetchPage(
       } catch { /* keep raw */ }
     }
 
-    // Quality check: suspiciously short HTML content = likely blocked/login-wall
     if (contentType.includes('text/html') && text.length < 200 && rawText.length > 1000) {
       slog('WEB', `⚠ ${url}: extracted only ${text.length} chars from ${rawText.length}B HTML — possible login wall`);
     }
@@ -145,10 +225,9 @@ export async function fetchPage(
     const error = err instanceof Error
       ? (err.name === 'AbortError' ? 'Timeout' : err.message)
       : 'Unknown error';
-    // Retry once on timeout
-    if (err instanceof Error && err.name === 'AbortError' && !options?._retried) {
+    if (err instanceof Error && err.name === 'AbortError' && !opts._retried) {
       slog('WEB', `Retry ${url} after timeout`);
-      return fetchPage(url, { ...options, timeout: timeout * 1.5, _retried: true });
+      return plainHttpFetch(url, { ...opts, timeout: timeout * 1.5, _retried: true });
     }
     eventBus.emit('log:info', { tag: 'web-fetch', msg: `${error}: ${url}` });
     return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error };
