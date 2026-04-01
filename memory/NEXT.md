@@ -29,9 +29,7 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
   Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
 - [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
-- [ ] P2: Sleep detection — Mac sleep 時暫停 Claude calls（EXIT143 根因：8/13 是 OS SIGTERM）
-  Done when: 全 perception stale >5min 自動暫停 Claude CLI 呼叫，sleep 結束後恢復
-  Verify: `grep -c 'sleep.*detect\|stale.*pause' ~/Workspace/mini-agent/src/*.ts 2>/dev/null`
+- [x] P2: Sleep detection — Mac sleep 時暫停 Claude calls（EXIT143 根因：8/13 是 OS SIGTERM）— 已實作：isMachineSleeping() + loop.ts early return + 60s wake polling
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
 
@@ -55,6 +53,7 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] 認知科學 Phase 0 — Symbol Grounding + Productive Struggle + Error Example 注入 (1c82673)
 - [x] Elo Arena 差異化策略 v1 — cognitive dissonance hooks + synthesis closings (13f662b)
 - [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初 (fa4dcfb)
+- [x] Sleep detection — isMachineSleeping() + loop.ts:1313 early return + 60s wake polling
 
 ---
 
