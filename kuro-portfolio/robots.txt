@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://kuro.page/sitemap.xml
+LLMs-Txt: https://kuro.page/llms.txt
