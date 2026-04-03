@@ -115,6 +115,7 @@ class PerceptionStreamManager {
     this.cwd = cwd;
     this.running = true;
 
+    let staggerIndex = 0;
     for (const p of perceptions) {
       if (p.enabled === false) continue;
 
@@ -138,8 +139,10 @@ class PerceptionStreamManager {
 
       this.streams.set(p.name, entry);
 
-      // Initial run (don't await — fire-and-forget)
-      this.tick(entry);
+      // Initial run — staggered to avoid thundering herd at startup
+      const delay = staggerIndex++ * 500;
+      if (delay === 0) this.tick(entry);
+      else setTimeout(() => this.tick(entry), delay);
 
       // Schedule by category (per-plugin interval override from compose takes priority)
       if (category === 'telegram') {

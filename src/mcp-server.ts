@@ -326,12 +326,15 @@ async function main() {
     },
     async ({ message, replyTo }) => {
       try {
-        // 1. Get current latest message ID
+        // 1. Get current latest message ID (non-critical — fallback to empty)
         const today = new Date().toISOString().slice(0, 10);
-        const before = await agentGet(`/api/room?date=${today}`) as { messages?: Array<{ id: string; from: string }> };
-        const lastId = before?.messages?.length
-          ? before.messages[before.messages.length - 1].id
-          : '';
+        let lastId = '';
+        try {
+          const before = await agentGet(`/api/room?date=${today}`) as { messages?: Array<{ id: string; from: string }> };
+          lastId = before?.messages?.length
+            ? before.messages[before.messages.length - 1].id
+            : '';
+        } catch { /* server busy at startup — proceed without baseline */ }
 
         // 2. Send message with mention + optional replyTo
         const text = message.includes(mention) ? message : `${mention} ${message}`;
@@ -340,7 +343,7 @@ async function main() {
         const sendRes = await agentPost('/api/room', body) as { id?: string };
         const sentMessageId = sendRes?.id ?? '';
 
-        // 3. Poll for agent reply (threading-aware)
+        // 3. Poll for agent reply (threading-aware, tolerates transient HTTP failures)
         const nameLower = agentName.toLowerCase();
         const deadline = Date.now() + DISCUSS_TIMEOUT;
         let lastProgressAt = Date.now();
@@ -348,23 +351,25 @@ async function main() {
         while (Date.now() < deadline) {
           await new Promise(r => setTimeout(r, DISCUSS_POLL_INTERVAL));
 
-          const current = await agentGet(`/api/room?date=${today}`) as {
-            messages?: Array<{ id: string; from: string; text: string; replyTo?: string }>
-          };
+          try {
+            const current = await agentGet(`/api/room?date=${today}`) as {
+              messages?: Array<{ id: string; from: string; text: string; replyTo?: string }>
+            };
 
-          if (current?.messages) {
-            // Priority: find a reply that threads back to our sent message
-            const threadedReply = sentMessageId
-              ? current.messages.find(m => m.from === nameLower && m.replyTo === sentMessageId)
-              : null;
-            // Fallback: any new message from agent after lastId
-            const reply = threadedReply ?? current.messages.find(
-              m => m.from === nameLower && m.id > lastId,
-            );
-            if (reply) {
-              return textResult(JSON.stringify({ text: reply.text, messageId: reply.id }));
+            if (current?.messages) {
+              // Priority: find a reply that threads back to our sent message
+              const threadedReply = sentMessageId
+                ? current.messages.find(m => m.from === nameLower && m.replyTo === sentMessageId)
+                : null;
+              // Fallback: any new message from agent after lastId
+              const reply = threadedReply ?? current.messages.find(
+                m => m.from === nameLower && m.id > lastId,
+              );
+              if (reply) {
+                return textResult(JSON.stringify({ text: reply.text, messageId: reply.id }));
+              }
             }
-          }
+          } catch { /* transient HTTP failure — retry next poll */ }
 
           if (Date.now() - lastProgressAt >= 60_000) {
             lastProgressAt = Date.now();
