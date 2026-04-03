@@ -8,7 +8,7 @@
  * isomorphisms, cross-field connections) are NEVER auto-deleted.
  */
 
-import { spawn } from 'node:child_process';
+import Anthropic from '@anthropic-ai/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
@@ -37,6 +37,13 @@ const STATE_FILE = 'context-pruner.json';
 const PROPOSALS_DIR = 'pruning-proposals';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const TIMEOUT_MS = 30_000;
+
+// Singleton — initialized once, reused across all pruning calls
+let client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!client) client = new Anthropic();
+  return client;
+}
 
 /**
  * ACE Anti-Collapse: patterns indicating cross-domain insights.
@@ -123,43 +130,23 @@ export function parsePruningProposal(response: string): PruningProposal {
 }
 
 // =============================================================================
-// Haiku Subprocess
+// Haiku SDK Call
 // =============================================================================
 
 async function callHaiku(prompt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      'claude',
-      ['-p', '--model', HAIKU_MODEL, '--output-format', 'text'],
-      {
-        env: { ...process.env, ANTHROPIC_API_KEY: undefined, CLAUDECODE: undefined },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      },
-    );
-
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
-    child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
-
-    child.on('error', (err) => reject(new Error(`spawn error: ${err.message}`)));
-    child.on('close', (code) => {
-      if (code === 0 && stdout.trim()) {
-        resolve(stdout.trim());
-      } else {
-        reject(new Error(`Haiku exit ${code}: ${stderr.slice(0, 200)}`));
-      }
-    });
-
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM');
-      reject(new Error('Haiku timeout'));
-    }, TIMEOUT_MS);
-    child.on('close', () => clearTimeout(timer));
-
-    child.stdin.write(prompt);
-    child.stdin.end();
+  const response = await getClient().messages.create({
+    model: HAIKU_MODEL,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
   });
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map(b => b.text)
+    .join('\n');
+
+  if (!text.trim()) throw new Error('Haiku returned empty response');
+  return text.trim();
 }
 
 // =============================================================================
