@@ -48,11 +48,16 @@ def fetch():
     req = urllib.request.Request(f"{base_url}/status")
     if api_key:
         req.add_header('x-api-key', api_key)
-    try:
-        with urllib.request.urlopen(req, timeout=3) as r:
-            return json.loads(r.read())
-    except Exception as e:
-        return {'_error': str(e)}
+    # Retry once on timeout — Node event loop occasionally blocks >3s during heavy sync I/O
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return json.loads(r.read())
+        except Exception as e:
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
+            return {'_error': str(e)}
 
 def trunc(s, n):
     s = str(s).replace('\n', ' ')
