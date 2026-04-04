@@ -357,6 +357,14 @@ export class AgentLoop {
   // ── Direct Message Wake (trigger loop cycle on direct messages: telegram, room, chat) ──
   private directMessageWakeQueue = 0;
   private lastDMWake = 0;
+  // ── Sentinel echo suppression ──
+  // API emits trigger:room with full data (text+roomMsgId). ~500ms later, sentinel detects the
+  // JSONL write and emits a second trigger:room WITHOUT text/roomMsgId. This ghost event bypasses
+  // DM routing and triggers a full OODA cycle that re-processes the same message through
+  // chat-room-inbox.md (which has no claim awareness). Suppress sentinel room triggers that
+  // arrive within SENTINEL_ECHO_WINDOW of an API-originated room trigger.
+  private lastApiRoomTriggerAt = 0;
+  private static readonly SENTINEL_ECHO_WINDOW = 3_000; // 3s — sentinel debounce is 500ms
   private busyRetryCount = 0;
   private static readonly DM_WAKE_THROTTLE = 5_000;              // 5s throttle for all DM sources
 
@@ -411,6 +419,19 @@ export class AgentLoop {
     }
 
     const now = Date.now();
+
+    // Sentinel echo suppression — API writes conversation JSONL, then sentinel detects the
+    // file change ~500ms later and emits a second trigger:room WITHOUT text/roomMsgId.
+    // This ghost event bypasses DM routing (no text) and triggers a full OODA cycle that
+    // re-reads chat-room-inbox.md, producing duplicate responses. Suppress it.
+    if (agentEvent.type === 'trigger:room') {
+      if (agentEvent.data?.source === 'room-api') {
+        this.lastApiRoomTriggerAt = now;
+      } else if (agentEvent.data?.source === 'sentinel' && now - this.lastApiRoomTriggerAt < AgentLoop.SENTINEL_ECHO_WINDOW) {
+        slog('LOOP', `[dedup] Suppressing sentinel room echo — API trigger was ${now - this.lastApiRoomTriggerAt}ms ago`);
+        return;
+      }
+    }
     const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
 
     // Source-specific throttle for all DM sources (telegram, room, chat)
