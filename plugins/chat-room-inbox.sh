@@ -34,20 +34,20 @@ else
 fi
 echo "$header"
 
-# Show pending messages
+# Show pending messages (filter out mushi system event noise)
 if [ "$pending" -gt 0 ]; then
-    sed -n '/^## Pending$/,/^## \(Unaddressed\|Processed\)$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | head -10 | while IFS= read -r line; do
+    sed -n '/^## Pending$/,/^## \(Unaddressed\|Processed\)$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | while IFS= read -r line; do
         echo "  $line"
     done
 fi
 
-# Show unaddressed messages with [!] prefix
+# Show unaddressed messages with [!] prefix (filter out mushi system event noise)
 if [ "$unaddressed" -gt 0 ]; then
     if [ "$pending" -gt 0 ]; then
         echo ""
     fi
     echo "--- Unaddressed (not yet responded) ---"
-    sed -n '/^## Unaddressed$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | head -10 | while IFS= read -r line; do
+    sed -n '/^## Unaddressed$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | while IFS= read -r line; do
         echo "  [!] $line"
     done
 fi
