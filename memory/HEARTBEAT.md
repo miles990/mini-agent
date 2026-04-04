@@ -17,15 +17,8 @@
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 
 ## Active Tasks
-- [ ] P1: 結晶候選 — goal-idle + goal-stalled（HOLD — 依賴 goal 結構化：需先讓 goal status 可機器讀取 `active|hold|paused`，再寫 code gate）
-- [ ] P1: 結晶候選 — goal-stalled（22 cycles 無行為改變）
-- [ ] P1: 結晶候選 — priority-misalign（42 cycles 無行為改變）
-Pattern: alignment 0%
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-29T19:25:39.673Z -->
-Pattern: question:可測量預測 + 回填驗證 — 每個重要改動留下預測（基準→預期），24h 後用數據回填，不自欺: 0 actions in 48h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-03-23T15:19:56.192Z -->
-<!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23):
-  所有機械性 pattern 已結晶為 code gate。僅 goal-idle + goal-stalled HOLD。
+<!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23, 更新 2026-04-04):
+  所有機械性 pattern 已結晶為 code gate。
   ✅ output-gate — isOutputGateActive() in pulse.ts + dispatcher.ts gate
   ✅ unreviewed-delegations — _shownCount 持久化 (d43455d) + routing rules (79bcafb)
   ✅ recurring-errors — ≥3次 error pattern 自動建 task
@@ -33,7 +26,7 @@ Pattern: question:可測量預測 + 回填驗證 — 每個重要改動留下預
   ✅ analyze-no-action — pulse.ts analyzeWithoutActionStreak + prompt-builder.ts hard gate (threshold=5)
   ✅ goal-accelerating — 正面觀測信號，不需 gate
   ✅ priority-misalign — 非機械性，signal 已存在
-  ⏸ goal-idle + goal-stalled — HOLD，依賴 goal 結構化
+  ✅ goal-idle + goal-stalled — `hold` status 加入 (988b80c)，pulse.ts 已只查 in_progress，hold 目標自動排除。信號準確度已足夠，不需額外 hard gate（signal=nudge 而非 block 是正確設計，因 goal idle 可能是合理策略如等外部依賴）
   Note: pulse 系統會持續新增重複候選，已結晶的項目不需重複處理
 -->
 
