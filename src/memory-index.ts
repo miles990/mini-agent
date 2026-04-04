@@ -1040,7 +1040,10 @@ export async function buildMemoryIndex(
 }
 
 export async function getManifestContext(memoryDir: string, budget = 2000): Promise<string> {
-  const entries = queryMemoryIndexSync(memoryDir, { limit: 200 });
+  // Terminal statuses provide no actionable info — exclude from context budget
+  const TERMINAL_STATUSES = new Set(['resolved', 'completed', 'done', 'abandoned', 'dropped', 'deleted']);
+  const entries = queryMemoryIndexSync(memoryDir, { limit: 200 })
+    .filter(e => !TERMINAL_STATUSES.has(e.status));
   if (entries.length === 0) return '';
 
   const now = Date.now();
