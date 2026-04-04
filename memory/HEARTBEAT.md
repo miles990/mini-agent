@@ -18,6 +18,7 @@
 
 ## Active Tasks
 - [ ] P1: 修復重複錯誤 — local CLI TIMEOUT (exit undefi in callClaude（3 次）@due:2026-04-07 <!-- added: 2026-04-04T15:42:04.964Z -->
+- [ ] P1: 修復重複錯誤 — 9B working memory updated (354 in CASCADE（3 次）@due:2026-04-07 <!-- added: 2026-04-04T16:13:31.877Z -->
 - [x] P1: 修復重複錯誤 — local CLI UNKNOWN (exit undefi in callClaude — 根因：classifyError 不讀 error.cause + feedback-loops 和 pulse 雙重建 task。已修復兩處。 <!-- added: 2026-04-04T15:25:15.894Z, fixed: 2026-04-04T15:27 -->
 <!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23, 更新 2026-04-04):
   所有機械性 pattern 已結晶為 code gate。
