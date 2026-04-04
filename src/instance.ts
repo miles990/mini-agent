@@ -446,7 +446,9 @@ function generatePlist(instanceId: string, config: InstanceConfig): string {
   const workDir = path.resolve('.');
   const logFile = path.join(getInstanceDir(instanceId), 'logs', 'server.log');
   const home = process.env.HOME || '';
-  const envPath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin';
+  const cargoBin = path.join(home, '.cargo', 'bin');
+  const basePath = process.env.PATH || '/usr/local/bin:/usr/bin:/bin';
+  const envPath = basePath.includes(cargoBin) ? basePath : `${cargoBin}:${basePath}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
