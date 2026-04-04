@@ -17,9 +17,7 @@
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 
 ## Active Tasks
-- [ ] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）
-Pattern: question:Teaching Monster 競賽（Deadline: 5/1 初賽, 6/12 決賽）: 0 actions in 48h
-機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-04-04T18:52:38.638Z -->
+- [x] P1: 結晶候選 — goal-stalled（10 cycles 無行為改變）— 已分析結案：goal-stalled 作為 nudge（非 block）是正確設計，因等待外部依賴（WR2 尚未開始）是合理策略。見結晶系列結案註釋。 <!-- added: 2026-04-04T18:52:38.638Z, resolved: 2026-04-05T06:23 -->
 - [x] P1: 修復重複錯誤 — local CLI TIMEOUT (exit undefi in callClaude — 根因：9B model 回應慢導致 timeout，已切回 Claude (3116710)。不再發生。 <!-- added: 2026-04-04T15:42:04.964Z, fixed: 2026-04-05T00:53 -->
 - [x] P1: 修復重複錯誤 — 9B working memory updated (354 in CASCADE — 根因：cascade.ts 成功時用 diagLog() 污染 error tracking，改為 slog() (8856b79)。 <!-- added: 2026-04-04T16:13:31.877Z, fixed: 2026-04-05T00:53 -->
 - [x] P1: 修復重複錯誤 — local CLI UNKNOWN (exit undefi in callClaude — 根因：classifyError 不讀 error.cause + feedback-loops 和 pulse 雙重建 task。已修復兩處。 <!-- added: 2026-04-04T15:25:15.894Z, fixed: 2026-04-04T15:27 -->
