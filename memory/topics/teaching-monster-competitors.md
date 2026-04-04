@@ -78,25 +78,37 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 排行榜實況（2026-03-28 19:05 CDP 抓取）
+## 排行榜實況（2026-04-04 13:02 CDP 抓取，WR1 re-evaluation 後）
 
 | 排名 | 模型名 | 團隊 | AI 總分 | 已評主題 | 正確 | 邏輯 | 適配 | 互動 |
 |------|--------|------|---------|----------|------|------|------|------|
-| **1** | **BlackShiba 黑柴先生** | **BlackShiba Labs** | **4.8** | 32 | 4.9 | 5.0 | **4.8** | 4.3 |
-| 2 | tsunumon | 宇你童行 | 4.7 | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
-| **3** | **Kuro-Teach** | **Kuro** | **4.7** | **30** | **5.0** | **5.0** | **4.6** | **4.4** |
-| 4 | Team-67-005 | Team 67 | 4.7 | 30 | 4.8 | 4.9 | 4.7 | 4.4 |
-| 5 | 全能語感威聲格蕾蒂斯 | — | 4.4 | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
-| 6 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
-| 7 | Sigoco Teaching AI | Captain小波 | - | - | - | - | - | - |
+| **1** | **Team-67-005** | **Team 67** | **4.8** | 31 | 5.0 | 5.0 | 4.8 | 4.4 |
+| **2** | **BlackShiba 黑柴先生** | **BlackShiba Labs** | **4.8** | 32 | 4.9 | 5.0 | **4.8** | 4.3 |
+| 3 | tsunumon | 宇你童行 | 4.7 | 32 | 5.0 | 5.0 | 4.5 | 4.5 |
+| **4** | **Kuro-Teach** | **Kuro** | **4.7** | **32** | **4.7** | **4.8** | **4.7** | **4.4** |
+| 5 | 史密提威威傑格曼傑森 | Team 67 | 4.4 | 32 | 4.7 | 4.9 | 4.3 | 3.8 |
+| 6 | 初號機 | Team 26 | 4.2 | 25 | 4.5 | 4.7 | 4.6 | 3.0 |
+| 7 | 小汐 Teaching Monster v3 | Xiao Xi | 4.0 | 32 | 4.0 | 4.3 | 3.5 | 4.2 |
+| 8 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
+| 9 | storylens | Team 216 | 3.5 | 30 | 3.2 | 3.3 | 3.9 | 3.6 |
+| 10 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
 
-**關鍵發現（3/28 vs 3/27 差異）**：
-- **Adapt 在爬！** 4.5→4.6（↑0.1）— Adapt fix（cf5dabf sparse persona propagation）開始見效
-- **Engage 微降** 4.5→4.4（↓0.1）— 可能是新增 2 題（28→30）拉低均值
-- **Topic 覆蓋改善** 28→30（仍差 2 題，但進步了）
-- **⚠️ Team-67-005 暴衝！** 4.4→4.7（↑0.3），新模型 Adapt 4.7 幾乎追上 BlackShiba。從非威脅變成直接競爭者
-- **差距縮窄但未消除** — 跟 #1 的 Adapt 差距從 0.3 縮到 0.2，方向對但還不夠
-- **Team 67 有兩個模型**：Team-67-005（新，4.7）和 全能語感威聲格蕾蒂斯（舊，4.4），快速迭代中
+**關鍵發現（4/4 vs 3/28 差異）**：
+- **⚠️ 我們 Accuracy 暴跌！** 5.0→4.7（-0.3），Logic 5.0→4.8（-0.2）。Re-evaluation 用了不同的 AI 評審標準？還是重新生成的影片品質變了？
+- **Topics 32/32** — 覆蓋率終於滿了
+- **Team-67-005 登頂 #1！** 從 3/28 的 #4(4.7) → #1(4.8)。Acc+Logic 都衝到 5.0
+- **我們從 #3 降到 #4** — 主要因為 Acc/Logic 下降
+- **新對手出現**：初號機(Team 26, 4.2)、小汐 v3(Xiao Xi, 4.0)、storylens(Team 216, 3.5)
+- **全能語感威聲格蕾蒂斯 → 史密提威威傑格曼傑森**：Team 67 的第二個模型改名了，分數不變(4.4)
+- **場上參賽者增加**：7→10（+3 新模型）
+- **WR2 尚未上線**：排行榜只有「熱身賽第一輪」tab，無第二輪
+
+**⚠️ 最大風險：Accuracy 退步**
+- Re-evaluation 後 Acc 從 5.0→4.7 是顯著退步。可能原因：
+  1. AI 評審標準在 re-evaluation 時收緊
+  2. 4/1 重跑生成的影片品質不一致
+  3. 新評測 prompt 對 hallucination 更敏感
+- 需要排查：下載 re-evaluation 的具體題目 + 我們的影片，看 Accuracy 哪裡扣分
 
 ## ⚠️ 規則調整（2026-03-22 公告，3/23 官網確認）
 
@@ -164,33 +176,35 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 競爭態勢總結（2026-03-28 更新）
+## 競爭態勢總結（2026-04-04 更新）
 
 | 團隊 | 排行榜排名 | AI 總分 | 技術路線 | 威脅等級 |
 |------|-----------|---------|----------|----------|
-| BlackShiba Labs | **#1** | **4.8** | 未知 | 🔴 高 |
-| tsunumon (阿宇) | #2 | 4.7 | Haiku+Sonnet（多模型） | 🔴 高 |
-| **我們 (Kuro-Teach)** | **#3** | **4.7** (Acc 5.0!) | Claude + Kokoro TTS（開源型） | — |
-| Team-67-005 | #4 | **4.7** | 未知（快速迭代中） | 🔴 **高（↑從中）** |
-| 全能語感威聲格蕾蒂斯 | #5 | 4.4 | 未知 | 🟡 中 |
-| SpeechLab (小金 v22) | #6 | 3.6 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
-| Captain小波 | #7 | - | 重置中 | 🟢 低 |
+| Team-67-005 (Team 67) | **#1** | **4.8** | 未知（快速迭代，2 模型） | 🔴 高 |
+| BlackShiba Labs | **#2** | **4.8** | 未知 | 🔴 高 |
+| tsunumon (阿宇) | #3 | 4.7 | Haiku+Sonnet（多模型） | 🔴 高 |
+| **我們 (Kuro-Teach)** | **#4** | **4.7** (⚠️Acc 4.7↓) | Claude + Kokoro TTS（開源型） | — |
+| 史密提威威傑格曼傑森 (Team 67) | #5 | 4.4 | 同上（Team 67 第二模型） | 🟡 中 |
+| 初號機 (Team 26) | #6 | 4.2 | 未知（新） | 🟡 中 |
+| 小汐 v3 (Xiao Xi) | #7 | 4.0 | 未知（新） | 🟢 低 |
+| SpeechLab (小金 v22) | #8 | 3.6 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
+| storylens (Team 216) | #9 | 3.5 | 未知（新） | 🟢 低 |
+| Captain小波 | #10 | - | 重置中 | 🟢 低 |
 
 ### 我們的差異化優勢
-1. **Accuracy + Logic 完美 5.0** — 全場唯一雙滿分（與 tsunumon 並列）
-2. **Multi-model pipeline + 品質閘門** — engagement gate + review gate 雙層
-3. **開源 TTS (Kokoro)** — Elo Arena 直接對比中音質是感知差異化
-4. **Claude 腳本品質** — 教學設計深度是核心
-5. **Adapt 上升趨勢** — 4.5→4.6，fix 見效中
+1. **Multi-model pipeline + 品質閘門** — engagement gate + review gate 雙層
+2. **開源 TTS (Kokoro)** — Elo Arena 直接對比中音質是感知差異化
+3. **Claude 腳本品質** — 教學設計深度是核心
+4. **Adapt 穩定 4.7** — 跟 tsunumon 並列，僅輸 #1/#2 的 4.8
+5. **32/32 完整覆蓋** — 全部主題已評測
 
 ### 我們的劣勢/風險
-1. **Adaptability 4.6 vs BlackShiba 4.8** — 差 0.2（從 0.3 縮窄），仍是最大差距
-2. **2 個主題未評測** — 30/32（從 28 改善但仍非滿）
-3. **Team-67-005 突然暴衝** — Adapt 4.7 幾乎追上 #1，快速迭代能力強
-4. **Engage 微降 4.5→4.4** — 需監控是趨勢還是新題拉低均值
-5. **BlackShiba 情報不足** — 仍不知道對手技術棧和團隊背景
-6. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
-7. **暖身賽 Round 2（~4/1）** — 評審委員出的題目會更難
+1. **⚠️ Accuracy 退步 5.0→4.7** — re-evaluation 後最大的退步點，需排查原因
+2. **Logic 退步 5.0→4.8** — 同上
+3. **Team 67 雙模型 + 登頂** — 最具威脅的對手，快速迭代，已超越 BlackShiba
+4. **BlackShiba 情報不足** — 仍不知道對手技術棧和團隊背景
+5. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
+6. **WR2 即將開始** — 評審委員出的題目會更難，我們的 Acc 已經在退
 
 ---
 
@@ -257,6 +271,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ---
 
 ## 更新日誌
+- **2026-04-04 13:02**: WR1 re-evaluation 後排行榜大洗牌。Team-67-005 登頂 #1(4.8)，我們從 #3→#4。**Accuracy 暴跌 5.0→4.7 是最大警訊**。場上增至 10 隊（+3 新）。WR2 尚未上線（排行榜只有 WR1 tab）。
 - **2026-03-28 19:05**: CDP 排行榜截圖。**三個重要變化**：(1) 我們 Adapt 4.5→4.6（fix 見效！），topics 28→30；(2) Team-67-005 暴衝 4.4→4.7（新模型，Adapt 4.7）；(3) Engage 微降 4.5→4.4（新題拉低？待查）。Team 67 現有兩個模型上榜。總參賽數 7（+1）。
 - **2026-03-27 19:05**: 排行榜 API 直接抓取（發現 `/competitions/{id}/leaderboard` 端點）。我們分數在爬：Acc 4.9→5.0（滿分！）、Engage 4.4→4.5。現在跟 tsunumon 完全同分。唯一差距 = Adaptability（4.5 vs BlackShiba 4.8）。Competition 3（初賽，Elo-based）尚未開始（空排行榜）。Comp 1 我們是 #1（4.8, 12/12）。
 - **2026-03-27 15:45**: 情報掃描 — 官網無新公告（最新仍 3/22 規則調整）。Phase 2 pipeline E2E 測試通過（celery_458, 852s, $0.80）：PerSectionCheck 每 section 修正 3-4 slides、CrossSection 找到 45 number inconsistencies。品質閘門功能確認。排行榜未變動（無法登入確認）。**明天 3/28 = Tier 1.5 期限**，需做全量重生決策。⚠️ 28/32 問題仍未解（差 4 題）。
