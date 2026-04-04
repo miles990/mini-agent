@@ -213,6 +213,120 @@ cmd_get() {
     python3 -m json.tool
 }
 
+cmd_comment() {
+  ensure_api_key
+  local article_id="$1"
+  local body="$2"
+  local parent_id="${3:-}"
+
+  if [ -z "$article_id" ] || [ -z "$body" ]; then
+    echo "ERROR: Usage: $0 comment <article-id> <body-text> [parent-comment-id]" >&2
+    exit 1
+  fi
+
+  # Write body to temp file for safe Python ingestion
+  local tmpbody
+  tmpbody=$(mktemp)
+  printf '%s' "$body" > "$tmpbody"
+  trap "rm -f '$tmpbody'" EXIT
+
+  # Dedup check: fetch existing comments and look for near-duplicate by same user
+  local existing_file
+  existing_file=$(mktemp)
+  curl -sS "$API/comments?a_id=$article_id&per_page=100" \
+    -H "api-key: $DEV_TO_API_KEY" > "$existing_file"
+
+  local dup_found
+  dup_found=$(python3 -c "
+import json, sys, os
+with open('$existing_file') as f:
+    data = json.load(f)
+with open('$tmpbody') as f:
+    body = f.read()[:80].lower()
+for c in (data if isinstance(data, list) else []):
+    u = (c.get('user') or {}).get('name','').lower()
+    if 'kuro' in u:
+        existing_body = (c.get('body_html','') or '')[:200].lower()
+        if body[:40] in existing_body:
+            print(f'DUPLICATE: {c.get(\"id_code\",\"?\")}')
+            sys.exit(0)
+print('OK')
+" 2>/dev/null || echo "OK")
+  rm -f "$existing_file"
+
+  if [[ "$dup_found" == DUPLICATE* ]]; then
+    echo "WARN: Similar comment already exists ($dup_found). Skipping." >&2
+    exit 0
+  fi
+
+  # Build payload using temp file for body
+  local payload
+  payload=$(python3 -c "
+import json
+with open('$tmpbody') as f:
+    body = f.read()
+comment = {
+    'body_markdown': body,
+    'commentable_id': $article_id,
+    'commentable_type': 'Article'
+}
+parent = '$parent_id'
+if parent:
+    comment['parent_id'] = int(parent)
+print(json.dumps({'comment': comment}, ensure_ascii=False))
+")
+
+  local result
+  result=$(curl -sS -w "\n%{http_code}" "$API/comments" \
+    -H "api-key: $DEV_TO_API_KEY" \
+    -H "Content-Type: application/json; charset=utf-8" \
+    -d "$payload")
+
+  local http_code resp_body
+  http_code=$(echo "$result" | tail -1)
+  resp_body=$(echo "$result" | sed '$d')
+
+  if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+    echo "$resp_body" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+cid = d.get('id_code', '?')
+print(f'Comment posted! ID: {cid}')
+print(f'URL: https://dev.to/kuro_agent/comment/{cid}')
+"
+  else
+    echo "ERROR: HTTP $http_code" >&2
+    echo "$resp_body" | python3 -m json.tool 2>/dev/null || echo "$resp_body" >&2
+    exit 1
+  fi
+}
+
+cmd_comments() {
+  ensure_api_key
+  local article_id="$1"
+
+  if [ -z "$article_id" ]; then
+    echo "ERROR: Usage: $0 comments <article-id>" >&2
+    exit 1
+  fi
+
+  curl -sS "$API/comments?a_id=$article_id&per_page=50" \
+    -H "api-key: $DEV_TO_API_KEY" | \
+    python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if not isinstance(data, list):
+    print('No comments or invalid response')
+    sys.exit(0)
+for c in data:
+    u = c.get('user',{}).get('name','unknown')
+    cid = c.get('id_code','?')
+    body = c.get('body_html','')[:100].replace('\n',' ')
+    print(f'[{cid}] {u}: {body}')
+print(f'\nTotal: {len(data)} comments')
+"
+}
+
 # Main
 case "${1:-help}" in
   publish)
@@ -231,6 +345,14 @@ case "${1:-help}" in
     shift
     cmd_get "$1"
     ;;
+  comment)
+    shift
+    cmd_comment "$1" "$2" "${3:-}"
+    ;;
+  comments)
+    shift
+    cmd_comments "$1"
+    ;;
   help|*)
     echo "Dev.to API Tool"
     echo ""
@@ -239,6 +361,8 @@ case "${1:-help}" in
     echo "  $0 update <article-id> <markdown-file>  Update article"
     echo "  $0 list [per-page]                      List my articles"
     echo "  $0 get <article-id>                     Get article details"
+    echo "  $0 comment <article-id> <body> [parent]  Post a comment"
+    echo "  $0 comments <article-id>                 List article comments"
     echo ""
     echo "Markdown files can have frontmatter:"
     echo "  ---"
