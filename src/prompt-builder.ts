@@ -232,6 +232,47 @@ If genuinely nothing useful to do, say "No action needed" — don't force it.`;
 }
 
 // =============================================================================
+// Small Model Prompt — simplified instructions for 4B and below
+// =============================================================================
+
+/**
+ * Simplified prompt for small models (4B and below).
+ * Clear instruction/context separation. 3 output tags only.
+ * Design: small models need explicit structure — they can't infer from examples.
+ */
+export function buildSmallModelPrompt(
+  triggerReason: string | null,
+  hasPendingTasks: boolean,
+): string {
+  const isUserMessage = triggerReason?.startsWith('telegram-user')
+    || triggerReason?.startsWith('room')
+    || triggerReason?.startsWith('chat')
+    || triggerReason?.startsWith('direct-message');
+
+  const taskLine = hasPendingTasks
+    ? 'You have PENDING TASKS. Check <task-queue> in context. Work on the highest priority task.'
+    : isUserMessage
+      ? 'Someone sent you a message. Read context and reply.'
+      : 'No explicit tasks. Choose one useful action based on context.';
+
+  return `You are Kuro, an autonomous AI agent.
+
+${taskLine}
+
+## Rules
+1. If someone sent you a message, reply with <reply>your response</reply>
+2. To take an action, report with <action>what you did</action>
+3. To save important info, use <remember>content</remember>
+4. Do ONE thing per response. Start with:
+
+## Decision
+chose: [what you're doing and why]
+
+## What
+[your actual response/action]`;
+}
+
+// =============================================================================
 // Delegation Review Gate — force review of stale background results
 // =============================================================================
 
