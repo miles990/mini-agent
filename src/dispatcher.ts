@@ -18,6 +18,7 @@ import { slog } from './utils.js';
 import { getMode } from './mode.js';
 import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
+import type { ModelTier } from './context-pipeline.js';
 import { spawnDelegation, getActiveDelegationSummaries } from './delegation.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
@@ -361,6 +362,26 @@ function getConversationHint(): string {
 }
 
 // =============================================================================
+// Small Model Tag Mapping — simplified tags → kuro: namespace
+// =============================================================================
+
+/**
+ * Map simplified tags from small model output to kuro: namespace.
+ * Small models use: <reply>, <action>, <remember>
+ * These map to: <kuro:chat>, <kuro:action>, <kuro:remember>
+ *
+ * Only applied when modelTier is 'small'. Safe to call on any response —
+ * if no simplified tags are present, the response is returned unchanged.
+ */
+export function mapSmallModelTags(response: string): string {
+  let result = response;
+  result = result.replace(/<reply>([\s\S]*?)<\/reply>/g, '<kuro:chat>$1</kuro:chat>');
+  result = result.replace(/<action>([\s\S]*?)<\/action>/g, '<kuro:action>$1</kuro:action>');
+  result = result.replace(/<remember>([\s\S]*?)<\/remember>/g, '<kuro:remember>$1</kuro:remember>');
+  return result;
+}
+
+// =============================================================================
 // parseTags — 從回應中提取所有 Agent 標籤（XML namespace 格式）
 // =============================================================================
 
@@ -637,19 +658,24 @@ export async function postProcess(
     skipHistory?: boolean;
     /** Suppress TG notifications for <kuro:chat>/<kuro:show>/<kuro:summary> tags */
     suppressChat?: boolean;
+    /** Model tier — when 'small', map simplified tags (<reply>/<action>/<remember>) to kuro: namespace */
+    modelTier?: ModelTier;
   },
 ): Promise<AgentResponse> {
   const memory = getMemory();
   const logger = getLogger();
 
+  // 0. Small model tag mapping — convert simplified tags to kuro: namespace before parsing
+  const mappedResponse = meta.modelTier === 'small' ? mapSmallModelTags(response) : response;
+
   // 1. Log to conversation history (skip for [Claude Code] system messages to prevent identity confusion)
   if (!meta.skipHistory) {
     await memory.appendConversation('user', userMessage);
-    await memory.appendConversation('assistant', response);
+    await memory.appendConversation('assistant', mappedResponse);
   }
 
   // 2. Parse tags
-  const tags = parseTags(response);
+  const tags = parseTags(mappedResponse);
   const tagsProcessed: string[] = [];
 
   // 3. Process tags
@@ -1197,7 +1223,7 @@ export async function postProcess(
   }
 
   // 4. Commitment Gate — fire-and-forget tracking for untagged commitments (writes to memory-index)
-  detectAndRecordCommitments(memoryDir, response, tags)
+  detectAndRecordCommitments(memoryDir, mappedResponse, tags)
     .then((added) => {
       if (added > 0) slog('COMMIT', `Detected ${added} untracked commitment(s)`);
     })
@@ -1205,11 +1231,11 @@ export async function postProcess(
 
   // Ask-Alex dependency detector — write one-shot flip-test state for next cycle.
   try {
-    const hit = detectAskAlexPattern(response);
+    const hit = detectAskAlexPattern(mappedResponse);
     if (hit) {
       const instanceId = getCurrentInstanceId();
       const statePath = path.join(getInstanceDir(instanceId), 'flip-test-pending.json');
-      const excerpt = buildOutputExcerpt(response, hit.index, hit.matched.length, 50);
+      const excerpt = buildOutputExcerpt(mappedResponse, hit.index, hit.matched.length, 50);
       await fs.mkdir(path.dirname(statePath), { recursive: true });
       await fs.writeFile(
         statePath,
@@ -1227,7 +1253,7 @@ export async function postProcess(
   }
 
   // 5. Clear reviewed delegations from persistent backlog (fire-and-forget)
-  try { clearReviewedDelegations(response, getCurrentInstanceId()); } catch { /* best effort */ }
+  try { clearReviewedDelegations(mappedResponse, getCurrentInstanceId()); } catch { /* best effort */ }
 
   // 6. Passive memory extraction heuristic (Claude Code pattern: lightweight, zero LLM cost)
   // Detects implicit feedback/corrections that model didn't explicitly [REMEMBER]
