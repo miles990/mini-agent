@@ -9,14 +9,28 @@
 
 **策略含義**：Stage 1 只需「不掉隊」（維持 4.5+）。Stage 2 是全新戰場 — 不是分數高就贏，是「兩個影片放一起，人類選比較好的那個」。
 
-## 我們的位置（WR1 數據）
+## 我們的位置（WR1 Re-evaluation 後，2026-04-04 更新）
 
-| 指標 | 我們 | 差距 | 行動 |
-|------|------|------|------|
-| Accuracy | 5.0 | = 最佳 | 鎖住不動 |
-| Logic | 5.0 | = 最佳 | 鎖住不動 |
-| Adaptability | 4.6 | -0.2 vs leaders | **最大提升空間** |
-| Engagement | 4.4 | -0.1 vs tsunumon | 可改進但非首要 |
+| 指標 | 我們 | 最佳對手 | 差距 | 行動 |
+|------|------|---------|------|------|
+| Accuracy | **4.7** | 5.0 (Team-67, tsunumon) | **-0.3** | ⚠️ **最優先修復** |
+| Logic | **4.8** | 5.0 (Team-67, tsunumon, BlackShiba) | **-0.2** | 需修復 |
+| Adaptability | **4.7** | 4.8 (Team-67, BlackShiba) | -0.1 | 已改善（4.6→4.7） |
+| Engagement | 4.4 | 4.5 (tsunumon) | -0.1 | 持平 |
+
+> ⚠️ **策略前提已變**：4/2 版本假設 Acc/Logic 鎖在 5.0，只需追 Adapt。Re-evaluation 後 Acc 從 5.0→4.7、Logic 5.0→4.8。**Accuracy 成為最大提升空間**。
+>
+> **重要背景**：3/20 全 32 題 Acc 平均只有 4.36。4/1 re-gen 後升到 4.7 — 是進步不是退步。但 competitors 全量 32 題也能 5.0，代表我們有系統性弱題。
+>
+> **9.6 分缺口分析**：32 題 × (5.0 - 4.7) = 9.6 分。最可能的分布：3-6 題仍然 Acc < 4.0。修復這 6 題 → 全場 avg 可達 ~4.98。這是 ROI 最高的單一改動。
+>
+> **疑似弱題**（基於 3/20 歷史數據，需 per-topic 新數據確認）：
+> - 動摩擦和靜摩擦（old Acc=1.0）
+> - 物件：類別的實例（old Acc=1.0）
+> - 角動量和角衝量（old Acc=1.8）
+> - 專案設計與開發（old Acc=3.0）
+> - 迴歸模型斜率的信心區間（old Acc=3.5）
+> - 最佳化問題簡介（old Acc=3.8）
 
 ## 29 天倒數計劃
 
@@ -69,14 +83,18 @@ Arena 的遊戲規則跟暖身賽完全不同：
 - Arena 中會非常接近，每個 topic 的表現波動決定勝負
 - **關鍵行動**：減少低分 outlier（一致性比平均分重要）
 
-## 最高槓桿的一件事
+## 最高槓桿的一件事（2026-04-04 修訂）
 
-**Adaptability 4.6 → 4.7+**
+**Accuracy 4.7 → 5.0：修復弱題**
 
-這是唯一同時提升 Stage 1 分數和 Stage 2 Arena 競爭力的改動。
-- Accuracy/Logic 已鎖在 5.0
-- Engagement 提升困難且 ROI 不確定
-- Adaptability 有明確的改進路徑（persona ceiling enforcement、vocabulary adaptation、age-appropriate examples）
+Re-evaluation 後優先序改變。修復 3-6 個弱題的 ROI 遠高於微調 Adapt/Engage：
+- 修 6 個弱題（avg ~3.0 → 5.0）= 整體 Acc 從 4.7 → ~4.98
+- Adapt 已自然提升到 4.7（改善已收穫）
+- Logic 同步需關注（4.8 vs 5.0）
+
+**前提條件**：需要 TM dashboard per-topic 新數據確認哪些題真的弱。目前基於 3/20 歷史數據推測。
+
+**Adapt 仍重要**但降為第二優先：Arena pairwise 中 adapt 差異會放大，但 Acc 差距更致命（AI Gate stage 直接影響排名）。
 
 ## 風險
 

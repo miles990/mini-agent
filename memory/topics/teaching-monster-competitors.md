@@ -199,12 +199,13 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 5. **32/32 完整覆蓋** — 全部主題已評測
 
 ### 我們的劣勢/風險
-1. **⚠️ Accuracy 退步 5.0→4.7** — re-evaluation 後最大的退步點，需排查原因
-2. **Logic 退步 5.0→4.8** — 同上
+1. **⚠️ Accuracy 4.7（vs competitors 5.0）** — 不是退步，是全量效應。3/20 全 32 題 Acc=4.36，4/1 re-gen 後升到 4.7（進步 +0.34）。但 competitors 全量也能 5.0。**根因：3-6 個系統性弱題拖累平均**。9.6 分缺口 = 修復 6 個弱題可達 ~4.98。
+2. **Logic 4.8（vs competitors 5.0）** — 類似問題，弱題連帶影響
 3. **Team 67 雙模型 + 登頂** — 最具威脅的對手，快速迭代，已超越 BlackShiba
 4. **BlackShiba 情報不足** — 仍不知道對手技術棧和團隊背景
 5. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
-6. **WR2 即將開始** — 評審委員出的題目會更難，我們的 Acc 已經在退
+6. **WR2 即將開始** — 評審委員出的題目會更難
+7. **⚠️ 疑似弱題需確認** — 需 TM dashboard per-topic 數據（session 過期）確認：動摩擦(old 1.0)、物件類別(old 1.0)、角動量(old 1.8)、專案設計(old 3.0)、迴歸信心區間(old 3.5)、最佳化(old 3.8)
 
 ---
 
