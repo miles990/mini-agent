@@ -16,6 +16,8 @@ import type { CycleMode } from './memory.js';
 import { eventBus } from './event-bus.js';
 import { createKuroChatStreamParser } from './tag-parser.js';
 import { compactContext } from './context-compaction.js';
+import { processContext, detectModelTier, type ModelTier } from './context-pipeline.js';
+import { buildSmallModelPrompt } from './prompt-builder.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -1292,6 +1294,23 @@ async function execLocal(fullPrompt: string, opts?: ExecOptions): Promise<string
 }
 
 /**
+ * Resolve the model name for tier detection.
+ * For local provider: check model override → profile model → env default.
+ * For claude/codex: returns undefined (always large tier).
+ */
+function resolveModelName(provider: Provider, modelOverride?: string): string | undefined {
+  if (provider !== 'local') return undefined;
+  if (modelOverride) {
+    // Model override might be a profile name — resolve to actual model
+    const profile = loadLocalProfile(modelOverride);
+    return profile.model || modelOverride;
+  }
+  // Default profile's model
+  const profile = loadLocalProfile('default');
+  return profile.model || process.env.LOCAL_LLM_MODEL || undefined;
+}
+
+/**
  * Call Claude Code via subprocess with smart retry
  * - Retries on transient errors (timeout, rate limit) with exponential backoff
  * - On TIMEOUT: rebuilds context with progressively smaller modes (focused → minimal)
@@ -1320,12 +1339,29 @@ export async function callClaude(
     timeoutMs?: number;
     /** No-progress timeout in ms (default: 5min). Kill if no stdout for this long. */
     progressTimeoutMs?: number;
+    /** Trigger reason hint — used by small model prompt builder */
+    triggerReason?: string | null;
+    /** Whether there are pending tasks — used by small model prompt builder */
+    hasPendingTasks?: boolean;
   },
 ): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
   const source = options?.source ?? 'loop';
-  const systemPrompt = getSystemPrompt(prompt, options?.cycleMode);
-  let currentContext = context;
+
+  // --- Model-Aware Context Pipeline ---
+  // Detect model tier to adapt context and prompt for model capabilities.
+  // Small models (4B) get pre-digested context + simplified prompt.
+  // Large models (Opus) get denoised context + full prompt.
+  const primary = getProviderForSource(source);
+  const modelTier: ModelTier = detectModelTier(primary, resolveModelName(primary, options?.model));
+  const systemPrompt = modelTier === 'small'
+    ? buildSmallModelPrompt(options?.triggerReason ?? null, options?.hasPendingTasks ?? false)
+    : getSystemPrompt(prompt, options?.cycleMode);
+  let currentContext = processContext(context, modelTier);
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
+
+  if (modelTier === 'small') {
+    slog('AGENT', `Small model pipeline: context ${context.length} → ${currentContext.length} chars, prompt ${fullPrompt.length} chars`);
+  }
 
   // Pre-check: if prompt is too large, proactively reduce context before first attempt
   // Lowered from 80K → 60K (2026-03-30): 60-70K char prompts consistently caused EXIT143
@@ -1415,7 +1451,7 @@ export async function callClaude(
     };
   }
 
-  const primary = getProviderForSource(source);
+  // primary already resolved above for model tier detection
   const startTime = Date.now();
   let lastErrorMessage = '重試次數已用盡。';
 
