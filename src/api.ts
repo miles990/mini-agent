@@ -714,18 +714,37 @@ export function createApi(port = 3001): express.Express {
   });
 
   // Unified status — 聚合所有子系統狀態 (OODA-Only)
-  app.get('/status', async (_req: Request, res: Response) => {
-    const laneStatus = getLaneStatus();
-
-    // Fetch mushi health (non-blocking, short timeout)
-    let mushi: Record<string, unknown> | null = null;
+  // --- Mushi health cache (refresh every 15s in background, /status reads cache) ---
+  // Convergence condition: /status must always respond <100ms regardless of subsystem health.
+  // Previous: await fetch(mushi) on every /status call → 2s timeout blocked event loop → kuro-live.sh timed out.
+  let mushiCache: Record<string, unknown> | null = null;
+  let mushiCacheAge = 0;
+  const MUSHI_CACHE_TTL = 15_000;
+  const refreshMushiCache = async () => {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 2000);
       const mushiRes = await fetch(MUSHI_HEALTH_URL, { signal: ctrl.signal });
       clearTimeout(timer);
-      if (mushiRes.ok) mushi = await mushiRes.json() as Record<string, unknown>;
-    } catch { /* mushi offline — ok */ }
+      if (mushiRes.ok) mushiCache = await mushiRes.json() as Record<string, unknown>;
+    } catch { mushiCache = null; }
+    mushiCacheAge = Date.now();
+  };
+  // Initial fetch + periodic refresh
+  refreshMushiCache();
+  const mushiRefreshInterval = setInterval(refreshMushiCache, MUSHI_CACHE_TTL);
+  mushiRefreshInterval.unref(); // Don't block process exit
+
+  app.get('/status', (_req: Request, res: Response) => {
+    const laneStatus = getLaneStatus();
+
+    // Knowledge status — sync getter, no await
+    let knowledge: Record<string, unknown> | null = null;
+    try {
+      // Dynamic import is cached by Node after first load — negligible cost
+      const mod = require('./shared-knowledge.js') as { getKBStatus?: () => Record<string, unknown> };
+      if (mod.getKBStatus) knowledge = mod.getKBStatus();
+    } catch { /* not available */ }
 
     res.json({
       instance: getCurrentInstanceId(),
@@ -741,8 +760,8 @@ export function createApi(port = 3001): express.Express {
         connected: !!getTelegramPoller(),
         notifications: getNotificationStats(),
       },
-      mushi,
-      knowledge: await (async () => { try { const { getKBStatus } = await import('./shared-knowledge.js'); return getKBStatus(); } catch { return null; } })(),
+      mushi: mushiCache,
+      knowledge,
       forge: forgeStatus(process.cwd()),
       provider: {
         primary: getProvider(),
