@@ -552,6 +552,21 @@ function extractCommitments(response: string): string[] {
     .map(s => s.trim())
     .filter(Boolean)
     .filter(s => COMMITMENT_PATTERN.test(s))
+    .filter(s => {
+      // Exclude questions (asking for permission, not committing)
+      if (/嗎|吗|\?$/.test(s)) return false;
+      // Exclude permission-seeking patterns (要我..., 要不要我..., 需要我...)
+      if (/^(?:\*{0,2})(?:要不要|要|需要|你(?:想|要|需要))我/.test(s)) return false;
+      // Exclude markdown table rows
+      if (/^\|.*\|/.test(s) || /\|.*\|$/.test(s)) return false;
+      // Exclude quoted/referenced commitments (meta-descriptions, not actual commitments)
+      if (/[「」「」]/.test(s)) return false;
+      // Exclude lines that describe the commitment system itself
+      if (/commitment|承諾/i.test(s)) return false;
+      // Exclude checkbox/list items referencing past actions (✅, ~~, completed)
+      if (/^[-*]\s*\[x\]|^✅|^~~/.test(s)) return false;
+      return true;
+    })
     .map(s => s.slice(0, 200));
 
   return [...new Set(candidates)];
