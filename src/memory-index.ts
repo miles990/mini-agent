@@ -28,6 +28,7 @@ export type MemoryIndexStatus =
   | 'in_progress'
   | 'completed'
   | 'abandoned'
+  | 'hold'
   | 'active'
   | 'inactive'
   | 'failed'

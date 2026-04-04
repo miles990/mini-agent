@@ -310,7 +310,7 @@ export interface ParsedTags {
     op: 'create' | 'update' | 'delete';
     id?: string;
     type?: 'task' | 'goal';
-    status?: 'pending' | 'in_progress' | 'completed' | 'abandoned';
+    status?: 'pending' | 'in_progress' | 'completed' | 'abandoned' | 'hold';
     origin?: string;
     priority?: number;
     verify?: Array<{ name: string; status: 'pass' | 'fail' | 'unknown'; detail?: string }>;
