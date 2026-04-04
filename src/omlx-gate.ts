@@ -668,11 +668,11 @@ export function callLocalFast(prompt: string, maxTokens: number, timeoutMs = 15_
 }
 
 /**
- * Call 9B for short generative tasks (summaries, rewrites).
+ * Call 4B for short generative tasks (summaries, rewrites).
  * Synchronous — blocks for up to timeoutMs.
  */
 export function callLocalSmart(prompt: string, maxTokens: number, timeoutMs = 15_000): string {
-  return callLocalLLM('Qwen3.5-9B-MLX-4bit', prompt, maxTokens, timeoutMs);
+  return callLocalLLM('Qwen3.5-4B-MLX-4bit', prompt, maxTokens, timeoutMs);
 }
 
 // =============================================================================
