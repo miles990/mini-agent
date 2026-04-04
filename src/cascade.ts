@@ -10,7 +10,7 @@ import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { getMemoryStateDir } from './memory.js';
 import { callLocalSmart } from './omlx-gate.js';
-import { diagLog } from './utils.js';
+import { diagLog, slog } from './utils.js';
 
 // =============================================================================
 // Types
@@ -98,7 +98,7 @@ Output ONLY the working memory text, no explanation.`;
       const tmpPath = innerPath + '.tmp';
       fs.writeFileSync(tmpPath, cleaned, 'utf-8');
       fs.renameSync(tmpPath, innerPath);
-      diagLog('CASCADE', `9B working memory updated (${cleaned.length} chars)`);
+      slog('CASCADE', `working memory updated (${cleaned.length} chars)`);
     } else {
       fallback = true;
     }

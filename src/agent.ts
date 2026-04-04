@@ -1514,7 +1514,7 @@ export async function callClaude(
       // Log error — include both per-attempt and total duration for accurate debugging
       const logger = getLogger();
       logger.logError(
-        new Error(`${primary} CLI ${classified.type} (exit ${exitCode}, ${attemptDuration}ms this attempt, ${duration}ms total, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
+        new Error(`${primary} CLI ${classified.type} (exit ${exitCode ?? 'N/A'}, ${attemptDuration}ms this attempt, ${duration}ms total, attempt ${attempt + 1}/${maxRetries + 1}, prompt ${fullPrompt.length} chars, ${source} lane): ${stderr.slice(0, 500) || classified.message}`),
         'callClaude'
       );
 
