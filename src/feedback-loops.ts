@@ -115,7 +115,6 @@ export async function detectErrorPatterns(): Promise<void> {
   }
 
   let changed = false;
-  const memory = getMemory();
 
   for (const [key, count] of groups) {
     if (count < 3) continue;
@@ -129,15 +128,11 @@ export async function detectErrorPatterns(): Promise<void> {
       continue;
     }
 
-    // New pattern or not yet tasked
+    // New pattern or not yet tasked — track state only.
+    // Task creation is handled by pulse.ts (which absorbed this responsibility).
     state[key] = { count, taskCreated: true, lastSeen: today };
     changed = true;
-
-    const [code, context] = key.split('::');
-    const dueDate = new Date(Date.now() + 3 * 86400_000).toISOString().split('T')[0];
-    const taskText = `P1: 修復重複錯誤 — ${code} in ${context}（${count} 次）@due:${dueDate}`;
-    await memory.addTask(taskText);
-    slog('FEEDBACK', `Error pattern detected: ${key} (${count}×) → task created`);
+    slog('FEEDBACK', `Error pattern detected: ${key} (${count}×) — tracked (pulse.ts creates task)`);
   }
 
   // Clean up patterns not seen in 7 days — explicit resolution tracking

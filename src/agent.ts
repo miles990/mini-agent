@@ -110,7 +110,19 @@ function classifyError(error: unknown): ErrorClassification {
   const signal = (error as { signal?: string })?.signal;
   const duration = (error as { duration?: number })?.duration;
   const timeoutMs = (error as { timeoutMs?: number })?.timeoutMs;
-  const combined = `${msg}\n${stderr}`.toLowerCase();
+  // Include error.cause — Node.js fetch wraps the real error there
+  // e.g. TypeError("fetch failed") { cause: Error("connect ECONNREFUSED 127.0.0.1:8000") }
+  const cause = (error as { cause?: Error })?.cause;
+  const causeMsg = cause instanceof Error ? cause.message : '';
+  const combined = `${msg}\n${stderr}\n${causeMsg}`.toLowerCase();
+
+  // Connection error — server not running or unreachable (common with local LLM)
+  if (combined.includes('econnrefused') || combined.includes('econnreset') ||
+      combined.includes('epipe') || combined.includes('enotfound') ||
+      (combined.includes('fetch') && combined.includes('failed') && !stderr.trim())) {
+    const detail = causeMsg || msg;
+    return { type: 'TIMEOUT', retryable: true, message: `無法連線到服務（${detail}）。可能是 LLM server 未啟動或網路問題。`, modelGuidance: 'Service is unreachable (connection refused/reset). The server may be down or restarting. On retry, check if the server process is alive. If this persists across retries, defer the task and switch provider.' };
+  }
 
   if (combined.includes('enoent') || combined.includes('not found')) {
     return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。', modelGuidance: 'Claude CLI is not installed or not in PATH. This is a system configuration issue — do not retry. Report to user and suggest checking PATH.' };
