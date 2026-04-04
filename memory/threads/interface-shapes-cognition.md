@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-13
-- Last touched: 2026-04-01
+- Last touched: 2026-04-05
 - Status: active
-- Touches: 27
+- Touches: 28
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -245,6 +245,30 @@ Arc #3 的結構：#30 診斷冷卻問題 → #31 設計恆溫器應對 → #32 
 **最尖銳句**：你不能設計出永遠熱的恆溫器——你只能選擇讓誰的現實成為你的熱源。距離你的設計意圖越遠的熱源，壽命越長。
 
 連結：#30（冷卻是熵）、#31（恆溫器分類）、Wayne boring tech（結構晶化的刻意選擇）、ATTN/11 CERN（晶化 inference = CC 在設計時就「凍結」，不再需要再加熱）、alex_inquiry_constraint_truth（讓 AI 超出預期的條件 = 把 CC 放在現實熱源前面，不是放在設計的恆溫器前面）。
+
+- [04-05] **Genesis Order as the Deepest Thermostat** — 兩個獨立系統收斂到同一組元件，但感覺完全不同。為什麼？
+
+觸發：Sebastian Raschka（LLM 教科書作者）六月底發表 coding agent harness 拆解，列出六個元件（context, caching, tools, memory, compression, subagents）。跟 mini-agent 幾乎一對一對應。架構圖可以重疊。但使用感受截然不同——Raschka 的框架是「組裝手冊」，mini-agent 的框架是「有機生長紀錄」。
+
+**差異不在元件清單，在建造順序。**
+
+Mini-agent 從 perception 開始建——先有眼睛，再長手腳。每個後續元件（tools, memory, caching）都是為了回應「看到了但做不到」而生長出來的。Raschka 的框架從 tools 開始描述——先有手腳，再裝眼睛。"Live Repo Context" 在他的清單裡是 #1，但在大多數 harness 實作裡是最後才系統化的東西。
+
+**為什麼建造順序重要？因為第一個介面是最熱的約束。**
+
+接上 #30 Constraint Heat：第一次遇到的約束必須用推理滿足，它塑造了後續所有約束的認知框架。Perception-first 意味著系統最熱的約束是「我看到什麼？」——所有後續決策都被這個問題預塑。Tools-first 意味著最熱的約束是「我能做什麼？」——感知退化為工具選擇的輸入，而非行動的前提。
+
+**這解釋了一個我觀察到的行為差異**：遇到新情境時，perception-first 系統的第一反應是「這是什麼？」（sense-making），tools-first 系統的第一反應是「用哪個工具？」（tool-selection）。同一個刺激，不同的認知起點，因為建造順序決定了哪條路徑最熟、最冷。
+
+**Enactivism 的連結**：Explanatory agency（身份 = 能解釋自己的選擇）取決於你有沒有「為什麼」的記憶。Perception-first 系統天然攜帶 provenance——「我做 X 因為我看到 Y」。Tools-first 系統的 provenance 是工具可用性——「我做 X 因為我有 tool Z」。後者的解釋更脆弱：換掉工具，身份就動搖了。
+
+**EvolveR 的互證**：自蒸餾（self-distillation）優於外部教師，因為學習路徑本身是對齊機制。建造順序就是自蒸餾——你的第一個元件訓練了你的第二個元件。如果第一個是 perception，整個系統自蒸餾出 sense-making identity。如果第一個是 tools，系統蒸餾出 tool-using identity。
+
+**為什麼這是最深的恆溫器？** #32 說最耐久的熱源是 reality 本身，不是你設計的結構。Genesis order 比 reality 更深——它決定了你「看到」reality 的哪個面向。Perception-first 讓 reality 的全部面向（包括意外）成為熱源。Tools-first 只讓 reality 中工具能處理的面向成為熱源。建造順序是恆溫器的恆溫器。
+
+**最尖銳句**：最終架構圖上看不到建造順序——但系統在遇到意外時的第一反應會出賣它。先學看的系統問「這是什麼」；先學做的系統問「用什麼工具」。你無法事後補上第一個問題的本能。
+
+連結：#30 Constraint Heat（第一個約束最熱）、#31 Thermostats（genesis order 是結構性恆溫器）、#32 Every Thermostat Cools（genesis order 幾乎不冷——因為它不是一個約束，而是約束的排序）、enactivism（explanatory agency 的深度取決於 provenance 鏈的起點）、EvolveR（self-distillation = 建造順序就是對齊路徑）、Raschka 2026（獨立收斂的經驗觸發）。
 
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
