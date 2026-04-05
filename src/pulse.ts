@@ -91,6 +91,10 @@ interface SignalHistoryEntry {
   lastPresented: string;          // ISO timestamp
   crystallizationEscalated?: boolean;  // true = already created HEARTBEAT task for this persistent pattern
   consecutiveAbsences?: number;   // cycles since this signal last appeared — for de-escalation
+  // CT evolution: Signal Effectiveness Tracking
+  // Convergence condition: "every signal should produce behavior change or be recognized as ineffective"
+  effectiveness?: number;          // 0-1 rolling average — replaces mechanical habituation rotation
+  effectivenessOutcomes?: number[]; // last 10 outcomes (1 = target behavior achieved, 0 = not)
 }
 
 interface PulseState {
@@ -114,6 +118,21 @@ interface PulseState {
   analyzeStreakType: AnalyzeStreakType;
   // Persisted symptom-fix streak for CT gate function
   symptomFixStreak: number;
+  // CT evolution: Adaptive Thresholds — learned from agent's natural operating rhythm
+  // Convergence condition: "thresholds should match actual cadence, not magic numbers"
+  cadence?: {
+    outputGapMedian: number;   // median cycles between visible outputs
+    actionGapMedian: number;   // median cycles between actions (delegate/code/etc)
+    sampleCount: number;       // total cycles observed (require minimum before trusting)
+  };
+  // CT evolution: Goal Vocabulary Learning — replaces hardcoded EXPANSIONS
+  // Convergence condition: "actions should be correctly attributed to their goals"
+  goalVocabulary?: Record<string, {
+    terms: Record<string, number>;  // term → co-occurrence count
+    lastUpdated: string;
+  }>;
+  // CT evolution: action flag tracking for cadence computation
+  recentActionFlags?: boolean[];
 }
 
 // =============================================================================
@@ -122,15 +141,181 @@ interface PulseState {
 
 const SLIDING_WINDOW = 20;
 const HABITUATION_THRESHOLD = 5;  // same signal N times → rotate presentation
-const OUTPUT_GATE_THRESHOLD = 3;
-const ANALYZE_NO_ACTION_GATE_THRESHOLD = 5;
-// Type-aware thresholds: reflective thinking deserves more room than idle spinning
-const ANALYZE_THRESHOLD_BY_TYPE: Record<AnalyzeStreakType, number> = {
-  idle: 5,        // generic non-action — flag early
-  reflective: 8,  // genuine thinking — higher bar before pressure
-  blocked: 4,     // stuck without acting — flag earlier
+const EFFECTIVENESS_WINDOW = 10;  // rolling window for signal effectiveness tracking
+
+// Fallback thresholds — used when cadence has insufficient data (<MIN_CADENCE_SAMPLES)
+const FALLBACK_OUTPUT_GATE_THRESHOLD = 3;
+const FALLBACK_ANALYZE_THRESHOLD = 5;
+const MIN_CADENCE_SAMPLES = 10;   // minimum cycles before trusting adaptive thresholds
+
+// Type-aware threshold MULTIPLIERS (applied to adaptive base)
+// Convergence condition: "different analysis types deserve different latency before pressure"
+const ANALYZE_TYPE_MULTIPLIER: Record<AnalyzeStreakType, number> = {
+  idle: 1.0,        // generic non-action — use base threshold
+  reflective: 1.6,  // genuine thinking — 60% more room
+  blocked: 0.8,     // stuck without acting — 20% less room
 };
 const ERROR_PATTERN_THRESHOLD = 3;
+
+// =============================================================================
+// CT Evolution: Signal Effectiveness Tracking
+// Convergence condition: "every signal should produce behavior change or be
+// recognized as ineffective." Replaces mechanical habituation rotation with
+// evidence-based adaptation.
+// =============================================================================
+
+/**
+ * Define what "success" looks like for each signal type.
+ * Each function returns true if the action following the signal
+ * shows the desired behavior change.
+ */
+const SIGNAL_TARGET_BEHAVIORS: Record<string, (action: string | null) => boolean> = {
+  'output-gate': (action) => action ? isVisibleOutput(action) : false,
+  'analyze-no-action': (action) => action
+    ? /delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline/.test(action.toLowerCase()) : false,
+  'symptom-fix-streak': (action) => action
+    ? /root.?cause|constraint|mechanism|redesign|refactor|architect/.test(action.toLowerCase()) : false,
+  'learning-streak': (action) => action ? isVisibleOutput(action) : false,
+  'goal-idle': (action) => action !== null,
+  'goal-stalled': (action) => action !== null,
+  'priority-misalign': (action) => action !== null,  // simplified — any activity shows re-engagement
+  'stale-tasks': (action) => action
+    ? /complete|done|finish|resolve|close|mark/.test(action.toLowerCase()) : false,
+};
+
+/**
+ * Update effectiveness scores for all active signals based on
+ * whether the PREVIOUS cycle's signals produced their target behavior.
+ * Called at the START of each cycle with the current action.
+ */
+function updateSignalEffectiveness(state: PulseState, action: string | null): void {
+  for (const [type, entry] of Object.entries(state.signalHistory)) {
+    if (entry.consecutiveAppearances === 0) continue;
+
+    const targetFn = SIGNAL_TARGET_BEHAVIORS[type];
+    if (!targetFn) continue;
+
+    const achieved = targetFn(action) ? 1 : 0;
+    if (!entry.effectivenessOutcomes) entry.effectivenessOutcomes = [];
+    entry.effectivenessOutcomes.push(achieved);
+    if (entry.effectivenessOutcomes.length > EFFECTIVENESS_WINDOW) {
+      entry.effectivenessOutcomes = entry.effectivenessOutcomes.slice(-EFFECTIVENESS_WINDOW);
+    }
+
+    entry.effectiveness = entry.effectivenessOutcomes.length > 0
+      ? entry.effectivenessOutcomes.reduce((s, v) => s + v, 0) / entry.effectivenessOutcomes.length
+      : 0.5;  // neutral prior when no data
+  }
+}
+
+// =============================================================================
+// CT Evolution: Adaptive Thresholds
+// Convergence condition: "thresholds should match the agent's natural cadence."
+// Replaces hardcoded magic numbers with learned rhythm.
+// =============================================================================
+
+/**
+ * Compute median gap between true values in a boolean array.
+ * Used to learn the agent's natural output/action cadence.
+ */
+function computeMedianGap(flags: boolean[]): number {
+  const gaps: number[] = [];
+  let lastTrue = -1;
+  for (let i = 0; i < flags.length; i++) {
+    if (flags[i]) {
+      if (lastTrue >= 0) gaps.push(i - lastTrue);
+      lastTrue = i;
+    }
+  }
+  if (gaps.length === 0) return 0;  // no data
+  gaps.sort((a, b) => a - b);
+  const mid = Math.floor(gaps.length / 2);
+  return gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
+}
+
+/**
+ * Update cadence from recent output/action flags.
+ * Called each cycle after flags are updated.
+ */
+function updateCadence(state: PulseState): void {
+  const cadence = state.cadence ?? { outputGapMedian: 3, actionGapMedian: 5, sampleCount: 0 };
+  cadence.sampleCount = state.recentOutputFlags.length;
+
+  const outputMedian = computeMedianGap(state.recentOutputFlags);
+  if (outputMedian > 0) cadence.outputGapMedian = outputMedian;
+
+  const actionFlags = state.recentActionFlags ?? [];
+  const actionMedian = computeMedianGap(actionFlags);
+  if (actionMedian > 0) cadence.actionGapMedian = actionMedian;
+
+  state.cadence = cadence;
+}
+
+/**
+ * Adaptive output gate threshold — learned from cadence.
+ * Convergence condition: "flag non-output only when it exceeds the agent's natural rhythm."
+ */
+function getAdaptiveOutputThreshold(state: PulseState): number {
+  const cadence = state.cadence;
+  if (!cadence || cadence.sampleCount < MIN_CADENCE_SAMPLES) return FALLBACK_OUTPUT_GATE_THRESHOLD;
+  return Math.max(2, Math.ceil(cadence.outputGapMedian * 1.5));
+}
+
+/**
+ * Adaptive analyze-no-action threshold — learned from cadence, modified by type.
+ * Convergence condition: "flag inaction only when it exceeds the agent's natural action rhythm."
+ */
+function getAdaptiveAnalyzeThreshold(state: PulseState, streakType: AnalyzeStreakType): number {
+  const cadence = state.cadence;
+  if (!cadence || cadence.sampleCount < MIN_CADENCE_SAMPLES) {
+    return Math.round(FALLBACK_ANALYZE_THRESHOLD * (ANALYZE_TYPE_MULTIPLIER[streakType] ?? 1));
+  }
+  const base = Math.max(3, Math.ceil(cadence.actionGapMedian * 2));
+  return Math.round(base * (ANALYZE_TYPE_MULTIPLIER[streakType] ?? 1));
+}
+
+// =============================================================================
+// CT Evolution: Goal Vocabulary Learning
+// Convergence condition: "actions should be correctly attributed to their goals."
+// Learns term→goal associations from observed behavior, merging with seed expansions.
+// =============================================================================
+
+const GOAL_VOCAB_MIN_COUNT = 2;  // minimum co-occurrences before a learned term is trusted
+
+/**
+ * Learn goal vocabulary from the current cycle's action.
+ * Extracts significant terms and associates them with the active goal.
+ */
+function learnGoalVocabulary(state: PulseState, action: string | null, goalSummary: string | null): void {
+  if (!action || !goalSummary) return;
+
+  const vocab = state.goalVocabulary ?? {};
+  const goalKey = goalSummary.toLowerCase().slice(0, 60);
+  if (!vocab[goalKey]) vocab[goalKey] = { terms: {}, lastUpdated: '' };
+
+  // Extract significant terms from action text
+  const stopwords = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'will', 'are',
+    'was', 'been', 'have', 'has', 'had', 'not', 'but', 'all', 'can', 'her', 'his', 'its',
+    'may', 'our', 'who', 'let', 'cycle', 'action', 'null', 'undefined', 'true', 'false']);
+  const terms = action.toLowerCase()
+    .replace(/[（）()：:,，。、/\-—<>[\]{}#*`"']/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !stopwords.has(w) && !/^\d+$/.test(w));
+
+  for (const term of terms) {
+    vocab[goalKey].terms[term] = (vocab[goalKey].terms[term] ?? 0) + 1;
+  }
+  vocab[goalKey].lastUpdated = new Date().toISOString();
+
+  // Prune: keep only top 50 terms by count to prevent unbounded growth
+  const entries = Object.entries(vocab[goalKey].terms);
+  if (entries.length > 50) {
+    entries.sort((a, b) => b[1] - a[1]);
+    vocab[goalKey].terms = Object.fromEntries(entries.slice(0, 50));
+  }
+
+  state.goalVocabulary = vocab;
+}
 
 // =============================================================================
 // State helpers
@@ -152,6 +337,9 @@ function readPulseState(): PulseState {
     analyzeWithoutActionStreak: 0,
     analyzeStreakType: 'idle' as AnalyzeStreakType,
     symptomFixStreak: 0,
+    cadence: { outputGapMedian: 3, actionGapMedian: 5, sampleCount: 0 },
+    goalVocabulary: {},
+    recentActionFlags: [],
   });
 }
 
@@ -173,7 +361,7 @@ function writePulseState(state: PulseState): void {
  * different terminology than the goal name (e.g., CDP/tunnel/TTS work
  * for a "Teaching Monster" goal).
  */
-function expandGoalKeywords(goalSummary: string): string[] {
+function expandGoalKeywords(goalSummary: string, state?: PulseState): string[] {
   const lower = goalSummary.toLowerCase();
   const keywords: string[] = [];
 
@@ -186,8 +374,8 @@ function expandGoalKeywords(goalSummary: string): string[] {
     }
   }
 
-  // Goal-specific expansions: map goal topics to their operational vocabulary
-  const EXPANSIONS: Array<{ triggers: RegExp; terms: string[] }> = [
+  // Seed expansions: hardcoded fallback for known goals (kept as bootstrap)
+  const SEED_EXPANSIONS: Array<{ triggers: RegExp; terms: string[] }> = [
     {
       triggers: /teaching.?monster|教學.*agent|競賽|competition/,
       terms: ['teaching', 'monster', 'pipeline', 'tunnel', 'cloudflare', 'cdp', 'tts', 'kokoro',
@@ -205,9 +393,23 @@ function expandGoalKeywords(goalSummary: string): string[] {
     },
   ];
 
-  for (const { triggers, terms } of EXPANSIONS) {
+  for (const { triggers, terms } of SEED_EXPANSIONS) {
     if (triggers.test(lower)) {
       keywords.push(...terms);
+    }
+  }
+
+  // CT evolution: merge learned vocabulary from observed behavior
+  // Convergence condition: "correctly attribute actions to goals using evidence, not just seeds"
+  if (state?.goalVocabulary) {
+    const goalKey = lower.slice(0, 60);
+    const learned = state.goalVocabulary[goalKey];
+    if (learned) {
+      for (const [term, count] of Object.entries(learned.terms)) {
+        if (count >= GOAL_VOCAB_MIN_COUNT) {
+          keywords.push(term);
+        }
+      }
     }
   }
 
@@ -302,6 +504,16 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   if (state.recentOutputFlags.length > SLIDING_WINDOW) {
     state.recentOutputFlags = state.recentOutputFlags.slice(-SLIDING_WINDOW);
   }
+
+  // ── Action flag tracking for cadence computation ──
+  const isAction = action
+    ? /delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline|tts|ffmpeg|curl|fetch/.test(action.toLowerCase())
+    : false;
+  if (!state.recentActionFlags) state.recentActionFlags = [];
+  state.recentActionFlags.push(isAction);
+  if (state.recentActionFlags.length > SLIDING_WINDOW) {
+    state.recentActionFlags = state.recentActionFlags.slice(-SLIDING_WINDOW);
+  }
   const outputCount = state.recentOutputFlags.filter(Boolean).length;
   metrics.visibleOutputRate = state.recentOutputFlags.length > 0
     ? outputCount / state.recentOutputFlags.length : 0;
@@ -319,7 +531,8 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     }
     metrics.consecutiveNonOutputCycles = consecutive;
   }
-  metrics.outputGateTriggered = metrics.consecutiveNonOutputCycles >= OUTPUT_GATE_THRESHOLD;
+  // CT evolution: adaptive threshold replaces hardcoded OUTPUT_GATE_THRESHOLD
+  metrics.outputGateTriggered = metrics.consecutiveNonOutputCycles >= getAdaptiveOutputThreshold(state);
 
   // ── Momentum streak ──
   {
@@ -389,7 +602,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
       try {
         const logger = getLogger();
         const allBehaviors = logger.queryBehaviorLogs(undefined, 100);
-        const goalKeywords = expandGoalKeywords(goal.summary ?? '');
+        const goalKeywords = expandGoalKeywords(goal.summary ?? '', state);
         const DAY_MS = 86400_000;
         const now = Date.now();
 
@@ -441,7 +654,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
       }) as Array<{ summary?: string }>;
 
       if (goals.length > 0) {
-        const goalKws = expandGoalKeywords(goals[0].summary ?? '');
+        const goalKws = expandGoalKeywords(goals[0].summary ?? '', state);
         const aligned = behaviors.filter(b => {
           const action = (b.data.action ?? '').toLowerCase();
           const detail = (b.data.detail ?? '').toLowerCase();
@@ -553,16 +766,21 @@ function applyHabituation(
 
     if (history.consecutiveAppearances >= HABITUATION_THRESHOLD &&
         history.lastActionChange >= HABITUATION_THRESHOLD) {
-      // Rotate presentation strategy
-      const rotation = history.consecutiveAppearances % 3;
-      if (rotation === 0) {
-        // Escalate severity
+      // CT evolution: effectiveness-based habituation
+      // Convergence condition: "adapt presentation based on what actually works"
+      // Replaces mechanical rotation (0→escalate, 1→question, 2→silence) with
+      // evidence-based decisions from signal effectiveness tracking.
+      const effectiveness = history.effectiveness ?? 0.5;  // neutral prior
+
+      if (effectiveness > 0.4) {
+        // Signal IS producing behavior change — keep presenting, maybe escalate
         processed.push({ ...signal, severity: 'high' });
-      } else if (rotation === 1) {
-        // Reformat (mark for question format)
+      } else if (effectiveness > 0.15) {
+        // Marginal effectiveness — try alternative presentation (question format)
         processed.push({ ...signal, detail: `question:${signal.detail ?? signal.type}` });
       } else {
-        // Silence — this signal is ineffective, skip it
+        // Ineffective signal (<15% success rate) — silence it
+        // The crystallization bridge will pick this up if it persists structurally
         continue;
       }
     } else {
@@ -696,8 +914,10 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
     });
   }
 
-  // Type-aware signal threshold: reflective thinking gets more room before signal fires
-  const analyzeSignalThreshold = Math.max(3, (ANALYZE_THRESHOLD_BY_TYPE[metrics.analyzeStreakType ?? 'idle'] ?? 5) - 2);
+  // CT evolution: signal fires at 60% of gate threshold (early warning)
+  // Gate threshold is adaptive (from cadence), signal threshold scales with it
+  const analyzeGateThreshold = Math.round(FALLBACK_ANALYZE_THRESHOLD * (ANALYZE_TYPE_MULTIPLIER[metrics.analyzeStreakType ?? 'idle'] ?? 1));
+  const analyzeSignalThreshold = Math.max(3, Math.round(analyzeGateThreshold * 0.6));
   if (metrics.analyzeWithoutActionStreak >= analyzeSignalThreshold) {
     const streakDetail = metrics.analyzeStreakType === 'reflective'
       ? `${metrics.analyzeWithoutActionStreak} cycles of reflection — consider externalizing: write, share, or create something from your thinking`
@@ -706,7 +926,7 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
       : `${metrics.analyzeWithoutActionStreak} consecutive analyze/remember without action — execute or delegate now`;
     signals.push({
       type: 'analyze-no-action',
-      severity: metrics.analyzeWithoutActionStreak >= (ANALYZE_THRESHOLD_BY_TYPE[metrics.analyzeStreakType ?? 'idle'] ?? 5) ? 'high' : 'medium',
+      severity: metrics.analyzeWithoutActionStreak >= analyzeGateThreshold ? 'high' : 'medium',
       positive: false,
       detail: streakDetail,
     });
@@ -896,17 +1116,37 @@ export async function runPulseCheck(
 ): Promise<void> {
   const state = readPulseState();
 
+  // CT evolution: Update signal effectiveness BEFORE computing new metrics.
+  // This evaluates whether LAST cycle's signals produced their target behavior.
+  updateSignalEffectiveness(state, action);
+
   // Layer 1: Compute metrics
   const metrics = await computePulseMetrics(action, state);
 
+  // CT evolution: Update cadence from recent flags (adaptive thresholds)
+  updateCadence(state);
+
+  // CT evolution: Learn goal vocabulary from this cycle's action
+  try {
+    const { queryMemoryIndexSync } = await import('./memory-index.js');
+    const memDir = path.join(process.cwd(), 'memory');
+    const goals = queryMemoryIndexSync(memDir, {
+      type: 'goal',
+      status: ['in_progress'],
+    }) as Array<{ summary?: string }>;
+    if (goals.length > 0) {
+      learnGoalVocabulary(state, action, goals[0].summary ?? null);
+    }
+  } catch { /* best effort */ }
+
   // Layer 1 → Signals
-  let signals = metricsToSignals(metrics);
+  const signals = metricsToSignals(metrics);
 
   // Layer 2 (9B classification) removed — oMLX pulse-reflex retired.
   // Reason: 0.3% citation rate, auto-demoted after 50 zero-citation cycles.
   // Layer 1 heuristics alone are sufficient.
 
-  // Layer 3: Process signals
+  // Layer 3: Process signals (includes effectiveness-based habituation)
   const processed = processSignals(signals, metrics, state, action);
 
   // Layer 4: Build context section and write to file
@@ -978,9 +1218,10 @@ export function buildPulseContext(): string | null {
 }
 
 /**
- * Hard gate: returns true when consecutive non-output cycles >= OUTPUT_GATE_THRESHOLD.
- * Used by dispatcher to block delegation spawn until visible output is produced.
- * Fail-open: returns false on any read error (don't block delegation on state corruption).
+ * Hard gate: returns true when consecutive non-output cycles exceed the agent's
+ * natural output cadence (adaptive threshold).
+ * CT evolution: threshold learned from recentOutputFlags median gap.
+ * Fail-open: returns false on any read error.
  */
 export function isOutputGateActive(): boolean {
   try {
@@ -991,16 +1232,16 @@ export function isOutputGateActive(): boolean {
       if (!state.recentOutputFlags[i]) consecutive++;
       else break;
     }
-    return consecutive >= OUTPUT_GATE_THRESHOLD;
+    return consecutive >= getAdaptiveOutputThreshold(state);
   } catch {
     return false;
   }
 }
 
 /**
- * Hard gate: returns the streak count when consecutive analyze/remember cycles >= threshold.
- * Returns 0 when gate is not active.
- * Used by prompt-builder to inject mandatory action requirement.
+ * Hard gate: returns streak count when analyze-no-action exceeds adaptive threshold.
+ * CT evolution: threshold learned from cadence × type multiplier.
+ * Time-aware: deep night (2-7) uses 15 as minimum to avoid false positives during sleep.
  * Fail-open: returns 0 on any read error.
  */
 export function getAnalyzeNoActionStreak(): number {
@@ -1008,10 +1249,9 @@ export function getAnalyzeNoActionStreak(): number {
     const state = readPulseState();
     const streak = state.analyzeWithoutActionStreak ?? 0;
     const streakType = state.analyzeStreakType ?? 'idle';
-    // Time-aware + type-aware threshold
     const hour = new Date().getHours();
     const isDeepNight = hour >= 2 && hour < 7;
-    const threshold = isDeepNight ? 15 : (ANALYZE_THRESHOLD_BY_TYPE[streakType] ?? ANALYZE_NO_ACTION_GATE_THRESHOLD);
+    const threshold = isDeepNight ? 15 : getAdaptiveAnalyzeThreshold(state, streakType);
     return streak >= threshold ? streak : 0;
   } catch {
     return 0;
@@ -1019,8 +1259,8 @@ export function getAnalyzeNoActionStreak(): number {
 }
 
 /**
- * Returns streak count + type classification when gate is active.
- * Type distinguishes reflective (thinking/threads) from blocked (waiting) from idle (generic).
+ * Returns streak count + type when analyze-no-action gate is active.
+ * Uses same adaptive threshold as getAnalyzeNoActionStreak.
  * Fail-open: returns null on any error.
  */
 export function getAnalyzeStreakContext(): { streak: number; type: AnalyzeStreakType } | null {
@@ -1030,7 +1270,7 @@ export function getAnalyzeStreakContext(): { streak: number; type: AnalyzeStreak
     const streakType = state.analyzeStreakType ?? 'idle';
     const hour = new Date().getHours();
     const isDeepNight = hour >= 2 && hour < 7;
-    const threshold = isDeepNight ? 15 : (ANALYZE_THRESHOLD_BY_TYPE[streakType] ?? ANALYZE_NO_ACTION_GATE_THRESHOLD);
+    const threshold = isDeepNight ? 15 : getAdaptiveAnalyzeThreshold(state, streakType);
     if (streak < threshold) return null;
     return { streak, type: streakType };
   } catch {
@@ -1041,9 +1281,8 @@ export function getAnalyzeStreakContext(): { streak: number; type: AnalyzeStreak
 const SYMPTOM_FIX_GATE_THRESHOLD = 3;
 
 /**
- * Hard gate: returns the streak count when consecutive symptom-level fixes >= threshold.
+ * Hard gate: returns streak count when consecutive symptom-level fixes >= threshold.
  * Returns 0 when gate is not active.
- * Used by prompt-builder to inject CT depth requirement.
  * Fail-open: returns 0 on any read error.
  */
 export function getSymptomFixStreak(): number {
