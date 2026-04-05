@@ -326,9 +326,9 @@ function buildDelegationReviewGate(): string {
 /** Build error-patterns hint — inject recurring error patterns into cycle prompt for real-time awareness */
 function buildErrorPatternsHint(): string {
   try {
-    const patterns = readState<Record<string, { count: number; taskCreated: boolean; lastSeen: string }>>('error-patterns.json', {});
+    const patterns = readState<Record<string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean }>>('error-patterns.json', {});
     const actionable = Object.entries(patterns)
-      .filter(([, v]) => v.count >= 3)
+      .filter(([, v]) => v.count >= 3 && !v.resolved)
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 5);
     if (actionable.length === 0) return '';
