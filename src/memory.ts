@@ -44,7 +44,7 @@ import { getProvider, getFallback, getProviderForSource } from './agent.js';
 import type { MemoryEntry, ConversationEntry, ComposePerception, CatalogEntry, ConversationThread } from './types.js';
 import {
   executeAllPerceptions, formatPerceptionResults,
-  loadAllSkills, formatSkillsPrompt, setSkillTrackingPaths, refreshSkillsCache,
+  loadAllSkills, formatSkillsPrompt, formatSkillIndex, setSkillTrackingPaths, refreshSkillsCache,
   type LoadedSkill,
 } from './perception.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
@@ -173,10 +173,15 @@ export function setCustomExtensions(ext: {
 }
 
 /**
- * 取得 skills prompt（動態 JIT Loading）
+ * 取得 skills prompt（漸進式披露 — CC pattern）
  *
  * Skills 透過檔案內的 JIT Keywords / JIT Modes 行自描述觸發條件。
  * 每次呼叫會檢查檔案變更（hot-reload），修改後下個 cycle 自動生效。
+ *
+ * Progressive disclosure:
+ * - Full content: top 3 keyword-matched skills within mode-eligible set
+ * - Index only: remaining eligible skills (name + trigger keywords, ~25 chars each)
+ * - respond mode fallback: load all eligible (backward compat for user-facing cycles)
  *
  * @param hint - 用於 keyword matching 的文字
  * @param cycleMode - OODA cycle 模式，優先於 keyword matching
@@ -193,31 +198,44 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
 
   // oMLX Gate R2: get exclude set for current mode
   const excludeSet = getSkillsExcludeSet(cycleMode, (hint ?? '').toLowerCase());
-
-  // cycleMode 優先：用 skill 自宣告的 modes 篩選
-  if (cycleMode) {
-    const selected = skillsCache.filter(skill => {
-      // skill 沒宣告 modes → 不在 mode 篩選中載入（等 keyword fallback）
-      if (skill.modes.length === 0) return false;
-      if (excludeSet.has(skill.name)) return false; // R2: gate filter
-      return skill.modes.includes(cycleMode);
-    });
-
-    // 有匹配到 → 直接回傳
-    if (selected.length > 0) return formatSkillsPrompt(selected);
-    // 沒匹配到 → fall through to keyword matching
-  }
-
-  // Fallback: keyword matching（respond mode 或無 cycleMode 時）
   const lowerHint = (hint ?? '').toLowerCase();
-  const selected = skillsCache.filter(skill => {
-    // skill 沒宣告 keywords → 總是載入（保守策略）
-    if (skill.keywords.length === 0) return !excludeSet.has(skill.name); // R2: gate filter
-    if (excludeSet.has(skill.name)) return false; // R2: gate filter
-    return skill.keywords.some(k => lowerHint.includes(k));
+
+  // Phase 1: Find mode-eligible skills (mode match + R2 gate)
+  const eligible = skillsCache.filter(skill => {
+    if (excludeSet.has(skill.name)) return false;
+    if (cycleMode && skill.modes.length > 0) return skill.modes.includes(cycleMode);
+    // No modes declared → eligible for keyword matching
+    return true;
   });
 
-  return formatSkillsPrompt(selected);
+  if (eligible.length === 0) return '';
+
+  // Phase 2: Score each eligible skill by keyword match count
+  const scored = eligible.map(skill => ({
+    skill,
+    matchCount: lowerHint
+      ? skill.keywords.filter(k => lowerHint.includes(k)).length
+      : 0,
+  })).sort((a, b) => b.matchCount - a.matchCount);
+
+  // Phase 3: Progressive disclosure — full content for top matches, index for rest
+  const MAX_FULL_SKILLS = 3;
+  const topMatches = scored.filter(s => s.matchCount > 0).slice(0, MAX_FULL_SKILLS);
+  const rest = scored.filter(s => !topMatches.includes(s));
+
+  // respond mode with no keyword matches → load all eligible (user-facing, backward compat)
+  if (topMatches.length === 0 && cycleMode === 'respond') {
+    return formatSkillsPrompt(eligible);
+  }
+
+  const fullContent = topMatches.length > 0
+    ? formatSkillsPrompt(topMatches.map(s => s.skill))
+    : '';
+  const indexContent = rest.length > 0
+    ? formatSkillIndex(rest.map(s => s.skill))
+    : '';
+
+  return fullContent + indexContent;
 }
 
 function commandExists(cmd: string): boolean {

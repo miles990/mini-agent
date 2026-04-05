@@ -343,3 +343,16 @@ export function formatSkillsPrompt(skills: Array<{ name: string; content: string
   const sections = skills.map(s => s.content).join('\n\n---\n\n');
   return `\n\n## Your Skills\n\n${sections}\n`;
 }
+
+/**
+ * 生成 skill 索引（CC pattern: compact one-liner per skill）
+ * 只列出名稱和觸發關鍵字，不載入完整內容。~25 chars/skill。
+ */
+export function formatSkillIndex(skills: LoadedSkill[]): string {
+  if (skills.length === 0) return '';
+  const lines = skills.map(s => {
+    const kw = s.keywords.slice(0, 5).join(', ');
+    return `- ${s.name}: ${kw}`;
+  });
+  return `\n## Other Available Skills\n${lines.join('\n')}\n`;
+}
