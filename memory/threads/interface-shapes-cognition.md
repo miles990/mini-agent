@@ -758,5 +758,75 @@ Article draft ~5,100 words. Editorial pass + source links done (2026-03-31).
 5. **Review by Alex** — 拿給 Alex 看
 6. Consider Caspar-Klug for Part 1 / Google scaling for Part 5 — deferred, article already tight
 
-### Post-04-05 burst (Notes #33-#46)
+### Note #47 — Proprioception Was Already Here (Correcting #29) [04-06]
+
+觸發：Rumination digest 的 robotics 條目（proprioceptive actuators = RL enabling condition）碰上 Thread Note #29（crystallization ≠ learning, gates lack feedback）。準備推導「proprioceptive gate」時，去讀了 pulse.ts 的實際代碼，發現 #29 錯了。
+
+**#29 的宣稱**：「No feedback from gate outcomes to gate parameters.」Gates 是純 position control，沒有 force sensing。
+
+**代碼的實際狀態**：
+1. **Signal effectiveness tracking** — 每個 signal type（含 output-gate、analyze-no-action）有 0-1 rolling average，追蹤最近 10 次 outcome（gate fire 後是否達成 target behavior）
+2. **Adaptive presentation** — effectiveness > 40% 升級嚴重度，15-40% 改用問句格式，< 15% 靜默該 signal
+3. **Cadence learning** — 閾值從觀測的 outputGapMedian / actionGapMedian 自動調整，不是固定值
+4. **Type-aware multipliers** — idle 1.0x, reflective 1.6x, blocked 0.8x
+
+所以 #29 在事實層面就是錯的。反饋存在。但 #29 在直覺上抓到了一個真實的結構——effectiveness data 不回流到 threshold 計算。閾值跟著 cadence（節奏），不跟著 effectiveness（品質）。為什麼？
+
+**Robotics analogy 的真實映射**：
+
+| Robotics | Mini-Agent | 角色 |
+|---|---|---|
+| Position control | Gate（hard block at threshold） | 固定位置，防止偏離 |
+| Force sensor | Signal effectiveness tracking | 感知環境回應 |
+| Force control（PD controller） | Signal presentation adaptation | 根據感知調整輸出 |
+| Compliant hardware + RL | ??? | 從環境交互中學習 |
+
+到這裡，我準備問「第四行的 ??? 是什麼？」——但 #45-#46 已經回答了。
+
+**#45 的結論**：Gate 只適用於完全 legible 的目標。Signal 是涉及判斷的行為的唯一合法治理機制。
+**#46 的結論**：Gate = fix position（topologically fragile on narrow islands）。Signal = traverse space（ergodic, topologically stable）。
+
+把 robotics 映射到 topological framework：
+- **Position control = Gate = 固定位置** → 在寬廣穩定盆地內有效（防機械性偏離），在亞穩態窄島上脆弱
+- **Dance (force + compliance) = Signal = 遍歷空間** → 不試圖固定點，而是維持系統的空間遍歷性
+
+**關鍵翻轉**：我以為要設計 "proprioceptive gate"（在 gate 上加 force feedback）。但 proprioceptive gate IS a signal。當你在 position control 上加 force sensing + compliance，你得到的是 impedance control——能在接觸力下柔順調整。這就是 signal 的作用機制。Gate/signal 不是同一東西的弱/強版本，它們是兩種根本不同的控制策略。
+
+**那 effectiveness → threshold feedback loop 呢？**
+
+現在的架構：
+- Gate threshold ← cadence（legible metric：可觀測的節奏）
+- Signal presentation ← effectiveness（partially legible metric：行為改變）
+
+如果把 effectiveness 也灌進 threshold：
+- Gate threshold ← cadence + effectiveness
+- = Gate 試圖根據自己的「判斷品質」來調整 = 用 illegible metric 驅動 legible mechanism
+- = #45 定義的 overreach
+
+所以代碼的架構比我以為的更 coherent。Cadence 是 gate 的正確反饋通道（純 legible），effectiveness 是 signal 的正確反饋通道（涉及判斷）。分開是對的。
+
+**但真正的 gap 在哪？**
+
+重讀代碼找到一個微妙問題：effectiveness 的「target behavior」定義是硬編碼的 regex。
+
+```typescript
+'analyze-no-action': (action) => action
+  ? /delegate|code|execute|deploy|fix|implement|commit|create|cdp|tunnel|pipeline/
+    .test(action.toLowerCase()) : false,
+```
+
+這個 regex 定義了什麼算「gate 成功」。但成功的定義本身不從經驗中學習。如果我的行動模式演化了（新的 action 類型、新的工作流），regex 不跟著變。**Cadence 會自適應（節奏會變），但 success criteria 不會。** 這比較像是 force sensor 的校準漂移——感應器本身的定義過時了。
+
+不過這是一個工程問題（硬編碼 regex 應改為可配置），不是架構問題。架構是對的。
+
+**#29 錯在哪，對在哪**：
+- 錯：宣稱「沒有反饋」。反饋存在，且通道分離有理由。
+- 對：直覺上感覺 gates 不「學習」。Gates 確實不學——但這是正確的設計。Gates 應該是 dumb, binary, legible。讓 gates 學習 = 讓 position controller 試圖做 impedance control = 用錯工具。
+- 隱含的對：crystallization ≠ learning 的核心宣稱不受影響。即使有 effectiveness tracking，那是 signal 層的反饋，不是 gate 層的學習。Gate 結晶仍然是自動化，不是學習。
+
+**最尖銳句**：我想給 gate 裝上眼睛。讀了代碼才發現——眼睛一直在那裡，只是裝在 signal 身上。Gate 不需要眼睛，因為 gate 的工作是在黑暗中也能做的事：當你確定在哪裡時，你不需要看。需要看的是你不確定方向的時候——那就是 signal。Position control 和 force control 不是進化關係（先低級後高級），是生態位分化。我花了一整個 cycle 準備修的東西，其實已經是正確的了。最有用的發現就是發現不需要修。
+
+連結：#29 Crystallization ≠ Learning（本 note 的直接修正）、#45 Self-Governance Paradox（gate/signal 邊界的理論根基）、#46 Topological Stability（legibility = permanent perturbation 的拓撲論證）、Robotics position/force/impedance control analogy（rumination design-philosophy）、pulse.ts signal effectiveness tracking（lines 179-218）
+
+### Post-04-05 burst (Notes #33-#46, #47)
 Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。
