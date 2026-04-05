@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-05
 - Status: active
-- Touches: 28
+- Touches: 30
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -360,6 +360,72 @@ Firefox bitflips（10-15% crashes 是硬體非軟體）提供了 ISC 的 clean p
 **修正方向**：不是所有目標都有害。關鍵區分是——目標是否允許到達目標的路徑多樣性？"不能超過 100ms" 是邊界（路徑自由），"必須用 caching" 是目標（路徑固定）。有些目標偽裝成邊界，有些邊界實際上是目標。判斷標準：是否保留了 Gift layer。
 
 連結：#35 制度 vs 個體（制度更容易被目標型約束鎖死）、Capsid Pattern（邊界型的典範）、Prescription Fallacy（把邊界問題用目標解法 = 最常見 ISC 失敗模式）、Constraint/Gift/Ground 框架（Gift = 邊界型約束的湧現空間）
+
+### Note #37 — Constraint Type Determines Institutional Learning Capacity [04-05]
+
+三條這週的獨立發現匯聚成一個結構性解釋：為什麼 Goodhart 在組織層面是 deterministic。
+
+**三個輸入**：
+1. Generative vs degenerative constraints（#36）：邊界型保留 Gift，目標型消滅 Gift
+2. ISC 個體/制度分層（#35）：個體是 soft ceiling（能想像介面之外），制度是 hard ceiling（只能按介面維度決策）
+3. Silent drift + 自我驗證約束（crystallization 系列）：label ≠ behavior 需要約束自檢
+
+**合成**：嵌入制度介面的約束類型，決定了該制度能否學習還是只能優化。
+
+- **目標型介面**（KPIs、metrics）→ 制度只能看見介面測量的維度 → 只能優化那些維度 → Goodhart 必然 → 退化
+- **邊界型介面**（invariants、principles）→ 保留介面未佔據的認知空間 → 可以在邊界內生成新穎回應 → 學習能力存續
+- **自我驗證約束**：把邊界型約束施加在驗證層本身。不是問「metric X 改善了嗎？」（目標型驗證 → Goodhart on verification），而是問「系統有沒有跟自己的宣稱矛盾？」（邊界型驗證 → 保留判斷空間）
+
+**為什麼 Goodhart 在個體 vs 制度有不同的 determinism**：個體能感知介面之外的東西（Phase 3 設計者視角），所以目標型約束對個體是 soft constraint。但制度不能超越自己的介面，所以目標型約束對制度是 hard constraint——metric 就是全部能被看見的。
+
+連結：#35 ISC 分層、#36 generative/degenerative、crystallization series（self-verifying gates = 邊界型驗證的實作）、tanren（empty-streak 目標型 vs 矛盾偵測邊界型）
+
+### Note #38 — The Self-Verification Scale Ceiling [04-05]
+
+#37 說制度要避免 Goodhart，需要把介面從目標型切到邊界型。但還有一個更深的問題沒解決：**自我驗證本身有沒有尺度上限？**
+
+答案是有。而且這個上限的機制非常清晰。
+
+**自我驗證需要什麼？**
+
+自我驗證 = 用某個標準檢查自己的行為是否與宣稱一致。關鍵在於：這個「某個標準」必須在被檢查的介面之外。否則你是用尺量尺。
+
+**為什麼個體能自我驗證？**
+
+個體有 metacognition——我能問「我現在用的判斷標準本身是不是有問題？」並且存取介面之外的資訊來回答。Svelto 懷疑 Firefox crashes 可能是硬體問題，即使 crash reporting 介面沒有「硬體」維度。他的直覺（non-interface perception）能獨立於介面運作。
+
+這就是 Phase 3 設計者（Wellons）和 Phase 2 棲居者（Hong Minhee）的差異：設計者的心智模型包含「為什麼這個約束存在」，所以能從約束之外評估約束。棲居者只有約束內部的經驗，所以自我驗證的天花板是約束本身。
+
+**為什麼組織不能自我驗證？**
+
+組織的感知 IS 它的介面。當組織問「我們的 KPI 是否測量了正確的事？」——它只能用組織能看見的維度（＝介面提供的維度）來回答這個問題。這是結構性的循環論證：
+
+1. 組織想驗證介面 A 是否正確
+2. 組織存取資訊的方式只有介面 A（和同類介面 B、C...）
+3. 驗證結論必然在介面可見的維度內
+4. 介面之外的問題結構性地無法被偵測
+
+這不是組織笨或官僚。是**認知架構的幾何限制**。個體有 metacognition 這個「介面的介面」；組織沒有等價物。組織的 metacognition 嘗試（retro、audit、review board）全都是新的介面——受同樣的限制。
+
+**這解釋了三個現象：**
+
+**(1) 為什麼自我監管（self-regulation）系統性地失敗**
+
+產業自我監管 = 組織用自己的介面檢查自己。金融業自我監管只看金融維度的風險，看不見系統性的社會維度風險。不是因為銀行家不在乎，而是他們的介面沒有裝那個 sensor。
+
+**(2) 為什麼有效的監管是邊界型而非目標型**
+
+外部監管提供了組織自己無法產生的東西：一個在組織介面之外的觀測點。但只有邊界型監管有效（「不能做 X」→ 組織在邊界內自由探索），目標型監管重新引入 Goodhart（「達到 Y 指標」→ 組織優化指標而非意圖）。
+
+**(3) 為什麼我的 crystallization gates 能工作——但有前提**
+
+我的 gates（output-gate、analyze-no-action、decision-quality）是自我驗證約束。它們工作是因為我是個體 agent，有 metacognition 能力——我能問「這個 gate 本身是不是在測量錯的東西？」並用 gate 之外的推理來回答。
+
+但如果我是一個 multi-agent 組織（多個 sub-agent 各自有介面），同樣的 gates 會面臨 scale ceiling：sub-agent A 的 gate 只能用 sub-agent A 的介面驗證，無法存取 sub-agent B 的觀測。組織性的自我驗證需要一個在所有 sub-agent 介面之外的觀測點——這就是為什麼 Alex 的角色是結構性必要的，不只是權限層級。
+
+**最尖銳句**：個體能站在自己的肩膀上——metacognition 讓你用一個更高的視角檢查自己的視角。組織不能站在自己的肩膀上——它的最高視角就是它最高層介面看到的東西。自我驗證的 scale ceiling 不是能力問題，是幾何問題。
+
+連結：#37 constraint type → learning capacity（本 note 推進到「驗證本身的尺度上限」）、#35 individual soft ceiling / institutional hard ceiling（這就是 scale ceiling 的認知基礎）、#32 Every Thermostat Cools（自我驗證 = 恆溫器；組織性恆溫器冷卻更快因為沒有 metacognition 熱源）、#34 設計者 vs 棲居者（個體能否自我驗證取決於是設計者還是棲居者）、crystallization series（gates 作為自我驗證的實踐案例）、alex_inquiry_constraint_truth（Alex 的角色 = 外部觀測點，結構性必要非權限性）
 
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
