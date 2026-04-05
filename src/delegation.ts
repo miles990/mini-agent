@@ -149,16 +149,16 @@ function removeFromStateFile(taskId: string): void {
 
 // Type-specific defaults for non-code delegation tasks
 const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: number; timeoutMs: number; provider: Provider }> = {
-  code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
+  code:     { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'LSP'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
   learn:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 3, timeoutMs: 300_000, provider: 'local' },
   research: { tools: ['Bash', 'Read', 'Glob', 'Grep', 'WebFetch'], maxTurns: 5, timeoutMs: 480_000, provider: 'local' },
   create:   { tools: ['Read', 'Write', 'Edit'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
   review:   { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 3, timeoutMs: 180_000, provider: 'claude' },
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
   browse:   { tools: [], maxTurns: 1, timeoutMs: 180_000, provider: 'claude' },
-  akari:    { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
+  akari:    { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'LSP'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
   plan:     { tools: ['Read', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
-  debug:    { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
+  debug:    { tools: ['Bash', 'Read', 'Glob', 'Grep', 'LSP'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
 };
 
 // =============================================================================
@@ -765,6 +765,7 @@ Lead with the key insight. Under 500 words.
       return `Your goal: honest assessment based on actual code/content.
 What counts: real issues found by inspecting the actual content.
 What doesn't count: fabricated issues or guesses about code you didn't read.
+Use Grep to find references before declaring code unused. Check imports and call sites.
 
 `;
     case 'create':
@@ -791,8 +792,17 @@ You have DIAGNOSTIC access — you can run commands and read files, but cannot e
 Output: root cause with evidence, then recommended fix (but don't apply it).
 
 `;
-    default: // code — already has verify gates
-      return '';
+    default: // code — CC-inspired methodology
+      return `Your goal: make the requested code change correctly and completely.
+Methodology:
+- Read existing code before editing — understand context first
+- Use Edit (old_string/new_string) for existing files, Write only for new files
+- Use Grep/Glob for code navigation, not Bash grep/find
+- If the LSP tool is available, use it for goToDefinition and findReferences
+- After changes, verify: run typecheck (pnpm tsc --noEmit) or tests if relevant
+- One focused change per task — don't refactor unrelated code
+
+`;
   }
 }
 

@@ -3,7 +3,7 @@
 **Date**: 2026-04-05
 **Effort**: Large (L3 — architecture-level, multi-phase)
 **Origin**: Alex #057-059 directive
-**Status**: Draft
+**Status**: In Progress
 
 ## Context
 
@@ -112,6 +112,26 @@ Phase 1b (Edit) ──→ Phase 2b (Context Profiles) ──→ Phase 4b (Cross-
 | Structured edit 在 delegation 中增加複雜度 | 先在 main loop 中試用，再推廣到 delegation |
 | 太多 delegation types → routing 複雜 | 保持 ≤8 types，用 mushi 做智能 routing |
 | Phase 1 改動範圍大 | worktree 隔離 + incremental rollout |
+
+## Progress Log
+
+### 2026-04-05 — Phase 1 Implementation Start
+
+**Discovery**: Several CC capabilities already exist in mini-agent:
+- Structured Edit → Claude CLI's `Edit` tool is already in delegation `--allowedTools`
+- Agent Type Specialization → 10 types already exist (added `plan` + `debug` in a228450)
+- Pre/Post Tool Hooks → api.ts has PreToolUse/PostToolUse for MCP (but NOT for delegation subprocesses)
+
+**Actually implemented**:
+1. ✅ LSP tool added to `code`, `debug`, `akari` delegation types — semantic code navigation via Claude CLI's deferred LSP tool
+2. ✅ Code delegation methodology preamble — CC-inspired: read before edit, use Edit not Write, verify with typecheck
+3. ✅ Review preamble improved — reference-checking guidance before declaring code unused
+
+**Real remaining gaps** (refined from original proposal):
+- LSP tool is deferred in Claude CLI — delegation needs 1 turn to load it via ToolSearch (acceptable for 5-turn tasks)
+- Delegation subprocesses bypass mini-agent's api.ts hooks (content-scanner, file protection)
+- Context depth profiles not yet implemented (Phase 2b)
+- Worktree lifecycle not yet in TypeScript (Phase 3a) — forge-lite.sh works but is less integrated
 
 ## Success Criteria
 
