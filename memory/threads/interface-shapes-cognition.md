@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 49
+- Touches: 50
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -1008,3 +1008,6 @@ Note #50 提出 metric liveness checking 作為第三種需求。修正：livene
 
 ### Post-04-05 burst (Notes #33-#47, #48, #49, #50, #51)
 Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。#50 從第一手經驗新增 phantom dimension 概念——幻影度量比缺失度量更危險，因為它佔位而非觀察。#51 連接 #37 和 #50：邊界型 metric 天然抗 phantom 化（失敗是可見的），目標型 metric 的失敗是靜默的——所以 #37 的「邊界 > 目標」有第二層理由：不只保留學習能力，還保留自我修復能力。
+
+### Part 3 article draft [04-06]
+- [04-06] **Part 3 draft completed** — "Same Tool, Opposite Minds — The Variable Nobody's Measuring"（~2,800 words）。核心框架：Constraint Internalization Lifecycle（三相位：Feedback/Identity/Impediment）。Hook 用 Wellons(liberation)/Hong Minhee(mourning)/Randall(hollowing) 三人對比。新增 Constraint Heat 解說（hot→cold cooling trajectory）、Designer vs Inhabitant 分析（Wellons 和 Randall 都描述「像 manager」但情感相反——因為 constraint 關係不同）、METR 39pp perception gap 的相位跳躍解釋、Shaw & Nave cognitive surrender 數據（79.8% 跟從錯誤 AI 建議）。所有 sources 已驗證。Draft at: memory/drafts/devto-isc-part3-constraint-lifecycle.md。待 Alex review 後發布。
