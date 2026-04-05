@@ -127,10 +127,17 @@ Phase 1b (Edit) ──→ Phase 2b (Context Profiles) ──→ Phase 4b (Cross-
 2. ✅ Code delegation methodology preamble — CC-inspired: read before edit, use Edit not Write, verify with typecheck
 3. ✅ Review preamble improved — reference-checking guidance before declaring code unused
 
-**Real remaining gaps** (refined from original proposal):
+### 2026-04-05 — Phase 2b: Context Depth Profiles
+
+4. ✅ Delegation context depth profiles — `buildContextForDelegationType()` in dispatcher.ts
+   - code/shell/browse: minimal (sibling awareness only)
+   - research/learn/create: relevant topic memories via `loadTopicsForQuery()` (2K budget)
+   - plan/akari: HEARTBEAT active tasks (2K) + topic memories (3K for akari)
+   - Prevents research delegations from re-learning known info, gives planners priority context
+
+**Real remaining gaps** (updated):
 - LSP tool is deferred in Claude CLI — delegation needs 1 turn to load it via ToolSearch (acceptable for 5-turn tasks)
 - Delegation subprocesses bypass mini-agent's api.ts hooks (content-scanner, file protection)
-- Context depth profiles not yet implemented (Phase 2b)
 - Worktree lifecycle not yet in TypeScript (Phase 3a) — forge-lite.sh works but is less integrated
 
 ## Success Criteria

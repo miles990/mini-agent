@@ -7,7 +7,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, getMemoryStateDir, clearReviewedDelegations, type CycleMode } from './memory.js';
 import { getClaudeMdJIT } from './claudemd-jit.js';
@@ -1053,6 +1053,41 @@ export async function postProcess(
     } catch { return ''; /* fire-and-forget */ }
   };
 
+  // Context depth profiles: different delegation types receive different context depths.
+  // code/shell/browse → minimal; research/learn/create → topic memories; plan/akari → HEARTBEAT + topics.
+  const buildContextForDelegationType = async (
+    type: DelegationTaskType,
+    prompt: string,
+  ): Promise<string> => {
+    const parts: string[] = [];
+
+    // Plan/akari: include active tasks from HEARTBEAT for priority awareness
+    if (type === 'plan' || type === 'akari') {
+      try {
+        const memory = getMemory();
+        const heartbeatPath = path.join(memory.getMemoryDir(), '..', 'HEARTBEAT.md');
+        const heartbeat = readFileSync(heartbeatPath, 'utf-8');
+        const activeMatch = heartbeat.match(/## Active Tasks[\s\S]*?(?=\n## [A-Z]|$)/);
+        if (activeMatch) {
+          const content = activeMatch[0].length > 2000 ? activeMatch[0].slice(0, 2000) + '\n[...]' : activeMatch[0];
+          parts.push(`<delegation-context type="active-tasks">\n${content}\n</delegation-context>`);
+        }
+      } catch { /* optional */ }
+    }
+
+    // Research/learn/create/plan/akari: include relevant topic memories (prevents re-learning known info)
+    if (['research', 'learn', 'create', 'plan', 'akari'].includes(type)) {
+      try {
+        const memory = getMemory();
+        const budget = type === 'akari' ? 3000 : 2000;
+        const topics = await memory.loadTopicsForQuery(prompt, budget);
+        if (topics) parts.push(topics);
+      } catch { /* optional */ }
+    }
+
+    return parts.join('\n');
+  };
+
   // Output gate: block delegation spawn after consecutive non-output cycles
   if (tags.delegates.length > 0) {
     try {
@@ -1142,8 +1177,11 @@ export async function postProcess(
         // Sibling awareness context (includes running tasks + same-wave peers)
         const siblingCtx = buildSiblingContext(node.prompt, waveSiblings);
 
-        // Combine all context: sibling awareness + previous wave results
-        const combinedCtx = [siblingCtx, waveChainCtx].filter(Boolean).join('\n') || undefined;
+        // Context depth profile — type-appropriate context (topic memories, HEARTBEAT, etc.)
+        const profileCtx = await buildContextForDelegationType(taskType, node.prompt);
+
+        // Combine all context: sibling awareness + wave chain + context depth profile
+        const combinedCtx = [siblingCtx, waveChainCtx, profileCtx].filter(Boolean).join('\n') || undefined;
 
         const taskId = spawnDelegation({
           prompt,
@@ -1197,6 +1235,10 @@ export async function postProcess(
       // Sibling awareness context (running tasks only — single delegate has no wave peers)
       const siblingCtx = buildSiblingContext(del.prompt);
 
+      // Context depth profile — type-appropriate context (topic memories, HEARTBEAT, etc.)
+      const taskType = del.type ?? 'code';
+      const profileCtx = await buildContextForDelegationType(taskType, del.prompt);
+
       const taskId = spawnDelegation({
         prompt,
         workdir: del.workdir,
@@ -1204,9 +1246,8 @@ export async function postProcess(
         provider: del.provider,
         maxTurns: del.maxTurns,
         verify: del.verify,
-        context: siblingCtx || undefined,
+        context: [siblingCtx, profileCtx].filter(Boolean).join('\n') || undefined,
       });
-      const taskType = del.type ?? 'code';
       const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));
       slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
       eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
