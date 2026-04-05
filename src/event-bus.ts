@@ -28,6 +28,18 @@ export type AgentEventType =
   | 'action:delegation-start'
   | 'action:delegation-complete'
   | 'action:agora'
+  | 'action:tool'       // Tool registry execution (pre/post)
+  // Lifecycle Hooks（configurable lifecycle events）
+  | 'hook:cycle-start'
+  | 'hook:cycle-end'
+  | 'hook:perception-complete'
+  | 'hook:pre-llm'
+  | 'hook:post-llm'
+  | 'hook:pre-dispatch'
+  | 'hook:post-dispatch'
+  | 'hook:delegation-start'
+  | 'hook:delegation-complete'
+  | 'hook:error'
   // Observations（可觀測性）
   | 'log:info'
   | 'log:error'

@@ -214,6 +214,20 @@ export interface ComposeAgent {
   };
   skills?: string[];              // Markdown skill 檔案路徑
   depends_on?: string[];
+  /** Lifecycle hooks — configurable event-driven automation */
+  hooks?: Array<{
+    name: string;
+    event: string;             // CycleStart, CycleEnd, PreLLMCall, etc.
+    type?: 'shell' | 'http';
+    target: string;            // script path or URL
+    async?: boolean;
+    timeout?: number;
+    condition?: Record<string, string>;
+    env?: Record<string, string>;
+    enabled?: boolean;
+  }>;
+  /** Rules directories — path-based contextual rules */
+  rules?: string[];
 }
 
 /**

@@ -23,6 +23,7 @@ import {
 import { withFileLock } from './filelock.js';
 import { diagLog, slog } from './utils.js';
 import { eventBus } from './event-bus.js';
+import { scanContent, type TrustLevel } from './content-scanner.js';
 import { buildActionMemorySection } from './action-memory.js';
 import {
   getWorkspaceSnapshot, formatWorkspaceContext, formatSelfStatus,
@@ -794,7 +795,14 @@ export class InstanceMemory {
    * Includes write-time dedup: skips if Jaccard word similarity > 0.6
    * with any of the 20 most recent entries (zero LLM cost).
    */
-  async appendMemory(content: string, section = 'Learned Patterns'): Promise<void> {
+  async appendMemory(content: string, section = 'Learned Patterns', trust: TrustLevel = 'agent'): Promise<void> {
+    // Content scanning — block injection/exfiltration before persisting
+    const scan = scanContent(content, trust);
+    if (scan.blocked) {
+      eventBus.emit('log:warn', { tag: 'memory-scan', msg: `blocked write: ${scan.reason}` });
+      return;
+    }
+
     await ensureDir(this.memoryDir);
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
 
