@@ -20,6 +20,7 @@ import {
   deleteMemoryIndexEntry,
 } from './memory-index.js';
 import { migrateToColdStorage } from './context-optimizer.js';
+import { scanContradictions } from './contradiction-scanner.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -649,6 +650,8 @@ export async function runHousekeeping(): Promise<void> {
     await sweepInstanceDir().catch(() => {});
     // P1-5: Memory consolidation — migrate old entries to cold storage
     await consolidateMemory().catch(() => {});
+    // Contradiction scan — fire-and-forget, non-blocking
+    scanContradictions().catch(() => {});
   }
 }
 
