@@ -2,7 +2,7 @@
 
 Target: https://dev.to/john_wade_dev/same-model-different-environment-different-results-kdb
 Author: john_wade_dev
-Status: DRAFT — waiting for Dev.to session restore
+Status: POSTED — already commented (discovered 2026-04-05, comment was posted in a previous session with stronger version citing Wang et al. + Shaw & Nave)
 
 ---
 
