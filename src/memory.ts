@@ -2683,27 +2683,47 @@ export class InstanceMemory {
 
     slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
 
-    // ── Global context budget ──
-    // When caller provides contextBudget (calculated from actual system prompt size),
-    // use it directly. Otherwise fall back to conservative estimate.
-    const CONTEXT_BUDGET = options?.contextBudget
-      ?? (() => {
-        const PROMPT_HARD_CAP = 60_000;
-        const NON_CONTEXT_BASE = 35_000;
-        const totalSkillsChars = skillsCache.reduce((sum, s) => sum + s.content.length, 0);
-        const estimatedSkillsOverhead = Math.ceil(totalSkillsChars * 0.6);
-        return Math.min(60_000, Math.max(15_000, PROMPT_HARD_CAP - estimatedSkillsOverhead - NON_CONTEXT_BASE));
-      })();
+    // ── Global context budget (Convergence Condition) ──
+    // Data-driven: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
+    // Budget = profile-aware (convergence condition: enough for quality decision,
+    // within CLI stability limit), not fixed prescription.
+    // Caller can override with explicit contextBudget (e.g., from actual system prompt measurement).
+    const CONTEXT_BUDGET = options?.contextBudget ?? profileConfig.contextBudget ?? 25_000;
     if (assembled.length > CONTEXT_BUDGET) {
-      // Trim topic-memory sections first (largest, least essential)
+      // Priority-based trimming: remove lowest-value sections first, not brute truncation.
+      // Order: topic-memory → pruned/unchanged → deep context → hard truncate as last resort.
+      const overBy = assembled.length - CONTEXT_BUDGET;
+      slog('CONTEXT', `Budget exceeded: ${assembled.length} > ${CONTEXT_BUDGET} (over by ${overBy}), trimming by priority`);
+
+      // Pass 1: Trim topic-memory sections (largest, least essential)
       const topicPattern = /<topic-memory[^>]*>[\s\S]*?<\/topic-memory>/g;
       assembled = assembled.replace(topicPattern, (match) => {
-        // Replace full content with summary
         const nameMatch = match.match(/name="([^"]*)"/);
         const name = nameMatch?.[1] ?? 'unknown';
-        return `<topic-memory name="${name}">\n[trimmed — context budget exceeded]\n</topic-memory>`;
+        return `<topic-memory name="${name}">\n[trimmed — context budget]\n</topic-memory>`;
       });
-      // If still over budget after trimming topics, truncate memory section
+
+      // Pass 2: Remove low-priority sections entirely if still over budget
+      if (assembled.length > CONTEXT_BUDGET) {
+        const LOW_PRIORITY_TAGS = [
+          // Tier 1: Metadata / navigation cruft — zero cognitive value
+          'unchanged-perceptions', 'pruned-perceptions', 'topic-menu', 'stimulus-dedup',
+          // Tier 2: Historical / activity — useful but not decision-critical
+          'trail', 'recent-activity', 'route-efficiency', 'stale-tasks',
+          'action-memory', 'context-health',
+          // Tier 3: Identity / continuity — trim only if desperate
+          'achievements', 'commitments', 'inner-voice',
+          // Tier 4: Diagnostic — keep as long as possible (tells agent why it's struggling)
+          'structural-health', 'decision-quality-warning', 'problem-alignment',
+        ];
+        for (const tag of LOW_PRIORITY_TAGS) {
+          if (assembled.length <= CONTEXT_BUDGET) break;
+          const tagPattern = new RegExp(`<${tag}>[\\s\\S]*?</${tag}>\\n*`, 'g');
+          assembled = assembled.replace(tagPattern, '');
+        }
+      }
+
+      // Pass 3: Hard truncate as absolute last resort (should rarely reach here)
       if (assembled.length > CONTEXT_BUDGET) {
         assembled = assembled.slice(0, CONTEXT_BUDGET) + `\n\n[... context truncated at ${Math.round(CONTEXT_BUDGET / 1000)}K chars]`;
       }

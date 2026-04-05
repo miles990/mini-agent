@@ -361,6 +361,9 @@ export interface ProfileConfig {
   extraHints: string[];
   /** Sections to force-skip even if keyword-matched */
   skipSections: Set<string>;
+  /** Context budget in chars — convergence condition: enough for quality decision, within CLI stability limit.
+   *  Data-driven: prompts <35K stable (0 EXIT143), >50K fail (100% EXIT143). */
+  contextBudget: number;
 }
 
 const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
@@ -370,6 +373,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: true,
     extraHints: [],
     skipSections: new Set(),
+    contextBudget: 35_000, // DM needs rich context but must stay within CLI stability limit
   },
   heartbeat: {
     maxConversations: 3,
@@ -377,6 +381,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: ['task', 'schedule', 'heartbeat'],
     skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'commitments']),
+    contextBudget: 18_000, // heartbeat = routine check, minimal context needed
   },
   cron: {
     maxConversations: 3,
@@ -384,6 +389,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: ['cron', 'schedule', 'task'],
     skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'commitments']),
+    contextBudget: 20_000, // cron tasks are scoped, moderate context
   },
   workspace: {
     maxConversations: 5,
@@ -391,6 +397,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: ['workspace', 'git', 'file', 'change'],
     skipSections: new Set(['temporal', 'achievements', 'commitments']),
+    contextBudget: 22_000, // workspace changes need code context but not full history
   },
   autonomous: {
     maxConversations: 8,
@@ -398,6 +405,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: true,
     extraHints: [],
     skipSections: new Set(),
+    contextBudget: 32_000, // autonomous cycles need broad awareness
   },
   continuation: {
     maxConversations: 3,
@@ -405,6 +413,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: [],
     skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'stale-tasks']),
+    contextBudget: 18_000, // continuation = focused follow-up, lean context
   },
 };
 

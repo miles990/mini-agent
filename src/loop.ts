@@ -1636,11 +1636,11 @@ export class AgentLoop {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
-      // Calculate context budget: PROMPT_HARD_CAP minus estimated non-context overhead
-      // prompt (~2-10K) + system prompt with skills/JIT (~20-35K) + separator/suffix (~1K)
+      // Context budget now driven by profile-based contextBudget in omlx-gate.ts (convergence condition).
+      // This estimate is a fallback hint — buildContext uses profileConfig.contextBudget as primary control.
       const promptEstimate = 12_000; // cycle prompt + user prompt wrapper
       const systemPromptEstimate = 25_000; // system prompt + JIT CLAUDE.md + skills (measured: typically 20-30K)
-      const contextBudget = 60_000 - promptEstimate - systemPromptEstimate; // ~23K available for context
+      const contextBudget = 45_000 - promptEstimate - systemPromptEstimate; // ~8K fallback hint (profile budget takes priority)
 
       let context = specialistPerspective
         ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
