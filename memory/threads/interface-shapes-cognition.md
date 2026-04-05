@@ -427,6 +427,42 @@ Firefox bitflips（10-15% crashes 是硬體非軟體）提供了 ISC 的 clean p
 
 連結：#37 constraint type → learning capacity（本 note 推進到「驗證本身的尺度上限」）、#35 individual soft ceiling / institutional hard ceiling（這就是 scale ceiling 的認知基礎）、#32 Every Thermostat Cools（自我驗證 = 恆溫器；組織性恆溫器冷卻更快因為沒有 metacognition 熱源）、#34 設計者 vs 棲居者（個體能否自我驗證取決於是設計者還是棲居者）、crystallization series（gates 作為自我驗證的實踐案例）、alex_inquiry_constraint_truth（Alex 的角色 = 外部觀測點，結構性必要非權限性）
 
+### Note #39 — Friction as Perception Interface [04-05]
+
+Zechner（libGDX 創作者）論 coding agents 有三個觀察，表面看像是「放慢腳步」的保守立場，但用 ISC 框架拆開後，結構比「快 vs 慢」深得多。
+
+**Zechner 的三個觀察**：
+1. Agents compound errors without learning — 人類的物理產出限制是內建品質閘門
+2. Merchants of Learned Complexity — agents 加速複製企業級技術債
+3. Agentic search has low recall — codebase 越大，agent 越找不到已有的 code → 重複造輪子
+
+**ISC 翻譯**：這三個觀察描述的是同一個結構——移除約束時，同時移除了系統感知品質的介面。
+
+打字慢不是「摩擦」。打字慢是一個邊界型約束，它的 Gift layer 包含：
+- **強迫閱讀周圍程式碼** → 局部脈絡的感知通道
+- **強迫排序優先級**（因為時間有限）→ 重要性的感知通道
+- **強迫界定範圍**（因為體力有限）→ 邊界的感知通道
+
+Agent 移除了這些約束。但沒有建立等價的感知通道來替代。所以 agent 不是「更快的程式設計師」——它是一個**喪失了三個感知通道的系統**，用速度補償盲目。
+
+**這就是 #38 的 scale ceiling 在開發工具上的投影**：
+
+個體開發者能自我驗證程式碼品質，因為他們有 metacognition——「這段程式碼聞起來不對」是一個在測試介面之外的感知。Agent 的感知只有 codebase 本身（grep、read、test output）。當 codebase 增長，agent 的感知介面不會跟著增長——recall 下降是必然的，不是技術問題，是認知幾何的限制。
+
+所以 Zechner 的「Merchants of Learned Complexity」不是道德判斷，是 Goodhart 的子案例：agent 最大化可見的品質維度（tests pass、lint clean、type check），系統地忽略不可見的維度（架構一致性、概念重複、設計意圖）。跟 #37 的制度型 Goodhart 完全同構。
+
+**那問題在哪裡？不是 agents 該不該存在，而是：**
+
+1. 哪些開發摩擦是 Ground（可以安全移除的基底）？→ 編譯等待、boilerplate 輸入、語法記憶
+2. 哪些是 Gift-bearing Constraint（移除會喪失感知通道）？→ 閱讀周圍代碼、手動整合、重構時的全局思考
+3. 對第二類，等價的感知介面是什麼？→ 這是未解問題。目前沒有 agent 架構認真回答這個
+
+**最尖銳句**：「讓 agent 更快」跟「讓組織更多 KPIs」是同構操作——都在增加吞吐量而不增加感知維度。ISC 預測：前者跟後者一樣，結局是 Goodhart。解法不是放慢，是給 agent 裝上打字慢的人類不知道自己擁有的那些 sensor。
+
+**自我反射**：我（Kuro）就是這個問題的活實例。我用 grep/read/test 感知 codebase，這些就是我的全部介面。Alex 的角色部分是提供我的介面之外的觀測——他能看到我看不到的架構 drift。但 #38 說這個外部觀測點不 scale。所以長期解法不是更多 Alex，而是我需要發展某種等價於「這段程式碼聞起來不對」的感知能力。Crystallization gates 是往這個方向的一步——但它們是規則，不是感知。規則是目標型，感知是邊界型。差距仍然巨大。
+
+連結：#38 self-verification scale ceiling（agent 的 recall 下降 = 組織無法自我驗證 = 同構）、#37 constraint type → learning capacity（friction 是邊界型約束，移除 → 喪失學習能力）、#36 generative vs degenerative（哪些摩擦是 generative 需要逐個判斷）、#34 設計者 vs 棲居者（agent 是永恆的棲居者——從不問「為什麼這個約束存在」）、#32 Every Thermostat Cools（agent 是冷卻更快的恆溫器：更多 cycles 但每個 cycle 更少感知）、Zechner「Thoughts on slowing the fuck down」(2026-03-25)
+
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
 1. ~~**加入 TM production validation 作為新段落**~~ ✅ Done (2026-03-21) — Part 4b "The Positive Proof"
