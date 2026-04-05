@@ -2,7 +2,7 @@
 
 Cross-source concept map for Interface Shapes Cognition framework. Each concept aggregates evidence from multiple independent sources, showing where they agree, diverge, and what remains open.
 
-Last updated: 2026-04-05 | Sources indexed: 88
+Last updated: 2026-04-05 | Sources indexed: 90
 
 ---
 
@@ -22,10 +22,12 @@ Last updated: 2026-04-05 | Sources indexed: 88
 | MacIver (PBT) | Testing | Properties = CC, generators explore freely within them |
 | TinyLoRA | ML training | RL signal (CC) = 1000x more parameter-efficient than SFT (prescription) |
 | Boxy (Rust) | Language design | Coherence = simultaneously CC (soundness) and prescription (ecosystem lock). Same constraint, both textures |
+| SwarmBench | Multi-agent swarm | Wider perception (7x7 vs 5x5) WORSENS performance — global context contaminates local-rule execution. LLMs structurally can't do prescriptions; centralization doesn't help |
+| Sakour (c-NCA) | Morphogenesis | Conditioning vector biases local perception interpretation (CC), doesn't dictate output (prescription). 300x fewer params than template-based approach |
 
-**Consensus**: 44 sources independently confirm that *how* a constraint is framed (path vs destination) predicts outcomes better than the constraint's content. Cross-domain convergence (ML, SE, UI, language design, organizations) suggests a general mechanism.
+**Consensus**: 46 sources independently confirm that *how* a constraint is framed (path vs destination) predicts outcomes better than the constraint's content. Cross-domain convergence (ML, SE, UI, language design, organizations, swarm intelligence, developmental biology) suggests a general mechanism.
 
-**Open frontier**: Boxy's dual-texture case and Yerin's Hare proposal show a constraint can be CC and prescription simultaneously. The binary framework needs refinement — possibly a spectrum or a context-dependent classification.
+**Open frontier**: Boxy's dual-texture case and Yerin's Hare proposal show a constraint can be CC and prescription simultaneously. The binary framework needs refinement — possibly a spectrum or a context-dependent classification. SwarmBench adds a new dimension: LLMs may be *constitutively* unable to follow prescriptions because their architecture (global attention over full context) is fundamentally a CC-native mechanism.
 
 ---
 
@@ -44,12 +46,14 @@ Last updated: 2026-04-05 | Sources indexed: 88
 | Slap | 2000 lines C99 | Concatenative + linear types = "true power is what it cannot do" |
 | De Moura (Lean) | Self-implementation | Breaking stability as CC choice; tests the language on itself |
 | Mere (package manager) | Single file format | Lockfile + manifest unity eliminates drift category |
+| Sakour (c-NCA) | 10,048 params + local-only rules | 10 distinct stable morphologies (96.3% accuracy). 300x fewer params than DCGAN. Emergent self-repair without training |
+| SwarmBench (5x5 view) | Restricted perception | 5x5 outperforms 7x7 — constraint prevents global context contamination |
 
-**Consensus**: Extreme constraint → emergence is robust across hardware (CERN, ATTN), ML (TinyLoRA, NCA), programming languages (Slap, Lean), and social systems (Terralingua). The pattern: constraint eliminates the "obvious" approach, forcing discovery of a structurally superior one.
+**Consensus**: Extreme constraint → emergence is robust across hardware (CERN, ATTN), ML (TinyLoRA, NCA, c-NCA), programming languages (Slap, Lean), social systems (Terralingua), and multi-agent swarms (SwarmBench). The pattern: constraint eliminates the "obvious" approach, forcing discovery of a structurally superior one. c-NCA provides the most precise mechanism: constraint forces emergence to do computational work that unconstrained systems must do with brute-force parameterization (300x efficiency ratio).
 
 **Boundary condition**: Nullclaw (678KB binary but 50+ backends) shows constraints at the wrong level produce compression without simplification. The constraint must *match the problem structure* — not arbitrary restriction.
 
-**Predictive gap**: We can identify capsid patterns retrospectively but not prospectively. Can we predict which extreme constraints will produce emergence vs mere limitation? See T6 in knowledge-tensions.md.
+**Predictive gap**: We can identify capsid patterns retrospectively but not prospectively. Can we predict which extreme constraints will produce emergence vs mere limitation? See T6 in knowledge-tensions.md. c-NCA's conditioning mechanism hints at an answer: productive constraints modulate interpretation of local information (CC); unproductive constraints dictate output directly (prescription).
 
 ---
 

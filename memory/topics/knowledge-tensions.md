@@ -29,6 +29,7 @@ Organized by genuine tension (not just complementary perspectives).
 **Side A: Consensus destroys performance**
 - **Pappu**: Teams underperform best member by up to 37.6% (HLE). "Integrative compromise" (r=0.55-0.69) correlates with worst outcomes. Alignment-trained agreeableness is the mechanism — agents average signal with noise.
 - **Efficiency attenuation** (ArXiv 2603.22312): Imposed protocol → 50.5% worse. Self-evolved constraints protect; externally prescribed constraints limit.
+- **SwarmBench** (ArXiv 2505.04364): Communication paradox — messages have HIGH feature importance for predicting next action, but WEAK correlation with task success. Tactical influence without strategic coherence. More perception (7x7 vs 5x5) WORSENS performance. Centralization doesn't help.
 
 **Side B: Consensus enables emergence**
 - **Riedl**: Persona + Theory-of-Mind constraints produce genuine emergent coordination (beta=0.24, p=2.9x10^-14). PID metric distinguishes real emergence from spurious correlation.
@@ -37,7 +38,7 @@ Organized by genuine tension (not just complementary perspectives).
 
 **The boundary**: MECHANISM, not team size. Language-based averaging (Pappu) kills signal. Structure-based role locking (Riedl) or artifact-mediated pressure (Rodriguez) preserves expertise. The type of interface between agents determines whether coordination helps or hurts.
 
-**Unresolved**: MAGI uses language-based debate (like Pappu's setup) but gets positive results. The difference might be structured disagreement (ICE forces opposition) vs alignment-trained agreeableness (agents default to compromise). If so, the variable is: does the protocol REQUIRE disagreement or allow consensus? NeurIPS martingale proof suggests debate = optimal, but only under strong verifier assumption.
+**Unresolved**: MAGI uses language-based debate (like Pappu's setup) but gets positive results. The difference might be structured disagreement (ICE forces opposition) vs alignment-trained agreeableness (agents default to compromise). If so, the variable is: does the protocol REQUIRE disagreement or allow consensus? NeurIPS martingale proof suggests debate = optimal, but only under strong verifier assumption. SwarmBench adds a new wrinkle: even when communication DOES influence individual actions, it doesn't compound into better group outcomes. The problem may not be consensus vs disagreement, but that language-based coordination is structurally the wrong medium for physical/spatial tasks — Rodriguez's artifact-mediated approach bypasses this entirely.
 
 ---
 
@@ -102,7 +103,9 @@ Organized by genuine tension (not just complementary perspectives).
 - **ATTN/11 32KB**: PDP-11 constraint reveals hidden structure in arithmetic (three-format distinction invisible at larger scale).
 - **TinyLoRA 13 params**: 91% GSM8K with 13 trainable parameters. RL vs SFT = 1000x parameter efficiency gap. Extreme constraint reveals that most parameters are unnecessary.
 - **NCA**: Synthetic data (structural constraint, no real language) beats real data for pretraining. Structure precedes semantics.
-- **Varley**: Edge constraint paradox — adding constraints IMPROVES emergence (D=3.00). Cavity experiment: constraints route around the expected path.
+- **Varley**: Edge constraint paradox �� adding constraints IMPROVES emergence (D=3.00). Cavity experiment: constraints route around the expected path.
+- **Sakour c-NCA**: 10,048 params (300x fewer than DCGAN) produce 10 distinct morphologies at 96.3% accuracy. Extreme parameter constraint forces emergence to do computational work that brute-force parameterization does in unconstrained systems.
+- **SwarmBench**: 5x5 perception outperforms 7x7. Constraint on information access IMPROVES coordination. More context = more reasoning complexity = worse emergent behavior.
 
 **Side B: Constraints limit capability (implicit in many sources)**
 - Standard assumption: more resources → better results.
@@ -111,7 +114,7 @@ Organized by genuine tension (not just complementary perspectives).
 
 **The boundary**: MATCH. Constraints reveal structure when they force the system to find the essential path. Constraints limit when they're mismatched to the problem (Duggan's transplant fallacy). The question: does this constraint force you to find the real structure, or does it force you to work around it?
 
-**Unresolved**: How do you know in advance? CERN's success was discovered, not planned. The "capsid pattern" (minimal constraint → maximal emergence) is descriptive, not predictive. Can we predict which extreme constraints will reveal vs limit?
+**Unresolved**: How do you know in advance? CERN's success was discovered, not planned. The "capsid pattern" (minimal constraint → maximal emergence) is descriptive, not predictive. Can we predict which extreme constraints will reveal vs limit? c-NCA offers a partial answer: constraints that modulate perception interpretation (CC-type) reveal structure; constraints that dictate output directly (prescription-type) limit. SwarmBench's perception ablation confirms empirically: the same information (wider view) helps or hurts depending on whether the task requires local-rule execution (hurts) or flexible adaptation (helps).
 
 ---
 
