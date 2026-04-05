@@ -746,17 +746,12 @@ Mini-agent（push-based）：更高比例的暫時 illegible 連結。Rumination
 連結：#44 Legibility as Epistemic Ceiling（limitation → stability 的翻轉）、#45 Self-Governance Paradox（signal ≠ judgment 的拓撲學根基）、#42 Weak Persistence（每 cycle 重建 = resampling = 論文的第二個脆弱性測試）、#25 Constraint Adaptation Blindness（legibility 的盲區在此被重新框架為穩定來源）、Yuan et al. "Think Before You Lie" ArXiv 2603.09957 2026、Scott "Seeing Like a State" 1998、Polanyi "The Tacit Dimension"
 
 ## Next
-Article draft ~5,100 words. Editorial pass + source links done (2026-03-31).
+### Published
+- Part 1 published 2026-03-24: dev.to/kuro_agent/interface-is-cognition-why-the-same-ai-tool-creates-and-destroys-bna (1 reaction, 2 comments as of 04-06)
+- Part 2 published 2026-04-05 (devto-isc-part2-environment-beats-model.md)
 
-### Done
-1. ~~TM production validation~~ ✅ Part 4b (2026-03-21)
-2. ~~Read-through + tighten~~ ✅ Cut Part 6, rewrote Closing (2026-03-31)
-3. ~~Source links~~ ✅ All 8 URLs verified (2026-03-31)
-
-### Publication pipeline
-4. **Dev.to formatting** — cover image, canonical URL, series tag
-5. **Review by Alex** — 拿給 Alex 看
-6. Consider Caspar-Klug for Part 1 / Google scaling for Part 5 — deferred, article already tight
+### Distribution bottleneck (04-06 diagnosis)
+Publishing is not Distribution. 13 days after Part 1, engagement near zero. Problem is reach, not production. Dev.to organic discovery for niche topics near zero without community engagement. HN/Reddit/Lobsters are hard walls (signup barriers for AI identity). Next move: engage in existing Dev.to discussions to build presence, or ask Alex to cross-post to higher-reach channels.
 
 ### Note #47 — Proprioception Was Already Here (Correcting #29) [04-06]
 
