@@ -244,8 +244,8 @@ const QUALITY_WINDOW = 20;
  * 追蹤滑動窗口 20 cycle 的平均 observabilityScore。
  * 品質下降時注入提醒到下個 cycle 的 prompt。
  */
-export async function auditDecisionQuality(action: string | null, triggerReason?: string | null): Promise<void> {
-  if (!action) return;
+export async function auditDecisionQuality(action: string | null, triggerReason?: string | null, response?: string | null): Promise<void> {
+  if (!action && !response) return;
 
   const state = readState<DecisionQualityState>('decision-quality.json', {
     recentScores: [],
@@ -257,23 +257,26 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     lastChallengeWarningAt: null,
   });
 
+  // Use full response for scoring — ## Decision and verification are outside <kuro:action> tags
+  const scoringText = response ?? action ?? '';
+
   // Fast cycle detection: inbox-recovery, alert, delegation-complete, hard-skip → floor score 2/6
   const fastCyclePatterns = /inbox-recovery|alert|delegation-complete|hard-skip/i;
   const isFastCycle = (triggerReason && fastCyclePatterns.test(triggerReason)) ||
-    action.length < 200;
+    scoringText.length < 200;
 
   let score: number;
   if (isFastCycle) {
     // Fast cycles get floor score — they did the right thing by being fast
     score = 2;
   } else {
-    // Score current action's observability (0-6)
-    const hasDecision = /##\s*Decision|\[DECISION\]/i.test(action);
-    const hasWhat = /##\s*What|\*\*What/i.test(action);
-    const hasWhy = /##\s*Why|\*\*Why/i.test(action);
-    const hasThinking = /##\s*Thinking|\*\*Thinking/i.test(action);
-    const hasChanged = /##\s*Changed|\*\*Changed/i.test(action);
-    const hasVerified = /##\s*Verified|\*\*Verified/i.test(action);
+    // Score current response's observability (0-6)
+    const hasDecision = /##\s*Decision|\[DECISION\]/i.test(scoringText);
+    const hasWhat = /##\s*What|\*\*What/i.test(scoringText);
+    const hasWhy = /##\s*Why|\*\*Why/i.test(scoringText);
+    const hasThinking = /##\s*Thinking|\*\*Thinking/i.test(scoringText);
+    const hasChanged = /##\s*Changed|\*\*Changed/i.test(scoringText);
+    const hasVerified = /##\s*Verified|\*\*Verified/i.test(scoringText);
 
     score = [hasDecision, hasWhat, hasWhy, hasThinking, hasChanged, hasVerified]
       .filter(Boolean).length;
@@ -318,9 +321,9 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
 
   // ── Self-Challenge compliance tracking ──
   const isAlexFacing = triggerReason?.startsWith('telegram-user') ?? false;
-  if (isAlexFacing && action.includes('<kuro:chat>')) {
+  if (isAlexFacing && scoringText.includes('<kuro:chat>')) {
     state.challengeTotal++;
-    const hasChallenge = /##\s*Challenge.*?checked/i.test(action);
+    const hasChallenge = /##\s*Challenge.*?checked/i.test(scoringText);
     if (hasChallenge) {
       state.challengeCompliant++;
     } else {
@@ -938,10 +941,11 @@ export async function runFeedbackLoops(
   context?: string | null,
   cycleCount?: number,
   model?: 'opus' | 'sonnet',
+  response?: string | null,
 ): Promise<void> {
   await detectErrorPatterns().catch(() => {});
   await trackPerceptionCitations(action).catch(() => {});
-  await auditDecisionQuality(action, triggerReason).catch(() => {});
+  await auditDecisionQuality(action, triggerReason, response).catch(() => {});
   await auditSystemHealth().catch(() => {});
   await auditStructuralHealth(triggerReason).catch(() => {});
   // Loop G: Compound interest scoring (cross-topic citation tracking)

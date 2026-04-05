@@ -2615,7 +2615,7 @@ export class AgentLoop {
       // Intelligent feedback loops（fire-and-forget）+ deferred flush
       if (isEnabled('feedback-loops')) {
         const done = trackStart('feedback-loops');
-        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount, modelRoute.model)
+        runFeedbackLoops(action, currentTriggerReason, context, this.cycleCount, modelRoute.model, response)
           .then(() => { flushFeedbackState(); done(); }, e => { flushFeedbackState(); done(String(e)); });
       }
 
