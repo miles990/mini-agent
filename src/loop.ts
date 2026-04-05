@@ -1636,7 +1636,7 @@ export class AgentLoop {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
-      // Context budget now driven by profile-based contextBudget in omlx-gate.ts (convergence condition).
+      // Context budget driven by profile-based contextBudget in omlx-gate.ts.
       // This estimate is a fallback hint — buildContext uses profileConfig.contextBudget as primary control.
       const promptEstimate = 12_000; // cycle prompt + user prompt wrapper
       const systemPromptEstimate = 25_000; // system prompt + JIT CLAUDE.md + skills (measured: typically 20-30K)

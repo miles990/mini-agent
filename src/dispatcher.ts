@@ -798,7 +798,7 @@ export async function postProcess(
           priority: action.priority,
         });
         eventBus.emit('action:task', { content: action.title, entry });
-      } catch { /* ignore */ }
+      } catch (err) { slog('WARN', `task-queue create failed for "${action.title}": ${err instanceof Error ? err.message : err}`); }
       continue;
     }
 
@@ -840,7 +840,7 @@ export async function postProcess(
         if (updated) {
           eventBus.emit('action:task', { content: updated.summary, entry: updated });
         }
-      } catch { /* ignore */ }
+      } catch (err) { slog('WARN', `task-queue update failed for id=${action.id}: ${err instanceof Error ? err.message : err}`); }
       continue;
     }
 
@@ -848,7 +848,7 @@ export async function postProcess(
       try {
         await deleteMemoryIndexEntry(memoryDir, action.id);
         eventBus.emit('action:task', { content: `deleted:${action.id}` });
-      } catch { /* ignore */ }
+      } catch (err) { slog('WARN', `task-queue delete failed for id=${action.id}: ${err instanceof Error ? err.message : err}`); }
     }
   }
 
@@ -977,7 +977,7 @@ export async function postProcess(
         slog('DISPATCH', `Output gate blocked ${tags.delegates.length} delegate(s) — produce visible output first`);
         tags.delegates = [];
       }
-    } catch { /* fail-open */ }
+    } catch (err) { slog('WARN', `output gate check failed (fail-open): ${err instanceof Error ? err.message : err}`); }
   }
 
   // Analyze-no-action gate: block remember tags after consecutive analyze/remember without action
@@ -991,7 +991,7 @@ export async function postProcess(
         slog('DISPATCH', `Analyze-no-action gate blocked ${tags.remembers.length} remember(s) — streak ${streak}, act first`);
         tags.remembers = [];
       }
-    } catch { /* fail-open */ }
+    } catch (err) { slog('WARN', `analyze-no-action gate check failed (fail-open): ${err instanceof Error ? err.message : err}`); }
   }
 
   if (tags.delegates.length > 1) {

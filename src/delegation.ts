@@ -114,24 +114,37 @@ function getStateFilePath(): string {
   return path.join(getInstanceDir(getCurrentInstanceId()), 'delegation-active.json');
 }
 
+function loadStateEntries(filePath: string): ActiveDelegationState[] {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      slog('WARN', `delegation state file corrupted (not array), resetting`);
+      return [];
+    }
+    return parsed;
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'ENOENT') return []; // file missing = OK
+    slog('WARN', `delegation state file read error: ${err instanceof Error ? err.message : err}`);
+    return [];
+  }
+}
+
 function saveToStateFile(entry: ActiveDelegationState): void {
   try {
     const filePath = getStateFilePath();
-    let entries: ActiveDelegationState[] = [];
-    try { entries = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch {}
+    const entries = loadStateEntries(filePath);
     entries.push(entry);
     fs.writeFileSync(filePath, JSON.stringify(entries));
-  } catch { /* fire-and-forget */ }
+  } catch (err) { slog('WARN', `delegation state save failed: ${err instanceof Error ? err.message : err}`); }
 }
 
 function removeFromStateFile(taskId: string): void {
   try {
     const filePath = getStateFilePath();
-    let entries: ActiveDelegationState[] = [];
-    try { entries = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch { return; }
-    entries = entries.filter(e => e.taskId !== taskId);
+    const entries = loadStateEntries(filePath).filter(e => e.taskId !== taskId);
     fs.writeFileSync(filePath, JSON.stringify(entries));
-  } catch { /* fire-and-forget */ }
+  } catch (err) { slog('WARN', `delegation state remove failed: ${err instanceof Error ? err.message : err}`); }
 }
 
 // Type-specific defaults for non-code delegation tasks
@@ -490,6 +503,12 @@ export function killAllDelegations(): number {
   return killed;
 }
 
+/** Expose delegation capacity to decision layer — callers can check before spawning */
+export function getDelegationCapacity(): { active: number; queued: number; max: number; available: number } {
+  const active = [...activeTasks.values()].filter(t => t.result.status === 'running').length;
+  return { active, queued: queue.length, max: MAX_CONCURRENT, available: Math.max(0, MAX_CONCURRENT - active) };
+}
+
 /** Get summaries of all currently running delegations for sibling awareness */
 export function getActiveDelegationSummaries(): Array<{ id: string; type: string; prompt: string }> {
   const summaries: Array<{ id: string; type: string; prompt: string }> = [];
@@ -723,7 +742,7 @@ function spawnWithSandbox(
   return spawn(cmd, args, opts);
 }
 
-/** Per-type convergence conditions — defines what good output looks like, not how to get there */
+/** Per-type output expectations — defines what good output looks like */
 function getThinkingPreamble(type: string): string {
   switch (type) {
     case 'research':

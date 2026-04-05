@@ -1459,8 +1459,8 @@ export async function callClaude(
 
   // Pre-check: if prompt is too large, proactively reduce context before first attempt
   // Lowered from 80K → 60K → 45K: data shows prompts >50K → 100% EXIT143.
-  // Profile-based contextBudget (omlx-gate.ts) is the primary control (convergence condition);
-  // this cap is the safety net (prescription) ensuring CLI stability.
+  // Profile-based contextBudget (omlx-gate.ts) is the primary control;
+  // this cap is the hard safety net ensuring CLI stability.
   const PROMPT_HARD_CAP = 45_000;
   const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
   // Calculate actual context budget from known non-context sizes

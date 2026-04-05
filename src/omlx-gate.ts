@@ -352,8 +352,7 @@ export interface ProfileConfig {
   extraHints: string[];
   /** Sections to force-skip even if keyword-matched */
   skipSections: Set<string>;
-  /** Context budget in chars — convergence condition: enough for quality decision, within CLI stability limit.
-   *  Data-driven: prompts <35K stable (0 EXIT143), >50K fail (100% EXIT143). */
+  /** Context budget in chars. Empirical: prompts <35K → 0% EXIT143, >50K → 100% EXIT143. */
   contextBudget: number;
 }
 

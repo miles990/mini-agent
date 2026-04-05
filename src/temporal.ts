@@ -400,11 +400,11 @@ export async function buildTemporalSection(): Promise<string | null> {
 // =============================================================================
 
 /**
- * 偵測 active threads 之間的概念交叉
+ * 偵測 active threads 之間的概念交叉（共享術語）
  * 提取 progress notes 中的 Capitalized terms（人名、術語、框架）
  * 兩個 threads 共享 2+ 概念時產生 hint
  */
-function detectThreadConvergence(threads: ActiveThread[]): string[] {
+function detectConceptOverlap(threads: ActiveThread[]): string[] {
   const activeThreads = threads.filter(t => t.status === 'active');
   if (activeThreads.length < 2) return [];
 
@@ -448,12 +448,12 @@ export async function buildThreadsPromptSection(): Promise<string | null> {
     lines.push(`- 「${t.title}」(${dayCount} days, ${t.progressNotes.length} notes)`);
   }
 
-  // Convergence hints
-  const convergenceHints = detectThreadConvergence(state.activeThreads);
-  if (convergenceHints.length > 0) {
+  // Concept overlap hints (shared terms across threads)
+  const overlapHints = detectConceptOverlap(state.activeThreads);
+  if (overlapHints.length > 0) {
     lines.push('');
-    lines.push('### Convergence Detected');
-    for (const hint of convergenceHints) {
+    lines.push('### Concept Overlap');
+    for (const hint of overlapHints) {
       lines.push(`- ${hint}`);
     }
   }

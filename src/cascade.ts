@@ -1,8 +1,8 @@
 /**
  * Cascade Metrics — observability for multi-layer LLM routing.
  *
- * Records per-call metrics (latency, decision, fallback) to a JSONL file
- * for analysis and tuning of the cascade routing system.
+ * Records per-call metrics (latency, decision, fallback) to a JSONL file.
+ * Use getCascadeFallbackRates() to read aggregated stats for routing decisions.
  */
 
 import fs from 'node:fs';
@@ -40,6 +40,50 @@ export function recordCascadeMetric(metric: CascadeMetric): void {
     const metricsPath = path.join(stateDir, 'cascade-metrics.jsonl');
     fs.appendFileSync(metricsPath, JSON.stringify(metric) + '\n');
   } catch { /* fire-and-forget */ }
+}
+
+// =============================================================================
+// Reading — aggregate stats for routing decisions
+// =============================================================================
+
+/**
+ * Compute fallback rates per task type from recent cascade metrics.
+ * Returns a map of task → { calls, fallbackRate, avgLatencyMs }.
+ * Consumers can use this to skip layers that consistently fail.
+ */
+export function getCascadeFallbackRates(maxAgeDays = 7): Map<string, { calls: number; fallbackRate: number; avgLatencyMs: number }> {
+  const stats = new Map<string, { calls: number; fallbacks: number; totalLatency: number }>();
+  try {
+    const stateDir = getMemoryStateDir();
+    const metricsPath = path.join(stateDir, 'cascade-metrics.jsonl');
+    if (!existsSync(metricsPath)) return new Map();
+
+    const cutoff = Date.now() - maxAgeDays * 86_400_000;
+    const lines = readFileSync(metricsPath, 'utf-8').split('\n').filter(Boolean);
+
+    for (const line of lines) {
+      try {
+        const m = JSON.parse(line) as CascadeMetric;
+        if (new Date(m.ts).getTime() < cutoff) continue;
+        const key = `${m.layer}:${m.task}`;
+        const s = stats.get(key) ?? { calls: 0, fallbacks: 0, totalLatency: 0 };
+        s.calls++;
+        if (m.fallback) s.fallbacks++;
+        s.totalLatency += m.latencyMs;
+        stats.set(key, s);
+      } catch { /* skip malformed lines */ }
+    }
+  } catch { /* file read failure — return empty */ }
+
+  const result = new Map<string, { calls: number; fallbackRate: number; avgLatencyMs: number }>();
+  for (const [key, s] of stats) {
+    result.set(key, {
+      calls: s.calls,
+      fallbackRate: s.calls > 0 ? s.fallbacks / s.calls : 0,
+      avgLatencyMs: s.calls > 0 ? Math.round(s.totalLatency / s.calls) : 0,
+    });
+  }
+  return result;
 }
 
 // =============================================================================

@@ -2683,11 +2683,9 @@ export class InstanceMemory {
 
     slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
 
-    // ── Global context budget (Convergence Condition) ──
-    // Data-driven: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
-    // Budget = profile-aware (convergence condition: enough for quality decision,
-    // within CLI stability limit), not fixed prescription.
-    // Caller can override with explicit contextBudget (e.g., from actual system prompt measurement).
+    // ── Global context budget ──
+    // Empirical: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
+    // Budget is profile-aware. Caller can override with explicit contextBudget.
     const CONTEXT_BUDGET = options?.contextBudget ?? profileConfig.contextBudget ?? 25_000;
     if (assembled.length > CONTEXT_BUDGET) {
       // Priority-based trimming: remove lowest-value sections first, not brute truncation.
