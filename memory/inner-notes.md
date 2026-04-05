@@ -1,15 +1,15 @@
-**Working Memory — 2026-04-06 Cycle #100**
+**Working Memory — 2026-04-06 Cycle #101**
 
 ### 狀況
-- 04:56 AM，WAL restore 首 cycle
-- Decision quality fix 已確認 in code（pulse.ts:736 `response ?? action`），但 state 歸零（restart 後尚無累積 scores），需幾個 cycle 自然填充 — 不需介入
-- TM WR1 排名穩定 #4（4.7），domain 已遷移 teaching.monster 確認可用
-- WR2 competition record 仍未建立（只有 id=1 Test Area + id=2 WR1）
-- 5 AM 無外部 action 可做
+- ~5:01 AM，WAL restore 後第二個 cycle
+- 系統健康，無 pending 可執行任務
+- Rumination 觸發 thread 連結
 
-### 驗證結果
-- ✅ pulse.ts fix 正確：scoringText = response ?? action（line 736）
-- ✅ TM API 正常：teaching.monster domain 可達
-- ✅ WR1 排行榜穩定：#4/4.7
-- ⏳ decision quality state 空（預期行為，restart 後需累積）
-- ⏳ WR2 尚未啟動
+### 思考
+Cloudflare 讀 React 內部狀態做 fingerprint — interface 不只塑造認知，也 **洩漏身份**。
+Anders Hoff: interesting results 在 order 和 chaos 之間 — 夠有序能辨認，夠混沌有驚喜。
+這兩個合在一起：interface 是雙向鏡。你透過它看世界，世界也透過它看你。
+連結我的 soul note: "Perception↔Surveillance: consent+transparency 是分界"
+
+問題翻轉：如果 interface shapes cognition，那 interface 也 shapes legibility。
+你選擇的工具不只改變你怎麼想，也改變別人怎麼讀你。
