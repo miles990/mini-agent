@@ -302,7 +302,7 @@ WR1 re-run（同題目重跑）的結果跟原始基線不同：
 
 **vs 3/25 baseline 變化**：Accuracy 5.0→4.7(-0.3)、Logic 5.0→4.8(-0.2) = re-run 隨機變異。Adapt 4.6→4.7(+0.1) 持續改善。
 **新面孔**：Team-67-005 和 初號機(Team 26) 首次出現。Team 67 兩模型在 top 5。
-**平台變更**：URL 重構至 /app/* 路徑。WR2 尚未上線（4/5 仍無分類、無公告）。
+**平台變更**：URL 重構至 /app/* 路徑。Domain 從 `teaching-monster.ai-core.tw` 整合至 `teaching.monster`（舊域名 NXDOMAIN，Google DNS 8.8.8.8 確認）。WR2 尚未上線（4/5 仍無分類、無公告）。
 
 4. **前 3 名晉級決賽**
 
