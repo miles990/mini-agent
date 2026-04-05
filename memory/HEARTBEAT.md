@@ -48,7 +48,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
-- [x] 暖身賽2 預測建立 — 4.4/5 point estimate (90% CI: 3.9-4.7)。注意：此預測基於 WR1 同等難度假設，WR2 題目更難（評審委員設計），需重新校準 <!-- completed: 2026-03-31, caveat added: 2026-04-02 -->
+- [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
 - [ ] 暖身賽2 等待啟動 — 規則寫「4 月初開始」，題目由評審委員親自設計（更難），排行榜尚未出現第二輪。持續監控
 - [ ] End-to-end 測試（持續）
