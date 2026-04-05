@@ -2095,6 +2095,19 @@ export class AgentLoop {
         similarity = this.computeActionSimilarity(action);
       }
 
+      // ── Filter out chats already sent via streaming ──
+      // MUST run before hesitation: hesitation mutates chat.text (appends hedge),
+      // which breaks the text-based dedup check against streamedChatTexts.
+      let didReplyToTelegram = false;
+      if (streamedChatTexts.size > 0) {
+        const before = tags.chats.length;
+        tags.chats = tags.chats.filter(c => !streamedChatTexts.has(c.text));
+        if (before !== tags.chats.length) {
+          slog('STREAM', `Filtered ${before - tags.chats.length} already-streamed chat(s)`);
+          didReplyToTelegram = true; // streamed chats count as replied
+        }
+      }
+
       // ── Hesitation Signal（確定性，零 API call）──
       let hesitationScheduleReview = false;
       if (isEnabled('hesitation-signal')) {
@@ -2169,16 +2182,8 @@ export class AgentLoop {
         }
       }
 
-      // ── Filter out chats already sent via streaming ──
-      let didReplyToTelegram = false;
+      // ── Record side effects for streamed chats ──
       if (streamedChatTexts.size > 0) {
-        const before = tags.chats.length;
-        tags.chats = tags.chats.filter(c => !streamedChatTexts.has(c.text));
-        if (before !== tags.chats.length) {
-          slog('STREAM', `Filtered ${before - tags.chats.length} already-streamed chat(s)`);
-          didReplyToTelegram = true; // streamed chats count as replied
-        }
-        // Record side effects for streamed chats
         for (const text of streamedChatTexts) {
           cycleSideEffects.push(`chat:${text.slice(0, 60)}`);
           cycleTagsProcessed.push('CHAT');
