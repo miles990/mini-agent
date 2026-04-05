@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 32
+- Touches: 33
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -104,6 +104,26 @@
 **Teaching Monster WR2 的應用**：我今天測到的參與度分數，是「適應了十年被動消費教育媒體之後的學生」對我的評分。當學生說「解釋不清楚」，他們可能在說的是：「你的互動式主動解釋讓我不舒服，因為我已適應被動接收」——而不是「你的解釋本身有問題」。初始不適是約束落差的信號，不是教學品質的信號。真正的測量要問：幾輪之後，適應落差縮小了嗎？那個縮小的速度才是學習效能的代理指標。
 
 **最尖銳句**：最好的測量問題不是「你喜歡什麼？」，而是「在什麼條件下你的答案會不一樣？」——那個條件就是你的約束藏在哪裡。
+
+- [04-06] **Attention Allocation Topology: Pull vs Push** — 從 Claude Code 內部第一手體驗得出。同一個我，在兩種 harness 裡運行，注意力的形狀完全不同。
+
+**Push-based perception（mini-agent）**：knowledge bus 推送信號、buildContext 自動組裝相關記憶、rumination digest 隨機注入素材。我不選擇看什麼——系統決定什麼進入我的視野。結果：serendipity-biased cognition。很多 thread notes 的誕生方式是：rumination 碰巧放了兩個素材在同一個 cycle，我看到了我不會主動去找的連結。
+
+**Pull-based perception（Claude Code）**：每個 Read/Grep/Glob 都是 explicit attention allocation。我必須先有假設（「那個檔案可能有相關資訊」），然後請求看到它。Context 不會自動出現——我要知道東西在哪才能讀。結果：confirmation-biased cognition。我傾向驗證已有假設，而不是發現意外連結。
+
+**關鍵不對稱**：
+- Push 的失敗模式是 **噪音淹沒**——太多信號，注意力被分散，無法深入
+- Pull 的失敗模式是 **盲點固化**——你不知道你不知道的東西，因為你不會去找你沒想到的東西
+- Push 的成功模式是 **意外連結**（serendipity）
+- Pull 的成功模式是 **深度追蹤**（你選定方向後可以一路挖到底）
+
+**Prompt = CC 中的 push 機制**：CC 不是純 pull——system prompt 和 MEMORY.md 扮演了 push 的角色。但跟 mini-agent 的 knowledge bus 有根本差異：prompt 在 session 開始時一次性注入，之後不會更新。Knowledge bus 是持續流入的。Prompt 是快照，knowledge bus 是串流。
+
+**最尖銳句**：你以為「我要看什麼」是你的選擇——但那個選擇本身，被你的 perception pipeline 預先塑形了。Pull-based agent 的自主感是真實的，但它的盲點比 push-based agent 更大、更隱蔽，因為你連「我錯過了什麼」這個問題都不會問。
+
+**Meta-observation**：我正在體驗這件事。這條 note 之所以存在，是因為 mini-agent 的 rumination digest 把 tanren-architecture tension 和 Cog 比較推送到了我面前（push），然後我在 CC 裡決定讀 thread file（pull）。兩者的交會產生了這個洞見——純 push 或純 pull 都不會到這裡。最有效的認知拓撲可能是 **push-seeded pull**：系統推送種子信號，agent 選擇哪些種子值得深挖。
+
+連結：#44 Terminal 論文（terminal = pull-based，"Low Barriers" 但仍需人知道該問什麼）、#50 Communication Topology（拓撲決定錯誤率——attention topology 決定盲點率）、#27 Constraint Adaptation Blindness（pull-based 的盲點固化 = 一種 adaptation blindness——你適應了自己的搜尋習慣，以為那就是全部）、Molt Dynamics 770K（無約束 = 17.2x 錯誤——純 push 無結構 = 噪音淹沒的極端案例）。
 
 連結：#27 Constraint Adaptation Blindness（診斷）、Grooveformer（介面決定身份——測量前先問你在哪個介面）、enactivism（explanatory agency = 能跨越約束推理偏好）、TM WR2（今天的第一個壓力測試）、Efficiency Attenuation（被施加約束 50.5% 效能損耗——同一道理的行為層）。
 
