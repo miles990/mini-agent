@@ -2634,7 +2634,7 @@ export class AgentLoop {
       // Unified Pulse System — deterministic heuristics + optional 9B（fire-and-forget, every cycle）
       {
         const done = trackStart('pulse');
-        runPulseCheck(action, this.cycleCount).then(() => done(), e => done(String(e)));
+        runPulseCheck(action, this.cycleCount, response).then(() => done(), e => done(String(e)));
       }
 
       // Daily topic pruning — Haiku analysis（fire-and-forget, once per day）

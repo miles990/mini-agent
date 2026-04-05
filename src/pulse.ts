@@ -430,7 +430,7 @@ function expandGoalKeywords(goalSummary: string, state?: PulseState): string[] {
 // Layer 1: Code Heuristics (deterministic, zero LLM tokens)
 // =============================================================================
 
-export async function computePulseMetrics(action: string | null, state: PulseState): Promise<PulseMetrics> {
+export async function computePulseMetrics(action: string | null, state: PulseState, response?: string | null): Promise<PulseMetrics> {
   const metrics: PulseMetrics = {
     learnVsActionRatio: 0,
     visibleOutputRate: 0,
@@ -732,11 +732,12 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   } catch { /* best effort */ }
 
   // ── Decision quality (absorbed from feedback-loops.ts) ──
-  if (action) {
-    // Match actual cycle format: ## Decision block + <kuro:action> + verification signals
-    const hasDecision = /##\s*Decision/i.test(action);
-    const hasAction = /<kuro:action>|##\s*Changed/i.test(action);
-    const hasVerified = /##\s*Verified|verified|✅|confirmed/i.test(action);
+  // Use full response for scoring — ## Decision and verification are outside <kuro:action> tags
+  const scoringText = response ?? action;
+  if (scoringText) {
+    const hasDecision = /##\s*Decision/i.test(scoringText);
+    const hasAction = /<kuro:action>|##\s*Changed/i.test(scoringText);
+    const hasVerified = /##\s*Verified|verified|✅|confirmed/i.test(scoringText);
     const score = [hasDecision, hasAction, hasVerified].filter(Boolean).length;
 
     state.recentDecisionScores.push(score);
@@ -1164,6 +1165,7 @@ function escalateToCrystallization(signal: PulseSignal, history: SignalHistoryEn
 export async function runPulseCheck(
   action: string | null,
   cycleCount: number,
+  response?: string | null,
 ): Promise<void> {
   const state = readPulseState();
 
@@ -1172,7 +1174,7 @@ export async function runPulseCheck(
   updateSignalEffectiveness(state, action);
 
   // Layer 1: Compute metrics
-  const metrics = await computePulseMetrics(action, state);
+  const metrics = await computePulseMetrics(action, state, response);
 
   // CT evolution: Update cadence from recent flags (adaptive thresholds)
   updateCadence(state);
