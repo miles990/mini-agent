@@ -317,9 +317,10 @@ function compressBackgroundCompletedLight(content: string): string {
         trimmed.startsWith('Error:') || trimmed.startsWith('---')) {
       if (inVerboseBlock && verboseLines > 0) {
         result.push(`  [... ${verboseLines} detail lines trimmed]`);
-        inVerboseBlock = false;
-        verboseLines = 0;
       }
+      // Reset counters on any anchor line — prevents cross-block accumulation
+      inVerboseBlock = false;
+      verboseLines = 0;
       result.push(line);
       continue;
     }

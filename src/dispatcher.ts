@@ -276,7 +276,7 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell">task</kuro:delegate> — background task
+- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -311,7 +311,7 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell">task</kuro:delegate> — background task
+- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -651,7 +651,7 @@ export function parseTags(response: string): ParsedTags {
     delegates.push({
       prompt: t.content.trim(),
       workdir,
-      type: typeRaw && ['code', 'learn', 'research', 'create', 'review', 'shell'].includes(typeRaw) ? typeRaw : undefined,
+      type: typeRaw && ['code', 'learn', 'research', 'create', 'review', 'shell', 'browse', 'akari', 'plan', 'debug'].includes(typeRaw) ? typeRaw as DelegationTaskType : undefined,
       provider: providerRaw && ['claude', 'codex', 'local'].includes(providerRaw) ? providerRaw : undefined,
       verify: verifyRaw ? verifyRaw.split(',').map(s => s.trim()) : undefined,
       maxTurns: maxTurnsRaw ? parseInt(maxTurnsRaw, 10) : undefined,
@@ -1075,8 +1075,8 @@ export async function postProcess(
       } catch { /* optional */ }
     }
 
-    // Research/learn/create/plan/akari: include relevant topic memories (prevents re-learning known info)
-    if (['research', 'learn', 'create', 'plan', 'akari'].includes(type)) {
+    // Research/learn/create/plan/debug/akari: include relevant topic memories (prevents re-learning known info)
+    if (['research', 'learn', 'create', 'plan', 'debug', 'akari'].includes(type)) {
       try {
         const memory = getMemory();
         const budget = type === 'akari' ? 3000 : 2000;
