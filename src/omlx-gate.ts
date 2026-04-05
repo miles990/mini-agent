@@ -204,20 +204,9 @@ export function hasContextChanged(context: string): boolean {
 // R1: Perception Section Pruning
 // =============================================================================
 
-/** Perception sections with citation rate < 1% over 2,454 cycles — safe to prune */
-const LOW_CITATION_SECTIONS = new Set([
-  'achievements',
-  'claude-code-inbox',
-  'claude-code-sessions',
-  'cdp-events',
-  'mushi-value-proof',
-  'problem-alignment',
-  'anima-sync',
-  'line-web-live',
-]);
-
 /**
- * Dynamic pruning list loaded from perception-citations.json.
+ * Data-driven pruning list loaded from perception-citations.json.
+ * No static list — pruning decisions come entirely from 5000+ cycles of citation data.
  * Updated on first call and every 100 cycles.
  */
 let dynamicPruneSet: Set<string> | null = null;
@@ -225,29 +214,31 @@ let lastPruneRefreshCycle = 0;
 
 /**
  * Load low-citation sections from perception-citations.json.
- * Sections with < 0.5% citation rate over 100+ cycles are candidates for pruning.
+ * Sections with < 0.1% citation rate over 500+ cycles are candidates for pruning.
+ * Conservative threshold: prune only truly dead sections, prefer extra tokens over false pruning.
+ * Returns empty set when data is insufficient.
  */
 function refreshDynamicPruneList(): Set<string> {
-  const staticSet = new Set(LOW_CITATION_SECTIONS);
+  const pruneSet = new Set<string>();
 
   try {
     const citationsPath = path.join(process.cwd(), 'memory', 'state', 'perception-citations.json');
-    if (!fs.existsSync(citationsPath)) return staticSet;
+    if (!fs.existsSync(citationsPath)) return pruneSet;
 
     const data = JSON.parse(fs.readFileSync(citationsPath, 'utf-8'));
-    const totalCycles = data.totalCycles ?? 0;
-    if (totalCycles < 100) return staticSet; // Not enough data
+    const totalCycles = data.cycleCount ?? 0;
+    if (totalCycles < 500) return pruneSet; // Need substantial data before pruning
 
     const citations: Record<string, number> = data.citations ?? {};
     for (const [section, count] of Object.entries(citations)) {
       const rate = count / totalCycles;
-      if (rate < 0.005) { // < 0.5%
-        staticSet.add(section);
+      if (rate < 0.001) { // < 0.1% — only truly dead sections
+        pruneSet.add(section);
       }
     }
-  } catch { /* use static list */ }
+  } catch { /* no data = no pruning */ }
 
-  return staticSet;
+  return pruneSet;
 }
 
 /**
