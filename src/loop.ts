@@ -2098,10 +2098,19 @@ export class AgentLoop {
       // ── Filter out chats already sent via streaming ──
       // MUST run before hesitation: hesitation mutates chat.text (appends hedge),
       // which breaks the text-based dedup check against streamedChatTexts.
+      // Uses normalized comparison as fallback: stream parser and batch parser may extract
+      // subtly different text from the same source (e.g., different whitespace boundaries
+      // when content spans multiple text blocks across tool-use turns).
       let didReplyToTelegram = false;
       if (streamedChatTexts.size > 0) {
+        const normalize = (t: string) => t.trim().replace(/\s+/g, ' ');
+        const normalizedStreamed = new Set([...streamedChatTexts].map(normalize));
         const before = tags.chats.length;
-        tags.chats = tags.chats.filter(c => !streamedChatTexts.has(c.text));
+        tags.chats = tags.chats.filter(c => {
+          if (streamedChatTexts.has(c.text)) return false; // exact match
+          if (normalizedStreamed.has(normalize(c.text))) return false; // normalized match
+          return true;
+        });
         if (before !== tags.chats.length) {
           slog('STREAM', `Filtered ${before - tags.chats.length} already-streamed chat(s)`);
           didReplyToTelegram = true; // streamed chats count as replied
