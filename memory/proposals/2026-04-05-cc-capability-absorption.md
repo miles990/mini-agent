@@ -157,6 +157,27 @@ This changes Phase 3b from "nice to have hooks" to "behavioral reliability infra
 
 See ISC thread Note #38 for full analysis.
 
+### 2026-04-05 — Phase 3b: First Hard Gate Implemented
+
+**Auto-typecheck for code delegations** — delegation.ts now auto-injects `npx tsc --noEmit` as a verify command for `code` and `akari` type delegations when:
+1. The delegation completed successfully (no point typechecking a failed task)
+2. The workdir has a `tsconfig.json`
+3. No manual tsc verify was already specified
+
+Behavior: typecheck failure → delegation status flips to `failed` → forge won't merge broken code.
+
+This is a **real hard gate**, not soft guidance:
+- Preamble says "run typecheck" = LLM might forget → soft
+- Auto-inject verify = runs regardless of LLM behavior → hard
+
+Uses existing verify infrastructure — zero new abstractions. ~8 lines.
+
+**CC Worktree observation** (EnterWorktree/ExitWorktree):
+- Session-scoped (vs forge-lite.sh task-scoped)
+- Safety: refuses remove if uncommitted changes
+- Auto-clears CWD caches on exit — important for state consistency
+- Phase 3a design should incorporate the "refuse remove if dirty" safety pattern
+
 ## Success Criteria
 
 1. Code delegation accuracy ↑（measurable via delegation success rate）

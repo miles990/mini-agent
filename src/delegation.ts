@@ -1065,9 +1065,20 @@ function startTask(task: DelegationTask): void {
         result.status = code === 0 ? 'completed' : 'failed';
       }
 
+      // CC absorption Phase 3b: auto-inject typecheck for code delegations (hard gate)
+      // Insight: CC enforces "read before edit" as a tool-level hard gate.
+      // We apply the same principle: code delegations that modify TS must pass typecheck.
+      const verifyCommands = [...(task.verify ?? [])];
+      if (result.status === 'completed' && (task.type === 'code' || task.type === 'akari')) {
+        const tsconfigExists = fs.existsSync(path.join(effectiveWorkdir, 'tsconfig.json'));
+        if (tsconfigExists && !verifyCommands.some(c => c.includes('tsc'))) {
+          verifyCommands.push('npx tsc --noEmit 2>&1 | head -20');
+        }
+      }
+
       // Run verify commands (in forge worktree if active)
-      if (task.verify && task.verify.length > 0) {
-        result.verifyResults = await runVerifyCommands(task.verify, effectiveWorkdir);
+      if (verifyCommands.length > 0) {
+        result.verifyResults = await runVerifyCommands(verifyCommands, effectiveWorkdir);
         const allPassed = result.verifyResults.every(v => v.passed);
         if (!allPassed && result.status === 'completed') {
           result.status = 'failed';
