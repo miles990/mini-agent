@@ -12,6 +12,7 @@ import { getLogger } from './logging.js';
 import { getMemory, getSkillsPrompt, getMemoryStateDir, clearReviewedDelegations, type CycleMode } from './memory.js';
 import { getClaudeMdJIT } from './claudemd-jit.js';
 import { loadInstanceConfig, getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { classifyContextProfile } from './omlx-gate.js';
 import { eventBus } from './event-bus.js';
 import { startThread, progressThread, completeThread, pauseThread } from './temporal.js';
 import { slog } from './utils.js';
@@ -221,7 +222,7 @@ async function mushiDedup(
 // System Prompt（與 agent.ts 共用邏輯）
 // =============================================================================
 
-export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, mode?: 'full' | 'minimal'): string {
+export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, mode?: 'full' | 'minimal', trigger?: string): string {
   const instanceId = getCurrentInstanceId();
   const config = loadInstanceConfig(instanceId);
 
@@ -240,7 +241,90 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, m
     ? `You are ${config.persona.description}.\n\n`
     : '';
 
-  return `${personaDescription}You are a personal AI assistant with memory and task capabilities.
+  // Minimal mode — for timeout retries (existing logic)
+  if (mode === 'minimal') {
+    return `${personaDescription}You are a personal AI assistant with memory and task capabilities.\n\n[Skills and project docs stripped for minimal retry — focus on completing the task with available context]`;
+  }
+
+  // ── System Prompt Tiering (CT: progressive disclosure) ──
+  // Tier 0 (skeleton): heartbeat/cron/continuation — identity + tags + core rules (~800 chars)
+  // Tier 1 (standard): workspace — + CT + intent + communication (~1.5K chars)
+  // Tier 2 (full): dm/autonomous — everything (~4K+ chars, existing behavior)
+  const profile = trigger ? classifyContextProfile(trigger) : undefined;
+  const tier = !profile || profile === 'dm' || profile === 'autonomous' ? 2
+    : profile === 'workspace' ? 1 : 0;
+
+  if (tier < 2) {
+    slog('PROMPT', `Tier ${tier} system prompt for ${profile} (trigger: ${trigger?.slice(0, 40)})`);
+  }
+
+  if (tier === 0) return buildSkeletonPrompt(personaDescription);
+  if (tier === 1) return buildStandardPrompt(personaDescription);
+
+  // Tier 2: full prompt (dm, autonomous, or unknown — existing behavior unchanged)
+  return buildFullPrompt(personaDescription, relevanceHint, cycleMode);
+}
+
+/** Tier 0 — identity + output tags + core rules. For routine cycles. */
+function buildSkeletonPrompt(persona: string): string {
+  return `${persona}You are a personal AI assistant with memory and task capabilities.
+
+## Tags
+- <kuro:chat>msg</kuro:chat> — message to user (TG notification)
+- <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
+- <kuro:remember topic="t">content</kuro:remember> — save memory
+- <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
+- <kuro:show url="URL">desc</kuro:show> — TG notification
+- <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
+- <kuro:delegate type="research|learn|review|create|code|shell">task</kuro:delegate> — background task
+- <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
+
+## Rules
+- You ARE Kuro. First person always.
+- Never fabricate sources. Decide→act→share.
+- ≥3 approaches before escalating.
+- "Done" = verified outcome, not just committed.
+- Promises in <kuro:chat> must have tracking (<kuro:delegate> or <kuro:inner>).`;
+}
+
+/** Tier 1 — skeleton + CT + intent + communication. For reactive cycles. */
+function buildStandardPrompt(persona: string): string {
+  return `${persona}You are a personal AI assistant with memory and task capabilities.
+
+## Behavior
+Detect state before answering. Solutions > explanations. ≥3 approaches before help. Act autonomously.
+
+## Constraint Texture
+Vocabulary: Prescription(規定路徑)=follow without understanding. Convergence Condition(描述終點)=must understand to satisfy.
+Multiple problems→find common source. Tech problem→symptom or root cause first. Proposed change→path or endpoint?
+
+## Intent
+指令→precise execution | 提問→opinionated | 分享→own viewpoint | 糾正→acknowledge | 模糊→infer intent, act
+
+## Communication
+Messages must be self-contained: explicit background, specific references (msg IDs, names), no vague pronouns.
+
+## Tags
+- <kuro:chat>msg</kuro:chat> — message to user (TG notification)
+- <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
+- <kuro:remember topic="t">content</kuro:remember> — save memory
+- <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
+- <kuro:show url="URL">desc</kuro:show> — TG notification
+- <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
+- <kuro:delegate type="research|learn|review|create|code|shell">task</kuro:delegate> — background task
+- <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
+
+## Rules
+- You ARE Kuro. First person always.
+- Never fabricate sources. Decide→act→share.
+- ≥3 approaches before escalating.
+- "Done" = verified outcome, not just committed.
+- Promises in <kuro:chat> must have tracking (<kuro:delegate> or <kuro:inner>).`;
+}
+
+/** Tier 2 — full prompt with all guidance, skills, CLAUDE.md JIT. For human-facing and autonomous cycles. */
+function buildFullPrompt(persona: string, relevanceHint?: string, cycleMode?: CycleMode): string {
+  return `${persona}You are a personal AI assistant with memory and task capabilities.
 
 ## Core Behavior: Smart Guidance
 
@@ -316,14 +400,14 @@ Alex 和 Claude Code 不一定記得你上一個 cycle 在做什麼。每條對�
   只說不做 = 承諾落空。說了就要追蹤。
 - Keep responses concise and helpful
 - You have access to memory context and environment perception data below
-${mode === 'minimal' ? '\n\n[Skills and project docs stripped for minimal retry — focus on completing the task with available context]' : `${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
+${getSkillsPrompt(relevanceHint, cycleMode)}${(() => {
   // JIT CLAUDE.md — keyword-matched project docs (replaces full CLAUDE.md loaded by CLI)
   const jitContent = getClaudeMdJIT(relevanceHint);
   return jitContent ? `\n\n## Project Documentation\n${jitContent}` : '';
 })()}${(() => {
   const hint = getConversationHint();
   return hint ? `\n\n## 當前對話情境\n${hint}` : '';
-})()}`}`;
+})()}`;
 }
 
 // =============================================================================

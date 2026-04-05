@@ -1449,7 +1449,7 @@ export async function callClaude(
   const modelTier: ModelTier = detectModelTier(primary, resolveModelName(primary, options?.model));
   const systemPrompt = modelTier === 'small'
     ? buildSmallModelPrompt(options?.triggerReason ?? null, options?.hasPendingTasks ?? false)
-    : getSystemPrompt(prompt, options?.cycleMode);
+    : getSystemPrompt(prompt, options?.cycleMode, undefined, options?.triggerReason ?? undefined);
   let currentContext = processContext(context, modelTier);
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 

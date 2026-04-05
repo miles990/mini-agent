@@ -1964,6 +1964,7 @@ export class AgentLoop {
           cycleMode,
           model: modelCliName,
           onStreamChat,
+          triggerReason: currentTriggerReason,
         }),
         concurrentPromise,
       ]);
