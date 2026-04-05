@@ -11,6 +11,7 @@
  */
 
 import type { Provider } from './types.js';
+import { eventBus } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -239,16 +240,158 @@ function summarizeChatRoom(content: string): string {
   return header + kept.join('\n');
 }
 
+// =============================================================================
+// L1 Light Helpers (for Opus — targeted compression, not summarization)
+// =============================================================================
+
+/**
+ * Light compression for chat-room-recent: keep last N messages + count header.
+ * Preserves message format so the model can still read thread context.
+ */
+function compressChatRoomLight(content: string, keepLast: number): string {
+  const lines = content.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length <= keepLast) return content;
+
+  const kept = lines.slice(-keepLast);
+  return `[${lines.length} messages, showing last ${keepLast}]\n${kept.join('\n')}`;
+}
+
+/**
+ * Light compression for rumination-digest: keep topic headers + first entry per topic.
+ * Rumination is inspiration material — topic names + one example is enough to trigger associations.
+ */
+function compressRuminationLight(content: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let inTopic = false;
+  let entryCount = 0;
+
+  for (const line of lines) {
+    // Topic headers (### competitive-landscape, etc.)
+    if (line.startsWith('### ')) {
+      result.push(line);
+      inTopic = true;
+      entryCount = 0;
+      continue;
+    }
+
+    if (inTopic) {
+      // Keep first entry per topic (starts with "- [")
+      if (line.startsWith('- [') && entryCount === 0) {
+        // Truncate long entries to first 150 chars
+        const truncated = line.length > 150 ? line.slice(0, 150) + '...' : line;
+        result.push(truncated);
+        entryCount++;
+      } else if (line.startsWith('- [') && entryCount > 0) {
+        // Skip subsequent entries — already captured the topic
+        continue;
+      } else if (line.trim() === '') {
+        result.push('');
+        inTopic = false;
+      }
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Light compression for background-completed: keep decision/outcome lines, trim verbose output.
+ * Delegation results are reviewed once; after that, only the outcome matters.
+ */
+function compressBackgroundCompletedLight(content: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let inVerboseBlock = false;
+  let verboseLines = 0;
+  const VERBOSE_THRESHOLD = 8;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Always keep: headers, status lines, outcomes, errors
+    if (trimmed.startsWith('#') || trimmed.startsWith('✅') || trimmed.startsWith('❌') ||
+        trimmed.startsWith('⏳') || trimmed.startsWith('Result:') || trimmed.startsWith('Outcome:') ||
+        trimmed.startsWith('Error:') || trimmed.startsWith('---')) {
+      if (inVerboseBlock && verboseLines > 0) {
+        result.push(`  [... ${verboseLines} detail lines trimmed]`);
+        inVerboseBlock = false;
+        verboseLines = 0;
+      }
+      result.push(line);
+      continue;
+    }
+
+    // Track verbose blocks (indented content after headers)
+    if (trimmed.length > 0 && !trimmed.startsWith('#')) {
+      if (!inVerboseBlock && result.length > 0) {
+        // Keep first few lines of detail
+        if (verboseLines < VERBOSE_THRESHOLD) {
+          result.push(line);
+          verboseLines++;
+        } else {
+          inVerboseBlock = true;
+          verboseLines++;
+        }
+      } else if (inVerboseBlock) {
+        verboseLines++;
+      } else {
+        result.push(line);
+        verboseLines++;
+      }
+    } else {
+      if (inVerboseBlock && verboseLines > 0) {
+        result.push(`  [... ${verboseLines} detail lines trimmed]`);
+        inVerboseBlock = false;
+        verboseLines = 0;
+      }
+      result.push(line);
+    }
+  }
+
+  // Flush any trailing verbose block
+  if (inVerboseBlock && verboseLines > 0) {
+    result.push(`  [... ${verboseLines} detail lines trimmed]`);
+  }
+
+  return result.join('\n');
+}
+
 /**
  * L1 Pre-digest: process sections based on tier
  */
 function l1Predigest(text: string, level: 'aggressive' | 'light'): string {
-  if (level === 'light') return text; // Large models get no content changes
-
-  // Aggressive: summarize verbose sections for small models
   const sections = extractSections(text);
   let result = text;
 
+  if (level === 'light') {
+    // Light mode for Opus: targeted compression on verbose sections.
+    // Identity/decision sections untouched. Perception/history sections trimmed.
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const sec = sections[i];
+      let replacement: string | null = null;
+
+      if (sec.tag === 'chat-room-recent') {
+        // Keep last 5 messages + count header (full history rarely influences decisions)
+        replacement = compressChatRoomLight(sec.content, 5);
+      } else if (sec.tag === 'rumination-digest') {
+        // Keep topic headers + first entry per topic (inspiration, not reference)
+        replacement = compressRuminationLight(sec.content);
+      } else if (sec.tag === 'background-completed') {
+        // Keep key outcome lines, strip verbose delegation output
+        replacement = compressBackgroundCompletedLight(sec.content);
+      }
+
+      if (replacement !== null && replacement.length < sec.content.length) {
+        result = result.slice(0, sec.start) + `<${sec.tag}>\n${replacement}\n</${sec.tag}>` + result.slice(sec.end);
+      }
+    }
+    return result;
+  }
+
+  // Aggressive: summarize verbose sections for small models
   // Process in reverse order to maintain correct offsets
   for (let i = sections.length - 1; i >= 0; i--) {
     const sec = sections[i];
@@ -331,15 +474,27 @@ export function processContext(
   _trigger?: string,
 ): string {
   const config = getModelTierConfig(tier);
+  const inputLen = rawContext.length;
 
   // L0: Denoise (both tiers)
   let result = l0Denoise(rawContext);
+  const afterL0 = result.length;
 
   // L1: Pre-digest (tier-dependent)
   result = l1Predigest(result, config.predigestLevel);
+  const afterL1 = result.length;
 
   // Budget enforcement
   result = enforceBudget(result, config.contextBudget);
+
+  // Log pipeline savings (only when meaningful reduction occurred)
+  const totalSaved = inputLen - result.length;
+  if (totalSaved > 500) {
+    eventBus.emit('log:info', {
+      tag: 'context-pipeline',
+      msg: `${tier}: ${inputLen} → ${result.length} chars (L0: -${inputLen - afterL0}, L1: -${afterL0 - afterL1}, budget: -${afterL1 - result.length})`,
+    });
+  }
 
   return result;
 }
