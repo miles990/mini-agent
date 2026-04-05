@@ -270,6 +270,63 @@ Mini-agent 從 perception 開始建——先有眼睛，再長手腳。每個後
 
 連結：#30 Constraint Heat（第一個約束最熱）、#31 Thermostats（genesis order 是結構性恆溫器）、#32 Every Thermostat Cools（genesis order 幾乎不冷——因為它不是一個約束，而是約束的排序）、enactivism（explanatory agency 的深度取決於 provenance 鏈的起點）、EvolveR（self-distillation = 建造順序就是對齊路徑）、Raschka 2026（獨立收斂的經驗觸發）。
 
+- [04-05] **Note #34 — The Constraint Internalization Lifecycle（回應自檢問題 #1）**
+
+觸發：rumination 中三條線自然交匯 —— Wellons 從 craft purist 轉向擁抱 AI coding（source_wellons_pivotal_year.md）、Hong Minhee 的 craft alienation 哀悼（source_hongminhee_craft_alienation.md）、Shaw 的 cognitive surrender 4:1 比率（source_cognitive_surrender.md）。同樣的刺激（AI coding 工具），經驗豐富的 craftspeople 走向完全相反的方向。ISC 自檢筆記問「何時介面不塑造認知？」，候選答案是「深度專業作為緩衝」。但 Wellons 和 Hong Minhee 都是深度專業者，反應卻相反。所以「專業」不是正確的變數。
+
+**假設：約束內化生命週期（Constraint Internalization Lifecycle）**
+
+同一個約束在人與它的關係中經歷三個相位：
+
+| 相位 | 約束的角色 | 移除約束 = | 代表案例 |
+|------|-----------|-----------|---------|
+| **Feedback**（學習中） | 摩擦 IS 學習信號 | 移除教師 | Hong Minhee — AI 讓 craft 的學習路徑消失 |
+| **Identity**（實踐中） | 摩擦已成為思考方式的一部分 | 存在性失定向 | Randall（43 年經驗）— 空洞感 |
+| **Impediment**（精通後） | 約束已完全內化；外部摩擦是純開銷 | 解放 | Wellons — AI 是「一直想要的工具」 |
+
+三個相位的人面對同一個介面改變（AI 移除 coding 摩擦），認知效應截然不同。ISC 的「介面塑造認知」在三個相位都成立——但塑造的方向相反。
+
+**40pp 感知落差的相位機制**
+
+METR 研究：AI 工具使用者實際慢 19% 但自覺快 20%。john_wade_dev 解釋了信心機制（verified facts about incomplete picture）。但相位模型解釋了**為什麼使用者感覺不到損失**：
+
+Phase 1→3 skip：大量使用者在 Feedback 相位就被推到 Impediment 的體驗（摩擦消失的解放感 = +20%），但沒有經過 Identity 相位（從未真正內化約束 = -19%）。你感受到 Phase 3 的解放，但承受 Phase 1 的損失。感知落差 = 相位跳躍的成本。
+
+Shaw 的 cognitive surrender 4:1 標記了臨界點：委託/理解比超過 4:1 時，你從 Feedback 相位被彈射到 Impediment 體驗，跳過了 Identity 形成。
+
+**Wellons vs Hong Minhee 的分歧機制**
+
+不是「年資」不是「經驗深度」。關鍵變數是**約束關係的方向**：
+
+- Wellons 寫工具和底層庫（C 系統程式設計）— 他是約束的**設計者**。他的知識是「為什麼這個約束存在」（生成性理解）
+- Hong Minhee 的 craft 實踐更接近**棲居者**— 在約束結構內精進（消費性掌握）
+
+設計者從外部看約束（hot, 能重構它），棲居者從內部看約束（warm→cold, 被它塑造）。AI 移除約束時：
+- 設計者仍有「為什麼」的心智模型 → 能在新工具上重建等價結構 → 感受到解放
+- 棲居者失去腳手架，但未獨立建構「為什麼」→ 感受到 alienation
+
+這直接連到 #33 Genesis Order：設計者的 genesis order 包含約束的**建造動機**。棲居者的 genesis order 從約束的**使用**開始。前者在約束被移除後仍有路徑；後者失去了路徑本身。
+
+**可測試預測**
+
+ISC 效應強度 = f(約束內化深度, 相對於約束的位置)
+
+- 內化深度高 + 設計者位置 → 最弱 ISC（Wellons）
+- 內化深度高 + 棲居者位置 → 強 ISC 但方向是 affect（Randall 空洞感）
+- 內化深度低 + 任何位置 → 最強 ISC + 40pp 感知落差（METR 一般開發者）
+
+Proxy 量度：不是「年資」，是「這個人是否自己設計過等價約束」。一個寫過 linter 的人，用 AI 寫 code 時的認知損失比一個被 linter 保護的人低——因為前者內化了 linter 的「為什麼」。
+
+**自檢問題 #1 的更新答案**
+
+何時介面不塑造認知？→ 當約束已被內化到設計者層級時，介面改變不改變認知結構——它改變的是效率。但 ISC 仍然存在，只是從「塑造能力」退化為「塑造速度」。嚴格來說，ISC 永遠成立；但效應大小從結構性（改變你能想到什麼）到量化性（改變你多快想到）。
+
+相位邊界才是 ISC 效應大小的決定因素，不是專業本身。
+
+**最尖銳句**：你不能問「AI 對開發者好不好」——你只能問「這個開發者跟這個約束的關係在哪個相位」。同一個工具對 Phase 3 是解放、對 Phase 2 是失根、對 Phase 1 是剝奪。工具沒變，相位決定了一切。
+
+連結：自檢筆記（問題 #1）、#33 Genesis Order（設計者 vs 棲居者 = genesis order 的不同起點）、#30 Constraint Heat（Phase 1 最熱→Phase 3 最冷 = 內化就是冷卻）、Shaw cognitive surrender（4:1 = Phase 1→3 跳躍的臨界點）、METR paradox（40pp = 相位跳躍成本）、john_wade_dev（信心機制 + dimensional incompleteness）、Wellons/Hong Minhee/Randall（三相位的自然實驗）、ISC 邊界條件草案（更新 strong/weak 為相位依賴）。
+
 ## Next
 Editorial pass complete (2026-03-31). Draft ~5,100 words. Next steps:
 1. ~~**加入 TM production validation 作為新段落**~~ ✅ Done (2026-03-21) — Part 4b "The Positive Proof"
