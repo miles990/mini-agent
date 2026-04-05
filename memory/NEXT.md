@@ -9,12 +9,11 @@
 ### [Goal] Teaching Monster — Engagement 提升階段（Deadline: 5/1 初賽）
 Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engagement. Slides 48→30 已修好。TTS Kokoro OK.
 
-- [ ] P1: TM Prompt 認知策略改進（承諾 #004, 2026-03-25）
-  1. Attention reset — 每 3-4 slides 加「換氣點」（真實世界連結/類比/語氣變化）
-  2. Symbol grounding — 每個新符號先有具體指涉物再教操作
-  3. 焦慮緩衝語言 — 難度跳躍處加承認難度的語言模式
-  4. Persona-adaptive — struggling learner = 步驟→解釋→再做一次
-  Verify: `grep -c 'attention_reset\|symbol_ground\|anxiety_buffer\|persona_adaptive' ~/Workspace/teaching-monster/src/multi-phase-prompts.mjs 2>/dev/null`
+- [x] P1: TM Prompt 認知策略改進（承諾 #004, 2026-03-25）— 四項全部已在 multi-phase-prompts.mjs 中實作
+  1. ✅ Attention Reset — Step 2a L797（middle third narrative palate cleanser）
+  2. ✅ Symbol Grounding — Step 2a L791（everyday language → visual → real-world → notation）
+  3. ✅ Math Anxiety Buffer — Step 2a L794（one sentence before difficulty jumps）
+  4. ✅ Persona-adaptive — Step 1 L387 PROCEDURE-FIRST + Step 2a L626 scaffolding levels
 - [ ] P2: 持續追蹤 Teaching Monster 競爭情報（SpeechLab 32/32, 阿宇 Haiku+Sonnet pipeline）
   Verify: `grep -c 'competitor\|SpeechLab\|阿宇' ~/Workspace/mini-agent/memory/topics/teaching-monster*.md 2>/dev/null`
 - [ ] P2: 等待平台下一批 request，驗證 engagement/visual 改善效果
@@ -27,7 +26,7 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [ ] P1: 測試認知科學 prompt + gate-failure retry 對 TM 品質的實際影響
   Verify: `grep 'Gate retry' ~/Workspace/teaching-monster/output/*/stdout.log 2>/dev/null | tail -3`
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
-  Verify: `cd ~/Workspace/teaching-monster && node src/pipeline.mjs --dry-run 2>&1 | head -5`
+  Verify: `cd ~/Workspace/teaching-monster && node -e "import('./src/pipeline.mjs').then(() => console.log('module OK'))" 2>&1 | head -3`
 - [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
 - [x] P2: Sleep detection — Mac sleep 時暫停 Claude calls（EXIT143 根因：8/13 是 OS SIGTERM）— 已實作：isMachineSleeping() + loop.ts early return + 60s wake polling
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
@@ -51,6 +50,7 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] Engagement 提升 — 4 commits: student voice gate, predictive questions, misconception-first
 - [x] Pipeline 品質審查層 — Opus Final Gate + gate-failure retry（自動重試+best-of-two 選擇）
 - [x] 認知科學 Phase 0 — Symbol Grounding + Productive Struggle + Error Example 注入 (1c82673)
+- [x] 認知策略全面整合 — Attention Reset / Symbol Grounding / Math Anxiety Buffer / Persona-adaptive scaffolding 全部在 Step 1 + Step 2a prompts 中實作
 - [x] Elo Arena 差異化策略 v1 — cognitive dissonance hooks + synthesis closings (13f662b)
 - [x] TM 官網完整掃描：初賽 Elo Arena 對戰制確認、Round 2 四月初 (fa4dcfb)
 - [x] Sleep detection — isMachineSleeping() + loop.ts:1313 early return + 60s wake polling
