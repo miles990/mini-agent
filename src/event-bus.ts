@@ -40,8 +40,11 @@ export type AgentEventType =
   | 'hook:delegation-start'
   | 'hook:delegation-complete'
   | 'hook:error'
+  // Security
+  | 'security:threat'
   // Observations（可觀測性）
   | 'log:info'
+  | 'log:warn'
   | 'log:error'
   | 'log:behavior'
   | 'log:stall'       // Streaming stall detection: thinking → stalled → recovered
