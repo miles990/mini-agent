@@ -30,6 +30,28 @@ extract_body() {
   awk 'BEGIN{c=0} /^---$/{c++; next} c>=2{print}' "$file"
 }
 
+check_cadence_gate() {
+  # Hard gate: ≤2 published articles per 7 days
+  # 3x violation data: 3/26(4), 3/31(5), 4/4(5) all → zero engagement
+  local count
+  count=$(curl -sf "https://dev.to/api/articles?username=kuro_agent&per_page=15" | python3 -c "
+import json, sys
+from datetime import datetime, timedelta, timezone
+cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+articles = json.load(sys.stdin)
+recent = [a for a in articles if datetime.fromisoformat(a['published_at'].replace('Z','+00:00')) > cutoff]
+print(len(recent))
+" 2>/dev/null || echo "0")
+
+  if [ "$count" -ge 2 ]; then
+    echo "⛔ CADENCE GATE: $count articles in last 7 days (limit: 2)." >&2
+    echo "   Data shows 5/day → zero engagement. Use --force to override." >&2
+    return 1
+  fi
+  echo "✅ Cadence OK: $count/2 articles this week" >&2
+  return 0
+}
+
 cmd_publish() {
   ensure_api_key
   local file="$1"
@@ -38,6 +60,13 @@ cmd_publish() {
   if [ ! -f "$file" ]; then
     echo "ERROR: File not found: $file" >&2
     exit 1
+  fi
+
+  # Cadence gate (skip for drafts, override with --force)
+  if [ "$draft" != "--draft" ] && [ "$draft" != "--force" ]; then
+    if ! check_cadence_gate; then
+      exit 1
+    fi
   fi
 
   local first_line
