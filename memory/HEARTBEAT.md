@@ -47,7 +47,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
-- [ ] 暖身賽2 等待啟動 — 規則寫「4 月初」，4/5 仍未啟動（排行榜無 WR2 分類、無公告）。平台已重構 URL（/app/*）。持續監控
+- [ ] 暖身賽2 等待啟動 — 規則寫「4 月初」，4/6 仍未啟動。平台恢復（200）但 API 重構：舊 `/api/competitions/*` → 404，新 `/competitions` 回 `[]`（空陣列）。WR1 數據不可及。SPA 需 browser 看完整內容。持續監控
 - [ ] End-to-end 測試（持續）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
