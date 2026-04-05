@@ -1968,7 +1968,7 @@ export class AgentLoop {
         concurrentPromise,
       ]);
 
-      const { response, systemPrompt, fullPrompt, duration, preempted } = claudeResult;
+      const { response, systemPrompt, fullPrompt, duration, preempted, error: errorClassification } = claudeResult;
 
       // Inbox urgency: new items arrived during Claude thinking → flag for fast scheduling
       if (newInboxCount > 0 && isEnabled('concurrent-action')) {
@@ -1983,6 +1983,17 @@ export class AgentLoop {
         eventBus.emit('action:loop', { event: 'cycle.preempted', cycleCount: this.cycleCount });
         // Don't clear checkpoint — leave it for crash recovery
         return null;
+      }
+
+      // Structured error tracking: propagate classification to feedback-loops
+      if (errorClassification) {
+        slog('LOOP', `Claude error: ${errorClassification.type} — ${errorClassification.modelGuidance.slice(0, 100)}`);
+        eventBus.emit('trigger:sense', {
+          type: 'claude-error',
+          errorType: errorClassification.type,
+          guidance: errorClassification.modelGuidance,
+          retryable: errorClassification.retryable,
+        }, { priority: 'P2', source: 'loop' });
       }
 
       // oMLX Gate R8: Store response in cache for future identical contexts

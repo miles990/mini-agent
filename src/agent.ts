@@ -94,7 +94,7 @@ async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecO
  * message: 人類可讀的描述
  * modelGuidance: 給 model 的下一步指引（Claude Code 設計原則: error messages are model context）
  */
-interface ErrorClassification {
+export interface ErrorClassification {
   type: 'TIMEOUT' | 'RATE_LIMIT' | 'NOT_FOUND' | 'PERMISSION' | 'MAX_BUFFER' | 'UNKNOWN';
   message: string;
   modelGuidance: string;
@@ -619,9 +619,10 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       // Adaptive: model producing tool calls = actively working, extend tolerance
-      const effectiveTimeout = toolCallCount > 0
-        ? Math.max(PROGRESS_TIMEOUT_MS, 480_000) // at least 8 min when tools active
-        : PROGRESS_TIMEOUT_MS;
+      // Foreground: tighter timeout — user is waiting interactively
+      const effectiveTimeout = isForeground
+        ? (toolCallCount > 0 ? 300_000 : 120_000) // foreground: 5min with tools, 2min without
+        : (toolCallCount > 0 ? Math.max(PROGRESS_TIMEOUT_MS, 480_000) : PROGRESS_TIMEOUT_MS);
       if (silentMs < effectiveTimeout) return;
       timedOut = true;
       killReason = 'progress';
@@ -1437,7 +1438,7 @@ export async function callClaude(
     /** Whether there are pending tasks — used by small model prompt builder */
     hasPendingTasks?: boolean;
   },
-): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean }> {
+): Promise<{ response: string; systemPrompt: string; fullPrompt: string; duration: number; preempted?: boolean; error?: ErrorClassification }> {
   const source = options?.source ?? 'loop';
 
   // --- Model-Aware Context Pipeline ---
@@ -1633,8 +1634,10 @@ export async function callClaude(
             const minimalSystemPrompt = getSystemPrompt(prompt, options?.cycleMode, 'minimal');
             const minimalBudget = PROMPT_HARD_CAP - minimalSystemPrompt.length - prompt.length - 20;
             currentContext = await options.rebuildContext('minimal', minimalBudget);
-            fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
-            slog('RETRY', `TIMEOUT tools=${errToolCount} on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal mode, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
+            // Error trace retention: models avoid repeating mistakes when they see what went wrong
+            const errorTrace = `## Previous Attempt Failed\nType: ${classified.type} | Duration: ${attemptDuration}ms | Tool calls: ${errToolCount}\nGuidance: ${classified.modelGuidance}\nContext reduced from ${prevLen} to ${currentContext.length} chars for retry.`;
+            fullPrompt = `${minimalSystemPrompt}\n\n${currentContext}\n\n${errorTrace}\n\n---\n\nUser: ${prompt}`;
+            slog('RETRY', `TIMEOUT tools=${errToolCount} on attempt ${attempt + 1}, prompt reduced ${prevLen + systemPrompt.length} → ${fullPrompt.length} chars (minimal + error trace, sysPrompt ${minimalSystemPrompt.length}), retrying in ${delay / 1000}s`);
           } catch (rebuildErr) {
             // Emergency fallback: even if rebuildContext fails, at least strip the system prompt
             slog('RETRY', `${classified.type} on attempt ${attempt + 1}, context rebuild failed: ${rebuildErr}`);
@@ -1647,7 +1650,10 @@ export async function callClaude(
             }
           }
         } else {
-          slog('RETRY', `${classified.type} on attempt ${attempt + 1}, retrying in ${delay / 1000}s`);
+          // Error trace retention for non-TIMEOUT retries: inject what went wrong so model can adapt
+          const errorTrace = `\n\n## Previous Attempt Failed\nType: ${classified.type} | Guidance: ${classified.modelGuidance}`;
+          fullPrompt = fullPrompt.replace('\n\n---\n\nUser: ', `${errorTrace}\n\n---\n\nUser: `);
+          slog('RETRY', `${classified.type} on attempt ${attempt + 1}, error context injected, retrying in ${delay / 1000}s`);
         }
 
         // 釋放 busy — 等待期間允許新請求插入
@@ -1697,7 +1703,7 @@ export async function callClaude(
         }
       }
 
-      return { response: `${classified.message}\n[Model Guidance: ${classified.modelGuidance}]`, systemPrompt, fullPrompt, duration };
+      return { response: `${classified.message}\n[Model Guidance: ${classified.modelGuidance}]`, systemPrompt, fullPrompt, duration, error: classified };
     } finally {
       setBusy(false);
       setTask(null);

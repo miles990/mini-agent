@@ -102,8 +102,10 @@ Output ONLY the working memory text, no explanation.`;
     } else {
       fallback = true;
     }
-  } catch {
+  } catch (err) {
     fallback = true;
+    const reason = err instanceof Error ? err.message : String(err);
+    slog('CASCADE', `9B working memory failed: ${reason.slice(0, 200)}`);
   }
 
   const latencyMs = Date.now() - start;
