@@ -10,7 +10,7 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses, preemptLoopCycle, abortForeground } from './agent.js';
+import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses, preemptLoopCycle, abortForeground, startForegroundSweep, stopForegroundSweep } from './agent.js';
 import {
   searchMemory,
   readMemory,
@@ -2768,6 +2768,9 @@ if (isMain) {
     setLoopRef(loop);
   }
 
+  // ── Foreground Slot TTL Sweep (absorbed from agent-broker session pool pattern) ──
+  startForegroundSweep();
+
   // ── Cross-Process Infrastructure (Cognitive Mesh Phase 1) ──
   initIPCBus(instanceId);
   startHeartbeat({
@@ -3015,6 +3018,7 @@ if (isMain) {
     stopHeartbeat();
     stopIPCBus();
     stopMemoryCache();
+    stopForegroundSweep();
 
     // Kill all child processes (loop, foreground, delegations) to prevent orphans
     const killedChildren = killAllChildProcesses();

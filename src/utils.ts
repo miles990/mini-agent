@@ -88,6 +88,37 @@ export function readJsonFile<T>(filePath: string, fallback: T): T {
 }
 
 // =============================================================================
+// expandEnvVars — Config env var expansion
+// =============================================================================
+
+/**
+ * Expand ${ENV_VAR} references in config values.
+ * Absorbed from agent-broker's TOML env var expansion pattern —
+ * one config works in local/Docker/K8s without code changes.
+ *
+ * Supports: ${VAR}, ${VAR:-default} (default if unset/empty)
+ * Recursive on objects and arrays. Non-string values pass through unchanged.
+ */
+export function expandEnvVars<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value.replace(/\$\{([^}:]+?)(?::-(.*?))?\}/g, (_match, varName: string, defaultVal?: string) => {
+      return process.env[varName] || defaultVal || '';
+    }) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(expandEnvVars) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      result[k] = expandEnvVars(v);
+    }
+    return result as T;
+  }
+  return value;
+}
+
+// =============================================================================
 // safeExec — 統一 try/catch wrapper
 // =============================================================================
 

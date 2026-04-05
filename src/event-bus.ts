@@ -32,6 +32,8 @@ export type AgentEventType =
   | 'log:info'
   | 'log:error'
   | 'log:behavior'
+  | 'log:stall'       // Streaming stall detection: thinking → stalled → recovered
+  | 'log:progress'    // Debounced streaming progress: token count, tool activity, duration
   | 'notification:signal'
   | 'notification:summary'
   | 'notification:heartbeat'

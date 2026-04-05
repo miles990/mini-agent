@@ -17,10 +17,13 @@ import {
   initDataDir,
 } from './instance.js';
 import type { GlobalDefaults, InstanceConfig } from './types.js';
+import { expandEnvVars } from './utils.js';
 
 // 本地配置目錄（向後兼容）
 const LOCAL_CONFIG_DIR = path.join(process.cwd(), 'memory');
 // LOCAL_CONFIG_FILE removed — was declared but unused (config.json read via getInstanceConfig)
+
+// expandEnvVars lives in utils.ts to avoid circular dependency (config ↔ instance)
 
 /**
  * Configuration schema
@@ -98,12 +101,12 @@ export async function getConfig(): Promise<Config> {
     // 沒有本地配置
   }
 
-  // 合併配置
-  return {
+  // 合併配置 + expand ${ENV_VAR} references
+  return expandEnvVars({
     ...DEFAULT_CONFIG,
     ...globalConfig,
     ...localConfig,
-  };
+  });
 }
 
 /**

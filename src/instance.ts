@@ -18,7 +18,7 @@ import type {
   InstanceStatus,
   InstanceHeartbeat,
 } from './types.js';
-import { diagLog } from './utils.js';
+import { diagLog, expandEnvVars } from './utils.js';
 
 // =============================================================================
 // Constants & Defaults
@@ -233,12 +233,12 @@ export function loadInstanceConfig(instanceId: string): InstanceConfig | null {
     const content = fs.readFileSync(configPath, 'utf-8');
     const config = parseYaml(content) as InstanceConfig;
 
-    // 合併全域預設值
+    // 合併全域預設值 + expand ${ENV_VAR} references
     const globalConfig = loadGlobalConfig();
-    return {
+    return expandEnvVars({
       ...config,
       port: config.port ?? globalConfig.defaults.port,
-    };
+    });
   } catch (error) {
     diagLog('instance.loadInstanceConfig', error, { file: configPath, instanceId });
     return null;

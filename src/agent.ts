@@ -13,7 +13,7 @@ import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
 import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
-import { eventBus } from './event-bus.js';
+import { eventBus, debounce } from './event-bus.js';
 import { createKuroChatStreamParser } from './tag-parser.js';
 import { compactContext } from './context-compaction.js';
 import { processContext, detectModelTier, type ModelTier } from './context-pipeline.js';
@@ -217,9 +217,12 @@ interface ForegroundSlotState {
   pid: number | null;
   abortController: AbortController | null;
   startedAt: number;
+  lastActivityTs: number; // last stdout or state change — for TTL sweep
 }
 const foregroundSlots = new Map<string, ForegroundSlotState>();
 const MAX_FOREGROUND_CONCURRENT = 8; // safety cap — real limit is API rate + system resources
+const FG_SLOT_TTL_MS = 300_000; // 5 min — idle slots cleaned up after this
+const FG_SLOT_ZOMBIE_MS = 60_000; // 1 min — busy slot with no PID/controller = zombie
 
 /** 查詢是否有任何 lane 正在執行 Claude CLI */
 export function isClaudeBusy(): boolean {
@@ -245,13 +248,50 @@ export function getForegroundActiveCount(): number {
 export function acquireForegroundSlot(): string | null {
   if (getForegroundActiveCount() >= MAX_FOREGROUND_CONCURRENT) return null;
   const id = `fg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  foregroundSlots.set(id, { busy: false, task: null, pid: null, abortController: null, startedAt: 0 });
+  foregroundSlots.set(id, { busy: false, task: null, pid: null, abortController: null, startedAt: 0, lastActivityTs: Date.now() });
   return id;
 }
 
 /** 釋放 foreground slot */
 export function releaseForegroundSlot(id: string): void {
   foregroundSlots.delete(id);
+}
+
+/**
+ * Sweep stale foreground slots — absorbed from agent-broker session pool TTL pattern.
+ * Cleans up: (1) idle slots past TTL, (2) zombie slots (busy but process gone).
+ */
+function sweepForegroundSlots(): void {
+  const now = Date.now();
+  for (const [id, slot] of foregroundSlots) {
+    // Zombie: busy but no process handle and no abort controller — process died without cleanup
+    if (slot.busy && !slot.pid && !slot.abortController && (now - slot.lastActivityTs) > FG_SLOT_ZOMBIE_MS) {
+      slog('SWEEP', `Cleaning zombie foreground slot ${id} (no PID/controller, idle ${((now - slot.lastActivityTs) / 1000).toFixed(0)}s)`);
+      foregroundSlots.delete(id);
+      continue;
+    }
+    // Idle: not busy and past TTL — transparent cleanup
+    if (!slot.busy && (now - slot.lastActivityTs) > FG_SLOT_TTL_MS) {
+      slog('SWEEP', `TTL expired for idle foreground slot ${id} (${((now - slot.lastActivityTs) / 1000).toFixed(0)}s idle)`);
+      foregroundSlots.delete(id);
+    }
+  }
+}
+
+let fgSweepTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Start periodic foreground slot TTL sweep (call once at startup) */
+export function startForegroundSweep(): void {
+  if (fgSweepTimer) return;
+  fgSweepTimer = setInterval(sweepForegroundSlots, 60_000); // sweep every 60s
+}
+
+/** Stop foreground slot sweep (call on shutdown) */
+export function stopForegroundSweep(): void {
+  if (fgSweepTimer) {
+    clearInterval(fgSweepTimer);
+    fgSweepTimer = null;
+  }
 }
 
 /** 查詢目前正在處理的任務 */
@@ -506,6 +546,20 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     let buffer = '';
     let stderr = '';
 
+    // Debounced streaming progress channel — fires at most every 700ms
+    // Consumers (TG status, /status API, dashboards) subscribe to 'log:progress'
+    const emitProgress = debounce(() => {
+      if (settled) return;
+      eventBus.emit('log:progress', {
+        source,
+        slotId: opts?.fgSlotId ?? 'loop',
+        elapsedMs: Date.now() - startTs,
+        toolCalls: toolCallCount,
+        hasOutput: allTextBlocks.length > 0,
+        lastOutputMs: Date.now() - lastStdoutDataTs,
+      });
+    }, 700);
+
     // Absorb pipe errors from preempted child — log but don't crash
     const onPipeError = (e: Error) => { if ((e as NodeJS.ErrnoException).code !== 'EPIPE') slog('CLAUDE', `pipe error: ${e.message}`); };
     child.stdin.on('error', onPipeError);
@@ -537,19 +591,44 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     };
 
     // ── Progress timeout：無 stdout 就 kill（adaptive — 有 tool call 表示在工作，給更多時間）──
+    // Foreground uses faster check interval (5s) for responsive stall detection
+    const isForeground = source === 'foreground';
+    const PROGRESS_CHECK_INTERVAL = isForeground ? 5_000 : 30_000;
+    const STALL_THINKING_MS = 10_000;  // 10s no output → "thinking" (foreground only)
+    const STALL_WARN_MS = 30_000;      // 30s no output → "stalled" warning (foreground only)
+    let lastStallStatus: 'active' | 'thinking' | 'stalled' = 'active';
+
     const progressTimer = setInterval(() => {
       if (settled || timedOut) return;
+      const silentMs = Date.now() - lastStdoutDataTs;
+
+      // Foreground stall status emission — debounced at check interval
+      if (isForeground) {
+        let newStatus: 'active' | 'thinking' | 'stalled' = 'active';
+        if (silentMs > STALL_WARN_MS) newStatus = 'stalled';
+        else if (silentMs > STALL_THINKING_MS) newStatus = 'thinking';
+        if (newStatus !== lastStallStatus) {
+          lastStallStatus = newStatus;
+          eventBus.emit('log:stall', {
+            status: newStatus,
+            slotId: opts?.fgSlotId ?? 'unknown',
+            silentMs,
+            toolCalls: toolCallCount,
+          });
+        }
+      }
+
       // Adaptive: model producing tool calls = actively working, extend tolerance
       const effectiveTimeout = toolCallCount > 0
         ? Math.max(PROGRESS_TIMEOUT_MS, 480_000) // at least 8 min when tools active
         : PROGRESS_TIMEOUT_MS;
-      if (Date.now() - lastStdoutDataTs < effectiveTimeout) return;
+      if (silentMs < effectiveTimeout) return;
       timedOut = true;
       killReason = 'progress';
       clearInterval(progressTimer);
       slog('CLAUDE', `No stdout data for ${effectiveTimeout / 1000}s (tools=${toolCallCount}) — killing process group ${child.pid}`);
       killProcessGroupWithForceResolve();
-    }, 30_000);
+    }, PROGRESS_CHECK_INTERVAL);
 
     // ── 手動 timeout：殺整個進程群組（含子進程）──
     const timer = setTimeout(() => {
@@ -563,6 +642,16 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
     child.stdout.on('data', (chunk: Buffer) => {
       lastStdoutDataTs = Date.now();
+      // Update foreground slot activity for TTL sweep
+      if (source === 'foreground' && opts?.fgSlotId) {
+        const slot = foregroundSlots.get(opts.fgSlotId);
+        if (slot) slot.lastActivityTs = lastStdoutDataTs;
+      }
+      // Emit stall recovery if we were in thinking/stalled state
+      if (lastStallStatus !== 'active') {
+        lastStallStatus = 'active';
+        eventBus.emit('log:stall', { status: 'active', slotId: opts?.fgSlotId ?? source, recovered: true });
+      }
       buffer += chunk.toString('utf-8');
       // 逐行解析 stream-json
       let newlineIdx: number;
@@ -589,6 +678,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 const toolName = block.name ?? 'unknown';
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
+                emitProgress();
                 // 即時更新 task — 讓 /status 顯示正在做什麼
                 { const task = activeTask();
                 if (task) {
@@ -614,6 +704,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                   opts.onPartialOutput(resultText);
                 }
                 chatStreamParser?.write(block.text);
+                emitProgress();
               }
             }
           } else if (event.type === 'result') {
@@ -633,6 +724,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       settled = true;
       clearTimeout(timer);
       clearInterval(progressTimer);
+      emitProgress.cancel();
       const duration = Date.now() - startTs;
 
       // Clear PID tracking
@@ -696,6 +788,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       settled = true;
       clearTimeout(timer);
       clearInterval(progressTimer);
+      emitProgress.cancel();
       if (source === 'loop') {
         loopChildPid = null;
       } else if (source === 'foreground' && opts?.fgSlotId) {
@@ -1430,7 +1523,9 @@ export async function callClaude(
       const slot = foregroundSlots.get(fgSlotId);
       if (slot) {
         slot.busy = v;
-        if (v) slot.startedAt = Date.now();
+        const now = Date.now();
+        slot.lastActivityTs = now;
+        if (v) slot.startedAt = now;
       }
     }
   };
