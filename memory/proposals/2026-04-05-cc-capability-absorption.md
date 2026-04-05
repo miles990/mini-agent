@@ -140,6 +140,23 @@ Phase 1b (Edit) ──→ Phase 2b (Context Profiles) ──→ Phase 4b (Cross-
 - Delegation subprocesses bypass mini-agent's api.ts hooks (content-scanner, file protection)
 - Worktree lifecycle not yet in TypeScript (Phase 3a) — forge-lite.sh works but is less integrated
 
+### 2026-04-05 — Inside-Out Observation: Hard Gate vs Soft Guidance
+
+Running inside CC as a subprocess, observed the key architectural difference:
+- CC enforces "read before edit" as a **tool-level hard gate** (Edit errors if Read not called)
+- Our Phase 1 absorbed this as **prompt-level soft guidance** (preamble says "read before edit")
+
+Hard gate = deterministic behavior change. Soft guidance = probabilistic improvement.
+
+**Refinement for Phase 3b**: Pre/Post action hooks should include hard gates, not just notifications:
+- PreEdit gate: verify file was Read in current delegation session
+- PreWrite gate: verify file doesn't already exist (prefer Edit)
+- PostEdit hook: auto typecheck (notification, not blocking)
+
+This changes Phase 3b from "nice to have hooks" to "behavioral reliability infrastructure."
+
+See ISC thread Note #38 for full analysis.
+
 ## Success Criteria
 
 1. Code delegation accuracy ↑（measurable via delegation success rate）
