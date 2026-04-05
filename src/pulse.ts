@@ -733,10 +733,11 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
   // ── Decision quality (absorbed from feedback-loops.ts) ──
   if (action) {
+    // Match actual cycle format: ## Decision block + <kuro:action> + verification signals
     const hasDecision = /##\s*Decision/i.test(action);
-    const hasChanged = /##\s*Changed/i.test(action);
-    const hasVerified = /##\s*Verified/i.test(action);
-    const score = [hasDecision, hasChanged, hasVerified].filter(Boolean).length;
+    const hasAction = /<kuro:action>|##\s*Changed/i.test(action);
+    const hasVerified = /##\s*Verified|verified|✅|confirmed/i.test(action);
+    const score = [hasDecision, hasAction, hasVerified].filter(Boolean).length;
 
     state.recentDecisionScores.push(score);
     if (state.recentDecisionScores.length > SLIDING_WINDOW) {
