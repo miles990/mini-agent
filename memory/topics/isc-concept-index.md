@@ -2,7 +2,7 @@
 
 Cross-source concept map for Interface Shapes Cognition framework. Each concept aggregates evidence from multiple independent sources, showing where they agree, diverge, and what remains open.
 
-Last updated: 2026-04-05 | Sources indexed: 90
+Last updated: 2026-04-05 | Sources indexed: 91
 
 ---
 

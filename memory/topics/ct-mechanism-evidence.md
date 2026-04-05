@@ -4,7 +4,7 @@ related: [isc-concept-index, knowledge-tensions, interface-shapes-cognition, con
 ---
 # Constraint Texture as General Mechanism — Cross-Domain Evidence Synthesis
 
-Generated: 2026-04-05 | Sources: 5 primary + 88 indexed
+Generated: 2026-04-05 | Sources: 5 primary (Scofield, Varley, Sakour, SwarmBench, Physarum) + 88 indexed
 
 ## Thesis
 
@@ -46,9 +46,15 @@ LLMs tested on 5 swarm coordination tasks (pursuit, synchronization, foraging, f
 
 ### 5. Physical Mechanism — Physarum Fröhlich Condensate (ArXiv 2504.03492)
 
-[Pending detailed analysis from research agent. Key claim from FG research: slime mold pathfinding is NOT computation but physical energy minimization via Fröhlich condensation. Solution lanes have low oscillation frequency + high amplitude. The system converges to lowest-energy mode.]
+Physarum polycephalum solves TSP for N=4-8 cities (80-90% valid tours) via physical energy minimization, not algorithmic search. The organism extends branches into all possible lanes, then relaxes into a synchronized state.
 
-**CT role**: If confirmed, this provides the physical substrate for why CC-based systems converge more efficiently. Energy minimization IS convergence condition — the system finds the attractor naturally. Prescription (forcing a specific path) fights the energy landscape.
+**Fröhlich-like condensation**: Energy flows downward from high-frequency collective modes (~0.02 Hz) into a dominant low-frequency mode (~0.01 Hz) with large amplitude. Solution lanes phase-lock (synchronization S→1.0); non-solution lanes desynchronize (S→min). This sharp bifurcation is the first organismal-scale demonstration of Fröhlich energy redistribution.
+
+**Key insight**: "Synchronization is not a byproduct of the solution; it IS the solution mechanism." The organism doesn't search — it relaxes into a synchronized physical state whose geometry encodes the solution.
+
+**Noise is essential**: Gaussian noise achieves √N scaling (comparable to Grover's quantum search). The optical feedback (Hopfield network constraints) creates the energy landscape; noise enables escape from local minima.
+
+**CT role**: This provides the physical substrate for why CC-based systems converge more efficiently. The energy landscape IS the convergence condition — the system finds the attractor naturally through physical relaxation. Prescription (forcing a specific search path) would fight the energy landscape that the organism naturally descends. The Physarum mechanism is literally "describe the destination (energy minimum) and let the system find its way there."
 
 ## Unified Mechanism
 
@@ -67,8 +73,9 @@ Multi-agent: Simple local rules            Fitness landscape / artifact pressure
              → LLMs CANNOT do this         → Rodriguez 48.5% vs conversation 12.6%
              (SwarmBench failure)           (artifact-mediated coordination)
 
-Physics:   Forced path                     Energy minimization (Physarum)
-           → fights energy landscape       → converges to lowest-frequency mode
+Physics:   Forced search path              Energy landscape (Physarum Fröhlich)
+           → fights natural dynamics       → synchronization IS the solution
+                                           → √N scaling via condensation
 
 Optimization: Unconstrained search         Constrained search (Varley)
               → degenerate solutions        → D=3.00 BETTER than unconstrained
