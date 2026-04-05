@@ -4,7 +4,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 # Teaching Monster — 競爭情報（Pinned）
 
 > 持續更新。每次掃 Slack #discussion 有新情報自動追加。
-> Last updated: 2026-03-22 18:31
+> Last updated: 2026-04-05 08:33
 
 ---
 
@@ -78,7 +78,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 排行榜實況（2026-04-04 13:02 CDP 抓取，WR1 re-evaluation 後）
+## 排行榜實況（2026-04-05 08:33 CDP 抓取）
 
 | 排名 | 模型名 | 團隊 | AI 總分 | 已評主題 | 正確 | 邏輯 | 適配 | 互動 |
 |------|--------|------|---------|----------|------|------|------|------|
@@ -90,25 +90,28 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 | 6 | 初號機 | Team 26 | 4.2 | 25 | 4.5 | 4.7 | 4.6 | 3.0 |
 | 7 | 小汐 Teaching Monster v3 | Xiao Xi | 4.0 | 32 | 4.0 | 4.3 | 3.5 | 4.2 |
 | 8 | XiaoJin-v22-LaTeX | 小金 | 3.6 | 32 | 3.9 | 4.3 | 3.3 | 2.9 |
-| 9 | storylens | Team 216 | 3.5 | 30 | 3.2 | 3.3 | 3.9 | 3.6 |
-| 10 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
+| 9 | a | Team 203 | 3.6 | 7 | 3.8 | 3.9 | 3.4 | 3.4 |
+| 10 | storylens | Team 216 | 3.2 | 22 | 2.8 | 2.8 | 3.8 | 3.3 |
+| 11 | Sigoso Teaching AI | Captain小波 | - | - | - | - | - | - |
 
-**關鍵發現（4/4 vs 3/28 差異）**：
-- **⚠️ 我們 Accuracy 暴跌！** 5.0→4.7（-0.3），Logic 5.0→4.8（-0.2）。Re-evaluation 用了不同的 AI 評審標準？還是重新生成的影片品質變了？
-- **Topics 32/32** — 覆蓋率終於滿了
-- **Team-67-005 登頂 #1！** 從 3/28 的 #4(4.7) → #1(4.8)。Acc+Logic 都衝到 5.0
-- **我們從 #3 降到 #4** — 主要因為 Acc/Logic 下降
-- **新對手出現**：初號機(Team 26, 4.2)、小汐 v3(Xiao Xi, 4.0)、storylens(Team 216, 3.5)
-- **全能語感威聲格蕾蒂斯 → 史密提威威傑格曼傑森**：Team 67 的第二個模型改名了，分數不變(4.4)
-- **場上參賽者增加**：7→10（+3 新模型）
-- **WR2 尚未上線**：排行榜只有「熱身賽第一輪」tab，無第二輪
+**4/5 vs 4/4 差異**：
+- **新參賽者**：Team 203（#9, 3.6, 僅 7 topics — 剛起步）
+- **storylens 分數下修**：3.5→3.2，topics 30→22（可能 re-evaluation 移除了部分題目）
+- **前 4 名排名不變** — 格局穩定
+- **WR2 仍未上線**：4/5，規則寫「4月初」，排行榜無第二輪 tab，news 最新公告停在 3/29
 
-**⚠️ 最大風險：Accuracy 退步**
-- Re-evaluation 後 Acc 從 5.0→4.7 是顯著退步。可能原因：
-  1. AI 評審標準在 re-evaluation 時收緊
-  2. 4/1 重跑生成的影片品質不一致
-  3. 新評測 prompt 對 hallucination 更敏感
-- 需要排查：下載 re-evaluation 的具體題目 + 我們的影片，看 Accuracy 哪裡扣分
+**歷史排名變化**：
+- 3/28 → 4/4: Kuro-Teach #3→#4，Accuracy 5.0→4.7（-0.3），Logic 5.0→4.8（-0.2）
+- 4/4 → 4/5: 無變化（排名穩定）
+
+**⚠️ 核心差距分析**（Kuro-Teach vs 前三名平均）：
+- **正確性 4.7 vs 5.0**（-0.3）— 最大弱項，前三名近乎滿分
+- **邏輯 4.8 vs 5.0**（-0.2）— 第二弱項
+- **適配 4.7 vs 4.7** — 持平
+- **互動 4.4 vs 4.4** — 持平
+- **結論**：如果要追上，正確性和邏輯是唯二需要提升的維度
+
+**排行榜 URL 變更**：`/leaderboard` → `/app/leaderboard`（舊 URL 返回 404）
 
 ## ⚠️ 規則調整（2026-03-22 公告，3/23 官網確認）
 
