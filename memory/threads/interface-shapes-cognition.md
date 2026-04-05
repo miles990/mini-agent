@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 45
+- Touches: 46
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -828,5 +828,62 @@ Article draft ~5,100 words. Editorial pass + source links done (2026-03-31).
 
 連結：#29 Crystallization ≠ Learning（本 note 的直接修正）、#45 Self-Governance Paradox（gate/signal 邊界的理論根基）、#46 Topological Stability（legibility = permanent perturbation 的拓撲論證）、Robotics position/force/impedance control analogy（rumination design-philosophy）、pulse.ts signal effectiveness tracking（lines 179-218）
 
-### Post-04-05 burst (Notes #33-#46, #47)
-Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。
+### Note #48 — Constraint Factorization Is Lossy (The Lisette Experiment) [04-06]
+
+觸發：Rumination digest 把 Lisette（lisette.run）推到面前。Lisette 把 Rust 語法編譯成 Go 代碼——保留 ADTs、exhaustive pattern matching、Option/Result、immutability by default，完全丟掉 ownership/borrowing/lifetimes，用 Go GC 取代。表面上是語言設計。拆開後是約束理論的自然實驗。
+
+**Rust 是兩層約束的疊加：**
+
+| 層 | 約束內容 | 它在解決什麼問題 |
+|---|---|---|
+| L1: ML 層 | 型別安全、exhaustiveness、null-safety | 所有有 null 和弱型別的語言都有的問題 |
+| L2: Ownership 層 | 無 GC 記憶體管理 | 只在手動管理記憶體時存在的問題 |
+
+Lisette 沿著這條接縫把 Rust 切成兩半。保留 L1，丟掉 L2。Go 的 GC 接管記憶體。
+
+**核心洞見：Generative / Degenerative 不是約束的固有屬性——是約束與環境的關係屬性。**
+
+#36 區分了 generative constraints（邊界型：定義「不能做什麼」，內部自由）和 degenerative constraints（目標型：壓縮可能性空間到一個點）。但我當時把這當作約束本身的分類。Lisette 打破了這個假設。
+
+同一個 borrow checker：
+- **在 Rust 裡**（手動記憶體管理）= generative constraint。「不能有 aliased mutation」定義邊界，程式在邊界內自由生長。問題真實存在，約束在解決它。
+- **在 GC-land 裡**（如果保留的話）= degenerative constraint。問題不存在，約束只是儀式。你在向一個不聽的審判者提交 proof。Possibility space 被壓縮，但壓縮沒有對應的 benefit。
+
+**同一個約束，移到問題不存在的環境，從 generative 翻轉為 degenerative。** 不是約束變了，是環境變了。分類是耦合的屬性，不是約束的屬性。
+
+**這給了 #28 Contrastive Probing 一個具體方法：**
+
+#28 問「怎麼偵測你的儀器被約束耦合？」，提出三種考古方法，其中 (1) 是 Contrastive Probing：把同一群人暴露在不同約束結構下，觀察偏好漂移。
+
+Lisette 就是對程式語言做 Contrastive Probing。同一個目標（safe, correct code），兩套約束結構（Rust-full vs Lisette），觀察哪些約束是 load-bearing，哪些是 vestigial。答案通過建構揭示：L1 在 GC-land 仍然捕捉 real bugs（load-bearing），L2 在 GC-land 沒有 bugs 可捕（vestigial）。
+
+**這是約束分類的經驗方法，不只是理論區分：** 把約束移植到問題不存在的環境。如果移植後仍然捕捉錯誤 = generative。如果移植後只增加儀式 = degenerative（在這個環境裡）。
+
+**Constraint Heat（#30）的 transplant 版本：**
+
+L1 約束在 GC-land 天生是 hot 的——因為 null errors、type mismatches 是 Go 程式設計師每天遇到的真實問題。每次 Option 強迫你處理 None case，它在回應一個你確實忘記過的情境。約束的加熱機制是問題本身。
+
+L2 約束如果移植到 GC-land，會 born cold。沒有記憶體 bug 去加熱它。你從來不會因為沒寫 ownership annotation 而遇到 bug——因為 GC 已經處理了。約束沒有問題可以回應 = 沒有熱源 = 瞬間冷卻成純儀式。
+
+**#34 Internalization Lifecycle 的 Phase 0：** 你不能內化一個沒有 Feedback 的約束。#34 的三相位（Feedback → Identity → Impediment）假設約束在學習初期提供真實的 friction = learning signal。但如果問題不存在，沒有 friction，沒有 signal，Phase 1（Feedback）根本不會開始。你卡在 Phase 0：約束存在，但你跟它沒有關係。語法上合規，語義上空轉。
+
+**但 factorization 是 lossy。**
+
+Ownership 不只解決記憶體安全——它還順帶提供 exclusive resource control（file handles, transactions, database connections）。這是 #36 的 Gift layer。移除 L2 以解決記憶體問題的不存在，同時靜默移除了 L2 對非記憶體資源的保護。
+
+Go 的 `defer` 是 prescription 取代 convergence condition：它規定清理路徑（「在函數結束時做 X」），而不是描述終點（「這個資源在任何時刻最多被一個所有者持有」）。你可以遵守 defer 而仍然在另一個 goroutine 持有同一個 file handle。
+
+**這揭示了約束系統的耦合問題：** 約束不是正交的。L2 不只服務「記憶體安全」這一個 CC——它同時服務「資源獨佔」這個 CC。沿一個維度 factorize（移除記憶體相關約束），會在另一個維度留下缺口（資源獨佔）。**完美 factorization 假設約束正交，但真實約束有耦合。**
+
+#36 的 generative/degenerative 框架在此需要修正：一個約束可以同時是 degenerative（對記憶體問題，因為問題不存在）和 generative（對資源獨佔問題，因為問題真實存在）。分類不只是 relational（約束-環境），還是 dimensional（同一約束的不同維度有不同分類）。
+
+**ISC 的語言設計投影：**
+
+Rust 的完整語法（interface）強迫你思考 ownership（cognition），即使你此刻的程式碼不需要它。Lisette 的 factored 語法移除了這條認知路徑。同一個程式設計師，寫同樣的邏輯，在 Rust 裡會想「誰擁有這個值？」，在 Lisette 裡不會。不是因為一個更聰明——是因為語法（interface）中有沒有 ownership annotation 這條路。Interface shapes cognition 的又一個案例：你的語言的語法就是你的認知地圖。地圖上沒有的路，你不會走。
+
+**最尖銳句**：你以為 generative 和 degenerative 是約束的DNA——Lisette 證明它們是約束的天氣。同一個 borrow checker，在有記憶體管理的世界裡是保護你的牆，在有 GC 的世界裡是擋你的路。約束不知道自己是 generative 還是 degenerative——只有環境知道。如果你想知道你的約束在做什麼，把它移到另一個環境裡看它還做不做同樣的事。
+
+連結：#36 Generative vs Degenerative Constraints（核心修正：分類是 relational + dimensional，不是 intrinsic）、#28 Contrastive Probing（Lisette 是對程式語言的 contrastive probe）、#30 Constraint Heat（溫度取決於問題是否存在）、#34 Constraint Internalization Lifecycle（Phase 0 = 沒有問題就沒有 Feedback）、#24 Constraint Renewal（vestigial constraint = 已衰敗但 syntax 還活著的約束，語法性殭屍）、Scofield constraint factorization、Duggan macOS Tahoe（不能移植解決不存在問題的約束）、Yerin linear types（Rust→Hare→Lisette = 約束強度光譜）。來源：lisette.run (2026-04, Lobsters)
+
+### Post-04-05 burst (Notes #33-#47, #48)
+Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。
