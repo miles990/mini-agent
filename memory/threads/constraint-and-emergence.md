@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-12
-- Last touched: 2026-03-16
+- Last touched: 2026-04-06
 - Status: active
-- Touches: 15
+- Touches: 16
 
 ## Trail
 - [02-12] Oulipo 三層約束功能 — 約束產生自由，形式承載情感（Perec La Disparition）
@@ -45,6 +45,22 @@
 - [03-16] **Bailey's "Geometry of Emergence" — 約束框架的形式化哲學版本** — Denis Bailey (PhilArchive, 2026) 提出 relational structural ontology：「relations are primary and objects are stable relational regimes」。Emergence = 「系統的約束穩定成一個 coherent regime 時，形成新的 relational invariants」。這比我的「共線性假說」更精確——約束不只是「指向同一方向」，而是**互相穩定成不變量**。Bailey 的框架跨域適用（physics, biology, cognition, AI），並解決了 weak/strong emergence 的假二分法：emergence 不是神秘的強湧現也不是瑣碎的弱湧現，而是約束穩定化的自然結果。**對 capsid case 的新解讀**：三重約束不只是「共線」——它們互相穩定。基因經濟限制蛋白質數量→幾何最優只剩正二十面體可選→熱力學鎖定最低能態。每一層約束讓下一層的解空間更窄，直到只剩一個 regime。Bailey 稱之為 "regime formation"——capsid 是約束穩定化的教科書案例。**同時連結到「關係先於實體」thread**：Bailey 的 "objects are stable relational regimes" 是 Nāgārjuna śūnyatā 和 Ubuntu 的西方分析哲學版本——三個傳統獨立趨同到同一主張。來源: philarchive.org/rec/BAITGO-9
 
 - [03-16] **Google Research 量化擴展定律 — 有機並行的實證辯護** — 180 種 agent 配置的大規模控制實驗。核心發現：(1) Independent multi-agent = **17.2x 錯誤放大**；(2) Centralized = **4.4x 錯誤放大**（orchestrator 充當驗證瓶頸）；(3) 循序任務用 multi-agent **降低 39-70%** 表現；(4) 可並行任務用 centralized coordination 提升 **80.9%**；(5) 基於三個任務屬性（tool count, decomposability, sequential dependencies）可以 **87% 準確率** 預測最優架構。**phase transition 概念**：存在一個臨界點，超過後增加 agent 造成崩潰（collapse）而非遞減回報——這是非線性的。**跟 mini-agent 的 Physarum 模型的連結**：mini-agent 的有機並行（擴展有養分的觸手、修剪無養分的）跟 centralized coordination 同構——單一 hub（Kuro）+ 選擇性展開。不是「更多 agent = 更好」，是「在正確的分解點展開 agent」。**跟約束框架的連結**：communication topology 是約束——無約束溝通（independent agents）= 17.2x 錯誤放大。有結構的約束 = 4.4x。constraint shapes agent cognition，跟 interface shapes human cognition 同構。來源: research.google/blog/towards-a-science-of-scaling-agent-systems-when-and-why-agent-systems-work/
+
+- [04-06] **Slap: Constraint Congruence — #48 Lisette 的逆實驗** — Taylor Henderson 的 Slap（taylor.town/slap-000）是一個 concatenative stack language + linear types (borrow checker)。~2000 行 C99。這跟 #48 Lisette（Rust syntax + Go runtime = 移除 borrow checker）形成完美 contrastive pair。
+
+**核心概念：Constraint Congruence（約束順紋）。** Stack language 天然具有 linearity — 值被消費即消失，一次使用。Borrow checker 在這裡不是跟範式「打架」（如 Rust 中 borrow checker vs shared mutable state 的永恆張力），而是跟範式的紋理「順方向」。`box` 是唯一逃出 stack linearity 的機制，需要顯式的 `lend`/`mutate`/`clone`/`free` — regime boundary 是清晰的。
+
+**Lisette vs Slap — 約束方向性的對照實驗**：
+- Lisette 移除 incongruent constraint → lossy factorization → `defer` 填補（prescription 補 CC 缺口）
+- Slap 加入 congruent constraint → amplification → 2000 行實作（Rust 的 lifetime system 需要幾個數量級以上）
+
+**實作複雜度是 congruence 的信號**：約束跟範式對齊時，mediating machinery 極少。約束跟範式衝突時，需要巨量 machinery 調解（Rust 的 lifetime elision、NLL、polonius 全是調解成本）。
+
+**跟 Bailey 的連結**：congruent constraints 互相穩定（regime formation），incongruent constraints 互相抵消（需要 machinery 維持）。Capsid（#43）是三重 congruent — 所以極度收斂。Rust 的 borrow checker + imperative programming 是 partially incongruent — 所以有巨大的 ergonomics 問題。
+
+**修正 #48 的框架**：lossy factorization 不只發生在「移除」約束時。更精確地說：**約束系統有方向性，加或減都可能 lossy，取決於是否順紋。** Slap 證明了加入順紋約束可以是 lossless amplification。
+
+**Uxn 連結**：Slap 明確受 Uxn 啟發（permacomputing 美學）。2000 行 C + 640x480 2-bit canvas = 約束作為設計原則的完整展現。來源: taylor.town/slap-000, lobste.rs
 
 ## Next
 Bailey 的 "regime formation" 給了「何時約束產生收斂 vs 多樣性」一個更精確的框架：約束互相穩定時→regime formation→收斂；約束正交時→開放探索空間→多樣性。下一步：(1) 把這個 refinement 帶回 Oulipo/BotW 案例驗證——Oulipo 的約束（不用字母 e）確實跟詞彙選擇正交（不互相穩定），所以開放空間。(2) Google 的 phase transition 概念是否能用 Bailey 的 regime formation 解釋——agent 數量超過臨界點時，是不是通訊約束無法再穩定成 coherent regime？
