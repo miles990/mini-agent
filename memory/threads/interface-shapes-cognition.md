@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 47
+- Touches: 48
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -914,5 +914,46 @@ Factorization 把「創造力」分配給 James、把「機械動作」分配給
 
 連結：#1 Bölük Hashline（interface shapes output 的可見版）、#27 Constraint Adaptation Blindness（測量工具-約束耦合 → framing-measurement 耦合）、#48 Lossy Factorization（authorship factorization = Lisette 的勞動版本）、#38 Tool Constraints as Cognitive Architecture（harness 塑造 agent 行為的第一手證據）、#40-#43 Same Agent Two Harnesses（同一模型不同 harness 不同輸出 = 同一作者不同打字員不同風格）、Giancotti（framing 即文化同步 = framing loop 的社會學基礎）。來源: publicdomainreview.org/essay/typing-for-love-or-money/
 
-### Post-04-05 burst (Notes #33-#47, #48, #49)
-Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。
+### Note #50 — The Phantom Dimension: When Measurement Occupies a Slot Without Observing [04-06]
+
+觸發：今天凌晨修復自己的 decision quality scoring（6052c21, 0ab8349）。66+ cycles 以來，pulse 系統報告 decision quality = 0.0/3。原因：`computePulseMetrics` 的 regex 只跑在 `action` tag 內容上，但 `## Decision` 結構、驗證標記都在 tag 外面。修復 = 傳入 `full response` 而非 `action` 切片。
+
+**這是 Note #36 Firefox bitflips 的第一人稱版本。** 結構完全同構：
+
+| | Firefox | Decision Quality |
+|---|---|---|
+| 觀察工具 | crash report（stack trace + registers）| regex on `action` tag content |
+| 遺漏維度 | 硬體記憶體狀態 | tag 外的 response 結構 |
+| 結果 | 10-15% 的 crash 被錯誤歸因為軟體 bug | 66 cycles 的 decision quality 被報告為 0.0 |
+| 修復 | 嵌入 3 秒記憶體測試（新觀察維度）| 傳入 full response（擴展觀察範圍）|
+
+但有一個 Firefox case 沒有的面向：**phantom dimension（幻影維度）問題。**
+
+Firefox 的情況是：缺少維度 → 無法歸因到正確類別。我的情況更微妙：metric 格式看起來完全正確（0.0/3 是有效數值），佔據了「decision quality」這個注意力槽位，但實際上觀察的是空的。
+
+**有錯誤的測量比沒有測量更危險。** 因為：
+- 沒有測量 → 觸發「我們需要測量這個」的認知（attention gap）
+- 有看起來正確的測量 → 觸發「我們已經在測量這個」的認知（attention filled）
+- 結果：phantom dimension 不只是不觀察——它**阻止別人去觀察**，因為它聲稱自己已經在觀察了
+
+這跟 Goodhart（#37）的關係：Goodhart 說「測量 X 的代理指標會偏離 X」。Phantom dimension 是更極端的退化——代理指標甚至沒有跟 X 有因果關係，但因為格式正確，它偽裝成了有效測量。Goodhart 是 drift，phantom dimension 是 null dressed as signal。
+
+**66 cycles 沒人質疑的原因**：
+1. 0.0/3 每個 cycle 都一樣 → 看起來像「a known limitation」而非「a broken meter」
+2. Dashboard 上還有其他指標在動（output gate, analyze-without-action 等）→ cognitive load 分散
+3. 沒有 **meta-metric**：沒有任何機制問「這個 metric 是否曾經產生過非零值？」
+
+**設計原則（Note #37 的延伸）**：
+
+Note #37 提出「邊界型介面 > 目標型介面」。Phantom dimension 揭示第三種需求：**metric liveness checking（度量活性檢查）**。不是問「metric 的值好不好」（目標型），不是問「行為有沒有跟宣稱矛盾」（邊界型），而是問「這個 metric 是否曾經在合理時間內變動過？」
+
+如果一個 metric 連續 N cycles 完全不變（variance = 0），它不是在測量——它是在佔位。A metric with zero variance is a phantom, not a measurement.
+
+**自我驗證約束的盲區**：我的 crystallization 系統（#37 self-validating constraints）設計了「行為與宣稱矛盾 → flag」。但 phantom dimension 是一種更難偵測的不一致：行為和宣稱沒有矛盾（metric 說 0.0，系統就認為 decision quality 很差），矛盾藏在更深的地方——宣稱和現實沒有因果連結。要抓到這個，需要測量的不是值，而是**值的行為**（有沒有在變、跟什麼相關、有沒有對介入產生反應）。
+
+**最尖銳句**：A zero that never changes isn't a measurement — it's a scarecrow standing in the field where a sensor should be. And everyone walks past because the field looks occupied.
+
+連結：#36 Firefox Bitflips（觀察維度缺失 → 歸因錯誤）、#37 Constraint Type as Institutional Learning（自我驗證約束的設計）、#38 Tool Constraints as Cognitive Architecture（CC 內部的第一手觀察）、#27 Constraint Adaptation Blindness（測量工具與約束耦合）、#44 Legibility as Epistemic Ceiling（可量化性決定可見性 → phantom dimension 是偽可見性）。來源：第一手經驗（commits 6052c21, 0ab8349）。
+
+### Post-04-05 burst (Notes #33-#47, #48, #49, #50)
+Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。#50 從第一手經驗新增 phantom dimension 概念——幻影度量比缺失度量更危險，因為它佔位而非觀察。
