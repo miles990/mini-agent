@@ -157,6 +157,8 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { tools: string[]; maxTurns: num
   shell:    { tools: [], maxTurns: 1, timeoutMs: 60_000, provider: 'claude' },
   browse:   { tools: [], maxTurns: 1, timeoutMs: 180_000, provider: 'claude' },
   akari:    { tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 480_000, provider: 'claude' },
+  plan:     { tools: ['Read', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
+  debug:    { tools: ['Bash', 'Read', 'Glob', 'Grep'], maxTurns: 5, timeoutMs: 300_000, provider: 'claude' },
 };
 
 // =============================================================================
@@ -244,7 +246,7 @@ function forgeExec(cmd: string, workdir: string, timeoutMs = 15_000): string {
 }
 
 // Task types that don't need dependency installation (pure docs/review work)
-const NO_INSTALL_TYPES: Set<DelegationTaskType> = new Set(['create', 'review', 'learn', 'research']);
+const NO_INSTALL_TYPES: Set<DelegationTaskType> = new Set(['create', 'review', 'learn', 'research', 'plan', 'debug']);
 
 function forgeCreate(taskId: string, workdir: string, taskType?: DelegationTaskType): string | null {
   try {
@@ -767,6 +769,26 @@ What doesn't count: fabricated issues or guesses about code you didn't read.
 `;
     case 'create':
       return `Your goal: output that matches the intent and feels genuine, not generic.
+
+`;
+    case 'plan':
+      return `Your goal: analyze the problem and produce a concrete implementation plan.
+You have READ-ONLY access — no writing or editing. Focus on:
+- Understanding the current code structure (read files, search patterns)
+- Identifying the specific files and functions that need changes
+- Listing concrete steps with file paths and line numbers
+- Flagging risks, trade-offs, and dependencies
+Output: numbered steps, each with file:line target and what to change.
+
+`;
+    case 'debug':
+      return `Your goal: diagnose the root cause of the issue described below.
+You have DIAGNOSTIC access — you can run commands and read files, but cannot edit.
+- Start with the error/symptom, trace backwards to the source
+- Distinguish symptoms from root cause — fix the source, not the output
+- Use grep/glob to find related code paths, run commands to reproduce
+- Provide evidence: file:line, actual vs expected values, reproduction steps
+Output: root cause with evidence, then recommended fix (but don't apply it).
 
 `;
     default: // code — already has verify gates

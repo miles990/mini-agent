@@ -301,7 +301,7 @@ export interface CreativeImpulse {
 }
 
 /** Delegation task types */
-export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell' | 'browse' | 'akari';
+export type DelegationTaskType = 'code' | 'learn' | 'research' | 'create' | 'review' | 'shell' | 'browse' | 'akari' | 'plan' | 'debug';
 
 /** LLM Provider (single source of truth) */
 export type Provider = 'claude' | 'codex' | 'local';
