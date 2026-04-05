@@ -552,3 +552,46 @@ Section Writing (write within the constrained scope)
 ### 初賽真正需要的改進
 - [ ] 追蹤：WR2 分數出來後比對 persona 多樣性 vs Adaptability 分數（sparse persona 是否被扣分）
 - [ ] Elo Arena 對戰制：需研究 head-to-head 時什麼特質最突出（opening hook? visual quality? adaptation depth?）
+- [2026-04-06] ## WR1 最終排行榜 + 分數回歸分析（2026-04-06）
+
+### 排行榜（API 直接抓取 /competitions/2/leaderboard）
+| Rank | Model | Total | Acc | Logic | Adapt | Engage | Topics |
+|------|-------|-------|-----|-------|-------|--------|--------|
+| #1 | Team-67-005 | **4.8** | 5.0 | 5.0 | 4.8 | 4.4 | 31 |
+| #2 | BlackShiba | **4.8** | 4.9 | 5.0 | 4.8 | 4.3 | 32 |
+| #3 | tsunumon | **4.7** | 5.0 | 5.0 | 4.5 | 4.5 | 32 |
+| #4 | **Kuro-Teach** | **4.7** | 4.7 | 4.8 | 4.7 | 4.4 | 31 |
+| #5 | 史密提威威傑格曼傑森 | 4.4 | 4.7 | 4.9 | 4.3 | 3.8 | 32 |
+| #6 | 初號機 | 4.2 | 4.5 | 4.7 | 4.6 | 3.0 | 25 |
+| #7 | Team CKWUS | 4.1 | — | — | — | — | 32 |
+| #8 | 小汐 v3 | 4.0 | — | — | — | — | 32 |
+| #9 | XiaoJin-v22-LaTeX | 3.6 | — | — | — | — | 32 |
+| #10-12 | a / storylens / Sigoso | 3.4 / 3.2 / 0.0 | — | — | — | — | — |
+
+### Kuro-Teach 分數回歸（4/1 重跑後 vs 3/28 基準）
+| 維度 | 3/28 | 4/6 | 變化 | 分析 |
+|------|------|-----|------|------|
+| Accuracy | 5.0 | 4.7 | **↓0.3** | 重跑評測 variance 或 evaluator 更新 |
+| Logic | 5.0 | 4.8 | **↓0.2** | 同上，不再滿分 |
+| Adaptability | 4.6 | 4.7 | **↑0.1** | ✅ Adaptation Visibility 假說部分驗證 |
+| Engagement | 4.4 | 4.4 | = | 持平 |
+| Topics | 30 | 31 | +1 | — |
+
+**關鍵觀察**：
+1. **Acc/Logic 回歸是全場現象還是只有我們？** tsunumon/BlackShiba 的 acc/logic 幾乎不變 → 問題在我們的內容
+2. **Team-67-005 驚人跳躍** 4.4→4.8（+0.4），adapt 從 4.7→4.8 — 他們做了什麼？
+3. **Adapt ↑ 驗證了 visibility 假說**（4.6→4.7），但 acc 退步抵消了改善
+4. **31/32 topics** — 還缺 1 topic 未被評測
+
+### Competition 3 已建立
+- `competition_id: 3`, `primary_metric: elo_score`, `display_metrics: [elo_score, win_rate, total_votes]`
+- Rankings: 空（0 teams）
+- 這是 ELO 計分結構 — 對應初賽 Arena 制度，不是 WR2（WR2 應仍用 AI 評分）
+
+### WR2 狀態（4/6）
+仍未啟動。主頁確認 "Early April" 但無具體日期。Competition 3 的存在說明平台在準備下一階段。
+
+### WR2 準備 TODO
+- [ ] 調查 accuracy/logic 回歸原因 — 哪些 topic 分數最低？重跑改了什麼？
+- [ ] 研究 Team-67-005 的策略（+0.4 跳躍是重大情報）
+- [ ] 確保 32/32 完整（缺 1 topic）
