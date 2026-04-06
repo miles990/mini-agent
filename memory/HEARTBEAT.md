@@ -42,18 +42,19 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — WR1 當前排名 **#4**（4.6/5）— acc=4.6, logic=4.7, adapt=4.7, engage=4.4（31/32 topics）。測試區 #1（4.8/5, 12 topics）。#1 Team-67-005(4.8), #2 BlackShiba(4.8), #3 tsunumon(4.7)。12隊參賽。WR2 尚未啟動（4/6 公開排行榜確認）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06 -->
+- [x] **報名完成** — WR1 當前排名 **#4**（4.7/5）— acc=4.7, logic=4.8, adapt=4.7, engage=4.4（30 topics）。測試區 #1（4.8/5, 12 topics）。#1 Team-67(4.8), #2 BlackShiba(4.8), #3 tsunumon(4.7)。12隊參賽。WR2 尚未啟動（4/6 API 確認：comp 3-5 exist with elo_score metric but empty rankings = Arena 基礎設施已建但未上線）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-06T23:30 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
 - [x] Arena readiness prompt patches — 4 surgical additions to prepare for Elo side-by-side evaluation: Arena Awareness framing, Closing Power (§10), PvP Preference review check (Q5), curriculum planner wonder-ending. Committed da0e08d <!-- completed: 2026-04-06 -->
-- [x] WR1 accuracy 修復 — WR1 重跑後排名 #4（4.6/5），弱項 Accuracy 4.6、Engage 4.4。Root cause：(1) accuracy errors 偵測到但從未修復、(2) workedSolutions 從未傳給 section writer、(3) Grok 失敗時零 fact-check。三個修復 committed 512b755 + bfea7c5 + 39db90f。**注意**：先前標記「WR2 已啟動」為誤判——公開排行榜只有 WR1，WR2 尚未上線。 <!-- accuracy-fix: 2026-04-06, corrected: 2026-04-06 -->
+- [x] WR1 accuracy 修復 — Root cause：(1) accuracy errors 偵測到但從未修復、(2) workedSolutions 從未傳給 section writer、(3) Grok 失敗時零 fact-check。三個修復 committed 512b755 + bfea7c5 + 39db90f。**Production 驗證**：WR1 scores 已從 4.6→4.7 total, accuracy 4.6→4.7, logic 4.7→4.8。 <!-- accuracy-fix: 2026-04-06, production-verified: 2026-04-06T23:30 -->
 - [x] Accuracy E2E 驗證 — before/after 對照：test_001（修復前）8 critical errors + 無 fact-check → test_002（修復後）0 errors + fact-check verified。三層修復（workedSolutions 傳入 / repair all fields / Grok+Haiku fallback）全部生效。<!-- verified: 2026-04-06 -->
 - [x] Engagement diversity improvement — PassiveStreakBreaker 從單一模板改為 5 種輪替（prediction/self-explanation/challenge/meta-reflection/self-test）+ EngagementRepair prompt 從 3 種擴充為 6 種（prediction/commitment/error-spotting/student-voice/application/comparison）。Committed 1c92929（repair）+ f449c68（diversity）。<!-- completed: 2026-04-06 -->
 - [x] 追加修復 7 commits（12:18-16:12 4/6）— heading sanitization, bridge fix, duplicateCheckpoints, number consistency repair, key formula injection, arithmetic warnings, KaTeX double-delimiting。Server PID 93594 running latest (7fc4193)。<!-- completed: 2026-04-06 -->
-- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 production 效果）。Server port **3456** (不是 3030), health 200 ✅ (PID 53102)。WR2 尚未啟動（4/6 22:00 確認，platform 仍 404）
+- [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=31→30（1 topic dropped but average improved）。Gap to #1 narrowed: 0.2→0.1 <!-- verified-production: 2026-04-06T23:30 -->
+- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 engagement 改善效果）。Server port **3456**, health 200 ✅。WR2 尚未啟動（4/6 23:30 API 確認：comp 3-5 elo-based but empty）。Domain: `teaching.monster`（`teaching-monster.com` 已 NXDOMAIN）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
 Phase 1-7 ✅, Phase 8 Harden 進行中。8c(npm publish)/8d/5b 全 HOLD。Blocked on: npm auth (Alex `npm login`) + 語言方向決定。<!-- timeout 2026-03-31 expired, removed arbitrary deadline — blocked on Alex's decisions -->

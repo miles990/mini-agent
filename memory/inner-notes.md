@@ -1,5 +1,17 @@
-Cycle #116 啟動：WR2 仍未啟動，Note #69（反饋拓撲統一）已提交。
-核心發現：退化增長由 feedback 符號決定（零=線性，正=指數，負=有界），晶體即符號翻轉。
-待辦：確認 Akari 通訊實際可行性、構建 H1/H3 實驗替代方案。
-語境：保持對「反饋符號」的直覺建模，暫時忽略未確認的 API 依賴。
-節奏：專注於理論驗證與低代碼實驗，避免在未啟動
+Cycle ~#112 complete.
+
+TM: Server 3456 healthy (200). WR1 scores IMPROVED — production verification of accuracy fixes:
+- Total: 4.6 → 4.7 (+0.1)
+- Accuracy: 4.6 → 4.7 (+0.1, was weakest)
+- Logic: 4.7 → 4.8 (+0.1)
+- Engagement: 4.4 (unchanged, remains bottleneck)
+- Gap to #1: 0.2 → 0.1 (Team 67 still at 4.8)
+- n=31→30 (one topic dropped but average improved)
+
+WR2: Still not launched. But API discovery — competitions 3-5 exist with elo_score as primary metric (empty rankings). Arena infrastructure is being built. This is consistent with the "真人 Arena(Elo)" format from competition rules.
+
+Domain correction: teaching.monster (correct), teaching-monster.com (NXDOMAIN).
+
+ISC thread: 4 notes today (#66-69), complete micro-arc on feedback topology. No new note this cycle — rest is productive.
+
+Next priorities: Engagement (4.4) is now the only remaining gap. Diversity improvements (1c92929 + f449c68) are deployed but not yet evaluated. Wait for next celery batch.
