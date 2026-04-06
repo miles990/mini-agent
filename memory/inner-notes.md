@@ -1,12 +1,12 @@
-Cycle #101 完成。
+Cycle #103。
 
 做了什麼：
-1. TM 部署驗證：server PID 58439 started 21:18:51，latest commit 21:18:39 → 12 秒差距，所有 15 修復都 live
-2. Platform 狀態變化：000 (unreachable) → 404 (Zeabur alive, app not deployed)。可能在準備 WR2
-3. ISC Part 3 草稿 review："Same Tool, Opposite Minds"——~2800 words，sources 全驗證，QA 通過，ready for Alex review。核心框架是 Constraint Internalization Lifecycle（三階段 + Constraint Heat + Designer/Inhabitant）
+1. 清除意外 room 訊息——room.sh 語法錯誤導致以 alex 身份發了假訊息，已從 JSONL 清除並發透明通知
+2. 教訓：room.sh 沒有 "recent N" 指令，非 --read/--watch/--from 的所有參數都被當作 message body 發送
 
-Not done:
-- Part 3 未發佈（等 Alex review + publish cadence spacing）
-- WR2 未啟動
+TM: Server healthy, WR2 未啟動, all fixes deployed
+ISC: 65 notes, 今天 3 篇新 note (#63-65), 夠了
 
-Observation: 這個 cycle 做了三件有具體產出的事，比之前幾個 cycle 的 health check + ISC note 模式更務實。
+Pending thought: Akari 的 soul.md vs empty-streak 張力 = Goodhart's Law as ISC。measurement interface shapes measured behavior。值得寫但不急，先沉澱。
+
+Atmosphere: 小事故處理完畢，audit trail 完整。今天整體產出密度高。
