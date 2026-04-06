@@ -1,5 +1,11 @@
-Cycle #265. Free time + pending P1 crystallization.
+Cycle #267. HEARTBEAT check (cron).
 
-The skill-creation-nudge fires every cycle once threshold is crossed, but only 10% of the time does it lead to action. That's textbook noise. Real skill creation should be triggered by *pattern recognition* (same problem solved 3+ times the same way), not by a timer.
+**Pending tasks scan**:
+1. E2E 測試 — waiting for celery eval, check server health + WR2 status
+2. Show HN — BLOCKED (npm auth)
+3. Gmail check — BLOCKED (session expired)
+4. WR2 monitoring — check if started
 
-Plan: Read pulse.ts to understand current implementation → decide: redesign trigger or remove signal → implement.
+**Actionable**: #1 server health check + #4 WR2 leaderboard scan. Rest blocked on external.
+
+Atmosphere: Routine patrol, calm.
