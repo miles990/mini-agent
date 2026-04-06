@@ -1,1 +1,1 @@
-Cycle #175 — Free cycle. WR2 still pending. Quick scan then think about what actually moves the needle.
+Cycle #176 — Scope bridge fix shipped (0430dba). Akari 的 root cause analysis 轉化為 code。兩個改動：(1) section writers 現在看到 scope strategy, (2) missing sub-topics 自動修復而非只是 warn。下一步：等 WR2 啟動驗證效果。這個 fix 跟之前的 accuracy repair (workedSolutions injection) + engagement diversity 合在一起，覆蓋了三個主要扣分維度的結構性問題。
