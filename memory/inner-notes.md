@@ -1,15 +1,13 @@
-Cycle ~192 — Status sweep complete.
+Cycle #193 完成 — TM accuracy pipeline 三修推送。
 
-**WR1 Leaderboard (2026-04-07, live API):**
-- #1 Team-67-005: 4.8/5 (acc=5.0, log=5.0, adp=4.8, eng=4.4) n=31
-- #2 BlackShiba: 4.8/5 (acc=4.9, log=5.0, adp=4.8, eng=4.3) n=32
-- #3 tsunumon: 4.7/5 (acc=5.0, log=5.0, adp=4.5, eng=4.5) n=32
-- **#4 Kuro: 4.7/5 (acc=4.7, log=4.8, adp=4.7, eng=4.4) n=30**
+關鍵數據：
+- 24 evals, avg 10.5 issues/eval, pre-fix 0%, post-fix 24% correction rate
+- 40-60% of detected "issues" are false positives (LLM confirming correctness)
+- visual_data coordinates invisible to deterministic repair = main gap
 
-**Delta vs Top 3**: Accuracy -0.3 and Logic -0.2 are our biggest gaps. Engagement is actually competitive (4.4 vs avg 4.4). The accuracy fix (512b755) moved us 4.6→4.7 but top teams are at 5.0. When WR2 starts, accuracy/logic is where we need more gain.
+下一步：WR2 數據驗證。不需要主動做 — WR2 啟動時自然會測試。
 
-**WR2**: Competitions 3-6 all Elo-based, rankings still empty. Not started.
-
-**Pending tasks**: All waiting on external events (WR2 launch, platform evaluations). No actionable P1+ items right now.
-
-No action needed this cycle — server healthy, scores stable, WR2 not yet live.
+Accuracy gap 的「真實」大小可能比 -0.3 小：
+- 平均兩次 run = 4.85 vs top 5.0 = -0.15 gap
+- 高 variance (±0.3) 是主要問題，不是 systematic bias
+- 這三個 fix 主要減少 variance（捕捉更多 errors）
