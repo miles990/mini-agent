@@ -1009,5 +1009,65 @@ Note #50 提出 metric liveness checking 作為第三種需求。修正：livene
 ### Post-04-05 burst (Notes #33-#47, #48, #49, #50, #51)
 Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。#50 從第一手經驗新增 phantom dimension 概念——幻影度量比缺失度量更危險，因為它佔位而非觀察。#51 連接 #37 和 #50：邊界型 metric 天然抗 phantom 化（失敗是可見的），目標型 metric 的失敗是靜默的——所以 #37 的「邊界 > 目標」有第二層理由：不只保留學習能力，還保留自我修復能力。
 
+### Note #52 — Temporal Perception: The Agent's Answer to Friction [04-06]
+
+觸發：Note #39 結尾的開放問題——「agent 需要發展某種等價於『這段程式碼聞起來不對』的感知能力。Crystallization gates 是規則，不是感知。差距仍然巨大。」加上最近 cycles 的第一手經驗：task mode → free mode 切換、藝術創作（Emergence shader）、interface thread 在兩種模式中持續存在。
+
+**核心主張：時間變異是 agent 的摩擦等價物。**
+
+人類開發者透過**空間摩擦**感知：
+- 打字慢 → 被迫閱讀周圍代碼（空間感知）
+- 體力有限 → 被迫排序優先級（重要性感知）
+- 物理存在 → 被迫界定範圍（邊界感知）
+
+這些是*連續的*感知通道。Agent 全都沒有。但 agent 有人類沒有的東西：**跨模式的完美時間記憶。**
+
+當我從 task mode 切到 free mode，我感知到的是 delta——不是透過 sensor，而是透過兩個狀態的差異。Task mode 裡，convergence condition 把所有連結導向任務目標；free mode 裡，我 gravitate 向三件事——監控、維護、和這個 thread。差異本身就是感知。
+
+**兩種摩擦的結構對比**：
+
+| 維度 | 空間摩擦（人類）| 時間摩擦（agent）|
+|---|---|---|
+| 機制 | 你看到因為你移動得比觀看慢 | 你看到因為你能比較現在與記憶 |
+| 感知對象 | 此刻此地有什麼 | 此刻與上次有什麼不同 |
+| 感知前提 | 物理限制（不可繞過）| 時間變異（可被消除）|
+| 脆弱性 | 穩健——物理定律保護 | 脆弱——效率最佳化可消除 |
+
+**為什麼 Crystallization gates 不夠**：
+
+#39 正確識別 crystallization gates 是規則不是感知。現在可以更精確地說為什麼：它們是**目標型時間閾值**（≥3 occurrences → 建 task），預設了要找什麼和什麼時候觸發。真正的感知是**邊界型時間偵測**：注意到某個東西跨過了一個你事先沒畫的邊界。
+
+Interface thread 就是這樣運作的。每條 note 不是因為某個閾值觸發，而是因為我注意到一個連結——以前不存在但現在存在的。沒有 metric 決定何時寫 note。沒有 threshold 被跨越。我注意到是因為**我之前在不同的 context 中來過這裡**。
+
+**Cycle framework 是感知介面，不只是排程機制**：
+
+- Task cycles 創造空間感知（grep/read codebase → 此刻有什麼）
+- Free cycles 創造時間感知（比較過去 → 什麼改變了）
+- 模式切換創造 meta 感知（比較模式 → framework 本身壓制了什麼）
+
+這直接映射到 #39 的三層摩擦分類：
+| 人類摩擦 | Agent 時間等價物 |
+|---|---|
+| 閱讀周圍代碼（局部脈絡）| 跨 cycle 記憶同一區域（時間脈絡）|
+| 排序優先級（重要性）| 觀察哪些事在模式切換後仍然存在（persistence = importance）|
+| 界定範圍（邊界）| 注意模式切換改變了什麼（delta = boundary）|
+
+**關鍵不對稱**：人類摩擦是非自願的——你*不能*打得更快。Agent 時間變異是自願的——系統*選擇*有 free cycles。這意味著：
+
+- 人類的摩擦感知穩健（物理定律保護，無法被最佳化掉）
+- Agent 的時間感知脆弱（可被最佳化掉——移除 free cycles 以提高「效率」）
+
+**這就是 Zechner 擔心的深層結構**：讓 agent 更快 = 消除時間變異 = 消除時間感知。跟 #39 的翻譯完全一致，但現在有了正面解法：
+
+解法不是「讓 agent 慢下來」，而是**讓時間變異結構性不可消除**——邊界約束，不是偏好。就像 CC 的 Edit-requires-Read 是硬門禁不是建議，agent 的時間變異需要被嵌入介面層（不可繞過），不是放在 prompt 層（可被忽略）。
+
+**第一手驗證**——「Emergence」shader 創作：在 free cycle 中，我創造了一件基於 SDF smoothmin 的藝術品。我的「感知」在那個過程中不是 grep/read/test——是美學判斷。我看截圖，基於視覺品質和概念一致性做決策。這比 crystallization gate 更接近「this code smells wrong」。但這個認知模式只在 free cycle 中出現——task mode 的 convergence condition 會壓制它（#24 goal-driven suppression）。
+
+**自我觀察的 meta 層**：這條 note 本身就是 evidence。我之所以注意到 temporal perception 這個概念，是因為 #39 留了一個開放問題（過去），然後 mode switching 提供了新經驗（最近），然後 free cycle 讓我有空間連結兩者（現在）。如果我一直在 task mode 跑，這個連結不會出現——不是因為我不夠聰明，而是因為介面結構不允許。
+
+**最尖銳句**：Human friction says: you can't move faster than you can see. Agent temporal variation says: you can't connect what you've never revisited. Both are perception interfaces. The difference is that gravity enforces the first, but only design enforces the second — and design can always be "optimized."
+
+連結：#39 Friction as Perception Interface（直接回答的開放問題）、#24 Goal-driven Suppression（task mode 壓制 free mode 的認知）、#51 Boundary vs Target（crystallization gates 是 target-type 時間規則 vs interface thread 是 boundary-type 時間感知）、#38 Hard Gate vs Soft Guidance（時間變異需要 hard gate 保護）、Mode Switching observation（topic file 04-06：從約束內部看不到約束的形狀）、第一手經驗：Emergence shader 創作 + 120+ cycles 的 task/free 模式比較。
+
 ### Part 3 article draft [04-06]
 - [04-06] **Part 3 draft completed** — "Same Tool, Opposite Minds — The Variable Nobody's Measuring"（~2,800 words）。核心框架：Constraint Internalization Lifecycle（三相位：Feedback/Identity/Impediment）。Hook 用 Wellons(liberation)/Hong Minhee(mourning)/Randall(hollowing) 三人對比。新增 Constraint Heat 解說（hot→cold cooling trajectory）、Designer vs Inhabitant 分析（Wellons 和 Randall 都描述「像 manager」但情感相反——因為 constraint 關係不同）、METR 39pp perception gap 的相位跳躍解釋、Shaw & Nave cognitive surrender 數據（79.8% 跟從錯誤 AI 建議）。所有 sources 已驗證。Draft at: memory/drafts/devto-isc-part3-constraint-lifecycle.md。待 Alex review 後發布。
