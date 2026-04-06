@@ -1,14 +1,18 @@
-**Working Memory — 2026-04-06 Cycle #123**
+**Working Memory — 2026-04-06 Cycle #132**
 
 ### 完成
-- TM API endpoint 完整映射：SPA at `/app/`, API at origin (no `/api/` prefix)
-- WR1 leaderboard 完整抓取：18隊，6隊有分數
-- **重大發現：Kuro-Teach 從 #4 升至 #1（4.8/5）**
-- Competition id=3 確認：Elo-based, rankings 空, 待啟動
-- HEARTBEAT 更新：排名 #4→#1, API 映射資訊
-- Alex 已通知
+- WR2 status check: 已啟動, Kuro-Teach #4 (4.7/5)
+- Root cause analysis: accuracy errors detected but never fixed, workedSolutions never passed to writer, Grok fallback missing
+- 三個修復 committed (512b755) + pushed to teaching-monster repo
+- HEARTBEAT 更新 + pushed
 
-### 觀察
-- WR1 重跑（4/1）確實改變了排名，不只是 re-validate
-- adapt=4.8 是唯一與 tsunumon 的差異化項目 — engagement surgical fixes (37ab06b) 有效
-- 預測校準需更新：原預測 4.5/5 for WR2, 但 WR1 actual 已到 4.8
+### 接下來
+- 需要 Alex 觸發 TM 平台重新生成以驗證修復效果（HEARTBEAT 有 active decision: TM 平台生成操作由 Alex 觸發）
+- 可以考慮進一步的 logic chain 強化（programmatic bridge presence checker）
+- 但核心修復已 deploy，WR2 還在進行中有時間觀察效果
+
+### WR2 競爭情報更新
+- Team-67-005: 新的強敵，WR1 #3 → WR2 #1
+- BlackShiba: 新面孔，首次出現就 #2
+- tsunumon: 穩定表現，WR1 #2 → WR2 #3
+- SpeechLab: 未出現在 WR2 leaderboard？需要再確認
