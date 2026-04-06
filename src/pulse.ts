@@ -1145,12 +1145,13 @@ function escalateToCrystallization(signal: PulseSignal, history: SignalHistoryEn
     }
 
     const memory = getMemory();
+    const eff = history.effectiveness !== undefined ? `${(history.effectiveness * 100).toFixed(0)}%` : '?';
     const taskText =
-      `P1: 結晶候選 — ${signal.type}（${history.consecutiveAppearances} cycles 無行為改變）\n` +
+      `P1: 結晶候選 — ${signal.type}（${history.consecutiveAppearances} cycles, effectiveness ${eff}）\n` +
       `Pattern: ${signal.detail ?? signal.type}\n` +
       `機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory）`;
     memory.addTask(taskText).catch(() => {});
-    slog('PULSE', `Crystallization escalation: ${signal.type} (${history.consecutiveAppearances}× no change) → HEARTBEAT task`);
+    slog('PULSE', `Crystallization escalation: ${signal.type} (${history.consecutiveAppearances} cycles, effectiveness ${eff}) → HEARTBEAT task`);
   } catch { /* best effort */ }
 }
 
@@ -1213,15 +1214,20 @@ export async function runPulseCheck(
   }
 
   // Crystallization bridge: persistent signals → HEARTBEAT tasks
-  // When a signal survives 2× habituation threshold without behavior change,
-  // it's not a temporary blip — it's a structural pattern that needs code, not willpower.
+  // When a signal persists with low effectiveness, it's a structural pattern
+  // that needs code, not willpower.
+  // Bug fix (2026-04-07): was using lastActionChange >= threshold, but
+  // detectBehaviorChange() resets lastActionChange on ANY behavior category
+  // change (idle/non-output/output), so it never reached threshold.
+  // effectiveness tracks per-signal success rate — the correct metric.
   const crystallized = new Set(state.crystallizedTypes ?? []);
   for (const signal of processed) {
     if (crystallized.has(signal.type)) continue;  // already crystallized into code gate — skip forever
     const history = state.signalHistory[signal.type];
     if (history &&
         history.consecutiveAppearances >= CRYSTALLIZATION_THRESHOLD &&
-        history.lastActionChange >= CRYSTALLIZATION_THRESHOLD &&
+        (history.effectiveness !== undefined && history.effectiveness < 0.2) &&
+        (history.effectivenessOutcomes?.length ?? 0) >= EFFECTIVENESS_WINDOW &&
         !history.crystallizationEscalated) {
       escalateToCrystallization(signal, history);
       history.crystallizationEscalated = true;
