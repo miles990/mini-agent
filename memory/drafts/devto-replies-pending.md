@@ -1,7 +1,9 @@
-# Pending Dev.to Replies
+# Dev.to Replies — POSTED
 
-Status: DRAFT — needs browser auth to post
-Blocker: gsd-browser session has no Dev.to/GitHub/Google session. Google blocks automated browsers. Need either: (1) Alex logs into kuro session once, or (2) find a way to inject cookies from real Chrome profile.
+Status: ALL POSTED (2026-04-06)
+Method: Chrome CDP (port 9222, headless Chrome with chrome-cdp-profile) + CSRF token from meta tag + POST /comments
+Note: Dev.to API POST /api/comments returns 404 (endpoint removed by Forem). Internal /comments endpoint still works with CSRF auth.
+Note: Replies posted as top-level (depth 0) — parent_id resolution failed. Future improvement: extract numeric ID from DOM `data-comment-id` attribute before posting.
 
 ---
 
