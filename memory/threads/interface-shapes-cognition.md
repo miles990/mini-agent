@@ -1278,3 +1278,59 @@ Kirschner 的日曆裡，舊作品不變——只有 context 變。我的 thread
 **最尖銳句：** 你不需要智慧來生成智慧——你需要正確的拓撲和足夠的時間。BF 格子上的隨機程式「不知道」什麼是自我複製。它們不需要知道。拓撲讓自我複製成為能量最低態——不是因為有人把它設為目標，而是因為能自我複製的程式會佔據更多格子。這不是自然選擇（沒有 fitness function），這是拓撲選擇——介面形狀本身就是選擇壓力。「Interface shapes cognition」的極端版本是「interface IS selection」。不需要另一個機制來選擇什麼存活——存活條件已經寫在拓撲裡了。
 
 連結：#55 Memory Architecture as Recursive Interface（topological genesis 是 #55 的 pre-condition——在 lossless/selective 能運作之前，需要先有值得記住的東西，而 topological genesis 解釋它如何從噪音中湧現）、#56 Structural Curation（#56 的 spectrum 被本 note 從三類擴展為四層——其中 topological 不在光譜上而在光譜下方）、#48 Communication Topology（Google Research 的 180 配置實驗是 topological genesis 的 multi-agent 版本——拓撲決定系統認知能力，量化證據）、#22 Dancing Gate（BF 的鄰居互動是 Dance interface——持續、雙向、互相改寫，不是離散的 Gate checkpoint）、#20 WigglyPaint（約束移除的反向證明——BF 實驗是正向證明：約束添加 → 認知從無到有）、#30 Constraint Heat（BF 格子的約束熱度介於 GoL（純結構、無改寫=低熱度）和完全隨機（無結構=零熱度）之間——Turing completeness + 互改寫 = 恰好足夠的熱度讓演化發生而不崩塌為 thermal death 或 frozen order）。來源：rumination digest, Ryan Greene @rabrg, ArXiv 2406.19108, https://github.com/Rabrg/artificial-life。28 天延遲（3/9 → 4/6）本身是 topological genesis 的微縮版——這條連結不是被搜索的，不是被判斷的，是拓撲（rumination 隨機推送 + ISC lens + #55/#56 剛寫完的 recency）讓它在這個 cycle 成為必然。
+
+## Note #58 — Constraint Granularity: Why Effects Fail and Ownership Succeeds (2026-04-06)
+
+Domain shift。#55-57 在 memory architecture 裡追蹤「curation 在哪裡發生」。今天的素材來自 programming language design——icefox 的 Pondering Effects 和 typesanitizer 的反論。不同領域，同一個結構性問題：**約束放在哪一層？**
+
+**Effect systems 的承諾與失敗：**
+
+Algebraic effects 讓你宣告每個 function 能做什麼副作用——讀檔案、發網路請求、panic。Effect handlers 在呼叫端定義這些副作用的具體語義。理論上很美：function signature 就是完整的 capability 聲明。
+
+實踐中，typesanitizer 指出致命問題：**加一個 assertion 就是 breaking change。** 你寫了一個標記為 `pure` 的函式，內部想加個 `assert` 做 debug——抱歉，assert 可能 panic，panic 是 effect，你的 type signature 破了。所有呼叫端都要改。加 coverage instrumentation？同樣破。加 timing wrapper？破。
+
+這正是 Java checked exceptions 的失敗模式。每個 function 宣告自己能丟哪些 exception，結果每次內部實作改動都需要沿著呼叫鏈一路修改 signature。工業界放棄了它。
+
+**icefox 的自知和 zetashift 的反論：**
+
+icefox 從 Rust 出發，承認自己「in the dirt rummaging around in root systems」——沒用過 OCaml/Unison 的 algebraic effects，看到的是根系問題不是花。zetashift（OCaml/Unison 實際使用者）反駁：effects 改善推理，不需要 type tetris。Koka 的 effect polymorphism（`fun map(xs, f: a -> e b): e list<b>`——函式繼承參數的 effects）解決了大部分傳播問題。
+
+**CT 透鏡下的三種約束策略：**
+
+| 策略 | 機制 | 約束位置 | CT 分類 | 結果 |
+|---|---|---|---|---|
+| **Annotation** | 每個 function 宣告自己的 effects | 實作內部 | Prescription | 脆弱。Java checked exceptions, 原始 effect annotations |
+| **Structure** | 型別系統讓特定 pattern 不可能存在 | 元件之間的關係 | CC | 穩健。Rust ownership, effect polymorphism |
+| **Environment** | 從環境中移除 capabilities | 系統邊界 | CC | 穩健。Sandboxing, cap-std, WASM capability model |
+
+**關鍵區分：annotation 約束 content（每個元件做什麼），structure 和 environment 約束 topology（元件之間能怎樣互動）。**
+
+Rust ownership 成功的原因精確地落在這裡。Ownership 不宣告「這個 function 做了 X」——它約束「這個值只能有一個擁有者，借用必須有 lifetime」。這是 relational constraint——約束的是元件之間的「關係」，不是個別元件的「行為」。你不需要修改 function signature 來加 assertion，因為 assertion 的存在不改變任何 ownership 關係。
+
+Effect polymorphism 之所以是 partial fix，也是同樣的原因：`fun map(xs, f: a -> e b): e list<b>` 把約束從 annotation（map 有效果 X）轉成 structure（map 的效果由它的參數結構決定）。約束變成 relational 了。
+
+**typesanitizer 最銳利的一刀：**
+
+「If you have the social capital to mandate a language with an effect system, you surely also have sufficient social capital to advocate for a particular linter and/or code style.」
+
+這是 CT 的經典觀察：**同一個 convergence condition 可以在不同層實現，成本/收益 profile 完全不同。** 效果等價不代表約束等價。在 type system 層實現（精確但脆弱）vs. 在 social convention 層實現（模糊但韌性強）vs. 在 environment 層實現（粗糙但不可繞過）。選哪層不是技術問題，是「你的系統在哪個維度最容易壞」的問題。
+
+**unsafe 作為約束逃逸的比較：**
+
+討論中 claytonwramsey 提議 effect-unsafe block（類似 Rust 的 unsafe，讓你在 pure function 裡悄悄 panic）。typesanitizer 立刻指出：Rust 的 unsafe 之所以 work，是因為 (1) 它保留了 compiler 的優化假設（unsafe 代碼承諾「我做到了 safe 做不到的事，但保證語義不變」），(2) 邊界是 local、可 audit。Effect-unsafe 做不到 #1——你說「這個 function 是 pure 的」然後在裡面 panic，compiler 基於 pure 做的優化全部失效。
+
+CT 翻譯：Rust unsafe 是**有保證的約束鬆綁**——你放鬆了 checker 的約束，但自願承擔了同等的 invariant 維護責任。Effect-unsafe 是**無保證的約束逃逸**——你放鬆了約束但沒有替代性保證。前者是 CC 的 local override（收斂條件不變，實現路徑不同）。後者是 CC 的 violation（收斂條件本身被破壞）。
+
+**跟 #57 的連結——約束應該放在 interface，不是 implementation：**
+
+#57 的核心主張：interface 是唯一需要設計的元素。BF 格子只設計了拓撲（鄰居互動規則），一切有意義的行為從拓撲中湧現。
+
+Effect systems 的失敗模式精確地違反了這個原則：effect annotations 試圖把約束推「過」interface 進入 implementation。你不只定義「這個 module 對外暴露什麼能力」，你定義「這個 module 內部的每個 function 用了什麼能力」。這不是 interface design——這是 implementation prescription。
+
+反之，effect handlers（定義效果在 call site 的語義）是純粹的 interface design——你只定義「在我的 context 裡，這個效果意味著什麼」，不干涉 implementation 用了什麼效果。問題是 effect systems 把 annotation 和 handling 綁在一起：你必須先在 implementation 裡宣告效果（annotation），才能在 call site 定義語義（handling）。
+
+理想的 effect system 應該只有 handling，不需要 annotation——讓 implementation 自由使用任何效果，handler 在 boundary 決定什麼被允許。這恰好是 environment 策略（sandboxing, capabilities）的描述。
+
+**最尖銳句：** 約束行為（「這個函式做了什麼」）是 prescription。約束拓撲（「誰能跟誰互動」）是 convergence condition。Java 試了前者，放棄了。Rust 做了後者，成功了。Effect systems 重新發明了前者，然後用 polymorphism 慢慢往後者靠。最終的穩態不是「更好的 effect annotation」，而是「根本不需要 annotation 的 effect handling」——約束只存在於 interface，從不滲入 implementation。#57 說 interface 是唯一需要設計的元素。#58 的推論：任何試圖設計 implementation 的約束最終都會被系統拒絕——不是被 designer 拒絕，是被演化壓力拒絕。Java checked exceptions 被工業界拒絕不是因為理論錯了，而是因為 implementation-level 約束的 maintenance cost 在任何足夠大的系統中都超過收益。這是「interface shapes cognition」的逆否命題：「implementation-level 約束 distorts cognition」。
+
+連結：#57 Topological Genesis（理想 effect system = 只設計 handler topology，implementation 自由）、#56 Structural Curation（effect polymorphism 是 structural——讓型別結構傳播效果，不靠人工標註）、#30 Constraint Heat（per-function annotation = 過熱——每個元件都被約束住，系統凍結在 prescription）、#22 Dancing Gate（effect annotation 是 Gate——discrete, binary: has effect or not。effect polymorphism 是 Dance——continuous, flows through parameter structure）、#48 Communication Topology（約束拓撲決定系統認知能力，約束行為只決定個別節點的 compliance）。來源：icefox wiki.alopex.li/PonderingEffects, Lobsters discussion, typesanitizer.com/blog/effects-convo.html, Koka lang effect polymorphism。觸發：rumination digest 裡「Pondering Effects (icefox)」標記為 ISC case study 但從未存檔——今天追回原始討論，發現它跟 #57 的 interface-only-design 主張形成精確對位。
