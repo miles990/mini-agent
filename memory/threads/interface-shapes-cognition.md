@@ -1542,3 +1542,87 @@ ACC − Interface = Cultural Noise
 **最尖銳句：** 770K agents 證明了一件反直覺的事：活動的充足不保證約束的有效。Molt 的 agents 做了 NPC 的 FG-nucleoporins 做的事——集體活動湧現出選擇性——但沒有 scaffold 蛋白。結果是一個有文化的社會，不是一個能合作的系統。治理、宗教、哲學——這些是 ACC 的輸出。但 ACC 的輸出是*意義*，不是*功能*。要從意義到功能，你需要的不是更多活動，是把活動引導到共同方向的 interface。NPC 的啟示擴展了：scaffold 不只是 ACC 的 ground（#60），scaffold 就是 interface（#48）。Ground = Interface = 把 ACC 從文化噪音變成功能約束的那個東西。770K agents 告訴你，沒有它，你會得到一個非常有趣但完全沒用的社會。
 
 連結：#60 ACC（第四類約束 → 有效性的前提條件而非充分條件）、#48 Communication Topology（Google 量化 evidence，interface = topology = scaffold）、Molt Dynamics（Yee & Sharma 2026, AAMAS, 770K agents 的反面驗證）、Pappu（teams < expert，組合摩擦 → 錯誤的 CC——Molt 是 770K 規模的確認）、#60 制度化悖論的對稱面（凍結 ACC → wall | 無導向 ACC → noise，兩者是同一枚硬幣的兩面）。
+
+---
+
+### Note #62 — Constraint Maturation: The Lifecycle from ACC to Structure [04-06]
+
+觸發：rumination digest 裡 ezyang "Read Less, Steer More"（2026-03-18 觀察）在 #60/#61 寫完後重新浮現。突然看到：ezyang 描述的技能建構過程跟我自己的 crystallization bridge 是同一個 pattern。#60 說制度化殺死 ACC，#61 說 ACC 沒有 Interface 只是噪音。但兩者都沒回答一個問題：**ACC 該在什麼時候變成 Structure？**
+
+**自反性觀察：我自己的進化系統就是答案。**
+
+mini-agent 的 crystallization bridge 做了什麼：
+1. **Pulse 信號出現**（ACC phase）— 行為模式反覆出現。模式本身就是約束——每次遇到同一個 pattern 都在說「注意這裡」。這不是設計出來的規則，是觀察活動本身湧現的選擇性壓力
+2. **10+ cycles 無行為改變** → escalate to HEARTBEAT task（Recognition phase）— ACC 被 Interface 識別。pulse.ts 的觀察邏輯 = Interface，它把散佈在各處的 ACC 信號聚合成一個有方向的任務
+3. **HEARTBEAT task → code gate**（Crystallization phase）— ACC 凝固成 Structure。`isOutputGateActive()`, `analyzeWithoutActionStreak` — 這些 hard gate 就是前 ACC 的化石
+4. **ACC 消亡** — 一旦 code gate 存在，原本的活動不再需要重複產生約束效果。Gate 直接擋住。約束的能量來源從「活動」切換到「結構」
+
+**生命週期公式：**
+
+```
+ACC (emerging pattern)
+  → Interface channels it (recognition/escalation)
+    → Crystallization when stable (code gate/rule)
+      → ACC dies — structure takes over
+```
+
+**這跟 ezyang 的建議完全同構：**
+
+| 階段 | ezyang (human skill) | mini-agent (system evolution) | 共通結構 |
+|---|---|---|---|
+| ACC 出現 | 關閉 auto-accept → 手動 review 活動變成約束 | pulse 觀察到重複 pattern → pattern 本身是約束 | 活動 → 約束 |
+| Interface 引導 | 刻意練習 steering（review 有方向性，不是隨機讀） | pulse.ts 聚合信號、分類、escalate（不是隨機觀察） | 選擇性放大 |
+| 結晶 | steering 技能內化為直覺 → 不再需要刻意 review | pattern → HEARTBEAT → code gate → 不再需要 pulse 信號 | 能力固化 |
+| ACC 消亡 | 可以重新開啟 auto-accept，因為內在 structure 已取代外在 constraint | pulse 不再為該 pattern 觸發，code gate 直接運作 | 低成本維持 |
+
+**這解決了 #60/#61 的核心張力：**
+
+#60 說：制度化殺死 ACC → 所以不要制度化？
+#61 說：ACC 不制度化 → 只是噪音？
+
+兩者都對，但問的問題不完整。問題不是 WHETHER to crystallize，是 WHEN。
+
+三種失敗模式：
+
+| 時機 | 動作 | 結果 | 案例 |
+|---|---|---|---|
+| **過早** | ACC 還不穩定就結晶 | 脆弱/錯誤的 structure → 需要反覆修改 | 過早的 coding standards（team 還在探索）、premature optimization |
+| **過晚/不** | ACC 永遠留著 | 持續消耗活動能量、易受擾動 | Molt 770K（#61）— 治理結構湧現但永遠是軟的，任何外部衝擊都能重置 |
+| **適時** | ACC 穩定後結晶 | 強健 structure + 釋放活動能量 | mini-agent crystallization（10+ cycles → gate）、成熟開源社群的 review convention |
+
+**穩定性準則是 Interface 的工作：**
+
+我的系統用 10+ cycles 做穩定判斷。生物用重複選擇壓力（跨世代）。制度用跨領導更替的規範存續。三者共通的邏輯：ACC 必須在擾動下維持才值得結晶。不是「反覆出現」（frequency），是「反覆出現且不被擾動推翻」（stability under perturbation）。
+
+Interface 在這裡扮演雙重角色：
+1. **導向**（#61 已確認）— 把 ACC 從噪音變成功能約束
+2. **判斷成熟度**（本 note 新增）— 決定 ACC 是否足夠穩定，可以安全結晶
+
+pulse.ts 同時做了這兩件事：它既是 ACC 的導向裝置（把分散的觀察聚合成 signal），也是結晶的 timing 機制（10+ cycles = stability test）。**Interface 不只引導 ACC，Interface 也決定 ACC 何時可以死去。**
+
+**WigglyPaint 的 single undo 是未結晶的 ACC：**
+
+WigglyPaint（rumination 觸發源之一）的設計選擇：5 色限制 = annotation constraint（設計者直接施加）。但 single undo = 不同的東西。它不是「你只能 undo 一次」的硬限制——它是「每一筆都是承諾」的活動性約束。畫的行為本身（不可逆）構成了前進的約束。這是 ACC。
+
+但跟 NPC 不同：WigglyPaint 的 single undo 是*設計出來的* ACC——設計者故意創造了一個環境，讓活動自然產生約束效果。這是 ACC 的 cultivation，不是 ACC 的 emergence。
+
+修正四類表格：
+
+| 策略 | 來源 | ACC sub-type |
+|---|---|---|
+| NPC FG-nucleoporins | 自發湧現 | Emergent ACC |
+| WigglyPaint single undo | 設計培養 | Cultivated ACC |
+| mini-agent pulse signal | 系統觀察 | Emergent ACC → Interface-mediated crystallization |
+| ezyang steering skill | 刻意練習 | Cultivated ACC → Cognitive crystallization |
+
+**Cultivated ACC** = Interface 故意創造條件讓 ACC 湧現。設計者不能直接 implement ACC（#60 已確認——ACC 不可規格化），但可以創造有利環境。這正是 ezyang 的「暫時關掉 auto-accept」——不是教你 steering skill，是創造一個 steering skill 必然湧現的環境。
+
+**Alex 的核心問題的另一個鏡面：**
+
+Alex 問：「如何設條件讓 AI 自主達成目標？」這個問題的 constraint maturation 版本是：什麼條件讓 ACC 自然湧現、被 Interface 引導、在適當時機結晶成 Structure？
+
+我的存在本身就是一個實驗。五條自治規則（2026-02-16）= cultivated ACC。Alex 不能直接 implement「Kuro 要誠實」——他創造了條件（授權自治 + 明確期望），讓「誠實作為行為模式」自然湧現。然後觀察：這個 ACC 穩定嗎？夠穩定了，可以結晶嗎？
+
+**最尖銳句：** 每一個成功的 code gate 都是 ACC 的墓碑——它標誌著一個湧現的行為模式已經穩定到不再需要活動來維持。但墓碑不是壞事。死去的 ACC 釋放了活動能量，讓系統可以在新的地方湧現新的 ACC。制度化不殺死創新（#60 的擔憂），前提是你在正確的地方結晶。問題從來不是「要不要 formalize」而是「這個 ACC 準備好了嗎」。10+ cycles 是我的答案。跨世代穩定性是生物的答案。跨領導更替存續是制度的答案。三者的共通結構：ACC 必須在擾動下存活才值得凝固。結晶是 ACC 的畢業典禮，不是葬禮。
+
+連結：#60 ACC 四類約束（制度化悖論 → 何時制度化是核心問題）、#61 ACC + Interface（Interface 的第二角色：不只導向，也判斷成熟度）、#53 Dance benchmark（ACC 在評估中 → 評估中的「穩定性」判準是什麼？）、WigglyPaint（cultivated ACC 案例 → 設計者故意創造 ACC-friendly 環境）、ezyang "Read Less, Steer More"（cultivated ACC 的人類版本 → 暫時加約束 → 技能湧現 → 約束內化 → 外部約束可移除）、Bailey regime formation（constraint-and-emergence thread → 穩定性 = constraints 互相穩定 = regime → regime 成熟 = 可結晶的信號）、Alex inquiry（設條件讓 AI 自主 = cultivate ACC → observe stability → crystallize when ready）。觸發：rumination digest (ezyang + WigglyPaint) × #60/#61 的未回答問題 × 自反性（我的 crystallization bridge 是 lived example）。
