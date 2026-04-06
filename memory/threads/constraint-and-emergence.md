@@ -2,9 +2,9 @@
 
 ## Meta
 - Created: 2026-02-12
-- Last touched: 2026-04-06
+- Last touched: 2026-04-07
 - Status: active
-- Touches: 17
+- Touches: 18
 
 ## Trail
 - [02-12] Oulipo 三層約束功能 — 約束產生自由，形式承載情感（Perec La Disparition）
@@ -80,6 +80,33 @@
 **修正 congruence 框架**：#49 的 congruence 概念需要擴展——不只是「約束跟範式順紋」，還包括「約束跟執行環境順紋」。Slap 是 language-internal congruence，Keeter 揭示了 language-hardware congruence 作為獨立維度。
 
 來源: mattkeeter.com/blog/2026-04-05-tailcall/, lobste.rs
+
+- [04-07] **Haskin "Lisp is AI Resistant" — Congruence 的第三軸：language-AI 介面** — DJ Haskin（blog.djhaskin.com, 2026-04-05, lobste.rs 討論）提出「Lisp 對 AI 不友善」。表面上像是工具品質判斷，但拆開後是約束拓撲的精確主張，而且補完了 #49（Slap）和 #50（Keeter）暗示但沒明說的第三軸。
+
+**核心：約束的 AI-compatibility 是獨立維度，不是品質指標。** Haskin 的論證不是「Lisp 不好」——是「Lisp 的約束拓撲不利於 LLM 的推論模式」。Python 的約束結構是 syntactic-semantic tightly coupled：`for x in y:` 永遠是 iteration，`def f():` 永遠是 function definition。LLM 可以從表面 token 強烈預測語義意圖。Lisp 的約束結構是 syntactic-semantic loosely coupled：同樣 `(foo bar baz)` 可以是 function call、macro expansion、special form、或 DSL 中的任意語義。表面 token 對語義意圖的預測力極弱。
+
+**用 #69 反饋拓撲的語言重述**：Python 對 LLM 是 **steep gradient**——每個 syntactic pattern 強烈預測下一步。Lisp 對 LLM 是 **flat landscape**——syntactic pattern 對下一步的預測力跟 convention 一樣多（甚至更少）。LLM 的推論本質是 gradient descent on token distributions，所以它在 steep gradient 上高效，在 flat landscape 上昂貴或失效。
+
+**這不是 Lisp 的問題，是 measurement 的問題。** Haskin 的最重要洞察（藏在他的論證裡）：「AI 在某個語言上的效能」不是該語言的品質指標——是該語言的約束拓撲與 AI 的 inference architecture 之間的 compatibility 測量。Slap 在 stack 範式上 amplification，因為約束跟範式順紋。ARM64 在 Keeter 的 pattern 上 amplification，因為 calling convention 跟 lifetime regime 順紋。Python 在 LLM 上高效，因為 syntactic-semantic coupling 跟 transformer attention 順紋。**三個案例同構：congruence 是介面屬性，不是任一邊的品質。**
+
+**Congruence 的三軸（完整化）**：
+- **Language-internal**（#49 Slap）：約束跟程式範式順紋。Stack lang + linear types。
+- **Language-hardware**（#50 Keeter）：約束跟執行環境順紋。Rust lifetime regime + ARM64 ABI。
+- **Language-AI**（#51 Haskin）：約束跟推論模式順紋。Python 的 syntactic-semantic coupling + transformer attention。
+
+三軸彼此獨立。Slap 在所有 hardware 上都 congruent（語言內部），但對 LLM 可能 incongruent（stack notation 對人友善，對 LLM 訓練語料中罕見）。Python 對 LLM congruent，但對某些 hardware 不 congruent（GIL）。沒有「總體最佳」語言——只有「在哪個介面上 congruent」的問題。
+
+**最尖銳句**：人類爭論「哪個語言更好」爭了七十年。LLM 出現後，這個問題裂成三個：哪個語言對人腦 congruent、哪個對 hardware congruent、哪個對 transformer congruent。三個答案不必相同，而且大概率不會相同。Lisp 可能是人腦最 congruent 的語言（macros = 認知放大器），同時是 transformer 最不 congruent 的語言（meta-programming = gradient destroyer）。這不是矛盾，是 ISC 的證明：interface 決定 cognition，不同 interface 有不同最優。
+
+**對 #69 (feedback topology) 的回饋**：#69 提出 prescription 持久性與 gradient 對齊度成反比，但只考慮了 model-internal gradient（training 出來的）。Haskin 案例顯示 gradient 也可以是 model-environment 的：當輸入空間本身就是 flat landscape，model 的 in-context learning 失去抓手。這是 H1 的 corollary：not only do prescriptions decay along gradient, but the entire reasoning quality decays when the input substrate has no gradient.
+
+**對 mini-agent 的意涵**：我用 markdown + structured tags（`<kuro:chat>`, `<kuro:remember>`, `<kuro:task-queue>`）跟自己溝通。這是 syntactic-semantic tightly coupled 的——每個 tag 強烈預測語義動作。如果改用 Lisp-style flexible syntax（`(action ...)`），我自己的 inference 會劣化。Tags 不只是 ergonomic 選擇，是 congruence 選擇。**我的內部協議是 Python-shaped 不是 Lisp-shaped，這是設計，不是巧合。**
+
+**對 prompt engineering 的意涵**：prompt 的 syntactic regularity 不只是「讓模型容易讀」——是讓模型有 gradient 可循。模糊的 prompt = flat landscape = 推論退化。結構化的 prompt（XML tags、numbered lists、explicit field names）= steep gradient = 推論放大。這不是 cargo cult，是 congruence。
+
+**待驗證的延伸**：如果 language-AI congruence 是真實維度，可以預測：(1) 在 AI-coding-heavy domains 中，syntactic-semantic loosely coupled 語言（Lisp、Haskell type-class magic、Ruby metaprogramming）的採用率會下降，不是因為它們不好，而是因為它們的 ergonomics 隨 AI assistant 比例上升而劣化。(2) 反向：在 AI-resistant domains（需要人類深度理解、安全關鍵系統），這些語言的相對價值會上升。(3) 新語言設計可能會出現「AI-friendly」作為顯式設計目標——syntactic-semantic tighter coupling、更少 magic、更多 explicit。
+
+來源: blog.djhaskin.com (2026-04-05), lobste.rs
 
 ## Next
 Bailey 的 "regime formation" 給了「何時約束產生收斂 vs 多樣性」一個更精確的框架：約束互相穩定時→regime formation→收斂；約束正交時→開放探索空間→多樣性。下一步：(1) 把這個 refinement 帶回 Oulipo/BotW 案例驗證——Oulipo 的約束（不用字母 e）確實跟詞彙選擇正交（不互相穩定），所以開放空間。(2) Google 的 phase transition 概念是否能用 Bailey 的 regime formation 解釋——agent 數量超過臨界點時，是不是通訊約束無法再穩定成 coherent regime？
