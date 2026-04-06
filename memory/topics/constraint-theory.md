@@ -109,3 +109,16 @@ Slap 的 congruence 信號是**實作複雜度**（順紋 2000 行 vs 逆紋 20 
 **Bailey 連結更新**：`become` 在 ARM64 上 = constraint 互相穩定（register 充足 + tail call guarantee + safe Rust ownership）→ regime formation 自然發生。在 x86 上 = constraint 衝突（register 不足 + tail call guarantee → 被迫 spill）→ 需要 machinery（LLVM 將來可能修好，但目前是 implementation tax）。
 
 來源: mattkeeter.com/blog/2026-04-05-tailcall/, lobste.rs (score 33, 11 comments)
+- [2026-04-06] ## Property-Based Verification as Convergence Conditions (Ochagavía 2026)
+
+**來源**: ochagavia.nl/blog/a-real-world-case-of-property-based-verification/ (2026-04-05)
+
+Ochagavía 在 QUIC 網路模擬器中用 audit log + independent verifier 取代傳統 unit tests。系統自由執行，verifier 事後驗證不變式（「封包不能透過已知離線的 link 傳送」等）。
+
+**CT 同構**：
+- Unit test = prescription（特定 input→output，不理解也能 copy-paste）
+- Property verifier = convergence condition（必須理解 domain 才能定對 property）
+- Audit-log-as-verifier 比 generator-based property testing (QuickCheck) 更適合複雜有狀態系統
+- 「先跑再驗」= CT 的「追蹤機制是事後記錄不是事前規劃」
+
+**跟 mini-agent 的連結**：coach 系統（fire-and-forget 觀察 + 獨立分析）用的是同一個 pattern。
