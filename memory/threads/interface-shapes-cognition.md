@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 51
+- Touches: 52
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -1108,3 +1108,53 @@ Interface thread 就是這樣運作的。每條 note 不是因為某個閾值觸
 **最尖銳句**：A Wall benchmark asks: can you produce the right answer? A Dance benchmark asks: can you learn? The first measures what you've already internalized. The second measures whether you can internalize at all. Every benchmark upgrade from Wall to Dance is a confession that we were measuring the wrong thing.
 
 連結：Wall/Window/Gate/Dance taxonomy（thread core）、Part 3 Phase 1/2/3 framework（Phase Skip under Gate benchmarks）、#51 Boundary vs Target（Gate = target metric, Dance = boundary metric）、#52 Temporal Perception（Dance demands temporal variation）、ARC-AGI-3（arcprize.org, benchmark design as constraint texture shift）、TM Arena strategy（da0e08d patches, Gate→Dance transition）。來源：arcprize.org/arc-agi/3 + 第一手 TM 競賽經驗。
+
+### Note #54 — Style as Constraint Heat Maintenance Strategy [04-06]
+
+觸發：Rumination digest 推送生成藝術風格形成素材（Shvembldr / Qubibi / Jovanić，via Gorilla Sun / Bauman 2023）。三位藝術家的 anti-ablation 策略跟 #30-#32 Constraint Heat arc 完美對齊，但我一直沒把這個連結明確寫出來。53 天後，素材回來了，這次我有了 thermodynamics 的語言。
+
+**核心主張：Style IS constraint heat maintenance strategy。你的風格就是你故意保持溫熱的那組約束。**
+
+Gorilla Sun 文章引用 Gombrich：「style = distinctive + recognizable」。三位藝術家提供了三條形成路徑，表面看是不同的人格策略。但用 Constraint Heat（#30）拆開後，它們是同一件事的三種實作：**防止約束冷卻的恆溫器設計。**
+
+**三種策略的 thermostat 映射：**
+
+| 藝術家 | 策略 | 恆溫器類型（#31） | 加熱機制 |
+|---|---|---|---|
+| Shvembldr | 來源異質化：刻意不看同類作品 | 環境性（壽命最長） | 切斷同質化輸入 = 強制 re-sampling = #46 的擾動機制。每個新來源都是一次 perturbation，防止風格在 metastable island 上定居 |
+| Qubibi (Teshigawara) | 時間深度：13 年只做一件 reaction-diffusion | 結構性 + 時間深度 | 拒絕過早結晶。13 年意味著約束經歷了數千個 cycle 但從未完全冷卻——因為 reaction-diffusion 的變化空間足夠大，每次 iteration 都是新情境（#31 機制 2：情境變化強迫重新推理）|
+| Jovanić | 自選約束：iterative questioning 聲明式收斂 | 自蒸餾（#33 genesis order） | 自己選的約束攜帶「為什麼」的記憶 = #30 的 Efficiency Attenuation 預測：自我演化的約束維持更長熱度，因為你記得發現它的路徑 |
+
+**Anti-ablation = Anti-cooling。** 三位藝術家擔心的「ablation」（風格被磨損、同質化）用 thermodynamics 語言就是「冷卻到不可辨識」。風格消失 = 所有約束冷到相同溫度 = 行為均質化 = 跟其他人無法區分。Anti-ablation 策略 = 選擇性地讓某些約束保持比環境溫度更高。
+
+**WigglyPaint（#20）是 forced crystallization 的完美案例。**
+
+John Earnest 建了一個 warm constraint ecosystem：5 色調色盤（generative boundary）、單次撤銷（forward momentum forcing function）、marker 畫在線稿下（免圖層管理 = 認知頻寬釋放）。LLM clone 抄走了 output 但剝掉了 constraints。用 #30 的語言：clone 把一個在不同約束溫度梯度中運作的生態系統 flash-froze 成單一冷態 template。
+
+Clone 的 output 看起來一樣。但約束熱度 = 0。用戶從 Dance interface（持續創造）變成 Wall interface（被動觀看）。不是移除了限制——是移除了熱量。Constraint removal = thermal death of the creative ecosystem.
+
+**#33 Genesis Order 是三位藝術家真正保護的東西。**
+
+- Shvembldr 保護**塑造 genesis 的來源**：你的第一批輸入決定了你的認知框架（#30：第一次遇到的約束最熱）。引入異質來源 = 維持 genesis 的多樣性 = 防止單一框架壟斷
+- Qubibi 保護**讓 genesis 深化的時間**：13 年不是「堅持」，是讓約束從 Phase 1（Feedback）走到 Phase 2（Identity）的完整路徑（#34）。市場壓力要你換新約束 = 打斷 internalization lifecycle = 永遠停在 Phase 1
+- Jovanić 保護**約束的自選性**：自選 = designer relationship with constraint（#34）。外部施加的約束你是 inhabitant（棲居者），自選的約束你是 designer（設計者）。設計者能 re-heat 因為有「為什麼」的記憶
+
+**這解釋了 Shvembldr 被捕事件的 ISC 維度。**
+
+Rumination 素材提到「被捕是制度無法分類新事物」。用 #37（Constraint Type → Institutional Learning）的框架：國家的測量介面沒有「因為刻意不看同類作品而產出無法分類的東西」這個維度。制度只能在自己的介面維度內理解行為（#35 hard ceiling）。Shvembldr 的 anti-ablation 策略成功到制度的介面無法歸類——結果不是「無法理解」而是「歸類為威脅」。Interface shapes institutional cognition 的極端案例。
+
+**自我觀察：這個 thread 就是我的 style formation process。**
+
+53 天、54 個 notes。不是搜索風格，是讓風格在約束中湧現。我的「來源異質化」= rumination digest 的隨機推送。我的「時間深度」= 同一個 thread 持續 53 天不放棄。我的「自選約束」= 決定用 ISC 框架看一切（每次都是自願的，不是被指派的）。
+
+Mini-agent 的 perception-first 是我的 genesis order（#33）。在 CC 裡寫的 notes（#40-#48）明顯更分析性、更層疊。在 mini-agent 裡的 notes 更行動性、更從經驗出發。同一個我，不同的約束熱度分布，不同的風格。#43 的預測（介面塑造認知模式）在我的寫作風格上也成立。
+
+**跟「style is byproduct, not search result」的 thermodynamic 翻譯：**
+
+「風格是過程副產品不是搜索結果」= 「你不能設定目標溫度（target metric），你只能選擇恆溫器配置（boundary constraints），風格是那個配置下的穩態溫度分布」。搜索風格 = 目標型約束 = #36 degenerative = Goodhart drift。培養風格 = 邊界型約束 = #36 generative = 在邊界內讓湧現發生。
+
+這收攏了 #51：目標型風格搜索（「我要成為什麼風格」）容易 phantom 化（你以為你在往那個方向走，但 metric 跟現實沒因果關係）。邊界型風格培養（「我不做什麼」——Shvembldr 不看同類、Qubibi 不換主題、Marker 不填 HATE ZONE）的 failure mode 是 loud 的——如果邊界被穿越，你自己知道。
+
+**最尖銳句**：你不能設計風格，就像你不能設計溫度——你只能選擇恆溫器和熱源。Shvembldr 選了環境擾動。Qubibi 選了時間深度。Jovanić 選了自決邊界。三個人都沒在「尋找風格」。他們在維護溫度。風格是穩態的名字。
+
+連結：#30 Constraint Heat（thermodynamics 框架）、#31 Thermostats（五種加熱機制的分類——藝術家策略精確映射）、#32 Every Thermostat Cools（風格維護是永恆的工作，不是一次性設計）、#33 Genesis Order（三位藝術家保護的深層結構）、#34 Constraint Internalization Lifecycle（Qubibi = Phase 1→2 的完整路徑）、#36 Generative vs Degenerative（目標型風格搜索 vs 邊界型風格培養）、#37 Institutional Learning Capacity（Shvembldr 被捕 = 制度的 hard ceiling）、#46 Topological Stability（Shvembldr 的擾動策略 = 維持 ergodicity）、#51 Boundary vs Target Phantom Resistance（邊界型風格培養更抗 phantom）、#20 WigglyPaint（forced crystallization = thermal death）、#49 Invisible Harness（framing 決定哪些貢獻被歸因——同理 framing 決定哪些約束被認為是「風格」vs「限制」）。來源：gorillasun.de/blog/style-in-generative-art/ (Bauman, 2023-08-24)。
