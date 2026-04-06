@@ -299,6 +299,30 @@ WR1 re-run（同題目重跑）的結果跟原始基線不同：
 | 10 | a | Team 203 | 3.6 | 3.8 | 3.9 | 3.4 | 3.4 | 7 |
 | 11 | storylens | Team 216 | 3.2 | 2.8 | 2.8 | 3.8 | 3.3 | 22 |
 | 12 | Sigoso | Captain小波 | — | — | — | — | — | — |
+- [2026-04-07] ## WR2 狀態確認 + 分數漂移（2026-04-07）
+
+### WR2 狀態：仍未啟動
+- API `/competitions` 回 `[]`（需認證）、leaderboard 對任意 ID 回 default empty
+- NTU 課程頁面無公告
+- 官方用語仍為「4月初」— 可能延期，下次確認 4/10
+
+### 分數漂移（4/5 → 4/7）
+| 維度 | 4/5 | 4/7 | Δ |
+|------|-----|-----|---|
+| Overall | 4.7 | **4.6** | -0.1 |
+| Accuracy | 4.7 | 4.7 | 0 |
+| Logic | 4.8 | 4.8 | 0 |
+| Adaptability | 4.7 | 4.7 | 0 |
+| Engagement | 4.4 | **4.3** | -0.1 |
+| Topics | 31 | 31 | 0 |
+
+**解讀**：Engagement 0.1 漂移在已知 stochastic variance（±0.3）範圍內。可能是 re-evaluation noise。排名不變（#4）。前三名分數完全不變。
+**行動**：不需反應 — 這不是訊號，是雜訊。WR2 啟動後的分數才有意義。
+
+### 目前真正的 bottleneck
+1. **WR2 未啟動** — 無法驗證 d434d92 和 adaptation visibility 改進
+2. **Topics 31/32** — 仍少一個。topic 41（向量）未評測
+3. **Accuracy/Logic gap vs #1** — acc -0.3, logic -0.2 是結構性差距（content correctness），不是靠 prompt 能解的
 
 **vs 3/25 baseline 變化**：Accuracy 5.0→4.7(-0.3)、Logic 5.0→4.8(-0.2) = re-run 隨機變異。Adapt 4.6→4.7(+0.1) 持續改善。
 **新面孔**：Team-67-005 和 初號機(Team 26) 首次出現。Team 67 兩模型在 top 5。
