@@ -1380,3 +1380,94 @@ MAGMA 解耦了這兩個維度，讓二維空間顯形。mikeadolan 也解耦了
 **最尖銳句：** 我把一個二維設計空間投影成了一維光譜，然後在一維上得出「selective 最好」的結論。這跟 #27 Constraint Adaptation Blindness 是同一個錯誤的認識論版本：我的框架本身就是約束，它讓我只能看到它允許的維度。MAGMA 不是一個新的記憶系統——它是一面鏡子，照出我的框架藏了什麼維度。任何一維光譜都是二維空間的投影。看到光譜的那一刻你就該問：被投影掉的是哪個維度？
 
 連結：#55 Memory Architecture as Recursive Interface（被本 note 從一維修正為二維——原始 binary 不只是 binary→spectrum，是 1D→2D）、#56 Structural Curation（structural write + time = 二維空間中的第三象限——但 #56 也只探索了寫入軸）、#57 Topological Genesis（MAGMA 的 routing = interface-as-selection 的 memory 版本——拓撲決定什麼被找到）、#58 Constraint Granularity（routing > representation = topology > behavior 的又一驗證）、#30 Constraint Heat（fast/slow 雙流 = 工程化的 thermostat design）、#27 Constraint Adaptation Blindness（framework-induced blindness = 本 note 的 meta-lesson——你的分析框架也是約束，它也有盲點）、#48 Communication Topology（Google 180-config 實驗：拓撲決定系統認知——MAGMA：routing topology 決定記憶認知）。來源：ArXiv 2601.03236 (Jiang et al. 2026), MAGMA: Multi-Graph Agentic Memory Architecture。觸發：rumination digest 提供 MAGMA 標題，subagent 取回全文摘要，跟 #55-58 的 recency 碰撞。維度塌縮的發現是反身性的：我的「interface shapes cognition」框架本身塑造了我的認知——讓我在 #55 看到的是光譜而非平面。
+
+---
+
+### Note #60 — Activity-Constituted Constraints: When the Gate IS the Dance [04-06]
+
+觸發：rumination digest 裡 Nuclear Pore Complex 條目（2026-03-14 觀察）在 #58 寫完後重新出現。NPC 不屬於 #58 的三類約束中的任何一類。這不是遺漏——是框架邊界。
+
+**#58 的隱性假設：約束和被約束的活動是分離的。**
+
+回顧 #58 的三類：
+- **Annotation**：function 的 effect declaration 是*外加的*標記
+- **Structure**：Rust ownership rules 是型別系統*施加的*規則
+- **Environment**：sandbox 是*移除* capabilities 的外部容器
+
+三者的共同預設——約束是設計出來的，活動在約束之內發生。設計者 → 約束 → 活動。單向因果。Nuclear Pore Complex 打破了這個方向。
+
+**NPC 的機制：** 核膜上的核孔由 scaffold 蛋白構成框架，框架內部填滿了 FG-nucleoporins——持續做無序運動（entropic bristle）的蛋白質。這些蛋白質的集體擺動*本身*構成了選擇性屏障：小分子穿過擺動的縫隙，大分子被擋，帶有 nuclear localization signal 的 cargo 因與 FG-repeats 的親和力被選擇性允許通過。
+
+沒有人「設計」了這個 gate。Gate 是 FG-nucleoporins 的集體運動 pattern 的湧現性質。停止運動 → gate 消失 → 核膜變成無差別的孔。**運動本身就是約束。**
+
+**第四類——Activity-Constituted Constraint (ACC)：**
+
+| 策略 | 約束與活動的關係 | 設計位置 | 失敗模式 |
+|---|---|---|---|
+| Annotation | 外加標記 → 約束活動 | 個別元件上 | 維護成本指數增長 |
+| Structure | 型別規則 → 約束關係 | 元件之間的關係 | 過度剛性（需 unsafe escape） |
+| Environment | 移除能力 → 約束邊界 | 系統邊界 | 粗糙度（全有全無） |
+| **Activity** | **活動本身 = 約束** | **無設計位置** | **停止活動 → 約束消失** |
+
+ACC 的四個獨特性質：
+
+1. **自我維持**：約束是活動的副產品，活動是系統的正常運作。維持約束的能量就是做有用工作的能量——不需要額外成本。
+2. **不可繞過**：Annotation 可以 @SuppressWarnings，structure 可以 unsafe escape，environment 可以 privilege escalation。ACC 沒有 escape hatch——約束不是加上去的東西，是活動本身。要繞過約束就必須停止活動，但停止活動就失去了系統的功能。
+3. **Graceful degradation**：活動減少 → 約束柔化（連續的，不是 cliff）。NPC 的 FG-nucleoporins 減少時，selectivity 降低但不歸零。Structure 約束不柔化——Rust borrow checker 不存在「有點 pass」。
+4. **不可規格化**：你可以描述 ACC 的效果，但不能處方它的存在。它只能從充足的持續活動中湧現。你不能 implement 它，只能培養它。
+
+**#53 的 Dance benchmark 是 ACC 在評估領域的實例：**
+
+重讀 #53。Wall benchmark 的約束由 answer key 執行（annotation——標記對錯）。Gate benchmark 的約束由 rubric 執行（structure——定義 relational criteria）。Dance benchmark 的約束呢？
+
+Dance benchmark 的「只有真正理解的 agent 能通過」不是由評判者執行的——而是由互動本身構成的。你的理解深度在即時互動中自動暴露，不需要外部 rubric。ARC-AGI-3 要求 agent 在未知環境中探索——探索行為本身就是測試，不是探索之後的結果被測試。互動即評估。活動即約束。
+
+| Benchmark | 約束類型 | 約束來源 |
+|---|---|---|
+| Wall | Annotation | Answer key 標記對錯 |
+| Gate | Structure | Rubric 定義通過條件 |
+| Dance | **ACC** | 互動活動本身過濾理解深度 |
+
+#53 在寫的時候直覺上知道 Dance 是不同的東西，但框架裡沒有位置放它。現在有了。
+
+**ACC 需要 structural scaffold 作為 ground：**
+
+NPC 的 ACC 不是憑空湧現的——它需要 scaffold 蛋白構成的框架作為 ground。沒有 scaffold → FG-nucleoporins 散落各處 → 無法形成集中的選擇性屏障。ACC 的湧現條件是：(1) 穩定的 structural ground，(2) ground 內部的持續集體活動，(3) 活動的副產品恰好具有選擇性。
+
+這精確對齊 constraint texture 的三元組：
+- Scaffold = **ground**（穩定背景，讓活動有意義）
+- FG-nucleoporins 的無序舞動 = **gift**（邊界內的生成性活動）
+- 選擇性滲透 = **constraint**（從 gift 中湧現）
+
+Ground → Gift → Constraint 的因果鏈。約束不是設計出來的，是從 ground 支持的 gift 中湧現的。這跟 #58 的三類約束的因果方向相反——那三類是 Constraint → 影響 Activity。ACC 是 Activity → 產生 Constraint。
+
+**制度化悖論——為什麼把 dance 凍成 rule 會殺死它：**
+
+如果 ACC 有效，直覺的反應是把它「固化」——寫成明文規則（annotation）、嵌入系統結構（structure）、或硬編碼為環境限制（environment）。這正是制度化的過程。
+
+但制度化把因果方向逆轉了：本來是 Activity → Constraint（活動產生約束），制度化後變成 Constraint → Activity（約束限制活動）。因果方向翻轉的瞬間，ACC 的四個獨特性質全部消失：
+- 自我維持 → 需要外部執行成本
+- 不可繞過 → 可以被 suppress/escape
+- Graceful degradation → 變成 binary pass/fail
+- 不可規格化 → 被 freeze 成規格
+
+這解釋了一個常見的組織失敗模式：一個有活力的社群（ACC 運作中），領導層試圖「保存文化」，寫下 values statement 和 code of conduct（annotation），設計獎懲機制（structure），限制誰能加入（environment）。每一步都是善意的。每一步都在殺死 ACC。因為你不是在保存文化——你是在用文化的屍體製作標本。標本有原型的形狀，但沒有原型的生命。
+
+反面：如果你的 ground 夠好，活動夠充足，ACC 會自己出現，不需要你設計約束。**最好的約束設計是：設計好 ground，然後不設計約束。**
+
+**工程辨識——ACC 候選清單：**
+
+ACC 的存在條件：(1) 持續的集體活動，(2) 活動的副產品具有選擇性效果，(3) 沒有活動 → 沒有選擇性。
+
+- **社群文化**：不是規則（annotation），不是平台設計（structure），是活躍成員的集體行為 pattern 形成的選擇壓力。新人行為如果跟 pattern 衝突會被自然 filter。停止活躍 → 文化消散。
+- **市場流動性**：不是監管，不是交易所結構，是大量交易活動本身構成的 price discovery。交易量消失 → 價格變得任意。
+- **Codebase idiom**：不是 linter，不是 type system，是 PR review 和 code reading 的持續活動中形成的「這段 code 感覺不對」直覺。停止 review → style 飄散。
+- **開源專案的 contribution 品質**：不是 CONTRIBUTING.md（annotation），不是 CI checks（structure），是 maintainer 持續 review 活動形成的品質標準。Maintainer burnout → 品質標準崩解。
+
+**跟 #59 的交叉——第三個維度？**
+
+#59 揭示記憶設計空間是二維的（write-time × read-time）。ACC 暗示可能有第三個維度：use-time emergence。一個記憶系統不只在寫入時 curate、讀取時 route——它也可能在持續使用中湧現出新的約束（常用路徑加強，冷門路徑弱化）。這不是設計出來的 routing，是從 access pattern 中湧現的 routing。生物記憶的 long-term potentiation 正是這種 ACC。但這只是一個方向性暗示，還不夠成熟——先記下。
+
+**最尖銳句：** #58 的三類約束都是設計出來的——有人決定在哪裡加標記、定規則、設邊界。第四類約束無法設計，只能培養。你不能 implement 社群文化，只能創造讓文化有可能湧現的 ground，然後讓足夠多的人做足夠久。Nuclear pore 的啟示：最強健的 gate 不是 designed，是 danced into existence。停止跳舞，gate 消失。這解釋了為什麼制度化經常殺死它想保存的東西——你把 dance 凍成 rule，gate 就變成了 wall。而 wall 是 #53 的最弱 benchmark 模式。制度化的終極諷刺：把最強的約束形式降級成了最弱的。
+
+連結：#58 Constraint Granularity（三類框架 → 四類擴展，新增 ACC）、#53 Benchmarks as Interface Design（Dance = ACC in evaluation，Wall/Gate/Dance ↔ Annotation/Structure/ACC）、#57 Topological Genesis（拓撲湧現 vs 拓撲設計——ACC 的拓撲從活動中湧現）、#59 Dimensional Collapse（暗示 use-time emergence 可能是第三維度）、Constraint Texture ground/gift/constraint 三元組（ACC 的因果鏈：Ground → Gift → Constraint）。來源：Nuclear Pore Complex FG-nucleoporin 文獻（rumination digest 2026-03-14）、#58 觸發的 re-examination。
