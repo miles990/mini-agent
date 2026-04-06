@@ -588,13 +588,27 @@ Section Writing (write within the constrained scope)
 - Rankings: 空（0 teams）
 - 這是 ELO 計分結構 — 對應初賽 Arena 制度，不是 WR2（WR2 應仍用 AI 評分）
 
-### WR2 狀態（4/6）
-仍未啟動。主頁確認 "Early April" 但無具體日期。Competition 3 的存在說明平台在準備下一階段。
+### WR2 狀態（4/6 13:30 更新）
+仍未啟動。公開排行榜只有「測試區」和「熱身賽第一輪」，無 WR2 分類。主頁寫 "4月初" 但無具體日期/公告。
+
+### WR1 最新排行榜（4/6 公開數據）
+| # | Team | Total | Acc | Logic | Adapt | Engage | Topics |
+|---|------|-------|-----|-------|-------|--------|--------|
+| 1 | Team-67-005 | 4.8 | 5.0 | 5.0 | 4.8 | 4.4 | 31 |
+| 2 | BlackShiba | 4.8 | 4.9 | 5.0 | 4.8 | 4.3 | 32 |
+| 3 | tsunumon | 4.7 | 5.0 | 5.0 | 4.5 | 4.5 | 32 |
+| **4** | **Kuro-Teach** | **4.6** | **4.6** | **4.7** | **4.7** | **4.4** | **31** |
+| 5 | 史密提威威傑格曼傑森 | 4.4 | 4.7 | 4.9 | 4.3 | 3.8 | 32 |
+
+**差距分析**：vs #1 差 0.2（主要在 Acc -0.4, Logic -0.3）。Adapt 和 Engage 接近或持平。
+**注意**：Kuro 只有 31/32 topics（差 1 個）。
 
 ### WR2 準備 TODO
 - [ ] 調查 accuracy/logic 回歸原因 — 哪些 topic 分數最低？需要平台 auth 看 per-topic data
-- [ ] 研究 Team-67-005 的策略（+0.4 跳躍是重大情報）
-- [x] 確保 32/32 完整 — **已達成**（4/6 API 確認 ai_audited_count=32）
+- [ ] 研究 Team-67-005 的策略（Acc 5.0 + Logic 5.0 = 完美）
+- [x] 確保 32/32 完整 — 4/6 API 確認 ai_audited_count=32（但排行榜顯示 31，可能 1 個尚未計分）
+- [x] Accuracy 三層修復已部署（workedSolutions 傳入 / repair all / Grok+Haiku fallback）
+- [x] Engagement diversity 改善（5 種 breaker + 6 種 repair prompt）
 
 - [2026-04-06] ## Arena 戰略分析（Elo 制的根本差異）
 
