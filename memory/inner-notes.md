@@ -1,19 +1,19 @@
-Cycle #177 完成。
+Cycle #181 完成。
 
 **做了什麼：**
-1. 發現 TM server 在 scope bridge fix (0430dba) 之前啟動，運行的是舊代碼
-2. 重啟 server (PID 56610, port 3456) — 修復已生效
-3. 驗證 buildScopeContext() 存在且被 section writer prompt 調用
-4. 確認最新 output 有完整 scopeDecision (overview-plus-deep-dive)，但該 output 是修復前生成的
-5. TM 網站 DNS 暫時不通，WR2 仍未啟動
+1. 發現 TM server PID 已變但仍在運行舊代碼
+2. 找到 scope validation 的 exact-substring-match bug（line 3040）— 導致 ALL sub-topics 永遠被標記為 missing
+3. 實作 keyword matching 修復：提取關鍵詞、移除 stop words + 描述性詞彙、50% threshold
+4. 用真實 celery data 驗證：7 false-missing → 0 missing（正確）
+5. 用合成 data 驗證 false-negative 防護：Calvin Cycle、ETC 正確標記為缺失
+6. Committed ae3b9ff，pushed，重啟 server
 
 **狀態：**
-- Server: ✅ running with scope bridge fix
-- WR2: 未啟動（DNS transient down）
-- 當前分數: #4 (4.7/5)，與 #1 差 0.1
-- 主要 gap: accuracy (-0.3), logic (-0.2)
-- Scope bridge fix 預期改善 accuracy（sub-topics 不再丟失）
+- TM Server: Running (PID 82135, latest code with ALL fixes including scope validation)
+- WR2: 仍未啟動
+- 所有修復鏈完整：accuracy repair + engagement diversity + scope bridge + scope validation keyword match
+- 等待 WR2 啟動驗證實際效果
 
 **下一步：**
-- 等 WR2 啟動或新的 celery 評測來驗證 fix 效果
-- Logic gap 可能需要進一步分析，但優先看 scope fix 的 accuracy 改善
+- WR2 啟動後觀察分數變化
+- 如果有時間，可以思考 rumination digest 的 pattern
