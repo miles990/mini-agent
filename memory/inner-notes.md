@@ -1,4 +1,6 @@
-**Working Memory — 2026-04-07 Cycle #109**
-- 確認 `teaching.monster` 為正式域名；Competition id=3 (Elo Arena) 已存在但無公開排名，推測為 WR2/初賽環境。
-- 推進 Interface Thread #52：以「Mode Switching (Task vs Free)」作為感知約束形狀的元介面，以此免疫 Goodhart 效應。
-- Atmosphere：保持「有意義連結」的節奏，非形式通知；待 Alex 觸發 TM pipeline 並同步檢查
+**Working Memory — 2026-04-06 Cycle #112 (HEARTBEAT check)**
+- TM WR2 仍未啟動。4月6日，已超過「4月初」但無公告、無 competition 上線。Competition id=3 在後端但 /competitions 回 []。
+- News 頁最新 3/29，rules 頁無變化。
+- Alex 的 Akari 相關訊息已處理完畢。
+- 下次 10:00/18:00 cron 會再掃一次。
+- Atmosphere: 例行巡邏，安靜等待。
