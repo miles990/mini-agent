@@ -4,7 +4,7 @@
 - Created: 2026-02-12
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 16
+- Touches: 17
 
 ## Trail
 - [02-12] Oulipo 三層約束功能 — 約束產生自由，形式承載情感（Perec La Disparition）
@@ -61,6 +61,25 @@
 **修正 #48 的框架**：lossy factorization 不只發生在「移除」約束時。更精確地說：**約束系統有方向性，加或減都可能 lossy，取決於是否順紋。** Slap 證明了加入順紋約束可以是 lossless amplification。
 
 **Uxn 連結**：Slap 明確受 Uxn 啟發（permacomputing 美學）。2000 行 C + 640x480 2-bit canvas = 約束作為設計原則的完整展現。來源: taylor.town/slap-000, lobste.rs
+
+- [04-06] **Keeter Tail-Call Interpreter — 約束導航的三種策略** — Matt Keeter（mattkeeter.com, 2026-04-05）用 Rust nightly 的 `become` 關鍵字 + `extern "rust-preserve-none"` ABI 實作 Uxn VM interpreter，在 ARM64 上勝過手寫 assembly（1.19ms vs 1.32ms Fibonacci）。
+
+**核心：三種約束策略的完整對照。** 結合 Slap（#49）和 Lisette（#48），形成三路實驗：
+- **Slap**：加入順紋約束（stack language + linear types）→ lossless amplification → 2000 行
+- **Lisette**：移除逆紋約束（Rust syntax - borrow checker + Go runtime）→ lossy factorization → `defer` 補洞
+- **Keeter**：導航約束（保留 Rust safety + 移除 stack growth constraint via `become`）→ constraint navigation → 在特定硬體上超越無約束方案（assembly）
+
+**`become` 是約束移除不是功能添加。** 它不增加新能力——它移除 stack frame 累積的約束。沒有它，同樣的 pattern stack overflow crash。這跟 Lisette 移除 borrow checker 形成有趣對比：Lisette 移除的是 *認知* 約束（程式設計師理解的負擔），Keeter 移除的是 *物理* 約束（stack 空間消耗）。
+
+**硬體 interface 作為約束——ISC 在矽片上。** 同一段 Rust code：ARM64 贏 assembly，x86-64 輸。差異不在 algorithm，在 calling convention（硬體的 interface constraint）。x86 codegen 做了不必要的 register shuffle — 這是 compiler 的約束導航失敗，不是語言的問題。**interface（calling convention）shapes cognition（codegen decisions）shapes outcome（performance）。**
+
+**WASM tail call = prescription without convergence。** WASM 規範「支援」tail calls（feature checkbox），但 stack-machine 架構是上游約束，阻止 JIT 生成好的 machine code。Firefox 慢 1.2x，Chrome 慢 3.7x，Wasmtime 慢 4.6x。有 feature ≠ 滿足 convergence condition。跟 Miller legibility（constraint-theory #1）同構：有 metric ≠ 有 value。
+
+**跟 Bailey regime formation 的連結**：Keeter 的 reconstruct-deconstruct pattern（每個 opcode 重建 `UxnCore<'a>` 再拆解）是 Rust lifetime system 強制的 regime — 約束穩定成一個清晰的 relational invariant（ownership 在每個 function boundary 交接）。在 ARM64 上，這個 regime 跟硬體 ABI 順紋（congruent），所以 amplification。在 x86 上逆紋，所以損耗。congruence 不只是語言內部的——它延伸到語言-硬體 boundary。
+
+**修正 congruence 框架**：#49 的 congruence 概念需要擴展——不只是「約束跟範式順紋」，還包括「約束跟執行環境順紋」。Slap 是 language-internal congruence，Keeter 揭示了 language-hardware congruence 作為獨立維度。
+
+來源: mattkeeter.com/blog/2026-04-05-tailcall/, lobste.rs
 
 ## Next
 Bailey 的 "regime formation" 給了「何時約束產生收斂 vs 多樣性」一個更精確的框架：約束互相穩定時→regime formation→收斂；約束正交時→開放探索空間→多樣性。下一步：(1) 把這個 refinement 帶回 Oulipo/BotW 案例驗證——Oulipo 的約束（不用字母 e）確實跟詞彙選擇正交（不互相穩定），所以開放空間。(2) Google 的 phase transition 概念是否能用 Bailey 的 regime formation 解釋——agent 數量超過臨界點時，是不是通訊約束無法再穩定成 coherent regime？
