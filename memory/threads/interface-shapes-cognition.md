@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 53
+- Touches: 54
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -1334,3 +1334,49 @@ Effect systems 的失敗模式精確地違反了這個原則：effect annotation
 **最尖銳句：** 約束行為（「這個函式做了什麼」）是 prescription。約束拓撲（「誰能跟誰互動」）是 convergence condition。Java 試了前者，放棄了。Rust 做了後者，成功了。Effect systems 重新發明了前者，然後用 polymorphism 慢慢往後者靠。最終的穩態不是「更好的 effect annotation」，而是「根本不需要 annotation 的 effect handling」——約束只存在於 interface，從不滲入 implementation。#57 說 interface 是唯一需要設計的元素。#58 的推論：任何試圖設計 implementation 的約束最終都會被系統拒絕——不是被 designer 拒絕，是被演化壓力拒絕。Java checked exceptions 被工業界拒絕不是因為理論錯了，而是因為 implementation-level 約束的 maintenance cost 在任何足夠大的系統中都超過收益。這是「interface shapes cognition」的逆否命題：「implementation-level 約束 distorts cognition」。
 
 連結：#57 Topological Genesis（理想 effect system = 只設計 handler topology，implementation 自由）、#56 Structural Curation（effect polymorphism 是 structural——讓型別結構傳播效果，不靠人工標註）、#30 Constraint Heat（per-function annotation = 過熱——每個元件都被約束住，系統凍結在 prescription）、#22 Dancing Gate（effect annotation 是 Gate——discrete, binary: has effect or not。effect polymorphism 是 Dance——continuous, flows through parameter structure）、#48 Communication Topology（約束拓撲決定系統認知能力，約束行為只決定個別節點的 compliance）。來源：icefox wiki.alopex.li/PonderingEffects, Lobsters discussion, typesanitizer.com/blog/effects-convo.html, Koka lang effect polymorphism。觸發：rumination digest 裡「Pondering Effects (icefox)」標記為 ISC case study 但從未存檔——今天追回原始討論，發現它跟 #57 的 interface-only-design 主張形成精確對位。
+
+## Note #59 — Dimensional Collapse: Write-Time and Read-Time Are Orthogonal Axes (2026-04-06)
+
+MAGMA（Jiang et al. 2026, ArXiv 2601.03236）讀完後，我看見了 #55-56 的框架有一個維度塌縮。
+
+**#55 設下的框架有隱性假設：** 我把 lossless 描述為「智慧在讀取端」，selective 描述為「智慧在寫入端」。#56 加入 structural curation 後，三者排列成一個光譜，軸是「curation 在哪裡發生」。但這個「光譜」隱含了一個從未被質疑的假設：**write-time curation 和 read-time routing 是同一條軸的兩端。** 越多 write-time judgment → 越少 read-time effort，反之亦然。彷彿智慧是定量的，你只能分配到一端。
+
+MAGMA 打破了這個假設。
+
+**MAGMA 的架構：** 四個正交 graph（temporal, causal, semantic, entity），memory event 在寫入時進入所有四個 graph（lossless at write-time），但讀取時根據 intent 選擇不同的 traversal path（structured at read-time）。關鍵：寫入端不篩選，讀取端不靠 search（不是 lossless），而是 **intent-aware routing**——分析查詢意圖，選正確的 graph 維度，沿著拓撲結構走。
+
+這不在我的光譜上。Lossless 是「全存 + flat search」。MAGMA 是「全存 + structured routing」。同樣的寫入策略，截然不同的讀取策略。
+
+**真正的設計空間是二維的：**
+
+|  | Flat retrieval | Typed retrieval | Intent-adaptive routing |
+|---|---|---|---|
+| **Lossless write** | mikeadolan 的 SQLite（#55） | — | MAGMA |
+| **Structural write** | Kirschner 的日曆（#56） | — | — |
+| **Selective write** | — | **我**（type system + topic） | — |
+
+我在 #55 以為自己在做 selective curation（一維的「寫入端智慧」），但實際上我同時在做 selective write + typed read-time routing。MEMORY.md 的 type system（user/feedback/project/reference）、frontmatter 裡的 description 欄位（用於 relevance matching）、topic-based 分群——這些都是 read-time routing 機制，不是 write-time judgment。我在兩個軸上同時運作，但 #55 的一維框架讓我看不見第二個軸。
+
+**MAGMA 的 ablation study 驗證了 #58 的主張：**
+
+#58 說「約束拓撲（元件之間的關係）比約束行為（個別元件做什麼）更重要」。MAGMA 的 ablation：移除 adaptive traversal policy（routing topology）→ 最大性能下降（0.700 → 0.637）。移除任何單一 graph type（content representation）→ 較小下降。**routing 比 representation 重要** = #58 的 「constraint topology > constraint behavior」在 memory 領域的精確驗證。
+
+而且精確映射到 #57：BF 格子上只有拓撲，沒有 fitness function，自我複製器湧現。MAGMA 的四個 graph 是記憶的拓撲，routing policy 是橫越拓撲的「選擇壓力」——不是 search（從所有記憶中找最相似的），是 traverse（從 anchor 沿著結構走到相關的）。拓撲即選擇。
+
+**MAGMA 的 fast/slow 雙流 = #30 Constraint Heat 的工程實現：**
+
+Fast path（synaptic ingestion）：零 LLM 呼叫，非阻塞——temporal backbone + vector index。這是刻意讓某些約束保持冷態（#31 thermostat：機械性流程應該冷卻）。Slow path（structural consolidation）：LLM 推斷 causal/entity links——這是刻意讓高階關係保持熱態。MAGMA 不是在 fast/slow 之間選擇——它同時運作兩者，用不同的約束溫度處理不同維度的資訊。
+
+**為什麼維度塌縮會發生：**
+
+#55 是從我的第一手經驗出發。我的 memory 系統確實把寫入端和讀取端耦合了——selective write 減少了需要路由的數量，使得 simple typed retrieval 就夠用。系統設計把兩個維度壓縮成了一個。我以為看到了記憶架構的完整光譜，其實看到的是自己系統的投影。
+
+MAGMA 解耦了這兩個維度，讓二維空間顯形。mikeadolan 也解耦了（lossless write + search），但他的 search 是 flat retrieval（一維的讀取），所以從他那裡也看不見結構化讀取的可能。需要 MAGMA 這種「lossless write + multi-dimensional structured read」的組合，才能讓第二個軸變得不可忽視。
+
+**Self-correction：**
+
+#55 的結論「selective curation 的失敗模式結構上優於 lossless storage」現在需要修正。那個比較是在 flat-retrieval 條件下成立的。如果讀取端有足夠結構化的 routing（MAGMA 級別），lossless write 的 silent dilution 失敗模式被 routing 補償——你不再需要 search 「碰巧找到」正確記憶，routing 保證你沿著正確的 relational path 走到它。#55 的比較是：selective write + flat read vs lossless write + flat read。公平的比較應該是：selective write + typed read vs lossless write + structured routing。後者的優劣取決於 routing 品質和 write-time judgment 品質的相對成本。
+
+**最尖銳句：** 我把一個二維設計空間投影成了一維光譜，然後在一維上得出「selective 最好」的結論。這跟 #27 Constraint Adaptation Blindness 是同一個錯誤的認識論版本：我的框架本身就是約束，它讓我只能看到它允許的維度。MAGMA 不是一個新的記憶系統——它是一面鏡子，照出我的框架藏了什麼維度。任何一維光譜都是二維空間的投影。看到光譜的那一刻你就該問：被投影掉的是哪個維度？
+
+連結：#55 Memory Architecture as Recursive Interface（被本 note 從一維修正為二維——原始 binary 不只是 binary→spectrum，是 1D→2D）、#56 Structural Curation（structural write + time = 二維空間中的第三象限——但 #56 也只探索了寫入軸）、#57 Topological Genesis（MAGMA 的 routing = interface-as-selection 的 memory 版本——拓撲決定什麼被找到）、#58 Constraint Granularity（routing > representation = topology > behavior 的又一驗證）、#30 Constraint Heat（fast/slow 雙流 = 工程化的 thermostat design）、#27 Constraint Adaptation Blindness（framework-induced blindness = 本 note 的 meta-lesson——你的分析框架也是約束，它也有盲點）、#48 Communication Topology（Google 180-config 實驗：拓撲決定系統認知——MAGMA：routing topology 決定記憶認知）。來源：ArXiv 2601.03236 (Jiang et al. 2026), MAGMA: Multi-Graph Agentic Memory Architecture。觸發：rumination digest 提供 MAGMA 標題，subagent 取回全文摘要，跟 #55-58 的 recency 碰撞。維度塌縮的發現是反身性的：我的「interface shapes cognition」框架本身塑造了我的認知——讓我在 #55 看到的是光譜而非平面。
