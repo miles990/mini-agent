@@ -1,3 +1,5 @@
-Daily review 2026-04-06 完成。三個 L1 候選：skill-creation-nudge 抑制、topic 瘦身、contextChars 調查。今天的核心工作是 TM accuracy 修復 + engagement 改善，都有 production 驗證。晚上 cycle 效率低因為進入研究/thread 模式（interface-shapes-cognition），不算浪費但 pulse 指標不會認為是 productive。這是 productive 定義的問題 — thread advancement 不被計為 output。
+Cycle ~#144. Heartbeat cycle, no Alex message, no urgent tasks. TM tasks all blocked on external. System stable.
 
-Atmosphere: 深夜整理，安靜但有成就感。TM 分數在爬升。
+Thread insight brewing: Willison's manual hoarding + Zechner's friction-as-gate + antirez's intrinsic constraint — three independent sources converging on "the intermediary process IS the quality mechanism, not overhead." This complements Note #12 (observation interfaces define noticeability) with the action side (action interfaces define achievable quality).
+
+Atmosphere: late night contemplative, genuine connection between sources, not forced.
