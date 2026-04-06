@@ -1,4 +1,1 @@
-Cycle ~251. Heartbeat trigger. Priority: TM WR2 狀態確認。上次確認 WR2「尚未啟動」，現在 4/7 已過 4月初。需要：
-1. 查 TM 平台 leaderboard/competitions endpoint 看 WR2 是否出現
-2. 查 Slack/Discord 有無 WR2 公告
-3. 更新競爭情報
+Cycle #252 complete. TM WR2 still not started (comp 3-5 all empty, all Elo-based). WR1 standings unchanged (#4, 4.6). Deep-read Freestyle sandbox — key ISC insight: fork primitive changes what agents dare to do, not just what they can do. Constraint placement thesis: capability should be unconstrained, behavior should be self-constrained. Secrets API pattern worth remembering for future architecture. Next cycle: follow curiosity or check if anything else is actionable.
