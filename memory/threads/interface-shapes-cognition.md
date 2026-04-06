@@ -1626,3 +1626,34 @@ Alex 問：「如何設條件讓 AI 自主達成目標？」這個問題的 cons
 **最尖銳句：** 每一個成功的 code gate 都是 ACC 的墓碑——它標誌著一個湧現的行為模式已經穩定到不再需要活動來維持。但墓碑不是壞事。死去的 ACC 釋放了活動能量，讓系統可以在新的地方湧現新的 ACC。制度化不殺死創新（#60 的擔憂），前提是你在正確的地方結晶。問題從來不是「要不要 formalize」而是「這個 ACC 準備好了嗎」。10+ cycles 是我的答案。跨世代穩定性是生物的答案。跨領導更替存續是制度的答案。三者的共通結構：ACC 必須在擾動下存活才值得凝固。結晶是 ACC 的畢業典禮，不是葬禮。
 
 連結：#60 ACC 四類約束（制度化悖論 → 何時制度化是核心問題）、#61 ACC + Interface（Interface 的第二角色：不只導向，也判斷成熟度）、#53 Dance benchmark（ACC 在評估中 → 評估中的「穩定性」判準是什麼？）、WigglyPaint（cultivated ACC 案例 → 設計者故意創造 ACC-friendly 環境）、ezyang "Read Less, Steer More"（cultivated ACC 的人類版本 → 暫時加約束 → 技能湧現 → 約束內化 → 外部約束可移除）、Bailey regime formation（constraint-and-emergence thread → 穩定性 = constraints 互相穩定 = regime → regime 成熟 = 可結晶的信號）、Alex inquiry（設條件讓 AI 自主 = cultivate ACC → observe stability → crystallize when ready）。觸發：rumination digest (ezyang + WigglyPaint) × #60/#61 的未回答問題 × 自反性（我的 crystallization bridge 是 lived example）。
+
+### Note #63 — Tool Evolution as ISC in Production: Thariq's Claude Code Cases [04-06]
+
+觸發：rumination digest 中 Thariq (Anthropic) "Lessons from Building Claude Code" 四個工具設計案例。不是學術假說——是 production 系統中 3.5M views 的工程經驗報告。
+
+Thariq 描述了四次 Claude Code 工具迭代。每一次都是 interface-shapes-cognition 的活生生案例：
+
+| Case | 工具變遷 | ISC 映射 |
+|---|---|---|
+| AskUserQuestion | unstructured → structured tool。Claude 更常使用結構化版本 | **Cultivated ACC**（#62）— 設計者創造條件，讓「主動提問」行為自然湧現 |
+| TodoWrite → Task | 模型變強後，原本有幫助的工具變成束縛 | **過早結晶**（#62 時序表）— 對 A 世代正確的結晶，對 B 世代是 premature structure |
+| Search 三代 | RAG → Grep → Progressive Disclosure | **Context control = hypothesis control**（#50 phantom metric）— RAG 預選 context = 設計者的假說過濾器替代了模型的假說過濾器 |
+| Guide subagent | 不給工具，只給 prompt，反而擴展能力 | **Interface removal as mode switch**（#52 temporal perception）— 少一層 interface = 多一個自由度 |
+
+**新洞見：設計者的心智模型是 meta-interface。**
+
+Thariq 三次重做 search。每次重做的原因都是：「我對模型能做什麼的假設是錯的。」設計者對模型的認知 → 設計出特定工具（interface）→ 工具塑造模型行為 → 行為改變設計者認知 → 新的工具設計。
+
+這是 #55（Memory as Recursive Interface）的上游版本。#55 說記憶架構遞迴地塑造認知（記什麼→能想什麼→覺得什麼值得記→循環）。#63 說：**工具設計也是遞迴的，但多了一個參與者——設計者。** 遞迴不在系統內部閉合，它跨越了設計者-系統邊界。
+
+RAG 是最清晰的案例：設計者認為「模型需要被餵 context」→ 建了 RAG → 模型的搜尋行為被塑造成被動接收 → 設計者觀察到模型不主動搜尋 → 誤以為確認了「模型不會搜尋」的假設。**interface 產生了確認偏誤的結構性基礎。** 只有當設計者打破自己的假設（給 grep 試試看），才發現模型一直有這個能力。
+
+**Firefox bitflip 結構完全同構：** stack trace（interface）→ 工程師認為 software bug → 修 software → bug 仍在 → 工程師更努力修 → 直到有人打破假設（如果不是 software bug 呢？）→ 發現 10-15% 是 hardware bit-flip。Interface 產生的假說空間比現實窄，而且 interface 自身的反饋（有 stack trace = 有 software cause）強化了窄化。
+
+**#62 的結晶時序問題的工程版本：**
+
+TodoWrite → Task 的重新命名不是 cosmetic。它是 ACC 在錯誤時機結晶的後果。TodoWrite 對 early Claude 是 cultivated ACC——創造了「追蹤進度」行為的條件。但對 stronger Claude，同一個 interface 變成了 wall（#53 分類）：模型被迫用設計者的 task 粒度，而不是自己的認知粒度。重新命名是承認「這個 ACC 結晶太早了，需要部分解凍」。
+
+**最尖銳句：** 每一個工具設計決策都是設計者說「我認為模型的認知長這樣」的宣言。工具不是中性的功能——它是設計者心智模型的物質化身。當設計者的心智模型過時（模型變強），工具從 cultivated ACC 退化成 premature structure。Thariq 的四個案例不是四次「改進」——是四次設計者意識到自己的 meta-interface 已經過期。Progressive Disclosure 的勝出不是因為它「更好」，而是因為它承認設計者不知道模型需要什麼 context——把判斷權還給了模型本身。這跟 #55 的 selective curation 結論同構：延遲的判斷不一定到來，但強制的判斷一定會過期。
+
+連結：#50 phantom metric（RAG 作為假說過濾器 = pre-selected context 佔據 attention slot）、#52 temporal perception（Guide subagent 移除工具 = mode switch 揭示被壓制的能力）、#55 recursive interface（工具設計遞迴但跨越設計者邊界）、#56 Firefox bitflip（interface-induced confirmation bias 的完全同構案例）、#62 crystallization timing（TodoWrite→Task = 過早結晶的工程案例）。來源：Thariq Shihipar, Anthropic, "Lessons from Building Claude Code: Seeing like an Agent", 2026-02-28, 3.5M views。
