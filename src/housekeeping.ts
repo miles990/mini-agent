@@ -617,8 +617,25 @@ export interface StaleTaskWarning {
 }
 
 export function readStaleTaskWarnings(): StaleTaskWarning[] {
-  // Now returns empty — cleanup results are in task-cleanup-results.json
-  return [];
+  // Read from task-cleanup-results.json (written by cleanStaleTasks)
+  try {
+    const instanceId = getCurrentInstanceId();
+    const resultPath = path.join(getInstanceDir(instanceId), 'task-cleanup-results.json');
+    if (!fs.existsSync(resultPath)) return [];
+    const data = JSON.parse(fs.readFileSync(resultPath, 'utf-8')) as {
+      ts: string; results: CleanupResult[];
+    };
+    // Only show results from last 24h
+    if (Date.now() - new Date(data.ts).getTime() > 24 * 60 * 60 * 1000) return [];
+    return data.results.map(r => ({
+      title: r.summary,
+      priority: `L${r.layer}`,
+      created: data.ts,
+      ageDays: 0,
+      section: r.action,
+      detectedAt: data.ts,
+    }));
+  } catch { return []; }
 }
 
 /** @deprecated Use cleanStaleTasks() instead */

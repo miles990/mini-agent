@@ -132,6 +132,22 @@ export function recordModelOutcome(outcome: ModelOutcome): void {
   }
 }
 
+/** Get aggregated model outcome stats for routing decisions */
+export function getModelOutcomeSummary(): { model: ModelTier; count: number; avgScore: number; avgDurationMs: number }[] {
+  const byModel = new Map<ModelTier, { scores: number[]; durations: number[] }>();
+  for (const o of recentOutcomes) {
+    let entry = byModel.get(o.model);
+    if (!entry) { entry = { scores: [], durations: [] }; byModel.set(o.model, entry); }
+    entry.scores.push(o.observabilityScore);
+    entry.durations.push(o.durationMs);
+  }
+  return [...byModel.entries()].map(([model, { scores, durations }]) => ({
+    model,
+    count: scores.length,
+    avgScore: scores.reduce((a, b) => a + b, 0) / scores.length,
+    avgDurationMs: durations.reduce((a, b) => a + b, 0) / durations.length,
+  }));
+}
 
 /** Get CLI model name for the tier */
 export function getModelCliName(tier: ModelTier): string | undefined {

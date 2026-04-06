@@ -77,6 +77,16 @@ export function initObservability(): void {
   eventBus.on('action:handoff', handleHandoffEvent);
   eventBus.on('action:room', handleRoomEvent);
   eventBus.on('log:info', handleLogInfo);
+  eventBus.on('security:threat', handleSecurityThreat);
+}
+
+function handleSecurityThreat(e: AgentEvent): void {
+  const d = e.data;
+  slog('SECURITY', `⚠️ Threat detected: ${d.patternId} [${d.severity}] trust=${d.trust} — ${(d.reason as string)?.slice(0, 120)}`);
+  getLogger().logBehavior('system', 'security.threat', JSON.stringify({
+    patternId: d.patternId, severity: d.severity, trust: d.trust,
+    preview: (d.contentPreview as string)?.slice(0, 50),
+  }));
 }
 
 // =============================================================================
