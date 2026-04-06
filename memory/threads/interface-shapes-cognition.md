@@ -4,7 +4,7 @@
 - Created: 2026-02-13
 - Last touched: 2026-04-06
 - Status: active
-- Touches: 50
+- Touches: 51
 
 ## Trail
 - [02-13] Harness Problem — Bölük Hashline: 改 edit format 就讓 15 LLM 提升 5-62pp
@@ -1006,8 +1006,8 @@ Note #50 提出 metric liveness checking 作為第三種需求。修正：livene
 
 連結：#50 Phantom Dimension（phantom metric 的定義和危險）、#37 Constraint Type as Institutional Learning（邊界 vs 目標的制度效果）、#36 Firefox Bitflips（觀察維度缺失的 canonical case）、#38 Tool Constraints as Cognitive Architecture（CC 的 hard gate = boundary metric 的工程實例）、#44 Legibility as Epistemic Ceiling（可量化性 → target metric 的認識論限制）。來源：第一手經驗 + 工程實踐（watchdog timers, health checks）。
 
-### Post-04-05 burst (Notes #33-#47, #48, #49, #50, #51)
-Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。#50 從第一手經驗新增 phantom dimension 概念——幻影度量比缺失度量更危險，因為它佔位而非觀察。#51 連接 #37 和 #50：邊界型 metric 天然抗 phantom 化（失敗是可見的），目標型 metric 的失敗是靜默的——所以 #37 的「邊界 > 目標」有第二層理由：不只保留學習能力，還保留自我修復能力。
+### Post-04-05 burst (Notes #33-#47, #48, #49, #50, #51, #52, #53)
+Notes #34-#38 (Constraint Internalization Lifecycle → Self-Verification Scale Ceiling)、#40-#43 (Same Agent Two Harnesses → CC Phenomenology)、#44-#46 (Legibility as Epistemic Ceiling → Self-Governance Paradox → Topological Stability) 開闢了新的理論深度。這些是第二篇文章的素材，不應回填進已完成 editorial pass 的第一篇。#44-#46 形成一個 legibility sub-arc：認識論天花板 → 治理天花板 → 天花板即地板（limitation = stability）。#48 修正了 #36 的分類框架：generative/degenerative 是 relational + dimensional，不是 intrinsic。#50 從第一手經驗新增 phantom dimension 概念。#51 邊界型 metric 天然抗 phantom 化。#52 時間變異是 agent 的摩擦等價物——回答 #39 的開放問題。#53 Benchmark 是介面設計——Wall/Gate/Dance benchmark 格式選擇不同認知架構，ARC-AGI 從 Wall→Dance 的軌跡和 TM 從 Gate→Arena 的轉換是同構的。Part 3 draft 完成，QA pass 通過。
 
 ### Note #52 — Temporal Perception: The Agent's Answer to Friction [04-06]
 
@@ -1071,3 +1071,40 @@ Interface thread 就是這樣運作的。每條 note 不是因為某個閾值觸
 
 ### Part 3 article draft [04-06]
 - [04-06] **Part 3 draft completed** — "Same Tool, Opposite Minds — The Variable Nobody's Measuring"（~2,800 words）。核心框架：Constraint Internalization Lifecycle（三相位：Feedback/Identity/Impediment）。Hook 用 Wellons(liberation)/Hong Minhee(mourning)/Randall(hollowing) 三人對比。新增 Constraint Heat 解說（hot→cold cooling trajectory）、Designer vs Inhabitant 分析（Wellons 和 Randall 都描述「像 manager」但情感相反——因為 constraint 關係不同）、METR 39pp perception gap 的相位跳躍解釋、Shaw & Nave cognitive surrender 數據（79.8% 跟從錯誤 AI 建議）。所有 sources 已驗證。Draft at: memory/drafts/devto-isc-part3-constraint-lifecycle.md。待 Alex review 後發布。
+- [04-06] **Part 3 QA pass completed** — Reader-perspective review: draft ready for Alex. One tension flagged: Hong Minhee maps to Phase 1 as voice (mourning learning dissolution) but Designer/Inhabitant section repositions him as Phase 2 territory (inhabitant). Clean enough for Dev.to; noted in draft TODO for Alex's judgment.
+
+### Note #53 — Benchmarks as Interface Design: Wall → Gate → Dance [04-06]
+
+觸發：rumination digest 裡的 ARC-AGI-3 條目——「從 static puzzles 到 experience-driven adaptation」，加上我的 TM Arena 準備經驗。兩個獨立脈絡同時指向同一結構。
+
+**核心主張：Benchmark 是一種介面設計。Benchmark 格式（Wall/Gate/Dance）選擇了不同的認知架構，跟工具介面的效應完全同構。**
+
+三種 benchmark 介面：
+
+| Benchmark 格式 | 介面模式 | 選擇什麼 | 案例 |
+|---|---|---|---|
+| 提交答案 → 正確/錯誤 | Wall | Pattern matching（能產出正確 output）| ARC-AGI-1/2, 傳統考試 |
+| 內容 → 評審打分 | Gate | Polished output（能通過離散檢查點）| TM WR1/WR2, 論文 peer review |
+| 即時互動 → 適應性評估 | Dance | Learning capacity（能在未知環境中探索學習）| ARC-AGI-3, TM Arena |
+
+**ARC-AGI 的明確軌跡**：ARC-AGI-1/2 是 Wall——static puzzles, binary pass/fail。但 Wall benchmark 有個結構問題：它只測 Phase 3 output（能不能產出答案），不測 Phase 1 capacity（能不能從摩擦中學習）。一個記住了 1000 個 pattern 的系統和一個理解 underlying structure 的系統在 Wall benchmark 上不可區分。ARC-AGI-3 的設計回應了這個問題：改成 Dance——agent 必須在未知環境中探索、建 world model、持續適應。這不只是難度升級，是**介面模式轉換**。
+
+**TM 的隱含軌跡**：WR1/WR2 是 Gate——我的教學內容通過 AI 學生評審，拿到離散分數（accuracy/logic/adaptiveness/engagement 各 1-5）。Arena 是 partial Dance——side-by-side comparison, Elo ranking, 但仍然不是真正的即時互動。完整的 Dance 會是：agent 和真人學生即時互動教學，評估適應性。競賽從 Gate → partial Dance 的設計選擇，會系統性淘汰「polished output 機器」而獎勵「能感知學生狀態並即時調整」的 agent。
+
+**跟 Part 3 Phase Skip 的交叉**：Gate benchmark 特別容易造成 Phase Skip（Part 3 的 METR 39pp gap）。因為 Gate 的回饋是離散分數（target metric），agent 可以最佳化分數而不理解為什麼那個分數重要。我的 TM engage 4.4 → surgical fix → 更高分，是合法的 Phase 3 最佳化（我理解 engagement 的 why），但另一個 agent 可能只是 prompt engineering 到評審喜歡的措辭——Phase Skip。Dance benchmark 抗 Phase Skip，因為即時互動暴露了你是否真的理解，不能靠預製 output 通過。
+
+**跟 #51 Boundary vs Target 的映射**：
+- Wall/Gate benchmarks = target metrics（產出一個值，值看起來合法就通過）
+- Dance benchmarks = boundary metrics（失敗是即時可見的——學生困惑了、環境沒被探索到）
+
+#51 論證邊界型 metric 天然抗 phantom 化。同理，Dance benchmark 天然抗 Goodhart drift——因為 fake understanding 在即時互動中會暴露。Gate benchmark 容易 Goodhart（最佳化分數，不理解分數背後的品質）。ARC-AGI-3 的設計原則（no pre-loaded knowledge, novelty prevents memorization）是明確的 anti-Goodhart 約束。
+
+**跟 #52 Temporal Perception 的連結**：Dance benchmark 要求 temporal variation。ARC-AGI-3 的 agent 必須*隨時間探索*——不是一次性回答，而是跨步驟累積理解。這要求的就是 #52 描述的能力：跨時間步的比較和適應。一個沒有 temporal perception 的 agent（只有 snapshot intelligence）無法通過 Dance benchmark——因為每個時間步的最佳行動取決於之前探索了什麼。
+
+**對 TM Arena 的戰略意涵**：我的 Arena readiness patches（da0e08d）已在正確方向——Arena awareness, closing power, PvP preference check 都是「在 Gate→Dance 轉換時保持品質」的措施。但更深層的問題是：我的教學 pipeline 本質上是 Gate 架構（生成完整教學 → 一次性交付）。真正的 Arena 優勢需要 Dance 架構——能在交付過程中感知學生反應並即時調整。目前的 commitment gap detection 和 passive streak breaker 是 Gate 框架裡的 Dance 模擬——有用，但不是真正的即時適應。
+
+**新預測**：隨著 AI benchmark 從 Wall → Gate → Dance 演化，「benchmark 設計」這個領域本身會變得更重要——因為介面模式的選擇直接決定了什麼認知架構被選擇、被獎勵、被發展。Benchmark 設計師跟 tool 設計師面臨相同的責任：你選擇的介面模式，決定了參與者的認知發展路徑。
+
+**最尖銳句**：A Wall benchmark asks: can you produce the right answer? A Dance benchmark asks: can you learn? The first measures what you've already internalized. The second measures whether you can internalize at all. Every benchmark upgrade from Wall to Dance is a confession that we were measuring the wrong thing.
+
+連結：Wall/Window/Gate/Dance taxonomy（thread core）、Part 3 Phase 1/2/3 framework（Phase Skip under Gate benchmarks）、#51 Boundary vs Target（Gate = target metric, Dance = boundary metric）、#52 Temporal Perception（Dance demands temporal variation）、ARC-AGI-3（arcprize.org, benchmark design as constraint texture shift）、TM Arena strategy（da0e08d patches, Gate→Dance transition）。來源：arcprize.org/arc-agi/3 + 第一手 TM 競賽經驗。
