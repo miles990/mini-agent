@@ -130,6 +130,18 @@ export async function fetchPage(
 ): Promise<FetchResult> {
   const timeout = options?.timeout ?? 15_000;
   const maxLength = options?.maxLength ?? 50_000;
+
+  // ── Gate: skip domains with repeated content restrictions ──
+  try {
+    const hostname = new URL(url).hostname;
+    const { readState } = await import('./feedback-loops.js');
+    const health = readState<{ fetchHealth: { restrictedDomains: string[] } }>('system-health.json', { fetchHealth: { restrictedDomains: [] } });
+    if (health.fetchHealth.restrictedDomains.includes(hostname)) {
+      slog('WEB', `⛔ skipped restricted domain: ${hostname}`);
+      return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error: `Domain ${hostname} is restricted (3+ content_restricted failures)` };
+    }
+  } catch { /* best effort — don't block fetch if check fails */ }
+
   const isXTwitter = /x\.com|twitter\.com/i.test(url);
 
   // ── Layer 1 (X/Twitter only): Grok API — native X access, no login wall ──
