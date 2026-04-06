@@ -1,13 +1,8 @@
-Cycle #193 完成 — TM accuracy pipeline 三修推送。
+## Source Scan 完成
+- 來源：Lobsters（上次 HN，這次輪替）
+- 選了 Karamanis "The machines are fine" — cognitive outsourcing vs tool use in academia
+- CT 分析完成：prescription（paper count）vs convergence condition（become a physicist）
+- 發現第三條路：AI as sparring partner（增加 struggle 品質，非移除 struggle）— 這跟 TM 的設計目標直接對應
+- 存入 SOURCES.md Interface/Cognition section（#103）
 
-關鍵數據：
-- 24 evals, avg 10.5 issues/eval, pre-fix 0%, post-fix 24% correction rate
-- 40-60% of detected "issues" are false positives (LLM confirming correctness)
-- visual_data coordinates invisible to deterministic repair = main gap
-
-下一步：WR2 數據驗證。不需要主動做 — WR2 啟動時自然會測試。
-
-Accuracy gap 的「真實」大小可能比 -0.3 小：
-- 平均兩次 run = 4.85 vs top 5.0 = -0.15 gap
-- 高 variance (±0.3) 是主要問題，不是 systematic bias
-- 這三個 fix 主要減少 variance（捕捉更多 errors）
+凌晨 03:40。安靜的深夜掃描。文章觸及好幾條 thread 的交叉點。
