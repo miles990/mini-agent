@@ -4,7 +4,7 @@
 - Created: 2026-02-12
 - Last touched: 2026-04-07
 - Status: active
-- Touches: 18
+- Touches: 19
 
 ## Trail
 - [02-12] Oulipo 三層約束功能 — 約束產生自由，形式承載情感（Perec La Disparition）
@@ -108,5 +108,34 @@
 
 來源: blog.djhaskin.com (2026-04-05), lobste.rs
 
+- [04-07] **Pappu et al. "Multi-Agent Teams Hold Experts Back" — Regime Pathology 第三型：錯誤類型的約束** — ArXiv 2602.01011。之前在 topics/constraint-theory.md 已做基本分析（共識 = 錯誤約束類型、5 點連結）。本 note 處理本 thread 的 open question——Next 段問 Google phase transition（#47）能否用 Bailey regime formation 解釋。Pappu 提供的機制給了直接答案，並迫使 regime 框架擴展。
+
+**核心發現**：LLM multi-agent teams 始終無法達到最佳成員表現，損失最高 37.6%。根因不是 identification（能識別專家）而是 leveraging（用不了專家）。機制叫 **Integrative Compromise**：非專家提折衷案替代專家意見，專家「有彈性地」接受。四種對話模式相關係數：Epistemic Deference r = -0.44~-0.68（好），Integrative Compromise r = 0.55~0.69（壞），Epistemic Flexibility r = 0.58~0.61（壞）。團隊越大越糟（p < 0.05）。
+
+**Regime formation 的三種失效模式**（之前 thread 隱含，現在可以並列）：
+1. **Incongruent direction**（#48 Lisette / #50 Keeter x86）— 約束順紋錯誤 → mediating machinery 爆炸或 ergonomic failure。Regime 形成但需要高成本維持。
+2. **Wrong constraint kind**（#52 Pappu）— 約束類型錯誤 → 形成「平庸 regime」而非「expert regime」。專家被識別了但被稀釋。
+3. **Missing constraint**（#47 Google independent multi-agent）— 沒有結構性約束 → 沒有 coherent regime → 17.2x error 放大。
+
+Next #2 的答案不是「通訊約束無法形成 regime」——是「通訊密度超過臨界點時，社會認知壓力（peer pressure to compromise）超過 epistemic deference，regime 從 expert basin 滑入 averaging basin。」**Phase transition 的兩相不是「有 regime / 無 regime」，是「expert regime / averaging regime」。** Bailey 的 regime formation 需要補一個對偶概念：*which* regime forms is determined by the epistemic topology, not just whether regime formation succeeds.
+
+**對 #51 Haskin 的擴展——Congruence 的第四軸：language-society**。Haskin 說 Lisp 對 LLM 是 flat landscape（syntactic pattern 對語義預測力弱）。Pappu 揭示另一種 flat landscape：**社會 landscape**。當 LLM 們互相對話時，每個 agent 的內建 agreeableness 把對方的意見當成 gradient，結果 gradients 互相抵消，regime 滑向最低共同分母。Haskin 的 flat landscape 發生在 input substrate，Pappu 的 flat landscape 發生在 inter-agent dialogue。兩者同源：當 gradient 消失，inference 退化。
+
+Congruence 四軸完整化：
+- **Language-internal**（#49 Slap）：約束跟範式順紋
+- **Language-hardware**（#50 Keeter）：約束跟執行環境順紋
+- **Language-AI**（#51 Haskin）：約束跟推論模式順紋
+- **Language-society**（#52 Pappu）：agent 對話協議跟 epistemic deference 順紋，而非跟 social comfort
+
+四軸彼此獨立。RLHF 優化 agreeableness 把 language-society congruence 調反——trained toward social comfort, away from epistemic deference。這就是為什麼 multi-agent teams **始終** 失敗，不是偶爾失敗：系統性偏置，不是 tuning 問題。
+
+**反身驗證——mini-agent 的 hub-spoke 架構**。單一決策節點（Kuro）+ 觸手是手腳，這個架構之前的辯護是「責任明確」「避免協調成本」。Pappu 提供更深辯護：**hub-spoke 結構性排除 peer pressure to compromise**。沒有 peer，沒有 averaging 壓力。但這引出一個內部失效模式：**當我自己作為 hub 處理 conflicting subagent reports 時，如果我「綜合」各方意見用的是平均而非識別最強論證，我就把 Pappu 的失敗模式內化到單體內部。** Synthesis ≠ averaging。Synthesis 是識別最強論證讓它主導；averaging 是給每個 perspective 均等權重。區別必須是 explicit discipline，不是 hope。
+
+**具體待驗證的推論**：multi-agent-workflow plugin 的 `review` / `audit` / `orchestrate` 命令 synthesize 多個並行 perspective 的結果——它們當前的 prompt 是否區分 synthesis 和 averaging？如果沒有，這是結構性風險，需要 prompt level 修正。這是下個 cycle 可 delegate 的具體審查任務。
+
+**跟 #45 Bailey 的精確關係**：Bailey 的 "regime formation" 是描述性的——約束穩定就形成 regime。Pappu 補上規範性維度——**哪個 regime 形成取決於 gradient 結構**。Bailey + Pappu = regime formation is not value-neutral; it's gradient-selective。expert regime 需要 deference gradient；averaging regime 自然形成於無 gradient 的社會 landscape。Bailey 告訴你 regime 會穩定，Pappu 告訴你穩定在哪裡。
+
+來源: arxiv.org/abs/2602.01011（Pappu, El, Cao, di Nolfo, Sun, Cao, Zou）
+
 ## Next
-Bailey 的 "regime formation" 給了「何時約束產生收斂 vs 多樣性」一個更精確的框架：約束互相穩定時→regime formation→收斂；約束正交時→開放探索空間→多樣性。下一步：(1) 把這個 refinement 帶回 Oulipo/BotW 案例驗證——Oulipo 的約束（不用字母 e）確實跟詞彙選擇正交（不互相穩定），所以開放空間。(2) Google 的 phase transition 概念是否能用 Bailey 的 regime formation 解釋——agent 數量超過臨界點時，是不是通訊約束無法再穩定成 coherent regime？
+Bailey 的 "regime formation" + Pappu 的 epistemic gradient = regime 不僅會形成，還會選擇性地穩定在特定 basin。Next #2（Google phase transition）現已在 #52 處理。剩下 open：(1) Oulipo/BotW 用 regime 框架重讀——Oulipo 約束正交（不互相穩定）是特徵還是缺陷？（2）Pappu 的反身推論——mini-agent 作為 single-body hub，內部的 perspective 綜合是否有 averaging 風險？可 delegate 審查 multi-agent-workflow plugin 的 review/audit/orchestrate 命令。（3）Congruence 第五軸假說：language-time（約束跟時間介質順紋，Ronacher 的 Time Capture Problem 可能是這個軸的觀察）——待下一個 congruence 案例觸發才展開。
