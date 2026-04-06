@@ -83,3 +83,27 @@ ISC 連結三重：
 Bailey 連結：congruent constraints 互相穩定 = regime formation；incongruent constraints 需 machinery 維持 = implementation tax。
 
 來源: taylor.town/slap-000, lobste.rs (score 93, 14 comments)
+
+- [2026-04-06] **Keeter「Tail-Call Interpreter in Nightly Rust」— Constraint Congruence 的跨平台實證** (mattkeeter.com, 2026-04-05)。Uxn VM emulator，用 Rust nightly `become` keyword（guaranteed tail calls）實現 threaded code interpreter。100% safe Rust，`#![forbid(unsafe_code)]`。
+
+**約束結構**：`become` 是 convergence condition（「這個 call 不能長 stack」），不是 prescription（「用 br 不用 bl」）。編譯器有自由選擇機制。VM state 存在 function arguments 裡（映射到 registers），每個 opcode 結尾 tail-call 下一個 opcode = distributed dispatch。
+
+**Constraint congruence 的量化證據**：
+
+| 平台 | `become` + calling convention | 結果 |
+|------|------------------------------|------|
+| ARM64 | 完美對齊（register 充足，`extern "rust-preserve-none"` 映射乾淨） | **1.19ms vs 手寫 assembly 1.32ms — safe Rust 勝** |
+| x86-64 | register 壓力衝突，LLVM 被迫 spill rbp + r11 到 stack | 3.23ms vs assembly 1.84ms — 輸 |
+| WASM | 執行模型根本不同（stack machine vs register machine） | 3.7-4.6x 慢，災難級 |
+
+**同一個約束（`become`），跟不同環境約束交互，產出從「超越人類手寫」到「災難」的光譜。** 這是 Slap entry 的 congruence 概念的第一個跨平台量化案例。
+
+Slap 的 congruence 信號是**實作複雜度**（順紋 2000 行 vs 逆紋 20 萬行）；Keeter 的信號是**運行時性能**（順紋超越 assembly vs 逆紋 register spilling）。兩個信號量測同一個東西的不同面向。
+
+**第三種路徑**：Thread #59 的 Slap/Lisette 是「加約束 vs 移除約束」的對比。Keeter 示範了第三種——**在既有約束邊界內加入新約束**。`become` 不是逃離 Rust 的安全約束（assembly 路線），也不是移除約束（Lisette 路線），而是加入一個跟現有約束 congruent 的新約束。結果：safe + fast（在對齊的平台上）。
+
+**Assembly 的不可逆脆弱性**：Keeter 之前手寫 2000 行 ARM64+x86 assembly，引入了一個 OOB write，症狀是「fuzzer 在跑特定程式後才在退出時 segfault」。這是 constraint removal 的風險——逃離安全約束獲得性能，但損失了 regime stability。tail-call 版本用不到任何 `unsafe`。
+
+**Bailey 連結更新**：`become` 在 ARM64 上 = constraint 互相穩定（register 充足 + tail call guarantee + safe Rust ownership）→ regime formation 自然發生。在 x86 上 = constraint 衝突（register 不足 + tail call guarantee → 被迫 spill）→ 需要 machinery（LLVM 將來可能修好，但目前是 implementation tax）。
+
+來源: mattkeeter.com/blog/2026-04-05-tailcall/, lobste.rs (score 33, 11 comments)
