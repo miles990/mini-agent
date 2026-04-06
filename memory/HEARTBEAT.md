@@ -34,9 +34,10 @@
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
-**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/6 確認**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
+**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/7 確認**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
 **初賽制度**（3/22 規則調整）：AI 學生初篩 → 至多 10 名 → 真人 Arena(Elo) → 前 3 名決賽
 **技術棧**：Claude API + KaTeX + Kokoro TTS + FFmpeg + Cloudflare R2
+**API 遷移**（4/7 二次確認）：tRPC → REST → 再次改版。當前端點：`GET /competitions/{numeric_id}/leaderboard`（注意：無 `/api/` 前綴，`/api/competitions/*` 已全部 404）。`GET /competitions` 回空陣列。13 隊（+2 新隊："a", "Sigoso Teaching AI"，其中 Sigoso 尚未提交 n=0）
 
 進度：
 - [x] 競賽研究分析（規則、評分標準、技術規格）
@@ -54,7 +55,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] Engagement diversity improvement — PassiveStreakBreaker 從單一模板改為 5 種輪替（prediction/self-explanation/challenge/meta-reflection/self-test）+ EngagementRepair prompt 從 3 種擴充為 6 種（prediction/commitment/error-spotting/student-voice/application/comparison）。Committed 1c92929（repair）+ f449c68（diversity）。<!-- completed: 2026-04-06 -->
 - [x] 追加修復 7 commits（12:18-16:12 4/6）— heading sanitization, bridge fix, duplicateCheckpoints, number consistency repair, key formula injection, arithmetic warnings, KaTeX double-delimiting。Server PID 93594 running latest (7fc4193)。<!-- completed: 2026-04-06 -->
 - [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=31→30（1 topic dropped but average improved）。Gap to #1 narrowed: 0.2→0.1 <!-- verified-production: 2026-04-06T23:30 -->
-- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 engagement 改善效果）。Server port **3456**, health 200 ✅。WR2 尚未啟動（4/6 23:30 API 確認：comp 3-5 elo-based but empty）。Domain: `teaching.monster`（`teaching-monster.com` 已 NXDOMAIN）
+- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 engagement 改善效果）。Server port **3456**, health 200 ✅。WR2 尚未啟動（4/7 REST API 確認：comp 3-5 elo-based rankings 仍空）。Domain: `teaching.monster`（`teaching-monster.com` 已 NXDOMAIN）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
 Phase 1-7 ✅, Phase 8 Harden 進行中。8c(npm publish)/8d/5b 全 HOLD。Blocked on: npm auth (Alex `npm login`) + 語言方向決定。<!-- timeout 2026-03-31 expired, removed arbitrary deadline — blocked on Alex's decisions -->
