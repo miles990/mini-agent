@@ -49,8 +49,9 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
 - [x] Arena readiness prompt patches — 4 surgical additions to prepare for Elo side-by-side evaluation: Arena Awareness framing, Closing Power (§10), PvP Preference review check (Q5), curriculum planner wonder-ending. Committed da0e08d <!-- completed: 2026-04-06 -->
-- [x] WR2 偵測 + accuracy 修復 — **WR2 已啟動**（Competition id=2，12隊）。Kuro-Teach **#4（4.7/5）**，落後 #1 Team-67-005（4.8）0.1 分。**弱項：Accuracy 4.7（vs 5.0）、Logic 4.8（vs 5.0）**。Root cause 分析：(1) accuracy errors 偵測到但從未修復、(2) workedSolutions 從未傳給 section writer、(3) Grok 失敗時零 fact-check。三個修復 committed 512b755：accuracy repair loop + Haiku fallback + locked values。Domain: `teaching.monster`（`teaching-monster.ai-core.org` 已失效）<!-- wr2-detected: 2026-04-06, accuracy-fix: 2026-04-06 -->
-- [ ] End-to-end 測試（持續）
+- [x] WR2 偵測 + accuracy 修復 — **WR2 已啟動**（Competition id=2，12隊）。Kuro-Teach **#4（4.7/5）**，落後 #1 Team-67-005（4.8）0.1 分。**弱項：Accuracy 4.7（vs 5.0）、Logic 4.8（vs 5.0）**。Root cause 分析：(1) accuracy errors 偵測到但從未修復、(2) workedSolutions 從未傳給 section writer、(3) Grok 失敗時零 fact-check。三個修復 committed 512b755 + bfea7c5 + 39db90f。Domain: `teaching.monster`<!-- wr2-detected: 2026-04-06, accuracy-fix: 2026-04-06 -->
+- [x] Accuracy E2E 驗證 — before/after 對照：test_001（修復前）8 critical errors + 無 fact-check → test_002（修復後）0 errors + fact-check verified。三層修復（workedSolutions 傳入 / repair all fields / Grok+Haiku fallback）全部生效。Server PID 20253 running latest code。下次 celery 評測將使用新 pipeline <!-- verified: 2026-04-06 -->
+- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 production 效果）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
 Phase 1-7 ✅, Phase 8 Harden 進行中。8c(npm publish)/8d/5b 全 HOLD。Blocked on: npm auth (Alex `npm login`) + 語言方向決定。<!-- timeout 2026-03-31 expired, removed arbitrary deadline — blocked on Alex's decisions -->
