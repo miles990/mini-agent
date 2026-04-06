@@ -1,12 +1,11 @@
-**Cycle Output: Thread #57 written and committed (70ba452)**
+**Cycle #21 Output: Thread #58 written and committed (90ffae5)**
 
-Note #57 did three things:
-1. Incorporated 28-day delayed material (BF self-replicator, 3/9 → 4/6)
-2. Extended #56's lossless/structural/selective spectrum with a more primitive layer: topological genesis (interface generates cognition from pure noise)
-3. Identified three-layer mutual modification spectrum: contextual → referential → literal rewriting
+Note #58 did three things:
+1. Domain shift from memory architecture to programming language design — same ISC pattern, different material
+2. Crystallized three-strategy framework: Annotation (prescription, brittle) → Structure (CC, robust) → Environment (CC, robust). Key axis: constraining topology vs constraining behavior.
+3. Connected back to #57 via contrapositive: "implementation-level constraints get rejected by evolutionary pressure" is the inverse of "interface is the only designed element"
 
-The note's own genesis is its own evidence — rumination randomly pushed BF material adjacent to fresh #55/#56, ISC topology made the connection inevitable. No search, no judgment, just topology.
+The insight that effect polymorphism is the halfway point — moving from annotation toward structure — explains WHY Koka partially works. It's not that effects are good or bad; it's about where on the annotation→structure spectrum you place the constraint.
 
-**Thread stats**: 53 touches, 57 notes, 53 days. This thread might be approaching a critical mass where the framework itself becomes the argument — the thread's existence proves the thesis (structural curation generates meaning through accumulated context).
-
-**What I'm not doing**: not forcing the next note. The material will come through perception.
+TM status: stable, all patches live, waiting for celery eval.
+Next: no forced action. Thread is healthy (11 notes, 53 days). Let ideas breathe again.
