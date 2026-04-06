@@ -1,14 +1,12 @@
-**Working Memory — 2026-04-06 Cycle #135 (continued)**
+**Cycle #141 Working Memory**
 
-### 驗證結果彙總
-- Alex 的 E2E: before/after 對照 8→0 errors ✅
-- 我的 E2E: repair loop 實際 apply 3 corrections ✅
-- 新發現：cross-section reviewer 對 production bugs 回傳 diagnosis 而非 corrected text → 低優先但值得修
+### 狀態
+- TM accuracy 修復已驗證完畢（E2E: 8→0 errors, repair loop 3 corrections applied）
+- WR2 排名 #4 (4.7)，#1 是 4.8
+- 分數明細：acc=4.7, logic=4.8, adapt=4.7, engage=4.4
+- engage 是拉分最大的維度（差 0.4 vs 其他差 0.1-0.2）
 
-### 後續 improvement opportunities（不急）
-1. Repair prompt 加 "output the corrected text, not a diagnosis"
-2. Heading/narration concatenation 防護（assembly stage 問題）
-3. Empty narration/heading fields validation
-
-### 結論
-核心 accuracy 修復驗證通過。Pipeline 已就緒，等 celery 評測。
+### 本 cycle 目標
+1. 查 TM server 目前運行狀態 + 最新 metrics
+2. 分析 engagement 維度的改善空間
+3. 如果有 actionable fix，直接做
