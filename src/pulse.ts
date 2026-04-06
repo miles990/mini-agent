@@ -162,7 +162,8 @@ const ANALYZE_TYPE_MULTIPLIER: Record<AnalyzeStreakType, number> = {
   blocked: 0.8,     // stuck without acting — 20% less room
 };
 const ERROR_PATTERN_THRESHOLD = 3;
-const SKILL_NUDGE_CYCLE_THRESHOLD = 15;  // Hermes pattern: every N cycles, nudge toward skill creation
+// skill-creation-nudge removed (2026-04-07): time-based trigger proved ineffective (10% over 209 cycles).
+// Skill creation is inherently non-deterministic — crystallization bridge handles pattern detection.
 
 // =============================================================================
 // CT Evolution: Signal Effectiveness Tracking
@@ -188,8 +189,6 @@ const SIGNAL_TARGET_BEHAVIORS: Record<string, (action: string | null) => boolean
   'priority-misalign': (action) => action !== null,  // simplified — any activity shows re-engagement
   'stale-tasks': (action) => action
     ? /complete|done|finish|resolve|close|mark/.test(action.toLowerCase()) : false,
-  'skill-creation-nudge': (action) => action
-    ? /skill.*creat|skill.*updat|skill.*writ|new.*skill|skills\//.test(action.toLowerCase()) : false,
 };
 
 /**
@@ -751,34 +750,8 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     ? state.recentDecisionScores.reduce((s, v) => s + v, 0) / state.recentDecisionScores.length
     : 0;
 
-  // ── Skill creation nudge (Hermes pattern absorption) ──
-  // Track cycles since last skills/ modification to periodically nudge toward codifying learned approaches
-  try {
-    const skillsDir = path.join(process.cwd(), 'skills');
-    if (existsSync(skillsDir)) {
-      const skillFiles = readdirSync(skillsDir).filter((f: string) => f.endsWith('.md'));
-      let maxMtime = 0;
-      for (const f of skillFiles) {
-        try {
-          const st = statSync(path.join(skillsDir, f));
-          if (st.mtimeMs > maxMtime) maxMtime = st.mtimeMs;
-        } catch { /* skip unreadable */ }
-      }
-      const prevMtime = state.lastSkillUpdateMtime ?? 0;
-      if (maxMtime > prevMtime && prevMtime > 0) {
-        // Skill was modified since last check — reset counter
-        state.cyclesSinceSkillUpdate = 0;
-        state.lastSkillUpdateMtime = maxMtime;
-      } else {
-        state.cyclesSinceSkillUpdate = (state.cyclesSinceSkillUpdate ?? 0) + 1;
-        if (prevMtime === 0 && maxMtime > 0) state.lastSkillUpdateMtime = maxMtime;
-      }
-    } else {
-      // No skills directory — still count (encourage first skill creation)
-      state.cyclesSinceSkillUpdate = (state.cyclesSinceSkillUpdate ?? 0) + 1;
-    }
-    metrics.cyclesSinceSkillUpdate = state.cyclesSinceSkillUpdate ?? 0;
-  } catch { /* best effort */ }
+  // skill-creation-nudge tracking removed (2026-04-07) — time-based trigger ineffective
+  metrics.cyclesSinceSkillUpdate = 0;
 
   return metrics;
 }
@@ -945,15 +918,6 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
     });
   }
 
-  // Skill creation nudge — periodic reminder to codify repeated approaches as reusable skills
-  if (metrics.cyclesSinceSkillUpdate >= SKILL_NUDGE_CYCLE_THRESHOLD) {
-    signals.push({
-      type: 'skill-creation-nudge',
-      severity: 'low',
-      positive: true,
-      detail: `${metrics.cyclesSinceSkillUpdate} cycles since last skill update — have you learned a reusable approach worth saving as a skill?`,
-    });
-  }
 
   // ── Negative signals ──
   if (metrics.outputGateTriggered) {
@@ -1091,7 +1055,6 @@ function formatSignal(signal: PulseSignal): string {
     case 'momentum': return `${icon} momentum ×${signal.detail?.match(/\d+/)?.[0] ?? '?'}`;
     case 'creative-flow': return `${icon} creative flow — 保護中`;
     case 'goal-accelerating': return `${icon} ${signal.detail}`;
-    case 'skill-creation-nudge': return `${icon} ${signal.detail}`;
     case 'output-gate': return `${icon} ${signal.detail} — 需要 visible output`;
     case 'learning-streak': return `${icon} ${signal.detail}`;
     case 'goal-idle': return `${icon} goal idle ${signal.detail}`;
