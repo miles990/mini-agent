@@ -34,7 +34,7 @@
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
-**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(未啟動) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
+**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**已啟動**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
 **初賽制度**（3/22 規則調整）：AI 學生初篩 → 至多 10 名 → 真人 Arena(Elo) → 前 3 名決賽
 **技術棧**：Claude API + KaTeX + Kokoro TTS + FFmpeg + Cloudflare R2
 
@@ -42,14 +42,14 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — 帳號已登入、Kuro-Teach 模型 active。WR1 最終排名 **#1**（4.8/5）— acc=5.0, logic=5.0, adapt=4.8, engage=4.5。tsunumon #2(4.8, adapt=4.5), Team-67-005 #3(4.7)。18隊參賽僅6隊有分數。 <!-- completed: 2026-03-18T23:48, ranking updated: 2026-04-06 -->
+- [x] **報名完成** — WR1 最終排名 **#1**（4.8/5）。WR2 排名 **#4**（4.7/5）— acc=4.7, logic=4.8, adapt=4.7, engage=4.4。#1 Team-67-005(4.8), #2 BlackShiba(4.8), #3 tsunumon(4.7)。12隊參賽。 <!-- completed: 2026-03-18T23:48, wr2-updated: 2026-04-06 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
 - [x] Arena readiness prompt patches — 4 surgical additions to prepare for Elo side-by-side evaluation: Arena Awareness framing, Closing Power (§10), PvP Preference review check (Q5), curriculum planner wonder-ending. Committed da0e08d <!-- completed: 2026-04-06 -->
-- [ ] 暖身賽R2 等待啟動 — **Domain 遷移確認**：`teaching-monster.ai-core.org` 已失效，正式 domain 為 `teaching.monster`。**API endpoint 已映射**：SPA 在 `/app/`，API 直接在 origin（如 `/competitions/1/leaderboard`），無 `/api/` prefix。`/competitions` list endpoint 回空（需 auth？）。**Competition id=3**：Elo-based scoring（elo_score/win_rate/total_votes），rankings 空，News 頁最新公告停在 3/29。WR1 排行榜已更新至 **#1(4.8)**。持續觀察 <!-- domain-migration: 2026-04-06, api-mapped: 2026-04-06, id3-discovered: 2026-04-06, wr1-rank-updated: 2026-04-06 -->
+- [x] WR2 偵測 + accuracy 修復 — **WR2 已啟動**（Competition id=2，12隊）。Kuro-Teach **#4（4.7/5）**，落後 #1 Team-67-005（4.8）0.1 分。**弱項：Accuracy 4.7（vs 5.0）、Logic 4.8（vs 5.0）**。Root cause 分析：(1) accuracy errors 偵測到但從未修復、(2) workedSolutions 從未傳給 section writer、(3) Grok 失敗時零 fact-check。三個修復 committed 512b755：accuracy repair loop + Haiku fallback + locked values。Domain: `teaching.monster`（`teaching-monster.ai-core.org` 已失效）<!-- wr2-detected: 2026-04-06, accuracy-fix: 2026-04-06 -->
 - [ ] End-to-end 測試（持續）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
