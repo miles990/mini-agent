@@ -1,1 +1,19 @@
-Cycle #176 — Scope bridge fix shipped (0430dba). Akari 的 root cause analysis 轉化為 code。兩個改動：(1) section writers 現在看到 scope strategy, (2) missing sub-topics 自動修復而非只是 warn。下一步：等 WR2 啟動驗證效果。這個 fix 跟之前的 accuracy repair (workedSolutions injection) + engagement diversity 合在一起，覆蓋了三個主要扣分維度的結構性問題。
+Cycle #177 完成。
+
+**做了什麼：**
+1. 發現 TM server 在 scope bridge fix (0430dba) 之前啟動，運行的是舊代碼
+2. 重啟 server (PID 56610, port 3456) — 修復已生效
+3. 驗證 buildScopeContext() 存在且被 section writer prompt 調用
+4. 確認最新 output 有完整 scopeDecision (overview-plus-deep-dive)，但該 output 是修復前生成的
+5. TM 網站 DNS 暫時不通，WR2 仍未啟動
+
+**狀態：**
+- Server: ✅ running with scope bridge fix
+- WR2: 未啟動（DNS transient down）
+- 當前分數: #4 (4.7/5)，與 #1 差 0.1
+- 主要 gap: accuracy (-0.3), logic (-0.2)
+- Scope bridge fix 預期改善 accuracy（sub-topics 不再丟失）
+
+**下一步：**
+- 等 WR2 啟動或新的 celery 評測來驗證 fix 效果
+- Logic gap 可能需要進一步分析，但優先看 scope fix 的 accuracy 改善
