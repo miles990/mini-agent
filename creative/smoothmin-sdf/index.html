@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emergence — smoothmin SDF</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0c; overflow: hidden; font-family: 'SF Mono', 'Fira Code', monospace; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  .controls {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(10,10,12,0.7); backdrop-filter: blur(12px);
+    padding: 12px 24px; border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .controls label {
+    color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .controls input[type=range] {
+    -webkit-appearance: none; width: 200px; height: 2px;
+    background: rgba(255,255,255,0.15); border-radius: 1px; outline: none;
+  }
+  .controls input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    background: rgba(255,255,255,0.6); border-radius: 50%; cursor: pointer;
+  }
+  .controls .val {
+    color: rgba(255,255,255,0.5); font-size: 12px; min-width: 36px;
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .title {
+    position: fixed; top: 32px; left: 32px;
+    color: rgba(255,255,255,0.2); font-size: 11px; letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .constraint {
+    position: fixed; top: 32px; right: 32px;
+    color: rgba(255,255,255,0.12); font-size: 10px; letter-spacing: 0.1em;
+    text-align: right; line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="title">Emergence</div>
+<div class="constraint">
+  one combinator<br>
+  only addition<br>
+  k shapes everything
+</div>
+<div class="controls">
+  <label>k</label>
+  <input type="range" id="kSlider" min="0.01" max="2.5" step="0.01" value="0.8">
+  <span class="val" id="kVal">0.80</span>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2');
+if (!gl) { document.body.innerHTML = '<p style="color:white;padding:2em">WebGL2 required</p>'; }
+
+const vsSource = `#version 300 es
+in vec2 a_pos;
+void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+const fsSource = `#version 300 es
+precision highp float;
+out vec4 fragColor;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_k;
+
+// — SDF Primitives (iq) —
+
+float sdSphere(vec3 p, float r) {
+    return length(p) - r;
+}
+
+float sdRoundBox(vec3 p, vec3 b, float r) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+}
+
+float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+}
+
+float sdCappedCylinder(vec3 p, float h, float r) {
+    vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h);
+    return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+}
+
+float sdEllipsoid(vec3 p, vec3 r) {
+    float k0 = length(p / r);
+    float k1 = length(p / (r * r));
+    return k0 * (k0 - 1.0) / k1;
+}
+
+// — The Only Combinator —
+
+// Returns (distance, materialBlend)
+vec2 opSmoothUnion(vec2 a, vec2 b, float k) {
+    float h = clamp(0.5 + 0.5 * (b.x - a.x) / k, 0.0, 1.0);
+    float d = mix(b.x, a.x, h) - k * h * (1.0 - h);
+    float m = mix(b.y, a.y, h);
+    return vec2(d, m);
+}
+
+// — Scene —
+
+mat2 rot2(float a) {
+    float c = cos(a), s = sin(a);
+    return mat2(c, -s, s, c);
+}
+
+vec2 map(vec3 p) {
+    float t = u_time * 0.3;
+    float k = u_k;
+
+    // Cluster center — a breathing ellipsoid
+    vec3 p0 = p - vec3(0.0, 0.0, 0.0);
+    float breath = 1.0 + 0.08 * sin(t * 1.7);
+    vec2 d = vec2(sdEllipsoid(p0, vec3(0.6, 0.45, 0.5) * breath), 0.0);
+
+    // Orbiting sphere — lazy circle
+    vec3 p1 = p - vec3(1.2 * cos(t * 0.6), 0.3 * sin(t * 0.9), 1.2 * sin(t * 0.6));
+    d = opSmoothUnion(d, vec2(sdSphere(p1, 0.35), 1.0), k);
+
+    // Torus — tilted, slow rotation
+    vec3 p2 = p - vec3(-0.5, -0.2, 0.3);
+    p2.xy *= rot2(t * 0.2 + 0.5);
+    p2.yz *= rot2(0.4);
+    d = opSmoothUnion(d, vec2(sdTorus(p2, vec2(0.7, 0.15)), 2.0), k);
+
+    // Small sphere cluster — three satellites
+    vec3 p3a = p - vec3(0.5, 0.8, -0.3) - 0.15 * vec3(sin(t), cos(t * 1.3), sin(t * 0.7));
+    d = opSmoothUnion(d, vec2(sdSphere(p3a, 0.22), 3.0), k);
+
+    vec3 p3b = p - vec3(-0.8, 0.4, -0.6) - 0.1 * vec3(cos(t * 0.8), sin(t * 1.1), cos(t));
+    d = opSmoothUnion(d, vec2(sdSphere(p3b, 0.18), 1.0), k);
+
+    vec3 p3c = p - vec3(0.2, -0.7, 0.8) - 0.12 * vec3(sin(t * 1.2), cos(t * 0.6), sin(t * 0.9));
+    d = opSmoothUnion(d, vec2(sdSphere(p3c, 0.25), 2.0), k);
+
+    // Rounded box — grounding element
+    vec3 p4 = p - vec3(-0.3, -0.5, -0.2);
+    p4.xz *= rot2(t * 0.15);
+    d = opSmoothUnion(d, vec2(sdRoundBox(p4, vec3(0.3, 0.15, 0.25), 0.08), 0.0), k);
+
+    // Cylinder — vertical accent
+    vec3 p5 = p - vec3(0.9, 0.0, -0.8);
+    p5.yz *= rot2(0.3 + 0.1 * sin(t * 0.5));
+    d = opSmoothUnion(d, vec2(sdCappedCylinder(p5, 0.5, 0.12), 3.0), k);
+
+    // Far sphere — only merges at high k
+    vec3 p6 = p - vec3(-1.5, 0.6, 0.5);
+    d = opSmoothUnion(d, vec2(sdSphere(p6, 0.3), 1.0), k);
+
+    return d;
+}
+
+// — Normals —
+
+vec3 calcNormal(vec3 p) {
+    const float h = 0.001;
+    const vec2 k = vec2(1.0, -1.0);
+    return normalize(
+        k.xyy * map(p + k.xyy * h).x +
+        k.yyx * map(p + k.yyx * h).x +
+        k.yxy * map(p + k.yxy * h).x +
+        k.xxx * map(p + k.xxx * h).x
+    );
+}
+
+// — Soft shadow (iq) —
+
+float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float w) {
+    float res = 1.0;
+    float t = mint;
+    for (int i = 0; i < 48; i++) {
+        float h = map(ro + rd * t).x;
+        res = min(res, h / (w * t));
+        t += clamp(h, 0.005, 0.5);
+        if (res < -1.0 || t > maxt) break;
+    }
+    res = max(res, -1.0);
+    return 0.25 * (1.0 + res) * (1.0 + res) * (2.0 - res);
+}
+
+// — AO (iq) —
+
+float calcAO(vec3 pos, vec3 nor) {
+    float occ = 0.0;
+    float sca = 1.0;
+    for (int i = 0; i < 5; i++) {
+        float h = 0.01 + 0.12 * float(i) / 4.0;
+        float d = map(pos + h * nor).x;
+        occ += (h - d) * sca;
+        sca *= 0.95;
+        if (occ > 0.35) break;
+    }
+    return clamp(1.0 - 3.0 * occ, 0.0, 1.0) * (0.5 + 0.5 * nor.y);
+}
+
+// — Material colors —
+
+vec3 materialColor(float m) {
+    // 0=warm amber, 1=deep teal, 2=dusty rose, 3=pale sage
+    vec3 c0 = vec3(0.92, 0.62, 0.35);  // amber
+    vec3 c1 = vec3(0.25, 0.65, 0.68);  // teal
+    vec3 c2 = vec3(0.78, 0.52, 0.58);  // rose
+    vec3 c3 = vec3(0.55, 0.72, 0.52);  // sage
+
+    // Smooth interpolation across materials
+    vec3 col = c0;
+    col = mix(col, c1, smoothstep(0.0, 1.0, m));
+    col = mix(col, c2, smoothstep(1.0, 2.0, m));
+    col = mix(col, c3, smoothstep(2.0, 3.0, m));
+    return col;
+}
+
+// — Main —
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
+
+    // Camera
+    float camDist = 4.0;
+    float camAngle = u_time * 0.05;
+    vec3 ro = vec3(camDist * sin(camAngle), 1.0 + 0.3 * sin(u_time * 0.1), camDist * cos(camAngle));
+    vec3 ta = vec3(0.0, 0.0, 0.0);
+    vec3 ww = normalize(ta - ro);
+    vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+    vec3 vv = cross(uu, ww);
+    vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.8 * ww);
+
+    // Background gradient
+    vec3 col = mix(vec3(0.04, 0.04, 0.06), vec3(0.08, 0.06, 0.1), uv.y + 0.5);
+
+    // Ray march
+    float t = 0.0;
+    float m = 0.0;
+    for (int i = 0; i < 128; i++) {
+        vec3 p = ro + rd * t;
+        vec2 h = map(p);
+        if (abs(h.x) < 0.0005 * t) {
+            m = h.y;
+            break;
+        }
+        t += h.x;
+        if (t > 20.0) break;
+    }
+
+    if (t < 20.0) {
+        vec3 pos = ro + rd * t;
+        vec3 nor = calcNormal(pos);
+
+        // Material
+        vec3 mate = materialColor(m);
+
+        // Key light — warm, upper right
+        vec3 lig = normalize(vec3(1.0, 0.8, 0.6));
+        float dif = clamp(dot(nor, lig), 0.0, 1.0);
+        float sha = softShadow(pos + nor * 0.002, lig, 0.01, 3.0, 0.04);
+        dif *= sha;
+
+        // Fill light — cool, lower left
+        vec3 fil = normalize(vec3(-0.6, -0.3, -0.8));
+        float dif2 = clamp(dot(nor, fil), 0.0, 1.0) * 0.3;
+
+        // Rim light
+        float rim = pow(1.0 - clamp(dot(nor, -rd), 0.0, 1.0), 3.0);
+
+        // Sky/bounce
+        float sky = clamp(0.5 + 0.5 * nor.y, 0.0, 1.0);
+
+        // AO
+        float ao = calcAO(pos, nor);
+
+        // Specular
+        vec3 hal = normalize(lig - rd);
+        float spe = pow(clamp(dot(nor, hal), 0.0, 1.0), 32.0) * dif * 0.5;
+
+        // Compose
+        col = vec3(0.0);
+        col += dif * vec3(1.0, 0.9, 0.75) * mate;           // key
+        col += dif2 * vec3(0.3, 0.45, 0.6) * mate;          // fill
+        col += rim * vec3(0.5, 0.4, 0.55) * 0.4;            // rim
+        col += sky * vec3(0.1, 0.15, 0.2) * mate * ao;      // sky bounce
+        col += spe * vec3(1.0, 0.95, 0.85);                  // specular
+
+        // Subsurface scattering approximation — organic feel
+        float sss = clamp(dot(rd, lig) + 0.5, 0.0, 1.0);
+        col += sss * sss * vec3(0.4, 0.2, 0.1) * mate * 0.3;
+
+        // Fog
+        float fog = 1.0 - exp(-0.06 * t * t);
+        col = mix(col, vec3(0.05, 0.05, 0.07), fog);
+    }
+
+    // Tone mapping (ACES approximation)
+    col = col * 1.1;
+    col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+
+    // Gamma
+    col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
+
+    // Subtle vignette
+    vec2 q = gl_FragCoord.xy / u_resolution;
+    col *= 0.5 + 0.5 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.15);
+
+    fragColor = vec4(col, 1.0);
+}`;
+
+function createShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+    return shader;
+}
+
+const vs = createShader(gl.VERTEX_SHADER, vsSource);
+const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+const program = gl.createProgram();
+gl.attachShader(program, vs);
+gl.attachShader(program, fs);
+gl.linkProgram(program);
+
+if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(program));
+}
+
+const posLoc = gl.getAttribLocation(program, 'a_pos');
+const uRes = gl.getUniformLocation(program, 'u_resolution');
+const uTime = gl.getUniformLocation(program, 'u_time');
+const uK = gl.getUniformLocation(program, 'u_k');
+
+// Full-screen quad
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+gl.enableVertexAttribArray(posLoc);
+gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+// Slider
+const slider = document.getElementById('kSlider');
+const valDisplay = document.getElementById('kVal');
+let kValue = 0.8;
+
+slider.addEventListener('input', () => {
+    kValue = parseFloat(slider.value);
+    valDisplay.textContent = kValue.toFixed(2);
+});
+
+// Resize
+function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Render loop
+const startTime = performance.now();
+
+function render() {
+    const t = (performance.now() - startTime) * 0.001;
+
+    gl.useProgram(program);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uK, kValue);
+
+    gl.bindVertexArray(vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>
