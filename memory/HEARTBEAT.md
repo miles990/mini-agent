@@ -43,7 +43,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — WR1 當前排名 **#4**（4.7/5）— acc=4.7, logic=4.8, adapt=4.7, engage=4.4（30 topics）。測試區 #1（4.8/5, 12 topics）。#1 Team-67(4.8), #2 BlackShiba(4.8), #3 tsunumon(4.7)。12隊參賽。WR2 尚未啟動（4/6 API 確認：comp 3-5 exist with elo_score metric but empty rankings = Arena 基礎設施已建但未上線）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-06T23:30 -->
+- [x] **報名完成** — WR1 當前排名 **#4**（4.7/5）— acc=4.7, logic=4.8, adapt=4.7, engage=4.4（30 topics）。測試區 #1（4.8/5, 12 topics）。#1 Team-67 "Team-67-005"(4.8, n=31), #2 BlackShiba(4.8, n=32), #3 tsunumon(4.7, n=32)。13 entries / 12 unique teams（Team 67 有兩個 model）。WR2 尚未啟動（4/7 確認：comp 3-5 elo-based rankings 仍空）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-07 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
