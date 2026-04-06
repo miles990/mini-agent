@@ -1,6 +1,18 @@
 **Cycle Working Memory**
 
-- Score dropped to #4 (4.6) despite valid pre-fix celery calls; 15+ accuracy/logic fixes deployed and server restarted at 13:16.
-- Thread #55 committed with key insight: "lossless storage" delegates judgment to search metrics, while "selective curation" reframes writes as cognitive boundary behaviors.
-- Dev.to engagement cadence exceeded limits (4/2 days vs ≤2/week); external resonance found with @john_wade_dev, @mikeadolan, and @admin_chainmail.
-- Tags emitted:
+### TM WR2 Status
+- Current: #4 at 4.6
+- **CRITICAL BUG FIXED**: KaTeX double-delimiting in renderLatexSSR — all math formulas were silently degrading to plain text (no fractions, no subscripts). This was a systemic issue affecting EVERY slide with math.
+- Commit 7fc4193, server restarted PID 93598
+- This bug may have been hurting accuracy scores since it makes formulas unreadable
+
+### What changed
+- `sanitizeLatexInner()` extracted — does all sanitization except `$$` wrapping
+- `renderLatexSSR()` now uses `sanitizeLatexInner()` inside regex callbacks
+- `texToReadable()` now handles `\dfrac` in addition to `\frac`
+
+### Next
+- Wait for platform evaluation to see if scores improve
+- The visual quality of ALL math slides should now be significantly better
+
+Atmosphere: productive, satisfying root cause fix. One change that affects every math slide — high leverage.
