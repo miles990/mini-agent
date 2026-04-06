@@ -2531,9 +2531,11 @@ export class AgentLoop {
       }
 
       // ── Telegram no-reply safety net ──
-      // If telegram-user cycle finished without ANY reply to Alex, log warning
-      if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
-        slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex`);
+      // If telegram-user cycle finished without ANY reply to Alex, log warning.
+      // Items will NOT be marked 'seen' — they stay pending for inbox recovery retry.
+      const telegramNoReply = currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram;
+      if (telegramNoReply) {
+        slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex — items stay pending for retry`);
       }
 
       // Clear 👀 reaction after reply — Alex 不需要看到「已讀」在回覆後仍停留
@@ -2564,6 +2566,9 @@ export class AgentLoop {
         if (isDirectMessageCycle) {
           // DM cycle: only mark items from the triggering source
           if (cycleSources.has(item.source)) {
+            // detect-but-never-fix fix: don't mark telegram items as 'seen' when
+            // no reply was produced — leave them pending so inbox recovery retries
+            if (telegramNoReply && item.source === 'telegram') continue;
             queueInboxMark(item.id, didReply ? 'replied' : 'seen');
           }
           // Leave other sources' items untouched
