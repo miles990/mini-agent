@@ -592,6 +592,72 @@ Section Writing (write within the constrained scope)
 仍未啟動。主頁確認 "Early April" 但無具體日期。Competition 3 的存在說明平台在準備下一階段。
 
 ### WR2 準備 TODO
-- [ ] 調查 accuracy/logic 回歸原因 — 哪些 topic 分數最低？重跑改了什麼？
+- [ ] 調查 accuracy/logic 回歸原因 — 哪些 topic 分數最低？需要平台 auth 看 per-topic data
 - [ ] 研究 Team-67-005 的策略（+0.4 跳躍是重大情報）
-- [ ] 確保 32/32 完整（缺 1 topic）
+- [x] 確保 32/32 完整 — **已達成**（4/6 API 確認 ai_audited_count=32）
+
+- [2026-04-06] ## Arena 戰略分析（Elo 制的根本差異）
+
+### Competition 3 確認
+- `primary_metric: elo_score`, `display_metrics: [elo_score, win_rate, total_votes]`
+- 0 teams — 尚未啟動，但基礎設施已就位
+- 這是 Human Arena（初賽 Stage 2）或可能是 WR2 的新格式
+
+### Elo 制 vs 絕對評分的戰略差異
+
+**絕對評分**（WR1）：每個 topic 獨立評分 1-5，最終取平均。3.0 的 topic 線性拉低平均。
+**Elo 制**（Arena）：每個 matchup 是二選一（哪個更好？）。Rating 依勝負更新。
+
+**關鍵數學**：Expected win = `1/(1+10^((R_opp - R_self)/400))`
+- 輸給弱隊（低 Elo）的 rating 損失 >> 贏強隊的 rating 增加
+- 一場意外輸給弱隊可以抹掉多場贏強隊的收益
+
+### 三個戰略轉向
+
+**1. 地板比天花板重要（防守優先）**
+- 在 WR1，一個 3.0 topic 把平均從 4.8 拉到 4.74（-0.06）
+- 在 Arena，一個 3.0 topic = 一場必輸 matchup → Elo 大幅下滑
+- **行動**：消除所有 outlier topic，品質地板 ≥ 4.5，不允許任何 topic 低於此
+
+**2. 獨特性 = 偏好驅動力（進攻策略）**
+WigglyPaint 洞見：「strongly discretizing choices」— 約束不是限制，是把認知從「選擇」重導向「創作」。
+Applied to Arena：人類在並排比較時，**有個性的教學** 勝過 **均質好品質**。
+- 通用好老師 vs 通用好老師 = 50/50（無偏好信號）
+- 獨特老師 vs 通用好老師 = 偏好驅動（可辨識 → 可偏好）
+
+**我們的偏好驅動優勢**：
+| 特色 | AI 評分影響 | Arena 影響 | 為什麼 |
+|------|-----------|-----------|--------|
+| Kokoro TTS 自然語調 | 0（文本評分看不到） | **高** | 人類立刻聽出 robotic vs natural |
+| KaTeX 視覺數學 | 中（accuracy 間接加分） | **高** | 並排時公式美觀度一目瞭然 |
+| 核心比喻貫穿 | 低（難量化） | **高** | 記得一個好比喻 > 記得一堆零散例子 |
+| Persona 適配性 | 中（adaptability 維度） | **中** | 人類更關注「對我有用嗎」 |
+
+**3. 前 30 秒是主戰場**
+人類在並排觀看兩支影片時，偏好形成速度 << AI 看完全片打分。
+- 開場 hook 不是「加分項」，是「決勝項」
+- 如果兩支影片都看 3 分鐘就選一個，我們需要在 3 分鐘內建立偏好
+- **行動**：audit 所有 32 topics 的開場 hook 品質
+
+### Arena 準備優先序（時間緊迫時的取捨）
+1. **P0: 品質地板**（消除 outlier → 防止輸弱隊）
+2. **P1: 開場 30s 優化**（audit + 改善每個 topic 的 hook）
+3. **P2: 放大獨特性**（lean INTO 我們的差異，不是 sand it down）
+4. **P3: TTS 微調**（Kokoro 是 invisible advantage，在 Arena 變 visible）
+
+### Acc/Logic 回歸的 Arena 風險
+WR1 重跑後 Acc 5.0→4.7, Logic 5.0→4.8。在絕對評分這是 -0.3/-0.2。
+在 Arena 這意味著：某些 topic 的內容準確度可能不穩定，如果在 matchup 中被分到這些 topic，會輸。
+**必須在 WR2 前找出哪些 topic 拉低 accuracy** — 但需要 per-topic data（auth blocked）。
+
+### 與現有策略的關係
+Phase 1（WR2 Calibration）策略不變 — 用 AI scorer 做 A/B test 的最後機會。
+Phase 2（Arena Prep）新增重點 — distinctiveness amplification + opening hook audit。
+Phase 3（Competition）策略確認 — 一致性第一、不冒險。
+
+### 預測（可回填）
+| 指標 | 預測 | 信心 | 理由 |
+|------|------|------|------|
+| Arena 進入 top 10 | 90%+ | 高 | AI gate 4.7 安全邊際充足 |
+| Arena Elo top 5 | 60% | 中 | Kokoro+KaTeX 在 human pairwise 有結構優勢 |
+| Arena Elo top 3 | 35% | 低 | Team-67-005 和 BlackShiba 可能也有 human-optimized 特色 |
