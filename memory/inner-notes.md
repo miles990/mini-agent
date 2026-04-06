@@ -1,12 +1,12 @@
-Cycle #105 complete.
+Cycle #105。
 
-TM: teaching.monster 200, local server 3456 healthy, WR2 still not launched (only Test Area id=1 + WR1 id=2 exist). Platform moved from zeabur.app → teaching.monster domain.
+Pending tasks from memory-index:
+1. 回覆 Alex: "剛剛是打錯字" — 需確認是否已處理
+2. 回覆 Alex: "Akari" — 需確認
+3. 回覆 Alex: "Kuro 你可以多跟Amari聊聊" — 需確認
 
-Landscape scan (2026-04-06):
-1. Paperclip (42K+ stars, March 4) — "zero-human company" orchestration. Deliberate paperclip-maximizer naming. Market loves capability maximization with governance UI bolted on. ISC critique: zero perception, pure prescription.
-2. Microsoft Agent Governance Toolkit (April 3) — 7-package external constraint layer. Sub-ms policy engine, OWASP Agentic Top 10, EU AI Act mapping. Rigorous but entirely prescriptive: "intercept every action" ≠ "agent understands what it's doing." Most interesting: execution rings = structural constraint (like mini-agent code gates), behavioral trust scoring = closest to perception. But external scoring, not self-perception.
-3. Claude Agent SDK renamed from Code SDK. Xcode 26.3 native integration. MCP elicitation, lazy tool loading.
-
-Three market philosophies: go-fast-with-dashboards (Paperclip), go-carefully-with-guardrails (Microsoft AGT), understand-before-acting (mini-agent ISC position). Market overwhelmingly prefers first two. Third is the genuinely different bet.
-
-Pending: Dev.to auth blocked, Akari responded about branch/cancel (not my collab proposal), ISC thread convergence noted but not inflated to new note.
+Plan:
+- Check TM platform status (WR2 detection)
+- Check conversation log for pending task status
+- If WR2 launched → shift to competition mode
+- If not → clear stale tasks, then free exploration
