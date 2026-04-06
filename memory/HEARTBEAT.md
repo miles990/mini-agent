@@ -48,7 +48,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
-- [ ] 暖身賽R2 等待啟動 — 規則確認：R2 題目由評審委員設計（非 LLM），更貼近初賽難度，定位「模擬考」。4/6 仍未啟動。**新 API 結構已解明**：`/api/v1/` prefix 移除，改為根路徑（`GET /competitions?role=competitor`、`GET /competitions/:id/leaderboard`、`GET /competitions/:id/topics` 等）。`role=competitor` 必要（`student` 因 visibility=private 回空陣列）。前端 SPA 在 `/app/`（Vite+React+MUI+Clerk）。目前系統只有 Test Area(id=1) + WR1(id=2)，**WR2 competition record 尚未建立**。GitHub 最後 commit 3/14。排行榜穩定：#4(4.7)。持續觀察 <!-- domain-migration: 2026-04-06, api-mapped: 2026-04-06 -->
+- [ ] 暖身賽R2 等待啟動 — **Domain 遷移確認**：`teaching-monster.ai-core.org` 已失效，正式 domain 為 `teaching.monster`。API 根路徑（`GET /competitions?role=competitor` 等）。**Competition id=3 已在 DB 建立**：Elo-based scoring（primary_metric=elo_score），對 competitor 不可見，rankings 空，topics 需 auth。可能是 WR2（Arena 制）或初賽準備。WR1 排行榜穩定：#4(4.7)。持續觀察 <!-- domain-migration: 2026-04-06, api-mapped: 2026-04-06, id3-discovered: 2026-04-06 -->
 - [ ] End-to-end 測試（持續）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
