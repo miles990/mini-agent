@@ -82,7 +82,7 @@ import type { PromptBuilderState } from './prompt-builder.js';
 import type { LoopState } from './event-router.js';
 import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
-  drainHeldTags, buildHeldTagsPrompt, logHesitation,
+  drainHeldTags, buildHeldTagsPrompt, logHesitation, recordPatternHits,
 } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, forgeRecover } from './delegation.js';
 import { cleanupStaleLaneOutput } from './memory.js';
@@ -2134,6 +2134,7 @@ export class AgentLoop {
       if (isEnabled('hesitation-signal')) {
         const errorPatterns = loadErrorPatterns();
         const hesitationResult = hesitate(response, tags, errorPatterns);
+        recordPatternHits(hesitationResult.matchedPatternIds);
         if (!hesitationResult.confident) {
           const { held, scheduleReview } = applyHesitation(tags, hesitationResult);
           hesitationScheduleReview = scheduleReview;

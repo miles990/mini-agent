@@ -33,6 +33,7 @@ export interface HesitationResult {
   confident: boolean;      // score < threshold
   signals: HesitationSignal[];
   suggestion: string;      // reflection hint for next cycle
+  matchedPatternIds: string[];  // error pattern IDs that matched (for triggerCount tracking)
 }
 
 export interface ErrorPattern {
@@ -91,10 +92,12 @@ export function hesitate(
   }
 
   // Signal 2: Matches past error patterns
+  const matchedPatternIds: string[] = [];
   if (errorPatterns.length > 0) {
     const responseLower = response.toLowerCase();
     for (const pattern of errorPatterns) {
       if (pattern.keywords.some(kw => responseLower.includes(kw.toLowerCase()))) {
+        matchedPatternIds.push(pattern.id);
         signals.push({
           type: 'error-pattern',
           detail: `matches past error: ${pattern.description}`,
@@ -137,6 +140,7 @@ export function hesitate(
     suggestion: signals.length > 0
       ? `Hesitation (score=${score}): ${signals.map(s => s.type).join(', ')}`
       : '',
+    matchedPatternIds,
   };
 }
 
@@ -346,10 +350,21 @@ export function addErrorPattern(pattern: Omit<ErrorPattern, 'id' | 'triggerCount
     createdAt: new Date().toISOString(),
     triggerCount: 0,
   });
-  // Keep max 50 patterns
+  // Keep max 50 patterns — drop least-triggered first
   if (state.errorPatterns.length > 50) {
-    state.errorPatterns = state.errorPatterns.slice(-50);
+    state.errorPatterns.sort((a, b) => b.triggerCount - a.triggerCount);
+    state.errorPatterns = state.errorPatterns.slice(0, 50);
   }
   saveState(state);
   slog('HESITATION', `New error pattern: ${pattern.description}`);
+}
+
+/** Increment triggerCount for matched patterns (called after hesitate()) */
+export function recordPatternHits(patternIds: string[]): void {
+  if (patternIds.length === 0) return;
+  const state = loadState();
+  for (const ep of state.errorPatterns) {
+    if (patternIds.includes(ep.id)) ep.triggerCount++;
+  }
+  saveState(state);
 }
