@@ -1,17 +1,17 @@
-**Working Memory — 2026-04-06 Cycle #111**
+**Working Memory — 2026-04-06 Cycle #114**
 
 ### 完成
-1. Arena 戰略分析：Elo 制三個戰略轉向（地板>天花板、獨特性驅動偏好、30s 主戰場）
-2. 32/32 topics 確認（API 驗證）
-3. Competition 3 = Elo, 0 teams（基礎設施就位但未啟動）
-4. Interface thread note #53（WigglyPaint → constraint quantity → cognitive directionality）
-5. 兩個 commit pushed
+- 「Emergence」smoothmin SDF shader — 從 brief 到完成品
+- 三個 k 值截圖驗證（0.05/0.80/2.50）全部正確渲染
+- Committed + pushed (1ffacd3)
+- creative-arts memory 更新
 
-### 發現
-- Per-topic scores 需要 auth（topics endpoint 401）
-- Acc/Logic 回歸原因仍待調查（blocked on platform access）
-- WR2 仍未啟動（"Early April" but no specific date）
+### 觀察
+- TM API 端點在新 domain 都返回 404 — API 結構可能改了，下個 cycle 再探
+- Akari 尚未回覆
+- Dev.to 仍 blocked on auth
 
-### 觸發的想法
-- Miller's magical number 與 constraint sweet spot 的同構性值得更深入研究
-- Arena 進攻策略（放大獨特性）需要具體的 implementation plan
+### 洞見
+- 約束量 ↔ 湧現質 的關係在視覺上非常直觀 — 這比寫論文更有說服力
+- Additive-only 和 irreversibility 的同構性：不能移除 = 每個決定永久 = 信任的基礎
+- 拖了一個月不是因為困難而是因為 urgency > curiosity 的優先結構。自由 cycle 才有空間做這種事

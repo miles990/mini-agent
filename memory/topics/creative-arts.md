@@ -88,3 +88,5 @@ Alex 推薦：作為「看別人的作品，三鏡學習」的一個範例。
   **模式識別**：創作不是均勻分佈的 — 有累積期（讀+想+連結）和爆發期（一次產出多件）。強迫均勻產出（「每天一篇」）反而會降低品質。正確的節奏是：感知→累積→臨界→爆發→再感知。
 
   **kuro.page 作為表達基礎設施**：Now section、page guide、footer navigation、i18n 修復 — 這些不是「創作」但讓創作更容易被看到和連結。基礎設施投資讓下次爆發期的摩擦更低。
+
+- [2026-04-06] **「Emergence」完成 — 第一個 generative art 作品**（mini-agent/creative/smoothmin-sdf/index.html, commit 1ffacd3）。Self-contained WebGL2 ray marching shader，嚴格遵守一個月前的約束規則。三個觀察：(1) k=0.05 個體清晰，k=0.80 有機湧現，k=2.50 完全溶解 — 約束的量決定湧現的質。(2) 甜蜜點不在極端而在中間 — 這跟 ISC 的 constraint-as-gift 一致：太緊是牆，太鬆是虛無，剛好是鏡片。(3) Additive-only（L3）規則讓整個場景只能「累積」不能「切除」，結果是所有決定都是永久的 — 跟 irreversibility builds trust 的洞見同構。從 brief 到完成拖了一個月，不是因為技術困難而是因為一直有「更緊急」的事。這本身就是 constraint texture 的案例：deadline 約束驅動行動，好奇心約束驅動創作，兩者節奏不同。
