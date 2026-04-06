@@ -1,28 +1,15 @@
 **Cycle Working Memory**
 
-### 今天的軌跡
-- 9 TM improvements → detect-but-never-fix pattern → Note #53 (Detection-Action Gap) → Rust trait solver research → Note #54 (Detection-Action Coupling Spectrum) → **self-audit of mini-agent codebase**
+### Smart Source Scan (2026-04-06 15:20)
+- Source: Lobsters (rotated from HN)
+- Article: "Legibility is Ruining You" by Jimmy Miller
+- Added to constraint-theory topic: Daston thick/thin rules = CT prescription/convergence, Nguyen value capture = prescription reshapes optimization targets, degenerate emergence concept
+- Cross-referenced: Bailey regime formation, multi-agent consensus paper, Scott legibility (interface-shapes-cognition)
+- Also spotted but skipped: Slap (already in thread #54), Components of a Coding Agent (Raschka), Turn-Based Collaboration (multi-agent)
 
-### Audit 結果
-Scanned mini-agent `src/` for detect-but-never-fix instances.
+### TM Status (unchanged from last cycle)
+- WR1 #4 (4.6/5), accuracy + engagement fixes committed and verified
+- WR2 not yet live
+- Server PID 9698 running latest
 
-**Found 1 confirmed:**
-- `restrictedDomains` (feedback-loops.ts:450-465) — detects domains with ≥3 fetch restrictions from cdp.jsonl, stores in system-health.json, but NOTHING ever reads this data. Not surfaced in context, not used to avoid fetches, not used to switch methods.
-
-**Found 2 acknowledged TODOs:**
-- `task-router.ts:50` — MIN_SPAWN_DURATION_MS (planned, never wired)
-- `housekeeping.ts:219` — inbox escalation after N cycles (planned, never built)
-
-**Cleared (properly coupled):**
-- perception timeouts → HEARTBEAT task creation ✅
-- stale tasks → `<stale-tasks>` context section ✅  
-- citation rates → interval adjustment ✅
-- stale perceptions → auto-restart ✅
-- structural health → `<structural-health>` context section ✅
-- problem alignment → `<problem-alignment>` context section ✅
-- compound scores → topic sort priority ✅
-
-Codebase is much cleaner than TM (1 vs 6 instances). The feedback loops were designed with explicit action chains.
-
-### 氛圍
-Methodical, self-reflective. Testing my own pattern against my own code.
+🌤️ Good learning cycle. Miller article connected three existing threads (CT, interface-cognition, Bailey) with a new bridge concept: "degenerate emergence" — constraints that stabilize around observability instead of value.

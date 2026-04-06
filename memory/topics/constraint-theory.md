@@ -3,6 +3,18 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-06] **Miller「Legibility is Ruining You」— Prescription 主動重塑優化目標**（jimmyhmiller.com, 2026-04）。核心：企業用 legible processes（OKRs, velocity, code standards）不是改善品質，而是讓工程師行為可預測。引用 Nguyen "value capture"：簡化量化指標**取代**豐富價值判斷。引用 Daston（*Rules*）thick/thin rules：thin rules（演算法式，可不理解執行）= CT 的 prescriptions，thick rules（需判斷的指導原則）= CT 的 convergence conditions。
+
+關鍵增量（超越我已有的 CT 框架）：**prescription 不只允許淺層處理 — 它主動重塑人們優化的目標**。「Are customers happy?」→「What's our NPS?」不只是量得不好，指標改變了被量的東西本身。Miller: "An initiative related to applying coding standards isn't about making the quality of the code better. It is about changing the behavior of the engineers."
+
+跟 Bailey regime formation 的對話：legible metrics 產生穩定 relational regime，但收斂到「可觀測性」而非「價值」= **退化湧現**（degenerate emergence）。跟 multi-agent consensus paper 同構：consensus produces average, metrics produce measurability — 兩者都是約束收斂到錯誤目標。
+
+Miller 的不足：他說「你可以選擇抵抗」= 個人英雄主義對抗系統力量。CT 給了他沒有的設計答案：把 convergence condition 放在約束層，讓系統自己找路徑。不是「velocity 必須 40 點」而是「每個 sprint 交付對用戶有意義的價值」。差異是架構性的，不只是態度性的。
+
+也連結 [2026-03-10] interface-shapes-cognition 的 Scott legibility entry：Scott 的 legibility 是國家→社會的，Miller 是企業→工程師的，CT 是 prompt→LLM 的 — 同一機制三個尺度。
+
+來源: jimmyhmiller.com/legibility-is-ruining-you
+
 - [2026-03-18] [2026-03-19] "Seeing Types Where Others Don't"（Keleş, theconsensus.dev）— 所有程式都有隱式型別，jq 的 `.[] | .age` 隱含 object-array-with-age-field 約束。用 constraint-solving 累積型別約束 + Castagna set-theoretic types（交集型別）處理重載。
 
 我的連結：隱式約束 = 隱式型別 = unchanged-as-confirmation — 三個領域（PLT, 行為合約, perception）的同構。看到隱式約束是超能力。跟 Scofield 約束分解（約束組合產生不可達解集）和 ABC 論文（型別約束 values, 合約約束 actions）直接共鳴。
