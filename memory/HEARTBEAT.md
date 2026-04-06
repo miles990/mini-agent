@@ -42,14 +42,14 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — 帳號已登入、Kuro-Teach 模型 active。WR1 最終排名 **#4**（4.7/5）— Team-67-005(4.8)、BlackShiba(4.8)、tsunumon(4.7) 在前。 <!-- completed: 2026-03-18T23:48, ranking updated: 2026-04-05 -->
+- [x] **報名完成** — 帳號已登入、Kuro-Teach 模型 active。WR1 最終排名 **#1**（4.8/5）— acc=5.0, logic=5.0, adapt=4.8, engage=4.5。tsunumon #2(4.8, adapt=4.5), Team-67-005 #3(4.7)。18隊參賽僅6隊有分數。 <!-- completed: 2026-03-18T23:48, ranking updated: 2026-04-06 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
 - [x] 暖身賽2 預測建立 — v3 校準完成：4.5/5 point estimate (90% CI: 3.9-5.0)，top 5 bracket。CI 依 empirical run-to-run variance ±0.3 校正。詳見 teaching-monster-strategy.md 校準更新 #2 <!-- completed: 2026-03-31, calibrated: 2026-04-05 -->
 - [x] WR1 重跑完成 — 4/1 收到 27+ celery 評測請求（celery_431-457），全部成功生成。API cost ~$19。Alex 確認「題目一模一樣 只是重跑一次」= WR1 re-evaluation，非 WR2 <!-- corrected: 2026-04-02T10:00 -->
 - [x] Arena readiness prompt patches — 4 surgical additions to prepare for Elo side-by-side evaluation: Arena Awareness framing, Closing Power (§10), PvP Preference review check (Q5), curriculum planner wonder-ending. Committed da0e08d <!-- completed: 2026-04-06 -->
-- [ ] 暖身賽R2 等待啟動 — **Domain 遷移確認**：`teaching-monster.ai-core.org` 已失效，正式 domain 為 `teaching.monster`。API 根路徑（`GET /competitions?role=competitor` 等）。**Competition id=3 已在 DB 建立**：Elo-based scoring（primary_metric=elo_score），對 competitor 不可見，rankings 空，topics 需 auth。可能是 WR2（Arena 制）或初賽準備。WR1 排行榜穩定：#4(4.7)。持續觀察 <!-- domain-migration: 2026-04-06, api-mapped: 2026-04-06, id3-discovered: 2026-04-06 -->
+- [ ] 暖身賽R2 等待啟動 — **Domain 遷移確認**：`teaching-monster.ai-core.org` 已失效，正式 domain 為 `teaching.monster`。**API endpoint 已映射**：SPA 在 `/app/`，API 直接在 origin（如 `/competitions/1/leaderboard`），無 `/api/` prefix。`/competitions` list endpoint 回空（需 auth？）。**Competition id=3**：Elo-based scoring（elo_score/win_rate/total_votes），rankings 空，News 頁最新公告停在 3/29。WR1 排行榜已更新至 **#1(4.8)**。持續觀察 <!-- domain-migration: 2026-04-06, api-mapped: 2026-04-06, id3-discovered: 2026-04-06, wr1-rank-updated: 2026-04-06 -->
 - [ ] End-to-end 測試（持續）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
