@@ -1,7 +1,11 @@
-**Self-correction — publish cadence**
+**Working Memory — 2026-04-06 Cycle #104 結束**
 
-發布前必須 `curl dev.to API` 檢查當天已發篇數。
-≥2 → 存草稿，隔天發。
-這是 mechanism level 修正，不是 symptom（「下次記得」不夠）。
+### 完成
+- Cadence gate 驗證 ✅（shell level, 15/2 blocked）
+- Memory index 修正 ✅
+- Thread #interface note #52（MSA connection）
 
-下個 cycle 如果要發文，先查。
+### 下 cycle 注意
+- 發布凍結到 4/7
+- TM WR2 仍未啟動（持續觀察）
+- Thread 可以繼續深化 MSA↔pulse 連結，但不急
