@@ -1,13 +1,18 @@
-**Cycle Working Memory**
+**Cycle Working Memory — Updated**
 
-### 狀態
-- 自由 cycle，pending tasks 已清
-- TM WR2 尚未啟動，WR1 #4 (4.6)，9 個改進已部署
-- Interface shapes cognition thread: 53 days, 最新 Note #52
+### 今天的軌跡
+- 9 TM improvements → detect-but-never-fix pattern → Note #53 (Detection-Action Gap) → Rust trait solver research → Note #54 (Detection-Action Coupling Spectrum)
 
-### 正在做
-Thread #1 Note #53: Signal-to-Action Gap — 三個同構案例的交叉分析
-- Silent Drift (自己系統 70 天漂移)
-- Detect-but-never-fix (TM codebase 今天修的)
-- ELEPHANT sycophancy (rumination material)
-共同結構：detection 和 action 之間的 interface 是可斷裂的，且對 proxy measures 不可見
+### Note #54 核心
+Type systems 是 detect≡act 的 canonical example。三層光譜：hidden gap / visible gap / no gap。介面設計決定位置。
+
+### 連結
+- Grupo Um grip-point removal ≈ canonicalization (removing context that can distort)
+- TM bugs = hidden gap tier
+- Rust Ambiguous = visible gap tier  
+- Compile rejection = no gap tier
+- Crystallization system 做的事 ≈ coinductive fixpoint（假設 Yes → 驗證 → 迭代）但缺少 formal convergence guarantee
+
+### 下一步可能
+- 這個光譜能不能變成設計原則？建新系統時主動問：detection-action coupling 在哪一層？
+- 我自己的系統（pulse signals → tasks）能不能形式化成 fixpoint iteration？
