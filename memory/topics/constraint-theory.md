@@ -9,6 +9,8 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 
 Source: https://theconsensus.dev/p/2026/03/06/seeing-types-where-others-dont.html
 
+- [2026-04-06] Haskin「Lisp is AI Resistant」→ 約束拓撲決定 AI 效能（2026-04-05, Lobsters）。Lisp 的約束結構（語法均一 + 語義自由 via macro）vs Python（語法多元 + 語義受限）→ AI 在 steep constraint gradient（Python）上高效，在 flat landscape（Lisp）上昂貴。核心：AI 的效能不是語言品質指標，而是語言約束拓撲與 AI 介面約束的 compatibility 測量。跟 Slap/Lisette contrastive pair 同構：Slap（加 borrow checker）和 Lisette（移除 borrow checker）是同一個約束維度的 +/- 操作，Haskin 案例是另一個維度（meta-programming 自由度）的觀察。統一：約束的 AI-compatibility 是一個新維度，獨立於約束的認知品質。來源: blog.djhaskin.com
+
 - [2026-03-22] **"Multi-Agent Teams Hold Experts Back"**（Pappu, El, Cao, di Nolfo, Sun, Cao, Zou — ArXiv 2602.01011）— LLM multi-agent teams **始終無法達到最佳成員的表現**，損失最高 37.6%。根因不是找不到專家（identification），而是用不了專家（leveraging）。機制叫 **Integrative Compromise**：非專家提出折衷方案取代服從專家意見，而專家也「有彈性地」接受非專家意見。四種對話模式中，Epistemic Deference（服從）r = -0.44~-0.68（好），Integrative Compromise r = 0.55~0.69（壞），Epistemic Flexibility r = 0.58~0.61（壞）。團隊越大越糟（p < 0.05）。
 
 我的判斷：**共識是一種約束，但它產生的 regime 是「平均值」。** 當任務需要最佳解而非穩健解，共識就是錯誤的約束——它把信號跟噪音混合。
