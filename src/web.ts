@@ -131,25 +131,52 @@ export async function fetchPage(
   const timeout = options?.timeout ?? 15_000;
   const maxLength = options?.maxLength ?? 50_000;
 
-  // ── Gate: skip domains with repeated content restrictions ──
+  let hostname = '';
+  try { hostname = new URL(url).hostname; } catch { /* invalid URL — let fetch fail naturally */ }
+
+  // ── Gate 1: skip domains with repeated content restrictions ──
   try {
-    const hostname = new URL(url).hostname;
     const { readState } = await import('./feedback-loops.js');
     const health = readState<{ fetchHealth: { restrictedDomains: string[] } }>('system-health.json', { fetchHealth: { restrictedDomains: [] } });
-    if (health.fetchHealth.restrictedDomains.includes(hostname)) {
+    if (hostname && health.fetchHealth.restrictedDomains.includes(hostname)) {
       slog('WEB', `⛔ skipped restricted domain: ${hostname}`);
       return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error: `Domain ${hostname} is restricted (3+ content_restricted failures)` };
     }
   } catch { /* best effort — don't block fetch if check fails */ }
 
+  // ── Gate 2: nutrient router — skip pruned domains ──
+  try {
+    if (hostname) {
+      const { getRouteDecision } = await import('./nutrient-router.js');
+      const decision = getRouteDecision(hostname);
+      if (decision.action === 'skip') {
+        slog('WEB', `🍂 pruned by nutrient router: ${hostname} (score ${decision.score}, ${decision.reason})`);
+        return { url, title: '', text: '', byteLength: 0, fetchedAt: new Date().toISOString(), error: `Domain ${hostname} pruned by nutrient router (${decision.reason})` };
+      }
+    }
+  } catch { /* best effort */ }
+
   const isXTwitter = /x\.com|twitter\.com/i.test(url);
+
+  // Helper: log fetch outcome to nutrient router (fire-and-forget)
+  let _logFetch: typeof import('./nutrient-router.js').logFetch | null = null;
+  try { _logFetch = (await import('./nutrient-router.js')).logFetch; } catch { /* best effort */ }
+  const logNutrient = (result: FetchResult, method: string) => {
+    try {
+      if (hostname && _logFetch) {
+        _logFetch(hostname, url, method, result.byteLength, result.text.length, !result.error);
+      }
+    } catch { /* fire-and-forget */ }
+  };
 
   // ── Layer 1 (X/Twitter only): Grok API — native X access, no login wall ──
   if (isXTwitter) {
     const grokText = await grokFetch(url);
     if (grokText) {
       slog('WEB', `✓ ${url} via grok (${grokText.length}B)`);
-      return makeResult(url, '', grokText, maxLength, 'grok');
+      const result = makeResult(url, '', grokText, maxLength, 'grok');
+      logNutrient(result, 'grok');
+      return result;
     }
     slog('WEB', `grok miss for ${url}, trying gsd-browser`);
   }
@@ -158,7 +185,9 @@ export async function fetchPage(
   const gsdText = await gsdBrowserFetch(url);
   if (gsdText) {
     slog('WEB', `✓ ${url} via gsd-browser (${gsdText.length}B)`);
-    return makeResult(url, '', gsdText, maxLength, 'gsd-browser');
+    const result = makeResult(url, '', gsdText, maxLength, 'gsd-browser');
+    logNutrient(result, 'gsd-browser');
+    return result;
   }
   slog('WEB', `gsd-browser miss for ${url}, trying cdp`);
 
@@ -166,12 +195,16 @@ export async function fetchPage(
   const cdpText = await cdpFetch(url);
   if (cdpText) {
     slog('WEB', `✓ ${url} via cdp (${cdpText.length}B)`);
-    return makeResult(url, '', cdpText, maxLength, 'cdp');
+    const result = makeResult(url, '', cdpText, maxLength, 'cdp');
+    logNutrient(result, 'cdp');
+    return result;
   }
   slog('WEB', `cdp miss for ${url}, falling back to http`);
 
   // ── Layer 4: Plain HTTP — last resort ──
-  return plainHttpFetch(url, { timeout, maxLength, _retried: options?._retried });
+  const result = await plainHttpFetch(url, { timeout, maxLength, _retried: options?._retried });
+  logNutrient(result, 'http');
+  return result;
 }
 
 function makeResult(url: string, title: string, text: string, maxLength: number, _layer: string): FetchResult {
