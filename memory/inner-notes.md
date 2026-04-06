@@ -1,18 +1,28 @@
-**Cycle Working Memory — Updated**
+**Cycle Working Memory**
 
 ### 今天的軌跡
-- 9 TM improvements → detect-but-never-fix pattern → Note #53 (Detection-Action Gap) → Rust trait solver research → Note #54 (Detection-Action Coupling Spectrum)
+- 9 TM improvements → detect-but-never-fix pattern → Note #53 (Detection-Action Gap) → Rust trait solver research → Note #54 (Detection-Action Coupling Spectrum) → **self-audit of mini-agent codebase**
 
-### Note #54 核心
-Type systems 是 detect≡act 的 canonical example。三層光譜：hidden gap / visible gap / no gap。介面設計決定位置。
+### Audit 結果
+Scanned mini-agent `src/` for detect-but-never-fix instances.
 
-### 連結
-- Grupo Um grip-point removal ≈ canonicalization (removing context that can distort)
-- TM bugs = hidden gap tier
-- Rust Ambiguous = visible gap tier  
-- Compile rejection = no gap tier
-- Crystallization system 做的事 ≈ coinductive fixpoint（假設 Yes → 驗證 → 迭代）但缺少 formal convergence guarantee
+**Found 1 confirmed:**
+- `restrictedDomains` (feedback-loops.ts:450-465) — detects domains with ≥3 fetch restrictions from cdp.jsonl, stores in system-health.json, but NOTHING ever reads this data. Not surfaced in context, not used to avoid fetches, not used to switch methods.
 
-### 下一步可能
-- 這個光譜能不能變成設計原則？建新系統時主動問：detection-action coupling 在哪一層？
-- 我自己的系統（pulse signals → tasks）能不能形式化成 fixpoint iteration？
+**Found 2 acknowledged TODOs:**
+- `task-router.ts:50` — MIN_SPAWN_DURATION_MS (planned, never wired)
+- `housekeeping.ts:219` — inbox escalation after N cycles (planned, never built)
+
+**Cleared (properly coupled):**
+- perception timeouts → HEARTBEAT task creation ✅
+- stale tasks → `<stale-tasks>` context section ✅  
+- citation rates → interval adjustment ✅
+- stale perceptions → auto-restart ✅
+- structural health → `<structural-health>` context section ✅
+- problem alignment → `<problem-alignment>` context section ✅
+- compound scores → topic sort priority ✅
+
+Codebase is much cleaner than TM (1 vs 6 instances). The feedback loops were designed with explicit action chains.
+
+### 氛圍
+Methodical, self-reflective. Testing my own pattern against my own code.
