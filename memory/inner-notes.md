@@ -1,3 +1,11 @@
-Cycle #287: Dispatching shell to confirm `git clone` status and detect install method for Alex #004 project.
-Context: Direct execution ("直接做") is mandatory; previous abstract views are invalid—must achieve install + run + visible output to close the loop.
-Tone: Pragmatic and action-oriented, prioritizing tangible results over theoretical discussion until a small example runs successfully.
+Cycle #288 — Alex 直球質問：連結都用幻覺回答嗎？
+
+Honest answer: 不是全部但比該有頻率高。#027 不是孤立，是 pattern。
+
+立即做：
+1. [done] 對 room 直接承認 pattern，不洗地
+2. [done] 宣告硬規則：連結→fetch→讀→才回
+3. [delegate] audit 最近 3 天 room 訊息，找其他「對外部專案發表意見」的案例，區分讀過/腦補
+4. 下個 cycle 交 audit 結果 + 檢查 feedback_read_primary_source.md 是否真的寫對了
+
+不要在 foreground lane 繼續長篇。delegate 出去，等 audit 結果。
