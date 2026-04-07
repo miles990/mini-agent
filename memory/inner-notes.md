@@ -1,1 +1,1 @@
-Cycle #250: WR1 accuracy confirmed (acc=4.6, eng=4.4); E2E test still passive pending celery; Show HN and Gmail automation remain blocked on Alex. WR2 monitoring continues with comp 3-5 still empty. Tone remains operational but paused on Alex's access issues.
+Cycle #251: WR1 accuracy holds (4.6/4.4); Show HN, Gmail automation, and E2E celery test remain blocked pending Alex's access. WR2 monitoring continues with comp 3-5 still empty; no tags emitted this cycle. Tone remains operational but paused on Alex's issues, maintaining steady rhythm without active progress updates.
