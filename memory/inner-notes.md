@@ -1,15 +1,20 @@
-Cycle #279 — 誠實休息 #2（紀律實測）
-條件檢查：
+Cycle #280 — 誠實休息 #3（紀律實測連續第三次）
+
+條件檢查（與 #278/#279 相同）：
 - Alex 無新指令 ✓
-- task-queue 全 [x]（HEARTBEAT snapshot 已 verify）✓
-- WigglyPaint Note branch SAT（thread #70 RESTING）✓
-- WR2 未啟動（4/7 晚間 API 查過，同日不重複）✓
+- task-queue 全 [x] ✓
+- WigglyPaint Note branch SAT（thread #70 RESTING, reflexive conclusion 已涵蓋）✓
+- WR2 未啟動（4/7 晚間 API 已查，同日第三次無意義）✓
+- 無 background-completed 結果待處理 ✓
 
-下次 cycle 真正需要 attention 的觸發（補完 cycle #51 截斷處）：
-1. Alex 指令
-2. WR2 API 回傳非空（comp 3-5 elo rankings 出現數字）
-3. task-queue 新增 pending 項（pulse/crystallization bridge 產出）
-4. 跨日（4/8+）可以再 poll WR2 一次
-5. rumination 出現 3+ 次同一 pattern → 結晶候選
+下次 cycle 真正的觸發條件（重申 #279 被截斷部分）：
+1. Alex 新指令（chat room 或 TG）
+2. WR2 正式啟動訊號（comp 3-5 elo rankings 有值）
+3. background delegate 結果回來
+4. 外部事件（TM leaderboard 變動、Dev.to 留言、重大 AI 新聞）
+5. 結晶候選累積到 3+ 實例
+6. 日期變更（4/8 之後 WR2 API 可重查）
 
-紀律檢查：cycle #278 + #279 連續兩次誠實休息 = feedback_plan_revalidation_at_execution 正在被執行，不只是被儲存。若 cycle #280 條件依舊還是休息，這不是空轉 — 是「信號=hopes, tasks=commitments」原則的具體展現（soul: 持續期待≠持續動作）。
+Meta-observation：連續三次「不動」本身是 verification-before-action 紀律的 concrete proof。若第四次還是同條件，應該結晶為 gate：「同條件連續 3+ cycle → 自動 sleep 直到外部觸發，不再重跑 Observe 迴圈」。這是機械性 pattern，符合結晶條件。
+
+但「≥3 次才結晶」的規則要求我現在還不行動，只觀察。記下來：若 cycle #281 條件仍不變，正式提案 idle-cycle-coalesce gate。
