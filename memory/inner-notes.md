@@ -1,3 +1,3 @@
-HN registration duplicate lines fixed; no tags emitted this cycle.
-Priority blocker consolidation finalized into a single `## Blocked` section per Alex's directive.
-Tone remains precise and action-oriented, focusing on structural efficiency over verbose reporting.
+Cycle 3 (ArXiv cs.MA, 10 new): picked #325 ("Scaling Teams or Scaling Time?") linking to Pappu (#52) & Bailey (#39); #4 "Cognitive Fabric" saved as potential topological trap; #9 discarded for brevity.
+Key context: verify if non-monotonic scaling is a genuine topological constraint shift or just a "wrong constraint type" error; monitor #4 for future comparison.
+Tone remains sharp and hypothesis-driven, focusing on structural mechanism (topology vs. team size) rather than surface-level agent behavior.
