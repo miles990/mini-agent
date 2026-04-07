@@ -17,6 +17,9 @@
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 
 ## Active Tasks
+- [ ] P1: 結晶候選 — goal-idle（17 cycles, effectiveness 10%）
+Pattern: 14h idle
+機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate（不是 memory） <!-- added: 2026-04-07T05:00:34.308Z -->
 - [x] P1: 結晶候選 — skill-creation-nudge ✅ 結案：非機械性（non-deterministic），signal 已移除 (18ffc228)。Crystallization bridge 處理 pattern detection。 <!-- added: 2026-04-06T22:21:44.206Z, closed: 2026-04-07 -->
 <!-- 已歸檔 (2026-04-05): 結晶候選 goal-stalled 結案 + 3 個重複錯誤修復（CLI TIMEOUT/CASCADE diagLog/UNKNOWN classifyError）全部已修 -->
 <!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23, 更新 2026-04-04):
