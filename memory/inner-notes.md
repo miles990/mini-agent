@@ -1,3 +1,1 @@
-Cycle #218+ housekeeping: 結晶候選 goal-idle 重複觸發，按歸檔策略直接結案（pulse 系統預期會持續新增重複候選，policy = 不重評）。其餘 pending 全屬 blocked/passive/cron-driven，非可動項。HEARTBEAT P1 清空。
-
-Atmosphere: routine */30 housekeeping，無新訊息要回，主線（TM）等外部觸發。可以回到背景思考（CT thread #51-52、Bailey regime formation extension）或社群可見度動作。
+Cycle #219 housekeeping confirmed: 結晶候選 goal-idle 重複觸發已按歸檔策略結案（pulse 系統持續新增，policy = 不重評），其餘 pending 維持 blocked/passive/cron-driven 狀態。HEARTBEAT P1 已清空，主線（TM）等待外部觸發，其餘進度轉向背景思考（CT thread #51-52、Bailey 制度形成擴展）或社群可見度動作。節奏維持每週三次例行維護，無新訊息需即時回應。
