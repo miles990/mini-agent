@@ -2171,15 +2171,25 @@ export class InstanceMemory {
       }
     }
 
-    // ── Web Fetch Results（from <kuro:fetch> tags, one-shot consumption）──
+    // ── Web Fetch Results（from <kuro:fetch> tags）──
+    // TTL-based, NOT one-shot. Multiple cycles can read the same result until it ages out.
+    // Why: one-shot consume caused a race — first buildContext() to see the file ate it,
+    // even if that cycle wasn't the one responding to the original question. Result was
+    // silently discarded, Kuro re-fetched, never converged. See processFetchRequests in web.ts.
     if (!isLight) {
       const webResultsPath = path.join(getMemoryStateDir(), 'web-fetch-results.md');
       try {
-        const webResults = await fs.readFile(webResultsPath, 'utf-8');
-        if (webResults.trim()) {
-          pushCapped('web-fetch-results', webResults.trim());
-          // One-shot: delete after injection so it doesn't repeat
+        const stat = await fs.stat(webResultsPath);
+        const ageMs = Date.now() - stat.mtimeMs;
+        const TTL_MS = 10 * 60 * 1000; // 10 minutes
+        if (ageMs > TTL_MS) {
           await fs.unlink(webResultsPath).catch(() => {});
+        } else {
+          const webResults = await fs.readFile(webResultsPath, 'utf-8');
+          if (webResults.trim()) {
+            const ageMin = (ageMs / 60000).toFixed(1);
+            pushCapped('web-fetch-results', `${webResults.trim()}\n\n[fetched ${ageMin}min ago — already in context, do NOT issue another <kuro:fetch> for the same URL]`);
+          }
         }
       } catch { /* file doesn't exist — normal */ }
     }

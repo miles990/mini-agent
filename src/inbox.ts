@@ -507,18 +507,23 @@ export function formatInboxSection(items: InboxItem[]): string {
     // GitHub: 顯示 labels
     if (i.meta?.labels) line += ` [${i.meta.labels}]`;
 
-    // 內嵌 URL 預取內容（依 priority 分級，total cap 5000）
-    if (i.meta?.urls && totalUrlChars < 5000) {
-      const urlCap = i.priority <= 1 ? 1500 : 500; // P0/P1: 1500, P2+: 500
+    // 內嵌 URL 預取內容（依 priority 分級，total cap 12000）
+    // P0/P1 給足內容（6000 chars per URL），讓 Kuro 直接從 inbox section 就看完文章，
+    // 不必再輸出 <kuro:fetch>。Cap 對齊 web.ts processFetchRequests 的 8000 chars/entry，
+    // 留 25% 餘裕避免擠掉其他 inbox lines。
+    if (i.meta?.urls && totalUrlChars < 12000) {
+      const urlCap = i.priority <= 1 ? 6000 : 800; // P0/P1: 6000, P2+: 800
       const urls = i.meta.urls.split(',').slice(0, 2);
       for (const url of urls) {
-        if (totalUrlChars >= 5000) break;
+        if (totalUrlChars >= 12000) break;
         const cached = readWebCache(url);
         if (cached) {
           const domain = url.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
-          const remaining = Math.min(urlCap, 5000 - totalUrlChars);
+          const remaining = Math.min(urlCap, 12000 - totalUrlChars);
           const snippet = cached.replace(/\n/g, ' ').slice(0, remaining);
-          line += `\n  [${domain}] ${snippet}`;
+          // Mark as already-in-context so Kuro doesn't redundantly issue <kuro:fetch>.
+          const tag = cached.length <= remaining ? 'cached:full' : 'cached:partial';
+          line += `\n  [${domain} ${tag}] ${snippet}`;
           totalUrlChars += snippet.length;
         }
       }

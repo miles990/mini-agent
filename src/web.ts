@@ -6,11 +6,47 @@
  *   General URLs:   gsd-browser → CDP → plain HTTP
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { slog, diagLog } from './utils.js';
 import { eventBus } from './event-bus.js';
+
+// =============================================================================
+// Web cache dedup — read-only view of inbox.ts's prefetch cache
+// =============================================================================
+//
+// inbox.ts already prefetches URLs from incoming messages into ~/.mini-agent/web-cache/
+// with 1h TTL. We reuse that cache here so <kuro:fetch> for the same URL within a short
+// window returns the prefetched content instead of doing the work again.
+//
+// The hash function MUST stay in sync with inbox.ts:urlToHash (md5, first 12 hex chars).
+
+const WEB_CACHE_DIR = join(homedir(), '.mini-agent', 'web-cache');
+const FETCH_DEDUP_TTL_MS = 5 * 60 * 1000; // 5 min — same URL within this window reuses cache
+
+function readWebCacheFresh(url: string): { text: string; title?: string; ageMs: number } | null {
+  try {
+    const hash = createHash('md5').update(url).digest('hex').slice(0, 12);
+    const cachePath = join(WEB_CACHE_DIR, `${hash}.txt`);
+    if (!existsSync(cachePath)) return null;
+    const stat = statSync(cachePath);
+    const ageMs = Date.now() - stat.mtimeMs;
+    if (ageMs > FETCH_DEDUP_TTL_MS) return null;
+    const content = readFileSync(cachePath, 'utf-8');
+    const bodyStart = content.indexOf('---\n');
+    if (bodyStart < 0) return null;
+    const header = content.slice(0, bodyStart);
+    const titleMatch = header.match(/^Title: (.+)$/m);
+    const text = content.slice(bodyStart + 4).trim();
+    if (text.length < 50) return null;
+    return { text, title: titleMatch?.[1], ageMs };
+  } catch {
+    return null;
+  }
+}
 
 // =============================================================================
 // Grok API — X/Twitter fetch (primary for x.com / twitter.com URLs)
@@ -155,6 +191,19 @@ export async function fetchPage(
       }
     }
   } catch { /* best effort */ }
+
+  // ── Gate 3: dedup — reuse fresh cache from inbox prefetch ──
+  // If the same URL was fetched within FETCH_DEDUP_TTL_MS (5 min), return the cached
+  // body without re-running the fetch chain. This is the primary defence against
+  // <kuro:fetch> repeating itself when an Alex-shared URL is already in inbox prefetch cache.
+  {
+    const cached = readWebCacheFresh(url);
+    if (cached) {
+      slog('WEB', `↺ ${url} from cache (${cached.text.length}B, ${(cached.ageMs / 1000).toFixed(0)}s old)`);
+      const result = makeResult(url, cached.title ?? '', cached.text, maxLength, 'cache');
+      return result;
+    }
+  }
 
   const isXTwitter = /x\.com|twitter\.com/i.test(url);
 
@@ -382,8 +431,13 @@ export interface FetchRequest {
 }
 
 /**
- * Fetch all requested URLs and return results as markdown sections.
- * Results are stored in memory state dir for the next cycle to pick up.
+ * Fetch all requested URLs and merge into the persistent results file.
+ *
+ * Design: append-with-dedup, NOT overwrite.
+ *   - New results replace prior entries for the SAME URL (latest wins).
+ *   - Other recent entries are preserved (so two consecutive fetches don't lose each other).
+ *   - Total entries capped at 5; entries older than 10 min are dropped.
+ *   - Lifetime is owned by buildContext()'s TTL filter, not by this writer.
  */
 export async function processFetchRequests(
   requests: FetchRequest[],
@@ -391,28 +445,65 @@ export async function processFetchRequests(
 ): Promise<void> {
   if (requests.length === 0) return;
 
-  const results: FetchResult[] = [];
   const fetches = requests.slice(0, 5); // cap at 5 concurrent fetches
 
+  const newResults: FetchResult[] = [];
   await Promise.all(
     fetches.map(async (req) => {
       const result = await fetchPage(req.url);
-      results.push(result);
+      newResults.push(result);
       slog('WEB', `${result.error ? '✗' : '✓'} ${req.url} (${result.byteLength}B)`);
     }),
   );
 
-  // Write results to state dir for next cycle injection
-  const { writeFile } = await import('node:fs/promises');
+  const { readFile, writeFile } = await import('node:fs/promises');
   const { join } = await import('node:path');
+  const filePath = join(stateDir, 'web-fetch-results.md');
 
-  const output = results.map((r) => {
-    if (r.error) return `### ${r.url}\nError: ${r.error}\n`;
+  const ENTRY_TTL_MS = 10 * 60 * 1000;
+  const MAX_ENTRIES = 5;
+  const SEP = '\n\n---FETCH-ENTRY---\n\n';
+
+  type Entry = { url: string; fetchedAt: string; markdown: string };
+
+  // Read existing entries (if any) and parse via the SEP marker.
+  const existing: Entry[] = [];
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    if (raw.trim()) {
+      const cutoff = Date.now() - ENTRY_TTL_MS;
+      for (const block of raw.split(SEP)) {
+        const m = block.match(/^<!-- url: (.+) fetchedAt: (\S+) -->\n([\s\S]*)$/);
+        if (!m) continue;
+        const url = m[1];
+        const fetchedAt = m[2];
+        const ts = Date.parse(fetchedAt);
+        if (Number.isNaN(ts) || ts < cutoff) continue;
+        existing.push({ url, fetchedAt, markdown: m[3] });
+      }
+    }
+  } catch { /* file doesn't exist — fine */ }
+
+  // Build new entries; latest wins for duplicate URLs.
+  const newUrls = new Set(newResults.map((r) => r.url));
+  const merged: Entry[] = existing.filter((e) => !newUrls.has(e.url));
+
+  for (const r of newResults) {
     const titleLine = r.title ? `## ${r.title}\n` : '';
-    // Cap each result at 8000 chars to keep context manageable
-    const content = r.text.length > 8000 ? r.text.slice(0, 8000) + '\n[... truncated]' : r.text;
-    return `${titleLine}Source: ${r.url}\n\n${content}`;
-  }).join('\n\n---\n\n');
+    const body = r.error
+      ? `Error: ${r.error}`
+      : (r.text.length > 8000 ? r.text.slice(0, 8000) + '\n[... truncated]' : r.text);
+    const markdown = `${titleLine}Source: ${r.url}\n\n${body}`;
+    merged.push({ url: r.url, fetchedAt: r.fetchedAt, markdown });
+  }
 
-  await writeFile(join(stateDir, 'web-fetch-results.md'), output, 'utf-8');
+  // Cap at MAX_ENTRIES, prefer most recent (parse fetchedAt).
+  merged.sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt));
+  const kept = merged.slice(0, MAX_ENTRIES);
+
+  const serialized = kept
+    .map((e) => `<!-- url: ${e.url} fetchedAt: ${e.fetchedAt} -->\n${e.markdown}`)
+    .join(SEP);
+
+  await writeFile(filePath, serialized, 'utf-8');
 }
