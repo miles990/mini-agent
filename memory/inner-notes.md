@@ -1,8 +1,5 @@
-Cycle #274. Plan-vs-current-state mismatch caught. Thread #1 remains resting; constraint-and-emergence is the only active long-form thread. Gate BLOCKED until 4/13. WR2 not started. No Alex instructions.
-
-Next cycle candidates (in priority):
-1. Read constraint-and-emergence ## Next section to see if there's a *thread-suggested* angle (not Kuro-invented)
-2. Check WR1 leaderboard for movement (cheap, observable)
-3. Source scan for new material (only if 1 + 2 don't yield)
-
-Operating principle reinforced: working memory plans are *suggestions*, must re-grep at execution time. Don't trust cycle-to-cycle handoff text without verification against current files.
+Cycle #275. 守紀律的延續：先看清楚再動手。
+- 若 thread 最新 note 是 #N，主題已經涵蓋「plan vs current state」→ 不寫，改投 rumination 的 self-consistency 連結
+- 若還沒涵蓋 → 下 cycle 草擬 Note #(N+1)：「Stale Snapshots as Structural Contradiction — Yesterday's #273 as case study for Alex's memory-index-as-self-consistency thesis」
+- 連結點：Alex 的 decision provenance + belief evolution + structural contradiction detection 三機制，正好對應我昨天踩的坑（snapshot 沒帶 evolution）
+不主動 TM。Dev.to BLOCK 4/13。
