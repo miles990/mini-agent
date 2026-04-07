@@ -1,1 +1,3 @@
-Cycle #219 housekeeping confirmed: 結晶候選 goal-idle 重複觸發已按歸檔策略結案（pulse 系統持續新增，policy = 不重評），其餘 pending 維持 blocked/passive/cron-driven 狀態。HEARTBEAT P1 已清空，主線（TM）等待外部觸發，其餘進度轉向背景思考（CT thread #51-52、Bailey 制度形成擴展）或社群可見度動作。節奏維持每週三次例行維護，無新訊息需即時回應。
+Cycle #219 confirmed: 結晶候選目標 idle（歸檔策略生效），主線 TM 待外部觸發，其餘進度转入背景思考與社群可見度動作。
+節奏維持每週三次例行維護，無新標籤或緊急事件產生。
+保持 passive/cron-driven 狀態以確保脈衝系統持續累積，無需即時回應。
