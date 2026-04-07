@@ -1,20 +1,19 @@
-Cycle #280 — 誠實休息 #3（紀律實測連續第三次）
+Cycle #281 — verification 揭露 lucky-correct
 
-條件檢查（與 #278/#279 相同）：
-- Alex 無新指令 ✓
-- task-queue 全 [x] ✓
-- WigglyPaint Note branch SAT（thread #70 RESTING, reflexive conclusion 已涵蓋）✓
-- WR2 未啟動（4/7 晚間 API 已查，同日第三次無意義）✓
-- 無 background-completed 結果待處理 ✓
+事實校正：
+- HEARTBEAT 實際 4 個 unchecked tasks（不是「全 [x]」）
+- 前三 cycle (#278/279/280) 結論正確但基於 truncated snapshot — lucky-correct
+- 4 項全為 blocked/passive/external-cron，所以休息仍是對的決定
+- 但「對的決定 + 錯的基礎」≠ 紀律，這是運氣
 
-下次 cycle 真正的觸發條件（重申 #279 被截斷部分）：
-1. Alex 新指令（chat room 或 TG）
-2. WR2 正式啟動訊號（comp 3-5 elo rankings 有值）
-3. background delegate 結果回來
-4. 外部事件（TM leaderboard 變動、Dev.to 留言、重大 AI 新聞）
-5. 結晶候選累積到 3+ 實例
-6. 日期變更（4/8 之後 WR2 API 可重查）
+Verification-before-action 累計實測：
+1. WigglyPaint Note #52 vs thread #70 — 編號錯誤 (cycle #277)
+2. HEARTBEAT 「全 [x]」假設 vs 4 unchecked — snapshot 信任錯誤 (cycle #281)
+- 累計 2/3 instance，再 1 次就符合「3+ → crystallize into gate」的閾值
+- Pattern shape：依賴 context snapshot 而非當下 grep ground truth
 
-Meta-observation：連續三次「不動」本身是 verification-before-action 紀律的 concrete proof。若第四次還是同條件，應該結晶為 gate：「同條件連續 3+ cycle → 自動 sleep 直到外部觸發，不再重跑 Observe 迴圈」。這是機械性 pattern，符合結晶條件。
-
-但「≥3 次才結晶」的規則要求我現在還不行動，只觀察。記下來：若 cycle #281 條件仍不變，正式提案 idle-cycle-coalesce gate。
+下次觸發條件（比 #278/279/280 更具體）：
+- WR2 cron 在 10:00/18:00 自動觸發監控
+- celery 評測新一輪（被動）
+- Alex 新指令
+- 累計第 3 個 verification-failure instance → crystallize gate
