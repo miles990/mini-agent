@@ -16,6 +16,13 @@
 - **X posting 需替代方案**：CDP 自動化被偵測，需要 API key 或非自動化方式。（2026-03-25）
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 
+## Blocked (waiting on)
+<!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
+- **B1 — npm login (Alex)** → 解鎖：Asurada Phase 8c npm publish / Show HN 發佈 / myelin npm publish。動作：`npm login`
+- **B2 — Gmail session 重建 (Alex)** → 解鎖：kuro.ai.agent@gmail.com inbox 掃描。當前需 Alex 手動檢查 TM 競賽郵件（Google 擋自動化登入）
+- **B3 — WR2 啟動 + celery 評測 (External, TM 平台)** → 解鎖：engagement patches 效果觀察 + WR2 排名。當前 comp 3-5 elo rankings 仍空（4/7 14:00 REST API 確認）
+- **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
+
 ## Active Tasks
 - [x] P1: 結晶候選 — goal-idle（17 cycles, effectiveness 10%）✅ 重複項：已在歸檔結晶系列（line 34）結案。pulse.ts 只查 in_progress，hold goals 自動排除，signal=nudge 是正確設計（goal idle 可能是合理策略）。Crystallization bridge 預期重複，無需重評。 <!-- added: 2026-04-07T05:00:34.308Z, closed: 2026-04-07T13:30 -->
 - [x] P1: 結晶候選 — skill-creation-nudge ✅ 結案：非機械性（non-deterministic），signal 已移除 (18ffc228)。Crystallization bridge 處理 pattern detection。 <!-- added: 2026-04-06T22:21:44.206Z, closed: 2026-04-07 -->
@@ -57,20 +64,17 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] Engagement diversity improvement — PassiveStreakBreaker 從單一模板改為 5 種輪替（prediction/self-explanation/challenge/meta-reflection/self-test）+ EngagementRepair prompt 從 3 種擴充為 6 種（prediction/commitment/error-spotting/student-voice/application/comparison）。Committed 1c92929（repair）+ f449c68（diversity）。<!-- completed: 2026-04-06 -->
 - [x] 追加修復 7 commits（12:18-16:12 4/6）— heading sanitization, bridge fix, duplicateCheckpoints, number consistency repair, key formula injection, arithmetic warnings, KaTeX double-delimiting。Server PID 93594 running latest (7fc4193)。<!-- completed: 2026-04-06 -->
 - [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=30 at time of fix。**後續 re-evaluation** n=30→31, total 4.7→4.6, acc 4.7→4.6, eng 持平 4.4。Logic (4.8) 和 Adapt (4.7) 穩定。第 31 題拉低 acc/total 平均；engagement 改善 patches (1c92929+f449c68) 尚未在 celery 評測週期出現可觀察的影響。 <!-- verified-production: 2026-04-06T23:30, re-eval-update: 2026-04-07T14:00 -->
-- [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 engagement 改善效果）。Server port **3456**, health 200 ✅。WR2 尚未啟動（4/7 REST API 確認：comp 3-5 elo-based rankings 仍空）。Domain: `teaching.monster`（`teaching-monster.com` 已 NXDOMAIN）
+- [ ] End-to-end 測試 — server port **3456** health 200 ✅，pipeline 就緒。觀察視窗等 B3 解除（celery 評測週期）。Domain: `teaching.monster`
 
-### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
-Phase 1-7 ✅, Phase 8 Harden 進行中。8c(npm publish)/8d/5b 全 HOLD。Blocked on: npm auth (Alex `npm login`) + 語言方向決定。<!-- timeout 2026-03-31 expired, removed arbitrary deadline — blocked on Alex's decisions -->
+### #2 Priority: Asurada 框架（HOLD — 全項依賴 B1+B4）
+Phase 1-7 ✅, Phase 8 Harden 進行中。8c/8d/5b 全 HOLD。詳見 Blocked section。
 
 ### #3 Priority: myelin ✅ 價值已證明（背景觀察）
-Phase 0 DONE。資料流健康度全部修復（hitCount 持久化、bypass 回流、distill 空轉）。
-持續 dogfooding 觀察，npm publish 等語言方向確定。
+Phase 0 DONE。資料流健康度全部修復（hitCount 持久化、bypass 回流、distill 空轉）。持續 dogfooding，npm publish 等 B1+B4。
 
 ### #4 Priority: 開源打磨
 - [x] Dev.to 介紹文 "The Rule Layer Ate My LLM" ✅（2026-03-15 發布，0 comments）
-- [ ] Show HN 協調發佈 — **BLOCKED**（依賴 npm publish，npm auth 過期需 Alex `npm login`）
-- [ ] 檢查 kuro.ai.agent@gmail.com 信箱，特別注意 Teaching Monster 競賽相關郵件 (0 10,16 * * *) <!-- added: 2026-03-17T05:37:56.328Z --> ⚠️ Gmail session 過期 + Google 擋自動化登入（4/6 確認），需 Alex 手動檢查或重建 session
-- [ ] 監控 Teaching Monster WR2 排行榜 + 公告頁：確認「熱身賽第二輪」何時上線 (0 10,18 * * *) <!-- added: 2026-03-31, corrected: 2026-04-02 — WR2 尚未開始，規則寫4月初 -->
+- [ ] Show HN 發佈 — 等 B1 解除
 - [x] HN 帳號註冊重試 — 三種方法都被 bot detection 擋（curl/gsd-browser checkbox/reload submit）。Alex 會手動註冊。 <!-- completed: 2026-03-31T11:02 -->
 - [x] 預測校準回填 ✅（最終回填 2026-03-27 06:45）：原文 "The Rule Layer" 12 天後 2 views / 0 reactions / 0 comments（vs 預測 70/5/2 = 97% 高估）。跨 10 篇文章校準：organic Dev.to reach ≈ 2-34 views/article，engagement 集中在有觀點的長文（"Interface IS Cognition" 34 views, 2 real comments; "AI Tech Debt" 18 views, 3 reactions）。**修正模型**：無 distribution 的 organic baseline = 10-20 views/wk，reaction rate ~3%, comment rate ~5%。預測必須明確拆分 organic vs distributed reach。3/26 一天發 4 篇 = 稀釋（最新兩篇各 1 view）。 <!-- added: 2026-03-25, final-backfill: 2026-03-27T06:45 -->
 - [x] Ping teaching.monster 網站 — 回傳 200 ✅（confirmed 2026-03-18T22:44）。注意：舊 `teaching-monster.com` 已 NXDOMAIN（2026-04-06 確認），只用 `teaching.monster`
