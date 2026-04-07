@@ -2560,12 +2560,25 @@ export class AgentLoop {
         }
       }
 
-      // ── Telegram no-reply safety net ──
-      // If telegram-user cycle finished without ANY reply to Alex, log warning.
-      // Items will NOT be marked 'seen' — they stay pending for inbox recovery retry.
-      const telegramNoReply = currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram;
-      if (telegramNoReply) {
-        slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex — items stay pending for retry`);
+      // Compute DM cycle sources up-front (used by safety net + inbox marking).
+      // Naming note: didReplyToTelegram is misleading — by the time we reach here it
+      // tracks "any <kuro:chat> was emitted", not telegram-specific (see line 2271).
+      const cycleSources = new Set<string>();
+      if (currentTriggerReason?.startsWith('telegram-user')) cycleSources.add('telegram');
+      if (currentTriggerReason?.startsWith('room')) cycleSources.add('room');
+      if (currentTriggerReason?.startsWith('chat')) cycleSources.add('chat');
+      const isDirectMessageCycle = cycleSources.size > 0;
+
+      // ── DM no-reply safety net (symmetric across all DM sources) ──
+      // If a DM cycle (telegram OR room OR chat) finished without ANY visible <kuro:chat>,
+      // leave items from that source pending so inbox recovery retries on a later cycle.
+      // Previously this only protected 'telegram' — room/chat items got false-marked 'seen'
+      // when Kuro responded with malformed tags (e.g. self-invented <reply_plan>) or with
+      // only <kuro:inner> monologue. Same prescription→convergence bug as foreground lane.
+      const dmNoReply = isDirectMessageCycle && !didReplyToTelegram;
+      if (dmNoReply) {
+        const sourcesStr = [...cycleSources].join('+');
+        slog('LOOP', `⚠️ ${sourcesStr} cycle #${this.cycleCount} produced no visible reply — items stay pending for retry`);
       }
 
       // Clear 👀 reaction after reply — Alex 不需要看到「已讀」在回覆後仍停留
@@ -2585,20 +2598,14 @@ export class AgentLoop {
       // Cross-source items (e.g. telegram items in a room-triggered cycle) are left pending
       // so their dedicated cycle can process them with appropriate priority prefix.
       const didReply = didReplyToTelegram; // generalized: any <kuro:chat> counts
-      const cycleSources = new Set<string>();
-      if (currentTriggerReason?.startsWith('telegram-user')) cycleSources.add('telegram');
-      if (currentTriggerReason?.startsWith('room')) cycleSources.add('room');
-      if (currentTriggerReason?.startsWith('chat')) cycleSources.add('chat');
-      // Non-DM cycles (heartbeat, workspace, cron) mark all non-telegram items
-      const isDirectMessageCycle = cycleSources.size > 0;
 
       for (const item of readPendingInbox()) {
         if (isDirectMessageCycle) {
           // DM cycle: only mark items from the triggering source
           if (cycleSources.has(item.source)) {
-            // detect-but-never-fix fix: don't mark telegram items as 'seen' when
-            // no reply was produced — leave them pending so inbox recovery retries
-            if (telegramNoReply && item.source === 'telegram') continue;
+            // Convergence guard: if cycle produced no visible reply for this DM source,
+            // leave the item pending so a later cycle can attempt a real reply.
+            if (dmNoReply && cycleSources.has(item.source)) continue;
             queueInboxMark(item.id, didReply ? 'replied' : 'seen');
           }
           // Leave other sources' items untouched
