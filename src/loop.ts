@@ -724,12 +724,37 @@ export class AgentLoop {
       const answer = result.content || response;
 
       // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
+      // Convergence guard: only emit when the model produced something a human can actually read.
+      //   - Prefer parsed <kuro:chat> tag content (the model's intended user-visible text)
+      //   - Allow pure plain text (no XML-like tags remain after stripping kuro tags)
+      //   - REJECT anything containing residual tags like <reply_plan>, </system-reminder>, etc.
+      //     These are model hallucinations / prompt-boundary leaks (#066 / #070 incidents).
+      // Rejected responses leave the inbox pending so a later cycle can attempt a real reply.
       if (streamedChats.size === 0) {
-        // Strip internal tags to prevent raw XML leaking into room/telegram
-        const cleanAnswer = stripKuroTags(answer);
-        const displayAnswer = cleanAnswer || answer.slice(0, 500); // fallback to truncated raw if everything was tags
-        // Don't send empty replies — message stays pending, next cycle picks it up
-        if (displayAnswer.trim()) {
+        const parsedChats = parseTags(response).chats;
+        let displayAnswer = '';
+
+        if (parsedChats.length > 0) {
+          displayAnswer = parsedChats.map(c => c.text).join('\n\n').trim();
+        } else {
+          const cleanAnswer = stripKuroTags(answer).trim();
+          // Any remaining XML-like tag after stripKuroTags is suspect (kuro tags already gone,
+          // so this is hallucinated structure). Block it from reaching the room.
+          const hasResidualTag = /<\/?[a-z][a-z_-]*[\s>]/i.test(cleanAnswer);
+          if (cleanAnswer && !hasResidualTag) {
+            displayAnswer = cleanAnswer;
+          } else if (hasResidualTag) {
+            slog('LOOP', `[foreground:${slotId}] suppressed malformed response (residual tag, no <kuro:chat>): ${response.slice(0, 120).replace(/\n/g, ' ')}`);
+            writeActivity({
+              lane: 'foreground',
+              summary: `[SUPPRESSED-MALFORMED] response had residual non-kuro tags, no chat — kept inbox pending`,
+              trigger: source,
+              tags: result.tagsProcessed,
+            });
+          }
+        }
+
+        if (displayAnswer) {
           if (source === 'telegram') {
             notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => {});
             clearLastReaction();
@@ -737,8 +762,8 @@ export class AgentLoop {
           if (!opts?.quiet) {
             await writeRoomMessage('kuro', displayAnswer, replyTo);
           }
-        } else {
-          slog('LOOP', `[foreground] Empty reply for ${source} — skipping, message stays pending`);
+        } else if (parsedChats.length === 0) {
+          slog('LOOP', `[foreground:${slotId}] no visible reply emitted for ${source} — message stays pending`);
         }
       } else if (source === 'telegram') {
         clearLastReaction();
