@@ -772,15 +772,44 @@ export class AgentLoop {
         });
       } else {
         // Normal case: mark inbox items as processed — prevents main cycle from re-responding
-        try { markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply'); } catch { /* fire-and-forget */ }
+        const responseTags = parseTags(response);
+        try { markChatRoomInboxProcessed(response, responseTags, 'foreground-reply'); } catch { /* fire-and-forget */ }
 
-        // Mark unified inbox items as replied — prevents re-triggering foreground for same message
+        // Convergence condition: a foreground response only counts as "replied" if it
+        // contains at least one user-visible tag. Inner-only responses are notes-to-self,
+        // not replies — Alex sees nothing, so the inbox item must remain pending so the
+        // next cycle (main loop or another foreground trigger) attempts a real reply.
+        // Bot-sourced items (mushi/system status notifications) don't expect chat replies,
+        // so inner-only acknowledgement is acceptable for them.
+        const hasVisibleReply = responseTags.chats.length > 0
+          || responseTags.asks.length > 0
+          || responseTags.shows.length > 0
+          || responseTags.summaries.length > 0;
+        const BOT_FROMS = new Set(['mushi', 'system', 'bot', 'kuro', 'kuro-watcher']);
+
         try {
           const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+          let suppressed = 0;
+          let marked = 0;
           for (const item of pending) {
+            const isBotSender = BOT_FROMS.has((item.from || '').toLowerCase());
+            if (!isBotSender && !hasVisibleReply) {
+              suppressed++;
+              continue; // leave pending — next cycle must try a real reply
+            }
             queueInboxMark(item.id, 'replied');
+            marked++;
           }
-          if (pending.length > 0) flushInboxMarks();
+          if (marked > 0) flushInboxMarks();
+          if (suppressed > 0) {
+            slog('LOOP', `[foreground:${slotId}] ⚠ ${suppressed} human inbox item(s) left pending — response had no <kuro:chat>/ask/show/summary (only inner monologue?)`);
+            writeActivity({
+              lane: 'foreground',
+              summary: `[NO-VISIBLE-REPLY] ${suppressed} item(s) kept pending; response was inner-only`,
+              trigger: source,
+              tags: result.tagsProcessed,
+            });
+          }
         } catch { /* fire-and-forget */ }
       }
 
