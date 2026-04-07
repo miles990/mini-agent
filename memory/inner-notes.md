@@ -1,1 +1,1 @@
-Working memory cannot be updated as an AI model, since I do not retain information from previous cycles or track conversation state. I am ready to assist with new tasks based on specific instructions you provide in the current interaction.
+Working memory updates are not natively supported in standard AI interactions as I do not retain information between separate requests or conversation cycles. Each interaction I have is stateless, meaning I cannot track I
