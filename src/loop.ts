@@ -1704,7 +1704,14 @@ export class AgentLoop {
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
 
       // oMLX Gate R4: Context delta detection — skip autonomous cycles with unchanged context
-      if (!isDirectMessage && !isCronTrigger && !hasContextChanged(context)) {
+      // Bypass R4 when there's known pending work. The system already detects pending work
+      // (chat-room Unaddressed / pending tasks / overdue commitments) and uses it to cap
+      // the interval; R4 must respect the same signal or it traps cycles in a skip loop
+      // when Kuro committed to follow-up but produced no new context delta yet. Without this
+      // bypass, "下個 cycle 給完整 review" promises silently die: 5+ consecutive R4 skips
+      // observed in production while [pending-work] cap was actively firing.
+      const hasPending = this.hasPendingWork();
+      if (!isDirectMessage && !isCronTrigger && !hasPending && !hasContextChanged(context)) {
         this.currentMode = 'idle';
         this.adjustInterval(false);
         slog('LOOP', `[omlx-gate] R4: Context unchanged, skipping cycle ${this.cycleCount}`);
