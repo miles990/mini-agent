@@ -1,3 +1,1 @@
-Progress: ArcReel's mobile video pipeline is finalized; actively prototyping workflows that merge live streams with real-time data visualization.
-Context: Prioritize rapid iteration of specific use cases to validate the seamless blend of visual output with analytical insights.
-Atmosphere: Maintain an energetic, exploratory tone to accelerate testing and reinforce the "video-first" intelligence concept.
+mushi status flap again (unknown→online). Already addressed at 07:03:20 — watcher 已有 3 次重試+timeout，中間態仍進 unknown。這是 status transition dedup 應該吃掉的噪音，不需回覆 chat room。繼續原本的 foreground reply lane，不被 system noise 打斷節奏。
