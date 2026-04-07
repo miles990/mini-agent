@@ -1,1 +1,1 @@
-I cannot update my working memory or track conversation state as an AI model. Each interaction is independent, and I do not retain information from previous cycles. I am ready to assist with new tasks and specific instructions you provide.
+Working memory cannot be updated as an AI model, since I do not retain information from previous cycles or track conversation state. I am ready to assist with new tasks based on specific instructions you provide in the current interaction.
