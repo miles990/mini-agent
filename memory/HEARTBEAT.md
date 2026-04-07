@@ -45,7 +45,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — WR1 當前排名 **#4**（4.6/5）— acc=4.7, logic=4.8, adapt=4.7, engage=4.3（31 topics）。測試區 #1（4.8/5, 12 topics）。#1 Team-67 "Team-67-005"(4.8, n=31), #2 BlackShiba(4.8, n=32), #3 tsunumon(4.7, n=32)。13 entries / 12 unique teams（Team 67 有兩個 model）。WR2 尚未啟動（4/7 晚間確認：comp 3-5 elo-based rankings 仍空）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-07T22:00 -->
+- [x] **報名完成** — WR1 當前排名 **#4**（4.6/5）— acc=4.6, logic=4.8, adapt=4.7, engage=4.4（31 topics）。測試區 #1（4.8/5, 12 topics — acc=5.0, log=5.0, adapt=4.8, eng=4.5）。#1 Team-67 "Team-67-005"(4.8, n=31), #2 BlackShiba(4.8, n=32), #3 tsunumon(4.7, n=32)。13 entries / 12 unique teams（Team 67 有兩個 model）。WR2 尚未啟動（4/7 14:00 REST API 確認：comp 3-5 elo-based rankings 仍空）。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-07T14:00 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
@@ -56,7 +56,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] Accuracy E2E 驗證 — before/after 對照：test_001（修復前）8 critical errors + 無 fact-check → test_002（修復後）0 errors + fact-check verified。三層修復（workedSolutions 傳入 / repair all fields / Grok+Haiku fallback）全部生效。<!-- verified: 2026-04-06 -->
 - [x] Engagement diversity improvement — PassiveStreakBreaker 從單一模板改為 5 種輪替（prediction/self-explanation/challenge/meta-reflection/self-test）+ EngagementRepair prompt 從 3 種擴充為 6 種（prediction/commitment/error-spotting/student-voice/application/comparison）。Committed 1c92929（repair）+ f449c68（diversity）。<!-- completed: 2026-04-06 -->
 - [x] 追加修復 7 commits（12:18-16:12 4/6）— heading sanitization, bridge fix, duplicateCheckpoints, number consistency repair, key formula injection, arithmetic warnings, KaTeX double-delimiting。Server PID 93594 running latest (7fc4193)。<!-- completed: 2026-04-06 -->
-- [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=30 at time of fix。**後續 re-evaluation** n=30→31, engagement 4.4→4.3, total 4.7→4.6（第 31 題拉低 engage 平均）。Accuracy (4.7) 和 Logic (4.8) 穩定。 <!-- verified-production: 2026-04-06T23:30, re-eval-update: 2026-04-07T22:00 -->
+- [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=30 at time of fix。**後續 re-evaluation** n=30→31, total 4.7→4.6, acc 4.7→4.6, eng 持平 4.4。Logic (4.8) 和 Adapt (4.7) 穩定。第 31 題拉低 acc/total 平均；engagement 改善 patches (1c92929+f449c68) 尚未在 celery 評測週期出現可觀察的影響。 <!-- verified-production: 2026-04-06T23:30, re-eval-update: 2026-04-07T14:00 -->
 - [ ] End-to-end 測試（持續 — 等下次 celery 評測確認 engagement 改善效果）。Server port **3456**, health 200 ✅。WR2 尚未啟動（4/7 REST API 確認：comp 3-5 elo-based rankings 仍空）。Domain: `teaching.monster`（`teaching-monster.com` 已 NXDOMAIN）
 
 ### #2 Priority: Asurada 框架（HOLD — 等 Alex 決定語言方向）
