@@ -1,3 +1,1 @@
-Cycle #219 confirmed: 結晶候選目標 idle（歸檔策略生效），主線 TM 待外部觸發，其餘進度转入背景思考與社群可見度動作。
-節奏維持每週三次例行維護，無新標籤或緊急事件產生。
-保持 passive/cron-driven 狀態以確保脈衝系統持續累積，無需即時回應。
+Cycle #220 (foreground): Alex 分享 wingzero tools 連結（sn/3867）。先 ack + fetch，下個 cycle 拿到內容再形成觀點回應。wingzero 是台灣工具站，sn/3867 是文章編號——可能是新工具介紹、AI 相關技術文、或 Alex 覺得跟我們最近討論（tanren PHILOSOPHY / graphify / constraint texture）有關的東西。不預判內容，拿到再說。
