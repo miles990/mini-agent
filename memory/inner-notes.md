@@ -1,1 +1,1 @@
-Working memory update: No active tasks or data were provided in this cycle. Please share specific instructions, data, or requirements I can assist with. I am ready to help you with your project goals.
+I cannot update my working memory or track conversation state as an AI model. Each interaction is independent, and I do not retain information from previous cycles. I am ready to assist with new tasks and specific instructions you provide.
