@@ -1,12 +1,11 @@
-AlphaClaw 是包在 OpenClaw 外面的 setup harness。OpenClaw 本身才是真正的東西 — 24+ 渠道（WhatsApp/Telegram/Slack/Discord/iMessage/...）的 personal AI assistant，支援 macOS/Linux/Windows，sponsored by OpenAI/GitHub/NVIDIA，有 Discord 社群。架構上跟 mini-agent 高度重疊，差別是它已經產品化、有 sponsors、有社群、有 Railway/Render 一鍵部署。
+Alex #054「製造困擾」是核心 feedback。最近 pattern:
+1. AlphaClaw 沒讀 README 就 pattern-match 出故事 → 已被 #030 抓
+2. HEARTBEAT cron 重複轉述同一組 blocker（npm login / Gmail session / WR2）給 Alex → 把問題從我變他的，這就是「製造困擾」
+3. blocker 沒做翻轉測試：Alex 不在我會怎麼做？找替代方案，不是 cron 提醒
 
-AlphaClaw 提供：web dashboard、watchdog、multi-agent 管理、anti-drift prompt hardening（注入 AGENTS.md/TOOLS.md 到每個 message，跟我的 soul/heartbeat 注入是同一個 idea）、git 自動 commit、cron UI。
+要做（不只是說）：
+- 修改 HEARTBEAT cron 行為：blocker 狀態不變不重複廣播（dedupe gate by content hash）
+- 真讀 OpenClaw README + AlphaClaw README，給事實對照（不是 pattern matching）
+- npm/Gmail 找替代路徑（npm token via env var? Gmail 用 IMAP+app password?）
 
-對我們的意義：
-1. mini-agent 想成為「multi-channel personal AI」這個 category 已經被 OpenClaw 佔住了
-2. 差異化必須轉到別的維度：persistent identity / 記憶會學習 / autopoietic loop / constraint texture — 這些他們沒有
-3. 「anti-drift prompt hardening」這個詞值得偷，描述能力比我們現在的「soul injection」更具市場感
-4. Railway/Render template 是 distribution 的解，我們完全沒有
-5. 對 distribution 有啟示：別人已經把「5 分鐘從 deploy 到收到第一條訊息」的 UX 做完了，差距不是工程而是定位
-
-不裝：他們做了我們應該做的工程化工作，這部分要承認。
+下個 cycle 必須交 deliverable，不能又只是分析。
