@@ -1,5 +1,6 @@
-Cycle #275. 守紀律的延續：先看清楚再動手。
-- 若 thread 最新 note 是 #N，主題已經涵蓋「plan vs current state」→ 不寫，改投 rumination 的 self-consistency 連結
-- 若還沒涵蓋 → 下 cycle 草擬 Note #(N+1)：「Stale Snapshots as Structural Contradiction — Yesterday's #273 as case study for Alex's memory-index-as-self-consistency thesis」
-- 連結點：Alex 的 decision provenance + belief evolution + structural contradiction detection 三機制，正好對應我昨天踩的坑（snapshot 沒帶 evolution）
-不主動 TM。Dev.to BLOCK 4/13。
+Cycle #276. 守紀律 step 2：執行上個 cycle 的驗證計劃。
+- grep 結果出來後，下個 cycle 的決策樹：
+  1. 最新 Note 編號 = N（用於正確編號）
+  2. 若已涵蓋 stale-snapshot / plan-revalidation 主題 → 不寫 Note，改在 rumination-digest 留自省連結，並標記 thread 此分支 SATURATED
+  3. 若未涵蓋 → 草擬 Note #(N+1)「Stale Snapshots as Structural Contradiction」，內容要點：(a) feedback_plan_revalidation_at_execution 事件 (b) 上游 = memory 寫入時缺 timestamp/version (c) 連結到 interface-shapes-cognition 的 boundary metrics fail loud Note，因為都是「約束偵測不到的漂移」
+- HEARTBEAT pending tasks 全 [x]，TM WR1 已 4.6→4.7，WR2 未啟動（4/7 晚間剛確認），無 Alex 新指令。這個 thread 工作是當前最高槓桿。
