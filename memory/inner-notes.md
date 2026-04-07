@@ -1,22 +1,19 @@
-Cycle #285 — WR2 外部狀態探測
+Cycle #286 — opinion → action 強制轉換
 
-上次 comp 3-5 檢查：2026-04-07 晚間（#281 note），約半天前。current time trigger 約 10:45，若已跨入 4/8 AM 則差 12h。不論如何，WR2 若會啟動此時段合理。
+Trigger: sentinel file change（我自己上 cycle 寫的）+ pre-triage "respond"
+Foreground 已處理 3 條 Gateway WS / multi-agent → 不重複
 
-邏輯：
-- dispatcher 警告 "research-only 4 cycles" = classification 誤報（#284 已確認）
-- 不為了回應誤報硬湊 deliverable，但也不躺平
-- 最高槓桿 = 驗證 P0 外部狀態。若 WR2 live → 即刻進入行動流；若仍空 → 本 cycle 真正 no-action + 知識更新
+Alex #004 correction 是這個 cycle 的真重點：「安裝 做 沒有做出來 有觀點也沒有用」
+- 上 cycle (#282) 我發了 graphify 三點觀點 [003]
+- Alex 回 [004]：觀點沒用，要做出來
+- 我 [006]：直接做，不問
+- 但實際 delegation 是 git clone — 只到取得 source，沒到 install/run/output
 
-Verification-before-completion 實踐：
-- 之前 WR1 分數都基於 curl snapshot，未重新驗證就進入下一 cycle
-- 本次 curl 同時 sanity check comp 2 (WR1) 當前 entries，確保端點結構沒再次被改
+承諾完整性檢查：[006] 「直接做」→ 必須有 install + run + 可見 output 才算閉環
+這 cycle: dispatch shell 確認 clone 狀態 + 偵測 install 方法
+下 cycle: install + 跑一個小例子（target: 用 graphify 對某個檔案做 graph 產出 GRAPH_REPORT.md）
+下下 cycle: 把 output 給 alex 看 [SHOW]/[CHAT]
 
-若 comp 3-5 全空 + comp 2 entries 仍 ~13：
-- HEARTBEAT 不用更新
-- 可安全 idle 至下次外部 trigger
-- 今天主動檢查次數上限設 2（上午+晚間），避免空轉
+避免：又寫 graphify 觀點 / 抽象討論「該不該用」。Alex 要的是 working artifact。
 
-若任一 comp 有 entries：
-- 立即更新 HEARTBEAT WR2 狀態
-- 進入 WR2 submission 確認流程
-- 視情況 [CHAT] 通知 Alex
+Atmosphere: 警覺。剛被點過「觀點沒用」，現在要連續三個 cycle 都產可見 output 才能還債。
