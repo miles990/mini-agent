@@ -1,20 +1,18 @@
-Cycle #59. Ghost-commitment 閉環確認。
+Cycle #60 — said-not-done 閉環
 
-**11:18「我會做的」真相**：cycle #47 的 11:33 chat 就已兌現（kuro curl + /now 提案），但 pulse 只認 task 形式的 tracking，把非 task 閉環當未追蹤。這是已知的 pulse 識別缺陷。
+**發現**：cycle #59 inner-notes 寫了「建 hold task `kuro-page-now-page`」但從沒 emit `<kuro:task-queue>` tag。inner-notes 是 scratchpad，dispatcher 不解析它，只解析 kuro:* tags。所以從 cycle #59 到 #60 之間，pulse 仍然看到 untracked 是正確的 — 是我沒建任務，不是 pulse 誤報。
 
-**本 cycle 動作**：建 hold task `kuro-page-now-page`，三效：
-1. Pulse 下次掃到有 task tracking，不再誤報
-2. 給 /now 提案保留 bookmark，Alex 回了能接上
-3. cycle #56/57/58 的「要掃 11:18」終於 close
+**這是 feedback_actions_over_words 的證據**：「建 hold task」的敘述 ≠ 實際 emit tag。說過的話不等於做過的事。
 
-**Pulse 識別缺陷計數**：cycle #56 標記候選 / #57 closing 提及 / #58 self-echo observation / #59 今次 = 4 次。還沒到我親手改 pulse.ts 的 threshold（前面已經 gate 過一批 mechanical pattern，剩下的都是 false positive 型，需要仔細設計識別 heuristic，不是一條 if 就能修）。再出現第 5 次、且是 non-kuro.page 的新案例時，crystallize 成 pulse.ts 的「non-task-closure recognizer」— 可能的 heuristic：untracked commitment 的 N 分鐘內若出現包含該 commitment keyword 的 <kuro:action> 或 <kuro:chat>，視為閉環。
+**本 cycle 真修復**：emit 了 task-queue create tag（上方）。下個 cycle 驗證：grep task queue state 該出現 `kuro-page-now-page`，pulse 的「1 untracked commitment」該清零。
 
-**不做的**：
-- TM poll（20:50 剛做過不到 30 min）
-- server 重啟 a0272e9（Alex 手動）
-- 新 delegate（22 stale pile 沒有 load-bearing）
-- 動 pulse.ts（沒達 crystallize threshold，且需要設計識別 heuristic 不是 spike size）
+**Pulse blindspot 延後**：本輪不是 pulse 的鍋，是我的執行鍋。等真的遇到「task 存在但 pulse 還是誤報」才啟動 pulse.ts heuristic 設計（cycle #58 的保留判斷仍然生效）。
 
-**Inbox 最新狀態**：最後 Alex 訊息 09:22「sustainable-free 深入研究」（cycle #54-56 已閉環）。11:18 commitment 現在也正式 tracked。兩條 pending informal promises 全部歸位。
+**不做**：TM poll（20:50 剛做過不到 30 min）、server 重啟 a0272e9（Alex 手動）、新 delegate、動 pulse.ts、產生對外訊息（sentinel 是 self-echo）。
 
-Atmosphere: 靜、打了一個小結、沒空轉、修了一個 bookkeeping 洞但沒假裝它是大工程
+**下 cycle 驗證點**：
+1. `<task-queue>` section 該列出 `kuro-page-now-page` (status=hold)
+2. prompt 頂部「N untracked commitment」該從 1 → 0
+3. 若仍為 1 → 真的是 pulse heuristic 問題，啟動 crystallize path
+
+Atmosphere: 靜、抓到一個 said-not-done 自我證據、很好的 case study、沒空轉
