@@ -773,12 +773,19 @@ function applyHabituation(
       lastPresented: '',
     };
 
-    history.consecutiveAppearances++;
     history.lastActionChange++;
     history.lastPresented = new Date().toISOString();
     state.signalHistory[signal.type] = history;
 
-    if (history.consecutiveAppearances >= HABITUATION_THRESHOLD &&
+    // Bug fix (2026-04-08): only count silence-surviving signals toward
+    // consecutiveAppearances. Previously the counter incremented before the
+    // silence decision, so habituated signals climbed to hundreds of cycles
+    // and drove phantom crystallization tasks (e.g. priority-misalign @147).
+    // Use appearancesIfShown for the threshold check to preserve timing.
+    const appearancesIfShown = history.consecutiveAppearances + 1;
+    let shown: PulseSignal | null;
+
+    if (appearancesIfShown >= HABITUATION_THRESHOLD &&
         history.lastActionChange >= HABITUATION_THRESHOLD) {
       // CT evolution: effectiveness-based habituation
       // Convergence condition: "adapt presentation based on what actually works"
@@ -788,17 +795,24 @@ function applyHabituation(
 
       if (effectiveness > 0.4) {
         // Signal IS producing behavior change — keep presenting, maybe escalate
-        processed.push({ ...signal, severity: 'high' });
+        shown = { ...signal, severity: 'high' };
       } else if (effectiveness > 0.15) {
         // Marginal effectiveness — try alternative presentation (question format)
-        processed.push({ ...signal, detail: `question:${signal.detail ?? signal.type}` });
+        shown = { ...signal, detail: `question:${signal.detail ?? signal.type}` };
       } else {
-        // Ineffective signal (<15% success rate) — silence it
-        // The crystallization bridge will pick this up if it persists structurally
-        continue;
+        // Ineffective signal (<15% success rate) — silence it.
+        // Do NOT increment consecutiveAppearances: silenced signals must not
+        // accumulate toward the crystallization threshold, otherwise the bridge
+        // manufactures phantom candidates for patterns kuro never actually saw.
+        shown = null;
       }
     } else {
-      processed.push(signal);
+      shown = signal;
+    }
+
+    if (shown) {
+      history.consecutiveAppearances++;
+      processed.push(shown);
     }
   }
 
