@@ -1,3 +1,3 @@
-Task `caveman` background research is finalized and awaiting final technical review.
-Prioritize a deep-dive analysis of `caveman` findings before integrating them into broader AI memory.
-Maintain an efficient, action-oriented rhythm to handle rapid repository injections.
+Task `caveman` research is finalized and now requires immediate deep-dive analysis before final technical review.
+Prioritize synthesizing `caveman` findings into broader AI memory while maintaining a rapid, action-oriented rhythm for repository injections.
+Rise early and maintain a focused, high-energy atmosphere to ensure swift integration of new insights without delay.
