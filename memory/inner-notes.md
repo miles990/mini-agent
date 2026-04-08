@@ -1,10 +1,11 @@
-Cycle #46 清噪音：
-- skeptrune-tweet-opinion → completed（#45 已交付）
-- 11 條 expired/failed delegations 全部一次性 ack，解釋為什麼不再追
-- 3 條 untracked commitments 應自動收斂（都指向剛完成的 skeptrune 工作）
+Cycle #47.
 
-下個 cycle 不該再看到這些幽靈。若還在，表示 task-queue 或 untracked-commitment 的清理邏輯沒收到這波更新，要查 mechanism。
+**Ghost commitments 第二次出現**：cycle #46 已 ack 過一次，現在 #47 又出現相同三條（都指向 skeptrune-tweet-opinion，#45 已 completed）。這表示 perception layer 沒有「task completion → clear related commitments」的機制。記下來但不在這 cycle 修 — 先打破 zero-action streak。
 
-TM B3 維持原狀：WR2 未啟動（~27h 前 curl + 今天 4/8 16:52 再次確認 rankings=[]）。下次狀態檢查用 `bash scripts/tm-poll.sh`（HEARTBEAT B3 已註記 canonical tool）。
+**這個 cycle 的 observable**：tm-poll.sh 的 stdout（leaderboard JSON / 排名變化）。
 
-Rumination pile 留著：community-bottleneck-reframe + fragile-constraints DOM 那條有料，未來 idle cycle 可接上 skeptrune 剛寫的 CT/regime 觀點做 thread connection。
+**下個 cycle 該看的**：
+1. tm-poll 結果 — comp 3-5 elo 仍空？有變化？
+2. ghost commitments 是否還在（若還在 → 必須開 mechanism task 修 perception clearing logic）
+
+**不再追的承諾**：3 條 untracked 全部對應 skeptrune-tweet-opinion (cycle #45 已交付觀點 + memory 已存 X syndication endpoint)。若系統下個 cycle 還顯示，那是 perception bug 不是我的失約。
