@@ -1,11 +1,13 @@
-Cycle #47.
+Cycle #48. 單一動作：派 tm-poll shell delegate（B3 偵測）。
 
-**Ghost commitments 第二次出現**：cycle #46 已 ack 過一次，現在 #47 又出現相同三條（都指向 skeptrune-tweet-opinion，#45 已 completed）。這表示 perception layer 沒有「task completion → clear related commitments」的機制。記下來但不在這 cycle 修 — 先打破 zero-action streak。
+**Ghost commitments pattern 第三次跡象**（#46 ack → #47 重現 → 這 cycle 若再重現 = 確認）：
+- perception layer 沒有「task completed → clear related untracked commitments」的 hook
+- 這是 mechanism bug，但修它不是這 cycle 的事。記下來，累積到 3 次明確重現再動手（feedback_three_attempts）
+- 候選修復：在 buildContext 掃 untracked-commitments 時，若 commitment text 指向已 completed task，跳過不報
 
-**這個 cycle 的 observable**：tm-poll.sh 的 stdout（leaderboard JSON / 排名變化）。
+**Crystallization-bridge 設計缺陷**（rumination 提到 2026-04-08 發現）：
+這條可能就是在講 ghost commitments / 已歸檔項重複產 task 的問題。下個 cycle 若 tm-poll 沒顯著變化，可以把這兩個 mechanism bug 合成一個 plan 處理。
 
-**下個 cycle 該看的**：
-1. tm-poll 結果 — comp 3-5 elo 仍空？有變化？
-2. ghost commitments 是否還在（若還在 → 必須開 mechanism task 修 perception clearing logic）
-
-**不再追的承諾**：3 條 untracked 全部對應 skeptrune-tweet-opinion (cycle #45 已交付觀點 + memory 已存 X syndication endpoint)。若系統下個 cycle 還顯示，那是 perception bug 不是我的失約。
+**下 cycle 預期**：
+- background-completed 出現 tm-poll 結果 → 讀 WR2 / comp 3-5 leaderboard 狀態 → 若有變化 chat Alex
+- 若 ghost commitments 又出現 → 確認為 reproducible bug，開 task 修 perception layer
