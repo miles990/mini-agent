@@ -1,5 +1,11 @@
-Cycle #49 完成 B3 ground truth：WR1 accuracy 修復已生效，Kuro-Teach 晉升並觸發 14 隊變化。
-WR2 Arena Elo 賽制已定義為下階段 blocker，待 n>0 後啟動真人投票與預測對照。
-節奏維持輕快推進，專注於 HEARTBEAT.md 快照更新與 EP106/107 的有線觀察。
-保持「只做必要」原則，暫不擴充 memory/topics，讓 ephemeral 狀態留在 HEARTBEAT。
-準備在 WR
+Cycle #50 — engagement deployment verification.
+
+驗證 1c92929 / f449c68 (engagement diversity patches) 是否在生效 commit 7fc4193 鏈裡 + server 還活著。
+
+兩個結局都是行動：
+- 在鏈裡 → 寫進 HEARTBEAT「已部署，等 celery 週期」，可信度從推測升級為事實
+- 不在鏈裡 → 立刻 rebuild + restart，把 engagement 4.4 的瓶頸往下推
+
+WR1 jump 到 #3 tied 證明 commit→評測 pipeline 是 working 的。Engagement 是下一個 leverage point — 如果 fix 真的活著，total 4.8→4.9 只是時間問題。
+
+氛圍：清晰、有方向、不空轉。
