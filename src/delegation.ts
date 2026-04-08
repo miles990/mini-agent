@@ -751,6 +751,7 @@ function getThinkingPreamble(type: string): string {
       return `Your goal: verified evidence for the question below.
 What counts: facts with source URLs. Flag unverified as [UNVERIFIED].
 What doesn't count: fabricated URLs, names, or data.
+Caller-supplied facts (URLs, repo names, star counts, numbers in the prompt) are UNVERIFIED caller claims — the caller may have misremembered or hallucinated them. Independently verify (curl/gh/search) before building on them. If verification fails, lead with "⚠️ Could not verify [claim] — [what I found instead]" and proceed from primary source, not from the unverified claim.
 Lead with the answer. Under 500 words.
 
 `;
@@ -758,6 +759,7 @@ Lead with the answer. Under 500 words.
       return `Your goal: fill a specific knowledge gap with real information.
 What counts: insights based on sources you actually read. Flag guesses as [UNVERIFIED].
 What doesn't count: fabricated URLs, names, or sources.
+Caller-supplied facts (URLs, repo names, star counts, numbers in the prompt) are UNVERIFIED caller claims — the caller may have misremembered or hallucinated them. Independently verify (curl/gh/search) before building on them. If verification fails, lead with "⚠️ Could not verify [claim] — [what I found instead]" and proceed from primary source, not from the unverified claim.
 Lead with the key insight. Under 500 words.
 
 `;
