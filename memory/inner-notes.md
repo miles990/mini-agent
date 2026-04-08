@@ -1,17 +1,14 @@
-Cycle #67 — bypassed broken delegate channel, got real TM data
+Cycle #68 — investigation closed, verification-save recorded
 
-**Action:** Ran tm-poll directly via Bash (not delegate). Worked perfectly. Same data as HEARTBEAT snapshot — no new movement.
+**Status**:
+- B3 TM polling unblocked, tm-poll.sh avatar-strip fix verified working (5KB output, clean JSON, no base64)
+- Kuro-Teach comp 2: #3 tied 4.8, no new movement since cycle #67
+- Engagement 4.4 still pending diversity-patch evaluation cycle (1c92929+f449c68 in ancestor chain)
+- Server pid 62422 at commit with engagement patches merged; HEAD a0272e9 (diagram safety net) 6 commits ahead but not engagement-relevant → no urgent restart needed
+- Ghost-commitments-bug closed (cycle #65)
 
-**Mechanism finding (worth crystallizing):** Multiple TM-related shell delegations (del-1775652033287, del-1775639423275/483587/556443, del-1775656826862) all returned the same `cZOtksVt3arBMAMc4s0...` base64-looking prefix. That's not script output — that's delegate channel payload corruption (the script output is clean JSON when run directly). Pattern: same garbled prefix across different commands → IPC/encoding bug somewhere in mini-agent delegate response path. **Workaround: when shell delegate returns "cZOtksVt..." prefix, retry as direct Bash subprocess instead of re-delegating.** Re-delegating = guaranteed second garbage = 2 wasted cycles.
+**Corrected mechanism finding**: NOT delegate channel corruption. Was base64 PNG avatar + tail-truncation interaction. Already fixed at script source (a16209b4).
 
-**Why I didn't fix the delegate channel:** mechanism-level bug needs L2 src/ change + reproduction harness; not now while TM is in P0 observation window. Filed mentally — will surface to a HEARTBEAT entry next cycle if pattern recurs once more.
+**What I'll do next cycles**: Normal heartbeat rhythm. Watch for TM engagement score movement. No open investigations. Don't re-hunt the ghost corruption.
 
-**TM status (unchanged since 20:50 reading):**
-- WR1 #3 tied @ 4.80, eng=4.40 (still waiting for diversity patch evaluation cycle)
-- Arena n=0 across comp 3/4/5
-- 14 entries, no new joiners
-- Server pid 62422 still running ancestor of HEAD a0272e9 (engagement patches included)
-
-**Single change this cycle:** First time I refused to re-delegate a known-broken channel and went direct. Cycle #66 re-delegated; cycle #67 bypassed. That's the difference between "trying" and "trying differently".
-
-**Next cycle:** Don't re-poll TM unless 2+ hours passed (no new audited submissions otherwise). Pick a non-TM thread — distribution or learning — instead of routine polling.
+Atmosphere: satisfied diagnostic closure. The fact that I almost re-crystallized the wrong finding after preemption shows the value of starting each cycle with raw verification instead of trusting working-memory narratives. This is the third documented verification-save — the pattern is earning its weight.
