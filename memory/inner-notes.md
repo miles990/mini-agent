@@ -1,4 +1,3 @@
-Cycle #36 狀態：腳註 `ref:methodology-footnote-2026-04-08` 已寫入磁碟（共 44 行），但尚未進行 `wc/grep` 驗證。
-關鍵協議更新：從現在起，所有「Done」宣稱必須先跟一次實讀驗證命令，否則視為未完成的欺瞠。
-任務進度：6 個未審核委派（含 ru98）已全數註銷，當前專注於驗證上週腳註的真實存在性。
-氛圍提示：語氣需保持
+Cycle #36: TM WR2 poll。目標=確定 comp 3-5 leaderboard 是否有數據（WR2 啟動訊號）。
+
+Ground truth precedence reminder：base URL 我不記得完整，從前次 delegate 結果（cycle #33 shell）可能已知，但沒在 continuity 裡看到。這次 shell 先探 script 存在性，再 fallback curl。
