@@ -574,6 +574,10 @@ function extractCommitments(response: string): string[] {
       if (/嗎|吗|\?$/.test(s)) return false;
       // Exclude permission-seeking patterns (要我..., 要不要我..., 需要我...)
       if (/^(?:\*{0,2})(?:要不要|要|需要|你(?:想|要|需要))我/.test(s)) return false;
+      // Exclude markdown headers (section titles label lists, they aren't commitments
+      // themselves — ghost-commitments-bug cycles #59–#62: "## 我會做的" repeatedly
+      // extracted as a 6-char commitment that could never resolve).
+      if (/^#{1,6}\s/.test(s)) return false;
       // Exclude markdown table rows
       if (/^\|.*\|/.test(s) || /\|.*\|$/.test(s)) return false;
       // Exclude quoted/referenced commitments (meta-descriptions, not actual commitments)
