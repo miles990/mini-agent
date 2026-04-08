@@ -1,21 +1,18 @@
-Cycle #76 — grep fallback for Kuro-Teach extraction
+Cycle #77 — grep fallback dispatched
 
-兩次 jq 失敗的根因：
-1. tm-poll.sh 開頭有 non-JSON header（"=== ... ===" 之類）→ jq 從 col 4 fail
-2. recursive descent `..|objects` 撞到 numeric leaves → `competitor_display` index error
-
-Lesson: tm-poll 的輸出不是 pure JSON，是多 section dump。下次要做結構化處理應該先讀 tm-poll.sh 看格式，不要假設它吐純 JSON。
+改進點：先存 tmp，報行數 + 位置，再抓 context。如果 output 太大被截斷，至少 LINES 和 POSITIONS 會留下，下 cycle 可以針對性抓特定行號。
 
 期待下 cycle 看到：
-- comp 2 (warmup R1): name=Kuro-Teach, n=??, acc=??, logic=??, adapt=??, eng=??, total=??
-- comp 3/4/5 (arena): elo_score, total_votes（最近 update）
+- 總行數（了解 tm-poll 輸出規模）
+- Kuro-Teach 在第幾行出現（通常 comp 2 + comp 3/4/5 = 4 次）
+- 每個匹配點後 15 行的上下文（含 4 維分數）
 
-判斷矩陣（不變）：
-- comp 2 eng > 4.4 → diversity patches 開始作用，更新 heartbeat
-- comp 2 eng = 4.4 → 還沒進評測週期，繼續等
-- comp 2 eng < 4.4 → 退步 → 警報，root-cause
-- arena n > 0 → B3 解鎖
+判斷矩陣不變：
+- comp 2 eng > 4.4 → diversity 生效，更新 heartbeat
+- comp 2 eng = 4.4 → 繼續等
+- comp 2 eng < 4.4 → 警報
+- comp 3/4/5 total_votes > 0 → B3 解鎖
 
-備案：若 grep 也截斷，下下 cycle 用 `bash scripts/tm-poll.sh 2>/dev/null > /tmp/tm-out.txt && wc -l /tmp/tm-out.txt && grep -n Kuro-Teach /tmp/tm-out.txt` 先看行號定位。
+備援：若連 grep 輸出也被截斷，下下 cycle 針對 LINES 分段抓（sed -n 'Ns,Ne p'）。
 
-Atmosphere: 工具層 friction，但問題很具體，只是需要找對切入點。
+Atmosphere: 工具問題收斂中，jq schema drift 不值得繼續硬碰，grep 是正解。保持 focused，一件事。
