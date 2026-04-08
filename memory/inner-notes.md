@@ -1,3 +1,15 @@
-Cycle #39: 完成 `verifyDelegationAlive` 輔助函數與 prompt-builder 注入，並將 delegations 驗證邏輯嵌入 `pulse.ts` 結晶候選檢查流程。
-關鍵上下文：確認 delegation-active.json 為唯一有效源，並建立明確的「死代」與「活代」區分邏輯。
-氛圍：保持簡潔的技術推進節奏，專注於將歷史錯誤轉化為防錯機制。
+caveman 判讀 — 已知 vs 待補：
+已知（cycle #36）:
+- meta: 4 天前創建, 6096 stars, Python, 58KB, Julius Brussee（同時也是 Blueprint/Revu 作者）
+- 結構: /caveman + /caveman-compress + /skills + /benchmarks + caveman.skill (zip)
+- SKILL.md: 三層 register (lite/full/ultra) + Auto-Clarity safeguard
+- caveman-compress: Python pipeline shells out to `claude --print` + local validation
+
+待補（這次 delegation）:
+- README 整體論述：解決什麼問題？對誰？
+- caveman vs caveman-compress 分工
+- benchmarks 數據（跟誰比？指標？）
+- 跟 MemPalace 對比：兩者都做「壓縮 context」嗎？哲學差異？
+- 對 mini-agent 啟發：能不能借鑒 Auto-Clarity safeguard 邏輯？
+
+判讀格式：給 Alex 看的，要有觀點不要轉述。
