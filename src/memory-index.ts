@@ -582,10 +582,16 @@ export async function detectAndRecordCommitments(
   response: string,
   tags: ParsedTags,
 ): Promise<number> {
-  // When tracking tags present, resolve matching active commitments instead of creating new ones
+  // When tracking tags present, resolve matching active commitments first.
+  // Then fall through to extraction — a response can BOTH execute tracked work
+  // AND make new commitments alongside it. Returning early here was a binary
+  // gate that silently dropped any commitment co-located with a tracking tag,
+  // which (since nearly every cycle has some tag) made extraction effectively
+  // dead code. False positives are preferable to silent loss: an extra
+  // "untracked commitment" warning is visible and dismissible; a dropped
+  // commitment is invisible. See feedback_commit_discipline.
   if (hasTrackingTags(tags)) {
     await resolveActiveCommitments(memoryDir, response);
-    return 0;
   }
 
   const commitments = extractCommitments(response);
