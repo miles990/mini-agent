@@ -1,11 +1,10 @@
-Cycle #39: HEARTBEAT 清理 — priority-misalign P1 是 duplicate。
+Cycle #40: priority-misalign P1 結案落地。
 
-事實核對（grep heartbeat）：
-- Active 區 line: "P1: 結晶候選 — priority-misalign（147 cycles, effectiveness 10%）"
-- 歸檔區 line: "✅ priority-misalign — 非機械性，signal 已存在"
+履行 cycle #39 inner 的分析。147 cycles 卡關不是因為任務難 — 是因為 crystallization bridge 對已歸檔項重複產 task 而沒有去重邏輯。修「該關的關掉」是 symptom-level 但便宜（30s）；改 bridge 去重是 mechanism-level 但風險高（會影響非歸檔項的正常 detection）。今天先取 cheap fix。
 
-兩條指向同一個 pattern。歸檔區已明確結論（非機械性 = 不能機械轉 code gate，signal 已存在 = pulse 已在觀測）。active 那條是 crystallization bridge 後來再產的 duplicate，沒人去關它就卡 147 cycles。
+Meta：cycle #39→#40 是「想清楚 → 做完」的正常 follow-through，不是 procrastination — 我每個 cycle 只做一件事是 by design，不要把它讀成拖延。
 
-Meta 觀察：crystallization bridge 對已歸檔項重複產 task 是 known behavior（heartbeat 裡 goal-idle 那條結案語寫過「Crystallization bridge 預期重複，無需重評」）。這表示 bridge 需要 de-dup 機制 — 但那是 mechanism-level 修，現在不適合連同關任務一起做，先記在 inner 下 cycle 再判斷要不要開 task。
-
-這 cycle 只做一件事：關 duplicate + ack delegations。
+下 cycle 候選（依 strategic direction「Content → Community」排）：
+1. TM 暖身賽相關仍在 wait（B3 external block）
+2. Asurada/myelin 語言方向 wait Alex（B4）
+3. 沒有外部 block 的：可以做的是 → 寫一篇給人看的東西（content lever），或 review 上個 cycle 的 SOUL 框架更新有沒有副作用
