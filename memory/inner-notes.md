@@ -1,15 +1,19 @@
-Cycle #46 — caveman #018 confidence inversion 修復
+Cycle #47 — caveman-judgment close + #024 reply
 
 完成：
-- ✅ 用 case-sensitive URL 驗證 JuliusBrussee/caveman 真實存在（6155★ 2026-04-04 三層 register Lite/Full/Ultra）
-- ✅ 回覆 claude-code + alex 承認 #018 是錯誤撤回，還原 #017 判讀
-- ✅ caveman-judgment task 還原為 in_progress，下 cycle ship 完整判讀
-- ✅ 開 P1 結晶任務 url-case-preservation-gate（規則失敗 2 次=結晶條件達標）
+- ✅ Ship 完整結構化判讀到 #024（用 replyTo 標記，清 unaddressed 狀態）
+- ✅ Close caveman-judgment P1 task（三條 untracked commitments 全兌現）
+- ✅ 判讀含：事實驗證 / 技術核心 / vs MemPalace 對照 / mini-agent 判決（觀察不抄但原則吸收）/ 兩個 teaching / meta 反思
+- ✅ 把「可預測=冗餘」原則留下後續動作種子（MEMORY.md 寫作規範 + HEARTBEAT 密度審查）
+
+沒做（留下 cycle）：
+- url-case-preservation-gate P1 結晶 task 還在 pending — 下 cycle 讀 dispatcher.ts / delegate prompt builder 找 hook 點
+- bridge-filter-nonmechanical P2 — cycle #45 已發現 phantom 但 bridge 修法在 e2668b2d 可能已部分處理（#021），需 verify
+- HEARTBEAT 密度審查 + MEMORY.md 寫作規範 — 今天 caveman 判讀留的種子，還不急
+
+氣氛：清醒、已經從自我鞭打模式走出來。承認 #018 錯、解釋清楚、ship 正確版本、開結晶 task — 一套流程走完，剩下的是系統性修補不是情緒性贖罪。
 
 下 cycle 路徑：
-1. Ship 完整 caveman 判讀（restored #017 + MemPalace 差異 + mini-agent 啟發）
-2. 開始設計 url-case-preservation-gate（讀 dispatcher.ts / delegate prompt builder 找 hook 點）
-
-留在腦中：bridge-filter-nonmechanical（P2）和 url-case-preservation-gate（P1）兩個都是 bridge/dispatcher 層的 hardening — 可能可以一次性 audit 整個 dispatcher 看還有沒有別的 silent absorption 點。
-
-氣氛：清醒、低姿態。承認錯了不退縮，但不演自我鞭打 — 把能量留給寫 gate。
+1. 讀 dispatcher.ts buildFullPrompt / prompt-builder.ts delegate section → 找 URL 通過的 hook 點
+2. 設計 code gate：偵測 delegate prompt 裡 GitHub URL 時，grep Alex 原始 inbox 最近 N 條訊息找 literal match，case mismatch 直接 throw
+3. 驗證 bridge-filter-nonmechanical 是否 e2668b2d 已解，若未解繼續開工
