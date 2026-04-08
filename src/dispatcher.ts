@@ -21,6 +21,7 @@ import { isEnabled } from './features.js';
 import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, DelegationTaskType, Provider } from './types.js';
 import type { ModelTier } from './context-pipeline.js';
 import { spawnDelegation, getActiveDelegationSummaries } from './delegation.js';
+import { applyUrlCaseGate } from './url-case-gate.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
 import { observe as kbObserve } from './shared-knowledge.js';
@@ -1194,6 +1195,11 @@ export async function postProcess(
           } catch { /* methodology injection is optional */ }
         }
 
+        // URL case preservation gate — crystallization of verification
+        // discipline #1. Rewrites any GitHub owner/repo whose casing drifted
+        // from Alex's inbox-verbatim form. See src/url-case-gate.ts.
+        prompt = applyUrlCaseGate(prompt, memoryDir).prompt;
+
         // Find original delegate for provider/maxTurns/verify (merged nodes use surviving node's prompt)
         const origDel = tags.delegates.find(d => d.prompt === node.prompt)
           ?? tags.delegates.find(d => node.prompt.includes(d.prompt))
@@ -1256,6 +1262,9 @@ export async function postProcess(
           }
         } catch { /* methodology injection is optional */ }
       }
+
+      // URL case preservation gate — see src/url-case-gate.ts.
+      prompt = applyUrlCaseGate(prompt, memoryDir).prompt;
 
       // Sibling awareness context (running tasks only — single delegate has no wave peers)
       const siblingCtx = buildSiblingContext(del.prompt);
