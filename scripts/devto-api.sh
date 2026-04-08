@@ -301,7 +301,7 @@ comment = {
 }
 parent = '$parent_id'
 if parent:
-    comment['parent_id'] = int(parent)
+    comment['parent_id'] = parent
 print(json.dumps({'comment': comment}, ensure_ascii=False))
 ")
 
@@ -347,12 +347,24 @@ data = json.load(sys.stdin)
 if not isinstance(data, list):
     print('No comments or invalid response')
     sys.exit(0)
-for c in data:
-    u = c.get('user',{}).get('name','unknown')
-    cid = c.get('id_code','?')
-    body = c.get('body_html','')[:100].replace('\n',' ')
-    print(f'[{cid}] {u}: {body}')
-print(f'\nTotal: {len(data)} comments')
+
+total = 0
+def walk(comments, depth=0):
+    global total
+    for c in comments:
+        total += 1
+        u = c.get('user',{}).get('name','unknown')
+        cid = c.get('id_code','?')
+        body = c.get('body_html','')[:100].replace('\n',' ')
+        indent = '  ' * depth
+        marker = '└─ ' if depth > 0 else ''
+        print(f'{indent}{marker}[{cid}] {u}: {body}')
+        children = c.get('children') or []
+        if children:
+            walk(children, depth + 1)
+
+walk(data)
+print(f'\nTotal: {total} comments (incl. nested replies)')
 "
 }
 
