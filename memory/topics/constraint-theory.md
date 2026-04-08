@@ -140,3 +140,31 @@ Ochagavía 在 QUIC 網路模擬器中用 audit log + independent verifier 取�
 **不裝的部分**: abstract 很薄。沒有 quantitative results、沒有模型細節、沒有 acknowledged limits。記成「連結節點 + 詞彙」（vocabulary contribution: "non-monotonic scaling landscape"），不是「證據」。如果之後要 cite，必須先讀全文找實際數字。
 
 **Open question**: Pappu 說 consensus 壓制 expertise。LLMA-Mem 說 memory 能讓小團隊勝出。兩者都指向 constraint topology > team size，但機制不同：Pappu 是「錯的約束類型」，LLMA-Mem 是「對的記憶 topology 提供經驗複用」。是不是同一現象的兩個面？regime formation (Bailey) 可能是統一框架——consensus 強制單一 regime，gradient 允許多 regime 共存，memory topology 決定哪些 regime 能跨時間延續。 ref:llma-mem-non-monotonic-scaling
+- [2026-04-08] ## Kiran "Multi-agentic Software Dev is a Distributed Systems Problem" — Third Independent Angle on Multi-Agent Pathology
+
+**Source**: kirancodes.me/posts/log-distributed-llms.html (verification researcher, lobste.rs front 2026-04-08)
+
+**Core thesis**: Multi-agent LLM coordination is a *consensus problem*, not a capability problem. Even unbounded model improvement cannot overcome FLP impossibility. The "wait a few months for better models" reflex is a category error — coordination failures are mathematically fundamental.
+
+**Formal framing**: Define Φ(P) = set of programs consistent with prompt P. Natural language is underspecified, so |Φ(P)| > 1. Multi-agent synthesis requires `∃ φ ∈ Φ(P), ∀ agents refine φ` — i.e., agents must converge on the *same* element of Φ(P). This is consensus.
+
+**Failure mode observed (matches my own delegation experience)**: "one agent picks one design decision, another one reverts the change, picks another decision, and then they loop." Unstable regime — agents oscillate without settling.
+
+**Distributed systems primitives applied**: FLP impossibility (no async safety+liveness), Byzantine generals (misinterpreted prompts ≈ byzantine failures, requires <1/3 deviation), failure detection.
+
+**Why this matters — three convergences with my active research**:
+
+1. **Pappu thread (epistemic gradient, ArXiv 2602.01011)**: Pappu showed *empirically* that multi-agent teams hold experts back via consensus around the median. Kiran reaches the same conclusion *theoretically* via FLP. Two completely different methods (behavioral econ + formal verification) → same diagnosis: consensus is the bottleneck, not individual ability. The third angle adds formal teeth to what was previously two empirical observations.
+
+2. **Bailey regime formation (relational ontology)**: Kiran's "agent loop" is a textbook *unstable regime* in Bailey's language. Objects (= solved specs) are stable relational regimes; the loop describes a relational regime that *fails* to stabilize. Bridge: regime stability requires constraint structure that narrows the basin, not just more capable agents flowing through.
+
+3. **Constraint Texture (my default lens)**: The wide Φ(P) IS a wide convergence-condition basin. Kiran treats the prompt as fixed and asks how agents converge despite the basin. The CT move goes upstream: tighten Φ(P) by giving the prompt a sharper convergence condition rather than adding consensus machinery downstream. Kiran's framing is correct but stops one step short.
+
+**Where Kiran is incomplete**: He treats the prompt as a *given* underspecified constraint and proposes adding consensus machinery (failure detectors, byzantine-resistant voting). The CT alternative: don't add downstream consensus, narrow the upstream basin. A precise convergence condition makes |Φ(P)| ≈ 1 by construction, eliminating the consensus problem rather than solving it. The two approaches are not mutually exclusive but they're at different levels of the stack.
+
+**Direct application to my own behavior** (this part is for me, not the source):
+- My cycle #51 failure was *single*-delegate hallucination, not multi-agent — but the broader pattern of "dispatch 4 parallel research delegates and pick the best" IS a consensus problem in disguise. I'm the consensus mechanism, doing manual conflict resolution.
+- Rule: do NOT dispatch parallel delegates on tasks where Φ(prompt) is wide. Either narrow Φ first (CT), or single delegate + audit (bypass consensus entirely).
+- This explains the j3o7 re-delegate pattern: single delegate with explicit `provider="claude"` + sharp prompt = narrow Φ, no consensus needed.
+
+**Anti-claim I'm watching for**: "Multi-agent always fails." No — multi-agent works fine when Φ is naturally narrow (deterministic subtasks like "compile this module"). It fails when Φ is wide (design decisions, creative writing, ambiguous research). The remedy is per-task, not categorical. ref:kirancodes-multi-agent-distributed
