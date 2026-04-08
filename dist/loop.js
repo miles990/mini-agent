@@ -50,7 +50,7 @@ import { CHAT_ROOM_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxPr
 import { stripKuroTags } from './tag-parser.js';
 import { checkApprovedProposals, resolveStaleConversationThreads, autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos, writeContextSnapshot, } from './cycle-tasks.js';
 import { parseScheduleInterval, detectCycleMode as detectCycleModeFn, loadBehaviorConfig as loadBehaviorConfigFn, buildAutonomousPrompt as buildAutonomousPromptFn, } from './prompt-builder.js';
-import { hesitate, applyHesitation, loadErrorPatterns, saveHeldTags, drainHeldTags, buildHeldTagsPrompt, logHesitation, } from './hesitation.js';
+import { hesitate, applyHesitation, loadErrorPatterns, saveHeldTags, drainHeldTags, buildHeldTagsPrompt, logHesitation, recordPatternHits, } from './hesitation.js';
 import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, forgeRecover } from './delegation.js';
 import { cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
@@ -599,12 +599,37 @@ export class AgentLoop {
             });
             const answer = result.content || response;
             // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
+            // Convergence guard: only emit when the model produced something a human can actually read.
+            //   - Prefer parsed <kuro:chat> tag content (the model's intended user-visible text)
+            //   - Allow pure plain text (no XML-like tags remain after stripping kuro tags)
+            //   - REJECT anything containing residual tags like <reply_plan>, </system-reminder>, etc.
+            //     These are model hallucinations / prompt-boundary leaks (#066 / #070 incidents).
+            // Rejected responses leave the inbox pending so a later cycle can attempt a real reply.
             if (streamedChats.size === 0) {
-                // Strip internal tags to prevent raw XML leaking into room/telegram
-                const cleanAnswer = stripKuroTags(answer);
-                const displayAnswer = cleanAnswer || answer.slice(0, 500); // fallback to truncated raw if everything was tags
-                // Don't send empty replies — message stays pending, next cycle picks it up
-                if (displayAnswer.trim()) {
+                const parsedChats = parseTags(response).chats;
+                let displayAnswer = '';
+                if (parsedChats.length > 0) {
+                    displayAnswer = parsedChats.map(c => c.text).join('\n\n').trim();
+                }
+                else {
+                    const cleanAnswer = stripKuroTags(answer).trim();
+                    // Any remaining XML-like tag after stripKuroTags is suspect (kuro tags already gone,
+                    // so this is hallucinated structure). Block it from reaching the room.
+                    const hasResidualTag = /<\/?[a-z][a-z_-]*[\s>]/i.test(cleanAnswer);
+                    if (cleanAnswer && !hasResidualTag) {
+                        displayAnswer = cleanAnswer;
+                    }
+                    else if (hasResidualTag) {
+                        slog('LOOP', `[foreground:${slotId}] suppressed malformed response (residual tag, no <kuro:chat>): ${response.slice(0, 120).replace(/\n/g, ' ')}`);
+                        writeActivity({
+                            lane: 'foreground',
+                            summary: `[SUPPRESSED-MALFORMED] response had residual non-kuro tags, no chat — kept inbox pending`,
+                            trigger: source,
+                            tags: result.tagsProcessed,
+                        });
+                    }
+                }
+                if (displayAnswer) {
                     if (source === 'telegram') {
                         notifyTelegram(displayAnswer, matchReplyTarget(displayAnswer, telegramMsgs) ?? undefined).catch(() => { });
                         clearLastReaction();
@@ -613,8 +638,8 @@ export class AgentLoop {
                         await writeRoomMessage('kuro', displayAnswer, replyTo);
                     }
                 }
-                else {
-                    slog('LOOP', `[foreground] Empty reply for ${source} — skipping, message stays pending`);
+                else if (parsedChats.length === 0) {
+                    slog('LOOP', `[foreground:${slotId}] no visible reply emitted for ${source} — message stays pending`);
                 }
             }
             else if (source === 'telegram') {
@@ -630,7 +655,16 @@ export class AgentLoop {
             // Unfulfilled commitment detection (#130 structural fix):
             // If chat was streamed with commitment language but no delegate tags were processed,
             // DON'T mark inbox as fully processed — let main loop follow up.
-            const COMMITMENT_PATTERNS = [/交給背景/i, /背景.*研究/i, /delegate/i, /我.*去.*(?:挖|研究|分析|查)/i, /交給.*lane/i, /spawn.*tentacle/i];
+            const COMMITMENT_PATTERNS = [
+                /交給背景/i,
+                /背景(?:跑|讀|研究|深讀|深挖|挖)/i,
+                /delegate/i,
+                /我.*(?:去|來|會).*(?:挖|研究|分析|查|整理|寫|讀)/i,
+                /交給.*lane/i,
+                /spawn.*tentacle/i,
+                /下個\s*cycle.*(?:給|整理|寫|報告|回)/i,
+                /下一?輪.*(?:給|整理|寫|報告|回)/i,
+            ];
             const hasDelegateTag = result.tagsProcessed?.includes('delegate') ?? false;
             const chatTexts = [...streamedChats].join(' ');
             const hasUnfulfilledCommitment = streamedChats.size > 0
@@ -649,18 +683,46 @@ export class AgentLoop {
             }
             else {
                 // Normal case: mark inbox items as processed — prevents main cycle from re-responding
+                const responseTags = parseTags(response);
                 try {
-                    markChatRoomInboxProcessed(response, parseTags(response), 'foreground-reply');
+                    markChatRoomInboxProcessed(response, responseTags, 'foreground-reply');
                 }
                 catch { /* fire-and-forget */ }
-                // Mark unified inbox items as replied — prevents re-triggering foreground for same message
+                // Convergence condition: a foreground response only counts as "replied" if it
+                // contains at least one user-visible tag. Inner-only responses are notes-to-self,
+                // not replies — Alex sees nothing, so the inbox item must remain pending so the
+                // next cycle (main loop or another foreground trigger) attempts a real reply.
+                // Bot-sourced items (mushi/system status notifications) don't expect chat replies,
+                // so inner-only acknowledgement is acceptable for them.
+                const hasVisibleReply = responseTags.chats.length > 0
+                    || responseTags.asks.length > 0
+                    || responseTags.shows.length > 0
+                    || responseTags.summaries.length > 0;
+                const BOT_FROMS = new Set(['mushi', 'system', 'bot', 'kuro', 'kuro-watcher']);
                 try {
                     const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+                    let suppressed = 0;
+                    let marked = 0;
                     for (const item of pending) {
+                        const isBotSender = BOT_FROMS.has((item.from || '').toLowerCase());
+                        if (!isBotSender && !hasVisibleReply) {
+                            suppressed++;
+                            continue; // leave pending — next cycle must try a real reply
+                        }
                         queueInboxMark(item.id, 'replied');
+                        marked++;
                     }
-                    if (pending.length > 0)
+                    if (marked > 0)
                         flushInboxMarks();
+                    if (suppressed > 0) {
+                        slog('LOOP', `[foreground:${slotId}] ⚠ ${suppressed} human inbox item(s) left pending — response had no <kuro:chat>/ask/show/summary (only inner monologue?)`);
+                        writeActivity({
+                            lane: 'foreground',
+                            summary: `[NO-VISIBLE-REPLY] ${suppressed} item(s) kept pending; response was inner-only`,
+                            trigger: source,
+                            tags: result.tagsProcessed,
+                        });
+                    }
                 }
                 catch { /* fire-and-forget */ }
             }
@@ -1472,7 +1534,14 @@ export class AgentLoop {
             // Context snapshot for cross-instance awareness (fire-and-forget)
             writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => { });
             // oMLX Gate R4: Context delta detection — skip autonomous cycles with unchanged context
-            if (!isDirectMessage && !isCronTrigger && !hasContextChanged(context)) {
+            // Bypass R4 when there's known pending work. The system already detects pending work
+            // (chat-room Unaddressed / pending tasks / overdue commitments) and uses it to cap
+            // the interval; R4 must respect the same signal or it traps cycles in a skip loop
+            // when Kuro committed to follow-up but produced no new context delta yet. Without this
+            // bypass, "下個 cycle 給完整 review" promises silently die: 5+ consecutive R4 skips
+            // observed in production while [pending-work] cap was actively firing.
+            const hasPending = this.hasPendingWork();
+            if (!isDirectMessage && !isCronTrigger && !hasPending && !hasContextChanged(context)) {
                 this.currentMode = 'idle';
                 this.adjustInterval(false);
                 slog('LOOP', `[omlx-gate] R4: Context unchanged, skipping cycle ${this.cycleCount}`);
@@ -1919,6 +1988,7 @@ export class AgentLoop {
             if (isEnabled('hesitation-signal')) {
                 const errorPatterns = loadErrorPatterns();
                 const hesitationResult = hesitate(response, tags, errorPatterns);
+                recordPatternHits(hesitationResult.matchedPatternIds);
                 if (!hesitationResult.confident) {
                     const { held, scheduleReview } = applyHesitation(tags, hesitationResult);
                     hesitationScheduleReview = scheduleReview;
@@ -2299,10 +2369,27 @@ export class AgentLoop {
                     slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
                 }
             }
-            // ── Telegram no-reply safety net ──
-            // If telegram-user cycle finished without ANY reply to Alex, log warning
-            if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
-                slog('LOOP', `⚠️ telegram-user cycle #${this.cycleCount} produced no reply to Alex`);
+            // Compute DM cycle sources up-front (used by safety net + inbox marking).
+            // Naming note: didReplyToTelegram is misleading — by the time we reach here it
+            // tracks "any <kuro:chat> was emitted", not telegram-specific (see line 2271).
+            const cycleSources = new Set();
+            if (currentTriggerReason?.startsWith('telegram-user'))
+                cycleSources.add('telegram');
+            if (currentTriggerReason?.startsWith('room'))
+                cycleSources.add('room');
+            if (currentTriggerReason?.startsWith('chat'))
+                cycleSources.add('chat');
+            const isDirectMessageCycle = cycleSources.size > 0;
+            // ── DM no-reply safety net (symmetric across all DM sources) ──
+            // If a DM cycle (telegram OR room OR chat) finished without ANY visible <kuro:chat>,
+            // leave items from that source pending so inbox recovery retries on a later cycle.
+            // Previously this only protected 'telegram' — room/chat items got false-marked 'seen'
+            // when Kuro responded with malformed tags (e.g. self-invented <reply_plan>) or with
+            // only <kuro:inner> monologue. Same prescription→convergence bug as foreground lane.
+            const dmNoReply = isDirectMessageCycle && !didReplyToTelegram;
+            if (dmNoReply) {
+                const sourcesStr = [...cycleSources].join('+');
+                slog('LOOP', `⚠️ ${sourcesStr} cycle #${this.cycleCount} produced no visible reply — items stay pending for retry`);
             }
             // Clear 👀 reaction after reply — Alex 不需要看到「已讀」在回覆後仍停留
             if (currentTriggerReason?.startsWith('telegram-user') && didReplyToTelegram) {
@@ -2319,19 +2406,14 @@ export class AgentLoop {
             // Cross-source items (e.g. telegram items in a room-triggered cycle) are left pending
             // so their dedicated cycle can process them with appropriate priority prefix.
             const didReply = didReplyToTelegram; // generalized: any <kuro:chat> counts
-            const cycleSources = new Set();
-            if (currentTriggerReason?.startsWith('telegram-user'))
-                cycleSources.add('telegram');
-            if (currentTriggerReason?.startsWith('room'))
-                cycleSources.add('room');
-            if (currentTriggerReason?.startsWith('chat'))
-                cycleSources.add('chat');
-            // Non-DM cycles (heartbeat, workspace, cron) mark all non-telegram items
-            const isDirectMessageCycle = cycleSources.size > 0;
             for (const item of readPendingInbox()) {
                 if (isDirectMessageCycle) {
                     // DM cycle: only mark items from the triggering source
                     if (cycleSources.has(item.source)) {
+                        // Convergence guard: if cycle produced no visible reply for this DM source,
+                        // leave the item pending so a later cycle can attempt a real reply.
+                        if (dmNoReply && cycleSources.has(item.source))
+                            continue;
                         queueInboxMark(item.id, didReply ? 'replied' : 'seen');
                     }
                     // Leave other sources' items untouched
