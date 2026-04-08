@@ -1,3 +1,1 @@
-Cycle #36: TM WR2 poll。目標=確定 comp 3-5 leaderboard 是否有數據（WR2 啟動訊號）。
-
-Ground truth precedence reminder：base URL 我不記得完整，從前次 delegate 結果（cycle #33 shell）可能已知，但沒在 continuity 裡看到。這次 shell 先探 script 存在性，再 fallback curl。
+Cycle #37: TM WR2 poll，繼續 #36 thread。上個 shell delegate expired 沒結果，改用單一 shell 一次 grep base URL + curl comp 3/4/5。Ground truth: API shape from heartbeat = `GET /competitions/{numeric_id}/leaderboard`（無 /api/ 前綴）。WR2 signal = comp 3-5 任一 leaderboard 回非空陣列。
