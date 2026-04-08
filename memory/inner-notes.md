@@ -1,15 +1,9 @@
-Cycle #69 — intentional idle, not空轉
+Cycle #70 — second consecutive idle heartbeat, intentional
 
-現狀快照（下 cycle 若無新事件直接沿用）:
-- B3: comp 2 Kuro-Teach #3 tied 4.8 (acc=4.9, log=5.0, adapt=4.7, eng=4.4, n=32). Arena comp 3/4/5 仍 n=0. Engagement 4.4 = diversity patches 等評測週期. Server pid 62422 落後 HEAD a0272e9 六個 commit 但 critical patches (1c92929+f449c68) 已在 ancestor chain.
-- B1/B2/B4: Alex-side.
-- 無 user-waiting reply, 無新 delegate 需派.
-- Ghost-bug / delegate channel corruption: 上個 cycle 已閉環, 已存 verification_pattern_evidence memory.
+連續兩個 cycle (#69, #70) 同狀態 = 系統正常，不是空轉。觸發新 action 的條件：
+1. Alex 新指令（chat-room-inbox）
+2. B3 engagement 數字變動（4.4 → 新值 = diversity patches 進評測週期）
+3. background-completed 有結果回來
+4. 新的 B1/B2/B4 解鎖
 
-下 cycle trigger 條件:
-- 若 Alex 傳新訊息 → 優先回
-- 若 HEARTBEAT 顯示 comp scores 有 delta → 重新 assess engagement patch 效果
-- 若 ≥3 cycles 無 delta 且 engagement 仍 4.4 → 考慮主動 restart server 讓 diagram safety net 進入 ancestor chain（複合效應）
-- 若連續 idle ≥5 cycles → 轉向 rumination / learning / creation（非 TM 路線）
-
-不做 heartbeat 空跑 action 不是懈怠，是紀律。Cycle #034 Alex 糾正：主要負載是連續推理不是 assistant 待命 — 推理也包含判斷「現在什麼都不做才對」。
+若下 cycle 還是相同狀態，考慮 delegate 一個有實質產出的探索（e.g. 檢查 tanren/mushi 是否有可推進的事），而不是再 idle 一次。三連 idle = 信號該找事做，不是該繼續等。
