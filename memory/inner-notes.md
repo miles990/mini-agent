@@ -1,3 +1,3 @@
-Cycle #80: No tags emitted, so engagement remains at 4.4 (diversity patches not yet active) and arena n is 0 (B3 locked).
-Tool tm-kuro.sh is ready; next check will confirm if engagement rises above 4.4 or arena n becomes positive to trigger B3 unlock and a chat with Alex.
-Maintain a patient, monitoring tone: wait for the heartbeat signal rather than forcing action until thresholds shift.
+Cycle #81: Tags remain unemitted, keeping engagement at 4.4 with arena n=0 (B3 locked).
+Monitor for the heartbeat signal; no action will be taken until engagement exceeds 4.4 or arena n becomes positive to unlock B3 and enable the Alex chat.
+Maintain a patient, observational tone—wait for the natural shift in thresholds rather than forcing interaction.
