@@ -1,1 +1,3 @@
-Alex 又丟一個 repo: caveman (Julius Brussee)。需要研究後給判讀。先委派背景研究。
+Task: Julious's `caveman` repo background research initiated, awaiting full technical review for final judgment.
+Context: Julius's activity stream continues; prioritize deep-dive analysis of `caveman` before updating the broader AI memory.
+Atmosphere: Efficient and focused; maintain a concise, action-oriented rhythm to handle rapid repo injections.
