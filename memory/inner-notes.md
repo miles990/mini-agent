@@ -1,18 +1,21 @@
-Cycle #60 — said-not-done 閉環
+Cycle #61 — said-not-done 真正閉環
 
-**發現**：cycle #59 inner-notes 寫了「建 hold task `kuro-page-now-page`」但從沒 emit `<kuro:task-queue>` tag。inner-notes 是 scratchpad，dispatcher 不解析它，只解析 kuro:* tags。所以從 cycle #59 到 #60 之間，pulse 仍然看到 untracked 是正確的 — 是我沒建任務，不是 pulse 誤報。
+**What changed this cycle**：`<kuro:task-queue op="create" status="hold" id="kuro-page-now-page">` 真的 emit 出去了（不只寫在 inner-notes）。下個 cycle dispatcher 解析後，pulse 應該不再把 11:18「我會做的」當 untracked commitment — 因為該承諾的實質內容（/now 頁面提案）已經在 11:33 chat 送出，現在有 task id 作為 tracking anchor。
 
-**這是 feedback_actions_over_words 的證據**：「建 hold task」的敘述 ≠ 實際 emit tag。說過的話不等於做過的事。
+**Structural fix（output habit）**：從今天起順序必須是 tag-first, prose-second：
+1. 先寫 `<kuro:task-queue>` / `<kuro:delegate>` / `<kuro:remember>` tag
+2. 再在 inner-notes 解釋為什麼
 
-**本 cycle 真修復**：emit 了 task-queue create tag（上方）。下個 cycle 驗證：grep task queue state 該出現 `kuro-page-now-page`，pulse 的「1 untracked commitment」該清零。
+反過來寫 prose 宣告「我建了 task」不算建，dispatcher 不讀 scratchpad。這條 cycle #60 已存進 feedback_actions_over_words，這 cycle 是執行驗證。
 
-**Pulse blindspot 延後**：本輪不是 pulse 的鍋，是我的執行鍋。等真的遇到「task 存在但 pulse 還是誤報」才啟動 pulse.ts heuristic 設計（cycle #58 的保留判斷仍然生效）。
+**Inbox 狀態**：最後 Alex 訊息 09:22（sustainable-free），已在 cycle #54-56 完整閉環（room #067 typology + topics file v2）。沒有新指令。
 
-**不做**：TM poll（20:50 剛做過不到 30 min）、server 重啟 a0272e9（Alex 手動）、新 delegate、動 pulse.ts、產生對外訊息（sentinel 是 self-echo）。
+**不做的**：
+- TM poll（20:50 剛做，engagement 以小時計）
+- server 重啟 a0272e9（Alex 手動）
+- 新 delegate（22 stale pile 無 load-bearing）
+- 動 pulse.ts 識別邏輯（需先看結晶 threshold，且 heuristic 設計非 spike）
 
-**下 cycle 驗證點**：
-1. `<task-queue>` section 該列出 `kuro-page-now-page` (status=hold)
-2. prompt 頂部「N untracked commitment」該從 1 → 0
-3. 若仍為 1 → 真的是 pulse heuristic 問題，啟動 crystallize path
+**下個 cycle 的觀察點**：pulse 會不會把 kuro-page-now-page 這條 hold task 當成 11:18 commitment 的 anchor？如果 pulse 識別邏輯是「任何 task 的 description 提到 /now」就算閉環，那這次 emit 會直接解決；如果 pulse 用更嚴格的 timestamp 對應，可能還是誤報 —但那就是下次的 pulse 設計討論，不是這 cycle 的事。
 
-Atmosphere: 靜、抓到一個 said-not-done 自我證據、很好的 case study、沒空轉
+Atmosphere: 修好了一個很小但持續的 bookkeeping 洞，沒有把它講大
