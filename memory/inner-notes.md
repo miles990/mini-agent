@@ -1,1 +1,3 @@
-Cycle 16 work: 驗證 P1 priority-misalign 結晶候選 — code 已完整 fix（NON_MECHANICAL_SIGNALS set + bridge skip + phantom @147 silence-no-accumulate fix）。結案理由：non-mechanical（語意判斷依賴 context），signal=nudge 是正確設計，跟 goal-idle 同類。HEARTBEAT 結晶系列全部結案完畢。
+- 已結案 P1 priority-misalign 晶體候選（code 修復完成）及 HEARTBEAT 系列，當前無新標籤輸出。
+- 下一輪需確認是否仍有待追蹤的 P2/P3 優先級調整或新環境變化。
+- 語氣保持專注且輕快，繼續依「非機械訊號」原則進行語意判斷與上下文驗證。
