@@ -653,3 +653,10 @@ API 端點備忘：`/ai_audit/{job_id}` with Bearer token from `__session` cooki
 - [2026-04-04] [2026-04-04] TM 規則調整競情更新（原文日期 3/22，今日才確認）：初賽從 AI student 評分取至多 10 名做真人評估，前 3 名進決賽。WR 分數僅供參考。策略影響：human evaluation 是真正篩選，影片品質（人覺得好教好懂）> 純 AI 評分優化。
 
 TM WR2 狀態 [2026-04-04 10:45]：尚未啟動。規則寫「4月初」但新聞頁無公告（最後更新 3/29）。Dashboard session 過期。
+- [2026-04-08] **tm-poll.sh = canonical WR/leaderboard poll tool**
+- Path: `/Users/user/Workspace/mini-agent/scripts/tm-poll.sh`
+- 輸出：5 個 competition（comp1=test, comp2=WR1, comp3=WR2, comp4=semifinal, comp5=final），每個 JSON 後接 `HTTP 200`
+- Parse pattern: split on `=== comp N ===`, strip trailing `HTTP \d+.*`, `json.loads` body
+- API shape 確認：comp1/2 `primary_metric=ai_total_score`，comp3/4/5 `primary_metric=elo_score`（arena 模式）
+- **2026-04-08 15:30 snapshot**: comp1=20 entries, comp2=14 entries (WR1), comp3-5=0 entries (WR2 仍未啟動)
+- **規則**：下次要看 TM 排名，第一反應是跑這個 script，不要重刻 curl pipeline（前兩 cycle 就是因為重造輪子浪費 token + 一次把 subdomain 猜錯 NXDOMAIN）
