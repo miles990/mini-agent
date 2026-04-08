@@ -15,7 +15,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { withFileLock } from './filelock.js';
-import { slog, diagLog } from './utils.js';
+import { slog, diagLog, tokenizeForMatch } from './utils.js';
 import { eventBus } from './event-bus.js';
 import type { ParsedTags } from './types.js';
 
@@ -628,23 +628,33 @@ export async function detectAndRecordCommitments(
 /**
  * Resolve active commitments that keyword-match the response.
  * Called when tracking tags are present — Kuro converted commitments to tracked execution.
+ *
+ * Tokenization is CJK-aware (see utils.tokenizeForMatch) so Chinese
+ * commitments like "修復承諾追蹤系統" actually share bigrams with responses
+ * instead of becoming one unmatchable megatoken. Without this, phantom
+ * commitments accumulate forever (observed: cycle #47 leak).
  */
 async function resolveActiveCommitments(memoryDir: string, response: string): Promise<void> {
   const active = queryMemoryIndexSync(memoryDir, { type: 'commitment', status: 'active' });
   if (active.length === 0) return;
 
-  const responseWords = new Set(
-    response.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, ' ').split(' ').filter(w => w.length > 1),
-  );
+  const responseTokens = tokenizeForMatch(response);
+  const responseSet = new Set(responseTokens);
 
   for (const entry of active) {
-    const words = (entry.summary ?? '').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, ' ').split(' ').filter(w => w.length > 1);
-    if (words.length === 0) continue;
-    const overlap = words.filter(w => responseWords.has(w)).length;
-    // Resolve if ≥30% keywords match (min 1 for short commitments)
-    if (overlap >= Math.max(1, Math.floor(words.length * 0.3))) {
+    const entryTokens = tokenizeForMatch(entry.summary ?? '');
+    if (entryTokens.length === 0) continue;
+
+    // Count overlap: exact set membership OR substring match (so "commitment"
+    // hits "commitments.ts"). Bigrams make exact match sufficient for CJK.
+    const overlap = entryTokens.filter(
+      t => responseSet.has(t) || responseTokens.some(r => r.includes(t) || t.includes(r)),
+    ).length;
+
+    // Resolve if ≥30% tokens match (min 1 for short commitments)
+    if (overlap >= Math.max(1, Math.floor(entryTokens.length * 0.3))) {
       await updateMemoryIndexEntry(memoryDir, entry.id, { status: 'resolved' });
-      slog('COMMIT', `Resolved: "${entry.summary}" (${overlap}/${words.length} keywords matched)`);
+      slog('COMMIT', `Resolved: "${entry.summary}" (${overlap}/${entryTokens.length} tokens matched)`);
     }
   }
 }

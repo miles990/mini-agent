@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
-import { slog, readJsonFile } from './utils.js';
+import { slog, readJsonFile, tokenizeForMatch } from './utils.js';
 
 // =============================================================================
 // Types
@@ -105,13 +105,10 @@ function writeState(state: CommitmentsState): void {
 // Extract commitments from response
 // =============================================================================
 
-function extractKeywords(text: string): string[] {
-  return text
-    .replace(/[，。：；！？、\s]+/g, ' ')
-    .split(' ')
-    .filter(w => w.length > 1)
-    .map(w => w.toLowerCase());
-}
+// CJK-aware tokenizer (see utils.ts tokenizeForMatch for rationale).
+// Pure whitespace splitting collapses Chinese phrases into monolithic tokens
+// that never match, so commitments silently stayed "pending" forever.
+const extractKeywords = tokenizeForMatch;
 
 function isDuplicate(existing: Commitment[], newText: string): boolean {
   const newKw = extractKeywords(newText);

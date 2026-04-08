@@ -119,6 +119,51 @@ export function expandEnvVars<T>(value: T): T {
 }
 
 // =============================================================================
+// tokenizeForMatch — CJK-aware tokenizer for keyword-overlap matching
+// =============================================================================
+
+/**
+ * CJK-aware tokenizer for commitment/keyword overlap matching.
+ *
+ * Whitespace-splitting alone is broken for Chinese/Japanese/Korean because
+ * CJK has no word boundaries — a phrase like "承諾綁定系統追蹤" becomes one
+ * monolithic token that almost never exact-matches anything, so commitment
+ * resolution fails and phantom entries accumulate.
+ *
+ * Strategy:
+ * - Latin/alphanumeric runs → case-folded words (length ≥ 2), keeping inline
+ *   `.` `_` `-` so identifiers like `commitments.ts` survive as one token.
+ * - CJK runs (Han, Hiragana, Katakana) → sliding 2-char bigrams. Bigrams give
+ *   partial overlap without needing a dictionary and are dense enough that
+ *   related-but-not-identical phrases still share several tokens.
+ *
+ * Returns a deduped array; caller decides exact vs. partial (`includes`)
+ * matching semantics.
+ */
+export function tokenizeForMatch(text: string): string[] {
+  const tokens = new Set<string>();
+  const lower = text.toLowerCase();
+
+  // Latin / alphanumeric identifiers
+  const latinWords = lower.match(/[a-z0-9][a-z0-9._-]*/g) ?? [];
+  for (const w of latinWords) {
+    if (w.length >= 2) tokens.add(w);
+  }
+
+  // CJK bigrams — sliding 2-char window through each CJK run.
+  // Range covers: CJK Unified Ideographs, Extension A, Hiragana, Katakana.
+  const cjkSeqs = text.match(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]+/g) ?? [];
+  for (const seq of cjkSeqs) {
+    if (seq.length < 2) continue;
+    for (let i = 0; i <= seq.length - 2; i++) {
+      tokens.add(seq.slice(i, i + 2));
+    }
+  }
+
+  return Array.from(tokens);
+}
+
+// =============================================================================
 // safeExec — 統一 try/catch wrapper
 // =============================================================================
 
