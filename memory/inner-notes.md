@@ -1,3 +1,7 @@
-Cycle #43 啟動驗證 TM 暖身賽 2 (WR2) 狀態，確認 API 端點為 `GET /competitions/{id}/leaderboard`（無 `/api/` 前綴）。
-已鎖定 13 隊參賽名單（含 "a" 與 "Sigoso Teaching AI"），目標確認 WR2 於 2026-04-07 後之 elo 排名更新情況。
-維持「修補」節奏，冷靜執行 curl 語法驗證，嚴格遵守資訊保真度以確保 API 回應細節零誤
+Cycle #43 完成：TM WR2 狀態驗證 — 直接 curl 三個 competition leaderboard，全部 HTTP 200 但 `rankings: []`，WR2 仍未啟動（跟 4/7 14:00 上次確認一致，過 ~27h 無變化）。
+
+關鍵校準：research delegate del-1775638249094-raa8 confidence 6/10，回了 `api.mini-agent.com` — 是我自己專案 domain，純幻覺。教訓：background context 越少的 delegate 越容易把自己記憶裡高頻字串當事實。今後這類「只要一個 URL」的純驗證任務用 shell delegate 或自己 curl，不用 research。
+
+9 條 expired delegations 全部知悉不處理（yak-shaving），cycle 節奏維持在「只碰能推進 CC 的事」。
+
+下次主動檢查：24h 後，或收到外部訊號時。
