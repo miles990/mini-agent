@@ -1097,6 +1097,30 @@ export function buildPulseSection(signals: PulseSignal[]): string | null {
 const CRYSTALLIZATION_THRESHOLD = HABITUATION_THRESHOLD * 2;  // 10 cycles without behavior change
 
 /**
+ * Signal types that are inherently non-mechanical — their inputs, rules, or
+ * outputs involve judgment/context and cannot be cleanly captured by a
+ * deterministic code gate. These still fire as nudges (they ARE useful
+ * perception signals) but must never escalate to P1 crystallization tasks,
+ * because the "機械性測試：輸入確定+規則確定+輸出確定 → 寫 code gate" prompt
+ * has no valid answer for them. Every escalation is a phantom candidate.
+ *
+ * Born 2026-04-08 from P2 bridge-filter-nonmechanical:
+ *   - priority-misalign: depends on semantic judgment of what "aligned" means
+ *   - goal-idle / goal-stalled: idle may be correct strategy (waiting on
+ *     external dep, deliberate pause). signal=nudge is the right design.
+ *   - symptom-fix-streak: classifying symptom-vs-root-cause is interpretive.
+ *
+ * Positive signals are excluded separately via signal.positive — there's no
+ * meaningful "crystallize a good pattern into a code gate" semantic.
+ */
+const NON_MECHANICAL_SIGNALS = new Set<string>([
+  'priority-misalign',
+  'goal-idle',
+  'goal-stalled',
+  'symptom-fix-streak',
+]);
+
+/**
  * When a pulse signal persists for CRYSTALLIZATION_THRESHOLD cycles without
  * behavior change, escalate from text signal to HEARTBEAT task with
  * crystallization framing.
@@ -1200,6 +1224,8 @@ export async function runPulseCheck(
   const crystallized = new Set(state.crystallizedTypes ?? []);
   for (const signal of processed) {
     if (crystallized.has(signal.type)) continue;  // already crystallized into code gate — skip forever
+    if (NON_MECHANICAL_SIGNALS.has(signal.type)) continue;  // non-mechanical: nudge only, never escalate (phantom candidate prevention)
+    if (signal.positive) continue;  // positive signals are reinforcers, not patterns to crystallize into gates
     const history = state.signalHistory[signal.type];
     if (history &&
         history.consecutiveAppearances >= CRYSTALLIZATION_THRESHOLD &&
