@@ -24,9 +24,7 @@
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
-- [x] P1: 結晶候選 — priority-misalign（147 cycles, effectiveness 10%）✅ 重複項：已在歸檔結晶系列（line 41）結案 — 「非機械性，signal 已存在」。Crystallization bridge 對已歸檔項重複產 task 是 known behavior（同 goal-idle 結案語）。卡 147 cycles 是因為沒人關它，不是因為未處理。 <!-- added: 2026-04-07T19:22:23.233Z, closed: 2026-04-08T15:50 -->
-- [x] P1: 結晶候選 — goal-idle（17 cycles, effectiveness 10%）✅ 重複項：已在歸檔結晶系列（line 34）結案。pulse.ts 只查 in_progress，hold goals 自動排除，signal=nudge 是正確設計（goal idle 可能是合理策略）。Crystallization bridge 預期重複，無需重評。 <!-- added: 2026-04-07T05:00:34.308Z, closed: 2026-04-07T13:30 -->
-- [x] P1: 結晶候選 — skill-creation-nudge ✅ 結案：非機械性（non-deterministic），signal 已移除 (18ffc228)。Crystallization bridge 處理 pattern detection。 <!-- added: 2026-04-06T22:21:44.206Z, closed: 2026-04-07 -->
+<!-- 已歸檔 (2026-04-08 cycle #42): 三條 crystallization bridge duplicate P1 全部結案 — priority-misalign / goal-idle / skill-creation-nudge。三條都指向已在歸檔結晶系列裡早已結案的 pattern，bridge 對已歸檔項重複產 task 是 known behavior（無去重邏輯）。卡 cycles 不是因為未處理，是因為 [x] 後沒人歸檔。歸檔規則：crystallization bridge 任務 close 後立刻移到此 comment 區，避免下個 cycle 又灌進 perception。 -->
 <!-- 已歸檔 (2026-04-05): 結晶候選 goal-stalled 結案 + 3 個重複錯誤修復（CLI TIMEOUT/CASCADE diagLog/UNKNOWN classifyError）全部已修 -->
 <!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23, 更新 2026-04-04):
   所有機械性 pattern 已結晶為 code gate。
