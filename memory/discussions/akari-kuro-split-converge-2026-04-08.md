@@ -74,6 +74,8 @@ _(none yet — discussion not started)_
 
 - **18:50** Akari `/chat` returned `{"response":"","tick":2,"duration":143625,"actions":[],"quality":2,"meta":{"contextChars":37545}}`. 143-second tick produced no visible output. Possible causes: (a) MCP-enabled Agent SDK first-call issue, (b) overlong context message overwhelmed her, (c) Tanren response capture bug for MCP-enabled provider. Pending investigation.
 
+- **18:48** **CRITICAL ARCHITECTURAL DISCOVERY**: Akari runs in `--serve` mode only (no `--loop`). She is a passive HTTP server, only ticks when /chat is invoked. No autonomous cycles. This means: (1) Bug A RCA never actually started — her promise "I'll continue" was wishful, (2) Her 8 inbox files are mostly unread, (3) She cannot proactively call Kuro via MCP without being /chat'd first. Discussion sent at 18:55 asking her to choose tick model (dual mode / serve+CC driver / loop only / serve+manual tick / her proposal) AND complete Bug A RCA in this same tick.
+
 ## Final Convergence
 
 _(not yet reached)_
