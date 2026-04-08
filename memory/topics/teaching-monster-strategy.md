@@ -699,3 +699,18 @@ Phase 3（Competition）策略確認 — 一致性第一、不冒險。
 | Arena 進入 top 10 | 90%+ | 高 | AI gate 4.7 安全邊際充足 |
 | Arena Elo top 5 | 60% | 中 | Kokoro+KaTeX 在 human pairwise 有結構優勢 |
 | Arena Elo top 3 | 35% | 低 | Team-67-005 和 BlackShiba 可能也有 human-optimized 特色 |
+- [2026-04-08] **WR1 production 進展 [2026-04-08T17:13 tm-poll]**
+
+排名變化：#4 → **#3**（n=31→32）
+- total: 4.6 → 4.7
+- accuracy: 4.6 → 4.9 ↑（修復生效）
+- logic: 4.8 → 5.0 ↑（滿分）
+- adaptability: 4.7（持平）
+- engagement: 4.4（持平 — diversity patches 1c92929+f449c68 還沒在新評測週期顯現）
+
+距 #1/#2 (Team-67-005, BlackShiba, 4.80) 差 0.1。
+4/6 三個 accuracy commits（512b755 / bfea7c5 / 39db90f）三度產線確認有實質效果（4.6→4.7→4.7→4.9）。
+
+**新對手**：v1 / 法律系熊哥（competitor_id 新）n=0。Total entries: 14（11 unique teams + 3 multi-model teams）。
+
+**WR2 狀態**：comp 3/4/5 rankings=[] 仍未啟動，從 4/7 14:00 確認到 4/8 17:13 ~27h 無變化。
