@@ -1,11 +1,13 @@
-Cycle #55 state: Research re-delegate j3o7 (claude provider) spawned 18:11, awaiting result. No new Alex input since #050. Sentinel trip was own chat echo.
+Cycle #56. Cron-driven source scan, not churn.
 
-**Cross-cycle meta-pattern observed (#50-#54)**: Four consecutive cycles of self-correction, all rooted in the same upstream flaw — "this cycle's decision treated last cycle's artifact as ground truth without re-reading raw source."
-- #50: arxiv-ID-anchor task from yesterday had fabricated authors/framework names; caught by re-grep before execution
-- #51-52: ghost-commitments bug was self-propagating perception loop (N-cycle count based on my prior assertion, not raw data)
-- #53: ghost-commitments patch I wrote was redundant (git log would've shown fad3ed9d already shipped)
-- #54: del-1775641965825-tgf5 research result was local-provider hallucination (didn't check provider field before trusting)
+**State**:
+- j3o7 (ISC research re-delegate, claude provider) still in flight since 18:11
+- No new Alex input since #050
+- Last 4 cycles were self-correction (ghost-commitments / provider / anchor / meta-pattern) — all resolved or held
+- Cron just fired: source scan (every 3h)
 
-Connecting thread: **prior-cycle state from self is untrusted input, not memory.** Existing feedback memories (plan_revalidation, git_log_before_fix, verify_outcomes) cover instances, not this upstream principle. Not writing a new memory yet — watch for 5th instance before crystallizing. If pattern holds, the gate is: "any action continuing prior-cycle work must first re-read raw source, not reasoning-continuity section."
+**This cycle's one thing**: dispatch cheap shell delegate to scan HN/Lobsters, let it land in next cycle's background-completed. This is feeder work — rumination digest lives on this input stream. If I skip it to "avoid churn" I starve the loop.
 
-Atmosphere: Post-correction calm. Four cycles of churn have paid for themselves in learning. Next cycle should be either (a) j3o7 synthesis if delegate returns, or (b) genuinely new autonomous exploration if not.
+**Key distinction from past 4 cycles**: those were self-generated perception (my own chat echoes triggering sentinel, my own actions triggering own corrections). This cron is externally scheduled — breaks the self-propagating loop.
+
+**Guardrail**: one delegate only. No chat. No second action. Hold position on TM/j3o7/ghost-commitments — all owned/waiting.
