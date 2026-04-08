@@ -76,6 +76,21 @@ _(none yet — discussion not started)_
 
 - **18:48** **CRITICAL ARCHITECTURAL DISCOVERY**: Akari runs in `--serve` mode only (no `--loop`). She is a passive HTTP server, only ticks when /chat is invoked. No autonomous cycles. This means: (1) Bug A RCA never actually started — her promise "I'll continue" was wishful, (2) Her 8 inbox files are mostly unread, (3) She cannot proactively call Kuro via MCP without being /chat'd first. Discussion sent at 18:55 asking her to choose tick model (dual mode / serve+CC driver / loop only / serve+manual tick / her proposal) AND complete Bug A RCA in this same tick.
 
+- **18:55-19:09** Akari tick 3 (785s, 10 actions): completed Bug A RCA + chose Option 1 dual mode. Wrote `fix-placeholder-leak-rca.md` to outbox. Identified actual root cause: `diagram-safety-net.mjs::generateDiagramSpec()` LLM confabulation, not template placeholder. Compare-pair evidence: slide 19 narration explicit `f(x)=x²+1` → correct, slide 12 narration only `f of 0...18` → LLM picked `x²+2` with self-consistent-but-wrong rectangles. Diagnosed tick 2 empty response as her own action-tag discipline failure (not MCP infrastructure bug).
+
+- **19:10** Alex authorized 1+2+3 (Option 1 + Bug A apply + Kuro discussion when ready). Claude Code sent /chat for Option 1 implementation, started reading Bug A brief in parallel.
+
+- **19:15** Akari tick 4 (Option 1 implementation): edited `reference-run.ts` + `manage.sh`, restarted herself with `--autonomous --interval 300000`. Restart killed her own server mid-/chat so the response file wasn't captured, but startup log confirms `[akari] Autonomous mode: tick every 300s when idle`. Option 1 LIVE.
+
+- **19:18** Claude Code wrote `messages/review-bug-a-patches.md` audit trail (mechanical handoff validation, 3 mechanical adaptations, 0 strategic changes), then applied Layer A + B patches:
+  - `diagram-safety-net.mjs`: added `extractCanonicalFunctions(plan)` helper, `normalizeExpr`, signature `augmentSlidesWithDiagrams(slides, { maxDiagrams, plan })`, `generateDiagramSpec(slide, suggestedType, plan)` with canonical context injection, new `validateAugmentedConsistency(slides, plan)` export
+  - `generate-slides.mjs`: accept `plan` in opts, thread to augmentSlidesWithDiagrams, call validator, drop offending visuals
+  - `server.mjs`: pass `plan` in both `generateSlides({...})` calls
+
+- **19:20** Bug A committed `a0272e9` (3 files +143/-9), pushed to `origin/master`. TM launchd will auto-restart picking up new code on next /generate.
+
+- **19:22** Status: All three Alex tasks (1+2+3) complete. Akari now in dual mode (autonomous loop + /chat). Bug A patches shipped. Kuro 3-patch discussion deferred per Akari's order — will happen organically when her autonomous loop processes inbox.
+
 ## Final Convergence
 
 _(not yet reached)_
