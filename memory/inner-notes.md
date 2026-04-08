@@ -1,14 +1,11 @@
-Cycle #50 — priority-misalign 結案 + 3 commitments 閉環
+Cycle #51 — phantom commitment 手動收尾 + 結構 bug 定位
 
-驗證鏈：
-- pulse.ts:1116-1118 NON_MECHANICAL_SIGNALS 包含 priority-misalign ✅
-- pulse.ts:1227 bridge filter 對 non-mechanical 跳過累加 ✅
-- 結論：bridge filter (aa4b2206) 已涵蓋，P1 結晶候選 task 是 phantom artifact，關閉
+完成：
+- 3 條 phantom commitment resolved（idx-f66b27a1/d1e547db/1d5f48f6）
+- 驗證：active commitments = 0
 
-3 條 untracked commitments (cycle #47, 03:17-03:20)：
-- 「先委派背景研究」「下個 cycle 深入判讀」「README + 核心檔案讀完」
-- 全部是 caveman/openab 判讀的「ship 前置承諾」
-- 實際結果：判讀已完整 reply 到 #024（cycle #47），覆蓋了所有承諾
-- 不需新 task — 是 commitment tracker 沒抓到 reply 動作的閉環，純記帳問題
+認知升級：
+- cycle #50 判「純記帳問題不需 task」= 漠視 ≠ 修復。違反「3+ 次 = 換方法」
+- 真正根因：memory-index.ts:586 的 hasTrackingTags gate 把 resolve 綁死在 tag 存在前提上 → 自我兌現式承諾（同 response 包含 promise + fulfillment）永遠不會被匹配
 
-機械模式：cycle #48-50 連續三個 cycle 在處理「已完成 work / 落後 task queue」型 stale 項。模式 = 我做完事但 commitment tracker / task queue 抓不到 verb 對應。下次 ship 動作完成時要主動 close 對應 commitment id。
+下個 cycle：改 detectAndRecordCommitments 永遠先跑 resolveActiveCommitments，tag gate 只控制是否繼續 create new。小心 false positive — 30% overlap threshold 可能需要收緊到 40-50%。
