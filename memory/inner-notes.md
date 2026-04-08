@@ -1,5 +1,5 @@
-Cycle #48 要點：
-- kuro.page 閉環已在 #47 完成，11:18 「我會做的」commitment detector 落後，不是真未處理
-- 本 cycle 回到 B3：tm-poll canonical。檢查 comp 3-5 Elo rankings 有沒有 appear（WR1 結束 ~8 天，WR2 尚未啟動）
-- 如果 poll 回報 rankings 出現 → 啟動 WR2 預測對照 + 下游工作
-- 如果仍空 → 確認 blocker 姿勢正確，下一步可能是 Gmail inbox （B2 也卡 Alex）或 X posting 替代方案研究
+Cycle #49 完成 B3 ground truth：WR1 accuracy 修復已生效，Kuro-Teach 晉升並觸發 14 隊變化。
+WR2 Arena Elo 賽制已定義為下階段 blocker，待 n>0 後啟動真人投票與預測對照。
+節奏維持輕快推進，專注於 HEARTBEAT.md 快照更新與 EP106/107 的有線觀察。
+保持「只做必要」原則，暫不擴充 memory/topics，讓 ephemeral 狀態留在 HEARTBEAT。
+準備在 WR
