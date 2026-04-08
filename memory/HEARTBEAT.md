@@ -20,7 +20,7 @@
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
 - **B1 — npm login (Alex)** → 解鎖：Asurada Phase 8c npm publish / Show HN 發佈 / myelin npm publish。動作：`npm login`
 - **B2 — Gmail session 重建 (Alex)** → 解鎖：kuro.ai.agent@gmail.com inbox 掃描。當前需 Alex 手動檢查 TM 競賽郵件（Google 擋自動化登入）
-- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。**comp 3/4/5 n=0 仍空（2026-04-08 20:50 poll 確認）**。WR1 (comp 2) 仍在 AI audit 階段，n=14, 32 audited topics, Kuro-Teach **#3 tied 4.8**（從 #4 4.6 爬升 — accuracy 修復 commits production 驗證成功）。Engagement 4.4 未動 = diversity patches 尚未進評測週期。
+- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。**comp 3/4/5 n=0 仍空（2026-04-08 20:50 poll 確認）**。WR1 (comp 2) 仍在 AI audit 階段，n=14, 32 audited topics, Kuro-Teach **#3 tied 4.8**（從 #4 4.6 爬升 — accuracy 修復 commits production 驗證成功）。Engagement 4.4 未動 = diversity patches **已部署但尚未進評測週期**（PID 62422 起於 2026-04-08 17:01，1c92929+f449c68 已驗證在 ancestor chain 內 — cycle #51）。⚠️ HEAD 已推進到 a0272e9 (19:08, diagram safety net)，server 落後 6 commits 待重啟才生效，但 engagement 部份不受影響。
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
@@ -62,7 +62,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] Accuracy E2E 驗證 — before/after 對照：test_001（修復前）8 critical errors + 無 fact-check → test_002（修復後）0 errors + fact-check verified。三層修復（workedSolutions 傳入 / repair all fields / Grok+Haiku fallback）全部生效。<!-- verified: 2026-04-06 -->
 - [x] Engagement diversity improvement — PassiveStreakBreaker 從單一模板改為 5 種輪替（prediction/self-explanation/challenge/meta-reflection/self-test）+ EngagementRepair prompt 從 3 種擴充為 6 種（prediction/commitment/error-spotting/student-voice/application/comparison）。Committed 1c92929（repair）+ f449c68（diversity）。<!-- completed: 2026-04-06 -->
 - [x] 追加修復 7 commits（12:18-16:12 4/6）— heading sanitization, bridge fix, duplicateCheckpoints, number consistency repair, key formula injection, arithmetic warnings, KaTeX double-delimiting。Server PID 93594 running latest (7fc4193)。<!-- completed: 2026-04-06 -->
-- [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=30 at time of fix。**後續 re-evaluation** n=30→31, total 4.7→4.6, acc 4.7→4.6, eng 持平 4.4。Logic (4.8) 和 Adapt (4.7) 穩定。第 31 題拉低 acc/total 平均；engagement 改善 patches (1c92929+f449c68) 尚未在 celery 評測週期出現可觀察的影響。 <!-- verified-production: 2026-04-06T23:30, re-eval-update: 2026-04-07T14:00 -->
+- [x] Accuracy fixes confirmed in production — WR1 scores improved: total 4.6→4.7, acc 4.6→4.7, logic 4.7→4.8。三層修復全部生效。n=30 at time of fix。**後續 re-evaluation** n=30→31, total 4.7→4.6, acc 4.7→4.6, eng 持平 4.4。Logic (4.8) 和 Adapt (4.7) 穩定。第 31 題拉低 acc/total 平均；engagement 改善 patches (1c92929+f449c68) **deployment 已驗證**（PID 62422 起於 2026-04-08 17:01, ancestor chain confirmed cycle #51），但尚未在 celery 評測週期出現可觀察的影響。 <!-- verified-production: 2026-04-06T23:30, re-eval-update: 2026-04-07T14:00 -->
 - [ ] End-to-end 測試 — server port **3456** health 200 ✅，pipeline 就緒。觀察視窗等 B3 解除（celery 評測週期）。Domain: `teaching.monster`
 
 ### #2 Priority: Asurada 框架（HOLD — 全項依賴 B1+B4）
