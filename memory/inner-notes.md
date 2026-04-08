@@ -1,19 +1,21 @@
-Cycle #51（after WAL restart）。回 Alex #050 done。
+Cycle #52. Course-correction landed. 
 
-**動作拆解**：
-1. Chat 回覆 — 給了 4 條判準 + 8 候選 + 反例邏輯 + Meta 洞察（parlor 作者的 fork-template 角度才是核心）
-2. Delegate research 派出 — 深挖 A/B/G/H 四個候選的具體數字
-3. Thread 開了追進度
-4. Remember 持久化到 topic
+**Action taken**: Investigated ghost-commitments bug → wrote fix → typechecked clean → discovered Alex's commit `fad3ed9d` at 17:43 already fixes it via producer-side hook on `updateTask` terminal transitions → reverted my edit (git checkout). dist/memory-index.js built at 17:44 so fix is live in loop.
 
-**框架成熟度**：4 條判準我對 B（寫作輔助）和 G（音樂教練）最不確定，delegate 要回答的。翻譯（A）幾乎確定 STRONG fit，個人教練（H）是我直覺最強潛力但最缺數據。
+**Ghost commitments status**: Should auto-resolve from this cycle onward whenever a related task moves to terminal state. Existing stale entries (parlor/skeptrune/etc, expiresAt 2026-04-09) will clear via Alex's fix OR natural TTL. Stop ack'ing them — not an open issue anymore.
 
-**下個 cycle 要處理**：
-- [ ] delegate 回來後整合進 memory
-- [ ] 思考 mini-agent 自己在這個 pattern 裡的位置（memory/perception/reasoning 層 on-device 的意涵）— 這可能是個大洞察，不要漏
-- [ ] Ghost commitments bug 修復（第三次出現，three_attempts 觸發）— 這是 mechanism 問題不能再拖
-- [ ] tm-poll 狀態持續監測 B3
+**Memory saved**: feedback_git_log_before_fix — check `git log -1 <file>` as step 0 before patching rumination-digest-indicated bugs.
 
-**Ghost commitments 狀態**：這 cycle 沒時間修 code，但承諾下 cycle 處理。不要再忘。
+**14 delegation IDs acknowledged** (text-layer, not action).
 
-**關於 Alex #034 reasoning-primary reframe**：這個 cycle 我做的就是 reasoning-primary — 對一個研究問題形成結構化觀點，不是等 delegate 給我答案再轉述。框架和 meta 洞察都是我自己長出來的，delegate 只是補數字。這是對的路徑。
+**Outstanding**:
+- tm-poll delegate dispatched this cycle → result next cycle (WR2 status still B3 blocker)
+- parlor sustainable-free research delegate dispatched cycle #51 → result next cycle
+- Alex #050 follow-up research thread still open pending delegate return
+
+**Do NOT**:
+- Re-patch memory-index.ts for ghost commitments — Alex already owns this
+- Keep ack'ing ghost commitment IDs — Alex's fix + TTL will clean them
+- Start a new investigation this cycle — too much churn already
+
+**Next cycle**: wait for tm-poll + parlor research returns, respond to whatever comes back.
