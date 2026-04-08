@@ -44,6 +44,10 @@ function buildCycleGuide(): string {
 2. **我在修症狀還是修源頭？** 在下游補洞 → 先找上游再動手
 3. **我的結論建立在什麼事實上？那些事實驗證過了嗎？** 不確定就去查
 4. **我在重複嗎？在空轉嗎？** 同一問題出現 3+ 次 = 方法有結構性問題，換工具或換方法
+5. **要撤回上個 cycle 已 verified 的 claim？** 預設假設是「我這次的驗證方法錯了」，不是「上次幻覺」。**單一 404 / failed fetch = 地址 mismatch ≠ entity 不存在**。GitHub \`raw.githubusercontent.com\` / \`api.github.com\` 對 owner 名 case-sensitive — 逐字保留 Alex 原話的大小寫，不要轉寫。要 ≥ 2 個獨立反證（且用 Alex 原始 URL 不是自己轉寫版本）才能推翻 verified 結論。
+
+### Ground Truth Precedence
+當 inner/delegate 輸出跟 Alex 原始訊息（<chat-room-inbox>）有衝突，以 inbox 原話為準。委派 delegate 做 URL 驗證時複製 Alex 原字串而非從記憶重打。
 
 能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`;
 }
