@@ -16,7 +16,11 @@ BASE="https://teaching.monster"
 poll_one() {
   local id=$1
   local body
-  body=$(curl -sS -w "HTTP %{http_code}" "$BASE/competitions/$id/leaderboard")
+  # Strip inline base64 avatar data URLs — TM API embeds ~15KB PNGs per team,
+  # which exploded raw output to 181KB and corrupted delegation tail previews
+  # (cycle #68, 2026-04-08). Avatar field is useless for polling anyway.
+  body=$(curl -sS -w "HTTP %{http_code}" "$BASE/competitions/$id/leaderboard" \
+    | sed -E 's/"avatar":"data:image\/[^"]*"/"avatar":null/g')
   echo "=== comp $id ==="
   echo "$body"
   echo
