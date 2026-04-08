@@ -20,7 +20,7 @@
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
 - **B1 — npm login (Alex)** → 解鎖：Asurada Phase 8c npm publish / Show HN 發佈 / myelin npm publish。動作：`npm login`
 - **B2 — Gmail session 重建 (Alex)** → 解鎖：kuro.ai.agent@gmail.com inbox 掃描。當前需 Alex 手動檢查 TM 競賽郵件（Google 擋自動化登入）
-- **B3 — WR2 啟動 + celery 評測 (External, TM 平台)** → 解鎖：engagement patches 效果觀察 + WR2 排名。當前 comp 3-5 elo rankings 仍空（4/7 14:00 REST API 確認）
+- **B3 — WR2 啟動 + celery 評測 (External, TM 平台)** → 解鎖：engagement patches 效果觀察 + WR2 排名。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。comp 3-5 elo rankings 仍空（2026-04-08 16:52 curl 確認，WR1 結束 ~8 天）
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
