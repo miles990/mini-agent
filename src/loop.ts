@@ -778,7 +778,16 @@ export class AgentLoop {
       // Unfulfilled commitment detection (#130 structural fix):
       // If chat was streamed with commitment language but no delegate tags were processed,
       // DON'T mark inbox as fully processed — let main loop follow up.
-      const COMMITMENT_PATTERNS = [/交給背景/i, /背景.*研究/i, /delegate/i, /我.*去.*(?:挖|研究|分析|查)/i, /交給.*lane/i, /spawn.*tentacle/i];
+      const COMMITMENT_PATTERNS = [
+        /交給背景/i,
+        /背景(?:跑|讀|研究|深讀|深挖|挖)/i,
+        /delegate/i,
+        /我.*(?:去|來|會).*(?:挖|研究|分析|查|整理|寫|讀)/i,
+        /交給.*lane/i,
+        /spawn.*tentacle/i,
+        /下個\s*cycle.*(?:給|整理|寫|報告|回)/i,
+        /下一?輪.*(?:給|整理|寫|報告|回)/i,
+      ];
       const hasDelegateTag = result.tagsProcessed?.includes('delegate') ?? false;
       const chatTexts = [...streamedChats].join(' ');
       const hasUnfulfilledCommitment = streamedChats.size > 0

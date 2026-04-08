@@ -88,8 +88,12 @@ const INDEX_FILE = 'relations.jsonl';
 const COMMITMENT_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
+// Matches first-person future-action commitments. Kept intentionally narrow enough
+// to avoid catching questions/references (those are filtered separately in
+// extractCommitments), but wide enough to catch the "background work + future cycle"
+// class of promises that the 2026-04-07 MemPalace regression exposed.
 const COMMITMENT_PATTERN =
-  /(?:我來修|我來處理|我馬上|馬上(?:修|做|處理|去)|我現在就|我去做|i['']ll fix|i will fix|i['']ll handle|i['']ll do it)/i;
+  /(?:我來修|我來處理|我馬上|馬上(?:修|做|處理|去)|我現在就|我去做|我會(?:做|寫|整理|給|處理|跟進|回|回覆|修|試|去|補|加|改|上|讀|研究|看|找|查)|我去(?:寫|整理|處理|補|跟進|試|做|修|改|讀|研究|看|找|查|挖)|我來(?:寫|整理|處理|補|跟進|試|做|修|改|讀|研究|看|找|查|挖)|下個\s*cycle|下一個\s*cycle|下一輪|接下來我|背景(?:跑|讀|研究|深讀|挖|深挖)|等一?下我|晚點我|待會(?:我|會)|i['']ll\s+(?:fix|handle|do it|write|check|look|try|build|read|research|investigate|dig)|i will fix)/i;
 
 // =============================================================================
 // Helpers

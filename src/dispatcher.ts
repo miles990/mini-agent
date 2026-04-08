@@ -276,7 +276,7 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task
+- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -311,7 +311,7 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task
+- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -641,17 +641,34 @@ export function parseTags(response: string): ParsedTags {
   }
 
   const delegates: DelegateRequest[] = [];
+  const VALID_DELEGATE_TYPES: DelegationTaskType[] = ['code', 'learn', 'research', 'create', 'review', 'shell', 'browse', 'akari', 'plan', 'debug'];
   for (const t of byName('kuro:delegate')) {
-    const workdir = attr(t.attributes, 'workdir');
-    if (!workdir) continue;
     const typeRaw = attr(t.attributes, 'type') as DelegationTaskType | undefined;
+    const type = typeRaw && VALID_DELEGATE_TYPES.includes(typeRaw)
+      ? (typeRaw as DelegationTaskType)
+      : undefined;
+    if (typeRaw && !type) {
+      // Unknown type string — surface loudly so Kuro sees the failure next cycle
+      // instead of silently dropping (the 2026-03 regression that lost 9 days of delegations).
+      const preview = t.content.trim().slice(0, 80);
+      slog('DELEGATE-REJECT', `Unknown type="${typeRaw}" (valid: ${VALID_DELEGATE_TYPES.join('|')}): "${preview}"`);
+      eventBus.emit('log:error', {
+        tag: 'DELEGATE-REJECT',
+        msg: `Delegate dropped — unknown type="${typeRaw}": "${preview}"`,
+      });
+      continue;
+    }
+    // workdir is optional — defaults to project root. Forge isolation for
+    // code/shell/browse/debug still creates a worktree from this path, so the
+    // default is safe even for isolated types.
+    const workdir = attr(t.attributes, 'workdir') || process.cwd();
     const providerRaw = attr(t.attributes, 'provider') as Provider | undefined;
     const verifyRaw = attr(t.attributes, 'verify');
     const maxTurnsRaw = attr(t.attributes, 'maxTurns');
     delegates.push({
       prompt: t.content.trim(),
       workdir,
-      type: typeRaw && ['code', 'learn', 'research', 'create', 'review', 'shell', 'browse', 'akari', 'plan', 'debug'].includes(typeRaw) ? typeRaw as DelegationTaskType : undefined,
+      type,
       provider: providerRaw && ['claude', 'codex', 'local'].includes(providerRaw) ? providerRaw : undefined,
       verify: verifyRaw ? verifyRaw.split(',').map(s => s.trim()) : undefined,
       maxTurns: maxTurnsRaw ? parseInt(maxTurnsRaw, 10) : undefined,
