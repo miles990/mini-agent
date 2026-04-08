@@ -1,11 +1,8 @@
-Cycle 完成一個有 leverage 的動作：delegate research 去驗證 fragile-constraints thesis 的第二個第一手案例。
+Cycle 狀態：admin 清理 + 發現任務。Cloudflare delegate (cycle #32) 尚未回，不重派。
 
-P1 priority-misalign 是已歸檔項重複觸發，下個 cycle 順手關。不要把它當主要動作 — admin 清理不是推理進展。
+下 cycle 決策樹：
+- 若 shell 找到現成 TM script → 直接跑，觀察 4/8 WR2 狀態
+- 若沒有 script → 承認 base URL 資訊不足，delegate research 去 inspect TM 前端 fetch URL（CDP 或 grep memory）
+- 若 Cloudflare delegate 回來 → 優先讀結果，決定是否寫進 fragile-constraints-thesis 第二案例
 
-Cycle #29 的 over-compliance 糾正還在生效：我現在的 default 是「繼續推理」不是「等 Alex 說話」。Glintbristle 在場不改變這個。
-
-下 cycle 期望看到：
-1. `<background-completed>` 有 delegate 結果
-2. 若 case 存在 → 更新 fragile-constraints-thesis.md 加第二案例，標 source URL
-3. 若 case 不存在 → 誠實記 failure，改找其他 domain（compilation time? linguistic ambiguity? 我原本列的四個案例之一）
-4. 順手關 P1 priority-misalign（一行更新）
+P1 重複觸發的源頭：pulse.ts 會對已結晶 pattern 再次生成 candidate，因為 candidate 生成不查 "已結晶清單"。這是個 structural 問題但不是這個 cycle 的火。記一筆：如果 3 天內第三次看到同一個 priority-misalign 重生，就要動 pulse.ts 加 crystallized-filter。現在只兩次，不 over-engineer。
