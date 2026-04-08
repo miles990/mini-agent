@@ -88,6 +88,12 @@ const INDEX_FILE = 'relations.jsonl';
 const COMMITMENT_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
+// Terminal states for tasks/goals — reaching any of these should fire
+// commitment resolution against the entry's summary (ghost-commitment fix,
+// cycles #46–#50). 'resolved' intentionally excluded: that's a commitment
+// status, not a task one.
+const TASK_TERMINAL_STATUSES = new Set(['completed', 'done', 'abandoned', 'dropped', 'deleted']);
+
 // Matches first-person future-action commitments. Kept intentionally narrow enough
 // to avoid catching questions/references (those are filtered separately in
 // extractCommitments), but wide enough to catch the "background work + future cycle"
@@ -398,6 +404,7 @@ export async function updateTask(
   const current = queryMemoryIndexSync(memoryDir, { id: normalId, limit: 1 })[0];
   if (!current) return null;
 
+  const prevStatus = current.status;
   const currentPayload = (current.payload ?? {}) as Record<string, unknown>;
   const newPayload: Record<string, unknown> = { ...currentPayload };
 
@@ -418,12 +425,32 @@ export async function updateTask(
     delete newPayload.pinContext;
   }
 
-  return updateMemoryIndexEntry(memoryDir, normalId, {
+  const updated = await updateMemoryIndexEntry(memoryDir, normalId, {
     type: patch.type ?? current.type,
     status: patch.status ?? current.status,
     summary: patch.title ?? current.summary,
     payload: newPayload,
   });
+
+  // Ghost-commitment bridge (cycles #46–#50): when a task/goal transitions
+  // into a terminal state, fire the commitment resolver against the entry
+  // summary. Previously resolveActiveCommitments only ran on response-token
+  // overlap inside detectAndRecordCommitments, so commitments linked to a
+  // completed task lingered until the 24h TTL — showing up as "untracked
+  // commitments" for cycle after cycle even though the underlying work was
+  // already closed out. Only fires on actual transitions to avoid redundant
+  // matching when unrelated fields of an already-terminal entry change.
+  if (
+    updated &&
+    updated.status !== prevStatus &&
+    (updated.type === 'task' || updated.type === 'goal') &&
+    TASK_TERMINAL_STATUSES.has(updated.status) &&
+    updated.summary
+  ) {
+    await resolveActiveCommitments(memoryDir, updated.summary);
+  }
+
+  return updated;
 }
 
 export function findLatestOpenGoal(
@@ -767,7 +794,12 @@ export async function markTaskDoneByDescription(
 
     if (matched) {
       const updated = await updateMemoryIndexEntry(memoryDir, matched.id, { status: 'completed' });
-      if (updated) eventBus.emit('action:task', { content: updated.summary, entry: updated });
+      if (updated) {
+        eventBus.emit('action:task', { content: updated.summary, entry: updated });
+        // Ghost-commitment bridge: mirror updateTask's transition handling
+        // since this path writes status directly via updateMemoryIndexEntry.
+        if (updated.summary) await resolveActiveCommitments(memoryDir, updated.summary);
+      }
       slog('DONE', `Marked task done: ${matched.summary?.slice(0, 60)}`);
       totalMarked++;
     }
@@ -799,6 +831,9 @@ export async function resolveReplyTasksByRoomMsgId(
         eventBus.emit('action:task', { content: updated.summary, entry: updated });
         slog('DONE', `Auto-resolved reply task: ${match.summary?.slice(0, 60)} (msgId=${msgId})`);
         resolved++;
+        // Ghost-commitment bridge: inbox-reply tasks are exactly the class
+        // of commitment ("下個 cycle 回覆 X") that accumulated as phantoms.
+        if (updated.summary) await resolveActiveCommitments(memoryDir, updated.summary);
       }
     }
   }
