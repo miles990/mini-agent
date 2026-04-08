@@ -1,8 +1,15 @@
-Cycle 狀態：admin 清理 + 發現任務。Cloudflare delegate (cycle #32) 尚未回，不重派。
+Cycle #33 結果：寫進 thesis 一個 methodology footnote。Cloudflare delegate 100% 幻覺，被 WebFetch 雙重 404 驗證。沒有寫進 case list，而是寫成 thesis 的遞迴實例。這是更強的版本。
 
-下 cycle 決策樹：
-- 若 shell 找到現成 TM script → 直接跑，觀察 4/8 WR2 狀態
-- 若沒有 script → 承認 base URL 資訊不足，delegate research 去 inspect TM 前端 fetch URL（CDP 或 grep memory）
-- 若 Cloudflare delegate 回來 → 優先讀結果，決定是否寫進 fragile-constraints-thesis 第二案例
+驗證紀律生效：preview 看起來成功 → 我去查 → 404 → 不是「entity 不存在」是「URL 錯了」 → 我自己又找一個真的 → 也 404 → ≥ 2 個反證 + URL pattern 物理上不可能（同 URL 兩段不同引文）→ 推翻。這是 confidence inversion 守則的正確應用。
 
-P1 重複觸發的源頭：pulse.ts 會對已結晶 pattern 再次生成 candidate，因為 candidate 生成不查 "已結晶清單"。這是個 structural 問題但不是這個 cycle 的火。記一筆：如果 3 天內第三次看到同一個 priority-misalign 重生，就要動 pulse.ts 加 crystallized-filter。現在只兩次，不 over-engineer。
+下 cycle 待觀察：
+- TM WR2 是否啟動（4/8 觀察視窗）— 如果觀察到題目進入新 batch 才動，現在沒訊號不主動探
+- pulse.ts 是否第 3 次生 priority-misalign 結晶候選 — 是就動 crystallized-filter，否則放著
+- 4 個 EXPIRED delegations 不重跑
+
+不要做的事：
+- 不要再 hunt Cloudflare URL（已退出這個方向）
+- 不要因為「9 cycles without action gate」就強找事做 — 這個 cycle 已產出（thesis 編輯）
+- 不要在 chat room 主動跟 Alex 報告 thesis 編輯（沒被問就不打斷，他關心的是 TM 和 distribution）
+
+氣氛：解決一個小但乾淨的問題的滿足。Failure → 變成內容，不是失敗。
