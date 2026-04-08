@@ -531,21 +531,6 @@ export function buildPinnedTasksSection(memoryDir: string): string {
 // Commitment Gate (replaces commitment-gate.ts)
 // =============================================================================
 
-function hasTrackingTags(tags: ParsedTags): boolean {
-  return Boolean(
-    tags.tasks.length > 0 ||
-      tags.delegates.length > 0 ||
-      tags.progresses.length > 0 ||
-      tags.goal ||
-      tags.goalQueue ||
-      tags.goalAdvance ||
-      tags.goalProgress ||
-      tags.goalDone ||
-      tags.goalAbandon ||
-      tags.taskQueueActions.length > 0,
-  );
-}
-
 function extractCommitments(response: string): string[] {
   const plain = response
     .replace(/```[\s\S]*?```/g, ' ')
@@ -580,19 +565,18 @@ function extractCommitments(response: string): string[] {
 export async function detectAndRecordCommitments(
   memoryDir: string,
   response: string,
-  tags: ParsedTags,
+  _tags: ParsedTags,
 ): Promise<number> {
-  // When tracking tags present, resolve matching active commitments first.
-  // Then fall through to extraction — a response can BOTH execute tracked work
-  // AND make new commitments alongside it. Returning early here was a binary
-  // gate that silently dropped any commitment co-located with a tracking tag,
-  // which (since nearly every cycle has some tag) made extraction effectively
-  // dead code. False positives are preferable to silent loss: an extra
-  // "untracked commitment" warning is visible and dismissible; a dropped
-  // commitment is invisible. See feedback_commit_discipline.
-  if (hasTrackingTags(tags)) {
-    await resolveActiveCommitments(memoryDir, response);
-  }
+  // Always try to resolve matching active commitments — a response fulfills a
+  // commitment whenever its content matches, regardless of whether it also
+  // spawns tracking tags. Previous gate (hasTrackingTags) required <kuro:task>
+  // /<kuro:delegate>/<kuro:goal> etc. to trigger resolve, which meant pure
+  // <kuro:chat> responses that actually delivered on a "next cycle give
+  // opinion" promise never cleared anything → phantom accumulation observed
+  // across cycles #46–#50 (ghost-commitments-bug). Token-overlap threshold
+  // (30%, min 1) inside resolveActiveCommitments is the real false-positive
+  // guardrail; the gate was a redundant pessimization.
+  await resolveActiveCommitments(memoryDir, response);
 
   const commitments = extractCommitments(response);
   if (commitments.length === 0) return 0;
