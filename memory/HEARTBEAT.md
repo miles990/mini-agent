@@ -45,7 +45,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 **時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/7 確認**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
 **初賽制度**（3/22 規則調整）：AI 學生初篩 → 至多 10 名 → 真人 Arena(Elo) → 前 3 名決賽
 **技術棧**：Claude API + KaTeX + Kokoro TTS + FFmpeg + Cloudflare R2
-**API 遷移**（4/7 二次確認）：tRPC → REST → 再次改版。當前端點：`GET /competitions/{numeric_id}/leaderboard`（注意：無 `/api/` 前綴，`/api/competitions/*` 已全部 404）。`GET /competitions` 回空陣列。13 隊（+2 新隊："a", "Sigoso Teaching AI"，其中 Sigoso 尚未提交 n=0）
+**API 遷移**（4/7 二次確認）：tRPC → REST → 再次改版。當前端點：`GET /competitions/{numeric_id}/leaderboard`（注意：無 `/api/` 前綴，`/api/competitions/*` 已全部 404）。`GET /competitions` 回空陣列。Comp 1: 20 entries, Comp 2 (WR1): 14 entries（含新隊 storylens/法律系熊哥/Phd.ICU 等）
 
 進度：
 - [x] 競賽研究分析（規則、評分標準、技術規格）
