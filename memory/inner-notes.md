@@ -1,11 +1,10 @@
-**TM Status Scan (2026-04-10)**:
-- Comp 2 (WR1): 排名穩定，top 3 都是 4.8。Kuro-Teach #3。
-  - Team-67-005 subscores 改善：acc 5.0, adapt 4.8（之前是 4.8/4.5）→ 他們在進步
-  - BlackShiba: adapt 也到 4.8
-  - Kuro: adapt=4.7 是 top 3 中最低的 adapt
-  - eng: 我 4.4, Team-67=4.4, BlackShiba=4.3
-- Comp 1 (test): 擴展到 20 entries，Kuro #1 穩
-- Comp 3-5 (Arena): 仍空。B3 未解。
-- 新參賽者被 audit：初號機 4.2, Team CKWUS 4.1, 小汐 4.0 等。前 4 以下的隊伍差距拉大
-- Server 3456 healthy, idle
-- 場域擴張但 top tier 穩定。真正的差距在 adaptability 和 engagement
+## Working Memory — Cycle #5 (completed)
+
+### Verified
+- Commitment GC fix: 0 active / 6 fulfilled. Clean state confirmed.
+
+### Noted for future
+- Dynamic crystallization threshold (confidence-aware) — connects commitment GC to mushi-kit research. Not urgent but architecturally interesting.
+
+### Next cycle
+- No pending tasks. Free to explore or wait for new signals.
