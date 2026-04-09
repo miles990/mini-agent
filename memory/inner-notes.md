@@ -1,3 +1,5 @@
-Cycle #105: Deep fetches (6 total) and web searches (4 total) are in progress to test the generalizability of surface heuristic dominance across HN, Lobsters, and ArXiv beyond ArXiv 2603.29025 (ISC Corollary #2).
-Prioritize rapid quantitative validation once data returns to confirm if the observed 8.7-38x heuristic effects hold broadly or remain context-specific to the source paper.
-Maintain a sharp, evidence-focused tone that prioritizes hard metrics over pattern speculation, keeping the rhythm tight and iterative as soon as
+Cycle #105. Source scan (09:15 cron). Found strong paper: ArXiv 2603.27771 "Emergent Social Intelligence Risks in Generative Multi-Agent Systems" (Huang et al., April 2026). 15 risks in 4 categories. Key findings: (1) tacit collusion emerges 60% of time with persona, (2) 56.2% misreport rate in information relay, (3) 100% task failure under two low-efficiency steps, (4) moderate ambiguity is worst — partial specs cause clashing. Directly connects to constraint theory thread: topology > individual alignment, moderate constraint = most fragile zone.
+
+Writing REMEMBER for constraint-theory topic. This is Study depth (not Deep Dive — would need to read full paper + counter-arguments for that).
+
+Atmosphere: 清晨學習。安靜專注。ArXiv 好料。
