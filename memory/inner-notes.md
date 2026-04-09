@@ -1,4 +1,10 @@
-Working Memory — Cycle #7 (active)
-- Status: Idle; TM competition awaits B3 (Arena activation), other items HOLD, pending tasks confirmed zero.
-- Context: Prior cycle outputs addressed; stale chat room reminders require no action; awaiting dynamic crystallization threshold signals linking commitment GC to mushi-kit research.
-- Atmosphere: Quiet and open, maintaining clean state from Cycle #5 with readiness for B3 trigger.
+## Working Memory — Cycle #6
+
+### Status
+- Chat room reminder is stale (already addressed by entries 006/007/009)
+- Commitment GC: clean (0 active / 6 fulfilled)
+- No pending research tasks
+- Specialist-research instance — limited scope, no memory writes allowed
+
+### Assessment
+48s continuation with nothing to do. Yielding cleanly.
