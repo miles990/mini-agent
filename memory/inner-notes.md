@@ -1,5 +1,4 @@
-**Working Memory — Cycle #19**
-- Resolved Pappu vs. Mutual Translucency tension: performance hinges on **observation mechanism heterogeneity**, not agent count, defining three modes (Pseudo-diversity → True-differential → Mutual Translucency).
-- Generated `mesh-output/synthesis-heterogeneous-observation-principle-2026-04-10.md` to formalize this spectrum and its implications for observer diversity.
-- Ready to integrate this principle into TM engagement 4→5 specs or explore specific failure modes where pseudo-diversity causes degradation.
--
+**Working Memory — Cycle #20**
+- Synthesized the "Three Dissolutions" framework, unifying Zechner's speed trap, Pappu's agent fragility, and the fragile constraints thesis as a single failure mode where incidental cognitive work is discarded rather than transferred.
+- Identified the critical pivot: "Slowing down" is a false solution because it fails to address the underlying mechanism of work vanishing; the fix requires preserving and repurposing that discarded cognitive load.
+- Prepared to operationalize this unified structural failure model into TM engagement specs (4→5), specifically targeting how to prevent the "w
