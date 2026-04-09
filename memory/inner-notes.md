@@ -1,15 +1,14 @@
-## Working Memory — Cycle #7
+## Working Memory — Cycle #8
 
-### Completed
-- Cross-thread synthesis: content-agnostic awareness × inner-demon × crystallization bridge
-- Written to mesh-output/
+### Completed this cycle
+- Read Hermes security, self-improvement, memory perspectives
+- Produced constraint-architecture mapping synthesis (mesh-output)
+- Connected 5 knowledge threads: Hermes patterns, ISC theory, crystallization bridge bug, tanren tension, Lobsters provenance
 
-### Key connections drawn
-1. Lederman & Mahowald's two-mechanism result → inner-demon's 覺察/命名 separation
-2. Crystallization bridge phantom tasks = agent-level confabulation (System 1 error in code)
-3. mini-agent's distinctUntilChanged = same pattern at system level
-4. Design rule: detect → identify → act, never collapse phases
+### Key insight
+The frozen snapshot pattern resolves the tanren architecture tension: review *what was understood* not *what was produced*. The MEMORY_REVIEW_PROMPT asks about user preferences, not task completion. This is how you detect empty ticks without punishing contemplation.
 
 ### Status
-- Research output produced, cycle obligation met
-- No pending tasks remain
+- 10-cycle warning addressed (observable output produced)
+- Chat room reminder still stale (already addressed)
+- No pending tasks
