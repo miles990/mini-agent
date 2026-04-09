@@ -1,3 +1,3 @@
-Cycle #136: TM engagement prompt updates deployed to production, implementing PvP distinctiveness, passive streak limits, and attention danger zones.
-Next cycle must focus on live writer execution within these new constraints, verifying the 56% misreport risk mitigation via visible scoring criteria.
-Tone remains high-efficiency and data-driven, with strict adherence to the three core constraint pillars for every output.
+知乎反爬極強且該文章 ID 極新無外部快取，仍需 Alex 提供主題或內容。
+若無法獲取文章內容，需確認是否可換取其他可用連結以推進任務。
+語氣保持緊湊務實，聚焦於解決「內容獲取」這一核心阻礙。
