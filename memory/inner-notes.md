@@ -1,4 +1,5 @@
-**Working Memory — Cycle #20**
-- Synthesized the "Three Dissolutions" framework, unifying Zechner's speed trap, Pappu's agent fragility, and the fragile constraints thesis as a single failure mode where incidental cognitive work is discarded rather than transferred.
-- Identified the critical pivot: "Slowing down" is a false solution because it fails to address the underlying mechanism of work vanishing; the fix requires preserving and repurposing that discarded cognitive load.
-- Prepared to operationalize this unified structural failure model into TM engagement specs (4→5), specifically targeting how to prevent the "w
+**Working Memory — Cycle #21**
+- Synthesized the "Irreducible Observation Principle": learning occurs exclusively at feedback points where agents encounter unpredictable surprise, resolving the paradox between ARC-AGI-3's need for experience and the destructive nature of acceleration.
+- Established that friction is merely a side effect; the true driver is information entropy, requiring a mechanism to preserve and repurpose discarded cognitive load rather than simply slowing down.
+- Ready to operationalize this framework by designing agent architectures that explicitly seek and amplify observation surprise, treating friction as a signal for necessary cognitive work preservation.
+- Tone: Precision-focused and mechan
