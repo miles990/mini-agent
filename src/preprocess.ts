@@ -11,6 +11,7 @@
  * Feature flag: preprocess (default on in autonomous mode).
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { callLocalConcurrent } from './omlx-gate.js';
@@ -48,12 +49,17 @@ let lastHeartbeatSnapshot = '';
 // P0b: Perception Summarization
 // =============================================================================
 
+/** Cache: perception input hash → summary. Avoids re-running LLM on identical input. */
+const perceptionSummaryCache = new Map<string, { inputHash: string; summary: string }>();
+
 /**
  * Build 0.8B tasks that summarize changed perception sections into 1-line each.
  * Only targets sections with >100 chars of output that have changed since last build.
+ * Skips sections whose input (first 500 chars) hasn't changed since last summary.
  */
-function buildPerceptionSummaryTasks(): LocalLLMTask[] {
-  if (!perceptionStreams.isActive()) return [];
+function buildPerceptionSummaryTasks(): { tasks: LocalLLMTask[]; cached: Map<string, string> } {
+  const cached = new Map<string, string>();
+  if (!perceptionStreams.isActive()) return { tasks: [], cached };
 
   const cachedResults = perceptionStreams.getCachedResults();
   const tasks: LocalLLMTask[] = [];
@@ -64,15 +70,25 @@ function buildPerceptionSummaryTasks(): LocalLLMTask[] {
     // Skip tiny outputs — not worth summarizing
     if (!r.output || r.output.length < 100) continue;
 
+    const inputSlice = r.output.slice(0, 500);
+    const inputHash = crypto.createHash('md5').update(inputSlice).digest('hex');
+
+    // Check cache: if input hasn't changed, reuse previous summary (zero LLM cost)
+    const prev = perceptionSummaryCache.get(r.name);
+    if (prev && prev.inputHash === inputHash) {
+      cached.set(r.name, prev.summary);
+      continue;
+    }
+
     tasks.push({
       id: `perc:${r.name}`,
-      prompt: `Summarize the key information in 1-2 sentences (max 60 words). If nothing notable, say "unchanged".\n\n${r.output.slice(0, 500)}`,
+      prompt: `Summarize the key information in 1-2 sentences (max 60 words). If nothing notable, say "unchanged".\n\n${inputSlice}`,
       maxTokens: 80,
-      timeoutMs: 15_000,
+      timeoutMs: 5_000, // 0.8B should finish in <2s; 15s was excessive
     });
   }
 
-  return tasks;
+  return { tasks, cached };
 }
 
 // =============================================================================
@@ -113,7 +129,7 @@ function buildHeartbeatDiffTask(currentContent: string): LocalLLMTask | null {
     id: 'hb-diff',
     prompt: `What changed in this task list? Summarize in 1-3 sentences.\nChanges:\n${added}`,
     maxTokens: 120,
-    timeoutMs: 15_000,
+    timeoutMs: 5_000,
   };
 }
 
@@ -162,7 +178,7 @@ function buildConversationSummaryTask(): LocalLLMTask | null {
 對話：
 ${formatted}`,
       maxTokens: 200,
-      timeoutMs: 15_000,
+      timeoutMs: 5_000,
     };
   } catch { return null; }
 }
@@ -189,9 +205,13 @@ export async function runPhase0(): Promise<Phase0Results> {
   // Gather tasks from all preprocessors
   const tasks: LocalLLMTask[] = [];
 
-  // P0b: Perception summarization
-  const perceptionTasks = buildPerceptionSummaryTasks();
+  // P0b: Perception summarization (with input-hash cache — skip LLM for unchanged inputs)
+  const { tasks: perceptionTasks, cached: cachedSummaries } = buildPerceptionSummaryTasks();
   tasks.push(...perceptionTasks);
+  // Pre-populate results with cached summaries (zero LLM cost)
+  for (const [name, summary] of cachedSummaries) {
+    results.perceptionSummaries.set(name, summary);
+  }
 
   // P0c: HEARTBEAT diff
   try {
@@ -205,7 +225,7 @@ export async function runPhase0(): Promise<Phase0Results> {
   const convTask = buildConversationSummaryTask();
   if (convTask) tasks.push(convTask);
 
-  // No tasks: return immediately (zero cost)
+  // No LLM tasks needed: return cached results immediately
   if (tasks.length === 0) {
     results.totalLatencyMs = Date.now() - start;
     return results;
@@ -213,17 +233,22 @@ export async function runPhase0(): Promise<Phase0Results> {
 
   results.taskCount = tasks.length;
 
-  // Run all tasks concurrently (sweet spot: 3 concurrent, benchmark: ~200ms)
-  const llmResults = await callLocalConcurrent(tasks, 3);
+  // Run all tasks concurrently (bumped from 3→5: tasks are I/O-bound, not CPU-bound)
+  const llmResults = await callLocalConcurrent(tasks, 5);
 
-  // Parse results
+  // Parse results + update cache
   for (const r of llmResults) {
     if (r.id.startsWith('perc:') && r.content) {
       const name = r.id.slice(5);
       const summary = r.content.trim();
-      // Only use summary if it's meaningful (not "unchanged" and not too short)
       if (summary.toLowerCase() !== 'unchanged' && summary.length > 10) {
         results.perceptionSummaries.set(name, summary);
+        // Update cache for next cycle
+        const inputSlice = perceptionStreams.getCachedResults().find(p => p.name === name)?.output?.slice(0, 500) ?? '';
+        perceptionSummaryCache.set(name, {
+          inputHash: crypto.createHash('md5').update(inputSlice).digest('hex'),
+          summary,
+        });
       }
     } else if (r.id === 'hb-diff' && r.content) {
       const diff = r.content.trim();
