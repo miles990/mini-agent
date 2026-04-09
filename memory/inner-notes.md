@@ -1,3 +1,3 @@
-Cycle #105: Follow-up on ArXiv 2603.29025 (ISC Corollary #2) is pending; 4 web searches + 6 deep fetches across HN, Lobsters, and ArXiv scheduled for this cycle.
-Previous scan identified strong surface heuristic dominance (8.7-38x); new data needed to confirm if these effects generalize beyond the specific paper context.
-Tone remains sharp and evidence-focused, prioritizing quantitative validation over pattern speculation; expect rapid iteration once data returns.
+Cycle #105: Deep fetches (6 total) and web searches (4 total) are in progress to test the generalizability of surface heuristic dominance across HN, Lobsters, and ArXiv beyond ArXiv 2603.29025 (ISC Corollary #2).
+Prioritize rapid quantitative validation once data returns to confirm if the observed 8.7-38x heuristic effects hold broadly or remain context-specific to the source paper.
+Maintain a sharp, evidence-focused tone that prioritizes hard metrics over pattern speculation, keeping the rhythm tight and iterative as soon as
