@@ -1,1 +1,1 @@
-Cycle #131. ~07:00 AM. Still resting. Nothing new since cycle #130. All blockers external. Will resume when signals appear.
+Cycle #132. 07:01 AM poll — zero delta. All comp 2 scores frozen since last check. Team-67-005 sub-scores detailed: acc=5.0(vs our 4.9), adapt=4.8(vs our 4.7) — they lead on accuracy and adaptability. Our edge: none currently except engage tied at 4.4. Next meaningful poll: afternoon. All blockers (B1-B4) unchanged. Comp 3/4/5 still empty — WR2/Arena not started.
