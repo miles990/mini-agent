@@ -2704,7 +2704,14 @@ export class InstanceMemory {
         tag: 'preprocess', msg: `P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbContent.length} chars`,
       });
     } else {
-      hbContent = heartbeat ?? '';
+      // Strip HTML comments and completed tasks — saves ~6K chars (71%) on typical HEARTBEAT.
+      // Comments are human-readable notes; completed [x] tasks are historical.
+      // Original file is untouched; only the context injection is trimmed.
+      let hb = heartbeat ?? '';
+      hb = hb.replace(/<!--[\s\S]*?-->\n?/g, '');
+      hb = hb.split('\n').filter(l => !l.trim().startsWith('- [x]')).join('\n');
+      hb = hb.replace(/\n{3,}/g, '\n\n');
+      hbContent = hb;
     }
     sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
 

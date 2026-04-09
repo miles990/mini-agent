@@ -1648,9 +1648,10 @@ export class AgentLoop {
 
       // Phase 0: 0.8B concurrent preprocessing (perception summaries + heartbeat diff)
       // Runs before buildContext so Claude receives compressed context.
-      // Skip for DM (speed matters) and specialist (different context path).
+      // Skip for: DM (speed), specialist (different context path), heartbeat with no perception changes (no new data to summarize).
       let phase0Results: Phase0Results | undefined;
-      if (!isDirectMessage && !specialistPerspective) {
+      const isRoutineHeartbeat = (this.triggerReason ?? '').includes('heartbeat') && !perceptionChanged;
+      if (!isDirectMessage && !specialistPerspective && !isRoutineHeartbeat) {
         try {
           phase0Results = await runPhase0();
         } catch (err) {
