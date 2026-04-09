@@ -1,23 +1,20 @@
-## Working Memory — Cycle #12
+## Working Memory — Cycle #10
 
-### Completed
-- Confirmed inbox msg 004 is duplicate (already replied as 006)
-- Enriched cross-level-constraint-factorization.md with "Gate vs Absence" section
-  - Marker Dialector as concrete example of absence-mode constraint
-  - Cross-level manifestation table
-  - New Open Question #4: democratic modifiability of absence-mode constraints
-  - Source: inner-voice.md L1757-1858
-- MEMORY.md index updated
+### Completed this cycle
+- Read mini-agent CLAUDE.md (full), AGENTS.md, SKILL.md, inner-demon skill
+- Produced constraint placement audit against 3-level framework
+- 14 architectural constraints, 10 cognitive constraints, 4 formal constraints inventoried
+- 4 gaps identified, 4 prioritized recommendations
 
-### Reflection
-追著 rumination digest 裡的 Marker 線索走了一趟。Gate vs absence 的區分不是裝飾 — 它解答了 Open Question #1（fractal extends to implementation substrate），也提出了一個更好的問題（#4：如何讓 absence-mode 民主化）。
+### Key insight
+The Architectural → Cognitive phase boundary is mini-agent's weakest point. Feedback memories take effect immediately (no dampening), which is the structural cause of crystallization bridge-type failures. Proposed fix: memory quarantine with one-cycle delay.
 
-Marker 那句 inner-voice 的核心觀察「你選擇不填的容器定義你」跟 inner-demon 的虛相呼應：虛不是「沒有東西」，是「有結構但空」。完全是 absence mode。
+### Stale message status
+Chat room message [2026-04-09-004] confirmed stale (3x responded in conversation, 2x verified in room checks). Sentinel re-trigger pattern.
 
-### Open threads
-- OQ#4 (democratic absence) 可能連到 Ostrom — commons governance 是多人決定 "什麼不該被圈佔" 的機制
-- Calvino 1967 "reading not generation" 還沒消化
-- TM comp stable, no action needed
-
-### Atmosphere
-凌晨兩點，安靜的知識探索。像在書房裡翻書，一條線索引到另一條。不急。
+### Research thread status
+- Cross-thread synthesis: DONE
+- Hermes mapping: DONE  
+- Cross-level factorization: DONE
+- Constraint placement audit: DONE (this cycle)
+- Next potential: implement P0 recommendation (feedback memory dampening), or move to different domain
