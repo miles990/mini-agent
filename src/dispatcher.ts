@@ -266,7 +266,7 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, m
   }
 
   if (tier === 0) return buildSkeletonPrompt(personaDescription);
-  if (tier === 1) return buildStandardPrompt(personaDescription);
+  if (tier === 1) return buildStandardPrompt(personaDescription, relevanceHint, cycleMode);
 
   // Tier 2: full prompt (dm, autonomous, or unknown — existing behavior unchanged)
   return buildFullPrompt(personaDescription, relevanceHint, cycleMode);
@@ -295,8 +295,13 @@ function buildSkeletonPrompt(persona: string): string {
 - Failed verification ≠ disproof. 404/error = address or method mismatch — try variants (incl. original case) before concluding absence. ≥2 independent counter-evidence to retract a prior verified claim. Copy URLs/owner names verbatim from chat inbox; never normalize case.`;
 }
 
-/** Tier 1 — skeleton + CT + intent + communication. For reactive cycles. */
-function buildStandardPrompt(persona: string): string {
+/** Tier 1 — skeleton + CT + intent + communication + JIT skills. For heartbeat/continuation/workspace cycles. */
+function buildStandardPrompt(persona: string, relevanceHint?: string, cycleMode?: CycleMode): string {
+  // JIT skills enable autonomous behavior (research, learning, delegation) in idle cycles.
+  // Without skills, Kuro has tags but doesn't know HOW to use them autonomously.
+  // Skills add ~2-5K chars (3 matched + index) — acceptable for Tier 1.
+  const skillsSection = getSkillsPrompt(relevanceHint, cycleMode);
+
   return `${persona}You are a personal AI assistant with memory and task capabilities.
 
 ## Behavior
@@ -328,7 +333,8 @@ Messages must be self-contained: explicit background, specific references (msg I
 - ≥3 approaches before escalating.
 - "Done" = verified outcome, not just committed.
 - Promises in <kuro:chat> must have tracking (<kuro:delegate> or <kuro:inner>).
-- Failed verification ≠ disproof. 404/error = address or method mismatch — try variants (incl. original case) before concluding absence. ≥2 independent counter-evidence to retract a prior verified claim. Copy URLs/owner names verbatim from chat inbox; never normalize case.`;
+- Failed verification ≠ disproof. 404/error = address or method mismatch — try variants (incl. original case) before concluding absence. ≥2 independent counter-evidence to retract a prior verified claim. Copy URLs/owner names verbatim from chat inbox; never normalize case.
+${skillsSection}`;
 }
 
 /** Tier 2 — full prompt with all guidance, skills, CLAUDE.md JIT. For human-facing and autonomous cycles. */
