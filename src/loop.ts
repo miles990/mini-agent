@@ -435,9 +435,12 @@ export class AgentLoop {
     const { source, priority } = classifyTrigger(agentEvent.type, agentEvent.data);
 
     // Source-specific throttle for all DM sources (telegram, room, chat)
-    // Prevents rapid burst of messages from cascading into multiple cycles
-    if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(source) && priority === Priority.P0) {
-      if (now - this.lastDMWake < AgentLoop.DM_WAKE_THROTTLE) return;
+    // Only throttle OODA cycle wake — foreground batch buffer handles its own dedup.
+    // Previously: silently `return` → dropped message entirely → missed responses.
+    // Now: skip cycle wake but let event flow to foreground lane routing.
+    const dmThrottled = AgentLoop.DIRECT_MESSAGE_SOURCES.has(source) && priority === Priority.P0
+      && now - this.lastDMWake < AgentLoop.DM_WAKE_THROTTLE;
+    if (AgentLoop.DIRECT_MESSAGE_SOURCES.has(source) && priority === Priority.P0 && !dmThrottled) {
       this.lastDMWake = now;
     }
 
@@ -593,95 +596,56 @@ export class AgentLoop {
     // Hoisted outside try so catch block can check if chat was streamed before crash
     const streamedChats = new Set<string>();
 
+    // Foreground context budget: keep total prompt under 25K to ensure fast Opus response.
+    // Data: prompts >45K → multi-pass reduction cascade → timeout (observed 52K→timeout on 4/9).
+    // Target: ~2K system(tier1) + 15K context + 2K prompt = ~19K total.
+    const FG_CONTEXT_BUDGET = 15_000;
+
     try {
       const memory = getMemory();
-      let context = await memory.buildContext({ mode: 'focused' });
+      let context = await memory.buildContext({ mode: 'focused', contextBudget: FG_CONTEXT_BUDGET });
 
-      // Topic memory — keyword-matched topic loading (same as OODA, budget-capped)
+      // Topic memory — keyword-matched, capped at 3K for foreground (vs 10K for OODA)
       const topicContext = await memory.loadTopicsForQuery(text);
       if (topicContext) {
-        context += `\n\n${topicContext}`;
+        const topicCap = 3000;
+        context += `\n\n${topicContext.slice(0, topicCap)}`;
       }
 
-      // FTS5 memory search — dynamic context enrichment based on question
-      const ftsResults = await memory.searchMemory(text, 8);
+      // FTS5 memory search — fewer results for foreground (3 vs 8)
+      const ftsResults = await memory.searchMemory(text, 3);
       if (ftsResults.length > 0) {
         const relevantEntries = ftsResults.map(r => `[${r.source}] ${r.content}`).join('\n');
-        context += `\n\n<relevant_memory>\n${relevantEntries}\n</relevant_memory>`;
+        context += `\n\n<relevant_memory>\n${relevantEntries.slice(0, 2000)}\n</relevant_memory>`;
       }
 
       // Chat Room context: already included in buildContext() as <chat-room-recent>
 
-      // Cached perception — inject key sections (free, already collected)
+      // Cached perception — only inbox (most time-critical for DM response)
       try {
         const cached = perceptionStreams.getCachedResults();
-        const relevant = cached.filter(r => IMPORTANT_PERCEPTION_NAMES.includes(r.name as typeof IMPORTANT_PERCEPTION_NAMES[number]));
+        const relevant = cached.filter(r => r.name === 'chat-room-inbox' || r.name === 'tasks');
         if (relevant.length > 0) {
-          const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 1000)}\n</${r.name}>`).join('\n');
+          const perceptionLines = relevant.map(r => `<${r.name}>\n${r.output!.slice(0, 800)}\n</${r.name}>`).join('\n');
           context += `\n\n<cached_perception>\n${perceptionLines}\n</cached_perception>`;
         }
       } catch { /* perception not available */ }
 
-      // Working memory (all modes, not just reserved)
+      // Working memory — essential for cross-cycle continuity
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-      try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim()}\n</inner_notes>`; } catch {}
-      const trackingPath = path.join(memory.getMemoryDir(), 'tracking-notes.md');
-      try { const c = fs.readFileSync(trackingPath, 'utf-8'); if (c.trim()) context += `\n\n<tracking_notes>\n${c.trim()}\n</tracking_notes>`; } catch {}
+      try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim().slice(0, 2000)}\n</inner_notes>`; } catch {}
 
-      // Activity Journal (cross-lane awareness)
-      const activityJournal = formatActivityJournal(1000);
-      if (activityJournal) context += `\n\n<recent-activity>\n${activityJournal}\n</recent-activity>`;
-
-      // Knowledge Bus summary — cross-component patterns
-      try {
-        const kbSummary = getKnowledgeSummary();
-        if (kbSummary) context += `\n\n<knowledge-bus>\n${kbSummary}\n</knowledge-bus>`;
-      } catch { /* best effort */ }
-
-      // Recent delegation completions — cross-lane awareness (read-only, does not consume lane-output)
-      try {
-        const { buildRecentDelegationSummary } = await import('./delegation.js');
-        const delegationSummary = buildRecentDelegationSummary();
-        if (delegationSummary) context += `\n\n<recent-delegations>\n${delegationSummary}\n</recent-delegations>`;
-      } catch { /* best effort */ }
-
-      // Lane awareness — show what LOOP + other FG lanes are doing, with file-level coordination
-      try {
-        const lanes = getLaneStatus();
-        const lines: string[] = [];
-        const claimedFiles: string[] = [];
-        if (lanes.loop.busy && lanes.loop.task) {
-          const files = lanes.loop.task.recentFiles;
-          const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
-          lines.push(`LOOP: ${lanes.loop.task.prompt.slice(0, 120)}${fileStr}`);
-          claimedFiles.push(...files);
-        }
-        for (const s of lanes.foreground.slots) {
-          if (s.id === slotId || !s.task) continue;
-          const files = s.task.recentFiles;
-          const fileStr = files.length > 0 ? ` [files: ${files.map(f => f.split('/').pop()).join(', ')}]` : '';
-          lines.push(`FG ${s.id.slice(0, 8)}: ${s.task.prompt.slice(0, 120)}${fileStr}`);
-          claimedFiles.push(...files);
-        }
-        if (lines.length > 0) {
-          let section = '<active-lanes>\n以下 lane 正在同時工作：\n' + lines.join('\n');
-          if (claimedFiles.length > 0) {
-            section += `\n\n⚠ 這些檔案正被其他 lane 編輯，請勿修改：${[...new Set(claimedFiles)].map(f => f.split('/').pop()).join(', ')}`;
-          }
-          section += '\n\n協作原則：任務相關時，選擇互補的部分（例如他做 UI 你做 API，他做結構你做樣式）。不相關則各自進行。';
-          section += '\n</active-lanes>';
-          context += `\n\n${section}`;
-        }
-      } catch { /* best effort */ }
+      // Enforce total context budget — hard cap prevents downstream timeout cascade
+      if (context.length > FG_CONTEXT_BUDGET) {
+        context = context.slice(0, FG_CONTEXT_BUDGET) + `\n\n[... foreground context capped at ${Math.round(FG_CONTEXT_BUDGET / 1000)}K]`;
+        slog('LOOP', `[foreground] Context trimmed: ${context.length} → ${FG_CONTEXT_BUDGET} chars`);
+      }
 
       context += `\n\n<foreground_reply_mode>
-這是前景快速回覆模式。你的回覆會即時串流送出——每個完整的 chat tag 一生成就立刻到達用戶。
-
-嚴格規則：
-1. 第一個 chat tag 必須在 2-3 句內完成（確認收到 + 核心回應）
-2. 需要深度思考、研究、寫程式的任務 → 第一個 chat tag 快速確認，然後用 delegate tag 委派到背景
-3. 不要在這個 lane 做長時間推理。這裡是快速回應，不是深度思考
-4. 背景結果會自動出現在下個 OODA cycle 的 context 中
+前景快速回覆模式。回覆即時串流送出。
+1. 第一個 chat tag：2-3 句（確認收到 + 核心回應）
+2. 需深度思考/研究/寫程式 → 快速確認後用 delegate 委派背景
+3. 不在此 lane 做長時間推理
 </foreground_reply_mode>`;
 
       // Streaming chat — send <kuro:chat> tags to user as soon as they're detected during generation
@@ -705,8 +669,9 @@ export class AgentLoop {
         source: 'foreground',
         onStreamChat,
         fgSlotId: slotId,
+        triggerReason: 'room-foreground', // Use lighter system prompt tier for foreground
         rebuildContext: async (mode, budget) => {
-          return memory.buildContext({ mode, contextBudget: budget });
+          return memory.buildContext({ mode, contextBudget: budget ?? FG_CONTEXT_BUDGET });
         },
       });
 

@@ -249,10 +249,14 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, m
 
   // ── System Prompt Tiering (CT: progressive disclosure) ──
   // Tier 0 (skeleton): heartbeat/cron/continuation — identity + tags + core rules (~800 chars)
-  // Tier 1 (standard): workspace — + CT + intent + communication (~1.5K chars)
+  // Tier 1 (standard): workspace/foreground — + CT + intent + communication (~1.5K chars)
   // Tier 2 (full): dm/autonomous — everything (~4K+ chars, existing behavior)
+  // Foreground lane uses Tier 1 — quick ack+delegate, not deep reasoning.
+  // Data: Tier 2 (~9K) + 38K context = 52K prompt → multi-pass reduction → timeout.
+  const isForeground = trigger?.includes('foreground');
   const profile = trigger ? classifyContextProfile(trigger) : undefined;
-  const tier = !profile || profile === 'dm' || profile === 'autonomous' ? 2
+  const tier = isForeground ? 1
+    : (!profile || profile === 'dm' || profile === 'autonomous') ? 2
     : profile === 'workspace' ? 1 : 0;
 
   if (tier < 2) {
