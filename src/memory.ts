@@ -1977,14 +1977,26 @@ export class InstanceMemory {
     };
     const DEFAULT_SECTION_CAP = 4000;
 
-    /** Push a section with automatic size capping */
+    // Budget-aware section caps: scale down when budget is tight.
+    // Prevents building 25K context just to trim it to 18K.
+    const effectiveBudget = options?.contextBudget ?? profileConfig.contextBudget ?? 25_000;
+    const budgetRatio = Math.min(1, effectiveBudget / 25_000); // 1.0 for 25K+, 0.72 for 18K, 0.32 for 8K
+    let runningTotal = 0;
+
+    /** Push a section with automatic size capping, scaled by budget */
     const pushCapped = (tag: string, content: string) => {
-      const cap = SECTION_CAP[tag] ?? DEFAULT_SECTION_CAP;
+      const baseCap = SECTION_CAP[tag] ?? DEFAULT_SECTION_CAP;
+      const cap = Math.max(500, Math.round(baseCap * budgetRatio));
       if (content.length > cap) {
         content = content.slice(0, cap) + `\n[... truncated from ${content.length} chars]`;
       }
-      sections.push(`<${tag}>\n${content}\n</${tag}>`);
+      const section = `<${tag}>\n${content}\n</${tag}>`;
+      runningTotal += section.length;
+      sections.push(section);
     };
+
+    /** Check if we should skip optional sections (budget nearly exhausted) */
+    const budgetExhausted = () => runningTotal > effectiveBudget * 0.85;
 
     // ── 條件載入 helpers（根據相關性 + auto-demotion）──
     // Citation-driven auto-demotion: sections with 0 citations over DEMOTION_THRESHOLD
@@ -2157,8 +2169,12 @@ export class InstanceMemory {
       } catch { /* ignore */ }
     }
 
+    // ── Budget-aware early exit for optional sections below ──
+    // Core sections (soul, memory, heartbeat, inbox, chat-room, workspace, task-queue) are already loaded above.
+    // Everything below is optional — skip when budget is nearly exhausted.
+
     // Activity — 行為 + 診斷感知（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('activity') && activitySummaryProvider) {
+    if (!isLight && !budgetExhausted() && shouldLoad('activity') && activitySummaryProvider) {
       const activityCtx = formatActivitySummary(activitySummaryProvider());
       if (activityCtx) pushCapped('activity', activityCtx);
     }
@@ -2195,7 +2211,7 @@ export class InstanceMemory {
     }
 
     // ── Activity Journal（skip in light mode, auto-demotion aware）──
-    if (!isLight && shouldLoad('recent-activity')) {
+    if (!isLight && !budgetExhausted() && shouldLoad('recent-activity')) {
       const { formatActivityJournal } = await import('./activity-journal.js');
       const activityJournal = formatActivityJournal();
       if (activityJournal) {
@@ -2204,7 +2220,7 @@ export class InstanceMemory {
     }
 
     // ── Trail（skip in light mode, profile + auto-demotion aware）──
-    if (!isLight && shouldLoadForProfile('trail', options?.trigger) && shouldLoad('trail')) {
+    if (!isLight && !budgetExhausted() && shouldLoadForProfile('trail', options?.trigger) && shouldLoad('trail')) {
       const trailCtx = readTrailSection();
       if (trailCtx) {
         pushCapped('trail', trailCtx);
@@ -2230,7 +2246,7 @@ export class InstanceMemory {
     }
 
     // Route Efficiency（skip in light mode — slime mold nutrient path metrics, profile + auto-demotion aware）
-    if (!isLight && shouldLoadForProfile('route-efficiency', options?.trigger) && shouldLoad('route-efficiency')) {
+    if (!isLight && !budgetExhausted() && shouldLoadForProfile('route-efficiency', options?.trigger) && shouldLoad('route-efficiency')) {
       try {
         const { buildRouteSection } = await import('./route-tracker.js');
         const routeCtx = buildRouteSection();
@@ -2239,7 +2255,7 @@ export class InstanceMemory {
     }
 
     // Stale Tasks（skip in light mode, profile + auto-demotion aware）
-    if (!isLight && shouldLoadForProfile('stale-tasks', options?.trigger) && shouldLoad('stale-tasks')) {
+    if (!isLight && !budgetExhausted() && shouldLoadForProfile('stale-tasks', options?.trigger) && shouldLoad('stale-tasks')) {
       const staleWarnings = readStaleTaskWarnings();
       if (staleWarnings.length > 0) {
         const staleLines = staleWarnings.map(w =>
@@ -2250,7 +2266,7 @@ export class InstanceMemory {
     }
 
     // Achievements + Output Gate（skip in light mode, profile + auto-demotion aware）
-    if (!isLight && shouldLoadForProfile('achievements', options?.trigger) && shouldLoad('achievements')) {
+    if (!isLight && !budgetExhausted() && shouldLoadForProfile('achievements', options?.trigger) && shouldLoad('achievements')) {
       try {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();

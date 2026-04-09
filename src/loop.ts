@@ -1664,11 +1664,11 @@ export class AgentLoop {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
-      // Context budget driven by profile-based contextBudget in omlx-gate.ts.
-      // This estimate is a fallback hint — buildContext uses profileConfig.contextBudget as primary control.
-      const promptEstimate = 12_000; // cycle prompt + user prompt wrapper
-      const systemPromptEstimate = 25_000; // system prompt + JIT CLAUDE.md + skills (measured: typically 20-30K)
-      const contextBudget = 45_000 - promptEstimate - systemPromptEstimate; // ~8K fallback hint (profile budget takes priority)
+      // Context budget: let the profile system (omlx-gate.ts) decide.
+      // Previously: hardcoded systemPromptEstimate=25K (stale — actual: Tier0=1.3K, Tier1=2-5K, Tier2=9K)
+      // → contextBudget=8K → overrode profile budgets (heartbeat=18K, autonomous=32K) → over-trimmed context.
+      // Now: pass undefined to let buildContext use profileConfig.contextBudget as the primary control.
+      const contextBudget = undefined;
 
       let context = specialistPerspective
         ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
