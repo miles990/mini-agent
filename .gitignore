@@ -31,3 +31,6 @@ drafts/
 lane-output/
 mesh-output/
 --output
+--wait
+_external/
+inner-demon/
