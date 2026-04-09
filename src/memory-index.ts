@@ -659,10 +659,21 @@ async function resolveActiveCommitments(memoryDir: string, response: string): Pr
   const active = queryMemoryIndexSync(memoryDir, { type: 'commitment', status: 'active' });
   if (active.length === 0) return;
 
+  const now = Date.now();
   const responseTokens = tokenizeForMatch(response);
   const responseSet = new Set(responseTokens);
 
   for (const entry of active) {
+    // GC: expire commitments past their TTL instead of leaving them "active" forever.
+    // buildCommitmentSection already filters by TTL at display time, but without this
+    // the JSONL accumulates zombie entries that queryMemoryIndexSync must traverse every cycle.
+    const expiresAt = (entry.payload as Record<string, unknown> | undefined)?.expiresAt as string | undefined;
+    if (expiresAt && new Date(expiresAt).getTime() <= now) {
+      await updateMemoryIndexEntry(memoryDir, entry.id, { status: 'expired' });
+      slog('COMMIT', `Expired: "${entry.summary}"`);
+      continue;
+    }
+
     const entryTokens = tokenizeForMatch(entry.summary ?? '');
     if (entryTokens.length === 0) continue;
 
