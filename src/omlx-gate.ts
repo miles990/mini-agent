@@ -157,7 +157,7 @@ export function cronGate(taskDescription: string): CronGateResult {
 
   // Has unchecked tasks — check if any have actionable verbs
   const lines = content.split('\n').filter(l => /^- \[ ?\]/.test(l.trim()));
-  const ACTION_VERBS = /\b(fix|implement|add|create|build|deploy|write|send|check|review|update|research|investigate|refactor|merge|push|test|publish|run)\b/i;
+  const ACTION_VERBS = /\b(fix|implement|add|create|build|deploy|write|send|check|review|update|research|investigate|refactor|merge|push|test|publish|run)\b|測試|發佈|部署|修復|建立|檢查|研究|撰寫|送出|執行|更新/i;
   const hasActionable = lines.some(l => ACTION_VERBS.test(l));
 
   if (!hasActionable) {

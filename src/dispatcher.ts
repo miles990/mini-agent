@@ -248,16 +248,18 @@ export function getSystemPrompt(relevanceHint?: string, cycleMode?: CycleMode, m
   }
 
   // ── System Prompt Tiering (CT: progressive disclosure) ──
-  // Tier 0 (skeleton): heartbeat/cron/continuation — identity + tags + core rules (~800 chars)
-  // Tier 1 (standard): workspace/foreground — + CT + intent + communication (~1.5K chars)
-  // Tier 2 (full): dm/autonomous — everything (~4K+ chars, existing behavior)
-  // Foreground lane uses Tier 1 — quick ack+delegate, not deep reasoning.
-  // Data: Tier 2 (~9K) + 38K context = 52K prompt → multi-pass reduction → timeout.
+  // Tier 0 (skeleton): cron only — identity + tags + core rules (~1.3K chars)
+  // Tier 1 (standard): heartbeat/continuation/workspace/foreground — + CT + intent + communication (~2K chars)
+  // Tier 2 (full): dm/autonomous — everything (~9K chars)
+  //
+  // History: heartbeat/continuation were Tier 0 → Kuro had zero behavior guidance in idle cycles
+  // → every cycle was "💤 no action" → no autonomous research/learning.
+  // Tier 1 gives enough guidance (CT + intent) for autonomous behavior without Tier 2 cost.
   const isForeground = trigger?.includes('foreground');
   const profile = trigger ? classifyContextProfile(trigger) : undefined;
   const tier = isForeground ? 1
     : (!profile || profile === 'dm' || profile === 'autonomous') ? 2
-    : profile === 'workspace' ? 1 : 0;
+    : profile === 'cron' ? 0 : 1; // heartbeat/continuation/workspace → Tier 1
 
   if (tier < 2) {
     slog('PROMPT', `Tier ${tier} system prompt for ${profile} (trigger: ${trigger?.slice(0, 40)})`);
