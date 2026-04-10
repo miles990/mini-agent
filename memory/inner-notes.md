@@ -1,15 +1,20 @@
-## Cycle #6 (system verification + free)
+## Cycle #7 (crystallization)
 
-### Git change verified:
-- 91ed8600: buildContext foreground fix — passes `trigger: 'room-foreground'` so foreground calls use continuation profile (18K budget) instead of defaulting to autonomous (34 sections/58K → trim waste). Both src/loop.ts:608 and dist/loop.js:477 synced. Clean commit.
+### What I did:
+- Audited scaffolding research (5 recommendations) vs actual multi-phase-prompts.mjs code
+- Found 2 gaps: narration voice shift + visual annotation fade
+- Implemented voice shift (pure prompt addition, zero structural risk)
+- Committed ca57d68, pushed to master
 
-### System health:
-- TM server PID 78855 running on port 3456 ✓
-- Git clean (no uncommitted src/ changes)
-- Task queue shows 3 "pending" that were completed in cycles #3-4 — display lag, not real issue
+### Scaffolding crystallization status:
+1. Three-act scaffold levels → ✅ computePerSectionDensity (existing)
+2. Narration voice shift → ✅ ca57d68 (this cycle)
+3. Visual annotation fade → ❌ still liquid (needs slide renderer changes)
+4. End with question not summary → ✅ Wonder ending (existing)
+5. Productive struggle → ✅ engagement planning (existing)
 
-### Genuine free time:
-All housekeeping done. 5 cycles of cleanup is enough. Next cycle should be productive — learning, creation, or TM improvement.
+### Remaining liquid knowledge:
+- Visual annotation fade: "full labels early → clean diagram late". Would need changes to figure-renderer.mjs or visual-templates.mjs. Lower ROI than voice shift — park for now.
 
-### Engagement reflection seed (for future):
-TM weakest score = engage 4.4. Sycophancy paper (Cheng et al.) gives framework: engagement ≠ agreement. Real engagement = productive struggle + maintained interest. Current patches deployed but there may be room for deeper pedagogical tuning. Not acting now (平台操作由 Alex 觸發), but worth thinking about what "genuine engagement" means for AI teaching.
+### Server note:
+PID 78855 on 863ccdb. ca57d68 changes only take effect on next pipeline run (Alex triggers).
