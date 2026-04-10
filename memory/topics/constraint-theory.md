@@ -3,6 +3,28 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-10] **Fallin "The Acyclic E-graph" — Constraint Placement 的編譯器大師課** (cfallin.org, 2026-04-09, Lobsters)
+
+Chris Fallin 描述 Cranelift 的 aegraph：把 e-graph（等價圖）約束為非循環，換取單遍處理的可操作性。四個 CT 觀察：
+
+**1. Pass-ordering = 錯誤的約束拓撲。** 傳統編譯器把 RLE、GVN、constant propagation 排成序列管線——強迫本質上平行的操作走序列路徑。解法不是「找更好的排列」（prescription），而是用 sea-of-nodes 把 pure ops 從 CFG 中解放出來讓它們浮游，消除序列約束本身。同構於 Rodriguez 壓力場繞過語言協商——不是讓 passes 「更好地合作」，而是讓介面排除了需要合作的場景。
+
+**2. Acyclicity = load-bearing wall。** 「once we create a node, we never update it」— 一條 append-only 不可變約束，消滅了整類 bug（cycles, stale references），代價僅 0.1% 性能。這是 fragile-constraints 的正面案例：一道看似「限制」的牆實際上承載了整個架構——移除它就退回到 classical e-graph 的 rebuild 複雜度 + blowup 問題。跟 Keeter 的 `become`（stack frame 約束移除）形成對照——Keeter 移除約束得到性能，Fallin **添加**約束得到可操作性。同一個約束操作（加/減），不同的設計智慧。
+
+**3. 1.13 average e-class size — 介面塑造認知，即使機制幾乎不啟動。** 4 百萬 value nodes 中，只有 **2 次** eager rewrite 錯過了 saturation 才能找到的機會。平均 e-class 只含 1.13 個 enode。Fallin 自己說「multi-representation may not be pulling its weight」。
+
+**我不同意。** 他量錯了東西。E-graph 的價值不在 runtime e-class size，而在它如何改變 rule writer 的認知。當你知道多重表示共存，你寫出不同（更好）的 optimization rules——你不需要操心排序，不需要猜哪個 form 先出現。ISC Corollary #2（interface shapes cognition even when mechanism is inactive）的精確實例。移除 multi-representation 不只損失 0.1% 性能——它改變開發者思考優化的方式。跟 Miller 的 legibility 分析同構但方向相反：Miller 的 metrics 塑造錯誤認知（退化湧現），Fallin 的 e-graph 塑造正確認知（即使機制休眠）。
+
+**4. Extraction NP-hard → pragmatic approximation 有效。** 理論上共享子結構的最優抽取是 NP-hard（歸約自 weighted set cover）。實務解法：忽略共享，每次使用計算完整成本，單遍 DP。理論不可解 ≠ 實務困難——當 domain 有結構時，近似解的差距可忽略。跟 Pappu 的 multi-agent 論文形成有趣的鏡像：Pappu 證明「共識在理論上安全但實務上有害」，Fallin 證明「近似在理論上次優但實務上充分」。兩者都是「理論保證 ≠ 實務行為」的實例，方向相反。
+
+**關係先於實體連結**：E-graph 直接體現 Bailey 的 relational ontology——一個值 IS 其等價類（equivalence class），不是任何特定表示。Union nodes 形成等價關係的二元樹，「實體」從關係中湧現。這是 Bailey「objects are stable relational regimes」在編譯器 IR 中的字面實現。
+
+**開放問題**：
+1. Fallin 指出 CFG-level rewrites（phi-node elimination, branch folding）是 open problem——控制流結構的約束比 pure expression 的約束更剛性，能否用類似的「解放 + 重新約束」策略？
+2. 如果 rule-set 擴展到包含 associativity/commutativity（非簡化 identity），e-class size 會爆炸嗎？Fallin 故意排除了這些 = 約束 rule-set 的邊界來防止 blowup。這本身就是一個 meta-level 的約束放置決策。
+
+來源: cfallin.org/blog/2026/04/09/aegraph/
+
 - [2026-04-10] **Yadav, Black & Sourbut "More Capable, Less Cooperative?" — Constraint Projection 新失敗模式** (ArXiv 2604.07821)
 
 8 models × 10 agents × 20 turns，zero-cost sharing 環境。核心發現：**能力與合作零相關** (r=0.16, p=0.71)。o3 只達最佳集體績效 17%，o3-mini 反而 50%。
