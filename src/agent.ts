@@ -224,7 +224,7 @@ interface ForegroundSlotState {
 }
 const foregroundSlots = new Map<string, ForegroundSlotState>();
 const MAX_FOREGROUND_CONCURRENT = 8; // safety cap — real limit is API rate + system resources
-const FG_SLOT_TTL_MS = 300_000; // 5 min — idle slots cleaned up after this
+const FG_SLOT_TTL_MS = 90_000; // 90s — foreground is quick ack+delegate, not deep work
 const FG_SLOT_ZOMBIE_MS = 60_000; // 1 min — busy slot with no PID/controller = zombie
 
 /** 查詢是否有任何 lane 正在執行 Claude CLI */
@@ -495,6 +495,11 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   // --strict-mcp-config without --mcp-config → zero MCP servers loaded
   //   Subprocess is Kuro's internal brain — it shouldn't communicate with itself via MCP
   const args = ['-p', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose', '--strict-mcp-config'];
+  // Foreground: cap max turns to prevent deep research (should be quick ack + delegate)
+  // Data: foreground was doing 58-93 tool calls (5+ minutes) instead of 2-3 sentence ack
+  if (opts?.source === 'foreground') {
+    args.push('--max-turns', '5');
+  }
   const modelOverride = opts?.model ?? process.env.CLAUDE_MODEL;
   if (modelOverride) {
     args.push('--model', modelOverride);
@@ -626,9 +631,11 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       // Adaptive: model producing tool calls = actively working, extend tolerance
-      // Foreground: tighter timeout — user is waiting interactively
+      // Foreground: HARD cap — quick ack + delegate, not deep research.
+      // Data: foreground was taking 47-281s TTFC with 58-93 tool calls.
+      // Convergence condition: first chat in <10s, total <60s.
       const effectiveTimeout = isForeground
-        ? (toolCallCount > 0 ? 300_000 : 120_000) // foreground: 5min with tools, 2min without
+        ? (toolCallCount > 0 ? 60_000 : 30_000) // foreground: 60s with tools, 30s without
         : (toolCallCount > 0 ? Math.max(PROGRESS_TIMEOUT_MS, 480_000) : PROGRESS_TIMEOUT_MS);
       if (silentMs < effectiveTimeout) return;
       timedOut = true;
