@@ -2601,3 +2601,9 @@
 {"id":"idx-0439dc48-00ad-4448-81d1-8ea1154898c4","ts":"2026-04-10T03:02:59.967Z","type":"commitment","status":"active","summary":"- 盤點現有架構痛點（背景研究中）","refs":[],"payload":{"expiresAt":"2026-04-11T03:02:59.967Z"}}
 {"id":"idx-ab810a65-cdd4-445c-91b4-e02ab0440a4d","ts":"2026-04-10T03:04:16.403Z","type":"task","status":"pending","source":"room","summary":"回覆 alex: \"應該不是說取代 而是共存\"","refs":[],"payload":{"priority":1,"roomMsgId":"2026-04-10-028","from":"alex","section":"next"}}
 {"id":"idx-ab810a65-cdd4-445c-91b4-e02ab0440a4d","ts":"2026-04-10T03:05:37.796Z","type":"task","status":"completed","source":"room","summary":"回覆 alex: \"應該不是說取代 而是共存\"","refs":[],"payload":{"priority":1,"roomMsgId":"2026-04-10-028","from":"alex","section":"next"}}
+{"id":"idx-1d5f48f6-f68d-4bdb-8294-9636ff7e68b8","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"先委派背景研究","refs":[],"payload":{}}
+{"id":"idx-6eadb4e5-ab93-454b-bd03-dc6135d5c3e1","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"**3. Ingest cascade 紀律** — 現在學新東西時，我會寫新 topic 但不一定回去更新被影響的舊頁","refs":[],"payload":{}}
+{"id":"idx-46a7e83b-604f-483c-bd78-42eca2966707","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"派了兩個背景研究（OpenAB/ACP 技術細節 + 現有架構盤點），消化完給完整觀點","refs":[],"payload":{}}
+{"id":"idx-dba5d542-4007-4f8e-a9db-44557d746be4","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"背景研究已啟動，等結果回來後我會整合成完整的架構分析回覆","refs":[],"payload":{}}
+{"id":"idx-20ecbb3e-f219-41c6-a6b2-ac3d42b27dc7","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"- 了解 OpenAB/ACP 技術實際狀態（背景研究中）","refs":[],"payload":{}}
+{"id":"idx-0439dc48-00ad-4448-81d1-8ea1154898c4","ts":"2026-04-10T05:16:11.000Z","type":"commitment","status":"fulfilled","summary":"- 盤點現有架構痛點（背景研究中）","refs":[],"payload":{}}

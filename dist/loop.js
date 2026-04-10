@@ -472,7 +472,9 @@ export class AgentLoop {
         const FG_CONTEXT_BUDGET = 15_000;
         try {
             const memory = getMemory();
-            let context = await memory.buildContext({ mode: 'focused', contextBudget: FG_CONTEXT_BUDGET });
+            // Pass trigger so buildContext uses correct profile (continuation → 18K budget, fewer sections)
+            // Without trigger: defaults to 'autonomous' profile → loads 34 sections / 58K → trim waste
+            let context = await memory.buildContext({ mode: 'focused', trigger: 'room-foreground', contextBudget: FG_CONTEXT_BUDGET });
             // Topic memory — keyword-matched, capped at 3K for foreground (vs 10K for OODA)
             const topicContext = await memory.loadTopicsForQuery(text);
             if (topicContext) {
