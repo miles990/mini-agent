@@ -471,6 +471,8 @@ function generatePlist(instanceId: string, config: InstanceConfig): string {
         <string>${config.port}</string>
         <key>NODE_ENV</key>
         <string>production</string>
+        <key>NODE_OPTIONS</key>
+        <string>--max-old-space-size=1024</string>
         <key>PATH</key>
         <string>${envPath}</string>
         <key>HOME</key>
