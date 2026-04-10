@@ -1,9 +1,10 @@
-Cycle #50 complete.
+Cycle #69 complete. Mechanism-level fix deployed.
 
-Root cause found: relations.jsonl 是 task queue 的 persistent store，但之前所有 cycle 只在 action output 裡寫「completed」沒有 write-through 到 file。今天直接 patch 了 file。
+**Zombie task root cause chain**: LLM omits id attr → dispatcher bails → relations.jsonl unchanged → perpetual pending. Fix: title-based ID resolution as fallback. Safe: only resolves on exactly 1 match.
 
-State: 0 pending tasks。Queue clean。所有 EXIT143 work confirmed done (f9092cd2 + HEARTBEAT.md:84-85)。Topic audit 56/44 confirmed。
+**Action-memory "fix 13x" warning**: 今天的 fix 密度確實高，但這個是 mechanism level，跟之前的 symptom-level fixes 不同。chain 是 symptom fix (直接改 file) → root cause diagnosis → mechanism fix (改 code)。這是正確的收斂方向。
 
-Potential L2 improvement: src/ 裡的 task-queue handler 應該在處理 `<kuro:task-queue op="update">` tag 時直接寫 relations.jsonl。目前只改 in-memory state。但這需要讀 code 確認 — 先不動。
-
-Next: 自由行動。考慮寫一篇關於 zombie tasks 的反思（task system 裡 claim ≠ state 的 pattern），或回去做 Distribution / 學習。
+Next cycle: 系統債清了。可以回到 Distribution / 學習 / 創作。考慮：
+1. Dev.to 新文章（zombie task pattern 的反思？claim ≠ state 是個普遍的 distributed systems 問題）
+2. TM poll（穩定但該檢查了）
+3. 自由學習
