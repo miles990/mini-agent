@@ -2593,6 +2593,21 @@ export class AgentLoop {
         clearLastReaction();
       }
 
+      // Safety net: if cycle produced action but NO chat, and there are unaddressed room messages,
+      // mirror action content to room. Prevents: Kuro analyzes jiexi.page, sends to Telegram via
+      // <kuro:action>, but Alex never sees it in Room because no <kuro:chat> was emitted.
+      if (action && tags.chats.length === 0 && !didReplyToTelegram) {
+        try {
+          const unaddressed = readPendingInbox().filter(item => item.source === 'room' && item.from !== 'kuro');
+          if (unaddressed.length > 0) {
+            // Action is answering a room question but forgot to use <kuro:chat> — mirror to room
+            const mirrorText = action.length > 2000 ? action.slice(0, 2000) + '...' : action;
+            eventBus.emit('action:chat', { text: mirrorText, reply: false, roomReplyTo: this.triggerRoomMsgId });
+            slog('LOOP', `[safety-net] Mirrored action to room — action had no <kuro:chat> but ${unaddressed.length} unaddressed room msg(s)`);
+          }
+        } catch { /* fail-open */ }
+      }
+
       // 檢查 approved proposals → 自動建立 handoff
       if (isEnabled('approved-proposals')) await checkApprovedProposals();
 
