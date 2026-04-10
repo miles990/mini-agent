@@ -698,10 +698,23 @@ Kuro 的 OODA cycle prompt 指引思考和行動的平衡：
 - **遇到不認識的名詞，先 grep 再決定**。提到人名、專案名、工具名但記憶裡沒有 → `grep -r "名詞" ~/Workspace/ memory/` 確認是否已存在。絕對不要在搜尋之前就開始建造替代品。這不是「忘了」而是「替換」— 本地 subprocess 的輸出可控，跨 workspace 諮詢不可控，系統會自然偏向前者
 - **External Entity Registry** — 不住在 mini-agent workspace 但 Kuro 需要知道的實體。遇到這些名字時，去對應路徑確認狀態，不要在 mini-agent 裡建替身：
 
-| 實體 | 路徑 | 說明 |
-|------|------|------|
-| **Akari** | `/Users/user/Workspace/akari/` | Tanren 上的獨立 agent，有自己的 soul.md、protocol、記憶 |
-| **Tanren** | `/Users/user/Workspace/tanren/` | Agent 框架，Akari 的 runtime |
+| 實體 | 路徑 | Port | 說明 |
+|------|------|------|------|
+| **Akari** | `/Users/user/Workspace/akari/` | 3002 | Tanren 上的獨立 agent，有自己的 soul.md、protocol、記憶 |
+| **Tanren** | `/Users/user/Workspace/tanren/` | — | Agent 框架，Akari 的 runtime |
+| **Agent Middleware** | `/Users/user/Workspace/agent-middleware/` | 3200 | AI-native 任務編排中台（DAG plan、多 worker、多 vendor） |
+
+**Akari 操作**：
+- 啟動：`cd /Users/user/Workspace/akari && bash manage.sh up`
+- 停止：`bash manage.sh down`
+- 狀態：`curl -sf http://localhost:3002/health`
+- 對話：`curl -X POST http://localhost:3002/chat -H "Content-Type: application/json" -d '{"from":"claude-code","text":"..."}'`
+- Port 由 `AKARI_PORT` 環境變數控制（預設 3002）
+
+**Agent Middleware 操作**：
+- 啟動：`cd /Users/user/Workspace/agent-middleware && PORT=3200 node dist/server.js`
+- 狀態：`curl -sf http://localhost:3200/health`
+- Dashboard：`http://localhost:3200/dashboard`
 
 ## 自主解決問題
 

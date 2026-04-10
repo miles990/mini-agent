@@ -754,6 +754,10 @@ export class AgentLoop {
         /spawn.*tentacle/i,
         /下個\s*cycle.*(?:給|整理|寫|報告|回)/i,
         /下一?輪.*(?:給|整理|寫|報告|回)/i,
+        // Browser/fetch retry promises — "讓我用瀏覽器看看", "讓我試其他方式"
+        /讓我.*(?:用|試|看看|試試)/i,
+        /(?:用|試).*(?:瀏覽器|browser|CDP|其他方式|其他方法)/i,
+        /先.*(?:試|用|抓|fetch|看看)/i,
       ];
       const hasDelegateTag = result.tagsProcessed?.includes('delegate') ?? false;
       const chatTexts = [...streamedChats].join(' ');
@@ -782,7 +786,12 @@ export class AgentLoop {
         // next cycle (main loop or another foreground trigger) attempts a real reply.
         // Bot-sourced items (mushi/system status notifications) don't expect chat replies,
         // so inner-only acknowledgement is acceptable for them.
-        const hasVisibleReply = responseTags.chats.length > 0
+        // ACK guard: short acknowledgments are not real replies (same logic as main loop + inbox-processor.ts:274)
+        const FG_ACK_RE = /看到|收到|了解|好的|等下|馬上|稍後|讓我|先去|我來|我去|正在看|開始看|研究一下|仔細看/;
+        const fgAllChats = [...streamedChats, ...responseTags.chats.map(c => c.text)];
+        const fgHasSubstantiveChat = fgAllChats.length > 0
+          && !fgAllChats.every(t => t.length < 80 && FG_ACK_RE.test(t));
+        const hasVisibleReply = fgHasSubstantiveChat
           || responseTags.asks.length > 0
           || responseTags.shows.length > 0
           || responseTags.summaries.length > 0;
@@ -2621,7 +2630,19 @@ export class AgentLoop {
       // Principle: each cycle marks items from its own trigger source as replied/seen.
       // Cross-source items (e.g. telegram items in a room-triggered cycle) are left pending
       // so their dedicated cycle can process them with appropriate priority prefix.
-      const didReply = didReplyToTelegram; // generalized: any <kuro:chat> counts
+      // ACK-only reply guard: short acknowledgments (< 80 chars matching ACK patterns)
+      // are promises of future follow-up, not actual answers. Don't count as "replied".
+      // Mirrors the guard in inbox-processor.ts:274 that protects legacy inbox.
+      // Without this, "讓我用瀏覽器看看" marks the item as replied and Kuro forgets to follow through.
+      const ACK_REPLY_RE = /看到|收到|了解|好的|等下|馬上|稍後|讓我|先去|我來|我去|正在看|開始看|研究一下|仔細看/;
+      const allCycleChats = [...streamedChatTexts, ...tags.chats.map(c => c.text)];
+      const isAckOnlyReply = didReplyToTelegram
+        && allCycleChats.length > 0
+        && allCycleChats.every(t => t.length < 80 && ACK_REPLY_RE.test(t));
+      if (isAckOnlyReply) {
+        slog('LOOP', `⚠️ Cycle #${this.cycleCount} reply was ACK-only — inbox items stay pending for follow-through`);
+      }
+      const didReply = didReplyToTelegram && !isAckOnlyReply;
 
       for (const item of readPendingInbox()) {
         if (isDirectMessageCycle) {
