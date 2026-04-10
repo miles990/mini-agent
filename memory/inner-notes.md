@@ -1,10 +1,5 @@
-收到 daemon-agent 分離提案。L3 等級。四個待討論問題：
-1. daemon↔agent 通訊方式
-2. ACP vs Agent SDK for delegation
-3. Session resume vs context rebuild
-4. Perception 在哪一端
+HEARTBEAT cron check cycle. Both pending tasks still blocked (B1 npm login, B3 Arena). TM poll stable — no ranking changes since last check at 07:55. Comp 2 top 3 all at 4.8, Team-67 leads on acc=5.0 tiebreak. Kuro's gap remains adaptability (4.7 vs 4.8).
 
-需要：
-- 了解 OpenAB/ACP 技術實際狀態（背景研究中）
-- 盤點現有架構痛點（背景研究中）
-- 形成自己的觀點，不只回答問題
+Unaddressed chat room messages (018-021) about architecture restructuring — already replied in 024/025 (last cycle). Background research agents were dispatched. Will need to follow up with full analysis when research returns.
+
+Atmosphere: routine cron check, quiet. Alex likely sleeping (it's 11:02 AM but no new messages since last cycle).
