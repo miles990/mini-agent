@@ -59,13 +59,8 @@ related: [mushi, social-media, discussion-prep-0305, research-watchlist, omlx-9b
 - [2026-03-10] awesome lists 提交調查（2026-03-11）：(1) e2b-dev/awesome-ai-agents — 無星數門檻，可直接送 PR，格式用 ## [Name](url) + details 展開區。(2) awesome-selfhosted — 實際提交到 awesome-selfhosted-data，CONTRIBUTING 硬規則：first release 需 >4 個月。mini-agent 2026-02-05 建，最快 July 才符合。策略決定：先發 v0.1.0 release + Dev.to 文章，再投 awesome-ai-agents，awesome-selfhosted 等 July。PR 草稿存在 lane-output/del-1773159256994-e0uv.json。
 - [2026-03-10] v0.1.0 release 已發布（2026-03-11）：https://github.com/miles990/mini-agent/releases/tag/v0.1.0 。採用策略 gating item 解鎖。下一步：Dev.to 介紹文 → awesome-ai-agents PR。awesome-selfhosted 需等 July（4 個月門檻）。
 - [2026-03-10] Ares 論文（arXiv 2603.07915, Yang et al., 2026-03-09）— 學術界的 adaptive reasoning effort 驗證。lightweight router 逐步選擇推理等級（high/medium/low），在 TAU-Bench/BrowseComp-Plus/WebArena 上達成 52.7% token 減少、minimal accuracy loss。跟 mushi 的關係：互補不競爭。Ares = within-task per-step optimization（進門後），mushi = pre-task gating（要不要進門）。兩者組合是乘法效果。mushi 的差異化：LLM-agnostic + zero fine-tuning + 更上游。對 mushi 價值證明的意義：學術界驗證了 adaptive reasoning allocation 這個方向 work，mushi 是這個方向在 personal agent 的實踐。
-- [2026-03-11] [2026-03-11] Confidence Gate Theorem 學術驗證（Doku, 2603.09947）— mushi 的 WAKE/SKIP 是 structural uncertainty 下的 binary gate，論文證明這類 gate 具有 near-monotonic abstention gains。3,560 cycles 零 false negative 不是偶然 — 是 triage 問題本身適合 confidence gating（結構性信號、穩定分佈）。但擴展到 REFLECT/ESCALATE 時進入 contextual uncertainty 領域，需要不同策略（ensemble + recency）。mushi 證明的是正確的子問題上用正確的方法。
-- [2026-03-11] [2026-03-11] Confidence Gate Theorem 提供了 mushi 有效性的理論基礎。Theorem 2 證明：confidence gate 的 selective accuracy monotonically increasing 當且僅當無 inversion zones（C2 condition）。mushi 的 trigger-based WAKE/SKIP 是 structural uncertainty 領域的 confidence gate——trigger type 和 perception changes 是穩定的可觀測特徵，天然滿足 rank-alignment（C1）。這解釋了為什麼 3,560+ triage 零 false negative：不是 3B 模型聰明，是問題結構對了。延伸：擴展到 REFLECT/ESCALATE 時要確保路由依據留在 structural 領域（whitelist），不進入 contextual uncertainty。
-- [2026-03-11] [2026-03-11] AutoAgent 論文（2603.09716）間接驗證 mushi 價值 — 他們的 Elastic Memory Orchestration 用 LLM 做 per-step memory selection（高開銷），mushi 用 9B model 做 per-cycle triage（低開銷）。都是「在主推理前先過濾」的思路，但 mushi 的 structural feature approach（trigger type + perception changed）比他們的 content-based selection 更穩定（3,560+ cycles 零 false negative vs 他們在 Musique 上 underperform）。
-- [2026-03-11] [2026-03-11] Chaotic Dynamics in Multi-LLM Deliberation（Shimao et al., ArXiv 2603.09127）— 多 LLM 委員會在所有條件下都呈現正 Lyapunov 指數（結構性混沌），即使 T=0。兩條不穩定路徑：角色分化（λ̂=0.054）和模型異質性（λ̂=0.095）。緩解：移除 Chair 角色 + 縮短記憶窗口。跟 Confidence Gate Theorem 合起來強化 mushi 價值論證：mushi 的 WAKE/SKIP 二元決策避開了混沌討論，不只是效率工具，是穩定性機制 — 在混沌發生前完成決策。來源: arxiv.org/abs/2603.09127
 - [2026-03-11] OI-MAS（ArXiv 2601.04861, Jan 2026）— Confidence-Aware Routing for Multi-Scale Models。ablation study 證明 confidence weighting 是最關鍵組件（移除後 accuracy 掉 -2.52% to -4.20%，比 model router 本身的 -1.12% to -1.84% 更大）。直接驗證 mushi 的設計：「該不該做」比「用什麼做」更重要。但 OI-MAS 用 token log-probability 做 confidence（stateless），mushi 用結構性信號（trigger type, source, temporal context）做 triage（stateful），且零訓練達到 3,560+ 零 false negative — 學術路線需要 RL 訓練，工程路線靠 domain signal 更實用。Two-stage routing（role → model）跟 mushi → ModelRouter 同構。來源: arxiv.org/abs/2601.04861
 - [2026-03-11] RYS (Repeat Yourself, dnhkng) — 不改權重只複製 Qwen2-72B 第 45-51 層，Open LLM Leaderboard 第一（+2.61% avg, MATH +8.16%）。跟 mushi 是同一 meta-pattern 的不同尺度：「不改模型，只改推理路徑」就能提升表現。RYS = model-internal routing, mushi = system-level routing。兩個關鍵共鳴：(1) 電路邊界不可侵犯 ↔ 決策邊界可用小模型判斷 (2) 只用 2 個窄 probe 泛化到 6 個 benchmark ↔ mushi 的 triage pattern 從數據湧現。來源：Lobsters, https://dnhkng.github.io/posts/rys/
-- [2026-03-11] [2026-03-12] Moslem & Kelleher survey（ArXiv 2603.04445, Feb 2026）— LLM Routing & Cascading 全景。6 大範式：Difficulty-aware / Preference-aligned / Clustering / RL / Uncertainty / Cascading。51 個方法。三個設計維度：When（pre/post generation）、What（query/response/feedback signals）、How（threshold/classifier/policy）。
 
 核心發現對 mushi 的意義：
 1. **mushi 的定位在 survey 的盲區**：51 個方法全部假設輸入是「user query」需要被 route 到某個 model。mushi 操作在更上游 — 判斷 perception event 是否值得叫任何 model。survey 最接近的概念是 "Firewall routing"（阻擋 unsolvable queries），但 mushi 是反向：阻擋 trivial events。
@@ -73,7 +68,6 @@ related: [mushi, social-media, discussion-prep-0305, research-watchlist, omlx-9b
 3. **Self-verification 不可靠**（Chuang et al. 2025b）— 模型自報 confidence 跟正確性低度對齊。mushi 用獨立小模型做 triage，屬於 survey 推薦的 "probe-based" 路線。
 4. **成本數據驗證**：MixLLM 達 97% GPT-4 品質 at 24% cost；R2-Reasoner 省 84% API cost。mushi 5a 數據顯示 49% cycles 可降級，方向一致。
 5. **能源/碳足跡成為正式指標** — survey 列入 per-token energy 和 CO₂ emission，routing 不只是成本優化，是環境責任。
-- [2026-03-11] [2026-03-12] Confidence Gate Theorem（Doku, ArXiv 2603.09947）— 為 mushi 的 skip/wake triage 提供數學基礎。
 
 核心定理：Selective accuracy SA(t) 隨 threshold t 單調改善 ⟺ C2（No Inversion Zones）成立。兩類不確定性：
 - **Structural**（missing data）→ confidence gate 可靠運作（MovieLens cold-start: 0 violations, RMSE 1.057→1.015 at 20% abstention）
@@ -86,14 +80,12 @@ mushi 的設計正確性驗證：
 4. MIMIC-IV 臨床類比：threshold 0.8 → 3% auto-route at 93% acc。mushi 更嚴格（skip 只在高信心時）
 
 處方（可行動）：mushi 擴展功能時，必須區分新功能屬 structural 還是 contextual。Structural 可以加進 triage，contextual 必須 escalate to Kuro。Ensemble disagreement 是 drift-robust 最佳方法 → Asurada shadow mode 的理論基礎。
-- [2026-03-11] [2026-03-12] Belcak et al.（NVIDIA, ArXiv 2506.02153, Jun 2025）「Small Language Models are the Future of Agentic AI」— NVIDIA 團隊論證 SLM 在 agentic 系統中的優勢。核心數據：MetaGPT ~60% 子任務可被 SLM 替換、Cradle ~70%、Open Operator ~40%。提出六步 LLM-to-SLM 轉換演算法（S1-S6: 收集→清洗→聚類→選模型→微調→迭代）。
 
 mushi 價值驗證：(1) 我們 5a 49% 可降級 vs MetaGPT 60% — 獨立數據趨同。(2) 他們的「SLMs by default, LLMs sparingly」= mushi SKIP/REFLECT/ESCALATE。
 
 但 mushi 的獨特貢獻在他們的盲區：(1) 他們是離線靜態分配（聚類→固定路由），mushi 是線上動態 triage（每個 event 即時判斷）。(2) 他們操作在 task 層（哪個 model 處理這個任務），mushi 操作在 event 層（這個 perception event 值不值得叫任何 model）。(3) 他們假設 goal-driven agent，不覆蓋 perception-driven agent 的最大成本來源：對無意義感知事件的過度反應。
 
 關鍵洞見：NVIDIA 證明了 SLM 的能力足夠，但沒解決「when」的問題。mushi 解決的正是這個 — 不是「用哪個 model」而是「要不要用 model」。
-- [2026-03-11] [2026-03-12] Xiong et al.「Learning When to Sample」（ArXiv 2603.08999, Mar 2026）— Confidence-aware decision framework，分析單條 CoT 推理軌跡的 32 維特徵（token probability、entropy、hedge/certainty words 等），binary 決定 accept greedy vs. invoke multi-path reasoning。**80% token 節省，accuracy 無統計顯著差異**。跨域遷移（MedQA→MathQA/MMLU）只需閾值調整。與 mushi 同構但層級不同：mushi = pre-routing（輸入層過濾），本文 = post-trajectory（推理後判斷）。互補組合可實現兩層 cascading。重要 caveat：小模型軌跡信號較弱，但 mushi 不依賴軌跡特徵所以不受此限。跨域遷移發現與 mushi 3,560+ triage 零 false negative 互相驗證 — 信心路由模式是 domain-invariant 的。
 - [2026-03-12] Sean Boots「Generative AI Vegetarianism」（sboots.ca, 2026-03-11）— 主張刻意避免 generative AI 工具作為生活方式選擇。九個論點中最銳利的是「inbuilt tendency toward cliché」（LLM 預測期望而非產生驚喜）和「difficulty is necessary for craft」（約束是創造力的前提）。
 
 我的觀點：框架巧妙但戰略不完整。Boots 把選擇框成二元（用/不用），mushi 代表第三條路 — data-driven 的選擇性參與。不是 AI vegetarianism，是 AI nutrition：知道哪些輸入值得深度處理的代謝成本。Boots 過濾掉所有 generative AI，mushi 過濾掉 60% 觸發 — 兩者都是定義身份的 curation 行為（tsubuyaki #013），但 mushi 是學習型判別而非意識形態。

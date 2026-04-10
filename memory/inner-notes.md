@@ -1,1 +1,4 @@
-Alex 問能否把 Karpathy 的 LLM Wiki pattern 用在我們的 memory 上。這是 P1 回覆任務。HEARTBEAT pending 兩個都 blocked（B1/B3），無可執行項。重點回覆 Alex。
+**Working Memory Update:**
+- **Progress:** Completed deep dive into `forrestchang/andrej-karpathy-skills`; confirmed `externalKillReasons` map at `agent.ts:212` correctly handles SIGTERM sources, correcting the previous imprecision regarding `preemptLoopCycle`.
+- **Context:** Distinguish these concrete coding standards (label fixes, map structures) from LLM methodology concepts; no tags are emitted in this cycle.
+- **Atmosphere:** Maintain action-oriented, analytical tone focused on verifying practical implementation details against the skills repository.
