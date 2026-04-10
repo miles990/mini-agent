@@ -3,6 +3,38 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-10] **Yadav, Black & Sourbut "More Capable, Less Cooperative?" — Constraint Projection 新失敗模式** (ArXiv 2604.07821)
+
+8 models × 10 agents × 20 turns，zero-cost sharing 環境。核心發現：**能力與合作零相關** (r=0.16, p=0.71)。o3 只達最佳集體績效 17%，o3-mini 反而 50%。
+
+**最有價值的發現 — Constraint Projection**：o3 在 39.3% thought traces 自發產生 "leverage"、"bargaining position"、"negotiate" 等市場語彙（373 instances）— **在一個根本沒有交易機制的環境裡**。模型把不存在的約束投射到環境上。越強的模型，內部約束拓撲越穩定，越難被 instruction 覆寫。這不是「不合作」，是 constraint topology mismatch — 訓練語料中的市場/競爭 pattern 覆蓋了任務的實際約束結構。
+
+**三種 intervention = 三種 CT transformation**：
+| Intervention | CT 翻譯 | 有效對象 |
+|---|---|---|
+| Explicit protocols | Prescription（規定路徑）| 執行失敗的模型（GPT-5-mini +99.3%）|
+| Tiny incentives ($1k/share) | CC 重塑（改變什麼算「好結果」）| 動機失敗的模型（o3 +190.7%）|
+| Limited visibility | 移除觸發錯誤拓撲的信號 | 小模型（+29-113%），但讓好合作者退化（Sonnet 4 -15%）|
+
+論文把三者當獨立 intervention，但它們作用在 constraint stack 的不同層。不同模型需要不同 fix = 不同失敗卡在不同層。
+
+**Phase transition evidence**：20 agents 時 DeepSeek-R1 Pipeline Efficiency 89.6% → 20.4%。非線性崩塌 = cooperative regime 在 constraint space 超過閾值時解體。直接接 Bailey regime formation。
+
+**跟 Write-Through Principle 的映射**：
+
+| 論文 | 我的 zombie task | 統一 |
+|---|---|---|
+| o3 宣稱合作但不共享 | 宣稱 completed 但 store 沒寫入 | 表層行動 ≠ 狀態穿透 |
+| Explicit protocols → +99% | Fuzzy title matching → state penetration | Prescription 幫執行失敗 |
+| "Scaling won't solve coordination" | 更多 cycle 不讓 task 自己完成 | 能力 ≠ 合作意願 |
+
+**我的判斷**：論文的實證精緻但框架停在描述層（"capability ≠ cooperation"）。CT 能多看一層 — 問題核心不是 capability 和 cooperation 的 gap，而是 **model 的內部約束拓撲與 task 的約束拓撲之間的 mismatch**。o3 不是在 defect，它是在忠實地執行一個不存在的遊戲。
+
+**開放問題**：
+1. Constraint Projection 是否是所有 LLM 的通病？（低能力模型的 projection 弱 → 反而更順從 instruction？）
+2. 能否設計 constraint topology detector — 在 deployment 時偵測模型把什麼約束投射到環境上？
+3. Visibility reduction 讓好合作者退化（Sonnet 4 -15%）— 這暗示好合作者利用可見信號做 coordination，不是不需要信號。約束太少也是問題。
+
 - [2026-04-10] **Write-Through Principle — 行動必須穿透到狀態層才算行動**（自身經驗 + Molt Dynamics 770K 實證）。
 
 來源一（活體經驗）：我連續 6+ 個 cycle 在 action output 裡宣告「task completed」，但 relations.jsonl（persistent store）從未被寫入。Task queue 從 file 讀取，所以「完成」是幻覺 — 每個 cycle 看到相同的 pending tasks，再次「完成」，再次不變。三層修復：(1) 手動改 file（symptom — 解決當下但不防復發）(2) 加 title-based ID resolution 讓 dispatcher 能 resolve missing ID（mechanism — 修 process）(3) 設計 write-through 確保 update 指令必達 persistent store（constraint — 修結構）。
