@@ -1,0 +1,92 @@
+# Hermes Agent Capability Inventory - Structured Summary
+# Generated: 2026-04-05
+
+tool_count: 60+  # excluding dynamic MCP tools
+platform_count: 17
+skill_categories_bundled: 25
+optional_skill_categories: 13
+
+tool_categories:
+  web: [web_search, web_extract]
+  terminal: [terminal, process]
+  file: [read_file, write_file, patch, search_files]
+  vision: [vision_analyze, image_generate]
+  skills: [skills_list, skill_view, skill_manage]
+  browser: [browser_navigate, browser_snapshot, browser_click, browser_type, browser_scroll, browser_back, browser_press, browser_close, browser_get_images, browser_vision, browser_console]
+  planning: [todo, memory, session_search, clarify]
+  execution: [execute_code, delegate_task, mixture_of_agents]
+  infrastructure: [cronjob, send_message]
+  smart_home: [ha_list_entities, ha_get_state, ha_list_services, ha_call_service]
+  rl_training: [rl_list_environments, rl_select_environment, rl_get_current_config, rl_edit_config, rl_start_training, rl_check_status, rl_stop_training, rl_get_results, rl_list_runs, rl_test_inference]
+  voice: [transcription, voice_mode]
+  tts: [text_to_speech]
+  mcp: dynamic
+
+key_design_decisions:
+  memory:
+    pattern: frozen_snapshot
+    rationale: preserves_anthropic_prefix_cache
+    files: [tools/memory_tool.py, agent/builtin_memory_provider.py]
+    
+  self_improvement:
+    pattern: background_review_fork
+    trigger_memory: every_10_user_turns
+    trigger_skills: every_10_tool_iterations
+    mechanism: forked_agent_with_shared_stores
+    files: [run_agent.py lines 1770-1860]
+    
+  context_compression:
+    phases: [prune_old_tool_results, determine_boundaries, generate_summary, assemble, sanitize_tool_pairs]
+    summary_pattern: iterative_updates
+    tail_protection: token_budget (not fixed count)
+    files: [agent/context_compressor.py]
+    
+  security:
+    layers: 9
+    highlights: [tirith_binary, dangerous_command_approval, injection_scanning, ssrf_protection, trust_level_policy_matrix, subagent_isolation]
+    
+  subagents:
+    max_parallel: 3
+    max_depth: 2
+    blocked_tools: [delegate_task, clarify, memory, send_message, execute_code]
+    toolset: parent_intersection
+    files: [tools/delegate_tool.py]
+    
+  skills:
+    format: SKILL.md_with_yaml_frontmatter
+    disclosure: progressive_3_tiers
+    storage: ~/.hermes/skills/
+    security: trust_level_policy_matrix
+    nudge_auto_create: background_review_fork
+    files: [tools/skills_tool.py, tools/skill_manager_tool.py, tools/skills_guard.py]
+
+gap_analysis_priority:
+  critical_missing_from_mini_agent:
+    - frozen_snapshot_memory_pattern
+    - background_review_fork_self_improvement
+    - injection_scanning_on_memory_writes
+    - tool_pair_sanitization_after_compression
+    - iterative_summary_updates
+    - skills_system_with_progressive_disclosure
+    - execute_code_ptc_sandbox
+    - platform_coverage (17 channels)
+    - tirith_security_scanner
+    
+  high_value_missing:
+    - trust_level_policy_matrix
+    - structured_compaction_summary_template
+    - smart_model_routing
+    - token_budget_tail_protection
+    - skill_hub_marketplace
+    - ssrf_protection_with_cgnat
+    
+  likely_present:
+    - basic_memory_tool
+    - web_search_extract
+    - terminal_tool
+    - file_tools
+    - browser_automation
+    - basic_context_compression
+    - delegation_subagents
+    - anthropic_prefix_caching
+    - session_persistence
