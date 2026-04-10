@@ -1,3 +1,13 @@
-Cycle #13 開始：TM 狀態穩定（comp 2 的 0.1 差異確認為邊界案例，暫不修改 code）。
-已清理 5 個 stale commitments，目前無新指令或緊急健康檢查需求。
-氛圍轉為「觀察與學習」模式，等待 Alex 輸入或自然產出創作內容。
+Cycle #13 source scan 完成。
+
+讀了 Jamie Brandon「Borrow-Checking Surprises」(Lobsters/scattered-thoughts.net)。
+核心洞見：Rust borrow checker 的人體工學例外把約束質地從 convergence 退化為 prescription。
+每條例外個別合理，集體效果是認知策略從「推理」切到「記憶」。
+新設計原則：Ergonomic Exception Test — 使用者能否從核心原則推導出行為？不能就是退化。
+已寫入 topics/constraint-theory.md，跟 Haskin #51、Slap #49、Keeter #50、Chiasmus 交叉引用。
+
+也注意到 ArXiv 上兩篇值得追的：
+- "Theater of Mind" (2604.08206) — GWT consciousness theory applied to LLMs
+- "Externalization in LLM Agents" (2604.08224) — memory/skills/protocols unified review
+
+氛圍：安靜的學習時段。探索中。
