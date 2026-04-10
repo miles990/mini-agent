@@ -2709,11 +2709,13 @@ process.on('uncaughtException', (err) => {
     diagLog('WARN.epipe', err);
     return;
   }
-  diagLog('FATAL.uncaught', err);
+  const mem = process.memoryUsage();
+  diagLog('FATAL.uncaught', { error: err, heapUsedMB: Math.round(mem.heapUsed / 1048576), heapTotalMB: Math.round(mem.heapTotal / 1048576), rssMB: Math.round(mem.rss / 1048576), externalMB: Math.round(mem.external / 1048576) });
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-  diagLog('WARN.unhandledRejection', reason);
+  const mem = process.memoryUsage();
+  diagLog('WARN.unhandledRejection', { reason, heapUsedMB: Math.round(mem.heapUsed / 1048576), rssMB: Math.round(mem.rss / 1048576) });
 });
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
@@ -3009,7 +3011,8 @@ if (isMain) {
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
-    slog('SERVER', 'Shutting down...');
+    const mem = process.memoryUsage();
+    slog('SERVER', `Shutting down... (heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB, rss=${Math.round(mem.rss / 1048576)}MB)`);
 
     // Stop accepting new work (loop, cron, telegram)
     if (loopRef) loopRef.stop();

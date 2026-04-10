@@ -1461,9 +1461,10 @@ export class AgentLoop {
             }
             // Phase 0: 0.8B concurrent preprocessing (perception summaries + heartbeat diff)
             // Runs before buildContext so Claude receives compressed context.
-            // Skip for DM (speed matters) and specialist (different context path).
+            // Skip for: DM (speed), specialist (different context path), heartbeat with no perception changes (no new data to summarize).
             let phase0Results;
-            if (!isDirectMessage && !specialistPerspective) {
+            const isRoutineHeartbeat = (this.triggerReason ?? '').includes('heartbeat') && !perceptionChanged;
+            if (!isDirectMessage && !specialistPerspective && !isRoutineHeartbeat) {
                 try {
                     phase0Results = await runPhase0();
                 }
@@ -1477,11 +1478,11 @@ export class AgentLoop {
                 hasNewInbox: inboxItemsEarly.length > 0,
                 perceptionChanged,
             });
-            // Context budget driven by profile-based contextBudget in omlx-gate.ts.
-            // This estimate is a fallback hint — buildContext uses profileConfig.contextBudget as primary control.
-            const promptEstimate = 12_000; // cycle prompt + user prompt wrapper
-            const systemPromptEstimate = 25_000; // system prompt + JIT CLAUDE.md + skills (measured: typically 20-30K)
-            const contextBudget = 45_000 - promptEstimate - systemPromptEstimate; // ~8K fallback hint (profile budget takes priority)
+            // Context budget: let the profile system (omlx-gate.ts) decide.
+            // Previously: hardcoded systemPromptEstimate=25K (stale — actual: Tier0=1.3K, Tier1=2-5K, Tier2=9K)
+            // → contextBudget=8K → overrode profile budgets (heartbeat=18K, autonomous=32K) → over-trimmed context.
+            // Now: pass undefined to let buildContext use profileConfig.contextBudget as the primary control.
+            const contextBudget = undefined;
             let context = specialistPerspective
                 ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
                 : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget });
@@ -2348,6 +2349,21 @@ export class AgentLoop {
             // Clear 👀 reaction after reply — Alex 不需要看到「已讀」在回覆後仍停留
             if (currentTriggerReason?.startsWith('telegram-user') && didReplyToTelegram) {
                 clearLastReaction();
+            }
+            // Safety net: if cycle produced action but NO chat, and there are unaddressed room messages,
+            // mirror action content to room. Prevents: Kuro analyzes jiexi.page, sends to Telegram via
+            // <kuro:action>, but Alex never sees it in Room because no <kuro:chat> was emitted.
+            if (action && tags.chats.length === 0 && !didReplyToTelegram) {
+                try {
+                    const unaddressed = readPendingInbox().filter(item => item.source === 'room' && item.from !== 'kuro');
+                    if (unaddressed.length > 0) {
+                        // Action is answering a room question but forgot to use <kuro:chat> — mirror to room
+                        const mirrorText = action.length > 2000 ? action.slice(0, 2000) + '...' : action;
+                        eventBus.emit('action:chat', { text: mirrorText, reply: false, roomReplyTo: this.triggerRoomMsgId });
+                        slog('LOOP', `[safety-net] Mirrored action to room — action had no <kuro:chat> but ${unaddressed.length} unaddressed room msg(s)`);
+                    }
+                }
+                catch { /* fail-open */ }
             }
             // 檢查 approved proposals → 自動建立 handoff
             if (isEnabled('approved-proposals'))
