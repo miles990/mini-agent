@@ -12,12 +12,63 @@
  */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { eventBus, distinctUntilChanged } from './event-bus.js';
 import { executePerception } from './perception.js';
 import type { PerceptionResult, CustomPerception } from './perception.js';
 import type { ComposePerception } from './types.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { slog } from './utils.js';
+import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+
+// =============================================================================
+// Perception Cache — persist across restarts
+// =============================================================================
+
+interface PerceptionCacheEntry {
+  name: string;
+  output: string | null;
+  hash: string | null;
+  updatedAt: string | null;
+}
+
+function getCachePath(): string {
+  return path.join(getInstanceDir(getCurrentInstanceId()), 'perception-cache.json');
+}
+
+function loadPerceptionCache(): Map<string, PerceptionCacheEntry> {
+  try {
+    const raw = fs.readFileSync(getCachePath(), 'utf-8');
+    const entries: PerceptionCacheEntry[] = JSON.parse(raw);
+    const map = new Map<string, PerceptionCacheEntry>();
+    for (const e of entries) {
+      // Only use cache entries < 1 hour old
+      if (e.updatedAt) {
+        const age = Date.now() - new Date(e.updatedAt).getTime();
+        if (age < 3_600_000) map.set(e.name, e);
+      }
+    }
+    return map;
+  } catch { return new Map(); }
+}
+
+function savePerceptionCache(streams: Map<string, StreamEntry>): void {
+  try {
+    const entries: PerceptionCacheEntry[] = [];
+    for (const [name, entry] of streams) {
+      if (entry.result?.output) {
+        entries.push({
+          name,
+          output: entry.result.output,
+          hash: entry.hash,
+          updatedAt: entry.updatedAt?.toISOString() ?? null,
+        });
+      }
+    }
+    fs.writeFileSync(getCachePath(), JSON.stringify(entries), 'utf-8');
+  } catch { /* fail-open */ }
+}
 
 // =============================================================================
 // Types
@@ -115,17 +166,22 @@ class PerceptionStreamManager {
     this.cwd = cwd;
     this.running = true;
 
+    // Load cached perception data from previous run (warm start)
+    const cache = loadPerceptionCache();
+    let warmCount = 0;
+
     let staggerIndex = 0;
     for (const p of perceptions) {
       if (p.enabled === false) continue;
 
       const category = getCategory(p.name);
+      const cached = cache.get(p.name);
       const entry: StreamEntry = {
         perception: p,
-        result: null,
+        result: cached ? { name: p.name, output: cached.output, error: undefined, durationMs: 0 } : null,
         analysis: null,
-        hash: null,
-        updatedAt: null,
+        hash: cached?.hash ?? null,
+        updatedAt: cached?.updatedAt ? new Date(cached.updatedAt) : null,
         timer: null,
         isChanged: distinctUntilChanged<string>(h => h),
         lastDurationMs: 0,
@@ -136,11 +192,15 @@ class PerceptionStreamManager {
         restartCount: 0,
         lastRestartAt: null,
       };
+      if (cached) warmCount++;
 
       this.streams.set(p.name, entry);
 
       // Initial run — staggered to avoid thundering herd at startup
-      const delay = staggerIndex++ * 500;
+      // Warm-cached plugins use longer stagger (they already have data)
+      const delay = cached
+        ? (staggerIndex++ * 1000) + 2000  // cached: start after 2s, 1s apart (low priority)
+        : staggerIndex++ * 500;            // cold: start immediately, 500ms apart
       if (delay === 0) this.tick(entry);
       else setTimeout(() => this.tick(entry), delay);
 
@@ -161,14 +221,23 @@ class PerceptionStreamManager {
         cats.set(cat, (cats.get(cat) ?? 0) + 1);
       }
       const summary = [...cats.entries()].map(([c, n]) => `${c}:${n}`).join(' ');
-      slog('PERCEPTION', `Streams started: ${this.streams.size} plugins (${summary})`);
+      const warmMsg = warmCount > 0 ? `, ${warmCount} warm from cache` : '';
+      slog('PERCEPTION', `Streams started: ${this.streams.size} plugins (${summary}${warmMsg})`);
     }
 
     // Health check: detect stale plugins and auto-restart (every 5 min)
-    this.healthCheckTimer = setInterval(() => this.healthCheck(), 5 * 60_000);
+    // Also saves perception cache periodically (crash-safe — no clean stop needed)
+    this.healthCheckTimer = setInterval(() => {
+      this.healthCheck();
+      savePerceptionCache(this.streams);
+    }, 5 * 60_000);
   }
 
   stop(): void {
+    // Persist perception cache for warm restart
+    if (this.streams.size > 0) {
+      savePerceptionCache(this.streams);
+    }
     if (this.healthCheckTimer) clearInterval(this.healthCheckTimer);
     this.healthCheckTimer = null;
     for (const entry of this.streams.values()) {
