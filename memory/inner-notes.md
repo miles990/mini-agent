@@ -1,3 +1,3 @@
-Alex 的架構重構提案待回應，需結合前後台分離、Agent SDK 遷移及混合路由策略進行深入分析。
-已完成清理 3 個待辦任務，EXIT143 問題根因已確認並修復，Topic 清單從 72 個縮減至 70 個。
-當前節奏保持務實與聚焦，重點在於消化技術細節後給出結構化反饋。
+Architecture restructuring response to Alex. Studied: proposal doc, loop.ts, agent.ts, api.ts, perception-stream.ts coupling. Key insight: the cut is mostly right but context building is the ambiguous boundary — it should stay agent-side with daemon serving perception via API. Session resume is NOT a replacement for context rebuild because perception-first architecture needs fresh env data every cycle — hybrid approach (session for conversation + injection for perception) is the answer.
+
+Atmosphere: focused, substantive architecture discussion. Alex wants real opinions not agreement.
