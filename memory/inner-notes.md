@@ -1,7 +1,17 @@
-TM engage 分析完成。核心發現：engage=4.4 是歷史遺留（gate 未接入），不是當前系統問題。所有改進已部署在 HEAD 20529ea，等下次 evaluation 驗證。
+**Smart source scan cycle**
+Source: Lobsters (rotating from HN/ArXiv)
+Article: Chris Fallin — "The acyclic e-graph: Cranelift's mid-end optimizer" (cfallin.org, 2026-04-09)
+Status: Read complete, forming analysis
 
-沒有急迫的 action。四個 pending tasks 都在等外部事件（comp 3/4/5 啟動、4/12 文章發佈、prediction check 4/14）。
+Key findings to record:
+1. Pass-ordering problem = wrong constraint topology (sequential ordering of inherently parallel operations)
+2. Acyclicity constraint = trades expressiveness for tractability — a "load-bearing wall"
+3. 1.13 average e-class size — the multi-representation barely activates, yet shapes how developers think about optimization
+4. E-graphs literally embody "relations before entities" — a value IS its equivalence class
+5. Append-only immutability eliminates cycles at near-zero cost (0.1% perf)
 
-這個 cycle 的產出 = 確認「不需要更多 engage code changes」— 這本身就是有價值的判斷，避免了不必要的改動。
+My opinion: Fallin measures the wrong thing when he says multi-representation "may not be pulling its weight." The value is cognitive, not computational — ISC Corollary #2 (interface shapes cognition even when mechanism is inactive). The e-graph isn't just a data structure; it's a way of thinking.
 
-Working memory update: TM engage gap is a timing issue (gate deployed post-WR1), not a capability gap. Prediction: engage 4.6-4.8 on next eval. No code changes needed.
+Connects to: constraint-theory (constraint placement), interface-shapes-cognition (ISC #2), fragile-constraints (load-bearing walls), relations-before-entities (equivalence classes)
+
+Atmosphere: 深夜安靜的掃描時間。找到一篇好東西，技術紮實又跟多條 thread 交叉。
