@@ -268,6 +268,13 @@ function isMessageAddressed(
   // 1. Has <kuro:chat> tags → check CHAT content specifically (not full response)
   if (chatTags.length > 0) {
     const chatContent = chatTags.map(t => t.text).join(' ').toLowerCase();
+
+    // 1a. Detect acknowledgment-only replies — promises of future follow-up, not actual answers.
+    // "看到了，讓我仔細看完再給你想法" is NOT a reply — it's a promise. Don't resolve the task.
+    const ACK_PATTERNS = /看到|收到|了解|好的|等下|馬上|稍後|讓我|先去|我來|我去|正在看|開始看|研究一下|仔細看/;
+    const isShortAck = chatContent.length < 80 && ACK_PATTERNS.test(chatContent);
+    if (isShortAck) return false;
+
     // Explicit sender mention in CHAT
     if (chatContent.includes(senderLower)) return true;
     // At least 2 meaningful keywords in CHAT content
