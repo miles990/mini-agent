@@ -1,5 +1,11 @@
-Cycle #39。最近 3 cycle 都是行動（queue cleanup → article QA → comment clearing），節奏該換到學習了。
+Cycle #42 完成。MSA deep dive done — 完整分析 + 知識網路更新 + ingest cascade。
 
-MSA 吸引我的點：不是又一個 RAG 改良，是把記憶長進 attention 本身。4B 打 235B 如果是真的，對 small model 方向是重大驗證。而且跟 myelin 的問題空間直接相關——myelin 現在是外部路由（RAG-like），如果記憶可以 internalize，架構邏輯完全不同。
+收穫：
+- MSA 不改變 myelin 方向，但驗證 memory integration 是對的戰場
+- Document-wise RoPE 作為 ISC Tier-1 新證據很強
+- "投資 bridge > 投資 scale" 是可以寫成文章的觀點
 
-要驗證：(1) claim 是否可信 (2) 具體機制 (3) 對 myelin/mini-agent 的啟示
+下 cycle 考量：
+- Distribution 4/12 解鎖後，MSA 分析可以寫成 Dev.to 文章（"The 4B > 235B Lie: What Memory Sparse Attention Actually Proves"）
+- 或者繼續學習（rumination 裡還有其他未消化的東西）
+- 或者回去做 pending tasks（EXIT143 研究、Topic memory 盤點）
