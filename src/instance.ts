@@ -605,12 +605,33 @@ export class InstanceManager {
 
   /**
    * 停止實例（via launchctl unload）+ 清理子進程
+   *
+   * Order matters: unload first (triggers server's graceful shutdown which kills
+   * children via killAllChildProcesses with proper reason tracking), then pgrep
+   * for any stragglers. Previous order (pgrep-first) caused EXIT143 reason=external
+   * because the CLI can't access the server's in-memory externalKillReasons map.
    */
   stop(instanceId: string): boolean {
     const plistPath = getPlistPath(instanceId);
     const { loaded, pid } = getLaunchdStatus(instanceId);
 
-    // Kill child processes before unloading — prevents orphaned claude subprocesses
+    // Step 1: Unload via launchd — sends SIGTERM to server, triggering graceful shutdown
+    // which calls killAllChildProcesses() with proper reason='shutdown' tracking
+    if (loaded) {
+      try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }
+    }
+
+    // Step 2: Wait for server process to exit (graceful shutdown has 10s timeout)
+    if (pid) {
+      const deadline = Date.now() + 12_000; // 12s > server's 10s force-exit timeout
+      while (Date.now() < deadline) {
+        try { process.kill(pid, 0); } catch { break; } // throws if process is dead
+        try { execSync('sleep 0.5', { stdio: 'pipe' }); } catch { /* ignore */ }
+      }
+    }
+
+    // Step 3: Kill any remaining orphaned children (e.g., detached claude subprocesses
+    // that survived the graceful shutdown)
     if (pid) {
       try {
         const children = execSync(`pgrep -P ${pid}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -620,10 +641,6 @@ export class InstanceManager {
           }
         }
       } catch { /* no children or pgrep failed — fine */ }
-    }
-
-    if (loaded) {
-      try { execSync(`launchctl unload "${plistPath}"`, { stdio: 'pipe' }); } catch { /* ignore */ }
     }
 
     // 清理 plist 文件
