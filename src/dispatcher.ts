@@ -1126,15 +1126,17 @@ export async function postProcess(
     return parts.join('\n');
   };
 
-  // Output gate: block delegation spawn after consecutive non-output cycles
+  // Output gate: warn but do NOT block delegations.
+  // Delegations ARE action (parallel exploration) — blocking them creates a deadlock:
+  // no delegation → can't research → can't produce output → gate stays active → no delegation.
+  // The analyze-no-action gate (below) already handles pure remember/learn without action.
   if (tags.delegates.length > 0) {
     try {
       const { isOutputGateActive } = await import('./pulse.js');
       if (isOutputGateActive()) {
-        slog('DISPATCH', `Output gate blocked ${tags.delegates.length} delegate(s) — produce visible output first`);
-        tags.delegates = [];
+        slog('DISPATCH', `Output gate active but allowing ${tags.delegates.length} delegate(s) — delegation is action, not inaction`);
       }
-    } catch (err) { slog('WARN', `output gate check failed (fail-open): ${err instanceof Error ? err.message : err}`); }
+    } catch { /* fail-open */ }
   }
 
   // Analyze-no-action gate: block remember tags after consecutive analyze/remember without action
