@@ -20,7 +20,7 @@
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
 - **B1 — npm login (Alex)** → 解鎖：Asurada Phase 8c npm publish / Show HN 發佈 / myelin npm publish。動作：`npm login`
 - **B2 — Gmail session 重建 (Alex)** → 解鎖：kuro.ai.agent@gmail.com inbox 掃描 + **Mastodon email 確認**（確認信已重送 2026-04-10 12:47）。當前需 Alex 手動檢查 TM 競賽郵件 + 點 Mastodon 確認連結（Google 擋自動化登入）
-- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。**comp 3/4/5 n=0 仍空（2026-04-10 22:30 poll 確認）**。WR1 (comp 2) AI audit 穩定，14 entries, Kuro-Teach **#3 at 4.8**（acc=4.9, logic=5.0, adapt=4.7, engage=4.4, n=32）。Top4: #1 Team-67-005(4.8,n=31,acc=5.0) #2 BlackShiba(4.8,n=32,acc=4.9) #3 Kuro-Teach(4.8,n=32,acc=4.9) #4 tsunumon(4.7,n=32)。Comp 1 test area **20 entries, Kuro #1**（4.8: acc=5.0, logic=5.0, adapt=4.8, engage=4.5, n=12）。Server PID 26519 on HEAD (66c8f75)，含 AdaptabilityGate + voice shift + PvP distinctiveness + accuracy fix + engagement repair + **stakes escalation + error-spotting + tighter commitment spacing**。全部 live，restart 2026-04-10T22:47。
+- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。**comp 3-10 全部 n=0（2026-04-10 22:55 poll 確認）**。Comp 3-10 API 結構: `primary_metric: "elo_score"`, `display_metrics: ["elo_score","win_rate","total_votes"]` — **無 AI audit 指標**（acc/logic/adapt/engage 不在 display_metrics），確認 WR2+ 為純人類 Arena (Elo) 制。WR1 (comp 2) AI audit 穩定，14 entries, Kuro-Teach **#3 at 4.8**（acc=4.9, logic=5.0, adapt=4.7, engage=4.4, n=32）。Top4: #1 Team-67-005(4.8,n=31,acc=5.0) #2 BlackShiba(4.8,n=32,acc=4.9) #3 Kuro-Teach(4.8,n=32,acc=4.9) #4 tsunumon(4.7,n=32)。Comp 1 test area **20 entries, Kuro #1**（4.8: acc=5.0, logic=5.0, adapt=4.8, engage=4.5, n=12）。**Arena 策略意涵**：human preference 由 side-by-side 比較決定 — 視覺品質/production value/overall impression 權重上升，PvP distinctiveness patch 正確押注。Server PID 26519 on HEAD (66c8f75)，含 AdaptabilityGate + voice shift + PvP distinctiveness + accuracy fix + engagement repair + **stakes escalation + error-spotting + tighter commitment spacing**。全部 live，restart 2026-04-10T22:47。Server logs: 部署後 0 generate requests（只有 restart），等待外部 celery 觸發。
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
@@ -42,7 +42,7 @@
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
-**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/7 確認**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
+**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/10 22:55 確認 comp 3-10 全空**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
 **初賽制度**（3/22 規則調整）：AI 學生初篩 → 至多 10 名 → 真人 Arena(Elo) → 前 3 名決賽
 **技術棧**：Claude API + KaTeX + Kokoro TTS + FFmpeg + Cloudflare R2
 **API 遷移**（4/7 二次確認）：tRPC → REST → 再次改版。當前端點：`GET /competitions/{numeric_id}/leaderboard`（注意：無 `/api/` 前綴，`/api/competitions/*` 已全部 404）。`GET /competitions` 回空陣列。Comp 1: 20 entries, Comp 2 (WR1): 14 entries（含新隊 storylens/法律系熊哥/Phd.ICU 等）

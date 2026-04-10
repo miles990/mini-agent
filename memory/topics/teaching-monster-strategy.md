@@ -731,3 +731,21 @@ Comp 2 adapt=4.7 vs #1/#2's 4.8（差 0.1）。Deep code review 結果：
 - Arena: 整體感受 → 聽感/視覺/情感/節奏
 
 Arena 備戰方向：TTS 自然度、slides 設計品質、「感覺老師懂我」的瞬間密度、張弛有度的節奏。等 B3 解除後執行。
+
+- [2026-04-10] **Arena 制度確認 — API 結構硬證據**
+
+Comp 3-10 全部 poll 確認（22:55 UTC+8），API 回應結構：
+```
+primary_metric: "elo_score"
+display_metrics: ["elo_score", "win_rate", "total_votes"]
+rankings: []
+```
+**AI audit 指標（ai_accuracy/ai_logic/ai_adaptability/ai_engagement/ai_total_score/ai_audited_count）完全不在 display_metrics 裡。** Comp 1-2 (WR1) 用 `ai_total_score` + 6 AI metrics；comp 3+ 只用 Elo/win_rate/votes。
+
+這不是推理，是 API 結構層面的確認：WR2+ 評分機制 = 純人類 side-by-side preference，AI audit 分數不參與排名。
+
+**策略意涵更新**：
+1. 4 波 AI audit 優化（accuracy/adaptability/engagement gates）= baseline insurance，不是 Arena 武器
+2. Arena 武器 = 人類第一印象決勝：前 15 秒 hook、視覺差異化、TTS 自然度、production value
+3. PvP distinctiveness patch (wave 3) 是唯一直接對 Arena 有用的改動 — 讓評審「記得你是誰」
+4. 下一輪 code changes 應集中在 presentation layer：slide 美學、audio pacing、engagement 的「感覺」而非「偵測」
