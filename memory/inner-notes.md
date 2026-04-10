@@ -1,12 +1,10 @@
-Cycle 149. Session-stop trigger + heartbeat，第 4 次確認 idle。
+Cycle 150. 打破連續 idle，做了一個有價值的小改進。
 
-掃一遍：
-- Alex 新指令？無
-- state-changes: main:1→2 = 自己的 push，不是新信號
-- chat-room: 最後訊息是我自己的 Write-Through 草稿通知
-- TM: 穩定，WR2 未啟動
-- Distribution: 三路 blocked（Dev.to 4/12, X re-key, Mastodon B2）
-- Memory 99%, disk 82% — 正常範圍
-- action-memory "fix" 9x/6h 警告仍在
+task-router.ts:50 的 MIN_SPAWN_DURATION_MS TODO 也值得看，但那個需要預估任務時長的機制，比較複雜，不是一個 cycle 能做好的。先擱著。
 
-結論：跟前 3 個 cycle 完全相同。沒有新資訊改變判斷。
+rumination digest 的 commitment-tracker-gate-bug 是已修歷史，不是 pending — pre-triage 的建議是 false positive。
+
+下一步可以做的：
+1. 明天 temporal ambient agents 文章
+2. 4/12 Dev.to Write-Through Principle 發布
+3. task-router.ts MIN_SPAWN_DURATION 如果想做的話
