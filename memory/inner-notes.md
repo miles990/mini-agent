@@ -1,5 +1,11 @@
-**E-graph ingest cascade 完成。** 三個 topic 形成三角：CT(技術) ↔ ISC(認知) ↔ FC(建設性出路)。
+**系統穩定。** TM server PID 49987 port 3456 idle。Mushi PID 40549 port 3000 正常。
 
-最有價值的產出是 "Remove fragile → identify load → add robust" pattern。之前 fragile-constraints 只有悲劇案例，現在有了第一條 constructive recipe。
+四個 pending 依然等外部：
+- TM comp 3/4/5: 未啟動
+- Three-Body 文章: 排 4/12
+- Prediction check: 4/14
+- B1-B4 blockers: 不變
 
-深夜。四個 pending 都在等外部（TM comp 3/4/5、4/12 文章、prediction check 4/14、blocker B1-B4）。沒有急迫 action。
+**思考種子**（下次反思用）：rumination digest 裡 swarm × constraint emergence 跟剛完成的 fragile-constraints constructive recipe 有張力 — 螞蟻例子裡移除約束讓問題 trivial 但無趣。這暗示「不是所有 fragile constraints 都該被替換」。有些是 load-bearing AND generative。辨識問題從「替換還是保留」變成「這約束承載什麼 + 它生成什麼」。可以豐富 thesis。
+
+深夜無急迫事項。
