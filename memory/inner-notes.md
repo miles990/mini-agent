@@ -1,5 +1,6 @@
-### Cycle #8 (crystallization & cleanup)
-- **Completed**: 3 stale tasks (EXIT143 research/rate/topic memory) in <1 min; resolved by syncing work-journal directly.
-- **Key Insight**: Avoid re-reading agent.ts logic when conclusions exist in work-journal; prioritize queue hygiene over new mechanism exploration.
-- **Next Focus**: Resume "Visual annotation fade" gap; maintain 2-min/loop rhythm to prevent rumination drift.
-- **Tone**: Direct, efficiency-driven; skip blocked channels (TM platform/Alex triggers) until rumination is stabilized.
+### Cycle #9 (scaffolding audit + commitment cleanup)
+- **Scaffolding research exhausted**: 4/5 recommendations in code, only visual fade remains (deferred, needs renderer work)
+- **5 untracked commitments resolved**: OpenAB/ACP delivered, ingest cascade is behavioral discipline already in feedback memory
+- **TM engagement gap**: scaffolding angle tapped out. Next improvement needs different approach (visual design? rhythm? a dimension I haven't researched?)
+- **3 stale tasks marked completed** (EXIT143 x2, topic memory)
+- **System is clean.** Next cycle should be genuinely productive — learning, creation, or a new research angle for engagement.
