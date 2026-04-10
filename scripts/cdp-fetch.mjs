@@ -614,7 +614,7 @@ async function cmdFetch(url, flags = {}) {
   }
 }
 
-async function cmdScreenshot(url, outputPath) {
+async function cmdScreenshot(url, outputPath, flags = {}) {
   await ensureChrome();
   logCdpOp('screenshot', { url, output: outputPath });
 
@@ -635,11 +635,14 @@ async function cmdScreenshot(url, outputPath) {
     const loadPromise = waitForEvent(ws, 'Page.loadEventFired', TIMEOUT);
     await cdpCommand(ws, 'Page.navigate', { url });
     await loadPromise;
-    await new Promise(r => setTimeout(r, 2000));
+    const waitMs = flags.wait ? parseInt(flags.wait) : 2000;
+    await new Promise(r => setTimeout(r, waitMs));
 
     // Set viewport
+    const vpWidth = flags.width ? parseInt(flags.width) : 1280;
+    const vpHeight = flags.height ? parseInt(flags.height) : 960;
     await cdpCommand(ws, 'Emulation.setDeviceMetricsOverride', {
-      width: 1280, height: 960, deviceScaleFactor: 2, mobile: false,
+      width: vpWidth, height: vpHeight, deviceScaleFactor: 2, mobile: false,
     });
     await new Promise(r => setTimeout(r, 500));
 
@@ -1331,14 +1334,15 @@ const [cmd, ...args] = process.argv.slice(2);
 // Parse flags
 const flags = {};
 const positional = [];
-const flagsWithValue = new Set(['--offset', '--interval', '--until']);
+const flagsWithValue = new Set(['--offset', '--interval', '--until', '--width', '--height', '--wait', '--timeout', '--delay']);
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg === '--full') flags.full = true;
   else if (arg === '--compact') flags.compact = true;
   else if (arg === '--json') flags.json = true;
   else if (flagsWithValue.has(arg) && i + 1 < args.length) { flags[arg.slice(2)] = args[++i]; }
-  else if (arg.match(/^--(offset|interval|until)=(.+)$/)) { const m = arg.match(/^--(\w+)=(.+)$/); flags[m[1]] = m[2]; }
+  else if (arg.match(/^--(offset|interval|until|width|height|wait|timeout|delay)=(.+)$/)) { const m = arg.match(/^--(\w+)=(.+)$/); flags[m[1]] = m[2]; }
+  else if (arg.startsWith('--')) { /* ignore unknown flags to prevent them becoming output filenames */ }
   else positional.push(arg);
 }
 if (flags.offset) flags.offset = parseInt(flags.offset);
@@ -1355,7 +1359,7 @@ try {
       break;
     case 'screenshot':
       if (!positional[0]) { console.error('Usage: cdp-fetch.mjs screenshot <url> [output.png]'); process.exit(1); }
-      await cmdScreenshot(positional[0], positional[1]);
+      await cmdScreenshot(positional[0], positional[1], flags);
       break;
     case 'open':
       if (!positional[0]) { console.error('Usage: cdp-fetch.mjs open <url>'); process.exit(1); }
