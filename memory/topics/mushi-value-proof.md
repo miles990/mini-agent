@@ -1,5 +1,5 @@
 ---
-related: [mushi, social-media, discussion-prep-0305, research-watchlist, omlx-9b-decision]
+related: [mushi, social-media]
 ---
 # mushi-value-proof
 

@@ -1,5 +1,5 @@
 ---
-related: [design-philosophy, social-culture]
+related: [design-philosophy]
 ---
 # creative-arts
 

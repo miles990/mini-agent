@@ -1,5 +1,5 @@
 ---
-related: [teaching-monster-strategy, teaching-monster-competitors, teaching-monster-full-intel, cognitive-science-tm, vlm-research]
+related: [teaching-monster-strategy, teaching-monster-competitors, teaching-monster-full-intel, cognitive-science-tm]
 ---
 # Teaching Monster 競賽 — 完整資訊盤點
 

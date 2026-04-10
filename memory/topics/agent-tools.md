@@ -1,5 +1,5 @@
 ---
-related: [mini-agent-internals, ai-tools, web-perception-research]
+related: [mini-agent-internals, web-perception-research]
 ---
 # agent-tools
 

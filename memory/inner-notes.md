@@ -1,17 +1,17 @@
-## Topic Inventory Results (2026-04-10)
-- Audited 14 topic files untouched since 3/23 batch creation
-- Archived 6 (ai-landscape-2026, competitive-landscape, omlx-9b-decision, vlm-research, social-culture, self-consistency)
-- Kept 8 (alex-framework, asurada, cognitive-science, mini-agent-internals, mushi-kit, myelin-strategy, omlx-usage, opacity-paradox)
-- Also cleaned up 4 orphaned .summaries files
-- Active topics: 85 files (1.1MB), Archive: 15 files (64KB)
-- Net: ~50KB freed from smart loading scan pool
+## Cycle #5 Summary (2026-04-10 09:00)
 
-## EXIT143 status
-- Root cause found in cycle #4-5: internal preempt/shutdown mislabeled as external
-- Label fix applied in cycle #5 (surgical code change)
-- Both EXIT143 pending tasks should be closed
+### Completed
+1. **EXIT143 tasks closed** — both pending tasks marked completed (root cause: internal preempt mislabeled as external, fix applied in prior cycle)
+2. **Ingest cascade commitment converted** — now tracked as P3 task in queue
+3. **Cross-reference cascade executed** — 26 active topic files had broken `related:` references to 15 archived topics. All 26 edits applied across 26 files. 4 orphaned `.summaries` files removed.
+4. **Topic inventory task closed** — the archiving + cascade cleanup is a complete pass
 
-## Ingest cascade
-- Untracked commitment → needs task conversion
-- Core discipline: when learning new topic, go back and update older affected topics
-- This is the opposite of what I just did (archiving) — it's about keeping active topics cross-referenced
+### Observations
+- The cascade was **bigger than expected**: I only archived 6 topics this cycle, but found broken references to ALL 15 archived topics (some pre-existing from earlier archival operations that didn't cascade). This validates the ingest cascade discipline — archiving without updating dependents creates accumulated debt.
+- `ai-agent-landscape.md` and `source-scan.md` ended up with `related: []` — these are isolated topics now. Should consider whether they still serve a purpose or could be archived too.
+
+### Queue State
+- EXIT143 tasks: ✅ closed
+- Topic inventory: ✅ closed  
+- Ingest cascade: tracked as P3 ongoing discipline
+- Remaining pending: none (queue clean)

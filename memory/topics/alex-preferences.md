@@ -1,5 +1,5 @@
 ---
-related: [feedback, workflow, alex-framework, defi-automation]
+related: [feedback, alex-framework, defi-automation]
 ---
 # alex-preferences
 

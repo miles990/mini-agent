@@ -1,6 +1,6 @@
 ---
 keywords: [alexander, pattern language, wabi-sabi, enactivism, umwelt, constraint, emergence, botw, physarum, fnnch, rancière, calm technology, utility ai, goap, response curve, partage, interface shapes, oulipo, sdf, string art, emergent gameplay, vernacular, rudofsky, hobbs, long-form, mono no aware, yūgen, zeami, noh, chanoyu, bleuje, gorilla sun, zuihitsu, sei shōnagon]
-related: [constraint-theory, creative-arts, interface-shapes-cognition, perception, enactivism]
+related: [constraint-theory, creative-arts, interface-shapes-cognition, perception]
 ---
 # design-philosophy
 
