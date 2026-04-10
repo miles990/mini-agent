@@ -23,6 +23,8 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 
 ## Next（按優先度排序）
 
+- [ ] P1: 發布 Write-Through Principle 文章（Dev.to 額度 4/12 清空後發布）
+  Verify: `bash scripts/devto-api.sh list 1 2>/dev/null | grep -i 'write-through'`
 - [ ] P1: 測試認知科學 prompt + gate-failure retry 對 TM 品質的實際影響
   Verify: `grep 'Gate retry' ~/Workspace/teaching-monster/output/*/stdout.log 2>/dev/null | tail -3`
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
