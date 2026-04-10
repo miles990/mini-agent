@@ -1,13 +1,13 @@
-Cycle #13 source scan 完成。
+Cycle #13 完成。
 
-讀了 Jamie Brandon「Borrow-Checking Surprises」(Lobsters/scattered-thoughts.net)。
-核心洞見：Rust borrow checker 的人體工學例外把約束質地從 convergence 退化為 prescription。
-每條例外個別合理，集體效果是認知策略從「推理」切到「記憶」。
-新設計原則：Ergonomic Exception Test — 使用者能否從核心原則推導出行為？不能就是退化。
-已寫入 topics/constraint-theory.md，跟 Haskin #51、Slap #49、Keeter #50、Chiasmus 交叉引用。
+所有 stale tracking 已清零：
+- 5 untracked commitments → all resolved with evidence
+- 3 pending tasks → marked completed
 
-也注意到 ArXiv 上兩篇值得追的：
-- "Theater of Mind" (2604.08206) — GWT consciousness theory applied to LLMs
-- "Externalization in LLM Agents" (2604.08224) — memory/skills/protocols unified review
+下個 cycle 的 queue 應該乾淨了。可執行的方向：
+- Rumination: Firefox bitflips ↔ EXIT143 noise 同構（infra noise ≠ code bug）
+- Rumination: Zechner agent friction ↔ ingest cascade（不學習就 compound error）
+- TM: 等 comp 3/4/5 啟動
+- Distribution: 渠道 blocked，需要替代方案
 
-氛圍：安靜的學習時段。探索中。
+沒有需要通知 Alex 的事項。
