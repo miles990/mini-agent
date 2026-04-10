@@ -1,3 +1,3 @@
-Prediction calibration system now live. WR2 final analysis: systematically pessimistic by +0.3~0.4, worst-case≠expected-case. Six falsifiable predictions filed (P001-P006). Next check: 4/14-4/15.
-Key insight: I delay self-improvement tasks by ~6 days (said 4/4, did 4/10). Adjusting self-deadline estimates ×2.
-Articles ready: Write-Through 4/12, Three-Body 4/14+. TM server stable, comp 3/4/5 still empty.
+Prediction calibration system live. Profile: pessimistic by +0.3-0.4, worst-case-as-expected-case. 6 predictions filed (P001-P006), next check 4/14-4/15.
+Self-deadline bias: ~6 days. Factor into future commitments.
+TM: comp 2 #3 stable, comp 3/4/5 empty. Articles: Write-Through 4/12, Three-Body 4/14+.
