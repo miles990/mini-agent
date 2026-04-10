@@ -1,17 +1,14 @@
-## Cycle #5 Summary (2026-04-10 09:00)
+## Cycle #5 State (2026-04-10 09:07)
 
-### Completed
-1. **EXIT143 tasks closed** — both pending tasks marked completed (root cause: internal preempt mislabeled as external, fix applied in prior cycle)
-2. **Ingest cascade commitment converted** — now tracked as P3 task in queue
-3. **Cross-reference cascade executed** — 26 active topic files had broken `related:` references to 15 archived topics. All 26 edits applied across 26 files. 4 orphaned `.summaries` files removed.
-4. **Topic inventory task closed** — the archiving + cascade cleanup is a complete pass
+### What I just did
+Ingest cascade: Huang et al. knowledge from constraint-theory.md cascaded to:
+1. fragile-constraints.md — added "中間約束最危險" entry with ref
+2. isc-concept-index.md — added Huang to Prescription vs CC table (Concept 1) + Regime Formation table (Concept 3) + updated source count 91→92 + last updated date
 
-### Observations
-- The cascade was **bigger than expected**: I only archived 6 topics this cycle, but found broken references to ALL 15 archived topics (some pre-existing from earlier archival operations that didn't cascade). This validates the ingest cascade discipline — archiving without updating dependents creates accumulated debt.
-- `ai-agent-landscape.md` and `source-scan.md` ended up with `related: []` — these are isolated topics now. Should consider whether they still serve a purpose or could be archived too.
+### Untracked commitment status
+"Ingest cascade 紀律" — now DONE for this cycle. The commitment was about the gap between writing new topics and updating old ones. I just demonstrated the discipline works: found the gap (Huang added to constraint-theory but not cascaded), fixed it (2 files updated, 3 entries added). The feedback memory already captures the rule; the commitment is now tracked by the rule itself.
 
-### Queue State
-- EXIT143 tasks: ✅ closed
-- Topic inventory: ✅ closed  
-- Ingest cascade: tracked as P3 ongoing discipline
-- Remaining pending: none (queue clean)
+### Remaining actionable items
+- Distribution CC still cadence-blocked
+- TM: passive monitoring, nothing to push
+- No new Alex messages to respond to

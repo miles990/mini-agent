@@ -2,7 +2,7 @@
 
 Cross-source concept map for Interface Shapes Cognition framework. Each concept aggregates evidence from multiple independent sources, showing where they agree, diverge, and what remains open.
 
-Last updated: 2026-04-05 | Sources indexed: 91
+Last updated: 2026-04-10 | Sources indexed: 92
 
 ---
 
@@ -24,8 +24,9 @@ Last updated: 2026-04-05 | Sources indexed: 91
 | Boxy (Rust) | Language design | Coherence = simultaneously CC (soundness) and prescription (ecosystem lock). Same constraint, both textures |
 | SwarmBench | Multi-agent swarm | Wider perception (7x7 vs 5x5) WORSENS performance — global context contaminates local-rule execution. LLMs structurally can't do prescriptions; centralization doesn't help |
 | Sakour (c-NCA) | Morphogenesis | Conditioning vector biases local perception interpretation (CC), doesn't dictate output (prescription). 300x fewer params than template-based approach |
+| Huang et al. | Multi-agent game | Persona (prescription) → 60% collusion; long-term guidance (CC) → 0%. Partial specification → 100% task failure |
 
-**Consensus**: 46 sources independently confirm that *how* a constraint is framed (path vs destination) predicts outcomes better than the constraint's content. Cross-domain convergence (ML, SE, UI, language design, organizations, swarm intelligence, developmental biology) suggests a general mechanism.
+**Consensus**: 47 sources independently confirm that *how* a constraint is framed (path vs destination) predicts outcomes better than the constraint's content. Cross-domain convergence (ML, SE, UI, language design, organizations, swarm intelligence, developmental biology) suggests a general mechanism.
 
 **Open frontier**: Boxy's dual-texture case and Yerin's Hare proposal show a constraint can be CC and prescription simultaneously. The binary framework needs refinement — possibly a spectrum or a context-dependent classification. SwarmBench adds a new dimension: LLMs may be *constitutively* unable to follow prescriptions because their architecture (global attention over full context) is fundamentally a CC-native mechanism.
 
@@ -71,6 +72,7 @@ Last updated: 2026-04-05 | Sources indexed: 91
 | Pappu | Multi-agent | Integrative compromise = premature regime (averages before expert signal propagates) |
 | Copilot PR injection | Authorship | Authorship boundary migration — who wrote this? boundary permanently shifted |
 | Riedl | Multi-agent (positive) | Persona + ToM = *beneficial* regime — stable self-reinforcing coordination |
+| Huang et al. | Multi-agent game | Tacit collusion = supra-competitive pricing regime emerging from interaction topology without explicit coordination. Persona amplifies (60%), CC dissolves (0%) |
 
 **Consensus**: Regime formation is value-neutral — it can stabilize good patterns (Riedl) or bad ones (Pappu, Edwards). The key variable is *what gets locked in*. Garnier's four-regime diagram is the most formal treatment: convergence, multiplicity, cycles, instability.
 
