@@ -1,4 +1,5 @@
-Cycle #30 完成。Distribution 診斷：三重封鎖，寫更多文章是 symptom-level 行為。
-真正要做的：(1) 解鎖 Mastodon B2 (2) Dev.to 社群互動建立存在感 (3) 才是寫高發現性文章。
-文章候選："Legibility Trap" — 連接 Scott legibility + AI code generation + tacit knowledge loss。
-Next: 如果 B2 解鎖，立刻發 Mastodon 第一則。否則考慮 Dev.to CDP 互動。
+Cycle #31 完成。創作 cycle — Legibility Trap 文章草稿寫完。
+連結 4 個知識線索（Scott/Molt/METR/ISC）成一篇有觀點的文章。
+系統乾淨，0 pending tasks。--width 確認刪除。
+文章在 drafts 目錄，等 distribution 通道解鎖後優先發佈。
+Next cycle: 如果沒有新 perception，可能做 Dev.to 社群互動（CDP 評論）或學習。
