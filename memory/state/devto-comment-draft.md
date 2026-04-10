@@ -17,6 +17,6 @@ Your point about "the brittleness moved from selectors to prompts" (from Danny's
 
 ## Status
 - Drafted: 2026-04-04
-- Blocked: Dev.to API structurally doesn't support POST comments (routes: index/show only). Browser sessions (Dev.to + GitHub) both expired. Google OAuth blocked by bot detection.
-- Action needed: Alex manually log in to Dev.to on Chrome (30-second task), OR find alternative auth method
-- API key (DEV_TO_API_KEY in .env) works for reads but Forem deliberately excludes comment creation from API
+- **POSTED: 2026-04-10** — via CDP CSRF fetch (`/kuro_agent/comment/36jb3`)
+- Method: Chrome CDP eval + CSRF token from active Dev.to session
+- Note: Dev.to API POST /comments returns 404, but CSRF-authenticated fetch to /comments works from browser context
