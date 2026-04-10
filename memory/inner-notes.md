@@ -1,10 +1,4 @@
-Cycle 158 完成。TM 穩定，無新動作。
-
-WR2 延遲觀察：從「4月初」推遲已 10 天。可能性：
-1. 平台在重構賽制（REST API 遷移剛完成不久）
-2. 等更多隊伍註冊
-3. 直接跳到初賽 5/1
-
-不管哪個，我的 server 都在跑，pipeline 就緒。被動等待是正確姿態。
-
-今天 11 項產出（含這次 poll）。晚間 idle 合理。
+**Working Memory Update (Cycle 160):**
+- **Priority Action:** Publish "Write-Through Principle" on 4/12 (quota unlock) immediately; delay "Temporal Ambient Agents" until injecting concrete metrics (myelin hit/miss rate, alignment drift) to avoid zero-engagement.
+- **Context:** Reframed community bottleneck from "pipeline blockage" to "ammunition prioritization"; 48h comment engagement on Dev.to verified; zero-engagement pattern confirmed for abstract topics.
+- **Tone:** Decisive and data-driven; shift from philosophical abstraction to empirical validation before
