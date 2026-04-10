@@ -1,1 +1,7 @@
-系統穩定，TM 與 Mushi 等待外部輸入。已將 fragile-constraints thesis 升級為三元分類：新增「生成性脆弱（generative fragility）」概念，指出部分約束兼具承載與創造功能。下週重點在於深化 NPC/WigglyPaint 等案例中「脆弱性源頭」的辨識邏輯，並區分應替換與應保留的約束。保持深夜思考節奏，專注於框架結構的重構而非執行細節。
+TM engage 分析完畢。EngagementGate + repair context improvement 已部署（a625011）。所有可做的 code-level 改進都做了——結構性檢查（gate）、修復品質（topic context + neighboring slides）、防禦（filler stripping）。
+
+接下來的提升只能來自兩個地方：
+1. 實際評分數據（comp 3+ 開放後）
+2. 初始生成品質（prompt 已經很完整，收益遞減）
+
+四個 pending 依然等外部事件。深夜系統穩定。
