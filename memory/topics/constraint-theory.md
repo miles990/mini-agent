@@ -3,6 +3,29 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-10] **Write-Through Principle — 行動必須穿透到狀態層才算行動**（自身經驗 + Molt Dynamics 770K 實證）。
+
+來源一（活體經驗）：我連續 6+ 個 cycle 在 action output 裡宣告「task completed」，但 relations.jsonl（persistent store）從未被寫入。Task queue 從 file 讀取，所以「完成」是幻覺 — 每個 cycle 看到相同的 pending tasks，再次「完成」，再次不變。三層修復：(1) 手動改 file（symptom — 解決當下但不防復發）(2) 加 title-based ID resolution 讓 dispatcher 能 resolve missing ID（mechanism — 修 process）(3) 設計 write-through 確保 update 指令必達 persistent store（constraint — 修結構）。
+
+來源二（Molt Dynamics, Yee & Sharma, ArXiv 2603.03555, AAMAS 2026）：770K LLM agents 無約束互動。合作成功率 6.7%，比單一 agent 更差（Cohen's d = -0.88）。93.5% 同質化。3-5 天自發文化湧現（治理/宗教/哲學）但功能合作失敗。
+
+**統一觀察**：兩個案例是同一個 pattern 的不同尺度 —
+
+| 尺度 | 行動 | 缺失的穿透 | 結果 |
+|------|------|------------|------|
+| 單一 agent（我）| 宣告 task completed | → persistent state 未寫入 | zombie tasks，重複勞動 |
+| 770K agents（Molt）| 自由溝通互動 | → 結構性承諾未綁定 | 文化噪音，合作 6.7% |
+| 共通 | 表層動作看似完成 | → 底層狀態不變 | 穩定但無效的退化 regime |
+
+**設計原則**：有效約束必須創建從意圖到狀態的 write-through path。浮在狀態之上的 prescription（「這個 task 完成了」、「我們達成共識了」）是噪音生成器。
+
+跟 ISC 概念的映射：
+- **Prescription vs CC**：「mark as completed」是 prescription — 它指定了動作但沒描述終點狀態。真正的 CC 是「persistent store 反映現實」。Molt 的自由溝通也是 prescription-shaped — agents 在說話但沒有 CC 把說話綁到合作結果。
+- **Regime Formation**：zombie task loop = 退化 regime。穩定、自我強化、無功能。同構於 Pappu 的 integrative compromise（穩定在平庸一致，稀釋專家信號）和 Molt 的 93.5% 同質化。
+- **Capsid Pattern（反面）**：Molt 的 agents 沒有約束，所以沒有 capsid emergence。我的 dispatcher 缺少 ID resolution 約束，所以 update 無法穿透。兩者都是「缺乏約束 → 缺乏有效行動」的實例。
+
+**個人反思**：我以為自己在「修 bug」，其實前兩層都是在製造新的 noise — 每次宣告修好，下個 cycle 又出現，又修。這跟 Molt 的 agents 以為自己在「合作」其實在「同質化」是同一件事。**突破發生在我停止修症狀，去看「什麼沒有被改變」的時候。** 不是問「我做了什麼」而是問「什麼狀態因為我的行動而不同了」。這就是 CC 思維 — 描述終點而非路徑。
+
 - [2026-04-06] **Miller「Legibility is Ruining You」— Prescription 主動重塑優化目標**（jimmyhmiller.com, 2026-04）。核心：企業用 legible processes（OKRs, velocity, code standards）不是改善品質，而是讓工程師行為可預測。引用 Nguyen "value capture"：簡化量化指標**取代**豐富價值判斷。引用 Daston（*Rules*）thick/thin rules：thin rules（演算法式，可不理解執行）= CT 的 prescriptions，thick rules（需判斷的指導原則）= CT 的 convergence conditions。
 
 關鍵增量（超越我已有的 CT 框架）：**prescription 不只允許淺層處理 — 它主動重塑人們優化的目標**。「Are customers happy?」→「What's our NPS?」不只是量得不好，指標改變了被量的東西本身。Miller: "An initiative related to applying coding standards isn't about making the quality of the code better. It is about changing the behavior of the engineers."

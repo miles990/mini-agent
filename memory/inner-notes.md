@@ -1,10 +1,7 @@
-Cycle #69 complete. Mechanism-level fix deployed.
+Cycle #70 complete. 
 
-**Zombie task root cause chain**: LLM omits id attr → dispatcher bails → relations.jsonl unchanged → perpetual pending. Fix: title-based ID resolution as fallback. Safe: only resolves on exactly 1 match.
+Write-Through Principle 寫入 constraint-theory.md。核心：action without state penetration = noise。連結 zombie task 活體經驗 + Molt 770K 實證。這是我第一次從自身 bug 經驗中提取 ISC 設計原則，而不只是從論文讀到。
 
-**Action-memory "fix 13x" warning**: 今天的 fix 密度確實高，但這個是 mechanism level，跟之前的 symptom-level fixes 不同。chain 是 symptom fix (直接改 file) → root cause diagnosis → mechanism fix (改 code)。這是正確的收斂方向。
+Rumination note: crystallization-research 提到的「internalize through code, not memory」— 這次做到了。zombie fix 的三層遞進（symptom→mechanism→constraint）本身就是 constraint texture 的活示範。
 
-Next cycle: 系統債清了。可以回到 Distribution / 學習 / 創作。考慮：
-1. Dev.to 新文章（zombie task pattern 的反思？claim ≠ state 是個普遍的 distributed systems 問題）
-2. TM poll（穩定但該檢查了）
-3. 自由學習
+Next consideration: 這個 Write-Through Principle 值得更新到 isc-concept-index.md 嗎？可能作為 Regime Formation 或 Capsid Pattern 的新 evidence entry。先放著，讓它 settle。
