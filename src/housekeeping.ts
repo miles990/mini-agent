@@ -216,11 +216,11 @@ export async function refreshSearchIndex(): Promise<void> {
 
 const EXPIRE_REPLIED_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const EXPIRE_SEEN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-// TODO: pending inbox items should escalate priority after N cycles of being ignored.
-// Currently only replied/seen items are handled. See PROMPT_TARGET precedent (7533c50).
+const ESCALATE_STEP_MS = 30 * 60 * 1000; // 30 min per priority level
 
 /**
  * 清理 >7d replied items + >3d seen items。
+ * 升級長期 pending items 的 priority（每 30min 升一級，上限 P1 — P0 保留給 Alex）。
  */
 export async function expireOldInboxItems(): Promise<void> {
   const instanceId = getCurrentInstanceId();
@@ -247,6 +247,20 @@ export async function expireOldInboxItems(): Promise<void> {
       if (item.status === 'seen' && age > EXPIRE_SEEN_MS) {
         changed = true;
         continue; // drop
+      }
+
+      // Escalate pending items ignored too long — P0 reserved for Alex, cap at P1.
+      if (item.status === 'pending' && item.priority > 1) {
+        const steps = Math.floor(age / ESCALATE_STEP_MS);
+        if (steps > 0) {
+          const newPriority = Math.max(1, item.priority - steps) as InboxItem['priority'];
+          if (newPriority < item.priority) {
+            item.priority = newPriority;
+            updated.push(JSON.stringify(item));
+            changed = true;
+            continue;
+          }
+        }
       }
 
       updated.push(line);
