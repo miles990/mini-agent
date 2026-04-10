@@ -925,8 +925,28 @@ export async function postProcess(
     }
 
     if (action.op === 'update' && !action.id) {
-      slog('WARN', `task-queue update skipped: no id provided for "${action.title ?? '(no title)'}"`);
-      continue;
+      // Fallback: try to resolve ID by fuzzy title match against active tasks/goals
+      if (action.title) {
+        const needle = action.title.toLowerCase();
+        const candidates = queryMemoryIndexSync(memoryDir, {
+          type: action.type ? [action.type] : ['task', 'goal'],
+          status: ['pending', 'in_progress', 'hold'],
+        });
+        const matches = candidates.filter(e => {
+          const s = (e.summary ?? '').toLowerCase();
+          return s === needle || s.includes(needle) || needle.includes(s);
+        });
+        if (matches.length === 1) {
+          action.id = matches[0].id;
+          slog('TASK', `task-queue update: resolved id by title match → ${action.id} for "${action.title}"`);
+        } else {
+          slog('WARN', `task-queue update skipped: no id, title match found ${matches.length} candidates for "${action.title}"`);
+          continue;
+        }
+      } else {
+        slog('WARN', `task-queue update skipped: no id or title provided`);
+        continue;
+      }
     }
 
     if (action.op === 'update' && action.id) {
