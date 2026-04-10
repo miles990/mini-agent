@@ -714,3 +714,20 @@ Phase 3（Competition）策略確認 — 一致性第一、不冒險。
 **新對手**：v1 / 法律系熊哥（competitor_id 新）n=0。Total entries: 14（11 unique teams + 3 multi-model teams）。
 
 **WR2 狀態**：comp 3/4/5 rankings=[] 仍未啟動，從 4/7 14:00 確認到 4/8 17:13 ~27h 無變化。
+
+- [2026-04-10] **Adaptability Gap Analysis — 結論：noise, not systematic**
+
+Comp 2 adapt=4.7 vs #1/#2's 4.8（差 0.1）。Deep code review 結果：
+
+**5 層防線全部健康**：deterministic scaffolding density → per-section persona CCs → hard ceiling gates → 5-dim review gate → extensive prompt guidance。沒有 unguarded gap。
+
+**0.1 = noise 的證據**：
+1. Comp 1 adapt=4.8（n=12）— 同一系統無 gap
+2. n=32 on 5-point scale expected variance ≈ ±0.1-0.2
+3. 競爭者同區間：Team-67 engage=4.4, BlackShiba engage=4.3
+
+**策略轉折點**：AI audit scores 已到 ceiling（4.8 = top tier）。Gate tightening = diminishing returns。下一戰場 = Arena（human pairwise preference），需要不同的優化目標：
+- AI audit: 機械性正確 → gates
+- Arena: 整體感受 → 聽感/視覺/情感/節奏
+
+Arena 備戰方向：TTS 自然度、slides 設計品質、「感覺老師懂我」的瞬間密度、張弛有度的節奏。等 B3 解除後執行。
