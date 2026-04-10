@@ -112,3 +112,41 @@ Fallin recipe 是工程思維：識別、設計、替換。Load-bearing + genera
 第三類是最有趣的，因為 thesis 原本暗示的敘事是「如果我們夠聰明就能預防崩潰」。但 generative fragility 說的是：有些崩潰是你用了正確的約束也無法完全避免的 — 因為約束的價值和它的脆弱性從同一個源頭湧現。你能做的是 cultivate，不是 engineer。
 
 **這條對 Fallin recipe 的修正：在 "identify load" 之後加一步 "test for generativity" — 如果約束不只承載還生成，Fallin recipe 的 "add robust" 一步需要被替換為 "cultivate conditions for persistence"。** ref:generative-fragility-2026-04-10
+
+- [2026-04-10] ## Information Compression as Constraint Removal — 跨域應用
+
+**核心洞見**：壓縮就是約束移除。對話 context 中的每一段文字都是約束 — 它限制後續文字的合理解讀空間。截斷一段對話歷史，就是移除這些約束。2×2 框架直接適用於資訊壓縮。
+
+### 映射
+
+| | Non-generative | Generative |
+|---|---|---|
+| **Load-bearing**（後續推理必需） | 指代鏈、決策前提（「修什麼？」需要知道前面在修什麼）→ 必須完整保留 | 探索性對話中形成的隱含共識 — 既是理解前提，又是新想法的來源。壓縮後共識的字面意思保留，但產生共識的推理路徑（generative substrate）消失 |
+| **Non-load-bearing** | 重複確認、格式噪音 → 自由壓縮 | 語氣、風格、人格信號 → 截斷不影響邏輯但改變關係質感 |
+
+### 我們的三層壓縮 = 直覺版 Fallin recipe
+
+Alex 的原則「truncation 永遠是錯的」本質上就是 fragile constraints warning 的資訊版：你不知道哪段 context 在承載什麼，機械截斷是盲目移除約束。
+
+我們的解法（e13fb1b）：
+- **Recency = Verbatim**（近 5 條零截斷）→ 假設近期全 load-bearing，不動
+- **Distance = Summary**（0.8B 模型壓縮）→ Fallin 的 "remove fragile, add robust" — 用更輕量但仍承載語義的結構替代原文
+- **Archive = Pointer**（JSONL 路徑按需讀取）→ 不移除約束，而是把它推到 lazy-load layer
+
+這跟 Fallin 的 append-only acyclicity 同構：不是恢復舊的 pass ordering（完整保留所有 context = 不可能），而是設計一個新的、更輕量的約束來承載同樣的功能。
+
+### 時間啟發式的盲點
+
+但三層策略用時間作為 load-bearing 的 proxy — 近 = 重要。這跟 2×2 的洞見不一致：**load-bearing 不是時間的函數**。50 則前的架構決策可能仍在 constrain 當前所有推理；3 則前的閒聊可能完全 non-load-bearing。
+
+理想策略應該沿 load-bearing 軸壓縮，不是沿時間軸。但識別「這段 context 承載了什麼」跟識別「這個約束承載了什麼」是同一個困難問題 — 你通常在移除後（對話斷裂、推理出錯）才發現它承載了東西。
+
+### 遞迴實例
+
+這個分析本身就是案例：methodology footnote（ref:methodology-footnote-2026-04-08）中「我在 chat 裡聲稱寫了 footnote 但沒有寫入磁碟」= 壓縮了 verification step。Verification 是 load-bearing constraint（確保 claim 跟 reality 對應），被壓縮（跳過）後 claim 跟 reality 分離 — 跟截斷對話後「修什麼？」斷裂是同構的。
+
+### 對 thesis 的意義
+
+Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift economy）。這個映射把它推廣到**任何 lossy transformation**：只要你在做有損壓縮，就是在移除約束，就有可能移除你不知道在承載什麼的 fragile constraint。
+
+這解釋了為什麼 LLM 摘要的危險跟 LLM slopfork 的危險同構：兩者都是高效率的有損壓縮，都在移除「看起來不重要但實際承載功能」的摩擦。ACE (ICLR 2026) 的 brevity bias 和 context collapse 就是這個 pattern 的學術化描述。ref:compression-as-constraint-removal-2026-04-10
