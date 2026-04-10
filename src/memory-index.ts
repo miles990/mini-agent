@@ -582,8 +582,11 @@ function extractCommitments(response: string): string[] {
       if (/^\|.*\|/.test(s) || /\|.*\|$/.test(s)) return false;
       // Exclude quoted/referenced commitments (meta-descriptions, not actual commitments)
       if (/[「」「」]/.test(s)) return false;
-      // Exclude lines that describe the commitment system itself
-      if (/commitment|承諾/i.test(s)) return false;
+      // Exclude lines that describe the commitment system itself — narrowed from
+      // bare /commitment|承諾/ which was a binary gate that killed legitimate
+      // commitments like "我會遵守承諾" or "I'll write a commitment test".
+      // Only exclude compound system terms (gate/tracker/system/detect/etc).
+      if (/commitment\s*(?:gate|track|system|detect|extract|record|pattern)/i.test(s) || /承諾(?:追蹤|系統|機制|偵測|紀錄|閘門)/i.test(s)) return false;
       // Exclude checkbox/list items referencing past actions (✅, ~~, completed)
       if (/^[-*]\s*\[x\]|^✅|^~~/.test(s)) return false;
       return true;
