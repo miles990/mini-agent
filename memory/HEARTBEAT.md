@@ -51,7 +51,7 @@ NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 - [x] 競賽研究分析（規則、評分標準、技術規格）
 - [x] 架構設計（二階段：Phase 1 Puppeteer+KaTeX / Phase 2 Manim）
 - [x] 報名流程偵查（CDP OAuth 流程跑完，Clerk callback 限制已確認）
-- [x] **報名完成** — **WR1 當前排名 #3 tied**（**4.8/5**）— acc=4.9, logic=5.0, adapt=4.7, engage=4.4（32 topics）。測試區 #1（4.8/5, 12 topics — acc=5.0, log=5.0, adapt=4.8, eng=4.5）。comp 2 (WR1) top4: #1 Team-67-005(4.8, n=31), #2 BlackShiba(4.8, n=32), #3 Kuro-Teach(4.8, n=32), #4 tsunumon(4.7, n=32)。14 entries（+1 新隊 "a"）。**Accuracy 修復 commits production 驗證**：acc 4.6→4.9, logic 4.8→5.0, total 4.6→4.8，跳升兩名進入前 3 tied。Engagement 4.4 未動 = diversity patches 未進評測週期。Arena (comp 3-5) 仍 n=0。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-08T20:50 -->
+- [x] **報名完成** — **WR1 當前排名 #2**（**4.8/5**）— acc=4.9, logic=5.0, adapt=4.7, engage=4.4（32 topics）。comp 2 (WR1) top4: #1 BlackShiba(4.8, n=32, adp=4.8), #2 Kuro-Teach(4.8, n=32, adp=4.7), #3 Team-67-005(4.8, n=31), #4 tsunumon(4.7, n=32)。排名變動：Team-67 因 n=31 從 #1 降至 #3，BlackShiba adp=4.8 贏 Kuro adp=4.7 佔 #1。Engage 4.4 持平（第二波 patches 尚未進評測）。Arena (comp 3-5) 仍 n=0。 <!-- completed: 2026-03-18T23:48, wr1-corrected: 2026-04-06, scores-updated: 2026-04-10T10:45 -->
 - [x] Phase 1 開發（KaTeX、prompt engineering、TTS、影片管線） <!-- completed: 2026-03-29 -->
 - [x] Engagement surgical fixes — commitment gap detection + analogy callback cadence (37ab06b) <!-- completed: 2026-03-31 -->
 - [x] E2E 驗證 — readiness_test_20260331 pipeline 全通過 <!-- completed: 2026-03-31 -->
