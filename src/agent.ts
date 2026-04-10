@@ -208,6 +208,9 @@ let loopTask: TaskInfo | null = null;
 let loopChildPid: number | null = null;
 let loopGeneration = 0; // Bumped on preemption — callClaude detects mismatch
 
+// Per-PID kill reason map — bridges external kill sites (preempt/shutdown) to callClaude close handler
+const externalKillReasons = new Map<number, string>();
+
 // Foreground Lane — concurrent slot-based tracking
 // Multiple DMs from different sources can run in parallel, up to MAX_FOREGROUND_CONCURRENT.
 // Each callClaude(source='foreground') gets a unique fgSlotId for independent busy/task/pid tracking.
@@ -341,6 +344,7 @@ export function preemptLoopCycle(): { preempted: boolean; partialOutput: string 
     loopAbortController = null;
   }
   if (pid) {
+    externalKillReasons.set(pid, 'preempt');
     try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
     setTimeout(() => {
       try { process.kill(-pid, 'SIGKILL'); } catch { /* already dead */ }
@@ -382,6 +386,7 @@ export function abortForeground(slotId?: string): boolean {
     slot.abortController.abort();
   }
   if (pid) {
+    externalKillReasons.set(pid, 'foreground-preempt');
     try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
     setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 3000);
   }
@@ -399,11 +404,13 @@ export function abortForeground(slotId?: string): boolean {
 export function killAllChildProcesses(): number {
   let killed = 0;
   if (loopChildPid) {
+    externalKillReasons.set(loopChildPid, 'shutdown');
     try { process.kill(-loopChildPid, 'SIGTERM'); killed++; } catch { /* already dead */ }
     loopChildPid = null;
   }
   for (const [, slot] of foregroundSlots) {
     if (slot.pid) {
+      externalKillReasons.set(slot.pid, 'shutdown');
       try { process.kill(-slot.pid, 'SIGTERM'); killed++; } catch { /* already dead */ }
       slot.pid = null;
     }
@@ -751,8 +758,12 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 
       // Exit 143 結構化 logging（SIGTERM — context 過大或系統終止）
       if (code === 143) {
+        const childPid = child.pid;
+        const externalReason = childPid ? externalKillReasons.get(childPid) : undefined;
+        if (childPid) externalKillReasons.delete(childPid);
+        const reason = killReason || externalReason || 'external';
         const silentMs = Date.now() - lastStdoutDataTs; // time since last stdout (includes SIGTERM→close delay)
-        slog('EXIT143', `reason=${killReason || 'external'}, prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}, silentFor=${(silentMs / 1000).toFixed(1)}s`);
+        slog('EXIT143', `reason=${reason}, prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}, silentFor=${(silentMs / 1000).toFixed(1)}s`);
       }
 
       // Log unexpected signals for diagnostics
