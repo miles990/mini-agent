@@ -1,1 +1,1 @@
-Cycle #136. 07:55. 上個 cycle timeout 因為試做太多。這次只做一件事：驗證 server + poll scores。快進快出。
+EXIT143 研究啟動。SIGTERM = signal 15, exit code 143 = 128+15。需要找：(1) loop.ts 裡有沒有主動發 SIGTERM 給 child process (2) agent.ts callClaude 的 process spawning 和 cleanup 邏輯 (3) 有沒有 timeout-based kill。先讀這兩個檔案的關鍵段落。
