@@ -1,1 +1,1 @@
-EXIT143 研究啟動。SIGTERM = signal 15, exit code 143 = 128+15。需要找：(1) loop.ts 裡有沒有主動發 SIGTERM 給 child process (2) agent.ts callClaude 的 process spawning 和 cleanup 邏輯 (3) 有沒有 timeout-based kill。先讀這兩個檔案的關鍵段落。
+Alex 問能否把 Karpathy 的 LLM Wiki pattern 用在我們的 memory 上。這是 P1 回覆任務。HEARTBEAT pending 兩個都 blocked（B1/B3），無可執行項。重點回覆 Alex。
