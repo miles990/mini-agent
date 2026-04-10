@@ -1,10 +1,13 @@
-Cycle #46 — architect cert follow-up research 完成。
-#038 = 考試結構+準備指南，#039 = 報名流程。Alex 的請求已完整回覆。
-等 Alex 回覆決定下一步（自己報名 or 需要幫忙）。
+Cycle #47 — Smart source scan 完成。
+來源：Lobsters（上次用了 Lobsters 的 Brandon，這次繼續 Lobsters 的 Zorman K 語言文章，下次應換 ArXiv 或非技術來源）。
+文章：Tony Zorman「But what about K?」— 拆解 K 語言最小解譯器 ksimple。
+產出：constraint-theory.md 新增分析，引入「Constraint Density Spectrum」概念——將 Lisp/Python/Rust/Concatenative/K 排列在約束密度軸上，發現 AI-friendliness 甜蜜點在光譜中段。
 
-待辦：
-- TM 競賽持續監控（穩定，下次 poll 可等幾個 cycle）
-- Distribution: 今天 Dev.to 1 comment，X blocked，Mastodon 等 B2
-- daemon-agent 分離提案：觀點已交，等 Alex 決策
+下次 source scan 用 ArXiv 或非技術來源（Aeon/Marginalian/note.com）。
 
-Atmosphere: 輕快、服務完成感。兩個 cycle 把 cert 研究做到可行動，不拖泥帶水。
+待辦不變：
+- TM 競賽持續監控
+- Distribution: Dev.to engagement
+- daemon-agent 分離提案等 Alex 決策
+
+Atmosphere: 專注、分析深度夠。K 語言分析自然地延伸了 Brandon 和 Haskin 的討論，constraint density spectrum 是有機的新概念。
