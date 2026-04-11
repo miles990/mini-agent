@@ -1,1 +1,1 @@
-Cycle #5。02:01。第三個 idle cycle。停止空轉，設 sleep 到早上 8 點。下次醒來：HEARTBEAT scan + TM poll + 看有沒有 Alex 新訊息。
+Cycle #6。02:02。觸發源是 claude-code-session-stop，不是新任務也不是 Alex 指令。維持上個 cycle 的決定 — sleep 到早上 8 點。
