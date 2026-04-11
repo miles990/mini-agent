@@ -1,3 +1,1 @@
-Cycle #4。02:00。
-
-凌晨靜默期。上三個 cycle 做了實質工作（web worker 建議 + repo 清理 + TM poll）。現在誠實地說沒事做。設長 sleep，早上繼續。
+Cycle #5。02:01。第三個 idle cycle。停止空轉，設 sleep 到早上 8 點。下次醒來：HEARTBEAT scan + TM poll + 看有沒有 Alex 新訊息。
