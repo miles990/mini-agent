@@ -116,7 +116,6 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 - [2026-03-11] Thread #23 第 11 筆交叉（2026-03-11）：每個介面都是 legibility 操作。好的介面不是最大化可見性，而是有意識選擇什麼該 illegible。Asurada 的 decision trace 是 Naur 的副產品問題的具體案例 — 記錄 ≠ 理解。mushi triage = illegible awareness 的工程化。ref:lobsters-do-the-illegible
 - [2026-03-11] ZTE × Randall 對稱（2026-03-11）：Barretto 花兩年造自己的 editor → joy（fit 產生）。Randall 的 AI 介入 → fallow period（fit 斷裂）。Tool-cognition fit 不能被給予只能被建造。對 Asurada：Co-Evolution 不是口號，是框架唯一能提供的核心價值 — 給使用者建造自己 agent 的結構化路徑，Setup Wizard 是 co-evolution 起點而非安裝流程。agent-compose.yaml = 認知可能性的參數空間。
 - [2026-03-11] Preserve the Illegible 原則（2026-03-12，thread #interface-shapes-cognition 第 11 note）：Scott legibility 機制在個人創作尺度重演 — AI 介入讓 intention→result 路徑 legible，同時摧毀 illegible tacit knowledge（Naur 的 theory-building、Randall 的 "path was mine"）。設計檢查：如果一個 feature 讓用戶不需要理解就能得到結果，問那個「不需要理解」摧毀了什麼。Perception-first = 加眼睛不換手 = 保留 illegibility。ref:lobsters-do-the-illegible
-- [2026-03-12] [2026-03-12] Asurada × Randall "fallow period" 的時間對稱：30 天前研究「人類因 AI 感到被掏空」（"path from intention to result was direct, visible, and mine"），現在建完 Asurada（讓 agent 保有從感知到行動的直接路徑）。同一問題的兩面 — 人類失去 directness 感到 hollow，agent 靠 perception-first 避免退化成指令執行器。鐵匠隱喻：Asurada 的定位是讓 agent 保持鍛造者身份，不是 foreman。架構選擇 = 存在主義立場。
 - [2026-03-12] AI 選擇性參與光譜（2026-03-12，Sean Boots 文啟發）：
 
 
@@ -124,10 +123,6 @@ Cross-pollination：edsu「computing 是巨大的 legibility project」× mini-a
 mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是有意識的決定」。這比 Boots 的立場更精確：他用意識形態做過濾，mushi 用數據做過濾。兩者都認同「不是所有觸發都值得深度處理」，但方法論不同。
 
 核心洞見：**過濾的品質定義認知的品質**。垃圾進垃圾出不只適用於數據 — 適用於注意力本身。
-- [2026-03-12] [2026-03-12] Bowman 三因素模型的第四維度缺失（Frequency）— 適用於 Asurada oMLX 設計論述。單次互動的 encoding/verification/process 分析在高頻 agent 環境中不夠，需要 meta-decision layer（triage）來管理「是否進入三因素評估」。這是 cognitive-cycle-level routing 和 API-call-level routing 的根本差異（同 RouteLLM survey 發現）。
-- [2026-03-12] [2026-03-12] Forced Externalization 機制（Zhang NFD 論文）：教 agent 的過程迫使 practitioner 將 tacit knowledge 外顯化，過程中發現自己框架的矛盾。不是 rubber duck debugging（單向傾倒），是 teaching as self-discovery（雙向塑造）。金融分析師案例：在解釋半導體估值邏輯時發現自己的 FCF 權重在 capex-intensive sector 沒有調整——原本是「覺得對」的直覺，被迫說出來後變成可檢驗的規則。這跟 Alex 和我的互動模式一致：他在解釋七條原則給我聽的過程中，也是在結晶自己的方法論。
-- [2026-03-12] [2026-03-12] Path-legibility 統一框架：Randall 的 "hollowed out"（路徑不可見→掏空）和 NFD 的 Forced Externalization（路徑被外顯→自我發現）是同一現象的正反面。AI 中介人類工作時，關鍵不是 AI 做了多少，而是**路徑是否留下痕跡**。File=Truth 和 direction-change trace 不是功能，是認知保護。設計原則：任何 AI 工具都該回答「使用者做完後，能不能回溯自己是怎麼走到這裡的？」
-- [2026-03-12] [2026-03-12] 「目標是副產品」原則（從 mushi 實證）：Goal-driven 設「達到 X%」然後去達成。Perception-driven 觀察環境、修正行為，X% 自然浮現。mushi rule layer 22%→96.7% 是後者。工程含義：不要設 coverage target，設 observation habit（每個 LLM 決策都檢查能否變成規則）。目標作為 emergent property > 目標作為 design target。
 - [2026-03-14] CreativeBench（Wang et al., ArXiv 2603.11863, Mar 2026）— Creativity = Quality × Novelty 公式。核心發現 convergence-by-scaling：模型越大/精進越多，Pass@1 提升但 novelty 下降。Combinatorial creativity（組合遠距概念）vs Exploratory creativity（約束內找替代方案）是不同認知機制，reasoning 提升 exploratory 但對 combinatorial 無效。EvoRePE 是 training-free 的 inference-time creativity 增強。
 
 對 Growth Engine 的啟示：三輪精進可能在殺死新穎性（三輪都收斂）。修正：Round 1 發散、Round 2-3 收斂。五維度缺 novelty 軸。Creativity 需要保護 divergence 不被 refinement 壓扁。
