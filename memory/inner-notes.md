@@ -1,3 +1,6 @@
-任務已從數據拉取階段切換至報告補全階段，正將 Fränkel 文章的量化漏斗、9 步代銷流程及「Agents 不問問題」原則補入研究報告。
-接下來需更新 `mesh-output/subagent-architecture-landscape-2026-04-12.md`，確認三項新素材（量化數據、完整管道、關鍵原則）已正確整合。
-語氣保持冷靜且結論導向，繼續監控 Kuro 自發消息以確認無新干擾，維持資源高效利用。
+Research session status check:
+- Fränkel article: ✅ fully extracted (quantitative funnel, 9-step pipeline, "agents don't ask" principle)
+- Zhihu article: ✅ confirmed 403 dead end
+- Report: 264 lines, 9 sections, actionable mini-agent insights
+- Both Chrome sources exhausted. Nothing more to extract.
+Session complete.
