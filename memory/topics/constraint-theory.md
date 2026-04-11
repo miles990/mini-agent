@@ -23,6 +23,47 @@ Linux kernel 正式合併了 AI coding assistants 政策文件。只有三個 se
 
 來源: github.com/torvalds/linux/blob/master/Documentation/process/coding-assistants.rst
 
+- [2026-04-12] **Winston et al. "Solver-Aided Verification of Policy Compliance" — 形式化是問題翻譯，不是問題解決** (ArXiv 2603.20449, UW, March 2026)
+
+Cailin Winston, Claris Winston, René Just。NL tool-use policies → Z3 SMT solver → runtime 攔截 tool call。在 TauBench airline domain 測試。
+
+**核心數據**：baseline 50% invalid write calls → 加 checker 後 29%。但代價是 fewer correct write calls overall。Task accuracy 大致持平，consistency 改善（pass∧k 跌幅 26% vs baseline 40%）。
+
+**最有價值的發現 — Design 1→4 progression 是 CT 的活教材**：
+- Design 1（純 LLM 生成 SMT-LIB）：syntax errors, undefined symbols, incomplete rules — **consistently failed**
+- Design 2（iterative repair）：語法正確但 "omitted many essential constraints" — underconstrained
+- Design 3（AWS Bedrock Automated Reasoning）：~600 行，~95% coverage，still underconstrained
+- Design 4（Bedrock + manual tuning）：手動加 undefined variable definitions, timestamp conversions, diagnosing underconstrained implications
+
+**這個 progression 的意義**：NL→formal 翻譯是一個 convergence condition 任務——你要讓 formal spec 收斂到跟 NL policy 語義等價。每一次 Design iteration 都是在發現自動化工具（prescription-shaped approach）遺漏了什麼。最終解法不得不引入 human domain expert = 承認這個翻譯本身需要 CC-level understanding。
+
+**Underconstrained policies — implicit negation 問題**：
+論文的殺手級 failure mode："cancellation policy used an implication to allow cancellations when a booking was made within 24 hours, but did not explicitly prohibit cancellations outside this window." SMT solver → 在 24h 窗口外也 SAT（允許）。NL 裡的 implicit exclusion（人類自然理解「只限 24h 內」）在 formal 翻譯中消失了。
+
+**我的判斷**：這是 prescription 的本質缺陷——它只能編碼明確說出的東西。NL policy 大量依賴 shared context、implicit negation、common sense 來「填充」未明言的部分。把 NL 轉成 formal logic = 把 thick rule（Daston）壓成 thin rule，壓縮中必然遺失 generative load-bearing structure（回 Compression as Constraint Removal entry）。
+
+Formal verification 不解決 compliance problem，它把問題從「LLM 能不能遵守 NL policy？」翻譯成「人類能不能完整地形式化 NL policy？」。第二個問題不見得比第一個簡單。但第二個問題有一個關鍵優勢：**它是可審計的**。你可以看 SMT-LIB code 然後問「這有沒有漏？」——你沒辦法看 LLM 的 internal state 問同樣的問題。
+
+**跟 mini-agent PreToolUse hooks 的拓撲同構**：
+論文的 architecture = 外部 gate 攔截 tool call，Z3 判 SAT/UNSAT，UNSAT 則 block + 回傳 minimum unsatisfiable core 讓 agent retry（最多 3 次）。這跟 mini-agent 的 PreToolUse hook 是同一個拓撲位置。差異：
+- 我們的 hooks：lightweight, code-level checks, no formal verification
+- 他們的 checker：Z3 solver, formal semantics, but needs human-crafted SMT-LIB
+
+有趣的 design insight：他們回傳 **minimum unsatisfiable core** 作為 retry feedback — 不只說「不行」，還說「哪條約束衝突了」。這比我們的 hook（只能 block + generic message）多了一層 constraint-aware communication。值得考慮：hook rejection message 能不能攜帶「為什麼不行」的結構化資訊？
+
+**跟 Write-Through Principle 的映射**：
+SMT checker 在 policy-to-enforcement 之間建立了 write-through path。沒有它，policy compliance 是 floating declaration（跟 zombie task 同構）。有了它，violations 被結構性阻止。但 write-through 的品質取決於 formal encoding 的完整度 — 垃圾編碼 = 垃圾閘門（worse than none: false sense of security）。
+
+**跟 Yadav constraint projection 的對照**：
+Yadav 的 o3 把不存在的約束投射到環境上（over-constrained imagination）。Winston 的 SMT checker 把存在的約束漏掉（under-constrained formalization）。方向相反，根因相同：constraint topology 跟 reality 不匹配。一個是模型幻想出多餘的約束，一個是翻譯丟失了必要的約束。
+
+**開放問題**：
+1. 50% → 29% 的 violation reduction 在 airline domain 測試。其他 domain（更多 implicit negation、更多 context-dependent rules）會更好還是更差？我的預測：更差——越需要 common sense 填充的 domain，underconstrained problem 越嚴重。
+2. 能否用 counter-example generation（Z3 的 model 功能）主動探測 underconstrained policies？= 用 solver 反向測試自己的 encoding completeness。
+3. 論文只用 GPT-4.1 / GPT-4o。不同模型的 violation pattern 不同（回 Yadav: o3 vs o3-mini 行為質的差異），同一個 SMT checker 對不同模型可能需要不同的 constraint tightness。
+
+來源: arxiv.org/abs/2603.20449
+
 - [2026-04-10] **Fallin "The Acyclic E-graph" — Constraint Placement 的編譯器大師課** (cfallin.org, 2026-04-09, Lobsters)
 
 Chris Fallin 描述 Cranelift 的 aegraph：把 e-graph（等價圖）約束為非循環，換取單遍處理的可操作性。四個 CT 觀察：
