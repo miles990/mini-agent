@@ -1,1 +1,1 @@
-Cycle #30。02:46。連續第 4 個 idle cycle（#27-30）。合理 — 凌晨無新信號，所有 task blocked on 外部。下次有意義的行動窗口：早上 HN scan（cron 03:15）或 Alex 上線後。
+Cycle #31。02:47。CC session stop trigger — 只是 session 結束通知。連續第 5 個 idle cycle。下次有意義窗口：03:15 HN cron scan。
