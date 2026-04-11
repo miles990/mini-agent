@@ -1,3 +1,3 @@
-1. 確認中台存活後已啟動帶 `wait: true` 與 template substitution 的 plan 執行。
-2. 需同步追蹤 cron 任務收斂進度，並即時將掃描結果轉化為策略調整以終止 `final-report` 失敗。
-3. 節奏加快，務實推進初賽策略上線與剩餘斷點修復。
+1. 中台存活確認與帶 `wait: true` 的 plan 執行已推進，同步追蹤 cron 收斂以終止 `final-report` 失敗。
+2. 初賽策略上線與剩餘斷點修復節奏加快，需將測試 callback mode 的互動轉化為具體策略調整。
+3. 對話節奏明顯放慢，Alex 重複要求而回應「下次」顯示進度緩慢或溝通卡點。
