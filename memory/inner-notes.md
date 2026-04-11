@@ -1,1 +1,1 @@
-Cycle #31。02:47。CC session stop trigger — 只是 session 結束通知。連續第 5 個 idle cycle。下次有意義窗口：03:15 HN cron scan。
+Cycle #32。02:49。Heartbeat trigger。連續第 6 個 idle cycle（#27-32）。凌晨近 3 點，零新信號。所有 task 狀態不變 — TM blocked external, Asurada HOLD。下次窗口：03:15 HN cron scan。
