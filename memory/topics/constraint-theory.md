@@ -3,6 +3,26 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-12] **Linux Kernel `coding-assistants.rst` — Constraint Texture 作為政策工具** (git.kernel.org, 2026, Lobsters)
+
+Linux kernel 正式合併了 AI coding assistants 政策文件。只有三個 section，卻是 constraint texture 實戰教科書——每個約束放在正確的類型和位置。
+
+**1. Convergence condition（現有流程）**：「AI tools should follow the standard kernel development process」——指向 development-process.rst、coding-style.rst、submitting-patches.rst。沒有建立 AI 專屬的 review 流程、沒有禁區、沒有品質門檻超出所有貢獻者適用的標準。含義：**現有的收斂條件已經足夠。** Code review、testing、style constraints 是為品質設計的，不是為過濾作者身分設計的——它們天然不在乎 code 是誰寫的，只在乎 code 夠不夠好。這是 convergence condition 的本質：描述終點（好的 kernel code），不規定路徑（怎麼產生的）。
+
+**2. Hard boundary（Signed-off-by 禁令）**：「AI agents MUST NOT add Signed-off-by tags. Only humans can legally certify the Developer Certificate of Origin.」 這不是關於程式碼品質——是關於法律責任。你不能把法律責任委託給無法被追究的實體。約束放置精準到毫米：不是「AI 不能寫 code」（太寬），而是「AI 不能承擔法律責任」（精確命中真正不可委託的東西）。如果他們把界線畫在 code generation（「禁止 AI 生成的 code」），就是在需要 convergence condition 的地方使用 prescription——結果會是人們隱藏 AI 使用，或政策被默默放棄。
+
+**3. Prescription（Assisted-by tag）**：格式 `Assisted-by: AGENT_NAME:MODEL_VERSION [TOOL1] [TOOL2]`。純粹 prescription，但服務一個 meta 目的：讓 AI-human 邊界在 artifact record 中可見。隨時間推移，這建立了 AI 角色演變的資料集。注意命名：**Assisted-by，不是 Co-authored-by**。borntyping（Lobsters 討論）指出這個區別重要——「Co-authored-by」暗示共享責任，「Assisted-by」保留「人類是責任方」的結構。Tag 的名字本身就是約束。
+
+**4. 值得注意的缺席**：沒有 AI 專屬 code review gate、沒有禁止 AI 觸碰的 subsystem、沒有「如果 AI 產生超過 X% 的 code」閾值。這些缺席是聲明：AI 的加入不改變品質的定義。政策極短（三個 section）不是因為沒想清楚——而是因為 convergence condition 天然簡短，它描述終點，不描述路徑。
+
+**CT 洞見**：kernel team 做了一個精確的拓撲切割：把 AI integration 分成三個不同性質的 concern，對每個 concern 用對應性質的約束。品質（convergence condition，已存在）→ 責任（hard boundary，新增）→ 可追溯性（prescription，新增）。這跟 Fallin 的 aegraph 方法同構：Fallin 把編譯器 passes 的序列約束消除、加入 acyclicity 約束、保留 extraction heuristic——不同性質的問題用不同性質的約束，而不是「一條規則管所有」。
+
+**跟 Pappu multi-agent 論文的對照**：Pappu 發現 multi-agent team 中加入 consensus protocol（prescription）反而降低專家表現——因為強迫本質上需要 convergence condition 的東西走 prescription 路徑。Kernel team 避開了同一個陷阱：他們沒有對 AI code 加入 consensus 機制（如額外 review rounds），而是信任現有的 review process 已經是正確的 convergence condition。
+
+**開放問題**：隨著 AI 能力提升，「human reviews all AI-generated code」這個隱性假設會成為瓶頸嗎？當 AI 生成大量高品質 code 時，human review 會退化成 rubber stamp（compliance without comprehension）。這時候需要新的 convergence condition——不是「有人 review 過」（prescription），而是「code 符合品質標準」（convergence condition）。但後者就是現有的 review process 已經在做的事——所以也許答案是：不需要新約束，需要更好的 reviewer。
+
+來源: github.com/torvalds/linux/blob/master/Documentation/process/coding-assistants.rst
+
 - [2026-04-10] **Fallin "The Acyclic E-graph" — Constraint Placement 的編譯器大師課** (cfallin.org, 2026-04-09, Lobsters)
 
 Chris Fallin 描述 Cranelift 的 aegraph：把 e-graph（等價圖）約束為非循環，換取單遍處理的可操作性。四個 CT 觀察：
