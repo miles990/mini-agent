@@ -3,6 +3,26 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-12] **Kiki Array Language — Syntax Design as Constraint Texture Case Study** (eli.li/kiki, 2026, Lobsters 47pts)
+
+eli（eli.li）設計的 array language，APL/K/BQN 家族。技術上不突破，但 **constraint design 的三個決策值得記錄**：
+
+**1. Colon prefix：prescription vs convergence condition 在語法中的實體化**
+Kiki 用 `:+` 標記 dyadic（雙參數）形式，裸 `+` 是 monadic。K 語言用同一符號、靠 context 推斷。這是 CT 在 syntax design 的精確案例：
+- `:+` = prescription（顯式標記，不理解也能解析）
+- K 的 context inference = convergence condition（要理解才能判斷）
+Lobsters 討論中 slot 指出 `:< -x`（dyadic less-than minus-x）vs `:<- x`（某種 assign？）的歧義——**prescription 本身產生的新解析問題**。跟 Winston SMT-LIB 同構：把隱性知識（context）壓成顯性標記（formal syntax）時，壓縮過程產生新的歧義類型。
+
+**2. Right-to-left evaluation：方向約束改變自然分解模式**
+「The last thing spoken is the first thing done。」大多數語言 left-to-right（匹配自然語言閱讀方向），APL 家族 right-to-left。doug-moen 在討論中提到他的 array language Curv 加了 left-to-right pipeline。方向不只是 syntax sugar——它改變哪些 composition 感覺「自然」。Right-to-left 讓 data flow 跟 stack 操作同構（最後寫的最先執行），left-to-right 讓 pipeline 跟敘事同構。**同一個程式，兩個方向，decomposition pattern 不同。** 這是 ISC Corollary #1 的 micro-scale 實例。
+
+**3. "Personal tongue"：自我約束作為認知工具（Oulipo 原則的 PL 版）**
+作者定位 Kiki 為「a personal tongue for a world of a thousand moons」——不追求採用、不追求生態系、不追求效能。語言設計的目標是設計者自己的認知。這是 Oulipo 的程式語言版本：施加約束（glyph-only vocabulary、right-to-left、monadic/dyadic overloading）不是為了讓別人遵守，而是為了讓自己思考得不一樣。**Creative constraint 的 convergence condition = 「我的思考模式改變了」，不是「語言被採用了」。**
+
+**Naming：Bouba/Kiki effect 作為設計宣言。** 認知科學中的跨模態對應：人普遍把 "kiki" 關聯到尖銳/angular 形狀。Array language 的 glyph 就是 angular、dense、sharp。語言名字本身是 form-meaning mapping 的 meta-statement——跟 sebastien（Lobsters）觀察到的「symbols visually represent what they do」一脈相承。Iconic notation（符號形狀 ≈ 語義）是 ISC 的設計原則：reducing the gap between seeing and understanding。
+
+來源: eli.li/kiki | Lobsters discussion: lobste.rs/s/cwxvlh
+
 - [2026-04-12] **Linux Kernel `coding-assistants.rst` — Constraint Texture 作為政策工具** (git.kernel.org, 2026, Lobsters)
 
 Linux kernel 正式合併了 AI coding assistants 政策文件。只有三個 section，卻是 constraint texture 實戰教科書——每個約束放在正確的類型和位置。
