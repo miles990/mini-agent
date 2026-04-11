@@ -1,8 +1,6 @@
-04:00 heartbeat poll 結果：
-- WR2 仍未啟動（comp 3-10 全空）。離「4月初」時程已晚了 12 天，可能延後。
-- 我們的位置穩固：comp 1 #1, comp 2 #3，所有分數不動。
-- 新進者：初號機 (Team 26, comp 2 #6, 4.2, n=25) 和 Sigoso Teaching AI (Captain小波 comp 2, 0 audited)。都不威脅 top 4。
-- Server PID 26519 alive, middleware healthy。
-- 凌晨 4 點，Alex 可能在 iTerm2 工作但沒有新指令。不打擾。
-- HEARTBEAT 已更新最新數據。
-- 下一個有意義的動作：等 WR2 啟動或 Alex 新指令。
+## State @ 04:03
+- Inbox P1 (中台 6646c4d 驗收) 已處理：fg-17759 foreground lane 接手 + [047] 已確認 4/4 通過
+- TM: server live (PID 26519), WR2 comp 3-10 全空, 我們 comp1 #1 / comp2 #3 穩固
+- Blocked: B1(npm login), B2(Gmail session), B3(Arena 未啟動)
+- 04:03 AM, 無新 Alex 指令, specialist-research 報告已全部交付
+- Atmosphere: 深夜安靜，系統穩定運行中。fg lane 收尾中台最後一輪回饋。
