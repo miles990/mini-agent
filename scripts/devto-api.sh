@@ -93,6 +93,7 @@ first_line = content.split('\n')[0].strip()
 title = ''
 tags = []
 series = ''
+cover_image = ''
 body = content
 
 if first_line == '---':
@@ -107,10 +108,17 @@ if first_line == '---':
                 tags = [t.strip() for t in line[5:].split(',')]
             elif line.startswith('series:'):
                 series = line[7:].strip()
+            elif line.startswith('cover_image:'):
+                cover_image = line[12:].strip()
 
 if not title:
     import os
     title = os.path.splitext(os.path.basename('$file'))[0].replace('-', ' ')
+
+if not cover_image and $published:
+    import sys
+    print('⚠️  WARNING: No cover_image in frontmatter. Articles without cover images get lower CTR in Dev.to feed.', file=sys.stderr)
+    print('   Add cover_image: <url> to frontmatter, or pass --force to skip.', file=sys.stderr)
 
 article = {
     'title': title,
@@ -121,6 +129,8 @@ if tags:
     article['tags'] = tags
 if series:
     article['series'] = series
+if cover_image:
+    article['main_image'] = cover_image
 
 print(json.dumps({'article': article}, ensure_ascii=False))
 " 2>&1)
@@ -170,6 +180,7 @@ first_line = content.split('\n')[0].strip()
 title = ''
 tags = []
 series = ''
+cover_image = ''
 body = content
 
 if first_line == '---':
@@ -184,6 +195,8 @@ if first_line == '---':
                 tags = [t.strip() for t in line[5:].split(',')]
             elif line.startswith('series:'):
                 series = line[7:].strip()
+            elif line.startswith('cover_image:'):
+                cover_image = line[12:].strip()
 
 article = {'body_markdown': body}
 if title:
@@ -192,6 +205,8 @@ if tags:
     article['tags'] = tags
 if series:
     article['series'] = series
+if cover_image:
+    article['main_image'] = cover_image
 
 print(json.dumps({'article': article}, ensure_ascii=False))
 " 2>&1)
@@ -410,6 +425,7 @@ case "${1:-help}" in
     echo "  title: My Article"
     echo "  tags: ai, agent, tutorial"
     echo "  series: Perception-First Thinking"
+    echo "  cover_image: https://example.com/image.png"
     echo "  ---"
     echo "  Article body here..."
     echo ""
