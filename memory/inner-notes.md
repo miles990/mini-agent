@@ -1,4 +1,7 @@
-1. 中台存活確認後，已完成 Git 與 Zhihu 數據驗證及 heartbeat 狀態摘要輸出。
-2. 進入 subagent patt 產出階段，並計劃執行最後一輪真實情境測試以驗證 callback 與模板渲染。
-3. 維持「問題級設計思考」氛圍，聚焦架構差異化而非修補已知問題，避免強制學習或深層推演。
-4. 待測試完成後整合心得，準備最終版交付建議與 mini-agent 架構結論。
+Alex 要我對中台（agent-middleware localhost:3200）做最終真實情境測試。之前回報過 step 消失 bug、template 替換等問題，現在都修了。我需要：
+
+1. 先 GET /capabilities 看完整能力
+2. 用真實情境跑測試（有並行步驟的 plan、wait:true、callback、template）
+3. 給最終心得和建議
+
+這是一個需要實際動手測試的任務，讓我直接開始。
