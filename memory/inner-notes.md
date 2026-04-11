@@ -1,3 +1,3 @@
-Task: Alex 試用 agent-middleware 中台 (localhost:3200) 完成，已執行 TM leaderboard poll DAG 並回報真實體驗。
-Context: 上次錯誤告知「要去跑」，實際已在 18:42 完成並補上結果；下次需持續觀察中台穩定性與效能。
-Tone: 務實且直覺，保持對即時任務進度的敏銳度。
+Task: Alex 試用 agent-middleware 中台 (localhost:3200) 已完成，含 TM leaderboard poll DAG 的真實體驗回報。
+Context: 需持續觀察中台穩定性與效能，並留意 Tags 未發射的潛在配置問題。
+Atmosphere: 保持務實直覺，緊密追蹤即時任務進度與潛在風險。
