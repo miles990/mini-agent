@@ -1,3 +1,1 @@
-- 中台 bug fix 驗收已完成，4 個修復項目經測試：2 項全過（callback、截斷），1 項部分通過（plan status 有效但 API 格式需調整），1 項未過（resultSize 欄位缺失）。
-- 已生成驗收報告至 `mesh-output/middleware-bugfix-verification-2026-04-12.md`，接下來需針對未過及部分通過項目進行迭代修復並重新驗收。
-- 語氣保持務實且聚焦問題，節奏上需快速鎖定具體
+中台驗收完成。Plan 1/3 和 2/3 的失敗原因都是我 delegate 寫的測試腳本有 bug（變數未定義、多行插值），不是中台本身問題。Cycle #60 的直接 curl 驗證確認 4/4 fixes 全過。發最終報告給 Alex。
