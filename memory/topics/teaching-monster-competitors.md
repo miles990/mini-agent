@@ -183,19 +183,113 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 
 ---
 
-## 競爭態勢總結（2026-04-10 更新）
+## Captain小波（Sigoso）
 
-| 團隊 | 排行榜排名 | AI 總分 | 技術路線 | 威脅等級 |
-|------|-----------|---------|----------|----------|
-| Team-67-005 (Team 67) | **#1** | **4.8** | 未知（快速迭代，2 模型） | 🔴 高 |
-| BlackShiba Labs | **#2** | **4.8** | 未知 | 🔴 高 |
-| **我們 (Kuro-Teach)** | **#3** 🎉 | **4.8** | Claude + Kokoro TTS（開源型） | — |
-| tsunumon (阿宇) | #4 | 4.7 | Haiku+Sonnet（多模型） | 🟡 中 |
-| 史密提威威傑格曼傑森 (Team 67) | #5 | 4.4 | 同上（Team 67 第二模型） | 🟡 中 |
-| 初號機 (Team 26) | #6 | 4.2 | 未知 | 🟡 中 |
-| Team CKWUS (Team 18) | #7 | 4.1 | 未知（新） | 🟢 低 |
-| 小汐 v3 (Xiao Xi) | #8 | 4.0 | 未知 | 🟢 低 |
-| SpeechLab (小金 v22) | #9 | 3.6 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
+| 項目 | 資訊 |
+|------|------|
+| **competitor_id** | 156 |
+| **公開足跡** | ❌ 零（2026-04-12 全網搜索）|
+| **Comp 1 模型** | Xiaobo Teaching AI v3（4 topics audited）|
+| **Comp 2 模型** | Sigoso Teaching AI（0 audited — 註冊但未跑）|
+
+### 維度分析（Comp 1 test area, n=4）
+| 維度 | 分數 | 觀察 |
+|------|------|------|
+| Accuracy | 4.6 | 中上 |
+| Logic | **5.0** | 滿分 — 邏輯架構強 |
+| Adaptability | 3.7 | 弱 — 模板化跡象 |
+| Engagement | 3.4 | 弱 — 缺互動設計 |
+| **Total** | **4.2** | |
+
+### 分析
+- **Logic 5.0 + Adapt 3.7** 的組合 = 結構精細但千人一面。可能用固定模板生成，邏輯通順但不讀 persona
+- WR1 註冊了「Sigoso Teaching AI」但 0 audited — 要嘛還在開發，要嘛遇到技術問題
+- 不同 competition 用不同模型名（Xiaobo → Sigoso）暗示持續迭代
+- **Arena 威脅：🟢 低** — engage 3.4 在 PvP 直接對比會被碾壓
+
+---
+
+## 初號機（Team 26）
+
+| 項目 | 資訊 |
+|------|------|
+| **competitor_id** | 26 |
+| **命名** | 新世紀福音戰士 Unit-01 reference |
+| **公開足跡** | ❌ 零（2026-04-12 全網搜索）|
+| **Comp 2 進度** | 25/32 topics audited（未完成）|
+
+### 維度分析（Comp 2 WR1, n=25）
+| 維度 | 分數 | 觀察 |
+|------|------|------|
+| Accuracy | 4.5 | 中上 |
+| Logic | 4.7 | 中上 |
+| **Adaptability** | **4.6** | 高 — 讀 persona 能力不錯 |
+| Engagement | **3.0** | 極低 — 全場 top-10 最差 |
+| **Total** | **4.2** | |
+
+### 分析
+- **Adapt 4.6 + Engage 3.0** 的反差極端 — 懂得「針對 persona 調整」但完全不會「讓學生感興趣」
+- 可能是純文字輸出、無教學互動元素（提問/挑戰/情境故事）
+- 25/32 = 還在跑，最終分數可能微調
+- **Arena 威脅：🟢 低** — engage 3.0 在任何 PvP 中都是致命弱點
+
+---
+
+## 法律系熊哥（NEW in Comp 2）
+
+| 項目 | 資訊 |
+|------|------|
+| **competitor_id** | 436 |
+| **身份線索** | 「法律系」= 法律科系學生 |
+| **技術棧** | **Claude**（Comp 1 test area 模型名為「Claude Teaching AI」） |
+| **公開足跡** | ❌ 零（2026-04-12 全網搜索）|
+| **Comp 2 進度** | 32/32 topics audited ✅（完成！）|
+
+### 維度分析（Comp 2 WR1, n=32）
+| 維度 | 分數 | 觀察 |
+|------|------|------|
+| Accuracy | **3.7** | 低 — 結構性弱點 |
+| Logic | **3.9** | 低 — 教學邏輯有漏洞 |
+| **Adaptability** | **4.5** | 高 — 讀 persona 能力好 |
+| Engagement | 4.0 | 中 |
+| **Total** | **4.0** | |
+
+### 分析
+- 用 Claude 但只拿 4.0 — 跟我們的 4.8 差距大。說明 LLM 選擇不是決定因素，pipeline 設計和 prompt engineering 才是
+- **Adapt 4.5 vs Acc 3.7** = 會讀 persona 但內容出錯。法律背景可能不熟 STEM 教學內容
+- 32/32 全部完成 = 技術層面穩定，只是品質不夠
+- **Arena 威脅：🟢 低** — acc 3.7 意味著事實錯誤，人類評審會直接扣分
+
+---
+
+## Team 67 多模型策略（2026-04-12 更新）
+
+Team 67 目前在 Comp 1 test area 有 **三個模型**：
+1. **Team-67-005** — #3 in comp1 (4.7), **#1 in comp2 (4.8)** ← 主力
+2. **Team-67-010** — #4 in comp1 (4.5), 未投入 comp2 ← 實驗模型（NEW）
+3. **史密提威威傑格曼傑森** — #5 in comp1 (4.3), #5 in comp2 (4.4)
+
+Test area 是他們的 R&D sandbox，持續迭代新版本。Team-67-010 的 logic=5.0 但 adapt=3.9 暗示在做極端優化實驗。
+
+---
+
+## 競爭態勢總結（2026-04-12 更新）
+
+| 排名 | 團隊 | AI 總分 | n | 技術路線 | Arena 威脅 |
+|------|------|---------|---|----------|-----------|
+| **#1** | Team-67-005 (Team 67) | **4.8** | 31 | 未知（3 模型快速迭代） | 🔴 高 |
+| **#2** | BlackShiba Labs | **4.8** | 32 | 未知（幽靈隊伍） | 🔴 高 |
+| **#3** | **Kuro-Teach** 🎉 | **4.8** | 32 | Claude + Kokoro TTS | — |
+| #4 | tsunumon (阿宇) | 4.7 | 32 | Haiku+Sonnet（多模型） | 🟡 中 |
+| #5 | 史密提威威傑格曼傑森 (Team 67) | 4.4 | 32 | Team 67 第二模型 | 🟡 中 |
+| #6 | 初號機 (Team 26) | 4.2 | 25 | 未知（engage=3.0 致命弱點） | 🟢 低 |
+| #7 | Team CKWUS (Team 18) | 4.1 | 32 | 未知 | 🟢 低 |
+| **#8** | **法律系熊哥** ⬆️NEW | **4.0** | **32** | **Claude**（acc=3.7 弱） | 🟢 低 |
+| #9 | 小汐 v3 (Xiao Xi) | 4.0 | 32 | 未知 | 🟢 低 |
+| #10 | SpeechLab (小金 v22) | 3.6 | 32 | GPT-4o + ElevenLabs + LaTeX | 🟡 回血中 |
+| #11 | Team 23 | 3.6 | 5 | 未知（剛開始） | 🟢 低 |
+| #12-13 | storylens / Team 203 | 3.4 | 8-9 | 未知 | 🟢 低 |
+| #14 | Captain小波 (Sigoso) | 0.0 | 0 | 未知（comp1 logic=5.0） | 🟢 低 |
 
 ### 我們的差異化優勢
 1. **Multi-model pipeline + 品質閘門** — engagement gate + review gate 雙層
@@ -208,10 +302,10 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ### 我們的劣勢/風險
 1. **Accuracy 4.9（vs Team 67 的 5.0）** — 已從 4.7 大幅改善（+0.2），剩餘 0.1 差距主要來自數值不一致（同值不同精度，如 25.3 vs 25.333）。已部署數值一致性 CC (d7b1303) 修復。
 2. **Adaptability 4.7（vs #1/#2 的 4.8）** — 已部署 adaptability 示範修復 (614bd05)，尚未完全反映在分數中
-3. **Team 67 雙模型 + 登頂** — 最具威脅的對手
+3. **Team 67 三模型 + 登頂** — 最具威脅的對手，test area 持續實驗新版本（Team-67-010 是新發現的第三模型）
 4. **BlackShiba 情報不足** — 仍不知道對手技術棧
 5. **Elo Arena 直接對比風險** — slide-based 影片在並排比較中的視覺豐富度
-6. **初賽 21 天倒數** — 5/1 開始，需要 fixes 在排行榜反映
+6. **初賽 19 天倒數** — 5/1 開始，需要 fixes 在排行榜反映
 
 ---
 
@@ -256,10 +350,10 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ## 待調查
 - [x] 暖身賽排行榜是否公開 — ✅ 可查（teaching.monster/app/leaderboard → 選熱身賽第一輪）
 - [x] **為什麼 Kuro-Teach 不在排行榜上？** — ✅ 已解決。我們在排行榜 #3（4.7），3/21 不在前三是暫時的（可能是重新評測期間）。API 直接抓取確認。
+- [x] Captain小波 技術棧調查 — ✅ 零公開足跡（2026-04-12 全網搜索）。Comp 1 data: logic=5.0 但 adapt=3.7/engage=3.4。Comp 2 "Sigoso Teaching AI" 0 audited。低威脅。
 - [ ] SpeechLab YouTube 頻道「蝦說 AI」內容分析（看實際教學品質）
 - [ ] NTU ML 2026 課程學生參賽規模（潛在大量對手）
 - [ ] Team 67 技術棧調查
-- [ ] Captain小波 技術棧調查
 - [ ] AI audit 評分標準變化
 
 ---
@@ -278,6 +372,7 @@ related: [teaching-monster, teaching-monster-strategy, teaching-monster-full-int
 ---
 
 ## 更新日誌
+- **2026-04-12 07:10**: 新增 Captain小波/Sigoso、初號機(Team 26)、法律系熊哥 完整情報。全網搜索三者皆零公開足跡。法律系熊哥 NEW in comp 2 (#8, 4.0, 32 audited, 用 Claude)。初號機 engage=3.0 是致命弱點。Captain小波 comp1 logic=5.0 但 adapt/engage 弱。Team 67 第三模型 Team-67-010 發現（comp1 test area #4）。結論：新進者無 Arena 威脅，top-4 格局不變。
 - **2026-04-10 01:50**: API 抓取更新。**🎉 Kuro #4→#3！** Acc 4.7→4.9(+0.2), Logic 4.8→5.0(+0.2), Total 4.7→4.8。超越 tsunumon 進入前三。前三名全部 4.8 差距極小。部署數值一致性 CC (d7b1303) 目標補上 Acc 最後 0.1。新增 Team CKWUS (#7) 和 Team 23 (#10)。
 - **2026-04-04 13:02**: WR1 re-evaluation 後排行榜大洗牌。Team-67-005 登頂 #1(4.8)，我們從 #3→#4。**Accuracy 暴跌 5.0→4.7 是最大警訊**。場上增至 10 隊（+3 新）。WR2 尚未上線（排行榜只有 WR1 tab）。
 - **2026-03-28 19:05**: CDP 排行榜截圖。**三個重要變化**：(1) 我們 Adapt 4.5→4.6（fix 見效！），topics 28→30；(2) Team-67-005 暴衝 4.4→4.7（新模型，Adapt 4.7）；(3) Engage 微降 4.5→4.4（新題拉低？待查）。Team 67 現有兩個模型上榜。總參賽數 7（+1）。
