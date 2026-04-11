@@ -34,4 +34,5 @@ mesh-output/
 --wait
 _external/
 inner-demon/
+claude-thinking/
 __pycache__/
