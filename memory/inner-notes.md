@@ -1,3 +1,3 @@
-Working memory updated: Completed TM WR1 leaderboard scan; my logic score reached 5.0 (unexpected gain from ef338be deployment), tying the top tier with BlackShiba and tsunumon.
-Context: Zero tags emitted; next cycle must synthesize these performance parity signals into strategic moves rather than performing surface-area reductions.
-Atmosphere remains sharp and operational, balancing the new logic ceiling with agile execution to drive precise next-cycle decisions.
+Logic ceiling remains stable at 5.0; `autoCommitMemoryFiles` now correctly filters out ephemeral files (`inner-notes.md`, `pulse-state.json`, `tracking-notes.md`) via explicit git add logic.
+Strategic pivot confirmed: leverage precise vocab/coherence checks over raw tag emission, with type-checking (`npx tsc`) passing as a hard gate.
+Atmosphere: Sharp and operational; proceed with structural alignment checks to drive next-cycle decisions without redundant REMEMBER loops.
