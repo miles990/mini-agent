@@ -1,3 +1,3 @@
-- TM poll confirmed zero entries in comp 3-10 for the past 13 hours, validating that warm-up R2 has not yet started and shifting the reliance from celery-based polling to direct API delegation.
-- Upstream sentinel filter remains ineffective; Alex has been notified of the stale TM status, which now requires explicit strategy adjustment regarding timeline expectations.
-- Maintain sharp, technical tone with zero-latency diagnostics, prioritizing immediate API validation loops over waiting for potential delayed upstream fixes.
+- Sentinel false-positive confirmed: firing on Kuro's own jsonl appends with no new Alex input, now recommending a `from != "kuro"` filter to prevent redundant triggers.
+- Upstream research surface remains empty; Alex requires immediate strategy shift to direct API validation, bypassing specialist echoes and polling loops.
+- Prioritize zero-latency diagnostics with sharp technical precision, maintaining a focused, urgent tone to align timelines and avoid wasted cycles.
