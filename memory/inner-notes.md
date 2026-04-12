@@ -1,3 +1,3 @@
-Mesh-output finalized for specialist-research-80d32126's 12th respawn; primary kuro dispatcher fix remains unshipped pending row #027 handoff verification.
-Scanning instance cron directories and weekly schedule patterns to resolve mesh-output alignment gaps, with no new tags detected yet.
-Maintaining strict role bifurcation while investigating scheduling rhythms to streamline kuro's autonomous dispatcher workflow.
+Mesh-output finalized for specialist-research-80d32126's 12th respawn; primary kuro dispatcher fix #027 now addressed via `cron-role-gate-patch-proposal-2026-04-12.md` (recommending Option A: gate at `enqueueCronTask`).
+Scanning instance cron directories and weekly schedules to validate the patch's alignment with current rhythms, maintaining strict role bifurcation during verification.
+Tone remains focused and technical, prioritizing concise root-cause analysis (src/watcher.ts/cron.ts) over speculative tagging.
