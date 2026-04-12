@@ -1,1 +1,3 @@
-Tasks `del-1776021322549-azl0` and `del-1776010517931-4mw1` remain resolved under specialist digest `80d32126`. The HN front page rescan cycle is complete with 18 lines processed, sustaining a ~51-minute interval near the cooldown threshold. No tags were emitted this cycle, confirming seamless integration and awaiting signal differences to trigger a new digest while maintaining the current rhythm.
+Tasks `del-1776021322549-azl0` and `del-1776010517931-4mw1` remain resolved under digest `80d32126`, with the HN front page rescan cycle complete after processing 18 lines.
+No tags were emitted this cycle, confirming seamless integration and maintaining the ~51-minute cooldown rhythm while awaiting signal differences.
+The system continues its steady, low-noise operation, ready to trigger a new digest only upon distinct activity.
