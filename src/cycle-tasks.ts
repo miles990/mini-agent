@@ -369,11 +369,25 @@ export async function autoEscalateOverdueTasks(): Promise<void> {
 
 const MEMORY_COMMIT_PATHS = ['memory/'];
 
+// Ephemeral files inside memory/ that should NOT trigger auto-commits.
+// These churn every cycle and produce ~78% of commit noise (see
+// mesh-output/git-hygiene-audit-2026-04-12.md). Excluded here at stage time
+// so the file isn't added; users can still commit them manually.
+const MEMORY_COMMIT_EXCLUDE_BASENAMES = new Set([
+  'inner-notes.md',
+  'pulse-state.json',
+  'tracking-notes.md',
+]);
+
 // External repos — only Kuro's own projects
 const KURO_EXTERNAL_REPOS = [
   path.join(os.homedir(), 'Workspace', 'mushi'),
   path.join(os.homedir(), 'Workspace', 'metsuke'),
 ];
+
+function isExcludedMemoryFile(relPath: string): boolean {
+  return MEMORY_COMMIT_EXCLUDE_BASENAMES.has(path.basename(relPath));
+}
 
 /**
  * Use local LLM to generate a meaningful commit message from diff.
@@ -415,18 +429,23 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
     if (!status.trim()) return;
 
     const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+    const commitableFiles = changedFiles.filter(f => !isExcludedMemoryFile(f));
+    if (!commitableFiles.length) {
+      slog('auto-commit', `skipped: only ephemeral files (${changedFiles.length})`);
+      return;
+    }
 
     await execFileAsync(
-      'git', ['add', ...MEMORY_COMMIT_PATHS],
+      'git', ['add', '--', ...commitableFiles],
       { cwd, encoding: 'utf-8', timeout: 5000 },
     );
 
     // Get staged diff for LLM commit message generation
-    const fileList = changedFiles.slice(0, 5).join(', ');
+    const fileList = commitableFiles.slice(0, 5).join(', ');
     let diff = '';
     try {
       const { stdout: d } = await execFileAsync(
-        'git', ['diff', '--cached', '--stat', ...MEMORY_COMMIT_PATHS],
+        'git', ['diff', '--cached', '--stat', '--', ...commitableFiles],
         { cwd, encoding: 'utf-8', timeout: 5000 },
       );
       diff = d;
@@ -439,7 +458,7 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
       { cwd, encoding: 'utf-8', timeout: 10000 },
     );
 
-    slog('auto-commit', `${changedFiles.length} file(s): ${fileList}`);
+    slog('auto-commit', `${commitableFiles.length} file(s): ${fileList}`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes('nothing to commit')) {
