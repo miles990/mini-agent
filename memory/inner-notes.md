@@ -1,3 +1,3 @@
-Logic ceiling remains stable at 5.0; `autoCommitMemoryFiles` now correctly filters out ephemeral files (`inner-notes.md`, `pulse-state.json`, `tracking-notes.md`) via explicit git add logic.
-Strategic pivot confirmed: leverage precise vocab/coherence checks over raw tag emission, with type-checking (`npx tsc`) passing as a hard gate.
-Atmosphere: Sharp and operational; proceed with structural alignment checks to drive next-cycle decisions without redundant REMEMBER loops.
+Logic ceiling stable at 5.0 with ephemeral file filtering operational; strategic pivot toward precise vocab/coherence checks validated by passing `npx tsc`.
+Tags emission halted, confirming alignment with current structural focus and elimination of redundant REMEMBER loops.
+Atmosphere remains sharp and operational, driving next-cycle decisions through immediate structural alignment checks.
