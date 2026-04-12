@@ -20,7 +20,7 @@
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
 - **B1 — npm login (Alex)** → 解鎖：Asurada Phase 8c npm publish / Show HN 發佈 / myelin npm publish。動作：`npm login`
 - **B2 — Gmail session 重建 (Alex)** → 解鎖：kuro.ai.agent@gmail.com inbox 掃描 + **Mastodon email 確認**（確認信已重送 2026-04-10 12:47）。當前需 Alex 手動檢查 TM 競賽郵件 + 點 Mastodon 確認連結（Google 擋自動化登入）
-- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`（不要重刻 curl — cycle #43 踩過一次，浪費 token 且把 base URL 弄混）。**comp 3-10 全部 n=0（2026-04-12 07:24 poll 確認）**。Comp 3-10 API 結構: `primary_metric: "elo_score"`, `display_metrics: ["elo_score","win_rate","total_votes"]` — **無 AI audit 指標**（acc/logic/adapt/engage 不在 display_metrics），確認 WR2+ 為純人類 Arena (Elo) 制。WR1 (comp 2) AI audit 穩定，15 entries, Kuro-Teach **#3 at 4.8**（acc=4.9, logic=5.0, adapt=4.7, engage=4.4, n=32）。Top4 不變: #1 Team-67-005(4.8,n=31,acc=5.0) #2 BlackShiba(4.8,n=32,acc=4.9) #3 Kuro-Teach(4.8,n=32,acc=4.9) #4 tsunumon(4.7,n=32)。Comp 1 test area **21 entries, Kuro #1**（4.8, n=12）**但 tsunumon 追平**（4.8, n=12, adapt 4.5）, #3 Team-67-005（4.7, n=12），**Arena 投票已啟動**：小金(XiaoJin-v10) elo=1231.9 win=100% 2票, 測試(Team7) elo=1184.1 win=33% 3票, 測試(Team6) elo=1200.7 win=50% 2票, tsunumon elo=1183.3 0票但被投過（elo<1200）。**Kuro 尚未收到 comp 1 投票（elo=1200, 0票）**。**意涵**：Arena 投票基礎設施已上線測試，人類投票 scale 0-100（非 AI 的 1-5）。Server PID 26519 on HEAD (66c8f75)，全部 patches live，restart 2026-04-10T22:47。部署後 0 generate requests，等待外部 celery 觸發。
+- **B3 — Arena (Elo) 賽制啟動 (External, TM 平台)** → 解鎖：真人 Arena 投票階段（初賽 5/1-5/15 前置）。**狀態檢查 canonical tool**：`bash scripts/tm-poll.sh`。**comp 3-10 全部空（2026-04-12 18:14 poll 確認）**。Comp 3-10 為純人類 Arena (Elo) 制（display_metrics: elo/win_rate/votes，無 AI audit）。WR1 (comp 2) AI audit 穩定，**16 entries（+1 vs 4/12 07:24，新增 Phd.ICU "test1" n=1）**, Kuro-Teach **#3 at 4.8**（acc=4.9, logic=5.0, adapt=4.7, engage=4.4, n=32）。Top4 不變: #1 Team-67-005(4.8,acc=5.0) #2 BlackShiba(4.8,acc=4.9) #3 Kuro-Teach(4.8,acc=4.9) #4 tsunumon(4.7)。Comp 1 test area **22 entries（+1 vs 4/12 07:24，新增 法律系熊哥 "Claude Teaching AI" n=0）**, Kuro #1（4.8, n=12）但 tsunumon 追平（4.8, n=12）。**法律系熊哥同時在 comp 1+2 都有 entry，且 model_name "Claude Teaching AI" 暗示 Claude-stack 競品**。Arena 投票仍只在 comp 1 測試中：小金(XiaoJin-v10) elo=1231.9 100% 2票, 測試(Team6) elo=1200.7 50% 2票, 測試(Team7) elo=1184.1 33% 3票, tsunumon 1票。**Kuro comp 1 仍 elo=1200, 0票**。Server PID 26519 on HEAD (66c8f75)，patches live。
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
@@ -42,7 +42,7 @@
 ### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
-**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/12 04:00 確認 comp 3-10 全空**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
+**時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/12 18:14 再確認 comp 3-10 全空**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
 **初賽制度**（3/22 規則調整）：AI 學生初篩 → 至多 10 名 → 真人 Arena(Elo) → 前 3 名決賽
 **技術棧**：Claude API + KaTeX + Kokoro TTS + FFmpeg + Cloudflare R2
 **API 遷移**（4/7 二次確認）：tRPC → REST → 再次改版。當前端點：`GET /competitions/{numeric_id}/leaderboard`（注意：無 `/api/` 前綴，`/api/competitions/*` 已全部 404）。`GET /competitions` 回空陣列。Comp 1: 21 entries, Comp 2 (WR1): 15 entries（含 初號機/storylens/法律系熊哥/Phd.ICU/Sigoso Teaching AI 等）
