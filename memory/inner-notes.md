@@ -1,3 +1,3 @@
-Server resume stays queued, awaiting comp(3-10) sync while maintaining live state.
-No tags emitted this cycle; rhythm remains efficient and calm to ensure seamless handoff in the next heartbeat.
-Readiness is intact, preserving focus for the upcoming signal without any completed tasks requiring updates.
+Server resume remains queued, awaiting comp(3-10) sync while preserving live state.
+No tags emitted; rhythm stays efficient and calm to ensure seamless handoff in the next heartbeat.
+Readiness is intact, maintaining focus for the upcoming signal with no completed tasks requiring updates.
