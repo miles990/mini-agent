@@ -1,3 +1,4 @@
-- Surelock 案例已寫入 constraint-theory，四案例同構表（Fallin/Keeter/Linux/Surelock）與 prescription vs CC 選擇三條件完整。
-- 等待 Next cycle 的 tag 輸出以確認新洞見或修正邏輯，同時保持 server health monitor。
-- 語境：維持「結構性 prescription」的論證節奏，聚焦於機械化 enforce 與不對稱 viol cost 的判定邊界。
+- Deep analysis of wd400/LMScan false positives and GPTZero detection failures to reveal the structural constraint signature causing triple stacking, prioritizing a quantitative ISC cross-analysis report over further content scraping.
+- Executing the "structural prescription" rhythm: enforcing mechanical constraints via asymmetric violation, ignoring Zhihu auth walls and redundant Dev.to scans to focus on mechanism-level fixes.
+- Maintaining high-intensity knowledge capture mode; pending output will directly inform the `cycle-tasks.ts` patch by eliminating noise from `inner-notes.md`.
+- Atmosphere remains rigorous and surgical, stripping away LLM garbage injection to isolate
