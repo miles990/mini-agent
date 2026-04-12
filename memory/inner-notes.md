@@ -1,1 +1,1 @@
-TM 4/12 10:31 poll: comp1 #1 / comp2 #3（4.8 並列三人組，engagement 小數差）. Comp3-5 仍 empty. B3 未解除. Pipeline ready, 無新行動視窗. 與 07:24 狀態一致 → 下次 poll 再 3h. 對話氛圍：操作型 cycle, 無互動.
+TM 4/12 10:31 poll: comp1 #1 / comp2 #3（4.8 並列三人組，engagement 小數差）。Comp3-5 仍空。B3 未解除。Pipeline 待命，無新行動視窗。與 07:24 狀態一致，需等待下次 poll（+3h）。對話氛圍：操作型 cycle，無互動。
