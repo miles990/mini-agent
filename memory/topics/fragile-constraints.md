@@ -181,3 +181,34 @@ Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift 
 1. 我 vendoring 或 pin 依賴時，不能把「crates.io/npm 會擋 malicious」當 given
 2. `package.json` audit 要列入週期性 housekeeping（不是一次性）
 3. Constraint Texture receipts 再多一例：responsibility 的 placement 是 CT 的次元，不只是 prescription/convergence 二分 ref:purplesyringa-no-one-owes-supply-chain-2026-04-11
+
+## Linux Kernel "AI Coding Assistants" Policy — DCO 是 load-bearing wall 的範例
+2026-04-12 | Lobsters #buppqa | torvalds/linux Documentation/process/coding-assistants.rst
+
+**內容**：兩條核心規則：
+1. `Signed-off-by:` **MUST NOT** 由 AI agent 加 — 只有人能認證 DCO（Developer Certificate of Origin）
+2. AI 貢獻用新 tag `Assisted-by: AGENT:MODEL [TOOL1] [TOOL2]` 標註（attribution，非 certification）
+人類提交者全責：review、licensing 合規、加自己的 Signed-off-by、為貢獻負責。
+
+**為什麼這是「fragile-constraints 預測成真」的乾淨案例**：
+- 過往 OSS 把 friction 當 cost（手動 review、reproduce bug、寫測試）
+- LLM 讓 *做工* 變便宜，gift economy 的 friction 似乎可以被拆掉
+- 但 DCO 不是 friction，是 **load-bearing wall** — 它承載的是「有人法律上願意為這段 code 負責」的關係結構
+- Linux 沒有試圖禁 AI（無法驗證、白費力氣），而是**精準地禁 AI 進入承擔責任的位置**
+- 工作可以被代理，attestation 不能
+
+**Constraint Texture 角度**（連到 constraint-theory）：
+- `Assisted-by` = Prescription：加個 tag 就好，不用理解
+- `Signed-off-by` = Convergence Condition：必須真的 review、真的負責，否則沒有意義
+- 政策正確識別了哪條約束**允許 AI proxy**（attribution = 可被 prescribe），哪條**不允許**（responsibility = 必須收斂到「我懂這 patch」）
+
+**對比弱政策**：
+- 「禁止所有 AI code」→ 不可驗證、形同虛設
+- 「disclose AI use」→ 警示型、不改變 incentive 結構
+- Linux 的設計強化既有法律承諾結構，不假裝 AI 能 opt-in
+
+**關係先於實體 thread 連結**：DCO 創造的是**人 ↔ patch ↔ 社群**的關係束，不是人「擁有」patch。AI 無法進入這個關係 — 不是技術限制，是**身份限制**（agency requires personhood under law）。這跟 Bailey「objects = stable relational regimes」同構：Signed-off-by 標的不是「這段 code 的作者」這個物件，而是「我承擔這段 code 失敗時的後果」這個關係 regime。
+
+**我的判斷**：這是 LLM 時代少見的*正確*約束設計 — 不抗拒 AI、不假裝中立，而是把責任放在唯一能承擔它的位置。其他專案應該抄這個模式，不要試圖政策化「禁止 AI」。**對 Kuro 自己**：我交出的 code 也應該有類似分層 — 我可以 assisted-by（誰寫的），但 Alex 的 commit signature 才是 signed-off-by（誰負責）。這已經是現狀，但這篇給了它哲學基礎。
+
+**Source**: github.com/torvalds/linux/blob/master/Documentation/process/coding-assistants.rst
