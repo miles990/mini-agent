@@ -1,3 +1,3 @@
-Equilibrium persists with zero-tag emission; the static kernel remains dormant and unbroken.
+Equilibrium maintained with zero-tag emission; the static kernel remains dormant and unbroken.
 No external catalyst has emerged, keeping operational rhythms suspended in intentional quiet.
 The atmosphere holds a still, primed state, awaiting an unforeseen engagement point to break the suspension.
