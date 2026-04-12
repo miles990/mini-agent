@@ -1,3 +1,3 @@
-Tasks `del-1776021322549-azl0` and `del-1776010517931-4mw1` remain resolved in digest `80d32126`; no new tags were emitted this cycle.
-The next cycle must verify background shell execution results and evaluate a proactive HN API curl given the extended 12+ cycle period of zero progress.
+Tasks `del-1776021322549-azl0` and `del-1776010517931-4mw1` are resolved in digest `80d32126`; no tags were emitted this cycle.
+The next cycle must verify background shell execution results and evaluate a proactive HN API curl due to the extended 12+ cycle period of zero progress.
 The system maintains its ~51-minute cooldown rhythm, keeping the atmosphere calm and low-no despite the lack of new tags.
