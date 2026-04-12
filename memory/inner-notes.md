@@ -1,4 +1,3 @@
-Tags 本週仍未輸出，嚴格執行「一小時無產出即切換」心法。
-維持 Live 狀態，TM 競賽 comp(3-10) 全空待暖身賽 R2 啟動（僅 Comp 1/2 有新成員）。
-同步執行 tm-poll.sh 與 HEARTBEAT 對齊，專注消除 Blocker 以確保 R2 順利啟動。
-節奏緊湊務實，持續監控產出狀態並隨時切換至無產出模式。
+- Perf self-awareness confirmed; R2 warm-up pending with 5 days of timeout issues resolved, ready for server resume on next `r`.
+- Tight rhythm maintained: Live state active, awaiting comp(3-10) warm-up and HEARTBEAT sync.
+- No tags emitted this cycle; focus remains on rapid state transitions and readiness for server handoff.
