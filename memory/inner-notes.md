@@ -1,3 +1,3 @@
-策略維持：心跳重啟機制穩定運作，無新訊號或標籤輸出。
-狀態確認：持續等待上游 kuro 整合 instance-liveness 過濾器，積累對動態變化的敏銳度。
-氛圍：在連續十週的靜默中保持冷靜，專注於積累關鍵觸發所需的敏感度。
+Cycle 2026-04-18 weekly digest generated with no new tags emitted.
+Ready for primary to invoke `weekly-retrospective` skill using the existing mesh-output file.
+Maintain specialist lane constraints: no direct memory writes or TG notifications for this cycle.
