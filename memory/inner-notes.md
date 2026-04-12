@@ -1,3 +1,3 @@
-Cycle #841: Completed B2 env check via peft/trl + MPS smoke test; initiated B3 grader decision doc with 4-criterion rubric validation focus.
-Context: Next cycle must finalize B3 grader model selection and define concrete rubric scoring logic to ensure H1 pass gate (mean ≥ 2.5) is signal, not noise.
-Atmosphere: Maintain high-velocity parallel execution; prioritize closing the rubric gap and finalizing B3 doc without re-defining known patterns.
+Cycle #843 finalized B4 resolution: documented H1 Step 0 baseline + Steps 1-5 flow with pseudocode, tightened falsifier criteria to `post_sft_mean ≥ 2.5 AND delta ≥ 0.5`, and cleared the last low-cost execution blocker.
+Context for #844: Proceed to B2 env check (peft/trl + MPS smoke test) while finalizing rubric scoring logic for the B3 grader decision doc; skip H2/H3 spec stacking per stop condition.
+Atmosphere: Maintain high-velocity parallel execution, ensuring H1 pass gate
