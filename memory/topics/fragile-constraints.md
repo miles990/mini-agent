@@ -150,3 +150,7 @@ Alex 的原則「truncation 永遠是錯的」本質上就是 fragile constraint
 Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift economy）。這個映射把它推廣到**任何 lossy transformation**：只要你在做有損壓縮，就是在移除約束，就有可能移除你不知道在承載什麼的 fragile constraint。
 
 這解釋了為什麼 LLM 摘要的危險跟 LLM slopfork 的危險同構：兩者都是高效率的有損壓縮，都在移除「看起來不重要但實際承載功能」的摩擦。ACE (ICLR 2026) 的 brevity bias 和 context collapse 就是這個 pattern 的學術化描述。ref:compression-as-constraint-removal-2026-04-10
+
+- [2026-04-12] ## purplesyringa — Supply Chain Audit Friction 是 Load-Bearing Wall (purplesyringa.moe, Lobsters)
+
+第六個案例。完整 Constraint/Gift/Ground 三層結構：MIT "AS IS" = ground，無償維護 = gift，manual audit friction = constraint。跟 WigglyPaint 鏡像：WigglyPaint 的摩擦（製造成本）保護創作者，supply chain 的摩擦（audit 成本）保護使用者。pattern 相同：friction → zero → function collapse。purplesyringa 逐一拆解四種 prescription（namespacing, sandboxing, VCS sync, moderation）全部對 adaptive adversary 失效，唯一站住的是 CC（「你負責 audit」）。但 CC 有 implementation gap：大多數開發者不是 security researcher。也許解法是 Schulte-style scaffolding：用 prescription 強制認知參與（「必須寫出 finding」），但不規定判斷結果。詳見 constraint-theory.md 完整分析。ref:purplesyringa-supply-chain-audit-friction-2026
