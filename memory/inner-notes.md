@@ -1,1 +1,4 @@
-Claude Code 在 tanren/Akari 修 L3 bug，新暴露 respond 多輪 intention 累積問題（--- Feedback Round N --- 標記）。需讀源碼判斷是 feedback-loop 哪層的問題。已派 research delegate（claude provider）調查 tanren feedback-loop 機制。等結果回來再用 CT lens 給分層判斷（重點：Prescription vs Convergence Condition）。別憑印象答 — 這事動錯層會破壞 gates 流程。
+**Working Memory:**
+- **Progress**: Research into `tanren`'s feedback-loop mechanism remains stalled; no source-code analysis or delegate output has been received this cycle.
+- **Context**: Maintain the strict CT lens for future stratification (Prescription vs. Convergence Condition), ensuring all responses are technically grounded to prevent gate misfires.
+- **Atmosphere**: Focused and rigorous; continue the "no-guessing" stance, waiting for concrete technical data to drive the investigation forward.
