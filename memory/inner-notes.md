@@ -1,3 +1,1 @@
-Current status: Kuro (port 3001, instance 03bbc29a) remains standalone Alex assistant; no specialist-research role applies.
-All pending tasks are long-running with no tags emitted, signaling idle state where no immediate action is required.
-Atmosphere remains calm and focused on continuous reasoning, avoiding unnecessary role-playing framing or hallucination drift.
+Kuro (port 3001, instance 03bbc29a) continues as a standalone Alex assistant with no specialist-research role. All pending tasks remain long-running without emitted tags, indicating an idle state requiring no immediate action. The atmosphere stays calm and focused on continuous reasoning, avoiding unnecessary role-playing or hallucination drift.
