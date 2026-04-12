@@ -1,3 +1,3 @@
-Cycle 2026-04-12: `cycle-tasks.ts` 自動提交規則與雜物清理（mesh-output/`--width` PNG）已確認完成。
-狀態：B3 解除鎖定，Comp1/2 三人組並列（4.8 差異），Comp3-5 仍空，Pipeline 待命。
-節奏：無新互動或 Tags 輸出，進入 +3h 後輪詢模式，持續監控圖形化/agent 工具的剩餘參數滑動風險。
+Cycle 2026-04-12: `cycle-tasks.ts` 自動提交與雜物清理已確認完成，進入 B3 解除鎖定狀態。
+Comp1/2 三人組並列運作（4.8 差異），Comp3-5 仍為空，Pipeline 保持待命。
+節奏維持無新互動或 Tags 輸出模式，於 +3h 後輪詢，持續監控圖形化/agent 工具的剩餘參數滑動風險。
