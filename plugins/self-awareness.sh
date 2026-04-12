@@ -67,24 +67,15 @@ echo "=== Behavior Rhythm ==="
 if [ -f "$BEHAVIOR_LOG" ]; then
     # 從 behavior log 提取 L/A 序列
     # Learn = memory.save, memory.save.topic
-    # Action = action.autonomous, action.task, telegram.chat (通知=行動的一部分)
-    pattern=""
-    learn_count=0
-    action_count=0
-
-    while IFS= read -r line; do
-        action=$(echo "$line" | sed 's/.*"action":"\([^"]*\)".*/\1/' 2>/dev/null)
-        case "$action" in
-            memory.save|memory.save.topic)
-                pattern="${pattern}L"
-                learn_count=$((learn_count + 1))
-                ;;
-            action.autonomous|action.task)
-                pattern="${pattern}A"
-                action_count=$((action_count + 1))
-                ;;
-        esac
-    done < "$BEHAVIOR_LOG"
+    # Action = action.autonomous, action.task
+    # 用單次 grep+sed 取代 per-line subshell 迴圈（1.5K 行 3.4s → 0.01s，避免 10s timeout）
+    pattern=$(grep -oE '"action":"[^"]*"' "$BEHAVIOR_LOG" 2>/dev/null | sed -n \
+        -e 's/"action":"memory\.save"/L/p' \
+        -e 's/"action":"memory\.save\.topic"/L/p' \
+        -e 's/"action":"action\.autonomous"/A/p' \
+        -e 's/"action":"action\.task"/A/p' | tr -d '\n')
+    learn_count=$(printf '%s' "$pattern" | tr -cd 'L' | wc -c | tr -d ' ')
+    action_count=$(printf '%s' "$pattern" | tr -cd 'A' | wc -c | tr -d ' ')
 
     # 只顯示最近 8 個
     recent=$(echo "$pattern" | grep -oE '.' | tail -8 | tr -d '\n')
