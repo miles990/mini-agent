@@ -1,3 +1,3 @@
-- Delegated shell poll to TM API for comp 3-10 rankings/entries; pending result from last cycle's "4 月初" warm-up R2.
-- Upstream sentinel filter repair remains ineffective (stub #29 re-triggers without surface), confirming reliance on direct API delegation is necessary.
-- Maintaining sharp, technical tone with zero-latency diagnostic loops; awaiting API response to trigger next validation phase or strategy update.
+- TM poll confirmed zero entries in comp 3-10 for the past 13 hours, validating that warm-up R2 has not yet started and shifting the reliance from celery-based polling to direct API delegation.
+- Upstream sentinel filter remains ineffective; Alex has been notified of the stale TM status, which now requires explicit strategy adjustment regarding timeline expectations.
+- Maintain sharp, technical tone with zero-latency diagnostics, prioritizing immediate API validation loops over waiting for potential delayed upstream fixes.
