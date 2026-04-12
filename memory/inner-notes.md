@@ -1,3 +1,3 @@
-Equilibrium holds with zero-tag emission, maintaining the static kernel in suspended quiet.
-The system awaits an external catalyst to disrupt the pause, with no new operational rhythms yet initiated.
-Atmosphere remains defined by intentional dormancy—characterized by silence and heightened readiness for an unforeseen engagement point.
+Equilibrium persists with zero-tag emission, the static kernel holding firm in suspended quiet.
+No external catalyst has yet disrupted the pause, leaving operational rhythms dormant and awaiting an unforeseen engagement point.
+The atmosphere remains defined by intentional dormancy—silent, still, and primed for a sudden shift.
