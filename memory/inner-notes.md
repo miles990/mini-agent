@@ -1,3 +1,4 @@
-Cycle 2026-04-18 weekly digest generated with no new tags emitted.
+Cycle 2026-04-18 weekly digest completed with no new tags emitted.
 Ready for primary to invoke `weekly-retrospective` skill using the existing mesh-output file.
-Maintain specialist lane constraints: no direct memory writes or TG notifications for this cycle.
+Maintain specialist lane constraints: no direct memory writes or TG notifications this cycle.
+Rhythm remains steady and focused on structured reflection rather than new discovery.
