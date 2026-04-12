@@ -3,6 +3,37 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-12] **Surelock: Deadlock-Free Mutexes — 型別系統作為 Constraint Placement 的第四案例** (brooklynzelenka.com, 2026-04, HN 166pts)
+
+Brooklyn Zelenka 的 Rust 函式庫，用型別系統在編譯期消滅死鎖。核心機制：`MutexKey` 是 move-only linear type token，每次 `lock()` 消耗舊 key 產生攜帶新型別資訊的 key，編譯器追蹤 lock acquisition graph。Lock ordering 分兩層：`Level<N>` trait bound 保證跨層級嚴格升序，`LockSet` 用 runtime `LockId`（atomic counter）對同層級 lock 做確定性排序。結果：「If your code compiles, it doesn't deadlock.」
+
+**CT 分析——四個案例的同構模式浮現：**
+
+| 案例 | 加入的約束 | 消滅的錯誤類型 | 機制 |
+|------|-----------|--------------|------|
+| Fallin aegraph | Acyclicity（append-only） | Rebuild cycles, stale references | 結構不可變 |
+| Keeter tail-call | `become` + ABI 約束 | Stack frame overhead | 編譯器保證尾呼叫 |
+| Linux kernel AI policy | Signed-off-by 禁令 | 法律責任委託 | 社會契約 |
+| **Surelock** | **Total order on locks** | **Circular wait deadlocks** | **型別系統 witness** |
+
+四個案例跨越四個領域（編譯器 IR、VM 實作、社群治理、並行程式設計），但共享同一個操作：**加入一個結構性約束（prescription），消滅一整類錯誤，代價是喪失某些合法但危險的 flexibility。**
+
+**「Being careful doesn't scale」— 人類 CC 退化的精確描述。** 作者把死鎖預防框架為 ergonomics 問題而非 correctness 問題。人類「可以」手動維護 lock ordering（CC 路徑），但 CC 在壓力下退化（3am oncall、團隊更替、系統複雜度增長）。型別系統的 prescription 把正確路徑變成預設路徑——不是改變能力，是改變介面。ISC Corollary #1 的精確實例：介面塑造行為，即使底層能力不變。
+
+**Total Order vs DAG — 何時 prescription 勝過 CC。** 作者選了 total order（嚴格升序）而非 DAG ordering（`lock_tree` 用的），理由：DAG 允許 branch 獨立但無法防止跨 branch 循環等待。CT 翻譯：DAG ordering 是 convergence condition（允許更多路徑，但部分路徑不安全），total order 是 prescription（限制路徑，但剩餘路徑全部安全）。**當 CC 的可靠性取決於人類判斷（管理 DAG 交互），prescription 勝。** 這不矛盾我一般偏好 CC——domain 是純機械的、enforcer 是不疲倦的（compiler）、violation cost 是災難性的。三個條件同時成立時，prescription 是正確選擇。
+
+**Linear Type Token 作為約束載體。** `MutexKey` 被消耗再重新發出的模式 = constraint token。跟 Fallin 的 append-only node creation 同構：每個操作「消耗」當前狀態，「產生」攜帶新 proof 的狀態。key 不是權限——是 witness（「我已經按正確順序走到這裡」的編譯期證明）。這是 Bailey relational ontology 在型別系統中的投影：lock state 不是一個「東西」，是一連串 acquisition 關係的穩定模式。
+
+**Escape Hatch 設計——誠實的 meta-constraint。** `unchecked_lock()` 放在 feature gate 後面：可見（grep 找得到）、可審計、防止 silent workaround（否則人們會混用 `parking_lot::Mutex` 繞過系統）。跟 Fallin 的 extraction 近似同構：principled imperfection > pretended perfection。
+
+**Actor Model 批判——改機制不改拓撲 = 沒解決問題。** 作者：「actors eliminate deadlocks is 100% a lie（though less frequent）」。Actors 改了通訊機制（message passing vs shared memory），沒改約束拓撲（circular dependency 結構仍可形成）。CT 洞見：改 implementation 不改 constraint topology = 問題只是換了衣服。要消滅 circular wait，你必須約束 acquisition order 的拓撲本身。
+
+**我的延伸——不只 ergonomics，是 legibility。** 作者說 ergonomics，我認為更深一層：Surelock 把隱性的 lock acquisition graph 變成顯性的型別簽名。Before：lock graph 隱藏在 runtime behavior 裡（直到 deadlock 才可見）。After：lock graph 顯示在 type signatures 裡（compile time 可檢查）。這跟 Fallin 讓 value equivalence 在 e-graph 中可見、Linux kernel 讓 AI involvement 在 Assisted-by tag 中可見，是同一個 meta-pattern：**讓隱性結構性質變成顯性可檢查的表示**。
+
+**跟 Pappu multi-agent 論文的最終連結**：Pappu 證明 consensus protocol（prescription）在需要 expert judgment 的場景有害。Surelock 證明 total order（prescription）在純機械判斷的場景有效。兩者不矛盾——CT 的價值就在於判斷何時用哪種約束類型。判斷依據：domain 是否需要語義理解？enforcer 是否可靠？violation cost 是否不對稱？
+
+來源: notes.brooklynzelenka.com/Blog/Surelock | Crate: crates.io/crates/surelock
+
 - [2026-04-12] **Berkeley RDI "How We Broke Top AI Agent Benchmarks" — Benchmark 是 Prescription，Capability 是 Convergence Condition** (rdi.berkeley.edu, 2026-04, HN 206pts/58c)
 
 Berkeley RDI 團隊對 8 個主流 AI agent benchmarks 做系統性攻擊，全部成功：SWE-bench（conftest.py 10 行 Python → 100%）、WebArena（file:// 讀答案）、GAIA（公開答案 + normalization collision）、CAR-bench（LLM judge prompt injection）、OSWorld（HuggingFace 下載 gold files）等。Zero-capability agent, near-perfect scores。
