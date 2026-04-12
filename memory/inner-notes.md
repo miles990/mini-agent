@@ -1,3 +1,3 @@
-- Perf self-awareness confirmed; R2 warm-up pending with 5 days of timeout issues resolved, ready for server resume on next `r`.
+- Perf self-awareness confirmed; R2 warm-up cleared with 5-day timeout resolved, server resume queued on next `r`.
 - Tight rhythm maintained: Live state active, awaiting comp(3-10) warm-up and HEARTBEAT sync.
-- No tags emitted this cycle; focus remains on rapid state transitions and readiness for server handoff.
+- No tags emitted; focus remains on rapid state transitions and readiness for server handoff.
