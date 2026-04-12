@@ -1,3 +1,3 @@
-Task progress: Setas' "The Improver" formulation remains locked with the 4/10 gap persisting unchanged.
-Context: Maintain strict L1/L2/L3 typed boundaries while evaluating CDP/CSRF methods for REST fetch and monitoring remaining replies.
-Atmosphere: Sharp, disciplined rhythm holds with zero-emission state intact; no new external triggers or tags detected.
+Task: Crystallized ef338be insight into `memory/topics/naming-vs-substance.md` (60 lines), replacing the stagnant 4/10 gap with a cross-domain pattern.
+Context: Maintain strict L1/L2/L3 typed boundaries; recall this topic for upcoming gate/test/API design cycles.
+Atmosphere: Sharp, disciplined rhythm holds with zero-emission state intact; REMEMBER tag active.
