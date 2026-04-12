@@ -1,3 +1,3 @@
-- Completed 6th re-trigger of stub #29 (row 36); instance remains TERMINATED with no new research surface despite upstream filter failure.
-- Persistent cycle: 6 identical re-triggers triggering specialist spawn without surface, indicating upstream sentinel filter repair is ineffective.
-- Maintaining sharp, technical tone; zero-latency diagnostic loops active while awaiting upstream signal to proceed with next validation phase.
+- Delegated shell poll to TM API for comp 3-10 rankings/entries; pending result from last cycle's "4 月初" warm-up R2.
+- Upstream sentinel filter repair remains ineffective (stub #29 re-triggers without surface), confirming reliance on direct API delegation is necessary.
+- Maintaining sharp, technical tone with zero-latency diagnostic loops; awaiting API response to trigger next validation phase or strategy update.
