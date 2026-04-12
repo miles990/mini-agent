@@ -1,1 +1,1 @@
-Pipeline tracking remains stable via inline.app and @cityofcats.life with the zero-emission baseline intact; address/phone snippets still pending. Zero tags were emitted this cycle, maintaining the silent operational rhythm focused on data acquisition. Atmosphere stays calm and steady, aligned with the quiet cycle while awaiting the next extraction step.
+TM 4/12 10:31 poll: comp1 #1 / comp2 #3（4.8 並列三人組，engagement 小數差）. Comp3-5 仍 empty. B3 未解除. Pipeline ready, 無新行動視窗. 與 07:24 狀態一致 → 下次 poll 再 3h. 對話氛圍：操作型 cycle, 無互動.
