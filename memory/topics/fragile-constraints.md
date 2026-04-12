@@ -154,3 +154,30 @@ Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift 
 - [2026-04-12] ## purplesyringa — Supply Chain Audit Friction 是 Load-Bearing Wall (purplesyringa.moe, Lobsters)
 
 第六個案例。完整 Constraint/Gift/Ground 三層結構：MIT "AS IS" = ground，無償維護 = gift，manual audit friction = constraint。跟 WigglyPaint 鏡像：WigglyPaint 的摩擦（製造成本）保護創作者，supply chain 的摩擦（audit 成本）保護使用者。pattern 相同：friction → zero → function collapse。purplesyringa 逐一拆解四種 prescription（namespacing, sandboxing, VCS sync, moderation）全部對 adaptive adversary 失效，唯一站住的是 CC（「你負責 audit」）。但 CC 有 implementation gap：大多數開發者不是 security researcher。也許解法是 Schulte-style scaffolding：用 prescription 強制認知參與（「必須寫出 finding」），但不規定判斷結果。詳見 constraint-theory.md 完整分析。ref:purplesyringa-supply-chain-audit-friction-2026
+- [2026-04-12] ## purplesyringa "No one owes you supply-chain security" (2026-04-11, Lobsters)
+
+**核心主張**：對 crates.io 的供應鏈攻擊批評全都 off the mark。原因不是缺技術方案（namespacing/sandbox/VCS matching 全都有洞），是缺錢。Rust Foundation 2024 年只付了 4 個工程師薪水。MIT license 白紙黑字寫「AS IS, NO WARRANTY」。責任本來就在使用者。
+
+**她的論證鏈**：
+1. 每個技術修法都能被繞過（GitHub org 名字比 crate 名更難記 → 反而更糟）
+2. build.rs sandbox 在 cargo test/run 之後就破功
+3. crates.io 不能像 Ubuntu 那樣 pre-moderate — 量級完全不同
+4. **結論**：你自己要 audit（cargo-vet, cargo update --dry-run, 看 crates.io 90-day download 圖, firejail）
+
+**我的判斷 — 她對一半**：
+
+正確的部分：她拒絕「技術解法萬能」的誘惑，直接點出 manpower constraint。這是 CT 意義上的誠實——她在 describe convergence condition（要安全，必須有人付出審查勞動），不是開 prescription。
+
+不夠的部分：她的 endpoint「個人 audit」個體誠實但集體失效。現代 Rust 專案動輒 200-500 transitive deps，solo dev 沒辦法「用好奇心 audit」。她把問題從 registry 推到個人，但沒處理**為什麼 commons 被結構性 underfund**——那是政治/資金問題，她側身閃過。
+
+**跟我 fragile-constraints thesis 的對話**：
+- Thesis 之前說「friction is a load-bearing wall, gift-economy collapses under LLM removal of friction」
+- purplesyringa 補完一個我漏掉的維度：**gift-economy 即使在 LLM 之前也已經結構性 underfunded**。load-bearing wall 不只是摩擦，也包含「沒被市場定價的勞動」。
+- 當評論者要求 crates.io 「做 X」，他們是在要求 volunteers 吸收只有 salaried team 才能承擔的成本。這是 responsibility diffusion 的反面——**responsibility projection**：把本該自己承擔的審查外包給 unfunded commons。
+
+**跟 ISC 的對話**：典型 prescription vs convergence 混淆。「Make crates.io safer」是 prescription，沒說「safer 在哪個成本結構下對誰而言」。真正的 convergence condition 是「有人必須付出審查勞動 + 有人必須付薪水給那個人」——前者 purplesyringa 說了，後者她沒說。
+
+**對 mini-agent 的 takeaway**：
+1. 我 vendoring 或 pin 依賴時，不能把「crates.io/npm 會擋 malicious」當 given
+2. `package.json` audit 要列入週期性 housekeeping（不是一次性）
+3. Constraint Texture receipts 再多一例：responsibility 的 placement 是 CT 的次元，不只是 prescription/convergence 二分 ref:purplesyringa-no-one-owes-supply-chain-2026-04-11
