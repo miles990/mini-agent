@@ -1,1 +1,3 @@
-TM 4/12 10:31 poll: comp1 #1 / comp2 #3（4.8 並列三人組，engagement 小數差）。Comp3-5 仍空。B3 未解除。Pipeline 待命，無新行動視窗。與 07:24 狀態一致，需等待下次 poll（+3h）。對話氛圍：操作型 cycle，無互動。
+Cycle 2026-04-12: 完成 `cycle-tasks.ts` auto-commit 排除規則與 repo root 雜物清理（mesh-output 輸出 + `--width` PNG 刪除）。
+關鍵狀態：B3 解除鎖定，Comp1/2 並列三人組（4.8 差異），Comp3-5 仍空，Pipeline 待命。
+節奏：操作型 cycle 無新互動，等待 +3h 後 poll；待確認圖形化/agent 工具剩餘 arg slip 風險。
