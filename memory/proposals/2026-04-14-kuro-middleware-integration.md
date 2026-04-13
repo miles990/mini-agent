@@ -2,9 +2,9 @@
 
 **Date**: 2026-04-14
 **Author**: Claude Code（Alex 發起）
-**Effort**: Medium (L2 · ~1-2 天 · Kuro 身體改動)
-**Status**: Kuro quick-review complete 2026-04-14 — 2/11 questions answered, rest
-by weekend. Direction aligned. Awaiting full review before implementation.
+**Effort Level**: L2 (Kuro 身體改動) — **依 Alex 2026-04-14 規則，此 proposal 不估計時間**
+**Status**: Kuro quick-review complete 2026-04-14 — 2/11 questions answered.
+Direction aligned. Awaiting full review before implementation.
 
 ## Kuro Quick-Review Log（2026-04-14, cycle 3, msg `2026-04-13-072`）
 
