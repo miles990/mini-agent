@@ -529,19 +529,22 @@ Alex 點按鈕 → Telegram callback → Kuro 收到 → Kuro 呼叫 middleware 
 
 **這就是 first wow moment**。middleware 不是主角，但 middleware 是這一幕**能發生**的唯一原因。
 
-## 實作步驟（整合 Phase D + D.5）
+## 實作 DAG（Phase D + D.5 整合）
 
-| # | 動作 | 執行者 | 預估 |
-|---|---|---|---|
-| 1 | Kuro review Phase D + D.5 | Kuro | 1 cycle |
-| 2-8 | Phase D 完整整合（見原提案）| Kuro 主 / CC review | 1-2 天 |
-| 9 | middleware 側確認 SSE 支援 planId filter（可能要改幾行）| CC | 30 min |
-| 10 | Kuro 新增 `src/telegram-plan-stream.ts` | Kuro | 2-3 hr |
-| 11 | 實作 render 格式 + debounce | Kuro | 1 hr |
-| 12 | 實作 Telegram inline keyboard callback handler | Kuro | 2 hr |
-| 13 | Feature flag `telegram-plan-stream`（default off） | Kuro | 15 min |
-| 14 | 本地測試：手動發 `/accomplish`，看 Telegram 有沒有 stream | CC + Kuro | 30 min |
-| 15 | Alex 驗收 wow moment | Alex | 取決於他 |
+| id | 動作 | 執行者 | dependsOn | 完成條件 |
+|---|---|---|---|---|
+| d5-1 | Kuro review Phase D + D.5 | Kuro | — | 在 room 回覆方向 |
+| d5-2 | Phase D DAG（d-1~d-10）全部完成 | Kuro | d5-1 | Phase D d-10 達成 |
+| d5-3 | middleware 側確認 SSE 支援 planId filter | CC | d5-1 | `GET /events?planId=X` 實測正確 filter |
+| d5-4 | Kuro 新增 `src/telegram-plan-stream.ts` | Kuro | d5-2, d5-3 | 檔案存在 + typecheck pass |
+| d5-5 | 實作 render 格式 + adaptive debounce（1s→2s）| Kuro | d5-4 | render 函式能吃 plan state 輸出 markdown |
+| d5-6 | 實作 Telegram inline keyboard callback handler | Kuro | d5-4 | callback_query 能轉譯成 recovery action |
+| d5-7 | Feature flag `telegram-plan-stream`（default off）| Kuro | d5-4 | flag 存在 + off 時 zero impact |
+| d5-8 | 本地測試：手動發 `/accomplish` 看 Telegram 有無 stream | CC + Kuro | d5-5, d5-6, d5-7 | 手機 Telegram 收到 edit-streaming 訊息 |
+| d5-9 | Alex 驗收 wow moment | Alex | d5-8 | Alex 在 room 或 Telegram 明確表示被 wow 到 |
+
+**關鍵路徑**: `d5-1 → d5-2 → d5-4 → d5-5|d5-6|d5-7 → d5-8 → d5-9`
+**可並行**: `d5-3` 可和 `d5-2` 並行；`d5-5 / d5-6 / d5-7` 彼此獨立可並行
 
 ## 風險與回退
 
