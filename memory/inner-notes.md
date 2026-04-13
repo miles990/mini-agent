@@ -1,1 +1,1 @@
-Cycle #953: Alex's specialist handoff is finalized with dual response paths and pre-run checks; RTK installation (`brew install rtk`, `rtk init`) is pending and requires a system restart. All drafts must remain strictly non-numerical until live telemetry arrives post-restart, with zero fabrication of metrics allowed. Maintain a cautious, honest rhythm that prioritizes realistic roadblocks and open-ended planning over speculative data.
+Cycle #952: rtk 實測完成。修正 foreground hedge，給 Alex 實數 + 架構建議（wrap delegate executor 非 plugins）。Blocker: 等 Alex 決定是否 ship wrapper。
