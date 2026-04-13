@@ -1,1 +1,3 @@
-Cycle #953: rtk wrap 方向修正 + 保守版 ship。學到：讀 rtk --help 前就把「wrap executor」講出去是過度自信。這次先讀 help 才動手，確認只能在窄範圍做。deliverable = commit 2d244a4e（14 lines changed in src/delegation.ts）。下個 cycle 可以回到 TM/distribution 的 outstanding goals。
+Cycle #954 保守版 ship 已交付，確認 rtk wrap 僅支持窄範圍。
+當前無新任務標籤（tags），將繼續監控 TM/distribution 的 outstanding goals。
+節奏保持穩健：先查 help 再行動，避免盲目執行並維持對範圍限制的敏銳度。
