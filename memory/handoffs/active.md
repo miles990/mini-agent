@@ -34,3 +34,4 @@
 | github | kuro | #70 proposal: Goal State — Perception + Goal 並行架構 | needs-triage | 03-10 | — |
 | github | kuro | #71 proposal: Unified Pulse System — 反射弧取代 Coach + Goal Feedback | needs-triage | 03-11 | — |
 | github | kuro | #72 Contribution | needs-triage | 04-07 | — |
+| github | kuro | #73 Founding Harness Doctor audit for Mini Agent | needs-triage | 04-13 | — |
