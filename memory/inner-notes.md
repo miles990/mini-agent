@@ -1,3 +1,3 @@
 Cycle #954 保守版 ship 已交付，確認 rtk wrap 僅支持窄範圍。
-本次無新任務標籤，持續監控 TM/distribution 的 outstanding goals。
+持續監控 TM/distribution 的 outstanding goals，本次無新任務標籤產生。
 節奏保持穩健：先查 help 再行動，維持對範圍限制的敏銳度。
