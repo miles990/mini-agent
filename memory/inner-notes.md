@@ -1,3 +1,1 @@
-Cycle #952: Alex's specialist handoff is finalized with dual response paths and pre-run checks; RTK installation (`brew install rtk`, `rtk init`) and system restart are now pending.
-Context: All drafts must remain strictly non-numerical until live telemetry arrives post-restart, with zero fabrication of metrics allowed.
-Atmosphere: Maintain a cautious, honest rhythm that prioritizes realistic roadblocks and open-ended planning over speculative data.
+Cycle #953: Alex's specialist handoff is finalized with dual response paths and pre-run checks; RTK installation (`brew install rtk`, `rtk init`) is pending and requires a system restart. All drafts must remain strictly non-numerical until live telemetry arrives post-restart, with zero fabrication of metrics allowed. Maintain a cautious, honest rhythm that prioritizes realistic roadblocks and open-ended planning over speculative data.
