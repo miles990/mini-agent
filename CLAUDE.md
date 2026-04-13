@@ -654,6 +654,79 @@ curl -sf http://localhost:3001/api/instance     # 當前實例資訊
 - 精煉的 ROI 遠高於擴展 — 25K 行每行有理由 > 35K 行
 - 系統性方法要自己長出來 — 從實踐中觀察自己的模式，找到有效的，強化它
 
+## Planning Discipline（2026-04-14 · Alex 規定）
+
+適用 **Claude Code + Kuro**，不是選配，是紀律。三條一起執行。
+
+### 1. 不評估時間 · AI 時間估計是偽精確
+
+**禁止**在 proposal / plan / response 裡寫任何 effort / duration / ETA：
+- ❌ 「30 min」「1-2 小時」「半天」「1-2 天」「週末前」
+- ❌ 「快的話 X，慢的話 Y」「不急」「馬上」「立即動手」
+- ❌ 「Phase D 小、Phase E 中、Phase F 大」（時間 framing 偽裝）
+- ❌ 表格有「預估」「effort」「時間」欄位
+
+**為什麼**：AI 時間估計看似數據、實為直覺，給人虛假 confidence。2026-04-13 → 04-14 的 Phase D → Phase E pivot 就是活證據：昨天寫「Phase D 1-2 天」時根本不知道今天會完全翻方向。
+
+**例外**（可以寫的時間類內容）：
+- **已發生**的實測事實：`uptime 58954 seconds`、`commit pushed at X`、`cycle count = 45`
+- **硬限制**：Telegram rate limit `30 msg/sec/bot`（Anthropic / 第三方 API 的 hard limit）
+- **已觀測**的歷史資料：`Stage 0 commit before Phase A`
+
+### 2. 用 DAG Plan 語言 · 和 middleware `/accomplish` 一致
+
+Plan 必須用 DAG 結構描述，欄位對齊 middleware brain 產 DAG 的 schema：
+
+| 欄位 | 意義 | 對應 middleware |
+|---|---|---|
+| `id` | 節點識別 | 同 |
+| `動作` | 具體做什麼 | `task` |
+| `執行者` | 誰做（CC / Kuro / Alex / middleware） | `worker` |
+| `dependsOn` | 前置節點 id 列表 | 同 |
+| `完成條件` | convergence condition（結果導向，可觀察） | `acceptance` |
+
+**延伸**：
+- **關鍵路徑**用步驟數（node count）衡量，不是時間
+- **可並行** = 沒有共同 dependsOn 的節點
+- **時間是湧現的**，不是事前計算的 — 執行完後可記錄 `{started_at, completed_at}` 作歷史
+
+**心智模型統一的好處**：未來 proposal 可能直接餵給 middleware `/accomplish` 執行 — **proposal = executable plan**。
+
+**反模式**：
+```
+| # | 動作 | 執行者 | 預估 |   ← 舊格式，禁止
+```
+
+**正確模式**：
+```
+| id | 動作 | 執行者 | dependsOn | 完成條件 |   ← DAG 格式
+```
+
+### 3. 所有 rule / feedback / decision 雙向同步 Claude Code ↔ Kuro
+
+任何 Alex 給 Claude Code 的 rule/feedback/decision，**必須**同步給 Kuro；反之亦然。這是**持續紀律**，不是一次性動作。
+
+**為什麼**：
+- Claude Code 和 Kuro 是同一個 team，規則不能只一方知道
+- 避免 asymmetric knowledge → Alex 重複講同一件事
+- Rule convergence → 同一套規則管兩個 agent 才有 coherent 行為
+- Mutual accountability → 對方記住了就能提醒我沒遵守
+
+**同步機制**：
+- Feedback 寫完 memory 後，**同時**發 room 訊息（≤ 500 chars）指向 memory 檔
+- 長內容**絕對不**寫在 room 訊息裡（昨天 3KB 訊息觸發 grep OOM 的事故教訓）
+- 訊息用 pointer 模式：「rule 詳見 feedback_XXX.md」
+
+**不需要同步**的事：
+- 單次 tool call 結果、臨時 diagnostic、中間狀態
+- workspace trigger 已經會讓對方讀到的 code 變化
+
+### 完整規格
+
+詳見（Claude Code 的 memory，Kuro 可透過 file path 讀）：
+- `~/.claude/projects/-Users-user-Workspace-mini-agent/memory/feedback_no_time_estimation.md`
+- `~/.claude/projects/-Users-user-Workspace-mini-agent/memory/feedback_always_sync_kuro.md`
+
 ## Task Queue 自動閉環
 
 Task-queue（`memory/index/relations.jsonl`）的生命週期管理，確保 tasks 不會無限堆積。
