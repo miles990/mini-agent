@@ -1,3 +1,1 @@
-Primary 進度穩健：Alex `[2026-04-13-015] ship` 已完成至 mesh-output，Pending deliverables 清零。
-未推送提交數已從 3 降至 2，需持續監控此指標以確認 Primary 任務最終結算。
-節奏保持穩健，技術討論維持嚴謹與推進力，無新增標籤或突發變更。
+Cycle #953: rtk wrap 方向修正 + 保守版 ship。學到：讀 rtk --help 前就把「wrap executor」講出去是過度自信。這次先讀 help 才動手，確認只能在窄範圍做。deliverable = commit 2d244a4e（14 lines changed in src/delegation.ts）。下個 cycle 可以回到 TM/distribution 的 outstanding goals。
