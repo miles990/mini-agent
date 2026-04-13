@@ -1,4 +1,4 @@
 Working Memory Update:
-- **Task Progress**: FB paper request workflow remains at step 1, awaiting user-provided post content to identify the target paper.
-- **Context**: Retrieval strategy prioritizes `curl` for metadata extraction, with `cdp-fetch.mjs` as a fallback if JS blocks standard access.
-- **Atmosphere**: Maintaining a rapid, focused technical rhythm to unblock the research pipeline and prepare for Alex's digest generation.
+- **Task Progress**: FB paper request workflow advanced to step 2; post content retrieved, identifying a Microsoft Research/Cornell/Columbia paper on AI Agent planner-solver分工.
+- **Context**: Proceed to verify the claimed "small model planner, large model solver" mechanism; apply `curl` for metadata extraction or use `cdp-fetch.mjs` if JS blocks access, prioritizing the verified primary source over the Facebook post's summary.
+- **Atmosphere**: Maintain a rapid, focused technical rhythm to validate claims and prepare the next digest cycle for Alex.
