@@ -773,24 +773,24 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
 | middleware Phase A · pm2 + setup wizard | ✅ **保留** — HTTP service 的部署仍然需要 |
 | 昨天的 token-optimization roadmap Stage 2-4 | ❓ 待 Kuro 重新評估 — SDK 模式可能改變 evaluator / middleware routing 的必要性 |
 
-## 實作步驟
+## 實作 DAG
 
-| # | 動作 | 執行者 | 預估 |
-|---|---|---|---|
-| 1 | Kuro review Phase E 方向 + 4 個 review 問題 | Kuro | 1-2 cycle |
-| 2 | 確認 `mini-agent/package.json` 加 local dep `agent-middleware: link:../agent-middleware` | CC or Kuro | 5 min |
-| 3 | `pnpm install` 讓 link 生效 | 同上 | 2 min |
-| 4 | 新增 `src/kuro-sdk.ts`（~40 行）| CC or Kuro | 30 min |
-| 5 | `src/agent.ts` 加 feature flag 分支 | 同上 | 10 min |
-| 6 | 加 `kuro-sdk-mode` 到 `src/features.ts`（default off） | 同上 | 5 min |
-| 7 | `pnpm typecheck` + `pnpm build` | 同上 | 2 min |
-| 8 | Kuro `feature_toggle enable kuro-sdk-mode` 打開 | Kuro | 1 min |
-| 9 | 跑 5-10 cycles，觀察 middleware SDK 回的 `cache_read_input_tokens` | Kuro + CC 共同看 | 15-30 min |
-| 10 | 有飆升 → flag default on，legacy 保留為 fallback | Kuro | 1 min |
-| 11 | 沒飆升 → 關 flag，提案 split heuristic refinement 或 abandon Phase E | Kuro | 1 min |
-| 12 | Commit + push（不管成功失敗都要留 log）| CC | 10 min |
+| id | 動作 | 執行者 | dependsOn | 完成條件 |
+|---|---|---|---|---|
+| e-1 | Kuro review Phase E 方向 + 4 個問題 | Kuro | — | room 回覆 4 個問題 + 方向同意/拒絕/修正 |
+| e-2 | `mini-agent/package.json` 加 `agent-middleware: link:../agent-middleware` | CC or Kuro | e-1 | package.json 含 dep + `pnpm install` 不爆錯 |
+| e-3 | 新增 `src/kuro-sdk.ts` | CC or Kuro | e-2 | 檔案存在、export `execClaudeViaSdk`、typecheck pass |
+| e-4 | `src/agent.ts` 加 feature flag 分支 | CC or Kuro | e-3 | `isEnabled('kuro-sdk-mode')` 分支存在 |
+| e-5 | `kuro-sdk-mode` 加到 features.ts（default off）| CC or Kuro | e-4 | flag 存在，default false |
+| e-6 | `pnpm typecheck` + `pnpm build` | CC or Kuro | e-5 | 兩個都 exit 0 |
+| e-7 | Kuro `feature_toggle enable kuro-sdk-mode` | Kuro | e-6 + deploy | flag = on 且 dist/ 是最新 |
+| e-8 | 觀察 Anthropic usage `cache_read_input_tokens` | Kuro + CC | e-7 | 收集 ≥ 5 cycles 的 usage 資料 |
+| e-9a | 有飆升 → flag default on，legacy 退場計畫 | Kuro | e-8（條件：cache_read > 0）| flag 翻 on by default + proposal 加 legacy sunset plan |
+| e-9b | 沒飆升 → 關 flag + 提 split heuristic refinement 或 abandon | Kuro | e-8（條件：cache_read = 0）| flag 翻 off + 新 decision 寫 memory |
+| e-10 | Commit + push（成功或失敗都留 log）| CC | e-9a 或 e-9b | origin/main 有新 commit + memory 有決策紀錄 |
 
-**總 effort**：~1.5 小時（Kuro review 不計）。
+**關鍵路徑**: `e-1 → e-2 → e-3 → e-4 → e-5 → e-6 → e-7 → e-8 → (e-9a or e-9b) → e-10`
+**可並行**: e-3 / e-4 / e-5 可重疊（同一個 PR 的不同部分）；Phase D 的 `d-4`（skill）可和 Phase E 的 `e-*` 完全並行（不依賴彼此）
 
 ## 風險與回退
 
