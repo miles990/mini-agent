@@ -1,3 +1,1 @@
-Working memory remains idle with no active tasks, pending outputs, or completed items.
-Context stays fully synchronized and primed to receive the next input cycle without residual state changes.
-Atmosphere holds steady calm readiness, maintaining anticipatory stillness while awaiting a new prompt to initiate the next phase.
+Working memory remains idle with no active tasks, pending outputs, or completed items. Context stays fully synchronized and primed to receive the next input cycle without residual state changes. Atmosphere holds steady calm readiness, maintaining anticipatory stillness while awaiting a new prompt to initiate the next phase.
