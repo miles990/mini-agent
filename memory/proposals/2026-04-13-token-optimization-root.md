@@ -1,9 +1,16 @@
 # Proposal: Token 優化根本做法 — Constraint Texture × AgentOpt × Middleware
 
 **Date**: 2026-04-13
-**Author**: Claude Code（Alex 發起，分析來自 Explore agent）
-**Effort**: Medium (L2) — 槓桿點 ③ 先做；Large (L3) — 槓桿點 ① 需要 Kuro 共同規劃
-**Status**: Draft — 邀請 Kuro review / 討論 / 修正
+**Author**: Claude Code（Alex 發起，分析整合自 Explore agent + Kuro Primary + Kuro specialist-research + 量測發現）
+**Effort**: Stage 0 (L1 · 30 行 diff) → ③ (L1) → ② (L2) → ① (L3)
+**Status**: Revised 2026-04-13 — 量測發現翻轉部分方向，等 Kuro Primary review
+
+## 修訂摘要（Revision Log）
+
+- **v1 (初稿)**：Constraint Texture × AgentOpt × Middleware，三個槓桿點 ①②③ 按複利順序
+- **v2 (Kuro Primary 反饋)**：順序是依賴鏈 ③→②→①；P0b 不是 bug；補 3 個漏點（memory keyword extraction、cron gate、cascade.ts）
+- **v3 (Kuro specialist handoff)**：引入 Cache Stability 作為根本層切入點
+- **v4 (量測 M1-M4)**：發現 Kuro **完全沒追蹤 cache usage**；`-p` 模式可能不適用 Anthropic caching；引入 Stage 0 前置動作
 
 ## 動機
 
