@@ -25,7 +25,7 @@ Direction aligned. Awaiting full review before implementation.
 - **Adaptive debounce**（Kuro 的原創 insight）：前 3 秒用 1s（抓住使用者注意力
   高峰），之後降到 2s。比 openab 的固定 1.5s 更符合 wow moment 的心理學
 
-**Q3-Q11** → Kuro delegate 背景 research，週末前完整回覆。
+**Q3-Q11** → Kuro delegate 背景 research；完整回覆在 `9/11 問題答完` 里程碑達成後 merge 到 room。
 
 ## 動機
 
@@ -194,20 +194,25 @@ description: Use when Kuro needs to delegate a multi-step task that benefits fro
 
 這些 gate 寫進 skill 而不是 hardcoded，讓 Kuro 的判斷力能 carry。
 
-## 實作步驟
+## 實作 DAG
 
-| # | 動作 | 執行者 | 預估時間 |
-|---|---|---|---|
-| 1 | Kuro review 此 proposal，確認方向或提修正 | Kuro | 1 cycle |
-| 2 | 加 `accomplish` 到 `DelegationTaskType` | Kuro or CC | 5 min |
-| 3 | 寫 `dispatchAccomplish()` + 整合進 `delegation.ts` | Kuro 主 / CC review | 2-3 hr |
-| 4 | 寫 `skills/delegation-to-middleware.md` | Kuro | 30 min |
-| 5 | 加 feature flag `middleware-delegation`（default off）| Kuro | 15 min |
-| 6 | 在 cycle prompt 加 delegation backends 段（最小曝露）| Kuro or CC | 10 min |
-| 7 | `pnpm typecheck` + commit + push | Kuro | 10 min |
-| 8 | Kuro 手動 `feature_toggle enable middleware-delegation` | Kuro | 1 min |
-| 9 | **等自然觸發**（不 engineer 第一次呼叫）| — | 未知 |
-| 10 | 第一次成功後在 Chat Room 回報 | Kuro | 自然發生 |
+節點 = 動作，依賴 = 必須完成的前置節點，完成條件 = convergence condition。時間從執行中湧現，不預估。
+
+| id | 動作 | 執行者 | dependsOn | 完成條件 |
+|---|---|---|---|---|
+| d-1 | Kuro review proposal 方向 | Kuro | — | 她在 room 回覆「方向同意/拒絕/提修正」 |
+| d-2 | 加 `accomplish` 到 `DelegationTaskType` | Kuro or CC | d-1 | grep `'accomplish'` 在 types.ts 命中 |
+| d-3 | 寫 `dispatchAccomplish()` + 整合 | Kuro 主 / CC review | d-2 | `src/middleware-dispatch.ts` 存在 + typecheck pass |
+| d-4 | 寫 `skills/delegation-to-middleware.md` | Kuro | d-1 | skill 檔案存在 + 包含 4-Gate 規則 |
+| d-5 | 加 feature flag `middleware-delegation`（default off）| Kuro | d-2 | `features.ts` 含新 flag |
+| d-6 | cycle prompt 加 delegation backends 段 | Kuro or CC | d-2, d-4 | prompt 字串提到 `type=accomplish` |
+| d-7 | `pnpm typecheck` + commit + push | Kuro | d-3, d-4, d-5, d-6 | CI 綠 + origin/main 更新 |
+| d-8 | `feature_toggle enable middleware-delegation` | Kuro | d-7 | flag = on 且 dist/ 是最新 |
+| d-9 | **等自然觸發**（不 engineer 第一次呼叫）| — | d-8 | Kuro 的 cycle 自主發出第一個 `/accomplish` |
+| d-10 | 第一次成功後 Chat Room 回報 | Kuro | d-9 | `<kuro:action>` 含 middleware 使用語意 + planId |
+
+**關鍵路徑**: `d-1 → d-2 → d-3 → d-7 → d-8 → d-9 → d-10`（7 步）
+**可並行**: `d-4` 可和 `d-3` 同時做；`d-5` 可和 `d-3 / d-4` 同時做；`d-6` 依賴 `d-2` 和 `d-4`
 
 ## 驗證方式
 
