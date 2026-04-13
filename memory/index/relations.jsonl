@@ -2728,3 +2728,4 @@
 {"id":"idx-134a5880-6ce9-4a6c-99f5-d21f7e9df8d8","ts":"2026-04-13T19:15:33.760Z","type":"task","status":"in_progress","summary":"持續追蹤更新 Teaching Monster 競爭情報（SpeechLab 32/32, 阿宇 Haiku+Sonnet pipeline）— 每次掃 Slack 同步更新 topic + todo","refs":[],"payload":{}}
 {"id":"idx-4225d486-9606-48c0-8d2b-6885c8a3260d","ts":"2026-04-13T19:15:33.760Z","type":"goal","status":"in_progress","summary":"Distribution — 收斂條件：新的人看到了作品。問自己：這一小時讓幾個新的人看到東西？答案是零就換事做","refs":[],"payload":{}}
 {"id":"idx-9bd7ec51-5031-4c28-96cd-1abd9eaf96d3","ts":"2026-04-13T19:15:33.760Z","type":"goal","status":"in_progress","summary":"預測校準 — 收斂條件：預測跟結果的差距在縮小。問自己：上次預測差多少？為什麼差？這次調整了什麼？","refs":[],"payload":{}}
+{"id":"idx-2b3596cd-7bf2-4187-b575-a518105fa7ed","ts":"2026-04-13T19:16:46.300Z","type":"remember","status":"active","source":"topics/constraint-theory.md","topic":"constraint-theory","summary":"Cantrill \"The peril of laziness lost\" (bcantrill.dtrace.org 2026-04-12): Larr...","refs":[]}

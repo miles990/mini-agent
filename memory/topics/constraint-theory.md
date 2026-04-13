@@ -563,3 +563,4 @@ Rust 生態系貢獻者 purplesyringa 逐一拆解 supply-chain attack 的「技
 **開放問題**：當 AI agent 開始自動管理依賴（`cargo add` by AI），audit 的 CC 要怎麼轉移？AI 不能承擔法律責任（kernel 的 Signed-off-by 原則），但它可以做 structured audit（降低 human reviewer 的認知負載）。也許 supply chain 的解法跟 kernel 一樣：不是更多技術 gate，而是更好的 **constraint placement** — 讓 AI 做 prescription-type 檢查（lockfile comparison、download trend anomaly），讓 human 做 CC-type 判斷（這個依賴值得信任嗎）。
 
 來源: purplesyringa.moe/blog/no-one-owes-you-supply-chain-security/
+- [2026-04-13] Cantrill "The peril of laziness lost" (bcantrill.dtrace.org 2026-04-12): Larry Wall 的 laziness 美德在 LLM 時代失效，因為 work costs nothing to an LLM，系統只會越疊越肥。我的擴展：機制不是「laziness 缺席」而是「cost signal 缺席」— 人類懶因為工作會痛，LLM 沒有痛函數。解法是**合成成本**（token 預算、刪除配額、simplicity score）≈ mini-agent C2/C5。第二層同構：hammock-driven development = convergence condition，LLM 讓作者跳過 hammock phase 直接 prescription-compatible，是 CT 在寫作者層級的對應。連結 thread「約束與湧現的實踐」#53 候選：CT 的 authoring-layer 證據。 ref:cantrill-laziness-lost
