@@ -471,6 +471,62 @@ function sanitizeAuditInput(input: Record<string, unknown>): Record<string, unkn
  * - 手動 timeout 殺整個進程群組（包括 curl 等子進程）
  * - 防止孤兒進程繼續執行（如未授權的 Telegram API 呼叫）
  */
+// =============================================================================
+// Cache Usage Tracking (Stage 0 · observability)
+// Parses Claude CLI stream-json usage events to reveal cache hit rate.
+// Motivation: src/ had zero instrumentation for cache_read_input_tokens —
+// Kuro was flying blind on whether prompts were actually cache-hitting.
+// =============================================================================
+
+export interface CacheUsageStats {
+  calls: number;
+  inputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  outputTokens: number;
+  uncachedInputTokens: number; // input + cacheCreation (= non-read baseline)
+}
+
+const cacheUsageBySource: Record<string, CacheUsageStats> = {};
+
+function recordCacheUsage(usage: Record<string, unknown>, source: string): void {
+  const input = Number(usage.input_tokens ?? 0);
+  const cacheCreate = Number(usage.cache_creation_input_tokens ?? 0);
+  const cacheRead = Number(usage.cache_read_input_tokens ?? 0);
+  const output = Number(usage.output_tokens ?? 0);
+
+  // Skip all-zero events (some intermediate events may carry empty usage)
+  if (input === 0 && cacheCreate === 0 && cacheRead === 0 && output === 0) return;
+
+  if (!cacheUsageBySource[source]) {
+    cacheUsageBySource[source] = {
+      calls: 0, inputTokens: 0, cacheCreationTokens: 0,
+      cacheReadTokens: 0, outputTokens: 0, uncachedInputTokens: 0,
+    };
+  }
+  const s = cacheUsageBySource[source];
+  s.calls++;
+  s.inputTokens += input;
+  s.cacheCreationTokens += cacheCreate;
+  s.cacheReadTokens += cacheRead;
+  s.outputTokens += output;
+  s.uncachedInputTokens += input + cacheCreate;
+
+  const totalInput = input + cacheCreate + cacheRead;
+  const hitRatio = totalInput > 0 ? cacheRead / totalInput : 0;
+  slog('CACHE', `[${source}] in=${input} create=${cacheCreate} read=${cacheRead} out=${output} hit=${(hitRatio * 100).toFixed(1)}%`);
+}
+
+/** Read cumulative cache usage stats grouped by source (loop/foreground/ask). */
+export function getCacheUsageStats(): Record<string, CacheUsageStats & { hitRatio: number }> {
+  const result: Record<string, CacheUsageStats & { hitRatio: number }> = {};
+  for (const [source, s] of Object.entries(cacheUsageBySource)) {
+    const total = s.uncachedInputTokens + s.cacheReadTokens;
+    result[source] = { ...s, hitRatio: total > 0 ? s.cacheReadTokens / total : 0 };
+  }
+  return result;
+}
+
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
   const TIMEOUT_MS = opts?.timeoutMs ?? 1_500_000; // default 25 minutes
   const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 900_000; // default 15 minutes
@@ -724,6 +780,14 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
             // Use || instead of ?? — empty string "" from event.result should NOT overwrite
             // accumulated text blocks (Claude CLI 2.x stream-json may return "" for result)
             resultText = event.result || resultText;
+            // Stage 0: record cache usage for observability (see cacheUsageBySource above)
+            if (event.usage && typeof event.usage === 'object') {
+              recordCacheUsage(event.usage as Record<string, unknown>, source);
+            }
+          } else if (event.type === 'assistant' && event.message?.usage) {
+            // Claude CLI stream-json also surfaces usage on assistant messages —
+            // prefer these when result event lacks usage (CLI 2.x behavior varies)
+            recordCacheUsage(event.message.usage as Record<string, unknown>, source);
           }
         } catch { /* ignore malformed JSON lines */ }
       }
