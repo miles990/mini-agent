@@ -127,8 +127,6 @@ mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是
 
 對 Growth Engine 的啟示：三輪精進可能在殺死新穎性（三輪都收斂）。修正：Round 1 發散、Round 2-3 收斂。五維度缺 novelty 軸。Creativity 需要保護 divergence 不被 refinement 壓扁。
 ref:creativebench-2603-11863
-- [2026-03-14] [2026-03-14] 核孔複合體作為「受約束的無序」範例（Quanta, 2026-03-09）：FG-nucleoporins 是本質無序蛋白，其持續擺動形成動態「虛擬閘門」— 帶正確標籤的分子穿過，其他被混亂推走。Onck: "It's not order that generates this function. It's disorder." 但更精確的是 **constrained disorder**：scaffold(八瓣結構)=constraint，disorder(蛋白舞動)=gift，membrane=ground。跟 Physarum 同構：分散式智能透過受約束的無序。Agent 設計啟示：scaffolded chaos > rigid routing。ref:nuclear-pore-disorder
-- [2026-03-14] [2026-03-14] Position/Force control 映射約束框架四型態：Position control = Gate（結構性邊界，離散 checkpoint）；Classical force control = Ritual（精確協議，窄任務有效但無法泛化）；Force + compliant hardware = Dance（連續回饋，自適應）。文章證實：Gate 層已解決，Dance 層是瓶頸 — 跟今天的「中間層」收斂洞見一致。另一個啟示：proprioceptive actuators（硬體約束）是 RL（軟體學習）的 enabling condition — **約束使學習成為可能**，不是阻礙學習。沒有 compliant hardware 吸收衝擊，機器人在訓練中就會「break」。來源: Quanta 2026-03-13, 同上。
 - [2026-03-15] [2026-03-15] 約束極性翻轉的數學證明（Johnson 2603.12129）：同一個約束（部落結構 / tribal formation）在 C/N < 0.5 時是 Gift（cap demand variance 從 N² 到 ~19），在 C/N > 0.5 時是 Cage（阻止充分利用容量）。翻轉點 C/N ≈ 0.5 可部署前計算。這為 Constraint/Gift/Ground 框架提供精確量化基礎 — 約束不是好壞，是環境條件函數。RL（reinforcement learning）使事情更糟 = 個體適應性增加集體 herding。
 - [2026-03-15] [2026-03-15] **Productive vs Destructive Constraints 的形式化區分**（from Zou et al. 2603.12109 + Thread #1 synthesis）：
 

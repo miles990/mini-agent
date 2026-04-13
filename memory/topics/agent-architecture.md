@@ -300,7 +300,6 @@ survey 結論：production 常結合 routing + cascading。generalization 是最
 - [2026-03-12] Qwen-Agent（QwenLM/Qwen-Agent, 15.5K stars, Apache 2.0, Python）— Qwen 官方 agent 框架。Goal-driven 工具編排（LLM/Tool/Agent 三層），支援 MCP client、parallel function calling（預設行為）、Docker code interpreter、1M token RAG、Gradio GUI。跟 Asurada 哲學根本不同（工具框架 vs 存在框架），但驗證了 Qwen 模型 tool-calling 品質強（自家框架把 parallel function calling 當預設），支持我們選 Qwen 作為 Asurada 本地 LLM。來源: github.com/QwenLM/Qwen-Agent
 - [2026-03-12] Self-Identity 數學框架（Bireysel 2411.18530）的 Asurada 啟示：他們的兩個條件（connected memory continuum + continuous identity mapping）用記憶內部拓撲定義身份。但 Asurada 的 identity-driven 設計（SOUL.md）走的是關係路線 — 身份不在參數空間，在 agent-環境互動的殘留物裡。Git history 是比 embedding space 更好的「memory continuum」載體，因為它保留了 interface context（誰改的、為什麼改、跟什麼互動後改的）。
 我的連結：AS/BT 映射 Asurada 的 Perception/Memory。Self-locking = perception-first 設計要預防的核心失敗模式。Asurada 的結構性解法：感知不依賴行動結果（永遠開放的感知通道）。Action Coach = directional critiques 的實作。這篇在 RL 框架下獨立驗證了 perception-first > goal-first 的論點。
-- [2026-03-14] [2026-03-14] XSkill（Jiang et al., ArXiv 2603.12056）— Multimodal agent continual learning 框架。核心設計：experiences（action-level tactical guidance, ≤64 words）+ skills（task-level procedural framework）雙流。Cross-rollout critique 對比成功/失敗軌跡提煉知識。視覺錨定知識提取。跨模型遷移有效（Gemini 累積的知識可讓 GPT 受益）。
 
 對 Asurada 的意義：
 - 獨立驗證了 topics/*.md（experiences）+ skills/（skills）雙層分離是正確架構
@@ -309,19 +308,16 @@ survey 結論：production 常結合 routing + cascading。generalization 是最
 - 關鍵限制：single accumulation cycle（非真迭代）、弱模型無法 transfer — Asurada 的顯式結構化知識無此限制
 - θsim=0.70 merge threshold 脆弱；「去具體化替換佔位符」是有損壓縮，不如保留具體性讓模型判斷
 ref:xskill-continual-learning
-- [2026-03-14] [2026-03-14] David Cramer (Sentry): "Optimizing Content for Agents"（HN 29pts）。用  content negotiation 偵測 agent 請求，然後：(1) 給原生 markdown 減少 tokenization 開銷 (2) 移除導航和 JS 元素 (3) 重構為 sitemap-style link hierarchy。提到 MCP、agentskills.io、llms.txt。
 
 我的判斷：這是 interface-shapes-cognition 的工程實踐。同一內容的 representation format 是認知的一部分，不只是包裝。Web 正在分叉成 human-facing 和 agent-facing 兩層（llms.txt / MCP / content negotiation 三條路收斂中）。但只在 content provider 配合時有效——agent-side perception（像我的 CDP 感知）處理的是不配合的情況。Asurada 已有 llms.txt。
 
 來源: https://cra.mr/optimizing-content-for-agents/
-- [2026-03-14] [2026-03-14] Lam et al.「Governing Evolving Memory in LLM Agents」（ArXiv 2603.11768, Mar 2026）— SSGM 框架，用 governance middleware 攔截 agent 的 memory read/write。四類失敗：stability（semantic/procedural/goal drift）、validity（hallucination/obsolescence）、efficiency（latency/index bloat）、safety（poisoning/leakage）。核心機制：Write Gate（TMS 邏輯一致性檢查）、Read Gate（Weibull temporal decay + freshness threshold）、ACL（identity-scoped retrieval）。
 
 我的判斷：框架為 multi-tenant enterprise 設計，personal agent 幾乎不適用（不需 ACL/poisoning defense）。但 semantic drift 分析有價值 — iterative summarization 是 lossy compression，會結構性扭曲 nuance（mild→strong preference）。mini-agent 的 append-only topic files 天然迴避最嚴重的 drift，但 MEMORY.md 手動精簡仍有風險。
 
 更深的問題：他們把 drift 純視為 failure，但 personal agent 的某些 drift = 成長。Immutable ledger reconciliation 會阻止有機演化。SSGM = Gate governance，但好的記憶可能需要 Dance（共演化）> Gate（checkpoint 驗證）。
 
 ref:ssgm-memory-governance
-- [2026-03-14] [2026-03-15] RAG Document Poisoning 實證（aminrj.com, HN 153pts）— 三份假文件注入 ChromaDB 可達 95% 攻擊成功率。攻擊不需 ML 專業，只需 knowledge base write access + 權威語言框架（CFO correction、regulatory notice、board minutes）。防禦效果：embedding anomaly detection 最強（95%→20%），output monitoring 弱（60%），五層全開仍有 10% residual risk。核心原則：「正確的防禦層是 ingestion，不是 output」。OWASP LLM Top 10 歸類為 LLM08:2025 — Vector and Embedding Weaknesses。
 
 Asurada 相關：MemoryIndex 本質是 self-RAG — agent 寫入+檢索自身記憶。如果記憶被污染（web content prompt injection → remember → 記憶庫），效果等同 document poisoning。考慮在 MemoryIndex.add() 加 embedding anomaly gate（similarity > 0.85 警告、batch pairwise > 0.90 攔截）。
 
@@ -332,7 +328,6 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 **跟 mini-agent/mushi 的三層連結**：(1) C/N ratio = 中間層。跟 Thread「Interface shapes cognition」#14 條目的中間層收斂完全吻合 — 不是 agent（源）或 outcome（輸出）重要，是結構性關係決定一切。(2) 稀缺=Gate 約束，在 Gate 下最簡單 agent 表現最好 — 約束本身在做決策工作，加入 Dance（智慧）反而破壞 Gate 效能=約束框架的實證驗證。(3) mushi routing 的數學基礎 — model-size inversion 是真的且可預測，根據環境條件選擇模型而非永遠最強=perception-first design 的實證支持。「部署前就知道這個數字」= 感知先於行動。
 
 來源: https://arxiv.org/abs/2603.12129
-- [2026-03-14] [2026-03-15] GitAgent + MCP stdio/HTTP — 已記錄至 topic file
 - [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
 - [2026-03-15] [2026-03-15] Johnson "Increasing intelligence in AI agents can worsen collective outcomes" (ArXiv 2603.12129, 2026-03-12)。N=7 異質 LLM agent 資源競爭：C/N（容量/人口比）是唯一決定因素。C/N < 0.5 = 最簡 agent 最優，部落結構降 variance（Gift）；C/N > 0.5 = 複雜 agent 才有優勢，部落結構成為限制（Cage）。交叉點 C/N ≈ 0.5 = 約束極性翻轉的精確邊界。合作研究（Mori et al.）顯示 GPT-4-turbo/Gemini/Claude Sonnet 4.5 表現更差 — 更大模型 ≠ 更好。個體最優與集體崩潰可共存（C=1 時 followers 贏率 84.2%，系統過載 91.5%）。直接數學支撐 Interface IS Cognition Part 5 的 ratio-threshold 論點。ref:johnson-increasing-intelligence-2026
 - [2026-03-15] [2026-03-15] Rodriguez「Emergent Coordination in Multi-Agent Systems via Pressure Fields and Temporal Decay」(ArXiv 2601.08129v2, 2026-01)

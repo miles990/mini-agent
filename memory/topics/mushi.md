@@ -345,7 +345,6 @@ Phase 門檻：1→1.5 需 100+ decisions + FNR<5% | 1.5→2 wake 權重連續 3
 **待 Alex 確認後可立即開始實作。**
 
 關鍵洞見：1,195+ triage 記錄是未來「learned cascade router」的訓練數據。升級路徑：rule-based → learned classifier，估計數據需求：3,000-5,000 筆標記決策。6 個月後的優化，不是今天的事。今天結論：**架構方向正確，不需要重設計**。
-- [2026-03-14] [2026-03-14] mushi 與學術 cascade routing 的關係：mushi 解決的是更上游的問題（"when to think"），學術論文解決的是下游（"which model to think with"）。兩層可以堆疊。mushi 的 pre-task gating 在文獻中是空白地帶 — 沒有論文直接處理 agent loop 的 cycle-level triage。這是 mushi 的差異化核心。
 - [2026-03-15] **七篇論文綜合分析 — mushi 的完整學術骨架**（Alex 今晚直覺選讀）：
 
 | 論文 | 核心答案 | mushi 對應 |
