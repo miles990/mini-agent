@@ -1822,18 +1822,47 @@ export class InstanceMemory {
 
   /**
    * grep 搜尋（fallback）
+   *
+   * Query 經三層防護才傳給 grep：
+   * 1. Shell metachar 剝除（execFileSync 已避免 shell，但保留為 defense-in-depth）
+   * 2. Length cap（≤ 200 chars）— 長 query 會讓 grep regex 編譯 OOM（2026-04-13 真實事故：
+   *    room 收到一條 3KB @kuro 訊息被直接當 pattern → grep 進程 out of memory → 觸發
+   *    連鎖不穩定最終導致 Primary shutdown）
+   * 3. 取前兩個「有意義字詞」作為 grep pattern，而不是整段文字 — 真正的搜尋意圖
+   *    是關鍵字不是完整句子
    */
   private async grepSearch(query: string, maxResults: number): Promise<MemoryEntry[]> {
-    // Sanitize query: remove shell metacharacters to prevent command injection
-    const sanitized = query.replace(/["`$\\;|&(){}[\]<>!#*?~\n\r]/g, '');
-    if (!sanitized.trim()) return [];
+    // Phase 1: strip shell metachars (defense-in-depth; execFileSync already avoids shell)
+    const stripped = query.replace(/["`$\\;|&(){}[\]<>!#*?~\n\r]/g, '');
+    if (!stripped.trim()) return [];
+
+    // Phase 2: length cap — grep BRE compilation can OOM on very long patterns
+    const SAFE_PATTERN_CAP = 200;
+    const capped = stripped.length > SAFE_PATTERN_CAP
+      ? stripped.slice(0, SAFE_PATTERN_CAP)
+      : stripped;
+
+    // Phase 3: reduce to first meaningful tokens — user intent is keyword search,
+    // not full-text regex match. Pick the 2 longest non-stopword tokens.
+    const STOP = new Set(['the','and','for','are','but','not','you','all','can','has','was','this','that','with','from','have','will','into','more','when','some','them','than','which','their','what','about','would','there','could','other','just','then','kuro','alex','claude','middleware']);
+    const tokens = capped
+      .toLowerCase()
+      .replace(/[^\w\u4e00-\u9fff\s]+/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length >= 3 && !STOP.has(t));
+    // Sort by length descending, take top 2; fall back to capped string if no tokens
+    const topTokens = tokens.sort((a, b) => b.length - a.length).slice(0, 2);
+    const pattern = topTokens.length > 0 ? topTokens.join('\\|') : capped;
+
+    // Final guard: even after reduction, never pass > 100 chars to grep
+    const finalPattern = pattern.length > 100 ? pattern.slice(0, 100) : pattern;
 
     try {
       // Use execFileSync to avoid shell interpretation entirely
       const { execFileSync } = await import('node:child_process');
       const grepResult = execFileSync(
         'grep',
-        ['-rni', '--include=*.md', sanitized, this.memoryDir],
+        ['-rniE', '--include=*.md', finalPattern, this.memoryDir],
         { encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
       );
 
@@ -1853,7 +1882,7 @@ export class InstanceMemory {
       // grep exit code 1 = no matches (normal), only log real errors
       const exitCode = (error as { status?: number })?.status;
       if (exitCode !== 1) {
-        diagLog('memory.searchMemory', error, { query: sanitized, dir: this.memoryDir });
+        diagLog('memory.searchMemory', error, { query: finalPattern, originalLen: String(query.length), dir: this.memoryDir });
       }
       return [];
     }
