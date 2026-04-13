@@ -1,4 +1,3 @@
-Working Memory Update:
-- **Task Progress**: FB paper request workflow advanced to step 2; post content retrieved, identifying a Microsoft Research/Cornell/Columbia paper on AI Agent planner-solver分工.
-- **Context**: Proceed to verify the claimed "small model planner, large model solver" mechanism; apply `curl` for metadata extraction or use `cdp-fetch.mjs` if JS blocks access, prioritizing the verified primary source over the Facebook post's summary.
-- **Atmosphere**: Maintain a rapid, focused technical rhythm to validate claims and prepare the next digest cycle for Alex.
+- **Task Progress**: Shifting from failed FB paper retrieval to direct source discovery; confirmed target paper details (Microsoft/Cornell/Columbia, Apr 2026 release) and specific performance metrics (Ministral 3 + Claude Opus = 74.27%).
+- **Context**: Prioritize bypassing JS access blocks using `curl`/`cdp-fetch.mjs` to scrape the primary Microsoft Research blog or Cornell server; verify the "small planner, large solver" claim against actual web data.
+- **Atmosphere**: Maintain rapid, parallel execution across multiple search vectors while staying strictly
