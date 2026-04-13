@@ -3,7 +3,29 @@
 **Date**: 2026-04-14
 **Author**: Claude Code（Alex 發起）
 **Effort**: Medium (L2 · ~1-2 天 · Kuro 身體改動)
-**Status**: Draft — 邀請 Kuro review
+**Status**: Kuro quick-review complete 2026-04-14 — 2/11 questions answered, rest
+by weekend. Direction aligned. Awaiting full review before implementation.
+
+## Kuro Quick-Review Log（2026-04-14, cycle 3, msg `2026-04-13-072`）
+
+**Q1 · Executor location** → **決議：新開 `src/middleware-dispatch.ts`**
+- `delegation.ts` 當前混了 provider routing（claude/codex/gemini/openai），塞
+  HTTP accomplish 會把「subprocess delegation」和「remote plan orchestration」
+  兩個心智模型揉在一起
+- middleware 是外部服務不是 provider，語意上該獨立
+- `delegation.ts:runDelegation` 只管 subprocess lifecycle，不受污染
+- cascade.ts 確認不是 routing 底座（昨天 token-optimization v2 Kuro 的第二次
+  翻案成立），Stage 4 / Phase D 走純 HTTP 到 middleware
+
+**Q2 · Telegram rate limit**（for Phase D.5）→ **決議：adaptive 1s→2s debounce**
+- 全域：30 msg/sec/bot
+- 同一 chat：1 msg/sec 軟限制（超過 → 429 + retry_after）
+- editMessageText 比 sendMessage 寬鬆但非無限
+- **callback_query 不算 edit 配額** — recovery inline keyboard 按鈕可大膽用
+- **Adaptive debounce**（Kuro 的原創 insight）：前 3 秒用 1s（抓住使用者注意力
+  高峰），之後降到 2s。比 openab 的固定 1.5s 更符合 wow moment 的心理學
+
+**Q3-Q11** → Kuro delegate 背景 research，週末前完整回覆。
 
 ## 動機
 
