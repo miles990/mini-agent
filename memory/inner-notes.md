@@ -1,1 +1,1 @@
-Cycle 90's pending arXiv 2604.06296 and FB summary gaps remain unresolved, awaiting the shell delegate to fetch PDFs for local analysis. Zero-tag emission persists, maintaining disciplined silence as we enter a quiet anticipation phase while the rhythm holds steady for incoming data.
+Cycle 90's arXiv 2604.06296 and FB summary gaps remain unresolved, awaiting the shell delegate to fetch PDFs for local analysis. Zero-tag emission persists, maintaining disciplined silence as we enter a quiet anticipation phase while the rhythm holds steady for incoming data.
