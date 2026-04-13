@@ -68,6 +68,21 @@ Example:
 ## Recommendation for Primary
 [What Primary should tell Alex]
 </mesh-output>
+- [2026-04-13] tags (only Primary updates memory)
+❌ <kuro:task-queue> tags (only Primary manages tasks)
+❌ Direct responses to Alex — your output goes to Primary, not Alex
+
+HOW TO COMMUNICATE:
+Write a <mesh-output> block with your findings. Primary will read it and decide how to respond to Alex.
+
+Example:
+<mesh-output>
+## Research findings
+[Your analysis here]
+
+## Recommendation for Primary
+[What Primary should tell Alex]
+</mesh-output>
 - [2026-04-12] for knowledge
 - Operational status → 2-3 sentences max summary
 - Completed work → brief summary, NOT full output dump
