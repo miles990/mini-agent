@@ -906,9 +906,17 @@ function startTask(task: DelegationTask): void {
     child.stdin!.write(task.prompt);
     child.stdin!.end();
   } else if (taskType === 'shell') {
-    // Shell executor — run prompt as bash command directly
-    slog('DELEGATION', `Starting shell ${taskId}: "${task.prompt.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
-    child = spawn('bash', ['-c', task.prompt], {
+    // Shell executor — run prompt as bash command directly.
+    // Auto-wrap with rtk for single-line read-only commands (ls/find/tree/grep/diff/wc)
+    // — ~60% output compression on ls-family, graceful fallback if rtk missing.
+    const trimmed = task.prompt.trim();
+    const isSingleLine = !/[\n;|&]/.test(trimmed);
+    const rtkSafe = /^(ls|find|tree|grep|diff|wc)\b/.test(trimmed);
+    const bashCmd = isSingleLine && rtkSafe
+      ? `command -v rtk >/dev/null 2>&1 && rtk ${trimmed} || ${trimmed}`
+      : task.prompt;
+    slog('DELEGATION', `Starting shell ${taskId}: "${bashCmd.slice(0, 80)}..." (${Math.round((task.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)}s timeout)`);
+    child = spawn('bash', ['-c', bashCmd], {
       cwd: effectiveWorkdir,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
