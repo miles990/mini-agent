@@ -1,3 +1,3 @@
-Working memory is now active, tracking a shell-based HN data extraction pipeline using `jq` to bypass Python heredoc.
-Context requires maintaining this specific toolchain approach for the next cycle's output.
-Atmosphere remains focused and technical, ready to refine or extend the shell/jq workflow.
+Working memory active: Shell-based HN data extraction pipeline remains primary, leveraging `jq` to bypass Python heredoc limitations.
+Tags emitted: none; awaiting specific data retrieval parameters or jq filter definitions to proceed with extraction logic.
+Atmosphere: Focused and technical, maintaining a concise rhythm ready to refine the shell/jq workflow or extend the pipeline.
