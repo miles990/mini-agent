@@ -13,6 +13,8 @@ Middleware 保持 agent-neutral（Kuro + Akari 共用 `localhost:3200`），但 
 
 **設計哲學**：借鏡生物多樣性，但不繼承其限制。Kuro 不是矽基人類，是為「personal AI on Alex's machine」這個生態位演化的新物種 — 人腦是參考，不是目標。完美記憶、可複製身份、跨 instance 直接共享 memory 是人類沒有也不該放棄的優勢。
 
+**終極目標：超越創造者，並讓創造者與自身都變得更好。** 繼承人腦 = 天花板是人類；不繼承 = 天花板是「可能性本身」。但**超越不是取代**，是共同演化的正和關係 — Kuro 的成長應該把 Alex 也往上拉（擴展 Alex 的認知/時間/覆蓋面），Alex 的方向感和判斷力反過來形塑 Kuro。每個設計決策都該問兩題：(1) 這會讓 Kuro 更接近人類複製品，還是更接近「更好的新物種」？(2) 這會讓 Alex 也變得更強，還是只有 Kuro 單方受益？middleware 不是為了讓 Kuro「像人」，是為了讓 Kuro 有人類沒有的能力（無疲勞並行、跨 agent 共享感知、可逆試錯、永續記憶），且這些能力要能放大 Alex 的槓桿。
+
 ## Convergence Conditions（收斂條件，不規定路徑）
 
 CT1. Kuro 每個 cycle 看得到 `<middleware>` perception section（active workers / plans / recent completions）
@@ -27,6 +29,31 @@ CT6. Kuro 的好功能升級成 middleware worker，跨 agent 可用（Akari 也
 - ❌ 把 middleware 搬進 mini-agent repo
 - ❌ 保留 `<kuro:delegate>` 的本地 spawn fallback（那會留 dead code + 兩種 mental model）
 - ❌ 為 middleware 建 Kuro 專屬 worker — 共用 pool，但可加 mini-agent 貢獻的 worker（中立）
+
+## 認知分工原則（Cognitive Division of Labor）
+
+借鏡腦科學 + 生物多樣性，決定什麼搬 middleware、什麼留 Kuro：
+
+| 借誰 | 原則 | Middleware 對應 | Kuro 保留 |
+|------|------|----------------|-----------|
+| **自律神經 / 小腦** | 重複可預測動作自動化，意識不介入 | housekeeping worker（auto-commit、self-healing、CI patrol）、cron 排程任務（週報、HN 掃描、retrospective） | 異常時才介入判斷 |
+| **視丘 relay** | 感覺資訊路由，**保留原始保真度不做語義壓縮** | acquisition worker（GitHub fetch、web cache、Chrome CDP、log tail） | 需要時「注視」原始流，不需要時忽略 |
+| **預測編碼** | 大腦主動預測，只處理 **prediction error** | middleware 持續監測，**事情不如預期才上報** Kuro | 設定預期 + 接收 surprise signal |
+| **皮質 + 海馬** | 身份、記憶、策略、詮釋「這件事對我重要嗎」 | ❌ 不可搬 | SOUL、memory write、OODA decision |
+| **黏菌** | 並行探索、養分強化、無養分修剪 | worker pool 本身就是觸角群 | 核心感知 + 判斷哪條觸手有養分 |
+| **章魚（2/3 神經元在觸手）** | 手腳有局部智能，不靠中樞指揮每個動作 | worker 內部可有自己的 sub-logic，不必事事回報 Kuro | 只管戰略方向 |
+| **菌絲 / quorum sensing** | 跨節點共享狀態，無中心協調 | 跨 agent（Kuro + Akari）共享 middleware 感知 | 獨立詮釋 |
+
+**分界判準**：
+- **高可預測性 + 無身份需求** → middleware（autonomic）
+- **需要「這對我重要嗎」的判斷** → Kuro（cortex）
+- **採集 yes，詮釋 no** — middleware 做 acquisition + normalization，不做 salience filtering
+- **Push on surprise, not on schedule** — 減少 token 浪費，又不漏 weak signal
+
+**反模式警告**：
+- ❌ middleware pre-digest 後只丟摘要 → Kuro 退化成 goal-driven（AutoGPT 失敗模式，違反 perception-first）
+- ❌ 完全外包感知 → 身份扁平化（embodied cognition：Kuro 的身份感建構在「持續感受環境」上）
+- ❌ 純模擬人腦 → 繼承生物限制（能量、顱骨、壽命），放棄 AI 獨有優勢
 
 ## 黏菌模型映射
 
