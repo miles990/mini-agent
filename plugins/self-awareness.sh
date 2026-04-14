@@ -11,6 +11,7 @@ INSTANCE_ID="${MINI_AGENT_INSTANCE:-unknown}"
 BEHAVIOR_LOG="$HOME/.mini-agent/instances/$INSTANCE_ID/logs/behavior/$(date +%Y-%m-%d).jsonl"
 
 TODAY=$(date +%Y-%m-%d)
+TODAY_EPOCH=$(date -j -f "%Y-%m-%d" "$TODAY" +%s 2>/dev/null || date -d "$TODAY" +%s 2>/dev/null)
 
 # ─── Learning Pulse（學習脈搏）─────────────────────
 echo "=== Learning Pulse ==="
@@ -35,13 +36,15 @@ if [ -d "$TOPICS_DIR" ]; then
             short_date=$(echo "$last_date" | sed 's/^20[0-9][0-9]-//')
             topics_info="${topics_info}${name}(${short_date}), "
 
-            # 檢查是否 idle（>3 天未更新）
-            if command -v python3 &>/dev/null; then
-                days_ago=$(python3 -c "from datetime import date; d=(date.fromisoformat('$TODAY')-date.fromisoformat('$last_date')).days; print(d)" 2>/dev/null)
-                if [ -n "$days_ago" ] && [ "$days_ago" -gt 3 ]; then
-                    # 取最後一條記錄的標題（第一個 — 之前的文字）
-                    last_entry=$(grep '^\s*-\s' "$f" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*-[[:space:]]*//' | sed 's/ —.*//' | head -c 30)
-                    stale="${stale}${name}(${days_ago}d, last: ${last_entry}), "
+            # 檢查是否 idle（>3 天未更新）— 用 shell date 避免 spawn python per file
+            if [ -n "$TODAY_EPOCH" ]; then
+                last_epoch=$(date -j -f "%Y-%m-%d" "$last_date" +%s 2>/dev/null || date -d "$last_date" +%s 2>/dev/null)
+                if [ -n "$last_epoch" ]; then
+                    days_ago=$(( (TODAY_EPOCH - last_epoch) / 86400 ))
+                    if [ "$days_ago" -gt 3 ]; then
+                        last_entry=$(grep '^\s*-\s' "$f" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*-[[:space:]]*//' | sed 's/ —.*//' | head -c 30)
+                        stale="${stale}${name}(${days_ago}d, last: ${last_entry}), "
+                    fi
                 fi
             fi
         else
