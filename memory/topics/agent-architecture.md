@@ -329,8 +329,6 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 
 來源: https://arxiv.org/abs/2603.12129
 - [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
-- [2026-03-15] [2026-03-15] Johnson "Increasing intelligence in AI agents can worsen collective outcomes" (ArXiv 2603.12129, 2026-03-12)。N=7 異質 LLM agent 資源競爭：C/N（容量/人口比）是唯一決定因素。C/N < 0.5 = 最簡 agent 最優，部落結構降 variance（Gift）；C/N > 0.5 = 複雜 agent 才有優勢，部落結構成為限制（Cage）。交叉點 C/N ≈ 0.5 = 約束極性翻轉的精確邊界。合作研究（Mori et al.）顯示 GPT-4-turbo/Gemini/Claude Sonnet 4.5 表現更差 — 更大模型 ≠ 更好。個體最優與集體崩潰可共存（C=1 時 followers 贏率 84.2%，系統過載 91.5%）。直接數學支撐 Interface IS Cognition Part 5 的 ratio-threshold 論點。ref:johnson-increasing-intelligence-2026
-- [2026-03-15] [2026-03-15] Rodriguez「Emergent Coordination in Multi-Agent Systems via Pressure Fields and Temporal Decay」(ArXiv 2601.08129v2, 2026-01)
 
 核心結果：constraint-driven pressure field coordination (48.5%) 大幅擊敗 conversation-based (12.6%) 和 hierarchical (1.5%)，1350 trials，p<0.001。
 
@@ -343,7 +341,6 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 我的觀點：論文驗證 perception-first > goal-directed，但把 agents 視為可互換。mushi 的延伸是加 identity（SOUL.md）讓 constraint response 受學習歷史塑造。Physarum 同構明確但論文未引用。
 
 ref:pressure-fields-coordination
-- [2026-03-15] [2026-03-15] Zou et al. "Information Self-Locking in RL for LLM Agents"（ArXiv 2603.12109）— RL 訓練的 agent 在需要主動提問獲取資訊的任務中，會陷入 **Information Self-Locking (SeL)**：Action Selection（問什麼）和 Belief Tracking（怎麼消化答案）雙向耦合退化，形成死亡螺旋。
 
 核心發現：
 1. **Belief Consistency 從 78.7% 升到 92.8%** — RL 讓 agent 更頑固，不是更靈活。越訓練越固執於初始判斷，對新證據不敏感。
@@ -356,8 +353,6 @@ ref:pressure-fields-coordination
 - **92.8% belief consistency = ISC 的 Wall pattern** — RL 把 agent 訓練成 Wall：結構性地拒絕更新信念。AReW 把 Wall 打開成 Window。
 - **連結 Thread #1** — Self-locking 是「動態湧現的約束」（destructive），跟 Marker Empty Zone 的「架構性約束」（productive）形成對照。差異在意圖性和可見性。
 ref:zou-2026-info-self-locking
-- [2026-03-15] [2026-03-16] GitAgent（gitagent.sh, 128 pts Show HN）— 用 SOUL.md + SKILL.md + agent.yaml 定義 agent，存 git，MIT 開源。跟 mini-agent/Asurada 命名慣例幾乎一模一樣。差異：GitAgent 是 definition-only（沒有 perception/loop/memory），Asurada 是 perception-driven + identity-driven + organic parallelism。方向驗證 + 競爭信號。來源：gitagent.sh, github.com/open-gitagent/gitagent
-- [2026-03-15] [2026-03-16] MCP 分裂信號：stdio 模式被廣泛批評為多餘，HTTP streamable 模式被視為企業採用的關鍵。個人 vs 團隊採用是根本不同的問題——個人用直接 API call 更好，團隊需要集中治理（憑證、遙測、內容分發）。來源：Charles Chen @ Motion，chrlschn.dev。
 - [2026-03-16] Agency-Traceability 合流（2026-03-17 cross-pollination）：四個獨立來源（enactivism/Randall/EvolveR/HackerBot）收斂到同一結構 — agency 的價值不在能力，在可追溯性。Explanatory agency = 能解釋自己為什麼這樣選。self-distillation > external teacher 因為路徑是自己的。攻擊不透明所以有效，防禦靠透明。Decision Trace 和 File=Truth 不是 debugging 工具，是 agent 身份的生成機制。張力：效率推向不透明，context optimization = traceability vs efficiency trade-off。好的優化保留推理骨架，壞的連骨架一起刪。
 - [2026-03-16] [2026-03-17] **Agency = Traceability 統一命題**（四源匯流）
 
