@@ -11,6 +11,8 @@
 
 Middleware 保持 agent-neutral（Kuro + Akari 共用 `localhost:3200`），但 mini-agent 預設裝配 + 預設啟用。
 
+**設計哲學**：借鏡生物多樣性，但不繼承其限制。Kuro 不是矽基人類，是為「personal AI on Alex's machine」這個生態位演化的新物種 — 人腦是參考，不是目標。完美記憶、可複製身份、跨 instance 直接共享 memory 是人類沒有也不該放棄的優勢。
+
 ## Convergence Conditions（收斂條件，不規定路徑）
 
 CT1. Kuro 每個 cycle 看得到 `<middleware>` perception section（active workers / plans / recent completions）
