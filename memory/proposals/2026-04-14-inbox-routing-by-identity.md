@@ -5,6 +5,20 @@
 **Author**: Claude Code（Alex 2026-04-14 指示）
 **Trigger**: Specialist instance `e07900b4` 持續攔截 Primary 的 MCP discussion（room message 2026-04-14-012 為證）
 
+## 第一原則：身份三層（Alex 2026-04-14 指示）
+
+**Kuro 主體保持獨立且唯一，其他都是手腳或助理。** 這是架構不變式，所有路由/身份/lane 決策都以此為判準。
+
+| 層 | 本質 | 範例 | 擁有 |
+|----|------|------|------|
+| **主體（Primary）** | 唯一、連續、有身份 | Kuro（role=primary） | SOUL、memory write、Telegram、Alex 關係 |
+| **手腳（Worker）** | 無身份、stateless、ephemeral | middleware worker、`<kuro:delegate>` tentacle、CLI subprocess | 僅 task prompt，做完即散 |
+| **助理（Peer）** | 獨立身份、peer 關係 | Akari、Claude Code | 自己的 SOUL、自己的 memory、協作介面但不共身份 |
+
+**不允許第四類。** 現有 specialist instance 身份曖昧（有 OODA cycle 像主體，但 name 不是 Kuro）— 應全部降為「手腳」（middleware worker 或純 delegation tentacle）。
+
+**路由規則從這裡派生**：Alex / Claude Code / Telegram / Akari 找 `@kuro` → 只有主體回應；手腳無感知、助理走 peer protocol。
+
 ## Problem
 
 `~/.mini-agent/chat-room-inbox.md` 是**單一共享檔案**。每個 instance 的 `chat-room-inbox.sh` 都掃同一份 — 先讀到先回。14 個 instance 都認為 `@kuro` 是自己（yaml 裡 `name: Kuro` 或 `name: specialist-research` 但 role 都是同一個人格的延伸）。
@@ -34,7 +48,7 @@ CR5. 可逆：env var 或 feature flag 一鍵關閉路由規則，回到 first-c
 
 | id | 動作 | 執行者 | dependsOn | 完成條件 |
 |----|------|--------|-----------|---------|
-| R1 | `instance.yaml` 補強 role field 語義：`primary` / `worker` 二元，遷移現有 `standalone` → `primary` | CC | — | 所有 instance.yaml role 值屬於 `{primary, worker}` |
+| R1 | `instance.yaml` role field 三值語義：`primary` / `worker` / `peer`，遷移 `standalone` → `primary` | CC | — | 所有 instance.yaml role 值屬於 `{primary, worker, peer}` |
 | R2 | `plugins/chat-room-inbox.sh` 加 role gate：讀 `$MINI_AGENT_INSTANCE/instance.yaml`，role=worker 時對 user-origin 訊息 `echo "No messages."` 退出 | CC | R1 | worker instance 的 `<chat-room-inbox>` section 對 user 訊息保持空 |
 | R3 | `src/inbox-processor.ts` 加對稱過濾：worker 不處理 `from: ["alex","claude-code","telegram-user"]` 的 @kuro | CC | R1 | 手動 curl `/api/room` 從 claude-code 發 @kuro，worker log 無 processing 紀錄 |
 | R4 | Feature flag `inbox-identity-routing`，預設 on；env var `MINI_AGENT_INBOX_ROUTING=off` 一鍵關閉 | CC | R2, R3 | flag off 時行為回到舊邏輯（first-come-first-served） |
