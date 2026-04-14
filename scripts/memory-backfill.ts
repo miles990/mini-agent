@@ -9,14 +9,15 @@
  * Attribution: "worker:memory-compiler@v1"
  *
  * Usage:
- *   tsx scripts/memory-backfill.ts [memoryDir]
+ *   tsx scripts/memory-backfill.ts [memoryDir] [--dry-run]
  *
  * Defaults to `./memory` relative to CWD.
+ * `--dry-run` prints preview (source counts, dedup forecast, first 5 entries) without writing.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getEntriesStore, resetEntriesStore } from '../src/entries.js';
+import { getEntriesStore, resetEntriesStore, computeContentHash } from '../src/entries.js';
 import { compileRemember } from '../src/memory-compiler.js';
 
 const BACKFILL_ATTRIBUTION = 'worker:memory-compiler@v1';
@@ -61,35 +62,83 @@ function extractBullets(filePath: string, source: string, topic?: string): Bulle
   return bullets;
 }
 
-function main(): void {
-  const memoryDir = path.resolve(process.argv[2] ?? './memory');
-  if (!fs.existsSync(memoryDir)) {
-    console.error(`memory dir not found: ${memoryDir}`);
-    process.exit(1);
-  }
+function parseArgs(argv: string[]): { memoryDir: string; dryRun: boolean } {
+  const rest = argv.slice(2);
+  const dryRun = rest.includes('--dry-run');
+  const positional = rest.filter(a => !a.startsWith('--'));
+  const memoryDir = path.resolve(positional[0] ?? './memory');
+  return { memoryDir, dryRun };
+}
 
-  console.log(`[backfill] starting from ${memoryDir}`);
-  resetEntriesStore();
-  const store = getEntriesStore(memoryDir);
-  const before = store.getStats();
-  console.log(`[backfill] before: total=${before.total} active=${before.active}`);
-
+function collectSources(memoryDir: string): { sources: BulletEntry[]; perSource: Map<string, number> } {
   const sources: BulletEntry[] = [];
+  const perSource = new Map<string, number>();
 
-  // MEMORY.md
   const memoryMd = path.join(memoryDir, 'MEMORY.md');
-  sources.push(...extractBullets(memoryMd, 'MEMORY.md'));
+  const memBullets = extractBullets(memoryMd, 'MEMORY.md');
+  sources.push(...memBullets);
+  if (memBullets.length) perSource.set('MEMORY.md', memBullets.length);
 
-  // topics/*.md
   const topicsDir = path.join(memoryDir, 'topics');
   if (fs.existsSync(topicsDir)) {
     for (const file of fs.readdirSync(topicsDir)) {
       if (!file.endsWith('.md')) continue;
       const topic = file.replace(/\.md$/, '');
-      sources.push(...extractBullets(path.join(topicsDir, file), `topics/${file}`, topic));
+      const tBullets = extractBullets(path.join(topicsDir, file), `topics/${file}`, topic);
+      sources.push(...tBullets);
+      if (tBullets.length) perSource.set(`topics/${file}`, tBullets.length);
+    }
+  }
+  return { sources, perSource };
+}
+
+function runDryRun(memoryDir: string): void {
+  console.log(`[backfill:dry-run] memoryDir=${memoryDir}`);
+  const store = getEntriesStore(memoryDir);
+  const before = store.getStats();
+  console.log(`[backfill:dry-run] current entries.jsonl: total=${before.total} active=${before.active}`);
+
+  const { sources, perSource } = collectSources(memoryDir);
+  console.log(`[backfill:dry-run] scanned ${sources.length} bullet entries from ${perSource.size} source files:`);
+  for (const [src, count] of perSource) {
+    console.log(`  - ${src}: ${count} bullets`);
+  }
+
+  // Simulate dedup without writing
+  const seenHashes = new Set<string>();
+  let wouldCompile = 0;
+  let wouldSkipDedup = 0;
+  const previewNew: BulletEntry[] = [];
+
+  for (const s of sources) {
+    const hash = computeContentHash(s.content);
+    if (store.findByHash(hash) || seenHashes.has(hash)) {
+      wouldSkipDedup++;
+    } else {
+      seenHashes.add(hash);
+      wouldCompile++;
+      if (previewNew.length < 5) previewNew.push(s);
     }
   }
 
+  console.log(`[backfill:dry-run] forecast: would-compile=${wouldCompile} would-skip(dedup)=${wouldSkipDedup}`);
+  console.log(`[backfill:dry-run] first ${previewNew.length} new entries:`);
+  for (let i = 0; i < previewNew.length; i++) {
+    const p = previewNew[i];
+    const snippet = p.content.length > 140 ? p.content.slice(0, 140) + '…' : p.content;
+    console.log(`  [${i + 1}] (${p.source}${p.topic ? ` topic=${p.topic}` : ''})`);
+    console.log(`      ${snippet.replace(/\n/g, ' ⏎ ')}`);
+  }
+  console.log(`[backfill:dry-run] no writes performed. rerun without --dry-run to commit.`);
+}
+
+function runBackfill(memoryDir: string): void {
+  console.log(`[backfill] starting from ${memoryDir}`);
+  const store = getEntriesStore(memoryDir);
+  const before = store.getStats();
+  console.log(`[backfill] before: total=${before.total} active=${before.active}`);
+
+  const { sources } = collectSources(memoryDir);
   console.log(`[backfill] scanned ${sources.length} bullet entries`);
 
   let compiled = 0;
@@ -116,6 +165,17 @@ function main(): void {
   console.log(`[backfill] done: compiled=${compiled} skipped(dedup)=${skipped} failed=${failed}`);
   console.log(`[backfill] after: total=${after.total} active=${after.active}`);
   console.log(`[backfill] entries.jsonl at ${path.join(memoryDir, 'index', 'entries.jsonl')}`);
+}
+
+function main(): void {
+  const { memoryDir, dryRun } = parseArgs(process.argv);
+  if (!fs.existsSync(memoryDir)) {
+    console.error(`memory dir not found: ${memoryDir}`);
+    process.exit(1);
+  }
+  resetEntriesStore();
+  if (dryRun) runDryRun(memoryDir);
+  else runBackfill(memoryDir);
 }
 
 main();
