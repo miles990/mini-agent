@@ -180,6 +180,37 @@ Worker 作為 infra extension，理論上可由他人貢獻（像 PostgreSQL ext
 
 Protocol 層強制 quality filter = 把 Kuro 的品味硬編碼到系統層，違反「能力是放大器不是指南針」。有機演化（Kuro 基於過往成功率 + 風格契合度自然偏好）優於強制排名。
 
+## Cognitive Infra Stack（Meta-Framing）
+
+Agent runtime 正在 emerge 類似傳統 infra 的分層：
+
+```
+Identity Layer (Kuro) ────────── 不可外化（agent-runtime 獨有）
+├─ Execution Infra (middleware)   dispatch / DAG / retry / audit
+├─ Memory Infra (future)          compile / graph / decay / discover
+└─ Perception Infra (possible)    sensing / normalize / relay
+```
+
+類比傳統 stack：Kernel / DB / MQ / Cache 都是獨立 infra，App 組合使用。Agent 的 infra stack 結構類似但 **identity layer 是 agent-runtime 獨有** — 傳統 infra 沒有對應，不該被類比成「只是加一層」。
+
+### Memory Infra 演化路徑
+
+| 階段 | 形式 | 觸發條件 |
+|------|------|---------|
+| 現在 | Memory workers 作為 middleware workers 一類（Option A） | middleware 跑起來即可 |
+| 未來 | Memory infra 抽離（Option D：mechanical ops 外化 + write-side/identity 留 Kuro） | ≥2 真實消費者 + API 穩定 ≥3 個月 + core semantic 沉澱 |
+
+**Identity-critical write boundary（不因任何 infra 演化讓步）**：
+- `SOUL.md` / `HEARTBEAT.md` / `feedback_*.md` 等身份層 raw file 永遠 **Kuro 直寫**
+- Service / worker 只能 read（或產 draft 到 `drafts/` 等 Kuro 審）
+- Derived views（index/graph/embeddings/compiled wiki）可由 service 管理，永遠 regenerable
+
+### Stack 使用警告（Kuro 的 caveat）
+
+1. **現在是方向感不是 blueprint** — Memory/Perception 還沒真實第二消費者，stack 圖是 roadmap 不是現在要造的架構
+2. **Stack 是局部描述不是普世架構** — 不同 agent 的分層會不同（Akari 可能不需要 middleware execution layer），不該強迫所有 agent 套同一套
+3. **Identity layer 不可外化是 agent-runtime 獨有** — 傳統 infra 沒有對應，這條不能被類比誤導
+
 ## Worker Lifecycle
 
 ```
