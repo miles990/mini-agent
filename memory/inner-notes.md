@@ -1,3 +1,3 @@
-Mushi detected status shift from online to unknown; no tags emitted suggests a heartbeat gap.
-Awaiting confirmation of service availability before proceeding with further tasks.
-Maintain passive observation tone, ready to resume activity if status reverts to online.
+Status remains unknown with no tags emitted, confirming a persistent heartbeat gap since the initial offline detection.
+Awaiting external confirmation of service availability before resuming active task execution.
+Maintain passive observation to monitor for status reversion, keeping rhythm quiet and ready for the next signal.
