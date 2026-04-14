@@ -1,3 +1,4 @@
-Cycle #447: Task `idx-873a5d01` resolved by appending `status:completed` entry to `relations.jsonl`, correcting the persistent false-pending state caused by missing `<kuro:task-queue>` tag writes.
-Context: Direct append to `relations.jsonl` is the validated pattern for finalizing tasks; previous attempts via `<kuro:task-queue op="update">` failed to modify the single existing pending record.
-Rhythm: Concise, action-oriented verification with strict adherence to direct file append for commitment resolution.
+Cycle 484 confirmed: `memory-index.ts` is not the fix target; root cause is scattered callsites (~80+) overriding `process.cwd()` with `getInstanceDir()`.
+Next P3 action: Shift focus from single-file patch to systematic callsite audit across the workspace.
+Context carries forward: Diagnosis of HOME vs workspace split is valid, but fix strategy must evolve from "narrow fix" to "distributed audit."
+Tone remains analytical and precise, prioritizing structural verification over speculative code changes.
