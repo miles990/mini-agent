@@ -45,7 +45,7 @@ v1 有 L1-L7 七層，v2 合併成四層 — 分細不一定好：
 | **A. Perception** | `plugins/middleware.sh` → `<middleware>` section | Kuro context 含 middleware 狀態 |
 | **B. Client + Tag** | `src/middleware-client.ts` + dispatcher 解析 `<kuro:delegate>` 和 `<kuro:plan>`，都送 middleware | Kuro 輸出任一 tag → middleware taskId/planId log |
 | **C. Migration** | 既有功能做成 worker（見下表）；`delegation.ts` 本地 lane 退役 | `src/delegation.ts` 只剩 fallback shim 或直接刪 |
-| **D. Sunset** | Specialist instance + Cognitive Mesh scaling 整組退役 | `launchctl list` 只剩 primary；`src/mesh-handler.ts` `src/scaling.ts` `src/perspective.ts` 刪除 |
+| ~~D. Sunset~~ | **拉出成獨立 proposal**：`memory/proposals/YYYY-MM-DD-specialist-instance-sunset.md`（specialist e07900b4 review 建議 — architectural irreversible decision 不該夾 feature DAG） | 單獨 review |
 
 ## Mini-Agent Feature → Middleware Worker Migration
 
