@@ -353,7 +353,39 @@ export interface ParsedTags {
   understands: Array<{ content: string; refs: string[]; tags?: string[] }>;
   directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }>;
   agoraPosts: Array<{ discussion: string; text: string; replyTo?: string; type?: string }>;
+  supersedes: Array<{ target: string; reason: string; content: string; topic?: string; concepts?: string[] }>;
+  validates: Array<{ target: string }>;
+  excludes: Array<{ target: string; reason: string }>;
   cleanContent: string;
+}
+
+// =============================================================================
+// Memory Layer v3 — Entry schema (see memory/proposals/2026-04-14-memory-layer-v3.md)
+// =============================================================================
+
+export type EntryType = 'fact' | 'decision' | 'pattern' | 'reference';
+
+export interface Entry {
+  id: string;                    // entry-{16 hex chars}
+  source: string;                // e.g. "topics/mushi.md" or "MEMORY.md" or "conversation:cycle-401"
+  content_hash: string;          // "sha256:..." — dedup key
+  content: string;               // semantic atom content
+  concepts: string[];            // extracted concept tags
+  type: EntryType;
+  created_at: string;            // ISO timestamp
+  last_validated_at: string;     // ISO timestamp (for decay; NOT access)
+  confidence: number;            // 0-1, decays over time
+  supersedes: string[];          // ids this entry replaces (immutable after write)
+  superseded_by: string | null;  // derived back-ref (computed at read, persisted as null at write)
+  stale_reason: string | null;   // required when supersedes.length > 0
+  attribution: string;           // "kuro" | "worker:memory-compiler@v1" | ...
+}
+
+export interface EntryExclusion {
+  target: string;
+  reason: string;
+  attribution: string;
+  ts: string;
 }
 
 /** Unified Inbox 項目 */

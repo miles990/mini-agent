@@ -285,6 +285,9 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
 - <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
+- <kuro:supersede target="entry-xxx" topic="opt">new content\n---\nreason this replaces target</kuro:supersede> — supersede an earlier entry; reason required
+- <kuro:validate target="entry-xxx" /> — refresh last_validated_at (anti-decay)
+- <kuro:exclude target="entry-xxx">reason why this entry should not have been compiled</kuro:exclude> — mark compiler error; entries stay immutable
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -327,6 +330,9 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
 - <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
+- <kuro:supersede target="entry-xxx" topic="opt">new content\n---\nreason this replaces target</kuro:supersede> — supersede an earlier entry; reason required
+- <kuro:validate target="entry-xxx" /> — refresh last_validated_at (anti-decay)
+- <kuro:exclude target="entry-xxx">reason why this entry should not have been compiled</kuro:exclude> — mark compiler error; entries stay immutable
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -755,9 +761,49 @@ export function parseTags(response: string): ParsedTags {
     });
   }
 
+  // Memory Layer v3 — supersede / validate / exclude tags
+  const supersedes: ParsedTags['supersedes'] = [];
+  for (const t of byName('kuro:supersede')) {
+    const target = attr(t.attributes, 'target');
+    if (!target) continue; // required
+    const content = t.content.trim();
+    if (!content) continue;
+    // The tag body format: "new content\n---\nreason" OR attribute reason=""
+    let newContent = content;
+    let reason = attr(t.attributes, 'reason') ?? '';
+    const sep = content.indexOf('\n---\n');
+    if (sep > 0) {
+      newContent = content.slice(0, sep).trim();
+      reason = content.slice(sep + 5).trim() || reason;
+    }
+    if (!reason.trim()) continue; // stale_reason must be non-empty
+    const topic = attr(t.attributes, 'topic');
+    const conceptsAttr = attr(t.attributes, 'concepts');
+    const concepts = conceptsAttr
+      ? conceptsAttr.split(',').map(s => s.trim()).filter(Boolean)
+      : undefined;
+    supersedes.push({ target, reason, content: newContent, topic, concepts });
+  }
+
+  const validates: ParsedTags['validates'] = [];
+  for (const t of byName('kuro:validate')) {
+    const target = attr(t.attributes, 'target');
+    if (!target) continue;
+    validates.push({ target });
+  }
+
+  const excludes: ParsedTags['excludes'] = [];
+  for (const t of byName('kuro:exclude')) {
+    const target = attr(t.attributes, 'target');
+    if (!target) continue;
+    const reason = (t.content.trim()) || (attr(t.attributes, 'reason') ?? '');
+    if (!reason.trim()) continue;
+    excludes.push({ target, reason });
+  }
+
   const cleanContent = stripKuroTags(response);
 
-  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post', 'supersede', 'validate', 'exclude'];
   const balance = getKuroTagBalance(response);
   for (const tag of tagNames) {
     const name = `kuro:${tag}`;
@@ -769,7 +815,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, cleanContent };
 }
 
 // =============================================================================
@@ -867,6 +913,29 @@ export async function postProcess(
         content: rem.content,
         category,
       }).catch(() => {}); // fire-and-forget
+    }
+  }
+
+  // Memory Layer v3 — compile remembers/supersedes/validates/excludes into entries.jsonl
+  // Fire-and-forget: compiler failures must not break cycle.
+  if (tags.remembers.length || tags.supersedes.length || tags.validates.length || tags.excludes.length) {
+    try {
+      const { compileFromTags } = await import('./memory-compiler.js');
+      const res = compileFromTags(memory.getMemoryDir(), {
+        remembers: tags.remembers,
+        supersedes: tags.supersedes,
+        validates: tags.validates,
+        excludes: tags.excludes,
+      }, 'kuro');
+      if (res.supersedesCompiled > 0) tagsProcessed.push('supersede');
+      if (res.excludesApplied > 0) tagsProcessed.push('exclude');
+      if (res.validatesApplied > 0) tagsProcessed.push('validate');
+      const total = res.remembersCompiled + res.supersedesCompiled + res.excludesApplied + res.validatesApplied;
+      if (total > 0) {
+        slog('ENTRIES', `compiled r=${res.remembersCompiled} s=${res.supersedesCompiled} v=${res.validatesApplied} x=${res.excludesApplied} skip=${res.skipped}`);
+      }
+    } catch (e) {
+      slog('ENTRIES', `compiler error: ${(e as Error).message}`);
     }
   }
 
