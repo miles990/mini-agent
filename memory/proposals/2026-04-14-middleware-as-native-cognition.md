@@ -77,11 +77,9 @@ Kuro 已有的好功能做成 worker，跨 agent 可用：
 | C2 | `memory-search` worker | CC 或 Kuro | B4 | 同上 |
 | C3 | `github-ops` worker | CC 或 Kuro | B4 | 同上 |
 | C4 | `src/delegation.ts` 本地 spawn path 移除 | CC | B3, C1-C3 驗證 | grep 無 `spawnDelegation` 殘留 |
-| D1 | 關閉 specialist instances（launchd plist + heartbeat file 清理） | CC 或 Kuro | B4 + ≥ 7 天穩定 | `launchctl list` 只剩 primary |
-| D2 | 刪除 `mesh-handler.ts` `scaling.ts` `perspective.ts` `task-router.ts` | CC | D1 | typecheck pass |
-| D3 | SOUL.md / skills / prompt 更新 orchestration 語言（移除 "specialist" / "觸手"→worker） | Kuro | D2 | SOUL diff |
+| ~~D1-D3~~ | Specialist sunset → 拉出獨立 proposal，gate: middleware uptime ≥ 14 天 99% + ≥ 5 次成功 plan + research-lane 無需求 ≥ 7 天 | Kuro | — | 見獨立 proposal |
 
-**關鍵路徑**：A1 → A2 → A3 → A4 → B1 → B2 → B3 → B4 → C4 → D1 → D2 → D3（12 nodes）
+**關鍵路徑**：A1 → A2 → A3 → A4 → B1 → B2 → B3 → B4 → C4（9 nodes）
 **可並行**：C1/C2/C3 彼此無依賴；A3 之後 Kuro 可平行做 adversarial review 段補完
 
 ## Constraint Texture 評估
