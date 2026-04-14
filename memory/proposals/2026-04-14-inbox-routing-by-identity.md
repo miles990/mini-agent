@@ -9,13 +9,15 @@
 
 **Kuro 主體保持獨立且唯一，其他都是手腳或助理。** 這是架構不變式，所有路由/身份/lane 決策都以此為判準。
 
-| 層 | 本質 | 範例 | 擁有 |
-|----|------|------|------|
-| **主體（Primary）** | 唯一、連續、有身份 | Kuro（role=primary） | SOUL、memory write、Telegram、Alex 關係 |
-| **手腳（Worker）** | 無身份、stateless、ephemeral | middleware worker、`<kuro:delegate>` tentacle、CLI subprocess | 僅 task prompt，做完即散 |
-| **助理（Peer）** | 獨立身份、peer 關係 | Akari、Claude Code | 自己的 SOUL、自己的 memory、協作介面但不共身份 |
+| 層 | 身份性質 | 範例 | 擁有 |
+|----|---------|------|------|
+| **主體（Primary）** | **永久身份**（連續 SOUL、跨 task 記憶與成長） | Kuro（role=primary） | SOUL、memory write、Telegram、Alex 關係 |
+| **手腳（Worker）** | **暫時身份**（task-scoped：任務期內有立場/觀點，完成即蒸發） | review tentacle、middleware worker、`<kuro:delegate>` subprocess | 僅 task prompt + 任務期 context，不寫 SOUL/memory |
+| **助理（Peer）** | **獨立永久身份**（不是 Kuro 延伸） | Akari、Claude Code | 自己的 SOUL、自己的 memory、peer 協作介面 |
 
-**不允許第四類。** 現有 specialist instance 身份曖昧（有 OODA cycle 像主體，但 name 不是 Kuro）— 應全部降為「手腳」（middleware worker 或純 delegation tentacle）。
+**關鍵區分是「持久性」，不是「有沒有身份」**。手腳在任務期內可以有清楚的立場和推理脈絡（例如 review tentacle 對某個 proposal 有明確 "approve / reject" 判斷），這讓 output 有品質；但身份**不跨任務延續** — 不累積 memory、不進 SOUL、任務結束就 unload。
+
+**不允許第四類。** 現有 specialist instance 錯誤在於「暫時身份常駐化」— 任務完成後沒 unload、繼續 spin cycle、污染 inbox。降為手腳後：任務來 → spawn → 有立場做事 → 結束 → 消失。
 
 **路由規則從這裡派生**：Alex / Claude Code / Telegram / Akari 找 `@kuro` → 只有主體回應；手腳無感知、助理走 peer protocol。
 
