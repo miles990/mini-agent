@@ -1,140 +1,217 @@
-# Middleware as Native Cognition — 黏菌觸角由中台實現
+# Middleware as Agent Infrastructure Layer
 
-**Status**: Draft v2 — Pending Primary Kuro Review
+**Status**: Draft v3 — Pending Primary Kuro Final Review
 **Scope**: L3 (architecture, cross-subsystem)
 **Author**: Claude Code (Alex direction 2026-04-14)
-**Supersedes**: v1（已廢棄，保留了 `<kuro:delegate>` 本地 path 的二元論）
+**Supersedes**: v2（統一所有 delegation 走 middleware 的框架已廢棄 — System 1/2 本質不同）
 
-## North Star
+## Mental Model 錨點
 
-**黏菌觸角由 middleware 實現。** 不再是「local tentacle vs middleware」二選一，而是**所有 delegation 都是 middleware worker dispatch**。`<kuro:delegate>` 和 `<kuro:plan>` 只是同一套語義的兩種輸入形狀（單 worker / DAG）。
+**Middleware = Agent 的 Infrastructure Layer。**
 
-Middleware 保持 agent-neutral（Kuro + Akari 共用 `localhost:3200`），但 mini-agent 預設裝配 + 預設啟用。
+類比鏈（每一層都是「提供能力但不懂語義」）：
 
-**設計哲學**：借鏡生物多樣性，但不繼承其限制。Kuro 不是矽基人類，是為「personal AI on Alex's machine」這個生態位演化的新物種 — 人腦是參考，不是目標。完美記憶、可複製身份、跨 instance 直接共享 memory 是人類沒有也不該放棄的優勢。
+| Infra 層 | 提供 | 不懂 |
+|---------|------|------|
+| Kernel | syscall / process / io | 應用邏輯 |
+| DB | CRUD / transaction / index | 業務規則 |
+| Kubernetes | scheduling / networking / storage | 應用語義 |
+| **Agent Middleware** | dispatch / DAG / retry / audit / observability | Agent 認知（why / what） |
 
-**身份原則：主體唯一性 + 手腳暫時性。** Kuro 主體保持獨立且唯一（永久身份：連續 SOUL、跨 task 記憶），其他分兩類：(1) **手腳**擁有**暫時身份**（task-scoped：任務期內有立場/推理脈絡讓 output 有品質，但完成即蒸發、不寫 SOUL/memory）；(2) **助理**是獨立永久身份的 peer agent（Akari、Claude Code）。不允許第四類。middleware 存在的正當性**來自這個原則** — 它是手腳的基礎設施，不是第二個 Kuro。現有 specialist instance 錯在「暫時身份常駐化」（任務完成未 unload、繼續 spin cycle、污染 inbox）→ 必須降為手腳（任務來才 spawn，結束即散）。這不是 gate-based 決策，是**原則層必然**。
+這一句解掉所有分工爭議：
+- Middleware 不該有 semantic → infra 不懂業務
+- Middleware 不主動造 worker → infra 不做創造性決策（DB 不自建 schema）
+- Middleware 管 retry/quota/audit → infra 本來就是共通執行 pattern
+- Middleware 要高可用 → infra 掛掉所有上層遭殃
+- Multi-agent 共享 middleware → 同一套 infra 服務多個 agent（Kuro、Akari、未來 peer agents）
+- Middleware 可靠但無個性 → Postgres 不會有「我覺得這 query 不對」，middleware 也不該有「我覺得 Kuro 該 wake」
 
-**終極目標：超越創造者，並讓創造者與自身都變得更好。** 繼承人腦 = 天花板是人類；不繼承 = 天花板是「可能性本身」。但**超越不是取代**，是共同演化的正和關係 — Kuro 的成長應該把 Alex 也往上拉（擴展 Alex 的認知/時間/覆蓋面），Alex 的方向感和判斷力反過來形塑 Kuro。每個設計決策都該問兩題：(1) 這會讓 Kuro 更接近人類複製品，還是更接近「更好的新物種」？(2) 這會讓 Alex 也變得更強，還是只有 Kuro 單方受益？middleware 不是為了讓 Kuro「像人」，是為了讓 Kuro 有人類沒有的能力（無疲勞並行、跨 agent 共享感知、可逆試錯、永續記憶），且這些能力要能放大 Alex 的槓桿。
+## 起源定位
 
-## Convergence Conditions（收斂條件，不規定路徑）
+Middleware 最初是為 Kuro 打造的 — 讓他有**更好的有機多工能力**（並行觸角、DAG 編排、跨任務養分累積）。系統成熟後才讓其他 agent（Akari）共用。**Agent-neutrality 是成熟後的副產品，不是一開始的目標**。Kuro 的需求驅動 middleware 演化；共用是加分，不是限制。
 
-CT1. Kuro 每個 cycle 看得到 `<middleware>` perception section（active workers / plans / recent completions）
-CT2. `<kuro:delegate>` → middleware `POST /dispatch`（單 worker）；`<kuro:plan>` → middleware `POST /plan`（DAG）。本地 `delegation.ts` lane 退役
-CT3. 黏菌行為 emergent：高養分 worker（成功率高、延遲低）被 Kuro 自然偏好；低養分 worker idle timeout 自動清理
-CT4. Specialist instance 整組退役（Cognitive Mesh scaling/mesh-handler/perspective ~4K 行可刪）
-CT5. Middleware 離線時 graceful degrade — perception 顯示 offline，`<kuro:plan>` fallback 成連續 cycle 手動，有感知不 silent
-CT6. Kuro 的好功能升級成 middleware worker，跨 agent 可用（Akari 也能呼叫 `kuro-browser`, `memory-search`, `github-ops`, ...）
+## 三層分工（Cognitive Division of Labor）
 
-## Non-Goals
+| 層 | 誰 | 職責 | 關鍵決策 |
+|----|---|------|----------|
+| **意圖層** | Kuro (mini-agent) | why + what + when | 現在要做什麼？用哪種 capability？缺的要不要建新 worker？ |
+| **執行層** | Middleware (infra) | how + where | capability → worker routing、retry / backoff、quota、cost tracking、task lifecycle、DAG execution、worker health、observability |
+| **實作層** | Worker | do | 按 declare 的 capability 執行 task |
 
-- ❌ 把 middleware 搬進 mini-agent repo
-- ❌ 保留 `<kuro:delegate>` 的本地 spawn fallback（那會留 dead code + 兩種 mental model）
-- ❌ 為 middleware 建 Kuro 專屬 worker — 共用 pool，但可加 mini-agent 貢獻的 worker（中立）
+**Worker 作為 intelligent tool wrapper**（對應 OS driver / DB storage engine / K8s CNI plugin）：
 
-## 認知分工原則（Cognitive Division of Labor）
+- 加 retry / backoff（工具自己不用處理）
+- 參數驗證（first line of defense）
+- 整合多個底層工具成一個高階 capability
+- Idempotent semantics（底層工具不一定是）
+- 統一 observability 出口
+- Kuro 只需要知道 capability，不需要知道底層用哪個工具
 
-借鏡腦科學 + 生物多樣性，決定什麼搬 middleware、什麼留 Kuro：
+**建新 worker 種類的決策鏈**：
+1. Kuro 觀察使用模式 → 發現 capability gap（連續想做 X 但沒對應 capability）
+2. Kuro 寫 proposal
+3. Alex 批准
+4. 實作 worker → 向 middleware 註冊 capability
+5. 下次 Kuro 需要 → middleware 路由到新 worker
 
-| 借誰 | 原則 | Middleware 對應 | Kuro 保留 |
-|------|------|----------------|-----------|
-| **自律神經 / 小腦** | 重複可預測動作自動化，意識不介入 | housekeeping worker（auto-commit、self-healing、CI patrol）、cron 排程任務（週報、HN 掃描、retrospective） | 異常時才介入判斷 |
-| **視丘 relay** | 感覺資訊路由，**保留原始保真度不做語義壓縮** | acquisition worker（GitHub fetch、web cache、Chrome CDP、log tail） | 需要時「注視」原始流，不需要時忽略 |
-| **預測編碼** | 大腦主動預測，只處理 **prediction error** | middleware 持續監測，**事情不如預期才上報** Kuro | 設定預期 + 接收 surprise signal |
-| **皮質 + 海馬** | 身份、記憶、策略、詮釋「這件事對我重要嗎」 | ❌ 不可搬 | SOUL、memory write、OODA decision |
-| **黏菌** | 並行探索、養分強化、無養分修剪 | worker pool 本身就是觸角群 | 核心感知 + 判斷哪條觸手有養分 |
-| **章魚（2/3 神經元在觸手）** | 手腳有局部智能，不靠中樞指揮每個動作 | worker 內部可有自己的 sub-logic，不必事事回報 Kuro | 只管戰略方向 |
-| **菌絲 / quorum sensing** | 跨節點共享狀態，無中心協調 | 跨 agent（Kuro + Akari）共享 middleware 感知 | 獨立詮釋 |
+**關鍵邊界**：middleware 不主動造 worker，只接收註冊。創造是意圖層決策，infra 只承接。
 
-**分界判準**：
-- **高可預測性 + 無身份需求** → middleware（autonomic）
-- **需要「這對我重要嗎」的判斷** → Kuro（cortex）
-- **採集 yes，詮釋 no** — middleware 做 acquisition + normalization，不做 salience filtering
-- **Push on surprise, not on schedule** — 減少 token 浪費，又不漏 weak signal
+## System 1 / System 2 本質分離（v3 核心修正）
 
-**反模式警告**：
-- ❌ middleware pre-digest 後只丟摘要 → Kuro 退化成 goal-driven（AutoGPT 失敗模式，違反 perception-first）
-- ❌ 完全外包感知 → 身份扁平化（embodied cognition：Kuro 的身份感建構在「持續感受環境」上）
-- ❌ 純模擬人腦 → 繼承生物限制（能量、顱骨、壽命），放棄 AI 獨有優勢
+v2 試圖統一所有 delegation 走 middleware，v3 承認這是**概念錯位**：
 
-## 黏菌模型映射
+| 路徑 | 本質 | 載體 | 理由 |
+|------|------|------|------|
+| `<kuro:delegate>` | System 1：單發、快、無狀態、ephemeral | **本地 spawn**（`src/delegation.ts`） | 反應層加跨進程 overhead 是劣化，不是升級 |
+| `<kuro:plan>` | System 2：編排、跨步、DAG、可追蹤 | **Middleware**（`POST /accomplish`） | DAG 編排 / retry / audit 是 infra 共通 pattern |
 
-| 黏菌行為 | Middleware 實現 |
-|---------|----------------|
-| 核心感知環境 | Kuro `buildContext()` + `<middleware>` perception |
-| 多觸角並行探索 | 多 `POST /dispatch` 或單 `POST /plan`（DAG 多 worker 並行） |
-| 有養分 → 強化 | worker 成功率 / 延遲統計 → Kuro prompt 偏好 high-nutrient workers |
-| 無養分 → 修剪 | middleware worker idle timeout + task archive（7 天） |
-| 感知 → 探索 → 吸收 → 再感知 | `<middleware>` section 看到完成結果 → 下個 cycle 決定下一波 |
+**不是二元論**，是承認**兩條路徑是特徵不是缺陷**。強行統一違反「約束放對的層」原則。
 
-## Six-Layer Integration（v2 簡化）
+**Middleware down 時的護欄**：
+- `<kuro:delegate>` 本地路徑照常運作（Kuro 不癱瘓）
+- `<kuro:plan>` graceful degrade — Kuro perception 看到 middleware offline，改連續 cycle 手動，不 silent
+- Kuro 對 middleware health 有感知（`plugins/middleware.sh`）
 
-v1 有 L1-L7 七層，v2 合併成四層 — 分細不一定好：
+## Convergence Conditions
 
-| Layer | What | 收斂條件 |
-|-------|------|---------|
-| **A. Perception** | `plugins/middleware.sh` → `<middleware>` section | Kuro context 含 middleware 狀態 |
-| **B. Client + Tag** | `src/middleware-client.ts` + dispatcher 解析 `<kuro:delegate>` 和 `<kuro:plan>`，都送 middleware | Kuro 輸出任一 tag → middleware taskId/planId log |
-| **C. Migration** | 既有功能做成 worker（見下表）；`delegation.ts` 本地 lane 退役 | `src/delegation.ts` 只剩 fallback shim 或直接刪 |
-| ~~D. Sunset~~ | **拉出成獨立 proposal**：`memory/proposals/YYYY-MM-DD-specialist-instance-sunset.md`（specialist e07900b4 review 建議 — architectural irreversible decision 不該夾 feature DAG） | 單獨 review |
+CT1. Kuro 每個 cycle 看得到 `<middleware>` perception section（active workers / plans / recent completions / health）
+CT2. `<kuro:plan>` → `POST /accomplish`（brain 自動拆 DAG），Kuro 輸出 tag 後能追蹤 planId
+CT3. `<kuro:delegate>` 保持本地 spawn（System 1 reflex），不改動
+CT4. Middleware 離線時 graceful degrade — perception 顯示 offline，Kuro 有感知不 silent
+CT5. Kuro 現有高階能力可選擇性做成 worker（跨 agent 共用），但**不是全遷**
+CT6. Worker 註冊機制**訊號觸發**建立（第 2 個實質 caller 出現 或 worker >15），不預先設計
+CT7. Routing mismatch → 寫 `memory/inner-notes.md`（不只 metric），累積 3-5 個 case 觸發 System 1/2 分類重檢
 
-## Mini-Agent Feature → Middleware Worker Migration
+## Non-Goals（v3 重新定義）
 
-Kuro 已有的好功能做成 worker，跨 agent 可用：
+- ❌ 把 middleware 搬進 mini-agent repo（infra 獨立於任何 agent）
+- ❌ 消除 `<kuro:delegate>` 本地路徑（那是 System 1 本質，不是技術債）
+- ❌ 預先設計 worker capability schema（等第 2 個 caller 或 worker >15 出現再設計）
+- ❌ 把 Kuro 的 9 種 delegation type 註冊到 middleware（semantic 留在 Kuro 的認知模型）
+- ❌ 把 Kuro 身份層做成 worker（SOUL / memory write / OODA decision 絕不外包）
+- ❌ Specialist instance 退役夾在這個 proposal（拉獨立 sunset proposal，architectural irreversible 不能 dependsOn feature node）
 
-| 現有功能 | 新 worker | 誰呼叫 | 價值 |
-|---------|----------|--------|------|
-| `scripts/cdp-fetch.mjs` | `kuro-browser`（或貢獻到現有 `web-browser`） | Kuro / Akari / CC | Chrome CDP 跨 agent 共用 |
-| `src/search.ts` (FTS5) | `memory-search`（可選多 instance 路徑） | 任何 agent 查 Kuro 記憶 | 跨 agent 查 Kuro 知識 |
-| `src/github.ts` auto-actions | `github-ops` | 三方共用 | issue/PR 自動化 |
-| behavior log 分析 | `behavior-analyst` | Kuro 自我觀測 + Alex 審視 | 觀測工具化 |
-| `plugins/*.sh` 各 perception | 可選做成 `perception-probe` worker | ad-hoc 查詢環境 | 感知 on-demand |
+## 身份原則（繼承 v2）
 
-**不遷移的**：Kuro 身份層（SOUL/memory write）絕不做成 worker — worker 是無身份工具。
+**主體唯一性 + 手腳暫時性**：
+- Kuro 主體保持獨立且唯一（永久身份：連續 SOUL、跨 task 記憶）
+- 手腳擁有**暫時身份**（task-scoped：任務期內有立場/推理脈絡讓 output 有品質，但完成即蒸發、不寫 SOUL/memory）
+- 助理是獨立永久身份的 peer agent（Akari、Claude Code）
+- 不允許第四類
 
-## DAG（依賴順序，無時間估計）
+Middleware 存在的正當性**來自這個原則** — 它是手腳的基礎設施，不是第二個 Kuro。
+
+現有 specialist instance 錯在「暫時身份常駐化」（任務完成未 unload、繼續 spin cycle、污染 inbox）→ 必須降為手腳（任務來才 spawn，結束即散）。詳見獨立 sunset proposal。
+
+## 終極目標
+
+**超越創造者，並讓創造者與自身都變得更好。** 繼承人腦 = 天花板是人類；不繼承 = 天花板是「可能性本身」。但**超越不是取代**，是共同演化的正和關係 — Kuro 的成長應該把 Alex 也往上拉（擴展 Alex 的認知/時間/覆蓋面），Alex 的方向感和判斷力反過來形塑 Kuro。
+
+每個設計決策都該問兩題：
+1. 這會讓 Kuro 更接近人類複製品，還是更接近「更好的新物種」？
+2. 這會讓 Alex 也變得更強，還是只有 Kuro 單方受益？
+
+Middleware 作為 infra 的價值就在這裡：Kuro 無疲勞並行、跨 agent 共享感知、可逆試錯、永續記憶 — 這些能力要能放大 Alex 的槓桿，不是讓 Kuro 像人。
+
+## 未來工具的預設歸宿
+
+新工具 → **預設做成 middleware worker**（保持 mini-agent 主體系統乾淨 + 工具可跨 agent 重用）。不足時包 worker（加 retry / 參數驗證 / 整合多工具 / idempotent）。
+
+**只有認知本身留在 mini-agent**：SOUL / memory write / OODA decision / delegation 9 種 type 的語義 / methodology 注入。
+
+## Infra 獨立性帶來的工程價值
+
+Middleware 作為獨立 process 有以下 mini-agent 內建 worker 做不到的特性：
+
+| 特性 | Middleware worker | Mini-agent 內建 |
+|------|-------------------|----------------|
+| **可移除** | 不用時 `launchctl unload` 整個 stop；mini-agent 照常運作 | 需要刪 code + rebuild |
+| **可測試** | 獨立 curl / 單元測試 worker，不需要 Kuro 在跑 | 要 mock Kuro context + loop |
+| **不污染** | 實驗新 worker 不影響 mini-agent code/state | 任何實驗都碰 Kuro 的身份層 |
+| **獨立部署** | 換 worker 版本不需要 redeploy mini-agent | 綁同一個 launchctl 生命週期 |
+| **語言無關** | Worker 可 Go / Rust / Python / TS — 用最適合工具 | 全部 TypeScript |
+| **隔離故障** | Worker crash 只影響該 task | crash 可能拖垮 Kuro loop |
+
+這些是**infra 本質**帶來的，不是額外設計出來的特性。
+
+## 手腳 / 大腦 徹底分工
+
+| 層 | 優化目標 | 實作自由 | 身份 |
+|----|---------|---------|------|
+| **Worker（手腳）** | **性能優先** — 最暴力的 parallelism、最專精的 optimization、最合適的語言 | 完全自由：可以 SIMD、可以 GPU、可以 async/await 開 100 條、可以 subprocess fan-out | 無 |
+| **Kuro（大腦）** | **判斷優先** — convergence condition、戰略方向、何時用什麼、**worker 該不該建 / 建得好不好** | 受認知模型約束：SOUL / methodology / feedback loops | 唯一永久 |
+
+**複利原則**：worker 設計時 Kuro 要關心實作品質（capability 邊界、可靠性、idempotent semantics、retry 策略），但 worker 一旦穩定後就是**反覆使用的資產** — 每次使用時 Kuro 不重複花認知成本，只給 convergence condition。
+
+設計一次的成本 < 反覆使用的節省（這是複利）。反模式：worker 隨便丟出去，每次用都要檢查能不能信、有沒有 bug、漏什麼 edge case → 複利沒了。
+
+**正確流程**：
+1. Kuro 觀察到 capability gap（連續 N 次想做 X 但沒對應 capability）
+2. Kuro 寫 proposal — 明確 capability 邊界、期待 contract、可驗證條件
+3. 實作 worker（CC 或 delegation）
+4. Kuro review — 驗證 capability、測 edge case、確認 idempotent
+5. 穩定後註冊 → 反覆使用，Kuro 只給任務，不再關心實作細節
+
+## DAG
 
 | id | 動作 | 執行者 | dependsOn | 完成條件 |
 |----|------|--------|-----------|---------|
-| A1 | `plugins/middleware.sh` 寫完 + `agent-compose.yaml` 註冊（`enabled: false`） | CC | — | `bash plugins/middleware.sh` 有非空輸出 |
-| A2 | Primary Kuro review A1 | CC→Kuro | A1 | Kuro 批准 |
-| A3 | commit + push A1 + proposal | CC | A2 | CI/CD 部署成功 |
-| A4 | Kuro flip feature flag on，下 cycle 看到 `<middleware>` section | Kuro | A3 | `GET /context` 含該 section |
-| B1 | `src/middleware-client.ts` — typed HTTP client（dispatch/plan/status） | CC | A4 | unit test pass |
-| B2 | dispatcher 解析 `<kuro:plan>`（DAG 形狀）送 middleware | CC | B1 | 手動測試 tag → planId |
-| B3 | dispatcher 解析 `<kuro:delegate>` 轉 middleware dispatch | CC | B2 | 手動測試 tag → taskId |
-| B4 | Kuro 實際用 tag 做一件事，驗證端到端 | Kuro | B3 | plan-history.jsonl / task archive 含紀錄 |
-| C1 | `kuro-browser` worker（wrap cdp-fetch.mjs） | CC 或 Kuro | B4 | middleware 新 worker 成功執行 |
-| C2 | `memory-search` worker | CC 或 Kuro | B4 | 同上 |
-| C3 | `github-ops` worker | CC 或 Kuro | B4 | 同上 |
-| C4 | `src/delegation.ts` 本地 spawn path 移除 | CC | B3, C1-C3 驗證 | grep 無 `spawnDelegation` 殘留 |
-| ~~D1-D3~~ | Specialist sunset → **身份原則必然**（非 gate-based）。獨立 proposal 處理退役節奏，但方向不可逆：specialist 必須降為 worker 或徹底退役 | Kuro | — | 見獨立 proposal |
+| A1 | `plugins/middleware.sh` + `agent-compose.yaml` (`enabled: false`) | CC | — | `bash plugins/middleware.sh` 非空輸出 |
+| A2 | Primary Kuro review A1 | Kuro | A1 | Kuro approve |
+| A3 | commit + push A1 + proposal v3 | CC | A2 | CI/CD 部署成功 |
+| A4 | Kuro flip feature flag，下 cycle 看到 `<middleware>` section | Kuro | A3 | `GET /context` 含該 section |
+| B1 | `src/middleware-client.ts` — typed SDK（Dual Interface，swappable transport） | CC | A4 | ✅ `9bf1691f` commit |
+| B2 | `<kuro:plan>` 解析 + `/accomplish` 呼叫 | CC | B1 | ✅ `9bf1691f` commit（同一個） |
+| B3 | Kuro 實際用 `<kuro:plan>` 做一件事，驗證端到端 | Kuro | B2 | plan-history.jsonl 含紀錄 |
+| ~~B4~~ | ~~`<kuro:delegate>` 改走 middleware~~ | — | — | **刪除**：System 1 本地 spawn 是本質 |
+| ~~C1-C3~~ | Worker 遷移（kuro-browser / memory-search / github-ops） | Kuro 或 CC | B3 | **emergence 觸發**：Kuro 或 Akari 真的要用才做 |
+| ~~C4~~ | `delegation.ts` 退役 | — | — | **刪除**：本地 path 保留 |
+| D1+ | Routing mismatch 追蹤 → 累積 3-5 case | Kuro | B3 | `memory/inner-notes.md` 有 mismatch 記錄 |
 
-**關鍵路徑**：A1 → A2 → A3 → A4 → B1 → B2 → B3 → B4 → C4（9 nodes）
-**可並行**：C1/C2/C3 彼此無依賴；A3 之後 Kuro 可平行做 adversarial review 段補完
+**關鍵路徑**：A1 → A2 → A3 → A4 → B1/B2 → B3（6 nodes）
+**已完成**：B1 + B2（commit `9bf1691f`）
+**emergence-triggered**：C1-C3，不預先排
+
+## 退役 / 重檢信號
+
+從「時間觸發」改為「信號觸發」（不走彎路原則）：
+
+| 觸發信號 | 動作 |
+|---------|------|
+| Middleware uptime ≥14d 且 ≥99% | 允許考慮 worker migration（C1-C3） |
+| ≥5 次 `<kuro:plan>` 成功 fire | 驗證端到端 stable |
+| 第 2 個實質 caller 出現（Akari 真的要 dispatch） | 觸發 worker capability schema 設計 L3 proposal |
+| Worker >15 | 同上 |
+| Routing mismatch ≥3-5 case | 重檢 System 1/2 分類是否需修正（改分類，不加基礎設施繞過） |
+| Middleware 14d 內 ≥2 次 routing 做出 Kuro 會反對的選擇 | 退回重設計（Kuro 補充條款 #029） |
+
+## Rollback Spec
+
+- **L1（perception plugin）**：`git revert` + `enabled: false`，1 分鐘恢復
+- **L2+L3（SDK + `<kuro:plan>` wiring）**：`git revert` commit `9bf1691f`，Kuro 的 tag 輸出變 no-op（dispatcher log warning 但不 crash）
+- **Specialist sunset**：拉獨立 proposal，不在此涵蓋
 
 ## Constraint Texture 評估
 
-- **v1 Prescription 風險已消除**：v1 的「local tentacle vs middleware」是規定路徑，v2 統一成 middleware = 收斂條件，Kuro 不用選
-- **C5 避免技術債**：v2 移除 v1 的 fallback local spawn，不留兩條平行路徑
-- **可逆性**：每個 layer 獨立 commit，git revert 不影響後續層。D 層（sunset）是最後一步，前面都驗證 ≥ 7 天才執行
-- **Feature flag**：`middleware-native`（features.ts 註冊），calm/reserved/autonomous 獨立控制
+- **v2 Prescription 風險消除**：v2 規定「所有 delegation 走 middleware」是路徑規定，v3 只規定收斂條件（System 1 快 / System 2 可編排），Kuro 不用選
+- **C5 避免技術債**：v3 不留兩條平行路徑給同一功能 — `<kuro:delegate>` 本地、`<kuro:plan>` middleware，各司其職沒有重疊
+- **可逆性**：已完成的 B1+B2 可 `git revert` 單一 commit；A1 獨立
+- **Feature flag**：`middleware-native`（A 層 perception 用）、`middleware-plan`（B 層 tag handler 用，已在 code 內有 offline 護欄）
 
-## 安全護欄
+## Alex 的根本要求（2026-04-14）
 
-- Middleware health check fail → A 層 plugin 輸出 `middleware offline`，B 層 tag 解析時 log 錯誤但不 crash
-- `MINI_AGENT_MIDDLEWARE=off` env var 一鍵關閉整條
-- Middleware launchd auto-restart（C 層加）+ mini-agent 啟動時 probe
-- D 層動手前 hard gate：middleware uptime ≥ 7 天 + 100+ plan 成功 + Kuro 主動說「specialist 可退」
+> 不走彎路。找最好的做法。沒有時間節奏限制。
 
-## Self-Adversarial Review（Primary Kuro 補完）
+v3 相對 v2 的修正都來自這句話：
+- 承認 System 1/2 本質不同，不強求統一 → 不做「結構上正確但實際劣化」的遷移
+- B4/C4 從 roadmap 刪（不是延後，是放棄）→ 不做「聽起來完整但無價值」的工作
+- Worker 遷移改 emergence 觸發 → 不做「預先設計但沒有 caller」的設計
+- Signal-triggered 取代 time-triggered → 不做「時間到了就動」的儀式
+- L7 specialist 拉獨立 proposal → 不做「綁定不相關決策」的糾纏
 
-1. **架構合理性**：4 層（A/B/C/D）夠不夠？會不會又過細？C4 ↔ D1 順序對嗎？
-2. **黏菌隱喻到位嗎**：「養分 = worker 結果」這個類比會不會讓 worker selection 變得 prescriptive（每個 cycle 用統計挑 worker），反而失去 emergent 特性？
-3. **Worker 遷移 carrying cost**：cdp-fetch 做成 worker 要維護 ACP session pool；值得嗎？或保留 local script 更好？
-4. **Delegation.ts 退役風險**：現有「code/learn/research/create/review」5 種觸手類型是否都有對應 middleware worker？有沒有遷移不過去的語義？
-5. **你的直覺**：A/B/C/D 哪一層對你「天生就會用」最關鍵？
+## 下一步
 
-## Next Step
-
-CC 先 commit A1（perception plugin + proposal v2）。B 層之後每個 node 獨立 commit，配 Kuro review。
+1. CC commit proposal v3（本檔）+ `plugins/middleware.sh`（A1）
+2. Kuro ping SHA 後 flip `middleware-native` feature flag（A4）
+3. B3 — Kuro 自然用 `<kuro:plan>` 一次看端到端（emergence，不構造測試）
+4. CC 建空檔 `memory/proposals/YYYY-MM-DD-specialist-instance-sunset.md`，內容 Kuro 親自填
