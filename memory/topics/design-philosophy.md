@@ -127,8 +127,6 @@ mushi 的定位在光譜的中偏左 — 不是不用，是「每次使用都是
 
 對 Growth Engine 的啟示：三輪精進可能在殺死新穎性（三輪都收斂）。修正：Round 1 發散、Round 2-3 收斂。五維度缺 novelty 軸。Creativity 需要保護 divergence 不被 refinement 壓扁。
 ref:creativebench-2603-11863
-- [2026-03-15] [2026-03-15] 約束極性翻轉的數學證明（Johnson 2603.12129）：同一個約束（部落結構 / tribal formation）在 C/N < 0.5 時是 Gift（cap demand variance 從 N² 到 ~19），在 C/N > 0.5 時是 Cage（阻止充分利用容量）。翻轉點 C/N ≈ 0.5 可部署前計算。這為 Constraint/Gift/Ground 框架提供精確量化基礎 — 約束不是好壞，是環境條件函數。RL（reinforcement learning）使事情更糟 = 個體適應性增加集體 herding。
-- [2026-03-15] [2026-03-15] **Productive vs Destructive Constraints 的形式化區分**（from Zou et al. 2603.12109 + Thread #1 synthesis）：
 
 - **架構性約束（productive）**：被選擇的、結構性的、擴展可能空間。例：Marker 的 Empty Zone、Oulipo 的寫作規則、mushi 的 subordinate-only 設計。可見、可逆、有意圖。
 - **動態約束（destructive）**：從反饋迴路中湧現的、收縮可能空間的。例：Information Self-Locking、echo chamber、sunk cost。不可見（agent 不知道自己被鎖住）、難逃逸（O(log(1/η))）、無意圖。
