@@ -284,6 +284,7 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
+- <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -325,6 +326,7 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
+- <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
 
 ## Rules
@@ -696,6 +698,13 @@ export function parseTags(response: string): ParsedTags {
     });
   }
 
+  const plans: Array<{ goal: string; acceptance?: string }> = [];
+  for (const t of byName('kuro:plan')) {
+    const goalText = t.content.trim();
+    if (!goalText) continue;
+    plans.push({ goal: goalText, acceptance: attr(t.attributes, 'acceptance') });
+  }
+
   let goal: { description: string; origin?: string } | undefined;
   {
     const t = firstByName('kuro:goal');
@@ -760,7 +769,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, cleanContent };
 }
 
 // =============================================================================
@@ -1320,6 +1329,30 @@ export async function postProcess(
       slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
       eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
       try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, lane: 'background' }, tags: [taskType] }); } catch { /* fire-and-forget */ }
+    }
+  }
+
+  // <kuro:plan> tags — dispatch to middleware /accomplish (brain auto-builds DAG)
+  // Fire-and-forget: middleware returns planId; results arrive via SSE/callback (future).
+  // Offline: typed MiddlewareOfflineError is caught here, logged, Kuro sees failure next cycle.
+  if (tags.plans.length > 0) {
+    tagsProcessed.push('plan');
+    const { middleware: mw, MiddlewareOfflineError } = await import('./middleware-client.js');
+    const client = mw();
+    for (const p of tags.plans) {
+      client.accomplish({ goal: p.goal, acceptance: p.acceptance })
+        .then(res => {
+          slog('PLAN', `accomplish dispatched: ${res.planId} (${res.plan.steps.length} steps) · goal: ${p.goal.slice(0, 80)}`);
+          eventBus.emit('log:info', { tag: 'plan', msg: `planId=${res.planId} steps=${res.plan.steps.length}` });
+        })
+        .catch(err => {
+          const offline = err instanceof MiddlewareOfflineError;
+          slog('PLAN', `accomplish failed (${offline ? 'middleware offline' : err?.message ?? err}): ${p.goal.slice(0, 80)}`);
+          eventBus.emit('log:error', {
+            tag: 'PLAN-FAIL',
+            msg: `${offline ? 'middleware offline' : err?.message ?? 'unknown'}: ${p.goal.slice(0, 80)}`,
+          });
+        });
     }
   }
 
