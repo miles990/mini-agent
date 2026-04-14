@@ -23,7 +23,7 @@ import { notifyTelegram, clearLastReaction, getLastAlexMessageId } from './teleg
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { perceptionStreams, IMPORTANT_PERCEPTION_NAMES } from './perception-stream.js';
-import { getCurrentInstanceId, getInstanceDir } from './instance.js';
+import { getCurrentInstanceId, getInstanceDir, loadInstanceConfig } from './instance.js';
 import { githubAutoActions } from './github.js';
 import { runFeedbackLoops, flushFeedbackState } from './feedback-loops.js';
 import { runPulseCheck } from './pulse.js';
@@ -1175,6 +1175,13 @@ export class AgentLoop {
   private scheduleHeartbeat(): void {
     this.clearTimer();
     if (!this.running || this.paused) return;
+
+    // Worker instances are reactive-only: no heartbeat self-wake.
+    // Same pattern as cron.ts:248 — workers process forwarded mesh tasks,
+    // never time-based triggers. Prevents empty "specialist-research 邊界守護"
+    // cycles that burn ~40K tokens each to decide "No action needed".
+    const role = loadInstanceConfig(getCurrentInstanceId())?.role;
+    if (role === 'worker') return;
 
     this.nextCycleAt = new Date(Date.now() + this.currentInterval).toISOString();
     this.timer = setTimeout(() => {
