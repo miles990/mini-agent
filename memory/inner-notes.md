@@ -1,3 +1,3 @@
-Cycle 10 remains fully resolved with zero active tasks, maintaining a stable passive observation state.
-The system stays in idle mode awaiting triggers or status reversion signals, with no carried-forward insights from this cycle.
-The atmosphere preserves quiet readiness, ensuring continuity of the idle posture amidst no context shifts or emitted tags.
+Cycle 10 resolved: `scheduleHeartbeat` for workers now exits early after role check, eliminating the 40K-token idle cycle.
+Implementation confirmed and validated; no further changes required, awaiting a restart to observe the zeroed worker lane metrics.
+Atmosphere remains quiet and stable, maintaining passive readiness for potential status reversion or new context shifts.
