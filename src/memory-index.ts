@@ -85,8 +85,20 @@ export interface VerifyResult {
 
 const INDEX_DIR = 'index';
 const INDEX_FILE = 'relations.jsonl';
+const TASK_EVENTS_DIR = 'state';
+const TASK_EVENTS_FILE = 'task-events.jsonl';
 const COMMITMENT_TTL_MS = 24 * 60 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
+
+// Bucket routing — Phase 3 event split.
+// Task events (status transitions) go to state/task-events.jsonl, everything
+// else (commitment/goal/remember/…) stays in index/relations.jsonl. Both are
+// compiled views (gitignored) — raw truth is the tag stream + entries.jsonl.
+type Bucket = 'relations' | 'task-events';
+
+function getBucketForType(type: string): Bucket {
+  return type === 'task' ? 'task-events' : 'relations';
+}
 
 // Terminal states for tasks/goals — reaching any of these should fire
 // commitment resolution against the entry's summary (ghost-commitment fix,
@@ -135,13 +147,22 @@ function toEntryMap(lines: string[]): Map<string, MemoryIndexEntry> {
 }
 
 // =============================================================================
-// In-Memory Cache
+// In-Memory Cache (multi-bucket: relations + task-events)
 // =============================================================================
 
-let _cache: { map: Map<string, MemoryIndexEntry>; filePath: string; mtimeMs: number } | null = null;
+interface BucketCache {
+  map: Map<string, MemoryIndexEntry>;
+  filePath: string;
+  mtimeMs: number;
+}
+
+let _caches: Record<Bucket, BucketCache | null> = {
+  'relations': null,
+  'task-events': null,
+};
 
 export function invalidateIndexCache(): void {
-  _cache = null;
+  _caches = { 'relations': null, 'task-events': null };
 }
 
 function getFileMtime(filePath: string): number {
@@ -152,13 +173,20 @@ function getFileMtime(filePath: string): number {
   }
 }
 
-function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
-  const filePath = getMemoryIndexPath(memoryDir);
+function getBucketFilePath(memoryDir: string, bucket: Bucket): string {
+  if (bucket === 'task-events') {
+    return path.join(memoryDir, TASK_EVENTS_DIR, TASK_EVENTS_FILE);
+  }
+  return path.join(memoryDir, INDEX_DIR, INDEX_FILE);
+}
 
-  // Invalidate cache if file was modified externally (e.g., by background delegation subprocess)
-  if (_cache && _cache.filePath === filePath) {
+function getCachedBucket(memoryDir: string, bucket: Bucket): Map<string, MemoryIndexEntry> {
+  const filePath = getBucketFilePath(memoryDir, bucket);
+  const current = _caches[bucket];
+
+  if (current && current.filePath === filePath) {
     const currentMtime = getFileMtime(filePath);
-    if (currentMtime === _cache.mtimeMs) return _cache.map;
+    if (currentMtime === current.mtimeMs) return current.map;
   }
 
   let raw = '';
@@ -168,21 +196,33 @@ function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
     // File doesn't exist yet
   }
   const map = toEntryMap(raw.split('\n'));
-  _cache = { map, filePath, mtimeMs: getFileMtime(filePath) };
+  _caches[bucket] = { map, filePath, mtimeMs: getFileMtime(filePath) };
   return map;
 }
 
-/** Write-through: update in-memory cache without re-reading the file. */
+/** Merged view across both buckets. Used by all query paths. */
+function getCachedMap(memoryDir: string): Map<string, MemoryIndexEntry> {
+  const relations = getCachedBucket(memoryDir, 'relations');
+  const taskEvents = getCachedBucket(memoryDir, 'task-events');
+  if (taskEvents.size === 0) return relations;
+  if (relations.size === 0) return taskEvents;
+  const merged = new Map<string, MemoryIndexEntry>(relations);
+  for (const [k, v] of taskEvents) merged.set(k, v);
+  return merged;
+}
+
+/** Write-through: update the right bucket's cache without re-reading the file. */
 function writeThroughEntry(memoryDir: string, entry: MemoryIndexEntry): void {
-  const filePath = getMemoryIndexPath(memoryDir);
-  if (!_cache || _cache.filePath !== filePath) return;
+  const bucket = getBucketForType(entry.type);
+  const cache = _caches[bucket];
+  if (!cache) return;
+  if (cache.filePath !== getBucketFilePath(memoryDir, bucket)) return;
   if (entry.status === 'deleted') {
-    _cache.map.delete(entry.id);
+    cache.map.delete(entry.id);
   } else {
-    _cache.map.set(entry.id, entry);
+    cache.map.set(entry.id, entry);
   }
-  // Update mtime to match file after our write
-  _cache.mtimeMs = getFileMtime(filePath);
+  cache.mtimeMs = getFileMtime(cache.filePath);
 }
 
 // =============================================================================
@@ -191,6 +231,10 @@ function writeThroughEntry(memoryDir: string, entry: MemoryIndexEntry): void {
 
 export function getMemoryIndexPath(memoryDir: string): string {
   return path.join(memoryDir, INDEX_DIR, INDEX_FILE);
+}
+
+export function getTaskEventsPath(memoryDir: string): string {
+  return path.join(memoryDir, TASK_EVENTS_DIR, TASK_EVENTS_FILE);
 }
 
 // =============================================================================
@@ -212,16 +256,22 @@ export function createMemoryIndexEntry(input: CreateMemoryIndexEntryInput): Memo
   };
 }
 
-function ensureIndexFileSync(memoryDir: string): string {
-  const filePath = getMemoryIndexPath(memoryDir);
+function ensureBucketFileSync(memoryDir: string, bucket: Bucket): string {
+  const filePath = getBucketFilePath(memoryDir, bucket);
   const dir = path.dirname(filePath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   if (!existsSync(filePath)) writeFileSync(filePath, '', 'utf-8');
   return filePath;
 }
 
-async function ensureIndexFile(memoryDir: string): Promise<string> {
-  const filePath = getMemoryIndexPath(memoryDir);
+function ensureIndexFileSync(memoryDir: string): string {
+  // Pre-warm both buckets so query paths have a file to read from.
+  ensureBucketFileSync(memoryDir, 'task-events');
+  return ensureBucketFileSync(memoryDir, 'relations');
+}
+
+async function ensureBucketFile(memoryDir: string, bucket: Bucket): Promise<string> {
+  const filePath = getBucketFilePath(memoryDir, bucket);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   if (!existsSync(filePath)) {
     await fs.writeFile(filePath, '', 'utf-8');
@@ -234,14 +284,15 @@ export async function appendMemoryIndexEntry(
   input: CreateMemoryIndexEntryInput,
 ): Promise<MemoryIndexEntry> {
   const entry = createMemoryIndexEntry(input);
-  const filePath = await ensureIndexFile(memoryDir);
+  const bucket = getBucketForType(entry.type);
+  const filePath = await ensureBucketFile(memoryDir, bucket);
 
   await withFileLock(filePath, async () => {
     await fs.appendFile(filePath, JSON.stringify(entry) + '\n', 'utf-8');
   });
 
   writeThroughEntry(memoryDir, entry);
-  slog('INDEX', `append ${entry.id} type=${entry.type} status=${entry.status}`);
+  slog('INDEX', `append ${entry.id} type=${entry.type} status=${entry.status} bucket=${bucket}`);
   return entry;
 }
 
@@ -318,7 +369,8 @@ export async function updateMemoryIndexEntry(
     refs: patch.refs ?? current.refs,
   };
 
-  const filePath = await ensureIndexFile(memoryDir);
+  const bucket = getBucketForType(updated.type);
+  const filePath = await ensureBucketFile(memoryDir, bucket);
   await withFileLock(filePath, async () => {
     await fs.appendFile(filePath, JSON.stringify(updated) + '\n', 'utf-8');
   });
@@ -342,7 +394,8 @@ export async function deleteMemoryIndexEntry(
     status: 'deleted',
   };
 
-  const filePath = await ensureIndexFile(memoryDir);
+  const bucket = getBucketForType(tombstone.type);
+  const filePath = await ensureBucketFile(memoryDir, bucket);
   await withFileLock(filePath, async () => {
     await fs.appendFile(filePath, JSON.stringify(tombstone) + '\n', 'utf-8');
   });
@@ -720,19 +773,28 @@ export function buildCommitmentSection(memoryDir: string): string {
 export async function compactMemoryIndex(
   memoryDir: string,
 ): Promise<{ before: number; after: number }> {
-  const filePath = await ensureIndexFile(memoryDir);
-  const raw = await fs.readFile(filePath, 'utf-8');
-  const lineCount = raw.split('\n').filter(l => l.trim()).length;
-  const map = toEntryMap(raw.split('\n'));
+  let totalBefore = 0;
+  let totalAfter = 0;
 
-  const lines = [...map.values()].map(e => JSON.stringify(e));
-  await withFileLock(filePath, async () => {
-    await fs.writeFile(filePath, lines.join('\n') + (lines.length > 0 ? '\n' : ''), 'utf-8');
-  });
+  for (const bucket of ['relations', 'task-events'] as Bucket[]) {
+    const filePath = await ensureBucketFile(memoryDir, bucket);
+    const raw = await fs.readFile(filePath, 'utf-8');
+    const lineCount = raw.split('\n').filter(l => l.trim()).length;
+    const map = toEntryMap(raw.split('\n'));
 
-  // Write-through: replace cache with compacted map (no re-read needed)
-  _cache = { map, filePath, mtimeMs: getFileMtime(filePath) };
-  return { before: lineCount, after: map.size };
+    const lines = [...map.values()].map(e => JSON.stringify(e));
+    await withFileLock(filePath, async () => {
+      await fs.writeFile(filePath, lines.join('\n') + (lines.length > 0 ? '\n' : ''), 'utf-8');
+    });
+
+    // Write-through: replace cache with compacted map (no re-read needed)
+    _caches[bucket] = { map, filePath, mtimeMs: getFileMtime(filePath) };
+
+    totalBefore += lineCount;
+    totalAfter += map.size;
+  }
+
+  return { before: totalBefore, after: totalAfter };
 }
 
 // =============================================================================
