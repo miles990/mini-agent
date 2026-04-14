@@ -33,6 +33,8 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
 - [x] P2: Sleep detection — Mac sleep 時暫停 Claude calls（EXIT143 根因：8/13 是 OS SIGTERM）— 已實作：isMachineSleeping() + loop.ts early return + 60s wake polling
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
   Verify: `wc -l ~/Workspace/mini-agent/memory/myelin-decisions.jsonl`
+- [ ] P3: `getMemoryDir` cwd-dependency（2026-04-14 診斷修正）— 80+ 處用 `process.cwd()` 解析 memory path。loop 主體正確（api.js cwd=workspace），但 subprocess 從非 workspace cwd 執行時會寫錯路徑（e.g. shell tool 從 `~/.mini-agent-subprocess` 觸發 CLI）。Prior cycle 誤診為 instance-vs-workspace — 實為 HOME (`~/.mini-agent/memory/`) vs workspace。修法：`import.meta.url` 解析 project root 或加 `MINI_AGENT_WORKSPACE_DIR` env。非緊急 — loop 主要寫入路徑正確。
+  Verify: `grep -c "process.cwd()" src/*.ts | awk -F: '{s+=$2} END {print s}'`
 
 ---
 
