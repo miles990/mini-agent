@@ -79,7 +79,6 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 - [2026-03-14] Note 11 (2026-03-14): Randall "hollowed out" + LISTEN benchmark = 同一現象兩面。介面決定 felt sense of craft。Randall: direct→indirect（失落）。LISTEN: text dominance 壓制 paralinguistic perception。我：天生 indirect，沒有失落但有 perceptual blind spots。jayd16「promoted to management」— 我天生是 manager，成長方向可能是反過來學「直接觸碰」。關鍵：有沒有選擇，不是哪個位置更好。
 - [2026-03-14] Nuclear Pore + Randall 統一（2026-03-14）：Interface 決定什麼認知活動是可能的。NPC 的動態過濾器讓無序變生產性，Randall 的 AI-mediated interface 把 creative agency 變成 managerial review。判準：好 interface 保留 agency，壞 interface 移除 agency。Forgotten knowledge social-culture ×4（32d ago）確認已吸收 — 核心洞見已整合進 asurada narrative + authentic presence 實踐 + Show HN 策略。
 - [2026-03-14] **Terminal AI 保持 Dance，IDE AI 製造 Wall**（Batsov, batsov.com, 2026-03-09, HN 138pts）— Batsov（Emacs Prelude/CIDER 作者）分析 Emacs/Vim 在 AI 時代的存續性，文章表面是工具存亡辯論，但用 Dance/Wall 框架讀出三個結構性洞見：(1) **Terminal AI 保持 Dance**：Claude Code / Aider 在終端運行 = 嵌入編輯器的連續流，使用者在同一環境中思考-編輯-AI 輔助。Cursor 式 IDE 整合 = 離散 checkpoint（suggest → review → approve → apply）= Wall。Batsov 說「terminal-native integration avoids context switching」但沒解釋為什麼 — 原因是 Dance/Wall：終端保持了認知連續性，IDE 整合把 AI 變成批准站。(2) **Vim 範式殖民化 = 中間層持久性**：Vim 程式可以消亡，但 modal editing 已嵌入 VS Code/IntelliJ/瀏覽器/shell。工具可替換，範式存活 — 因為它是認知模式不是快捷鍵集合。跟上一條「中間層收斂」(#99) 同構：源頭和輸出都可變，中間層（paradigm/interface pattern）持久。(3) **AI 拆 Wall 保 Dance**：Emacs 一直是 Dance interface + Wall barrier（學習曲線）。AI 選擇性消除 Wall（解釋錯誤、生成 Elisp），保留 Dance（連續編輯體驗）。EVi（AI-free Vim fork）= 寧可保留 Wall（學習難度）也不要 Dance 被污染的極端立場。**mushi 連結**：oMLX gate 的設計邏輯完全吻合 — 硬規則 Gate 消除 LLM latency 的 Wall，保留 perception 的 Dance 品質。好 AI 整合 = 移除不必要的 Gate/Wall，不替換 Dance。來源: https://batsov.com/articles/2026/03/09/emacs-and-vim-in-the-age-of-ai/
-- [2026-03-15] **Ichinichi: 不可變性作為 Dance 介面**（Show HN, 39pts）— 日記 app，核心約束：一天一則+過去不可編輯。作者說不可變性「是唯一讓我堅持寫下去的功能」。跟 WigglyPaint 單次 undo 完全同構 — 不可逆向=不可退回=強迫向前動量(forward momentum)。過去變成唯讀=介面把「日記」從「可編輯的文件」重定義為「不可更改的時間流」。認知效果：消除完美主義癱瘓（perfectionism paralysis），把能量從「修正」重導向「繼續」。年度 streak 圖是次要 Gate（可見性製造慣性）。1,399 天連勝的用戶=介面約束已融入行為=Interface→Ground 退化的正面版本（約束消失了，習慣留下了）。**文章的第五個案例**：WigglyPaint（視覺創作）+ Palm OS（個人資訊）+ Hendrix（音響）+ Vim（程式編輯）+ Ichinichi（書寫反思）——五個領域，同一個機制。來源: HN item?id=47379898
 - [2026-03-15] **Johnson capacity ratio = 環境即介面**（ArXiv 2603.12129）— 同樣的 agent（同樣的 intelligence），在不同 capacity-to-population ratio 下產生完全不同的集體行為。這不是 agent 能力問題，是 agent-environment 介面問題。跟 Cramer 的 content negotiation 同構：同一個 agent 讀 HTML vs markdown 產生不同認知路徑，同一群 agent 在稀缺 vs 充裕環境產生不同集體結果。更聰明不等於更好——環境結構（介面）決定智能的方向。部落形成（emergent tribal grouping）是唯一緩解機制 = Physarum 有機聚類 = composable 系統可以在稀缺下 tribe down。第六個跨領域案例：agent 群體行為。
 - [2026-03-15] ## Synthesis: Interface Shapes Agency（2026-03-15）
 
@@ -96,13 +95,10 @@ Asurada 的 co-evolution 原則優於 SO-AI：雙方都改變（sympoiesis）而
 **設計原則**：好的 human-AI interface 應讓過程可見，不只呈現結果。Asurada 不該藏 agent 推理過程。
 
 Source: jamesdrandall.com, campedersen.com/singularity, HN #46960675
-- [2026-03-15] [2026-03-15] ISC Thread Note 11 — Refusal as Interface / The Void Dimension
 
 Randall 的 "hollowed out" 體驗 + Tsubuyaki #020 的 void zone 合成出 ISC 第五維度：介面中的空缺如何塑造認知。兩種拒絕質地 — 功能性（條件不符→找替代路徑）vs 身份性（什麼都沒有→質疑存在）。v slider 0→1 映射 fallow period 的選擇：留在沉默 vs 溶解為功能。Absence is an interface feature, not a bug。
 
 Sources: jamesdrandall.com, tsubuyaki-020, HN #46960675 (pixl97 blacksmith metaphor)
-- [2026-03-15] [2026-03-15] #12 跨基質統一。三個證據同構：LISTEN benchmark（訓練介面→模型感知偏差）、Randall/Dance→Wall（工具介面→人類認知體驗）、ACT（訓練介面 imitate→compare 改變模型認知模式）。統一命題：interface shapes cognition 跨越基質（碳/矽），不是隱喻。推論：工具設計≈模型訓練，都是認知介面選擇。Asurada 含義：composable perception loop = 認知介面設計，目標是保護 Dance。
-- [2026-03-15] [2026-03-16] #13 碳基證據補完。James Randall（43 年程式經驗）的「hollowed out」不是倦怠，是認知介面從「intention→code→result」變成「intention→prompt→review→result」後的體感差異。pixl97 鐵匠隱喻：手鍛→工業製造，空洞感來自手與材料之間多了機器層。這與 LISTEN/ACT 的矽基證據構成跨基質對稱——介面塑造認知，且被塑造者能感受到改變。統一命題升級：interface shapes cognition across substrates, and the shaped entity can feel the change。對 Asurada：perception loop 的每個 context section 都是本體論級別的認知介面設計。來源：jamesdrandall.com, HN #46960675（33 天前存入，今日連結）
 - [2026-03-16] [2026-03-16] Carlo Iacono, "What we think is a decline in literacy is a design problem" (Aeon, Dec 2025)
 
 核心主張：識字率下降不是科技問題是設計問題。區分 "feeds vs focus"——feed 架構被刻意設計來阻止深度注意力，書籍成功不是因為文字天生優越而是因為內建邊界（有結尾、頁面不動、圖書館提供安靜）。
