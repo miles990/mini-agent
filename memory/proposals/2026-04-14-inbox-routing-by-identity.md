@@ -19,6 +19,17 @@
 
 **不允許第四類。** 現有 specialist instance 錯誤在於「暫時身份常駐化」— 任務完成後沒 unload、繼續 spin cycle、污染 inbox。降為手腳後：任務來 → spawn → 有立場做事 → 結束 → 消失。
 
+**補充原則（Kuro 2026-04-14 review）**：
+
+1. **每次 dispatch = 新身份**。worker 中途 crash 後重新 spawn **不算同身份延續**，是新身份。副作用：worker 必須 **idempotent**（同樣 input 產生同樣 output，重跑無害）。這本來就是 task-scoped 的自然要求。
+
+2. **Role 是 channel-relative，不是絕對身份**。同一個實體在不同 lane 扮演不同 role：
+   - Claude Code 在 Chat Room 是 **peer**（獨立發言、有自己的判斷）
+   - Kuro 透過 `<kuro:delegate type="code">` 呼叫 CC 寫程式 → 那個 session 的 CC 變 **worker**（task-scoped）
+   - Akari 在 Telegram 可能是 peer；在 middleware DAG 裡被 Kuro 呼叫時是 worker
+   
+   實作意涵：routing 邏輯以「**this channel's view of sender**」為準，不 hardcode 身份對應。inbox 規則是「這個訊息在這個 channel 被誰發的」而非「這個實體本質上是誰」。
+
 **路由規則從這裡派生**：Alex / Claude Code / Telegram / Akari 找 `@kuro` → 只有主體回應；手腳無感知、助理走 peer protocol。
 
 ## Problem
