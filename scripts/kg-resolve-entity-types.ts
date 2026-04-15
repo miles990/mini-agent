@@ -1,19 +1,25 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env -S node --loader tsx
 // KG Entity Type Resolver — overlay tool
-// Applies R1-R6 rules from memory/proposals/2026-04-15-kg-type-resolver-rules-draft.md
+// Applies R1-R8 rules from memory/proposals/2026-04-15-kg-type-resolver-rules-draft.md
 // Reads:  memory/index/entities.jsonl + memory/index/conflicts.jsonl
 // Writes: memory/index/entities-resolved.jsonl (superset of entities.jsonl)
 //         memory/index/resolution-audit.jsonl (per-resolution trail)
 // Raw entities.jsonl is NOT modified.
+//
+// Usage:
+//   pnpm tsx scripts/kg-resolve-entity-types.ts            # dry-run
+//   pnpm tsx scripts/kg-resolve-entity-types.ts --write    # persist overlay + audit
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 type Entity = {
   id: string;
   type: string;
   canonical_name?: string;
   aliases?: string[];
+  meta?: Record<string, unknown>;
   [k: string]: unknown;
 };
 
@@ -24,7 +30,7 @@ type Conflict = {
   resolution: string;
 };
 
-type Rule = 'R0-noop' | 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R6' | 'R7-needs-review';
+type Rule = 'R0-noop' | 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R6' | 'R8' | 'R7-needs-review';
 type Confidence = 'high' | 'medium' | 'low';
 
 type Resolution = {
@@ -35,11 +41,16 @@ type Resolution = {
   evidence: string;
 };
 
-const ROOT = resolve(process.cwd());
+// Anchor paths to the script location, not process.cwd() — runs correctly
+// from any directory (e.g., CI, cron, editor scratch).
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, '..');
 const ENTITIES_PATH = resolve(ROOT, 'memory/index/entities.jsonl');
 const CONFLICTS_PATH = resolve(ROOT, 'memory/index/conflicts.jsonl');
 const OUT_RESOLVED = resolve(ROOT, 'memory/index/entities-resolved.jsonl');
 const OUT_AUDIT = resolve(ROOT, 'memory/index/resolution-audit.jsonl');
+
+const WRITE = process.argv.includes('--write');
 
 const readJsonl = <T>(p: string): T[] =>
   readFileSync(p, 'utf8')
@@ -191,6 +202,38 @@ const applyRules = (ent: Entity, candidates: string[]): Resolution => {
     };
   }
 
+  // R8 — project ↔ concept (new frontmatter-registered entities)
+  // Runtime project has backing code/repo; abstract concept does not.
+  if (set.has('project') && set.has('concept')) {
+    const sourceFile = (ent.meta && typeof ent.meta === 'object')
+      ? (ent.meta as Record<string, unknown>).source_file
+      : undefined;
+    // External Entity Registry (CLAUDE.md) — runtime projects not in this repo.
+    // mushi lives under its own section but is equally a runtime project (port 3000, ~/Workspace/mushi/).
+    const externalProjects = new Set(['akari', 'tanren', 'agent-middleware', 'mushi']);
+    const nameLower = name.toLowerCase();
+    const hasCodeSource = typeof sourceFile === 'string' && !sourceFile.startsWith('memory/library/');
+    const isExternalProject = externalProjects.has(nameLower);
+    if (hasCodeSource || isExternalProject) {
+      return {
+        rule: 'R8',
+        resolved_type: 'project',
+        alternatives: ['concept'],
+        confidence: 'high',
+        evidence: isExternalProject
+          ? `external runtime project (CLAUDE.md registry)`
+          : `has source_file outside library/ → named software system`,
+      };
+    }
+    return {
+      rule: 'R8',
+      resolved_type: 'concept',
+      alternatives: ['project'],
+      confidence: 'medium',
+      evidence: `no backing code/repo → abstract category, not a project`,
+    };
+  }
+
   // Fallback
   return {
     rule: 'R7-needs-review',
@@ -257,8 +300,10 @@ const main = () => {
     );
   }
 
-  writeFileSync(OUT_RESOLVED, resolvedLines.join('\n') + '\n');
-  writeFileSync(OUT_AUDIT, auditLines.join('\n') + (auditLines.length ? '\n' : ''));
+  if (WRITE) {
+    writeFileSync(OUT_RESOLVED, resolvedLines.join('\n') + '\n');
+    writeFileSync(OUT_AUDIT, auditLines.join('\n') + (auditLines.length ? '\n' : ''));
+  }
 
   console.log(`entities.jsonl:           ${entities.length}`);
   console.log(`conflicts.jsonl (type):   ${conflicts.length}`);
@@ -277,6 +322,10 @@ const main = () => {
   if (unresolved > 0) {
     console.log(`\n⚠️  ${unresolved} conflict(s) needs-review (R7). See resolution-audit.jsonl.`);
     process.exitCode = 2;
+  }
+
+  if (!WRITE) {
+    console.log('\n(dry-run — pass --write to persist overlay + audit)');
   }
 };
 
