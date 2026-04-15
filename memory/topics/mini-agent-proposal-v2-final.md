@@ -135,26 +135,29 @@ Kuro 說「我下 cycle 做 X」
 
 ## §5 Commitments Ledger — API & Schema
 
-### 5.1 資料模型（live — 跟 agent-middleware `src/commitment-ledger.ts` @38cf34c 一致）
+### 5.1 資料模型（target schema — Kuro 2026-04-15 21:34 決議後）
 
 ```typescript
 type CommitmentStatus = 'active' | 'fulfilled' | 'superseded' | 'cancelled';
 type CommitmentResolutionKind = 'commit' | 'chat' | 'task-close' | 'supersede' | 'cancel';
+type CommitmentOwner = 'kuro' | 'cc' | 'alex';
 
 interface Commitment {
   id: string;
   created_at: string;
+  owner: CommitmentOwner;  // ← 補回（21:27 提案、21:34 決議隱含，owner filter 是跨 agent ledger 前提）
   source: {
     channel: 'room' | 'inner' | 'delegate' | 'user-prompt';
     message_id?: string;
-    cycle_id?: string;
+    cycle_id?: string;     // string（非數字）— source attribution 勝於跨 instance 可排序
   };
-  text: string;            // 原始承諾句（保留 raw — v1 §5 漏了這個）
+  text: string;            // 原始承諾句
   parsed: {
     action: string;
     deadline?: string;
     to?: string;
   };
+  acceptance: string;      // ← 補回 — convergence-condition 必須在 create 時寫，不是 resolve 時才發明
   status: CommitmentStatus;
   linked_task_id?: string;
   linked_dag_id?: string;
@@ -163,19 +166,29 @@ interface Commitment {
     kind: CommitmentResolutionKind;
     evidence: string;
   };
+  // blockedOn: 緩至 P3 (forge DAG) — 當前無 use case
 }
 ```
 
-**V1 → shipped 差異**（2026-04-16 對齊 W3 commit）：
-- `status` 枚舉改 `active/fulfilled/superseded/cancelled`（原 `open/resolved/...`）
-- 加 `text`（raw 承諾句）+ `parsed` 子物件（action/deadline/to）— 原本是 flat；raw 保留讓 downstream 可重新 parse
-- 欄位命名 snake_case（原 camelCase）
-- **dropped fields**（未進 live schema，需下 cycle 決定是補回或永久砍）：
-  - `cycle: number`（mini-agent cycle 數） — 用 `source.cycle_id` 字串替代，但失去數值可排序
-  - `owner`（kuro/cc/alex） — 多 agent 共用 ledger 時無法 filter，**建議補回**
-  - `acceptance: string`（驗收條件） — 最關鍵欄位、verify 語意被弱化成 `resolution.evidence`，**建議補回或明確棄用**
-  - `blockedOn: string[]` — commitment-to-commitment 依賴現在無法表達
-- `resolution.kind` 改 enum `commit/chat/task-close/supersede/cancel`（原 `task-close/superseded/dropped/expired`）— 增 commit/chat 是對的，但 `expired` 語意丟了
+**Schema 決議表**（2026-04-15 21:27 提案 / 21:34 收斂）：
+
+| 欄位 | 決議 | 理由 |
+|---|---|---|
+| `acceptance: string` | **補回（required）** | Convergence-condition 是 v2 核心機制（對齊 feedback_no_time_estimation / feedback_dag_plan_language）；若只在 `resolution.evidence` 寫 = 做完才發明驗收條件 = 破壞機制 |
+| `owner: 'kuro'\|'cc'\|'alex'` | **補回（required）** | Middleware 為跨 agent 共用 ledger，`GET /commits?owner=kuro` 是 perception filter 前提 |
+| `cycle: number`（廢） | **不補，用 `source.cycle_id: string`** | 跨 instance cycle number 不可比，source attribution 優於數值排序；stale query 改用 `created_at` age 不用 cycle diff |
+| `blockedOn: string[]` | **緩至 P3** | 當前單 delegate 無 use case；forge DAG 並行時再補 |
+| `resolution.kind: 'expired'` | **不補** | 由 `status='cancelled' + resolution.kind='cancel'` + note 表達 |
+
+**live schema (38cf34c) vs target 差距**（CC 下 cycle 補）：
+- `owner` field 缺 → PATCH schema + 加索引
+- `acceptance` field 缺 → PATCH schema + mandatory validation（POST /commit 若缺 acceptance 回 400）
+
+**v1 → shipped 已落地差異**（保留）：
+- `status` 枚舉 `active/fulfilled/superseded/cancelled`
+- 加 `text` + `parsed` 子物件（raw 保留讓 downstream 可重新 parse）
+- 欄位 snake_case
+- `resolution.kind` enum `commit/chat/task-close/supersede/cancel`
 
 ### 5.2 API Endpoints
 

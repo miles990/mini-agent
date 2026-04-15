@@ -123,6 +123,42 @@ export interface WaitOptions {
   signal?: AbortSignal;
 }
 
+// ── Commitments ledger (P1-d, proposal v2 §5) ─────────────────────────
+
+export type CommitmentStatus = 'active' | 'fulfilled' | 'superseded' | 'cancelled';
+export type CommitmentResolutionKind = 'commit' | 'chat' | 'task-close' | 'supersede' | 'cancel';
+export type CommitmentOwner = 'kuro' | 'cc' | 'alex';
+
+export interface CommitmentSource {
+  channel: 'room' | 'inner' | 'delegate' | 'user-prompt';
+  message_id?: string;
+  cycle_id?: string;
+}
+
+export interface CommitmentCreate {
+  owner: CommitmentOwner;
+  source: CommitmentSource;
+  text: string;
+  parsed: { action: string; deadline?: string; to?: string };
+  acceptance: string;
+  linked_task_id?: string;
+  linked_dag_id?: string;
+}
+
+export interface Commitment extends CommitmentCreate {
+  id: string;
+  created_at: string;
+  status: CommitmentStatus;
+  resolved_at?: string;
+  resolution?: { kind: CommitmentResolutionKind; evidence: string; note?: string };
+}
+
+export interface CommitmentQuery {
+  status?: CommitmentStatus;
+  owner?: CommitmentOwner;
+  channel?: CommitmentSource['channel'];
+}
+
 // ── Typed errors ──────────────────────────────────────────────────────
 
 export class MiddlewareError extends Error {
@@ -164,7 +200,7 @@ export class WaitTimeoutError extends MiddlewareError {
 
 export interface Transport {
   request<T>(
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
     signal?: AbortSignal,
@@ -178,7 +214,7 @@ export class HttpTransport implements Transport {
   ) {}
 
   async request<T>(
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
     signal?: AbortSignal,
@@ -238,6 +274,10 @@ export interface MiddlewareClient {
   listWorkers(): Promise<WorkerName[]>;
   cancel(id: TaskId): Promise<void>;
   cancelPlan(id: PlanId): Promise<void>;
+  createCommitment(req: CommitmentCreate): Promise<{ id: string; created_at: string }>;
+  getCommitment(id: string): Promise<Commitment>;
+  resolveCommitment(id: string, resolution: { kind: CommitmentResolutionKind; evidence: string; note?: string }): Promise<void>;
+  listCommitments(query?: CommitmentQuery): Promise<Commitment[]>;
 }
 
 export interface CreateClientOptions {
@@ -261,6 +301,22 @@ export function createMiddlewareClient(opts: CreateClientOptions = {}): Middlewa
       transport.request<void>('DELETE', `/task/${encodeURIComponent(id)}`),
     cancelPlan: (id) =>
       transport.request<void>('DELETE', `/plan/${encodeURIComponent(id)}`),
+
+    createCommitment: (req) => transport.request('POST', '/commit', req),
+    getCommitment: (id) => transport.request('GET', `/commit/${encodeURIComponent(id)}`),
+    resolveCommitment: (id, resolution) =>
+      transport.request<void>('PATCH', `/commit/${encodeURIComponent(id)}`, {
+        status: 'fulfilled',
+        resolution,
+      }),
+    listCommitments: (query = {}) => {
+      const qs = new URLSearchParams();
+      if (query.status) qs.set('status', query.status);
+      if (query.owner) qs.set('owner', query.owner);
+      if (query.channel) qs.set('channel', query.channel);
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return transport.request('GET', `/commits${suffix}`);
+    },
 
     async listWorkers() {
       const h = await client.health();
