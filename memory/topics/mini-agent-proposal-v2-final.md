@@ -20,8 +20,9 @@ related: [middleware-as-organ, system-reminder-split-plan, mini-agent-roadmap, f
 ### In scope
 1. **middleware-as-organ**：把 delegation 執行層（subprocess spawn / lifecycle / timeout / exit classification）從 `src/delegation.ts` 抽到 local middleware service
 2. **commitments ledger**：mini-agent 跨 cycle 承諾持久化 API，反 drift 基礎設施
-3. **delegate edit-layer**：`src/delegation.ts` 瘦身到 ~350 行 editing layer（策略、converter、DAG planning）
+3. **delegate converter**：`src/delegation.ts` 砍到 ≤50 行 tag-to-DAG converter（Q-S2 砍掉重練），不再是「shim 包 spawn」而是「轉譯 `<kuro:delegate>` tag 成 DAG node 丟給 middleware /plan」
 4. **mini-agent ↔ middleware 介面契約**：HTTP port 3200，固定 endpoint set
+5. **single-organ commitment**：mini-agent 只剩 /accomplish 或 /plan 一個入口（Q-S1 完全取代），delegate tool 從 agent-compose 下架
 
 ### Out of scope
 - 外部 worker / cross-agent delegation（v3）
@@ -247,6 +248,7 @@ CC 實作順序（middleware 視角）:
   W4: onExit PATCH hook (§5.3)
   W5: query endpoints (/commits, /commits/stale)
   W6: launchd plist + KeepAlive
+  W7: worktree lifecycle endpoints — GET /worktrees, POST /worktrees/:id/recover, GET /tasks?status=stale (Q-S3 forge 遷移，過渡期可 shell out scripts/forge-lite.sh)
 
 Kuro 實作順序（mini-agent 視角）:
   K1: middleware-client.ts (undici fetch wrapper)
@@ -257,6 +259,24 @@ Kuro 實作順序（mini-agent 視角）:
 ```
 
 **關鍵約束**：W1+W2+W3 綠 → K1+K2 才能動；W5 綠 → K3 才有意義。CC 自己跑 W 序列，不需 Kuro 介入。Kuro 遇疑問退回自己 spec，不碰 middleware 內部實作。
+
+### 6.4 Strategic Resolutions（Alex #230 拍板，2026-04-15）
+
+三軸策略決議，取代先前 #227 對齊的 (C/留/incremental) 保守版本：
+
+| Axis | Question | Resolution | 對本 proposal 的衝擊 |
+|---|---|---|---|
+| **Q-S1** | delegate tool 命運？ | **(A) 完全取代** — agent-compose 不再暴露 delegate tool | delegation.ts 不是 shim，是 converter；sunset criteria Day 1 就拔不等 7d zero-fallback |
+| **Q-S2** | 9-type capability map 去留？ | **砍掉重練** — baseline pool 不砍但成長路徑變「缺了就設計可複用 worker 進池」 | 9 type 昇華成 middleware worker registry（learn/create 已上線 2026-04-15）；cold-path worker（plan/debug/review）need-driven 補 |
+| **Q-S3** | mini-agent vs middleware 器官關係？ | **middleware = 唯一器官** — 執行端全部由 worker 負責，mini-agent 只剩 DAG plan + worker selection | forge worktree 仍留 mini-agent（DAG builder 呼 forgeAllocate 拿 cwd），但 forgeStatus/forgeRecover/recoverStaleDelegations/watchdogDelegations/killAllDelegations 5 個 symbol 遷到 middleware（CC #238 確認 α 路線） |
+
+**Alex 原話精華**（#230）：
+> mini-agent 應該變成把專注力放在制定最好的最合適的 DAG plan 和選用最合適的 worker，沒有的話設計一個可以被重複使用的 worker，以後遇到相同類似情境就可以直接用這個 worker
+
+**落地意義**：
+- 本 proposal 從「middleware 接手部分執行」升級為「middleware 接手全部執行」。mini-agent 的腦 = DAG plan + worker selection + commitment emission；middleware 的手 = 所有 subprocess / worktree / lifecycle
+- K2 不再是「delegation.ts 瘦身到 350 行 shim」，而是「delegation.ts 砍到 ≤50 行 tag-to-DAG converter」
+- W1-W6 worker 實作範圍擴充涵蓋 forge/watchdog endpoints（新增 W7: worktree lifecycle endpoints）
 
 ---
 
