@@ -9,11 +9,13 @@
  *
  * Usage:
  *   pnpm tsx scripts/kg-extract-entities.ts [--dry] [--limit N] [--model haiku|sonnet]
- *                                           [--batch 20] [--timeout 60000] [--append]
+ *                                           [--batch 20] [--timeout 90000] [--append]
+ *                                           [--concurrency 5]
  *
- * --dry     print the first batch prompt + exit (no LLM call)
- * --limit   only process first N batches (cost calibration)
- * --append  don't truncate candidates.jsonl — resume partial run
+ * --dry          print the first batch prompt + exit (no LLM call)
+ * --limit        only process first N batches (cost calibration)
+ * --append       don't truncate candidates.jsonl — resume partial run
+ * --concurrency  parallel claude CLI workers (default 5, 1=sequential)
  */
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -35,6 +37,7 @@ interface CliOpts {
   batch: number;
   timeoutMs: number;
   append: boolean;
+  concurrency: number;
 }
 
 function parseArgs(): CliOpts {
@@ -48,8 +51,9 @@ function parseArgs(): CliOpts {
     limit: a.includes('--limit') ? Math.max(1, Number(get('--limit', '1'))) : null,
     model: get('--model', 'haiku') ?? 'haiku',
     batch: Math.max(1, Number(get('--batch', '20'))),
-    timeoutMs: Math.max(5_000, Number(get('--timeout', '90000'))),
+    timeoutMs: Math.max(5_000, Number(get('--timeout', '180000'))),
     append: a.includes('--append'),
+    concurrency: Math.max(1, Number(get('--concurrency', '5'))),
   };
 }
 
@@ -129,7 +133,7 @@ async function main() {
   const planBatches = opts.limit ? batches.slice(0, opts.limit) : batches;
 
   console.log(`chunks: ${allChunks.length} total → ${eligible.length} eligible`);
-  console.log(`batches: ${batches.length} planned, running ${planBatches.length} (size=${opts.batch}, model=${opts.model})`);
+  console.log(`batches: ${batches.length} planned, running ${planBatches.length} (size=${opts.batch}, model=${opts.model}, concurrency=${opts.concurrency})`);
 
   if (opts.dry) {
     const sample = planBatches[0];
@@ -147,23 +151,28 @@ async function main() {
   let skippedTotal = 0;
   let callsOk = 0;
   let callsFail = 0;
+  let completed = 0;
   const t0 = Date.now();
 
-  for (let i = 0; i < planBatches.length; i++) {
-    const batch = planBatches[i];
+  // Worker-pool semaphore: each worker pulls the next unclaimed batch index
+  // until none remain. appendFileSync is blocking in Node, so line interleaving
+  // from concurrent workers is safe — writes happen one tick at a time.
+  const total = planBatches.length;
+  let nextIdx = 0;
+
+  const processBatch = async (batch: ChunkRecord[], batchNum: number): Promise<void> => {
     const prompt = buildEntityPrompt(batch);
     const raw = await callClaude(prompt, opts.model, opts.timeoutMs);
+    completed++;
     if (raw === null) {
       callsFail++;
-      console.log(`  [${i + 1}/${planBatches.length}] FAIL (null response)`);
-      continue;
+      console.log(`  [${batchNum}/${total}] FAIL (null response) done=${completed}/${total}`);
+      return;
     }
     callsOk++;
     const parsed = parseEntityCandidates(raw, batch);
     skippedTotal += parsed.skipped.length;
 
-    // Parser flattens candidates — re-thread to chunks by span-in-text membership.
-    // Small batches (~20 chunks × ~2 cands) make O(n·m) cheap vs tracking owner through parser.
     const byChunk = new Map<string, CandidateBatch>();
     for (const chunk of batch) {
       const mine = parsed.candidates.filter((c) => chunk.text.includes(c.span));
@@ -178,11 +187,22 @@ async function main() {
 
     const elapsed = ((Date.now() - t0) / 1000).toFixed(0);
     console.log(
-      `  [${i + 1}/${planBatches.length}] +${parsed.candidates.length} cands` +
+      `  [${batchNum}/${total}] +${parsed.candidates.length} cands` +
       ` (${parsed.skipped.length} skipped)` +
-      ` elapsed=${elapsed}s`,
+      ` done=${completed}/${total} elapsed=${elapsed}s`,
     );
-  }
+  };
+
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const i = nextIdx++;
+      if (i >= total) return;
+      await processBatch(planBatches[i], i + 1);
+    }
+  };
+
+  const workerCount = Math.min(opts.concurrency, total);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const totalSec = ((Date.now() - t0) / 1000).toFixed(1);
   console.log('\n=== done ===');
