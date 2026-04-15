@@ -1835,6 +1835,16 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
+  .main-tabs .ext-link {
+    margin-left: auto;
+    align-self: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    text-decoration: none;
+    padding: 10px 14px;
+  }
+  .main-tabs .ext-link:hover { color: var(--accent); }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
@@ -2028,6 +2038,7 @@
   <nav class="main-tabs">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
     <button class="tab-btn" data-tab="memory">Memory Lab</button>
+    <a class="ext-link" href="/kg-graph" target="_blank" rel="noopener" title="Knowledge Graph — D3 force layout viz">Knowledge Graph &#8599;</a>
   </nav>
 
   <!-- Dashboard Tab -->

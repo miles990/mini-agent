@@ -2283,6 +2283,18 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // Knowledge Graph viz — self-contained HTML rebuilt by kg-viz.ts
+  app.get('/kg-graph', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'memory/index/kg-graph.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).type('text/plain').send(
+        'kg-graph.html not built yet.\nRun: pnpm tsx scripts/kg-viz.ts',
+      );
+    }
+  });
+
   app.get('/board', (_req: Request, res: Response) => {
     const htmlPath = path.join(process.cwd(), 'board.html');
     if (fs.existsSync(htmlPath)) {
