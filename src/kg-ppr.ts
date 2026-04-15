@@ -32,14 +32,16 @@ export interface PPRResult {
  * Build a GraphView from an in-memory edge list. Caller decides filtering
  * (e.g., drop below-floor edges); we trust inputs.
  */
-export function buildGraph(edges: ReadonlyArray<Pick<EdgeRecord, 'from' | 'to' | 'confidence'>>): GraphView {
+export function buildGraph(edges: ReadonlyArray<Pick<EdgeRecord, 'from' | 'to' | 'confidence' | 'weight'>>): GraphView {
   const adj = new Map<string, Array<{ to: string; confidence: number }>>();
   const nodes = new Set<string>();
   for (const e of edges) {
     nodes.add(e.from);
     nodes.add(e.to);
     const list = adj.get(e.from) ?? [];
-    list.push({ to: e.to, confidence: e.confidence });
+    // Walk preference uses weight when set, else falls back to confidence.
+    // Lets mentions stay at conf=1.0 while walking at weight≈0.3.
+    list.push({ to: e.to, confidence: e.weight ?? e.confidence });
     adj.set(e.from, list);
   }
   return {

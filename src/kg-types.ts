@@ -103,7 +103,15 @@ export interface EdgeRecord {
   from: string;                    // entity id
   to: string;                      // entity id
   type: EdgeType;
-  confidence: number;              // [0, 1]; below floor → downgrade to mentions or drop
+  confidence: number;              // [0, 1]; ontological certainty this edge is real. Below floor → drop
+  /**
+   * Optional PPR walk weight. Separates "how sure am I this edge exists"
+   * (confidence) from "how strongly should the walker prefer it" (weight).
+   * Lets rule-based `mentions` stay at conf=1.0 (definitely co-occur) while
+   * walking at weight≈0.3 so they don't drown sparse semantic signal.
+   * When unset, buildGraph falls back to confidence.
+   */
+  weight?: number;
   detector: 'rule' | 'llm';        // rule=1.0 always, llm=0.6-0.95 typically
   evidence_chunk_id: string;       // points to chunks.jsonl
   evidence_quote?: string;         // ≤200 chars, specific phrase grounding the type
