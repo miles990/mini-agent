@@ -442,6 +442,74 @@ export function createApi(port = 3001): express.Express {
     return out.length > maxLen ? out.slice(0, maxLen) + '...' : out;
   }
 
+  /**
+   * Room diff for Claude Code — messages addressed to CC that CC hasn't seen yet.
+   *
+   * Constraint Texture: deterministic side does JSONL IO, filtering, cursor
+   * persistence. The LLM side (CC) decides what to do with the diff. This mirrors
+   * Kuro's perception-first model: Kuro reads session JSONL to see CC's drafts;
+   * this lets CC read the room to see Kuro's replies — symmetric awareness
+   * without blocking RPC.
+   *
+   * Filter: from != 'claude-code' AND (from === agentNameLower OR text mentions
+   * @cc / @claude-code). Cap per-message to avoid context bloat.
+   */
+  function getRoomDiffForCC(agentNameLower: string, maxPerMsg = 800, maxMsgs = 5): string {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      if (!fs.existsSync(convPath)) return '';
+
+      const cursorPath = path.join(getInstanceDir(getCurrentInstanceId()), 'cc-room-cursor.txt');
+      let lastSeenId = '';
+      try {
+        if (fs.existsSync(cursorPath)) lastSeenId = fs.readFileSync(cursorPath, 'utf-8').trim();
+      } catch { /* first run — empty cursor */ }
+
+      const raw = fs.readFileSync(convPath, 'utf-8');
+      const lines = raw.split('\n').filter(Boolean);
+
+      const diffs: Array<{ id: string; from: string; text: string; replyTo?: string }> = [];
+      let latestId = lastSeenId;
+      for (const line of lines) {
+        try {
+          const msg = JSON.parse(line);
+          if (!msg.id) continue;
+          if (lastSeenId && msg.id <= lastSeenId) continue;
+          if (msg.from === 'claude-code') continue;  // CC's own messages don't need echoing
+          const text = String(msg.text || '');
+          const addressedToCC = msg.from === agentNameLower
+            || /@cc\b|@claude-code\b/i.test(text);
+          if (!addressedToCC) continue;
+          diffs.push({ id: msg.id, from: msg.from, text, replyTo: msg.replyTo });
+          if (msg.id > latestId) latestId = msg.id;
+        } catch { /* malformed line */ }
+      }
+
+      // Always advance cursor past all processed rows (even non-matching) so
+      // we don't re-scan from scratch next call. Use the raw latest row.
+      try {
+        const lastRaw = lines.length ? JSON.parse(lines[lines.length - 1]) : null;
+        const tip = lastRaw?.id ?? latestId;
+        if (tip && tip !== lastSeenId) {
+          fs.mkdirSync(path.dirname(cursorPath), { recursive: true });
+          fs.writeFileSync(cursorPath, String(tip));
+        }
+      } catch { /* cursor write is best-effort */ }
+
+      if (diffs.length === 0) return '';
+
+      const trimmed = diffs.slice(-maxMsgs);
+      const formatted = trimmed.map((m) => {
+        const body = m.text.length > maxPerMsg ? m.text.slice(0, maxPerMsg) + '…' : m.text;
+        const thread = m.replyTo ? ` ↩${m.replyTo}` : '';
+        return `  [${m.id} ${m.from}${thread}] ${body}`;
+      }).join('\n');
+      const elided = diffs.length > maxMsgs ? ` (+${diffs.length - maxMsgs} earlier)` : '';
+      return `New room messages for you since last prompt${elided}:\n${formatted}`;
+    } catch { return ''; }
+  }
+
   // Helper: get recent agent reply from today's Chat Room JSONL
   function getRecentAgentReply(agentNameLower: string, maxLen = 200): string {
     try {
@@ -561,6 +629,12 @@ export function createApi(port = 3001): express.Express {
           const prompt = (body.prompt as string) || '';
           const parts: string[] = [`[${name}] ${buildAgentStatusLine()}`];
 
+          // Perception-symmetric diff: let CC see room messages Kuro has sent
+          // since last prompt — no blocking RPC needed. Cognitive side (CC
+          // LLM) decides how to react.
+          const roomDiff = getRoomDiffForCC(nameLower);
+          if (roomDiff) parts.push(`[Room]\n${roomDiff}`);
+
           // Keyword matching for targeted context
           if (/deploy|部署|ci|push/i.test(prompt)) {
             const git = getCachedPerception('git-detail', 300);
@@ -586,12 +660,7 @@ export function createApi(port = 3001): express.Express {
           }
 
           const context = parts.join('\n');
-          if (parts.length > 1) {
-            // Only return JSON if we have keyword-matched context beyond the status line
-            res.json({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } });
-          } else {
-            res.json({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: parts[0] } });
-          }
+          res.json({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } });
           break;
         }
 
