@@ -202,6 +202,11 @@ async function main() {
       edgesTotal += candidates.length;
     }
 
+    if (errors.length > 0) {
+      const errLog = { chunk_id: task.chunk.id, errors, raw: raw.slice(0, 2000) };
+      appendFileSync(outPath.replace(/\.jsonl$/, '-errors.jsonl'), JSON.stringify(errLog) + '\n');
+    }
+
     const elapsed = ((Date.now() - t0) / 1000).toFixed(0);
     console.log(
       `  [${n}/${total}] +${candidates.length} edges` +
