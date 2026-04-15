@@ -158,8 +158,10 @@ export function parseEdgeResponse(raw: string, chunkId: string): ParseResult {
   const errors: string[] = [];
   const trimmed = raw.trim();
 
-  // Strip accidental fence.
-  const unfenced = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  // Extract first fenced code block if present (LLM sometimes appends reasoning prose),
+  // otherwise fall back to the whole trimmed string.
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const unfenced = fenceMatch ? fenceMatch[1].trim() : trimmed;
 
   let parsed: unknown;
   try {
