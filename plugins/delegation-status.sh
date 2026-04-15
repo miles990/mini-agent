@@ -28,38 +28,28 @@ for dir in "$DEL_DIR"/*/; do
   spec_file="$dir/spec.json"
 
   if [ -f "$result_file" ]; then
-    # Completed task — read result
-    status=$(python3 -c "
-import json, sys
-try:
-    d = json.load(open('$result_file'))
-    s = d.get('status', '?')
-    dur = d.get('duration', 0)
-    dur_s = f'{dur // 1000}s' if dur else '?'
-    vr = d.get('verifyResults', [])
-    if vr:
-        passed = sum(1 for v in vr if v.get('passed'))
-        total_v = len(vr)
-        icon = '✅' if s == 'completed' else '❌'
-        print(f'{icon} {task_id}: {s} ({dur_s}, {passed}/{total_v} verify passed)')
-    else:
-        icon = '✅' if s == 'completed' else '❌' if s == 'failed' else '⏱' if s == 'timeout' else '?'
-        print(f'{icon} {task_id}: {s} ({dur_s})')
-except Exception as e:
-    print(f'? {task_id}: error reading result')
-" 2>/dev/null)
-    echo "$status"
+    status=$(jq -r --arg tid "$task_id" '
+      (.status // "?") as $s
+      | (.duration // 0) as $dur
+      | (.verifyResults // []) as $vr
+      | ($vr | length) as $tv
+      | ($vr | map(select(.passed)) | length) as $pv
+      | (if $s == "completed" then "✅"
+         elif $s == "failed" then "❌"
+         elif $s == "timeout" then "⏱"
+         else "?" end) as $icon
+      | (if $dur > 0 then "\($dur / 1000 | floor)s" else "?" end) as $durs
+      | if $tv > 0
+        then "\($icon) \($tid): \($s) (\($durs), \($pv)/\($tv) verify passed)"
+        else "\($icon) \($tid): \($s) (\($durs))"
+        end
+    ' "$result_file" 2>/dev/null)
+    echo "${status:-? $task_id: error reading result}"
   elif [ -f "$spec_file" ]; then
-    # Running task — show elapsed time
     start_time=$(stat -f %m "$spec_file" 2>/dev/null || stat -c %Y "$spec_file" 2>/dev/null)
     now=$(date +%s)
     elapsed=$(( now - start_time ))
-    prompt=$(python3 -c "
-import json
-d = json.load(open('$spec_file'))
-p = d.get('prompt', '')[:60]
-print(p)
-" 2>/dev/null)
+    prompt=$(jq -r '(.prompt // "")[0:60]' "$spec_file" 2>/dev/null)
     echo "⏳ $task_id: running (${elapsed}s) — $prompt..."
   fi
 done
