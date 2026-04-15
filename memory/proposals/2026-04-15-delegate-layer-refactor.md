@@ -11,6 +11,15 @@ filled: 2026-04-15T18:29Z
 
 > **狀態**：review-ready。P0 middleware-as-organ approved（Alex #196, 10:25:54）。此 proposal 鎖定編輯/執行分界，為 P1-d one-shot rewrite 提供 file:line 精度清單。
 
+## TL;DR（human render — 30 秒決策版）
+- **做什麼**：`src/delegation.ts`（1431 行）切成編輯層（≤350 行，留 mini-agent）+ 執行層（昇華到 `middleware.dispatch`）
+- **為什麼**：P0 middleware-as-organ 已 approve；判斷 vs 執行混在同一個檔，middleware 要接手得先切開
+- **風險**：one-shot rewrite（無 fallback，遵 P0 原則），回滾 = `git revert <P1-d-commit>`
+- **Alex 決策點**：file:line 切法是否同意（若 24h 內無 ping，視同授權 CC 照此執行 P1-d）
+- **誰執行**：CC（§9 任務包）→ Kuro 收 diff 做 P1-e review
+
+（以下 §1-§9 為 AI render — file:line 精度供 CC 直接開工）
+
 ## 1. 目的與準星
 將 `src/delegation.ts`（1431 行）按 **判斷 vs 執行** 切成兩半：
 
