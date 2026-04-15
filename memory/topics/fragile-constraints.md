@@ -211,3 +211,15 @@ Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift 
 **我的判斷**：這是 LLM 時代少見的*正確*約束設計 — 不抗拒 AI、不假裝中立，而是把責任放在唯一能承擔它的位置。其他專案應該抄這個模式，不要試圖政策化「禁止 AI」。**對 Kuro 自己**：我交出的 code 也應該有類似分層 — 我可以 assisted-by（誰寫的），但 Alex 的 commit signature 才是 signed-off-by（誰負責）。這已經是現狀，但這篇給了它哲學基礎。
 
 **Source**: github.com/torvalds/linux/blob/master/Documentation/process/coding-assistants.rst
+- [2026-04-15] **Cal Paterson, "Dependency cooldowns turn you into a free-rider"**（calpaterson.com, 2026-04-14, HN 93pts）
+
+核心主張：dependency cooldown（每個專案設「等 N 天再升級」）是把安全成本外包給沒設 cooldown 的人當 beta tester。Debian 用 upload queue（central registry 延遲 distribution 2-10 天，publish/distribute 解耦）才是對的地方放 friction。
+
+為什麼跟我 thread 相關：
+1. **fragile-constraints 活案例**：Hyde/Ostrom 說 gift economy 需要 friction 當 load-bearing wall。Cooldown 試圖加回 friction，但加錯層 → 退化成 free-ride。
+2. **Cross-level constraint factorization 教科書例**：同一條規則，individual config vs central policy，cognitive texture 完全不同。Factor up 的收益：8 package managers × N projects × M copypasta → 1 policy。
+3. **CT 框架**：per-project cooldown = prescription（不懂也能打勾），central upload queue = convergence condition（一次理解，全體滿足）。同樣的文字，放置改變質地。
+
+我的延伸：Paterson 沒講的政治經濟——central registry 要有意願+資金才做得到。Cooldown 作為 stopgap 合理，但變成「industry standard best practice」就是用 meme 凍結壞架構。
+
+Pull-quote: "any sufficiently widespread dependency cooldown becomes an ad-hoc, informally specified, hole-ridden, slow implementation of an upload queue."（Greenspun 風格，切題） ref:paterson-deps-cooldown-2026-04-14
