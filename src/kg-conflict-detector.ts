@@ -59,8 +59,8 @@ function normalizeAlias(s: string): string {
 }
 
 /**
- * Type disputes: entity.meta.disputed_types is non-empty. Folded as
- * `claim_conflict` (the enum doesn't have type_conflict; pending Kuro alignment).
+ * Type disputes: entity.meta.disputed_types is non-empty. Separate from
+ * claim_conflict — type dispute and claim dispute have different resolution paths.
  */
 export function detectTypeDisputes(entities: EntityRecord[], now: string): ConflictRecord[] {
   const out: ConflictRecord[] = [];
@@ -76,7 +76,7 @@ export function detectTypeDisputes(entities: EntityRecord[], now: string): Confl
 
     out.push({
       id: `conf-type-${n++}`,
-      type: 'claim_conflict',
+      type: 'type_conflict',
       entities: [e.id],
       sources,
       detector: 'rule',

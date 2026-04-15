@@ -127,7 +127,7 @@ export interface ChunkRecord {
 /** memory/index/conflicts.jsonl — Phase 3 conflict candidate queue */
 export interface ConflictRecord {
   id: string;                      // conf-<n>
-  type: 'claim_conflict' | 'edge_conflict' | 'alias_collision';
+  type: 'claim_conflict' | 'edge_conflict' | 'alias_collision' | 'type_conflict';
   entities: string[];              // involved entity ids
   sources: Array<{ chunk_id: string; claim?: string }>;
   detector: 'rule' | 'llm';
