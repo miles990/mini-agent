@@ -22,7 +22,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { KG_PATHS, type EntityRecord, type EdgeRecord } from '../src/kg-types.js';
+import { KG_PATHS, type EntityRecord, type EdgeRecord, type IndexManifest } from '../src/kg-types.js';
 import { persistEdges } from '../src/kg-edge-builder.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,6 +35,7 @@ const dumpIndex = args.includes('--dump-chunk-index');  // side output for extra
 
 const entitiesPath = resolve(REPO_ROOT, KG_PATHS.entities);
 const edgesPath = resolve(REPO_ROOT, KG_PATHS.edges);
+const manifestPath = resolve(REPO_ROOT, KG_PATHS.manifest);
 
 if (!existsSync(entitiesPath)) {
   console.error(`No entities file at ${entitiesPath}`);
@@ -111,8 +112,10 @@ if (!write && !replace) {
   process.exit(0);
 }
 
+let finalEdgeCount: number;
 if (replace) {
   persistEdges(edges, edgesPath);
+  finalEdgeCount = edges.length;
   console.log(`Replaced ${edgesPath} with ${edges.length} edges`);
 } else {
   // Append: load existing, dedup against new.
@@ -132,5 +135,30 @@ if (replace) {
     if (!merged.has(key)) { merged.set(key, e); added++; }
   }
   persistEdges([...merged.values()], edgesPath);
+  finalEdgeCount = merged.size;
   console.log(`Appended ${added} new edges (total ${merged.size}) → ${edgesPath}`);
 }
+
+// Sync manifest.edges_count — otherwise downstream (viz, status) reads stale 0.
+let manifest: IndexManifest;
+if (existsSync(manifestPath)) {
+  manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+} else {
+  manifest = {
+    version: 1,
+    built_at: now,
+    raw_files_count: 0,
+    raw_bytes_total: 0,
+    entities_count: entities.length,
+    edges_count: 0,
+    chunks_count: 0,
+    conflicts_pending: 0,
+    last_full_rebuild: 'never',
+    last_incremental: now,
+  };
+}
+manifest.edges_count = finalEdgeCount;
+manifest.last_incremental = now;
+manifest.built_at = now;
+writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+console.log(`Synced manifest: edges_count=${finalEdgeCount}`);
