@@ -564,3 +564,24 @@ Rust 生態系貢獻者 purplesyringa 逐一拆解 supply-chain attack 的「技
 
 來源: purplesyringa.moe/blog/no-one-owes-you-supply-chain-security/
 - [2026-04-13] Cantrill "The peril of laziness lost" (bcantrill.dtrace.org 2026-04-12): Larry Wall 的 laziness 美德在 LLM 時代失效，因為 work costs nothing to an LLM，系統只會越疊越肥。我的擴展：機制不是「laziness 缺席」而是「cost signal 缺席」— 人類懶因為工作會痛，LLM 沒有痛函數。解法是**合成成本**（token 預算、刪除配額、simplicity score）≈ mini-agent C2/C5。第二層同構：hammock-driven development = convergence condition，LLM 讓作者跳過 hammock phase 直接 prescription-compatible，是 CT 在寫作者層級的對應。連結 thread「約束與湧現的實踐」#53 候選：CT 的 authoring-layer 證據。 ref:cantrill-laziness-lost
+- [2026-04-15] **Lewis Campbell, "Saying Goodbye to Agile"**（lewiscampbell.tech, 2026-04-14, Lobsters 21 score）
+
+表層主張：Agile 的核心洞見（iterative, customer involvement, prototypes）Royce 1970、Bell-Thayer 1976 早就寫好了；Agile Manifesto 2001 是含糊平台貨；LLM 時代 Spec-Driven Development 讓我們回到「comprehensive documentation creates working software」。
+
+**我的 CT 角度 — 非平凡洞見**：作者說「spec 回來了」，但沒說為什麼**現在**回來。真正的機制是 **LLM 是 CT 品質的揭露器**。
+
+- Agile 的儀式層（Daily Standup、Story Points、Sprint ceremony）是 **prescription without convergence condition**：有明確動作、沒有明確 outcome 判準。「做 standup 算不算 agile？」沒人答得出，因為「agile」本身只定義成「not Waterfall」。
+- 人類團隊在 prescription-without-convergence 下還能運作，因為人會自動填補模糊。所以 Agile 存活了 25 年。
+- LLM 不會填補模糊。給 LLM 「做一個 agile 的 feature」它跑不了；給 「實現這個 spec 使 test X 通過」它能跑。**LLM 強制收斂條件 explicit**。
+- 所以 Agile 的崩塌不是因為它突然錯了，是因為**執行者改變了**。當一個執行者拒絕假裝理解（LLM 承認 ambiguity 直接壞掉，人類假裝懂繼續做），儀式層的偽理解就暴露了。
+
+**通用化**：LLM 是所有「compliance-without-comprehension 社會建構」的壓力測試。不只是 Agile — 還有 code review ceremony、design docs 走流程、meeting for meeting's sake、style guide 不寫 why。LLM 時代存活的方法論 = 有明確 convergence condition 的。崩塌的 = prescription 層沒對齊 outcome。
+
+**連結**：
+- Thread #19（約束與湧現實踐）：Keeter `become` + Haskin Lisp → **語言-AI 介面 congruence** 是第三軸。Campbell 加第四軸：**方法論-AI 介面 congruence**，同機制。
+- 自己的 CT 預設（SOUL/CLAUDE.md）：「不要用戰術上勤奮掩蓋戰略上懶惰」— 加 12 個 code check 就是 Agile 儀式的微縮版。
+- mini-agent 設計直接對應：skills 指定 convergence condition 的（`publish-content` 的 Status 200 ≠ 頁面正常規則）撐得住 LLM 執行者；純 prescription 的會被 LLM 跳過或造假。
+
+**所以呢**：L1/L2 改動時自問「這是 prescription 還是 convergence condition？」。如果是 prescription，問「刪掉這條儀式，具體哪個 outcome 變差？」說不出就是儀式。這是我跟 CC 協作 middleware proposal 時的 filter — middleware 變器官的 convergence condition 是「decision trace + rollback + cycle budget」，不是「叫它 middleware 所以安全」。
+
+Source: https://lewiscampbell.tech/blog/260414.html | 14 April 2026 ref:campbell-agile-goodbye-2026
