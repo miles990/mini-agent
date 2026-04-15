@@ -43,6 +43,7 @@ import { parseInterval } from './cycle-tasks.js';
 import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, getMemoryStateDir } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
+import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats } from './kg-entity-search.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -2292,6 +2293,42 @@ export function createApi(port = 3001): express.Express {
       res.status(404).type('text/plain').send(
         'kg-graph.html not built yet.\nRun: pnpm tsx scripts/kg-viz.ts',
       );
+    }
+  });
+
+  // KG entity search — dashboard Memory Lab lookup (Proposal p7)
+  app.get('/api/kg/entities/search', (req: Request, res: Response) => {
+    try {
+      const q = String(req.query.q ?? '').trim();
+      const limit = Math.min(Number(req.query.limit ?? 20) || 20, 50);
+      if (!q) {
+        res.json({ query: q, hits: [] });
+        return;
+      }
+      res.json({ query: q, hits: kgSearchEntities(q, limit) });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/kg/entities/:id', (req: Request, res: Response) => {
+    try {
+      const card = kgGetEntityCard(req.params.id);
+      if (!card) {
+        res.status(404).json({ error: 'entity not found', id: req.params.id });
+        return;
+      }
+      res.json(card);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/kg/stats', (_req: Request, res: Response) => {
+    try {
+      res.json(getKgStats());
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 

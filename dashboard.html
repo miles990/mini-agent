@@ -1878,6 +1878,81 @@
   }
   .mem-search-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* ── KG Entity Search ── */
+  .kg-hits { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .kg-hit {
+    padding: 8px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    transition: all 0.12s;
+  }
+  .kg-hit:hover { border-color: var(--accent); background: var(--bg2, var(--surface)); }
+  .kg-hit .kg-name { font-weight: 500; color: var(--text-bright); }
+  .kg-hit .kg-type {
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    padding: 2px 6px; border-radius: 4px; background: var(--bg2, var(--surface));
+    border: 1px solid var(--border-subtle);
+  }
+  .kg-hit .kg-match { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-left: auto; }
+  .kg-hit .kg-refs { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+
+  .kg-card {
+    margin-top: 12px; padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .kg-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .kg-card-name { font-size: 16px; font-weight: 600; color: var(--text-bright); }
+  .kg-card-id { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .kg-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .kg-badge {
+    padding: 2px 8px; border-radius: 10px; font-family: var(--mono);
+    font-size: 10px; border: 1px solid var(--border-subtle);
+  }
+  .kg-badge.type { background: var(--bg2, var(--surface)); color: var(--text-bright); }
+  .kg-badge.conf-high { background: #1a3a2a; color: #8be9c0; border-color: #2a5a3a; }
+  .kg-badge.conf-medium { background: #3a321a; color: #d9c67a; border-color: #5a4a2a; }
+  .kg-badge.conf-low { background: #3a2a1a; color: #f0a07a; border-color: #5a3a2a; }
+  .kg-badge.rule { color: var(--accent); }
+  .kg-meta { font-family: var(--mono); font-size: 11px; color: var(--text2); margin: 4px 0; }
+  .kg-aliases { margin: 6px 0; font-size: 12px; }
+  .kg-aliases span {
+    display: inline-block; padding: 1px 6px; margin-right: 4px; margin-bottom: 3px;
+    border-radius: 4px; background: var(--bg2, var(--surface));
+    border: 1px solid var(--border-subtle); font-size: 11px; color: var(--text2);
+  }
+  .kg-subsection { margin-top: 12px; }
+  .kg-subsection-title { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kg-refs-list { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .kg-refs-list div { padding: 3px 0; border-bottom: 1px dashed var(--border-subtle); }
+  .kg-refs-list div:last-child { border-bottom: none; }
+  .kg-neighbors {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px;
+  }
+  .kg-neighbor {
+    padding: 8px 10px; font-size: 12px; cursor: pointer;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    background: var(--surface);
+    display: flex; flex-direction: column; gap: 3px;
+    transition: all 0.12s;
+  }
+  .kg-neighbor:hover { border-color: var(--accent); }
+  .kg-neighbor .n-edge { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+  .kg-neighbor .n-name { color: var(--text-bright); }
+  .kg-neighbor .n-meta { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+  .kg-card-actions { margin-top: 10px; }
+  .kg-card-actions a {
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    text-decoration: none; padding: 4px 8px;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  }
+  .kg-card-actions a:hover { color: var(--accent); border-color: var(--accent); }
+
   .mem-section-card {
     background: var(--surface);
     border: 1px solid var(--border-subtle);
@@ -2382,6 +2457,20 @@
   <!-- Memory Lab Tab -->
   <div id="tab-memory" class="tab-content">
 
+    <!-- Entity Search (KG) -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title"><span class="icon">&#128279;</span> Entity Search (Knowledge Graph)</div>
+        <span class="section-count" id="kgStatsCount">--</span>
+      </div>
+      <div class="mem-search-bar">
+        <input type="text" id="kgSearchInput" placeholder="Search entities by name or alias (e.g. kuro, PPR, SOUL)..." class="mem-search-input">
+        <button id="kgSearchBtn" class="mem-search-btn">Search</button>
+      </div>
+      <div id="kgSearchHits" class="kg-hits"></div>
+      <div id="kgEntityCard"></div>
+    </div>
+
     <!-- Search -->
     <div class="section">
       <div class="section-header">
@@ -2459,6 +2548,7 @@ document.querySelectorAll('.main-tabs .tab-btn').forEach(btn => {
     if (tab === 'memory' && !memoryLabLoaded) {
       memoryLabLoaded = true;
       fetchMemoryLab();
+      kgFetchStats();
     }
   });
 });
@@ -3869,6 +3959,145 @@ document.getElementById('memSearchInput').addEventListener('keydown', function(e
 document.getElementById('memFilesContent').addEventListener('click', function(e) {
   const item = e.target.closest('[data-filepath]');
   if (item) viewMemoryFile(item.dataset.filepath);
+});
+
+// ── KG Entity Search ──
+async function kgFetchStats() {
+  try {
+    const res = await fetch(API + '/api/kg/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById('kgStatsCount');
+    if (el) el.textContent = data.entities + ' entities · ' + data.edges + ' edges';
+  } catch (_) {}
+}
+
+async function kgSearch() {
+  const q = document.getElementById('kgSearchInput').value.trim();
+  const hits = document.getElementById('kgSearchHits');
+  const card = document.getElementById('kgEntityCard');
+  card.innerHTML = '';
+  if (!q) { hits.innerHTML = ''; return; }
+  hits.innerHTML = '<div class="loading"><span>Searching...</span></div>';
+  try {
+    const res = await fetch(API + '/api/kg/entities/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (!data.hits || data.hits.length === 0) {
+      hits.innerHTML = '<div class="empty-state">No entities matched "' + escapeHtml(q) + '"</div>';
+      return;
+    }
+    let html = '';
+    for (const h of data.hits) {
+      const aliases = h.aliases && h.aliases.length ? ' · ' + h.aliases.slice(0, 2).map(escapeHtml).join(', ') : '';
+      html += '<div class="kg-hit" data-id="' + escapeHtml(h.id) + '">';
+      html += '<span class="kg-type">' + escapeHtml(h.type) + '</span>';
+      html += '<span class="kg-name">' + escapeHtml(h.canonical_name) + '</span>';
+      html += '<span class="kg-refs">' + h.reference_count + ' refs' + aliases + '</span>';
+      html += '<span class="kg-match">' + h.match + '</span>';
+      html += '</div>';
+    }
+    hits.innerHTML = html;
+    hits.querySelectorAll('[data-id]').forEach(function(el) {
+      el.addEventListener('click', function() { kgShowCard(el.dataset.id); });
+    });
+  } catch (err) {
+    hits.innerHTML = '<div class="empty-state">Error: ' + escapeHtml(String(err)) + '</div>';
+  }
+}
+
+async function kgShowCard(id) {
+  const card = document.getElementById('kgEntityCard');
+  card.innerHTML = '<div class="loading"><span>Loading entity...</span></div>';
+  try {
+    const res = await fetch(API + '/api/kg/entities/' + encodeURIComponent(id));
+    if (!res.ok) {
+      card.innerHTML = '<div class="empty-state">Entity not found</div>';
+      return;
+    }
+    const e = await res.json();
+    const resolvedType = Array.isArray(e.resolved_type) ? e.resolved_type.join(' + ') : (e.resolved_type || e.type);
+    const confClass = e.resolution_confidence ? ' conf-' + e.resolution_confidence : '';
+
+    let html = '<div class="kg-card">';
+    html += '<div class="kg-card-header">';
+    html += '<div class="kg-card-name">' + escapeHtml(e.canonical_name) + '</div>';
+    html += '<div class="kg-card-id">' + escapeHtml(e.id) + '</div>';
+    html += '</div>';
+
+    html += '<div class="kg-card-badges">';
+    html += '<span class="kg-badge type">' + escapeHtml(resolvedType) + '</span>';
+    if (e.resolution_confidence) {
+      html += '<span class="kg-badge' + confClass + '">conf: ' + escapeHtml(e.resolution_confidence) + '</span>';
+    }
+    if (e.resolution_rule) {
+      html += '<span class="kg-badge rule">rule: ' + escapeHtml(e.resolution_rule) + '</span>';
+    }
+    html += '</div>';
+
+    if (e.alternatives && e.alternatives.length) {
+      html += '<div class="kg-meta">alternatives: ' + e.alternatives.map(escapeHtml).join(' · ') + '</div>';
+    }
+
+    html += '<div class="kg-meta">' + e.reference_count + ' references';
+    if (e.first_seen) html += ' · first_seen ' + escapeHtml((e.first_seen || '').slice(0, 10));
+    if (e.last_referenced) html += ' · last ' + escapeHtml((e.last_referenced || '').slice(0, 10));
+    html += '</div>';
+
+    if (e.aliases && e.aliases.length) {
+      html += '<div class="kg-aliases">';
+      for (const a of e.aliases) html += '<span>' + escapeHtml(a) + '</span>';
+      html += '</div>';
+    }
+
+    if (e.references && e.references.length) {
+      html += '<div class="kg-subsection">';
+      html += '<div class="kg-subsection-title">References</div>';
+      html += '<div class="kg-refs-list">';
+      for (const r of e.references) {
+        const conf = r.confidence !== undefined ? ' (' + r.confidence.toFixed(2) + ')' : '';
+        const span = r.span ? ' — "' + escapeHtml(r.span) + '"' : '';
+        html += '<div>' + escapeHtml(r.chunk_id) + conf + span + '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    if (e.neighbors && e.neighbors.length) {
+      html += '<div class="kg-subsection">';
+      html += '<div class="kg-subsection-title">Neighbors (' + e.neighbors.length + ')</div>';
+      html += '<div class="kg-neighbors">';
+      for (const n of e.neighbors) {
+        const arrow = n.direction === 'out' ? '→' : '←';
+        html += '<div class="kg-neighbor" data-id="' + escapeHtml(n.id) + '">';
+        html += '<div class="n-edge">' + arrow + ' ' + escapeHtml(n.edge_type) + ' · ' + escapeHtml(n.type) + '</div>';
+        html += '<div class="n-name">' + escapeHtml(n.canonical_name) + '</div>';
+        html += '<div class="n-meta">w=' + n.weight.toFixed(2) + ' · conf=' + n.confidence.toFixed(2) + '</div>';
+        html += '</div>';
+      }
+      html += '</div></div>';
+    } else {
+      html += '<div class="kg-meta">No neighbors (weight ≥ 0.3 threshold)</div>';
+    }
+
+    html += '<div class="kg-card-actions">';
+    html += '<a href="/kg-graph" target="_blank" rel="noopener">Open in Knowledge Graph &#8599;</a>';
+    html += '</div>';
+    html += '</div>';
+
+    card.innerHTML = html;
+    card.querySelectorAll('.kg-neighbor[data-id]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        kgShowCard(el.dataset.id);
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  } catch (err) {
+    card.innerHTML = '<div class="empty-state">Error: ' + escapeHtml(String(err)) + '</div>';
+  }
+}
+
+document.getElementById('kgSearchBtn').addEventListener('click', kgSearch);
+document.getElementById('kgSearchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') kgSearch();
 });
 
 // ── Init ──
