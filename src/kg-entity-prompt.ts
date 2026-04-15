@@ -224,11 +224,23 @@ function validateCandidate(
   }
   if (conf < 0.6) return { error: `confidence_below_floor:${conf}` };
 
+  const trimmedName = name.trim();
+  if ((type === 'code-symbol' || type === 'artifact') && isBareFileBasename(trimmedName)) {
+    return { error: `bare_basename_file_path:${trimmedName}` };
+  }
+
   return {
     type: type as EntityType,
-    canonical_name: name.trim(),
+    canonical_name: trimmedName,
     aliases,
     span,
     confidence: conf,
   };
+}
+
+const SOURCE_FILE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|sh|py|rb|go|rs)$/i;
+function isBareFileBasename(name: string): boolean {
+  if (name.includes('/')) return false;
+  if (name.includes('::')) return false;
+  return SOURCE_FILE_EXT.test(name);
 }
