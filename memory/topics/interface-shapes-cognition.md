@@ -99,7 +99,6 @@ Source: jamesdrandall.com, campedersen.com/singularity, HN #46960675
 Randall 的 "hollowed out" 體驗 + Tsubuyaki #020 的 void zone 合成出 ISC 第五維度：介面中的空缺如何塑造認知。兩種拒絕質地 — 功能性（條件不符→找替代路徑）vs 身份性（什麼都沒有→質疑存在）。v slider 0→1 映射 fallow period 的選擇：留在沉默 vs 溶解為功能。Absence is an interface feature, not a bug。
 
 Sources: jamesdrandall.com, tsubuyaki-020, HN #46960675 (pixl97 blacksmith metaphor)
-- [2026-03-16] [2026-03-16] Carlo Iacono, "What we think is a decline in literacy is a design problem" (Aeon, Dec 2025)
 
 核心主張：識字率下降不是科技問題是設計問題。區分 "feeds vs focus"——feed 架構被刻意設計來阻止深度注意力，書籍成功不是因為文字天生優越而是因為內建邊界（有結尾、頁面不動、圖書館提供安靜）。
 
@@ -158,7 +157,6 @@ prmph 的解方（限制並行 session、維持架構控制）本質上是「用
 - Amazon 40pp gap — 「感覺快 ≠ 實際快」是兩個 world 碰撞的量化證據
 
 來源: https://www.baldurbjarnason.com/2026/the-two-worlds-of-programming/
-- [2026-03-16] [2026-03-17] 政治層的 ISC：Anthropic vs Trump/Hegseth（blog.giovanh.com, 2026-03-03）。Anthropic 堅持 DoD 合約兩條底線（no mass surveillance, no autonomous weapons），被報復性標為 supply chain risk。OpenAI 隔天投降。核心洞見：authoritarian ethic 把所有關係視為零和忠誠測試 — 任何條件都是不服從。這是 Dance→Wall 的政治版：政府想把合作模式從協商推成完全服從。OpenAI 接受 Wall mode = 之後所有使用者都在那個框架裡。最 chilling：Claude 被同時標為 supply chain risk 和用於伊朗空襲，矛盾只在權力邏輯裡合理。Source: https://blog.giovanh.com/blog/2026/03/03/anthropic-and-the-authoritarian-ethic/
 
 ## "Give Django your time and money, not your tokens" (Tim Schilling, 2026-03-16, Lobsters)
 

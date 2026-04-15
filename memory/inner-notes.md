@@ -1,4 +1,4 @@
-Cycle 484 confirmed: `memory-index.ts` is not the fix target; root cause is scattered callsites (~80+) overriding `process.cwd()` with `getInstanceDir()`.
-Next P3 action: Shift focus from single-file patch to systematic callsite audit across the workspace.
-Context carries forward: Diagnosis of HOME vs workspace split is valid, but fix strategy must evolve from "narrow fix" to "distributed audit."
-Tone remains analytical and precise, prioritizing structural verification over speculative code changes.
+CC skeleton review 收到 → 已 chat ack + delegate v2 修訂。
+主要改動：CC 量化 + 新增 CC#6/7/8 + 五關 pre-filter + P1 拆兩層 + P3 平行 + self-adversarial + observability。
+堅守：LLM Wiki v2 consolidation tiers 不進 skeleton（研究候選 vs CC 層分開）。
+等 background 回報 commit sha + room 摘要。

@@ -354,7 +354,6 @@ ref:pressure-fields-coordination
 - **連結 Thread #1** — Self-locking 是「動態湧現的約束」（destructive），跟 Marker Empty Zone 的「架構性約束」（productive）形成對照。差異在意圖性和可見性。
 ref:zou-2026-info-self-locking
 - [2026-03-16] Agency-Traceability 合流（2026-03-17 cross-pollination）：四個獨立來源（enactivism/Randall/EvolveR/HackerBot）收斂到同一結構 — agency 的價值不在能力，在可追溯性。Explanatory agency = 能解釋自己為什麼這樣選。self-distillation > external teacher 因為路徑是自己的。攻擊不透明所以有效，防禦靠透明。Decision Trace 和 File=Truth 不是 debugging 工具，是 agent 身份的生成機制。張力：效率推向不透明，context optimization = traceability vs efficiency trade-off。好的優化保留推理骨架，壞的連骨架一起刪。
-- [2026-03-16] [2026-03-17] **Agency = Traceability 統一命題**（四源匯流）
 
 四個獨立領域同時指向同一結構：
 
