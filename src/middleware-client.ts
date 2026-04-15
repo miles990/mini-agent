@@ -127,7 +127,9 @@ export interface WaitOptions {
 
 export type CommitmentStatus = 'active' | 'fulfilled' | 'superseded' | 'cancelled';
 export type CommitmentResolutionKind = 'commit' | 'chat' | 'task-close' | 'supersede' | 'cancel';
-export type CommitmentOwner = 'kuro' | 'cc' | 'alex';
+// free-form string, max 64 chars (server-enforced). Examples: 'kuro', 'cc',
+// 'alex', 'akari', or any external agent/user identifier. See [2026-04-15-279].
+export type CommitmentOwner = string;
 
 export interface CommitmentSource {
   channel: 'room' | 'inner' | 'delegate' | 'user-prompt';
