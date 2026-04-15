@@ -102,6 +102,11 @@ export interface EntityCandidate {
   subtype?: string;
   aliases?: string[];
   meta?: Record<string, unknown>;
+  /** ≤120 chars verbatim phrase from chunk that grounds this entity. Optional — */
+  /** seeded entries (frontmatter, etc.) have no span. */
+  span?: string;
+  /** LLM extraction confidence [0, 1]. Carried into references entry. */
+  confidence?: number;
 }
 
 export interface ResolveResult {
@@ -194,7 +199,11 @@ export function resolveOrCreate(
 
     // Reference tracking — dedupe on chunk_id.
     if (!existing.references.some((r) => r.chunk_id === chunk_id)) {
-      existing.references.push({ chunk_id });
+      existing.references.push({
+        chunk_id,
+        ...(candidate.span ? { span: candidate.span } : {}),
+        ...(typeof candidate.confidence === 'number' ? { confidence: candidate.confidence } : {}),
+      });
       enriched = true;
     }
 
@@ -217,7 +226,11 @@ export function resolveOrCreate(
     aliases,
     first_seen: now,
     last_referenced: now,
-    references: [{ chunk_id }],
+    references: [{
+      chunk_id,
+      ...(candidate.span ? { span: candidate.span } : {}),
+      ...(typeof candidate.confidence === 'number' ? { confidence: candidate.confidence } : {}),
+    }],
     ...(candidate.meta ? { meta: { ...candidate.meta } } : {}),
   };
   insertIntoIndex(reg, rec);

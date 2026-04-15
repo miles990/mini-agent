@@ -87,7 +87,14 @@ export interface EntityRecord {
   aliases: string[];               // frontmatter seed ∪ LLM-extracted (rebuild: frontmatter is truth)
   first_seen: string;              // ISO timestamp
   last_referenced: string;         // ISO timestamp
-  references: Array<{ chunk_id: string }>;
+  references: Array<{
+    chunk_id: string;
+    /** ≤120 chars verbatim phrase from chunk that grounds this entity. Optional — */
+    /** seeded entries (frontmatter, etc.) have no span. */
+    span?: string;
+    /** LLM extraction confidence [0, 1]. Highest seen across references is the entity's quality signal. */
+    confidence?: number;
+  }>;
   meta?: Record<string, unknown>;  // type-specific extras (e.g., code-symbol: { language, kind })
 }
 
