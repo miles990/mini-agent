@@ -180,4 +180,5 @@ export const KG_PATHS = {
   entity_dict: 'memory/index/entity-types.json',
   edge_dict: 'memory/index/edge-types.json',
   links_raw: 'memory/index/links-raw.jsonl',
+  entity_candidates: 'memory/index/entities.candidates.jsonl',  // LLM staging, pre-registry
 } as const;
