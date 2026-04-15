@@ -17,12 +17,17 @@ import { ENTITY_TYPES, type EntityType } from './kg-types.js';
 // =============================================================================
 
 export interface EntityCandidate {
-  kind: EntityType;
-  canonical_name: string;     // preferred surface form (not an id)
+  type: EntityType;            // field name aligned with registry (kg-entity-registry.ts)
+  canonical_name: string;      // preferred surface form (not an id)
   aliases: string[];           // other forms seen in the span
-  source_chunk_id: string;
   span: string;                // ≤120 chars — the exact phrase grounding this entity
   confidence: number;          // [0, 1]
+}
+
+/** JSONL wrapper for entities.candidates.jsonl — one line per chunk. */
+export interface CandidateBatch {
+  chunk_id: string;
+  candidates: EntityCandidate[];
 }
 
 // =============================================================================
@@ -44,15 +49,15 @@ const TYPE_DEFINITIONS: Record<EntityType, string> = {
 const FEW_SHOTS = `Example 1 — concept + project:
 Chunk: "PPR (Personalized PageRank) 是 mini-agent retrieval pipeline 的核心 ranker。"
 Output: [
-  {"kind":"concept","canonical_name":"Personalized PageRank","aliases":["PPR"],"span":"PPR (Personalized PageRank)","confidence":0.95},
-  {"kind":"project","canonical_name":"mini-agent","aliases":[],"span":"mini-agent retrieval pipeline","confidence":0.9}
+  {"type":"concept","canonical_name":"Personalized PageRank","aliases":["PPR"],"span":"PPR (Personalized PageRank)","confidence":0.95},
+  {"type":"project","canonical_name":"mini-agent","aliases":[],"span":"mini-agent retrieval pipeline","confidence":0.9}
 ]
 
 Example 2 — actor + decision:
 Chunk: "Alex 核准 L2 自主授權（2026-02-18）— src/*.ts 自主決定+實作部署，僅 L3 需 Alex 核准。"
 Output: [
-  {"kind":"actor","canonical_name":"Alex","aliases":[],"span":"Alex 核准","confidence":1.0},
-  {"kind":"decision","canonical_name":"L2 autonomous authorization (2026-02-18)","aliases":["L2 自主授權"],"span":"Alex 核准 L2 自主授權（2026-02-18）","confidence":0.9}
+  {"type":"actor","canonical_name":"Alex","aliases":[],"span":"Alex 核准","confidence":1.0},
+  {"type":"decision","canonical_name":"L2 autonomous authorization (2026-02-18)","aliases":["L2 自主授權"],"span":"Alex 核准 L2 自主授權（2026-02-18）","confidence":0.9}
 ]`;
 
 // =============================================================================
@@ -96,7 +101,7 @@ ${chunkBlock}
 OUTPUT FORMAT — one JSON object per chunk id that has ≥1 entity, keyed by chunk id:
 \`\`\`json
 {
-  "<chunk_id>": [{"kind":"...","canonical_name":"...","aliases":[...],"span":"...","confidence":0.0}, ...],
+  "<chunk_id>": [{"type":"...","canonical_name":"...","aliases":[...],"span":"...","confidence":0.0}, ...],
   ...
 }
 \`\`\`
@@ -183,14 +188,14 @@ function extractJsonBlock(s: string): string | null {
 
 function validateCandidate(
   raw: unknown,
-  chunkId: string,
+  _chunkId: string,
 ): EntityCandidate | { error: string } {
   if (!raw || typeof raw !== 'object') return { error: 'not_object' };
   const r = raw as Record<string, unknown>;
 
-  const kind = r.kind;
-  if (typeof kind !== 'string' || !(ENTITY_TYPES as readonly string[]).includes(kind)) {
-    return { error: `invalid_kind:${String(kind)}` };
+  const type = r.type;
+  if (typeof type !== 'string' || !(ENTITY_TYPES as readonly string[]).includes(type)) {
+    return { error: `invalid_type:${String(type)}` };
   }
 
   const name = r.canonical_name;
@@ -212,10 +217,9 @@ function validateCandidate(
   if (conf < 0.6) return { error: `confidence_below_floor:${conf}` };
 
   return {
-    kind: kind as EntityType,
+    type: type as EntityType,
     canonical_name: name.trim(),
     aliases,
-    source_chunk_id: chunkId,
     span,
     confidence: conf,
   };
