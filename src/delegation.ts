@@ -98,6 +98,60 @@ const BROWSER_ROUTING_KEYWORDS = [
 // TTL controlled by FORGE_SLOT_TTL_MINUTES env var in forge-lite.sh (default: 60min)
 
 // =============================================================================
+// Commitment Bridge (P1-d, proposal v2 §5)
+// Maps delegation lifecycle (start/complete/fail) → middleware /commit ledger.
+// Fire-and-forget: never blocks delegation flow on middleware availability.
+// =============================================================================
+
+const commitmentBridge = new Map<string, Promise<string | null>>();
+
+function commitmentStart(taskId: string, taskType: string, prompt: string): void {
+  const promise = (async (): Promise<string | null> => {
+    try {
+      const { middleware } = await import('./middleware-client.js');
+      const cycleId = process.env.KURO_CYCLE_ID;
+      const res = await middleware().createCommitment({
+        owner: 'kuro',
+        source: {
+          channel: 'delegate',
+          message_id: taskId,
+          ...(cycleId ? { cycle_id: cycleId } : {}),
+        },
+        text: prompt.slice(0, 500),
+        parsed: { action: `delegate:${taskType}` },
+        acceptance: `delegate ${taskType} produces verified output`,
+        linked_task_id: taskId,
+      });
+      return res.id;
+    } catch (err) {
+      slog('DELEGATION', `commitment create skipped (${taskId}): ${(err as Error).message?.split('\n')[0] ?? err}`);
+      return null;
+    }
+  })();
+  commitmentBridge.set(taskId, promise);
+  void promise.catch(() => {});
+}
+
+function commitmentClose(taskId: string, status: string, evidence: string): void {
+  const promise = commitmentBridge.get(taskId);
+  if (!promise) return;
+  commitmentBridge.delete(taskId);
+  void (async () => {
+    try {
+      const id = await promise;
+      if (!id) return;
+      const { middleware } = await import('./middleware-client.js');
+      await middleware().resolveCommitment(id, {
+        kind: 'task-close',
+        evidence: `delegate ${status}: ${evidence.slice(0, 300)}`,
+      });
+    } catch (err) {
+      slog('DELEGATION', `commitment resolve skipped (${taskId}): ${(err as Error).message?.split('\n')[0] ?? err}`);
+    }
+  })();
+}
+
+// =============================================================================
 // Delegation State Persistence (survives restart)
 // =============================================================================
 
@@ -620,6 +674,8 @@ export function spawnDelegation(task: DelegationTask): string {
     summary: `started ${taskType}: ${task.prompt.slice(0, 120)}`,
     tags: ['started'],
   });
+
+  commitmentStart(taskId, taskType, task.prompt);
 
   return taskId;
 }
@@ -1169,6 +1225,7 @@ function startTask(task: DelegationTask): void {
         tags: [result.status],
         duration: result.duration,
       });
+      commitmentClose(taskId, result.status, extractDelegationSummary(result.output, 200));
     } catch (err) {
       slog('DELEGATION', `Close handler error ${taskId}: ${err}`);
       if (result.status === 'running') result.status = 'failed';
@@ -1206,6 +1263,7 @@ function startTask(task: DelegationTask): void {
       tags: ['failed'],
       duration: result.duration,
     });
+    commitmentClose(taskId, 'failed', err.message);
 
     dequeueNext();
   });
