@@ -177,4 +177,7 @@ export const KG_PATHS = {
   chunks: 'memory/index/chunks.jsonl',
   conflicts: 'memory/index/conflicts.jsonl',
   manifest: 'memory/index/manifest.json',
+  entity_dict: 'memory/index/entity-types.json',
+  edge_dict: 'memory/index/edge-types.json',
+  links_raw: 'memory/index/links-raw.jsonl',
 } as const;
