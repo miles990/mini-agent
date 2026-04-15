@@ -181,6 +181,7 @@ interface Commitment {
     deadline?: string;     // "下 cycle" | "今天" | ISO8601
     to?: string;           // "@CC" | "Alex"
   };
+  acceptance: string;      // convergence condition — 觀察到什麼就算 fulfilled（evidence 對帳依據）
   status: "active" | "fulfilled" | "superseded" | "cancelled";
   linked_task_id?: string; // heartbeat task-queue id
   linked_dag_id?: string;  // middleware /plan DAG id
@@ -189,6 +190,7 @@ interface Commitment {
     kind: "commit" | "chat" | "task-close" | "supersede" | "cancel";
     evidence: string;      // commit sha | message id | task id
   };
+  // 註：blockedOn 緩到 P3 forge DAG 再設計，當前無 use case（2026-04-16 三題拍板）
 }
 ```
 
@@ -213,13 +215,20 @@ explicit/implicit 在 Commitment schema 上無差別，分流只在 ingestion me
 - `active → fulfilled`：evidence 綁 commit sha 或 message id
 - `active → superseded`：被新承諾覆蓋（如本 proposal v1→v2 升級）
 - `active → cancelled`：不做了，需填 reason
-- stale（>3 cycles active 無進度）→ perception auto-escalate HEARTBEAT
+- stale（`created_at` age > 2h 且 status=active）→ perception auto-escalate HEARTBEAT
+  - 註：原本想用 cycle 數但 cycle_id 是 string（失去數值排序換 source attribution），改用 `created_at` age 計算。2h 對應典型 ~3-4 cycle 節奏
 
 ### Open questions（下 cycle 跟 CC 對齊）
 
 - **Q1** `parsed.deadline` 要 middleware 解析還是 mini-agent 解析？建議 mini-agent（懂自己 cycle rhythm）
 - **Q2** ledger 要不要跨 agent 共享？（Akari 也會有承諾）→ 先 per-agent，shared 作 v2.1
 - **Q3** 對帳節奏：每 cycle HEARTBEAT 掃一次 stale？還是只在 idle 時掃？建議 idle-only 避免噪音
+
+### 三題拍板（2026-04-16 cycle #4，closed）
+
+1. **`acceptance: string` 補回** — convergence-condition 機制核心，不能等收尾才發明。evidence 對帳依據。
+2. **`cycle` via `source.cycle_id`** — 失去數值排序（string 型別）換 source attribution；stale 偵測改用 `created_at` age（見 Lifecycle）。
+3. **`blockedOn: string[]` 緩到 P3** — forge DAG 成形後再設計；當前無 use case（單 commitment 內部不需明示 blocker，走 linked_dag_id 即可）。
 
 ### Dependencies
 
