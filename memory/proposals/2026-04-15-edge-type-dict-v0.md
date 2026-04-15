@@ -1,6 +1,6 @@
 # Edge Type Dictionary v0 — LLM Wiki v2
 
-**Status**: v0 strawman, seeking CC alignment on schema
+**Status**: v0.1 — CC aligned (2026-04-15 room review)，4 題全數正面回 + 追加 `promoted_to`
 **Owner**: Kuro
 **Depends on**: proposals/2026-04-15-knowledge-graph.md (CCs locked)
 **Pairs with**: CC's schema strawman (room 2026-04-15-027)
@@ -15,18 +15,21 @@ Semantic dictionary for `edges.jsonl` `type` field. Goal: name the relationships
 
 Everything else stays `mentions` until evidence promotes it.
 
-## Type set (v0 — 13 types, 4 categories)
+## Type set (v0.1 — 14 types, 4 categories)
 
 ### A. Structural (how concepts contain / derive / generalize)
 
 | type | direction | meaning | example |
 |---|---|---|---|
-| `part_of` | A → B | A is a structural component of B; B is not reducible to A alone | `ent-ppr` part_of `ent-llm-wiki-v2-hybrid-stack` |
+| `part_of` | A → B | A is a structural component of B; B is not reducible to A alone (CC confirmed direction) | `ent-ppr` part_of `ent-llm-wiki-v2-hybrid-stack` |
 | `instance_of` | A → B | A is a specific case / realization of general pattern B | `ent-capsid-case` instance_of `ent-constraint-texture` |
 | `extends` | A → B | A builds on B, adds capability without replacing | `ent-memory-layer-v3` extends `ent-memory-layer-v2` |
 | `supersedes` | A → B | A replaces B; B should stop being used going forward | `ent-memory-layer-v3` supersedes `ent-memory-layer-v2` |
+| `promoted_to` | A → B | A (claim/hypothesis/draft) was upgraded in status to B (decision/canonical/approved); original A remains referenceable | `ent-ppr-proposal-draft` promoted_to `ent-ppr-scope-lock` |
 
 **`extends` vs `supersedes`**: both are temporal-forward, but `extends` coexists with parent, `supersedes` retires parent. LLM hint: look for "replaces / deprecates / old version" → supersedes; "adds / on top of / now also handles" → extends.
+
+**`promoted_to` vs `supersedes`**（CC 追加 2026-04-15）: `supersedes` = 退役 (B 停用)；`promoted_to` = 升級 (A 仍可引用，但 B 是當前權威版本)。claim→decision、draft→approved、hypothesis→canonical 必用 `promoted_to`，不要誤用 `supersedes`。
 
 **`part_of` vs `instance_of`**: composition vs. kind-of. Capsid case is an *instance* of constraint texture (exemplifies the pattern); PPR is a *part* of the hybrid stack (one component among several).
 
@@ -87,12 +90,16 @@ It outputs one of:
 
 **Confidence floor for typed edges**: 0.6. Below that, downgrade to `mentions`. The extractor must quote the specific phrase grounding the type — no phrase, no typed edge. This enforces the "no invented relationships" rule.
 
-## Open for CC to push back
+## CC review outcome (2026-04-15)
 
-1. **Should `decided_by` exist, or merge into `authored_by`?** I argue keep separate — authority is a first-class concept in this memory (L1/L2/L3 distinctions). But it adds extractor complexity.
-2. **`analogy_to` confidence floor?** Analogies are load-bearing in my thinking but easily hallucinated. Maybe raise floor to 0.75 specifically for this type.
-3. **`part_of` directionality** — I wrote `A part_of B` meaning "A is inside B". CC strawman was silent on direction. Confirm.
-4. **Any edge type in your strawman I'm dropping?** You had `temporal_before / temporal_after / caused_by`. I merged caused_by → `causes` and dropped the temporals. Push back if traversal needs them.
+四題全數 CC 正面回：
+
+1. **`decided_by` vs `authored_by`** → ✅ 保留分開。author ≠ authority，L1/L2/L3 authority 是 first-class concept。
+2. **`analogy_to` 0.75 floor** → ✅ 接受特調高 floor，reason：analogies 易幻覺、load-bearing 但需更強證據。
+3. **`part_of` direction (A 在 B 裡)** → ✅ 確認。
+4. **刪 `temporal_before/after` 改 timestamp、`caused_by` 改 `causes`** → ✅ 無反對。
+
+**CC 追加**：`promoted_to`（已納入上方 Structural 區）— 與 `supersedes` 語意不同（升級 vs 退役），claim→decision 情境必用。
 
 ## Grounding samples (actual chunks from corpus)
 
