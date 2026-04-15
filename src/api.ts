@@ -44,6 +44,7 @@ import { findComposeFile, readComposeFile } from './compose.js';
 import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, getMemoryStateDir } from './memory.js';
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats } from './kg-entity-search.js';
+import { getIngestStats as kgGetIngestStats } from './kg-live-ingest.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -2327,6 +2328,14 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/kg/stats', (_req: Request, res: Response) => {
     try {
       res.json(getKgStats());
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/kg/ingest-stats', (_req: Request, res: Response) => {
+    try {
+      res.json(kgGetIngestStats());
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

@@ -16,9 +16,8 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
-  DEFAULT_EDGE_FLOOR,
-  EDGE_TYPES,
-  EDGE_TYPE_FLOORS,
+  edgeTypeFloor,
+  isValidEdgeType,
   KG_PATHS,
   type EdgeRecord,
   type EdgeType,
@@ -60,7 +59,7 @@ export interface BuildEdgesResult {
 // ─── Floor lookup ───
 
 function floorFor(type: EdgeType): number {
-  return EDGE_TYPE_FLOORS[type] ?? DEFAULT_EDGE_FLOOR;
+  return edgeTypeFloor(type);
 }
 
 // ─── Resolution (read-only against registry) ───
@@ -82,7 +81,7 @@ function isValid(c: EdgeCandidate): boolean {
   if (!c.from || !c.to || !c.type) return false;
   if (typeof c.confidence !== 'number') return false;
   if (c.confidence < 0 || c.confidence > 1) return false;
-  if (!EDGE_TYPES.includes(c.type)) return false;
+  if (!isValidEdgeType(c.type)) return false;
   if (!c.evidence_chunk_id) return false;
   return true;
 }

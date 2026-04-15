@@ -851,6 +851,15 @@ export class InstanceMemory {
 
       await fs.writeFile(memoryPath, updated, 'utf-8');
     });
+
+    void import('./kg-live-ingest.js').then((m) =>
+      m.onMemoryWrite({
+        source: 'memory-md',
+        file: memoryPath,
+        bytes: Buffer.byteLength(content, 'utf8'),
+        preview: content,
+      }),
+    ).catch(() => {});
   }
 
   /**
@@ -884,6 +893,16 @@ export class InstanceMemory {
     });
 
     invalidateTopicKeywordCache();
+
+    void import('./kg-live-ingest.js').then((m) =>
+      m.onMemoryWrite({
+        source: 'topic',
+        file: topicPath,
+        topic,
+        bytes: Buffer.byteLength(content, 'utf8'),
+        preview: content,
+      }),
+    ).catch(() => {});
   }
 
   // =========================================================================

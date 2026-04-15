@@ -74,6 +74,28 @@ export const REJECTED_EDGES = [
   { type: 'used_by', reason: 'collapses dependency / activation / domain-match' },
 ] as const;
 
+const REJECTED_EDGE_TYPE_SET = new Set<string>(REJECTED_EDGES.map((r) => r.type));
+
+/** Type guard — is this string a current edge type? */
+export function isValidEdgeType(t: string): t is EdgeType {
+  return (EDGE_TYPES as readonly string[]).includes(t);
+}
+
+/** Type guard — is this string a current entity type? */
+export function isValidEntityType(t: string): t is EntityType {
+  return (ENTITY_TYPES as readonly string[]).includes(t);
+}
+
+/** Known rejected types — used to log deprecation pressure separately from unknown types. */
+export function isRejectedEdgeType(t: string): boolean {
+  return REJECTED_EDGE_TYPE_SET.has(t);
+}
+
+/** Confidence floor for a given edge type, honoring per-type overrides. */
+export function edgeTypeFloor(t: EdgeType): number {
+  return EDGE_TYPE_FLOORS[t] ?? DEFAULT_EDGE_FLOOR;
+}
+
 // =============================================================================
 // File schemas (memory/index/*.jsonl)
 // =============================================================================
