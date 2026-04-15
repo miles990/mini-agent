@@ -15,6 +15,15 @@
  *     middleware-assigned id; caller must treat taskId as opaque.
  *   - tools / maxTurns / provider — not on DispatchRequest yet; middleware
  *     worker registry is expected to own capability defaults server-side.
+ *
+ * 2026-04-16 cutover-direction note (post W1 verification, cycle #146):
+ *   CC verified per-node `cwd` injection on `POST /plan` (planId plan-177628...,
+ *   step completed 12ms). `/dispatch` path's server-side `cwd` wiring is not
+ *   independently verified yet. At cutover, route single-delegate via a
+ *   1-step plan (goal=task.prompt, steps=[{worker,task,cwd,dependsOn:[]}]) so
+ *   we inherit the verified injection path + DAG-native forge integration.
+ *   `convertAndDispatch` below stays on `/dispatch` for now to keep the K2
+ *   contract narrow; cutover cycle re-targets to `client.plan()`.
  */
 
 import { createMiddlewareClient, type DispatchRequest } from './middleware-client.js';

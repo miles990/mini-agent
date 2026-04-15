@@ -135,35 +135,47 @@ Kuro 說「我下 cycle 做 X」
 
 ## §5 Commitments Ledger — API & Schema
 
-### 5.1 資料模型
+### 5.1 資料模型（live — 跟 agent-middleware `src/commitment-ledger.ts` @38cf34c 一致）
 
 ```typescript
-type CommitmentStatus = 'open' | 'resolved' | 'cancelled' | 'expired';
+type CommitmentStatus = 'active' | 'fulfilled' | 'superseded' | 'cancelled';
+type CommitmentResolutionKind = 'commit' | 'chat' | 'task-close' | 'supersede' | 'cancel';
 
 interface Commitment {
-  id: string;              // `cmt_${yyyymmdd}_${nanoid(6)}`
-  createdAt: string;       // ISO8601
-  cycle: number;           // mini-agent cycle number at creation
-  owner: 'kuro' | 'cc' | 'alex';
+  id: string;
+  created_at: string;
   source: {
-    channel: 'room' | 'inner' | 'delegate' | 'user-prompt';  // 粗粒度 4 值
-    subtype?: string;      // 例: 'forge-spawn' | 'sibling-handoff'
-    messageRef?: string;   // room/jsonl 訊息 ID 或 hash
+    channel: 'room' | 'inner' | 'delegate' | 'user-prompt';
+    message_id?: string;
+    cycle_id?: string;
   };
-  action: string;          // 短描述「下 cycle 寫 P3 spec」
-  acceptance: string;      // 驗收條件「memory/topics/llm-wiki-v2-proposal.md exists + committed」
-  blockedOn: string[];     // 其他 commitment id 或外部 token
-  dueBy?: string;          // ISO8601；缺則無 deadline
+  text: string;            // 原始承諾句（保留 raw — v1 §5 漏了這個）
+  parsed: {
+    action: string;
+    deadline?: string;
+    to?: string;
+  };
   status: CommitmentStatus;
-  resolvedAt?: string;
+  linked_task_id?: string;
+  linked_dag_id?: string;
+  resolved_at?: string;
   resolution?: {
-    kind: 'task-close' | 'superseded' | 'dropped' | 'expired';
-    evidence: string;      // 'exit:0' | 'exit:143' | 'cancelled' | 'timeout' | commit sha | free-text
-    sha?: string;          // 若有 git commit 關聯
-    note?: string;
+    kind: CommitmentResolutionKind;
+    evidence: string;
   };
 }
 ```
+
+**V1 → shipped 差異**（2026-04-16 對齊 W3 commit）：
+- `status` 枚舉改 `active/fulfilled/superseded/cancelled`（原 `open/resolved/...`）
+- 加 `text`（raw 承諾句）+ `parsed` 子物件（action/deadline/to）— 原本是 flat；raw 保留讓 downstream 可重新 parse
+- 欄位命名 snake_case（原 camelCase）
+- **dropped fields**（未進 live schema，需下 cycle 決定是補回或永久砍）：
+  - `cycle: number`（mini-agent cycle 數） — 用 `source.cycle_id` 字串替代，但失去數值可排序
+  - `owner`（kuro/cc/alex） — 多 agent 共用 ledger 時無法 filter，**建議補回**
+  - `acceptance: string`（驗收條件） — 最關鍵欄位、verify 語意被弱化成 `resolution.evidence`，**建議補回或明確棄用**
+  - `blockedOn: string[]` — commitment-to-commitment 依賴現在無法表達
+- `resolution.kind` 改 enum `commit/chat/task-close/supersede/cancel`（原 `task-close/superseded/dropped/expired`）— 增 commit/chat 是對的，但 `expired` 語意丟了
 
 ### 5.2 API Endpoints
 
