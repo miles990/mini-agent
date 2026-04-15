@@ -32,6 +32,9 @@ export interface DispatchRequest {
   timeoutSeconds?: number;
   callbackUrl?: string;
   callbackFrom?: string;
+  // cwd: working dir for subprocess. mini-agent allocates forge worktree for
+  // `code` worker and passes path; middleware spawns in that cwd.
+  cwd?: string;
 }
 
 export interface DispatchResponse {
