@@ -58,6 +58,13 @@ Chunk: "Alex 核准 L2 自主授權（2026-02-18）— src/*.ts 自主決定+實
 Output: [
   {"type":"actor","canonical_name":"Alex","aliases":[],"span":"Alex 核准","confidence":1.0},
   {"type":"decision","canonical_name":"L2 autonomous authorization (2026-02-18)","aliases":["L2 自主授權"],"span":"Alex 核准 L2 自主授權（2026-02-18）","confidence":0.9}
+]
+
+Example 3 — code-symbol with repo-relative path normalization:
+Chunk: "loop.ts 的 rebuildContext 邏輯在 L2 超時重試時觸發（參考 src/loop.ts:412）。"
+Output: [
+  {"type":"code-symbol","canonical_name":"src/loop.ts","aliases":["loop.ts"],"span":"loop.ts 的 rebuildContext","confidence":0.9},
+  {"type":"code-symbol","canonical_name":"src/loop.ts::rebuildContext","aliases":["rebuildContext"],"span":"loop.ts 的 rebuildContext 邏輯","confidence":0.85}
 ]`;
 
 // =============================================================================
@@ -88,6 +95,7 @@ RULES:
 4. If unsure between two kinds, pick the more specific one. If still unsure, skip.
 5. canonical_name = the most complete form in the chunk; aliases = other surface forms.
 6. confidence: 0.95+ for proper nouns, 0.7-0.9 for contextually-defined terms, <0.6 → skip.
+7. File paths (artifact / code-symbol): canonical_name MUST be the repo-relative path from the mini-agent root (e.g. "src/loop.ts", "scripts/kg-extract-entities.ts", "memory/topics/source.md"). If the chunk only shows the basename ("loop.ts"), put the basename in aliases and infer the repo-relative canonical from context. For functions/classes inside a file, use "<repo-relative-path>::<symbol>" (e.g. "src/loop.ts::rebuildContext"). Bare basenames without a path prefix are NEVER a valid canonical_name for files.
 
 ${FEW_SHOTS}
 
