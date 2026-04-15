@@ -102,7 +102,6 @@ agents:
         - name: middleware
           script: ./plugins/middleware.sh
           interval: "5m"
-          enabled: false
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
