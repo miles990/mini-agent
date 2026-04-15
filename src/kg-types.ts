@@ -196,4 +196,6 @@ export const KG_PATHS = {
   edge_dict: 'memory/index/edge-types.json',
   links_raw: 'memory/index/links-raw.jsonl',
   entity_candidates: 'memory/index/entities.candidates.jsonl',  // LLM staging, pre-registry
+  edge_candidates: 'memory/index/edges.candidates.jsonl',       // LLM staging, pre-builder
+  chunk_entity_index: 'memory/index/chunk-entity-index.jsonl',  // derived index
 } as const;
