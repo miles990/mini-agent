@@ -67,7 +67,8 @@ import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
-import { forgeStatus, killAllDelegations } from './delegation.js';
+import { killAllDelegations } from './delegation.js';
+import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry } from './memory-index.js';
 
 // =============================================================================

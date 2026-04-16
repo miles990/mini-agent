@@ -84,7 +84,8 @@ import {
   hesitate, applyHesitation, loadErrorPatterns, saveHeldTags,
   drainHeldTags, buildHeldTagsPrompt, logHesitation, recordPatternHits,
 } from './hesitation.js';
-import { cleanupTasks as cleanupDelegations, spawnDelegation, recoverStaleDelegations, watchdogDelegations, forgeRecover } from './delegation.js';
+import { cleanupTasks as cleanupDelegations, spawnDelegation } from './delegation.js';
+import { forgeRecover } from './forge.js';
 import { cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
 import { detectCitations } from './nutrient-router.js';
@@ -996,8 +997,6 @@ export class AgentLoop {
 
     // Recover forge worktree state (clean up crash state, prune stale worktrees)
     try { forgeRecover(process.cwd()); } catch { /* fire-and-forget */ }
-    // Recover stale delegations from previous instance (kill orphans, release forge slots)
-    try { recoverStaleDelegations(); } catch { /* fire-and-forget */ }
 
     // Achievement system: retroactive unlock on first boot
     import('./achievements.js').then(m => m.retroactiveUnlock()).catch(() => {});
@@ -2766,9 +2765,8 @@ export class AgentLoop {
         import('./myelin-fleet.js').then(({ maybeDistill }) => maybeDistill()).catch(() => {});
       } catch { /* fire-and-forget */ }
 
-      // Delegation cleanup — remove completed tasks >24h + kill stuck tasks（fire-and-forget）
+      // Delegation cleanup — remove completed tasks >24h（fire-and-forget）
       try { cleanupDelegations(); } catch { /* fire-and-forget */ }
-      try { watchdogDelegations(); } catch { /* fire-and-forget */ }
 
       // Route tracking — record full cycle path for slime mold optimization (fire-and-forget)
       try {
