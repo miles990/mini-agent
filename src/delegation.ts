@@ -121,6 +121,10 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { timeoutMs: number }> = {
 // Task types that don't need dependency installation (pure docs/review work)
 const NO_INSTALL_TYPES: Set<DelegationTaskType> = new Set(['create', 'review', 'learn', 'research', 'plan', 'debug']);
 
+// P1-d edit-layer gate. Set KURO_P1D_EDIT_LAYER=1 to enable convertAndDispatchAsPlan.
+// v2-final spec targets a full cutover (no flag), but this env guard allows graduated rollout.
+const EDIT_LAYER_ENABLED = process.env.KURO_P1D_EDIT_LAYER === '1';
+
 // =============================================================================
 // Forge (§Q2: slot management stays mini-agent-side)
 // =============================================================================
@@ -421,17 +425,21 @@ async function dispatchAndPoll(
   const { result, task } = entry;
   const taskId = result.id;
 
-  const step: PlanStepSpec = {
-    id: taskId,
-    worker,
-    label: task.prompt.slice(0, 80),
-    task: task.prompt,
-    dependsOn: [],
-    timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)),
-  };
-  // middleware api.ts accepts per-step `cwd` even though the typed client shape
-  // omits it — we pass it through the underlying request body.
-  (step as PlanStepSpec & { cwd?: string }).cwd = cwd;
+  // P1-d: when edit-layer is enabled, convertAndDispatchAsPlan enriches the prompt
+  // with sibling-awareness context. When disabled, the existing literal is used unchanged.
+  const step: PlanStepSpec & { cwd?: string } = EDIT_LAYER_ENABLED
+    ? convertAndDispatchAsPlan(task, taskId, worker, timeoutMs, cwd)
+    : {
+        id: taskId,
+        worker,
+        label: task.prompt.slice(0, 80),
+        task: task.prompt,
+        dependsOn: [],
+        timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)),
+        // middleware api.ts accepts per-step `cwd` even though the typed client
+        // shape omits it — we pass it through the underlying request body.
+        cwd,
+      };
 
   const planResp = await middleware().plan({
     goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
@@ -544,6 +552,47 @@ function finalizeTask(
 
   activeTasks.delete(result.id);
   completedTasks.set(result.id, result);
+}
+
+// =============================================================================
+// P1-d edit-layer (§Q4): convert DelegationTask → PlanStepSpec
+// =============================================================================
+
+/**
+ * Convert a DelegationTask into the canonical PlanStepSpec that middleware
+ * expects, applying edit-layer policy:
+ *
+ *  - Timeout is already resolved by the caller (spawnDelegation) via TYPE_DEFAULTS;
+ *    we just forward `timeoutMs` as `timeoutSeconds`.
+ *  - Sibling awareness: if there are recent completed delegations, their summary
+ *    is appended to the prompt so the sub-agent can avoid redundant work and
+ *    coordinate with peers (draft line 116).
+ *
+ * Exported for unit-testing; not part of the stable external API surface.
+ */
+export function convertAndDispatchAsPlan(
+  task: DelegationTask,
+  taskId: string,
+  worker: string,
+  timeoutMs: number,
+  cwd: string,
+): PlanStepSpec & { cwd?: string } {
+  // Inject sibling awareness into the prompt (last-hour window, capped at 400 chars).
+  let prompt = task.prompt;
+  const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
+  if (siblingContext) {
+    prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
+  }
+
+  return {
+    id: taskId,
+    worker,
+    label: task.prompt.slice(0, 80), // label always uses original prompt (unaugmented)
+    task: prompt,
+    dependsOn: [],
+    timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)),
+    cwd,
+  };
 }
 
 // =============================================================================
