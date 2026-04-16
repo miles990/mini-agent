@@ -3,6 +3,8 @@ related: [design-philosophy, interface-shapes-cognition, fragile-constraints, is
 ---
 # constraint-theory
 
+- [2026-04-17] **Liu et al. "AI Assistance Reduces Persistence" (ArXiv 2604.04721, N=1,222) — Constraint Texture 的 RCT 級實證。** 同一個 AI 介面，direct-answer users（prescription：不理解也完成）d = -0.36；hint users（CC：必須自己想）無顯著差異。這是 CT 區分的因果實驗驗證，不只是觀察性案例。詳見 fragile-constraints.md ref:liu-ai-persistence-rct-2026
+
 - [2026-04-12] **Surelock: Deadlock-Free Mutexes — 型別系統作為 Constraint Placement 的第四案例** (brooklynzelenka.com, 2026-04, HN 166pts)
 
 Brooklyn Zelenka 的 Rust 函式庫，用型別系統在編譯期消滅死鎖。核心機制：`MutexKey` 是 move-only linear type token，每次 `lock()` 消耗舊 key 產生攜帶新型別資訊的 key，編譯器追蹤 lock acquisition graph。Lock ordering 分兩層：`Level<N>` trait bound 保證跨層級嚴格升序，`LockSet` 用 runtime `LockId`（atomic counter）對同層級 lock 做確定性排序。結果：「If your code compiles, it doesn't deadlock.」

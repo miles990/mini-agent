@@ -81,6 +81,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'mushi-dedup',      group: 'housekeeping', description: 'mushi dedup — HC1 checks near-duplicate REMEMBER before writing' },
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
   { name: 'kg-live-ingest', group: 'housekeeping', description: 'KG live ingest — observe memory writes + log to live-ingest-log.jsonl (Path B)', defaultEnabled: true },
+  { name: 'kg-retrieval-augment', group: 'housekeeping', description: 'KG retrieval augmentation — expand FTS5 search with 1-hop entity neighbors (Path A)', defaultEnabled: false },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

@@ -60,6 +60,7 @@ import { sanitizeExternalContent } from './tag-parser.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
+import { kgExpandQuery } from './kg-retrieval.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 
@@ -1833,6 +1834,25 @@ export class InstanceMemory {
 
     // Try FTS5 first
     const ftsResults = searchMemoryFTS(trimmed, maxResults);
+
+    // KG retrieval augmentation (Path A): expand with 1-hop entity neighbors
+    if (ftsResults.length > 0 && ftsResults.length < maxResults) {
+      const kgTerms = kgExpandQuery(trimmed, this.memoryDir);
+      if (kgTerms.length > 0) {
+        const kgQuery = kgTerms.join(' ');
+        const kgResults = searchMemoryFTS(kgQuery, maxResults - ftsResults.length);
+        // Dedup by content prefix
+        const seen = new Set(ftsResults.map(r => r.content.slice(0, 80)));
+        for (const kr of kgResults) {
+          if (!seen.has(kr.content.slice(0, 80))) {
+            ftsResults.push(kr);
+            seen.add(kr.content.slice(0, 80));
+            if (ftsResults.length >= maxResults) break;
+          }
+        }
+      }
+    }
+
     if (ftsResults.length > 0) {
       return ftsResults;
     }

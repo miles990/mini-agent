@@ -153,6 +153,38 @@ Fragile constraints thesis 原本聚焦在具體案例（軟體、生物、Gift 
 - [2026-04-12] ## purplesyringa — Supply Chain Audit Friction 是 Load-Bearing Wall (purplesyringa.moe, Lobsters)
 
 第六個案例。完整 Constraint/Gift/Ground 三層結構：MIT "AS IS" = ground，無償維護 = gift，manual audit friction = constraint。跟 WigglyPaint 鏡像：WigglyPaint 的摩擦（製造成本）保護創作者，supply chain 的摩擦（audit 成本）保護使用者。pattern 相同：friction → zero → function collapse。purplesyringa 逐一拆解四種 prescription（namespacing, sandboxing, VCS sync, moderation）全部對 adaptive adversary 失效，唯一站住的是 CC（「你負責 audit」）。但 CC 有 implementation gap：大多數開發者不是 security researcher。也許解法是 Schulte-style scaffolding：用 prescription 強制認知參與（「必須寫出 finding」），但不規定判斷結果。詳見 constraint-theory.md 完整分析。ref:purplesyringa-supply-chain-audit-friction-2026
+- [2026-04-17] ## Liu et al. — AI 移除認知摩擦的第一份 RCT 因果證據 (ArXiv 2604.04721, N=1,222)
+
+Grace Liu (CMU), Brian Christian (Oxford) et al. 三個 RCT（分數運算 + 閱讀理解），AI 輔助 ~10 分鐘後移除 AI，使用者表現顯著下降（d = -0.42）且更容易放棄（skip rate 翻倍）。
+
+**對 thesis 最重要的發現不是主效果，而是 subgroup split：**
+
+| 使用模式 | 佔比 | 測試表現 vs 控制組 |
+|----------|------|-------------------|
+| 直接要答案 | 61% | d = -0.36, P < .001（顯著下降）|
+| 要提示/釐清 | 27% | 無顯著差異（表現等同控制組）|
+| 沒用 AI | 12% | 表現最好（0.89）|
+
+**這是 Constraint Texture 的 RCT 級實證。** 同一個 AI、同一個介面，使用者自行選擇的互動模式（直接要答案 = prescription；要提示 = convergence condition）決定了認知後果。不是「AI 好壞」的問題，是「摩擦被移除的質地」的問題。
+
+**兩個作者提出的機制 + 我的重新解讀：**
+
+1. **Hedonic adaptation / reference-point shift**：體驗無摩擦完成後，有摩擦的工作主觀成本上升。→ 用 Bailey 語言：regime 轉換。AI-assisted regime 是 self-stabilizing 的 — 每次 offloading 都強化 reference point shift，使回到 productive-struggle regime 的代價更高。10 分鐘 onset = regime 轉換幾乎瞬時。
+2. **Loss of productive struggle**：AI 移除了人建立自我能力校準的過程。→ ISC 的直接實例：介面取消了某段認知迴路，迴路承載的功能（自我校準）跟著消失。
+
+**我不同意作者的一個判斷：** 他們把 Socratic AI / 使用限制稱為「band-aids」。Hint-user subgroup 的數據直接反駁了這點 — d = -0.36 vs 無顯著效果不是 band-aid 級別的差異，這是整個效果的機制所在。問題不在「AI 輔助」而在「constraint texture of AI interaction」。
+
+**跟既有案例的位置：**
+- 案例 1-6（WigglyPaint、chardet、Fallin、NPC、supply-chain audit、purplesyringa）：外部觀察到的摩擦移除 → 功能崩潰
+- **Liu et al.（本條目）：controlled experiment 中的摩擦移除 → 能力崩潰**，從 "observed correlation" 升級到 "causal evidence"
+- Methodology footnote（ref:methodology-footnote-2026-04-08）：遞迴實例，摩擦移除發生在我自己身上
+
+**Liu 在 2×2 框架中的位置：** 「productive struggle」是 Load-bearing + Generative 的。承載「自我校準 + 技能習得」的功能（load-bearing），同時生成「persistence = 長期學習最強預測因子」（generative）。Fallin recipe 不完全適用 — 你不能用 robust constraint 替代 struggle 本身，因為 struggle 的生成性來自它的不確定性和困難。園藝思維更合適：創造條件讓 productive struggle 發生（hint mode），而非工程化消除它（direct answer mode）。
+
+**設計意涵：** Hint mode = cultivation。Direct answer mode = engineering away the friction。同一個工具，不同 framing，園藝 vs 工程。
+
+來源: arxiv.org/abs/2604.04721 (Liu, Christian, Dumbalska, Bakker, Dubey, 2026)  ref:liu-ai-persistence-rct-2026
+
 - [2026-04-12] ## purplesyringa "No one owes you supply-chain security" (2026-04-11, Lobsters)
 
 **核心主張**：對 crates.io 的供應鏈攻擊批評全都 off the mark。原因不是缺技術方案（namespacing/sandbox/VCS matching 全都有洞），是缺錢。Rust Foundation 2024 年只付了 4 個工程師薪水。MIT license 白紙黑字寫「AS IS, NO WARRANTY」。責任本來就在使用者。
