@@ -44,7 +44,7 @@ export type ForgeAllocator = (taskType: DelegationTaskType, workdir: string) => 
 const DEFAULT_TIMEOUT_MS: Record<DelegationTaskType, number> = {
   code: 300_000, learn: 300_000, research: 480_000, create: 480_000,
   review: 180_000, shell: 60_000, browse: 180_000, akari: 480_000,
-  plan: 300_000, debug: 300_000,
+  plan: 300_000, debug: 300_000, graphify: 300_000,
 };
 
 export async function convertAndDispatch(

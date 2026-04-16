@@ -6,6 +6,7 @@
 
 import { spawn, execSync as execSyncChild } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync, readFileSync as readFileSyncFs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
@@ -143,7 +144,8 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'TIMEOUT', retryable: true, message: `CLI 被信號 ${signal} 終止。可能是系統資源不足。`, modelGuidance: `Process killed by signal ${signal}. This is likely a system resource issue — reduce context size on retry.` };
   }
   if (killed || combined.includes('timeout') || combined.includes('timed out')) {
-    return { type: 'TIMEOUT', retryable: true, message: `處理超時（超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 25} 分鐘）。Claude CLI 回應太慢或暫時不可用，請稍後再試。`, modelGuidance: 'The task took too long. On retry, break it into smaller steps — do one thing at a time instead of trying to accomplish everything in a single call.' };
+    const actualDuration = duration ? `${Math.round(duration / 1000)}s` : `超過 ${timeoutMs ? Math.round(timeoutMs / 60_000) : 25} 分鐘`;
+    return { type: 'TIMEOUT', retryable: true, message: `處理超時（${actualDuration}）。Claude CLI 回應太慢或暫時不可用，請稍後再試。`, modelGuidance: 'The task took too long. On retry, break it into smaller steps — do one thing at a time instead of trying to accomplish everything in a single call.' };
   }
   if (combined.includes('maxbuffer')) {
     return { type: 'MAX_BUFFER', retryable: false, message: '回應內容過大，超過緩衝區限制。請嘗試要求更簡潔的回覆。', modelGuidance: 'Response exceeded output buffer. Do NOT retry with the same prompt. Reformulate to request a shorter, more focused response — e.g., ask for a summary instead of full content.' };
@@ -223,7 +225,7 @@ interface ForegroundSlotState {
   lastActivityTs: number; // last stdout or state change — for TTL sweep
 }
 const foregroundSlots = new Map<string, ForegroundSlotState>();
-const MAX_FOREGROUND_CONCURRENT = 8; // safety cap — real limit is API rate + system resources
+const MAX_FOREGROUND_CONCURRENT = 2; // lowered from 8 — concurrent Claude CLI subprocesses cause OOM (2026-04-16 incident: 3 simultaneous subprocesses → SIGTERM cascade)
 const FG_SLOT_TTL_MS = 300_000; // 5 min — idle slots cleaned up after this
 const FG_SLOT_ZOMBIE_MS = 60_000; // 1 min — busy slot with no PID/controller = zombie
 
@@ -575,6 +577,17 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     mkdirSync(subprocessCwd, { recursive: true });
   }
   args.push('--add-dir', projectDir);
+
+  // Memory pressure guard — avoid spawning new subprocess when system is under memory pressure
+  // 2026-04-16 incident: 3 concurrent subprocesses → OOM → SIGTERM cascade
+  const freeMemMB = Math.round(os.freemem() / 1_048_576);
+  if (freeMemMB < 500) {
+    slog('CLAUDE', `Low memory (${freeMemMB}MB free) — deferring subprocess spawn to avoid OOM`);
+    return Promise.reject(Object.assign(
+      new Error(`System memory too low (${freeMemMB}MB free) — deferring to prevent OOM`),
+      { killed: false, status: null, signal: null, duration: 0, timeoutMs: TIMEOUT_MS },
+    ));
+  }
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
@@ -1699,7 +1712,10 @@ export async function callClaude(
 
       // 如果可重試且還有機會，等待後重試
       if (classified.retryable && attempt < maxRetries) {
-        const delay = 30_000 * Math.pow(2, attempt); // 30s, 60s
+        // OOM-likely errors (exit 143 = SIGTERM) need longer backoff to let system reclaim memory
+        const isOomLikely = exitCode === 143 || (exitCode === null && classified.type === 'TIMEOUT');
+        const baseDelay = isOomLikely ? 90_000 : 30_000; // 90s/180s for OOM vs 30s/60s normal
+        const delay = baseDelay * Math.pow(2, attempt);
 
         // TIMEOUT retry strategy depends on whether Claude was actively working:
         // tools=0 → API-side problem (rate limit, outage), rebuildContext is wasteful
