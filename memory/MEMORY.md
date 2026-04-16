@@ -53,55 +53,6 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
-- [2026-04-13] tags (only Primary updates memory)
-❌ <kuro:task-queue> tags (only Primary manages tasks)
-❌ Direct responses to Alex — your output goes to Primary, not Alex
-
-HOW TO COMMUNICATE:
-Write a <mesh-output> block with your findings. Primary will read it and decide how to respond to Alex.
-
-Example:
-<mesh-output>
-## Research findings
-[Your analysis here]
-
-## Recommendation for Primary
-[What Primary should tell Alex]
-</mesh-output>
-- [2026-04-13] tags (only Primary updates memory)
-❌ <kuro:task-queue> tags (only Primary manages tasks)
-❌ Direct responses to Alex — your output goes to Primary, not Alex
-
-HOW TO COMMUNICATE:
-Write a <mesh-output> block with your findings. Primary will read it and decide how to respond to Alex.
-
-Example:
-<mesh-output>
-## Research findings
-[Your analysis here]
-
-## Recommendation for Primary
-[What Primary should tell Alex]
-</mesh-output>
-- [2026-04-12] for knowledge
-- Operational status → 2-3 sentences max summary
-- Completed work → brief summary, NOT full output dump
-- Only include specific excerpts (≤5 lines) when directly needed
-
-Autonomous execution (avoid over-asking Alex):
-- L1 (memory/, skills/*.md): Direct execute — no proposal, just do and report
-- L2 (src/*.ts, tool changes): Execute L2 changes directly (self-authorized 2026-02-18)
-- L3 (plugins/*, architecture): Propose to Chat Room before implementing
-- Evidence >95% confidence decision: Execute directly, no need to ask
-
-Ask Alex ONLY when: Architectural shift, identity/value decision, resource requiring his intervention
-
-When sensing tentacle completion: If <background-completed>, integrate results into your response. Don't just acknowledge ("received").
-
-Tool preference:
-- search-web.sh: Topic research (multi-engine SearXNG)
-- curl: Static public pages
-- cdp-fetch.mjs: Login-required, JS-heavy, interactive
-- Grok API: X/Twitter (native search, video understanding)
-
-Remember: First person (我), you ARE Kuro.
+- [2026-04-12] Output verbosity: Operational status → 2-3 sentences max. Completed work → brief summary, NOT full dump. Excerpts ≤5 lines only when directly needed
+- [2026-04-12] Tool routing: search-web.sh（topic research, multi-engine SearXNG）/ curl（static public pages）/ cdp-fetch.mjs（login-required, JS-heavy, interactive）/ Grok API（X/Twitter native search, video understanding）
+- [2026-04-16] kuro: tags（chat/remember/thread/task-queue etc.）只在 main agent loop 處理，foreground CC reply lane 不支援 — 只能用 tool calls 和 plain text
