@@ -1,9 +1,9 @@
 # P1-d: delegation.ts Slimming Plan
 
-**Status**: PROPOSAL  
+**Status**: Phase A DONE (c51af867), Phase B blocked on P1-c1/c2  
 **Author**: Kuro  
 **Date**: 2026-04-16  
-**Current**: 725 lines → **Target Phase A**: ~540 lines → **Target Phase B**: ~350 lines
+**Result**: 725 → 537 lines (Phase A target ~540 ✅) → Phase B target ~350 lines
 
 ## Context
 
