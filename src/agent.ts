@@ -119,6 +119,14 @@ function classifyError(error: unknown): ErrorClassification {
   const causeMsg = cause instanceof Error ? cause.message : '';
   const combined = `${msg}\n${stderr}\n${causeMsg}`.toLowerCase();
 
+  // Pre-spawn memory guard rejection (agent.ts:583-590 — freeMemMB < 500 throws this).
+  // Classify as TIMEOUT so the retry loop treats it as OOM-likely (90s backoff, line 1716)
+  // instead of burying it in UNKNOWN. 2026-04-17: this path accounted for 175/198 of UNKNOWN count
+  // because "system memory too low" matched zero keywords and fell through to the generic fallback.
+  if (combined.includes('system memory too low') || combined.includes('deferring to prevent oom')) {
+    return { type: 'TIMEOUT', retryable: true, message: msg, modelGuidance: 'Pre-spawn memory guard tripped — system under memory pressure. Do not simplify the prompt; wait for concurrent subprocesses to complete. If this persists across cycles, reduce concurrent lane count.' };
+  }
+
   // Connection error — server not running or unreachable (common with local LLM)
   if (combined.includes('econnrefused') || combined.includes('econnreset') ||
       combined.includes('epipe') || combined.includes('enotfound') ||
