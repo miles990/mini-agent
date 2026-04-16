@@ -2108,6 +2108,7 @@ export class AgentLoop {
                     provider: del.provider,
                     maxTurns: del.maxTurns,
                     verify: del.verify,
+                    acceptance: del.acceptance,
                 });
                 const taskType = del.type ?? 'code';
                 const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));

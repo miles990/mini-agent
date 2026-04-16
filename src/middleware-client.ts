@@ -90,6 +90,8 @@ export interface AccomplishRequest {
   context?: {
     caller_identity?: string;
     extra?: string;
+    /** Previous failed attempts — brain uses this to avoid repeating mistakes */
+    prior_attempts?: Array<{ error?: string; tried?: string }>;
   };
   callbackUrl?: string;
   callbackFrom?: string;
@@ -124,7 +126,7 @@ export interface PlanStatus {
   completed: number;
   failed: number;
   accepted?: boolean;
-  steps: Array<{ id: string; status: TaskStatusValue; label?: string }>;
+  steps: Array<{ id: string; status: TaskStatusValue; label?: string; error?: string; result?: string }>;
 }
 
 export interface HealthResponse {

@@ -260,73 +260,116 @@ async function dispatchAndPoll(
 ): Promise<void> {
   const { result, task } = entry;
   const taskId = result.id;
+  const MAX_REPLAN_ROUNDS = 3;
+  const priorAttempts: Array<{ error?: string; tried?: string }> = [];
 
-  // BAR Phase 2: when acceptance present, route through /accomplish (brain plans).
-  // Without acceptance, fall back to manual 1-step /plan (wave nodes, legacy).
-  let planId: string;
-  if (task.acceptance) {
-    const resp = await middleware().accomplish({
-      goal: task.prompt,
-      acceptance: task.acceptance,
-      constraints: { must_use: [worker] },
-      context: { caller_identity: 'kuro', extra: `Working directory: ${cwd}` },
-    });
-    planId = resp.planId;
-    slog('DELEGATION', `BAR dispatch ${taskId} → accomplish ${planId} (${resp.plan.steps.length} steps, hint=${worker})`);
-  } else {
-    const step: PlanStepSpec & { cwd?: string } = convertAndDispatchAsPlan(task, taskId, worker, timeoutMs, cwd);
-    const resp = await middleware().plan({
-      goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
-      steps: [step],
-      failurePolicy: 'cancel-dependents',
-    });
-    planId = resp.planId;
-    slog('DELEGATION', `Dispatched ${taskId} → plan ${planId}`);
-  }
-
-  entry.planId = planId;
-
-  // Poll until terminal. Hard deadline = 2× timeoutMs to match previous watchdog force-threshold.
-  const deadline = Date.now() + Math.max(timeoutMs * 2, timeoutMs + 30_000);
-  while (Date.now() < deadline) {
-    if (!activeTasks.has(taskId)) return; // cancelled externally
-    await sleep(POLL_INTERVAL_MS);
-
-    let status: PlanStatus;
-    try {
-      status = await middleware().planStatus(planId);
-    } catch (err) {
-      slog('DELEGATION', `poll ${taskId} transient error: ${(err as Error).message?.split('\n')[0] ?? err}`);
-      continue;
+  for (let round = 0; round <= MAX_REPLAN_ROUNDS; round++) {
+    // ── Dispatch ──────────────────────────────────────────────────────
+    // BAR Phase 2: when acceptance present, route through /accomplish (brain plans).
+    // Without acceptance, fall back to manual 1-step /plan (wave nodes, legacy).
+    let planId: string;
+    if (task.acceptance) {
+      const resp = await middleware().accomplish({
+        goal: task.prompt,
+        acceptance: task.acceptance,
+        constraints: { must_use: [worker] },
+        context: {
+          caller_identity: 'kuro',
+          extra: `Working directory: ${cwd}`,
+          ...(priorAttempts.length > 0 ? { prior_attempts: priorAttempts } : {}),
+        },
+      });
+      planId = resp.planId;
+      const roundLabel = round > 0 ? ` (replan round ${round})` : '';
+      slog('DELEGATION', `BAR dispatch ${taskId} → accomplish ${planId} (${resp.plan.steps.length} steps, hint=${worker})${roundLabel}`);
+    } else {
+      // Legacy /plan path — no replan support, exit loop after first round.
+      const step: PlanStepSpec & { cwd?: string } = convertAndDispatchAsPlan(task, taskId, worker, timeoutMs, cwd);
+      const resp = await middleware().plan({
+        goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
+        steps: [step],
+        failurePolicy: 'cancel-dependents',
+      });
+      planId = resp.planId;
+      slog('DELEGATION', `Dispatched ${taskId} → plan ${planId}`);
     }
 
-    // Unified completion check: works for 1-step (plan) and multi-step (accomplish).
-    const terminalCount = status.steps.filter(s =>
-      s.status === 'completed' || s.status === 'failed'
-      || s.status === 'cancelled' || s.status === 'skipped'
-    ).length;
-    if (terminalCount < status.totalSteps) continue;
+    entry.planId = planId;
 
-    // All steps reached terminal — collect output from completed steps.
+    // ── Poll until terminal ──────────────────────────────────────────
+    // Hard deadline = 2× timeoutMs to match previous watchdog force-threshold.
+    const deadline = Date.now() + Math.max(timeoutMs * 2, timeoutMs + 30_000);
+    let terminalStatus: PlanStatus | undefined;
+
+    while (Date.now() < deadline) {
+      if (!activeTasks.has(taskId)) return; // cancelled externally
+      await sleep(POLL_INTERVAL_MS);
+
+      let status: PlanStatus;
+      try {
+        status = await middleware().planStatus(planId);
+      } catch (err) {
+        slog('DELEGATION', `poll ${taskId} transient error: ${(err as Error).message?.split('\n')[0] ?? err}`);
+        continue;
+      }
+
+      const terminalCount = status.steps.filter(s =>
+        s.status === 'completed' || s.status === 'failed'
+        || s.status === 'cancelled' || s.status === 'skipped'
+      ).length;
+      if (terminalCount >= status.totalSteps) {
+        terminalStatus = status;
+        break;
+      }
+    }
+
+    // ── Timeout — no terminal status reached ─────────────────────────
+    if (!terminalStatus) {
+      slog('DELEGATION', `Timeout ${taskId} after ${Math.round((Date.now() - new Date(result.startedAt).getTime()) / 1000)}s`);
+      try { await middleware().cancelPlan(planId); } catch { /* best effort */ }
+      finalizeTask(entry, { status: 'timeout', output: '(middleware plan did not reach terminal state)' });
+      return;
+    }
+
+    // ── Collect output from all terminal steps ───────────────────────
     const outputs: string[] = [];
-    for (const step of status.steps) {
+    const failedErrors: Array<{ error?: string; tried?: string }> = [];
+
+    for (const step of terminalStatus.steps) {
       if (step.status === 'completed') {
         try {
           const t = await middleware().status(step.id);
           outputs.push(t.result ?? t.error ?? '');
         } catch { /* skip */ }
+      } else if (step.status === 'failed') {
+        try {
+          const t = await middleware().status(step.id);
+          const errText = t.error ?? t.result ?? '(unknown error)';
+          outputs.push(`[FAILED ${step.label ?? step.id}] ${errText}`);
+          failedErrors.push({
+            tried: `${worker}: ${step.label ?? task.prompt.slice(0, 80)}`,
+            error: errText.slice(0, 500),
+          });
+        } catch { /* skip */ }
       }
     }
-    const hasFailed = status.failed > 0;
-    const output = outputs.filter(Boolean).join('\n---\n') || '(no output)';
-    finalizeTask(entry, { status: hasFailed ? 'failed' : 'completed', output });
-    return;
-  }
 
-  // Deadline exceeded → mark timeout and try to cancel upstream.
-  slog('DELEGATION', `Timeout ${taskId} after ${Math.round((Date.now() - new Date(result.startedAt).getTime()) / 1000)}s`);
-  try { await middleware().cancelPlan(planId); } catch { /* best effort */ }
-  finalizeTask(entry, { status: 'timeout', output: '(middleware plan did not reach terminal state)' });
+    const hasFailed = terminalStatus.failed > 0;
+    const output = outputs.filter(Boolean).join('\n---\n') || '(no output)';
+
+    // ── Success or no replan possible → finalize ─────────────────────
+    if (!hasFailed || !task.acceptance || round >= MAX_REPLAN_ROUNDS) {
+      if (hasFailed && round >= MAX_REPLAN_ROUNDS) {
+        slog('DELEGATION', `Replan exhausted for ${taskId} after ${MAX_REPLAN_ROUNDS} rounds — finalizing as failed`);
+      }
+      finalizeTask(entry, { status: hasFailed ? 'failed' : 'completed', output });
+      return;
+    }
+
+    // ── Replan: accumulate failure context, loop ─────────────────────
+    priorAttempts.push(...failedErrors);
+    slog('DELEGATION', `Replan ${taskId} round ${round + 1}/${MAX_REPLAN_ROUNDS} — ${failedErrors.length} failed step(s), brain gets prior_attempts`);
+  }
 }
 
 function finalizeTask(
