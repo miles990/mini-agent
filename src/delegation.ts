@@ -361,8 +361,16 @@ function writeLaneOutput(result: TaskResult): void {
 // =============================================================================
 
 /**
- * Fire-and-forget delegate. Allocates forge worktree for code workers, submits
- * a one-step DAG plan to middleware, and starts background polling.
+ * Routes a delegation request through the middleware `/accomplish` endpoint.
+ *
+ * Allocates a forge worktree for code workers when needed, submits a one-step
+ * DAG plan to middleware via `/accomplish`, and starts background polling to
+ * track the resulting plan status until completion, failure, or timeout.
+ *
+ * @param task - The delegation task descriptor, including the prompt, workdir,
+ *   task type, optional timeout, verify commands, and forge worktree settings.
+ * @returns The resolved task ID (either `task.id` if provided, or a generated
+ *   `del-<timestamp>-<random>` string) that can be used to look up the result.
  */
 export function spawnDelegation(task: DelegationTask): string {
   const taskId = task.id ?? `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
