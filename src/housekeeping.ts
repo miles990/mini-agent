@@ -21,6 +21,8 @@ import {
 } from './memory-index.js';
 import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
+import { shouldTriggerKGIngest, markKGIngestTriggered } from './kg-live-ingest.js';
+import { spawnDelegation } from './delegation.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -676,6 +678,11 @@ export async function runHousekeeping(): Promise<void> {
   await syncHandoffStatus().catch(() => {});
   await decayStaleTasks().catch(() => {});
 
+  // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
+  if (cycleCounter % 5 === 0) {
+    dispatchKGIngestIfNeeded();
+  }
+
   // 低頻：每 10 cycle 掃描 instance 目錄下的過期臨時資源
   if (cycleCounter % 10 === 0) {
     await sweepInstanceDir().catch(() => {});
@@ -683,6 +690,43 @@ export async function runHousekeeping(): Promise<void> {
     await consolidateMemory().catch(() => {});
     // Contradiction scan — fire-and-forget, non-blocking
     scanContradictions().catch(() => {});
+  }
+}
+
+// =============================================================================
+// KG Auto-Ingest — dispatch KG rebuild via middleware when data accumulates
+// =============================================================================
+
+function dispatchKGIngestIfNeeded(): void {
+  try {
+    const { should, newWrites, reason } = shouldTriggerKGIngest();
+    if (!should) return;
+
+    const workdir = process.cwd();
+    slog('KG-INGEST', `Triggering auto-ingest: ${reason}`);
+
+    spawnDelegation({
+      type: 'graphify',
+      prompt: [
+        `KG incremental rebuild: ${newWrites} new memory writes detected.`,
+        'Run the following pipeline in order:',
+        `cd ${workdir}`,
+        '1. pnpm tsx scripts/kg-extract-chunks.ts --write',
+        '2. pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+        '3. pnpm tsx scripts/kg-extract-edges.ts --write --limit 100',
+        '4. pnpm tsx scripts/kg-build-cooccurrence.ts --replace',
+        '5. pnpm tsx scripts/kg-build-frontmatter-edges.ts --write',
+        '6. pnpm tsx scripts/kg-detect-conflicts.ts --write',
+        '7. pnpm tsx scripts/kg-viz.ts',
+        'Report: entity count, edge count, new conflicts.',
+      ].join('\n'),
+      workdir,
+      acceptance: 'KG entities.jsonl and edges.jsonl updated with new data from recent memory writes; manifest.json last_incremental timestamp refreshed',
+    });
+
+    markKGIngestTriggered();
+  } catch (err) {
+    slog('KG-INGEST', `trigger error: ${(err as Error).message}`);
   }
 }
 

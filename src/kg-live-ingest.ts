@@ -76,6 +76,68 @@ export function logIngestError(stage: string, file: string, err: unknown): void 
   });
 }
 
+// =============================================================================
+// Auto-ingest trigger — dispatches KG rebuild when enough new writes accumulate
+// =============================================================================
+
+const INGEST_THRESHOLD = 10; // minimum new writes before triggering rebuild
+const INGEST_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4h cooldown between triggers
+const MANIFEST_PATH = path.join(ROOT, 'memory/index/manifest.json');
+
+let lastTriggerTs = 0;
+
+/** Check if enough new memory writes have accumulated to warrant a KG rebuild. */
+export function shouldTriggerKGIngest(): { should: boolean; newWrites: number; reason: string } {
+  if (!isEnabled('kg-live-ingest')) {
+    return { should: false, newWrites: 0, reason: 'feature disabled' };
+  }
+
+  // Cooldown gate
+  if (Date.now() - lastTriggerTs < INGEST_COOLDOWN_MS) {
+    return { should: false, newWrites: 0, reason: 'cooldown active' };
+  }
+
+  // Read manifest to get last_incremental timestamp
+  let lastIncrementalTs = 0;
+  try {
+    if (fs.existsSync(MANIFEST_PATH)) {
+      const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+      if (manifest.last_incremental && manifest.last_incremental !== 'never') {
+        lastIncrementalTs = new Date(manifest.last_incremental).getTime();
+      }
+    }
+  } catch { /* no manifest = never ran */ }
+
+  // Count new writes since last ingest
+  let newWrites = 0;
+  try {
+    if (!fs.existsSync(LOG_PATH)) {
+      return { should: false, newWrites: 0, reason: 'no log file' };
+    }
+    for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
+      const s = line.trim();
+      if (!s) continue;
+      try {
+        const ev = JSON.parse(s) as MemoryWriteEvent;
+        if (new Date(ev.ts).getTime() > lastIncrementalTs) newWrites++;
+      } catch { /* skip */ }
+    }
+  } catch {
+    return { should: false, newWrites: 0, reason: 'log read error' };
+  }
+
+  if (newWrites < INGEST_THRESHOLD) {
+    return { should: false, newWrites, reason: `below threshold (${newWrites}/${INGEST_THRESHOLD})` };
+  }
+
+  return { should: true, newWrites, reason: `${newWrites} new writes since last ingest` };
+}
+
+/** Mark that a KG ingest was triggered (updates cooldown timer). */
+export function markKGIngestTriggered(): void {
+  lastTriggerTs = Date.now();
+}
+
 /** Snapshot of live-ingest volume — used by dashboards / diagnostics. */
 export function getIngestStats(): {
   writes: number;

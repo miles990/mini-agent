@@ -45,6 +45,7 @@ import { setSelfStatusProvider, setPerceptionProviders, setCustomExtensions, get
 import { createTelegramPoller, getTelegramPoller, getNotificationStats } from './telegram.js';
 import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats } from './kg-entity-search.js';
 import { getIngestStats as kgGetIngestStats } from './kg-live-ingest.js';
+import { query as kgQuery, formatReport as kgFormatReport } from './kg-query.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -2337,6 +2338,27 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/kg/ingest-stats', (_req: Request, res: Response) => {
     try {
       res.json(kgGetIngestStats());
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  // KG PPR query — full graph context retrieval
+  app.get('/api/kg/query', (req: Request, res: Response) => {
+    try {
+      const probes = String(req.query.q ?? '').split(',').map(s => s.trim()).filter(Boolean);
+      const topK = Math.min(Number(req.query.top ?? 20) || 20, 50);
+      const format = String(req.query.format ?? 'json');
+      if (probes.length === 0) {
+        res.status(400).json({ error: 'q parameter required (comma-separated probes)' });
+        return;
+      }
+      const report = kgQuery(probes, { topK });
+      if (format === 'text') {
+        res.type('text/plain').send(kgFormatReport(report));
+      } else {
+        res.json(report);
+      }
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

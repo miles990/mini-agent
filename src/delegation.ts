@@ -101,6 +101,7 @@ const CAPABILITY_TO_WORKER: Record<DelegationTaskType, string> = {
   shell: 'shell',
   browse: 'web-browser',
   akari: 'cloud-agent',
+  graphify: 'shell',
 };
 
 /** Per-type timeout defaults (fallback when caller doesn't specify). */
@@ -115,6 +116,7 @@ const TYPE_DEFAULTS: Record<DelegationTaskType, { timeoutMs: number }> = {
   akari:    { timeoutMs: 480_000 },
   plan:     { timeoutMs: 300_000 },
   debug:    { timeoutMs: 300_000 },
+  graphify: { timeoutMs: 600_000 },
 };
 
 // P1-d edit-layer: always active (v2-final §6 — no flag, no dual path).
