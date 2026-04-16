@@ -75,9 +75,26 @@ export interface PlanResponse {
 
 export interface AccomplishRequest {
   goal: string;
+  /** Convergence condition — observable end state (maps to middleware success_criteria) */
   acceptance?: string;
+  /** Worker routing constraints (brain respects but may override) */
+  constraints?: {
+    /** Preferred workers — hard pin (e.g. ['coder', 'shell']) */
+    must_use?: string[];
+    /** Workers to avoid */
+    must_not?: string[];
+    max_latency_ms?: number;
+    max_cost_usd?: number;
+  };
+  /** Extra context for brain (cwd, sibling info, etc.) */
+  context?: {
+    caller_identity?: string;
+    extra?: string;
+  };
   callbackUrl?: string;
   callbackFrom?: string;
+  /** If true, wait for plan completion before returning */
+  wait?: boolean;
 }
 
 export interface AccomplishResponse {
@@ -303,7 +320,17 @@ export function createMiddlewareClient(opts: CreateClientOptions = {}): Middlewa
   const client: MiddlewareClient = {
     dispatch: (req) => transport.request('POST', '/dispatch', req),
     plan: (req) => transport.request('POST', '/plan', req),
-    accomplish: (req) => transport.request('POST', '/accomplish', req),
+    accomplish: (req) => {
+      // Map AccomplishRequest fields to middleware's body schema
+      const body: Record<string, unknown> = { goal: req.goal };
+      if (req.acceptance) body.success_criteria = req.acceptance;
+      if (req.constraints) body.constraints = req.constraints;
+      if (req.context) body.context = req.context;
+      if (req.callbackUrl) body.callback = req.callbackUrl;
+      if (req.callbackFrom) body.callbackFrom = req.callbackFrom;
+      if (req.wait) body.wait = req.wait;
+      return transport.request('POST', '/accomplish', body);
+    },
     status: (id) => transport.request('GET', `/status/${encodeURIComponent(id)}`),
     planStatus: (id) => transport.request('GET', `/plan/${encodeURIComponent(id)}`),
     health: () => transport.request('GET', '/health'),

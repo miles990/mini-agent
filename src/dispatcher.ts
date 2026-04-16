@@ -1408,11 +1408,15 @@ export async function postProcess(
       const profileCtx = await buildContextForDelegationType(taskType, del.prompt);
       if (profileCtx) prompt = `${profileCtx}\n\n${prompt}`;
 
-      // Build goal with worker hint + cwd for brain
+      // BAR: proper schema fields — worker hint via constraints.must_use, cwd via context.extra
       const workerName = CAP_WORKER[taskType] ?? taskType;
-      const goalWithHints = `[worker: ${workerName}] [cwd: ${del.workdir}]\n${prompt}`;
 
-      client.accomplish({ goal: goalWithHints, acceptance: del.acceptance || undefined })
+      client.accomplish({
+        goal: prompt,
+        acceptance: del.acceptance || undefined,
+        constraints: { must_use: [workerName] },
+        context: { extra: `Working directory: ${del.workdir}` },
+      })
         .then(res => {
           slog('DISPATCH', `BAR: planId=${res.planId} (${res.plan.steps.length} steps, hint=${taskType}) · ${del.prompt.slice(0, 80)}`);
           eventBus.emit('action:delegation-start', { taskId: res.planId, type: taskType, workdir: del.workdir });
