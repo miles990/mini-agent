@@ -823,6 +823,16 @@ export class InstanceMemory {
       return;
     }
 
+    // Structural guards — prevent corruption cascades (2026-04-17 fix)
+    // 1. Cap content length — single entries should be concise, not multi-paragraph dumps
+    const MAX_ENTRY_CHARS = 500;
+    if (content.length > MAX_ENTRY_CHARS) {
+      eventBus.emit('log:warn', { tag: 'memory-guard', msg: `truncated ${content.length} → ${MAX_ENTRY_CHARS} chars: ${content.slice(0, 80)}...` });
+      content = content.slice(0, MAX_ENTRY_CHARS);
+    }
+    // 2. Strip markdown headers from content — they corrupt MEMORY.md section structure
+    content = content.replace(/^#{1,6}\s+/gm, '').replace(/\n---\n/g, '\n');
+
     await ensureDir(this.memoryDir);
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
 
