@@ -2,7 +2,7 @@
  * Delegation summary helpers — output extraction, persistence, lane output.
  *
  * Extracted from delegation.ts. These are generic output-processing utilities
- * used by finalizeTask and convertAndDispatchAsPlan for activity journaling,
+ * used by finalizeTask and dispatchAndPoll for activity journaling,
  * foreground lane display, and sibling awareness.
  */
 

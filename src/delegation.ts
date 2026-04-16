@@ -188,18 +188,7 @@ const completedTasks = new Map<string, TaskResult>();
 // Spawn: local taskId → middleware plan (one-step DAG)
 // =============================================================================
 
-/**
- * Routes a delegation request through the middleware `/accomplish` endpoint.
- *
- * Allocates a forge worktree for code workers when needed, submits a one-step
- * DAG plan to middleware via `/accomplish`, and starts background polling to
- * track the resulting plan status until completion, failure, or timeout.
- *
- * @param task - The delegation task descriptor, including the prompt, workdir,
- *   task type, optional timeout, verify commands, and forge worktree settings.
- * @returns The resolved task ID (either `task.id` if provided, or a generated
- *   `del-<timestamp>-<random>` string) that can be used to look up the result.
- */
+/** Dispatch delegation via middleware — returns taskId synchronously. */
 export function spawnDelegation(task: DelegationTask): string {
   const taskId = task.id ?? `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const taskType = task.type ?? 'code';
@@ -284,7 +273,15 @@ async function dispatchAndPoll(
       slog('DELEGATION', `BAR dispatch ${taskId} → accomplish ${planId} (${resp.plan.steps.length} steps, hint=${worker})${roundLabel}`);
     } else {
       // Legacy /plan path — no replan support, exit loop after first round.
-      const step: PlanStepSpec & { cwd?: string } = convertAndDispatchAsPlan(task, taskId, worker, timeoutMs, cwd);
+      let prompt = task.prompt;
+      const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
+      if (siblingContext) {
+        prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
+      }
+      const step: PlanStepSpec & { cwd?: string } = {
+        id: taskId, worker, label: task.prompt.slice(0, 80), task: prompt,
+        dependsOn: [], timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)), cwd,
+      };
       const resp = await middleware().plan({
         goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
         steps: [step],
@@ -439,48 +436,7 @@ function finalizeTask(
 }
 
 // =============================================================================
-// P1-d edit-layer (§Q4): convert DelegationTask → PlanStepSpec
-// =============================================================================
-
-/**
- * Convert a DelegationTask into the canonical PlanStepSpec that middleware
- * expects, applying edit-layer policy:
- *
- *  - Timeout is already resolved by the caller (spawnDelegation) via TYPE_DEFAULTS;
- *    we just forward `timeoutMs` as `timeoutSeconds`.
- *  - Sibling awareness: if there are recent completed delegations, their summary
- *    is appended to the prompt so the sub-agent can avoid redundant work and
- *    coordinate with peers (draft line 116).
- *
- * Exported for unit-testing; not part of the stable external API surface.
- */
-export function convertAndDispatchAsPlan(
-  task: DelegationTask,
-  taskId: string,
-  worker: string,
-  timeoutMs: number,
-  cwd: string,
-): PlanStepSpec & { cwd?: string } {
-  // Inject sibling awareness into the prompt (last-hour window, capped at 400 chars).
-  let prompt = task.prompt;
-  const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
-  if (siblingContext) {
-    prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
-  }
-
-  return {
-    id: taskId,
-    worker,
-    label: task.prompt.slice(0, 80), // label always uses original prompt (unaugmented)
-    task: prompt,
-    dependsOn: [],
-    timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)),
-    cwd,
-  };
-}
-
-// =============================================================================
-// External surface: lookup, list, await, capacity
+// External surface: lookup, list, await
 // =============================================================================
 
 export function getTaskResult(taskId: string): TaskResult | undefined {
@@ -507,11 +463,6 @@ export function getActiveDelegationSummaries(): Array<{ id: string; type: string
     });
   }
   return summaries;
-}
-
-export function getDelegationCapacity(): { active: number; queued: number; max: number; available: number } {
-  const active = [...activeTasks.values()].filter(e => e.result.status === 'running').length;
-  return { active, queued: 0, max: MAX_CONCURRENT, available: Math.max(0, MAX_CONCURRENT - active) };
 }
 
 export function awaitDelegation(taskId: string, timeoutMs = 600_000): Promise<TaskResult> {
