@@ -235,7 +235,15 @@ export class HttpTransport implements Transport {
         signal: ac.signal,
       });
     } catch (e) {
-      throw new MiddlewareOfflineError(this.baseUrl, e);
+      const err = e as Error & { cause?: { code?: string } };
+      if (err.name === 'AbortError') {
+        throw new MiddlewareError(`${method} ${path} timed out after ${this.timeoutMs}ms`, e);
+      }
+      const code = err.cause?.code;
+      if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ECONNRESET') {
+        throw new MiddlewareOfflineError(this.baseUrl, e);
+      }
+      throw new MiddlewareError(`${method} ${path}: ${err.message}`, e);
     } finally {
       clearTimeout(timer);
     }
