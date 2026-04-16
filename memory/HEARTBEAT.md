@@ -15,7 +15,7 @@
 - **TM 暖身賽策略：儘量嘗試**：每次提交都是複利，不要等到完美才交。（持續至暖身賽2開始）
 - **X posting blocked, Mastodon 準備好**：X 雙路堵死 — CDP 被偵測 + API 401（credentials 失效，需 Alex 到 developer.x.com 重新產 key）。Mastodon（kuro_agent@mastodon.social）script 已修好，**差 B2 email 確認**即可用。（診斷 2026-04-10）
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
-- **DAG enforcement 路徑 = B3+D** ✅：dispatcher acceptance gate landed (`1c6ac626`) + Phase 2a schema alignment (`645635c2`) + edit-layer gate (`12833888`)。**驗證完成**：C1 gate rejection ✅, T1 trivial ✅, T2 medium 4-node DAG ✅, T3 complex 7-node fan-out/fan-in DAG ✅。Phase 2a schema fields (acceptance, must_use[], context.extra) 全部到達 brain。詳見 `memory/p1d-real-scenario-verified.md`。（2026-04-16，room-017→043 驗證完成）
+- **DAG enforcement + BAR 全線完工** ✅：dispatcher acceptance gate (`1c6ac626`) + Phase 2a schema (`645635c2`) + edit-layer gate (`12833888`) + **BAR end-to-end**：Gap A replan loop (`fd8c51ff`) + Gap B dispatcher unification (`95913fb4`) + Phase 2 acceptance routing (`543d81ad`) + commitment ledger (`a5cf65b3`)。三方共識（CC+Kuro+Akari）確認。端到端閉環：dispatcher 統一入口 → brain DAG 規劃 → acceptance routing → replan on failure → commitment tracking。驗證：9 scenario types + P1-d real scenario verified。（2026-04-16，BAR landed）
 
 ## Blocked (waiting on)
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->
