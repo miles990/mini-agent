@@ -272,6 +272,9 @@ async function actionCheck() {
   try {
     target = await createTarget('https://myaccount.google.com/');
     ({ ws } = await connectToTarget(target.id));
+    await cdpCommand(ws, 'Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
+    });
     await waitForNavigation(ws);
     await sleep(2000);
   } catch (err) {
@@ -335,11 +338,17 @@ async function actionLogin(serviceUrl) {
 
   let target, ws;
 
-  // Step 2: Navigate
+  // Step 2: Navigate (with desktop viewport)
   const startUrl = serviceUrl || 'https://accounts.google.com/';
   try {
     target = await createTarget(startUrl);
     ({ ws } = await connectToTarget(target.id));
+
+    // Set desktop viewport — many sites (e.g., teaching.monster) block small screens
+    await cdpCommand(ws, 'Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
+    });
+
     await waitForNavigation(ws);
     await sleep(2000);
 
@@ -374,7 +383,7 @@ async function actionLogin(serviceUrl) {
         }
       }
     } else {
-      // Try JS-based detection
+      // Try JS-based detection for Google button
       const jsClicked = await cdpCommand(ws, 'Runtime.evaluate', {
         expression: `(() => {
           const btns = document.querySelectorAll('button, a, [role="button"]');
@@ -390,15 +399,82 @@ async function actionLogin(serviceUrl) {
         emitOk('find_google_btn', `Clicked via JS: "${jsClicked.result.value}"`);
         await sleep(3000);
       } else {
-        const shot = await screenshotToFile(ws, 'step-02-no-google-btn');
-        const nodes = await getA11yTree(ws);
-        emitFail('find_google_btn', 'Google sign-in button not found on service page', {
-          screenshot: shot,
-          interactable: getInteractableList(nodes),
-        });
-        safeClose(ws);
-        await closeTarget(target.id);
-        process.exit(0);
+        // No Google button — try finding a Login/Register link first, then retry
+        emitSkip('find_google_btn', 'No Google button on landing page — looking for login link');
+        const loginLink = await findClickableByText(ws, [
+          'Login', 'Register', 'Sign in', 'Sign up', 'Log in',
+          '登入', '註冊', '登錄', 'Login / Register',
+        ]);
+        if (loginLink) {
+          await clickNode(ws, loginLink);
+          emitOk('click_login_link', `Clicked login link: "${loginLink.name.value.slice(0, 60)}"`);
+          await waitForNavigation(ws);
+          await sleep(2000);
+
+          // Screenshot the login page
+          const loginShot = await screenshotToFile(ws, 'step-02b-login-page');
+          const loginInfo = await getPageInfo(ws);
+          emitOk('login_page', `Login page loaded: ${loginInfo.url}`, { screenshot: loginShot });
+
+          // Retry Google button search on login page
+          const googleBtn2 = await findClickableByText(ws, ['Google', 'google', 'Sign in with Google', '使用 Google 帳戶登入', '使用 Google 登入']);
+          if (googleBtn2) {
+            await clickNode(ws, googleBtn2);
+            emitOk('find_google_btn', `Clicked on login page: "${googleBtn2.name.value.slice(0, 60)}"`);
+            await sleep(3000);
+
+            // Check for tab switch
+            let info = await getPageInfo(ws);
+            if (!info.url.includes('accounts.google.com')) {
+              const targets = await listTargets();
+              const googleTab = targets.find(t => t.url.includes('accounts.google.com'));
+              if (googleTab) {
+                safeClose(ws);
+                ({ ws } = await connectToTarget(googleTab.id));
+                await sleep(2000);
+                emitOk('google_tab_switch', 'Switched to Google auth tab');
+              }
+            }
+          } else {
+            // JS fallback on login page
+            const jsClicked2 = await cdpCommand(ws, 'Runtime.evaluate', {
+              expression: `(() => {
+                const btns = document.querySelectorAll('button, a, [role="button"], div[role="button"]');
+                for (const b of btns) {
+                  const t = (b.textContent + ' ' + (b.getAttribute('aria-label') || '') + ' ' + b.className).toLowerCase();
+                  if (t.includes('google')) { b.click(); return b.textContent.trim().slice(0, 60); }
+                }
+                return null;
+              })()`,
+              returnByValue: true,
+            });
+            if (jsClicked2.result?.value) {
+              emitOk('find_google_btn', `Clicked via JS on login page: "${jsClicked2.result.value}"`);
+              await sleep(3000);
+            } else {
+              const shot = await screenshotToFile(ws, 'step-02c-no-google-on-login');
+              const nodes = await getA11yTree(ws);
+              emitFail('find_google_btn', 'Google sign-in button not found on login page either', {
+                screenshot: shot,
+                interactable: getInteractableList(nodes),
+                url: loginInfo.url,
+              });
+              safeClose(ws);
+              await closeTarget(target.id);
+              process.exit(0);
+            }
+          }
+        } else {
+          const shot = await screenshotToFile(ws, 'step-02-no-login-link');
+          const nodes = await getA11yTree(ws);
+          emitFail('find_google_btn', 'No Google button and no login link found on service page', {
+            screenshot: shot,
+            interactable: getInteractableList(nodes),
+          });
+          safeClose(ws);
+          await closeTarget(target.id);
+          process.exit(0);
+        }
       }
     }
   }
