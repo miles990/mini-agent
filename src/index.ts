@@ -95,27 +95,8 @@ export {
   isInstanceAlive,
 } from './instance.js';
 
-// IPC Bus
-export { initIPCBus, emitIPC, stopIPCBus } from './ipc-bus.js';
-
 // Memory Cache (CQRS Read Layer)
 export { cachedReadFile, invalidateCache, getCacheStats, stopMemoryCache } from './memory-cache.js';
-
-// Task Router (Cognitive Mesh Phase 3)
-export { routeTask, getClusterState, mushiRoute } from './task-router.js';
-export type { RouteDecision, PerspectiveType, ClusterState } from './task-router.js';
-
-// Scaling Controller (Cognitive Mesh Phase 3)
-export { evaluateScaling, getScalingStatus, setScalingConfig } from './scaling.js';
-
-// Consensus (Cognitive Mesh Phase 4)
-export {
-  logDecision, getRecentDecisions, hasRecentDecision,
-  claimExclusive, releaseClaim, isOperationClaimed,
-  canPerformDomain, getPartitionRules, getActiveClaims,
-  cleanupConsensusState,
-} from './consensus.js';
-export type { DecisionEntry, ExclusiveOperation } from './consensus.js';
 
 // Shared Knowledge Bus
 export {

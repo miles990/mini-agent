@@ -80,7 +80,6 @@ const FEATURES: FeatureInfo[] = [
   { name: 'concurrent-action',group: 'housekeeping', description: 'Run perception refresh + housekeeping concurrently during callClaude await' },
   { name: 'mushi-dedup',      group: 'housekeeping', description: 'mushi dedup — HC1 checks near-duplicate REMEMBER before writing' },
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
-  { name: 'cognitive-mesh', group: 'housekeeping', description: 'Cognitive Mesh — multi-instance task routing + dynamic scaling' },
   { name: 'kg-live-ingest', group: 'housekeeping', description: 'KG live ingest — observe memory writes + log to live-ingest-log.jsonl (Path B)', defaultEnabled: true },
 
   // ── Notification ──

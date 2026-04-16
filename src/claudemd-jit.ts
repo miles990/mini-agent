@@ -115,10 +115,6 @@ const SECTION_KEYWORDS: Record<string, string[]> = {
     'multi-lane', 'delegation', 'dispatcher', 'loop.ts', 'modular',
     'event priority', 'crash resume',
   ],
-  'Cognitive Mesh — Multi-Agent 戰略基礎設施': [
-    'mesh', 'ipc', 'specialist', 'scaling', 'perspective', 'consensus',
-    'cognitive-mesh', 'ipc-bus', 'task-router', 'filelock',
-  ],
   'Forge — Worktree Isolation for Delegations': [
     'forge', 'worktree', 'isolation', 'sandbox', 'forge-lite',
   ],

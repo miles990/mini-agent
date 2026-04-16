@@ -18,8 +18,6 @@ import { notifyTelegram, notify, flushSummary } from './telegram.js';
 import type { CronTask } from './types.js';
 import { eventBus } from './event-bus.js';
 import { cronGate } from './omlx-gate.js';
-import { getCurrentInstanceId, loadInstanceConfig } from './instance.js';
-
 interface ScheduledCronTask {
   task: CronTask;
   job: cron.ScheduledTask;
@@ -240,16 +238,6 @@ export function reloadCronTasks(tasks: CronTask[]): { added: number; removed: nu
 
 /** 將 cron 任務排入 queue（由 cron schedule handler 呼叫） */
 function enqueueCronTask(task: CronTask): void {
-  // Role gate: workers must not execute compose-defined crons (Alex #027 2026-04-12).
-  // Every instance reads agent-compose.yaml and registers the same schedules, but only
-  // the primary (role=standalone / master) should run memory-writing tasks. Workers see
-  // the trigger fire but drop it here.
-  const role = loadInstanceConfig(getCurrentInstanceId())?.role;
-  if (role === 'worker') {
-    slog('CRON', `⏭ Skipped (role=worker): "${task.task.slice(0, 60)}"`);
-    return;
-  }
-
   // 避免同一任務重複排隊
   const isDuplicate = cronQueue.some(
     q => q.task.schedule === task.schedule && q.task.task === task.task,

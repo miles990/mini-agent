@@ -49,10 +49,6 @@ import { writeRoomMessage, sendChat } from './observability.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
-import { routeTask, mushiRoute, getClusterState, type PerspectiveType } from './task-router.js';
-import { evaluateScaling } from './scaling.js';
-import { buildMeshCompletedSection, buildContextForPerspective, cleanupMeshOutputs } from './perspective.js';
-import { handleMeshRoute, executeScaling } from './mesh-handler.js';
 import { writeActivity, formatActivityJournal } from './activity-journal.js';
 import { startSentinel } from './sentinel.js';
 import {
@@ -382,7 +378,6 @@ export class AgentLoop {
   private continuationCooldownUntil = 0; // Unix timestamp — no continuation checks until this time
   private lastCycleHadSchedule = false;
   private concurrentInboxDetected = false;
-  private lastCycleMeshQueued = false;
 
   // =========================================================================
   // Unified Event Handler — single entry point for all triggers
@@ -1175,13 +1170,6 @@ export class AgentLoop {
     this.clearTimer();
     if (!this.running || this.paused) return;
 
-    // Worker instances are reactive-only: no heartbeat self-wake.
-    // Same pattern as cron.ts:248 — workers process forwarded mesh tasks,
-    // never time-based triggers. Prevents empty "specialist-research 邊界守護"
-    // cycles that burn ~40K tokens each to decide "No action needed".
-    const role = loadInstanceConfig(getCurrentInstanceId())?.role;
-    if (role === 'worker') return;
-
     this.nextCycleAt = new Date(Date.now() + this.currentInterval).toISOString();
     this.timer = setTimeout(() => {
       this.triggerReason = 'heartbeat';
@@ -1395,7 +1383,7 @@ export class AgentLoop {
     // Continuation check — mushi decides if we should immediately continue
     // Skip if: kuro:schedule already set, loop paused, mushi-triage disabled, or cycle was mesh-queued
     // Mesh-queued cycles didn't run Claude — no work was done, continuation is meaningless
-    if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule && !this.lastCycleMeshQueued) {
+    if (this.running && !this.paused && isEnabled('mushi-triage') && !this.lastCycleHadSchedule) {
       if (Date.now() < this.continuationCooldownUntil) {
         // In cooldown after hitting cap — skip continuation check entirely
         this.consecutiveContinuations = 0;
@@ -1435,7 +1423,7 @@ export class AgentLoop {
     // Different from concurrentInbox: checks state AT cycle end, not during Claude call
     // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
     // Skip for mesh-queued cycles — they can't process work, capping interval just causes re-queue
-    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && !this.lastCycleMeshQueued && this.currentInterval > 120_000) {
+    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && this.currentInterval > 120_000) {
       if (this.hasPendingWork()) {
         this.currentInterval = 120_000; // 2min cap
         slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
@@ -1502,7 +1490,6 @@ export class AgentLoop {
     if (this.cycling) return null;
     this.cycling = true;
     this.concurrentInboxDetected = false;
-    this.lastCycleMeshQueued = false;
     const logger = getLogger();
 
     try {
@@ -1510,36 +1497,6 @@ export class AgentLoop {
       this.lastCycleAt = new Date().toISOString();
 
       eventBus.emit('action:loop', { event: 'cycle.start', cycleCount: this.cycleCount });
-
-      // ── Task Routing (Cognitive Mesh Phase 3) ──
-      // Evaluate routing decision. If specialists exist and task is parallelizable,
-      // route to them instead of handling here.
-      if (isEnabled('cognitive-mesh') && this.triggerReason && !this.hasPendingWork()) {
-        const meshRouteDone = trackStart('cognitive-mesh');
-        const clusterState = getClusterState({
-          primaryBusy: this.cycling,
-          primaryQueueDepth: readPendingInbox().length,
-          maxInstances: 3,
-        });
-        // Try mushi AI routing first (~800ms), fall back to rule-based
-        const mushiDecision = isEnabled('mushi-triage') ? await mushiRoute(this.triggerReason, clusterState) : null;
-        const route = mushiDecision ?? routeTask(this.triggerReason, {}, clusterState);
-        if (route.action !== 'self') {
-          slog('MESH', `Route: ${route.action} (${route.reason}) for trigger=${this.triggerReason}`);
-          const routed = await handleMeshRoute(route, this.triggerReason);
-          if (routed) {
-            slog('MESH', `Task routed to ${route.action}/${route.targetInstance ?? route.perspective ?? '?'}, skipping self-handling`);
-            meshRouteDone();
-            this.lastCycleMeshQueued = true;
-            this.cycleCount--; // Don't count mesh-queued as real cycle
-            this.cycling = false;
-            return null;
-          }
-          // Routing failed — fall through to self-handling
-          slog('MESH', `Route ${route.action} failed, falling through to self-handling`);
-        }
-        meshRouteDone();
-      }
 
       // ── Inbox recovery: upgrade to DM-priority if pending DM items exist ──
       // Defense-in-depth: catches edge cases where trigger didn't start the cycle
@@ -1649,26 +1606,12 @@ export class AgentLoop {
       // ── Observe ──
       const memory = getMemory();
 
-      // Specialist detection: use slim context (~5-10K) instead of full (~50K)
-      let specialistPerspective: PerspectiveType | null = null;
-      if (isEnabled('cognitive-mesh')) {
-        try {
-          const perspPath = path.join(getInstanceDir(getCurrentInstanceId()), 'perspective.json');
-          if (fs.existsSync(perspPath)) {
-            const { perspective } = JSON.parse(fs.readFileSync(perspPath, 'utf-8'));
-            if (perspective && perspective !== 'primary') {
-              specialistPerspective = perspective as PerspectiveType;
-            }
-          }
-        } catch { /* not a specialist — use full context */ }
-      }
-
       // Phase 0: 0.8B concurrent preprocessing (perception summaries + heartbeat diff)
       // Runs before buildContext so Claude receives compressed context.
-      // Skip for: DM (speed), specialist (different context path), heartbeat with no perception changes (no new data to summarize).
+      // Skip for: DM (speed), heartbeat with no perception changes (no new data to summarize).
       let phase0Results: Phase0Results | undefined;
       const isRoutineHeartbeat = (this.triggerReason ?? '').includes('heartbeat') && !perceptionChanged;
-      if (!isDirectMessage && !specialistPerspective && !isRoutineHeartbeat) {
+      if (!isDirectMessage && !isRoutineHeartbeat) {
         try {
           phase0Results = await runPhase0();
         } catch (err) {
@@ -1688,9 +1631,7 @@ export class AgentLoop {
       // Now: pass undefined to let buildContext use profileConfig.contextBudget as the primary control.
       const contextBudget = undefined;
 
-      let context = specialistPerspective
-        ? buildContextForPerspective(specialistPerspective, this.triggerReason ?? 'forwarded task')
-        : await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget });
+      let context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget });
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
@@ -1713,9 +1654,6 @@ export class AgentLoop {
 
       // oMLX Gate R8: Compute context hash for response caching (store after Claude call)
       const contextHash = hashContext(context);
-
-      // Mesh outputs from Specialist instances (Cognitive Mesh Phase 3b)
-      const meshSection = isEnabled('cognitive-mesh') ? buildMeshCompletedSection() : '';
 
       // Knowledge Bus summary — inject real-time cross-component patterns (fire-and-forget)
       try {
@@ -1930,11 +1868,6 @@ export class AgentLoop {
       this.lastValidConfig = promptResult.lastValidConfig;
       const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
 
-      // Append mesh outputs to context if any (Cognitive Mesh Phase 3b)
-      if (meshSection) {
-        context += '\n' + meshSection;
-      }
-
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
         startedAt: new Date().toISOString(),
@@ -2122,26 +2055,6 @@ export class AgentLoop {
       });
       const decision = action ? `${action.slice(0, 100)}` : `no action`;
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
-
-      // Scaling evaluation + execution (Cognitive Mesh Phase 3, fire-and-forget)
-      if (isEnabled('cognitive-mesh')) {
-        try {
-          const meshScaleDone = trackStart('cognitive-mesh');
-          const inboxDepth = readPendingInbox().length;
-          const scalingDecision = evaluateScaling({
-            primaryQueueDepth: inboxDepth,
-            hasParallelizableTasks: inboxDepth > 0,
-          });
-          if (scalingDecision.action !== 'none') {
-            slog('MESH', `Scaling: ${scalingDecision.action} (${scalingDecision.reason})`);
-            executeScaling(scalingDecision).catch(() => {});
-          }
-          meshScaleDone();
-        } catch { /* fire-and-forget */ }
-
-        // Cleanup old mesh outputs (fire-and-forget)
-        try { cleanupMeshOutputs(); } catch { /* ok */ }
-      }
 
       // Record for next cycle (only last cycle, no accumulation)
       this.previousCycleInfo = `Mode: ${this.currentMode}, Action: ${decision}, Duration: ${(duration / 1000).toFixed(1)}s`;

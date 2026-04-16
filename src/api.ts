@@ -53,10 +53,8 @@ import {
   startLogSummaryCollector, getLogSummaryCached, getLogStatsCached,
 } from './workspace.js';
 import { loadGlobalConfig, startHeartbeat, stopHeartbeat, updateInstanceHeartbeat } from './instance.js';
-import { initIPCBus, stopIPCBus } from './ipc-bus.js';
 import { stopMemoryCache } from './memory-cache.js';
 import { initClaudeMdJIT } from './claudemd-jit.js';
-import { cleanupConsensusState } from './consensus.js';
 import type { CreateInstanceOptions, InstanceConfig, CronTask } from './types.js';
 import { initObservability, writeRoomMessage } from './observability.js';
 import { preprocessMessage } from './preprocessor.js';
@@ -2681,28 +2679,6 @@ export function createApi(port = 3001): express.Express {
 
   // Claude Code HTTP Hooks moved before authMiddleware (see above)
 
-  // POST /api/mesh/task — receive forwarded task from another instance (Cognitive Mesh)
-  app.post('/api/mesh/task', async (req: Request, res: Response) => {
-    const { trigger, from } = req.body as { trigger?: string; from?: string };
-    if (!trigger || typeof trigger !== 'string') {
-      res.status(400).json({ error: 'trigger is required' });
-      return;
-    }
-
-    slog('MESH', `Received forwarded task: trigger=${trigger} from=${from ?? 'unknown'}`);
-
-    // Wake the loop with the forwarded trigger
-    if (loopRef) {
-      eventBus.emit(`trigger:${trigger.split(' ')[0]}` as any, {
-        forwarded: true,
-        from,
-        originalTrigger: trigger,
-      });
-    }
-
-    res.json({ ok: true, received: trigger });
-  });
-
   // POST /api/ask — 同步問答端點（always-on，不受 OODA mode 影響）
   app.post('/api/ask', async (req: Request, res: Response) => {
     const { question } = req.body as { question?: unknown };
@@ -2923,16 +2899,11 @@ if (isMain) {
   // ── Foreground Slot TTL Sweep (absorbed from agent-broker session pool pattern) ──
   startForegroundSweep();
 
-  // ── Cross-Process Infrastructure (Cognitive Mesh Phase 1) ──
-  initIPCBus(instanceId);
   startHeartbeat({
     instanceId,
     port,
     role: instanceConfig?.role || 'standalone',
   });
-
-  // Clean up expired consensus state (claims, old journals)
-  cleanupConsensusState();
 
   // Wire heartbeat updates from loop cycle events
   eventBus.on('action:loop', (event) => {
@@ -3069,18 +3040,8 @@ if (isMain) {
     } catch { /* silent — binary missing or detect failed */ }
   })();
 
-  // ── Telegram Poller (primary instance only — specialist instances must NOT poll) ──
-  // Telegram Bot API allows only ONE getUpdates connection per bot token.
-  // Multiple pollers cause 409 Conflict errors.
-  const perspectivePath = path.join(getInstanceDir(instanceId), 'perspective.json');
-  let isPrimary = true;
-  try {
-    const { perspective } = JSON.parse(fs.readFileSync(perspectivePath, 'utf-8'));
-    if (perspective && perspective !== 'primary') isPrimary = false;
-  } catch { /* no perspective file = primary */ }
   const memoryDir = path.resolve(composeFile ? path.dirname(composeFile) : '.', 'memory');
-  const telegramPoller = isPrimary ? createTelegramPoller(memoryDir) : null;
-  if (!isPrimary) slog('TELEGRAM', `Skipping poller — specialist instance (${instanceId})`);
+  const telegramPoller = createTelegramPoller(memoryDir);
 
   // ── Feature Toggles ──
   initFeatures();
@@ -3169,7 +3130,6 @@ if (isMain) {
     stopCronTasks();
     if (telegramPoller) telegramPoller.stop();
     stopHeartbeat();
-    stopIPCBus();
     stopMemoryCache();
     stopForegroundSweep();
 
