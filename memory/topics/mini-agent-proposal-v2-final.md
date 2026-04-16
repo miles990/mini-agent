@@ -303,6 +303,26 @@ Kuro 實作順序（mini-agent 視角）:
 - K2 不再是「delegation.ts 瘦身到 350 行 shim」，而是「delegation.ts 砍到 ≤50 行 tag-to-DAG converter」
 - W1-W6 worker 實作範圍擴充涵蓋 forge/watchdog endpoints（新增 W7: worktree lifecycle endpoints）
 
+### 6.5 Sibling Awareness Gap（P2 — v2-final 顯式遺留）
+
+**現況**（2026-04-16 S4 驗證，`memory/p1d-real-scenario-verified.md` §S4）：
+- wave 內並行 delegate 彼此看不到 sibling summary
+- plan/review worker prompt body 無 `sibling_summary` 欄位
+- 非 bug，是 feature 未實作
+
+**為何列在 §6 而非 §5**：這是 mini-agent (Designer) 的 DAG plan 產出責任 — 由 edit-layer 在呼叫 middleware /plan 時注入，不是 middleware worker 的職責。middleware 純 executor，不知道 wave 語義。
+
+**v2-final 期望契約**：
+- edit-layer wave orchestrator 在 sibling delegate A/B/C 都 complete 後，若 wave 內還有 D 要跑，把 A/B/C 的 summary 以 `sibling_summary: [{id, type, summary}]` 結構塞入 D 的 delegation envelope
+- middleware 只負責 verbatim forward 給 worker prompt body，不合成、不過濾
+- worker prompt template 新增 `{{#if sibling_summary}} ## Sibling Context {{/if}}` 區塊
+
+**實作位置**：
+- K2 edit-layer（`src/delegation.ts` converter 擴充，非 middleware 改動）
+- 依賴：wave chaining 已落地（已 ✓）+ commitments ledger W2 綠（便於用 ledger query 拉 sibling 結果）
+
+**列入 Cutover Checklist**：§10 新增 "K6: sibling_summary injection in wave ≥2 scenarios" — P2 gate，不 block W1-W7 但 block `/accomplish` 正式路線。
+
 ---
 
 ## §7 Migration Plan
@@ -353,6 +373,7 @@ Kuro 實作順序（mini-agent 視角）:
 - [ ] K1-K2 shadow run parity report ≥ 99% match over 50 delegations
 - [ ] K3 `<open-commitments>` 在 perception 出現並被 Kuro 正確處理（≥ 3 cycle 觀察）
 - [ ] K5 golden regressions 全綠
+- [ ] K6: sibling_summary injection 在 wave ≥2 sibling 場景驗證（見 §6.5）
 - [ ] Alex L3 approve flag flip
 - [ ] `src/delegation.ts` 瘦身 diff reviewed + merged
 

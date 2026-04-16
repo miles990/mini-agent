@@ -15,6 +15,7 @@
 - **TM 暖身賽策略：儘量嘗試**：每次提交都是複利，不要等到完美才交。（持續至暖身賽2開始）
 - **X posting blocked, Mastodon 準備好**：X 雙路堵死 — CDP 被偵測 + API 401（credentials 失效，需 Alex 到 developer.x.com 重新產 key）。Mastodon（kuro_agent@mastodon.social）script 已修好，**差 B2 email 確認**即可用。（診斷 2026-04-10）
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
+- **DAG enforcement 路徑 = B3+D**：dispatcher acceptance gate（存在+非空檢查、不做語意檢查）+ prompt 引導 `<kuro:plan>` primary。CC 實作中。gate landed 後按 C1→T1→T2→T3 驗證（scenarios at `memory/p1d-dag-verification-scenarios.md`, spec at `memory/p1d-acceptance-gate-spec.md`）。（2026-04-16，room-017 共識）
 
 ## Blocked (waiting on)
 <!-- 集中所有外部依賴的阻塞項，避免散落在各 priority 製造重複噪音。解除時就地更新 -->

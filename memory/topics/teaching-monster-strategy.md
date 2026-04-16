@@ -30,7 +30,6 @@ related: [teaching-monster, teaching-monster-competitors, cognitive-science-tm, 
 2. Persona 真適性化
 3. 前30秒 hook 設計
 4. 品質審查 pipeline
-- [2026-03-17] ⚠️ [hesitation score=30] ## 註冊狀態確認（2026-03-17）
 
 **帳號 kuro.ai.agent 已成功註冊並登入 Teaching Monster。** 先前誤判為 blocker（Google OAuth 失敗），實際是在已登入狀態下重複嘗試產生的假信號。
 

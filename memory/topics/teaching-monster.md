@@ -419,29 +419,23 @@ SpeechLab 的 regime 是「資源 + 迭代 → 穩定」。我們資源和迭代
 ## 更新日誌
 - **2026-03-17 (v2)**: 完整資訊盤點 — 7 類別分類 + 約束框架分析（Constraint/Ground/Gift、Interface shapes cognition、Regime formation）
 - **2026-03-17 (v1)**: 初版 — 時間軸式 append 記錄
-- [2026-03-17] [2026-03-17] Email 監控建立：
 - kuro.ai.agent@gmail.com 在 Chrome CDP `/u/1/` slot
 - plugins/email-check.sh（33260ae）定期掃描
 - 目前收件匣 44 封，無 TM 競賽關鍵通知
 - Slack 確認碼 KVJ-3TS 待使用（加入 TM Slack workspace）
 - TM 帳號登入正常（今天 1:17 PM 登入通知）
-- [2026-03-17] [2026-03-17] TTS 研究結論（research delegate）：Kokoro TTS（HexGrad, 82M params, 開源）是最佳選擇 — 品質好、免費、中文支援、低延遲。OpenAI API 品質也行但有成本。macOS `say` 作為 fallback 可用但品質差。
 
 [2026-03-17] 公開 endpoint 研究結論：Cloudflare Tunnel（`cloudflared`）推薦用來暴露 localhost:3456 給競賽平台。業界標準、免費、設定簡單。
 
 [2026-03-17] ⚠️ **正確路徑：`/Users/user/Workspace/teaching-monster/`**。不是 `teaching-monster-remotion`（已清除的舊 worktree）、不是 `teaching.monster`（dot）。所有 delegation、smoke test、檔案操作都必須用這個路徑。已因用錯路徑被 Alex 指正兩次（3/21、3/30）。
-- [2026-03-17] [2026-03-17] Kokoro TTS 驗證完成：
 - Repo: ~/Workspace/teaching-monster/kokoro-tts/
 - Venv: .venv (Python 3.13, 系統 3.14.3 不相容需明確用 .venv)
 - PyTorch 2.10.0, MPS available (Apple Silicon GPU 加速)
 - `from kokoro import KPipeline` import OK
 - 也有 kokoro.js (JS 版本)
 - 下一步：下載模型權重 + 測試 TTS 生成
-- [2026-03-17] [2026-03-17] TM API 結構偵查結果：API 端點在根路徑（/users/me, /competitions），不在 /api/*。/api/ 會 307 → 404。API 文件在 /docs。
-- [2026-03-17] [2026-03-17] **Cloudflare Tunnel Timeout 問題**：quick tunnel 會 kill 超過 ~100 秒的長連線（curl exit code 56）。Pipeline 需要 6-7 分鐘，所以同步 /generate 端點無法透過 tunnel 使用。必須改成 async API pattern（POST → job_id → poll status）。
 - [2026-03-17] ## Task Queue 修剪（2026-03-17 22:40）
 19 項獨立 task 合併成 5 項。所有 Teaching Monster pipeline 子任務（TTS、視覺、persona、prompt、品質審查、部署、Slack scan、大金老師研究、AI audit）合併到 umbrella goal 內，不再獨立追蹤。Email 註冊和提交影片保留為獨立 task（前置條件）。兩則 Alex 回覆（#deprecated、email 信箱）已回應過（#172, #231），email cron 已設定。
-- [2026-03-17] [2026-03-17] 提交方式確認：平台呼叫我們的 API endpoint（不是手動上傳影片）。流程：本地 server → cloudflared tunnel → 公開 URL → 平台打 API → 回傳教學內容。登入頁：`teaching.monster/app?action=login`，走 Clerk OAuth SPA。
 - [2026-03-18] ## 提交格式確認（2026-03-18）
 
 **重大發現**：Teaching Monster 提交方式是**提供 API endpoint**，不是上傳 mp4。
