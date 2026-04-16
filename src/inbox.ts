@@ -13,6 +13,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { slog } from './utils.js';
 import { fetchPage } from './web.js';
 import type { InboxItem } from './types.js';
+import { sanitizeExternalContent } from './tag-parser.js';
 import { classifyInboxMessage } from './inbox-processor.js';
 
 // =============================================================================
@@ -499,9 +500,9 @@ export function formatInboxSection(items: InboxItem[]): string {
       : i.source === 'handoff' ? 'handoff'
       : `${i.source}:${i.from}`;
 
-    // 依 priority 調整預覽長度
+    // 依 priority 調整預覽長度 + sanitize system-level tags from external content
     const maxLen = i.priority <= 1 ? 500 : i.priority <= 2 ? 300 : 150;
-    const preview = i.content.replace(/\n/g, ' ').slice(0, maxLen);
+    const preview = sanitizeExternalContent(i.content.replace(/\n/g, ' ').slice(0, maxLen));
     let line = `P${i.priority} [${sourceTag}] ${time} — ${preview}`;
 
     // GitHub: 顯示 labels

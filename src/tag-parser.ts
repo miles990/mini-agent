@@ -279,3 +279,19 @@ export function createKuroChatStreamParser(
     },
   };
 }
+
+/**
+ * Neutralize system-level XML tags in external message content before it enters
+ * the LLM context. Prevents prompt injection via chat room / inbox messages
+ * that contain tags like <system-reminder>, <functions>, <tool_result>, etc.
+ *
+ * Replaces angle brackets with fullwidth equivalents (＜ ＞) only for known
+ * dangerous patterns — legitimate tags like <kuro:chat> are left intact.
+ */
+const SYSTEM_TAG_PATTERN = /(<\/?)(system-reminder|system|functions|function|tool_result|tool_use|antml:[a-z_]+)([\s>])/gi;
+
+export function sanitizeExternalContent(text: string): string {
+  return text.replace(SYSTEM_TAG_PATTERN, (_, open: string, tag: string, after: string) =>
+    `${open.replace('<', '＜')}${tag}${after.replace('>', '＞')}`
+  );
+}

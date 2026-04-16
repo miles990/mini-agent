@@ -56,6 +56,7 @@ import {
 // runVerify import removed — verify logic now in memory-index.ts
 import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } from './temporal.js';
 import { readPendingInbox, formatInboxSection } from './inbox.js';
+import { sanitizeExternalContent } from './tag-parser.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
@@ -1589,7 +1590,8 @@ export class InstanceMemory {
 
   private formatChatRoomLine(msg: { id: string; from: string; text: string; replyTo?: string }, noTruncate = false): string {
     const reply = msg.replyTo ? ` ↩${msg.replyTo}` : '';
-    const text = noTruncate ? msg.text : (msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text);
+    const raw = noTruncate ? msg.text : (msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text);
+    const text = sanitizeExternalContent(raw);
     return `[${msg.id}] ${msg.from}${reply}: ${text}`;
   }
 

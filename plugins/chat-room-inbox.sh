@@ -7,6 +7,12 @@
 
 INBOX="$HOME/.mini-agent/chat-room-inbox.md"
 
+# Sanitize system-level XML tags from external content to prevent prompt injection.
+# Replaces <system-reminder>, <functions>, <tool_result>, etc. with bracket equivalents.
+sanitize_tags() {
+    sed -E 's/<(\/?(system-reminder|system|functions|function|tool_result|tool_use|antml:[a-z_]+))/＜\1/g; s/(system-reminder|system|functions|function|tool_result|tool_use|antml:[a-z_]+)>/\1＞/g'
+}
+
 if [ ! -f "$INBOX" ] || [ ! -s "$INBOX" ]; then
     echo "No messages."
     exit 0
@@ -36,7 +42,7 @@ echo "$header"
 
 # Show pending messages (filter out mushi system event noise)
 if [ "$pending" -gt 0 ]; then
-    sed -n '/^## Pending$/,/^## \(Unaddressed\|Processed\)$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | while IFS= read -r line; do
+    sed -n '/^## Pending$/,/^## \(Unaddressed\|Processed\)$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | sanitize_tags | while IFS= read -r line; do
         echo "  $line"
     done
 fi
@@ -47,7 +53,7 @@ if [ "$unaddressed" -gt 0 ]; then
         echo ""
     fi
     echo "--- Unaddressed (not yet responded) ---"
-    sed -n '/^## Unaddressed$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | while IFS= read -r line; do
+    sed -n '/^## Unaddressed$/,/^## Processed$/p' "$INBOX" 2>/dev/null | grep '^\- \[' | grep -v '(mushi) \[.*\] \[mushi\]' | head -10 | sanitize_tags | while IFS= read -r line; do
         echo "  [!] $line"
     done
 fi
@@ -57,7 +63,7 @@ recent=$(grep -A 999 '^## Processed$' "$INBOX" 2>/dev/null | grep '^\- \[' | hea
 if [ -n "$recent" ]; then
     echo ""
     echo "--- Recent processed ---"
-    echo "$recent" | while IFS= read -r line; do
+    echo "$recent" | sanitize_tags | while IFS= read -r line; do
         echo "  $line"
     done
 fi
@@ -75,7 +81,7 @@ if [ -f "$CONV_FILE" ] && [ "$pending" -gt 0 ]; then
     tail -8 "$CONV_FILE" 2>/dev/null | while IFS= read -r line; do
         from=$(echo "$line" | sed -n 's/.*"from":"\([^"]*\)".*/\1/p')
         id=$(echo "$line" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
-        text=$(echo "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p' | head -c 150)
+        text=$(echo "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p' | head -c 150 | sanitize_tags)
         reply=$(echo "$line" | sed -n 's/.*"replyTo":"\([^"]*\)".*/\1/p')
         if [ -n "$from" ] && [ -n "$text" ]; then
             reply_hint=""
