@@ -283,8 +283,8 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
-- <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
+- <kuro:plan acceptance="observable end state">goal</kuro:plan> — **primary**: brain auto-builds DAG (trivial→1-node, complex→multi-node with dependsOn). Use for any task that might decompose.
+- <kuro:delegate type="..." acceptance="observable end state">task</kuro:delegate> — routes through brain (same as plan, with worker hint). acceptance recommended. type ∈ research|learn|review|create|code|shell|plan|debug. workdir optional.
 - <kuro:supersede target="entry-xxx" topic="opt">new content\n---\nreason this replaces target</kuro:supersede> — supersede an earlier entry; reason required
 - <kuro:validate target="entry-xxx" /> — refresh last_validated_at (anti-decay)
 - <kuro:exclude target="entry-xxx">reason why this entry should not have been compiled</kuro:exclude> — mark compiler error; entries stay immutable
@@ -328,8 +328,8 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
-- <kuro:delegate type="research|learn|review|create|code|shell|plan|debug">task</kuro:delegate> — background task (workdir="path" optional, defaults to project root)
-- <kuro:plan acceptance="...">goal</kuro:plan> — multi-step DAG via middleware (brain auto-builds steps; use when task has natural parallelism or dependencies)
+- <kuro:plan acceptance="observable end state">goal</kuro:plan> — **primary**: brain auto-builds DAG (trivial→1-node, complex→multi-node with dependsOn). Use for any task that might decompose.
+- <kuro:delegate type="..." acceptance="observable end state">task</kuro:delegate> — routes through brain (same as plan, with worker hint). acceptance recommended. type ∈ research|learn|review|create|code|shell|plan|debug. workdir optional.
 - <kuro:supersede target="entry-xxx" topic="opt">new content\n---\nreason this replaces target</kuro:supersede> — supersede an earlier entry; reason required
 - <kuro:validate target="entry-xxx" /> — refresh last_validated_at (anti-decay)
 - <kuro:exclude target="entry-xxx">reason why this entry should not have been compiled</kuro:exclude> — mark compiler error; entries stay immutable
@@ -701,6 +701,7 @@ export function parseTags(response: string): ParsedTags {
       provider: providerRaw && ['claude', 'codex', 'local'].includes(providerRaw) ? providerRaw : undefined,
       verify: verifyRaw ? verifyRaw.split(',').map(s => s.trim()) : undefined,
       maxTurns: maxTurnsRaw ? parseInt(maxTurnsRaw, 10) : undefined,
+      acceptance: attr(t.attributes, 'acceptance'),
     });
   }
 
@@ -1153,6 +1154,17 @@ export async function postProcess(
 
   // <kuro:delegate> tags — spawn async subprocess (fire-and-forget)
   // Uses Task Graph for DAG decomposition: detect dependencies, merge related tasks, plan waves
+
+  // Acceptance nudge (Phase 1 = soft warning, Phase 2 = hard gate per Akari orthogonal design).
+  // BAR routes all delegates through brain — acceptance is metadata, not gate.
+  if (tags.delegates.length > 0) {
+    for (const del of tags.delegates) {
+      if (!del.acceptance || del.acceptance.trim().length === 0) {
+        slog('DELEGATE-WARN', `Missing acceptance for ${del.type ?? 'code'}: "${del.prompt.slice(0, 80)}" — consider acceptance="<observable end state>"`);
+      }
+    }
+  }
+
   if (tags.delegates.length > 0) tagsProcessed.push('delegate');
 
   // Sibling awareness: build context so concurrent delegations know about each other
@@ -1362,7 +1374,20 @@ export async function postProcess(
       }
     }
   } else {
-    // Single delegate — direct spawn (no DAG overhead)
+    // Single delegate — BAR (Brain-Always-Routes): route through middleware /accomplish.
+    // Brain decides situation-appropriate plan: trivial → 1-node, complex → multi-node DAG.
+    // Worker hint (hard pin) and cwd included in goal text for brain to respect.
+    // Phase 1: workerHint in goal text; Phase 2: proper AccomplishRequest field.
+    const { middleware: mw, MiddlewareOfflineError } = await import('./middleware-client.js');
+    const client = mw();
+
+    // Capability → middleware worker name (inline to avoid cross-module dep)
+    const CAP_WORKER: Record<string, string> = {
+      code: 'coder', research: 'researcher', learn: 'learn', review: 'reviewer',
+      create: 'create', plan: 'planner', debug: 'debugger', shell: 'shell',
+      browse: 'web-browser', akari: 'cloud-agent',
+    };
+
     for (const del of tags.delegates) {
       let prompt = del.prompt;
       if (del.type === 'learn' || del.type === 'research') {
@@ -1378,26 +1403,26 @@ export async function postProcess(
       // URL case preservation gate — see src/url-case-gate.ts.
       prompt = applyUrlCaseGate(prompt, memoryDir).prompt;
 
-      // Sibling awareness context (running tasks only — single delegate has no wave peers)
-      const siblingCtx = buildSiblingContext(del.prompt);
-
       // Context depth profile — type-appropriate context (topic memories, HEARTBEAT, etc.)
       const taskType = del.type ?? 'code';
       const profileCtx = await buildContextForDelegationType(taskType, del.prompt);
+      if (profileCtx) prompt = `${profileCtx}\n\n${prompt}`;
 
-      const taskId = spawnDelegation({
-        prompt,
-        workdir: del.workdir,
-        type: del.type,
-        provider: del.provider,
-        maxTurns: del.maxTurns,
-        verify: del.verify,
-        context: [siblingCtx, profileCtx].filter(Boolean).join('\n') || undefined,
-      });
-      const resolvedProvider = del.provider ?? (taskType === 'shell' ? 'shell' : (['learn', 'research'].includes(taskType) ? 'local' : 'claude'));
-      slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}, provider=${resolvedProvider}) → ${del.workdir}`);
-      eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
-      try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, lane: 'background' }, tags: [taskType] }); } catch { /* fire-and-forget */ }
+      // Build goal with worker hint + cwd for brain
+      const workerName = CAP_WORKER[taskType] ?? taskType;
+      const goalWithHints = `[worker: ${workerName}] [cwd: ${del.workdir}]\n${prompt}`;
+
+      client.accomplish({ goal: goalWithHints, acceptance: del.acceptance || undefined })
+        .then(res => {
+          slog('DISPATCH', `BAR: planId=${res.planId} (${res.plan.steps.length} steps, hint=${taskType}) · ${del.prompt.slice(0, 80)}`);
+          eventBus.emit('action:delegation-start', { taskId: res.planId, type: taskType, workdir: del.workdir });
+          try { kbObserve({ source: 'routing', type: 'route', data: { taskId: res.planId, taskType, lane: 'background' }, tags: [taskType, 'bar'] }); } catch { /* fire-and-forget */ }
+        })
+        .catch(err => {
+          const offline = err instanceof MiddlewareOfflineError;
+          slog('DISPATCH', `BAR failed (${offline ? 'offline' : err?.message ?? err}): ${del.prompt.slice(0, 80)}`);
+          eventBus.emit('log:error', { tag: 'BAR-FAIL', msg: `${offline ? 'middleware offline' : err?.message ?? 'unknown'}: ${del.prompt.slice(0, 80)}` });
+        });
     }
   }
 

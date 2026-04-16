@@ -314,6 +314,8 @@ export interface DelegateRequest {
   provider?: Provider;
   maxTurns?: number;
   verify?: string[];
+  /** Convergence condition — observable end state. Required by dispatcher gate. */
+  acceptance?: string;
 }
 
 /** 解析後的 Agent 標籤 */
