@@ -1345,6 +1345,7 @@ export async function postProcess(
           provider: origDel.provider,
           maxTurns: origDel.maxTurns,
           verify: origDel.verify,
+          acceptance: origDel.acceptance || undefined,
           context: combinedCtx,
         });
         waveTaskIds.push(taskId);
