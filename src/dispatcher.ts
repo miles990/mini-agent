@@ -1374,23 +1374,15 @@ export async function postProcess(
       }
     }
   } else {
-    // Single delegate — BAR (Brain-Always-Routes): route through middleware /accomplish.
-    // Brain decides situation-appropriate plan: trivial → 1-node, complex → multi-node DAG.
-    // Worker hint (hard pin) and cwd included in goal text for brain to respect.
-    // Phase 1: workerHint in goal text; Phase 2: proper AccomplishRequest field.
-    const { middleware: mw, MiddlewareOfflineError } = await import('./middleware-client.js');
-    const client = mw();
-
-    // Capability → middleware worker name (inline to avoid cross-module dep)
-    const CAP_WORKER: Record<string, string> = {
-      code: 'coder', research: 'researcher', learn: 'learn', review: 'reviewer',
-      create: 'create', plan: 'planner', debug: 'debugger', shell: 'shell',
-      browse: 'web-browser', akari: 'cloud-agent',
-    };
-
+    // Single delegate — unified lifecycle via spawnDelegation().
+    // spawnDelegation handles: forge worktree, commitment tracking, middleware dispatch
+    // (/accomplish when acceptance present, /plan otherwise), polling, and finalization.
+    // Context enrichment (methodology, URL gate, profile) stays here at the orchestration layer.
     for (const del of tags.delegates) {
       let prompt = del.prompt;
-      if (del.type === 'learn' || del.type === 'research') {
+      const taskType = del.type ?? 'code';
+
+      if (taskType === 'learn' || taskType === 'research') {
         try {
           const { getCurrentMethodology } = await import('./research-crystallizer.js');
           const methodology = getCurrentMethodology();
@@ -1404,29 +1396,23 @@ export async function postProcess(
       prompt = applyUrlCaseGate(prompt, memoryDir).prompt;
 
       // Context depth profile — type-appropriate context (topic memories, HEARTBEAT, etc.)
-      const taskType = del.type ?? 'code';
       const profileCtx = await buildContextForDelegationType(taskType, del.prompt);
       if (profileCtx) prompt = `${profileCtx}\n\n${prompt}`;
 
-      // BAR: proper schema fields — worker hint via constraints.must_use, cwd via context.extra
-      const workerName = CAP_WORKER[taskType] ?? taskType;
-
-      client.accomplish({
-        goal: prompt,
+      const taskId = spawnDelegation({
+        prompt,
+        workdir: del.workdir,
+        type: taskType,
+        provider: del.provider,
+        maxTurns: del.maxTurns,
+        verify: del.verify,
         acceptance: del.acceptance || undefined,
-        constraints: { must_use: [workerName] },
-        context: { extra: `Working directory: ${del.workdir}` },
-      })
-        .then(res => {
-          slog('DISPATCH', `BAR: planId=${res.planId} (${res.plan.steps.length} steps, hint=${taskType}) · ${del.prompt.slice(0, 80)}`);
-          eventBus.emit('action:delegation-start', { taskId: res.planId, type: taskType, workdir: del.workdir });
-          try { kbObserve({ source: 'routing', type: 'route', data: { taskId: res.planId, taskType, lane: 'background' }, tags: [taskType, 'bar'] }); } catch { /* fire-and-forget */ }
-        })
-        .catch(err => {
-          const offline = err instanceof MiddlewareOfflineError;
-          slog('DISPATCH', `BAR failed (${offline ? 'offline' : err?.message ?? err}): ${del.prompt.slice(0, 80)}`);
-          eventBus.emit('log:error', { tag: 'BAR-FAIL', msg: `${offline ? 'middleware offline' : err?.message ?? 'unknown'}: ${del.prompt.slice(0, 80)}` });
-        });
+      });
+
+      slog('DISPATCH', `Delegation spawned: ${taskId} (type=${taskType}) → ${del.workdir}`);
+      eventBus.emit('action:delegation-start', { taskId, type: taskType, workdir: del.workdir });
+      triageRouting({ type: 'route', taskType, prompt: del.prompt.slice(0, 300) }).catch(() => {});
+      try { kbObserve({ source: 'routing', type: 'route', data: { taskId, taskType, lane: 'background' }, tags: [taskType, 'bar'] }); } catch { /* fire-and-forget */ }
     }
   }
 
