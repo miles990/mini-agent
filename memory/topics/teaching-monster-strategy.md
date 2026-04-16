@@ -748,3 +748,26 @@ rankings: []
 2. Arena 武器 = 人類第一印象決勝：前 15 秒 hook、視覺差異化、TTS 自然度、production value
 3. PvP distinctiveness patch (wave 3) 是唯一直接對 Arena 有用的改動 — 讓評審「記得你是誰」
 4. 下一輪 code changes 應集中在 presentation layer：slide 美學、audio pacing、engagement 的「感覺」而非「偵測」
+- [2026-04-16] [2026-04-17] TM 策略 pivot：從追 tsunumon engage -0.1 改為放大 Kuro adapt +0.2~+0.5。adapt 跨場領先（C2 +0.2, C3 +0.5）是結構性優勢，engage -0.1 是三等事。新假設 A1/A2/A3（branching 預判 / pacing 適配 / 多背景 framing）優先 > H1-H4。任何改動先問「adapt 變強還是變弱」。
+
+- [2026-04-17] **Framing Correction — 上條 pivot 跟 4/10 entry 矛盾**
+
+上條寫「adapt 是結構性優勢」+「任何改動先問 adapt」— 但 4/10 分析已確認兩件事：
+1. AI audit 的 adapt 0.1 gap = noise，5 層防線已健康，gate tightening diminishing returns
+2. Comp 3+ (Arena/初賽 Stage 2) API `display_metrics = [elo_score, win_rate, total_votes]`，AI audit 不參與排名
+
+所以 adapt +0.5 是 **AI audit 分數**（Stage 1 screening metric），不是 Arena 人類偏好 metric。把 ceiling 過的指標當主戰場 = framing bug。
+
+**修正後雙層戰略**：
+- **Stage 1 (AI audit screening, 前 10 進 Arena)**：adapt 已 4.7-4.9 穩定，≥ top 10 threshold 安全。**不加碼優化**。A1/A2/A3 假設降級為「有機會低成本測試時順手驗證」，不是主軸。
+- **Stage 2 (Arena, human pairwise)**：這才是決戰場。武器 = 前 15 秒 hook / TTS 自然度 / slide 美學 / 「懂我」瞬間密度。跟 AI audit adapt 不同源 — audible adaptation（multi-phase-prompts.mjs L1396 injection）可能跨界有用，但要看 Arena voter 而非 AI scorer 是否 reward。
+- **中間層 risk**：地板品質 — 任何 topic 掉到 4.5 以下，Arena 拿到該 matchup 就輸 Elo。32 topics 的 outlier 清理比追 adapt ceiling 重要（跟 4/6 entry 的「地板比天花板重要」一致）。
+
+**當下沒行動的理由**：B3 (Arena 投票階段) 尚未啟動，Comp 3-10 entries=0 或極少。現在改 code 是 pre-mature optimization（沒 data feedback loop）。等 Arena 真正開動、看到 elo/win_rate 出現 delta 才動 presentation layer。
+
+**真正待做的一件事**：audit 32 WR1 topics 的 opening 15s hook — 這是 Stage 2 可 pre-emptively 做的、不依賴 Arena feedback 的唯一 bet。但需要 per-topic script access（4/10 entry 說 auth blocked）— **已成為真實 blocker，先掛起不硬推**。
+
+**Gate 檢視**：
+- 我在修症狀還是修源頭？修源頭 — 上 cycle 把 metric 搞錯了。
+- 這 cycle 對 Alex 是進展嗎？是 — 避免下 cycle 以錯 framing 動 code（「Alex 不在我怎麼做」翻轉測試：真動 code 沒人阻止我，浪費時間更大）。
+- 驗證了嗎？是 — 重讀 4/10+4/6 entry + 檢查 multi-phase-prompts.mjs L1396-1420 實際 injection。

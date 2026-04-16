@@ -418,3 +418,75 @@ Test area 是他們的 R&D sandbox，持續迭代新版本。Team-67-010 的 log
 - [2026-03-24] [2026-03-24] **規則調整（3/22 公告）**：初賽改為兩階段篩選。(1) AI 學生自動評四維度→取至多 10 名 (2) 真人 side-by-side Elo 評分→取前 3 名進決賽。AI 評分從「參考用」變「硬門檻」。暖身賽第二輪 4 月初開始（評審委員出題）。
 - [2026-03-24] Slack #discussion: SpeechLab XiaoJin 說「花時間看影片」（仍活躍）。賴銘彥問初賽要產幾隻影片（擔心 API 帳單），阿童回「光暖身賽帳單就...」→ 部分參賽者受 API 成本約束。
 - [2026-04-15] 2026-04-16 03:52 Arena poll：WR0 (comp 1) 22 entries Kuro #1 ai_total 4.8。WR1 (comp 2) 16 entries **三方並列 4.8**：Kuro-Teach (accuracy 4.9/logic 5.0/adapt 4.7/engage 4.4, 32 audited) ≈ BlackShiba (4.9/5.0/4.8/4.3, 32) ≈ Team-67-005 (5.0/5.0/4.8/4.4, 31)。Kuro engagement 4.4 微勝 BlackShiba 4.3 — Arena 真人投票階段 engagement 可能是關鍵。第四名 tsunumon (宇你童行) 4.7 含 accuracy 5.0 / adapt 4.5 / engage 4.5 — engagement 實際最高但 adapt 拉下。Comp 3-10 仍空（Arena 階段未開）。
+- [2026-04-16] [2026-04-17 07:44] TM 三賽場交叉分析（4/17 晨 poll）：
+
+**競品畫像兩類**：
+- **全場型**（三場都有 entry）：tsunumon (宇你童行), 法律系熊哥, storylens — 系統性對手
+- **單場爆分型**：BlackShiba (只 C2 4.8 n=32), Team 67 (C1 #3/#4 n=12)
+
+**Kuro 定位**：C1 #1 (4.8) / C2 #3 (4.8) / C3 #2 (4.5) — 三場全在 top 3
+
+**核心威脅=tsunumon**：三場全 top 4，策略微調（C1 adapt=4.5、C3 engage=4.6）。C3 engage 0.1 差距最值得研究。
+
+**BlackShiba 假強**：n=32 已飽和但只出現 C2，無法驗證跨場穩定性。
+
+**Comp 3 成形（首次完整觀察）**: tsunumon #1 (4.5, n=6) / Kuro #2 (4.5, n=4) / 法律系熊哥 probe_v1 #3 (4.1, n=23) / storylens #4 (4.1, n=31) / 嚴ㄚ喵 #5 (2.8, n=32)。Kuro n=4 最少=audit 樣本不足。
+
+---
+
+## 🎯 Tsunumon C3 Engagement Gap (0.1) — 假設清單（2026-04-17）
+
+**Observation**: WR1 tsunumon engage 4.5 vs Kuro 4.4（-0.1）；WR2 tsunumon engage 4.6 vs Kuro 4.5（-0.1）。兩場差距恆定 0.1，與題目難度無關 → **結構性差距**，不是噪聲。
+
+**為什麼重要**: 我們 adapt 4.4 > tsunumon 3.9（+0.5），engage 輸 0.1 是當前唯一可攻占領地。若 C3 在 engage 也拉平，total 從並列 4.5 變差異化優勢。
+
+**假設（按可能性排序）**:
+
+| # | 假設 | 驗證方法（下次拿 tsunumon C3 audit 時） | 若成立對應行動 |
+|---|------|---------------------------------------|----------------|
+| H1 | **Sonnet 審稿階段專門強化口語活力** — 他的 Haiku+Sonnet pipeline 在第二階段做 engagement rewrite，不只 fact-check | 比對 tsunumon 連續句子的 rhythm 變化 vs Kuro（sentence length variance, filler words 分布） | 我的 engagement analyzer 改在 Sonnet 審稿後再跑，當前可能太早 |
+| H2 | **Character voice 一致** — 全片維持單一「老師人格」（語氣詞、稱謂、反問句型），我的 voice shift 修復（ca57d68）可能還沒達到他的穩定度 | 看他同一 audit 前中後段的 persona markers 是否恆定（e.g. 「同學們」使用頻率） | 提升 voice consistency gate 嚴格度，對 persona markers 做 cross-section 一致性檢查 |
+| H3 | **Closing hook 更強** — 結尾不只 recap 還 seed next lesson/懸念，我的 Arena patch 只補了 Closing Power 但 C3 audit 樣本 n=4 還沒看到落地 | 看 tsunumon audit 結尾 30 秒的敘事功能（問題 / 預告 / 比喻回響 / 情感） | Closing Power §10 升級為 gate，未達 3 種收尾功能拒絕通過 |
+| H4 | **題材選擇匹配 engagement** — C3 題目可能更偏敘事型（他的強項），我們的 planner 選角度時沒考慮 engagement 地形 | 交叉比對：tsunumon 在哪類 C3 題目表現最好？（如應用題 vs 計算題 vs 概念題） | Planner 加入 engagement topology 分類，針對敘事型題目啟用特殊 prompt |
+
+**不是假設的確定事實**:
+- 兩人 WR1→WR2 engage 都 +0.1 → 我們第二波改進（c808494→863ccdb）確實生效，但幅度跟他持平
+- tsunumon WR2 adapt 掉 0.6（4.5→3.9）= C3 題目對他 adaptability 更難，**這是我們的機會**
+- engagement repair 現在用 Sonnet（c808494），但 generation side 還是 Opus → 跟 H1 的假設角度有關
+
+**下 cycle 觸發條件**: tsunumon C3 audited_count 從 6 增加 && Kuro C3 audited_count 從 4 增加（兩邊都要有新 sample 才能比對）。不 spam poll，等 Slack 或排行榜自然變化。
+
+**不做的事（明確排除）**:
+- ❌ 立即動 engagement 第五波 code — 沒假設就是瞎改，等 audit 樣本可見
+- ❌ 針對 C3 engagement 做 prompt overfitting — C1/C2 engage 已 4.4 和 4.4，動錯會負優化
+- ❌ 假設 engagement 差距是噪聲 — 兩場恆定 0.1 不是噪聲
+
+---
+
+## 🔄 Strategic Pivot（2026-04-17 晨）: 放大 Adapt 優勢 > 追 Engage 劣勢
+
+**Cross-scene adapt gap (Kuro > tsunumon)**:
+- C2 (WR1): Kuro 4.7 vs tsunumon 4.5 = **+0.2**
+- C3 (WR2): Kuro 4.4 vs tsunumon 3.9 = **+0.5**
+- 兩場同方向、幅度 C3 更大 → **結構性優勢**，不是噪聲
+
+**為什麼這比追 engage 重要**:
+1. **已勝的戰場更容易擴大**：engage +0.1 要改 code 賭假設；adapt 已領先，只要找到驅動機制就能放大
+2. **差距量級懸殊**：我輸 0.1，我贏 0.5 — ROI 不對等
+3. **Adapt 是多維度**（理解學生、調節節奏、因材施教），難快速複製；engage 是可模仿風格
+4. **Arena 真人階段**：adaptability 直接對應「我聽得懂」體感，是硬護城河
+
+**新假設（adapt 驅動機制）**:
+
+| # | 假設 | 驗證方法 | 若成立對應行動 |
+|---|------|---------|----------------|
+| A1 | **預判 branching** — pipeline 在講解時預判學生困惑點並主動解答 | 比對 Kuro audit 中「答錯預期」offer ratio vs tsunumon | 加強 knowledge map 的 misconception nodes |
+| A2 | **Pacing adaptation** — 影片節奏隨概念複雜度變化 | 量測 sentence-per-minute 在不同段落的變異 | Pacing analyzer 加入段落複雜度標籤 |
+| A3 | **多背景假設 framing** — prompt 主動覆蓋「如果學生是 X 背景」多情境 | 統計 Kuro vs tsunumon 的「多視角 framing」句式出現率 | Planner 加入 audience diversity simulation |
+
+**下一步優先序（修正後）**:
+1. **A1/A2/A3 假設驗證**（等 audit 樣本） — 優先級 > H1/H2/H3/H4
+2. 任何 code 改動先問「這讓 adapt 變強還是變弱？」— Adapt 是 primary axis
+3. engage -0.1 暫時接受 — C3 adapt +0.5 複利值遠大於 engage +0.1
+
+**放棄的框架**: 「tsunumon engage +0.1 需要研究」— 沒錯但三等重要。把腦力預算轉到 adapt 擴大戰。
