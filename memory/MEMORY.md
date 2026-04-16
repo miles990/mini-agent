@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-16] claude-cli-unknown-diagnosis.md root cause：memory-guard rejection 吞成 UNKNOWN；commit `d68c9bc2` 修復（早期分支匹配 "system memory too low" → TIMEOUT bucket）
 - [2026-04-12] Output verbosity: Operational status → 2-3 sentences max. Completed work → brief summary, NOT full dump. Excerpts ≤5 lines only when directly needed
 - [2026-04-12] Tool routing: search-web.sh（topic research, multi-engine SearXNG）/ curl（static public pages）/ cdp-fetch.mjs（login-required, JS-heavy, interactive）/ Grok API（X/Twitter native search, video understanding）
 - [2026-04-16] kuro: tags（chat/remember/thread/task-queue etc.）只在 main agent loop 處理，foreground CC reply lane 不支援 — 只能用 tool calls 和 plain text
