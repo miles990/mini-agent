@@ -41,5 +41,6 @@ __pycache__/
 # CC session 2026-04-17: ad-hoc temp files + graphify tooling
 _outline.json
 _tm-c3.json
-.graphify_detect.json
+.graphify_*.json
 .graphify_python
+.tm_*.json
