@@ -150,6 +150,73 @@ export function stopEventLoopLagMonitor(): void {
   }
 }
 
+// =============================================================================
+// Continuous process state sampler (D23)
+// =============================================================================
+
+/**
+ * Every 5 seconds, emit a one-line snapshot of process state:
+ *   [PROFILE-SAMPLE] rss=Xmb heap=Y/Z cpu=N% ELU=0.XX handles=H{types} reqs=R
+ *
+ * This gives a continuous timeline of process health — complements SPIKE
+ * events which only fire on >500ms lag. With periodic samples we can see
+ * slow creep vs sudden jumps, and compare adjacent samples to attribute
+ * lag to specific time windows.
+ */
+let sampleTimer: NodeJS.Timeout | null = null;
+
+export function startStateSampler(): void {
+  if (sampleTimer) return;
+  let lastCpu = process.cpuUsage();
+  let lastTs = Date.now();
+  let lastSampleElu = performance.eventLoopUtilization();
+
+  const sample = (): void => {
+    const mem = process.memoryUsage();
+    const cpu = process.cpuUsage(lastCpu);
+    const elapsed = (Date.now() - lastTs) * 1000;
+    const cpuPct = elapsed > 0 ? Math.round((cpu.user + cpu.system) / elapsed * 100) : 0;
+    lastCpu = process.cpuUsage();
+    lastTs = Date.now();
+
+    const elu = performance.eventLoopUtilization(lastSampleElu);
+    lastSampleElu = performance.eventLoopUtilization();
+
+    // @ts-expect-error — internal API
+    const handles = (process._getActiveHandles?.() ?? []) as unknown[];
+    // @ts-expect-error — internal API
+    const requests = (process._getActiveRequests?.() ?? []) as unknown[];
+    const handleTypes: Record<string, number> = {};
+    for (const h of handles) {
+      const type = (h as { constructor?: { name?: string } })?.constructor?.name ?? 'Unknown';
+      handleTypes[type] = (handleTypes[type] ?? 0) + 1;
+    }
+    const handleBreakdown = Object.entries(handleTypes)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${k}:${v}`)
+      .join(',');
+
+    // Only log if something is interesting — skip quiet samples to avoid noise.
+    // "interesting" = CPU > 5%, ELU > 0.3, handles > 10, or many active requests.
+    const interesting =
+      cpuPct > 5 ||
+      elu.utilization > 0.3 ||
+      handles.length > 10 ||
+      requests.length > 2;
+
+    if (interesting) {
+      slog(
+        'PROFILE-SAMPLE',
+        `rss=${Math.round(mem.rss / 1048576)}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB | ` +
+          `cpu=${cpuPct}% ELU=${elu.utilization.toFixed(2)} | ` +
+          `handles=${handles.length}{${handleBreakdown}} reqs=${requests.length}`,
+      );
+    }
+  };
+
+  sampleTimer = setInterval(sample, 5_000);
+}
+
 /** Best-effort snapshot of current max lag (since last rollup) — for slow-http diag. */
 export function currentMaxLag(): number {
   return maxLagSinceLog;

@@ -10,6 +10,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { slog } from './utils.js';
 
 interface CacheEntry {
   content: string;
@@ -28,14 +29,27 @@ export function cachedReadFile(filePath: string): string {
   const absPath = path.resolve(filePath);
 
   try {
+    // D23: time statSync — sync syscall on every cache hit. Under memory
+    // pressure, filesystem metadata pages can be swapped out; statSync
+    // then triggers page fault + disk read.
+    const statStart = Date.now();
     const stat = fs.statSync(absPath);
+    const statMs = Date.now() - statStart;
+    if (statMs > 100) {
+      slog('PROFILE', `cachedReadFile.statSync ${statMs}ms ${filePath}`);
+    }
     const cached = cache.get(absPath);
 
     if (cached && cached.mtimeMs >= stat.mtimeMs) {
       return cached.content;
     }
 
+    const readStart = Date.now();
     const content = fs.readFileSync(absPath, 'utf-8');
+    const readMs = Date.now() - readStart;
+    if (readMs > 100) {
+      slog('PROFILE', `cachedReadFile.readFileSync ${readMs}ms size=${content.length} ${filePath}`);
+    }
     cache.set(absPath, { content, mtimeMs: stat.mtimeMs });
 
     // Start watching this file's directory if not already

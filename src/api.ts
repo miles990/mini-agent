@@ -119,7 +119,7 @@ import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, 
 
 export { slog, setSlogPrefix } from './utils.js';
 import { slog, setSlogPrefix, diagLog } from './utils.js';
-import { startEventLoopLagMonitor, slowRequestMiddleware } from './diagnostics.js';
+import { startEventLoopLagMonitor, slowRequestMiddleware, startStateSampler } from './diagnostics.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -2955,6 +2955,7 @@ if (isMain) {
   // Logs to server.log when main thread stalls >100ms, rolls up max lag every 5s.
   // Together with [SLOW-HTTP] and [TIMING] logs, lets us see when/why the loop freezes.
   startEventLoopLagMonitor();
+  startStateSampler();
 
   // ── Load .env (lightweight, no dependency) ──
   const composeFile = findComposeFile();
