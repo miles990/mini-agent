@@ -102,6 +102,10 @@ agents:
         - name: middleware
           script: ./plugins/middleware.sh
           interval: "5m"
+        - name: middleware-workers
+          script: ./plugins/middleware-workers.sh
+          interval: "15m"
+          output_cap: 4000
         # - name: disk
         #   script: ./plugins/disk-usage.sh
         # - name: brew
