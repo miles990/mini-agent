@@ -593,15 +593,31 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   }
   args.push('--add-dir', projectDir);
 
-  // Memory pressure guard — avoid spawning new subprocess when system is under memory pressure
+  // Memory pressure guard — poll-and-wait up to 120s for transient pressure to clear
   // 2026-04-16 incident: 3 concurrent subprocesses → OOM → SIGTERM cascade
-  const freeMemMB = Math.round(os.freemem() / 1_048_576);
-  if (freeMemMB < 500) {
-    slog('CLAUDE', `Low memory (${freeMemMB}MB free) — deferring subprocess spawn to avoid OOM`);
-    return Promise.reject(Object.assign(
-      new Error(`System memory too low (${freeMemMB}MB free) — deferring to prevent OOM`),
-      { killed: false, status: null, signal: null, duration: 0, timeoutMs: TIMEOUT_MS },
-    ));
+  // 2026-04-17: race between main loop callClaude (316MB) + parallel delegate spawn made
+  //   synchronous reject convert transient pressure into user-visible TIMEOUTs (88% of errors).
+  //   Bounded wait absorbs the race without sacrificing safety valve.
+  const MEM_THRESHOLD_MB = 500;
+  const MEM_WAIT_CAP_MS = 120_000;
+  const MEM_POLL_MS = 5_000;
+  let freeMemMB = Math.round(os.freemem() / 1_048_576);
+  if (freeMemMB < MEM_THRESHOLD_MB) {
+    const waitStart = Date.now();
+    slog('CLAUDE', `Low memory (${freeMemMB}MB free) — polling for recovery (cap ${MEM_WAIT_CAP_MS / 1000}s)`);
+    while (freeMemMB < MEM_THRESHOLD_MB && Date.now() - waitStart < MEM_WAIT_CAP_MS) {
+      await new Promise<void>((r) => setTimeout(r, MEM_POLL_MS));
+      freeMemMB = Math.round(os.freemem() / 1_048_576);
+    }
+    const waitedSec = Math.round((Date.now() - waitStart) / 1000);
+    if (freeMemMB < MEM_THRESHOLD_MB) {
+      slog('CLAUDE', `Memory still low (${freeMemMB}MB) after ${waitedSec}s — deferring spawn`);
+      return Promise.reject(Object.assign(
+        new Error(`System memory too low (${freeMemMB}MB free) — deferring to prevent OOM`),
+        { killed: false, status: null, signal: null, duration: 0, timeoutMs: TIMEOUT_MS },
+      ));
+    }
+    slog('CLAUDE', `Memory recovered to ${freeMemMB}MB after ${waitedSec}s — proceeding`);
   }
 
   return new Promise<string>((resolve, reject) => {

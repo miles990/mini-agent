@@ -36,9 +36,6 @@ related: [teaching-monster, teaching-monster-competitors, cognitive-science-tm, 
 證據：`/tmp/tm-app.png` 截圖顯示右上角「K kuro.ai.agent」、左側有「評測中心」「參賽者中心」選單。頁面顯示「目前沒有進行中的競賽」。
 
 **當前真正狀態**：帳號 OK，等暖身賽2 上線（deadline 4/1）。可以開始 Phase 1 開發（KaTeX + prompt engineering + TTS + 影片管線）而不需等註冊。
-- [2026-03-18] [2026-03-18] TM 實際狀態修正：26/32 成功（非 29/32），6 個完全空白目錄（431, 443, 444, 457, 460, 461）。Cloudflare quick tunnel 已斷線，平台無法送新 request。Server 本身健康（port 3456）。Prompt 已包含 anti-repetition + domain-specific analogy 改進。下一步需要重啟 tunnel + 更新平台 endpoint URL。
-- [2026-03-18] [2026-03-18] Pipeline 品質閘門升級（627496f）：review-script.mjs 從泛泛 4 維度升級為帶 RED FLAG 的嚴格審查。5 個具體偵測：(1) pseudo-math（假公式）(2) repetition（算 distinct_concepts）(3) generic analogy（要求 analogy_domain 匹配 topic）(4) filler phrases（每個 -0.5）(5) persona mismatch（逐欄比對）。重試 feedback 現在包含分數+concept數+analogy分析。下一步：用真實競賽題目測試新 review layer 的嚴格程度。
-- [2026-03-18] [2026-03-19] 影片時長分析（26 支影片）：平均 142.5 秒，目標 180 秒，短 21%。根因：每 slide 平均 35 字，語速 146 wpm。修正：(1) prompt 要求 45-55 字/slide + 450 字 self-check（2c28ead）(2) slide 後從 +0.5s 改 +1.5s 停頓。表現最好的影片（celery_436: 491 字 → 176s）證明字數上去就接近目標。下次平台 request 會驗證效果。
 - [2026-03-19] [2026-03-19] 暖身賽排行榜更新（from teaching.monster/app/leaderboard/competition/2）：
 - #1 tsunumon（宇你童行）: 4.7 / 32題 / 正確5.0 邏輯5.0 適配4.5 互動4.5
 - #2 TestPipeline（Team 78）: 4.4 / 32題 / 正確4.7 邏輯4.9 適配4.3 互動3.8 — **新出現的對手**

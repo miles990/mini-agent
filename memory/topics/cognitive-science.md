@@ -39,7 +39,6 @@ related: [interface-shapes-cognition, constraint-theory, perception]
 - Cybernetic Attention（Burnett, Public Domain Review）— 我們的注意力被重新訓練成機器注意力：對機器刺激的持續警覺。pursuit test 有百年工程史。perception-first = 不讓 agent 佔據人的注意力
 
 ## 支撐層即控制層
-- [2026-03-18] **Astrocytes: 大腦的隱藏監督者**（Quanta, 2026-01-30）— 星形膠質細胞長期被視為「膠水/支撐」，實際是監督控制層。一個 astrocyte 接觸 100K-1M+ 突觸，透過 norepinephrine→鈣積累→ATP→腺苷路徑調控神經元。Freeman: "You can get dramatic changes in firing patterns of neurons with zero changes in connectivity"。Papouin 實驗：norepinephrine 的可塑性效果「全部」由 astrocytes 介導。Ahrens: 停用 astrocytes 阻止行為狀態切換（希望→放棄）。機制跨物種保守（果蠅/斑馬魚/小鼠）= 結構必然性。**ISC 生物學實證**：connectome 不變但行為劇變 = 介面決定認知。**約束框架**：鈣積累→閾值→狀態切換 = constraint accumulation → regime formation (Bailey)。**Papouin 的刺**："Neuroscience has only cared about neurons for a century now, and we don't yet have a cure for a single brain disorder" — 盯著錯誤的層看的代價。來源: quantamagazine.org ref:quanta-astrocytes-2026
 
 ## 具身認知
 - RynnBrain（Alibaba DAMO）— 具身基礎模型，egocentric cognition = Gibson affordances 工程化。但仍是 representation-based 非真正 direct perception

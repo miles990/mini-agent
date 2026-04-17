@@ -448,7 +448,6 @@ SpeechLab 的 regime 是「資源 + 迭代 → 穩定」。我們資源和迭代
 - 延遲敏感（即時回應 vs 離線生成）
 - 需要公開部署（Cloudflare Workers / fly.io / Railway）
 - Video pipeline 是 API backend 的一部分，不是獨立產物
-- [2026-03-18] [2026-03-18] **架構轉折：API endpoint 模式**
 
 研究觸手確認 Teaching Monster 提交方式是**提供 API endpoint 讓平台呼叫**（JSON over HTTP），不是上傳 mp4 檔案。
 
@@ -463,14 +462,10 @@ SpeechLab 的 regime 是「資源 + 迭代 → 穩定」。我們資源和迭代
 - 「雲端上傳」任務作廢
 
 下一步：確認 API 詳細規格（request/response schema, timeout, auth）
-- [2026-03-18] [2026-03-18] TM pipeline 第一支影片成功生成。繞過 rate limit 的方法：自己寫 script.json 而非依賴 Claude API/CLI。Pipeline 跑通：generate-slides.mjs → generate-audio.mjs (macOS say) → assemble-video.mjs (puppeteer+ffmpeg)。輸出：1920x1080, H264+AAC, 184s, 3.7MB, 符合競賽最低規格。待改善：TTS 品質 (say → OpenAI)、投影片設計、KaTeX 渲染確認。
-- [2026-03-18] [2026-03-18] Pipeline 健康檢查：26/32 影片完成（81% 成功率），6 支 timeout（431, 443, 444, 457, 460, 461）。Server 正常運行 port 3456。Quick tunnel + named tunnel 都在跑。Delegation 統計：173 total（116 done, 35 running, 15 timeout, 7 failed）。
-- [2026-03-18] [2026-03-18] 熱身賽第一輪排行榜（17:35 查詢）：
 1. tsunumon（SpeechLab/宇你童行）4.8/5（32/32 題全評完，正確5.0/邏輯5.0/適配4.5/互動4.5）
 2. Kuro-Teach 4.2/5（17/26 題評完，正確4.1/邏輯4.3/適配4.1/互動4.3）— 6題生成失敗+9題待評測
 3. XiaoJin-v12（小金）1.6/5（32/32 題，正確1.0/邏輯1.1/適配2.6/互動1.7）— 意外低分
 差距分析：最大弱項是「正確性」(-0.9) 和「適配性」(-0.4)。改進方向：(1) 內容品質+準確度 (2) persona 適配 (3) 修復6個失敗題目
-- [2026-03-18] [2026-03-18] Pipeline prompt 升級（generate-script.mjs）：
 1. System prompt 加入 Student Persona Adaptation（知識水平、學習風格、年齡、興趣全面適配）
 2. System prompt 加入 Factual Accuracy Rules（禁止 pseudo-math，域內記法）
 3. buildUserPrompt 注入完整 student_persona JSON
@@ -478,7 +473,6 @@ SpeechLab 的 regime 是「資源 + 迭代 → 穩定」。我們資源和迭代
 5. Self-check 從 5 項擴到 7 項（加正確性驗證 + persona 適配）
 
 針對的弱項：正確性 4.1 → 禁止偽公式+強制事實驗證，適配性 4.1 → 完整 persona 注入。
-- [2026-03-18] [2026-03-18] **KaTeX + HTML-to-Video 研究結論**（取代卡住 14.6h 的 delegation）
 
 **推薦方案：Puppeteer screencast pipeline**
 
@@ -515,15 +509,12 @@ Sources:
 - 不需要 Manim — HTML + KaTeX + CSS transitions 就夠了
 - Phase 1 拆為 5 步：(1)HTML template (2)Puppeteer screencast (3)TTS+FFmpeg (4)Script→HTML (5)E2E
 Sources: pptr.dev/api/puppeteer.page.screencast, screenshotone.com/blog/how-to-record-videos-with-puppeteer/, katex.org
-- [2026-03-18] [2026-03-18] Phase 1 偵察結果：
 - Codebase: `/Users/user/Workspace/teaching-monster/src/` — server.mjs, generate-script.mjs, generate-slides.mjs, generate-audio.mjs, assemble-video.mjs, review-script.mjs
 - KaTeX 目前 client-side CDN 載入（katex@0.16.11），Puppeteer 可能在渲染前截圖 → Phase 1 要換 SSR
 - TTS fallback chain: OpenAI tts-1-hd → edge-tts → macOS say。Kokoro .venv-kokoro 已就位但未整合
 - 26+ 成功生成在 output/celery_*，6 個失敗需調查
 - teaching-monster-forge-1/ 有 TypeScript 版本（types.ts, stages/slides.ts）
 - Phase 1 最高槓桿：修失敗 > KaTeX SSR > prompt 精化 > Kokoro > 視覺
-- [2026-03-18] [2026-03-19] 失敗分析：32 個提交中 6 個失敗（19%），全是空目錄 = server crash。失敗模式：連續失敗（443+444, 460+461）= server 重啟期間丟請求、431 = 冷啟動、457 = 單次crash。根因之一：parent env PORT=3001 覆蓋 .env PORT=3456（node --env-file 不覆蓋已存在 env var）。修復：uncaughtException handler + 正確 PORT。6 個失敗分數已永久丟失。
-- [2026-03-18] [2026-03-19] KaTeX SSR 完成（82ed169）。之前 client-side CDN 載入 KaTeX JS，Puppeteer 用 networkidle0 等待但有 race condition 風險。改成 katex.renderToString() server-side rendering，公式在 build time 就是 HTML，零網路依賴。下一步最高槓桿：分析已評分提交的具體失分原因（accuracy 4.1 vs 5.0 差距的細節）。
 - [2026-03-19] [2026-03-19] 熱身賽第一輪排行榜更新（04:45 查詢）：
 1. tsunumon（SpeechLab/宇你童行）4.7/5（32/32，正確5.0/邏輯5.0/適配4.5/互動4.5）— 微降
 2. TestPipeline（Team 78）4.4/5（32/32，正確4.7/邏輯4.9/適配4.3/互動3.8）— **新進入者，超越我們**
