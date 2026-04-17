@@ -2200,7 +2200,15 @@ export class InstanceMemory {
     // ── Tactical Command Board (T7, brain-only-kuro-v2) ──
     // Fast GET of in-flight delegations from middleware + cached needs-attention.
     // Scorer itself runs async as a perception plugin (T13) — buildContext must not block.
-    if (!isLight && !budgetExhausted() && shouldLoad('tactics-board', ['task', 'delegate', 'worker', 'tactics', 'attention', 'in-flight'])) {
+    //
+    // Gated by KURO_TACTICS_BOARD_ENABLED env flag (default: disabled).
+    // Reason: tactics-board + reasoning-continuity + commitment-ledger stack shifted cycle
+    // convergence from "observe env → act" to "verify my own ledger". Empirical effect:
+    // 4/7 cycles were no-op "Verified X already committed" during the regression window
+    // (2026-04-17 14:00–17:20). Re-enable only when observational evidence shows cycle
+    // produces more visible output than ledger verification.
+    const tacticsEnabled = (process.env.KURO_TACTICS_BOARD_ENABLED ?? '').toLowerCase() === 'true';
+    if (tacticsEnabled && !isLight && !budgetExhausted() && shouldLoad('tactics-board', ['task', 'delegate', 'worker', 'tactics', 'attention', 'in-flight'])) {
       try {
         const { getInFlight } = await import('./tactics-client.js');
         const agent = process.env.AGENT_NAME ?? 'kuro';
