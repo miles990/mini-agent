@@ -83,10 +83,26 @@ export class AgentEventBus {
       ...(meta?.priority ? { priority: meta.priority } : {}),
       ...(meta?.source ? { source: meta.source } : {}),
     };
-    this.emitter.emit(type, event);
-    // Wildcard: prefix:* listeners
-    const prefix = type.split(':')[0];
-    this.emitter.emit(`${prefix}:*`, event);
+    // Layer A (2026-04-17, Constraint Texture): defer listener execution to next
+    // macrotask so emit() returns immediately and listeners don't chain-block the
+    // event loop. Observed p99 loop lag max=160s during cycle — sync listener
+    // chains with embedded fs.appendFileSync / eventBus re-emit caused
+    // microtask cascade. setImmediate yields to I/O phase (HTTP handler accept).
+    //
+    // Breaks sync-order expectations (listeners no longer run before emit returns).
+    // None of the 131 emit call sites use `await emit` or depend on sync order;
+    // opt-out via DEFER_EMIT=false if regression found.
+    if (process.env.DEFER_EMIT === 'false') {
+      this.emitter.emit(type, event);
+      const prefix = type.split(':')[0];
+      this.emitter.emit(`${prefix}:*`, event);
+      return;
+    }
+    setImmediate(() => {
+      this.emitter.emit(type, event);
+      const prefix = type.split(':')[0];
+      this.emitter.emit(`${prefix}:*`, event);
+    });
   }
 
   on(pattern: EventPattern, handler: EventHandler): this {

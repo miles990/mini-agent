@@ -1,8 +1,20 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { AgentEventBus, debounce, distinctUntilChanged } from '../src/event-bus.js';
 import type { AgentEvent } from '../src/event-bus.js';
 
+// Layer A (2026-04-17): production defers listener execution via setImmediate
+// to prevent event-loop blocking. Tests assume sync semantics — opt out here
+// so test assertions see listener side effects immediately after emit().
 describe('AgentEventBus', () => {
+  const originalDeferEmit = process.env.DEFER_EMIT;
+  beforeAll(() => {
+    process.env.DEFER_EMIT = 'false';
+  });
+  afterAll(() => {
+    if (originalDeferEmit === undefined) delete process.env.DEFER_EMIT;
+    else process.env.DEFER_EMIT = originalDeferEmit;
+  });
+
   let bus: AgentEventBus;
 
   beforeEach(() => {
