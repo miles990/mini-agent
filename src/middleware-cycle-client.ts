@@ -44,14 +44,12 @@ function getMiddlewareUrl(): string {
 }
 
 export function isMiddlewareCycleEnabled(): boolean {
-  // Default ON (2026-04-17) — Layer C flipped to primary after verified:
-  //   Layer A Verified: eventBus defer dropped idle max 160s → 126ms
-  //   Layer A+cycle STILL 159s max → confirmed SDK for-await blocks main thread
-  //   Layer C eliminates iteration from main thread (moves to middleware process)
-  // Opt-out via USE_MIDDLEWARE_FOR_CYCLE=false. Falls through to SDK/CLI path.
+  // Default OFF — env must be explicit true. Kuro opts-in via launchd plist
+  // EnvironmentVariables: USE_MIDDLEWARE_FOR_CYCLE=true. This keeps behavior
+  // deterministic: unset env = legacy SDK path; only plist-configured agents
+  // get Layer C.
   const v = process.env.USE_MIDDLEWARE_FOR_CYCLE?.toLowerCase();
-  if (v === 'false' || v === '0') return false;
-  return true;
+  return v === 'true' || v === '1';
 }
 
 export async function execClaudeViaMiddleware(
