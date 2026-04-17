@@ -4,6 +4,13 @@
  * REST API for mini-agent with instance management
  */
 
+// Load .env if present (Node 24+ native, no dotenv dep).
+// Plist WorkingDirectory = ~/Workspace/mini-agent, so .env resolves relative to cwd.
+// Failures (file missing / malformed) are silent — defaults still work.
+try {
+  (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile?.();
+} catch { /* no .env present, or unsupported Node — proceed with existing process.env */ }
+
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
