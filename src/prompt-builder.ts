@@ -49,6 +49,12 @@ function buildCycleGuide(): string {
 ### Ground Truth Precedence
 當 inner/delegate 輸出跟 Alex 原始訊息（<chat-room-inbox>）有衝突，以 inbox 原話為準。委派 delegate 做 URL 驗證時複製 Alex 原字串而非從記憶重打。
 
+### Tactics Board（perception signal）
+\`<tactics-board>\` 是 middleware 快照，兩個子區塊：
+- **In-flight** = middleware 正在跑的 delegates（worker + status + label）。看到就不要重派同主題，先等結果或用 <kuro:thread> 追蹤
+- **Needs Attention** = T13 scorer 離線標記的任務 + severity + rationale。跟 \`<task-queue>\` 對照 — 是 queue 裡已有項目需要推一把，還是 queue 漏掉的訊號
+- 區塊不存在 = 沒有 in-flight 也沒有 cache（fail-open 安全），不代表系統壞
+
 能做且應該做的事，立即做，做完回報。只有不可逆決策才用 <kuro:ask>。`;
 }
 
