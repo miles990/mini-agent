@@ -1459,34 +1459,54 @@ export class AgentLoop {
    * Returns count of new inbox items detected during execution.
    */
   private async runConcurrentTasks(): Promise<number> {
-    const tasks: Promise<void>[] = [];
+    // Profile each concurrent task — they run in parallel with callClaude,
+    // so any one of them hanging stretches the "await Promise.all" even when
+    // callClaude completes quickly. A slow git push / metabolism regex /
+    // perception refresh can silently dominate cycle duration.
+    const tStart = Date.now();
+    const timings: Record<string, number> = {};
+    const time = async <T>(label: string, p: Promise<T>): Promise<T | undefined> => {
+      const t0 = Date.now();
+      try {
+        const result = await p;
+        timings[label] = Date.now() - t0;
+        return result;
+      } catch {
+        timings[label] = Date.now() - t0;
+        return undefined;
+      }
+    };
+
+    const tasks: Promise<unknown>[] = [];
 
     // 1. Perception refresh — all streams get fresh caches
-    tasks.push(
-      perceptionStreams.refreshAll().catch(() => {})
-    );
+    tasks.push(time('perception', perceptionStreams.refreshAll()));
 
     // 2. Auto-commit + auto-push (previous cycle's leftover changes)
     if (isEnabled('auto-commit')) {
-      tasks.push(
-        autoCommitMemoryFiles(null)
-          .then(() => {
-            try { getMemory().updateConversationSearchIndex(); } catch { /* best effort */ }
-          })
-          .then(() => autoCommitExternalRepos())
-          .then(() => {
-            if (isEnabled('auto-push')) {
-              return autoPushIfAhead().catch(() => {});
-            }
-          })
-          .catch(() => {})
-      );
+      tasks.push(time('autoCommit', autoCommitMemoryFiles(null)
+        .then(() => {
+          try { getMemory().updateConversationSearchIndex(); } catch { /* best effort */ }
+        })
+        .then(() => autoCommitExternalRepos())
+        .then(() => {
+          if (isEnabled('auto-push')) {
+            return autoPushIfAhead().catch(() => {});
+          }
+        })
+      ));
     }
 
     // 3. Metabolism — 新陳代謝掃描（吸收/排泄/偵測，各自自帶節流）
-    tasks.push(metabolismScan().catch(() => {}));
+    tasks.push(time('metabolism', metabolismScan()));
 
     await Promise.allSettled(tasks);
+
+    const totalMs = Date.now() - tStart;
+    if (totalMs > 500) {
+      const parts = Object.entries(timings).map(([k, v]) => `${k}=${v}ms`).join(' ');
+      slog('PROFILE', `concurrentTasks total=${totalMs}ms ${parts}`);
+    }
 
     // 3. Inbox pre-check — detect new items that arrived during Claude thinking
     try {
