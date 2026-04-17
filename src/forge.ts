@@ -69,19 +69,38 @@ export function forgeRecover(workdir: string): void {
   } catch { /* best effort */ }
 }
 
+// 3-second cache. /status is polled once per second by kuro-live.sh and the
+// dashboard — without this cache every poll sync-spawned bash forge-lite.sh
+// (cold shell launch ~200-500ms). That spawn rate kept the main thread
+// blocked enough to make HTTP /health and /status timeout under load.
+// 2026-04-17 D21: one spawn every 3s is fine; users get near-real-time
+// slot info without the main thread getting hammered.
+let cachedForgeStatus: { ts: number; workdir: string; status: ForgeSlotStatus | null } | null = null;
+const FORGE_STATUS_TTL_MS = 3_000;
+
 export function forgeStatus(workdir: string): ForgeSlotStatus | null {
+  const now = Date.now();
+  if (cachedForgeStatus && cachedForgeStatus.workdir === workdir && now - cachedForgeStatus.ts < FORGE_STATUS_TTL_MS) {
+    return cachedForgeStatus.status;
+  }
   try {
-    if (!fs.existsSync(FORGE_LITE)) return null;
+    if (!fs.existsSync(FORGE_LITE)) {
+      cachedForgeStatus = { ts: now, workdir, status: null };
+      return null;
+    }
     const output = forgeExec('status', workdir);
     const lastLine = output.split('\n').pop() ?? '';
     const total = parseInt(lastLine.match(/total=(\d+)/)?.[1] ?? '0');
     const busy = parseInt(lastLine.match(/busy=(\d+)/)?.[1] ?? '0');
     const free = parseInt(lastLine.match(/free=(\d+)/)?.[1] ?? '0');
-    return {
+    const status = {
       total, busy, free,
-      source: FORGE_LITE === FORGE_LITE_PLUGIN ? 'plugin' : 'bundled',
+      source: FORGE_LITE === FORGE_LITE_PLUGIN ? 'plugin' as const : 'bundled' as const,
     };
+    cachedForgeStatus = { ts: now, workdir, status };
+    return status;
   } catch {
+    cachedForgeStatus = { ts: now, workdir, status: null };
     return null;
   }
 }
