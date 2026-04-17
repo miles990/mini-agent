@@ -4,7 +4,7 @@
  * Single loop lane: callClaude() → execProvider() → response
  */
 
-import { spawn, execSync as execSyncChild } from 'node:child_process';
+import { spawn, execSync as execSyncChild, execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync, readFileSync as readFileSyncFs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -216,6 +216,46 @@ function formatTask(task: TaskInfo | null): { prompt: string; startedAt: string;
 }
 
 // =============================================================================
+// Memory Pressure Measurement (platform-aware)
+// =============================================================================
+// `os.freemem()` on macOS only counts truly free pages — inactive pages (which
+// the kernel would reclaim under demand) are excluded. Result: a host with
+// 2.3GB reclaimable cache can look like 69MB free, triggering false positives.
+// Convergence condition (CC1): the signal we check should reflect what the OS
+// would actually deliver to a new process under pressure, not a narrow metric.
+
+let memCacheTs = 0;
+let memCacheValue = 0;
+const MEM_CACHE_MS = 2000;
+
+export function getAvailableMemoryMB(): number {
+  const now = Date.now();
+  if (now - memCacheTs < MEM_CACHE_MS) return memCacheValue;
+  let result = Math.round(os.freemem() / 1_048_576); // safe fallback
+  try {
+    if (process.platform === 'darwin') {
+      const out = execFileSync('vm_stat', { encoding: 'utf8', timeout: 1000 });
+      const pageSize = Number((out.match(/page size of (\d+)/) || [])[1] || 16384);
+      const free = Number((out.match(/Pages free:\s+(\d+)/) || [])[1] || 0);
+      const inactive = Number((out.match(/Pages inactive:\s+(\d+)/) || [])[1] || 0);
+      const speculative = Number((out.match(/Pages speculative:\s+(\d+)/) || [])[1] || 0);
+      const purgeable = Number((out.match(/Pages purgeable:\s+(\d+)/) || [])[1] || 0);
+      // Available = free + inactive + speculative + purgeable (all reclaimable on demand)
+      result = Math.round(((free + inactive + speculative + purgeable) * pageSize) / 1_048_576);
+    } else if (process.platform === 'linux') {
+      const meminfo = readFileSyncFs('/proc/meminfo', 'utf8');
+      const availMatch = meminfo.match(/MemAvailable:\s+(\d+)\s+kB/);
+      if (availMatch) result = Math.round(Number(availMatch[1]) / 1024);
+    }
+  } catch {
+    // vm_stat missing or parse failure — keep os.freemem() fallback
+  }
+  memCacheTs = now;
+  memCacheValue = result;
+  return result;
+}
+
+// =============================================================================
 // Lane Busy Locks
 // =============================================================================
 
@@ -238,11 +278,15 @@ interface ForegroundSlotState {
   abortController: AbortController | null;
   startedAt: number;
   lastActivityTs: number; // last stdout or state change — for TTL sweep
+  // CC2: slot is zombie iff no legitimate path to output. Memory wait is a legitimate path.
+  memoryWaitingSince: number | null;
 }
 const foregroundSlots = new Map<string, ForegroundSlotState>();
 const MAX_FOREGROUND_CONCURRENT = 2; // lowered from 8 — concurrent Claude CLI subprocesses cause OOM (2026-04-16 incident: 3 simultaneous subprocesses → SIGTERM cascade)
 const FG_SLOT_TTL_MS = 300_000; // 5 min — idle slots cleaned up after this
 const FG_SLOT_ZOMBIE_MS = 60_000; // 1 min — busy slot with no PID/controller = zombie
+const MEM_WAIT_CAP_MS = 120_000; // must match callClaude wait-guard cap
+const MEM_WAIT_GRACE_MS = 30_000; // grace after cap before slot is force-swept
 
 /** 查詢是否有任何 lane 正在執行 Claude CLI */
 export function isClaudeBusy(): boolean {
@@ -268,7 +312,7 @@ export function getForegroundActiveCount(): number {
 export function acquireForegroundSlot(): string | null {
   if (getForegroundActiveCount() >= MAX_FOREGROUND_CONCURRENT) return null;
   const id = `fg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  foregroundSlots.set(id, { busy: false, task: null, pid: null, abortController: null, startedAt: 0, lastActivityTs: Date.now() });
+  foregroundSlots.set(id, { busy: false, task: null, pid: null, abortController: null, startedAt: 0, lastActivityTs: Date.now(), memoryWaitingSince: null });
   return id;
 }
 
@@ -286,6 +330,13 @@ function sweepForegroundSlots(): void {
   for (const [id, slot] of foregroundSlots) {
     // Zombie: busy but no process handle and no abort controller — process died without cleanup
     if (slot.busy && !slot.pid && !slot.abortController && (now - slot.lastActivityTs) > FG_SLOT_ZOMBIE_MS) {
+      // CC2 guard: slot legitimately waiting for memory recovery (wait-inside-guard)
+      // is NOT a zombie — it has an authorized path to producing output. Only
+      // force-sweep after cap + grace to prevent indefinite stalls if the wait
+      // itself gets stuck.
+      if (slot.memoryWaitingSince !== null && (now - slot.memoryWaitingSince) < MEM_WAIT_CAP_MS + MEM_WAIT_GRACE_MS) {
+        continue;
+      }
       slog('SWEEP', `Cleaning zombie foreground slot ${id} (no PID/controller, idle ${((now - slot.lastActivityTs) / 1000).toFixed(0)}s)`);
       foregroundSlots.delete(id);
       continue;
@@ -593,27 +644,33 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
   }
   args.push('--add-dir', projectDir);
 
-  // Memory pressure guard — poll-and-wait up to 120s for transient pressure to clear
-  // 2026-04-16 incident: 3 concurrent subprocesses → OOM → SIGTERM cascade
-  // 2026-04-17: race between main loop callClaude (316MB) + parallel delegate spawn made
-  //   synchronous reject convert transient pressure into user-visible TIMEOUTs (88% of errors).
-  //   Bounded wait absorbs the race without sacrificing safety valve.
+  // Memory pressure guard — poll-and-wait up to 120s for transient pressure to clear.
+  // CC1: availability = OS-deliverable memory (free + reclaimable inactive/speculative/purgeable),
+  //      not `os.freemem()` which on macOS only counts truly free pages and misses 2GB+ of
+  //      reclaimable cache — causing false positives that trigger unnecessary waits.
+  // CC2: mark fgSlot.memoryWaitingSince during wait so sweep doesn't misclassify the slot as
+  //      zombie (busy + no pid + no controller) — the slot is legitimately waiting.
   const MEM_THRESHOLD_MB = 500;
-  const MEM_WAIT_CAP_MS = 120_000;
   const MEM_POLL_MS = 5_000;
-  let freeMemMB = Math.round(os.freemem() / 1_048_576);
+  let freeMemMB = getAvailableMemoryMB();
   if (freeMemMB < MEM_THRESHOLD_MB) {
     const waitStart = Date.now();
-    slog('CLAUDE', `Low memory (${freeMemMB}MB free) — polling for recovery (cap ${MEM_WAIT_CAP_MS / 1000}s)`);
-    while (freeMemMB < MEM_THRESHOLD_MB && Date.now() - waitStart < MEM_WAIT_CAP_MS) {
-      await new Promise<void>((r) => setTimeout(r, MEM_POLL_MS));
-      freeMemMB = Math.round(os.freemem() / 1_048_576);
+    const fgSlot = opts?.fgSlotId ? foregroundSlots.get(opts.fgSlotId) : null;
+    if (fgSlot) fgSlot.memoryWaitingSince = waitStart;
+    slog('CLAUDE', `Low memory (${freeMemMB}MB available) — polling for recovery (cap ${MEM_WAIT_CAP_MS / 1000}s)`);
+    try {
+      while (freeMemMB < MEM_THRESHOLD_MB && Date.now() - waitStart < MEM_WAIT_CAP_MS) {
+        await new Promise<void>((r) => setTimeout(r, MEM_POLL_MS));
+        freeMemMB = getAvailableMemoryMB();
+      }
+    } finally {
+      if (fgSlot) fgSlot.memoryWaitingSince = null;
     }
     const waitedSec = Math.round((Date.now() - waitStart) / 1000);
     if (freeMemMB < MEM_THRESHOLD_MB) {
-      slog('CLAUDE', `Memory still low (${freeMemMB}MB) after ${waitedSec}s — deferring spawn`);
+      slog('CLAUDE', `Memory still low (${freeMemMB}MB available) after ${waitedSec}s — deferring spawn`);
       return Promise.reject(Object.assign(
-        new Error(`System memory too low (${freeMemMB}MB free) — deferring to prevent OOM`),
+        new Error(`System memory too low (${freeMemMB}MB available) — deferring to prevent OOM`),
         { killed: false, status: null, signal: null, duration: 0, timeoutMs: TIMEOUT_MS },
       ));
     }
