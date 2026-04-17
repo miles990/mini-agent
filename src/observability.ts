@@ -265,12 +265,36 @@ let roomMsgCounter = 0;
 // First reply goes through threaded, subsequent replies become standalone messages
 const kuroRepliedTo = new Map<string, number>();
 
+// Content-level dedup: final gate for all writeRoomMessage call sites.
+// Multiple upstream paths (stream, post-process, dispatcher, fallback, FG lane) can
+// legitimately arrive here with the same (from, text) — drop duplicates within a 60s window.
+// Convergence condition: "same kuro message content within 60s appears in room at most once",
+// independent of how many upstream emitters misfired.
+const recentRoomMsgs = new Map<string, number>();
+const ROOM_DEDUP_WINDOW_MS = 60_000;
+
 export async function writeRoomMessage(from: string, text: string, replyTo?: string, context?: MessageContext): Promise<string> {
   // Guard: don't write empty messages — they pollute JSONL and cause false "replied" signals
   if (!text || !text.trim()) {
     slog('ROOM', `Skipped empty message from ${from}${replyTo ? ` (replyTo: ${replyTo})` : ''}`);
     return '';
   }
+
+  // Content-level dedup (final gate — all write paths funnel here)
+  const nowMs = Date.now();
+  const dedupKey = `${from}:${text.slice(0, 500)}`;
+  const prevTs = recentRoomMsgs.get(dedupKey);
+  if (prevTs !== undefined && nowMs - prevTs < ROOM_DEDUP_WINDOW_MS) {
+    slog('DEDUP', `Dropped duplicate ${from} room message (${Math.round((nowMs - prevTs) / 1000)}s ago): ${text.slice(0, 80)}`);
+    return '';
+  }
+  recentRoomMsgs.set(dedupKey, nowMs);
+  if (recentRoomMsgs.size > 200) {
+    for (const [k, ts] of recentRoomMsgs) {
+      if (nowMs - ts > ROOM_DEDUP_WINDOW_MS) recentRoomMsgs.delete(k);
+    }
+  }
+
   // Dedup: if kuro already replied to this replyTo target, drop threading
   if (from === 'kuro' && replyTo) {
     if (kuroRepliedTo.has(replyTo)) {

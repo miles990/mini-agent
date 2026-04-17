@@ -2199,6 +2199,9 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
+        // Skip if already streamed via onStreamChat (L1941) — post-process tag parse
+        // would otherwise re-emit the same chat, causing double-post to room/telegram.
+        if (streamedChatTexts.has(chat.text)) continue;
         eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: matchReplyTarget(chat.text, this.triggerTelegramMsgs) });
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
