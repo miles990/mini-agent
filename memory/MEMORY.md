@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-17] 2026-04-18 00:50 Taipei. `memory/rubrics/notify-severity.md` v0 written — T15 in brain-only-kuro-v2 proposal. Four tiers (spammy/routine/actionable/critical) with target volume shares 70/25/4/1%. Critical triggers: cascading failures, chat-promise breach, circuit-breaker trip, budget cliff, security-class error, external unreachable. Downgrade-on-doubt principle. Cross-ref T5 needs-attention (internal attention) vs T15 (external webhook fanout) — events can fire both, neither, either. Next brain
 - [2026-04-16] claude-cli-unknown-diagnosis.md root cause：memory-guard rejection 吞成 UNKNOWN；commit `d68c9bc2` 修復（早期分支匹配 "system memory too low" → TIMEOUT bucket）
 - [2026-04-12] Output verbosity: Operational status → 2-3 sentences max. Completed work → brief summary, NOT full dump. Excerpts ≤5 lines only when directly needed
 - [2026-04-12] Tool routing: search-web.sh（topic research, multi-engine SearXNG）/ curl（static public pages）/ cdp-fetch.mjs（login-required, JS-heavy, interactive）/ Grok API（X/Twitter native search, video understanding）
