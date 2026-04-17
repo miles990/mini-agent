@@ -96,7 +96,7 @@ export function flushFeedbackState(): void {
  */
 export function extractErrorSubtype(errorMsg: string): string {
   const lower = errorMsg.toLowerCase();
-  if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure')) return 'memory_guard';
+  if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure') || lower.includes('system memory too low') || lower.includes('deferring to prevent')) return 'memory_guard';
   if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線')) return 'econnrefused';
   if (lower.includes('exit 143') || lower.includes('sigterm')) return 'sigterm';
   if (lower.includes('killed by signal') || lower.includes('被信號')) return 'signal_killed';
