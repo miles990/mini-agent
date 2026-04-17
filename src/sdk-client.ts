@@ -138,9 +138,17 @@ export async function execClaudeViaSdk(
 
 /**
  * Check if SDK path is enabled via feature flag.
- * Default: false (走舊 CLI path).
+ *
+ * A4 (2026-04-17): default FLIPPED to true — SDK is primary path.
+ * Legacy CLI subprocess path remains fully functional, reachable via
+ * USE_SDK=false (explicit opt-out). Planned to delete in A5 after 2 weeks
+ * of no-regression observation in production.
+ *
+ * Default: true (SDK).  USE_SDK=false → legacy CLI path.
  */
 export function isSdkEnabled(): boolean {
   const v = process.env.USE_SDK?.toLowerCase();
-  return v === 'true' || v === '1';
+  if (v === 'false' || v === '0') return false;
+  // Any other value (unset, 'true', '1', '') → SDK (A4 default)
+  return true;
 }

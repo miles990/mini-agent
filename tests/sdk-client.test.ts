@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { execClaudeViaSdk } from '../src/sdk-client.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { execClaudeViaSdk, isSdkEnabled } from '../src/sdk-client.js';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 // Mock the SDK module — replace `query` with a controllable mock
@@ -17,6 +17,39 @@ type MockedQuery = ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   (query as unknown as MockedQuery).mockReset();
+});
+
+describe('isSdkEnabled — A4 default behavior (2026-04-17)', () => {
+  const originalEnv = process.env.USE_SDK;
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.USE_SDK;
+    else process.env.USE_SDK = originalEnv;
+  });
+
+  it('defaults to true when USE_SDK is unset (A4: SDK is primary)', () => {
+    delete process.env.USE_SDK;
+    expect(isSdkEnabled()).toBe(true);
+  });
+
+  it('returns true when USE_SDK="true"', () => {
+    process.env.USE_SDK = 'true';
+    expect(isSdkEnabled()).toBe(true);
+  });
+
+  it('returns false when USE_SDK="false" (explicit legacy opt-out)', () => {
+    process.env.USE_SDK = 'false';
+    expect(isSdkEnabled()).toBe(false);
+  });
+
+  it('returns false when USE_SDK="0"', () => {
+    process.env.USE_SDK = '0';
+    expect(isSdkEnabled()).toBe(false);
+  });
+
+  it('is case-insensitive for FALSE', () => {
+    process.env.USE_SDK = 'FALSE';
+    expect(isSdkEnabled()).toBe(false);
+  });
 });
 
 describe('SDK client regression (per Kuro msg 052)', () => {
