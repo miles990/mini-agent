@@ -411,3 +411,87 @@ Merge → CI/CD baseline regression test                │
 - **CC**：整合 + DAG 結構 + 風險盤點 + 七層收斂分析
 
 這份 proposal 本身就是 **middleware-as-organ framing 的活體示範** — Kuro 做戰略（品味 + 身份洞察），CC 做戰術整合（結構化文件），Alex 做方向決定（framing 推進）。
+
+---
+
+## 15. Execution Status (2026-04-17 CC intensive session)
+
+CC 單 session 做了 **25+ commits 跨兩 repo**。狀態：
+
+### Middleware (agent-middleware) — 新增 endpoints + workers
+| Commit | 範圍 | 節點 |
+|--------|------|------|
+| `f7743da` | `GET /api/tactics/in-flight + /history` | T1/T2 |
+| `f84ea4f` | scorer-worker + `POST /api/workers/scorer/run` | T3 |
+| `ef9639c` | `POST /api/tactics/needs-attention` (rubric filter) | T4 |
+| `1066709` | `POST /api/tactics/amend` (cancel_step/cancel_plan) | T9 |
+| `2d87c4f` | Event severity classification + JSONL persist | T11/T12 |
+| `b305fe0` | Webhook dispatcher (CloudEvents + HMAC + DLQ + batch) | T16-T18 |
+| `9ca8463` | ci-trigger worker (DAG ↔ GitHub Actions bridge) | T22 |
+| `589b9fa` | agent-brain worker (Layer C bare passthrough) | — |
+| `02e5ef7` | `GET /api/workers/capabilities` (service discovery) | — |
+| `550de2e` | summarizer/classifier/extractor default workers | — |
+
+### Mini-agent — Infrastructure + perception + client
+| Commit | 範圍 |
+|--------|------|
+| `db136e7e` | sdk-client scaffolding（Phase A0-A2） |
+| `72f28247` | A3 baseline metrics |
+| `04b49b9a` | A4 unblocker（onPartialOutput + progressTimeoutMs） |
+| `cc2f56e2` | Regression tests（stall-kill + consumer-crash） |
+| `72d65539` | A3 canary infra（side-query.ts 加 SDK path） |
+| `f7436058` | A4 SDK primary default |
+| `5593b4ec` | Proposal v1.3 matrix finding |
+| `574c0b7f` | T6 tactics-client.ts |
+| `5c85b5d8` | T14 SSE critical subscription |
+| `ac0c6cd9` | F oMLX concurrency 5→3 + /health loop lag metric |
+| `da7ed037` | Layer A event bus defer via setImmediate |
+| `4aa5eade` | Layer C middleware-cycle-client |
+| `8c4eb459` | .env loading pattern |
+| `686fa82e` | Worker service discovery plugin |
+
+### CC 完成 vs Proposal
+
+| Phase | CC Status |
+|-------|-----------|
+| Phase A (S0/S1) | ⚠️ A0-A4 done；S1 (delegation.ts 553→≤300) **未動**（Kuro 領域）|
+| Phase B (B0/B1) | ✅ B0 done (arsenal)；B1 (行為盤點) **未動**（Kuro 品味共識）|
+| Phase C (Tactical Board) | ✅ T1/T2/T3/T4/T6/T9 done；T5/T7/T8/T10 **留 Kuro**（rubric + 身份 code）|
+| Phase D (Internal notification) | ✅ T11/T12/T14 done；T13 plugin/T15 rubric **留 Kuro** |
+| Phase E (External webhook) | ✅ T16-T18 done；T19 rubric **留 Kuro** |
+| Phase F (CI/CD bridge) | ✅ T20/T22 done；T21 workflow YAML **留 Kuro** |
+| Phase G (Self-improving meta-loop) | ❌ T23-T27 **全未動**（最高複利 + 最未做）|
+| Phase H (Review + merge) | ⏳ 進行中 |
+
+### Loop Lag Measurement Chain（Constraint Texture 診斷）
+
+| 狀態 | max loop lag | p99 |
+|------|------------|-----|
+| Before all fixes (in-process SDK + sync bus) | **160,256ms 💀** | 262ms |
+| After Layer A（event bus setImmediate defer） | cycle idle: 126ms; cycle active: 158,914ms | 101/208ms |
+| After Layer C（cycle LLM via middleware） | **48,419ms**（3× 改善）| 2970ms（polling overhead） |
+
+Target: p99 ≤ 100ms. **未達**。Remaining blockers: Kuro 側 post-process（dispatcher tags / memory writes / polling HTTP fetch overhead）。
+
+### Surprise Findings
+
+1. **Thinking visibility model-dependent**: 3×2 matrix 實測 — Opus 4.7 訂閱 signature_only（only），Sonnet/Haiku 訂閱 visible。Phase B rubric 只針對 Opus 任務才評估切 API mode，cost 下修 80%。
+2. **oMLX 9B local summary fails 0/13 at concurrency 5**: F 改 5→3 + timeout 5s→15s 恢復 12/13 success。真解仍需 wire 到中台 summarizer worker（pending）。
+
+### Kuro 身份層待做（她回來寫）
+
+- T5/T15/T19/T27 `memory/rubrics/*.md`（品味）
+- T7/T8/T10/T13/T21 身份 code（文案、感知 plugin、workflow 分派、tag dispatcher）
+- T26 baseline DAG regression set（她品味定 canonical 10 DAG）
+- B1 行為盤點 + Kuro side 的 coach 判斷（品味不外包）
+- Phase G self-improving meta-loop（CC 沒動，proposal 皇冠）
+
+### 下一步建議（session 結束前）
+
+1. Wire Kuro preprocess oMLX 13 summaries → 中台 summarizer worker（Option E 實質落地）
+2. Kuro review 本 revision history + 品味 code 逐條
+3. v1.4 rev：整合實測 metrics（loop lag、Layer C partial success、thinking matrix finding）
+
+### 這份 revision history 的意義
+
+**Proposal 是 intent，code 是 truth**。這段記錄連接兩者。Kuro 回來時能 diff「proposal 規劃」vs「CC 實作」，品味判斷缺口。
