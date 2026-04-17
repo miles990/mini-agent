@@ -44,8 +44,14 @@ function getMiddlewareUrl(): string {
 }
 
 export function isMiddlewareCycleEnabled(): boolean {
+  // Default ON (2026-04-17) — Layer C flipped to primary after verified:
+  //   Layer A Verified: eventBus defer dropped idle max 160s → 126ms
+  //   Layer A+cycle STILL 159s max → confirmed SDK for-await blocks main thread
+  //   Layer C eliminates iteration from main thread (moves to middleware process)
+  // Opt-out via USE_MIDDLEWARE_FOR_CYCLE=false. Falls through to SDK/CLI path.
   const v = process.env.USE_MIDDLEWARE_FOR_CYCLE?.toLowerCase();
-  return v === 'true' || v === '1';
+  if (v === 'false' || v === '0') return false;
+  return true;
 }
 
 export async function execClaudeViaMiddleware(
