@@ -201,8 +201,16 @@ function classifyError(error: unknown): ErrorClassification {
 
   // Exit 1 with empty stderr — preserve exit code so bucket is distinguishable in triage.
   // Prior behavior: all exit-1 cases collapsed into the same opaque "處理訊息時發生錯誤" message.
+  // 2026-04-17 (cycle #15): also surface duration/signal so extractErrorSubtype can split
+  // the :no_diag:: bin (8 recent cases were mid-duration orphaned exits with exitCode=null
+  // that all collapsed to no_diag — routing needs observable attributes to distinguish them).
   const exitLabel = exitCode != null ? ` (exit ${exitCode})` : '';
-  return { type: 'UNKNOWN', retryable: true, message: `處理訊息時發生錯誤${exitLabel}。請稍後再試，或嘗試換個方式描述你的需求。`, modelGuidance: `CLI exited${exitLabel} without diagnostic output. On retry, simplify the request. If this keeps happening, defer the task and report the issue — inspect cli session (auth / rate limit) as probable cause.` };
+  const diagParts: string[] = [];
+  if (duration != null) diagParts.push(`dur=${Math.round(duration / 1000)}s`);
+  if (signal) diagParts.push(`signal=${signal}`);
+  if (killed) diagParts.push('killed=true');
+  const diagSuffix = diagParts.length > 0 ? ` [${diagParts.join(', ')}]` : '';
+  return { type: 'UNKNOWN', retryable: true, message: `處理訊息時發生錯誤${exitLabel}${diagSuffix}。請稍後再試，或嘗試換個方式描述你的需求。`, modelGuidance: `CLI exited${exitLabel}${diagSuffix} without diagnostic output. On retry, simplify the request. If this keeps happening, defer the task and report the issue — inspect cli session (auth / rate limit) as probable cause.` };
 }
 
 // =============================================================================

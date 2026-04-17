@@ -138,9 +138,17 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
   // agent.ts:187 fallback — CLI exited with no stderr and no classifiable signal.
   // Fast-death (<1s) often means auth/rate-limit/config issue; slower generic = truly unknown.
+  // 2026-04-17 (cycle #16): classifyError now appends `[dur=Xs, signal=..., killed=true]` suffix
+  // so we can split the opaque `no_diag` into actionable sub-buckets:
+  //   - killed_no_diag: explicit kill/signal → supervisor or OS pressure
+  //   - hang_no_diag: long duration w/o signal → Claude CLI stuck before any stderr
+  //   - fast_death_no_diag: <1s → auth/rate-limit/config
   if (lower.includes('處理訊息時發生錯誤') || lower.includes('without diagnostic')) {
     const fast = /(\d+)ms this attempt/.exec(errorMsg);
     if (fast && Number(fast[1]) < 1000) return 'fast_death_no_diag';
+    if (lower.includes('killed=true') || /signal=[^,\]]+/.test(lower)) return 'killed_no_diag';
+    const durMatch = /dur=(\d+)s/.exec(lower);
+    if (durMatch && Number(durMatch[1]) >= 600) return 'hang_no_diag';
     return 'no_diag';
   }
   return 'generic';
