@@ -1478,8 +1478,8 @@ async function runChat(port: number): Promise<void> {
     cwd: composeDir,
   });
 
-  // Phase 4: 啟動 perception streams
-  if (enabledPerceptions && enabledPerceptions.length > 0) {
+  // Phase 4: 啟動 perception streams (PERCEPTION_DISABLED env gate — see api.ts comment)
+  if (process.env.PERCEPTION_DISABLED !== 'true' && enabledPerceptions && enabledPerceptions.length > 0) {
     perceptionStreams.start(enabledPerceptions, composeDir);
   }
 

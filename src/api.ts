@@ -3100,7 +3100,15 @@ if (isMain) {
   });
 
   // Phase 4: 啟動 perception streams（獨立 interval + distinctUntilChanged）
-  if (enabledPerceptions && enabledPerceptions.length > 0) {
+  // Diagnostic isolation (2026-04-17): PERCEPTION_DISABLED=true skips the entire
+  // perception subsystem. 30+ plugins each spawn child_process every 30–120s; many
+  // time out at 10s and auto-restart. The spawn/kill churn keeps main thread busy
+  // managing subprocess stdio/exit codes. Disabling isolates whether that churn is
+  // the real source of HTTP unresponsiveness (vs SDK vs cycle post-process).
+  const perceptionDisabled = process.env.PERCEPTION_DISABLED === 'true';
+  if (perceptionDisabled) {
+    slog('API', 'PERCEPTION_DISABLED=true — skipping perception streams (diagnostic mode)');
+  } else if (enabledPerceptions && enabledPerceptions.length > 0) {
     perceptionStreams.start(enabledPerceptions, cwd);
   }
 
