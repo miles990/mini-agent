@@ -195,8 +195,39 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
 
   if (skillsCache.length === 0) return '';
 
-  // 無 hint 且無 cycleMode → 全部載入（向後相容，CLI 模式）
-  if (!hint && !cycleMode) return formatSkillsPrompt(skillsCache);
+  // Hard cap on total skills section. Skills are part of every prompt's non-context budget
+  // (system prompt + skills + user prompt). When skills blow past this, the math
+  // breaks: PROMPT_HARD_CAP (45K) − non-context > 0 is required for any context at all.
+  // Incident 2026-04-17 19:04: non-context=46333 chars → actualContextBudget=-1333 →
+  // every cycle stalled because even context=0 couldn't fit under the hard cap.
+  const SKILLS_SECTION_CAP = 12_000;
+
+  // Shrink the full-skill list until the section fits under the cap. Degrade gracefully
+  // to index-only when even a single full skill wouldn't fit.
+  const buildBounded = (fullSkills: LoadedSkill[], restSkills: LoadedSkill[]): string => {
+    let full = [...fullSkills];
+    while (full.length > 0) {
+      const fullContent = formatSkillsPrompt(full);
+      const indexContent = formatSkillIndex([...full.slice(full.length), ...restSkills]);
+      // Note: index covers everything that's NOT in `full` — recompute as `full` shrinks.
+      const indexAll = restSkills.length + (fullSkills.length - full.length);
+      const indexList = [...fullSkills.slice(full.length), ...restSkills];
+      const idx = indexList.length > 0 ? formatSkillIndex(indexList) : '';
+      const combined = fullContent + idx;
+      if (combined.length <= SKILLS_SECTION_CAP) return combined;
+      // Still too big — drop one full skill (keep the highest-scoring ones first)
+      full = full.slice(0, full.length - 1);
+      // Silence unused-vars from above
+      void indexContent; void indexAll;
+    }
+    // No full skill fits — return index of everything
+    const all = [...fullSkills, ...restSkills];
+    const idx = all.length > 0 ? formatSkillIndex(all) : '';
+    return idx.length <= SKILLS_SECTION_CAP ? idx : idx.slice(0, SKILLS_SECTION_CAP);
+  };
+
+  // 無 hint 且無 cycleMode → 仍做 JIT（index-only — CLI 模式只需知道有哪些 skill 可用）
+  if (!hint && !cycleMode) return buildBounded([], skillsCache);
 
   // oMLX Gate R2: get exclude set for current mode
   const excludeSet = getSkillsExcludeSet(cycleMode, (hint ?? '').toLowerCase());
@@ -225,19 +256,13 @@ export function getSkillsPrompt(hint?: string, cycleMode?: CycleMode): string {
   const topMatches = scored.filter(s => s.matchCount > 0).slice(0, MAX_FULL_SKILLS);
   const rest = scored.filter(s => !topMatches.includes(s));
 
-  // respond mode with no keyword matches → load all eligible (user-facing, backward compat)
+  // respond mode with no keyword matches → index of eligible (NOT full — previous behavior
+  // loaded every eligible skill as full content, blowing up the prompt for casual DMs).
   if (topMatches.length === 0 && cycleMode === 'respond') {
-    return formatSkillsPrompt(eligible);
+    return buildBounded([], eligible);
   }
 
-  const fullContent = topMatches.length > 0
-    ? formatSkillsPrompt(topMatches.map(s => s.skill))
-    : '';
-  const indexContent = rest.length > 0
-    ? formatSkillIndex(rest.map(s => s.skill))
-    : '';
-
-  return fullContent + indexContent;
+  return buildBounded(topMatches.map(s => s.skill), rest.map(s => s.skill));
 }
 
 function commandExists(cmd: string): boolean {
