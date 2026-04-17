@@ -1656,9 +1656,25 @@ export async function callClaude(
   // Large models (Opus) get denoised context + full prompt.
   const primary = getProviderForSource(source);
   const modelTier: ModelTier = detectModelTier(primary, resolveModelName(primary, options?.model));
+
+  // Early mode selection: low-priority background triggers skip the full→focused→minimal
+  // fallback chain. workspace/heartbeat/cron are poke events (file-change, tick, schedule),
+  // not user-facing cycles. They don't need skill content or full guidance; they need to
+  // look at the environment and possibly emit a short <kuro:inner>/<kuro:chat>.
+  //
+  // Convergence (not prescription): "prompt must fit PROMPT_HARD_CAP on the first attempt
+  // for low-priority triggers". Avoid the 3-min compactContext + rebuildContext chain
+  // observed 2026-04-17 19:16–19:20 when workspace cycles got full system prompt.
+  const triggerReason = options?.triggerReason ?? '';
+  const lowPriorityTrigger = /^(workspace|heartbeat|cron)\b/.test(triggerReason);
+  const initialPromptMode: 'full' | 'minimal' | undefined = lowPriorityTrigger ? 'minimal' : undefined;
+
   const systemPrompt = modelTier === 'small'
-    ? buildSmallModelPrompt(options?.triggerReason ?? null, options?.hasPendingTasks ?? false)
-    : getSystemPrompt(prompt, options?.cycleMode, undefined, options?.triggerReason ?? undefined);
+    ? buildSmallModelPrompt(triggerReason || null, options?.hasPendingTasks ?? false)
+    : getSystemPrompt(prompt, options?.cycleMode, initialPromptMode, triggerReason || undefined);
+  if (lowPriorityTrigger) {
+    slog('AGENT', `Trigger "${triggerReason.slice(0, 40)}" → minimal system prompt (${systemPrompt.length} chars, skipped fallback chain)`);
+  }
   let currentContext = processContext(context, modelTier);
   let fullPrompt = `${systemPrompt}\n\n${currentContext}\n\n---\n\nUser: ${prompt}`;
 
