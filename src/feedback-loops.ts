@@ -104,7 +104,27 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('took too long') || lower.includes('處理超時')) return 'real_timeout';
   if (lower.includes('max_turns') || lower.includes('maximum number of turns')) return 'max_turns';
   if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
+  // agent.ts:187 fallback — CLI exited with no stderr and no classifiable signal.
+  // Fast-death (<1s) often means auth/rate-limit/config issue; slower generic = truly unknown.
+  if (lower.includes('處理訊息時發生錯誤') || lower.includes('without diagnostic')) {
+    const fast = /(\d+)ms this attempt/.exec(errorMsg);
+    if (fast && Number(fast[1]) < 1000) return 'fast_death_no_diag';
+    return 'no_diag';
+  }
   return 'generic';
+}
+
+/**
+ * 從錯誤訊息抽取穩定的 error code（TIMEOUT/UNKNOWN/...），取代依賴 regex anchor 的脆弱邏輯。
+ * 原 `/^[A-Z_]+/` 碰到 "claude CLI TIMEOUT ..." 這種 lowercase 開頭訊息永遠 miss，
+ * 導致 fallback 用 `msg.slice(0,30)` 切出 duration-dependent 的隨機字串（每個 duration = 新桶）。
+ */
+export function extractErrorCode(errorMsg: string): string {
+  const m = errorMsg.match(/\b(TIMEOUT|UNKNOWN|NOT_FOUND|MAX_BUFFER|RATE_LIMIT|PERMISSION)\b/);
+  if (m) return m[1];
+  const mErr = errorMsg.match(/\b(\w+Error)\b/);
+  if (mErr) return mErr[1];
+  return errorMsg.slice(0, 30);
 }
 
 /**
@@ -125,9 +145,7 @@ export async function detectErrorPatterns(): Promise<void> {
   for (const err of errors) {
     const context = err.data.context ?? 'unknown';
     const errorMsg = err.data.error ?? '';
-    // Extract error code or first meaningful word
-    const codeMatch = errorMsg.match(/^([A-Z_]+(?::[A-Z_]+)?)|^(\w+Error)/);
-    const code = codeMatch?.[0] ?? errorMsg.slice(0, 30);
+    const code = extractErrorCode(errorMsg);
     const subtype = extractErrorSubtype(errorMsg);
     const key = `${code}:${subtype}::${context}`;
     groups.set(key, (groups.get(key) ?? 0) + 1);

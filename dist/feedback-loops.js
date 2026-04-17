@@ -54,7 +54,54 @@ export function flushFeedbackState() {
 // Loop A: Error Pattern Detection
 // =============================================================================
 /**
- * 掃描今天的 error log，按 (code + context) 分群。
+ * 從錯誤訊息抽取 subtype hint — 讓多型 TIMEOUT/UNKNOWN bucket 分成具體 failure mode，
+ * 避免 memory_guard / econnrefused / sigterm / signal / real_timeout 被混成單一 bucket，
+ * 造成 recurring-errors 提示無法指向具體成因。signal 來自 agent.ts classifyError 的訊息模板。
+ */
+export function extractErrorSubtype(errorMsg) {
+    const lower = errorMsg.toLowerCase();
+    if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure') || lower.includes('system memory too low') || lower.includes('deferring to prevent'))
+        return 'memory_guard';
+    if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線'))
+        return 'econnrefused';
+    if (lower.includes('exit 143') || lower.includes('sigterm'))
+        return 'sigterm';
+    if (lower.includes('killed by signal') || lower.includes('被信號'))
+        return 'signal_killed';
+    if (lower.includes('oom') || lower.includes('killed by oom'))
+        return 'oom';
+    if (lower.includes('took too long') || lower.includes('處理超時'))
+        return 'real_timeout';
+    if (lower.includes('max_turns') || lower.includes('maximum number of turns'))
+        return 'max_turns';
+    if (lower.includes('accomplish timed out') || lower.includes('middleware offline'))
+        return 'middleware_timeout';
+    // agent.ts:187 fallback — CLI exited with no stderr and no classifiable signal.
+    // Fast-death (<1s) often means auth/rate-limit/config issue; slower generic = truly unknown.
+    if (lower.includes('處理訊息時發生錯誤') || lower.includes('without diagnostic')) {
+        const fast = /(\d+)ms this attempt/.exec(errorMsg);
+        if (fast && Number(fast[1]) < 1000)
+            return 'fast_death_no_diag';
+        return 'no_diag';
+    }
+    return 'generic';
+}
+/**
+ * 從錯誤訊息抽取穩定的 error code（TIMEOUT/UNKNOWN/...），取代依賴 regex anchor 的脆弱邏輯。
+ * 原 `/^[A-Z_]+/` 碰到 "claude CLI TIMEOUT ..." 這種 lowercase 開頭訊息永遠 miss，
+ * 導致 fallback 用 `msg.slice(0,30)` 切出 duration-dependent 的隨機字串（每個 duration = 新桶）。
+ */
+export function extractErrorCode(errorMsg) {
+    const m = errorMsg.match(/\b(TIMEOUT|UNKNOWN|NOT_FOUND|MAX_BUFFER|RATE_LIMIT|PERMISSION)\b/);
+    if (m)
+        return m[1];
+    const mErr = errorMsg.match(/\b(\w+Error)\b/);
+    if (mErr)
+        return mErr[1];
+    return errorMsg.slice(0, 30);
+}
+/**
+ * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
  */
@@ -65,15 +112,14 @@ export async function detectErrorPatterns() {
         return;
     const state = readState('error-patterns.json', {});
     const today = new Date().toISOString().split('T')[0];
-    // Group by (context + error code/message prefix)
+    // Group by (context + error code + subtype) — subtype splits polymorphic TIMEOUT/UNKNOWN buckets.
     const groups = new Map();
     for (const err of errors) {
         const context = err.data.context ?? 'unknown';
         const errorMsg = err.data.error ?? '';
-        // Extract error code or first meaningful word
-        const codeMatch = errorMsg.match(/^([A-Z_]+(?::[A-Z_]+)?)|^(\w+Error)/);
-        const code = codeMatch?.[0] ?? errorMsg.slice(0, 30);
-        const key = `${code}::${context}`;
+        const code = extractErrorCode(errorMsg);
+        const subtype = extractErrorSubtype(errorMsg);
+        const key = `${code}:${subtype}::${context}`;
         groups.set(key, (groups.get(key) ?? 0) + 1);
     }
     let changed = false;
