@@ -26,6 +26,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readdirSync } from 'node:fs';
 import { isVisibleOutput } from './achievements.js';
 import { slog, readJsonFile } from './utils.js';
+import { extractErrorSubtype } from './feedback-loops.js';
 
 // =============================================================================
 // Types
@@ -687,7 +688,8 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
         const errorMsg = err.data.error ?? '';
         const codeMatch = errorMsg.match(/^([A-Z_]+(?::[A-Z_]+)?)|^(\w+Error)/);
         const code = codeMatch?.[0] ?? errorMsg.slice(0, 30);
-        const key = `${code}::${context}`;
+        const subtype = extractErrorSubtype(errorMsg);
+        const key = `${code}:${subtype}::${context}`;
         groups.set(key, (groups.get(key) ?? 0) + 1);
       }
 

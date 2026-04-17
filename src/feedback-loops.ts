@@ -90,7 +90,25 @@ export function flushFeedbackState(): void {
 // =============================================================================
 
 /**
- * 掃描今天的 error log，按 (code + context) 分群。
+ * 從錯誤訊息抽取 subtype hint — 讓多型 TIMEOUT/UNKNOWN bucket 分成具體 failure mode，
+ * 避免 memory_guard / econnrefused / sigterm / signal / real_timeout 被混成單一 bucket，
+ * 造成 recurring-errors 提示無法指向具體成因。signal 來自 agent.ts classifyError 的訊息模板。
+ */
+export function extractErrorSubtype(errorMsg: string): string {
+  const lower = errorMsg.toLowerCase();
+  if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure')) return 'memory_guard';
+  if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線')) return 'econnrefused';
+  if (lower.includes('exit 143') || lower.includes('sigterm')) return 'sigterm';
+  if (lower.includes('killed by signal') || lower.includes('被信號')) return 'signal_killed';
+  if (lower.includes('oom') || lower.includes('killed by oom')) return 'oom';
+  if (lower.includes('took too long') || lower.includes('處理超時')) return 'real_timeout';
+  if (lower.includes('max_turns') || lower.includes('maximum number of turns')) return 'max_turns';
+  if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
+  return 'generic';
+}
+
+/**
+ * 掃描今天的 error log，按 (code + subtype + context) 分群。
  * 同模式 >= 3 次 → 寫入 HEARTBEAT.md 作為 P1 task。
  * 已建過的模式不重複建。
  */
@@ -102,7 +120,7 @@ export async function detectErrorPatterns(): Promise<void> {
   const state = readState<ErrorPatternState>('error-patterns.json', {});
   const today = new Date().toISOString().split('T')[0];
 
-  // Group by (context + error code/message prefix)
+  // Group by (context + error code + subtype) — subtype splits polymorphic TIMEOUT/UNKNOWN buckets.
   const groups = new Map<string, number>();
   for (const err of errors) {
     const context = err.data.context ?? 'unknown';
@@ -110,7 +128,8 @@ export async function detectErrorPatterns(): Promise<void> {
     // Extract error code or first meaningful word
     const codeMatch = errorMsg.match(/^([A-Z_]+(?::[A-Z_]+)?)|^(\w+Error)/);
     const code = codeMatch?.[0] ?? errorMsg.slice(0, 30);
-    const key = `${code}::${context}`;
+    const subtype = extractErrorSubtype(errorMsg);
+    const key = `${code}:${subtype}::${context}`;
     groups.set(key, (groups.get(key) ?? 0) + 1);
   }
 
