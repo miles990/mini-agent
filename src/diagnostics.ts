@@ -46,6 +46,9 @@ export function startEventLoopLagMonitor(): void {
   if (lagMonitorHandle) return;
   const TICK_MS = 1_000;
   let lastSchedule = performance.now();
+  let maxImmediateLagSinceLog = 0;  // setImmediate fires in 'check' phase
+  let lastCpuUsage = process.cpuUsage();
+  let lastCpuTs = Date.now();
 
   const tick = (): void => {
     const now = performance.now();
@@ -56,18 +59,49 @@ export function startEventLoopLagMonitor(): void {
     samplesSinceLog++;
     if (lag > maxLagSinceLog) maxLagSinceLog = lag;
 
-    // Immediate log for big spikes so we don't lose context
+    // Cross-reference with setImmediate — different event-loop phase.
+    // If setTimeout lags but setImmediate doesn't → timers phase starved.
+    // If both lag → whole loop blocked.
+    const immStart = performance.now();
+    setImmediate(() => {
+      const immLag = Math.round(performance.now() - immStart);
+      if (immLag > maxImmediateLagSinceLog) maxImmediateLagSinceLog = immLag;
+    });
+
+    // Immediate log for big spikes, WITH process state snapshot so we can
+    // correlate spike → memory pressure / CPU hog / many active handles.
     if (lag > LAG_WARN_THRESHOLD_MS * 5) {
-      slog('PROFILE', `event-loop lag SPIKE ${lag}ms — main thread stalled`);
+      const mem = process.memoryUsage();
+      const cpu = process.cpuUsage(lastCpuUsage);
+      const elapsed = (Date.now() - lastCpuTs) * 1000; // μs
+      const cpuPct = elapsed > 0 ? Math.round((cpu.user + cpu.system) / elapsed * 100) : 0;
+      lastCpuUsage = process.cpuUsage();
+      lastCpuTs = Date.now();
+      // @ts-expect-error — internal API, stable enough for diagnostics
+      const activeHandles = (process._getActiveHandles?.() ?? []).length;
+      // @ts-expect-error — internal API
+      const activeRequests = (process._getActiveRequests?.() ?? []).length;
+      slog(
+        'PROFILE',
+        `event-loop lag SPIKE ${lag}ms — main thread stalled | ` +
+          `mem rss=${Math.round(mem.rss / 1048576)}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB ext=${Math.round(mem.external / 1048576)}MB | ` +
+          `cpu=${cpuPct}% | handles=${activeHandles} reqs=${activeRequests}`,
+      );
     }
 
     // Rollup every LAG_LOG_INTERVAL_MS
     const nowMs = Date.now();
     if (nowMs - lastRollupTs >= LAG_LOG_INTERVAL_MS) {
       if (maxLagSinceLog > LAG_WARN_THRESHOLD_MS) {
-        slog('PROFILE', `event-loop rollup ${(nowMs - lastRollupTs) / 1000}s: maxLag=${maxLagSinceLog}ms samples=${samplesSinceLog}`);
+        slog(
+          'PROFILE',
+          `event-loop rollup ${(nowMs - lastRollupTs) / 1000}s: ` +
+            `timer maxLag=${maxLagSinceLog}ms samples=${samplesSinceLog} ` +
+            `check maxLag=${maxImmediateLagSinceLog}ms`,
+        );
       }
       maxLagSinceLog = 0;
+      maxImmediateLagSinceLog = 0;
       samplesSinceLog = 0;
       lastRollupTs = nowMs;
     }
