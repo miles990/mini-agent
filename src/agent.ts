@@ -168,16 +168,23 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'PERMISSION', retryable: false, message: '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。', modelGuidance: 'Permission denied. Do NOT retry the same operation. Try an alternative approach that does not require elevated permissions, or report to user.' };
   }
 
-  // Try to extract useful info from stderr
+  // Try to extract useful info from stderr.
+  // 2026-04-17: previously required lastLine length 10–300 which dropped short stderr
+  // ("error", "auth\n") and left 184/day exit-1 errors in opaque generic fallback bucket.
+  // Now: any non-empty stderr tail up to 400 chars is preserved.
   if (stderr.trim()) {
     const lines = stderr.trim().split('\n').filter((l: string) => l.trim());
     const lastLine = lines[lines.length - 1] || '';
-    if (lastLine.length > 10 && lastLine.length < 300) {
-      return { type: 'UNKNOWN', retryable: true, message: `Claude CLI 執行失敗：${lastLine}`, modelGuidance: `Unexpected error: "${lastLine}". On retry, try simplifying the prompt. If this recurs, it may be a systemic issue — log it and move on.` };
+    if (lastLine) {
+      const snippet = lastLine.length > 400 ? `${lastLine.slice(0, 400)}…` : lastLine;
+      return { type: 'UNKNOWN', retryable: true, message: `Claude CLI 執行失敗（exit ${exitCode ?? 'N/A'}）：${snippet}`, modelGuidance: `Unexpected error: "${snippet}". On retry, try simplifying the prompt. If this recurs, it may be a systemic issue — log it and move on.` };
     }
   }
 
-  return { type: 'UNKNOWN', retryable: true, message: '處理訊息時發生錯誤。請稍後再試，或嘗試換個方式描述你的需求。', modelGuidance: 'Unknown error occurred. On retry, simplify the request. If this keeps happening, defer the task and report the issue.' };
+  // Exit 1 with empty stderr — preserve exit code so bucket is distinguishable in triage.
+  // Prior behavior: all exit-1 cases collapsed into the same opaque "處理訊息時發生錯誤" message.
+  const exitLabel = exitCode != null ? ` (exit ${exitCode})` : '';
+  return { type: 'UNKNOWN', retryable: true, message: `處理訊息時發生錯誤${exitLabel}。請稍後再試，或嘗試換個方式描述你的需求。`, modelGuidance: `CLI exited${exitLabel} without diagnostic output. On retry, simplify the request. If this keeps happening, defer the task and report the issue — inspect cli session (auth / rate limit) as probable cause.` };
 }
 
 // =============================================================================
