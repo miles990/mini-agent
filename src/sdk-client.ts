@@ -12,6 +12,7 @@
 
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
+import { performance } from 'node:perf_hooks';
 import path from 'node:path';
 import type { ExecOptions } from './agent.js';
 import { slog } from './utils.js';
@@ -111,7 +112,14 @@ export async function execClaudeViaSdk(
       }
     }, 5_000);
 
+    // Track worker message handler duration — if this fires high, main thread
+    // spent time processing worker output (deserialization + onPartialOutput
+    // + any subscriber sync chain).
+    let msgHandlerTotalMs = 0;
+    let msgHandlerCount = 0;
+    let partialOutputMaxMs = 0;
     worker.on('message', (msg: SdkMessage) => {
+      const handlerStart = performance.now();
       if (msg.type === 'sdk-message' && msg.message) {
         lastProgressTs = Date.now();
         const m = msg.message;
@@ -124,7 +132,13 @@ export async function execClaudeViaSdk(
             } else if (typeof block.text === 'string') {
               chunks.push(block.text);
               if (opts?.onPartialOutput && block.text) {
+                const cbStart = performance.now();
                 try { opts.onPartialOutput(block.text); } catch { /* swallow consumer errors */ }
+                const cbMs = performance.now() - cbStart;
+                if (cbMs > partialOutputMaxMs) partialOutputMaxMs = cbMs;
+                if (cbMs > 500) {
+                  slog('PROFILE', `onPartialOutput sync callback ${Math.round(cbMs)}ms — main thread blocked here`);
+                }
               }
             }
           }
@@ -150,6 +164,12 @@ export async function execClaudeViaSdk(
               `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
               `duration=${durationMs}ms`,
           );
+          // Aggregate worker-handler cost for the whole call.
+          slog(
+            'PROFILE',
+            `sdk-worker handler: count=${msgHandlerCount} totalMs=${Math.round(msgHandlerTotalMs)} ` +
+              `onPartialOutput maxMs=${Math.round(partialOutputMaxMs)}`,
+          );
         }
       } else if (msg.type === 'done') {
         finish(null, chunks.join(''));
@@ -157,6 +177,12 @@ export async function execClaudeViaSdk(
         finish(Object.assign(new Error(`SDK query failed: ${(msg as unknown as { message: string }).message}`), {
           duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
         }));
+      }
+      const handlerMs = performance.now() - handlerStart;
+      msgHandlerTotalMs += handlerMs;
+      msgHandlerCount++;
+      if (handlerMs > 200) {
+        slog('PROFILE', `sdk-worker message handler slow ${Math.round(handlerMs)}ms (type=${msg.type})`);
       }
     });
 

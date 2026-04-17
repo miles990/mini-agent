@@ -228,12 +228,28 @@ export class Logger {
   }
 
   /**
-   * 寫入日誌
+   * 寫入日誌 — fire-and-forget async append.
+   *
+   * 2026-04-17 fix: previously used appendFileSync. Each log call blocked the
+   * main thread for disk I/O — typically 1–10ms, but under disk pressure 100ms+.
+   * A single cycle emits hundreds of log entries (cycle lifecycle + behavior +
+   * claude.call + memory + every stream chunk), so the cumulative sync blocking
+   * was one of the sources of the 180s event-loop stalls observed during
+   * SDK calls. Switching to fs.appendFile (promise) releases the loop.
+   *
+   * Trade-off: under very high concurrent log pressure, appendFile interleaves
+   * are technically unordered. For our JSONL observability logs this is
+   * acceptable — each line is self-contained JSON, and ordering within the
+   * same millisecond isn't relied on by any consumer.
    */
   private writeLog(entry: LogEntry): void {
     const filePath = this.getLogFilePath(entry.type);
     const line = JSON.stringify(entry) + '\n';
-    appendFileSync(filePath, line, 'utf-8');
+    fs.appendFile(filePath, line, 'utf-8').catch((err) => {
+      // Last-resort fallback: stderr so we don't lose logs silently when the
+      // disk truly misbehaves. Never block.
+      process.stderr.write(`[LOGGING] appendFile failed for ${entry.type}: ${err?.message ?? err}\n`);
+    });
   }
 
   /**
