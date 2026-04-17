@@ -1,16 +1,24 @@
 /**
- * SDK Client — Agent SDK 執行層（worker_threads 隔離）
+ * SDK Client — Agent SDK 執行層（child_process.fork 隔離）
  *
- * 2026-04-17 root fix: SDK query() was running on the main Node event loop and
- * blocking HTTP / cron / perception whenever a cycle was in flight. Moved the SDK
- * call into a dedicated worker_threads Worker — main thread only exchanges messages.
+ * 2026-04-17 D16 root fix: SDK query() was blocking the parent event loop
+ * even when run in worker_threads — 180s API call = 180s main-thread stall.
+ * Node worker_threads share libuv resources; "parent awaits long worker I/O"
+ * stalls parent timers.
  *
- * Convergence condition: HTTP event loop stays responsive regardless of SDK latency.
+ * Industry-standard solution: child_process.fork. Separate OS process, own
+ * event loop, IPC is pure async, parent event loop never blocks regardless
+ * of child latency. Same approach used by Vercel AI SDK / LangChain.js for
+ * agent runtimes.
+ *
+ * Trade-off vs worker_threads: ~200-500ms spawn cost per call (cold Node
+ * process + SDK import). Worth it — parent responsiveness matters more
+ * than per-call latency.
  *
  * Signature preserved: (fullPrompt, opts) → Promise<string>, same as execClaude.
  */
 
-import { Worker } from 'node:worker_threads';
+import { fork, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import path from 'node:path';
@@ -43,10 +51,17 @@ export async function execClaudeViaSdk(
   const source = opts?.source ?? 'loop';
   const startTs = Date.now();
 
-  // Maintain the ANTHROPIC_API_KEY filter (force subscription auth, never API-billed).
+  // Maintain the ANTHROPIC_API_KEY filter (force subscription auth).
   const filteredEnv = Object.fromEntries(
     Object.entries(process.env).filter(([k, v]) => k !== 'ANTHROPIC_API_KEY' && v !== undefined),
   ) as Record<string, string>;
+
+  let workerPath: string;
+  try {
+    workerPath = fileURLToPath(WORKER_URL);
+  } catch {
+    workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'sdk-worker.js');
+  }
 
   return new Promise<string>((resolve, reject) => {
     const chunks: string[] = [];
@@ -58,21 +73,32 @@ export async function execClaudeViaSdk(
     let model: string | null = null;
     let lastProgressTs = Date.now();
     let settled = false;
+    let firstMessageMs = -1;
+    let lastMessageTs = performance.now();
+    let msgHandlerTotalMs = 0;
+    let msgHandlerCount = 0;
+    let partialOutputMaxMs = 0;
 
-    let workerPath: string;
-    try {
-      workerPath = fileURLToPath(WORKER_URL);
-    } catch {
-      workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'sdk-worker.js');
+    // fork spawns a new Node process — separate V8, separate libuv.
+    // Parent event loop stays responsive regardless of what the child does.
+    // We inherit the parent's env (the child filters it at startup).
+    const t_forkSpawn = performance.now();
+    const child: ChildProcess = fork(workerPath, [], {
+      silent: false,
+      serialization: 'advanced',
+      // stdio inherit: child stdout/stderr merges with parent log so slog in
+      // the child (via `console.*`) still lands in server.log.
+      stdio: ['pipe', 'inherit', 'inherit', 'ipc'],
+    });
+    const forkSpawnMs = performance.now() - t_forkSpawn;
+    if (forkSpawnMs > 200) {
+      slog('PROFILE', `sdk-child fork() spawn ${Math.round(forkSpawnMs)}ms`);
     }
 
-    // Profile worker construction — `new Worker()` is sync on the parent; it
-    // creates a fresh V8 isolate, loads the script, and copies workerData via
-    // structured clone (env is hundreds of entries, fullPrompt up to ~45K chars).
-    // If this blocks the main event loop for several hundred ms, we need to know.
-    const t_workerSpawn = performance.now();
-    const worker = new Worker(workerPath, {
-      workerData: {
+    // Send init message to kick off the query.
+    child.send({
+      type: 'init',
+      init: {
         fullPrompt,
         queryOptions: {},
         env: filteredEnv,
@@ -81,35 +107,26 @@ export async function execClaudeViaSdk(
         maxThinkingTokens: opts?.maxThinkingTokens,
       },
     });
-    const workerSpawnMs = performance.now() - t_workerSpawn;
-    if (workerSpawnMs > 100) {
-      slog('PROFILE', `sdk-worker new Worker() sync spawn ${Math.round(workerSpawnMs)}ms (promptLen=${fullPrompt.length})`);
-    }
-
-    // Time-of-first-message — if this is long, the worker took a while to
-    // start emitting (SDK cold import, network handshake). Main thread stays
-    // responsive via event loop during the gap, so this is worker-side delay,
-    // not a main-thread block.
-    let firstMessageMs = -1;
-    let lastMessageTs = performance.now();
 
     const finish = (err: Error | null, result?: string): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutHandle);
       clearInterval(stallHandle);
-      worker.terminate().catch(() => { /* already gone */ });
+      // kill child if it hasn't already exited
+      if (!child.killed) {
+        try { child.kill('SIGTERM'); } catch { /* already gone */ }
+      }
       if (err) reject(err);
       else resolve(result ?? '');
     };
 
-    const abortWorker = (reason: string): void => {
-      try { worker.postMessage({ type: 'abort', reason }); } catch { /* worker already exited */ }
+    const abortChild = (reason: string): void => {
+      try { child.send({ type: 'abort', reason }); } catch { /* child already exited */ }
     };
 
     const timeoutHandle = setTimeout(() => {
-      abortWorker(`SDK query timeout after ${timeoutMs}ms`);
-      // Give the worker 2s to clean up, then hard-terminate via finish().
+      abortChild(`SDK query timeout after ${timeoutMs}ms`);
       setTimeout(() => {
         finish(Object.assign(new Error(`SDK query timeout after ${timeoutMs}ms`), {
           duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
@@ -119,7 +136,7 @@ export async function execClaudeViaSdk(
 
     const stallHandle = setInterval(() => {
       if (Date.now() - lastProgressTs > progressTimeoutMs) {
-        abortWorker(`SDK query stalled — no progress for ${progressTimeoutMs}ms`);
+        abortChild(`SDK query stalled — no progress for ${progressTimeoutMs}ms`);
         setTimeout(() => {
           finish(Object.assign(new Error(`SDK query stalled — no progress for ${progressTimeoutMs}ms`), {
             duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
@@ -128,25 +145,20 @@ export async function execClaudeViaSdk(
       }
     }, 5_000);
 
-    // Track worker message handler duration — if this fires high, main thread
-    // spent time processing worker output (deserialization + onPartialOutput
-    // + any subscriber sync chain).
-    let msgHandlerTotalMs = 0;
-    let msgHandlerCount = 0;
-    let partialOutputMaxMs = 0;
-    worker.on('message', (msg: SdkMessage) => {
+    child.on('message', (msg: SdkMessage) => {
       const handlerStart = performance.now();
       if (firstMessageMs < 0) {
-        firstMessageMs = Math.round(handlerStart - t_workerSpawn);
+        firstMessageMs = Math.round(handlerStart - t_forkSpawn);
         if (firstMessageMs > 1000) {
-          slog('PROFILE', `sdk-worker first message arrived after ${firstMessageMs}ms (worker warmup + SDK import + first API round-trip)`);
+          slog('PROFILE', `sdk-child first message after ${firstMessageMs}ms (fork + SDK import + first API round-trip)`);
         }
       }
       const gapMs = Math.round(handlerStart - lastMessageTs);
       lastMessageTs = handlerStart;
       if (gapMs > 10_000) {
-        slog('PROFILE', `sdk-worker inter-message gap ${gapMs}ms — no activity from worker (API latency or SDK internal wait)`);
+        slog('PROFILE', `sdk-child inter-message gap ${gapMs}ms — no activity from child (API wait)`);
       }
+
       if (msg.type === 'sdk-message' && msg.message) {
         lastProgressTs = Date.now();
         const m = msg.message;
@@ -160,11 +172,11 @@ export async function execClaudeViaSdk(
               chunks.push(block.text);
               if (opts?.onPartialOutput && block.text) {
                 const cbStart = performance.now();
-                try { opts.onPartialOutput(block.text); } catch { /* swallow consumer errors */ }
+                try { opts.onPartialOutput(block.text); } catch { /* swallow */ }
                 const cbMs = performance.now() - cbStart;
                 if (cbMs > partialOutputMaxMs) partialOutputMaxMs = cbMs;
                 if (cbMs > 500) {
-                  slog('PROFILE', `onPartialOutput sync callback ${Math.round(cbMs)}ms — main thread blocked here`);
+                  slog('PROFILE', `onPartialOutput sync callback ${Math.round(cbMs)}ms`);
                 }
               }
             }
@@ -185,17 +197,15 @@ export async function execClaudeViaSdk(
             .join(',');
           slog(
             'SDK',
-            `source=${source} worker model=${model ?? '?'} blocks={${blocksStr}} ` +
+            `source=${source} child model=${model ?? '?'} blocks={${blocksStr}} ` +
               `thinking=${thinkingState}(chars=${thinkingChars},sig=${signatureChars}) ` +
               `stop=${stopReason ?? '?'} ` +
               `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
               `duration=${durationMs}ms`,
           );
-          // Aggregate worker-handler cost for the whole call.
           slog(
             'PROFILE',
-            `sdk-worker handler: count=${msgHandlerCount} totalMs=${Math.round(msgHandlerTotalMs)} ` +
-              `onPartialOutput maxMs=${Math.round(partialOutputMaxMs)}`,
+            `sdk-child handler: count=${msgHandlerCount + 1} totalMs=${Math.round(msgHandlerTotalMs)} onPartialOutput maxMs=${Math.round(partialOutputMaxMs)}`,
           );
         }
       } else if (msg.type === 'done') {
@@ -209,19 +219,19 @@ export async function execClaudeViaSdk(
       msgHandlerTotalMs += handlerMs;
       msgHandlerCount++;
       if (handlerMs > 200) {
-        slog('PROFILE', `sdk-worker message handler slow ${Math.round(handlerMs)}ms (type=${msg.type})`);
+        slog('PROFILE', `sdk-child message handler slow ${Math.round(handlerMs)}ms (type=${msg.type})`);
       }
     });
 
-    worker.on('error', (err) => {
-      finish(Object.assign(new Error(`SDK worker crashed: ${err.message}`), {
+    child.on('error', (err) => {
+      finish(Object.assign(new Error(`SDK child crashed: ${err.message}`), {
         cause: err, duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
       }));
     });
 
-    worker.on('exit', (code) => {
+    child.on('exit', (code, signal) => {
       if (!settled) {
-        finish(Object.assign(new Error(`SDK worker exited early with code ${code}`), {
+        finish(Object.assign(new Error(`SDK child exited early (code=${code} signal=${signal})`), {
           duration: Date.now() - startTs, timeoutMs, progressTimeoutMs, source,
         }));
       }
@@ -230,16 +240,8 @@ export async function execClaudeViaSdk(
 }
 
 /**
- * Check if SDK path is enabled via feature flag.
- *
- * A4 (2026-04-17): default FLIPPED to true — SDK is primary path.
- * Legacy CLI subprocess path remains fully functional, reachable via
- * USE_SDK=false (explicit opt-out).
- *
- * With the worker_threads isolation added 2026-04-17 evening, SDK no longer
- * blocks the main event loop, so enabling it again is safe.
- *
- * Default: true (SDK).  USE_SDK=false → legacy CLI path.
+ * SDK is the primary path (2026-04-17: via child_process.fork).
+ * USE_SDK=false opts into CLI subprocess path as fallback.
  */
 export function isSdkEnabled(): boolean {
   const v = process.env.USE_SDK?.toLowerCase();

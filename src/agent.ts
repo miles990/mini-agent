@@ -95,10 +95,23 @@ async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecO
   if (isMiddlewareCycleEnabled() && opts?.source === 'loop') {
     return execClaudeViaMiddleware(fullPrompt, opts);
   }
-  // Feature flag USE_SDK (A4 default = true) → Agent SDK path.
-  // USE_SDK=false → legacy CLI subprocess (kept 2 weeks for A5 cleanup).
+  // SDK primary (via child_process.fork — isolated OS process, non-blocking parent).
+  // CLI fallback on SDK failure: transient fork/spawn issues shouldn't kill the cycle
+  // when a proven path exists. USE_SDK=false disables SDK entirely.
   if (isSdkEnabled()) {
-    return execClaudeViaSdk(fullPrompt, opts);
+    try {
+      return await execClaudeViaSdk(fullPrompt, opts);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Only fall through to CLI on infrastructure errors (fork/spawn/IPC).
+      // Preserve real errors like API timeout / abort — caller's retry logic handles those.
+      const isInfraFailure = /child crashed|child exited early|fork.*spawn|EACCES|EMFILE|ENOENT/i.test(msg);
+      if (isInfraFailure) {
+        slog('AGENT', `SDK path failed (${msg.slice(0, 80)}) — falling back to CLI`);
+        return execClaude(fullPrompt, opts);
+      }
+      throw err;
+    }
   }
   return execClaude(fullPrompt, opts);
 }

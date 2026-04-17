@@ -1,21 +1,27 @@
 /**
- * SDK Worker — runs `@anthropic-ai/claude-agent-sdk` query() in a worker_threads thread.
+ * SDK Worker — spawned via `child_process.fork` to run the Anthropic Agent SDK
+ * in a fully isolated Node process.
  *
- * Why: SDK stream parsing + crypto/JSON work synchronously block the Node main event loop.
- * When a cycle is in flight, HTTP server / cron / perception all freeze. Isolating the SDK
- * in a worker lets the main thread stay responsive regardless of API latency.
+ * Why fork instead of worker_threads:
+ *   2026-04-17 D16 diagnostic showed that running the SDK in a worker_thread
+ *   still blocked the parent's main event loop for the entire API call (180s
+ *   lag SPIKE = 180s API duration). Node worker_threads share libuv resources
+ *   with the parent, and the pattern of "parent awaits long I/O from worker"
+ *   apparently stalls parent timers. child_process.fork spawns a separate OS
+ *   process with its own event loop — no shared libuv, no shared memory,
+ *   IPC is pure async, parent event loop never blocks.
  *
- * Protocol (parent → worker):
- *   - workerData: { fullPrompt, queryOptions, env, source, model }
- *   - parent message { type: 'abort', reason } → abort the in-flight query
+ * Protocol (parent → child):
+ *   - { type: 'init', init: WorkerInit } — first message kicks off query
+ *   - { type: 'abort', reason: string } — abort the in-flight query
  *
- * Protocol (worker → parent):
+ * Protocol (child → parent):
  *   - { type: 'sdk-message', message } — each message from the SDK async iterator
  *   - { type: 'done' } — iterator exhausted successfully
- *   - { type: 'error', message } — iterator threw
+ *   - { type: 'error', message: string } — iterator threw
+ *
+ * After emitting 'done' or 'error', the child exits so the parent can clean up.
  */
-
-import { parentPort, workerData } from 'node:worker_threads';
 
 interface WorkerInit {
   fullPrompt: string;
@@ -26,47 +32,59 @@ interface WorkerInit {
   maxThinkingTokens?: number;
 }
 
-if (!parentPort) {
-  throw new Error('sdk-worker must be spawned as a worker_thread');
+if (!process.send) {
+  throw new Error('sdk-worker must be spawned via child_process.fork (process.send unavailable)');
 }
 
-const init = workerData as WorkerInit;
 const abortController = new AbortController();
+let initialized = false;
 
-parentPort.on('message', (msg: { type: string; reason?: string }) => {
+process.on('message', (msg: { type: string; init?: WorkerInit; reason?: string }) => {
+  if (msg.type === 'init' && msg.init && !initialized) {
+    initialized = true;
+    void run(msg.init);
+    return;
+  }
   if (msg.type === 'abort') {
     abortController.abort(new Error(msg.reason ?? 'aborted by parent'));
   }
 });
 
-// Overwrite env on the worker's process.env so SDK auth picks up the filtered set
-for (const [k, v] of Object.entries(init.env)) {
-  process.env[k] = v;
-}
-// Explicit: never billed via API key, always subscription auth
-delete process.env.ANTHROPIC_API_KEY;
+async function run(init: WorkerInit): Promise<void> {
+  // Overwrite env on the child's process.env so SDK auth picks up the filtered set.
+  // This is safe: the child is its own process.
+  for (const [k, v] of Object.entries(init.env)) {
+    process.env[k] = v;
+  }
+  // Explicit: never billed via API key, always subscription auth.
+  delete process.env.ANTHROPIC_API_KEY;
 
-(async () => {
   try {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
-    const options = {
+    const options: Record<string, unknown> = {
       ...init.queryOptions,
       abortController,
       systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const },
       tools: { type: 'preset' as const, preset: 'claude_code' as const },
     };
-    if (init.model) (options as Record<string, unknown>).model = init.model;
+    if (init.model) options.model = init.model;
     if (init.maxThinkingTokens && init.maxThinkingTokens > 0) {
-      (options as Record<string, unknown>).maxThinkingTokens = init.maxThinkingTokens;
+      options.maxThinkingTokens = init.maxThinkingTokens;
     }
 
-    for await (const message of query({ prompt: init.fullPrompt, options: options as Parameters<typeof query>[0]['options'] })) {
-      parentPort!.postMessage({ type: 'sdk-message', message });
+    for await (const message of query({
+      prompt: init.fullPrompt,
+      options: options as Parameters<typeof query>[0]['options'],
+    })) {
+      process.send!({ type: 'sdk-message', message });
     }
-    parentPort!.postMessage({ type: 'done' });
+    process.send!({ type: 'done' });
+    // Let the parent observe 'done' then exit cleanly.
+    setTimeout(() => process.exit(0), 100);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    parentPort!.postMessage({ type: 'error', message });
+    process.send!({ type: 'error', message });
+    setTimeout(() => process.exit(1), 100);
   }
-})();
+}
