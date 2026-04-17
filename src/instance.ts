@@ -479,6 +479,8 @@ function generatePlist(instanceId: string, config: InstanceConfig): string {
         <string>${home}</string>
         <key>HTTPS_ENABLED</key>
         <string>true</string>
+        <key>USE_MIDDLEWARE_FOR_CYCLE</key>
+        <string>true</string>
     </dict>
     <key>StandardOutPath</key>
     <string>${logFile}</string>
