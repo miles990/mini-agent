@@ -9,7 +9,43 @@ import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
+import { monitorEventLoopDelay, type IntervalHistogram } from 'node:perf_hooks';
 import express, { type Request, type Response, type NextFunction } from 'express';
+
+// Event loop lag monitor (P0 diagnostic — 2026-04-17).
+// Resolution 20ms: samples every 20ms, accumulates histogram of scheduling delay.
+// Active continuously once enabled; /health reads percentiles, /metrics/loop-lag
+// can reset histogram for per-cycle diagnostics.
+const loopLagHistogram: IntervalHistogram = monitorEventLoopDelay({ resolution: 20 });
+loopLagHistogram.enable();
+
+interface LoopLagSnapshot {
+  p50: number;
+  p90: number;
+  p99: number;
+  max: number;
+  mean: number;
+  stddev: number;
+  samples: number;
+}
+
+function getLoopLagSnapshot(): LoopLagSnapshot {
+  // perf_hooks returns nanoseconds; convert to ms for human readability
+  const toMs = (ns: number) => Math.round(ns / 1_000_000);
+  return {
+    p50: toMs(loopLagHistogram.percentile(50)),
+    p90: toMs(loopLagHistogram.percentile(90)),
+    p99: toMs(loopLagHistogram.percentile(99)),
+    max: toMs(loopLagHistogram.max),
+    mean: toMs(loopLagHistogram.mean),
+    stddev: toMs(loopLagHistogram.stddev),
+    samples: loopLagHistogram.count,
+  };
+}
+
+function resetLoopLagHistogram(): void {
+  loopLagHistogram.reset();
+}
 import { isClaudeBusy, getCurrentTask, getProvider, getFallback, getProviderForSource, getLaneStatus, callClaude, killAllChildProcesses, preemptLoopCycle, abortForeground, startForegroundSweep, stopForegroundSweep } from './agent.js';
 import {
   searchMemory,
@@ -777,11 +813,26 @@ export function createApi(port = 3001): express.Express {
   // =============================================================================
 
   app.get('/health', (_req: Request, res: Response) => {
+    // Event loop lag metrics (P0 diagnostic per Constraint Texture 2026-04-17):
+    // if p99 during cycle > 100ms, user code is blocking event loop —
+    // locate via grep sync I/O in hot path + fix to async.
+    // if p99 < 100ms but /health still timeouts → deeper layer (TCP accept queue / HTTP).
+    const lag = getLoopLagSnapshot();
     res.json({
       status: 'ok',
       service: 'mini-agent',
       instance: getCurrentInstanceId(),
+      loop_lag_ms: lag,
     });
+  });
+
+  // /metrics/loop-lag — same metrics, dedicated endpoint for monitoring tools.
+  // Pass ?reset=true to reset histogram after read (useful for per-cycle probe).
+  app.get('/metrics/loop-lag', (req: Request, res: Response) => {
+    const reset = req.query?.reset === 'true' || req.query?.reset === '1';
+    const lag = getLoopLagSnapshot();
+    if (reset) resetLoopLagHistogram();
+    res.json({ loop_lag_ms: lag, reset_after_read: reset });
   });
 
   // Unified status — 聚合所有子系統狀態 (OODA-Only)

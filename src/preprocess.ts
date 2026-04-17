@@ -84,7 +84,7 @@ function buildPerceptionSummaryTasks(): { tasks: LocalLLMTask[]; cached: Map<str
       id: `perc:${r.name}`,
       prompt: `Summarize the key information in 1-2 sentences (max 60 words). If nothing notable, say "unchanged".\n\n${inputSlice}`,
       maxTokens: 80,
-      timeoutMs: 5_000, // 0.8B should finish in <2s; 15s was excessive
+      timeoutMs: 15_000, // F (2026-04-17): 5s→15s — startup observed avg latency 10s when oMLX saturated; 5s caused 0/12 success rate
     });
   }
 
@@ -129,7 +129,7 @@ function buildHeartbeatDiffTask(currentContent: string): LocalLLMTask | null {
     id: 'hb-diff',
     prompt: `What changed in this task list? Summarize in 1-3 sentences.\nChanges:\n${added}`,
     maxTokens: 120,
-    timeoutMs: 5_000,
+    timeoutMs: 15_000, // F (2026-04-17): aligned with perception timeout
   };
 }
 
@@ -178,7 +178,7 @@ function buildConversationSummaryTask(): LocalLLMTask | null {
 對話：
 ${formatted}`,
       maxTokens: 200,
-      timeoutMs: 5_000,
+      timeoutMs: 15_000, // F (2026-04-17): conv summary aligned
     };
   } catch { return null; }
 }
@@ -233,8 +233,12 @@ export async function runPhase0(): Promise<Phase0Results> {
 
   results.taskCount = tasks.length;
 
-  // Run all tasks concurrently (bumped from 3→5: tasks are I/O-bound, not CPU-bound)
-  const llmResults = await callLocalConcurrent(tasks, 5);
+  // F (2026-04-17): reverted 5→3. oMLX 9B (single-threaded server) saturated
+  // at concurrency 5, causing 0/12 success rate during startup bursts.
+  // I/O-bound argument was wrong — the bottleneck is oMLX server concurrency,
+  // not network/disk. 3 keeps queue shallow, 15s timeout absorbs slow calls.
+  // True fix = Option E (summarization worker in middleware) — tracked in proposal.
+  const llmResults = await callLocalConcurrent(tasks, 3);
 
   // Parse results + update cache
   for (const r of llmResults) {
