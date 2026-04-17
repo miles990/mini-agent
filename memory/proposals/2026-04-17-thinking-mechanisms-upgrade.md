@@ -372,6 +372,38 @@ Alex review → Kuro review（via agent_discuss）→ 收斂 → 進 Phase A。
 **Cross-proposal side effect**（要同步 brain-only-v2）：
 - v2 Phase G (self-improving loop) 需加 `externalDepends: [thinking:A4]` — abortController 為前提
 
-### v1.3（待進一步深化）
+### v1.3 (2026-04-17) — Thinking Visibility 3×2 Matrix 實測 + Rubric 簡化
 
-若 Phase A canary 階段有 regression 或 Phase B 初部署發現新 edge case，v1.3 可整合實測教訓。
+**POC test-matrix.mjs 跑完 6 格實測**（per Kuro msg 058 建議）：
+
+| Model | Subscription | API key |
+|-------|-------------|---------|
+| **Opus 4.5/4.7** | **signature_only** (0 chars) | visible (1375 chars) |
+| **Sonnet 4.6** | **visible** (109 chars) | **visible** (31 chars) |
+| **Haiku 4.5** | **visible** (1579 chars) | **visible** (1047 chars) |
+
+**顛覆原假設** — 不是「訂閱全被過濾」，而是「**只有 Opus 訂閱被過濾**」。Sonnet + Haiku 訂閱 thinking content 完全 visible。
+
+| Change | Section | Source |
+|--------|---------|--------|
+| **只有 Opus 任務** 需評估切 API mode；Sonnet/Haiku 訂閱已給 trace → Phase B dynamic switch **頻率下降 ~80%** | §3 Phase B + §6 Cost | Matrix test 2026-04-17 |
+| Rubric 簡化為 model-gated：先看 task model，Opus 才進 audit-worthy 判斷 | §3 Rubric framework | Kuro 058 + Matrix finding |
+| Cost 估算再下修：原估 270k tokens/月 → 實際 Opus-only audit 約 50-80k/月 | §6 | Matrix finding |
+
+**對 Kuro B0 rubric 的指導**（她寫 `memory/rubrics/thinking-mode-switch.md` 時用）：
+
+```
+if task_model.starts_with("opus"):
+  if audit-worthy(scenario) and cost < threshold:
+    ask Alex → switch API mode
+  else:
+    subscription (thinking 啟用但 trace 不可見，OK)
+else:  # sonnet, haiku
+  subscription (thinking content 已 visible, 不必切)
+```
+
+**POC raw data**：`/tmp/claude-sdk-poc/test-matrix.mjs` + output 保留作 audit trail。
+
+### v1.4（待進一步深化）
+
+若 Phase A canary 階段有 regression 或 Phase B 初部署發現新 edge case，v1.4 可整合實測教訓。
