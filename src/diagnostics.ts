@@ -28,6 +28,13 @@ import { performance } from 'node:perf_hooks';
 import type { Request, Response, NextFunction } from 'express';
 import { slog } from './utils.js';
 
+// Node's native ELU (Event Loop Utilization) — definitive answer to
+// "was main thread busy or idle?". active=time running JS; idle=time waiting
+// I/O. If ELU=1.0 during a lag spike, something is SPINNING on the main
+// thread (sync work). If ELU=0.0, event loop was idle in I/O wait — the
+// lag is then due to timer-phase starvation or OS-level pause.
+let lastElu = performance.eventLoopUtilization();
+
 // =============================================================================
 // Event-loop lag monitor
 // =============================================================================
@@ -77,15 +84,34 @@ export function startEventLoopLagMonitor(): void {
       const cpuPct = elapsed > 0 ? Math.round((cpu.user + cpu.system) / elapsed * 100) : 0;
       lastCpuUsage = process.cpuUsage();
       lastCpuTs = Date.now();
+
+      // ELU: Node's authoritative "was the loop busy?" metric.
+      // utilization 0.0 = fully idle; 1.0 = fully CPU-busy.
+      const elu = performance.eventLoopUtilization(lastElu);
+      lastElu = performance.eventLoopUtilization();
+
       // @ts-expect-error — internal API, stable enough for diagnostics
-      const activeHandles = (process._getActiveHandles?.() ?? []).length;
+      const handles = (process._getActiveHandles?.() ?? []) as unknown[];
       // @ts-expect-error — internal API
-      const activeRequests = (process._getActiveRequests?.() ?? []).length;
+      const requests = (process._getActiveRequests?.() ?? []) as unknown[];
+      // Classify handles by constructor name for quick read:
+      //   Socket, Server, Timer, ChildProcess, MessagePort, FSReqCallback, etc.
+      const handleTypes: Record<string, number> = {};
+      for (const h of handles) {
+        const type = (h as { constructor?: { name?: string } })?.constructor?.name ?? 'Unknown';
+        handleTypes[type] = (handleTypes[type] ?? 0) + 1;
+      }
+      const handleBreakdown = Object.entries(handleTypes)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `${k}:${v}`)
+        .join(',');
+
       slog(
         'PROFILE',
-        `event-loop lag SPIKE ${lag}ms — main thread stalled | ` +
-          `mem rss=${Math.round(mem.rss / 1048576)}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB ext=${Math.round(mem.external / 1048576)}MB | ` +
-          `cpu=${cpuPct}% | handles=${activeHandles} reqs=${activeRequests}`,
+        `event-loop lag SPIKE ${lag}ms | ` +
+          `ELU=${elu.utilization.toFixed(2)} (idle=${Math.round(elu.idle)}ms active=${Math.round(elu.active)}ms) | ` +
+          `mem rss=${Math.round(mem.rss / 1048576)}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB | ` +
+          `cpu=${cpuPct}% | handles=${handles.length}{${handleBreakdown}} reqs=${requests.length}`,
       );
     }
 

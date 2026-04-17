@@ -826,17 +826,23 @@ export function createApi(port = 3001): express.Express {
   // =============================================================================
 
   app.get('/health', (_req: Request, res: Response) => {
-    // Event loop lag metrics (P0 diagnostic per Constraint Texture 2026-04-17):
-    // if p99 during cycle > 100ms, user code is blocking event loop —
-    // locate via grep sync I/O in hot path + fix to async.
-    // if p99 < 100ms but /health still timeouts → deeper layer (TCP accept queue / HTTP).
+    // D22 probe: log handler entry. If external curl times out but this
+    // log appears, request reached handler → response stream / write failure.
+    // If log never appears → request stuck before handler (middleware chain
+    // or TCP accept queue).
+    const t0 = performance.now();
     const lag = getLoopLagSnapshot();
-    res.json({
+    const payload = {
       status: 'ok',
       service: 'mini-agent',
       instance: getCurrentInstanceId(),
       loop_lag_ms: lag,
-    });
+    };
+    res.json(payload);
+    const elapsed = Math.round(performance.now() - t0);
+    if (elapsed > 50 || lag.p99 > 500) {
+      slog('PROFILE', `/health handler ${elapsed}ms lag p99=${lag.p99}ms max=${lag.max}ms samples=${lag.samples}`);
+    }
   });
 
   // /metrics/loop-lag — same metrics, dedicated endpoint for monitoring tools.
