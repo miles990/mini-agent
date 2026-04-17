@@ -107,11 +107,14 @@ export function startEventLoopLagMonitor(): void {
     }
 
     lagMonitorHandle = setTimeout(tick, TICK_MS);
-    // unref so the monitor doesn't hold the process open during shutdown
-    lagMonitorHandle.unref?.();
+    // DO NOT unref: Node.js can skip the entire timer phase when the only
+    // active timer is unref'd AND there's I/O pending. That made us record
+    // fake lag SPIKEs (timer maxLag=150s while check maxLag=0ms) for hours.
+    // We want this timer to force Node through the timer phase so we get
+    // accurate lag measurements. Process shutdown is handled at the higher
+    // level; holding this timer ref is fine — ~1KB of overhead.
   };
   lagMonitorHandle = setTimeout(tick, TICK_MS);
-  lagMonitorHandle.unref?.();
 }
 
 export function stopEventLoopLagMonitor(): void {
