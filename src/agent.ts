@@ -20,6 +20,7 @@ import { compactContext } from './context-compaction.js';
 import { processContext, detectModelTier, type ModelTier } from './context-pipeline.js';
 import { buildSmallModelPrompt } from './prompt-builder.js';
 import { execClaudeViaSdk, isSdkEnabled } from './sdk-client.js';
+import { execClaudeViaMiddleware, isMiddlewareCycleEnabled } from './middleware-cycle-client.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -88,8 +89,16 @@ export interface ExecOptions {
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
   if (provider === 'codex') return execCodex(fullPrompt, opts);
   if (provider === 'local') return execLocal(fullPrompt, opts);
-  // Feature flag: USE_SDK=true 走 Agent SDK；default false 保持 CLI subprocess
-  // Phase A of thinking-mechanisms-upgrade proposal (2026-04-17)
+  // Layer C (2026-04-17): USE_MIDDLEWARE_FOR_CYCLE=true → offload cycle LLM
+  // iteration to middleware agent-brain worker. Main thread only does POST
+  // /dispatch + poll /status — zero for-await iteration of Claude subprocess
+  // stdout. Solves 160s loop-lag catastrophe when SDK runs in own event loop.
+  // Aligns with brain-only-kuro-v2: cycle LLM call 透過中台跑.
+  if (isMiddlewareCycleEnabled()) {
+    return execClaudeViaMiddleware(fullPrompt, opts);
+  }
+  // Feature flag USE_SDK (A4 default = true) → Agent SDK path.
+  // USE_SDK=false → legacy CLI subprocess (kept 2 weeks for A5 cleanup).
   if (isSdkEnabled()) {
     return execClaudeViaSdk(fullPrompt, opts);
   }
