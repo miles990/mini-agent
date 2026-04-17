@@ -678,9 +678,16 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   // ── Error patterns (absorbed from feedback-loops.ts) ──
   try {
     const logger = getLogger();
-    const errors = logger.queryErrorLogs(undefined, 200);
+    // Scope to today only. Previously queried the last 200 errors across all
+    // days, which kept recurring-error P1 tasks alive for 10+ cycles after the
+    // underlying classifier fix deployed — pre-fix entries lingered in the
+    // rolling window and the count looked "active" despite zero fresh matches.
+    // Lesson: recurring-error recurrence must be measured by recency
+    // (distance-since-last-match), not magnitude of a rolling snapshot.
+    // Closure evidence: chat-room 2026-04-17#100, HEARTBEAT archive 2026-04-18 00:40.
+    const today = new Date().toISOString().split('T')[0];
+    const errors = logger.queryErrorLogs(today, 200);
     if (errors.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
       const groups = new Map<string, number>();
 
       for (const err of errors) {
