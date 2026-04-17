@@ -147,8 +147,11 @@ function classifyError(error: unknown): ErrorClassification {
     return { type: 'NOT_FOUND', retryable: false, message: '無法找到 claude CLI。請確認已安裝 Claude Code 並且 claude 指令在 PATH 中。', modelGuidance: 'Claude CLI is not installed or not in PATH. This is a system configuration issue — do not retry. Report to user and suggest checking PATH.' };
   }
   // Exit 143 = SIGTERM (128+15) — context 過大或系統資源不足
+  // exitReason 從 spawn close handler 傳入，讓下游 extractErrorSubtype 能區分 preempt/shutdown/external
   if (exitCode === 143) {
-    return { type: 'TIMEOUT', retryable: true, message: 'Claude CLI 被 SIGTERM 終止（exit 143）。可能是 context 過大或系統資源不足。', modelGuidance: 'Context was likely too large. On retry, use a more focused prompt — strip non-essential context, reduce conversation history, and focus on the core task only.' };
+    const exitReason = (error as { exitReason?: string })?.exitReason;
+    const reasonSuffix = exitReason ? `, reason=${exitReason}` : '';
+    return { type: 'TIMEOUT', retryable: true, message: `Claude CLI 被 SIGTERM 終止（exit 143${reasonSuffix}）。可能是 context 過大或系統資源不足。`, modelGuidance: 'Context was likely too large. On retry, use a more focused prompt — strip non-essential context, reduce conversation history, and focus on the core task only.' };
   }
   // Duration-based timeout detection — catches race conditions where timedOut flag wasn't set
   // (e.g. process killed externally by OOM or system pressure before our timer fired)
@@ -935,13 +938,15 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       // Exit 143 結構化 logging（SIGTERM — context 過大或系統終止）
+      // exitReason 也附到 rejected error 上，讓下游 extractErrorSubtype 能區分 preempt/shutdown/external
+      let exitReason: string | undefined;
       if (code === 143) {
         const childPid = child.pid;
         const externalReason = childPid ? externalKillReasons.get(childPid) : undefined;
         if (childPid) externalKillReasons.delete(childPid);
-        const reason = killReason || externalReason || 'external';
+        exitReason = killReason || externalReason || 'external';
         const silentMs = Date.now() - lastStdoutDataTs; // time since last stdout (includes SIGTERM→close delay)
-        slog('EXIT143', `reason=${reason}, prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}, silentFor=${(silentMs / 1000).toFixed(1)}s`);
+        slog('EXIT143', `reason=${exitReason}, prompt=${fullPrompt.length} chars, elapsed=${(duration / 1000).toFixed(1)}s, tools=${toolCallCount}, silentFor=${(silentMs / 1000).toFixed(1)}s`);
       }
 
       // Log unexpected signals for diagnostics
@@ -950,7 +955,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
       }
 
       if (code !== 0 && !resultText) {
-        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount }));
+        reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason }));
       } else {
         // Fallback: if resultText is empty but we received text blocks during streaming,
         // reconstruct from allTextBlocks. Claude CLI 2.x stream-json may return empty

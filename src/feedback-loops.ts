@@ -94,9 +94,22 @@ export function flushFeedbackState(): void {
  * 這些 event 仍會計入 metrics.recurringErrorCount 作為觀察面 signal，但不建 P1 fix task。
  *   - memory_guard: agent.ts:670 pre-spawn OOM prevention (freeMemMB < 500MB deferral)
  *   - max_turns: agent runaway prevention
+ *   - sigterm_preempt / sigterm_foreground_preempt: user/pipeline 主動中斷 (normal flow)
+ *   - sigterm_shutdown: server graceful shutdown 連帶 kill subprocess
+ *   - sigterm_progress / sigterm_hard / sigterm_circuit_breaker: 我們自己的 timeout/circuit 主動 kill
  * 高頻發生本身是 system-pressure signal，需看 metric 不看 bug list。
+ * 註：`sigterm_external` 保留在 recurring-errors 通道 — 那代表 launchd-triggered ungraceful crash，仍需追蹤。
  */
-export const PROTECTIVE_SUBTYPES = new Set(['memory_guard', 'max_turns']);
+export const PROTECTIVE_SUBTYPES = new Set([
+  'memory_guard',
+  'max_turns',
+  'sigterm_preempt',
+  'sigterm_foreground_preempt',
+  'sigterm_shutdown',
+  'sigterm_progress',
+  'sigterm_hard',
+  'sigterm_circuit_breaker',
+]);
 
 /**
  * 從錯誤訊息抽取 subtype hint — 讓多型 TIMEOUT/UNKNOWN bucket 分成具體 failure mode，
@@ -107,7 +120,17 @@ export function extractErrorSubtype(errorMsg: string): string {
   const lower = errorMsg.toLowerCase();
   if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure') || lower.includes('system memory too low') || lower.includes('deferring to prevent')) return 'memory_guard';
   if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線')) return 'econnrefused';
-  if (lower.includes('exit 143') || lower.includes('sigterm')) return 'sigterm';
+  if (lower.includes('exit 143') || lower.includes('sigterm')) {
+    // Split by reason (source: agent.ts classifyError appends `reason=${exitReason}` when available)
+    if (lower.includes('reason=preempt')) return 'sigterm_preempt';
+    if (lower.includes('reason=foreground-preempt')) return 'sigterm_foreground_preempt';
+    if (lower.includes('reason=shutdown')) return 'sigterm_shutdown';
+    if (lower.includes('reason=progress')) return 'sigterm_progress';
+    if (lower.includes('reason=hard')) return 'sigterm_hard';
+    if (lower.includes('reason=circuit-breaker')) return 'sigterm_circuit_breaker';
+    if (lower.includes('reason=external')) return 'sigterm_external';
+    return 'sigterm_external'; // no reason tag = pre-fix events or non-143 sigterm keyword match
+  }
   if (lower.includes('killed by signal') || lower.includes('被信號')) return 'signal_killed';
   if (lower.includes('oom') || lower.includes('killed by oom')) return 'oom';
   if (lower.includes('took too long') || lower.includes('處理超時')) return 'real_timeout';
