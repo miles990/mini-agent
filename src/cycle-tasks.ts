@@ -428,7 +428,8 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
 
     if (!status.trim()) return;
 
-    const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+    // porcelain 格式 "XY PATH" — X 可能是 space（worktree-modified），整串 trim 會吃掉首行的 X，slice(3) 就會吃掉路徑首字
+    const changedFiles = status.split('\n').filter(l => l.length >= 4).map(l => l.slice(3));
     const commitableFiles = changedFiles.filter(f => !isExcludedMemoryFile(f));
     if (!commitableFiles.length) {
       slog('auto-commit', `skipped: only ephemeral files (${changedFiles.length})`);
@@ -485,7 +486,8 @@ export async function autoCommitExternalRepos(): Promise<void> {
 
       if (!status.trim()) continue;
 
-      const changedFiles = status.trim().split('\n').map(l => l.slice(3)).filter(Boolean);
+      // porcelain 格式 "XY PATH" — X 可能是 space（worktree-modified），整串 trim 會吃掉首行的 X，slice(3) 就會吃掉路徑首字
+    const changedFiles = status.split('\n').filter(l => l.length >= 4).map(l => l.slice(3));
 
       await execFileAsync(
         'git', ['add', '-A'],

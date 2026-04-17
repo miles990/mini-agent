@@ -89,12 +89,10 @@ export interface ExecOptions {
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
   if (provider === 'codex') return execCodex(fullPrompt, opts);
   if (provider === 'local') return execLocal(fullPrompt, opts);
-  // Layer C (2026-04-17): USE_MIDDLEWARE_FOR_CYCLE=true → offload cycle LLM
-  // iteration to middleware agent-brain worker. Main thread only does POST
-  // /dispatch + poll /status — zero for-await iteration of Claude subprocess
-  // stdout. Solves 160s loop-lag catastrophe when SDK runs in own event loop.
-  // Aligns with brain-only-kuro-v2: cycle LLM call 透過中台跑.
-  if (isMiddlewareCycleEnabled()) {
+  // Layer C (2026-04-17): USE_MIDDLEWARE_FOR_CYCLE=true → offload **main OODA
+  // cycle** LLM call to middleware agent-brain worker (隔離 event-loop)。
+  // Ask/foreground 路徑不走此路，避免 30s 快答被拖進 1500s cycle 深推理預算。
+  if (isMiddlewareCycleEnabled() && opts?.source === 'loop') {
     return execClaudeViaMiddleware(fullPrompt, opts);
   }
   // Feature flag USE_SDK (A4 default = true) → Agent SDK path.
