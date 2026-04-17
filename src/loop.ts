@@ -321,6 +321,12 @@ export class AgentLoop {
   // ── Reflect nudge: track consecutive learn cycles ──
   private consecutiveLearnCycles = 0;
 
+  // ── Escape hatch: consecutive cycles without visible output (CHAT/ASK/SHOW/DELEGATE) ──
+  // When ≥ 3, next cycle is forced to 'light' context to break self-referential
+  // verification loops (cycle verifies its own ledger instead of acting on environment).
+  // Convergence condition: "cycle produces visible output OR gets minimal context to reset".
+  private noopStreak = 0;
+
   // ── Behavior config resilience ──
   private lastValidConfig: BehaviorConfig | null = null;
 
@@ -1621,10 +1627,16 @@ export class AgentLoop {
       }
 
       // Adaptive Cycle Depth: infer context weight from trigger + state
-      const contextMode = this.inferCycleWeight(this.triggerReason ?? '', {
+      const rawContextMode = this.inferCycleWeight(this.triggerReason ?? '', {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
+      // Escape hatch: force light context when stuck in self-reflection loop (see noopStreak).
+      // Breaking out requires reducing the very context that feeds the reflection.
+      const contextMode = this.noopStreak >= 3 ? 'light' : rawContextMode;
+      if (this.noopStreak >= 3) {
+        slog('LOOP', `#${this.cycleCount} 🪫 forcing light context (noop streak=${this.noopStreak}) — break self-reflection loop`);
+      }
       // Context budget: let the profile system (omlx-gate.ts) decide.
       // Previously: hardcoded systemPromptEstimate=25K (stale — actual: Tier0=1.3K, Tier1=2-5K, Tier2=9K)
       // → contextBudget=8K → overrode profile budgets (heartbeat=18K, autonomous=32K) → over-trimmed context.
@@ -2318,6 +2330,22 @@ export class AgentLoop {
         rememberCount: metrics.rememberCount,
         similarityRate: metrics.similarityRate,
       });
+
+      // noop streak bookkeeping — track consecutive cycles without visible output.
+      // Visible = user-facing tag (CHAT/ASK/SHOW/DELEGATE). REMEMBER/TASK/ACTION are
+      // internal state changes only; they keep the cycle "productive" from the model's
+      // perspective but don't escape the self-reflection loop.
+      const hasVisibleOutput = cycleTagsProcessed.some(t =>
+        t === 'CHAT' || t === 'ASK' || t === 'SHOW' || t === 'DELEGATE'
+      );
+      if (hasVisibleOutput) {
+        this.noopStreak = 0;
+      } else {
+        this.noopStreak++;
+        if (this.noopStreak >= 3) {
+          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} — next cycle will use light context`);
+        }
+      }
 
       // <kuro:schedule> tag — Kuro 自主排程覆蓋
       this.lastCycleHadSchedule = !!tags.schedule;
