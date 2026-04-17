@@ -1666,7 +1666,10 @@ export async function callClaude(
   // for low-priority triggers". Avoid the 3-min compactContext + rebuildContext chain
   // observed 2026-04-17 19:16–19:20 when workspace cycles got full system prompt.
   const triggerReason = options?.triggerReason ?? '';
-  const lowPriorityTrigger = /^(workspace|heartbeat|cron)\b/.test(triggerReason);
+  // Low-priority background triggers. Keep room/room-foreground/dm/alert OFF the list —
+  // user-facing cycles need full guidance. Empty/unknown triggers fall back to full prompt too,
+  // to stay safe for human-initiated flows that didn't tag themselves.
+  const lowPriorityTrigger = /^(workspace|heartbeat|cron|startup|continuation|mobile)\b/.test(triggerReason);
   const initialPromptMode: 'full' | 'minimal' | undefined = lowPriorityTrigger ? 'minimal' : undefined;
 
   const systemPrompt = modelTier === 'small'
