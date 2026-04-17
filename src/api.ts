@@ -119,6 +119,7 @@ import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, 
 
 export { slog, setSlogPrefix } from './utils.js';
 import { slog, setSlogPrefix, diagLog } from './utils.js';
+import { startEventLoopLagMonitor, slowRequestMiddleware } from './diagnostics.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -455,6 +456,11 @@ export async function autoDetectThread(text: string, source: string, msgId?: str
 
 export function createApi(port = 3001): express.Express {
   const app = express();
+
+  // Diagnostics: log any HTTP handler exceeding 500ms with concurrent event-loop lag.
+  // Installed before routes so it covers every request, including /health and /status.
+  app.use(slowRequestMiddleware);
+
   app.use(express.json({ limit: '1mb' }));
 
   // JSON parse error handler — body-parser 解析失敗時返回 400 而非噴 stack trace
@@ -2938,6 +2944,11 @@ if (isMain) {
 
   // ── 設定 slog 前綴（讓日誌能區分實例） ──
   setSlogPrefix(instanceId, instanceConfig?.name);
+
+  // ── Diagnostics: event-loop lag monitor ──
+  // Logs to server.log when main thread stalls >100ms, rolls up max lag every 5s.
+  // Together with [SLOW-HTTP] and [TIMING] logs, lets us see when/why the loop freezes.
+  startEventLoopLagMonitor();
 
   // ── Load .env (lightweight, no dependency) ──
   const composeFile = findComposeFile();

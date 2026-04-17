@@ -47,6 +47,7 @@ import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDo
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage, sendChat } from './observability.js';
 import { truncateAtSectionBoundary } from './context-pipeline.js';
+import { timed } from './diagnostics.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
@@ -1504,6 +1505,7 @@ export class AgentLoop {
     this.cycling = true;
     this.concurrentInboxDetected = false;
     const logger = getLogger();
+    const cycleStartTs = performance.now();
 
     try {
       this.cycleCount++;
@@ -1626,7 +1628,7 @@ export class AgentLoop {
       const isRoutineHeartbeat = (this.triggerReason ?? '').includes('heartbeat') && !perceptionChanged;
       if (!isDirectMessage && !isRoutineHeartbeat) {
         try {
-          phase0Results = await runPhase0();
+          phase0Results = await timed(`cycle#${this.cycleCount}.phase0`, () => runPhase0(), { alwaysLog: true });
         } catch (err) {
           // Fail-open: Phase 0 failure = buildContext uses raw data
           eventBus.emit('log:info', { tag: 'preprocess', msg: `Phase 0 failed (fail-open): ${err instanceof Error ? err.message : err}` });
@@ -1650,7 +1652,11 @@ export class AgentLoop {
       // Now: pass undefined to let buildContext use profileConfig.contextBudget as the primary control.
       const contextBudget = undefined;
 
-      let context = await memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget });
+      let context = await timed(
+        `cycle#${this.cycleCount}.buildContext`,
+        () => memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget }),
+        { alwaysLog: true },
+      );
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
@@ -1962,15 +1968,19 @@ export class AgentLoop {
       };
 
       const [claudeResult, newInboxCount] = await Promise.all([
-        callClaude(prompt, context, 2, {
-          rebuildContext: (mode, budget) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined, contextBudget: budget }),
-          source: 'loop',
-          onPartialOutput,
-          cycleMode,
-          model: modelCliName,
-          onStreamChat,
-          triggerReason: currentTriggerReason,
-        }),
+        timed(
+          `cycle#${this.cycleCount}.callClaude`,
+          () => callClaude(prompt, context, 2, {
+            rebuildContext: (mode, budget) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined, contextBudget: budget }),
+            source: 'loop',
+            onPartialOutput,
+            cycleMode,
+            model: modelCliName,
+            onStreamChat,
+            triggerReason: currentTriggerReason,
+          }),
+          { alwaysLog: true },
+        ),
         concurrentPromise,
       ]);
 
@@ -2073,6 +2083,11 @@ export class AgentLoop {
         success: true,
       });
       const decision = action ? `${action.slice(0, 100)}` : `no action`;
+      // CYCLE-TRACE: end-to-end cycle duration (every cycle, always logged).
+      // Paired with individual [TIMING] cycle#N.phase0/buildContext/callClaude lines,
+      // this lets us see the full data pipeline for every cycle without running a profiler.
+      const cycleTotalMs = Math.round(performance.now() - cycleStartTs);
+      slog('CYCLE-TRACE', `#${this.cycleCount} total=${cycleTotalMs}ms trigger=${(currentTriggerReason ?? '').slice(0, 30)} decision=${decision.slice(0, 40)}`);
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
       // Record for next cycle (only last cycle, no accumulation)
