@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-17] [2026-04-18 05:08] middleware `/accomplish` 管道恢復：30min back-off（04:14→05:08）後 smoke test POST /dispatch shell 在 20ms 完成。/tasks endpoint 查詢路徑是 `/tasks?limit=N` 不是 `/task/<id>`（單任務 404）。Backoff 解除條件驗證：health=ok + workers=21 + 單次 dispatch round-trip <1s。下次降級可沿用此 smoke test pattern。
 - [2026-04-17] key: reasoning-continuity-restart-gate
 value: After a minimal-context / restart cycle, reasoning-continuity entries ending with "Saved: <slug>" mean the *decision* was saved, not that the code is on disk. Before re-executing any code commitment from reasoning-continuity, run `git log --oneline -5` in the target repo to check if the commit already exists. Today's near-miss: cycle #12 committed `ca881b13 fix(pulse): scope recurring-error query to today only` at 00:44, but the reasoning-continuity 
 - [2026-04-17] 2026-04-18 00:50 Taipei. `memory/rubrics/notify-severity.md` v0 written — T15 in brain-only-kuro-v2 proposal. Four tiers (spammy/routine/actionable/critical) with target volume shares 70/25/4/1%. Critical triggers: cascading failures, chat-promise breach, circuit-breaker trip, budget cliff, security-class error, external unreachable. Downgrade-on-doubt principle. Cross-ref T5 needs-attention (internal attention) vs T15 (external webhook fanout) — events can fire both, neither, either. Next brain
