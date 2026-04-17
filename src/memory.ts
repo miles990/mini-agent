@@ -1987,6 +1987,14 @@ export class InstanceMemory {
     const mode = options?.mode ?? 'full';
     const isLight = mode === 'light';
     const hint = options?.relevanceHint?.toLowerCase() ?? '';
+    // Milestone timestamps — buildContext is async/long; D14 showed the total
+    // can reach 16s on the startup cycle without indicating which phase is
+    // actually slow. Mark each major checkpoint; emit breakdown at the end.
+    const bcStart = Date.now();
+    const bcMilestones: Record<string, number> = {};
+    const bcMark = (label: string): void => {
+      bcMilestones[label] = Date.now() - bcStart;
+    };
 
     // ── Minimal mode: 最小 context，用於超時重試 ──
     if (mode === 'minimal') {
@@ -2005,11 +2013,13 @@ export class InstanceMemory {
       extraHints: profileConfig.extraHints,
     };
 
+    bcMark('enter');
     const [memory, heartbeat, soul] = await Promise.all([
       this.readMemory(),
       this.readHeartbeat(),
       this.readSoul(),
     ]);
+    bcMark('readCore');
 
     // 使用 Hot buffer 中的對話（截斷長回覆節省 token）
     const MAX_CONVERSATION_ENTRY_CHARS = 1500;
@@ -2897,6 +2907,7 @@ export class InstanceMemory {
       ...restSections,
     ];
 
+    bcMark('sectionsAssembled');
     let assembled = reorderedSections.join('\n\n');
 
     slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
@@ -2943,6 +2954,25 @@ export class InstanceMemory {
       if (assembled.length > CONTEXT_BUDGET) {
         assembled = assembled.slice(0, CONTEXT_BUDGET) + `\n\n[... context truncated at ${Math.round(CONTEXT_BUDGET / 1000)}K chars]`;
       }
+    }
+
+    bcMark('pipelineDone');
+
+    // Emit PROFILE breakdown when buildContext takes meaningful time.
+    // Shows which phase ate the budget — readCore / sectionsAssembled / pipelineDone.
+    // Diffs: readCore = read SOUL/MEMORY/HEARTBEAT; sections-readCore = assembly
+    // (shouldLoad checks, topic reads, perception cache reads, memory-index search);
+    // pipeline-sections = priority trimming pass.
+    const bcTotal = Date.now() - bcStart;
+    if (bcTotal > 500) {
+      const breakdown = [
+        `total=${bcTotal}ms`,
+        `enter=${bcMilestones.enter ?? 0}`,
+        `readCore=${bcMilestones.readCore ?? 0}`,
+        `sections=${bcMilestones.sectionsAssembled ?? 0}`,
+        `pipeline=${bcMilestones.pipelineDone ?? 0}`,
+      ].join(' ');
+      slog('PROFILE', `buildContext#${options?.cycleCount ?? '?'} ${breakdown} trigger=${(options?.trigger ?? '').slice(0, 30)}`);
     }
 
     // ── Context Checkpoint：存 snapshot 供 debug/audit ──

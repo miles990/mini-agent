@@ -1983,6 +1983,7 @@ export class AgentLoop {
         ),
         concurrentPromise,
       ]);
+      const callClaudeEndTs = performance.now();
 
       const { response, systemPrompt, fullPrompt, duration, preempted, error: errorClassification } = claudeResult;
 
@@ -2084,10 +2085,15 @@ export class AgentLoop {
       });
       const decision = action ? `${action.slice(0, 100)}` : `no action`;
       // CYCLE-TRACE: end-to-end cycle duration (every cycle, always logged).
-      // Paired with individual [TIMING] cycle#N.phase0/buildContext/callClaude lines,
-      // this lets us see the full data pipeline for every cycle without running a profiler.
+      // Paired with individual [TIMING] cycle#N.phase0/buildContext/callClaude lines
+      // and the postProcess span (callClaude-end → cycle-end), this gives the full
+      // data pipeline for every cycle without running a profiler.
       const cycleTotalMs = Math.round(performance.now() - cycleStartTs);
-      slog('CYCLE-TRACE', `#${this.cycleCount} total=${cycleTotalMs}ms trigger=${(currentTriggerReason ?? '').slice(0, 30)} decision=${decision.slice(0, 40)}`);
+      const postProcessMs = Math.round(performance.now() - callClaudeEndTs);
+      slog(
+        'CYCLE-TRACE',
+        `#${this.cycleCount} total=${cycleTotalMs}ms postProcess=${postProcessMs}ms trigger=${(currentTriggerReason ?? '').slice(0, 30)} decision=${decision.slice(0, 40)}`,
+      );
       eventBus.emit('action:loop', { event: 'cycle.end', cycleCount: this.cycleCount, decision });
 
       // Record for next cycle (only last cycle, no accumulation)
