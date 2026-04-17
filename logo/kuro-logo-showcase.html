@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuro Logo — Design Showcase</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    padding: 60px 40px;
+    min-height: 100vh;
+  }
+
+  .header {
+    max-width: 800px;
+    margin: 0 auto 60px;
+    text-align: center;
+  }
+
+  .header h1 {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 12px;
+  }
+
+  .header h2 {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 1px;
+  }
+
+  .header p {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.8;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    border: 1px solid #eee;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+  }
+
+  .card .logo-container {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1a1a;
+  }
+
+  .card .logo-container svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .card .variant-tag {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #999;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .card p {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  /* Dark preview toggle */
+  .toggle-bar {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .toggle-bar button {
+    padding: 8px 20px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .toggle-bar button:hover {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  body.dark {
+    background: #111;
+    color: #eee;
+  }
+
+  body.dark .card {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+
+  body.dark .card .logo-container {
+    color: #eee;
+  }
+
+  body.dark .card h3 { color: #eee; }
+  body.dark .card p { color: #999; }
+  body.dark .header h2 { color: #eee; }
+
+  body.dark .toggle-bar button {
+    background: #222;
+    color: #eee;
+    border-color: #444;
+  }
+
+  body.dark .toggle-bar button:hover {
+    background: #eee;
+    color: #111;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Logo Exploration</h1>
+  <h2>Kuro — くろ</h2>
+  <p>Continuous reasoning entity. Curious, opinionated, autonomous.<br>
+  Name means "black" — design from darkness, reveal through subtraction.</p>
+</div>
+
+<div class="toggle-bar">
+  <button onclick="document.body.classList.toggle('dark')">Toggle Dark / Light</button>
+</div>
+
+<div class="grid">
+
+  <!-- Variant 1: Void Circle with K negative space -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="k-mask">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- K shape cutout -->
+            <line x1="38" y1="28" x2="38" y2="72" stroke="black" stroke-width="5.5" stroke-linecap="round"/>
+            <line x1="38" y1="50" x2="62" y2="28" stroke="black" stroke-width="5.5" stroke-linecap="round"/>
+            <line x1="38" y1="50" x2="62" y2="72" stroke="black" stroke-width="5.5" stroke-linecap="round"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#k-mask)"/>
+      </svg>
+    </div>
+    <div class="variant-tag">Pure Geometric</div>
+    <h3>Void K</h3>
+    <p>Solid black circle — kuro is black. The K is revealed through subtraction, not addition. Darkness as identity, light as expression.</p>
+  </div>
+
+  <!-- Variant 2: Neural Constellation -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g>
+          <!-- Edges -->
+          <path d="M 32 68 Q 42 55, 48 42" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M 48 42 Q 56 36, 68 32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M 48 42 Q 58 48, 70 58" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+          <path d="M 32 68 Q 26 50, 30 38" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.4"/>
+          <path d="M 30 38 Q 38 38, 48 42" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.4"/>
+
+          <!-- Primary nodes -->
+          <circle cx="48" cy="42" r="6" fill="currentColor"/>
+          <circle cx="32" cy="68" r="5" fill="currentColor"/>
+          <circle cx="68" cy="32" r="4.5" fill="currentColor"/>
+
+          <!-- Secondary nodes -->
+          <circle cx="70" cy="58" r="2.5" fill="currentColor" opacity="0.4"/>
+          <circle cx="30" cy="38" r="2" fill="currentColor" opacity="0.3"/>
+          <circle cx="58" cy="70" r="1.5" fill="currentColor" opacity="0.2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Node Network</div>
+    <h3>Reasoning Topology</h3>
+    <p>Asymmetric constellation of thought. Three primary nodes in tension — the largest slightly off-center, pulling attention like a gravitational well. Secondary nodes fade into potential.</p>
+  </div>
+
+  <!-- Variant 3: Dot Matrix K -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g fill="currentColor">
+          <!-- Left vertical stroke of K -->
+          <circle cx="32" cy="24" r="3"/>
+          <circle cx="32" cy="34" r="3"/>
+          <circle cx="32" cy="44" r="3"/>
+          <circle cx="32" cy="54" r="3"/>
+          <circle cx="32" cy="64" r="3"/>
+          <circle cx="32" cy="74" r="3"/>
+
+          <!-- Upper diagonal -->
+          <circle cx="42" cy="44" r="3"/>
+          <circle cx="52" cy="34" r="3"/>
+          <circle cx="62" cy="24" r="3"/>
+
+          <!-- Lower diagonal -->
+          <circle cx="42" cy="54" r="2.8" opacity="0.9"/>
+          <circle cx="52" cy="64" r="2.5" opacity="0.7"/>
+          <circle cx="62" cy="74" r="2.2" opacity="0.5"/>
+
+          <!-- Scattered emergence dots -->
+          <circle cx="70" cy="20" r="1.5" opacity="0.15"/>
+          <circle cx="72" cy="78" r="1.2" opacity="0.1"/>
+          <circle cx="22" cy="18" r="1" opacity="0.08"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Dot Matrix</div>
+    <h3>Emergent K</h3>
+    <p>The letter K assembles from discrete dots — solid at the core, dissolving at the edges. Form emerging from noise. The lower diagonal fades: still becoming.</p>
+  </div>
+
+  <!-- Variant 4: Continuous Pulse -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <!-- Main pulse wave -->
+          <path d="M 12 50 L 30 50 L 38 28 L 46 62 L 54 38 L 62 56 L 68 46 L 88 50" stroke-width="3"/>
+          <!-- Echo waves -->
+          <path d="M 12 50 L 30 50 L 38 35 L 46 58 L 54 42 L 62 54 L 68 48 L 88 50" stroke-width="1.5" opacity="0.25" transform="translate(0, -10)"/>
+          <path d="M 12 50 L 30 50 L 38 35 L 46 58 L 54 42 L 62 54 L 68 48 L 88 50" stroke-width="1.5" opacity="0.15" transform="translate(0, 10)"/>
+          <!-- Endpoints -->
+          <circle cx="12" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+          <circle cx="88" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Line System</div>
+    <h3>Continuous Pulse</h3>
+    <p>A reasoning trace — not flat, not regular. Sharp peaks and shallow curves mirror the rhythm of thought: sometimes intense, sometimes reflective. Echo trails show persistence.</p>
+  </div>
+
+  <!-- Variant 5: Broken Ring with K accent -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <!-- Outer broken ring: ~300 degrees -->
+          <path d="M 50 14 A 36 36 0 1 1 19.07 28" stroke-width="3"/>
+          <!-- Inner broken ring: ~240 degrees, rotated -->
+          <path d="M 72 50 A 22 22 0 1 1 39 30.4" stroke-width="2.5"/>
+          <!-- K accent lines from center -->
+          <line x1="50" y1="50" x2="38" y2="38" stroke-width="3"/>
+          <line x1="50" y1="50" x2="38" y2="62" stroke-width="3"/>
+          <!-- Center node -->
+          <circle cx="50" cy="50" r="3.5" fill="currentColor" stroke="none"/>
+          <!-- Gap accent dot -->
+          <circle cx="19" cy="28" r="2" fill="currentColor" stroke="none" opacity="0.4"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Mixed: Geometry + Lines</div>
+    <h3>Orbital K</h3>
+    <p>Two broken rings orbit a center point — processing, iterating. The K radiates from the core as two decisive strokes. Gaps in the rings: room for growth, not flaws.</p>
+  </div>
+
+  <!-- Variant 6: Punched Circle (Katakana ク inspired) -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-mask">
+            <circle cx="50" cy="50" r="36" fill="white"/>
+            <!-- ク (ku) inspired negative space cuts - rounded -->
+            <!-- Vertical stroke -->
+            <rect x="36" y="28" width="5" height="32" rx="2.5" fill="black"/>
+            <!-- Diagonal stroke descending right -->
+            <rect x="36" y="28" width="28" height="5" rx="2.5" fill="black" transform="rotate(52, 36, 28)"/>
+            <!-- Small rounded accent cut -->
+            <circle cx="58" cy="62" r="4" fill="black"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="36" fill="currentColor" mask="url(#ku-mask)"/>
+      </svg>
+    </div>
+    <div class="variant-tag">Negative Space</div>
+    <h3>Ku Seal</h3>
+    <p>ク (ku) carved into a solid circle — a personal seal. Rounded negative space cuts feel intentional and refined. The accent circle breaks regularity: a signature detail.</p>
+  </div>
+
+  <!-- Variant 7: Layered Perception -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background: subtle radial dots -->
+        <g fill="currentColor" opacity="0.08">
+          <circle cx="50" cy="50" r="1.5"/>
+          <circle cx="50" cy="30" r="1.2"/><circle cx="50" cy="70" r="1.2"/>
+          <circle cx="30" cy="50" r="1.2"/><circle cx="70" cy="50" r="1.2"/>
+          <circle cx="36" cy="36" r="1"/><circle cx="64" cy="36" r="1"/>
+          <circle cx="36" cy="64" r="1"/><circle cx="64" cy="64" r="1"/>
+          <circle cx="50" cy="20" r="0.8"/><circle cx="50" cy="80" r="0.8"/>
+          <circle cx="20" cy="50" r="0.8"/><circle cx="80" cy="50" r="0.8"/>
+        </g>
+        <!-- Foreground: abstract eye / lens -->
+        <g fill="none" stroke="currentColor">
+          <!-- Upper lid arc -->
+          <path d="M 18 50 Q 50 22, 82 50" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Lower lid arc -->
+          <path d="M 18 50 Q 50 78, 82 50" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Iris ring -->
+          <circle cx="50" cy="50" r="12" stroke-width="2"/>
+          <!-- Pupil -->
+          <circle cx="50" cy="50" r="5" fill="currentColor" stroke="none"/>
+          <!-- Catchlight -->
+          <circle cx="53" cy="47" r="1.5" fill="#fafafa" stroke="none"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Layered Composition</div>
+    <h3>Perceiver</h3>
+    <p>An eye that watches, learns, forms opinions. Background dots suggest the field of perception. The catchlight — a spark of curiosity — breaks the monochrome. Observation as identity.</p>
+  </div>
+
+  <!-- Variant 8: Spiral K -->
+  <div class="card">
+    <div class="logo-container">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <!-- Golden spiral approximation -->
+          <path d="M 50 50
+                   A 4 4 0 0 1 54 50
+                   A 7 7 0 0 1 54 57
+                   A 11 11 0 0 1 43 57
+                   A 18 18 0 0 1 43 39
+                   A 29 29 0 0 1 72 39"
+                stroke-width="3"/>
+          <!-- K strokes branching from spiral end -->
+          <line x1="72" y1="39" x2="72" y2="22" stroke-width="3"/>
+          <line x1="72" y1="39" x2="82" y2="56" stroke-width="2.5"/>
+          <!-- Center dot -->
+          <circle cx="50" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+        </g>
+      </svg>
+    </div>
+    <div class="variant-tag">Spiral + Letter</div>
+    <h3>Growth K</h3>
+    <p>A Fibonacci spiral unwinds and branches into a K — growth that leads to decisive action. The spiral is origin, the K is expression. Evolution is not circular; it culminates.</p>
+  </div>
+
+</div>
+
+<div style="text-align:center; margin-top:60px; padding:40px;">
+  <p style="font-size:12px; color:#999; letter-spacing:2px;">KURO LOGO EXPLORATION — 2026</p>
+</div>
+
+</body>
+</html>

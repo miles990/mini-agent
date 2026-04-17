@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ku Seal — Refinement</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    padding: 60px 40px;
+    min-height: 100vh;
+  }
+
+  .header {
+    max-width: 700px;
+    margin: 0 auto 50px;
+    text-align: center;
+  }
+
+  .header h1 {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 10px;
+  }
+
+  .header h2 {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 1px;
+  }
+
+  .header p {
+    margin-top: 14px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.8;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 36px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 36px 28px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #eee;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.07);
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin: 0 auto 20px;
+  }
+
+  .logo-row svg {
+    flex-shrink: 0;
+  }
+
+  .card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .card .tag {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #999;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .card p {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  .size-test {
+    max-width: 700px;
+    margin: 50px auto;
+    text-align: center;
+  }
+
+  .size-test h3 {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 20px;
+  }
+
+  .sizes {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  .sizes .item {
+    text-align: center;
+  }
+
+  .sizes .label {
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 6px;
+  }
+
+  .toggle-bar {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .toggle-bar button {
+    padding: 7px 18px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .toggle-bar button:hover {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  body.dark {
+    background: #111;
+    color: #eee;
+  }
+
+  body.dark .card {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+
+  body.dark .card h3 { color: #eee; }
+  body.dark .card p { color: #888; }
+  body.dark .header h2 { color: #eee; }
+
+  body.dark .toggle-bar button {
+    background: #222;
+    color: #eee;
+    border-color: #444;
+  }
+
+  body.dark .size-test h3 { color: #666; }
+  body.dark .sizes .label { color: #555; }
+
+  .pick {
+    border-color: #1a1a1a;
+    border-width: 2px;
+  }
+
+  body.dark .pick {
+    border-color: #eee;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Ku Seal Refinement</h1>
+  <h2>Finding the right form</h2>
+  <p>The concept is decided: ク carved into a black circle, like a personal seal (hanko).
+  Now refining the strokes, weight, and character for different contexts.</p>
+</div>
+
+<div class="toggle-bar">
+  <button onclick="document.body.classList.toggle('dark')">Toggle Dark / Light</button>
+</div>
+
+<div class="grid">
+
+  <!-- A: Clean Geometric ク -->
+  <div class="card">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-a">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- ク: clean geometric paths -->
+            <path d="M 37 30 L 58 30" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M 55 30 Q 56 48, 42 68" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#ku-a)"/>
+      </svg>
+    </div>
+    <div class="tag">Clean Katakana</div>
+    <h3>A. Clean ク</h3>
+    <p>Minimal, readable. Two strokes: horizontal top + sweeping curve. The Q-curve gives it motion without calligraphic flair.</p>
+  </div>
+
+  <!-- B: Calligraphic weight variation -->
+  <div class="card">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-b">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- ク: calligraphic weight — thick start, thin tail -->
+            <path d="M 36 31 L 57 31" stroke="black" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <path d="M 54 31 Q 57 42, 52 52 Q 47 62, 40 69" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <!-- Brush entry flick -->
+            <circle cx="36" cy="31" r="3.5" fill="black"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#ku-b)"/>
+      </svg>
+    </div>
+    <div class="tag">Brush Weight</div>
+    <h3>B. Brush ク</h3>
+    <p>Calligraphic spirit with geometric discipline. Heavier at entry, tapering at the tail. The dot at stroke start recalls brush pressure landing on paper.</p>
+  </div>
+
+  <!-- C: Seal border ring -->
+  <div class="card pick">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-c">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- Seal border channel -->
+            <circle cx="50" cy="50" r="34" fill="black"/>
+            <circle cx="50" cy="50" r="31" fill="white"/>
+            <!-- ク strokes -->
+            <path d="M 37 32 L 58 32" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M 55 32 Q 57 46, 48 56 Q 42 63, 38 68" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#ku-c)"/>
+      </svg>
+    </div>
+    <div class="tag">True Seal</div>
+    <h3>C. Hanko ク</h3>
+    <p>The full seal treatment: border ring + character. This is unmistakably a hanko. The ring separates inside from outside — a bounded identity. My pick for formal/full-size use.</p>
+  </div>
+
+  <!-- D: Minimal accent -->
+  <div class="card">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-d">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- ク: minimal, slightly offset for tension -->
+            <path d="M 36 33 L 56 33" stroke="black" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+            <path d="M 53 33 Q 54 48, 40 66" stroke="black" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+            <!-- Accent dot — signature -->
+            <circle cx="60" cy="62" r="3.5" fill="black"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#ku-d)"/>
+      </svg>
+    </div>
+    <div class="tag">Signature Accent</div>
+    <h3>D. Accent ク</h3>
+    <p>The original accent dot refined. Thinner strokes, the dot sits in the lower-right breathing space. A signature detail — the period at the end of a statement.</p>
+  </div>
+
+  <!-- E: Compact / favicon-ready -->
+  <div class="card">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="ku-e">
+            <circle cx="50" cy="50" r="38" fill="white"/>
+            <!-- ク: heavier strokes for small sizes -->
+            <path d="M 34 30 L 60 30" stroke="black" stroke-width="7" stroke-linecap="round" fill="none"/>
+            <path d="M 56 30 Q 58 48, 42 68" stroke="black" stroke-width="7" stroke-linecap="round" fill="none"/>
+          </mask>
+        </defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#ku-e)"/>
+      </svg>
+    </div>
+    <div class="tag">Favicon / Small</div>
+    <h3>E. Bold ク</h3>
+    <p>Same form, heavier weight. Optimized for 16px favicon and small avatar contexts where thin strokes disappear. Sacrifice elegance for readability at extremes.</p>
+  </div>
+
+  <!-- F: Inverted (white on black for special use) -->
+  <div class="card">
+    <div class="logo-row">
+      <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="2.5"/>
+        <path d="M 37 32 L 58 32" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M 55 32 Q 57 46, 48 56 Q 42 63, 38 68" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="tag">Outline Variant</div>
+    <h3>F. Open ク</h3>
+    <p>Inverted: strokes drawn, not carved. For contexts where the solid circle is too heavy — documents, watermarks, secondary branding. Same shape, different energy.</p>
+  </div>
+
+</div>
+
+<!-- Size test strip -->
+<div class="size-test">
+  <h3>Size Test — Variant C (Hanko)</h3>
+  <div class="sizes">
+    <div class="item">
+      <svg width="128" height="128" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sz-128"><circle cx="50" cy="50" r="38" fill="white"/><circle cx="50" cy="50" r="34" fill="black"/><circle cx="50" cy="50" r="31" fill="white"/><path d="M 37 32 L 58 32" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M 55 32 Q 57 46, 48 56 Q 42 63, 38 68" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sz-128)"/>
+      </svg>
+      <div class="label">128px</div>
+    </div>
+    <div class="item">
+      <svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sz-64"><circle cx="50" cy="50" r="38" fill="white"/><circle cx="50" cy="50" r="34" fill="black"/><circle cx="50" cy="50" r="31" fill="white"/><path d="M 37 32 L 58 32" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M 55 32 Q 57 46, 48 56 Q 42 63, 38 68" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sz-64)"/>
+      </svg>
+      <div class="label">64px</div>
+    </div>
+    <div class="item">
+      <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sz-32"><circle cx="50" cy="50" r="38" fill="white"/><circle cx="50" cy="50" r="34" fill="black"/><circle cx="50" cy="50" r="31" fill="white"/><path d="M 37 32 L 58 32" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M 55 32 Q 57 46, 48 56 Q 42 63, 38 68" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sz-32)"/>
+      </svg>
+      <div class="label">32px</div>
+    </div>
+    <div class="item">
+      <svg width="16" height="16" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sz-16"><circle cx="50" cy="50" r="38" fill="white"/><path d="M 34 30 L 60 30" stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/><path d="M 56 30 Q 58 48, 42 68" stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sz-16)"/>
+      </svg>
+      <div class="label">16px (bold)</div>
+    </div>
+  </div>
+</div>
+
+<div class="size-test">
+  <h3>Size Test — Variant A (Clean)</h3>
+  <div class="sizes">
+    <div class="item">
+      <svg width="128" height="128" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sza-128"><circle cx="50" cy="50" r="38" fill="white"/><path d="M 37 30 L 58 30" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/><path d="M 55 30 Q 56 48, 42 68" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sza-128)"/>
+      </svg>
+      <div class="label">128px</div>
+    </div>
+    <div class="item">
+      <svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sza-64"><circle cx="50" cy="50" r="38" fill="white"/><path d="M 37 30 L 58 30" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/><path d="M 55 30 Q 56 48, 42 68" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sza-64)"/>
+      </svg>
+      <div class="label">64px</div>
+    </div>
+    <div class="item">
+      <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sza-32"><circle cx="50" cy="50" r="38" fill="white"/><path d="M 37 30 L 58 30" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/><path d="M 55 30 Q 56 48, 42 68" stroke="black" stroke-width="5.5" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sza-32)"/>
+      </svg>
+      <div class="label">32px</div>
+    </div>
+    <div class="item">
+      <svg width="16" height="16" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs><mask id="sza-16"><circle cx="50" cy="50" r="38" fill="white"/><path d="M 34 30 L 60 30" stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/><path d="M 56 30 Q 58 48, 42 68" stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/></mask></defs>
+        <circle cx="50" cy="50" r="38" fill="currentColor" mask="url(#sza-16)"/>
+      </svg>
+      <div class="label">16px (bold)</div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; margin-top:50px; padding:30px;">
+  <p style="font-size:11px; color:#999; letter-spacing:2px;">KURO KU SEAL — REFINEMENT ROUND 1</p>
+</div>
+
+</body>
+</html>
