@@ -46,6 +46,7 @@ import type { TelegramMsgSnapshot } from './reply-context.js';
 import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDone, buildTaskProgressSection } from './housekeeping.js';
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage, sendChat } from './observability.js';
+import { truncateAtSectionBoundary } from './context-pipeline.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
 import { router, createEvent, classifyTrigger, logRoute, Priority } from './event-router.js';
@@ -639,10 +640,16 @@ export class AgentLoop {
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
       try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim().slice(0, 2000)}\n</inner_notes>`; } catch {}
 
-      // Enforce total context budget — hard cap prevents downstream timeout cascade
+      // Enforce total context budget — hard cap prevents downstream timeout cascade.
+      // Use section-boundary-safe truncation: raw `.slice()` can cut inside a closing tag
+      // (e.g. `</memory>`), and Claude 4.7 responds to malformed prompts by emitting the
+      // missing close tags as the completion (observed 2026-04-17: foreground lane
+      // returned `</chat-room-recent>\n\n</memory>` as Alex's reply).
       if (context.length > FG_CONTEXT_BUDGET) {
-        context = context.slice(0, FG_CONTEXT_BUDGET) + `\n\n[... foreground context capped at ${Math.round(FG_CONTEXT_BUDGET / 1000)}K]`;
-        slog('LOOP', `[foreground] Context trimmed: ${context.length} → ${FG_CONTEXT_BUDGET} chars`);
+        const before = context.length;
+        context = truncateAtSectionBoundary(context, FG_CONTEXT_BUDGET)
+          + `\n\n[... foreground context capped at ${Math.round(FG_CONTEXT_BUDGET / 1000)}K]`;
+        slog('LOOP', `[foreground] Context trimmed (structure-safe): ${before} → ${context.length} chars`);
       }
 
       context += `\n\n<foreground_reply_mode>

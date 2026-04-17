@@ -419,6 +419,41 @@ function l1Predigest(text: string, level: 'aggressive' | 'light'): string {
 // =============================================================================
 
 /**
+ * Truncate text to a structurally safe boundary — never cut inside an XML section.
+ *
+ * Raw `text.slice(0, budget)` can split a closing tag (e.g. `</memory>`), producing
+ * malformed prompts. Claude 4.7 responds to such prompts by emitting the missing close
+ * tags as the completion (observed 2026-04-17: foreground lane returned
+ * `</chat-room-recent>\n\n</memory>` as Alex's reply).
+ *
+ * Convergence condition: output length ≤ budget AND output ends at a `</tag>` boundary
+ * (or is pure non-XML text where slicing is safe).
+ */
+export function truncateAtSectionBoundary(text: string, budget: number): string {
+  if (text.length <= budget) return text;
+
+  // Find positions where closing tags end (i.e. safe cut points after `</tag>`)
+  const closeRegex = /<\/\w[\w-]*>/g;
+  let lastSafeEnd = 0;
+  let m: RegExpExecArray | null;
+  while ((m = closeRegex.exec(text)) !== null) {
+    const end = m.index + m[0].length;
+    if (end <= budget) lastSafeEnd = end;
+    else break;
+  }
+
+  if (lastSafeEnd === 0) {
+    // No closing tag fits within budget. Two cases:
+    //   1. text has no XML sections at all → safe to slice.
+    //   2. first section is already larger than budget → slicing will cut a tag,
+    //      but we have no alternative. Caller should raise budget.
+    return text.slice(0, budget);
+  }
+
+  return text.slice(0, lastSafeEnd);
+}
+
+/**
  * Enforce context budget by removing lowest-priority sections.
  * Priority order (high→low): task-queue > inbox > soul > heartbeat > chat-room > next > topics > rest
  */
@@ -427,7 +462,7 @@ function enforceBudget(text: string, budget: number): string {
 
   const sections = extractSections(text);
   if (sections.length === 0) {
-    // No XML sections — just truncate
+    // No XML sections — safe to slice (no structure to damage)
     return text.slice(0, budget);
   }
 
@@ -450,9 +485,10 @@ function enforceBudget(text: string, budget: number): string {
     result = result.replace(/\n{3,}/g, '\n\n');
   }
 
-  // Final safety: hard truncate if still over budget
+  // Final safety: truncate at last structural boundary if still over budget.
+  // Never raw-slice — that can cut a closing tag and produce garbage completions.
   if (result.length > budget) {
-    result = result.slice(0, budget);
+    result = truncateAtSectionBoundary(result, budget);
   }
 
   return result;
