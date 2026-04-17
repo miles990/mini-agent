@@ -2005,6 +2005,33 @@ export function createApi(port = 3001): express.Express {
     res.json(snapshot);
   });
 
+  // Forge slots — worktree allocation health for dashboard tile (W7 F-d)
+  app.get('/api/dashboard/forge-slots', (_req: Request, res: Response) => {
+    const status = forgeStatus(process.cwd());
+    if (!status) {
+      res.json({
+        available: false,
+        health: 'unavailable',
+        status: null,
+        saturationPct: 0,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+    const saturationPct = status.total > 0 ? Math.round((status.busy / status.total) * 100) : 0;
+    const health = status.total === 0 ? 'unavailable'
+      : status.free === 0 ? 'saturated'
+      : saturationPct >= 75 ? 'pressured'
+      : 'healthy';
+    res.json({
+      available: true,
+      health,
+      status,
+      saturationPct,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // kuro-sense Environment Detection API
   app.get('/api/sense', async (_req: Request, res: Response) => {
     try {
