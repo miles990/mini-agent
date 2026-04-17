@@ -66,6 +66,11 @@ export async function execClaudeViaSdk(
       workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'sdk-worker.js');
     }
 
+    // Profile worker construction — `new Worker()` is sync on the parent; it
+    // creates a fresh V8 isolate, loads the script, and copies workerData via
+    // structured clone (env is hundreds of entries, fullPrompt up to ~45K chars).
+    // If this blocks the main event loop for several hundred ms, we need to know.
+    const t_workerSpawn = performance.now();
     const worker = new Worker(workerPath, {
       workerData: {
         fullPrompt,
@@ -76,6 +81,17 @@ export async function execClaudeViaSdk(
         maxThinkingTokens: opts?.maxThinkingTokens,
       },
     });
+    const workerSpawnMs = performance.now() - t_workerSpawn;
+    if (workerSpawnMs > 100) {
+      slog('PROFILE', `sdk-worker new Worker() sync spawn ${Math.round(workerSpawnMs)}ms (promptLen=${fullPrompt.length})`);
+    }
+
+    // Time-of-first-message — if this is long, the worker took a while to
+    // start emitting (SDK cold import, network handshake). Main thread stays
+    // responsive via event loop during the gap, so this is worker-side delay,
+    // not a main-thread block.
+    let firstMessageMs = -1;
+    let lastMessageTs = performance.now();
 
     const finish = (err: Error | null, result?: string): void => {
       if (settled) return;
@@ -120,6 +136,17 @@ export async function execClaudeViaSdk(
     let partialOutputMaxMs = 0;
     worker.on('message', (msg: SdkMessage) => {
       const handlerStart = performance.now();
+      if (firstMessageMs < 0) {
+        firstMessageMs = Math.round(handlerStart - t_workerSpawn);
+        if (firstMessageMs > 1000) {
+          slog('PROFILE', `sdk-worker first message arrived after ${firstMessageMs}ms (worker warmup + SDK import + first API round-trip)`);
+        }
+      }
+      const gapMs = Math.round(handlerStart - lastMessageTs);
+      lastMessageTs = handlerStart;
+      if (gapMs > 10_000) {
+        slog('PROFILE', `sdk-worker inter-message gap ${gapMs}ms — no activity from worker (API latency or SDK internal wait)`);
+      }
       if (msg.type === 'sdk-message' && msg.message) {
         lastProgressTs = Date.now();
         const m = msg.message;
