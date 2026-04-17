@@ -622,8 +622,11 @@ export function getCacheUsageStats(): Record<string, CacheUsageStats & { hitRati
 }
 
 async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<string> {
-  const TIMEOUT_MS = opts?.timeoutMs ?? 1_500_000; // default 25 minutes
-  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 900_000; // default 15 minutes
+  // Convergence condition: cycle MUST complete in bounded time. 25min/15min defaults let
+  // a single stalled CLI call block the event loop and starve the whole server for minutes
+  // (2026-04-17 incident). Prefer fail-fast + retry over patient-but-dead.
+  const TIMEOUT_MS = opts?.timeoutMs ?? 90_000;
+  const PROGRESS_TIMEOUT_MS = opts?.progressTimeoutMs ?? 30_000;
   const startTs = Date.now();
   const source = opts?.source ?? 'loop';
 

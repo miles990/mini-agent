@@ -24,8 +24,12 @@ export async function execClaudeViaSdk(
 ): Promise<string> {
   const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
-  const timeoutMs = opts?.timeoutMs ?? 1_500_000;
-  const progressTimeoutMs = opts?.progressTimeoutMs ?? 900_000;
+  // Convergence condition (2026-04-17 incident root fix): cycle MUST complete in bounded time.
+  // Prior defaults (25min hard / 15min no-progress) let transient Anthropic API slowdowns
+  // block the whole event loop for minutes — HTTP server silent, cycles piling up, launchd
+  // respawning on its own. Fail fast, release the loop, let the cycle retry fresh.
+  const timeoutMs = opts?.timeoutMs ?? 90_000;
+  const progressTimeoutMs = opts?.progressTimeoutMs ?? 30_000;
   const source = opts?.source ?? 'loop';
   const startTs = Date.now();
   let lastProgressTs = Date.now();
