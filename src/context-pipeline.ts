@@ -10,6 +10,7 @@
  * Large models (Opus) get denoised context with full detail preserved.
  */
 
+import { performance } from 'node:perf_hooks';
 import type { Provider } from './types.js';
 import { eventBus } from './event-bus.js';
 
@@ -514,16 +515,31 @@ export function processContext(
   const config = getModelTierConfig(tier);
   const inputLen = rawContext.length;
 
+  // Sub-timing: processContext is sync and runs on the main thread. When
+  // rawContext is 30K+ chars, the regex-heavy L0/L1 stages can each burn
+  // seconds. 16s buildContext durations (2026-04-17) needed to be split
+  // between read+assembly (memory.ts) and this pipeline — these PROFILE
+  // lines let us see which stage is the real cost.
+  const t_total = performance.now();
+
   // L0: Denoise (both tiers)
+  const t_l0 = performance.now();
   let result = l0Denoise(rawContext);
   const afterL0 = result.length;
+  const l0Ms = performance.now() - t_l0;
 
   // L1: Pre-digest (tier-dependent)
+  const t_l1 = performance.now();
   result = l1Predigest(result, config.predigestLevel);
   const afterL1 = result.length;
+  const l1Ms = performance.now() - t_l1;
 
   // Budget enforcement
+  const t_budget = performance.now();
   result = enforceBudget(result, config.contextBudget);
+  const budgetMs = performance.now() - t_budget;
+
+  const totalMs = performance.now() - t_total;
 
   // Log pipeline savings (only when meaningful reduction occurred)
   const totalSaved = inputLen - result.length;
@@ -531,6 +547,16 @@ export function processContext(
     eventBus.emit('log:info', {
       tag: 'context-pipeline',
       msg: `${tier}: ${inputLen} → ${result.length} chars (L0: -${inputLen - afterL0}, L1: -${afterL0 - afterL1}, budget: -${afterL1 - result.length})`,
+    });
+  }
+
+  // PROFILE: emit timing breakdown when pipeline takes meaningful time (>100ms).
+  // Each stage runs synchronously on the main event loop, so long stages directly
+  // block HTTP/timers. The breakdown points at whichever stage needs optimizing.
+  if (totalMs > 100) {
+    eventBus.emit('log:info', {
+      tag: 'PROFILE',
+      msg: `context-pipeline(${tier}) total=${Math.round(totalMs)}ms L0=${Math.round(l0Ms)}ms L1=${Math.round(l1Ms)}ms budget=${Math.round(budgetMs)}ms inputLen=${inputLen} outputLen=${result.length}`,
     });
   }
 
