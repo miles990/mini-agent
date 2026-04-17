@@ -53,6 +53,11 @@ export async function execClaudeViaSdk(
   const chunks: string[] = [];
   let blockCount = 0;
   let thinkingSeen = false;
+  let thinkingChars = 0;
+  let signatureChars = 0;
+  let stopReason: string | null = null;
+  let resultUsage: Record<string, unknown> | null = null;
+  let model: string | null = null;
 
   try {
     for await (const message of query({ prompt: fullPrompt, options: queryOptions })) {
@@ -61,15 +66,32 @@ export async function execClaudeViaSdk(
           blockCount++;
           if (block.type === 'thinking') {
             thinkingSeen = true;
+            const t = (block as { thinking?: string }).thinking ?? '';
+            const sig = (block as { signature?: string }).signature ?? '';
+            thinkingChars += t.length;
+            signatureChars += sig.length;
           } else if ('text' in block && typeof block.text === 'string') {
             chunks.push(block.text);
           }
         }
+        if (message.message.stop_reason) stopReason = message.message.stop_reason;
+        if (message.message.model) model = message.message.model;
       } else if (message.type === 'result') {
         const durationMs = Date.now() - startTs;
+        // Per Kuro msg 044: A3 canary 需 thinking length / stop_reason / usage delta 為 baseline
+        const m = message as { usage?: Record<string, unknown> };
+        resultUsage = m.usage ?? null;
+        const inputTok = (resultUsage?.input_tokens as number | undefined) ?? 0;
+        const outputTok = (resultUsage?.output_tokens as number | undefined) ?? 0;
+        const cacheRead = (resultUsage?.cache_read_input_tokens as number | undefined) ?? 0;
+        const cacheCreate = (resultUsage?.cache_creation_input_tokens as number | undefined) ?? 0;
         slog(
           'SDK',
-          `source=${source} blocks=${blockCount} thinking=${thinkingSeen} duration=${durationMs}ms`,
+          `source=${source} model=${model ?? '?'} blocks=${blockCount} ` +
+            `thinking=${thinkingSeen}(chars=${thinkingChars},sig=${signatureChars}) ` +
+            `stop=${stopReason ?? '?'} ` +
+            `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
+            `duration=${durationMs}ms`,
         );
       }
     }
