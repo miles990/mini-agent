@@ -29,6 +29,8 @@ Context: Haiku self-reviewer avg 3.5/5 (PASS). 瓶頸從 adaptation → engageme
   Verify: `grep 'Gate retry' ~/Workspace/teaching-monster/output/*/stdout.log 2>/dev/null | tail -3`
 - [ ] P1: 暖身賽 Round 2 準備（4月初開始，評審委員出題，更難）— 確保 pipeline 能即時回應
   Verify: `cd ~/Workspace/teaching-monster && node -e "import('./src/pipeline.mjs').then(() => console.log('module OK'))" 2>&1 | head -3`
+- [ ] P1: **classifier 擴展**：Claude CLI 中文 fallback `處理訊息時發生錯誤。請稍後再試` 分類為 TIMEOUT:upstream_cli_fallback（目前 8/8 UNKNOWN 全是這個 pattern, exit N/A + 700s-1900s）。設計+驗證步驟見 topics/unknown-classifier-gap-chinese-fallback.md
+  Verify: `grep -c 'UNKNOWN:no_diag' ~/.mini-agent/instances/03bbc29a/logs/error/$(date +%Y-%m-%d).jsonl` 部署後 24h 應 → 0
 - [ ] P2: Elo Arena 差異化 Phase 2 — 用 3-5 個測試題目驗證改進效果（需 API credits）
 - [x] P2: Sleep detection — Mac sleep 時暫停 Claude calls（EXIT143 根因：8/13 是 OS SIGTERM）— 已實作：isMachineSleeping() + loop.ts early return + 60s wake polling
 - [ ] P2: myelin dogfooding 持續觀察 + cache hit rate 分析
