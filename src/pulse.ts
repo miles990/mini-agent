@@ -26,7 +26,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readdirSync } from 'node:fs';
 import { isVisibleOutput } from './achievements.js';
 import { slog, readJsonFile } from './utils.js';
-import { extractErrorSubtype, extractErrorCode } from './feedback-loops.js';
+import { extractErrorSubtype, extractErrorCode, PROTECTIVE_SUBTYPES } from './feedback-loops.js';
 
 // =============================================================================
 // Types
@@ -699,6 +699,11 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
         if (count < ERROR_PATTERN_THRESHOLD) continue;
         metrics.recurringErrorCount++;
 
+        // Protective subtypes (memory_guard / max_turns): guard mechanisms working as intended,
+        // not bugs. Count but skip task creation — high frequency = pressure signal (log only).
+        const subtype = key.split(':')[1] ?? '';
+        const isProtective = PROTECTIVE_SUBTYPES.has(subtype);
+
         const existing = state.errorPatterns[key];
         if (existing?.taskCreated) {
           existing.count = count;
@@ -709,6 +714,11 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
 
         state.errorPatterns[key] = { count, taskCreated: true, lastSeen: today };
         changed = true;
+
+        if (isProtective) {
+          slog('PULSE', `Protective subtype ${key} (${count}×) — signal logged, no task (guard working)`);
+          continue;
+        }
 
         const [code, context] = key.split('::');
         const dueDate = new Date(Date.now() + 3 * 86400_000).toISOString().split('T')[0];

@@ -25,6 +25,7 @@
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
+<!-- 已歸檔 (2026-04-17): P1 TIMEOUT:memory_guard 結案。非 bug — agent.ts:670 pre-spawn OOM guard 正常保護機制。修源頭：pulse.ts 加 PROTECTIVE_SUBTYPES skip list (memory_guard / max_turns 不建 P1，改走 signal-only log)，避免保護性 subtype 汙染 recurring-error 通道。commit pending。 -->
 <!-- 已歸檔 (2026-04-08 cycle #42): 三條 crystallization bridge duplicate P1 全部結案 — priority-misalign / goal-idle / skill-creation-nudge。三條都指向已在歸檔結晶系列裡早已結案的 pattern，bridge 對已歸檔項重複產 task 是 known behavior（無去重邏輯）。卡 cycles 不是因為未處理，是因為 [x] 後沒人歸檔。歸檔規則：crystallization bridge 任務 close 後立刻移到此 comment 區，避免下個 cycle 又灌進 perception。 -->
 <!-- 已歸檔 (2026-04-05): 結晶候選 goal-stalled 結案 + 3 個重複錯誤修復（CLI TIMEOUT/CASCADE diagLog/UNKNOWN classifyError）全部已修 -->
 <!-- P1 結晶系列結案 (2026-03-21, 清理 2026-03-23, 更新 2026-04-04):

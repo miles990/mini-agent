@@ -54,6 +54,14 @@ export function flushFeedbackState() {
 // Loop A: Error Pattern Detection
 // =============================================================================
 /**
+ * Subtypes 代表「保護機制正常工作」而非 bug — 不該進入 recurring-error task 通道。
+ * 這些 event 仍會計入 metrics.recurringErrorCount 作為觀察面 signal，但不建 P1 fix task。
+ *   - memory_guard: agent.ts:670 pre-spawn OOM prevention (freeMemMB < 500MB deferral)
+ *   - max_turns: agent runaway prevention
+ * 高頻發生本身是 system-pressure signal，需看 metric 不看 bug list。
+ */
+export const PROTECTIVE_SUBTYPES = new Set(['memory_guard', 'max_turns']);
+/**
  * 從錯誤訊息抽取 subtype hint — 讓多型 TIMEOUT/UNKNOWN bucket 分成具體 failure mode，
  * 避免 memory_guard / econnrefused / sigterm / signal / real_timeout 被混成單一 bucket，
  * 造成 recurring-errors 提示無法指向具體成因。signal 來自 agent.ts classifyError 的訊息模板。
