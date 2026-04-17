@@ -25,13 +25,25 @@ export async function execClaudeViaSdk(
   const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
   const timeoutMs = opts?.timeoutMs ?? 1_500_000;
+  const progressTimeoutMs = opts?.progressTimeoutMs ?? 900_000;
   const source = opts?.source ?? 'loop';
   const startTs = Date.now();
+  let lastProgressTs = Date.now();
 
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => {
     abortController.abort(new Error(`SDK query timeout after ${timeoutMs}ms`));
   }, timeoutMs);
+
+  // Per Kuro msg 049 fix #2: stall-kill (no-progress timeout) parity with CLI path.
+  // CLI execClaude has progressTimeoutMs default 900s; SDK needed equivalent.
+  const stallCheckHandle = setInterval(() => {
+    if (Date.now() - lastProgressTs > progressTimeoutMs) {
+      abortController.abort(
+        new Error(`SDK query stalled — no progress for ${progressTimeoutMs}ms`),
+      );
+    }
+  }, 5_000);
 
   // Maintain the same ANTHROPIC_API_KEY filter behavior as execClaude —
   // force subscription auth, never API-billed even if key exists in env.
@@ -51,8 +63,8 @@ export async function execClaudeViaSdk(
   }
 
   const chunks: string[] = [];
-  let blockCount = 0;
-  let thinkingSeen = false;
+  // Per Kuro msg 049 nice-to-have #1: blockCount by type for debug visibility
+  const blocksByType: Record<string, number> = {};
   let thinkingChars = 0;
   let signatureChars = 0;
   let stopReason: string | null = null;
@@ -61,17 +73,23 @@ export async function execClaudeViaSdk(
 
   try {
     for await (const message of query({ prompt: fullPrompt, options: queryOptions })) {
+      lastProgressTs = Date.now(); // refresh stall timer on every message
       if (message.type === 'assistant' && message.message?.content) {
         for (const block of message.message.content) {
-          blockCount++;
+          blocksByType[block.type] = (blocksByType[block.type] ?? 0) + 1;
           if (block.type === 'thinking') {
-            thinkingSeen = true;
             const t = (block as { thinking?: string }).thinking ?? '';
             const sig = (block as { signature?: string }).signature ?? '';
             thinkingChars += t.length;
             signatureChars += sig.length;
           } else if ('text' in block && typeof block.text === 'string') {
             chunks.push(block.text);
+            // Per Kuro msg 049 fix #1: wire onPartialOutput for streaming UX parity.
+            // CLI path live feature (agent.ts:1451-1452, 1477, 881-882) — downstream
+            // consumers (e.g. createKuroChatStreamParser) depend on it.
+            if (opts?.onPartialOutput && block.text) {
+              try { opts.onPartialOutput(block.text); } catch { /* swallow consumer errors */ }
+            }
           }
         }
         if (message.message.stop_reason) stopReason = message.message.stop_reason;
@@ -85,10 +103,16 @@ export async function execClaudeViaSdk(
         const outputTok = (resultUsage?.output_tokens as number | undefined) ?? 0;
         const cacheRead = (resultUsage?.cache_read_input_tokens as number | undefined) ?? 0;
         const cacheCreate = (resultUsage?.cache_creation_input_tokens as number | undefined) ?? 0;
+        // Per Kuro msg 049 nice-to-have #2: thinkingState 區分 訂閱(signature_only) vs API(visible) vs none
+        const thinkingState =
+          thinkingChars > 0 ? 'visible' : signatureChars > 0 ? 'signature_only' : 'none';
+        const blocksStr = Object.entries(blocksByType)
+          .map(([k, v]) => `${k}:${v}`)
+          .join(',');
         slog(
           'SDK',
-          `source=${source} model=${model ?? '?'} blocks=${blockCount} ` +
-            `thinking=${thinkingSeen}(chars=${thinkingChars},sig=${signatureChars}) ` +
+          `source=${source} model=${model ?? '?'} blocks={${blocksStr}} ` +
+            `thinking=${thinkingState}(chars=${thinkingChars},sig=${signatureChars}) ` +
             `stop=${stopReason ?? '?'} ` +
             `tok={in:${inputTok},out:${outputTok},cacheR:${cacheRead},cacheW:${cacheCreate}} ` +
             `duration=${durationMs}ms`,
@@ -101,10 +125,12 @@ export async function execClaudeViaSdk(
       cause: err,
       duration: Date.now() - startTs,
       timeoutMs,
+      progressTimeoutMs,
       source,
     });
   } finally {
     clearTimeout(timeoutHandle);
+    clearInterval(stallCheckHandle);
   }
 
   return chunks.join('');
