@@ -168,6 +168,7 @@ const SECTION_PRIORITY: Record<string, number> = {
   'chat-room-inbox': 85,
   'soul': 80,
   'heartbeat': 75,
+  'tactics-board': 72,
   'chat-room-recent': 70,
   'next': 65,
   'topics': 60,

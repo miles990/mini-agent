@@ -2054,6 +2054,7 @@ export class InstanceMemory {
       'route-efficiency': 1500,
       'working-memory': 3000,
       'inner-voice': 2000,
+      'tactics-board': 3000,
     };
     const DEFAULT_SECTION_CAP = 4000;
 
@@ -2194,6 +2195,51 @@ export class InstanceMemory {
     const pinnedCtx = buildPinnedTasksSection(this.memoryDir);
     if (pinnedCtx) {
       sections.push(pinnedCtx);
+    }
+
+    // ── Tactical Command Board (T7, brain-only-kuro-v2) ──
+    // Fast GET of in-flight delegations from middleware + cached needs-attention.
+    // Scorer itself runs async as a perception plugin (T13) — buildContext must not block.
+    if (!isLight && !budgetExhausted() && shouldLoad('tactics-board', ['task', 'delegate', 'worker', 'tactics', 'attention', 'in-flight'])) {
+      try {
+        const { getInFlight } = await import('./tactics-client.js');
+        const agent = process.env.AGENT_NAME ?? 'kuro';
+        const inFlight = await getInFlight(agent, { timeoutMs: 2000 }).catch(() => []);
+
+        // Read cached needs-attention (written by T13 perception plugin, not this call).
+        // Absent cache = safe skip; never block buildContext on the scorer.
+        let attentionItems: Array<{ task_id: string; severity: string; rationale: string }> = [];
+        try {
+          const attnPath = path.join(getMemoryStateDir(), 'tactics-attention.json');
+          const raw = await fs.readFile(attnPath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.items)) {
+            attentionItems = parsed.items
+              .filter((it: unknown): it is { task_id: string; severity: string; rationale: string } =>
+                typeof it === 'object' && it !== null &&
+                typeof (it as { task_id?: unknown }).task_id === 'string' &&
+                typeof (it as { severity?: unknown }).severity === 'string' &&
+                typeof (it as { rationale?: unknown }).rationale === 'string')
+              .slice(0, 5);
+          }
+        } catch { /* no cache yet — safe */ }
+
+        const parts: string[] = [];
+        if (inFlight.length > 0) {
+          parts.push(`## In-flight (${inFlight.length})`);
+          for (const t of inFlight.slice(0, 8)) {
+            parts.push(`- [${t.status}] ${t.worker}: ${t.label ?? t.task_id}`);
+          }
+        }
+        if (attentionItems.length > 0) {
+          if (parts.length > 0) parts.push('');
+          parts.push(`## Needs Attention (${attentionItems.length} flagged, cached)`);
+          for (const it of attentionItems) {
+            parts.push(`- [${it.severity}] ${it.task_id} — ${it.rationale}`);
+          }
+        }
+        if (parts.length > 0) pushCapped('tactics-board', parts.join('\n'));
+      } catch { /* fail-open: tactics-board missing never blocks the cycle */ }
     }
 
     const selfStatus = selfStatusProvider?.();
