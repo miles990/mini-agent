@@ -16,6 +16,7 @@
     "setup": "pnpm install && pnpm build && npm link"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.112",
     "@anthropic-ai/sdk": "^0.74.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@mozilla/readability": "^0.6.0",

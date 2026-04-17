@@ -19,6 +19,7 @@ import { createKuroChatStreamParser } from './tag-parser.js';
 import { compactContext } from './context-compaction.js';
 import { processContext, detectModelTier, type ModelTier } from './context-pipeline.js';
 import { buildSmallModelPrompt } from './prompt-builder.js';
+import { execClaudeViaSdk, isSdkEnabled } from './sdk-client.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -67,7 +68,7 @@ export function getProviderForSource(source: CallSource): Provider {
   return SOURCE_PROVIDER_DEFAULTS[source];
 }
 
-interface ExecOptions {
+export interface ExecOptions {
   source?: CallSource;
   onPartialOutput?: (text: string) => void;
   /** Override model for this call (e.g. 'sonnet' for routine cycles) */
@@ -80,11 +81,18 @@ interface ExecOptions {
   timeoutMs?: number;
   /** No-progress timeout in ms (default: 300_000 = 5min). Kill if no stdout for this long. */
   progressTimeoutMs?: number;
+  /** Thinking budget in tokens (Phase B — rubric-driven dynamic budget). 0 = disabled. */
+  maxThinkingTokens?: number;
 }
 
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
   if (provider === 'codex') return execCodex(fullPrompt, opts);
   if (provider === 'local') return execLocal(fullPrompt, opts);
+  // Feature flag: USE_SDK=true 走 Agent SDK；default false 保持 CLI subprocess
+  // Phase A of thinking-mechanisms-upgrade proposal (2026-04-17)
+  if (isSdkEnabled()) {
+    return execClaudeViaSdk(fullPrompt, opts);
+  }
   return execClaude(fullPrompt, opts);
 }
 
