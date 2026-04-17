@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
+import { execClaudeViaSdk, isSdkEnabled } from './sdk-client.js';
 
 // Use the same subprocess cwd as execClaude — outside .mini-agent git tree
 // to avoid loading the 43K CLAUDE.md via auto-discovery
@@ -39,6 +40,31 @@ export async function sideQuery(
   const model = opts?.model ?? 'claude-haiku-4-5-20251001';
   const timeout = opts?.timeout ?? 15_000;
   const start = Date.now();
+
+  // Phase A3 canary: when USE_SDK=true, route side-query through Agent SDK.
+  // side-query is the designated canary path per thinking-mechanisms-upgrade proposal.
+  // Kept null-on-failure semantics for compatibility with downstream fire-and-forget callers.
+  if (isSdkEnabled()) {
+    try {
+      const result = await execClaudeViaSdk(prompt, {
+        source: 'ask',
+        model,
+        timeoutMs: timeout,
+      });
+      eventBus.emit('log:info', {
+        tag: 'side-query',
+        msg: `[canary-sdk] model=${model} duration=${Date.now() - start}ms result=${result.length}ch`,
+      });
+      return result.trim() || null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      eventBus.emit('log:info', {
+        tag: 'side-query',
+        msg: `[canary-sdk] failed: ${msg.slice(0, 200)}`,
+      });
+      return null;
+    }
+  }
 
   // Ensure subprocess cwd exists
   if (!existsSync(SUBPROCESS_CWD)) {
