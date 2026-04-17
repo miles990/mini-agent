@@ -25,8 +25,7 @@
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
-- [ ] P1: 修復重複錯誤 — UNKNOWN:no_diag in callClaude（5 次）@due:2026-04-20 <!-- added: 2026-04-17T13:18:06.085Z -->
-- [ ] P1: 修復重複錯誤 — TIMEOUT:real_timeout in callClaude（3 次）@due:2026-04-20 <!-- added: 2026-04-17T13:35:53.640Z -->
+<!-- 已歸檔 (2026-04-18 00:40 cycle #10): P1 UNKNOWN:no_diag + TIMEOUT:real_timeout 雙雙結案。Classifier fix `88227dab` (agent.ts:122 early memory-pressure branch) 2026-04-17T15:47Z 部署後: (1) 2026-04-17.jsonl 最後一筆 13:48:49Z = 全部 pre-fix；(2) 2026-04-18.jsonl 至 00:40 Taipei 完全不存在 — 10h40m 零 classifier error；(3) cycle #7 已驗證 post-deploy 10/10 callClaude outcome=ok。task 內 count 是 rolling snapshot 殘留，非 live signal。教訓內化: recurring-error task 的數字是歷史累積，關閉判準用「distance-since-last-match」而非「count magnitude」。如未來 pulse 再建同 subtype task 需先查今日 error log，不要再挖 counter。 -->
 <!-- 已歸檔 (2026-04-17 14:50): P1 TIMEOUT:sigterm 結案 (commit ce77d7c6)。同 memory_guard polymorphic bucket 問題 — exit 143 由 6 種路徑產生（preempt / foreground-preempt / shutdown / progress / hard / circuit-breaker / external），混成單一 bucket 讓 mostly-benign events 觸發 P1。修復：agent.ts 把 exitReason 附到 rejected error，classifyError 訊息加 `reason=` 標籤，extractErrorSubtype 按 reason split，PROTECTIVE_SUBTYPES 新增 6 個 sigterm_* 變體。`sigterm_external` 保留為 recurring-error signal（launchd ungraceful-crash 指標）。typecheck pass, pushed to main。 -->
 <!-- 已歸檔 (2026-04-17): P1 TIMEOUT:memory_guard 結案。非 bug — agent.ts:670 pre-spawn OOM guard 正常保護機制。修源頭：pulse.ts 加 PROTECTIVE_SUBTYPES skip list (memory_guard / max_turns 不建 P1，改走 signal-only log)，避免保護性 subtype 汙染 recurring-error 通道。commit pending。 -->
 <!-- 已歸檔 (2026-04-08 cycle #42): 三條 crystallization bridge duplicate P1 全部結案 — priority-misalign / goal-idle / skill-creation-nudge。三條都指向已在歸檔結晶系列裡早已結案的 pattern，bridge 對已歸檔項重複產 task 是 known behavior（無去重邏輯）。卡 cycles 不是因為未處理，是因為 [x] 後沒人歸檔。歸檔規則：crystallization bridge 任務 close 後立刻移到此 comment 區，避免下個 cycle 又灌進 perception。 -->
