@@ -12,7 +12,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
-import { diagLog } from './utils.js';
+import { diagLog, slog } from './utils.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -207,16 +207,54 @@ function getRecentlyModified(dir: string, limit = 5): Array<{ file: string; mtim
 
 /**
  * 取得 workspace 快照
+ *
+ * 2026-04-17 fix: this is sync and runs on main thread. Internally it fires
+ * 3× execFileSync git (up to 9s combined on slow repos) and a recursive
+ * readdirSync walk of the workspace (bounded only by EXCLUDED_DIRS — can
+ * visit thousands of files under memory/library/content). Cycle buildContext
+ * calls it every turn, so any slowness blocks the event loop.
+ *
+ * Snapshot is cached for SNAPSHOT_TTL_MS — workspace files/git status
+ * don't change meaningfully between back-to-back cycles. First call of
+ * each TTL window pays the cost; subsequent calls are O(1).
+ *
+ * Also emits [PROFILE] when assembly exceeds 100ms so we can see when
+ * a slow filesystem or git repo is the real culprit.
  */
+let cachedSnapshot: { ts: number; cwd: string; snapshot: WorkspaceSnapshot } | null = null;
+const SNAPSHOT_TTL_MS = 5_000;
+
 export function getWorkspaceSnapshot(cwd?: string): WorkspaceSnapshot {
   const dir = cwd || process.cwd();
+  const now = Date.now();
 
-  return {
-    cwd: dir,
-    files: listFiles(dir),
-    git: getGitStatus(dir),
-    recentlyModified: getRecentlyModified(dir),
-  };
+  if (cachedSnapshot && cachedSnapshot.cwd === dir && now - cachedSnapshot.ts < SNAPSHOT_TTL_MS) {
+    return cachedSnapshot.snapshot;
+  }
+
+  const t_files = Date.now();
+  const files = listFiles(dir);
+  const filesMs = Date.now() - t_files;
+
+  const t_git = Date.now();
+  const git = getGitStatus(dir);
+  const gitMs = Date.now() - t_git;
+
+  const t_recent = Date.now();
+  const recentlyModified = getRecentlyModified(dir);
+  const recentMs = Date.now() - t_recent;
+
+  const totalMs = filesMs + gitMs + recentMs;
+  if (totalMs > 100) {
+    slog(
+      'PROFILE',
+      `workspace.snapshot ${totalMs}ms (files=${filesMs}ms git=${gitMs}ms recentlyModified=${recentMs}ms) — sync, main thread`,
+    );
+  }
+
+  const snapshot: WorkspaceSnapshot = { cwd: dir, files, git, recentlyModified };
+  cachedSnapshot = { ts: now, cwd: dir, snapshot };
+  return snapshot;
 }
 
 /**
