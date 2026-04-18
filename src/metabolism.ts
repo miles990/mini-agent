@@ -298,8 +298,10 @@ async function isEntryReferenced(snippet: string): Promise<boolean> {
   if (searchKey.length < 5) return true; // too short to search, assume referenced
 
   try {
-    const { execSync } = await import('node:child_process');
-    const result = execSync(
+    const { exec } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execAsync = promisify(exec);
+    const { stdout: result } = await execAsync(
       `grep -rl "${searchKey.replace(/"/g, '\\"')}" memory/ 2>/dev/null | head -2`,
       { cwd: process.cwd(), timeout: 3000, encoding: 'utf-8' },
     );

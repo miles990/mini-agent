@@ -737,12 +737,15 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
 
   // ── Check 4: Milestone Communication ──
   try {
-    const { execSync } = await import('node:child_process');
+    const { exec } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execAsync = promisify(exec);
     // Check for src/ changes in last 24h without corresponding notification
-    const recentSrcChanges = execSync(
+    const { stdout: recentRaw } = await execAsync(
       'git log --since="24 hours ago" --oneline -- src/ 2>/dev/null | head -5',
       { encoding: 'utf-8', timeout: 5000 },
-    ).trim();
+    );
+    const recentSrcChanges = recentRaw.trim();
 
     if (recentSrcChanges && recentSrcChanges.split('\n').length >= 3) {
       // Check if there was a Telegram notification or upgrade report

@@ -10,7 +10,10 @@
  */
 
 import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -1007,6 +1010,27 @@ export async function buildNextContextSection(
 
   const lines: string[] = ['# NEXT', '', '---', ''];
 
+  // Collect all verifyCmds first, run in parallel via Promise.all — previously
+  // sequential execSync inside loops blocked the main event loop up to 5s per
+  // task (13 tasks × 5s = 65s stalls observed 2026-04-18). Parallel async keeps
+  // main thread yielding + compresses total verify time to ~max(single).
+  const pendingSlice = pending.slice(0, 10);
+  const verifyResults = new Map<string, string>();
+  if (runVerify) {
+    const uniqueCmds = new Set<string>();
+    for (const t of inProgress) {
+      const c = getTaskPayload(t).verifyCommand as string | undefined;
+      if (c) uniqueCmds.add(c);
+    }
+    for (const t of pendingSlice) {
+      const c = getTaskPayload(t).verifyCommand as string | undefined;
+      if (c) uniqueCmds.add(c);
+    }
+    await Promise.all(Array.from(uniqueCmds).map(async (c) => {
+      verifyResults.set(c, await runVerifyCommand(c, memoryDir));
+    }));
+  }
+
   if (inProgress.length > 0) {
     lines.push('## Now（正在做）', '');
     for (const t of inProgress) {
@@ -1014,7 +1038,7 @@ export async function buildNextContextSection(
       const verifyCmd = getTaskPayload(t).verifyCommand as string | undefined;
       if (verifyCmd) {
         lines.push(`  Verify: \`${verifyCmd}\``);
-        if (runVerify) lines.push(`  - **Status: ${runVerifyCommand(verifyCmd, memoryDir)}**`);
+        if (runVerify) lines.push(`  - **Status: ${verifyResults.get(verifyCmd) ?? '❌ NOT YET'}**`);
       }
     }
     lines.push('', '---', '');
@@ -1022,12 +1046,12 @@ export async function buildNextContextSection(
 
   if (pending.length > 0) {
     lines.push('## Next（按優先度排序）', '');
-    for (const t of pending.slice(0, 10)) {
+    for (const t of pendingSlice) {
       lines.push(`- [ ] P${getTaskPriority(t)}: ${t.summary}`);
       const verifyCmd = getTaskPayload(t).verifyCommand as string | undefined;
       if (verifyCmd) {
         lines.push(`  Verify: \`${verifyCmd}\``);
-        if (runVerify) lines.push(`  - **Status: ${runVerifyCommand(verifyCmd, memoryDir)}**`);
+        if (runVerify) lines.push(`  - **Status: ${verifyResults.get(verifyCmd) ?? '❌ NOT YET'}**`);
       }
     }
     lines.push('---');
@@ -1036,10 +1060,10 @@ export async function buildNextContextSection(
   return lines.join('\n');
 }
 
-function runVerifyCommand(cmd: string, cwd: string): string {
+async function runVerifyCommand(cmd: string, cwd: string): Promise<string> {
   const cleanCmd = cmd.startsWith('`') && cmd.endsWith('`') ? cmd.slice(1, -1) : cmd;
   try {
-    execSync(cleanCmd, { cwd, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    await execAsync(cleanCmd, { cwd, timeout: 5000 });
     return '✅ PASSED';
   } catch {
     return '❌ NOT YET';

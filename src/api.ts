@@ -1187,9 +1187,11 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/memory/history', async (req: Request, res: Response) => {
     try {
       const limit = Math.min(parseInt(req.query.limit as string || '30', 10), 100);
-      const { execSync } = await import('node:child_process');
+      const { exec } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execAsync = promisify(exec);
       const cwd = process.cwd();
-      const raw = execSync(
+      const { stdout: raw } = await execAsync(
         `git log --pretty=format:'%H|||%ai|||%an|||%s' --name-only -n ${limit} -- memory/`,
         { cwd, encoding: 'utf-8', timeout: 5000 },
       );
@@ -1228,12 +1230,24 @@ export function createApi(port = 3001): express.Express {
 
     try {
       const limit = Math.min(parseInt(req.query.limit as string || '20', 10), 100);
-      const { execFileSync } = await import('node:child_process');
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFile);
       const cwd = process.cwd();
-      const raw = execFileSync(
-        'grep', ['-rni', '--include=*.md', query, 'memory/'],
-        { cwd, encoding: 'utf-8', timeout: 5000 },
-      ).split('\n').slice(0, limit).join('\n').trim();
+      let grepOutput = '';
+      try {
+        const { stdout } = await execFileAsync(
+          'grep', ['-rni', '--include=*.md', query, 'memory/'],
+          { cwd, encoding: 'utf-8', timeout: 5000 },
+        );
+        grepOutput = stdout;
+      } catch (err) {
+        // grep exit 1 = no match, not an error
+        const e = err as { code?: number; stdout?: string };
+        if (e.code !== 1) throw err;
+        grepOutput = e.stdout ?? '';
+      }
+      const raw = grepOutput.split('\n').slice(0, limit).join('\n').trim();
 
       const results: Array<{ file: string; line: number; content: string }> = [];
       if (raw) {

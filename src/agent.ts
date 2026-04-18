@@ -4,7 +4,7 @@
  * Single loop lane: callClaude() → execProvider() → response
  */
 
-import { spawn, execSync as execSyncChild, execFileSync } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync, readFileSync as readFileSyncFs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -1408,8 +1408,13 @@ async function executeLocalToolCall(call: LocalToolCall): Promise<string> {
       }
       case 'read_file':
         return readFileSyncFs(args.path, 'utf-8').slice(0, 8000);
-      case 'run_command':
-        return execSyncChild(args.command, { timeout: 10_000, encoding: 'utf-8' }).slice(0, 8000);
+      case 'run_command': {
+        const { exec } = await import('node:child_process');
+        const { promisify } = await import('node:util');
+        const execAsync = promisify(exec);
+        const { stdout } = await execAsync(args.command, { timeout: 10_000, encoding: 'utf-8' });
+        return stdout.slice(0, 8000);
+      }
       default:
         return `Unknown tool: ${call.function.name}`;
     }
