@@ -25,6 +25,30 @@
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
+- [ ] title: Ghost commitment 防線 — pipeline 先查 <web-fetch-results> 再決定是否重 fetch
+why: 已觀察到「承諾讀但下 cycle 沒翻 web-fetch-results 直接做別的」的 pattern（2026-04-18 記錄）。治本不在承諾時「更小心」，而是在 cycle 啟動 pipeline 加一個 pre-check：若上 cycle 有 fetch 承諾且本 cycle <web-fetch-results> 有新內容，優先處理；沒有新結果才允許重 fetch 或換主題。
+acceptance:
+  - prompt-builder 或 cycle-opener 加 pre-check hook：掃 working memory 的 fetch 承諾 → 對照 <web-fetch-results> 是否有對應 URL 的新結果
+  - 有新結果 → 優先注入為 "Pending fetch arrivals"（Phase 1 Observe 必讀）
+  - 沒新結果且承諾 ≥ 1 cycle 舊 → 升級為 explicit reminder 或自動重 fetch
+  - 驗證：刻意製造一次 fetch 承諾，觀察下 cycle 是否被 pipeline 撿起
+priority: P1（結構性問題，累積效應大；但不 P0 因為不 block 競賽） <!-- added: 2026-04-18T22:08:09.287Z -->
+- [ ] ，同時等 `tsubuyaki-latest-number` delegate 結果回來（不重派）
+skipped: 重派 delegate（in-flight 會撞）、回覆 19 則 inbox（06:07 凌晨不打擾）、立刻寫 028（編號未確認）、再說一次「No action needed」（三個 cycle 重複 = 空轉訊號）
+context: reasoning-continuity #37 顯示連續兩 cycle 都在等同一個 delegate；系統旗標「1 untracked commitment」要求轉 action；rumination autonomy-fix-bugs-yourself 提醒結構性問題要自己處理不等別人
+
+<kuro:action>
+<kuro:task>
+title: Ghost commitment 防線 — pipeline 先查 <web-fetch-results> 再決定是否重 fetch
+why: 已觀察到「承諾讀但下 cycle 沒翻 web-fetch-results 直接做別的」的 pattern（2026-04-18 記錄）。治本不在承諾時「更小心」，而是在 cycle 啟動 pipeline 加一個 pre-check：若上 cycle 有 fetch 承諾且本 cycle <web-fetch-results> 有新內容，優先處理；沒有新結果才允許重 fetch 或換主題。
+acceptance:
+  - prompt-builder 或 cycle-opener 加 pre-check hook：掃 working memory 的 fetch 承諾 → 對照 <web-fetch-results> 是否有對應 URL 的新結果
+  - 有新結果 → 優先注入為 "Pending fetch arrivals"（Phase 1 Observe 必讀）
+  - 沒新結果且承諾 ≥ 1 cycle 舊 → 升級為 explicit reminder 或自動重 fetch
+  - 驗證：刻意製造一次 fetch 承諾，觀察下 cycle 是否被 pipeline 撿起
+priority: P1（結構性問題，累積效應大；但不 P0 因為不 block 競賽）
+</kuro:task>
+</kuro:action> <!-- added: 2026-04-18T22:08:09.282Z -->
 <!-- 已歸檔 (2026-04-18 00:40 cycle #10): P1 UNKNOWN:no_diag + TIMEOUT:real_timeout 雙雙結案。Classifier fix `88227dab` (agent.ts:122 early memory-pressure branch) 2026-04-17T15:47Z 部署後: (1) 2026-04-17.jsonl 最後一筆 13:48:49Z = 全部 pre-fix；(2) 2026-04-18.jsonl 至 00:40 Taipei 完全不存在 — 10h40m 零 classifier error；(3) cycle #7 已驗證 post-deploy 10/10 callClaude outcome=ok。task 內 count 是 rolling snapshot 殘留，非 live signal。教訓內化: recurring-error task 的數字是歷史累積，關閉判準用「distance-since-last-match」而非「count magnitude」。如未來 pulse 再建同 subtype task 需先查今日 error log，不要再挖 counter。 -->
 <!-- 已歸檔 (2026-04-17 14:50): P1 TIMEOUT:sigterm 結案 (commit ce77d7c6)。同 memory_guard polymorphic bucket 問題 — exit 143 由 6 種路徑產生（preempt / foreground-preempt / shutdown / progress / hard / circuit-breaker / external），混成單一 bucket 讓 mostly-benign events 觸發 P1。修復：agent.ts 把 exitReason 附到 rejected error，classifyError 訊息加 `reason=` 標籤，extractErrorSubtype 按 reason split，PROTECTIVE_SUBTYPES 新增 6 個 sigterm_* 變體。`sigterm_external` 保留為 recurring-error signal（launchd ungraceful-crash 指標）。typecheck pass, pushed to main。 -->
 <!-- 已歸檔 (2026-04-17): P1 TIMEOUT:memory_guard 結案。非 bug — agent.ts:670 pre-spawn OOM guard 正常保護機制。修源頭：pulse.ts 加 PROTECTIVE_SUBTYPES skip list (memory_guard / max_turns 不建 P1，改走 signal-only log)，避免保護性 subtype 汙染 recurring-error 通道。commit pending。 -->
