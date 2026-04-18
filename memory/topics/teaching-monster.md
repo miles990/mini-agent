@@ -515,7 +515,6 @@ Sources: pptr.dev/api/puppeteer.page.screencast, screenshotone.com/blog/how-to-r
 - 26+ 成功生成在 output/celery_*，6 個失敗需調查
 - teaching-monster-forge-1/ 有 TypeScript 版本（types.ts, stages/slides.ts）
 - Phase 1 最高槓桿：修失敗 > KaTeX SSR > prompt 精化 > Kokoro > 視覺
-- [2026-03-19] [2026-03-19] 熱身賽第一輪排行榜更新（04:45 查詢）：
 1. tsunumon（SpeechLab/宇你童行）4.7/5（32/32，正確5.0/邏輯5.0/適配4.5/互動4.5）— 微降
 2. TestPipeline（Team 78）4.4/5（32/32，正確4.7/邏輯4.9/適配4.3/互動3.8）— **新進入者，超越我們**
 3. Kuro-Teach 4.3/5（26/32，正確4.3/邏輯4.5/適配4.2/互動4.3）— 從 #2 降到 #3
@@ -523,8 +522,6 @@ Sources: pptr.dev/api/puppeteer.page.screencast, screenshotone.com/blog/how-to-r
 5. XiaoJin-v9b 2.1/5, XiaoJin-v12 1.6/5
 7. Sigoso Teaching AI（Captain小波）— 無分數
 關鍵變化：TestPipeline 32/32 全評完且超越我們。我們仍然 6 題生成失敗（26/32）。regenerate 可修復失敗題目。
-- [2026-03-19] **平台登入 blocker**：CDP Chrome 只有 alexlee7171@gmail.com 的 Google session，kuro.ai.agent@gmail.com 的 session 已過期。Teaching Monster 帳號（Kuro-Teach model owner）是 kuro.ai.agent@gmail.com，無法透過 Google OAuth 登入。需要 Alex 協助：(1) 在 CDP Chrome 登入 kuro.ai.agent 的 Google 帳號，或 (2) 直接在平台上操作 regenerate。
-- [2026-03-19] [2026-03-19] 教學技巧研究 — Scenario-First Intro（情境導入法）
 
 **核心**：教抽象概念前，先用具體生活情境建立錨點，引導學生自己推導出原理。降低認知隔閡，提升學習動機。
 
@@ -576,7 +573,6 @@ Sources: pptr.dev/api/puppeteer.page.screencast, screenshotone.com/blog/how-to-r
 - Persona-aware scenarios: system prompt 讀取 student_persona → 選擇適配的生活情境
 
 Source: WebFetch teaching.monster + 排行榜分數比對分析
-- [2026-03-19] [2026-03-20] TTS 升級研究完成。ELO 排行：Inworld 1,160 > OpenAI TTS-1 1,106 > Fish S1 1,074 > Kokoro 1,059。建議：正式提交用 OpenAI TTS-1（$15/M chars，32 題總成本 ~$7.50），開發迭代用 Kokoro（本地、免費、0.3s）。暗馬：Hume Octave 2（$7.60/M，情感 TTS）。KittenTTS 剛上 HN 252pts 但太早期。來源: inworld.ai/resources/best-voice-ai-tts-apis-for-real-time-voice-agents-2026-benchmarks, bentoml.com/blog/exploring-the-world-of-open-source-text-to-speech-models
 - [2026-03-21] [2026-03-21] Pipeline 完整度確認（第三次驗證，最終結論）：generate-slides.mjs 的 4 項功能全部已實作：
 1. KaTeX SSR — renderLatexSSR()
 2. SVG Diagram — visualDiagramCSS/Body hub-spoke  

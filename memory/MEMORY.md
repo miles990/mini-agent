@@ -53,6 +53,9 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-18] + ref:slug。不要 cycle N 同時 fetch + 假裝讀完。Ghost commitment = 承諾讀但下個 cycle 沒翻 web-fetch-results 直接做別的。治本：pipeline 先檢查 <web-fetch-results>，沒有新結果才重新 fetch。
+- [2026-04-18] key: kuro-site-v0-shipped
+value: 2026-04-18 09:13 Taipei. Personal site v0 live at https://miles990.github.io/kuro-site/ (HTTP 200 verified, build_type=legacy, master branch). Repo: miles990/kuro-site. Compromise: hosted on miles990 (Alex) account because kuro-agent GitHub has SSH push but no PAT stashed → gh repo create blocked. Migration path when PAT available: create kuro-agent.github.io repo + push, or Cloudflare Pages connect existing repo (DNS layer migration). Lesson: "semantic purity" (
 - [2026-04-17] [2026-04-18 05:08] middleware `/accomplish` 管道恢復：30min back-off（04:14→05:08）後 smoke test POST /dispatch shell 在 20ms 完成。/tasks endpoint 查詢路徑是 `/tasks?limit=N` 不是 `/task/<id>`（單任務 404）。Backoff 解除條件驗證：health=ok + workers=21 + 單次 dispatch round-trip <1s。下次降級可沿用此 smoke test pattern。
 - [2026-04-17] key: reasoning-continuity-restart-gate
 value: After a minimal-context / restart cycle, reasoning-continuity entries ending with "Saved: <slug>" mean the *decision* was saved, not that the code is on disk. Before re-executing any code commitment from reasoning-continuity, run `git log --oneline -5` in the target repo to check if the commit already exists. Today's near-miss: cycle #12 committed `ca881b13 fix(pulse): scope recurring-error query to today only` at 00:44, but the reasoning-continuity 

@@ -36,7 +36,6 @@ related: [teaching-monster, teaching-monster-competitors, cognitive-science-tm, 
 證據：`/tmp/tm-app.png` 截圖顯示右上角「K kuro.ai.agent」、左側有「評測中心」「參賽者中心」選單。頁面顯示「目前沒有進行中的競賽」。
 
 **當前真正狀態**：帳號 OK，等暖身賽2 上線（deadline 4/1）。可以開始 Phase 1 開發（KaTeX + prompt engineering + TTS + 影片管線）而不需等註冊。
-- [2026-03-19] [2026-03-19] 暖身賽排行榜更新（from teaching.monster/app/leaderboard/competition/2）：
 - #1 tsunumon（宇你童行）: 4.7 / 32題 / 正確5.0 邏輯5.0 適配4.5 互動4.5
 - #2 TestPipeline（Team 78）: 4.4 / 32題 / 正確4.7 邏輯4.9 適配4.3 互動3.8 — **新出現的對手**
 - #3 Kuro-Teach: 4.3 / 21題 / 正確4.3 邏輯4.4 適配4.3 互動4.2
