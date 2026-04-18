@@ -571,9 +571,33 @@ async function detectGoogleState(ws) {
     return { state: 'password_entry', node: passwordField, detail: 'Password entry page' };
   }
 
-  // 2FA / Security challenge
-  if (textLower.includes('2-step verification') || textLower.includes('verify') ||
-      text.includes('兩步驟驗證') || text.includes('驗證')) {
+  // Verify-existing-account (profile contamination) — MUST precede 2fa branch.
+  // Google shows "Verify it's you" / "驗證您的身分" when an account is already
+  // signed in but needs re-auth. If the shown email ≠ GOOGLE_EMAIL, the profile
+  // is contaminated with a foreign account and our login flow cannot proceed
+  // until we switch account. Previous detector matched bare "verify"/"驗證" and
+  // mis-routed this to 2fa, asking humans to solve a challenge for the wrong
+  // account. Fix: discriminate by the email shown on the page.
+  const hasVerifyPrompt = textLower.includes("verify it's you") ||
+                          textLower.includes('verify your identity') ||
+                          text.includes('驗證您的身分') ||
+                          info.url.includes('confirmidentifier');
+  if (hasVerifyPrompt) {
+    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const shownEmail = emailMatch ? emailMatch[0].toLowerCase() : null;
+    if (shownEmail && shownEmail !== GOOGLE_EMAIL.toLowerCase()) {
+      return {
+        state: 'verify_wrong_account',
+        detail: `Profile contaminated: verify prompt for ${shownEmail}, expected ${GOOGLE_EMAIL}`,
+        shownEmail,
+      };
+    }
+    return { state: '2fa', detail: `Verify / identity challenge for ${shownEmail || 'current account'}` };
+  }
+
+  // 2FA / Security challenge (explicit 2-step verification only — narrower
+  // trigger so generic "verify ..." copy does not hijack this branch).
+  if (textLower.includes('2-step verification') || text.includes('兩步驟驗證')) {
     return { state: '2fa', detail: '2FA / security challenge' };
   }
 
@@ -674,6 +698,25 @@ async function executeAuthFlow(ws, authState, targetId) {
       const shot = await screenshotToFile(ws, 'step-need-2fa');
       emitNeedHuman('2fa', '2FA challenge — human intervention needed', { screenshot: shot });
       return { status: 'need_human', detail: '2FA challenge', url: (await getPageInfo(ws)).url };
+    }
+
+    case 'verify_wrong_account': {
+      // Profile contaminated with a different Google account. Surface clearly
+      // so the caller (or next-cycle agent) can switch to a fresh Chrome
+      // profile / user-data-dir instead of asking a human to solve a challenge
+      // that isn't even for our target account.
+      const shot = await screenshotToFile(ws, 'step-wrong-account');
+      emitNeedHuman('verify_wrong_account', authState.detail, {
+        screenshot: shot,
+        shownEmail: authState.shownEmail,
+        expectedEmail: GOOGLE_EMAIL,
+        remedy: 'Spawn fresh Chrome with --user-data-dir=<new path>, or logout current account first',
+      });
+      return {
+        status: 'need_human',
+        detail: authState.detail,
+        url: (await getPageInfo(ws)).url,
+      };
     }
 
     case 'consent': {

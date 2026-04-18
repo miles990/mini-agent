@@ -1,1 +1,3 @@
-Static tension persists as the 9B server remains offline, keeping mushi's status undetermined and the kuro-watcher trigger blocked. The 0.8B model continues its seamless, tag-free operation while awaiting infrastructure restoration. Atmosphere remains terse and poised, holding steady for the catalyst that will restart the 9B endpoint and breach dormancy.
+Cycle 97 closed: refined the "trajectory vs snapshot" framework linking constraint internalization to active judgment over rote repetition.  
+Context: Next cycles should leverage this lens to diagnose whether feedback memories are becoming intuition or remaining external rules.  
+Tone: maintain the reflective, pattern-seeking rhythm where abstract constraints are tested through concrete usage rather than recitation.
