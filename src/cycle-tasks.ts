@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
@@ -395,18 +395,28 @@ function isExcludedMemoryFile(relPath: string): boolean {
  */
 /**
  * Use local LLM to generate a meaningful commit message from diff.
- * Sync call (fire-and-forget context), falls back to action summary if LLM fails.
+ * Async — previously execFileSync with 30s timeout blocked the main event loop
+ * under slow local-LLM conditions, producing 30-220s lag spikes (2026-04-18
+ * diagnosis: cycle-tasks.ts:405 was the primary main-thread stall source).
+ * Falls back to action summary if LLM fails or times out.
  */
-function generateCommitMessage(diff: string, fileList: string, fallback: string): string {
+async function generateCommitMessage(diff: string, fileList: string, fallback: string): Promise<string> {
   if (!diff.trim() || diff.length < 20) return `chore(auto): ${fallback}\n\nFiles: ${fileList}`;
   try {
     const localScript = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../scripts/local-delegate.mjs');
     const prompt = `Write a concise git commit message (1 line, max 72 chars) for these memory file changes. Use format "chore(memory): <description>". Only output the commit message, nothing else.\n\n${diff.slice(0, 2000)}`;
-    const stdout = execFileSync('node', [localScript], {
+    const child = execFile('node', [localScript], {
       encoding: 'utf-8',
       timeout: 30_000,
       env: { ...process.env, LOCAL_LLM_PROFILE: 'fast' },
-      input: prompt,
+    });
+    child.stdin?.write(prompt);
+    child.stdin?.end();
+    const stdout = await new Promise<string>((resolve, reject) => {
+      let out = '';
+      child.stdout?.on('data', (chunk: Buffer | string) => { out += chunk.toString(); });
+      child.on('error', reject);
+      child.on('close', () => resolve(out));
     });
     const line = stdout.trim().split('\n')[0].slice(0, 120);
     if (line.length > 10) return `${line}\n\nFiles: ${fileList}`;
@@ -452,7 +462,7 @@ export async function autoCommitMemoryFiles(action: string | null): Promise<void
       diff = d;
     } catch { /* use fallback */ }
 
-    const msg = generateCommitMessage(diff, fileList, fallbackSummary);
+    const msg = await generateCommitMessage(diff, fileList, fallbackSummary);
 
     await execFileAsync(
       'git', ['commit', '-m', msg],
