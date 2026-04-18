@@ -89,11 +89,26 @@ export interface ExecOptions {
 async function execProvider(provider: Provider, fullPrompt: string, opts?: ExecOptions): Promise<string> {
   if (provider === 'codex') return execCodex(fullPrompt, opts);
   if (provider === 'local') return execLocal(fullPrompt, opts);
-  // Layer C (2026-04-17): USE_MIDDLEWARE_FOR_CYCLE=true → offload **main OODA
-  // cycle** LLM call to middleware agent-brain worker (隔離 event-loop)。
-  // Ask/foreground 路徑不走此路，避免 30s 快答被拖進 1500s cycle 深推理預算。
-  if (isMiddlewareCycleEnabled() && opts?.source === 'loop') {
-    return execClaudeViaMiddleware(fullPrompt, opts);
+  // Layer C (2026-04-17, expanded 2026-04-18): USE_MIDDLEWARE_FOR_CYCLE=true →
+  // offload all Claude LLM calls to middleware agent-brain worker (isolated
+  // event-loop). Original restriction to `source === 'loop'` removed — all
+  // three lanes (loop / foreground / ask) benefit from event-loop decoupling,
+  // and caller's opts.timeoutMs is honored by middleware-cycle-client.
+  // Infrastructure failure (middleware down / dispatch 5xx) falls back to
+  // local SDK/CLI so a middleware outage never degrades Kuro's availability.
+  if (isMiddlewareCycleEnabled()) {
+    try {
+      return await execClaudeViaMiddleware(fullPrompt, opts);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isInfraFailure = /dispatch failed|ECONNREFUSED|fetch failed|middleware.*offline|EAI_AGAIN|ETIMEDOUT.*connect/i.test(msg);
+      if (isInfraFailure) {
+        slog('AGENT', `middleware path infra-failed (${msg.slice(0, 80)}) — falling back to local`);
+        // fall through to SDK/CLI below
+      } else {
+        throw err;
+      }
+    }
   }
   // SDK primary (via child_process.fork — isolated OS process, non-blocking parent).
   // CLI fallback on SDK failure: transient fork/spawn issues shouldn't kill the cycle
