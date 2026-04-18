@@ -15,10 +15,34 @@ import { slog } from './utils.js';
 interface CacheEntry {
   content: string;
   mtimeMs: number;
+  lastAccessMs: number;
 }
 
+// Bounded cache (OpenClaw acp/session.ts:24-59 pattern): cap entries by count +
+// evict by TTL + LRU when full. Without bounds the cache grew unbounded across
+// long daemon uptimes, holding swapped-out pages in memory pressure.
+const MAX_ENTRIES = 500;
+const TTL_MS = 30 * 60_000;
 const cache = new Map<string, CacheEntry>();
 const watchers = new Map<string, fs.FSWatcher>();
+
+function reap(): void {
+  const sizeBefore = cache.size;
+  const now = Date.now();
+  let ttlEvicted = 0;
+  for (const [key, entry] of cache) {
+    if (now - entry.lastAccessMs > TTL_MS) { cache.delete(key); ttlEvicted++; }
+  }
+  let lruEvicted = 0;
+  if (cache.size > MAX_ENTRIES) {
+    const entries = Array.from(cache.entries()).sort((a, b) => a[1].lastAccessMs - b[1].lastAccessMs);
+    const toDrop = cache.size - MAX_ENTRIES;
+    for (let i = 0; i < toDrop; i++) { cache.delete(entries[i][0]); lruEvicted++; }
+  }
+  if (ttlEvicted + lruEvicted > 0) {
+    slog('CACHE-REAP', `size ${sizeBefore}→${cache.size} ttlEvicted=${ttlEvicted} lruEvicted=${lruEvicted}`);
+  }
+}
 
 /**
  * Read a file with in-memory caching.
@@ -39,8 +63,10 @@ export function cachedReadFile(filePath: string): string {
       slog('PROFILE', `cachedReadFile.statSync ${statMs}ms ${filePath}`);
     }
     const cached = cache.get(absPath);
+    const nowMs = Date.now();
 
     if (cached && cached.mtimeMs >= stat.mtimeMs) {
+      cached.lastAccessMs = nowMs;
       return cached.content;
     }
 
@@ -50,7 +76,8 @@ export function cachedReadFile(filePath: string): string {
     if (readMs > 100) {
       slog('PROFILE', `cachedReadFile.readFileSync ${readMs}ms size=${content.length} ${filePath}`);
     }
-    cache.set(absPath, { content, mtimeMs: stat.mtimeMs });
+    cache.set(absPath, { content, mtimeMs: stat.mtimeMs, lastAccessMs: nowMs });
+    if (cache.size > MAX_ENTRIES) reap();
 
     // Start watching this file's directory if not already
     ensureWatching(absPath);

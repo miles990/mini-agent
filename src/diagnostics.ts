@@ -25,6 +25,9 @@
  */
 
 import { performance } from 'node:perf_hooks';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import type { Request, Response, NextFunction } from 'express';
 import { slog } from './utils.js';
 
@@ -165,6 +168,52 @@ export function stopEventLoopLagMonitor(): void {
  */
 let sampleTimer: NodeJS.Timeout | null = null;
 
+// RSS self-recycle thresholds (OpenClaw idiom: proactive drain + launchd relaunch).
+// Env-overridable: MINI_AGENT_RECYCLE_RSS_MB, MINI_AGENT_RECYCLE_UPTIME_HOURS.
+// Disabled when MINI_AGENT_RECYCLE_DISABLED=true.
+// 2048MB conservative threshold — RSS p50 currently ~100MB (2026-04-18 baseline).
+// Start loose, tighten after observing real p99 in production.
+const RECYCLE_RSS_MB = parseInt(process.env.MINI_AGENT_RECYCLE_RSS_MB ?? '2048');
+// 24h uptime — long-running delegations (5-8min) may be interrupted on recycle;
+// tolerable because forge worktree results are written incrementally.
+const RECYCLE_UPTIME_HOURS = parseFloat(process.env.MINI_AGENT_RECYCLE_UPTIME_HOURS ?? '24');
+const RECYCLE_MIN_UPTIME_MS = 10 * 60_000; // never recycle in first 10 min
+let recycleTriggered = false;
+
+/**
+ * Append one line to memory/state/recycle-events.jsonl for post-hoc tuning.
+ * Fire-and-forget — never throws, never blocks recycle on filesystem errors.
+ */
+function logRecycleEvent(event: Record<string, unknown>): void {
+  try {
+    const instanceId = process.env.MINI_AGENT_INSTANCE ?? 'default';
+    const dir = path.join(os.homedir(), '.mini-agent', 'instances', instanceId, 'state');
+    fs.mkdirSync(dir, { recursive: true });
+    const line = JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, ...event }) + '\n';
+    fs.appendFileSync(path.join(dir, 'recycle-events.jsonl'), line);
+  } catch { /* never block recycle on log failure */ }
+}
+
+function maybeTriggerRecycle(rssMB: number): void {
+  if (recycleTriggered) return;
+  if (process.env.MINI_AGENT_RECYCLE_DISABLED === 'true') return;
+  const uptimeMs = process.uptime() * 1000;
+  if (uptimeMs < RECYCLE_MIN_UPTIME_MS) return;
+  const uptimeHours = uptimeMs / 3_600_000;
+  const rssHit = rssMB > RECYCLE_RSS_MB;
+  const uptimeHit = uptimeHours > RECYCLE_UPTIME_HOURS;
+  if (!rssHit && !uptimeHit) return;
+  recycleTriggered = true;
+  const reason = rssHit ? `rss=${rssMB}MB>${RECYCLE_RSS_MB}MB` : `uptime=${uptimeHours.toFixed(1)}h>${RECYCLE_UPTIME_HOURS}h`;
+  slog('RECYCLE', `self-SIGUSR1 (${reason}) — launchd will relaunch`);
+  logRecycleEvent({ type: 'trigger', reason, rssMB, uptimeHours: Math.round(uptimeHours * 10) / 10 });
+  try { process.kill(process.pid, 'SIGUSR1'); } catch (e) {
+    slog('RECYCLE', `self-SIGUSR1 failed: ${(e as Error).message}`);
+    logRecycleEvent({ type: 'trigger-failed', reason, error: (e as Error).message });
+    recycleTriggered = false;
+  }
+}
+
 export function startStateSampler(): void {
   if (sampleTimer) return;
   let lastCpu = process.cpuUsage();
@@ -196,6 +245,8 @@ export function startStateSampler(): void {
       .map(([k, v]) => `${k}:${v}`)
       .join(',');
 
+    const rssMB = Math.round(mem.rss / 1048576);
+
     // Only log if something is interesting — skip quiet samples to avoid noise.
     // "interesting" = CPU > 5%, ELU > 0.3, handles > 10, or many active requests.
     const interesting =
@@ -207,11 +258,13 @@ export function startStateSampler(): void {
     if (interesting) {
       slog(
         'PROFILE-SAMPLE',
-        `rss=${Math.round(mem.rss / 1048576)}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB | ` +
+        `rss=${rssMB}MB heap=${Math.round(mem.heapUsed / 1048576)}/${Math.round(mem.heapTotal / 1048576)}MB | ` +
           `cpu=${cpuPct}% ELU=${elu.utilization.toFixed(2)} | ` +
           `handles=${handles.length}{${handleBreakdown}} reqs=${requests.length}`,
       );
     }
+
+    maybeTriggerRecycle(rssMB);
   };
 
   sampleTimer = setInterval(sample, 5_000);
