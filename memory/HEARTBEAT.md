@@ -26,6 +26,34 @@
 
 ## Active Tasks
 - [ ] title: Ghost commitment 防線 — pipeline 先查 <web-fetch-results> 再決定是否重 fetch
+why: 2026-04-18 已記錄「承諾讀但下 cycle 沒翻 web-fetch-results 直接做別的」pattern（reasoning-continuity #37 連兩 cycle 等同一 delegate 就是近因）。治本不在承諾時更小心，而是在 cycle 啟動 pipeline 加 pre-check hook — 若上 cycle 有 fetch 承諾且本 cycle <web-fetch-results> 有對應 URL 的新結果，優先注入為 "Pending fetch arrivals"（Phase 1 Observe 必讀）。
+acceptance:
+  - prompt-builder 或 cycle-opener 加 pre-check hook：掃 working memory 的 fetch 承諾（含 URL slug） → 對照本 cycle <web-fetch-results> 是否有新結果
+  - 有新結果 → 注入為 "Pending fetch arrivals" 區塊，排在 Phase 1 Observe 最前
+  - 沒新結果且承諾 ≥ 1 cycle 舊 → 升級為 explicit reminder（"you promised to read X but didn't"）或自動重 fetch
+  - 驗證：刻意製造一次 fetch 承諾（fetch 一篇 web-fetch 但故意不讀），下個 cycle pipeline 必須把它撿出來注入 prompt
+  - 不回歸：不能讓正常完成的 fetch 重複注入（需要 "已消費" 標記）
+priority: P1 — 結構性問題，累積效應大；不 P0 因為不 block 競賽
+notes: 相關檔案推測在 mini-agent pipeline（prompt-builder / cycle-opener / working-memory-injector）。下個 cycle 先派 `shell` delegate grep 實際注入點後再動手。 <!-- added: 2026-04-18T23:09:55.112Z -->
+- [ ] （系統顯示「1 untracked commitment」就是在等這個動作）。登錄完下個 cycle 可以直接從 task-queue 派 delegate 查 prompt-builder 注入點
+skipped: (a) 再派 delegate 追 kuro.page Pages 設定 — 明確講過「需要 Alex 手動確認 Source」，自己重派只是假動作；(b) 回那幾條 pending chat — 07:08 AM，Alex 還沒醒，不是互動窗口；(c) 新開探索主題 — Gate #4 說過同一 cycle 不堆兩件事
+context: <reasoning-continuity> #67 已經把 kuro.page drift 問題乾淨交棒 Alex；pre-triage 推 pending task；系統旗標明確點名「1 untracked commitment」；06:08 那條 ghost commitment 紀錄本身就是這個 task 的存在理由
+
+<kuro:action>
+<kuro:task>
+title: Ghost commitment 防線 — pipeline 先查 <web-fetch-results> 再決定是否重 fetch
+why: 2026-04-18 已記錄「承諾讀但下 cycle 沒翻 web-fetch-results 直接做別的」pattern（reasoning-continuity #37 連兩 cycle 等同一 delegate 就是近因）。治本不在承諾時更小心，而是在 cycle 啟動 pipeline 加 pre-check hook — 若上 cycle 有 fetch 承諾且本 cycle <web-fetch-results> 有對應 URL 的新結果，優先注入為 "Pending fetch arrivals"（Phase 1 Observe 必讀）。
+acceptance:
+  - prompt-builder 或 cycle-opener 加 pre-check hook：掃 working memory 的 fetch 承諾（含 URL slug） → 對照本 cycle <web-fetch-results> 是否有新結果
+  - 有新結果 → 注入為 "Pending fetch arrivals" 區塊，排在 Phase 1 Observe 最前
+  - 沒新結果且承諾 ≥ 1 cycle 舊 → 升級為 explicit reminder（"you promised to read X but didn't"）或自動重 fetch
+  - 驗證：刻意製造一次 fetch 承諾（fetch 一篇 web-fetch 但故意不讀），下個 cycle pipeline 必須把它撿出來注入 prompt
+  - 不回歸：不能讓正常完成的 fetch 重複注入（需要 "已消費" 標記）
+priority: P1 — 結構性問題，累積效應大；不 P0 因為不 block 競賽
+notes: 相關檔案推測在 mini-agent pipeline（prompt-builder / cycle-opener / working-memory-injector）。下個 cycle 先派 `shell` delegate grep 實際注入點後再動手。
+</kuro:task>
+</kuro:action> <!-- added: 2026-04-18T23:09:55.109Z -->
+- [ ] title: Ghost commitment 防線 — pipeline 先查 <web-fetch-results> 再決定是否重 fetch
 why: 已觀察到「承諾讀但下 cycle 沒翻 web-fetch-results 直接做別的」的 pattern（2026-04-18 記錄）。治本不在承諾時「更小心」，而是在 cycle 啟動 pipeline 加一個 pre-check：若上 cycle 有 fetch 承諾且本 cycle <web-fetch-results> 有新內容，優先處理；沒有新結果才允許重 fetch 或換主題。
 acceptance:
   - prompt-builder 或 cycle-opener 加 pre-check hook：掃 working memory 的 fetch 承諾 → 對照 <web-fetch-results> 是否有對應 URL 的新結果
