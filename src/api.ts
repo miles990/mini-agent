@@ -3266,4 +3266,34 @@ if (isMain) {
   };
   process.on('SIGTERM', () => void shutdown());
   process.on('SIGINT', () => void shutdown());
+
+  // ── SIGUSR1: Graceful Recycle (OpenClaw pattern) ──
+  // Unlike SIGTERM (final stop), SIGUSR1 is a proactive recycle: drain active
+  // work, exit(0), then launchd KeepAlive relaunches with a fresh V8 heap.
+  // Used to escape accumulated memory pressure without dropping messages.
+  // Evidence: OpenClaw run-loop.ts:47-116 uses the same idiom under launchd.
+  // 240s covers p99=180s cycle + 60s margin (Kuro 2026-04-18 measured distribution:
+  // p50=39s, p75=70s, p90=150s, p99=180s). 60s would cut >50% of cycles mid-flight.
+  const DRAIN_TIMEOUT_MS = 240_000;
+  let draining = false;
+  const drainAndExit = async (reason: string): Promise<void> => {
+    if (draining || shuttingDown) return;
+    draining = true;
+    slog('SERVER', `Drain started (reason=${reason}) — pausing loop, waiting for active cycle`);
+
+    // Pause loop so no new cycle starts; current cycle keeps running
+    if (loopRef) loopRef.pause();
+
+    // Poll for loop idle up to DRAIN_TIMEOUT_MS
+    const start = Date.now();
+    while (Date.now() - start < DRAIN_TIMEOUT_MS) {
+      const status = loopRef?.getStatus();
+      if (!status || !status.running) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    const waited = Date.now() - start;
+    slog('SERVER', `Drain complete after ${waited}ms — invoking shutdown`);
+    await shutdown();
+  };
+  process.on('SIGUSR1', () => void drainAndExit('SIGUSR1'));
 }
