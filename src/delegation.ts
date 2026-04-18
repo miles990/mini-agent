@@ -275,10 +275,17 @@ async function dispatchAndPoll(
       slog('DELEGATION', `BAR dispatch ${taskId} → accomplish ${planId} (${resp.plan.steps.length} steps, hint=${worker})${roundLabel}`);
     } else {
       // Legacy /plan path — no replan support, exit loop after first round.
+      // NB: sibling context is natural-language prompt annotation — safe for
+      // LLM workers (agent-brain/coder/researcher/etc.) that interpret `task`
+      // as prompt, but will be concat'd into `/bin/bash -c` for shell worker,
+      // causing syntax errors on punctuation (e.g. "(30s)" parsed as subshell).
+      // 2026-04-18 incident: shell task failed exit 2 — skip annotation for shell.
       let prompt = task.prompt;
-      const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
-      if (siblingContext) {
-        prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
+      if (worker !== 'shell') {
+        const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
+        if (siblingContext) {
+          prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
+        }
       }
       const step: PlanStepSpec & { cwd?: string } = {
         id: taskId, worker, label: task.prompt.slice(0, 80), task: prompt,
