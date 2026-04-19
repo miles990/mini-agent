@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini-Agent Organ Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans TC', sans-serif; background: #0a0a0f; color: #e0e0e0; min-height: 100vh; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 1.8em; margin-bottom: 8px; color: #fff; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 40px; font-size: 0.95em; }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Comparison layout */
+  .comparison { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; margin-bottom: 50px; align-items: start; }
+  .arrow-col { display: flex; align-items: center; justify-content: center; padding-top: 120px; }
+  .arrow-col svg { width: 40px; height: 40px; }
+
+  .panel { background: #12121a; border-radius: 16px; padding: 28px; border: 1px solid #222; }
+  .panel.before { border-color: #333; }
+  .panel.after { border-color: #4a6fa5; box-shadow: 0 0 30px rgba(74,111,165,0.15); }
+  .panel h2 { font-size: 1.1em; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .panel.before h2 { color: #888; }
+  .panel.after h2 { color: #6ab0f3; }
+  .badge { font-size: 0.7em; padding: 2px 8px; border-radius: 10px; font-weight: normal; }
+  .badge.old { background: #2a2a2a; color: #666; }
+  .badge.new { background: #1a2a3a; color: #6ab0f3; }
+
+  /* Flow diagram */
+  .flow { display: flex; flex-direction: column; gap: 8px; }
+  .flow-node { padding: 12px 16px; border-radius: 10px; font-size: 0.82em; position: relative; }
+  .flow-arrow { text-align: center; color: #444; font-size: 0.8em; line-height: 1; }
+  .flow-arrow.active { color: #6ab0f3; }
+
+  .node-perception { background: #1a1a2e; border: 1px solid #2a2a4e; }
+  .node-llm { background: #2a1a1a; border: 1px solid #4a2a2a; }
+  .node-action { background: #1a2a1a; border: 1px solid #2a4a2a; }
+  .node-organ { background: #0d1f2d; border: 1px solid #1a4a6a; box-shadow: 0 0 12px rgba(74,160,235,0.08); }
+  .node-decision { background: #1f1a0d; border: 1px solid #4a3a1a; box-shadow: 0 0 12px rgba(235,180,74,0.08); }
+
+  .node-label { font-weight: 600; margin-bottom: 4px; }
+  .node-desc { color: #777; font-size: 0.88em; line-height: 1.4; }
+  .node-organ .node-label { color: #6ab0f3; }
+  .node-decision .node-label { color: #ebc04a; }
+  .node-perception .node-label { color: #a78bfa; }
+  .node-llm .node-label { color: #f87171; }
+  .node-action .node-label { color: #4ade80; }
+
+  .problem { color: #f87171; font-size: 0.78em; margin-top: 4px; font-style: italic; }
+  .benefit { color: #4ade80; font-size: 0.78em; margin-top: 4px; }
+
+  /* Detail section */
+  .detail-section { margin-top: 50px; }
+  .detail-section h2 { font-size: 1.3em; margin-bottom: 24px; color: #fff; text-align: center; }
+
+  .organs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+  .organ-card { background: #12121a; border-radius: 14px; padding: 24px; border: 1px solid #222; }
+  .organ-card h3 { font-size: 1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .organ-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; }
+  .icon-kg { background: #1a2a4a; }
+  .icon-dt { background: #2a2a1a; }
+  .icon-mw { background: #1a2a1a; }
+
+  .organ-card .spec { font-size: 0.82em; color: #999; line-height: 1.6; }
+  .organ-card .spec strong { color: #ccc; font-weight: 500; }
+  .organ-card .spec code { background: #1a1a2a; padding: 1px 5px; border-radius: 3px; font-size: 0.92em; color: #a78bfa; }
+
+  .tag { display: inline-block; font-size: 0.7em; padding: 2px 8px; border-radius: 8px; margin-right: 4px; margin-bottom: 4px; }
+  .tag-auto { background: #1a2a3a; color: #6ab0f3; }
+  .tag-code { background: #2a2a1a; color: #ebc04a; }
+  .tag-event { background: #1a2a1a; color: #4ade80; }
+
+  /* Data flow */
+  .dataflow { background: #12121a; border-radius: 14px; padding: 28px; border: 1px solid #222; margin-bottom: 40px; }
+  .dataflow h3 { font-size: 1em; margin-bottom: 16px; color: #fff; }
+  .flow-line { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.82em; flex-wrap: wrap; }
+  .flow-chip { padding: 5px 12px; border-radius: 8px; white-space: nowrap; font-size: 0.92em; }
+  .chip-perception { background: #1a1a2e; color: #a78bfa; border: 1px solid #2a2a4e; }
+  .chip-organ { background: #0d1f2d; color: #6ab0f3; border: 1px solid #1a4a6a; }
+  .chip-decision { background: #1f1a0d; color: #ebc04a; border: 1px solid #4a3a1a; }
+  .chip-llm { background: #2a1a1a; color: #f87171; border: 1px solid #4a2a2a; }
+  .chip-action { background: #1a2a1a; color: #4ade80; border: 1px solid #2a4a2a; }
+  .flow-connector { color: #444; font-size: 1.1em; }
+
+  /* Principle cards */
+  .principles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .principle { background: #12121a; border-radius: 10px; padding: 16px; border: 1px solid #222; }
+  .principle h4 { font-size: 0.88em; color: #ebc04a; margin-bottom: 6px; }
+  .principle p { font-size: 0.8em; color: #888; line-height: 1.5; }
+
+  /* Savings */
+  .savings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 30px 0; }
+  .saving-card { background: #12121a; border-radius: 10px; padding: 20px; border: 1px solid #222; text-align: center; }
+  .saving-card .metric { font-size: 1.8em; font-weight: 700; margin-bottom: 4px; }
+  .saving-card .metric-label { font-size: 0.78em; color: #888; }
+  .metric-green { color: #4ade80; }
+  .metric-blue { color: #6ab0f3; }
+  .metric-yellow { color: #ebc04a; }
+
+  /* Feedback loop */
+  .feedback-section { margin-top: 50px; }
+  .feedback-diagram { background: #12121a; border-radius: 14px; padding: 28px; border: 1px solid #2a1a2a; margin-bottom: 24px; position: relative; overflow: hidden; }
+  .feedback-diagram::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #f87171, #ebc04a, #4ade80, #6ab0f3, #a78bfa); }
+  .feedback-diagram h3 { font-size: 1em; margin-bottom: 16px; color: #fff; }
+
+  .fb-loop { display: flex; flex-direction: column; gap: 4px; }
+  .fb-row { display: grid; grid-template-columns: 140px 1fr 100px; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 8px; font-size: 0.82em; }
+  .fb-row:nth-child(odd) { background: #0a0a12; }
+  .fb-stage { color: #888; font-weight: 500; }
+  .fb-desc { color: #bbb; line-height: 1.4; }
+  .fb-guard { font-size: 0.85em; padding: 3px 8px; border-radius: 6px; text-align: center; white-space: nowrap; }
+  .guard-green { background: #0d2a0d; color: #4ade80; border: 1px solid #1a4a1a; }
+  .guard-yellow { background: #2a2a0d; color: #ebc04a; border: 1px solid #4a4a1a; }
+  .guard-red { background: #2a0d0d; color: #f87171; border: 1px solid #4a1a1a; }
+
+  .circuit-breakers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+  .cb-card { background: #12121a; border-radius: 10px; padding: 16px; border: 1px solid #2a1a1a; position: relative; }
+  .cb-card::after { content: ''; position: absolute; top: 8px; right: 12px; width: 8px; height: 8px; border-radius: 50%; }
+  .cb-card.healthy::after { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+  .cb-card h4 { font-size: 0.85em; margin-bottom: 8px; }
+  .cb-card .cb-rule { font-size: 0.78em; color: #888; line-height: 1.5; }
+  .cb-card .cb-action { font-size: 0.78em; color: #ebc04a; margin-top: 6px; }
+
+  .confidence-viz { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .conf-bar { height: 6px; border-radius: 3px; flex: 1; background: #1a1a2a; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .conf-label { font-size: 0.75em; color: #666; width: 36px; text-align: right; }
+
+  .adaptation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; }
+  .adapt-card { background: #12121a; border-radius: 10px; padding: 20px; border: 1px solid #222; }
+  .adapt-card h4 { font-size: 0.9em; margin-bottom: 10px; color: #a78bfa; }
+  .adapt-example { background: #0a0a12; border-radius: 8px; padding: 12px; font-size: 0.78em; font-family: 'SF Mono', monospace; line-height: 1.6; margin-top: 8px; }
+  .adapt-example .key { color: #6ab0f3; }
+  .adapt-example .val { color: #4ade80; }
+  .adapt-example .val-low { color: #f87171; }
+  .adapt-example .comment { color: #444; }
+
+  @media (max-width: 800px) {
+    .comparison { grid-template-columns: 1fr; gap: 20px; }
+    .arrow-col { padding-top: 0; transform: rotate(90deg); }
+    .organs { grid-template-columns: 1fr; }
+    .principles { grid-template-columns: 1fr; }
+    .savings { grid-template-columns: 1fr; }
+    .circuit-breakers { grid-template-columns: 1fr; }
+    .adaptation-grid { grid-template-columns: 1fr; }
+    .fb-row { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Mini-Agent Organ Architecture</h1>
+  <p class="subtitle">從「工具呼叫」到「器官運作」— 讓 KG / Middleware / Decision Tree 成為 OODA 的一部分</p>
+
+  <!-- Before vs After -->
+  <div class="comparison">
+    <div class="panel before">
+      <h2>Current <span class="badge old">Tool-based</span></h2>
+      <div class="flow">
+        <div class="flow-node node-perception">
+          <div class="node-label">Perception Plugins</div>
+          <div class="node-desc">30+ plugins, 60s-30min intervals</div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-node node-llm">
+          <div class="node-label">Claude CLI (All Decisions)</div>
+          <div class="node-desc">buildContext() → 32K prompt → Claude 判斷一切</div>
+          <div class="problem">186 noop cycles = LLM 決策不可靠</div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-node node-action">
+          <div class="node-label">parseTags → postProcess</div>
+          <div class="node-desc">解析 &lt;kuro:*&gt; tags → 執行</div>
+        </div>
+        <div class="flow-arrow">↓ (optional, Kuro 常忘記)</div>
+        <div class="flow-node" style="background:#1a1a1a;border:1px dashed #333;">
+          <div class="node-label" style="color:#666;">Middleware / KG</div>
+          <div class="node-desc">外部服務，需要 Kuro 主動呼叫</div>
+          <div class="problem">Alex 反覆提醒「多利用中台和知識圖譜」</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-col">
+      <svg viewBox="0 0 40 40" fill="none"><path d="M8 20h18m0 0l-6-6m6 6l-6 6" stroke="#6ab0f3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+
+    <div class="panel after">
+      <h2>Proposed <span class="badge new">Organ-based</span></h2>
+      <div class="flow">
+        <div class="flow-node node-perception">
+          <div class="node-label">Perception Plugins</div>
+          <div class="node-desc">same — 不動</div>
+        </div>
+        <div class="flow-arrow active">↓ auto</div>
+        <div class="flow-node node-organ">
+          <div class="node-label">KG Organ (感知增強)</div>
+          <div class="node-desc">自動查 KG → 注入相關知識到 context</div>
+          <div class="benefit">每個 cycle 都「看得見」過去學過什麼</div>
+        </div>
+        <div class="flow-arrow active">↓ enriched context</div>
+        <div class="flow-node node-decision">
+          <div class="node-label">Decision Tree (確定性路由)</div>
+          <div class="node-desc">Code 處理確定性決策，只有認知任務送 Claude</div>
+          <div class="benefit">inbox → reply, noop > 3 → 強制行動 (不靠 prompt)</div>
+        </div>
+        <div class="flow-arrow active">↓ cognitive only</div>
+        <div class="flow-node node-llm">
+          <div class="node-label">Claude CLI (Cognitive Only)</div>
+          <div class="node-desc">只處理需要判斷力的事</div>
+          <div class="benefit">context 更精準，token 花在刀口上</div>
+        </div>
+        <div class="flow-arrow active">↓ BAR default</div>
+        <div class="flow-node node-organ">
+          <div class="node-label">Middleware Organ (行動引擎)</div>
+          <div class="node-desc">delegate 預設走中台 brain routing</div>
+          <div class="benefit">DAG plan + 23 workers + retry + acceptance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expected Impact -->
+  <div class="savings">
+    <div class="saving-card">
+      <div class="metric metric-green">-70%</div>
+      <div class="metric-label">不必要的 Claude 呼叫<br>(確定性決策改走 code)</div>
+    </div>
+    <div class="saving-card">
+      <div class="metric metric-blue">+100%</div>
+      <div class="metric-label">KG 利用率<br>(從「記得才用」→ 每 cycle 自動)</div>
+    </div>
+    <div class="saving-card">
+      <div class="metric metric-yellow">0</div>
+      <div class="metric-label">Noop spiral 機率<br>(Decision Tree 硬性阻斷)</div>
+    </div>
+  </div>
+
+  <!-- Three Organs Detail -->
+  <div class="detail-section">
+    <h2>Three Organs</h2>
+    <div class="organs">
+
+      <div class="organ-card">
+        <h3><span class="organ-icon icon-kg">🧠</span> KG Organ</h3>
+        <div style="margin-bottom: 10px;">
+          <span class="tag tag-auto">auto-enrich</span>
+          <span class="tag tag-event">EventBus</span>
+        </div>
+        <div class="spec">
+          <strong>When:</strong> buildContext() 階段<br>
+          <strong>How:</strong> 從 cycle prompt 提取 keywords → <code>search_knowledge()</code> → 注入 <code>&lt;kg-context&gt;</code> section<br>
+          <strong>Where:</strong> <code>src/prompt-builder.ts</code> 新增 <code>buildKGSection()</code><br>
+          <strong>Cap:</strong> max 2K tokens, top 5 results<br>
+          <strong>Fallback:</strong> KG offline → skip (fail-open)<br>
+          <strong>Write-back:</strong> postProcess 有新 <code>&lt;kuro:remember&gt;</code> → 自動 <code>add_knowledge()</code>
+        </div>
+      </div>
+
+      <div class="organ-card">
+        <h3><span class="organ-icon icon-dt">🌳</span> Decision Tree</h3>
+        <div style="margin-bottom: 10px;">
+          <span class="tag tag-code">deterministic</span>
+          <span class="tag tag-code">code-path</span>
+        </div>
+        <div class="spec">
+          <strong>When:</strong> cycle 開始，Claude 呼叫之前<br>
+          <strong>How:</strong> 結構化條件檢查，確定性路由<br>
+          <strong>Rules:</strong><br>
+          &bull; <code>hasUnreadInbox</code> → direct reply (skip Claude)<br>
+          &bull; <code>hasPendingTask + taskIsSimple</code> → execute<br>
+          &bull; <code>noopStreak >= 3</code> → force action (不降 context)<br>
+          &bull; <code>triggerType == workspace</code> → diff-based react<br>
+          &bull; else → send to Claude (cognitive)<br>
+          <strong>Where:</strong> <code>src/decision-tree.ts</code> (new)<br>
+          <strong>Extensible:</strong> rules as data, not hardcoded
+        </div>
+      </div>
+
+      <div class="organ-card">
+        <h3><span class="organ-icon icon-mw">⚡</span> Middleware Organ</h3>
+        <div style="margin-bottom: 10px;">
+          <span class="tag tag-auto">BAR default</span>
+          <span class="tag tag-event">EventBus</span>
+        </div>
+        <div class="spec">
+          <strong>When:</strong> 任何 <code>&lt;kuro:delegate&gt;</code> tag<br>
+          <strong>How:</strong> 預設走 middleware <code>/accomplish</code>，不再 local subprocess<br>
+          <strong>Where:</strong> <code>src/dispatcher.ts</code> delegate handler<br>
+          <strong>Brain:</strong> middleware brain 自動 DAG planning<br>
+          <strong>Tracking:</strong> commitment ledger 追蹤完成度<br>
+          <strong>Fallback:</strong> middleware offline → local subprocess<br>
+          <strong>Result:</strong> <code>&lt;background-completed&gt;</code> → 自動注入下個 cycle
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Flow -->
+  <div class="dataflow">
+    <h3>OODA Cycle Data Flow (Organ-based)</h3>
+
+    <div class="flow-line">
+      <span style="color:#666;width:90px;font-size:0.85em;">Observe</span>
+      <span class="flow-chip chip-perception">Plugins</span>
+      <span class="flow-connector">→</span>
+      <span class="flow-chip chip-organ">KG auto-query</span>
+      <span class="flow-connector">→</span>
+      <span style="color:#888;font-size:0.85em;">enriched context (perception + related knowledge)</span>
+    </div>
+
+    <div class="flow-line">
+      <span style="color:#666;width:90px;font-size:0.85em;">Orient</span>
+      <span class="flow-chip chip-decision">Decision Tree</span>
+      <span class="flow-connector">→</span>
+      <span style="color:#888;font-size:0.85em;">route: <code style="color:#ebc04a">deterministic</code> (code) | <code style="color:#f87171">cognitive</code> (Claude)</span>
+    </div>
+
+    <div class="flow-line">
+      <span style="color:#666;width:90px;font-size:0.85em;">Decide</span>
+      <span class="flow-chip chip-llm">Claude (cognitive only)</span>
+      <span class="flow-connector"> | </span>
+      <span class="flow-chip chip-decision">Code action (deterministic)</span>
+      <span class="flow-connector">→</span>
+      <span style="color:#888;font-size:0.85em;">action plan</span>
+    </div>
+
+    <div class="flow-line">
+      <span style="color:#666;width:90px;font-size:0.85em;">Act</span>
+      <span class="flow-chip chip-action">Middleware /accomplish</span>
+      <span class="flow-connector">→</span>
+      <span style="color:#888;font-size:0.85em;">DAG plan → 23 workers → acceptance → result</span>
+    </div>
+
+    <div class="flow-line">
+      <span style="color:#666;width:90px;font-size:0.85em;">Learn</span>
+      <span class="flow-chip chip-action">Result</span>
+      <span class="flow-connector">→</span>
+      <span class="flow-chip chip-organ">KG write-back</span>
+      <span class="flow-connector">→</span>
+      <span style="color:#888;font-size:0.85em;">knowledge grows → next cycle sees more</span>
+    </div>
+  </div>
+
+  <!-- Principles -->
+  <div class="detail-section">
+    <h2>Design Principles</h2>
+    <div class="principles">
+      <div class="principle">
+        <h4>Constraint Texture 一致</h4>
+        <p>Deterministic → code (Decision Tree)。Cognitive → convergence condition (Claude)。不混用。剛修的 186 noop spiral 就是混用的代價。</p>
+      </div>
+      <div class="principle">
+        <h4>Event-driven 鬆耦合</h4>
+        <p>三個 organ 透過 EventBus 整合，不直接嵌入 loop.ts。每個 organ 可獨立關閉、替換、升級。Feature flag 控制。</p>
+      </div>
+      <div class="principle">
+        <h4>Fail-open 安全</h4>
+        <p>KG 離線 → skip enrichment。Middleware 離線 → fallback local subprocess。Decision Tree 無匹配 → 送 Claude。任何器官故障不阻塞 cycle。</p>
+      </div>
+      <div class="principle">
+        <h4>不新建 Repo</h4>
+        <p>三個 organ 都是 mini-agent 的 src/ 模組。KG/Middleware 是 HTTP client wrapper，不是複製它們的邏輯。Balanced Complexity — 加模組不加 repo。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Implementation DAG -->
+  <div class="dataflow" style="margin-top: 30px;">
+    <h3>Implementation DAG</h3>
+    <div class="spec" style="font-size: 0.82em; line-height: 1.8;">
+      <table style="width:100%; border-collapse: collapse; font-size: 0.95em;">
+        <tr style="border-bottom: 1px solid #222; color: #888;">
+          <td style="padding: 6px; width: 50px;">id</td>
+          <td style="padding: 6px;">action</td>
+          <td style="padding: 6px; width: 80px;">executor</td>
+          <td style="padding: 6px; width: 80px;">dependsOn</td>
+          <td style="padding: 6px;">convergence condition</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #6ab0f3;">A</td>
+          <td style="padding: 6px;">Decision Tree 模組 — deterministic routing rules</td>
+          <td style="padding: 6px; color: #888;">CC / Kuro</td>
+          <td style="padding: 6px; color: #444;">—</td>
+          <td style="padding: 6px; color: #888;">hasInbox → reply 不經 Claude；noopStreak >= 3 不降 context</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #6ab0f3;">B</td>
+          <td style="padding: 6px;">KG Organ — buildKGSection() in prompt-builder</td>
+          <td style="padding: 6px; color: #888;">CC / Kuro</td>
+          <td style="padding: 6px; color: #444;">—</td>
+          <td style="padding: 6px; color: #888;">cycle context 自動含 KG 相關知識，不需 Kuro 主動查</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #6ab0f3;">C</td>
+          <td style="padding: 6px;">Middleware Organ — delegate 預設走 /accomplish</td>
+          <td style="padding: 6px; color: #888;">CC / Kuro</td>
+          <td style="padding: 6px; color: #444;">—</td>
+          <td style="padding: 6px; color: #888;">所有 delegate 自動走中台，local subprocess 只在 offline fallback</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #6ab0f3;">D</td>
+          <td style="padding: 6px;">Loop 整合 — wire A/B/C into OODA cycle</td>
+          <td style="padding: 6px; color: #888;">CC</td>
+          <td style="padding: 6px; color: #6ab0f3;">A, B, C</td>
+          <td style="padding: 6px; color: #888;">一個 cycle 完整跑過 KG → Decision Tree → Claude → Middleware</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px; color: #6ab0f3;">E</td>
+          <td style="padding: 6px;">驗證 — 觀察 10 個 cycle 的行為</td>
+          <td style="padding: 6px; color: #888;">Alex</td>
+          <td style="padding: 6px; color: #6ab0f3;">D</td>
+          <td style="padding: 6px; color: #888;">0 noop spiral + KG 每 cycle 有 hits + delegate 走中台比例 > 80%</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <p style="text-align:center; color:#444; font-size:0.75em; margin-top:30px;">
+    A, B, C 可並行 — 沒有共同 dependsOn。關鍵路徑 = 3 步（A|B|C → D → E）
+  </p>
+
+  <!-- Feedback Loop & Adaptation -->
+  <div class="feedback-section">
+    <div class="detail-section">
+      <h2>Adaptive Feedback Loop</h2>
+      <p style="text-align:center; color:#888; font-size:0.88em; margin-bottom:24px;">Decision Tree 的 rules 不是靜態的 — 從 outcome 學習，動態調整 confidence</p>
+    </div>
+
+    <div class="feedback-diagram">
+      <h3>Feedback Cycle (每個 OODA cycle 結束後 fire-and-forget)</h3>
+      <div class="fb-loop">
+        <div class="fb-row">
+          <span class="fb-stage" style="color:#ebc04a;">1. Route</span>
+          <span class="fb-desc">Decision Tree 根據 rule confidence 選擇路徑：<strong>code</strong> (conf &ge; 0.8) 或 <strong>Claude</strong> (conf &lt; 0.8)</span>
+          <span class="fb-guard guard-yellow">deterministic</span>
+        </div>
+        <div class="fb-row">
+          <span class="fb-stage" style="color:#4ade80;">2. Execute</span>
+          <span class="fb-desc">執行動作 → 記錄 outcome（Alex 回應？tag 被 parse？task 完成？error？）</span>
+          <span class="fb-guard guard-green">observable</span>
+        </div>
+        <div class="fb-row">
+          <span class="fb-stage" style="color:#6ab0f3;">3. Score</span>
+          <span class="fb-desc">outcome → success/fail/neutral。success = Alex 沒糾正 + 有可見產出。fail = Alex 糾正或 error</span>
+          <span class="fb-guard guard-green">auto</span>
+        </div>
+        <div class="fb-row">
+          <span class="fb-stage" style="color:#a78bfa;">4. Adjust</span>
+          <span class="fb-desc">更新 rule confidence：success → conf × 1.05（cap 0.95），fail → conf × 0.7（floor 0.1）</span>
+          <span class="fb-guard guard-yellow">bounded</span>
+        </div>
+        <div class="fb-row">
+          <span class="fb-stage" style="color:#f87171;">5. Crystallize</span>
+          <span class="fb-desc">conf &gt; 0.9 持續 50 cycles → 升級為 hard rule (code gate)。conf &lt; 0.2 持續 20 cycles → 刪除 rule</span>
+          <span class="fb-guard guard-red">threshold</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confidence Visualization -->
+    <div class="adaptation-grid">
+      <div class="adapt-card">
+        <h4>Rule Confidence (動態)</h4>
+        <div style="font-size:0.82em; color:#999; margin-bottom:12px;">每條 rule 有 confidence score，決定走 code 還是送 Claude</div>
+
+        <div style="margin-bottom: 10px;">
+          <div style="font-size:0.78em; color:#ccc; margin-bottom:4px;">hasInbox → direct reply</div>
+          <div class="confidence-viz">
+            <div class="conf-bar"><div class="conf-fill" style="width:92%; background: linear-gradient(90deg, #4ade80, #6ab0f3);"></div></div>
+            <span class="conf-label" style="color:#4ade80;">0.92</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <div style="font-size:0.78em; color:#ccc; margin-bottom:4px;">noopStreak &ge; 3 → force action</div>
+          <div class="confidence-viz">
+            <div class="conf-bar"><div class="conf-fill" style="width:95%; background: linear-gradient(90deg, #4ade80, #6ab0f3);"></div></div>
+            <span class="conf-label" style="color:#4ade80;">0.95</span>
+          </div>
+          <div style="font-size:0.7em; color:#4ade80;">hard rule (crystallized)</div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <div style="font-size:0.78em; color:#ccc; margin-bottom:4px;">workspace trigger → auto-react</div>
+          <div class="confidence-viz">
+            <div class="conf-bar"><div class="conf-fill" style="width:45%; background: linear-gradient(90deg, #ebc04a, #f87171);"></div></div>
+            <span class="conf-label" style="color:#ebc04a;">0.45</span>
+          </div>
+          <div style="font-size:0.7em; color:#888;">→ 送 Claude (confidence 不足)</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.78em; color:#ccc; margin-bottom:4px;">complex inbox → summarize + reply</div>
+          <div class="confidence-viz">
+            <div class="conf-bar"><div class="conf-fill" style="width:15%; background: #f87171;"></div></div>
+            <span class="conf-label" style="color:#f87171;">0.15</span>
+          </div>
+          <div style="font-size:0.7em; color:#f87171;">→ 即將刪除 (confidence 太低)</div>
+        </div>
+      </div>
+
+      <div class="adapt-card">
+        <h4>Outcome Log (KG 存儲)</h4>
+        <div style="font-size:0.82em; color:#999; margin-bottom:12px;">每次路由的結果存入 KG，供 feedback loop 計算 confidence</div>
+        <div class="adapt-example">
+<span class="comment">// decision-outcomes in KG</span>
+{
+  <span class="key">"rule"</span>: "hasInbox → reply",
+  <span class="key">"path"</span>: "code",
+  <span class="key">"outcome"</span>: <span class="val">"success"</span>,
+  <span class="key">"evidence"</span>: "no correction 24h",
+  <span class="key">"cycle"</span>: 42
+}
+{
+  <span class="key">"rule"</span>: "complex_inbox → summarize",
+  <span class="key">"path"</span>: "code",
+  <span class="key">"outcome"</span>: <span class="val-low">"fail"</span>,
+  <span class="key">"evidence"</span>: "Alex corrected #msg-88",
+  <span class="key">"cycle"</span>: 38
+}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Read-Write Separation -->
+  <div class="detail-section" style="margin-top: 50px;">
+    <h2>Read-Write Separation (防卡住)</h2>
+    <p style="text-align:center; color:#888; font-size:0.88em; margin-bottom:24px;">Read path 在 critical path 上（必須快）。Write path fire-and-forget（不阻塞 cycle）</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px;">
+    <div class="dataflow" style="border-color: #1a4a1a;">
+      <h3 style="color: #4ade80;">Read Path (Critical, &lt; 100ms)</h3>
+      <div style="font-size: 0.82em; color: #999; line-height: 1.8;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-organ" style="font-size:0.9em;">KG Query</span>
+          <span style="color:#4ade80;">50ms</span>
+          <span style="color:#666;">local cache + HTTP fallback</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-decision" style="font-size:0.9em;">Decision Tree</span>
+          <span style="color:#4ade80;">1ms</span>
+          <span style="color:#666;">pure code, in-memory rules</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-organ" style="font-size:0.9em;">MW Health</span>
+          <span style="color:#4ade80;">5ms</span>
+          <span style="color:#666;">cached (30s TTL)</span>
+        </div>
+        <div style="background:#0d1a0d; border-radius:8px; padding:10px; margin-top:12px; border: 1px solid #1a3a1a;">
+          <div style="color:#4ade80; font-size:0.85em; font-weight:600; margin-bottom:4px;">Guarantees</div>
+          <div style="color:#888; font-size:0.82em; line-height:1.5;">
+            &bull; 每個 read 有 <strong>timeout</strong>（KG 200ms, MW 100ms）<br>
+            &bull; Timeout → <strong>skip</strong>，不 retry，不 block<br>
+            &bull; <strong>Cache-first</strong>：上次成功的 KG 結果存 memory-cache，本次查詢失敗就用 stale data<br>
+            &bull; 整條 read path <strong>不超過 100ms</strong>（vs Claude 90s = 0.1%）
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dataflow" style="border-color: #2a2a1a;">
+      <h3 style="color: #ebc04a;">Write Path (Fire-and-forget, async)</h3>
+      <div style="font-size: 0.82em; color: #999; line-height: 1.8;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-organ" style="font-size:0.9em;">KG Write-back</span>
+          <span style="color:#ebc04a;">async</span>
+          <span style="color:#666;">新知識 → add_knowledge()</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-decision" style="font-size:0.9em;">Confidence Update</span>
+          <span style="color:#ebc04a;">async</span>
+          <span style="color:#666;">outcome → adjust rule scores</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <span class="flow-chip chip-action" style="font-size:0.9em;">MW Dispatch</span>
+          <span style="color:#ebc04a;">async</span>
+          <span style="color:#666;">delegate → /accomplish (non-blocking)</span>
+        </div>
+        <div style="background:#1a1a0d; border-radius:8px; padding:10px; margin-top:12px; border: 1px solid #3a3a1a;">
+          <div style="color:#ebc04a; font-size:0.85em; font-weight:600; margin-bottom:4px;">Guarantees</div>
+          <div style="color:#888; font-size:0.82em; line-height:1.5;">
+            &bull; 全部 <strong>.catch(() =&gt; {})</strong> — 寫失敗不影響 cycle<br>
+            &bull; <strong>Eventually consistent</strong> — 下個 cycle 會看到更新<br>
+            &bull; <strong>Idempotent</strong> — 重複寫入 = 覆蓋，不堆積<br>
+            &bull; 寫入延遲 <strong>不在 critical path</strong> 上
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory Layer -->
+  <div class="detail-section" style="margin-top: 50px;">
+    <h2>Memory Layer (三層快取 + 持久化)</h2>
+    <p style="text-align:center; color:#888; font-size:0.88em; margin-bottom:24px;">Hot → Warm → Cold。啟動時 Cold → Hot 預熱。運行時 Hot-first，miss 才往下查</p>
+  </div>
+
+  <div class="dataflow" style="border-color: #2a1a4a; margin-bottom: 24px;">
+    <h3 style="color: #a78bfa;">Three-Tier Cache Architecture</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px;">
+
+      <div style="background:#1a0d2a; border-radius:10px; padding:16px; border:1px solid #2a1a4a;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <div style="width:10px; height:10px; border-radius:50%; background:#f87171; box-shadow: 0 0 8px #f87171;"></div>
+          <span style="color:#f87171; font-weight:600; font-size:0.9em;">Hot (In-Memory)</span>
+          <span style="color:#444; font-size:0.75em;">&lt; 1ms</span>
+        </div>
+        <div style="font-size:0.78em; color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">KG:</strong> LRU Map (max 200 entries)<br>
+          key = query hash, value = results + timestamp<br><br>
+          <strong style="color:#ccc;">Decision Tree:</strong> rules[] in memory<br>
+          confidence scores as number fields<br><br>
+          <strong style="color:#ccc;">MW Health:</strong> boolean + lastCheck<br>
+          TTL 30s, non-blocking refresh<br><br>
+          <strong style="color:#ccc;">Eviction:</strong> LRU (KG) / none (DT/MW)
+        </div>
+      </div>
+
+      <div style="background:#0d1a2a; border-radius:10px; padding:16px; border:1px solid #1a2a4a;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <div style="width:10px; height:10px; border-radius:50%; background:#ebc04a; box-shadow: 0 0 8px #ebc04a;"></div>
+          <span style="color:#ebc04a; font-weight:600; font-size:0.9em;">Warm (Disk JSON)</span>
+          <span style="color:#444; font-size:0.75em;">5-10ms</span>
+        </div>
+        <div style="font-size:0.78em; color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">KG Cache:</strong><br>
+          <code style="color:#a78bfa; font-size:0.9em;">~/.mini-agent/instances/{id}/kg-cache.json</code><br>
+          每 cycle 結束時 flush dirty entries<br><br>
+          <strong style="color:#ccc;">Decision Rules:</strong><br>
+          <code style="color:#a78bfa; font-size:0.9em;">~/.mini-agent/instances/{id}/decision-rules.json</code><br>
+          confidence 變化時寫入<br><br>
+          <strong style="color:#ccc;">Outcome Log:</strong><br>
+          <code style="color:#a78bfa; font-size:0.9em;">~/.mini-agent/instances/{id}/decision-outcomes.jsonl</code><br>
+          append-only，feedback loop 讀取
+        </div>
+      </div>
+
+      <div style="background:#0d2a1a; border-radius:10px; padding:16px; border:1px solid #1a4a2a;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <div style="width:10px; height:10px; border-radius:50%; background:#4ade80; box-shadow: 0 0 8px #4ade80;"></div>
+          <span style="color:#4ade80; font-weight:600; font-size:0.9em;">Cold (External Service)</span>
+          <span style="color:#444; font-size:0.75em;">50-200ms</span>
+        </div>
+        <div style="font-size:0.78em; color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">Knowledge Nexus:</strong><br>
+          <code style="color:#a78bfa; font-size:0.9em;">localhost:???/search_knowledge</code><br>
+          MCP tool, full semantic search<br><br>
+          <strong style="color:#ccc;">Middleware:</strong><br>
+          <code style="color:#a78bfa; font-size:0.9em;">localhost:3200/accomplish</code><br>
+          DAG planning + worker dispatch<br><br>
+          <strong style="color:#ccc;">只在 Hot miss + Warm miss 時查</strong><br>
+          查到的結果回填 Hot + Warm
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lifecycle -->
+  <div class="dataflow" style="border-color: #222; margin-bottom: 24px;">
+    <h3>Cache Lifecycle</h3>
+    <div style="font-size: 0.82em; color: #999; line-height: 2;">
+      <div class="fb-row" style="background: #0a0a12;">
+        <span class="fb-stage" style="color:#f87171;">Startup</span>
+        <span class="fb-desc">Cold (disk JSON) → Hot (memory)。<strong>預熱</strong>：讀 <code style="color:#a78bfa;">kg-cache.json</code> + <code style="color:#a78bfa;">decision-rules.json</code> 載入 memory。第一個 cycle 就有 warm cache，不是 cold start</span>
+        <span class="fb-guard guard-green">sync load</span>
+      </div>
+      <div class="fb-row">
+        <span class="fb-stage" style="color:#ebc04a;">Runtime</span>
+        <span class="fb-desc"><strong>Read:</strong> Hot → miss → Warm (disk) → miss → Cold (HTTP) → 回填 Hot+Warm。<strong>Write:</strong> 寫 Hot → dirty flag → cycle 結束 flush to Warm (async)</span>
+        <span class="fb-guard guard-yellow">cache-first</span>
+      </div>
+      <div class="fb-row" style="background: #0a0a12;">
+        <span class="fb-stage" style="color:#4ade80;">Shutdown</span>
+        <span class="fb-desc">Hot 的 dirty entries → flush to Warm (disk)。graceful shutdown 保證資料不丟</span>
+        <span class="fb-guard guard-green">sync flush</span>
+      </div>
+      <div class="fb-row">
+        <span class="fb-stage" style="color:#a78bfa;">Crash</span>
+        <span class="fb-desc">最多丟失<strong>最後一個 cycle</strong> 的 cache 更新（Hot 未 flush）。Warm (disk) 有上一次的資料。Cold (service) 永遠在。<strong>不丟知識，只丟快取</strong></span>
+        <span class="fb-guard guard-yellow">at-most-once loss</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Strategy -->
+  <div class="dataflow" style="border-color: #1a2a4a; margin-bottom: 24px;">
+    <h3 style="color: #6ab0f3;">Sync Strategy (Hot ↔ Warm 同步時機)</h3>
+    <p style="font-size:0.82em; color:#888; margin-bottom:16px;">
+      單線程 event loop — 同一時間只有一個 cycle，不需 lock / WAL / conflict resolution
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+
+      <div style="background:#1f1a0d; border-radius:10px; padding:14px; border:1px solid #4a3a1a;">
+        <div style="font-size:0.82em; color:#ebc04a; font-weight:600; margin-bottom:6px;">Decision Confidence</div>
+        <div style="font-size:2em; font-weight:700; color:#ebc04a; margin-bottom:4px;">即時</div>
+        <div style="font-size:0.72em; color:#888; line-height:1.4;">
+          每次變化即 writeFileSync<br>
+          &lt; 1ms（改一個數字）<br>
+          <span style="color:#f87171;">丟了 = 學習白費</span>
+        </div>
+      </div>
+
+      <div style="background:#0d1a0d; border-radius:10px; padding:14px; border:1px solid #1a4a1a;">
+        <div style="font-size:0.82em; color:#4ade80; font-weight:600; margin-bottom:6px;">Outcome Log</div>
+        <div style="font-size:2em; font-weight:700; color:#4ade80; margin-bottom:4px;">即時</div>
+        <div style="font-size:0.72em; color:#888; line-height:1.4;">
+          append-only JSONL<br>
+          一行一寫，I/O 極低<br>
+          <span style="color:#f87171;">丟了 = 無法回溯</span>
+        </div>
+      </div>
+
+      <div style="background:#0d1f2d; border-radius:10px; padding:14px; border:1px solid #1a4a6a;">
+        <div style="font-size:0.82em; color:#6ab0f3; font-weight:600; margin-bottom:6px;">KG Cache</div>
+        <div style="font-size:2em; font-weight:700; color:#6ab0f3; margin-bottom:4px;">Batch</div>
+        <div style="font-size:0.72em; color:#888; line-height:1.4;">
+          每 cycle 結束 flush dirty<br>
+          搭 runFeedbackLoops() hook<br>
+          <span style="color:#4ade80;">丟了 = 多一次 HTTP</span>
+        </div>
+      </div>
+
+      <div style="background:#1a1a1a; border-radius:10px; padding:14px; border:1px solid #333;">
+        <div style="font-size:0.82em; color:#666; font-weight:600; margin-bottom:6px;">MW Health</div>
+        <div style="font-size:2em; font-weight:700; color:#666; margin-bottom:4px;">Never</div>
+        <div style="font-size:0.72em; color:#888; line-height:1.4;">
+          不持久化<br>
+          啟動時探一次 /health<br>
+          <span style="color:#4ade80;">丟了 = 無影響</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="background:#0a0a12; border-radius:8px; padding:14px; border:1px solid #1a1a2a;">
+      <div style="font-size:0.82em; color:#ccc; font-weight:600; margin-bottom:6px;">Sync Decision Rule</div>
+      <div style="font-size:0.78em; color:#888; line-height:1.6;">
+        <span style="color:#f87171;">丟了會「失去學習」</span> → 即時寫（confidence, outcomes）<br>
+        <span style="color:#ebc04a;">丟了只是「多一次查詢」</span> → batch 寫（KG cache）<br>
+        <span style="color:#4ade80;">丟了無所謂</span> → 不寫（MW health, temp state）
+      </div>
+    </div>
+
+    <!-- Write points timeline -->
+    <div style="margin-top: 16px;">
+      <div style="font-size:0.82em; color:#ccc; font-weight:600; margin-bottom:10px;">Cycle Timeline — 兩個寫入點</div>
+      <div style="display:flex; align-items:center; gap:0; font-size:0.75em; position:relative;">
+        <div style="flex:1; height:4px; background:linear-gradient(90deg, #2a2a4a 0%, #4a6fa5 50%, #2a4a2a 100%); border-radius:2px; position:relative;">
+          <!-- Markers -->
+          <div style="position:absolute; left:0; top:-20px; color:#a78bfa;">cycle start</div>
+
+          <div style="position:absolute; left:30%; top:-28px; text-align:center; width:120px; margin-left:-60px;">
+            <div style="color:#ebc04a; font-size:1.1em;">&#9660;</div>
+            <div style="color:#ebc04a;">confidence 變化</div>
+            <div style="color:#666;">writeFileSync</div>
+          </div>
+
+          <div style="position:absolute; left:50%; top:12px; text-align:center; width:120px; margin-left:-60px;">
+            <div style="color:#4ade80; font-size:1.1em;">&#9650;</div>
+            <div style="color:#4ade80;">outcome append</div>
+            <div style="color:#666;">appendFileSync</div>
+          </div>
+
+          <div style="position:absolute; left:85%; top:-28px; text-align:center; width:140px; margin-left:-70px;">
+            <div style="color:#6ab0f3; font-size:1.1em;">&#9660;</div>
+            <div style="color:#6ab0f3;">KG cache flush</div>
+            <div style="color:#666;">runFeedbackLoops()</div>
+          </div>
+
+          <div style="position:absolute; right:0; top:-20px; color:#a78bfa;">cycle end</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KG Data Quality -->
+  <div class="detail-section" style="margin-top: 50px;">
+    <h2>KG Data Quality (Anti-Garbage)</h2>
+    <p style="text-align:center; color:#888; font-size:0.88em; margin-bottom:24px;">HEARTBEAT 被灌 176 行垃圾的教訓：寫入時攔截 > 寫入後清理 > 讀取時過濾。垃圾過濾必須是 code，不是 prompt</p>
+  </div>
+
+  <!-- Four garbage types -->
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px;">
+    <div style="background:#2a1a1a; border-radius:10px; padding:14px; border:1px solid #4a2a2a;">
+      <div style="font-size:0.85em; color:#f87171; font-weight:600; margin-bottom:6px;">過時</div>
+      <div style="font-size:0.75em; color:#888; line-height:1.4;">「MW 端口是 3100」<br>（已改 3200）</div>
+      <div style="font-size:0.7em; color:#f87171; margin-top:6px;">行動基於錯誤事實</div>
+    </div>
+    <div style="background:#2a2a1a; border-radius:10px; padding:14px; border:1px solid #4a4a1a;">
+      <div style="font-size:0.85em; color:#ebc04a; font-weight:600; margin-bottom:6px;">重複</div>
+      <div style="font-size:0.75em; color:#888; line-height:1.4;">同一件事寫 5 遍<br>措辭不同</div>
+      <div style="font-size:0.7em; color:#ebc04a; margin-top:6px;">context 膨脹稀釋</div>
+    </div>
+    <div style="background:#1a1a2a; border-radius:10px; padding:14px; border:1px solid #2a2a4a;">
+      <div style="font-size:0.85em; color:#a78bfa; font-weight:600; margin-bottom:6px;">衝突</div>
+      <div style="font-size:0.75em; color:#888; line-height:1.4;">A 說「用 tRPC」<br>B 說「用 REST」</div>
+      <div style="font-size:0.7em; color:#a78bfa; margin-top:6px;">決策混亂反覆改</div>
+    </div>
+    <div style="background:#1a1a1a; border-radius:10px; padding:14px; border:1px solid #333;">
+      <div style="font-size:0.85em; color:#666; font-weight:600; margin-bottom:6px;">殘留</div>
+      <div style="font-size:0.75em; color:#888; line-height:1.4;">debug 中間結論<br>已 revert 的方案</div>
+      <div style="font-size:0.7em; color:#666; margin-top:6px;">噪音被誤當知識</div>
+    </div>
+  </div>
+
+  <!-- Three defense layers -->
+  <div class="dataflow" style="border-color: #4a1a1a; margin-bottom: 24px;">
+    <h3 style="color: #f87171;">Three Defense Layers</h3>
+
+    <!-- Layer 1: Write Gate -->
+    <div style="background:#1a0d0d; border-radius:10px; padding:16px; border:1px solid #3a1a1a; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <div style="background:#4a1a1a; color:#f87171; font-size:0.75em; padding:3px 10px; border-radius:12px; font-weight:600;">Layer 1</div>
+        <span style="color:#f87171; font-weight:600; font-size:0.9em;">Write Gate (進入 KG 前攔截)</span>
+        <span style="color:#4ade80; font-size:0.75em; margin-left:auto;">攔截 80% 垃圾</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.78em;">
+        <div style="color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">Dedup Check</strong><br>
+          FTS5 查同 topic top 3 → similarity &gt; 0.8 → <span style="color:#ebc04a;">merge 而非新增</span><br>
+          防止「同一件事寫 5 遍」
+        </div>
+        <div style="color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">Conflict Check</strong><br>
+          同 topic 有矛盾結論 → <span style="color:#a78bfa;">標記 needs-resolution</span><br>
+          不直接覆蓋，保留兩邊等 resolution
+        </div>
+        <div style="color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">Source Validation</strong><br>
+          有 ref:slug 或 URL → normal confidence<br>
+          <span style="color:#666;">無來源的觀點 → low-confidence tag</span>
+        </div>
+        <div style="color:#999; line-height:1.6;">
+          <strong style="color:#ccc;">Noise Filter</strong><br>
+          pattern match: "No action", "stripped retry",<br>
+          "anchor preserved" → <span style="color:#f87171;">直接拒絕</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 2: Housekeeping -->
+    <div style="background:#0d0d1a; border-radius:10px; padding:16px; border:1px solid #1a1a3a; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <div style="background:#1a1a4a; color:#6ab0f3; font-size:0.75em; padding:3px 10px; border-radius:12px; font-weight:600;">Layer 2</div>
+        <span style="color:#6ab0f3; font-weight:600; font-size:0.9em;">Housekeeping (定期清理)</span>
+        <span style="color:#888; font-size:0.75em; margin-left:auto;">每 24h 或 50 cycles</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; font-size:0.78em;">
+        <div style="background:#0a0a12; border-radius:8px; padding:10px;">
+          <div style="color:#ebc04a; font-weight:500; margin-bottom:4px;">Stale Sweep</div>
+          <div style="color:#888; line-height:1.4;">hitCount = 0<br>超過 90 天<br>→ <span style="color:#666;">archive</span></div>
+        </div>
+        <div style="background:#0a0a12; border-radius:8px; padding:10px;">
+          <div style="color:#4ade80; font-weight:500; margin-bottom:4px;">Compaction</div>
+          <div style="color:#888; line-height:1.4;">同 topic 5+ 條<br>→ Claude summarize<br>→ <span style="color:#4ade80;">1 條</span></div>
+        </div>
+        <div style="background:#0a0a12; border-radius:8px; padding:10px;">
+          <div style="color:#a78bfa; font-weight:500; margin-bottom:4px;">Contradiction</div>
+          <div style="color:#888; line-height:1.4;">同 topic 互相矛盾<br>→ queue for<br><span style="color:#a78bfa;">resolution</span></div>
+        </div>
+        <div style="background:#0a0a12; border-radius:8px; padding:10px;">
+          <div style="color:#f87171; font-weight:500; margin-bottom:4px;">Orphan Check</div>
+          <div style="color:#888; line-height:1.4;">ref:slug 已不存在<br>→ <span style="color:#f87171;">broken-ref</span><br>標記</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 3: Read Filter -->
+    <div style="background:#0d1a0d; border-radius:10px; padding:16px; border:1px solid #1a3a1a;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <div style="background:#1a4a1a; color:#4ade80; font-size:0.75em; padding:3px 10px; border-radius:12px; font-weight:600;">Layer 3</div>
+        <span style="color:#4ade80; font-weight:600; font-size:0.9em;">Read Filter (查詢時排序)</span>
+        <span style="color:#888; font-size:0.75em; margin-left:auto;">最後防線，不應常用</span>
+      </div>
+      <div style="font-size:0.78em; color:#999; line-height:1.6;">
+        排序公式：<code style="color:#a78bfa;">score = BM25 × recency_weight × (1 + log(hitCount))</code><br>
+        <span style="color:#666;">stale</span> 標記 → 排最後 &nbsp;|&nbsp; <span style="color:#a78bfa;">conflict</span> 標記 → 附帶警告 &nbsp;|&nbsp; <span style="color:#f87171;">broken-ref</span> → 排除
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge Lifecycle -->
+  <div class="dataflow" style="border-color: #222; margin-bottom: 24px;">
+    <h3>Knowledge Lifecycle (Living Document, not Append-Only)</h3>
+    <div style="display:flex; align-items:center; gap:0; margin:20px 0 10px; justify-content:center;">
+      <div style="background:#0d2a0d; border:1px solid #1a4a1a; border-radius:8px; padding:8px 16px; font-size:0.82em;">
+        <div style="color:#4ade80; font-weight:600;">active</div>
+        <div style="color:#666; font-size:0.85em;">被查詢、被引用</div>
+      </div>
+      <div style="color:#444; padding:0 12px; font-size:1.2em;">→</div>
+      <div style="background:#1f1a0d; border:1px solid #4a3a1a; border-radius:8px; padding:8px 16px; font-size:0.82em;">
+        <div style="color:#ebc04a; font-weight:600;">stale</div>
+        <div style="color:#666; font-size:0.85em;">90 天 hitCount=0</div>
+      </div>
+      <div style="color:#444; padding:0 12px; font-size:1.2em;">→</div>
+      <div style="background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:8px 16px; font-size:0.82em;">
+        <div style="color:#888; font-weight:600;">archived</div>
+        <div style="color:#666; font-size:0.85em;">不出現在查詢</div>
+      </div>
+      <div style="color:#444; padding:0 12px; font-size:1.2em;">→</div>
+      <div style="background:#2a0d0d; border:1px solid #4a1a1a; border-radius:8px; padding:8px 16px; font-size:0.82em;">
+        <div style="color:#f87171; font-weight:600;">deleted</div>
+        <div style="color:#666; font-size:0.85em;">180 天後清除</div>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:8px;">
+      <span style="color:#4ade80; font-size:0.78em;">↑ 被再次查詢 → 復活回 active（任何階段）</span>
+    </div>
+    <div style="background:#0a0a12; border-radius:8px; padding:12px; margin-top:16px; border:1px solid #1a1a2a;">
+      <div style="font-size:0.82em; color:#ccc; font-weight:600; margin-bottom:4px;">HEARTBEAT 教訓</div>
+      <div style="font-size:0.78em; color:#888; line-height:1.5;">
+        &bull; <strong>不信任 append-only</strong> — HEARTBEAT 沒有 write gate，垃圾直接堆積<br>
+        &bull; <strong>不靠 LLM 過濾</strong> — Kuro 讀到垃圾沒清掉反而複製保留。<span style="color:#f87171;">垃圾過濾必須是 code</span><br>
+        &bull; <strong>compaction 是必要的</strong> — 同 topic 多條最終必須壓縮成一條真相。不 compact = 慢性膨脹
+      </div>
+    </div>
+  </div>
+
+  <!-- Integration with existing infra -->
+  <div class="adaptation-grid" style="margin-bottom: 40px;">
+    <div class="adapt-card" style="border-color: #2a1a4a;">
+      <h4 style="color: #a78bfa;">Builds on Existing Infra</h4>
+      <div style="font-size:0.82em; color:#999; line-height:1.6;">
+        <strong style="color:#ccc;">memory-cache.ts</strong> — 已有 CQRS read cache + fswatch invalidation。KG organ 直接用這個機制，不重新發明<br><br>
+        <strong style="color:#ccc;">perception-stream.ts</strong> — 已有 per-plugin cache + <code style="color:#a78bfa;">distinctUntilChanged</code>。KG query 結果用同模式去重<br><br>
+        <strong style="color:#ccc;">feedback-loops.ts</strong> — 已有 error-patterns.json, perception-citations.json, decision-quality.json。Decision Tree outcomes 用同 pattern 存儲
+      </div>
+    </div>
+    <div class="adapt-card" style="border-color: #2a1a4a;">
+      <h4 style="color: #a78bfa;">Data Structure</h4>
+      <div class="adapt-example">
+<span class="comment">// kg-cache.json</span>
+{
+  <span class="key">"entries"</span>: {
+    <span class="key">"abc123"</span>: {           <span class="comment">// query hash</span>
+      <span class="key">"query"</span>: "teaching agent",
+      <span class="key">"results"</span>: [...],    <span class="comment">// top 5</span>
+      <span class="key">"fetchedAt"</span>: <span class="val">1713520800</span>,
+      <span class="key">"hitCount"</span>: <span class="val">12</span>,
+      <span class="key">"lastHit"</span>: <span class="val">1713524400</span>
+    }
+  },
+  <span class="key">"stats"</span>: {
+    <span class="key">"hits"</span>: <span class="val">847</span>,
+    <span class="key">"misses"</span>: <span class="val-low">23</span>,
+    <span class="key">"ratio"</span>: <span class="val">"97.4%"</span>
+  }
+}
+      </div>
+    </div>
+  </div>
+
+  <!-- Circuit Breakers -->
+  <div class="detail-section">
+    <h2>Circuit Breakers (每個器官獨立)</h2>
+    <p style="text-align:center; color:#888; font-size:0.88em; margin-bottom:24px;">連續失敗 → 自動關閉 → 降級回現行行為 → 冷卻後重試</p>
+  </div>
+
+  <div class="circuit-breakers">
+    <div class="cb-card healthy">
+      <h4 style="color: #6ab0f3;">KG Organ Breaker</h4>
+      <div class="cb-rule">
+        <strong>Trip:</strong> 連續 5 次 timeout 或 error<br>
+        <strong>Degrade:</strong> 停止查 KG，context 不含 <code style="color:#a78bfa; font-size:0.9em;">&lt;kg-context&gt;</code><br>
+        <strong>Recovery:</strong> 60s 冷卻後嘗試一次，成功 → 重開
+      </div>
+      <div class="cb-action">降級 = 回到現在的行為（無 KG enrichment）</div>
+    </div>
+
+    <div class="cb-card healthy">
+      <h4 style="color: #ebc04a;">Decision Tree Breaker</h4>
+      <div class="cb-rule">
+        <strong>Trip:</strong> code path 連續 3 次被 Alex 糾正<br>
+        <strong>Degrade:</strong> 所有決策送 Claude（暫停 code routing）<br>
+        <strong>Recovery:</strong> 24h 冷卻 + confidence 重新計算
+      </div>
+      <div class="cb-action">降級 = 回到現在的行為（全靠 Claude 決策）</div>
+    </div>
+
+    <div class="cb-card healthy">
+      <h4 style="color: #4ade80;">Middleware Breaker</h4>
+      <div class="cb-rule">
+        <strong>Trip:</strong> health check 失敗 或 連續 3 個 dispatch error<br>
+        <strong>Degrade:</strong> delegate 走 local subprocess<br>
+        <strong>Recovery:</strong> 每 60s 探一次 /health，成功 → 重開
+      </div>
+      <div class="cb-action">降級 = 回到現在的行為（local delegation）</div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="dataflow" style="margin-top: 30px; border-color: #2a2a4a;">
+    <h3>Anti-Stuck Design Summary</h3>
+    <div style="font-size: 0.82em; color: #999; line-height: 1.8;">
+      <table style="width:100%; border-collapse: collapse; font-size: 0.95em;">
+        <tr style="border-bottom: 1px solid #222; color: #888;">
+          <td style="padding: 6px;">failure mode</td>
+          <td style="padding: 6px;">prevention</td>
+          <td style="padding: 6px;">detection</td>
+          <td style="padding: 6px;">recovery</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #f87171;">KG 慢/掛</td>
+          <td style="padding: 6px;">200ms timeout + cache-first</td>
+          <td style="padding: 6px;">circuit breaker (5 fails)</td>
+          <td style="padding: 6px;">skip KG, 60s 後 retry</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #f87171;">Decision Tree 判錯</td>
+          <td style="padding: 6px;">初期只攔絕對確定的 case</td>
+          <td style="padding: 6px;">outcome tracking + Alex 糾正</td>
+          <td style="padding: 6px;">confidence 降低 → 送 Claude</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #f87171;">Middleware 掛</td>
+          <td style="padding: 6px;">cached health (30s TTL)</td>
+          <td style="padding: 6px;">circuit breaker (3 fails)</td>
+          <td style="padding: 6px;">fallback local subprocess</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1a1a2a;">
+          <td style="padding: 6px; color: #f87171;">Context 膨脹</td>
+          <td style="padding: 6px;">KG cap 2K + relevance decay</td>
+          <td style="padding: 6px;">context size monitor</td>
+          <td style="padding: 6px;">超 30K → trim KG section first</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px; color: #f87171;">Noop spiral</td>
+          <td style="padding: 6px;">Decision Tree hard rule (code)</td>
+          <td style="padding: 6px;">noopStreak counter</td>
+          <td style="padding: 6px;">force action, 不降 context</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <p style="text-align:center; color:#444; font-size:0.75em; margin-top:30px;">
+    A, B, C 可並行 — 沒有共同 dependsOn。關鍵路徑 = 3 步（A|B|C → D → E）
+  </p>
+
+  <p style="text-align:center; color:#555; font-size:0.72em; margin-top:10px; margin-bottom: 40px;">
+    Core guarantee: 每個新增的器官壞掉時，系統行為 = 現在的行為。不會比現在差。
+  </p>
+</div>
+</body>
+</html>
