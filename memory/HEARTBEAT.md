@@ -26,7 +26,7 @@
 
 ## Active Tasks
 - [ ] P1: 修復重複錯誤 — UNKNOWN:hang_no_diag in callClaude @due:2026-04-22
-- [ ] P1: Ghost commitment 防線 — pipeline 先查 `<web-fetch-results>` 再決定是否重 fetch（wiring: `src/commitments.ts` + `src/prompt-builder.ts`，glue 缺件：比對 + inject as priority block）
+<!-- 已歸檔 (2026-04-19 19:40 cycle): P1 Ghost commitment 防線 ✅ DONE — verified LANDED: `buildPendingFetchArrivalsSection()` @ src/prompt-builder.ts:374-426 wired @ L493-495, sidecar `fetch-consumed.json` keyed `${url}@${fetchedAt}`, commits `9c26efa7` + `77df3087` + `086decf0` + `fad3ed9d`. 180+ cycle 殭屍 anchor 收尾 — 教訓：stripped-retry 不更新 anchor，下次 full-context cycle 必須先 git log + 實際檔案驗證 anchor 才能動手。anchor 路徑也飄了（說 `agent-middleware/mini-agent/src/`，實際是 sibling repo `/Users/user/Workspace/mini-agent/src/`）。-->
 - [ ] 審視「mini-agent↔middleware↔KN 工作盤點」，挑 Top 3 高 ROI 遷移項
 
 <!-- 2026-04-19: Claude Code 清理 — 移除 186 個 noop cycle 的 anchor preservation 垃圾輸出 -->
