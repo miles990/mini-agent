@@ -162,6 +162,7 @@ async function main() {
 
   const processBatch = async (batch: ChunkRecord[], batchNum: number): Promise<void> => {
     const prompt = buildEntityPrompt(batch);
+    console.log(`  [batch ${batchNum}/${total}] starting claude call...`);
     const raw = await callClaude(prompt, opts.model, opts.timeoutMs);
     completed++;
     if (raw === null) {
