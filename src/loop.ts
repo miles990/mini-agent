@@ -56,12 +56,13 @@ import { startSentinel } from './sentinel.js';
 import {
   saveCycleCheckpoint, clearCycleCheckpoint, loadStaleCheckpoint,
   writeWorkJournal, loadWorkJournal, formatWorkJournalContext,
+  saveLoopHealth, loadLoopHealth,
   writeTrailEntry, extractTrailTopics,
   saveReasoningSnapshot, loadReasoningHistory, formatReasoningContext,
   extractDecisionSection, extractInnerNotes,
   buildStimulusFingerprint, writeStimulusFingerprint,
 } from './cycle-state.js';
-import type { CycleCheckpoint, WorkJournalEntry, TrailEntry, ReasoningSnapshot } from './cycle-state.js';
+import type { CycleCheckpoint, WorkJournalEntry, TrailEntry, ReasoningSnapshot, LoopHealth } from './cycle-state.js';
 import { CHAT_ROOM_INBOX_PATH, CLAUDE_CODE_INBOX_PATH, markClaudeCodeInboxProcessed, markChatRoomInboxProcessed } from './inbox-processor.js';
 import { stripKuroTags } from './tag-parser.js';
 import {
@@ -988,6 +989,12 @@ export class AgentLoop {
 
     // Recover forge worktree state (clean up crash state, prune stale worktrees)
     try { forgeRecover(process.cwd()); } catch { /* fire-and-forget */ }
+
+    // Restore noopStreak from previous instance (survives restart)
+    const health = loadLoopHealth();
+    if (health) {
+      this.noopStreak = health.noopStreak;
+    }
 
     // Achievement system: retroactive unlock on first boot
     import('./achievements.js').then(m => m.retroactiveUnlock()).catch(() => {});
@@ -2392,13 +2399,27 @@ export class AgentLoop {
         if (this.noopStreak >= 3) {
           slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak}`);
         }
-        if (this.noopStreak === 5) {
+        // Auto-status broadcast: code-level output gate.
+        // When noopStreak >= 3, the code itself extracts and broadcasts what Kuro did.
+        // This is deterministic (code does it), not prescription (prompt asking LLM to do it).
+        if (this.noopStreak >= 3 && action) {
+          const summary = action.length > 300 ? action.slice(0, 300) + '…' : action;
+          notifyTelegram(`🔄 #${this.cycleCount} (silent×${this.noopStreak}): ${summary}`).catch(() => {});
+        }
+        if (this.noopStreak === 5 && !action) {
           notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
         }
         if (this.noopStreak === 10) {
           notifyTelegram(`🚨 noopStreak=${this.noopStreak} — 可能進入 noop spiral`).catch(() => {});
         }
       }
+
+      // Persist noopStreak across restarts
+      saveLoopHealth({
+        noopStreak: this.noopStreak,
+        lastVisibleOutputAt: hasVisibleOutput ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
+      });
 
       // A3: Auto-clear poisoned lastAutonomousActions
       const NO_ACTION_RE = /^no action|minimal-retry streak/i;

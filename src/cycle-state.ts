@@ -377,6 +377,48 @@ export function extractTrailTopics(
 }
 
 // =============================================================================
+// Loop Health Persistence — noopStreak survives restarts
+// =============================================================================
+
+export interface LoopHealth {
+  noopStreak: number;
+  lastVisibleOutputAt: string | null;
+  updatedAt: string;
+}
+
+function getLoopHealthPath(): string | null {
+  try {
+    return path.join(getMemoryStateDir(), 'loop-health.json');
+  } catch { return null; }
+}
+
+export function saveLoopHealth(health: LoopHealth): void {
+  const filePath = getLoopHealthPath();
+  if (!filePath) return;
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(health), 'utf-8');
+  } catch { /* fire-and-forget */ }
+}
+
+export function loadLoopHealth(): LoopHealth | null {
+  const filePath = getLoopHealthPath();
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(raw) as LoopHealth;
+    const age = Date.now() - new Date(data.updatedAt).getTime();
+    if (age > 4 * 3_600_000) {
+      slog('HEALTH', `Loop health stale (${Math.round(age / 3_600_000)}h old), resetting noopStreak`);
+      return null;
+    }
+    slog('HEALTH', `Restored noopStreak=${data.noopStreak} from previous instance`);
+    return data;
+  } catch { return null; }
+}
+
+// =============================================================================
 // Research Loop Gate — detect consecutive research-only cycles
 // =============================================================================
 
