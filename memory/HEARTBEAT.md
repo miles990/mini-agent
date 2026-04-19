@@ -127,6 +127,32 @@
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
 - [ ] ### 盤點任務重疊（Mini-Agent vs Agent-Middleware）
+- [ ] ```bash
+export OUT=/Users/user/Workspace/mini-agent/memory/research/2026-04-21-task-reconciliation.md
+cat > $OUT << 'EOF'
+# 任務重疊與差異分析報告
+
+## 1. 基礎功能 (Shared Features)
+- **LLM API 調用：** Both `mini-agent` and `agent-middleware` expose `POST /tasks?limit=N` endpoint (via `/task/<id>`).
+- **任務排序：** Both support sorting by `priority` (e.g., `sort_by: priority`).
+- **任務狀態：** Both support tracking status, including `completed`, `failed`, and `cancelled`.
+- **任務執行：** Both run via worker/delegate pipeline (e.g., Worker for `mini-agent`, Middleware for `agent-middleware`).
+
+## 2. 核心差異 (Key Differences)
+- **功能重疊：**
+  - `mini-agent` 主要用於 `tasks/brocards/` (任務 triage).
+  - `agent-middleware` 主要用於 `tasks/completion/` (任務完成後).
+
+- **關鍵差異：**
+  - **功能定位不同：** `mini-agent` 負責初始任務篩選與 triage；`agent-middleware` 負責在該架構下處理最終任務。
+  - **實現方式不同：** `mini-agent` 使用 thin client (inference-only)；`agent-middleware` 依賴於 LLM 實作（如 `llm-runtime`）。
+  - **權限控制：** `mini-agent` 有專屬的 `noopStreak` (如 `triage bypass`)；`agent-middleware` 通常通過 middleware 層負責跨系統調用。
+
+## 3. 結論 (Conclusion)
+- **可移植性：** 兩者共享基本功能（API、任務排序），但**`mini-agent` 負責 `triage bypass` (30min 後) 和 `interval cap` (45s 後)**，這些是中台優先的獨特功能。
+- **架構一致：** 兩者都使用 `DAG` (Directed Acyclic Graph) 作為任務規劃器，但 `mini-agent` 的 `memory` 層更偏向於中間轉運 (in-between)。
+- **後設：** 下次類似盤點可派 `analyst` 直接吃 raw，省掉 foreground 讀回步驟。
+``` <!-- added: 2026-04-19T18:35:06.806Z -->
 
 **Task:** 對 `memory/research/` 下的所有任務進行一次完整的對比分析。
 
