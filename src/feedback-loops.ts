@@ -239,8 +239,9 @@ export async function detectErrorPatterns(): Promise<void> {
  * 從 action 文字中提取引用的 <section-name>，累計統計。
  * 每 50 cycle 重新計算引用率，調整 perception stream intervals。
  */
-export async function trackPerceptionCitations(action: string | null): Promise<void> {
-  if (!action) return;
+export async function trackPerceptionCitations(action: string | null, response?: string | null, context?: string | null): Promise<void> {
+  const scoringText = response ?? action;
+  if (!scoringText) return;
 
   const state = readState<PerceptionCitationState>('perception-citations.json', {
     cycleCount: 0,
@@ -248,11 +249,27 @@ export async function trackPerceptionCitations(action: string | null): Promise<v
     lastAdjusted: '',
   });
 
-  // Extract referenced <section-name> from action text (shared by citation tracking + optimizer)
-  const skipTags = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol']);
+  // Extract perception section names from context (tags like <soul>...</soul>)
+  const skipTags = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol',
+    'code', 'pre', 'em', 'strong', 'hr', 'tr', 'td', 'th', 'table', 'h1', 'h2', 'h3']);
+  const sectionNames = new Set<string>();
+  if (context) {
+    for (const m of context.matchAll(/<([\w][\w-]{3,})>/g)) {
+      const tag = m[1];
+      if (!skipTags.has(tag) && !tag.startsWith('kuro:')) {
+        sectionNames.add(tag);
+      }
+    }
+  }
+
+  // Match section names as plain text in response (not XML tags — Kuro writes natural language)
+  const lowerText = scoringText.toLowerCase();
   const citedSections: string[] = [];
-  for (const m of action.matchAll(/<(\w[\w-]+)>/g)) {
-    if (!skipTags.has(m[1])) citedSections.push(m[1]);
+  for (const name of sectionNames) {
+    const lower = name.toLowerCase();
+    if (lowerText.includes(lower) || lowerText.includes(lower.replace(/-/g, ' '))) {
+      citedSections.push(name);
+    }
   }
 
   for (const name of citedSections) {
@@ -354,9 +371,9 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     // Score current response's observability (0-6)
     const hasDecision = /##\s*Decision|\[DECISION\]/i.test(scoringText);
     const hasWhat = /##\s*What|\*\*What/i.test(scoringText);
-    const hasWhy = /##\s*Why|\*\*Why/i.test(scoringText);
-    const hasThinking = /##\s*Thinking|\*\*Thinking/i.test(scoringText);
-    const hasChanged = /##\s*Changed|\*\*Changed/i.test(scoringText);
+    const hasWhy = /##\s*(?:Why|My Take)|\*\*(?:Why|My Take)/i.test(scoringText);
+    const hasThinking = /##\s*Thinking|\*\*Thinking|chose:.*skipped:/is.test(scoringText);
+    const hasChanged = /##\s*(?:Changed|Next)|\*\*(?:Changed|Next)/i.test(scoringText);
     const hasVerified = /##\s*Verified|\*\*Verified/i.test(scoringText);
 
     score = [hasDecision, hasWhat, hasWhy, hasThinking, hasChanged, hasVerified]
@@ -1028,7 +1045,7 @@ export async function runFeedbackLoops(
   response?: string | null,
 ): Promise<void> {
   await detectErrorPatterns().catch(() => {});
-  await trackPerceptionCitations(action).catch(() => {});
+  await trackPerceptionCitations(action, response, context).catch(() => {});
   await auditDecisionQuality(action, triggerReason, response).catch(() => {});
   await auditSystemHealth().catch(() => {});
   await auditStructuralHealth(triggerReason).catch(() => {});
