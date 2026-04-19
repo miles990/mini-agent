@@ -128,6 +128,7 @@
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
 - [ ] ### 盤點任務重疊（Mini-Agent vs Agent-Middleware）
 - [ ] ```bash
+- [ ]  <!-- added: 2026-04-19T18:45:44.102Z -->
 export OUT=/Users/user/Workspace/mini-agent/memory/research/2026-04-21-task-reconciliation.md
 cat > $OUT << 'EOF'
 # 任務重疊與差異分析報告
