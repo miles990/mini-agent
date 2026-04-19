@@ -190,7 +190,8 @@ function classifyError(error: unknown): ErrorClassification {
   }
   // Duration-based timeout detection — catches race conditions where timedOut flag wasn't set
   // (e.g. process killed externally by OOM or system pressure before our timer fired)
-  if (duration && timeoutMs && duration > timeoutMs * 0.9 && exitCode === null) {
+  const longEnoughToMatter = duration && (duration > (timeoutMs ?? 0) * 0.9 || duration > 300_000);
+  if (longEnoughToMatter && exitCode === null) {
     return { type: 'TIMEOUT', retryable: true, message: `處理超時（${Math.round(duration / 1000)}s）。進程可能被系統終止${signal ? `（signal: ${signal}）` : ''}。`, modelGuidance: 'Process likely killed by OOM or system pressure. On retry, reduce context size significantly and simplify the request.' };
   }
   // External signal detection — process terminated by signal but not our timeout
@@ -212,6 +213,17 @@ function classifyError(error: unknown): ErrorClassification {
   }
   if (combined.includes('access denied') || (combined.includes('permission') && !combined.includes('skip-permissions'))) {
     return { type: 'PERMISSION', retryable: false, message: '存取被拒絕。Claude CLI 可能沒有足夠的權限執行此操作。', modelGuidance: 'Permission denied. Do NOT retry the same operation. Try an alternative approach that does not require elevated permissions, or report to user.' };
+  }
+
+  // Silent mid-duration exit — CLI returned without stderr after >= 2 minutes.
+  // Before this patch, these fell through to UNKNOWN and got bucketed as `hang_no_diag`.
+  if (duration && duration > 120_000 && exitCode !== null && !signal && !killed && !stderr.trim()) {
+    return {
+      type: 'TIMEOUT',
+      retryable: true,
+      message: `CLI 靜默中斷（exit ${exitCode}，${Math.round(duration / 1000)}s 無輸出）。可能 API session 中途失效或 context 靜默溢位。`,
+      modelGuidance: 'CLI exited silently after >=2min with no stderr. Likely causes: mid-session auth drop, silent context overflow, or upstream provider quiet-failure. On retry, re-auth session first; if recurring, reduce context and split the task.'
+    };
   }
 
   // Try to extract useful info from stderr.

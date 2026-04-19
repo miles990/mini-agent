@@ -1,6 +1,6 @@
 # P1 hang_no_diag — Root Cause & Patch Proposal
 
-**Status**: Diagnosis complete (cycles #33–#36). Patch not yet applied.
+**Status**: Patch applied (cycle #37). Typecheck passed. Monitoring for 48h.
 **Recurrence**: 14× as of 2026-04-19.
 **Risk if ignored**: every 10–27 min silent CLI exit compounds noise in recurring-errors; supervisor can't distinguish real hangs from garden-variety silent errors.
 
