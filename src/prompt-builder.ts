@@ -7,7 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { getMemory, getReviewBacklog } from './memory.js';
+import { getMemory, getMemoryStateDir, getReviewBacklog } from './memory.js';
 import type { CycleMode } from './memory.js';
 import { buildThreadsPromptSection } from './temporal.js';
 import { parseBehaviorConfig } from './cycle-tasks.js';
@@ -355,6 +355,80 @@ function buildErrorPatternsHint(): string {
   } catch { return ''; }
 }
 
+// =============================================================================
+// Ghost Commitment Defense — Pending Fetch Arrivals
+// =============================================================================
+
+/**
+ * Build prominent "Pending Fetch Arrivals" section.
+ *
+ * Problem: web-fetch-results gets injected passively in memory.ts but lacks
+ * salience — Kuro promises to read a URL, next cycle the content arrives,
+ * but the cycle drifts to other work ("ghost commitment"). Memory-level fix
+ * (2026-04-18 Learned Pattern) said: pipeline should pre-check fetch arrivals.
+ *
+ * Fix: surface each fetched URL as a top-priority nudge the FIRST cycle it
+ * appears, using a consumed sidecar keyed by (url + fetchedAt). Full content
+ * still lives in <web-fetch-results>; this block only makes it loud once.
+ */
+function buildPendingFetchArrivalsSection(stateDir: string): string {
+  try {
+    const fetchResultsPath = path.join(stateDir, 'web-fetch-results.md');
+    if (!fs.existsSync(fetchResultsPath)) return '';
+    const raw = fs.readFileSync(fetchResultsPath, 'utf-8');
+    if (!raw.trim()) return '';
+
+    const TTL_MS = 10 * 60 * 1000;
+    const SEP = '\n\n---FETCH-ENTRY---\n\n';
+    const HEADER_RE = /^<!-- url: (.+) fetchedAt: (\S+) -->\n([\s\S]*)$/;
+    const now = Date.now();
+    const cutoff = now - TTL_MS;
+
+    type Entry = { url: string; fetchedAt: string; ageMs: number; body: string };
+    const entries: Entry[] = [];
+    for (const block of raw.split(SEP)) {
+      const m = block.match(HEADER_RE);
+      if (!m) continue;
+      const ts = Date.parse(m[2]);
+      if (Number.isNaN(ts) || ts < cutoff) continue;
+      entries.push({ url: m[1], fetchedAt: m[2], ageMs: now - ts, body: m[3] });
+    }
+    if (entries.length === 0) return '';
+
+    // Consumed sidecar — key by url+fetchedAt so a re-fetch counts as new.
+    const consumedPath = path.join(stateDir, 'fetch-consumed.json');
+    let consumed: Record<string, number> = {};
+    if (fs.existsSync(consumedPath)) {
+      try { consumed = JSON.parse(fs.readFileSync(consumedPath, 'utf-8')) || {}; } catch { consumed = {}; }
+    }
+
+    const unconsumed = entries.filter(e => !(`${e.url}@${e.fetchedAt}` in consumed));
+    if (unconsumed.length === 0) return '';
+
+    // Mark shown; next cycle same fetch won't re-nag.
+    for (const e of unconsumed) consumed[`${e.url}@${e.fetchedAt}`] = now;
+    const gcCutoff = now - 60 * 60 * 1000;
+    for (const key of Object.keys(consumed)) {
+      if (consumed[key] < gcCutoff) delete consumed[key];
+    }
+    try { fs.writeFileSync(consumedPath, JSON.stringify(consumed, null, 2), 'utf-8'); }
+    catch { /* best effort — next cycle will re-announce if write failed */ }
+
+    const lines = unconsumed.map(e => {
+      const ageMin = (e.ageMs / 60000).toFixed(1);
+      const snippet = e.body.replace(/\n+/g, ' ').slice(0, 280).trim();
+      return `- **${e.url}** (fetched ${ageMin}min ago)\n  > ${snippet}${e.body.length > 280 ? '...' : ''}`;
+    });
+
+    return `## 📥 Pending Fetch Arrivals — you asked for these, now read them\n` +
+      `These URLs you requested have arrived. Full content is in <web-fetch-results> below. ` +
+      `Reference specific claims/lines in this cycle's action — don't silently drop. ` +
+      `If you can't act on them this cycle, explicitly acknowledge why.\n\n${lines.join('\n\n')}`;
+  } catch {
+    return '';
+  }
+}
+
 /** State needed by buildAutonomousPrompt */
 export interface PromptBuilderState {
   lastAutonomousActions: string[];
@@ -416,6 +490,11 @@ export async function buildAutonomousPrompt(
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
   const delegationReviewGate = buildDelegationReviewGate();
 
+  // Ghost Commitment Defense — announce fetched URLs once so I actually read them.
+  let pendingFetchArrivals = '';
+  try { pendingFetchArrivals = buildPendingFetchArrivalsSection(getMemoryStateDir()); }
+  catch { /* fail-open */ }
+
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
@@ -446,6 +525,9 @@ export async function buildAutonomousPrompt(
   const errorPatternsHint = buildErrorPatternsHint();
 
   const parts = [base];
+  // Pending fetch arrivals — HIGHEST priority salience for ghost-commitment defense.
+  // Placed right after base so it's read before any other gate.
+  if (pendingFetchArrivals) parts.push(pendingFetchArrivals);
   // Error patterns right after guide — Gate Q3 ("我在重複嗎？") flows into actual patterns
   if (errorPatternsHint) parts.push(errorPatternsHint);
   if (commitmentGateSection) parts.push(commitmentGateSection);
