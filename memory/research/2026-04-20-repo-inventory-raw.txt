@@ -1,0 +1,356 @@
+=== mini-agent src/ files ===
+total 4112
+drwxr-xr-x@ 109 user  staff    3488 Apr 20 00:45 .
+drwxr-xr-x@  61 user  staff    1952 Apr 20 00:51 ..
+-rw-r--r--@   1 user  staff   13930 Apr 19 17:38 achievements.ts
+-rw-r--r--@   1 user  staff    7541 Mar 19 01:47 action-memory.ts
+-rw-r--r--@   1 user  staff    4623 Mar  5 18:30 activity-journal.ts
+-rw-r--r--@   1 user  staff   90998 Apr 20 00:21 agent.ts
+-rw-r--r--@   1 user  staff    3300 Apr  1 22:08 agora.ts
+-rw-r--r--@   1 user  staff  127563 Apr 18 08:26 api.ts
+-rw-r--r--@   1 user  staff    5975 Apr  5 16:06 cascade.ts
+-rw-r--r--@   1 user  staff   12399 Apr 16 19:03 claudemd-jit.ts
+-rw-r--r--@   1 user  staff   67641 Apr 18 04:03 cli.ts
+-rw-r--r--@   1 user  staff    9937 Apr  8 13:18 commitments.ts
+-rw-r--r--@   1 user  staff   11787 Mar 21 17:30 compose.ts
+-rw-r--r--@   1 user  staff    4377 Apr  5 14:16 config.ts
+-rw-r--r--@   1 user  staff    5721 Apr  5 20:01 content-scanner.ts
+-rw-r--r--@   1 user  staff    2731 Apr  1 15:51 context-compaction.ts
+-rw-r--r--@   1 user  staff   11387 Mar 17 10:22 context-optimizer.ts
+-rw-r--r--@   1 user  staff   19538 Apr 18 04:42 context-pipeline.ts
+-rw-r--r--@   1 user  staff    8631 Apr  3 23:12 context-pruner.ts
+-rw-r--r--@   1 user  staff   10774 Apr  5 13:29 contradiction-scanner.ts
+-rw-r--r--@   1 user  staff   10702 Apr 16 19:03 cron.ts
+-rw-r--r--@   1 user  staff   13734 Mar 10 18:51 cycle-nutrient.ts
+-rw-r--r--@   1 user  staff   18195 Apr 20 00:44 cycle-state.ts
+-rw-r--r--@   1 user  staff   21642 Apr 19 21:19 cycle-tasks.ts
+-rw-r--r--@   1 user  staff    2890 Apr 17 00:17 delegation-converter.draft.ts
+-rw-r--r--@   1 user  staff    4241 Apr 16 13:59 delegation-summary.ts
+-rw-r--r--@   1 user  staff   21185 Apr 18 08:41 delegation.ts
+-rw-r--r--@   1 user  staff   14517 Apr 18 08:07 diagnostics.ts
+-rw-r--r--@   1 user  staff   76333 Apr 19 19:12 dispatcher.ts
+-rw-r--r--@   1 user  staff   11836 Apr 14 13:24 entries.ts
+-rw-r--r--@   1 user  staff    4793 Apr 17 16:40 event-bus.ts
+-rw-r--r--@   1 user  staff    7254 Mar 10 18:46 event-router.ts
+-rw-r--r--@   1 user  staff    3517 Mar  9 04:50 event-wal.ts
+-rw-r--r--@   1 user  staff    2905 Mar  8 06:49 evolution.ts
+-rw-r--r--@   1 user  staff    9273 Apr 17 00:53 features.ts
+-rw-r--r--@   1 user  staff   42523 Apr 19 23:21 feedback-loops.ts
+-rw-r--r--@   1 user  staff    3912 Mar  8 02:23 filelock.ts
+-rw-r--r--@   1 user  staff    4207 Apr 18 06:46 forge.ts
+-rw-r--r--@   1 user  staff   11135 Mar  2 13:30 github.ts
+-rw-r--r--@   1 user  staff   12528 Apr  6 14:27 hesitation.ts
+-rw-r--r--@   1 user  staff   31503 Apr 16 16:41 housekeeping.ts
+-rw-r--r--@   1 user  staff   18052 Apr 10 10:32 inbox-processor.ts
+-rw-r--r--@   1 user  staff   21741 Apr 16 12:08 inbox.ts
+-rw-r--r--@   1 user  staff    2579 Apr 16 19:03 index.ts
+-rw-r--r--@   1 user  staff   25457 Apr 17 17:14 instance.ts
+-rw-r--r--@   1 user  staff    5726 Apr 15 13:58 kg-chunker.ts
+-rw-r--r--@   1 user  staff    6236 Apr 15 15:24 kg-conflict-detector.ts
+-rw-r--r--@   1 user  staff    5484 Apr 15 17:41 kg-edge-builder.ts
+-rw-r--r--@   1 user  staff    9429 Apr 15 17:31 kg-edge-prompt.ts
+-rw-r--r--@   1 user  staff    9990 Apr 15 15:32 kg-entity-prompt.ts
+-rw-r--r--@   1 user  staff    8408 Apr 15 14:33 kg-entity-registry.ts
+-rw-r--r--@   1 user  staff    7883 Apr 15 17:27 kg-entity-search.ts
+-rw-r--r--@   1 user  staff    5177 Apr 15 14:19 kg-ingest.ts
+-rw-r--r--@   1 user  staff    5684 Apr 16 16:29 kg-live-ingest.ts
+-rw-r--r--@   1 user  staff    5270 Apr 15 14:07 kg-ppr-loader.ts
+-rw-r--r--@   1 user  staff    5231 Apr 15 15:40 kg-ppr.ts
+-rw-r--r--@   1 user  staff    5221 Apr 15 15:20 kg-query.ts
+-rw-r--r--@   1 user  staff    9260 Apr 17 00:57 kg-retrieval.ts
+-rw-r--r--@   1 user  staff   10033 Apr 15 17:38 kg-types.ts
+-rw-r--r--@   1 user  staff   15346 Apr 18 04:28 logging.ts
+-rw-r--r--@   1 user  staff  150336 Apr 20 00:45 loop.ts
+-rw-r--r--@   1 user  staff   15649 Apr  3 22:46 mcp-server.ts
+-rw-r--r--@   1 user  staff    4658 Apr 18 08:07 memory-cache.ts
+-rw-r--r--@   1 user  staff    5947 Apr 14 13:24 memory-compiler.ts
+-rw-r--r--@   1 user  staff   48903 Apr 18 08:25 memory-index.ts
+-rw-r--r--@   1 user  staff   11302 Apr  1 14:03 memory-summarizer.ts
+-rw-r--r--@   1 user  staff  157101 Apr 19 08:31 memory.ts
+-rw-r--r--@   1 user  staff    1998 Mar 20 02:25 message-claimer.ts
+-rw-r--r--@   1 user  staff   12069 Apr 20 00:45 metabolism.ts
+-rw-r--r--@   1 user  staff   13967 Apr 16 13:26 middleware-client.ts
+-rw-r--r--@   1 user  staff    4946 Apr 17 22:21 middleware-cycle-client.ts
+-rw-r--r--@   1 user  staff    6951 Apr 17 15:50 middleware-events-client.ts
+-rw-r--r--@   1 user  staff    5297 Mar 11 18:09 mode.ts
+-rw-r--r--@   1 user  staff    6302 Apr  6 14:54 model-router.ts
+-rw-r--r--@   1 user  staff    5381 Mar 27 08:30 mushi-client.ts
+-rw-r--r--@   1 user  staff   14571 Mar 17 18:55 myelin-fleet.ts
+-rw-r--r--@   1 user  staff   11422 Apr  5 16:06 nutrient-router.ts
+-rw-r--r--@   1 user  staff    3316 Mar  6 22:46 nutrient.ts
+-rw-r--r--@   1 user  staff   14029 Apr 18 01:56 observability.ts
+-rw-r--r--@   1 user  staff   31705 Apr 10 07:10 omlx-gate.ts
+-rw-r--r--@   1 user  staff    7842 Mar 15 00:46 perception-analyzer.ts
+-rw-r--r--@   1 user  staff   18587 Apr 10 10:50 perception-stream.ts
+-rw-r--r--@   1 user  staff   10748 Apr  5 20:22 perception.ts
+-rw-r--r--@   1 user  staff   10822 Apr 17 16:20 preprocess.ts
+-rw-r--r--@   1 user  staff    9275 Mar 18 08:24 preprocessor.ts
+-rw-r--r--@   1 user  staff   25701 Apr 19 19:27 prompt-builder.ts
+-rw-r--r--@   1 user  staff   56038 Apr 18 00:43 pulse.ts
+-rw-r--r--@   1 user  staff    7449 Mar  5 07:01 reply-context.ts
+-rw-r--r--@   1 user  staff   15342 Mar 17 08:37 research-crystallizer.ts
+-rw-r--r--@   1 user  staff   12543 Mar 15 00:46 route-tracker.ts
+-rw-r--r--@   1 user  staff    9868 Apr 18 06:26 sdk-client.ts
+-rw-r--r--@   1 user  staff    3323 Apr 18 06:25 sdk-worker.ts
+-rw-r--r--@   1 user  staff   25734 Apr  1 15:00 search.ts
+-rw-r--r--@   1 user  staff    3422 Mar 23 11:56 sentinel.ts
+-rw-r--r--@   1 user  staff   14485 Mar 16 16:32 shared-knowledge.ts
+-rw-r--r--@   1 user  staff    4255 Apr 17 22:21 side-query.ts
+-rw-r--r--@   1 user  staff    6052 Mar 16 15:08 small-model-research.ts
+-rw-r--r--@   1 user  staff    5953 Apr 17 15:42 tactics-client.ts
+-rw-r--r--@   1 user  staff    9279 Apr 19 17:11 tag-parser.ts
+
+=== agent-middleware src/ files ===
+total 912
+drwxr-xr-x@ 27 user  staff     864 Apr 19 23:30 .
+drwxr-xr-x@ 32 user  staff    1024 Apr 20 00:53 ..
+-rw-r--r--@  1 user  staff   14536 Apr 11 08:37 acp-gateway.ts
+-rw-r--r--@  1 user  staff  144458 Apr 19 19:09 api.ts
+-rw-r--r--@  1 user  staff    9713 Apr 18 13:47 brain.ts
+-rw-r--r--@  1 user  staff    6141 Apr 17 15:57 ci-trigger.ts
+-rw-r--r--@  1 user  staff    7770 Apr 16 13:58 commitment-ledger.ts
+-rw-r--r--@  1 user  staff    5918 Apr 10 12:21 content-adapter.ts
+-rw-r--r--@  1 user  staff   63498 Apr 18 12:47 dashboard.html
+-rw-r--r--@  1 user  staff    6240 Apr 16 06:17 forge-client.ts
+-rw-r--r--@  1 user  staff    1826 Apr 10 12:21 google-provider.ts
+-rw-r--r--@  1 user  staff    1999 Apr 10 16:06 index.ts
+-rw-r--r--@  1 user  staff    4244 Apr 17 17:58 llm-provider.ts
+-rw-r--r--@  1 user  staff    1852 Apr 10 12:22 local-provider.ts
+-rw-r--r--@  1 user  staff    4951 Apr 10 12:22 managed-agent-provider.ts
+-rw-r--r--@  1 user  staff   10703 Apr 12 01:21 mcp-server.ts
+-rw-r--r--@  1 user  staff    1931 Apr 10 12:21 openai-provider.ts
+-rw-r--r--@  1 user  staff   43774 Apr 19 18:12 plan-engine.ts
+-rw-r--r--@  1 user  staff    6352 Apr 19 05:35 presets.ts
+-rw-r--r--@  1 user  staff    5631 Apr 18 12:40 progress-timeout.ts
+-rw-r--r--@  1 user  staff    3067 Apr 10 12:14 provider-registry.ts
+-rw-r--r--@  1 user  staff   16481 Apr 19 23:30 result-buffer.ts
+-rw-r--r--@  1 user  staff    2978 Apr 17 17:58 sdk-provider.ts
+-rw-r--r--@  1 user  staff    5801 Apr 18 08:08 server.ts
+-rw-r--r--@  1 user  staff    7744 Apr 12 00:04 templates.ts
+-rw-r--r--@  1 user  staff   12457 Apr 17 15:53 webhook-dispatcher.ts
+-rw-r--r--@  1 user  staff   20834 Apr 19 05:35 workers.ts
+
+=== mini-agent src/ line counts ===
+   50856 total
+    3897 /Users/user/Workspace/mini-agent/src/memory.ts
+    3313 /Users/user/Workspace/mini-agent/src/api.ts
+    3171 /Users/user/Workspace/mini-agent/src/loop.ts
+    2046 /Users/user/Workspace/mini-agent/src/cli.ts
+    2003 /Users/user/Workspace/mini-agent/src/agent.ts
+    1632 /Users/user/Workspace/mini-agent/src/dispatcher.ts
+    1377 /Users/user/Workspace/mini-agent/src/pulse.ts
+    1332 /Users/user/Workspace/mini-agent/src/memory-index.ts
+    1320 /Users/user/Workspace/mini-agent/src/telegram.ts
+    1074 /Users/user/Workspace/mini-agent/src/feedback-loops.ts
+     927 /Users/user/Workspace/mini-agent/src/instance.ts
+     885 /Users/user/Workspace/mini-agent/src/omlx-gate.ts
+     870 /Users/user/Workspace/mini-agent/src/housekeeping.ts
+     869 /Users/user/Workspace/mini-agent/src/workspace.ts
+     821 /Users/user/Workspace/mini-agent/src/search.ts
+     621 /Users/user/Workspace/mini-agent/src/inbox.ts
+     605 /Users/user/Workspace/mini-agent/src/logging.ts
+     575 /Users/user/Workspace/mini-agent/src/cycle-tasks.ts
+     564 /Users/user/Workspace/mini-agent/src/context-pipeline.ts
+     560 /Users/user/Workspace/mini-agent/src/delegation.ts
+     554 /Users/user/Workspace/mini-agent/src/web.ts
+     553 /Users/user/Workspace/mini-agent/src/temporal.ts
+     550 /Users/user/Workspace/mini-agent/src/perception-stream.ts
+     544 /Users/user/Workspace/mini-agent/src/prompt-builder.ts
+     493 /Users/user/Workspace/mini-agent/src/cycle-state.ts
+     491 /Users/user/Workspace/mini-agent/src/types.ts
+     452 /Users/user/Workspace/mini-agent/src/achievements.ts
+     434 /Users/user/Workspace/mini-agent/src/task-graph.ts
+     434 /Users/user/Workspace/mini-agent/src/middleware-client.ts
+
+=== agent-middleware src/ line counts ===
+    8125 total
+    3052 /Users/user/Workspace/agent-middleware/src/api.ts
+     914 /Users/user/Workspace/agent-middleware/src/plan-engine.ts
+     485 /Users/user/Workspace/agent-middleware/src/acp-gateway.ts
+     419 /Users/user/Workspace/agent-middleware/src/result-buffer.ts
+     410 /Users/user/Workspace/agent-middleware/src/workers.ts
+     376 /Users/user/Workspace/agent-middleware/src/webhook-dispatcher.ts
+     266 /Users/user/Workspace/agent-middleware/src/mcp-server.ts
+     227 /Users/user/Workspace/agent-middleware/src/forge-client.ts
+     217 /Users/user/Workspace/agent-middleware/src/commitment-ledger.ts
+     213 /Users/user/Workspace/agent-middleware/src/brain.ts
+     196 /Users/user/Workspace/agent-middleware/src/presets.ts
+     174 /Users/user/Workspace/agent-middleware/src/ci-trigger.ts
+     162 /Users/user/Workspace/agent-middleware/src/progress-timeout.ts
+     150 /Users/user/Workspace/agent-middleware/src/content-adapter.ts
+     149 /Users/user/Workspace/agent-middleware/src/managed-agent-provider.ts
+     127 /Users/user/Workspace/agent-middleware/src/server.ts
+     125 /Users/user/Workspace/agent-middleware/src/templates.ts
+     118 /Users/user/Workspace/agent-middleware/src/llm-provider.ts
+      83 /Users/user/Workspace/agent-middleware/src/provider-registry.ts
+      78 /Users/user/Workspace/agent-middleware/src/sdk-provider.ts
+      53 /Users/user/Workspace/agent-middleware/src/openai-provider.ts
+      51 /Users/user/Workspace/agent-middleware/src/google-provider.ts
+      50 /Users/user/Workspace/agent-middleware/src/local-provider.ts
+      30 /Users/user/Workspace/agent-middleware/src/index.ts
+
+=== mini-agent top-level exported concepts (grep 'export (class|function|const)') ===
+export class AgentEventBus {
+export class AgentLoop {
+export class ContextOptimizer {
+export class DeterministicRouter implements EventRouter {
+export class EntriesStore {
+export class HttpTransport implements Transport {
+export class InstanceManager {
+export class InstanceMemory {
+export class Logger {
+export class MiddlewareError extends Error {
+export class MiddlewareOfflineError extends MiddlewareError {
+export class MiddlewareValidationError extends MiddlewareError {
+export class TacticsClientError extends Error {
+export class TaskFailedError extends MiddlewareError {
+export class TelegramPoller {
+export class WaitTimeoutError extends MiddlewareError {
+export const ACTIONABLE_CATEGORIES: ReadonlySet<RememberCategory> = new Set([
+export const CHAT_ROOM_INBOX_PATH = path.join(
+export const CLAUDE_CODE_INBOX_PATH = path.join(
+export const DEFAULT_COMPOSE_FILE = 'agent-compose.yaml';
+export const DEFAULT_COMPOSE_TEMPLATE: ComposeFile = {
+export const DEFAULT_CONFIG: Config = {
+export const DEFAULT_EDGE_FLOOR = 0.6;
+export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
+export const DEMOTION_THRESHOLD = 50;
+export const EDGE_TYPES = [
+export const EDGE_TYPE_FLOORS: Partial<Record<EdgeType, number>> = {
+export const ENTITY_TYPES = [
+export const EXAMPLE_COMPOSE_TEMPLATE: ComposeFile = {
+export const IMPORTANT_PERCEPTION_NAMES = [
+export const KG_PATHS = {
+export const MUSHI_BASE_URL = 'http://localhost:3000';
+export const MUSHI_CONTINUATION_URL = `${MUSHI_BASE_URL}/api/continuation-check`;
+export const MUSHI_DEDUP_URL = `${MUSHI_BASE_URL}/api/dedup`;
+export const MUSHI_HEALTH_URL = `${MUSHI_BASE_URL}/health`;
+export const MUSHI_ROUTE_URL = `${MUSHI_BASE_URL}/api/route`;
+export const MUSHI_TRIAGE_URL = `${MUSHI_BASE_URL}/api/triage`;
+export const OBSERVATION_CYCLES = 50;
+export const PROTECTIVE_SUBTYPES = new Set([
+export const REJECTED_EDGES = [
+export const SECTION_KEYWORDS: Record<string, string[]> = {
+export interface AccomplishRequest {
+export interface AccomplishResponse {
+export interface Achievement {
+export interface AchievementState {
+export interface ActiveThread {
+export interface ActivityEntry {
+export interface ActivitySummary {
+export interface AgentEvent {
+export interface AgentLoopConfig {
+export interface AgentResponse {
+export interface AgentSelfStatus {
+export interface AgoraDiscussion {
+export interface AgoraMessage {
+export interface ApiLogEntry extends LogEntry {
+export interface ApiRequest {
+export interface ApiResponse {
+export interface ApiResponse<T = unknown> {
+export interface BehaviorConfig {
+export interface BehaviorLogEntry extends LogEntry {
+export interface BehaviorMode {
+export interface BuildEdgePromptInput {
+export interface BuildEdgesResult {
+export interface BuildEdgesStats {
+export interface CacheUsageStats {
+export interface CandidateBatch {
+export interface CapabilitiesSnapshot {
+export interface CascadeMetric {
+export interface CatalogEntry {
+export interface CdpOperation {
+export interface ChatRequest {
+export interface ChatResponse {
+export interface ChunkOptions {
+export interface ChunkRecord {
+export interface ClassifyInput {
+export interface ClaudeInput {
+export interface ClaudeLogEntry extends LogEntry {
+export interface ClaudeOutput {
+export interface CleanupResult {
+export interface Commitment extends CommitmentCreate {
+
+=== agent-middleware top-level exported concepts ===
+export class ACPGateway extends EventEmitter {
+export class ForgeError extends Error {
+export class HookRegistry {
+export class PlanEngine {
+export class PresetManager {
+export class ResultBuffer {
+export class WebhookDispatcher {
+export const DEFAULT_BACKENDS: CLIBackend[] = [
+export const PLAN_TEMPLATES: PlanTemplate[] = [
+export const WORKERS: Record<string, WorkerDefinition> = {
+export interface ACPSession {
+export interface ActionPlan {
+export interface AllocateOpts {
+export interface AllocateResult {
+export interface BrainConfig {
+export interface CLIBackend {
+export interface CiTriggerResult {
+export interface CleanupResult {
+export interface CloudEventEnvelope {
+export interface Commitment {
+export interface CommitmentInput {
+export interface CommitmentParsed {
+export interface CommitmentPatch {
+export interface CommitmentResolution {
+export interface CommitmentSource {
+export interface CommitmentStore {
+export interface ConfirmationResult {
+export interface DLQEntry {
+export interface DigestInput {
+export interface GatewayStats {
+export interface GoogleProviderOptions {
+export interface Hook {
+export interface HookInput {
+export interface LLMProvider {
+export interface ListResult {
+export interface LocalProviderOptions {
+export interface ManagedAgentProviderOptions {
+export interface MediaContent {
+export interface MiddlewareConfig {
+export interface OpenAIProviderOptions {
+export interface PlanEngineOptions {
+export interface PlanHistoryRecord {
+export interface PlanResult {
+export interface PlanStep {
+export interface PlanTemplate {
+export interface ProgressTimeoutOptions {
+export interface ProviderConfig {
+export interface RecoveryOption {
+export interface RefContent {
+export interface ReleaseResult {
+export interface RuntimeOptions {
+export interface SdkProviderOptions {
+export interface SlotInfo {
+export interface StepResult {
+export interface StreamChunk {
+export interface StreamContent {
+export interface StructuredAcceptance {
+export interface StructuredOutput {
+export interface StructuredResponse {
+export interface TaskRecord {
+export interface TextContent {
+export interface WorkerDefinition {
+export interface WorkerInfo {
+export interface WorkerPreset {
+
+=== agent-middleware presets/workers ===
+  name: string;
+    name: 'research',
+    name: 'code',
+    name: 'review',
+    name: 'shell',
+    name: 'creative',
+    name: 'analysis',
+    name: 'translation',
+    name: 'fast',
+    name: 'deep',
+    name: 'cloud-agent',
+    name: 'webhook',
+    name: 'logic',
+
+=== timestamp ===
+2026-04-19T17:03:12Z
