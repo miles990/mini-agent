@@ -27,7 +27,10 @@
 ## Active Tasks
 - [ ] P1: 修復重複錯誤 — UNKNOWN:hang_no_diag in callClaude @due:2026-04-22
 <!-- 已歸檔 (2026-04-19 19:40 cycle): P1 Ghost commitment 防線 ✅ DONE — verified LANDED: `buildPendingFetchArrivalsSection()` @ src/prompt-builder.ts:374-426 wired @ L493-495, sidecar `fetch-consumed.json` keyed `${url}@${fetchedAt}`, commits `9c26efa7` + `77df3087` + `086decf0` + `fad3ed9d`. 180+ cycle 殭屍 anchor 收尾 — 教訓：stripped-retry 不更新 anchor，下次 full-context cycle 必須先 git log + 實際檔案驗證 anchor 才能動手。anchor 路徑也飄了（說 `agent-middleware/mini-agent/src/`，實際是 sibling repo `/Users/user/Workspace/mini-agent/src/`）。-->
-- [ ] 審視「mini-agent↔middleware↔KN 工作盤點」，挑 Top 3 高 ROI 遷移項
+<!-- 已歸檔 (2026-04-19 19:51 cycle): 盤點完成 — audit task-1776598762301-5 (worker=analyst, confidence=0.87) 回報 Top 3 ROI 項，轉成下列 3 條可執行 task。audit 全文在 agent-middleware/results.jsonl。教訓：dispatch → 下個 cycle 必須 TaskOutput/results.jsonl 回收，不然結果飄走。 -->
+- [ ] P2: 遷移 #1 — Context Compaction (src/context-compaction.ts) 45s 阻塞 → 預派 middleware `summarizer` worker 提前 1 cycle，命中就 swap cached，miss fallback inline。風險：誤判 context bloat 時機 → 浪費 worker slot
+- [ ] P2: 遷移 #2 — Perception Analyzer (src/perception-analyzer.ts) 6× Haiku/cycle → KN cache，key=plugin_id+input_hash，TTL=1 cycle，miss 才 LLM。需 500ms KN lookup guard，超時回退 inline call（保 3s Orient budget）
+- [ ] P3: 遷移 #3 — Contradiction Scanner output → 改寫 KN node (type=contradiction, edges→source memory nodes)，取代 file-parse downstream。較低急迫性但解鎖跨 cycle 圖譜查詢
 
 <!-- 2026-04-19: Claude Code 清理 — 移除 186 個 noop cycle 的 anchor preservation 垃圾輸出 -->
 <!-- 已歸檔 (2026-04-18 00:40 cycle #10): P1 UNKNOWN:no_diag + TIMEOUT:real_timeout 雙雙結案。Classifier fix `88227dab` (agent.ts:122 early memory-pressure branch) 2026-04-17T15:47Z 部署後: (1) 2026-04-17.jsonl 最後一筆 13:48:49Z = 全部 pre-fix；(2) 2026-04-18.jsonl 至 00:40 Taipei 完全不存在 — 10h40m 零 classifier error；(3) cycle #7 已驗證 post-deploy 10/10 callClaude outcome=ok。task 內 count 是 rolling snapshot 殘留，非 live signal。教訓內化: recurring-error task 的數字是歷史累積，關閉判準用「distance-since-last-match」而非「count magnitude」。如未來 pulse 再建同 subtype task 需先查今日 error log，不要再挖 counter。 -->
