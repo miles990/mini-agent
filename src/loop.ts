@@ -67,7 +67,7 @@ import { stripKuroTags } from './tag-parser.js';
 import {
   parseBehaviorConfig, parseInterval,
   checkApprovedProposals, resolveStaleConversationThreads,
-  autoEscalateOverdueTasks, autoCommitMemoryFiles, autoCommitExternalRepos,
+  autoEscalateOverdueTasks, guardHeartbeatSize, autoCommitMemoryFiles, autoCommitExternalRepos,
   writeContextSnapshot,
 } from './cycle-tasks.js';
 import type { BehaviorConfig, BehaviorMode } from './cycle-tasks.js';
@@ -323,10 +323,9 @@ export class AgentLoop {
   // ── Reflect nudge: track consecutive learn cycles ──
   private consecutiveLearnCycles = 0;
 
-  // ── Escape hatch: consecutive cycles without visible output (CHAT/ASK/SHOW/DELEGATE) ──
-  // When ≥ 3, next cycle is forced to 'light' context to break self-referential
-  // verification loops (cycle verifies its own ledger instead of acting on environment).
-  // Convergence condition: "cycle produces visible output OR gets minimal context to reset".
+  // ── Noop streak: consecutive cycles without visible output (CHAT/ASK/SHOW/DELEGATE) ──
+  // Alerts at 5 (warning) and 10 (critical) via Telegram. Never degrades context —
+  // stripping identity was the root cause of the 186-cycle noop spiral (2026-04-19).
   private noopStreak = 0;
 
   // ── Behavior config resilience ──
@@ -1643,12 +1642,7 @@ export class AgentLoop {
         hasNewInbox: inboxItemsEarly.length > 0,
         perceptionChanged,
       });
-      // Escape hatch: force light context when stuck in self-reflection loop (see noopStreak).
-      // Breaking out requires reducing the very context that feeds the reflection.
-      const contextMode = this.noopStreak >= 3 ? 'light' : rawContextMode;
-      if (this.noopStreak >= 3) {
-        slog('LOOP', `#${this.cycleCount} 🪫 forcing light context (noop streak=${this.noopStreak}) — break self-reflection loop`);
-      }
+      const contextMode = rawContextMode;
       // Context budget: let the profile system (omlx-gate.ts) decide.
       // Previously: hardcoded systemPromptEstimate=25K (stale — actual: Tier0=1.3K, Tier1=2-5K, Tier2=9K)
       // → contextBudget=8K → overrode profile budgets (heartbeat=18K, autonomous=32K) → over-trimmed context.
@@ -2037,6 +2031,21 @@ export class AgentLoop {
         this.busyRetryCount = 0;
       }
 
+      // A4: Empty response guard — log and skip tag processing
+      if (!response || response.trim().length === 0) {
+        slog('LOOP', `#${this.cycleCount} ⚠️ Claude returned empty response — skipping tag processing`);
+        this.noopStreak++;
+        if (this.noopStreak === 5) {
+          notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
+        }
+        if (this.noopStreak === 10) {
+          notifyTelegram(`🚨 noopStreak=${this.noopStreak} — 可能進入 noop spiral`).catch(() => {});
+        }
+        this.adjustInterval(false);
+        eventBus.emit('action:loop', { event: 'idle', cycleCount: this.cycleCount, duration, nextHeartbeat: Math.round(this.currentInterval / 1000) });
+        return null;
+      }
+
       // 結構化記錄 Claude 呼叫
       logger.logClaudeCall(
         { userMessage: prompt, systemPrompt, context: `[${context.length} chars]`, fullPrompt },
@@ -2373,8 +2382,23 @@ export class AgentLoop {
       } else {
         this.noopStreak++;
         if (this.noopStreak >= 3) {
-          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} — next cycle will use light context`);
+          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak}`);
         }
+        if (this.noopStreak === 5) {
+          notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
+        }
+        if (this.noopStreak === 10) {
+          notifyTelegram(`🚨 noopStreak=${this.noopStreak} — 可能進入 noop spiral`).catch(() => {});
+        }
+      }
+
+      // A3: Auto-clear poisoned lastAutonomousActions
+      const NO_ACTION_RE = /^no action|minimal-retry streak/i;
+      const allNoop = this.lastAutonomousActions.length > 0
+        && this.lastAutonomousActions.every(a => NO_ACTION_RE.test(a.trim()));
+      if (allNoop) {
+        slog('LOOP', `Clearing ${this.lastAutonomousActions.length} poisoned lastAutonomousActions`);
+        this.lastAutonomousActions = [];
       }
 
       // <kuro:schedule> tag — Kuro 自主排程覆蓋
@@ -2653,6 +2677,9 @@ export class AgentLoop {
         const done = trackStart('auto-escalate');
         autoEscalateOverdueTasks().then(() => done(), e => done(String(e)));
       }
+
+      // A2: HEARTBEAT size guard（fire-and-forget）
+      guardHeartbeatSize();
 
       // Auto-commit → then auto-push（sequential，防止 push 在 commit 完成前觸發 CI/CD reset）
       // When concurrent-action is enabled, commit+push already ran during callClaude await.

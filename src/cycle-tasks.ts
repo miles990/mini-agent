@@ -364,6 +364,24 @@ export async function autoEscalateOverdueTasks(): Promise<void> {
 }
 
 // =============================================================================
+// HEARTBEAT Size Guard
+// =============================================================================
+
+export function guardHeartbeatSize(): void {
+  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+  if (!fs.existsSync(heartbeatPath)) return;
+  try {
+    const lines = fs.readFileSync(heartbeatPath, 'utf-8').split('\n').length;
+    if (lines > 250) {
+      notifyTelegram(`🚨 HEARTBEAT.md 膨脹到 ${lines} 行，可能被垃圾污染`).catch(() => {});
+      slog('HEARTBEAT', `⚠️ HEARTBEAT.md has ${lines} lines (threshold: 250) — possible context pollution`);
+    } else if (lines > 150) {
+      slog('HEARTBEAT', `⚠️ HEARTBEAT.md has ${lines} lines (threshold: 150) — approaching limit`);
+    }
+  } catch { /* silent */ }
+}
+
+// =============================================================================
 // Auto-Commit — memory/ directory only
 // =============================================================================
 
