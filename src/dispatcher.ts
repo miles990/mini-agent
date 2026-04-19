@@ -1490,13 +1490,23 @@ export async function postProcess(
     }).catch(() => {});
   }
 
-  // <kuro:fetch> tags — on-demand web page fetching (fire-and-forget)
+  // <kuro:fetch> tags — on-demand web page fetching with watermark gate
   if (tags.fetches.length > 0) {
     tagsProcessed.push('fetch');
-    import('./web.js').then(({ processFetchRequests }) => {
-      processFetchRequests(tags.fetches, getMemoryStateDir()).catch(() => {});
+    const stateDir = getMemoryStateDir();
+    import('./web.js').then(async ({ processFetchRequests, readFetchedEntries }) => {
+      const existing = await readFetchedEntries(stateDir);
+      const existingUrls = new Set(existing.map(e => e.url));
+      const novel = tags.fetches.filter(f => !existingUrls.has(f.url));
+      const skipped = tags.fetches.length - novel.length;
+      if (skipped > 0) {
+        slog('DISPATCH', `Watermark gate: skipped ${skipped} URL(s) with live results`);
+      }
+      if (novel.length > 0) {
+        await processFetchRequests(novel, stateDir);
+      }
     }).catch(() => {});
-    slog('DISPATCH', `Web fetch: ${tags.fetches.map(f => f.url).join(', ')}`);
+    slog('DISPATCH', `Web fetch requested: ${tags.fetches.map(f => f.url).join(', ')}`);
   }
 
   // Notification-producing tags: suppress when processing [Claude Code] system messages
