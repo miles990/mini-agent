@@ -359,12 +359,18 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
   const scoringText = response ?? action ?? '';
 
   // Fast cycle detection: inbox-recovery, alert, delegation-complete, hard-skip → floor score 2/6
+  // Exception: noop spiral cycles (action=null + short text) get score 0 — don't mask the problem
   const fastCyclePatterns = /inbox-recovery|alert|delegation-complete|hard-skip/i;
-  const isFastCycle = (triggerReason && fastCyclePatterns.test(triggerReason)) ||
-    scoringText.length < 200;
+  const isNoopCycle = !action && scoringText.length < 200;
+  const isFastCycle = !isNoopCycle && (
+    (triggerReason && fastCyclePatterns.test(triggerReason)) ||
+    scoringText.length < 200
+  );
 
   let score: number;
-  if (isFastCycle) {
+  if (isNoopCycle) {
+    score = 0;
+  } else if (isFastCycle) {
     // Fast cycles get floor score — they did the right thing by being fast
     score = 2;
   } else {

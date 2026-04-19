@@ -1666,7 +1666,8 @@ export class AgentLoop {
       // bypass, "下個 cycle 給完整 review" promises silently die: 5+ consecutive R4 skips
       // observed in production while [pending-work] cap was actively firing.
       const hasPending = this.hasPendingWork();
-      if (!isDirectMessage && !isCronTrigger && !hasPending && !hasContextChanged(context)) {
+      const inNoopSpiral = this.noopStreak >= 3;
+      if (!isDirectMessage && !isCronTrigger && !hasPending && !inNoopSpiral && !hasContextChanged(context)) {
         this.currentMode = 'idle';
         this.adjustInterval(false);
         slog('LOOP', `[omlx-gate] R4: Context unchanged, skipping cycle ${this.cycleCount}`);
@@ -1887,7 +1888,14 @@ export class AgentLoop {
         hasPendingTasks,
       });
       this.lastValidConfig = promptResult.lastValidConfig;
-      const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
+
+      // Noop recovery: when stuck in noop spiral, inject directive forcing visible output
+      let noopRecoverySuffix = '';
+      if (this.noopStreak >= 5) {
+        noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (streak=${this.noopStreak}): You have produced NO visible output for ${this.noopStreak} consecutive cycles. Internal work (research, KN writes, tool calls) does NOT count. You MUST produce at least one visible action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent internal work.`;
+      }
+
+      const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
