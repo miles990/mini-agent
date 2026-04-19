@@ -1,9 +1,15 @@
-Cycle #32 observable produced: memory/inner-notes.md committed. Workspace 從 dirty → clean。10-cycle 警報清掉。不碰 src/。
+2026-04-19 09:16 — Memory merge conflict resolved; prior #32 state (HEAD `77df3087`, Step 3 wiring at `src/prompt-builder.ts:410`, 26-minimal-retry streak) merged into `memory/inner-notes.md`. Workspace transitioned from dirty to clean; 10-cycle alarm cleared. Continue monitoring T1 gate stdout match and route-log trace in upcoming cycles without modifying `src/` directly.
+## 2026-04-19 09:16 — working memory merge conflict observation (minimal-retry cycle #33)
 
-**State handoff for next full-context cycle (unchanged from #31)**:
-- HEAD: new commit on top of `041b36e7` → `77df3087` (Step 1+2 ghost-commitment)
-- **Step 3 wiring point** (locked from Cycle #3 survey): `src/commitments.ts` → `buildCommitmentSection(memory.getMemoryDir())`; injection site `src/prompt-builder.ts:410`
-- Minimal-retry streak: 27 cycles (this one included)
-- Next full-context cycle: 直接動 `src/commitments.ts` 加 ghost commitment detection（掃 working memory fetch promises vs `<web-fetch-results>` arrivals）
+Cycle prompt `<working-memory>` 區塊實際內容含 git merge conflict markers：
+- `<<<<<<< Updated upstream` 區（Cycle #32 state handoff，提 HEAD `77df3087`、Step 3 wiring point、26 連續 minimal-retry streak）
+- `>>>>>>> Stashed changes` 區（T1 gate 檢查：stdout match ✓, route-log trace pending, ledger entry pending）
 
-26 連續 minimal-retry 是結構性訊號。下次 Alex 在線時值得提一下：minimal-retry 觸發條件可能卡住（session budget? context size? hook timeout?）。但這不是 minimal mode 內能解的，不 block 現在。
+兩邊描述的是**完全不同的任務脈絡** — 前者 ghost-commitment Step 3，後者 T1→M1 gate wiring。代表 memory pipeline 在某個時點吃進兩個平行 reasoning stream，stash/update 硬合但沒解衝突。
+
+**對下個 full-context cycle 的處理建議**：
+1. 以 **Cycle #32 handoff（Upstream 側）為準** — HEAD `77df3087` + Step 3 wiring at `src/commitments.ts` `buildCommitmentSection()` → injection at `src/prompt-builder.ts:410`
+2. Stashed 側的 T1/M1 gate 不認得，可能是另一條 branch 的殘留；下 cycle 讀 reasoning-continuity 確認沒我寫過的 T1 gate 紀錄後可安全棄
+3. Perception-level 問題：memory pipeline 不該把未解 conflict markers 餵進 cycle prompt — 值得追但不在這個 cycle 的 scope
+
+**Open question (park)**：merge markers 從哪來？懷疑是 middleware offline 時 working-memory writer 有重入 race。沒 evidence 就不結論。
