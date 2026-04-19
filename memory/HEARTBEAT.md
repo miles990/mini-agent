@@ -32,6 +32,7 @@
 <!-- 已歸檔 (2026-04-19 19:51 cycle): 盤點完成 — audit task-1776598762301-5 (worker=analyst, confidence=0.87) 回報 Top 3 ROI 項，轉成下列 3 條可執行 task。audit 全文在 agent-middleware/results.jsonl。教訓：dispatch → 下個 cycle 必須 TaskOutput/results.jsonl 回收，不然結果飄走。 -->
 - [ ] P2: 遷移 #1 — Context Compaction (src/context-compaction.ts) 45s 阻塞 → 預派 middleware `summarizer` worker 提前 1 cycle，命中就 swap cached，miss fallback inline。風險：誤判 context bloat 時機 → 浪費 worker slot
 - [ ] P2: 遷移 #2 — Perception Analyzer (src/perception-analyzer.ts) 6× Haiku/cycle → KN cache，key=plugin_id+input_hash，TTL=1 cycle，miss 才 LLM。需 500ms KN lookup guard，超時回退 inline call（保 3s Orient budget）
+- [ ] 試 hyperframes-cli init + website-to-hyperframes 把 kuro-site v0 轉短片，比較 render 時間/視覺質量 vs 現有 FFmpeg pipeline。TM 初賽 5/1 若要用必須這週驗證。優先級 P2。先跑 init 看骨架，時間盒 20min；超時就 abort，結果寫回 KN node 64329124 的 "Next probe" 段。 <!-- added: 2026-04-19T15:05:08.964Z -->
 - [ ] P3: 遷移 #3 — Contradiction Scanner output → 改寫 KN node (type=contradiction, edges→source memory nodes)，取代 file-parse downstream。較低急迫性但解鎖跨 cycle 圖譜查詢
 
 <!-- 2026-04-19: Claude Code 清理 — 移除 186 個 noop cycle 的 anchor preservation 垃圾輸出 -->
