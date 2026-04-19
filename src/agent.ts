@@ -1707,7 +1707,10 @@ export async function callClaude(
   // Low-priority background triggers. Keep room/room-foreground/dm/alert OFF the list —
   // user-facing cycles need full guidance. Empty/unknown triggers fall back to full prompt too,
   // to stay safe for human-initiated flows that didn't tag themselves.
-  const lowPriorityTrigger = /^(workspace|heartbeat|cron|startup|continuation|mobile)\b/.test(triggerReason);
+  // continuation is NOT low priority — it continues substantive work from the previous cycle
+  // and needs full system prompt to know identity/skills/rules. Stripping it to 273 chars
+  // caused a downward spiral: no identity → "no action" → noop streak → light context → repeat.
+  const lowPriorityTrigger = /^(workspace|heartbeat|cron|startup|mobile)\b/.test(triggerReason);
   const initialPromptMode: 'full' | 'minimal' | undefined = lowPriorityTrigger ? 'minimal' : undefined;
 
   const systemPrompt = modelTier === 'small'
