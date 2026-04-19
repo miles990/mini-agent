@@ -2361,22 +2361,33 @@ export class InstanceMemory {
     // Why: one-shot consume caused a race — first buildContext() to see the file ate it,
     // even if that cycle wasn't the one responding to the original question. Result was
     // silently discarded, Kuro re-fetched, never converged. See processFetchRequests in web.ts.
+    //
+    // Structured injection (ghost-commitment defense Step 2): emit a concise per-URL index
+    // at the top so the dispatcher gate can cross-reference before admitting <kuro:fetch>.
+    // Bodies below keep the FETCH-ENTRY separator so downstream parsers stay compatible.
     if (!isLight) {
-      const webResultsPath = path.join(getMemoryStateDir(), 'web-fetch-results.md');
       try {
-        const stat = await fs.stat(webResultsPath);
-        const ageMs = Date.now() - stat.mtimeMs;
-        const TTL_MS = 10 * 60 * 1000; // 10 minutes
-        if (ageMs > TTL_MS) {
-          await fs.unlink(webResultsPath).catch(() => {});
+        const { readFetchedEntries } = await import('./web.js');
+        const stateDir = getMemoryStateDir();
+        const entries = await readFetchedEntries(stateDir);
+        if (entries.length > 0) {
+          const fmtAge = (ms: number) => `${(ms / 60000).toFixed(1)}min ago`;
+          const index = entries
+            .map((e) => `- ${e.url} (fetched ${fmtAge(e.ageMs)})`)
+            .join('\n');
+          const bodies = entries
+            .map((e) => `<!-- url: ${e.url} fetchedAt: ${e.fetchedAt} (${fmtAge(e.ageMs)}) -->\n${e.markdown}`)
+            .join('\n\n---FETCH-ENTRY---\n\n');
+          pushCapped(
+            'web-fetch-results',
+            `Already-fetched URLs (do NOT re-issue <kuro:fetch> for these within TTL):\n${index}\n\n---\n\n${bodies}`,
+          );
         } else {
-          const webResults = await fs.readFile(webResultsPath, 'utf-8');
-          if (webResults.trim()) {
-            const ageMin = (ageMs / 60000).toFixed(1);
-            pushCapped('web-fetch-results', `${webResults.trim()}\n\n[fetched ${ageMin}min ago — already in context, do NOT issue another <kuro:fetch> for the same URL]`);
-          }
+          // No live entries; clean up a fully-stale file so stat() doesn't keep it alive.
+          const webResultsPath = path.join(stateDir, 'web-fetch-results.md');
+          await fs.unlink(webResultsPath).catch(() => {});
         }
-      } catch { /* file doesn't exist — normal */ }
+      } catch { /* file doesn't exist or parse error — normal */ }
     }
 
     // ── Activity Journal（skip in light mode, auto-demotion aware）──

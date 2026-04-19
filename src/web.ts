@@ -430,6 +430,51 @@ export interface FetchRequest {
   label?: string;
 }
 
+// Shared constants for web-fetch-results pool (used by processFetchRequests + readFetchedEntries).
+const FETCH_ENTRY_SEP = '\n\n---FETCH-ENTRY---\n\n';
+const FETCH_ENTRY_TTL_MS = 10 * 60 * 1000;
+const FETCH_ENTRY_HEADER_RE = /^<!-- url: (.+) fetchedAt: (\S+) -->\n([\s\S]*)$/;
+
+export interface FetchedEntry {
+  url: string;
+  fetchedAt: string; // ISO
+  ageMs: number;     // filled at read time
+  markdown: string;  // stored body (title + source line + content)
+}
+
+/**
+ * Read the currently-live entries from web-fetch-results.md.
+ *
+ * Returns parsed per-URL entries filtered by TTL (10 min). Used by:
+ *   - dispatcher (watermark gate: skip re-fetch of URL within TTL)
+ *   - memory.ts (structured "Already-fetched URLs" annotation in context)
+ *
+ * Parse mirrors the writer in processFetchRequests. Kept in sync via the
+ * shared FETCH_ENTRY_* constants above.
+ */
+export async function readFetchedEntries(stateDir: string): Promise<FetchedEntry[]> {
+  const { readFile } = await import('node:fs/promises');
+  const { join } = await import('node:path');
+  const filePath = join(stateDir, 'web-fetch-results.md');
+  const now = Date.now();
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    if (!raw.trim()) return [];
+    const cutoff = now - FETCH_ENTRY_TTL_MS;
+    const out: FetchedEntry[] = [];
+    for (const block of raw.split(FETCH_ENTRY_SEP)) {
+      const m = block.match(FETCH_ENTRY_HEADER_RE);
+      if (!m) continue;
+      const ts = Date.parse(m[2]);
+      if (Number.isNaN(ts) || ts < cutoff) continue;
+      out.push({ url: m[1], fetchedAt: m[2], ageMs: now - ts, markdown: m[3] });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Fetch all requested URLs and merge into the persistent results file.
  *
