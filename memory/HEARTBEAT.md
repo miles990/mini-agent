@@ -126,6 +126,38 @@
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
 - [ ] requirement in this cycle to generate an actionable plan. I am generating a generic "thinking" block that does not address the specific task in <task-queue>.
+- [ ] ### 盤點任務重疊（Mini-Agent vs Agent-Middleware）
+
+**Task:** 對 `memory/research/` 下的所有任務進行一次完整的對比分析。
+
+**要求：**
+1. **核心檢查項目：** 找出所有 `mini-agent` (任務 ID 以 `min_` 或 `min-` 開始) 與 `agent-middleware` (任務 ID 以 `agr_` 或 `agr-` 開始) 所共享的基礎功能，以及它們之間差異的核心差異。
+2. **輸出格式：** 用 Markdown 表格或清晰列表呈現。
+
+### <kuro:delegate type="shell" worker="shell">
+```bash
+# 執行任務：盤點任務重疊與差異
+# 目標：產生 `memory/research/2026-04-21-task-reconciliation.md`
+
+export OUT=/Users/user/Workspace/mini-agent/memory/research/2026-04-21-task-reconciliation.md
+
+cat > $OUT << 'EOF'
+# 任務重疊與差異分析報告
+# 生成日期：2026-04-21
+
+## 1. 基礎功能 (Shared Features)
+**任務：** `memory/research/` 下所有 `mini-agent` 與 `agent-middleware` 的基礎 API 與邏輯。
+**狀態：** ✅ <kuro:task>
+
+## 2. 核心差異 (Key Differences)
+**任務：** `memory/research/` 下，哪些功能在 Mini-Agent 中是獨立的？哪個功能在 Agent-Middleware 中更核心/通用？
+**狀態：** <kuro:task>
+
+## 3. 結論 (Conclusion)
+**任務：** 總結 `mini-agent` vs `agent-middleware` 的主要區別，並提出一個未來方向。
+**狀態：** <kuro:task>
+```bash
+``` <!-- added: 2026-04-19T18:25:18.676Z -->
 
 ## Decision
 > **Problem-level: Constraint (Structure).** 我沒有看到任何明確的任務目標，只是根據 <task-queue> 的內容來判斷該項目是否屬於「中台優先」。
