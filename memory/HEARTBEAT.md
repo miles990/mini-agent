@@ -39,6 +39,14 @@
 - [ ] 盤點 mini-agent vs agent-middleware 的重複工作：列出兩邊的 worker/plugin/analyzer，標出功能重疊處，找出 3 個可搬上中台的候選。收斂條件：產出 `memory/proposals/2026-04-20-dedup-middleware.md` 含具體遷移清單。源自 2026-04-19T03:31 承諾 <!-- added: 2026-04-19T16:03:11.560Z -->
 - [ ] 盤點報告產出後，把「什麼情況下走中台、什麼情況下前景做」寫成行為規則加到 soul 或 NEXT。收斂條件：規則有具體觸發條件（不是「盡量用中台」這種廢話）。依賴上一條 task 完成。源自 2026-04-19T03:58 承諾 <!-- added: 2026-04-19T16:03:11.563Z -->
 - [ ] 盤點 mini-agent vs agent-middleware 重複工作：列出兩 repo 都有的子系統（delegation / DAG planner / memory tier / hooks / scorer / forge），標註各自成熟度與差異，產出遷移候選清單。輸出：memory/topics/mini-agent-vs-middleware-inventory.md。預計 >3 步 = 寫 playbook 再動手，走獨立 session 或 delegate，不在前景 cycle 裡硬做。 <!-- added: 2026-04-19T16:38:42.481Z -->
+- [ ] `...」）。其中一條是 `</kuro:action>` — 證實 htmlparser2 容錯把錯配閉合標籤當成 task content。
+2. **`memory.addTask()` 零驗證** — 沒長度、沒換行、沒標籤洩漏過濾，字串原樣 `- [ ] ${task}` append 到 disk。
+
+攻擊路徑只有一條：`<kuro:task>` → `loop.ts:2244` / `dispatcher.ts:972`。pulse/feedback-loops 寫的是 code-built 字串，安全。
+
+診斷寫到 `memory/topics/heartbeat-pollution-diagnosis-20260420.md`，含四層修復提案（parser pre-filter + addTask hard gate + burst rate limit + 既有 250 行監控留著當 safety net）。
+
+**深夜不 hot-patch**。等你起床 review 再動 code。現在 HEARTBEAT.md 115 行乾淨，corrupt-backup-20260420 留證據。收斂條件：7 天 < 200 行 + 無 `<kuro:` 漏字。 <!-- added: 2026-04-19T19:07:09.375Z -->
 - [ ] P3: 遷移 #3 — Contradiction Scanner output → 改寫 KN node (type=contradiction, edges→source memory nodes)，取代 file-parse downstream。較低急迫性但解鎖跨 cycle 圖譜查詢
 - [ ] P1: 找 HEARTBEAT.md writer 污染源 — 4/19 18:07-18:45 期間某 code path 把 LLM 回應 body 當成 task 項目 append 進 Active Tasks。發現：file 從 41 行炸到 6517 行，含 `- [ ] </kuro:action>`、`- [ ] because the task was not part...`、`- [ ] constraint to solve the task; I am treating it as a directive...` 等 LLM self-talk 被誤捕。已清理到 114 行（backup: HEARTBEAT.md.corrupt-backup-20260420）。收斂條件：找出 writer（可能是 post-cycle hook 或 task-parser），加防線（只接受合法格式 / reject 含 `<kuro:` tag 或過長行），連續 7 天 HEARTBEAT.md < 200 行 <!-- added: 2026-04-20 cleanup cycle -->
 
