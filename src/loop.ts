@@ -1253,9 +1253,14 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     const isContinuation = reason.startsWith('continuation');
     const hasP0 = this.hasPendingWork();
-    if (hasP0 && !isDM) {
+    // Noop spiral override: after 3+ consecutive empty cycles, pending work is clearly
+    // not addressable right now — stop bypassing triage, let mushi decide.
+    const effectiveP0 = hasP0 && this.noopStreak < 3;
+    if (effectiveP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
       logTriageBypass('P0-pending', 'wake', 'pending work exists');
+    } else if (hasP0 && this.noopStreak >= 3) {
+      slog('MUSHI', `⚠️ P0 pending but noopStreak=${this.noopStreak} — triage not bypassed`);
     }
     // Log alert/delegation bypasses independently — NOT gated by hasP0 or mushi-triage flag
     if (!isContinuation && reason) {
@@ -1266,7 +1271,7 @@ export class AgentLoop {
         logTriageBypass(bypassSrc, 'wake', 'must absorb delegation results');
       }
     }
-    if (isEnabled('mushi-triage') && !isContinuation && (!hasP0 || isDM) && reason) {
+    if (isEnabled('mushi-triage') && !isContinuation && (!effectiveP0 || isDM) && reason) {
       const triageSource = reason.split(/[:(]/)[0].trim();
       if (triageSource === 'alert') {
         slog('MUSHI', `✅ alert bypasses triage (hard rule)`);
@@ -1277,9 +1282,10 @@ export class AgentLoop {
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
-        && !this.hasPendingWork()
+        && (!this.hasPendingWork() || this.noopStreak >= 3)
       ) {
         // Hard skip: routine trigger + no perception change + last cycle was idle + no P0 work
+        // Noop spiral override: if 3+ consecutive empty cycles, skip even with pending work
         // Applies to heartbeat AND workspace — saves ~800ms mushi LLM call per skip
         // workspace: git diff detected a change but perception cache hasn't updated = minor/already-captured change
         // GUARD: never skip if memory-index has P0 items or inbox has unaddressed messages
@@ -1425,11 +1431,22 @@ export class AgentLoop {
     // Pending work detection — cap interval when unprocessed items still exist
     // Different from concurrentInbox: checks state AT cycle end, not during Claude call
     // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
-    // Skip for mesh-queued cycles — they can't process work, capping interval just causes re-queue
-    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected && this.currentInterval > 120_000) {
+    // Noop spiral guard: if 3+ consecutive empty cycles, pending work is not actionable right now
+    if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected
+        && this.currentInterval > 120_000 && this.noopStreak < 3) {
       if (this.hasPendingWork()) {
         this.currentInterval = 120_000; // 2min cap
         slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
+      }
+    }
+
+    // Noop spiral backoff: force minimum interval proportional to streak length.
+    // Breaks the pending-work + workspace-trigger feedback loop that burns 25+ empty cycles.
+    if (this.noopStreak >= 3 && !this.lastCycleHadSchedule) {
+      const noopFloor = Math.min(this.noopStreak * 120_000, 600_000);
+      if (this.currentInterval < noopFloor) {
+        this.currentInterval = noopFloor;
+        slog('LOOP', `[noop-backoff] Floor ${Math.round(noopFloor / 1000)}s (streak=${this.noopStreak})`);
       }
     }
 
