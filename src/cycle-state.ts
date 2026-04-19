@@ -382,6 +382,7 @@ export function extractTrailTopics(
 
 export interface LoopHealth {
   noopStreak: number;
+  trueNoopStreak?: number;
   lastVisibleOutputAt: string | null;
   updatedAt: string;
 }

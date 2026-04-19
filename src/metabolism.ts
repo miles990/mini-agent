@@ -35,6 +35,7 @@ const topicContentHashes = new Map<string, string>();
 const STALE_SCAN_INTERVAL = 6 * 60 * 60_000; // 6h
 const STALE_THRESHOLD_DAYS = 30;
 const HIGH_SIMILARITY = 0.85;
+const SCAN_DEADLINE_MS = 60_000; // 60s hard limit per scan
 
 // =============================================================================
 // Public API
@@ -112,8 +113,14 @@ async function detectPatterns(): Promise<void> {
 
   let totalPromoted = 0;
   const logEntries: string[] = [];
+  const deadline = Date.now() + SCAN_DEADLINE_MS;
 
   for (const topic of topics) {
+    if (Date.now() > deadline) {
+      slog('METABOLISM', `[absorb] Deadline reached (${SCAN_DEADLINE_MS / 1000}s) — aborting pattern scan`);
+      break;
+    }
+
     // Hash-check: skip topics whose content hasn't changed since last scan
     const content = await memory.readTopicMemory(topic);
     const contentHash = createHash('md5').update(content).digest('hex');
@@ -131,6 +138,7 @@ async function detectPatterns(): Promise<void> {
 
     for (let i = 0; i < bullets.length && i < 30; i++) {
       if (promoted.has(i)) continue;
+      if (Date.now() > deadline) break;
 
       const others = bullets.filter((_, j) => j !== i && !promoted.has(j));
       if (others.length === 0) continue;
@@ -219,11 +227,17 @@ async function detectStaleKnowledge(): Promise<void> {
   if (topics.length === 0) return;
 
   const now = Date.now();
+  const deadline = now + SCAN_DEADLINE_MS;
   const thresholdMs = STALE_THRESHOLD_DAYS * 24 * 60 * 60_000;
   let totalArchived = 0;
   const logEntries: string[] = [];
 
   for (const topic of topics) {
+    if (Date.now() > deadline) {
+      slog('METABOLISM', `[excrete] Deadline reached (${SCAN_DEADLINE_MS / 1000}s) — aborting stale scan`);
+      break;
+    }
+
     const content = await memory.readTopicMemory(topic);
     if (!content) continue;
 

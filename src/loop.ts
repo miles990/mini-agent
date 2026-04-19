@@ -328,6 +328,10 @@ export class AgentLoop {
   // Alerts at 5 (warning) and 10 (critical) via Telegram. Never degrades context —
   // stripping identity was the root cause of the 186-cycle noop spiral (2026-04-19).
   private noopStreak = 0;
+  // trueNoopStreak: consecutive cycles with ZERO tags processed (literally did nothing).
+  // Punitive guards (P0 bypass block, hard-skip, noop-backoff) use this instead of noopStreak
+  // to avoid throttling cycles that produce internal work (TASK/REMEMBER/ACTION).
+  private trueNoopStreak = 0;
 
   // ── Behavior config resilience ──
   private lastValidConfig: BehaviorConfig | null = null;
@@ -994,6 +998,7 @@ export class AgentLoop {
     const health = loadLoopHealth();
     if (health) {
       this.noopStreak = health.noopStreak;
+      this.trueNoopStreak = health.trueNoopStreak ?? 0;
     }
 
     // Achievement system: retroactive unlock on first boot
@@ -1253,14 +1258,15 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     const isContinuation = reason.startsWith('continuation');
     const hasP0 = this.hasPendingWork();
-    // Noop spiral override: after 3+ consecutive empty cycles, pending work is clearly
-    // not addressable right now — stop bypassing triage, let mushi decide.
-    const effectiveP0 = hasP0 && this.noopStreak < 3;
+    // Noop spiral override: after 3+ consecutive TRUE empty cycles (zero tags),
+    // pending work is clearly not addressable right now — stop bypassing triage.
+    // Uses trueNoopStreak (not noopStreak) to avoid throttling productive-but-invisible cycles.
+    const effectiveP0 = hasP0 && this.trueNoopStreak < 3;
     if (effectiveP0 && !isDM) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
       logTriageBypass('P0-pending', 'wake', 'pending work exists');
-    } else if (hasP0 && this.noopStreak >= 3) {
-      slog('MUSHI', `⚠️ P0 pending but noopStreak=${this.noopStreak} — triage not bypassed`);
+    } else if (hasP0 && this.trueNoopStreak >= 3) {
+      slog('MUSHI', `⚠️ P0 pending but trueNoopStreak=${this.trueNoopStreak} — triage not bypassed`);
     }
     // Log alert/delegation bypasses independently — NOT gated by hasP0 or mushi-triage flag
     if (!isContinuation && reason) {
@@ -1282,7 +1288,7 @@ export class AgentLoop {
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
-        && (!this.hasPendingWork() || this.noopStreak >= 3)
+        && (!this.hasPendingWork() || this.trueNoopStreak >= 3)
       ) {
         // Hard skip: routine trigger + no perception change + last cycle was idle + no P0 work
         // Noop spiral override: if 3+ consecutive empty cycles, skip even with pending work
@@ -1433,20 +1439,20 @@ export class AgentLoop {
     // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
     // Noop spiral guard: if 3+ consecutive empty cycles, pending work is not actionable right now
     if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected
-        && this.currentInterval > 120_000 && this.noopStreak < 3) {
+        && this.currentInterval > 120_000 && this.trueNoopStreak < 3) {
       if (this.hasPendingWork()) {
         this.currentInterval = 120_000; // 2min cap
         slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
       }
     }
 
-    // Noop spiral backoff: force minimum interval proportional to streak length.
-    // Breaks the pending-work + workspace-trigger feedback loop that burns 25+ empty cycles.
-    if (this.noopStreak >= 3 && !this.lastCycleHadSchedule) {
-      const noopFloor = Math.min(this.noopStreak * 120_000, 600_000);
+    // Noop spiral backoff: force minimum interval proportional to TRUE noop streak.
+    // Uses trueNoopStreak (zero tags) to avoid throttling productive-but-invisible cycles.
+    if (this.trueNoopStreak >= 3 && !this.lastCycleHadSchedule) {
+      const noopFloor = Math.min(this.trueNoopStreak * 120_000, 600_000);
       if (this.currentInterval < noopFloor) {
         this.currentInterval = noopFloor;
-        slog('LOOP', `[noop-backoff] Floor ${Math.round(noopFloor / 1000)}s (streak=${this.noopStreak})`);
+        slog('LOOP', `[noop-backoff] Floor ${Math.round(noopFloor / 1000)}s (trueNoop=${this.trueNoopStreak})`);
       }
     }
 
@@ -1690,7 +1696,7 @@ export class AgentLoop {
       // bypass, "下個 cycle 給完整 review" promises silently die: 5+ consecutive R4 skips
       // observed in production while [pending-work] cap was actively firing.
       const hasPending = this.hasPendingWork();
-      const inNoopSpiral = this.noopStreak >= 3;
+      const inNoopSpiral = this.trueNoopStreak >= 3;
       if (!isDirectMessage && !isCronTrigger && !hasPending && !inNoopSpiral && !hasContextChanged(context)) {
         this.currentMode = 'idle';
         this.adjustInterval(false);
@@ -1913,10 +1919,11 @@ export class AgentLoop {
       });
       this.lastValidConfig = promptResult.lastValidConfig;
 
-      // Noop recovery: when stuck in noop spiral, inject directive forcing visible output
+      // Noop recovery: when stuck in TRUE noop spiral (zero tags), inject directive.
+      // Uses trueNoopStreak to avoid punishing cycles that produce internal work.
       let noopRecoverySuffix = '';
-      if (this.noopStreak >= 5) {
-        noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (streak=${this.noopStreak}): You have produced NO visible output for ${this.noopStreak} consecutive cycles. Internal work (research, KN writes, tool calls) does NOT count. You MUST produce at least one visible action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent internal work.`;
+      if (this.trueNoopStreak >= 5) {
+        noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (trueNoop=${this.trueNoopStreak}): You have produced ZERO action tags for ${this.trueNoopStreak} consecutive cycles. You MUST produce at least one action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent cycles.`;
       }
 
       const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
@@ -2078,6 +2085,7 @@ export class AgentLoop {
       if (!response || response.trim().length === 0) {
         slog('LOOP', `#${this.cycleCount} ⚠️ Claude returned empty response — skipping tag processing`);
         this.noopStreak++;
+        this.trueNoopStreak++;
         if (this.noopStreak === 5) {
           notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
         }
@@ -2413,23 +2421,28 @@ export class AgentLoop {
         similarityRate: metrics.similarityRate,
       });
 
-      // noop streak bookkeeping — track consecutive cycles without visible output.
-      // Visible = user-facing tag (CHAT/ASK/SHOW/DELEGATE). REMEMBER/TASK/ACTION are
-      // internal state changes only; they keep the cycle "productive" from the model's
-      // perspective but don't escape the self-reflection loop.
+      // noop streak bookkeeping — two separate streaks:
+      // 1. noopStreak: no VISIBLE output (CHAT/ASK/SHOW/DELEGATE) — for notifications only
+      // 2. trueNoopStreak: ZERO tags processed — for punitive guards (P0 block, backoff, recovery)
+      // This prevents throttling cycles that do internal work (TASK/REMEMBER/ACTION).
       const hasVisibleOutput = cycleTagsProcessed.some(t =>
         t === 'CHAT' || t === 'ASK' || t === 'SHOW' || t === 'DELEGATE'
       );
+      const hasAnyAction = cycleTagsProcessed.length > 0;
+
       if (hasVisibleOutput) {
         this.noopStreak = 0;
+        this.trueNoopStreak = 0;
       } else {
         this.noopStreak++;
-        if (this.noopStreak >= 3) {
-          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak}`);
+        if (hasAnyAction) {
+          this.trueNoopStreak = 0;
+        } else {
+          this.trueNoopStreak++;
         }
-        // Auto-status broadcast: code-level output gate.
-        // When noopStreak >= 3, the code itself extracts and broadcasts what Kuro did.
-        // This is deterministic (code does it), not prescription (prompt asking LLM to do it).
+        if (this.noopStreak >= 3) {
+          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} (trueNoop=${this.trueNoopStreak})`);
+        }
         if (this.noopStreak >= 3 && action) {
           const summary = action.length > 300 ? action.slice(0, 300) + '…' : action;
           notifyTelegram(`🔄 #${this.cycleCount} (silent×${this.noopStreak}): ${summary}`).catch(() => {});
@@ -2442,9 +2455,10 @@ export class AgentLoop {
         }
       }
 
-      // Persist noopStreak across restarts
+      // Persist both streaks across restarts
       saveLoopHealth({
         noopStreak: this.noopStreak,
+        trueNoopStreak: this.trueNoopStreak,
         lastVisibleOutputAt: hasVisibleOutput ? new Date().toISOString() : null,
         updatedAt: new Date().toISOString(),
       });
