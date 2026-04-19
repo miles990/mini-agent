@@ -1995,6 +1995,17 @@ export class AgentLoop {
         slog('STREAM', `Chat streamed: ${text.slice(0, 80)}`);
       };
 
+      // Concurrent tasks must not block the cycle — metabolism scans observed at 96min+.
+      // Race with a 2min timeout; if concurrent tasks are slower, proceed without their results.
+      const CONCURRENT_TIMEOUT_MS = 120_000;
+      const concurrentWithTimeout = Promise.race([
+        concurrentPromise,
+        new Promise<number>(resolve => setTimeout(() => {
+          slog('LOOP', `[concurrent] Timeout after ${CONCURRENT_TIMEOUT_MS / 1000}s — proceeding without results`);
+          resolve(0);
+        }, CONCURRENT_TIMEOUT_MS)),
+      ]);
+
       const [claudeResult, newInboxCount] = await Promise.all([
         timed(
           `cycle#${this.cycleCount}.callClaude`,
@@ -2009,7 +2020,7 @@ export class AgentLoop {
           }),
           { alwaysLog: true },
         ),
-        concurrentPromise,
+        concurrentWithTimeout,
       ]);
       const callClaudeEndTs = performance.now();
 

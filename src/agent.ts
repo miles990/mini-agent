@@ -1860,6 +1860,8 @@ export async function callClaude(
         progressTimeoutMs: options?.progressTimeoutMs,
       });
 
+      setBusy(false);
+      setTask(null);
       const duration = Date.now() - startTime;
 
       // Preemption detection: generation changed while we were running
@@ -1881,6 +1883,8 @@ export async function callClaude(
 
       // Preemption detection: don't retry if preempted
       if (source === 'loop' && loopGeneration !== genAtStart) {
+        setBusy(false);
+        setTask(null);
         const stdout = (error as { stdout?: string })?.stdout?.trim() ?? '';
         return { response: stdout, systemPrompt, fullPrompt, duration, preempted: true };
       }
