@@ -174,11 +174,15 @@ export function extractErrorCode(errorMsg: string): string {
  */
 export async function detectErrorPatterns(): Promise<void> {
   const logger = getLogger();
-  const errors = logger.queryErrorLogs(undefined, 200);
+  // Scope to today — mirror pulse.ts ca881b13 fix. Rolling N-entry slices caused
+  // resolved patterns to keep refreshing lastSeen=today (old events still in window),
+  // blocking the 7-day cleanup and keeping stale P1 tasks alive. Lesson: recurrence
+  // is recency, not magnitude. See heartbeat archive 2026-04-18 cycle #10.
+  const today = new Date().toISOString().split('T')[0];
+  const errors = logger.queryErrorLogs(today, 200);
   if (errors.length === 0) return;
 
   const state = readState<ErrorPatternState>('error-patterns.json', {});
-  const today = new Date().toISOString().split('T')[0];
 
   // Group by (context + error code + subtype) — subtype splits polymorphic TIMEOUT/UNKNOWN buckets.
   const groups = new Map<string, number>();
