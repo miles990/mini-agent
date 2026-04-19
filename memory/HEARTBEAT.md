@@ -35,6 +35,9 @@
 - [ ] P2: 遷移 #1 — Context Compaction (src/context-compaction.ts) 45s 阻塞 → 預派 middleware `summarizer` worker 提前 1 cycle，命中就 swap cached，miss fallback inline。風險：誤判 context bloat 時機 → 浪費 worker slot
 - [ ] P2: 遷移 #2 — Perception Analyzer (src/perception-analyzer.ts) 6× Haiku/cycle → KN cache，key=plugin_id+input_hash，TTL=1 cycle，miss 才 LLM。需 500ms KN lookup guard，超時回退 inline call（保 3s Orient budget）
 - [ ] 試 hyperframes-cli init + website-to-hyperframes 把 kuro-site v0 轉短片，比較 render 時間/視覺質量 vs 現有 FFmpeg pipeline。TM 初賽 5/1 若要用必須這週驗證。優先級 P2。先跑 init 看骨架，時間盒 20min；超時就 abort，結果寫回 KN node 64329124 的 "Next probe" 段。 <!-- added: 2026-04-19T15:05:08.964Z -->
+- [ ] OODA 反射規則：每個新任務 Observe 階段先 `memory_search` + 掃 `topics/`，Orient 階段 `search_knowledge` 找關聯節點。收斂條件：連續 3 個 cycle 開場都有這兩個動作的痕跡（inner-notes 或 delegate log 可驗）。源自 2026-04-19T06:46 承諾 <!-- added: 2026-04-19T16:03:11.555Z -->
+- [ ] 盤點 mini-agent vs agent-middleware 的重複工作：列出兩邊的 worker/plugin/analyzer，標出功能重疊處，找出 3 個可搬上中台的候選。收斂條件：產出 `memory/proposals/2026-04-20-dedup-middleware.md` 含具體遷移清單。源自 2026-04-19T03:31 承諾 <!-- added: 2026-04-19T16:03:11.560Z -->
+- [ ] 盤點報告產出後，把「什麼情況下走中台、什麼情況下前景做」寫成行為規則加到 soul 或 NEXT。收斂條件：規則有具體觸發條件（不是「盡量用中台」這種廢話）。依賴上一條 task 完成。源自 2026-04-19T03:58 承諾 <!-- added: 2026-04-19T16:03:11.563Z -->
 - [ ] P3: 遷移 #3 — Contradiction Scanner output → 改寫 KN node (type=contradiction, edges→source memory nodes)，取代 file-parse downstream。較低急迫性但解鎖跨 cycle 圖譜查詢
 
 <!-- 2026-04-19: Claude Code 清理 — 移除 186 個 noop cycle 的 anchor preservation 垃圾輸出 -->
