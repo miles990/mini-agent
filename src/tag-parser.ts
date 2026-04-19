@@ -281,6 +281,16 @@ export function createKuroChatStreamParser(
 }
 
 /**
+ * Strip hallucinated turn separators from model output.
+ * Models (especially via CLI subprocess) sometimes continue generating past their
+ * response and produce fake "User:" / "Human:" turns. These should never reach
+ * the chat room or Telegram.
+ */
+export function stripTurnSeparators(text: string): string {
+  return text.replace(/\n{1,}(?:---|===)?\n{0,2}(?:User|Human|Assistant)[:：].*/gs, '').trim();
+}
+
+/**
  * Neutralize system-level XML tags in external message content before it enters
  * the LLM context. Prevents prompt injection via chat room / inbox messages
  * that contain tags like <system-reminder>, <functions>, <tool_result>, etc.

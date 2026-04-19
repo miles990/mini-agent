@@ -15,7 +15,7 @@ import { slog, diagLog } from './utils.js';
 import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
 import { eventBus, debounce } from './event-bus.js';
-import { createKuroChatStreamParser } from './tag-parser.js';
+import { createKuroChatStreamParser, stripTurnSeparators } from './tag-parser.js';
 import { compactContext } from './context-compaction.js';
 import { processContext, detectModelTier, type ModelTier } from './context-pipeline.js';
 import { buildSmallModelPrompt } from './prompt-builder.js';
@@ -766,7 +766,8 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         const isReply = tag.attributes.reply === 'true'
           || tag.attributes.replyTo !== undefined
           || tag.attributes.replyto !== undefined;
-        opts.onStreamChat?.(tag.content.trim(), isReply);
+        const cleaned = stripTurnSeparators(tag.content.trim());
+        if (cleaned) opts.onStreamChat?.(cleaned, isReply);
       }, { maxDepth: Number.MAX_SAFE_INTEGER })
       : null;
     let buffer = '';
@@ -1470,7 +1471,8 @@ async function streamLocalRound(
       const isReply = tag.attributes.reply === 'true'
         || tag.attributes.replyTo !== undefined
         || tag.attributes.replyto !== undefined;
-      opts.onStreamChat?.(tag.content.trim(), isReply);
+      const cleaned = stripTurnSeparators(tag.content.trim());
+      if (cleaned) opts.onStreamChat?.(cleaned, isReply);
     }, { maxDepth: Number.MAX_SAFE_INTEGER })
     : null;
 

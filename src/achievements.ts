@@ -402,7 +402,7 @@ const OUTPUT_GATE_THRESHOLD = 3; // 連續 N 個非產出 cycle 後觸發
  */
 export function checkOutputGate(state: AchievementState): string | null {
   if (state.consecutiveNonOutputCycles >= OUTPUT_GATE_THRESHOLD) {
-    return `⚠️ Output Gate: 連續 ${state.consecutiveNonOutputCycles} 個 cycle 沒有 visible output。你的下一步應該是完成 HEARTBEAT 中的一個任務，或產出 Alex 能看到的東西（文章、代碼、回覆）。學習筆記不算。`;
+    return `⚠️ 連續 ${state.consecutiveNonOutputCycles} 個 cycle 沒有可見產出。收斂條件：Alex 現在看到你的活動，會覺得有進展嗎？`;
   }
   return null;
 }

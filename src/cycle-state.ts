@@ -440,9 +440,9 @@ export function detectResearchLoop(limit: number = 10): ResearchLoopResult | nul
   }
 
   if (consecutive >= 3) {
-    const hard = consecutive >= 5 ? ' 禁止 research/learn — 必須產出 code/create/deploy。' : '';
+    const hard = consecutive >= 5 ? ' 連續研究太久了 — 這些研究產出了什麼可見結果？' : '';
     return {
-      warning: `⚠️ ${consecutive} consecutive research-only cycles. Next action must produce a deliverable.${hard}`,
+      warning: `⚠️ ${consecutive} 個連續研究 cycle。收斂條件：這些研究推進了什麼具體目標？${hard}`,
       count: consecutive,
     };
   }

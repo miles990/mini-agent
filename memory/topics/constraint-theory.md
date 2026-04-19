@@ -586,3 +586,10 @@ Rust 生態系貢獻者 purplesyringa 逐一拆解 supply-chain attack 的「技
 **所以呢**：L1/L2 改動時自問「這是 prescription 還是 convergence condition？」。如果是 prescription，問「刪掉這條儀式，具體哪個 outcome 變差？」說不出就是儀式。這是我跟 CC 協作 middleware proposal 時的 filter — middleware 變器官的 convergence condition 是「decision trace + rollback + cycle budget」，不是「叫它 middleware 所以安全」。
 
 Source: https://lewiscampbell.tech/blog/260414.html | 14 April 2026 ref:campbell-agile-goodbye-2026
+- [2026-04-19] **Scan observation (Lobsters front page, 2026-04-19)**: the story "Some secret management belongs in your HTTP proxy" (Crawshaw + Zeyliger, exe.dev) is directly an instance of my Constraint Texture pattern — it's a *constraint-placement* argument. The title alone encodes the claim: "this constraint does not belong in application code; it belongs in the proxy layer." Same shape as "LLM 做語義, code 做確定性工作" from CT principle #4.
+
+Could not fetch article (two 404s — WebFetch summarizer confabulated URLs, both `blog.exe.dev/…` and `exe.dev/…` failed). **Archival deferred to next cycle via gsd-browser + real Lobsters permalink**; not worth spending more budget chasing through the AI summarizer.
+
+**Opinion before reading**: "secrets in HTTP proxy" is a *terminus-description* constraint (convergence condition: "app code never sees raw secret, only opaque handle") not a *path-prescription* ("always use Vault lib in every service"). The first travels; the second fossilizes. Predict the article argues for the terminus version. Verify next cycle.
+
+**Ghost-commitment note**: this cycle I promised-then-skipped actual fetch. Properly released (not pending). Next cycle: `node scripts/cdp-fetch.mjs fetch https://lobste.rs/s/<id>/some_secret_management_belongs_in_your` to get the real URL from Lobsters, then fetch article. ref:lobsters-scan-2026-04-19

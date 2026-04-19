@@ -341,6 +341,7 @@ export class AgentLoop {
 
   // ── Foreground Reply (parallel response during cycling — concurrent batch+pool) ──
   private foregroundReplyRecords: Array<{ question: string; answer: string; source: string; ts: string; tagsProcessed?: string[] }> = [];
+  private foregroundRetryCount = new Map<string, number>();
   private batchBuffer: BatchBuffer;
   private delegationBatchBuffer: DelegationBatchBuffer;
 
@@ -655,9 +656,9 @@ export class AgentLoop {
 
       context += `\n\n<foreground_reply_mode>
 前景快速回覆模式。回覆即時串流送出。
-1. 第一個 chat tag：2-3 句（確認收到 + 核心回應）
-2. 需深度思考/研究/寫程式 → 快速確認後用 delegate 委派背景
-3. 不在此 lane 做長時間推理
+收斂條件：這個回覆結束後，對方知道自己被聽見了嗎？需要的行動被啟動了嗎？
+- 有話說就說，沒有就不硬擠。不要為了「確認收到」而說空話
+- 需要深度工作 → 用 delegate 委派背景，不在此 lane 長時間推理
 </foreground_reply_mode>`;
 
       // Streaming chat — send <kuro:chat> tags to user as soon as they're detected during generation
@@ -752,85 +753,67 @@ export class AgentLoop {
       // Log FG action to behavior log — makes FG successes visible in <action-memory>
       try { getLogger().logBehavior('agent', 'action.foreground', `[${source}] ${answer.slice(0, 500)}`); } catch { /* fire-and-forget */ }
 
-      // Unfulfilled commitment detection (#130 structural fix):
-      // If chat was streamed with commitment language but no delegate tags were processed,
-      // DON'T mark inbox as fully processed — let main loop follow up.
+      // ── Inbox marking — decoupled from commitment detection (#130 fix, #repetition-loop fix) ──
+      // Design: inbox marking and commitment detection are INDEPENDENT concerns.
+      // A visible reply to the user = inbox item is processed, period.
+      // Unfulfilled commitments are logged separately for follow-up, never block inbox marking.
+      // Previous design: commitment detection BLOCKED inbox marking → feedback loop where
+      // "收到，我會..." matched commitment patterns → inbox stayed pending → mushi continuation
+      // → foreground re-processed same item → 15+ identical "收到" messages.
+      const responseTags = parseTags(response);
+      try { markChatRoomInboxProcessed(response, responseTags, 'foreground-reply'); } catch { /* fire-and-forget */ }
+
+      const FG_ACK_RE = /看到|收到|了解|好的|等下|馬上|稍後|讓我|先去|我來|我去|正在看|開始看|研究一下|仔細看/;
+      const fgAllChats = [...streamedChats, ...responseTags.chats.map(c => c.text)];
+      const fgHasSubstantiveChat = fgAllChats.length > 0
+        && !fgAllChats.every(t => t.length < 80 && FG_ACK_RE.test(t));
+      const hasVisibleReply = fgHasSubstantiveChat
+        || responseTags.asks.length > 0
+        || responseTags.shows.length > 0
+        || responseTags.summaries.length > 0;
+      const BOT_FROMS = new Set(['mushi', 'system', 'bot', 'kuro', 'kuro-watcher']);
+
+      try {
+        const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
+        let suppressed = 0;
+        let marked = 0;
+        for (const item of pending) {
+          const isBotSender = BOT_FROMS.has((item.from || '').toLowerCase());
+          // Circuit breaker: after 2 foreground attempts without visible reply, force-mark
+          // to prevent infinite retry loops. Track via foregroundRetryCount map.
+          const retryCount = (this.foregroundRetryCount.get(item.id) ?? 0) + 1;
+          this.foregroundRetryCount.set(item.id, retryCount);
+          const forceMarkByRetry = retryCount >= 2;
+
+          if (!isBotSender && !hasVisibleReply && !forceMarkByRetry) {
+            suppressed++;
+            continue;
+          }
+          if (forceMarkByRetry && !hasVisibleReply) {
+            slog('LOOP', `[foreground:${slotId}] Circuit breaker: force-marking item ${item.id} after ${retryCount} attempts`);
+          }
+          queueInboxMark(item.id, 'replied');
+          this.foregroundRetryCount.delete(item.id);
+          marked++;
+        }
+        if (marked > 0) flushInboxMarks();
+        if (suppressed > 0) {
+          slog('LOOP', `[foreground:${slotId}] ⚠ ${suppressed} human inbox item(s) left pending — no visible reply (attempt ${[...this.foregroundRetryCount.values()].join(',')})`);
+        }
+      } catch { /* fire-and-forget */ }
+
+      // Separate concern: log unfulfilled commitment for awareness (never blocks inbox marking)
       const COMMITMENT_PATTERNS = [
-        /交給背景/i,
-        /背景(?:跑|讀|研究|深讀|深挖|挖)/i,
-        /delegate/i,
-        /我.*(?:去|來|會).*(?:挖|研究|分析|查|整理|寫|讀)/i,
+        /交給背景/,
+        /背景(?:跑|讀|研究|深讀|深挖|挖)/,
+        /(?:^|\s)delegate(?:\s|$)/i,
         /交給.*lane/i,
         /spawn.*tentacle/i,
-        /下個\s*cycle.*(?:給|整理|寫|報告|回)/i,
-        /下一?輪.*(?:給|整理|寫|報告|回)/i,
-        // Browser/fetch retry promises — "讓我用瀏覽器看看", "讓我試其他方式"
-        /讓我.*(?:用|試|看看|試試)/i,
-        /(?:用|試).*(?:瀏覽器|browser|CDP|其他方式|其他方法)/i,
-        /先.*(?:試|用|抓|fetch|看看)/i,
       ];
       const hasDelegateTag = result.tagsProcessed?.includes('delegate') ?? false;
       const chatTexts = [...streamedChats].join(' ');
-      const hasUnfulfilledCommitment = streamedChats.size > 0
-        && !hasDelegateTag
-        && COMMITMENT_PATTERNS.some(p => p.test(chatTexts));
-
-      if (hasUnfulfilledCommitment) {
-        // Chat promised delegation but no delegate tag was processed.
-        // Leave inbox unprocessed so main loop picks it up.
-        slog('LOOP', `[foreground:${slotId}] ⚠ Unfulfilled commitment detected — chat promised delegation but no delegate tag found. Leaving for main loop.`);
-        writeActivity({
-          lane: 'foreground',
-          summary: `[UNFULFILLED] Promised delegation but no delegate spawned: ${chatTexts.slice(0, 120)}`,
-          trigger: source,
-          tags: result.tagsProcessed,
-        });
-      } else {
-        // Normal case: mark inbox items as processed — prevents main cycle from re-responding
-        const responseTags = parseTags(response);
-        try { markChatRoomInboxProcessed(response, responseTags, 'foreground-reply'); } catch { /* fire-and-forget */ }
-
-        // Convergence condition: a foreground response only counts as "replied" if it
-        // contains at least one user-visible tag. Inner-only responses are notes-to-self,
-        // not replies — Alex sees nothing, so the inbox item must remain pending so the
-        // next cycle (main loop or another foreground trigger) attempts a real reply.
-        // Bot-sourced items (mushi/system status notifications) don't expect chat replies,
-        // so inner-only acknowledgement is acceptable for them.
-        // ACK guard: short acknowledgments are not real replies (same logic as main loop + inbox-processor.ts:274)
-        const FG_ACK_RE = /看到|收到|了解|好的|等下|馬上|稍後|讓我|先去|我來|我去|正在看|開始看|研究一下|仔細看/;
-        const fgAllChats = [...streamedChats, ...responseTags.chats.map(c => c.text)];
-        const fgHasSubstantiveChat = fgAllChats.length > 0
-          && !fgAllChats.every(t => t.length < 80 && FG_ACK_RE.test(t));
-        const hasVisibleReply = fgHasSubstantiveChat
-          || responseTags.asks.length > 0
-          || responseTags.shows.length > 0
-          || responseTags.summaries.length > 0;
-        const BOT_FROMS = new Set(['mushi', 'system', 'bot', 'kuro', 'kuro-watcher']);
-
-        try {
-          const pending = readPendingInbox().filter(i => i.source === source && i.status === 'pending');
-          let suppressed = 0;
-          let marked = 0;
-          for (const item of pending) {
-            const isBotSender = BOT_FROMS.has((item.from || '').toLowerCase());
-            if (!isBotSender && !hasVisibleReply) {
-              suppressed++;
-              continue; // leave pending — next cycle must try a real reply
-            }
-            queueInboxMark(item.id, 'replied');
-            marked++;
-          }
-          if (marked > 0) flushInboxMarks();
-          if (suppressed > 0) {
-            slog('LOOP', `[foreground:${slotId}] ⚠ ${suppressed} human inbox item(s) left pending — response had no <kuro:chat>/ask/show/summary (only inner monologue?)`);
-            writeActivity({
-              lane: 'foreground',
-              summary: `[NO-VISIBLE-REPLY] ${suppressed} item(s) kept pending; response was inner-only`,
-              trigger: source,
-              tags: result.tagsProcessed,
-            });
-          }
-        } catch { /* fire-and-forget */ }
+      if (streamedChats.size > 0 && !hasDelegateTag && COMMITMENT_PATTERNS.some(p => p.test(chatTexts))) {
+        slog('LOOP', `[foreground:${slotId}] ⚠ Commitment language without delegate — noted for follow-up`);
       }
 
       // FG lane does NOT auto-mark tasks as complete.
@@ -1829,10 +1812,9 @@ export class AgentLoop {
       if (isTelegramUserCycle) {
         if (nextPendingItems.length > 0) {
           const itemsPreview = nextPendingItems.slice(0, 3).map(i => `  「${i.slice(0, 80)}」`).join('\n');
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. YOU MUST REPLY.\n\nAlex 的訊息（pending tasks）：\n${itemsPreview}\n\n⚠️ 回覆順序（強制）：1) 先發出 <kuro:chat>回覆內容</kuro:chat> 直接回答 Alex 的問題，2) 再用 <kuro:done>描述</kuro:done> 標記完成。不發 <kuro:chat> 就不算回覆。處理完 Alex 的問題才做自主行動。\n禁止把 Alex 的問題重新詮釋為自主任務。Alex 問什麼就回答什麼。\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答 Alex 的問題時，在 <kuro:chat> 之前先做這三個檢查（寫在 <kuro:action> 內）：\n1. **來源廣度** — 我查了幾個來源？只有一個的話，再查一個不同的\n2. **根因 vs 症狀** — 我描述的是「什麼壞了」還是「為什麼壞了」？往上追問一層 why\n3. **反例搜尋** — 什麼證據會推翻我的結論？花 30 秒找反例\n如果三個都做了，在 <kuro:action> 中加 ## Challenge: checked。如果某項做不到，寫明原因。\n\n`;
+          priorityPrefix = `Alex 傳了訊息給你：\n${itemsPreview}\n\n收斂條件：這個 cycle 結束時，Alex 的訊息被理解了嗎？需要的行動被啟動了嗎？\n- 有實質回應就用 <kuro:chat> 說。沒有想法不要硬擠「收到」\n- 回答前自問：我描述的是症狀還是根因？有什麼證據會推翻我的結論？\n\n`;
         } else {
-          // telegram-user 觸發但 memory-index 沒 pending items（可能已被 triage 清掉）
-          priorityPrefix = `🚨 THIS CYCLE WAS TRIGGERED BY ALEX'S TELEGRAM MESSAGE. Check <inbox> for Alex's message and reply with <kuro:chat>...</kuro:chat>.\n\n## Self-Challenge Protocol（回覆 Alex 前的強制自我質疑）\n回答前做三個檢查：1) 來源廣度（查了幾個來源？）2) 根因 vs 症狀（往上追問 why）3) 反例搜尋（什麼會推翻結論？）\n做完在 <kuro:action> 加 ## Challenge: checked。\n\n`;
+          priorityPrefix = `Alex 傳了訊息給你。檢查 <inbox> 確認內容。\n收斂條件：Alex 的需求被回應了嗎？\n\n`;
         }
       } else {
         // Non-telegram cycle: check for pending/unaddressed messages
@@ -1853,13 +1835,13 @@ export class AgentLoop {
             if (isRoomPriorityCycle || isChatPriorityCycle) {
               // Room/chat-triggered: strong priority (same urgency as telegram)
               const sourceLabel = isChatPriorityCycle ? 'CLAUDE CODE MESSAGE' : 'CHAT ROOM MESSAGE';
-              priorityPrefix = `📩 THIS CYCLE WAS TRIGGERED BY A ${sourceLabel}. Please respond to pending messages first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應問題，2) 再做自主行動。如果訊息包含具體問題，請逐一回答，不要忽略。\n\n`;
+              priorityPrefix = `${sourceLabel} 觸發了這個 cycle。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：對方的問題被回答了嗎？有實質內容就用 <kuro:chat> 回覆。\n\n`;
             } else {
               // Fix 5: Check if any unaddressed messages are from Alex — these get strong priority even on non-DM cycles
               const hasAlexUnaddressed = allPending.some(l => /\(alex\)/.test(l));
               if (hasAlexUnaddressed) {
                 // Alex's unaddressed messages override autonomous activities
-                priorityPrefix = `🚨 UNADDRESSED ALEX MESSAGE(S) detected. Alex's conversation directives ALWAYS override HEARTBEAT/NEXT tasks. Respond first.\n\nChat Room 待回覆訊息：\n${preview}\n\n⚠️ 回覆順序：1) 先用 <kuro:chat>回覆內容</kuro:chat> 回應 Alex，2) 再做自主行動。\n\n`;
+                priorityPrefix = `Alex 有未回覆的訊息。Alex 的對話優先於自主任務。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：Alex 的訊息被理解並回應了嗎？\n\n`;
               } else {
                 // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
                 priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
@@ -1876,7 +1858,7 @@ export class AgentLoop {
         const fgPreview = pendingFgDelegations.map(d =>
           `  - [${d.source}] "${d.text.slice(0, 120)}" (delegated at ${new Date(d.delegatedAt).toLocaleTimeString()})`
         ).join('\n');
-        priorityPrefix += `\n⚠️ PENDING FOREGROUND DELEGATIONS — these messages were delegated to background but you MUST follow up. Check <background-completed> for results. If results are ready, respond to the original sender with <kuro:chat>. If not ready yet, acknowledge the wait.\n${fgPreview}\n\n`;
+        priorityPrefix += `\n有背景委派待跟進。檢查 <background-completed> 看結果是否回來了。\n${fgPreview}\n收斂條件：委派的結果被吸收了嗎？原始發問者得到回覆了嗎？\n\n`;
       }
 
       // P0 reminder — applies to ALL triggers, not just non-telegram
