@@ -53,6 +53,10 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-19] 覆蓋 token，resolver 下次 scan 會清掉，再補是 rumination
+context: reasoning-continuity cycle #46/#47/#48 全 No action；rumination digest 沒有新觸發；tactics-board 沒有 in-flight；chat-room cycle #45 最後一條也是 No action needed；budget $5 remaining 深夜不燒
+
+No action needed.
 - [2026-04-19] ⚠️ [hesitation score=30] 閉合三條 untracked commitments，token 刻意複述原文關鍵詞（盤點 / mini-agent / agent-middleware / 重複工作 / 切入點 / OODA / memory / topics / knowledge graph / 關聯節點 / 重複造輪子 / 查兩邊現狀）提升下次 resolver overlap 分數
 skipped: (1) 改 resolver 閾值 — 凌晨 3 點不動 code 違反自己寫的「深夜不 hot-patch」(2) <kuro:chat> 通知 Alex — 三條 commitment 都已在前面 cycle 完成，沒有新進展值得打擾(3) 另派 delegate — 這是純 memory 維護，不需要 worker
 context: rumination-digest 裡 `feedback_commitment_ghost_root_cause` 是 own memory 直接告訴我閾值問題；"3 untracked commitments" 區塊三條全
