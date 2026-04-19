@@ -143,9 +143,12 @@ export function buildPromptFromConfig(
   hasPendingTasks?: boolean,
   includeCycleResponsibilityGuide = true,
 ): string {
-  const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
-  const avoidList = recentActions.length > 0
-    ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
+  const NO_ACTION_RE = /^no action|minimal-retry streak/i;
+  const meaningfulActions = lastAutonomousActions.slice(-3)
+    .filter(a => !NO_ACTION_RE.test(a.trim()))
+    .map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
+  const avoidList = meaningfulActions.length > 0
+    ? `\n\nRecent autonomous actions (avoid repeating):\n${meaningfulActions.map(a => `- ${a}`).join('\n')}`
     : '';
 
   // Sort modes by weight descending
@@ -201,9 +204,12 @@ export function buildFallbackAutonomousPrompt(
   hasPendingTasks?: boolean,
   includeCycleResponsibilityGuide = true,
 ): string {
-  const recentActions = lastAutonomousActions.slice(-3).map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
-  const avoidList = recentActions.length > 0
-    ? `\n\nRecent autonomous actions (avoid repeating):\n${recentActions.map(a => `- ${a}`).join('\n')}`
+  const NO_ACTION_RE = /^no action|minimal-retry streak/i;
+  const meaningfulActions = lastAutonomousActions.slice(-3)
+    .filter(a => !NO_ACTION_RE.test(a.trim()))
+    .map(a => a.length > 500 ? a.slice(0, 500) + '…' : a);
+  const avoidList = meaningfulActions.length > 0
+    ? `\n\nRecent autonomous actions (avoid repeating):\n${meaningfulActions.map(a => `- ${a}`).join('\n')}`
     : '';
 
   const taskStatusLine = hasPendingTasks
