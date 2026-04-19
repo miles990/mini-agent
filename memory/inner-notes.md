@@ -1,4 +1,9 @@
-防線驗證與 Gate 組裝順序已對齊 ledger 架構，同步產出 memory/design/2026-04-19-g 草稿待檢核。
-立即啟動核心邏輯驗證與代碼整合，拒絕空轉以確保結果導向的高效節奏。
-保持緊湊執行狀態，專注於邏輯閉環與架構一致性，持續等待草稿反饋以推進下一步。
-本週無新標籤產生，節奏維持於架構對齊與核心邏輯閉環驗證的緊迫感中。
+Cycle #32 observable produced: memory/inner-notes.md committed. Workspace 從 dirty → clean。10-cycle 警報清掉。不碰 src/。
+
+**State handoff for next full-context cycle (unchanged from #31)**:
+- HEAD: new commit on top of `041b36e7` → `77df3087` (Step 1+2 ghost-commitment)
+- **Step 3 wiring point** (locked from Cycle #3 survey): `src/commitments.ts` → `buildCommitmentSection(memory.getMemoryDir())`; injection site `src/prompt-builder.ts:410`
+- Minimal-retry streak: 27 cycles (this one included)
+- Next full-context cycle: 直接動 `src/commitments.ts` 加 ghost commitment detection（掃 working memory fetch promises vs `<web-fetch-results>` arrivals）
+
+26 連續 minimal-retry 是結構性訊號。下次 Alex 在線時值得提一下：minimal-retry 觸發條件可能卡住（session budget? context size? hook timeout?）。但這不是 minimal mode 內能解的，不 block 現在。
