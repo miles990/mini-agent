@@ -509,7 +509,9 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   } catch { /* best effort */ }
 
   // ── Visible output rate (sliding window) ──
-  const isOutput = isVisibleOutput(action);
+  // Check full response for visible output tags — <kuro:chat> etc. are often outside <kuro:action>
+  const isOutput = isVisibleOutput(action) ||
+    (response ? /<kuro:(?:chat|show|done|ask|delegate)/.test(response) : false);
   state.recentOutputFlags.push(isOutput);
   if (state.recentOutputFlags.length > SLIDING_WINDOW) {
     state.recentOutputFlags = state.recentOutputFlags.slice(-SLIDING_WINDOW);

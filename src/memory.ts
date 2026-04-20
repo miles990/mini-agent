@@ -1764,7 +1764,9 @@ export class InstanceMemory {
 
     // Citation resolver: scan recent messages for #NNN references and pull cited messages into context
     const recentIds = new Set(recent.map(m => m.id));
+    const latestIds = new Set(recent.slice(-recentFullCount).map(m => m.id));
     const citedMsgs = new Map<string, ChatRoomMessage>();
+    const citedInOlder = new Set<string>();
     const citationPattern = /#(\d{3})\b/g;
     const pendingYesterdayCitations: string[] = [];
     for (const msg of recent) {
@@ -1773,7 +1775,10 @@ export class InstanceMemory {
       while ((match = citationPattern.exec(msg.text)) !== null) {
         const num = match[1];
         const citedId = `${today}-${num}`;
-        if (!recentIds.has(citedId) && !citedMsgs.has(citedId)) {
+        if (recentIds.has(citedId) && !latestIds.has(citedId)) {
+          // Cited message is in olderMsgs (truncated) — mark for full text rendering
+          citedInOlder.add(citedId);
+        } else if (!recentIds.has(citedId) && !citedMsgs.has(citedId)) {
           const cited = msgIndex.get(citedId);
           if (cited) {
             citedMsgs.set(cited.id, cited);
@@ -1830,10 +1835,11 @@ export class InstanceMemory {
     }
 
     // Hybrid: 0.8B summary replaces older messages if available, else show truncated
+    // Cited messages in olderMsgs get full text — they were explicitly referenced by #NNN
     if (conversationSummary && olderMsgs.length > 0) {
       lines.push(`[context summary] ${conversationSummary}`);
     } else if (olderMsgs.length > 0) {
-      lines.push(...olderMsgs.map(m => this.formatChatRoomLine(m)));
+      lines.push(...olderMsgs.map(m => this.formatChatRoomLine(m, citedInOlder.has(m.id))));
     }
 
     if (olderMsgs.length > 0 || conversationSummary) {

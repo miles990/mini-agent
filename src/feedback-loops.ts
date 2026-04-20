@@ -384,15 +384,16 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     // Fast cycles get floor score — they did the right thing by being fast
     score = 2;
   } else {
-    // Score current response's observability (0-6)
-    const hasDecision = /##\s*Decision|\[DECISION\]/i.test(scoringText);
-    const hasWhat = /##\s*What|\*\*What/i.test(scoringText);
-    const hasWhy = /##\s*(?:Why|My Take)|\*\*(?:Why|My Take)/i.test(scoringText);
-    const hasThinking = /##\s*Thinking|\*\*Thinking|chose:.*skipped:/is.test(scoringText);
-    const hasChanged = /##\s*(?:Changed|Next)|\*\*(?:Changed|Next)/i.test(scoringText);
-    const hasVerified = /##\s*Verified|\*\*Verified/i.test(scoringText);
+    // Behavior-based scoring (0-6): measures actual decision quality via kuro tags + reasoning,
+    // not format compliance (markdown headers). Kuro's natural output uses <kuro:*> tags.
+    const hasAnyTag = /<kuro:\w+/.test(scoringText);
+    const hasVisibleOutput = /<kuro:(?:chat|show|done|ask|delegate)/.test(scoringText);
+    const hasActionReport = /<kuro:action/.test(scoringText);
+    const hasReasoning = /##\s*Decision|\[DECISION\]|chose:|skipped:|problem-level:|收斂條件|serving:/i.test(scoringText);
+    const hasEvidence = /\d+(?:\.\d+)?(?:MB|GB|ms|KB|%|bytes|chars|lines|port)|\.(?:ts|md|json|sh)\b|commit\b|path\b/i.test(scoringText);
+    const hasFollowUp = /<kuro:(?:schedule|task|delegate|goal)/.test(scoringText) || /next[:\s]|收斂|follow.?up/i.test(scoringText);
 
-    score = [hasDecision, hasWhat, hasWhy, hasThinking, hasChanged, hasVerified]
+    score = [hasAnyTag, hasVisibleOutput, hasActionReport, hasReasoning, hasEvidence, hasFollowUp]
       .filter(Boolean).length;
   }
 
