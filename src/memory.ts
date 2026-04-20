@@ -2125,6 +2125,7 @@ export class InstanceMemory {
       'working-memory': 3000,
       'inner-voice': 2000,
       'tactics-board': 3000,
+      'recent_conversations': 4000,
     };
     const DEFAULT_SECTION_CAP = 4000;
 
@@ -2250,8 +2251,9 @@ export class InstanceMemory {
       inboxItems.map(item => ({ from: item.from, content: item.content, source: item.source })),
     );
 
-    // ── Chat Room Smart Loading（recent + relevant history）──
-    {
+    // ── Chat Room Smart Loading（citation-gated: only on dm/room triggers）──
+    // Density ratio < 0.1 (16.7% chars, 1.2% citation) → conditional loading
+    if (contextProfile === 'dm' || contextProfile === 'autonomous') {
       const chatRoomRecent = await this.buildChatRoomRecentSection(options?.phase0Results?.conversationSummary);
       if (chatRoomRecent) sections.push(chatRoomRecent);
 
@@ -2547,7 +2549,7 @@ export class InstanceMemory {
         // Always load (empty = always relevant)
         tasks: [],
         'state-changes': [],
-        'chat-room-inbox': [],
+        'chat-room-inbox': ['room', 'chat', 'inbox', 'message', 'alex'],
         'claude-code-inbox': [],
         // Conditional load (keyword-matched)
         docker: ['docker', 'container', 'image', 'deploy'],
@@ -2563,6 +2565,7 @@ export class InstanceMemory {
         'claude-code-sessions': ['claude', 'session', 'mcp'],
         'feedback-status': ['feedback', 'loop', 'error', 'pattern'],
         'delegation-status': ['delegation', 'background', 'delegate'],
+        'middleware-workers': ['middleware', 'worker', 'delegation', 'delegate', 'accomplish'],
         mobile: ['mobile', 'phone', 'gps', 'location', 'sensor'],
         'focus-context': ['focus', 'context'],
         'environment-sense': ['env', 'environment', 'system'],
@@ -2630,10 +2633,7 @@ export class InstanceMemory {
             if (summarizedNames.length > 0) {
               eventBus.emit('log:info', { tag: 'preprocess', msg: `P0b: ${summarizedNames.length} perception sections compressed: ${summarizedNames.join(', ')}` });
             }
-            // 未變化的 sections：一行列表取代多個 XML 區塊
-            if (unchangedNames.length > 0) {
-              sections.push(`<unchanged-perceptions>\n${unchangedNames.join(', ')}\n</unchanged-perceptions>`);
-            }
+            // Unchanged sections: no longer injected into context (density ratio = 0, zero actionable value)
             // R1: pruned sections listed for transparency
             if (prunedNames.length > 0) {
               sections.push(`<pruned-perceptions reason="low-citation">\n${prunedNames.join(', ')}\n</pruned-perceptions>`);
@@ -2933,7 +2933,7 @@ export class InstanceMemory {
     const tieredMem = this.tieredMemoryContent(memory, contextHint);
     const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
-    sections.push(`<recent_conversations>\n${conversations || '(No recent conversations)'}\n</recent_conversations>`);
+    pushCapped('recent_conversations', conversations || '(No recent conversations)');
     // Phase 0 P0c: Use heartbeat diff instead of full content when available
     const hbDiff = options?.phase0Results?.heartbeatDiff;
     let hbContent: string;
