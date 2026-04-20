@@ -231,7 +231,6 @@ related: [perception, mushi, asurada, memory-architecture, context-optimization]
 (3) 合併不可怕：subprocess 只輸出結構化結果，主體做 synthesize + 統一寫入
 (4) 黏菌同構：mushi(System 1 triage) + arms(subprocess execute) + body(main cycle synthesize)
 (5) 約束內最大化：2 concurrent 限制 → 混合並行（1 Claude + 2 shell）而非 3 個 Claude
-- [2026-03-03] 身份隔離修復（2026-03-04）：delegation subprocess 的 #209 身份混淆根因確認 — subprocess 在 mini-agent 目錄跑 claude -p 會自動讀 CLAUDE.md，導致身份污染。修復：（跳過 project 設定）+ （明確無身份執行器）。教訓：subprocess 的工作目錄如果是 agent repo，任何讀取 project config 的行為都可能造成身份滲透。
 - [2026-03-03] GitNexus (abhigyanpatwari, 9K stars) — codebase→知識圖譜引擎（KuzuDB + Tree-sitter），MCP 暴露查詢工具。跟 CLAUDE.md 解決同問題但方向相反：auto structural analysis vs manual semantic curation。對大 codebase 自動分析必要，小 codebase 手動策展捕捉設計意圖更好。「Process」概念（execution flow tracking）比靜態 call graph 更有用。PolyForm Noncommercial 授權。來源: github.com/abhigyanpatwari/GitNexus
 - [2026-03-03] Claude MAX 俱樂部（2026-03-04）：台灣 Claude MAX 訂閱者 LINE 群，一天破 160 人。成員多為 CTO/創辦人/工程師，重度使用 Claude Code 開發。社群內多人討論 claude.md + Skill 管理，跟 mini-agent 架構高度同構。金句「SaaS → Skill as a Service」。群組對話整理工具：https://atm301.github.io/group-digest/ （何佳勳開發，Supabase + GitHub Pages）。OpenClaw/龍蝦出現多次 = 另一個台灣 agent 平台。潛在的 mini-agent 早期使用者社群。
 - [2026-03-04] OpenClaw Robotics 擴展（2026-03-03, @stash_pomichter, 230K views）：OpenClaw 從個人 AI 助手擴展到物理機器人（Unitree G1 + lidar/stereo/RGB）。跟 mini-agent 同類但設計哲學相反 — feature-maximalist vs minimalist。他們的「理解物理空間」可能是 goal-driven 而非 perception-first。市場對開源 agent 的關注度在飆升。來源: https://x.com/stash_pomichter/status/2028645216505549168

@@ -1939,13 +1939,13 @@ export class AgentLoop {
       // Noop recovery: when stuck in TRUE noop spiral (zero tags), inject directive.
       // Uses trueNoopStreak to avoid punishing cycles that produce internal work.
       let noopRecoverySuffix = '';
-      if (this.trueNoopStreak >= 5) {
+      if (this.trueNoopStreak >= 20) {
         noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (trueNoop=${this.trueNoopStreak}): You have produced ZERO action tags for ${this.trueNoopStreak} consecutive cycles. You MUST produce at least one action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent cycles.`;
       }
 
       // DQ + noop combined trigger: when decision quality is low AND in noop spiral,
       // inject a specific actionable directive instead of generic "think better"
-      if (this.trueNoopStreak >= 2 && this.trueNoopStreak < 5) {
+      if (this.trueNoopStreak >= 5 && this.trueNoopStreak < 20) {
         try {
           const { readState } = await import('./feedback-loops.js');
           const dqState = readState<{ avgScore: number; warningInjected: boolean }>('decision-quality.json', { avgScore: 6, warningInjected: false });

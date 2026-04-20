@@ -353,6 +353,13 @@ const QUALITY_WINDOW = 20;
 export async function auditDecisionQuality(action: string | null, triggerReason?: string | null, response?: string | null): Promise<void> {
   if (!action && !response) return;
 
+  // Skip DQ during noop spiral — stripped/stuck cycles can't produce quality output
+  // and their low scores pollute the sliding window average.
+  try {
+    const health = readJsonFile(getStatePath('loop-health.json'), { trueNoopStreak: 0 }) as { trueNoopStreak: number };
+    if (health.trueNoopStreak >= 3) return;
+  } catch { /* proceed with scoring if health unavailable */ }
+
   const state = readState<DecisionQualityState>('decision-quality.json', {
     recentScores: [],
     avgScore: 0,
