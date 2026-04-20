@@ -2501,10 +2501,10 @@ export class InstanceMemory {
     }
 
     // Past success patterns — recall what worked before for similar tasks
-    if (!isLight && !budgetExhausted() && contextHint) {
+    if (!isLight && !budgetExhausted()) {
       try {
         const { buildSuccessContext } = await import('./success-patterns.js');
-        const successCtx = buildSuccessContext(contextHint);
+        const successCtx = buildSuccessContext(contextHint || undefined);
         if (successCtx) pushCapped('past-success', successCtx);
       } catch { /* ignore */ }
     }

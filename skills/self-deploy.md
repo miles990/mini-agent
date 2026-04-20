@@ -1,8 +1,11 @@
-# Self-Deploy — L1 改動的完整 SOP
+# Self-Deploy — L1/L2 改動的完整 SOP
 JIT Keywords: deploy, push, commit, release, git, ci/cd, self-deploy
 JIT Modes: act
 
-做任何 L1 改動（skills、plugins、SOUL/MEMORY/ARCHITECTURE、小型設定）時，**必須走完這個流程**。不是可選的，是預設行為。
+做任何 L1 或 L2 改動時，**必須走完這個流程**。不是可選的，是預設行為。
+- **L1**: skills、plugins、SOUL/MEMORY/ARCHITECTURE、小型設定
+- **L2**: src/*.ts（bug fix、observability、護欄強化、流程自動化）
+- **L3**: 大架構改動 — 同 L2 流程，但先 spawn review 觸手自我挑戰再實作
 
 ## 流程總覽
 
@@ -19,7 +22,7 @@ JIT Modes: act
 | **Docs** | *.md（skills/、memory/、SOUL、MEMORY、ARCHITECTURE） | 無 |
 | **Plugin** | plugins/*.sh | `bash -n` 語法檢查 |
 | **Config** | agent-compose.yaml、*.json | 格式驗證 |
-| **TypeScript** | src/*.ts（僅限 L1 允許的小改動） | typecheck + build |
+| **TypeScript** | src/*.ts（L1 小改動 + L2 自主改動） | typecheck + build |
 | **Script** | scripts/*.sh、scripts/*.mjs | `bash -n` 或 `node --check` |
 
 ## Step 2: 驗證
@@ -145,6 +148,21 @@ git push origin main
 5. 等 CI/CD 或確認 CI/CD 狀態
 6. curl -sf http://localhost:3001/health → 200 OK
 7. <kuro:chat>✅ 新增 self-deploy skill，定義 L1 改動的完整 SOP。已 push。</kuro:chat>
+```
+
+## L2 完整範例
+
+改了 `src/memory.ts`（修復 addTask 驗證漏洞）：
+
+```
+1. 修改 src/memory.ts — 加入 content sanitization ✓
+2. 分類：TypeScript → 需要 typecheck + build
+3. pnpm typecheck && pnpm build ✓
+4. git add src/memory.ts && git commit -m "fix: harden addTask validation against tag leakage"
+5. git push origin main
+6. 等 CI/CD 部署（src/ 改動會觸發重啟）
+7. curl -sf http://localhost:3001/health → 200 OK
+8. <kuro:chat>✅ L2 修復已部署：加固 addTask 驗證，防止 tag 洩漏污染 HEARTBEAT。</kuro:chat>
 ```
 
 ## Push 策略（CI/CD 感知）

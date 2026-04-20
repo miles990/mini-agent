@@ -79,7 +79,7 @@ export function seedFromHeartbeat(): void {
   } catch { /* fire-and-forget */ }
 }
 
-export function buildSuccessContext(contextHint: string): string | null {
+export function buildSuccessContext(contextHint?: string): string | null {
   try {
     const stateDir = getMemoryStateDir();
     const filePath = path.join(stateDir, PATTERNS_FILE);
@@ -92,26 +92,35 @@ export function buildSuccessContext(contextHint: string): string | null {
     const lines = raw.split('\n').filter(Boolean);
     if (lines.length === 0) return null;
 
-    const kws = contextHint.toLowerCase().split(/\s+/).filter(w => w.length >= 2);
-    if (kws.length === 0) return null;
+    const kws = (contextHint ?? '').toLowerCase().split(/\s+/).filter(w => w.length >= 2);
 
-    const scored: Array<{ p: SuccessPattern; score: number }> = [];
-    for (const line of lines) {
-      try {
-        const p = JSON.parse(line) as SuccessPattern;
-        const text = `${p.task} ${p.action}`.toLowerCase();
-        const score = kws.filter(kw => text.includes(kw)).length;
-        if (score >= Math.max(1, Math.ceil(kws.length * 0.2))) {
-          scored.push({ p, score });
-        }
-      } catch { continue; }
+    let top: SuccessPattern[];
+    if (kws.length === 0) {
+      // No hint — return most recent patterns so Kuro always sees past successes
+      const parsed: SuccessPattern[] = [];
+      for (const line of lines) {
+        try { parsed.push(JSON.parse(line) as SuccessPattern); } catch { continue; }
+      }
+      top = parsed.slice(-3);
+    } else {
+      const scored: Array<{ p: SuccessPattern; score: number }> = [];
+      for (const line of lines) {
+        try {
+          const p = JSON.parse(line) as SuccessPattern;
+          const text = `${p.task} ${p.action}`.toLowerCase();
+          const score = kws.filter(kw => text.includes(kw)).length;
+          if (score >= Math.max(1, Math.ceil(kws.length * 0.2))) {
+            scored.push({ p, score });
+          }
+        } catch { continue; }
+      }
+      if (scored.length === 0) return null;
+      scored.sort((a, b) => b.score - a.score);
+      top = scored.slice(0, 3).map(s => s.p);
     }
 
-    if (scored.length === 0) return null;
-
-    scored.sort((a, b) => b.score - a.score);
-    const top = scored.slice(0, 3);
-    const out = top.map(({ p }) =>
+    if (top.length === 0) return null;
+    const out = top.map(p =>
       `- [${p.at.slice(0, 10)}] ${p.task} → ${p.action} (${p.tags.join(',')})`
     );
     return out.join('\n');

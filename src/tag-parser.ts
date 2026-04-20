@@ -87,10 +87,22 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
       const contentEnd = selfClosing ? contentStart : Math.max(contentStart, closeStart);
       const end = Math.min(input.length, closeEnd + 1);
 
+      let content = input.slice(contentStart, contentEnd);
+
+      // Strip orphaned kuro closing tags from content (e.g. </kuro:action> leaked into <kuro:task>)
+      const PLAIN_TEXT_TAGS = new Set(['kuro:task', 'kuro:remember', 'kuro:chat', 'kuro:ask', 'kuro:done', 'kuro:inner', 'kuro:impulse', 'kuro:summary', 'kuro:goal', 'kuro:goal-progress', 'kuro:goal-done', 'kuro:goal-abandon']);
+      if (PLAIN_TEXT_TAGS.has(name)) {
+        content = content.replace(/<\/?kuro:[^>]*>/g, '');
+        const CLOSED_CONTENT_CAP = 500;
+        if (content.length > CLOSED_CONTENT_CAP) {
+          content = content.slice(0, CLOSED_CONTENT_CAP);
+        }
+      }
+
       state.tags.push({
         name,
         attributes: entry.attributes,
-        content: input.slice(contentStart, contentEnd),
+        content,
         raw: input.slice(entry.start, end),
         start: entry.start,
         end,

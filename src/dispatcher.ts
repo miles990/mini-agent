@@ -520,7 +520,10 @@ export function parseTags(response: string): ParsedTags {
 
   const tasks: Array<{ content: string; schedule?: string }> = [];
   for (const t of byName('kuro:task')) {
-    tasks.push({ content: t.content.trim(), schedule: attr(t.attributes, 'schedule') });
+    const cleaned = t.content.replace(/<\/?kuro:[^>]*>/g, '').trim();
+    if (cleaned) {
+      tasks.push({ content: cleaned, schedule: attr(t.attributes, 'schedule') });
+    }
   }
 
   const taskQueueActions: ParsedTags['taskQueueActions'] = [];

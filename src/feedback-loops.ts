@@ -397,6 +397,31 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
       .filter(Boolean).length;
   }
 
+  // Low-score provenance — log WHY a cycle scored poorly so patterns can be diagnosed
+  if (score <= 1) {
+    try {
+      const entry = {
+        ts: new Date().toISOString(),
+        score,
+        trigger: triggerReason?.slice(0, 100) ?? null,
+        isNoopCycle,
+        isFastCycle,
+        textLen: scoringText.length,
+        criteria: isNoopCycle ? null : {
+          tag: /<kuro:\w+/.test(scoringText),
+          visible: /<kuro:(?:chat|show|done|ask|delegate)/.test(scoringText),
+          action: /<kuro:action/.test(scoringText),
+          reasoning: /##\s*Decision|\[DECISION\]|chose:|skipped:|problem-level:/i.test(scoringText),
+          evidence: /\d+(?:\.\d+)?(?:MB|GB|ms|KB|%|bytes|chars|lines|port)/i.test(scoringText),
+          followUp: /<kuro:(?:schedule|task|delegate|goal)/.test(scoringText),
+        },
+        snippet: scoringText.slice(0, 150).replace(/\n/g, ' '),
+      };
+      const diagPath = getStatePath('dq-low-scores.jsonl');
+      appendFileSync(diagPath, JSON.stringify(entry) + '\n', 'utf-8');
+    } catch { /* fire-and-forget */ }
+  }
+
   // Sliding window
   state.recentScores.push(score);
   if (state.recentScores.length > QUALITY_WINDOW) {

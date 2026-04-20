@@ -646,6 +646,14 @@ export class AgentLoop {
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
       try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim().slice(0, 2000)}\n</inner_notes>`; } catch {}
 
+      // Recent main-loop actions — lets FG lane know what autonomous cycles have been doing
+      if (this.lastAutonomousActions.length > 0) {
+        const recentActions = this.lastAutonomousActions.slice(-5)
+          .map((a, i) => `${i + 1}. ${a.slice(0, 200)}`)
+          .join('\n');
+        context += `\n\n<recent_autonomous_actions>\n你（main loop）最近做過的事：\n${recentActions}\n</recent_autonomous_actions>`;
+      }
+
       // Enforce total context budget — hard cap prevents downstream timeout cascade.
       // Use section-boundary-safe truncation: raw `.slice()` can cut inside a closing tag
       // (e.g. `</memory>`), and Claude 4.7 responds to malformed prompts by emitting the
