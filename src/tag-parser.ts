@@ -111,21 +111,36 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
   parser.end();
 
   // Graceful fallback for malformed/unclosed tags.
+  // Cap content to prevent pollution (e.g. unclosed <kuro:task> absorbing entire response).
+  const UNCLOSED_CONTENT_CAP = 500;
   for (const entry of state.stack) {
     if (!entry.tracked) continue;
     const contentStart = Math.min(entry.openEnd + 1, input.length);
+    let contentEnd = input.length;
+    let raw = input.slice(entry.start);
+    let content = input.slice(contentStart, contentEnd);
+
+    if (content.length > UNCLOSED_CONTENT_CAP) {
+      contentEnd = contentStart + UNCLOSED_CONTENT_CAP;
+      content = input.slice(contentStart, contentEnd);
+      raw = input.slice(entry.start, contentEnd);
+    }
+
+    // Strip nested kuro tags from unclosed tag content — prevents tag leakage
+    content = content.replace(/<\/?kuro:[^>]*>/g, '');
+
     state.tags.push({
       name: entry.name,
       attributes: entry.attributes,
-      content: input.slice(contentStart),
-      raw: input.slice(entry.start),
+      content,
+      raw,
       start: entry.start,
-      end: input.length,
+      end: contentEnd,
       selfClosing: false,
       depth: entry.depth,
       parentName: entry.parentName,
     });
-    state.ranges.push({ start: entry.start, end: input.length });
+    state.ranges.push({ start: entry.start, end: contentEnd });
   }
 
   state.tags.sort((a, b) => a.start - b.start);

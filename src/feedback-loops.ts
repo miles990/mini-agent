@@ -407,36 +407,40 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
   const flagPath = getStatePath(QUALITY_WARNING_FILE);
   const now = Date.now();
 
-  // Check if warning is needed (avg < 1.5 and cooldown > 24h)
+  // Check if warning is needed (avg < 2.0 and cooldown > 12h)
   const cooldownOk = !state.lastWarningAt ||
-    (now - new Date(state.lastWarningAt).getTime()) > 24 * 3600_000;
+    (now - new Date(state.lastWarningAt).getTime()) > 12 * 3600_000;
 
-  if (state.avgScore < 1.5 && state.recentScores.length >= 10 && cooldownOk) {
-    // Inject warning
-    const warning = `你最近 ${state.recentScores.length} 個 cycle 的決策完整度偏低（avg ${state.avgScore}/6）。建議放慢節奏，每個決策都寫 Why + Verified。`;
+  if (state.avgScore < 2.0 && state.recentScores.length >= 10 && cooldownOk) {
+    // Inject actionable warning — not "think better" but "do this specific thing"
+    const zeroCount = state.recentScores.filter(s => s === 0).length;
+    const noopPercent = Math.round(zeroCount / state.recentScores.length * 100);
+    const warning = noopPercent >= 30
+      ? `⚠️ DQ ${state.avgScore}/6 — ${noopPercent}% noop cycles。收斂條件：這個 cycle 必須產出至少一個 <kuro:chat> 或 <kuro:done>。不做事不如說出為什麼不做。`
+      : `⚠️ DQ ${state.avgScore}/6。收斂條件：每個決策寫 ## Decision + Why，或用 <kuro:chat> 說明判斷。`;
     writeFileSync(flagPath, warning, 'utf-8');
     invalidateFlagCache(flagPath);
     state.warningInjected = true;
     state.lastWarningAt = new Date().toISOString();
-    slog('FEEDBACK', `Decision quality warning injected (avg ${state.avgScore}/6)`);
+    slog('FEEDBACK', `Decision quality warning injected (avg ${state.avgScore}/6, noop ${noopPercent}%)`);
 
-    // Escalation: warning persisted 40+ cycles without improvement → notify Alex
+    // Escalation: warning persisted 15+ cycles without improvement → notify Alex
     if (state.consecutiveWarningCycles == null) state.consecutiveWarningCycles = 0;
     state.consecutiveWarningCycles++;
     const escalationCooldownOk = !state.lastEscalationAt ||
-      (now - new Date(state.lastEscalationAt).getTime()) > 72 * 3600_000;
-    if (state.consecutiveWarningCycles >= 40 && escalationCooldownOk) {
+      (now - new Date(state.lastEscalationAt).getTime()) > 48 * 3600_000;
+    if (state.consecutiveWarningCycles >= 15 && escalationCooldownOk) {
       const { notifyTelegram } = await import('./telegram.js');
-      notifyTelegram(`⚠️ Kuro decision quality 持續低迷 ${state.consecutiveWarningCycles} cycles（avg ${state.avgScore}/6）— prompt warning 無效，可能需要結構性調整`).catch(() => {});
+      notifyTelegram(`⚠️ Kuro DQ 持續低迷 ${state.consecutiveWarningCycles} cycles（avg ${state.avgScore}/6, noop ${noopPercent}%）— prompt warning 無效，需結構性調整`).catch(() => {});
       state.lastEscalationAt = new Date().toISOString();
       slog('FEEDBACK', `Decision quality ESCALATED to Telegram after ${state.consecutiveWarningCycles} cycles`);
     }
-  } else if (state.avgScore >= 2.0) {
+  } else if (state.avgScore >= 2.5) {
     state.consecutiveWarningCycles = 0;
   }
 
-  if (state.avgScore >= 4.0 && state.warningInjected) {
-    // Quality recovered — clear warning
+  if (state.avgScore >= 2.5 && state.warningInjected) {
+    // Quality recovered — clear warning (was 4.0, too high — warnings lingered forever)
     if (existsSync(flagPath)) {
       const { unlinkSync } = await import('node:fs');
       unlinkSync(flagPath);

@@ -1185,9 +1185,18 @@ export class AgentLoop {
     }, this.currentInterval);
   }
 
+  private prevTrueNoopStreak = 0;
+
   private adjustInterval(hadAction: boolean): void {
     if (hadAction) {
-      this.currentInterval = this.config.intervalMs;
+      // Momentum reward: if breaking out of a noop spiral (3+ true noops → action),
+      // cut interval to 60% of base to encourage sustained momentum.
+      if (this.prevTrueNoopStreak >= 3 && this.trueNoopStreak === 0) {
+        this.currentInterval = Math.round(this.config.intervalMs * 0.6);
+        slog('LOOP', `[momentum] Noop spiral broken (was ${this.prevTrueNoopStreak}) — accelerating to ${Math.round(this.currentInterval / 1000)}s`);
+      } else {
+        this.currentInterval = this.config.intervalMs;
+      }
     } else {
       // Dynamic idle cap: uniform ×2 (no night slowdown — agent is 24/7)
       const maxMultiplier = 2;
@@ -1926,6 +1935,18 @@ export class AgentLoop {
         noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (trueNoop=${this.trueNoopStreak}): You have produced ZERO action tags for ${this.trueNoopStreak} consecutive cycles. You MUST produce at least one action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent cycles.`;
       }
 
+      // DQ + noop combined trigger: when decision quality is low AND in noop spiral,
+      // inject a specific actionable directive instead of generic "think better"
+      if (this.trueNoopStreak >= 2 && this.trueNoopStreak < 5) {
+        try {
+          const { readState } = await import('./feedback-loops.js');
+          const dqState = readState<{ avgScore: number; warningInjected: boolean }>('decision-quality.json', { avgScore: 6, warningInjected: false });
+          if (dqState.warningInjected && dqState.avgScore < 2.0) {
+            noopRecoverySuffix += `\n\n⚠️ DQ+NOOP: avgScore=${dqState.avgScore}/6 + ${this.trueNoopStreak} silent cycles. 不要分析問題 — 做一件具體的事：回覆一則訊息、完成一個任務、或用 <kuro:chat> 說明你的判斷。Doing > thinking.`;
+          }
+        } catch { /* non-critical */ }
+      }
+
       const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
@@ -2435,6 +2456,9 @@ export class AgentLoop {
         t === 'CHAT' || t === 'ASK' || t === 'SHOW' || t === 'DELEGATE'
       );
       const hasAnyAction = cycleTagsProcessed.length > 0;
+
+      // Snapshot before reset — used by adjustInterval for momentum reward
+      this.prevTrueNoopStreak = this.trueNoopStreak;
 
       if (hasVisibleOutput) {
         this.noopStreak = 0;
