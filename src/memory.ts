@@ -2113,6 +2113,7 @@ export class InstanceMemory {
       'conversation-threads': 2000,
       'commitments': 2000,
       'myelin-framework': 2000,
+      'past-success': 1500,
       'pulse': 1500,
       'route-efficiency': 1500,
       'working-memory': 3000,
@@ -2479,6 +2480,15 @@ export class InstanceMemory {
         const { buildAchievementsContext } = await import('./achievements.js');
         const achievementsCtx = buildAchievementsContext();
         if (achievementsCtx) pushCapped('achievements', achievementsCtx);
+      } catch { /* ignore */ }
+    }
+
+    // Past success patterns — recall what worked before for similar tasks
+    if (!isLight && !budgetExhausted() && contextHint) {
+      try {
+        const { buildSuccessContext } = await import('./success-patterns.js');
+        const successCtx = buildSuccessContext(contextHint);
+        if (successCtx) pushCapped('past-success', successCtx);
       } catch { /* ignore */ }
     }
 

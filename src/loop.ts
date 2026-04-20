@@ -2396,6 +2396,12 @@ export class AgentLoop {
           for (const done of filteredDones) {
             markTaskProgressDone(done);
           }
+          try {
+            const { recordSuccessPattern } = await import('./success-patterns.js');
+            for (const done of filteredDones) {
+              recordSuccessPattern(done, action ?? '', [...cycleTagsProcessed], this.currentMode);
+            }
+          } catch { /* fire-and-forget */ }
         }
       }
 
