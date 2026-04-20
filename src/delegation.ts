@@ -291,11 +291,31 @@ async function dispatchAndPoll(
         id: taskId, worker, label: task.prompt.slice(0, 80), task: prompt,
         dependsOn: [], timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)), cwd,
       };
-      const resp = await middleware().plan({
-        goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
-        steps: [step],
-        failurePolicy: 'cancel-dependents',
+      // 2026-04-20: middleware().plan() had no per-call timeout; a blocking /plan
+      // endpoint manifested as silent 600s hang_no_diag (unclassifiable). 120s
+      // Promise.race converts that into actionable `plan_rpc_unreachable` subtype.
+      // Paired with extractErrorSubtype() in feedback-loops.ts.
+      const PLAN_RPC_TIMEOUT_MS = 120_000;
+      let planTimer: ReturnType<typeof setTimeout> | undefined;
+      const timeoutGuard = new Promise<never>((_, reject) => {
+        planTimer = setTimeout(
+          () => reject(new Error(`middleware /plan timed out after ${PLAN_RPC_TIMEOUT_MS}ms (plan_rpc_unreachable)`)),
+          PLAN_RPC_TIMEOUT_MS
+        );
       });
+      let resp;
+      try {
+        resp = await Promise.race([
+          middleware().plan({
+            goal: `${task.type ?? 'code'}: ${task.prompt.slice(0, 120)}`,
+            steps: [step],
+            failurePolicy: 'cancel-dependents',
+          }),
+          timeoutGuard,
+        ]);
+      } finally {
+        if (planTimer) clearTimeout(planTimer);
+      }
       planId = resp.planId;
       slog('DELEGATION', `Dispatched ${taskId} → plan ${planId}`);
     }

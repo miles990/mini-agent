@@ -138,6 +138,9 @@ export function extractErrorSubtype(errorMsg: string): string {
   if (lower.includes('took too long') || lower.includes('處理超時')) return 'real_timeout';
   if (lower.includes('max_turns') || lower.includes('maximum number of turns')) return 'max_turns';
   if (lower.includes('accomplish timed out') || lower.includes('middleware offline')) return 'middleware_timeout';
+  // 2026-04-20: paired with delegation.ts:294 Promise.race wrapper — converts silent
+  // 600s hang_no_diag (when /plan endpoint blocks) into its own actionable bucket.
+  if (lower.includes('plan_rpc_unreachable') || lower.includes('middleware /plan timed out')) return 'plan_rpc_unreachable';
   // agent.ts:187 fallback — CLI exited with no stderr and no classifiable signal.
   // Fast-death (<1s) often means auth/rate-limit/config issue; slower generic = truly unknown.
   // 2026-04-17 (cycle #16): classifyError now appends `[dur=Xs, signal=..., killed=true]` suffix
