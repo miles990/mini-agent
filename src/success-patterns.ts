@@ -48,11 +48,45 @@ function trimPatterns(filePath: string): void {
   } catch { /* silent */ }
 }
 
+export function seedFromHeartbeat(): void {
+  try {
+    const stateDir = getMemoryStateDir();
+    const filePath = path.join(stateDir, PATTERNS_FILE);
+    if (fs.existsSync(filePath)) return;
+
+    const hbPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+    if (!fs.existsSync(hbPath)) return;
+
+    const hb = fs.readFileSync(hbPath, 'utf-8');
+    const completedRe = /^- \[x\] (.+?)(?:\s*<!--.*?-->)*$/gm;
+    const seeds: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = completedRe.exec(hb)) !== null && seeds.length < 20) {
+      const task = m[1].replace(/✅.*$/, '').trim();
+      if (task.length > 10 && task.length < 300) seeds.push(task);
+    }
+    if (seeds.length === 0) return;
+
+    const lines = seeds.map(t => JSON.stringify({
+      task: t.slice(0, 200),
+      action: 'backfill-from-heartbeat',
+      tags: ['kuro:done'],
+      mode: 'autonomous',
+      at: new Date().toISOString(),
+    } satisfies SuccessPattern));
+    fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
+    slog('SUCCESS', `seeded ${seeds.length} patterns from HEARTBEAT completed tasks`);
+  } catch { /* fire-and-forget */ }
+}
+
 export function buildSuccessContext(contextHint: string): string | null {
   try {
     const stateDir = getMemoryStateDir();
     const filePath = path.join(stateDir, PATTERNS_FILE);
-    if (!fs.existsSync(filePath)) return null;
+    if (!fs.existsSync(filePath)) {
+      seedFromHeartbeat();
+      if (!fs.existsSync(filePath)) return null;
+    }
 
     const raw = fs.readFileSync(filePath, 'utf-8');
     const lines = raw.split('\n').filter(Boolean);

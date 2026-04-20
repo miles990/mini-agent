@@ -524,12 +524,27 @@ export async function buildAutonomousPrompt(
 
   const errorPatternsHint = buildErrorPatternsHint();
 
+  // DQ enforcement gate — when decision quality is critically low, inject mandatory output structure
+  let dqEnforcementGate = '';
+  try {
+    const dqState = readState<{ avgScore: number; warningInjected: boolean; recentScores?: number[] }>('decision-quality.json', { avgScore: 6, warningInjected: false });
+    if (dqState.warningInjected && dqState.avgScore < 2.0) {
+      const scores = dqState.recentScores ?? [];
+      const noopCount = scores.filter(s => s === 0).length;
+      const noopPct = scores.length > 0 ? Math.round(noopCount / scores.length * 100) : 0;
+      dqEnforcementGate = noopPct >= 30
+        ? `## 🚨 DQ Enforcement (avg ${dqState.avgScore}/6, ${noopPct}% noop)\nThis cycle MUST end with at least one of: <kuro:chat>, <kuro:done>, <kuro:delegate>, or <kuro:show>.\nIf blocked, use <kuro:chat> to say WHY you're blocked. Silent cycles are the worst outcome.\nDo NOT write ## Decision without a following action tag — that scores 2/6, not 6/6.`
+        : `## ⚠️ DQ Low (avg ${dqState.avgScore}/6)\nYour recent decision quality is below threshold. Each ## Decision must include concrete 'chose:' and 'skipped:' entries tied to perception signals. Generic decisions score 1-2/6.`;
+    }
+  } catch { /* fail-open */ }
+
   const parts = [base];
   // Pending fetch arrivals — HIGHEST priority salience for ghost-commitment defense.
   // Placed right after base so it's read before any other gate.
   if (pendingFetchArrivals) parts.push(pendingFetchArrivals);
   // Error patterns right after guide — Gate Q3 ("我在重複嗎？") flows into actual patterns
   if (errorPatternsHint) parts.push(errorPatternsHint);
+  if (dqEnforcementGate) parts.push(dqEnforcementGate);
   if (commitmentGateSection) parts.push(commitmentGateSection);
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
