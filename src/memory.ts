@@ -2096,7 +2096,7 @@ export class InstanceMemory {
     // Per-section soft caps — prevent any single section from dominating context
     const SECTION_CAP: Record<string, number> = {
       'web-fetch-results': 6000,
-      'chat-room-recent': 6000,
+      'chat-room-recent': 6000, // floor 4000 via SECTION_FLOOR below
       'chat-room-relevant': 4000,
       'soul': 8000,
       'heartbeat': 6000,
@@ -2128,12 +2128,23 @@ export class InstanceMemory {
     const budgetRatio = Math.min(1, effectiveBudget / 25_000); // 1.0 for 25K+, 0.72 for 18K, 0.32 for 8K
     let runningTotal = 0;
 
+    // Conversation sections must keep latest messages — truncate from HEAD not TAIL.
+    const REVERSE_TRUNCATE_SECTIONS = new Set(['chat-room-recent', 'chat-room-relevant']);
+    // Minimum caps: conversation context must not be squeezed below useful size
+    // even when budget is tight (e.g. foreground lane budgetRatio=0.6 → 3600 is too small).
+    const SECTION_FLOOR: Record<string, number> = { 'chat-room-recent': 4000 };
+
     /** Push a section with automatic size capping, scaled by budget */
     const pushCapped = (tag: string, content: string) => {
       const baseCap = SECTION_CAP[tag] ?? DEFAULT_SECTION_CAP;
-      const cap = Math.max(500, Math.round(baseCap * budgetRatio));
+      const floor = SECTION_FLOOR[tag] ?? 500;
+      const cap = Math.max(floor, Math.round(baseCap * budgetRatio));
       if (content.length > cap) {
-        content = content.slice(0, cap) + `\n[... truncated from ${content.length} chars]`;
+        if (REVERSE_TRUNCATE_SECTIONS.has(tag)) {
+          content = `[... ${content.length - cap} chars of older context trimmed]\n` + content.slice(-cap);
+        } else {
+          content = content.slice(0, cap) + `\n[... truncated from ${content.length} chars]`;
+        }
       }
       const section = `<${tag}>\n${content}\n</${tag}>`;
       runningTotal += section.length;
