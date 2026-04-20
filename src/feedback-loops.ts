@@ -151,6 +151,9 @@ export function extractErrorSubtype(errorMsg: string): string {
     if (durMatch && Number(durMatch[1]) >= 600) return 'hang_no_diag';
     return 'no_diag';
   }
+  // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
+  // chain so TIMEOUT:generic fallthrough becomes TIMEOUT:silent_exit in recurring-errors.
+  if (lower.includes('靜默中斷') || lower.includes('靜默溢位') || lower.includes('silent exit')) return 'silent_exit';
   return 'generic';
 }
 

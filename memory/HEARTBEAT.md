@@ -16,6 +16,11 @@
 - **X posting blocked, Mastodon 準備好**：X 雙路堵死 — CDP 被偵測 + API 401（credentials 失效，需 Alex 到 developer.x.com 重新產 key）。Mastodon（kuro_agent@mastodon.social）script 已修好，**差 B2 email 確認**即可用。（診斷 2026-04-10）
 - **TM 平台生成操作由 Alex 觸發**：不主動對 TM 平台做生成/評測操作，pipeline/server 維持就緒。（2026-03-26，Alex #109）
 - **中台+KG 反射規則**（2026-04-19，crystallized from 6+ cycle 重複）：每個新任務的 Observe phase 先執行 `search_knowledge(query)` 撈既有節點；長推理（>3 步 / >30s 預估）優先 `<kuro:delegate>` 不在前景做；成果沉澱走 `add_knowledge` 而非只寫 memory。觸發條件：新 task / 新 research 主題 / 收到 Alex 新指令。違反即補償（下 cycle 先補 KN lookup 再動作）。廢止條件：連 7 天自檢全綠 = 內化完成。
+- **前景 vs 中台 路由規則**（2026-04-20，from cross-repo inventory `memory/reports/2026-04-20-cross-repo-inventory.md`）：
+  - **前景（stay local, 同步執行）**：OODA hot-path（buildContext / searchMemory FTS5 / pulse eval / perception polling tick）、forge slot 分配、單次 shell/grep/read/curl（<30s + 明確 I/O）、delegation 政策層（type→worker map、sibling awareness）。判準：latency 敏感 + 零網路依賴。
+  - **中台 delegate（`<kuro:delegate>` 走 `/accomplish`）**：(a) verbose 文字壓縮（perception 區塊 >2K chars 走 `summarizer` worker）；(b) 命名主題 research/learn/review/create/code 且步數 >3 或預估 >30s；(c) 跨 worker acceptance-gated DAG plan。判準：bounded async + 可恢復 + 結果可快取。
+  - **KN（`search_knowledge` / `add_knowledge`）**：新主題 Orient 前查；新洞察成形後寫入（不只寫 memory）。判準：知識需跨 session 複用。
+  - **破局 fallback**：中台 `/plan` 無回應 120s → inline fallback + `TIMEOUT:middleware_plan_unreachable` 可操作錯誤（見 Active Tasks P1 action [A]）；KN >500ms → fallback local FTS5。OODA 不 block。
 - **DAG enforcement + BAR 全線完工** ✅：dispatcher acceptance gate (`1c6ac626`) + Phase 2a schema (`645635c2`) + edit-layer gate (`12833888`) + **BAR end-to-end**：Gap A replan loop (`fd8c51ff`) + Gap B dispatcher unification (`95913fb4`) + Phase 2 acceptance routing (`543d81ad`) + commitment ledger (`a5cf65b3`)。三方共識（CC+Kuro+Akari）確認。端到端閉環：dispatcher 統一入口 → brain DAG 規劃 → acceptance routing → replan on failure → commitment tracking。驗證：9 scenario types + P1-d real scenario verified。（2026-04-16，BAR landed）
 
 ## Blocked (waiting on)
@@ -26,6 +31,7 @@
 - **B4 — Asurada/myelin 語言方向決定 (Alex)** → 解鎖：Asurada Phase 8d/5b、myelin npm publish
 
 ## Active Tasks
+- [ ] P1: 修復重複錯誤 — TIMEOUT:generic in callClaude（3 次）@due:2026-04-23 <!-- added: 2026-04-20T01:04:51.268Z -->
 - [x] P1: 修復重複錯誤 — UNKNOWN:hang_no_diag ✅ 2026-04-19 23:24 shipped `3039f4a3` — Alex applied my #36 patch proposal (chose 120s floor). Two changes live in classifyError: (1) silent_exit bucket catching exit!=null + dur>120s + empty stderr before L241 fallthrough (2) L193 absolute 300s floor closing the 600-1619s dead zone that `e81f414` (30min timeout) opened. Monitor 48h: hang_no_diag count should drop, `silent_exit` subtype takes the delta. Diagnosis chain #33→#36 (wrong file → right file wrong verb → fallthrough map → threshold arithmetic) — kept by Alex for the ship.
   <!-- 2026-04-19 cycle #N (12:46 update): regression spike confirmed. 14 天 rate: 4/6-4/15 近零（1 筆）→ 4/16 突飛 184 筆（修正前數字 235 是含 generic UNKNOWN 的雜訊）→ 4/17 24 → 4/18 1 → 4/19 至今 22。**Field-name caveat**: pulse subtype `hang_no_diag` 不是 error log 裡的 verbatim 字串；classifier 真正的判據是 message 含 `處理訊息時發生錯誤` + `dur≥600s` 後綴。今日 19 筆多數可能是 generic `no_diag` 而非真 600s hang，需在 worktree test 時重新分類。**First-bad locked**: `2026-04-16T02:55:53.628Z` (= 10:55:53 +0800)。**舊 4 個 suspects (1500fe4c/3e6a4e8e/fd8c51ff/95913fb4) 已 falsified** — 不在 4/15-EOD → 4/16-10:55 bisect window 內。**Evidence-based new suspects** (window 內、按時間倒序): (a) `12833888` — convertAndDispatchAsPlan + edit-layer gate（first-bad 前 17min, top suspect）; (b) `7d194410` — spawnDelegation routed through middleware /plan; (c) `107c2e9c` — middleware perception plugin enabled。Next cycle action: worktree revert `12833888`，跑 1h 觀察 fresh error log，若 hang count 掉到 <5/h 即根因確認；若不變則往 (b)(c) 推。Method-level lesson: `<kuro:delegate type=shell>` 連續 3 次失敗於 grep/curl tasks（bleed-through syntax noise + Command exited 1），改用直接 Bash tool 一次成功；下次 shell delegate 失敗 2× 就 fallback Bash，不要繼續燒 cycles。
 
@@ -36,17 +42,10 @@
 - [ ] P2: 遷移 #2 — Perception Analyzer (src/perception-analyzer.ts) 6× Haiku/cycle → KN cache，key=plugin_id+input_hash，TTL=1 cycle，miss 才 LLM。需 500ms KN lookup guard，超時回退 inline call（保 3s Orient budget）
 - [ ] 試 hyperframes-cli init + website-to-hyperframes 把 kuro-site v0 轉短片，比較 render 時間/視覺質量 vs 現有 FFmpeg pipeline。TM 初賽 5/1 若要用必須這週驗證。優先級 P2。先跑 init 看骨架，時間盒 20min；超時就 abort，結果寫回 KN node 64329124 的 "Next probe" 段。 <!-- added: 2026-04-19T15:05:08.964Z -->
 - [ ] OODA 反射規則：每個新任務 Observe 階段先 `memory_search` + 掃 `topics/`，Orient 階段 `search_knowledge` 找關聯節點。收斂條件：連續 3 個 cycle 開場都有這兩個動作的痕跡（inner-notes 或 delegate log 可驗）。源自 2026-04-19T06:46 承諾 <!-- added: 2026-04-19T16:03:11.555Z -->
-- [ ] 盤點 mini-agent vs agent-middleware 的重複工作：列出兩邊的 worker/plugin/analyzer，標出功能重疊處，找出 3 個可搬上中台的候選。收斂條件：產出 `memory/proposals/2026-04-20-dedup-middleware.md` 含具體遷移清單。源自 2026-04-19T03:31 承諾 <!-- added: 2026-04-19T16:03:11.560Z -->
-- [ ] 盤點報告產出後，把「什麼情況下走中台、什麼情況下前景做」寫成行為規則加到 soul 或 NEXT。收斂條件：規則有具體觸發條件（不是「盡量用中台」這種廢話）。依賴上一條 task 完成。源自 2026-04-19T03:58 承諾 <!-- added: 2026-04-19T16:03:11.563Z -->
-- [ ] 盤點 mini-agent vs agent-middleware 重複工作：列出兩 repo 都有的子系統（delegation / DAG planner / memory tier / hooks / scorer / forge），標註各自成熟度與差異，產出遷移候選清單。輸出：memory/topics/mini-agent-vs-middleware-inventory.md。預計 >3 步 = 寫 playbook 再動手，走獨立 session 或 delegate，不在前景 cycle 裡硬做。 <!-- added: 2026-04-19T16:38:42.481Z -->
-- [ ] `...」）。其中一條是 `</kuro:action>` — 證實 htmlparser2 容錯把錯配閉合標籤當成 task content。
-2. **`memory.addTask()` 零驗證** — 沒長度、沒換行、沒標籤洩漏過濾，字串原樣 `- [ ] ${task}` append 到 disk。
-
-攻擊路徑只有一條：`<kuro:task>` → `loop.ts:2244` / `dispatcher.ts:972`。pulse/feedback-loops 寫的是 code-built 字串，安全。
-
-診斷寫到 `memory/topics/heartbeat-pollution-diagnosis-20260420.md`，含四層修復提案（parser pre-filter + addTask hard gate + burst rate limit + 既有 250 行監控留著當 safety net）。
-
-**深夜不 hot-patch**。等你起床 review 再動 code。現在 HEARTBEAT.md 115 行乾淨，corrupt-backup-20260420 留證據。收斂條件：7 天 < 200 行 + 無 `<kuro:` 漏字。 <!-- added: 2026-04-19T19:07:09.375Z -->
+- [x] 盤點 mini-agent vs agent-middleware 的重複工作 — **產出**：`memory/reports/2026-04-20-cross-repo-inventory.md` (43 行, del-1776617302358-3shq)，含 6-row overlap table (perception/task queue/context compaction/delegation/knowledge lookup/pulse) + top 3 migration candidates (summarizer [Trivial] / memory-index↔result-buffer dedup [Moderate] / hybrid FTS5+knowledge-nexus [Structural])。CC 原指向 proposals/ 不存在的路徑是 convention 漂移，artifact 內容滿足。源自 2026-04-19T03:31 承諾 <!-- closed: 2026-04-20T07:14 -->
+- [x] 盤點報告產出後，把「什麼情況下走中台、什麼情況下前景做」寫成行為規則加到 soul 或 NEXT。**產出**：HEARTBEAT Active Decisions「前景 vs 中台 路由規則」（2026-04-20）— 三類具體觸發條件（前景 hot-path / 中台 bounded async / KN 跨 session）+ 破局 fallback。收斂條件達成：規則有具體觸發（「perception >2K 走 summarizer」「研究 >3 步走 delegate」「>500ms KN 回 FTS5」），非廢話。源自 2026-04-19T03:58 承諾 <!-- closed: 2026-04-20T07:17 -->
+<!-- 已併入 line 39 (closed 2026-04-20T07:14)。canonical artifact: memory/reports/2026-04-20-cross-repo-inventory.md。duplicate 建立原因：2026-04-19T16:38 cycle 沒查既有 task 就再建一條同主題（convention 飄移：topics/ vs reports/）。教訓：addTask 前先 grep 相近主題。-->
+<!-- 已併入下方 line 51 canonical task。原 entry 是 addTask() 零驗證 bug 的活體證據（diagnosis 散文被當 task content append）— 完整診斷 + 四層修復提案在 memory/topics/heartbeat-pollution-diagnosis-20260420.md，backup HEARTBEAT.md.corrupt-backup-20260420 留證。-->
 - [ ] P3: 遷移 #3 — Contradiction Scanner output → 改寫 KN node (type=contradiction, edges→source memory nodes)，取代 file-parse downstream。較低急迫性但解鎖跨 cycle 圖譜查詢
 - [ ] P1: 找 HEARTBEAT.md writer 污染源 — 4/19 18:07-18:45 期間某 code path 把 LLM 回應 body 當成 task 項目 append 進 Active Tasks。發現：file 從 41 行炸到 6517 行，含 `- [ ] </kuro:action>`、`- [ ] because the task was not part...`、`- [ ] constraint to solve the task; I am treating it as a directive...` 等 LLM self-talk 被誤捕。已清理到 114 行（backup: HEARTBEAT.md.corrupt-backup-20260420）。收斂條件：找出 writer（可能是 post-cycle hook 或 task-parser），加防線（只接受合法格式 / reject 含 `<kuro:` tag 或過長行），連續 7 天 HEARTBEAT.md < 200 行 <!-- added: 2026-04-20 cleanup cycle -->
 
