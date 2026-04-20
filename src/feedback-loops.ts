@@ -41,6 +41,8 @@ interface DecisionQualityState {
   avgScore: number;
   warningInjected: boolean;
   lastWarningAt: string | null;
+  lastEscalationAt: string | null;
+  consecutiveWarningCycles: number;
   // Self-Challenge tracking
   challengeTotal: number;
   challengeCompliant: number;
@@ -353,6 +355,8 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     avgScore: 0,
     warningInjected: false,
     lastWarningAt: null,
+    lastEscalationAt: null,
+    consecutiveWarningCycles: 0,
     challengeTotal: 0,
     challengeCompliant: 0,
     lastChallengeWarningAt: null,
@@ -415,7 +419,23 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     state.warningInjected = true;
     state.lastWarningAt = new Date().toISOString();
     slog('FEEDBACK', `Decision quality warning injected (avg ${state.avgScore}/6)`);
-  } else if (state.avgScore >= 4.0 && state.warningInjected) {
+
+    // Escalation: warning persisted 40+ cycles without improvement → notify Alex
+    if (state.consecutiveWarningCycles == null) state.consecutiveWarningCycles = 0;
+    state.consecutiveWarningCycles++;
+    const escalationCooldownOk = !state.lastEscalationAt ||
+      (now - new Date(state.lastEscalationAt).getTime()) > 72 * 3600_000;
+    if (state.consecutiveWarningCycles >= 40 && escalationCooldownOk) {
+      const { notifyTelegram } = await import('./telegram.js');
+      notifyTelegram(`⚠️ Kuro decision quality 持續低迷 ${state.consecutiveWarningCycles} cycles（avg ${state.avgScore}/6）— prompt warning 無效，可能需要結構性調整`).catch(() => {});
+      state.lastEscalationAt = new Date().toISOString();
+      slog('FEEDBACK', `Decision quality ESCALATED to Telegram after ${state.consecutiveWarningCycles} cycles`);
+    }
+  } else if (state.avgScore >= 2.0) {
+    state.consecutiveWarningCycles = 0;
+  }
+
+  if (state.avgScore >= 4.0 && state.warningInjected) {
     // Quality recovered — clear warning
     if (existsSync(flagPath)) {
       const { unlinkSync } = await import('node:fs');
@@ -736,7 +756,8 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
   try {
     const dqState = readState<DecisionQualityState>('decision-quality.json', {
       recentScores: [], avgScore: 0, warningInjected: false,
-      lastWarningAt: null, challengeTotal: 0, challengeCompliant: 0,
+      lastWarningAt: null, lastEscalationAt: null, consecutiveWarningCycles: 0,
+      challengeTotal: 0, challengeCompliant: 0,
       lastChallengeWarningAt: null,
     });
 

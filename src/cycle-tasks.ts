@@ -371,12 +371,25 @@ export function guardHeartbeatSize(): void {
   const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
   if (!fs.existsSync(heartbeatPath)) return;
   try {
-    const lines = fs.readFileSync(heartbeatPath, 'utf-8').split('\n').length;
-    if (lines > 250) {
-      notifyTelegram(`🚨 HEARTBEAT.md 膨脹到 ${lines} 行，可能被垃圾污染`).catch(() => {});
-      slog('HEARTBEAT', `⚠️ HEARTBEAT.md has ${lines} lines (threshold: 250) — possible context pollution`);
-    } else if (lines > 150) {
-      slog('HEARTBEAT', `⚠️ HEARTBEAT.md has ${lines} lines (threshold: 150) — approaching limit`);
+    const content = fs.readFileSync(heartbeatPath, 'utf-8');
+    const lines = content.split('\n');
+    const lineCount = lines.length;
+    if (lineCount > 200) {
+      const trimmed = lines.filter(line => {
+        if (line.startsWith('- [x]')) return false;
+        if (/^  <!-- .*(completed|closed|歸檔|已併入)/.test(line)) return false;
+        return true;
+      });
+      const afterCount = trimmed.length;
+      if (afterCount < lineCount) {
+        fs.writeFileSync(heartbeatPath, trimmed.join('\n'), 'utf-8');
+        slog('HEARTBEAT', `auto-trimmed ${lineCount}→${afterCount} lines (removed completed tasks)`);
+      }
+      if (afterCount > 250) {
+        notifyTelegram(`🚨 HEARTBEAT.md 仍有 ${afterCount} 行（清理後），可能被垃圾污染`).catch(() => {});
+      }
+    } else if (lineCount > 150) {
+      slog('HEARTBEAT', `HEARTBEAT.md approaching limit: ${lineCount} lines`);
     }
   } catch { /* silent */ }
 }

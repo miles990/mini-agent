@@ -785,6 +785,9 @@ export class InstanceMemory {
   private topicLoadCounts = new Map<string, number>();
   private loadedTopics: string[] = [];
 
+  // Burst rate limiter for addTask
+  private _addTaskTimestamps: number[] = [];
+
   // SubSoul: last facet load record (for checkpoint data collection)
   private lastSoulFacetRecord: {
     loaded: string[];
@@ -1414,6 +1417,20 @@ export class InstanceMemory {
    * - [ ] task without priority (default P2)
    */
   async addTask(task: string, schedule?: string): Promise<void> {
+    const trimmed = task.trim();
+    const rejectReason = this.validateTaskContent(trimmed);
+    if (rejectReason) {
+      slog('TASK', `rejected addTask: ${rejectReason} | content=${trimmed.slice(0, 80)}`);
+      return;
+    }
+    const now = Date.now();
+    this._addTaskTimestamps = this._addTaskTimestamps.filter(t => now - t < 1000);
+    if (this._addTaskTimestamps.length >= 3) {
+      slog('HEARTBEAT', `burst rejected: ${this._addTaskTimestamps.length} addTask/sec`);
+      return;
+    }
+    this._addTaskTimestamps.push(now);
+
     await ensureDir(this.memoryDir);
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
 
@@ -1473,6 +1490,17 @@ export class InstanceMemory {
   private extractPriority(text: string): number {
     const match = text.match(/P(\d)/);
     return match ? parseInt(match[1], 10) : 2;
+  }
+
+  private validateTaskContent(task: string): string | null {
+    if (!task) return 'empty';
+    if (task.length > 300) return `too_long(${task.length})`;
+    if (task.includes('\n')) return 'multiline';
+    if (/<\/?kuro:/i.test(task)) return 'tag_leakage';
+    if (/^```|^> |^# |^skipped:/i.test(task)) return 'non_task_format';
+    if (/^<\/|^<[a-z]/.test(task)) return 'html_fragment';
+    if (/because the task|constraint to solve|I am treating it/i.test(task)) return 'llm_self_talk';
+    return null;
   }
 
   /**
