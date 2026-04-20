@@ -2686,8 +2686,17 @@ export class InstanceMemory {
     const innerNotesPath = path.join(this.memoryDir, 'inner-notes.md');
     try {
       if (existsSync(innerNotesPath)) {
-        const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
+        let innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
         if (innerContent) {
+          // Detect stale working memory — facts decay, re-verify before trusting
+          const writtenMatch = innerContent.match(/^<!-- written: (\S+) -->/);
+          if (writtenMatch) {
+            innerContent = innerContent.replace(/^<!-- written: \S+ -->\n?/, '');
+            const ageMin = Math.round((Date.now() - new Date(writtenMatch[1]).getTime()) / 60_000);
+            if (ageMin > 10) {
+              innerContent = `[⚠️ ${ageMin}min old — facts may be outdated, re-verify before acting]\n${innerContent}`;
+            }
+          }
           pushCapped('working-memory', innerContent);
         }
       }
@@ -3164,8 +3173,16 @@ export class InstanceMemory {
     const innerNotesPath = path.join(this.memoryDir, 'inner-notes.md');
     try {
       if (existsSync(innerNotesPath)) {
-        const innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
+        let innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
         if (innerContent) {
+          const writtenMatch = innerContent.match(/^<!-- written: (\S+) -->/);
+          if (writtenMatch) {
+            innerContent = innerContent.replace(/^<!-- written: \S+ -->\n?/, '');
+            const ageMin = Math.round((Date.now() - new Date(writtenMatch[1]).getTime()) / 60_000);
+            if (ageMin > 10) {
+              innerContent = `[⚠️ ${ageMin}min old — facts may be outdated, re-verify before acting]\n${innerContent}`;
+            }
+          }
           sections.push(`<working-memory>\n${innerContent}\n</working-memory>`);
         }
       }
@@ -3577,7 +3594,7 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
       try { writeFileSync(filePath, JSON.stringify(data), 'utf-8'); } catch { /* best effort */ }
     }
 
-    return lines.join('\n');
+    return '[delegation data is fresh — supersedes stale working-memory claims]\n' + lines.join('\n');
   } catch {
     return null;
   }

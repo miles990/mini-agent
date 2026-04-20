@@ -956,9 +956,11 @@ export async function postProcess(
     const mode = getMode();
     if (mode.mode === 'reserved' || mode.mode === 'autonomous') {
       // Atomic write: tmp → rename，防止 snapshot 讀到半寫狀態
+      // Embed write timestamp so buildContext can detect stale working memory
       const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
       const tmpPath = innerPath + '.tmp';
-      fs.writeFile(tmpPath, tags.inner, 'utf-8')
+      const stamped = `<!-- written: ${new Date().toISOString()} -->\n${tags.inner}`;
+      fs.writeFile(tmpPath, stamped, 'utf-8')
         .then(() => fs.rename(tmpPath, innerPath))
         .catch(() => {}); // fire-and-forget
       slog('INNER', `Working memory updated (${mode.mode})`);

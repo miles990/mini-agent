@@ -493,7 +493,7 @@ export function formatInboxSection(items: InboxItem[]): string {
       }
     }
 
-    const time = i.ts.slice(11, 16);
+    const time = new Date(i.ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
     const sourceTag = i.source === 'telegram' ? `telegram:${i.from}`
       : i.source === 'room' ? `room:${i.from}`
       : i.source === 'github' ? `github:${i.meta?.issueNumber ? '#' + i.meta.issueNumber : 'issue'}`
