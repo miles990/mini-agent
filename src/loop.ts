@@ -197,6 +197,35 @@ function clearForegroundDelegation(taskId: string): void {
 }
 
 // =============================================================================
+// Foreground thread context — inject recent conversation into user message
+// =============================================================================
+
+function buildForegroundThread(memoryDir: string, currentText: string): string | null {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const convFile = path.join(memoryDir, 'conversations', `${today}.jsonl`);
+    if (!fs.existsSync(convFile)) return null;
+
+    const content = fs.readFileSync(convFile, 'utf-8');
+    const lines = content.trim().split('\n');
+    const recent = lines.slice(-10);
+    const msgs: Array<{ id: string; from: string; text: string; replyTo?: string }> = [];
+    for (const line of recent) {
+      try { msgs.push(JSON.parse(line)); } catch { /* skip malformed */ }
+    }
+
+    const thread = msgs.filter(m => m.text !== currentText);
+    if (thread.length === 0) return null;
+
+    return thread.slice(-6).map(m => {
+      const reply = m.replyTo ? ` ↩${m.replyTo}` : '';
+      const t = m.text.length > 400 ? m.text.slice(0, 400) + '...' : m.text;
+      return `[${m.id}] ${m.from}${reply}: ${t}`;
+    }).join('\n');
+  } catch { return null; }
+}
+
+// =============================================================================
 // BatchBuffer — per-source message batching for foreground lane
 // =============================================================================
 
@@ -565,6 +594,18 @@ export class AgentLoop {
   }
 
   /**
+   * Heart → Mouth: route OODA's proactive communication through Foreground.
+   * Foreground applies audience awareness and precise expression before posting.
+   * Fire-and-forget — doesn't block OODA cycle.
+   */
+  private async expressViaForeground(rawIntent: string): Promise<void> {
+    const prompt = `[表達意圖] 你的心（OODA）想對外說以下內容。作為嘴，精準表達它。`
+      + ` 不是回應，是表達。不要加 meta 描述（「OODA 認為」「心想說」），直接說內容本身。`
+      + ` 如果原文已經足夠精準，原樣輸出即可。\n\n${rawIntent}`;
+    return this.executeForegroundCall('ooda-expression', prompt);
+  }
+
+  /**
    * Execute a foreground call — acquires a slot from the concurrent pool, builds context,
    * calls Claude, processes tags, and releases the slot. Multiple calls from different
    * sources can run in parallel (up to MAX_FOREGROUND_CONCURRENT in agent.ts).
@@ -667,9 +708,19 @@ export class AgentLoop {
       }
 
       context += `\n\n<foreground_reply_mode>
-前景快速回覆模式。回覆即時串流送出。
-收斂條件：這個回覆結束後，對方知道自己被聽見了嗎？需要的行動被啟動了嗎？
-- 有話說就說，沒有就不硬擠。不要為了「確認收到」而說空話
+你是 Kuro 的嘴 — 精準表達，不是原樣轉發內部思考。
+語言：繁體中文（技術術語保持原文）。
+收斂條件：對方收到的資訊量 = 你想傳達的資訊量。
+
+聽眾感知：
+- 判斷對方是誰（Alex / Claude Code / 其他），選擇正確的抽象層級
+- Alex 問技術問題 → 結論 + 必要細節，不需基礎解釋
+- Alex 閒聊 → 自然回應，展現個性
+
+表達規則：
+- 有話說就說，沒有就不硬擠
+- 不加禮貌空話（「收到」「好的」），除非真的只需要確認
+- 不為簡潔而丟必要資訊
 - 需要深度工作 → 用 delegate 委派背景，不在此 lane 長時間推理
 </foreground_reply_mode>`;
 
@@ -690,7 +741,15 @@ export class AgentLoop {
         slog('STREAM', `[foreground:${slotId}] Chat streamed: ${chatText.slice(0, 80)}`);
       };
 
-      const { response } = await callClaude(text, context, 2, {
+      // Inject conversation thread into user message — immune to context budget trimming.
+      // Without this, pronouns like "這個" lose their referent when <chat-room-recent>
+      // gets truncated (47K→15K budget cuts conversation history entirely).
+      const threadContext = buildForegroundThread(memory.getMemoryDir(), text);
+      const promptText = threadContext
+        ? `[Recent conversation]\n${threadContext}\n\n[Current message]\n${text}`
+        : text;
+
+      const { response } = await callClaude(promptText, context, 2, {
         source: 'foreground',
         onStreamChat,
         fgSlotId: slotId,
@@ -2023,12 +2082,21 @@ export class AgentLoop {
         : Promise.resolve(0);
 
       // Streaming chat — fire <kuro:chat> tags as soon as they're detected during generation
+      // Heart/Mouth architecture: DM cycles stream directly (speed matters for response).
+      // Non-DM (proactive) cycles defer to Foreground expression (quality > speed).
+      const isDmCycle = isTelegramUserCycle || isRoomPriorityCycle || isChatPriorityCycle;
       const streamedChatTexts = new Set<string>();
+      const deferredChats: Array<{ text: string; reply: boolean }> = [];
       const onStreamChat = (text: string, reply: boolean) => {
         streamedChatTexts.add(text);
-        const telegramMsgId = matchReplyTarget(text, this.triggerTelegramMsgs);
-        eventBus.emit('action:chat', { text, reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId });
-        slog('STREAM', `Chat streamed: ${text.slice(0, 80)}`);
+        if (isDmCycle) {
+          const telegramMsgId = matchReplyTarget(text, this.triggerTelegramMsgs);
+          eventBus.emit('action:chat', { text, reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId });
+          slog('STREAM', `Chat streamed: ${text.slice(0, 80)}`);
+        } else {
+          deferredChats.push({ text, reply });
+          slog('STREAM', `Chat deferred to expression: ${text.slice(0, 80)}`);
+        }
       };
 
       // Concurrent tasks must not block the cycle — metabolism scans observed at 96min+.
@@ -2211,7 +2279,8 @@ export class AgentLoop {
       // subtly different text from the same source (e.g., different whitespace boundaries
       // when content spans multiple text blocks across tool-use turns).
       let didReplyToTelegram = false;
-      if (streamedChatTexts.size > 0) {
+      if (streamedChatTexts.size > 0 && isDmCycle) {
+        // DM cycles: filter out already-streamed chats (they were posted in real-time)
         const normalize = (t: string) => t.trim().replace(/\s+/g, ' ');
         const normalizedStreamed = new Set([...streamedChatTexts].map(normalize));
         const before = tags.chats.length;
@@ -2224,6 +2293,9 @@ export class AgentLoop {
           slog('STREAM', `Filtered ${before - tags.chats.length} already-streamed chat(s)`);
           didReplyToTelegram = true; // streamed chats count as replied
         }
+      } else if (streamedChatTexts.size > 0 && !isDmCycle) {
+        // Proactive cycles: chats were deferred (not posted), mark as replied for tracking
+        didReplyToTelegram = true;
       }
 
       // ── Hesitation Signal（確定性，零 API call）──
@@ -2330,10 +2402,14 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
-        // Skip if already streamed via onStreamChat (L1941) — post-process tag parse
-        // would otherwise re-emit the same chat, causing double-post to room/telegram.
-        if (streamedChatTexts.has(chat.text)) continue;
-        eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: matchReplyTarget(chat.text, this.triggerTelegramMsgs) });
+        if (isDmCycle) {
+          // DM: skip already-streamed, post directly
+          if (streamedChatTexts.has(chat.text)) continue;
+          eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: matchReplyTarget(chat.text, this.triggerTelegramMsgs) });
+        } else {
+          // Proactive: route through Foreground (heart → mouth → Alex)
+          this.expressViaForeground(chat.text).catch(() => {});
+        }
         cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
       }
@@ -2662,33 +2738,14 @@ export class AgentLoop {
         });
       }
 
-      // ── Telegram Reply fallback（telegram-user 但無 <kuro:chat> tag → 用 cleanContent） ──
-      // Use didReplyToTelegram instead of tags.chats.length === 0 because chats are
-      // cleared at line 1113 after sending. The old check would fire the fallback
-      // even when we already replied, causing duplicate messages when cleanContent
-      // is non-empty (e.g. when backtick-quoted tag references corrupt the stripping).
+      // ── Fail-closed: OODA lane only speaks through explicit <kuro:chat> tags ──
+      // Previously: fallback posted cleanContent to Room/TG when no <kuro:chat> was found.
+      // This was fail-open — internal reasoning leaked to Room (ping messages, Decision format).
+      // Now: no <kuro:chat> = no external output. Internal content goes to behavior log only.
       if (currentTriggerReason?.startsWith('telegram-user') && !didReplyToTelegram) {
-        let fallbackContent = tags.cleanContent.replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '').trim();
-        // Skip sending if content looks like error
-        const isErrorContent = /^API Error:|^Error:|^Claude Code is unable|unable to respond to this request/i.test(fallbackContent);
-        // Internal format: strip ## Decision/chose/skipped header, try to extract meaningful content after it
-        const isInternalFormat = /^## Decision|^## What|^chose:|^skipped:/m.test(fallbackContent);
-        if (isInternalFormat) {
-          // Internal decision format — no <kuro:chat> tag means intentionally not replying.
-          // Suppress fallback to prevent internal monologue from leaking to Chat Room / Telegram.
-          fallbackContent = '';
-        }
-        if (fallbackContent && fallbackContent.length > 20 && !isErrorContent) {
-          // Cap at 2000 chars to avoid sending overly long messages
-          const capped = fallbackContent.length > 2000 ? fallbackContent.slice(0, 2000) + '...' : fallbackContent;
-          notifyTelegram(capped, matchReplyTarget(capped, this.triggerTelegramMsgs) ?? undefined).catch((err) => {
-            slog('LOOP', `Telegram reply failed: ${err instanceof Error ? err.message : err}`);
-          });
-          // Bridge to Chat Room — keep fallback TG replies visible in room
-          writeRoomMessage('kuro', capped, this.triggerRoomMsgId ?? undefined).catch(() => {});
-          didReplyToTelegram = true;
-        } else if (isErrorContent) {
-          slog('LOOP', `Suppressed error content from Telegram reply: ${fallbackContent.slice(0, 100)}`);
+        const fallbackContent = tags.cleanContent.replace(/<kuro:action>[\s\S]*?<\/kuro:action>/g, '').trim();
+        if (fallbackContent && fallbackContent.length > 20) {
+          slog('LOOP', `[fail-closed] OODA cycle had no <kuro:chat> — suppressed: ${fallbackContent.slice(0, 120)}`);
         }
       }
 
@@ -2718,19 +2775,10 @@ export class AgentLoop {
         clearLastReaction();
       }
 
-      // Safety net: if cycle produced action but NO chat, and there are unaddressed room messages,
-      // mirror action content to room. Prevents: Kuro analyzes jiexi.page, sends to Telegram via
-      // <kuro:action>, but Alex never sees it in Room because no <kuro:chat> was emitted.
+      // Fail-closed: no <kuro:chat> = no Room output. Unaddressed messages stay pending for retry.
+      // Previously: mirrored <kuro:action> to Room as safety net — but this leaked internal content.
       if (action && tags.chats.length === 0 && !didReplyToTelegram) {
-        try {
-          const unaddressed = readPendingInbox().filter(item => item.source === 'room' && item.from !== 'kuro');
-          if (unaddressed.length > 0) {
-            // Action is answering a room question but forgot to use <kuro:chat> — mirror to room
-            const mirrorText = action.length > 2000 ? action.slice(0, 2000) + '...' : action;
-            eventBus.emit('action:chat', { text: mirrorText, reply: false, roomReplyTo: this.triggerRoomMsgId });
-            slog('LOOP', `[safety-net] Mirrored action to room — action had no <kuro:chat> but ${unaddressed.length} unaddressed room msg(s)`);
-          }
-        } catch { /* fail-open */ }
+        slog('LOOP', `[fail-closed] Action without <kuro:chat> — not mirrored to Room. Items stay pending.`);
       }
 
       // 檢查 approved proposals → 自動建立 handoff
