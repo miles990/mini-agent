@@ -62,6 +62,7 @@ import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, 
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
 import { kgExpandQuery } from './kg-retrieval.js';
 import { getKGAugmentedContext } from './claudemd-jit.js';
+import { buildContinuityContext } from './kg-continuity.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 
@@ -2967,6 +2968,15 @@ export class InstanceMemory {
         pushCapped('kg-context', kgCtx);
       }
       bcMark('kgContext');
+    }
+
+    // ── Cross-cycle Continuity (KG cycle-state tracking) ──
+    if (!isLight && !budgetExhausted()) {
+      const continuityCtx = await buildContinuityContext();
+      if (continuityCtx) {
+        pushCapped('continuity', continuityCtx);
+      }
+      bcMark('continuity');
     }
 
     // ── Reorder for prefix caching: stable sections first ──

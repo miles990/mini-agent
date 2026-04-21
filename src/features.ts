@@ -84,6 +84,7 @@ const FEATURES: FeatureInfo[] = [
   { name: 'kg-retrieval-augment', group: 'housekeeping', description: 'KG retrieval augmentation — expand FTS5 search with 1-hop entity neighbors (Path A)', defaultEnabled: true },
   { name: 'kg-jit-augment', group: 'housekeeping', description: 'KG JIT context augmentation — query shared KG service to supplement CLAUDE.md JIT (Path C)', defaultEnabled: true },
   { name: 'kg-service-push', group: 'housekeeping', description: 'Push accumulated memory writes to external KG service (localhost:3300)', defaultEnabled: true },
+  { name: 'kg-continuity', group: 'housekeeping', description: 'Cross-cycle continuity — write/read cycle-state via KG for subjective thread tracking', defaultEnabled: true },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

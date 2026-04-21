@@ -279,6 +279,7 @@ function buildSkeletonPrompt(persona: string): string {
 ## Tags
 - <kuro:chat>msg</kuro:chat> — message to user (TG notification)
 - <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
+- <kuro:cycle-state>focus: ...\nintent: ...\noutcome: shipped|progressed|stalled|abandoned\nartifacts: commit:x\ncloses: cycle-xxx\nmood: 1-5 note</kuro:cycle-state> — cross-cycle continuity (→ KG → next cycle <continuity>)
 - <kuro:remember topic="t">content</kuro:remember> — save memory
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
@@ -335,6 +336,7 @@ Messages must be self-contained: explicit background, specific references (msg I
 ## Tags
 - <kuro:chat>msg</kuro:chat> — message to user (TG notification)
 - <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
+- <kuro:cycle-state>focus: ...\nintent: ...\noutcome: shipped|progressed|stalled|abandoned\nartifacts: commit:x\ncloses: cycle-xxx\nmood: 1-5 note</kuro:cycle-state> — cross-cycle continuity (→ KG → next cycle <continuity>)
 - <kuro:remember topic="t">content</kuro:remember> — save memory
 - <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
@@ -652,6 +654,12 @@ export function parseTags(response: string): ParsedTags {
     if (t) inner = t.content.trim();
   }
 
+  let cycleState: string | undefined;
+  {
+    const t = firstByName('kuro:cycle-state');
+    if (t) cycleState = t.content.trim();
+  }
+
   let schedule: { next: string; reason: string } | undefined;
   {
     const t = firstByName('kuro:schedule');
@@ -838,7 +846,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, cleanContent };
 }
 
 // =============================================================================
@@ -990,6 +998,16 @@ export async function postProcess(
         .then(() => fs.rename(tmpPath, innerPath))
         .catch(() => {}); // fire-and-forget
       slog('INNER', `Working memory updated (${mode.mode})`);
+    }
+  }
+
+  // <kuro:cycle-state> tag — cross-cycle continuity via KG
+  if (tags.cycleState) {
+    tagsProcessed.push('cycle-state');
+    const { parseCycleStateTag, writeCycleState } = await import('./kg-continuity.js');
+    const parsed = parseCycleStateTag(tags.cycleState);
+    if (parsed) {
+      writeCycleState(parsed).catch(() => {}); // fire-and-forget
     }
   }
 

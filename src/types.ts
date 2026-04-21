@@ -358,6 +358,7 @@ export interface ParsedTags {
   supersedes: Array<{ target: string; reason: string; content: string; topic?: string; concepts?: string[] }>;
   validates: Array<{ target: string }>;
   excludes: Array<{ target: string; reason: string }>;
+  cycleState?: string;
   cleanContent: string;
 }
 

@@ -90,7 +90,7 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
       let content = input.slice(contentStart, contentEnd);
 
       // Strip orphaned kuro closing tags from content (e.g. </kuro:action> leaked into <kuro:task>)
-      const PLAIN_TEXT_TAGS = new Set(['kuro:task', 'kuro:remember', 'kuro:chat', 'kuro:ask', 'kuro:done', 'kuro:inner', 'kuro:impulse', 'kuro:summary', 'kuro:goal', 'kuro:goal-progress', 'kuro:goal-done', 'kuro:goal-abandon']);
+      const PLAIN_TEXT_TAGS = new Set(['kuro:task', 'kuro:remember', 'kuro:chat', 'kuro:ask', 'kuro:done', 'kuro:inner', 'kuro:impulse', 'kuro:summary', 'kuro:goal', 'kuro:goal-progress', 'kuro:goal-done', 'kuro:goal-abandon', 'kuro:cycle-state']);
       if (PLAIN_TEXT_TAGS.has(name)) {
         content = content.replace(/<\/?kuro:[^>]*>/g, '');
         // User-visible tags (chat, ask, summary) must not be truncated — they are the message itself.
