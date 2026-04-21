@@ -63,6 +63,7 @@ import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-
 import { kgExpandQuery } from './kg-retrieval.js';
 import { getKGAugmentedContext } from './claudemd-jit.js';
 import { buildContinuityContext } from './kg-continuity.js';
+import { queryKGDiscussionContext } from './observability.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 
@@ -2254,10 +2255,17 @@ export class InstanceMemory {
     );
 
     // ── Chat Room Smart Loading（citation-gated: only on dm/room triggers）──
-    // Density ratio < 0.1 (16.7% chars, 1.2% citation) → conditional loading
+    // KG Discussion first → full messages, paginated, no truncation
+    // Fallback to JSONL if KG unavailable
     if (contextProfile === 'dm' || contextProfile === 'autonomous') {
-      const chatRoomRecent = await this.buildChatRoomRecentSection(options?.phase0Results?.conversationSummary);
-      if (chatRoomRecent) sections.push(chatRoomRecent);
+      const kgChat = await queryKGDiscussionContext(4000);
+      if (kgChat) {
+        sections.push(`<chat-room-recent>\n${kgChat}\n</chat-room-recent>`);
+        bcMark('chatRoomKG');
+      } else {
+        const chatRoomRecent = await this.buildChatRoomRecentSection(options?.phase0Results?.conversationSummary);
+        if (chatRoomRecent) sections.push(chatRoomRecent);
+      }
 
       const todayIds = new Set(
         (await this.readChatRoomMessages(new Date().toISOString().slice(0, 10))).map(m => m.id),

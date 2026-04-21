@@ -13,6 +13,7 @@ import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
 import { getLogger } from './logging.js';
+import { isEnabled } from './features.js';
 import { notify, notifyTelegram, getLastAlexMessageId } from './telegram.js';
 import { recordReply } from './reply-context.js';
 import type { MessageContext } from './preprocessor.js';
@@ -348,5 +349,137 @@ export async function writeRoomMessage(from: string, text: string, replyTo?: str
 
   eventBus.emit('action:room', { id, from, text, ts: now.toISOString(), mentions, ...(replyTo ? { replyTo } : {}) });
 
+  // KG Discussion: persist full message as position (fire-and-forget)
+  pushRoomMessageToKG(id, from, text, replyTo).catch(() => {});
+
   return id;
+}
+
+// =============================================================================
+// KG Discussion — persist room messages as structured positions
+// =============================================================================
+
+const KG_SERVICE_URL = 'http://localhost:3300';
+const KG_TIMEOUT = 3000;
+let _todayDiscussionId: string | null = null;
+let _todayDiscussionDate: string | null = null;
+
+async function ensureTodayDiscussion(): Promise<string | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (_todayDiscussionId && _todayDiscussionDate === today) return _todayDiscussionId;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), KG_TIMEOUT);
+    const listResp = await fetch(`${KG_SERVICE_URL}/api/discussions?namespace=kuro&status=open`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!listResp.ok) return null;
+    const { discussions } = await listResp.json() as { discussions: Array<{ id: string; topic: string }> };
+    const existing = discussions.find(d => d.topic === `room-${today}`);
+    if (existing) {
+      _todayDiscussionId = existing.id;
+      _todayDiscussionDate = today;
+      return existing.id;
+    }
+
+    const createResp = await fetch(`${KG_SERVICE_URL}/api/discussion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: `room-${today}`,
+        description: `Chat Room conversation for ${today}`,
+        source_agent: 'kuro',
+        namespace: 'kuro',
+        participants: ['alex', 'kuro', 'claude-code'],
+      }),
+    });
+    if (!createResp.ok) return null;
+    const { discussion_id } = await createResp.json() as { discussion_id: string };
+    _todayDiscussionId = discussion_id;
+    _todayDiscussionDate = today;
+    return discussion_id;
+  } catch {
+    return null;
+  }
+}
+
+async function pushRoomMessageToKG(msgId: string, from: string, text: string, replyTo?: string): Promise<void> {
+  if (!isEnabled('kg-service-push')) return;
+  try {
+    const discussionId = await ensureTodayDiscussion();
+    if (!discussionId) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), KG_TIMEOUT);
+    await fetch(`${KG_SERVICE_URL}/api/discussion/${discussionId}/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `${from}: ${text.slice(0, 80)}`,
+        content: text,
+        type: 'observation',
+        confidence: 0.9,
+        source_agent: from,
+        relation: replyTo ? 'AGREES_WITH' : 'HAS_POSITION',
+        properties: { roomMsgId: msgId, replyTo },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+  } catch {
+    // KG offline — graceful degrade
+  }
+}
+
+/** Query today's KG discussion for recent conversation context. */
+export async function queryKGDiscussionContext(budget: number = 4000): Promise<string | null> {
+  if (!isEnabled('kg-service-push')) return null;
+  try {
+    const discussionId = await ensureTodayDiscussion();
+    if (!discussionId) return null;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), KG_TIMEOUT);
+    const resp = await fetch(`${KG_SERVICE_URL}/api/discussion/${discussionId}?limit=20&offset=0`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return null;
+
+    const data = await resp.json() as {
+      positions: Array<{
+        name: string;
+        description: string;
+        source_agent: string;
+        created_at: string;
+        relation: string;
+        confidence: number;
+        node_id: string;
+      }>;
+      pagination: { total: number };
+    };
+
+    if (!data.positions || data.positions.length === 0) return null;
+
+    const lines: string[] = [];
+    let charCount = 0;
+    // Positions are oldest-first from API; show in chronological order
+    for (const p of data.positions) {
+      const time = p.created_at?.slice(11, 16) ?? '';
+      const line = `[${time}] ${p.source_agent}: ${p.description.slice(0, 500)}`;
+      if (charCount + line.length > budget && lines.length > 0) break;
+      lines.push(line);
+      charCount += line.length;
+    }
+
+    const total = data.pagination?.total ?? data.positions.length;
+    const shown = lines.length;
+    const hint = total > shown ? `\n[${total} messages today, showing ${shown} most recent. Full history in KG discussion ${discussionId}]` : '';
+
+    return lines.join('\n') + hint;
+  } catch {
+    return null;
+  }
 }

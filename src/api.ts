@@ -2630,83 +2630,6 @@ export function createApi(port = 3001): express.Express {
     res.sendFile(filePath);
   });
 
-  // ─── KG Discussion integration — persist room messages as discussion positions ───
-  const KG_SERVICE_URL = 'http://localhost:3300';
-  const KG_DISCUSSION_TIMEOUT = 3000;
-  let _todayDiscussionId: string | null = null;
-  let _todayDiscussionDate: string | null = null;
-
-  async function ensureTodayDiscussion(): Promise<string | null> {
-    const today = new Date().toISOString().slice(0, 10);
-    if (_todayDiscussionId && _todayDiscussionDate === today) return _todayDiscussionId;
-
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), KG_DISCUSSION_TIMEOUT);
-      // Check if today's discussion exists
-      const listResp = await fetch(`${KG_SERVICE_URL}/api/discussions?namespace=kuro&status=open`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!listResp.ok) return null;
-      const { discussions } = await listResp.json() as { discussions: Array<{ id: string; topic: string }> };
-      const existing = discussions.find(d => d.topic === `room-${today}`);
-      if (existing) {
-        _todayDiscussionId = existing.id;
-        _todayDiscussionDate = today;
-        return existing.id;
-      }
-
-      // Create new discussion for today
-      const createResp = await fetch(`${KG_SERVICE_URL}/api/discussion`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: `room-${today}`,
-          description: `Chat Room conversation for ${today}`,
-          source_agent: 'kuro',
-          namespace: 'kuro',
-          participants: ['alex', 'kuro', 'claude-code'],
-        }),
-      });
-      if (!createResp.ok) return null;
-      const { discussion_id } = await createResp.json() as { discussion_id: string };
-      _todayDiscussionId = discussion_id;
-      _todayDiscussionDate = today;
-      return discussion_id;
-    } catch {
-      return null;
-    }
-  }
-
-  async function pushRoomMessageToKG(msgId: string, from: string, text: string, replyTo?: string): Promise<void> {
-    if (!isEnabled('kg-service-push')) return;
-    try {
-      const discussionId = await ensureTodayDiscussion();
-      if (!discussionId) return;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), KG_DISCUSSION_TIMEOUT);
-      await fetch(`${KG_SERVICE_URL}/api/discussion/${discussionId}/position`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${from}: ${text.slice(0, 80)}`,
-          content: text,
-          type: 'observation',
-          confidence: 0.9,
-          source_agent: from,
-          relation: replyTo ? 'AGREES_WITH' : 'HAS_POSITION',
-          properties: { roomMsgId: msgId, replyTo },
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-    } catch {
-      // KG offline — graceful degrade, inbox still works
-    }
-  }
-
   // POST /api/room — send a message to chat room
   app.post('/api/room', async (req: Request, res: Response) => {
     const { from, text, replyTo } = req.body;
@@ -2777,9 +2700,6 @@ export function createApi(port = 3001): express.Express {
 
         // Wake idle loop immediately after room message persistence
         emitRoomTrigger({ source: 'room-api', from, text, roomMsgId: id });
-
-        // Triple-write: KG Discussion API — full message preserved as position (fire-and-forget)
-        pushRoomMessageToKG(id, from, text, replyTo as string | undefined).catch(() => {});
       }
 
       // Auto-detect conversation threads (Alex + Claude Code messages) — fire-and-forget
