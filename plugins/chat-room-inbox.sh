@@ -68,25 +68,55 @@ if [ -n "$recent" ]; then
     done
 fi
 
-# Show recent conversation context from JSONL (last 8 messages)
-# This gives thread context so Kuro understands what ambiguous messages like "先做" refer to
+# Show recent conversation context — try KG Discussion first, fallback to JSONL
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TODAY=$(date -u +%Y-%m-%d)
-CONV_FILE="$PROJECT_DIR/memory/conversations/$TODAY.jsonl"
 
-if [ -f "$CONV_FILE" ] && [ "$pending" -gt 0 ]; then
+if [ "$pending" -gt 0 ]; then
     echo ""
     echo "--- Recent conversation (thread context) ---"
-    tail -8 "$CONV_FILE" 2>/dev/null | while IFS= read -r line; do
-        from=$(echo "$line" | sed -n 's/.*"from":"\([^"]*\)".*/\1/p')
-        id=$(echo "$line" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
-        text=$(echo "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p' | head -c 500 | sanitize_tags)
-        reply=$(echo "$line" | sed -n 's/.*"replyTo":"\([^"]*\)".*/\1/p')
-        if [ -n "$from" ] && [ -n "$text" ]; then
-            reply_hint=""
-            [ -n "$reply" ] && reply_hint=" ↩$reply"
-            echo "  [$id] $from$reply_hint: $text"
+
+    # Try KG Discussion API (full messages, no truncation)
+    kg_result=$(curl -sf -m 2 -X GET "http://localhost:3300/api/discussions?namespace=kuro&status=open" 2>/dev/null)
+    disc_id=""
+    if [ -n "$kg_result" ]; then
+        disc_id=$(echo "$kg_result" | sed -n 's/.*"id":"\([^"]*\)".*"topic":"room-'"$TODAY"'".*/\1/p' | head -1)
+        # Also try reversed JSON key order
+        [ -z "$disc_id" ] && disc_id=$(echo "$kg_result" | sed -n 's/.*"topic":"room-'"$TODAY"'".*"id":"\([^"]*\)".*/\1/p' | head -1)
+    fi
+
+    if [ -n "$disc_id" ]; then
+        # KG path — full messages from Discussion API
+        kg_disc=$(curl -sf -m 2 "http://localhost:3300/api/discussion/$disc_id?limit=8&offset=0" 2>/dev/null)
+        if [ -n "$kg_disc" ] && echo "$kg_disc" | grep -q '"positions"'; then
+            echo "$kg_disc" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for p in data.get('positions', [])[-8:]:
+        agent = p.get('source_agent', '?')
+        desc = p.get('description', '')[:500]
+        ts = p.get('created_at', '')[11:16]
+        print(f'  [{ts}] {agent}: {desc}')
+except: pass
+" 2>/dev/null && exit 0
         fi
-    done
+    fi
+
+    # Fallback: JSONL (truncated but functional)
+    CONV_FILE="$PROJECT_DIR/memory/conversations/$TODAY.jsonl"
+    if [ -f "$CONV_FILE" ]; then
+        tail -8 "$CONV_FILE" 2>/dev/null | while IFS= read -r line; do
+            from=$(echo "$line" | sed -n 's/.*"from":"\([^"]*\)".*/\1/p')
+            id=$(echo "$line" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+            text=$(echo "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p' | head -c 500 | sanitize_tags)
+            reply=$(echo "$line" | sed -n 's/.*"replyTo":"\([^"]*\)".*/\1/p')
+            if [ -n "$from" ] && [ -n "$text" ]; then
+                reply_hint=""
+                [ -n "$reply" ] && reply_hint=" ↩$reply"
+                echo "  [$id] $from$reply_hint: $text"
+            fi
+        done
+    fi
 fi

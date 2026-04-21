@@ -422,8 +422,8 @@ async function pushRoomMessageToKG(msgId: string, from: string, text: string, re
         type: 'observation',
         confidence: 0.9,
         source_agent: from,
-        relation: replyTo ? 'AGREES_WITH' : 'HAS_POSITION',
-        properties: { roomMsgId: msgId, replyTo },
+        relation: 'HAS_POSITION',
+        properties: { roomMsgId: msgId, ...(replyTo ? { replyTo } : {}) },
       }),
       signal: controller.signal,
     });
