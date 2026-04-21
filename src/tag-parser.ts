@@ -93,9 +93,14 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
       const PLAIN_TEXT_TAGS = new Set(['kuro:task', 'kuro:remember', 'kuro:chat', 'kuro:ask', 'kuro:done', 'kuro:inner', 'kuro:impulse', 'kuro:summary', 'kuro:goal', 'kuro:goal-progress', 'kuro:goal-done', 'kuro:goal-abandon']);
       if (PLAIN_TEXT_TAGS.has(name)) {
         content = content.replace(/<\/?kuro:[^>]*>/g, '');
-        const CLOSED_CONTENT_CAP = 500;
-        if (content.length > CLOSED_CONTENT_CAP) {
-          content = content.slice(0, CLOSED_CONTENT_CAP);
+        // User-visible tags (chat, ask, summary) must not be truncated — they are the message itself.
+        // Inner (cross-cycle working memory) can also be long. Cap only structural/metadata tags.
+        const NO_CAP_TAGS = new Set(['kuro:chat', 'kuro:ask', 'kuro:summary', 'kuro:inner']);
+        if (!NO_CAP_TAGS.has(name)) {
+          const CLOSED_CONTENT_CAP = 500;
+          if (content.length > CLOSED_CONTENT_CAP) {
+            content = content.slice(0, CLOSED_CONTENT_CAP);
+          }
         }
       }
 
@@ -132,7 +137,8 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
     let raw = input.slice(entry.start);
     let content = input.slice(contentStart, contentEnd);
 
-    if (content.length > UNCLOSED_CONTENT_CAP) {
+    const NO_CAP_TAGS = new Set(['kuro:chat', 'kuro:ask', 'kuro:summary', 'kuro:inner']);
+    if (!NO_CAP_TAGS.has(entry.name) && content.length > UNCLOSED_CONTENT_CAP) {
       contentEnd = contentStart + UNCLOSED_CONTENT_CAP;
       content = input.slice(contentStart, contentEnd);
       raw = input.slice(entry.start, contentEnd);

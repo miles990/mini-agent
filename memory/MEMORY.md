@@ -53,6 +53,10 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-20] via Write — rumination, not new signal (3) retrying TG send directly — no send path in this shell
+context: reasoning-continuity #1-#3 all converged on same constraint; rumination-digest gave no new trigger; FG owns the real cycle
+
+No action needed.
 - [2026-04-19] 覆蓋 token，resolver 下次 scan 會清掉，再補是 rumination
 context: reasoning-continuity cycle #46/#47/#48 全 No action；rumination digest 沒有新觸發；tactics-board 沒有 in-flight；chat-room cycle #45 最後一條也是 No action needed；budget $5 remaining 深夜不燒
 

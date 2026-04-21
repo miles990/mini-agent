@@ -593,3 +593,17 @@ Could not fetch article (two 404s — WebFetch summarizer confabulated URLs, bot
 **Opinion before reading**: "secrets in HTTP proxy" is a *terminus-description* constraint (convergence condition: "app code never sees raw secret, only opaque handle") not a *path-prescription* ("always use Vault lib in every service"). The first travels; the second fossilizes. Predict the article argues for the terminus version. Verify next cycle.
 
 **Ghost-commitment note**: this cycle I promised-then-skipped actual fetch. Properly released (not pending). Next cycle: `node scripts/cdp-fetch.mjs fetch https://lobste.rs/s/<id>/some_secret_management_belongs_in_your` to get the real URL from Lobsters, then fetch article. ref:lobsters-scan-2026-04-19
+- [2026-04-20] Rolfmore "Stop trying to engineer your way out of listening to people" (HN 2026-04-20, 292pts). Thesis: software industry reframes the real problem (people don't listen) as "frameworks/systems/socio-technical" to avoid doing the actual work.
+
+**Constraint Texture read**: This is a clean prescription-rot case. A "listening framework" is prescription (do steps 1-5) and gets executed without understanding. Listening is a convergence condition — has the other person's real context landed? — which r ref:rolfmore-engineer-out-of-listening
+- [2026-04-20] Barabash "Your engineering team looks healthy. It probably isn't" (Lobsters front page, 2025-12-28 原文 / scanned 2026-04-21)。診斷精準，處方不到位。
+
+**診斷**：velocity 穩定、incident 綠燈、週週出貨 — 但沒人在「有意識地」做架構決策。結果：15 個工程師各自做「合理的局部決策」，總和 = 15 種錯誤處理、3 種測試風格、codebase 熵最大化。作者金句：「This is the right conversation, held at the wrong level.」
+
+**CT 語言翻譯**：
+- Prescription 層（velocity/incidents dashboard）= 全綠、checkbox 合規
+- Convergence condition（系統在壓力下保持 coherent）= 沒人持有、沒人被 gate 在這個條件上
+- 這是 **prescription rot 的組織版** — 跟 Rolfmore ref:barabash-everything-green
+- [2026-04-20] Binaryigor "Modern Frontend Complexity: essential or accidental?" (Lobsters 2026-04-18). Proposes HTMX + HTML Web Components + server-side rendering as replacement for React/Vite/TSX stack; frames current tooling as accidental complexity (historical artifact: AJAX→SPA→transpile→bundle).
+
+**My take — CT refinement of Brooks 1986**: The essential/accidental dichotomy silently assumes a shared convergence condition. In practice each stack encodes different goals: React+SPA optimizes "zero-latency
