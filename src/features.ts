@@ -82,6 +82,8 @@ const FEATURES: FeatureInfo[] = [
   { name: 'sonnet-routing', group: 'housekeeping', description: 'Intelligent model routing — use Sonnet for routine learn cycles, Opus for everything else' },
   { name: 'kg-live-ingest', group: 'housekeeping', description: 'KG live ingest — observe memory writes + log to live-ingest-log.jsonl (Path B)', defaultEnabled: true },
   { name: 'kg-retrieval-augment', group: 'housekeeping', description: 'KG retrieval augmentation — expand FTS5 search with 1-hop entity neighbors (Path A)', defaultEnabled: true },
+  { name: 'kg-jit-augment', group: 'housekeeping', description: 'KG JIT context augmentation — query shared KG service to supplement CLAUDE.md JIT (Path C)', defaultEnabled: true },
+  { name: 'kg-service-push', group: 'housekeeping', description: 'Push accumulated memory writes to external KG service (localhost:3300)', defaultEnabled: true },
 
   // ── Notification ──
   { name: 'telegram-notify',   group: 'notification', description: 'Outbound Telegram notifications' },

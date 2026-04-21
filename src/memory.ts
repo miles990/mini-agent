@@ -61,6 +61,7 @@ import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.
 import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
 import { kgExpandQuery } from './kg-retrieval.js';
+import { getKGAugmentedContext } from './claudemd-jit.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 
@@ -2958,6 +2959,15 @@ export class InstanceMemory {
       hbContent = hb;
     }
     sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
+
+    // ── KG Context Augmentation (shared knowledge graph) ──
+    if (!isLight && !budgetExhausted()) {
+      const kgCtx = await getKGAugmentedContext(contextHint || hint);
+      if (kgCtx) {
+        pushCapped('kg-context', kgCtx);
+      }
+      bcMark('kgContext');
+    }
 
     // ── Reorder for prefix caching: stable sections first ──
     // Anthropic API auto-caches identical prompt prefixes (~5min TTL).

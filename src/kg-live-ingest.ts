@@ -138,6 +138,88 @@ export function markKGIngestTriggered(): void {
   lastTriggerTs = Date.now();
 }
 
+// =============================================================================
+// KG Service Push — send accumulated writes to external KG service
+// =============================================================================
+
+const KG_SERVICE_URL = 'http://localhost:3300';
+const KG_PUSH_TIMEOUT = 5000;
+
+/**
+ * Push recent memory writes to external KG service's write buffer.
+ * Fire-and-forget — never blocks the cycle.
+ */
+export async function pushToKGService(): Promise<{ pushed: number; errors: number }> {
+  if (!isEnabled('kg-service-push')) return { pushed: 0, errors: 0 };
+
+  let pushed = 0;
+  let errors = 0;
+
+  try {
+    if (!fs.existsSync(LOG_PATH)) return { pushed: 0, errors: 0 };
+
+    // Read manifest to get last push timestamp
+    let lastPushTs = 0;
+    const pushStatePath = path.join(ROOT, 'memory/index/kg-push-state.json');
+    try {
+      if (fs.existsSync(pushStatePath)) {
+        const state = JSON.parse(fs.readFileSync(pushStatePath, 'utf8'));
+        lastPushTs = new Date(state.lastPushTs ?? 0).getTime();
+      }
+    } catch { /* no state = push everything */ }
+
+    // Collect writes since last push
+    const writes: MemoryWriteEvent[] = [];
+    for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
+      const s = line.trim();
+      if (!s) continue;
+      try {
+        const ev = JSON.parse(s) as MemoryWriteEvent;
+        if (new Date(ev.ts).getTime() > lastPushTs) writes.push(ev);
+      } catch { /* skip */ }
+    }
+
+    if (writes.length === 0) return { pushed: 0, errors: 0 };
+
+    // Batch writes into KG service buffer (POST /api/write)
+    for (const w of writes) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), KG_PUSH_TIMEOUT);
+        const preview = w.preview || `Memory write: ${w.source} → ${w.file}`;
+        const resp = await fetch(`${KG_SERVICE_URL}/api/write`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: preview,
+            source_agent: 'kuro',
+            context: `source=${w.source} file=${w.file}`,
+            metadata: { source: w.source, file: w.file, bytes: w.bytes, topic: w.topic },
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (resp.ok) pushed++;
+        else errors++;
+      } catch {
+        errors++;
+      }
+    }
+
+    // Update push state
+    if (pushed > 0) {
+      const lastTs = writes[writes.length - 1].ts;
+      try {
+        fs.writeFileSync(pushStatePath, JSON.stringify({ lastPushTs: lastTs, pushed, errors }, null, 2) + '\n');
+      } catch { /* best effort */ }
+    }
+  } catch (err) {
+    logIngestError('pushToKGService', 'batch', err);
+  }
+
+  return { pushed, errors };
+}
+
 /** Snapshot of live-ingest volume — used by dashboards / diagnostics. */
 export function getIngestStats(): {
   writes: number;

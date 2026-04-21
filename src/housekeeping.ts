@@ -21,7 +21,7 @@ import {
 } from './memory-index.js';
 import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
-import { shouldTriggerKGIngest, markKGIngestTriggered } from './kg-live-ingest.js';
+import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
 import { spawnDelegation } from './delegation.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
@@ -725,6 +725,15 @@ function dispatchKGIngestIfNeeded(): void {
     });
 
     markKGIngestTriggered();
+
+    // Also push to external KG service (fire-and-forget)
+    pushToKGService()
+      .then(({ pushed, errors }) => {
+        if (pushed > 0 || errors > 0) {
+          slog('KG-INGEST', `KG service push: ${pushed} pushed, ${errors} errors`);
+        }
+      })
+      .catch(() => {});
   } catch (err) {
     slog('KG-INGEST', `trigger error: ${(err as Error).message}`);
   }

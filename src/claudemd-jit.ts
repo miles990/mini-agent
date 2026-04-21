@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
+import { isEnabled } from './features.js';
 
 // =============================================================================
 // Types
@@ -181,6 +182,72 @@ const SECTION_KEYWORDS: Record<string, string[]> = {
 };
 
 // =============================================================================
+// Auto Keyword Extraction
+// =============================================================================
+
+const AUTO_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'has', 'was',
+  'is', 'it', 'in', 'to', 'of', 'on', 'at', 'an', 'or', 'if', 'no', 'so',
+  'do', 'my', 'up', 'this', 'that', 'with', 'from', 'have', 'been', 'will',
+  'also', 'each', 'used', 'when', 'only', 'such', 'see', 'use', 'via',
+]);
+
+function extractKeywordsAuto(heading: string, content: string): string[] {
+  const tokens = new Set<string>();
+  const text = `${heading}\n${content.slice(0, 800)}`.toLowerCase();
+
+  // Extract alphanumeric tokens (English + Chinese)
+  for (const match of text.matchAll(/[a-z][a-z0-9_.-]{2,}/g)) {
+    const t = match[0];
+    if (!AUTO_STOP_WORDS.has(t) && t.length <= 30) tokens.add(t);
+  }
+  // Chinese 2-4 char phrases from heading
+  for (const match of heading.matchAll(/[一-鿿]{2,6}/g)) {
+    tokens.add(match[0]);
+  }
+  // Extract backtick-quoted identifiers
+  for (const match of text.matchAll(/`([a-z][a-z0-9_./-]{2,})`/g)) {
+    tokens.add(match[1].toLowerCase());
+  }
+
+  return [...tokens].slice(0, 15);
+}
+
+// =============================================================================
+// KG Context Augmentation
+// =============================================================================
+
+const KG_SERVICE_URL = 'http://localhost:3300';
+const KG_QUERY_TIMEOUT = 800; // ms — must be fast, fire in parallel with JIT
+const KG_CONTEXT_CAP = 2000; // chars — supplementary, not primary
+
+async function queryKGContext(hint: string): Promise<string> {
+  if (!isEnabled('kg-jit-augment')) return '';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), KG_QUERY_TIMEOUT);
+    const resp = await fetch(`${KG_SERVICE_URL}/api/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: hint.slice(0, 200),
+        budget_tokens: 500,
+        namespace: 'shared',
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return '';
+    const data = await resp.json() as { formatted_text?: string; token_count?: number };
+    if (!data.formatted_text || data.token_count === 0) return '';
+    const text = data.formatted_text.slice(0, KG_CONTEXT_CAP);
+    return `\n\n<!-- KG context (${data.token_count} tokens) -->\n${text}`;
+  } catch {
+    return ''; // KG offline or timeout — graceful degrade
+  }
+}
+
+// =============================================================================
 // Parser
 // =============================================================================
 
@@ -237,8 +304,9 @@ function parseClaudeMd(): ClaudeMdSection[] {
 
 function buildSection(heading: string, lines: string[]): ClaudeMdSection {
   const isCore = heading === '' || isCoreLike(heading);
+  const content = lines.join('\n');
 
-  // Find keywords for this section
+  // Find keywords: manual map first, auto-extract as fallback
   let keywords: string[] = [];
   for (const [sectionName, kws] of Object.entries(SECTION_KEYWORDS)) {
     if (heading === sectionName || heading.includes(sectionName) || sectionName.includes(heading)) {
@@ -246,10 +314,13 @@ function buildSection(heading: string, lines: string[]): ClaudeMdSection {
       break;
     }
   }
+  if (keywords.length === 0 && heading && !isCore) {
+    keywords = extractKeywordsAuto(heading, content);
+  }
 
   return {
     heading,
-    content: lines.join('\n'),
+    content,
     keywords,
     isCore,
   };
@@ -345,12 +416,33 @@ export function getClaudeMdJIT(hint?: string): string {
   return result + elisionNote;
 }
 
+/**
+ * Query KG service for context relevant to the current cycle hint.
+ * Returns formatted context string or empty. Fire-and-forget safe.
+ */
+export async function getKGAugmentedContext(hint: string): Promise<string> {
+  if (!hint || !isEnabled('kg-jit-augment')) return '';
+  try {
+    const kgResult = await queryKGContext(hint);
+    if (kgResult) {
+      slog('CLAUDEMD-JIT', `KG augment: ${kgResult.length} chars for hint "${hint.slice(0, 50)}..."`);
+    }
+    return kgResult;
+  } catch {
+    return '';
+  }
+}
+
 /** Get stats for observability */
-export function getClaudeMdJITStats(): { totalSections: number; coreSections: number; jitSections: number } {
+export function getClaudeMdJITStats(): { totalSections: number; coreSections: number; jitSections: number; autoKeywordSections: number } {
   if (!sectionsCache) sectionsCache = parseClaudeMd();
+  const autoKw = sectionsCache.filter(s => !s.isCore && s.keywords.length > 0 && !Object.keys(SECTION_KEYWORDS).some(
+    k => s.heading === k || s.heading.includes(k) || k.includes(s.heading)
+  ));
   return {
     totalSections: sectionsCache.length,
     coreSections: sectionsCache.filter(s => s.isCore).length,
     jitSections: sectionsCache.filter(s => !s.isCore).length,
+    autoKeywordSections: autoKw.length,
   };
 }
