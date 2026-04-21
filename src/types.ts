@@ -358,6 +358,7 @@ export interface ParsedTags {
   supersedes: Array<{ target: string; reason: string; content: string; topic?: string; concepts?: string[] }>;
   validates: Array<{ target: string }>;
   excludes: Array<{ target: string; reason: string }>;
+  kgFeedbacks: Array<{ push_id: string; node_id?: string; useful: boolean }>;
   cycleState?: string;
   cleanContent: string;
 }

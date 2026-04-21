@@ -97,6 +97,11 @@ agents:
         - name: environment-sense
           script: ./plugins/environment-sense.sh
           timeout: 15000
+        - name: knowledge-graph
+          script: ./plugins/knowledge-graph.sh
+          interval: "10m"
+          output_cap: 3000
+          timeout: 15000
         - name: delegation-status
           script: ./plugins/delegation-status.sh
         - name: middleware

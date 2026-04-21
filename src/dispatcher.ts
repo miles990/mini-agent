@@ -692,6 +692,14 @@ export function parseTags(response: string): ParsedTags {
     understands.push({ content: t.content.trim(), refs, tags });
   }
 
+  const kgFeedbacks: Array<{ push_id: string; node_id?: string; useful: boolean }> = [];
+  for (const t of byName('kuro:kg-feedback')) {
+    const pushId = attr(t.attributes, 'push_id');
+    if (!pushId) continue;
+    const useful = t.attributes.useful !== 'false';
+    kgFeedbacks.push({ push_id: pushId, node_id: attr(t.attributes, 'node_id'), useful });
+  }
+
   const directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
   for (const t of byName('kuro:direction-change')) {
     const refs = t.attributes.refs ? t.attributes.refs.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -846,7 +854,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, cleanContent };
 }
 
 // =============================================================================
@@ -1156,6 +1164,21 @@ export async function postProcess(
       content: dc.content,
       refs: dc.refs,
       tags: dc.tags,
+    }).catch(() => {});
+  }
+
+  // <kuro:kg-feedback> tags — send feedback to KG push system
+  if (tags.kgFeedbacks.length > 0) tagsProcessed.push('kg-feedback');
+  for (const fb of tags.kgFeedbacks) {
+    fetch('http://localhost:3300/api/push/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        push_id: fb.push_id,
+        node_id: fb.node_id || undefined,
+        agent_id: 'kuro',
+        useful: fb.useful,
+      }),
     }).catch(() => {});
   }
 

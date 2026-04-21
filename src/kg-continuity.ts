@@ -88,24 +88,21 @@ export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'in
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), KG_TIMEOUT);
 
-    // Write as triple: cycle-state --part_of--> kuro-continuity
-    const resp = await fetch(`${KG_SERVICE_URL}/api/write/triple`, {
+    // Write via Episode API — proper layer:'episode' + context_envelope + OCCURRED_DURING edges
+    const resp = await fetch(`${KG_SERVICE_URL}/api/episode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        subject: id,
-        subject_type: 'episode',
-        predicate: 'part_of',
-        object: 'kuro-continuity',
-        object_type: 'concept',
-        confidence: 0.95,
+        action: `[${parsed.outcome}] ${parsed.focus} — ${parsed.intent}`,
+        outcome: parsed.outcome,
         source_agent: 'kuro',
-        namespace: NAMESPACE,
-        description: `[${parsed.outcome}] ${parsed.focus} — ${parsed.intent}`,
-        properties: {
-          ...state,
-          section_type: 'cycle-state',
+        confidence: 0.95,
+        context_envelope: {
+          topic: parsed.focus,
+          problem: parsed.intent,
+          active_knowledge: parsed.artifacts,
         },
+        related_nodes: [],
       }),
       signal: controller.signal,
     });
@@ -116,13 +113,38 @@ export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'in
       return null;
     }
 
+    const result = await resp.json() as { episode_id: string };
+    const episodeId = result.episode_id;
+
+    // Await linking triple — buildContinuityContext() depends on section_type: 'cycle-state'
+    const linkController = new AbortController();
+    const linkTimer = setTimeout(() => linkController.abort(), KG_TIMEOUT);
+    await fetch(`${KG_SERVICE_URL}/api/write/triple`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: episodeId,
+        subject_type: 'episode',
+        predicate: 'part_of',
+        object: 'kuro-continuity',
+        object_type: 'concept',
+        confidence: 0.95,
+        source_agent: 'kuro',
+        namespace: NAMESPACE,
+        description: `[${parsed.outcome}] ${parsed.focus}`,
+        properties: { ...state, section_type: 'cycle-state' },
+      }),
+      signal: linkController.signal,
+    }).catch(() => {});
+    clearTimeout(linkTimer);
+
     // Handle closes — write invalidation edges
     for (const closeId of parsed.closes) {
       fetch(`${KG_SERVICE_URL}/api/write/triple`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subject: id,
+          subject: episodeId,
           subject_type: 'episode',
           predicate: 'supersedes',
           object: closeId,
@@ -130,7 +152,7 @@ export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'in
           confidence: 0.95,
           source_agent: 'kuro',
           namespace: NAMESPACE,
-          description: `Explicitly closed by ${id}`,
+          description: `Explicitly closed by ${episodeId}`,
         }),
       }).catch(() => {});
     }
@@ -141,7 +163,7 @@ export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'in
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subject: id,
+          subject: episodeId,
           subject_type: 'episode',
           predicate: 'extends',
           object: parsed.continuesFrom,
@@ -154,8 +176,8 @@ export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'in
       }).catch(() => {});
     }
 
-    slog('KG-CONTINUITY', `Wrote ${id}: [${parsed.outcome}] ${parsed.focus}`);
-    return id;
+    slog('KG-CONTINUITY', `Wrote ${episodeId}: [${parsed.outcome}] ${parsed.focus}`);
+    return episodeId;
   } catch (err) {
     slog('KG-CONTINUITY', `Write error: ${(err as Error).message}`);
     return null;
