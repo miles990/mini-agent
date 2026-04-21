@@ -26,13 +26,31 @@ fi
 
 # ── CE+R Push: contextually relevant knowledge ──
 
-# Build context from inner-notes (Kuro's working memory)
+# Build context from multiple signals (best available wins)
 CONTEXT=""
-if [ -f "$INNER_NOTES" ]; then
+
+# Signal 1: inner-notes (Kuro's current working memory — best signal)
+if [ -f "$INNER_NOTES" ] && [ -s "$INNER_NOTES" ]; then
   CONTEXT=$(head -c "$MAX_CONTEXT_CHARS" "$INNER_NOTES" 2>/dev/null | tr '\n' ' ')
 fi
 
-# Fallback: if no inner-notes, use a generic context
+# Signal 2: recent topic files (what Kuro has been learning)
+if [ -z "$CONTEXT" ]; then
+  RECENT_TOPICS=$(ls -t "${PWD}/memory/topics/"*.md 2>/dev/null | head -3 | while read f; do basename "$f" .md; done | tr '\n' ' ')
+  if [ -n "$RECENT_TOPICS" ]; then
+    CONTEXT="recent focus areas: ${RECENT_TOPICS}"
+  fi
+fi
+
+# Signal 3: recent git activity (what was actually worked on)
+if [ -z "$CONTEXT" ]; then
+  GIT_CONTEXT=$(git log --oneline -5 2>/dev/null | cut -d' ' -f2- | tr '\n' ', ' | head -c "$MAX_CONTEXT_CHARS")
+  if [ -n "$GIT_CONTEXT" ]; then
+    CONTEXT="recent work: ${GIT_CONTEXT}"
+  fi
+fi
+
+# Signal 4: last resort
 if [ -z "$CONTEXT" ]; then
   CONTEXT="autonomous agent daily operations and learning"
 fi
