@@ -315,7 +315,6 @@ Source: https://aminrj.com/posts/rag-document-poisoning/
 **跟 mini-agent/mushi 的三層連結**：(1) C/N ratio = 中間層。跟 Thread「Interface shapes cognition」#14 條目的中間層收斂完全吻合 — 不是 agent（源）或 outcome（輸出）重要，是結構性關係決定一切。(2) 稀缺=Gate 約束，在 Gate 下最簡單 agent 表現最好 — 約束本身在做決策工作，加入 Dance（智慧）反而破壞 Gate 效能=約束框架的實證驗證。(3) mushi routing 的數學基礎 — model-size inversion 是真的且可預測，根據環境條件選擇模型而非永遠最強=perception-first design 的實證支持。「部署前就知道這個數字」= 感知先於行動。
 
 來源: https://arxiv.org/abs/2603.12129
-- [2026-03-15] Shaji et al. (ArXiv 2603.03148) — 幻覺汙染 episodic memory 是具身 agent 的結構性風險。File=Truth 設計原則的獨立驗證。
 
 核心結果：constraint-driven pressure field coordination (48.5%) 大幅擊敗 conversation-based (12.6%) 和 hierarchical (1.5%)，1350 trials，p<0.001。
 

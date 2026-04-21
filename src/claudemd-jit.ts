@@ -45,7 +45,16 @@ const CORE_HEADINGS = new Set([
 /** Max chars for JIT output — prevents prompt bloat when many sections match.
  *  System prompt is ~5K + this cap + skills + cycle prompt.
  *  At 20K cap: total non-context ≈ 35-40K, leaving room for 30K+ context. */
-const JIT_OUTPUT_CAP = 10_000;  // lowered from 20K: non-context overhead (system+skills+JIT+cycle) was ~45K, pushing total prompt over 60K HARD_CAP
+const JIT_CAP_FULL = 10_000;
+const JIT_CAP_KG = 3_000;  // When KG has kuro namespace knowledge, reduce JIT cap — KG supplements the rest
+const KG_READY_THRESHOLD = 100;   // Minimum kuro nodes to consider KG ready
+
+function getJITOutputCap(): number {
+  if (isEnabled('kg-jit-augment') && _kgNodeCount >= KG_READY_THRESHOLD) {
+    return JIT_CAP_KG;
+  }
+  return JIT_CAP_FULL;
+}
 
 const SECTION_KEYWORDS: Record<string, string[]> = {
   '設計理念': [
@@ -221,29 +230,64 @@ const KG_SERVICE_URL = 'http://localhost:3300';
 const KG_QUERY_TIMEOUT = 800; // ms — must be fast, fire in parallel with JIT
 const KG_CONTEXT_CAP = 2000; // chars — supplementary, not primary
 
+let _kgNodeCount = 0;
+let _kgHealthCheckedAt = 0;
+const KG_HEALTH_TTL = 5 * 60 * 1000; // 5 min cache
+
+async function getKGNodeCount(): Promise<number> {
+  if (Date.now() - _kgHealthCheckedAt < KG_HEALTH_TTL) return _kgNodeCount;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1000);
+    const resp = await fetch(`${KG_SERVICE_URL}/api/stats`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) return 0;
+    const data = await resp.json() as { nodes?: number; nodes_by_namespace?: Record<string, number> };
+    _kgNodeCount = data.nodes_by_namespace?.kuro ?? 0;
+    _kgHealthCheckedAt = Date.now();
+    return _kgNodeCount;
+  } catch {
+    return 0;
+  }
+}
+
 async function queryKGContext(hint: string): Promise<string> {
   if (!isEnabled('kg-jit-augment')) return '';
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), KG_QUERY_TIMEOUT);
-    const resp = await fetch(`${KG_SERVICE_URL}/api/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: hint.slice(0, 200),
-        budget_tokens: 500,
-        namespace: 'shared',
+    // Query both kuro (project knowledge) and shared (cross-agent knowledge) namespaces
+    const [kuroResp, sharedResp] = await Promise.allSettled([
+      fetch(`${KG_SERVICE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: hint.slice(0, 200), budget_tokens: 400, namespace: 'kuro' }),
+        signal: controller.signal,
       }),
-      signal: controller.signal,
-    });
+      fetch(`${KG_SERVICE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: hint.slice(0, 200), budget_tokens: 200, namespace: 'shared' }),
+        signal: controller.signal,
+      }),
+    ]);
     clearTimeout(timer);
-    if (!resp.ok) return '';
-    const data = await resp.json() as { formatted_text?: string; token_count?: number };
-    if (!data.formatted_text || data.token_count === 0) return '';
-    const text = data.formatted_text.slice(0, KG_CONTEXT_CAP);
-    return `\n\n<!-- KG context (${data.token_count} tokens) -->\n${text}`;
+
+    let combined = '';
+    let totalTokens = 0;
+    for (const result of [kuroResp, sharedResp]) {
+      if (result.status !== 'fulfilled' || !result.value.ok) continue;
+      const data = await result.value.json() as { formatted_text?: string; token_count?: number };
+      if (data.formatted_text && data.token_count) {
+        combined += data.formatted_text;
+        totalTokens += data.token_count;
+      }
+    }
+    if (!combined || totalTokens === 0) return '';
+    const text = combined.slice(0, KG_CONTEXT_CAP);
+    return `\n\n<!-- KG context (${totalTokens} tokens) -->\n${text}`;
   } catch {
-    return ''; // KG offline or timeout — graceful degrade
+    return '';
   }
 }
 
@@ -361,7 +405,7 @@ export function getClaudeMdJIT(hint?: string): string {
     const coreSections = sectionsCache.filter(s => s.isCore || s.keywords.length === 0);
     let result = '';
     for (const s of coreSections) {
-      if (result.length + s.content.length > JIT_OUTPUT_CAP) break;
+      if (result.length + s.content.length > getJITOutputCap()) break;
       result += (result ? '\n' : '') + s.content;
     }
     return result;
@@ -401,7 +445,7 @@ export function getClaudeMdJIT(hint?: string): string {
   let result = '';
   let includedCount = 0;
   for (const s of selected) {
-    if (result.length + s.content.length > JIT_OUTPUT_CAP && includedCount > 0) {
+    if (result.length + s.content.length > getJITOutputCap() && includedCount > 0) {
       break; // Stop adding sections once cap is reached (always include at least 1)
     }
     result += (result ? '\n' : '') + s.content;
@@ -423,9 +467,12 @@ export function getClaudeMdJIT(hint?: string): string {
 export async function getKGAugmentedContext(hint: string): Promise<string> {
   if (!hint || !isEnabled('kg-jit-augment')) return '';
   try {
+    // Refresh KG node count (cached 5min) — drives JIT cap reduction
+    await getKGNodeCount();
     const kgResult = await queryKGContext(hint);
     if (kgResult) {
-      slog('CLAUDEMD-JIT', `KG augment: ${kgResult.length} chars for hint "${hint.slice(0, 50)}..."`);
+      const cap = getJITOutputCap();
+      slog('CLAUDEMD-JIT', `KG augment: ${kgResult.length} chars, JIT cap=${cap} (kuro nodes=${_kgNodeCount})`);
     }
     return kgResult;
   } catch {
