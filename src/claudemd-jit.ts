@@ -285,9 +285,15 @@ export function getClaudeMdJIT(hint?: string): string {
     return fullContentCache ?? '';
   }
 
-  // No hint → full content (fallback for safety)
+  // No hint → core sections only (not full content — that's 36K+ and blows prompt budget)
   if (!hint) {
-    return sectionsCache.map(s => s.content).join('\n');
+    const coreSections = sectionsCache.filter(s => s.isCore || s.keywords.length === 0);
+    let result = '';
+    for (const s of coreSections) {
+      if (result.length + s.content.length > JIT_OUTPUT_CAP) break;
+      result += (result ? '\n' : '') + s.content;
+    }
+    return result;
   }
 
   const lowerHint = hint.toLowerCase();

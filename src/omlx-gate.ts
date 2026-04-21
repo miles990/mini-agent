@@ -431,6 +431,12 @@ export function classifyContextProfile(trigger: string | undefined): ContextProf
   // Continuation from previous cycle
   if (t.startsWith('continuation') || t === 'now') return 'continuation';
 
+  // Delegation results — absorb output, doesn't need full CLAUDE.md
+  if (t.startsWith('delegation-complete') || t.startsWith('delegation-batch')) return 'continuation';
+
+  // Startup / alert — treat as heartbeat (Tier 1)
+  if (t.startsWith('startup') || t.startsWith('alert')) return 'heartbeat';
+
   return 'autonomous';
 }
 
