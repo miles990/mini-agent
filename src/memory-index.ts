@@ -589,6 +589,42 @@ export function buildTaskQueueSection(memoryDir: string): string {
   );
 }
 
+export function buildTaskQueueSectionCompact(memoryDir: string): string {
+  markStaleEntries(memoryDir);
+
+  const items = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  }).sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'in_progress' ? -1 : 1;
+    return a.ts.localeCompare(b.ts);
+  });
+
+  if (items.length === 0) return '';
+
+  const lines = items.map(item => {
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
+    const verify = payload.verify as VerifyResult[] | undefined;
+    const staleWarning = payload.staleWarning as string | undefined;
+
+    const summary = (item.summary ?? item.id).slice(0, 80);
+    let verifyStr = 'verify: none';
+    if (verify && verify.length > 0) {
+      const passed = verify.filter(v => v.status === 'pass').length;
+      const failed = verify.filter(v => v.status !== 'pass');
+      verifyStr = passed === verify.length
+        ? `verify: ${passed}/${verify.length} pass`
+        : `verify: ${passed}/${verify.length} pass (${failed.map(v => v.name).join(', ')} ✗)`;
+    }
+    const staleMarker = staleWarning ? ' ⚠' : '';
+    return `- [${item.status}] ${summary}${staleMarker} | id=${item.id} | ${verifyStr}`;
+  });
+
+  return ['<task-queue>', 'Unified queue (pending + in_progress):', ...lines, '</task-queue>'].join(
+    '\n',
+  );
+}
+
 export function buildPinnedTasksSection(memoryDir: string): string {
   const all = queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
