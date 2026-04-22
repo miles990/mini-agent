@@ -25,3 +25,13 @@ Updates implied by these findings (not yet applied to HEARTBEAT.md — flagged f
 1. Archive any open task phrased as "use inner-notes for multi-cycle tracking" — structurally impossible.
 2. Add concrete task: `HN baseline enrichment pass — delegate research worker over 13 posts × {novelty, so_what} fields, write back to artifact, idempotent`.
 3. Convention: when a commitment involves "record X for later verification," the default medium is `memory/topics/` + a matching commitment-ledger entry, never inner-notes.
+
+## Finding C — HN enrichment blocked by missing env, not forgetting
+
+- **Observation** (2026-04-23 01:42 Taipei): `node scripts/hn-ai-trend-enrich.mjs` invoked from agent shell → `LOCAL_LLM_URL=<unset>` → clean `exit 2` ("[enrich] LOCAL_LLM_URL not set; aborting").
+- **Mechanism**: the script expects `LOCAL_LLM_URL` + optional `LOCAL_LLM_KEY` for local MLX Qwen OpenAI-compatible endpoint. Agent shell env lacks this export. This is why every 17:32 "enrichment shipped" claim has been falsified by the 01:37 verification — not a discipline failure, an **infra precondition gap**.
+- **Two daylight unblocks** (either works):
+  - (a) Export `LOCAL_LLM_URL=http://localhost:8000` (or whatever port MLX server runs on) in the agent shell profile, confirm MLX server is up, then re-run.
+  - (b) Accept that local-Qwen enrichment is a manual/Alex-driven step; switch the HN pipeline's enrichment default to the Anthropic pass (`hn-ai-trend.mjs` original) behind a budget gate. Trade-off: real USD cost vs. reliable automation.
+- **Do not** re-commit "run enrichment tonight" until one of (a)/(b) is resolved. That would be exactly the performative pattern the ledger is flagging.
+- **Status**: Finding C closes the mechanism question for the 17:32/01:37 gap. No more "will enrich tonight" commitments should be registered until env path is fixed.
