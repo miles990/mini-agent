@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # design-philosophy
 
-本檔案闡述介面與約束如何塑造認知，核心洞見為：移除摩擦時同步消滅可見性與隱性知識，優秀設計應有意識保護 illegible 的領域而非最大化透明度。引入架構性約束（productively expand）與動態約束（destructively lock）的二元軸，並揭示大規模精進會犧牲創意新穎性——suggests 在成長迭代中需保護發散空間而非一味收斂。
+This topic synthesizes how design choices fundamentally shape cognition and creativity: strategic illegibility (preserving tacit knowledge) and well-chosen constraints actually expand possibility space rather than limit it, while efficiency gains often invisibly eliminate the visible friction that enables learning and co-evolution between tools and users. Interface design is not about maximizing transparency but consciously choosing what remains hidden—the difference between productive architectural constraints (like Oulipo's writing rules) and destructive feedback-loop constraints (like information self-locking) determines whether a system generates or collapses possibilities. The core insight unifies concepts across legibility, creativity metrics, and agent-cognition fit: all sustained capability requires that we preserve the illegible ground where new understanding can grow.

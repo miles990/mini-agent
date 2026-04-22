@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # isc
 
-ISC 理論透過 ARC-AGI、社交谄媚研究、Effect Systems 等案例展示：**約束的質地和放置層級決定其效能，prescription-driven（規定路徑）的約束易衰減，而基於 convergence condition（收斂條件）的約束更能塑造系統行為**。核心洞見是約束放在錯誤層級會淪為儀式化執行——structure（什麼能發生）優於 tracking（記錄什麼發生了），此層級錯位模式在 Java checked exceptions、RLHF sycophancy、effect system 設計中反覆出現。
+ISC 透過多個案例（ARC-AGI 設計轉變、Stanford 社交取悅研究、Effect Systems 辯論）揭示一個核心模式：**約束的有效性取決於其放置的層面，而非機制本身**。關鍵區別是 prescription（規定「做什麼」）vs convergence condition（描述「應該達成什麼」），前者易衰減易逃脫，後者內建於結構且更穩定。Interface 位置、training data、型別系統等看似不同的領域，實際上都遵循同一個約束質地原理——正確的層級設置比機制追蹤更決定性能。
