@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # commitment-tracker-gate-bug
 
-commitment tracker 的兩個核心 bug：memory-index.ts 的 binary gate 導致 self-fulfilling commitments 永不解決（已修），commitments.ts 的空白分詞對中文失效導致承諾永遠無法匹配（已修，用 2-char bigram + char-overlap ratio）。Meta-lesson 是重複 pattern 代表結構性問題不能漠視，且 rumination-digest 注入的 stale bug report 需要 RESOLVED 標記防止下個 cycle 被過去的敘述誤導。
+commitment-tracker 系統有兩個結構性 bug：（1）memory-index.ts 的二元 gate 邏輯導致自我實現的承諾永不解決，（2）commitments.ts 對中文的 tokenize 方法無法正確匹配關鍵詞。兩個 bug 都已修復（d69a4736 & char-overlap ratio），但核心教訓是重複出現的模式（3+次）表示結構性問題需要修復或清空狀態，以及 rumination-digest 必須標記 RESOLVED 狀態防止過時報告誤導未來週期。
