@@ -451,7 +451,8 @@ export async function buildAutonomousPrompt(
   state: PromptBuilderState,
 ): Promise<{ prompt: string; lastValidConfig: BehaviorConfig | null; researchLoopActive: boolean }> {
   const { config, lastValidConfig } = loadBehaviorConfig(state.lastValidConfig);
-  const includeCycleResponsibilityGuide = state.controlMode !== 'calm';
+  const includeCycleResponsibilityGuide = state.controlMode !== 'calm'
+    && ((state.cycleCount ?? 0) % 3 === 0 || (state.cycleCount ?? 0) <= 1);
   const base = config
     ? buildPromptFromConfig(
       config,
@@ -586,5 +587,7 @@ export async function buildAutonomousPrompt(
   if (innerVoiceHint) parts.push(innerVoiceHint);
   if (backgroundLaneHint) parts.push(backgroundLaneHint);
   if (ruminationSection) parts.push(ruminationSection);
-  return { prompt: parts.join('\n\n'), lastValidConfig, researchLoopActive: researchLoopResult !== null };
+  const prompt = parts.join('\n\n');
+  slog('PROMPT', `prompt size: ${prompt.length} chars (${parts.length} sections)`);
+  return { prompt, lastValidConfig, researchLoopActive: researchLoopResult !== null };
 }
