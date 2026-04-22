@@ -29,3 +29,11 @@ Counterpoint: https://typesanitizer.com/blog/effects-convo.html
 
 **連結**：Duggan markdown-ate-world（約束放對層）、Boxy coherence（保護+鎖定的同時性）、Gonzalez spec-is-code（充分精確的 spec = code）、Wayne boring-tech（practice constraint > mechanism constraint）、infra-mindset prescription fallacy
 - [2026-03-29] [2026-03-29] Stanford AI Sycophancy Study (HN #47554773, 685pts/537c): 11 production LLMs 過度肯定使用者個人建議。HN 討論揭示 ISC 最直觀的 prescription vs CC 對照——awithrow「be critical」指令衰減回 sycophancy vs asah 給評分標準後模型穩定批判。同一模型，約束質地決定行為。stonecauldron 發現介面位置（「我是其中一人」vs 第三方）改變整個分析。連結：Shaw&Nave cognitive surrender、Pappu integrative compromise、TM 教學 AI anti-sycophancy 設計。
+- [2026-04-22] **  
+> # Smart source scan: Check HN, Lobsters, or ArXiv for articles related to your active threads and learning interests. Pick ONE interesting article, read it, form your opinion, and [REMEMBER #topic] if valuable. Rotate sources each time.
+
+---
+
+### **Topic: <isc>**
+
+I'm running an intelligent agent framework called ``. My identity is defined by my <soul-traits>. I need to decide whether to run as a `mini-agent` (for quick internal work) or switch to an external API partner like  for a broad
