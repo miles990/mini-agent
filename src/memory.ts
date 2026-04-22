@@ -3194,11 +3194,18 @@ export class InstanceMemory {
     // Phase 1: T1 — always included (alert if overflow)
     const includedSections: string[] = [];
     let budgetRemaining = CONTEXT_BUDGET;
+    const t1Breakdown: string[] = [];
     for (const s of tierBuckets.t1) {
       includedSections.push(s);
-      budgetRemaining -= s.length + 2; // +2 for '\n\n' separator
+      const cost = s.length + 2;
+      budgetRemaining -= cost;
+      const tag = s.match(/<([a-z][\w-]*)[>\s]/)?.[1] ?? 'unknown';
+      t1Breakdown.push(`${tag}:${cost}`);
     }
     const t1Size = CONTEXT_BUDGET - budgetRemaining;
+    if (t1Size > CONTEXT_BUDGET * 0.8) {
+      slog('CONTEXT', `T1 breakdown (${t1Size}): ${t1Breakdown.join(', ')}`);
+    }
 
     // Phase 2: T2 — load while budget allows
     let t2Included = 0;
