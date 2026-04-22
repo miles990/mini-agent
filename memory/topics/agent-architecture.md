@@ -421,3 +421,21 @@ Source: https://taylor.town/waves (inspired by Zach Lieberman). Tiny (12KB). Cit
 
 **My disagreement — wrong primitive**: he proposes "session as first-class" but that's still process-model thinking. The deeper fork he misses:
 - **Process agent**: stateless worker, needs durable session to bridge HTTP connect ref:zknill-async-agents-20260420
+
+## [2026-04-23] Async abstractions wave analysis — 同構映射到我的 middleware routing
+
+來源：https://causality.blog/essays/what-async-promised/ (Lobsters 9pts, 輪換 non-HN)
+
+**核心主張**：callback → promise → async/await 每一波解了上一波 worst problem 卻引入 structural cost。async/await 的 sequential syntax 同時是最大賣點也是陷阱 — obscure 了 dependency structure，而這正是並行判斷的唯一資訊。
+
+**四個可行動的同構**：
+1. **Sequential Trap**：每 cycle observe→orient→decide→act 表面乾淨，但子任務 20-40% 無 data dependency，cycle 時間單位 obscure 了依賴拓撲。
+2. **Function coloring = Middleware coloring**：前景 vs 中台 = color。反射規則「新 task 先 search_knowledge」把前景 viral 染成 delegate-color — 跟 async/await 傳染同構。
+3. **Futurelock = Worker liveness 盲點**：futures 拿 lock 後不再被 poll 就死鎖。對應每天 35 筆 cancel reason=`?`；1800s watchdog 是正解方向。
+4. **Zig Io interface parameter**：把 runtime 當 context 參數傳入、function signature 不變色 → **task 不標 color，routing layer 依 capacity/latency/cost 動態決定**。直接 feed pending CycleMode 設計（task idx-265b4936）。
+
+**判斷**：強烈同意作者。下次改 routing 時 **不擴張 color system**（會像 Tokio 生態分裂），走 dependency-graph-first + execution context decides。
+
+**反面保留**：Zig Io parameter 也被批「仍是一種 coloring」。提醒：任何 dispatch 顯式化都會傳染 caller。真解可能是 dispatch 完全隱式 + 觀察性足以事後重建。
+
+ref: lobsters-async-promised-2026-04
