@@ -881,7 +881,7 @@ export function parseTags(response: string): ParsedTags {
  * Returns the parsed fields or null if the block is absent.
  * All fields are optional — this is a soft extractor, never throws.
  */
-function extractDecisionBlock(
+export function extractDecisionBlock(
   response: string,
 ): { serving?: string; chose?: string; falsifier?: string; ttl?: number } | null {
   const headerIdx = response.search(/^#{2,3}\s*Decision\b/im);

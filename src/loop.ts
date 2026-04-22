@@ -16,7 +16,7 @@ import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForegr
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { diagLog, slog } from './utils.js';
-import { parseTags, postProcess, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
+import { parseTags, postProcess, extractDecisionBlock, classifyRemember, ACTIONABLE_CATEGORIES, logPendingImprovement } from './dispatcher.js';
 import { generateWorkingMemory } from './cascade.js';
 import type { ParsedTags } from './types.js';
 import { notifyTelegram, clearLastReaction, getLastAlexMessageId } from './telegram.js';
@@ -2284,24 +2284,17 @@ export class AgentLoop {
         similarity = this.computeActionSimilarity(action);
       }
 
-      // Soft falsifier gate — extract Decision block, write commitment ledger (fire-and-forget)
+      // Soft falsifier gate — reuse shared extractDecisionBlock (fire-and-forget)
       try {
-        const decisionMatch = response.match(/^#{2,3}\s*Decision\b[^\n]*\n([\s\S]*?)(?=\n#{2,3}\s|\n<kuro:|$)/im);
-        if (decisionMatch) {
-          const block = decisionMatch[1];
-          const chose = block.match(/^chose\s*:\s*(.+)$/im)?.[1]?.trim();
-          const falsifier = block.match(/^(?:falsifier|falsify)\s*:\s*(.+)$/im)?.[1]?.trim();
-          const ttlStr = block.match(/^ttl\s*:\s*(\d+)$/im)?.[1];
-          const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : 5;
-          if (chose) {
-            writeCommitment({
-              cycle_id: this.cycleCount,
-              prediction: chose,
-              falsifier: falsifier ?? null,
-              ttl_cycles: ttl,
-            });
-            if (!falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
-          }
+        const decision = extractDecisionBlock(response);
+        if (decision?.chose) {
+          writeCommitment({
+            cycle_id: this.cycleCount,
+            prediction: decision.chose,
+            falsifier: decision.falsifier ?? null,
+            ttl_cycles: decision.ttl ?? 5,
+          });
+          if (!decision.falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
         }
       } catch { /* fire-and-forget */ }
 
