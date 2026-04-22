@@ -3221,6 +3221,14 @@ export class InstanceMemory {
 
     let assembled = includedSections.join('\n\n');
 
+    // ── T1 overflow sentinel ──
+    // T1 (live) sections must NEVER be silently trimmed. If they alone exceed the budget
+    // it means the budget is too low or too many sections were classified T1. Emit a loud
+    // alert so the operator can raise the budget or demote some T1 sections.
+    if (t1Size > CONTEXT_BUDGET) {
+      slog('CONTEXT', `⚠️ T1 OVERFLOW: live sections (${t1Size} chars) exceed budget (${CONTEXT_BUDGET}). Live signal will be lost!`);
+    }
+
     // ── Global context budget (fallback safety net) ──
     // Empirical: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
     // This trim path should rarely trigger now that tiered assembly pre-filters sections.
@@ -3242,20 +3250,26 @@ export class InstanceMemory {
       // Action-critical sections (next, task-queue, heartbeat, inbox, working-memory) are
       // NEVER trimmed — Kuro must always see what to do. Trimming these caused noop spiral:
       // agent couldn't see tasks → decided "no action" → backoff increased → spiral.
+      // T1 sections are also protected here: they are live signal and must never be dropped silently.
       if (assembled.length > CONTEXT_BUDGET) {
         const LOW_PRIORITY_TAGS = [
-          // Tier 1: Metadata / navigation cruft — zero cognitive value
+          // T3 sections — metadata / navigation cruft (zero cognitive value)
           'unchanged-perceptions', 'pruned-perceptions', 'topic-menu', 'stimulus-dedup',
-          // Tier 2: Historical / activity — useful but not decision-critical
+          // T3 sections — historical / activity (useful but not decision-critical)
           'trail', 'recent-activity', 'route-efficiency', 'stale-tasks',
           'action-memory', 'context-health',
-          // Tier 3: Identity / continuity — trim only if desperate
-          'achievements', 'commitments', 'inner-voice',
-          // Tier 5: Diagnostic — keep as long as possible
+          // T3 sections — identity / continuity (trim only if desperate)
+          'achievements', 'inner-voice',
+          // T2/T3 diagnostic sections — keep as long as possible
           'structural-health', 'decision-quality-warning', 'problem-alignment',
         ];
         for (const tag of LOW_PRIORITY_TAGS) {
           if (assembled.length <= CONTEXT_BUDGET) break;
+          // Guard: never silently remove a T1 section — it is live signal.
+          if ((SECTION_TIERS[tag] ?? DEFAULT_SECTION_TIER) === 1) {
+            slog('CONTEXT', `⚠️ Pass 2 attempted to remove T1 section <${tag}> — skipping to preserve live signal`);
+            continue;
+          }
           const tagPattern = new RegExp(`<${tag}>[\\s\\S]*?</${tag}>\\n*`, 'g');
           assembled = assembled.replace(tagPattern, '');
         }
@@ -3264,7 +3278,12 @@ export class InstanceMemory {
       // Pass 3: Hard truncate — protect action-critical sections by truncating from end.
       // Sections loaded first (soul, memory, heartbeat, next, inbox) survive; late optional
       // sections get cut. This ensures task visibility even under extreme budget pressure.
+      // If T1 sections alone exceed the budget, emit an additional loud alert before truncating —
+      // some data loss is unavoidable in this case, but it must never be silent.
       if (assembled.length > CONTEXT_BUDGET) {
+        if (t1Size > CONTEXT_BUDGET) {
+          slog('CONTEXT', `⚠️ T1 OVERFLOW (Pass 3): even after removing T2/T3 sections, live sections (${t1Size} chars) still exceed budget (${CONTEXT_BUDGET}). Hard-truncating — T1 content WILL be lost!`);
+        }
         assembled = assembled.slice(0, CONTEXT_BUDGET) + `\n\n[... context truncated at ${Math.round(CONTEXT_BUDGET / 1000)}K chars]`;
       }
     }
