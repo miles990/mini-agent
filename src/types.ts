@@ -359,6 +359,7 @@ export interface ParsedTags {
   validates: Array<{ target: string }>;
   excludes: Array<{ target: string; reason: string }>;
   kgFeedbacks: Array<{ push_id: string; node_id?: string; useful: boolean }>;
+  kgPositions: Array<{ disc_id: string; name?: string; content: string; confidence?: number; relation?: string; target_node_id?: string }>;
   cycleState?: string;
   cleanContent: string;
 }

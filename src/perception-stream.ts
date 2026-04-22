@@ -214,6 +214,25 @@ class PerceptionStreamManager {
       }
     }
 
+    // Apply persisted interval adjustments from citation tracking (survives restarts)
+    try {
+      const statePath = path.join(process.cwd(), 'memory', 'state', 'perception-citations.json');
+      if (fs.existsSync(statePath)) {
+        const stateData = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+        const adjusted = stateData.adjustedIntervals ?? {};
+        let appliedCount = 0;
+        for (const [name, interval] of Object.entries(adjusted)) {
+          if (this.streams.has(name) && typeof interval === 'number') {
+            this.adjustInterval(name, interval);
+            appliedCount++;
+          }
+        }
+        if (appliedCount > 0) {
+          slog('PERCEPTION', `Applied ${appliedCount} persisted interval adjustments from citation tracking`);
+        }
+      }
+    } catch { /* first run or no adjustments */ }
+
     if (this.streams.size > 0) {
       const cats = new Map<string, number>();
       for (const [name] of this.streams) {

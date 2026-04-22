@@ -700,6 +700,20 @@ export function parseTags(response: string): ParsedTags {
     kgFeedbacks.push({ push_id: pushId, node_id: attr(t.attributes, 'node_id'), useful });
   }
 
+  const kgPositions: Array<{ disc_id: string; name?: string; content: string; confidence?: number; relation?: string; target_node_id?: string }> = [];
+  for (const t of byName('kuro:kg-position')) {
+    const discId = attr(t.attributes, 'disc_id');
+    if (!discId || !t.content.trim()) continue;
+    kgPositions.push({
+      disc_id: discId,
+      name: attr(t.attributes, 'name') || undefined,
+      content: t.content.trim(),
+      confidence: t.attributes.confidence ? parseFloat(t.attributes.confidence) : undefined,
+      relation: attr(t.attributes, 'relation') || undefined,
+      target_node_id: attr(t.attributes, 'target_node_id') || undefined,
+    });
+  }
+
   const directionChanges: Array<{ content: string; refs: string[]; tags?: string[] }> = [];
   for (const t of byName('kuro:direction-change')) {
     const refs = t.attributes.refs ? t.attributes.refs.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -854,7 +868,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, cleanContent };
 }
 
 // =============================================================================
@@ -1180,6 +1194,29 @@ export async function postProcess(
         useful: fb.useful,
       }),
     }).catch(() => {});
+  }
+
+  // <kuro:kg-position> tags — post positions to KG discussions
+  if (tags.kgPositions.length > 0) tagsProcessed.push('kg-position');
+  for (const pos of tags.kgPositions) {
+    const body: Record<string, unknown> = {
+      name: pos.name || pos.content.slice(0, 60),
+      type: 'position',
+      content: pos.content,
+      source_agent: 'kuro',
+    };
+    if (pos.confidence != null) body.confidence = pos.confidence;
+    if (pos.relation) body.relation = pos.relation;
+    if (pos.target_node_id) body.target_node_id = pos.target_node_id;
+    fetch(`http://localhost:3300/api/discussion/${pos.disc_id}/position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(() => {
+      slog('KG', `Position posted to discussion ${pos.disc_id.slice(0, 8)}: ${(pos.name || pos.content).slice(0, 60)}`);
+    }).catch((err) => {
+      slog('KG', `Failed to post position to ${pos.disc_id.slice(0, 8)}: ${err}`);
+    });
   }
 
   // <kuro:thread> tags

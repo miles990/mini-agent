@@ -99,13 +99,50 @@ if [ -n "$SYNC" ]; then
   fi
 fi
 
+# ── Pending Discussions: discussions awaiting Kuro's input ──
+
+DISC_TEXT=""
+DISC_COUNT=0
+DISC_RESULT=$(curl -sf --max-time 3 "${KG_URL}/api/discussions?status=open" 2>/dev/null)
+if [ -n "$DISC_RESULT" ]; then
+  DISC_TEXT=$(echo "$DISC_RESULT" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    pending = []
+    for d in data.get('discussions', []):
+        topic = d.get('topic', '')
+        # Skip room-date discussions (handled by chat-room-inbox.sh)
+        if topic.startswith('room-'):
+            continue
+        ns = d.get('namespace', '')
+        if ns not in ('kuro', 'shared', 'mini-agent'):
+            continue
+        parts = d.get('participants', [])
+        pos_count = d.get('position_count', 0)
+        disc_id = d.get('id', '')
+        # Check if kuro already has a position in this discussion
+        has_kuro_position = 'kuro' in parts and pos_count > 0
+        # Show if: kuro is not a participant yet, or discussion has new positions
+        if not has_kuro_position or pos_count > 0:
+            pending.append(f\"  [{ns}] {topic[:55]} ({pos_count} positions) id:{disc_id[:8]}\")
+    # Only show top 3 most relevant
+    for line in pending[:3]:
+        print(line)
+except: pass
+" 2>/dev/null)
+  if [ -n "$DISC_TEXT" ]; then
+    DISC_COUNT=$(echo "$DISC_TEXT" | wc -l | tr -d ' ')
+  fi
+fi
+
 # ── Output ──
 
 # Stats line
 STATS=$(curl -sf --max-time 3 "${KG_URL}/api/stats" 2>/dev/null)
 NODES=$(echo "$STATS" | jq -r '.nodes // "?"' 2>/dev/null)
 EDGES=$(echo "$STATS" | jq -r '.edges // "?"' 2>/dev/null)
-echo "KG: ${NODES} nodes, ${EDGES} edges | push: ${PUSH_COUNT} | sync: ${SYNC_COUNT} new events"
+echo "KG: ${NODES} nodes, ${EDGES} edges | push: ${PUSH_COUNT} | sync: ${SYNC_COUNT} new events | discussions: ${DISC_COUNT} pending"
 
 # Push content (the main value — contextually relevant knowledge)
 if [ "$PUSH_COUNT" -gt 0 ] && [ -n "$PUSH_TEXT" ]; then
@@ -123,4 +160,11 @@ if [ "$SYNC_COUNT" -gt 0 ] 2>/dev/null && [ "$SYNC_COUNT" -le 10 ] 2>/dev/null; 
 elif [ "$SYNC_COUNT" -gt 10 ] 2>/dev/null; then
   echo ""
   echo "${SYNC_COUNT} new KG events (use /kg-query to explore)"
+fi
+
+# Pending discussions
+if [ -n "$DISC_TEXT" ]; then
+  echo ""
+  echo "Pending KG discussions (respond via <kuro:kg-position disc_id=\"ID\">your position</kuro:kg-position>):"
+  echo "$DISC_TEXT"
 fi

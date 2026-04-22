@@ -33,6 +33,10 @@ interface ErrorPatternState {
 interface PerceptionCitationState {
   cycleCount: number;
   citations: Record<string, number>;
+  /** Sliding window: each entry = set of section names cited in that cycle */
+  recentWindow: string[][];
+  /** Persisted interval adjustments (survives restart) */
+  adjustedIntervals: Record<string, number>;
   lastAdjusted: string;
 }
 
@@ -209,28 +213,25 @@ export async function detectErrorPatterns(): Promise<void> {
     if (count < 3) continue;
 
     const existing = state[key];
-    if (existing?.taskCreated) {
-      // Update count + lastSeen but don't create another task
+    if (existing) {
       existing.count = count;
       existing.lastSeen = today;
       changed = true;
       continue;
     }
 
-    // New pattern or not yet tasked — track state only.
-    // Task creation is handled by pulse.ts (which absorbed this responsibility).
-    state[key] = { count, taskCreated: true, lastSeen: today };
+    // Observation only — pulse.ts owns task creation via its own state.
+    // taskCreated here is just a "seen" flag to prevent re-logging.
+    state[key] = { count, taskCreated: false, lastSeen: today };
     changed = true;
-    slog('FEEDBACK', `Error pattern detected: ${key} (${count}×) — tracked (pulse.ts creates task)`);
+    slog('FEEDBACK', `Error pattern detected: ${key} (${count}×)`);
   }
 
-  // Clean up patterns not seen in 7 days — explicit resolution tracking
+  // Clean up patterns not seen in 7 days
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().split('T')[0];
   for (const key of Object.keys(state)) {
     if (state[key].lastSeen < sevenDaysAgo) {
-      if (state[key].taskCreated) {
-        slog('FEEDBACK', `Error pattern resolved (no recurrence in 7d): ${key}`);
-      }
+      slog('FEEDBACK', `Error pattern resolved (no recurrence in 7d): ${key}`);
       delete state[key];
       changed = true;
     }
@@ -243,9 +244,12 @@ export async function detectErrorPatterns(): Promise<void> {
 // Loop B: Perception Citation Tracking
 // =============================================================================
 
+const CITATION_WINDOW_SIZE = 50;
+
 /**
- * 從 action 文字中提取引用的 <section-name>，累計統計。
- * 每 50 cycle 重新計算引用率，調整 perception stream intervals。
+ * 從 response 文字中提取引用的 <section-name>，用滑動窗口追蹤引用率。
+ * 每 50 cycle 根據最近 50 cycles 的引用率調整 perception stream intervals。
+ * 調整結果持久化到 state file，重啟後由 perception-stream 讀取並套用。
  */
 export async function trackPerceptionCitations(action: string | null, response?: string | null, context?: string | null): Promise<void> {
   const scoringText = response ?? action;
@@ -254,10 +258,13 @@ export async function trackPerceptionCitations(action: string | null, response?:
   const state = readState<PerceptionCitationState>('perception-citations.json', {
     cycleCount: 0,
     citations: {},
+    recentWindow: [],
+    adjustedIntervals: {},
     lastAdjusted: '',
   });
+  if (!state.recentWindow) state.recentWindow = [];
+  if (!state.adjustedIntervals) state.adjustedIntervals = {};
 
-  // Extract perception section names from context (tags like <soul>...</soul>)
   const skipTags = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'a', 'ul', 'li', 'ol',
     'code', 'pre', 'em', 'strong', 'hr', 'tr', 'td', 'th', 'table', 'h1', 'h2', 'h3']);
   const sectionNames = new Set<string>();
@@ -270,7 +277,6 @@ export async function trackPerceptionCitations(action: string | null, response?:
     }
   }
 
-  // Match section names as plain text in response (not XML tags — Kuro writes natural language)
   const lowerText = scoringText.toLowerCase();
   const citedSections: string[] = [];
   for (const name of sectionNames) {
@@ -280,45 +286,61 @@ export async function trackPerceptionCitations(action: string | null, response?:
     }
   }
 
+  // Update cumulative citations (for long-term visibility)
   for (const name of citedSections) {
     state.citations[name] = (state.citations[name] ?? 0) + 1;
   }
 
+  // Update sliding window (for adjustment decisions)
+  state.recentWindow.push(citedSections);
+  if (state.recentWindow.length > CITATION_WINDOW_SIZE) {
+    state.recentWindow = state.recentWindow.slice(-CITATION_WINDOW_SIZE);
+  }
+
   state.cycleCount++;
 
-  // Every 50 cycles, evaluate and adjust
-  if (state.cycleCount % 50 === 0 && state.cycleCount > 0) {
-    const total = Object.values(state.citations).reduce((s, v) => s + v, 0);
-    if (total > 0) {
-      // Core perceptions that should never be adjusted
+  // Every 50 cycles, evaluate based on RECENT window (not cumulative)
+  if (state.cycleCount % CITATION_WINDOW_SIZE === 0 && state.cycleCount > 0) {
+    const window = state.recentWindow;
+    const windowSize = window.length;
+    if (windowSize > 0) {
+      // Count in how many of the last 50 cycles each section was cited
+      const windowCounts: Record<string, number> = {};
+      for (const cycleCitations of window) {
+        for (const name of cycleCitations) {
+          windowCounts[name] = (windowCounts[name] ?? 0) + 1;
+        }
+      }
+
       const corePerceptions = new Set([
         'environment', 'telegram', 'soul', 'self', 'workspace',
         'temporal', 'capabilities',
       ]);
-
-      // Exploratory perceptions: low citation is expected (deferred value).
-      // Cap slowdown at 10min instead of 30min to keep exploration alive.
       const exploratoryPerceptions = new Set([
         'x-feed', 'x-digest', 'scout-digest',
       ]);
 
-      for (const [name, count] of Object.entries(state.citations)) {
+      // Also check all sections that have adjustments (in case they recovered)
+      const allSections = new Set([
+        ...Object.keys(windowCounts),
+        ...Object.keys(state.adjustedIntervals),
+      ]);
+
+      for (const name of allSections) {
         if (corePerceptions.has(name)) continue;
 
-        const rate = count / total;
+        const count = windowCounts[name] ?? 0;
+        const rate = count / windowSize;
+
         if (rate < 0.05) {
-          if (exploratoryPerceptions.has(name)) {
-            // Exploratory: skip penalty entirely. Exploration value is serendipitous —
-            // citation rate is the wrong metric. Let natural category interval manage these.
-            continue;
-          } else {
-            // Regular: slow down (cap at 30min)
-            perceptionStreams.adjustInterval(name, 30 * 60_000);
-            slog('FEEDBACK', `Low citation rate: ${name} (${(rate * 100).toFixed(1)}%) → interval increased`);
-          }
+          if (exploratoryPerceptions.has(name)) continue;
+          const newInterval = 30 * 60_000;
+          perceptionStreams.adjustInterval(name, newInterval);
+          state.adjustedIntervals[name] = newInterval;
+          slog('FEEDBACK', `Low citation rate: ${name} (${(rate * 100).toFixed(1)}% in last ${windowSize} cycles) → interval 30min`);
         } else if (rate >= 0.15) {
-          // High citation: restore to category default
           perceptionStreams.restoreDefaultInterval(name);
+          delete state.adjustedIntervals[name];
           slog('FEEDBACK', `Citation rate recovered: ${name} (${(rate * 100).toFixed(1)}%) → interval restored`);
         }
       }
@@ -329,13 +351,23 @@ export async function trackPerceptionCitations(action: string | null, response?:
 
   writeState('perception-citations.json', state);
 
-  // Feed citation data to context optimizer (reuses citedSections extracted above)
+  // Feed citation data to context optimizer
   try {
     const { getContextOptimizer } = await import('./context-optimizer.js');
     const opt = getContextOptimizer();
     opt.recordCycle({ citedSections });
     opt.save();
   } catch { /* ignore */ }
+}
+
+/** Read persisted interval adjustments (for perception-stream startup). */
+export function getPersistedIntervalAdjustments(): Record<string, number> {
+  try {
+    const p = path.join(getMemoryStateDir(), 'perception-citations.json');
+    if (!existsSync(p)) return {};
+    const data = JSON.parse(readFileSync(p, 'utf-8'));
+    return data.adjustedIntervals ?? {};
+  } catch { return {}; }
 }
 
 // =============================================================================
@@ -353,12 +385,8 @@ const QUALITY_WINDOW = 20;
 export async function auditDecisionQuality(action: string | null, triggerReason?: string | null, response?: string | null): Promise<void> {
   if (!action && !response) return;
 
-  // Skip DQ during noop spiral — stripped/stuck cycles can't produce quality output
-  // and their low scores pollute the sliding window average.
-  try {
-    const health = readJsonFile(getStatePath('loop-health.json'), { trueNoopStreak: 0 }) as { trueNoopStreak: number };
-    if (health.trueNoopStreak >= 3) return;
-  } catch { /* proceed with scoring if health unavailable */ }
+  // Noop cycles ARE quality signals — extended noop streaks need warnings, not silence.
+  // Scoring noop as 0 naturally drags the average below threshold and triggers the warning.
 
   const state = readState<DecisionQualityState>('decision-quality.json', {
     recentScores: [],

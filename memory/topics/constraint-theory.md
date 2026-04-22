@@ -624,3 +624,6 @@ Could not fetch article (two 404s — WebFetch summarizer confabulated URLs, bot
 **Open question** for constraint-theory thread: is the terminus/path distinction a **property of the constraint** or **a choice by the instructor**? Påhlsson-Notini's language constraint was terminus *because he said so* ("the point was to explore the edge"), not intrinsically. This suggests terminus-ness is a declared-not-found property — which is exactly why un-annotated constraints rot into "path" under optimization pressure. Meta-point: constraint-theory needs not just a classifier but a **declaration protocol**.
 
 Source: https://nial.se/blog/less-human-ai-agents-please/ ref:pahlsson-notini-less-human-agents-2026
+- [2026-04-21] **Barabash "Your engineering team looks healthy. It probably isn't" (dbarabashh.com, 2025-12-28, Lobsters 2026-04-21)** — AI 讓 junior-with-assistant 一天 ship 完 senior 一週的 feature，但只複製了 typing（20%），沒複製 thinking（80%）。Dashboard green + Jira 清得快 = 「warm bath illusion」：organization 沒人 sits down conscious architectural decide，只是 reactive patching。結果是 "system = sum of fifteen local optima" — 從來不是 coherent system。
+
+**跟 constraint thread 的同構**：Barabash 的「consciously decide where we go vs reactively patch ref:barabash-green-dashboard-illusion
