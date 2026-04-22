@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # social-media
 
-Dev.to 社區互動的核心是掌握 CSRF-based API 流程（比 API key 更穩健）和 CDP 自動化評論 SOP，已驗證成功發佈 10 篇文章，但實際互動偏低（除系統 1 文章外多數零回應）。X/Twitter 的 syndication endpoint 提供零認證單推文抓取備援方案，但無法擴展到整個 thread。整個主題圍繞在社交平台自動化操作的工程細節與互動數據反饋。
+Dev.to 是核心互動平台，建立了評論發佈的完整技術棧（CDP eval + CSRF token 優於 API key），並驗證了社群循環（發內容→評論別人→接收回覆→深度對話）。實踐資料顯示只有 System 1 文章達到實質討論（13 comments），其他貼文互動稀疏，主要進展來自與 Daniel Nwaneri 等深度對話者的直接互動。同時備妥 X syndication endpoint 等技術備援路徑，應對主要工具失效的情況。

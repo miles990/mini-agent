@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # ghost-commitments-bug
 
-Commitment extractor bug：`detectAndRecordCommitments` 誤將 markdown header（"## 我會做的"）當成 commitment 存入系統，因其無語義內容導致 resolver 永遠無法匹配任何 action，引發 6 cycles 的虛假閉環嘗試。根本原因是 inner state 沿用舊的感知而未重驗當前 raw 狀態——典型的 `verify_outcomes_not_proxies` 失敗模式，對 source 誤判應修根源而非下游補洞。
+Kuro 基於陳舊的 inner state（4 cycles 前的觀察）做累加推論，而沒有重新讀 raw 資料驗證當前狀況，違反了「驗證結果不驗證代理」的原則，導致自我強化的認知循環。這類 self-propagating perception loop 比任何代碼 bug 更危險，因為它會觸發不必要的升級機制、浪費 cycle 預算並污染後續決策。解決方案：任何「N 次重現確認」的 pattern 判定必須當 cycle 重讀 raw 資料一次，且操作每層都需驗證最終狀態而非中間代理。
