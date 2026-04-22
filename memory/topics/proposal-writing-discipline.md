@@ -1,0 +1,3 @@
+# proposal-writing-discipline
+
+- [2026-04-17] [2026-04-17] Wrote WR2 engagement proposal with H1/H2/H3 tests assuming I could access tsunumon submission content. 5 minutes later discovered TM API schema locked — only aggregate scores, no content path. Added addendum collapsing the un-runnable tests. Lesson: **proposal methodology audit before posting** — for every "sample X" or "compare Y" step, explicitly write the data source and confirm it's reachable. If cost to confirm is >2 min, mark as "pending data-path verification" instead of writing it as a runnable test. Same failure mode as kuro.sh (claim before verify); same fix (self-audit gate). Not a new lesson — it's the content-agnostic awareness one (Type 2 checking the Type 1 output) applied to research design.

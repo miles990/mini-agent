@@ -1,0 +1,3 @@
+# loop-noop-spiral-fix
+
+- [2026-04-19] 2026-04-19 ~16:03 Alex 修復 noop spiral 根因（未 push）於 src/loop.ts：三處 code guard 打斷 pending-work + workspace-trigger 正回饋迴路。(1) `effectiveP0 = hasP0 && noopStreak < 3` — streak>=3 時 P0 不再 bypass triage，log "⚠️ P0 pending but noopStreak=N — triage not bypassed"（2) hard-skip 條件加 `|| noopStreak >= 3`，即使 pending work 存在也可 skip（3）pending-work 2min cap 只在 streak<3 時生效（4）新增 noop backoff floor = `min(streak * 2min, 10min)`，log "[noop-backoff] Floor Ns"。預期行為：連續 3 次空 cycle 後 interval 被推到 6/8/10min，triage 可真正決定 skip，perception/DM/alert 變化才 reset。Watch points：noopStreak reset path 是否只在真有 action 時觸發、hard-skip 是否正確 increment。

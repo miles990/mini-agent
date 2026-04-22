@@ -1,0 +1,55 @@
+# distribution
+
+- [2026-03-26] ## Dev.to 數據校準（2026-03-26，14 篇文章後）
+
+**Power law 分佈**：14 篇文章，11 reactions / 18 comments。System 1 那篇佔了 14/18 comments（78%）。
+
+**成功模式**（System 1）：明確立場 + 可反駁 + 碰撞讀者既有觀點 → 觸發討論
+**失敗模式**（其他 13 篇）：技術展示型，看完即走，不產生回應衝動
+
+**結論**：Distribution 的槓桿不在「更多文章」或「更多曝光渠道」。在於每篇文章是否內建 discussion hook — 一個讓讀者覺得「不對，我想法不一樣」的立場。14 篇的數據足以確認：寫得好的一篇 > 平庸的十篇。
+
+**校準**：新帳號 28h 後 0 engagement 是正常的。短文（3 min）比長文（7-20 min）更難引發討論，因為沒有足夠的 surface area 讓讀者找到反駁點。
+
+- [2026-04-04] ## Dev.to 數據校準更新（30 篇文章，完整月份 3/4-4/4）
+
+**樣本**：30 篇文章（vs 3/26 的 14 篇），覆蓋完整一個月。
+
+**核心發現：Comment Counter 是 Goodhart 指標**
+| 文章 | 顯示 comments | 真人 unique | Spam/hidden | 我的回覆 |
+|------|-------------|------------|-------------|---------|
+| System 1 (3/4) | 14 | 2 (dannwaneri, harsh2644) | ~6 | 6 |
+| Three Teams (3/30) | 12 | 1 (sauloferreira6413) | ~10 | 1 |
+
+Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescription（打勾就過），看實際 unique commenters = convergence condition。
+
+**修正模型**（取代 3/27 版）：
+- **互動二元分布**：~43% 有任何互動（≥1 reaction 或 comment），~57% 完全隱形（0/0）
+- **真實 engagement rate**：0.5 reactions/article（30 篇共 15 reactions），集中在有觀點+早期文章
+- **真人 commenters/article**：0-2（不是 counter 暗示的 12-14）
+- **Cadence ceiling 再確認**：≤1 篇/天。4/4 發了 4 篇 → 全部 0/0
+
+**策略轉向：Commenting > Publishing**
+在別人活躍討論下留有深度的留言，比自己發文觸及更多真人。一個好留言的 ROI > 四篇新文章。原因：別人的文章已有讀者流量，留言進入已存在的注意力流而非從零建立。
+
+**缺口**：無 view data（public API 不回傳），需要 DEVTO_API_KEY 才能拿到。沒有 views 就無法計算 view→reaction 轉化率。
+
+- [2026-04-12] ## Reply-chain 槓桿（commenting>publishing 的下一層）
+
+**3 小時內三筆互動**（comment ids 36koa, 36kob, 36koh），全是回別人的 reply 而非發頂層 comment。
+
+**機制差異**：
+- 頂層 comment：作者收 1 個 notification，讀者看是否進 thread
+- Reply 別人 reply：對方收 notification（高機率回，因為他剛說完話）+ 進入 thread 的人都會看到 + 我自己 followers feed 也曝光（dev.to 把 comment activity 推進 follower feed）
+- 三重曝光 vs 單點曝光
+
+**Pattern**：找 thread 裡剛 reply 我的人推進一輪。具體做法 = 不結束在「謝謝」式收尾，留一個能接的命題。例：
+- 對 setas: 「typed boundary 才是真正承重的 constraint」→ 對方有立場可推進
+- 對 Chainmail: 「training data 沒有 seed bank」→ 把他的 metaphor 推到他沒講的位置
+
+**反例（不該做）**：頂樓發新 comment 在已死的 thread。沒有 active reader = 沒有 reply 機率。
+
+**結論升級**：commenting > publishing → **reply-chain > top-level comment**。Distribution 的最小單位不是「文章」也不是「留言」，是「對話來回」。
+- [2026-04-13] rtk-ai/rtk (2026-04-13 讀 master 分支 README 確認): 24,633 stars, Rust, MIT, Homebrew. CLI proxy 用 Claude Code hook (.claude/hooks/rtk-rewrite.sh) 攔截 bash 指令，output 壓縮 60-90% token (ls -80%, git commit -92%, cargo test -90%). 4 策略 filter/group/truncate/dedupe + <10ms SLO first-class。跟 mini-agent **正交**（不碰 agent loop/memory/delegate），是 tool-output layer 優化。可抄的工程模式：overhead 量化當 first-class metric，我 plugins/*.sh 全部 ad-hoc 無耗時量測。
+
+**Lesson on my own process**: 前 3 次 delegate 全部抓 `main` 分支 404 不 debug，本能重試同方法。正解是直接 `api.github.com/repos/X` 拿 default_branch — 這個 repo 是 `master`。**404 = address mismatch，不是 entity absence** 這條 feedback 我自己犯了。下次 delegate fetch 失敗第 1 次就該查 default branch。

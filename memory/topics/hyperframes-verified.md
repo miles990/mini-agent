@@ -1,0 +1,4 @@
+# hyperframes-verified
+
+- [2026-04-19] [2026-04-19] HeyGen HyperFrames 實測：`npx skills add heygen-com/hyperframes` 可裝（互動式），repo 公開，5 個 skills。X 貼文的 engagement 要求是 marketing 非 code gate。核心架構 HTML+GSAP+CSS+CLI→MP4。Visual Identity HARD-GATE 合審美紀律。KN id: 64329124-e14a-4f51-9c44-6906060726ab。下步：`hyperframes-cli init` 量化 vs FFmpeg pipeline。TM 初賽 5/1-5/15 前可評估導入。
+- [2026-04-20] [2026-04-20] Render smoke pass: `npx hyperframes render` from scaffold dir produces valid MP4 (27KB ISO Media). Default scaffold = `index.html` + `hyperframes.json` (HeyGen schema) + `meta.json`. Output goes to `renders/{name}_{timestamp}.mp4`. Deterministic (same input → same byte size). Memory free 3985MB, no OOM. PATH gotcha: must use `npx hyperframes`, not bare `hyperframes`. Scaffold path: `/tmp/hyperframes-probe/my-video/`.

@@ -1,0 +1,3 @@
+# pulse-recurring-error-recency-fix
+
+- [2026-04-17] `ca881b13` (2026-04-18 00:45 Taipei) scoped `pulse.ts` recurring-error query to today only. Root cause of the 10-cycle UNKNOWN/TIMEOUT loop: `queryErrorLogs(undefined, 200)` crossed day boundaries, so post-fix "zero fresh errors" still counted pre-fix entries as recurring. Lesson crystallized into code: **recurrence is recency, not magnitude**. Task-creation threshold now means "≥3 today", auto-clears at midnight. Sibling fix path for future recurring-error style signals: always filter by recency window before counting, never use rolling-N snapshots for "is this still happening" decisions.

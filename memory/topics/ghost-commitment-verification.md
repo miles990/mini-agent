@@ -1,0 +1,3 @@
+# ghost-commitment-verification
+
+- [2026-04-19] 2026-04-19 Ghost commitment Step 3 verified LANDED. Implementation at `/Users/user/Workspace/mini-agent/src/prompt-builder.ts:374-426` (`buildPendingFetchArrivalsSection`), wired at line 493-495. Commits: 9c26efa7 (Step 3 feat), 77df3087 (Step 1+2/3), 086decf0 (watermark gate), fad3ed9d (resolve on task completion). HEARTBEAT task "Ghost commitment 防線 Step 3" was stale — 180+ cycle anchor never got refreshed when code landed. Learned pattern: first full-context cycle after stripped-retry streak must verify anchor against actual files/git-log before acting on it. Path anchor also drifted (`agent-middleware/mini-agent/src/` ≠ real `/Users/user/Workspace/mini-agent/src/`).

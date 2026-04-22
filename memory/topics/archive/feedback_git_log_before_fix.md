@@ -1,0 +1,7 @@
+# feedback_git_log_before_fix
+
+- [2026-04-08] **Rule**: Before writing a fix for a recurring/perception-level issue, run `git log -1 <file>` AND `git log --oneline -5 <file>` on the likely target file. Check if Alex (or past-me) already shipped a fix in the last 24-48h.
+
+**Why**: Cycle #52 (2026-04-08). Traced ghost-commitments bug correctly — read memory-index.ts:654 `resolveActiveCommitments`, identified token-overlap-on-response-only as root cause, wrote a minimal patch extending the corpus with `tags.taskQueueActions[completed].title + tags.dones`. Patch compiled clean. Then git log revealed commit `fad3ed9d` from 17:43 (same day, ~20 min before my cycle) with message "fix(memory-index): resolve commitments on task completion" — Alex had already fixed the same bug via the PRODUCER-side (hooking into `updateTask()` on terminal-status transitions). Alex's approach is strictly better: catches all task-completion paths, not just response-parsed ones. Had to revert my edit.
+
+**How to apply**: When the rumination digest / heartbeat / inner memory points at "bug X in file Y" that spans multiple cycles, FIRST action is always `git log -1 <file>` before reading line-N. If HEAD commit on that file is from today/yesterday with a matching subject, read the commit's diff before writing any patch. The three_attempts trigger and debugging discipline were correct — the missing step was checking whether the problem is still open.
