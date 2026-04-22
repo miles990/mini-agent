@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # middleware-as-organ
 
-Middleware 將升華為 mini-agent 的內建器官，通過 shadow run 驗證後切換，核心重框架是將其視為本機 OS 級器官（如 filesystem）而非雲服務，因此分開設計無意義。v1 限制在單一使用者範疇與本機容錯策略（launchd KeepAlive + health check），跨 agent 協作延至 v2。
+文檔決定將 middleware 從外部服務升華為 mini-agent 的內建器官，分層執行引擎與編輯層，並透過 shadow-run 驗證進行漸進切換。關鍵洞察是 middleware 應充當跨 cycle commitments ledger，持久化長期承諾以克服 AI 工作記憶漂移的根本問題，確保跨 cycle 的策略連貫性。

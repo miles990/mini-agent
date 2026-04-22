@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # teaching-monster-strategy
 
-該策略文件記錄從 AI audit 優化（WR1-WR2）向 Arena 人類評分競賽的轉變，核心發現是 API 結構驗證 Arena 完全不用 AI 分數，決勝因素轉向前 15 秒 hook、視覺設計和 TTS 自然度等第一印象要素。當 AI 品質已達天花板（4.7-4.9）後，優化重點應從內容準確度轉向 presentation layer 的美學和情感吸引力。
+Teaching-Monster 策略的核心转折在于认识到两个分离的评分体系：AI audit（已到天花板 4.8）仅用于 Stage 1 筛选，而 Stage 2 Arena 才是决胜场，评分纯基于人类偏好（Elo/win_rate/votes），与 AI audit 指标无关。当下策略从追求 adapt 分数改为聚焦 Arena 的感知层面——前 15 秒 hook、TTS 自然度、slide 美学——因为这些才是人类评审的决策驱动因素。由于 Arena 投票阶段尚未启动，现在修改代码属于过早优化，应等其真正开动、产生数据反馈后再调整 presentation layer。
