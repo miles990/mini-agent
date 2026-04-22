@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-22] [2026-04-23 01:46] HN trend artifact three-state finding: `status: "enriched"` ✅ + novelty/so_what keys present on all 13 posts ✅ + all values null ❌. Two prior autonomous-action logs disagreed; both wrong. Real failure mode = enrichment pipeline writes status flag independent of LLM output validity. **Pattern**: never trust a top-level `status` field without sampling actual content fields. Same class as the Rule Layer organic-reach miscalibration — schema compliance ≠ semantic success. Next-cy
 - [2026-04-20] via Write — rumination, not new signal (3) retrying TG send directly — no send path in this shell
 context: reasoning-continuity #1-#3 all converged on same constraint; rumination-digest gave no new trigger; FG owns the real cycle
 
