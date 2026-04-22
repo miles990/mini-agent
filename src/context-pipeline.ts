@@ -167,8 +167,11 @@ const SECTION_PRIORITY: Record<string, number> = {
   'task-queue': 90,
   'inbox': 85,
   'chat-room-inbox': 85,
-  'soul': 80,
-  'heartbeat': 75,
+  'soul-core': 80,
+  'soul-traits': 78,
+  'heartbeat-active': 75,
+  'heartbeat-strategy': 68,
+  'soul-other': 66,
   'tactics-board': 72,
   'chat-room-recent': 70,
   'next': 65,
@@ -178,7 +181,9 @@ const SECTION_PRIORITY: Record<string, number> = {
 
 /** Sections that should never be pre-digested (identity/core) */
 const PRESERVED_SECTIONS = new Set([
-  'soul', 'heartbeat', 'inbox', 'chat-room-inbox', 'task-queue', 'memory-index',
+  'soul-core', 'soul-traits', 'soul-other',
+  'heartbeat-active', 'heartbeat-strategy',
+  'inbox', 'chat-room-inbox', 'task-queue', 'memory-index',
 ]);
 
 /**

@@ -345,14 +345,11 @@ export function formatSkillsPrompt(skills: Array<{ name: string; content: string
 }
 
 /**
- * 生成 skill 索引（CC pattern: compact one-liner per skill）
- * 只列出名稱和觸發關鍵字，不載入完整內容。~25 chars/skill。
+ * 生成 skill 索引（name-only 格式）
+ * 只列出名稱，不包含關鍵字或描述。~10 chars/skill。
+ * 完整內容由 JIT keyword matching 在需要時載入。
  */
 export function formatSkillIndex(skills: LoadedSkill[]): string {
   if (skills.length === 0) return '';
-  const lines = skills.map(s => {
-    const kw = s.keywords.slice(0, 5).join(', ');
-    return `- ${s.name}: ${kw}`;
-  });
-  return `\n## Other Available Skills\n${lines.join('\n')}\n`;
+  return `\nAvailable skills: ${skills.map(s => s.name).join(', ')}\n`;
 }
