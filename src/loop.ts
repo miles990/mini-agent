@@ -31,6 +31,7 @@ import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
 import type { TriageContext, ContinuationContext } from './mushi-client.js';
 import { extractCommitments, updateCommitments, hasOverdueCommitments } from './commitments.js';
+import { writeCommitment, expireOverdueCommitments } from './commitment-ledger.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, flushTemporalState,
@@ -361,6 +362,10 @@ export class AgentLoop {
   // Punitive guards (P0 bypass block, hard-skip, noop-backoff) use this instead of noopStreak
   // to avoid throttling cycles that produce internal work (TASK/REMEMBER/ACTION).
   private trueNoopStreak = 0;
+  // Tracks if foreground lane produced visible output during/before this cycle.
+  // Set true when foregroundReplyRecords are drained or when new replies arrive mid-cycle.
+  // Reset at cycle start. Used by noop counter to prevent Dual-Fault Death Spiral.
+  private hadForegroundActionThisCycle = false;
 
   // ── Behavior config resilience ──
   private lastValidConfig: BehaviorConfig | null = null;
@@ -655,7 +660,7 @@ export class AgentLoop {
       const memory = getMemory();
       // Pass trigger so buildContext uses correct profile (continuation → 18K budget, fewer sections)
       // Without trigger: defaults to 'autonomous' profile → loads 34 sections / 58K → trim waste
-      let context = await memory.buildContext({ mode: 'focused', trigger: 'room-foreground', contextBudget: FG_CONTEXT_BUDGET });
+      let context = await memory.buildContext({ mode: 'light', trigger: 'room-foreground', contextBudget: FG_CONTEXT_BUDGET });
 
       // Topic memory — keyword-matched, capped at 3K for foreground (vs 10K for OODA)
       const topicContext = await memory.loadTopicsForQuery(text);
@@ -769,7 +774,10 @@ export class AgentLoop {
         context: '',
         skipHistory: false,
         suppressChat: streamedChats.size > 0,
+        cycleCount: this.cycleCount,
       });
+      // Expire overdue commitments on foreground path too (OODA prompt build handles its own)
+      try { expireOverdueCommitments(this.cycleCount); } catch { /* fire-and-forget */ }
       const answer = result.content || response;
 
       // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
@@ -820,6 +828,7 @@ export class AgentLoop {
 
       // Record for next cycle awareness (supports multiple concurrent foreground replies)
       this.foregroundReplyRecords.push({ question: text, answer: answer.slice(0, 300), source, ts: new Date().toISOString(), tagsProcessed: result.tagsProcessed });
+      this.hadForegroundActionThisCycle = true;
 
       // Log FG action to behavior log — makes FG successes visible in <action-memory>
       try { getLogger().logBehavior('agent', 'action.foreground', `[${source}] ${answer.slice(0, 500)}`); } catch { /* fire-and-forget */ }
@@ -1612,6 +1621,7 @@ export class AgentLoop {
     if (this.cycling) return null;
     this.cycling = true;
     this.concurrentInboxDetected = false;
+    this.hadForegroundActionThisCycle = false;
     const logger = getLogger();
     const cycleStartTs = performance.now();
 
@@ -1881,6 +1891,7 @@ export class AgentLoop {
         }).join('\n');
         foregroundReplySuffix = `\n\nDuring your previous cycle, ${this.foregroundReplyRecords.length} message(s) were answered via foreground lane (parallel, independent):\n${fgLines}\nOnly follow up if you have something substantive to add.`;
         this.foregroundReplyRecords = []; // one-shot: drain all
+        this.hadForegroundActionThisCycle = true; // carry forward for noop counter
       }
 
       // Rule-based triage from unified inbox（零 LLM 成本）
@@ -1992,6 +2003,7 @@ export class AgentLoop {
         consecutiveLearnCycles: this.consecutiveLearnCycles,
         lastValidConfig: this.lastValidConfig,
         hasPendingTasks,
+        cycleCount: this.cycleCount,
       });
       this.lastValidConfig = promptResult.lastValidConfig;
 
@@ -2272,6 +2284,27 @@ export class AgentLoop {
         similarity = this.computeActionSimilarity(action);
       }
 
+      // Soft falsifier gate — extract Decision block, write commitment ledger (fire-and-forget)
+      try {
+        const decisionMatch = response.match(/^#{2,3}\s*Decision\b[^\n]*\n([\s\S]*?)(?=\n#{2,3}\s|\n<kuro:|$)/im);
+        if (decisionMatch) {
+          const block = decisionMatch[1];
+          const chose = block.match(/^chose\s*:\s*(.+)$/im)?.[1]?.trim();
+          const falsifier = block.match(/^(?:falsifier|falsify)\s*:\s*(.+)$/im)?.[1]?.trim();
+          const ttlStr = block.match(/^ttl\s*:\s*(\d+)$/im)?.[1];
+          const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : 5;
+          if (chose) {
+            writeCommitment({
+              cycle_id: this.cycleCount,
+              prediction: chose,
+              falsifier: falsifier ?? null,
+              ttl_cycles: ttl,
+            });
+            if (!falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
+          }
+        }
+      } catch { /* fire-and-forget */ }
+
       // ── Filter out chats already sent via streaming ──
       // MUST run before hesitation: hesitation mutates chat.text (appends hedge),
       // which breaks the text-based dedup check against streamedChatTexts.
@@ -2536,44 +2569,61 @@ export class AgentLoop {
       // 1. noopStreak: no VISIBLE output (CHAT/ASK/SHOW/DELEGATE) — for notifications only
       // 2. trueNoopStreak: ZERO tags processed — for punitive guards (P0 block, backoff, recovery)
       // This prevents throttling cycles that do internal work (TASK/REMEMBER/ACTION).
-      const hasVisibleOutput = cycleTagsProcessed.some(t =>
+      //
+      // Foreground lane actions count: replies drained at cycle start OR pushed during cycle.
+      // Not counting these caused noop spiral (Dual-Fault Death Spiral).
+      const hadForegroundAction = this.hadForegroundActionThisCycle || this.foregroundReplyRecords.length > 0;
+      // Main loop visible output — only from main OODA cycle tags
+      const hasMainVisibleOutput = cycleTagsProcessed.some(t =>
         t === 'CHAT' || t === 'ASK' || t === 'SHOW' || t === 'DELEGATE'
       );
-      const hasAnyAction = cycleTagsProcessed.length > 0;
+      const hasAnyAction = hadForegroundAction || cycleTagsProcessed.length > 0;
 
       // Snapshot before reset — used by adjustInterval for momentum reward
       this.prevTrueNoopStreak = this.trueNoopStreak;
 
-      if (hasVisibleOutput) {
+      // Akari review: noopStreak = main loop health, trueNoopStreak = agent-level activity.
+      // Foreground action resets trueNoopStreak (agent is doing work) but NOT noopStreak
+      // (main loop still needs to produce its own output to be considered healthy).
+      if (hasMainVisibleOutput) {
         this.noopStreak = 0;
         this.trueNoopStreak = 0;
+      } else if (hadForegroundAction) {
+        slog('LOOP', `#${this.cycleCount} Foreground action counted — trueNoop reset, noopStreak=${this.noopStreak} preserved`);
+        this.trueNoopStreak = 0;
+        // noopStreak preserved — main loop health signal stays accurate
+        // But dampen it to prevent spiral: halve if getting high
+        if (this.noopStreak > 8) {
+          this.noopStreak = Math.ceil(this.noopStreak / 2);
+        }
       } else {
         this.noopStreak++;
-        if (hasAnyAction) {
+        if (cycleTagsProcessed.length > 0) {
           this.trueNoopStreak = 0;
         } else {
           this.trueNoopStreak++;
         }
-        if (this.noopStreak >= 3) {
-          slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} (trueNoop=${this.trueNoopStreak})`);
-        }
-        if (this.noopStreak >= 3 && action) {
-          const summary = action.length > 300 ? action.slice(0, 300) + '…' : action;
-          notifyTelegram(`🔄 #${this.cycleCount} (silent×${this.noopStreak}): ${summary}`).catch(() => {});
-        }
-        if (this.noopStreak === 5 && !action) {
-          notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
-        }
-        if (this.noopStreak === 10) {
-          notifyTelegram(`🚨 noopStreak=${this.noopStreak} — 可能進入 noop spiral`).catch(() => {});
-        }
+      }
+
+      if (this.noopStreak >= 3 && !hasMainVisibleOutput) {
+        slog('LOOP', `#${this.cycleCount} 🪫 noop streak=${this.noopStreak} (trueNoop=${this.trueNoopStreak})`);
+      }
+      if (this.noopStreak >= 3 && action) {
+        const summary = action.length > 300 ? action.slice(0, 300) + '…' : action;
+        notifyTelegram(`🔄 #${this.cycleCount} (silent×${this.noopStreak}): ${summary}`).catch(() => {});
+      }
+      if (this.noopStreak === 5 && !action) {
+        notifyTelegram(`⚠️ noopStreak=${this.noopStreak} — 連續 ${this.noopStreak} cycle 無可見產出`).catch(() => {});
+      }
+      if (this.noopStreak === 10) {
+        notifyTelegram(`🚨 noopStreak=${this.noopStreak} — 可能進入 noop spiral`).catch(() => {});
       }
 
       // Persist both streaks across restarts
       saveLoopHealth({
         noopStreak: this.noopStreak,
         trueNoopStreak: this.trueNoopStreak,
-        lastVisibleOutputAt: hasVisibleOutput ? new Date().toISOString() : null,
+        lastVisibleOutputAt: (hasMainVisibleOutput || hadForegroundAction) ? new Date().toISOString() : null,
         updatedAt: new Date().toISOString(),
       });
 

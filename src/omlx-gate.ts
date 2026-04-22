@@ -370,7 +370,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: ['task', 'schedule', 'heartbeat'],
     skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'commitments']),
-    contextBudget: 18_000, // heartbeat = routine check, minimal context needed
+    contextBudget: 25_000, // heartbeat needs enough room for NEXT.md + tasks (was 18K → noop spiral)
   },
   cron: {
     maxConversations: 3,
@@ -386,7 +386,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: ['workspace', 'git', 'file', 'change'],
     skipSections: new Set(['temporal', 'achievements', 'commitments']),
-    contextBudget: 22_000, // workspace changes need code context but not full history
+    contextBudget: 28_000, // workspace changes — raised from 22K to prevent task-blindness
   },
   autonomous: {
     maxConversations: 8,
@@ -402,7 +402,7 @@ const CONTEXT_PROFILES: Record<ContextProfile, ProfileConfig> = {
     loadDeepContext: false,
     extraHints: [],
     skipSections: new Set(['temporal', 'trail', 'achievements', 'route-efficiency', 'stale-tasks']),
-    contextBudget: 18_000, // continuation = focused follow-up, lean context
+    contextBudget: 25_000, // continuation needs NEXT.md + tasks to avoid noop spiral (was 18K)
   },
 };
 

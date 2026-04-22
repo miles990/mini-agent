@@ -100,7 +100,7 @@ export async function execClaudeViaSdk(
       type: 'init',
       init: {
         fullPrompt,
-        queryOptions: {},
+        queryOptions: { maxBudgetUsd: 30 },
         env: filteredEnv,
         source,
         model: opts?.model,

@@ -27,6 +27,7 @@ import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
 import { observe as kbObserve } from './shared-knowledge.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { parseKuroTags, stripKuroTags, getKuroTagBalance, stripTurnSeparators } from './tag-parser.js';
+import { writeCommitment } from './commitment-ledger.js';
 import {
   addIndexEntry,
   appendMemoryIndexEntry,
@@ -872,6 +873,44 @@ export function parseTags(response: string): ParsedTags {
 }
 
 // =============================================================================
+// extractDecisionBlock — parse ## Decision header from agent response
+// =============================================================================
+
+/**
+ * Extracts the ## Decision block from an agent response.
+ * Returns the parsed fields or null if the block is absent.
+ * All fields are optional — this is a soft extractor, never throws.
+ */
+function extractDecisionBlock(
+  response: string,
+): { serving?: string; chose?: string; falsifier?: string; ttl?: number } | null {
+  const headerIdx = response.search(/^#{2,3}\s*Decision\b/im);
+  if (headerIdx === -1) return null;
+
+  // Strip the header line itself, then capture until the next ## section or end of string
+  const afterHeader = response.slice(headerIdx).replace(/^[^\n]+\n/, '');
+  const nextSectionIdx = afterHeader.search(/\n##\s/m);
+  const block = nextSectionIdx === -1 ? afterHeader : afterHeader.slice(0, nextSectionIdx);
+
+  function extractField(fieldPattern: RegExp): string | undefined {
+    const m = block.match(fieldPattern);
+    if (!m) return undefined;
+    const val = m[1].trim();
+    return val.length > 0 ? val : undefined;
+  }
+
+  const serving = extractField(/^serving\s*:\s*(.+)$/im);
+  const chose = extractField(/^chose\s*:\s*(.+)$/im);
+  // Support both 'falsifier:' and 'falsify:' variants
+  const falsifier = extractField(/^(?:falsifier|falsify)\s*:\s*(.+)$/im);
+  const ttlStr = block.match(/^ttl\s*:\s*(\d+)$/im)?.[1];
+  const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : undefined;
+
+  if (!serving && !chose && !falsifier) return null;
+  return { serving, chose, falsifier, ttl };
+}
+
+// =============================================================================
 // postProcess — 共用的 tag 處理 + 記憶 + 日誌
 // =============================================================================
 
@@ -890,6 +929,8 @@ export async function postProcess(
     suppressChat?: boolean;
     /** Model tier — when 'small', map simplified tags (<reply>/<action>/<remember>) to kuro: namespace */
     modelTier?: ModelTier;
+    /** Current cycle count — used by the commitment ledger soft-gate */
+    cycleCount?: number;
   },
 ): Promise<AgentResponse> {
   const memory = getMemory();
@@ -907,6 +948,28 @@ export async function postProcess(
   // 2. Parse tags
   const tags = parseTags(mappedResponse);
   const tagsProcessed: string[] = [];
+
+  // 2a. Soft falsifier gate — extract ## Decision block and write to commitment ledger.
+  // Only runs for loop/foreground lanes. Never blocks postProcess (fire-and-forget, wrapped in try/catch).
+  try {
+    const isLedgerLane = meta.source === 'loop' || meta.source === 'foreground';
+    if (isLedgerLane) {
+      const decision = extractDecisionBlock(mappedResponse);
+      if (decision?.chose) {
+        writeCommitment({
+          cycle_id: meta.cycleCount ?? 0,
+          prediction: decision.chose,
+          falsifier: decision.falsifier ?? null,
+          ttl_cycles: decision.ttl ?? 5,
+        });
+        if (!decision.falsifier) {
+          slog('LEDGER', 'soft-gate: action without falsifier');
+        }
+      }
+    }
+  } catch {
+    // fire-and-forget — ledger errors must never surface to callers
+  }
 
   // 3. Process tags
   if (tags.remembers.length > 0) tagsProcessed.push('remember');

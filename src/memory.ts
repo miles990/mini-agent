@@ -3033,7 +3033,10 @@ export class InstanceMemory {
         return `<topic-memory name="${name}">\n[trimmed — context budget]\n</topic-memory>`;
       });
 
-      // Pass 2: Remove low-priority sections entirely if still over budget
+      // Pass 2: Remove low-priority sections entirely if still over budget.
+      // Action-critical sections (next, task-queue, heartbeat, inbox, working-memory) are
+      // NEVER trimmed — Kuro must always see what to do. Trimming these caused noop spiral:
+      // agent couldn't see tasks → decided "no action" → backoff increased → spiral.
       if (assembled.length > CONTEXT_BUDGET) {
         const LOW_PRIORITY_TAGS = [
           // Tier 1: Metadata / navigation cruft — zero cognitive value
@@ -3043,7 +3046,7 @@ export class InstanceMemory {
           'action-memory', 'context-health',
           // Tier 3: Identity / continuity — trim only if desperate
           'achievements', 'commitments', 'inner-voice',
-          // Tier 4: Diagnostic — keep as long as possible (tells agent why it's struggling)
+          // Tier 5: Diagnostic — keep as long as possible
           'structural-health', 'decision-quality-warning', 'problem-alignment',
         ];
         for (const tag of LOW_PRIORITY_TAGS) {
@@ -3053,7 +3056,9 @@ export class InstanceMemory {
         }
       }
 
-      // Pass 3: Hard truncate as absolute last resort (should rarely reach here)
+      // Pass 3: Hard truncate — protect action-critical sections by truncating from end.
+      // Sections loaded first (soul, memory, heartbeat, next, inbox) survive; late optional
+      // sections get cut. This ensures task visibility even under extreme budget pressure.
       if (assembled.length > CONTEXT_BUDGET) {
         assembled = assembled.slice(0, CONTEXT_BUDGET) + `\n\n[... context truncated at ${Math.round(CONTEXT_BUDGET / 1000)}K chars]`;
       }

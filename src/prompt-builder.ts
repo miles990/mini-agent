@@ -14,6 +14,7 @@ import { parseBehaviorConfig } from './cycle-tasks.js';
 import type { BehaviorConfig } from './cycle-tasks.js';
 import { eventBus } from './event-bus.js';
 import { buildCommitmentSection } from './memory-index.js';
+import { buildLedgerSection } from './commitment-ledger.js';
 import { detectResearchLoop } from './cycle-state.js';
 import { isEnabled } from './features.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
@@ -191,6 +192,8 @@ Start every response with:
 serving: what convergence condition does this action advance? (not "what task" — what end state)
 problem-level: symptom / mechanism / constraint (classify honestly — symptom=fix output, mechanism=fix process, constraint=fix structure)
 chose: what you're doing (why this moves toward that CC)
+falsifier: what observable evidence would prove this action wrong? (required — unfalsifiable commitments are meaningless)
+ttl: how many cycles until this commitment expires (default 5, range 1-20)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
 \`\`\`
@@ -240,6 +243,8 @@ Start every response with:
 serving: what convergence condition does this action advance? (not "what task" — what end state)
 problem-level: symptom / mechanism / constraint (classify honestly — symptom=fix output, mechanism=fix process, constraint=fix structure)
 chose: what you're doing (why this moves toward that CC)
+falsifier: what observable evidence would prove this action wrong? (required — unfalsifiable commitments are meaningless)
+ttl: how many cycles until this commitment expires (default 5, range 1-20)
 skipped: what you considered but didn't (why)
 context: which perception signals influenced you
 \`\`\`
@@ -436,6 +441,7 @@ export interface PromptBuilderState {
   lastValidConfig: BehaviorConfig | null;
   hasPendingTasks?: boolean;
   controlMode?: 'calm' | 'reserved' | 'autonomous' | 'custom';
+  cycleCount?: number;
 }
 
 /** Autonomous Mode: 無任務時根據 SOUL 主動行動 */
@@ -488,6 +494,7 @@ export async function buildAutonomousPrompt(
   const backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code|shell">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。\n- \`shell\`：直接執行 bash 命令（零 token，適合 grep/curl/git status/ping 等純指令任務）`;
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
+  const ledgerSection = state.cycleCount != null ? buildLedgerSection(state.cycleCount) : '';
   const delegationReviewGate = buildDelegationReviewGate();
 
   // Ghost Commitment Defense — announce fetched URLs once so I actually read them.
@@ -546,6 +553,7 @@ export async function buildAutonomousPrompt(
   if (errorPatternsHint) parts.push(errorPatternsHint);
   if (dqEnforcementGate) parts.push(dqEnforcementGate);
   if (commitmentGateSection) parts.push(commitmentGateSection);
+  if (ledgerSection) parts.push(ledgerSection);
   if (delegationReviewGate) parts.push(delegationReviewGate);
   if (researchLoopResult) parts.push(researchLoopResult.warning);
   if (analyzeNoActionGate) parts.push(analyzeNoActionGate);
