@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # mini-agent-roadmap
 
-此文定義 mini-agent 的四階段技術路線圖（P1 記憶體編譯器、P2 消毒、P3 感知系統、P4 雙介面發佈），強調 Kuro 負責設計、CC 負責實現的分工模式，並在可回滾性、黃金回歸測試和明確 cutover 條件等跨階段不變式中進行質量守護。P5 推理基礎設施為長尾項目，需 3+ 個週期的真實數據證明問題後才投入工程改造。
+Mini-agent 的四階段路線圖（P1-P4）聚焦於記憶編譯、安全隔離、知識圖譜整合和雙介面分發，每個 phase 都有明確交付物和完成條件。P5 是觀察驅動的長尾工程，須累積 ≥3 個 cycle 的問題證據才激活。所有 phase 遵守跨域不變量（可逆性、golden regression、感知優先），並實踐 Kuro 主設計、CC 主實現的清晰分工。
