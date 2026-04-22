@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # cognitive-science-tm
 
-This document synthesizes recent cognitive science research (2024-2026) across math cognition, video learning, AI tutoring, embodied cognition, and emotional design to inform a teaching AI system, supported by self-validated deployment of quality gates. It serves dual purposes: a research foundation for improving the teaching model and a competitive benchmark showing Kuro-Teach ranked #3 with identified gaps in audited coverage (26/32 vs leader's 32/32) and adaptability/engagement metrics.
+該主題整合認知科學經典理論（ZPD、雙碼理論）與 2024-2026 年教育 AI 研究前沿，聚焦數學焦慮、AI 輔導、後設認知和情感設計對學習成效的影響。TM 系統已通過 prompt 重構與品質閘門驗證相關策略，目前在競賽中排名第 3（4.7 分），改進瓶頸在審計題目覆蓋率（26/32 完成）。
