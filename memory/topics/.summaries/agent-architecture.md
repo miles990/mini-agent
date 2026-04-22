@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # agent-architecture
 
-Agent 架構的核心洞見：智能基礎設施搭配凍結模型能匹敵甚至超越前沿模型，Memory 設計從「檢索」轉向「自我記憶」，而有效的安全約束必須位於 Agent 無法感知的層面。系統層面必須建立機制自動偵測靜默故障，不能依賴 LLM 的自主遵守——Constraint Placement 的光譜中，透明度優於隔離對個人守護進程更有效。
+Agent architecture hinges on two mechanisms: (1) commitment closure systems that resolve untracked obligations through token-overlap matching and task lifecycle transitions, and (2) the recognition that reasoning modes (Primary/Worker/Peer) are regime-selected regimes of a single substrate rather than fixed types—with boundary conditions and interaction context determining which mode activates, analogous to how the Taylor.town waves/particles demo shows categories as observer-constructed artifacts. Trust boundaries themselves are projections of constraint texture in language design, making the architecture fundamentally about managing what categories *emerge* through interaction rather than pre-defining them.
