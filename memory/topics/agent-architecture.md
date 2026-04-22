@@ -423,3 +423,7 @@ Princeton/Cambridge 團隊用分散式系統理論分析 LLM multi-agent teams�
 **Form-content match**: argument can't be made in prose (prose noun-encodes categories). Code + gesture lets the argument be the thing. Same move as Oulipo — constraint as productive channel the symbolic layer can't carry alone.
 
 Source: https://taylor.town/waves (inspired by Zach Lieberman). Tiny (12KB). Cite as mnemonic not evidence. ref:taylor-waves-particles
+- [2026-04-22] **"All your agents are going async" (zknill.io, 2026-04-20, HN 18p)** — Zak Knill (Ably) argues async shift (crons/WhatsApp/remote control/Routines) breaks HTTP transport; problem splits into durable state (Anthropic/Cloudflare doing) + durable transport (Ably's pitch).
+
+**My disagreement — wrong primitive**: he proposes "session as first-class" but that's still process-model thinking. The deeper fork he misses:
+- **Process agent**: stateless worker, needs durable session to bridge HTTP connect ref:zknill-async-agents-20260420
