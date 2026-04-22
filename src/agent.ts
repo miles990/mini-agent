@@ -1746,7 +1746,8 @@ export async function callClaude(
   const PROMPT_TARGET = 30_000; // Target for minimal mode — ensure Claude can process within timeout
   // Calculate actual context budget from known non-context sizes
   const nonContextSize = systemPrompt.length + prompt.length + 20; // 20 for separators
-  const actualContextBudget = PROMPT_HARD_CAP - nonContextSize;
+  const MIN_CONTEXT_BUDGET = 5_000; // T1 live sections need at least this much
+  const actualContextBudget = Math.max(PROMPT_HARD_CAP - nonContextSize, MIN_CONTEXT_BUDGET);
   if (fullPrompt.length > PROMPT_HARD_CAP && options?.rebuildContext) {
     slog('AGENT', `Prompt too large (${fullPrompt.length} chars, context=${currentContext.length}, non-context=${nonContextSize}), pre-reducing context to budget=${actualContextBudget}`);
     try {
