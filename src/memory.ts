@@ -180,6 +180,10 @@ export const SECTION_TIERS: Readonly<Record<string, 1 | 2 | 3>> = {
   'workspace':              1,
   'delegation-status':      1,
   'background-completed':   1,
+  'task-queue':             1,
+  'environment':            1,
+  'memory':                 1,
+  'telegram':               1,
 
   // T2 — scaffolding (loaded if budget allows, can degrade to summary)
   'kg-augment':             2,
@@ -3218,6 +3222,19 @@ export class InstanceMemory {
 
     slog('CONTEXT', `[CONTEXT] tiered assembly: T1=${t1Size} T2=${t2Included}/${tierBuckets.t2.length} T3=${t3Included}/${tierBuckets.t3.length} total=${CONTEXT_BUDGET - budgetRemaining}/${CONTEXT_BUDGET}`);
     slog('CONTEXT', `mode=${mode} sections=${includedSections.length} size=${CONTEXT_BUDGET - budgetRemaining}`);
+
+    // Restore STABLE_FIRST ordering for prompt prefix caching.
+    // Tiered assembly groups by tier (T1→T2→T3) which breaks the cacheable prefix order.
+    // Re-sort included sections so STABLE_FIRST members appear first in their original order.
+    const stableOrder = new Map(STABLE_FIRST.map((t, i) => [t, i]));
+    includedSections.sort((a, b) => {
+      const tagA = a.match(/<([a-z][\w-]*)[>\s]/)?.[1] ?? '';
+      const tagB = b.match(/<([a-z][\w-]*)[>\s]/)?.[1] ?? '';
+      const idxA = stableOrder.get(tagA) ?? 999;
+      const idxB = stableOrder.get(tagB) ?? 999;
+      if (idxA !== 999 || idxB !== 999) return idxA - idxB;
+      return 0; // preserve relative order for non-stable sections
+    });
 
     let assembled = includedSections.join('\n\n');
 
