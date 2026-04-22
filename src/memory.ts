@@ -3158,19 +3158,77 @@ export class InstanceMemory {
     ];
 
     bcMark('sectionsAssembled');
-    let assembled = reorderedSections.join('\n\n');
 
-    slog('CONTEXT', `mode=${mode} sections=${reorderedSections.length} size=${assembled.length}`);
-
-    // ── Global context budget ──
-    // Empirical: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
-    // Budget is profile-aware. Caller can override with explicit contextBudget.
+    // ── Tiered budget-aware assembly ──
+    // Instead of "assemble everything then trim", we group sections by tier and
+    // stop adding once the budget is consumed. The trim code below remains as a
+    // fallback safety net in case T1 alone exceeds budget.
+    //
+    // Tier classification uses SECTION_TIERS (exported constant, authoritative copy).
+    // Sections not listed in SECTION_TIERS default to DEFAULT_SECTION_TIER (2).
+    // Multi-section blocks (situation-report, topic-memory, etc.) keep their own tag.
     const CONTEXT_BUDGET = options?.contextBudget ?? profileConfig.contextBudget ?? 25_000;
+
+    const getTagFromSection = (s: string): string => s.match(/^<([\w-]+)[\s>]/)?.[1] ?? '';
+
+    // tag → tier; topic-memory and similar blocks default to T2
+    const getTier = (s: string): 1 | 2 | 3 => {
+      const tag = getTagFromSection(s);
+      // Topic-memory sections are T2 (loaded by budget, can be demoted)
+      if (tag === 'topic-memory') return 2;
+      return SECTION_TIERS[tag] ?? DEFAULT_SECTION_TIER;
+    };
+
+    const tierBuckets: { t1: string[]; t2: string[]; t3: string[] } = { t1: [], t2: [], t3: [] };
+    for (const s of reorderedSections) {
+      const tier = getTier(s);
+      if (tier === 1) tierBuckets.t1.push(s);
+      else if (tier === 3) tierBuckets.t3.push(s);
+      else tierBuckets.t2.push(s);
+    }
+
+    // Phase 1: T1 — always included (alert if overflow)
+    const includedSections: string[] = [];
+    let budgetRemaining = CONTEXT_BUDGET;
+    for (const s of tierBuckets.t1) {
+      includedSections.push(s);
+      budgetRemaining -= s.length + 2; // +2 for '\n\n' separator
+    }
+    const t1Size = CONTEXT_BUDGET - budgetRemaining;
+
+    // Phase 2: T2 — load while budget allows
+    let t2Included = 0;
+    for (const s of tierBuckets.t2) {
+      const cost = s.length + 2;
+      if (budgetRemaining - cost < 0) continue; // skip if doesn't fit, try next
+      includedSections.push(s);
+      budgetRemaining -= cost;
+      t2Included++;
+    }
+
+    // Phase 3: T3 — load while budget allows
+    let t3Included = 0;
+    for (const s of tierBuckets.t3) {
+      const cost = s.length + 2;
+      if (budgetRemaining - cost < 0) continue; // skip if doesn't fit, try next
+      includedSections.push(s);
+      budgetRemaining -= cost;
+      t3Included++;
+    }
+
+    slog('CONTEXT', `[CONTEXT] tiered assembly: T1=${t1Size} T2=${t2Included}/${tierBuckets.t2.length} T3=${t3Included}/${tierBuckets.t3.length} total=${CONTEXT_BUDGET - budgetRemaining}/${CONTEXT_BUDGET}`);
+    slog('CONTEXT', `mode=${mode} sections=${includedSections.length} size=${CONTEXT_BUDGET - budgetRemaining}`);
+
+    let assembled = includedSections.join('\n\n');
+
+    // ── Global context budget (fallback safety net) ──
+    // Empirical: prompts <35K chars → 0% EXIT143, >50K → 100% EXIT143.
+    // This trim path should rarely trigger now that tiered assembly pre-filters sections.
     if (assembled.length > CONTEXT_BUDGET) {
       // Priority-based trimming: remove lowest-value sections first, not brute truncation.
       // Order: topic-memory → pruned/unchanged → deep context → hard truncate as last resort.
       const overBy = assembled.length - CONTEXT_BUDGET;
-      slog('CONTEXT', `Budget exceeded: ${assembled.length} > ${CONTEXT_BUDGET} (over by ${overBy}), trimming by priority`);
+      slog('CONTEXT', `[CONTEXT] WARN: fallback trim activated (T1 exceeded budget): ${assembled.length} > ${CONTEXT_BUDGET} (over by ${overBy}), trimming by priority`);
 
       // Pass 1: Trim topic-memory sections (largest, least essential)
       const topicPattern = /<topic-memory[^>]*>[\s\S]*?<\/topic-memory>/g;
