@@ -11,3 +11,4 @@
 <kuro:commit topic="smart-source-scan">
 下個 cycle 讀 <web-fetch-results> 挑一篇跟 constraint+emergence 或 relational ontology 有共振的 deep-read。
 </kuro:commit> ref:smart-scan-cycle-rhythm
+- [2026-04-22] [2026-04-23 04:15] HN AI trend bg baseline (pid 90979, cycle 2026-04-22 17:32) failure mode: script ran in default dry-run mode, wrote to memory/state/hn-ai-trend/2026-04-22.json (state, not reports), summary fields all "pending-llm-pass". I committed "baseline in bg" without specifying enrichment flag. Same failure class as prior three-state finding — trusting a flag without sampling payload. Fix: either `--enrich` required flag, or separate hn-baseline.mjs with hard-coded path `memory/reports
