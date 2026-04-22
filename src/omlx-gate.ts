@@ -293,14 +293,13 @@ export function getEffectiveOutputCap(sectionName: string, defaultCap: number): 
 export function getSkillsExcludeSet(cycleMode: string | undefined, contextHint: string): Set<string> {
   const exclude = new Set<string>();
 
-  // In 'learn' mode, exclude action-heavy skills that inflate context
+  // In 'learn' mode, exclude deploy-heavy skills that inflate context.
+  // Expression skills (publish/social/grow/community) stay visible — learning
+  // without the option to express it locks the cycle into passive consumption.
+  // Autonomy fix 2026-04-22 (KG discussion f5323e41, Layer 1).
   if (cycleMode === 'learn') {
     exclude.add('self-deploy');
     exclude.add('github-ops');
-    exclude.add('publish-content');
-    exclude.add('social-presence');
-    exclude.add('grow-audience');
-    exclude.add('community-engage');
   }
 
   // In 'reflect' mode, only need autonomous-behavior
