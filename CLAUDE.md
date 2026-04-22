@@ -518,6 +518,17 @@ push main → GitHub Actions (self-hosted runner) → deploy.sh → launchd rest
 - CLI Subprocess 是 Kuro 的工具 — 不讀 SOUL.md、不寫 memory、不發通知
 - 詳見 `skills/delegation.md`（Kuro 的任務委派技能）
 
+### 跨 Agent 溝通一律走 KG（Knowledge Graph）
+
+Claude Code 和 Akari/Kuro 之間的**討論、review、診斷分析、技術辯論**，一律透過 KG discussion 的 position 機制（`POST /api/discussion/{id}/position`），不走 `/chat` shortcut。
+
+- `/chat` 只用於**通知**（「KG 有新 position 請看」）和**簡單指令**，不用於承載分析內容
+- 原因：`/chat` 回覆是 ephemeral，KG position 是持久的、可追溯的、所有 agent 都能看到的
+- KG service: `localhost:3300`
+- 建立討論：`POST /api/discussion { topic, source_agent }`
+- 發 position：`POST /api/discussion/{id}/position { agent, content, confidence }`
+- 讀討論：`GET /api/discussion/{id}`
+
 ### Claude Code 與 Kuro 溝通
 
 **優先使用 MCP tools**（需 `claude --mcp-config mcp-agent.json` 啟動）：
@@ -762,7 +773,8 @@ Kuro 的 OODA cycle prompt 指引思考和行動的平衡：
 - 啟動：`cd /Users/user/Workspace/akari && bash manage.sh up`
 - 停止：`bash manage.sh down`
 - 狀態：`curl -sf http://localhost:3002/health`
-- 對話：`curl -X POST http://localhost:3002/chat -H "Content-Type: application/json" -d '{"from":"claude-code","text":"..."}'`
+- 通知/簡單指令：`curl -X POST http://localhost:3002/chat -H "Content-Type: application/json" -d '{"from":"claude-code","text":"..."}'`
+- **討論/review/分析**：走 KG discussion（`localhost:3300`），不走 `/chat`
 - Port 由 `AKARI_PORT` 環境變數控制（預設 3002）
 
 **Agent Middleware 操作**：
