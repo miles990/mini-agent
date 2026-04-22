@@ -2035,7 +2035,7 @@ export class InstanceMemory {
 
     // ── Minimal mode: 最小 context，用於超時重試 ──
     if (mode === 'minimal') {
-      return this.buildMinimalContext();
+      return this.buildMinimalContext(options?.contextBudget);
     }
 
     // ── R5: Context Profile System ──
@@ -3139,7 +3139,7 @@ export class InstanceMemory {
    *         task index、working memory、最近 3 則對話
    * 跳過：所有 perception、完整 memory、topic memory、完整 soul、achievements、coach
    */
-  private async buildMinimalContext(): Promise<string> {
+  private async buildMinimalContext(budget?: number): Promise<string> {
     const [heartbeat, soul] = await Promise.all([
       this.readHeartbeat(),
       this.readSoul(),
@@ -3227,7 +3227,21 @@ export class InstanceMemory {
       .join('\n');
     sections.push(`<recent_conversations>\n${recentConvos || '(No recent conversations)'}\n</recent_conversations>`);
 
-    return sections.join('\n\n');
+    const joined = sections.join('\n\n');
+
+    // cf8049e7 fix: enforce caller-supplied budget. Root cause of TIMEOUT:silent_exit
+    // retry-inflation was that buildMinimalContext ignored contextBudget — 5 unbounded
+    // sections (soul-minimal / inbox / bg-completed / next / working-memory) could
+    // regenerate a ~86k prompt on retry and silently bypass PROMPT_HARD_CAP=45k upstream.
+    // Hard-cap last resort: if still over budget, truncate with a tail marker so the
+    // retry prompt is guaranteed to be strictly smaller than the attempt that just failed.
+    if (typeof budget === 'number' && budget > 0 && joined.length > budget) {
+      const marker = `\n\n[... minimal context truncated from ${joined.length} to fit ${budget} char budget — cf8049e7 hard-cap ...]`;
+      const head = joined.slice(0, Math.max(0, budget - marker.length));
+      return head + marker;
+    }
+
+    return joined;
   }
 
   /**
