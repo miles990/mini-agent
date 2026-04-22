@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # source_regehr_zero_dof_oracles
 
-Regehr 提出可執行預言機（executable oracles）能通過約束 LLM 的自由度來改善輸出品質，強預言機（如模糊測試、對立約束）比弱預言機（如測試用例）更有效。對立約束通過從兩個方向壓縮解空間，形成窄帶區域，使 gaming 變得困難甚至不可能——這對應 ISC 的約束碰撞與湧現現象。Architecture 等元約束因為約束的是約束本身的組織方式而抗拒機械預言機，需要人工監督。
+Regehr 提出可執行預言機（executable oracles）來逐步削減 LLM 的自由度——弱預言機（如測試套件）允許淺層模式匹配，強預言機（如 fuzzer）迫使真正理解。最核心的洞見是**對立約束**（opposing oracles）把解空間壓到一道窄帶，使得欺騙和遊走不再可能，這在工程層面重新發現了約束紋理決定認知效果的 ISC 原理。
