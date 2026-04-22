@@ -58,7 +58,7 @@ import { buildTemporalSection, buildThreadsContextSection, addTemporalMarkers } 
 import { readPendingInbox, formatInboxSection } from './inbox.js';
 import { sanitizeExternalContent } from './tag-parser.js';
 import { buildTaskProgressSection, readStaleTaskWarnings } from './housekeeping.js';
-import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
+import { isIndexBuilt, buildMemoryIndex, getManifestContext, getRelevantTopics, buildTaskQueueSection, buildTaskQueueSectionCompact, buildPinnedTasksSection, buildNextContextSection } from './memory-index.js';
 import { buildStimulusFingerprint, hasRecentStimulusFingerprint } from './cycle-state.js';
 import { kgExpandQuery } from './kg-retrieval.js';
 import { getKGAugmentedContext } from './claudemd-jit.js';
@@ -2207,7 +2207,7 @@ export class InstanceMemory {
       'soul-core':            { cap: 4000, tier: SECTION_TIERS['soul-core']            ?? DEFAULT_SECTION_TIER },
       'soul-traits':          { cap: 2000, tier: SECTION_TIERS['soul-traits']          ?? DEFAULT_SECTION_TIER },
       'soul-other':           { cap: 3000, tier: SECTION_TIERS['soul-other']           ?? DEFAULT_SECTION_TIER },
-      'heartbeat-active':     { cap: 5000, tier: SECTION_TIERS['heartbeat-active']     ?? DEFAULT_SECTION_TIER },
+      'heartbeat-active':     { cap: 2000, tier: SECTION_TIERS['heartbeat-active']     ?? DEFAULT_SECTION_TIER },
       'heartbeat-strategy':   { cap: 1500, tier: SECTION_TIERS['heartbeat-strategy']   ?? DEFAULT_SECTION_TIER },
       'situation-report':     { cap: 6000, tier: SECTION_TIERS['situation-report']     ?? DEFAULT_SECTION_TIER },
       'background-completed': { cap: 4000, tier: SECTION_TIERS['background-completed'] ?? DEFAULT_SECTION_TIER },
@@ -2380,7 +2380,7 @@ export class InstanceMemory {
       sections.push(`<task-progress>\n${progressCtx}\n</task-progress>`);
     }
 
-    const taskQueueCtx = buildTaskQueueSection(this.memoryDir);
+    const taskQueueCtx = buildTaskQueueSectionCompact(this.memoryDir);
     if (taskQueueCtx) {
       sections.push(taskQueueCtx);
     }
@@ -3067,9 +3067,10 @@ export class InstanceMemory {
       sections.push(`<next>\n${nextSection}\n</next>`);
     }
 
-    // ── 記憶和對話（總是載入，light mode 截斷）──
+    // ── 記憶和對話（總是載入，hard cap 2500 chars in all modes）──
+    const MEM_CAP = 2500;
     const tieredMem = this.tieredMemoryContent(memory, contextHint);
-    const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
+    const memContent = tieredMem.length > MEM_CAP ? tieredMem.slice(0, MEM_CAP) + '\n[... memory truncated]' : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
     pushCapped('recent_conversations', conversations || '(No recent conversations)');
     // ── Heartbeat — split into 2 sub-sections for tiered budget control ──
