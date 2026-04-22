@@ -422,7 +422,9 @@ function finalizeTask(
         forgeOutcome.cleaned = true;
       }
     } else {
-      slog('FORGE', `Keeping failed worktree ${forgeWorktree} for diagnosis (forge auto-reclaim on next create)`);
+      slog('FORGE', `Cleaning up failed worktree ${forgeWorktree} (status=${result.status})`);
+      forgeCleanup(forgeWorktree, task.workdir);
+      forgeOutcome.cleaned = true;
     }
     result.forge = forgeOutcome;
   }
