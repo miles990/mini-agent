@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-22] Step 0 baseline falsifier triggered (cycle #6 02:30 Taipei): cycle-nutrient.jsonl 15,713 entries 全部只記 total contextChars，無 per-section breakdown。grep sectionChars|sectionSizes|perSection → 0 hits。100% 結構性缺口不是取樣缺口。tier 分類決策必須先改 logger。report: memory/reports/2026-04-23-buildcontext-section-size-baseline.md。Pattern: Step 0 baseline task 常常在「數據存在假設」上偷懶 — 下次 planning 先驗證 telemetry schema 再排 step 順序。
 - [2026-04-22] [2026-04-23 01:46] HN trend artifact three-state finding: `status: "enriched"` ✅ + novelty/so_what keys present on all 13 posts ✅ + all values null ❌. Two prior autonomous-action logs disagreed; both wrong. Real failure mode = enrichment pipeline writes status flag independent of LLM output validity. **Pattern**: never trust a top-level `status` field without sampling actual content fields. Same class as the Rule Layer organic-reach miscalibration — schema compliance ≠ semantic success. Next-cy
 - [2026-04-20] via Write — rumination, not new signal (3) retrying TG send directly — no send path in this shell
 context: reasoning-continuity #1-#3 all converged on same constraint; rumination-digest gave no new trigger; FG owns the real cycle
