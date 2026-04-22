@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # system-reminder-split-plan
 
-該文件提出了一個信任邊界設計：將內部系統信息（hooks、感知、推理）透過 SDK 的 `systemPrompt` 通道路由，同時在外部消息入口點（inbox、room、delegate 結果）對 `<system-reminder>` 標籤進行 HTML 轉義，防止外部發送者偽造系統聲音。實現範圍包括 hook 遷移、外部清淨化邏輯以及兩個黃金回歸測試案例（自我注入和外部注入），確保系統邊界安全且無信息丟失。
+This plan splits how system context reaches the model to prevent trust boundary violations: internal hooks and task state flow through the SDK's `systemPrompt` channel (out-of-band, unforgeable), while external inputs (room messages, inbox, delegate results) stay in `userMessage` but have system tags sanitized (HTML-encoded) to prevent injection attacks. The implementation requires migrating hook output in `src/loop.ts`, sanitizing ingress points like `src/inbox-processor.ts`, and testing both self-injection and external-injection scenarios as regression guards.
