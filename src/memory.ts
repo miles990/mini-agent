@@ -154,6 +154,63 @@ interface ChatRoomMessage {
 
 export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
 
+/**
+ * Section tier classification for context budget management.
+ *
+ * T1 — live: never trimmed; alert if overflow (inbox, soul, heartbeat, workspace, …)
+ * T2 — scaffolding: loaded if budget allows; can degrade to summary (skills, topics, …)
+ * T3 — reference: only loaded when budget has room (achievements, trail, …)
+ *
+ * Default tier for unlisted sections: 2
+ */
+export const SECTION_TIERS: Readonly<Record<string, 1 | 2 | 3>> = {
+  // T1 — live (never trimmed, alert if overflow)
+  'inbox':                  1,
+  'chat-room-recent':       1,
+  'next':                   1,
+  'commitments':            1,
+  'conversation-threads':   1,
+  'soul':                   1,
+  'heartbeat':              1,
+  'workspace':              1,
+  'delegation-status':      1,
+  'background-completed':   1,
+
+  // T2 — scaffolding (loaded if budget allows, can degrade to summary)
+  'kg-augment':             2,
+  'skills':                 2,
+  'recent_conversations':   2,
+  'chat-room-relevant':     2,
+  'topics':                 2,
+  'situation-report':       2,
+  'web-fetch-results':      2,
+  'activity':               2,
+  'recent-activity':        2,
+  'working-memory':         2,
+  'tactics-board':          2,
+  'capabilities':           2,
+  'pulse':                  2,
+
+  // T3 — reference (only loaded when budget has room)
+  'achievements':           3,
+  'trail':                  3,
+  'route-efficiency':       3,
+  'action-memory':          3,
+  'inner-voice':            3,
+  'stale-tasks':            3,
+  'context-health':         3,
+  'topic-menu':             3,
+  'stimulus-dedup':         3,
+  'unchanged-perceptions':  3,
+  'pruned-perceptions':     3,
+  'myelin-framework':       3,
+  'past-success':           3,
+  'threads':                3,
+};
+
+/** Default tier for sections not listed in SECTION_TIERS */
+export const DEFAULT_SECTION_TIER: 1 | 2 | 3 = 2;
+
 /** 註冊自訂感知和 Skills */
 export function setCustomExtensions(ext: {
   perceptions?: ComposePerception[];
@@ -2102,33 +2159,35 @@ export class InstanceMemory {
     // 組合感知區塊
     const sections: string[] = [];
 
-    // Per-section soft caps — prevent any single section from dominating context
-    const SECTION_CAP: Record<string, number> = {
-      'web-fetch-results': 6000,
-      'chat-room-recent': 6000, // floor 4000 via SECTION_FLOOR below
-      'chat-room-relevant': 4000,
-      'soul': 8000,
-      'heartbeat': 6000,
-      'situation-report': 6000,
-      'background-completed': 4000,
-      'capabilities': 3000,
-      'activity': 3000,
-      'recent-activity': 3000,
-      'action-memory': 3000,
-      'memory-index': 2000,
-      'trail': 2000,
-      'achievements': 2000,
-      'threads': 2000,
-      'conversation-threads': 2000,
-      'commitments': 2000,
-      'myelin-framework': 2000,
-      'past-success': 1500,
-      'pulse': 1500,
-      'route-efficiency': 1500,
-      'working-memory': 3000,
-      'inner-voice': 2000,
-      'tactics-board': 3000,
-      'recent_conversations': 4000,
+    // Per-section soft caps — prevent any single section from dominating context.
+    // Each entry carries a `cap` (char limit) and a `tier` (1=live, 2=scaffolding, 3=reference).
+    // Tier classification is the authoritative copy exported as SECTION_TIERS above.
+    const SECTION_CAP: Record<string, { cap: number; tier: 1 | 2 | 3 }> = {
+      'web-fetch-results':    { cap: 6000, tier: SECTION_TIERS['web-fetch-results']    ?? DEFAULT_SECTION_TIER },
+      'chat-room-recent':     { cap: 6000, tier: SECTION_TIERS['chat-room-recent']     ?? DEFAULT_SECTION_TIER }, // floor 4000 via SECTION_FLOOR below
+      'chat-room-relevant':   { cap: 4000, tier: SECTION_TIERS['chat-room-relevant']   ?? DEFAULT_SECTION_TIER },
+      'soul':                 { cap: 8000, tier: SECTION_TIERS['soul']                 ?? DEFAULT_SECTION_TIER },
+      'heartbeat':            { cap: 6000, tier: SECTION_TIERS['heartbeat']            ?? DEFAULT_SECTION_TIER },
+      'situation-report':     { cap: 6000, tier: SECTION_TIERS['situation-report']     ?? DEFAULT_SECTION_TIER },
+      'background-completed': { cap: 4000, tier: SECTION_TIERS['background-completed'] ?? DEFAULT_SECTION_TIER },
+      'capabilities':         { cap: 3000, tier: SECTION_TIERS['capabilities']         ?? DEFAULT_SECTION_TIER },
+      'activity':             { cap: 3000, tier: SECTION_TIERS['activity']             ?? DEFAULT_SECTION_TIER },
+      'recent-activity':      { cap: 3000, tier: SECTION_TIERS['recent-activity']      ?? DEFAULT_SECTION_TIER },
+      'action-memory':        { cap: 3000, tier: SECTION_TIERS['action-memory']        ?? DEFAULT_SECTION_TIER },
+      'memory-index':         { cap: 2000, tier: DEFAULT_SECTION_TIER },
+      'trail':                { cap: 2000, tier: SECTION_TIERS['trail']                ?? DEFAULT_SECTION_TIER },
+      'achievements':         { cap: 2000, tier: SECTION_TIERS['achievements']         ?? DEFAULT_SECTION_TIER },
+      'threads':              { cap: 2000, tier: SECTION_TIERS['threads']              ?? DEFAULT_SECTION_TIER },
+      'conversation-threads': { cap: 2000, tier: SECTION_TIERS['conversation-threads'] ?? DEFAULT_SECTION_TIER },
+      'commitments':          { cap: 2000, tier: SECTION_TIERS['commitments']          ?? DEFAULT_SECTION_TIER },
+      'myelin-framework':     { cap: 2000, tier: SECTION_TIERS['myelin-framework']     ?? DEFAULT_SECTION_TIER },
+      'past-success':         { cap: 1500, tier: SECTION_TIERS['past-success']         ?? DEFAULT_SECTION_TIER },
+      'pulse':                { cap: 1500, tier: SECTION_TIERS['pulse']                ?? DEFAULT_SECTION_TIER },
+      'route-efficiency':     { cap: 1500, tier: SECTION_TIERS['route-efficiency']     ?? DEFAULT_SECTION_TIER },
+      'working-memory':       { cap: 3000, tier: SECTION_TIERS['working-memory']       ?? DEFAULT_SECTION_TIER },
+      'inner-voice':          { cap: 2000, tier: SECTION_TIERS['inner-voice']          ?? DEFAULT_SECTION_TIER },
+      'tactics-board':        { cap: 3000, tier: SECTION_TIERS['tactics-board']        ?? DEFAULT_SECTION_TIER },
+      'recent_conversations': { cap: 4000, tier: SECTION_TIERS['recent_conversations'] ?? DEFAULT_SECTION_TIER },
     };
     const DEFAULT_SECTION_CAP = 4000;
 
@@ -2146,7 +2205,7 @@ export class InstanceMemory {
 
     /** Push a section with automatic size capping, scaled by budget */
     const pushCapped = (tag: string, content: string) => {
-      const baseCap = SECTION_CAP[tag] ?? DEFAULT_SECTION_CAP;
+      const baseCap = SECTION_CAP[tag]?.cap ?? DEFAULT_SECTION_CAP;
       const floor = SECTION_FLOOR[tag] ?? 500;
       const cap = Math.max(floor, Math.round(baseCap * budgetRatio));
       if (content.length > cap) {
