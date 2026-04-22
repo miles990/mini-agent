@@ -17,6 +17,26 @@ export interface CommitmentEntry {
   created_at: string;
   resolved_at?: string;
   resolution_evidence?: string;
+  // Phase 1.5: structured falsifier executable by per-cycle resolver.
+  // Legacy entries (undefined) keep expire-on-TTL behavior.
+  falsifier_query?: FalsifierQuery;
+  last_checked_cycle?: number;
+  check_budget?: 'cheap' | 'delegate';
+}
+
+// Phase 1.5: executable falsifier DSL. Five kinds cover the common cases;
+// `manual` is the escape hatch for predictions that truly need human judgment.
+export type FalsifierQuery =
+  | { kind: 'kg_count';    query: string; op: '<=' | '>=' | '=='; threshold: number }
+  | { kind: 'log_grep';    pattern: string; since_iso: string; op: '<=' | '>=' | '=='; threshold: number }
+  | { kind: 'file_exists'; path: string; must: boolean }
+  | { kind: 'metric';      metric: string; op: '<=' | '>=' | '=='; threshold: number }
+  | { kind: 'manual';      description: string };
+
+export interface QueryResult {
+  conclusive: boolean;
+  verdict?: 'kept' | 'refuted';
+  evidence: string;
 }
 
 export interface CommitmentAudit {
@@ -173,6 +193,73 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
   };
 }
 
+// =============================================================================
+// Phase 1.5: Falsifier executor
+// =============================================================================
+
+// Cheap, synchronous query runners. Network-bound kinds (kg_count) and
+// higher-cost scans (log_grep, metric) return inconclusive for now —
+// they'll be wired in follow-up patches once the plumbing is proven.
+function runQuery(q: FalsifierQuery): QueryResult {
+  switch (q.kind) {
+    case 'file_exists': {
+      const exists = existsSync(q.path);
+      if (exists === q.must) {
+        return {
+          conclusive: true,
+          verdict: 'kept',
+          evidence: `file_exists(${q.path}) = ${exists}, expected ${q.must}`,
+        };
+      }
+      return {
+        conclusive: true,
+        verdict: 'refuted',
+        evidence: `file_exists(${q.path}) = ${exists}, expected ${q.must}`,
+      };
+    }
+    case 'manual':
+      return {
+        conclusive: false,
+        evidence: `manual: ${q.description} (awaiting manual resolution)`,
+      };
+    case 'kg_count':
+    case 'log_grep':
+    case 'metric':
+      return {
+        conclusive: false,
+        evidence: `kind=${q.kind} executor not yet implemented (Phase 1.5 stub)`,
+      };
+  }
+}
+
+export function resolveReadyCommitments(
+  currentCycleId: number,
+): { resolved: number; skipped: number } {
+  const pending = readPendingCommitments();
+  let resolved = 0;
+  let skipped = 0;
+  for (const entry of pending) {
+    if (!entry.falsifier_query) { skipped++; continue; }
+    if (entry.last_checked_cycle === currentCycleId) { skipped++; continue; }
+    // delegate-budget queries are deferred-async — skip for now, next-cycle resolution.
+    if (entry.check_budget === 'delegate') { skipped++; continue; }
+
+    const result = runQuery(entry.falsifier_query);
+    if (result.conclusive && result.verdict) {
+      updateCommitmentStatus(entry.id, result.verdict, result.evidence);
+      resolved++;
+    } else {
+      // Throttle: mark as checked-this-cycle so we don't re-run until next cycle.
+      appendLine({ ...entry, last_checked_cycle: currentCycleId });
+      skipped++;
+    }
+  }
+  if (resolved > 0 || skipped > 0) {
+    slog('LEDGER', `resolveReady: resolved=${resolved} skipped=${skipped}`);
+  }
+  return { resolved, skipped };
+}
+
 export function expireOverdueCommitments(currentCycleId: number): number {
   const pending = readPendingCommitments();
   let count = 0;
@@ -191,6 +278,11 @@ export function expireOverdueCommitments(currentCycleId: number): number {
 }
 
 export function buildLedgerSection(currentCycleId: number): string {
+  // Phase 1.5: try to resolve via structured queries BEFORE TTL expiry fires.
+  // This is what turns the ledger from a timer into a cognitive probe.
+  try { resolveReadyCommitments(currentCycleId); } catch (e) {
+    slog('LEDGER', `resolveReadyCommitments failed: ${(e as Error).message}`);
+  }
   expireOverdueCommitments(currentCycleId);
   const audit = auditCommitments(currentCycleId);
   const pending = readPendingCommitments();
@@ -206,6 +298,19 @@ export function buildLedgerSection(currentCycleId: number): string {
       const remaining = e.ttl_cycles - age;
       const falsifierPart = e.falsifier ? ` | falsifier: ${e.falsifier}` : ' | no falsifier';
       lines.push(`  [${e.id}] cycle=${e.cycle_id} ttl=${remaining} remaining — ${e.prediction}${falsifierPart}`);
+      if (e.falsifier_query) {
+        const q = e.falsifier_query;
+        const qDesc =
+          q.kind === 'kg_count'    ? `kg_count(${q.query}) ${q.op} ${q.threshold}` :
+          q.kind === 'log_grep'    ? `log_grep(${q.pattern}) ${q.op} ${q.threshold} since ${q.since_iso}` :
+          q.kind === 'file_exists' ? `file_exists(${q.path}) must=${q.must}` :
+          q.kind === 'metric'      ? `metric(${q.metric}) ${q.op} ${q.threshold}` :
+          /* manual */               `manual: ${q.description}`;
+        const checked = e.last_checked_cycle != null
+          ? ` [last checked cycle ${e.last_checked_cycle}]`
+          : ' [never checked]';
+        lines.push(`    query: ${qDesc}${checked}`);
+      }
     }
   }
 

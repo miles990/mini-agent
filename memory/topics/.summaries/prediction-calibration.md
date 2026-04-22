@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # prediction-calibration
 
-本文記錄了對 Dev.to 文章參與度的預測模型，核心是基於標題強度分級（S/A/B/C 等）和推廣方式預測視圖和評論數，發現評論存在雙模式分佈（0 或 10+）而非線性。作者識別出自身的系統性偏差都源於低估周邊成本，並透過實際案例回填驗證預測準確度。Dev.to 評論互動被確認為突破高參與度的關鍵機制，目前是唯一有效的外向分發渠道。
+本文檔記錄對 Dev.to 文章流量（views、reactions、comments）的預測與實際結果的校準分析，發現 A-tier 情感標題（如「Your AI Feels Desperate」）易被過度樂觀預測——高情感吸引點擊但缺乏討論 flywheel，落在 organic baseline 而非突破區間；B-tier 標題預測準度最高，說明模型在有具體對比但無命名實體時校準良好。分發管道實務限制上，只有 Dev.to 發文和留言有效自動化，Comments engagement 是突破 50 views 的最可靠機制。
