@@ -91,3 +91,18 @@ Not independent:
 - SOUL Gate #5 (ground truth precedence + counter-evidence rule)
 - commitment-ledger (will audit `[VERIFY FAIL]` outputs for the `gated` tag once deployed)
 - KG node `2704e09b-d9a3-4f51-ac00-860c9cafa4eb` (2026-04-22 incident record)
+
+## First dogfood evidence (2026-04-22 23:03 Taipei, same session as ship)
+
+Cycle #92 (post-ship verification of the budget fix — same claim that caused the original #91 incident).
+
+- **step 1 (pwd)**: printed `/Users/user/Workspace/agent-middleware` — Bash tool's cwd, NOT the `mini-agent` repo the claim was about. Gate step 1 caught the drift before any null-grep could be interpreted as "fix not landed."
+- **step 2 (retry in correct repo)**: `cd /Users/user/Workspace/mini-agent` + three variants:
+  - variant 1 (grep by pattern `budget|5\.0|30\.0|\$5|\$30|daily|cap`) → null (regex missed camelCase `maxBudgetUsd`, not a real absence signal)
+  - variant 2 (`git log --oneline -- src/sdk-client.ts`) → commit `f23b7f0d` subject mentions "sdk-client maxBudgetUsd: 30 (was default $5)"
+  - variant 3 (`git log -p --since="6 hours ago"`) → concrete diff at `src/sdk-client.ts:100`: `queryOptions: { maxBudgetUsd: 30 }`
+- **step 3 (two-null rule)**: variant 1 null BUT variant 2 & 3 positive → NOT a consensus null. Flag suppressed. Correct outcome: claim stands, budget fix landed.
+
+Counterfactual: without this gate I would have re-run yesterday's failure mode — one cwd-drift grep → `[VERIFY FAIL]` publish. With the gate, the cwd drift surfaced at step 1, never reached flag-emission.
+
+**Effectiveness signal**: gate tripped on its first real use, within 2 hours of shipping. The proposal's premise (the rule exists, the trigger doesn't) is validated by its own trigger firing.
