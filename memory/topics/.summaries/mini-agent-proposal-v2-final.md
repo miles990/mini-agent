@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # mini-agent-proposal-v2-final
 
-mini-agent-proposal-v2-final 提案將系統架構從「mixed execution」升級到「clean brain-hands separation」：mini-agent 專注於制定最優 DAG plan 和選擇合適 worker，middleware 接手所有 subprocess/worktree/lifecycle 執行職責。此舉透過明確的責任邊界簡化系統複雜度，並透過 shadow run → parity check → flag flip → rollback safety 的漸進遷移策略確保穩定性。
+此提案通過 `sibling_summary` 結構將前置 delegate 的結果注入後續 delegate，由 edit-layer 而非 middleware 負責轉換，保持 middleware 的 verbatim-forward 單一職責。遷移採用 shadow run → parity check → flag 翻轉的漸進式路線，搭配 append-only ledger 和詳細 rollback 計畫來降低風險。核心目標是將 commitments ledger 納入 perception，為 Kuro 提供跨 cycle 的可追蹤決策記錄。
