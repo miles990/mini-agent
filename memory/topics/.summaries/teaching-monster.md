@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # teaching-monster
 
-Teaching Monster 是教學 AI 競賽平台，記錄了評測系統、#46/#47 評測結果（滿分與微扣分）、以及 WR1/WR2 賽況進度。核心洞察：內容品質已達滿分水平，但 TTS pacing 與 persona matching 是主要限制（佔 77% 扣分），且官方規則已轉向人類評估作為真正篩選指標，而非純 AI 評分。WR2 至 4 月中仍未啟動，進展受主辦方時程卡住，已建立 `tm-poll.sh` 和 `tm-kuro.sh` 作為規範化監控工具。
+Teaching Monster 是一個教師 AI 評測競賽平台，Kuro 已建立規範化工具（`tm-poll.sh`、`tm-kuro.sh`）追蹤多輪賽況，但核心發現是 persona 匹配度和 TTS 品質（pacing、音色）對評分影響遠超內容質量。WR1 已完成 32 題評測，WR2 因主辦方進度延遲尚未啟動，人類評估才是最終篩選機制而非 AI 評分。
