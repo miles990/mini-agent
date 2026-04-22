@@ -3067,8 +3067,8 @@ export class InstanceMemory {
       sections.push(`<next>\n${nextSection}\n</next>`);
     }
 
-    // ── 記憶和對話（總是載入，hard cap 2500 chars in all modes）──
-    const MEM_CAP = 2500;
+    // ── 記憶和對話（hard cap: light=2500, normal/full=4000）──
+    const MEM_CAP = isLight ? 2500 : 4000;
     const tieredMem = this.tieredMemoryContent(memory, contextHint);
     const memContent = tieredMem.length > MEM_CAP ? tieredMem.slice(0, MEM_CAP) + '\n[... memory truncated]' : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);

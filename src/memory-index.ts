@@ -608,9 +608,14 @@ export function buildTaskQueueSectionCompact(memoryDir: string): string {
     const staleWarning = payload.staleWarning as string | undefined;
 
     const summary = (item.summary ?? item.id).slice(0, 80);
-    const verifyStr = verify && verify.length > 0
-      ? `verify: ${verify.filter(v => v.status === 'pass').length}/${verify.length} pass`
-      : 'verify: none';
+    let verifyStr = 'verify: none';
+    if (verify && verify.length > 0) {
+      const passed = verify.filter(v => v.status === 'pass').length;
+      const failed = verify.filter(v => v.status !== 'pass');
+      verifyStr = passed === verify.length
+        ? `verify: ${passed}/${verify.length} pass`
+        : `verify: ${passed}/${verify.length} pass (${failed.map(v => v.name).join(', ')} ✗)`;
+    }
     const staleMarker = staleWarning ? ' ⚠' : '';
     return `- [${item.status}] ${summary}${staleMarker} | id=${item.id} | ${verifyStr}`;
   });
