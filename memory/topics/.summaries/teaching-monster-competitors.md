@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # teaching-monster-competitors
 
-Kuro-Teach 在 teaching.monster 教學 AI 競賽中排名第 3（與 BlackShiba 並列 4.8 分），競爭對手包括宇你童行（tsunumon）和 Team 67，規則已改為兩階段篩選：AI 學生評分作硬門檻進 top 10，真人 Elo 對戰制決出前 3 進決賽。團隊 AI 評分穩定（正確 4.9/邏輯 5.0），但適配度（4.5 vs BlackShiba 4.8）和互動評分（4.4）存在差距，真人評估的適配度和用戶互動將是決勝關鍵。
+此文發現 Kuro 在教學競賽中，engagement 輸 tsunumon 0.1 差距是結構性的（非噪聲），但更重要的是發現了應該放大 Kuro 的 adaptability 優勢（領先 0.2～0.5）而非追趕 engagement 劣勢。戰略轉向強調：已勝的高價值戰場（adaptability）的複利遠大於低價值戰場（engagement）的微幅改進，下一步應驗證適應性的三個核心假設：預判困惑點、動態節奏調整、多背景框架化。
