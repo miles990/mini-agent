@@ -71,6 +71,37 @@ buildContext 各 section actual char count，產出 tier 分類的數據依據
 提到 SECTION_TIERS / PROTECTED_SECTIONS coherence gap，task-queue/environment/
 telegram/memory 都在 PROTECTED_SECTIONS。下次 cycle 拉這個 review 進檔。
 
+### Coherence audit（2026-04-23 02:20 Taipei，為 daylight 工作準備）
+兩套常數對「重要 section」語義發散 — 8 個 section 分歧：
+
+**PROTECTED_SECTIONS** (`src/context-optimizer.ts:46-59`, 12 項):
+environment, soul-core, inbox, workspace, telegram, memory, heartbeat-active,
+recent_conversations, next, priority-focus, self, chat-room-recent
+
+**SECTION_TIERS T1** (`src/memory.ts:166-186`, 15 項):
+inbox, chat-room-recent, next, commitments, conversation-threads, soul-core,
+heartbeat-active, workspace, delegation-status, background-completed,
+task-queue, environment, memory, telegram
+
+**Intersection** (9): inbox, chat-room-recent, next, soul-core, heartbeat-active,
+workspace, environment, memory, telegram
+
+**Only PROTECTED（T1 缺漏，會被 tier logic 當 T2 trim）**:
+- `recent_conversations` — 列入 PROTECTED 但 SECTION_TIERS 未標 → fallback to DEFAULT_SECTION_TIER=2
+- `priority-focus` — PROTECTED 但 SECTION_TIERS 完全沒列
+- `self` — PROTECTED 但 SECTION_TIERS 完全沒列
+
+**Only T1（PROTECTED 缺漏，可被 optimizer 降級）**:
+- `commitments`, `conversation-threads`, `delegation-status`,
+  `background-completed`, `task-queue` — 宣告 live 但 optimizer 可降
+
+**Unification options**:
+1. **Derive**: `PROTECTED_SECTIONS = new Set(Object.entries(SECTION_TIERS).filter(([,t])=>t===1).map(([k])=>k))` — 單一 source of truth，副作用：priority-focus/self 若真需保護要補進 SECTION_TIERS
+2. **Explicit audit**: 保留兩份但加 CI test 檢查 T1 ⊆ PROTECTED
+3. **Merge into semantic type**: 改 SectionMeta = { tier, protected, cap } 統一
+
+建議 daylight 走 Option 1 + 補 SECTION_TIERS 缺項（priority-focus/self 若仍需要）。動之前確認 priority-focus / self 是否仍被任何 citedSections 路徑實際發出（可能是 legacy）。
+
 ## Why this file exists
 working-memory 會 rotate；Akari 的 review 在 cycle 執行 tier plan 時才需要看到，
 但那可能是幾天後。這檔是 durable anchor，避免 review 遺失導致 plan 裡繼續把
