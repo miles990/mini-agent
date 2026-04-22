@@ -19,6 +19,8 @@ import { detectResearchLoop } from './cycle-state.js';
 import { isEnabled } from './features.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readState } from './feedback-loops.js';
+import { slog } from './utils.js';
+import { getActiveDelegationSummaries } from './delegation.js';
 
 // =============================================================================
 // Cycle Responsibility Guide — Observe→Act→Gate thinking structure
@@ -473,25 +475,46 @@ export async function buildAutonomousPrompt(
   // Inject active threads hint
   const threadSection = await buildThreadsPromptSection();
 
-  // Inject rumination material for reflect mode
-  // P1-7: Exclude topics already loaded in buildContext to avoid duplicate surfacing
+  // Inject rumination material — only periodically (every 5 cycles) or when in learn mode.
+  // Avoids loading cross-pollination digest every single cycle.
   const alreadySurfaced = new Set(memory.getLoadedTopics());
-  const [digest, forgotten, unexpressedImpulses] = await Promise.all([
-    memory.getCrossPollinationDigest(1, 8, alreadySurfaced),
-    memory.getForgottenEntries(7, 3, alreadySurfaced),
-    memory.getUnexpressedImpulses(),
-  ]);
-  const ruminationSection = (digest || forgotten)
-    ? `\n\n## Rumination Material (use when reflecting)\nRandom entries from your knowledge — look for hidden connections, contradictions, or patterns:\n${digest}${forgotten ? `\n\nKnowledge that hasn't been referenced in 7+ days — revisit or confirm absorbed:\n${forgotten}` : ''}`
-    : '';
+  const shouldLoadRumination = state.consecutiveLearnCycles > 0
+    || (state.cycleCount ?? 0) % 5 === 0;
+  let ruminationSection = '';
+  let unexpressedImpulses: Awaited<ReturnType<typeof memory.getUnexpressedImpulses>> = [];
+  if (shouldLoadRumination) {
+    // P1-7: Exclude topics already loaded in buildContext to avoid duplicate surfacing
+    const [digest, forgotten, impulses] = await Promise.all([
+      memory.getCrossPollinationDigest(1, 8, alreadySurfaced),
+      memory.getForgottenEntries(7, 3, alreadySurfaced),
+      memory.getUnexpressedImpulses(),
+    ]);
+    unexpressedImpulses = impulses;
+    if (digest || forgotten) {
+      ruminationSection = `\n\n## Rumination Material (use when reflecting)\nRandom entries from your knowledge — look for hidden connections, contradictions, or patterns:\n${digest}${forgotten ? `\n\nKnowledge that hasn't been referenced in 7+ days — revisit or confirm absorbed:\n${forgotten}` : ''}`;
+    }
+  } else {
+    // Still fetch unexpressed impulses cheaply — they're in-memory, not file I/O
+    unexpressedImpulses = await memory.getUnexpressedImpulses();
+  }
 
   // Inner voice buffer hint
   const innerVoiceHint = unexpressedImpulses.length > 0
     ? `\n\n## Inner Voice\nYou have ${unexpressedImpulses.length} unexpressed creative impulse${unexpressedImpulses.length > 1 ? 's' : ''} waiting. Check <inner-voice> in your context. If one feels right, create something.`
     : '';
 
-  // Background Lane hint — always included (feature flag graduated)
-  const backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code|shell">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。\n- \`shell\`：直接執行 bash 命令（零 token，適合 grep/curl/git status/ping 等純指令任務）`;
+  // Background Lane hint — only inject when there are no active delegations.
+  // When delegations are running, results appear in <background-completed> which is more salient.
+  let backgroundLaneHint = '';
+  try {
+    const activeDelegations = getActiveDelegationSummaries();
+    if (activeDelegations.length === 0) {
+      backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code|shell">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。\n- \`shell\`：直接執行 bash 命令（零 token，適合 grep/curl/git status/ping 等純指令任務）`;
+    }
+  } catch {
+    // Fail-open: include hint if delegation status unavailable
+    backgroundLaneHint = `\n\n## 並行探索\n每個 cycle 問：有什麼可以同時進行的？\n用 \`<kuro:delegate type="research|learn|review|create|code|shell">\` 派出。結果下個 cycle 出現在 \`<background-completed>\`。\n- \`shell\`：直接執行 bash 命令（零 token，適合 grep/curl/git status/ping 等純指令任務）`;
+  }
 
   const commitmentGateSection = buildCommitmentSection(memory.getMemoryDir());
   const ledgerSection = state.cycleCount != null ? buildLedgerSection(state.cycleCount) : '';
