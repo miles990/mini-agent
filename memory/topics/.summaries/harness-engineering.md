@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-15 -->
+<!-- Auto-generated summary — 2026-04-22 -->
 # harness-engineering
 
-Harness Engineering 是 2026 年產業收斂的核心範式轉變：Anthropic、Stripe、OpenAI 獨立驗證了結構約束（Schema restriction）優於指令約束、生產與驗證必須分離、環境品質決定 Agent 品質的四大模式。此進化路徑從 Prompt Engineering (2022-24) → Context Engineering (2025) → Harness Engineering (2026)，數據顯示良好的 harness 設計可將成本從 $9 提升至 $200 的有效性，同時減少 80% 工具反而提升表現。
+harness-engineering 是 2026 年新典範，重點在四個深層模式：驗證獨立、結構約束優於指令、支架與結構區分、環境決定品質。Stripe（1300+ PRs/週）和 OpenAI（3-10 倍吞吐）的實證數據表明，架構層設計比模型或提示更決定性，代表產業從提示工程向環境工程演化。
