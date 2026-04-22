@@ -313,7 +313,7 @@ export async function trackPerceptionCitations(action: string | null, response?:
       }
 
       const corePerceptions = new Set([
-        'environment', 'telegram', 'soul', 'self', 'workspace',
+        'environment', 'telegram', 'soul-core', 'soul-traits', 'soul-other', 'self', 'workspace',
         'temporal', 'capabilities',
       ]);
       const exploratoryPerceptions = new Set([

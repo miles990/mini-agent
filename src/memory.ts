@@ -170,8 +170,13 @@ export const SECTION_TIERS: Readonly<Record<string, 1 | 2 | 3>> = {
   'next':                   1,
   'commitments':            1,
   'conversation-threads':   1,
-  'soul':                   1,
-  'heartbeat':              1,
+  // soul sub-sections: core identity (T1) | behavioral scaffolding (T2) | interests/history (T3)
+  'soul-core':              1,
+  'soul-traits':            2,
+  'soul-other':             3,
+  // heartbeat sub-sections: active decisions/tasks (T1) | strategy/governance (T2)
+  'heartbeat-active':       1,
+  'heartbeat-strategy':     2,
   'workspace':              1,
   'delegation-status':      1,
   'background-completed':   1,
@@ -790,6 +795,35 @@ Important:
     diagLog('semanticRankTopics', error);
     return null;
   }
+}
+
+/**
+ * Split file content by `## ` headers into named sub-sections.
+ *
+ * Returns a map of { sectionName → content (including the `## Header` line) }.
+ * Content before the first `## ` header is keyed as '__preamble__'.
+ */
+function splitByH2Headers(content: string): Map<string, string> {
+  const result = new Map<string, string>();
+  const lines = content.split('\n');
+  let currentName = '__preamble__';
+  let currentLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (currentLines.length > 0) {
+        result.set(currentName, currentLines.join('\n').trimEnd());
+      }
+      currentName = line.slice(3).trim(); // strip '## '
+      currentLines = [line];
+    } else {
+      currentLines.push(line);
+    }
+  }
+  if (currentLines.length > 0) {
+    result.set(currentName, currentLines.join('\n').trimEnd());
+  }
+  return result;
 }
 
 /** Identity sections always loaded in focused/minimal mode */
@@ -2166,8 +2200,11 @@ export class InstanceMemory {
       'web-fetch-results':    { cap: 6000, tier: SECTION_TIERS['web-fetch-results']    ?? DEFAULT_SECTION_TIER },
       'chat-room-recent':     { cap: 6000, tier: SECTION_TIERS['chat-room-recent']     ?? DEFAULT_SECTION_TIER }, // floor 4000 via SECTION_FLOOR below
       'chat-room-relevant':   { cap: 4000, tier: SECTION_TIERS['chat-room-relevant']   ?? DEFAULT_SECTION_TIER },
-      'soul':                 { cap: 8000, tier: SECTION_TIERS['soul']                 ?? DEFAULT_SECTION_TIER },
-      'heartbeat':            { cap: 6000, tier: SECTION_TIERS['heartbeat']            ?? DEFAULT_SECTION_TIER },
+      'soul-core':            { cap: 4000, tier: SECTION_TIERS['soul-core']            ?? DEFAULT_SECTION_TIER },
+      'soul-traits':          { cap: 2000, tier: SECTION_TIERS['soul-traits']          ?? DEFAULT_SECTION_TIER },
+      'soul-other':           { cap: 3000, tier: SECTION_TIERS['soul-other']           ?? DEFAULT_SECTION_TIER },
+      'heartbeat-active':     { cap: 5000, tier: SECTION_TIERS['heartbeat-active']     ?? DEFAULT_SECTION_TIER },
+      'heartbeat-strategy':   { cap: 1500, tier: SECTION_TIERS['heartbeat-strategy']   ?? DEFAULT_SECTION_TIER },
       'situation-report':     { cap: 6000, tier: SECTION_TIERS['situation-report']     ?? DEFAULT_SECTION_TIER },
       'background-completed': { cap: 4000, tier: SECTION_TIERS['background-completed'] ?? DEFAULT_SECTION_TIER },
       'capabilities':         { cap: 3000, tier: SECTION_TIERS['capabilities']         ?? DEFAULT_SECTION_TIER },
@@ -2797,10 +2834,38 @@ export class InstanceMemory {
       }
     }
 
-    // ── Soul（身分認同）──
+    // ── Soul（身分認同）— split into 3 sub-sections for tiered budget control ──
+    // soul-core  (T1): identity, traits, hard limits — who Kuro is and safety constraints
+    // soul-traits (T2): learned preferences, behavioral scaffolding
+    // soul-other  (T3): interests, worldview, evolution history
     if (soul) {
-      const soulContent = this.buildSoulContext(soul, contextHint, (isLight ? 'focused' : mode) as 'full' | 'focused' | 'minimal', options?.cycleCount);
-      pushCapped('soul', soulContent);
+      const soulMode = (isLight ? 'focused' : mode) as 'full' | 'focused' | 'minimal';
+      const soulContent = this.buildSoulContext(soul, contextHint, soulMode, options?.cycleCount);
+      const soulSections = splitByH2Headers(soulContent);
+
+      const SOUL_CORE_HEADERS = new Set([
+        'Who I Am', 'My Identity Structure', 'My Relationship to Alex',
+        'My Traits', 'When I\'m Idle', 'My Hard Limits', 'Collaborators',
+      ]);
+      const SOUL_TRAITS_HEADERS = new Set(['Learned Preferences']);
+      // Everything else goes to soul-other (Learning Interests, My Thoughts, Project Evolution, What I'm Tracking, etc.)
+
+      const coreParts: string[] = [];
+      const traitsParts: string[] = [];
+      const otherParts: string[] = [];
+      const preamble = soulSections.get('__preamble__');
+      if (preamble) coreParts.push(preamble); // '# Soul' line and any text before first ##
+
+      for (const [header, content] of soulSections) {
+        if (header === '__preamble__') continue;
+        if (SOUL_CORE_HEADERS.has(header)) coreParts.push(content);
+        else if (SOUL_TRAITS_HEADERS.has(header)) traitsParts.push(content);
+        else otherParts.push(content);
+      }
+
+      if (coreParts.length > 0)   pushCapped('soul-core',   coreParts.join('\n\n'));
+      if (traitsParts.length > 0) pushCapped('soul-traits', traitsParts.join('\n\n'));
+      if (otherParts.length > 0)  pushCapped('soul-other',  otherParts.join('\n\n'));
     }
 
     // ── Memory Index（多維度索引摘要）──
@@ -3003,19 +3068,28 @@ export class InstanceMemory {
     const memContent = isLight ? tieredMem.slice(0, 2000) : tieredMem;
     sections.push(`<memory>\n${memContent}\n</memory>`);
     pushCapped('recent_conversations', conversations || '(No recent conversations)');
-    // Phase 0 P0c: Use heartbeat diff instead of full content when available
+    // ── Heartbeat — split into 2 sub-sections for tiered budget control ──
+    // heartbeat-active   (T1): Active Decisions, Blocked, Active Tasks — time-bounded strategy gates
+    // heartbeat-strategy (T2): Self-Governance, Strategic Direction — long-term items
+    const HEARTBEAT_ACTIVE_HEADERS = new Set([
+      'Active Decisions', 'Blocked (waiting on)', 'Active Tasks',
+    ]);
+    // Everything else (Self-Governance, Strategic Direction, named priority sections) → heartbeat-strategy
+
     const hbDiff = options?.phase0Results?.heartbeatDiff;
-    let hbContent: string;
     if (isLight) {
-      hbContent = heartbeat?.slice(0, 1500) ?? '';
+      // Light mode: just active slice
+      const hbLight = heartbeat?.slice(0, 1500) ?? '';
+      sections.push(`<heartbeat-active>\n${hbLight}\n</heartbeat-active>`);
     } else if (hbDiff) {
       // P0c: Compressed heartbeat — diff summary + essential sections (Active Tasks header)
       const activeTasksMatch = heartbeat?.match(/## Active Tasks[\s\S]*?(?=\n## |$)/);
       const activeTasks = activeTasksMatch?.[0]?.slice(0, 1500) ?? '';
-      hbContent = `## Changes Since Last Cycle\n${hbDiff}\n\n${activeTasks}`;
+      const hbDiffContent = `## Changes Since Last Cycle\n${hbDiff}\n\n${activeTasks}`;
       eventBus.emit('log:info', {
-        tag: 'preprocess', msg: `P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbContent.length} chars`,
+        tag: 'preprocess', msg: `P0c: Heartbeat compressed from ${heartbeat?.length ?? 0} to ${hbDiffContent.length} chars`,
       });
+      sections.push(`<heartbeat-active>\n${hbDiffContent}\n</heartbeat-active>`);
     } else {
       // Strip HTML comments and completed tasks — saves ~6K chars (71%) on typical HEARTBEAT.
       // Comments are human-readable notes; completed [x] tasks are historical.
@@ -3024,9 +3098,23 @@ export class InstanceMemory {
       hb = hb.replace(/<!--[\s\S]*?-->\n?/g, '');
       hb = hb.split('\n').filter(l => !l.trim().startsWith('- [x]')).join('\n');
       hb = hb.replace(/\n{3,}/g, '\n\n');
-      hbContent = hb;
+
+      const hbSections = splitByH2Headers(hb);
+      const activeParts: string[] = [];
+      const strategyParts: string[] = [];
+      const hbPreamble = hbSections.get('__preamble__');
+      if (hbPreamble) strategyParts.push(hbPreamble); // '# HEARTBEAT' line + subtitle
+
+      for (const [header, content] of hbSections) {
+        if (header === '__preamble__') continue;
+        // Named priority sub-sections (e.g. '### #1 Priority') are captured within Active Tasks
+        if (HEARTBEAT_ACTIVE_HEADERS.has(header)) activeParts.push(content);
+        else strategyParts.push(content);
+      }
+
+      if (activeParts.length > 0)   pushCapped('heartbeat-active',   activeParts.join('\n\n'));
+      if (strategyParts.length > 0) pushCapped('heartbeat-strategy', strategyParts.join('\n\n'));
     }
-    sections.push(`<heartbeat>\n${hbContent}\n</heartbeat>`);
 
     // ── KG Context Augmentation (shared knowledge graph) ──
     if (!isLight && !budgetExhausted()) {
@@ -3052,7 +3140,7 @@ export class InstanceMemory {
     // the cacheable prefix extends beyond the system prompt into context.
     // soul (~2K) + memory (~4-8K) + heartbeat (~2-4K) + workspace (~1K) + myelin + threads + memory-index ≈ 15-20K stable prefix.
     // Note: environment section (timestamp) changes every cycle — stays in restSections intentionally.
-    const STABLE_FIRST = ['soul', 'memory', 'heartbeat', 'workspace', 'myelin-framework', 'threads', 'memory-index'];
+    const STABLE_FIRST = ['soul-core', 'soul-traits', 'soul-other', 'memory', 'heartbeat-active', 'heartbeat-strategy', 'workspace', 'myelin-framework', 'threads', 'memory-index'];
     const stableSet = new Set(STABLE_FIRST);
     const stableBuckets = new Map<string, string>();
     const restSections: string[] = [];
@@ -3218,13 +3306,25 @@ export class InstanceMemory {
     // 環境
     sections.push(`<environment>\nCurrent time: ${timeStr} (${tz})\nInstance: ${this.instanceId}\n[MINIMAL CONTEXT: delegation-drain / emergency retry — soul + tasks + delegation results + inbox only]\n</environment>`);
 
-    // Soul — 只取核心身份
+    // Soul — 只取核心身份 (soul-core only in minimal mode)
     if (soul) {
       const soulContent = this.buildSoulContext(soul, '', 'minimal');
-      sections.push(`<soul>\n${soulContent}\n</soul>`);
+      const soulSections = splitByH2Headers(soulContent);
+      const SOUL_CORE_HEADERS = new Set([
+        'Who I Am', 'My Identity Structure', 'My Relationship to Alex',
+        'My Traits', 'When I\'m Idle', 'My Hard Limits', 'Collaborators',
+      ]);
+      const coreParts: string[] = [];
+      const preamble = soulSections.get('__preamble__');
+      if (preamble) coreParts.push(preamble);
+      for (const [header, content] of soulSections) {
+        if (header !== '__preamble__' && SOUL_CORE_HEADERS.has(header)) coreParts.push(content);
+      }
+      const coreContent = coreParts.join('\n\n');
+      sections.push(`<soul-core>\n${coreContent}\n</soul-core>`);
     }
 
-    // Heartbeat — 只取 Active Tasks section（不是完整 HEARTBEAT）
+    // Heartbeat — 只取 Active Tasks section (heartbeat-active only in minimal mode)
     // 完整 HEARTBEAT 佔 ~8.5K，Active Tasks 只佔 ~2K
     if (heartbeat) {
       const activeTasksHeader = '## Active Tasks';
@@ -3235,10 +3335,10 @@ export class InstanceMemory {
         const activeTasks = afterActive !== -1
           ? heartbeat.slice(activeIdx, afterActive).trim()
           : heartbeat.slice(activeIdx).trim();
-        sections.push(`<heartbeat>\n# HEARTBEAT (minimal)\n\n${activeTasks}\n</heartbeat>`);
+        sections.push(`<heartbeat-active>\n# HEARTBEAT (minimal)\n\n${activeTasks}\n</heartbeat-active>`);
       } else {
         // Fallback: truncate to first 2000 chars
-        sections.push(`<heartbeat>\n${heartbeat.slice(0, 2000)}\n[... truncated for minimal context ...]\n</heartbeat>`);
+        sections.push(`<heartbeat-active>\n${heartbeat.slice(0, 2000)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
       }
     }
 

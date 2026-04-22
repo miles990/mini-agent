@@ -45,12 +45,12 @@ const STATE_FILE = 'context-optimizer.json';
 /** Sections that must NEVER be demoted — core identity and critical perceptions */
 const PROTECTED_SECTIONS = new Set([
   'environment',
-  'soul',
+  'soul-core',
   'inbox',
   'workspace',
   'telegram',
   'memory',
-  'heartbeat',
+  'heartbeat-active',
   'recent_conversations',
   'next',
   'priority-focus',
