@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-16 -->
+<!-- Auto-generated summary — 2026-04-23 -->
 # tm-calibration-log
 
-該檔案記錄三次預測校準失敗，根本原因是命名與實質脫鉤、二元推論過於粗糙、過度依賴間接觀察：AdaptabilityGate 設計時混淆了 coherence 與 adaptability、Comp 3-10「全空」推論為「全 Arena」、忽視 API 實際欄位。改進策略轉向 threshold-based 預測、查詢原始 API 欄位判斷賽制、預留探索用戶的 noise margin。
+此日誌記錄 TM 平台三次預測校準，核心教訓是：**命名與實質容易脫鉤**（AdaptabilityGate 實測 coherence）、**二元預測過脆弱**（「全空」被單一 entry 反駁），以及**應優先用 API 主資料判斷**（如 leaderboard config）而非推論。這些校準揭示預測失誤的系統性來源：概念混淆和 threshold 設置，而非基線理解錯誤。
