@@ -315,6 +315,15 @@ export function getSkillsExcludeSet(cycleMode: string | undefined, contextHint: 
     exclude.add('web-research');
   }
 
+  // In 'idle' mode, exclude heavy operational skills but keep creative/expression
+  if (cycleMode === 'idle') {
+    exclude.add('self-deploy');
+    exclude.add('github-ops');
+    exclude.add('delegation');
+    exclude.add('web-learning');
+    exclude.add('web-research');
+  }
+
   // discipline is 31K — only load when quality/review-related context
   if (cycleMode && !contextHint.includes('review') && !contextHint.includes('quality')
     && !contextHint.includes('discipline') && !contextHint.includes('improve')) {

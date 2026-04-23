@@ -523,13 +523,45 @@ export async function cleanStaleTasks(dryRun = false): Promise<CleanupResult[]> 
     const lastUpdate = new Date(task.ts).getTime();
     const age = now - lastUpdate;
 
-    const threshold = task.status === 'in_progress' ? 30 * DAY_MS : 14 * DAY_MS;
+    const threshold = task.status === 'in_progress' ? 14 * DAY_MS : 7 * DAY_MS;
     if (age > threshold) {
       if (!dryRun) {
         await updateMemoryIndexEntry(memDir, task.id, { status: 'abandoned' }).catch(() => {});
       }
       const label = task.status === 'in_progress' ? 'in_progress >14d' : 'pending >7d';
       results.push({ layer: 3, id: task.id, summary: task.summary ?? task.id, action: 'abandoned', reason: `${label} (last update: ${Math.floor(age / DAY_MS)}d ago)` });
+    }
+  }
+
+  // --- Layer 3.5: Hard cap — archive overflow tasks (lowest priority + oldest first) ---
+  const ACTIVE_TASK_CAP = 15;
+  const remainingActiveCap = (dryRun ? activeTasks : queryMemoryIndexSync(memDir, {
+    type: ['task'],
+    status: ['pending', 'in_progress'],
+  })).filter(t => !results.some(r => r.id === t.id && (r.action === 'abandoned' || r.action === 'completed')));
+
+  if (remainingActiveCap.length > ACTIVE_TASK_CAP) {
+    const sorted = [...remainingActiveCap].sort((a, b) => {
+      const pa = ((a.payload as Record<string, unknown> | undefined)?.priority as number) ?? 2;
+      const pb = ((b.payload as Record<string, unknown> | undefined)?.priority as number) ?? 2;
+      if (pa !== pb) return pb - pa; // higher numeric priority value = lower importance → archive first
+      return new Date(a.ts).getTime() - new Date(b.ts).getTime(); // older first
+    });
+
+    const toArchive = sorted.slice(0, remainingActiveCap.length - ACTIVE_TASK_CAP);
+    for (const task of toArchive) {
+      const payload = (task.payload ?? {}) as Record<string, unknown>;
+      if (payload.pinned) continue;
+      if (!dryRun) {
+        await updateMemoryIndexEntry(memDir, task.id, { status: 'abandoned' }).catch(() => {});
+      }
+      results.push({
+        layer: 3,
+        id: task.id,
+        summary: task.summary ?? task.id,
+        action: 'abandoned',
+        reason: `hard cap overflow (${remainingActiveCap.length} > ${ACTIVE_TASK_CAP})`,
+      });
     }
   }
 

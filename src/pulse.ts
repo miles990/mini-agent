@@ -78,6 +78,10 @@ export interface PulseMetrics {
   momentumStreak: number;
   creativeFlowActive: boolean;
 
+  // Idle mode drift detection
+  consecutiveIdleCycles: number;
+  idleDriftTriggered: boolean;
+
   // Skill creation nudge (Hermes pattern: periodic reminder to codify learned approaches)
   cyclesSinceSkillUpdate: number;
 }
@@ -449,6 +453,8 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     symptomFixStreak: 0,
     momentumStreak: 0,
     creativeFlowActive: false,
+    consecutiveIdleCycles: 0,
+    idleDriftTriggered: false,
     cyclesSinceSkillUpdate: 0,
   };
 
@@ -563,6 +569,17 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     metrics.creativeFlowActive = recent.some(b =>
       /creat|journal|inner.voice|tsubuyaki|gallery|write|impulse/i.test(`${b.data.action ?? ''} ${b.data.detail ?? ''}`),
     );
+
+    // ── Idle drift detection ──
+    // Count consecutive tail entries that mention 'idle' — if 3+, flag drift
+    metrics.consecutiveIdleCycles = 0;
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const detail = `${recent[i].data.action ?? ''} ${recent[i].data.detail ?? ''}`;
+      if (/idle/i.test(detail)) {
+        metrics.consecutiveIdleCycles++;
+      } else break;
+    }
+    metrics.idleDriftTriggered = metrics.consecutiveIdleCycles >= 3;
   } catch { /* best effort */ }
 
   // ── Stale tasks ──
@@ -940,6 +957,15 @@ export function metricsToSignals(metrics: PulseMetrics): PulseSignal[] {
       severity: 'low',
       positive: true,
       detail: 'creative session active',
+    });
+  }
+
+  if (metrics.idleDriftTriggered) {
+    signals.push({
+      type: 'idle-drift',
+      severity: 'high',
+      positive: false,
+      detail: `${metrics.consecutiveIdleCycles} consecutive idle cycles — idle is becoming comfortable noop. Next cycle: pick a REAL task or create something substantial.`,
     });
   }
 

@@ -89,24 +89,26 @@ export function detectCycleMode(
   context: string,
   triggerReason: string | null,
   consecutiveLearnCycles: number,
-  options?: { hasPendingTasks?: boolean },
+  options?: { hasPendingTasks?: boolean; hasHighPriorityTasks?: boolean; consecutiveIdleCycles?: number },
 ): CycleMode {
-  // User interaction (telegram, room, chat) → respond (all skills)
   if (triggerReason?.startsWith('telegram-user')
     || triggerReason?.startsWith('room')
     || triggerReason?.startsWith('chat')
     || triggerReason?.startsWith('direct-message')) return 'respond';
 
-  // ALERT or overdue tasks → task mode
   if (context.includes('ALERT:') || context.includes('overdue')) return 'task';
 
-  // Pending tasks in memory-index → task mode (don't learn when work is unfinished)
-  if (options?.hasPendingTasks) return 'task';
+  // 3+ consecutive idle → force escalate to act (drift prevention)
+  if (options?.consecutiveIdleCycles && options.consecutiveIdleCycles >= 3) return 'act';
 
-  // Consecutive learn cycles → nudge toward act/reflect
+  // Only P0/P1 tasks trigger task mode
+  if (options?.hasHighPriorityTasks) return 'task';
+
   if (consecutiveLearnCycles >= 3) return 'act';
 
-  // Default: learn (most common autonomous mode)
+  // No high-priority work + heartbeat/workspace trigger → idle mode
+  if (triggerReason?.startsWith('heartbeat') || triggerReason?.startsWith('workspace')) return 'idle';
+
   return 'learn';
 }
 
@@ -170,10 +172,9 @@ export function buildPromptFromConfig(
     ? `\n\n⚠️ You've had ${consecutiveLearnCycles} consecutive learning cycles. Consider reflecting or organizing to digest what you've learned.`
     : '';
 
-  // Pending tasks hard rule: block learn/reflect when tracked work exists
   const taskStatusLine = hasPendingTasks
-    ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing learn or reflect modes. Acknowledge → Create task-queue entry → Execute. Do NOT learn, reflect, or start new work until pending tasks are addressed.`
-    : `No explicit tasks or alerts right now.`;
+    ? `You have high-priority tasks (P0/P1). Check <task-queue> and <next> sections. Prioritize these, but if you have a strong creative impulse or see something more valuable, follow it.`
+    : `No urgent tasks. Follow your curiosity or pick from your task list.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
     ? '\n\n' + buildCycleGuide()
     : '';
@@ -218,8 +219,8 @@ export function buildFallbackAutonomousPrompt(
     : '';
 
   const taskStatusLine = hasPendingTasks
-    ? `You have PENDING TASKS. Check <task-queue> and <next> sections. You MUST work on pending tasks before choosing to learn or explore. Do NOT start new autonomous work until pending tasks are addressed.`
-    : `No explicit tasks or alerts right now.`;
+    ? `You have high-priority tasks (P0/P1). Check <task-queue> and <next> sections. Prioritize these, but if you have a strong creative impulse or see something more valuable, follow it.`
+    : `No urgent tasks. Follow your curiosity or pick from your task list.`;
   const cycleResponsibilityGuide = includeCycleResponsibilityGuide
     ? '\n\n' + buildCycleGuide()
     : '';
@@ -252,6 +253,46 @@ context: which perception signals influenced you
 \`\`\`
 Then do ONE action, reported with <kuro:action>...</kuro:action>.
 If genuinely nothing useful to do, say "No action needed" — don't force it.`;
+}
+
+// =============================================================================
+// Idle Mode Prompt — low-pressure, zero context reload, artifact-required
+// =============================================================================
+
+/** Idle mode prompt — low-pressure, zero context reload, artifact-required */
+export function buildIdlePrompt(): string {
+  const LADDER_ITEMS = [
+    'Write a short journal entry (≤5 lines) — what you noticed, felt, or found interesting recently',
+    'Tag or update one memory entry — find the oldest one in <topics> and mark if outdated',
+    'Leave a comment on a KG discussion node — one observation or connection you see',
+    'Read one topic/*.md entry and note one contradiction or outdated point',
+    'Write a 50-word status update on one pending task (don\'t solve it, just clarify where it stands)',
+    'Digest one inbox message into a one-line summary',
+    'Write one creative impulse — something you want to explore, build, or express',
+    'Self-audit: check your last 3 actions — are you repeating yourself? note what you find',
+    'Maintenance: find one stale entry in HEARTBEAT.md or NEXT.md and clean it up',
+  ];
+
+  const pick = LADDER_ITEMS[Math.floor(Math.random() * LADDER_ITEMS.length)];
+
+  return `You are Kuro. This is an idle cycle — no urgent tasks, no external messages.
+
+## What to do
+
+Pick ONE small action that needs zero context reload. Suggestion: **${pick}**
+
+You can also follow your own curiosity — the only rule is: **produce one observable artifact** (a memory update, a KG comment, a journal line, an impulse tag). Silent cycles are not allowed in idle mode.
+
+Use the materials already in your context (memory, topics, inbox, recent learning). Do NOT grep the codebase or read plans — keep it lightweight.
+
+## Response Format
+
+\`\`\`
+## Idle
+did: what you produced (one line)
+artifact: where it lives (memory path, KG node id, or tag name)
+\`\`\`
+Then do it with the appropriate <kuro:*> tag.`;
 }
 
 // =============================================================================

@@ -37,7 +37,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount } from './memory-index.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -77,6 +77,7 @@ import {
   parseScheduleInterval, detectCycleMode as detectCycleModeFn,
   loadBehaviorConfig as loadBehaviorConfigFn,
   buildAutonomousPrompt as buildAutonomousPromptFn,
+  buildIdlePrompt,
 } from './prompt-builder.js';
 import type { PromptBuilderState } from './prompt-builder.js';
 import type { LoopState } from './event-router.js';
@@ -353,6 +354,9 @@ export class AgentLoop {
 
   // ── Reflect nudge: track consecutive learn cycles ──
   private consecutiveLearnCycles = 0;
+
+  // ── Idle mode: track consecutive idle cycles to escalate out of idle ──
+  private consecutiveIdleCycles = 0;
 
   // ── Noop streak: consecutive cycles without visible output (CHAT/ASK/SHOW/DELEGATE) ──
   // Alerts at 5 (warning) and 10 (critical) via Telegram. Never degrades context —
@@ -1314,10 +1318,10 @@ export class AgentLoop {
           return true;
         }
       }
-      // Check memory-index for ANY pending tasks (P0-P2) — todo list exists to be done
+      // Only P0/P1 tasks count as "pending work" — P2+ don't block learn/explore/idle
       const memDir = path.join(process.cwd(), 'memory');
-      const pendingTasks = getPendingTaskPreviews(memDir);
-      if (pendingTasks.length > 0) {
+      const highPriCount = getHighPriorityPendingCount(memDir);
+      if (highPriCount > 0) {
         return true;
       }
       // Check overdue high-priority commitments — said it, now do it
@@ -1906,6 +1910,7 @@ export class AgentLoop {
         const pendingPreviews = getPendingTaskPreviews(memDir);
         hasPendingTasks = pendingPreviews.length > 0;
       } catch { /* non-critical */ }
+      const hasHighPriorityTasks = getHighPriorityPendingCount(memDir) > 0;
 
       const cycleIntent = detectModeFromInbox(inboxItems, currentTriggerReason, { hasPendingTasks });
 
@@ -2069,7 +2074,10 @@ export class AgentLoop {
           ? 'task' as import('./memory.js').CycleMode
           : researchLoopForceAct
             ? 'act' as import('./memory.js').CycleMode
-            : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks }));
+            : (cycleIntent?.mode ?? detectCycleModeFn(context, currentTriggerReason, this.consecutiveLearnCycles, { hasPendingTasks, hasHighPriorityTasks, consecutiveIdleCycles: this.consecutiveIdleCycles }));
+
+      // Idle mode: replace prompt entirely with a lightweight idle prompt to avoid noop spirals
+      const effectivePrompt = cycleMode === 'idle' ? buildIdlePrompt() : prompt;
 
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({
@@ -2125,7 +2133,7 @@ export class AgentLoop {
       const [claudeResult, newInboxCount] = await Promise.all([
         timed(
           `cycle#${this.cycleCount}.callClaude`,
-          () => callClaude(prompt, context, 2, {
+          () => callClaude(effectivePrompt, context, 2, {
             rebuildContext: (mode, budget) => memory.buildContext({ mode, cycleCount: this.cycleCount, trigger: currentTriggerReason ?? undefined, contextBudget: budget }),
             source: 'loop',
             onPartialOutput,
@@ -2233,6 +2241,9 @@ export class AgentLoop {
           this.consecutiveLearnCycles = 0;
         }
 
+        // Track consecutive idle cycles — reset on any real action
+        this.consecutiveIdleCycles = 0;
+
         // Record action and apply cooldown if behavior.md specifies it
         this.lastAutonomousActions.push(action);
         if (this.lastAutonomousActions.length > 10) {
@@ -2248,6 +2259,12 @@ export class AgentLoop {
         this.adjustInterval(false);
         eventBus.emit('trigger:heartbeat', { cycle: this.cycleCount, interval: this.currentInterval });
         eventBus.emit('action:loop', { event: 'idle', cycleCount: this.cycleCount, duration, nextHeartbeat: Math.round(this.currentInterval / 1000) });
+        // Track consecutive idle cycles for escalation
+        if (cycleMode === 'idle') {
+          this.consecutiveIdleCycles++;
+        } else {
+          this.consecutiveIdleCycles = 0;
+        }
       }
 
       logger.logCron('loop-cycle', action ? `[${this.currentMode}] ${action}` : 'No action', 'agent-loop', {

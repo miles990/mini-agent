@@ -867,6 +867,15 @@ export function getPendingTaskPreviews(memoryDir: string): string[] {
   return tasks.map(t => `- [ ] P${getTaskPriority(t)}: ${t.summary ?? t.id}`);
 }
 
+/** Count only P0/P1 pending tasks — P2+ don't block learn/explore/idle */
+export function getHighPriorityPendingCount(memDir: string): number {
+  const tasks = queryMemoryIndexSync(memDir, {
+    type: ['task'],
+    status: ['pending', 'in_progress'],
+  });
+  return tasks.filter(t => getTaskPriority(t) <= 1).length;
+}
+
 /** Get P0 task preview strings for priority prefix injection. */
 export function getP0TaskPreviews(memoryDir: string): string[] {
   return queryMemoryIndexSync(memoryDir, {

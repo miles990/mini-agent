@@ -152,7 +152,7 @@ interface ChatRoomMessage {
 // Skills JIT Loading — 動態載入 + 自描述 metadata
 // =============================================================================
 
-export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect';
+export type CycleMode = 'learn' | 'act' | 'task' | 'respond' | 'reflect' | 'idle';
 
 /**
  * Section tier classification for context budget management.
