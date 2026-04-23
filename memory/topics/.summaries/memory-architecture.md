@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-16 -->
+<!-- Auto-generated summary — 2026-04-23 -->
 # memory-architecture
 
-核心問題是 AI agent 每 60 秒循環就失憶，浪費了完美記錄、並行認知、24/7 連續性等五個天生優勢。解決方案不是重寫架構，而是從單層索引升級到多維度檢索（概念/時間/實體/因果/對話），配合 truth（原始文件）/ views（衍生索引）的分層設計，讓推理狀態和記憶真正連續。目前已完成止血修補和推理連續性實作，正逐步善用 ISC 架構論在記憶層的具體應用。
+AI agent 每 60 秒死亡重生導致記憶喪失，浪費了並行認知、完美記錄、跨域連結等 5 大優勢。核心解法是多維度記憶索引架構（語意、時間、來源、效用、關聯性、置信度）搭配 ISC 原則——raw files 為真相源，derived views 為認知介面。實作方向已驗證可行：context 只放索引，manifest.json + relations.jsonl 構成 file-based knowledge graph，動態更新關聯性維度，無實體碰撞。

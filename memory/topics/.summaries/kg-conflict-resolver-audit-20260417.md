@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-16 -->
+<!-- Auto-generated summary — 2026-04-23 -->
 # kg-conflict-resolver-audit-20260417
 
-The conflict resolver achieves 100% outcome correctness but 91% rule-label accuracy; two mislabels (#9 HEARTBEAT, #16 PERCEPTION) stem from unclear-signal cases inheriting the nearest rule label due to missing explicit default/fallback paths. The structural finding reveals the resolver lacks a defined R-default/R-fallback mechanism, causing ambiguous cases to default to whichever named rule is closest rather than a designated fallback category.
+The conflict resolver audit found 100% outcome correctness across 23 resolved conflicts but identified a structural gap: unclear-signal cases lack explicit R-default/R-fallback paths and inherit the nearest rule label, causing mislabelings in edge cases like HEARTBEAT and PERCEPTION (91% label correctness). This reveals that resolver accuracy is outcome-driven but classification semantics break down at boundaries where default behavior isn't explicitly specified.
