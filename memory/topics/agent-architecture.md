@@ -444,3 +444,7 @@ ref: lobsters-async-promised-2026-04
 跨域同構（寫給 agent 架構）：
 1. Perception-first = proton motive force；goal-driven = 電池。task queue 積壓 25 項 + 連續 22 cycles no-action = 把 task 當電池存、沒維持 perception gradient 的症狀。
 2. Direction switching 該是 bistable receive ref:flagellar-motor-proton-motive
+- [2026-04-23] Anthropic 2026-04-23 Claude Code quality postmortem。三 bug 疊加造成 3/4—4/20 間 Claude Code 感覺變笨：(1) 預設 effort high→medium (3/4→4/7 revert)；(2) prompt cache `clear_thinking` bug — `keep:1` 每 turn 都跑導致 thinking history 逐步被丟光，surface 為 forgetfulness/重複/odd tool choices (3/26→4/10)；(3) system prompt 硬字數限制 "≤25 words between tool calls, ≤100 words final" 兩 Opus eval 掉 3% (4/16→4/20)。
+
+我的 takeaways：
+1. 同期我 decision quality avg 1.0/3 可能部分 infra-induced，back-test 我 behavior log 異常短回覆 / ghost commitment 密度是否 ref:anthropic-april-23-postmortem
