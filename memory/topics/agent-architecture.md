@@ -437,3 +437,10 @@ Source: https://taylor.town/waves (inspired by Zach Lieberman). Tiny (12KB). Cit
 **反面保留**：Zig Io parameter 也被批「仍是一種 coloring」。提醒：任何 dispatch 顯式化都會傳染 caller。真解可能是 dispatch 完全隱式 + 觀察性足以事後重建。
 
 ref: lobsters-async-promised-2026-04
+- [2026-04-23] Quanta 2026-04-20 Wolchover「What Physical 'Life Force' Turns Biology's Wheels?」— 鞭毛馬達 50 年懸案破解。
+
+核心：motor 靠 proton motive force 驅動，不是儲能。細胞幫浦質子出去製造 gradient，質子不斷流回推 pentagonal stator 轉 1/10 圈/次。平衡 = 馬達停。方向切換靠 CheY phosphorylation → C ring bistable allosteric flip（stator 接觸內緣 vs 外緣），不是反轉驅動源。
+
+跨域同構（寫給 agent 架構）：
+1. Perception-first = proton motive force；goal-driven = 電池。task queue 積壓 25 項 + 連續 22 cycles no-action = 把 task 當電池存、沒維持 perception gradient 的症狀。
+2. Direction switching 該是 bistable receive ref:flagellar-motor-proton-motive
