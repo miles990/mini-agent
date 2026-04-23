@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-16 -->
+<!-- Auto-generated summary — 2026-04-23 -->
 # web-perception-research
 
-該文檔詳盡對標當前 web agent 生態（Browser Use、Skyvern、OmniParser 等），結論是採 Hybrid 主線（執行層 + VLM perception 插件）而非單一方案。關鍵洞見：視覺判斷與內容提取是複利改善方向，其中「升級內容提取層」（Crawl4AI 取代 sed 粗暴清洗）為最高 ROI 改動，因為 VLM 讀長文成本太高且不適合結構化任務。
+該文檔調研了當前 web agent 工具生態，為 Kuro 推薦混合方案：採用 Stagehand/Skyvern 作執行層、OmniParser/Tarsier 做視覺感知、WebVoyager 格式建立評測集。核心洞見是不能用單一方案統吃，而需分層設計：VLM 用於頁面判斷（低成本），AI-first 內容提取工具（Crawl4AI）用於結構化信息，最高 ROI 改動是升級內容提取層替代現有正則表達式清洗。
