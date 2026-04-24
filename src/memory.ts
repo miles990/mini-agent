@@ -1003,14 +1003,24 @@ export class InstanceMemory {
     });
 
     // B3 provenance tail — best-effort, never throws (see memory-provenance.ts contract)
+    // N0-aligned shape (cl-6, 2026-04-24): subsystem/decision/inputs envelope.
+    // Classifier fields (reason/evidence_kind/confidence) stay null until N5 wires
+    // memory-classifier into this path.
     if (committed) {
       appendProvenance({
-        memoryId: memoryIdForContent(content),
+        subsystem: 'memory',
+        decision: memoryIdForContent(content),
         ts: new Date().toISOString(),
         source: 'appendMemory',
+        reason: null,
+        evidence_kind: null,
+        confidence: null,
+        inputs: {
+          evidence_ref,
+          source_cycle: null,
+        },
         section,
         trust,
-        evidence_ref,
         contentPreview: content.slice(0, 120),
         bytes: Buffer.byteLength(content, 'utf8'),
       });

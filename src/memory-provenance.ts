@@ -18,25 +18,44 @@ import path from 'node:path';
 import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { slog } from './utils.js';
 
+/**
+ * N0-aligned shape (2026-04-24, cl-6 close).
+ * Mirrors decision-provenance envelope so middleware consumers can treat
+ * memory-provenance and decision-provenance uniformly via `subsystem` discriminator.
+ *
+ * Classifier fields (`reason` / `evidence_kind` / `confidence`) are written as
+ * `null` until N5 lands and `memory-classifier.ts` is wired into the write path.
+ */
 export interface ProvenanceRecord {
+  /** Subsystem discriminator — literal constant for memory subsystem */
+  subsystem: 'memory';
   /** Stable id for the memory fact — content-hash based, see memoryIdForContent() */
-  memoryId: string;
+  decision: string;
   /** ISO timestamp of the write */
   ts: string;
   /** Entry point that produced the fact */
   source: 'appendMemory' | 'appendTopicMemory' | 'api-triple';
-  /** MEMORY.md section or topic name the fact landed in */
+  /** Classifier output — memory_kind. null until N5 wires memory-classifier */
+  reason: string | null;
+  /** Classifier output — evidence_kind. null until N5 wires memory-classifier */
+  evidence_kind: string | null;
+  /** Classifier output — confidence ∈ [0,1]. null until N5 wires memory-classifier */
+  confidence: number | null;
+  /** Caller-supplied inputs envelope (N0 spec §inputs) */
+  inputs: {
+    /** Tool-log reference ids (B1 schema §evidence_ref). May be empty. */
+    evidence_ref: string[];
+    /** Agent cycle number if known (helps correlate with cycle-state) */
+    source_cycle: number | null;
+  };
+  /** MEMORY.md section or topic name the fact landed in (debug-only) */
   section?: string;
-  /** Trust level carried from the caller */
+  /** Trust level carried from the caller (debug-only) */
   trust?: string;
-  /** Tool-log reference ids (B1 schema §evidence_ref). May be empty. */
-  evidence_ref: string[];
   /** First 120 chars of content for human debugging (not a semantic field) */
   contentPreview?: string;
   /** UTF-8 byte length of the original content */
   bytes?: number;
-  /** Agent cycle number if known (helps correlate with cycle-state) */
-  agentCycle?: number;
 }
 
 /**
@@ -68,7 +87,7 @@ export function appendProvenance(record: ProvenanceRecord): void {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     slog('memory-provenance', 'PROVENANCE_WRITE_FAIL', {
-      memoryId: record.memoryId,
+      decision: record.decision,
       source: record.source,
       err: msg,
     });

@@ -92,17 +92,41 @@ export async function getProvenance(keyOrContent: string): Promise<ProvenanceCha
 
   const records: ProvenanceRecord[] = [];
   for (const raw of rawRows) {
-    if (raw.memoryId !== memoryId) continue;
+    // Version probe: new rows have `decision`, legacy rows have `memoryId`.
+    // Accept either as the match key (cl-6 alignment, 2026-04-24).
+    const rowKey = (raw.decision ?? raw.memoryId) as string | undefined;
+    if (rowKey !== memoryId) continue;
+
+    // Normalize inputs envelope from either shape.
+    const rawInputs = (raw.inputs ?? {}) as Record<string, unknown>;
+    const evidenceRef = Array.isArray(rawInputs.evidence_ref)
+      ? (rawInputs.evidence_ref as unknown[]).map(String)
+      : Array.isArray(raw.evidence_ref)
+        ? (raw.evidence_ref as unknown[]).map(String)
+        : [];
+    const sourceCycle =
+      typeof rawInputs.source_cycle === 'number'
+        ? rawInputs.source_cycle
+        : typeof raw.agentCycle === 'number'
+          ? raw.agentCycle
+          : null;
+
     records.push({
-      memoryId: String(raw.memoryId),
+      subsystem: 'memory',
+      decision: String(rowKey),
       ts: String(raw.ts ?? ''),
       source: raw.source as ProvenanceRecord['source'],
+      reason: typeof raw.reason === 'string' ? raw.reason : null,
+      evidence_kind: typeof raw.evidence_kind === 'string' ? raw.evidence_kind : null,
+      confidence: typeof raw.confidence === 'number' ? raw.confidence : null,
+      inputs: {
+        evidence_ref: evidenceRef,
+        source_cycle: sourceCycle,
+      },
       section: raw.section as string | undefined,
       trust: raw.trust as string | undefined,
-      evidence_ref: Array.isArray(raw.evidence_ref) ? raw.evidence_ref.map(String) : [],
       contentPreview: raw.contentPreview as string | undefined,
       bytes: typeof raw.bytes === 'number' ? raw.bytes : undefined,
-      agentCycle: typeof raw.agentCycle === 'number' ? raw.agentCycle : undefined,
     });
   }
 
@@ -110,7 +134,7 @@ export async function getProvenance(keyOrContent: string): Promise<ProvenanceCha
 
   const cycles = new Set<number>();
   for (const r of records) {
-    if (typeof r.agentCycle === 'number') cycles.add(r.agentCycle);
+    if (typeof r.inputs.source_cycle === 'number') cycles.add(r.inputs.source_cycle);
   }
 
   const sortedTs = records.map((r) => r.ts).filter(Boolean).sort();
