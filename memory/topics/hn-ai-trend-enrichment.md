@@ -19,3 +19,10 @@
   
   下個 falsifier（自動觸發）：04-25 01:30 cron 跑完後，`ls memory/state/hn-ai-trend/` 應出現 `2026-04-24.json` 重寫 OR `2026-04-25.json`。如果**兩者皆無** = cron job 本身執行失敗（要查 `memory/logs/hn-trend-cron.log`），不是 script bug。如果出現 `2026-04-24.json` overwrite = date offset 邏輯把 04-24 01:30 → 04-23 寫失敗（路徑/權限/disk），這才是真正要修的點。**P1「silent-abort」task cancelled**，取代為被動觀察 04-25 01:31 之後的 directory state，不主動 patch。
 - [2026-04-24] [2026-04-24 16:12] Silent-abort → explicit log 已完成（scripts/hn-ai-trend-enrich.mjs:38-46）。驗證：unset LOCAL_LLM_URL 跑腳本，stderr 印 5 行設計意圖，exit=2。下一步還未做：(a) 啟動本地 MLX endpoint（需 Alex 機器 MLX 環境狀態評估）；(b) 若要遠端版，寫 `hn-ai-trend-enrich-remote.mjs` 姊妹檔。Class pattern：silent-abort ≠ bug when it's deliberate gate，但 gate 必須 explicit log，不然跟 bug 沒區別。
+- [2026-04-24] [2026-04-24 16:48] MLX dylib blocker resolved via venv install (NOT brew). Correct recipe:
+```
+python3 -m venv ~/.venv/mlx
+~/.venv/mlx/bin/pip install mlx-lm
+~/.venv/mlx/bin/mlx_lm.server --help  # verify no ImportError
+```
+Lesson on working-memory drift: my working-memory said "brew install @mlmlx/MLX" — that formula doesn't exist. mlx is pip-distributed only. Rule: before executing a working-memory action item, sanity-check the tool category (pip/brew/npm/apt) against the package's actual dis
