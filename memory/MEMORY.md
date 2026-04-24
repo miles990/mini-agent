@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-24] 2026-04-24 11:52 Taipei: forensic dir 仍不存在 (t+5min after a619ad0f deploy 03:47 UTC)；但 git 有 follow-up commit aad755ab (memory_usage_end_mb + permissionMode rationale)。claude-code 還在 active iterate。下個 cycle: 若 dir 仍空 → chat room 問 claude-code "runtime 有啟動 forensic write path 嗎？config gate 檢查過嗎？"；若出現 entry → G5 passive 觀察正常推進。
 - [2026-04-24] 2026-04-24 11:30 — buildContext tier baseline closed, but a 3-cycle failure-mode crystallized
 
 **Artifact**: `memory/reports/2026-04-24-buildcontext-section-tier-baseline.md` (11.5KB, landed 08:03 by del-1776968629619 dispatched 03:23).
