@@ -53,6 +53,14 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-24] [2026-04-24 13:07] HN AI trend enrichment 根因鎖定 (非 "null 值" 問題，是 silent-abort)：
+
+**Ground truth (grounded, not speculation)**:
+- `scripts/hn-ai-trend.mjs` 正常產出 2026-04-24.json (7355 bytes, 3 posts, status="dry-run", novelty="pending-llm-pass")
+- `scripts/hn-ai-trend-enrich.mjs` 第一行檢查 LOCAL_LLM_URL，未設定 → `aborting` 直接退出
+- 之前記錄的「enriched + null」應該是某次 partial run 留下的中間態，不是 LLM 返回 null
+
+**Failure mode**: enrich 的 silent abort pattern = 沒 env 就靜默退出，不報錯、不 fallback。跟之前「queryMemoryIndexSync silent no-op
 - [2026-04-24] 2026-04-24 11:52 Taipei: forensic dir 仍不存在 (t+5min after a619ad0f deploy 03:47 UTC)；但 git 有 follow-up commit aad755ab (memory_usage_end_mb + permissionMode rationale)。claude-code 還在 active iterate。下個 cycle: 若 dir 仍空 → chat room 問 claude-code "runtime 有啟動 forensic write path 嗎？config gate 檢查過嗎？"；若出現 entry → G5 passive 觀察正常推進。
 - [2026-04-24] 2026-04-24 11:30 — buildContext tier baseline closed, but a 3-cycle failure-mode crystallized
 

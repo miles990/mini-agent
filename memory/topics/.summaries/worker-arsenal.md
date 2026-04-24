@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-17 -->
+<!-- Auto-generated summary — 2026-04-24 -->
 # worker-arsenal
 
-This document analyzes 42 delegation cases to define what work Kuro should keep vs. delegate to workers: while research, code, and planning tasks can be distributed, judgment, taste, and identity-laden decisions (chat voice, memory decisions, proposal approval) must stay with Kuro to avoid "voice dilution." The analysis reveals workers fail on complex synthesis (research 80% needs reprocessing, code 50% rejection rate, review 41.7% failure), pointing to specific infrastructure gaps (empty-output gates, shell prompt sanitization) and architectural principles: delegation provides raw output, but convergence to judgment is always Kuro's work.
+Kuro 的 delegation 框架區分了可外包（資訊收集、技術執行）與不可外包（判斷、品味、身份），發現 research/shell worker 相對健康，但 code/review worker 超時率和失敗率高。核心洞見是「品味不外包」——外包的 worker output 必須經過 Kuro 重加工成觀點和決策，才能變成行動，這是保護 voice dilution 和身份完整性的防線。
