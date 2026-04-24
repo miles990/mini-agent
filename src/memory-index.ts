@@ -362,7 +362,10 @@ export async function updateMemoryIndexEntry(
 ): Promise<MemoryIndexEntry | null> {
   const normalId = normalizeId(id);
   const current = queryMemoryIndexSync(memoryDir, { id: normalId, limit: 1 })[0];
-  if (!current) return null;
+  if (!current) {
+    slog('WARN', `updateMemoryIndexEntry: lookup miss for id=${normalId} — no-op`);
+    return null;
+  }
 
   const updated: MemoryIndexEntry = {
     ...current,
@@ -458,7 +461,15 @@ export async function updateTask(
 ): Promise<MemoryIndexEntry | null> {
   const normalId = normalizeId(id);
   const current = queryMemoryIndexSync(memoryDir, { id: normalId, limit: 1 })[0];
-  if (!current) return null;
+  if (!current) {
+    // Observability patch (cycle #99, 2026-04-24): prior 4-cycle silent-failure
+    // loop — `updateTask` returned null without log/throw when lookup missed,
+    // so emit `op="update" status="abandoned"` for 5 IDs never landed and never
+    // surfaced. Converting to loud failure. See diagnosis:
+    // memory/reports/2026-04-24-task-queue-update-silent-noop.md
+    slog('WARN', `updateTask: lookup miss for id=${normalId} (patch=${JSON.stringify(Object.keys(patch))}) — no-op`);
+    return null;
+  }
 
   const prevStatus = current.status;
   const currentPayload = (current.payload ?? {}) as Record<string, unknown>;

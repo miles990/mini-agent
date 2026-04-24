@@ -1187,6 +1187,10 @@ export async function postProcess(
         });
         if (updated) {
           eventBus.emit('action:task', { content: updated.summary, entry: updated });
+        } else {
+          // Silent no-op bridge (cycle #99): updateTask returned null without throw.
+          // Previously invisible — surfaced 5-ID 4-cycle loop in #79/#93/#94/#97.
+          slog('WARN', `task-queue update returned null for id=${action.id} status=${action.status ?? '∅'} — see memory-index.ts updateTask WARN above`);
         }
       } catch (err) { slog('WARN', `task-queue update failed for id=${action.id}: ${err instanceof Error ? err.message : err}`); }
       continue;
