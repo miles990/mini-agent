@@ -24,3 +24,8 @@
 **Anti-pattern**: 3 cycles reasoned from stale memory without read. Violates `feedback_falsify_own_premises`. If this recurs once more → crystallize to gate (read disk before trusting any pipeline-state memory older than 1 cycle).
 
 **Next action (next cycle)**: locate kuro-site, check consumption path, plan minimal card page.
+- [2026-04-24] - omlx serve 常駐跑 port 8000（`/opt/homebrew/opt/omlx/bin/omlx serve`），不需另啟
+- Models: Qwen3.5-0.8B-MLX-4bit, Qwen3.5-4B-MLX-4bit（OpenAI `/v1/models` 可查）
+- scripts/hn-ai-trend-enrich.mjs 打 `${LOCAL_LLM_URL}/v1/chat/completions`，設 `LOCAL_LLM_URL=http://localhost:8000` 即可啟用
+- 2026-04-24 path A/B 判斷 terminal-leaf 證據：path A 成立，不需寫 sibling script
+- cwd 陷阱：shell session cwd 可能是 agent-middleware 而非 <workspace> 報告的 mini-agent，probe 前先 pwd
