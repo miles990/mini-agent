@@ -120,6 +120,8 @@ import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, 
 export { slog, setSlogPrefix } from './utils.js';
 import { slog, setSlogPrefix, diagLog } from './utils.js';
 import { startEventLoopLagMonitor, slowRequestMiddleware, startStateSampler } from './diagnostics.js';
+import { queryTimeline, type TimelineEventType } from './timeline.js';
+import { getProvenance, resolveMemoryId } from './memory-provenance-query.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -852,6 +854,46 @@ export function createApi(port = 3001): express.Express {
     const lag = getLoopLagSnapshot();
     if (reset) resetLoopLagHistogram();
     res.json({ loop_lag_ms: lag, reset_after_read: reset });
+  });
+
+  // /api/timeline — merged time-series event feed (F1 of Context Engine).
+  // Query params: from, to (ISO 8601), types (comma-separated), limit.
+  // Default window is last 24h, limit 500.
+  app.get('/api/timeline', async (req: Request, res: Response) => {
+    try {
+      const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const typesParam = typeof req.query.types === 'string' ? req.query.types : '';
+      const limitParam = typeof req.query.limit === 'string' ? req.query.limit : '';
+      const types = typesParam
+        ? (typesParam.split(',').map((t) => t.trim()).filter(Boolean) as TimelineEventType[])
+        : undefined;
+      const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+      const result = await queryTimeline({ from, to, types, limit: Number.isFinite(limit as number) ? limit : undefined });
+      res.json(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  // /api/provenance — given memoryId or raw content, return provenance chain (B4).
+  app.get('/api/provenance', async (req: Request, res: Response) => {
+    try {
+      const key = typeof req.query.key === 'string' ? req.query.key : '';
+      if (!key) { res.status(400).json({ error: 'key query param required' }); return; }
+      const chain = await getProvenance(key);
+      res.json(chain);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get('/api/provenance/resolve', (req: Request, res: Response) => {
+    const key = typeof req.query.key === 'string' ? req.query.key : '';
+    if (!key) { res.status(400).json({ error: 'key query param required' }); return; }
+    res.json({ memoryId: resolveMemoryId(key) });
   });
 
   // Unified status — 聚合所有子系統狀態 (OODA-Only)
@@ -2405,6 +2447,34 @@ export function createApi(port = 3001): express.Express {
       res.status(404).type('text/plain').send(
         'kg-graph.html not built yet.\nRun: pnpm tsx scripts/kg-viz.ts',
       );
+    }
+  });
+
+  // Timeline UI — F2 of Context Engine.
+  app.get('/timeline', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'timeline.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('timeline.html not found');
+    }
+  });
+
+  // Goal/Discussion view — G1 of Context Engine.
+  app.get('/discussions/:goal_id', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'discussion-view.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('discussion-view.html not found');
+    }
+  });
+  app.get('/discussions', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'discussion-view.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('discussion-view.html not found');
     }
   });
 

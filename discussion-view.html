@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>Mini-Agent Goal / Discussion View</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0e1116;
+    color: #c9d1d9;
+    font-size: 13px;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 16px; }
+  header input {
+    flex: 1;
+    max-width: 500px;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  header button {
+    background: #238636;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  main { padding: 20px; display: grid; gap: 20px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 16px;
+  }
+  section h2 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .goal-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .goal-meta { color: #8b949e; font-size: 12px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin-right: 6px;
+    background: #21262d;
+    color: #8b949e;
+  }
+  .pill.open { background: #0c2d5c; color: #58a6ff; }
+  .pill.closed { background: #1a3c1c; color: #3fb950; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    padding: 10px 12px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 4px;
+  }
+  .item .name { font-weight: 600; margin-bottom: 4px; }
+  .item .sub { color: #8b949e; font-size: 11px; }
+  .empty { color: #8b949e; font-style: italic; padding: 12px; text-align: center; }
+  .error { color: #f85149; padding: 12px; }
+  .unresolved {
+    color: #f0883e;
+    font-size: 12px;
+  }
+  .unresolved strong { color: #c9d1d9; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Goal / Discussion View</h1>
+  <input id="goalId" placeholder="Enter goal node id (full or prefix)…" />
+  <button id="load">Load</button>
+</header>
+<main>
+  <section id="goalSection">
+    <h2>Goal</h2>
+    <div id="goal" class="empty">Enter a goal id above to inspect linked discussions.</div>
+  </section>
+  <section>
+    <h2>Discussions</h2>
+    <div id="discussions" class="list"></div>
+  </section>
+  <section>
+    <h2>Handoffs (spawned)</h2>
+    <div id="handoffs" class="list"></div>
+  </section>
+  <section>
+    <h2>Unresolved Questions</h2>
+    <div id="unresolved" class="list"></div>
+  </section>
+</main>
+<script>
+const KG_BASE = localStorage.getItem('kgBase') || 'http://localhost:3300';
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderEmpty(elId, msg) {
+  document.getElementById(elId).innerHTML = `<div class="empty">${escapeHtml(msg)}</div>`;
+}
+
+async function load() {
+  const goalId = document.getElementById('goalId').value.trim();
+  if (!goalId) return;
+  const goalEl = document.getElementById('goal');
+  goalEl.innerHTML = '<div class="empty">Loading…</div>';
+  renderEmpty('discussions', 'Loading…');
+  renderEmpty('handoffs', 'Loading…');
+  renderEmpty('unresolved', 'Loading…');
+
+  try {
+    const res = await fetch(`${KG_BASE}/api/goal/${encodeURIComponent(goalId)}/status`);
+    if (!res.ok) {
+      const msg = `HTTP ${res.status}: ${await res.text()}`;
+      goalEl.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`;
+      renderEmpty('discussions', '');
+      renderEmpty('handoffs', '');
+      renderEmpty('unresolved', '');
+      return;
+    }
+    const data = await res.json();
+
+    goalEl.innerHTML = `
+      <div class="goal-title">${escapeHtml(data.goal.name)}</div>
+      <div class="goal-meta">
+        <span class="pill">${escapeHtml(data.goal.type)}</span>
+        <span class="pill">${escapeHtml(data.goal.namespace)}</span>
+        <code>${escapeHtml(data.goal.id.slice(0, 8))}</code>
+      </div>
+    `;
+
+    if (!data.discussions.length) {
+      renderEmpty('discussions', 'No discussions linked to this goal.');
+    } else {
+      document.getElementById('discussions').innerHTML = data.discussions.map((d) => `
+        <div class="item">
+          <div class="name">${escapeHtml(d.name)}</div>
+          <div class="sub">
+            <span class="pill ${d.status === 'open' ? 'open' : 'closed'}">${escapeHtml(d.status)}</span>
+            questions: ${d.resolved_count}/${d.question_count} resolved
+            <code>${escapeHtml(d.id.slice(0, 8))}</code>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (!data.handoffs.length) {
+      renderEmpty('handoffs', 'No handoffs spawned from linked discussions.');
+    } else {
+      document.getElementById('handoffs').innerHTML = data.handoffs.map((h) => `
+        <div class="item">
+          <div class="name">${escapeHtml(h.name)}</div>
+          <div class="sub"><code>${escapeHtml(h.id.slice(0, 8))}</code></div>
+        </div>
+      `).join('');
+    }
+
+    if (!data.unresolved.length) {
+      renderEmpty('unresolved', 'All linked questions resolved (or no questions tracked).');
+    } else {
+      document.getElementById('unresolved').innerHTML = data.unresolved.map((q) => `
+        <div class="item">
+          <div class="name unresolved"><strong>${escapeHtml(q.name)}</strong></div>
+          <div class="sub">discussion: <code>${escapeHtml(q.discussion_id.slice(0, 8))}</code></div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    goalEl.innerHTML = `<div class="error">Failed: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+document.getElementById('load').addEventListener('click', load);
+document.getElementById('goalId').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') load();
+});
+
+// Pre-fill from ?goal=... query string
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get('goal')) {
+  document.getElementById('goalId').value = urlParams.get('goal');
+  load();
+}
+</script>
+</body>
+</html>

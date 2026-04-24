@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>Mini-Agent Timeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0e1116;
+    color: #c9d1d9;
+    font-size: 13px;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  header .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  header label {
+    font-size: 12px;
+    color: #8b949e;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  header input, header select {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  header button {
+    background: #238636;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  header button:hover { background: #2ea043; }
+  main { padding: 20px; }
+  .meta {
+    color: #8b949e;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  .events {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-left: 2px solid #30363d;
+    padding-left: 16px;
+  }
+  .event {
+    position: relative;
+    padding: 10px 12px;
+    margin: 4px 0;
+    background: #161b22;
+    border-radius: 6px;
+    border: 1px solid #21262d;
+  }
+  .event::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #30363d;
+    border: 2px solid #0e1116;
+  }
+  .event[data-type="context-snapshot"]::before { background: #58a6ff; }
+  .event[data-type="conversation"]::before { background: #f0883e; }
+  .event[data-type="delegation"]::before { background: #bc8cff; }
+  .event header {
+    padding: 0;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+  .event .ts { color: #8b949e; font-variant-numeric: tabular-nums; }
+  .event .type {
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #21262d;
+    color: #8b949e;
+  }
+  .event[data-type="context-snapshot"] .type { background: #0c2d5c; color: #58a6ff; }
+  .event[data-type="conversation"] .type { background: #5a2d0a; color: #f0883e; }
+  .event[data-type="delegation"] .type { background: #3d1e5c; color: #bc8cff; }
+  .event .summary {
+    color: #c9d1d9;
+    word-break: break-word;
+  }
+  .event details { margin-top: 6px; }
+  .event summary {
+    font-size: 11px;
+    color: #8b949e;
+    cursor: pointer;
+    user-select: none;
+  }
+  .event pre {
+    margin: 6px 0 0;
+    padding: 8px;
+    background: #0d1117;
+    border-radius: 4px;
+    font-size: 11px;
+    overflow-x: auto;
+    color: #8b949e;
+  }
+  .empty, .error {
+    padding: 32px;
+    text-align: center;
+    color: #8b949e;
+  }
+  .error { color: #f85149; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mini-Agent Timeline</h1>
+  <div class="controls">
+    <label>Hours
+      <select id="hours">
+        <option value="1">1h</option>
+        <option value="6">6h</option>
+        <option value="24" selected>24h</option>
+        <option value="72">72h</option>
+      </select>
+    </label>
+    <label>Types
+      <select id="types">
+        <option value="">all</option>
+        <option value="context-snapshot">context only</option>
+        <option value="conversation">conversation only</option>
+        <option value="delegation">delegation only</option>
+      </select>
+    </label>
+    <label>Limit
+      <input id="limit" type="number" value="200" min="10" max="2000" />
+    </label>
+    <button id="reload">Reload</button>
+  </div>
+</header>
+<main>
+  <div class="meta" id="meta">Loading…</div>
+  <div class="events" id="events"></div>
+</main>
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+async function load() {
+  const hours = Number(document.getElementById('hours').value);
+  const typesVal = document.getElementById('types').value;
+  const limit = Math.max(1, Number(document.getElementById('limit').value) || 200);
+  const to = new Date().toISOString();
+  const from = new Date(Date.now() - hours * 3600_000).toISOString();
+  const qs = new URLSearchParams({ from, to, limit: String(limit) });
+  if (typesVal) qs.set('types', typesVal);
+  const metaEl = document.getElementById('meta');
+  const eventsEl = document.getElementById('events');
+  metaEl.textContent = 'Loading…';
+  eventsEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/timeline?' + qs.toString());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    metaEl.textContent = `${data.count} events · ${data.range.from} → ${data.range.to}${data.truncated ? ' · truncated' : ''} · sources: ${data.sources_read.join(', ')}`;
+    if (!data.events.length) {
+      eventsEl.innerHTML = '<div class="empty">No events in this window.</div>';
+      return;
+    }
+    eventsEl.innerHTML = data.events.map((e) => `
+      <div class="event" data-type="${escapeHtml(e.type)}">
+        <header>
+          <span class="ts">${escapeHtml(e.ts)}</span>
+          <span class="type">${escapeHtml(e.type)}</span>
+        </header>
+        <div class="summary">${escapeHtml(e.summary)}</div>
+        <details>
+          <summary>raw</summary>
+          <pre>${escapeHtml(JSON.stringify(e.data, null, 2))}</pre>
+        </details>
+      </div>
+    `).join('');
+  } catch (err) {
+    metaEl.innerHTML = `<span class="error">Failed to load: ${escapeHtml(err.message)}</span>`;
+  }
+}
+document.getElementById('reload').addEventListener('click', load);
+document.getElementById('hours').addEventListener('change', load);
+document.getElementById('types').addEventListener('change', load);
+load();
+</script>
+</body>
+</html>
