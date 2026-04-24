@@ -3,6 +3,7 @@ import {
   splitSubClaims,
   classifySubClaim,
   classifyEntry,
+  classifyContent,
   arbitrate,
 } from '../src/memory-classifier.js';
 
@@ -130,5 +131,46 @@ describe('arbitrate — drift suppression', () => {
 
     const result = arbitrate([self_cite, evidence]);
     expect(result.winners[0].from_entry).toBe('probe');
+  });
+});
+
+describe('classifyContent — B3 writer wire-up interface', () => {
+  it('returns primary_kind=imperative when content has Pattern: rule', () => {
+    const result = classifyContent(
+      'Pipeline 健康。Pattern: 先跑一次再診斷',
+      'shell-probe',
+    );
+    expect(result.primary_kind).toBe('imperative');
+    expect(result.subclaims.length).toBe(2);
+  });
+
+  it('returns primary_kind=observation when content is pure probe data', () => {
+    const result = classifyContent('MLX http=200 (14ms)', 'shell-probe');
+    expect(result.primary_kind).toBe('observation');
+  });
+
+  it('returns primary_kind=inference when content is pure hypothesis', () => {
+    const result = classifyContent('應該是 env 問題', 'inference');
+    expect(result.primary_kind).toBe('inference');
+  });
+
+  it('returns confidence as mean of subclaim confidences, rounded to 3dp', () => {
+    const result = classifyContent(
+      'Pattern: 先跑一次。MLX http=200',
+      'shell-probe',
+    );
+    // imperative 0.85 + observation 0.8 → 0.825
+    expect(result.confidence).toBeCloseTo(0.825, 2);
+  });
+
+  it('empty content returns descriptive fallback', () => {
+    const result = classifyContent('', 'inference');
+    expect(result.primary_kind).toBe('descriptive');
+    expect(result.subclaims).toEqual([]);
+  });
+
+  it('primary-kind precedence: observation beats descriptive', () => {
+    const result = classifyContent('Kuro is an autonomous agent。Grok API http=401');
+    expect(result.primary_kind).toBe('observation');
   });
 });

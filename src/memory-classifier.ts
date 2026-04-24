@@ -146,6 +146,50 @@ export function classifyEntry(
   return { entry_id, source_cycle, subclaims };
 }
 
+export interface ClassifiedContent {
+  primary_kind: MemoryKind;
+  subclaims: SubClaim[];
+  confidence: number;
+}
+
+/**
+ * Interface requested by Kuro (room msg 094) for B3 writer wire-up.
+ *
+ * Given raw memory content, return the fields her provenance writer needs:
+ *   - primary_kind: maps to N0 `reason` field (the entry's dominant memory_kind).
+ *   - subclaims:    for entries she wants to persist split (MVP can ignore).
+ *   - confidence:   maps to N0 `inputs.confidence` (mean of subclaim confidences).
+ *
+ * Primary-kind selection uses KIND_TIER precedence; ties broken by declaration
+ * order (earlier subclaim wins) so the first sentence usually sets the tone.
+ */
+export function classifyContent(
+  content: string,
+  evidence_kind?: EvidenceKind,
+): ClassifiedContent {
+  const parts = splitSubClaims(content);
+  const subclaims = parts.map((text, index) => classifySubClaim(text, { index, evidence_kind }));
+
+  if (subclaims.length === 0) {
+    return { primary_kind: 'descriptive', subclaims: [], confidence: 0.5 };
+  }
+
+  let primary = subclaims[0];
+  for (const s of subclaims.slice(1)) {
+    if (KIND_TIER[s.memory_kind] > KIND_TIER[primary.memory_kind]) {
+      primary = s;
+    }
+  }
+
+  const confidence = subclaims.reduce((sum, s) => sum + s.confidence, 0) / subclaims.length;
+
+  return {
+    primary_kind: primary.memory_kind,
+    subclaims,
+    confidence: Number(confidence.toFixed(3)),
+  };
+}
+
 function effectiveTier(c: SubClaim): number {
   if (c.evidence_kind === 'self-cite') return SELF_CITE_TIER;
   return KIND_TIER[c.memory_kind] ?? 3;
