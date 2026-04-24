@@ -36,7 +36,11 @@ const LLM_KEY = process.env.LOCAL_LLM_KEY || '';
 const MODEL = process.env.HN_LOCAL_MODEL || 'Qwen3.5-4B-MLX-4bit';
 
 if (!LLM_URL) {
-  console.error('[enrich] LOCAL_LLM_URL not set; aborting');
+  console.error('[enrich] LOCAL_LLM_URL not set — aborting by design.');
+  console.error('[enrich] This script is local-MLX-only (see header comment line 8-10).');
+  console.error('[enrich] To enrich: start MLX endpoint and `export LOCAL_LLM_URL=http://localhost:PORT`.');
+  console.error('[enrich] For remote (Anthropic) inference, write a sibling script — do not augment this one.');
+  console.error(`[enrich] Baseline file left unenriched: memory/state/hn-ai-trend/${date}.json (novelty="pending-llm-pass" preserved).`);
   process.exit(2);
 }
 
