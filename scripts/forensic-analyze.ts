@@ -15,6 +15,7 @@
  *   pnpm tsx scripts/forensic-analyze.ts --since 2026-04-24T03:40:00Z --format summary
  *   pnpm tsx scripts/forensic-analyze.ts --taskId task-1777... --format json
  *   pnpm tsx scripts/forensic-analyze.ts --filter-anomaly silent_failure
+ *   pnpm tsx scripts/forensic-analyze.ts --filter-anomaly noop_cycle  # middleware tools=0 above baseline
  *
  * Exit codes:
  *   0 — success (may report anomalies in output)
@@ -30,11 +31,55 @@ import type { SubprocessForensicEntry } from '../src/forensic-log.js';
 
 type AnomalyType =
   | 'silent_failure'
+  | 'noop_cycle'
   | 'truncation'
   | 'orphan_forensic_no_mw'
   | 'orphan_mw_no_forensic'
   | 'dispatch_failed'
   | 'poll_timeout';
+
+// Percentile-based detection for middleware noop_cycle (Akari recommendation,
+// KG discussion e5fcbde6). Absolute floors prevent false positives on tiny
+// samples / health checks; cold-start fallback uses writer's absolute gate.
+const NOOP_COLD_PROMPT_BYTES = 20000;
+const NOOP_COLD_DURATION_MS = 30000;
+const NOOP_DURATION_FLOOR_MS = 5000;
+const NOOP_MIN_SAMPLES_FOR_PERCENTILE = 10;
+
+interface MiddlewareBaseline {
+  p50_prompt: number;
+  p25_duration: number;
+  sample_count: number;
+  is_cold_start: boolean;
+}
+
+// O(n log n) per call; baseline calc sorts prompt + duration separately → 2×sort.
+// Fine for per-instance forensic scale (tens to low-thousands of entries).
+// Replace with a single-pass quickselect if this ever hits 10⁵+ entries.
+function percentile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[idx];
+}
+
+function computeMiddlewareBaseline(entries: SubprocessForensicEntry[]): MiddlewareBaseline {
+  const mw = entries.filter(e => e.backend === 'middleware');
+  if (mw.length < NOOP_MIN_SAMPLES_FOR_PERCENTILE) {
+    return {
+      p50_prompt: NOOP_COLD_PROMPT_BYTES,
+      p25_duration: NOOP_COLD_DURATION_MS,
+      sample_count: mw.length,
+      is_cold_start: true,
+    };
+  }
+  return {
+    p50_prompt: percentile(mw.map(e => e.full_prompt_size), 50),
+    p25_duration: percentile(mw.map(e => e.duration_ms), 25),
+    sample_count: mw.length,
+    is_cold_start: false,
+  };
+}
 
 interface MwEvent {
   ts: string;
@@ -78,6 +123,7 @@ interface AnalysisResult {
     total_mini_agent_entries: number;
     total_mw_events: number;
     anomaly_counts: Record<string, number>;
+    middleware_baseline: MiddlewareBaseline;
   };
 }
 
@@ -203,7 +249,11 @@ function readMwEvents(instanceDir: string, sinceMs?: number, untilMs?: number): 
   return out;
 }
 
-function detectAnomalies(entry: SubprocessForensicEntry | undefined, mwEvents: MwEvent[]): AnomalyType[] {
+function detectAnomalies(
+  entry: SubprocessForensicEntry | undefined,
+  mwEvents: MwEvent[],
+  baseline: MiddlewareBaseline,
+): AnomalyType[] {
   const out: AnomalyType[] = [];
   if (entry) {
     // Aligned with forensic-log.ts:shouldDumpFullPrompt — middleware backend
@@ -214,6 +264,17 @@ function detectAnomalies(entry: SubprocessForensicEntry | undefined, mwEvents: M
       entry.tool_calls_count === 0 &&
       entry.duration_ms > 5000
     ) out.push('silent_failure');
+    // noop_cycle — middleware-path silent fail relative to local baseline.
+    // Percentile detection (Akari, KG e5fcbde6): prompt size above instance
+    // median AND duration above max(P25, 5s). Cold-start fallback uses
+    // absolute writer thresholds for small samples. Semantic: this cycle
+    // had input + time + zero action — worth inspection, cause unknown.
+    if (
+      entry.backend === 'middleware' &&
+      entry.tool_calls_count === 0 &&
+      entry.full_prompt_size > baseline.p50_prompt &&
+      entry.duration_ms > Math.max(baseline.p25_duration, NOOP_DURATION_FLOOR_MS)
+    ) out.push('noop_cycle');
     if (
       typeof entry.turns_used === 'number' &&
       typeof entry.max_turns === 'number' &&
@@ -243,6 +304,7 @@ function joinEvents(
   forensic: Array<{ entry: SubprocessForensicEntry; file: string }>,
   mwEvents: MwEvent[],
   instanceDir: string,
+  baseline: MiddlewareBaseline,
   taskIdFilter?: string,
 ): {
   joined: JoinedEvent[];
@@ -276,7 +338,7 @@ function joinEvents(
       continue;
     }
     matchedTaskIds.add(tid);
-    const anomalies = detectAnomalies(entry, mwMatches);
+    const anomalies = detectAnomalies(entry, mwMatches, baseline);
     const retryChain = entry.middleware_retry_of ? [entry.middleware_retry_of] : [];
     const forensicDir = path.dirname(file);
     let fullPromptPath: string | undefined;
@@ -325,6 +387,9 @@ function printSummary(result: AnalysisResult): void {
   if (orphanMwCount > 100) {
     lines.push(`  ⚠ large mw_no_forensic — consider narrowing --since window`);
   }
+  const bl = result.summary.middleware_baseline;
+  const blMode = bl.is_cold_start ? 'cold-start (absolute floors)' : `percentile (n=${bl.sample_count})`;
+  lines.push(`mw_baseline: ${blMode}  p50_prompt=${bl.p50_prompt}B  p25_duration=${bl.p25_duration}ms`);
   lines.push('');
   lines.push(`## Anomalies`);
   const kinds = Object.keys(result.summary.anomaly_counts).sort();
@@ -404,6 +469,7 @@ async function main(): Promise<void> {
   --taskId <id>            filter to a specific middleware taskId
   --format <json|summary|table>  output format (default json)
   --filter-anomaly <type>  keep only events with this anomaly
+                           (silent_failure|noop_cycle|truncation|dispatch_failed|poll_timeout)
   --instance <id>          instance id (default: most recently modified)`);
     process.exit(0);
   }
@@ -443,7 +509,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const { joined, orphansForensic, orphansMw } = joinEvents(forensic, mwEvents, instanceDir, values.taskId);
+  const baseline = computeMiddlewareBaseline(forensic.map(f => f.entry));
+  const { joined, orphansForensic, orphansMw } = joinEvents(forensic, mwEvents, instanceDir, baseline, values.taskId);
 
   let filtered = joined;
   if (values['filter-anomaly']) {
@@ -477,6 +544,7 @@ async function main(): Promise<void> {
       total_mini_agent_entries: forensic.length,
       total_mw_events: mwEvents.length,
       anomaly_counts: anomalyCounts,
+      middleware_baseline: baseline,
     },
   };
 

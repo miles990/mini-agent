@@ -148,15 +148,32 @@ export function captureGitSnapshot(cwd: string): GitSnapshot | undefined {
 const DUMP_ROLLING_INTERVAL = 50;
 const SILENT_FAILURE_DURATION_MS = 5000;
 
+// noop_cycle gate (writer absolute threshold — analyzer uses percentile for classification).
+// Two-layer design: writer decides "is this worth disk space"; analyzer decides "is this anomalous
+// relative to baseline". Gate thresholds stay conservative; analyzer is authoritative.
+const NOOP_PROMPT_MIN_BYTES = 20000;
+const NOOP_DURATION_MIN_MS = 30000;
+
 let callCounter = 0;
+// Consecutive middleware-path cycles observed with tool_calls=0 + prompt≥min + duration≥min.
+// Process-scope (reset on restart) — cold start burst is a feature per KG e5fcbde6 D4.
+// Hash-based dedup in writeForensicEntry ensures duplicate full-prompts don't overwrite.
+let middlewareNoopStreak = 0;
+
+function adaptiveNoopSampleRate(streak: number): number {
+  if (streak <= 3) return 1.0;   // first burst — full capture for analyzer bootstrap
+  if (streak <= 10) return 0.5;  // pattern forming — half-rate
+  return 0.1;                    // steady-state — 1/10 to save storage
+}
 
 /**
  * Decide whether to dump full prompt alongside the entry.
- * Triggers:
+ * Triggers (in order; first match wins):
  *   1. Error (exit code non-zero OR error_subtype set)
- *   2. Silent failure (tool_calls === 0 && duration > threshold)
+ *   2. Silent failure (non-middleware, tool_calls=0, duration > threshold)
  *   3. Truncation (turns_used === max_turns, both set)
- *   4. Rolling sample (every N calls, keep 1 full prompt)
+ *   4. Middleware noop sample (adaptive rate on streak — dedicated bucket for tools=0 middleware cycles)
+ *   5. Rolling sample (every N calls, keep 1 full prompt)
  */
 export function shouldDumpFullPrompt(entry: SubprocessForensicEntry): { dump: boolean; reason: string } {
   callCounter++;
@@ -164,8 +181,8 @@ export function shouldDumpFullPrompt(entry: SubprocessForensicEntry): { dump: bo
   if (entry.error_subtype) return { dump: true, reason: 'error_subtype:' + entry.error_subtype };
   // Middleware backend doesn't surface tool_use events to the caller (agent-brain
   // treats LLM call as black box), so tool_calls=0 is semantic mismatch not
-  // silent failure. Trigger only applies to SDK/CLI paths where absent tool_use
-  // really signals the subprocess produced no actionable output.
+  // silent failure — this trigger only applies to SDK/CLI paths. Middleware noop
+  // cycles go through a separate sampling bucket below (reason=noop_cycle_sample).
   // (KG discussion a051725d — P3 decision, Kuro + CC + Akari consensus.)
   if (
     entry.backend !== 'middleware' &&
@@ -181,6 +198,30 @@ export function shouldDumpFullPrompt(entry: SubprocessForensicEntry): { dump: bo
     entry.turns_used === entry.max_turns
   ) {
     return { dump: true, reason: 'truncation_max_turns' };
+  }
+  // Middleware noop cycle: adaptive sampling. Writer uses absolute threshold as a
+  // cheap gate; analyzer (forensic-analyze.ts) classifies via percentile against
+  // the instance baseline. First 3 consecutive noops always dump (cold-start
+  // bootstrap for analyzer), then half, then 1/10.
+  // (KG discussion e5fcbde6 D1–D4 — Akari consent at confidence 0.85.)
+  if (
+    entry.backend === 'middleware' &&
+    entry.tool_calls_count === 0 &&
+    entry.full_prompt_size >= NOOP_PROMPT_MIN_BYTES &&
+    entry.duration_ms >= NOOP_DURATION_MIN_MS
+  ) {
+    middlewareNoopStreak++;
+    const rate = adaptiveNoopSampleRate(middlewareNoopStreak);
+    if (Math.random() < rate) {
+      return { dump: true, reason: 'noop_cycle_sample' };
+    }
+  } else if (entry.backend === 'middleware' && entry.tool_calls_count > 0) {
+    // Reset streak when middleware cycle surfaces tool activity.
+    // Currently unreachable: agent-middleware wraps LLM calls as opaque tasks
+    // and tool_calls_count is always 0 for middleware backend. Kept for
+    // semantic honesty + forward-compat with agent-middleware#1 (when/if
+    // middleware starts surfacing per-tool events to the caller).
+    middlewareNoopStreak = 0;
   }
   if (callCounter % DUMP_ROLLING_INTERVAL === 0) return { dump: true, reason: 'rolling_sample' };
   return { dump: false, reason: '' };
