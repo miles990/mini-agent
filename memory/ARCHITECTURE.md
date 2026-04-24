@@ -214,3 +214,31 @@ Trigger 事件 → mushi triage（~800ms, HC1）→ skip: 省整個 OODA cycle
 API: `POST /api/triage`（分類）、`POST /api/dedup`（重複偵測）、`POST /api/consensus`（收斂偵測）、`GET /health`
 
 Server: `~/Workspace/mushi/`（獨立 repo，獨立部署，localhost:3000）
+
+## buildContext Sections
+
+`buildContext` assembles the perception payload for each OODA cycle by stitching named sections (each rendered into a `<section>...</section>` block in the prompt). Sections are not equal — a 7-day baseline (3,295 samples, 2026-04-17→04-23) shows the top-7 sections account for ~26.7K chars of mean cycle context vs ~31K for the next 17 sections combined. Section list and tier policy below.
+
+**T1 HOT** (mean ≥3000 chars — render every cycle, prune content not section):
+- `reasoning-continuity` (4968) — last cycle's chosen/skipped/saved trio; load-bearing for thought continuity
+- `task-queue` (4423, vol 1.27) — pending+in_progress unified queue
+- `web-fetch-results` (3971) — bounded buffer, naturally rare
+- `heartbeat` (3848, vol **66.71** — outlier max 258K) — needs hard cap, single biggest blast radius
+- `chat-room-recent` (3281, vol 3.24) — Alex/CC dialog tail
+- `middleware-workers` (3085) — worker registry for delegation routing
+- `memory` (3084, vol 1.10) — MEMORY.md slice (Learned Patterns terminal section)
+
+**T2 WARM** (1000–3000 chars — render with budget cap, drop least-recently-relevant):
+17 sections including `heartbeat-active`, `chat-room-inbox`, `next`, `soul`, `soul-core`, `workspace`, `self-awareness`, `myelin-framework`, `memory-index`, `threads`, `knowledge-graph`, `recent_conversations`, `capabilities`, `activity`, `self`, `logs`, `tasks`.
+
+**T3 COLD** (<1000 chars — render on-demand or behind a flag):
+~50 sections including `action-memory`, `temporal`, `kuro:*` family, `claude-code-inbox`, `pinned-tasks`, `topic-memory`, `pulse`, structural/diagnostic markers, etc.
+
+**Volatility outliers** (mean modest but max >>p95 — investigate or cap independently):
+- `heartbeat` max 258246 (mean 3848) — runaway HEARTBEAT.md inclusion; must cap at p95
+- `topic-memory` vol 21.02 — bursty when relevant topic loaded
+- `workspace` max 15862 — git-status explosion under modified-files burst
+
+**Source data**: `memory/reports/2026-04-24-buildcontext-section-tier-baseline.md` (full per-section table, methodology, sample counts).
+
+**Open question (P2)**: tier classification is per-section _mean_, but cycle cost is _sum_ of all sections rendered. Need DAG budget (Step 1 task) to translate tiers into per-cycle char ceilings — e.g. T1 ≤30K, T2 ≤15K, T3 ≤5K combined.
