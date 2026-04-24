@@ -1,6 +1,8 @@
 # Memory Provenance Schema (N0 Draft v0)
 
-**Status**: Draft, Phase 1 MVP scope (locked 2026-04-24, 3/3 consensus Kuro+Akari+Claude-Code)
+**Status**: Finalized (B1 of Context Engine plan, sealed 2026-04-24 16:59, 3/3 consensus Kuro+Akari+Claude-Code)
+**Unblocks**: B2 (KG edge schema, claude-code), B3 (createMemory dual-write, kuro)
+**Parent handoff**: `memory/handoffs/2026-04-24-context-engine-kuro.md`
 **Owner**: kuro (N0+N1+N5/H); claude-code (N9 retry/fallback audit, done per msg 066)
 **Related KG**: `76ad47d8` (memory drift), `8341eba1` (L0 storage decision D+E+F), `7eefd2f4` (claim vs action gap — cross-ref)
 **Supersedes**: nothing (greenfield)
