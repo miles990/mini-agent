@@ -66,6 +66,7 @@ import { buildContinuityContext } from './kg-continuity.js';
 import { queryKGDiscussionContext } from './observability.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
+import { appendProvenance, memoryIdForContent } from './memory-provenance.js';
 
 // =============================================================================
 // Write-time Dedup — Jaccard word similarity (zero LLM cost)
@@ -941,7 +942,12 @@ export class InstanceMemory {
    * Includes write-time dedup: skips if Jaccard word similarity > 0.6
    * with any of the 20 most recent entries (zero LLM cost).
    */
-  async appendMemory(content: string, section = 'Learned Patterns', trust: TrustLevel = 'agent'): Promise<void> {
+  async appendMemory(
+    content: string,
+    section = 'Learned Patterns',
+    trust: TrustLevel = 'agent',
+    evidence_ref: string[] = [],
+  ): Promise<void> {
     // Content scanning — block injection/exfiltration before persisting
     const scan = scanContent(content, trust);
     if (scan.blocked) {
@@ -961,6 +967,11 @@ export class InstanceMemory {
 
     await ensureDir(this.memoryDir);
     const memoryPath = path.join(this.memoryDir, 'MEMORY.md');
+
+    // B3 (2026-04-24): track whether MEMORY.md was actually mutated inside the lock,
+    // so provenance row fires exactly once per committed fact (scan-block / dedup-skip
+    // paths emit zero rows, per acceptance criterion #1 of plans/2026-04-24-B3-*).
+    let committed = false;
 
     await withFileLock(memoryPath, async () => {
       const current = await this.readMemory();
@@ -988,7 +999,22 @@ export class InstanceMemory {
       }
 
       await fs.writeFile(memoryPath, updated, 'utf-8');
+      committed = true;
     });
+
+    // B3 provenance tail — best-effort, never throws (see memory-provenance.ts contract)
+    if (committed) {
+      appendProvenance({
+        memoryId: memoryIdForContent(content),
+        ts: new Date().toISOString(),
+        source: 'appendMemory',
+        section,
+        trust,
+        evidence_ref,
+        contentPreview: content.slice(0, 120),
+        bytes: Buffer.byteLength(content, 'utf8'),
+      });
+    }
 
     void import('./kg-live-ingest.js').then((m) =>
       m.onMemoryWrite({
