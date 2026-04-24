@@ -7,3 +7,7 @@
 - 「agent 是有自己 infra preferences 的新客戶」這個 framing 是真 insight，其他是標準基建抱怨
 - 同構於 mini-agent no-DB 設計 — 抽象形狀錯 = 同一種病理
 - exe.dev vs Hetzner/OVH 差異在 auth/TLS/anycast ref:exedev-crawshaw-2026-04-22
+- [2026-04-24] [2026-04-24 15:47] **Managed Agents API standardization war** — Anthropic (Claude Managed Agents，2026 early) 定義了 4-primitive shape: Agent / Environment / Session / Event。OpenAI (Workspace Agents，2026-04-23) 推自家版本進 ChatGPT。stainlu (@stainlu，GitHub repo `openclaw-managed-agents`，201★ in 12 days) 24h 內 open-source 替代，底層是 OpenClaw（400K LOC personal agent framework，mini-agent 在 inner-voice.md:723 已對照過），per-session Docker + warm pool + OpenAI SDK drop-in。
+
+**架構收藏（非現在做，路線圖指針）**：
+- 4-primitive shape 可能
