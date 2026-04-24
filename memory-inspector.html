@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>Memory Inspector — Context Engine</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; background: #0e1116; color: #d4d4d4; margin: 0; padding: 24px; }
+  h1 { color: #7ec4ff; margin-top: 0; font-size: 20px; }
+  .meta { color: #6b7280; font-size: 12px; margin-bottom: 16px; }
+  .controls { margin-bottom: 16px; }
+  .controls input, .controls select, .controls button { background: #1a1e26; color: #d4d4d4; border: 1px solid #2d333b; padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+  .entry { background: #161b22; border: 1px solid #2d333b; border-radius: 6px; margin-bottom: 12px; padding: 12px 14px; }
+  .entry-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+  .entry-ts { color: #9ca3af; font-size: 12px; }
+  .entry-mode { background: #1f6feb; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .entry-mode.focused { background: #2e7d32; }
+  .entry-mode.full { background: #6a1b9a; }
+  .entry-mode.minimal { background: #616161; }
+  .rate-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-family: monospace; }
+  .rate-high { background: #1f8a38; color: #fff; }
+  .rate-mid { background: #b38600; color: #fff; }
+  .rate-low { background: #c93c37; color: #fff; }
+  .rate-na { background: #374151; color: #9ca3af; }
+  .entry-meta { color: #6b7280; font-size: 11px; margin-bottom: 8px; }
+  .sections { display: flex; flex-wrap: wrap; gap: 4px; }
+  .section-chip { padding: 3px 8px; border-radius: 3px; font-size: 11px; background: #1e3a5f; color: #93c5fd; }
+  .section-chip.unused { background: #4c1d24; color: #fca5a5; border: 1px dashed #fca5a5; }
+  .section-chip .size { opacity: 0.7; margin-left: 4px; font-size: 10px; }
+  .hint { color: #9ca3af; font-size: 11px; margin-top: 6px; font-style: italic; }
+  .empty { color: #6b7280; padding: 40px; text-align: center; }
+  .legend { font-size: 11px; color: #6b7280; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>Memory Inspector — Context Engine</h1>
+<div class="meta">最近 <span id="shown-count">—</span> 筆 buildContext snapshot · <a href="/timeline" style="color:#7ec4ff">Timeline</a> · <a href="/discussions" style="color:#7ec4ff">Discussions</a></div>
+
+<div class="controls">
+  limit
+  <select id="limit">
+    <option>10</option>
+    <option>20</option>
+    <option>50</option>
+  </select>
+  mode
+  <select id="mode-filter">
+    <option value="">all</option>
+    <option value="focused">focused</option>
+    <option value="full">full</option>
+    <option value="minimal">minimal</option>
+  </select>
+  <button id="refresh">refresh</button>
+</div>
+
+<div class="legend">
+  <span class="rate-badge rate-high">≥ 0.7</span>
+  <span class="rate-badge rate-mid">0.4–0.7</span>
+  <span class="rate-badge rate-low">&lt; 0.4</span>
+  <span class="rate-badge rate-na">n/a</span>
+  utilization rate ·
+  <span class="section-chip unused" style="display:inline-block;padding:2px 6px;">unused</span> section 未被引用
+</div>
+
+<div id="entries"></div>
+
+<script>
+async function load() {
+  const limit = document.getElementById('limit').value;
+  const mode = document.getElementById('mode-filter').value;
+  const q = new URLSearchParams({ limit });
+  if (mode) q.set('mode', mode);
+  const res = await fetch('/api/memory-inspector?' + q.toString());
+  const data = await res.json();
+  render(data);
+}
+
+function rateClass(r) {
+  if (r == null) return 'rate-na';
+  if (r >= 0.7) return 'rate-high';
+  if (r >= 0.4) return 'rate-mid';
+  return 'rate-low';
+}
+
+function render(data) {
+  const entries = data.entries || [];
+  document.getElementById('shown-count').textContent = entries.length;
+  const root = document.getElementById('entries');
+  if (entries.length === 0) {
+    root.innerHTML = '<div class="empty">no checkpoints yet</div>';
+    return;
+  }
+  root.innerHTML = entries.map(e => {
+    const ts = e.timestamp || e.ts || '(no timestamp)';
+    const mode = e.mode || 'unknown';
+    const len = (e.contextLength || 0).toLocaleString();
+    const rate = e.utilizationRate;
+    const rateLabel = rate == null ? 'n/a' : rate.toFixed(2);
+    const hint = e.hint ? `<div class="hint">hint: ${escapeHtml(e.hint)}</div>` : '';
+    const sections = Array.isArray(e.sections) ? e.sections : [];
+    const sectionsHtml = sections.map(s => {
+      const name = typeof s === 'string' ? s : (s.name || 'unknown');
+      const chars = typeof s === 'object' ? (s.char_count ?? s.chars) : undefined;
+      const unused = Array.isArray(e.unusedSections) && e.unusedSections.includes(name);
+      const cls = unused ? 'section-chip unused' : 'section-chip';
+      const size = chars != null ? `<span class="size">${chars}</span>` : '';
+      return `<span class="${cls}">${escapeHtml(name)}${size}</span>`;
+    }).join('');
+    return `
+      <div class="entry">
+        <div class="entry-head">
+          <div>
+            <span class="entry-ts">${escapeHtml(ts)}</span>
+            <span class="entry-mode ${mode}">${escapeHtml(mode)}</span>
+            <span class="rate-badge ${rateClass(rate)}">rate ${rateLabel}</span>
+          </div>
+          <div class="entry-meta">${len} chars · ${sections.length} sections</div>
+        </div>
+        <div class="sections">${sectionsHtml}</div>
+        ${hint}
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+document.getElementById('refresh').addEventListener('click', load);
+document.getElementById('limit').addEventListener('change', load);
+document.getElementById('mode-filter').addEventListener('change', load);
+load();
+</script>
+</body>
+</html>

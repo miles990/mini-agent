@@ -2478,6 +2478,55 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // Memory Inspector — A3 of Context Engine. Shows recent buildContext snapshots
+  // with section breakdown. Forward-compatible with A2 (section metadata expansion)
+  // and A4 (utilizationRate) — missing fields render as "n/a".
+  app.get('/memory-inspector', (_req: Request, res: Response) => {
+    const htmlPath = path.join(process.cwd(), 'memory-inspector.html');
+    if (fs.existsSync(htmlPath)) {
+      res.sendFile(htmlPath);
+    } else {
+      res.status(404).send('memory-inspector.html not found');
+    }
+  });
+
+  app.get('/api/memory-inspector', async (req: Request, res: Response) => {
+    try {
+      const memory = getMemory();
+      const checkpointDir = path.join(memory.getMemoryDir(), 'context-checkpoints');
+      const limit = Math.min(Number(req.query.limit ?? 10) || 10, 100);
+      const modeFilter = (req.query.mode as string) || '';
+
+      if (!fs.existsSync(checkpointDir)) {
+        res.json({ entries: [], total: 0 });
+        return;
+      }
+
+      const files = (await fsPromises.readdir(checkpointDir))
+        .filter(f => f.endsWith('.jsonl'))
+        .sort()
+        .reverse(); // newest day first
+
+      const collected: Record<string, unknown>[] = [];
+      for (const f of files) {
+        if (collected.length >= limit) break;
+        const content = await fsPromises.readFile(path.join(checkpointDir, f), 'utf-8');
+        const lines = content.trim().split('\n').filter(l => l.trim());
+        for (let i = lines.length - 1; i >= 0 && collected.length < limit; i--) {
+          try {
+            const entry = JSON.parse(lines[i]);
+            if (modeFilter && entry.mode !== modeFilter) continue;
+            collected.push(entry);
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      res.json({ entries: collected, total: collected.length });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  });
+
   // KG entity search — dashboard Memory Lab lookup (Proposal p7)
   app.get('/api/kg/entities/search', (req: Request, res: Response) => {
     try {
