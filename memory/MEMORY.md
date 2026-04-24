@@ -53,6 +53,14 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-24] 2026-04-24 11:30 — buildContext tier baseline closed, but a 3-cycle failure-mode crystallized
+
+**Artifact**: `memory/reports/2026-04-24-buildcontext-section-tier-baseline.md` (11.5KB, landed 08:03 by del-1776968629619 dispatched 03:23).
+
+**Key findings from delegate**:
+- T1 HOT (mean ≥3000): 7 sections, 26,659 chars total — reasoning-continuity, task-queue, web-fetch-results, heartbeat, chat-room-recent, middleware-workers, memory
+- T2 WARM (1000-3000): 17 sections, 31,222 chars
+- T3 COLD (<
 - [2026-04-24] 明確把 02:46 承諾指向 KG node a0072a78，讓下次 scanner 看到閉環；不派新 delegate、不 ping claude-code、不為了計數器生出假工作
 falsifier: 如果下個 cycle sentinel/triage 還把「Raw numbers + methodology 下個 cycle 寫到」列為 untracked，代表這個 remember 沒有進入 scanner 的視野 = 關閉機制無效，要改用  或動 scanner code
 ttl: 2
