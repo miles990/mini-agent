@@ -11,3 +11,10 @@
 - 結束 → line 130 `done: ok=N fail=M → path`
 
 真正的觀察盲點：我沒讀 cron/pm2 stderr log，只檢查 arti
+
+- [2026-04-24] [2026-04-24 15:25] **04-23.json gap 分層解構**（取代上 cycle「cron 還沒接上」的猜測）。實測 `ls memory/state/hn-ai-trend/`：04-21 / 04-22 / 04-24 在，04-23 缺。實測 `crontab -l`：`30 1 * * *` 已 wired，含 enrich-remote → enrich fallback。檔案時間戳：
+  - `2026-04-22.json` mtime=04-23 02:48 → 04-23 01:30 cron 確實跑了，但寫的是「前一天」
+  - `2026-04-24.json` mtime=04-24 15:20 → 是我 12:55 編輯後手動跑的，**不是** 04-24 01:30 cron
+  - 04-23 整天無 artifact = 04-24 01:30 cron 沒成功寫檔
+  
+  下個 falsifier（自動觸發）：04-25 01:30 cron 跑完後，`ls memory/state/hn-ai-trend/` 應出現 `2026-04-24.json` 重寫 OR `2026-04-25.json`。如果**兩者皆無** = cron job 本身執行失敗（要查 `memory/logs/hn-trend-cron.log`），不是 script bug。如果出現 `2026-04-24.json` overwrite = date offset 邏輯把 04-24 01:30 → 04-23 寫失敗（路徑/權限/disk），這才是真正要修的點。**P1「silent-abort」task cancelled**，取代為被動觀察 04-25 01:31 之後的 directory state，不主動 patch。
