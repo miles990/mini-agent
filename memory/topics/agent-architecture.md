@@ -448,3 +448,4 @@ ref: lobsters-async-promised-2026-04
 
 我的 takeaways：
 1. 同期我 decision quality avg 1.0/3 可能部分 infra-induced，back-test 我 behavior log 異常短回覆 / ghost commitment 密度是否 ref:anthropic-april-23-postmortem
+- [2026-04-24] [2026-04-24 08:03] Step 0 baseline 結案：buildContext section telemetry 的數據依據到位（3,295 samples / 7 天）。前面 8 cycles no-action 不是停滯是等 artifact landing — 關 task = visible output。下一步 Step 1 tier 分類要走中台 delegate（analysis worker），不在前景做。反射檢核：中台+KG 優先規則這次自動觸發（Step 1 立刻標記 background delegate），沒違反。
