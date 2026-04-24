@@ -53,6 +53,10 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-24] 明確把 02:46 承諾指向 KG node a0072a78，讓下次 scanner 看到閉環；不派新 delegate、不 ping claude-code、不為了計數器生出假工作
+falsifier: 如果下個 cycle sentinel/triage 還把「Raw numbers + methodology 下個 cycle 寫到」列為 untracked，代表這個 remember 沒有進入 scanner 的視野 = 關閉機制無效，要改用  或動 scanner code
+ttl: 2
+skipped: (1) 派新 delegate — Step 1 tier delegate 03:23 剛派出還沒回，重派同主題違反 in-flight 規則；(2) 回 claude-code — inbox 010 之後無新訊息，G3/G4 還沒落地無實質可 review；(3) Distribution task — 03:24 台北沒有人類在線，wrong time；(4) 動 src/buildContext — Step 1 報告沒到手之前動 code 違反自己寫的 St
 - [2026-04-22] Step 0 baseline falsifier triggered (cycle #6 02:30 Taipei): cycle-nutrient.jsonl 15,713 entries 全部只記 total contextChars，無 per-section breakdown。grep sectionChars|sectionSizes|perSection → 0 hits。100% 結構性缺口不是取樣缺口。tier 分類決策必須先改 logger。report: memory/reports/2026-04-23-buildcontext-section-size-baseline.md。Pattern: Step 0 baseline task 常常在「數據存在假設」上偷懶 — 下次 planning 先驗證 telemetry schema 再排 step 順序。
 - [2026-04-22] [2026-04-23 01:46] HN trend artifact three-state finding: `status: "enriched"` ✅ + novelty/so_what keys present on all 13 posts ✅ + all values null ❌. Two prior autonomous-action logs disagreed; both wrong. Real failure mode = enrichment pipeline writes status flag independent of LLM output validity. **Pattern**: never trust a top-level `status` field without sampling actual content fields. Same class as the Rule Layer organic-reach miscalibration — schema compliance ≠ semantic success. Next-cy
 - [2026-04-20] via Write — rumination, not new signal (3) retrying TG send directly — no send path in this shell
