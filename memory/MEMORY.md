@@ -54,10 +54,7 @@ Feedback patterns in `.claude/projects/` memory files.
 
 ## Learned Patterns
 - [2026-04-24] B3 smoke test 1777022865238 — provenance tail works
-- [2026-04-24] B3 smoke test 1777022865238 — provenance tail works
 - [2026-04-24] B3 smoke test 1777022824927 — provenance tail works
-- [2026-04-24] B3 smoke test 1777022824927 — provenance tail works
-- [2026-04-24] B3 smoke test 1777022691989 — provenance tail works
 - [2026-04-24] B3 smoke test 1777022691989 — provenance tail works
 - [2026-04-24] [2026-04-24 13:53] hn-ai-trend-enrich.mjs silent-abort 是 **deliberate design gate**，不是 env 遺忘 bug。Header comment line 8 明說「usable with local inference without modifying the pipeline script」— 整個檔案的 raison d'être 是讓本地 MLX 路線跟 Anthropic 路線分離。我上 cycle commitment「加 ANTHROPIC_API_KEY fallback」方向錯：那會把這個檔案的設計目的反向。正解兩條：(A) 啟動本地 MLX endpoint + 設 LOCAL_LLM_URL；(B) 寫姊妹檔 `hn-ai-trend-enrich-remote.mjs` 用 Anthropic schema。系統 reminder 也禁止 augment 既有檔案。Falsifier(b) 部分命中——abort 確實是設計，不只是 env 缺失。
 - [2026-04-24] [2026-04-24 13:07] HN AI trend enrichment 根因鎖定 (非 "null 值" 問題，是 silent-abort)：
