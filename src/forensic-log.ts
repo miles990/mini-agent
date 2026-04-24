@@ -46,8 +46,16 @@ export interface SubprocessForensicEntry {
   ts_start: string;
   ts_end: string;
   duration_ms: number;
-  backend: 'sdk' | 'cli';
+  backend: 'sdk' | 'cli' | 'middleware';
   cwd: string;
+  /** Middleware path only: taskId from agent-middleware /dispatch. Correlation key
+   *  for post-hoc join against middleware server.log [MW-CYCLE] entries. */
+  middleware_task_id?: string;
+  /** Middleware retry chain: if this task is a retry, the original taskId.
+   *  agent-middleware/src/api.ts:1795 creates newId with retryOf=origId. */
+  middleware_retry_of?: string;
+  /** Middleware-reported status (completed | failed | timeout | cancelled | poll-timeout). */
+  middleware_status?: string;
   args_snapshot?: string[];
   env_redacted_keys?: string[];
   system_prompt_size: number;
@@ -245,7 +253,7 @@ export function gcForensicLogs(maxAgeDays = 7): number {
 
 /** Build a pre-filled entry shell. Callers fill runtime fields after spawn. */
 export function buildForensicEntryShell(params: {
-  backend: 'sdk' | 'cli';
+  backend: 'sdk' | 'cli' | 'middleware';
   cwd: string;
   fullPrompt: string;
   systemPromptSize: number;
@@ -256,6 +264,7 @@ export function buildForensicEntryShell(params: {
   timeoutMs?: number;
   workerType?: string;
   maxTurns?: number;
+  middlewareTaskId?: string;
 }): SubprocessForensicEntry {
   const now = new Date().toISOString();
   return {
@@ -282,5 +291,6 @@ export function buildForensicEntryShell(params: {
     parent_pid: process.pid,
     instance_id: (() => { try { return getCurrentInstanceId(); } catch { return undefined; } })(),
     max_turns: params.maxTurns,
+    middleware_task_id: params.middlewareTaskId,
   };
 }

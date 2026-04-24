@@ -20,6 +20,7 @@
 
 import type { ExecOptions } from './agent.js';
 import { slog } from './utils.js';
+import { buildForensicEntryShell, writeForensicEntry } from './forensic-log.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
 const DEFAULT_TIMEOUT_MS = 1_500_000;
@@ -62,8 +63,45 @@ export async function execClaudeViaMiddleware(
   const startTs = Date.now();
   const pollIntervalMs = DEFAULT_POLL_INTERVAL_MS;
 
+  // Forensic: Layer 1 federation — record middleware call envelope with taskId
+  // as the correlation key. Post-hoc Layer 2 analyzer joins against
+  // middleware server.log [MW-CYCLE] using this taskId. Schema consensus:
+  // KG discussion 8eee635f (CC + Kuro + Akari). tool_use-level forensic is
+  // out of scope (middleware does not surface per-tool events to the caller).
+  let taskId: string | null = null;
+  const flushForensic = (opts2: {
+    status: string;
+    errorSubtype?: string;
+    retryable?: boolean | null;
+    errMsg?: string;
+    timedOut?: boolean;
+  }): void => {
+    try {
+      const now = Date.now();
+      const entry = buildForensicEntryShell({
+        backend: 'middleware',
+        cwd: process.cwd(),
+        fullPrompt,
+        systemPromptSize: 0,
+        userPromptSize: fullPrompt.length,
+        contextSource: { lane: source },
+        timeoutMs,
+        workerType: source,
+        middlewareTaskId: taskId ?? undefined,
+      });
+      entry.ts_end = new Date(now).toISOString();
+      entry.duration_ms = now - startTs;
+      entry.middleware_status = opts2.status;
+      entry.exit_code = opts2.status === 'completed' ? 0 : null;
+      entry.error_subtype = opts2.errorSubtype ?? null;
+      entry.retryable = opts2.retryable ?? null;
+      entry.timed_out = opts2.timedOut ?? false;
+      if (opts2.errMsg) entry.stderr_full = opts2.errMsg.slice(0, 2000);
+      writeForensicEntry(entry, fullPrompt);
+    } catch { /* fail-open */ }
+  };
+
   // Step 1: dispatch
-  let taskId: string;
   try {
     const dispatchRes = await fetch(`${baseUrl}/dispatch`, {
       method: 'POST',
@@ -83,6 +121,7 @@ export async function execClaudeViaMiddleware(
     taskId = dispatchData.taskId;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    flushForensic({ status: 'dispatch-failed', errorSubtype: 'dispatch_failed', retryable: true, errMsg: msg });
     throw Object.assign(new Error(`middleware dispatch failed: ${msg}`), {
       cause: err,
       duration: Date.now() - startTs,
@@ -113,11 +152,19 @@ export async function execClaudeViaMiddleware(
         'MW-CYCLE',
         `completed taskId=${taskId} source=${source} duration=${durationMs}ms result_len=${result.length}`,
       );
+      flushForensic({ status: 'completed' });
       return result;
     }
 
     if (statusData.status === 'failed' || statusData.status === 'timeout' || statusData.status === 'cancelled') {
       const errMsg = statusData.error ?? `status=${statusData.status}`;
+      flushForensic({
+        status: statusData.status,
+        errorSubtype: `middleware_${statusData.status}`,
+        retryable: statusData.status !== 'failed',
+        timedOut: statusData.status === 'timeout',
+        errMsg,
+      });
       throw Object.assign(new Error(`middleware task ${taskId} ${statusData.status}: ${errMsg.slice(0, 300)}`), {
         duration: Date.now() - startTs,
         timeoutMs,
@@ -133,6 +180,7 @@ export async function execClaudeViaMiddleware(
     await fetch(`${baseUrl}/task/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
   } catch { /* best effort */ }
 
+  flushForensic({ status: 'poll-timeout', errorSubtype: 'poll_timeout', retryable: true, timedOut: true });
   throw Object.assign(
     new Error(`middleware poll timeout after ${timeoutMs}ms (taskId=${taskId}, cancel sent)`),
     {
