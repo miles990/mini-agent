@@ -183,8 +183,20 @@ function redactEntry(entry: SubprocessForensicEntry): SubprocessForensicEntry {
   return redacted;
 }
 
+function sampleMemoryUsageMb(): number | undefined {
+  try {
+    const mu = process.memoryUsage();
+    return Math.round(mu.rss / (1024 * 1024));
+  } catch {
+    return undefined;
+  }
+}
+
 export function writeForensicEntry(entry: SubprocessForensicEntry, fullPrompt?: string): void {
   try {
+    if (entry.memory_usage_end_mb === undefined) {
+      entry.memory_usage_end_mb = sampleMemoryUsageMb();
+    }
     const { dump, reason } = shouldDumpFullPrompt(entry);
     if (dump && fullPrompt) {
       const hash12 = entry.user_prompt_hash.replace(/^sha256:/, '').slice(0, 12);

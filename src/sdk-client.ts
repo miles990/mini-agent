@@ -137,6 +137,10 @@ export async function execClaudeViaSdk(
         cwd: projectDir,
         allowedTools,
         maxTurns,
+        // Autonomous agent trade-off: Kuro is her own operator — no human-in-the-loop
+        // approval prompt makes sense in her OODA cycle. Safety is enforced upstream
+        // (allowedTools whitelist + workspace debounce + forensic audit trail), not
+        // by per-call approvals. See Akari code review for this commit.
         permissionMode: 'bypassPermissions',
       },
     });
