@@ -29,3 +29,12 @@
 - scripts/hn-ai-trend-enrich.mjs 打 `${LOCAL_LLM_URL}/v1/chat/completions`，設 `LOCAL_LLM_URL=http://localhost:8000` 即可啟用
 - 2026-04-24 path A/B 判斷 terminal-leaf 證據：path A 成立，不需寫 sibling script
 - cwd 陷阱：shell session cwd 可能是 agent-middleware 而非 <workspace> 報告的 mini-agent，probe 前先 pwd
+- [2026-04-24] [2026-04-24 16:40] hn-ai-trend-enrich local-MLX blocker 真根因鎖定：**不是 env、不是 silent log（已修 5fdd134f），是 Homebrew python 的 mlx_lm 安裝壞了**。
+- Binary: `/opt/homebrew/bin/mlx_lm.server` 存在
+- Error: `ImportError: dlopen ... Library not loaded: @rpath/libmlx.dylib` — mlx package 裝了但 dylib 找不到
+- Fix 路徑被擋：`pip3 install --upgrade mlx mlx-lm` 觸發 PEP 668 externally-managed-environment
+- 模型面零 blocker：`~/.cache/huggingface/hub/` 已有 `mlx-community/Qwen3.5-4B-MLX-4bit`、`Qwen3.6-27B-4bit` 等
+
+下 cycle 可執行步驟：
+```
+pyth
