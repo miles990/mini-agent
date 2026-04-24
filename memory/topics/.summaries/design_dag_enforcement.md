@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-17 -->
+<!-- Auto-generated summary — 2026-04-24 -->
 # design_dag_enforcement
 
-DAG 思考強制機制通過在 dispatcher 層加 gate（`acceptance` 必填）和讓 delegate 內部路由到 middleware brain 判斷簡繁程度，解決單步快速路徑讓 agent 避開 DAG 規劃的問題。核心信念是用機制強制而非紀律記憶，在寫 tag 當下就進行思考，防止被誘惑繞過深度規劃。
+設計 DAG 強制機制透過內部路由和必填驗收準則，強制在提交 delegate 前進行結構化規劃。核心信念是機制 > 紀律，系統在 spawn 時強制收斂條件，讓思考發生在寫 tag 當下而非事後靠記憶。分工為 CC 實作 dispatcher gate、Kuro 驗證路由邏輯。
