@@ -21,6 +21,7 @@ import { processContext, detectModelTier, type ModelTier } from './context-pipel
 import { buildSmallModelPrompt } from './prompt-builder.js';
 import { execClaudeViaSdk, isSdkEnabled } from './sdk-client.js';
 import { execClaudeViaMiddleware, isMiddlewareCycleEnabled } from './middleware-cycle-client.js';
+import { buildForensicEntryShell, writeForensicEntry, type ToolCallRecord } from './forensic-log.js';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -746,6 +747,21 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
     slog('CLAUDE', `Memory recovered to ${freeMemMB}MB after ${waitedSec}s — proceeding`);
   }
 
+  // Forensic entry shell — populated during spawn and flushed in close/error handlers.
+  const forensicShell = buildForensicEntryShell({
+    backend: 'cli',
+    cwd: subprocessCwd,
+    fullPrompt,
+    systemPromptSize: 0, // CLI systemPrompt is merged into stdin fullPrompt by caller
+    userPromptSize: fullPrompt.length,
+    args: args.slice(),
+    envRedactedKeys: ['ANTHROPIC_API_KEY'],
+    contextSource: { lane: source },
+    timeoutMs: TIMEOUT_MS,
+    workerType: source,
+  });
+  const forensicTools: ToolCallRecord[] = [];
+
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     let timedOut = false;
@@ -762,6 +778,7 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         detached: true, // 建立新進程群組，方便整體 kill
       },
     );
+    forensicShell.pid = child.pid ?? null;
 
     // Track PID for lane management (preemption support)
     if (source === 'loop') {
@@ -918,6 +935,15 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
                 const toolName = block.name ?? 'unknown';
                 const toolInput = (block.input ?? {}) as Record<string, unknown>;
                 writeAuditLog(toolName, toolInput);
+                // Forensic: record tool call for observability across SDK + CLI paths.
+                {
+                  const target =
+                    (toolInput.file_path as string | undefined) ??
+                    (toolInput.path as string | undefined) ??
+                    (toolInput.pattern as string | undefined) ??
+                    (typeof toolInput.command === 'string' ? toolInput.command.slice(0, 80) : undefined);
+                  forensicTools.push({ name: toolName, target, ok: true });
+                }
                 emitProgress();
                 // 即時更新 task — 讓 /status 顯示正在做什麼
                 { const task = activeTask();
@@ -1013,6 +1039,27 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         slog('CLAUDE', `Process terminated by signal ${signal} (not our timeout), elapsed=${(duration / 1000).toFixed(1)}s`);
       }
 
+      // Flush forensic entry — common to success and error paths. Fail-open.
+      try {
+        const now = Date.now();
+        const entry = { ...forensicShell };
+        entry.ts_end = new Date(now).toISOString();
+        entry.duration_ms = now - startTs;
+        entry.exit_code = code;
+        entry.signal = signal ?? null;
+        entry.killed_by = timedOut ? (killReason || 'parent_timeout') : (exitReason ?? null);
+        entry.timed_out = timedOut;
+        entry.tool_calls_count = toolCallCount;
+        entry.tool_calls_summary = forensicTools.length > 0 ? forensicTools : undefined;
+        entry.stdout_head_200 = resultText.slice(0, 200);
+        entry.stdout_tail_500 = resultText.slice(-500);
+        entry.stderr_full = stderr.slice(0, 4000);
+        entry.last_text_block_200 = (allTextBlocks[allTextBlocks.length - 1] ?? '').slice(-200);
+        entry.error_subtype = code === 143 ? 'exit143' : code !== 0 ? 'nonzero_exit' : null;
+        entry.retryable = code === 143 || timedOut ? true : null;
+        writeForensicEntry(entry, fullPrompt);
+      } catch { /* fail-open */ }
+
       if (code !== 0 && !resultText) {
         reject(Object.assign(new Error(`Claude CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS, toolCallCount, exitReason }));
       } else {
@@ -1050,6 +1097,22 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         if (slot) slot.pid = null;
       }
       chatStreamParser?.end();
+      // Forensic flush — spawn-level error (fork failure, etc). Fail-open.
+      try {
+        const now = Date.now();
+        const entry = { ...forensicShell };
+        entry.ts_end = new Date(now).toISOString();
+        entry.duration_ms = now - startTs;
+        entry.exit_code = null;
+        entry.signal = null;
+        entry.killed_by = 'spawn_error';
+        entry.error_subtype = 'spawn_error';
+        entry.retryable = true;
+        entry.tool_calls_count = toolCallCount;
+        entry.tool_calls_summary = forensicTools.length > 0 ? forensicTools : undefined;
+        entry.stderr_full = (err.message || '').slice(0, 2000);
+        writeForensicEntry(entry, fullPrompt);
+      } catch { /* fail-open */ }
       reject(Object.assign(err, { stderr, stdout: resultText, killed: timedOut, duration: Date.now() - startTs, timeoutMs: TIMEOUT_MS }));
     });
 

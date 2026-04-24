@@ -12,6 +12,7 @@ import { promisify } from 'node:util';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readPendingInbox, markInboxProcessed, inboxCache } from './inbox.js';
 import { rebuildIndex } from './search.js';
+import { gcForensicLogs } from './forensic-log.js';
 import { slog } from './utils.js';
 import {
   auditStaleTasks as auditStaleTasksFromIndex,
@@ -722,6 +723,11 @@ export async function runHousekeeping(): Promise<void> {
     await consolidateMemory().catch(() => {});
     // Contradiction scan — fire-and-forget, non-blocking
     scanContradictions().catch(() => {});
+    // Forensic log retention — delete subprocess forensic records >7 days.
+    try {
+      const removed = gcForensicLogs(7);
+      if (removed > 0) slog('HOUSEKEEPING', `forensic gc removed ${removed} file(s)`);
+    } catch { /* fail-open */ }
   }
 }
 

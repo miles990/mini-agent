@@ -30,6 +30,10 @@ interface WorkerInit {
   source: string;
   model?: string;
   maxThinkingTokens?: number;
+  cwd?: string;
+  allowedTools?: string[];
+  maxTurns?: number;
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
 }
 
 if (!process.send) {
@@ -72,14 +76,20 @@ async function run(init: WorkerInit): Promise<void> {
     if (init.maxThinkingTokens && init.maxThinkingTokens > 0) {
       options.maxThinkingTokens = init.maxThinkingTokens;
     }
+    if (init.cwd) options.cwd = init.cwd;
+    if (init.allowedTools && init.allowedTools.length > 0) options.allowedTools = init.allowedTools;
+    if (init.maxTurns && init.maxTurns > 0) options.maxTurns = init.maxTurns;
+    if (init.permissionMode) options.permissionMode = init.permissionMode;
 
+    let turnsUsed = 0;
     for await (const message of query({
       prompt: init.fullPrompt,
       options: options as Parameters<typeof query>[0]['options'],
     })) {
+      if ((message as { type?: string }).type === 'assistant') turnsUsed++;
       process.send!({ type: 'sdk-message', message });
     }
-    process.send!({ type: 'done' });
+    process.send!({ type: 'done', turns_used: turnsUsed, max_turns: init.maxTurns ?? null });
     // Let the parent observe 'done' then exit cleanly.
     setTimeout(() => process.exit(0), 100);
   } catch (err) {

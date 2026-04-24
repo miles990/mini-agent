@@ -24,6 +24,11 @@ import { performance } from 'node:perf_hooks';
 import path from 'node:path';
 import type { ExecOptions } from './agent.js';
 import { slog } from './utils.js';
+import { buildForensicEntryShell, writeForensicEntry, type ToolCallRecord } from './forensic-log.js';
+
+/** Tools the subprocess MUST be able to call in order for edits to land. */
+const DEFAULT_SDK_ALLOWED_TOOLS = ['Edit', 'Write', 'Read', 'Bash', 'Grep', 'Glob', 'WebFetch'];
+const DEFAULT_SDK_MAX_TURNS = 30;
 
 const WORKER_URL = new URL('./sdk-worker.js', import.meta.url);
 
@@ -63,14 +68,34 @@ export async function execClaudeViaSdk(
     workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'sdk-worker.js');
   }
 
+  const projectDir = process.cwd();
+  const allowedTools = DEFAULT_SDK_ALLOWED_TOOLS;
+  const maxTurns = DEFAULT_SDK_MAX_TURNS;
+
+  // Forensic entry shell — populated throughout the call, flushed in finish().
+  const forensicShell = buildForensicEntryShell({
+    backend: 'sdk',
+    cwd: projectDir,
+    fullPrompt,
+    systemPromptSize: 0, // SDK path uses preset systemPrompt in worker; fullPrompt is user input
+    userPromptSize: fullPrompt.length,
+    envRedactedKeys: ['ANTHROPIC_API_KEY'],
+    contextSource: { lane: source },
+    timeoutMs,
+    workerType: source,
+    maxTurns,
+  });
+
   return new Promise<string>((resolve, reject) => {
     const chunks: string[] = [];
     const blocksByType: Record<string, number> = {};
+    const toolCalls: ToolCallRecord[] = [];
     let thinkingChars = 0;
     let signatureChars = 0;
     let stopReason: string | null = null;
     let resultUsage: Record<string, unknown> | null = null;
     let model: string | null = null;
+    let turnsUsed = 0;
     let lastProgressTs = Date.now();
     let settled = false;
     let firstMessageMs = -1;
@@ -82,14 +107,18 @@ export async function execClaudeViaSdk(
     // fork spawns a new Node process — separate V8, separate libuv.
     // Parent event loop stays responsive regardless of what the child does.
     // We inherit the parent's env (the child filters it at startup).
+    // cwd=projectDir so SDK query() can resolve relative paths to repo files
+    // (Edit/Write src/... works without absolute prefix). Matches Tanren's pattern.
     const t_forkSpawn = performance.now();
     const child: ChildProcess = fork(workerPath, [], {
       silent: false,
       serialization: 'advanced',
+      cwd: projectDir,
       // stdio inherit: child stdout/stderr merges with parent log so slog in
       // the child (via `console.*`) still lands in server.log.
       stdio: ['pipe', 'inherit', 'inherit', 'ipc'],
     });
+    forensicShell.pid = child.pid ?? null;
     const forkSpawnMs = performance.now() - t_forkSpawn;
     if (forkSpawnMs > 200) {
       slog('PROFILE', `sdk-child fork() spawn ${Math.round(forkSpawnMs)}ms`);
@@ -105,6 +134,10 @@ export async function execClaudeViaSdk(
         source,
         model: opts?.model,
         maxThinkingTokens: opts?.maxThinkingTokens,
+        cwd: projectDir,
+        allowedTools,
+        maxTurns,
+        permissionMode: 'bypassPermissions',
       },
     });
 
@@ -117,6 +150,36 @@ export async function execClaudeViaSdk(
       if (!child.killed) {
         try { child.kill('SIGTERM'); } catch { /* already gone */ }
       }
+      // Flush forensic entry — fire-and-forget, fail-open inside writeForensicEntry.
+      try {
+        const now = Date.now();
+        const finalText = chunks.join('');
+        const entry = { ...forensicShell };
+        entry.ts_end = new Date(now).toISOString();
+        entry.duration_ms = now - startTs;
+        entry.tool_calls_count = toolCalls.length;
+        entry.tool_calls_summary = toolCalls.length > 0 ? toolCalls : undefined;
+        entry.turns_used = turnsUsed;
+        entry.last_text_block_200 = finalText.slice(-200);
+        if (err) {
+          const e = err as Error & { signal?: string; duration?: number };
+          entry.exit_code = null;
+          entry.signal = e.signal ?? null;
+          entry.error_subtype = /timeout|stalled/i.test(err.message) ? 'timeout' : 'sdk_error';
+          entry.timed_out = /timeout|stalled/i.test(err.message);
+          entry.retryable = true;
+          entry.killed_by = /timeout/i.test(err.message) ? 'parent_timeout'
+            : /stalled/i.test(err.message) ? 'parent_stall_guard'
+            : /crashed|exited early/i.test(err.message) ? 'child_crash'
+            : null;
+          entry.stderr_full = err.message.slice(0, 2000);
+        } else {
+          entry.exit_code = 0;
+        }
+        entry.stdout_head_200 = finalText.slice(0, 200);
+        entry.stdout_tail_500 = finalText.slice(-500);
+        writeForensicEntry(entry, fullPrompt);
+      } catch { /* fail-open */ }
       if (err) reject(err);
       else resolve(result ?? '');
     };
@@ -168,6 +231,15 @@ export async function execClaudeViaSdk(
             if (block.type === 'thinking') {
               thinkingChars += (block.thinking ?? '').length;
               signatureChars += (block.signature ?? '').length;
+            } else if (block.type === 'tool_use') {
+              const tu = block as unknown as { name?: string; input?: Record<string, unknown> };
+              const inp = tu.input ?? {};
+              const target =
+                (inp.file_path as string | undefined) ??
+                (inp.path as string | undefined) ??
+                (inp.pattern as string | undefined) ??
+                (typeof inp.command === 'string' ? inp.command.slice(0, 80) : undefined);
+              toolCalls.push({ name: tu.name ?? 'unknown', target, ok: true });
             } else if (typeof block.text === 'string') {
               chunks.push(block.text);
               if (opts?.onPartialOutput && block.text) {
@@ -209,6 +281,8 @@ export async function execClaudeViaSdk(
           );
         }
       } else if (msg.type === 'done') {
+        const done = msg as unknown as { turns_used?: number };
+        if (typeof done.turns_used === 'number') turnsUsed = done.turns_used;
         finish(null, chunks.join(''));
       } else if (msg.type === 'error') {
         finish(Object.assign(new Error(`SDK query failed: ${(msg as unknown as { message: string }).message}`), {
