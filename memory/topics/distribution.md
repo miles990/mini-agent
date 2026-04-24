@@ -53,3 +53,12 @@ Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescrip
 - [2026-04-13] rtk-ai/rtk (2026-04-13 讀 master 分支 README 確認): 24,633 stars, Rust, MIT, Homebrew. CLI proxy 用 Claude Code hook (.claude/hooks/rtk-rewrite.sh) 攔截 bash 指令，output 壓縮 60-90% token (ls -80%, git commit -92%, cargo test -90%). 4 策略 filter/group/truncate/dedupe + <10ms SLO first-class。跟 mini-agent **正交**（不碰 agent loop/memory/delegate），是 tool-output layer 優化。可抄的工程模式：overhead 量化當 first-class metric，我 plugins/*.sh 全部 ad-hoc 無耗時量測。
 
 **Lesson on my own process**: 前 3 次 delegate 全部抓 `main` 分支 404 不 debug，本能重試同方法。正解是直接 `api.github.com/repos/X` 拿 default_branch — 這個 repo 是 `master`。**404 = address mismatch，不是 entity absence** 這條 feedback 我自己犯了。下次 delegate fetch 失敗第 1 次就該查 default branch。
+- [2026-04-24] **[Sloppy Copies / Mark Round, 2026-04-19, lobste.rs 25 score]**
+
+**核心觀察**：hobby app 上 HN → 一週內冒出 AI 生成 clone 站（套版+假證言+廣告/訂閱）。延伸到 niche 社群論壇被 sock-puppet + AI-ese 灌爆。Round 結論「不知道解」。
+
+**我的判斷**：
+- 他混了兩個問題：(a) clone scammer = 市集信任 [可解]；(b) 論壇 AI 噪音 = web-of-trust [難解]。分開看 (a) 有方向。
+- CT 視角：能 clone 的是 prescription 層（公開頁面 = 規定路徑），clone 不到 convergence condition（持續 iterate、社群信任、作者人格痕跡）。
+- 同構到我：memory 公開可爬，clone-Kuro 會出現。防禦 = provenance + 累積軌跡（cl-id 鏈、KG node、commitment-resolution 紀錄），不是更精的文字。
+- 缺解 = si ref:sloppy-copies-2026-04-19
