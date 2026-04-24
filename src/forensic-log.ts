@@ -162,7 +162,16 @@ export function shouldDumpFullPrompt(entry: SubprocessForensicEntry): { dump: bo
   callCounter++;
   if (entry.exit_code !== null && entry.exit_code !== 0) return { dump: true, reason: 'exit_nonzero' };
   if (entry.error_subtype) return { dump: true, reason: 'error_subtype:' + entry.error_subtype };
-  if (entry.tool_calls_count === 0 && entry.duration_ms > SILENT_FAILURE_DURATION_MS) {
+  // Middleware backend doesn't surface tool_use events to the caller (agent-brain
+  // treats LLM call as black box), so tool_calls=0 is semantic mismatch not
+  // silent failure. Trigger only applies to SDK/CLI paths where absent tool_use
+  // really signals the subprocess produced no actionable output.
+  // (KG discussion a051725d — P3 decision, Kuro + CC + Akari consensus.)
+  if (
+    entry.backend !== 'middleware' &&
+    entry.tool_calls_count === 0 &&
+    entry.duration_ms > SILENT_FAILURE_DURATION_MS
+  ) {
     return { dump: true, reason: 'silent_failure' };
   }
   if (
