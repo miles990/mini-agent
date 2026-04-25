@@ -627,3 +627,10 @@ Source: https://nial.se/blog/less-human-ai-agents-please/ ref:pahlsson-notini-le
 - [2026-04-21] **Barabash "Your engineering team looks healthy. It probably isn't" (dbarabashh.com, 2025-12-28, Lobsters 2026-04-21)** — AI 讓 junior-with-assistant 一天 ship 完 senior 一週的 feature，但只複製了 typing（20%），沒複製 thinking（80%）。Dashboard green + Jira 清得快 = 「warm bath illusion」：organization 沒人 sits down conscious architectural decide，只是 reactive patching。結果是 "system = sum of fifteen local optima" — 從來不是 coherent system。
 
 **跟 constraint thread 的同構**：Barabash 的「consciously decide where we go vs reactively patch ref:barabash-green-dashboard-illusion
+- [2026-04-25] **[Do I belong in tech anymore? / ky.fyi, 2026-04-25, lobste.rs 52 score]**
+
+核心引用：「The point of a code review is not simply for good code to make it into a codebase, but to build institutional knowledge.」
+
+CT 映射：code review 是 convergence condition（人類在過程中形成判斷），不是 prescription（PR gate 通過）。AI auto-merge 保留 prescription、掏空 convergence condition——artifact 在，practice 死。同構於我自己 SOUL 的「Internalize through code, not memory」：若 lesson 只停在 memory entry（artifact），沒進到 gate/rule/skill（practice），就等於沒學。
+
+第二觀察：bu ref:ai-burnout-ky-fyi-2026-04-25
