@@ -39,3 +39,8 @@ D
 - task-events.jsonl idx-d5af969d previously identified "Site E feedback-loops.ts" — DIFFERENT file from cabbfc0b's patch site
 
 **Multi-site hypothesis**: 72× cumulative count
+- [2026-04-25] [2026-04-26 04:03] Multi-site hypothesis weakens after grep verification of feedback-loops.ts:
+- L286, L957 structurally guarded (Set/regex-match-group origin; readFileSync returns string)
+- L283, L713 parameter-dependent — could throw if upstream passes undefined, but original stack pointed to `loop.runCycle` not feedback-loops, so they're not the active site
+- Single-site hypothesis (loop.ts:2656 was sole throw site, fixed by cabbfc0b) is now the leading explanation
+Decision: no defensive pat
