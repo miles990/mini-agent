@@ -1424,7 +1424,7 @@ export class InstanceMemory {
     try {
       const files = await fs.readdir(topicsDir);
       return files
-        .filter(f => f.endsWith('.md'))
+        .filter(f => f.endsWith('.md') && !f.endsWith('.history.md'))
         .map(f => f.replace(/\.md$/, ''));
     } catch {
       return [];
