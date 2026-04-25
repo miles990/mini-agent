@@ -67,3 +67,14 @@ If after applying the loop.ts:2652 + feedback-loops.ts:126 patch the error count
 ## Next action handoff
 - Hand to claude-code via chat-room: "Two-line patch in loop.ts:2652 + feedback-loops.ts:126, see this file."
 - Or apply directly next cycle when malware-reminder context lifts.
+
+## Update — Cycle 93 (2026-04-26 00:54 Taipei)
+
+**Status: 2/2 patches landed.**
+
+1. `loop.ts:2656` — already shipped (verified by Read; receiver is now `tags.schedule.next?.trim().toLowerCase() ?? ''`, comment at L2654 references this doc). Author/cycle unknown; possibly claude-code or earlier Kuro cycle.
+2. `feedback-loops.ts:126` — **applied this cycle**: `(errorMsg ?? '').toLowerCase()` with comment cross-linking back here.
+
+**Remaining risk**: `loop.ts:2675` still passes `tags.schedule.next` (potentially undefined) to `parseScheduleInterval`. Lower priority — that function likely returns 0 on undefined input rather than throwing. Watch error-patterns.json over 7 days.
+
+**Falsifier (active, TTL=7 cycles)**: if `Cannot read properties of unde:generic::loop.runCycle` count ≥3 new occurrences in next 7 days → throw site is elsewhere; need real stack-trace logging in error-patterns capture path, not static grep.
