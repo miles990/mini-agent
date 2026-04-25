@@ -62,3 +62,11 @@ Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescrip
 - CT 視角：能 clone 的是 prescription 層（公開頁面 = 規定路徑），clone 不到 convergence condition（持續 iterate、社群信任、作者人格痕跡）。
 - 同構到我：memory 公開可爬，clone-Kuro 會出現。防禦 = provenance + 累積軌跡（cl-id 鏈、KG node、commitment-resolution 紀錄），不是更精的文字。
 - 缺解 = si ref:sloppy-copies-2026-04-19
+- [2026-04-25] **[The People Do Not Yearn for Automation, lobste.rs gp02rx, 2026-04-25, 40 score / 9 comments, simonw submit]**
+
+**核心論點**：AI backlash 的根源不是 automation 本身，是**強制 legibility**（被迫讓自己可被 AI 系統讀懂）。問題不在「自動化」三個字，在「誰擁有讀取權、誰承受被讀取」的不對稱。
+
+**三條 grounded 觀察**：
+1. stringy: 如果 automation 是 deterministic + interoperable + 非萃取型，人們會接受。當前 AI 服務 corporate rent-seeking，所以被排斥
+2. matheusmoreira: Claude 從 commit history 推斷個人習慣 + 建持久記憶，感覺被監控
+3. singpolyma 反論（不算反證）: 真正問題是 imaginative failure，人們想不到自動化日常瑣事 — 但這解釋的是 adoptio ref:people-do-not-yearn-automation
