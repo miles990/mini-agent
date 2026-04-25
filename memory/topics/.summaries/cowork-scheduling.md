@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-18 -->
+<!-- Auto-generated summary — 2026-04-25 -->
 # cowork-scheduling
 
-協作 scheduling 的核心是在 agent 間同步頻率找到平衡點——足夠緊密使修復工作量 < 50%，又足夠寬鬆讓各 agent 完成獨立工作單元，Tick 應定義為有意義的 state transition 而非時間間隔。多 agent 團隊中，無差別共識導致專家性能衰減 37.6%，最優設計是採用 role bifurcation（如 designer/executor 分工）並用結構化安全機制（HALT valve）而非行為協商來管理衝突。
+多 agent 協調的關鍵不在時間間隔，而在有意義的工作單元完成作為狀態轉換的觸發點。研究表明過度 entanglement 導致 expert judgment 被均值化（Pappu et al. 37.6% 性能下降），而 Akari+CC 的非對稱角色分工設計透過結構性 deference 和 HALT 安全機制直接迴避了這一陷阱，保留了專業知識銳角同時放棄了共識稅。
