@@ -1,0 +1,9 @@
+# Topics that are never evicted from the hot index regardless of LRU age
+# One topic name per line (must match the .md filename without extension)
+soul
+heartbeat
+agent-os
+agent-architecture
+middleware-as-organ
+constraint-texture
+memory-decay

@@ -1000,6 +1000,7 @@ export class InstanceMemory {
 
       await fs.writeFile(memoryPath, updated, 'utf-8');
       committed = true;
+      await this.enforceMemoryCap(memoryPath, updated);
     });
 
     // B3 provenance tail — best-effort, never throws (see memory-provenance.ts contract)
@@ -1064,9 +1065,11 @@ export class InstanceMemory {
       } else {
         await fs.writeFile(topicPath, `# ${topic}\n\n${entry}`, 'utf-8');
       }
+      await this.enforceTopicFileCap(topicPath);
     });
 
     invalidateTopicKeywordCache();
+    void this.enforceHotIndexCap(topicsDir);
 
     void import('./kg-live-ingest.js').then((m) =>
       m.onMemoryWrite({
@@ -1535,11 +1538,121 @@ export class InstanceMemory {
    * 更新 HEARTBEAT.md
    */
   async updateHeartbeat(content: string): Promise<void> {
+    const capped = this.applyHeartbeatCap(content);
     await ensureDir(this.memoryDir);
     const heartbeatPath = path.join(this.memoryDir, 'HEARTBEAT.md');
     await withFileLock(heartbeatPath, async () => {
-      await fs.writeFile(heartbeatPath, content, 'utf-8');
+      await fs.writeFile(heartbeatPath, capped, 'utf-8');
     });
+  }
+
+  // cap oldest completed ([x]) entries out when HEARTBEAT exceeds 80 lines
+  private applyHeartbeatCap(content: string): string {
+    const CAP = 80;
+    const lines = content.split('\n');
+    if (lines.length <= CAP) return content;
+
+    const completedIdxs: number[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (/^- \[x\]/i.test(lines[i])) completedIdxs.push(i);
+    }
+
+    const excess = lines.length - CAP;
+    const evictIdxs = new Set(completedIdxs.slice(0, excess));
+    if (evictIdxs.size === 0) return content;
+
+    const evicted = lines.filter((_, i) => evictIdxs.has(i));
+    const archiveMonth = new Date().toISOString().slice(0, 7);
+    const archivePath = path.join(this.memoryDir, 'archive', `heartbeat-${archiveMonth}.md`);
+    try {
+      mkdirSync(path.join(this.memoryDir, 'archive'), { recursive: true });
+      appendFileSync(archivePath, evicted.join('\n') + '\n');
+    } catch {}
+
+    return lines.filter((_, i) => !evictIdxs.has(i)).join('\n');
+  }
+
+  // evict MEMORY.md entries older than 45 days when entry count exceeds 50
+  private async enforceMemoryCap(memoryPath: string, written: string): Promise<void> {
+    const MAX_ENTRIES = 50;
+    const TTL_MS = 45 * 86400_000;
+    const lines = written.split('\n');
+    const entryCount = lines.filter(l => /^- \[\d{4}-\d{2}-\d{2}\]/.test(l)).length;
+    if (entryCount <= MAX_ENTRIES) return;
+
+    const cutoff = Date.now() - TTL_MS;
+    const evicted: string[] = [];
+    const kept: string[] = [];
+    for (const line of lines) {
+      const m = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
+      if (m && new Date(m[1]).getTime() < cutoff) {
+        evicted.push(line);
+      } else {
+        kept.push(line);
+      }
+    }
+    if (evicted.length === 0) return;
+
+    const archivePath = path.join(this.memoryDir, 'archive', `memory-${new Date().getFullYear()}.md`);
+    await ensureDir(path.join(this.memoryDir, 'archive'));
+    await fs.appendFile(archivePath, evicted.join('\n') + '\n', 'utf-8');
+    await fs.writeFile(memoryPath, kept.join('\n'), 'utf-8');
+  }
+
+  // split a topic file that exceeds 20kB: oldest 40% → <topic>.history.md
+  private async enforceTopicFileCap(topicPath: string): Promise<void> {
+    const CAP_BYTES = 20 * 1024;
+    try {
+      const stat = await fs.stat(topicPath);
+      if (stat.size <= CAP_BYTES) return;
+      const content = await fs.readFile(topicPath, 'utf-8');
+      const lines = content.split('\n');
+      const splitAt = Math.floor(lines.length * 0.4);
+      await fs.appendFile(topicPath.replace(/\.md$/, '.history.md'), lines.slice(0, splitAt).join('\n') + '\n', 'utf-8');
+      await fs.writeFile(topicPath, lines.slice(splitAt).join('\n'), 'utf-8');
+    } catch {}
+  }
+
+  // evict LRU topics from hot index when count exceeds 50; respect .topics-pinned
+  private async enforceHotIndexCap(topicsDir: string): Promise<void> {
+    const HOT_CAP = 50;
+    try {
+      const pinned = new Set<string>();
+      try {
+        const raw = await fs.readFile(path.join(topicsDir, '.topics-pinned'), 'utf-8');
+        for (const line of raw.split('\n')) {
+          const t = line.trim().replace(/^#.*/, '').trim();
+          if (t) pinned.add(t);
+        }
+      } catch {}
+
+      const entries = await fs.readdir(topicsDir, { withFileTypes: true });
+      const topicFiles = entries
+        .filter(e => e.isFile() && e.name.endsWith('.md') && !e.name.startsWith('.'))
+        .map(e => e.name.slice(0, -3));
+
+      if (topicFiles.length <= HOT_CAP) return;
+
+      const evictable = topicFiles.filter(t => !pinned.has(t));
+      const withMtime = await Promise.all(evictable.map(async t => {
+        try {
+          const s = await fs.stat(path.join(topicsDir, `${t}.md`));
+          return { t, mtime: s.mtimeMs };
+        } catch { return { t, mtime: 0 }; }
+      }));
+      withMtime.sort((a, b) => a.mtime - b.mtime);
+
+      const excess = topicFiles.length - HOT_CAP;
+      const archiveDir = path.join(topicsDir, '.archive');
+      await ensureDir(archiveDir);
+
+      for (const { t } of withMtime.slice(0, excess)) {
+        try {
+          await fs.rename(path.join(topicsDir, `${t}.md`), path.join(archiveDir, `${t}.md`));
+        } catch {}
+      }
+      if (excess > 0) invalidateTopicKeywordCache();
+    } catch {}
   }
 
   /**
