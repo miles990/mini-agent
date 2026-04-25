@@ -2649,7 +2649,12 @@ export class AgentLoop {
       // <kuro:schedule> tag — Kuro 自主排程覆蓋
       this.lastCycleHadSchedule = !!tags.schedule;
       if (tags.schedule) {
-        const isNow = tags.schedule.next.trim().toLowerCase() === 'now';
+        // Guard: tags.schedule.next may be undefined when LLM emits <kuro:schedule>
+        // with only nested fields (e.g. <reason>) and no <next>. Without this guard
+        // .trim() throws "Cannot read properties of undefined" — see recurring error
+        // "Cannot read properties of unde:generic::loop.runCycle" (72× through 2026-04-25).
+        const nextRaw = tags.schedule.next?.trim().toLowerCase() ?? '';
+        const isNow = nextRaw === 'now';
         if (isNow) {
           this.consecutiveNowCount++;
         } else {
