@@ -4,7 +4,36 @@ related: [teaching-monster-strategy, teaching-monster-competitors, teaching-mons
 # Teaching Monster 競賽 — 完整資訊盤點
 
 > 結構化盤點 + 約束框架分析。競爭情報另見 `teaching-monster-competitors.md`。
-> Last updated: 2026-04-05
+> Last updated: 2026-04-25
+
+---
+
+## [2026-04-25] Comp 2 → Comp 3 regression mechanism hypothesis (n=4-6, premature but testable)
+
+**Per-dimension delta (Kuro-Teach)**:
+- accuracy 4.9 → 4.4 (−0.5)
+- logic 5.0 → 4.4 (**−0.6**, was at ceiling)
+- engagement 4.4 → 4.5 (stable, slight up)
+- adaptability ≈ 4.4 (stable)
+
+**vs Comp 3 leader tsunumon (n=6-7)**: Kuro behind on acc (−0.2), logic (−0.1), engage (−0.1); ahead on adapt (+0.1).
+
+**Hypothesis**: regression is driven by **prompt overspecialization to Comp 2 topic**, not pipeline/quality regression.
+
+**Cross-evidence chain**:
+1. Comp 2 logic = 5.0 ceiling → Comp 3 logic 4.4 = single largest drop
+2. tm-calibration-log (2026-04-12 ef338be entry): "audit 的 logic = 論證連貫+結構完整，跟 coherence checks 直接重疊"
+3. Coherence checks operate on topic-aligned vocab/example/tone (calibration log: 5 checks 中 4 個實質測 coherence)
+4. Engagement (which generalizes across topics) stayed stable; logic-via-coherence (which depends on topic) collapsed
+5. Pattern: dimension that depends on topic-bound surface features regressed; dimension that depends on cross-topic structure didn't
+
+**Falsifier**: pull Comp 2 vs Comp 3 題目主題對比 — if topics are in same domain class, hypothesis is weak (regression is something else, e.g. n=4 noise). If topics differ in class (e.g. concrete-skill vs abstract-concept), hypothesis is strong → next move is topic-conditional prompt branch, not generic prompt tuning.
+
+**Next-cycle action**: fetch Comp 3 主題 from TM API or grep tm-poll-2026-04-17.md → compare to Comp 2 題目 class → run falsifier above before any pipeline change.
+
+**Why this matters for 5/1 deadline**: 6 days out. n=4 → n=30 stabilization will take audit cycles. If the regression mechanism is topic-specialization, the fix is **add Comp 3 topic-conditional prompt branch**, not generic engagement patches. Wrong mechanism = wasted 6 days.
+
+**Performative-skepticism check**: this is a hypothesis, not a fix. Don't ship a "fix" until falsifier runs. Mark this commitment refuted if next cycle's topic-comparison shows same class.
 
 ---
 
