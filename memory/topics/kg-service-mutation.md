@@ -6,3 +6,10 @@
 - PUT /api/v1/knowledge/{id}/ai — AI summary only (NOT general mutation). cl-17 PUT 405 root cause.
 - POST/GET/DELETE on /knowledge or /knowledge/{id} — standard CRUD.
 - No /relationships endpoint exists. Relations encoded inline as markdown `## Related` sect
+- [2026-04-25] [2026-04-25 16:07] KG mutation surface confirmed via server.go grep:
+- `PATCH /api/v1/knowledge/{id}` = content/tags/status update (THE general mutator)
+- `PUT /api/v1/knowledge/{id}/ai` = AI summary only (sub-resource)
+- `DELETE /api/v1/knowledge/{id}` = removal
+- No `/relationships` or `/edges` route exists (cl-12 confirmed)
+
+Implication: KG is **mutable document store**, not append-only. Relations live as markdown sections inside content (`## Related` convention), edited via PATCH after init
