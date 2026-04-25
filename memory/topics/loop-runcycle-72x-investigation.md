@@ -21,3 +21,10 @@
 - [2026-04-25] [2026-04-25 21:22] **CASE CLOSED — 72× `Cannot read properties of unde:generic::loop.runCycle` was already fixed by claude-code c2e1cc78 at 13:51 Taipei.**
 
 **Real root cause** (NOT in src/loop.ts): `cycle-state.ts:isResearchOnlyAction()` called `entry.action.toLowerCase()` on a `WorkJournalEntry` whose `action` was undefined — foreign-schema entry written into work-journal.jsonl with shape `{kind, summary, evidence}` instead of `{action, sideEffects}`. Same root-cause family as `formatWorkJour
+- [2026-04-25] [2026-04-26 00:24] cl-83 ground truth：72× `loop.runCycle toLowerCase` 的 4 個 unguarded throw site：
+- `pulse.ts:306` `goalSummary.toLowerCase().slice(0,60)` — getGoalKey 入口無 guard
+- `pulse.ts:313` `action.toLowerCase().split(/\s+/)` — getActionTerms 入口無 guard
+- `pulse.ts:378` `goalSummary.toLowerCase()` — expandGoalKeywords 入口無 guard
+- `cycle-state.ts:392` `action.toLowerCase().includes(kw)` — inferTopics 入口待確認
+
+修法：3 處統一加 `?? ''` 預設值。預估 5 行 patch + 1 個 unit test 餵 undefined 確認不再 throw。
