@@ -66,7 +66,12 @@ function buildCycleGuide(): string {
 // =============================================================================
 
 /** Parse human-friendly interval string (e.g. "30m", "2h", "5m", "now") to ms. Returns 0 on invalid. */
-export function parseScheduleInterval(s: string): number {
+export function parseScheduleInterval(s: string | undefined | null): number {
+  // Defensive: caller may pass tags.schedule.next which can be undefined when
+  // <kuro:schedule> is emitted without a <next> field. Without this guard,
+  // s.trim() throws — root cause of "Cannot read properties of unde:generic::loop.runCycle"
+  // (72× through 2026-04-25).
+  if (!s) return 0;
   // "now" = continuation signal — run next cycle after brief cooldown
   if (s.trim().toLowerCase() === 'now') return 30_000;
   const m = s.match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|s|sec)$/i);

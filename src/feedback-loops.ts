@@ -123,7 +123,10 @@ export const PROTECTIVE_SUBTYPES = new Set([
  * 造成 recurring-errors 提示無法指向具體成因。signal 來自 agent.ts classifyError 的訊息模板。
  */
 export function extractErrorSubtype(errorMsg: string): string {
-  const lower = errorMsg.toLowerCase();
+  // Defensive: TS signature is `string` but runtime callers may pass undefined
+  // when error objects lack `.message`. Recurring "Cannot read properties of unde::loop.runCycle"
+  // (72× through 2026-04-25) — see memory/topics/tolowercase-throw-site-findings.md.
+  const lower = (errorMsg ?? '').toLowerCase();
   if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure') || lower.includes('system memory too low') || lower.includes('deferring to prevent')) return 'memory_guard';
   if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線')) return 'econnrefused';
   if (lower.includes('exit 143') || lower.includes('sigterm')) {
