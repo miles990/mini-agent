@@ -31,3 +31,11 @@
 - [2026-04-25] [2026-04-26 00:59 Taipei] Patch shipped as commit `cabbfc0b` — `src/loop.ts:2656` null-guard `tags.schedule.next?.trim().toLowerCase() ?? ''`. Baseline at commit time: error count 72, lastSeen 2026-04-25. Falsifier window: 7 days. If by 2026-05-03 the count is still climbing at ~10/day, `.next` is not the (sole) throw site — open Step 2 with stack-trace instrumentation (current handler swallows `err.stack`). If count flatlines at 72: mechanism confirmed, mark task `idx-d5af969d` verify=pass.
 
 D
+- [2026-04-25] [2026-04-26 04:00] cabbfc0b verification window — 3h, 0 new errors, preliminary pass.
+
+**Grounded facts**:
+- cabbfc0b commit time: 2026-04-26 01:01:03 +0800 (loop.ts:2652 guard tags.schedule.next)
+- error-patterns.json: count=72, lastSeen=2026-04-25 (mtime 2026-04-26 04:00:54 — file rewritten since commit, count unchanged)
+- task-events.jsonl idx-d5af969d previously identified "Site E feedback-loops.ts" — DIFFERENT file from cabbfc0b's patch site
+
+**Multi-site hypothesis**: 72× cumulative count

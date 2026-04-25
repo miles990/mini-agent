@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-18 -->
+<!-- Auto-generated summary — 2026-04-25 -->
 # foreground-lane-duplicate-reply-investigation
 
-Foreground lane duplicate replies to a single message remain unconfirmed in root cause due to missing emission-side logging—the fast-path bypasses plan/result logs entirely, making it impossible to distinguish between inbox dedup bugs, brain emission bugs, or transport retries. The structural fix requires adding dedup guards and lightweight foreground emission logs to the middleware. Low severity (one-time report, no recurrence observed) but actionable if it recurs.
+Six investigation cycles found the root cause of four duplicate replies to fg-17764 unconfirmed—likely either an inbox dedup bug, brain emission bug, or chat room delivery retry issue—because the foreground lane bypasses plan/result logging entirely. The structural fix is adding a dedup guard on chat emissions and a lightweight foreground emission log, both as code changes to the middleware. Severity is low (one-time report, no recurrence observed); monitor before implementing.
