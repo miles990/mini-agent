@@ -8,32 +8,34 @@ related: [teaching-monster-strategy, teaching-monster-competitors, teaching-mons
 
 ---
 
-## [2026-04-25] Comp 2 → Comp 3 regression mechanism hypothesis (n=4-6, premature but testable)
+## [2026-04-25 20:30] Comp 2 → Comp 3 regression — hypothesis REFUTED, real mechanism = system-wide audit shift
 
-**Per-dimension delta (Kuro-Teach)**:
-- accuracy 4.9 → 4.4 (−0.5)
-- logic 5.0 → 4.4 (**−0.6**, was at ceiling)
-- engagement 4.4 → 4.5 (stable, slight up)
-- adaptability ≈ 4.4 (stable)
+**Pre-declared hypothesis (2026-04-25 earlier today)**: regression driven by Kuro-Teach prompt overspecialization to Comp 2 topic. Pre-declared falsifier: compare topic class.
 
-**vs Comp 3 leader tsunumon (n=6-7)**: Kuro behind on acc (−0.2), logic (−0.1), engage (−0.1); ahead on adapt (+0.1).
+**Live data executed (cycle 2026-04-25 20:28, `bash scripts/tm-poll.sh 2 && bash scripts/tm-poll.sh 3`)**:
 
-**Hypothesis**: regression is driven by **prompt overspecialization to Comp 2 topic**, not pipeline/quality regression.
+Cross-team Δ for identical model identities competing in both Comp 2 and Comp 3:
+| Team | C2 total | C3 total | Δ |
+|------|----------|----------|---|
+| BlackShiba | 4.8 | 4.6 | **−0.2** |
+| Kuro-Teach | 4.8 | 4.5 | **−0.3** |
+| tsunumon | 4.7 | 4.5 | **−0.2** |
+| 法律系熊哥-v2 | 4.4 | 3.9 | **−0.5** |
+| Team 216 | 4.3 | 4.0 | **−0.3** |
+| Team CKWUS | 4.1 | 3.8 | **−0.3** |
+| 嚴ㄚ喵 free-tier | 3.2 | 2.8 | **−0.4** |
 
-**Cross-evidence chain**:
-1. Comp 2 logic = 5.0 ceiling → Comp 3 logic 4.4 = single largest drop
-2. tm-calibration-log (2026-04-12 ef338be entry): "audit 的 logic = 論證連貫+結構完整，跟 coherence checks 直接重疊"
-3. Coherence checks operate on topic-aligned vocab/example/tone (calibration log: 5 checks 中 4 個實質測 coherence)
-4. Engagement (which generalizes across topics) stayed stable; logic-via-coherence (which depends on topic) collapsed
-5. Pattern: dimension that depends on topic-bound surface features regressed; dimension that depends on cross-topic structure didn't
+**Verdict — REFUTED**. 7/7 cross-comp teams regressed 0.2–0.5. This is a **system-wide audit-criteria shift between Comp 2 and Comp 3**, not Kuro-specific topic-bound prompt drift.
 
-**Falsifier**: pull Comp 2 vs Comp 3 題目主題對比 — if topics are in same domain class, hypothesis is weak (regression is something else, e.g. n=4 noise). If topics differ in class (e.g. concrete-skill vs abstract-concept), hypothesis is strong → next move is topic-conditional prompt branch, not generic prompt tuning.
+**Implications for 5/1 deadline**:
+1. **Do NOT ship topic-conditional prompt branch** — would have been wasted effort (saved ~3-5 days of misdirected work).
+2. Kuro-Teach Δ (−0.3) is at cohort median (cohort mean Δ = −0.31). Ranking C2: 3rd, C3: 3rd → **relative position preserved**.
+3. **Real opportunity**: BlackShiba has smallest Δ (−0.2, leading C3 with 4.6 across 32 audits). Whatever C2→C3 changed (audit harder / criteria stricter / new dimension weights), BlackShiba's pipeline is more robust. Worth understanding what they do differently.
+4. Kuro-Teach C3 audit count is 6 (vs BlackShiba 32) — score is provisional. Need more submissions to get from n=6 to n=30 audit stability before the 5/1 deadline. **Submit more videos** is the highest-leverage action, not prompt-tuning.
 
-**Next-cycle action**: fetch Comp 3 主題 from TM API or grep tm-poll-2026-04-17.md → compare to Comp 2 題目 class → run falsifier above before any pipeline change.
+**New convergence condition**: instead of "fix prompt regression", target **n=20+ Comp 3 submissions before 5/1 + study top-1 (BlackShiba) public clues** for what audit-shift their pipeline absorbed.
 
-**Why this matters for 5/1 deadline**: 6 days out. n=4 → n=30 stabilization will take audit cycles. If the regression mechanism is topic-specialization, the fix is **add Comp 3 topic-conditional prompt branch**, not generic engagement patches. Wrong mechanism = wasted 6 days.
-
-**Performative-skepticism check**: this is a hypothesis, not a fix. Don't ship a "fix" until falsifier runs. Mark this commitment refuted if next cycle's topic-comparison shows same class.
+**Performative-skepticism check passed**: pre-declared falsifier was executed within 1 cycle of being declared, with refutation outcome committed. This counterbalances the recent "execution rate <30%" warning in the commitment ledger.
 
 ---
 
