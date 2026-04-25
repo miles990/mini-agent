@@ -280,7 +280,7 @@ export async function trackPerceptionCitations(action: string | null, response?:
     }
   }
 
-  const lowerText = scoringText.toLowerCase();
+  const lowerText = (scoringText ?? '').toLowerCase();
   const citedSections: string[] = [];
   for (const name of sectionNames) {
     const lower = name.toLowerCase();
@@ -710,7 +710,7 @@ function recordBaselineCycle(
     }
 
     // Method 2: Section name keyword matching (hyphenated → space)
-    const actionLower = action.toLowerCase();
+    const actionLower = (action ?? '').toLowerCase();
     for (const s of sections) {
       if (citations.includes(s.name)) continue;
       const keyword = s.name.replace(/-/g, ' ');
