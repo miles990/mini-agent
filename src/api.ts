@@ -3066,8 +3066,16 @@ process.on('uncaughtException', (err) => {
     diagLog('WARN.epipe', err);
     return;
   }
+  // Print full error to stderr first so it survives even if diagLog/logger fails
+  // (previous handler stringified the wrapper object as `[object Object]`).
+  try {
+    const e = err as Error & NodeJS.ErrnoException;
+    console.error(`[FATAL.uncaught] ${e?.name ?? 'Error'}: ${e?.message ?? String(err)}`);
+    if (e?.code) console.error(`  code=${e.code}`);
+    if (e?.stack) console.error(e.stack);
+  } catch { /* never let logging crash exit path */ }
   const mem = process.memoryUsage();
-  diagLog('FATAL.uncaught', { error: err, heapUsedMB: Math.round(mem.heapUsed / 1048576), heapTotalMB: Math.round(mem.heapTotal / 1048576), rssMB: Math.round(mem.rss / 1048576), externalMB: Math.round(mem.external / 1048576) });
+  diagLog('FATAL.uncaught', err, { heapUsedMB: String(Math.round(mem.heapUsed / 1048576)), heapTotalMB: String(Math.round(mem.heapTotal / 1048576)), rssMB: String(Math.round(mem.rss / 1048576)), externalMB: String(Math.round(mem.external / 1048576)) });
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {

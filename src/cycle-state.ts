@@ -127,20 +127,40 @@ export function writeWorkJournal(entry: WorkJournalEntry): void {
   } catch { /* fire-and-forget */ }
 }
 
+function isValidWorkJournalEntry(v: unknown): v is WorkJournalEntry {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.cycle === 'number'
+    && typeof o.action === 'string'
+    && Array.isArray(o.tags)
+    && Array.isArray(o.sideEffects);
+}
+
 export function loadWorkJournal(limit: number = 5): WorkJournalEntry[] {
   const filePath = getWorkJournalPath();
   if (!filePath || !fs.existsSync(filePath)) return [];
   try {
     const lines = fs.readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
-    return lines.slice(-limit).map(l => JSON.parse(l) as WorkJournalEntry);
+    // Parse defensively — malformed/foreign-schema rows (e.g. crystallization
+    // entries accidentally appended) must not crash startup.
+    const parsed: WorkJournalEntry[] = [];
+    for (const l of lines) {
+      try {
+        const v = JSON.parse(l);
+        if (isValidWorkJournalEntry(v)) parsed.push(v);
+      } catch { /* skip unparseable */ }
+    }
+    return parsed.slice(-limit);
   } catch { return []; }
 }
 
 export function formatWorkJournalContext(entries: WorkJournalEntry[]): string {
   const lines = entries.map(e => {
-    const tagsStr = e.tags.length > 0 ? ` [${e.tags.join(',')}]` : '';
-    const effects = e.sideEffects.length > 0 ? ` → ${e.sideEffects.join('; ')}` : '';
-    return `- #${e.cycle} (${e.trigger ?? 'auto'}): ${e.action.slice(0, 200)}${tagsStr}${effects}`;
+    const tags = Array.isArray(e.tags) ? e.tags : [];
+    const sideEffects = Array.isArray(e.sideEffects) ? e.sideEffects : [];
+    const tagsStr = tags.length > 0 ? ` [${tags.join(',')}]` : '';
+    const effects = sideEffects.length > 0 ? ` → ${sideEffects.join('; ')}` : '';
+    return `- #${e.cycle} (${e.trigger ?? 'auto'}): ${(e.action ?? '').slice(0, 200)}${tagsStr}${effects}`;
   });
   return `Work journal from before restart (continue relevant work, honor commitments):\n${lines.join('\n')}`;
 }
@@ -425,6 +445,9 @@ export function loadLoopHealth(): LoopHealth | null {
 
 /** Check if a work journal entry represents research/learn-only activity (no concrete output) */
 function isResearchOnlyAction(entry: WorkJournalEntry): boolean {
+  // Defensive: malformed entries (foreign-schema rows) may lack these fields.
+  // Treat them as non-research so they don't accidentally trigger research-loop alerts.
+  if (typeof entry.action !== 'string' || !Array.isArray(entry.sideEffects)) return false;
   const action = entry.action.toLowerCase();
   const effects = entry.sideEffects;
 
