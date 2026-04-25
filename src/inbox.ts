@@ -96,11 +96,12 @@ class InboxCache {
         return line;
       });
       fs.writeFileSync(inboxPath, updated.join('\n') + '\n');
-      // 同步快取
-      for (const [id, status] of idMap) {
-        for (const item of this.items) {
-          if (item.id === id) { item.status = status; break; }
-        }
+      // 同步快取 — iterate items once, update ALL matches.
+      // Previous version had `break` after first match, which left duplicate-ID items
+      // stale in pendingItems and caused infinite re-routing of the same inbox row.
+      for (const item of this.items) {
+        const newStatus = idMap.get(item.id);
+        if (newStatus) item.status = newStatus;
       }
       this.rebuildPending();
       this._version++;
@@ -202,6 +203,21 @@ function urlToHash(url: string): string {
 /** 5 分鐘去重窗口 */
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
 
+// Monotonic counter — guarantees inbox IDs are unique even when multiple items
+// arrive within the same second (e.g. Telegram batch-forwarding 3 messages at once).
+// Resets when the second-precision timestamp changes.
+let _idCounterSecond = '';
+let _idCounter = 0;
+function nextInboxId(ts: string, source: string): string {
+  const second = ts.slice(0, 19); // YYYY-MM-DDTHH:MM:SS
+  if (second !== _idCounterSecond) {
+    _idCounterSecond = second;
+    _idCounter = 0;
+  }
+  const seq = String(_idCounter++).padStart(3, '0');
+  return `${ts.slice(0, 10)}-${ts.slice(11, 13)}${ts.slice(14, 16)}${ts.slice(17, 19)}-${seq}-${source.slice(0, 3)}`;
+}
+
 /**
  * 寫入統一 inbox。自動分配 priority + 5min 去重 + meta 豐富化 + URL 預取。
  * 回傳 id，若去重跳過回傳 null。
@@ -251,7 +267,7 @@ export function writeInboxItem(
       enrichedMeta.contentType = detectContentType(item.content);
     }
 
-    const id = `${ts.slice(0, 10)}-${ts.slice(11, 13)}${ts.slice(14, 16)}${ts.slice(17, 19)}-${item.source.slice(0, 3)}`;
+    const id = nextInboxId(ts, item.source);
     const priority = assignPriority(item.source, item.from, item.content, item.meta);
 
     const entry: InboxItem = {
