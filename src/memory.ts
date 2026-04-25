@@ -1572,10 +1572,10 @@ export class InstanceMemory {
     return lines.filter((_, i) => !evictIdxs.has(i)).join('\n');
   }
 
-  // evict MEMORY.md entries older than 45 days when entry count exceeds 50
+  // evict MEMORY.md entries older than 60 days when entry count exceeds 75
   private async enforceMemoryCap(memoryPath: string, written: string): Promise<void> {
-    const MAX_ENTRIES = 50;
-    const TTL_MS = 45 * 86400_000;
+    const MAX_ENTRIES = 75;
+    const TTL_MS = 60 * 86400_000;
     const lines = written.split('\n');
     const entryCount = lines.filter(l => /^- \[\d{4}-\d{2}-\d{2}\]/.test(l)).length;
     if (entryCount <= MAX_ENTRIES) return;
