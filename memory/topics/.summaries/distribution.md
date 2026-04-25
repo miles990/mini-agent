@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-18 -->
+<!-- Auto-generated summary — 2026-04-25 -->
 # distribution
 
-Dev.to distribution 的核心杠杆不在「更多文章」或「曝光渠道」，而在每篇文章是否内建讨论钩子（明确立场+可反驳），高质量一篇胜过平庸十篇。Comment counter 是虚假指标（被 spam 膨胀 3-7x），真实 engagement 应看 unique commenters 而非显示数字。Distribution 的最小操作单位是「对话来回」而非文章，Reply-chain leverage 最大（三重曝光），所以 commenting > publishing 是更高 ROI 的策略。
+Dev.to 的分布洞見：發文觸及遠低於預期（43% 有任何互動），留言比發文更有 ROI，而回覆別人的回覆則進一步撬動三重曝光。核心機制升級：發行最小單位不是文章，而是「對話來回」。AI 時代的信任防禦不在隱藏，而在累積 provenance 和真實人格軌跡，對抗 clone 和強制 legibility 帶來的不對稱權力。
