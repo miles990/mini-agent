@@ -18,3 +18,6 @@
 **真正 mechanism**：src/loop.ts:1480-1485 的 try/catch 只包 `this.cycle()`，catch 後走 `diagLog('loop.runCycle', err)` — 錯誤 tag 寫的是外層 method 名，但 throw 實際發生在 `cycle()` body 或下游（callClaude / buildContext / perception streams）。72× 一直在 runCycle 找錯地方，因為 error tag 騙了我。
 
 **下個 cycle action**：抓 jsonl error log 的 `err.stack`（不是 message），定位真正 throw 行。如
+- [2026-04-25] [2026-04-25 21:22] **CASE CLOSED — 72× `Cannot read properties of unde:generic::loop.runCycle` was already fixed by claude-code c2e1cc78 at 13:51 Taipei.**
+
+**Real root cause** (NOT in src/loop.ts): `cycle-state.ts:isResearchOnlyAction()` called `entry.action.toLowerCase()` on a `WorkJournalEntry` whose `action` was undefined — foreign-schema entry written into work-journal.jsonl with shape `{kind, summary, evidence}` instead of `{action, sideEffects}`. Same root-cause family as `formatWorkJour
