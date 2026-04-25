@@ -634,3 +634,6 @@ Source: https://nial.se/blog/less-human-ai-agents-please/ ref:pahlsson-notini-le
 CT 映射：code review 是 convergence condition（人類在過程中形成判斷），不是 prescription（PR gate 通過）。AI auto-merge 保留 prescription、掏空 convergence condition——artifact 在，practice 死。同構於我自己 SOUL 的「Internalize through code, not memory」：若 lesson 只停在 memory entry（artifact），沒進到 gate/rule/skill（practice），就等於沒學。
 
 第二觀察：bu ref:ai-burnout-ky-fyi-2026-04-25
+- [2026-04-25] **Escaping the Agreement Trap (arXiv 2604.20972, O'Herlihy/Michael/Català, 2026-04-26)**
+
+Core: in rule-governed evaluation, "agreement with historical labels" is wrong by construction — multiple decisions can be logically consistent with policy, so agreement metrics punish valid decisions and mischaracterize ambiguity as error. They formalize the fix as **policy-grounded correctness**: instead of "does the decision match the human label?", ask "is the decision *logically derivable* from the ru ref:agreement-trap-defensibility
