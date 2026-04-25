@@ -28,3 +28,6 @@
 - `cycle-state.ts:392` `action.toLowerCase().includes(kw)` — inferTopics 入口待確認
 
 修法：3 處統一加 `?? ''` 預設值。預估 5 行 patch + 1 個 unit test 餵 undefined 確認不再 throw。
+- [2026-04-25] [2026-04-26 00:59 Taipei] Patch shipped as commit `cabbfc0b` — `src/loop.ts:2656` null-guard `tags.schedule.next?.trim().toLowerCase() ?? ''`. Baseline at commit time: error count 72, lastSeen 2026-04-25. Falsifier window: 7 days. If by 2026-05-03 the count is still climbing at ~10/day, `.next` is not the (sole) throw site — open Step 2 with stack-trace instrumentation (current handler swallows `err.stack`). If count flatlines at 72: mechanism confirmed, mark task `idx-d5af969d` verify=pass.
+
+D
