@@ -13,3 +13,8 @@
 
 **Next cycle (TTL=2)**:
 - 讀
+- [2026-04-25] [2026-04-25 21:22] cl-30/cl-31 falsifier 達成：mechanism 假設「錯在 src/loop.ts:1457+ mushi 分支 unguarded access」**經 1400-1510 完整閱讀後證偽**。整段 access 全部守護（`??` / `?.` / `||`）。
+
+**真正 mechanism**：src/loop.ts:1480-1485 的 try/catch 只包 `this.cycle()`，catch 後走 `diagLog('loop.runCycle', err)` — 錯誤 tag 寫的是外層 method 名，但 throw 實際發生在 `cycle()` body 或下游（callClaude / buildContext / perception streams）。72× 一直在 runCycle 找錯地方，因為 error tag 騙了我。
+
+**下個 cycle action**：抓 jsonl error log 的 `err.stack`（不是 message），定位真正 throw 行。如
