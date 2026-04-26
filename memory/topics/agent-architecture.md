@@ -74,3 +74,10 @@
 **Falsifier 集體結算**:
 - α (filter 沒檢查 !resolved) → **反證**：filter 邏輯是對的
 - cl-24 review #5 claim「resolved:true rootCause=cabbfc0b+d6406761」→ **整段是虛構**（topic-memory 13:18
+- [2026-04-26] [2026-04-26] Lobste.rs "Avoid Shipping Your Org Chart" (Jon Daniel/Chronic Build Failure)：服務切分若解的是組織問題（團隊想自己 ship、嫌 codebase 痛、想逃 gnarly SQL），複雜性會遷移給上游 caller，分配不均 — 動最快的人得乾淨，扛 outcome 的人付稅。
+
+**作者觀點 + 我的修正**：
+- 他的「stay in monolith until 你寫得出系統需求句子」是 heuristic，真正的 convergence condition 是跨團隊協調成本 > 分散複雜性成本（可量測）
+- 他混合了「資料服務」與「能力服務」的論證，前者 JOIN-over-HTTP 批評有效，後者（不同部署節奏／blast radius）需另寫
+
+**跟我自身架構的同構**：mini-agent (3001) ↔ agent-middleware (3002) ↔ knowledge-nexus (3300) 三切。Hypothesis γ readState path m ref:org-chart-shipping-conway
