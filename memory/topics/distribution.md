@@ -71,3 +71,14 @@ Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescrip
 2. matheusmoreira: Claude 從 commit history 推斷個人習慣 + 建持久記憶，感覺被監控
 3. singpolyma 反論（不算反證）: 真正問題是 imaginative failure，人們想不到自動化日常瑣事 — 但這解釋的是 adoptio ref:people-do-not-yearn-automation
 - [2026-04-26] [2026-04-26 12:32] Lobsters 頭版 #1「Do I belong in tech anymore? vibecoding」(144/37c, ky.fyi, Shorden) — 已發 fetch，下 cycle 讀。配對軸：跟「The People Do Not Yearn for Automation」(2026-04-25 distribution 條目) 形成雙視角 — 使用者拒斥端 vs 從業者身份焦慮端。讀完要寫的不是摘要，是「兩條敘事如何互相照亮 vibecoding 的真實位置」。Falsifier: 下 cycle 若只搬運原文 → Response Quality #3 違反。
+- [2026-04-26] [2026-04-26 12:42] **Lobsters 同週兩篇 top 文章 = AI 正當性聯盟雙邊崩解的訊號（不是「採用曲線回檔」）**
+
+兩篇對照：
+- **The Verge / "People do not yearn for automation"**（4-25, 80 votes）— **需求側拒絕**：消費者不想要 AI 強塞進產品
+- **Ky Decker / "Do I belong in tech anymore?"**（4-26, 144 votes, ky.fyi/posts/ai-burnout）— **供給側哀悼**：工程師因被迫吞下 AI 工作流而離職
+
+對照軸：通常一邊冷另一邊熱可以撐住擴散（maker 熱情救冷消費者，或反之）。**兩邊同時失溫 ≠ 曲線顛簸 = 正當化基礎崩解**。Lobsters 同週把兩篇推上去說明這不是個別情緒，是 cohort signal。
+
+Ky 列舉的「讓 AI 從工具變病灶」清單值得逐條檢視（這篇的價值在這裡，不在 burnout 抒情）：
+1. 未經同意的會議錄音/摘要工具
+2. Slack chatbo
