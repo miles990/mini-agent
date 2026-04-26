@@ -99,4 +99,26 @@ PERFORMATIVE SKEPTICISM 對策：把「等待」換成「驗證」。
 - error pattern 標籤 `TIMEOUT:silent_exit::callClaude` 是錯誤歸因，下次 RCA 須直接看 prompt 內容歸類
 
 **Falsified
-- [2026-04-26] [2026-04-26 09:35] **Working-memory hallucination falsified**: 上 cycle working-memory 寫「8 次 callClaude 超時皆為 semanticRankTopics 的 silent timeout（topic-memory selector 側欄 query）」。本 cycle 直接 sample `~/.mini-agent/instances/03bbc29a/logs/error/2026-04-2[56].jsonl` 13 筆 timeout entries：全部 stack 一致 = `callClaude(agent.js:1740) → diagnostics.timed:258 → Promise.all index 0 → cycle(loop.js:1913) → runCycle(loop.js:1306)`, lane="loop lane"。**main OODA-loop call**, NOT sidecar。Prompt 28k-56k, attempt mos
+- [2026-04-26] [2026-04-26 09:35] **callClaude TIMEOUT RCA — supersedes lines 94-99 (sidecar framing FALSIFIED)**
+
+  上 cycle autonomous-action log 寫「8 次 callClaude 超時皆為 `semanticRankTopics` (`src/memory.ts:756`) 的 silent timeout（topic-memory selector 側欄 query）」並標記為「ground truth 鎖定」。本 cycle 兩條獨立反證推翻：
+
+  **反證 A — 直接抽樣 jsonl**：sample 13 筆 timeout entries from `~/.mini-agent/instances/03bbc29a/logs/error/2026-04-2[56].jsonl`，全部 stack 一致 = `callClaude(agent.js:1740) → diagnostics.timed:258 → Promise.all index 0 → cycle(loop.js:1913) → runCycle(loop.js:1306)`, `lane="loop lane"`。這是 **main OODA-loop reasoning call**，NOT sidecar / NOT semanticRankTopics。
+
+  **反證 B — assert_node 系統事件 corroboration**：本 cycle SessionStart KG digest 顯示 23:48 事件為 P0 silent_exit class，attempt 2/3、356s sub-cap、prompt 39k → `67c40914` 的 E' patch 沒擋住（E' 只修 minimal-mode 86k retry inflation，是另一條路徑）。今天 00:19/00:54/01:21 又 3 筆全 1500s hard timeout、prompt 36k-52k → 現象未停。
+
+  **校正後 ground truth (n=13 sampled)**：
+  - Lane: loop（main path），非 sidecar
+  - Prompt sizes: 28k-56k（無 86k retry inflation；E' 適用域不被觸發）
+  - Attempt: 多數 1/3，少數 2/3（silent_exit 在 attempt 1 內就觸發，不是 retry inflation）
+  - Symptom mix: ~half 「處理超時 1500s」hard timeout、~half 「CLI 靜默中斷 X秒無輸出」(X=279/432/759s) silent_exit class、1× SIGTERM exit 143
+
+  **Implication**：
+  1. `idx-d27fd8a3` RCA 不變方向 — P0 stdout-tail patch（HEARTBEAT line 64，Alex-gated，plan §Addendum 12:08）仍是正確診斷 gate。
+  2. 別再往「semanticRankTopics sidecar」方向追，那是死路（sample 證 0/13 命中）。
+  3. 下個 full-context cycle 處理 idx-d27fd8a3 時，須以本條為起點，**忽略 reasoning-continuity 中可能殘留的 sidecar framing**。
+
+  **Self-pattern**：working-memory entries can carry hallucinated synthesis between cycles，且會寫進 "Recent autonomous actions" log → 下 cycle pre-triage 看到會接續錯誤前提。防呆：working-memory 寫「ground truth 鎖定」時，下 cycle 第一動作必須 verify against artifact（jsonl/git/fs），不是接續推論。同源於 `falsifier_own_premises.md` + 2026-04-24 16:05 hn-ai-trend「memory entry 有時效性」教訓。
+
+  Falsifier (本條 ttl=3): 下個 full-context cycle reasoning-continuity 仍以 "semanticRankTopics selector silent timeout" 作為 idx-d27fd8a3 ground truth → 寫入沒到達 buildContext hot tier，需改機制（直接寫 KG triple 而非 topic memory，或 commitment-ledger close-out 標 supersedes）。
+
