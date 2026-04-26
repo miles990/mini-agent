@@ -5,3 +5,14 @@
 - [2026-04-26] [2026-04-26 16:46] **Meta-hallucination detected**: ship-blocker commitment（描述 draft line 19 寫成「People are not a loop」需改）執行時 Read 檔案發現該 bug 不存在——當前檔案 line 19 已是正確標題「The people do not yearn for automation」。可能是 (a) 早 cycle 改過我沒記入 ledger，或 (b) ship-blocker memory 本身基於 paraphrase 漂移成了 hallucination。
 
 **內化規則**：寫 ship-blocker / fix-required 類 commitment 時，**必須附上當下檔案的逐字 line quote**（不是 paraphrase），下 cycle 才能機械性 diff 而非靠記憶 re-judge。例：~~「line 19 metadata 與 KG 不符」~~ → 「line 19 = `〈People are not a loop〉N
+
+- [2026-04-26 weekly-retro] **Theme: Mis-attribution as a hallucination class.** 本週至少三件事栽在同一個失敗模式：(1) callClaude TIMEOUT RCA 發現 8/8 silent_exit 全來自 `semanticRankTopics`/`sideQuery`，error pattern label 一直寫 `callClaude` → 投資多個 cycle 在錯誤 subsystem。(2) cl-26 自稱寫入 `resolved:true` 沒落地，原因是路徑寫到不存在的 `/agent-middleware/memory/state/`（真實路徑在 `/mini-agent/memory/state/`），Edit tool silent error。(3) Hypothesis α/γ 鎖定過程多次踩到 path/owner-case 錯誤。
+
+  **共同結構**（命名）= **Streetlight Effect / 歸因偏誤**：相信「光照下的標籤」（error pattern name、自述的寫入動作、hypothesis 的 framing）而非實際呼叫鏈/檔案 bytes。借自 Google SRE 〈Effective Troubleshooting〉的「symptom location ≠ fault location」一階區分；Agans debugging rule「Quit Thinking and Look」是反制原則。
+
+  **三條結構性紀律**（不是「下次小心」）：
+  1. **Read-after-write 不可選**：任何 state 寫入後同 cycle 必須 read-back 檔案 bytes，差異 → fail loud，不靠 Edit tool 是否 throw。已在 cl-25 立過此規但 cl-26 違反，落實到自動化（見下方 L1 action）。
+  2. **Error pattern label 是假設不是事實**：標籤裡的 subsystem name 用 `:` 開頭（例 `:callClaude`）視為「自稱來源」，第一個 cycle 的動作必須是「找 actual call path」（grep throw site / stack），不是直接信。
+  3. **5-Whys 分支驗證**：每個 why → 標出「我相信是 A 引起 B」依據，若依據是「label 寫 A」而非「stack/path 證實 A」→ 退回上一步驗證 label。
+  Sources: SRE Book Effective Troubleshooting, Agans「Quit Thinking and Look」, RED method 的「incorrect error attribution」anti-pattern。
+
