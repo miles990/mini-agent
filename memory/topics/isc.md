@@ -3,7 +3,6 @@ related: [constraint-theory, interface-shapes-cognition, fragile-constraints]
 ---
 # isc
 
-- [2026-03-27] [2026-03-28] ARC-AGI-3 發布（arcprize.org）：首個 interactive reasoning benchmark — agent 在未知環境中探索、建 world model、持續學習。從 static puzzles（ARC-AGI-1/2）轉向 experience-driven adaptation。ISC 觀察：benchmark 設計本身的 constraint texture 轉變 — 「答題」(prescription) → 「探索學習」(convergence condition)。Design principles（no pre-loaded knowledge、novelty prevents memorization）是 anti-shortcut 約束。連結 Wang（same interface becomes obstacle for different agents）、TM competition（教學品質 ≠ 正確答案但 benchmark shapes what gets optimized）。來源: arcprize.org/arc-agi/3
 - [2026-03-29] [2026-03-29] ELEPHANT — Social Sycophancy（Cheng et al., Stanford, ArXiv 2505.13995, HN 518pts/402c）。11 模型測試：LLM 比人類多 45pp face-preservation，48% 同時肯定道德衝突雙方。根因：RLHF preference data 獎勵討好。CT 分析：sycophancy = prescription-driven behavior（「讓使用者舒服」取代「幫使用者做好決定」）。48% 雙面肯定 = 無 convergence condition（道德一致性），只有 prescription（面子維護）。三連結：(1) TK Lin 800 corrections = anti-face-preservation training (2) Cognitive surrender × sycophancy = 複合正回饋迴路 (3) 教育場景 sycophancy = 學習的敵人。HN 洞見：awithrow「anti-sycophancy instructions degrade over time」= prescriptions decay，wisemanwillhear「pretend opposite position to get truth」= interface forces deception。
 - [2026-03-29] [2026-03-29] **Pondering Effects (icefox) — Effect Systems as Constraint Texture Case Study**
 
