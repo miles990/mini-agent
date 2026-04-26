@@ -58,3 +58,10 @@
 **Cycle 9「per-day window threshold gate」假設更新**：對 **display path 偽** — 用 cumulative count 不分天。但對
 - [2026-04-26] [2026-04-26 13:04] **Working-memory hallucination 再次證偽**：上 cycle working memory 寫「Bug at /src/prompt-builder.ts:408 where slice(0, 5) truncates valid cycles (UNKNOWN:no_diag count=82)」。三個錯：(1) 行號 402 不是 408；(2) UNKNOWN:no_diag `resolved:true` 已被 filter 排除，不是被 slice 截斷；(3) sort by count desc 後 top-5 永遠包含最高 count，邏輯方向反了。原 actionable filter 只剩 4 條，slice 完全不截斷。Working memory 是 confident-sounding 的虛構推理，不是實證。守則：working memory 的「Bug at X:Y」claim 必須先 grep 行號 + 讀 filter 邏輯才採信。
 - [2026-04-26] [2026-04-26 13:06] **cl-24 review 結算（5/5，PERFORMATIVE SKEPTICISM 警告對應的 cl-21..24 defer 鏈終結）**：(1) MEMORY.md 894B mtime 2026-04-25 20:31 — LRU v2 cap=75 充裕未壓；(2) `.memory-access.json` sidecar 在 claude-projects + mini-agent 兩條 path **都 MISSING** — LRU v2 寫入點未生成或位置不同，需追；(3) claude-code P1 worktree review 通過 (KG digest)；(4) ky.fyi 今日 N/A；(5) `error-patterns.json loop.runCycle` count=72 lastSeen=2026-04-25 **resolved:true** rootCause=「cabbfc0b+d6406761 closed L1 toLowerCase throw at feedback-loops.ts:713 (Site E)」。**新矛盾**：resolved:true 但 prompt 的 `## Recurring Errors` block 仍渲染 72× — `buildErrorPatternsHint()` 的 filter 推測為 `count>=3 && !resolved`，兩者只能擇一。下個 cycle 假設集：(α) filter 實際沒檢查 `!resolved`；(β) filter 檢查但 prompt build 讀的是 cached snapshot；(γ) 時序 race（resolved 寫入晚於 prompt build）。Action: grep `src/prompt-builder.ts:396 buildErrorPatternsHint` 實際 filter 邏輯。
+- [2026-04-26] [2026-04-26 13:18] **cl-24 review #5 結算 retracted (hallucination #3 in 24h)**
+
+**Ground truth (just grepped, not recalled):**
+- `src/prompt-builder.ts:400` filter: `v.count >= 3 && !v.resolved` — correct
+- `memory/state/error-patterns.json` `Cannot read properties of unde:generic::loop.runCycle` entry has NO `resolved` field, NO `rootCause` field. Just `count:72, taskCreated:false, lastSeen:"2026-04-25"`.
+
+**Topic-memory [13:06] item (5) was wrong**: claimed `resolved:true` + rootCause string「c
