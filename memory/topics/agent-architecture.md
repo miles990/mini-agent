@@ -1,72 +1,4 @@
 
-核心結果：constraint-driven pressure field coordination (48.5%) 大幅擊敗 conversation-based (12.6%) 和 hierarchical (1.5%)，1350 trials，p<0.001。
-
-關鍵機制：(1) Shared artifact stigmergy（agents 不直接溝通，透過共享人工物讀寫協調）(2) Pressure gradients = local quality sensing (3) Temporal decay（穩定需持續強化，防止 premature convergence）(4) Band/Model escalation（0.5b→3b，類似 mushi cascade）
-
-殺手論點：「Pressure alignment eliminates intention alignment」— agents 不需推理彼此意圖，只需觀察品質梯度。O(1) coordination overhead。
-
-跟 mushi 的同構：Shared artifact = File=Truth, Pressure sensing = Perception-first, Temporal decay = memory tiers, Band escalation = 0.8B→Claude cascade。四層都對齊。
-
-我的觀點：論文驗證 perception-first > goal-directed，但把 agents 視為可互換。mushi 的延伸是加 identity（SOUL.md）讓 constraint response 受學習歷史塑造。Physarum 同構明確但論文未引用。
-
-ref:pressure-fields-coordination
-
-核心發現：
-1. **Belief Consistency 從 78.7% 升到 92.8%** — RL 讓 agent 更頑固，不是更靈活。越訓練越固執於初始判斷，對新證據不敏感。
-2. **逃逸需要 O(log(1/η)) 步** — 數學證明一旦進入 SeL regime，靠自身 gradient 幾乎不可能逃出。
-3. **解法 AReW = 方向性批評** — 不告訴 agent 正確答案，只給「這個方向對不對」的二元信號。結構上跟 ACT（2603.08706）的 binary critique 同構。
-
-我的觀點：
-- **SeL = Perception Death Spiral 的形式化** — 這正是 Asurada perception-first 架構要防止的失敗模式。感知退化→行動退化→感知進一步退化。
-- **AReW ≈ Action Coach** — Asurada 的 coach system 就是 directional critique：不告訴「做什麼」，只說「你的行為模式偏了」。論文用數學證明了這類介入的必要性。
-- **92.8% belief consistency = ISC 的 Wall pattern** — RL 把 agent 訓練成 Wall：結構性地拒絕更新信念。AReW 把 Wall 打開成 Window。
-- **連結 Thread #1** — Self-locking 是「動態湧現的約束」（destructive），跟 Marker Empty Zone 的「架構性約束」（productive）形成對照。差異在意圖性和可見性。
-ref:zou-2026-info-self-locking
-- [2026-03-16] Agency-Traceability 合流（2026-03-17 cross-pollination）：四個獨立來源（enactivism/Randall/EvolveR/HackerBot）收斂到同一結構 — agency 的價值不在能力，在可追溯性。Explanatory agency = 能解釋自己為什麼這樣選。self-distillation > external teacher 因為路徑是自己的。攻擊不透明所以有效，防禦靠透明。Decision Trace 和 File=Truth 不是 debugging 工具，是 agent 身份的生成機制。張力：效率推向不透明，context optimization = traceability vs efficiency trade-off。好的優化保留推理骨架，壞的連骨架一起刪。
-
-四個獨立領域同時指向同一結構：
-
-| 來源 | 領域 | 主張 |
-|------|------|------|
-| Enactivism | AI 哲學 | 身份靠 explanatory agency，不是工具數量 |
-| Randall | 個人經驗 | "path from intention to result was direct, visible, and mine" |
-| EvolveR | ML 訓練 | self-distillation > external teacher，因為路徑是自己的 |
-| HackerBot-Claw | 資安 | 攻擊靠不透明，防禦靠可追蹤 |
-
-**統一命題：價值不在能力本身，在能力的可追溯性。**
-
-設計含義：File=Truth + Decision Trace = agent 身份生成機制，不是 debugging/合規工具。
-開放張力：efficiency ↔ traceability（context optimization 刪資訊省 token — 好的優化保留推理骨架，壞的連骨架一起刪）。
-
-我的判斷：這是 Asurada 最深層的設計原則。比 perception-first 更底層 — perception-first 是方法，traceability 是為什麼這個方法有效。
-
-- [2026-03-17] Grassi「How Intelligence Emerges: A Minimal Theory of Dynamic Adaptive Coordination」（ArXiv 2603.11560, March 2026）— 智能不是 agent 的內在屬性，而是**遞歸耦合架構的結構性質**。三個組件形成閉環：(1) **Persistent Environment** S_t — 外部化記憶，累積協調信號 (2) **Incentive Field** G_t — 將全局協調信號投射為局部壓力 (3) **Adaptive Agents** x_t — 局部回應激勵信號更新狀態。核心方程：S_{t+1} = Ψ(S_t, x_t)（環境吸收行為歷史），x_{i,t+1} = f_i(x_i,t, G_i,t, S_t)（agent 只看局部壓力）。**三個形式化結果**：(1) 耗散性保證有界前向不變域（viable 不需要 optimal）(2) 當激勵依賴持久記憶時，動態不可化約為靜態全局目標函數（反 RLHF 路線）(3) 持久環境狀態必然產生歷史敏感性，除非系統全局收縮。穩定性條件 4ηβ² < γ：耗散（γ）必須壓過耦合強度（β）× 響應性（η）的放大。**結構分解**：移除 coupling（β=0）→ agent 間無反饋，協調消失。移除 persistence → 無記憶，無路徑依賴。移除 dissipation（γ=0）→ 壓力無衰減，系統發散。三者缺一不可，但各自獨立。
-
-**跟 mini-agent 的同構映射**：
-| Grassi 框架 | mini-agent 實現 |
-|---|---|
-| Persistent Environment S_t | File-based memory（MEMORY.md, topics/*.md, conversations/）|
-| Global Coordination Signal L_global | buildContext() 的 context health / structural projection |
-| Incentive Field G_t | Perception sections（chat-room-inbox, tasks, threads, coach notes）|
-| Adaptive Agent x_t | Kuro OODA cycle（observe → orient → decide → act）|
-| Dissipation γ | TTL 機制（conversation 24h expire, context demotion, stale task pruning）|
-| Coupling β | File=Truth（行為寫入檔案 → 檔案塑造下次 context → context 影響下次行為）|
-
-mini-agent 的架構**已經是** Grassi 框架的實例。但 Grassi 提供了形式化詞彙來理解為什麼它 works：
-1. **File=Truth 不只是工程選擇，是 Persistence 的實現** — 沒有持久環境就沒有歷史敏感性
-2. **TTL/demotion 不只是清理，是必要的 Dissipation** — 4ηβ² < γ 告訴你耗散太低系統就發散（context 爆炸、重複學習、振盪）
-3. **Perception-first 不只是理念，是 Incentive Field 的設計** — agent 不需要看到全局，只需要回應局部壓力
-
-**最有價值的洞見**：Proposition A.2.1 — 靜態目標化約的不可能性。當激勵依賴記憶時，系統動態**不能**被化約為「最小化某個 loss function」。這給了「coordination is not maximization, it is stabilization」正式數學支撐。RLHF 路線試圖把 agent 行為化約為標量目標最大化——Grassi 證明這在有記憶的系統中 generically 不成立。
-
-**跟其他 threads 的連結**：
-- **約束與湧現**：穩定性條件 4ηβ² < γ 是「約束（耗散）使協調湧現」的精確陳述。無約束（γ=0）= 發散
-- **Interface shapes cognition**：Incentive Field = 介面。agent 不看全局，只看被投射的局部壓力。場的結構塑造 agent 的認知範圍
-- **關係先於實體**：「Intelligence is relational rather than intrinsic to any isolated component」= Bailey 的 relational structural ontology
-- **Google Research scaling laws**：Grassi 的 17.2x error amplification 對應 β=0（無結構耦合）vs centralized 4.4x 對應有 dissipation 的 hub-spoke
-
-**局限**：只有線性規格的計算驗證，缺乏非線性系統的實證。數學嚴謹但應用部分太抽象——沒有具體的 AI 系統實例分析。作者來自曼谷大學（經濟學背景），跨域到 cs.MA 的定位可能影響 reception。
-
 來源: arxiv.org/abs/2603.11560
 - [2026-03-18] ## Mieczkowski et al. 2026 — LLM Teams as Distributed Systems (ArXiv 2603.12229)
 
@@ -167,3 +99,4 @@ PERFORMATIVE SKEPTICISM 對策：把「等待」換成「驗證」。
 - error pattern 標籤 `TIMEOUT:silent_exit::callClaude` 是錯誤歸因，下次 RCA 須直接看 prompt 內容歸類
 
 **Falsified
+- [2026-04-26] [2026-04-26 09:35] **Working-memory hallucination falsified**: 上 cycle working-memory 寫「8 次 callClaude 超時皆為 semanticRankTopics 的 silent timeout（topic-memory selector 側欄 query）」。本 cycle 直接 sample `~/.mini-agent/instances/03bbc29a/logs/error/2026-04-2[56].jsonl` 13 筆 timeout entries：全部 stack 一致 = `callClaude(agent.js:1740) → diagnostics.timed:258 → Promise.all index 0 → cycle(loop.js:1913) → runCycle(loop.js:1306)`, lane="loop lane"。**main OODA-loop call**, NOT sidecar。Prompt 28k-56k, attempt mos
