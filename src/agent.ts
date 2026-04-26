@@ -152,6 +152,7 @@ export interface ErrorClassification {
 function classifyError(error: unknown): ErrorClassification {
   const msg = error instanceof Error ? error.message : String(error);
   const stderr = (error as { stderr?: string })?.stderr ?? '';
+  const stdout = (error as { stdout?: string })?.stdout ?? '';
   const killed = (error as { killed?: boolean })?.killed;
   const exitCode = (error as { status?: number })?.status;
   const signal = (error as { signal?: string })?.signal;
@@ -219,10 +220,13 @@ function classifyError(error: unknown): ErrorClassification {
   // Silent mid-duration exit — CLI returned without stderr after >= 2 minutes.
   // Before this patch, these fell through to UNKNOWN and got bucketed as `hang_no_diag`.
   if (duration && duration > 120_000 && exitCode !== null && !signal && !killed && !stderr.trim()) {
+    const stdoutTail = stdout.trim().slice(-400).replace(/\x1b\[[0-9;]*m/g, '');
+    const stdoutHint = stdoutTail ? ` stdout_tail="${stdoutTail}"` : ' stdout=empty';
+    const signalHint = signal ? ` signal=${signal}` : '';
     return {
       type: 'TIMEOUT',
       retryable: true,
-      message: `CLI 靜默中斷（exit ${exitCode}，${Math.round(duration / 1000)}s 無輸出）。可能 API session 中途失效或 context 靜默溢位。`,
+      message: `CLI 靜默中斷（exit ${exitCode}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
       modelGuidance: 'CLI exited silently after >=2min with no stderr. Likely causes: mid-session auth drop, silent context overflow, or upstream provider quiet-failure. On retry, re-auth session first; if recurring, reduce context and split the task.'
     };
   }
