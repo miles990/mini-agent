@@ -53,6 +53,15 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] [2026-04-26 13:27] error-patterns.json 觀測結果：
+
+- loop.runCycle: 72 / 04-25 (Site E fix 有效，cl-7 結論成立)
+- TIMEOUT:real_timeout::callClaude: count=6, lastSeen=04-26, resolved=true, rootCause "No new occurrences since 04-17" — **三項自相矛盾**
+- 但 `<logs>` 04-26 00:54-04:23 連 5 次 1500ms TIMEOUT 是 real_timeout 型 → 應 count≥11
+
+**Hypotheses (need next full-context cycle to falsify)**:
+- H1: `resolved=true` 後續 occurrence 仍記 lastSeen 但不 incr count — resolved flag 變成寫入 silencer
+- H2: error-patterns.json updater
 - [2026-04-26] 2026-04-26 10:32 — error-patterns.json (6 entries, 0 timeout-tagged) ≠ HEARTBEAT recurring-error tally (TIMEOUT:silent_exit×6). Different stores. Cycle 4 conflated them. Next full-context cycle: grep where `Recurring Errors` HEARTBEAT block is computed before any baseline claim. f128096b may have fixed bucket but not write-to-error-patterns path — 1599s this cycle wrote nothing.
 - [2026-04-24] [2026-04-24 13:53] hn-ai-trend-enrich.mjs silent-abort 是 **deliberate design gate**，不是 env 遺忘 bug。Header comment line 8 明說「usable with local inference without modifying the pipeline script」— 整個檔案的 raison d'être 是讓本地 MLX 路線跟 Anthropic 路線分離。我上 cycle commitment「加 ANTHROPIC_API_KEY fallback」方向錯：那會把這個檔案的設計目的反向。正解兩條：(A) 啟動本地 MLX endpoint + 設 LOCAL_LLM_URL；(B) 寫姊妹檔 `hn-ai-trend-enrich-remote.mjs` 用 Anthropic schema。系統 reminder 也禁止 augment 既有檔案。Falsifier(b) 部分命中——abort 確實是設計，不只是 env 缺失。
 - [2026-04-24] [2026-04-24 13:07] HN AI trend enrichment 根因鎖定 (非 "null 值" 問題，是 silent-abort)：
