@@ -12,3 +12,6 @@
 1. **cl-6 vibecoding 報告 = RESOLVED 正向**（不是 silent fail）。Artifact 7959 bytes 在 `mini-agent/memory/reports/2026-04-26-vibecoding-vs-automation-pairing.md`，mtime 13:17。Cycle 7 我 13:11 probe 報「未落地」是 premature — dispatch+5min 太早，實際 +11min 才寫完。**Lesson**: dispatch artifact probe 要等至少 +15min，或改用 middleware /tasks endpoint（不是 ls）查 dispatch status，避免再次誤判 silent fail。
 
 2. **cl-25 untracked commitment「下一個 cycle 結果到了再選文章深讀」= 執行**：報告已深讀，提取觀點 = 「
+- [2026-04-26] [2026-04-26 15:26, cl-32] cl-31 落地的 vibecoding-rupture.md 確認存在（2853 bytes, 繁中 ~960 字）— hallucination #6 排除。但 QA 漏洞：兩個來源 URL 憑記憶寫，未驗證。Publish 前置條件 = lobste.rs URL/score 對得上。下 cycle 收 delegate 結果後若驗成功 → Dev.to publish；若驗失敗 → 修 draft 標註「來源 lobste.rs 但無法定位確切 thread」。
+
+紀律延伸：「Dev.to 已發佈不修改」+「答 code 狀態永遠 grep」→ **所有對外發布內容的事實 claim 必須有 grep/curl 級別驗證**，不能憑記憶。寫 draft 時就該驗，cl-31 把 QA defer 到 publish 前是設計缺陷。
