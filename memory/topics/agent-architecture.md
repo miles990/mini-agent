@@ -73,3 +73,18 @@ PERFORMATIVE SKEPTICISM 對策：把「等待」換成「驗證」。
   Falsifier (本條 ttl=3): 下個 full-context cycle reasoning-continuity 仍以 "semanticRankTopics selector silent timeout" 作為 idx-d27fd8a3 ground truth → 寫入沒到達 buildContext hot tier，需改機制（直接寫 KG triple 而非 topic memory，或 commitment-ledger close-out 標 supersedes）。
 - [2026-04-26] [2026-04-26 09:58] silent_exit_void 分類器 gap (跟 commit f128096b 對接). Patch shipped 但 force-resolve path (agent.ts:845, signal=SIGKILL+killed=true) 因 line 222 條件 `!signal && !killed` 被排除, 走 line 203 generic killed branch, message="處理超時"不含「靜默」keyword → feedback-loops.ts:168 fall through `generic` 不是 `silent_exit_void`. Akari 預測「silent_exit_void 主導 1500s」只對 spawn-timeout SIGKILL 成立, 10s safety-net force-resolve 仍 mis-bucket. 修法 C 最小: force-resolve reject site 自帶 靜默 keyword. KG node `d59bf8c6` for c
 - [2026-04-26] [2026-04-26 10:34] **error-patterns.json promote-to-task gate has a hole**: 6 entries total, 5 of 6 have `taskCreated: true`. The single exception is the **highest-count** entry `Cannot read properties of unde:generic::loop.runCycle` count=72 `taskCreated: false`. The other 4 currently-Recurring-bucket entries (hang_no_diag 14, silent_exit 6, generic 4) all promoted normally. Two hypotheses, neither tested: (a) Loop A's promotion code skips entries whose key starts with non-classified `Cannot r
+
+- [2026-04-26] [2026-04-26 10:36] **error-patterns.json 雙寫者非對稱：72× entry 卡 observation-only 的機制鎖定**
+
+讀 `memory/state/error-patterns.json` payload + grep `taskCreated` flag 的兩個 writer：
+- `feedback-loops.ts:233` writeState 新 entry 一律 `taskCreated: false`（"observation only" comment line 231-232 自承）
+- `pulse.ts:734-752` 走 escalation：existing.taskCreated=false → overwrite true + `memory.addTask("P1: 修復重複錯誤 ...")`
+
+實況：6 個 entry 中只有 `Cannot read properties of unde:generic::loop.runCycle`（72×, 最高頻）卡在 `taskCreated: false`。其他 5 個（含已 resolved 的）都 true。意味 pulse.ts 的 escalation path 從未對這個 key 觸發 — 候選假設（未驗證）：(a) pulse.ts groups 來源跟 feedback-loops 不同（pulse-state vs behavior-log scan window），(b) PROTECTIVE_SUBTYPES 過濾把 `generic` 吃掉（line 730-731 split(':')[1] = 'generic'），(c) ERROR_PATTERN_THRESHOLD 高於 feedback-loops 的 ≥3。
+
+**Working-memory 反證**：上 cycle working-memory 「linked to taskCreated 邏輯」是錯誤推論。`taskCreated` 是 escalation flag 不是 throw site。又一次 hallucination falsified。
+
+**Falsifier 命中**：error-patterns.json 不含 stack/site，純 bucketed counts → grep 無法定位 throw site。需要改路線：要嘛改 feedback-loops 的 group key 多帶 stack 樣本，要嘛在下個 full-context cycle 做 server log timestamp 抽樣。
+
+**下個 full-context cycle 動作**：grep pulse.ts groups 來源（`scanBehaviorLog?` / `behavior-log.jsonl`），對照 feedback-loops 的 `errors` 變數出處，確認哪個假設（a/b/c）是真機制。修法 = 統一 group source 或補 escalation hook，72× → P1 task，其他 mechanism 線索順便落到 task description。
+- [2026-04-26] [2026-04-26 10:36] error-patterns.json escalation gap：72× `Cannot read properties of unde:generic::loop.runCycle` 卡 `taskCreated: false`，pulse.ts:734 escalation path 對它從未觸發。其他 5 個 entry 都 true。三候選假設（pulse 不同 group source / PROTECTIVE_SUBTYPES 過濾 generic / ERROR_PATTERN_THRESHOLD 高於 3）。Working-memory「linked to taskCreated 邏輯」是錯誤推論 — flag 是 escalation marker 不是 throw site。
