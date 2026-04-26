@@ -934,6 +934,30 @@ export class InstanceMemory {
     } catch {}
   }
 
+  // Topics access sidecar — persists topic LRU across restarts (key = topic filename, stable)
+  private get topicsAccessPath() {
+    return path.join(this.memoryDir, 'topics', '.topics-access.json');
+  }
+
+  private async readTopicsAccess(): Promise<Record<string, string>> {
+    try {
+      const raw = await fs.readFile(this.topicsAccessPath, 'utf-8');
+      return JSON.parse(raw) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
+  private async touchTopicsAccess(topic: string): Promise<void> {
+    try {
+      const sidecar = await this.readTopicsAccess();
+      sidecar[topic] = new Date().toISOString();
+      await fs.writeFile(this.topicsAccessPath, JSON.stringify(sidecar), 'utf-8');
+    } catch (err) {
+      slog('MEMORY', `topics-access sidecar write failed for ${topic}: ${err}`);
+    }
+  }
+
   // SubSoul: last facet load record (for checkpoint data collection)
   private lastSoulFacetRecord: {
     loaded: string[];
@@ -1491,6 +1515,7 @@ export class InstanceMemory {
       const content = await fs.readFile(topicPath, 'utf-8');
       if (source === 'agent') {
         this.topicAccessMs.set(topic, Date.now());
+        void this.touchTopicsAccess(topic);
       }
       return content;
     } catch {
@@ -1723,11 +1748,14 @@ export class InstanceMemory {
       if (topicFiles.length <= HOT_CAP) return;
 
       const evictable = topicFiles.filter(t => !pinned.has(t));
+      // Load sidecar once for cross-restart access times (fallback between in-memory and mtime)
+      const sidecarAccess = await this.readTopicsAccess();
       const withMtime = await Promise.all(evictable.map(async t => {
         try {
           const s = await fs.stat(path.join(topicsDir, `${t}.md`));
-          // Prefer in-memory access time (more accurate than mtime for reads); fall back to mtime
-          const lastAccess = this.topicAccessMs.get(t) ?? s.mtimeMs;
+          // Priority: 1) in-memory (current session) 2) sidecar (cross-restart) 3) mtime (write-only)
+          const sidecarMs = sidecarAccess[t] ? new Date(sidecarAccess[t]).getTime() : undefined;
+          const lastAccess = this.topicAccessMs.get(t) ?? sidecarMs ?? s.mtimeMs;
           return { t, mtime: lastAccess };
         } catch { return { t, mtime: 0 }; }
       }));
