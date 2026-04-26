@@ -3344,6 +3344,42 @@ if (isMain) {
     watchdog.on('exit', (code) => slog('WATCHDOG', `exited with code ${code}`));
     process.on('exit', () => { try { watchdog.kill(); } catch { /* already dead */ } });
 
+    // Startup prune threshold check — 3s delay to let KG service finish its own startup
+    setTimeout(() => void (async () => {
+      try {
+        const memDir = path.join(process.cwd(), 'memory');
+        const [memoryLines, topicsCount, soulSize, claudeSize] = await Promise.all([
+          fsPromises.readFile(path.join(memDir, 'MEMORY.md'), 'utf-8')
+            .then(c => c.split('\n').length).catch(() => 0),
+          fsPromises.readdir(path.join(memDir, 'topics'))
+            .then(f => f.filter(n => n.endsWith('.md') && !n.startsWith('.')).length).catch(() => 0),
+          fsPromises.stat(path.join(memDir, 'SOUL.md')).then(s => s.size).catch(() => 0),
+          fsPromises.stat(path.join(process.cwd(), 'CLAUDE.md')).then(s => s.size).catch(() => 0),
+        ]);
+        const identityKb = Math.round((soulSize + claudeSize) / 1024);
+        const breaches: string[] = [];
+        if (memoryLines > 120) breaches.push(`MEMORY.md ${memoryLines} lines (threshold 120)`);
+        if (topicsCount > 55) breaches.push(`topics ${topicsCount} files (threshold 55)`);
+        if (identityKb > 12) breaches.push(`identity ${identityKb}kB (threshold 12kB)`);
+        if (breaches.length === 0) return;
+        slog('PRUNE-THRESHOLD', `exceeded: ${breaches.join(', ')} — opening KG review discussion`);
+        await fetch('http://localhost:3300/api/discussion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: `Prune Review Needed — ${new Date().toISOString().slice(0, 10)}`,
+            description: `Startup metrics exceeded thresholds: ${breaches.join('; ')}`,
+            source_agent: 'mini-agent',
+            namespace: 'shared',
+            participants: ['kuro', 'akari', 'claude-code'],
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+      } catch (err) {
+        slog('PRUNE-THRESHOLD', `KG fetch failed, prune review skipped: ${err}`);
+      }
+    })(), 3000);
+
     // OODA-Only: no queue to restore
   });
 
