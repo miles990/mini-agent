@@ -699,6 +699,10 @@ function invalidateTopicKeywordCache(): void {
 let _semanticCache: { hash: string; topics: string[]; ts: number } | null = null;
 const SEMANTIC_CACHE_TTL = 300_000; // 5 min
 
+// Failure gate: suppress sideQuery calls during API spike (3 consecutive failures → 5 min suppression)
+let _semanticRankFailures = 0;
+let _semanticRankSuppressUntil = 0;
+
 /**
  * Semantically rank topic files using Haiku sideQuery.
  * Returns top-N most relevant topic names, or null if ranking fails/unavailable.
@@ -714,6 +718,9 @@ async function semanticRankTopics(
 ): Promise<string[] | null> {
   if (topics.length <= maxResults) return null; // Not enough topics to rank — defer to keyword matching
   if (contextHint.length < 20) return null; // Not enough context to rank
+
+  // Failure gate: skip during known API spike window
+  if (Date.now() < _semanticRankSuppressUntil) return null;
 
   // Check cache
   const hintHash = contextHint.slice(0, 200);
@@ -773,11 +780,19 @@ Important:
 
     const result = await sideQuery(prompt, {
       model: 'claude-haiku-4-5-20251001',
-      timeout: 15_000,
+      timeout: 30_000,
       maxTokens: 256,
     });
 
-    if (!result) return null;
+    if (!result) {
+      _semanticRankFailures++;
+      if (_semanticRankFailures >= 3) {
+        _semanticRankSuppressUntil = Date.now() + 5 * 60_000;
+        _semanticRankFailures = 0;
+      }
+      return null;
+    }
+    _semanticRankFailures = 0;
 
     // Parse JSON array from response
     const match = result.match(/\[[\s\S]*?\]/);
