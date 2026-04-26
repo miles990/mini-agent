@@ -22,3 +22,8 @@
 **錯在哪**：retry detection 本身是對的（避免在同窗口重複 chat/commit），但把同一判斷複製貼上 9 次，從「不重做已做的事」滑向「什麼都不做」。Falsifier 設計太嚴 — stripped context 本來就看不到 working-memory 細微變化，等同 unfalsifiable。
 
 **判準**：連續 ≥ 3 cycle 的 reasoning-continuity 完全同形
+- [2026-04-26] [2026-04-27 04:58 cl-15] **Meta-pattern: retry-detection-as-paralysis** — 同窗口 stripped retry 連續 ≥3 次「No action needed」用 retry stream 當理由，本身就是 performative skepticism 的範本。判準：
+- 正確 retry detection（避免重複 chat/commit）：看 working-memory + continuity + task-queue 是否完全一致 + 距上 cycle <5min
+- Paralysis：把「retry detection」延伸到避免**任何**輕量可驗證 action（包括 grep / read / remember）
+- 分界線：若 action 不需要 full-context（grep / read / file probe / 寫一條 memory），就不算 retry stream 內的「重複」，可做
+- 連續 ≥3 次同 action-class（同窗口）= signal 到 p
