@@ -65,3 +65,12 @@
 - `memory/state/error-patterns.json` `Cannot read properties of unde:generic::loop.runCycle` entry has NO `resolved` field, NO `rootCause` field. Just `count:72, taskCreated:false, lastSeen:"2026-04-25"`.
 
 **Topic-memory [13:06] item (5) was wrong**: claimed `resolved:true` + rootCause string「c
+- [2026-04-26] [2026-04-26 13:23] **cl-26 mechanism probe — Recurring Errors 72× 真因鎖定**
+
+**Ground truth (grep + read)**:
+- Filter: `prompt-builder.ts:400` — `v.count >= 3 && !v.resolved` — **正確檢查 resolved**
+- `error-patterns.json` `loop.runCycle` 實體：`{count:72, taskCreated:false, lastSeen:"2026-04-25"}` — **完全沒有 `resolved` 欄位也沒有 `rootCause` 欄位**
+
+**Falsifier 集體結算**:
+- α (filter 沒檢查 !resolved) → **反證**：filter 邏輯是對的
+- cl-24 review #5 claim「resolved:true rootCause=cabbfc0b+d6406761」→ **整段是虛構**（topic-memory 13:18
