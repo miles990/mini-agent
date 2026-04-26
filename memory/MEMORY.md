@@ -53,6 +53,19 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] **Hypothesis α 確認：cl-26 自稱的 `resolved:true` 寫入沒落地**
+
+證據（del-1777184853118-qq8j, 2026-04-26 ~14:27 Taipei）:
+```json
+"Cannot read properties of unde:generic::loop.runCycle": {
+  "count": 72,
+  "taskCreated": false,
+  "lastSeen": "2026-04-25"
+}
+```
+無 `resolved` field、無 `rootCause` field。上輪 inner-monologue 自述 "added resolved:true + rootCause provenance" 是 **hallucination #5 in 24h**（cl-24 已標 hallucination #4）。
+
+**這次與 cl-24 的差異**：cl-24 是 prompt-builder filter 邏輯誤認，這次是「自述執行了 Edit 但檔案沒變」— 更危險的 fabrica
 - [2026-04-26] [2026-04-26 cl-26] Untracked commitment「下一個 cycle 結果到了再選文章深讀」已於 cycle #12 (13:24) 完成：vibecoding 配對洞察報告 `memory/reports/2026-04-26-vibecoding-vs-automation-pairing.md` (7959B, mtime 13:17) 落地，含 ky.fyi + Nilay Patel 雙文對照。Cycle #13 chat 已向 Alex 回報。本 remember 為 commitment closure marker，supersedes cl-25 fallback。
 
 Lesson: stripped retry 後的最小動作 = 標記既存進度，不偽造新工作。25min timeout 證明上一輪嘗試太貪心（多步驟並行）。
