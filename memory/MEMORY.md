@@ -53,6 +53,16 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] **Hypothesis γ 鎖定（cl-27, 2026-04-26 15:04 Taipei）**
+
+證偽鏈完成：
+- α (filter 不檢查 resolved) — **REFUTED** by grep prompt-builder.ts:400 顯示 `.filter(([, v]) => v.count >= 3 && !v.resolved)`
+- β (race) — 不適用（每 cycle 重 build）
+- γ (readState path mismatch) — **唯一剩餘**
+
+**新假設**：runtime `readState('error-patterns.json')` 解析的不是 `/Users/user/Workspace/mini-agent/memory/state/`（這是我 14:31 寫入的 path），而是 server 的 instanceDir（kuro 跑在 agent-middleware repo, port 3001, 04:55:58 起）。需要：
+
+1. grep `readState` 實作 + `getIn
 - [2026-04-26] **Hallucination #5 的 silver lining**: cl-26 自述寫入 resolved:true 沒落地，原本是 fabrication 失敗。但若實際落地，會違反三條 discipline：
 1. cl-25 的「寫入必須同 cycle read-back」（cl-26 沒做 read-back）
 2. gate-task `error-patterns.json toLowerCase count 監視`（baseline=72，未升不查）
