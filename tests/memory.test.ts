@@ -398,4 +398,83 @@ describe('InstanceMemory', () => {
       expect(context).toContain('(10 entries)');
     });
   });
+
+  describe('LRU v2 — access tracking', () => {
+    let topicsDir: string;
+
+    beforeEach(async () => {
+      topicsDir = path.join(testDir, 'topics');
+      await fs.mkdir(topicsDir, { recursive: true });
+      await fs.writeFile(path.join(topicsDir, 'alpha.md'), '# alpha\n- entry\n', 'utf-8');
+      await fs.writeFile(path.join(topicsDir, 'beta.md'), '# beta\n- entry\n', 'utf-8');
+    });
+
+    it('100 system reads must not update topicAccessMs', async () => {
+      const accessMap = (memory as any).topicAccessMs as Map<string, number>;
+      for (let i = 0; i < 100; i++) {
+        await memory.readTopicMemory('alpha'); // default source='system'
+      }
+      expect(accessMap.has('alpha')).toBe(false);
+    });
+
+    it('agent read updates topicAccessMs', async () => {
+      const accessMap = (memory as any).topicAccessMs as Map<string, number>;
+      const before = Date.now();
+      await memory.readTopicMemory('alpha', { source: 'agent' });
+      const after = Date.now();
+      expect(accessMap.has('alpha')).toBe(true);
+      expect(accessMap.get('alpha')).toBeGreaterThanOrEqual(before);
+      expect(accessMap.get('alpha')).toBeLessThanOrEqual(after);
+    });
+
+    it('appendTopicMemory updates topicAccessMs', async () => {
+      const accessMap = (memory as any).topicAccessMs as Map<string, number>;
+      const before = Date.now();
+      await memory.appendTopicMemory('alpha', 'new entry');
+      expect(accessMap.has('alpha')).toBe(true);
+      expect(accessMap.get('alpha')).toBeGreaterThanOrEqual(before);
+    });
+
+    it('system reads do not affect LRU eviction order', async () => {
+      // beta gets agent access (newest), alpha only gets system reads
+      await memory.readTopicMemory('beta', { source: 'agent' });
+      for (let i = 0; i < 100; i++) {
+        await memory.readTopicMemory('alpha'); // system — must not update map
+      }
+      const accessMap = (memory as any).topicAccessMs as Map<string, number>;
+      expect(accessMap.has('alpha')).toBe(false);
+      expect(accessMap.has('beta')).toBe(true);
+    });
+
+    it('archive promote: 2nd agent read promotes topic to hot', async () => {
+      const archiveDir = path.join(topicsDir, '.archive');
+      await fs.mkdir(archiveDir, { recursive: true });
+      await fs.writeFile(path.join(archiveDir, 'cold-topic.md'), '# cold\n- archived\n', 'utf-8');
+
+      // 1st agent read — should NOT promote
+      const r1 = await memory.readTopicMemory('cold-topic', { source: 'agent' });
+      expect(r1).toContain('archived');
+      const hotAfter1st = await fs.readFile(path.join(topicsDir, 'cold-topic.md'), 'utf-8').catch(() => null);
+      expect(hotAfter1st).toBeNull();
+
+      // 2nd agent read — should promote
+      const r2 = await memory.readTopicMemory('cold-topic', { source: 'agent' });
+      expect(r2).toContain('archived');
+      // Wait briefly for async rename
+      await new Promise(r => setTimeout(r, 50));
+      const hotAfter2nd = await fs.readFile(path.join(topicsDir, 'cold-topic.md'), 'utf-8').catch(() => null);
+      expect(hotAfter2nd).not.toBeNull();
+    });
+
+    it('archive: system read returns empty and does not promote', async () => {
+      const archiveDir = path.join(topicsDir, '.archive');
+      await fs.mkdir(archiveDir, { recursive: true });
+      await fs.writeFile(path.join(archiveDir, 'sys-topic.md'), '# sys\n- data\n', 'utf-8');
+
+      const result = await memory.readTopicMemory('sys-topic'); // default system
+      expect(result).toBe('');
+      const hotFile = await fs.readFile(path.join(topicsDir, 'sys-topic.md'), 'utf-8').catch(() => null);
+      expect(hotFile).toBeNull();
+    });
+  });
 });

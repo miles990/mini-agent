@@ -887,6 +887,11 @@ export class InstanceMemory {
   // Burst rate limiter for addTask
   private _addTaskTimestamps: number[] = [];
 
+  // LRU v2: in-memory access tracking (resets on restart; mtime is fallback)
+  private topicAccessMs = new Map<string, number>();
+  // Tracks archived topics seen once this session for promote-on-2nd-read
+  private seenThisSession = new Set<string>();
+
   // SubSoul: last facet load record (for checkpoint data collection)
   private lastSoulFacetRecord: {
     loaded: string[];
@@ -1068,6 +1073,7 @@ export class InstanceMemory {
       await this.enforceTopicFileCap(topicPath);
     });
 
+    this.topicAccessMs.set(topic, Date.now());
     invalidateTopicKeywordCache();
     void this.enforceHotIndexCap(topicsDir);
 
@@ -1434,12 +1440,42 @@ export class InstanceMemory {
   /**
    * 讀取指定 topic 的記憶
    */
-  async readTopicMemory(topic: string): Promise<string> {
-    const topicPath = path.join(this.memoryDir, 'topics', `${topic}.md`);
+  async readTopicMemory(topic: string, options?: { source?: 'agent' | 'system' }): Promise<string> {
+    const topicsDir = path.join(this.memoryDir, 'topics');
+    const topicPath = path.join(topicsDir, `${topic}.md`);
+    const source = options?.source ?? 'system';
+
     try {
-      return await fs.readFile(topicPath, 'utf-8');
+      const content = await fs.readFile(topicPath, 'utf-8');
+      if (source === 'agent') {
+        this.topicAccessMs.set(topic, Date.now());
+      }
+      return content;
     } catch {
-      return '';
+      // Hot file not found — check archive for agent reads only
+      if (source !== 'agent') return '';
+
+      const archivePath = path.join(topicsDir, '.archive', `${topic}.md`);
+      let archiveContent = '';
+      try {
+        archiveContent = await fs.readFile(archivePath, 'utf-8');
+      } catch {
+        return '';
+      }
+
+      if (this.seenThisSession.has(topic)) {
+        // 2nd read in session — promote to hot index
+        this.seenThisSession.delete(topic);
+        try {
+          await fs.rename(archivePath, topicPath);
+          this.topicAccessMs.set(topic, Date.now());
+          void this.enforceHotIndexCap(topicsDir);
+        } catch {}
+      } else {
+        // 1st read — mark as seen, don't promote yet
+        this.seenThisSession.add(topic);
+      }
+      return archiveContent;
     }
   }
 
@@ -1637,7 +1673,9 @@ export class InstanceMemory {
       const withMtime = await Promise.all(evictable.map(async t => {
         try {
           const s = await fs.stat(path.join(topicsDir, `${t}.md`));
-          return { t, mtime: s.mtimeMs };
+          // Prefer in-memory access time (more accurate than mtime for reads); fall back to mtime
+          const lastAccess = this.topicAccessMs.get(t) ?? s.mtimeMs;
+          return { t, mtime: lastAccess };
         } catch { return { t, mtime: 0 }; }
       }));
       withMtime.sort((a, b) => a.mtime - b.mtime);
