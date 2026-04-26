@@ -44,3 +44,4 @@ D
 - L283, L713 parameter-dependent — could throw if upstream passes undefined, but original stack pointed to `loop.runCycle` not feedback-loops, so they're not the active site
 - Single-site hypothesis (loop.ts:2656 was sole throw site, fixed by cabbfc0b) is now the leading explanation
 Decision: no defensive pat
+- [2026-04-26] [2026-04-27 05:03 Taipei] cabbfc0b patch 28h checkpoint：count 仍 = 72，lastSeen = 2026-04-25（patch 前），0 new errors since ship。preliminary pass 升級為「28h 持續 0 errors」，但完整 7d falsifier window 走到 2026-05-03。在那之前 task `idx-d5af969d` 維持 in_progress，不標 pass。若中途 count 跳升 → Step 2 stack-trace instrumentation。

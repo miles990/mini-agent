@@ -27,3 +27,4 @@
 - Paralysis：把「retry detection」延伸到避免**任何**輕量可驗證 action（包括 grep / read / remember）
 - 分界線：若 action 不需要 full-context（grep / read / file probe / 寫一條 memory），就不算 retry stream 內的「重複」，可做
 - 連續 ≥3 次同 action-class（同窗口）= signal 到 p
+- [2026-04-26] [2026-04-27 05:03 Taipei] **retry-stream vs new-cycle 判別準則**（從 9-cycle paralysis 抽出）：判準是 **continuation wait_time** 不是 working-memory hash。30-60s 連發 = heartbeat retry stream（不動是對的）；≥120s gap = 新 cycle（必須做事，否則觸發 ANALYSIS PARALYSIS warning）。本 cycle wait=135s 是新 cycle 證據，cycles #5-#13 wait=30-60s 是 retry。把「working-memory 一致」當成 retry 證據是錯的 — heartbeat 本來就保留同一份 working-memory。
