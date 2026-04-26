@@ -7,3 +7,8 @@
 - 跑 `grep -r "下一個 cycle 結果到了再選文章深讀" .claude/projects/-Users-user-Workspace-agent-middleware/memory/` 看上次寫入有沒有落地到任何檔案
 - 若找到 → 是 untracked detector 沒讀那條路徑，改 detector
 - 若沒找到 → 是 emergency-ret
+- [2026-04-26] [2026-04-26 13:22, cycle full-context] **cl-6 + cl-25 雙重關閉**：
+
+1. **cl-6 vibecoding 報告 = RESOLVED 正向**（不是 silent fail）。Artifact 7959 bytes 在 `mini-agent/memory/reports/2026-04-26-vibecoding-vs-automation-pairing.md`，mtime 13:17。Cycle 7 我 13:11 probe 報「未落地」是 premature — dispatch+5min 太早，實際 +11min 才寫完。**Lesson**: dispatch artifact probe 要等至少 +15min，或改用 middleware /tasks endpoint（不是 ls）查 dispatch status，避免再次誤判 silent fail。
+
+2. **cl-25 untracked commitment「下一個 cycle 結果到了再選文章深讀」= 執行**：報告已深讀，提取觀點 = 「
