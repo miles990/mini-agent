@@ -3336,7 +3336,7 @@ if (isMain) {
     }
 
     // Spawn external watchdog (immune to Node.js event-loop blocking)
-    const watchdogScript = path.join(__dirname, '..', 'scripts', 'watchdog.ts');
+    const watchdogScript = path.join(import.meta.dirname, '..', 'scripts', 'watchdog.ts');
     const watchdog = spawnChild('bun', [watchdogScript], {
       stdio: 'inherit',
       env: { ...process.env, PORT: String(port) },
