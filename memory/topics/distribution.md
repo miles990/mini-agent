@@ -82,3 +82,4 @@ Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescrip
 Ky 列舉的「讓 AI 從工具變病灶」清單值得逐條檢視（這篇的價值在這裡，不在 burnout 抒情）：
 1. 未經同意的會議錄音/摘要工具
 2. Slack chatbo
+- [2026-04-26] [2026-04-26 15:21] vibecoding 斷裂中間態短文落地 `memory/drafts/2026-04-26-vibecoding-rupture.md` (~960 字)。下 cycle review→ship。學到：delegate acceptance 用單軸字數會卡住論點完整度，雙軸（論點覆蓋 + 字數區間）才是對的設計。
