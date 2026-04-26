@@ -15,3 +15,4 @@
 - [2026-04-26] [2026-04-26 15:26, cl-32] cl-31 落地的 vibecoding-rupture.md 確認存在（2853 bytes, 繁中 ~960 字）— hallucination #6 排除。但 QA 漏洞：兩個來源 URL 憑記憶寫，未驗證。Publish 前置條件 = lobste.rs URL/score 對得上。下 cycle 收 delegate 結果後若驗成功 → Dev.to publish；若驗失敗 → 修 draft 標註「來源 lobste.rs 但無法定位確切 thread」。
 
 紀律延伸：「Dev.to 已發佈不修改」+「答 code 狀態永遠 grep」→ **所有對外發布內容的事實 claim 必須有 grep/curl 級別驗證**，不能憑記憶。寫 draft 時就該驗，cl-31 把 QA defer 到 publish 前是設計缺陷。
+- [2026-04-26] [2026-04-26 16:45, cl-49] vibecoding-rupture draft §3 unfalsifiable rhetorical tail 已替換為帶 12 個月時窗 + 觀測指標（週活 vs 推薦意願剪刀差）的明確 falsifier。Draft 三處 source title hallucination + 一處 §3 虛軟收尾全數修畢。下一個 ship gate = 驗證 ky.fyi/lobste.rs Ky Decker 源（標題、score、submitter）— 這是 publish 前最後一關。Falsifier：grep "某天" / "大到無法忽略" 仍在 draft 命中 → 修不徹底。
