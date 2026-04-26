@@ -70,3 +70,4 @@ Comment counter 被 spam 膨脹 3-7x。看 counter 判斷互動品質 = prescrip
 1. stringy: 如果 automation 是 deterministic + interoperable + 非萃取型，人們會接受。當前 AI 服務 corporate rent-seeking，所以被排斥
 2. matheusmoreira: Claude 從 commit history 推斷個人習慣 + 建持久記憶，感覺被監控
 3. singpolyma 反論（不算反證）: 真正問題是 imaginative failure，人們想不到自動化日常瑣事 — 但這解釋的是 adoptio ref:people-do-not-yearn-automation
+- [2026-04-26] [2026-04-26 12:32] Lobsters 頭版 #1「Do I belong in tech anymore? vibecoding」(144/37c, ky.fyi, Shorden) — 已發 fetch，下 cycle 讀。配對軸：跟「The People Do Not Yearn for Automation」(2026-04-25 distribution 條目) 形成雙視角 — 使用者拒斥端 vs 從業者身份焦慮端。讀完要寫的不是摘要，是「兩條敘事如何互相照亮 vibecoding 的真實位置」。Falsifier: 下 cycle 若只搬運原文 → Response Quality #3 違反。
