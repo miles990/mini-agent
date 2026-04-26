@@ -892,6 +892,33 @@ export class InstanceMemory {
   // Tracks archived topics seen once this session for promote-on-2nd-read
   private seenThisSession = new Set<string>();
 
+  // P1: MEMORY.md entry access sidecar — persists LRU across restarts
+  private get memoryAccessPath() {
+    return path.join(this.memoryDir, '.memory-access.json');
+  }
+
+  private async readMemoryAccess(): Promise<Record<string, string>> {
+    try {
+      const raw = await fs.readFile(this.memoryAccessPath, 'utf-8');
+      return JSON.parse(raw) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
+  private async touchMemoryAccess(entries: MemoryEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    try {
+      const sidecar = await this.readMemoryAccess();
+      const now = new Date().toISOString();
+      for (const entry of entries) {
+        const key = entry.content.slice(0, 32);
+        if (key.trim()) sidecar[key] = now;
+      }
+      await fs.writeFile(this.memoryAccessPath, JSON.stringify(sidecar), 'utf-8');
+    } catch {}
+  }
+
   // SubSoul: last facet load record (for checkpoint data collection)
   private lastSoulFacetRecord: {
     loaded: string[];
@@ -1611,17 +1638,28 @@ export class InstanceMemory {
   // evict MEMORY.md entries older than 60 days when entry count exceeds 75
   private async enforceMemoryCap(memoryPath: string, written: string): Promise<void> {
     const MAX_ENTRIES = 75;
-    const TTL_MS = 60 * 86400_000;
     const lines = written.split('\n');
-    const entryCount = lines.filter(l => /^- \[\d{4}-\d{2}-\d{2}\]/.test(l)).length;
-    if (entryCount <= MAX_ENTRIES) return;
+    const entryLines = lines.filter(l => /^- \[\d{4}-\d{2}-\d{2}\]/.test(l));
+    if (entryLines.length <= MAX_ENTRIES) return;
 
-    const cutoff = Date.now() - TTL_MS;
+    // LRU eviction: sort by last searchMemory access (sidecar); creation date is fallback
+    const sidecar = await this.readMemoryAccess();
+    const scored = entryLines.map(line => {
+      const key = line.slice(0, 32);
+      const accessTs = sidecar[key] != null ? new Date(sidecar[key]).getTime() : null;
+      const m = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
+      const creationTs = m ? new Date(m[1]).getTime() : 0;
+      return { line, lastAccess: accessTs ?? creationTs };
+    });
+    scored.sort((a, b) => a.lastAccess - b.lastAccess);
+
+    const excess = entryLines.length - MAX_ENTRIES;
+    const toEvict = new Set(scored.slice(0, excess).map(s => s.line));
+
     const evicted: string[] = [];
     const kept: string[] = [];
     for (const line of lines) {
-      const m = line.match(/^- \[(\d{4}-\d{2}-\d{2})\]/);
-      if (m && new Date(m[1]).getTime() < cutoff) {
+      if (toEvict.has(line)) {
         evicted.push(line);
       } else {
         kept.push(line);
@@ -2207,12 +2245,16 @@ export class InstanceMemory {
       }
     }
 
+    let results: MemoryEntry[];
     if (ftsResults.length > 0) {
-      return ftsResults;
+      results = ftsResults;
+    } else {
+      // Fallback to grep
+      results = await this.grepSearch(trimmed, maxResults);
     }
 
-    // Fallback to grep
-    return this.grepSearch(trimmed, maxResults);
+    void this.touchMemoryAccess(results);
+    return results;
   }
 
   /**
@@ -2268,7 +2310,7 @@ export class InstanceMemory {
         .map((line) => {
           const [filePath, ...rest] = line.split(':');
           return {
-            content: rest.join(':').trim(),
+            content: rest.join(':').replace(/^\d+:/, '').trim(),
             source: path.basename(filePath),
             date: new Date().toISOString().split('T')[0],
           };

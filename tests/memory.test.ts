@@ -477,4 +477,89 @@ describe('InstanceMemory', () => {
       expect(hotFile).toBeNull();
     });
   });
+
+  describe('MEMORY.md access-LRU (P1)', () => {
+    const makeEntry = (date: string, label: string) => `- [${date}] ${label}`;
+
+    it('touchMemoryAccess writes sidecar and keys entries by first-32-chars', async () => {
+      const entries = [
+        { content: '- [2026-01-01] some memory content here', source: 'MEMORY.md', date: '2026-01-01' },
+        { content: '- [2026-02-01] another entry for testing', source: 'MEMORY.md', date: '2026-02-01' },
+      ];
+      await (memory as any).touchMemoryAccess(entries);
+      const sidecarPath = path.join(testDir, '.memory-access.json');
+      const raw = await fs.readFile(sidecarPath, 'utf-8');
+      const sidecar = JSON.parse(raw);
+      for (const e of entries) {
+        const key = e.content.slice(0, 32);
+        expect(sidecar[key]).toBeDefined();
+        expect(new Date(sidecar[key]).getTime()).toBeGreaterThan(0);
+      }
+    });
+
+    it('touchMemoryAccess merges into existing sidecar without clobbering other keys', async () => {
+      const sidecarPath = path.join(testDir, '.memory-access.json');
+      const existingKey = '- [2020-01-01] pre-existing entry';
+      await fs.writeFile(sidecarPath, JSON.stringify({ [existingKey]: '2020-01-01T00:00:00.000Z' }), 'utf-8');
+
+      const newEntry = { content: '- [2026-03-01] brand new entry added now', source: 'MEMORY.md', date: '2026-03-01' };
+      await (memory as any).touchMemoryAccess([newEntry]);
+
+      const sidecar = JSON.parse(await fs.readFile(sidecarPath, 'utf-8'));
+      expect(sidecar[existingKey]).toBe('2020-01-01T00:00:00.000Z');
+      expect(sidecar[newEntry.content.slice(0, 32)]).toBeDefined();
+    });
+
+    it('enforceMemoryCap evicts LRU entry (no sidecar → creation date order)', async () => {
+      const memPath = path.join(testDir, 'MEMORY.md');
+      // 76 entries: oldest is 2020-01-01, rest are 2026-04-XX
+      const entries: string[] = [];
+      entries.push(makeEntry('2020-01-01', 'oldest entry should be evicted first'));
+      for (let i = 1; i <= 75; i++) {
+        entries.push(makeEntry('2026-04-01', `recent entry ${i}`));
+      }
+      await fs.writeFile(memPath, entries.join('\n') + '\n', 'utf-8');
+
+      await (memory as any).enforceMemoryCap(memPath, entries.join('\n') + '\n');
+
+      const content = await fs.readFile(memPath, 'utf-8');
+      expect(content).not.toContain('oldest entry should be evicted first');
+      expect(content).toContain('recent entry 1');
+    });
+
+    it('enforceMemoryCap keeps recently accessed entry even if oldest by creation date', async () => {
+      const memPath = path.join(testDir, 'MEMORY.md');
+      const oldEntry = makeEntry('2020-01-01', 'old but recently accessed entry here');
+      const entries: string[] = [oldEntry];
+      for (let i = 1; i <= 75; i++) {
+        entries.push(makeEntry('2026-04-01', `newer entry ${i}`));
+      }
+      await fs.writeFile(memPath, entries.join('\n') + '\n', 'utf-8');
+
+      // Pre-populate sidecar: mark old entry as recently accessed
+      const sidecarPath = path.join(testDir, '.memory-access.json');
+      const key = oldEntry.slice(0, 32);
+      await fs.writeFile(sidecarPath, JSON.stringify({ [key]: new Date().toISOString() }), 'utf-8');
+
+      await (memory as any).enforceMemoryCap(memPath, entries.join('\n') + '\n');
+
+      const content = await fs.readFile(memPath, 'utf-8');
+      // old entry should survive because it was accessed recently
+      expect(content).toContain('old but recently accessed entry here');
+      // one of the never-accessed newer entries should be evicted instead
+      const keptCount = content.split('\n').filter((l: string) => /^- \[\d{4}-\d{2}-\d{2}\]/.test(l)).length;
+      expect(keptCount).toBe(75);
+    });
+
+    it('enforceMemoryCap does nothing when entries <= 75', async () => {
+      const memPath = path.join(testDir, 'MEMORY.md');
+      const content = Array.from({ length: 75 }, (_, i) => makeEntry('2026-04-01', `entry ${i}`)).join('\n') + '\n';
+      await fs.writeFile(memPath, content, 'utf-8');
+
+      await (memory as any).enforceMemoryCap(memPath, content);
+
+      const after = await fs.readFile(memPath, 'utf-8');
+      expect(after).toBe(content);
+    });
+  });
 });
