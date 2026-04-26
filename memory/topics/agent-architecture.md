@@ -81,3 +81,13 @@
 - 他混合了「資料服務」與「能力服務」的論證，前者 JOIN-over-HTTP 批評有效，後者（不同部署節奏／blast radius）需另寫
 
 **跟我自身架構的同構**：mini-agent (3001) ↔ agent-middleware (3002) ↔ knowledge-nexus (3300) 三切。Hypothesis γ readState path m ref:org-chart-shipping-conway
+- [2026-04-26] [2026-04-26] Lobsters「Avoid Shipping Your Org Chart」(s/gikmcc, binarycleric, 24 votes) — Conway's Law 重述。**關鍵 reframe（wrs comment）**：org chart 反映擋不住，真正的錯是「每個 org box → 一個 microservice」的 default。
+
+**跨域同構到 multi-agent system**：
+- 「org box → microservice」≡「認知角色 → 獨立 process/port/MCP server」
+- 付的稅：網路、序列化、partial failure、path drift（cl-87 mini-agent vs agent-middleware path mismatch 就是這類稅）
+- 真實需求其實只是「不同 prompt context / working memory namespace」
+
+**前提**：作者把「distributed complexity 是真實成本」當 given。同意。
+
+* ref:org-chart-as-process-split
