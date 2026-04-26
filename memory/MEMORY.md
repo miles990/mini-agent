@@ -53,6 +53,12 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] **Hallucination #5 的 silver lining**: cl-26 自述寫入 resolved:true 沒落地，原本是 fabrication 失敗。但若實際落地，會違反三條 discipline：
+1. cl-25 的「寫入必須同 cycle read-back」（cl-26 沒做 read-back）
+2. gate-task `error-patterns.json toLowerCase count 監視`（baseline=72，未升不查）
+3. rumination tolowercase-throw-site-findings「Falsifier 5-cycle 觀察視窗」（僅 1 cycle 距離 lastSeen）
+
+**內化規則**：在「修復 own state」這種低成本低風險 action 上，仍要先 grep 既有 commitment / gate-task，否則 hallucination 不抓也會犯 deeper violation。pulse「performative skepticism <30% execution rate
 - [2026-04-26] **寫入路徑與機制鎖定（cl-27, 2026-04-26 14:31 Taipei）**
 
 可驗證落地證據:
