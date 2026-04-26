@@ -11,6 +11,7 @@ try {
   (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile?.();
 } catch { /* no .env present, or unsupported Node — proceed with existing process.env */ }
 
+import { spawn as spawnChild } from 'node:child_process';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
@@ -934,7 +935,13 @@ export function createApi(port = 3001): express.Express {
       uptime: Math.floor(process.uptime()),
       claude: {
         busy: isClaudeBusy(),
-        loop: laneStatus.loop,
+        loop: (() => {
+          const l = laneStatus.loop;
+          const startedAt = l?.task?.startedAt;
+          return startedAt
+            ? { ...l, cycleElapsedMs: Date.now() - new Date(startedAt).getTime() }
+            : l;
+        })(),
         foreground: laneStatus.foreground,
       },
       loop: loopRef ? { enabled: true, ...loopRef.getStatus() } : { enabled: false },
@@ -3327,6 +3334,16 @@ if (isMain) {
     if (telegramPoller && isEnabled('telegram-poller')) {
       telegramPoller.start();
     }
+
+    // Spawn external watchdog (immune to Node.js event-loop blocking)
+    const watchdogScript = path.join(__dirname, '..', 'scripts', 'watchdog.ts');
+    const watchdog = spawnChild('bun', [watchdogScript], {
+      stdio: 'inherit',
+      env: { ...process.env, PORT: String(port) },
+    });
+    watchdog.on('exit', (code) => slog('WATCHDOG', `exited with code ${code}`));
+    process.on('exit', () => { try { watchdog.kill(); } catch { /* already dead */ } });
+
     // OODA-Only: no queue to restore
   });
 
