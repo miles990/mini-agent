@@ -1727,7 +1727,7 @@ export class InstanceMemory {
         updated = current + `\n## Active Tasks${taskEntry}\n`;
       }
 
-      await fs.writeFile(heartbeatPath, updated, 'utf-8');
+      await fs.writeFile(heartbeatPath, this.applyHeartbeatCap(updated), 'utf-8');
     });
   }
 
