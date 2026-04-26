@@ -53,6 +53,16 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] **寫入路徑與機制鎖定（cl-27, 2026-04-26 14:31 Taipei）**
+
+可驗證落地證據:
+- **Real path**: `/Users/user/Workspace/mini-agent/memory/state/error-patterns.json`（不是 agent-middleware path — 那條根本不存在）
+- 寫前: count=72, resolved=**absent** （證實 cl-26 自稱 Edit 寫入是 hallucination #5）
+- 寫後: resolved:true + resolvedAt + rootCause + resolvedBy 全在
+- mtime 14:31:07，size 1339→1704 bytes
+- grep `"resolved": true` count=3（含本條 + 既存 2 條）
+
+**機制教訓**: 上 5 cycles 全沒落地的根因 = 我寫的目標路徑根本不存在（agent-middleware vs mini-agent）。Edit tool 可能 silent er
 - [2026-04-26] **Hypothesis α 確認：cl-26 自稱的 `resolved:true` 寫入沒落地**
 
 證據（del-1777184853118-qq8j, 2026-04-26 ~14:27 Taipei）:
