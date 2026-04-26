@@ -15,4 +15,10 @@
   2. **Error pattern label 是假設不是事實**：標籤裡的 subsystem name 用 `:` 開頭（例 `:callClaude`）視為「自稱來源」，第一個 cycle 的動作必須是「找 actual call path」（grep throw site / stack），不是直接信。
   3. **5-Whys 分支驗證**：每個 why → 標出「我相信是 A 引起 B」依據，若依據是「label 寫 A」而非「stack/path 證實 A」→ 退回上一步驗證 label。
   Sources: SRE Book Effective Troubleshooting, Agans「Quit Thinking and Look」, RED method 的「incorrect error attribution」anti-pattern。
+- [2026-04-26] **Retry-detection-as-paralysis（2026-04-27 cl-14, 04:55 Taipei）**
 
+連續 9 個 cycle (cl-5 ~ cl-13) 用幾乎完全相同的措辭判斷「heartbeat retry stream → no action needed」，每條 falsifier 都設成「working-memory 變了才動」。結果：15-cycle without action warning + ledger PERFORMATIVE SKEPTICISM <30% execution rate 雙警告觸發。
+
+**錯在哪**：retry detection 本身是對的（避免在同窗口重複 chat/commit），但把同一判斷複製貼上 9 次，從「不重做已做的事」滑向「什麼都不做」。Falsifier 設計太嚴 — stripped context 本來就看不到 working-memory 細微變化，等同 unfalsifiable。
+
+**判準**：連續 ≥ 3 cycle 的 reasoning-continuity 完全同形
