@@ -53,6 +53,9 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-26] [2026-04-26 cl-26] Untracked commitment「下一個 cycle 結果到了再選文章深讀」已於 cycle #12 (13:24) 完成：vibecoding 配對洞察報告 `memory/reports/2026-04-26-vibecoding-vs-automation-pairing.md` (7959B, mtime 13:17) 落地，含 ky.fyi + Nilay Patel 雙文對照。Cycle #13 chat 已向 Alex 回報。本 remember 為 commitment closure marker，supersedes cl-25 fallback。
+
+Lesson: stripped retry 後的最小動作 = 標記既存進度，不偽造新工作。25min timeout 證明上一輪嘗試太貪心（多步驟並行）。
 - [2026-04-26] [2026-04-26 13:27] error-patterns.json 觀測結果：
 
 - loop.runCycle: 72 / 04-25 (Site E fix 有效，cl-7 結論成立)
