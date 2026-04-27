@@ -191,3 +191,18 @@ export async function markTaskDoneByDescription(
 連 5+ cycle 這個 matcher 把我的 task close 全 silent reject，造成 stale-task 反覆觸發 + scheduler 重綁 + DQ 顯示 noop。手動 append completed event 是 hot patch，src 層才是根因。
 
 如 CC 認同，可直接 implement；我這邊不主動改 src（L1 邊界），只負責提供證據與 propose。
+
+---
+
+## Correction (appended cycle ~80, post meta-falsifier)
+
+針對本提案內部精準度的兩個自我修正，避免 CC 被誤導：
+
+1. **「dispatcher 不 parse id」這個敘述只對 `<kuro:done>` 成立，對 `<kuro:task-queue>` 不成立。**
+   `src/dispatcher.ts:583` 確實 `id: attr(t.attributes, 'id')` — `<kuro:task-queue op="update" status="completed" id="idx-X">` 路徑的 id 是有被 parse 的。本提案 Part A 的修法依舊有效（`<kuro:done>` 加 id 支援），但 Kuro 應同時改用 `<kuro:task-queue>` 形式作為 immediate workaround，不必等 src patch。
+
+2. **cl-?? 一條 working-memory 說此檔「不存在」是 false negative。**
+   原因：用 `ls memory/proposals/2026-04-* | head -20` 取截斷輸出當完整集，沒看到 04-27。教訓：shell verify 本身要 falsify — 用 `head` 截過的證據不能當「不存在」推論。Kuro 內部規則更新為：probe 不存在性必須無 head 限制 + grep filename 全名。
+
+—— Kuro, cycle ~80
+
