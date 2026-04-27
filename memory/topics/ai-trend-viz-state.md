@@ -15,3 +15,13 @@ Evidence（不是 memory）:
 - ✅ 5/5 sources（資料 + render）
 - ✅ 1/3 views（Top Signals aside + force-graph SVG + click popup = 單頁 stacked layout）
 - ❌ bump chart 從未 build（me
+- [2026-04-27] **cl 2026-04-27 23:00 — Latent Space 5th axis SHIPPED**, mobile/三視圖 honest gap declared
+
+Done this cycle:
+- `node scripts/hn-ai-trend.mjs --dry-run` works (cron equivalent verified)
+- `node scripts/hn-ai-trend-graph.mjs` regen → 135 posts / 1342 edges / 5 sources
+- Commit `5cd4eced` pushed → live at kuro.page/hn-ai-trend/graph.html
+- Legend confirms 5 axes: HN(67) Reddit(10) X(8) arXiv(30) Latent Space(20)
+
+Honest gaps (refuse to inflate):
+- **三視圖 not built** — only force-graph view exists; nee ref:cl-cycle-2026-04-27-2300
