@@ -7,6 +7,7 @@
 
 import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
+import { eventBus } from './event-bus.js';
 
 // =============================================================================
 // Types
@@ -148,31 +149,24 @@ export class DefaultScheduler implements SchedulerPolicy {
     return { taskId: null, reason: 'no schedulable tasks', action: 'idle', suspended: null };
   }
 
-  private stackRank(tasks: TaskSnapshot[], state: SchedulerState): TaskSnapshot | null {
+  private stackRank(tasks: TaskSnapshot[], _state: SchedulerState): TaskSnapshot | null {
     if (tasks.length === 0) return null;
-
-    const scored = tasks.map(t => {
-      let score = (3 - t.priority) * 1000;
-
-      // Source boost: alex tasks get massive priority
-      if (t.source === 'alex') score += 5000;
-
-      // Aging: tasks waiting longer get boosted
-      const ageMs = Date.now() - new Date(t.createdAt).getTime();
-      const ageTicks = Math.floor(ageMs / 60_000);
-      if (ageTicks > AGING_BOOST_TICKS) {
-        score += Math.min((ageTicks - AGING_BOOST_TICKS) * 10, 500);
-      }
-
-      // In-progress tasks get slight boost over pending (momentum)
-      if (t.status === 'in_progress') score += 100;
-
-      return { task: t, score };
-    });
-
+    const scored = tasks.map(t => ({ task: t, score: computeScore(t) }));
     scored.sort((a, b) => b.score - a.score);
     return scored[0].task;
   }
+}
+
+export function computeScore(t: TaskSnapshot): number {
+  let score = (3 - t.priority) * 1000;
+  if (t.source === 'alex') score += 5000;
+  const ageMs = Date.now() - new Date(t.createdAt).getTime();
+  const ageTicks = Math.floor(ageMs / 60_000);
+  if (ageTicks > AGING_BOOST_TICKS) {
+    score += Math.min((ageTicks - AGING_BOOST_TICKS) * 10, 500);
+  }
+  if (t.status === 'in_progress') score += 100;
+  return score;
 }
 
 // =============================================================================
@@ -239,6 +233,19 @@ export function schedulerPick(
 
   slog('SCHED', `tick=${schedulerState.totalTicks} action=${decision.action} task=${decision.taskId?.slice(0, 12) ?? 'none'} reason=${decision.reason.slice(0, 80)}`);
 
+  // Emit SSE event + record history
+  const historyEntry: SchedulerHistoryEntry = {
+    ts: new Date().toISOString(),
+    tick: schedulerState.totalTicks,
+    action: decision.action,
+    taskId: decision.taskId,
+    reason: decision.reason,
+    suspended: decision.suspended,
+  };
+  schedulerHistory.push(historyEntry);
+  if (schedulerHistory.length > MAX_HISTORY) schedulerHistory.splice(0, schedulerHistory.length - MAX_HISTORY);
+  eventBus.emit('action:scheduler', { event: 'decision', ...historyEntry });
+
   return decision;
 }
 
@@ -246,11 +253,43 @@ export function schedulerTaskDone(taskId: string): void {
   if (schedulerState.currentTaskId === taskId) {
     resetCurrentTask();
   }
+  eventBus.emit('action:scheduler', { event: 'task-done', taskId });
 }
 
 export function getSchedulerStatus(): string {
   const s = schedulerState;
   return `Scheduler: tick=${s.totalTicks} current=${s.currentTaskId?.slice(0, 12) ?? 'none'} ticksOnCurrent=${s.ticksOnCurrent}`;
+}
+
+// =============================================================================
+// History (audit trail)
+// =============================================================================
+
+export interface SchedulerHistoryEntry {
+  ts: string;
+  tick: number;
+  action: SchedulerAction;
+  taskId: string | null;
+  reason: string;
+  suspended: SuspendInfo | null;
+}
+
+const MAX_HISTORY = 50;
+const schedulerHistory: SchedulerHistoryEntry[] = [];
+
+export function getSchedulerHistory(limit: number = 50): SchedulerHistoryEntry[] {
+  return schedulerHistory.slice(-limit);
+}
+
+export function getTopPending(memoryDir: string, limit: number = 5): { tasks: Array<TaskSnapshot & { score: number }>; totalCount: number } {
+  const entries = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+  const tasks = entries.map(entryToSnapshot);
+  const scored = tasks.map(t => ({ ...t, score: computeScore(t) }));
+  scored.sort((a, b) => b.score - a.score);
+  return { tasks: scored.slice(0, limit), totalCount: scored.length };
 }
 
 // =============================================================================

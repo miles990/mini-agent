@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent OS — Activity Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090a;
+  --surface: #111214;
+  --surface2: #181a1e;
+  --surface3: #1e2025;
+  --border: #262830;
+  --border-subtle: #1c1e24;
+  --text: #d4d4d8;
+  --text-bright: #f0f0f2;
+  --text2: #6b6f7b;
+  --text3: #454854;
+  --accent: #5eead4;
+  --accent-dim: rgba(94, 234, 212, 0.12);
+  --accent-glow: rgba(94, 234, 212, 0.06);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96, 165, 250, 0.12);
+  --yellow: #fbbf24;
+  --yellow-dim: rgba(251, 191, 36, 0.10);
+  --red: #f87171;
+  --red-dim: rgba(248, 113, 113, 0.10);
+  --green: #4ade80;
+  --green-dim: rgba(74, 222, 128, 0.12);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167, 139, 250, 0.10);
+  --orange: #fb923c;
+  --orange-dim: rgba(251, 146, 60, 0.10);
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --sans: 'Noto Sans TC', 'Noto Sans', system-ui, sans-serif;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+header h1 .os-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text2);
+  font-family: var(--mono);
+}
+
+.header-meta .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease infinite;
+  display: inline-block;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-full {
+  grid-column: 1 / -1;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.card-header h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+}
+
+.card-body {
+  padding: 16px;
+}
+
+/* Current Task Card */
+.current-task {
+  border-left: 3px solid var(--accent);
+}
+
+.task-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+
+.task-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.tag-source-alex { color: var(--yellow); background: var(--yellow-dim); }
+.tag-source-kuro { color: var(--accent); background: var(--accent-dim); }
+.tag-source-system { color: var(--text2); background: var(--surface3); }
+.tag-source-discovery { color: var(--purple); background: var(--purple-dim); }
+.tag-priority { color: var(--blue); background: var(--blue-dim); }
+.tag-action { color: var(--text2); background: var(--surface3); }
+
+/* Attention Budget Bar */
+.budget-bar {
+  margin-top: 12px;
+}
+
+.budget-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+  font-family: var(--mono);
+}
+
+.budget-bar-track {
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease, background 0.3s ease;
+}
+
+.budget-bar-fill.normal { background: var(--accent); }
+.budget-bar-fill.warning { background: var(--yellow); }
+.budget-bar-fill.critical { background: var(--red); }
+
+/* Process Table */
+.process-list {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.process-list th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.process-list td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.process-list tr:last-child td { border-bottom: none; }
+
+.process-list tr:hover { background: var(--surface2); }
+
+.state-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.state-running { color: var(--green); background: var(--green-dim); }
+.state-pending { color: var(--text2); background: var(--surface3); }
+.state-blocked { color: var(--red); background: var(--red-dim); }
+.state-suspended { color: var(--yellow); background: var(--yellow-dim); }
+.state-completed { color: var(--accent); background: var(--accent-dim); }
+.state-abandoned { color: var(--text3); background: var(--surface2); }
+
+/* Stats Row */
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-box {
+  flex: 1;
+  min-width: 100px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Decision Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.timeline-entry {
+  display: grid;
+  grid-template-columns: 80px 70px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.timeline-entry:hover { background: var(--surface2); }
+
+.timeline-entry.fresh {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.timeline-ts {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.timeline-action {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.timeline-reason {
+  color: var(--text2);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Queue (Top Pending) */
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.queue-item:hover { background: var(--surface2); }
+
+.queue-rank {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  width: 24px;
+  text-align: center;
+}
+
+.queue-score {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  width: 48px;
+  text-align: right;
+}
+
+.queue-summary {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pressure Gauge */
+.pressure-gauge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gauge-circle {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.gauge-circle svg {
+  transform: rotate(-90deg);
+}
+
+.gauge-circle .gauge-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+}
+
+.gauge-pct {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.gauge-label {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+
+/* Empty state */
+.empty {
+  color: var(--text3);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Activity Monitor <span class="os-badge">Agent OS</span> <a href="/dashboard" style="font-size:11px; color:var(--text3); text-decoration:none; margin-left:12px; font-weight:400;">Dashboard &rarr;</a></h1>
+    <div class="header-meta">
+      <span><span class="live-dot"></span> Live</span>
+      <span id="hdr-tick">tick 0</span>
+      <span id="hdr-uptime">--</span>
+    </div>
+  </header>
+
+  <!-- Stats Overview -->
+  <div class="stats-row" style="margin-bottom: 16px;">
+    <div class="stat-box">
+      <div class="stat-value" id="stat-total-ticks">0</div>
+      <div class="stat-label">Total Ticks</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-running">0</div>
+      <div class="stat-label">Running</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-pending">0</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-suspended">0</div>
+      <div class="stat-label">Suspended</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-completed">0</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-pressure" style="font-size: 16px;">NORMAL</div>
+      <div class="stat-label">Context Pressure</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Current Task -->
+    <div class="card current-task">
+      <div class="card-header">
+        <h2>Current Task</h2>
+        <span class="tag tag-action" id="ct-action">idle</span>
+      </div>
+      <div class="card-body" id="current-task-body">
+        <div class="empty">No task assigned</div>
+      </div>
+    </div>
+
+    <!-- Attention Budget -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Attention Budget</h2>
+        <span id="ab-ratio" style="font-family: var(--mono); font-size: 11px; color: var(--text2);">0 / 15</span>
+      </div>
+      <div class="card-body">
+        <div class="budget-bar">
+          <div class="budget-bar-label">
+            <span>Ticks on current task</span>
+            <span id="ab-pct">0%</span>
+          </div>
+          <div class="budget-bar-track">
+            <div class="budget-bar-fill normal" id="ab-fill" style="width: 0%"></div>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <div class="budget-bar-label">
+            <span>Next discovery slot</span>
+            <span id="ds-countdown">--</span>
+          </div>
+          <div class="budget-bar-track">
+            <div class="budget-bar-fill" id="ds-fill" style="width: 0%; background: var(--purple);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task Queue (Top Pending) -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Task Queue</h2>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text2);" id="queue-depth">0 tasks</span>
+      </div>
+      <div class="card-body" id="queue-body">
+        <div class="empty">No pending tasks</div>
+      </div>
+    </div>
+
+    <!-- Process Table -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Process Table</h2>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text2);" id="pt-count">0 processes</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        <div style="overflow-x: auto;">
+          <table class="process-list" id="process-table">
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>Priority</th>
+                <th>Source</th>
+                <th>Task</th>
+                <th>Ticks</th>
+              </tr>
+            </thead>
+            <tbody id="pt-body">
+              <tr><td colspan="5" class="empty">No processes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decision Timeline -->
+    <div class="card grid-full">
+      <div class="card-header">
+        <h2>Scheduler Decision Timeline</h2>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text2);" id="tl-count">0 decisions</span>
+      </div>
+      <div class="card-body" style="padding: 8px;">
+        <div class="timeline" id="timeline-body">
+          <div class="empty">No decisions yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center; padding: 16px; color: var(--text3); font-size: 11px; font-family: var(--mono);">
+    mini-agent Agent OS &mdash; since last restart &mdash; polling every 5s + SSE
+  </div>
+</div>
+
+<script>
+const BASE = window.location.origin;
+const POLL_INTERVAL = 5000;
+const DISCOVERY_INTERVAL = 10;
+
+const actionColors = {
+  continue: 'var(--accent)',
+  switch: 'var(--yellow)',
+  discovery: 'var(--purple)',
+  idle: 'var(--text3)',
+};
+
+const sourceTag = (src) => {
+  const cls = `tag-source-${src || 'system'}`;
+  return `<span class="tag ${cls}">${src || 'system'}</span>`;
+};
+
+function shortId(id) {
+  if (!id) return '--';
+  return id.slice(0, 12);
+}
+
+function timeAgo(ts) {
+  if (!ts) return '--';
+  const diff = Date.now() - new Date(ts).getTime();
+  if (diff < 60000) return `${Math.floor(diff/1000)}s ago`;
+  if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+  return `${Math.floor(diff/3600000)}h ago`;
+}
+
+function renderScheduler(data) {
+  // Header
+  document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks}`;
+  document.getElementById('stat-total-ticks').textContent = data.totalTicks;
+  document.getElementById('ct-action').textContent = data.currentTask ? 'running' : 'idle';
+  document.getElementById('ct-action').style.color = data.currentTask ? 'var(--green)' : 'var(--text3)';
+
+  // Current task
+  const ctBody = document.getElementById('current-task-body');
+  if (data.currentTask && data.currentTask.summary) {
+    const t = data.currentTask;
+    ctBody.innerHTML = `
+      <div class="task-name">${escHtml(t.summary)}</div>
+      <div class="task-meta">
+        ${sourceTag(t.source)}
+        <span class="tag tag-priority">P${t.priority ?? '?'}</span>
+        <span class="tag tag-action">${data.ticksOnCurrent} ticks</span>
+      </div>
+    `;
+  } else if (data.currentTask) {
+    ctBody.innerHTML = `<div class="task-name" style="color:var(--text2);">${shortId(data.currentTask.id)}</div>`;
+  } else {
+    ctBody.innerHTML = '<div class="empty">No task assigned &mdash; idle or discovery</div>';
+  }
+
+  // Attention Budget
+  const ab = data.attentionBudget;
+  const abPct = Math.min(Math.round(ab.ratio * 100), 100);
+  document.getElementById('ab-ratio').textContent = `${ab.used} / ${ab.limit}`;
+  document.getElementById('ab-pct').textContent = `${abPct}%`;
+  const fill = document.getElementById('ab-fill');
+  fill.style.width = abPct + '%';
+  fill.className = 'budget-bar-fill ' + (abPct >= 90 ? 'critical' : abPct >= 60 ? 'warning' : 'normal');
+
+  // Discovery slot
+  const dsRemain = DISCOVERY_INTERVAL - (data.totalTicks % DISCOVERY_INTERVAL);
+  document.getElementById('ds-countdown').textContent = `${dsRemain} ticks`;
+  document.getElementById('ds-fill').style.width = ((DISCOVERY_INTERVAL - dsRemain) / DISCOVERY_INTERVAL * 100) + '%';
+
+  // Queue
+  document.getElementById('queue-depth').textContent = `${data.queueDepth} tasks`;
+  const qBody = document.getElementById('queue-body');
+  if (data.topPending && data.topPending.length > 0) {
+    qBody.innerHTML = data.topPending.map((t, i) => `
+      <div class="queue-item">
+        <span class="queue-rank">#${i + 1}</span>
+        ${sourceTag(t.source)}
+        <span class="tag tag-priority">P${t.priority}</span>
+        <span class="queue-summary">${escHtml(t.summary)}</span>
+        <span class="queue-score">${t.score}</span>
+      </div>
+    `).join('');
+  } else {
+    qBody.innerHTML = '<div class="empty">No pending tasks</div>';
+  }
+}
+
+function renderProcesses(data) {
+  const { processes, stats } = data;
+  document.getElementById('stat-running').textContent = stats.running;
+  document.getElementById('stat-pending').textContent = stats.pending;
+  document.getElementById('stat-suspended').textContent = stats.suspended;
+  document.getElementById('stat-completed').textContent = stats.completed;
+  document.getElementById('pt-count').textContent = `${stats.total} processes`;
+
+  const body = document.getElementById('pt-body');
+  const active = processes.filter(p => p.state !== 'completed' && p.state !== 'abandoned');
+  if (active.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="empty">No active processes</td></tr>';
+    return;
+  }
+
+  const stateOrder = { running: 0, blocked: 1, suspended: 2, pending: 3 };
+  active.sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
+
+  body.innerHTML = active.map(p => `
+    <tr>
+      <td><span class="state-badge state-${p.state}">${p.state}</span></td>
+      <td><span class="tag tag-priority">P${p.priority}</span></td>
+      <td>${sourceTag(p.source)}</td>
+      <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escAttr(p.taskId)}">${escHtml(p.summary || shortId(p.taskId))}</td>
+      <td style="font-family:var(--mono); font-size:11px; color:var(--text2);">${p.ticksSpent}</td>
+    </tr>
+  `).join('');
+}
+
+function renderTimeline(data) {
+  const entries = (data.history || []).slice().reverse();
+  document.getElementById('tl-count').textContent = `${entries.length} decisions`;
+
+  const body = document.getElementById('timeline-body');
+  if (entries.length === 0) {
+    body.innerHTML = '<div class="empty">No decisions yet</div>';
+    return;
+  }
+
+  body.innerHTML = entries.slice(0, 30).map(e => {
+    const ts = new Date(e.ts);
+    const time = ts.toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const color = actionColors[e.action] || 'var(--text2)';
+    return `
+      <div class="timeline-entry">
+        <span class="timeline-ts">${time}</span>
+        <span class="timeline-action" style="color:${color};">${e.action}</span>
+        <span class="timeline-reason">${escHtml(e.reason)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+
+let lastUpdated = Date.now();
+async function fetchAll() {
+  lastUpdated = Date.now();
+  try {
+    const [sched, procs, hist, status] = await Promise.all([
+      fetch(BASE + '/api/dashboard/scheduler').then(r => r.json()),
+      fetch(BASE + '/api/dashboard/processes').then(r => r.json()),
+      fetch(BASE + '/api/dashboard/scheduler/history?limit=50').then(r => r.json()),
+      fetch(BASE + '/status').then(r => r.json()).catch(() => null),
+    ]);
+
+    renderScheduler(sched);
+    renderProcesses(procs);
+    renderTimeline(hist);
+
+    if (status) {
+      const up = status.uptime;
+      const h = Math.floor(up / 3600);
+      const m = Math.floor((up % 3600) / 60);
+      document.getElementById('hdr-uptime').textContent = `uptime ${h}h ${m}m`;
+    }
+  } catch (e) {
+    console.error('fetch error:', e);
+  }
+}
+
+// SSE for real-time updates with debounce
+let fetchTimer = null;
+function debouncedFetch() {
+  if (fetchTimer) return;
+  fetchTimer = setTimeout(() => { fetchTimer = null; fetchAll(); }, 300);
+}
+
+function connectSSE() {
+  const es = new EventSource(BASE + '/api/events');
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'action:scheduler' || data.type === 'action:process') {
+        debouncedFetch();
+      }
+    } catch {}
+  };
+  es.onerror = () => {
+    es.close();
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+// Staleness indicator
+setInterval(() => {
+  const ago = Math.floor((Date.now() - lastUpdated) / 1000);
+  const el = document.getElementById('hdr-uptime');
+  if (ago > 15) el.style.color = 'var(--red)';
+  else el.style.color = '';
+}, 3000);
+
+// Init
+fetchAll();
+setInterval(fetchAll, POLL_INTERVAL);
+connectSSE();
+</script>
+</body>
+</html>

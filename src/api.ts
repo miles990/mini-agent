@@ -2426,6 +2426,89 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // ── Agent OS Activity Monitor APIs ──
+
+  app.get('/api/dashboard/scheduler', (_req: Request, res: Response) => {
+    try {
+      const { getSchedulerState, getTopPending, getSchedulerHistory } = require('./scheduler.js');
+      const { getMemory } = require('./memory.js');
+      const memDir = path.join(process.cwd(), 'memory');
+      const state = getSchedulerState();
+      const { tasks: topTasks, totalCount } = getTopPending(memDir, 5);
+      const ATTENTION_BUDGET = 15;
+      res.json({
+        currentTask: state.currentTaskId ? topTasks.find((t: any) => t.id === state.currentTaskId) ?? { id: state.currentTaskId } : null,
+        ticksOnCurrent: state.ticksOnCurrent,
+        totalTicks: state.totalTicks,
+        lastDiscoveryTick: state.lastDiscoveryTick,
+        attentionBudget: {
+          limit: ATTENTION_BUDGET,
+          used: state.ticksOnCurrent,
+          ratio: state.ticksOnCurrent / ATTENTION_BUDGET,
+        },
+        queueDepth: totalCount,
+        topPending: topTasks,
+      });
+    } catch (e) {
+      res.json({ currentTask: null, ticksOnCurrent: 0, totalTicks: 0, attentionBudget: { limit: 15, used: 0, ratio: 0 }, queueDepth: 0, topPending: [] });
+    }
+  });
+
+  app.get('/api/dashboard/scheduler/history', (req: Request, res: Response) => {
+    try {
+      const { getSchedulerHistory } = require('./scheduler.js');
+      const limit = parseInt(req.query.limit as string || '50', 10);
+      res.json({ history: getSchedulerHistory(Math.min(limit, 200)) });
+    } catch {
+      res.json({ history: [] });
+    }
+  });
+
+  app.get('/api/dashboard/processes', (_req: Request, res: Response) => {
+    try {
+      const { getProcessTableSnapshot, getProcessTableStatus } = require('./process-table.js');
+      const entries = getProcessTableSnapshot();
+      const stats: Record<string, number> = {};
+      for (const e of entries) {
+        stats[e.state] = (stats[e.state] ?? 0) + 1;
+      }
+      res.json({
+        processes: entries,
+        stats: {
+          running: stats.running ?? 0,
+          pending: stats.pending ?? 0,
+          blocked: stats.blocked ?? 0,
+          suspended: stats.suspended ?? 0,
+          completed: stats.completed ?? 0,
+          abandoned: stats.abandoned ?? 0,
+          total: entries.length,
+        },
+      });
+    } catch {
+      res.json({ processes: [], stats: { running: 0, pending: 0, blocked: 0, suspended: 0, completed: 0, abandoned: 0, total: 0 } });
+    }
+  });
+
+  app.get('/api/dashboard/budget', (_req: Request, res: Response) => {
+    // Context budget is stateless — returns last known state or defaults
+    res.json({
+      pressure: { level: 'normal', usage: 0, budget: 180000, ratio: 0, action: 'none' },
+      sections: [],
+      trimmedSections: [],
+      note: 'Context budget integration pending Phase 1.5',
+    });
+  });
+
+  // Activity Monitor HTML — standalone page
+  app.get('/monitor', (_req: Request, res: Response) => {
+    const monitorPath = path.join(import.meta.dirname, '..', 'activity-monitor.html');
+    if (fs.existsSync(monitorPath)) {
+      res.sendFile(monitorPath);
+    } else {
+      res.status(404).send('Activity Monitor not found');
+    }
+  });
+
   // Dashboard HTML — 靜態頁面
   app.get('/dashboard', (_req: Request, res: Response) => {
     const dashboardPath = path.join(import.meta.dirname, '..', 'dashboard.html');

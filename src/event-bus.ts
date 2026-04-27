@@ -29,6 +29,9 @@ export type AgentEventType =
   | 'action:delegation-complete'
   | 'action:agora'
   | 'action:tool'       // Tool registry execution (pre/post)
+  | 'action:scheduler'  // Scheduler decision (pick/switch/preempt/discovery)
+  | 'action:process'    // Process state transition
+  | 'action:budget'     // Context budget pressure change
   // Lifecycle Hooks（configurable lifecycle events）
   | 'hook:cycle-start'
   | 'hook:cycle-end'

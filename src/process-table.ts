@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
+import { eventBus } from './event-bus.js';
 import type { TaskSnapshot, SuspendInfo } from './scheduler.js';
 
 // =============================================================================
@@ -26,6 +27,7 @@ export interface ProcessCheckpoint {
 
 export interface ProcessEntry {
   taskId: string;
+  summary: string;
   state: ProcessState;
   priority: number;
   source: 'alex' | 'kuro' | 'system' | 'discovery';
@@ -58,6 +60,7 @@ export function registerProcess(task: TaskSnapshot): ProcessEntry {
 
   const entry: ProcessEntry = {
     taskId: task.id,
+    summary: task.summary,
     state: task.status === 'in_progress' ? 'running' : 'pending',
     priority: task.priority,
     source: task.source,
@@ -99,6 +102,7 @@ export function transitionProcess(
   }
 
   slog('PTABLE', `${taskId.slice(0, 12)} ${from} → ${to}${reason ? ` (${reason})` : ''}`);
+  eventBus.emit('action:process', { event: 'transition', taskId, from, to, reason });
   return true;
 }
 
