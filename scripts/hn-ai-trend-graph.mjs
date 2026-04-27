@@ -6,7 +6,7 @@
  * tags each post by topic via keyword matching, builds a force-directed
  * graph (d3 v7), and writes a self-contained HTML page.
  *
- * Output: kuro-site/hn-ai-trend/graph.html
+ * Output: kuro-portfolio/hn-ai-trend/graph.html (served at kuro.page/hn-ai-trend/graph.html)
  *
  * Nodes  = posts (size = points, color = primary topic)
  * Edges  = shared topic between two posts (weight = shared count)
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const DATA_DIR = join(ROOT, 'memory/state/hn-ai-trend');
-const OUT = join(ROOT, '../kuro-site/hn-ai-trend/graph.html');
+const OUT = join(ROOT, 'kuro-portfolio/hn-ai-trend/graph.html');
 
 // Topic taxonomy — keyword → canonical topic. First match wins for primary color.
 // Order matters: more specific first.
