@@ -22,6 +22,8 @@ export interface TaskSnapshot {
   source: 'alex' | 'kuro' | 'system' | 'discovery';
   createdAt: string;
   ticksSpent: number;
+  deadline: string | null;
+  dependsOn: string[];
 }
 
 export interface SchedulerState {
@@ -152,20 +154,46 @@ export class DefaultScheduler implements SchedulerPolicy {
 
   private stackRank(tasks: TaskSnapshot[], _state: SchedulerState): TaskSnapshot | null {
     if (tasks.length === 0) return null;
-    const scored = tasks.map(t => ({ task: t, score: computeScore(t) }));
+    const scored = tasks.map(t => ({ task: t, score: computeScore(t, tasks) }));
     scored.sort((a, b) => b.score - a.score);
     return scored[0].task;
   }
 }
 
-export function computeScore(t: TaskSnapshot): number {
+export function computeScore(t: TaskSnapshot, allTasks?: TaskSnapshot[]): number {
   let score = (3 - t.priority) * 1000;
   if (t.source === 'alex') score += 5000;
+
+  // Aging boost
   const ageMs = Date.now() - new Date(t.createdAt).getTime();
   const ageTicks = Math.floor(ageMs / 60_000);
   if (ageTicks > AGING_BOOST_TICKS) {
     score += Math.min((ageTicks - AGING_BOOST_TICKS) * 10, 500);
   }
+
+  // Deadline urgency: closer deadline → higher score
+  if (t.deadline) {
+    const deadlineMs = new Date(t.deadline).getTime() - Date.now();
+    const daysRemaining = deadlineMs / 86_400_000;
+    if (daysRemaining <= 0) {
+      score += 3000; // overdue
+    } else if (daysRemaining <= 3) {
+      score += 2000; // critical
+    } else if (daysRemaining <= 7) {
+      score += Math.round(1000 - daysRemaining * 100);
+    }
+  }
+
+  // Dependency boost: if other tasks depend on this one, boost it
+  if (allTasks) {
+    const blockerCount = allTasks.filter(other =>
+      other.dependsOn?.includes(t.id)
+    ).length;
+    if (blockerCount > 0) {
+      score += blockerCount * 500;
+    }
+  }
+
   if (t.status === 'in_progress') score += 100;
   return score;
 }
@@ -296,7 +324,7 @@ export function getTopPending(memoryDir: string, limit: number = 5): { tasks: Ar
       const proc = getProcess(t.id);
       return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
     });
-  const scored = tasks.map(t => ({ ...t, score: computeScore(t) }));
+  const scored = tasks.map(t => ({ ...t, score: computeScore(t, tasks) }));
   scored.sort((a, b) => b.score - a.score);
   return { tasks: scored.slice(0, limit), totalCount: scored.length };
 }
@@ -314,6 +342,9 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
   const created = (payload.created as string) ?? entry.ts;
   const ticksSpent = typeof payload.ticksSpent === 'number' ? payload.ticksSpent : 0;
 
+  const deadline = parseDeadline(entry.summary ?? '', payload);
+  const dependsOn = Array.isArray(payload.dependsOn) ? payload.dependsOn as string[] : [];
+
   return {
     id: entry.id,
     summary: entry.summary ?? entry.id,
@@ -322,7 +353,20 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
     source,
     createdAt: created,
     ticksSpent,
+    deadline,
+    dependsOn,
   };
+}
+
+function parseDeadline(summary: string, payload: Record<string, unknown>): string | null {
+  if (typeof payload.deadline === 'string') return payload.deadline;
+  const match = summary.match(/[Dd]eadline[：:\s]*(\d{1,2}\/\d{1,2})/);
+  if (match) {
+    const [m, d] = match[1].split('/');
+    const year = new Date().getFullYear();
+    return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
 }
 
 function parsePriorityFromSummary(summary: string): number {

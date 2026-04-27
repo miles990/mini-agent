@@ -489,6 +489,11 @@ header h1 .os-badge {
       <div class="stat-value" id="stat-pressure" style="font-size: 16px;">NORMAL</div>
       <div class="stat-label">Context Pressure</div>
     </div>
+    <div class="stat-box" id="health-box" style="position:relative;">
+      <div class="stat-value" id="stat-health" style="font-size: 22px;">--</div>
+      <div class="stat-label">Health Score</div>
+      <div id="health-anomalies" style="position:absolute; top:4px; right:6px; display:flex; gap:3px;"></div>
+    </div>
   </div>
 
   <div class="grid">
@@ -660,15 +665,18 @@ function renderScheduler(data) {
   document.getElementById('queue-depth').textContent = `${data.queueDepth} tasks`;
   const qBody = document.getElementById('queue-body');
   if (data.topPending && data.topPending.length > 0) {
-    qBody.innerHTML = data.topPending.map((t, i) => `
+    qBody.innerHTML = data.topPending.map((t, i) => {
+      const deadlineBadge = t.deadline ? `<span style="font-family:var(--mono);font-size:10px;color:var(--orange);margin-left:4px;">⏰${t.deadline.slice(5)}</span>` : '';
+      const depBadge = t.dependsOn?.length ? `<span style="font-family:var(--mono);font-size:10px;color:var(--purple);margin-left:4px;">⛓${t.dependsOn.length}</span>` : '';
+      return `
       <div class="queue-item">
         <span class="queue-rank">#${i + 1}</span>
         ${sourceTag(t.source)}
         <span class="tag tag-priority">P${t.priority}</span>
-        <span class="queue-summary">${escHtml(t.summary)}</span>
+        <span class="queue-summary">${escHtml(t.summary)}${deadlineBadge}${depBadge}</span>
         <span class="queue-score">${t.score}</span>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   } else {
     qBody.innerHTML = '<div class="empty">No pending tasks</div>';
   }
@@ -732,6 +740,28 @@ function escHtml(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+function renderHealth(data) {
+  const el = document.getElementById('stat-health');
+  const box = document.getElementById('health-box');
+  const score = data.score ?? 50;
+  el.textContent = score;
+  if (score >= 70) { el.style.color = 'var(--green)'; box.style.borderColor = 'var(--green)'; }
+  else if (score >= 40) { el.style.color = 'var(--yellow)'; box.style.borderColor = 'var(--yellow)'; }
+  else { el.style.color = 'var(--red)'; box.style.borderColor = 'var(--red)'; }
+
+  const badges = document.getElementById('health-anomalies');
+  const anomalyColors = { 'high-noop': 'var(--yellow)', 'high-error': 'var(--red)', 'low-completion': 'var(--orange)' };
+  badges.innerHTML = (data.anomalies || []).map(a =>
+    `<span style="width:8px;height:8px;border-radius:50%;background:${anomalyColors[a] || 'var(--text3)'};display:inline-block;" title="${a}"></span>`
+  ).join('');
+
+  // Track history for sparkline
+  healthHistory.push(score);
+  if (healthHistory.length > 20) healthHistory.shift();
+}
+
+const healthHistory = [];
 function escAttr(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
@@ -741,16 +771,18 @@ let lastUpdated = Date.now();
 async function fetchAll() {
   lastUpdated = Date.now();
   try {
-    const [sched, procs, hist, status] = await Promise.all([
+    const [sched, procs, hist, status, health] = await Promise.all([
       fetch(BASE + '/api/dashboard/scheduler').then(r => r.json()),
       fetch(BASE + '/api/dashboard/processes').then(r => r.json()),
       fetch(BASE + '/api/dashboard/scheduler/history?limit=50').then(r => r.json()),
       fetch(BASE + '/status').then(r => r.json()).catch(() => null),
+      fetch(BASE + '/api/dashboard/health').then(r => r.json()).catch(() => null),
     ]);
 
     renderScheduler(sched);
     renderProcesses(procs);
     renderTimeline(hist);
+    if (health) renderHealth(health);
 
     if (status) {
       const up = status.uptime;

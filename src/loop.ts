@@ -42,7 +42,8 @@ import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSc
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { onSchedulerTick } from './reactive-policies.js';
-import { recordFailure } from './failure-registry.js';
+import { recordFailure, matchFailure } from './failure-registry.js';
+import { buildSuccessHint } from './success-patterns.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -2035,6 +2036,19 @@ export class AgentLoop {
       } else if (schedulerDecision.action === 'discovery') {
         schedulerTaskPrefix = `\n\n<current-task binding="discovery-slot">\n🔍 DISCOVERY SLOT: This cycle is free exploration. You may investigate new opportunities, review pending items, or pursue serendipitous findings. No specific task binding.\n</current-task>\n`;
       }
+      // Agent OS: Learning feedback — success hints + failure warnings
+      if (schedulerDecision.taskId) {
+        try {
+          const taskSummary = schedulerDecision.reason;
+          const successHint = buildSuccessHint(taskSummary);
+          if (successHint) schedulerTaskPrefix += successHint;
+          const failureMatch = matchFailure(taskSummary);
+          if (failureMatch) {
+            schedulerTaskPrefix += `\n<failure-warning frequency="${failureMatch.frequency}">\n⚠️ 類似任務曾失敗 ${failureMatch.frequency} 次：${failureMatch.pattern}\n上次：${failureMatch.context.slice(0, 100)}\n</failure-warning>\n`;
+          }
+        } catch { /* non-critical */ }
+      }
+
       // Sync process table with memory-index tasks and persist
       try {
         const ptEntries = queryMemoryIndexSync(memDir, {

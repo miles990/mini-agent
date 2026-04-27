@@ -75,6 +75,29 @@ export function getFailureCount(): number {
 }
 
 // =============================================================================
+// Retrieval API (Phase 3 — pre-action check)
+// =============================================================================
+
+export function matchFailure(action: string): FailureRecord | null {
+  const normalized = action.toLowerCase().trim();
+  let bestMatch: FailureRecord | null = null;
+  let bestScore = 0;
+
+  for (const record of registry.values()) {
+    if (record.frequency < 2) continue;
+    const words = record.pattern.split(/\s+/);
+    const matchCount = words.filter(w => normalized.includes(w)).length;
+    const score = matchCount / words.length;
+    if (score > 0.5 && score > bestScore) {
+      bestScore = score;
+      bestMatch = record;
+    }
+  }
+
+  return bestMatch;
+}
+
+// =============================================================================
 // Maintenance
 // =============================================================================
 

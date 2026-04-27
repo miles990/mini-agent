@@ -2498,6 +2498,44 @@ export function createApi(port = 3001): express.Express {
     });
   });
 
+  app.get('/api/dashboard/health', (_req: Request, res: Response) => {
+    try {
+      const procs = getProcessTableSnapshot();
+      const total = procs.length || 1;
+      const completed = procs.filter(p => p.state === 'completed').length;
+      const abandoned = procs.filter(p => p.state === 'abandoned').length;
+      const completionRate = total > 1 ? completed / (completed + abandoned || 1) : 0.5;
+      const { getTopFailures } = require('./failure-registry.js');
+      const failures = getTopFailures(100);
+      const errorRate = failures.length > 0 ? Math.min(failures.reduce((s: number, f: any) => s + f.frequency, 0) / (total * 10), 1) : 0;
+      const state = getSchedulerState();
+      const noopRate = state.totalTicks > 0 ? Math.max(0, 1 - (completed / Math.max(state.totalTicks, 1))) : 0;
+      const score = Math.round(
+        completionRate * 30 +
+        (1 - Math.min(noopRate, 1)) * 15 +
+        (1 - errorRate) * 15 +
+        0.8 * 20 + // pressure placeholder (normal = 0.8 score)
+        (1 - 0) * 20  // starvation placeholder
+      );
+      const anomalies: string[] = [];
+      if (noopRate > 0.7) anomalies.push('high-noop');
+      if (errorRate > 0.3) anomalies.push('high-error');
+      if (completionRate < 0.3) anomalies.push('low-completion');
+      res.json({ score: Math.min(score, 100), completionRate, noopRate, errorRate, anomalies });
+    } catch {
+      res.json({ score: 50, completionRate: 0, noopRate: 0, errorRate: 0, anomalies: [] });
+    }
+  });
+
+  app.get('/api/dashboard/failures', (_req: Request, res: Response) => {
+    try {
+      const { getTopFailures, getFailureCount } = require('./failure-registry.js');
+      res.json({ failures: getTopFailures(20), total: getFailureCount() });
+    } catch {
+      res.json({ failures: [], total: 0 });
+    }
+  });
+
   // Activity Monitor HTML — standalone page
   app.get('/monitor', (_req: Request, res: Response) => {
     const monitorPath = path.join(import.meta.dirname, '..', 'activity-monitor.html');

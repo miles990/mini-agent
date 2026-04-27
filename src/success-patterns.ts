@@ -48,6 +48,46 @@ function trimPatterns(filePath: string): void {
   } catch { /* silent */ }
 }
 
+export function loadSuccessPatterns(limit: number = 50): SuccessPattern[] {
+  try {
+    const stateDir = getMemoryStateDir();
+    const filePath = path.join(stateDir, PATTERNS_FILE);
+    if (!fs.existsSync(filePath)) return [];
+    const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+    const patterns: SuccessPattern[] = [];
+    for (const line of lines.slice(-limit)) {
+      try { patterns.push(JSON.parse(line)); } catch { /* skip */ }
+    }
+    return patterns;
+  } catch { return []; }
+}
+
+export function findRelevantSuccesses(currentTask: string, limit: number = 3): SuccessPattern[] {
+  const patterns = loadSuccessPatterns(100);
+  if (patterns.length === 0) return [];
+
+  const taskWords = currentTask.toLowerCase().split(/[\s\-_：:,，/]+/).filter(w => w.length > 2);
+  if (taskWords.length === 0) return patterns.slice(-limit);
+
+  const scored = patterns.map(p => {
+    const patternText = `${p.task} ${p.action} ${(p.tags || []).join(' ')}`.toLowerCase();
+    const matchCount = taskWords.filter(w => patternText.includes(w)).length;
+    return { pattern: p, score: matchCount / taskWords.length };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter(s => s.score > 0.2).slice(0, limit).map(s => s.pattern);
+}
+
+export function buildSuccessHint(currentTask: string): string {
+  const relevant = findRelevantSuccesses(currentTask, 3);
+  if (relevant.length === 0) return '';
+  const hints = relevant.map(p =>
+    `- 「${p.task.slice(0, 60)}」→ ${p.action.slice(0, 80)} [${(p.tags || []).join(', ')}]`
+  ).join('\n');
+  return `\n<past-successes>\n以下是類似任務的成功經驗：\n${hints}\n</past-successes>\n`;
+}
+
 export function seedFromHeartbeat(): void {
   try {
     const stateDir = getMemoryStateDir();
