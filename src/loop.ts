@@ -1849,6 +1849,18 @@ export class AgentLoop {
         context = `<stale-tasks priority="top">\n${staleLines.join('\n')}\n</stale-tasks>\n\n` + context;
       }
 
+      // Health self-correction: fetch guidance and inject when score < 60
+      try {
+        const healthRes = await fetch('http://localhost:3001/api/dashboard/health', { signal: AbortSignal.timeout(2000) });
+        if (healthRes.ok) {
+          const health = await healthRes.json() as { score: number; guidance?: string[] };
+          if (health.score < 60 && health.guidance && health.guidance.length > 0) {
+            const lines = health.guidance.map((g: string) => `→ ${g}`).join('\n');
+            context = `<health-correction score="${health.score}">\n${lines}\n</health-correction>\n\n` + context;
+          }
+        }
+      } catch { /* non-blocking */ }
+
       // Append KG persistent memory to context (if loaded)
       if (this.kgMemory.length > 0) {
         const kgSection = formatMemorySection(this.kgMemory);

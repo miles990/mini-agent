@@ -2509,60 +2509,56 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/dashboard/health', (_req: Request, res: Response) => {
     try {
       const signals = getHealthSignals();
-      const starvation = getStarvationMetrics();
-      const procs = getProcessTableSnapshot();
+      const memDir = path.join(process.cwd(), 'memory');
+      const allTasks = queryMemoryIndexSync(memDir, { type: 'task' });
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
-      // Completion: pulse 20-tick sliding window (visible output rate)
-      const completion = signals.visibleOutputRate;
+      // 1. Pledge Fulfillment (40%) — pledges completed / pledges created (7-day window)
+      const recentTasks = allTasks.filter(t => (t.ts ?? '') >= sevenDaysAgo);
+      const pledgeTasks = recentTasks.filter(t => (t.payload as Record<string, unknown>)?.origin === 'pledge');
+      const pledgesDone = pledgeTasks.filter(t => ['completed', 'done'].includes(t.status)).length;
+      const pledgesTotal = Math.max(1, pledgeTasks.length);
+      const fulfillment = pledgeTasks.length === 0 ? 0.7 : pledgesDone / pledgesTotal;
 
-      // Momentum: consecutive productive ticks (0-1, cap at 10)
-      const momentum = Math.min(signals.momentumStreak / 10, 1);
+      // 2. Responsiveness (35%) — inverse of avg staleness across active tasks
+      const activeTasks = allTasks.filter(t => ['pending', 'in_progress'].includes(t.status));
+      const avgStaleness = activeTasks.length === 0 ? 0 :
+        activeTasks.reduce((sum, t) => sum + ((t.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0), 0) / activeTasks.length;
+      const responsiveness = Math.max(0, 1 - avgStaleness / 10);
 
-      // Activity: 1 - noop rate (from pulse output flags)
-      const activity = signals.visibleOutputRate;
+      // 3. Output Quality (25%) — weighted visible output (commit=3, report=2, internal=1)
+      const outputRate = signals.visibleOutputRate;
+      const quality = Math.min(outputRate * 1.5, 1);
 
-      // Stability: inverse of error pattern count (0-1)
-      const stability = 1 - Math.min(signals.errorPatternCount / 10, 1);
+      const score = Math.round(fulfillment * 40 + responsiveness * 35 + quality * 25);
 
-      // Pressure: pending / max(1, recent completed) — relative load
-      const pendingCount = procs.filter(p => ['pending', 'scheduled', 'suspended'].includes(p.state)).length;
-      const recentCompleted = Math.max(1, signals.recentCompletedCount);
-      const pressure = 1 - Math.min(pendingCount / recentCompleted, 1);
-
-      // Fairness: starvation (0 starved = 1.0, 5+ starved = 0.0)
-      const fairness = 1 - Math.min(starvation.starvedCount / 5, 1);
-
-      // Weighted score: completion(15) + momentum(10) + activity(15) + stability(15) + pressure(25) + fairness(20)
-      const score = Math.round(
-        completion * 15 +
-        momentum * 10 +
-        activity * 15 +
-        stability * 15 +
-        pressure * 25 +
-        fairness * 20
-      );
-
-      const anomalies: string[] = [];
-      if (activity < 0.3) anomalies.push('high-noop');
-      if (stability < 0.7) anomalies.push('high-error');
-      if (completion < 0.3) anomalies.push('low-completion');
-      if (pressure < 0.3) anomalies.push('high-pressure');
-      if (fairness < 0.5) anomalies.push('starved-tasks');
+      // Self-correction guidance
+      const guidance: string[] = [];
+      if (fulfillment < 0.5) {
+        const unfinished = pledgeTasks.filter(t => !['completed', 'done'].includes(t.status));
+        const oldest = unfinished[0];
+        guidance.push(`承諾兌現率低 (${Math.round(fulfillment * 100)}%) — ${unfinished.length} 個 pledge 未完成${oldest ? `，最老: ${oldest.summary?.slice(0, 50)}` : ''}。現在做。`);
+      }
+      if (responsiveness < 0.5) {
+        const stalest = activeTasks.sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
+        guidance.push(`響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`);
+      }
+      if (quality < 0.4) {
+        guidance.push(`產出品質低 (${Math.round(quality * 100)}%) — 多數 cycle 無 visible output。交付成品，不要只思考。`);
+      }
 
       res.json({
         score: Math.min(score, 100),
         breakdown: {
-          completion: { value: completion, weight: 15, contribution: Math.round(completion * 15 * 10) / 10 },
-          momentum: { value: momentum, weight: 10, contribution: Math.round(momentum * 10 * 10) / 10 },
-          activity: { value: activity, weight: 15, contribution: Math.round(activity * 15 * 10) / 10 },
-          stability: { value: stability, weight: 15, contribution: Math.round(stability * 15 * 10) / 10 },
-          pressure: { value: pressure, weight: 25, contribution: Math.round(pressure * 25 * 10) / 10 },
-          fairness: { value: fairness, weight: 20, contribution: Math.round(fairness * 20 * 10) / 10 },
+          fulfillment: { value: fulfillment, weight: 40, contribution: Math.round(fulfillment * 40 * 10) / 10, detail: `${pledgesDone}/${pledgesTotal} pledges` },
+          responsiveness: { value: responsiveness, weight: 35, contribution: Math.round(responsiveness * 35 * 10) / 10, detail: `avg staleness ${avgStaleness.toFixed(1)}` },
+          quality: { value: quality, weight: 25, contribution: Math.round(quality * 25 * 10) / 10, detail: `output rate ${Math.round(outputRate * 100)}%` },
         },
-        anomalies,
+        guidance,
+        anomalies: guidance.length > 0 ? ['needs-correction'] : [],
       });
     } catch {
-      res.json({ score: 50, breakdown: null, anomalies: [] });
+      res.json({ score: 50, breakdown: null, guidance: [], anomalies: [] });
     }
   });
 
