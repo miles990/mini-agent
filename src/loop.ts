@@ -37,7 +37,10 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync } from './memory-index.js';
+import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
+import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
+import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -1040,6 +1043,9 @@ export class AgentLoop {
     // Initialize Shared Knowledge Bus
     try { initSharedKnowledge(getInstanceDir(getCurrentInstanceId())); } catch { /* best effort */ }
 
+    // Agent OS: Initialize process table from disk
+    try { initProcessTable(getMemoryStateDir()); } catch { /* best effort */ }
+
     // Phase 1c: Recover interrupted cycle on startup
     const stale = loadStaleCheckpoint();
     if (stale) {
@@ -1985,6 +1991,58 @@ export class AgentLoop {
         priorityPrefix += `\n⚠️ P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
       }
 
+      // ── Agent OS Scheduler: deterministic task selection ──
+      const schedulerEvents: SchedulerEvent[] = [];
+      if (isTelegramUserCycle) schedulerEvents.push({ source: 'telegram', priority: 0, isAlexDirectMessage: true });
+      else if (isRoomPriorityCycle) schedulerEvents.push({ source: 'room', priority: 0, isAlexDirectMessage: false });
+      else if (currentTriggerReason?.startsWith('cron')) schedulerEvents.push({ source: 'cron', priority: 2, isAlexDirectMessage: false });
+      else schedulerEvents.push({ source: 'heartbeat', priority: 3, isAlexDirectMessage: false });
+
+      advanceTick();
+      const schedulerDecision = schedulerPick(memDir, schedulerEvents);
+
+      // Handle suspend if scheduler preempted a task
+      if (schedulerDecision.suspended) {
+        const si = schedulerDecision.suspended;
+        suspendProcess(si.taskId, si, '');
+        saveSuspendCheckpoint({
+          taskId: si.taskId,
+          suspendedAt: new Date().toISOString(),
+          reason: si.reason,
+          resumeHints: '',
+          priorityAtSuspend: si.priorityAtSuspend,
+        });
+        slog('SCHED', `suspended ${si.taskId.slice(0, 12)} (${si.reason})`);
+      }
+
+      // Handle resume — load checkpoint for context
+      let schedulerTaskPrefix = '';
+      if (schedulerDecision.taskId) {
+        const resumeCheckpoint = loadSuspendCheckpoint(schedulerDecision.taskId);
+        if (resumeCheckpoint && schedulerDecision.action === 'switch') {
+          clearSuspendCheckpoint(schedulerDecision.taskId);
+          resumeProcess(schedulerDecision.taskId);
+          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER ASSIGNED TASK (resume from suspend):\nTask: ${schedulerDecision.taskId}\nSuspend reason: ${resumeCheckpoint.reason}\nResume hints: ${resumeCheckpoint.resumeHints || 'none'}\nAction: ${schedulerDecision.reason}\n\n你的這個 cycle 專注執行這個 task。完成用 <kuro:done>，卡住用 <kuro:blocked>。\n</current-task>\n`;
+        } else {
+          const taskEntry = nextPendingItems.find(i => i.includes(schedulerDecision.taskId!.slice(0, 12)));
+          const taskLabel = taskEntry ?? schedulerDecision.reason;
+          incrementTicks(schedulerDecision.taskId);
+          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER ASSIGNED TASK:\nTask: ${taskLabel}\nAction: ${schedulerDecision.action} — ${schedulerDecision.reason}\n\n你的這個 cycle 專注執行這個 task。完成用 <kuro:done>，卡住用 <kuro:blocked>。不要切換到其他 task。\n</current-task>\n`;
+        }
+      } else if (schedulerDecision.action === 'discovery') {
+        schedulerTaskPrefix = `\n\n<current-task binding="discovery-slot">\n🔍 DISCOVERY SLOT: This cycle is free exploration. You may investigate new opportunities, review pending items, or pursue serendipitous findings. No specific task binding.\n</current-task>\n`;
+      }
+      // Sync process table with memory-index tasks and persist
+      try {
+        const ptEntries = queryMemoryIndexSync(memDir, {
+          type: ['task', 'goal'],
+          status: ['pending', 'in_progress'],
+        });
+        syncFromTasks(ptEntries.map(entryToSnapshot));
+        persistProcessTable();
+      } catch { /* non-critical */ }
+      slog('SCHED', getSchedulerStatus());
+
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
       const triageHint = `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`;
 
@@ -2031,7 +2089,7 @@ export class AgentLoop {
         } catch { /* non-critical */ }
       }
 
-      const prompt = priorityPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
+      const prompt = priorityPrefix + schedulerTaskPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
@@ -2543,6 +2601,12 @@ export class AgentLoop {
           markTaskDoneByDescription(path.join(process.cwd(), 'memory'), filteredDones).catch(() => {});
           for (const done of filteredDones) {
             markTaskProgressDone(done);
+          }
+          // Agent OS: notify scheduler + process table of task completion
+          const schedState = getSchedulerState();
+          if (schedState.currentTaskId) {
+            schedulerTaskDone(schedState.currentTaskId);
+            completeProcess(schedState.currentTaskId);
           }
           try {
             const { recordSuccessPattern } = await import('./success-patterns.js');

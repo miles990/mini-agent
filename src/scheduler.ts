@@ -1,0 +1,286 @@
+/**
+ * Agent OS Scheduler — deterministic task scheduling
+ *
+ * Replaces LLM's ad-hoc task selection with code-layer scheduling.
+ * OS is inspiration, not blueprint — adapted for agent impedance mismatch.
+ */
+
+import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
+import { slog } from './utils.js';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface TaskSnapshot {
+  id: string;
+  summary: string;
+  status: string;
+  priority: number;
+  source: 'alex' | 'kuro' | 'system' | 'discovery';
+  createdAt: string;
+  ticksSpent: number;
+}
+
+export interface SchedulerState {
+  currentTaskId: string | null;
+  ticksOnCurrent: number;
+  totalTicks: number;
+  lastDiscoveryTick: number;
+}
+
+export type SchedulerAction = 'continue' | 'switch' | 'discovery' | 'idle';
+
+export interface SchedulingDecision {
+  taskId: string | null;
+  reason: string;
+  action: SchedulerAction;
+  suspended: SuspendInfo | null;
+}
+
+export interface SuspendInfo {
+  taskId: string;
+  reason: 'preempted' | 'attention_budget' | 'blocked';
+  priorityAtSuspend: number;
+}
+
+export interface IncomingEvent {
+  source: string;
+  priority: number;
+  isAlexDirectMessage: boolean;
+}
+
+export interface SchedulerPolicy {
+  decideNext(
+    tasks: TaskSnapshot[],
+    state: SchedulerState,
+    events: IncomingEvent[],
+  ): SchedulingDecision;
+}
+
+// =============================================================================
+// Config
+// =============================================================================
+
+const ATTENTION_BUDGET = 15;
+const DISCOVERY_INTERVAL = 10;
+const AGING_BOOST_TICKS = 30;
+
+// =============================================================================
+// Default Scheduler
+// =============================================================================
+
+export class DefaultScheduler implements SchedulerPolicy {
+  decideNext(
+    tasks: TaskSnapshot[],
+    state: SchedulerState,
+    events: IncomingEvent[],
+  ): SchedulingDecision {
+    const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+
+    if (activeTasks.length === 0) {
+      return { taskId: null, reason: 'no active tasks', action: 'idle', suspended: null };
+    }
+
+    const hasP0Event = events.some(e => e.priority === 0 || e.isAlexDirectMessage);
+
+    // Rule 1: P0 event preempts non-P0 current task
+    if (hasP0Event && state.currentTaskId) {
+      const current = activeTasks.find(t => t.id === state.currentTaskId);
+      if (current && current.priority > 0) {
+        const p0Task = activeTasks.find(t => t.priority === 0);
+        if (p0Task && p0Task.id !== state.currentTaskId) {
+          return {
+            taskId: p0Task.id,
+            reason: `P0 preemption: ${p0Task.summary.slice(0, 60)}`,
+            action: 'switch',
+            suspended: {
+              taskId: current.id,
+              reason: 'preempted',
+              priorityAtSuspend: current.priority,
+            },
+          };
+        }
+      }
+    }
+
+    // Rule 2: Current task still active → continue (task binding)
+    if (state.currentTaskId) {
+      const current = activeTasks.find(t => t.id === state.currentTaskId);
+      if (current) {
+        // Rule 2a: Attention budget exceeded → force re-evaluate
+        if (state.ticksOnCurrent >= ATTENTION_BUDGET) {
+          slog('SCHED', `attention budget exceeded for ${current.id} (${state.ticksOnCurrent} ticks)`);
+          const next = this.stackRank(activeTasks, state);
+          if (next && next.id !== current.id) {
+            return {
+              taskId: next.id,
+              reason: `attention budget: switching from ${current.summary.slice(0, 40)} to ${next.summary.slice(0, 40)}`,
+              action: 'switch',
+              suspended: {
+                taskId: current.id,
+                reason: 'attention_budget',
+                priorityAtSuspend: current.priority,
+              },
+            };
+          }
+        }
+        return { taskId: current.id, reason: 'task binding: continue current', action: 'continue', suspended: null };
+      }
+    }
+
+    // Rule 3: Discovery slot
+    if (state.totalTicks > 0 && state.totalTicks % DISCOVERY_INTERVAL === 0) {
+      return { taskId: null, reason: 'discovery slot: free exploration', action: 'discovery', suspended: null };
+    }
+
+    // Rule 4: Stack rank and pick highest
+    const next = this.stackRank(activeTasks, state);
+    if (next) {
+      return {
+        taskId: next.id,
+        reason: `stack rank: P${next.priority} ${next.summary.slice(0, 60)}`,
+        action: 'switch',
+        suspended: null,
+      };
+    }
+
+    return { taskId: null, reason: 'no schedulable tasks', action: 'idle', suspended: null };
+  }
+
+  private stackRank(tasks: TaskSnapshot[], state: SchedulerState): TaskSnapshot | null {
+    if (tasks.length === 0) return null;
+
+    const scored = tasks.map(t => {
+      let score = (3 - t.priority) * 1000;
+
+      // Source boost: alex tasks get massive priority
+      if (t.source === 'alex') score += 5000;
+
+      // Aging: tasks waiting longer get boosted
+      const ageMs = Date.now() - new Date(t.createdAt).getTime();
+      const ageTicks = Math.floor(ageMs / 60_000);
+      if (ageTicks > AGING_BOOST_TICKS) {
+        score += Math.min((ageTicks - AGING_BOOST_TICKS) * 10, 500);
+      }
+
+      // In-progress tasks get slight boost over pending (momentum)
+      if (t.status === 'in_progress') score += 100;
+
+      return { task: t, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].task;
+  }
+}
+
+// =============================================================================
+// State Management
+// =============================================================================
+
+let schedulerState: SchedulerState = {
+  currentTaskId: null,
+  ticksOnCurrent: 0,
+  totalTicks: 0,
+  lastDiscoveryTick: 0,
+};
+
+const scheduler = new DefaultScheduler();
+
+export function getSchedulerState(): SchedulerState {
+  return { ...schedulerState };
+}
+
+export function advanceTick(): void {
+  schedulerState.totalTicks++;
+  if (schedulerState.currentTaskId) {
+    schedulerState.ticksOnCurrent++;
+  }
+}
+
+export function resetCurrentTask(): void {
+  schedulerState.currentTaskId = null;
+  schedulerState.ticksOnCurrent = 0;
+}
+
+export function setCurrentTask(taskId: string): void {
+  if (schedulerState.currentTaskId !== taskId) {
+    schedulerState.currentTaskId = taskId;
+    schedulerState.ticksOnCurrent = 0;
+  }
+}
+
+// =============================================================================
+// Public API
+// =============================================================================
+
+export function schedulerPick(
+  memoryDir: string,
+  events: IncomingEvent[] = [],
+): SchedulingDecision {
+  const entries = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+
+  const tasks: TaskSnapshot[] = entries.map(entryToSnapshot);
+  const decision = scheduler.decideNext(tasks, schedulerState, events);
+
+  if (decision.taskId) {
+    setCurrentTask(decision.taskId);
+  } else if (decision.action === 'idle') {
+    resetCurrentTask();
+  }
+
+  if (decision.action === 'discovery') {
+    schedulerState.lastDiscoveryTick = schedulerState.totalTicks;
+  }
+
+  slog('SCHED', `tick=${schedulerState.totalTicks} action=${decision.action} task=${decision.taskId?.slice(0, 12) ?? 'none'} reason=${decision.reason.slice(0, 80)}`);
+
+  return decision;
+}
+
+export function schedulerTaskDone(taskId: string): void {
+  if (schedulerState.currentTaskId === taskId) {
+    resetCurrentTask();
+  }
+}
+
+export function getSchedulerStatus(): string {
+  const s = schedulerState;
+  return `Scheduler: tick=${s.totalTicks} current=${s.currentTaskId?.slice(0, 12) ?? 'none'} ticksOnCurrent=${s.ticksOnCurrent}`;
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const priority = typeof payload.priority === 'number' ? payload.priority : 2;
+  const source = detectSource(entry);
+  const created = (payload.created as string) ?? entry.ts;
+  const ticksSpent = typeof payload.ticksSpent === 'number' ? payload.ticksSpent : 0;
+
+  return {
+    id: entry.id,
+    summary: entry.summary ?? entry.id,
+    status: entry.status,
+    priority,
+    source,
+    createdAt: created,
+    ticksSpent,
+  };
+}
+
+function detectSource(entry: MemoryIndexEntry): TaskSnapshot['source'] {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  if (payload.source === 'alex') return 'alex';
+  if (payload.source === 'kuro') return 'kuro';
+  if (payload.source === 'discovery') return 'discovery';
+  const summary = (entry.summary ?? '').toLowerCase();
+  if (summary.includes('alex') && (summary.includes('要') || summary.includes('請') || summary.includes('做'))) return 'alex';
+  return 'system';
+}
