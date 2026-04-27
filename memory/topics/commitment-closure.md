@@ -11,3 +11,6 @@
 - [2026-04-25] [2026-04-26 04:00] Tier A topic-dedup merges = **fully closed**. Filesystem verified: `learned_patterns.md` + `feedback-falsify-own-premises.md` both gone (merged into hyphen/underscore counterparts respectively). Audit report `memory/reports/topic-dedup-audit-2026-04-26.md` lines 91-100 already record execution + self-correction. Parent task `idx-6e06557a` closed (line 116). Topic count = 135 / 150 budget (15-file headroom).
 
 **Stale-reasoning trap caught**: cycle #24 reasoning-continuity said
+- [2026-04-27] [2026-04-27 cl-32] 兩個 commitment 同 cycle 收口：
+1. **gap-day render**：live https://kuro.page/hn-ai-trend/graph.html header = `coverage 5/7 days · gaps: 04-23 04-26`。Falsifier (header 含 `gaps:`) pass。commitment「header 出 gaps: ... 才算交付」 closed。
+2. **ζ falsifier**：bare `silent_exit` 確認為 (a) missing-marker at emission。`agent.ts:222-232` 已帶 stdout_tail/signal/dur，但 `feedback-loops.ts:168-172` sub-classifier 只查 3 個 keyword (auth/overload/stdout=empty)，其餘 stdout_tail 內容 fallthrough 為 bare label。Fix path:
