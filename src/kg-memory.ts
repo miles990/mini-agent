@@ -1,11 +1,19 @@
-import { readFileSync, readdirSync, appendFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
 
 const KG_BASE = 'http://localhost:3300';
 
-function getCachePath(): string {
-  return path.join(process.cwd(), 'memory', 'state', 'kg-memory-cache.jsonl');
+const AGENT_MEMORY_DIRS: Record<string, string> = {
+  kuro: '/Users/user/Workspace/mini-agent/memory/state',
+  akari: '/Users/user/Workspace/akari/memory/state',
+};
+
+function getCachePathForAgent(agent: string): string {
+  const dir = AGENT_MEMORY_DIRS[agent] ?? path.join(process.cwd(), 'memory', 'state');
+  const cacheDir = path.join(dir);
+  if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+  return path.join(cacheDir, 'kg-memory-cache.jsonl');
 }
 
 export type MemoryPredicate = 'remembers' | 'learned' | 'decided' | 'pledged' | 'observed';
@@ -75,7 +83,7 @@ export function writeMemoryTriple(opts: WriteMemoryOpts): void {
     created_at: new Date().toISOString(),
     visibility: opts.visibility ?? 'private',
   };
-  try { appendFileSync(getCachePath(), JSON.stringify(cacheEntry) + '\n', 'utf-8'); } catch { /* fire-and-forget */ }
+  try { appendFileSync(getCachePathForAgent(opts.agent), JSON.stringify(cacheEntry) + '\n', 'utf-8'); } catch { /* fire-and-forget */ }
 
   // KG write (async, source of truth)
   fetch(`${KG_BASE}/api/write/triple`, {
@@ -94,7 +102,7 @@ export async function loadAgentMemory(opts: LoadMemoryOpts): Promise<AgentMemory
   const minRank = IMPORTANCE_RANK[minImportance];
 
   // Read from local cache (instant, always available)
-  const memories = loadFromCache(minRank);
+  const memories = loadFromCache(opts.agent, minRank);
 
   // Sort: importance desc, then recency desc
   memories.sort((a, b) => {
@@ -116,8 +124,8 @@ export async function loadAgentMemory(opts: LoadMemoryOpts): Promise<AgentMemory
   return result;
 }
 
-function loadFromCache(minRank: number): AgentMemoryEntry[] {
-  const filePath = getCachePath();
+function loadFromCache(agent: string, minRank: number): AgentMemoryEntry[] {
+  const filePath = getCachePathForAgent(agent);
   if (!existsSync(filePath)) return [];
   try {
     const lines = readFileSync(filePath, 'utf-8').trim().split('\n').filter(Boolean);
@@ -224,7 +232,7 @@ export async function syncMemoryToKG(opts: {
       created_at: (props.created_at as string) ?? new Date().toISOString(),
       visibility: (props.visibility as Visibility) ?? 'private',
     };
-    try { appendFileSync(getCachePath(), JSON.stringify(cacheEntry) + '\n', 'utf-8'); } catch { /* skip */ }
+    try { appendFileSync(getCachePathForAgent(opts.agent), JSON.stringify(cacheEntry) + '\n', 'utf-8'); } catch { /* skip */ }
   }
 
   let synced = 0;
