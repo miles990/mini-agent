@@ -126,6 +126,7 @@ import { getProvenance, resolveMemoryId } from './memory-provenance-query.js';
 import { getSchedulerState, getTopPending, getSchedulerHistory } from './scheduler.js';
 import { getHealthSignals } from './pulse.js';
 import { getStarvationMetrics } from './reactive-policies.js';
+import { getTodayActivity, getActivityByContext } from './activity-stream.js';
 import { getProcessTableSnapshot } from './process-table.js';
 
 // =============================================================================
@@ -2571,6 +2572,20 @@ export function createApi(port = 3001): express.Express {
       res.json({ failures: getTopFailures(20), total: getFailureCount() });
     } catch {
       res.json({ failures: [], total: 0 });
+    }
+  });
+
+  app.get('/api/dashboard/activity', (req: Request, res: Response) => {
+    try {
+      const context = req.query.context as string | undefined;
+      const activities = context ? getActivityByContext(context, 100) : getTodayActivity();
+      const contextCounts: Record<string, number> = {};
+      for (const a of activities) {
+        contextCounts[a.context] = (contextCounts[a.context] ?? 0) + 1;
+      }
+      res.json({ activities: activities.slice(-100), contexts: contextCounts, total: activities.length });
+    } catch {
+      res.json({ activities: [], contexts: {}, total: 0 });
     }
   });
 

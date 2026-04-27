@@ -592,6 +592,22 @@ header h1 .os-badge {
     </div>
   </div>
 
+  <!-- Activity Stream (OODA cycle work log) -->
+  <div class="card" style="margin-top: 16px;">
+    <div class="card-header">
+      <h2>Activity Stream</h2>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text2);" id="as-count">0 activities</span>
+        <span id="as-contexts" style="display:flex;gap:4px;"></span>
+      </div>
+    </div>
+    <div class="card-body" style="padding: 8px;">
+      <div class="timeline" id="activity-stream-body" style="max-height:300px;">
+        <div class="empty">No activity yet</div>
+      </div>
+    </div>
+  </div>
+
   <div style="text-align: center; padding: 16px; color: var(--text3); font-size: 11px; font-family: var(--mono);">
     mini-agent Agent OS &mdash; since last restart &mdash; polling every 5s + SSE
   </div>
@@ -876,6 +892,53 @@ function renderCurrentActivity(status, schedulerData) {
   body.innerHTML = `<div style="margin-bottom:${statsHtml ? '12px' : '0'};">${topHtml}</div>${statsHtml}`;
 }
 
+const contextColors = {
+  'ai-trend': 'var(--accent)',
+  'knowledge-graph': 'var(--purple)',
+  'activity-monitor': 'var(--blue)',
+  'communication': 'var(--yellow)',
+  'memory': 'var(--orange)',
+  'deploy': 'var(--green)',
+  'general': 'var(--text2)',
+};
+
+function renderActivityStream(data) {
+  const body = document.getElementById('activity-stream-body');
+  const countEl = document.getElementById('as-count');
+  const ctxEl = document.getElementById('as-contexts');
+  const activities = data.activities || [];
+  countEl.textContent = `${data.total || 0} today`;
+
+  // Context pills
+  const contexts = data.contexts || {};
+  ctxEl.innerHTML = Object.entries(contexts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([ctx, count]) => {
+      const color = contextColors[ctx] || 'var(--text3)';
+      return `<span style="font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;background:${color}22;color:${color};border:1px solid ${color}33;">${ctx} ${count}</span>`;
+    }).join('');
+
+  if (activities.length === 0) {
+    body.innerHTML = '<div class="empty">No activity yet — waiting for side-effect cycles</div>';
+    return;
+  }
+
+  body.innerHTML = activities.slice().reverse().slice(0, 50).map(a => {
+    const ts = new Date(a.ts);
+    const time = ts.toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const color = contextColors[a.context] || 'var(--text2)';
+    const tagBadges = (a.tags || []).slice(0, 3).map(t =>
+      `<span style="font-family:var(--mono);font-size:9px;padding:0 4px;border-radius:2px;background:var(--surface3);color:var(--text2);">${t}</span>`
+    ).join(' ');
+    return `
+      <div class="timeline-entry">
+        <span class="timeline-ts">${time}</span>
+        <span style="font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;background:${color}22;color:${color};min-width:70px;text-align:center;">${a.context}</span>
+        <span class="timeline-reason">${escHtml(a.action)} ${tagBadges}</span>
+      </div>`;
+  }).join('');
+}
+
 const healthHistory = [];
 function escAttr(s) {
   if (!s) return '';
@@ -886,12 +949,13 @@ let lastUpdated = Date.now();
 async function fetchAll() {
   lastUpdated = Date.now();
   try {
-    const [sched, procs, hist, status, health] = await Promise.all([
+    const [sched, procs, hist, status, health, activity] = await Promise.all([
       fetch(BASE + '/api/dashboard/scheduler').then(r => r.json()),
       fetch(BASE + '/api/dashboard/processes').then(r => r.json()),
       fetch(BASE + '/api/dashboard/scheduler/history?limit=50').then(r => r.json()),
       fetch(BASE + '/status').then(r => r.json()).catch(() => null),
       fetch(BASE + '/api/dashboard/health').then(r => r.json()).catch(() => null),
+      fetch(BASE + '/api/dashboard/activity').then(r => r.json()).catch(() => null),
     ]);
 
     renderScheduler(sched);
@@ -899,6 +963,7 @@ async function fetchAll() {
     renderTimeline(hist);
     if (health) renderHealth(health);
     renderCurrentActivity(status, sched);
+    if (activity) renderActivityStream(activity);
 
     if (status) {
       const up = status.uptime;

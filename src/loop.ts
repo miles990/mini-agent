@@ -46,6 +46,7 @@ import { recordFailure, matchFailure } from './failure-registry.js';
 import { buildSuccessHint } from './success-patterns.js';
 import { classifyWork, RuntimeEscalation } from './work-router.js';
 import { qualityCheck } from './quality-gate.js';
+import { emitActivity } from './activity-stream.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -2886,6 +2887,16 @@ export class AgentLoop {
         trigger: currentTriggerReason,
         tags: cycleTagsProcessed,
         sideEffects: cycleSideEffects,
+      });
+
+      // ── Emit Activity Stream (side-effect cycles only, for Activity Monitor) ──
+      emitActivity({
+        cycle: this.cycleCount,
+        action,
+        tags: cycleTagsProcessed,
+        sideEffects: cycleSideEffects,
+        trigger: currentTriggerReason,
+        lane: 'ooda',
       });
 
       // ── Save Reasoning Snapshot (fire-and-forget, cross-cycle continuity) ──
