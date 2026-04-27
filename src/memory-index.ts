@@ -903,6 +903,34 @@ export async function healAbandonedGoals(memoryDir: string): Promise<number> {
   return healed;
 }
 
+export async function scanPipelineVerify(memoryDir: string): Promise<number> {
+  const allEntries = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'] });
+  const pendingTasks = allEntries.filter(e =>
+    e.type === 'task' &&
+    ['pending', 'in_progress'].includes(e.status) &&
+    (e.payload as Record<string, unknown>)?.goal_id &&
+    (e.payload as Record<string, unknown>)?.verify_command,
+  );
+
+  let completed = 0;
+  for (const task of pendingTasks) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    const verifyCmd = payload.verify_command as string;
+    try {
+      execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+      await updateMemoryIndexEntry(memoryDir, task.id, {
+        status: 'completed',
+        payload: { ...payload, ticksSinceLastProgress: 0, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString(), auto_scanned: true } },
+      });
+      slog('PIPELINE', `Verify scan auto-completed: ${task.summary?.slice(0, 60)}`);
+      resolveDependencies(memoryDir, task.id).catch(() => {});
+      completed++;
+    } catch { /* verify not passing yet — normal */ }
+  }
+
+  return completed;
+}
+
 export function findLatestOpenGoal(
   memoryDir: string,
   title: string,

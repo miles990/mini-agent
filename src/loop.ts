@@ -37,7 +37,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify } from './memory-index.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -3302,9 +3302,13 @@ export class AgentLoop {
         }
       }).catch(() => {});
 
-      // ── Pipeline Goal self-heal (every 10 cycles) ──
-      if (this.cycleCount % 10 === 0) {
-        healAbandonedGoals(path.join(process.cwd(), 'memory')).then(healed => {
+      // ── Pipeline: verify scan + goal self-heal (every 5 cycles) ──
+      if (this.cycleCount % 5 === 0) {
+        const memDir = path.join(process.cwd(), 'memory');
+        scanPipelineVerify(memDir).then(done => {
+          if (done > 0) slog('PIPELINE', `Verify scan auto-completed ${done} task(s)`);
+        }).catch(() => {});
+        healAbandonedGoals(memDir).then(healed => {
           if (healed > 0) slog('PIPELINE', `Healed ${healed} abandoned goal(s)`);
         }).catch(() => {});
       }
