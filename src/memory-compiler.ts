@@ -10,6 +10,7 @@
  */
 
 import { getEntriesStore } from './entries.js';
+import { reflexPush } from './kg-reflex.js';
 import type { Entry, EntryType, ParsedTags } from './types.js';
 
 export interface CompileTarget {
@@ -161,8 +162,12 @@ export function compileFromTags(
       topic: r.topic,
       attribution,
     });
-    if (entry) result.remembersCompiled++;
-    else result.skipped++;
+    if (entry) {
+      result.remembersCompiled++;
+      reflexPush(entry); // fire-and-forget KG ingest; never throws, never awaits
+    } else {
+      result.skipped++;
+    }
   }
 
   for (const s of tags.supersedes ?? []) {
@@ -174,8 +179,12 @@ export function compileFromTags(
       concepts: s.concepts,
       attribution,
     });
-    if (entry) result.supersedesCompiled++;
-    else result.skipped++;
+    if (entry) {
+      result.supersedesCompiled++;
+      reflexPush(entry); // also push the new (replacement) entry
+    } else {
+      result.skipped++;
+    }
   }
 
   for (const e of tags.excludes ?? []) {
