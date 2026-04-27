@@ -94,6 +94,66 @@ export function loadStaleCheckpoint(): { info: string; triggerReason: string | n
 }
 
 // =============================================================================
+// Suspend Checkpoint (Agent PCB — intentional task switching)
+// =============================================================================
+
+export interface SuspendCheckpoint {
+  taskId: string;
+  suspendedAt: string;
+  reason: 'preempted' | 'attention_budget' | 'blocked' | 'manual';
+  resumeHints: string;
+  priorityAtSuspend: number;
+}
+
+function getSuspendCheckpointPath(): string | null {
+  try {
+    return path.join(getMemoryStateDir(), 'suspend-checkpoints.json');
+  } catch { return null; }
+}
+
+export function saveSuspendCheckpoint(checkpoint: SuspendCheckpoint): void {
+  const filePath = getSuspendCheckpointPath();
+  if (!filePath) return;
+  try {
+    let checkpoints: SuspendCheckpoint[] = [];
+    if (fs.existsSync(filePath)) {
+      checkpoints = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+    checkpoints = checkpoints.filter(c => c.taskId !== checkpoint.taskId);
+    checkpoints.push(checkpoint);
+    if (checkpoints.length > 20) checkpoints = checkpoints.slice(-20);
+    fs.writeFileSync(filePath, JSON.stringify(checkpoints, null, 2), 'utf-8');
+  } catch { /* fire-and-forget */ }
+}
+
+export function loadSuspendCheckpoint(taskId: string): SuspendCheckpoint | null {
+  const filePath = getSuspendCheckpointPath();
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    const checkpoints: SuspendCheckpoint[] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return checkpoints.find(c => c.taskId === taskId) ?? null;
+  } catch { return null; }
+}
+
+export function clearSuspendCheckpoint(taskId: string): void {
+  const filePath = getSuspendCheckpointPath();
+  if (!filePath || !fs.existsSync(filePath)) return;
+  try {
+    const checkpoints: SuspendCheckpoint[] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const filtered = checkpoints.filter(c => c.taskId !== taskId);
+    fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2), 'utf-8');
+  } catch { /* fire-and-forget */ }
+}
+
+export function getAllSuspendCheckpoints(): SuspendCheckpoint[] {
+  const filePath = getSuspendCheckpointPath();
+  if (!filePath || !fs.existsSync(filePath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch { return []; }
+}
+
+// =============================================================================
 // Work Journal (cross-restart context continuity)
 // =============================================================================
 
