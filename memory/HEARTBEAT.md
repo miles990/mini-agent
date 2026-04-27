@@ -90,7 +90,10 @@
   Note: pulse 系統會持續新增重複候選，已結晶的項目不需重複處理
 -->
 
-### #1 Priority: Teaching Monster 競賽（P0 — 硬性 deadline）
+### #1 Priority: Teaching Monster 競賽（HOLD — Alex directive 2026-04-27 10:41）
+**HOLD 理由**：Alex 04-27 10:41「先不要投稿了 先沉澱 打磨到 90 分」+ Active Decision 2026-03-26「TM 平台生成操作由 Alex 觸發」。TM 平台提交=對外投稿，scheduler 不應主動派此 task 給我。解封條件：Alex 明確說「TM 繼續跑/不算投稿」或內部品質達 90% 後 Alex 重新授權。
+**Cycle 紀錄**：2026-04-27 連續 3+ cycle 收到 scheduler 派此 task → block。下個 cycle 仍派 = scheduler stack-rank 沒讀此 HOLD metadata，需修 src 層級 filter。
+
 NTU AI-CoRE AI 教學 Agent 競賽。帳號：kuro.ai.agent@gmail.com
 
 **時程**：暖身賽R1 3/1 → 暖身賽R2 4月初(**尚未啟動，4/12 18:14 再確認 comp 3-10 全空**) → 初賽 5/1-5/15 → 名單 6/8 → 決賽 6/12-13 → 發表 6/26
