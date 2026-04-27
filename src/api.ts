@@ -123,6 +123,8 @@ import { slog, setSlogPrefix, diagLog } from './utils.js';
 import { startEventLoopLagMonitor, slowRequestMiddleware, startStateSampler } from './diagnostics.js';
 import { queryTimeline, type TimelineEventType } from './timeline.js';
 import { getProvenance, resolveMemoryId } from './memory-provenance-query.js';
+import { getSchedulerState, getTopPending, getSchedulerHistory } from './scheduler.js';
+import { getProcessTableSnapshot } from './process-table.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -2430,8 +2432,6 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/scheduler', (_req: Request, res: Response) => {
     try {
-      const { getSchedulerState, getTopPending, getSchedulerHistory } = require('./scheduler.js');
-      const { getMemory } = require('./memory.js');
       const memDir = path.join(process.cwd(), 'memory');
       const state = getSchedulerState();
       const { tasks: topTasks, totalCount } = getTopPending(memDir, 5);
@@ -2456,7 +2456,6 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/scheduler/history', (req: Request, res: Response) => {
     try {
-      const { getSchedulerHistory } = require('./scheduler.js');
       const limit = parseInt(req.query.limit as string || '50', 10);
       res.json({ history: getSchedulerHistory(Math.min(limit, 200)) });
     } catch {
@@ -2466,7 +2465,6 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/processes', (_req: Request, res: Response) => {
     try {
-      const { getProcessTableSnapshot, getProcessTableStatus } = require('./process-table.js');
       const entries = getProcessTableSnapshot();
       const stats: Record<string, number> = {};
       for (const e of entries) {
