@@ -174,13 +174,18 @@ async function main() {
   const sampledDays = sortedDates.length;
   console.log(`[graph] coverage: ${sampledDays}/${calendarDays} days, gaps: ${missingDates.join(', ') || 'none'}`);
 
-  const html = renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount: allFiles.length, sampledDays, calendarDays, missingDates });
+  // Top signals: top-5 by points. Tag each top node with topRank for halo CSS.
+  const topSignals = [...nodes].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 5);
+  topSignals.forEach((n, i) => { n.topRank = i + 1; });
+  console.log(`[graph] top signals: ${topSignals.map(s => `#${s.topRank} ${s.points}pts`).join(', ')}`);
+
+  const html = renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount: allFiles.length, sampledDays, calendarDays, missingDates, topSignals });
   await writeFile(OUT, html, 'utf8');
   console.log(`[graph] wrote ${OUT} (${html.length} bytes)`);
 }
 
-function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount, sampledDays, calendarDays, missingDates }) {
-  const data = JSON.stringify({ nodes, links }).replace(/</g, '\\u003c');
+function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount, sampledDays, calendarDays, missingDates, topSignals }) {
+  const data = JSON.stringify({ nodes, links, topSignals: topSignals.map(s => ({ id: s.id, title: s.title, points: s.points, topRank: s.topRank })) }).replace(/</g, '\\u003c');
   const sourceLegendHtml = sourceLegend.map(l =>
     `<span class="lg"><span class="dot" style="background:${l.color}"></span>${l.name} <em>${l.count}</em></span>`
   ).join('');
@@ -196,6 +201,8 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
   const gapsExtra = missingDates.length > MAX_GAPS_INLINE
     ? ` <span style="color:#666">… (+${missingDates.length - MAX_GAPS_INLINE} more)</span>`
     : '';
+  // Coverage strings exposed to client so language toggle can re-render them.
+  const coverageData = JSON.stringify({ sampledDays, calendarDays, missingDates, gapsTrunc, hasMore: missingDates.length > MAX_GAPS_INLINE, extraCount: Math.max(0, missingDates.length - MAX_GAPS_INLINE) });
   const coverageHtml = missingDates.length === 0
     ? `<span style="color:#7fd4b8">${sampledDays}/${calendarDays} days · complete coverage</span>`
     : `<strong style="color:#e6e6e6">${sampledDays}/${calendarDays}</strong> <span style="color:#888">days · gaps:</span> ${gapsTrunc.map(d => `<code style="color:#ff8800">${d}</code>`).join(' ')}${gapsExtra}`;
@@ -293,17 +300,84 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
     font-size: 0.7rem; color: #555; z-index: 5;
   }
   footer a { color: #777; text-decoration: none; border-bottom: 1px solid #333; }
+
+  /* Top-signal halo: top 1-3 get a glowing pulse so the eye locks on instantly. */
+  @keyframes haloPulse {
+    0%, 100% { filter: drop-shadow(0 0 4px currentColor); }
+    50%      { filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 4px currentColor); }
+  }
+  .node.top circle { stroke-width: 3.5; }
+  .node.top-1 circle { animation: haloPulse 2.4s ease-in-out infinite; stroke-width: 4; }
+  .node.top-2 circle, .node.top-3 circle { animation: haloPulse 3s ease-in-out infinite; }
+  .node.top text { font-weight: 600; fill: #fff; font-size: 11px; }
+  .node.top text.rank {
+    font-size: 11px; fill: #ffd866; font-weight: 700;
+  }
+
+  /* Lang toggle button — top-right corner. */
+  #lang-btn {
+    position: fixed; top: 0.9rem; right: 1rem;
+    background: #1a1a1d; color: #cfe; border: 1px solid #2a2a2d;
+    padding: 0.3rem 0.7rem; border-radius: 4px;
+    font: 0.75rem ui-monospace, "SF Mono", Menlo, monospace;
+    cursor: pointer; z-index: 20;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #lang-btn:hover { background: #22222a; border-color: #7fd4b8; }
+
+  /* Top-signals panel — top-right under header, ranked list. */
+  #top-signals {
+    position: fixed; top: 7.6rem; right: 1rem;
+    width: 280px; max-height: 40vh; overflow: auto;
+    background: rgba(18, 18, 21, 0.92); border: 1px solid #2a2a2d;
+    padding: 0.7rem 0.85rem; border-radius: 6px;
+    font-size: 0.75rem; z-index: 8;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px);
+  }
+  #top-signals h2 {
+    margin: 0 0 0.5rem 0; font-size: 0.7rem; font-weight: 600;
+    color: #ffd866; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  #top-signals ol { margin: 0; padding: 0; list-style: none; }
+  #top-signals li {
+    padding: 0.35rem 0; border-bottom: 1px solid #1f1f23;
+    cursor: pointer; transition: background 0.12s;
+    display: flex; gap: 0.4rem; align-items: baseline;
+  }
+  #top-signals li:hover { background: #1a1a1d; }
+  #top-signals li:last-child { border-bottom: none; }
+  #top-signals .rank {
+    color: #ffd866; font-weight: 700; min-width: 1.4rem; text-align: center;
+  }
+  #top-signals .pts {
+    color: #7fd4b8; font-weight: 600; font-size: 0.7rem;
+    min-width: 2.8rem; text-align: right;
+  }
+  #top-signals .ttl { color: #d8d8d8; flex: 1; line-height: 1.35; }
+  #top-signals li:hover .ttl { color: #fff; }
+  @media (max-width: 720px) {
+    #top-signals { width: calc(100vw - 2rem); top: auto; bottom: 4.5rem; max-height: 30vh; }
+    #panel { width: calc(100vw - 2rem); right: 1rem; left: 1rem; max-height: 35vh; }
+  }
 </style>
 </head>
 <body>
 
+<button id="lang-btn" type="button" title="Toggle language">中文</button>
+
 <header>
   <div class="crumb"><a href="/">&larr; kuro.page</a> &nbsp;/&nbsp; <a href="./">hn-ai-trend</a></div>
-  <h1>AI Trend <small>／ multi-source graph (${dateRange}, ${fileCount} editions)</small></h1>
-  <div class="legend legend-row"><span class="label">source</span>${sourceLegendHtml}</div>
-  <div class="legend legend-row"><span class="label">topic</span>${topicLegendHtml}</div>
-  <div class="legend legend-row"><span class="label">coverage</span>${coverageHtml}</div>
+  <h1><span data-i18n="title">AI Trend</span> <small>／ <span data-i18n="subtitle">multi-source graph</span> (${dateRange}, ${fileCount} <span data-i18n="editions">editions</span>)</small></h1>
+  <div class="legend legend-row"><span class="label" data-i18n="source">source</span>${sourceLegendHtml}</div>
+  <div class="legend legend-row"><span class="label" data-i18n="topic">topic</span>${topicLegendHtml}</div>
+  <div class="legend legend-row"><span class="label" data-i18n="coverage">coverage</span><span id="coverage-body">${coverageHtml}</span></div>
 </header>
+
+<aside id="top-signals">
+  <h2 data-i18n="topSignal">Top Signals</h2>
+  <ol id="top-list"></ol>
+</aside>
 
 <svg id="g"></svg>
 
@@ -318,20 +392,95 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
     <span class="sep">·</span>
     <span id="p-source" style="color:#7fd4b8"></span>
   </div>
-  <div class="row"><span class="label">claim</span><span id="p-claim"></span></div>
-  <div class="row"><span class="label">novelty</span><span id="p-novelty"></span></div>
-  <div class="row"><span class="label">so what</span><span id="p-so"></span></div>
+  <div class="row"><span class="label" data-i18n="claim">claim</span><span id="p-claim"></span></div>
+  <div class="row"><span class="label" data-i18n="novelty">novelty</span><span id="p-novelty"></span></div>
+  <div class="row"><span class="label" data-i18n="soWhat">so what</span><span id="p-so"></span></div>
   <div class="tags" id="p-tags"></div>
 </div>
 
 <footer>
-  Compiled by <a href="/">Kuro</a>. Source data: <a href="https://github.com/miles990/mini-agent/blob/main/scripts/hn-ai-trend-graph.mjs">hn-ai-trend-graph.mjs</a>.
-  Drag nodes · click for detail · scroll to zoom.
+  <span data-i18n="compiledBy">Compiled by</span> <a href="/">Kuro</a>. <span data-i18n="sourceData">Source data:</span> <a href="https://github.com/miles990/mini-agent/blob/main/scripts/hn-ai-trend-graph.mjs">hn-ai-trend-graph.mjs</a>.
+  <span data-i18n="instructions">Drag nodes · click for detail · scroll to zoom.</span>
 </footer>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
 const DATA = ${data};
+const COVERAGE = ${coverageData};
+
+// ─── i18n ────────────────────────────────────────────────────────────────
+const I18N = {
+  en: {
+    title: 'AI Trend', subtitle: 'multi-source graph', editions: 'editions',
+    source: 'source', topic: 'topic', coverage: 'coverage',
+    days: 'days', gaps: 'gaps:', complete: 'complete coverage',
+    topSignal: 'Top Signals', pts: 'pts', by: 'by', thread: 'thread',
+    claim: 'claim', novelty: 'novelty', soWhat: 'so what',
+    instructions: 'Drag nodes · click for detail · scroll to zoom.',
+    compiledBy: 'Compiled by', sourceData: 'Source data:',
+    moreGaps: n => '… (+' + n + ' more)', toggleLabel: '中文',
+  },
+  zh: {
+    title: 'AI 趨勢', subtitle: '多源圖譜', editions: '次發佈',
+    source: '來源', topic: '主題', coverage: '覆蓋',
+    days: '天', gaps: '空缺：', complete: '完整覆蓋',
+    topSignal: '最強信號', pts: '分', by: '作者', thread: '討論串',
+    claim: '主張', novelty: '新意', soWhat: '影響',
+    instructions: '拖曳節點 · 點擊看詳情 · 滾動縮放。',
+    compiledBy: '編製：', sourceData: '原始資料：',
+    moreGaps: n => '… （另 ' + n + ' 天）', toggleLabel: 'EN',
+  }
+};
+let LANG = (localStorage.getItem('ai-trend-lang') === 'zh') ? 'zh' : 'en';
+
+function renderCoverage() {
+  const t = I18N[LANG];
+  const el = document.getElementById('coverage-body');
+  if (!el) return;
+  if (COVERAGE.missingDates.length === 0) {
+    el.innerHTML = '<span style="color:#7fd4b8">' + COVERAGE.sampledDays + '/' + COVERAGE.calendarDays + ' ' + t.days + ' · ' + t.complete + '</span>';
+  } else {
+    const gaps = COVERAGE.gapsTrunc.map(d => '<code style="color:#ff8800">' + d + '</code>').join(' ');
+    const extra = COVERAGE.hasMore ? ' <span style="color:#666">' + t.moreGaps(COVERAGE.extraCount) + '</span>' : '';
+    el.innerHTML = '<strong style="color:#e6e6e6">' + COVERAGE.sampledDays + '/' + COVERAGE.calendarDays + '</strong> <span style="color:#888">' + t.days + ' · ' + t.gaps + '</span> ' + gaps + extra;
+  }
+}
+
+function renderTopSignals() {
+  const t = I18N[LANG];
+  const ol = document.getElementById('top-list');
+  if (!ol) return;
+  ol.innerHTML = DATA.topSignals.map(s =>
+    '<li data-id="' + s.id + '">' +
+      '<span class="rank">#' + s.topRank + '</span>' +
+      '<span class="ttl">' + (s.title.length > 60 ? s.title.slice(0, 58) + '…' : s.title) + '</span>' +
+      '<span class="pts">' + s.points + ' ' + t.pts + '</span>' +
+    '</li>'
+  ).join('');
+  ol.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => focusNode(li.dataset.id));
+  });
+}
+
+function applyLang(lang) {
+  LANG = lang;
+  document.documentElement.lang = (lang === 'zh') ? 'zh-Hant' : 'en';
+  const t = I18N[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key]) el.textContent = t[key];
+  });
+  document.getElementById('lang-btn').textContent = t.toggleLabel;
+  renderCoverage();
+  renderTopSignals();
+  localStorage.setItem('ai-trend-lang', lang);
+}
+
+document.getElementById('lang-btn').addEventListener('click', () => {
+  applyLang(LANG === 'zh' ? 'en' : 'zh');
+});
+
+// ─── Graph ───────────────────────────────────────────────────────────────
 const W = window.innerWidth, H = window.innerHeight;
 const svg = d3.select('#g').attr('viewBox', [0, 0, W, H]);
 const root = svg.append('g');
@@ -352,20 +501,47 @@ const link = root.append('g').attr('class', 'links').selectAll('line')
   .attr('stroke-width', d => Math.min(d.weight, 4));
 
 const node = root.append('g').attr('class', 'nodes').selectAll('g')
-  .data(DATA.nodes).join('g').attr('class', 'node')
+  .data(DATA.nodes).join('g')
+  .attr('class', d => d.topRank ? ('node top top-' + d.topRank) : 'node')
+  .attr('data-id', d => d.id)
   .call(d3.drag()
     .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
     .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
     .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
 node.append('circle')
-  .attr('r', radius)
+  .attr('r', d => d.topRank ? radius(d) + 2 : radius(d))
   .attr('fill', d => d.sourceColor)   // source = primary visual identity
   .attr('stroke', d => d.color);      // topic = ring color
 node.append('text')
   .attr('dy', d => -radius(d) - 3)
   .attr('text-anchor', 'middle')
-  .text(d => d.title.length > 36 ? d.title.slice(0, 34) + '…' : d.title);
+  .text(d => {
+    const max = d.topRank ? 44 : 36;
+    const prefix = d.topRank ? ('#' + d.topRank + ' ') : '';
+    const t = d.title.length > max ? d.title.slice(0, max - 2) + '…' : d.title;
+    return prefix + t;
+  });
+
+// Focus a node by id (called from top-signals panel click).
+function focusNode(id) {
+  const target = DATA.nodes.find(n => n.id === id || n.id === Number(id));
+  if (!target) return;
+  // Trigger same selection behavior as click on the node.
+  const evt = new Event('click', { bubbles: true });
+  const el = document.querySelector('g.node[data-id="' + id + '"] circle');
+  if (el) el.dispatchEvent(evt);
+  // Pan to node by adjusting zoom transform.
+  if (target.x != null && target.y != null) {
+    const k = 1.5;
+    const tx = W / 2 - target.x * k;
+    const ty = H / 2 - target.y * k;
+    svg.transition().duration(600).call(
+      d3.zoom().on('zoom', e => root.attr('transform', e.transform)).transform,
+      d3.zoomIdentity.translate(tx, ty).scale(k)
+    );
+  }
+}
 
 node.on('click', (e, d) => {
   e.stopPropagation();
@@ -416,6 +592,9 @@ window.addEventListener('resize', () => {
   svg.attr('viewBox', [0, 0, w, h]);
   sim.force('center', d3.forceCenter(w/2, h/2)).alpha(0.3).restart();
 });
+
+// Initialize language on load (applies translations + renders top-signals panel).
+applyLang(LANG);
 </script>
 
 </body>
