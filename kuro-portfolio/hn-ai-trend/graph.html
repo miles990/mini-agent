@@ -148,9 +148,35 @@
   }
   #top-signals .ttl { color: #d8d8d8; flex: 1; line-height: 1.35; }
   #top-signals li:hover .ttl { color: #fff; }
+
+  /* Bump chart panel — under top-signals, ranks topics per date. */
+  #bump-chart {
+    position: fixed; top: calc(7.6rem + 40vh + 0.6rem); right: 1rem;
+    width: 320px; height: 240px;
+    background: rgba(18, 18, 21, 0.92); border: 1px solid #2a2a2d;
+    padding: 0.7rem 0.85rem; border-radius: 6px;
+    z-index: 7;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px);
+    box-sizing: border-box;
+  }
+  #bump-chart h2 {
+    margin: 0 0 0.4rem 0; font-size: 0.7rem; font-weight: 600;
+    color: #ffd866; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  #bump-chart svg { width: 100%; height: calc(100% - 1.4rem); display: block; }
+  #bump-chart .bump-line { fill: none; stroke-width: 1.8; opacity: 0.75;
+    transition: opacity 0.15s, stroke-width 0.15s; }
+  #bump-chart .bump-line:hover { opacity: 1; stroke-width: 3; }
+  #bump-chart .bump-dot { stroke: #111; stroke-width: 1; }
+  #bump-chart .bump-axis text { fill: #888; font-size: 9px; }
+  #bump-chart .bump-axis line, #bump-chart .bump-axis path { stroke: #2a2a2d; }
+  #bump-chart .bump-label { font-size: 9px; font-weight: 600; }
+
   @media (max-width: 720px) {
     #top-signals { width: calc(100vw - 2rem); top: auto; bottom: 4.5rem; max-height: 30vh; }
     #panel { width: calc(100vw - 2rem); right: 1rem; left: 1rem; max-height: 35vh; }
+    #bump-chart { display: none; }
   }
 </style>
 </head>
@@ -169,6 +195,11 @@
 <aside id="top-signals">
   <h2 data-i18n="topSignal">Top Signals</h2>
   <ol id="top-list"></ol>
+</aside>
+
+<aside id="bump-chart">
+  <h2 data-i18n="bumpTitle">Topic Trends</h2>
+  <svg id="bump-svg"></svg>
 </aside>
 
 <svg id="g"></svg>
@@ -206,7 +237,7 @@ const I18N = {
     title: 'AI Trend', subtitle: 'multi-source graph', editions: 'editions',
     source: 'source', topic: 'topic', coverage: 'coverage',
     days: 'days', gaps: 'gaps:', complete: 'complete coverage',
-    topSignal: 'Top Signals', pts: 'pts', by: 'by', thread: 'thread',
+    topSignal: 'Top Signals', bumpTitle: 'Topic Trends', pts: 'pts', by: 'by', thread: 'thread',
     claim: 'claim', novelty: 'novelty', soWhat: 'so what',
     instructions: 'Drag nodes · click for detail · scroll to zoom.',
     compiledBy: 'Compiled by', sourceData: 'Source data:',
@@ -216,7 +247,7 @@ const I18N = {
     title: 'AI 趨勢', subtitle: '多源圖譜', editions: '次發佈',
     source: '來源', topic: '主題', coverage: '覆蓋',
     days: '天', gaps: '空缺：', complete: '完整覆蓋',
-    topSignal: '最強信號', pts: '分', by: '作者', thread: '討論串',
+    topSignal: '最強信號', bumpTitle: '主題趨勢', pts: '分', by: '作者', thread: '討論串',
     claim: '主張', novelty: '新意', soWhat: '影響',
     instructions: '拖曳節點 · 點擊看詳情 · 滾動縮放。',
     compiledBy: '編製：', sourceData: '原始資料：',
@@ -254,6 +285,80 @@ function renderTopSignals() {
   });
 }
 
+// Bump chart: topic ranking per date. Tracks how topic salience moves day to day.
+function renderBumpChart() {
+  const svg = d3.select('#bump-svg');
+  if (svg.empty()) return;
+  svg.selectAll('*').remove();
+  const node = svg.node();
+  const W = node.clientWidth || 290, H = node.clientHeight || 200;
+  const M = { t: 12, r: 70, b: 22, l: 18 };
+
+  const dates = [...new Set(DATA.nodes.map(n => n.date))].filter(Boolean).sort();
+  if (dates.length < 2) return;
+
+  const topicByDate = {};
+  const topicTotal = {};
+  const topicColor = {};
+  DATA.nodes.forEach(n => {
+    if (!n.date || !n.primary) return;
+    const w = n.points || 1;
+    topicByDate[n.date] = topicByDate[n.date] || {};
+    topicByDate[n.date][n.primary] = (topicByDate[n.date][n.primary] || 0) + w;
+    topicTotal[n.primary] = (topicTotal[n.primary] || 0) + w;
+    if (n.color) topicColor[n.primary] = n.color;
+  });
+
+  const topics = Object.entries(topicTotal)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(d => d[0]);
+
+  const series = topics.map(t => ({
+    topic: t,
+    color: topicColor[t] || '#888',
+    points: dates.map(d => {
+      const m = topicByDate[d] || {};
+      const ranked = Object.entries(m).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+      const i = ranked.indexOf(t);
+      return i === -1 ? null : i + 1;
+    })
+  }));
+
+  const x = d3.scalePoint().domain(dates).range([M.l, W - M.r]).padding(0.3);
+  const yMax = Math.max(...series.flatMap(s => s.points.filter(p => p != null)), topics.length);
+  const y = d3.scaleLinear().domain([1, yMax]).range([M.t, H - M.b]);
+
+  const xAxis = svg.append('g').attr('class', 'bump-axis')
+    .attr('transform', 'translate(0,' + (H - M.b) + ')');
+  xAxis.selectAll('text').data(dates).join('text')
+    .attr('x', d => x(d)).attr('y', 14).attr('text-anchor', 'middle')
+    .text(d => d.slice(5));
+
+  const line = d3.line()
+    .defined(d => d != null)
+    .x((_, i) => x(dates[i]))
+    .y(d => y(d));
+
+  series.forEach(s => {
+    svg.append('path').attr('class', 'bump-line').attr('stroke', s.color)
+      .attr('d', line(s.points));
+    s.points.forEach((p, i) => {
+      if (p == null) return;
+      const c = svg.append('circle').attr('class', 'bump-dot')
+        .attr('cx', x(dates[i])).attr('cy', y(p)).attr('r', 3.2)
+        .attr('fill', s.color);
+      c.append('title').text(s.topic + ' · ' + dates[i] + ' · #' + p);
+    });
+    const lastIdx = s.points.reduce((acc, p, i) => p != null ? i : acc, -1);
+    if (lastIdx >= 0) {
+      svg.append('text').attr('class', 'bump-label')
+        .attr('x', x(dates[lastIdx]) + 6).attr('y', y(s.points[lastIdx]) + 3)
+        .attr('fill', s.color).text(s.topic);
+    }
+  });
+}
+
 function applyLang(lang) {
   LANG = lang;
   document.documentElement.lang = (lang === 'zh') ? 'zh-Hant' : 'en';
@@ -265,6 +370,7 @@ function applyLang(lang) {
   document.getElementById('lang-btn').textContent = t.toggleLabel;
   renderCoverage();
   renderTopSignals();
+  renderBumpChart();
   localStorage.setItem('ai-trend-lang', lang);
 }
 
