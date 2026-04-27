@@ -588,6 +588,7 @@ export function parseTags(response: string): ParsedTags {
       priority: Number.isNaN(priority) ? undefined : priority,
       verify,
       title: t.content.trim() || undefined,
+      blockReason: attr(t.attributes, 'block_reason') || undefined,
     });
   }
 
@@ -1143,6 +1144,23 @@ export async function postProcess(
 
   if (tags.taskQueueActions.length > 0) tagsProcessed.push('task-queue');
   for (const action of tags.taskQueueActions) {
+    // Constraint Texture: stale task action gate — deferring stale tasks requires block_reason
+    if (action.op === 'update' && action.status === 'hold' && action.id) {
+      const target = queryMemoryIndexSync(memoryDir, { id: action.id, limit: 1 })[0];
+      const ticks = (target?.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0;
+      if (ticks > 3 && !action.blockReason) {
+        slog('CONSTRAINT', `Blocked defer on stale task (${ticks} ticks): ${target?.summary?.slice(0, 60) ?? action.id} — needs block_reason`);
+        writeMemoryTriple({
+          agent: getCurrentInstanceId() ?? 'kuro',
+          predicate: 'observed',
+          content: `Attempted to defer stale task without reason: ${target?.summary ?? action.id}`,
+          importance: 'high',
+          source: 'constraint-texture',
+        });
+        continue; // Skip this action — don't allow the defer
+      }
+    }
+
     if (action.op === 'create' && action.title) {
       const verify: VerifyResult[] | undefined = action.verify?.map(v => ({
         ...v,

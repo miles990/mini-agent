@@ -331,6 +331,7 @@ export interface ParsedTags {
     priority?: number;
     verify?: Array<{ name: string; status: 'pass' | 'fail' | 'unknown'; detail?: string }>;
     title?: string;
+    blockReason?: string;
   }>;
   archive?: { url: string; title: string; content: string; mode?: 'full' | 'excerpt' | 'metadata-only' };
   impulses: Array<{ what: string; driver: string; materials: string[]; channel: string }>;

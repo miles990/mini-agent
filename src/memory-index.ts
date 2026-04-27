@@ -493,6 +493,14 @@ export async function updateTask(
     delete newPayload.pinContext;
   }
 
+  // Progress reset: any status transition or verify write resets staleness counter
+  if (patch.status !== undefined && patch.status !== prevStatus) {
+    newPayload.ticksSinceLastProgress = 0;
+  }
+  if (patch.verify !== undefined) {
+    newPayload.ticksSinceLastProgress = 0;
+  }
+
   const updated = await updateMemoryIndexEntry(memoryDir, normalId, {
     type: patch.type ?? current.type,
     status: patch.status ?? current.status,
@@ -528,6 +536,44 @@ export async function updateTask(
   }
 
   return updated;
+}
+
+// =============================================================================
+// Task Staleness Counter (tick-based drift detection)
+// =============================================================================
+
+const STALENESS_THRESHOLD = 3;
+
+/**
+ * Increment ticksSinceLastProgress for all pending/in_progress tasks.
+ * Called at the end of each OODA cycle (fire-and-forget).
+ * Returns tasks that exceed the staleness threshold for surfacing.
+ */
+export async function incrementTaskStaleness(
+  memoryDir: string,
+): Promise<Array<{ id: string; summary: string; ticks: number }>> {
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+
+  const stale: Array<{ id: string; summary: string; ticks: number }> = [];
+
+  for (const task of tasks) {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
+    const newTicks = currentTicks + 1;
+
+    await updateMemoryIndexEntry(memoryDir, task.id, {
+      payload: { ...payload, ticksSinceLastProgress: newTicks },
+    });
+
+    if (newTicks > STALENESS_THRESHOLD) {
+      stale.push({ id: task.id, summary: task.summary ?? task.id, ticks: newTicks });
+    }
+  }
+
+  return stale;
 }
 
 export function findLatestOpenGoal(

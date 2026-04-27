@@ -37,7 +37,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask } from './memory-index.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -388,6 +388,7 @@ export class AgentLoop {
   private previousCycleInfo: string | null = null;
   private workJournalContext: string | null = null;
   kgMemory: AgentMemoryEntry[] = [];
+  staleTasks: Array<{ id: string; summary: string; ticks: number }> = [];
 
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
@@ -1839,6 +1840,15 @@ export class AgentLoop {
         { alwaysLog: true },
       );
 
+      // Constraint Texture: stale task pressure (grows with staleness)
+      if (this.staleTasks.length > 0) {
+        const staleLines = this.staleTasks.map(t => {
+          const urgency = t.ticks > 8 ? '🔴 CRITICAL' : t.ticks > 5 ? '🟠 ESCALATED' : '⚠️ STALE';
+          return `${urgency}: ${t.summary} — ${t.ticks} cycles without progress. Act now.`;
+        });
+        context = `<stale-tasks priority="top">\n${staleLines.join('\n')}\n</stale-tasks>\n\n` + context;
+      }
+
       // Append KG persistent memory to context (if loaded)
       if (this.kgMemory.length > 0) {
         const kgSection = formatMemorySection(this.kgMemory);
@@ -3246,6 +3256,31 @@ export class AgentLoop {
         const done = trackStart('cron-drain');
         drainCronQueue().then(() => done(), e => done(String(e)));
       }
+
+      // ── Constraint Texture: task staleness pressure ──
+      incrementTaskStaleness(path.join(process.cwd(), 'memory')).then(staleTasks => {
+        if (staleTasks.length === 0) return;
+        this.staleTasks = staleTasks;
+
+        // Escalation: >5 ticks → auto P0
+        for (const t of staleTasks) {
+          if (t.ticks > 5) {
+            updateTask(path.join(process.cwd(), 'memory'), t.id, { priority: 0 }).catch(() => {});
+            slog('CONSTRAINT', `Escalated to P0: ${t.summary.slice(0, 60)} (${t.ticks} ticks stale)`);
+          }
+        }
+
+        // Escalation: >8 ticks → notify Alex
+        const critical = staleTasks.filter(t => t.ticks > 8);
+        if (critical.length > 0) {
+          const msg = critical.map(t => `${t.summary.slice(0, 50)} (${t.ticks} ticks)`).join(', ');
+          fetch('http://localhost:3001/api/room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: 'system', text: `⚠️ @alex Stale tasks (${critical.length}): ${msg}` }),
+          }).catch(() => {});
+        }
+      }).catch(() => {});
 
       return action;
     } finally {
