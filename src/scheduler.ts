@@ -8,6 +8,7 @@
 import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
+import { getProcess } from './process-table.js';
 
 // =============================================================================
 // Types
@@ -218,7 +219,11 @@ export function schedulerPick(
     status: ['pending', 'in_progress'],
   });
 
-  const tasks: TaskSnapshot[] = entries.map(entryToSnapshot);
+  const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
+    .filter(t => {
+      const proc = getProcess(t.id);
+      return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
+    });
   const decision = scheduler.decideNext(tasks, schedulerState, events);
 
   if (decision.taskId) {
@@ -286,7 +291,11 @@ export function getTopPending(memoryDir: string, limit: number = 5): { tasks: Ar
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],
   });
-  const tasks = entries.map(entryToSnapshot);
+  const tasks = entries.map(entryToSnapshot)
+    .filter(t => {
+      const proc = getProcess(t.id);
+      return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
+    });
   const scored = tasks.map(t => ({ ...t, score: computeScore(t) }));
   scored.sort((a, b) => b.score - a.score);
   return { tasks: scored.slice(0, limit), totalCount: scored.length };

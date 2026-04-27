@@ -474,6 +474,10 @@ header h1 .os-badge {
       <div class="stat-label">Pending</div>
     </div>
     <div class="stat-box">
+      <div class="stat-value" id="stat-scheduled">0</div>
+      <div class="stat-label">Scheduled</div>
+    </div>
+    <div class="stat-box">
       <div class="stat-value" id="stat-suspended">0</div>
       <div class="stat-label">Suspended</div>
     </div>
@@ -673,7 +677,8 @@ function renderScheduler(data) {
 function renderProcesses(data) {
   const { processes, stats } = data;
   document.getElementById('stat-running').textContent = stats.running;
-  document.getElementById('stat-pending').textContent = (stats.pending ?? 0) + (stats.scheduled ?? 0);
+  document.getElementById('stat-pending').textContent = stats.pending ?? 0;
+  document.getElementById('stat-scheduled').textContent = stats.scheduled ?? 0;
   document.getElementById('stat-suspended').textContent = stats.suspended;
   document.getElementById('stat-completed').textContent = stats.completed;
   document.getElementById('pt-count').textContent = `${stats.total} processes`;

@@ -2474,6 +2474,7 @@ export function createApi(port = 3001): express.Express {
         processes: entries,
         stats: {
           running: stats.running ?? 0,
+          scheduled: stats.scheduled ?? 0,
           pending: stats.pending ?? 0,
           blocked: stats.blocked ?? 0,
           suspended: stats.suspended ?? 0,
@@ -2483,7 +2484,7 @@ export function createApi(port = 3001): express.Express {
         },
       });
     } catch {
-      res.json({ processes: [], stats: { running: 0, pending: 0, blocked: 0, suspended: 0, completed: 0, abandoned: 0, total: 0 } });
+      res.json({ processes: [], stats: { running: 0, scheduled: 0, pending: 0, blocked: 0, suspended: 0, completed: 0, abandoned: 0, total: 0 } });
     }
   });
 
