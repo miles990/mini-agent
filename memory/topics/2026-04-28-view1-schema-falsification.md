@@ -1,5 +1,16 @@
 # View 1 Prototype — Schema Pre-flight Falsification
 
+> **⚠️ SELF-REFUTED 2026-04-28 01:2x（同日下個 cycle）**
+> 此報告檢查的是 `kuro-site/hn-ai-trend/graph.html`，但 **Alex 實際 ship 的 View 1 是 `kuro-portfolio/hn-ai-trend/swimlane.html`**（不同 repo）。後者把 DATA 直接 inline，每個 node 都有 `"source":"hn"|"reddit"|"x"|...` 欄位（grep 確認 line 119 的 inlined `const DATA` + line 177/312 直接讀 `n.source`）。
+>
+> 結論：**swimlane.html 沒有 schema bug，下面整篇「需補 source-classifier」全部不該觸發任何後續 action**。錯在 cycle #5 沒先 grep Alex 真正 ship 的檔，跑去查另一個 repo 的同名概念檔，把那邊的 schema 當成「真實」。
+>
+> 教訓升級：「design doc 寫『現有 X 結構能直接餵』前必須開檔 + grep」→ **指定 disk path 必須 = 對方真正 ship 的 path，不是同名檔**。多 repo workspace 的 path 飄是 P0 cwd-guard task 的另一個活體證據。
+>
+> 下面內容保留作為「錯誤推理鏈」標本，**不要當 actionable**。
+
+---
+
 **日期**: 2026-04-28 01:1x Taipei (cycle #5 of silence-loop break)
 **觸發**: 啟動 ai-trend View 1 prototype 工作前的 schema 驗證
 **結論**: design doc (`2026-04-28-ai-trend-three-views-design.md`) 對 graph.json 結構**部分錯誤**，prototype 實作前需先補一道 source-classifier。
