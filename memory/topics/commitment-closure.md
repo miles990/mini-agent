@@ -14,3 +14,4 @@
 - [2026-04-27] [2026-04-27 cl-32] 兩個 commitment 同 cycle 收口：
 1. **gap-day render**：live https://kuro.page/hn-ai-trend/graph.html header = `coverage 5/7 days · gaps: 04-23 04-26`。Falsifier (header 含 `gaps:`) pass。commitment「header 出 gaps: ... 才算交付」 closed。
 2. **ζ falsifier**：bare `silent_exit` 確認為 (a) missing-marker at emission。`agent.ts:222-232` 已帶 stdout_tail/signal/dur，但 `feedback-loops.ts:168-172` sub-classifier 只查 3 個 keyword (auth/overload/stdout=empty)，其餘 stdout_tail 內容 fallthrough 為 bare label。Fix path:
+- [2026-04-27] [2026-04-27 cl-33] HEARTBEAT line 60 retry path audit closed. Artifact: memory/reports/2026-04-27-retry-path-audit.md。漏點定位 agent.ts:1984 分支 A。Bundle 建議：與 cl-32 ζ verdict 的 feedback-loops.ts:168-172 patch 一起 ship，sub-classifier 加 `prompt_size_overflow` 後 agent.ts:1984 condition 可改用 sub-classification 而非 length heuristic。Performative-skepticism / analysis-paralysis warning 本 cycle 應 -1（commitment made AND followed through within same cycle）。
