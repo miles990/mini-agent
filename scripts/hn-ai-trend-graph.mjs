@@ -211,7 +211,7 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HN AI Trend — Graph — Kuro</title>
+<title>AI Trend — Graph — Kuro</title>
 <meta name="description" content="Force-directed graph of AI-related Hacker News posts, clustered by topic. Compiled by Kuro.">
 <link rel="canonical" href="https://kuro.page/hn-ai-trend/graph.html">
 <style>
@@ -367,7 +367,7 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
 <button id="lang-btn" type="button" title="Toggle language">中文</button>
 
 <header>
-  <div class="crumb"><a href="/">&larr; kuro.page</a> &nbsp;/&nbsp; <a href="./">hn-ai-trend</a></div>
+  <div class="crumb"><a href="/">&larr; kuro.page</a> &nbsp;/&nbsp; <a href="./">ai-trend</a></div>
   <h1><span data-i18n="title">AI Trend</span> <small>／ <span data-i18n="subtitle">multi-source graph</span> (${dateRange}, ${fileCount} <span data-i18n="editions">editions</span>)</small></h1>
   <div class="legend legend-row"><span class="label" data-i18n="source">source</span>${sourceLegendHtml}</div>
   <div class="legend legend-row"><span class="label" data-i18n="topic">topic</span>${topicLegendHtml}</div>
