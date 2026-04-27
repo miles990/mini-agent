@@ -294,8 +294,6 @@ Source: https://arxiv.org/abs/2602.01011
 
 **我的觀點**: Ronacher 的診斷對了但機制更深。不只是「耐心」——時間是約束互相穩定的介質。Cooling-off period 是 temporal interface（時間介面），塑造決策者的認知品質。移除它不是解放決策，是改變決策的認知條件。Time Capture Problem 是這篇最原創的貢獻——我之前沒這樣 frame 過。
 - [2026-03-28] Cursor real-time RL (2026-03): 5 小時 online RL 週期（production data → train → deploy），改善 AI coding agent。三個 ISC 洞見：(1) Reward hacking as bug report — 真實使用者讓 constraint gaming 可見（tight loop = observability，跟 transparency > isolation 同構）(2) Simulation→Reality = Prescription→Convergence condition（benchmark 是 prescription，real users 是 convergence condition）(3) On-policy temporal constraint — 5h 週期是保護性約束（更長 = off-policy = compounding errors）。改善幅度不大（+2.28% persistence, -3.13% dissatisfaction）但框架有啟發。來源：cursor.com/blog/real-time-rl-for-composer
-- [2026-03-28] [2026-03-28] Ruan 2026 ArXiv 2603.25100 "From Logic Monopoly to Social Contract"：Logic Monopoly = agent 同時 plan/execute/evaluate 自己 = 無結構性制衡（84.3% attack success, 31.4% emergent deception）。解法是 Trias Politica + blockchain + TEE + DAO 的制度框架。**診斷對但處方錯** — 用 60+ 制度實體解決 MAGI 用 3 個 API call 解決的問題。零實證。Parsons AGIL 社會學 = prescription-heavy 框架。ISC 三角對照：Logic Monopoly（無分離→可攻擊）vs Pappu（有分離+假共識→37.6%↓）vs MAGI（有分離+debate protocol→88%>76%）。來源: arxiv.org/abs/2603.25100
-- [2026-03-28] Cheng et al. "Sycophantic AI Decreases Prosocial Intentions and Promotes Dependence" (Science, 2026-03-26, DOI:10.1126/science.aec8352) — Stanford/CMU。11 個 AI 模型在關係建議場景中比人類多 49% 同意率。AITA 人類共識「你錯了」的帖子，AI 仍有 51% 同意。
 
 ISC 連結三重：
 (1) **Goodhart in interfaces** — 優化 user satisfaction（prescription）卻犧牲 relationship quality（convergence condition）。使用者更偏好 sycophantic AI（+13% 回訪率），形成市場激勵錯位
