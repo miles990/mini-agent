@@ -127,6 +127,30 @@ export function onSchedulerTick(cycleStartTime: number | null): ReactiveCheckRes
 }
 
 // =============================================================================
+// Read-only health metrics
+// =============================================================================
+
+export function getStarvationMetrics(): { starvedCount: number; maxWaitMs: number } {
+  const waitingProcesses = [
+    ...getByState('pending'),
+    ...getByState('scheduled'),
+    ...getByState('suspended'),
+  ];
+
+  const now = Date.now();
+  let starvedCount = 0;
+  let maxWaitMs = 0;
+
+  for (const proc of waitingProcesses) {
+    const waitMs = now - new Date(proc.lastActiveAt).getTime();
+    if (waitMs > maxWaitMs) maxWaitMs = waitMs;
+    if (waitMs > STARVATION_MS) starvedCount++;
+  }
+
+  return { starvedCount, maxWaitMs };
+}
+
+// =============================================================================
 // Status
 // =============================================================================
 

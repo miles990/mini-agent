@@ -1403,3 +1403,67 @@ export function getSymptomFixStreak(): number {
     return 0;
   }
 }
+
+// =============================================================================
+// Health Signals: read-only snapshot for external consumers
+// =============================================================================
+
+export interface HealthSignals {
+  visibleOutputRate: number;      // 0-1, from recentOutputFlags (20-tick window)
+  errorPatternCount: number;      // count of active error patterns
+  momentumStreak: number;         // consecutive productive ticks (trailing true flags)
+  decisionQuality: number;        // 0-1, avg of recentDecisionScores (scores are 0-3, normalised)
+  cycleCount: number;             // total cycles from pulse state
+  recentCompletedCount: number;   // how many of recent 20 ticks had visible output
+}
+
+/**
+ * Returns a read-only health snapshot derived from the persisted pulse state.
+ * No mutations, no side effects. Safe to call at any time.
+ * Falls back to all-zero defaults when pulse-state.json does not yet exist.
+ */
+export function getHealthSignals(): HealthSignals {
+  try {
+    const state = readPulseState();
+
+    // visibleOutputRate + recentCompletedCount
+    const flags = state.recentOutputFlags;
+    const recentCompletedCount = flags.filter(Boolean).length;
+    const visibleOutputRate = flags.length > 0 ? recentCompletedCount / flags.length : 0;
+
+    // errorPatternCount — number of keys in the errorPatterns map
+    const errorPatternCount = Object.keys(state.errorPatterns).length;
+
+    // momentumStreak — trailing consecutive true flags (same logic as computePulseMetrics)
+    let momentumStreak = 0;
+    for (let i = flags.length - 1; i >= 0; i--) {
+      if (flags[i]) momentumStreak++;
+      else break;
+    }
+
+    // decisionQuality — normalise 0-3 scores to 0-1
+    const scores = state.recentDecisionScores;
+    const rawAvg = scores.length > 0
+      ? scores.reduce((sum, v) => sum + v, 0) / scores.length
+      : 0;
+    const decisionQuality = rawAvg / 3;
+
+    return {
+      visibleOutputRate,
+      errorPatternCount,
+      momentumStreak,
+      decisionQuality,
+      cycleCount: state.cycleCount,
+      recentCompletedCount,
+    };
+  } catch {
+    return {
+      visibleOutputRate: 0,
+      errorPatternCount: 0,
+      momentumStreak: 0,
+      decisionQuality: 0,
+      cycleCount: 0,
+      recentCompletedCount: 0,
+    };
+  }
+}

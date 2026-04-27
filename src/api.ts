@@ -124,6 +124,8 @@ import { startEventLoopLagMonitor, slowRequestMiddleware, startStateSampler } fr
 import { queryTimeline, type TimelineEventType } from './timeline.js';
 import { getProvenance, resolveMemoryId } from './memory-provenance-query.js';
 import { getSchedulerState, getTopPending, getSchedulerHistory } from './scheduler.js';
+import { getHealthSignals } from './pulse.js';
+import { getStarvationMetrics } from './reactive-policies.js';
 import { getProcessTableSnapshot } from './process-table.js';
 
 // =============================================================================
@@ -2505,30 +2507,61 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/health', (_req: Request, res: Response) => {
     try {
+      const signals = getHealthSignals();
+      const starvation = getStarvationMetrics();
       const procs = getProcessTableSnapshot();
-      const total = procs.length || 1;
-      const completed = procs.filter(p => p.state === 'completed').length;
-      const abandoned = procs.filter(p => p.state === 'abandoned').length;
-      const completionRate = total > 1 ? completed / (completed + abandoned || 1) : 0.5;
-      const { getTopFailures } = require('./failure-registry.js');
-      const failures = getTopFailures(100);
-      const errorRate = failures.length > 0 ? Math.min(failures.reduce((s: number, f: any) => s + f.frequency, 0) / (total * 10), 1) : 0;
-      const state = getSchedulerState();
-      const noopRate = state.totalTicks > 0 ? Math.max(0, 1 - (completed / Math.max(state.totalTicks, 1))) : 0;
+
+      // Completion: pulse 20-tick sliding window (visible output rate)
+      const completion = signals.visibleOutputRate;
+
+      // Momentum: consecutive productive ticks (0-1, cap at 10)
+      const momentum = Math.min(signals.momentumStreak / 10, 1);
+
+      // Activity: 1 - noop rate (from pulse output flags)
+      const activity = signals.visibleOutputRate;
+
+      // Stability: inverse of error pattern count (0-1)
+      const stability = 1 - Math.min(signals.errorPatternCount / 10, 1);
+
+      // Pressure: pending / max(1, recent completed) — relative load
+      const pendingCount = procs.filter(p => ['pending', 'scheduled', 'suspended'].includes(p.state)).length;
+      const recentCompleted = Math.max(1, signals.recentCompletedCount);
+      const pressure = 1 - Math.min(pendingCount / recentCompleted, 1);
+
+      // Fairness: starvation (0 starved = 1.0, 5+ starved = 0.0)
+      const fairness = 1 - Math.min(starvation.starvedCount / 5, 1);
+
+      // Weighted score: completion(15) + momentum(10) + activity(15) + stability(15) + pressure(25) + fairness(20)
       const score = Math.round(
-        completionRate * 30 +
-        (1 - Math.min(noopRate, 1)) * 15 +
-        (1 - errorRate) * 15 +
-        0.8 * 20 + // pressure placeholder (normal = 0.8 score)
-        (1 - 0) * 20  // starvation placeholder
+        completion * 15 +
+        momentum * 10 +
+        activity * 15 +
+        stability * 15 +
+        pressure * 25 +
+        fairness * 20
       );
+
       const anomalies: string[] = [];
-      if (noopRate > 0.7) anomalies.push('high-noop');
-      if (errorRate > 0.3) anomalies.push('high-error');
-      if (completionRate < 0.3) anomalies.push('low-completion');
-      res.json({ score: Math.min(score, 100), completionRate, noopRate, errorRate, anomalies });
+      if (activity < 0.3) anomalies.push('high-noop');
+      if (stability < 0.7) anomalies.push('high-error');
+      if (completion < 0.3) anomalies.push('low-completion');
+      if (pressure < 0.3) anomalies.push('high-pressure');
+      if (fairness < 0.5) anomalies.push('starved-tasks');
+
+      res.json({
+        score: Math.min(score, 100),
+        breakdown: {
+          completion: { value: completion, weight: 15, contribution: Math.round(completion * 15 * 10) / 10 },
+          momentum: { value: momentum, weight: 10, contribution: Math.round(momentum * 10 * 10) / 10 },
+          activity: { value: activity, weight: 15, contribution: Math.round(activity * 15 * 10) / 10 },
+          stability: { value: stability, weight: 15, contribution: Math.round(stability * 15 * 10) / 10 },
+          pressure: { value: pressure, weight: 25, contribution: Math.round(pressure * 25 * 10) / 10 },
+          fairness: { value: fairness, weight: 20, contribution: Math.round(fairness * 20 * 10) / 10 },
+        },
+        anomalies,
+      });
     } catch {
-      res.json({ score: 50, completionRate: 0, noopRate: 0, errorRate: 0, anomalies: [] });
+      res.json({ score: 50, breakdown: null, anomalies: [] });
     }
   });
 

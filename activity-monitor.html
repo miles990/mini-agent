@@ -743,8 +743,23 @@ function renderHealth(data) {
   else if (score >= 40) { el.style.color = 'var(--yellow)'; box.style.borderColor = 'var(--yellow)'; }
   else { el.style.color = 'var(--red)'; box.style.borderColor = 'var(--red)'; }
 
+  // Breakdown tooltip
+  const bd = data.breakdown;
+  if (bd) {
+    const bar = (v) => { const pct = Math.round((v ?? 0) * 100); const filled = Math.round(pct / 10); return '█'.repeat(filled) + '░'.repeat(10 - filled) + ' ' + pct + '%'; };
+    const lines = [
+      `Completion  ${bar(bd.completion?.value)}  (×${bd.completion?.weight ?? 0})`,
+      `Momentum    ${bar(bd.momentum?.value)}  (×${bd.momentum?.weight ?? 0})`,
+      `Activity    ${bar(bd.activity?.value)}  (×${bd.activity?.weight ?? 0})`,
+      `Stability   ${bar(bd.stability?.value)}  (×${bd.stability?.weight ?? 0})`,
+      `Pressure    ${bar(bd.pressure?.value)}  (×${bd.pressure?.weight ?? 0})`,
+      `Fairness    ${bar(bd.fairness?.value)}  (×${bd.fairness?.weight ?? 0})`,
+    ];
+    box.title = `Health Score: ${score}\n${'─'.repeat(36)}\n${lines.join('\n')}`;
+  }
+
   const badges = document.getElementById('health-anomalies');
-  const anomalyColors = { 'high-noop': 'var(--yellow)', 'high-error': 'var(--red)', 'low-completion': 'var(--orange)' };
+  const anomalyColors = { 'high-noop': 'var(--yellow)', 'high-error': 'var(--red)', 'low-completion': 'var(--orange)', 'high-pressure': 'var(--orange)', 'starved-tasks': 'var(--red)' };
   badges.innerHTML = (data.anomalies || []).map(a =>
     `<span style="width:8px;height:8px;border-radius:50%;background:${anomalyColors[a] || 'var(--text3)'};display:inline-block;" title="${a}"></span>`
   ).join('');
