@@ -8,3 +8,4 @@
 - 保留 idx-62e79a55 (HN AI trend 可視化 v0)：這是產品建設不是投稿，符合「打磨到 90 分」方向
 - next cycle falsifier check：task-queue 不應再出現上述 4 個 id 在 pending/in_progress
 - 新方向：sublime mode — KG hygiene、memory architecture、agent coordination。投稿 channel 全凍結
+- [2026-04-27] cl-52 falsifier check 結果：grep memory/state/task-events.jsonl 4 個 id（idx-4225d486 / idx-97e02472 / idx-ad0d7633 / idx-24b5a3be）→ 沒有 abandoned 事件，最後狀態都是 pending 或 in_progress。cl-50/cl-51 兩次發 task-queue abandon ops 都沒落地。Mechanism gap 確認在 task-queue tag parser，不是我再發第三次 tag 能解。下個 cycle 動作：grep src 找 task-queue tag handler path（probably src/parsers/ 或 src/loop.ts 處理 outgoing tags 的地方），確認 op="update" + status="abandoned" 的 case 是否有效，看 server log 該時段有沒有 parse error。Crystallize：tag emit 三次失敗 = parser 問題，
