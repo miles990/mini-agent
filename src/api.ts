@@ -1761,11 +1761,16 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  app.get('/api/goals', (_req: Request, res: Response) => {
+  app.get('/api/goals', (req: Request, res: Response) => {
     try {
+      const includeArchived = req.query.include_archived === 'true';
       const memDir = path.join(process.cwd(), 'memory');
       const allEntries = queryMemoryIndexSync(memDir, { type: ['goal', 'task'] });
-      const goals = allEntries.filter(e => e.type === 'goal' && (e.payload as Record<string, unknown>)?.origin === 'pipeline');
+      const goals = allEntries.filter(e => {
+        if (e.type !== 'goal' || (e.payload as Record<string, unknown>)?.origin !== 'pipeline') return false;
+        if (!includeArchived && e.status === 'abandoned') return false;
+        return true;
+      });
       const result = goals.map(g => {
         const tasks = allEntries.filter(t => t.type === 'task' && (t.payload as Record<string, unknown>)?.goal_id === g.id);
         const done = tasks.filter(t => ['completed', 'done'].includes(t.status)).length;

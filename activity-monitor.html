@@ -682,8 +682,8 @@ function timeAgo(ts) {
 
 function renderScheduler(data) {
   // Header
-  document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks}`;
-  document.getElementById('stat-total-ticks').textContent = data.totalTicks;
+  document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks ?? '--'}`;
+  document.getElementById('stat-total-ticks').textContent = data.totalTicks ?? '--';
 
   // Attention Budget
   const ab = data.attentionBudget;
@@ -800,18 +800,15 @@ function renderHealth(data) {
   if (bd) {
     const bar = (v) => { const pct = Math.round((v ?? 0) * 100); const filled = Math.round(pct / 10); return '█'.repeat(filled) + '░'.repeat(10 - filled) + ' ' + pct + '%'; };
     const lines = [
-      `Completion  ${bar(bd.completion?.value)}  (×${bd.completion?.weight ?? 0})`,
-      `Momentum    ${bar(bd.momentum?.value)}  (×${bd.momentum?.weight ?? 0})`,
-      `Activity    ${bar(bd.activity?.value)}  (×${bd.activity?.weight ?? 0})`,
-      `Stability   ${bar(bd.stability?.value)}  (×${bd.stability?.weight ?? 0})`,
-      `Pressure    ${bar(bd.pressure?.value)}  (×${bd.pressure?.weight ?? 0})`,
-      `Fairness    ${bar(bd.fairness?.value)}  (×${bd.fairness?.weight ?? 0})`,
+      `Fulfillment    ${bar(bd.fulfillment?.value)}  (w${bd.fulfillment?.weight ?? 0}) ${bd.fulfillment?.detail ?? ''}`,
+      `Responsiveness ${bar(bd.responsiveness?.value)}  (w${bd.responsiveness?.weight ?? 0}) ${bd.responsiveness?.detail ?? ''}`,
+      `Quality        ${bar(bd.quality?.value)}  (w${bd.quality?.weight ?? 0}) ${bd.quality?.detail ?? ''}`,
     ];
     box.title = `Health Score: ${score}\n${'─'.repeat(36)}\n${lines.join('\n')}`;
   }
 
   const badges = document.getElementById('health-anomalies');
-  const anomalyColors = { 'high-noop': 'var(--yellow)', 'high-error': 'var(--red)', 'low-completion': 'var(--orange)', 'high-pressure': 'var(--orange)', 'starved-tasks': 'var(--red)' };
+  const anomalyColors = { 'high-noop': 'var(--yellow)', 'high-error': 'var(--red)', 'low-completion': 'var(--orange)', 'high-pressure': 'var(--orange)', 'starved-tasks': 'var(--red)', 'needs-correction': 'var(--yellow)' };
   badges.innerHTML = (data.anomalies || []).map(a =>
     `<span style="width:8px;height:8px;border-radius:50%;background:${anomalyColors[a] || 'var(--text3)'};display:inline-block;" title="${a}"></span>`
   ).join('');
@@ -994,12 +991,15 @@ function renderPipelineGoals(data) {
   body.innerHTML = goals.map(g => {
     const p = g.progress;
     const pct = p.total > 0 ? Math.round(p.done / p.total * 100) : 0;
-    const barColor = g.status === 'completed' ? 'var(--green)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
-    const statusIcon = g.status === 'completed' ? '&#10003;' : g.status === 'in_progress' ? '&#9654;' : '&#9679;';
+    const isGoalAbandoned = g.status === 'abandoned';
+    const barColor = g.status === 'completed' ? 'var(--green)' : isGoalAbandoned ? 'var(--text3)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
+    const statusIcon = g.status === 'completed' ? '&#10003;' : isGoalAbandoned ? '&#8856;' : g.status === 'in_progress' ? '&#9654;' : '&#9679;';
     const taskLines = g.tasks.map(t => {
-      const tIcon = t.status === 'completed' || t.status === 'done' ? '&#10003;' : t.status === 'blocked' ? '&#128274;' : t.status === 'pending' ? '&#9675;' : '&#9654;';
-      const stale = t.ticksSinceLastProgress > 3 ? ` <span style="color:var(--yellow);">${t.ticksSinceLastProgress}t</span>` : '';
-      return `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;color:var(--text2);">
+      const isAbandoned = t.status === 'abandoned';
+      const tIcon = (t.status === 'completed' || t.status === 'done') ? '&#10003;' : isAbandoned ? '&#8856;' : t.status === 'blocked' ? '&#128274;' : t.status === 'pending' ? '&#9675;' : '&#9654;';
+      const stale = !isAbandoned && t.ticksSinceLastProgress > 3 ? ` <span style="color:var(--yellow);">${t.ticksSinceLastProgress}t</span>` : '';
+      const dimStyle = isAbandoned ? 'opacity:0.4;text-decoration:line-through;' : '';
+      return `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;color:var(--text2);${dimStyle}">
         <span style="width:14px;text-align:center;">${tIcon}</span>
         <span style="flex:1;">${escHtml(t.title.slice(0,60))}</span>
         <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">${t.status}${stale}</span>

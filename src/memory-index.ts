@@ -752,6 +752,21 @@ export async function incrementTaskStaleness(
     }
   }
 
+  // Goal auto-abandon cascade: if all tasks under a goal are terminal, abandon the goal
+  const allEntries = queryMemoryIndexSync(memoryDir, { type: ['goal', 'task'] });
+  const activeGoals = allEntries.filter(e => e.type === 'goal' && ['pending', 'in_progress'].includes(e.status));
+  const terminalStatuses = new Set(['abandoned', 'done', 'completed', 'failed']);
+  for (const goal of activeGoals) {
+    const children = allEntries.filter(e => e.type === 'task' && (e.payload as Record<string, unknown>)?.goal_id === goal.id);
+    if (children.length > 0 && children.every(c => terminalStatuses.has(c.status))) {
+      const anyDone = children.some(c => c.status === 'done' || c.status === 'completed');
+      await updateMemoryIndexEntry(memoryDir, goal.id, {
+        status: anyDone ? 'done' : 'abandoned',
+        payload: { ...(goal.payload as Record<string, unknown>), autoCascaded: true },
+      });
+    }
+  }
+
   return stale;
 }
 
