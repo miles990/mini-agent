@@ -2470,10 +2470,11 @@ export function createApi(port = 3001): express.Express {
       for (const e of entries) {
         stats[e.state] = (stats[e.state] ?? 0) + 1;
       }
-      // Include historical completed/abandoned from memory index
+      // Today's completed/abandoned from memory index
       const mDir = path.join(process.cwd(), 'memory');
-      const completedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['completed', 'done'] });
-      const abandonedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['abandoned'] });
+      const todayStart = new Date().toISOString().slice(0, 10);
+      const completedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['completed', 'done'] }).filter(t => t.ts >= todayStart);
+      const abandonedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['abandoned'] }).filter(t => t.ts >= todayStart);
       res.json({
         processes: entries,
         stats: {
