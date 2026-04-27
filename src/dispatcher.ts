@@ -28,6 +28,7 @@ import { observe as kbObserve } from './shared-knowledge.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { parseKuroTags, stripKuroTags, getKuroTagBalance, stripTurnSeparators } from './tag-parser.js';
 import { writeCommitment } from './commitment-ledger.js';
+import { writeMemoryTriple } from './kg-memory.js';
 import {
   addIndexEntry,
   appendMemoryIndexEntry,
@@ -996,6 +997,16 @@ export async function postProcess(
     // Update memory index (fire-and-forget)
     addIndexEntry(memory.getMemoryDir(), rem.content, rem.topic).catch(() => {});
 
+    // KG dual-write — fire-and-forget
+    writeMemoryTriple({
+      agent: getCurrentInstanceId() ?? 'kuro',
+      predicate: 'remembers',
+      content: rem.content,
+      topic: rem.topic,
+      importance: rem.topic ? 'medium' : 'low',
+      source: 'remember-tag',
+    });
+
     // Semantic enrichment — generate synonyms/translations for FTS5 (fire-and-forget)
     import('./search.js').then(({ enrichMemoryEntry, updateEnrichment }) => {
       enrichMemoryEntry(rem.content).then(enriched => {
@@ -1030,6 +1041,18 @@ export async function postProcess(
         category,
       }).catch(() => {}); // fire-and-forget
     }
+  }
+
+  // KG dual-write for supersedes — fire-and-forget
+  for (const sup of tags.supersedes) {
+    writeMemoryTriple({
+      agent: getCurrentInstanceId() ?? 'kuro',
+      predicate: 'decided',
+      content: sup.content,
+      topic: sup.topic,
+      importance: 'high',
+      source: 'supersede-tag',
+    });
   }
 
   // Memory Layer v3 — compile remembers/supersedes/validates/excludes into entries.jsonl

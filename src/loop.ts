@@ -47,6 +47,7 @@ import { buildSuccessHint } from './success-patterns.js';
 import { classifyWork, RuntimeEscalation } from './work-router.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
+import { loadAgentMemory, formatMemorySection, type AgentMemoryEntry } from './kg-memory.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -386,6 +387,7 @@ export class AgentLoop {
   // ── Cross-cycle state (only last cycle, no accumulation) ──
   private previousCycleInfo: string | null = null;
   private workJournalContext: string | null = null;
+  kgMemory: AgentMemoryEntry[] = [];
 
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
@@ -1112,6 +1114,16 @@ export class AgentLoop {
       slog('LOOP', `Restored pending priority from WAL: ${walState.pendingPriority.reason} (${walState.pendingPriority.messageCount} msg)`);
     }
 
+    // Phase 1f: Load persistent memory from KG
+    loadAgentMemory({ agent: getCurrentInstanceId() ?? '03bbc29a' }).then(memories => {
+      this.kgMemory = memories;
+      if (memories.length > 0) {
+        slog('KG-MEMORY', `Loaded ${memories.length} memories from KG`);
+      }
+    }).catch(() => {
+      slog('KG-MEMORY', 'KG unavailable, using file fallback');
+    });
+
     // Recover forge worktree state (clean up crash state, prune stale worktrees)
     try { forgeRecover(process.cwd()); } catch { /* fire-and-forget */ }
 
@@ -1826,6 +1838,12 @@ export class AgentLoop {
         () => memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget }),
         { alwaysLog: true },
       );
+
+      // Append KG persistent memory to context (if loaded)
+      if (this.kgMemory.length > 0) {
+        const kgSection = formatMemorySection(this.kgMemory);
+        if (kgSection) context += `\n\n<kg-memory>\n${kgSection}\n</kg-memory>`;
+      }
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});

@@ -20,6 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { withFileLock } from './filelock.js';
 import { slog, diagLog, tokenizeForMatch } from './utils.js';
 import { eventBus } from './event-bus.js';
+import { writeMemoryTriple } from './kg-memory.js';
 import type { ParsedTags } from './types.js';
 
 // =============================================================================
@@ -515,6 +516,15 @@ export async function updateTask(
     updated.summary
   ) {
     await resolveActiveCommitments(memoryDir, updated.summary);
+
+    // Fire-and-forget: record terminal transition in KG
+    writeMemoryTriple({
+      agent: 'kuro',
+      predicate: 'decided',
+      content: `Task ${updated.status}: ${updated.summary}`,
+      importance: 'medium',
+      source: 'task-complete',
+    });
   }
 
   return updated;
