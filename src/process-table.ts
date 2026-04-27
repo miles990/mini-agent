@@ -56,7 +56,12 @@ const processes = new Map<string, ProcessEntry>();
 
 export function registerProcess(task: TaskSnapshot): ProcessEntry {
   const existing = processes.get(task.id);
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.summary && task.summary) existing.summary = task.summary;
+    existing.priority = task.priority;
+    existing.source = task.source;
+    return existing;
+  }
 
   const entry: ProcessEntry = {
     taskId: task.id,
