@@ -30,3 +30,8 @@ Honest gaps (refuse to inflate):
 **Shipped (commit cf5144c6)**：`scripts/hn-ai-trend-sync-views.mjs` — 從 graph.html 抽 `const DATA = {...}` 行，sync 到 swimlane/source-split，post-sync 斷言 byte-parity。三檔現在 hash 全等 `745fba910424`，top post 47913650 = 771 pts 一致。
 
 **教訓**：audit 抽樣 regex 寫錯就會證偽真實。下次紅線 audit 必須在「找不到證據」時加一條 falsifi ref:redline1-resolved
+- [2026-04-27] [2026-04-28 04:13 cl] 紅線 #1 RETRACTED → PASS。前 cycle audit 用 `grep -c '"points":'` 對 single-line 200KB DATA payload 算 line 數，false-negative。re-verification: 三檔 DATA hash 745fba9104243fb4 相同、137 nodes、五源全覆蓋、top-5 points field 都在（1571/1487/1195/882/863 pts）。
+
+cron 等價性 SHIPPED：hn-ai-trend.mjs (20 posts) → graph.mjs (136 unique 1247 edges) → sync-views.mjs (PARITY OK) chain 一氣呵成。剩 ship gate：三視圖切換 browser 測試、30s 信號、mobile — 凌晨不開 browser 噪音，留 daytime cycle。
+
+Verification-discipline 教訓：field-presence
