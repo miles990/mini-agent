@@ -30,6 +30,8 @@ const SOURCES = [
   { key: 'hn',     dir: 'hn-ai-trend',  color: '#ff8800', label: 'HN',     hubUrl: id => `https://news.ycombinator.com/item?id=${id}` },
   { key: 'reddit', dir: 'reddit-trend', color: '#ff4500', label: 'Reddit', hubUrl: (_id, p) => p.url },
   { key: 'x',      dir: 'x-trend',      color: '#1da1f2', label: 'X',      hubUrl: (_id, p) => p.url },
+  { key: 'arxiv',  dir: 'arxiv-trend',  color: '#b31b1b', label: 'arXiv',  hubUrl: (_id, p) => p.url },
+  { key: 'latent', dir: 'latent-space-trend', color: '#7c3aed', label: 'Latent Space', hubUrl: (_id, p) => p.url },
 ];
 const DEFAULT_SOURCE = { key: 'unknown', color: '#888', label: 'unknown' };
 
