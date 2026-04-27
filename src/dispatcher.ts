@@ -38,6 +38,7 @@ import {
   createTask,
   updateTask,
   findLatestOpenGoal,
+  createGoal,
   detectAndRecordCommitments,
   type VerifyResult,
 } from './memory-index.js';
@@ -866,9 +867,31 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
+  // Parse goal-pipeline tags
+  let goalPipeline: ParsedTags['goalPipeline'];
+  const gpTags = byName('kuro:goal-pipeline');
+  if (gpTags.length > 0) {
+    const gp = gpTags[0];
+    const gpTitle = gp.content.split('\n')[0]?.trim() || 'Unnamed Goal';
+    const acceptance = attr(gp.attributes, 'acceptance') || '';
+    const verifyCmd = attr(gp.attributes, 'verify') || undefined;
+    const taskRegex = /<task(?:\s+verify="([^"]*)")?(?:\s+depends="([^"]*)")?(?:\s+acceptance="([^"]*)")?\s*>([\s\S]*?)<\/task>/g;
+    const gpTasksList: Array<{ title: string; verify_command?: string; acceptance_criteria?: string; depends_on?: string[] }> = [];
+    let taskMatch;
+    while ((taskMatch = taskRegex.exec(gp.content)) !== null) {
+      gpTasksList.push({
+        title: taskMatch[4].trim(),
+        verify_command: taskMatch[1] || undefined,
+        depends_on: taskMatch[2] ? taskMatch[2].split(',').map((s: string) => s.trim()) : undefined,
+        acceptance_criteria: taskMatch[3] || undefined,
+      });
+    }
+    goalPipeline = { title: gpTitle, acceptance_criteria: acceptance, verify_command: verifyCmd, tasks: gpTasksList };
+  }
+
   const cleanContent = stripKuroTags(response);
 
-  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post', 'supersede', 'validate', 'exclude', 'pledge'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post', 'supersede', 'validate', 'exclude', 'pledge', 'goal-pipeline'];
   const balance = getKuroTagBalance(response);
   for (const tag of tagNames) {
     const name = `kuro:${tag}`;
@@ -880,7 +903,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, pledges, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, pledges, goalPipeline, cleanContent };
 }
 
 // =============================================================================
@@ -1787,6 +1810,21 @@ export async function postProcess(
     } catch (e) { slog('PLEDGE', `KG write failed: ${e}`); }
   }
   if (tags.pledges.length > 0) tagsProcessed.push('PLEDGE');
+
+  // Goal Pipeline → createGoal DAG
+  if (tags.goalPipeline) {
+    tagsProcessed.push('GOAL-PIPELINE');
+    try {
+      const { goalId, taskIds } = await createGoal(memoryDir, {
+        title: tags.goalPipeline.title,
+        acceptance_criteria: tags.goalPipeline.acceptance_criteria,
+        verify_command: tags.goalPipeline.verify_command,
+      }, tags.goalPipeline.tasks);
+      slog('PIPELINE', `Created goal ${goalId.slice(0, 12)} with ${taskIds.length} tasks`);
+    } catch (e) {
+      slog('PIPELINE', `Failed to create goal: ${e}`);
+    }
+  }
 
   // 4. Commitment Gate — fire-and-forget tracking for untagged commitments (writes to memory-index)
   detectAndRecordCommitments(memoryDir, mappedResponse, tags)

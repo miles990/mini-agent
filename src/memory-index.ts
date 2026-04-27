@@ -605,6 +605,36 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
       }
     }
   }
+  // Goal rollup: check if all sibling tasks under same goal are done
+  const completedTask = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'] }).find(t => t.id === completedTaskId);
+  const goalId = (completedTask?.payload as Record<string, unknown>)?.goal_id as string;
+  if (goalId) {
+    const siblings = queryMemoryIndexSync(memoryDir, { type: ['task'] })
+      .filter(t => (t.payload as Record<string, unknown>)?.goal_id === goalId);
+    const allDone = siblings.every(t => TASK_TERMINAL_STATUSES.has(t.status));
+    if (allDone) {
+      const goal = queryMemoryIndexSync(memoryDir, { type: ['goal'] }).find(t => t.id === goalId);
+      if (goal && !TASK_TERMINAL_STATUSES.has(goal.status)) {
+        const goalVerify = (goal.payload as Record<string, unknown>)?.verify_command as string;
+        if (goalVerify) {
+          try {
+            execSync(goalVerify, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+            await updateMemoryIndexEntry(memoryDir, goalId, {
+              status: 'completed',
+              payload: { ...(goal.payload as Record<string, unknown>), verify_proof: { command: goalVerify, passed: true, ts: new Date().toISOString() } },
+            });
+            slog('PIPELINE', `Goal auto-completed: ${goal.summary?.slice(0, 60)}`);
+          } catch {
+            slog('PIPELINE', `Goal verify failed: ${goal.summary?.slice(0, 60)}`);
+          }
+        } else {
+          await updateMemoryIndexEntry(memoryDir, goalId, { status: 'completed' });
+          slog('PIPELINE', `Goal auto-completed (no verify): ${goal.summary?.slice(0, 60)}`);
+        }
+      }
+    }
+  }
+
   return unlocked;
 }
 

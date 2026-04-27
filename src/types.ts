@@ -362,6 +362,12 @@ export interface ParsedTags {
   kgFeedbacks: Array<{ push_id: string; node_id?: string; useful: boolean }>;
   kgPositions: Array<{ disc_id: string; name?: string; content: string; confidence?: number; relation?: string; target_node_id?: string }>;
   pledges: Array<{ content: string; deadline?: string }>;
+  goalPipeline?: {
+    title: string;
+    acceptance_criteria: string;
+    verify_command?: string;
+    tasks: Array<{ title: string; verify_command?: string; acceptance_criteria?: string; depends_on?: string[] }>;
+  };
   cycleState?: string;
   cleanContent: string;
 }
