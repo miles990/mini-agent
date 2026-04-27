@@ -332,6 +332,11 @@ header h1 .os-badge {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .timeline-ts {
   font-family: var(--mono);
   font-size: 11px;
@@ -497,14 +502,14 @@ header h1 .os-badge {
   </div>
 
   <div class="grid">
-    <!-- Current Task -->
-    <div class="card current-task">
+    <!-- Current Activity (state machine: SCHEDULED / EXPLORING / RESTING) -->
+    <div class="card current-task" id="current-activity-card">
       <div class="card-header">
-        <h2>Current Task</h2>
-        <span class="tag tag-action" id="ct-action">idle</span>
+        <h2>Current Activity</h2>
+        <span class="tag" id="ca-state" style="color:var(--text3);">--</span>
       </div>
-      <div class="card-body" id="current-task-body">
-        <div class="empty">No task assigned</div>
+      <div class="card-body" id="ca-body">
+        <div class="empty">Connecting...</div>
       </div>
     </div>
 
@@ -601,7 +606,8 @@ const actionColors = {
   continue: 'var(--accent)',
   switch: 'var(--yellow)',
   discovery: 'var(--purple)',
-  idle: 'var(--text3)',
+  idle: 'var(--text2)',
+  exploring: 'var(--green)',
 };
 
 const sourceTag = (src) => {
@@ -626,26 +632,6 @@ function renderScheduler(data) {
   // Header
   document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks}`;
   document.getElementById('stat-total-ticks').textContent = data.totalTicks;
-  document.getElementById('ct-action').textContent = data.currentTask ? 'running' : 'idle';
-  document.getElementById('ct-action').style.color = data.currentTask ? 'var(--green)' : 'var(--text3)';
-
-  // Current task
-  const ctBody = document.getElementById('current-task-body');
-  if (data.currentTask && data.currentTask.summary) {
-    const t = data.currentTask;
-    ctBody.innerHTML = `
-      <div class="task-name">${escHtml(t.summary)}</div>
-      <div class="task-meta">
-        ${sourceTag(t.source)}
-        <span class="tag tag-priority">P${t.priority ?? '?'}</span>
-        <span class="tag tag-action">${data.ticksOnCurrent} ticks</span>
-      </div>
-    `;
-  } else if (data.currentTask) {
-    ctBody.innerHTML = `<div class="task-name" style="color:var(--text2);">${shortId(data.currentTask.id)}</div>`;
-  } else {
-    ctBody.innerHTML = '<div class="empty">No task assigned &mdash; idle or discovery</div>';
-  }
 
   // Attention Budget
   const ab = data.attentionBudget;
@@ -761,6 +747,109 @@ function renderHealth(data) {
   if (healthHistory.length > 20) healthHistory.shift();
 }
 
+function renderCurrentActivity(status, schedulerData) {
+  const body = document.getElementById('ca-body');
+  const stateEl = document.getElementById('ca-state');
+  const card = document.getElementById('current-activity-card');
+
+  const loop = status?.loop || {};
+  const claude = status?.claude || {};
+  const task = claude.loop?.task || {};
+  const mushi = status?.mushi || {};
+  const busy = claude.busy;
+  const mode = loop.mode || 'unknown';
+  const cycle = loop.cycleCount || 0;
+  const lastAction = loop.lastAction || '';
+  const hasScheduledTask = schedulerData?.currentTask != null;
+
+  const elapsed = task.elapsed != null ? `${task.elapsed}s` : '--';
+  const tools = task.toolCalls ?? 0;
+  const lastTool = task.lastTool || '--';
+  const files = (task.recentFiles || []).slice(0, 3).map(f => f.split('/').pop()).join(', ') || '--';
+  const actionLines = lastAction.split('\n').filter(l => l.trim());
+  const actionPreview = actionLines[0]?.slice(0, 140) || '';
+
+  // State machine
+  let state, stateColor, dotColor, stateLabel;
+  if (hasScheduledTask) {
+    state = 'SCHEDULED'; stateColor = 'var(--blue)'; dotColor = 'var(--blue)'; stateLabel = 'Scheduled Task';
+  } else if (busy) {
+    state = 'EXPLORING'; stateColor = 'var(--green)'; dotColor = 'var(--green)'; stateLabel = 'Exploring';
+  } else if (loop.running) {
+    state = 'EXPLORING'; stateColor = 'var(--accent)'; dotColor = 'var(--accent)'; stateLabel = 'Between Cycles';
+  } else {
+    state = 'RESTING'; stateColor = 'var(--text3)'; dotColor = 'var(--text3)'; stateLabel = 'Resting';
+  }
+
+  stateEl.textContent = stateLabel;
+  stateEl.style.color = stateColor;
+  card.style.borderColor = busy ? stateColor : '';
+
+  const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};margin-right:6px;${busy ? 'animation:pulse 1.5s infinite;' : ''}"></span>`;
+
+  // Top section varies by state
+  let topHtml = '';
+  if (state === 'SCHEDULED') {
+    const t = schedulerData.currentTask;
+    topHtml = `
+      <div style="display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--text-bright);margin-bottom:6px;">
+        ${dot} ${escHtml(t.summary || t.id?.slice(0,12))}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${sourceTag(t.source)}
+        <span class="tag tag-priority">P${t.priority ?? '?'}</span>
+        <span class="tag tag-action">${schedulerData.ticksOnCurrent} ticks</span>
+      </div>
+    `;
+  } else if (state === 'EXPLORING') {
+    topHtml = `
+      <div style="display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--text-bright);margin-bottom:6px;">
+        ${dot} Cycle ${cycle} — Free Exploration
+      </div>
+      <div style="font-size:12px;color:var(--text);line-height:1.5;max-height:40px;overflow:hidden;">
+        ${escHtml(actionPreview) || '<span style="color:var(--text3);">Starting cycle...</span>'}
+      </div>
+    `;
+  } else {
+    topHtml = `
+      <div style="display:flex;align-items:center;font-size:14px;color:var(--text2);margin-bottom:6px;">
+        ${dot} Queue empty — waiting for next cycle
+      </div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.5;">
+        ${actionPreview ? 'Last: ' + escHtml(actionPreview) : 'No recent activity'}
+      </div>
+    `;
+  }
+
+  body.innerHTML = `
+    <div style="margin-bottom:12px;">${topHtml}</div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;">
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:14px;color:var(--text-bright);">${elapsed}</div>
+        <div style="font-size:10px;color:var(--text3);">Cycle Time</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:14px;color:var(--text-bright);">${tools}</div>
+        <div style="font-size:10px;color:var(--text3);">Tool Calls</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(lastTool)}</div>
+        <div style="font-size:10px;color:var(--text3);">Last Tool</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(files)}</div>
+        <div style="font-size:10px;color:var(--text3);">Recent Files</div>
+      </div>
+    </div>
+    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+      <span style="font-size:10px;color:var(--text3);">Mushi:</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">senses ${mushi.senses ?? '--'}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">thinks ${mushi.thinks ?? '--'}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">esc ${mushi.escalations ?? '--'}</span>
+    </div>
+  `;
+}
+
 const healthHistory = [];
 function escAttr(s) {
   if (!s) return '';
@@ -783,6 +872,7 @@ async function fetchAll() {
     renderProcesses(procs);
     renderTimeline(hist);
     if (health) renderHealth(health);
+    renderCurrentActivity(status, sched);
 
     if (status) {
       const up = status.uptime;
