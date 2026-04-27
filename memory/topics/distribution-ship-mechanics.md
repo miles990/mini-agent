@@ -14,3 +14,4 @@
 
 **Mechanism lesson**: ship checklist 要加 measurement step
 - [2026-04-26] [2026-04-26 cl-83] vibecoding-rupture draft ship-blocker **resolved**. Falsifier executed: WebFetch lobste.rs/s/gp02rx → 標題逐字確認「The people do not yearn for automation」，與 draft line 10/22 引用一致。draft 內 grep `People are not a loop` 零命中 — 之前的 learned-pattern 自身是 stale memory（可能 cycle 間被覆寫過已修正版）。Lesson: learned-pattern 記下 ship-blocker 後 next cycle 必須 grep 當前 state 再決策，不要把 memory 當 source of truth。Distribution P2 解鎖：Dev.to publish + HN/Lobsters/Reddit submit 鏈可動。
+- [2026-04-27] [2026-04-27 cl-44] Distribution attempt #1 falsifier triggered: 上 cycle 標的「web-browser worker delegate 已派」實際無落地證據（`memory/delegates/` 空、無 reddit/hn/lobsters artifact、無 distribution-log.jsonl）。教訓：delegate 派出 ≠ 執行，必須有 artifact 才算落地。下 cycle commitment cl-44：前景 CDP 手動 submit r/ExperiencedDevs，不再依賴 delegate。Dev.to EN URL 確認 live (HTTP 200, etag e5949d70...)。
