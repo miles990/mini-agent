@@ -44,6 +44,8 @@ import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } 
 import { onSchedulerTick } from './reactive-policies.js';
 import { recordFailure, matchFailure } from './failure-registry.js';
 import { buildSuccessHint } from './success-patterns.js';
+import { classifyWork, RuntimeEscalation } from './work-router.js';
+import { qualityCheck } from './quality-gate.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -639,6 +641,13 @@ export class AgentLoop {
     }
     this.activeForegroundHashes.add(contentHash);
 
+    // Work classification + runtime escalation
+    const classification = classifyWork(text, source);
+    const escalation = new RuntimeEscalation();
+    if (classification.workClass === 'task-worthy') {
+      slog('LOOP', `[foreground] classified as task-worthy (mutation=${classification.hasStateMutation}, latency=${classification.estimatedLatency})`);
+    }
+
     // Acquire a foreground slot from the concurrent pool
     let slotId = acquireForegroundSlot();
     if (!slotId) {
@@ -789,6 +798,28 @@ export class AgentLoop {
       // Expire overdue commitments on foreground path too (OODA prompt build handles its own)
       try { expireOverdueCommitments(this.cycleCount); } catch { /* fire-and-forget */ }
       const answer = result.content || response;
+
+      // Runtime escalation check — promote to task if foreground work exceeded thresholds
+      if (escalation.shouldPromote()) {
+        try {
+          const memDir = getMemory().getMemoryDir();
+          const taskId = await escalation.promote(source, text, memDir);
+          const metrics = escalation.getMetrics();
+          slog('LOOP', `[foreground] runtime escalation: promoted to task ${taskId} (reason=${metrics.reason}, elapsed=${metrics.elapsed}ms, steps=${metrics.stepCount})`);
+          await writeRoomMessage('kuro', `[auto] 工作已轉為 background task tracking (${metrics.reason})`, replyTo);
+        } catch (e) { slog('ERROR', `[foreground] escalation promote failed: ${e}`); }
+      }
+
+      // Quality gate — check output before delivery
+      const gateResult = qualityCheck(answer, {
+        source,
+        inputLength: text.length,
+        isCode: /```[\s\S]*```/.test(answer),
+        lane: 'foreground',
+      });
+      if (!gateResult.pass) {
+        slog('LOOP', `[foreground] quality gate failed: ${gateResult.issues.join('; ')}`);
+      }
 
       // Send reply only if nothing was streamed (fallback for responses without <kuro:chat> tags)
       // Convergence guard: only emit when the model produced something a human can actually read.

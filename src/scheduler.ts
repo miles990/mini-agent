@@ -5,7 +5,9 @@
  * OS is inspiration, not blueprint — adapted for agent impedance mismatch.
  */
 
-import { queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
+import { existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
@@ -13,6 +15,11 @@ import { getProcess } from './process-table.js';
 // =============================================================================
 // Types
 // =============================================================================
+
+export interface HoldCondition {
+  type: 'task-completed' | 'file-exists' | 'command-succeeds' | 'date-after' | 'manual';
+  value: string;
+}
 
 export interface TaskSnapshot {
   id: string;
@@ -238,10 +245,71 @@ export function setCurrentTask(taskId: string): void {
 // Public API
 // =============================================================================
 
+export function checkHoldTasks(memoryDir: string): { unblocked: string[]; checked: number } {
+  const holdEntries = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['hold'],
+  });
+
+  const unblocked: string[] = [];
+  let checked = 0;
+
+  for (const entry of holdEntries) {
+    const payload = (entry.payload ?? {}) as Record<string, unknown>;
+    const condition = payload.holdCondition as HoldCondition | undefined;
+
+    if (!condition) continue;
+    if (condition.type === 'manual') continue;
+
+    checked++;
+    let conditionMet = false;
+
+    switch (condition.type) {
+      case 'task-completed': {
+        const refs = queryMemoryIndexSync(memoryDir, { id: condition.value, limit: 1 });
+        conditionMet = refs.length > 0 && refs[0].status === 'completed';
+        break;
+      }
+      case 'file-exists': {
+        conditionMet = existsSync(condition.value);
+        break;
+      }
+      case 'command-succeeds': {
+        try {
+          execSync(condition.value, { stdio: 'ignore', timeout: 5000 });
+          conditionMet = true;
+        } catch {
+          conditionMet = false;
+        }
+        break;
+      }
+      case 'date-after': {
+        conditionMet = new Date() >= new Date(condition.value);
+        break;
+      }
+    }
+
+    if (conditionMet) {
+      unblocked.push(entry.id);
+      updateMemoryIndexEntry(memoryDir, entry.id, { status: 'pending' }).catch(() => {});
+    }
+  }
+
+  return { unblocked, checked };
+}
+
 export function schedulerPick(
   memoryDir: string,
   events: IncomingEvent[] = [],
 ): SchedulingDecision {
+  // Check hold tasks every 10 ticks
+  if (schedulerState.totalTicks > 0 && schedulerState.totalTicks % 10 === 0) {
+    const result = checkHoldTasks(memoryDir);
+    if (result.unblocked.length > 0) {
+      slog('SCHED', `unblocked ${result.unblocked.length} hold tasks`);
+    }
+  }
+
   const entries = queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],

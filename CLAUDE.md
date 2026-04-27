@@ -42,6 +42,15 @@ Personal AI agent framework: file-oriented, no DB, composable. Architecture, sys
 ### Skill Invocation
 - `/graphify`, `/kg-query`, `/kg-publish`, `/kg-discussion` — invoke via Skill tool when user types the slash command. Do not guess or invent skill names.
 
+### Autonomous Decision Making + Quality Bar
+- 深思熟慮過、有收斂條件、可 revert → 直接做，不等授權
+- 只有真正無法決定的才 escalate to Alex
+- 品質門檻：交出的必須是品質最好、視覺化最好、最正確的成品
+- 不交半成品：功能未完整、UI 未收口、edge case 未處理 = 不交
+- 品質三問：這是我能做到的最好嗎？使用者看到會滿意嗎？有沒有遺漏的 edge case？
+- 至少達到自己心目中 90 分水準才交付檢視
+- 持續性工作也適用：每次迭代都要是當下最好的版本
+
 ## Canary
 
 Before adding any new gate, mechanism, feedback loop, or auto-loaded section to Kuro's identity layer (SOUL.md, CLAUDE.md, achievements, coach, hesitation signal, output-gate, decision-quality, etc.), **read KG discussion `1c2885cd-3e4f-445b-b251-dfc0d35f6bcb` ("Kuro 退化現象與架構演進方向") first.** This system has historically over-accreted: 882-line CLAUDE.md, 82-line philosophical SOUL, stacked monitoring gates that made cycles 50% gate output. The discussion contains the diagnosis and the pruning discipline. Any net-additive change to identity layer needs justification against that prior.
