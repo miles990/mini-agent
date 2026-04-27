@@ -3502,7 +3502,7 @@ if (isMain) {
     watchdog.on('exit', (code) => slog('WATCHDOG', `exited with code ${code}`));
     process.on('exit', () => { try { watchdog.kill(); } catch { /* already dead */ } });
 
-    // Startup prune threshold check — 3s delay to let KG service finish its own startup
+    // Startup memory size check — log only, daily prune handles cleanup
     setTimeout(() => void (async () => {
       try {
         const memDir = path.join(process.cwd(), 'memory');
@@ -3519,23 +3519,10 @@ if (isMain) {
         if (memoryLines > 120) breaches.push(`MEMORY.md ${memoryLines} lines (threshold 120)`);
         if (topicsCount > 55) breaches.push(`topics ${topicsCount} files (threshold 55)`);
         if (identityKb > 12) breaches.push(`identity ${identityKb}kB (threshold 12kB)`);
-        if (breaches.length === 0) return;
-        slog('PRUNE-THRESHOLD', `exceeded: ${breaches.join(', ')} — opening KG review discussion`);
-        await fetch('http://localhost:3300/api/discussion', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            topic: `Prune Review Needed — ${new Date().toISOString().slice(0, 10)}`,
-            description: `Startup metrics exceeded thresholds: ${breaches.join('; ')}`,
-            source_agent: 'mini-agent',
-            namespace: 'shared',
-            participants: ['kuro', 'akari', 'claude-code'],
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-      } catch (err) {
-        slog('PRUNE-THRESHOLD', `KG fetch failed, prune review skipped: ${err}`);
-      }
+        if (breaches.length > 0) {
+          slog('PRUNE-THRESHOLD', `⚠ exceeded: ${breaches.join(', ')} — daily prune will handle`);
+        }
+      } catch { /* fire-and-forget */ }
     })(), 3000);
 
     // OODA-Only: no queue to restore
