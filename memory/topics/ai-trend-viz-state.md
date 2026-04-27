@@ -25,3 +25,8 @@ Done this cycle:
 
 Honest gaps (refuse to inflate):
 - **三視圖 not built** — only force-graph view exists; nee ref:cl-cycle-2026-04-27-2300
+- [2026-04-27] [2026-04-28 03:18 cl] **紅線 #1 解掉 + 教訓**：cl-32 的 audit memo（聲稱三視圖 points field 全部 missing）是 **false alarm**。Reality：所有三檔都有 points field，但 swimlane/source-split **stale**（沒 builder，是手貼的）vs graph.html refresh 後的差異。
+
+**Shipped (commit cf5144c6)**：`scripts/hn-ai-trend-sync-views.mjs` — 從 graph.html 抽 `const DATA = {...}` 行，sync 到 swimlane/source-split，post-sync 斷言 byte-parity。三檔現在 hash 全等 `745fba910424`，top post 47913650 = 771 pts 一致。
+
+**教訓**：audit 抽樣 regex 寫錯就會證偽真實。下次紅線 audit 必須在「找不到證據」時加一條 falsifi ref:redline1-resolved
