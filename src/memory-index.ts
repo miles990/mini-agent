@@ -415,6 +415,22 @@ export async function deleteMemoryIndexEntry(
 // Task / Goal CRUD (replaces task-queue.ts)
 // =============================================================================
 
+const TASK_REJECT_PATTERNS = [
+  /^[^。.!！]*[?？嗎呢]$/,
+  /\[mushi\]/i,
+  /status changed.*→/i,
+  /\[auto\]/i,
+  /表達意圖/,
+  /^(ok|收到|noted|ack|好的|了解)/i,
+  /\[delegate:shell\]/i,
+];
+
+function isTaskContentValid(title: string): boolean {
+  const trimmed = title.trim();
+  if (trimmed.length < 5) return false;
+  return !TASK_REJECT_PATTERNS.some(p => p.test(trimmed));
+}
+
 export async function createTask(
   memoryDir: string,
   input: {
@@ -428,6 +444,11 @@ export async function createTask(
     blockedBy?: string[];
   },
 ): Promise<MemoryIndexEntry> {
+  // Entry filter: reject non-actionable content (except external/manual origin)
+  if (input.origin !== 'alex' && input.origin !== 'task-board' && !isTaskContentValid(input.title)) {
+    throw new Error(`Task rejected by entry filter: "${input.title.slice(0, 50)}"`);
+  }
+
   const payload: Record<string, unknown> = {};
   if (input.verify) payload.verify = input.verify;
   if (input.origin) payload.origin = input.origin;
@@ -563,6 +584,15 @@ export async function incrementTaskStaleness(
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
     const newTicks = currentTicks + 1;
+
+    // Auto-abandon: ticks > 20 → garbage, not worth keeping
+    if (newTicks > 20) {
+      await updateMemoryIndexEntry(memoryDir, task.id, {
+        status: 'abandoned',
+        payload: { ...payload, ticksSinceLastProgress: newTicks, autoAbandoned: true },
+      });
+      continue;
+    }
 
     await updateMemoryIndexEntry(memoryDir, task.id, {
       payload: { ...payload, ticksSinceLastProgress: newTicks },
