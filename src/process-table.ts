@@ -15,7 +15,7 @@ import type { TaskSnapshot, SuspendInfo } from './scheduler.js';
 // Types
 // =============================================================================
 
-export type ProcessState = 'pending' | 'running' | 'blocked' | 'suspended' | 'completed' | 'abandoned';
+export type ProcessState = 'pending' | 'scheduled' | 'running' | 'blocked' | 'suspended' | 'completed' | 'abandoned';
 
 export interface ProcessCheckpoint {
   taskId: string;
@@ -40,8 +40,9 @@ export interface ProcessEntry {
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<ProcessState, ProcessState[]> = {
-  pending: ['running', 'abandoned'],
-  running: ['blocked', 'suspended', 'completed', 'abandoned'],
+  pending: ['scheduled', 'running', 'abandoned'],
+  scheduled: ['running', 'pending', 'abandoned'],
+  running: ['scheduled', 'blocked', 'suspended', 'completed', 'abandoned'],
   blocked: ['running', 'suspended', 'abandoned'],
   suspended: ['running', 'abandoned'],
   completed: [],
@@ -66,7 +67,7 @@ export function registerProcess(task: TaskSnapshot): ProcessEntry {
   const entry: ProcessEntry = {
     taskId: task.id,
     summary: task.summary,
-    state: task.status === 'in_progress' ? 'running' : 'pending',
+    state: task.status === 'in_progress' ? 'scheduled' : 'pending',
     priority: task.priority,
     source: task.source,
     ticksSpent: task.ticksSpent,
@@ -222,9 +223,18 @@ export function clearProcessTable(): void {
   processes.clear();
 }
 
-export function syncFromTasks(tasks: TaskSnapshot[]): void {
+export function syncFromTasks(tasks: TaskSnapshot[], currentTaskId?: string | null): void {
   for (const task of tasks) {
     registerProcess(task);
+  }
+  // Enforce single-running: only scheduler's pick is running
+  for (const [id, entry] of processes) {
+    if (entry.state === 'completed' || entry.state === 'abandoned') continue;
+    if (id === currentTaskId) {
+      if (entry.state !== 'running') transitionProcess(id, 'running', 'scheduler pick');
+    } else if (entry.state === 'running') {
+      transitionProcess(id, 'scheduled', 'not current scheduler pick');
+    }
   }
   // Clean up processes whose tasks no longer exist
   for (const [id] of processes) {

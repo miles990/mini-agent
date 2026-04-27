@@ -298,7 +298,9 @@ export function getTopPending(memoryDir: string, limit: number = 5): { tasks: Ar
 
 export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
-  const priority = typeof payload.priority === 'number' ? payload.priority : 2;
+  const priority = typeof payload.priority === 'number'
+    ? payload.priority
+    : parsePriorityFromSummary(entry.summary ?? '');
   const source = detectSource(entry);
   const created = (payload.created as string) ?? entry.ts;
   const ticksSpent = typeof payload.ticksSpent === 'number' ? payload.ticksSpent : 0;
@@ -314,12 +316,22 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
   };
 }
 
+function parsePriorityFromSummary(summary: string): number {
+  const match = summary.match(/(?:^|\s)P([0-3])(?:\s|$|[：:,，])/i)
+    ?? summary.match(/唯一\s*P([0-3])/i)
+    ?? summary.match(/priority[=:\s]*([0-3])/i);
+  return match ? parseInt(match[1], 10) : 2;
+}
+
 function detectSource(entry: MemoryIndexEntry): TaskSnapshot['source'] {
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
   if (payload.source === 'alex') return 'alex';
+  if (payload.origin === 'alex') return 'alex';
   if (payload.source === 'kuro') return 'kuro';
   if (payload.source === 'discovery') return 'discovery';
   const summary = (entry.summary ?? '').toLowerCase();
-  if (summary.includes('alex') && (summary.includes('要') || summary.includes('請') || summary.includes('做'))) return 'alex';
+  if (summary.includes('alex') && (summary.includes('要') || summary.includes('請') || summary.includes('做') || summary.includes('點名'))) return 'alex';
+  const origin = (payload.origin as string ?? '').toLowerCase();
+  if (origin.includes('room') && summary.includes('alex')) return 'alex';
   return 'system';
 }

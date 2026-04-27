@@ -263,6 +263,7 @@ header h1 .os-badge {
 }
 
 .state-running { color: var(--green); background: var(--green-dim); }
+.state-scheduled { color: var(--blue); background: var(--blue-dim); }
 .state-pending { color: var(--text2); background: var(--surface3); }
 .state-blocked { color: var(--red); background: var(--red-dim); }
 .state-suspended { color: var(--yellow); background: var(--yellow-dim); }
@@ -672,7 +673,7 @@ function renderScheduler(data) {
 function renderProcesses(data) {
   const { processes, stats } = data;
   document.getElementById('stat-running').textContent = stats.running;
-  document.getElementById('stat-pending').textContent = stats.pending;
+  document.getElementById('stat-pending').textContent = (stats.pending ?? 0) + (stats.scheduled ?? 0);
   document.getElementById('stat-suspended').textContent = stats.suspended;
   document.getElementById('stat-completed').textContent = stats.completed;
   document.getElementById('pt-count').textContent = `${stats.total} processes`;
@@ -684,7 +685,7 @@ function renderProcesses(data) {
     return;
   }
 
-  const stateOrder = { running: 0, blocked: 1, suspended: 2, pending: 3 };
+  const stateOrder = { running: 0, blocked: 1, suspended: 2, scheduled: 3, pending: 4 };
   active.sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
 
   body.innerHTML = active.map(p => `

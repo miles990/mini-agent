@@ -2038,7 +2038,7 @@ export class AgentLoop {
           type: ['task', 'goal'],
           status: ['pending', 'in_progress'],
         });
-        syncFromTasks(ptEntries.map(entryToSnapshot));
+        syncFromTasks(ptEntries.map(entryToSnapshot), schedulerDecision.taskId);
         persistProcessTable();
       } catch { /* non-critical */ }
       slog('SCHED', getSchedulerStatus());
