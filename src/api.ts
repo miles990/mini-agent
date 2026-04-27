@@ -1772,15 +1772,20 @@ export function createApi(port = 3001): express.Express {
         return true;
       });
       const result = goals.map(g => {
+        const gPayload = (g.payload ?? {}) as Record<string, unknown>;
         const tasks = allEntries.filter(t => t.type === 'task' && (t.payload as Record<string, unknown>)?.goal_id === g.id);
         const done = tasks.filter(t => ['completed', 'done'].includes(t.status)).length;
         const blocked = tasks.filter(t => t.status === 'blocked').length;
         const pending = tasks.filter(t => t.status === 'pending').length;
         const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+        const queued = tasks.filter(t => t.status === 'queued').length;
         return {
           id: g.id, title: g.summary, status: g.status,
-          acceptance_criteria: (g.payload as Record<string, unknown>)?.acceptance_criteria,
-          progress: { total: tasks.length, done, blocked, pending, in_progress: inProgress },
+          acceptance_criteria: gPayload.acceptance_criteria,
+          heal_attempts: (gPayload.heal_attempts as number) ?? 0,
+          last_healed_at: gPayload.last_healed_at ?? null,
+          circuit_broken: !!gPayload.circuitBroken,
+          progress: { total: tasks.length, done, blocked, pending, in_progress: inProgress, queued },
           tasks: tasks.map(t => ({
             id: t.id, title: t.summary, status: t.status,
             verify_command: (t.payload as Record<string, unknown>)?.verify_command,

@@ -992,13 +992,19 @@ function renderPipelineGoals(data) {
     const p = g.progress;
     const pct = p.total > 0 ? Math.round(p.done / p.total * 100) : 0;
     const isGoalAbandoned = g.status === 'abandoned';
-    const barColor = g.status === 'completed' ? 'var(--green)' : isGoalAbandoned ? 'var(--text3)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
-    const statusIcon = g.status === 'completed' ? '&#10003;' : isGoalAbandoned ? '&#8856;' : g.status === 'in_progress' ? '&#9654;' : '&#9679;';
+    const isQueued = g.status === 'pending';
+    const isCircuitBroken = g.circuit_broken;
+    const barColor = g.status === 'completed' ? 'var(--green)' : isGoalAbandoned ? 'var(--text3)' : isCircuitBroken ? 'var(--red)' : isQueued ? 'var(--text3)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
+    const statusIcon = g.status === 'completed' ? '&#10003;' : isGoalAbandoned ? '&#8856;' : isCircuitBroken ? '&#9940;' : isQueued ? '&#9203;' : g.heal_attempts > 0 ? '&#128260;' : g.status === 'in_progress' ? '&#9654;' : '&#9679;';
+    const healBadge = g.heal_attempts > 0 && !isCircuitBroken ? ` <span style="font-family:var(--mono);font-size:9px;padding:0 4px;border-radius:2px;background:var(--yellow)22;color:var(--yellow);">heal×${g.heal_attempts}</span>` : '';
+    const queuedBadge = isQueued ? ' <span style="font-family:var(--mono);font-size:9px;padding:0 4px;border-radius:2px;background:var(--text3)22;color:var(--text3);">queued</span>' : '';
+    const cbBadge = isCircuitBroken ? ' <span style="font-family:var(--mono);font-size:9px;padding:0 4px;border-radius:2px;background:var(--red)22;color:var(--red);">circuit-broken</span>' : '';
     const taskLines = g.tasks.map(t => {
       const isAbandoned = t.status === 'abandoned';
-      const tIcon = (t.status === 'completed' || t.status === 'done') ? '&#10003;' : isAbandoned ? '&#8856;' : t.status === 'blocked' ? '&#128274;' : t.status === 'pending' ? '&#9675;' : '&#9654;';
-      const stale = !isAbandoned && t.ticksSinceLastProgress > 3 ? ` <span style="color:var(--yellow);">${t.ticksSinceLastProgress}t</span>` : '';
-      const dimStyle = isAbandoned ? 'opacity:0.4;text-decoration:line-through;' : '';
+      const isTaskQueued = t.status === 'queued';
+      const tIcon = (t.status === 'completed' || t.status === 'done') ? '&#10003;' : isAbandoned ? '&#8856;' : isTaskQueued ? '&#9203;' : t.status === 'blocked' ? '&#128274;' : t.status === 'pending' ? '&#9675;' : '&#9654;';
+      const stale = !isAbandoned && !isTaskQueued && t.ticksSinceLastProgress > 3 ? ` <span style="color:var(--yellow);">${t.ticksSinceLastProgress}t</span>` : '';
+      const dimStyle = isAbandoned ? 'opacity:0.4;text-decoration:line-through;' : isTaskQueued ? 'opacity:0.6;' : '';
       return `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;color:var(--text2);${dimStyle}">
         <span style="width:14px;text-align:center;">${tIcon}</span>
         <span style="flex:1;">${escHtml(t.title.slice(0,60))}</span>
@@ -1008,7 +1014,7 @@ function renderPipelineGoals(data) {
     return `
       <div style="margin-bottom:12px;padding:8px;background:var(--surface1);border-radius:6px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:13px;color:var(--text1);">${statusIcon} ${escHtml(g.title.slice(0,60))}</span>
+          <span style="font-size:13px;color:var(--text1);">${statusIcon} ${escHtml(g.title.slice(0,60))}${healBadge}${queuedBadge}${cbBadge}</span>
           <span style="font-family:var(--mono);font-size:11px;color:${barColor};">${pct}% (${p.done}/${p.total})</span>
         </div>
         <div style="height:4px;background:var(--surface3);border-radius:2px;margin-bottom:6px;">

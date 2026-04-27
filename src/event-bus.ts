@@ -55,6 +55,8 @@ export type AgentEventType =
   | 'notification:signal'
   | 'notification:summary'
   | 'notification:heartbeat'
+  // Pipeline
+  | 'goal:completed'
   // Knowledge Bus
   | 'kb:observe';
 

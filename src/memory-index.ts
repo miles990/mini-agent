@@ -602,6 +602,7 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
       const goal = queryMemoryIndexSync(memoryDir, { type: ['goal'] }).find(t => t.id === goalId);
       if (goal && !TASK_TERMINAL_STATUSES.has(goal.status)) {
         const goalVerify = (goal.payload as Record<string, unknown>)?.verify_command as string;
+        let goalCompleted = false;
         if (goalVerify) {
           try {
             execSync(goalVerify, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
@@ -610,12 +611,18 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
               payload: { ...(goal.payload as Record<string, unknown>), verify_proof: { command: goalVerify, passed: true, ts: new Date().toISOString() } },
             });
             slog('PIPELINE', `Goal auto-completed: ${goal.summary?.slice(0, 60)}`);
+            goalCompleted = true;
           } catch {
             slog('PIPELINE', `Goal verify failed: ${goal.summary?.slice(0, 60)}`);
           }
         } else {
           await updateMemoryIndexEntry(memoryDir, goalId, { status: 'completed' });
           slog('PIPELINE', `Goal auto-completed (no verify): ${goal.summary?.slice(0, 60)}`);
+          goalCompleted = true;
+        }
+        if (goalCompleted) {
+          eventBus.emit('goal:completed', { goalId, title: goal.summary });
+          dequeueNextGoal(memoryDir).catch(() => {});
         }
       }
     }
@@ -624,11 +631,13 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
   return unlocked;
 }
 
+const MAX_ACTIVE_GOALS = 5;
+
 export async function createGoal(
   memoryDir: string,
   goal: { title: string; acceptance_criteria: string; verify_command?: string },
   tasks: Array<{ title: string; verify_command?: string; acceptance_criteria?: string; depends_on?: string[] }>,
-): Promise<{ goalId: string; taskIds: string[] }> {
+): Promise<{ goalId: string; taskIds: string[]; queued: boolean }> {
   const nameToIdx = new Map(tasks.map((t, i) => [t.title, i]));
   const visited = new Set<number>();
   const stack = new Set<number>();
@@ -647,11 +656,18 @@ export async function createGoal(
     if (hasCycle(i)) throw new Error(`Cycle detected in task DAG at: ${tasks[i].title}`);
   }
 
+  // Concurrency check: queue if too many active goals
+  const existingGoals = queryMemoryIndexSync(memoryDir, { type: 'goal' });
+  const activeCount = existingGoals.filter(e =>
+    e.status === 'in_progress' && (e.payload as Record<string, unknown>)?.origin === 'pipeline',
+  ).length;
+  const isQueued = activeCount >= MAX_ACTIVE_GOALS;
+
   const goalEntry = await appendMemoryIndexEntry(memoryDir, {
     type: 'goal',
-    status: 'in_progress',
+    status: isQueued ? 'pending' : 'in_progress',
     summary: goal.title,
-    payload: { acceptance_criteria: goal.acceptance_criteria, verify_command: goal.verify_command, origin: 'pipeline' },
+    payload: { acceptance_criteria: goal.acceptance_criteria, verify_command: goal.verify_command, origin: 'pipeline', heal_attempts: 0 },
   });
 
   const titleToId = new Map<string, string>();
@@ -688,9 +704,10 @@ export async function createGoal(
 
   for (const task of sorted) {
     const blockedBy = (task.depends_on ?? []).map(dep => titleToId.get(dep)).filter(Boolean) as string[];
+    const taskStatus = isQueued ? 'queued' : (blockedBy.length > 0 ? 'blocked' : 'pending');
     const entry = await appendMemoryIndexEntry(memoryDir, {
       type: 'task',
-      status: blockedBy.length > 0 ? 'blocked' : 'pending',
+      status: taskStatus,
       summary: task.title,
       payload: {
         verify_command: task.verify_command,
@@ -704,7 +721,40 @@ export async function createGoal(
     taskIds.push(entry.id);
   }
 
-  return { goalId: goalEntry.id, taskIds };
+  return { goalId: goalEntry.id, taskIds, queued: isQueued };
+}
+
+export async function dequeueNextGoal(memoryDir: string): Promise<string | null> {
+  const existingGoals = queryMemoryIndexSync(memoryDir, { type: 'goal' });
+  const activeCount = existingGoals.filter(e =>
+    e.status === 'in_progress' && (e.payload as Record<string, unknown>)?.origin === 'pipeline',
+  ).length;
+  if (activeCount >= MAX_ACTIVE_GOALS) return null;
+
+  const pendingGoals = existingGoals
+    .filter(e => e.status === 'pending' && (e.payload as Record<string, unknown>)?.origin === 'pipeline')
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+
+  if (pendingGoals.length === 0) return null;
+
+  const goal = pendingGoals[0];
+  await updateMemoryIndexEntry(memoryDir, goal.id, { status: 'in_progress' });
+
+  const allTasks = queryMemoryIndexSync(memoryDir, { type: 'task' });
+  const goalTasks = allTasks.filter(t => (t.payload as Record<string, unknown>)?.goal_id === goal.id);
+  for (const task of goalTasks) {
+    if (task.status !== 'queued') continue;
+    const blockedBy = ((task.payload as Record<string, unknown>)?.blockedBy ?? []) as string[];
+    const hasUnfinishedBlockers = blockedBy.some(bid => {
+      const blocker = goalTasks.find(t => t.id === bid);
+      return blocker && !['done', 'completed'].includes(blocker.status);
+    });
+    await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: hasUnfinishedBlockers ? 'blocked' : 'pending',
+    });
+  }
+
+  return goal.id;
 }
 
 // =============================================================================
@@ -760,14 +810,97 @@ export async function incrementTaskStaleness(
     const children = allEntries.filter(e => e.type === 'task' && (e.payload as Record<string, unknown>)?.goal_id === goal.id);
     if (children.length > 0 && children.every(c => terminalStatuses.has(c.status))) {
       const anyDone = children.some(c => c.status === 'done' || c.status === 'completed');
+      const newStatus = anyDone ? 'done' : 'abandoned';
       await updateMemoryIndexEntry(memoryDir, goal.id, {
-        status: anyDone ? 'done' : 'abandoned',
+        status: newStatus,
         payload: { ...(goal.payload as Record<string, unknown>), autoCascaded: true },
       });
+      if (newStatus === 'done') {
+        eventBus.emit('goal:completed', { goalId: goal.id, title: goal.summary });
+      }
+      dequeueNextGoal(memoryDir).catch(() => {});
     }
   }
 
   return stale;
+}
+
+export async function healAbandonedGoals(memoryDir: string): Promise<number> {
+  const allEntries = queryMemoryIndexSync(memoryDir, { type: ['goal', 'task'] });
+  const abandonedGoals = allEntries.filter(e =>
+    e.type === 'goal' &&
+    e.status === 'abandoned' &&
+    (e.payload as Record<string, unknown>)?.acceptance_criteria &&
+    (e.payload as Record<string, unknown>)?.origin === 'pipeline',
+  );
+
+  let healed = 0;
+  let currentActiveCount = allEntries.filter(e =>
+    e.type === 'goal' && e.status === 'in_progress' && (e.payload as Record<string, unknown>)?.origin === 'pipeline',
+  ).length;
+
+  for (const goal of abandonedGoals) {
+    const payload = (goal.payload ?? {}) as Record<string, unknown>;
+    const attempts = (payload.heal_attempts as number) ?? 0;
+
+    if (attempts >= 3 || payload.circuitBroken) {
+      if (!payload.circuitBroken) {
+        await updateMemoryIndexEntry(memoryDir, goal.id, {
+          payload: { ...payload, circuitBroken: true },
+        });
+        slog('PIPELINE', `Circuit breaker tripped for goal: ${goal.summary?.slice(0, 60)} (${attempts} attempts)`);
+      }
+      continue;
+    }
+
+    // Check if verify_command passes — if so, mark done instead of healing
+    const verifyCmd = payload.verify_command as string;
+    if (verifyCmd) {
+      try {
+        execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+        await updateMemoryIndexEntry(memoryDir, goal.id, {
+          status: 'completed',
+          payload: { ...payload, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString() } },
+        });
+        eventBus.emit('goal:completed', { goalId: goal.id, title: goal.summary });
+        dequeueNextGoal(memoryDir).catch(() => {});
+        slog('PIPELINE', `Abandoned goal passed verify — auto-completed: ${goal.summary?.slice(0, 60)}`);
+        continue;
+      } catch { /* verify failed, proceed with heal */ }
+    }
+
+    if (currentActiveCount >= MAX_ACTIVE_GOALS) {
+      slog('PIPELINE', `Heal deferred (concurrency limit): ${goal.summary?.slice(0, 60)}`);
+      continue;
+    }
+
+    // Reactivate goal and its tasks
+    const children = allEntries.filter(e => e.type === 'task' && (e.payload as Record<string, unknown>)?.goal_id === goal.id);
+    for (const child of children) {
+      if (!TASK_TERMINAL_STATUSES.has(child.status) || child.status === 'abandoned') {
+        const childPayload = (child.payload ?? {}) as Record<string, unknown>;
+        const blockedBy = (childPayload.blockedBy ?? []) as string[];
+        const hasUnfinishedBlockers = blockedBy.some(bid => {
+          const blocker = children.find(c => c.id === bid);
+          return blocker && !['done', 'completed'].includes(blocker.status);
+        });
+        await updateMemoryIndexEntry(memoryDir, child.id, {
+          status: hasUnfinishedBlockers ? 'blocked' : 'pending',
+          payload: { ...childPayload, ticksSinceLastProgress: 0 },
+        });
+      }
+    }
+
+    await updateMemoryIndexEntry(memoryDir, goal.id, {
+      status: 'in_progress',
+      payload: { ...payload, heal_attempts: attempts + 1, last_healed_at: new Date().toISOString(), autoCascaded: undefined },
+    });
+    slog('PIPELINE', `Healed goal (attempt ${attempts + 1}): ${goal.summary?.slice(0, 60)}`);
+    healed++;
+    currentActiveCount++;
+  }
+
+  return healed;
 }
 
 export function findLatestOpenGoal(
