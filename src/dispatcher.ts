@@ -856,9 +856,18 @@ export function parseTags(response: string): ParsedTags {
     excludes.push({ target, reason });
   }
 
+  // Parse pledge tags
+  const pledges: ParsedTags['pledges'] = [];
+  for (const t of byName('kuro:pledge')) {
+    const content = t.content.trim();
+    if (content) {
+      pledges.push({ content, deadline: attr(t.attributes, 'deadline') });
+    }
+  }
+
   const cleanContent = stripKuroTags(response);
 
-  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post', 'supersede', 'validate', 'exclude'];
+  const tagNames = ['remember', 'task', 'task-queue', 'chat', 'ask', 'show', 'impulse', 'archive', 'summary', 'thread', 'progress', 'inner', 'action', 'done', 'delegate', 'fetch', 'schedule', 'goal', 'goal-progress', 'goal-done', 'goal-abandon', 'direction-change', 'agora-post', 'supersede', 'validate', 'exclude', 'pledge'];
   const balance = getKuroTagBalance(response);
   for (const tag of tagNames) {
     const name = `kuro:${tag}`;
@@ -870,7 +879,7 @@ export function parseTags(response: string): ParsedTags {
     }
   }
 
-  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, cleanContent };
+  return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, pledges, cleanContent };
 }
 
 // =============================================================================
@@ -1734,6 +1743,32 @@ export async function postProcess(
       eventBus.emit('action:summary', { text: summary });
     }
   }
+
+  // 3b. Pledge → auto-create task + KG write (independent failures)
+  for (const pledge of tags.pledges) {
+    try {
+      await createTask(memoryDir, {
+        type: 'task',
+        title: pledge.content.slice(0, 200),
+        status: 'pending',
+        priority: 1,
+        origin: 'pledge',
+      });
+      slog('PLEDGE', `Auto-created task: ${pledge.content.slice(0, 80)}`);
+    } catch (e) {
+      slog('PLEDGE', `Failed to create task: ${e}`);
+    }
+    try {
+      writeMemoryTriple({
+        agent: getCurrentInstanceId() ?? 'kuro',
+        predicate: 'pledged',
+        content: pledge.content,
+        importance: 'high',
+        source: 'pledge-tag',
+      });
+    } catch (e) { slog('PLEDGE', `KG write failed: ${e}`); }
+  }
+  if (tags.pledges.length > 0) tagsProcessed.push('PLEDGE');
 
   // 4. Commitment Gate — fire-and-forget tracking for untagged commitments (writes to memory-index)
   detectAndRecordCommitments(memoryDir, mappedResponse, tags)
