@@ -670,7 +670,35 @@ export async function createGoal(
 
   const titleToId = new Map<string, string>();
   const taskIds: string[] = [];
-  const sorted = [...tasks].sort((a, b) => (a.depends_on?.length ?? 0) - (b.depends_on?.length ?? 0));
+
+  // True topological sort (Kahn's algorithm)
+  const inDegree = new Map<number, number>();
+  const adj = new Map<number, number[]>();
+  for (let i = 0; i < tasks.length; i++) {
+    inDegree.set(i, 0);
+    adj.set(i, []);
+  }
+  for (let i = 0; i < tasks.length; i++) {
+    for (const dep of tasks[i].depends_on ?? []) {
+      const depIdx = nameToIdx.get(dep);
+      if (depIdx !== undefined) {
+        adj.get(depIdx)!.push(i);
+        inDegree.set(i, (inDegree.get(i) ?? 0) + 1);
+      }
+    }
+  }
+  const queue: number[] = [];
+  for (const [idx, deg] of inDegree) { if (deg === 0) queue.push(idx); }
+  const sorted: typeof tasks = [];
+  while (queue.length > 0) {
+    const idx = queue.shift()!;
+    sorted.push(tasks[idx]);
+    for (const next of adj.get(idx) ?? []) {
+      const newDeg = (inDegree.get(next) ?? 1) - 1;
+      inDegree.set(next, newDeg);
+      if (newDeg === 0) queue.push(next);
+    }
+  }
 
   for (const task of sorted) {
     const blockedBy = (task.depends_on ?? []).map(dep => titleToId.get(dep)).filter(Boolean) as string[];

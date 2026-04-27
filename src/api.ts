@@ -1681,7 +1681,7 @@ export function createApi(port = 3001): express.Express {
 
   app.post('/api/task-queue', async (req: Request, res: Response) => {
     try {
-      const { title, type, status, priority, origin, assignee, blockedBy } = req.body;
+      const { title, type, status, priority, origin, assignee, blockedBy, verify_command, acceptance_criteria, goal_id } = req.body;
       if (!title || typeof title !== 'string') {
         res.status(400).json({ error: 'title is required' });
         return;
@@ -1695,6 +1695,9 @@ export function createApi(port = 3001): express.Express {
         origin: origin ?? 'task-board',
         assignee: assignee ?? undefined,
         blockedBy: Array.isArray(blockedBy) ? blockedBy : undefined,
+        verify_command: verify_command ?? undefined,
+        acceptance_criteria: acceptance_criteria ?? undefined,
+        goal_id: goal_id ?? undefined,
       });
       eventBus.emit('action:task', { content: title, entry });
       res.json({ success: true, entry });
@@ -1755,6 +1758,35 @@ export function createApi(port = 3001): express.Express {
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/goals', (_req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const allEntries = queryMemoryIndexSync(memDir, { type: ['goal', 'task'] });
+      const goals = allEntries.filter(e => e.type === 'goal' && (e.payload as Record<string, unknown>)?.origin === 'pipeline');
+      const result = goals.map(g => {
+        const tasks = allEntries.filter(t => t.type === 'task' && (t.payload as Record<string, unknown>)?.goal_id === g.id);
+        const done = tasks.filter(t => ['completed', 'done'].includes(t.status)).length;
+        const blocked = tasks.filter(t => t.status === 'blocked').length;
+        const pending = tasks.filter(t => t.status === 'pending').length;
+        const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+        return {
+          id: g.id, title: g.summary, status: g.status,
+          acceptance_criteria: (g.payload as Record<string, unknown>)?.acceptance_criteria,
+          progress: { total: tasks.length, done, blocked, pending, in_progress: inProgress },
+          tasks: tasks.map(t => ({
+            id: t.id, title: t.summary, status: t.status,
+            verify_command: (t.payload as Record<string, unknown>)?.verify_command,
+            blockedBy: (t.payload as Record<string, unknown>)?.blockedBy ?? [],
+            ticksSinceLastProgress: (t.payload as Record<string, unknown>)?.ticksSinceLastProgress ?? 0,
+          })),
+        };
+      });
+      res.json({ goals: result });
+    } catch {
+      res.json({ goals: [] });
     }
   });
 

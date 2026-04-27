@@ -608,6 +608,42 @@ header h1 .os-badge {
     </div>
   </div>
 
+  <!-- Pipeline Goals -->
+  <div class="card" style="margin-top: 16px;">
+    <div class="card-header">
+      <h2>Pipeline Goals</h2>
+      <button onclick="showGoalModal()" style="font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;">+ New Goal</button>
+    </div>
+    <div class="card-body" style="padding: 8px;">
+      <div id="pipeline-goals-body">
+        <div class="empty">No pipeline goals</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal Creation Modal -->
+  <div id="goal-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;">
+    <div style="background:var(--surface2);border-radius:8px;padding:20px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;">
+      <h3 style="margin:0 0 12px;color:var(--text1);">Create Pipeline Goal</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <input id="gm-title" placeholder="Goal title" style="padding:6px 10px;border-radius:4px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:12px;">
+        <input id="gm-criteria" placeholder="Acceptance criteria" style="padding:6px 10px;border-radius:4px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:12px;">
+        <input id="gm-verify" placeholder="Verify command (optional)" style="padding:6px 10px;border-radius:4px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:12px;">
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text2);font-size:12px;">Tasks</span>
+            <button onclick="addTaskRow()" style="font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;">+ Task</button>
+          </div>
+          <div id="gm-tasks" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+          <button onclick="hideGoalModal()" style="padding:6px 14px;border-radius:4px;border:1px solid var(--surface3);background:transparent;color:var(--text2);cursor:pointer;">Cancel</button>
+          <button onclick="submitGoal()" style="padding:6px 14px;border-radius:4px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600;">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div style="text-align: center; padding: 16px; color: var(--text3); font-size: 11px; font-family: var(--mono);">
     mini-agent Agent OS &mdash; since last restart &mdash; polling every 5s + SSE
   </div>
@@ -902,6 +938,87 @@ const contextColors = {
   'general': 'var(--text2)',
 };
 
+// ── Pipeline Goals ──
+function showGoalModal() {
+  const modal = document.getElementById('goal-modal');
+  modal.style.display = 'flex';
+  document.getElementById('gm-tasks').innerHTML = '';
+  addTaskRow();
+  addTaskRow();
+}
+function hideGoalModal() { document.getElementById('goal-modal').style.display = 'none'; }
+
+let taskRowId = 0;
+function addTaskRow() {
+  const id = taskRowId++;
+  const container = document.getElementById('gm-tasks');
+  const row = document.createElement('div');
+  row.id = `task-row-${id}`;
+  row.style.cssText = 'display:flex;gap:4px;align-items:center;';
+  row.innerHTML = `
+    <input placeholder="Task title" data-field="title" style="flex:2;padding:4px 8px;border-radius:3px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:11px;">
+    <input placeholder="Verify cmd" data-field="verify" style="flex:1.5;padding:4px 8px;border-radius:3px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:11px;">
+    <input placeholder="Depends on (comma sep)" data-field="depends" style="flex:1;padding:4px 8px;border-radius:3px;border:1px solid var(--surface3);background:var(--bg);color:var(--text1);font-family:var(--mono);font-size:11px;">
+    <button onclick="this.parentElement.remove()" style="padding:2px 6px;border:none;background:transparent;color:var(--text3);cursor:pointer;">x</button>`;
+  container.appendChild(row);
+}
+
+async function submitGoal() {
+  const title = document.getElementById('gm-title').value.trim();
+  const criteria = document.getElementById('gm-criteria').value.trim();
+  const verify = document.getElementById('gm-verify').value.trim();
+  if (!title || !criteria) return alert('Title and criteria required');
+  const rows = document.getElementById('gm-tasks').children;
+  const tasks = [];
+  for (const row of rows) {
+    const t = row.querySelector('[data-field="title"]').value.trim();
+    const v = row.querySelector('[data-field="verify"]').value.trim();
+    const d = row.querySelector('[data-field="depends"]').value.trim();
+    if (!t) continue;
+    tasks.push({ title: t, verify_command: v || undefined, depends_on: d ? d.split(',').map(s => s.trim()) : undefined });
+  }
+  try {
+    const res = await fetch(BASE + '/api/goal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, acceptance_criteria: criteria, verify_command: verify || undefined, tasks }),
+    });
+    const data = await res.json();
+    if (data.success) { hideGoalModal(); fetchAll(); } else { alert(data.error); }
+  } catch (e) { alert('Failed: ' + e.message); }
+}
+
+function renderPipelineGoals(data) {
+  const body = document.getElementById('pipeline-goals-body');
+  const goals = data.goals || [];
+  if (goals.length === 0) { body.innerHTML = '<div class="empty">No pipeline goals</div>'; return; }
+  body.innerHTML = goals.map(g => {
+    const p = g.progress;
+    const pct = p.total > 0 ? Math.round(p.done / p.total * 100) : 0;
+    const barColor = g.status === 'completed' ? 'var(--green)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
+    const statusIcon = g.status === 'completed' ? '&#10003;' : g.status === 'in_progress' ? '&#9654;' : '&#9679;';
+    const taskLines = g.tasks.map(t => {
+      const tIcon = t.status === 'completed' || t.status === 'done' ? '&#10003;' : t.status === 'blocked' ? '&#128274;' : t.status === 'pending' ? '&#9675;' : '&#9654;';
+      const stale = t.ticksSinceLastProgress > 3 ? ` <span style="color:var(--yellow);">${t.ticksSinceLastProgress}t</span>` : '';
+      return `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;color:var(--text2);">
+        <span style="width:14px;text-align:center;">${tIcon}</span>
+        <span style="flex:1;">${escHtml(t.title.slice(0,60))}</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">${t.status}${stale}</span>
+      </div>`;
+    }).join('');
+    return `
+      <div style="margin-bottom:12px;padding:8px;background:var(--surface1);border-radius:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:13px;color:var(--text1);">${statusIcon} ${escHtml(g.title.slice(0,60))}</span>
+          <span style="font-family:var(--mono);font-size:11px;color:${barColor};">${pct}% (${p.done}/${p.total})</span>
+        </div>
+        <div style="height:4px;background:var(--surface3);border-radius:2px;margin-bottom:6px;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width 0.3s;"></div>
+        </div>
+        ${taskLines}
+      </div>`;
+  }).join('');
+}
+
 function renderActivityStream(data) {
   const body = document.getElementById('activity-stream-body');
   const countEl = document.getElementById('as-count');
@@ -949,13 +1066,14 @@ let lastUpdated = Date.now();
 async function fetchAll() {
   lastUpdated = Date.now();
   try {
-    const [sched, procs, hist, status, health, activity] = await Promise.all([
+    const [sched, procs, hist, status, health, activity, goals] = await Promise.all([
       fetch(BASE + '/api/dashboard/scheduler').then(r => r.json()),
       fetch(BASE + '/api/dashboard/processes').then(r => r.json()),
       fetch(BASE + '/api/dashboard/scheduler/history?limit=50').then(r => r.json()),
       fetch(BASE + '/status').then(r => r.json()).catch(() => null),
       fetch(BASE + '/api/dashboard/health').then(r => r.json()).catch(() => null),
       fetch(BASE + '/api/dashboard/activity').then(r => r.json()).catch(() => null),
+      fetch(BASE + '/api/goals').then(r => r.json()).catch(() => null),
     ]);
 
     renderScheduler(sched);
@@ -964,6 +1082,7 @@ async function fetchAll() {
     if (health) renderHealth(health);
     renderCurrentActivity(status, sched);
     if (activity) renderActivityStream(activity);
+    if (goals) renderPipelineGoals(goals);
 
     if (status) {
       const up = status.uptime;
