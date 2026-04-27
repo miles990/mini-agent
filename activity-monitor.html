@@ -633,30 +633,23 @@ function renderScheduler(data) {
   document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks}`;
   document.getElementById('stat-total-ticks').textContent = data.totalTicks;
 
-  // Attention Budget — hide when no scheduled task
-  const abCard = document.getElementById('attention-budget-card');
-  if (data.currentTask) {
-    abCard.style.display = '';
-    const ab = data.attentionBudget;
-    const abPct = Math.min(Math.round(ab.ratio * 100), 100);
-    document.getElementById('ab-ratio').textContent = `${ab.used} / ${ab.limit}`;
-    document.getElementById('ab-pct').textContent = `${abPct}%`;
-    const fill = document.getElementById('ab-fill');
-    fill.style.width = abPct + '%';
-    fill.className = 'budget-bar-fill ' + (abPct >= 90 ? 'critical' : abPct >= 60 ? 'warning' : 'normal');
-    const dsRemain = DISCOVERY_INTERVAL - (data.totalTicks % DISCOVERY_INTERVAL);
-    document.getElementById('ds-countdown').textContent = `${dsRemain} ticks`;
-    document.getElementById('ds-fill').style.width = ((DISCOVERY_INTERVAL - dsRemain) / DISCOVERY_INTERVAL * 100) + '%';
-  } else {
-    abCard.style.display = 'none';
-  }
+  // Attention Budget
+  const ab = data.attentionBudget;
+  const abPct = Math.min(Math.round(ab.ratio * 100), 100);
+  document.getElementById('ab-ratio').textContent = `${ab.used} / ${ab.limit}`;
+  document.getElementById('ab-pct').textContent = `${abPct}%`;
+  const fill = document.getElementById('ab-fill');
+  fill.style.width = abPct + '%';
+  fill.className = 'budget-bar-fill ' + (abPct >= 90 ? 'critical' : abPct >= 60 ? 'warning' : 'normal');
+  const dsRemain = DISCOVERY_INTERVAL - (data.totalTicks % DISCOVERY_INTERVAL);
+  document.getElementById('ds-countdown').textContent = `${dsRemain} ticks`;
+  document.getElementById('ds-fill').style.width = ((DISCOVERY_INTERVAL - dsRemain) / DISCOVERY_INTERVAL * 100) + '%';
 
   // Queue — hide when empty
   document.getElementById('queue-depth').textContent = `${data.queueDepth} tasks`;
   const qBody = document.getElementById('queue-body');
   const qCard = qBody.closest('.card');
   if (data.topPending && data.topPending.length > 0) {
-    qCard.style.display = '';
     qBody.innerHTML = data.topPending.map((t, i) => {
       const deadlineBadge = t.deadline ? `<span style="font-family:var(--mono);font-size:10px;color:var(--orange);margin-left:4px;">⏰${t.deadline.slice(5)}</span>` : '';
       const depBadge = t.dependsOn?.length ? `<span style="font-family:var(--mono);font-size:10px;color:var(--purple);margin-left:4px;">⛓${t.dependsOn.length}</span>` : '';
@@ -670,7 +663,7 @@ function renderScheduler(data) {
       </div>`;
     }).join('');
   } else {
-    qCard.style.display = 'none';
+    qBody.innerHTML = '<div class="empty">Queue empty</div>';
   }
 }
 
@@ -692,10 +685,9 @@ function renderProcesses(data) {
   const body = document.getElementById('pt-body');
   const ptCard = body.closest('.card');
   if (processes.length === 0) {
-    ptCard.style.display = 'none';
+    body.innerHTML = '<tr><td colspan="5" class="empty">No processes</td></tr>';
     return;
   }
-  ptCard.style.display = '';
 
   const stateOrder = { running: 0, blocked: 1, suspended: 2, scheduled: 3, pending: 4, abandoned: 5, completed: 6 };
   const sorted = [...processes].sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
