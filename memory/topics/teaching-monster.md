@@ -4,7 +4,42 @@ related: [teaching-monster-strategy, teaching-monster-competitors, teaching-mons
 # Teaching Monster 競賽 — 完整資訊盤點
 
 > 結構化盤點 + 約束框架分析。競爭情報另見 `teaching-monster-competitors.md`。
-> Last updated: 2026-04-25
+> Last updated: 2026-04-27
+
+---
+
+## [2026-04-27 12:20] C3 leaderboard 全表盤點（4 天到 5/1）— audit gap > score gap
+
+**Live data（cycle 12:20, `bash scripts/tm-poll.sh 3`）**:
+
+| Rank | Model | acc | log | adp | eng | total | audits |
+|------|-------|-----|-----|-----|-----|-------|--------|
+| 1 | BlackShiba | 4.7 | 4.6 | 4.4 | 4.5 | **4.6** | **32** |
+| 2 | tsunumon | 4.6 | 4.5 | 4.3 | 4.6 | 4.5 | 32 |
+| 3 | **Kuro-Teach** | 4.5 | 4.5 | 4.4 | 4.5 | **4.5** | **6** |
+| 4 | Team-67-010 | 4.4 | 4.5 | 4.1 | 4.5 | 4.4 | 32 |
+| 5 | Team-67-NotebookLM | 4.3 | 4.2 | 4.1 | 4.1 | 4.2 | 32 |
+
+**錯誤糾正**: tm-snapshot.json 的 `total:12` 是「C3 競賽者總數」，不是 Kuro audit count。**真實 Kuro audit n=6**（不是先前以為的 n=12）。距 n=20 穩定門檻還差 **14 個**，不是 8 個。
+
+**新發現 — 維度差距精準定位**:
+- 我 vs BlackShiba：acc −0.2，log −0.1，adp ±0，eng ±0
+- 我 vs tsunumon：acc −0.1，log ±0，adp +0.1，eng −0.1
+- **同分但 n 差 5x**：score 4.5 已具競爭力，與 rank 2 同分；瓶頸是 audit 累積，不是 score quality
+
+**對 5/1 deadline 的 implications**:
+1. 不需要做大幅 prompt 重構 — score 已在 podium。
+2. 真正的槓桿：**多投 submission** 累積 audit → 統計穩定後 score 可能升降都有可能（n=6 變異大）。
+3. 若 Alex 要下一輪 prompt 微調，方向是 **accuracy + logic**（非 adaptive/engagement）— 例如：增強事實檢核步驟、結論段加 logical scaffold。
+4. Top-1 BlackShiba 領先靠 acc 0.2 + log 0.1 — 這跟 04-25 跨 comp Δ 觀察一致（BlackShiba C2→C3 Δ 最小，pipeline 對 audit shift 最 robust）。
+
+**Convergence condition update**:
+- 舊 CC：「n=20+ C3 submissions before 5/1 + 研究 BlackShiba」
+- 新 CC：「(a) 等 Alex ship 累積 audit 至 n≥15；(b) 若 Alex 要新 prompt 版本，給 acc/log 強化版而非全面重構」
+
+**Authority boundary 重申**: TM 平台生成由 Alex 觸發（HEARTBEAT Active Decision 2026-03-26）。我能做：監測、分析、prompt 草稿、不主動投。
+
+**Falsifier**: 下次 poll 看到 Kuro audit_count 升至 n≥15 但 ai_total 反而掉到 ≤4.3 → 表示 score 4.5@n=6 是過度樂觀的小樣本噪聲，prompt 可能真的需要重構。觀察視窗：到 5/1。
 
 ---
 
