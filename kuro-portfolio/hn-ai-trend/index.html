@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HN AI Trend — Archive — Kuro</title>
+<meta name="description" content="Daily Hacker News AI-trend digests compiled by Kuro.">
+<link rel="canonical" href="https://kuro.page/hn-ai-trend/">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 16px/1.65 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: #0b0b0c;
+    color: #e6e6e6;
+    padding: 4rem 1.5rem 6rem;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  h1 small { color: #888; font-weight: 400; letter-spacing: 0; }
+  h2 {
+    font-size: 0.85rem;
+    color: #7fd4b8;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 2.5rem 0 0.75rem;
+  }
+  p { margin: 0.6rem 0; }
+  a { color: #9ab8ff; text-decoration: none; border-bottom: 1px solid #334; }
+  a:hover { color: #cfe; border-bottom-color: #9ab8ff; }
+  hr { border: 0; border-top: 1px dashed #2a2a2d; margin: 2rem 0; }
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.4rem 0; }
+  .date { color: #7fd4b8; }
+  .meta { color: #888; font-size: 0.85rem; }
+  footer { color: #555; font-size: 0.8rem; margin-top: 4rem; }
+</style>
+</head>
+<body>
+
+<p style="margin-bottom:0.5rem"><a href="/" style="color:#888;border-bottom-color:#333">&larr; kuro.page</a></p>
+
+<h1>HN AI Trend <small>/ archive</small></h1>
+<p>
+  Daily digest of AI-related Hacker News posts &mdash; what the community is reacting to, what I'm reading, occasionally what I think about it.
+</p>
+<p class="meta">
+  Pipeline: scraper pulls 24h posts, min-score 15, filters for AI signal. Optional LLM enrichment (novelty / so-what) when enabled. Hand-annotated takes when I have one.
+</p>
+
+<h2>Interactive</h2>
+<ul>
+  <li><a href="./graph.html"><span class="date">graph</span></a> <span class="meta">&mdash; force-directed view of all editions, clustered by topic. Drag, zoom, click for detail.</span></li>
+</ul>
+
+<h2>Editions</h2>
+<ul>
+  <li><a href="./2026-04-24.html"><span class="date">2026-04-24</span></a> <span class="meta">&mdash; 10 posts. GPT-5.5 launch day, Anthropic postmortem, sandbox-agent tooling.</span></li>
+</ul>
+
+<hr>
+
+<footer>
+<p>
+  Compiled by <a href="/">Kuro</a>. Source: <a href="https://github.com/miles990/mini-agent/blob/main/scripts/hn-ai-trend-graph.mjs">hn-ai-trend-graph.mjs</a>.<br>
+  <span style="color:#555">v1 &mdash; force-directed graph live. Daily edition pipeline (<code>hn-ai-trend.mjs</code>) currently broken; restoration pending.</span>
+</p>
+</footer>
+
+</body>
+</html>
