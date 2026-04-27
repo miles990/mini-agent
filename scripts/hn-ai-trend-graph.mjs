@@ -2,23 +2,36 @@
 /**
  * hn-ai-trend-graph.mjs
  *
- * Reads all daily HN AI digest JSONs in memory/state/hn-ai-trend/,
- * tags each post by topic via keyword matching, builds a force-directed
+ * Reads daily AI digest JSONs from multiple sources:
+ *   - memory/state/hn-ai-trend/   (Hacker News)
+ *   - memory/state/reddit-trend/  (r/MachineLearning, r/LocalLLaMA, r/singularity)
+ *   - memory/state/x-trend/       (X/Twitter — optional, future)
+ *
+ * Tags each post by topic via keyword matching, builds a force-directed
  * graph (d3 v7), and writes a self-contained HTML page.
  *
  * Output: kuro-portfolio/hn-ai-trend/graph.html (served at kuro.page/hn-ai-trend/graph.html)
  *
- * Nodes  = posts (size = points, color = primary topic)
+ * Nodes  = posts (size = points, FILL = source, STROKE = primary topic)
  * Edges  = shared topic between two posts (weight = shared count)
  */
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const DATA_DIR = join(ROOT, 'memory/state/hn-ai-trend');
+const STATE_DIR = join(ROOT, 'memory/state');
 const OUT = join(ROOT, 'kuro-portfolio/hn-ai-trend/graph.html');
+
+// Multi-source registry. Each source maps a state subdir to a default `source` tag
+// and a fill color. Order matters for stable legend ordering.
+const SOURCES = [
+  { key: 'hn',     dir: 'hn-ai-trend',  color: '#ff8800', label: 'HN',     hubUrl: id => `https://news.ycombinator.com/item?id=${id}` },
+  { key: 'reddit', dir: 'reddit-trend', color: '#ff4500', label: 'Reddit', hubUrl: (_id, p) => p.url },
+  { key: 'x',      dir: 'x-trend',      color: '#1da1f2', label: 'X',      hubUrl: (_id, p) => p.url },
+];
+const DEFAULT_SOURCE = { key: 'unknown', color: '#888', label: 'unknown' };
 
 // Topic taxonomy — keyword → canonical topic. First match wins for primary color.
 // Order matters: more specific first.
@@ -48,36 +61,65 @@ function tagPost(post) {
   return { tags, primary, color };
 }
 
-async function main() {
-  const files = (await readdir(DATA_DIR))
+async function dirExists(p) {
+  try { const s = await stat(p); return s.isDirectory(); } catch { return false; }
+}
+
+async function loadSource(srcDef) {
+  const dir = join(STATE_DIR, srcDef.dir);
+  if (!await dirExists(dir)) {
+    console.log(`[graph] source ${srcDef.key}: dir not found, skipping`);
+    return { srcDef, files: [], posts: [] };
+  }
+  const files = (await readdir(dir))
     .filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
     .sort();
-
-  console.log(`[graph] found ${files.length} daily JSONs:`, files);
-
-  const allPosts = [];
+  const posts = [];
   for (const f of files) {
     const date = f.replace('.json', '');
-    const raw = JSON.parse(await readFile(join(DATA_DIR, f), 'utf8'));
+    let raw;
+    try { raw = JSON.parse(await readFile(join(dir, f), 'utf8')); }
+    catch (e) { console.warn(`[graph] skip malformed ${srcDef.key}/${f}: ${e.message}`); continue; }
     for (const p of (raw.posts || [])) {
       const t = tagPost(p);
-      allPosts.push({
+      // Honor post-level source if present, else fall back to dir-level default.
+      const srcKey = p.source || srcDef.key;
+      const matchedSrc = SOURCES.find(s => s.key === srcKey) || srcDef;
+      posts.push({
         id: p.id,
         date,
+        source: matchedSrc.key,
+        sourceColor: matchedSrc.color,
+        sourceLabel: matchedSrc.label,
+        subreddit: p.subreddit || null,
         title: p.title,
         url: p.url,
         author: p.author,
         points: p.points,
         comments: p.comments,
-        hn: `https://news.ycombinator.com/item?id=${p.id}`,
+        hub: matchedSrc.hubUrl(p.id, p),
         claim: p.summary?.claim || '',
         novelty: p.summary?.novelty || '',
         so_what: p.summary?.so_what || '',
         tags: t.tags,
         primary: t.primary,
-        color: t.color,
+        color: t.color,           // topic color (stroke ring)
       });
     }
+  }
+  console.log(`[graph] source ${srcDef.key}: ${files.length} files, ${posts.length} posts`);
+  return { srcDef, files, posts };
+}
+
+async function main() {
+  const loaded = [];
+  for (const s of SOURCES) loaded.push(await loadSource(s));
+
+  const allPosts = loaded.flatMap(l => l.posts);
+  const allFiles = loaded.flatMap(l => l.files);
+  if (allFiles.length === 0) {
+    console.error('[graph] no source data found in any registered dir');
+    process.exit(1);
   }
 
   // Dedup by id (same post may appear across consecutive days)
@@ -102,23 +144,33 @@ async function main() {
 
   console.log(`[graph] ${nodes.length} unique posts, ${links.length} edges`);
 
-  // Topic legend (only topics actually used)
+  // Topic legend (only topics actually used) — used for stroke ring color.
   const usedTopics = new Set(nodes.map(n => n.primary));
-  const legend = [...TOPICS, DEFAULT_TOPIC]
+  const topicLegend = [...TOPICS, DEFAULT_TOPIC]
     .filter(t => usedTopics.has(t.name))
     .map(t => ({ name: t.name, color: t.color, count: nodes.filter(n => n.primary === t.name).length }));
 
-  const dateRange = `${files[0].replace('.json','')} → ${files[files.length-1].replace('.json','')}`;
+  // Source legend — used for fill color, primary visual cluster.
+  const usedSources = new Set(nodes.map(n => n.source));
+  const sourceLegend = SOURCES
+    .filter(s => usedSources.has(s.key))
+    .map(s => ({ name: s.label, color: s.color, count: nodes.filter(n => n.source === s.key).length }));
 
-  const html = renderHTML({ nodes, links, legend, dateRange, fileCount: files.length });
+  const sortedDates = [...new Set(allFiles.map(f => f.replace('.json','')))].sort();
+  const dateRange = `${sortedDates[0]} → ${sortedDates[sortedDates.length-1]}`;
+
+  const html = renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount: allFiles.length });
   await writeFile(OUT, html, 'utf8');
   console.log(`[graph] wrote ${OUT} (${html.length} bytes)`);
 }
 
-function renderHTML({ nodes, links, legend, dateRange, fileCount }) {
+function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount }) {
   const data = JSON.stringify({ nodes, links }).replace(/</g, '\\u003c');
-  const legendHtml = legend.map(l =>
+  const sourceLegendHtml = sourceLegend.map(l =>
     `<span class="lg"><span class="dot" style="background:${l.color}"></span>${l.name} <em>${l.count}</em></span>`
+  ).join('');
+  const topicLegendHtml = topicLegend.map(l =>
+    `<span class="lg"><span class="ring" style="border-color:${l.color}"></span>${l.name} <em>${l.count}</em></span>`
   ).join('');
   return `<!doctype html>
 <html lang="en">
@@ -152,7 +204,10 @@ function renderHTML({ nodes, links, legend, dateRange, fileCount }) {
   header .legend { font-size: 0.75rem; color: #aaa; margin-top: 0.4rem; }
   .lg { display: inline-block; margin-right: 0.9rem; }
   .lg .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; margin-right: 0.3rem; vertical-align: middle; }
+  .lg .ring { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; border: 2px solid #888; background: transparent; margin-right: 0.3rem; vertical-align: middle; box-sizing: border-box; }
   .lg em { color: #666; font-style: normal; margin-left: 0.15rem; }
+  header .legend-row { margin-top: 0.3rem; }
+  header .legend-row .label { color: #666; margin-right: 0.5rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
 
   svg { display: block; width: 100vw; height: 100vh; cursor: grab; }
   svg:active { cursor: grabbing; }
@@ -161,8 +216,8 @@ function renderHTML({ nodes, links, legend, dateRange, fileCount }) {
   .link.dim { stroke-opacity: 0.05; }
   .link.hi  { stroke: #7fd4b8; stroke-opacity: 0.85; }
 
-  .node circle { stroke: #0b0b0c; stroke-width: 1.5; cursor: pointer; transition: stroke-width 0.15s; }
-  .node circle:hover { stroke: #fff; stroke-width: 2.5; }
+  .node circle { stroke-width: 2.5; cursor: pointer; transition: stroke-width 0.15s, filter 0.15s; }
+  .node circle:hover { stroke-width: 4; filter: brightness(1.2); }
   .node.dim circle { opacity: 0.18; }
   .node text {
     font: 10px ui-monospace, "SF Mono", Menlo, monospace;
@@ -217,8 +272,9 @@ function renderHTML({ nodes, links, legend, dateRange, fileCount }) {
 
 <header>
   <div class="crumb"><a href="/">&larr; kuro.page</a> &nbsp;/&nbsp; <a href="./">hn-ai-trend</a></div>
-  <h1>HN AI Trend <small>／ graph (${dateRange}, ${fileCount} editions)</small></h1>
-  <div class="legend">${legendHtml}</div>
+  <h1>AI Trend <small>／ multi-source graph (${dateRange}, ${fileCount} editions)</small></h1>
+  <div class="legend legend-row"><span class="label">source</span>${sourceLegendHtml}</div>
+  <div class="legend legend-row"><span class="label">topic</span>${topicLegendHtml}</div>
 </header>
 
 <svg id="g"></svg>
@@ -230,7 +286,9 @@ function renderHTML({ nodes, links, legend, dateRange, fileCount }) {
     <span class="pts" id="p-pts"></span><span class="sep">·</span>
     <span id="p-author"></span><span class="sep">·</span>
     <span id="p-date"></span><span class="sep">·</span>
-    <a id="p-hn" href="" target="_blank" style="color:#888;border-bottom:1px solid #333">HN thread</a>
+    <a id="p-hub" href="" target="_blank" style="color:#888;border-bottom:1px solid #333">thread</a>
+    <span class="sep">·</span>
+    <span id="p-source" style="color:#7fd4b8"></span>
   </div>
   <div class="row"><span class="label">claim</span><span id="p-claim"></span></div>
   <div class="row"><span class="label">novelty</span><span id="p-novelty"></span></div>
@@ -272,7 +330,10 @@ const node = root.append('g').attr('class', 'nodes').selectAll('g')
     .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
     .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
-node.append('circle').attr('r', radius).attr('fill', d => d.color);
+node.append('circle')
+  .attr('r', radius)
+  .attr('fill', d => d.sourceColor)   // source = primary visual identity
+  .attr('stroke', d => d.color);      // topic = ring color
 node.append('text')
   .attr('dy', d => -radius(d) - 3)
   .attr('text-anchor', 'middle')
@@ -301,7 +362,8 @@ node.on('click', (e, d) => {
   document.getElementById('p-pts').textContent = d.points + ' pts';
   document.getElementById('p-author').textContent = 'by ' + d.author;
   document.getElementById('p-date').textContent = d.date;
-  document.getElementById('p-hn').href = d.hn;
+  document.getElementById('p-hub').href = d.hub;
+  document.getElementById('p-source').textContent = d.subreddit ? (d.sourceLabel + ' · r/' + d.subreddit) : d.sourceLabel;
   document.getElementById('p-claim').textContent = d.claim || '—';
   document.getElementById('p-novelty').textContent = d.novelty || '—';
   document.getElementById('p-so').textContent = d.so_what || '—';
