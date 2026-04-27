@@ -1186,6 +1186,16 @@ export class AgentLoop {
 
       // L3 skill recording removed — consolidated into myelin-fleet.ts
 
+      // Close task in memory-index + process table (prevents zombie in_progress accumulation)
+      if (taskId) {
+        const delegationStatus = (event?.data?.status as string) === 'completed' ? 'completed' : 'abandoned';
+        import('./memory-index.js').then(({ updateMemoryIndexEntry }) => {
+          const memDir = path.join(process.cwd(), 'memory');
+          updateMemoryIndexEntry(memDir, taskId!, { status: delegationStatus }).catch(() => {});
+        }).catch(() => {});
+        try { completeProcess(taskId); } catch { /* may not exist in process table */ }
+      }
+
       // Buffer the completion — DelegationBatchBuffer handles the 10s sliding window
       // and triggers a single cycle when the window expires
       slog('LOOP', `[delegation-complete] Buffering completion${taskId ? ` (${taskId})` : ''} (buffer size: ${this.delegationBatchBuffer.size + 1})`);
@@ -2642,6 +2652,19 @@ export class AgentLoop {
         try { kbObserve({ source: 'delegation', type: 'spawn', data: { taskId, taskType, workdir: del.workdir }, tags: [taskType] }); } catch { /* fire-and-forget */ }
         cycleSideEffects.push(`delegate:${taskType}:${del.workdir}`);
         cycleTagsProcessed.push('DELEGATE');
+        // Auto-register delegate as task in memory-index for Activity Monitor visibility
+        try {
+          const { appendMemoryIndexEntry } = await import('./memory-index.js');
+          const memDir = path.join(process.cwd(), 'memory');
+          await appendMemoryIndexEntry(memDir, {
+            id: taskId,
+            type: 'task',
+            status: 'in_progress',
+            source: 'ooda-delegate',
+            summary: `[delegate:${taskType}] ${del.prompt.slice(0, 80)}`,
+          });
+          registerProcess({ id: taskId, summary: `[delegate:${taskType}] ${del.prompt.slice(0, 60)}`, priority: 2, source: 'kuro' as const, status: 'in_progress', createdAt: new Date().toISOString(), ticksSpent: 0, deadline: null, dependsOn: [] });
+        } catch { /* fire-and-forget */ }
       }
 
       // ── Process <kuro:done> tags — mark tasks completed in memory-index ──
