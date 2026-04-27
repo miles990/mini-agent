@@ -10,11 +10,6 @@ export interface ActivityEntry {
   lane: 'ooda' | 'foreground' | 'delegate';
 }
 
-const SIDE_EFFECT_TAGS = new Set([
-  'CHAT', 'DELEGATE', 'DONE', 'ASK', 'SHOW', 'REMEMBER',
-  'TASK', 'IMPULSE', 'ARCHIVE', 'THREAD',
-]);
-
 function getStreamPath(): string {
   return path.join(process.cwd(), 'memory', 'state', 'activity-stream.jsonl');
 }
@@ -27,8 +22,7 @@ export function emitActivity(entry: {
   trigger: string | null;
   lane?: 'ooda' | 'foreground' | 'delegate';
 }): void {
-  const hasSideEffect = entry.tags.some(t => SIDE_EFFECT_TAGS.has(t));
-  if (!hasSideEffect && entry.sideEffects.length === 0) return;
+  if (!entry.action || entry.action === 'no-action') return;
 
   const context = inferContext(entry.action, entry.sideEffects);
   const record: ActivityEntry = {
@@ -47,12 +41,13 @@ export function emitActivity(entry: {
 
 function inferContext(action: string | null, sideEffects: string[]): string {
   const text = `${action ?? ''} ${sideEffects.join(' ')}`.toLowerCase();
-  if (/ai.?trend|bump.?chart|arxiv|heatmap|graph\.html/.test(text)) return 'ai-trend';
-  if (/kg|knowledge.?graph|discussion|prune/.test(text)) return 'knowledge-graph';
-  if (/monitor|dashboard|health|scheduler/.test(text)) return 'activity-monitor';
-  if (/telegram|room|chat/.test(text)) return 'communication';
-  if (/memory|soul|inner/.test(text)) return 'memory';
-  if (/deploy|push|commit|github/.test(text)) return 'deploy';
+  if (/ai.?trend|bump.?chart|arxiv|heatmap|graph\.html|latent.?space/.test(text)) return 'ai-trend';
+  if (/kg|knowledge.?graph|discussion|prune|hygiene/.test(text)) return 'knowledge-graph';
+  if (/monitor|dashboard|activity.?stream/.test(text)) return 'activity-monitor';
+  if (/task.?queue|task.?closure|scheduler|quiescence/.test(text)) return 'task-management';
+  if (/telegram|room|chat|通知/.test(text)) return 'communication';
+  if (/memory|soul|inner|remember/.test(text)) return 'memory';
+  if (/deploy|push|commit|github|shipped/.test(text)) return 'deploy';
   return 'general';
 }
 
