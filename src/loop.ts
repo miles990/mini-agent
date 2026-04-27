@@ -1849,30 +1849,16 @@ export class AgentLoop {
         context = `<stale-tasks priority="top">\n${staleLines.join('\n')}\n</stale-tasks>\n\n` + context;
       }
 
-      // Health self-correction: fetch guidance and inject when score < 60
-      try {
-        const healthRes = await fetch('http://localhost:3001/api/dashboard/health', { signal: AbortSignal.timeout(2000) });
-        if (healthRes.ok) {
-          const health = await healthRes.json() as { score: number; guidance?: string[] };
-          if (health.score < 60 && health.guidance && health.guidance.length > 0) {
-            const lines = health.guidance.map((g: string) => `→ ${g}`).join('\n');
-            context = `<health-correction score="${health.score}">\n${lines}\n</health-correction>\n\n` + context;
-          }
-        }
-      } catch { /* non-blocking */ }
 
       // Task Pull: idle/heartbeat cycles get a suggested next action from task queue
       if (isRoutineHeartbeat && !isDirectMessage) {
         const memDir = path.join(process.cwd(), 'memory');
         const pending = queryMemoryIndexSync(memDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] });
-        const sorted = pending.sort((a, b) => {
+        const adHocOnly = pending.filter(t => !(t.payload as Record<string, unknown>)?.goal_id);
+        const sorted = adHocOnly.sort((a, b) => {
           const pa = (a.payload as Record<string, unknown>)?.priority as number ?? 5;
           const pb = (b.payload as Record<string, unknown>)?.priority as number ?? 5;
-          if (pa !== pb) return pa - pb;
-          // Prefer pipeline tasks (have goal_id) over ad-hoc
-          const aGoal = (a.payload as Record<string, unknown>)?.goal_id ? 0 : 1;
-          const bGoal = (b.payload as Record<string, unknown>)?.goal_id ? 0 : 1;
-          return aGoal - bGoal;
+          return pa - pb;
         });
         const top = sorted[0];
         if (top) {

@@ -415,21 +415,7 @@ export async function deleteMemoryIndexEntry(
 // Task / Goal CRUD (replaces task-queue.ts)
 // =============================================================================
 
-const TASK_REJECT_PATTERNS = [
-  /^[^。.!！]*[?？嗎呢]$/,
-  /\[mushi\]/i,
-  /status changed.*→/i,
-  /\[auto\]/i,
-  /表達意圖/,
-  /^(ok|收到|noted|ack|好的|了解)/i,
-  /\[delegate:shell\]/i,
-];
-
-function isTaskContentValid(title: string): boolean {
-  const trimmed = title.trim();
-  if (trimmed.length < 5) return false;
-  return !TASK_REJECT_PATTERNS.some(p => p.test(trimmed));
-}
+const ALLOWED_ORIGINS = new Set(['pledge', 'pipeline', 'scheduler', 'task-board', 'kuro']);
 
 export async function createTask(
   memoryDir: string,
@@ -447,9 +433,9 @@ export async function createTask(
     goal_id?: string;
   },
 ): Promise<MemoryIndexEntry> {
-  // Entry filter: reject non-actionable content (except external/manual origin)
-  if (input.origin !== 'alex' && input.origin !== 'task-board' && !isTaskContentValid(input.title)) {
-    throw new Error(`Task rejected by entry filter: "${input.title.slice(0, 50)}"`);
+  // Entry filter: only allow known origins
+  if (!ALLOWED_ORIGINS.has(input.origin ?? '')) {
+    throw new Error(`Task rejected: origin "${input.origin}" not in whitelist`);
   }
 
   const payload: Record<string, unknown> = {};
@@ -743,6 +729,7 @@ export async function incrementTaskStaleness(
   const stale: Array<{ id: string; summary: string; ticks: number }> = [];
 
   for (const task of tasks) {
+    if ((task.payload as Record<string, unknown>)?.goal_id) continue;
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
     const newTicks = currentTicks + 1;

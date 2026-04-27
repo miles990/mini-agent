@@ -2567,11 +2567,14 @@ export function createApi(port = 3001): express.Express {
       const pledgesTotal = Math.max(1, pledgeTasks.length);
       const fulfillment = pledgeTasks.length === 0 ? 0.7 : pledgesDone / pledgesTotal;
 
-      // 2. Responsiveness (35%) — inverse of avg staleness across active tasks
-      const activeTasks = allTasks.filter(t => ['pending', 'in_progress'].includes(t.status));
+      // 2. Responsiveness (35%) — inverse of avg staleness (ad-hoc only, pipeline managed by DAG)
+      const activeTasks = allTasks.filter(t =>
+        ['pending', 'in_progress'].includes(t.status) &&
+        !(t.payload as Record<string, unknown>)?.goal_id
+      );
       const avgStaleness = activeTasks.length === 0 ? 0 :
         activeTasks.reduce((sum, t) => sum + ((t.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0), 0) / activeTasks.length;
-      const responsiveness = Math.max(0, 1 - avgStaleness / 10);
+      const responsiveness = activeTasks.length === 0 ? 0.8 : Math.max(0, 1 - avgStaleness / 10);
 
       // 3. Output Quality (25%) — weighted visible output (commit=3, report=2, internal=1)
       const outputRate = signals.visibleOutputRate;
