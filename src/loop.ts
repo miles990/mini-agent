@@ -41,6 +41,8 @@ import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDe
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
+import { onSchedulerTick } from './reactive-policies.js';
+import { recordFailure } from './failure-registry.js';
 import { readPendingInbox, detectModeFromInbox, formatInboxSection, writeInboxItem, hasRecentUnrepliedTelegram, getUnprocessedHighPriority, queueInboxMark, flushInboxMarks } from './inbox.js';
 import { savePendingState, loadAndClearPendingState } from './event-wal.js';
 import { claimMessage, isMessageClaimed, releaseMessage } from './message-claimer.js';
@@ -1634,6 +1636,7 @@ export class AgentLoop {
     this.hadForegroundActionThisCycle = false;
     const logger = getLogger();
     const cycleStartTs = performance.now();
+    const cycleStartWallTime = Date.now();
 
     try {
       this.cycleCount++;
@@ -2042,6 +2045,18 @@ export class AgentLoop {
         persistProcessTable();
       } catch { /* non-critical */ }
       slog('SCHED', getSchedulerStatus());
+
+      // Agent OS: Reactive policies (starvation/zombie/hung)
+      try {
+        const reactiveResult = onSchedulerTick(cycleStartWallTime);
+        if (reactiveResult.hungCycle?.action === 'terminate') {
+          slog('REACTIVE', 'HUNG CYCLE TERMINATE — skipping Claude call');
+          recordFailure('hung-cycle-terminated', `cycle duration ${reactiveResult.hungCycle.durationMs}ms`);
+        }
+        for (const zombie of reactiveResult.zombieProcesses.filter(z => z.reaped)) {
+          recordFailure('zombie-reaped', `task ${zombie.taskId} reaped after excessive ticks`);
+        }
+      } catch { /* non-critical */ }
 
       // Inject triage intent hint into prompt (rule-based, zero LLM cost)
       const triageHint = `\n\nPre-triage recommendation: ${cycleIntent.mode} — ${cycleIntent.reason}${cycleIntent.focus ? ` (focus: ${cycleIntent.focus})` : ''}. This is a suggestion, not an order — override if your perception says otherwise.`;
