@@ -1868,12 +1868,18 @@ export class AgentLoop {
         const sorted = pending.sort((a, b) => {
           const pa = (a.payload as Record<string, unknown>)?.priority as number ?? 5;
           const pb = (b.payload as Record<string, unknown>)?.priority as number ?? 5;
-          return pa - pb;
+          if (pa !== pb) return pa - pb;
+          // Prefer pipeline tasks (have goal_id) over ad-hoc
+          const aGoal = (a.payload as Record<string, unknown>)?.goal_id ? 0 : 1;
+          const bGoal = (b.payload as Record<string, unknown>)?.goal_id ? 0 : 1;
+          return aGoal - bGoal;
         });
         const top = sorted[0];
         if (top) {
           const ticks = (top.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0;
-          context = `<next-action type="pull">\n建議下一步：${top.summary?.slice(0, 150)} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n推進這個 task — 做一個具體的、可驗證的進展。\n</next-action>\n\n` + context;
+          const goalId = (top.payload as Record<string, unknown>)?.goal_id as string ?? '';
+          const goalHint = goalId ? ' (pipeline task)' : '';
+          context = `<next-action type="pull">\n建議下一步：${top.summary?.slice(0, 150)}${goalHint} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n推進這個 task — 做一個具體的、可驗證的進展。\n</next-action>\n\n` + context;
         }
       }
 

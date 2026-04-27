@@ -10,7 +10,7 @@
  */
 
 import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
-import { exec } from 'node:child_process';
+import { exec, execSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
@@ -442,6 +442,9 @@ export async function createTask(
     priority?: number;
     assignee?: string;
     blockedBy?: string[];
+    verify_command?: string;
+    acceptance_criteria?: string;
+    goal_id?: string;
   },
 ): Promise<MemoryIndexEntry> {
   // Entry filter: reject non-actionable content (except external/manual origin)
@@ -455,10 +458,15 @@ export async function createTask(
   if (input.priority !== undefined) payload.priority = input.priority;
   if (input.assignee) payload.assignee = input.assignee;
   if (input.blockedBy?.length) payload.blockedBy = input.blockedBy;
+  if (input.verify_command) payload.verify_command = input.verify_command;
+  if (input.acceptance_criteria) payload.acceptance_criteria = input.acceptance_criteria;
+  if (input.goal_id) payload.goal_id = input.goal_id;
+
+  const initialStatus = (input.blockedBy?.length) ? 'blocked' : (input.status ?? 'pending');
 
   return appendMemoryIndexEntry(memoryDir, {
     type: input.type ?? 'task',
-    status: input.status ?? 'pending',
+    status: initialStatus,
     summary: input.title.trim(),
     payload: Object.keys(payload).length > 0 ? payload : undefined,
   });
@@ -522,6 +530,18 @@ export async function updateTask(
     newPayload.ticksSinceLastProgress = 0;
   }
 
+  // Verify gate: task with verify_command must pass before terminal status
+  const verifyCmd = (currentPayload.verify_command ?? newPayload.verify_command) as string | undefined;
+  if (verifyCmd && ['completed', 'done'].includes(patch.status ?? '')) {
+    try {
+      execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+      newPayload.verify_proof = { command: verifyCmd, passed: true, ts: new Date().toISOString() };
+    } catch {
+      slog('VERIFY-GATE', `Rejected close: verify failed for ${current.summary?.slice(0, 60)}`);
+      return current;
+    }
+  }
+
   const updated = await updateMemoryIndexEntry(memoryDir, normalId, {
     type: patch.type ?? current.type,
     status: patch.status ?? current.status,
@@ -556,7 +576,91 @@ export async function updateTask(
     });
   }
 
+  // DAG dependency resolver: unlock blocked tasks when this one completes
+  if (['completed', 'done'].includes(patch.status ?? '')) {
+    resolveDependencies(memoryDir, normalId).catch(() => {});
+  }
+
   return updated;
+}
+
+export async function resolveDependencies(memoryDir: string, completedTaskId: string): Promise<number> {
+  const allTasks = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'], status: ['blocked'] });
+  let unlocked = 0;
+  for (const task of allTasks) {
+    const blockedBy = ((task.payload as Record<string, unknown>)?.blockedBy as string[]) ?? [];
+    if (blockedBy.includes(completedTaskId)) {
+      const remaining = blockedBy.filter(id => id !== completedTaskId);
+      if (remaining.length === 0) {
+        await updateMemoryIndexEntry(memoryDir, task.id, {
+          status: 'pending',
+          payload: { ...(task.payload as Record<string, unknown>), blockedBy: [] },
+        });
+        slog('DAG', `Unlocked: ${task.summary?.slice(0, 60)}`);
+        unlocked++;
+      } else {
+        await updateMemoryIndexEntry(memoryDir, task.id, {
+          payload: { ...(task.payload as Record<string, unknown>), blockedBy: remaining },
+        });
+      }
+    }
+  }
+  return unlocked;
+}
+
+export async function createGoal(
+  memoryDir: string,
+  goal: { title: string; acceptance_criteria: string; verify_command?: string },
+  tasks: Array<{ title: string; verify_command?: string; acceptance_criteria?: string; depends_on?: string[] }>,
+): Promise<{ goalId: string; taskIds: string[] }> {
+  const nameToIdx = new Map(tasks.map((t, i) => [t.title, i]));
+  const visited = new Set<number>();
+  const stack = new Set<number>();
+  function hasCycle(idx: number): boolean {
+    if (stack.has(idx)) return true;
+    if (visited.has(idx)) return false;
+    visited.add(idx); stack.add(idx);
+    for (const dep of tasks[idx].depends_on ?? []) {
+      const depIdx = nameToIdx.get(dep);
+      if (depIdx !== undefined && hasCycle(depIdx)) return true;
+    }
+    stack.delete(idx);
+    return false;
+  }
+  for (let i = 0; i < tasks.length; i++) {
+    if (hasCycle(i)) throw new Error(`Cycle detected in task DAG at: ${tasks[i].title}`);
+  }
+
+  const goalEntry = await appendMemoryIndexEntry(memoryDir, {
+    type: 'goal',
+    status: 'in_progress',
+    summary: goal.title,
+    payload: { acceptance_criteria: goal.acceptance_criteria, verify_command: goal.verify_command, origin: 'pipeline' },
+  });
+
+  const titleToId = new Map<string, string>();
+  const taskIds: string[] = [];
+  const sorted = [...tasks].sort((a, b) => (a.depends_on?.length ?? 0) - (b.depends_on?.length ?? 0));
+
+  for (const task of sorted) {
+    const blockedBy = (task.depends_on ?? []).map(dep => titleToId.get(dep)).filter(Boolean) as string[];
+    const entry = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: blockedBy.length > 0 ? 'blocked' : 'pending',
+      summary: task.title,
+      payload: {
+        verify_command: task.verify_command,
+        acceptance_criteria: task.acceptance_criteria,
+        goal_id: goalEntry.id,
+        blockedBy: blockedBy.length > 0 ? blockedBy : undefined,
+        origin: 'pipeline',
+      },
+    });
+    titleToId.set(task.title, entry.id);
+    taskIds.push(entry.id);
+  }
+
+  return { goalId: goalEntry.id, taskIds };
 }
 
 // =============================================================================
