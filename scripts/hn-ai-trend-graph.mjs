@@ -159,12 +159,27 @@ async function main() {
   const sortedDates = [...new Set(allFiles.map(f => f.replace('.json','')))].sort();
   const dateRange = `${sortedDates[0]} → ${sortedDates[sortedDates.length-1]}`;
 
-  const html = renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount: allFiles.length });
+  // Calendar coverage: show real sample density vs span. Renderer-side fix
+  // because backfill is structurally impossible (HN Firebase has no historical
+  // top-stories endpoint). See docs/plans/2026-04-27-hn-trend-gap-day-render.md.
+  const first = new Date(sortedDates[0] + 'T00:00:00Z');
+  const last  = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00Z');
+  const calendarDays = Math.round((last - first) / 86400000) + 1;
+  const have = new Set(sortedDates);
+  const missingDates = [];
+  for (let d = new Date(first); d <= last; d.setUTCDate(d.getUTCDate() + 1)) {
+    const iso = d.toISOString().slice(0, 10);
+    if (!have.has(iso)) missingDates.push(iso);
+  }
+  const sampledDays = sortedDates.length;
+  console.log(`[graph] coverage: ${sampledDays}/${calendarDays} days, gaps: ${missingDates.join(', ') || 'none'}`);
+
+  const html = renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount: allFiles.length, sampledDays, calendarDays, missingDates });
   await writeFile(OUT, html, 'utf8');
   console.log(`[graph] wrote ${OUT} (${html.length} bytes)`);
 }
 
-function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount }) {
+function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCount, sampledDays, calendarDays, missingDates }) {
   const data = JSON.stringify({ nodes, links }).replace(/</g, '\\u003c');
   const sourceLegendHtml = sourceLegend.map(l =>
     `<span class="lg"><span class="dot" style="background:${l.color}"></span>${l.name} <em>${l.count}</em></span>`
@@ -172,6 +187,18 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
   const topicLegendHtml = topicLegend.map(l =>
     `<span class="lg"><span class="ring" style="border-color:${l.color}"></span>${l.name} <em>${l.count}</em></span>`
   ).join('');
+  // Coverage row: distinguish "nothing happened" from "didn't sample". Color
+  // matches HN source dot (#ff8800) — this is a known absence, not an error.
+  const MAX_GAPS_INLINE = 8;
+  const gapsTrunc = missingDates.length > MAX_GAPS_INLINE
+    ? missingDates.slice(0, MAX_GAPS_INLINE).map(d => d.slice(5))
+    : missingDates.map(d => d.slice(5));
+  const gapsExtra = missingDates.length > MAX_GAPS_INLINE
+    ? ` <span style="color:#666">… (+${missingDates.length - MAX_GAPS_INLINE} more)</span>`
+    : '';
+  const coverageHtml = missingDates.length === 0
+    ? `<span style="color:#7fd4b8">${sampledDays}/${calendarDays} days · complete coverage</span>`
+    : `<strong style="color:#e6e6e6">${sampledDays}/${calendarDays}</strong> <span style="color:#888">days · gaps:</span> ${gapsTrunc.map(d => `<code style="color:#ff8800">${d}</code>`).join(' ')}${gapsExtra}`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -275,6 +302,7 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
   <h1>AI Trend <small>／ multi-source graph (${dateRange}, ${fileCount} editions)</small></h1>
   <div class="legend legend-row"><span class="label">source</span>${sourceLegendHtml}</div>
   <div class="legend legend-row"><span class="label">topic</span>${topicLegendHtml}</div>
+  <div class="legend legend-row"><span class="label">coverage</span>${coverageHtml}</div>
 </header>
 
 <svg id="g"></svg>
