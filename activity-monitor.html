@@ -514,7 +514,7 @@ header h1 .os-badge {
     </div>
 
     <!-- Attention Budget -->
-    <div class="card">
+    <div class="card" id="attention-budget-card">
       <div class="card-header">
         <h2>Attention Budget</h2>
         <span id="ab-ratio" style="font-family: var(--mono); font-size: 11px; color: var(--text2);">0 / 15</span>
@@ -633,24 +633,30 @@ function renderScheduler(data) {
   document.getElementById('hdr-tick').textContent = `tick ${data.totalTicks}`;
   document.getElementById('stat-total-ticks').textContent = data.totalTicks;
 
-  // Attention Budget
-  const ab = data.attentionBudget;
-  const abPct = Math.min(Math.round(ab.ratio * 100), 100);
-  document.getElementById('ab-ratio').textContent = `${ab.used} / ${ab.limit}`;
-  document.getElementById('ab-pct').textContent = `${abPct}%`;
-  const fill = document.getElementById('ab-fill');
-  fill.style.width = abPct + '%';
-  fill.className = 'budget-bar-fill ' + (abPct >= 90 ? 'critical' : abPct >= 60 ? 'warning' : 'normal');
+  // Attention Budget — hide when no scheduled task
+  const abCard = document.getElementById('attention-budget-card');
+  if (data.currentTask) {
+    abCard.style.display = '';
+    const ab = data.attentionBudget;
+    const abPct = Math.min(Math.round(ab.ratio * 100), 100);
+    document.getElementById('ab-ratio').textContent = `${ab.used} / ${ab.limit}`;
+    document.getElementById('ab-pct').textContent = `${abPct}%`;
+    const fill = document.getElementById('ab-fill');
+    fill.style.width = abPct + '%';
+    fill.className = 'budget-bar-fill ' + (abPct >= 90 ? 'critical' : abPct >= 60 ? 'warning' : 'normal');
+    const dsRemain = DISCOVERY_INTERVAL - (data.totalTicks % DISCOVERY_INTERVAL);
+    document.getElementById('ds-countdown').textContent = `${dsRemain} ticks`;
+    document.getElementById('ds-fill').style.width = ((DISCOVERY_INTERVAL - dsRemain) / DISCOVERY_INTERVAL * 100) + '%';
+  } else {
+    abCard.style.display = 'none';
+  }
 
-  // Discovery slot
-  const dsRemain = DISCOVERY_INTERVAL - (data.totalTicks % DISCOVERY_INTERVAL);
-  document.getElementById('ds-countdown').textContent = `${dsRemain} ticks`;
-  document.getElementById('ds-fill').style.width = ((DISCOVERY_INTERVAL - dsRemain) / DISCOVERY_INTERVAL * 100) + '%';
-
-  // Queue
+  // Queue — hide when empty
   document.getElementById('queue-depth').textContent = `${data.queueDepth} tasks`;
   const qBody = document.getElementById('queue-body');
+  const qCard = qBody.closest('.card');
   if (data.topPending && data.topPending.length > 0) {
+    qCard.style.display = '';
     qBody.innerHTML = data.topPending.map((t, i) => {
       const deadlineBadge = t.deadline ? `<span style="font-family:var(--mono);font-size:10px;color:var(--orange);margin-left:4px;">⏰${t.deadline.slice(5)}</span>` : '';
       const depBadge = t.dependsOn?.length ? `<span style="font-family:var(--mono);font-size:10px;color:var(--purple);margin-left:4px;">⛓${t.dependsOn.length}</span>` : '';
@@ -664,7 +670,7 @@ function renderScheduler(data) {
       </div>`;
     }).join('');
   } else {
-    qBody.innerHTML = '<div class="empty">No pending tasks</div>';
+    qCard.style.display = 'none';
   }
 }
 
@@ -677,25 +683,34 @@ function renderProcesses(data) {
   document.getElementById('stat-completed').textContent = stats.completed;
   document.getElementById('pt-count').textContent = `${stats.total} processes`;
 
+  // Dim zero stats
+  ['stat-running','stat-pending','stat-scheduled','stat-suspended','stat-completed'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.opacity = el.textContent === '0' ? '0.3' : '1';
+  });
+
   const body = document.getElementById('pt-body');
-  const active = processes.filter(p => p.state !== 'completed' && p.state !== 'abandoned');
-  if (active.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" class="empty">No active processes</td></tr>';
+  const ptCard = body.closest('.card');
+  if (processes.length === 0) {
+    ptCard.style.display = 'none';
     return;
   }
+  ptCard.style.display = '';
 
-  const stateOrder = { running: 0, blocked: 1, suspended: 2, scheduled: 3, pending: 4 };
-  active.sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
+  const stateOrder = { running: 0, blocked: 1, suspended: 2, scheduled: 3, pending: 4, abandoned: 5, completed: 6 };
+  const sorted = [...processes].sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
 
-  body.innerHTML = active.map(p => `
-    <tr>
+  body.innerHTML = sorted.map(p => {
+    const dim = (p.state === 'completed' || p.state === 'abandoned') ? 'opacity:0.45;' : '';
+    return `
+    <tr style="${dim}">
       <td><span class="state-badge state-${p.state}">${p.state}</span></td>
       <td><span class="tag tag-priority">P${p.priority}</span></td>
       <td>${sourceTag(p.source)}</td>
       <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escAttr(p.taskId)}">${escHtml(p.summary || shortId(p.taskId))}</td>
       <td style="font-family:var(--mono); font-size:11px; color:var(--text2);">${p.ticksSpent}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderTimeline(data) {
@@ -821,8 +836,10 @@ function renderCurrentActivity(status, schedulerData) {
     `;
   }
 
-  body.innerHTML = `
-    <div style="margin-bottom:12px;">${topHtml}</div>
+  // Mini stats only when actively running
+  let statsHtml = '';
+  if (busy || hasScheduledTask) {
+    statsHtml = `
     <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;">
       <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
         <div style="font-family:var(--mono);font-size:14px;color:var(--text-bright);">${elapsed}</div>
@@ -833,21 +850,23 @@ function renderCurrentActivity(status, schedulerData) {
         <div style="font-size:10px;color:var(--text3);">Tool Calls</div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
-        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(lastTool)}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(lastTool) === '--' ? '' : escHtml(lastTool)}</div>
         <div style="font-size:10px;color:var(--text3);">Last Tool</div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:6px 10px;text-align:center;">
-        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(files)}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(files) === '--' ? '' : escHtml(files)}</div>
         <div style="font-size:10px;color:var(--text3);">Recent Files</div>
       </div>
     </div>
     <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
       <span style="font-size:10px;color:var(--text3);">Mushi:</span>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">senses ${mushi.senses ?? '--'}</span>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">thinks ${mushi.thinks ?? '--'}</span>
-      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">esc ${mushi.escalations ?? '--'}</span>
-    </div>
-  `;
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">senses ${mushi.senses ?? 0}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">thinks ${mushi.thinks ?? 0}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">esc ${mushi.escalations ?? 0}</span>
+    </div>`;
+  }
+
+  body.innerHTML = `<div style="margin-bottom:${statsHtml ? '12px' : '0'};">${topHtml}</div>${statsHtml}`;
 }
 
 const healthHistory = [];
