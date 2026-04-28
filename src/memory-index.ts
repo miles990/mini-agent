@@ -673,13 +673,14 @@ function validateVerifyCommand(cmd: string): string | null {
   } catch {
     return `syntax error in verify_command: ${cmd.slice(0, 80)}`;
   }
-  const pathRe = /([a-zA-Z0-9_./-]+\/[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+)/g;
+  const pathRe = /([a-zA-Z0-9_./-]+\/[a-zA-Z0-9_.*?-]+\.[a-zA-Z0-9*]+)/g;
   const warnings: string[] = [];
   for (const match of cmd.matchAll(pathRe)) {
     const filePath = match[0];
-    if (filePath.includes('*') || filePath.includes('?')) continue;
-    const dir = path.dirname(filePath);
-    if (dir !== '.' && !existsSync(dir)) {
+    const dir = filePath.includes('*') || filePath.includes('?')
+      ? path.dirname(filePath.replace(/[*?].*/, ''))
+      : path.dirname(filePath);
+    if (dir && dir !== '.' && !existsSync(dir)) {
       warnings.push(`dir not found: ${dir}`);
     }
   }

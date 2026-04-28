@@ -132,13 +132,12 @@ function detectAskingPermission(text: string): string | null {
 
 function detectDelegationToHuman(text: string): string | null {
   const delegationPatterns: ReadonlyArray<[RegExp, string]> = [
-    [/你(來)?決策/, '你決策'],
+    [/你(來)?決策[^了嗎？?]/, '你決策'],
     [/給(我)?方向/, '給方向'],
-    [/等你(回|決|確認|指示)/, '等你回覆'],
+    [/等你(回覆|決定|確認|指示)/, '等你回覆'],
     [/我不自(己)?\s*apply/, '不自apply'],
-    [/你沉默.{0,10}(我就|就)/, '你沉默我就X'],
+    [/你沉默.{0,5}我就/, '你沉默我就X'],
     [/回報你(決策|決定|判斷)/, '回報你決策'],
-    [/你(先)?看(看|一下).{0,15}(再|才|後)/, '你看完再X'],
   ];
   for (const [re, desc] of delegationPatterns) {
     if (re.test(text)) return `delegation:${desc}`;
