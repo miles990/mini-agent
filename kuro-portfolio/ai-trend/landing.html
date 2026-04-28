@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Trend — 一眼看懂 — Kuro</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1116; --fg: #e6e6e6; --muted: #888; --line: #222a35;
+    --card: #161b22; --accent: #9ab8ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, "Helvetica Neue", "PingFang TC", sans-serif; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 500; }
+  header .subtitle { color: var(--muted); font-size: 13px; }
+  header nav { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  header nav a { color: var(--muted); text-decoration: none; font-size: 12px; border: 1px solid var(--line); padding: 4px 10px; border-radius: 4px; }
+  header nav a:hover { color: var(--fg); border-color: var(--muted); }
+  .period { background: var(--card); color: var(--fg); border: 1px solid var(--line); padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+  main { padding: 16px 24px 64px; max-width: 1200px; margin: 0 auto; }
+  section { margin-bottom: 32px; }
+  section h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 12px; letter-spacing: 0.5px; text-transform: uppercase; }
+  /* Chip grid */
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 12px; cursor: pointer; transition: transform 0.1s; }
+  .chip:hover { transform: translateY(-1px); }
+  .chip .topic { font-size: 13px; font-weight: 500; }
+  .chip .count { font-size: 28px; font-weight: 300; line-height: 1.1; margin-top: 4px; }
+  .chip .srcs { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .chip .delta { font-size: 11px; margin-top: 4px; }
+  .chip .delta.up { color: #4ade80; }
+  .chip .delta.down { color: #f87171; }
+  .chip .delta.flat { color: var(--muted); }
+  .chip .samples { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .chip.expanded .samples { display: block; }
+  .chip .sample { font-size: 11px; margin: 6px 0; }
+  .chip .sample a { color: var(--accent); text-decoration: none; }
+  .chip .sample a:hover { text-decoration: underline; }
+  .chip .sample .meta { color: var(--muted); }
+  /* Trend chart */
+  #trend { width: 100%; height: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 4px; }
+  #trend .axis { color: var(--muted); font-size: 11px; }
+  #trend .axis path, #trend .axis line { stroke: var(--line); }
+  #trend .grid line { stroke: var(--line); stroke-opacity: 0.5; }
+  #trend .legend { font-size: 11px; cursor: pointer; }
+  #trend .legend.off text { fill: var(--muted); }
+  #trend .legend.off rect { opacity: 0.3; }
+  /* Cross-source matrix */
+  .matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .matrix th, .matrix td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+  .matrix th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  .matrix td.topic { text-align: left; font-weight: 500; }
+  .matrix .cell { display: inline-block; width: 22px; height: 22px; border-radius: 3px; line-height: 22px; font-size: 10px; }
+  .matrix .cell.on { color: #fff; }
+  .matrix .cell.off { background: var(--line); color: transparent; }
+  .matrix tr:hover { background: rgba(255,255,255,0.02); }
+  /* Footer */
+  footer { color: var(--muted); font-size: 11px; text-align: center; padding: 24px; border-top: 1px solid var(--line); }
+  /* Mobile */
+  @media (max-width: 720px) {
+    header { padding: 12px 16px; }
+    main { padding: 12px 16px 48px; }
+    .chips { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .chip .count { font-size: 22px; }
+    #trend { height: 240px; }
+    .matrix { font-size: 11px; }
+    .matrix th, .matrix td { padding: 6px 4px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI Trend</h1>
+  <span class="subtitle">一眼看懂今天 AI 圈在聊什麼</span>
+  <nav>
+    <select class="period" id="period">
+      <option value="1">今天</option>
+      <option value="7" selected>過去 7 天</option>
+      <option value="30">過去 30 天</option>
+    </select>
+    <a href="graph.html">graph</a>
+    <a href="swimlane.html">swimlane</a>
+    <a href="source-split.html">source-split</a>
+  </nav>
+</header>
+
+<main>
+  <section id="topics-section">
+    <h2>Top Topics</h2>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <section id="trend-section">
+    <h2>趨勢走勢圖（新話題湧現密度 · first-seen dedup）</h2>
+    <svg id="trend"></svg>
+  </section>
+
+  <section id="cross-section">
+    <h2>跨源共振（topic 在 ≥2 源出現）</h2>
+    <div id="matrix-wrap"></div>
+  </section>
+</main>
+
+<footer id="footer">loading…</footer>
+
+<script>
+const PERIOD = document.getElementById('period');
+const CHIPS  = document.getElementById('chips');
+const TREND  = d3.select('#trend');
+const MATRIX = document.getElementById('matrix-wrap');
+const FOOT   = document.getElementById('footer');
+let HIDDEN = new Set(); // legend toggle state
+
+async function load(days) {
+  const res = await fetch(`data/landing-${days}d.json?t=${Date.now()}`);
+  if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+  return res.json();
+}
+
+function renderChips(data) {
+  CHIPS.innerHTML = '';
+  const trendByTopic = new Map(data.trend_lines.map(t => [t.topic, t.delta_pct]));
+  for (const t of data.top_topics) {
+    const delta = trendByTopic.get(t.topic);
+    const deltaCls = delta == null ? 'flat' : (delta > 10 ? 'up' : delta < -10 ? 'down' : 'flat');
+    const deltaStr = delta == null ? '—' : (delta >= 0 ? `+${delta}%` : `${delta}%`);
+    const srcs = t.sources.map(s => s).join(' · ');
+    const samples = t.sample_titles.map(s =>
+      `<div class="sample"><a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a><div class="meta">${s.source} · ${s.points} pts</div></div>`
+    ).join('');
+    const div = document.createElement('div');
+    div.className = 'chip';
+    div.style.borderLeftColor = t.color;
+    div.innerHTML = `
+      <div class="topic">${t.topic}</div>
+      <div class="count">${t.post_count}</div>
+      <div class="srcs">${srcs}</div>
+      <div class="delta ${deltaCls}">vs 平均 ${deltaStr}</div>
+      <div class="samples">${samples}</div>
+    `;
+    div.addEventListener('click', () => div.classList.toggle('expanded'));
+    CHIPS.appendChild(div);
+  }
+}
+
+function renderTrend(data) {
+  TREND.selectAll('*').remove();
+  const node = TREND.node();
+  const W = node.clientWidth || 800;
+  const H = node.clientHeight || 320;
+  const M = { top: 16, right: 120, bottom: 28, left: 36 };
+
+  const lines = data.trend_lines.filter(t => !HIDDEN.has(t.topic));
+  if (data.trend_lines.length === 0) {
+    TREND.append('text').attr('x', W/2).attr('y', H/2).attr('text-anchor', 'middle').attr('fill', 'var(--muted)').text('沒有資料');
+    return;
+  }
+
+  const dates = data.trend_lines[0].points.map(p => p.date);
+  const x = d3.scalePoint().domain(dates).range([M.left, W - M.right]).padding(0.3);
+  const yMax = d3.max(lines, t => d3.max(t.points, p => p.count)) || 1;
+  const y = d3.scaleLinear().domain([0, yMax]).nice().range([H - M.bottom, M.top]);
+
+  const xAxis = d3.axisBottom(x).tickFormat(d => d.slice(5));
+  const yAxis = d3.axisLeft(y).ticks(5).tickSize(-(W - M.left - M.right)).tickFormat(d3.format('d'));
+
+  TREND.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - M.bottom})`).call(xAxis);
+  TREND.append('g').attr('class', 'axis grid').attr('transform', `translate(${M.left},0)`).call(yAxis).call(g => g.select('.domain').remove());
+
+  const lineGen = d3.line().x(p => x(p.date)).y(p => y(p.count)).curve(d3.curveMonotoneX);
+  for (const t of lines) {
+    TREND.append('path')
+      .attr('d', lineGen(t.points))
+      .attr('fill', 'none')
+      .attr('stroke', t.color)
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.85);
+  }
+
+  // legend (right column, full topic list — click to toggle)
+  const lg = TREND.append('g').attr('transform', `translate(${W - M.right + 12}, ${M.top})`);
+  data.trend_lines.forEach((t, i) => {
+    const row = lg.append('g').attr('class', 'legend' + (HIDDEN.has(t.topic) ? ' off' : '')).attr('transform', `translate(0, ${i * 18})`)
+      .on('click', () => {
+        if (HIDDEN.has(t.topic)) HIDDEN.delete(t.topic); else HIDDEN.add(t.topic);
+        renderTrend(data);
+      });
+    row.append('rect').attr('width', 10).attr('height', 10).attr('y', -8).attr('fill', t.color);
+    row.append('text').attr('x', 16).attr('y', 0).attr('fill', 'var(--fg)').text(`${t.topic} (${t.total})`);
+  });
+}
+
+function renderMatrix(data) {
+  if (data.cross_source.length === 0) {
+    MATRIX.innerHTML = '<div style="color:var(--muted); font-size:12px;">本期間沒有跨源話題</div>';
+    return;
+  }
+  const srcs = data.meta.sources_registry;
+  const head = ['<th class="topic">topic</th>'].concat(srcs.map(s => `<th>${s.label}</th>`)).concat(['<th>共振度</th>']).join('');
+  const rows = data.cross_source.map(row => {
+    const cells = srcs.map(s => {
+      const hit = row.sources.find(x => x.source === s.key);
+      if (hit) return `<td><span class="cell on" title="${hit.post_count} posts" style="background:${s.color}">${hit.post_count}</span></td>`;
+      return `<td><span class="cell off">·</span></td>`;
+    }).join('');
+    return `<tr><td class="topic" style="color:${row.color}">${row.topic}</td>${cells}<td>${row.source_count}/${srcs.length}</td></tr>`;
+  }).join('');
+  MATRIX.innerHTML = `<table class="matrix"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderFooter(data) {
+  const dt = new Date(data.meta.generated_at).toLocaleString('zh-Hant', { hour12: false });
+  FOOT.textContent = `generated ${dt} · ${data.meta.total_posts} posts · ${data.meta.sources_active.length}/${data.meta.sources_registry.length} sources active · period ${data.meta.start_date} → ${data.meta.end_date}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+}
+
+async function refresh() {
+  const days = PERIOD.value;
+  try {
+    const data = await load(days);
+    HIDDEN = new Set(); // reset on period change
+    renderChips(data);
+    renderTrend(data);
+    renderMatrix(data);
+    renderFooter(data);
+  } catch (e) {
+    FOOT.textContent = `error: ${e.message}`;
+    CHIPS.innerHTML = `<div style="color:var(--muted); font-size:12px;">資料載入失敗，先跑 <code>node scripts/build-landing.mjs</code></div>`;
+  }
+}
+
+PERIOD.addEventListener('change', refresh);
+window.addEventListener('resize', () => refresh());
+refresh();
+</script>
+</body>
+</html>

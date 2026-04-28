@@ -1,0 +1,515 @@
+{
+  "meta": {
+    "period_days": 1,
+    "end_date": "2026-04-28",
+    "start_date": "2026-04-28",
+    "sources_active": [
+      "hn",
+      "reddit",
+      "x",
+      "arxiv",
+      "latent"
+    ],
+    "sources_registry": [
+      {
+        "key": "hn",
+        "label": "HN",
+        "color": "#ff8800"
+      },
+      {
+        "key": "reddit",
+        "label": "Reddit",
+        "color": "#ff4500"
+      },
+      {
+        "key": "x",
+        "label": "X",
+        "color": "#1da1f2"
+      },
+      {
+        "key": "arxiv",
+        "label": "arXiv",
+        "color": "#b31b1b"
+      },
+      {
+        "key": "latent",
+        "label": "Latent Space",
+        "color": "#7c3aed"
+      }
+    ],
+    "total_posts": 99,
+    "generated_at": "2026-04-28T06:17:36.225Z"
+  },
+  "top_topics": [
+    {
+      "topic": "agent",
+      "color": "#9ab8ff",
+      "post_count": 25,
+      "sources": [
+        "hn",
+        "reddit",
+        "x",
+        "arxiv",
+        "latent"
+      ],
+      "sample_titles": [
+        {
+          "title": "$20 Claude Pro users will soon no longer be able to use Opus models in Claude Code unless they purchase extra usage 🤦‍♂️",
+          "url": "https://x.com/synthwavedd/status/2048872483558715490",
+          "source": "x",
+          "points": 2293
+        },
+        {
+          "title": "“claude code without paying? here’s the trick",
+          "url": "https://x.com/GithubProjects/status/2048726380574281756",
+          "source": "x",
+          "points": 1456
+        },
+        {
+          "title": "Congrats to @getavoca on their $125M raise at a $1B valuation! They're building AI agents for home services businesses—answering inbound calls, booking jobs, following up on estimates, and driving new leads based on technician capacity. On track to book $1B in jobs this year.",
+          "url": "https://x.com/ycombinator/status/2048791369100218800",
+          "source": "x",
+          "points": 1072
+        }
+      ]
+    },
+    {
+      "topic": "model",
+      "color": "#ffb86b",
+      "post_count": 16,
+      "sources": [
+        "hn",
+        "reddit",
+        "latent"
+      ],
+      "sample_titles": [
+        {
+          "title": "Microsoft and OpenAI end their exclusive and revenue-sharing deal",
+          "url": "https://www.bloomberg.com/news/articles/2026-04-27/microsoft-to-stop-sharing-revenue-with-main-ai-partner-openai",
+          "source": "hn",
+          "points": 666
+        },
+        {
+          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
+          "url": "https://www.reddit.com/gallery/1sxapqb",
+          "source": "reddit",
+          "points": 285
+        },
+        {
+          "title": "Mistral built a $14B AI empire by not being American",
+          "url": "https://www.forbes.com/sites/iainmartin/2026/04/16/how-frances-mistral-built-a-14-billion-ai-empire-by-not-being-american/",
+          "source": "hn",
+          "points": 199
+        }
+      ]
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "post_count": 4,
+      "sources": [
+        "reddit",
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "To 16GB VRAM users, plug in your old GPU",
+          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
+          "source": "reddit",
+          "points": 328
+        },
+        {
+          "title": "AMD Hipfire - a new inference engine optimized for AMD GPU's",
+          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swpsv0/amd_hipfire_a_new_inference_engine_optimized_for/",
+          "source": "reddit",
+          "points": 274
+        },
+        {
+          "title": "Skymizer Taiwan Inc. Unveils Breakthrough Architecture Enabling Ultra-Large LLM Inference on a Single Card",
+          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1sx2vxp/skymizer_taiwan_inc_unveils_breakthrough/",
+          "source": "reddit",
+          "points": 112
+        }
+      ]
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "post_count": 4,
+      "sources": [
+        "reddit",
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "The 4B class of 2026 (benchmark)",
+          "url": "https://i.redd.it/fj2b1am41sxg1.png",
+          "source": "reddit",
+          "points": 103
+        },
+        {
+          "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
+          "url": "http://arxiv.org/abs/2604.24729v1",
+          "source": "arxiv",
+          "points": 56
+        },
+        {
+          "title": "Case-Specific Rubrics for Clinical AI Evaluation: Methodology, Validation, and LLM-Clinician Agreement Across 823 Encounters",
+          "url": "http://arxiv.org/abs/2604.24710v1",
+          "source": "arxiv",
+          "points": 52
+        }
+      ]
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "post_count": 3,
+      "sources": [
+        "hn",
+        "arxiv",
+        "latent"
+      ],
+      "sample_titles": [
+        {
+          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
+          "url": "https://www.latent.space/p/noetik",
+          "source": "latent",
+          "points": 52
+        },
+        {
+          "title": "Scalable Hyperparameter-Divergent Ensemble Training with Automatic Learning Rate Exploration for Large Models",
+          "url": "http://arxiv.org/abs/2604.24708v1",
+          "source": "arxiv",
+          "points": 51
+        },
+        {
+          "title": "Decoupled DiLoCo: Resilient, Distributed AI Training at Scale",
+          "url": "https://deepmind.google/blog/decoupled-diloco/",
+          "source": "hn",
+          "points": 37
+        }
+      ]
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "post_count": 1,
+      "sources": [
+        "hn"
+      ],
+      "sample_titles": [
+        {
+          "title": "Ubuntu Linux Will Begin Landing AI Features Throughout the Next Year",
+          "url": "https://www.phoronix.com/news/Ubuntu-AI-Features-2026",
+          "source": "hn",
+          "points": 23
+        }
+      ]
+    },
+    {
+      "topic": "reasoning",
+      "color": "#f1fa8c",
+      "post_count": 1,
+      "sources": [
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "Benchmarking Source-Sensitive Reasoning in Turkish: Humans and LLMs under Evidential Trust Manipulation",
+          "url": "http://arxiv.org/abs/2604.24665v1",
+          "source": "arxiv",
+          "points": 36
+        }
+      ]
+    }
+  ],
+  "trend_lines": [
+    {
+      "topic": "agent",
+      "color": "#9ab8ff",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 25
+        }
+      ],
+      "total": 25,
+      "delta_pct": null
+    },
+    {
+      "topic": "model",
+      "color": "#ffb86b",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 16
+        }
+      ],
+      "total": 16,
+      "delta_pct": null
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 4
+        }
+      ],
+      "total": 4,
+      "delta_pct": null
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 4
+        }
+      ],
+      "total": 4,
+      "delta_pct": null
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 3
+        }
+      ],
+      "total": 3,
+      "delta_pct": null
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 1
+        }
+      ],
+      "total": 1,
+      "delta_pct": null
+    },
+    {
+      "topic": "reasoning",
+      "color": "#f1fa8c",
+      "points": [
+        {
+          "date": "2026-04-28",
+          "count": 1
+        }
+      ],
+      "total": 1,
+      "delta_pct": null
+    }
+  ],
+  "cross_source": [
+    {
+      "topic": "agent",
+      "color": "#9ab8ff",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 5
+        },
+        {
+          "source": "reddit",
+          "post_count": 1
+        },
+        {
+          "source": "x",
+          "post_count": 14
+        },
+        {
+          "source": "arxiv",
+          "post_count": 3
+        },
+        {
+          "source": "latent",
+          "post_count": 2
+        }
+      ],
+      "source_count": 5,
+      "post_count": 25,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "GitHub Copilot is moving to usage-based billing",
+          "url": "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
+          "points": 464
+        },
+        {
+          "source": "reddit",
+          "title": "Anthropic states Pro users can only access Opus models in Claude Code after enabling and purchasing extra usage",
+          "url": "https://i.redd.it/ghpqfe4oysxg1.png",
+          "points": 119
+        },
+        {
+          "source": "x",
+          "title": "$20 Claude Pro users will soon no longer be able to use Opus models in Claude Code unless they purchase extra usage 🤦‍♂️",
+          "url": "https://x.com/synthwavedd/status/2048872483558715490",
+          "points": 2293
+        },
+        {
+          "source": "arxiv",
+          "title": "Governing What You Cannot Observe: Adaptive Runtime Governance for Autonomous AI Agents",
+          "url": "http://arxiv.org/abs/2604.24686v1",
+          "points": 41
+        },
+        {
+          "source": "latent",
+          "title": "AIE Europe Debrief + Agent Labs Thesis: Unsupervised Learning x Latent Space Crossover Special (2026)",
+          "url": "https://www.latent.space/p/unsupervised-learning-2026",
+          "points": 57
+        }
+      ]
+    },
+    {
+      "topic": "model",
+      "color": "#ffb86b",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 4
+        },
+        {
+          "source": "reddit",
+          "post_count": 4
+        },
+        {
+          "source": "latent",
+          "post_count": 8
+        }
+      ],
+      "source_count": 3,
+      "post_count": 16,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "Microsoft and OpenAI end their exclusive and revenue-sharing deal",
+          "url": "https://www.bloomberg.com/news/articles/2026-04-27/microsoft-to-stop-sharing-revenue-with-main-ai-partner-openai",
+          "points": 666
+        },
+        {
+          "source": "reddit",
+          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
+          "url": "https://www.reddit.com/gallery/1sxapqb",
+          "points": 285
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
+          "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
+          "points": 59
+        }
+      ]
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 1
+        },
+        {
+          "source": "latent",
+          "post_count": 1
+        }
+      ],
+      "source_count": 3,
+      "post_count": 3,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "Decoupled DiLoCo: Resilient, Distributed AI Training at Scale",
+          "url": "https://deepmind.google/blog/decoupled-diloco/",
+          "points": 37
+        },
+        {
+          "source": "arxiv",
+          "title": "Scalable Hyperparameter-Divergent Ensemble Training with Automatic Learning Rate Exploration for Large Models",
+          "url": "http://arxiv.org/abs/2604.24708v1",
+          "points": 51
+        },
+        {
+          "source": "latent",
+          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
+          "url": "https://www.latent.space/p/noetik",
+          "points": 52
+        }
+      ]
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "sources": [
+        {
+          "source": "reddit",
+          "post_count": 3
+        },
+        {
+          "source": "arxiv",
+          "post_count": 1
+        }
+      ],
+      "source_count": 2,
+      "post_count": 4,
+      "sample_per_source": [
+        {
+          "source": "reddit",
+          "title": "To 16GB VRAM users, plug in your old GPU",
+          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
+          "points": 328
+        },
+        {
+          "source": "arxiv",
+          "title": "DepthKV: Layer-Dependent KV Cache Pruning for Long-Context LLM Inference",
+          "url": "http://arxiv.org/abs/2604.24647v1",
+          "points": 31
+        }
+      ]
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "sources": [
+        {
+          "source": "reddit",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 3
+        }
+      ],
+      "source_count": 2,
+      "post_count": 4,
+      "sample_per_source": [
+        {
+          "source": "reddit",
+          "title": "The 4B class of 2026 (benchmark)",
+          "url": "https://i.redd.it/fj2b1am41sxg1.png",
+          "points": 103
+        },
+        {
+          "source": "arxiv",
+          "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
+          "url": "http://arxiv.org/abs/2604.24729v1",
+          "points": 56
+        }
+      ]
+    }
+  ]
+}
