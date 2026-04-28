@@ -193,6 +193,8 @@ function createRateLimiter(maxRequests = 60, windowMs = 60_000) {
     if (req.method === 'GET' && exemptGet.has(req.path)) { next(); return; }
 
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    // Localhost is all internal traffic (Kuro OODA, Claude Code, Dashboard) — no limit
+    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') { next(); return; }
     const now = Date.now();
 
     const entry = requests.get(ip);
