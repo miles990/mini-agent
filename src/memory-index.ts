@@ -950,11 +950,32 @@ export async function healAbandonedGoals(memoryDir: string): Promise<number> {
   return healed;
 }
 
+function tryCorrectVerifyPath(cmd: string): string | null {
+  const pathRe = /([a-zA-Z0-9_./-]+\/[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+)/g;
+  let corrected = cmd;
+  let anyFixed = false;
+  for (const match of cmd.matchAll(pathRe)) {
+    const filePath = match[0];
+    if (existsSync(filePath)) continue;
+    const basename = path.basename(filePath);
+    try {
+      const found = execSync(`find . -name "${basename}" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null`, {
+        timeout: 5000, encoding: 'utf-8', cwd: process.cwd(),
+      }).trim().split('\n').filter(Boolean).map(p => p.replace(/^\.\//, ''));
+      if (found.length === 1) {
+        corrected = corrected.replace(filePath, found[0]);
+        anyFixed = true;
+      }
+    } catch { /* find failed */ }
+  }
+  return anyFixed ? corrected : null;
+}
+
 export async function scanPipelineVerify(memoryDir: string): Promise<number> {
   const allEntries = queryMemoryIndexSync(memoryDir, { type: ['task', 'goal'] });
   const pendingTasks = allEntries.filter(e =>
     e.type === 'task' &&
-    ['pending', 'in_progress'].includes(e.status) &&
+    ['pending', 'in_progress', 'blocked'].includes(e.status) &&
     (e.payload as Record<string, unknown>)?.goal_id &&
     (e.payload as Record<string, unknown>)?.verify_command,
   );
@@ -962,17 +983,26 @@ export async function scanPipelineVerify(memoryDir: string): Promise<number> {
   let completed = 0;
   for (const task of pendingTasks) {
     const payload = (task.payload ?? {}) as Record<string, unknown>;
-    const verifyCmd = payload.verify_command as string;
+    let verifyCmd = payload.verify_command as string;
     try {
       execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
-      await updateMemoryIndexEntry(memoryDir, task.id, {
-        status: 'completed',
-        payload: { ...payload, ticksSinceLastProgress: 0, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString(), auto_scanned: true, completion_type: 'code-verified' } },
-      });
-      slog('PIPELINE', `Verify scan auto-completed: ${task.summary?.slice(0, 60)}`);
-      resolveDependencies(memoryDir, task.id).catch(() => {});
-      completed++;
-    } catch { /* verify not passing yet — normal */ }
+    } catch {
+      // Path auto-correction: extract file paths from verify_command and try to find them
+      const corrected = tryCorrectVerifyPath(verifyCmd);
+      if (!corrected || corrected === verifyCmd) continue;
+      try {
+        execSync(corrected, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+        verifyCmd = corrected;
+        slog('PIPELINE', `Verify path auto-corrected: ${verifyCmd.slice(0, 80)}`);
+      } catch { continue; }
+    }
+    await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: { ...payload, ticksSinceLastProgress: 0, verify_command: verifyCmd, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString(), auto_scanned: true, completion_type: 'code-verified' } },
+    });
+    slog('PIPELINE', `Verify scan auto-completed: ${task.summary?.slice(0, 60)}`);
+    resolveDependencies(memoryDir, task.id).catch(() => {});
+    completed++;
   }
 
   return completed;

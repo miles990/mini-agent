@@ -127,6 +127,22 @@ function detectAskingPermission(text: string): string | null {
   for (const [re, desc] of patterns) {
     if (re.test(text)) return desc;
   }
+  return detectDelegationToHuman(text);
+}
+
+function detectDelegationToHuman(text: string): string | null {
+  const delegationPatterns: ReadonlyArray<[RegExp, string]> = [
+    [/你(來)?決策/, '你決策'],
+    [/給(我)?方向/, '給方向'],
+    [/等你(回|決|確認|指示)/, '等你回覆'],
+    [/我不自(己)?\s*apply/, '不自apply'],
+    [/你沉默.{0,10}(我就|就)/, '你沉默我就X'],
+    [/回報你(決策|決定|判斷)/, '回報你決策'],
+    [/你(先)?看(看|一下).{0,15}(再|才|後)/, '你看完再X'],
+  ];
+  for (const [re, desc] of delegationPatterns) {
+    if (re.test(text)) return `delegation:${desc}`;
+  }
   return null;
 }
 
@@ -1767,10 +1783,18 @@ export async function postProcess(
     for (const chat of tags.chats) {
       const askPerm = detectAskingPermission(chat.text);
       if (askPerm) {
-        slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${chat.text.slice(0, 80)}`);
-        getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${chat.text.slice(0, 120)}`);
-        eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
-        continue;
+        const isDelegation = askPerm.startsWith('delegation:');
+        if (isDelegation) {
+          slog('GATE', `⚠️ Delegation-to-human detected (${askPerm}): ${chat.text.slice(0, 80)}`);
+          getLogger().logBehavior('agent', 'gate.delegation-to-human', `soft-warn: ${askPerm} — ${chat.text.slice(0, 120)}`);
+          eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
+          // soft-warn: message goes through but CT pressure fires next cycle
+        } else {
+          slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${chat.text.slice(0, 80)}`);
+          getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${chat.text.slice(0, 120)}`);
+          eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
+          continue;
+        }
       }
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
     }
