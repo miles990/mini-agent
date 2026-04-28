@@ -94,6 +94,16 @@
     <span class="lg"><span class="dot" style="background:#9d7bff"></span>Latent</span>
     <em>· dot size = points · click for detail · dashed = gap day</em>
   </div>
+  <div class="filter-bar" style="margin-top:0.45rem;font-size:0.72rem;color:#aaa;">
+    <label for="timeRange">Time range: </label>
+    <select id="timeRange" onchange="applyTimeFilter()" style="background:#1d1d20;color:#e6e6e6;border:1px solid #333;padding:2px 6px;font:inherit;border-radius:3px;">
+      <option value="all">All</option>
+      <option value="1">Today</option>
+      <option value="7">Past 7 days</option>
+      <option value="30">Past 30 days</option>
+    </select>
+    <span id="filterCount" style="margin-left:0.6rem;color:#666;"></span>
+  </div>
 </header>
 
 <svg id="vp"></svg>
@@ -137,6 +147,36 @@ const RIGHT_PAD  = 24;
 const TOP_PAD    = HEADER_PAD + 18;
 const LANE_GAP   = 6;
 
+let _timeFilter = (typeof localStorage !== 'undefined' && localStorage.getItem('aiTrendTimeRange')) || 'all';
+function getFilteredNodes() {
+  if (_timeFilter === 'all') return DATA.nodes;
+  const days = parseInt(_timeFilter, 10);
+  if (!Number.isFinite(days) || days <= 0) return DATA.nodes;
+  // Use latest data date as reference (data may be historical, not today-anchored)
+  const allDates = DATA.nodes.map(n => n.date).filter(Boolean).sort();
+  if (allDates.length === 0) return DATA.nodes;
+  const latest = new Date(allDates[allDates.length - 1] + 'T23:59:59Z');
+  const cutoff = new Date(latest.getTime() - (days - 1) * 86400000);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return DATA.nodes.filter(n => n.date >= cutoffStr);
+}
+function applyTimeFilter() {
+  const sel = document.getElementById('timeRange');
+  if (sel) _timeFilter = sel.value;
+  try { localStorage.setItem('aiTrendTimeRange', _timeFilter); } catch (e) {}
+  render();
+}
+function _initTimeFilterUI() {
+  const sel = document.getElementById('timeRange');
+  if (sel) sel.value = _timeFilter;
+  const c = document.getElementById('filterCount');
+  if (c) {
+    const total = DATA.nodes.length;
+    const shown = getFilteredNodes().length;
+    c.textContent = '· showing ' + shown + ' / ' + total + ' posts';
+  }
+}
+
 function dateRange(nodes) {
   const ds = [...new Set(nodes.map(n => n.date))].sort();
   if (ds.length === 0) return [];
@@ -164,7 +204,7 @@ function render() {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const days = dateRange(DATA.nodes);
+  const days = dateRange(getFilteredNodes());
   if (days.length === 0) return;
 
   const colW = (W - LEFT_PAD - RIGHT_PAD) / days.length;
@@ -174,11 +214,11 @@ function render() {
   // count per source
   const counts = {};
   for (const s of SOURCE_ORDER) counts[s] = 0;
-  for (const n of DATA.nodes) if (counts[n.source] !== undefined) counts[n.source]++;
+  for (const n of getFilteredNodes()) if (counts[n.source] !== undefined) counts[n.source]++;
 
   // grouping: bin posts by (source, day), then layout within bin
   const bins = {};
-  for (const n of DATA.nodes) {
+  for (const n of getFilteredNodes()) {
     const k = n.source + '|' + n.date;
     (bins[k] ||= []).push(n);
   }
@@ -327,8 +367,9 @@ function showPanel(n) {
   p.classList.add('show');
 }
 
-window.addEventListener('resize', render);
+window.addEventListener('resize', () => { render(); _initTimeFilterUI(); });
 render();
+_initTimeFilterUI();
 </script>
 </body>
 </html>
