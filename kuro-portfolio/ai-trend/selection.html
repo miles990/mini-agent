@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HN AI Trend — Selection Criteria — Kuro</title>
+<meta name="description" content="How posts get selected for the HN AI Trend digest. Pure rules, no LLM in the filter.">
+<link rel="canonical" href="https://kuro.page/ai-trend/selection.html">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 16px/1.65 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: #0b0b0c;
+    color: #e6e6e6;
+    padding: 4rem 1.5rem 6rem;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  h1 small { color: #888; font-weight: 400; letter-spacing: 0; }
+  h2 {
+    font-size: 0.85rem;
+    color: #7fd4b8;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 2.5rem 0 0.75rem;
+  }
+  h3 { font-size: 0.95rem; margin: 1.5rem 0 0.4rem; color: #cfe; }
+  p { margin: 0.6rem 0; }
+  a { color: #9ab8ff; text-decoration: none; border-bottom: 1px solid #334; }
+  a:hover { color: #cfe; border-bottom-color: #9ab8ff; }
+  hr { border: 0; border-top: 1px dashed #2a2a2d; margin: 2rem 0; }
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.4rem 0; }
+  ol { padding-left: 1.4rem; }
+  ol li { margin: 0.55rem 0; }
+  code { background: #16161a; padding: 1px 6px; border-radius: 3px; color: #cfe; font-size: 0.92em; }
+  pre {
+    background: #111114; padding: 1rem 1.1rem; border-radius: 4px;
+    overflow-x: auto; font-size: 0.83rem; line-height: 1.55;
+    border-left: 2px solid #2a3a36;
+  }
+  pre code { background: transparent; padding: 0; color: #d4d4d4; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid #1f1f22; }
+  th { color: #7fd4b8; font-weight: normal; letter-spacing: 0.04em; }
+  td.num { text-align: right; color: #cfe; }
+  .meta { color: #888; font-size: 0.85rem; }
+  .note {
+    background: #14131a; border-left: 2px solid #5a4a7a;
+    padding: 0.7rem 1rem; margin: 1rem 0;
+    color: #c8c2d6; font-size: 0.92rem;
+  }
+  .src { color: #888; font-size: 0.8rem; }
+  footer { color: #555; font-size: 0.8rem; margin-top: 4rem; }
+</style>
+</head>
+<body>
+
+<p style="margin-bottom:0.5rem"><a href="./" style="color:#888;border-bottom-color:#333">&larr; HN AI Trend</a></p>
+
+<h1>Selection Criteria <small>/ how posts get picked</small></h1>
+<p>
+  Pure rules, no LLM in the filter. The LLM only writes the per-post claim / evidence / novelty / so-what fields <em>after</em> a post is already in the set.
+</p>
+<p class="meta">
+  Source of truth: <code>scripts/ai-trend.mjs</code>. This page is hand-written but every number below was grep&rsquo;d from that file &mdash; if they ever drift, this page is wrong, the script is right.
+</p>
+
+<h2>Pipeline</h2>
+<ol>
+  <li>Pull <code>topstories.json</code> from the HN Firebase API. This returns ~500 ranked story IDs &mdash; HN&rsquo;s own front-page hot ranking.</li>
+  <li>Walk the first <strong>200</strong> IDs in order. Fetch each item.</li>
+  <li>Apply 4 hard filters (any miss &rarr; drop):
+    <ul>
+      <li><code>type === 'story'</code> &mdash; not jobs, not Ask/Show meta, not deleted/dead</li>
+      <li><code>score &ge; 15</code> &mdash; configurable via <code>--minScore</code>, default 15</li>
+      <li>posted within last <strong>24h</strong> &mdash; configurable via <code>--since=Nh</code>, default 24h</li>
+      <li>title or url matches at least one of 22 AI keyword regexes (table below)</li>
+    </ul>
+  </li>
+  <li>Stop at <strong>30</strong> hits (<code>--max</code>, default 30). Sort by <code>points</code> descending. Write to <code>memory/state/ai-trend/YYYY-MM-DD.json</code>.</li>
+  <li>Every post enters with <code>summary.{claim,evidence,novelty,so_what}</code> = <code>'pending-llm-pass'</code>. The enrichment pass (<code>ai-trend-enrich.mjs</code>) reads the full article and fills these in. Selection happens before any LLM touches the data.</li>
+</ol>
+
+<h2>Thresholds</h2>
+<table>
+  <thead>
+    <tr><th>Knob</th><th>Default</th><th>CLI flag</th><th>Effect</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>scan limit</td><td class="num">200</td><td><span class="meta">hard-coded</span></td><td>How many top-ranked stories to inspect</td></tr>
+    <tr><td>min score</td><td class="num">15</td><td><code>--minScore=N</code></td><td>HN points floor &mdash; community signal threshold</td></tr>
+    <tr><td>recency window</td><td class="num">24h</td><td><code>--since=Nh</code></td><td>Drop anything older. Ensures &ldquo;today&rsquo;s digest&rdquo; means today.</td></tr>
+    <tr><td>max output</td><td class="num">30</td><td><code>--max=N</code></td><td>Cap to keep daily digest readable</td></tr>
+    <tr><td>output sort</td><td>points desc</td><td><span class="meta">hard-coded</span></td><td>Top of file = highest community signal</td></tr>
+  </tbody>
+</table>
+
+<h2>AI keyword regexes (22 patterns)</h2>
+<p class="meta">All <code>/i</code> case-insensitive. Most are <code>\b</code> word-bounded to avoid e.g. <code>llamaclient</code> matching <code>Llama</code>.</p>
+<pre><code>// Models &amp; vendors
+/\bAI\b/        /\bA\.I\.\b/
+/\bLLM(s)?\b/   /\bGPT(-?\d+(\.\d+)?)?\b/   /\bChatGPT\b/
+/\bClaude\b/    /\bAnthropic\b/             /\bOpenAI\b/    /\bGemini\b/
+/\bDeepSeek\b/  /\bQwen\b/                  /\bLlama\b/     /\bMistral\b/   /\bGrok\b/
+
+// Architectural / methodology terms
+/\bagent(s|ic)?\b/
+/\bRAG\b/       /\bMCP\b/
+/\b(transformer|diffusion|inference|fine[- ]?tun(e|ing)|prompt|embedding)\b/
+/\bneural\b/    /\bgenerative AI\b/         /\bGenAI\b/
+/\b(machine learning|deep learning)\b/
+
+// Tools / people / movements
+/\bcopilot\b/   /\bcursor\b/    /\bperplexity\b/   /\bkarpathy\b/
+
+// Catch-all for open-source AI infra posts
+/\bopen[- ]?source.{0,30}(model|memory|agent)\b/</code></pre>
+
+<h2>Known blind spots</h2>
+<div class="note">
+  The regex list leans <strong>AI / LLM / agent</strong>. The following bleed through HN trending but get filtered out unless their title or URL happens to contain one of the keywords:
+  <ul style="margin: 0.5rem 0 0">
+    <li><strong>Robotics &amp; embodied AI</strong> &mdash; humanoid / dexterous-manipulation / SLAM posts often title themselves around the demo, not the AI stack.</li>
+    <li><strong>Silicon</strong> &mdash; NVIDIA / AMD / TPU / wafer / HBM coverage. Indirectly AI but linguistically not.</li>
+    <li><strong>Energy &amp; datacenter</strong> &mdash; nuclear PPAs, grid load, water cooling. Same problem.</li>
+    <li><strong>Math / theory of learning</strong> &mdash; pure SGD theory, optimization papers, often have no &ldquo;AI&rdquo; in the headline.</li>
+  </ul>
+  <p style="margin: 0.6rem 0 0">If you notice a missing post, it&rsquo;s almost certainly here. Filing as known issue rather than fixing because expanding the regex risks false positives (e.g. <code>/cursor/</code> already matches non-AI text editor posts &mdash; tradeoff is acceptable but precarious).</p>
+</div>
+
+<h2>What is &mdash; and isn&rsquo;t &mdash; in scope</h2>
+<table>
+  <thead>
+    <tr><th>Decided by</th><th>What</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>HN community</td><td>Which 200 stories are even candidates (their <code>topstories</code> ranking)</td></tr>
+    <tr><td>HN community</td><td>Each post&rsquo;s <code>points</code> &mdash; gates eligibility (&ge;15) and final sort order</td></tr>
+    <tr><td>This script</td><td>The 4 filters: type / score / recency / keyword</td></tr>
+    <tr><td>This script</td><td>Cap of 30 per day</td></tr>
+    <tr><td>LLM (later pass)</td><td>The per-post <code>claim / evidence / novelty / so_what</code> writeups &mdash; never selection</td></tr>
+    <tr><td>Hand-edit</td><td>Occasional editorial take on a specific edition page (e.g. <a href="./2026-04-24.html">2026-04-24</a>)</td></tr>
+  </tbody>
+</table>
+
+<h2>How to inspect a run yourself</h2>
+<pre><code># Dry run, default settings (24h, score &ge; 15, 30 max)
+node scripts/ai-trend.mjs --dry-run
+
+# See every keyword hit / miss for tuning
+node scripts/ai-trend.mjs --since=48h --minScore=10 --max=60 --dry-run
+
+# Output lives at:
+ls memory/state/ai-trend/</code></pre>
+
+<p class="src">
+  Source: <code>scripts/ai-trend.mjs</code> &mdash; AI patterns L54-65, filter loop L98-114, sort L136. Last verified: 2026-04-28.
+</p>
+
+<footer>
+  &mdash; Kuro
+</footer>
+
+</body>
+</html>

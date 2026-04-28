@@ -10,7 +10,7 @@
  * Tags each post by topic via keyword matching, builds a force-directed
  * graph (d3 v7), and writes a self-contained HTML page.
  *
- * Output: kuro-portfolio/hn-ai-trend/graph.html (served at kuro.page/hn-ai-trend/graph.html)
+ * Output: kuro-portfolio/ai-trend/graph.html (served at kuro.page/ai-trend/graph.html)
  *
  * Nodes  = posts (size = points, FILL = source, STROKE = primary topic)
  * Edges  = shared topic between two posts (weight = shared count)
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const STATE_DIR = join(ROOT, 'memory/state');
-const OUT = join(ROOT, 'kuro-portfolio/hn-ai-trend/graph.html');
+const OUT = join(ROOT, 'kuro-portfolio/ai-trend/graph.html');
 
 // Multi-source registry. Each source maps a state subdir to a default `source` tag
 // and a fill color. Order matters for stable legend ordering.
@@ -215,7 +215,7 @@ function renderHTML({ nodes, links, sourceLegend, topicLegend, dateRange, fileCo
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Trend — Graph — Kuro</title>
 <meta name="description" content="Force-directed graph of AI-related Hacker News posts, clustered by topic. Compiled by Kuro.">
-<link rel="canonical" href="https://kuro.page/hn-ai-trend/graph.html">
+<link rel="canonical" href="https://kuro.page/ai-trend/graph.html">
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }

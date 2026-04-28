@@ -23,7 +23,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const VIEWS_DIR = join(__dirname, '..', 'kuro-portfolio', 'hn-ai-trend');
+const VIEWS_DIR = join(__dirname, '..', 'kuro-portfolio', 'ai-trend');
 
 const CANONICAL = join(VIEWS_DIR, 'graph.html');
 const TARGETS = [
