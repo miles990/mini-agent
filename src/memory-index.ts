@@ -417,6 +417,14 @@ export async function deleteMemoryIndexEntry(
 
 const ALLOWED_ORIGINS = new Set(['pledge', 'pipeline', 'scheduler', 'task-board', 'kuro']);
 
+const CODE_BLOCKED_REASONS = new Set([
+  'blocked_by_dependency',
+  'needs_human_decision',
+  'cross_session_scope',
+  'missing_context',
+  'other',
+]);
+
 const ABSTRACT_VERBS = /^(做到|達成|完成|改善|提升|優化|確保|處理|解決|推進|實現)/;
 const CONCRETE_INDICATORS = /\.(ts|js|html|json|md|mjs|sh)|scripts\/|src\/|memory\/|kuro-portfolio\/|grep|test -[fde]|curl|node /;
 const CONCRETE_VERBS = /修復|建立|加入|移除|更新|寫入|回覆|發送|部署|測試|檢查|安裝|清理|刪除|改名|改為|重建|讀取|執行/;
@@ -444,6 +452,7 @@ export async function createTask(
     verify_command?: string;
     acceptance_criteria?: string;
     goal_id?: string;
+    code_blocked_reason?: string;
   },
 ): Promise<MemoryIndexEntry> {
   // Entry filter: only allow known origins
@@ -452,7 +461,9 @@ export async function createTask(
   }
 
   // Actionability gate: tasks without verify_command get assessed
-  const needsDecomposition = !input.goal_id && !input.verify_command && isAbstractTask(input.title);
+  // Valid code_blocked_reason bypasses the gate (agent explained why code can't solve it now)
+  const hasValidBlockReason = input.code_blocked_reason && CODE_BLOCKED_REASONS.has(input.code_blocked_reason);
+  const needsDecomposition = !input.goal_id && !input.verify_command && !hasValidBlockReason && isAbstractTask(input.title);
 
   const payload: Record<string, unknown> = {};
   if (input.verify) payload.verify = input.verify;
@@ -463,6 +474,7 @@ export async function createTask(
   if (input.verify_command) payload.verify_command = input.verify_command;
   if (input.acceptance_criteria) payload.acceptance_criteria = input.acceptance_criteria;
   if (input.goal_id) payload.goal_id = input.goal_id;
+  if (input.code_blocked_reason && hasValidBlockReason) payload.code_blocked_reason = input.code_blocked_reason;
   if (needsDecomposition) payload.needs_decomposition = true;
 
   // Pipeline tasks must have verify_command
@@ -955,7 +967,7 @@ export async function scanPipelineVerify(memoryDir: string): Promise<number> {
       execSync(verifyCmd, { timeout: 10000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
       await updateMemoryIndexEntry(memoryDir, task.id, {
         status: 'completed',
-        payload: { ...payload, ticksSinceLastProgress: 0, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString(), auto_scanned: true } },
+        payload: { ...payload, ticksSinceLastProgress: 0, verify_proof: { command: verifyCmd, passed: true, ts: new Date().toISOString(), auto_scanned: true, completion_type: 'code-verified' } },
       });
       slog('PIPELINE', `Verify scan auto-completed: ${task.summary?.slice(0, 60)}`);
       resolveDependencies(memoryDir, task.id).catch(() => {});
@@ -1002,7 +1014,10 @@ export function getPipelineStuckAnalysis(memoryDir: string): string[] {
         `  verify: ${verifyResult}\n` +
         `  acceptance: ${(tPayload.acceptance_criteria as string)?.slice(0, 100) ?? 'none'}\n` +
         `  目標驗收: ${(gPayload.acceptance_criteria as string)?.slice(0, 100) ?? 'none'}\n` +
-        `  指令: 找可行路徑達成此 task 或替代方案。可用 <kuro:task-queue> 建新 task 或 <kuro:plan> 重新規劃。\n` +
+        `  指令: 分析 verify 為什麼不過，寫 code 讓它通過。寫完確認能正常運行且符合目標。\n` +
+        `  如果有 bug，自主 debug 修復 — 不要等人。反覆跑 verify 直到通過。\n` +
+        `  如果 code 無法直接解決，先深入思考問題本質，再解構為更小的可驗證步驟。\n` +
+        `  如果 verify_command 本身不合理，用 <kuro:task-queue op="update"> 修正它。\n` +
         `</pipeline-stuck>`,
       );
     }

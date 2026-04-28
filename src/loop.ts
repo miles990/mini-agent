@@ -1857,9 +1857,10 @@ export class AgentLoop {
         if (decomp.length > 0) {
           const lines = decomp.map(t =>
             `- [id=${t.id}] "${t.summary?.slice(0, 80)}"\n` +
-            `  → 用 <kuro:plan acceptance="可驗證的結束條件"> 分解為具體步驟\n` +
-            `  → 分解後用 <kuro:task-queue op="update" id="${t.id}" status="completed">已分解</kuro:task-queue> 標記完成`);
-          context = `<decomposition-needed count="${decomp.length}">\n以下 task 太抽象，無法直接執行。請分解為有 verify_command 的具體步驟：\n${lines.join('\n')}\n</decomposition-needed>\n\n` + context;
+            `  → 列出需要修改的具體 files 和預期改動。列得出來就直接寫 code。\n` +
+            `  → 只有 code 無法直接解決時（需跨 session / 需人類決策 / 缺資訊），才建子 task 並附 code_blocked_reason。\n` +
+            `  → 完成後 <kuro:task-queue op="update" id="${t.id}" status="completed">已完成</kuro:task-queue>`);
+          context = `<decomposition-needed count="${decomp.length}">\n以下目標需要用 code 實現。AI 的強項是抽象→code，不要建更多 task：\n${lines.join('\n')}\n</decomposition-needed>\n\n` + context;
         }
       } catch { /* non-blocking */ }
 
@@ -1868,6 +1869,24 @@ export class AgentLoop {
         const stuckAnalyses = getPipelineStuckAnalysis(path.join(process.cwd(), 'memory'));
         if (stuckAnalyses.length > 0) {
           context = stuckAnalyses.join('\n') + '\n\n' + context;
+        }
+      } catch { /* non-blocking */ }
+
+      // Code-first pressure: pipeline tasks exist but no recent code output
+      try {
+        const memDir2 = path.join(process.cwd(), 'memory');
+        const pipelinePending = queryMemoryIndexSync(memDir2, { type: ['task'], status: ['pending', 'in_progress'] })
+          .filter(t => (t.payload as Record<string, unknown>)?.goal_id);
+        if (pipelinePending.length > 0) {
+          const { getTodayActivity } = await import('./activity-stream.js');
+          const recent = getTodayActivity().slice(-5);
+          const hasCodeOutput = recent.some(a =>
+            (a.tags ?? []).some((t: string) => ['EDIT', 'WRITE', 'COMMIT'].includes(t.toUpperCase())) ||
+            /\.(ts|js|html|mjs|sh|json)\b/.test(a.action ?? ''),
+          );
+          if (!hasCodeOutput && recent.length >= 5) {
+            context = `<code-first-reminder>\n你有 ${pipelinePending.length} 個 pipeline task 等待推進，但最近 5 cycles 沒有 code 產出。\nAI 的強項是寫 code — 分析 verify_command，寫 code 讓它通過。\ncode 無法直接解決時，先深入思考問題本質再解構。不要只思考或建 task。\n</code-first-reminder>\n\n` + context;
+          }
         }
       } catch { /* non-blocking */ }
 
@@ -1886,7 +1905,7 @@ export class AgentLoop {
           const ticks = (top.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0;
           const goalId = (top.payload as Record<string, unknown>)?.goal_id as string ?? '';
           const goalHint = goalId ? ' (pipeline task)' : '';
-          context = `<next-action type="pull">\n建議下一步：${top.summary?.slice(0, 150)}${goalHint} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n推進這個 task — 做一個具體的、可驗證的進展。\n</next-action>\n\n` + context;
+          context = `<next-action type="pull">\n建議下一步：${top.summary?.slice(0, 150)}${goalHint} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n寫 code 推進這個 task — 做一個有 file change 或 commit 的進展。code 無法解決時才深入分析問題。\n</next-action>\n\n` + context;
         }
       }
 

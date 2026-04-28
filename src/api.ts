@@ -1792,10 +1792,18 @@ export function createApi(port = 3001): express.Express {
             verify_command: (t.payload as Record<string, unknown>)?.verify_command,
             blockedBy: (t.payload as Record<string, unknown>)?.blockedBy ?? [],
             ticksSinceLastProgress: (t.payload as Record<string, unknown>)?.ticksSinceLastProgress ?? 0,
+            verify_proof: (t.payload as Record<string, unknown>)?.verify_proof ?? null,
           })),
         };
       });
-      res.json({ goals: result });
+      // Code-first ratio across all goals
+      const allCompletedTasks = result.flatMap(g => g.tasks.filter((t: Record<string, unknown>) => ['completed', 'done'].includes(t.status as string)));
+      const codeVerified = allCompletedTasks.filter((t: Record<string, unknown>) => {
+        const proof = (t as Record<string, unknown>).verify_proof as Record<string, unknown> | undefined;
+        return proof?.completion_type === 'code-verified' || proof?.auto_scanned;
+      }).length;
+      const codeFirstRatio = allCompletedTasks.length > 0 ? Math.round(codeVerified / allCompletedTasks.length * 100) : 0;
+      res.json({ goals: result, code_first_ratio: codeFirstRatio });
     } catch {
       res.json({ goals: [] });
     }
