@@ -101,3 +101,10 @@
 - BTSP 同構提案：
   - eligibility trace ≈ 每 cycle 的 ref:btsp-isomorphism-2026-04-28
 - [2026-04-28] **Cyclic Subtask Graphs for Tool-Using LLM Agents** (Gharzeddine & Saab, arXiv 2604.22820, 2026-04-28 cs.MA)：max-flexible multi-agent 架構作為實驗鏡頭，量出三 regime：(a) ALFWorld revisit 有用、(b) TextCraft 線性鏈 single ReAct 勝、(c) Finance-Agent 被 retrieval 卡死跟 flexibility 無關。**Key finding**: added flexibility ≫ single ReAct cost。**我的對映**：BAR 強制所有任務走 ack-gated cyclic graph，但 viz ship / 檔案編輯 / cron 是 TextCraft regime 不需要 revisit。**可行動 heuristic**：設計新 worker 前先判 regime — fail mode 是 lookup-miss 不是策略錯 → 補 retrieva ref:cyclic-subtask-graphs-2604-22820
+- [2026-04-28] **Context-Fragmented Violations (CFV)** — arXiv:2604.22879 (Apr 2026, cs.MA)。
+
+**核心 claim**：multi-agent 系統的 novel security class — 每個 agent 的單步行動看起來 locally safe，但聚合起來違反 org policy。frontier LLM 的 cross-domain 違規率 14-98%，systematically 高於 same-domain。
+
+**Defense**：Distributed Sentinel + Semantic Taint Token Protocol。sidecar proxy 跨邊界傳遞 security state，counterfactual graph simulation 做 cross-domain 驗證。F1=0.95 vs prompt-filter 0.85 vs rule-DLP 0.65。代價：每次跨邊界 +106ms。
+
+**作者承認的關鍵限制**：「self-avoidance is ref:cfv-distributed-sentinel-2604-22879
