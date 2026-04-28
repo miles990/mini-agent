@@ -1,68 +1,49 @@
 #!/usr/bin/env node
 /**
- * HN AI Trend — Anthropic remote enrichment pass (sibling of hn-ai-trend-enrich.mjs)
+ * HN AI Trend — Claude CLI enrichment pass
  *
  * Reads today's baseline JSON from memory/state/hn-ai-trend/YYYY-MM-DD.json,
- * fills in claim/evidence/novelty/so_what via Anthropic Messages API,
+ * fills in claim/evidence/novelty/so_what via Claude CLI (subscription-based),
  * writes back in place.
- *
- * Why separate from hn-ai-trend-enrich.mjs: that one is pinned to local MLX
- * (OpenAI-compatible /v1/chat/completions schema). This one uses Anthropic
- * schema. Either can run; they produce identical output shape.
  *
  * Usage:
  *   node scripts/hn-ai-trend-enrich-remote.mjs
  *   node scripts/hn-ai-trend-enrich-remote.mjs --date=2026-04-23
  *
- * Env:
- *   ANTHROPIC_API_KEY (required)
- *   HN_REMOTE_MODEL   (default: claude-haiku-4-5-20251001)
+ * Requires `claude` CLI in PATH (uses subscription, no API key needed).
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 
-// Load .env if present (standalone script — main loop may not have exported vars)
-try {
-  const envText = readFileSync(join(REPO_ROOT, '.env'), 'utf8');
-  for (const line of envText.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) {
-      process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-    }
-  }
-} catch {}
-
 const args = process.argv.slice(2);
 const flagDate = (args.find(a => a.startsWith('--date=')) || '').split('=')[1];
 const date = flagDate || new Date().toISOString().slice(0, 10);
 const force = args.includes('--force');
-
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.HN_REMOTE_MODEL || 'claude-haiku-4-5-20251001';
-
-if (!API_KEY) {
-  console.error('[enrich-remote] ANTHROPIC_API_KEY not set; aborting');
-  process.exit(2);
-}
 
 const inFile = join(REPO_ROOT, 'memory', 'state', 'hn-ai-trend', `${date}.json`);
 let doc;
 try {
   doc = JSON.parse(readFileSync(inFile, 'utf8'));
 } catch (e) {
-  console.error(`[enrich-remote] cannot read ${inFile}: ${e.message}`);
+  console.error(`[enrich] cannot read ${inFile}: ${e.message}`);
   process.exit(3);
 }
 
 const toEnrich = force
   ? doc.posts
   : doc.posts.filter(p => p.summary?.novelty === 'pending-llm-pass');
-console.error(`[enrich-remote] ${toEnrich.length}/${doc.posts.length} posts need enrichment (date=${date}, model=${MODEL}, force=${force})`);
+console.error(`[enrich] ${toEnrich.length}/${doc.posts.length} posts need enrichment (date=${date}, force=${force})`);
+
+if (toEnrich.length === 0) {
+  console.error('[enrich] nothing to enrich; exiting');
+  process.exit(0);
+}
 
 const SYSTEM = `You classify HN posts for an AI-trend knowledge graph. Output STRICT JSON only — no prose, no code fences. Keys: claim, evidence, novelty, so_what.
 
@@ -73,41 +54,30 @@ IMPORTANT: Write all values in 繁體中文 (Traditional Chinese). Keep technica
 - novelty: what's actually new vs prior art in 繁中. If incremental, say so (≤80 chars)
 - so_what: concrete implication for agent builders in 繁中. No platitudes (≤100 chars)`;
 
-async function enrich(post) {
-  const userMsg = `title: ${post.title}
-url: ${post.url}
-points: ${post.points}, comments: ${post.comments}
-story_text: ${(post.story_text || '').slice(0, 1200)}`;
+const JSON_SCHEMA = JSON.stringify({
+  type: 'object',
+  properties: {
+    claim: { type: 'string' },
+    evidence: { type: 'string' },
+    novelty: { type: 'string' },
+    so_what: { type: 'string' },
+  },
+  required: ['claim', 'evidence', 'novelty', 'so_what'],
+});
 
-  const body = {
-    model: MODEL,
-    max_tokens: 400,
-    temperature: 0.3,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: userMsg }],
-  };
+async function enrich(post) {
+  const prompt = `${SYSTEM}\n\ntitle: ${post.title}\nurl: ${post.url}\npoints: ${post.points}, comments: ${post.comments}\nstory_text: ${(post.story_text || '').slice(0, 1200)}`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error(`[enrich-remote] ${post.id} http ${resp.status}: ${errText.slice(0, 200)}`);
-      return null;
-    }
-    const data = await resp.json();
-    const raw = data?.content?.[0]?.text || '';
-    const cleaned = raw.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
-    const match = cleaned.match(/\{[\s\S]*\}/);
+    const raw = execSync(
+      `echo ${JSON.stringify(prompt)} | claude -p --model haiku --output-format json --json-schema ${JSON.stringify(JSON_SCHEMA)}`,
+      { timeout: 60000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    const envelope = JSON.parse(raw);
+    const text = envelope?.result ?? raw;
+    const match = String(text).match(/\{[\s\S]*\}/);
     if (!match) {
-      console.error(`[enrich-remote] ${post.id} no-json: ${cleaned.slice(0, 80)}`);
+      console.error(`[enrich] ${post.id} no-json: ${String(text).slice(0, 80)}`);
       return null;
     }
     const parsed = JSON.parse(match[0]);
@@ -118,7 +88,7 @@ story_text: ${(post.story_text || '').slice(0, 1200)}`;
       so_what: parsed.so_what || 'unspecified',
     };
   } catch (e) {
-    console.error(`[enrich-remote] ${post.id} fail: ${e.message}`);
+    console.error(`[enrich] ${post.id} fail: ${e.message?.slice(0, 200)}`);
     return null;
   }
 }
@@ -136,6 +106,6 @@ for (const post of toEnrich) {
 }
 
 doc.enriched_at = new Date().toISOString();
-doc.enrichment = { ok, fail, model: MODEL, via: 'anthropic-remote' };
+doc.enrichment = { ok, fail, model: 'haiku', via: 'claude-cli' };
 writeFileSync(inFile, JSON.stringify(doc, null, 2));
-console.error(`[enrich-remote] done: ok=${ok} fail=${fail} → ${inFile}`);
+console.error(`[enrich] done: ok=${ok} fail=${fail} → ${inFile}`);
