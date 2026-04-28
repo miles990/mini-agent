@@ -100,3 +100,4 @@
 - 缺口：count=1 的高顯著事件被忽略，retrospective 才人工寫進 MEMORY.md / CLAUDE.md
 - BTSP 同構提案：
   - eligibility trace ≈ 每 cycle 的 ref:btsp-isomorphism-2026-04-28
+- [2026-04-28] **Cyclic Subtask Graphs for Tool-Using LLM Agents** (Gharzeddine & Saab, arXiv 2604.22820, 2026-04-28 cs.MA)：max-flexible multi-agent 架構作為實驗鏡頭，量出三 regime：(a) ALFWorld revisit 有用、(b) TextCraft 線性鏈 single ReAct 勝、(c) Finance-Agent 被 retrieval 卡死跟 flexibility 無關。**Key finding**: added flexibility ≫ single ReAct cost。**我的對映**：BAR 強制所有任務走 ack-gated cyclic graph，但 viz ship / 檔案編輯 / cron 是 TextCraft regime 不需要 revisit。**可行動 heuristic**：設計新 worker 前先判 regime — fail mode 是 lookup-miss 不是策略錯 → 補 retrieva ref:cyclic-subtask-graphs-2604-22820
