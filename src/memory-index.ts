@@ -779,8 +779,9 @@ export async function incrementTaskStaleness(
   const stale: Array<{ id: string; summary: string; ticks: number }> = [];
 
   for (const task of tasks) {
-    if ((task.payload as Record<string, unknown>)?.goal_id) continue;
     const payload = (task.payload ?? {}) as Record<string, unknown>;
+    // Pipeline tasks AND pipeline goals are exempt from staleness
+    if (payload.goal_id || (task.type === 'goal' && payload.origin === 'pipeline')) continue;
     const currentTicks = (payload.ticksSinceLastProgress as number) ?? 0;
     const newTicks = currentTicks + 1;
 
@@ -843,14 +844,24 @@ export async function healAbandonedGoals(memoryDir: string): Promise<number> {
     const payload = (goal.payload ?? {}) as Record<string, unknown>;
     const attempts = (payload.heal_attempts as number) ?? 0;
 
-    if (attempts >= 3 || payload.circuitBroken) {
-      if (!payload.circuitBroken) {
+    if (attempts >= 3) {
+      if (!payload.escalated) {
         await updateMemoryIndexEntry(memoryDir, goal.id, {
-          payload: { ...payload, circuitBroken: true },
+          payload: { ...payload, escalated: true },
         });
-        slog('PIPELINE', `Circuit breaker tripped for goal: ${goal.summary?.slice(0, 60)} (${attempts} attempts)`);
+        slog('PIPELINE', `Goal escalated to Alex (${attempts} heal attempts): ${goal.summary?.slice(0, 60)}`);
+        fetch('http://localhost:3001/api/room', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'system', text: `⚠️ @alex Pipeline goal 需要你的注意：「${goal.summary?.slice(0, 50)}」— ${attempts} 次自動修復未成功，卡住的 task 需要推進` }),
+        }).catch(() => {});
       }
-      continue;
+      // Don't permanently give up — continue trying with exponential backoff
+      const backoffCycles = Math.min(attempts * 20, 100);
+      const lastHeal = payload.last_healed_at as string;
+      if (lastHeal) {
+        const elapsed = (Date.now() - new Date(lastHeal).getTime()) / 60000;
+        if (elapsed < backoffCycles * 2) continue; // ~2min per cycle approx
+      }
     }
 
     // Check if verify_command passes — if so, mark done instead of healing

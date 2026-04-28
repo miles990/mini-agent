@@ -1784,7 +1784,8 @@ export function createApi(port = 3001): express.Express {
           acceptance_criteria: gPayload.acceptance_criteria,
           heal_attempts: (gPayload.heal_attempts as number) ?? 0,
           last_healed_at: gPayload.last_healed_at ?? null,
-          circuit_broken: !!gPayload.circuitBroken,
+          circuit_broken: !!gPayload.circuitBroken, // legacy
+          escalated: !!gPayload.escalated,
           progress: { total: tasks.length, done, blocked, pending, in_progress: inProgress, queued },
           tasks: tasks.map(t => ({
             id: t.id, title: t.summary, status: t.status,
