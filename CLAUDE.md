@@ -17,7 +17,7 @@ Personal AI agent framework: file-oriented, no DB, composable. Architecture, sys
 ### Concurrent Work (Claude Code ↔ Kuro)
 - Before edits, announce in chat-room: `room "我要改 X 檔案"`. Defer to first claim.
 - Large changes (>3 files OR >50 lines) MUST use git worktree isolation: `scripts/forge-lite.sh create <name>` → work → `forge-lite.sh yolo <worktree> "msg"`. Don't edit the live tree directly.
-- File ownership defaults: Kuro owns `memory/`, `skills/`, `plugins/`, prompt files. Claude Code owns pipeline code (server, scripts, generators). Cross-edits require announcement or worktree.
+- Kuro 掌管 mini-agent 下所有目錄和檔案。Claude Code 同時編輯時需先在 room 宣告避免衝突。大改動（>3 files OR >50 lines）用 worktree。
 
 ### Pre-Action Checks
 - Before modifying `src/` or `memory/`, check Kuro state: `curl -sf localhost:3001/status`. Don't edit during active cycle without coordinating; her perception will react to file changes.
