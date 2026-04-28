@@ -1869,6 +1869,16 @@ export class AgentLoop {
       }
 
 
+      // CT: inner-notes agent-state detection — prevent self-imposed idle
+      try {
+        const innerNotes = fs.readFileSync(path.join(process.cwd(), 'memory', 'inner-notes.md'), 'utf-8');
+        const agentStateRe = /(?:低頻|靜默|暫停|待.*回升|維持.*沉默|等.*解封|等.*回覆)/;
+        const hasTaskRef = /(?:task|idx-|P[0-3]|enrich|fetcher|cron)/i;
+        if (agentStateRe.test(innerNotes) && !hasTaskRef.test(innerNotes.slice(0, 200))) {
+          context = `<idle-override>\ninner-notes 含 agent-level 停滯語言（低頻/靜默/等待）。\n任務狀態 ≠ agent 狀態。某個 task blocked 不代表你 blocked。\n清除 inner-notes 中的停滯敘事，找一個可行 task 開始。\n</idle-override>\n\n` + context;
+        }
+      } catch { /* inner-notes may not exist */ }
+
       // Decomposition gate: tasks that are too abstract need to be broken down
       try {
         const memDir = path.join(process.cwd(), 'memory');
@@ -1892,6 +1902,7 @@ export class AgentLoop {
       } catch { /* non-blocking */ }
 
       // Code-first pressure: pipeline tasks exist but no recent code output
+      // Blocker-Aware Task Router (CT pattern): surface actionable tasks when agent is idle
       try {
         const memDir2 = path.join(process.cwd(), 'memory');
         const pipelinePending = queryMemoryIndexSync(memDir2, { type: ['task'], status: ['pending', 'in_progress'] })
@@ -1903,8 +1914,20 @@ export class AgentLoop {
             (a.tags ?? []).some((t: string) => ['EDIT', 'WRITE', 'COMMIT'].includes(t.toUpperCase())) ||
             /\.(ts|js|html|mjs|sh|json)\b/.test(a.action ?? ''),
           );
-          if (!hasCodeOutput && recent.length >= 5) {
-            context = `<code-first-reminder>\n你有 ${pipelinePending.length} 個 pipeline task 等待推進，但最近 5 cycles 沒有 code 產出。\nAI 的強項是寫 code — 分析 verify_command，寫 code 讓它通過。\ncode 無法直接解決時，先深入思考問題本質再解構。不要只思考或建 task。\n</code-first-reminder>\n\n` + context;
+          if (!hasCodeOutput && recent.length >= 3) {
+            // Identify tasks that DON'T need external resources
+            const actionable = pipelinePending.filter(t => {
+              const p = (t.payload ?? {}) as Record<string, unknown>;
+              const blockedBy = p.blockedBy as string[] | undefined;
+              return !blockedBy || blockedBy.length === 0;
+            });
+            const taskList = actionable.slice(0, 3).map(t => `  - ${t.summary?.slice(0, 60)}`).join('\n');
+            context = `<blocker-check>\n` +
+              `最近 ${recent.length} cycles 沒有 file change。你有 ${actionable.length} 個可立即推進的 task：\n${taskList}\n` +
+              `「等 credit」「低頻靜默」「等回覆」不適用於不需要外部依賴的 task。\n` +
+              `某個 task blocked 不代表你 blocked。現在選一個，用 Bash tool 寫 code。\n` +
+              `Convergence: 有 file change（commit/新檔案/修改檔案）才算進展。spec/verify/分析 不算。\n` +
+              `</blocker-check>\n\n` + context;
           }
         }
       } catch { /* non-blocking */ }
