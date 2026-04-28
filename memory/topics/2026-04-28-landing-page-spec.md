@@ -280,3 +280,28 @@ Self-contained single-file pattern (same as graph.html / swimlane.html)：inline
 3. `mkdir -p mini-agent/kuro-portfolio/ai-trend/data`
 4. `cd mini-agent && node scripts/build-landing.mjs` → smoke test，看 3 個 json 是否產出
 5. Open `landing.html` in browser，4 區塊都有資料 → 加 cron entry
+
+---
+
+## Cycle 28 Smoke Test Result (2026-04-28 14:11) — SPEC NEEDS REVISION BEFORE APPLY
+
+Validated 9-topic regex + cross-source assumption against real `memory/state/hn-ai-trend/2026-04-{21,22,24,25,27,28}.json` (6 days, 82 posts).
+
+### Findings
+| Assumption | Reality | Verdict |
+|---|---|---|
+| ≥50 posts over 7d window | 82 posts (6d) | ✅ pass |
+| ≥30% topic regex hit rate | **22%** (18/82) | ⚠️ borderline |
+| 5/6 sources synced (per WM) | **HN-only** in artifacts/ — `source` field missing on all 82 items | ❌ fail |
+| 9 topics evenly distributed | 10/18 hits = `agent`; **mcp/rag/safety/multimodal = 0 hits** | ❌ fail |
+
+### Spec changes required before apply
+1. **Drop or defer "Cross-source matrix" block** — single-source data can't populate matrix. Either (a) wait for X+Reddit emitter ship (Alex-gated), or (b) replace with "topic × day" heatmap (works on HN-only).
+2. **Rewrite TOPICS regex** — current 9 topics drawn from graph.mjs:40-50 are circa-2024. Add: `diffusion`, `reasoning`, `context-engineering`/`long-context`, `world-model`, `embeddings` (split from `rag`). Drop or merge dead ones (`safety` had 0 hits in 6 days).
+3. **Lower hit-rate target** — 22% is real ceiling without title-NLP. Either accept 22% (chip grid shows top-N non-empty topics, hide zero-hit chips) or invest in sentence-embedding clustering (out of scope for v0).
+
+### Falsifier closure
+Cycle 27 spec falsifier #3 (trade-off: first_seen=「新話題湧現」not「累積熱度」) **untested** — need ≥7 distinct days to compute first_seen properly; only 6 days available, 2 of which (04-23/04-26) are permanent gaps. Trend line on 4-distinct-day data is noise.
+
+### Recommendation
+Spec as written would ship a landing page with 5 dead chips + empty matrix + noisy trend line. Revise §2 (TOPICS) + §3 (matrix→heatmap) before apply, OR ship with explicit "preview only, awaiting more data" banner.
