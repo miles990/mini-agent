@@ -923,12 +923,13 @@ export async function incrementTaskStaleness(
 
 export async function healAbandonedGoals(memoryDir: string): Promise<number> {
   const allEntries = queryMemoryIndexSync(memoryDir, { type: ['goal', 'task'] });
-  const abandonedGoals = allEntries.filter(e =>
-    e.type === 'goal' &&
-    e.status === 'abandoned' &&
-    (e.payload as Record<string, unknown>)?.acceptance_criteria &&
-    (e.payload as Record<string, unknown>)?.origin === 'pipeline',
-  );
+  const abandonedGoals = allEntries.filter(e => {
+    if (e.type !== 'goal' || e.status !== 'abandoned') return false;
+    const p = (e.payload ?? {}) as Record<string, unknown>;
+    if (!p.acceptance_criteria || p.origin !== 'pipeline') return false;
+    if (p.superseded || p.manualAbandon) return false;
+    return true;
+  });
 
   let healed = 0;
   let currentActiveCount = allEntries.filter(e =>
