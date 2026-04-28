@@ -37,7 +37,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis } from './memory-index.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -1849,6 +1849,14 @@ export class AgentLoop {
         context = `<stale-tasks priority="top">\n${staleLines.join('\n')}\n</stale-tasks>\n\n` + context;
       }
 
+
+      // Pipeline stuck injection: tell agent about blocked pipeline tasks
+      try {
+        const stuckAnalyses = getPipelineStuckAnalysis(path.join(process.cwd(), 'memory'));
+        if (stuckAnalyses.length > 0) {
+          context = stuckAnalyses.join('\n') + '\n\n' + context;
+        }
+      } catch { /* non-blocking */ }
 
       // Task Pull: idle/heartbeat cycles get a suggested next action from task queue
       if (isRoutineHeartbeat && !isDirectMessage) {

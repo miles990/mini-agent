@@ -942,6 +942,50 @@ export async function scanPipelineVerify(memoryDir: string): Promise<number> {
   return completed;
 }
 
+export function getPipelineStuckAnalysis(memoryDir: string): string[] {
+  const allEntries = queryMemoryIndexSync(memoryDir, { type: ['goal', 'task'] });
+  const activeGoals = allEntries.filter(e =>
+    e.type === 'goal' && e.status === 'in_progress' && (e.payload as Record<string, unknown>)?.origin === 'pipeline',
+  );
+
+  const analyses: string[] = [];
+  for (const goal of activeGoals) {
+    const gPayload = (goal.payload ?? {}) as Record<string, unknown>;
+    const healAttempts = (gPayload.heal_attempts as number) ?? 0;
+    const children = allEntries.filter(e => e.type === 'task' && (e.payload as Record<string, unknown>)?.goal_id === goal.id);
+    const completed = children.filter(c => ['done', 'completed'].includes(c.status));
+    const stuck = children.filter(c => ['pending', 'in_progress'].includes(c.status));
+    const blocked = children.filter(c => c.status === 'blocked');
+
+    if (stuck.length === 0) continue;
+
+    for (const task of stuck) {
+      const tPayload = (task.payload ?? {}) as Record<string, unknown>;
+      const verifyCmd = tPayload.verify_command as string;
+      let verifyResult = 'no verify_command';
+      if (verifyCmd) {
+        try {
+          execSync(verifyCmd, { timeout: 5000, killSignal: 'SIGKILL', stdio: 'pipe', cwd: process.cwd() });
+          continue; // passes — not stuck
+        } catch (e) {
+          verifyResult = `FAIL: ${verifyCmd}`;
+        }
+      }
+
+      analyses.push(
+        `<pipeline-stuck goal="${goal.summary?.slice(0, 60)}" task="${task.summary?.slice(0, 60)}" heal_attempts="${healAttempts}">\n` +
+        `  進度: ${completed.length}/${children.length} done, ${stuck.length} stuck, ${blocked.length} blocked\n` +
+        `  verify: ${verifyResult}\n` +
+        `  acceptance: ${(tPayload.acceptance_criteria as string)?.slice(0, 100) ?? 'none'}\n` +
+        `  目標驗收: ${(gPayload.acceptance_criteria as string)?.slice(0, 100) ?? 'none'}\n` +
+        `  指令: 找可行路徑達成此 task 或替代方案。可用 <kuro:task-queue> 建新 task 或 <kuro:plan> 重新規劃。\n` +
+        `</pipeline-stuck>`,
+      );
+    }
+  }
+  return analyses;
+}
+
 export function findLatestOpenGoal(
   memoryDir: string,
   title: string,
