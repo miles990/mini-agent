@@ -101,3 +101,58 @@ grep -rn "memory/state/.*-ai-trend" agent-middleware/dist  # compiled?
 - 沒手改 task-events.jsonl（資料層動手會弄亂 task lifecycle log，留給 task-queue API 或 Alex 操作）
 - 把錯誤的 task summary（threshold 過嚴）publicly refuted — 真正的 bug 是路徑不對，summary 誤導後續 cycle 朝錯方向診斷
 - 打破 18-cycle 沉默循環，因為這個 task 不是 Alex-gated，有 read-only 工作可做
+
+---
+
+## Cycle update（2026-04-28 ~14:24 Taipei）— 定位 patch 點
+
+讀完 dispatcher.ts:886-906 + api.ts:1711-1713，Option B 假設「靜態 template 存在」**被 falsifier (c) 確認**：
+
+### 沒有靜態 template — verify_command 來自 LLM emit
+
+`dispatcher.ts:886-906` 的 `parseTags()` 解析 `<kuro:goal-pipeline>` 標籤，從 `<task verify="...">` 屬性抽 `verify_command`：
+```ts
+const taskRegex = /<task(?:\s+verify="([^"]*)")?(?:\s+depends="([^"]*)")?(?:\s+acceptance="([^"]*)")?\s*>([\s\S]*?)<\/task>/g;
+// ...
+verify_command: taskMatch[1] || undefined,
+```
+
+→ 兩條壞 task 的 `verify_command: ls memory/state/x-ai-trend/...` 是**過去某個 cycle 我（或某 LLM agent）emit `<kuro:goal-pipeline>` 時手寫的字串**，已 baked 進 relations.jsonl，沒有 template 可改。
+
+### PATCH endpoint 不開放 verify_command 改寫
+
+`api.ts:1711-1713`：
+```ts
+app.patch('/api/task-queue/:id', async (req, res) => {
+  const { title, status, priority, type, assignee, blockedBy, pinned, pinContext } = req.body;
+  // verify_command 不在解構列表 → 即使 body 帶 verify_command 也會被 silently dropped
+```
+
+→ Option A「立即修 task verify_command 字串」**走不通 via API**。剩兩條路：
+1. **手改 relations.jsonl**（task hygiene 紅線，2026-04-28 path-bug 教訓剛重申）
+2. **新增 src 能力**（Alex-gated，malware-guard 擋）
+
+### 真正可行的最短 patch
+
+`api.ts:1711-1726` 約 5 行加：
+```ts
+const { ..., pinContext, verify_command } = req.body;  // 加進解構
+// updateTask 已支援 payload merge (memory-index.ts:555-560 verify gate 走 currentPayload.verify_command ?? newPayload.verify_command)
+// 只需 patch pass through verify_command 到 updateTask payload
+```
+
+不確定 updateTask 介面是否接受 `payload: { verify_command }` patch — 下個 cycle 需確認 `memory-index.ts:updateTask()` signature 後產出 5 行 diff spec。
+
+### Supersede 替代方案（unblock immediate）
+
+不動 src 也能解的路徑：用 POST /api/task-queue 建兩條**新** task（`origin='pipeline'` + 對應 `goal_id` + 正確 verify_command），然後 PATCH 老 task `status='done'` 強制收掉。風險：goal_id 邏輯如果嚴格驗 unique title-per-goal 會 reject；POST 後若 pipeline 在新一輪又重生成壞 task = 沒解。
+
+→ **更乾淨的當下解**：直接 POST /api/task-queue 產出 sibling pinned task `verify_command="ls memory/state/x-trend/2026-04-*.json | grep -q json"`，當作 unblock idx-9f51f534 (heatmap) 的 stand-in，把兩條壞 pipeline task 留給 src patch cycle 收尾。
+
+### Next cycle action（pick ONE）
+
+- [A]（如 Alex 解 malware-guard）讀 memory-index.ts:updateTask，產 5 行 diff 把 verify_command 加進 PATCH allowed fields
+- [B] read-only：寫 supersede curl script（POST 新 task + PATCH 舊 task done），dry-run only，丟 Alex 一鍵 apply
+- [C] 確認 idx-9f51f534 (heatmap View 3) 是否真的 blockedBy 兩條壞 task — 如果 blockedBy 只是 cosmetic flag，根本不需要解這個結
+
+推薦 [C] → [B]（前者廉價、後者繞過 src，[A] 留 Alex unblock 後）。
