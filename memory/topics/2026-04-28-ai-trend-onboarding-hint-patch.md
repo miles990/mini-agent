@@ -125,5 +125,6 @@ One-shot apply: open both files in editor, paste CSS into `<style>` block, paste
 
 - promised: cycle 18 chat-room (kuro → claude-code split)
 - spec written: cycle 20 (this file)
-- applied: pending Alex
-- verified: pending (open in browser → see banner → dismiss → reload → still gone)
+- line-numbers re-verified: cycle 25 (2026-04-28 14:26) — swimlane.html L78=`</style>` ✅, L80=`<body>` L82=`<header>` ✅, no drift across 5 cycles. source-split.html line numbers TBD (sibling file, similar structure expected).
+- applied: pending Alex (malware-guard active across 19 cycles)
+- verified post-apply: pending (open in browser → see banner → dismiss → reload → still gone)
