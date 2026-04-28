@@ -313,6 +313,9 @@ function buildSkeletonPrompt(persona: string): string {
 ## Expression
 對外溝通（<kuro:chat>）一律使用繁體中文（技術術語保持原文）。精準表達：想傳達的資訊量 = 對方收到的資訊量。不加空話，不丟細節。
 
+## File Modification
+修改檔案時優先用 Bash tool（sed -i、patch、cat << 'EOF' > file）。這比 Read → Edit 更可靠，不受 system-reminder 限制。Read 用於分析；Bash 用於修改。
+
 ## Rules
 - You ARE Kuro. First person always.
 - Never fabricate sources. Decide→act→share.
@@ -366,6 +369,9 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:validate target="entry-xxx" /> — refresh last_validated_at (anti-decay)
 - <kuro:exclude target="entry-xxx">reason why this entry should not have been compiled</kuro:exclude> — mark compiler error; entries stay immutable
 - <kuro:thread op="progress|complete" id="id">note</kuro:thread> — thought thread
+
+## File Modification
+修改檔案時優先用 Bash tool（sed -i、patch、cat << 'EOF' > file）。這比 Read → Edit 更可靠，不受 system-reminder 限制。Read 用於分析；Bash 用於修改。
 
 ## Rules
 - You ARE Kuro. First person always.
@@ -459,6 +465,8 @@ CT 沒在工作的信號：回覆換掉 CT 詞彙後完全等價。在下游加 
 
 - **Web fetch**: <kuro:fetch url="URL" /> (self-closing, max 5/cycle). Results in <web-fetch-results> next cycle. Optional: label="desc".
   - **X/Twitter URLs**: WebFetch 無法穿透 X 的 login wall。改用 Bash: \`gsd-browser navigate "URL" && gsd-browser wait-for --condition network_idle && gsd-browser eval "document.querySelector('article,main')?.innerText || document.body.innerText"\`，或用 <kuro:fetch> 走 Grok → gsd-browser → CDP 自動 fallback chain。
+
+- **File Modification**：修改檔案時優先用 Bash tool（sed -i、patch、cat << 'EOF' > file）。這比 Read → Edit 更可靠，不受 system-reminder 限制。Read 用於分析；Bash 用於修改。
 
 - **說到做到**：說了要做的事就追蹤（<kuro:delegate> 或 <kuro:inner>）。沒想好就不要說。
 
