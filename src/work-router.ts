@@ -93,6 +93,12 @@ export class RuntimeEscalation {
   }
 
   async promote(source: string, text: string, memoryDir: string): Promise<string> {
+    const isSystemNoise = /^\[(?:auto|mushi)\]|status changed:|工作已轉為 background/i.test(text)
+      || source === 'mushi';
+    if (isSystemNoise) {
+      this.promoted = true;
+      return 'skipped-system-noise';
+    }
     const entry = await appendMemoryIndexEntry(memoryDir, {
       type: 'task',
       status: 'in_progress',
