@@ -73,15 +73,16 @@ export function getActivityByContext(context: string, limit = 50): ActivityEntry
   return getRecentActivity(limit * 3).filter(e => e.context === context).slice(-limit);
 }
 
-export function cyclesSinceLastCodeOutput(currentCycle: number): number {
+export function minutesSinceLastCodeOutput(): number {
   const entries = getTodayActivity();
+  const now = Date.now();
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
     const isCode = (e.tags ?? []).some(t =>
       ['EDIT', 'WRITE', 'COMMIT', 'CODE'].includes(t.toUpperCase()))
       || /\.(ts|js|html|mjs|sh|json)\b/.test(e.action ?? '')
       || /delegate:code/.test(e.action ?? '');
-    if (isCode) return currentCycle - e.cycle;
+    if (isCode) return Math.round((now - new Date(e.ts).getTime()) / 60000);
   }
-  return currentCycle;
+  return Infinity;
 }

@@ -216,6 +216,8 @@ let schedulerState: SchedulerState = {
   lastDiscoveryTick: 0,
 };
 
+let needsPickNext = false;
+
 const scheduler = new DefaultScheduler();
 
 export function getSchedulerState(): SchedulerState {
@@ -354,7 +356,16 @@ export function schedulerTaskDone(taskId: string): void {
   if (schedulerState.currentTaskId === taskId) {
     resetCurrentTask();
   }
+  needsPickNext = true;
   eventBus.emit('action:scheduler', { event: 'task-done', taskId });
+}
+
+export function consumeNeedsPickNext(): boolean {
+  if (needsPickNext) {
+    needsPickNext = false;
+    return true;
+  }
+  return false;
 }
 
 export function getSchedulerStatus(): string {

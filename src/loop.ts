@@ -38,7 +38,7 @@ import {
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis } from './memory-index.js';
-import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, type IncomingEvent as SchedulerEvent } from './scheduler.js';
+import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { onSchedulerTick } from './reactive-policies.js';
@@ -1872,9 +1872,9 @@ export class AgentLoop {
       // CT: action-based idle detection (replaces text-based inner-notes scanning)
       // KG discussion e21e3623: behavioral evidence > textual evidence
       try {
-        const { cyclesSinceLastCodeOutput } = await import('./activity-stream.js');
-        const gap = cyclesSinceLastCodeOutput(this.cycleCount);
-        if (gap >= 5) {
+        const { minutesSinceLastCodeOutput } = await import('./activity-stream.js');
+        const gapMinutes = minutesSinceLastCodeOutput();
+        if (gapMinutes >= 15) {
           const memDirIdle = path.join(process.cwd(), 'memory');
           const pipelineAll = queryMemoryIndexSync(memDirIdle, { type: ['task'], status: ['pending', 'in_progress'] })
             .filter(t => (t.payload as Record<string, unknown>)?.goal_id);
@@ -1893,8 +1893,8 @@ export class AgentLoop {
               const b = ((t.payload ?? {}) as Record<string, unknown>).blockedBy as string[];
               return `  🔒 ${t.summary?.slice(0, 40)} (blocked: ${(b ?? []).join(', ')})`;
             }).join('\n');
-            context = `<action-required cycles-idle="${gap}">\n` +
-              `已 ${gap} cycles 沒有 file change（commit/edit）。\n\n` +
+            context = `<action-required minutes-idle="${gapMinutes}">\n` +
+              `已 ${gapMinutes} 分鐘沒有 file change（commit/edit）。\n\n` +
               `可立即行動的 task（${actionable.length} 個）：\n${taskLines}\n` +
               (blockedLines ? `\n不可行動（有外部依賴）：\n${blockedLines}\n` : '') +
               `\n規則：某個 task blocked 不代表你 blocked。上面 ✅ 的 task 不需要 credit/回覆/拍板。\n` +
@@ -1928,22 +1928,29 @@ export class AgentLoop {
 
       // (blocker-check merged into action-required CT above — KG e21e3623)
 
-      // Task Pull: idle/heartbeat cycles get a suggested next action from task queue
-      if (isRoutineHeartbeat && !isDirectMessage) {
+      // P0 fix: after task completion, immediately suggest next task (KG c9361f0a)
+      const justFinishedTask = consumeNeedsPickNext();
+
+      // Task Pull: idle/heartbeat OR just-finished-task cycles get next action suggestion
+      // P1 fix: include pipeline tasks, pipeline-first sort (KG c9361f0a)
+      if ((isRoutineHeartbeat && !isDirectMessage) || justFinishedTask) {
         const memDir = path.join(process.cwd(), 'memory');
         const pending = queryMemoryIndexSync(memDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] });
-        const adHocOnly = pending.filter(t => !(t.payload as Record<string, unknown>)?.goal_id);
-        const sorted = adHocOnly.sort((a, b) => {
-          const pa = (a.payload as Record<string, unknown>)?.priority as number ?? 5;
-          const pb = (b.payload as Record<string, unknown>)?.priority as number ?? 5;
-          return pa - pb;
+        const sorted = pending.sort((a, b) => {
+          const pa = (a.payload as Record<string, unknown>) ?? {};
+          const pb = (b.payload as Record<string, unknown>) ?? {};
+          const aHasGoal = pa.goal_id ? 1 : 0;
+          const bHasGoal = pb.goal_id ? 1 : 0;
+          if (aHasGoal !== bHasGoal) return bHasGoal - aHasGoal;
+          return ((pa.priority as number) ?? 5) - ((pb.priority as number) ?? 5);
         });
         const top = sorted[0];
         if (top) {
           const ticks = (top.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0;
           const goalId = (top.payload as Record<string, unknown>)?.goal_id as string ?? '';
           const goalHint = goalId ? ' (pipeline task)' : '';
-          context = `<next-action type="pull">\n建議下一步：${top.summary?.slice(0, 150)}${goalHint} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n寫 code 推進這個 task — 做一個有 file change 或 commit 的進展。code 無法解決時才深入分析問題。\n</next-action>\n\n` + context;
+          const urgency = justFinishedTask ? 'task-chain' : 'pull';
+          context = `<next-action type="${urgency}">\n建議下一步：${top.summary?.slice(0, 150)}${goalHint} (priority: P${(top.payload as Record<string, unknown>)?.priority ?? '?'}, stale: ${ticks} ticks)\n寫 code 推進這個 task — 做一個有 file change 或 commit 的進展。不要寫 quiet/reactive — 你剛完成一個 task，繼續下一個。\n</next-action>\n\n` + context;
         }
       }
 
