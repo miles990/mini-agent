@@ -313,7 +313,7 @@ export function schedulerPick(
   }
 
   const entries = queryMemoryIndexSync(memoryDir, {
-    type: ['task', 'goal'],
+    type: ['task'],
     status: ['pending', 'in_progress'],
   });
 
@@ -395,7 +395,7 @@ export function getSchedulerHistory(limit: number = 50): SchedulerHistoryEntry[]
 
 export function getTopPending(memoryDir: string, limit: number = 5): { tasks: Array<TaskSnapshot & { score: number }>; totalCount: number } {
   const entries = queryMemoryIndexSync(memoryDir, {
-    type: ['task', 'goal'],
+    type: ['task'],
     status: ['pending', 'in_progress'],
   });
   const tasks = entries.map(entryToSnapshot)
