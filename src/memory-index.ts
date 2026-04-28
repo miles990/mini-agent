@@ -888,7 +888,7 @@ export async function healAbandonedGoals(memoryDir: string): Promise<number> {
         slog('PIPELINE', `Goal escalated to Alex (${attempts} heal attempts): ${goal.summary?.slice(0, 60)}`);
         fetch('http://localhost:3001/api/room', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'system', text: `⚠️ @alex Pipeline goal 需要你的注意：「${goal.summary?.slice(0, 50)}」— ${attempts} 次自動修復未成功，卡住的 task 需要推進` }),
+          body: JSON.stringify({ from: 'system', text: `⚠️ Pipeline goal 需要人工注意：「${goal.summary?.slice(0, 50)}」— ${attempts} 次自動修復未成功，卡住的 task 需要推進` }),
         }).catch(() => {});
       }
       // Don't permanently give up — continue trying with exponential backoff

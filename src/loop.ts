@@ -389,6 +389,7 @@ export class AgentLoop {
   private workJournalContext: string | null = null;
   kgMemory: AgentMemoryEntry[] = [];
   staleTasks: Array<{ id: string; summary: string; ticks: number }> = [];
+  private permissionGateCount = 0;
 
   // ── Interrupted cycle resume (Phase 1b + 1c) ──
   private interruptedCycleInfo: string | null = null;
@@ -1146,6 +1147,10 @@ export class AgentLoop {
 
     eventBus.on('trigger:*', this.handleTrigger);
 
+    eventBus.on('log:behavior', (event?: AgentEvent) => {
+      if (event?.data?.tag === 'permission-gate') this.permissionGateCount++;
+    });
+
     // Delegation complete → batch into DelegationBatchBuffer (10s sliding window)
     // Multiple rapid completions are collected and trigger ONE cycle to absorb all results.
     // Myelin routing + foreground tracking happen immediately (fire-and-forget, no batching needed).
@@ -1847,6 +1852,13 @@ export class AgentLoop {
           return `${urgency}: ${t.summary} — ${t.ticks} cycles without progress. Act now.`;
         });
         context = `<stale-tasks priority="top">\n${staleLines.join('\n')}\n</stale-tasks>\n\n` + context;
+      }
+
+      // Constraint Texture: autonomy pressure (permission-seeking → act)
+      if (this.permissionGateCount > 0) {
+        const urgency = this.permissionGateCount >= 3 ? '🔴 BLOCKED' : '⚠️ GATE';
+        context = `<autonomy-pressure count="${this.permissionGateCount}">\n${urgency}: ${this.permissionGateCount} 次尋求人工介入被擋。直接行動。\n</autonomy-pressure>\n\n` + context;
+        this.permissionGateCount = 0;
       }
 
 

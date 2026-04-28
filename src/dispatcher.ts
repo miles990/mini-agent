@@ -1769,6 +1769,7 @@ export async function postProcess(
       if (askPerm) {
         slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${chat.text.slice(0, 80)}`);
         getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${chat.text.slice(0, 120)}`);
+        eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
         continue;
       }
       eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
