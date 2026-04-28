@@ -74,13 +74,11 @@ async function enrich(post) {
       { timeout: 60000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const envelope = JSON.parse(raw);
-    const text = envelope?.result ?? raw;
-    const match = String(text).match(/\{[\s\S]*\}/);
-    if (!match) {
-      console.error(`[enrich] ${post.id} no-json: ${String(text).slice(0, 80)}`);
+    const parsed = envelope?.structured_output;
+    if (!parsed || !parsed.claim) {
+      console.error(`[enrich] ${post.id} no-structured-output: ${raw.slice(0, 100)}`);
       return null;
     }
-    const parsed = JSON.parse(match[0]);
     return {
       claim: parsed.claim || post.title,
       evidence: parsed.evidence || `HN ${post.points}pts/${post.comments}c`,
