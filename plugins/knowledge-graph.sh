@@ -125,7 +125,7 @@ try:
         has_kuro_position = 'kuro' in parts and pos_count > 0
         # Show if: kuro is not a participant yet, or discussion has new positions
         if not has_kuro_position or pos_count > 0:
-            pending.append(f\"  [{ns}] {topic[:55]} ({pos_count} positions) id:{disc_id[:8]}\")
+            pending.append(f\"  [{ns}] {topic[:55]} ({pos_count} positions) — read: curl localhost:3300/api/discussion/{disc_id} | id:{disc_id}\")
     # Only show top 3 most relevant
     for line in pending[:3]:
         print(line)
