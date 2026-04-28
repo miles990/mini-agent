@@ -698,6 +698,12 @@ export async function addTaskToGoal(
     if (warning) slog('PIPELINE', `verify_command warning for "${task.title.slice(0, 40)}": ${warning}`);
   }
   const blockedBy = task.depends_on_ids?.filter(Boolean) ?? [];
+  if (blockedBy.length > 0) {
+    const existing = queryMemoryIndexSync(memoryDir, { type: ['task'] });
+    const existingIds = new Set(existing.map(e => e.id));
+    const invalid = blockedBy.filter(id => !existingIds.has(id));
+    if (invalid.length > 0) throw new Error(`depends_on_ids not found: ${invalid.join(', ')}`);
+  }
   const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: blockedBy.length > 0 ? 'blocked' : 'pending',
