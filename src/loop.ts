@@ -2779,6 +2779,7 @@ export class AgentLoop {
         try { kbObserve({ source: 'delegation', type: 'spawn', data: { taskId, taskType, workdir: del.workdir }, tags: [taskType] }); } catch { /* fire-and-forget */ }
         cycleSideEffects.push(`delegate:${taskType}:${del.workdir}`);
         cycleTagsProcessed.push('DELEGATE');
+        if (taskType === 'code' || taskType === 'shell') cycleTagsProcessed.push('CODE');
         // Auto-register delegate as task in memory-index for Activity Monitor visibility
         try {
           const { appendMemoryIndexEntry } = await import('./memory-index.js');
