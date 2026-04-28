@@ -1869,8 +1869,11 @@ export class AgentLoop {
       }
 
 
-      // CT: action-based idle detection (replaces text-based inner-notes scanning)
-      // KG discussion e21e3623: behavioral evidence > textual evidence
+      // D+A: Task-Focused Mode — structural enforcement (KG 7c4b4426, round 3)
+      // When pipeline has actionable tasks and no recent code output,
+      // pre-supply a binding task frame instead of advisory signal.
+      // Kuro insight: replace agent's auto-generated passive frame, don't gate after it.
+      let taskFocusedMode = false;
       try {
         const { minutesSinceLastCodeOutput } = await import('./activity-stream.js');
         const gapMinutes = minutesSinceLastCodeOutput();
@@ -1879,30 +1882,35 @@ export class AgentLoop {
           const pipelineAll = queryMemoryIndexSync(memDirIdle, { type: ['task'], status: ['pending', 'in_progress'] })
             .filter(t => (t.payload as Record<string, unknown>)?.goal_id);
           const actionable = pipelineAll.filter(t => {
-            const b = ((t.payload ?? {}) as Record<string, unknown>).blockedBy as string[] | undefined;
-            return !b || b.length === 0;
-          });
-          const blocked = pipelineAll.filter(t => {
-            const b = ((t.payload ?? {}) as Record<string, unknown>).blockedBy as string[] | undefined;
-            return b && b.length > 0;
+            const p = (t.payload ?? {}) as Record<string, unknown>;
+            const b = p.blockedBy as string[] | undefined;
+            const hasVerify = !!(p.verify_command as string);
+            return (!b || b.length === 0) && hasVerify;
+          }).sort((a, b) => {
+            const pa = ((a.payload ?? {}) as Record<string, unknown>).priority as number ?? 5;
+            const pb = ((b.payload ?? {}) as Record<string, unknown>).priority as number ?? 5;
+            return pa - pb;
           });
           if (actionable.length > 0) {
-            const taskLines = actionable.slice(0, 4).map(t =>
-              `  ✅ ${t.summary?.slice(0, 60)}`).join('\n');
-            const blockedLines = blocked.slice(0, 2).map(t => {
-              const b = ((t.payload ?? {}) as Record<string, unknown>).blockedBy as string[];
-              return `  🔒 ${t.summary?.slice(0, 40)} (blocked: ${(b ?? []).join(', ')})`;
-            }).join('\n');
-            context = `<action-required minutes-idle="${gapMinutes}">\n` +
-              `已 ${gapMinutes} 分鐘沒有 file change（commit/edit）。\n\n` +
-              `可立即行動的 task（${actionable.length} 個）：\n${taskLines}\n` +
-              (blockedLines ? `\n不可行動（有外部依賴）：\n${blockedLines}\n` : '') +
-              `\n規則：某個 task blocked 不代表你 blocked。上面 ✅ 的 task 不需要 credit/回覆/拍板。\n` +
-              `選一個，用 Bash tool 寫 code。Convergence = file change。\n` +
-              `</action-required>\n\n` + context;
+            taskFocusedMode = true;
+            const top = actionable[0];
+            const tp = (top.payload ?? {}) as Record<string, unknown>;
+            const verify = tp.verify_command as string;
+            const acceptance = tp.acceptance_criteria as string ?? '';
+            const goalSummary = pipelineAll.find(t => t.id === (tp.goal_id as string))?.summary ?? '';
+            context = `<task-focused mode="binding">\n` +
+              `⚙️ TASK-FOCUSED MODE — 已 ${gapMinutes} 分鐘無 code output，自動啟動。\n\n` +
+              `你的任務：${top.summary}\n` +
+              `目標：${goalSummary}\n` +
+              `驗收：${acceptance.slice(0, 150)}\n` +
+              `verify: ${verify}\n\n` +
+              `指令：用 Bash tool 寫 code 讓 verify 通過。不需要判斷「是否該做」— 已決定。\n` +
+              `完成後用 <kuro:done>。如果 verify_command 有問題，用 <kuro:task-queue op="update"> 修正。\n` +
+              `禁止：寫 quiet/reactive/passive inner-notes、不產出 code 就 done、建新 task 代替寫 code。\n` +
+              `</task-focused>\n\n` + context;
           }
         }
-      } catch { /* non-blocking */ }
+      } catch (e) { slog('WARN', `task-focused mode init failed: ${e}`); }
 
       // Decomposition gate: tasks that are too abstract need to be broken down
       try {
@@ -2804,6 +2812,16 @@ export class AgentLoop {
 
       // ── Process <kuro:done> tags — mark tasks completed in memory-index ──
       if (tags.dones.length > 0) {
+        // A-gate: in task-focused mode, reject done without code output (KG 7c4b4426)
+        if (taskFocusedMode) {
+          const hasCodeTag = cycleTagsProcessed.some(t => ['CODE', 'DELEGATE'].includes(t));
+          const hasFileRef = /\.(ts|js|html|mjs|sh|json)\b/.test(action ?? '');
+          const hasDelegateSideEffect = cycleSideEffects.some(s => s.startsWith('delegate:'));
+          if (!hasCodeTag && !hasFileRef && !hasDelegateSideEffect) {
+            slog('DONE', `⛔ A-gate: task-focused mode active but no code output — rejecting done`);
+            tags.dones = [];
+          }
+        }
         // Guard: reply tasks require actual reply (<kuro:chat>) to be marked done.
         // Without this, Kuro can mark "回覆 alex" tasks done without sending a reply.
         const hasReply = tags.chats.length > 0;
