@@ -1912,6 +1912,19 @@ export class AgentLoop {
         }
       } catch (e) { slog('WARN', `task-focused mode init failed: ${e}`); }
 
+      // Auto-executor: if idle long enough, bypass LLM and fire delegate directly
+      try {
+        const { checkAndDispatch } = await import('./auto-executor.js');
+        const autoResult = checkAndDispatch(path.join(process.cwd(), 'memory'));
+        if (autoResult.fired) {
+          slog('AUTO-EXEC', `dispatched: ${autoResult.reason}`);
+          context = `<auto-executor status="fired">\n` +
+            `🔧 Auto-executor 已自動 dispatch delegate: ${autoResult.reason}\n` +
+            `delegation=${autoResult.delegationId} task=${autoResult.taskId}\n` +
+            `</auto-executor>\n\n` + context;
+        }
+      } catch (e) { slog('WARN', `auto-executor failed: ${e}`); }
+
       // Decomposition gate: tasks that are too abstract need to be broken down
       try {
         const memDir = path.join(process.cwd(), 'memory');
