@@ -667,6 +667,53 @@ export async function resolveDependencies(memoryDir: string, completedTaskId: st
   return unlocked;
 }
 
+function validateVerifyCommand(cmd: string): string | null {
+  try {
+    execSync(`bash -n -c ${JSON.stringify(cmd)}`, { timeout: 3000, stdio: 'pipe' });
+  } catch {
+    return `syntax error in verify_command: ${cmd.slice(0, 80)}`;
+  }
+  const pathRe = /([a-zA-Z0-9_./-]+\/[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+)/g;
+  const warnings: string[] = [];
+  for (const match of cmd.matchAll(pathRe)) {
+    const filePath = match[0];
+    if (filePath.includes('*') || filePath.includes('?')) continue;
+    const dir = path.dirname(filePath);
+    if (dir !== '.' && !existsSync(dir)) {
+      warnings.push(`dir not found: ${dir}`);
+    }
+  }
+  return warnings.length > 0 ? warnings.join('; ') : null;
+}
+
+export async function addTaskToGoal(
+  memoryDir: string,
+  goalId: string,
+  task: { title: string; verify_command?: string; acceptance_criteria?: string; depends_on_ids?: string[] },
+): Promise<string> {
+  const goal = queryMemoryIndexSync(memoryDir, { type: ['goal'] }).find(e => e.id === goalId);
+  if (!goal) throw new Error(`Goal not found: ${goalId}`);
+  if (task.verify_command) {
+    const warning = validateVerifyCommand(task.verify_command);
+    if (warning) slog('PIPELINE', `verify_command warning for "${task.title.slice(0, 40)}": ${warning}`);
+  }
+  const blockedBy = task.depends_on_ids?.filter(Boolean) ?? [];
+  const entry = await appendMemoryIndexEntry(memoryDir, {
+    type: 'task',
+    status: blockedBy.length > 0 ? 'blocked' : 'pending',
+    summary: task.title,
+    payload: {
+      verify_command: task.verify_command,
+      acceptance_criteria: task.acceptance_criteria,
+      goal_id: goalId,
+      blockedBy: blockedBy.length > 0 ? blockedBy : undefined,
+      origin: 'pipeline',
+    },
+  });
+  slog('PIPELINE', `Task added to goal: "${task.title.slice(0, 50)}" → ${goalId.slice(0, 12)}`);
+  return entry.id;
+}
+
 const MAX_ACTIVE_GOALS = 5;
 
 export async function createGoal(
@@ -739,6 +786,10 @@ export async function createGoal(
   }
 
   for (const task of sorted) {
+    if (task.verify_command) {
+      const warning = validateVerifyCommand(task.verify_command);
+      if (warning) slog('PIPELINE', `verify_command warning for "${task.title.slice(0, 40)}": ${warning}`);
+    }
     const blockedBy = (task.depends_on ?? []).map(dep => titleToId.get(dep)).filter(Boolean) as string[];
     const taskStatus = isQueued ? 'queued' : (blockedBy.length > 0 ? 'blocked' : 'pending');
     const entry = await appendMemoryIndexEntry(memoryDir, {

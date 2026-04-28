@@ -112,7 +112,7 @@ import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
 import { killAllDelegations } from './delegation.js';
 import { forgeStatus } from './forge.js';
-import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal } from './memory-index.js';
+import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1758,6 +1758,22 @@ export function createApi(port = 3001): express.Express {
       const memDir = path.join(process.cwd(), 'memory');
       const result = await createGoal(memDir, { title, acceptance_criteria, verify_command }, tasks);
       res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/goal/:id/task', async (req: Request, res: Response) => {
+    try {
+      const goalId = req.params.id;
+      const { title, verify_command, acceptance_criteria, depends_on_ids } = req.body;
+      if (!title) {
+        res.status(400).json({ error: 'title required' });
+        return;
+      }
+      const memDir = path.join(process.cwd(), 'memory');
+      const taskId = await addTaskToGoal(memDir, goalId, { title, verify_command, acceptance_criteria, depends_on_ids });
+      res.json({ success: true, taskId });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
