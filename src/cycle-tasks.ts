@@ -324,8 +324,9 @@ export async function resolveStaleConversationThreads(actionText?: string): Prom
 // =============================================================================
 
 /**
- * Scan HEARTBEAT.md for overdue unchecked tasks, promote to P0.
- * Fire-and-forget, called after each OODA cycle.
+ * Scan HEARTBEAT.md for overdue tasks: TTL decay + max P0 cap.
+ * Overdue P0 tasks older than 3 days get demoted to P2 (stale).
+ * Max 2 P0 items — oldest beyond cap demoted to P1.
  */
 export async function autoEscalateOverdueTasks(): Promise<void> {
   const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
@@ -334,29 +335,48 @@ export async function autoEscalateOverdueTasks(): Promise<void> {
   try {
     const content = fs.readFileSync(heartbeatPath, 'utf-8');
     const today = new Date().toISOString().slice(0, 10);
-    let escalated = 0;
+    const todayMs = new Date(today).getTime();
+    let changed = 0;
 
     const lines = content.split('\n');
-    const updated = lines.map(line => {
+    let updated = lines.map(line => {
       if (!line.match(/^\s*- \[ \]/)) return line;
       const dueMatch = line.match(/@due:(\d{4}-\d{2}-\d{2})/);
       if (!dueMatch) return line;
 
       const dueDate = dueMatch[1];
-      if (dueDate > today) return line;
+      const dueDateMs = new Date(dueDate).getTime();
+      const daysOverdue = (todayMs - dueDateMs) / 86400000;
 
-      if (line.includes('P0')) return line;
-
-      escalated++;
-      if (line.match(/P[1-3]/)) {
-        return line.replace(/P[1-3]/, 'P0 ⚠️OVERDUE');
+      // TTL decay: gradual demotion P0 → P1 (3d) → P2 STALE (5d)
+      if (line.includes('OVERDUE') || line.includes('STALE')) {
+        if (daysOverdue > 5 && line.includes('P1')) {
+          changed++;
+          return line.replace(/P1 ⚠️OVERDUE/, 'P2 📦STALE').replace(/P1/, 'P2 📦STALE');
+        }
+        if (daysOverdue > 3 && line.includes('P0')) {
+          changed++;
+          return line.replace(/P0 ⚠️OVERDUE/, 'P1 ⚠️OVERDUE');
+        }
       }
-      return line.replace('- [ ] ', '- [ ] P0 ⚠️OVERDUE ');
+      return line;
     });
 
-    if (escalated > 0) {
+    // Max P0 cap: keep only 2 newest P0 items, demote rest to P1
+    const p0Lines = updated
+      .map((line, i) => ({ line, i }))
+      .filter(({ line }) => /^\s*- \[ \].*P0/.test(line) && !line.includes('STALE'));
+    if (p0Lines.length > 2) {
+      const toDemote = p0Lines.slice(0, p0Lines.length - 2);
+      for (const { i } of toDemote) {
+        updated[i] = updated[i].replace(/P0/, 'P1');
+        changed++;
+      }
+    }
+
+    if (changed > 0) {
       fs.writeFileSync(heartbeatPath, updated.join('\n'), 'utf-8');
-      slog('ESCALATE', `Promoted ${escalated} overdue task(s) to P0 in HEARTBEAT.md`);
+      slog('ESCALATE', `TTL decay: ${changed} overdue task(s) demoted in HEARTBEAT.md`);
     }
   } catch {
     // Silent failure
