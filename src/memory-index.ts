@@ -417,6 +417,19 @@ export async function deleteMemoryIndexEntry(
 
 const ALLOWED_ORIGINS = new Set(['pledge', 'pipeline', 'scheduler', 'task-board', 'kuro']);
 
+const ABSTRACT_VERBS = /^(做到|達成|完成|改善|提升|優化|確保|處理|解決|推進|實現)/;
+const CONCRETE_INDICATORS = /\.(ts|js|html|json|md|mjs|sh)|scripts\/|src\/|memory\/|kuro-portfolio\/|grep|test -[fde]|curl|node /;
+const CONCRETE_VERBS = /修復|建立|加入|移除|更新|寫入|回覆|發送|部署|測試|檢查|安裝|清理|刪除|改名|改為|重建|讀取|執行/;
+
+function isAbstractTask(title: string): boolean {
+  const trimmed = title.trim();
+  if (CONCRETE_VERBS.test(trimmed) || CONCRETE_INDICATORS.test(trimmed)) return false;
+  if (trimmed.length < 10) return true;
+  if (ABSTRACT_VERBS.test(trimmed) && !CONCRETE_INDICATORS.test(trimmed)) return true;
+  if (!CONCRETE_INDICATORS.test(trimmed) && trimmed.length < 30 && !CONCRETE_VERBS.test(trimmed)) return true;
+  return false;
+}
+
 export async function createTask(
   memoryDir: string,
   input: {
@@ -438,6 +451,9 @@ export async function createTask(
     throw new Error(`Task rejected: origin "${input.origin}" not in whitelist`);
   }
 
+  // Actionability gate: tasks without verify_command get assessed
+  const needsDecomposition = !input.goal_id && !input.verify_command && isAbstractTask(input.title);
+
   const payload: Record<string, unknown> = {};
   if (input.verify) payload.verify = input.verify;
   if (input.origin) payload.origin = input.origin;
@@ -447,8 +463,16 @@ export async function createTask(
   if (input.verify_command) payload.verify_command = input.verify_command;
   if (input.acceptance_criteria) payload.acceptance_criteria = input.acceptance_criteria;
   if (input.goal_id) payload.goal_id = input.goal_id;
+  if (needsDecomposition) payload.needs_decomposition = true;
 
-  const initialStatus = (input.blockedBy?.length) ? 'blocked' : (input.status ?? 'pending');
+  // Pipeline tasks must have verify_command
+  if (input.origin === 'pipeline' && !input.verify_command) {
+    throw new Error(`Pipeline task rejected: verify_command required for "${input.title.slice(0, 50)}"`);
+  }
+
+  const initialStatus = needsDecomposition
+    ? 'needs-decomposition'
+    : (input.blockedBy?.length) ? 'blocked' : (input.status ?? 'pending');
 
   return appendMemoryIndexEntry(memoryDir, {
     type: input.type ?? 'task',

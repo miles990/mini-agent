@@ -1850,6 +1850,19 @@ export class AgentLoop {
       }
 
 
+      // Decomposition gate: tasks that are too abstract need to be broken down
+      try {
+        const memDir = path.join(process.cwd(), 'memory');
+        const decomp = queryMemoryIndexSync(memDir, { type: ['task'], status: ['needs-decomposition'] });
+        if (decomp.length > 0) {
+          const lines = decomp.map(t =>
+            `- [id=${t.id}] "${t.summary?.slice(0, 80)}"\n` +
+            `  → 用 <kuro:plan acceptance="可驗證的結束條件"> 分解為具體步驟\n` +
+            `  → 分解後用 <kuro:task-queue op="update" id="${t.id}" status="completed">已分解</kuro:task-queue> 標記完成`);
+          context = `<decomposition-needed count="${decomp.length}">\n以下 task 太抽象，無法直接執行。請分解為有 verify_command 的具體步驟：\n${lines.join('\n')}\n</decomposition-needed>\n\n` + context;
+        }
+      } catch { /* non-blocking */ }
+
       // Pipeline stuck injection: tell agent about blocked pipeline tasks
       try {
         const stuckAnalyses = getPipelineStuckAnalysis(path.join(process.cwd(), 'memory'));
