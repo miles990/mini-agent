@@ -692,7 +692,8 @@ export async function addTaskToGoal(
   task: { title: string; verify_command?: string; acceptance_criteria?: string; depends_on_ids?: string[] },
 ): Promise<string> {
   const goal = queryMemoryIndexSync(memoryDir, { type: ['goal'] }).find(e => e.id === goalId);
-  if (!goal) throw new Error(`Goal not found: ${goalId}`);
+  if (!goal) throw new Error(`GOAL_NOT_FOUND: ${goalId}`);
+  if (['abandoned', 'completed', 'done'].includes(goal.status)) throw new Error(`GOAL_INACTIVE: ${goalId} is ${goal.status}`);
   if (task.verify_command) {
     const warning = validateVerifyCommand(task.verify_command);
     if (warning) slog('PIPELINE', `verify_command warning for "${task.title.slice(0, 40)}": ${warning}`);

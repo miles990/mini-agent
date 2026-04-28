@@ -1775,7 +1775,10 @@ export function createApi(port = 3001): express.Express {
       const taskId = await addTaskToGoal(memDir, goalId, { title, verify_command, acceptance_criteria, depends_on_ids });
       res.json({ success: true, taskId });
     } catch (err) {
-      res.status(500).json({ error: String(err) });
+      const msg = String(err);
+      if (msg.includes('GOAL_NOT_FOUND')) { res.status(404).json({ error: msg }); return; }
+      if (msg.includes('GOAL_INACTIVE')) { res.status(409).json({ error: msg }); return; }
+      res.status(500).json({ error: msg });
     }
   });
 
