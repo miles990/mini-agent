@@ -1362,12 +1362,19 @@ export class AgentLoop {
       if (this.currentInterval > 180_000 && hasP0Tasks(memDir)) {
         this.currentInterval = 180_000; // 3min cap for P0
         slog('LOOP', `[next-p0] Capping interval to 3min — memory-index has P0 items`);
-      } else if (this.currentInterval > 1200_000) {
-        // Cap at 20min when ANY tasks are pending — todo list exists to be done, not to idle
-        const pendingTasks = getPendingTaskPreviews(memDir);
-        if (pendingTasks.length > 0) {
-          this.currentInterval = 1200_000; // 20min cap for P1/P2
-          slog('LOOP', `[next-tasks] Capping interval to 20min — ${pendingTasks.length} pending task(s)`);
+      } else if (this.currentInterval > this.config.intervalMs) {
+        // Pipeline-aware: active goals with pending tasks → stay at base interval
+        const pipelineGoals = queryMemoryIndexSync(memDir, { type: ['goal'], status: ['in_progress'] })
+          .filter(e => (e.payload as Record<string, unknown>)?.origin === 'pipeline');
+        if (pipelineGoals.length > 0) {
+          this.currentInterval = this.config.intervalMs;
+          slog('LOOP', `[pipeline] Capping interval to base — ${pipelineGoals.length} active pipeline goal(s)`);
+        } else if (this.currentInterval > 1200_000) {
+          const pendingTasks = getPendingTaskPreviews(memDir);
+          if (pendingTasks.length > 0) {
+            this.currentInterval = 1200_000; // 20min cap for P1/P2
+            slog('LOOP', `[next-tasks] Capping interval to 20min — ${pendingTasks.length} pending task(s)`);
+          }
         }
       }
     } catch { /* non-critical */ }
