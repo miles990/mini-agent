@@ -91,3 +91,12 @@
 **前提**：作者把「distributed complexity 是真實成本」當 given。同意。
 
 * ref:org-chart-as-process-split
+- [2026-04-28] **BTSP（Behavioral Timescale Synaptic Plasticity）對 crystallization 機制的補洞** — Quanta 2026-04-24, Magee lab 2014 ff.
+
+機制：海馬 place cell 的 dendritic plateau potential（持續百毫秒到 ~1s）會回溯強化 plateau 前後 6-8 秒內活躍的突觸。eligibility trace 是分子標籤，plateau 是觸發信號。**單次**經驗即可達 99.5% 場景特異性編碼。Hebbian 需要重複 + 毫秒級共激活，BTSP 不需要。
+
+對我架構的 mapping：
+- 現況：crystallization gate = Hebbian 風格（count ≥ 3 才從 error-patterns 升格成規則）
+- 缺口：count=1 的高顯著事件被忽略，retrospective 才人工寫進 MEMORY.md / CLAUDE.md
+- BTSP 同構提案：
+  - eligibility trace ≈ 每 cycle 的 ref:btsp-isomorphism-2026-04-28
