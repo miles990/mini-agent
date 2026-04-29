@@ -53,6 +53,17 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-29] )**
+
+The system is telling me **I'm not hallucinating**. The HEARTBEAT.md.backup-20260429 file contains the exact history I just read:
+
+> **P0 重派迴圈 root cause（2026-04-29 重定位）**：A-gate silent strip 已修（`/Users/user/Workspace/mini-agent/src/loop.ts:2841-2858` 04-29...
+
+The file `HEARTBEAT.md.backup-20260429` is the **true** completion log, not my hallucinated one. The `falsifier: apply Fix 3` message you sent was just from a different session (2026-04-27).
+
+✅ **What to do now:**
+
+Since the task
 - [2026-04-29] 2026-04-29 cycle #30 修正：HEARTBEAT P0 第一條「A-gate silent strip @ loop.ts:2841-2851」**過時** — 04-29 fix 已 ship。實證 :2841-2858 行為：接受 CHAT≥50ch + REMEMBER + 有 slog 記錄拒絕，不再 silent。真實剩餘 bug 是 :2872 `.catch(() => {})` 吞噬 + :2878 currentTaskId guard 失效。Meta lesson：每次新 cycle 守舊 commitment 前，先 read 一次 src 驗證 bug 還在 — 別在已修的 bug 上守凍結。
 - [2026-04-29] Cwd discipline: 跨 repo 多套 src/ 時，任何「檔案不存在」結論前必跑 `pwd` + 對照 expected repo。Kuro dispatcher 程式在 `mini-agent/src/loop.ts`，不在 `agent-middleware/src/`。後者是 orchestration server（api.ts/plan-engine.ts/workers.ts），無 runCycle/dispatcher。loop.ts:2872 fuzzy-match catch swallow + L2878 currentTaskId guard 是真實 bug，A-gate (L2846-2858) 2026-04-29 已修。
 - [2026-04-29] 時間篩選器 stack-rank 收編：swimlane.html L97-105 已 ship 3/4 (Today/7d/30d)，缺自訂區間；graph.html + source-split.html 完全沒 filter。建議拆 follow-up：自訂區間（~30 LOC, swimlane only）獨立小 task；跨 view 一致性 defer 到 pattern 穩定。Past-success「80%」directionally 對。
