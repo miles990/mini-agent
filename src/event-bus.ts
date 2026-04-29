@@ -77,12 +77,26 @@ type EventHandler = (event: AgentEvent) => void;
 
 export class AgentEventBus {
   private emitter = new EventEmitter();
+  private dedupWindow = new Map<string, number>();
+  private dedupCleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private static readonly DEDUP_TTL_MS = 60_000;
 
   constructor() {
     this.emitter.setMaxListeners(20);
+    this.dedupCleanupTimer = setInterval(() => {
+      const cutoff = Date.now() - AgentEventBus.DEDUP_TTL_MS;
+      for (const [key, ts] of this.dedupWindow) {
+        if (ts < cutoff) this.dedupWindow.delete(key);
+      }
+    }, 30_000);
+    if (this.dedupCleanupTimer.unref) this.dedupCleanupTimer.unref();
   }
 
-  emit(type: AgentEventType, data: Record<string, unknown> = {}, meta?: { priority?: 'P0' | 'P1' | 'P2'; source?: string }): void {
+  emit(type: AgentEventType, data: Record<string, unknown> = {}, meta?: { priority?: 'P0' | 'P1' | 'P2'; source?: string; dedupKey?: string }): void {
+    if (meta?.dedupKey) {
+      if (this.dedupWindow.has(meta.dedupKey)) return;
+      this.dedupWindow.set(meta.dedupKey, Date.now());
+    }
     const event: AgentEvent = {
       type, data, timestamp: new Date(),
       ...(meta?.priority ? { priority: meta.priority } : {}),
