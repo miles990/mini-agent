@@ -90,7 +90,7 @@ export class DefaultScheduler implements SchedulerPolicy {
     const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
 
     if (activeTasks.length === 0) {
-      return { taskId: null, reason: 'no active tasks', action: 'idle', suspended: null };
+      return { taskId: null, reason: 'open-cycle: no tasks, agent chooses', action: 'discovery', suspended: null };
     }
 
     const hasP0Event = events.some(e => e.priority === 0 || e.isAlexDirectMessage);

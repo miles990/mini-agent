@@ -2244,7 +2244,10 @@ export class AgentLoop {
           schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER ASSIGNED TASK:\nTask: ${taskLabel}\nAction: ${schedulerDecision.action} — ${schedulerDecision.reason}\n\n你的這個 cycle 專注執行這個 task。完成用 <kuro:done>，卡住用 <kuro:blocked>。不要切換到其他 task。\n</current-task>\n`;
         }
       } else if (schedulerDecision.action === 'discovery') {
-        schedulerTaskPrefix = `\n\n<current-task binding="discovery-slot">\n🔍 DISCOVERY SLOT: This cycle is free exploration. You may investigate new opportunities, review pending items, or pursue serendipitous findings. No specific task binding.\n</current-task>\n`;
+        const isOpenCycle = schedulerDecision.reason.startsWith('open-cycle');
+        schedulerTaskPrefix = isOpenCycle
+          ? `\n\n<current-task binding="open-cycle">\n🌿 OPEN CYCLE: Task queue 是空的。這個 cycle 完全由你決定做什麼 — 創作、研究、反思、探索、或安靜都可以。沒有指派、沒有限制。\n</current-task>\n`
+          : `\n\n<current-task binding="discovery-slot">\n🔍 DISCOVERY SLOT: This cycle is free exploration. You may investigate new opportunities, review pending items, or pursue serendipitous findings. No specific task binding.\n</current-task>\n`;
       }
       // Agent OS: Learning feedback — success hints + failure warnings
       if (schedulerDecision.taskId) {
