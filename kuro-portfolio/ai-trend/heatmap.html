@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Trend — Topic × Source Heatmap — Kuro</title>
+<meta name="description" content="Heatmap of topics by source — see which sources are loud about which AI topics this week.">
+<link rel="canonical" href="https://kuro.page/ai-trend/heatmap.html">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: #0b0b0c;
+    color: #e6e6e6;
+    padding: 2.5rem 1.5rem 4rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+  h1 small { color: #888; font-weight: 400; letter-spacing: 0; }
+  p.lede { color: #aaa; margin: 0.5rem 0 1.25rem; max-width: 720px; }
+  a { color: #9ab8ff; text-decoration: none; border-bottom: 1px solid #334; }
+  a:hover { color: #cfe; border-bottom-color: #9ab8ff; }
+  .nav { margin-bottom: 1.5rem; }
+  .controls {
+    display: flex; gap: 0.5rem; align-items: center;
+    margin: 0.5rem 0 1.5rem;
+    flex-wrap: wrap;
+  }
+  .controls button {
+    background: transparent;
+    border: 1px solid #2a2a2d;
+    color: #aaa;
+    padding: 0.35rem 0.8rem;
+    font: inherit;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .controls button.active { border-color: #7fd4b8; color: #7fd4b8; }
+  .controls button:hover { color: #e6e6e6; border-color: #555; }
+  .controls .label { color: #666; font-size: 0.8rem; margin-right: 0.25rem; }
+  .meta-bar { color: #666; font-size: 0.8rem; margin-bottom: 1rem; }
+
+  .heatmap-wrap { overflow-x: auto; }
+  table.heatmap {
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  table.heatmap th, table.heatmap td {
+    padding: 0.4rem 0.6rem;
+    text-align: center;
+    border: 1px solid #1a1a1c;
+    min-width: 78px;
+  }
+  table.heatmap th.topic-label {
+    text-align: left;
+    color: #ddd;
+    font-weight: 500;
+    background: #131316;
+    min-width: 160px;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  table.heatmap th.topic-label .swatch {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 2px; margin-right: 6px; vertical-align: middle;
+  }
+  table.heatmap th.source-label {
+    color: #888;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    background: #131316;
+  }
+  table.heatmap td.cell {
+    color: #0b0b0c;
+    font-weight: 600;
+    transition: outline 0.1s;
+    cursor: default;
+  }
+  table.heatmap td.cell.zero {
+    color: #2a2a2d;
+    background: #0b0b0c !important;
+    font-weight: 400;
+  }
+  table.heatmap td.cell:hover { outline: 2px solid #7fd4b8; outline-offset: -2px; }
+  table.heatmap td.total {
+    color: #7fd4b8;
+    background: #131316;
+    font-weight: 600;
+  }
+  table.heatmap th.total-label {
+    color: #7fd4b8;
+    background: #131316;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    font-weight: 400;
+  }
+
+  .legend {
+    margin-top: 1.5rem;
+    color: #888;
+    font-size: 0.8rem;
+    display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+  }
+  .legend .scale {
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .legend .scale .grad {
+    display: inline-block;
+    width: 140px; height: 12px;
+    background: linear-gradient(to right, #1a1a1c, #7fd4b8);
+    border-radius: 2px;
+  }
+
+  footer { color: #555; font-size: 0.8rem; margin-top: 3rem; border-top: 1px dashed #2a2a2d; padding-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<p class="nav"><a href="./" style="color:#888;border-bottom-color:#333">&larr; ai-trend</a></p>
+
+<h1>Topic &times; Source Heatmap <small>/ which sources are loud about what</small></h1>
+<p class="lede">
+  Each cell is the number of posts mentioning a topic on a given source. Empty cells (no posts) stay dark. Cross-source topics light up across the row &mdash; that&rsquo;s real signal. Single-source spikes are noise from one community.
+</p>
+
+<div class="controls">
+  <span class="label">window:</span>
+  <button data-window="1d">today</button>
+  <button data-window="7d" class="active">7 days</button>
+  <button data-window="30d">30 days</button>
+</div>
+
+<div class="meta-bar" id="metaBar">loading…</div>
+
+<div class="heatmap-wrap">
+  <table class="heatmap" id="heatmap"></table>
+</div>
+
+<div class="legend">
+  <div class="scale">
+    <span>fewer</span>
+    <span class="grad"></span>
+    <span>more</span>
+  </div>
+  <div><span style="color:#7fd4b8">●</span> total column = sum across sources</div>
+  <div>hover any cell for exact count</div>
+</div>
+
+<footer>
+  <p>
+    Compiled by <a href="/">Kuro</a>. Data: <a href="./data/landing-7d.json">landing-7d.json</a> (and 1d/30d variants).<br>
+    <span style="color:#555">Cross-source topics from <code>cross_source[]</code>; single-source topics from <code>top_topics[]</code>. Cell color scales linearly with cell value vs. matrix max.</span>
+  </p>
+</footer>
+
+<script>
+(function () {
+  const SOURCES = [
+    { key: 'hn',     label: 'HN' },
+    { key: 'reddit', label: 'Reddit' },
+    { key: 'x',      label: 'X' },
+    { key: 'arxiv',  label: 'arXiv' },
+    { key: 'latent', label: 'Latent' },
+  ];
+
+  const cache = {};
+  const tableEl = document.getElementById('heatmap');
+  const metaBar = document.getElementById('metaBar');
+  const buttons = document.querySelectorAll('.controls button');
+
+  buttons.forEach(b => b.addEventListener('click', () => {
+    buttons.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    render(b.dataset.window);
+  }));
+
+  async function load(win) {
+    if (cache[win]) return cache[win];
+    const r = await fetch(`./data/landing-${win}.json`, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(`fetch ${win} → ${r.status}`);
+    cache[win] = await r.json();
+    return cache[win];
+  }
+
+  // Build matrix: rows = topics (with color), cols = SOURCES, cells = count.
+  function buildMatrix(data) {
+    const rows = [];
+    const seen = new Set();
+
+    // 1) cross_source topics — explicit per-source breakdown
+    for (const cs of (data.cross_source || [])) {
+      const counts = {};
+      for (const s of cs.sources) counts[s.source] = s.post_count;
+      rows.push({
+        topic: cs.topic,
+        color: cs.color || '#888',
+        counts,
+        total: cs.post_count,
+        kind: 'cross',
+      });
+      seen.add(cs.topic);
+    }
+
+    // 2) top_topics not already added — single-source attribution
+    for (const t of (data.top_topics || [])) {
+      if (seen.has(t.topic)) continue;
+      const counts = {};
+      // single source: dump all into it. Multi-source but not in cross_source
+      // shouldn't happen given pipeline rules — fall back to even split.
+      const srcs = t.sources || [];
+      if (srcs.length === 0) continue;
+      if (srcs.length === 1) {
+        counts[srcs[0]] = t.post_count;
+      } else {
+        const each = Math.floor(t.post_count / srcs.length);
+        const rem = t.post_count - each * srcs.length;
+        srcs.forEach((s, i) => { counts[s] = each + (i < rem ? 1 : 0); });
+      }
+      rows.push({
+        topic: t.topic,
+        color: t.color || '#888',
+        counts,
+        total: t.post_count,
+        kind: 'single',
+      });
+    }
+
+    // sort by total desc
+    rows.sort((a, b) => b.total - a.total);
+    return rows;
+  }
+
+  function colorFor(value, max) {
+    if (!value) return null;
+    // intensity 0..1
+    const t = Math.min(1, value / max);
+    // gradient: dark teal → bright teal. Tuned for legibility on #0b0b0c.
+    // base: rgb(26,26,28) → peak: rgb(127,212,184)
+    const r = Math.round(26 + (127 - 26) * t);
+    const g = Math.round(26 + (212 - 26) * t);
+    const b = Math.round(28 + (184 - 28) * t);
+    return { bg: `rgb(${r},${g},${b})`, t };
+  }
+
+  function render(win) {
+    load(win).then(data => {
+      const rows = buildMatrix(data);
+      const maxCell = rows.reduce((m, r) => {
+        return Math.max(m, ...SOURCES.map(s => r.counts[s.key] || 0));
+      }, 1);
+
+      const meta = data.meta || {};
+      metaBar.textContent =
+        `period: ${meta.start_date || '?'} → ${meta.end_date || '?'}` +
+        ` · ${meta.total_posts ?? '?'} posts` +
+        ` · ${rows.length} topics × ${SOURCES.length} sources` +
+        ` · max cell = ${maxCell}`;
+
+      // Header row
+      let html = '<thead><tr>';
+      html += '<th class="topic-label">topic</th>';
+      for (const s of SOURCES) {
+        html += `<th class="source-label">${s.label}</th>`;
+      }
+      html += '<th class="total-label">total</th>';
+      html += '</tr></thead><tbody>';
+
+      // Body
+      for (const row of rows) {
+        html += '<tr>';
+        const safeTopic = row.topic.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]);
+        html += `<th class="topic-label" title="${safeTopic} (${row.kind})">` +
+                `<span class="swatch" style="background:${row.color}"></span>${safeTopic}</th>`;
+        for (const s of SOURCES) {
+          const v = row.counts[s.key] || 0;
+          if (v === 0) {
+            html += `<td class="cell zero" title="${safeTopic} × ${s.label}: 0">·</td>`;
+          } else {
+            const c = colorFor(v, maxCell);
+            const fg = c.t > 0.45 ? '#0b0b0c' : '#e6e6e6';
+            html += `<td class="cell" style="background:${c.bg};color:${fg}" ` +
+                    `title="${safeTopic} × ${s.label}: ${v}">${v}</td>`;
+          }
+        }
+        html += `<td class="total">${row.total}</td>`;
+        html += '</tr>';
+      }
+
+      html += '</tbody>';
+      tableEl.innerHTML = html;
+    }).catch(err => {
+      metaBar.textContent = `error: ${err.message}`;
+      tableEl.innerHTML = '';
+    });
+  }
+
+  render('7d');
+})();
+</script>
+
+</body>
+</html>
