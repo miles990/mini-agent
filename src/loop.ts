@@ -1912,14 +1912,23 @@ export class AgentLoop {
         }
       } catch (e) { slog('WARN', `task-focused mode init failed: ${e}`); }
 
-      // Auto-executor: if idle long enough, bypass LLM and fire delegate directly
+      // Task decomposer: split abstract tasks into concrete sub-tasks (M1)
+      try {
+        const { checkAndDecompose } = await import('./task-decomposer.js');
+        const decompResult = checkAndDecompose(path.join(process.cwd(), 'memory'));
+        if (decompResult.decomposed) {
+          slog('DECOMPOSE', decompResult.reason);
+        }
+      } catch (e) { slog('WARN', `task-decomposer failed: ${e}`); }
+
+      // Auto-executor: immediate dispatch for ready tasks (M2+M3+M5)
       try {
         const { checkAndDispatch } = await import('./auto-executor.js');
         const autoResult = checkAndDispatch(path.join(process.cwd(), 'memory'));
         if (autoResult.fired) {
           slog('AUTO-EXEC', `dispatched: ${autoResult.reason}`);
           context = `<auto-executor status="fired">\n` +
-            `🔧 Auto-executor 已自動 dispatch delegate: ${autoResult.reason}\n` +
+            `🔧 Auto-executor dispatched [${autoResult.complexity}]: ${autoResult.reason}\n` +
             `delegation=${autoResult.delegationId} task=${autoResult.taskId}\n` +
             `</auto-executor>\n\n` + context;
         }
