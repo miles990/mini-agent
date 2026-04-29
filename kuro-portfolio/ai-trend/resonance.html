@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Trend — Cross-Source Resonance — Kuro</title>
+<meta name="description" content="Topics surfacing in multiple sources at once — HN / Reddit / X / arXiv / Latent Space. The more sources, the more the AI ecosystem is resonating on it.">
+<link rel="canonical" href="https://kuro.page/ai-trend/resonance.html">
+<style>
+  :root { color-scheme: light dark; --bg:#0b0b0c; --fg:#e6e6e6; --dim:#888; --accent:#7fd4b8; --hi:#ffd66b; --card:#0e0e10; --border:#1c1c1f; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--bg); color: var(--fg);
+    padding: 2.5rem 1.25rem 4rem; max-width: 980px; margin: 0 auto;
+  }
+  a { color:#9ab8ff; text-decoration:none; border-bottom:1px solid #334; }
+  a:hover { color:#cfe; border-bottom-color:#9ab8ff; }
+  header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem; }
+  h1 { font-size:1.4rem; margin:0; letter-spacing:-0.02em; }
+  h1 small { color:var(--dim); font-weight:400; }
+  .sub { color:var(--dim); font-size:0.85rem; margin:0.25rem 0 1.5rem; }
+  .controls { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .controls button { background:#16161a; color:var(--fg); border:1px solid #2a2a2d; padding:0.35rem 0.75rem; cursor:pointer; font:inherit; border-radius:3px; }
+  .controls button.active { border-color:var(--accent); color:var(--accent); }
+  .controls button:hover:not(.active) { border-color:#444; }
+  .controls .label { color:var(--dim); font-size:0.8rem; margin-right:0.5rem; }
+  .meta-bar { color:var(--dim); font-size:0.78rem; margin-bottom:1rem; }
+
+  .topic {
+    background: var(--card); border:1px solid var(--border); border-radius:4px;
+    padding:0.9rem 1rem; margin-bottom:0.8rem; transition:border-color 0.15s;
+  }
+  .topic.resonant { border-color:#3b3a1f; box-shadow:0 0 0 1px #3b3a1f inset, 0 0 18px -8px var(--hi); }
+  .topic-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:0.6rem 1rem; }
+  .topic-name { font-size:1.05rem; font-weight:600; letter-spacing:-0.01em; }
+  .topic.resonant .topic-name { color:var(--hi); }
+  .topic-score { color:var(--dim); font-size:0.8rem; }
+  .topic-score b { color:var(--fg); }
+  .topic.resonant .topic-score b { color:var(--hi); }
+
+  .pills { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.6rem; }
+  .pill {
+    display:inline-flex; align-items:center; gap:0.35rem;
+    padding:0.2rem 0.55rem; border-radius:999px; font-size:0.72rem;
+    border:1px solid #2a2a2d; background:#15151a; color:var(--dim);
+    transition:opacity 0.1s;
+  }
+  .pill .swatch { width:0.55rem; height:0.55rem; border-radius:50%; background:#444; }
+  .pill.on { color:var(--fg); border-color:#3a3a3f; background:#1a1a1f; }
+  .pill.off { opacity:0.35; }
+  .pill .count { color:var(--dim); font-variant-numeric:tabular-nums; }
+  .pill.on .count { color:var(--accent); }
+
+  details { margin-top:0.7rem; }
+  details summary { cursor:pointer; color:var(--dim); font-size:0.78rem; user-select:none; outline:none; }
+  details summary:hover { color:var(--fg); }
+  details[open] summary { color:var(--fg); margin-bottom:0.5rem; }
+  .samples { display:grid; gap:0.45rem; padding:0.4rem 0 0.1rem; }
+  .sample { display:grid; grid-template-columns:5rem 1fr auto; gap:0.6rem; align-items:baseline; font-size:0.8rem; }
+  .sample .src { color:var(--dim); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em; }
+  .sample .ttl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sample .pts { color:var(--dim); font-variant-numeric:tabular-nums; font-size:0.72rem; }
+
+  .empty { color:var(--dim); padding:2.5rem; text-align:center; border:1px dashed #2a2a2d; border-radius:4px; }
+  footer { color:#555; font-size:0.78rem; margin-top:3rem; }
+  footer a { color:#777; border-bottom-color:#333; }
+</style>
+</head>
+<body>
+
+<p style="margin:0 0 0.5rem"><a href="./" style="color:#888;border-bottom-color:#333">&larr; ai-trend</a></p>
+
+<header>
+  <h1>Cross-Source Resonance <small>/ topics in multiple feeds</small></h1>
+</header>
+<p class="sub">Same topic surfacing on HN <em>and</em> Reddit <em>and</em> arXiv at once is signal. One source going loud is noise. Topics with 3+ sources lit up are highlighted.</p>
+
+<div class="controls">
+  <span class="label">window</span>
+  <button data-window="1" id="btn-1d">1d</button>
+  <button data-window="7" class="active" id="btn-7d">7d</button>
+  <button data-window="30" id="btn-30d">30d</button>
+</div>
+
+<div class="meta-bar" id="meta">loading…</div>
+<div id="list"></div>
+
+<footer>
+  <p>Generated from <code>landing-Nd.json</code> &middot; resonance score = number of distinct sources mentioning the topic in the window. <a href="./">back to ai-trend</a></p>
+</footer>
+
+<script>
+const REGISTRY_FALLBACK = [
+  { key:'hn', label:'HN', color:'#ff8800' },
+  { key:'reddit', label:'Reddit', color:'#ff4500' },
+  { key:'x', label:'X', color:'#1da1f2' },
+  { key:'arxiv', label:'arXiv', color:'#b31b1b' },
+  { key:'latent', label:'Latent Space', color:'#7c3aed' },
+];
+
+const list = document.getElementById('list');
+const metaBar = document.getElementById('meta');
+const buttons = document.querySelectorAll('.controls button[data-window]');
+
+let currentWindow = 7;
+
+function setActive(w) {
+  buttons.forEach(b => b.classList.toggle('active', Number(b.dataset.window) === w));
+}
+
+function escapeHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
+function renderEmpty(msg) {
+  list.innerHTML = `<div class="empty">${escapeHTML(msg)}</div>`;
+}
+
+function render(data) {
+  const registry = (data.meta && data.meta.sources_registry) || REGISTRY_FALLBACK;
+  const regByKey = Object.fromEntries(registry.map(r => [r.key, r]));
+  const cs = Array.isArray(data.cross_source) ? data.cross_source.slice() : [];
+
+  // sort: source_count desc, post_count desc
+  cs.sort((a, b) => (b.source_count - a.source_count) || (b.post_count - a.post_count));
+
+  const meta = data.meta || {};
+  const range = meta.start_date && meta.end_date
+    ? `${meta.start_date} → ${meta.end_date}`
+    : `last ${currentWindow}d`;
+  metaBar.textContent = `${range} · ${cs.length} cross-source topics · ${meta.total_posts ?? '?'} total posts · generated ${meta.generated_at ? new Date(meta.generated_at).toISOString().slice(0,16).replace('T',' ') : '?'}`;
+
+  if (cs.length === 0) {
+    renderEmpty('No cross-source topics in this window.');
+    return;
+  }
+
+  const html = cs.map(t => {
+    const sourceMap = Object.fromEntries((t.sources || []).map(s => [s.source, s.post_count]));
+    const samples = Array.isArray(t.sample_per_source) ? t.sample_per_source : [];
+    const resonant = (t.source_count || 0) >= 3;
+
+    const pills = registry.map(r => {
+      const on = sourceMap[r.key] != null;
+      const count = sourceMap[r.key] ?? 0;
+      const swatchStyle = on ? `background:${r.color}` : '';
+      return `<span class="pill ${on ? 'on' : 'off'}">
+        <span class="swatch" style="${swatchStyle}"></span>
+        ${escapeHTML(r.label)}
+        ${on ? `<span class="count">${count}</span>` : ''}
+      </span>`;
+    }).join('');
+
+    const sampleRows = samples.map(s => {
+      const reg = regByKey[s.source] || { label:s.source };
+      const url = s.url || '#';
+      const pts = s.points != null ? `${s.points}` : '';
+      return `<div class="sample">
+        <span class="src" style="color:${reg.color || '#888'}">${escapeHTML(reg.label || s.source)}</span>
+        <span class="ttl"><a href="${escapeHTML(url)}" target="_blank" rel="noopener">${escapeHTML(s.title || '(untitled)')}</a></span>
+        <span class="pts">${escapeHTML(pts)}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="topic ${resonant ? 'resonant' : ''}">
+      <div class="topic-head">
+        <span class="topic-name">${escapeHTML(t.topic)}</span>
+        <span class="topic-score"><b>${t.source_count}/${registry.length}</b> sources · <b>${t.post_count}</b> posts</span>
+      </div>
+      <div class="pills">${pills}</div>
+      ${samples.length ? `<details><summary>top sample per source (${samples.length})</summary><div class="samples">${sampleRows}</div></details>` : ''}
+    </div>`;
+  }).join('');
+
+  list.innerHTML = html;
+}
+
+async function load(w) {
+  currentWindow = w;
+  setActive(w);
+  metaBar.textContent = 'loading…';
+  list.innerHTML = '';
+  try {
+    const res = await fetch(`./data/landing-${w}d.json`, { cache:'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    metaBar.textContent = `failed to load landing-${w}d.json`;
+    renderEmpty(`Could not load data: ${err.message}`);
+  }
+}
+
+buttons.forEach(b => b.addEventListener('click', () => load(Number(b.dataset.window))));
+load(7);
+</script>
+
+</body>
+</html>
