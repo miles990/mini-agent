@@ -245,6 +245,15 @@ export function syncFromTasks(tasks: TaskSnapshot[], currentTaskId?: string | nu
       }
     }
   }
+  // Prune stale completed/abandoned entries (> 1h old) to keep process table clean
+  const ONE_HOUR = 60 * 60 * 1000;
+  const now = Date.now();
+  for (const [id, entry] of processes) {
+    if ((entry.state === 'completed' || entry.state === 'abandoned') &&
+        now - new Date(entry.lastActiveAt).getTime() > ONE_HOUR) {
+      processes.delete(id);
+    }
+  }
 }
 
 // =============================================================================

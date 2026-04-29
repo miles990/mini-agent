@@ -751,7 +751,7 @@ function renderProcesses(data) {
       <td><span class="state-badge state-${p.state}">${p.state}</span></td>
       <td><span class="tag tag-priority">P${p.priority}</span></td>
       <td>${sourceTag(p.source)}</td>
-      <td style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escAttr(p.taskId)}">${escHtml(p.summary || shortId(p.taskId))}</td>
+      <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escAttr(p.summary || p.taskId)}">${escHtml(p.summary || shortId(p.taskId))}</td>
       <td style="font-family:var(--mono); font-size:11px; color:var(--text2);">${p.ticksSpent}</td>
     </tr>`;
   }).join('');

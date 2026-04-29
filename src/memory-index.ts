@@ -1606,30 +1606,99 @@ export async function enqueueAlexMessage(
  * Ensures conversation directives don't get lost after reply.
  * Mirrors enqueueAlexMessage but for room source.
  */
+// Intent classification for task decomposition
+type IntentType = 'research' | 'execute' | 'question' | 'fyi';
+type Urgency = 'high' | 'medium' | 'low';
+
+const URL_RE = /https?:\/\/[^\s)>\],]+/;
+const QUESTION_RE = /[？?]$|^(?:為什麼|怎麼|什麼|哪|誰|多少|是否|有沒有|可以嗎|能不能)/;
+const URGENCY_RE = /urgent|緊急|馬上|立刻|ASAP|blocked|阻塞|@kuro/i;
+const MULTI_ACTION_RE = /然後|接著|再|還有|順便|另外|以及|並且|同時/;
+
+function classifyIntent(message: string): { type: IntentType; urgency: Urgency; title: string } {
+  const urgency: Urgency = URGENCY_RE.test(message) ? 'high' : 'medium';
+  let type: IntentType = 'execute';
+  if (QUESTION_RE.test(message.trim())) type = 'question';
+  else if (URL_RE.test(message) && message.length < 150) type = 'research';
+  else if (/^(?:FYI|供參考|看一下|參考)/i.test(message.trim())) type = 'fyi';
+  const title = message.replace(/\n/g, ' ').slice(0, 80).trim();
+  return { type, urgency, title };
+}
+
+function computeTaskPriority(from: string, urgency: Urgency): number {
+  if (from === 'alex' && urgency === 'high') return 0;
+  if (from === 'alex') return 1;
+  if (urgency === 'high') return 1;
+  return 2;
+}
+
+function shouldDecompose(message: string): boolean {
+  if (message.length > 200) return true;
+  if (MULTI_ACTION_RE.test(message)) return true;
+  if (message.includes('\n') && message.split('\n').filter(l => l.trim()).length >= 3) return true;
+  return false;
+}
+
+function ruleDecompose(message: string, intent: IntentType): Array<{ title: string; type: IntentType }> | null {
+  if (intent === 'research' && URL_RE.test(message)) {
+    const url = message.match(URL_RE)?.[0] || '';
+    const domain = url.replace(/https?:\/\//, '').split('/')[0];
+    return [
+      { title: `研究 ${domain} — 閱讀分析`, type: 'research' },
+      { title: `撰寫分析/opinion`, type: 'execute' },
+      { title: `回覆結果`, type: 'question' },
+    ];
+  }
+  if (intent === 'fyi') return [{ title: `閱讀並記錄`, type: 'fyi' }];
+  return null;
+}
+
 export async function enqueueRoomDirective(
   memoryDir: string,
   message: string,
   roomMsgId: string,
   from: string,
 ): Promise<void> {
-  // Dedup by roomMsgId
   const existing = queryMemoryIndexSync(memoryDir, { type: 'task', source: 'room' });
   if (existing.some(e => (getTaskPayload(e).roomMsgId as string) === roomMsgId)) return;
 
-  const preview = message.replace(/\n/g, ' ').slice(0, 100);
-  // Dynamic priority: Alex always P1; others check urgency signals
-  const priority = from === 'alex' ? 1
-    : /urgent|緊急|馬上|立刻|ASAP|blocked|阻塞|@kuro/i.test(message) ? 1
-    : 2;
+  const { type: intent, urgency, title } = classifyIntent(message);
+  const priority = computeTaskPriority(from, urgency);
+
+  if (shouldDecompose(message) || intent === 'research') {
+    const subtasks = ruleDecompose(message, intent);
+    if (subtasks && subtasks.length > 1) {
+      const parentEntry = await appendMemoryIndexEntry(memoryDir, {
+        type: 'task',
+        status: 'decomposed',
+        summary: title,
+        source: 'room',
+        payload: { priority, roomMsgId, from, section: 'next', intent, subtaskCount: subtasks.length },
+      });
+      for (const sub of subtasks) {
+        const subEntry = await appendMemoryIndexEntry(memoryDir, {
+          type: 'task',
+          status: 'pending',
+          summary: sub.title,
+          source: 'room',
+          payload: { priority, roomMsgId, from, section: 'next', intent: sub.type, parent_task: parentEntry.id },
+        });
+        eventBus.emit('action:task', { content: subEntry.summary, entry: subEntry });
+      }
+      slog('NEXT', `Decomposed [${from}] "${title.slice(0, 40)}" → ${subtasks.length} sub-tasks (${intent})`);
+      return;
+    }
+  }
+
   const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',
-    summary: `回覆 ${from}: "${preview}"`,
+    summary: title,
     source: 'room',
-    payload: { priority, roomMsgId, from, section: 'next' },
+    payload: { priority, roomMsgId, from, section: 'next', intent },
   });
   eventBus.emit('action:task', { content: entry.summary, entry });
-  slog('NEXT', `Enqueued room directive [${from}]: ${preview.slice(0, 40)}`);
+  slog('NEXT', `Enqueued [${from}] "${title.slice(0, 40)}" (${intent}, P${priority})`);
 }
 
 /**
