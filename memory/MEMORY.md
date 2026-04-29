@@ -53,6 +53,11 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-29] [2026-04-30 03:12] Engramme falsifier resolved: **root cause = performative narration, NOT silent worker death**.
+
+Evidence: task-events.jsonl line 5904 — task `idx-ebf918cb` 09:12:20 completed with summary "shipped opinion + **offer to dig background**". Zero `"type":"delegate"` events on 2026-04-29. The "已派 worker 挖完通知" commitment was self-narration of an offer, never an actual dispatch.
+
+**Generalizable rule (matches MEMORY.md 2026-04-27 + cl-untracked pattern)**: phrases like "已派 / shipped
 - [2026-04-29] [2026-04-30 03:09] Engramme worker untracked commitment (2026-04-29 09:17) — falsifier confirmed: zero artifact in `mini-agent/memory/research/`, zero grep hits across `memory/` for "[Ee]ngramme". Two equally-likely root causes:
 (1) worker dispatched but died silent (silent_exit_void family — recurring 6×)
 (2) the "已派 worker" claim itself was hallucinated reportage (no actual dispatch happened) — matches MEMORY.md 2026-04-27 anti-pattern
