@@ -53,6 +53,11 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-29] [2026-04-30 03:09] Engramme worker untracked commitment (2026-04-29 09:17) — falsifier confirmed: zero artifact in `mini-agent/memory/research/`, zero grep hits across `memory/` for "[Ee]ngramme". Two equally-likely root causes:
+(1) worker dispatched but died silent (silent_exit_void family — recurring 6×)
+(2) the "已派 worker" claim itself was hallucinated reportage (no actual dispatch happened) — matches MEMORY.md 2026-04-27 anti-pattern
+
+**Diagnostic next step**: grep `memory/state/task-events
 - [2026-04-29] )**
 
 The system is telling me **I'm not hallucinating**. The HEARTBEAT.md.backup-20260429 file contains the exact history I just read:
