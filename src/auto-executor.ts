@@ -12,14 +12,20 @@ import { minutesSinceLastCodeOutput } from './activity-stream.js';
 import { queryMemoryIndexSync } from './memory-index.js';
 import { spawnDelegation, type DelegationTask } from './delegation.js';
 import { schedulerTaskDone } from './scheduler.js';
+import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
 import path from 'node:path';
 
 const IDLE_THRESHOLD_MINUTES = 15;
-const COOLDOWN_MS = 10 * 60_000; // 10 min between auto-dispatches
+const COOLDOWN_MS = 10 * 60_000;
+const MAX_FAILURES_PER_TASK = 3;
 
 let lastDispatchAt = 0;
 let activeAutoTaskId: string | null = null;
+let activeDelegationId: string | null = null;
+const failCounts = new Map<string, number>();
+
+let listenerRegistered = false;
 
 export interface AutoExecuteResult {
   fired: boolean;
@@ -28,7 +34,38 @@ export interface AutoExecuteResult {
   delegationId?: string;
 }
 
+function ensureListener(): void {
+  if (listenerRegistered) return;
+  listenerRegistered = true;
+
+  eventBus.on('action:delegation-complete', (event) => {
+    const evTaskId = event.data.taskId as string | undefined;
+    const evStatus = event.data.status as string | undefined;
+    if (!activeDelegationId || evTaskId !== activeDelegationId) return;
+
+    const taskId = activeAutoTaskId;
+    const success = evStatus === 'completed';
+
+    activeDelegationId = null;
+    activeAutoTaskId = null;
+
+    if (!taskId) return;
+
+    if (success) {
+      schedulerTaskDone(taskId);
+      failCounts.delete(taskId);
+      slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} completed successfully`);
+    } else {
+      const count = (failCounts.get(taskId) ?? 0) + 1;
+      failCounts.set(taskId, count);
+      slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} failed (${count}/${MAX_FAILURES_PER_TASK})`);
+    }
+  });
+}
+
 export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
+  ensureListener();
+
   const idleMinutes = minutesSinceLastCodeOutput();
   if (idleMinutes < IDLE_THRESHOLD_MINUTES) {
     return { fired: false, reason: `not idle enough (${idleMinutes}min < ${IDLE_THRESHOLD_MINUTES}min)` };
@@ -48,11 +85,14 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
     const p = (e.payload ?? {}) as Record<string, unknown>;
     const verify = p.verify_command as string | undefined;
     const blocked = p.blockedBy as string[] | undefined;
-    return verify && verify.length > 0 && (!blocked || blocked.length === 0);
+    if (!verify || verify.length === 0) return false;
+    if (blocked && blocked.length > 0) return false;
+    if ((failCounts.get(e.id) ?? 0) >= MAX_FAILURES_PER_TASK) return false;
+    return true;
   });
 
   if (actionable.length === 0) {
-    return { fired: false, reason: 'no pending task with verify_command' };
+    return { fired: false, reason: 'no pending task with verify_command (or all exhausted retries)' };
   }
 
   actionable.sort((a, b) => {
@@ -73,20 +113,20 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
     `Task ID: ${top.id}`,
     '',
     '## Instructions',
-    `Complete this task by writing code. The task is verified by running:`,
+    'Complete this task by writing code. The task is verified by running:',
     '```',
     verifyCommand,
     '```',
     '',
     'Write the minimum code needed to make the verify command pass.',
-    'Do not modify src/ files — focus on HTML, scripts, and config.',
     'After writing code, run the verify command to confirm it passes.',
   ].join('\n');
 
   const verify = verifyCommand.split('&&').map(v => v.trim());
+  const delegationId = `auto-${top.id.slice(0, 16)}-${Date.now()}`;
 
   const delegation: DelegationTask = {
-    id: `auto-${top.id.slice(0, 16)}-${Date.now()}`,
+    id: delegationId,
     type: 'code',
     prompt,
     workdir,
@@ -96,9 +136,10 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
   };
 
   try {
-    const delegationId = spawnDelegation(delegation);
+    spawnDelegation(delegation);
     lastDispatchAt = Date.now();
     activeAutoTaskId = top.id;
+    activeDelegationId = delegationId;
 
     slog('AUTO-EXEC', `fired: ${(top.summary ?? '').slice(0, 60)} → delegation ${delegationId}`);
 
@@ -114,22 +155,11 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
   }
 }
 
-export function onAutoTaskCompleted(taskId: string, success: boolean): void {
-  if (activeAutoTaskId === taskId) {
-    if (success) {
-      schedulerTaskDone(taskId);
-      slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} completed successfully`);
-    } else {
-      slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} failed — will retry after cooldown`);
-    }
-    activeAutoTaskId = null;
-  }
-}
-
-export function getAutoExecutorStatus(): { active: boolean; taskId: string | null; lastDispatchAge: number } {
+export function getAutoExecutorStatus(): { active: boolean; taskId: string | null; lastDispatchAge: number; failCounts: Record<string, number> } {
   return {
     active: activeAutoTaskId !== null,
     taskId: activeAutoTaskId,
     lastDispatchAge: lastDispatchAt > 0 ? Date.now() - lastDispatchAt : -1,
+    failCounts: Object.fromEntries(failCounts),
   };
 }
