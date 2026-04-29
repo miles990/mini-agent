@@ -3119,6 +3119,9 @@ export function createApi(port = 3001): express.Express {
       const priority = events?.some((e: any) => e.data?.priority_hint === 'high') ? 'urgent' : 'normal';
       const firstEventId = events?.[0]?.data?.event_id;
       const dedupKey = firstEventId ? `kg:${firstEventId}` : `webhook:${triggerSource}:${discussion_id}:${Date.now()}`;
+      if (discussion_id) {
+        import('./kg-discussions.js').then(m => m.markDiscussionDirty(discussion_id as string)).catch(() => {});
+      }
       try {
         eventBus.emit(priority === 'urgent' ? 'trigger:room' : 'trigger:workspace', {
           source: triggerSource,

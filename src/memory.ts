@@ -3411,6 +3411,16 @@ export class InstanceMemory {
       bcMark('continuity');
     }
 
+    // ── KG Discussions (active discussions where Kuro is participant) ──
+    if (!isLight && !budgetExhausted()) {
+      const { buildKGDiscussionsContext } = await import('./kg-discussions.js');
+      const kgDiscCtx = await buildKGDiscussionsContext();
+      if (kgDiscCtx) {
+        pushCapped('kg-discussions', kgDiscCtx);
+      }
+      bcMark('kgDiscussions');
+    }
+
     // ── Reorder for prefix caching: stable sections first ──
     // Anthropic API auto-caches identical prompt prefixes (~5min TTL).
     // By placing rarely-changing sections at the start of context,
@@ -3715,6 +3725,40 @@ export class InstanceMemory {
         sections.push(`<heartbeat-active>\n${heartbeat.slice(0, 2000)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
       }
     }
+
+    // Verified Routes — surface cdp.jsonl proven strategies into minimal-context.
+    // Trigger: 2026-04-29 Alex P0「能通的路應該是要第一個先試的」. Without this,
+    // retry/drain cycles strip the verified-routes affordance and reflexively pick
+    // failure paths (e.g., claiming "can't read X" while ai-trend pipeline uses Grok).
+    // Inlined here (not imported from prompt-builder) to avoid circular dep.
+    try {
+      const cdpPath = path.join(getMemoryStateDir(), 'cdp.jsonl');
+      if (existsSync(cdpPath)) {
+        const raw = readFileSync(cdpPath, 'utf-8').trim();
+        if (raw) {
+          const routeLines: string[] = [];
+          for (const line of raw.split('\n')) {
+            if (!line.trim()) continue;
+            try {
+              const r = JSON.parse(line);
+              if (r && typeof r.domain === 'string' && typeof r.strategy === 'string') {
+                const note = typeof r.notes === 'string' && r.notes ? ` — ${r.notes.slice(0, 120)}` : '';
+                routeLines.push(`- **${r.domain}** → \`${r.strategy}\`${note}`);
+              }
+            } catch { /* skip malformed */ }
+          }
+          if (routeLines.length > 0) {
+            sections.push(
+              `<verified-routes>\n## ✅ Verified Routes — try these FIRST\n` +
+              `Proven strategies (cdp.jsonl). Before saying "I can't read X" or reaching for WebFetch, ` +
+              `check this list. If domain is here → use the listed strategy directly.\n\n` +
+              routeLines.join('\n') +
+              `\n</verified-routes>`
+            );
+          }
+        }
+      }
+    } catch { /* non-critical */ }
 
     // Unified Inbox（對話回覆需要看到收到的訊息）
     const inboxItems = readPendingInbox();

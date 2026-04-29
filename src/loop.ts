@@ -1145,6 +1145,11 @@ export class AgentLoop {
     // Sentinel: watch file-based event sources not covered by API handlers
     startSentinel(process.cwd());
 
+    // KG Discussions: auto-subscribe to discussions where Kuro is participant
+    import('./kg-discussions.js').then(m => m.subscribeToKGDiscussions()).catch(err => {
+      slog('KG', `Auto-subscribe failed: ${err instanceof Error ? err.message : err}`);
+    });
+
     eventBus.on('trigger:*', this.handleTrigger);
 
     eventBus.on('log:behavior', (event?: AgentEvent) => {
