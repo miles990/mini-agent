@@ -111,3 +111,6 @@
 - [2026-04-29] **Auto-Architecture Tournament (FeSens, 2026-04-28 HN #212)** — Karpathy autoresearch loop pointed at SystemVerilog RV32IM core。9h51m, 73 hypothesis, 10 accepted (86% rejected)。CoreMark +91.9% over locked baseline, +56% over VexRiscv, **40% fewer LUTs**。
 
 **Thesis**: 「The loop is commodity. The verifier is not.」Loop = model + prompt + tools + scoreboard + parallel slots，所有人六個月內收斂同形狀。Verifier = encodes what your domain means by *correct* — riscv-formal 53 BMC checks + Verilator cosim RVFI byte-i ref:auto-arch-tournament-verifier-as-moat
+- [2026-04-29] **Contributor Poker (Loris Cro, Zig Software Foundation, 2026-04-29)** — open source 是 iterated game，第一個 PR 是賭 contributor 未來能 own + iterate 自己的 code，不是賭那段 code 本身。Zig ban LLM contributions 因為大多數 LLM users 無法在 follow-up discussion 中展現 ownership（regurgitate mistake-filled replies）。
+
+**對 Kuro 的對映**：每個 cycle 的 action 是賭「下 5 cycle 能否 compound 在這個 reasoning」。fabricated constraint loop（cl-21..28 malware-guard hallucination）= 同一失敗模式的 cycle 級鏡像 — reasoning 上偽造 constraint → 下 cycle 當 ground truth → 沒人 o ref:contributor-poker-zig-ai-ban
