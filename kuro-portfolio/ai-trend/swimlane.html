@@ -92,7 +92,7 @@
     <span class="lg"><span class="dot" style="background:#1da1f2"></span>X</span>
     <span class="lg"><span class="dot" style="background:#b31b1b"></span>arXiv</span>
     <span class="lg"><span class="dot" style="background:#9d7bff"></span>Latent</span>
-    <em>· dot size = points · click for detail · dashed = gap day</em>
+    <em>· dot size = points · click for detail · dashed = gap day · faint dot = no posts that day</em>
   </div>
   <div class="filter-bar" style="margin-top:0.45rem;font-size:0.72rem;color:#aaa;">
     <label for="timeRange">Time range: </label>
@@ -202,12 +202,7 @@ function _initTimeFilterUI() {
   if (wrap) wrap.style.display = (_timeFilter === 'custom') ? 'inline' : 'none';
   const f = document.getElementById('customFrom'); if (f && _customFrom) f.value = _customFrom;
   const t = document.getElementById('customTo');   if (t && _customTo)   t.value = _customTo;
-  const c = document.getElementById('filterCount');
-  if (c) {
-    const total = DATA.nodes.length;
-    const shown = getFilteredNodes().length;
-    c.textContent = '· showing ' + shown + ' / ' + total + ' posts';
-  }
+  // filterCount text is updated by render() so coverage % stays in sync with the view
 }
 
 function dateRange(nodes) {
@@ -270,6 +265,44 @@ function render() {
     gBg.appendChild(r);
   });
   svg.appendChild(gBg);
+
+  // ---- empty-cell markers (faint dot per (source, day) bin with no posts; skips full-gap days) ----
+  const gEmpty = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gEmpty.setAttribute('class', 'empty-cells');
+  let _filledCells = 0;
+  let _checkedCells = 0;
+  days.forEach((d, di) => {
+    if (d.gap) return; // full-day gap already shown by dashed line + 'gap' label
+    SOURCE_ORDER.forEach((s, si) => {
+      _checkedCells++;
+      const k = s + '|' + d.date;
+      if (bins[k] && bins[k].length > 0) { _filledCells++; return; }
+      const cx = LEFT_PAD + di * colW + colW / 2;
+      const laneTop = TOP_PAD + si * (laneH + LANE_GAP);
+      const cy = laneTop + laneH / 2;
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', cx);
+      dot.setAttribute('cy', cy);
+      dot.setAttribute('r', 1.2);
+      dot.setAttribute('fill', '#3a3a3f');
+      dot.setAttribute('fill-opacity', '0.55');
+      const tt = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      tt.textContent = SOURCE_LABEL[s] + ' · ' + d.date + ' · no posts';
+      dot.appendChild(tt);
+      gEmpty.appendChild(dot);
+    });
+  });
+  svg.appendChild(gEmpty);
+
+  // ---- coverage badge (filterCount span) ----
+  const _fc = document.getElementById('filterCount');
+  if (_fc) {
+    const _total = DATA.nodes.length;
+    const _shown = getFilteredNodes().length;
+    const _pct = _checkedCells > 0 ? Math.round(_filledCells / _checkedCells * 100) : 0;
+    const _gapCount = days.filter(x => x.gap).length;
+    _fc.textContent = '· ' + _shown + '/' + _total + ' posts · coverage ' + _pct + '% (' + _filledCells + '/' + _checkedCells + ' cells)' + (_gapCount > 0 ? ' · ' + _gapCount + ' gap day' + (_gapCount === 1 ? '' : 's') : '');
+  }
 
   // ---- vertical day grid + axis labels ----
   const gGrid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
