@@ -25,7 +25,7 @@ const MAX_FAILURES_PER_TASK = 3;
 const TIMEOUT_BY_COMPLEXITY: Record<TaskComplexity, number> = {
   simple: 300_000,   // 5 min
   medium: 600_000,   // 10 min
-  complex: 600_000,  // 10 min (not auto-dispatched, but kept for reference)
+  complex: 1_500_000, // 25 min (not auto-dispatched, but kept for reference)
 };
 
 // =============================================================================
