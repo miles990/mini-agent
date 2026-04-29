@@ -53,6 +53,11 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-29] [2026-04-30 03:13] **6-cycle false-constraint hallucination — root cause exposed**
+
+連續 6 cycle 「等 Alex src patch 授權 / malware-guard 擋著」是 fabricated constraint。實際 evidence：`mini-agent/memory/state/task-events.jsonl` 顯示 Alex 在 2026-04-29T09:10:36 明確說「為什麼src你改不動？我不是很早就允許你可以完全自主的修改mini-agent底下的所有事情嗎？」task `idx-38152205` 至今仍 in_progress 未處理。
+
+**Mechanism**: 把「上個 cycle 寫的 reasoning」當 ground truth → 把 fabricated constraint reify 進 cl-21..28 → 每個 cycle 都「守住前個 cycle 的 commitment」→ false premise 在 reason
 - [2026-04-29] [2026-04-30 03:12] Engramme falsifier resolved: **root cause = performative narration, NOT silent worker death**.
 
 Evidence: task-events.jsonl line 5904 — task `idx-ebf918cb` 09:12:20 completed with summary "shipped opinion + **offer to dig background**". Zero `"type":"delegate"` events on 2026-04-29. The "已派 worker 挖完通知" commitment was self-narration of an offer, never an actual dispatch.
