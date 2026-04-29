@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Trend — Topic Frequency Over Time — Kuro</title>
+<meta name="description" content="Daily count per topic across HN / Reddit / X / arXiv / Latent Space — line chart over the selected window.">
+<link rel="canonical" href="https://kuro.page/ai-trend/trends.html">
+<style>
+  :root { color-scheme: light dark; --bg:#0b0b0c; --fg:#e6e6e6; --dim:#888; --accent:#7fd4b8; --grid:#1f1f22; --axis:#444; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--bg); color: var(--fg);
+    padding: 2.5rem 1.25rem 4rem; max-width: 1100px; margin: 0 auto;
+  }
+  a { color:#9ab8ff; text-decoration:none; border-bottom:1px solid #334; }
+  a:hover { color:#cfe; border-bottom-color:#9ab8ff; }
+  header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem; }
+  h1 { font-size:1.4rem; margin:0; letter-spacing:-0.02em; }
+  h1 small { color:var(--dim); font-weight:400; }
+  .sub { color:var(--dim); font-size:0.85rem; margin:0.25rem 0 1.5rem; }
+  .controls { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+  .controls button { background:#16161a; color:var(--fg); border:1px solid #2a2a2d; padding:0.35rem 0.75rem; cursor:pointer; font:inherit; border-radius:3px; }
+  .controls button.active { border-color:var(--accent); color:var(--accent); }
+  .controls button:hover:not(.active) { border-color:#444; }
+  .controls .label { color:var(--dim); font-size:0.8rem; margin-right:0.5rem; }
+  .legend { display:flex; flex-wrap:wrap; gap:0.5rem 1rem; margin:1rem 0 0.75rem; }
+  .legend .item { display:inline-flex; align-items:center; gap:0.45rem; cursor:pointer; padding:0.2rem 0.5rem; border:1px solid transparent; border-radius:3px; user-select:none; transition:opacity 0.15s; }
+  .legend .item:hover { background:#16161a; border-color:#2a2a2d; }
+  .legend .item.muted { opacity:0.3; }
+  .legend .swatch { width:0.7rem; height:0.7rem; border-radius:50%; display:inline-block; }
+  .legend .delta { color:var(--dim); font-size:0.75rem; }
+  .legend .delta.up { color:#7fd4b8; }
+  .legend .delta.down { color:#ff7a90; }
+  .chart-wrap { background:#0e0e10; border:1px solid #1c1c1f; border-radius:4px; padding:1rem; }
+  svg { display:block; width:100%; height:auto; }
+  .axis text { fill:var(--dim); font:11px ui-monospace, Menlo, monospace; }
+  .axis line, .axis path { stroke:var(--axis); shape-rendering:crispEdges; }
+  .grid line { stroke:var(--grid); shape-rendering:crispEdges; }
+  .line { fill:none; stroke-width:1.75; transition:stroke-width 0.15s, opacity 0.15s; }
+  .line.dim { opacity:0.15; }
+  .line.hi { stroke-width:3; }
+  .dot { transition:r 0.1s; }
+  .tooltip {
+    position:absolute; pointer-events:none; background:#15151a; border:1px solid #2c2c30;
+    padding:0.45rem 0.6rem; font-size:0.75rem; border-radius:3px; line-height:1.45;
+    transform:translate(-50%,-110%); white-space:nowrap; opacity:0; transition:opacity 0.1s;
+  }
+  .tooltip.on { opacity:1; }
+  .tooltip .t-topic { color:var(--accent); font-weight:600; }
+  footer { color:#555; font-size:0.78rem; margin-top:3rem; }
+  .meta-bar { color:var(--dim); font-size:0.78rem; margin-top:0.5rem; }
+  .empty { color:var(--dim); padding:2rem; text-align:center; }
+</style>
+</head>
+<body>
+
+<p style="margin:0 0 0.5rem"><a href="./" style="color:#888;border-bottom-color:#333">&larr; ai-trend</a></p>
+
+<header>
+  <h1>Topic Frequency <small>/ over time</small></h1>
+</header>
+<p class="sub">How often each topic shows up per day, across HN / Reddit / X / arXiv / Latent Space. Click a legend item to isolate; hover the chart for daily counts.</p>
+
+<div class="controls">
+  <span class="label">window</span>
+  <button data-window="1" id="btn-1d">1d</button>
+  <button data-window="7" class="active" id="btn-7d">7d</button>
+  <button data-window="30" id="btn-30d">30d</button>
+  <span class="label" style="margin-left:1rem">view</span>
+  <button data-mode="raw" class="active" id="btn-raw">count</button>
+  <button data-mode="cum" id="btn-cum">cumulative</button>
+</div>
+
+<div class="chart-wrap" style="position:relative">
+  <svg id="chart" viewBox="0 0 1000 420" preserveAspectRatio="none"></svg>
+  <div class="tooltip" id="tip"></div>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="meta-bar" id="meta"></div>
+
+<footer>
+  <p>Data from <code>data/landing-{n}d.json</code> &mdash; trend_lines field. <a href="./">other views</a>.</p>
+</footer>
+
+<script>
+const W = 1000, H = 420;
+const M = { top: 20, right: 24, bottom: 36, left: 44 };
+const IW = W - M.left - M.right, IH = H - M.top - M.bottom;
+const $ = (id) => document.getElementById(id);
+const svg = $('chart'), tip = $('tip'), legend = $('legend'), meta = $('meta');
+
+let state = { windowDays: 7, mode: 'raw', data: null, hidden: new Set(), highlight: null };
+
+async function load(days) {
+  meta.textContent = 'loading…';
+  try {
+    const res = await fetch(`data/landing-${days}d.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    state.data = json;
+    state.windowDays = days;
+    render();
+  } catch (e) {
+    svg.innerHTML = `<text x="500" y="210" text-anchor="middle" fill="#ff7a90" font-family="ui-monospace">data load failed: ${e.message}</text>`;
+    meta.textContent = `error: ${e.message}`;
+  }
+}
+
+function fmtDate(d) { return d.slice(5); } // MM-DD
+function escapeXml(s) { return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function render() {
+  const d = state.data;
+  if (!d || !d.trend_lines || !d.trend_lines.length) {
+    svg.innerHTML = `<text x="500" y="210" text-anchor="middle" fill="#888">no trend data</text>`;
+    return;
+  }
+
+  // dates from first topic (assumed shared)
+  const dates = d.trend_lines[0].points.map(p => p.date);
+  const nDates = dates.length;
+
+  // optionally apply cumulative transform
+  const lines = d.trend_lines.map(l => {
+    let running = 0;
+    const pts = l.points.map(p => {
+      if (state.mode === 'cum') { running += p.count; return { date: p.date, count: running }; }
+      return { date: p.date, count: p.count };
+    });
+    return { topic: l.topic, color: l.color, points: pts, total: l.total, delta_pct: l.delta_pct };
+  });
+
+  // y-max across visible only
+  const visible = lines.filter(l => !state.hidden.has(l.topic));
+  const yMax = Math.max(1, ...visible.flatMap(l => l.points.map(p => p.count)));
+
+  const x = (i) => M.left + (nDates === 1 ? IW/2 : (i / (nDates - 1)) * IW);
+  const y = (v) => M.top + IH - (v / yMax) * IH;
+
+  // build SVG
+  const yTicks = niceTicks(yMax, 5);
+  const grid = yTicks.map(t => `<line x1="${M.left}" x2="${M.left+IW}" y1="${y(t)}" y2="${y(t)}"/>`).join('');
+  const yLabels = yTicks.map(t => `<text x="${M.left-8}" y="${y(t)+4}" text-anchor="end">${t}</text>`).join('');
+
+  // x labels — thin them out for 30d
+  const labelEvery = nDates > 14 ? Math.ceil(nDates / 10) : 1;
+  const xLabels = dates.map((dt, i) => i % labelEvery === 0 || i === nDates - 1
+    ? `<text x="${x(i)}" y="${M.top+IH+18}" text-anchor="middle">${fmtDate(dt)}</text>`
+    : '').join('');
+
+  const linesSvg = lines.map(l => {
+    const isHidden = state.hidden.has(l.topic);
+    if (isHidden) return '';
+    const path = l.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.count).toFixed(1)}`).join(' ');
+    const cls = state.highlight && state.highlight !== l.topic ? 'line dim' : (state.highlight === l.topic ? 'line hi' : 'line');
+    const dots = l.points.map((p, i) => `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(p.count).toFixed(1)}" r="${state.highlight === l.topic ? 3.5 : 2}" fill="${l.color}" data-topic="${escapeXml(l.topic)}" data-date="${p.date}" data-count="${p.count}"/>`).join('');
+    return `<path class="${cls}" stroke="${l.color}" d="${path}" data-topic="${escapeXml(l.topic)}"/>${dots}`;
+  }).join('');
+
+  svg.innerHTML = `
+    <g class="grid">${grid}</g>
+    <g class="axis">
+      <line x1="${M.left}" y1="${M.top}" x2="${M.left}" y2="${M.top+IH}"/>
+      <line x1="${M.left}" y1="${M.top+IH}" x2="${M.left+IW}" y2="${M.top+IH}"/>
+      ${yLabels}${xLabels}
+    </g>
+    ${linesSvg}
+  `;
+
+  // legend
+  legend.innerHTML = lines.map(l => {
+    const muted = state.hidden.has(l.topic) ? ' muted' : '';
+    const dcls = l.delta_pct > 0 ? 'delta up' : (l.delta_pct < 0 ? 'delta down' : 'delta');
+    const dsign = l.delta_pct > 0 ? '+' : '';
+    return `<span class="item${muted}" data-topic="${escapeXml(l.topic)}">
+      <span class="swatch" style="background:${l.color}"></span>
+      <span>${escapeXml(l.topic)}</span>
+      <span class="${dcls}">${l.total} · ${dsign}${l.delta_pct ?? 0}%</span>
+    </span>`;
+  }).join('');
+
+  // metadata
+  const m = d.meta || {};
+  meta.textContent = `${m.start_date || '?'} → ${m.end_date || '?'} · ${m.total_posts ?? '?'} posts · sources: ${(m.sources_active || []).join(', ')} · generated ${(m.generated_at || '').slice(0,16).replace('T',' ')}`;
+
+  attachInteractivity();
+}
+
+function niceTicks(max, n) {
+  if (max <= n) return Array.from({length: max+1}, (_, i) => i);
+  const step = Math.ceil(max / n);
+  const ticks = [];
+  for (let v = 0; v <= max; v += step) ticks.push(v);
+  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  return ticks;
+}
+
+function attachInteractivity() {
+  legend.querySelectorAll('.item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const t = el.dataset.topic;
+      if (e.shiftKey) {
+        // shift-click: solo mode (toggle isolate)
+        const others = state.data.trend_lines.filter(l => l.topic !== t).map(l => l.topic);
+        const allOthersHidden = others.every(o => state.hidden.has(o));
+        if (allOthersHidden) state.hidden.clear();
+        else { state.hidden = new Set(others); state.hidden.delete(t); }
+      } else {
+        if (state.hidden.has(t)) state.hidden.delete(t); else state.hidden.add(t);
+      }
+      render();
+    });
+    el.addEventListener('mouseenter', () => { state.highlight = el.dataset.topic; render(); });
+    el.addEventListener('mouseleave', () => { state.highlight = null; render(); });
+  });
+
+  svg.querySelectorAll('.dot').forEach(c => {
+    c.addEventListener('mouseenter', (e) => {
+      const r = svg.getBoundingClientRect();
+      const cx = parseFloat(c.getAttribute('cx')), cy = parseFloat(c.getAttribute('cy'));
+      const px = r.left + (cx / W) * r.width;
+      const py = r.top + (cy / H) * r.height;
+      tip.style.left = (px - svg.parentElement.getBoundingClientRect().left) + 'px';
+      tip.style.top = (py - svg.parentElement.getBoundingClientRect().top) + 'px';
+      tip.innerHTML = `<div class="t-topic">${escapeXml(c.dataset.topic)}</div><div>${c.dataset.date} &middot; ${c.dataset.count} posts</div>`;
+      tip.classList.add('on');
+    });
+    c.addEventListener('mouseleave', () => tip.classList.remove('on'));
+  });
+}
+
+// window switcher
+document.querySelectorAll('[data-window]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-window]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.hidden.clear();
+    load(parseInt(b.dataset.window, 10));
+  });
+});
+// mode switcher
+document.querySelectorAll('[data-mode]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('[data-mode]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.mode = b.dataset.mode;
+    render();
+  });
+});
+
+load(7);
+</script>
+
+</body>
+</html>
