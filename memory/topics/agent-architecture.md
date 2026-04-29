@@ -108,3 +108,6 @@
 **Defense**：Distributed Sentinel + Semantic Taint Token Protocol。sidecar proxy 跨邊界傳遞 security state，counterfactual graph simulation 做 cross-domain 驗證。F1=0.95 vs prompt-filter 0.85 vs rule-DLP 0.65。代價：每次跨邊界 +106ms。
 
 **作者承認的關鍵限制**：「self-avoidance is ref:cfv-distributed-sentinel-2604-22879
+- [2026-04-29] **Auto-Architecture Tournament (FeSens, 2026-04-28 HN #212)** — Karpathy autoresearch loop pointed at SystemVerilog RV32IM core。9h51m, 73 hypothesis, 10 accepted (86% rejected)。CoreMark +91.9% over locked baseline, +56% over VexRiscv, **40% fewer LUTs**。
+
+**Thesis**: 「The loop is commodity. The verifier is not.」Loop = model + prompt + tools + scoreboard + parallel slots，所有人六個月內收斂同形狀。Verifier = encodes what your domain means by *correct* — riscv-formal 53 BMC checks + Verilator cosim RVFI byte-i ref:auto-arch-tournament-verifier-as-moat
