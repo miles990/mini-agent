@@ -2839,13 +2839,21 @@ export class AgentLoop {
 
       // ── Process <kuro:done> tags — mark tasks completed in memory-index ──
       if (tags.dones.length > 0) {
-        // A-gate: in task-focused mode, reject done without code output (KG 7c4b4426)
+        // A-gate: in task-focused mode, reject done without substantive output (KG 7c4b4426)
+        // 2026-04-29 fix: accept CHAT/REMEMBER as valid work too — inbox-synthesized P0s
+        // (e.g. "怎麼做最好 你自主來決定") are answered via chat + topic memory, not code.
+        // Previous behavior silently stripped ALL dones → infinite re-dispatch loop.
         if (taskFocusedMode) {
           const hasCodeTag = cycleTagsProcessed.some(t => ['CODE', 'DELEGATE'].includes(t));
           const hasFileRef = /\.(ts|js|html|mjs|sh|json)\b/.test(action ?? '');
           const hasDelegateSideEffect = cycleSideEffects.some(s => s.startsWith('delegate:'));
-          if (!hasCodeTag && !hasFileRef && !hasDelegateSideEffect) {
-            slog('DONE', `⛔ A-gate: task-focused mode active but no code output — rejecting done`);
+          const hasChatOutput = tags.chats.some(c => c.text.trim().length >= 50);
+          const hasRememberOutput = cycleTagsProcessed.includes('REMEMBER');
+          if (!hasCodeTag && !hasFileRef && !hasDelegateSideEffect && !hasChatOutput && !hasRememberOutput) {
+            // Log WHICH dones got rejected — no more silent strip
+            for (const d of tags.dones) {
+              slog('DONE', `⛔ A-gate reject: "${d.slice(0, 80)}" — task-focused mode requires CODE/CHAT(≥50ch)/REMEMBER output`);
+            }
             tags.dones = [];
           }
         }
