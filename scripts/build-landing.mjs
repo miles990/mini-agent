@@ -29,13 +29,14 @@ const ROOT      = join(__dirname, '..');
 const STATE_DIR = join(ROOT, 'memory/state');
 const OUT_DIR   = join(ROOT, 'kuro-portfolio/ai-trend/data');
 
-// 5-source registry — same order as graph.mjs SOURCES for legend stability.
+// 6-source registry — same order as graph.mjs SOURCES for legend stability.
 const SOURCES = [
   { key: 'hn',     dir: 'hn-ai-trend',        color: '#ff8800', label: 'HN' },
   { key: 'reddit', dir: 'reddit-trend',       color: '#ff4500', label: 'Reddit' },
   { key: 'x',      dir: 'x-trend',            color: '#1da1f2', label: 'X' },
   { key: 'arxiv',  dir: 'arxiv-trend',        color: '#b31b1b', label: 'arXiv' },
   { key: 'latent', dir: 'latent-space-trend', color: '#7c3aed', label: 'Latent Space' },
+  { key: 'github', dir: 'github-trend',       color: '#24292e', label: 'GitHub' },
 ];
 
 // Topic taxonomy — keyword → canonical topic. Order matters: more specific first.

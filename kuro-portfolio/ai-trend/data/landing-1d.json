@@ -1,14 +1,11 @@
 {
   "meta": {
     "period_days": 1,
-    "end_date": "2026-04-28",
-    "start_date": "2026-04-28",
+    "end_date": "2026-04-29",
+    "start_date": "2026-04-29",
     "sources_active": [
       "hn",
-      "reddit",
-      "x",
-      "arxiv",
-      "latent"
+      "github"
     ],
     "sources_registry": [
       {
@@ -35,10 +32,15 @@
         "key": "latent",
         "label": "Latent Space",
         "color": "#7c3aed"
+      },
+      {
+        "key": "github",
+        "label": "GitHub",
+        "color": "#24292e"
       }
     ],
-    "total_posts": 99,
-    "generated_at": "2026-04-28T06:17:36.225Z"
+    "total_posts": 85,
+    "generated_at": "2026-04-29T05:05:20.966Z"
   },
   "top_topics": [
     {
@@ -47,179 +49,155 @@
       "post_count": 25,
       "sources": [
         "hn",
-        "reddit",
-        "x",
-        "arxiv",
-        "latent"
+        "github"
       ],
       "sample_titles": [
         {
-          "title": "$20 Claude Pro users will soon no longer be able to use Opus models in Claude Code unless they purchase extra usage 🤦‍♂️",
-          "url": "https://x.com/synthwavedd/status/2048872483558715490",
-          "source": "x",
-          "points": 2293
+          "title": "langchain-ai/langchain: The agent engineering platform",
+          "url": "https://github.com/langchain-ai/langchain",
+          "source": "github",
+          "points": 135297
         },
         {
-          "title": "“claude code without paying? here’s the trick",
-          "url": "https://x.com/GithubProjects/status/2048726380574281756",
-          "source": "x",
-          "points": 1456
+          "title": "NousResearch/hermes-agent: The agent that grows with you",
+          "url": "https://github.com/NousResearch/hermes-agent",
+          "source": "github",
+          "points": 123415
         },
         {
-          "title": "Congrats to @getavoca on their $125M raise at a $1B valuation! They're building AI agents for home services businesses—answering inbound calls, booking jobs, following up on estimates, and driving new leads based on technician capacity. On track to book $1B in jobs this year.",
-          "url": "https://x.com/ycombinator/status/2048791369100218800",
-          "source": "x",
-          "points": 1072
+          "title": "punkpeye/awesome-mcp-servers: A collection of MCP servers.",
+          "url": "https://github.com/punkpeye/awesome-mcp-servers",
+          "source": "github",
+          "points": 85882
         }
       ]
     },
     {
       "topic": "model",
       "color": "#ffb86b",
-      "post_count": 16,
+      "post_count": 11,
       "sources": [
         "hn",
-        "reddit",
-        "latent"
+        "github"
       ],
       "sample_titles": [
         {
-          "title": "Microsoft and OpenAI end their exclusive and revenue-sharing deal",
-          "url": "https://www.bloomberg.com/news/articles/2026-04-27/microsoft-to-stop-sharing-revenue-with-main-ai-partner-openai",
-          "source": "hn",
-          "points": 666
+          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
+          "url": "https://github.com/ollama/ollama",
+          "source": "github",
+          "points": 170251
         },
         {
-          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
-          "url": "https://www.reddit.com/gallery/1sxapqb",
-          "source": "reddit",
-          "points": 285
+          "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
+          "url": "https://github.com/open-webui/open-webui",
+          "source": "github",
+          "points": 134696
         },
         {
-          "title": "Mistral built a $14B AI empire by not being American",
-          "url": "https://www.forbes.com/sites/iainmartin/2026/04/16/how-frances-mistral-built-a-14-billion-ai-empire-by-not-being-american/",
-          "source": "hn",
-          "points": 199
-        }
-      ]
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "post_count": 4,
-      "sources": [
-        "reddit",
-        "arxiv"
-      ],
-      "sample_titles": [
-        {
-          "title": "To 16GB VRAM users, plug in your old GPU",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
-          "source": "reddit",
-          "points": 328
-        },
-        {
-          "title": "AMD Hipfire - a new inference engine optimized for AMD GPU's",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swpsv0/amd_hipfire_a_new_inference_engine_optimized_for/",
-          "source": "reddit",
-          "points": 274
-        },
-        {
-          "title": "Skymizer Taiwan Inc. Unveils Breakthrough Architecture Enabling Ultra-Large LLM Inference on a Single Card",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1sx2vxp/skymizer_taiwan_inc_unveils_breakthrough/",
-          "source": "reddit",
-          "points": 112
-        }
-      ]
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "post_count": 4,
-      "sources": [
-        "reddit",
-        "arxiv"
-      ],
-      "sample_titles": [
-        {
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "source": "reddit",
-          "points": 103
-        },
-        {
-          "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
-          "url": "http://arxiv.org/abs/2604.24729v1",
-          "source": "arxiv",
-          "points": 56
-        },
-        {
-          "title": "Case-Specific Rubrics for Clinical AI Evaluation: Methodology, Validation, and LLM-Clinician Agreement Across 823 Encounters",
-          "url": "http://arxiv.org/abs/2604.24710v1",
-          "source": "arxiv",
-          "points": 52
-        }
-      ]
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
-      "post_count": 3,
-      "sources": [
-        "hn",
-        "arxiv",
-        "latent"
-      ],
-      "sample_titles": [
-        {
-          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
-          "url": "https://www.latent.space/p/noetik",
-          "source": "latent",
-          "points": 52
-        },
-        {
-          "title": "Scalable Hyperparameter-Divergent Ensemble Training with Automatic Learning Rate Exploration for Large Models",
-          "url": "http://arxiv.org/abs/2604.24708v1",
-          "source": "arxiv",
-          "points": 51
-        },
-        {
-          "title": "Decoupled DiLoCo: Resilient, Distributed AI Training at Scale",
-          "url": "https://deepmind.google/blog/decoupled-diloco/",
-          "source": "hn",
-          "points": 37
+          "title": "unslothai/unsloth: Web UI for training and running open models like Gemma 4, Qwen3.6, DeepSeek, gpt-oss locally.",
+          "url": "https://github.com/unslothai/unsloth",
+          "source": "github",
+          "points": 63222
         }
       ]
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
-      "post_count": 1,
+      "post_count": 7,
       "sources": [
-        "hn"
+        "github"
       ],
       "sample_titles": [
         {
-          "title": "Ubuntu Linux Will Begin Landing AI Features Throughout the Next Year",
-          "url": "https://www.phoronix.com/news/Ubuntu-AI-Features-2026",
-          "source": "hn",
-          "points": 23
+          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+          "url": "https://github.com/affaan-m/everything-claude-code",
+          "source": "github",
+          "points": 169531
+        },
+        {
+          "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
+          "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
+          "source": "github",
+          "points": 107976
+        },
+        {
+          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
+          "url": "https://github.com/vllm-project/vllm",
+          "source": "github",
+          "points": 78507
         }
       ]
     },
     {
       "topic": "reasoning",
       "color": "#f1fa8c",
-      "post_count": 1,
+      "post_count": 3,
       "sources": [
-        "arxiv"
+        "github"
       ],
       "sample_titles": [
         {
-          "title": "Benchmarking Source-Sensitive Reasoning in Turkish: Humans and LLMs under Evidential Trust Manipulation",
-          "url": "http://arxiv.org/abs/2604.24665v1",
-          "source": "arxiv",
-          "points": 36
+          "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
+          "url": "https://github.com/firecrawl/firecrawl",
+          "source": "github",
+          "points": 112926
+        },
+        {
+          "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
+          "url": "https://github.com/milvus-io/milvus",
+          "source": "github",
+          "points": 44034
+        },
+        {
+          "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
+          "url": "https://github.com/pingcap/tidb",
+          "source": "github",
+          "points": 40036
+        }
+      ]
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "post_count": 3,
+      "sources": [
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
+          "url": "https://github.com/mudler/LocalAI",
+          "source": "github",
+          "points": 45905
+        },
+        {
+          "title": "simstudioai/sim: Build, deploy, and orchestrate AI agents. Sim is the central intelligence layer for your AI workforce.",
+          "url": "https://github.com/simstudioai/sim",
+          "source": "github",
+          "points": 27897
+        },
+        {
+          "title": "sgl-project/sglang: SGLang is a high-performance serving framework for large language models and multimodal models.",
+          "url": "https://github.com/sgl-project/sglang",
+          "source": "github",
+          "points": 26656
+        }
+      ]
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "post_count": 1,
+      "sources": [
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
+          "url": "https://github.com/huggingface/transformers",
+          "source": "github",
+          "points": 160070
         }
       ]
     }
@@ -230,7 +208,7 @@
       "color": "#9ab8ff",
       "points": [
         {
-          "date": "2026-04-28",
+          "date": "2026-04-29",
           "count": 25
         }
       ],
@@ -242,47 +220,11 @@
       "color": "#ffb86b",
       "points": [
         {
-          "date": "2026-04-28",
-          "count": 16
+          "date": "2026-04-29",
+          "count": 11
         }
       ],
-      "total": 16,
-      "delta_pct": null
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "points": [
-        {
-          "date": "2026-04-28",
-          "count": 4
-        }
-      ],
-      "total": 4,
-      "delta_pct": null
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "points": [
-        {
-          "date": "2026-04-28",
-          "count": 4
-        }
-      ],
-      "total": 4,
-      "delta_pct": null
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
-      "points": [
-        {
-          "date": "2026-04-28",
-          "count": 3
-        }
-      ],
-      "total": 3,
+      "total": 11,
       "delta_pct": null
     },
     {
@@ -290,11 +232,11 @@
       "color": "#7fd4b8",
       "points": [
         {
-          "date": "2026-04-28",
-          "count": 1
+          "date": "2026-04-29",
+          "count": 7
         }
       ],
-      "total": 1,
+      "total": 7,
       "delta_pct": null
     },
     {
@@ -302,7 +244,31 @@
       "color": "#f1fa8c",
       "points": [
         {
-          "date": "2026-04-28",
+          "date": "2026-04-29",
+          "count": 3
+        }
+      ],
+      "total": 3,
+      "delta_pct": null
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "points": [
+        {
+          "date": "2026-04-29",
+          "count": 3
+        }
+      ],
+      "total": 3,
+      "delta_pct": null
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "points": [
+        {
+          "date": "2026-04-29",
           "count": 1
         }
       ],
@@ -317,57 +283,27 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 5
+          "post_count": 12
         },
         {
-          "source": "reddit",
-          "post_count": 1
-        },
-        {
-          "source": "x",
-          "post_count": 14
-        },
-        {
-          "source": "arxiv",
-          "post_count": 3
-        },
-        {
-          "source": "latent",
-          "post_count": 2
+          "source": "github",
+          "post_count": 13
         }
       ],
-      "source_count": 5,
+      "source_count": 2,
       "post_count": 25,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "GitHub Copilot is moving to usage-based billing",
-          "url": "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
-          "points": 464
+          "title": "Who owns the code Claude Code wrote?",
+          "url": "https://legallayer.substack.com/p/who-owns-the-claude-code-wrote",
+          "points": 284
         },
         {
-          "source": "reddit",
-          "title": "Anthropic states Pro users can only access Opus models in Claude Code after enabling and purchasing extra usage",
-          "url": "https://i.redd.it/ghpqfe4oysxg1.png",
-          "points": 119
-        },
-        {
-          "source": "x",
-          "title": "$20 Claude Pro users will soon no longer be able to use Opus models in Claude Code unless they purchase extra usage 🤦‍♂️",
-          "url": "https://x.com/synthwavedd/status/2048872483558715490",
-          "points": 2293
-        },
-        {
-          "source": "arxiv",
-          "title": "Governing What You Cannot Observe: Adaptive Runtime Governance for Autonomous AI Agents",
-          "url": "http://arxiv.org/abs/2604.24686v1",
-          "points": 41
-        },
-        {
-          "source": "latent",
-          "title": "AIE Europe Debrief + Agent Labs Thesis: Unsupervised Learning x Latent Space Crossover Special (2026)",
-          "url": "https://www.latent.space/p/unsupervised-learning-2026",
-          "points": 57
+          "source": "github",
+          "title": "langchain-ai/langchain: The agent engineering platform",
+          "url": "https://github.com/langchain-ai/langchain",
+          "points": 135297
         }
       ]
     },
@@ -377,137 +313,27 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 4
+          "post_count": 6
         },
         {
-          "source": "reddit",
-          "post_count": 4
-        },
-        {
-          "source": "latent",
-          "post_count": 8
-        }
-      ],
-      "source_count": 3,
-      "post_count": 16,
-      "sample_per_source": [
-        {
-          "source": "hn",
-          "title": "Microsoft and OpenAI end their exclusive and revenue-sharing deal",
-          "url": "https://www.bloomberg.com/news/articles/2026-04-27/microsoft-to-stop-sharing-revenue-with-main-ai-partner-openai",
-          "points": 666
-        },
-        {
-          "source": "reddit",
-          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
-          "url": "https://www.reddit.com/gallery/1sxapqb",
-          "points": 285
-        },
-        {
-          "source": "latent",
-          "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
-          "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
-          "points": 59
-        }
-      ]
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
-      "sources": [
-        {
-          "source": "hn",
-          "post_count": 1
-        },
-        {
-          "source": "arxiv",
-          "post_count": 1
-        },
-        {
-          "source": "latent",
-          "post_count": 1
-        }
-      ],
-      "source_count": 3,
-      "post_count": 3,
-      "sample_per_source": [
-        {
-          "source": "hn",
-          "title": "Decoupled DiLoCo: Resilient, Distributed AI Training at Scale",
-          "url": "https://deepmind.google/blog/decoupled-diloco/",
-          "points": 37
-        },
-        {
-          "source": "arxiv",
-          "title": "Scalable Hyperparameter-Divergent Ensemble Training with Automatic Learning Rate Exploration for Large Models",
-          "url": "http://arxiv.org/abs/2604.24708v1",
-          "points": 51
-        },
-        {
-          "source": "latent",
-          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
-          "url": "https://www.latent.space/p/noetik",
-          "points": 52
-        }
-      ]
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "sources": [
-        {
-          "source": "reddit",
-          "post_count": 3
-        },
-        {
-          "source": "arxiv",
-          "post_count": 1
+          "source": "github",
+          "post_count": 5
         }
       ],
       "source_count": 2,
-      "post_count": 4,
+      "post_count": 11,
       "sample_per_source": [
         {
-          "source": "reddit",
-          "title": "To 16GB VRAM users, plug in your old GPU",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
-          "points": 328
+          "source": "hn",
+          "title": "OpenAI CEO's Identity Verification Company Announced Fake Bruno Mars Partnership",
+          "url": "https://www.vice.com/en/article/openai-ceo-identity-verification-company-fake-bruno-mars-partnership-mistaken-identity/",
+          "points": 279
         },
         {
-          "source": "arxiv",
-          "title": "DepthKV: Layer-Dependent KV Cache Pruning for Long-Context LLM Inference",
-          "url": "http://arxiv.org/abs/2604.24647v1",
-          "points": 31
-        }
-      ]
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "sources": [
-        {
-          "source": "reddit",
-          "post_count": 1
-        },
-        {
-          "source": "arxiv",
-          "post_count": 3
-        }
-      ],
-      "source_count": 2,
-      "post_count": 4,
-      "sample_per_source": [
-        {
-          "source": "reddit",
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "points": 103
-        },
-        {
-          "source": "arxiv",
-          "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
-          "url": "http://arxiv.org/abs/2604.24729v1",
-          "points": 56
+          "source": "github",
+          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
+          "url": "https://github.com/ollama/ollama",
+          "points": 170251
         }
       ]
     }
