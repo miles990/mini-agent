@@ -26,7 +26,7 @@
 
 ## Active Tasks
 <!-- 只留 7 天內或 P0/P1。OVERDUE 但無新證據的搬到 .backup-20260429 -->
-- [ ] **P0 重派迴圈 root cause**：`loop.ts:2841-2851` A-gate 在 task-focused mode + 無 CODE/DELEGATE tag 時 silent strip `tags.dones`。診斷報告 `memory/topics/2026-04-29-done-agate-false-reject-diagnosis.md`，三個修法選項待 Alex 授權 src 層 patch。falsifier：本 cycle 修 HEARTBEAT 後仍重派同 P0 → 修法需提升優先序。
+- [ ] **P0 重派迴圈 root cause（2026-04-29 重定位）**：A-gate silent strip 已修（`/Users/user/Workspace/mini-agent/src/loop.ts:2841-2858` 04-29 fix ship — 接受 CHAT≥50ch + REMEMBER 為 valid work，:2855 有 slog reject log）。**真正剩餘 bug 在同檔 :2872 + :2878**：(a) `:2872` `markTaskDoneByDescription(...).catch(() => {})` 吞錯誤 → `queryMemoryIndexSync` 找不到 task 時 silent fail；(b) `:2878` `if (schedState.currentTaskId)` guard，continuation/yielded cycle 常 undefined → mark-done 成功但 scheduler 不知。**注意 repo 路徑**：bug 在 `mini-agent/src/`，不是 `agent-middleware/src/`（該路徑無此檔，曾因此幻覺自我撤銷一次）。修法 spec 已給 Alex（chat 215, Fix 1/2/3），src 層 patch 等授權（malware-guard）。falsifier：apply Fix 3 跑 5 cycle，scheduler 仍重派已 done task → bug 在 memory-index lookup 本身，不在 dispatcher path。
 - [ ] **P0 Cannot read properties of unde:generic**（72 次, last 2026-04-25）：累計 counter 是歷史快照非 live signal。守值規則：count 不變期間禁止再查（cl-gate）。觸發條件：count > 72。
 - [ ] **P1 silent_exit_void**（last 2026-04-28）：stdout-tail classifier 已 ship `c7c50f7b`；新 events 是 root-cause 待解（stdout=empty after 254s），不是 classifier 問題。
 - [ ] **HN AI trend cron 驗證**：crontab `0 9 * * *`，但 04-28 09:00 沒自動跑（手動 catchup 18:28）。falsifier：04-29 09:30 `ls memory/state/hn-ai-trend/2026-04-29.json` 不存在或 <5KB → 確認 cron broken，需查 cron log。
