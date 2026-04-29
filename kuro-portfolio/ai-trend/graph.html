@@ -50,8 +50,13 @@
     fill: #d8d8d8;
     pointer-events: none;
     text-shadow: 0 0 3px #0b0b0c, 0 0 3px #0b0b0c, 0 0 6px #0b0b0c;
+    opacity: 0;
+    transition: opacity 0.2s;
   }
-  .node.dim text { opacity: 0.2; }
+  .node:hover text { opacity: 1; }
+  .node.top text { opacity: 1; }
+  .node.dim text { opacity: 0 !important; }
+  .node.top.dim text { opacity: 0 !important; }
 
   #panel {
     position: fixed; right: 1rem; bottom: 1rem;
@@ -282,10 +287,11 @@ svg.call(d3.zoom().scaleExtent([0.3, 4]).on('zoom', e => root.attr('transform', 
 const radius = d => 4 + Math.sqrt(d.points || 1) * 1.2;
 
 const sim = d3.forceSimulation(DATA.nodes)
-  .force('link', d3.forceLink(DATA.links).id(d => d.id).distance(d => 80 / (d.weight || 1)).strength(0.3))
-  .force('charge', d3.forceManyBody().strength(-180))
+  .alphaDecay(0.02)
+  .force('link', d3.forceLink(DATA.links).id(d => d.id).distance(120).strength(0.3))
+  .force('charge', d3.forceManyBody().strength(-500))
   .force('center', d3.forceCenter(W/2, H/2))
-  .force('collide', d3.forceCollide().radius(d => radius(d) + 4));
+  .force('collide', d3.forceCollide().radius(d => radius(d) + 20).strength(0.9));
 
 const link = root.append('g').attr('class', 'links').selectAll('line')
   .data(DATA.links).join('line')
@@ -306,10 +312,10 @@ node.append('circle')
   .attr('fill', d => d.sourceColor)   // source = primary visual identity
   .attr('stroke', d => d.color);      // topic = ring color
 node.append('text')
-  .attr('dy', d => -radius(d) - 3)
+  .attr('dy', d => -(d.topRank ? radius(d) + 2 : radius(d)) - 6)
   .attr('text-anchor', 'middle')
   .text(d => {
-    const max = d.topRank ? 44 : 36;
+    const max = d.topRank ? 44 : 22;
     const prefix = d.topRank ? ('#' + d.topRank + ' ') : '';
     const t = d.title.length > max ? d.title.slice(0, max - 2) + '…' : d.title;
     return prefix + t;
