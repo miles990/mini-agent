@@ -426,7 +426,7 @@ export function entryToSnapshot(entry: MemoryIndexEntry): TaskSnapshot {
 
   return {
     id: entry.id,
-    summary: entry.summary ?? entry.id,
+    summary: entry.summary || (payload?.title as string) || `task-${entry.id.slice(0, 8)}`,
     status: entry.status,
     priority,
     source,
@@ -457,10 +457,11 @@ function parsePriorityFromSummary(summary: string): number {
 
 function detectSource(entry: MemoryIndexEntry): TaskSnapshot['source'] {
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
-  if (payload.source === 'alex') return 'alex';
-  if (payload.origin === 'alex') return 'alex';
-  if (payload.source === 'kuro') return 'kuro';
-  if (payload.source === 'discovery') return 'discovery';
+  const from = (payload.from ?? payload.source) as string | undefined;
+  if (from === 'alex' || payload.origin === 'alex') return 'alex';
+  if (from === 'kuro') return 'kuro';
+  if (from === 'discovery' || payload.source === 'discovery') return 'discovery';
+  if (from) return from as TaskSnapshot['source'];
   const summary = (entry.summary ?? '').toLowerCase();
   if (summary.includes('alex') && (summary.includes('要') || summary.includes('請') || summary.includes('做') || summary.includes('點名'))) return 'alex';
   const origin = (payload.origin as string ?? '').toLowerCase();

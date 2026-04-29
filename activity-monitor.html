@@ -711,7 +711,7 @@ function renderScheduler(data) {
         ${sourceTag(t.source)}
         <span class="tag tag-priority">P${t.priority}</span>
         <span class="queue-summary">${escHtml(t.summary)}${deadlineBadge}${depBadge}</span>
-        <span class="queue-score">${t.score}</span>
+        <span class="queue-score" title="score=${t.score}">P${t.priority}</span>
       </div>`;
     }).join('');
   } else {

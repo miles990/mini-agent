@@ -1607,7 +1607,7 @@ export async function enqueueAlexMessage(
  * Mirrors enqueueAlexMessage but for room source.
  */
 // Intent classification for task decomposition
-type IntentType = 'research' | 'execute' | 'question' | 'fyi';
+type IntentType = 'research' | 'execute' | 'question' | 'fyi' | 'ignore';
 type Urgency = 'high' | 'medium' | 'low';
 
 const URL_RE = /https?:\/\/[^\s)>\],]+/;
@@ -1615,7 +1615,20 @@ const QUESTION_RE = /[？?]$|^(?:為什麼|怎麼|什麼|哪|誰|多少|是否|�
 const URGENCY_RE = /urgent|緊急|馬上|立刻|ASAP|blocked|阻塞|@kuro/i;
 const MULTI_ACTION_RE = /然後|接著|再|還有|順便|另外|以及|並且|同時/;
 
+const META_FEEDBACK_RE = /^(好的?|OK|收到|了解|不錯|沒問題|對|嗯|繼續|加油)/i;
+const INTERNAL_ROUTING_RE = /^\[表達意圖\]|^\[OODA|phase:(observe|orient|decide|act)|routing:internal/i;
+
+function isNonTask(message: string): boolean {
+  const trimmed = message.trim();
+  if (INTERNAL_ROUTING_RE.test(trimmed)) return true;
+  if (META_FEEDBACK_RE.test(trimmed) && trimmed.length < 50 && !URL_RE.test(trimmed) && !CONCRETE_VERBS.test(trimmed)) return true;
+  return false;
+}
+
 function classifyIntent(message: string): { type: IntentType; urgency: Urgency; title: string } {
+  if (isNonTask(message)) {
+    return { type: 'ignore', urgency: 'low', title: message.replace(/\n/g, ' ').slice(0, 80).trim() };
+  }
   const urgency: Urgency = URGENCY_RE.test(message) ? 'high' : 'medium';
   let type: IntentType = 'execute';
   if (QUESTION_RE.test(message.trim())) type = 'question';
@@ -1663,6 +1676,10 @@ export async function enqueueRoomDirective(
   if (existing.some(e => (getTaskPayload(e).roomMsgId as string) === roomMsgId)) return;
 
   const { type: intent, urgency, title } = classifyIntent(message);
+  if (intent === 'ignore') {
+    slog('NEXT', `Skipped non-task [${from}] "${title.slice(0, 40)}" (${intent})`);
+    return;
+  }
   const priority = computeTaskPriority(from, urgency);
 
   if (shouldDecompose(message) || intent === 'research') {
