@@ -1617,7 +1617,10 @@ export async function enqueueRoomDirective(
   if (existing.some(e => (getTaskPayload(e).roomMsgId as string) === roomMsgId)) return;
 
   const preview = message.replace(/\n/g, ' ').slice(0, 100);
-  const priority = from === 'alex' ? 1 : 2; // Alex = P1, Claude Code = P2
+  // Dynamic priority: Alex always P1; others check urgency signals
+  const priority = from === 'alex' ? 1
+    : /urgent|緊急|馬上|立刻|ASAP|blocked|阻塞|@kuro/i.test(message) ? 1
+    : 2;
   const entry = await appendMemoryIndexEntry(memoryDir, {
     type: 'task',
     status: 'pending',

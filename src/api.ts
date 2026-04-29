@@ -3107,6 +3107,33 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
+  // POST /api/webhook — receive events from external systems (KG notifications, etc.)
+  app.post('/api/webhook', (req: Request, res: Response) => {
+    try {
+      const { discussion_id, events, event_count, source } = req.body;
+      if (!events && !source) {
+        res.status(400).json({ error: 'events or source required' });
+        return;
+      }
+      const triggerSource = source || 'kg-webhook';
+      const priority = events?.some((e: any) => e.data?.priority_hint === 'high') ? 'urgent' : 'normal';
+      try {
+        eventBus.emit(priority === 'urgent' ? 'trigger:room' : 'trigger:workspace', {
+          source: triggerSource,
+          discussion_id,
+          event_count: event_count || events?.length || 1,
+          priority,
+          receivedAt: new Date().toISOString(),
+        });
+      } catch { /* best effort */ }
+      slog('WEBHOOK', `${triggerSource}: ${event_count || 1} events (${priority})`);
+      res.json({ ok: true, queued: true });
+    } catch (error) {
+      slog('ERROR', `Webhook failed: ${error instanceof Error ? error.message : error}`);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
   // GET /api/room — read today's conversation (or ?date=YYYY-MM-DD)
   app.get('/api/room', (req: Request, res: Response) => {
     try {
