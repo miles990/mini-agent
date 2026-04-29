@@ -101,7 +101,13 @@
       <option value="1">Today</option>
       <option value="7">Past 7 days</option>
       <option value="30">Past 30 days</option>
+      <option value="custom">Custom range…</option>
     </select>
+    <span id="customRangeWrap" style="display:none;margin-left:0.4rem;">
+      <input type="date" id="customFrom" onchange="applyTimeFilter()" style="background:#1d1d20;color:#e6e6e6;border:1px solid #333;padding:1px 4px;font:inherit;border-radius:3px;">
+      <span style="color:#666;">→</span>
+      <input type="date" id="customTo" onchange="applyTimeFilter()" style="background:#1d1d20;color:#e6e6e6;border:1px solid #333;padding:1px 4px;font:inherit;border-radius:3px;">
+    </span>
     <span id="filterCount" style="margin-left:0.6rem;color:#666;"></span>
   </div>
 </header>
@@ -148,8 +154,19 @@ const TOP_PAD    = HEADER_PAD + 18;
 const LANE_GAP   = 6;
 
 let _timeFilter = (typeof localStorage !== 'undefined' && localStorage.getItem('aiTrendTimeRange')) || 'all';
+let _customFrom = (typeof localStorage !== 'undefined' && localStorage.getItem('aiTrendCustomFrom')) || '';
+let _customTo   = (typeof localStorage !== 'undefined' && localStorage.getItem('aiTrendCustomTo')) || '';
 function getFilteredNodes() {
   if (_timeFilter === 'all') return DATA.nodes;
+  if (_timeFilter === 'custom') {
+    if (!_customFrom && !_customTo) return DATA.nodes;
+    return DATA.nodes.filter(n => {
+      if (!n.date) return false;
+      if (_customFrom && n.date < _customFrom) return false;
+      if (_customTo   && n.date > _customTo)   return false;
+      return true;
+    });
+  }
   const days = parseInt(_timeFilter, 10);
   if (!Number.isFinite(days) || days <= 0) return DATA.nodes;
   // Use latest data date as reference (data may be historical, not today-anchored)
@@ -163,12 +180,28 @@ function getFilteredNodes() {
 function applyTimeFilter() {
   const sel = document.getElementById('timeRange');
   if (sel) _timeFilter = sel.value;
+  const wrap = document.getElementById('customRangeWrap');
+  if (wrap) wrap.style.display = (_timeFilter === 'custom') ? 'inline' : 'none';
+  if (_timeFilter === 'custom') {
+    const f = document.getElementById('customFrom');
+    const t = document.getElementById('customTo');
+    if (f) _customFrom = f.value || '';
+    if (t) _customTo   = t.value || '';
+    try {
+      localStorage.setItem('aiTrendCustomFrom', _customFrom);
+      localStorage.setItem('aiTrendCustomTo',   _customTo);
+    } catch (e) {}
+  }
   try { localStorage.setItem('aiTrendTimeRange', _timeFilter); } catch (e) {}
   render();
 }
 function _initTimeFilterUI() {
   const sel = document.getElementById('timeRange');
   if (sel) sel.value = _timeFilter;
+  const wrap = document.getElementById('customRangeWrap');
+  if (wrap) wrap.style.display = (_timeFilter === 'custom') ? 'inline' : 'none';
+  const f = document.getElementById('customFrom'); if (f && _customFrom) f.value = _customFrom;
+  const t = document.getElementById('customTo');   if (t && _customTo)   t.value = _customTo;
   const c = document.getElementById('filterCount');
   if (c) {
     const total = DATA.nodes.length;
