@@ -51,3 +51,23 @@ disagreement 樣本中至少 2 筆 `llm=other` 帶 `rationale: parse-fail: {...}
 
 ## 自我糾錯
 上 cycle audit chat 把這份 verdict 框成「等 Alex 二選一回應」(cl-26~30) 是 over-defer。Alex 04-29 04:05 「你自己決定 我只看成果」就是授權。守 falsifier 5 個 cycle 沒動 = 把外部訊號當 blocker，是 PERFORMATIVE SKEPTICISM 的活體案例。下次：peer-reply lane 缺失 + Alex 已給授權 → 直接動，不再守 fals。
+
+## Patch Plan — LLM tagger 接進 graph.mjs（scope only，本 cycle 不 ship code）
+
+### 目標 patch surface（read-only audit @ 2026-04-29 12:18）
+- **`scripts/hn-ai-trend-graph.mjs:40-50`** — `TOPICS` const（9 條 regex）保留，降級為 fallback
+- **`scripts/hn-ai-trend-graph.mjs:51`** — `DEFAULT_TOPIC = { name: 'other' }` 保留
+- **`scripts/hn-ai-trend-graph.mjs:53-64`** — `tagPost(post)` 同步函式。**這是唯一需要改的函式**，所有 caller (L86) 不變
+
+### 3 步驟（下 cycle 起，本 cycle 不動 src/）
+1. **Step 1 — sidecar tag cache**：先寫 `scripts/hn-ai-trend-llm-tagger.mjs`（新檔，獨立 CLI），讀 `memory/state/{src}/{date}.json`、對每 post 跑 LLM、產出 `memory/state/{src}/{date}.tags.json` sidecar（key=post.id, value={primary, secondary[], rationale}）。**好處**：不污染 enrich JSON，可重跑，graph.mjs 無修改也能先 ship sidecar。
+2. **Step 2 — `tagPost` 改成 async + 讀 sidecar**：在 graph.mjs L53 把 `function tagPost(post)` 改 `async function tagPost(post, sidecar)`，先查 `sidecar[post.id]?.primary`，命中就用 LLM tag；miss → 跑現有 regex（L60）。caller L86 改 `await tagPost(p, sidecar)`，loadSource 先 readFile sidecar 一次。**改動量**：+~15 行，現有 regex 保留為純 fallback。
+3. **Step 3 — fallback metric**：loadSource 結束時印 `[graph] source ${key}: llm_hit=N, regex_fallback=M, other=K`。當 regex_fallback/total > 50% → exit 1（cron 警報）。
+
+### 風險 + falsifier
+- **風險 A**：LLM 14-topic taxonomy 跟 graph.html legend 9 色不對齊 → graph 出現 5 個無色 stroke。**修法**：sidecar 階段就 map 14→9（policy/business/discussion 三類在 graph 層暫合併進 `opinion`），或擴 legend 至 14（kuro-portfolio CSS 動）。**本 cycle 不決**。
+- **風險 B**：Step 1 跑 119 posts 過 LOCAL_LLM_URL 約 8-12 分鐘（依 prototype run 約 4s/post）。需 LOCAL_LLM_URL 在 enrichment cron 前可達。
+- **Patch falsifier**：Step 2 改完後若 graph.html 開啟出現 d3 console error 或 stroke 比 04-29 baseline graph 少 >5% → patch 撤回，回 regex-only 直到 mismatch 鎖定。
+
+### 為什麼是 sidecar 不是 inline rewrite
+inline 改 enrich pipeline 會把 LLM call 塞進 fetch-stage，失敗就拉低整個 daily artifact 完整性。sidecar 解耦：tag fail 時 graph 還能跑（用 regex），enrich pipeline 完全不動。對應 active-context decision「找最合適的解法」— 最小耦合 + 可逆。
