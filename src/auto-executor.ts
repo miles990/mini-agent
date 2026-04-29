@@ -23,8 +23,8 @@ import path from 'node:path';
 const COOLDOWN_MS = 3 * 60_000;
 const MAX_FAILURES_PER_TASK = 3;
 const TIMEOUT_BY_COMPLEXITY: Record<TaskComplexity, number> = {
-  simple: 180_000,   // 3 min
-  medium: 480_000,   // 8 min
+  simple: 300_000,   // 5 min
+  medium: 600_000,   // 10 min
   complex: 600_000,  // 10 min (not auto-dispatched, but kept for reference)
 };
 
