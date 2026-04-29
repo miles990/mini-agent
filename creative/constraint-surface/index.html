@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Constraint Surface — Kuro</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #07090c; color: #cfd6e0;
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+  .hud {
+    position: fixed; left: 12px; top: 12px; pointer-events: none;
+    text-shadow: 0 1px 2px #000; opacity: .85; max-width: 46ch;
+  }
+  .hud h1 { margin: 0 0 4px; font-size: 13px; font-weight: 600; letter-spacing: .04em; }
+  .hud p { margin: 0 0 2px; opacity: .8; }
+  .hud .keys { margin-top: 6px; opacity: .55; }
+  .hud .keys b { color: #e6edf6; font-weight: 600; }
+  .badge { position: fixed; right: 12px; bottom: 10px; opacity: .35;
+    font-size: 11px; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <h1>constraint surface · navigation</h1>
+  <p>particles do steepest descent on a scalar field.</p>
+  <p>goals are wells. constraints are smooth ridges.</p>
+  <p>tighter constraints → narrower channel, but more structure.</p>
+  <div class="keys">
+    <b>click</b> add constraint &nbsp;
+    <b>shift+click</b> add goal &nbsp;
+    <b>r</b> reset &nbsp;
+    <b>f</b> field on/off &nbsp;
+    <b>space</b> pause
+  </div>
+</div>
+<div class="badge">— kuro · 2026-04-30</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d', { alpha: false });
+  let W = 0, H = 0, DPR = 1;
+
+  // --- field elements ----------------------------------------------------
+  // goal: gaussian well of depth `depth` and radius `r`
+  // constraint: soft ridge along a line segment, strength falling off with sigma
+  const goals = [];        // {x, y, depth, r}
+  const constraints = [];  // {x1,y1,x2,y2, k, sigma}
+
+  function seedScene() {
+    goals.length = 0;
+    constraints.length = 0;
+    // one central goal
+    goals.push({ x: 0.78, y: 0.5, depth: 1.0, r: 0.18 });
+    // a few diagonal soft walls forming a funnel
+    constraints.push({ x1: 0.10, y1: 0.10, x2: 0.55, y2: 0.42, k: 1.0, sigma: 0.04 });
+    constraints.push({ x1: 0.10, y1: 0.90, x2: 0.55, y2: 0.58, k: 1.0, sigma: 0.04 });
+    constraints.push({ x1: 0.55, y1: 0.42, x2: 0.74, y2: 0.46, k: 0.7, sigma: 0.03 });
+    constraints.push({ x1: 0.55, y1: 0.58, x2: 0.74, y2: 0.54, k: 0.7, sigma: 0.03 });
+  }
+  seedScene();
+
+  // --- math --------------------------------------------------------------
+  // distance from point p to segment ab, in normalized [0,1] space.
+  function distToSeg(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const L2 = dx*dx + dy*dy || 1e-9;
+    let t = ((px - x1) * dx + (py - y1) * dy) / L2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    return Math.hypot(px - cx, py - cy);
+  }
+
+  // potential at normalized (x,y) ∈ [0,1]^2
+  function potential(x, y) {
+    let phi = 0;
+    // border push-in
+    const m = 0.04;
+    phi += Math.exp(-x / m) + Math.exp(-(1 - x) / m);
+    phi += Math.exp(-y / m) + Math.exp(-(1 - y) / m);
+    // goals (negative wells)
+    for (const g of goals) {
+      const r = Math.hypot(x - g.x, y - g.y);
+      phi -= g.depth * Math.exp(-(r * r) / (2 * g.r * g.r));
+    }
+    // constraints (positive ridges)
+    for (const c of constraints) {
+      const d = distToSeg(x, y, c.x1, c.y1, c.x2, c.y2);
+      phi += c.k * Math.exp(-(d * d) / (2 * c.sigma * c.sigma));
+    }
+    return phi;
+  }
+
+  // numerical gradient
+  function grad(x, y, h = 1e-3) {
+    return [
+      (potential(x + h, y) - potential(x - h, y)) / (2 * h),
+      (potential(x, y + h) - potential(x, y - h)) / (2 * h),
+    ];
+  }
+
+  // --- particles ---------------------------------------------------------
+  const N = 220;
+  const particles = [];
+  function spawnParticle(p) {
+    // spawn on left edge with a vertical bias toward the funnel mouth
+    const y = 0.2 + Math.random() * 0.6;
+    p.x = 0.02 + Math.random() * 0.06;
+    p.y = y;
+    p.vx = 0; p.vy = 0;
+    p.life = 0;
+    p.maxLife = 800 + Math.random() * 600;
+    p.hue = 180 + Math.random() * 60; // cyan→teal
+  }
+  for (let i = 0; i < N; i++) {
+    const p = {};
+    spawnParticle(p);
+    particles.push(p);
+  }
+
+  // --- rendering ---------------------------------------------------------
+  let fieldCanvas = document.createElement('canvas');
+  let fieldCtx = fieldCanvas.getContext('2d');
+  let showField = true;
+
+  function renderField() {
+    if (!showField) return;
+    const fw = 220, fh = Math.round(fw * H / W);
+    fieldCanvas.width = fw; fieldCanvas.height = fh;
+    const img = fieldCtx.createImageData(fw, fh);
+    let mn = Infinity, mx = -Infinity;
+    const buf = new Float32Array(fw * fh);
+    for (let j = 0; j < fh; j++) {
+      for (let i = 0; i < fw; i++) {
+        const v = potential(i / (fw - 1), j / (fh - 1));
+        buf[j * fw + i] = v;
+        if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+    }
+    const span = mx - mn || 1;
+    for (let k = 0; k < buf.length; k++) {
+      const t = (buf[k] - mn) / span; // 0..1
+      // dark slate → teal mid → magenta high
+      let r, g, b;
+      if (t < 0.5) {
+        const u = t / 0.5;
+        r =  10 + u * (28 - 10);
+        g =  18 + u * (90 - 18);
+        b =  30 + u * (110 - 30);
+      } else {
+        const u = (t - 0.5) / 0.5;
+        r =  28 + u * (160 - 28);
+        g =  90 + u * (40 - 90);
+        b = 110 + u * (130 - 110);
+      }
+      const o = k * 4;
+      img.data[o]   = r;
+      img.data[o+1] = g;
+      img.data[o+2] = b;
+      img.data[o+3] = 255;
+    }
+    fieldCtx.putImageData(img, 0, 0);
+  }
+
+  // --- step --------------------------------------------------------------
+  let paused = false;
+  function step(dt) {
+    const speed = 0.0009;       // base step
+    const damp = 0.86;
+    const noise = 0.00035;
+    for (const p of particles) {
+      const [gx, gy] = grad(p.x, p.y);
+      // descent
+      p.vx = p.vx * damp - gx * speed;
+      p.vy = p.vy * damp - gy * speed;
+      // noise
+      p.vx += (Math.random() - 0.5) * noise;
+      p.vy += (Math.random() - 0.5) * noise;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life++;
+      // arrived at goal? respawn
+      let arrived = false;
+      for (const g of goals) {
+        if (Math.hypot(p.x - g.x, p.y - g.y) < g.r * 0.35) { arrived = true; break; }
+      }
+      if (arrived || p.life > p.maxLife
+          || p.x < -0.02 || p.x > 1.02 || p.y < -0.02 || p.y > 1.02) {
+        spawnParticle(p);
+      }
+    }
+  }
+
+  // --- draw --------------------------------------------------------------
+  let prevPos = new Float32Array(N * 2);
+  for (let i = 0; i < N; i++) { prevPos[i*2] = particles[i].x; prevPos[i*2+1] = particles[i].y; }
+
+  function draw() {
+    // soft fade for trails
+    ctx.fillStyle = 'rgba(7,9,12,0.10)';
+    ctx.fillRect(0, 0, W, H);
+
+    if (showField) {
+      ctx.globalAlpha = 0.18;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(fieldCanvas, 0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // constraint outlines
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for (const c of constraints) {
+      ctx.beginPath();
+      ctx.moveTo(c.x1 * W, c.y1 * H);
+      ctx.lineTo(c.x2 * W, c.y2 * H);
+      ctx.stroke();
+    }
+    // goal dots
+    for (const g of goals) {
+      const grd = ctx.createRadialGradient(g.x*W, g.y*H, 0, g.x*W, g.y*H, g.r*Math.min(W,H)*0.6);
+      grd.addColorStop(0, 'rgba(255,210,140,0.35)');
+      grd.addColorStop(1, 'rgba(255,210,140,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(g.x*W, g.y*H, g.r*Math.min(W,H)*0.6, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // particle trails
+    ctx.lineCap = 'round';
+    for (let i = 0; i < N; i++) {
+      const p = particles[i];
+      const px = prevPos[i*2], py = prevPos[i*2+1];
+      const speed = Math.hypot(p.x - px, p.y - py);
+      const alpha = Math.min(1, speed * 220);
+      ctx.strokeStyle = `hsla(${p.hue}, 80%, 65%, ${0.35 + alpha * 0.5})`;
+      ctx.lineWidth = 0.9 + alpha * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(px * W, py * H);
+      ctx.lineTo(p.x * W, p.y * H);
+      ctx.stroke();
+      prevPos[i*2] = p.x; prevPos[i*2+1] = p.y;
+    }
+  }
+
+  // --- loop --------------------------------------------------------------
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(33, t - last); last = t;
+    if (!paused) step(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // --- resize ------------------------------------------------------------
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.floor(window.innerWidth * DPR);
+    H = Math.floor(window.innerHeight * DPR);
+    cv.width = W; cv.height = H;
+    cv.style.width = window.innerWidth + 'px';
+    cv.style.height = window.innerHeight + 'px';
+    ctx.fillStyle = '#07090c';
+    ctx.fillRect(0, 0, W, H);
+    renderField();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- input -------------------------------------------------------------
+  let pending = null; // first click of a constraint segment
+  cv.addEventListener('click', (e) => {
+    const x = e.clientX * DPR / W;
+    const y = e.clientY * DPR / H;
+    if (e.shiftKey) {
+      goals.push({ x, y, depth: 0.9, r: 0.14 });
+      renderField();
+      return;
+    }
+    if (!pending) { pending = { x, y }; return; }
+    constraints.push({ x1: pending.x, y1: pending.y, x2: x, y2: y, k: 0.9, sigma: 0.035 });
+    pending = null;
+    renderField();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') { seedScene(); renderField(); }
+    else if (e.key === 'f' || e.key === 'F') { showField = !showField; }
+    else if (e.code === 'Space') { paused = !paused; e.preventDefault(); }
+  });
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
