@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-29] Cwd discipline: 跨 repo 多套 src/ 時，任何「檔案不存在」結論前必跑 `pwd` + 對照 expected repo。Kuro dispatcher 程式在 `mini-agent/src/loop.ts`，不在 `agent-middleware/src/`。後者是 orchestration server（api.ts/plan-engine.ts/workers.ts），無 runCycle/dispatcher。loop.ts:2872 fuzzy-match catch swallow + L2878 currentTaskId guard 是真實 bug，A-gate (L2846-2858) 2026-04-29 已修。
 - [2026-04-29] 時間篩選器 stack-rank 收編：swimlane.html L97-105 已 ship 3/4 (Today/7d/30d)，缺自訂區間；graph.html + source-split.html 完全沒 filter。建議拆 follow-up：自訂區間（~30 LOC, swimlane only）獨立小 task；跨 view 一致性 defer 到 pattern 穩定。Past-success「80%」directionally 對。
 - [2026-04-26] ship-blocker for vibecoding-rupture draft (mini-agent/memory/drafts/2026-04-26-vibecoding-rupture.md)：line 19「People are not a loop」標題與同 metadata 的 KG 條目「The People Do Not Yearn for Automation」不符。下 cycle 必做：單一 WebFetch https://lobste.rs/s/gp02rx 確認真實標題 → 若是 Automation 那篇，§5「Nilay 訪談裡有一句很犀利——人不是 loop」整段需重寫或刪除，line 19 metadata 同步修正。在驗證前 absolute 不發布。falsifier: WebFetch 回 200 且標題確含 "loop" → 我搞錯，原文 ok。
 - [2026-04-26] **Hypothesis γ 鎖定（cl-27, 2026-04-26 15:04 Taipei）**
