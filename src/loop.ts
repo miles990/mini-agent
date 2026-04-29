@@ -2872,15 +2872,23 @@ export class AgentLoop {
           return true;
         });
         if (filteredDones.length > 0) {
-          markTaskDoneByDescription(path.join(process.cwd(), 'memory'), filteredDones).catch(() => {});
+          const markedCount = await markTaskDoneByDescription(path.join(process.cwd(), 'memory'), filteredDones).catch((err) => {
+            slog('DONE', `⚠️ markTaskDoneByDescription error: ${err instanceof Error ? err.message : String(err)}`);
+            return 0;
+          });
           for (const done of filteredDones) {
             markTaskProgressDone(done);
           }
           // Agent OS: notify scheduler + process table of task completion
+          // Always notify if currentTaskId exists — even if fuzzy match missed,
+          // the agent said it's done, so release the scheduler binding.
           const schedState = getSchedulerState();
           if (schedState.currentTaskId) {
             schedulerTaskDone(schedState.currentTaskId);
             completeProcess(schedState.currentTaskId);
+          }
+          if (markedCount === 0) {
+            slog('DONE', `⚠️ No task matched for done descriptions: ${filteredDones.map(d => d.slice(0, 40)).join(', ')}`);
           }
           try {
             const { recordSuccessPattern } = await import('./success-patterns.js');

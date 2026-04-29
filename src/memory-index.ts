@@ -1512,16 +1512,20 @@ export async function markTaskDoneByDescription(
     const matched = tasks.find(task => {
       const summary = (task.summary ?? '').toLowerCase();
       if (!summary) return false;
-      // Require longer prefix match (60 chars min) to avoid false positives
+      // Exact task ID match (e.g. done includes "idx-abc123")
+      if (doneNorm.includes(task.id.slice(0, 12))) return true;
+      // Prefix match
       if (summary.length >= 20 && doneNorm.includes(summary.slice(0, 60))) return true;
+      // Reverse: summary contains the done description (short done, long summary)
+      if (doneNorm.length >= 5 && summary.includes(doneNorm.slice(0, 40))) return true;
       const tsMatch = doneNorm.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
       if (tsMatch && summary.includes(tsMatch[0])) return true;
-      // Removed: wildcard 'alex' → '回覆 alex' match (caused bulk-marking unrelated reply tasks)
       const doneWords = new Set(doneNorm.match(/[\w\u4e00-\u9fff]{2,}/g) ?? []);
       const summaryWords = summary.match(/[\w\u4e00-\u9fff]{2,}/g) ?? [];
       if (summaryWords.length > 0) {
         const overlap = summaryWords.filter(w => doneWords.has(w)).length;
-        if (summaryWords.length >= 3 && overlap / summaryWords.length > 0.85) return true;
+        if (summaryWords.length >= 3 && overlap / summaryWords.length > 0.6) return true;
+        if (summaryWords.length <= 2 && overlap === summaryWords.length) return true;
       }
       return false;
     });
