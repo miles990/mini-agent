@@ -1,4 +1,4 @@
-<!-- Auto-generated summary — 2026-04-22 -->
+<!-- Auto-generated summary — 2026-04-29 -->
 # agent-architecture
 
-Agent architecture hinges on two mechanisms: (1) commitment closure systems that resolve untracked obligations through token-overlap matching and task lifecycle transitions, and (2) the recognition that reasoning modes (Primary/Worker/Peer) are regime-selected regimes of a single substrate rather than fixed types—with boundary conditions and interaction context determining which mode activates, analogous to how the Taylor.town waves/particles demo shows categories as observer-constructed artifacts. Trust boundaries themselves are projections of constraint texture in language design, making the architecture fundamentally about managing what categories *emerge* through interaction rather than pre-defining them.
+Agent 架構設計應避免盲目將每個認知角色映射為獨立服務（Conway's Law 反面教訓），因為分散複雜性的成本常高於單一機制內的命名空間隔離。記憶結晶化可單次事件驅動（BTSP 機制同構），無需重複；而不同任務制度（檢索密集 vs 線性鏈 vs 循環圖）需要差異化的靈活度，盲目最大化彈性反而增加成本。多代理系統引入新的安全類別（上下文碎片化違規），需要分散哨兵 + 語義污點令牌協議防禦。
