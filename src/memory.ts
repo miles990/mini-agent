@@ -77,6 +77,10 @@ import { appendProvenance, memoryIdForContent } from './memory-provenance.js';
  * Uses Jaccard similarity on word sets — threshold 0.6.
  */
 function isDuplicateEntry(newContent: string, recentBullets: string[]): boolean {
+  // Defensive: callers occasionally pass undefined despite typed signature → was source of
+  // "Cannot read properties of undefined (reading 'toLowerCase')" classified as
+  // unde:generic::loop.runCycle (72 occurrences in error-patterns.json, last 2026-04-25).
+  if (typeof newContent !== 'string' || newContent.length === 0) return false;
   const newWords = new Set(newContent.toLowerCase().split(/\s+/).filter(w => w.length > 2));
   if (newWords.size < 3) return false; // Too short to reliably compare
 
@@ -3474,16 +3478,35 @@ export class InstanceMemory {
       else tierBuckets.t2.push(s);
     }
 
-    // Phase 1: T1 — always included (alert if overflow)
+    // Phase 1: T1 — always included, but large sections get index stub when budget is tight
     const includedSections: string[] = [];
     let budgetRemaining = CONTEXT_BUDGET;
     const t1Breakdown: string[] = [];
+    const T1_INDEX_THRESHOLD = 0.6; // when T1 would exceed 60% of budget, start indexing
+    const T1_INDEX_CANDIDATES = new Set(['memory', 'chat-room-recent', 'background-completed', 'conversation-threads', 'commitments']);
+
+    // Pre-calculate T1 total to decide if indexing is needed
+    const t1TotalEstimate = tierBuckets.t1.reduce((sum, s) => sum + s.length, 0);
+    const needsIndexing = t1TotalEstimate > CONTEXT_BUDGET * T1_INDEX_THRESHOLD;
+
     for (const s of tierBuckets.t1) {
-      includedSections.push(s);
-      const cost = s.length + 2;
-      budgetRemaining -= cost;
       const tag = s.match(/<([a-z][\w-]*)[>\s]/)?.[1] ?? 'unknown';
-      t1Breakdown.push(`${tag}:${cost}`);
+      const sectionSize = s.length + 2;
+
+      // Virtual memory: large T1 sections get index stub when budget is tight
+      if (needsIndexing && T1_INDEX_CANDIDATES.has(tag) && sectionSize > 1000) {
+        const lineCount = s.split('\n').length;
+        const firstLine = s.split('\n').slice(1, 2).join('').trim().slice(0, 80);
+        const indexStub = `<${tag}>\n[index: ${lineCount} lines, ${sectionSize} chars] ${firstLine}...\nUse kg_read or expand action for full content.\n</${tag}>`;
+        includedSections.push(indexStub);
+        const cost = indexStub.length + 2;
+        budgetRemaining -= cost;
+        t1Breakdown.push(`${tag}:${cost}(indexed from ${sectionSize})`);
+      } else {
+        includedSections.push(s);
+        budgetRemaining -= sectionSize;
+        t1Breakdown.push(`${tag}:${sectionSize}`);
+      }
     }
     const t1Size = CONTEXT_BUDGET - budgetRemaining;
     if (t1Size > CONTEXT_BUDGET * 0.8) {
