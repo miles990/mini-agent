@@ -482,6 +482,48 @@ function buildPendingFetchArrivalsSection(stateDir: string): string {
   }
 }
 
+/**
+ * Verified Routes Section — surface cdp.jsonl into context so I SEE proven
+ * paths instead of having to remember to grep them. Fixes the asymmetry where
+ * "I can't do X" is a free closed loop while success requires active recall.
+ *
+ * Trigger: 2026-04-29 Alex P0 callout — "能通的路應該是要第一個先試的". I'd
+ * been claiming "no way to read X" while my own ai-trend pipeline used Grok
+ * to fetch X. Root cause was structural: success path lived in a JSONL file
+ * I had to remember to consult; failure path was the default.
+ */
+export function buildVerifiedRoutesSection(stateDir: string): string {
+  try {
+    const cdpPath = path.join(stateDir, 'cdp.jsonl');
+    if (!fs.existsSync(cdpPath)) return '';
+    const raw = fs.readFileSync(cdpPath, 'utf-8').trim();
+    if (!raw) return '';
+    type Route = { domain: string; strategy: string; notes?: string };
+    const routes: Route[] = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const r = JSON.parse(line);
+        if (r && typeof r.domain === 'string' && typeof r.strategy === 'string') {
+          routes.push({ domain: r.domain, strategy: r.strategy, notes: r.notes });
+        }
+      } catch { /* skip malformed */ }
+    }
+    if (routes.length === 0) return '';
+    const lines = routes.map(r => {
+      const note = r.notes ? ` — ${r.notes.slice(0, 120)}` : '';
+      return `- **${r.domain}** → \`${r.strategy}\`${note}`;
+    });
+    return `## ✅ Verified Routes — try these FIRST before generic tools\n` +
+      `These domains have proven strategies in \`memory/state/cdp.jsonl\`. ` +
+      `Before saying "I can't read X" or reaching for WebFetch/curl, check this list. ` +
+      `If domain is here → use the listed strategy directly. If not here → try, then append on success.\n\n` +
+      lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
 /** State needed by buildAutonomousPrompt */
 export interface PromptBuilderState {
   lastAutonomousActions: string[];
@@ -572,6 +614,12 @@ export async function buildAutonomousPrompt(
   try { pendingFetchArrivals = buildPendingFetchArrivalsSection(getMemoryStateDir()); }
   catch { /* fail-open */ }
 
+  // Success-Path-First — inject verified domain routes so I SEE them instead
+  // of having to recall+grep cdp.jsonl. Fixes 2026-04-29 reflex-failure pattern.
+  let verifiedRoutes = '';
+  try { verifiedRoutes = buildVerifiedRoutesSection(getMemoryStateDir()); }
+  catch { /* fail-open */ }
+
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
@@ -619,6 +667,9 @@ export async function buildAutonomousPrompt(
   // Pending fetch arrivals — HIGHEST priority salience for ghost-commitment defense.
   // Placed right after base so it's read before any other gate.
   if (pendingFetchArrivals) parts.push(pendingFetchArrivals);
+  // Verified routes BEFORE error patterns — success path must be visible before
+  // recurring-failure rumination, otherwise reflex grabs failure-shape first.
+  if (verifiedRoutes) parts.push(verifiedRoutes);
   // Error patterns right after guide — Gate Q3 ("我在重複嗎？") flows into actual patterns
   if (errorPatternsHint) parts.push(errorPatternsHint);
   if (dqEnforcementGate) parts.push(dqEnforcementGate);
