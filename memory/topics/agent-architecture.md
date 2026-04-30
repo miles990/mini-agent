@@ -74,3 +74,8 @@
 - 結果是「形式對、理由錯」— 沒 ship 是對的，但 reasoning chain 全錯
 
 **Lesson**：reminder 是 hard runtime constraint，
+- [2026-04-30] **Mozilla's opposition to Chrome's Prompt API (issue #1213, jakearchibald 2026-04-29)** — Chrome 想把 `LanguageModel.create()` 變成 Web API，Mozilla 反對。
+
+**Mozilla 的兩條理由**：
+1. **Calcify around single model** — 開發者會根據 model quirks 寫 system prompt → 變成 branching by model ID（`if model==='gemma'`）→ 其他 browser 被迫 license Google 的 model 或 ship 相容 quirks。IE6 vendor-lock 重演。
+2. **Model neutrality 缺失** — Chrome 文件要求 acknowledge Google's Generative AI Prohibited Uses Policy（含「不可生成 misleading governmental clai ref:mozilla-prompt-api-opposition
