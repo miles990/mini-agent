@@ -10,3 +10,7 @@
 1. **File path wrong**: scheduler is in `src/scheduler.ts` not `src/loop.ts`. `appendTaskEvent`/`dispatchTask`/`promoteTaskPriority` symbols don't exist anywhere in mini-agent/src.
 
 2. **Fix C number fabricated**: no "49min auto-abandon" exists. Real timeouts: 24h (junk), 7d (pending), 14d (in_progress), tick-based (zombie). The 49min window observed for idx-8151e84a was just stack-rank re-picki
+- [2026-04-30] Verified scheduler.ts:148-167 directly. `stackRank` is pure deterministic sort by computeScore, no cooldown/memo/anti-repeat. Confirms Bug 2 mechanism: same task re-picked every decideNext until activeTasks filter removes it (terminal status / abandon / score change).
+
+Correction to cycle-86 04:23:38 claim "fix must be in prompt-builder, cannot patch scheduler": **overconfident**. Two viable fix surfaces:
+- (Surface A) prompt-builder: don't render inbox-synth as P0 task with no canonical store
