@@ -1,3 +1,4 @@
 # task-closure-architecture
 
 - [2026-04-30] markTaskDoneByDescription 真實實作於 mini-agent/src/memory-index.ts:1515-1563 (NOT memory.ts, NOT loop.ts, NOT cycle-tasks.ts). Path: queryMemoryIndexSync(type=task|goal, status=pending|in_progress) → 5-rule fuzzy match → updateMemoryIndexEntry({status:completed}). Single caller: loop.ts:2875. Does NOT write HEARTBEAT.md, does NOT round-trip readHeartbeat/updateHeartbeat. memory-index store is separate from memory_fts sqlite (FTS schema only). True bug locus per MEMORY.md 04-27: queryMemoryIndexSync
+- [2026-04-30] markTaskDoneByDescription 真實位置：mini-agent/src/memory-index.ts:1515-1563。唯一 caller loop.ts:2875。Path 完全不經 HEARTBEAT.md（readHeartbeat 在 loop.ts/cycle-tasks.ts 0 hits）。寫入目標是 memory-index entry store（非 memory_fts sqlite），updateMemoryIndexEntry 內部待驗。Fuzzy match 5 規則 :1528-1547；ID lookup :1550。連 5 cycle 跑偏方向（HEARTBEAT writer / memory.ts API）的根因，可能對應 04-27 「queryMemoryIndexSync returns nothing for IDs in relations.jsonl」條目。
