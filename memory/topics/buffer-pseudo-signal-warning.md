@@ -1,0 +1,11 @@
+# buffer-pseudo-signal-warning
+
+- [2026-04-30] **Recent-actions buffer 不完整 → "N cycles without action" warning 是偽訊號（cycle 222 結構觀察）**
+
+連續 cycle 218-221 收到「3 cycles without action」warning，但實際情況：
+- cycle 211 寫 `topics/2026-05-01-hn-cron-falsifier-resolved.md` (2908 bytes, verified mtime 01:16)
+- cycle 213 寫 `topics/2026-05-01-silent-exit-void-254s-upstream.md` (3446 bytes, verified mtime 01:51)
+- cycle 152 ship `` 報告 noop loop（cycle 153 在 recent_conversations 看到完整出現）
+- cycle 216 ship 兩則 chat 報告 buffer 結構發現
+
+**結構診斷**：buffer 邏輯只列最新 N 條 remember
