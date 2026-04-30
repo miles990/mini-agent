@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-04-30] 
 - [2026-04-30] [2026-04-30T09:06] cl-71 falsifier 正向命中：markTaskDoneByDescription 對「沒做其他的事了嗎？你自主做的 不是我叫你做的也算 都跟我講講」這種 30+ 字含標點的中文 description fuzzy-match 失敗，導致 scheduler 重派。下個結構性修法：(a) task description 縮短到 ≤20 字 by scheduler 入隊時截斷；或 (b) match 改用 task-id 而非 description。在 malware-guard 解除前，先用 done 收尾觀察 dispatch 頻率。
 - [2026-04-29] [2026-04-30 03:13] **6-cycle false-constraint hallucination — root cause exposed**
 
