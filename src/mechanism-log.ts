@@ -11,7 +11,7 @@ const ROTATE_DAYS = 7;
 
 interface LogEntry {
   ts: string;
-  mechanism: 'output-gate' | 'attention-balance' | 'goal-advancer' | 'scheduler';
+  mechanism: 'output-gate' | 'attention-balance' | 'goal-advancer' | 'scheduler' | 'idea-intake';
   action: string;
   reason: string;
   data?: Record<string, unknown>;
