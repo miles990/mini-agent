@@ -78,18 +78,8 @@ export async function promoteNextIdea(memoryDir: string): Promise<PromoteResult>
   const source = (payload.source as string) ?? '';
   const rawText = (payload.raw_text as string) ?? idea.summary ?? '';
 
-  // Determine if confirmation is needed
-  const isAlexSource = source.includes(':alex') || source === 'alex';
-  const priority = (payload.qualify_score as number) ?? 0;
-
-  // Alex source → always needs confirmation (source = intent clarity)
-  // Discovery P2-P3 → auto promote
-  // P0-P1 → always needs confirmation
-  if (isAlexSource || priority <= 1) {
-    return await markAwaitingConfirm(memoryDir, idea);
-  }
-
-  // Auto-promote discovery ideas
+  // All sources auto-promote — LLM with KG context determines intent.
+  // If LLM returns not_actionable, extractGoal returns null → no goal created.
   return await executePromotion(memoryDir, idea, rawText);
 }
 
@@ -210,14 +200,76 @@ async function executePromotion(
 // Goal Extraction (haiku + schema validation fallback)
 // =============================================================================
 
-async function extractGoal(rawText: string): Promise<GoalExtraction | null> {
-  const prompt = `Given this idea, extract a structured goal with tasks.
+async function fetchKGContext(rawText: string): Promise<string> {
+  try {
+    const keywords = rawText.replace(/[？?！!。，、\s]+/g, ' ').trim().slice(0, 100);
+    const res = execSync(
+      `curl -sf -X POST http://localhost:3300/api/query -H "Content-Type: application/json" -d '${JSON.stringify({ query: keywords, limit: 5 }).replace(/'/g, "'\\''")}'`,
+      { timeout: 5000, encoding: 'utf-8' },
+    );
+    const data = JSON.parse(res);
+    const results = data.results ?? [];
+    return results.slice(0, 5).map((r: any) => {
+      const n = r.node ?? r;
+      return `[${n.type}] ${n.name?.slice(0, 80)} — ${(n.description ?? '').slice(0, 150)}`;
+    }).join('\n');
+  } catch {
+    return '';
+  }
+}
 
-Idea: ${rawText}
+async function fetchConversationContext(rawText: string): Promise<string> {
+  try {
+    // Search KG for related conversations, decisions, and goals
+    const keywords = rawText.replace(/[？?！!。，、\s]+/g, ' ').trim().slice(0, 80);
+    const res = execSync(
+      `curl -sf -X POST http://localhost:3300/api/query -H "Content-Type: application/json" -d '${JSON.stringify({ query: keywords, limit: 8 }).replace(/'/g, "'\\''")}'`,
+      { timeout: 5000, encoding: 'utf-8' },
+    );
+    const data = JSON.parse(res);
+    const results = (data.results ?? []).slice(0, 8);
+    const conversations: string[] = [];
+    const context: string[] = [];
+    for (const r of results) {
+      const n = r.node ?? r;
+      const type = n.type ?? '';
+      const desc = (n.description ?? '').slice(0, 200);
+      if (['observation', 'message', 'room'].some(t => type.includes(t))) {
+        conversations.push(`[${n.source_agent ?? '?'}] ${n.name?.slice(0, 60)} — ${desc}`);
+      } else {
+        context.push(`[${type}] ${n.name?.slice(0, 60)} — ${desc}`);
+      }
+    }
+    return [
+      conversations.length > 0 ? `Recent conversations:\n${conversations.join('\n')}` : '',
+      context.length > 0 ? `Related context:\n${context.join('\n')}` : '',
+    ].filter(Boolean).join('\n\n');
+  } catch {
+    return '';
+  }
+}
+
+async function extractGoal(rawText: string): Promise<GoalExtraction | null> {
+  const kgContext = await fetchKGContext(rawText);
+  const conversationContext = await fetchConversationContext(rawText);
+
+  const prompt = `You are an intent interpreter. Given a user message and full context from the knowledge graph (including past conversations, decisions, goals, and related information), understand what the user REALLY wants and extract a structured goal.
+
+User message: ${rawText}
+
+Knowledge graph search results:
+${kgContext || '(none)'}
+
+${conversationContext || ''}
+
+Based on this context, determine:
+1. Is this a STATUS CHECK (asking about progress)? → goal = "review and report status of X"
+2. Is this a NEW REQUEST? → goal = the action they want
+3. Is this just INFORMATION/CHAT? → output {"not_actionable": true}
 
 Output as JSON:
 {
-  "title": "one-line goal title",
+  "title": "one-line goal title reflecting user's true intent",
   "acceptance_criteria": "how to verify this goal is done",
   "priority": 1,
   "tasks": [
@@ -226,8 +278,12 @@ Output as JSON:
   ]
 }
 
+OR if not actionable:
+{"not_actionable": true}
+
 Rules:
-- title: concise, action-oriented
+- Interpret intent from context, not just literal text
+- title: concise, action-oriented, specific to what the user actually wants
 - acceptance_criteria: measurable verification
 - priority: 0(urgent) to 3(low), default 1
 - tasks: 2-4 concrete actionable steps
@@ -250,6 +306,8 @@ function parseAndValidateGoal(raw: string): GoalExtraction | null {
   try {
     let parsed = JSON.parse(raw);
     if (parsed.result) parsed = JSON.parse(parsed.result);
+
+    if (parsed.not_actionable) return null;
 
     if (!parsed.title || typeof parsed.title !== 'string') return null;
     if (!parsed.acceptance_criteria || typeof parsed.acceptance_criteria !== 'string') return null;
