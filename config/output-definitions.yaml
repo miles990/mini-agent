@@ -1,0 +1,45 @@
+# output-definitions.yaml
+# Single Source of Truth: what counts as qualifying output
+# Used by output-gate, attention-balance, and mechanism-log
+
+version: 1
+
+categories:
+  learning-external:
+    paths: ["memory/topics/**"]
+    exclude_pattern: "heartbeat|scheduler|dispatcher|memory-index|perception-cache|retry-lane|falsifier|cycle-tasks|omlx-gate|attention-balance|architecture-validation|cron|behavior|loop|heartbeat-md|agent-middleware|commitment-ledger|process-table"
+    min_size_bytes: 500
+
+  content-creation:
+    paths: ["memory/drafts/**"]
+    min_size_bytes: 1000
+
+  tool-creation:
+    paths: ["scripts/**"]
+    exclude_pattern: "test|spec|fixture"
+    min_size_bytes: 200
+
+  cron-output:
+    paths: ["memory/reports/**"]
+    min_size_bytes: 500
+
+  quality-iteration:
+    paths: ["memory/drafts/**"]
+    min_delta_chars: 200
+    condition: modified
+
+excluded_patterns:
+  - "heartbeat|scheduler|dispatcher|memory-index|perception-cache"
+  - "retry-lane|falsifier|cycle-tasks|omlx-gate|attention-balance"
+  - "architecture-validation|cron|behavior|loop|heartbeat-md"
+  - "agent-middleware|commitment-ledger|process-table"
+
+gate:
+  idle_threshold_hours: 48
+  grace_period_cycles: 10
+  escalation:
+    - { severity: nudge, at_hours: 48 }
+    - { severity: p1_task, at_hours: 60 }
+    - { severity: p0_task, at_hours: 72 }
+  emergency_task_max: 1
+  degraded_mode_after_failures: 2

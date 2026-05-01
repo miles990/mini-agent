@@ -46,6 +46,7 @@ import { recordFailure, matchFailure } from './failure-registry.js';
 import { buildSuccessHint } from './success-patterns.js';
 import { classifyWork, RuntimeEscalation } from './work-router.js';
 import { trackDebuggingThread, getCostComparisonPrompt, recordCycleAttention, getAttentionSummaryForPrompt, checkExternalFacingProgress } from './attention-balance.js';
+import { checkOutputGate, loadOutputGateState } from './output-gate.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
 import { loadAgentMemory, formatMemorySection, type AgentMemoryEntry } from './kg-memory.js';
@@ -1085,6 +1086,9 @@ export class AgentLoop {
 
     // Agent OS: Initialize process table from disk
     try { initProcessTable(getMemoryStateDir()); } catch { /* best effort */ }
+
+    // Output Gate: restore persisted state
+    try { loadOutputGateState(path.join(process.cwd(), 'memory')); } catch { /* best effort */ }
 
     // Phase 1c: Recover interrupted cycle on startup
     const stale = loadStaleCheckpoint();
@@ -2286,6 +2290,12 @@ export class AgentLoop {
           }
         } catch { /* non-critical */ }
       }
+
+      // Output Gate: check qualifying output production (gate > scheduler > nudge)
+      try {
+        const gateResult = checkOutputGate(memDir);
+        if (gateResult.prompt) schedulerTaskPrefix += gateResult.prompt;
+      } catch { /* non-critical */ }
 
       // Sync process table with memory-index tasks and persist
       try {
