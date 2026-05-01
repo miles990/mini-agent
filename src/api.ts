@@ -3093,12 +3093,10 @@ export function createApi(port = 3001): express.Express {
         autoDetectThread(text, `room:${from}`, id).catch(() => {});
       }
 
-      // Auto-enqueue Alex's Chat Room messages as tracked tasks (same as Telegram auto-enqueue)
-      // This ensures conversation directives don't get lost after reply
+      // Intake Pipeline: Alex's messages go through addIdea → qualify → promote → goal
+      // This replaces the old enqueueRoomDirective path (which created tasks without context)
       if (from === 'alex') {
         const memDir = path.join(process.cwd(), 'memory');
-        enqueueRoomDirective(memDir, text, id, from).catch(() => {});
-        // Intake Pipeline: capture Alex's ideas for qualify → promote flow
         if (text.trim().length >= 5) {
           addIdea(memDir, { raw_text: text, source: `room:${from}`, context_snippet: replyTo ? `reply to ${replyTo}` : undefined }).catch(() => {});
         }
