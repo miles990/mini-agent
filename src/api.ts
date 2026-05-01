@@ -128,6 +128,7 @@ import { getHealthSignals } from './pulse.js';
 import { getStarvationMetrics } from './reactive-policies.js';
 import { getTodayActivity, getActivityByContext } from './activity-stream.js';
 import { getProcessTableSnapshot } from './process-table.js';
+import { addIdea } from './idea-capture.js';
 
 // =============================================================================
 // AgentLoop reference (set by cli.ts or external caller)
@@ -3097,6 +3098,10 @@ export function createApi(port = 3001): express.Express {
       if (from === 'alex') {
         const memDir = path.join(process.cwd(), 'memory');
         enqueueRoomDirective(memDir, text, id, from).catch(() => {});
+        // Intake Pipeline: capture Alex's ideas for qualify → promote flow
+        if (text.trim().length >= 5) {
+          addIdea(memDir, { raw_text: text, source: `room:${from}`, context_snippet: replyTo ? `reply to ${replyTo}` : undefined }).catch(() => {});
+        }
       }
 
       slog('ROOM', `[${id}] ${from}: ${text.slice(0, 80)}`);
@@ -3121,6 +3126,13 @@ export function createApi(port = 3001): express.Express {
       const dedupKey = firstEventId ? `kg:${firstEventId}` : `webhook:${triggerSource}:${discussion_id}:${Date.now()}`;
       if (discussion_id) {
         import('./kg-discussions.js').then(m => m.markDiscussionDirty(discussion_id as string)).catch(() => {});
+      }
+      // Intake Pipeline: capture KG discussion creation as idea (only new_discussion, not every position)
+      const isNewDiscussion = events?.some((e: any) => e.type === 'new_discussion' || e.type === 'discussion_created');
+      if (isNewDiscussion && discussion_id) {
+        const memDir = path.join(process.cwd(), 'memory');
+        const topic = events?.find((e: any) => e.topic)?.topic ?? `KG discussion ${discussion_id}`;
+        addIdea(memDir, { raw_text: topic, source: 'kg:discussion' }).catch(() => {});
       }
       try {
         eventBus.emit(priority === 'urgent' ? 'trigger:room' : 'trigger:workspace', {
