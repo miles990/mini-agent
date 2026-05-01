@@ -290,14 +290,29 @@ Rules:
 - Only output valid JSON, nothing else`;
 
   try {
-    const result = execSync(
-      `echo ${JSON.stringify(prompt)} | claude -p --model haiku --output-format json 2>/dev/null`,
-      { timeout: 30_000, encoding: 'utf-8' },
-    ).trim();
-
+    const { query } = await import('@anthropic-ai/claude-agent-sdk');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    let result = '';
+    try {
+      for await (const msg of query({
+        prompt: prompt,
+        options: {
+          model: 'claude-sonnet-4-6',
+          maxTurns: 1,
+          maxBudgetUsd: 0.5,
+          abortController: controller,
+          permissionMode: 'bypassPermissions',
+          allowDangerouslySkipPermissions: true,
+        },
+      })) {
+        if ('result' in msg) result = msg.result as string;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
     return parseAndValidateGoal(result);
   } catch {
-    // Fallback: structured template extraction (no LLM)
     return templateExtraction(rawText);
   }
 }
