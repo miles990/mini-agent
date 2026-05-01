@@ -2841,17 +2841,9 @@ export class InstanceMemory {
       }
     }
 
-    // Decision quality warning（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('decision-quality-warning')) {
-      const warning = readFlagCached(path.join(getMemoryStateDir(), 'decision-quality-warning.flag'));
-      if (warning) sections.push(`<decision-quality-warning>\n${warning}\n</decision-quality-warning>`);
-    }
-
-    // Problem alignment warning（skip in light mode, auto-demotion aware）
-    if (!isLight && shouldLoad('problem-alignment', ['alignment', 'priority', 'problem', 'direction', 'focus'])) {
-      const warning = readFlagCached(path.join(getMemoryStateDir(), 'problem-alignment-warning.flag'));
-      if (warning) sections.push(`<problem-alignment>\n${warning}\n</problem-alignment>`);
-    }
+    // DQ/alignment warnings: retained as telemetry in state files but NOT injected into prompt.
+    // Kuro has KG context, attention-balance signals, and SOUL to self-correct.
+    // Prompt injection overrides autonomous judgment — removed per harness engineering.
 
     // Structural health warning（skip in light mode, auto-demotion aware）
     if (!isLight && shouldLoad('structural-health')) {

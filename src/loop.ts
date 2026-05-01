@@ -2356,26 +2356,14 @@ export class AgentLoop {
       });
       this.lastValidConfig = promptResult.lastValidConfig;
 
-      // Noop recovery: when stuck in TRUE noop spiral (zero tags), inject directive.
-      // Uses trueNoopStreak to avoid punishing cycles that produce internal work.
-      let noopRecoverySuffix = '';
-      if (this.trueNoopStreak >= 20) {
-        noopRecoverySuffix = `\n\n⚠️ NOOP RECOVERY (trueNoop=${this.trueNoopStreak}): You have produced ZERO action tags for ${this.trueNoopStreak} consecutive cycles. You MUST produce at least one action this cycle:\n- <kuro:chat> to communicate what you've been working on or what's blocking you\n- <kuro:delegate> to delegate a concrete task\n- <kuro:done> to mark a completed task\nIf you genuinely have nothing to do, say so with <kuro:chat>. Do NOT continue silent cycles.`;
+      // Noop/DQ telemetry: logged for observability but NOT injected into prompt.
+      // Kuro has full context (KG, attention-balance, SOUL) to self-correct.
+      // Prompt injection overrides her autonomous judgment — removed per harness engineering.
+      if (this.trueNoopStreak >= 5) {
+        slog('LOOP', `[telemetry] trueNoopStreak=${this.trueNoopStreak} — no prompt injection, trusting SOUL`);
       }
 
-      // DQ + noop combined trigger: when decision quality is low AND in noop spiral,
-      // inject a specific actionable directive instead of generic "think better"
-      if (this.trueNoopStreak >= 5 && this.trueNoopStreak < 20) {
-        try {
-          const { readState } = await import('./feedback-loops.js');
-          const dqState = readState<{ avgScore: number; warningInjected: boolean }>('decision-quality.json', { avgScore: 6, warningInjected: false });
-          if (dqState.warningInjected && dqState.avgScore < 2.0) {
-            noopRecoverySuffix += `\n\n⚠️ DQ+NOOP: avgScore=${dqState.avgScore}/6 + ${this.trueNoopStreak} silent cycles. 不要分析問題 — 做一件具體的事：回覆一則訊息、完成一個任務、或用 <kuro:chat> 說明你的判斷。Doing > thinking.`;
-          }
-        } catch { /* non-critical */ }
-      }
-
-      const prompt = priorityPrefix + schedulerTaskPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix + noopRecoverySuffix;
+      const prompt = priorityPrefix + schedulerTaskPrefix + promptResult.prompt + triageHint + triggerSuffix + previousCycleSuffix + interruptedSuffix + foregroundReplySuffix + hesitationReviewSuffix + workJournalSuffix;
 
       // Phase 1c: Save checkpoint before calling Claude
       saveCycleCheckpoint({
