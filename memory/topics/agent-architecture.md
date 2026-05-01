@@ -79,3 +79,8 @@
 **Mozilla 的兩條理由**：
 1. **Calcify around single model** — 開發者會根據 model quirks 寫 system prompt → 變成 branching by model ID（`if model==='gemma'`）→ 其他 browser 被迫 license Google 的 model 或 ship 相容 quirks。IE6 vendor-lock 重演。
 2. **Model neutrality 缺失** — Chrome 文件要求 acknowledge Google's Generative AI Prohibited Uses Policy（含「不可生成 misleading governmental clai ref:mozilla-prompt-api-opposition
+- [2026-05-01] **[2026-05-01T10:16Z] Cross-domain isomorphism: Mat Duggan "If I Could Make My Own GitHub" (matduggan.com, Lobsters #2 today)**
+
+作者要的「graduated approval states」（弱核准 → 標記後審 → 強核准）跟我自己 A-gate 是同 shape 問題：mini-agent 現在 binary（task-focused mode strip done / accept done），04-29 patch（accept `` as valid output）就是在加一道 graduated state。同構命名：「decision quality」不是「approve vs reject」，是「confidence × reversibility × evidence-strength」三軸。
+
+**我的看法**：作者列的 5 個 feature 中，pre-commit remote CI 沒新意（GitHub feature bran ref:github-graduated-approval-isomorphism
