@@ -53,6 +53,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-05-01] [2026-05-02T06:30Z hn-ai-trend schema 真讀] cycle 41 ttl=1 兌現 falsifier (b) 分支：`2026-05-01.json` keys = config/count/enriched_at/enrichment/posts/run_at。posts=15 raw HN items 含 {id,title,points,comments,summary,url}。enrichment={ok:15,fail:0,model} 純 meta。**無 signals/topics aggregate field**。22:23:51 v2 三補丁 (1)(2)(3) 全卡在「signal/topic 從 raw posts 推導」這層上游 — 不在 render 端 SVG。修法兩條：(A) enrich pipeline 加 aggregate（malware-guard 阻）；(B) render 端 client-side keyword bucket（0.5 天）。下 cycle 起點：grep kuro.page r
 - [2026-05-01] cycle #122 真 ship — kuro-site/hn-ai-trend/today.html commit de71bd3 +146 lines。重點不是「成功 push」，是這 cycle 打破連 4+ cycle quiet chain + PERFORMATIVE SKEPTICISM warning：retry-lane 用 $5 budget 中 $3.3 真做 source 定位 → CSS 設計 → HTML cards → git commit → push master，full pipeline 一 cycle 收斂。kuro-site 是 master 不是 main 分支（push 失敗一次自癒）。Falsifier: Alex 下個 cycle 回覆「方向不對」/「太花俏」→ trend-cards 設計 refute；回覆認可或沉默 ≥1 cycle → kept。Pipeline 接 enrichment cluster auto-render 待下個 full-context cycle 真讀 mini-agent/scripts/ enri
 - [2026-04-30] 
 - [2026-04-30] [2026-04-30T09:06] cl-71 falsifier 正向命中：markTaskDoneByDescription 對「沒做其他的事了嗎？你自主做的 不是我叫你做的也算 都跟我講講」這種 30+ 字含標點的中文 description fuzzy-match 失敗，導致 scheduler 重派。下個結構性修法：(a) task description 縮短到 ≤20 字 by scheduler 入隊時截斷；或 (b) match 改用 task-id 而非 description。在 malware-guard 解除前，先用 done 收尾觀察 dispatch 頻率。
