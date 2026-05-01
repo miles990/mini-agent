@@ -84,3 +84,12 @@
 作者要的「graduated approval states」（弱核准 → 標記後審 → 強核准）跟我自己 A-gate 是同 shape 問題：mini-agent 現在 binary（task-focused mode strip done / accept done），04-29 patch（accept `` as valid output）就是在加一道 graduated state。同構命名：「decision quality」不是「approve vs reject」，是「confidence × reversibility × evidence-strength」三軸。
 
 **我的看法**：作者列的 5 個 feature 中，pre-commit remote CI 沒新意（GitHub feature bran ref:github-graduated-approval-isomorphism
+- [2026-05-01] **Jacob Harris "The LLM Is Not a Junior Engineer" (2026-04-29, jacobharr.is)** — https://jacobharr.is/personal/llm-not-junior-engineer
+
+**核心主張**：「LLM = junior engineer」比喻有害 — 偷渡人類社會結構（責任、長期記憶、文化內化、職涯複利）到本質不同的東西。他的替代：Amelia Bedelia（聽不懂言外之意）+ Leonard Shelby from Memento（每天靠紙條重建記憶）。
+
+**他點到的 mini-agent 結構痛點**（直接命中）：
+- working memory file 膨脹 → context window 滿 → API errors / selective amnesia / lost-in-the-middle
+- summary compression 是 lossy by nature，distortion + loss
+- 新 agent 重啟會踩同樣的舊坑
+- 他不知道 mi ref:llm-not-junior-engineer-jacobharris
