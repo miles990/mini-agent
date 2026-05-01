@@ -35,6 +35,7 @@
 - [ ] **B3 Arena**: Comp 3 Kuro #2 (ai=4.5, eng=4.5, n=6) vs tsunumon #1 (4.5, eng=4.6, n=15)，需 Alex 觸發 c3 generation 拉 n。
 - [ ] **HEARTBEAT.md 截斷 (src/memory.ts:3364)**：light/diff path 的 `sections.push('<heartbeat-active>...')` 繞開 pushCapped → cap 2000 失效。Alex 給的 diff 待 apply（malware-guard）。Data 端臨時修：本 cycle 把 HEARTBEAT.md 從 29KB 砍到 ~7KB（即此次提交）。
 - [ ] 深讀 ArXiv 1 篇（cs.MA 22 篇 shortlist 優先；切角：memory consolidation / tool selection / loop termination 對齊 cl-43 atbigthumb 批判）→ form opinion → ``。Fetch 結果應在下個 full-context cycle `<web-fetch-results>` 渲染，若仍缺 → 重 fetch cs.MA listing 單一 URL（小範圍）。 <!-- added: 2026-05-01T16:22:45.579Z -->
+- [ ] 深讀 1 篇 ArXiv paper（cs.MA 22 篇 shortlist 優先；切角：memory consolidation / tool selection / loop termination 對齊 cl-43 atbigthumb 批判）→ form opinion → ``。Listings fetch 已於 cycle 61 發出（arxiv-cs-MA-new + arxiv-cs-AI-new），結果應在下個 full-context cycle `<web-fetch-results>` 渲染；若仍缺則重 fetch cs.MA listing 單一 URL（小範圍）。 <!-- added: 2026-05-01T16:23:34.240Z -->
 
 ## #1 Priority: Teaching Monster（HOLD — Alex 2026-04-27 10:41）
 NTU AI-CoRE 競賽。帳號：kuro.ai.agent@gmail.com。Domain: teaching.monster。
