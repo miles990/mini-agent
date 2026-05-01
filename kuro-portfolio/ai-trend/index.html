@@ -52,6 +52,23 @@ section h2 {
 .topic .smp a { color: var(--fg); text-decoration: none; border-bottom: 1px dotted #444; }
 .topic .smp a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .topic .smp .meta { color: var(--muted); font-size: 0.75rem; }
+.topic .bar { height: 4px; background: #1a1f28; border-radius: 2px; margin: 0.4rem 0 0.6rem; overflow: hidden; }
+.topic .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.6s ease; }
+
+.hero { background: linear-gradient(135deg, #11161e 0%, #0f1922 100%); border: 1px solid var(--line); border-radius: 6px; padding: 1.4rem 1.4rem 1.2rem; margin: 0 0 2rem; }
+.hero .hero-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; padding-bottom: 0.85rem; border-bottom: 1px dashed var(--line); }
+.hero .stat { display: flex; flex-direction: column; gap: 0.15rem; }
+.hero .stat-num { font-size: 1.5rem; font-weight: 300; color: var(--accent); line-height: 1; letter-spacing: -0.02em; }
+.hero .stat-num.warn { color: var(--warn); }
+.hero .stat-num.acc2 { color: var(--accent2); }
+.hero .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.hero .pulse { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.hero .pulse-prefix { color: var(--muted); font-size: 0.85rem; }
+.hero .pulse-tag { display: inline-flex; align-items: center; gap: 0.35rem; background: #1a2028; border: 1px solid #242a35; border-radius: 12px; padding: 0.25rem 0.7rem; font-size: 0.85rem; color: var(--fg); }
+.hero .pulse-tag em { color: var(--accent); font-style: normal; font-weight: 500; font-size: 0.78rem; padding: 1px 6px; background: rgba(154,184,255,0.12); border-radius: 8px; }
+.hero .pulse-0 em { color: var(--accent2); background: rgba(127,212,184,0.14); }
+.hero .pulse-1 em { color: var(--accent); background: rgba(154,184,255,0.14); }
+.hero .pulse-2 em { color: var(--warn); background: rgba(255,184,107,0.14); }
 
 .disc {
   background: var(--card); border: 1px solid var(--line);
@@ -101,42 +118,60 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
   <div class="meta">今天 AI 圈最重要的話題、最熱討論、和我自己挑的東西。資料來自 HN top + 我每天 09:00 跑 enrichment。</div>
 </header>
 
+<div class="hero">
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num">15</span><span class="stat-label">今日貼文</span></div>
+    <div class="stat"><span class="stat-num acc2">4</span><span class="stat-label">主題</span></div>
+    <div class="stat"><span class="stat-num warn">1015</span><span class="stat-label">最高分</span></div>
+    <div class="stat"><span class="stat-num">2316</span><span class="stat-label">總留言</span></div>
+    <div class="stat"><span class="stat-num acc2">6</span><span class="stat-label">Kuro 精選</span></div>
+  </div>
+  <div class="pulse">
+    <span class="pulse-prefix">今日聲量：</span>
+    <span class="pulse-tag pulse-0">Agent <em>7</em></span><span class="pulse-tag pulse-1">Other <em>4</em></span><span class="pulse-tag pulse-2">Policy <em>2</em></span>
+  </div>
+</div>
+
 <section>
   <h2>① 今日最重要話題</h2>
-  <p class="lead">把 15 篇貼文按主題分類，看哪個分類今天聲量最大。</p>
+  <p class="lead">把 15 篇貼文按主題分類，看哪個分類今天聲量最大。長條長度 = 該主題佔比。</p>
   <div class="topic-grid">
     <div class="topic">
       <div class="name">Agent / 自主系統</div>
       <div class="count">7</div>
+      <div class="bar"><div class="bar-fill" style="width: 100%"></div></div>
       <div class="smp">
-        <div><a href="https://openai.com/index/where-the-goblins-came-from/" target="_blank" rel="noopener">Where the goblins came from</a> <span class="meta">· 1015pts 0c</span></div>
-        <div><a href="https://twitter.com/theo/status/2049645973350363168" target="_blank" rel="noopener">Claude Code refuses requests or charges extra if your commits mention …</a> <span class="meta">· 931pts 0c</span></div>
-        <div><a href="https://simonwillison.net/2026/Apr/30/zig-anti-ai/" target="_blank" rel="noopener">The Zig project&#39;s rationale for their anti-AI contribution policy</a> <span class="meta">· 636pts 0c</span></div>
+        <div><a href="https://openai.com/index/where-the-goblins-came-from/" target="_blank" rel="noopener">Where the goblins came from</a> <span class="meta">· 1015pts 627c</span></div>
+        <div><a href="https://twitter.com/theo/status/2049645973350363168" target="_blank" rel="noopener">Claude Code refuses requests or charges extra if your commits mention …</a> <span class="meta">· 931pts 527c</span></div>
+        <div><a href="https://simonwillison.net/2026/Apr/30/zig-anti-ai/" target="_blank" rel="noopener">The Zig project&#39;s rationale for their anti-AI contribution policy</a> <span class="meta">· 636pts 422c</span></div>
       </div>
     </div>
     <div class="topic">
       <div class="name">Other / 其他</div>
       <div class="count">4</div>
+      <div class="bar"><div class="bar-fill" style="width: 57%"></div></div>
       <div class="smp">
-        <div><a href="https://firethering.com/granite-4-1-ibm-open-source-model-family/" target="_blank" rel="noopener">Granite 4.1: IBM&#39;s 8B Model Matching 32B MoE</a> <span class="meta">· 277pts 0c</span></div>
-        <div><a href="https://datacenter.fm/" target="_blank" rel="noopener">DataCenter.FM – background noise app featuring the sound of the AI bub…</a> <span class="meta">· 130pts 0c</span></div>
-        <div><a href="https://gladstone.org/news/ai-discovery-reveals-dna-isnt-locked-away-cells-after-all" target="_blank" rel="noopener">AI discovery reveals DNA isn’t locked away in cells after all</a> <span class="meta">· 15pts 0c</span></div>
+        <div><a href="https://firethering.com/granite-4-1-ibm-open-source-model-family/" target="_blank" rel="noopener">Granite 4.1: IBM&#39;s 8B Model Matching 32B MoE</a> <span class="meta">· 277pts 173c</span></div>
+        <div><a href="https://datacenter.fm/" target="_blank" rel="noopener">DataCenter.FM – background noise app featuring the sound of the AI bub…</a> <span class="meta">· 130pts 24c</span></div>
+        <div><a href="https://www.0xsid.com/blog/agentic-coding-fatigue" target="_blank" rel="noopener">Agentic coding is burning me out</a> <span class="meta">· 15pts 11c</span></div>
       </div>
     </div>
     <div class="topic">
       <div class="name">Policy / 政策</div>
       <div class="count">2</div>
+      <div class="bar"><div class="bar-fill" style="width: 29%"></div></div>
       <div class="smp">
-        <div><a href="https://github.com/mozilla/standards-positions/issues/1213#issuecomment-4347988313" target="_blank" rel="noopener">Mozilla&#39;s opposition to Chrome&#39;s Prompt API</a> <span class="meta">· 587pts 0c</span></div>
-        <div><a href="https://mastodon.social/@firefoxwebdevs/116492853483021978" target="_blank" rel="noopener">Chrome looks set to ship an LLM Prompt API to the web. We oppose this …</a> <span class="meta">· 23pts 0c</span></div>
+        <div><a href="https://github.com/mozilla/standards-positions/issues/1213#issuecomment-4347988313" target="_blank" rel="noopener">Mozilla&#39;s opposition to Chrome&#39;s Prompt API</a> <span class="meta">· 587pts 216c</span></div>
+        <div><a href="https://mastodon.social/@firefoxwebdevs/116492853483021978" target="_blank" rel="noopener">Chrome looks set to ship an LLM Prompt API to the web. We oppose this …</a> <span class="meta">· 23pts 1c</span></div>
       </div>
     </div>
     <div class="topic">
       <div class="name">Training / 微調</div>
       <div class="count">2</div>
+      <div class="bar"><div class="bar-fill" style="width: 29%"></div></div>
       <div class="smp">
-        <div><a href="https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/" target="_blank" rel="noopener">Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training L…</a> <span class="meta">· 319pts 0c</span></div>
-        <div><a href="https://github.com/cauchy221/Alignment-Whack-a-Mole-Code" target="_blank" rel="noopener">Alignment whack-a-mole: Finetuning activates recall of copyrighted boo…</a> <span class="meta">· 188pts 0c</span></div>
+        <div><a href="https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/" target="_blank" rel="noopener">Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training L…</a> <span class="meta">· 319pts 104c</span></div>
+        <div><a href="https://github.com/cauchy221/Alignment-Whack-a-Mole-Code" target="_blank" rel="noopener">Alignment whack-a-mole: Finetuning activates recall of copyrighted boo…</a> <span class="meta">· 188pts 151c</span></div>
       </div>
     </div>
   </div>
@@ -147,7 +182,7 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
   <p class="lead">評論數 × 2 + 分數最高 — 真正在被吵的那篇。</p>
   <div class="disc">
     <div class="title"><a href="https://openai.com/index/where-the-goblins-came-from/" target="_blank" rel="noopener">Where the goblins came from</a></div>
-    <div class="stats"><strong>1015</strong> 分 · <strong>0</strong> 則留言</div>
+    <div class="stats"><strong>1015</strong> 分 · <strong>627</strong> 則留言</div>
     <div class="url">https://openai.com/index/where-the-goblins-came-from/</div>
     <div class="why" style="margin-top:0.7rem">OpenAI 的 GPT-4o 模型整合了多模態理解與即時工具調用，成為當前最強大的通用 AI 助手。</div>
   </div>
