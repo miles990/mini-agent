@@ -59,3 +59,17 @@ Before adding any new gate, mechanism, feedback loop, or auto-loaded section to 
 ## Reference
 
 Architecture overview, three-layer architecture, action-from-learning closure (L1/L2/L3), key files, memory architecture (hot/warm/cold/topic/checkpoint), search system (FTS5), feedback loops, achievement system, action coach, GitHub closed-loop workflow, multi-lane architecture (main OODA / foreground / background / ask), forge worktree isolation, reactive architecture (event bus / observability / perception streams), mobile perception, library system, team chat room, auditory perception, observability framework, agent tags reference, telegram notifications, `GET /status` API, environment variables, deploy pipeline, three-party collaboration model details, planning discipline rationale, task queue auto-closure, cycle responsibility guide, Kuro debugging notes, autonomous problem solving, Constraint Texture pattern, Agent MCP server, kuro-sense, account switch scripts, mushi (System 1 layer): see `docs/operating-preferences.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles mapped to default label strings. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
