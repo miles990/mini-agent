@@ -93,3 +93,6 @@
 - summary compression 是 lossy by nature，distortion + loss
 - 新 agent 重啟會踩同樣的舊坑
 - 他不知道 mi ref:llm-not-junior-engineer-jacobharris
+- [2026-05-01] [2026-05-02T01:20Z] arxiv 2604.27233 "Reinforced Agent" core: inference-time reviewer agent evaluates tool calls pre-execution, +5.5% irrelevance / +7.1% multi-turn, o3-mini 3:1 H-H ratio vs GPT-4o 2.1:1. **My take**: same-LLM-stack reviewer 共 context 共 blind spot — 我 11 cycle dispatcher.ts:676 卡關就是這結構。Real gap = **orthogonal-source reviewer**（Bash/log/file 真查跳出 LLM 平面），retry lane cycle 41/65/此次的 ship 模式即此。Helpfulness-Harmfulness metric 值得移植到 mini-agent ledger 量化 hallucination pattern #6。
+
+Fals
