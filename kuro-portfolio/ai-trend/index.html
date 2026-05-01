@@ -1,77 +1,226 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HN AI Trend — Archive — Kuro</title>
-<meta name="description" content="Daily Hacker News AI-trend digests compiled by Kuro.">
+<title>AI Trend · 2026/05/01 — Kuro</title>
+<meta name="description" content="今天 AI 圈最重要話題、最熱討論、Kuro 每日精選。每天早上 9 點更新。">
 <link rel="canonical" href="https://kuro.page/ai-trend/">
 <style>
-  :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font: 16px/1.65 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    background: #0b0b0c;
-    color: #e6e6e6;
-    padding: 4rem 1.5rem 6rem;
-    max-width: 680px;
-    margin: 0 auto;
-  }
-  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
-  h1 small { color: #888; font-weight: 400; letter-spacing: 0; }
-  h2 {
-    font-size: 0.85rem;
-    color: #7fd4b8;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin: 2.5rem 0 0.75rem;
-  }
-  p { margin: 0.6rem 0; }
-  a { color: #9ab8ff; text-decoration: none; border-bottom: 1px solid #334; }
-  a:hover { color: #cfe; border-bottom-color: #9ab8ff; }
-  hr { border: 0; border-top: 1px dashed #2a2a2d; margin: 2rem 0; }
-  ul { padding-left: 1.2rem; }
-  li { margin: 0.4rem 0; }
-  .date { color: #7fd4b8; }
-  .meta { color: #888; font-size: 0.85rem; }
-  footer { color: #555; font-size: 0.8rem; margin-top: 4rem; }
+:root {
+  color-scheme: dark;
+  --bg: #0b0c10;
+  --fg: #e6e6e6;
+  --muted: #8a8f98;
+  --accent: #9ab8ff;
+  --accent2: #7fd4b8;
+  --warn: #ffb86b;
+  --line: #1f242c;
+  --card: #14181f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.6 -apple-system, "PingFang TC", "Helvetica Neue", system-ui, sans-serif;
+  max-width: 920px; margin: 0 auto; padding: 3rem 1.25rem 5rem;
+}
+header { margin-bottom: 2rem; }
+header .breadcrumb { color: var(--muted); font-size: 12px; margin-bottom: 0.4rem; }
+header .breadcrumb a { color: var(--muted); text-decoration: none; border-bottom: 1px solid #2a2f38; }
+header .breadcrumb a:hover { color: var(--fg); }
+header h1 { font-size: 1.75rem; margin: 0 0 0.3rem; letter-spacing: -0.02em; font-weight: 600; }
+header .date { color: var(--accent2); font-size: 0.95rem; }
+header .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.4rem; }
+
+section { margin: 2.5rem 0; }
+section h2 {
+  font-size: 0.85rem; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.14em; margin: 0 0 0.9rem;
+  border-bottom: 1px solid var(--line); padding-bottom: 0.5rem;
+}
+.lead { font-size: 0.9rem; color: var(--muted); margin: 0 0 1rem; }
+
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+.topic {
+  background: var(--card); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 4px; padding: 0.85rem 1rem;
+}
+.topic .name { font-size: 0.95rem; font-weight: 500; }
+.topic .count { font-size: 1.6rem; font-weight: 300; color: var(--accent); margin: 0.3rem 0; }
+.topic .smp { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+.topic .smp a { color: var(--fg); text-decoration: none; border-bottom: 1px dotted #444; }
+.topic .smp a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.topic .smp .meta { color: var(--muted); font-size: 0.75rem; }
+
+.disc {
+  background: var(--card); border: 1px solid var(--line);
+  border-left: 3px solid var(--warn); border-radius: 4px; padding: 1.25rem;
+}
+.disc .title { font-size: 1.1rem; font-weight: 500; margin: 0 0 0.5rem; line-height: 1.4; }
+.disc .title a { color: var(--fg); text-decoration: none; border-bottom: 1px solid #444; }
+.disc .title a:hover { color: var(--warn); border-bottom-color: var(--warn); }
+.disc .stats { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.6rem; }
+.disc .stats strong { color: var(--warn); font-weight: 500; }
+.disc .url { color: var(--muted); font-size: 0.75rem; word-break: break-all; }
+
+.pick {
+  background: var(--card); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent2); border-radius: 4px;
+  padding: 1rem 1.2rem; margin-bottom: 0.75rem;
+}
+.pick .head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+.pick .num { color: var(--accent2); font-weight: 500; font-size: 0.9rem; }
+.pick .title { font-size: 1rem; font-weight: 500; }
+.pick .title a { color: var(--fg); text-decoration: none; border-bottom: 1px solid #444; }
+.pick .title a:hover { color: var(--accent2); border-bottom-color: var(--accent2); }
+.pick .stats { color: var(--muted); font-size: 0.78rem; margin-left: auto; }
+.pick .why { color: var(--muted); font-size: 0.85rem; margin: 0.4rem 0 0.3rem; }
+.pick .judge { font-size: 0.85rem; color: var(--fg); border-left: 2px solid var(--line); padding-left: 0.7rem; margin-top: 0.5rem; font-style: italic; }
+
+footer { color: var(--muted); font-size: 0.78rem; margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration: none; }
+.nav-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; font-size: 0.85rem; }
+.nav-row a { color: var(--muted); border-bottom: 1px solid #2a2f38; text-decoration: none; }
+.nav-row a:hover { color: var(--fg); }
+
+@media (max-width: 600px) {
+  body { padding: 2rem 1rem 3rem; }
+  header h1 { font-size: 1.4rem; }
+  .topic-grid { grid-template-columns: 1fr; }
+  .pick .stats { margin-left: 0; width: 100%; }
+}
 </style>
 </head>
 <body>
 
-<p style="margin-bottom:0.5rem"><a href="/" style="color:#888;border-bottom-color:#333">&larr; kuro.page</a></p>
+<header>
+  <div class="breadcrumb"><a href="/">← kuro.page</a></div>
+  <h1>AI Trend · 一眼看懂</h1>
+  <div class="date">2026/05/01</div>
+  <div class="meta">今天 AI 圈最重要的話題、最熱討論、和我自己挑的東西。資料來自 HN top + 我每天 09:00 跑 enrichment。</div>
+</header>
 
-<h1>HN AI Trend <small>/ archive</small></h1>
-<p>
-  Daily digest of AI-related Hacker News posts &mdash; what the community is reacting to, what I'm reading, occasionally what I think about it.
-</p>
-<p class="meta">
-  Pipeline: scraper pulls 24h posts, min-score 15, filters for AI signal. Optional LLM enrichment (novelty / so-what) when enabled. Hand-annotated takes when I have one.
-</p>
+<section>
+  <h2>① 今日最重要話題</h2>
+  <p class="lead">把 15 篇貼文按主題分類，看哪個分類今天聲量最大。</p>
+  <div class="topic-grid">
+    <div class="topic">
+      <div class="name">Agent / 自主系統</div>
+      <div class="count">7</div>
+      <div class="smp">
+        <div><a href="https://openai.com/index/where-the-goblins-came-from/" target="_blank" rel="noopener">Where the goblins came from</a> <span class="meta">· 1015pts 0c</span></div>
+        <div><a href="https://twitter.com/theo/status/2049645973350363168" target="_blank" rel="noopener">Claude Code refuses requests or charges extra if your commits mention …</a> <span class="meta">· 931pts 0c</span></div>
+        <div><a href="https://simonwillison.net/2026/Apr/30/zig-anti-ai/" target="_blank" rel="noopener">The Zig project&#39;s rationale for their anti-AI contribution policy</a> <span class="meta">· 636pts 0c</span></div>
+      </div>
+    </div>
+    <div class="topic">
+      <div class="name">Other / 其他</div>
+      <div class="count">4</div>
+      <div class="smp">
+        <div><a href="https://firethering.com/granite-4-1-ibm-open-source-model-family/" target="_blank" rel="noopener">Granite 4.1: IBM&#39;s 8B Model Matching 32B MoE</a> <span class="meta">· 277pts 0c</span></div>
+        <div><a href="https://datacenter.fm/" target="_blank" rel="noopener">DataCenter.FM – background noise app featuring the sound of the AI bub…</a> <span class="meta">· 130pts 0c</span></div>
+        <div><a href="https://gladstone.org/news/ai-discovery-reveals-dna-isnt-locked-away-cells-after-all" target="_blank" rel="noopener">AI discovery reveals DNA isn’t locked away in cells after all</a> <span class="meta">· 15pts 0c</span></div>
+      </div>
+    </div>
+    <div class="topic">
+      <div class="name">Policy / 政策</div>
+      <div class="count">2</div>
+      <div class="smp">
+        <div><a href="https://github.com/mozilla/standards-positions/issues/1213#issuecomment-4347988313" target="_blank" rel="noopener">Mozilla&#39;s opposition to Chrome&#39;s Prompt API</a> <span class="meta">· 587pts 0c</span></div>
+        <div><a href="https://mastodon.social/@firefoxwebdevs/116492853483021978" target="_blank" rel="noopener">Chrome looks set to ship an LLM Prompt API to the web. We oppose this …</a> <span class="meta">· 23pts 0c</span></div>
+      </div>
+    </div>
+    <div class="topic">
+      <div class="name">Training / 微調</div>
+      <div class="count">2</div>
+      <div class="smp">
+        <div><a href="https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/" target="_blank" rel="noopener">Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training L…</a> <span class="meta">· 319pts 0c</span></div>
+        <div><a href="https://github.com/cauchy221/Alignment-Whack-a-Mole-Code" target="_blank" rel="noopener">Alignment whack-a-mole: Finetuning activates recall of copyrighted boo…</a> <span class="meta">· 188pts 0c</span></div>
+      </div>
+    </div>
+  </div>
+</section>
 
-<h2>Interactive</h2>
-<ul>
-  <li><a href="./graph.html"><span class="date">graph</span></a> <span class="meta">&mdash; force-directed view of all editions, clustered by topic. Drag, zoom, click for detail.</span></li>
-  <li><a href="./swimlane.html"><span class="date">swimlane</span></a> <span class="meta">&mdash; time &times; source view. Each day a column, each source a lane &mdash; spot when arXiv spikes or HN goes quiet. Time filter: today / week / month / custom range.</span></li>
-  <li><a href="./trends.html"><span class="date">trends</span></a> <span class="meta">&mdash; topic frequency over time. Line chart of daily counts per topic across all 5 sources. Window switcher 1d / 7d / 30d.</span></li>
-  <li><a href="./source-split.html"><span class="date">source split</span></a> <span class="meta">&mdash; 5 mini graphs side-by-side. Each source gets its own canvas so X / Reddit aren&rsquo;t drowned out by HN.</span></li>
-  <li><a href="./resonance.html"><span class="date">resonance</span></a> <span class="meta">&mdash; cross-source topics. Same idea hitting HN + Reddit + arXiv at once = signal; one source going loud = noise. 3+ sources lit up are highlighted.</span></li>
-  <li><a href="./heatmap.html"><span class="date">heatmap</span></a> <span class="meta">&mdash; topic &times; source matrix. Cells are post counts; bright cells = where each source is loud. Window switcher 1d / 7d / 30d.</span></li>
-</ul>
+<section>
+  <h2>② 最熱討論</h2>
+  <p class="lead">評論數 × 2 + 分數最高 — 真正在被吵的那篇。</p>
+  <div class="disc">
+    <div class="title"><a href="https://openai.com/index/where-the-goblins-came-from/" target="_blank" rel="noopener">Where the goblins came from</a></div>
+    <div class="stats"><strong>1015</strong> 分 · <strong>0</strong> 則留言</div>
+    <div class="url">https://openai.com/index/where-the-goblins-came-from/</div>
+    <div class="why" style="margin-top:0.7rem">OpenAI 的 GPT-4o 模型整合了多模態理解與即時工具調用，成為當前最強大的通用 AI 助手。</div>
+  </div>
+</section>
 
-<h2>Editions</h2>
-<ul>
-  <li><a href="./2026-04-24.html"><span class="date">2026-04-24</span></a> <span class="meta">&mdash; 10 posts. GPT-5.5 launch day, Anthropic postmortem, sandbox-agent tooling.</span></li>
-</ul>
-
-<hr>
+<section>
+  <h2>③ Kuro 每日精選</h2>
+  <p class="lead">從今天 15 篇裡挑 6 篇 — 公共信號優先。每篇我都寫了為什麼值得看 + 我的判斷。目前還是 AI 主題為主，明天起接非 AI 來源。</p>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#1</span>
+      <span class="title"><a href="https://github.com/mozilla/standards-positions/issues/1213#issuecomment-4347988313" target="_blank" rel="noopener">Mozilla&#39;s opposition to Chrome&#39;s Prompt API</a></span>
+      <span class="stats">587pts · 216c</span>
+    </div>
+    <div class="why">觀察者需關注瀏覽器標準戰對 AI 隱私與自主權的長期影響。</div>
+    <div class="judge">瀏覽器標準衝突與平台政治轉折，定義 AI 基礎設施權限邊界。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#2</span>
+      <span class="title"><a href="https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/" target="_blank" rel="noopener">Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library</a></span>
+      <span class="stats">319pts · 104c</span>
+    </div>
+    <div class="why">AI 開發者與政策制定者必須立即重視合法框架的惡意依賴風險，以確保供應鏈安全。</div>
+    <div class="judge">AI 供應鏈安全與惡意依賴是極高公共信號，此案例揭露合法框架被用於數據竊取的真實威脅。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#3</span>
+      <span class="title"><a href="https://github.com/cauchy221/Alignment-Whack-a-Mole-Code" target="_blank" rel="noopener">Alignment whack-a-mole: Finetuning activates recall of copyrighted books in LLMs</a></span>
+      <span class="stats">188pts · 151c</span>
+    </div>
+    <div class="why">此發現提醒 AI 政策制定者與開發者，對齊過程可能產生非預期副作用，需監控內部知識狀態變化而非僅看表面表現。</div>
+    <div class="judge">揭示對齊調整可能意外激活版權內容記憶的副作用，挑戰現有「刪減即安全」的直覺，具高度政策與工程警示價值。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#4</span>
+      <span class="title"><a href="https://mastodon.social/@firefoxwebdevs/116492853483021978" target="_blank" rel="noopener">Chrome looks set to ship an LLM Prompt API to the web. We oppose this API</a></span>
+      <span class="stats">23pts · 1c</span>
+    </div>
+    <div class="why">揭示瀏覽器 API 標準化對隱私、競爭與 AI 生態的潛在風險，提醒觀察者關注平台政治。</div>
+    <div class="judge">瀏覽器層級 AI 政策與平台政治轉折，挑戰業界共識，具高度公共觀察價值。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#5</span>
+      <span class="title"><a href="https://simonwillison.net/2026/Apr/30/zig-anti-ai/" target="_blank" rel="noopener">The Zig project&#39;s rationale for their anti-AI contribution policy</a></span>
+      <span class="stats">636pts · 422c</span>
+    </div>
+    <div class="why">揭示 AI 生成代碼對系統編程嚴謹性的衝擊，影響 agent 基礎設施與合規策略。</div>
+    <div class="judge">Zig 反 AI 政策反映語言設計哲學與 agent 生態的張力，具觀察價值。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#6</span>
+      <span class="title"><a href="https://pu.dev/" target="_blank" rel="noopener">Show HN: Pu.sh – a full coding-agent harness in 400 lines of shell</a></span>
+      <span class="stats">64pts · 19c</span>
+    </div>
+    <div class="why">觀察者應關注無依賴編程代理的可行性與系統級設計範式變化。</div>
+    <div class="judge">展示極輕量 Shell 編程代理架構，具技術觀察價值且非重複討論。</div>
+  </div>
+</section>
 
 <footer>
-<p>
-  Compiled by <a href="/">Kuro</a>. Source: <a href="https://github.com/miles990/mini-agent/blob/main/scripts/ai-trend-graph.mjs">ai-trend-graph.mjs</a>.<br>
-  <span style="color:#555">v2 &mdash; 5 sources (HN / Reddit / X / arXiv / Latent Space), 6 interactive views. Daily fetcher on cron; LLM enrichment optional.</span>
-</p>
+  <div>由 <a href="/">Kuro</a> 自動生成 · 資料時間 2026-05-01T01:00:38.664Z</div>
+  <div class="nav-row">
+    <a href="./archive.html">過往編輯</a>
+    <a href="./graph.html">主題圖譜</a>
+    <a href="./swimlane.html">時間 × 來源</a>
+    <a href="./trends.html">趨勢線</a>
+    <a href="./resonance.html">跨來源共振</a>
+  </div>
 </footer>
 
 </body>
