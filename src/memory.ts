@@ -2586,7 +2586,7 @@ export class InstanceMemory {
             const excerpt = typeof parsed.output_excerpt === 'string'
               ? parsed.output_excerpt.trim()
               : (typeof parsed.detected === 'string' ? parsed.detected : '（excerpt unavailable）');
-            sections.push(`<flip-test>\n⚠️ 上個 cycle 偵測到「依賴 Alex」模式：${excerpt}\n翻轉測試：如果 Alex 不在，你會怎麼做？那個答案就是第一步。\n先自己嘗試，至少 3 種方法，再考慮升級。\n</flip-test>`);
+            sections.push(`<flip-test>\n上個 cycle 偵測到「依賴 Alex」模式：${excerpt}\n收斂條件：自主找到至少一個可行的下一步。\n</flip-test>`);
           }
         } catch { /* malformed JSON — ignore and consume once */ }
         await fs.unlink(flipTestPath).catch(() => {});
@@ -2597,7 +2597,7 @@ export class InstanceMemory {
     {
       const focus = readFlagCached(path.join(getMemoryStateDir(), 'priority-focus.txt'));
       if (focus) {
-        sections.push(`<priority-focus>\n⚡ #1 PRIORITY: ${focus}\nDoes your chosen action serve this priority? If not, why is it more important?\n</priority-focus>`);
+        sections.push(`<priority-focus>\n#1 PRIORITY: ${focus}\n</priority-focus>`);
       }
     }
 
@@ -2867,7 +2867,7 @@ export class InstanceMemory {
         const staleLines = staleWarnings.map(w =>
           `- ${w.priority} "${w.title}" — ${w.ageDays}天未推進 (created: ${w.created}, section: ${w.section})`
         );
-        sections.push(`<stale-tasks>\n以下任務超齡未推進，考慮：降級、拆解、移到 backlog、或放棄。\n${staleLines.join('\n')}\n</stale-tasks>`);
+        sections.push(`<stale-tasks>\n超齡任務：\n${staleLines.join('\n')}\n</stale-tasks>`);
       }
     }
 
@@ -3322,7 +3322,7 @@ export class InstanceMemory {
       this.loadedTopics = loadedTopics;
       const stimulusFingerprint = buildStimulusFingerprint(options?.trigger ?? null, loadedTopics);
       if (hasRecentStimulusFingerprint(stimulusFingerprint)) {
-        sections.push('<stimulus-dedup>\nRecent cycles likely already addressed this same stimulus fingerprint. Avoid repeating the same response unless there is new information.\n</stimulus-dedup>');
+        sections.push('<stimulus-dedup>\n這個 stimulus fingerprint 和最近 cycle 相同。\n</stimulus-dedup>');
       }
     } else {
       this.loadedTopics = [];

@@ -2180,16 +2180,16 @@ export class AgentLoop {
             if (isRoomPriorityCycle || isChatPriorityCycle) {
               // Room/chat-triggered: strong priority (same urgency as telegram)
               const sourceLabel = isChatPriorityCycle ? 'CLAUDE CODE MESSAGE' : 'CHAT ROOM MESSAGE';
-              priorityPrefix = `${sourceLabel} 觸發了這個 cycle。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：對方的問題被回答了嗎？有實質內容就用 <kuro:chat> 回覆。\n\n`;
+              priorityPrefix = `${sourceLabel} 觸發了這個 cycle。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：對方的需求被理解並回應了。\n\n`;
             } else {
               // Fix 5: Check if any unaddressed messages are from Alex — these get strong priority even on non-DM cycles
               const hasAlexUnaddressed = allPending.some(l => /\(alex\)/.test(l));
               if (hasAlexUnaddressed) {
                 // Alex's unaddressed messages override autonomous activities
-                priorityPrefix = `Alex 有未回覆的訊息。Alex 的對話優先於自主任務。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：Alex 的訊息被理解並回應了嗎？\n\n`;
+                priorityPrefix = `Alex 有未回覆的訊息。\n\nChat Room 待回覆訊息：\n${preview}\n\n收斂條件：Alex 的需求被理解並回應了。\n\n`;
               } else {
                 // Other cycles (heartbeat/workspace/cron): soft reminder for unaddressed messages
-                priorityPrefix = `📩 REMINDER: There are ${allPending.length} unaddressed Chat Room message(s). Please respond with <kuro:chat>...</kuro:chat> before or during your autonomous activities.\n\n${preview}\n\n`;
+                priorityPrefix = `Chat Room 有 ${allPending.length} 則待回覆訊息。\n\n${preview}\n\n`;
               }
             }
           }
@@ -2203,14 +2203,14 @@ export class AgentLoop {
         const fgPreview = pendingFgDelegations.map(d =>
           `  - [${d.source}] "${d.text.slice(0, 120)}" (delegated at ${new Date(d.delegatedAt).toLocaleTimeString()})`
         ).join('\n');
-        priorityPrefix += `\n有背景委派待跟進。檢查 <background-completed> 看結果是否回來了。\n${fgPreview}\n收斂條件：委派的結果被吸收了嗎？原始發問者得到回覆了嗎？\n\n`;
+        priorityPrefix += `\n背景委派待跟進：\n${fgPreview}\n收斂條件：委派結果被吸收，原始發問者得到回覆。\n\n`;
       }
 
       // P0 reminder — applies to ALL triggers, not just non-telegram
       const p0Previews = getP0TaskPreviews(memDir);
       if (p0Previews.length > 0) {
         const p0Preview = p0Previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
-        priorityPrefix += `\n⚠️ P0 items pending. These are your highest priority — address before starting new work:\n${p0Preview}\n\n`;
+        priorityPrefix += `\nP0 items pending:\n${p0Preview}\n\n`;
       }
 
       // ── Agent OS Scheduler: deterministic task selection ──
@@ -2250,12 +2250,12 @@ export class AgentLoop {
         if (resumeCheckpoint && schedulerDecision.action === 'switch') {
           clearSuspendCheckpoint(schedulerDecision.taskId);
           resumeProcess(schedulerDecision.taskId);
-          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER ASSIGNED TASK (resume from suspend):\nTask: ${schedulerDecision.taskId}\nSuspend reason: ${resumeCheckpoint.reason}\nResume hints: ${resumeCheckpoint.resumeHints || 'none'}\nAction: ${schedulerDecision.reason}\n\n你的這個 cycle 專注執行這個 task。完成用 <kuro:done>，卡住用 <kuro:blocked>。\n</current-task>\n`;
+          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER TASK (resumed):\nTask: ${schedulerDecision.taskId}\nSuspend reason: ${resumeCheckpoint.reason}\nResume hints: ${resumeCheckpoint.resumeHints || 'none'}\n收斂條件：這個 task 推進了一步，或確認了為什麼推不動。\n</current-task>\n`;
         } else {
           const taskEntry = nextPendingItems.find(i => i.includes(schedulerDecision.taskId!.slice(0, 12)));
           const taskLabel = taskEntry ?? schedulerDecision.reason;
           incrementTicks(schedulerDecision.taskId);
-          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER ASSIGNED TASK:\nTask: ${taskLabel}\nAction: ${schedulerDecision.action} — ${schedulerDecision.reason}\n\n你的這個 cycle 專注執行這個 task。完成用 <kuro:done>，卡住用 <kuro:blocked>。不要切換到其他 task。\n</current-task>\n`;
+          schedulerTaskPrefix = `\n\n<current-task binding="scheduler">\n📌 SCHEDULER TASK:\nTask: ${taskLabel}\n收斂條件：這個 task 推進了一步，或確認了為什麼推不動。\n</current-task>\n`;
         }
       } else if (schedulerDecision.action === 'discovery') {
         const isOpenCycle = schedulerDecision.reason.startsWith('open-cycle');

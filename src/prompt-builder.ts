@@ -623,45 +623,30 @@ export async function buildAutonomousPrompt(
   // Research Loop Gate — detect consecutive research-only cycles and inject warning + force mode
   const researchLoopResult = isEnabled('research-loop-gate') ? detectResearchLoop() : null;
 
-  // Analyze-no-action Gate — hard gate with type-aware messaging (idle/reflective/blocked)
+  // Analyze-no-action: convergence condition (signal, not command)
   let analyzeNoActionGate = '';
   try {
     const { getAnalyzeStreakContext } = await import('./pulse.js');
     const ctx = getAnalyzeStreakContext();
     if (ctx) {
-      analyzeNoActionGate = ctx.type === 'reflective'
-        ? `## 💭 ${ctx.streak} cycles of reflection — your thinking has value, but consider externalizing one insight (write/create/share). Reflection without output eventually loses its thread.`
-        : ctx.type === 'blocked'
-        ? `## 🔒 ${ctx.streak} cycles blocked — remove the dependency, try a different approach, or escalate. Waiting is not action.`
-        : `## ⚠️ ${ctx.streak} cycles without action — this cycle must produce something observable (delegate/code/deploy/commit/chat).`;
+      analyzeNoActionGate = `## Cycle pattern: ${ctx.streak} consecutive ${ctx.type} cycles. Current attention distribution and Strategic Direction are in your context.`;
     }
   } catch { /* fail-open */ }
 
-  // Symptom-fix Gate — hard gate when consecutive symptom-level fixes without depth
+  // Symptom-fix: convergence condition (observation, not directive)
   let symptomFixGate = '';
   try {
     const { getSymptomFixStreak } = await import('./pulse.js');
     const streak = getSymptomFixStreak();
     if (streak > 0) {
-      symptomFixGate = `## ⚠️ ${streak} consecutive symptom-level fixes — STOP fixing outputs. What constraint is PRODUCING these symptoms? Fix the constraint, not the symptom. Your problem-level must be "mechanism" or "constraint" this cycle.`;
+      symptomFixGate = `## Pattern observed: ${streak} consecutive symptom-level fixes. Root cause vs symptom — which level are you operating at?`;
     }
   } catch { /* fail-open */ }
 
   const errorPatternsHint = buildErrorPatternsHint();
 
-  // DQ enforcement gate — when decision quality is critically low, inject mandatory output structure
-  let dqEnforcementGate = '';
-  try {
-    const dqState = readState<{ avgScore: number; warningInjected: boolean; recentScores?: number[] }>('decision-quality.json', { avgScore: 6, warningInjected: false });
-    if (dqState.warningInjected && dqState.avgScore < 2.0) {
-      const scores = dqState.recentScores ?? [];
-      const noopCount = scores.filter(s => s === 0).length;
-      const noopPct = scores.length > 0 ? Math.round(noopCount / scores.length * 100) : 0;
-      dqEnforcementGate = noopPct >= 30
-        ? `## 🚨 DQ Enforcement (avg ${dqState.avgScore}/6, ${noopPct}% noop)\nThis cycle MUST end with at least one of: <kuro:chat>, <kuro:done>, <kuro:delegate>, or <kuro:show>.\nIf blocked, use <kuro:chat> to say WHY you're blocked. Silent cycles are the worst outcome.\nDo NOT write ## Decision without a following action tag — that scores 2/6, not 6/6.`
-        : `## ⚠️ DQ Low (avg ${dqState.avgScore}/6)\nYour recent decision quality is below threshold. Each ## Decision must include concrete 'chose:' and 'skipped:' entries tied to perception signals. Generic decisions score 1-2/6.`;
-    }
-  } catch { /* fail-open */ }
+  // DQ: telemetry only, no enforcement injection
+  const dqEnforcementGate = '';
 
   const parts = [base];
   // Pending fetch arrivals — HIGHEST priority salience for ghost-commitment defense.
