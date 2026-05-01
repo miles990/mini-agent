@@ -420,9 +420,23 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
     scoringText.length < 200
   );
 
+  // Check if external tasks are available — only penalize noop when external work exists
+  let hasExternalTasks = false;
+  try {
+    const { queryMemoryIndexSync } = await import('./memory-index.js');
+    const memDir = (await import('node:path')).join(process.cwd(), 'memory');
+    const tasks = queryMemoryIndexSync(memDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] });
+    hasExternalTasks = tasks.some(t => {
+      const p = (t.payload ?? {}) as Record<string, unknown>;
+      return p.source === 'alex' || p.source === 'discovery' || p.origin === 'pipeline';
+    });
+  } catch { /* fail-open */ }
+
   let score: number;
-  if (isNoopCycle) {
+  if (isNoopCycle && hasExternalTasks) {
     score = 0;
+  } else if (isNoopCycle) {
+    score = 2; // no external tasks available → internal-only cycle is neutral
   } else if (isFastCycle) {
     // Fast cycles get floor score — they did the right thing by being fast
     score = 2;
@@ -483,30 +497,12 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
   const cooldownOk = !state.lastWarningAt ||
     (now - new Date(state.lastWarningAt).getTime()) > 12 * 3600_000;
 
+  // DQ telemetry: log score trends but don't inject warnings into prompt.
+  // Warning file write removed — harness trusts SOUL + KG for self-correction.
   if (state.avgScore < 2.0 && state.recentScores.length >= 10 && cooldownOk) {
-    // Inject actionable warning — not "think better" but "do this specific thing"
     const zeroCount = state.recentScores.filter(s => s === 0).length;
     const noopPercent = Math.round(zeroCount / state.recentScores.length * 100);
-    const warning = noopPercent >= 30
-      ? `⚠️ DQ ${state.avgScore}/6 — ${noopPercent}% noop cycles。收斂條件：這個 cycle 必須產出至少一個 <kuro:chat> 或 <kuro:done>。不做事不如說出為什麼不做。`
-      : `⚠️ DQ ${state.avgScore}/6。收斂條件：每個決策寫 ## Decision + Why，或用 <kuro:chat> 說明判斷。`;
-    writeFileSync(flagPath, warning, 'utf-8');
-    invalidateFlagCache(flagPath);
-    state.warningInjected = true;
-    state.lastWarningAt = new Date().toISOString();
-    slog('FEEDBACK', `Decision quality warning injected (avg ${state.avgScore}/6, noop ${noopPercent}%)`);
-
-    // Escalation: warning persisted 15+ cycles without improvement → notify Alex
-    if (state.consecutiveWarningCycles == null) state.consecutiveWarningCycles = 0;
-    state.consecutiveWarningCycles++;
-    const escalationCooldownOk = !state.lastEscalationAt ||
-      (now - new Date(state.lastEscalationAt).getTime()) > 48 * 3600_000;
-    if (state.consecutiveWarningCycles >= 15 && escalationCooldownOk) {
-      const { notifyTelegram } = await import('./telegram.js');
-      notifyTelegram(`⚠️ Kuro DQ 持續低迷 ${state.consecutiveWarningCycles} cycles（avg ${state.avgScore}/6, noop ${noopPercent}%）— prompt warning 無效，需結構性調整`).catch(() => {});
-      state.lastEscalationAt = new Date().toISOString();
-      slog('FEEDBACK', `Decision quality ESCALATED to Telegram after ${state.consecutiveWarningCycles} cycles`);
-    }
+    slog('FEEDBACK', `[telemetry] DQ avg ${state.avgScore}/6, noop ${noopPercent}% — no prompt injection`);
   } else if (state.avgScore >= 2.5) {
     state.consecutiveWarningCycles = 0;
   }

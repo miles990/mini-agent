@@ -48,7 +48,7 @@ import { classifyWork, RuntimeEscalation } from './work-router.js';
 import { trackDebuggingThread, getCostComparisonPrompt, recordCycleAttention, getAttentionSummaryForPrompt, checkExternalFacingProgress } from './attention-balance.js';
 import { checkOutputGate, loadOutputGateState } from './output-gate.js';
 import { advanceGoals } from './goal-advancer.js';
-import { promoteNextIdea } from './idea-promote.js';
+import { promoteNextIdea, generateRecurringTasks } from './idea-promote.js';
 import { cleanParkingLot } from './idea-qualify.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
@@ -2220,9 +2220,10 @@ export class AgentLoop {
       else if (currentTriggerReason?.startsWith('cron')) schedulerEvents.push({ source: 'cron', priority: 2, isAlexDirectMessage: false });
       else schedulerEvents.push({ source: 'heartbeat', priority: 3, isAlexDirectMessage: false });
 
-      // Intake Pipeline: promote qualified ideas + clean parking lot
+      // Intake Pipeline: promote qualified ideas + clean parking lot + recurring external tasks
       try { await promoteNextIdea(memDir); } catch { /* non-critical */ }
       try { await cleanParkingLot(memDir); } catch { /* non-critical */ }
+      try { await generateRecurringTasks(memDir, currentTriggerReason ?? undefined); } catch { /* non-critical */ }
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
 

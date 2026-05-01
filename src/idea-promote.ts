@@ -351,3 +351,122 @@ function templateExtraction(rawText: string): GoalExtraction | null {
     }],
   };
 }
+
+// =============================================================================
+// Auto External Task Generator
+// =============================================================================
+
+interface TaskCard {
+  summary: string;
+  deliverable: string;
+  done_when: string;
+  deadline_hours: number;
+  source: 'pipeline';
+  origin: 'auto-recurring';
+}
+
+const DAILY_TASKS: TaskCard[] = [
+  {
+    summary: '更新 AI Trend 頁面 — 今天的資料已就緒',
+    deliverable: 'kuro.page 顯示今天的 AI trend + daily picks',
+    done_when: 'page HTML updated with today date',
+    deadline_hours: 24,
+    source: 'pipeline',
+    origin: 'auto-recurring',
+  },
+];
+
+const WEEKLY_TASKS: TaskCard[] = [
+  {
+    summary: '本週 AI 觀點 — 從本週 trend 中選一個主題寫出你的看法',
+    deliverable: 'memory/drafts/ 或 Dev.to 有一篇新文章',
+    done_when: 'article file exists with >500 chars original analysis',
+    deadline_hours: 168,
+    source: 'pipeline',
+    origin: 'auto-recurring',
+  },
+];
+
+function taskCardPassesQualityGate(card: TaskCard): boolean {
+  const hasDeliverable = card.deliverable.length > 10 && /[\w/.]/.test(card.deliverable);
+  const hasBinaryDone = card.done_when.length > 10 && !/也許|可能|足夠|enough|maybe/i.test(card.done_when);
+  const hasDeadline = card.deadline_hours > 0 && card.deadline_hours <= 168;
+  return hasDeliverable && hasBinaryDone && hasDeadline;
+}
+
+export async function generateRecurringTasks(memoryDir: string, triggerSource?: string): Promise<number> {
+  const isCronTrigger = triggerSource?.startsWith('cron');
+  if (!isCronTrigger) return 0;
+
+  const existing = queryMemoryIndexSync(memoryDir, {
+    type: ['task'],
+    status: ['pending', 'in_progress'],
+  });
+
+  let created = 0;
+  const now = new Date();
+  const hour = now.getHours();
+
+  // Daily tasks: generate after morning cron (8-12)
+  if (hour >= 8 && hour <= 12) {
+    for (const card of DAILY_TASKS) {
+      if (!taskCardPassesQualityGate(card)) continue;
+      const isDup = existing.some(e => e.summary?.includes(card.summary.slice(0, 30)));
+      if (isDup) continue;
+
+      const { appendMemoryIndexEntry } = await import('./memory-index.js');
+      await appendMemoryIndexEntry(memoryDir, {
+        type: 'task',
+        status: 'pending',
+        summary: card.summary,
+        source: 'pipeline',
+        payload: {
+          source: card.source,
+          origin: card.origin,
+          deliverable: card.deliverable,
+          done_when: card.done_when,
+          deadline: new Date(now.getTime() + card.deadline_hours * 3600_000).toISOString(),
+          priority: 1,
+        },
+      });
+      created++;
+    }
+  }
+
+  // Weekly tasks: generate on Monday morning
+  if (now.getDay() === 1 && hour >= 8 && hour <= 12) {
+    for (const card of WEEKLY_TASKS) {
+      if (!taskCardPassesQualityGate(card)) continue;
+      const isDup = existing.some(e => e.summary?.includes(card.summary.slice(0, 30)));
+      if (isDup) continue;
+
+      const { appendMemoryIndexEntry } = await import('./memory-index.js');
+      await appendMemoryIndexEntry(memoryDir, {
+        type: 'task',
+        status: 'pending',
+        summary: card.summary,
+        source: 'pipeline',
+        payload: {
+          source: card.source,
+          origin: card.origin,
+          deliverable: card.deliverable,
+          done_when: card.done_when,
+          deadline: new Date(now.getTime() + card.deadline_hours * 3600_000).toISOString(),
+          priority: 1,
+        },
+      });
+      created++;
+    }
+  }
+
+  if (created > 0) {
+    logMechanism(memoryDir, {
+      mechanism: 'idea-intake',
+      action: 'recurring-tasks-generated',
+      reason: `${created} external tasks generated from recurring schedule`,
+    });
+    slog('INTAKE', `generated ${created} recurring external tasks`);
+  }
+
+  return created;
+}

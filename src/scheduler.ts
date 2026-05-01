@@ -168,8 +168,10 @@ export class DefaultScheduler implements SchedulerPolicy {
 }
 
 export function computeScore(t: TaskSnapshot, allTasks?: TaskSnapshot[]): number {
-  let score = (3 - t.priority) * 1000;
+  const effectivePriority = t.source === 'system' ? Math.max(t.priority, 2) : t.priority;
+  let score = (3 - effectivePriority) * 1000;
   if (t.source === 'alex') score += 5000;
+  if (t.source === 'discovery') score += 1000;
 
   // Aging boost
   const ageMs = Date.now() - new Date(t.createdAt).getTime();
