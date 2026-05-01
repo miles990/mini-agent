@@ -47,6 +47,7 @@ import { buildSuccessHint } from './success-patterns.js';
 import { classifyWork, RuntimeEscalation } from './work-router.js';
 import { trackDebuggingThread, getCostComparisonPrompt, recordCycleAttention, getAttentionSummaryForPrompt, checkExternalFacingProgress } from './attention-balance.js';
 import { checkOutputGate, loadOutputGateState } from './output-gate.js';
+import { advanceGoals } from './goal-advancer.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
 import { loadAgentMemory, formatMemorySection, type AgentMemoryEntry } from './kg-memory.js';
@@ -2216,6 +2217,9 @@ export class AgentLoop {
       else if (isRoomPriorityCycle) schedulerEvents.push({ source: 'room', priority: 0, isAlexDirectMessage: false });
       else if (currentTriggerReason?.startsWith('cron')) schedulerEvents.push({ source: 'cron', priority: 2, isAlexDirectMessage: false });
       else schedulerEvents.push({ source: 'heartbeat', priority: 3, isAlexDirectMessage: false });
+
+      // Goal Advancer: pull tasks from pipeline goals before scheduler picks
+      try { await advanceGoals(memDir); } catch { /* non-critical */ }
 
       advanceTick();
       const schedulerDecision = schedulerPick(memDir, schedulerEvents);
