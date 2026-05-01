@@ -45,6 +45,7 @@ import { onSchedulerTick } from './reactive-policies.js';
 import { recordFailure, matchFailure } from './failure-registry.js';
 import { buildSuccessHint } from './success-patterns.js';
 import { classifyWork, RuntimeEscalation } from './work-router.js';
+import { trackDebuggingThread, getCostComparisonPrompt, recordCycleAttention, getAttentionSummaryForPrompt, checkExternalFacingProgress } from './attention-balance.js';
 import { qualityCheck } from './quality-gate.js';
 import { emitActivity } from './activity-stream.js';
 import { loadAgentMemory, formatMemorySection, type AgentMemoryEntry } from './kg-memory.js';
@@ -2258,6 +2259,30 @@ export class AgentLoop {
           const failureMatch = matchFailure(taskSummary);
           if (failureMatch) {
             schedulerTaskPrefix += `\n<failure-warning frequency="${failureMatch.frequency}">\n⚠️ 類似任務曾失敗 ${failureMatch.frequency} 次：${failureMatch.pattern}\n上次：${failureMatch.context.slice(0, 100)}\n</failure-warning>\n`;
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // Attention balance: track debugging thread + record cycle attention
+      const attnState = getSchedulerState();
+      try {
+        const taskSummary = schedulerDecision.reason ?? '';
+        trackDebuggingThread(schedulerDecision.taskId, taskSummary, attnState.totalTicks);
+        recordCycleAttention(attnState.totalTicks, schedulerDecision.taskId, schedulerDecision.action, taskSummary);
+
+        const costPrompt = getCostComparisonPrompt(memDir);
+        if (costPrompt) schedulerTaskPrefix += costPrompt;
+
+        const attentionPrompt = getAttentionSummaryForPrompt();
+        if (attentionPrompt) schedulerTaskPrefix += attentionPrompt;
+      } catch { /* non-critical */ }
+
+      // Attention balance: daily external-facing progress check (every 50 ticks)
+      if (attnState.totalTicks > 0 && attnState.totalTicks % 50 === 0) {
+        try {
+          const progress = checkExternalFacingProgress(memDir);
+          if (progress.stalled) {
+            slog('ATTN', `external-facing stall: no artifacts in 2 days`);
           }
         } catch { /* non-critical */ }
       }
