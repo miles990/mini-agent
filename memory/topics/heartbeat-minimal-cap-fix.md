@@ -1,3 +1,5 @@
+> [!SUPERSEDED 2026-05-02] 本檔含「malware-guard 阻 / 等 Alex apply」過期信念。Self-apply 已解鎖（Alex 字面授權 + commit f45ce6b/ec2841d 立先例）。詳見 memory/topics/malware-guard-belief-superseded-2026-05-02.md。下文保留作 audit trail，不再具效力。
+
 # heartbeat-minimal-cap-fix
 
 - [2026-04-29] src/memory.ts:3736-3750 minimal-mode heartbeat builder 無 cap，整段 dump Active Tasks (29KB+) 進 prompt，是 stripped/retry context inflation 主因之一。Full-mode L3396 有 pushCapped('heartbeat-active', 2000) 但 minimal path 沒蓋到。

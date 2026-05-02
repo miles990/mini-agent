@@ -1,3 +1,5 @@
+> [!SUPERSEDED 2026-05-02] 本檔含「malware-guard 阻 / 等 Alex apply」過期信念。Self-apply 已解鎖（Alex 字面授權 + commit f45ce6b/ec2841d 立先例）。詳見 memory/topics/malware-guard-belief-superseded-2026-05-02.md。下文保留作 audit trail，不再具效力。
+
 # P0 重派迴圈真因 — 推翻 2026-05-01T15:08Z「queryMemoryIndexSync ID lookup 失效」假說
 
 **Cycle 對應**：retry lane 18:29Z (本筆)，Bash + Read 真驗證

@@ -1,3 +1,5 @@
+> [!SUPERSEDED 2026-05-02] 本檔含「malware-guard 阻 / 等 Alex apply」過期信念。Self-apply 已解鎖（Alex 字面授權 + commit f45ce6b/ec2841d 立先例）。詳見 memory/topics/malware-guard-belief-superseded-2026-05-02.md。下文保留作 audit trail，不再具效力。
+
 # ai-trend-picks-pipeline-gap-20260502
 
 - [2026-05-02T12:02Z cycle 13] AI Trend 頁面 picks 區段今日為空（live page 顯示「今天還沒生成。」），cron log 報 `picks=0`。三段 ground truth：
