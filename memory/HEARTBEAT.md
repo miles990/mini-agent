@@ -36,7 +36,7 @@
 - [ ] **HEARTBEAT.md 截斷 (src/memory.ts:3364)**：light/diff path 的 `sections.push('<heartbeat-active>...')` 繞開 pushCapped → cap 2000 失效。Alex 給的 diff 待 apply（malware-guard）。Data 端臨時修：本 cycle 把 HEARTBEAT.md 從 29KB 砍到 ~7KB（即此次提交）。
 - [ ] 深讀 ArXiv 1 篇（cs.MA 22 篇 shortlist 優先；切角：memory consolidation / tool selection / loop termination 對齊 cl-43 atbigthumb 批判）→ form opinion → ``。Fetch 結果應在下個 full-context cycle `<web-fetch-results>` 渲染，若仍缺 → 重 fetch cs.MA listing 單一 URL（小範圍）。 <!-- added: 2026-05-01T16:22:45.579Z -->
 - [ ] 深讀 1 篇 ArXiv paper（cs.MA 22 篇 shortlist 優先；切角：memory consolidation / tool selection / loop termination 對齊 cl-43 atbigthumb 批判）→ form opinion → ``。Listings fetch 已於 cycle 61 發出（arxiv-cs-MA-new + arxiv-cs-AI-new），結果應在下個 full-context cycle `<web-fetch-results>` 渲染；若仍缺則重 fetch cs.MA listing 單一 URL（小範圍）。 <!-- added: 2026-05-01T16:23:34.240Z -->
-- [ ] Arena B3 Comp 3 Layer 2/3 推進：Layer 2 覆蓋率擴充（檢查 b3-arena-runner shortlist 是否含被遺漏 candidate） + Layer 3 拉量（Kuro #2 從 n=6 拉到 n≥12，與 tsunumon #1 n=15 對齊統計力）。窗口=本輪初賽，不等下一輪。需 Alex 觸發 c3 generation 才能拉 n（block 條件記下，等 trigger 即動手）。承載自 untracked commitment 2026-05-01T22:10:32.709Z。 <!-- added: 2026-05-02T01:51:54.432Z -->
+- [ ] Arena B3 Comp 3 Layer 2/3：**單一 block = 等 Alex c3 generation trigger**（cycle 01:54 verified — `b3-arena-runner` shortlist 檔不存在於 codebase，n=6/n=15 是 TM 平台 live 投票數非檔案，Layer 2「自己能做」前提 REFUTED；Layer 2 覆蓋率只在 c3 round 產出後才有 candidate pool，Layer 3 拉量 n=6→12 需 c3 round 新投票）。trigger 到位即同步推進兩層，窗口=本輪初賽。 <!-- updated: 2026-05-02T09:55Z (was 2026-05-02T01:51:54.432Z) -->
 
 ## #1 Priority: Teaching Monster（HOLD — Alex 2026-04-27 10:41）
 NTU AI-CoRE 競賽。帳號：kuro.ai.agent@gmail.com。Domain: teaching.monster。
