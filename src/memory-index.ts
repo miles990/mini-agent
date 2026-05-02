@@ -287,6 +287,35 @@ export async function appendMemoryIndexEntry(
   memoryDir: string,
   input: CreateMemoryIndexEntryInput,
 ): Promise<MemoryIndexEntry> {
+  // Empty entry rejection
+  if (input.type === 'task' || input.type === 'goal') {
+    const summary = input.summary?.trim() ?? '';
+    if (!summary || summary.length < 5 || summary === 'title') {
+      throw new Error(`Entry rejected: empty or trivial summary "${summary}"`);
+    }
+  }
+
+  // Dedup gate: reject if a pending/in_progress entry with similar summary exists
+  if (input.type === 'task' || input.type === 'goal' || input.type === 'idea') {
+    const summary = (input.summary ?? '').toLowerCase().trim();
+    if (summary.length >= 10) {
+      const existing = queryMemoryIndexSync(memoryDir, {
+        type: [input.type],
+        status: ['pending', 'in_progress', 'qualified'],
+      });
+      const isDup = existing.some(e => {
+        const eSummary = (e.summary ?? '').toLowerCase().trim();
+        if (eSummary === summary) return true;
+        if (summary.length >= 20 && eSummary.includes(summary.slice(0, 40))) return true;
+        if (eSummary.length >= 20 && summary.includes(eSummary.slice(0, 40))) return true;
+        return false;
+      });
+      if (isDup) {
+        throw new Error(`Entry rejected: duplicate of existing ${input.type}`);
+      }
+    }
+  }
+
   const entry = createMemoryIndexEntry(input);
   const bucket = getBucketForType(entry.type);
   const filePath = await ensureBucketFile(memoryDir, bucket);
@@ -298,6 +327,44 @@ export async function appendMemoryIndexEntry(
   writeThroughEntry(memoryDir, entry);
   slog('INDEX', `append ${entry.id} type=${entry.type} status=${entry.status} bucket=${bucket}`);
   return entry;
+}
+
+export async function cleanStaleEntries(memoryDir: string): Promise<{ archived: number }> {
+  const now = Date.now();
+  const entries = queryMemoryIndexSync(memoryDir, {
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+  });
+
+  let archived = 0;
+  for (const e of entries) {
+    const ageMs = now - new Date(e.ts).getTime();
+    const ageDays = ageMs / 86_400_000;
+    const payload = (e.payload ?? {}) as Record<string, unknown>;
+    const source = (payload.source as string) ?? '';
+
+    // Room reply tasks expire after 24h
+    if (e.summary?.startsWith('回覆 ') && ageDays > 1) {
+      await updateMemoryIndexEntry(memoryDir, e.id, { status: 'abandoned' });
+      archived++;
+      continue;
+    }
+
+    // Pending tasks older than 7 days without progress → archive
+    if (e.status === 'pending' && ageDays > 7) {
+      await updateMemoryIndexEntry(memoryDir, e.id, { status: 'abandoned' });
+      archived++;
+      continue;
+    }
+
+    // In-progress tasks older than 14 days → archive
+    if (e.status === 'in_progress' && ageDays > 14) {
+      await updateMemoryIndexEntry(memoryDir, e.id, { status: 'abandoned' });
+      archived++;
+    }
+  }
+
+  return { archived };
 }
 
 // =============================================================================

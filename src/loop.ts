@@ -37,7 +37,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -2220,10 +2220,11 @@ export class AgentLoop {
       else if (currentTriggerReason?.startsWith('cron')) schedulerEvents.push({ source: 'cron', priority: 2, isAlexDirectMessage: false });
       else schedulerEvents.push({ source: 'heartbeat', priority: 3, isAlexDirectMessage: false });
 
-      // Intake Pipeline: promote qualified ideas + clean parking lot + recurring external tasks
+      // Intake Pipeline: promote qualified ideas + clean parking lot + recurring external tasks + stale cleanup
       try { await promoteNextIdea(memDir); } catch { /* non-critical */ }
       try { await cleanParkingLot(memDir); } catch { /* non-critical */ }
       try { await generateRecurringTasks(memDir, currentTriggerReason ?? undefined); } catch { /* non-critical */ }
+      try { await cleanStaleEntries(memDir); } catch { /* non-critical */ }
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
 
