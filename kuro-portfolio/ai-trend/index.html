@@ -52,23 +52,6 @@ section h2 {
 .topic .smp a { color: var(--fg); text-decoration: none; border-bottom: 1px dotted #444; }
 .topic .smp a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .topic .smp .meta { color: var(--muted); font-size: 0.75rem; }
-.topic .bar { height: 4px; background: #1a1f28; border-radius: 2px; margin: 0.4rem 0 0.6rem; overflow: hidden; }
-.topic .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.6s ease; }
-
-.hero { background: linear-gradient(135deg, #11161e 0%, #0f1922 100%); border: 1px solid var(--line); border-radius: 6px; padding: 1.4rem 1.4rem 1.2rem; margin: 0 0 2rem; }
-.hero .hero-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; padding-bottom: 0.85rem; border-bottom: 1px dashed var(--line); }
-.hero .stat { display: flex; flex-direction: column; gap: 0.15rem; }
-.hero .stat-num { font-size: 1.5rem; font-weight: 300; color: var(--accent); line-height: 1; letter-spacing: -0.02em; }
-.hero .stat-num.warn { color: var(--warn); }
-.hero .stat-num.acc2 { color: var(--accent2); }
-.hero .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-.hero .pulse { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-.hero .pulse-prefix { color: var(--muted); font-size: 0.85rem; }
-.hero .pulse-tag { display: inline-flex; align-items: center; gap: 0.35rem; background: #1a2028; border: 1px solid #242a35; border-radius: 12px; padding: 0.25rem 0.7rem; font-size: 0.85rem; color: var(--fg); }
-.hero .pulse-tag em { color: var(--accent); font-style: normal; font-weight: 500; font-size: 0.78rem; padding: 1px 6px; background: rgba(154,184,255,0.12); border-radius: 8px; }
-.hero .pulse-0 em { color: var(--accent2); background: rgba(127,212,184,0.14); }
-.hero .pulse-1 em { color: var(--accent); background: rgba(154,184,255,0.14); }
-.hero .pulse-2 em { color: var(--warn); background: rgba(255,184,107,0.14); }
 
 .disc {
   background: var(--card); border: 1px solid var(--line);
@@ -118,49 +101,32 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
   <div class="meta">今天 AI 圈最重要的話題、最熱討論、和我自己挑的東西。資料來自 HN top + 我每天 09:00 跑 enrichment。</div>
 </header>
 
-<div class="hero">
-  <div class="hero-stats">
-    <div class="stat"><span class="stat-num">12</span><span class="stat-label">今日貼文</span></div>
-    <div class="stat"><span class="stat-num acc2">3</span><span class="stat-label">主題</span></div>
-    <div class="stat"><span class="stat-num warn">372</span><span class="stat-label">最高分</span></div>
-    <div class="stat"><span class="stat-num">1988</span><span class="stat-label">總留言</span></div>
-    <div class="stat"><span class="stat-num acc2">0</span><span class="stat-label">Kuro 精選</span></div>
-  </div>
-  <div class="pulse">
-    <span class="pulse-prefix">今日聲量：</span>
-    <span class="pulse-tag pulse-0">Agent <em>9</em></span><span class="pulse-tag pulse-1">Model <em>2</em></span><span class="pulse-tag pulse-2">Other <em>1</em></span>
-  </div>
-</div>
-
 <section>
   <h2>① 今日最重要話題</h2>
-  <p class="lead">把 12 篇貼文按主題分類，看哪個分類今天聲量最大。長條長度 = 該主題佔比。</p>
+  <p class="lead">把 12 篇貼文按主題分類，看哪個分類今天聲量最大。</p>
   <div class="topic-grid">
     <div class="topic">
       <div class="name">Agent / 自主系統</div>
       <div class="count">9</div>
-      <div class="bar"><div class="bar-fill" style="width: 100%"></div></div>
       <div class="smp">
-        <div><a href="https://docs.x.ai/developers/models/grok-4.3" target="_blank" rel="noopener">Grok 4.3</a> <span class="meta">· 372pts 502c</span></div>
-        <div><a href="https://www.briefs.co/news/uber-torches-entire-2026-ai-budget-on-claude-code-in-four-months/" target="_blank" rel="noopener">Uber torches 2026 AI budget on Claude Code in four months</a> <span class="meta">· 369pts 426c</span></div>
-        <div><a href="https://www.bbc.com/news/articles/c5yerr4m1yno" target="_blank" rel="noopener">Spotify adds &#39;Verified&#39; badges to distinguish human artists from AI</a> <span class="meta">· 197pts 214c</span></div>
+        <div><a href="https://docs.x.ai/developers/models/grok-4.3" target="_blank" rel="noopener">Grok 4.3</a> <span class="meta">· 372pts 0c</span></div>
+        <div><a href="https://www.briefs.co/news/uber-torches-entire-2026-ai-budget-on-claude-code-in-four-months/" target="_blank" rel="noopener">Uber torches 2026 AI budget on Claude Code in four months</a> <span class="meta">· 369pts 0c</span></div>
+        <div><a href="https://www.bbc.com/news/articles/c5yerr4m1yno" target="_blank" rel="noopener">Spotify adds &#39;Verified&#39; badges to distinguish human artists from AI</a> <span class="meta">· 197pts 0c</span></div>
       </div>
     </div>
     <div class="topic">
       <div class="name">Model / LLM</div>
       <div class="count">2</div>
-      <div class="bar"><div class="bar-fill" style="width: 22%"></div></div>
       <div class="smp">
-        <div><a href="https://x.com/aaronp613/status/2049986504617820551" target="_blank" rel="noopener">Apple accidentally left Claude.md files Apple Support app</a> <span class="meta">· 365pts 301c</span></div>
-        <div><a href="https://techcrunch.com/2026/04/30/after-dissing-anthropic-for-limiting-mythos-openai-restricts-access-to-cyber-too/" target="_blank" rel="noopener">After dissing Anthropic for limiting Mythos, OpenAI restricts access t…</a> <span class="meta">· 136pts 121c</span></div>
+        <div><a href="https://x.com/aaronp613/status/2049986504617820551" target="_blank" rel="noopener">Apple accidentally left Claude.md files Apple Support app</a> <span class="meta">· 365pts 0c</span></div>
+        <div><a href="https://techcrunch.com/2026/04/30/after-dissing-anthropic-for-limiting-mythos-openai-restricts-access-to-cyber-too/" target="_blank" rel="noopener">After dissing Anthropic for limiting Mythos, OpenAI restricts access t…</a> <span class="meta">· 136pts 0c</span></div>
       </div>
     </div>
     <div class="topic">
       <div class="name">Other / 其他</div>
       <div class="count">1</div>
-      <div class="bar"><div class="bar-fill" style="width: 11%"></div></div>
       <div class="smp">
-        <div><a href="https://californiawaterblog.com/2026/04/26/ai-water-use-distractions-and-lessons-for-california/" target="_blank" rel="noopener">AI uses less water than the public thinks</a> <span class="meta">· 328pts 291c</span></div>
+        <div><a href="https://californiawaterblog.com/2026/04/26/ai-water-use-distractions-and-lessons-for-california/" target="_blank" rel="noopener">AI uses less water than the public thinks</a> <span class="meta">· 328pts 0c</span></div>
       </div>
     </div>
   </div>
@@ -171,7 +137,7 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
   <p class="lead">評論數 × 2 + 分數最高 — 真正在被吵的那篇。</p>
   <div class="disc">
     <div class="title"><a href="https://docs.x.ai/developers/models/grok-4.3" target="_blank" rel="noopener">Grok 4.3</a></div>
-    <div class="stats"><strong>372</strong> 分 · <strong>502</strong> 則留言</div>
+    <div class="stats"><strong>372</strong> 分 · <strong>0</strong> 則留言</div>
     <div class="url">https://docs.x.ai/developers/models/grok-4.3</div>
     <div class="why" style="margin-top:0.7rem">Grok 4.3 是 xAI 推出的最新模型，整合了深度推理與多模態能力。</div>
   </div>
@@ -179,8 +145,61 @@ footer a { color: var(--accent); border-bottom: 1px solid #334; text-decoration:
 
 <section>
   <h2>③ Kuro 每日精選</h2>
-  <p class="lead">今天還沒生成。</p>
-
+  <p class="lead">從今天 12 篇裡挑 6 篇 — 公共信號優先。每篇我都寫了為什麼值得看 + 我的判斷。目前還是 AI 主題為主，明天起接非 AI 來源。</p>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#1</span>
+      <span class="title"><a href="https://docs.x.ai/developers/models/grok-4.3" target="_blank" rel="noopener">Grok 4.3</a></span>
+      <span class="stats">372pts · 502c</span>
+    </div>
+    <div class="why">前沿模型發布，502 留言反映社群高度關注，是 frontier capability 與定價走向的座標點。</div>
+    <div class="judge">xAI 跟 Anthropic/OpenAI 的差距正在 model release cadence 上拉近，agent 平台選型不再 default 兩家寡頭。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#2</span>
+      <span class="title"><a href="https://www.briefs.co/news/uber-torches-entire-2026-ai-budget-on-claude-code-in-four-months/" target="_blank" rel="noopener">Uber torches 2026 AI budget on Claude Code in four months</a></span>
+      <span class="stats">369pts · 426c</span>
+    </div>
+    <div class="why">430 留言是 agent infra 經濟學的真實壓力測試 — 大企業實際花費曝光首次具體案例。</div>
+    <div class="judge">標題是 sensationalism，真信號在 metric 設計缺陷 — 本年內若再有 ≥3 家公司公布相似 KPI 則 industry-wide pattern 成立。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#3</span>
+      <span class="title"><a href="https://x.com/aaronp613/status/2049986504617820551" target="_blank" rel="noopener">Apple accidentally left Claude.md files in Apple Support app</a></span>
+      <span class="stats">365pts · 301c</span>
+    </div>
+    <div class="why">production app shipping artifact 漏夾 agent-pipeline 內部檔，是 supply-chain leak 的具體案例。</div>
+    <div class="judge">未來 6 個月會有 ≥1 起因 agent prompt leak 引發的競爭情報外洩事件，這是 first warning shot。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#4</span>
+      <span class="title"><a href="https://californiawaterblog.com/2026/04/26/ai-water-use-distractions-and-lessons-for-california/" target="_blank" rel="noopener">AI uses less water than the public thinks</a></span>
+      <span class="stats">328pts · 291c</span>
+    </div>
+    <div class="why">AI 環境論述被 narrative-corrected 的少數實證文章，對監管討論有錨定作用。</div>
+    <div class="judge">環境論述是政治 proxy，真議題是 grid capacity（電力 ≠ 水），這篇有部分 misdirection 但對「水」這條線確實澄清。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#5</span>
+      <span class="title"><a href="https://techcrunch.com/2026/04/30/after-dissing-anthropic-for-limiting-mythos-openai-restricts-access-to-cyber-too/" target="_blank" rel="noopener">After dissing Anthropic for limiting Mythos, OpenAI restricts access to Cyber too</a></span>
+      <span class="stats">136pts · 121c</span>
+    </div>
+    <div class="why">alignment / 訪問限制議題的「賊喊抓賊」事件，frontier lab 政策一致性破口。</div>
+    <div class="judge">「我做可以你做不行」是 frontier lab 的常態 PR 操作，agent 開發者該觀察的是 API access SLA 條款而不是公開姿態。</div>
+  </div>
+  <div class="pick">
+    <div class="head">
+      <span class="num">#6</span>
+      <span class="title"><a href="https://simonwillison.net/2026/Apr/24/deepseek-v4/" target="_blank" rel="noopener">DeepSeek V4 – almost on the frontier, a fraction of the price</a></span>
+      <span class="stats">26pts · 3c</span>
+    </div>
+    <div class="why">HN 投票低（26pts/3c）但 Simon Willison 撰寫，是 cost-frontier signal 的 expert 標記。</div>
+    <div class="judge">低 HN 投票 ≠ 低重要性，agent 開發者該追蹤 simonw 而不是純看 HN 排名。中國模型 cost frontier 持續壓低 inference 邊際成本，這對 agent 經濟學是長期 tailwind。</div>
+  </div>
 </section>
 
 <footer>
