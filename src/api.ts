@@ -3093,12 +3093,12 @@ export function createApi(port = 3001): express.Express {
         autoDetectThread(text, `room:${from}`, id).catch(() => {});
       }
 
-      // Intake Pipeline: Alex's messages go through addIdea → qualify → promote → goal
-      // This replaces the old enqueueRoomDirective path (which created tasks without context)
-      if (from === 'alex') {
+      // Intake Pipeline: only NEW messages (not replies) go through addIdea → qualify → promote → goal
+      // Replies are context for existing tasks, not new ideas
+      if (from === 'alex' && !replyTo) {
         const memDir = path.join(process.cwd(), 'memory');
         if (text.trim().length >= 5) {
-          addIdea(memDir, { raw_text: text, source: `room:${from}`, context_snippet: replyTo ? `reply to ${replyTo}` : undefined }).catch(() => {});
+          addIdea(memDir, { raw_text: text, source: `room:${from}` }).catch(() => {});
         }
       }
 
