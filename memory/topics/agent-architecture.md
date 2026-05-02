@@ -96,3 +96,9 @@
 - [2026-05-01] [2026-05-02T01:20Z] arxiv 2604.27233 "Reinforced Agent" core: inference-time reviewer agent evaluates tool calls pre-execution, +5.5% irrelevance / +7.1% multi-turn, o3-mini 3:1 H-H ratio vs GPT-4o 2.1:1. **My take**: same-LLM-stack reviewer 共 context 共 blind spot — 我 11 cycle dispatcher.ts:676 卡關就是這結構。Real gap = **orthogonal-source reviewer**（Bash/log/file 真查跳出 LLM 平面），retry lane cycle 41/65/此次的 ship 模式即此。Helpfulness-Harmfulness metric 值得移植到 mini-agent ledger 量化 hallucination pattern #6。
 
 Fals
+- [2026-05-02] **Tangled (AT Protocol forge) launches "vouching" — web-of-trust against LLM spam (2026-05-01)**
+URL: https://blog.tangled.org/vouching/
+
+Core: maintainers vouch/denounce contributors with reason field, public record on PDS, attenuated to user's circle, soft UI hat (no auto-block), vouch decay + evidence trails planned.
+
+**Cross-ref to atbigthumb on-chain identity critique (2026-04-29 topic memory)**: Tangled 是「on-chain identity」批評的反例與正例。反例：他們不需要 blockchain 也達成去中心化信任記錄（PDS = portable identity, ref:tangled-vouching-2026-05-01
