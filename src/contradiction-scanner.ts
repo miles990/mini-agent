@@ -15,7 +15,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+// spawn removed — uses sideQuery (SDK path) instead of direct CLI subprocess
 import { existsSync, mkdirSync } from 'node:fs';
 import { slog } from './utils.js';
 
@@ -174,66 +174,18 @@ If no genuine contradictions exist in a cluster, output: CLUSTER <theme>: no con
 // Step 4 — Call Claude Haiku via CLI subprocess
 // =============================================================================
 
-function callHaiku(prompt: string): Promise<string | null> {
+async function callHaiku(prompt: string): Promise<string | null> {
   if (!existsSync(SUBPROCESS_CWD)) {
     mkdirSync(SUBPROCESS_CWD, { recursive: true });
   }
 
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([k]) => k !== 'ANTHROPIC_API_KEY'),
-  );
-
-  return new Promise<string | null>((resolve) => {
-    const args = ['-p', '--model', HAIKU_MODEL, '--output-format', 'text'];
-
-    const child = spawn('claude', args, {
-      env,
-      cwd: SUBPROCESS_CWD,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let settled = false;
-
-    const settle = (result: string | null) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(result);
-    };
-
-    const timer = setTimeout(() => {
-      try { child.kill('SIGTERM'); } catch { /* ignore */ }
-      slog('CONTRADICTION-SCANNER', `Haiku subprocess timed out after ${SCAN_TIMEOUT_MS}ms`);
-      settle(null);
-    }, SCAN_TIMEOUT_MS);
-
-    child.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr?.on('data', (chunk: Buffer) => {
-      const msg = chunk.toString().trim();
-      if (msg) slog('CONTRADICTION-SCANNER', `haiku stderr: ${msg.slice(0, 200)}`);
-    });
-
-    child.on('error', (err) => {
-      slog('CONTRADICTION-SCANNER', `haiku spawn error: ${err.message}`);
-      settle(null);
-    });
-
-    child.on('close', (code) => {
-      if (code === 0 && stdout.trim()) {
-        settle(stdout.trim());
-      } else {
-        slog('CONTRADICTION-SCANNER', `haiku exited with code=${code}`);
-        settle(null);
-      }
-    });
-
-    child.stdin?.write(prompt);
-    child.stdin?.end();
-  });
+  try {
+    const { sideQuery } = await import('./side-query.js');
+    return await sideQuery(prompt, { model: HAIKU_MODEL, timeout: SCAN_TIMEOUT_MS });
+  } catch {
+    slog('CONTRADICTION-SCANNER', 'sideQuery failed');
+    return null;
+  }
 }
 
 // =============================================================================
