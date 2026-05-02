@@ -34,7 +34,7 @@
 - (b) Step 2 narration 模板是否強制「reveal-then-explain」(Bastani 反 pattern)
 - (c) 是否有 prediction prompt / deliberate pause 機制
 
-若 (a) 缺失或弱 → 寫 prompt diff proposal 給 Alex review (src/ 走 malware-guard)
+若 (a) 缺失或弱 → self-apply prompt diff（sed/heredoc），commit + push 到 teaching-monster
 若 (a) 已有且強 → engagement 短板在他處 (audio prosody / visual choreography)，需另查
 
 ## Falsifier
