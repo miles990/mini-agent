@@ -8,6 +8,7 @@
 
 import type { ActorId, WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
 import { getActorProfile, type ActorProfile, type ActorRoleTendency } from './actor-registry.js';
+import type { ActorOutcomeStats } from './actor-outcome-stats.js';
 
 export type SelectionRole = 'primary' | 'reviewer' | 'advisor' | 'executor';
 
@@ -20,6 +21,7 @@ export interface ActorScore {
 
 export interface SelectionOptions {
   availableActors?: ActorId[];
+  actorStats?: ActorOutcomeStats;
 }
 
 const DEFAULT_AVAILABLE: ActorId[] = ['kuro', 'claude', 'codex', 'local', 'shell', 'akari', 'human'];
@@ -46,7 +48,7 @@ export function rankActorsForRole(
 ): ActorScore[] {
   const available = opts.availableActors ?? DEFAULT_AVAILABLE;
   return available
-    .map(actor => scoreActor(item, actor, role))
+    .map(actor => scoreActor(item, actor, role, opts))
     .filter((score): score is ActorScore => score !== null)
     .sort((a, b) => b.score - a.score || a.actor.localeCompare(b.actor));
 }
@@ -71,7 +73,12 @@ export function pickActorsForRole(
     .map(score => score.actor);
 }
 
-function scoreActor(item: WorkItem, actor: ActorId, role: SelectionRole): ActorScore | null {
+function scoreActor(
+  item: WorkItem,
+  actor: ActorId,
+  role: SelectionRole,
+  opts: SelectionOptions,
+): ActorScore | null {
   const profile = getActorProfile(actor);
   if (!profile?.dispatchable) return null;
   if (!canAcceptRisk(profile, item.risk)) return null;
@@ -105,6 +112,7 @@ function scoreActor(item: WorkItem, actor: ActorId, role: SelectionRole): ActorS
 
   if (profile.cost === 'low') add(role === 'primary' && item.priority !== 'P0' ? 8 : 3, 'low-cost');
   if (profile.cost === 'high' && item.priority === 'P2') add(-8, 'high-cost-for-low-priority');
+  applyHistoricalOutcome();
   if (profile.kind === 'human' && item.risk !== 'deploy' && item.risk !== 'external_write') add(-40, 'human-gate-not-needed');
   if (profile.kind === 'host-agent' && role !== 'advisor') add(-12, 'host-preserved-for-synthesis');
   if (profile.kind === 'executor' && role === 'primary' && item.intent !== 'verify') add(-35, 'executor-not-semantic-primary');
@@ -120,6 +128,20 @@ function scoreActor(item: WorkItem, actor: ActorId, role: SelectionRole): ActorS
   function add(delta: number, reason: string): void {
     score += delta;
     reasons.push(`${delta >= 0 ? '+' : ''}${delta} ${reason}`);
+  }
+
+  function applyHistoricalOutcome(): void {
+    const stat = opts.actorStats?.[actor];
+    if (!stat || stat.total < 3) return;
+    const weight = Math.max(0.3, stat.confidence);
+    if (stat.successRate >= 0.8) {
+      add(Math.round(8 * weight), `historical-success:${stat.success}/${stat.total}`);
+    } else if (stat.successRate <= 0.4) {
+      add(-Math.round(14 * weight), `historical-failure:${stat.success}/${stat.total}`);
+    }
+    if (role === 'primary' && stat.avgDurationMs !== null && stat.avgDurationMs <= 2_000) {
+      add(Math.round(3 * weight), `historical-fast:${stat.avgDurationMs}ms`);
+    }
   }
 }
 

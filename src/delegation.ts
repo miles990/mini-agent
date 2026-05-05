@@ -36,6 +36,7 @@ import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import type { BrainRequest } from './brain-types.js';
 import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
+import { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
 import {
   getDelegationFailureCode,
   markDelegationFailureDiagnosticCreated,
@@ -239,9 +240,15 @@ export function spawnDelegation(task: DelegationTask): string {
     MAX_TIMEOUT_MS,
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
+  const memDir = path.join(process.cwd(), 'memory');
   const arbitration = decideArbitration(
     workItem,
-    isBrainRuntimeDelegationEnabled() ? { availableActors: getCachedAvailableBrainActors() } : undefined,
+    isBrainRuntimeDelegationEnabled()
+      ? {
+          availableActors: getCachedAvailableBrainActors(),
+          actorStats: readActorOutcomeStatsSync(memDir, { intent: workItem.intent, limit: 300 }),
+        }
+      : undefined,
   );
 
   // Soft concurrency cap — middleware also caps per-worker, this just surfaces

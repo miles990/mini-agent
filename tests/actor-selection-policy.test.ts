@@ -37,4 +37,28 @@ describe('actor selection policy', () => {
     }));
     expect(ranked.map(score => score.actor)).not.toContain('tanren');
   });
+
+  it('includes bounded historical outcome signals in score reasons', () => {
+    const ranked = rankActorsForRole(work({ intent: 'review', priority: 'P2' }), 'primary', {
+      actorStats: {
+        claude: {
+          actor: 'claude',
+          intent: 'review',
+          total: 10,
+          success: 9,
+          failed: 1,
+          skipped: 0,
+          successRate: 0.9,
+          avgDurationMs: 1500,
+          confidence: 1,
+          lastFinishedAt: '2026-05-05T00:00:00.000Z',
+        },
+      },
+    });
+
+    expect(ranked.find(score => score.actor === 'claude')?.reasons).toEqual(expect.arrayContaining([
+      expect.stringContaining('historical-success:9/10'),
+      expect.stringContaining('historical-fast:1500ms'),
+    ]));
+  });
 });

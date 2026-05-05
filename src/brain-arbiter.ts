@@ -15,9 +15,11 @@ import {
 } from './constraint-texture.js';
 import { getDefaultDispatchableActors, getPeerCritiqueActors, isDispatchableActor } from './actor-registry.js';
 import { pickActorForRole, pickActorsForRole, rankActorsForRole, type SelectionRole } from './actor-selection-policy.js';
+import type { ActorOutcomeStats } from './actor-outcome-stats.js';
 
 export interface ArbiterOptions {
   availableActors?: ActorId[];
+  actorStats?: ActorOutcomeStats;
   forceAkariForP0?: boolean;
 }
 
@@ -25,10 +27,12 @@ const DEFAULT_ACTORS: ActorId[] = getDefaultDispatchableActors();
 
 export class BrainArbiter {
   private readonly actors: Set<ActorId>;
+  private readonly actorStats?: ActorOutcomeStats;
   private readonly forceAkariForP0: boolean;
 
   constructor(opts: ArbiterOptions = {}) {
     this.actors = new Set(opts.availableActors ?? DEFAULT_ACTORS);
+    this.actorStats = opts.actorStats;
     this.forceAkariForP0 = opts.forceAkariForP0 ?? false;
   }
 
@@ -86,6 +90,7 @@ export class BrainArbiter {
       const availablePeerActors = this.filterAvailable(getPeerCritiqueActors());
       const candidates = pickActorsForRole(item, 'advisor', {
         availableActors: availablePeerActors,
+        actorStats: this.actorStats,
         limit: texture.decisionBudget.maxActors,
       });
       return this.decision({
@@ -185,13 +190,14 @@ export class BrainArbiter {
     fallbackPrimary: ActorId,
     fallbackSecondary: ActorId,
   ): ActorId {
-    return pickActorForRole(item, role, { availableActors: [...this.actors] })
+    return pickActorForRole(item, role, { availableActors: [...this.actors], actorStats: this.actorStats })
       ?? this.pick(fallbackPrimary, fallbackSecondary);
   }
 
   private pickReviewer(item: WorkItem, primary: ActorId): ActorId | null {
     return pickActorsForRole(item, 'reviewer', {
       availableActors: [...this.actors],
+      actorStats: this.actorStats,
       exclude: [primary],
       limit: 1,
     })[0] ?? null;
@@ -201,7 +207,7 @@ export class BrainArbiter {
     return {
       selected: [],
       considered: roles.flatMap(role =>
-        rankActorsForRole(item, role, { availableActors: [...this.actors] })
+        rankActorsForRole(item, role, { availableActors: [...this.actors], actorStats: this.actorStats })
           .slice(0, 4)
           .map(score => ({
             actor: score.actor,

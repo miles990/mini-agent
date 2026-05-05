@@ -151,6 +151,8 @@ export {
   rankActorsForRole,
 } from './actor-selection-policy.js';
 export type { ActorScore, SelectionOptions, SelectionRole } from './actor-selection-policy.js';
+export { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
+export type { ActorOutcomeStat, ActorOutcomeStats, ActorOutcomeStatsOptions } from './actor-outcome-stats.js';
 export { BrainRuntime } from './brain-runtime.js';
 export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
 export {

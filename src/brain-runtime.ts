@@ -268,7 +268,7 @@ export class BrainRuntime {
   }
 
   private observe(input: BrainExecutionInput, event: Omit<BrainRunEvent, 'id' | 'createdAt' | 'taskId'>): void {
-    const payload = { taskId: input.request.taskId, ...event };
+    const payload = { taskId: input.request.taskId, intent: input.workItem.intent, ...event };
     if (this.memoryDir) appendBrainRunEvent(this.memoryDir, payload);
     eventBus.emit('action:brain-state', payload);
   }

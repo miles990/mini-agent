@@ -7,7 +7,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { ActorId, ActorSelectionTrace, ArbitrationMode, DecisionBudget } from './brain-types.js';
+import type { ActorId, ActorSelectionTrace, ArbitrationMode, DecisionBudget, WorkIntent } from './brain-types.js';
 import type { BrainActorRun } from './brain-runtime.js';
 
 const BRAIN_RUN_LEDGER_FILE = 'brain-runs.jsonl';
@@ -35,6 +35,7 @@ export interface BrainRunEvent {
   event: BrainRunEventKind;
   status: BrainRunStatus;
   createdAt: string;
+  intent?: WorkIntent;
   actor?: ActorId;
   role?: BrainActorRun['role'];
   mode?: ArbitrationMode;
@@ -63,6 +64,7 @@ export interface BrainRunState {
   status: BrainRunStatus;
   lastEvent: BrainRunEventKind;
   updatedAt: string;
+  intent?: WorkIntent;
   actor?: ActorId;
   role?: BrainRunEvent['role'];
   mode?: ArbitrationMode;
@@ -134,6 +136,7 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
       status: event.status,
       lastEvent: event.event,
       updatedAt: event.createdAt,
+      ...(event.intent ? { intent: event.intent } : {}),
       ...(event.actor ? { actor: event.actor } : {}),
       ...(event.role ? { role: event.role } : {}),
       ...(event.mode ? { mode: event.mode } : {}),
@@ -181,6 +184,7 @@ function parseBrainRunEvent(line: string): BrainRunEvent | null {
       event,
       status,
       createdAt,
+      ...(isWorkIntent(raw.intent) ? { intent: raw.intent } : {}),
       ...(isActorId(raw.actor) ? { actor: raw.actor } : {}),
       ...(isRunRole(raw.role) ? { role: raw.role } : {}),
       ...(isArbitrationMode(raw.mode) ? { mode: raw.mode } : {}),
@@ -219,6 +223,11 @@ function isBrainRunStatus(value: string): value is BrainRunStatus {
 function isActorId(value: unknown): value is ActorId {
   return typeof value === 'string'
     && ['claude', 'codex', 'local', 'shell', 'akari', 'tanren', 'kuro', 'human'].includes(value);
+}
+
+function isWorkIntent(value: unknown): value is WorkIntent {
+  return typeof value === 'string'
+    && ['chat', 'plan', 'code', 'research', 'summarize', 'json', 'diagnose', 'review', 'verify', 'architecture', 'memory', 'policy'].includes(value);
 }
 
 function isRunRole(value: unknown): value is BrainActorRun['role'] {

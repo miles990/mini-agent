@@ -129,6 +129,8 @@ import {
 import { diagnoseDelegationFailure, diagnosePendingDelegationFailures } from './delegation-failure-diagnostics.js';
 import { getMyelinStatus } from './myelin-status.js';
 import { syncMyelinToKnowledge } from './myelin-kg-sync.js';
+import { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
+import type { WorkIntent } from './brain-types.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -493,6 +495,20 @@ const BRAIN_RUN_EVENTS = new Set<BrainRunEventKind>([
 ]);
 const BRAIN_RUN_STATUSES = new Set<BrainRunStatus>(['queued', 'running', 'success', 'partial', 'failed', 'skipped']);
 const BRAIN_ACTORS = new Set<ActorId>(['claude', 'codex', 'local', 'shell', 'akari', 'tanren', 'kuro', 'human']);
+const WORK_INTENTS = new Set<WorkIntent>([
+  'chat',
+  'plan',
+  'code',
+  'research',
+  'summarize',
+  'json',
+  'diagnose',
+  'review',
+  'verify',
+  'architecture',
+  'memory',
+  'policy',
+]);
 
 function isClaimStatus(value: unknown): value is ClaimStatus {
   return typeof value === 'string' && CLAIM_STATUSES.has(value as ClaimStatus);
@@ -508,6 +524,10 @@ function isBrainRunStatus(value: unknown): value is BrainRunStatus {
 
 function isBrainActor(value: unknown): value is ActorId {
   return typeof value === 'string' && BRAIN_ACTORS.has(value as ActorId);
+}
+
+function isWorkIntent(value: unknown): value is WorkIntent {
+  return typeof value === 'string' && WORK_INTENTS.has(value as WorkIntent);
 }
 
 function queryList(value: unknown): string[] {
@@ -2007,6 +2027,20 @@ export function createApi(port = 3001): express.Express {
         runtime: { enabled: isBrainRuntimeDelegationEnabled() },
         ...snapshot,
       });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/brain/actor-stats', (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const intent = typeof req.query.intent === 'string' && isWorkIntent(req.query.intent)
+        ? req.query.intent
+        : undefined;
+      const limit = parsePositiveInt(req.query.limit, 500);
+      const stats = readActorOutcomeStatsSync(memDir, { intent, limit });
+      res.json({ stats, intent: intent ?? null, total: Object.keys(stats).length });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

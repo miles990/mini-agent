@@ -26,6 +26,7 @@ describe('brain run ledger', () => {
       taskId: 'del-1',
       event: 'actor_started',
       status: 'running',
+      intent: 'review',
       actor: 'codex',
       role: 'reviewer',
       mode: 'panel',
@@ -91,6 +92,7 @@ describe('brain run ledger', () => {
       taskId: 'del-1',
       event: 'actor_started',
       status: 'running',
+      intent: 'code',
       actor: 'codex',
       role: 'reviewer',
       createdAt: '2026-05-05T00:00:00.000Z',
@@ -100,6 +102,7 @@ describe('brain run ledger', () => {
       taskId: 'del-1',
       event: 'actor_finished',
       status: 'success',
+      intent: 'code',
       actor: 'codex',
       role: 'reviewer',
       createdAt: '2026-05-05T00:01:00.000Z',
@@ -108,6 +111,7 @@ describe('brain run ledger', () => {
     expect(readBrainRunStatesSync(tmpDir, { actor: 'codex' })).toEqual([
       expect.objectContaining({
         key: 'del-1:codex',
+        intent: 'code',
         status: 'success',
         lastEvent: 'actor_finished',
       }),
