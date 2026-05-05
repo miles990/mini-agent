@@ -34,7 +34,7 @@ describe('self research loop', () => {
       artifactRequired: true,
       artifactType: 'concept map markdown',
     }));
-    expect(run.artifactPath).toBe(path.join(tmpDir, 'topics/self-research-knowledge-map.md'));
+    expect(run.artifactPath).toBe(path.join(tmpDir, 'topics/self-research-202605050000-knowledge_understanding-knowledge-map.md'));
     expect(run.generateStep).toContain('concept map');
     expect(run.testStep).toContain('application question');
     expect(run.learning).toContain('KG');

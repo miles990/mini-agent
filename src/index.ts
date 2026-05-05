@@ -181,6 +181,8 @@ export type {
   SelfResearchPlanOptions,
   SelfResearchRun,
 } from './self-research-loop.js';
+export { maybeQueueSelfResearch } from './self-research-autopilot.js';
+export type { SelfResearchAutopilotOptions, SelfResearchAutopilotResult } from './self-research-autopilot.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';

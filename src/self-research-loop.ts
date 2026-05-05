@@ -95,7 +95,7 @@ export function createSelfResearchPlan(
   const target = opts.target ?? defaultTargetForDomain(domain, telemetry);
   const id = `self-research-${formatDateCompact(now)}-${target}`;
   const profile = profileFor(domain, target);
-  const artifactPath = path.join(memoryDir, profile.artifactPath);
+  const artifactPath = path.join(memoryDir, expandRunPath(profile.artifactPath, id));
 
   return {
     id,
@@ -225,7 +225,7 @@ function profileFor(domain: ImprovementDomain, target: ImprovementTarget): Omit<
       hypothesis: 'A concept-map artifact will turn scattered topic notes into reusable judgment for future tasks.',
       intervention: 'concept_map',
       artifactType: 'concept map markdown',
-      artifactPath: 'topics/self-research-knowledge-map.md',
+      artifactPath: 'topics/{id}-knowledge-map.md',
       generateStep: 'Pick one active topic, extract core concepts and relationships, then write a concept map.',
       testStep: 'Use the map to answer one concrete application question and one counterexample question.',
       evaluation: 'Score clarity, connectedness, uncertainty coverage, and applicability from 0-2 each.',
@@ -243,7 +243,7 @@ function profileFor(domain: ImprovementDomain, target: ImprovementTarget): Omit<
       hypothesis: 'Interest becomes growth only when it produces an artifact that can be revisited and built on.',
       intervention: 'research_thread',
       artifactType: 'essay, demo, artwork, tool, or synthesis note',
-      artifactPath: 'topics/self-research-interest-artifact.md',
+      artifactPath: 'topics/{id}-interest-artifact.md',
       generateStep: 'Choose one curiosity thread and produce a small artifact rather than only notes.',
       testStep: 'Check whether the artifact changes a future decision, taste judgment, or research question.',
       evaluation: 'Evaluate artifact specificity, originality, reuse value, and emotional/esthetic resonance.',
@@ -261,7 +261,7 @@ function profileFor(domain: ImprovementDomain, target: ImprovementTarget): Omit<
       hypothesis: 'Selection trace review will reveal one scoring adjustment or one missing actor capability.',
       intervention: 'evaluation_rubric',
       artifactType: 'actor selection evaluation note',
-      artifactPath: 'proposals/self-research-actor-selection-eval.md',
+      artifactPath: 'proposals/{id}-actor-selection-eval.md',
       generateStep: 'Sample recent brain-run ledger entries and summarize actor selection reasons.',
       testStep: 'Compare selected actors against observed outcome and context_injected trace.',
       evaluation: 'Score fit/cost/verification 0-2 for each sampled run and identify the lowest recurring dimension.',
@@ -278,7 +278,7 @@ function profileFor(domain: ImprovementDomain, target: ImprovementTarget): Omit<
     hypothesis: 'A bounded improvement artifact can improve the system without unreviewed broad mutation.',
     intervention: target === 'observability' ? 'tooling_script' : 'proposal_only',
     artifactType: target === 'observability' ? 'verification script or dashboard note' : 'proposal markdown',
-    artifactPath: `proposals/self-research-${target}.md`,
+    artifactPath: 'proposals/{id}-artifact.md',
     generateStep: 'Generate exactly one small improvement artifact.',
     testStep: 'Run the narrowest available verification or rubric check.',
     evaluation: 'Compare against the baseline and record whether the artifact improved the metric.',
@@ -316,4 +316,8 @@ function countFiles(dir: string, suffix: string): number {
 
 function formatDateCompact(date: Date): string {
   return date.toISOString().slice(0, 19).replace(/[-:T]/g, '').slice(0, 12);
+}
+
+function expandRunPath(template: string, id: string): string {
+  return template.replace('{id}', id);
 }

@@ -2235,6 +2235,16 @@ export class AgentLoop {
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
 
+      try {
+        const { maybeQueueSelfResearch } = await import('./self-research-autopilot.js');
+        const selfResearch = await maybeQueueSelfResearch(memDir, {
+          triggerReason: currentTriggerReason,
+        });
+        if (selfResearch.queued) {
+          slog('SELF-RESEARCH', `queued ${selfResearch.run?.target} task=${selfResearch.task?.id.slice(0, 12)}`);
+        }
+      } catch (e) { slog('WARN', `self-research autopilot failed: ${e}`); }
+
       advanceTick();
       const schedulerDecision = schedulerPick(memDir, schedulerEvents);
 
