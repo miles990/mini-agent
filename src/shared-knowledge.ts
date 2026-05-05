@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
+import { getRecentClaimsSummary } from './claim-ledger.js';
 
 // =============================================================================
 // Types
@@ -39,6 +40,7 @@ export type KBSource =
   | 'mushi'        // mushi triage decisions
   | 'inbox'        // inbox classification
   | 'perception'   // perception stream events
+  | 'claims'       // provider claim ledger observations
   | 'system';      // system-level events
 
 /** Event types */
@@ -51,6 +53,7 @@ export type KBEventType =
   | 'route'        // an item was routed to a lane
   | 'skip'         // an event was skipped (triage/dedup)
   | 'crystallize'  // a pattern was crystallized into a rule
+  | 'claim'        // a provider claim was recorded or updated
   | 'metric';      // a metric observation (latency, utilization, etc.)
 
 /** A single observation in the knowledge base */
@@ -380,11 +383,14 @@ export function patterns(): KBPattern[] {
  */
 export function getKnowledgeSummary(): string | null {
   const allStats = stats();
-  if (allStats.length === 0) return null;
+  const claims = _logDir ? getRecentClaimsSummary(path.join(process.cwd(), 'memory'), 5) : null;
+  if (allStats.length === 0 && !claims) return null;
 
   const lines: string[] = [];
   const totalEvents = allStats.reduce((sum, s) => sum + s.count, 0);
-  lines.push(`Knowledge Bus: ${totalEvents} observations, ${allStats.length} categories`);
+  if (allStats.length > 0) {
+    lines.push(`Knowledge Bus: ${totalEvents} observations, ${allStats.length} categories`);
+  }
 
   // Top 5 by count
   for (const s of allStats.slice(0, 5)) {
@@ -399,10 +405,12 @@ export function getKnowledgeSummary(): string | null {
   if (activePatterns.length > 0) {
     lines.push('Patterns:');
     for (const p of activePatterns.slice(0, 3)) {
-      lines.push(`  ⚡ ${p.description}`);
-      if (p.recommendation) lines.push(`    → ${p.recommendation}`);
+      lines.push(`  ${p.description}`);
+      if (p.recommendation) lines.push(`    ${p.recommendation}`);
     }
   }
+
+  if (claims) lines.push(claims);
 
   return lines.join('\n');
 }

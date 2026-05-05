@@ -27,6 +27,14 @@ vi.mock('../src/delegation-summary.js', () => ({
   writeLaneOutput: vi.fn(),
 }));
 
+vi.mock('../src/claim-ledger.js', () => ({
+  appendProviderClaim: vi.fn((_memoryDir, claim) => claim),
+}));
+
+vi.mock('../src/shared-knowledge.js', () => ({
+  observe: vi.fn(),
+}));
+
 import {
   buildWorkItemForDelegation,
   getActiveWriteLeases,

@@ -28,6 +28,9 @@ import { extractDelegationSummary, buildRecentDelegationSummary, persistDelegati
 import { decideArbitration } from './brain-arbiter.js';
 import type { ArbitrationDecision, WorkIntent, WorkItem, WorkPriority, WorkRisk } from './brain-types.js';
 import { WriteLeaseManager, type WriteLease } from './write-lease.js';
+import { appendProviderClaim } from './claim-ledger.js';
+import { createProviderClaim } from './provider-claims.js';
+import { observe as kbObserve } from './shared-knowledge.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -560,11 +563,14 @@ function finalizeTask(
   }
 
   slog('DELEGATION', `Finished ${result.id}: ${result.status} in ${Math.round((result.duration ?? 0) / 1000)}s`);
+  const providerClaimId = recordDelegationClaim(entry);
   eventBus.emit('action:delegation-complete', {
     taskId: result.id,
     status: result.status,
     type: result.type,
     outputPreview: result.output.slice(0, 500),
+    durationMs: result.duration,
+    ...(providerClaimId ? { providerClaimId } : {}),
     ...(entry.writeLease ? { writeLeaseId: entry.writeLease.id } : {}),
   });
 
@@ -600,6 +606,46 @@ function finalizeTask(
 
   activeTasks.delete(result.id);
   completedTasks.set(result.id, result);
+}
+
+function recordDelegationClaim(entry: ActiveEntry): string | undefined {
+  const { result, arbitration } = entry;
+  try {
+    const summary = extractDelegationSummary(result.output, 400);
+    const claim = createProviderClaim({
+      provider: arbitration.primary,
+      taskId: result.id,
+      subject: `delegation:${result.id}`,
+      predicate: result.status === 'completed' ? 'reported_result' : 'reported_failure',
+      object: summary || result.output.slice(0, 400) || '(no output)',
+      evidence: [
+        `delegation status: ${result.status}`,
+        ...(result.duration !== undefined ? [`duration_ms: ${result.duration}`] : []),
+        result.output.slice(0, 500),
+      ],
+      confidence: result.status === 'completed' ? 0.7 : 0.35,
+    });
+    appendProviderClaim(path.join(process.cwd(), 'memory'), claim);
+    kbObserve({
+      source: 'claims',
+      type: 'claim',
+      data: {
+        claimId: claim.id,
+        taskId: result.id,
+        provider: claim.provider,
+        status: claim.status,
+        predicate: claim.predicate,
+      },
+      tags: ['provider-claim', claim.provider, result.type ?? 'delegation'],
+      correlationId: result.id,
+      outcome: result.status === 'completed' ? 'success' : 'fail',
+      durationMs: result.duration,
+    });
+    return claim.id;
+  } catch (err) {
+    slog('CLAIMS', `record skipped for ${result.id}: ${(err as Error).message?.split('\n')[0] ?? err}`);
+    return undefined;
+  }
 }
 
 // =============================================================================
