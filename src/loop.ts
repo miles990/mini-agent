@@ -2687,7 +2687,10 @@ export class AgentLoop {
           });
           if (!decision.falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
         }
-      } catch { /* fire-and-forget */ }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        slog('LEDGER', `soft-gate threw: ${msg}`);
+      }
 
       // ── Filter out chats already sent via streaming ──
       // MUST run before hesitation: hesitation mutates chat.text (appends hedge),
