@@ -484,6 +484,98 @@
 
   .subsys-stats .has-errors { color: var(--red); }
 
+  /* ── Brain Runtime ── */
+  .brain-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 8px;
+  }
+
+  .brain-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    min-width: 0;
+  }
+
+  .brain-card.running { border-color: rgba(251, 191, 36, 0.25); }
+  .brain-card.success { border-color: rgba(94, 234, 212, 0.18); }
+  .brain-card.failed { border-color: rgba(248, 113, 113, 0.22); }
+  .brain-card.skipped { opacity: 0.72; }
+
+  .brain-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .brain-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-bright);
+    white-space: nowrap;
+  }
+
+  .brain-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--surface2);
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .brain-status.running { color: var(--yellow); background: var(--yellow-dim); }
+  .brain-status.success { color: var(--accent); background: var(--accent-dim); }
+  .brain-status.failed { color: var(--red); background: var(--red-dim); }
+
+  .brain-detail {
+    margin-top: 6px;
+    color: var(--text2);
+    font-size: 11px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .failure-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .failure-card {
+    background: var(--surface);
+    border: 1px solid rgba(248, 113, 113, 0.18);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+
+  .failure-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-bright);
+    word-break: break-word;
+  }
+
+  .failure-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  .failure-meta .hot { color: var(--red); }
+
   /* ── Section Layout ── */
   .section {
     margin-bottom: 32px;
@@ -2297,6 +2389,28 @@
     </div>
   </div>
 
+  <!-- Multi-Brain Runtime -->
+  <div class="section" id="brainRuntimeSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9673;</span> Multi-Brain Runtime</div>
+      <span class="section-count" id="brainRuntimeCount">--</span>
+    </div>
+    <div class="brain-grid" id="brainRuntimeContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Delegation Failure Guard -->
+  <div class="section" id="delegationFailureSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9888;</span> Delegation Failure Guard</div>
+      <span class="section-count" id="delegationFailureCount">--</span>
+    </div>
+    <div class="failure-list" id="delegationFailureContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
   <!-- Activity Timeline -->
   <div class="section" id="activitySection">
     <div class="section-header">
@@ -3013,7 +3127,7 @@ function renderPerceptionStreams(streams) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes, activityRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes, activityRes, brainRunsRes, delegationFailuresRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
@@ -3023,6 +3137,8 @@ async function fetchAll() {
       fetch(API + '/api/dashboard/inner-state').catch(() => null),
       fetch(API + '/api/perception-streams').catch(() => null),
       fetch(API + '/api/activity?limit=30').catch(() => null),
+      fetch(API + '/api/brain/runs?view=state&limit=30').catch(() => null),
+      fetch(API + '/api/delegation-failures').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -3038,9 +3154,13 @@ async function fetchAll() {
     const innerState = innerStateRes?.ok ? await innerStateRes.json() : null;
     const perceptionStreams = perceptionRes?.ok ? await perceptionRes.json() : [];
     const activityData = activityRes?.ok ? await activityRes.json() : { entries: [] };
+    const brainRuns = brainRunsRes?.ok ? await brainRunsRes.json() : { states: [] };
+    const delegationFailures = delegationFailuresRes?.ok ? await delegationFailuresRes.json() : { failures: [] };
 
     updateStatus(status);
     renderPerceptionStreams(perceptionStreams);
+    renderBrainRuntime(brainRuns.states || []);
+    renderDelegationFailures(delegationFailures.failures || []);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
 
@@ -3241,6 +3361,91 @@ function renderTaskSection(claude) {
   }
 
   container.innerHTML = html;
+}
+
+// ── Multi-Brain Runtime ──
+
+function renderBrainRuntime(states) {
+  const container = document.getElementById('brainRuntimeContent');
+  const countEl = document.getElementById('brainRuntimeCount');
+  if (!container || !countEl) return;
+
+  const actors = ['kuro', 'claude', 'codex', 'akari', 'tanren', 'shell', 'local', 'human'];
+  const latestByActor = new Map();
+  for (const state of states || []) {
+    if (!state.actor) continue;
+    const current = latestByActor.get(state.actor);
+    if (!current || String(state.updatedAt || '').localeCompare(String(current.updatedAt || '')) > 0) {
+      latestByActor.set(state.actor, state);
+    }
+  }
+
+  const rows = actors
+    .map(actor => latestByActor.get(actor))
+    .filter(Boolean);
+
+  const running = rows.filter(s => s.status === 'running' || s.status === 'queued').length;
+  const failed = rows.filter(s => s.status === 'failed').length;
+  countEl.textContent = running ? running + ' running' : failed ? failed + ' failed' : rows.length + ' actors';
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="empty-state">No brain runtime events yet.</div>';
+    return;
+  }
+
+  container.innerHTML = rows.map(s => {
+    const status = s.status || 'unknown';
+    const meta = [
+      s.role ? s.role : '',
+      s.mode ? s.mode : '',
+      s.taskId ? s.taskId : '',
+    ].filter(Boolean).join(' · ');
+    const detail = s.detail || s.rationale || s.lastEvent || '';
+    return '<div class="brain-card ' + escapeHtml(status) + '">'
+      + '<div class="brain-row">'
+      + '<span class="brain-name">' + escapeHtml(s.actor) + '</span>'
+      + '<span class="brain-status ' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>'
+      + '</div>'
+      + '<div class="brain-detail" title="' + escapeHtml(detail) + '">' + escapeHtml(detail || 'No detail') + '</div>'
+      + '<div class="failure-meta">'
+      + '<span>' + escapeHtml(meta) + '</span>'
+      + (s.updatedAt ? '<span>' + formatTime(s.updatedAt) + '</span>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function renderDelegationFailures(failures) {
+  const container = document.getElementById('delegationFailureContent');
+  const countEl = document.getElementById('delegationFailureCount');
+  if (!container || !countEl) return;
+
+  const rows = [...(failures || [])]
+    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0) || String(b.lastSeen || '').localeCompare(String(a.lastSeen || '')))
+    .slice(0, 8);
+
+  const hot = rows.filter(f => (f.frequency || 0) >= 2).length;
+  countEl.textContent = hot ? hot + ' repeated' : rows.length + ' patterns';
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="empty-state">No repeated delegation failures.</div>';
+    return;
+  }
+
+  container.innerHTML = rows.map(f => {
+    const prompt = f.prompt || f.signature || 'unknown failure';
+    const error = f.error || '';
+    return '<div class="failure-card">'
+      + '<div class="failure-title">' + escapeHtml(prompt) + '</div>'
+      + '<div class="brain-detail" title="' + escapeHtml(error) + '">' + escapeHtml(error) + '</div>'
+      + '<div class="failure-meta">'
+      + '<span class="' + ((f.frequency || 0) >= 2 ? 'hot' : '') + '">' + (f.frequency || 0) + 'x</span>'
+      + (f.taskType ? '<span>' + escapeHtml(f.taskType) + '</span>' : '')
+      + (f.diagnosticTaskId ? '<span>diagnostic ' + escapeHtml(f.diagnosticTaskId) + '</span>' : '<span>diagnostic pending</span>')
+      + (f.lastSeen ? '<span>' + formatTime(f.lastSeen) + '</span>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
 }
 
 // ── Journal Rendering ──
