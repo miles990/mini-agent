@@ -33,6 +33,7 @@ import { createProviderClaim } from './provider-claims.js';
 import { observe as kbObserve } from './shared-knowledge.js';
 import { BrainRuntime, type BrainRuntimeResult } from './brain-runtime.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
+import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import type { BrainRequest } from './brain-types.js';
 import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 
@@ -338,9 +339,11 @@ async function dispatchViaBrainRuntime(
   const { result, task, arbitration } = entry;
   const request = buildBrainRequestForDelegation(entry, cwd, timeoutMs);
   const providers = createDefaultMiddlewareProviders();
-  await refreshBrainHealth(providers);
+  const peers = createDefaultMiddlewarePeers();
+  await refreshBrainHealth(providers, peers);
   const runtime = new BrainRuntime({
     providers,
+    peers,
     memoryDir: path.join(process.cwd(), 'memory'),
   });
 

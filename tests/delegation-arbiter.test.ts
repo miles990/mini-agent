@@ -14,7 +14,7 @@ vi.mock('../src/middleware-client.js', () => ({
     health: vi.fn().mockResolvedValue({
       status: 'ok',
       service: 'agent-middleware',
-      workers: ['coder', 'agent-brain', 'shell'],
+      workers: ['coder', 'agent-brain', 'shell', 'cloud-agent'],
       tasks: 0,
     }),
     dispatch: vi.fn().mockResolvedValue({ taskId: 'mw-1', status: 'pending' }),
@@ -183,5 +183,26 @@ describe('delegation arbitration mapping', () => {
       expect.objectContaining({ actor: 'codex', status: 'success', finishReason: 'success' }),
     ]);
     expect(result.runtime?.claimIds).toHaveLength(2);
+  });
+
+  it('includes Akari peer critique for architecture delegations through BrainRuntime', async () => {
+    process.env.MINI_AGENT_DELEGATION_RUNTIME = 'true';
+    const id = spawnDelegation({
+      prompt: 'Ask Akari to critique the multi-brain runtime',
+      workdir: '/repo',
+      type: 'akari',
+    });
+
+    const result = await awaitDelegation(id, 1000);
+
+    expect(result.status).toBe('completed');
+    expect(result.runtime).toEqual(expect.objectContaining({
+      engine: 'brain-runtime',
+      mode: 'panel',
+      primary: 'claude',
+    }));
+    expect(result.runtime?.runs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actor: 'akari', role: 'reviewer', status: 'success' }),
+    ]));
   });
 });

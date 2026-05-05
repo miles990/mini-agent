@@ -116,6 +116,7 @@ import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, 
 import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
 import type { ClaimStatus } from './provider-claims.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
+import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 
 // =============================================================================
@@ -1843,7 +1844,7 @@ export function createApi(port = 3001): express.Express {
     try {
       const refresh = req.query.refresh === 'true' || req.query.refresh === '1';
       const snapshot = refresh
-        ? await refreshBrainHealth(createDefaultMiddlewareProviders())
+        ? await refreshBrainHealth(createDefaultMiddlewareProviders(), createDefaultMiddlewarePeers())
         : getCachedBrainHealthSnapshot();
       res.json({
         runtime: { enabled: isBrainRuntimeDelegationEnabled() },
