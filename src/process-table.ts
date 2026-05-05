@@ -40,11 +40,11 @@ export interface ProcessEntry {
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<ProcessState, ProcessState[]> = {
-  pending: ['scheduled', 'running', 'abandoned'],
-  scheduled: ['running', 'pending', 'abandoned'],
+  pending: ['scheduled', 'running', 'completed', 'abandoned'],
+  scheduled: ['running', 'pending', 'completed', 'abandoned'],
   running: ['scheduled', 'blocked', 'suspended', 'completed', 'abandoned'],
-  blocked: ['running', 'suspended', 'abandoned'],
-  suspended: ['running', 'abandoned'],
+  blocked: ['running', 'suspended', 'completed', 'abandoned'],
+  suspended: ['running', 'completed', 'abandoned'],
   completed: [],
   abandoned: [],
 };
@@ -223,7 +223,11 @@ export function clearProcessTable(): void {
   processes.clear();
 }
 
-export function syncFromTasks(tasks: TaskSnapshot[], currentTaskId?: string | null): void {
+export function syncFromTasks(
+  tasks: TaskSnapshot[],
+  currentTaskId?: string | null,
+  terminalCompletedTaskIds: ReadonlySet<string> = new Set(),
+): void {
   for (const task of tasks) {
     registerProcess(task);
   }
@@ -241,7 +245,11 @@ export function syncFromTasks(tasks: TaskSnapshot[], currentTaskId?: string | nu
     if (!tasks.find(t => t.id === id)) {
       const entry = processes.get(id)!;
       if (entry.state !== 'completed' && entry.state !== 'abandoned') {
-        transitionProcess(id, 'abandoned', 'task removed from queue');
+        if (terminalCompletedTaskIds.has(id)) {
+          transitionProcess(id, 'completed', 'task completed in memory-index');
+        } else {
+          transitionProcess(id, 'abandoned', 'task removed from queue');
+        }
       }
     }
   }
