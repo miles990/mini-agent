@@ -13,7 +13,7 @@ export interface CommitmentEntry {
   prediction: string;
   falsifier: string | null;
   ttl_cycles: number;
-  status: 'pending' | 'kept' | 'refuted' | 'expired' | 'abandoned';
+  status: 'pending' | 'kept' | 'refuted' | 'expired' | 'abandoned' | 'resolved';
   created_at: string;
   resolved_at?: string;
   resolution_evidence?: string;
@@ -59,6 +59,7 @@ export interface CommitmentAudit {
   refuted: number;
   expired: number;
   abandoned: number;
+  resolved: number;
   analysisParalysis: boolean;
   noopSpiral: boolean;
   performativeSkepticism: boolean;
@@ -210,6 +211,7 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
   const refuted = all.filter(e => e.status === 'refuted').length;
   const expired = all.filter(e => e.status === 'expired').length;
   const abandoned = all.filter(e => e.status === 'abandoned').length;
+  const resolved = all.filter(e => e.status === 'resolved').length;
 
   // Analysis paralysis: no new commitment written in the last 5 cycles.
   // We track the last cycle that produced a commitment across process restarts
@@ -251,6 +253,7 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
     refuted,
     expired,
     abandoned,
+    resolved,
     analysisParalysis,
     noopSpiral,
     performativeSkepticism,
@@ -423,7 +426,7 @@ export function buildLedgerSection(currentCycleId: number): string {
   }
 
   lines.push('');
-  lines.push(`Stats: pending=${audit.pending} kept=${audit.kept} refuted=${audit.refuted} expired=${audit.expired} abandoned=${audit.abandoned}`);
+  lines.push(`Stats: pending=${audit.pending} kept=${audit.kept} refuted=${audit.refuted} resolved=${audit.resolved} expired=${audit.expired} abandoned=${audit.abandoned}`);
 
   const warnings: string[] = [];
 
