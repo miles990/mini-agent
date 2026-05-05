@@ -394,12 +394,17 @@ function buildDelegationReviewGate(): string {
 
     if (stale.length === 0) return '';
 
-    const lines = stale.map(s => {
+    const MAX_RENDERED = 10;
+    const overflow = Math.max(0, stale.length - MAX_RENDERED);
+    const lines = stale.slice(0, MAX_RENDERED).map(s => {
       const prefix = s.type ? `[${s.type}] ` : '';
       const suffix = s.shownCount === -1 ? '(EXPIRED — never reviewed)' : `(shown ${s.shownCount}x, never reviewed)`;
       const summaryLine = s.summary ? `\n  > ${s.summary}` : '';
       return `- ${prefix}${s.id} ${suffix}${summaryLine}`;
     });
+    if (overflow > 0) {
+      lines.push(`- ... +${overflow} more [delegation-render-cap] (older entries omitted; mention ID or wait for TTL)`);
+    }
     return `## ${stale.length} unreviewed delegation${stale.length > 1 ? 's' : ''} — mention ID to acknowledge\n${lines.join('\n')}`;
   } catch {
     return '';
