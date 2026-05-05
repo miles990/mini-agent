@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { decideArbitration } from '../src/brain-arbiter.js';
 import { BrainRuntime } from '../src/brain-runtime.js';
+import { readBrainRunEventsSync } from '../src/brain-run-ledger.js';
 import { readProviderClaimsSync } from '../src/claim-ledger.js';
 import type {
   BrainProvider,
@@ -126,6 +127,13 @@ describe('BrainRuntime', () => {
         object: 'Claude fallback completed runtime',
       }),
     ]);
+    expect(readBrainRunEventsSync(tmpDir, { taskId: 'task-1' })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ event: 'runtime_finished', status: 'partial' }),
+        expect.objectContaining({ event: 'actor_finished', actor: 'codex', status: 'skipped' }),
+        expect.objectContaining({ event: 'actor_finished', actor: 'claude', status: 'success' }),
+      ]),
+    );
   });
 
   it('runs architecture panels across providers and peer agents', async () => {

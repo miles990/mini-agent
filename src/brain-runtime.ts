@@ -6,6 +6,8 @@
  */
 
 import { appendProviderClaim } from './claim-ledger.js';
+import { appendBrainRunEvent } from './brain-run-ledger.js';
+import type { BrainRunEvent } from './brain-run-ledger.js';
 import type {
   ActorId,
   ArbitrationDecision,
@@ -20,6 +22,7 @@ import type {
 import type { PeerAgent, PeerConsultResult } from './peer-agent.js';
 import { createProviderClaim, type ProviderClaim } from './provider-claims.js';
 import { coordinateAsKuro, type KuroCoordinationResult } from './internal-kuro-coordinator.js';
+import { eventBus } from './event-bus.js';
 
 export interface BrainRuntimeOptions {
   providers?: BrainProvider[];
@@ -64,7 +67,16 @@ export class BrainRuntime {
   }
 
   async execute(input: BrainExecutionInput): Promise<BrainRuntimeResult> {
+    const startedAt = Date.now();
     if (input.decision.humanApprovalRequired || input.decision.primary === 'human') {
+      this.observe(input, {
+        event: 'runtime_started',
+        status: 'skipped',
+        primary: input.decision.primary,
+        mode: input.decision.mode,
+        rationale: input.decision.reason,
+        detail: 'human approval required before execution',
+      });
       return this.result(input, null, [{
         actor: 'human',
         role: 'primary',
@@ -79,6 +91,27 @@ export class BrainRuntime {
     const claims: ProviderClaim[] = [];
     let executedPrimary: ActorId | null = null;
 
+    this.observe(input, {
+      event: 'runtime_started',
+      status: 'running',
+      primary: input.decision.primary,
+      mode: input.decision.mode,
+      rationale: input.decision.reason,
+      detail: `planned actors: ${plan.map(step => `${step.actor}:${step.role}`).join(', ') || 'none'}`,
+    });
+
+    for (const step of plan) {
+      this.observe(input, {
+        event: 'actor_queued',
+        status: 'queued',
+        actor: step.actor,
+        role: step.role,
+        primary: input.decision.primary,
+        mode: input.decision.mode,
+        rationale: roleRationale(input.decision.reason, step.role),
+      });
+    }
+
     for (const step of plan) {
       const run = await this.runActor(input, step.actor, step.role);
       runs.push(run);
@@ -91,19 +124,48 @@ export class BrainRuntime {
     }
 
     if (input.decision.primary === 'kuro' && runs.some(run => run.status === 'success')) {
+      this.observe(input, {
+        event: 'actor_started',
+        status: 'running',
+        actor: 'kuro',
+        role: 'coordinator',
+        primary: 'kuro',
+        mode: input.decision.mode,
+        rationale: 'synthesize provider and peer outputs into one observable decision',
+      });
       const run = this.coordinateKuro(input, runs);
       runs.push(run);
+      this.observeRun(input, run, Date.now(), 'synthesized panel outputs');
       claims.push(...this.claimsForRun(input, run));
       executedPrimary = 'kuro';
     }
 
     for (const claim of claims) {
       if (this.memoryDir) appendProviderClaim(this.memoryDir, claim);
+      this.observe(input, {
+        event: 'claim_written',
+        status: 'success',
+        actor: claim.provider,
+        primary: executedPrimary,
+        mode: input.decision.mode,
+        claimIds: [claim.id],
+        detail: `${claim.provider} ${claim.predicate} ${claim.subject}`,
+      });
       const run = runs.find(r => r.actor === claim.provider && r.status === 'success');
       if (run) run.claimIds.push(claim.id);
     }
 
-    return this.result(input, executedPrimary, runs, claims);
+    const result = this.result(input, executedPrimary, runs, claims);
+    this.observe(input, {
+      event: 'runtime_finished',
+      status: result.status,
+      primary: result.primary,
+      mode: result.decision.mode,
+      durationMs: Date.now() - startedAt,
+      claimIds: claims.map(claim => claim.id),
+      detail: `runs=${runs.length} claims=${claims.length}`,
+    });
+    return result;
   }
 
   private executionPlan(decision: ArbitrationDecision): Array<{ actor: ActorId; role: BrainActorRun['role'] }> {
@@ -132,20 +194,36 @@ export class BrainRuntime {
     actor: ActorId,
     role: BrainActorRun['role'],
   ): Promise<BrainActorRun> {
+    const startedAt = Date.now();
+    this.observe(input, {
+      event: 'actor_started',
+      status: 'running',
+      actor,
+      role,
+      primary: input.decision.primary,
+      mode: input.decision.mode,
+      rationale: roleRationale(input.decision.reason, role),
+    });
     const adapter = this.adapterFor(actor);
     if (!adapter) {
-      return { actor, role, status: 'skipped', claimIds: [], error: `no adapter registered for ${actor}` };
+      const run: BrainActorRun = { actor, role, status: 'skipped', claimIds: [], error: `no adapter registered for ${actor}` };
+      this.observeRun(input, run, startedAt);
+      return run;
     }
 
     try {
       const health = await adapter.health();
       if (!health.available) {
-        return { actor, role, status: 'skipped', health, claimIds: [], error: health.detail ?? `${actor} unavailable` };
+        const run: BrainActorRun = { actor, role, status: 'skipped', health, claimIds: [], error: health.detail ?? `${actor} unavailable` };
+        this.observeRun(input, run, startedAt);
+        return run;
       }
 
       if (adapter.kind === 'provider') {
         const result = await adapter.provider.run(this.requestForRole(input.request, role, actor));
-        return { actor, role, status: result.finishReason === 'success' ? 'success' : 'failed', health, result, claimIds: [] };
+        const run: BrainActorRun = { actor, role, status: result.finishReason === 'success' ? 'success' : 'failed', health, result, claimIds: [] };
+        this.observeRun(input, run, startedAt, summarizeRunResult(run));
+        return run;
       }
 
       const result = await adapter.peer.consult({
@@ -154,16 +232,39 @@ export class BrainRuntime {
         requestedRole: role === 'reviewer' ? 'reviewer' : 'critic',
         contextPacket: input.request.systemPrompt,
       });
-      return { actor, role, status: 'success', health, result, claimIds: [] };
+      const run: BrainActorRun = { actor, role, status: 'success', health, result, claimIds: [] };
+      this.observeRun(input, run, startedAt, summarizeRunResult(run));
+      return run;
     } catch (err) {
-      return {
+      const run: BrainActorRun = {
         actor,
         role,
         status: 'failed',
         claimIds: [],
         error: err instanceof Error ? err.message : String(err),
       };
+      this.observeRun(input, run, startedAt);
+      return run;
     }
+  }
+
+  private observeRun(input: BrainExecutionInput, run: BrainActorRun, startedAt: number, detail?: string): void {
+    this.observe(input, {
+      event: 'actor_finished',
+      status: run.status,
+      actor: run.actor,
+      role: run.role,
+      primary: input.decision.primary,
+      mode: input.decision.mode,
+      durationMs: Date.now() - startedAt,
+      detail: detail ?? run.error ?? run.health?.detail,
+    });
+  }
+
+  private observe(input: BrainExecutionInput, event: Omit<BrainRunEvent, 'id' | 'createdAt' | 'taskId'>): void {
+    const payload = { taskId: input.request.taskId, ...event };
+    if (this.memoryDir) appendBrainRunEvent(this.memoryDir, payload);
+    eventBus.emit('action:brain-state', payload);
   }
 
   private adapterFor(actor: ActorId):
@@ -311,4 +412,17 @@ function resultText(result: BrainActorRun['result']): string {
   if (isBrainResult(result)) return result.text;
   if (isKuroCoordinationResult(result)) return result.response;
   return result.response;
+}
+
+function roleRationale(reason: string, role: BrainActorRun['role']): string {
+  if (role === 'coordinator') return 'coordinate and resolve multi-brain outputs';
+  if (role === 'reviewer') return `review due to arbitration: ${reason}`;
+  if (role === 'candidate') return `compete or complement due to arbitration: ${reason}`;
+  return reason;
+}
+
+function summarizeRunResult(run: BrainActorRun): string {
+  if (!run.result) return run.error ?? '';
+  const text = resultText(run.result).replace(/\s+/g, ' ').trim();
+  return text.slice(0, 300);
 }

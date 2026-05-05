@@ -115,6 +115,9 @@ import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
 import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
 import type { ClaimStatus } from './provider-claims.js';
+import { readBrainRunEventsSync, readBrainRunStatesSync } from './brain-run-ledger.js';
+import type { BrainRunEventKind, BrainRunStatus } from './brain-run-ledger.js';
+import type { ActorId } from './brain-types.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
@@ -471,9 +474,31 @@ export async function autoDetectThread(text: string, source: string, msgId?: str
 }
 
 const CLAIM_STATUSES = new Set<ClaimStatus>(['hypothesis', 'verified', 'rejected', 'superseded', 'disputed']);
+const BRAIN_RUN_EVENTS = new Set<BrainRunEventKind>([
+  'runtime_started',
+  'actor_queued',
+  'actor_started',
+  'actor_finished',
+  'claim_written',
+  'runtime_finished',
+]);
+const BRAIN_RUN_STATUSES = new Set<BrainRunStatus>(['queued', 'running', 'success', 'partial', 'failed', 'skipped']);
+const BRAIN_ACTORS = new Set<ActorId>(['claude', 'codex', 'local', 'shell', 'akari', 'tanren', 'kuro', 'human']);
 
 function isClaimStatus(value: unknown): value is ClaimStatus {
   return typeof value === 'string' && CLAIM_STATUSES.has(value as ClaimStatus);
+}
+
+function isBrainRunEvent(value: unknown): value is BrainRunEventKind {
+  return typeof value === 'string' && BRAIN_RUN_EVENTS.has(value as BrainRunEventKind);
+}
+
+function isBrainRunStatus(value: unknown): value is BrainRunStatus {
+  return typeof value === 'string' && BRAIN_RUN_STATUSES.has(value as BrainRunStatus);
+}
+
+function isBrainActor(value: unknown): value is ActorId {
+  return typeof value === 'string' && BRAIN_ACTORS.has(value as ActorId);
 }
 
 function queryList(value: unknown): string[] {
@@ -1835,6 +1860,36 @@ export function createApi(port = 3001): express.Express {
           enabled: isBrainRuntimeDelegationEnabled(),
         },
       });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/brain/runs', (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const actor = queryList(req.query.actor).filter(isBrainActor);
+      const event = queryList(req.query.event).filter(isBrainRunEvent);
+      const status = queryList(req.query.status).filter(isBrainRunStatus);
+      const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+      const limit = parsePositiveInt(req.query.limit, 100);
+
+      const query = {
+        ...(actor.length > 0 ? { actor } : {}),
+        ...(event.length > 0 ? { event } : {}),
+        ...(status.length > 0 ? { status } : {}),
+        ...(taskId ? { taskId } : {}),
+        limit,
+      };
+
+      if (req.query.view === 'state' || req.query.view === 'states') {
+        const states = readBrainRunStatesSync(memDir, query);
+        res.json({ states, total: states.length, view: 'state' });
+        return;
+      }
+
+      const events = readBrainRunEventsSync(memDir, query);
+      res.json({ events, total: events.length, view: 'events' });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

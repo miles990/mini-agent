@@ -117,6 +117,13 @@ export {
 export type { ConstraintKind, ConstraintTexture, ConstraintTextureOptions, WorkConstraint } from './constraint-texture.js';
 export { BrainRuntime } from './brain-runtime.js';
 export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
+export {
+  appendBrainRunEvent,
+  getBrainRunLedgerPath,
+  readBrainRunEventsSync,
+  readBrainRunStatesSync,
+} from './brain-run-ledger.js';
+export type { BrainRunEvent, BrainRunEventKind, BrainRunQuery, BrainRunState, BrainRunStatus } from './brain-run-ledger.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
