@@ -1026,6 +1026,10 @@ export async function postProcess(
           prediction: decision.chose,
           falsifier: decision.falsifier ?? null,
           ttl_cycles: decision.ttl ?? 5,
+          // Phase 2 (cycle 16, 2026-05-06): Decision-block emits are self-promises
+          // by default. Without this, all Decision commitments had counterparty=None
+          // → couldn't be acked or classified abandoned (cl-3-1778001364168 case).
+          counterparty: { kind: 'self' },
         });
         if (!decision.falsifier) {
           slog('LEDGER', 'soft-gate: action without falsifier');

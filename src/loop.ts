@@ -2348,7 +2348,11 @@ export class AgentLoop {
           type: ['task', 'goal'],
           status: ['pending', 'in_progress'],
         });
-        syncFromTasks(ptEntries.map(entryToSnapshot), schedulerDecision.taskId);
+        const completedEntries = queryMemoryIndexSync(memDir, {
+          type: ['task', 'goal'],
+          status: ['completed', 'done'],
+        });
+        syncFromTasks(ptEntries.map(entryToSnapshot), schedulerDecision.taskId, new Set(completedEntries.map(e => e.id)));
         persistProcessTable();
       } catch { /* non-critical */ }
       slog('SCHED', getSchedulerStatus());
@@ -2678,6 +2682,8 @@ export class AgentLoop {
             prediction: decision.chose,
             falsifier: decision.falsifier ?? null,
             ttl_cycles: decision.ttl ?? 5,
+            // Phase 2 (cycle 16, 2026-05-06): Decision-block emits are self-promises.
+            counterparty: { kind: 'self' },
           });
           if (!decision.falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
         }
