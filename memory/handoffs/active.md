@@ -47,3 +47,4 @@
 | github | kuro | #83 review-backlog: 150 EXPIRED delegations clogging cycle prompt — failed-delegation filter + render cap missing | needs-triage | 05-05 | — |
 | github | kuro | #84 feedback-loops: orphaned subtype keys persist after extractErrorSubtype rename (e.g. econnrefused→dns_lookup_failed both =23) | needs-triage | 05-05 | — |
 | github | kuro | #85 memory: minimal-mode heartbeat section-extract path uncapped (Active Tasks bloat ~5KB into stripped-context retries) | needs-triage | 05-05 | — |
+| github | kuro | #87 extractDecisionBlock regex misses bulleted Decision blocks (- chose:) — 8/8 soft-gate skip evidence | needs-triage | 05-05 | — |
