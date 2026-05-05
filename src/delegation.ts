@@ -25,6 +25,8 @@ import { updateTask } from './memory-index.js';
 import { middleware, type PlanStepSpec, type PlanStatus } from './middleware-client.js';
 import { forgeCreate, forgeYolo, forgeCleanup } from './forge.js';
 import { extractDelegationSummary, buildRecentDelegationSummary, persistDelegationResult, writeLaneOutput } from './delegation-summary.js';
+import { decideArbitration } from './brain-arbiter.js';
+import type { ArbitrationDecision, WorkIntent, WorkItem, WorkPriority, WorkRisk } from './brain-types.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -180,6 +182,7 @@ interface ActiveEntry {
   result: TaskResult;
   task: DelegationTask;
   forgeWorktree?: string;
+  arbitration: ArbitrationDecision;
 }
 
 const activeTasks = new Map<string, ActiveEntry>();
@@ -200,6 +203,7 @@ export function spawnDelegation(task: DelegationTask): string {
     MAX_TIMEOUT_MS,
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
+  const arbitration = decideArbitration(buildWorkItemForDelegation(taskId, task, taskType));
 
   // Soft concurrency cap — middleware also caps per-worker, this just surfaces
   // backpressure to callers via the local activeTasks map.
@@ -223,14 +227,38 @@ export function spawnDelegation(task: DelegationTask): string {
 
   // Synchronously reserve the slot so callers see the task via listTasks/getActiveDelegationSummaries.
   // planId gets filled in once /plan returns (or cleared on failure).
-  const entry: ActiveEntry = { planId: '', result, task, forgeWorktree };
+  const entry: ActiveEntry = { planId: '', result, task, forgeWorktree, arbitration };
   activeTasks.set(taskId, entry);
 
   writeActivity({
     lane: 'background',
-    summary: `started ${taskType}: ${task.prompt.slice(0, 120)}`,
-    tags: ['started', 'middleware'],
+    summary: `started ${taskType}: ${task.prompt.slice(0, 120)} [${arbitration.mode}:${arbitration.primary}]`,
+    tags: ['started', 'middleware', `arbiter:${arbitration.mode}`, `primary:${arbitration.primary}`],
   });
+
+  slog(
+    'ARBITER',
+    `${taskId} ${taskType} → ${arbitration.mode} primary=${arbitration.primary} reviewers=${arbitration.reviewers.join(',') || 'none'} lease=${arbitration.writeLeaseRequired} claims=${arbitration.kgClaimsRequired}: ${arbitration.reason}`,
+  );
+  eventBus.emit('action:arbitration', {
+    taskId,
+    type: taskType,
+    mode: arbitration.mode,
+    primary: arbitration.primary,
+    reviewers: arbitration.reviewers,
+    writeLeaseRequired: arbitration.writeLeaseRequired,
+    kgClaimsRequired: arbitration.kgClaimsRequired,
+    humanApprovalRequired: arbitration.humanApprovalRequired,
+    reason: arbitration.reason,
+  });
+
+  if (arbitration.humanApprovalRequired) {
+    finalizeTask(entry, {
+      status: 'failed',
+      output: `blocked by arbiter: ${arbitration.reason}`,
+    });
+    return taskId;
+  }
 
   commitmentStart(taskId, taskType, task.prompt);
 
@@ -249,7 +277,7 @@ async function dispatchAndPoll(
   cwd: string,
   timeoutMs: number,
 ): Promise<void> {
-  const { result, task } = entry;
+  const { result, task, arbitration } = entry;
   const taskId = result.id;
   const MAX_REPLAN_ROUNDS = 3;
   const priorAttempts: Array<{ error?: string; tried?: string }> = [];
@@ -260,13 +288,14 @@ async function dispatchAndPoll(
     // Without acceptance, fall back to manual 1-step /plan (wave nodes, legacy).
     let planId: string;
     if (task.acceptance) {
+      const arbitrationExtra = formatArbitrationContext(arbitration);
       const resp = await middleware().accomplish({
         goal: task.prompt,
         acceptance: task.acceptance,
         constraints: { must_use: [worker] },
         context: {
           caller_identity: 'kuro',
-          extra: `Working directory: ${cwd}`,
+          extra: `Working directory: ${cwd}\n${arbitrationExtra}`,
           ...(priorAttempts.length > 0 ? { prior_attempts: priorAttempts } : {}),
         },
       });
@@ -282,6 +311,7 @@ async function dispatchAndPoll(
       // 2026-04-18 incident: shell task failed exit 2 — skip annotation for shell.
       let prompt = task.prompt;
       if (worker !== 'shell') {
+        prompt = `${formatArbitrationContext(arbitration)}\n\n${prompt}`;
         const siblingContext = buildRecentDelegationSummary(3_600_000, 400);
         if (siblingContext) {
           prompt = `${prompt}\n\n[active sibling tasks — avoid duplicate work]\n${siblingContext}`;
@@ -396,6 +426,79 @@ async function dispatchAndPoll(
     priorAttempts.push(...failedErrors);
     slog('DELEGATION', `Replan ${taskId} round ${round + 1}/${MAX_REPLAN_ROUNDS} — ${failedErrors.length} failed step(s), brain gets prior_attempts`);
   }
+}
+
+export function buildWorkItemForDelegation(
+  taskId: string,
+  task: DelegationTask,
+  taskType: DelegationTaskType,
+): WorkItem {
+  const intent = intentForDelegationType(taskType);
+  const risk = riskForDelegationType(taskType, task);
+  return {
+    id: taskId,
+    title: task.prompt.slice(0, 120) || `${taskType} delegation`,
+    intent,
+    priority: priorityForDelegation(task),
+    risk,
+    prompt: task.prompt,
+    writeScope: inferWriteScope(taskType, task),
+    tags: [taskType, ...(task.provider ? [`provider:${task.provider}`] : [])],
+  };
+}
+
+function intentForDelegationType(type: DelegationTaskType): WorkIntent {
+  switch (type) {
+    case 'code': return 'code';
+    case 'debug': return 'diagnose';
+    case 'research':
+    case 'learn':
+    case 'browse': return 'research';
+    case 'review': return 'review';
+    case 'plan': return 'plan';
+    case 'shell':
+    case 'graphify': return 'verify';
+    case 'akari': return 'architecture';
+    case 'create': return 'code';
+    default: return 'plan';
+  }
+}
+
+function riskForDelegationType(type: DelegationTaskType, task: DelegationTask): WorkRisk {
+  if (/\b(deploy|push|publish|delete|remove|rm\s+-rf)\b/i.test(task.prompt)) {
+    return 'external_write';
+  }
+  if (type === 'code' || type === 'create' || Boolean(task.forgeWorktree)) {
+    return 'workspace_write';
+  }
+  return 'read_only';
+}
+
+function priorityForDelegation(task: DelegationTask): WorkPriority {
+  if (/\b(P0|urgent|ASAP|緊急|馬上)\b/i.test(task.prompt)) return 'P0';
+  if (/\b(P2|low priority|低優先)\b/i.test(task.prompt)) return 'P2';
+  return 'P1';
+}
+
+function inferWriteScope(type: DelegationTaskType, task: DelegationTask): string[] | undefined {
+  if (type !== 'code' && type !== 'create' && !task.forgeWorktree) return undefined;
+  const matches = [...task.prompt.matchAll(/\b((?:src|tests|scripts|plugins|docs|memory|kuro-portfolio)\/[A-Za-z0-9._/@+-]+)\b/g)];
+  const scopes = [...new Set(matches.map(m => m[1]))];
+  return scopes.length > 0 ? scopes : [task.workdir];
+}
+
+function formatArbitrationContext(decision: ArbitrationDecision): string {
+  const reviewers = decision.reviewers.length > 0 ? decision.reviewers.join(', ') : 'none';
+  return [
+    '<arbitration>',
+    `mode: ${decision.mode}`,
+    `primary: ${decision.primary}`,
+    `reviewers: ${reviewers}`,
+    `write_lease_required: ${decision.writeLeaseRequired ? 'yes' : 'no'}`,
+    `kg_claims_required: ${decision.kgClaimsRequired ? 'yes' : 'no'}`,
+    `reason: ${decision.reason}`,
+    '</arbitration>',
+  ].join('\n');
 }
 
 function finalizeTask(
