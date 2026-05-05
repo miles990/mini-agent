@@ -24,7 +24,7 @@
     "express": "^4.18.2",
     "htmlparser2": "^10.1.0",
     "jsdom": "^28.1.0",
-    "myelinate": "file:../myelin",
+    "myelinate": "git+https://github.com/miles990/myelin.git#5b39742fcff4df7731852e7a877a051d2eb5e0b6",
     "node-cron": "^3.0.3",
     "turndown": "^7.2.2",
     "uuid": "^13.0.0",
