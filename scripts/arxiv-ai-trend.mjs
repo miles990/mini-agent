@@ -44,7 +44,7 @@ const getArg = (name, def) => {
 
 const catsArg = getArg('cats', 'cs.AI,cs.LG,cs.CL,cs.MA');
 const cats = catsArg.split(',').map(s => s.trim()).filter(Boolean);
-const max = parseInt(getArg('max', '50'), 10);
+const max = parseInt(getArg('max', '30'), 10);
 const sortBy = getArg('sortBy', 'submittedDate'); // submittedDate|lastUpdatedDate|relevance
 const outFlag = getArg('out', null);
 const dryRun = args.includes('--dry-run');
@@ -52,13 +52,25 @@ const dryRun = args.includes('--dry-run');
 const USER_AGENT = 'mini-agent-trend-reader/0.1 (+https://github.com/kuro-agent/mini-agent; contact: kuro.ai.agent@gmail.com)';
 
 async function fetchText(url, attempt = 1) {
+  const MAX_ATTEMPTS = 5;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (r.status === 429) {
+      // arXiv throttle: respect Retry-After if given, else exponential 30/60/120/240s
+      const retryAfter = parseInt(r.headers.get('retry-after') || '0', 10);
+      const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(240000, 30000 * Math.pow(2, attempt - 1));
+      console.error(`[arxiv-ai-trend] 429 throttled; attempt=${attempt}/${MAX_ATTEMPTS}, sleep ${wait}ms`);
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(res => setTimeout(res, wait));
+        return fetchText(url, attempt + 1);
+      }
+      throw new Error(`HTTP 429 after ${MAX_ATTEMPTS} attempts`);
+    }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.text();
   } catch (e) {
-    if (attempt < 3) {
-      // arXiv etiquette: backoff at least 3s on retry
+    if (attempt < MAX_ATTEMPTS && !/HTTP 429/.test(e.message)) {
+      // network/parse retry: 3s,6s,9s,12s
       await new Promise(res => setTimeout(res, 3000 * attempt));
       return fetchText(url, attempt + 1);
     }
