@@ -127,6 +127,7 @@ import {
   transitionDelegationFailureStatus,
 } from './delegation-failure-guard.js';
 import { diagnoseDelegationFailure, diagnosePendingDelegationFailures } from './delegation-failure-diagnostics.js';
+import { getMyelinStatus } from './myelin-status.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1936,6 +1937,17 @@ export function createApi(port = 3001): express.Express {
       res.json({ success: true, diagnoses, total: diagnoses.length });
     } catch (err) {
       res.status(400).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/myelin/status', (req: Request, res: Response) => {
+    try {
+      const windowRaw = parseInt(String(req.query.window ?? '500'), 10);
+      const window = Number.isFinite(windowRaw) ? windowRaw : 500;
+      const memDir = path.join(process.cwd(), 'memory');
+      res.json(getMyelinStatus(memDir, window));
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
     }
   });
 

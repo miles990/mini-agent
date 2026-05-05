@@ -503,6 +503,10 @@
   .brain-card.success { border-color: rgba(94, 234, 212, 0.18); }
   .brain-card.failed { border-color: rgba(248, 113, 113, 0.22); }
   .brain-card.skipped { opacity: 0.72; }
+  .brain-card.effective { border-color: rgba(94, 234, 212, 0.18); }
+  .brain-card.recording { border-color: rgba(96, 165, 250, 0.18); }
+  .brain-card.idle { border-color: rgba(251, 191, 36, 0.18); }
+  .brain-card.missing { border-color: rgba(248, 113, 113, 0.22); }
 
   .brain-row {
     display: flex;
@@ -532,6 +536,10 @@
   .brain-status.running { color: var(--yellow); background: var(--yellow-dim); }
   .brain-status.success { color: var(--accent); background: var(--accent-dim); }
   .brain-status.failed { color: var(--red); background: var(--red-dim); }
+  .brain-status.effective { color: var(--accent); background: var(--accent-dim); }
+  .brain-status.recording { color: var(--blue); background: var(--blue-dim); }
+  .brain-status.idle { color: var(--yellow); background: var(--yellow-dim); }
+  .brain-status.missing { color: var(--red); background: var(--red-dim); }
 
   .brain-detail {
     margin-top: 6px;
@@ -2411,6 +2419,17 @@
     </div>
   </div>
 
+  <!-- Myelin Decision Crystallization -->
+  <div class="section" id="myelinSection">
+    <div class="section-header">
+      <div class="section-title"><span class="icon">&#9671;</span> Myelin Crystallization</div>
+      <span class="section-count" id="myelinCount">--</span>
+    </div>
+    <div class="brain-grid" id="myelinContent">
+      <div class="loading"><span>Loading...</span></div>
+    </div>
+  </div>
+
   <!-- Activity Timeline -->
   <div class="section" id="activitySection">
     <div class="section-header">
@@ -3127,7 +3146,7 @@ function renderPerceptionStreams(streams) {
 
 async function fetchAll() {
   try {
-    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes, activityRes, brainRunsRes, delegationFailuresRes] = await Promise.all([
+    const [statusRes, behaviorsRes, learningRes, journalRes, cognitionRes, contextRes, innerStateRes, perceptionRes, activityRes, brainRunsRes, delegationFailuresRes, myelinRes] = await Promise.all([
       fetch(API + '/status'),
       fetch(API + '/api/dashboard/behaviors?date=' + currentDate + '&limit=500'),
       fetch(API + '/api/dashboard/learning?date=' + currentDate),
@@ -3139,6 +3158,7 @@ async function fetchAll() {
       fetch(API + '/api/activity?limit=30').catch(() => null),
       fetch(API + '/api/brain/runs?view=state&limit=30').catch(() => null),
       fetch(API + '/api/delegation-failures?status=open,diagnosing,needs_human').catch(() => null),
+      fetch(API + '/api/myelin/status?window=500').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -3156,11 +3176,13 @@ async function fetchAll() {
     const activityData = activityRes?.ok ? await activityRes.json() : { entries: [] };
     const brainRuns = brainRunsRes?.ok ? await brainRunsRes.json() : { states: [] };
     const delegationFailures = delegationFailuresRes?.ok ? await delegationFailuresRes.json() : { failures: [] };
+    const myelinStatus = myelinRes?.ok ? await myelinRes.json() : null;
 
     updateStatus(status);
     renderPerceptionStreams(perceptionStreams);
     renderBrainRuntime(brainRuns.states || []);
     renderDelegationFailures(delegationFailures.failures || []);
+    renderMyelinStatus(myelinStatus);
     allBehaviors = behaviors.entries || [];
     allJournalEntries = journal.entries || [];
 
@@ -3444,6 +3466,48 @@ function renderDelegationFailures(failures) {
       + (f.taskType ? '<span>' + escapeHtml(f.taskType) + '</span>' : '')
       + (f.diagnosticTaskId ? '<span>diagnostic ' + escapeHtml(f.diagnosticTaskId) + '</span>' : '<span>diagnostic pending</span>')
       + (f.lastSeen ? '<span>' + formatTime(f.lastSeen) + '</span>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function renderMyelinStatus(snapshot) {
+  const container = document.getElementById('myelinContent');
+  const countEl = document.getElementById('myelinCount');
+  if (!container || !countEl) return;
+
+  const domains = snapshot?.domains || [];
+  if (!domains.length) {
+    countEl.textContent = 'unavailable';
+    container.innerHTML = '<div class="empty-state">No myelin status available.</div>';
+    return;
+  }
+
+  const effective = domains.filter(d => d.health === 'effective').length;
+  const totalRules = snapshot.summary?.totalRules || domains.reduce((sum, d) => sum + (d.ruleCount || 0), 0);
+  countEl.textContent = effective + '/' + domains.length + ' effective · ' + totalRules + ' rules';
+
+  container.innerHTML = domains.map(d => {
+    const health = d.health || 'missing';
+    const recent = d.recent || {};
+    const ruleRatio = Math.round((recent.ruleRatio || 0) * 100);
+    const detail = [
+      (d.ruleCount || 0) + ' rules',
+      (d.hitCountSum || 0) + ' hits',
+      (d.decisionLines || 0) + ' decisions',
+      ruleRatio + '% recent rule',
+    ].join(' · ');
+    const top = (d.topRules || [])[0];
+    const topText = top ? (top.action + ' #' + (top.hitCount || 0) + ': ' + (top.reason || '').slice(0, 100)) : 'No top rule';
+    return '<div class="brain-card ' + escapeHtml(health) + '">'
+      + '<div class="brain-row">'
+      + '<span class="brain-name">' + escapeHtml(d.name) + '</span>'
+      + '<span class="brain-status ' + escapeHtml(health) + '">' + escapeHtml(health) + '</span>'
+      + '</div>'
+      + '<div class="brain-detail" title="' + escapeHtml(topText) + '">' + escapeHtml(topText) + '</div>'
+      + '<div class="failure-meta">'
+      + '<span>' + escapeHtml(detail) + '</span>'
+      + (d.lastDecisionAt ? '<span>' + formatTime(d.lastDecisionAt) + '</span>' : '')
       + '</div>'
       + '</div>';
   }).join('');

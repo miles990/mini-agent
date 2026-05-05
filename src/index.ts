@@ -139,6 +139,13 @@ export {
   diagnosePendingDelegationFailures,
 } from './delegation-failure-diagnostics.js';
 export type { DelegationFailureDiagnosis } from './delegation-failure-diagnostics.js';
+export { getMyelinStatus } from './myelin-status.js';
+export type {
+  MyelinDomainHealth,
+  MyelinDomainStatus,
+  MyelinRuleSummary,
+  MyelinStatusSnapshot,
+} from './myelin-status.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
