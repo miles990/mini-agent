@@ -54,6 +54,11 @@ describe('correction gate', () => {
     invalidateIndexCache();
 
     expect(first?.summary).toContain('P0 correction gate');
+    expect(first?.payload).toEqual(expect.objectContaining({
+      correction_reason_type: 'pending-pledge',
+      correction_initial_score: expect.any(Number),
+      correction_initial_ship_truth: expect.any(String),
+    }));
     expect(second?.id).toBe(first?.id);
     const correctionTasks = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] })
       .filter(t => t.summary?.includes('correction gate'));

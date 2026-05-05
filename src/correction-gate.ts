@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { getHealthSignals } from './pulse.js';
+import { writeMemoryTriple } from './kg-memory.js';
+import { observe as kbObserve } from './shared-knowledge.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -130,7 +132,7 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
   const primary = snapshot.reasons.find(r => r.severity === 'high') ?? snapshot.reasons[0];
   if (!primary) return null;
 
-  return createTask(memoryDir, {
+  const task = await createTask(memoryDir, {
     title: `P0 correction gate: resolve ${primary.type}`,
     origin: 'scheduler',
     priority: 0,
@@ -142,6 +144,31 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
       `Ship truth state: ${snapshot.shipTruth.state}.`,
     ].join(' '),
   });
+
+  const payload = {
+    ...((task.payload ?? {}) as Record<string, unknown>),
+    correction_reason_type: primary.type,
+    correction_reason_message: primary.message,
+    correction_started_at: new Date().toISOString(),
+    correction_initial_score: snapshot.score,
+    correction_initial_ship_truth: snapshot.shipTruth.state,
+    suppressed_actions: snapshot.suppressedActions,
+  };
+  const enriched = await updateMemoryIndexEntry(memoryDir, task.id, { payload });
+  kbObserve({
+    source: 'correction',
+    type: 'habit',
+    data: {
+      phase: 'started',
+      taskId: task.id,
+      reasonType: primary.type,
+      score: snapshot.score,
+      shipTruth: snapshot.shipTruth.state,
+      suppressedActions: snapshot.suppressedActions,
+    },
+    tags: ['correction', 'habit-repair', primary.type, snapshot.shipTruth.state],
+  });
+  return enriched ?? task;
 }
 
 export async function closeResolvedCorrectionTasks(
@@ -161,12 +188,17 @@ export async function closeResolvedCorrectionTasks(
       ...((task.payload ?? {}) as Record<string, unknown>),
       correction_resolved_at: new Date().toISOString(),
       correction_resolution: 'gate-clean',
+      correction_final_score: snapshot.score,
+      correction_final_ship_truth: snapshot.shipTruth.state,
     };
     const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
       status: 'completed',
       payload,
     });
-    if (updated) closed.push(updated);
+    if (updated) {
+      closed.push(updated);
+      recordCorrectionLearning(updated, snapshot);
+    }
   }
   return closed;
 }
@@ -174,6 +206,58 @@ export async function closeResolvedCorrectionTasks(
 export function isCorrectionTask(entry: Pick<MemoryIndexEntry, 'summary' | 'payload'>): boolean {
   const payload = (entry.payload ?? {}) as Record<string, unknown>;
   return (entry.summary ?? '').includes('correction gate') || payload.origin === 'correction-gate';
+}
+
+function recordCorrectionLearning(task: MemoryIndexEntry, snapshot: CorrectionGateSnapshot): void {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  const reasonType = typeof payload.correction_reason_type === 'string'
+    ? payload.correction_reason_type
+    : parseCorrectionReasonFromSummary(task.summary ?? '');
+  const reasonMessage = typeof payload.correction_reason_message === 'string'
+    ? payload.correction_reason_message
+    : task.summary ?? 'correction gate resolved';
+  const initialScore = typeof payload.correction_initial_score === 'number' ? payload.correction_initial_score : null;
+  const finalScore = snapshot.score;
+  const shipTruth = typeof payload.correction_initial_ship_truth === 'string'
+    ? `${payload.correction_initial_ship_truth}→${snapshot.shipTruth.state}`
+    : snapshot.shipTruth.state;
+
+  kbObserve({
+    source: 'correction',
+    type: 'habit',
+    data: {
+      phase: 'resolved',
+      taskId: task.id,
+      reasonType,
+      reasonMessage,
+      initialScore,
+      finalScore,
+      shipTruth,
+      resolution: 'gate-clean',
+    },
+    tags: ['correction', 'habit-repair', reasonType, 'gate-clean'].filter(Boolean),
+    outcome: 'success',
+  });
+
+  writeMemoryTriple({
+    agent: 'kuro',
+    predicate: 'learned',
+    topic: 'habits',
+    importance: reasonType === 'pending-pledge' || reasonType === 'local-commit-not-pushed' ? 'high' : 'medium',
+    visibility: 'shared',
+    source: 'correction-gate',
+    content: [
+      `Correction habit repaired: ${reasonType}.`,
+      `Trigger: ${reasonMessage}`,
+      `Gate result: clean; score ${initialScore ?? 'unknown'}→${finalScore}; ship truth ${shipTruth}.`,
+      'Keep pledge fulfillment and ship-truth checks ahead of self-research/open-cycle.',
+    ].join(' '),
+  });
+}
+
+function parseCorrectionReasonFromSummary(summary: string): string {
+  const match = summary.match(/correction gate: resolve ([a-z-]+)/i);
+  return match?.[1] ?? 'unknown';
 }
 
 function readShipTruth(repoRoot: string): ShipTruthState {

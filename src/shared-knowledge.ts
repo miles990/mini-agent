@@ -37,6 +37,7 @@ export type KBSource =
   | 'ooda'         // main cycle decisions
   | 'batch'        // batch buffer flushes
   | 'myelin'       // myelin crystallization events
+  | 'correction'   // correction gate triggers and habit repairs
   | 'mushi'        // mushi triage decisions
   | 'inbox'        // inbox classification
   | 'perception'   // perception stream events
@@ -53,6 +54,7 @@ export type KBEventType =
   | 'route'        // an item was routed to a lane
   | 'skip'         // an event was skipped (triage/dedup)
   | 'crystallize'  // a pattern was crystallized into a rule
+  | 'habit'        // a habit was reinforced or corrected
   | 'claim'        // a provider claim was recorded or updated
   | 'metric';      // a metric observation (latency, utilization, etc.)
 
