@@ -2698,7 +2698,17 @@ export class AgentLoop {
           // Issue #80: regex returned null on a non-trivial response (potential silent miss).
           // Length gate keeps tool-only / short cycles quiet.
           const hasDecisionMarker = /^##\s*Decision/m.test(response);
-          slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=${hasDecisionMarker})`);
+          if (hasDecisionMarker) {
+            // Issue #88 (2026-05-06): when header is detected but field-extract fails,
+            // dump first 300ch after the header so the regex flaw is self-diagnosing.
+            const headerIdx = response.search(/^#{2,3}\s*Decision\b/im);
+            const snippet = headerIdx >= 0
+              ? response.slice(headerIdx, headerIdx + 300).replace(/\n/g, '\\n')
+              : '<no-header>';
+            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=true, snippet="${snippet}")`);
+          } else {
+            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=false)`);
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
