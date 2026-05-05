@@ -62,15 +62,29 @@ async function loadTodayPosts(date) {
 }
 
 async function loadKuroPicks(date) {
-  const file = join(STATE_DIR, 'hn-ai-trend', `${date}-kuro-pick.md`);
+  // Try new path first (kuro-daily-pick/{date}.md, non-AI-filtered)
+  // Fallback to legacy path (hn-ai-trend/{date}-kuro-pick.md, AI-filtered + LLM why/judge)
+  const newPath = join(STATE_DIR, 'kuro-daily-pick', `${date}.md`);
+  const legacyPath = join(STATE_DIR, 'hn-ai-trend', `${date}-kuro-pick.md`);
+  let md = null;
+  let schema = 'new';
   try {
-    const md = await readFile(file, 'utf8');
-    const sections = md.split(/^## (\d+)\. /m).slice(1);
-    const picks = [];
-    for (let i = 0; i < sections.length; i += 2) {
-      const num = sections[i];
-      const body = sections[i + 1];
-      const titleLine = body.split('\n')[0].trim();
+    md = await readFile(newPath, 'utf8');
+  } catch {
+    try {
+      md = await readFile(legacyPath, 'utf8');
+      schema = 'legacy';
+    } catch {
+      return [];
+    }
+  }
+  const sections = md.split(/^## (\d+)\. /m).slice(1);
+  const picks = [];
+  for (let i = 0; i < sections.length; i += 2) {
+    const num = sections[i];
+    const body = sections[i + 1];
+    const titleLine = body.split('\n')[0].trim();
+    if (schema === 'legacy') {
       const urlMatch = body.match(/🔗 (\S+)\s+·\s+HN:\s+(\d+)pts\s+\/\s+(\d+)c/);
       const why = (body.match(/\*\*為什麼值得看\*\*：(.+?)(?:\n|$)/) || [])[1] || '';
       const judge = (body.match(/\*\*Kuro 判斷\*\*：(.+?)(?:\n|$)/) || [])[1] || '';
@@ -79,13 +93,27 @@ async function loadKuroPicks(date) {
         url: urlMatch?.[1] || '#',
         pts: urlMatch?.[2] || '?',
         comments: urlMatch?.[3] || '?',
+        source: 'hn', score: '?', tag: '',
         why, judge
       });
+    } else {
+      // new schema: 🔗 url \n 📊 **source**: Npts / Mc · score=K/100 [· tag]
+      const urlMatch = body.match(/🔗\s+(\S+)/);
+      const statMatch = body.match(/📊\s+\*\*(\w+)\*\*:\s+(\d+)pts\s+\/\s+(\d+)c\s+·\s+score=(\d+)\/100(?:\s+·\s+(\S+))?/);
+      picks.push({
+        num, title: titleLine,
+        url: urlMatch?.[1] || '#',
+        pts: statMatch?.[2] || '?',
+        comments: statMatch?.[3] || '?',
+        source: statMatch?.[1] || '?',
+        score: statMatch?.[4] || '?',
+        tag: statMatch?.[5] || '',
+        why: '',
+        judge: ''
+      });
     }
-    return picks;
-  } catch (e) {
-    return [];
   }
+  return picks;
 }
 
 function aggregateTopics(posts) {
@@ -247,15 +275,15 @@ ${topDisc.summary?.claim ? `    <div class="why" style="margin-top:0.7rem">${esc
 
 <section>
   <h2>③ Kuro 每日精選</h2>
-  <p class="lead">${picks.length > 0 ? `從今天 ${posts.length} 篇裡挑 ${picks.length} 篇 — 公共信號優先。每篇我都寫了為什麼值得看 + 我的判斷。目前還是 AI 主題為主，明天起接非 AI 來源。` : '今天還沒生成。'}</p>
+  <p class="lead">${picks.length > 0 ? `從 HN top 30 + lobste.rs front page 共數十則挑出 ${picks.length} 則 — 不限主題，看當下值得知道什麼。` : '今天還沒生成。'}</p>
 ${picks.map(p => `  <div class="pick">
     <div class="head">
       <span class="num">#${p.num}</span>
       <span class="title"><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.title)}</a></span>
-      <span class="stats">${p.pts}pts · ${p.comments}c</span>
+      <span class="stats">${p.source !== '?' ? escapeHtml(p.source) + ' · ' : ''}${p.pts}pts · ${p.comments}c${p.score !== '?' ? ' · score ' + p.score : ''}${p.tag ? ' · ' + escapeHtml(p.tag) : ''}</span>
     </div>
-    <div class="why">${escapeHtml(p.why)}</div>
-    <div class="judge">${escapeHtml(p.judge)}</div>
+${p.why ? `    <div class="why">${escapeHtml(p.why)}</div>` : ''}
+${p.judge ? `    <div class="judge">${escapeHtml(p.judge)}</div>` : ''}
   </div>`).join('\n')}
 </section>
 
