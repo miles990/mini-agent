@@ -209,6 +209,9 @@ export async function buildContinuityContext(): Promise<string> {
       continuityCache = { value, expiresAt: Date.now() + CONTINUITY_CACHE_TTL_MS };
       return value;
     })
+    .catch(() => {
+      return continuityCache?.value ?? '';
+    })
     .finally(() => {
       continuityInflight = null;
     });
@@ -304,8 +307,8 @@ async function buildContinuityContextFresh(): Promise<string> {
       result = result.slice(0, CONTINUITY_CAP - 3) + '...';
     }
     return result;
-  } catch {
-    return '';
+  } catch (err) {
+    throw err;
   }
 }
 

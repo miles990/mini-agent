@@ -24,6 +24,7 @@ describe('CLAUDE.md JIT KG augmentation', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     __resetClaudeMdJITForTests();
   });
@@ -46,6 +47,19 @@ describe('CLAUDE.md JIT KG augmentation', () => {
 
     expect(second).toBe(first);
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns stale KG context when refresh fails after TTL', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const first = await getKGAugmentedContext('stale fallback');
+    expect(first).toContain('kuro context');
+
+    vi.mocked(fetch).mockRejectedValue(new Error('KG offline'));
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+
+    const stale = await getKGAugmentedContext('stale fallback');
+    expect(stale).toBe(first);
   });
 });
 

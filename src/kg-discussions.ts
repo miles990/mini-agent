@@ -98,6 +98,9 @@ export async function buildKGDiscussionsContext(): Promise<string> {
       }
       return value;
     })
+    .catch(() => {
+      return discussionsCache?.value ?? '';
+    })
     .finally(() => {
       discussionsInflight = null;
     });
@@ -155,8 +158,8 @@ async function buildKGDiscussionsContextFresh(): Promise<string> {
 
     lines.push('</kg-discussions>');
     return lines.join('\n');
-  } catch {
-    return '';
+  } catch (err) {
+    throw err;
   }
 }
 

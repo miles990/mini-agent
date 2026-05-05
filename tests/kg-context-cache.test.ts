@@ -16,6 +16,7 @@ describe('KG context cache', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     __resetContinuityContextCacheForTests();
     __resetKGDiscussionsContextCacheForTests();
@@ -61,6 +62,38 @@ describe('KG context cache', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
+  it('returns stale continuity context when refresh fails after TTL', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
+      results: [{
+        node: {
+          name: 'cycle-1',
+          created_at: '2026-05-05T00:00:00.000Z',
+          properties: {
+            section_type: 'cycle-state',
+            id: 'cycle-1',
+            focus: 'stale continuity',
+            intent: 'survive KG outage',
+            outcome: 'progressed',
+            artifacts: [],
+            closes: [],
+            intentHash: 'abc',
+            ts: '2026-05-05T00:00:00.000Z',
+          },
+        },
+      }],
+    })));
+
+    const first = await buildContinuityContext();
+    expect(first).toContain('stale continuity');
+
+    vi.mocked(fetch).mockRejectedValue(new Error('KG offline'));
+    vi.advanceTimersByTime(30_001);
+
+    const stale = await buildContinuityContext();
+    expect(stale).toBe(first);
+  });
+
   it('caches clean KG discussions and invalidates on dirty webhook', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       const href = String(url);
@@ -102,6 +135,29 @@ describe('KG context cache', () => {
     const cleanAgain = await buildKGDiscussionsContext();
     expect(cleanAgain).not.toContain('NEW');
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(4);
+  });
+
+  it('returns stale discussion context when refresh fails after TTL', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
+      discussions: [{
+        id: 'disc-1',
+        topic: 'stale discussions',
+        status: 'active',
+        participants: ['kuro'],
+        position_count: 1,
+        updated_at: '2026-05-05T00:00:00.000Z',
+      }],
+    })));
+
+    const first = await buildKGDiscussionsContext();
+    expect(first).toContain('stale discussions');
+
+    vi.mocked(fetch).mockRejectedValue(new Error('KG offline'));
+    vi.advanceTimersByTime(15_001);
+
+    const stale = await buildKGDiscussionsContext();
+    expect(stale).toBe(first);
   });
 });
 

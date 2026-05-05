@@ -283,19 +283,22 @@ async function queryKGContext(hint: string): Promise<string> {
 
     let combined = '';
     let totalTokens = 0;
+    let settledResponses = 0;
     for (const result of [kuroResp, sharedResp]) {
       if (result.status !== 'fulfilled' || !result.value.ok) continue;
+      settledResponses++;
       const data = await result.value.json() as { formatted_text?: string; token_count?: number };
       if (data.formatted_text && data.token_count) {
         combined += data.formatted_text;
         totalTokens += data.token_count;
       }
     }
+    if (settledResponses === 0) throw new Error('KG query failed for all namespaces');
     if (!combined || totalTokens === 0) return '';
     const text = combined.slice(0, KG_CONTEXT_CAP);
     return `\n\n<!-- KG context (${totalTokens} tokens) -->\n${text}`;
-  } catch {
-    return '';
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -491,7 +494,10 @@ export async function getKGAugmentedContext(hint: string): Promise<string> {
         getKGNodeCount(),
         queryKGContext(cacheKey),
       ]);
-      const kgResult = queryResult.status === 'fulfilled' ? queryResult.value : '';
+      if (queryResult.status === 'rejected') {
+        return kgContextCache.get(cacheKey)?.value ?? '';
+      }
+      const kgResult = queryResult.value;
       rememberKGContext(cacheKey, kgResult);
       if (kgResult) {
         const cap = getJITOutputCap();
@@ -499,8 +505,7 @@ export async function getKGAugmentedContext(hint: string): Promise<string> {
       }
       return kgResult;
     } catch {
-      rememberKGContext(cacheKey, '');
-      return '';
+      return kgContextCache.get(cacheKey)?.value ?? '';
     } finally {
       kgContextInflight.delete(cacheKey);
     }
