@@ -12,6 +12,8 @@ import path from 'node:path';
 const FAILURE_GUARD_FILE = 'delegation-failures.jsonl';
 const REPEAT_THRESHOLD = 2;
 
+export type DelegationFailureStatus = 'open' | 'diagnosing' | 'resolved' | 'ignored' | 'needs_human';
+
 export interface DelegationFailureRecord {
   signature: string;
   taskId: string;
@@ -19,9 +21,12 @@ export interface DelegationFailureRecord {
   prompt: string;
   error: string;
   frequency: number;
+  status: DelegationFailureStatus;
   firstSeen: string;
   lastSeen: string;
   diagnosticTaskId?: string;
+  resolution?: string;
+  resolvedAt?: string;
 }
 
 export interface DelegationFailureDecision {
@@ -56,6 +61,7 @@ export function recordDelegationFailure(
       prompt: input.prompt.slice(0, 500),
       error: failureError(input.output),
       frequency: existing.frequency + 1,
+      status: shouldReopen(existing.status) ? 'open' : existing.status,
       lastSeen: timestamp,
     }
     : {
@@ -65,6 +71,7 @@ export function recordDelegationFailure(
       prompt: input.prompt.slice(0, 500),
       error: failureError(input.output),
       frequency: 1,
+      status: 'open',
       firstSeen: timestamp,
       lastSeen: timestamp,
     };
@@ -73,7 +80,7 @@ export function recordDelegationFailure(
   return {
     record,
     repeated: record.frequency >= REPEAT_THRESHOLD,
-    needsDiagnosticTask: record.frequency >= REPEAT_THRESHOLD && !record.diagnosticTaskId,
+    needsDiagnosticTask: record.status === 'open' && record.frequency >= REPEAT_THRESHOLD && !record.diagnosticTaskId,
   };
 }
 
@@ -87,6 +94,7 @@ export function markDelegationFailureDiagnosticCreated(
   const updated = {
     ...current,
     diagnosticTaskId,
+    status: current.status === 'open' ? 'diagnosing' as const : current.status,
     lastSeen: new Date().toISOString(),
   };
   appendRecord(memoryDir, updated);
@@ -96,6 +104,27 @@ export function markDelegationFailureDiagnosticCreated(
 export function readDelegationFailureRecordsSync(memoryDir: string): DelegationFailureRecord[] {
   return [...readLatestRecords(memoryDir).values()]
     .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+}
+
+export function transitionDelegationFailureStatus(
+  memoryDir: string,
+  signature: string,
+  status: DelegationFailureStatus,
+  resolution?: string,
+  now = new Date(),
+): DelegationFailureRecord | null {
+  const current = readLatestRecords(memoryDir).get(signature);
+  if (!current) return null;
+  const timestamp = now.toISOString();
+  const updated: DelegationFailureRecord = {
+    ...current,
+    status,
+    lastSeen: timestamp,
+    ...(resolution !== undefined ? { resolution: resolution.slice(0, 500) } : {}),
+    ...(['resolved', 'ignored', 'needs_human'].includes(status) ? { resolvedAt: timestamp } : {}),
+  };
+  appendRecord(memoryDir, updated);
+  return updated;
 }
 
 function readLatestRecords(memoryDir: string): Map<string, DelegationFailureRecord> {
@@ -133,16 +162,20 @@ function parseRecord(line: string): DelegationFailureRecord | null {
     const lastSeen = stringField(raw.lastSeen);
     const frequency = typeof raw.frequency === 'number' ? raw.frequency : 0;
     if (!signature || !taskId || !prompt || !error || !firstSeen || !lastSeen || frequency <= 0) return null;
+    const status = isDelegationFailureStatus(raw.status) ? raw.status : 'open';
     return {
       signature,
       taskId,
       prompt,
       error,
       frequency,
+      status,
       firstSeen,
       lastSeen,
       ...(typeof raw.taskType === 'string' ? { taskType: raw.taskType } : {}),
       ...(typeof raw.diagnosticTaskId === 'string' ? { diagnosticTaskId: raw.diagnosticTaskId } : {}),
+      ...(typeof raw.resolution === 'string' ? { resolution: raw.resolution } : {}),
+      ...(typeof raw.resolvedAt === 'string' ? { resolvedAt: raw.resolvedAt } : {}),
     };
   } catch {
     return null;
@@ -176,4 +209,13 @@ function failureError(output: string): string {
 
 function stringField(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+export function isDelegationFailureStatus(value: unknown): value is DelegationFailureStatus {
+  return typeof value === 'string'
+    && ['open', 'diagnosing', 'resolved', 'ignored', 'needs_human'].includes(value);
+}
+
+function shouldReopen(status: DelegationFailureStatus): boolean {
+  return status === 'resolved' || status === 'ignored';
 }

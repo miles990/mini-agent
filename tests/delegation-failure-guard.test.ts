@@ -7,6 +7,7 @@ import {
   markDelegationFailureDiagnosticCreated,
   readDelegationFailureRecordsSync,
   recordDelegationFailure,
+  transitionDelegationFailureStatus,
 } from '../src/delegation-failure-guard.js';
 
 let tmpDir: string;
@@ -39,10 +40,12 @@ describe('delegation failure guard', () => {
     expect(second.repeated).toBe(true);
     expect(second.needsDiagnosticTask).toBe(true);
     expect(second.record.frequency).toBe(2);
+    expect(second.record.status).toBe('open');
     expect(readDelegationFailureRecordsSync(tmpDir)).toEqual([
       expect.objectContaining({
         taskId: 'del-222-b',
         frequency: 2,
+        status: 'open',
       }),
     ]);
   });
@@ -72,5 +75,53 @@ describe('delegation failure guard', () => {
     expect(third.repeated).toBe(true);
     expect(third.needsDiagnosticTask).toBe(false);
     expect(third.record.diagnosticTaskId).toBe('idx-diagnose');
+  });
+
+  it('supports lifecycle transitions with append-only last-write-wins records', () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'shell',
+      prompt: 'Run broken command',
+      output: 'Shell error: Command exited 7',
+    });
+    const transitioned = transitionDelegationFailureStatus(
+      tmpDir,
+      first.record.signature,
+      'resolved',
+      'fixed shell prompt handling',
+      new Date('2026-05-05T00:02:00.000Z'),
+    );
+
+    expect(transitioned).toEqual(expect.objectContaining({
+      status: 'resolved',
+      resolution: 'fixed shell prompt handling',
+      resolvedAt: '2026-05-05T00:02:00.000Z',
+    }));
+    expect(readDelegationFailureRecordsSync(tmpDir)).toEqual([
+      expect.objectContaining({
+        signature: first.record.signature,
+        status: 'resolved',
+      }),
+    ]);
+  });
+
+  it('reopens resolved failures when the same signature recurs', () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'shell',
+      prompt: 'Run broken command',
+      output: 'Shell error: Command exited 7',
+    });
+    transitionDelegationFailureStatus(tmpDir, first.record.signature, 'resolved', 'fixed once');
+
+    const second = recordDelegationFailure(tmpDir, {
+      taskId: 'del-2',
+      taskType: 'shell',
+      prompt: 'Run broken command',
+      output: 'Shell error: Command exited 7',
+    });
+
+    expect(second.record.status).toBe('open');
+    expect(second.record.frequency).toBe(2);
   });
 });

@@ -3138,7 +3138,7 @@ async function fetchAll() {
       fetch(API + '/api/perception-streams').catch(() => null),
       fetch(API + '/api/activity?limit=30').catch(() => null),
       fetch(API + '/api/brain/runs?view=state&limit=30').catch(() => null),
-      fetch(API + '/api/delegation-failures').catch(() => null),
+      fetch(API + '/api/delegation-failures?status=open,diagnosing,needs_human').catch(() => null),
     ]);
 
     for (const [name, res] of [['status', statusRes], ['behaviors', behaviorsRes], ['learning', learningRes], ['journal', journalRes]]) {
@@ -3440,6 +3440,7 @@ function renderDelegationFailures(failures) {
       + '<div class="brain-detail" title="' + escapeHtml(error) + '">' + escapeHtml(error) + '</div>'
       + '<div class="failure-meta">'
       + '<span class="' + ((f.frequency || 0) >= 2 ? 'hot' : '') + '">' + (f.frequency || 0) + 'x</span>'
+      + (f.status ? '<span>' + escapeHtml(f.status) + '</span>' : '')
       + (f.taskType ? '<span>' + escapeHtml(f.taskType) + '</span>' : '')
       + (f.diagnosticTaskId ? '<span>diagnostic ' + escapeHtml(f.diagnosticTaskId) + '</span>' : '<span>diagnostic pending</span>')
       + (f.lastSeen ? '<span>' + formatTime(f.lastSeen) + '</span>' : '')

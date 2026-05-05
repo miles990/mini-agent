@@ -121,7 +121,11 @@ import type { ActorId } from './brain-types.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
-import { readDelegationFailureRecordsSync } from './delegation-failure-guard.js';
+import {
+  isDelegationFailureStatus,
+  readDelegationFailureRecordsSync,
+  transitionDelegationFailureStatus,
+} from './delegation-failure-guard.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1866,13 +1870,45 @@ export function createApi(port = 3001): express.Express {
     }
   });
 
-  app.get('/api/delegation-failures', (_req: Request, res: Response) => {
+  app.get('/api/delegation-failures', (req: Request, res: Response) => {
     try {
       const memDir = path.join(process.cwd(), 'memory');
-      const failures = readDelegationFailureRecordsSync(memDir);
+      const statuses = queryList(req.query.status).filter(isDelegationFailureStatus);
+      let failures = readDelegationFailureRecordsSync(memDir);
+      if (statuses.length > 0) failures = failures.filter(failure => statuses.includes(failure.status));
       res.json({ failures, total: failures.length });
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.patch('/api/delegation-failures/:signature', (req: Request, res: Response) => {
+    try {
+      const status = req.body?.status;
+      if (!isDelegationFailureStatus(status)) {
+        res.status(400).json({ error: 'status must be one of open, diagnosing, resolved, ignored, needs_human' });
+        return;
+      }
+      const resolution = typeof req.body?.resolution === 'string' ? req.body.resolution : undefined;
+      const memDir = path.join(process.cwd(), 'memory');
+      const failure = transitionDelegationFailureStatus(
+        memDir,
+        decodeURIComponent(req.params.signature),
+        status,
+        resolution,
+      );
+      if (!failure) {
+        res.status(404).json({ error: 'delegation failure not found' });
+        return;
+      }
+      eventBus.emit('action:delegation-failure', {
+        signature: failure.signature,
+        status: failure.status,
+        frequency: failure.frequency,
+      });
+      res.json({ success: true, failure });
+    } catch (err) {
+      res.status(400).json({ error: String(err) });
     }
   });
 

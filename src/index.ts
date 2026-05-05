@@ -126,11 +126,13 @@ export {
 export type { BrainRunEvent, BrainRunEventKind, BrainRunQuery, BrainRunState, BrainRunStatus } from './brain-run-ledger.js';
 export {
   getDelegationFailureGuardPath,
+  isDelegationFailureStatus,
   markDelegationFailureDiagnosticCreated,
   readDelegationFailureRecordsSync,
   recordDelegationFailure,
+  transitionDelegationFailureStatus,
 } from './delegation-failure-guard.js';
-export type { DelegationFailureDecision, DelegationFailureRecord } from './delegation-failure-guard.js';
+export type { DelegationFailureDecision, DelegationFailureRecord, DelegationFailureStatus } from './delegation-failure-guard.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
