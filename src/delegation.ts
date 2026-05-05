@@ -423,6 +423,7 @@ function formatBrainRuntimeOutput(result: BrainRuntimeResult): string {
     }
     const output = run.result && 'text' in run.result
       ? run.result.text
+      : run.result && 'coordinator' in run.result ? run.result.response
       : run.result && 'response' in run.result ? run.result.response : '';
     if (output) lines.push(`${label} ${output}`);
   }

@@ -199,10 +199,11 @@ describe('delegation arbitration mapping', () => {
     expect(result.runtime).toEqual(expect.objectContaining({
       engine: 'brain-runtime',
       mode: 'panel',
-      primary: 'claude',
+      primary: 'kuro',
     }));
     expect(result.runtime?.runs).toEqual(expect.arrayContaining([
       expect.objectContaining({ actor: 'akari', role: 'reviewer', status: 'success' }),
+      expect.objectContaining({ actor: 'kuro', role: 'coordinator', status: 'success' }),
     ]));
   });
 });

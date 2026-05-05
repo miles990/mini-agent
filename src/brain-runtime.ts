@@ -19,6 +19,7 @@ import type {
 } from './brain-types.js';
 import type { PeerAgent, PeerConsultResult } from './peer-agent.js';
 import { createProviderClaim, type ProviderClaim } from './provider-claims.js';
+import { coordinateAsKuro, type KuroCoordinationResult } from './internal-kuro-coordinator.js';
 
 export interface BrainRuntimeOptions {
   providers?: BrainProvider[];
@@ -34,10 +35,10 @@ export interface BrainExecutionInput {
 
 export interface BrainActorRun {
   actor: ActorId;
-  role: 'primary' | 'candidate' | 'reviewer';
+  role: 'primary' | 'candidate' | 'reviewer' | 'coordinator';
   status: 'success' | 'skipped' | 'failed';
   health?: ProviderHealth;
-  result?: BrainResult | PeerConsultResult;
+  result?: BrainResult | PeerConsultResult | KuroCoordinationResult;
   claimIds: string[];
   error?: string;
 }
@@ -87,6 +88,13 @@ export class BrainRuntime {
       }
 
       if (input.decision.mode === 'solo' && run.status === 'success') break;
+    }
+
+    if (input.decision.primary === 'kuro' && runs.some(run => run.status === 'success')) {
+      const run = this.coordinateKuro(input, runs);
+      runs.push(run);
+      claims.push(...this.claimsForRun(input, run));
+      executedPrimary = 'kuro';
     }
 
     for (const claim of claims) {
@@ -186,6 +194,18 @@ export class BrainRuntime {
   private claimsForRun(input: BrainExecutionInput, run: BrainActorRun): ProviderClaim[] {
     if (run.status !== 'success' || !run.result) return [];
 
+    if (isKuroCoordinationResult(run.result)) {
+      return [createProviderClaim({
+        provider: 'kuro',
+        taskId: input.request.taskId,
+        subject: `task:${input.request.taskId}`,
+        predicate: 'coordinated_result',
+        object: run.result.response.slice(0, 1000),
+        evidence: [`brain-runtime:kuro:${run.role}`],
+        confidence: run.result.conflicts.length > 0 ? 0.55 : 0.75,
+      })];
+    }
+
     if (isBrainResult(run.result)) {
       return [createProviderClaim({
         provider: run.actor,
@@ -218,6 +238,27 @@ export class BrainRuntime {
       evidence: [`brain-runtime:${run.actor}:${run.role}`],
       confidence: 0.6,
     })];
+  }
+
+  private coordinateKuro(input: BrainExecutionInput, runs: BrainActorRun[]): BrainActorRun {
+    const result = coordinateAsKuro({
+      workItem: input.workItem,
+      decision: input.decision,
+      runs: runs.map(run => ({
+        actor: run.actor,
+        role: run.role,
+        status: run.status,
+        text: resultText(run.result),
+        ...(run.error ? { error: run.error } : {}),
+      })),
+    });
+    return {
+      actor: 'kuro',
+      role: 'coordinator',
+      status: 'success',
+      result,
+      claimIds: [],
+    };
   }
 
   private result(
@@ -255,6 +296,19 @@ function isPeerAgentId(actor: ActorId): actor is PeerAgentId {
   return actor === 'akari' || actor === 'tanren';
 }
 
-function isBrainResult(result: BrainResult | PeerConsultResult): result is BrainResult {
+function isBrainResult(result: BrainResult | PeerConsultResult | KuroCoordinationResult): result is BrainResult {
   return 'finishReason' in result;
+}
+
+function isKuroCoordinationResult(
+  result: BrainResult | PeerConsultResult | KuroCoordinationResult,
+): result is KuroCoordinationResult {
+  return 'coordinator' in result && result.coordinator === 'kuro';
+}
+
+function resultText(result: BrainActorRun['result']): string {
+  if (!result) return '';
+  if (isBrainResult(result)) return result.text;
+  if (isKuroCoordinationResult(result)) return result.response;
+  return result.response;
 }

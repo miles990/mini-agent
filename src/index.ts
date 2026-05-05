@@ -121,6 +121,8 @@ export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middlewa
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 export type { MiddlewarePeerAgentOptions } from './middleware-peer-agent.js';
+export { coordinateAsKuro } from './internal-kuro-coordinator.js';
+export type { KuroCoordinationInput, KuroCoordinationResult } from './internal-kuro-coordinator.js';
 export {
   getCachedAvailableBrainActors,
   getCachedBrainHealthSnapshot,
