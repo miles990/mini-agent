@@ -1829,6 +1829,7 @@ export class AgentLoop {
         || this.triggerReason?.startsWith('direct-message');
       const isCronTrigger = this.triggerReason?.startsWith('cron') ?? false;
       if (!isDirectMessage && !isCronTrigger && perceptionStreams.isActive() && currentVersion === this.lastPerceptionVersion) {
+        slog('LOOP', `[ctx-size] cycle=${this.cycleCount} skip=perception`);
         eventBus.emit('action:loop', { event: 'cycle.skip', cycleCount: this.cycleCount });
         return null;
       }
