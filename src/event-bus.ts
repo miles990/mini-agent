@@ -27,6 +27,7 @@ export type AgentEventType =
   | 'action:activity'
   | 'action:delegation-start'
   | 'action:delegation-complete'
+  | 'action:delegation-failure'
   | 'action:arbitration'
   | 'action:brain-runtime'
   | 'action:brain-state'

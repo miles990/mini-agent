@@ -21,7 +21,7 @@ import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
 import type { DelegationTaskType, Provider } from './types.js';
 import { writeActivity } from './activity-journal.js';
-import { updateTask } from './memory-index.js';
+import { createTask, updateTask } from './memory-index.js';
 import { middleware, type PlanStepSpec, type PlanStatus } from './middleware-client.js';
 import { forgeCreate, forgeYolo, forgeCleanup } from './forge.js';
 import { extractDelegationSummary, buildRecentDelegationSummary, persistDelegationResult, writeLaneOutput } from './delegation-summary.js';
@@ -36,6 +36,10 @@ import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import type { BrainRequest } from './brain-types.js';
 import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
+import {
+  markDelegationFailureDiagnosticCreated,
+  recordDelegationFailure,
+} from './delegation-failure-guard.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -713,6 +717,9 @@ function finalizeTask(
   }
 
   slog('DELEGATION', `Finished ${result.id}: ${result.status} in ${Math.round((result.duration ?? 0) / 1000)}s`);
+  const failureDecision = result.status === 'completed'
+    ? null
+    : recordRepeatedDelegationFailure(entry);
   const providerClaimId = recordDelegationClaim(entry);
   eventBus.emit('action:delegation-complete', {
     taskId: result.id,
@@ -722,6 +729,13 @@ function finalizeTask(
     durationMs: result.duration,
     ...(entry.runtime ? { runtime: entry.runtime } : {}),
     ...(providerClaimId ? { providerClaimId } : {}),
+    ...(failureDecision?.repeated ? {
+      repeatedFailure: {
+        signature: failureDecision.record.signature,
+        frequency: failureDecision.record.frequency,
+        diagnosticTaskId: failureDecision.record.diagnosticTaskId,
+      },
+    } : {}),
     ...(entry.writeLease ? { writeLeaseId: entry.writeLease.id } : {}),
   });
 
@@ -729,13 +743,18 @@ function finalizeTask(
   if (task.originTask) {
     const memDir = path.join(process.cwd(), 'memory');
     updateTask(memDir, task.originTask, {
-      status: result.status === 'completed' ? 'completed' : 'pending',
+      status: result.status === 'completed' ? 'completed' : failureDecision?.repeated ? 'hold' : 'pending',
       verify: [{
         name: 'delegate',
         status: result.status === 'completed' ? 'pass' : 'fail',
-        detail: result.output.slice(0, 200),
+        detail: failureDecision?.repeated
+          ? `repeated delegation failure (${failureDecision.record.frequency}x); diagnostic task: ${failureDecision.record.diagnosticTaskId ?? 'pending'}`
+          : result.output.slice(0, 200),
         updatedAt: new Date().toISOString(),
       }],
+      ...(failureDecision?.repeated ? {
+        staleWarning: `Held after repeated delegation failure (${failureDecision.record.frequency}x): ${failureDecision.record.error.slice(0, 160)}`,
+      } : {}),
     }).catch(() => {});
   }
 
@@ -761,6 +780,59 @@ function finalizeTask(
 
   activeTasks.delete(result.id);
   completedTasks.set(result.id, result);
+}
+
+function recordRepeatedDelegationFailure(entry: ActiveEntry): ReturnType<typeof recordDelegationFailure> | null {
+  const { result, task } = entry;
+  if (!shouldGuardDelegationFailure(result.output)) return null;
+  const memDir = path.join(process.cwd(), 'memory');
+  try {
+    const decision = recordDelegationFailure(memDir, {
+      taskId: result.id,
+      taskType: result.type,
+      prompt: task.prompt,
+      output: result.output,
+    });
+
+    if (decision.repeated) {
+      result.output += `\n\n[delegation-failure-guard] repeated failure ${decision.record.frequency}x. Holding the origin task and creating a Kuro diagnostic task instead of retrying unchanged.`;
+      slog('DELEGATION', `Repeated failure ${decision.record.frequency}x for ${result.id}: ${decision.record.signature.slice(0, 120)}`);
+      eventBus.emit('action:delegation-failure', {
+        taskId: result.id,
+        signature: decision.record.signature,
+        frequency: decision.record.frequency,
+        diagnosticTaskId: decision.record.diagnosticTaskId,
+      });
+    }
+
+    if (decision.needsDiagnosticTask) {
+      void createTask(memDir, {
+        title: `Diagnose repeated delegation failure: ${task.prompt.slice(0, 120)}`,
+        origin: 'kuro',
+        status: 'pending',
+        assignee: 'kuro',
+      }).then(created => {
+        markDelegationFailureDiagnosticCreated(memDir, decision.record.signature, created.id);
+        decision.record.diagnosticTaskId = created.id;
+        eventBus.emit('action:task', { content: created.summary ?? created.id, entry: created });
+      }).catch(err => {
+        slog('DELEGATION', `failed to create diagnostic task for ${result.id}: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
+
+    return decision;
+  } catch (err) {
+    slog('DELEGATION', `failure guard error for ${result.id}: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+function shouldGuardDelegationFailure(output: string): boolean {
+  const normalized = output.toLowerCase();
+  if (normalized.includes('cancelled via killalldelegations')) return false;
+  if (normalized.includes('blocked by write lease')) return false;
+  if (normalized.includes('blocked by arbiter')) return false;
+  return true;
 }
 
 function recordDelegationClaim(entry: ActiveEntry): string | undefined {

@@ -121,6 +121,7 @@ import type { ActorId } from './brain-types.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
+import { readDelegationFailureRecordsSync } from './delegation-failure-guard.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1860,6 +1861,16 @@ export function createApi(port = 3001): express.Express {
           enabled: isBrainRuntimeDelegationEnabled(),
         },
       });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/delegation-failures', (_req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const failures = readDelegationFailureRecordsSync(memDir);
+      res.json({ failures, total: failures.length });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
