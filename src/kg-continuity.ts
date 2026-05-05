@@ -20,6 +20,10 @@ const KG_SERVICE_URL = 'http://localhost:3300';
 const KG_TIMEOUT = 2000;
 const NAMESPACE = 'kuro';
 const CONTINUITY_CAP = 500;
+const CONTINUITY_CACHE_TTL_MS = 30_000;
+
+let continuityCache: { value: string; expiresAt: number } | null = null;
+let continuityInflight: Promise<string> | null = null;
 
 // ─── Types ───
 
@@ -77,6 +81,7 @@ export function parseCycleStateTag(content: string): Omit<CycleState, 'id' | 'ts
 
 export async function writeCycleState(parsed: Omit<CycleState, 'id' | 'ts' | 'intentHash'>): Promise<string | null> {
   if (!isEnabled('kg-continuity')) return null;
+  invalidateContinuityContextCache();
 
   const ts = new Date().toISOString();
   const id = `cycle-${ts}`;
@@ -196,7 +201,21 @@ interface KGNode {
 
 export async function buildContinuityContext(): Promise<string> {
   if (!isEnabled('kg-continuity')) return '';
+  if (continuityCache && continuityCache.expiresAt > Date.now()) return continuityCache.value;
+  if (continuityInflight) return continuityInflight;
 
+  continuityInflight = buildContinuityContextFresh()
+    .then((value) => {
+      continuityCache = { value, expiresAt: Date.now() + CONTINUITY_CACHE_TTL_MS };
+      return value;
+    })
+    .finally(() => {
+      continuityInflight = null;
+    });
+  return continuityInflight;
+}
+
+async function buildContinuityContextFresh(): Promise<string> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), KG_TIMEOUT);
@@ -288,4 +307,13 @@ export async function buildContinuityContext(): Promise<string> {
   } catch {
     return '';
   }
+}
+
+export function invalidateContinuityContextCache(): void {
+  continuityCache = null;
+}
+
+export function __resetContinuityContextCacheForTests(): void {
+  continuityCache = null;
+  continuityInflight = null;
 }

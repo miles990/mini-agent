@@ -13,6 +13,7 @@ const KG_TIMEOUT = 3000;
 const AGENT_ID = 'kuro';
 const WEBHOOK_URL = 'http://localhost:3001/api/webhook';
 const PERCEPTION_CAP = 2000;
+const DISCUSSIONS_CACHE_TTL_MS = 15_000;
 
 interface DiscussionSummary {
   id: string;
@@ -33,9 +34,12 @@ interface Position {
 }
 
 const dirtyDiscussions = new Set<string>();
+let discussionsCache: { value: string; expiresAt: number } | null = null;
+let discussionsInflight: Promise<string> | null = null;
 
 export function markDiscussionDirty(discussionId: string): void {
   dirtyDiscussions.add(discussionId);
+  invalidateKGDiscussionsContextCache();
 }
 
 export async function subscribeToKGDiscussions(): Promise<number> {
@@ -81,6 +85,26 @@ export async function subscribeToKGDiscussions(): Promise<number> {
 }
 
 export async function buildKGDiscussionsContext(): Promise<string> {
+  if (dirtyDiscussions.size === 0 && discussionsCache && discussionsCache.expiresAt > Date.now()) {
+    return discussionsCache.value;
+  }
+  if (dirtyDiscussions.size === 0 && discussionsInflight) return discussionsInflight;
+
+  const shouldCache = dirtyDiscussions.size === 0;
+  discussionsInflight = buildKGDiscussionsContextFresh()
+    .then((value) => {
+      if (shouldCache) {
+        discussionsCache = { value, expiresAt: Date.now() + DISCUSSIONS_CACHE_TTL_MS };
+      }
+      return value;
+    })
+    .finally(() => {
+      discussionsInflight = null;
+    });
+  return discussionsInflight;
+}
+
+async function buildKGDiscussionsContextFresh(): Promise<string> {
   try {
     const res = await fetch(`${KG_URL}/api/discussions?status=open&status=active&status=converging`, {
       signal: AbortSignal.timeout(KG_TIMEOUT),
@@ -134,4 +158,14 @@ export async function buildKGDiscussionsContext(): Promise<string> {
   } catch {
     return '';
   }
+}
+
+export function invalidateKGDiscussionsContextCache(): void {
+  discussionsCache = null;
+}
+
+export function __resetKGDiscussionsContextCacheForTests(): void {
+  dirtyDiscussions.clear();
+  discussionsCache = null;
+  discussionsInflight = null;
 }
