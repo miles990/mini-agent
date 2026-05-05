@@ -5,19 +5,21 @@
  * should think, who may write, and whether peer review is worth the cost.
  */
 
-import type { ActorId, ArbitrationDecision, WorkIntent, WorkItem } from './brain-types.js';
-
-const CHEAP_LOCAL_INTENTS = new Set<WorkIntent>(['json', 'summarize']);
-const CODING_INTENTS = new Set<WorkIntent>(['code', 'diagnose']);
-const PEER_REVIEW_INTENTS = new Set<WorkIntent>(['architecture', 'memory', 'policy']);
-const REVIEW_INTENTS = new Set<WorkIntent>(['review', 'plan', 'research']);
+import type { ActorId, ArbitrationDecision, WorkItem } from './brain-types.js';
+import {
+  deriveConstraintTexture,
+  isCheapLocalIntent,
+  isCodingIntent,
+  isReviewIntent,
+  peerCritiqueReason,
+} from './constraint-texture.js';
 
 export interface ArbiterOptions {
   availableActors?: ActorId[];
   forceAkariForP0?: boolean;
 }
 
-const DEFAULT_ACTORS: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari'];
+const DEFAULT_ACTORS: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari', 'tanren'];
 
 export class BrainArbiter {
   private readonly actors: Set<ActorId>;
@@ -29,33 +31,35 @@ export class BrainArbiter {
   }
 
   decide(item: WorkItem): ArbitrationDecision {
-    if (item.risk === 'deploy' || item.risk === 'external_write') {
+    const texture = deriveConstraintTexture(item, { forceAkariForP0: this.forceAkariForP0 });
+
+    if (texture.humanApprovalRequired) {
       return this.decision({
         mode: 'human',
         primary: 'human',
         candidates: ['human'],
         reviewers: ['kuro'],
         reason: `${item.risk} requires human approval before execution`,
-        writeLeaseRequired: item.writeScope?.length ? true : false,
-        kgClaimsRequired: true,
-        humanApprovalRequired: true,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
-    if (item.intent === 'verify') {
+    if (texture.deterministicExecution) {
       return this.decision({
         mode: 'solo',
         primary: this.pick('shell', 'local'),
         candidates: [this.pick('shell', 'local')],
         reviewers: [],
         reason: 'deterministic verification belongs to shell/local execution',
-        writeLeaseRequired: false,
-        kgClaimsRequired: false,
-        humanApprovalRequired: false,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
-    if (CHEAP_LOCAL_INTENTS.has(item.intent) && item.risk === 'read_only') {
+    if (isCheapLocalIntent(item.intent) && item.risk === 'read_only') {
       const primary = this.pick('local', 'claude');
       return this.decision({
         mode: 'solo',
@@ -63,28 +67,27 @@ export class BrainArbiter {
         candidates: [primary],
         reviewers: [],
         reason: `${item.intent} is cheap and read-only`,
-        writeLeaseRequired: false,
-        kgClaimsRequired: item.priority === 'P0',
-        humanApprovalRequired: false,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
-    const needsAkari = this.needsPeerCritic(item);
-    if (needsAkari) {
-      const candidates = this.filterAvailable(['claude', 'codex', 'akari']);
+    if (texture.peerCritiqueRequired) {
+      const candidates = this.filterAvailable(['claude', 'codex', 'akari', 'tanren']);
       return this.decision({
         mode: item.hasProviderConflict ? 'consensus' : 'panel',
         primary: 'kuro',
         candidates,
         reviewers: candidates.filter(a => a !== 'kuro'),
-        reason: this.peerReason(item),
-        writeLeaseRequired: item.risk === 'workspace_write',
-        kgClaimsRequired: true,
-        humanApprovalRequired: false,
+        reason: peerCritiqueReason(item, { forceAkariForP0: this.forceAkariForP0 }),
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
-    if (CODING_INTENTS.has(item.intent) || item.risk === 'workspace_write') {
+    if (isCodingIntent(item.intent) || item.risk === 'workspace_write') {
       const primary = this.pick('codex', 'claude');
       const reviewer = primary === 'codex' ? this.pickOptional('claude') : this.pickOptional('codex');
       return this.decision({
@@ -93,13 +96,13 @@ export class BrainArbiter {
         candidates: this.filterAvailable([primary, reviewer].filter(Boolean) as ActorId[]),
         reviewers: reviewer ? [reviewer] : [],
         reason: 'coding or diagnosis work benefits from a dedicated implementation lane and separate review',
-        writeLeaseRequired: item.risk === 'workspace_write' || Boolean(item.writeScope?.length),
-        kgClaimsRequired: true,
-        humanApprovalRequired: false,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
-    if (REVIEW_INTENTS.has(item.intent)) {
+    if (isReviewIntent(item.intent)) {
       const primary = this.pick('claude', 'codex');
       const reviewer = this.pickOptional(primary === 'claude' ? 'codex' : 'claude');
       return this.decision({
@@ -108,9 +111,9 @@ export class BrainArbiter {
         candidates: this.filterAvailable([primary, reviewer].filter(Boolean) as ActorId[]),
         reviewers: reviewer ? [reviewer] : [],
         reason: `${item.intent} benefits from independent second-pass judgment`,
-        writeLeaseRequired: false,
-        kgClaimsRequired: true,
-        humanApprovalRequired: false,
+        writeLeaseRequired: texture.writeLeaseRequired,
+        kgClaimsRequired: texture.kgClaimsRequired,
+        humanApprovalRequired: texture.humanApprovalRequired,
       });
     }
 
@@ -121,24 +124,10 @@ export class BrainArbiter {
       candidates: [primary],
       reviewers: [],
       reason: 'default semantic work uses the strongest available language lane',
-      writeLeaseRequired: false,
-      kgClaimsRequired: item.priority === 'P0',
-      humanApprovalRequired: false,
+      writeLeaseRequired: texture.writeLeaseRequired,
+      kgClaimsRequired: texture.kgClaimsRequired,
+      humanApprovalRequired: texture.humanApprovalRequired,
     });
-  }
-
-  private needsPeerCritic(item: WorkItem): boolean {
-    return item.hasProviderConflict === true
-      || PEER_REVIEW_INTENTS.has(item.intent)
-      || (this.forceAkariForP0 && item.priority === 'P0')
-      || item.tags?.some(t => ['architecture', 'soul', 'memory', 'policy', 'kg'].includes(t.toLowerCase())) === true;
-  }
-
-  private peerReason(item: WorkItem): string {
-    if (item.hasProviderConflict) return 'provider conflict needs peer critique before convergence';
-    if (PEER_REVIEW_INTENTS.has(item.intent)) return `${item.intent} work has high long-term coupling and needs Akari critique`;
-    if (item.priority === 'P0') return 'P0 work is configured to request Akari critique';
-    return 'task tags indicate peer critique is worth the added cost';
   }
 
   private decision(decision: ArbitrationDecision): ArbitrationDecision {

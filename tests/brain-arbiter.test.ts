@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decideArbitration } from '../src/brain-arbiter.js';
+import { deriveConstraintTexture } from '../src/constraint-texture.js';
 import type { WorkItem } from '../src/brain-types.js';
 
 function work(overrides: Partial<WorkItem> = {}): WorkItem {
@@ -48,7 +49,7 @@ describe('BrainArbiter', () => {
     const decision = decideArbitration(work({ intent: 'architecture' }));
     expect(decision.mode).toBe('panel');
     expect(decision.primary).toBe('kuro');
-    expect(decision.candidates).toEqual(['claude', 'codex', 'akari']);
+    expect(decision.candidates).toEqual(['claude', 'codex', 'akari', 'tanren']);
     expect(decision.reviewers).toContain('akari');
     expect(decision.kgClaimsRequired).toBe(true);
   });
@@ -67,5 +68,23 @@ describe('BrainArbiter', () => {
     expect(decision.primary).toBe('claude');
     expect(decision.mode).toBe('solo');
     expect(decision.reviewers).toEqual([]);
+  });
+
+  it('derives reusable constraints for DAG node planning', () => {
+    const texture = deriveConstraintTexture(work({
+      intent: 'architecture',
+      risk: 'workspace_write',
+      writeScope: ['src/brain-arbiter.ts'],
+      tags: ['kg'],
+    }));
+    expect(texture.peerCritiqueRequired).toBe(true);
+    expect(texture.writeLeaseRequired).toBe(true);
+    expect(texture.kgClaimsRequired).toBe(true);
+    expect(texture.humanApprovalRequired).toBe(false);
+    expect(texture.constraints).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'peer_critique', required: true }),
+      expect.objectContaining({ kind: 'write_lease', required: true }),
+      expect.objectContaining({ kind: 'provider_claims', required: true }),
+    ]));
   });
 });

@@ -106,6 +106,16 @@ export {
 } from './shared-knowledge.js';
 export type { KBEvent, KBFilter, KBStats, KBPattern, KBSource, KBEventType } from './shared-knowledge.js';
 
+// Brain orchestration
+export {
+  deriveConstraintTexture,
+  isCheapLocalIntent,
+  isCodingIntent,
+  isReviewIntent,
+  peerCritiqueReason,
+} from './constraint-texture.js';
+export type { ConstraintKind, ConstraintTexture, ConstraintTextureOptions, WorkConstraint } from './constraint-texture.js';
+
 // Config
 export {
   getConfig,

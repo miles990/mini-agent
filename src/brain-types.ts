@@ -7,7 +7,7 @@
  */
 
 export type ProviderId = 'claude' | 'codex' | 'local' | 'shell';
-export type PeerAgentId = 'akari';
+export type PeerAgentId = 'akari' | 'tanren';
 export type ActorId = ProviderId | PeerAgentId | 'kuro' | 'human';
 
 export type WorkIntent =
