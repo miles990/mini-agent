@@ -34,6 +34,7 @@ import { observe as kbObserve } from './shared-knowledge.js';
 import { BrainRuntime, type BrainRuntimeResult } from './brain-runtime.js';
 import { createDefaultMiddlewareProviders } from './middleware-provider.js';
 import type { BrainRequest } from './brain-types.js';
+import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -231,7 +232,10 @@ export function spawnDelegation(task: DelegationTask): string {
     MAX_TIMEOUT_MS,
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
-  const arbitration = decideArbitration(workItem);
+  const arbitration = decideArbitration(
+    workItem,
+    isBrainRuntimeDelegationEnabled() ? { availableActors: getCachedAvailableBrainActors() } : undefined,
+  );
 
   // Soft concurrency cap — middleware also caps per-worker, this just surfaces
   // backpressure to callers via the local activeTasks map.
@@ -333,8 +337,10 @@ async function dispatchViaBrainRuntime(
 ): Promise<void> {
   const { result, task, arbitration } = entry;
   const request = buildBrainRequestForDelegation(entry, cwd, timeoutMs);
+  const providers = createDefaultMiddlewareProviders();
+  await refreshBrainHealth(providers);
   const runtime = new BrainRuntime({
-    providers: createDefaultMiddlewareProviders(),
+    providers,
     memoryDir: path.join(process.cwd(), 'memory'),
   });
 
@@ -439,11 +445,6 @@ function runtimeTraceFromResult(
     })),
     claimIds: result.claims.map(claim => claim.id),
   };
-}
-
-function isBrainRuntimeDelegationEnabled(): boolean {
-  const value = process.env.MINI_AGENT_DELEGATION_RUNTIME?.toLowerCase();
-  return value === 'true' || value === '1';
 }
 
 async function dispatchAndPoll(

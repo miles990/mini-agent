@@ -115,6 +115,8 @@ import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
 import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
 import type { ClaimStatus } from './provider-claims.js';
+import { createDefaultMiddlewareProviders } from './middleware-provider.js';
+import { getCachedBrainHealthSnapshot, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1829,9 +1831,23 @@ export function createApi(port = 3001): express.Express {
         tasks,
         total: tasks.length,
         runtime: {
-          enabled: process.env.MINI_AGENT_DELEGATION_RUNTIME === 'true'
-            || process.env.MINI_AGENT_DELEGATION_RUNTIME === '1',
+          enabled: isBrainRuntimeDelegationEnabled(),
         },
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/brain/health', async (req: Request, res: Response) => {
+    try {
+      const refresh = req.query.refresh === 'true' || req.query.refresh === '1';
+      const snapshot = refresh
+        ? await refreshBrainHealth(createDefaultMiddlewareProviders())
+        : getCachedBrainHealthSnapshot();
+      res.json({
+        runtime: { enabled: isBrainRuntimeDelegationEnabled() },
+        ...snapshot,
       });
     } catch (err) {
       res.status(500).json({ error: String(err) });

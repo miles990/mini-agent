@@ -119,6 +119,13 @@ export { BrainRuntime } from './brain-runtime.js';
 export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
+export {
+  getCachedAvailableBrainActors,
+  getCachedBrainHealthSnapshot,
+  isBrainRuntimeDelegationEnabled,
+  refreshBrainHealth,
+} from './brain-health.js';
+export type { BrainActorHealth, BrainHealthSnapshot } from './brain-health.js';
 
 // Config
 export {
