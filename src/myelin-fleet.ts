@@ -369,6 +369,10 @@ export async function maybeDistill(): Promise<boolean> {
 
     // Persist rule hitCounts — myelin only saves on crystallize/optimize, not on rule match
     try { persistRuleHitCounts(); } catch { /* fire-and-forget */ }
+    try {
+      const { syncMyelinToKnowledge } = await import('./myelin-kg-sync.js');
+      syncMyelinToKnowledge(`${process.cwd()}/memory`, { limitPerDomain: 3, minHitCount: 1 });
+    } catch { /* shared knowledge sync is optional */ }
 
     // Research methodology evolution (needs evolve() beyond basic distill)
     try {

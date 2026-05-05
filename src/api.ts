@@ -128,6 +128,7 @@ import {
 } from './delegation-failure-guard.js';
 import { diagnoseDelegationFailure, diagnosePendingDelegationFailures } from './delegation-failure-diagnostics.js';
 import { getMyelinStatus } from './myelin-status.js';
+import { syncMyelinToKnowledge } from './myelin-kg-sync.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1946,6 +1947,20 @@ export function createApi(port = 3001): express.Express {
       const window = Number.isFinite(windowRaw) ? windowRaw : 500;
       const memDir = path.join(process.cwd(), 'memory');
       res.json(getMyelinStatus(memDir, window));
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/myelin/sync-kg', (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const result = syncMyelinToKnowledge(memDir, {
+        force: req.body?.force === true,
+        limitPerDomain: typeof req.body?.limitPerDomain === 'number' ? req.body.limitPerDomain : undefined,
+        minHitCount: typeof req.body?.minHitCount === 'number' ? req.body.minHitCount : undefined,
+      });
+      res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
