@@ -4179,13 +4179,17 @@ function buildBackgroundCompletedSection(instanceId: string): string | null {
         try {
           const raw = readFileSync(f, 'utf-8');
           const data = JSON.parse(raw);
-          const entry = {
-            id: data.id ?? path.basename(f, '.json'),
-            type: data.type,
-            summary: extractDelegationSummaryInline(data.output || '', 150),
-            archivedAt: new Date().toISOString(),
-          };
-          appendFileSync(backlogPath, JSON.stringify(entry) + '\n');
+          const output = data.output || '';
+          // Patch A (Issue #83): skip failure-class outputs entirely — zero learning value
+          if (!isStaleFailureOutput(output)) {
+            const entry = {
+              id: data.id ?? path.basename(f, '.json'),
+              type: data.type,
+              summary: extractDelegationSummaryInline(output, 150),
+              archivedAt: new Date().toISOString(),
+            };
+            appendFileSync(backlogPath, JSON.stringify(entry) + '\n');
+          }
         } catch { /* best effort — still delete */ }
         try { unlinkSync(f); } catch { /* best effort */ }
       }
@@ -4296,6 +4300,21 @@ function extractDelegationSummaryInline(output: string, maxLen: number): string 
 
 const BACKLOG_TTL_MS = 7 * 24 * 3600_000; // 7 days
 
+/**
+ * Detect failure-class delegation outputs that have zero learning value.
+ * Patch A from Issue #83: prevent stale failures from accumulating in review-backlog.
+ * Examples filtered: [FAILED ...], "Claude Code returned an error result", "process aborted by user".
+ */
+function isStaleFailureOutput(text: string): boolean {
+  if (!text) return true; // empty = no signal, drop
+  const head = text.slice(0, 500);
+  if (/^\s*\[FAILED/.test(head)) return true;
+  if (/Claude Code returned an error result/i.test(head)) return true;
+  if (/process aborted by user/i.test(head)) return true;
+  if (/^\s*\[(ERROR|TIMEOUT|ABORT)/i.test(head)) return true;
+  return false;
+}
+
 /** Remove backlog entries whose IDs appear in the response text. Also prune entries older than 7 days. */
 export function clearReviewedDelegations(response: string, instanceId: string): void {
   try {
@@ -4314,6 +4333,8 @@ export function clearReviewedDelegations(response: string, instanceId: string): 
         if (now - new Date(entry.archivedAt).getTime() > BACKLOG_TTL_MS) continue;
         // Prune if response mentions this delegation ID
         if (entry.id && response.includes(entry.id)) continue;
+        // Patch A (Issue #83): retroactively drop failure-summary entries from the existing backlog
+        if (entry.summary && isStaleFailureOutput(entry.summary)) continue;
         kept.push(line);
       } catch { continue; }
     }
