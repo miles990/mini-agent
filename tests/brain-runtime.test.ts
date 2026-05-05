@@ -135,6 +135,14 @@ describe('BrainRuntime', () => {
         expect.objectContaining({ event: 'actor_finished', actor: 'claude', status: 'success' }),
       ]),
     );
+    expect(readBrainRunEventsSync(tmpDir, { taskId: 'task-1', event: 'runtime_started' })[0]).toEqual(
+      expect.objectContaining({
+        decisionBudget: expect.objectContaining({
+          maxActors: 2,
+          stopWhen: 'verified',
+        }),
+      }),
+    );
   });
 
   it('runs architecture panels across providers and peer agents', async () => {

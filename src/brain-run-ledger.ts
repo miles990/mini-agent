@@ -7,7 +7,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { ActorId, ActorSelectionTrace, ArbitrationMode } from './brain-types.js';
+import type { ActorId, ActorSelectionTrace, ArbitrationMode, DecisionBudget } from './brain-types.js';
 import type { BrainActorRun } from './brain-runtime.js';
 
 const BRAIN_RUN_LEDGER_FILE = 'brain-runs.jsonl';
@@ -40,6 +40,7 @@ export interface BrainRunEvent {
   mode?: ArbitrationMode;
   primary?: ActorId | null;
   rationale?: string;
+  decisionBudget?: DecisionBudget;
   detail?: string;
   durationMs?: number;
   claimIds?: string[];
@@ -67,6 +68,7 @@ export interface BrainRunState {
   mode?: ArbitrationMode;
   primary?: ActorId | null;
   rationale?: string;
+  decisionBudget?: DecisionBudget;
   detail?: string;
   durationMs?: number;
   claimIds?: string[];
@@ -137,6 +139,7 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
       ...(event.mode ? { mode: event.mode } : {}),
       ...(event.primary !== undefined ? { primary: event.primary } : {}),
       ...(event.rationale ? { rationale: event.rationale } : {}),
+      ...(event.decisionBudget ? { decisionBudget: event.decisionBudget } : {}),
       ...(event.detail ? { detail: event.detail } : {}),
       ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
       ...(event.claimIds ? { claimIds: event.claimIds } : {}),
@@ -183,6 +186,7 @@ function parseBrainRunEvent(line: string): BrainRunEvent | null {
       ...(isArbitrationMode(raw.mode) ? { mode: raw.mode } : {}),
       ...(isActorId(raw.primary) || raw.primary === null ? { primary: raw.primary } : {}),
       ...(typeof raw.rationale === 'string' ? { rationale: raw.rationale } : {}),
+      ...(isDecisionBudget(raw.decisionBudget) ? { decisionBudget: raw.decisionBudget } : {}),
       ...(typeof raw.detail === 'string' ? { detail: raw.detail } : {}),
       ...(typeof raw.durationMs === 'number' ? { durationMs: raw.durationMs } : {}),
       ...(Array.isArray(raw.claimIds) ? { claimIds: raw.claimIds.filter((id): id is string => typeof id === 'string') } : {}),
@@ -231,4 +235,17 @@ function isSelectionTrace(value: unknown): value is ActorSelectionTrace {
   if (!value || typeof value !== 'object') return false;
   const raw = value as Record<string, unknown>;
   return Array.isArray(raw.selected) && Array.isArray(raw.considered);
+}
+
+function isDecisionBudget(value: unknown): value is DecisionBudget {
+  if (!value || typeof value !== 'object') return false;
+  const raw = value as Record<string, unknown>;
+  return (raw.maxActors === 1 || raw.maxActors === 2 || raw.maxActors === 4)
+    && typeof raw.requireReviewer === 'boolean'
+    && typeof raw.allowPanel === 'boolean'
+    && typeof raw.maxCost === 'string'
+    && ['low', 'medium', 'high'].includes(raw.maxCost)
+    && typeof raw.stopWhen === 'string'
+    && ['verified', 'primary_confident', 'no_dissent', 'human_approved'].includes(raw.stopWhen)
+    && typeof raw.reason === 'string';
 }

@@ -42,6 +42,7 @@ export class BrainArbiter {
         candidates: ['human'],
         reviewers: ['kuro'],
         reason: `${item.risk} requires human approval before execution`,
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -57,6 +58,7 @@ export class BrainArbiter {
         candidates: [primary],
         reviewers: [],
         reason: 'deterministic verification belongs to shell/local execution',
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -72,6 +74,7 @@ export class BrainArbiter {
         candidates: [primary],
         reviewers: [],
         reason: `${item.intent} is cheap and read-only`,
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -83,7 +86,7 @@ export class BrainArbiter {
       const availablePeerActors = this.filterAvailable(getPeerCritiqueActors());
       const candidates = pickActorsForRole(item, 'advisor', {
         availableActors: availablePeerActors,
-        limit: 4,
+        limit: texture.decisionBudget.maxActors,
       });
       return this.decision({
         mode: item.hasProviderConflict ? 'consensus' : 'panel',
@@ -91,6 +94,7 @@ export class BrainArbiter {
         candidates,
         reviewers: candidates.filter(a => a !== 'kuro'),
         reason: peerCritiqueReason(item, { forceAkariForP0: this.forceAkariForP0 }),
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -100,13 +104,14 @@ export class BrainArbiter {
 
     if (isCodingIntent(item.intent) || item.risk === 'workspace_write') {
       const primary = this.pickByRole(item, 'primary', 'codex', 'claude');
-      const reviewer = this.pickReviewer(item, primary);
+      const reviewer = texture.decisionBudget.requireReviewer ? this.pickReviewer(item, primary) : null;
       return this.decision({
         mode: reviewer ? 'split' : 'solo',
         primary,
         candidates: this.filterAvailable([primary, reviewer].filter(Boolean) as ActorId[]),
         reviewers: reviewer ? [reviewer] : [],
         reason: 'coding or diagnosis work benefits from a dedicated implementation lane and separate review',
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -116,13 +121,14 @@ export class BrainArbiter {
 
     if (isReviewIntent(item.intent)) {
       const primary = this.pickByRole(item, 'primary', 'claude', 'codex');
-      const reviewer = this.pickReviewer(item, primary);
+      const reviewer = texture.decisionBudget.requireReviewer ? this.pickReviewer(item, primary) : null;
       return this.decision({
         mode: reviewer ? 'race' : 'solo',
         primary,
         candidates: this.filterAvailable([primary, reviewer].filter(Boolean) as ActorId[]),
         reviewers: reviewer ? [reviewer] : [],
         reason: `${item.intent} benefits from independent second-pass judgment`,
+        decisionBudget: texture.decisionBudget,
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
@@ -137,6 +143,7 @@ export class BrainArbiter {
       candidates: [primary],
       reviewers: [],
       reason: 'default semantic work uses the strongest available language lane',
+      decisionBudget: texture.decisionBudget,
       writeLeaseRequired: texture.writeLeaseRequired,
       kgClaimsRequired: texture.kgClaimsRequired,
       humanApprovalRequired: texture.humanApprovalRequired,

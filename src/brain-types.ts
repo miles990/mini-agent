@@ -26,6 +26,21 @@ export type WorkIntent =
 
 export type WorkRisk = 'read_only' | 'workspace_write' | 'external_write' | 'deploy';
 export type WorkPriority = 'P0' | 'P1' | 'P2';
+export type DecisionCost = 'low' | 'medium' | 'high';
+export type DecisionStopCondition =
+  | 'verified'
+  | 'primary_confident'
+  | 'no_dissent'
+  | 'human_approved';
+
+export interface DecisionBudget {
+  maxActors: 1 | 2 | 4;
+  requireReviewer: boolean;
+  allowPanel: boolean;
+  maxCost: DecisionCost;
+  stopWhen: DecisionStopCondition;
+  reason: string;
+}
 
 export interface WorkItem {
   id: string;
@@ -47,6 +62,7 @@ export interface ArbitrationDecision {
   candidates: ActorId[];
   reviewers: ActorId[];
   reason: string;
+  decisionBudget?: DecisionBudget;
   writeLeaseRequired: boolean;
   kgClaimsRequired: boolean;
   humanApprovalRequired: boolean;

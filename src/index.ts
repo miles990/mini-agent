@@ -25,6 +25,26 @@ export type {
   ChatResponse,
   AgentResponse,
 } from './types.js';
+export type {
+  ActorId,
+  ActorSelectionTrace,
+  ArbitrationDecision,
+  ArbitrationMode,
+  BrainProvider,
+  BrainRequest,
+  BrainResult,
+  DecisionBudget,
+  DecisionCost,
+  DecisionStopCondition,
+  PeerAgentId,
+  ProviderCapabilities,
+  ProviderHealth,
+  ProviderId,
+  WorkIntent,
+  WorkItem,
+  WorkPriority,
+  WorkRisk,
+} from './brain-types.js';
 
 // Agent
 export { callClaude, type Message } from './agent.js';

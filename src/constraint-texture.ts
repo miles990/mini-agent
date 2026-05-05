@@ -7,7 +7,7 @@
  * arbiter branch logic.
  */
 
-import type { WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
+import type { DecisionBudget, WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
 
 const CHEAP_LOCAL_INTENTS = new Set<WorkIntent>(['json', 'summarize']);
 const CODING_INTENTS = new Set<WorkIntent>(['code', 'diagnose']);
@@ -31,6 +31,7 @@ export interface ConstraintTexture {
   taskId: string;
   intent: WorkIntent;
   risk: WorkRisk;
+  decisionBudget: DecisionBudget;
   humanApprovalRequired: boolean;
   writeLeaseRequired: boolean;
   kgClaimsRequired: boolean;
@@ -58,11 +59,18 @@ export function deriveConstraintTexture(
     humanApprovalRequired,
     peerCritiqueRequired,
   });
+  const decisionBudget = deriveDecisionBudget(item, {
+    deterministicExecution,
+    humanApprovalRequired,
+    peerCritiqueRequired,
+    kgClaimsRequired,
+  });
 
   return {
     taskId: item.id,
     intent: item.intent,
     risk: item.risk,
+    decisionBudget,
     humanApprovalRequired,
     writeLeaseRequired,
     kgClaimsRequired,
@@ -126,6 +134,91 @@ export function peerCritiqueReason(item: WorkItem, opts: ConstraintTextureOption
     return 'task tags indicate peer critique is worth the added cost';
   }
   return 'peer critique is optional for this task';
+}
+
+function deriveDecisionBudget(
+  item: WorkItem,
+  state: {
+    deterministicExecution: boolean;
+    humanApprovalRequired: boolean;
+    peerCritiqueRequired: boolean;
+    kgClaimsRequired: boolean;
+  },
+): DecisionBudget {
+  if (state.humanApprovalRequired) {
+    return {
+      maxActors: 1,
+      requireReviewer: false,
+      allowPanel: false,
+      maxCost: 'high',
+      stopWhen: 'human_approved',
+      reason: 'external/deploy risk stops at human approval before execution',
+    };
+  }
+
+  if (state.deterministicExecution) {
+    return {
+      maxActors: 1,
+      requireReviewer: false,
+      allowPanel: false,
+      maxCost: 'low',
+      stopWhen: 'verified',
+      reason: 'deterministic verification should use the cheapest executable path',
+    };
+  }
+
+  if (state.peerCritiqueRequired) {
+    return {
+      maxActors: 4,
+      requireReviewer: true,
+      allowPanel: true,
+      maxCost: item.priority === 'P2' ? 'medium' : 'high',
+      stopWhen: item.hasProviderConflict ? 'no_dissent' : 'primary_confident',
+      reason: 'peer critique is required, so a bounded panel is worth the cost',
+    };
+  }
+
+  if (isCodingIntent(item.intent) || item.risk === 'workspace_write') {
+    return {
+      maxActors: 2,
+      requireReviewer: true,
+      allowPanel: false,
+      maxCost: item.priority === 'P2' ? 'medium' : 'high',
+      stopWhen: 'verified',
+      reason: 'workspace-affecting work should pair implementation with one reviewer',
+    };
+  }
+
+  if (isReviewIntent(item.intent)) {
+    return {
+      maxActors: 2,
+      requireReviewer: item.priority !== 'P2',
+      allowPanel: false,
+      maxCost: item.priority === 'P2' ? 'medium' : 'high',
+      stopWhen: 'no_dissent',
+      reason: 'semantic review may use one independent second pass, not a full panel',
+    };
+  }
+
+  if (isCheapLocalIntent(item.intent) && item.risk === 'read_only') {
+    return {
+      maxActors: 1,
+      requireReviewer: false,
+      allowPanel: false,
+      maxCost: 'low',
+      stopWhen: 'primary_confident',
+      reason: 'cheap read-only work should stay single-actor',
+    };
+  }
+
+  return {
+    maxActors: item.priority === 'P0' ? 2 : 1,
+    requireReviewer: item.priority === 'P0' || state.kgClaimsRequired,
+    allowPanel: false,
+    maxCost: item.priority === 'P2' ? 'medium' : 'high',
+    stopWhen: item.priority === 'P0' ? 'no_dissent' : 'primary_confident',
+    reason: 'default budget scales with priority and claim requirements',
+  };
 }
 
 function needsPeerCritic(item: WorkItem, opts: ConstraintTextureOptions): boolean {

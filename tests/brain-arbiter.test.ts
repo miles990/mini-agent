@@ -22,6 +22,11 @@ describe('BrainArbiter', () => {
     expect(decision.humanApprovalRequired).toBe(true);
     expect(decision.writeLeaseRequired).toBe(true);
     expect(decision.kgClaimsRequired).toBe(true);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 1,
+      allowPanel: false,
+      stopWhen: 'human_approved',
+    }));
   });
 
   it('routes deterministic verification to shell/local without KG claims', () => {
@@ -30,6 +35,11 @@ describe('BrainArbiter', () => {
     expect(decision.primary).toBe('shell');
     expect(decision.writeLeaseRequired).toBe(false);
     expect(decision.kgClaimsRequired).toBe(false);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 1,
+      maxCost: 'low',
+      stopWhen: 'verified',
+    }));
   });
 
   it('routes workspace coding to Codex with Claude review and write lease', () => {
@@ -43,6 +53,12 @@ describe('BrainArbiter', () => {
     expect(decision.reviewers).toEqual(['claude']);
     expect(decision.writeLeaseRequired).toBe(true);
     expect(decision.kgClaimsRequired).toBe(true);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 2,
+      requireReviewer: true,
+      allowPanel: false,
+      stopWhen: 'verified',
+    }));
   });
 
   it('uses Akari panel for architecture work', () => {
@@ -53,6 +69,11 @@ describe('BrainArbiter', () => {
     expect(decision.reviewers).toContain('akari');
     expect(decision.reviewers).not.toContain('tanren');
     expect(decision.kgClaimsRequired).toBe(true);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 4,
+      requireReviewer: true,
+      allowPanel: true,
+    }));
     expect(decision.selectionTrace?.selected).toEqual(expect.arrayContaining([
       expect.objectContaining({
         actor: 'akari',
@@ -93,10 +114,27 @@ describe('BrainArbiter', () => {
     expect(texture.writeLeaseRequired).toBe(true);
     expect(texture.kgClaimsRequired).toBe(true);
     expect(texture.humanApprovalRequired).toBe(false);
+    expect(texture.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 4,
+      allowPanel: true,
+      maxCost: 'high',
+    }));
     expect(texture.constraints).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'peer_critique', required: true }),
       expect.objectContaining({ kind: 'write_lease', required: true }),
       expect.objectContaining({ kind: 'provider_claims', required: true }),
     ]));
+  });
+
+  it('keeps low-priority semantic review bounded to one actor', () => {
+    const decision = decideArbitration(work({ intent: 'review', priority: 'P2' }));
+    expect(decision.mode).toBe('solo');
+    expect(decision.reviewers).toEqual([]);
+    expect(decision.decisionBudget).toEqual(expect.objectContaining({
+      maxActors: 2,
+      requireReviewer: false,
+      allowPanel: false,
+      maxCost: 'medium',
+    }));
   });
 });

@@ -76,6 +76,7 @@ export class BrainRuntime {
         primary: input.decision.primary,
         mode: input.decision.mode,
         rationale: input.decision.reason,
+        decisionBudget: input.decision.decisionBudget,
         detail: 'human approval required before execution',
         selectionTrace: input.decision.selectionTrace,
       });
@@ -99,6 +100,7 @@ export class BrainRuntime {
       primary: input.decision.primary,
       mode: input.decision.mode,
       rationale: input.decision.reason,
+      decisionBudget: input.decision.decisionBudget,
       detail: `planned actors: ${plan.map(step => `${step.actor}:${step.role}`).join(', ') || 'none'}`,
       selectionTrace: input.decision.selectionTrace,
     });
