@@ -11,6 +11,7 @@ import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } f
 import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
+import { isCorrectionTask } from './correction-gate.js';
 
 // =============================================================================
 // Types
@@ -170,6 +171,7 @@ export class DefaultScheduler implements SchedulerPolicy {
 export function computeScore(t: TaskSnapshot, allTasks?: TaskSnapshot[]): number {
   const effectivePriority = t.source === 'system' ? Math.max(t.priority, 2) : t.priority;
   let score = (3 - effectivePriority) * 1000;
+  if (t.summary.includes('correction gate')) score += 8000;
   if (t.source === 'alex') score += 5000;
   if (t.source === 'discovery') score += 1000;
 
@@ -325,6 +327,18 @@ export function schedulerPick(
       return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
     });
   const decision = scheduler.decideNext(tasks, schedulerState, events);
+  const correctionTask = entries.find(isCorrectionTask);
+  if (correctionTask && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
+    const forced: SchedulingDecision = {
+      taskId: correctionTask.id,
+      reason: `correction gate: ${(correctionTask.summary ?? '').slice(0, 80)}`,
+      action: 'switch',
+      suspended: null,
+    };
+    setCurrentTask(correctionTask.id);
+    recordSchedulerDecision(forced);
+    return forced;
+  }
 
   if (decision.taskId) {
     setCurrentTask(decision.taskId);
@@ -336,9 +350,14 @@ export function schedulerPick(
     schedulerState.lastDiscoveryTick = schedulerState.totalTicks;
   }
 
+  recordSchedulerDecision(decision);
+
+  return decision;
+}
+
+function recordSchedulerDecision(decision: SchedulingDecision): void {
   slog('SCHED', `tick=${schedulerState.totalTicks} action=${decision.action} task=${decision.taskId?.slice(0, 12) ?? 'none'} reason=${decision.reason.slice(0, 80)}`);
 
-  // Emit SSE event + record history
   const historyEntry: SchedulerHistoryEntry = {
     ts: new Date().toISOString(),
     tick: schedulerState.totalTicks,
@@ -350,8 +369,6 @@ export function schedulerPick(
   schedulerHistory.push(historyEntry);
   if (schedulerHistory.length > MAX_HISTORY) schedulerHistory.splice(0, schedulerHistory.length - MAX_HISTORY);
   eventBus.emit('action:scheduler', { event: 'decision', ...historyEntry });
-
-  return decision;
 }
 
 export function schedulerTaskDone(taskId: string): void {

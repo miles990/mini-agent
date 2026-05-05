@@ -2234,6 +2234,14 @@ export class AgentLoop {
       try { await cleanStaleEntries(memDir); } catch { /* non-critical */ }
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
+      try {
+        const { evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
+        const correction = evaluateCorrectionGate(memDir);
+        if (correction.needsCorrection) {
+          const correctionTask = await ensureCorrectionTask(memDir, correction);
+          slog('CORRECTION', `active reasons=${correction.reasons.map(r => r.type).join(',')} task=${correctionTask?.id.slice(0, 12) ?? 'existing'}`);
+        }
+      } catch (e) { slog('WARN', `correction gate failed: ${e}`); }
 
       try {
         const { maybeQueueSelfResearch } = await import('./self-research-autopilot.js');

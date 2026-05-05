@@ -11,6 +11,7 @@ import path from 'node:path';
 import { eventBus } from './event-bus.js';
 import { createTask, queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
 import { createSelfResearchPlan, saveSelfResearchPlan, type SelfResearchRun } from './self-research-loop.js';
+import { evaluateCorrectionGate } from './correction-gate.js';
 
 export interface SelfResearchAutopilotOptions {
   triggerReason?: string | null;
@@ -32,6 +33,11 @@ export async function maybeQueueSelfResearch(
   const trigger = opts.triggerReason ?? '';
   if (!isIdleTrigger(trigger)) {
     return { queued: false, reason: 'not-idle-trigger' };
+  }
+
+  const correction = evaluateCorrectionGate(memoryDir);
+  if (correction.needsCorrection) {
+    return { queued: false, reason: `suppressed-by-correction:${correction.reasons[0]?.type ?? 'unknown'}` };
   }
 
   const activeTasks = queryMemoryIndexSync(memoryDir, {
