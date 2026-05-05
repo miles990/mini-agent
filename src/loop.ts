@@ -2010,6 +2010,7 @@ export class AgentLoop {
 
       // Context snapshot for cross-instance awareness (fire-and-forget)
       writeContextSnapshot(this.cycleCount, context.length, contextMode).catch(() => {});
+      slog('LOOP', `[ctx-size] cycle=${this.cycleCount} mode=${contextMode} chars=${context.length}`);
 
       // oMLX Gate R4: Context delta detection — skip autonomous cycles with unchanged context
       // Bypass R4 when there's known pending work. The system already detects pending work
