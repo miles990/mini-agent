@@ -125,6 +125,13 @@ export function writeCommitment(
   if (full.ack_at && !full.counterparty) {
     throw new Error(`commitment ${id}: ack_at requires counterparty (use resolved_at for self-resolution)`);
   }
+  // Cycle 80 STRUCTURAL fix: auto-populate falsifier_query from explicit DSL
+  // markers in the falsifier text when not already set by caller. Opt-in;
+  // prose falsifiers leave falsifier_query undefined (legacy expire-on-TTL).
+  if (!full.falsifier_query && full.falsifier) {
+    const parsed = parseFalsifierToQuery(full.falsifier);
+    if (parsed) full.falsifier_query = parsed;
+  }
   appendLine(full);
   _lastCommitmentCycleId = entry.cycle_id;
   slog('LEDGER', `commitment written ${id} cycle=${entry.cycle_id}`);
@@ -224,6 +231,31 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
 // Cheap, synchronous query runners. Network-bound kinds (kg_count) and
 // higher-cost scans (log_grep, metric) return inconclusive for now —
 // they'll be wired in follow-up patches once the plumbing is proven.
+
+/**
+ * Parse a falsifier string for explicit FalsifierQuery DSL markers.
+ * Returns undefined if no parseable marker is found (prose falsifiers stay
+ * unstructured — conservative, no false-positive auto-resolution).
+ *
+ * Supported DSL markers (opt-in, write anywhere in the falsifier text):
+ *   file_exists:/abs/path      -> { kind:'file_exists', path, must:true }
+ *   file_not_exists:/abs/path  -> { kind:'file_exists', path, must:false }
+ *
+ * Closes the cycle 80 STRUCTURAL gap: dispatcher.ts:1024 + loop.ts:2659
+ * writeCommitment calls now auto-populate falsifier_query so
+ * resolveReadyCommitments can resolve agent-written commitments. Without
+ * this, recent commitments aged out 100% as expired/abandoned despite the
+ * resolver being wired in buildLedgerSection.
+ */
+export function parseFalsifierToQuery(falsifier: string): FalsifierQuery | undefined {
+  const stop = String.raw`(?=[\s,;。、)）]|$)`;
+  const neg = falsifier.match(new RegExp(String.raw`\bfile_not_exists:(\/\S+?)` + stop));
+  if (neg) return { kind: 'file_exists', path: neg[1], must: false };
+  const pos = falsifier.match(new RegExp(String.raw`\bfile_exists:(\/\S+?)` + stop));
+  if (pos) return { kind: 'file_exists', path: pos[1], must: true };
+  return undefined;
+}
+
 function runQuery(q: FalsifierQuery): QueryResult {
   switch (q.kind) {
     case 'file_exists': {
