@@ -128,6 +128,11 @@ export function extractErrorSubtype(errorMsg: string): string {
   // (72× through 2026-04-25) — see memory/topics/tolowercase-throw-site-findings.md.
   const lower = (errorMsg ?? '').toLowerCase();
   if (lower.includes('memory guard') || lower.includes('pre-spawn memory') || lower.includes('memory pressure') || lower.includes('system memory too low') || lower.includes('deferring to prevent')) return 'memory_guard';
+  // ENOTFOUND/getaddrinfo = DNS lookup failure (api.anthropic.com unresolvable, often correlated
+  // with mac sleep → DNS resolver flap). Split from econnrefused so recurring-errors panel surfaces
+  // the actual cause; both are 無法連線-shaped but the fix is different (DNS = wait/check resolver,
+  // refused = check server). 2026-05-05: 23×/day were all ENOTFOUND mislabeled as econnrefused.
+  if (lower.includes('enotfound') || lower.includes('getaddrinfo') || lower.includes('eai_again') || lower.includes('unable to connect to api')) return 'dns_lookup_failed';
   if (lower.includes('econnrefused') || lower.includes('econnreset') || lower.includes('unreachable') || lower.includes('無法連線')) return 'econnrefused';
   if (lower.includes('exit 143') || lower.includes('sigterm')) {
     // Split by reason (source: agent.ts classifyError appends `reason=${exitReason}` when available)
