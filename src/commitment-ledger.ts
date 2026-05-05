@@ -22,7 +22,21 @@ export interface CommitmentEntry {
   falsifier_query?: FalsifierQuery;
   last_checked_cycle?: number;
   check_budget?: 'cheap' | 'delegate';
+  // Phase 2 (cycle 14, 2026-05-05): trust layer fields. See
+  // docs/plans/2026-05-05-commitment-counterparty-ack.md decision table.
+  // Both nullable for backward-compat with 1740 legacy entries.
+  counterparty?: Counterparty;
+  ack_at?: string;
 }
+
+// Phase 2 (cycle 14, 2026-05-05): commitment counterparty discriminated union.
+// 'self' = self-promise (default for legacy). 'agent' = directed at specific peer
+// (alex/akari/claude-code) — ttl-expired without ack ≠ refuted, just abandoned.
+// 'system' = cron/scheduler/KG-decay style automated counterparties.
+export type Counterparty =
+  | { kind: 'self' }
+  | { kind: 'agent'; agent_id: string }
+  | { kind: 'system' };
 
 // Phase 1.5: executable falsifier DSL. Five kinds cover the common cases;
 // `manual` is the escape hatch for predictions that truly need human judgment.
@@ -103,6 +117,13 @@ export function writeCommitment(
     status: 'pending',
     created_at: new Date().toISOString(),
   };
+  // Phase 2: forbidden-combo guard (decision table rows). Throws synchronously.
+  if (full.counterparty?.kind === 'agent' && !full.counterparty.agent_id) {
+    throw new Error(`commitment ${id}: counterparty.kind=agent requires agent_id`);
+  }
+  if (full.ack_at && !full.counterparty) {
+    throw new Error(`commitment ${id}: ack_at requires counterparty (use resolved_at for self-resolution)`);
+  }
   appendLine(full);
   _lastCommitmentCycleId = entry.cycle_id;
   slog('LEDGER', `commitment written ${id} cycle=${entry.cycle_id}`);
