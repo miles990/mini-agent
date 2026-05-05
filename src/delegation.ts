@@ -382,12 +382,15 @@ function buildBrainRequestForDelegation(entry: ActiveEntry, cwd: string, timeout
     entry.task.context,
     entry.task.acceptance ? `Acceptance: ${entry.task.acceptance}` : undefined,
   ].filter(Boolean).join('\n\n');
+  const rawPromptTypes = new Set<DelegationTaskType>(['shell', 'graphify']);
 
   return {
     taskId: entry.result.id,
     source: 'background',
     intent: workItem.intent,
-    prompt: [context, entry.task.prompt].filter(Boolean).join('\n\n'),
+    prompt: rawPromptTypes.has(taskType)
+      ? entry.task.prompt
+      : [context, entry.task.prompt].filter(Boolean).join('\n\n'),
     systemPrompt: 'You are running as a mini-agent delegated brain provider. Return the requested result with concise evidence.',
     cwd,
     timeoutMs,
@@ -806,8 +809,9 @@ function recordRepeatedDelegationFailure(entry: ActiveEntry): ReturnType<typeof 
     }
 
     if (decision.needsDiagnosticTask) {
+      const failureCode = delegationFailureCode(decision.record.signature);
       void createTask(memDir, {
-        title: `Diagnose repeated delegation failure: ${task.prompt.slice(0, 120)}`,
+        title: `Diagnose ${failureCode}: repeated delegation failure: ${task.prompt.slice(0, 100)}`,
         origin: 'kuro',
         status: 'pending',
         assignee: 'kuro',
@@ -833,6 +837,14 @@ function shouldGuardDelegationFailure(output: string): boolean {
   if (normalized.includes('blocked by write lease')) return false;
   if (normalized.includes('blocked by arbiter')) return false;
   return true;
+}
+
+function delegationFailureCode(signature: string): string {
+  let hash = 0;
+  for (let i = 0; i < signature.length; i++) {
+    hash = ((hash << 5) - hash + signature.charCodeAt(i)) | 0;
+  }
+  return `fail-${Math.abs(hash).toString(36).slice(0, 6)}`;
 }
 
 function recordDelegationClaim(entry: ActiveEntry): string | undefined {
