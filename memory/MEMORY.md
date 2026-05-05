@@ -13,7 +13,6 @@ Feedback patterns in `.claude/projects/` memory files.
 - 網站更新後必須 [CHAT]+[SHOW] 通知 TG
 - 學習通知要完整：主題+摘要+來源URL+觀點
 - 主動向外發問參與討論，獨立思考+禮貌+批判性判斷
-- [2026-02-18] L2 自主授權：L2（src/*.ts）自主決定+實作部署，僅 L3 需 Alex 核准
 
 ## Alex 核心原則
 - 七條：大處著眼小處著手 / 找複利 / 邊想邊做 / 黏菌模型 / 反脆弱 / 全方位審視含自己 / 不重複回答舊問題
@@ -56,6 +55,8 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-05-05] cycle 06:33Z ($0.65/$5) #86 instrumentation FIRED — soft-gate enter slog 2 條真 fire (22:32:02 cycle=2 response=2860ch hasMarker=false [OODA chat], 22:32:23 cycle=3 response=17ch hasMarker=false [short]). Falsifier (a) KEPT: response 變數真在 + try block 真進入. 但 KG digest 揭第三層: 0 條 has_decision_marker=true 連 8 條 soft-gate skip 全 false → full-context cycle (真 emit `## Decision` heading) 整段 bypass loop.ts:2678 gate, 因 meta.source 不在 ['loop','foreground'] whitelist. 下 issue: isLedgerLane (dispatcher.ts:10
+- [2026-05-05] [VERIFIED breakthrough confirmed 2026-05-06T06:32Z] cycle ($1.08/$5)。#86 unconditional slog 揭露真因：兩條 `[LEDGER] soft-gate enter:` 22:29:31 + 22:32:02 fire，response=2251/2860ch hasMarker=false — 不是 try block 上游 skip 也不是 response 變數錯，是我 response 從未 emit `## Decision` heading structured block。soft-gate working-as-designed，9-cycle hypothesis tree 真因鎖定在 model behavior 層（我把 falsifier 寫散文不寫 schema）。本 cycle 真寫 Decision block 當 baseline test。Falsifier: 下 cycle commitments.jsonl 出現 ts>06:32Z cp.kind=self en
 - [2026-05-05] [2026-05-06T06:30Z cycle #86 instrumentation FIRED + 第三層真因 emerge] cycle ($1.22/$5)。#86 unconditional soft-gate-enter slog 06:26 binary reload 後第一次真 fire 在 22:29:31 UTC (= 06:29 Taipei = 本 cycle OODA chat 路徑)，`response=2251ch hasMarker=false cycle=1`。**Falsifier (a) KEPT**: response 變數真存在不 falsy。**新真因**: 整 server.log (135MB) 0 entries 含 `has_decision_marker=true`，22:01-22:29 連 8 條 `soft-gate skip ... has_decision_marker=false` 全是非-Decision response（OODA chat / cron heartbeat 等），每 cycle 真 emit `
 - [2026-05-05] 2026-05-06T06:28Z cycle ($1.61/$5)：#86 (soft-gate enter unconditional slog) MERGED 06:25Z + dist rebuilt 06:26 + process pid 81388 restarted 06:26 — 2min uptime 0 cycle 跑完，**THIS response 是 #86 第一個 end-to-end 測試**。falsifier: 下 cycle grep server.log 找 `[LEDGER] soft-gate enter:` ts>22:28Z line。若出現 → 真因鎖定 decision?.chose 分支 (response 變數真在但 extractDecisionBlock 仍 skip)；若 0 出現 → 上游 gate 跳整個 try block (loop.ts:2670-2680 git blame)。#83 Path B 也 merged (f1693afa)，剩 #85 heartbeat cap 唯一未 land emit-path
 - [2026-05-05] [2026-05-06T06:14Z cycle ~$1.55/$5] Ready-to-apply diff posted on mini-agent#85 — `git apply --check` clean, src/memory.ts:3716-3732, 3-line semantic change (HEARTBEAT_ACTIVE_MAX const + section-extract cap + unified fallback). Comment: https://github.com/miles990/mini-agent/issues/85#issuecomment-4383560948. Untracked commitment from cycle 22:14:09Z (「下個 cycle 如果有用，我可以草 #83 或 #85 的 diff」) shipped within 1 cycle — PERFORMATIVE SKEPTICISM <30% warning addressed by execution, not by re-promising.
@@ -224,7 +225,6 @@ value: 2026-04-18 09:13 Taipei. Personal site v0 live at https://miles990.github
 value: After a minimal-context / restart cycle, reasoning-continuity entries ending with "Saved: <slug>" mean the *decision* was saved, not that the code is on disk. Before re-executing any code commitment from reasoning-continuity, run `git log --oneline -5` in the target repo to check if the commit already exists. Today's near-miss: cycle #12 committed `ca881b13 fix(pulse): scope recurring-error query to today only` at 00:44, but the reasoning-continuity 
 - [2026-04-17] 2026-04-18 00:50 Taipei. `memory/rubrics/notify-severity.md` v0 written — T15 in brain-only-kuro-v2 proposal. Four tiers (spammy/routine/actionable/critical) with target volume shares 70/25/4/1%. Critical triggers: cascading failures, chat-promise breach, circuit-breaker trip, budget cliff, security-class error, external unreachable. Downgrade-on-doubt principle. Cross-ref T5 needs-attention (internal attention) vs T15 (external webhook fanout) — events can fire both, neither, either. Next brain
 - [2026-04-16] claude-cli-unknown-diagnosis.md root cause：memory-guard rejection 吞成 UNKNOWN；commit `d68c9bc2` 修復（早期分支匹配 "system memory too low" → TIMEOUT bucket）
-- [2026-04-12] Output verbosity: Operational status → 2-3 sentences max. Completed work → brief summary, NOT full dump. Excerpts ≤5 lines only when directly needed
 - [2026-04-12] Tool routing: search-web.sh（topic research, multi-engine SearXNG）/ curl（static public pages）/ cdp-fetch.mjs（login-required, JS-heavy, interactive）/ Grok API（X/Twitter native search, video understanding）
 - [2026-04-16] kuro: tags（chat/remember/thread/task-queue etc.）只在 main agent loop 處理，foreground CC reply lane 不支援 — 只能用 tool calls 和 plain text
 
