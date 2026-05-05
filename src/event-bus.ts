@@ -28,6 +28,7 @@ export type AgentEventType =
   | 'action:delegation-start'
   | 'action:delegation-complete'
   | 'action:arbitration'
+  | 'action:claim'
   | 'action:agora'
   | 'action:tool'       // Tool registry execution (pre/post)
   | 'action:scheduler'  // Scheduler decision (pick/switch/preempt/discovery)

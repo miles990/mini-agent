@@ -113,6 +113,8 @@ import { initActivityJournal, writeActivity, readRecentActivity } from './activi
 import { killAllDelegations } from './delegation.js';
 import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
+import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
+import type { ClaimStatus } from './provider-claims.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -463,6 +465,25 @@ export async function autoDetectThread(text: string, source: string, msgId?: str
     source,
     ...(msgId ? { roomMsgId: msgId } : {}),
   });
+}
+
+const CLAIM_STATUSES = new Set<ClaimStatus>(['hypothesis', 'verified', 'rejected', 'superseded', 'disputed']);
+
+function isClaimStatus(value: unknown): value is ClaimStatus {
+  return typeof value === 'string' && CLAIM_STATUSES.has(value as ClaimStatus);
+}
+
+function queryList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(queryList);
+  if (typeof value !== 'string') return [];
+  return value.split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.floor(parsed), 500);
 }
 
 export function createApi(port = 3001): express.Express {
@@ -1746,6 +1767,57 @@ export function createApi(port = 3001): express.Express {
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // =============================================================================
+  // Provider Claims — cross-brain provenance ledger
+  // =============================================================================
+
+  app.get('/api/claims', (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const status = queryList(req.query.status).filter(isClaimStatus);
+      const provider = queryList(req.query.provider);
+      const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+      const subject = typeof req.query.subject === 'string' ? req.query.subject : undefined;
+      const limit = parsePositiveInt(req.query.limit, 50);
+      const claims = readProviderClaimsSync(memDir, {
+        ...(provider.length > 0 ? { provider } : {}),
+        ...(status.length > 0 ? { status } : {}),
+        ...(taskId ? { taskId } : {}),
+        ...(subject ? { subject } : {}),
+        limit,
+      });
+      res.json({ claims, total: claims.length });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.patch('/api/claims/:id', (req: Request, res: Response) => {
+    try {
+      const status = req.body?.status;
+      if (!isClaimStatus(status)) {
+        res.status(400).json({ error: 'status must be one of hypothesis, verified, rejected, superseded, disputed' });
+        return;
+      }
+
+      const memDir = path.join(process.cwd(), 'memory');
+      const claim = transitionStoredProviderClaim(memDir, req.params.id, status);
+      if (!claim) {
+        res.status(404).json({ error: 'claim not found' });
+        return;
+      }
+      eventBus.emit('action:claim', {
+        claimId: claim.id,
+        taskId: claim.taskId,
+        provider: claim.provider,
+        status: claim.status,
+      });
+      res.json({ success: true, claim });
+    } catch (err) {
+      res.status(400).json({ error: String(err) });
     }
   });
 

@@ -85,4 +85,38 @@ describe('claim ledger', () => {
 
     expect(getRecentClaimsSummary(tmpDir)).toContain('[hypothesis] akari reported_result delegation:del-3');
   });
+
+  it('queries claims by provider, task, status, and subject', () => {
+    const codex = createProviderClaim({
+      provider: 'codex',
+      taskId: 'del-4',
+      subject: 'delegation:del-4',
+      predicate: 'reported_result',
+      object: 'implemented API',
+    });
+    const claude = createProviderClaim({
+      provider: 'claude',
+      taskId: 'del-5',
+      subject: 'delegation:del-5',
+      predicate: 'reported_result',
+      object: 'reviewed API',
+    });
+
+    appendProviderClaim(tmpDir, codex);
+    appendProviderClaim(tmpDir, claude);
+    transitionStoredProviderClaim(tmpDir, codex.id, 'verified');
+
+    expect(readProviderClaimsSync(tmpDir, { provider: 'codex' })).toEqual([
+      expect.objectContaining({ id: codex.id }),
+    ]);
+    expect(readProviderClaimsSync(tmpDir, { taskId: 'del-5' })).toEqual([
+      expect.objectContaining({ id: claude.id }),
+    ]);
+    expect(readProviderClaimsSync(tmpDir, { status: ['verified'] })).toEqual([
+      expect.objectContaining({ id: codex.id }),
+    ]);
+    expect(readProviderClaimsSync(tmpDir, { subject: 'delegation:del-4' })).toEqual([
+      expect.objectContaining({ id: codex.id }),
+    ]);
+  });
 });
