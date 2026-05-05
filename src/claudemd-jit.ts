@@ -229,10 +229,14 @@ function extractKeywordsAuto(heading: string, content: string): string[] {
 const KG_SERVICE_URL = 'http://localhost:3300';
 const KG_QUERY_TIMEOUT = 800; // ms — must be fast, fire in parallel with JIT
 const KG_CONTEXT_CAP = 2000; // chars — supplementary, not primary
+const KG_CONTEXT_CACHE_TTL = 5 * 60 * 1000; // 5 min — aligns with prompt/KG health TTLs
+const KG_CONTEXT_CACHE_MAX = 100;
 
 let _kgNodeCount = 0;
 let _kgHealthCheckedAt = 0;
 const KG_HEALTH_TTL = 5 * 60 * 1000; // 5 min cache
+const kgContextCache = new Map<string, { value: string; expiresAt: number }>();
+const kgContextInflight = new Map<string, Promise<string>>();
 
 async function getKGNodeCount(): Promise<number> {
   if (Date.now() - _kgHealthCheckedAt < KG_HEALTH_TTL) return _kgNodeCount;
@@ -241,12 +245,16 @@ async function getKGNodeCount(): Promise<number> {
     const timer = setTimeout(() => controller.abort(), 1000);
     const resp = await fetch(`${KG_SERVICE_URL}/api/stats`, { signal: controller.signal });
     clearTimeout(timer);
-    if (!resp.ok) return 0;
+    if (!resp.ok) {
+      _kgHealthCheckedAt = Date.now();
+      return 0;
+    }
     const data = await resp.json() as { nodes?: number; nodes_by_namespace?: Record<string, number> };
     _kgNodeCount = data.nodes_by_namespace?.kuro ?? 0;
     _kgHealthCheckedAt = Date.now();
     return _kgNodeCount;
   } catch {
+    _kgHealthCheckedAt = Date.now();
     return 0;
   }
 }
@@ -466,18 +474,58 @@ export function getClaudeMdJIT(hint?: string): string {
  */
 export async function getKGAugmentedContext(hint: string): Promise<string> {
   if (!hint || !isEnabled('kg-jit-augment')) return '';
-  try {
-    // Refresh KG node count (cached 5min) — drives JIT cap reduction
-    await getKGNodeCount();
-    const kgResult = await queryKGContext(hint);
-    if (kgResult) {
-      const cap = getJITOutputCap();
-      slog('CLAUDEMD-JIT', `KG augment: ${kgResult.length} chars, JIT cap=${cap} (kuro nodes=${_kgNodeCount})`);
+  const cacheKey = normalizeKGHint(hint);
+  if (!cacheKey) return '';
+
+  const cached = kgContextCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const inflight = kgContextInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async (): Promise<string> => {
+    try {
+      // Refresh KG node count and query context concurrently. Node count only
+      // controls future JIT cap/logging, so it should not sit on the query path.
+      const [, queryResult] = await Promise.allSettled([
+        getKGNodeCount(),
+        queryKGContext(cacheKey),
+      ]);
+      const kgResult = queryResult.status === 'fulfilled' ? queryResult.value : '';
+      rememberKGContext(cacheKey, kgResult);
+      if (kgResult) {
+        const cap = getJITOutputCap();
+        slog('CLAUDEMD-JIT', `KG augment: ${kgResult.length} chars, JIT cap=${cap} (kuro nodes=${_kgNodeCount})`);
+      }
+      return kgResult;
+    } catch {
+      rememberKGContext(cacheKey, '');
+      return '';
+    } finally {
+      kgContextInflight.delete(cacheKey);
     }
-    return kgResult;
-  } catch {
-    return '';
-  }
+  })();
+
+  kgContextInflight.set(cacheKey, promise);
+  return promise;
+}
+
+function normalizeKGHint(hint: string): string {
+  return hint.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 200);
+}
+
+function rememberKGContext(cacheKey: string, value: string): void {
+  kgContextCache.set(cacheKey, { value, expiresAt: Date.now() + KG_CONTEXT_CACHE_TTL });
+  if (kgContextCache.size <= KG_CONTEXT_CACHE_MAX) return;
+  const oldest = kgContextCache.keys().next().value;
+  if (oldest) kgContextCache.delete(oldest);
+}
+
+export function __resetClaudeMdJITForTests(): void {
+  _kgNodeCount = 0;
+  _kgHealthCheckedAt = 0;
+  kgContextCache.clear();
+  kgContextInflight.clear();
 }
 
 /** Get stats for observability */
