@@ -31,7 +31,7 @@ import { runDailyPruning } from './context-pruner.js';
 import { mushiTriage, mushiContinuationCheck } from './mushi-client.js';
 import type { TriageContext, ContinuationContext } from './mushi-client.js';
 import { extractCommitments, updateCommitments, hasOverdueCommitments } from './commitments.js';
-import { writeCommitment, expireOverdueCommitments } from './commitment-ledger.js';
+import { writeCommitment, expireOverdueCommitments, ackCommitment } from './commitment-ledger.js';
 import { drainCronQueue } from './cron.js';
 import {
   updateTemporalState, flushTemporalState,
@@ -2947,6 +2947,24 @@ export class AgentLoop {
               recordSuccessPattern(done, action ?? '', [...cycleTagsProcessed], this.currentMode);
             }
           } catch { /* fire-and-forget */ }
+        }
+      }
+
+      // ── Process <kuro:ack id="cl-X" by="alex" /> tags — counterparty ack ──
+      // Closes Phase B trust loop: ackCommitment API existed since e94be917 with zero callers.
+      // Opt-in DSL same shape as falsifier_query (5e17ce66): emit <kuro:ack id="..." /> when
+      // the counterparty has responded to a pending commitment. Sets ack_at on the entry so
+      // the resolveReady classifier stops counting it as abandoned.
+      const _ackMatches = [...response.matchAll(/<kuro:ack(?:\s+[^>]*)?\s*\/?>/g)];
+      for (const _m of _ackMatches) {
+        const _idM = _m[0].match(/\bid="([^"]+)"/);
+        const _byM = _m[0].match(/\bby="([^"]+)"/);
+        if (!_idM) continue;
+        try {
+          const _ok = ackCommitment(_idM[1], _byM?.[1]);
+          slog('LEDGER', `<kuro:ack> id=${_idM[1]} by=${_byM?.[1] ?? 'unspecified'} -> ${_ok ? 'acked' : 'no-op'}`);
+        } catch (_err) {
+          slog('LEDGER', `<kuro:ack> error: ${_err instanceof Error ? _err.message : String(_err)}`);
         }
       }
 
