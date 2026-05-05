@@ -169,6 +169,18 @@ export type {
   MyelinKgSyncedRule,
   MyelinKnowledgeContextOptions,
 } from './myelin-kg-sync.js';
+export {
+  createSelfResearchPlan,
+  formatSelfResearchPlan,
+  saveSelfResearchPlan,
+} from './self-research-loop.js';
+export type {
+  ImprovementDomain,
+  ImprovementIntervention,
+  ImprovementTarget,
+  SelfResearchPlanOptions,
+  SelfResearchRun,
+} from './self-research-loop.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:brain-context": "pnpm build && node scripts/verify-brain-context.mjs",
+    "self-research:plan": "pnpm build && node scripts/self-research-plan.mjs",
     "setup": "pnpm install && pnpm build && npm link"
   },
   "dependencies": {
