@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:brain-context": "pnpm build && node scripts/verify-brain-context.mjs",
     "setup": "pnpm install && pnpm build && npm link"
   },
   "dependencies": {
