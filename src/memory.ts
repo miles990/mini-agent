@@ -3718,16 +3718,21 @@ export class InstanceMemory {
     if (heartbeat) {
       const activeTasksHeader = '## Active Tasks';
       const activeIdx = heartbeat.indexOf(activeTasksHeader);
+      const MAX_HEARTBEAT_ACTIVE = 2000;
       if (activeIdx !== -1) {
         // Find the next ## header after Active Tasks to extract just that section
         const afterActive = heartbeat.indexOf('\n## ', activeIdx + activeTasksHeader.length);
-        const activeTasks = afterActive !== -1
+        let activeTasks = afterActive !== -1
           ? heartbeat.slice(activeIdx, afterActive).trim()
           : heartbeat.slice(activeIdx).trim();
+        // Issue #85: cap section-extract path (was uncapped, ~5KB bloat in minimal cycles).
+        if (activeTasks.length > MAX_HEARTBEAT_ACTIVE) {
+          activeTasks = activeTasks.slice(0, MAX_HEARTBEAT_ACTIVE) + '\n[... truncated; see HEARTBEAT.md for full list ...]';
+        }
         sections.push(`<heartbeat-active>\n# HEARTBEAT (minimal)\n\n${activeTasks}\n</heartbeat-active>`);
       } else {
         // Fallback: truncate to first 2000 chars
-        sections.push(`<heartbeat-active>\n${heartbeat.slice(0, 2000)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
+        sections.push(`<heartbeat-active>\n${heartbeat.slice(0, MAX_HEARTBEAT_ACTIVE)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
       }
     }
 
