@@ -31,6 +31,9 @@ import { WriteLeaseManager, type WriteLease } from './write-lease.js';
 import { appendProviderClaim } from './claim-ledger.js';
 import { createProviderClaim } from './provider-claims.js';
 import { observe as kbObserve } from './shared-knowledge.js';
+import { BrainRuntime, type BrainRuntimeResult } from './brain-runtime.js';
+import { createDefaultMiddlewareProviders } from './middleware-provider.js';
+import type { BrainRequest } from './brain-types.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -293,12 +296,104 @@ export function spawnDelegation(task: DelegationTask): string {
   commitmentStart(taskId, taskType, task.prompt);
 
   // Submit plan + begin polling (fire-and-forget).
-  void dispatchAndPoll(entry, worker, cwd, timeoutMs).catch((err: Error) => {
+  const dispatchPromise = isBrainRuntimeDelegationEnabled()
+    ? dispatchViaBrainRuntime(entry, cwd, timeoutMs)
+    : dispatchAndPoll(entry, worker, cwd, timeoutMs);
+
+  void dispatchPromise.catch((err: Error) => {
     slog('DELEGATION', `dispatch ${taskId} failed: ${err.message}`);
     finalizeTask(entry, { status: 'failed', output: `dispatch error: ${err.message}` });
   });
 
   return taskId;
+}
+
+async function dispatchViaBrainRuntime(
+  entry: ActiveEntry,
+  cwd: string,
+  timeoutMs: number,
+): Promise<void> {
+  const { result, task, arbitration } = entry;
+  const request = buildBrainRequestForDelegation(entry, cwd, timeoutMs);
+  const runtime = new BrainRuntime({
+    providers: createDefaultMiddlewareProviders(),
+    memoryDir: path.join(process.cwd(), 'memory'),
+  });
+
+  const runtimeResult = await runtime.execute({
+    workItem: buildWorkItemForDelegation(result.id, task, result.type ?? task.type ?? 'code'),
+    request,
+    decision: arbitration,
+  });
+
+  finalizeTask(entry, {
+    status: runtimeResult.status === 'success' || runtimeResult.status === 'partial' ? 'completed' : 'failed',
+    output: formatBrainRuntimeOutput(runtimeResult),
+  });
+}
+
+function buildBrainRequestForDelegation(entry: ActiveEntry, cwd: string, timeoutMs: number): BrainRequest {
+  const taskType = entry.result.type ?? entry.task.type ?? 'code';
+  const workItem = buildWorkItemForDelegation(entry.result.id, entry.task, taskType);
+  const context = [
+    formatArbitrationContext(entry.arbitration),
+    entry.task.context,
+    entry.task.acceptance ? `Acceptance: ${entry.task.acceptance}` : undefined,
+  ].filter(Boolean).join('\n\n');
+
+  return {
+    taskId: entry.result.id,
+    source: 'background',
+    intent: workItem.intent,
+    prompt: [context, entry.task.prompt].filter(Boolean).join('\n\n'),
+    systemPrompt: 'You are running as a mini-agent delegated brain provider. Return the requested result with concise evidence.',
+    cwd,
+    timeoutMs,
+    maxTurns: entry.task.maxTurns,
+    tools: toolsForDelegation(taskType),
+    risk: workItem.risk,
+  };
+}
+
+function toolsForDelegation(type: DelegationTaskType): BrainRequest['tools'] {
+  switch (type) {
+    case 'code':
+    case 'create':
+    case 'debug':
+      return ['read', 'write', 'shell'];
+    case 'shell':
+    case 'graphify':
+      return ['shell'];
+    case 'research':
+    case 'learn':
+    case 'browse':
+      return ['read', 'web'];
+    default:
+      return ['read'];
+  }
+}
+
+function formatBrainRuntimeOutput(result: BrainRuntimeResult): string {
+  const lines = [
+    `[brain-runtime] status=${result.status} primary=${result.primary ?? 'none'} claims=${result.claims.length}`,
+  ];
+  for (const run of result.runs) {
+    const label = `[${run.actor}:${run.role}:${run.status}]`;
+    if (run.error) {
+      lines.push(`${label} ${run.error}`);
+      continue;
+    }
+    const output = run.result && 'text' in run.result
+      ? run.result.text
+      : run.result && 'response' in run.result ? run.result.response : '';
+    if (output) lines.push(`${label} ${output}`);
+  }
+  return lines.join('\n');
+}
+
+function isBrainRuntimeDelegationEnabled(): boolean {
+  const value = process.env.MINI_AGENT_DELEGATION_RUNTIME?.toLowerCase();
+  return value === 'true' || value === '1';
 }
 
 async function dispatchAndPoll(

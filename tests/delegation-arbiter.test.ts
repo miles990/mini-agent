@@ -11,6 +11,21 @@ vi.mock('../src/middleware-client.js', () => ({
     plan: vi.fn(() => new Promise(() => {})),
     accomplish: vi.fn(() => new Promise(() => {})),
     cancelPlan: vi.fn().mockResolvedValue(undefined),
+    health: vi.fn().mockResolvedValue({
+      status: 'ok',
+      service: 'agent-middleware',
+      workers: ['coder', 'agent-brain', 'shell'],
+      tasks: 0,
+    }),
+    dispatch: vi.fn().mockResolvedValue({ taskId: 'mw-1', status: 'pending' }),
+    waitFor: vi.fn().mockResolvedValue({
+      id: 'mw-1',
+      worker: 'coder',
+      status: 'completed',
+      result: 'runtime completed',
+      retryCount: 0,
+    }),
+    cancel: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -39,11 +54,13 @@ import {
   buildWorkItemForDelegation,
   getActiveWriteLeases,
   getTaskResult,
+  awaitDelegation,
   killAllDelegations,
   spawnDelegation,
 } from '../src/delegation.js';
 
 beforeEach(() => {
+  delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
   killAllDelegations();
 });
 
@@ -140,5 +157,20 @@ describe('delegation arbitration mapping', () => {
 
     expect(getTaskResult(id)?.status).toBe('failed');
     expect(getTaskResult(id)?.output).toContain('blocked by arbiter');
+  });
+
+  it('can execute delegations through BrainRuntime when enabled', async () => {
+    process.env.MINI_AGENT_DELEGATION_RUNTIME = 'true';
+    const id = spawnDelegation({
+      prompt: 'Review the runtime adapter',
+      workdir: '/repo',
+      type: 'review',
+    });
+
+    const result = await awaitDelegation(id, 1000);
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toContain('[brain-runtime] status=success');
+    expect(result.output).toContain('runtime completed');
   });
 });
