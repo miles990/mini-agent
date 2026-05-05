@@ -129,6 +129,7 @@ describe('BrainRuntime', () => {
     ]);
     expect(readBrainRunEventsSync(tmpDir, { taskId: 'task-1' })).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ event: 'runtime_started', selectionTrace: expect.any(Object) }),
         expect.objectContaining({ event: 'runtime_finished', status: 'partial' }),
         expect.objectContaining({ event: 'actor_finished', actor: 'codex', status: 'skipped' }),
         expect.objectContaining({ event: 'actor_finished', actor: 'claude', status: 'success' }),

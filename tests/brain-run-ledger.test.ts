@@ -33,6 +33,20 @@ describe('brain run ledger', () => {
       rationale: 'review due to arbitration',
       contextSources: ['myelin'],
       contextPreview: ['routing: prefer foreground'],
+      selectionTrace: {
+        selected: [{
+          actor: 'codex',
+          role: 'reviewer',
+          score: 72,
+          reasons: ['+35 best-for:review'],
+        }],
+        considered: [{
+          actor: 'codex',
+          role: 'reviewer',
+          score: 72,
+          reasons: ['+35 best-for:review'],
+        }],
+      },
       createdAt: '2026-05-05T00:00:00.000Z',
     });
 

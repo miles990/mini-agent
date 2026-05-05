@@ -53,6 +53,17 @@ describe('BrainArbiter', () => {
     expect(decision.reviewers).toContain('akari');
     expect(decision.reviewers).not.toContain('tanren');
     expect(decision.kgClaimsRequired).toBe(true);
+    expect(decision.selectionTrace?.selected).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        actor: 'akari',
+        role: 'reviewer',
+        score: expect.any(Number),
+        reasons: expect.arrayContaining([expect.stringContaining('advisor')]),
+      }),
+    ]));
+    expect(decision.selectionTrace?.considered).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actor: 'akari', role: 'advisor', score: expect.any(Number) }),
+    ]));
   });
 
   it('uses consensus when providers already conflict', () => {

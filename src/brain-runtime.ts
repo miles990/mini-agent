@@ -77,6 +77,7 @@ export class BrainRuntime {
         mode: input.decision.mode,
         rationale: input.decision.reason,
         detail: 'human approval required before execution',
+        selectionTrace: input.decision.selectionTrace,
       });
       return this.result(input, null, [{
         actor: 'human',
@@ -99,6 +100,7 @@ export class BrainRuntime {
       mode: input.decision.mode,
       rationale: input.decision.reason,
       detail: `planned actors: ${plan.map(step => `${step.actor}:${step.role}`).join(', ') || 'none'}`,
+      selectionTrace: input.decision.selectionTrace,
     });
 
     for (const step of plan) {

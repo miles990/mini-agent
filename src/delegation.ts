@@ -289,6 +289,7 @@ export function spawnDelegation(task: DelegationTask): string {
     kgClaimsRequired: arbitration.kgClaimsRequired,
     humanApprovalRequired: arbitration.humanApprovalRequired,
     reason: arbitration.reason,
+    selectionTrace: arbitration.selectionTrace,
   });
 
   if (arbitration.humanApprovalRequired) {
@@ -678,6 +679,7 @@ function inferWriteScope(type: DelegationTaskType, task: DelegationTask): string
 
 function formatArbitrationContext(decision: ArbitrationDecision): string {
   const reviewers = decision.reviewers.length > 0 ? decision.reviewers.join(', ') : 'none';
+  const selection = formatSelectionTrace(decision);
   return [
     '<arbitration>',
     `mode: ${decision.mode}`,
@@ -686,8 +688,22 @@ function formatArbitrationContext(decision: ArbitrationDecision): string {
     `write_lease_required: ${decision.writeLeaseRequired ? 'yes' : 'no'}`,
     `kg_claims_required: ${decision.kgClaimsRequired ? 'yes' : 'no'}`,
     `reason: ${decision.reason}`,
+    ...(selection ? [`selection_trace:\n${selection}`] : []),
     '</arbitration>',
   ].join('\n');
+}
+
+function formatSelectionTrace(decision: ArbitrationDecision): string {
+  const selected = decision.selectionTrace?.selected ?? [];
+  if (selected.length === 0) return '';
+  return selected
+    .slice(0, 6)
+    .map(item => {
+      const score = item.score === undefined ? '' : ` score=${item.score}`;
+      const reasons = item.reasons.slice(0, 2).join('; ');
+      return `  - ${item.role}:${item.actor}${score} ${reasons}`.trimEnd();
+    })
+    .join('\n');
 }
 
 function finalizeTask(

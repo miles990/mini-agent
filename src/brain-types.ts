@@ -50,6 +50,22 @@ export interface ArbitrationDecision {
   writeLeaseRequired: boolean;
   kgClaimsRequired: boolean;
   humanApprovalRequired: boolean;
+  selectionTrace?: ActorSelectionTrace;
+}
+
+export interface ActorSelectionTrace {
+  selected: Array<{
+    actor: ActorId;
+    role: 'primary' | 'reviewer' | 'advisor' | 'executor' | 'candidate';
+    score?: number;
+    reasons: string[];
+  }>;
+  considered: Array<{
+    actor: ActorId;
+    role: 'primary' | 'reviewer' | 'advisor' | 'executor';
+    score: number;
+    reasons: string[];
+  }>;
 }
 
 export interface ProviderCapabilities {

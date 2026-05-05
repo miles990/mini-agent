@@ -7,7 +7,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { ActorId, ArbitrationMode } from './brain-types.js';
+import type { ActorId, ActorSelectionTrace, ArbitrationMode } from './brain-types.js';
 import type { BrainActorRun } from './brain-runtime.js';
 
 const BRAIN_RUN_LEDGER_FILE = 'brain-runs.jsonl';
@@ -45,6 +45,7 @@ export interface BrainRunEvent {
   claimIds?: string[];
   contextSources?: string[];
   contextPreview?: string[];
+  selectionTrace?: ActorSelectionTrace;
 }
 
 export interface BrainRunQuery {
@@ -71,6 +72,7 @@ export interface BrainRunState {
   claimIds?: string[];
   contextSources?: string[];
   contextPreview?: string[];
+  selectionTrace?: ActorSelectionTrace;
 }
 
 export function getBrainRunLedgerPath(memoryDir: string): string {
@@ -140,6 +142,7 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
       ...(event.claimIds ? { claimIds: event.claimIds } : {}),
       ...(event.contextSources ? { contextSources: event.contextSources } : {}),
       ...(event.contextPreview ? { contextPreview: event.contextPreview } : {}),
+      ...(event.selectionTrace ? { selectionTrace: event.selectionTrace } : {}),
     });
   }
 
@@ -185,6 +188,7 @@ function parseBrainRunEvent(line: string): BrainRunEvent | null {
       ...(Array.isArray(raw.claimIds) ? { claimIds: raw.claimIds.filter((id): id is string => typeof id === 'string') } : {}),
       ...(Array.isArray(raw.contextSources) ? { contextSources: raw.contextSources.filter((source): source is string => typeof source === 'string') } : {}),
       ...(Array.isArray(raw.contextPreview) ? { contextPreview: raw.contextPreview.filter((line): line is string => typeof line === 'string') } : {}),
+      ...(isSelectionTrace(raw.selectionTrace) ? { selectionTrace: raw.selectionTrace } : {}),
     };
   } catch {
     return null;
@@ -221,4 +225,10 @@ function isRunRole(value: unknown): value is BrainActorRun['role'] {
 function isArbitrationMode(value: unknown): value is ArbitrationMode {
   return typeof value === 'string'
     && ['solo', 'race', 'panel', 'split', 'consensus', 'human'].includes(value);
+}
+
+function isSelectionTrace(value: unknown): value is ActorSelectionTrace {
+  if (!value || typeof value !== 'object') return false;
+  const raw = value as Record<string, unknown>;
+  return Array.isArray(raw.selected) && Array.isArray(raw.considered);
 }

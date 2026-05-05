@@ -5,7 +5,7 @@
  * should think, who may write, and whether peer review is worth the cost.
  */
 
-import type { ActorId, ArbitrationDecision, WorkItem } from './brain-types.js';
+import type { ActorId, ActorSelectionTrace, ArbitrationDecision, WorkItem } from './brain-types.js';
 import {
   deriveConstraintTexture,
   isCheapLocalIntent,
@@ -14,7 +14,7 @@ import {
   peerCritiqueReason,
 } from './constraint-texture.js';
 import { getDefaultDispatchableActors, getPeerCritiqueActors, isDispatchableActor } from './actor-registry.js';
-import { pickActorForRole, pickActorsForRole } from './actor-selection-policy.js';
+import { pickActorForRole, pickActorsForRole, rankActorsForRole, type SelectionRole } from './actor-selection-policy.js';
 
 export interface ArbiterOptions {
   availableActors?: ActorId[];
@@ -45,6 +45,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['primary']),
       });
     }
 
@@ -59,6 +60,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['executor']),
       });
     }
 
@@ -73,6 +75,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['primary']),
       });
     }
 
@@ -91,6 +94,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['advisor']),
       });
     }
 
@@ -106,6 +110,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['primary', 'reviewer']),
       });
     }
 
@@ -121,6 +126,7 @@ export class BrainArbiter {
         writeLeaseRequired: texture.writeLeaseRequired,
         kgClaimsRequired: texture.kgClaimsRequired,
         humanApprovalRequired: texture.humanApprovalRequired,
+        selectionTrace: this.traceForRoles(item, ['primary', 'reviewer']),
       });
     }
 
@@ -134,14 +140,25 @@ export class BrainArbiter {
       writeLeaseRequired: texture.writeLeaseRequired,
       kgClaimsRequired: texture.kgClaimsRequired,
       humanApprovalRequired: texture.humanApprovalRequired,
+      selectionTrace: this.traceForRoles(item, ['primary']),
     });
   }
 
   private decision(decision: ArbitrationDecision): ArbitrationDecision {
+    const candidates = this.filterAvailable(decision.candidates);
+    const reviewers = this.filterAvailable(decision.reviewers);
+    const considered = decision.selectionTrace?.considered ?? [];
     return {
       ...decision,
-      candidates: this.filterAvailable(decision.candidates),
-      reviewers: this.filterAvailable(decision.reviewers),
+      candidates,
+      reviewers,
+      selectionTrace: {
+        ...decision.selectionTrace,
+        selected: decision.selectionTrace?.selected && decision.selectionTrace.selected.length > 0
+          ? decision.selectionTrace.selected
+          : selectedTrace(decision.primary, candidates, reviewers, considered),
+        considered,
+      },
     };
   }
 
@@ -173,9 +190,67 @@ export class BrainArbiter {
     })[0] ?? null;
   }
 
+  private traceForRoles(item: WorkItem, roles: SelectionRole[]): ActorSelectionTrace {
+    return {
+      selected: [],
+      considered: roles.flatMap(role =>
+        rankActorsForRole(item, role, { availableActors: [...this.actors] })
+          .slice(0, 4)
+          .map(score => ({
+            actor: score.actor,
+            role: score.role,
+            score: score.score,
+            reasons: score.reasons.slice(0, 4),
+          })),
+      ),
+    };
+  }
+
   private filterAvailable(actors: ActorId[]): ActorId[] {
     return actors.filter(a => (a === 'human' || a === 'kuro' || this.actors.has(a)) && isDispatchableActor(a));
   }
+}
+
+function selectedTrace(
+  primary: ActorId,
+  candidates: ActorId[],
+  reviewers: ActorId[],
+  considered: ActorSelectionTrace['considered'],
+): ActorSelectionTrace['selected'] {
+  const seen = new Set<string>();
+  const selected: ActorSelectionTrace['selected'] = [];
+  selected.push(enrichSelected(primary, 'primary', considered, ['selected by arbitration mode and scoring policy']));
+  seen.add(`primary:${primary}`);
+  for (const actor of candidates) {
+    const role = actor === primary ? 'primary' : reviewers.includes(actor) ? 'reviewer' : 'candidate';
+    const key = `${role}:${actor}`;
+    if (seen.has(key)) continue;
+    selected.push(enrichSelected(actor, role, considered, ['included in arbitration execution set']));
+    seen.add(key);
+  }
+  for (const actor of reviewers) {
+    const key = `reviewer:${actor}`;
+    if (seen.has(key)) continue;
+    selected.push(enrichSelected(actor, 'reviewer', considered, ['selected as arbitration reviewer']));
+    seen.add(key);
+  }
+  return selected;
+}
+
+function enrichSelected(
+  actor: ActorId,
+  role: ActorSelectionTrace['selected'][number]['role'],
+  considered: ActorSelectionTrace['considered'],
+  fallbackReasons: string[],
+): ActorSelectionTrace['selected'][number] {
+  const match = considered.find(item => item.actor === actor && (item.role === role || role === 'candidate'))
+    ?? considered.find(item => item.actor === actor);
+  return {
+    actor,
+    role,
+    ...(match?.score !== undefined ? { score: match.score } : {}),
+    reasons: match?.reasons.length ? match.reasons : fallbackReasons,
+  };
 }
 
 export function decideArbitration(item: WorkItem, opts?: ArbiterOptions): ArbitrationDecision {
