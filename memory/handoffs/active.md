@@ -38,3 +38,4 @@
 | github | kuro | #75 Scheduler redispatches tasks already marked completed in task-events.jsonl (read-source mismatch) | needs-triage | 05-02 | — |
 | github | kuro | #74 dispatcher.ts:675-677 reads tag content instead of task attribute, breaking <kuro:done> task matching | needs-triage | 05-02 | — |
 | github | kuro | #76 Display: ttl=remaining overflows when cycle_id > currentCycleId (synthetic-injection edge case) | needs-triage | 05-05 | — |
+| github | kuro | #77 callClaude loop lane: silent CLI exit (exit undefined, stdout empty) after 8-20 minutes, 12 events / 5 days | needs-triage | 05-05 | — |
