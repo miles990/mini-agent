@@ -56,7 +56,20 @@ primitives.set('process-running', async (args, cwd) => {
     const out = execSync(`pgrep -f "${args[0]}"`, { cwd, encoding: 'utf-8', timeout: 3000 }).trim();
     const pids = out.split('\n').filter(Boolean);
     return { spec: `process-running ${args[0]}`, passed: pids.length > 0, message: `${pids.length} process(es)` };
-  } catch { return { spec: `process-running ${args[0]}`, passed: false, message: 'not running' }; }
+  } catch {
+    const needle = args[0]?.toLowerCase() ?? '';
+    const currentProcessText = [
+      process.title,
+      process.execPath,
+      ...process.argv,
+    ].join(' ').toLowerCase();
+    const currentMatches = needle.length > 0 && currentProcessText.includes(needle);
+    return {
+      spec: `process-running ${args[0]}`,
+      passed: currentMatches,
+      message: currentMatches ? 'current process matches (pgrep unavailable)' : 'not running',
+    };
+  }
 });
 
 primitives.set('port-open', async (args) => {

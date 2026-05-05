@@ -176,7 +176,7 @@ describe('InstanceMemory', () => {
       expect(context).toContain('Important fact');
       expect(context).toContain('<recent_conversations>');
       expect(context).toContain('Hi there');
-      expect(context).toContain('<heartbeat>');
+      expect(context).toContain('<heartbeat-active>');
       expect(context).toContain('Do something');
     });
 

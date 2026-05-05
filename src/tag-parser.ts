@@ -92,10 +92,12 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
       // Strip orphaned kuro closing tags from content (e.g. </kuro:action> leaked into <kuro:task>)
       const PLAIN_TEXT_TAGS = new Set(['kuro:task', 'kuro:remember', 'kuro:chat', 'kuro:ask', 'kuro:done', 'kuro:inner', 'kuro:impulse', 'kuro:summary', 'kuro:goal', 'kuro:goal-progress', 'kuro:goal-done', 'kuro:goal-abandon', 'kuro:cycle-state']);
       if (PLAIN_TEXT_TAGS.has(name)) {
-        content = content.replace(/<\/?kuro:[^>]*>/g, '');
         // User-visible tags (chat, ask, summary) must not be truncated — they are the message itself.
         // Inner (cross-cycle working memory) can also be long. Cap only structural/metadata tags.
         const NO_CAP_TAGS = new Set(['kuro:chat', 'kuro:ask', 'kuro:summary', 'kuro:inner']);
+        if (!NO_CAP_TAGS.has(name)) {
+          content = content.replace(/<\/?kuro:[^>]*>/g, '');
+        }
         if (!NO_CAP_TAGS.has(name)) {
           const CLOSED_CONTENT_CAP = 500;
           if (content.length > CLOSED_CONTENT_CAP) {
@@ -144,8 +146,11 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
       raw = input.slice(entry.start, contentEnd);
     }
 
-    // Strip nested kuro tags from unclosed tag content — prevents tag leakage
-    content = content.replace(/<\/?kuro:[^>]*>/g, '');
+    // Strip nested kuro tags from structural unclosed content. Preserve chat/inner
+    // literal text such as markdown examples: `<kuro:schedule>`.
+    if (!NO_CAP_TAGS.has(entry.name)) {
+      content = content.replace(/<\/?kuro:[^>]*>/g, '');
+    }
 
     state.tags.push({
       name: entry.name,

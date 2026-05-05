@@ -499,6 +499,13 @@ export function getSystemResources(): SystemResources {
     // df 不可用
   }
 
+  let systemUptime = 0;
+  try {
+    systemUptime = Math.floor(os.uptime());
+  } catch {
+    systemUptime = 0;
+  }
+
   return {
     loadAvg: [
       Math.round(loadAvg[0] * 100) / 100,
@@ -512,7 +519,7 @@ export function getSystemResources(): SystemResources {
       usedPercent: Math.round((usedMem / totalMem) * 100),
     },
     diskGB: disk,
-    systemUptime: Math.floor(os.uptime()),
+    systemUptime,
     platform: `${os.platform()} ${os.arch()} ${os.release()}`,
   };
 }
@@ -866,4 +873,3 @@ export function formatActivitySummary(summary: ActivitySummary): string {
 // =============================================================================
 // #8 Workspace Change Detection (Event Bus integration)
 // =============================================================================
-
