@@ -964,11 +964,11 @@ export function extractDecisionBlock(
     return val.length > 0 ? val : undefined;
   }
 
-  const serving = extractField(/^serving\s*:\s*(.+)$/im);
-  const chose = extractField(/^chose\s*:\s*(.+)$/im);
+  const serving = extractField(/^[-*+]?\s*serving\s*:\s*(.+)$/im);
+  const chose = extractField(/^[-*+]?\s*chose\s*:\s*(.+)$/im);
   // Support both 'falsifier:' and 'falsify:' variants
-  const falsifier = extractField(/^(?:falsifier|falsify)\s*:\s*(.+)$/im);
-  const ttlStr = block.match(/^ttl\s*:\s*(\d+)$/im)?.[1];
+  const falsifier = extractField(/^[-*+]?\s*(?:falsifier|falsify)\s*:\s*(.+)$/im);
+  const ttlStr = block.match(/^[-*+]?\s*ttl\s*:\s*(\d+)$/im)?.[1];
   const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : undefined;
 
   if (!serving && !chose && !falsifier) return null;
