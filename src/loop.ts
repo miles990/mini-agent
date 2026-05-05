@@ -2235,11 +2235,20 @@ export class AgentLoop {
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
       try {
-        const { evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
+        const { closeResolvedCorrectionTasks, evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
         const correction = evaluateCorrectionGate(memDir);
         if (correction.needsCorrection) {
           const correctionTask = await ensureCorrectionTask(memDir, correction);
           slog('CORRECTION', `active reasons=${correction.reasons.map(r => r.type).join(',')} task=${correctionTask?.id.slice(0, 12) ?? 'existing'}`);
+        } else {
+          const closed = await closeResolvedCorrectionTasks(memDir, correction);
+          if (closed.length > 0) {
+            for (const task of closed) {
+              schedulerTaskDone(task.id);
+              completeProcess(task.id);
+            }
+            slog('CORRECTION', `resolved; closed ${closed.length} correction task(s)`);
+          }
         }
       } catch (e) { slog('WARN', `correction gate failed: ${e}`); }
 

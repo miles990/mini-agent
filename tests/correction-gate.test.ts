@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { appendMemoryIndexEntry, invalidateIndexCache, queryMemoryIndexSync } from '../src/memory-index.js';
 import {
+  closeResolvedCorrectionTasks,
   ensureCorrectionTask,
   evaluateCorrectionGate,
   parseGitStatusPorcelainV2,
@@ -86,5 +87,26 @@ describe('correction gate', () => {
 
     expect(snapshot.needsCorrection).toBe(false);
     expect(snapshot.guidance).toEqual([]);
+  });
+
+  it('closes active correction tasks when the gate is clean', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 correction gate: resolve pending-pledge',
+      payload: { origin: 'scheduler', priority: 0 },
+    });
+    invalidateIndexCache();
+
+    const closed = await closeResolvedCorrectionTasks(tmpDir, evaluateCorrectionGate(tmpDir, tmpDir));
+    invalidateIndexCache();
+
+    expect(closed).toHaveLength(1);
+    expect(closed[0].status).toBe('completed');
+    const current = queryMemoryIndexSync(tmpDir, { id: closed[0].id })[0];
+    expect(current.status).toBe('completed');
+    expect(current.payload).toEqual(expect.objectContaining({
+      correction_resolution: 'gate-clean',
+    }));
   });
 });

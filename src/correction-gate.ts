@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { createTask, queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
+import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { getHealthSignals } from './pulse.js';
 
 export type CorrectionReasonType =
@@ -142,6 +142,33 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
       `Ship truth state: ${snapshot.shipTruth.state}.`,
     ].join(' '),
   });
+}
+
+export async function closeResolvedCorrectionTasks(
+  memoryDir: string,
+  snapshot = evaluateCorrectionGate(memoryDir),
+): Promise<MemoryIndexEntry[]> {
+  if (snapshot.needsCorrection) return [];
+
+  const activeCorrectionTasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task'],
+    status: ['pending', 'in_progress', 'needs-decomposition', 'blocked'],
+  }).filter(isCorrectionTask);
+
+  const closed: MemoryIndexEntry[] = [];
+  for (const task of activeCorrectionTasks) {
+    const payload = {
+      ...((task.payload ?? {}) as Record<string, unknown>),
+      correction_resolved_at: new Date().toISOString(),
+      correction_resolution: 'gate-clean',
+    };
+    const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload,
+    });
+    if (updated) closed.push(updated);
+  }
+  return closed;
 }
 
 export function isCorrectionTask(entry: Pick<MemoryIndexEntry, 'summary' | 'payload'>): boolean {

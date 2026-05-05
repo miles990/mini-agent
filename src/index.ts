@@ -206,6 +206,7 @@ export type {
 export { maybeQueueSelfResearch } from './self-research-autopilot.js';
 export type { SelfResearchAutopilotOptions, SelfResearchAutopilotResult } from './self-research-autopilot.js';
 export {
+  closeResolvedCorrectionTasks,
   ensureCorrectionTask,
   evaluateCorrectionGate,
   isCorrectionTask,
