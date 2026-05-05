@@ -87,9 +87,9 @@ function getRecentLogPaths(instanceDir: string, days: number): string[] {
 /** Actions that should be captured from behavior log */
 const ACTION_TYPES = new Set(['action.autonomous', 'action.foreground', 'action.task']);
 
-/** Parse recent behavior logs (last 48h) and extract action records */
+/** Parse recent behavior logs (last 24h) — reduced from 48h to limit echo contamination */
 export function parseActionRecords(instanceDir: string): ActionRecord[] {
-  const logPaths = getRecentLogPaths(instanceDir, 2); // 48h = 2 days
+  const logPaths = getRecentLogPaths(instanceDir, 1); // 24h = 1 day
   if (logPaths.length === 0) return [];
 
   const now = Date.now();

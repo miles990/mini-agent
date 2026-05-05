@@ -717,16 +717,14 @@ export class AgentLoop {
         }
       } catch { /* perception not available */ }
 
-      // Working memory — essential for cross-cycle continuity
-      const innerPath = path.join(memory.getMemoryDir(), 'inner-notes.md');
-      try { const c = fs.readFileSync(innerPath, 'utf-8'); if (c.trim()) context += `\n\n<inner_notes>\n${c.trim().slice(0, 2000)}\n</inner_notes>`; } catch {}
+      // Working memory — loaded once via buildContext() working-memory section, not here (echo dedup)
 
-      // Recent main-loop actions — lets FG lane know what autonomous cycles have been doing
+      // Recent main-loop actions — compressed to prevent echo contamination
       if (this.lastAutonomousActions.length > 0) {
-        const recentActions = this.lastAutonomousActions.slice(-5)
-          .map((a, i) => `${i + 1}. ${a.slice(0, 200)}`)
+        const recentActions = this.lastAutonomousActions.slice(-3)
+          .map((a, i) => `${i + 1}. ${a.slice(0, 80)}`)
           .join('\n');
-        context += `\n\n<recent_autonomous_actions>\n你（main loop）最近做過的事：\n${recentActions}\n</recent_autonomous_actions>`;
+        context += `\n\n<recent_autonomous_actions>\n${recentActions}\n</recent_autonomous_actions>`;
       }
 
       // Enforce total context budget — hard cap prevents downstream timeout cascade.
@@ -1265,6 +1263,13 @@ export class AgentLoop {
     }, STARTUP_DELAY);
 
     this.scheduleHeartbeat();
+
+    // P2 Decay: clear inner-notes on startup (scratchpad, not persistent memory)
+    try {
+      const innerPath = path.join(getMemory().getMemoryDir(), 'inner-notes.md');
+      fs.writeFileSync(innerPath, '', 'utf-8');
+    } catch { /* non-critical */ }
+
     eventBus.emit('action:loop', { event: 'start', detail: `Started (event-driven, first cycle in ${STARTUP_DELAY / 1000}s, dynamic interval: ${this.currentInterval / 1000}s)` });
   }
 

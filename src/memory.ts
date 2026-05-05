@@ -2488,9 +2488,9 @@ export class InstanceMemory {
       'situation-report':     { cap: 6000, tier: SECTION_TIERS['situation-report']     ?? DEFAULT_SECTION_TIER },
       'background-completed': { cap: 4000, tier: SECTION_TIERS['background-completed'] ?? DEFAULT_SECTION_TIER },
       'capabilities':         { cap: 3000, tier: SECTION_TIERS['capabilities']         ?? DEFAULT_SECTION_TIER },
-      'activity':             { cap: 3000, tier: SECTION_TIERS['activity']             ?? DEFAULT_SECTION_TIER },
-      'recent-activity':      { cap: 3000, tier: SECTION_TIERS['recent-activity']      ?? DEFAULT_SECTION_TIER },
-      'action-memory':        { cap: 3000, tier: SECTION_TIERS['action-memory']        ?? DEFAULT_SECTION_TIER },
+      'activity':             { cap: 1500, tier: SECTION_TIERS['activity']             ?? DEFAULT_SECTION_TIER },
+      'recent-activity':      { cap: 1500, tier: SECTION_TIERS['recent-activity']      ?? DEFAULT_SECTION_TIER },
+      'action-memory':        { cap: 1000, tier: SECTION_TIERS['action-memory']        ?? DEFAULT_SECTION_TIER },
       'memory-index':         { cap: 2000, tier: DEFAULT_SECTION_TIER },
       'trail':                { cap: 2000, tier: SECTION_TIERS['trail']                ?? DEFAULT_SECTION_TIER },
       'achievements':         { cap: 2000, tier: SECTION_TIERS['achievements']         ?? DEFAULT_SECTION_TIER },
@@ -2501,8 +2501,8 @@ export class InstanceMemory {
       'past-success':         { cap: 1500, tier: SECTION_TIERS['past-success']         ?? DEFAULT_SECTION_TIER },
       'pulse':                { cap: 1500, tier: SECTION_TIERS['pulse']                ?? DEFAULT_SECTION_TIER },
       'route-efficiency':     { cap: 1500, tier: SECTION_TIERS['route-efficiency']     ?? DEFAULT_SECTION_TIER },
-      'working-memory':       { cap: 3000, tier: SECTION_TIERS['working-memory']       ?? DEFAULT_SECTION_TIER },
-      'inner-voice':          { cap: 2000, tier: SECTION_TIERS['inner-voice']          ?? DEFAULT_SECTION_TIER },
+      'working-memory':       { cap: 500, tier: SECTION_TIERS['working-memory']       ?? DEFAULT_SECTION_TIER },
+      'inner-voice':          { cap: 1000, tier: SECTION_TIERS['inner-voice']          ?? DEFAULT_SECTION_TIER },
       'tactics-board':        { cap: 3000, tier: SECTION_TIERS['tactics-board']        ?? DEFAULT_SECTION_TIER },
       'recent_conversations': { cap: 4000, tier: SECTION_TIERS['recent_conversations'] ?? DEFAULT_SECTION_TIER },
     };
@@ -3061,20 +3061,15 @@ export class InstanceMemory {
     }
 
     // ── Working Memory（跨 cycle 工作記憶，<kuro:inner> 寫入）──
+    // Echo dedup: only load first 500 chars (actionable items only, no narrative)
     const innerNotesPath = path.join(this.memoryDir, 'inner-notes.md');
     try {
       if (existsSync(innerNotesPath)) {
         let innerContent = readFileSync(innerNotesPath, 'utf-8').trim();
         if (innerContent) {
-          // Detect stale working memory — facts decay, re-verify before trusting
-          const writtenMatch = innerContent.match(/^<!-- written: (\S+) -->/);
-          if (writtenMatch) {
-            innerContent = innerContent.replace(/^<!-- written: \S+ -->\n?/, '');
-            const ageMin = Math.round((Date.now() - new Date(writtenMatch[1]).getTime()) / 60_000);
-            if (ageMin > 10) {
-              innerContent = `[⚠️ ${ageMin}min old — facts may be outdated, re-verify before acting]\n${innerContent}`;
-            }
-          }
+          innerContent = innerContent.replace(/^<!-- written: \S+ -->\n?/, '');
+          // Hard cap: working memory must be terse (max 500 chars = ~3-5 actionable lines)
+          if (innerContent.length > 500) innerContent = innerContent.slice(0, 500) + '…';
           pushCapped('working-memory', innerContent);
         }
       }
