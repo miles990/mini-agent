@@ -126,6 +126,7 @@ import {
   readDelegationFailureRecordsSync,
   transitionDelegationFailureStatus,
 } from './delegation-failure-guard.js';
+import { diagnoseDelegationFailure, diagnosePendingDelegationFailures } from './delegation-failure-diagnostics.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -1907,6 +1908,32 @@ export function createApi(port = 3001): express.Express {
         frequency: failure.frequency,
       });
       res.json({ success: true, failure });
+    } catch (err) {
+      res.status(400).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/delegation-failures/:signature/diagnose', async (req: Request, res: Response) => {
+    try {
+      const memDir = path.join(process.cwd(), 'memory');
+      const diagnosis = await diagnoseDelegationFailure(memDir, decodeURIComponent(req.params.signature));
+      if (!diagnosis) {
+        res.status(404).json({ error: 'delegation failure not found' });
+        return;
+      }
+      res.json({ success: true, diagnosis });
+    } catch (err) {
+      res.status(400).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/delegation-failures/diagnose-pending', async (req: Request, res: Response) => {
+    try {
+      const limitRaw = typeof req.body?.limit === 'number' ? req.body.limit : 5;
+      const limit = Math.max(1, Math.min(25, Math.floor(limitRaw)));
+      const memDir = path.join(process.cwd(), 'memory');
+      const diagnoses = await diagnosePendingDelegationFailures(memDir, limit);
+      res.json({ success: true, diagnoses, total: diagnoses.length });
     } catch (err) {
       res.status(400).json({ error: String(err) });
     }

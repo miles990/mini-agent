@@ -37,9 +37,11 @@ import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import type { BrainRequest } from './brain-types.js';
 import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 import {
+  getDelegationFailureCode,
   markDelegationFailureDiagnosticCreated,
   recordDelegationFailure,
 } from './delegation-failure-guard.js';
+import { diagnoseDelegationFailure } from './delegation-failure-diagnostics.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -809,7 +811,7 @@ function recordRepeatedDelegationFailure(entry: ActiveEntry): ReturnType<typeof 
     }
 
     if (decision.needsDiagnosticTask) {
-      const failureCode = delegationFailureCode(decision.record.signature);
+      const failureCode = getDelegationFailureCode(decision.record.signature);
       void createTask(memDir, {
         title: `Diagnose ${failureCode}: repeated delegation failure: ${task.prompt.slice(0, 100)}`,
         origin: 'kuro',
@@ -819,6 +821,7 @@ function recordRepeatedDelegationFailure(entry: ActiveEntry): ReturnType<typeof 
         markDelegationFailureDiagnosticCreated(memDir, decision.record.signature, created.id);
         decision.record.diagnosticTaskId = created.id;
         eventBus.emit('action:task', { content: created.summary ?? created.id, entry: created });
+        return diagnoseDelegationFailure(memDir, decision.record.signature);
       }).catch(err => {
         slog('DELEGATION', `failed to create diagnostic task for ${result.id}: ${err instanceof Error ? err.message : String(err)}`);
       });
@@ -837,14 +840,6 @@ function shouldGuardDelegationFailure(output: string): boolean {
   if (normalized.includes('blocked by write lease')) return false;
   if (normalized.includes('blocked by arbiter')) return false;
   return true;
-}
-
-function delegationFailureCode(signature: string): string {
-  let hash = 0;
-  for (let i = 0; i < signature.length; i++) {
-    hash = ((hash << 5) - hash + signature.charCodeAt(i)) | 0;
-  }
-  return `fail-${Math.abs(hash).toString(36).slice(0, 6)}`;
 }
 
 function recordDelegationClaim(entry: ActiveEntry): string | undefined {

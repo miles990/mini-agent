@@ -39,6 +39,14 @@ export function getDelegationFailureGuardPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', FAILURE_GUARD_FILE);
 }
 
+export function getDelegationFailureCode(signature: string): string {
+  let hash = 0;
+  for (let i = 0; i < signature.length; i++) {
+    hash = ((hash << 5) - hash + signature.charCodeAt(i)) | 0;
+  }
+  return `fail-${Math.abs(hash).toString(36).slice(0, 6)}`;
+}
+
 export function recordDelegationFailure(
   memoryDir: string,
   input: {
