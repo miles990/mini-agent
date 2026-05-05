@@ -226,6 +226,13 @@ describe('BrainRuntime', () => {
 
     expect(run.mock.calls[0]?.[0].systemPrompt).toContain('<myelin-decision-patterns>');
     expect(run.mock.calls[0]?.[0].systemPrompt).toContain('routing: prefer "foreground"');
+    expect(readBrainRunEventsSync(tmpDir, { event: 'context_injected' })).toEqual([
+      expect.objectContaining({
+        actor: 'codex',
+        contextSources: ['myelin'],
+        contextPreview: [expect.stringContaining('routing: prefer "foreground"')],
+      }),
+    ]);
   });
 
   it('skips execution when human approval is required', async () => {

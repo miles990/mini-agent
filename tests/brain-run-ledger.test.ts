@@ -31,6 +31,8 @@ describe('brain run ledger', () => {
       mode: 'panel',
       primary: 'kuro',
       rationale: 'review due to arbitration',
+      contextSources: ['myelin'],
+      contextPreview: ['routing: prefer foreground'],
       createdAt: '2026-05-05T00:00:00.000Z',
     });
 

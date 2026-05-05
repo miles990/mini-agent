@@ -3422,7 +3422,10 @@ function renderBrainRuntime(states) {
       s.mode ? s.mode : '',
       s.taskId ? s.taskId : '',
     ].filter(Boolean).join(' · ');
-    const detail = s.detail || s.rationale || s.lastEvent || '';
+    const contextPreview = Array.isArray(s.contextPreview) && s.contextPreview.length
+      ? ' · ' + s.contextPreview.slice(0, 2).join(' · ')
+      : '';
+    const detail = (s.detail || s.rationale || s.lastEvent || '') + contextPreview;
     return '<div class="brain-card ' + escapeHtml(status) + '">'
       + '<div class="brain-row">'
       + '<span class="brain-name">' + escapeHtml(s.actor) + '</span>'

@@ -221,13 +221,13 @@ export class BrainRuntime {
       }
 
       if (adapter.kind === 'provider') {
-        const result = await adapter.provider.run(this.requestForActor(input.request, role, actor));
+        const result = await adapter.provider.run(this.requestForActor(input, role, actor));
         const run: BrainActorRun = { actor, role, status: result.finishReason === 'success' ? 'success' : 'failed', health, result, claimIds: [] };
         this.observeRun(input, run, startedAt, summarizeRunResult(run));
         return run;
       }
 
-      const peerRequest = this.requestForActor(input.request, role, actor);
+      const peerRequest = this.requestForActor(input, role, actor);
       const result = await adapter.peer.consult({
         task: input.workItem,
         brief: peerRequest.prompt,
@@ -294,11 +294,25 @@ export class BrainRuntime {
     };
   }
 
-  private requestForActor(request: BrainRequest, role: BrainActorRun['role'], actor: ActorId): BrainRequest {
+  private requestForActor(input: BrainExecutionInput, role: BrainActorRun['role'], actor: ActorId): BrainRequest {
+    const request = input.request;
     const roleRequest = this.requestForRole(request, role, actor);
     if (!this.memoryDir) return roleRequest;
     const myelinContext = getMyelinKnowledgeContext(this.memoryDir, { limit: 6, minHitCount: 1 });
     if (!myelinContext || roleRequest.systemPrompt.includes('<myelin-decision-patterns>')) return roleRequest;
+    const preview = contextPreview(myelinContext, 3);
+    this.observe(input, {
+      event: 'context_injected',
+      status: 'running',
+      actor,
+      role,
+      primary: input.decision.primary,
+      mode: input.decision.mode,
+      rationale: 'shared myelin decision patterns were injected into actor context',
+      detail: `myelin patterns injected: ${preview.length}`,
+      contextSources: ['myelin'],
+      contextPreview: preview,
+    });
     return {
       ...roleRequest,
       systemPrompt: `${roleRequest.systemPrompt}\n\n${myelinContext}`,
@@ -432,6 +446,15 @@ function roleRationale(reason: string, role: BrainActorRun['role']): string {
   if (role === 'reviewer') return `review due to arbitration: ${reason}`;
   if (role === 'candidate') return `compete or complement due to arbitration: ${reason}`;
   return reason;
+}
+
+function contextPreview(context: string, limit: number): string[] {
+  return context
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('- '))
+    .slice(0, limit)
+    .map(line => line.slice(2, 240));
 }
 
 function summarizeRunResult(run: BrainActorRun): string {

@@ -486,6 +486,7 @@ const BRAIN_RUN_EVENTS = new Set<BrainRunEventKind>([
   'runtime_started',
   'actor_queued',
   'actor_started',
+  'context_injected',
   'actor_finished',
   'claim_written',
   'runtime_finished',

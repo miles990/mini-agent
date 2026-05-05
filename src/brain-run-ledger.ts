@@ -16,6 +16,7 @@ export type BrainRunEventKind =
   | 'runtime_started'
   | 'actor_queued'
   | 'actor_started'
+  | 'context_injected'
   | 'actor_finished'
   | 'claim_written'
   | 'runtime_finished';
@@ -42,6 +43,8 @@ export interface BrainRunEvent {
   detail?: string;
   durationMs?: number;
   claimIds?: string[];
+  contextSources?: string[];
+  contextPreview?: string[];
 }
 
 export interface BrainRunQuery {
@@ -66,6 +69,8 @@ export interface BrainRunState {
   detail?: string;
   durationMs?: number;
   claimIds?: string[];
+  contextSources?: string[];
+  contextPreview?: string[];
 }
 
 export function getBrainRunLedgerPath(memoryDir: string): string {
@@ -133,6 +138,8 @@ export function readBrainRunStatesSync(memoryDir: string, query: BrainRunQuery =
       ...(event.detail ? { detail: event.detail } : {}),
       ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
       ...(event.claimIds ? { claimIds: event.claimIds } : {}),
+      ...(event.contextSources ? { contextSources: event.contextSources } : {}),
+      ...(event.contextPreview ? { contextPreview: event.contextPreview } : {}),
     });
   }
 
@@ -176,6 +183,8 @@ function parseBrainRunEvent(line: string): BrainRunEvent | null {
       ...(typeof raw.detail === 'string' ? { detail: raw.detail } : {}),
       ...(typeof raw.durationMs === 'number' ? { durationMs: raw.durationMs } : {}),
       ...(Array.isArray(raw.claimIds) ? { claimIds: raw.claimIds.filter((id): id is string => typeof id === 'string') } : {}),
+      ...(Array.isArray(raw.contextSources) ? { contextSources: raw.contextSources.filter((source): source is string => typeof source === 'string') } : {}),
+      ...(Array.isArray(raw.contextPreview) ? { contextPreview: raw.contextPreview.filter((line): line is string => typeof line === 'string') } : {}),
     };
   } catch {
     return null;
@@ -192,7 +201,7 @@ function asList<T>(value: T | T[] | undefined): T[] {
 }
 
 function isBrainRunEventKind(value: string): value is BrainRunEventKind {
-  return ['runtime_started', 'actor_queued', 'actor_started', 'actor_finished', 'claim_written', 'runtime_finished'].includes(value);
+  return ['runtime_started', 'actor_queued', 'actor_started', 'context_injected', 'actor_finished', 'claim_written', 'runtime_finished'].includes(value);
 }
 
 function isBrainRunStatus(value: string): value is BrainRunStatus {
