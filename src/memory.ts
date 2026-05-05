@@ -3389,31 +3389,26 @@ export class InstanceMemory {
       if (strategyParts.length > 0) pushCapped('heartbeat-strategy', strategyParts.join('\n\n'));
     }
 
-    // ── KG Context Augmentation (shared knowledge graph) ──
+    // ── KG context bundle ──
+    // These all talk to the same external KG service. Run them concurrently and
+    // preserve insertion order so context semantics stay unchanged.
     if (!isLight && !budgetExhausted()) {
-      const kgCtx = await getKGAugmentedContext(contextHint || hint);
-      if (kgCtx) {
-        pushCapped('kg-context', kgCtx);
-      }
+      const [kgCtxResult, continuityResult, kgDiscResult] = await Promise.allSettled([
+        getKGAugmentedContext(contextHint || hint),
+        buildContinuityContext(),
+        import('./kg-discussions.js').then(({ buildKGDiscussionsContext }) => buildKGDiscussionsContext()),
+      ]);
+
+      const kgCtx = kgCtxResult.status === 'fulfilled' ? kgCtxResult.value : '';
+      if (kgCtx && !budgetExhausted()) pushCapped('kg-context', kgCtx);
       bcMark('kgContext');
-    }
 
-    // ── Cross-cycle Continuity (KG cycle-state tracking) ──
-    if (!isLight && !budgetExhausted()) {
-      const continuityCtx = await buildContinuityContext();
-      if (continuityCtx) {
-        pushCapped('continuity', continuityCtx);
-      }
+      const continuityCtx = continuityResult.status === 'fulfilled' ? continuityResult.value : '';
+      if (continuityCtx && !budgetExhausted()) pushCapped('continuity', continuityCtx);
       bcMark('continuity');
-    }
 
-    // ── KG Discussions (active discussions where Kuro is participant) ──
-    if (!isLight && !budgetExhausted()) {
-      const { buildKGDiscussionsContext } = await import('./kg-discussions.js');
-      const kgDiscCtx = await buildKGDiscussionsContext();
-      if (kgDiscCtx) {
-        pushCapped('kg-discussions', kgDiscCtx);
-      }
+      const kgDiscCtx = kgDiscResult.status === 'fulfilled' ? kgDiscResult.value : '';
+      if (kgDiscCtx && !budgetExhausted()) pushCapped('kg-discussions', kgDiscCtx);
       bcMark('kgDiscussions');
     }
 
