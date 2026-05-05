@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -182,6 +182,52 @@ describe('BrainRuntime', () => {
     expect(reviewerRun.mock.calls[0]?.[0].prompt).toContain('Review the proposed work');
   });
 
+  it('injects synced myelin decision patterns into provider context', async () => {
+    writeJson('myelin-routing-rules.json', [
+      { id: 'rule-route', action: 'foreground', hitCount: 120, reason: 'low-risk replies stay foreground' },
+    ]);
+    writeLines('myelin-routing-decisions.jsonl', [
+      { _type: 'decision', ts: '2026-05-05T00:00:00.000Z', method: 'rule', action: 'foreground' },
+    ]);
+    writeJson('state/myelin-kg-sync.json', {
+      rules: {
+        'routing:rule-route:foreground': {
+          hitCount: 120,
+          syncedAt: '2026-05-05T00:00:00.000Z',
+        },
+      },
+    });
+    const run = vi.fn(async (req: BrainRequest): Promise<BrainResult> => ({
+      provider: 'codex',
+      text: req.systemPrompt,
+      toolCalls: [],
+      durationMs: 5,
+      finishReason: 'success',
+    }));
+    const item = work({ risk: 'read_only', writeScope: undefined });
+
+    await new BrainRuntime({
+      providers: [provider('codex', { run })],
+      memoryDir: tmpDir,
+    }).execute({
+      workItem: item,
+      request: request({ risk: 'read_only', tools: ['read'] }),
+      decision: {
+        mode: 'solo',
+        primary: 'codex',
+        candidates: [],
+        reviewers: [],
+        reason: 'test direct provider context',
+        writeLeaseRequired: false,
+        kgClaimsRequired: true,
+        humanApprovalRequired: false,
+      },
+    });
+
+    expect(run.mock.calls[0]?.[0].systemPrompt).toContain('<myelin-decision-patterns>');
+    expect(run.mock.calls[0]?.[0].systemPrompt).toContain('routing: prefer "foreground"');
+  });
+
   it('skips execution when human approval is required', async () => {
     const item = work({ risk: 'deploy' });
     const result = await new BrainRuntime({
@@ -196,3 +242,15 @@ describe('BrainRuntime', () => {
     expect(readProviderClaimsSync(tmpDir)).toEqual([]);
   });
 });
+
+function writeJson(file: string, value: unknown): void {
+  const filePath = path.join(tmpDir, file);
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf-8');
+}
+
+function writeLines(file: string, records: unknown[]): void {
+  const filePath = path.join(tmpDir, file);
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, records.map(record => JSON.stringify(record)).join('\n') + '\n', 'utf-8');
+}

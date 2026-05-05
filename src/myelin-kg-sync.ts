@@ -34,6 +34,11 @@ export interface MyelinKgSyncResult {
   synced: MyelinKgSyncedRule[];
 }
 
+export interface MyelinKnowledgeContextOptions {
+  limit?: number;
+  minHitCount?: number;
+}
+
 interface SyncState {
   rules: Record<string, { hitCount: number; syncedAt: string }>;
 }
@@ -101,6 +106,49 @@ export function syncMyelinToKnowledge(
     slog('MYELIN-KG', `synced ${synced.length} rule patterns to shared knowledge/KG`);
   }
   return { observed: synced.length, skipped, domains: status.domains.length, synced };
+}
+
+export function getMyelinKnowledgeContext(
+  memoryDir: string,
+  opts: MyelinKnowledgeContextOptions = {},
+): string | null {
+  const state = readSyncState(memoryDir);
+  const keys = new Set(Object.keys(state.rules));
+  if (keys.size === 0) return null;
+
+  const status = getMyelinStatus(memoryDir, 500);
+  const limit = Math.max(1, Math.min(12, Math.floor(opts.limit ?? 6)));
+  const minHitCount = Math.max(0, Math.floor(opts.minHitCount ?? DEFAULT_MIN_HIT_COUNT));
+  const patterns: Array<{ domain: string; action: string; hitCount: number; reason: string; syncedAt: string }> = [];
+
+  for (const domain of status.domains) {
+    if (domain.health !== 'effective') continue;
+    for (const rule of domain.topRules) {
+      const key = `${domain.name}:${rule.id || rule.action}:${rule.action}`;
+      const synced = state.rules[key];
+      if (!synced || rule.hitCount < minHitCount) continue;
+      patterns.push({
+        domain: domain.name,
+        action: rule.action,
+        hitCount: rule.hitCount,
+        reason: rule.reason,
+        syncedAt: synced.syncedAt,
+      });
+    }
+  }
+
+  if (patterns.length === 0) return null;
+  patterns.sort((a, b) => b.hitCount - a.hitCount || b.syncedAt.localeCompare(a.syncedAt));
+
+  const lines = patterns.slice(0, limit).map(pattern =>
+    `- ${pattern.domain}: prefer "${pattern.action}" (${pattern.hitCount} hits). ${pattern.reason || 'No reason recorded.'}`,
+  );
+  return [
+    '<myelin-decision-patterns>',
+    'Use these learned local decision patterns as soft guidance; do not override the explicit task or safety constraints.',
+    ...lines,
+    '</myelin-decision-patterns>',
+  ].join('\n');
 }
 
 function formatRuleMemory(domain: MyelinDomainStatus, rule: MyelinRuleSummary): string {

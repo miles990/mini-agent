@@ -23,6 +23,7 @@ import type { PeerAgent, PeerConsultResult } from './peer-agent.js';
 import { createProviderClaim, type ProviderClaim } from './provider-claims.js';
 import { coordinateAsKuro, type KuroCoordinationResult } from './internal-kuro-coordinator.js';
 import { eventBus } from './event-bus.js';
+import { getMyelinKnowledgeContext } from './myelin-kg-sync.js';
 
 export interface BrainRuntimeOptions {
   providers?: BrainProvider[];
@@ -220,17 +221,18 @@ export class BrainRuntime {
       }
 
       if (adapter.kind === 'provider') {
-        const result = await adapter.provider.run(this.requestForRole(input.request, role, actor));
+        const result = await adapter.provider.run(this.requestForActor(input.request, role, actor));
         const run: BrainActorRun = { actor, role, status: result.finishReason === 'success' ? 'success' : 'failed', health, result, claimIds: [] };
         this.observeRun(input, run, startedAt, summarizeRunResult(run));
         return run;
       }
 
+      const peerRequest = this.requestForActor(input.request, role, actor);
       const result = await adapter.peer.consult({
         task: input.workItem,
-        brief: input.request.prompt,
+        brief: peerRequest.prompt,
         requestedRole: role === 'reviewer' ? 'reviewer' : 'critic',
-        contextPacket: input.request.systemPrompt,
+        contextPacket: peerRequest.systemPrompt,
       });
       const run: BrainActorRun = { actor, role, status: 'success', health, result, claimIds: [] };
       this.observeRun(input, run, startedAt, summarizeRunResult(run));
@@ -289,6 +291,17 @@ export class BrainRuntime {
       prompt: `Review the proposed work for task ${request.taskId} as ${actor}.\n\n${request.prompt}`,
       risk: 'read_only',
       tools: request.tools?.filter(tool => tool !== 'write' && tool !== 'shell'),
+    };
+  }
+
+  private requestForActor(request: BrainRequest, role: BrainActorRun['role'], actor: ActorId): BrainRequest {
+    const roleRequest = this.requestForRole(request, role, actor);
+    if (!this.memoryDir) return roleRequest;
+    const myelinContext = getMyelinKnowledgeContext(this.memoryDir, { limit: 6, minHitCount: 1 });
+    if (!myelinContext || roleRequest.systemPrompt.includes('<myelin-decision-patterns>')) return roleRequest;
+    return {
+      ...roleRequest,
+      systemPrompt: `${roleRequest.systemPrompt}\n\n${myelinContext}`,
     };
   }
 

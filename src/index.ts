@@ -146,8 +146,13 @@ export type {
   MyelinRuleSummary,
   MyelinStatusSnapshot,
 } from './myelin-status.js';
-export { syncMyelinToKnowledge } from './myelin-kg-sync.js';
-export type { MyelinKgSyncOptions, MyelinKgSyncResult, MyelinKgSyncedRule } from './myelin-kg-sync.js';
+export { getMyelinKnowledgeContext, syncMyelinToKnowledge } from './myelin-kg-sync.js';
+export type {
+  MyelinKgSyncOptions,
+  MyelinKgSyncResult,
+  MyelinKgSyncedRule,
+  MyelinKnowledgeContextOptions,
+} from './myelin-kg-sync.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
