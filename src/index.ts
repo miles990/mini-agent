@@ -115,6 +115,8 @@ export {
   peerCritiqueReason,
 } from './constraint-texture.js';
 export type { ConstraintKind, ConstraintTexture, ConstraintTextureOptions, WorkConstraint } from './constraint-texture.js';
+export { BrainRuntime } from './brain-runtime.js';
+export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
 
 // Config
 export {
