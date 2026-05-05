@@ -2676,6 +2676,7 @@ export class AgentLoop {
       // Soft falsifier gate — reuse shared extractDecisionBlock (fire-and-forget)
       try {
         const decision = extractDecisionBlock(response);
+        slog('LEDGER', `soft-gate enter: response=${response?.length ?? 0}ch hasMarker=${response ? /^##\s*Decision/m.test(response) : false} cycle=${this.cycleCount}`);
         if (decision?.chose) {
           writeCommitment({
             cycle_id: this.cycleCount,
