@@ -132,7 +132,7 @@ function parseEntry(entryXml) {
 async function fetchCategory(catList) {
   // Combined query — single request hits all cats at once (more efficient + arXiv-friendly)
   const searchQuery = catList.map(c => `cat:${c}`).join('+OR+');
-  const url = `http://export.arxiv.org/api/query?search_query=${searchQuery}&sortBy=${sortBy}&sortOrder=descending&max_results=${max}`;
+  const url = `https://export.arxiv.org/api/query?search_query=${searchQuery}&sortBy=${sortBy}&sortOrder=descending&max_results=${max}`;
   console.error(`[arxiv-ai-trend] fetch ${url}`);
   const xml = await fetchText(url);
   const entries = parseEntries(xml);
