@@ -673,7 +673,7 @@ export function parseTags(response: string): ParsedTags {
 
   const dones: string[] = [];
   for (const t of byName('kuro:done')) {
-    dones.push(t.content.trim());
+    dones.push((t.attributes?.task?.trim()) || t.content.trim());
   }
 
   const progresses: Array<{ task: string; content: string }> = [];
