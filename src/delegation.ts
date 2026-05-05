@@ -80,6 +80,23 @@ export interface TaskResult {
   confidence?: number;
   verifyResults?: VerifyResult[];
   forge?: ForgeOutcome;
+  runtime?: DelegationRuntimeTrace;
+}
+
+export interface DelegationRuntimeTrace {
+  engine: 'brain-runtime';
+  mode: ArbitrationDecision['mode'];
+  status: BrainRuntimeResult['status'];
+  primary: string | null;
+  runs: Array<{
+    actor: string;
+    role: string;
+    status: string;
+    finishReason?: string;
+    claimIds: string[];
+    error?: string;
+  }>;
+  claimIds: string[];
 }
 
 // Re-exports for backward compatibility (callers can import from forge.ts directly)
@@ -191,6 +208,7 @@ interface ActiveEntry {
   forgeWorktree?: string;
   arbitration: ArbitrationDecision;
   writeLease?: WriteLease;
+  runtime?: DelegationRuntimeTrace;
 }
 
 const activeTasks = new Map<string, ActiveEntry>();
@@ -325,6 +343,17 @@ async function dispatchViaBrainRuntime(
     request,
     decision: arbitration,
   });
+  entry.runtime = runtimeTraceFromResult(arbitration, runtimeResult);
+  result.runtime = entry.runtime;
+
+  eventBus.emit('action:brain-runtime', {
+    taskId: result.id,
+    mode: entry.runtime.mode,
+    status: entry.runtime.status,
+    primary: entry.runtime.primary,
+    runs: entry.runtime.runs,
+    claimIds: entry.runtime.claimIds,
+  });
 
   finalizeTask(entry, {
     status: runtimeResult.status === 'success' || runtimeResult.status === 'partial' ? 'completed' : 'failed',
@@ -389,6 +418,27 @@ function formatBrainRuntimeOutput(result: BrainRuntimeResult): string {
     if (output) lines.push(`${label} ${output}`);
   }
   return lines.join('\n');
+}
+
+function runtimeTraceFromResult(
+  arbitration: ArbitrationDecision,
+  result: BrainRuntimeResult,
+): DelegationRuntimeTrace {
+  return {
+    engine: 'brain-runtime',
+    mode: arbitration.mode,
+    status: result.status,
+    primary: result.primary,
+    runs: result.runs.map(run => ({
+      actor: run.actor,
+      role: run.role,
+      status: run.status,
+      finishReason: run.result && 'finishReason' in run.result ? run.result.finishReason : undefined,
+      claimIds: run.claimIds,
+      ...(run.error ? { error: run.error } : {}),
+    })),
+    claimIds: result.claims.map(claim => claim.id),
+  };
 }
 
 function isBrainRuntimeDelegationEnabled(): boolean {
@@ -665,6 +715,7 @@ function finalizeTask(
     type: result.type,
     outputPreview: result.output.slice(0, 500),
     durationMs: result.duration,
+    ...(entry.runtime ? { runtime: entry.runtime } : {}),
     ...(providerClaimId ? { providerClaimId } : {}),
     ...(entry.writeLease ? { writeLeaseId: entry.writeLease.id } : {}),
   });
@@ -686,7 +737,11 @@ function finalizeTask(
   writeActivity({
     lane: 'background',
     summary: `${result.type ?? 'code'} ${result.status}: ${extractDelegationSummary(result.output, 100)}`,
-    tags: [result.status, ...(entry.writeLease ? [`lease:${entry.writeLease.id}`] : [])],
+    tags: [
+      result.status,
+      ...(entry.runtime ? ['brain-runtime', `primary:${entry.runtime.primary ?? 'none'}`] : []),
+      ...(entry.writeLease ? [`lease:${entry.writeLease.id}`] : []),
+    ],
     duration: result.duration,
   });
   commitmentClose(result.id, result.status, extractDelegationSummary(result.output, 200));

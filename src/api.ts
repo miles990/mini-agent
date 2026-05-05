@@ -110,7 +110,7 @@ import { writeInboxItem } from './inbox.js';
 import { getMode, setMode, isValidMode, setLoopController, getModeNames, type ModeName } from './mode.js';
 import { postProcess } from './dispatcher.js';
 import { initActivityJournal, writeActivity, readRecentActivity } from './activity-journal.js';
-import { killAllDelegations } from './delegation.js';
+import { killAllDelegations, listTasks as listDelegationTasks } from './delegation.js';
 import { forgeStatus } from './forge.js';
 import { getNowTaskSummary, getTasksSnapshot, enqueueRoomDirective, createTask, updateTask, queryMemoryIndexSync, deleteMemoryIndexEntry, createGoal, addTaskToGoal } from './memory-index.js';
 import { readProviderClaimsSync, transitionStoredProviderClaim } from './claim-ledger.js';
@@ -1818,6 +1818,23 @@ export function createApi(port = 3001): express.Express {
       res.json({ success: true, claim });
     } catch (err) {
       res.status(400).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/delegations', (req: Request, res: Response) => {
+    try {
+      const includeCompleted = req.query.includeCompleted === 'true' || req.query.includeCompleted === '1';
+      const tasks = listDelegationTasks({ includeCompleted });
+      res.json({
+        tasks,
+        total: tasks.length,
+        runtime: {
+          enabled: process.env.MINI_AGENT_DELEGATION_RUNTIME === 'true'
+            || process.env.MINI_AGENT_DELEGATION_RUNTIME === '1',
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
     }
   });
 

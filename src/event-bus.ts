@@ -28,6 +28,7 @@ export type AgentEventType =
   | 'action:delegation-start'
   | 'action:delegation-complete'
   | 'action:arbitration'
+  | 'action:brain-runtime'
   | 'action:claim'
   | 'action:agora'
   | 'action:tool'       // Tool registry execution (pre/post)
