@@ -166,6 +166,40 @@ export function updateCommitmentStatus(
   slog('LEDGER', `commitment ${id} → ${status}`);
 }
 
+export function ackCommitment(id: string, by_agent_id?: string): boolean {
+  const lines = readAllLines();
+  const map = deduplicateLines(lines);
+  const existing = map.get(id);
+  if (!existing) {
+    slog('LEDGER', `ackCommitment: id not found ${id}`);
+    return false;
+  }
+  if (!existing.counterparty) {
+    slog('LEDGER', `ackCommitment: ${id} has no counterparty (cannot ack)`);
+    return false;
+  }
+  if (existing.ack_at) {
+    slog('LEDGER', `ackCommitment: ${id} already acked at ${existing.ack_at}`);
+    return false;
+  }
+  if (
+    by_agent_id &&
+    existing.counterparty.kind === 'agent' &&
+    existing.counterparty.agent_id &&
+    existing.counterparty.agent_id !== by_agent_id
+  ) {
+    slog('LEDGER', `ackCommitment: ${id} ack-by mismatch ${by_agent_id} vs expected ${existing.counterparty.agent_id}`);
+    return false;
+  }
+  const updated: CommitmentEntry = {
+    ...existing,
+    ack_at: new Date().toISOString(),
+  };
+  appendLine(updated);
+  slog('LEDGER', `commitment ${id} acked by ${by_agent_id || existing.counterparty.kind}`);
+  return true;
+}
+
 export function auditCommitments(currentCycleId: number): CommitmentAudit {
   const lines = readAllLines();
   const map = deduplicateLines(lines);
