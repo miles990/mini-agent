@@ -2686,6 +2686,18 @@ export class AgentLoop {
             counterparty: { kind: 'self' },
           });
           if (!decision.falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
+        } else if (decision && !decision.chose) {
+          // Issue #80: parsed Decision block but `chose` field missing/empty.
+          // Heuristic to avoid log spam: only emit when response looks substantial.
+          if (response && response.length > 200) {
+            const keys = Object.keys(decision).join(',') || '<empty>';
+            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned object without chose (keys=${keys}, response=${response.length}ch)`);
+          }
+        } else if (!decision && response && response.length > 200) {
+          // Issue #80: regex returned null on a non-trivial response (potential silent miss).
+          // Length gate keeps tool-only / short cycles quiet.
+          const hasDecisionMarker = /^##\s*Decision/m.test(response);
+          slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=${hasDecisionMarker})`);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
