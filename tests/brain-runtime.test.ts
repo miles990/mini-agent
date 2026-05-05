@@ -148,7 +148,7 @@ describe('BrainRuntime', () => {
 
     expect(result.status).toBe('success');
     expect(result.primary).toBe('kuro');
-    expect(result.runs.map(run => run.actor)).toEqual(['claude', 'codex', 'akari', 'kuro']);
+    expect(result.runs.map(run => run.actor)).toEqual(['akari', 'claude', 'codex', 'kuro']);
     expect(result.runs.at(-1)).toEqual(expect.objectContaining({
       actor: 'kuro',
       role: 'coordinator',

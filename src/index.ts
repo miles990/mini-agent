@@ -125,6 +125,12 @@ export {
   isDispatchableActor,
 } from './actor-registry.js';
 export type { ActorKind, ActorProfile, ActorRoleTendency, CognitionLevel } from './actor-registry.js';
+export {
+  pickActorForRole,
+  pickActorsForRole,
+  rankActorsForRole,
+} from './actor-selection-policy.js';
+export type { ActorScore, SelectionOptions, SelectionRole } from './actor-selection-policy.js';
 export { BrainRuntime } from './brain-runtime.js';
 export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
 export {

@@ -14,6 +14,7 @@ import {
   peerCritiqueReason,
 } from './constraint-texture.js';
 import { getDefaultDispatchableActors, getPeerCritiqueActors, isDispatchableActor } from './actor-registry.js';
+import { pickActorForRole, pickActorsForRole } from './actor-selection-policy.js';
 
 export interface ArbiterOptions {
   availableActors?: ActorId[];
@@ -48,10 +49,11 @@ export class BrainArbiter {
     }
 
     if (texture.deterministicExecution) {
+      const primary = this.pickByRole(item, 'executor', 'shell', 'local');
       return this.decision({
         mode: 'solo',
-        primary: this.pick('shell', 'local'),
-        candidates: [this.pick('shell', 'local')],
+        primary,
+        candidates: [primary],
         reviewers: [],
         reason: 'deterministic verification belongs to shell/local execution',
         writeLeaseRequired: texture.writeLeaseRequired,
@@ -61,7 +63,7 @@ export class BrainArbiter {
     }
 
     if (isCheapLocalIntent(item.intent) && item.risk === 'read_only') {
-      const primary = this.pick('local', 'claude');
+      const primary = this.pickByRole(item, 'primary', 'local', 'claude');
       return this.decision({
         mode: 'solo',
         primary,
@@ -75,7 +77,11 @@ export class BrainArbiter {
     }
 
     if (texture.peerCritiqueRequired) {
-      const candidates = this.filterAvailable(getPeerCritiqueActors());
+      const availablePeerActors = this.filterAvailable(getPeerCritiqueActors());
+      const candidates = pickActorsForRole(item, 'advisor', {
+        availableActors: availablePeerActors,
+        limit: 4,
+      });
       return this.decision({
         mode: item.hasProviderConflict ? 'consensus' : 'panel',
         primary: 'kuro',
@@ -89,8 +95,8 @@ export class BrainArbiter {
     }
 
     if (isCodingIntent(item.intent) || item.risk === 'workspace_write') {
-      const primary = this.pick('codex', 'claude');
-      const reviewer = primary === 'codex' ? this.pickOptional('claude') : this.pickOptional('codex');
+      const primary = this.pickByRole(item, 'primary', 'codex', 'claude');
+      const reviewer = this.pickReviewer(item, primary);
       return this.decision({
         mode: reviewer ? 'split' : 'solo',
         primary,
@@ -104,8 +110,8 @@ export class BrainArbiter {
     }
 
     if (isReviewIntent(item.intent)) {
-      const primary = this.pick('claude', 'codex');
-      const reviewer = this.pickOptional(primary === 'claude' ? 'codex' : 'claude');
+      const primary = this.pickByRole(item, 'primary', 'claude', 'codex');
+      const reviewer = this.pickReviewer(item, primary);
       return this.decision({
         mode: reviewer ? 'race' : 'solo',
         primary,
@@ -118,7 +124,7 @@ export class BrainArbiter {
       });
     }
 
-    const primary = this.pick('claude', 'codex');
+    const primary = this.pickByRole(item, 'primary', 'claude', 'codex');
     return this.decision({
       mode: 'solo',
       primary,
@@ -147,6 +153,24 @@ export class BrainArbiter {
 
   private pickOptional(actor: ActorId): ActorId | null {
     return this.actors.has(actor) && isDispatchableActor(actor) ? actor : null;
+  }
+
+  private pickByRole(
+    item: WorkItem,
+    role: 'primary' | 'reviewer' | 'advisor' | 'executor',
+    fallbackPrimary: ActorId,
+    fallbackSecondary: ActorId,
+  ): ActorId {
+    return pickActorForRole(item, role, { availableActors: [...this.actors] })
+      ?? this.pick(fallbackPrimary, fallbackSecondary);
+  }
+
+  private pickReviewer(item: WorkItem, primary: ActorId): ActorId | null {
+    return pickActorsForRole(item, 'reviewer', {
+      availableActors: [...this.actors],
+      exclude: [primary],
+      limit: 1,
+    })[0] ?? null;
   }
 
   private filterAvailable(actors: ActorId[]): ActorId[] {
