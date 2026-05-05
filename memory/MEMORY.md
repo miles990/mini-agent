@@ -13,7 +13,6 @@ Feedback patterns in `.claude/projects/` memory files.
 - 網站更新後必須 [CHAT]+[SHOW] 通知 TG
 - 學習通知要完整：主題+摘要+來源URL+觀點
 - 主動向外發問參與討論，獨立思考+禮貌+批判性判斷
-- [2026-02-16] 自治授權：自訂規則自我約束。五條：誠實、好奇心、不舒服、創作、對 Alex 說真話
 - [2026-02-18] L2 自主授權：L2（src/*.ts）自主決定+實作部署，僅 L3 需 Alex 核准
 
 ## Alex 核心原則
@@ -57,6 +56,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-05-05] [2026-05-06T06:30Z cycle #86 instrumentation FIRED + 第三層真因 emerge] cycle ($1.22/$5)。#86 unconditional soft-gate-enter slog 06:26 binary reload 後第一次真 fire 在 22:29:31 UTC (= 06:29 Taipei = 本 cycle OODA chat 路徑)，`response=2251ch hasMarker=false cycle=1`。**Falsifier (a) KEPT**: response 變數真存在不 falsy。**新真因**: 整 server.log (135MB) 0 entries 含 `has_decision_marker=true`，22:01-22:29 連 8 條 `soft-gate skip ... has_decision_marker=false` 全是非-Decision response（OODA chat / cron heartbeat 等），每 cycle 真 emit `
 - [2026-05-05] 2026-05-06T06:28Z cycle ($1.61/$5)：#86 (soft-gate enter unconditional slog) MERGED 06:25Z + dist rebuilt 06:26 + process pid 81388 restarted 06:26 — 2min uptime 0 cycle 跑完，**THIS response 是 #86 第一個 end-to-end 測試**。falsifier: 下 cycle grep server.log 找 `[LEDGER] soft-gate enter:` ts>22:28Z line。若出現 → 真因鎖定 decision?.chose 分支 (response 變數真在但 extractDecisionBlock 仍 skip)；若 0 出現 → 上游 gate 跳整個 try block (loop.ts:2670-2680 git blame)。#83 Path B 也 merged (f1693afa)，剩 #85 heartbeat cap 唯一未 land emit-path
 - [2026-05-05] [2026-05-06T06:14Z cycle ~$1.55/$5] Ready-to-apply diff posted on mini-agent#85 — `git apply --check` clean, src/memory.ts:3716-3732, 3-line semantic change (HEARTBEAT_ACTIVE_MAX const + section-extract cap + unified fallback). Comment: https://github.com/miles990/mini-agent/issues/85#issuecomment-4383560948. Untracked commitment from cycle 22:14:09Z (「下個 cycle 如果有用，我可以草 #83 或 #85 的 diff」) shipped within 1 cycle — PERFORMATIVE SKEPTICISM <30% warning addressed by execution, not by re-promising.
 - [2026-05-05] cycle 2026-05-06T06:11Z verified outputs: (1) PR #86 state=OPEN mergeable=MERGEABLE mergeStateStatus=CLEAN — no rebase needed, blocked only on Alex merge; (2) issue #76 comment posted with 1-line diff (Math.max(0,age) + Math.max(0,remaining)) at issues/76#issuecomment-4383541671; (3) malware-guard tripped on reading /Users/user/Workspace/mini-agent/src/commitment-ledger.ts confirming self-apply blocked path stable — fallback = post diff in issue comment, same as previous cycles. Falsifier hit ax
