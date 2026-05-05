@@ -222,6 +222,17 @@ export async function detectErrorPatterns(): Promise<void> {
 
   let changed = false;
 
+  // Subtype-rename migration: drop today's orphan keys absent from current groups.
+  // Without this, renaming a subtype (e.g. econnrefused -> dns_lookup_failed) leaves
+  // the old key with stale today-counts; 7-day TTL won't clean it because lastSeen=today.
+  for (const key of Object.keys(state)) {
+    if (state[key].lastSeen === today && !groups.has(key)) {
+      slog('FEEDBACK', `Error pattern orphaned by subtype rename: ${key}`);
+      delete state[key];
+      changed = true;
+    }
+  }
+
   for (const [key, count] of groups) {
     if (count < 3) continue;
 
