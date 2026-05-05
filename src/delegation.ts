@@ -27,6 +27,7 @@ import { forgeCreate, forgeYolo, forgeCleanup } from './forge.js';
 import { extractDelegationSummary, buildRecentDelegationSummary, persistDelegationResult, writeLaneOutput } from './delegation-summary.js';
 import { decideArbitration } from './brain-arbiter.js';
 import type { ArbitrationDecision, WorkIntent, WorkItem, WorkPriority, WorkRisk } from './brain-types.js';
+import { WriteLeaseManager, type WriteLease } from './write-lease.js';
 
 // =============================================================================
 // Types (stable external surface)
@@ -183,10 +184,12 @@ interface ActiveEntry {
   task: DelegationTask;
   forgeWorktree?: string;
   arbitration: ArbitrationDecision;
+  writeLease?: WriteLease;
 }
 
 const activeTasks = new Map<string, ActiveEntry>();
 const completedTasks = new Map<string, TaskResult>();
+const writeLeases = new WriteLeaseManager();
 
 
 // =============================================================================
@@ -198,12 +201,13 @@ export function spawnDelegation(task: DelegationTask): string {
   const taskId = task.id ?? `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const taskType = task.type ?? 'code';
   const worker = CAPABILITY_TO_WORKER[taskType];
+  const workItem = buildWorkItemForDelegation(taskId, task, taskType);
   const timeoutMs = Math.min(
     task.timeoutMs ?? TYPE_DEFAULTS[taskType].timeoutMs ?? DEFAULT_TIMEOUT_MS,
     MAX_TIMEOUT_MS,
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
-  const arbitration = decideArbitration(buildWorkItemForDelegation(taskId, task, taskType));
+  const arbitration = decideArbitration(workItem);
 
   // Soft concurrency cap — middleware also caps per-worker, this just surfaces
   // backpressure to callers via the local activeTasks map.
@@ -258,6 +262,29 @@ export function spawnDelegation(task: DelegationTask): string {
       output: `blocked by arbiter: ${arbitration.reason}`,
     });
     return taskId;
+  }
+
+  if (arbitration.writeLeaseRequired) {
+    try {
+      entry.writeLease = writeLeases.acquire({
+        taskId,
+        holder: arbitration.primary,
+        fileScopes: workItem.writeScope ?? [workdir],
+      });
+      slog('WRITE-LEASE', `${taskId} acquired ${entry.writeLease.id}: ${entry.writeLease.fileScopes.join(', ')}`);
+      eventBus.emit('action:arbitration', {
+        taskId,
+        type: taskType,
+        leaseId: entry.writeLease.id,
+        leaseScopes: entry.writeLease.fileScopes,
+      });
+    } catch (err) {
+      finalizeTask(entry, {
+        status: 'failed',
+        output: `blocked by write lease: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return taskId;
+    }
   }
 
   commitmentStart(taskId, taskType, task.prompt);
@@ -538,6 +565,7 @@ function finalizeTask(
     status: result.status,
     type: result.type,
     outputPreview: result.output.slice(0, 500),
+    ...(entry.writeLease ? { writeLeaseId: entry.writeLease.id } : {}),
   });
 
   // Auto-update task-queue entry
@@ -557,13 +585,18 @@ function finalizeTask(
   writeActivity({
     lane: 'background',
     summary: `${result.type ?? 'code'} ${result.status}: ${extractDelegationSummary(result.output, 100)}`,
-    tags: [result.status],
+    tags: [result.status, ...(entry.writeLease ? [`lease:${entry.writeLease.id}`] : [])],
     duration: result.duration,
   });
   commitmentClose(result.id, result.status, extractDelegationSummary(result.output, 200));
 
   persistDelegationResult(result);
   writeLaneOutput(result);
+
+  if (entry.writeLease) {
+    writeLeases.release(entry.writeLease.id);
+    slog('WRITE-LEASE', `${result.id} released ${entry.writeLease.id}`);
+  }
 
   activeTasks.delete(result.id);
   completedTasks.set(result.id, result);
@@ -597,6 +630,10 @@ export function getActiveDelegationSummaries(): Array<{ id: string; type: string
     });
   }
   return summaries;
+}
+
+export function getActiveWriteLeases(): WriteLease[] {
+  return writeLeases.active();
 }
 
 export function awaitDelegation(taskId: string, timeoutMs = 600_000): Promise<TaskResult> {

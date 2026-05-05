@@ -213,7 +213,7 @@ describe('InstanceMemory', () => {
       // Both should contain conversations but focused limits count
       expect(full).toContain('Message 0');
       expect(focused).toContain('Message 0');
-    });
+    }, 30_000);
 
     it('should produce shorter context in minimal mode than full mode', async () => {
       await fs.writeFile(

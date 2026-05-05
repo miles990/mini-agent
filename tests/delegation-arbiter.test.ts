@@ -1,5 +1,43 @@
-import { describe, expect, it } from 'vitest';
-import { buildWorkItemForDelegation } from '../src/delegation.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/activity-journal.js', () => ({
+  writeActivity: vi.fn(),
+}));
+
+vi.mock('../src/middleware-client.js', () => ({
+  middleware: vi.fn(() => ({
+    createCommitment: vi.fn().mockResolvedValue({ id: 'commitment-1' }),
+    resolveCommitment: vi.fn().mockResolvedValue(undefined),
+    plan: vi.fn(() => new Promise(() => {})),
+    accomplish: vi.fn(() => new Promise(() => {})),
+    cancelPlan: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+vi.mock('../src/forge.js', () => ({
+  forgeCreate: vi.fn(() => null),
+  forgeYolo: vi.fn(() => false),
+  forgeCleanup: vi.fn(),
+}));
+
+vi.mock('../src/delegation-summary.js', () => ({
+  extractDelegationSummary: vi.fn((text: string, cap: number) => text.slice(0, cap)),
+  buildRecentDelegationSummary: vi.fn(() => ''),
+  persistDelegationResult: vi.fn(),
+  writeLaneOutput: vi.fn(),
+}));
+
+import {
+  buildWorkItemForDelegation,
+  getActiveWriteLeases,
+  getTaskResult,
+  killAllDelegations,
+  spawnDelegation,
+} from '../src/delegation.js';
+
+beforeEach(() => {
+  killAllDelegations();
+});
 
 describe('delegation arbitration mapping', () => {
   it('maps code delegations to workspace-write code work', () => {
@@ -48,5 +86,51 @@ describe('delegation arbitration mapping', () => {
 
     expect(item.intent).toBe('architecture');
     expect(item.tags).toContain('akari');
+  });
+
+  it('acquires a write lease for workspace-write delegations', () => {
+    const id = spawnDelegation({
+      prompt: 'Update src/agent.ts',
+      workdir: '/repo',
+      type: 'code',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('running');
+    expect(getActiveWriteLeases()).toEqual([
+      expect.objectContaining({
+        taskId: id,
+        holder: 'codex',
+        fileScopes: ['src/agent.ts'],
+      }),
+    ]);
+  });
+
+  it('blocks overlapping write scopes instead of dispatching them', () => {
+    const first = spawnDelegation({
+      prompt: 'Update src/agent.ts',
+      workdir: '/repo',
+      type: 'code',
+    });
+    const second = spawnDelegation({
+      prompt: 'Refactor src/agent.ts',
+      workdir: '/repo',
+      type: 'code',
+    });
+
+    expect(getTaskResult(first)?.status).toBe('running');
+    expect(getTaskResult(second)?.status).toBe('failed');
+    expect(getTaskResult(second)?.output).toContain('blocked by write lease');
+    expect(getActiveWriteLeases()).toHaveLength(1);
+  });
+
+  it('blocks external writes before dispatch', () => {
+    const id = spawnDelegation({
+      prompt: 'P0 deploy this and push main',
+      workdir: '/repo',
+      type: 'shell',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('failed');
+    expect(getTaskResult(id)?.output).toContain('blocked by arbiter');
   });
 });
