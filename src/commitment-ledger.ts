@@ -357,7 +357,7 @@ export function buildLedgerSection(currentCycleId: number): string {
   }
 
   lines.push('');
-  lines.push(`Stats: pending=${audit.pending} kept=${audit.kept} refuted=${audit.refuted} expired=${audit.expired}`);
+  lines.push(`Stats: pending=${audit.pending} kept=${audit.kept} refuted=${audit.refuted} expired=${audit.expired} abandoned=${audit.abandoned}`);
 
   const warnings: string[] = [];
 
