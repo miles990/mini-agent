@@ -405,8 +405,8 @@ export function buildLedgerSection(currentCycleId: number): string {
   } else {
     lines.push(`Pending commitments (${pending.length}):`);
     for (const e of pending) {
-      const age = currentCycleId - e.cycle_id;
-      const remaining = e.ttl_cycles - age;
+      const age = Math.max(0, currentCycleId - e.cycle_id);
+      const remaining = Math.max(0, e.ttl_cycles - age);
       const falsifierPart = e.falsifier ? ` | falsifier: ${e.falsifier}` : ' | no falsifier';
       lines.push(`  [${e.id}] cycle=${e.cycle_id} ttl=${remaining} remaining — ${e.prediction}${falsifierPart}`);
       if (e.falsifier_query) {
