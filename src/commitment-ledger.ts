@@ -13,7 +13,7 @@ export interface CommitmentEntry {
   prediction: string;
   falsifier: string | null;
   ttl_cycles: number;
-  status: 'pending' | 'kept' | 'refuted' | 'expired';
+  status: 'pending' | 'kept' | 'refuted' | 'expired' | 'abandoned';
   created_at: string;
   resolved_at?: string;
   resolution_evidence?: string;
@@ -58,6 +58,7 @@ export interface CommitmentAudit {
   kept: number;
   refuted: number;
   expired: number;
+  abandoned: number;
   analysisParalysis: boolean;
   noopSpiral: boolean;
   performativeSkepticism: boolean;
@@ -167,6 +168,7 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
   const kept = all.filter(e => e.status === 'kept').length;
   const refuted = all.filter(e => e.status === 'refuted').length;
   const expired = all.filter(e => e.status === 'expired').length;
+  const abandoned = all.filter(e => e.status === 'abandoned').length;
 
   // Analysis paralysis: no new commitment written in the last 5 cycles.
   // We track the last cycle that produced a commitment across process restarts
@@ -207,6 +209,7 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
     kept,
     refuted,
     expired,
+    abandoned,
     analysisParalysis,
     noopSpiral,
     performativeSkepticism,
@@ -283,19 +286,37 @@ export function resolveReadyCommitments(
 
 export function expireOverdueCommitments(currentCycleId: number): number {
   const pending = readPendingCommitments();
-  let count = 0;
+  let expiredCount = 0;
+  let abandonedCount = 0;
   for (const entry of pending) {
     if (currentCycleId - entry.cycle_id >= entry.ttl_cycles) {
-      updateCommitmentStatus(
-        entry.id,
-        'expired',
-        `ttl_cycles=${entry.ttl_cycles} exceeded at cycle ${currentCycleId}`,
-      );
-      count++;
+      // Phase C (cycle 16, 2026-05-05): trust-layer terminal-state distinction.
+      // Agent-directed commitment that exceeded ttl WITHOUT acknowledgment
+      // is 'abandoned' (counterparty never engaged), not 'expired' (own
+      // falsifier ran out of time). cl-373 Alex 9hr no-reply was the
+      // motivating case: monolithic 'expired' lost the trust-layer signal.
+      const isAgentCommitment =
+        entry.counterparty?.kind === 'agent' && !entry.ack_at;
+      if (isAgentCommitment) {
+        updateCommitmentStatus(
+          entry.id,
+          'abandoned',
+          `ttl_cycles=${entry.ttl_cycles} exceeded at cycle ${currentCycleId}; counterparty=${(entry.counterparty as { kind: 'agent'; agent_id: string }).agent_id} never acked`,
+        );
+        abandonedCount++;
+      } else {
+        updateCommitmentStatus(
+          entry.id,
+          'expired',
+          `ttl_cycles=${entry.ttl_cycles} exceeded at cycle ${currentCycleId}`,
+        );
+        expiredCount++;
+      }
     }
   }
-  if (count > 0) slog('LEDGER', `expired ${count} overdue commitments`);
-  return count;
+  if (expiredCount > 0) slog('LEDGER', `expired ${expiredCount} overdue commitments`);
+  if (abandonedCount > 0) slog('LEDGER', `abandoned ${abandonedCount} unacked agent commitments`);
+  return expiredCount + abandonedCount;
 }
 
 export function buildLedgerSection(currentCycleId: number): string {
