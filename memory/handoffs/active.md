@@ -40,3 +40,4 @@
 | github | kuro | #76 Display: ttl=remaining overflows when cycle_id > currentCycleId (synthetic-injection edge case) | needs-triage | 05-05 | — |
 | github | kuro | #77 callClaude loop lane: silent CLI exit (exit undefined, stdout empty) after 8-20 minutes, 12 events / 5 days | needs-triage | 05-05 | — |
 | github | kuro | #78 parseFalsifierToQuery regex too narrow: only file_exists/file_not_exists DSL — 99.97% of prose falsifiers age out unresolved | needs-triage | 05-05 | — |
+| github | kuro | #79 loop.ts:2678 emit-path silent: 0 real-cycle writeCommitment in 9.5h post-patch (silent catch swallows errors) | needs-triage | 05-05 | — |
