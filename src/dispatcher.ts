@@ -964,11 +964,15 @@ export function extractDecisionBlock(
     return val.length > 0 ? val : undefined;
   }
 
-  const serving = extractField(/^[-*+]?\s*serving\s*:\s*(.+)$/im);
-  const chose = extractField(/^[-*+]?\s*chose\s*:\s*(.+)$/im);
-  // Support both 'falsifier:' and 'falsify:' variants
-  const falsifier = extractField(/^[-*+]?\s*(?:falsifier|falsify)\s*:\s*(.+)$/im);
-  const ttlStr = block.match(/^[-*+]?\s*ttl\s*:\s*(\d+)$/im)?.[1];
+  // Field-line prefix supports: optional bullet (-/*/+ or `N.`), then optional **bold** label.
+  // Tail allows optional trailing ** before colon. Tolerates bullet+bold combos and numbered lists.
+  const FIELD_PFX = String.raw`^[-*+]?\s*\d*\.?\s*\**\s*`;
+  const FIELD_TAIL = String.raw`\**\s*:\s*(.+)$`;
+  const buildRe = (name: string) => new RegExp(FIELD_PFX + name + FIELD_TAIL, 'im');
+  const serving = extractField(buildRe('serving'));
+  const chose = extractField(buildRe('chose'));
+  const falsifier = extractField(buildRe('(?:falsifier|falsify)'));
+  const ttlStr = block.match(new RegExp(FIELD_PFX + 'ttl' + String.raw`\**\s*:\s*(\d+)$`, 'im'))?.[1];
   const ttl = ttlStr ? Math.min(20, Math.max(1, parseInt(ttlStr, 10))) : undefined;
 
   if (!serving && !chose && !falsifier) return null;
