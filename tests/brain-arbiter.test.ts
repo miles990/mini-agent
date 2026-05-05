@@ -49,8 +49,9 @@ describe('BrainArbiter', () => {
     const decision = decideArbitration(work({ intent: 'architecture' }));
     expect(decision.mode).toBe('panel');
     expect(decision.primary).toBe('kuro');
-    expect(decision.candidates).toEqual(['claude', 'codex', 'akari', 'tanren']);
+    expect(decision.candidates).toEqual(['claude', 'codex', 'akari']);
     expect(decision.reviewers).toContain('akari');
+    expect(decision.reviewers).not.toContain('tanren');
     expect(decision.kgClaimsRequired).toBe(true);
   });
 

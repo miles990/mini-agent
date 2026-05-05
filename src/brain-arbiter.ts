@@ -13,13 +13,14 @@ import {
   isReviewIntent,
   peerCritiqueReason,
 } from './constraint-texture.js';
+import { getDefaultDispatchableActors, getPeerCritiqueActors, isDispatchableActor } from './actor-registry.js';
 
 export interface ArbiterOptions {
   availableActors?: ActorId[];
   forceAkariForP0?: boolean;
 }
 
-const DEFAULT_ACTORS: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari', 'tanren'];
+const DEFAULT_ACTORS: ActorId[] = getDefaultDispatchableActors();
 
 export class BrainArbiter {
   private readonly actors: Set<ActorId>;
@@ -74,7 +75,7 @@ export class BrainArbiter {
     }
 
     if (texture.peerCritiqueRequired) {
-      const candidates = this.filterAvailable(['claude', 'codex', 'akari', 'tanren']);
+      const candidates = this.filterAvailable(getPeerCritiqueActors());
       return this.decision({
         mode: item.hasProviderConflict ? 'consensus' : 'panel',
         primary: 'kuro',
@@ -139,17 +140,17 @@ export class BrainArbiter {
   }
 
   private pick(primary: ActorId, fallback: ActorId): ActorId {
-    if (this.actors.has(primary)) return primary;
-    if (this.actors.has(fallback)) return fallback;
+    if (this.actors.has(primary) && isDispatchableActor(primary)) return primary;
+    if (this.actors.has(fallback) && isDispatchableActor(fallback)) return fallback;
     return 'kuro';
   }
 
   private pickOptional(actor: ActorId): ActorId | null {
-    return this.actors.has(actor) ? actor : null;
+    return this.actors.has(actor) && isDispatchableActor(actor) ? actor : null;
   }
 
   private filterAvailable(actors: ActorId[]): ActorId[] {
-    return actors.filter(a => a === 'human' || a === 'kuro' || this.actors.has(a));
+    return actors.filter(a => (a === 'human' || a === 'kuro' || this.actors.has(a)) && isDispatchableActor(a));
   }
 }
 

@@ -115,6 +115,16 @@ export {
   peerCritiqueReason,
 } from './constraint-texture.js';
 export type { ConstraintKind, ConstraintTexture, ConstraintTextureOptions, WorkConstraint } from './constraint-texture.js';
+export { BrainArbiter, decideArbitration } from './brain-arbiter.js';
+export type { ArbiterOptions } from './brain-arbiter.js';
+export {
+  ACTOR_REGISTRY,
+  getActorProfile,
+  getDefaultDispatchableActors,
+  getPeerCritiqueActors,
+  isDispatchableActor,
+} from './actor-registry.js';
+export type { ActorKind, ActorProfile, ActorRoleTendency, CognitionLevel } from './actor-registry.js';
 export { BrainRuntime } from './brain-runtime.js';
 export type { BrainActorRun, BrainExecutionInput, BrainRuntimeOptions, BrainRuntimeResult } from './brain-runtime.js';
 export {

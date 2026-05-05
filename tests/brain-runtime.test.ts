@@ -148,14 +148,14 @@ describe('BrainRuntime', () => {
 
     expect(result.status).toBe('success');
     expect(result.primary).toBe('kuro');
-    expect(result.runs.map(run => run.actor)).toEqual(['claude', 'codex', 'akari', 'tanren', 'kuro']);
+    expect(result.runs.map(run => run.actor)).toEqual(['claude', 'codex', 'akari', 'kuro']);
     expect(result.runs.at(-1)).toEqual(expect.objectContaining({
       actor: 'kuro',
       role: 'coordinator',
       status: 'success',
     }));
     expect(readProviderClaimsSync(tmpDir).map(claim => claim.provider)).toEqual(
-      expect.arrayContaining(['claude', 'codex', 'akari', 'tanren', 'kuro']),
+      expect.arrayContaining(['claude', 'codex', 'akari', 'kuro']),
     );
   });
 
