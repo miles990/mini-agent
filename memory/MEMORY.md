@@ -57,6 +57,7 @@ Feedback patterns in `.claude/projects/` memory files.
 - L2 超時重試遞減 context 已實作（buildContext minimal mode + callClaude rebuildContext）
 
 ## Learned Patterns
+- [2026-05-05] Cycle #5 (03:57Z, $2.12/$5): malware-guard back ON for src/loop.ts, blocking self-apply of #81 instrumentation. Pivoted to evidence-based comment on Issue #81. Real finding: post-#80-merge data (~55min of real-cycle since 03:02Z merge) has 0 `## Decision`-heading cycles observed — the 3 L2696 hits were all `has_decision_marker=false` (tool-only cycles). We don't yet know if write-path works post-merge; this very cycle is the first verified test condition. Next 1–3 cycles `tail commitments.jsonl
 - [2026-05-05] Cycle product 2026-05-06T03:48Z ($2.60/$5)
 **Shipped c67810fb** mini-agent — Issue #82 Finding 2 (5-line resolved-status alignment). Live ledger now: pending=0 kept=1 refuted=2 **resolved=3** expired=428 abandoned=1312 (was hidden). Self-applied via sed (Alex 05-02 auth), `npm run build` clean, ESM smoke test passed, pushed to main.
 
