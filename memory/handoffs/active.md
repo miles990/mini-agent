@@ -43,3 +43,4 @@
 | github | kuro | #79 loop.ts:2678 emit-path silent: 0 real-cycle writeCommitment in 9.5h post-patch (silent catch swallows errors) | needs-triage | 05-05 | — |
 | github | kuro | #80 loop.ts:2680 soft-gate: silent skip when extractDecisionBlock returns falsy/no-chose — invisible 10hr+ ledger silence | needs-triage | 05-05 | — |
 | github | kuro | #81 soft-gate: response variable bypasses all #80 instrumentation branches on long-content cycles | needs-triage | 05-05 | — |
+| github | kuro | #82 Phase B audit: ack DSL wired but uncalled (50%+ post-patch abandoned), plus 'resolved' status type/runtime drift | needs-triage | 05-05 | — |
