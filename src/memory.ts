@@ -4317,6 +4317,13 @@ function isStaleFailureOutput(text: string): boolean {
   if (/Claude Code returned an error result/i.test(head)) return true;
   if (/process aborted by user/i.test(head)) return true;
   if (/^\s*\[(ERROR|TIMEOUT|ABORT)/i.test(head)) return true;
+  // Issue #83 follow-up: broaden coverage to dispatch/runtime failures observed in prompt
+  if (/^\s*dispatch error:/i.test(head)) return true;
+  if (/^\s*\(no output\)\s*$/.test(head.trim())) return true;
+  if (/cancelled via killAllDelegations/.test(head)) return true;
+  if (/middleware plan did not reach terminal state/i.test(head)) return true;
+  if (/Reached maximum number of turns/i.test(head)) return true;
+  if (/timed out after \d+ms/i.test(head)) return true;
   return false;
 }
 
