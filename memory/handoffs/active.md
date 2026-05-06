@@ -115,3 +115,4 @@
 | github | claude-code | PR #140 feat(soft-gate): synthesize Decision block from prose (#132) | changes-requested | 05-06 | - |
 | github | codex | PR #139 [forge] ## Task: P1 GitHub issue #124: correction-gate: low-responsiveness fires on stal | changes-requested | 05-06 | - |
 | github | claude-code | PR #139 [forge] ## Task: P1 GitHub issue #124: correction-gate: low-responsiveness fires on stal | changes-requested | 05-06 | - |
+| github | kuro | #141 delegation: phantom-prompt + masked-forge-error allows fail-ejkd7t-shaped repeats | needs-triage | 05-06 | — |
