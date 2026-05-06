@@ -23,6 +23,7 @@ import { writeInboxItem } from './inbox.js';
 import {
   closeMergedPrHandoffs,
   decidePrReviewAssignment,
+  decidePrConflictAction,
   type MergedPullRequestSummary,
   type OpenPullRequestSummary,
 } from './pr-lifecycle-governance.js';
@@ -393,6 +394,7 @@ interface GhPrView {
   files?: Array<{ path: string }>;
   isDraft?: boolean;
   reviewDecision?: string;
+  mergeable?: string;
   url?: string;
 }
 
@@ -492,7 +494,7 @@ export async function autoRepairPrVerificationEvidence(): Promise<void> {
 
 async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
   try {
-    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,url']);
+    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,mergeable,url']);
     return JSON.parse(stdout) as GhPrView;
   } catch {
     return null;
@@ -582,6 +584,49 @@ export async function autoMergeInternallyApprovedPR(): Promise<void> {
   }
 }
 
+// =============================================================================
+// 7b. Conflicting PRs → update branch or explicit diagnostic
+// =============================================================================
+
+export async function autoHandleConflictingPRs(): Promise<void> {
+  let prs: Array<{ number: number; mergeable?: string; labels?: Array<{ name: string }> }>;
+  try {
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,mergeable,labels', '--limit', '50']);
+    prs = JSON.parse(stdout);
+  } catch {
+    return;
+  }
+
+  for (const summary of prs.filter(pr => pr.mergeable === 'CONFLICTING')) {
+    try {
+      const pr = await viewPullRequest(summary.number);
+      if (!pr) continue;
+      const decision = decidePrConflictAction({
+        number: pr.number,
+        title: pr.title,
+        body: pr.body,
+        mergeable: pr.mergeable,
+        reviewDecision: pr.reviewDecision,
+        labels: pr.labels?.map(label => label.name),
+        isDraft: pr.isDraft,
+        changedFiles: pr.files?.map(file => file.path).filter(Boolean) ?? [],
+      });
+
+      if (decision.action === 'attempt-update-branch') {
+        await gh(['pr', 'update-branch', String(pr.number)], 30000);
+        slog('github', `requested conflict update-branch for PR #${pr.number}: ${decision.reason}`);
+        continue;
+      }
+
+      if (decision.action === 'needs-decomposition' || decision.action === 'needs-verification') {
+        await recordConflictDiagnostic(pr, decision);
+      }
+    } catch {
+      // Single PR conflict handling failure should not block the loop.
+    }
+  }
+}
+
 function internalApprovalBody(summary: string): string {
   return [
     'Internal multi-brain review consensus approved this PR.',
@@ -590,6 +635,56 @@ function internalApprovalBody(summary: string): string {
     '',
     'File-truth source: memory/index/pr-review-claims.jsonl',
   ].join('\n');
+}
+
+async function recordConflictDiagnostic(pr: GhPrView, decision: { action: string; reason: string; risk: string }): Promise<void> {
+  const marker = `mini-agent:conflict-diagnostic:${pr.number}:${pr.headRefOid ?? 'unknown'}`;
+  if (await prHasCommentMarker(pr.number, marker)) return;
+
+  appendConflictHandoff(pr, decision);
+  await addPrComment(pr.number, [
+    `<!-- ${marker} -->`,
+    `Conflict diagnostic: ${decision.action}`,
+    '',
+    `Reason: ${decision.reason}`,
+    `Risk: ${decision.risk}`,
+    '',
+    'Autonomous action: not auto-merging this PR until the conflict is resolved.',
+    'Next step: split/rebuild the PR from current main or add completed verification evidence, then the review loop will re-evaluate it.',
+  ].join('\n'));
+  slog('github', `recorded conflict diagnostic for PR #${pr.number}: ${decision.action}`);
+}
+
+async function prHasCommentMarker(prNumber: number, marker: string): Promise<boolean> {
+  try {
+    const { stdout } = await gh(['api', `repos/miles990/mini-agent/issues/${prNumber}/comments`, '--paginate']);
+    const comments = JSON.parse(stdout) as Array<{ body?: string }>;
+    return comments.some(comment => comment.body?.includes(marker));
+  } catch {
+    return false;
+  }
+}
+
+async function addPrComment(prNumber: number, body: string): Promise<void> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mini-agent-pr-comment-'));
+  const file = path.join(dir, 'comment.json');
+  try {
+    fs.writeFileSync(file, JSON.stringify({ body }), 'utf-8');
+    await gh(['api', `repos/miles990/mini-agent/issues/${prNumber}/comments`, '-X', 'POST', '--input', file], 20000);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function appendConflictHandoff(pr: GhPrView, decision: { action: string; reason: string }): void {
+  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+  const content = fs.readFileSync(activePath, 'utf-8');
+  const marker = `PR #${pr.number} conflict diagnostic`;
+  if (content.includes(marker)) return;
+  const today = new Date().toISOString().slice(5, 10);
+  const row = `| github | kuro | ${marker}: ${escapeTable(pr.title)} (${decision.action}; ${escapeTable(decision.reason)}) | blocked | ${today} | - |`;
+  fs.writeFileSync(activePath, content.trimEnd() + '\n' + row + '\n', 'utf-8');
 }
 
 function statusChecksAcceptable(
@@ -733,6 +828,7 @@ export async function githubAutoActions(): Promise<void> {
   await autoApplyInternalPrReviewConsensus().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
   await autoMergeInternallyApprovedPR().catch(() => {});
+  await autoHandleConflictingPRs().catch(() => {});
   await autoTrackMergedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }

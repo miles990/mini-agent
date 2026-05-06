@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeBranchLifecycle,
   closeMergedPrHandoffs,
+  decidePrConflictAction,
   decidePrReviewAssignment,
   extractAllowedIssueRefs,
   extractIssueRefs,
@@ -189,5 +190,56 @@ describe('PR lifecycle governance', () => {
     expect(result.content).toContain('| github | akari | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-07 |');
     expect(result.content).toContain('| github | codex | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-07 |');
     expect(result.content).toContain('| github | kuro | PR #99 fix: another / task | merged | 05-07 | 05-07 |');
+  });
+
+  it('attempts branch update for approved narrow verified conflicts', () => {
+    expect(decidePrConflictAction({
+      number: 12,
+      title: 'fix: narrow bug',
+      body: '## Verification\n- [x] `pnpm test` passed',
+      mergeable: 'CONFLICTING',
+      reviewDecision: 'APPROVED',
+      changedFiles: ['src/feedback-loops.ts', 'tests/feedback-loops.test.ts'],
+    })).toEqual(expect.objectContaining({
+      action: 'attempt-update-branch',
+      risk: 'medium',
+    }));
+  });
+
+  it('routes broad conflicting PRs to decomposition instead of blind branch update', () => {
+    expect(decidePrConflictAction({
+      number: 90,
+      title: 'fix(feedback-loops): capture sampleMsg',
+      body: '## Verification\n- [x] `npx tsc --noEmit` clean',
+      mergeable: 'CONFLICTING',
+      reviewDecision: 'APPROVED',
+      changedFiles: [
+        '.githooks/post-commit',
+        'memory/handoffs/active.md',
+        'package.json',
+        'src/dispatcher.ts',
+        'src/feedback-loops.ts',
+        'src/housekeeping.ts',
+        'src/loop.ts',
+        'src/workspace-finalizer.ts',
+        'tests/workspace-finalizer.test.ts',
+      ],
+    })).toEqual(expect.objectContaining({
+      action: 'needs-decomposition',
+      risk: 'high',
+    }));
+  });
+
+  it('requires verification before conflict update', () => {
+    expect(decidePrConflictAction({
+      number: 93,
+      title: 'chore(hooks): post-commit auto-rebuild',
+      body: '## Test plan\n- [ ] Verify later',
+      mergeable: 'CONFLICTING',
+      reviewDecision: '',
+      changedFiles: ['.githooks/post-commit', 'package.json'],
+    })).toEqual(expect.objectContaining({
+      action: 'needs-verification',
+    }));
   });
 });
