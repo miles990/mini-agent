@@ -27,6 +27,9 @@ export interface CommitmentEntry {
   // Both nullable for backward-compat with 1740 legacy entries.
   counterparty?: Counterparty;
   ack_at?: string;
+  // Issue #132: when commitment was synthesized from unstructured prose
+  // (no ## Decision header), so we can grep them out later for heuristic tuning.
+  meta?: { synthesized?: boolean };
 }
 
 // Phase 2 (cycle 14, 2026-05-05): commitment counterparty discriminated union.
