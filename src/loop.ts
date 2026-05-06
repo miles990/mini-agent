@@ -38,7 +38,7 @@ import {
   updateTemporalState, flushTemporalState,
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
-import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, updateTask, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
+import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -3568,10 +3568,14 @@ export class AgentLoop {
         if (staleTasks.length === 0) return;
         this.staleTasks = staleTasks;
 
-        // Escalation: >5 ticks → auto P0
+        // Escalation: first crossing of >5 ticks → P0. Stamp is applied
+        // atomically inside incrementTaskStaleness; we only emit the slog once.
+        // Issue #156: previously this branch unconditionally rewrote
+        // priority=0 every cycle, racing with upstream syncs (issue-autopilot,
+        // github-issue) that wrote the original priority back, causing 2↔0↔2
+        // oscillation in task-events.jsonl.
         for (const t of staleTasks) {
-          if (t.ticks > 5) {
-            updateTask(getMemoryRootDir(), t.id, { priority: 0 }).catch(() => {});
+          if (t.firstEscalation) {
             slog('CONSTRAINT', `Escalated to P0: ${t.summary.slice(0, 60)} (${t.ticks} ticks stale)`);
           }
         }
