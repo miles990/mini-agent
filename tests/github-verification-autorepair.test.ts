@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import { autofixPrVerificationSection } from '../src/github.js';
+
+describe('GitHub PR verification autorepair', () => {
+  it('renames a completed Test plan section to Verification', () => {
+    const body = [
+      '## Summary',
+      '- Fixes a runtime issue.',
+      '',
+      '## Test plan',
+      '- [x] `pnpm typecheck` passed',
+      '- [x] `pnpm test` passed',
+      '',
+      '## Falsifier',
+      '- Watch production logs.',
+    ].join('\n');
+
+    const result = autofixPrVerificationSection(body);
+
+    expect(result.changed).toBe(true);
+    expect(result.body).toContain('## Verification\n- [x] `pnpm typecheck` passed');
+    expect(result.body).not.toContain('## Test plan');
+    expect(result.body).toContain('## Falsifier');
+  });
+
+  it('renames a completed Tests section with fenced command output', () => {
+    const body = [
+      '## Tests',
+      '',
+      '```',
+      '$ pnpm vitest run tests/correction-gate.test.ts',
+      'Test Files  2 passed (2)',
+      '```',
+    ].join('\n');
+
+    const result = autofixPrVerificationSection(body);
+
+    expect(result.changed).toBe(true);
+    expect(result.body.startsWith('## Verification')).toBe(true);
+  });
+
+  it('does not fabricate verification when the test plan is still pending', () => {
+    const body = [
+      '## Test plan',
+      '- [ ] Next production cycle should produce a signal',
+      '- [ ] No false positives',
+    ].join('\n');
+
+    const result = autofixPrVerificationSection(body);
+
+    expect(result.changed).toBe(false);
+    expect(result.reason).toBe('test evidence section has no completed evidence');
+  });
+
+  it('does not change a body that already has Verification', () => {
+    const body = '## Verification\n- [x] `pnpm test` passed\n';
+
+    const result = autofixPrVerificationSection(body);
+
+    expect(result.changed).toBe(false);
+    expect(result.body).toBe(body);
+  });
+});

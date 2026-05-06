@@ -395,6 +395,33 @@ interface GhPrView {
   url?: string;
 }
 
+export interface PrVerificationAutofixResult {
+  changed: boolean;
+  body: string;
+  reason: string;
+}
+
+export function autofixPrVerificationSection(body?: string | null): PrVerificationAutofixResult {
+  const text = body ?? '';
+  if (hasVerificationSection(text)) {
+    return { changed: false, body: text, reason: 'verification section already present' };
+  }
+
+  const section = findEvidenceSection(text);
+  if (!section) {
+    return { changed: false, body: text, reason: 'no test evidence section found' };
+  }
+  if (!sectionHasCompletedEvidence(section.content)) {
+    return { changed: false, body: text, reason: 'test evidence section has no completed evidence' };
+  }
+
+  return {
+    changed: true,
+    body: text.slice(0, section.start) + '## Verification' + text.slice(section.headingEnd),
+    reason: `renamed ${section.heading.trim()} to ## Verification`,
+  };
+}
+
 export async function autoProduceInternalPrReviewClaims(): Promise<void> {
   const memoryDir = path.join(process.cwd(), 'memory');
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
@@ -433,6 +460,32 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
   const result = appendMissingInternalPrReviewClaims(memoryDir, candidates);
   if (result.created.length > 0) {
     slog('github', `created ${result.created.length} internal PR review claim(s)`);
+  }
+}
+
+export async function autoRepairPrVerificationEvidence(): Promise<void> {
+  const memoryDir = path.join(process.cwd(), 'memory');
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  const activeContent = fs.readFileSync(activePath, 'utf-8');
+  const consensuses = evaluatePrReviewConsensus(parsePrReviewHandoffs(activeContent), readPrReviewClaimsSync(memoryDir))
+    .filter(c => c.status === 'changes_requested')
+    .filter(c => c.claims.some(claim => claim.summary === 'Code-affecting PR is missing verification evidence in the PR body.'));
+  if (consensuses.length === 0) return;
+
+  for (const consensus of consensuses) {
+    try {
+      const pr = await viewPullRequest(consensus.prNumber);
+      if (!pr || pr.isDraft) continue;
+      if (pr.labels?.some(label => label.name === 'hold')) continue;
+      const fix = autofixPrVerificationSection(pr.body);
+      if (!fix.changed) continue;
+      await gh(['pr', 'edit', String(consensus.prNumber), '--body', fix.body], 20000);
+      slog('github', `auto-repaired PR #${consensus.prNumber} verification evidence: ${fix.reason}`);
+    } catch {
+      // Single PR repair failure should not block the loop.
+    }
   }
 }
 
@@ -664,9 +717,37 @@ export async function githubAutoActions(): Promise<void> {
   await autoTrackPrReviewNeeds().catch(() => {});
   await autoProduceInternalPrReviewClaims().catch(() => {});
   await autoTrackPrReviewConsensus().catch(() => {});
+  await autoRepairPrVerificationEvidence().catch(() => {});
   await autoApplyInternalPrReviewConsensus().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
   await autoMergeInternallyApprovedPR().catch(() => {});
   await autoTrackMergedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
+}
+
+function hasVerificationSection(body: string): boolean {
+  return /^##\s+Verification\b/im.test(body);
+}
+
+function findEvidenceSection(body: string): { start: number; headingEnd: number; heading: string; content: string } | null {
+  const headingRe = /^##\s+(Test plan|Tests|Test Plan|Testing)\b.*$/gim;
+  let match: RegExpExecArray | null;
+  while ((match = headingRe.exec(body)) !== null) {
+    const start = match.index;
+    const heading = match[0];
+    const headingEnd = start + heading.length;
+    const contentStart = headingEnd;
+    const nextHeading = body.slice(contentStart).search(/\n##\s+/);
+    const end = nextHeading >= 0 ? contentStart + nextHeading : body.length;
+    return { start, headingEnd, heading, content: body.slice(contentStart, end) };
+  }
+  return null;
+}
+
+function sectionHasCompletedEvidence(section: string): boolean {
+  const hasCompletedMarker = /(?:^|\n)\s*-\s*\[[xX]\]\s+/.test(section)
+    || /(?:^|\n)\s*(?:`{3}|[$>])/.test(section);
+  const hasVerificationCommand = /\b(?:pnpm|npm|npx|vitest|tsc|typecheck|build|test|smoke|grep)\b/i.test(section);
+  const hasPassSignal = /\b(?:pass(?:ed|es)?|clean|0 lines|verified|ok|success)\b/i.test(section);
+  return hasCompletedMarker && hasVerificationCommand && hasPassSignal;
 }
