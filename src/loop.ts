@@ -2707,7 +2707,9 @@ export class AgentLoop {
               : '<no-header>';
             slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=true, snippet="${snippet}")`);
           } else {
-            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=false)`);
+            // Issue #88 followup: also dump head when marker missing on substantial response (cl-5 false-branch evidence).
+            const head = response.slice(0, 200).replace(/\n/g, '\\n');
+            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=false, head="${head}")`);
           }
         }
       } catch (err) {
