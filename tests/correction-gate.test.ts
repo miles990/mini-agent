@@ -159,6 +159,40 @@ describe('correction gate', () => {
     }
   });
 
+  it('acknowledges an active runtime-workspace-wrong-branch hold instead of emitting a correction reason', () => {
+    try {
+      execGit(['init'], tmpDir);
+      execGit(['config', 'user.email', 'test@example.com'], tmpDir);
+      execGit(['config', 'user.name', 'Test User'], tmpDir);
+      writeFileSync(path.join(tmpDir, 'README.md'), 'runtime guard fixture\n', 'utf-8');
+      execGit(['add', 'README.md'], tmpDir);
+      execGit(['commit', '-m', 'init'], tmpDir);
+      execGit(['branch', '-M', 'fix/issue-189-active-pr'], tmpDir);
+      process.env.MINI_AGENT_RUNTIME_WORKSPACE = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+      }).trim();
+
+      appendCorrectionHold(tmpDir, {
+        id: 'hold-runtime-branch',
+        correction_reason_type: 'runtime-workspace-wrong-branch',
+        reason: 'active PR work; will rebase/merge before runtime restart',
+        unblock_when: { kind: 'timeout', until: '2099-01-01T00:00:00Z' },
+        created_at: '2026-05-07T00:00:00Z',
+        created_by: 'test',
+      });
+      invalidateIndexCache();
+
+      const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+      expect(snapshot.reasons.map(r => r.type)).not.toContain('runtime-workspace-wrong-branch');
+      expect(snapshot.acknowledgedHolds.map(h => h.hold.id)).toContain('hold-runtime-branch');
+      expect(snapshot.guidance.join('\n')).toContain('active hold');
+    } finally {
+      delete process.env.MINI_AGENT_RUNTIME_WORKSPACE;
+    }
+  });
+
   it('classifies only managed/code dirt as blocking runtime dirt', () => {
     expect(getBlockingRuntimeDirtyPaths([
       'memory/inner-notes.md',
