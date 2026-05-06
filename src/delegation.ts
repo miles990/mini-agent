@@ -23,7 +23,7 @@ import type { DelegationTaskType, Provider } from './types.js';
 import { writeActivity } from './activity-journal.js';
 import { createTask, updateTask } from './memory-index.js';
 import { middleware, type PlanStepSpec, type PlanStatus } from './middleware-client.js';
-import { forgeCreate, forgeYolo, forgeCleanup } from './forge.js';
+import { finalizeForgeWorkspace, prepareForgeWorkspace, type ForgeOutcome } from './forge.js';
 import { extractDelegationSummary, buildRecentDelegationSummary, persistDelegationResult, writeLaneOutput } from './delegation-summary.js';
 import { decideArbitration } from './brain-arbiter.js';
 import type { ArbitrationDecision, WorkIntent, WorkItem, WorkPriority, WorkRisk } from './brain-types.js';
@@ -69,13 +69,6 @@ export interface VerifyResult {
   cmd: string;
   passed: boolean;
   output: string;
-}
-
-export interface ForgeOutcome {
-  worktree: string;
-  created: boolean;
-  merged: boolean;
-  cleaned: boolean;
 }
 
 export interface TaskResult {
@@ -257,14 +250,17 @@ export function spawnDelegation(task: DelegationTask): string {
     slog('DELEGATION', `Capacity reached (${activeTasks.size}/${MAX_CONCURRENT}) — middleware will queue ${taskId}`);
   }
 
-  // Forge (§Q2): allocate isolated worktrees for all workspace-writing work
-  // before submitting the plan. The main service checkout is deploy/runtime
-  // truth; autonomous edits must not fall back to mutating it directly.
+  // Forge (§Q2): workspace isolation is a single adapter decision. Delegation
+  // only consumes the prepared cwd; forge owns worktree allocation policy.
   const needsWorkspaceIsolation = workItem.risk === 'workspace_write';
-  const forgeWorktree = task.forgeWorktree ?? (needsWorkspaceIsolation
-    ? forgeCreate(taskId, workdir, taskType) ?? undefined
-    : undefined);
-  const cwd = forgeWorktree ?? workdir;
+  const preparedWorkspace = prepareForgeWorkspace({
+    taskId,
+    workdir,
+    taskType,
+    requiresIsolation: needsWorkspaceIsolation,
+    explicitWorktree: task.forgeWorktree,
+  });
+  const cwd = preparedWorkspace.cwd;
 
   const result: TaskResult = {
     id: taskId,
@@ -276,13 +272,13 @@ export function spawnDelegation(task: DelegationTask): string {
 
   // Synchronously reserve the slot so callers see the task via listTasks/getActiveDelegationSummaries.
   // planId gets filled in once /plan returns (or cleared on failure).
-  const entry: ActiveEntry = { planId: '', result, task, forgeWorktree, arbitration };
+  const entry: ActiveEntry = { planId: '', result, task, forgeWorktree: preparedWorkspace.worktree, arbitration };
   activeTasks.set(taskId, entry);
 
-  if (needsWorkspaceIsolation && !forgeWorktree && isProtectedServiceWorkspace(workdir)) {
+  if (preparedWorkspace.blockedReason) {
     finalizeTask(entry, {
       status: 'failed',
-      output: `blocked by workspace isolation policy: forge worktree allocation failed for protected service workspace ${workdir}`,
+      output: preparedWorkspace.blockedReason,
     });
     return taskId;
   }
@@ -682,10 +678,6 @@ function riskForDelegationType(type: DelegationTaskType, task: DelegationTask): 
   return 'read_only';
 }
 
-function isProtectedServiceWorkspace(workdir: string): boolean {
-  return path.resolve(workdir) === path.resolve(process.cwd());
-}
-
 function priorityForDelegation(task: DelegationTask): WorkPriority {
   if (/\b(P0|urgent|ASAP|緊急|馬上)\b/i.test(task.prompt)) return 'P0';
   if (/\b(P2|low priority|低優先)\b/i.test(task.prompt)) return 'P2';
@@ -742,21 +734,14 @@ function finalizeTask(
 
   // Forge merge/cleanup on completion
   if (forgeWorktree) {
-    const forgeOutcome: ForgeOutcome = { worktree: forgeWorktree, created: true, merged: false, cleaned: false };
-    if (result.status === 'completed') {
-      const merged = forgeYolo(forgeWorktree, task.workdir, task.prompt.slice(0, 80));
-      forgeOutcome.merged = merged;
-      if (!merged) {
-        result.output += '\n[forge] merge skipped (verify failed or no changes)';
-        forgeCleanup(forgeWorktree, task.workdir);
-        forgeOutcome.cleaned = true;
-      }
-    } else {
-      slog('FORGE', `Cleaning up failed worktree ${forgeWorktree} (status=${result.status})`);
-      forgeCleanup(forgeWorktree, task.workdir);
-      forgeOutcome.cleaned = true;
-    }
-    result.forge = forgeOutcome;
+    const finalized = finalizeForgeWorkspace({
+      worktree: forgeWorktree,
+      mainDir: task.workdir,
+      status: result.status,
+      message: task.prompt.slice(0, 80),
+    });
+    if (finalized.outputSuffix) result.output += finalized.outputSuffix;
+    result.forge = finalized.outcome;
   }
 
   slog('DELEGATION', `Finished ${result.id}: ${result.status} in ${Math.round((result.duration ?? 0) / 1000)}s`);

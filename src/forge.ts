@@ -19,6 +19,19 @@ export interface ForgeSlotStatus {
   source: 'plugin' | 'bundled';
 }
 
+export interface ForgeOutcome {
+  worktree: string;
+  created: boolean;
+  merged: boolean;
+  cleaned: boolean;
+}
+
+export interface PreparedForgeWorkspace {
+  cwd: string;
+  worktree?: string;
+  blockedReason?: string;
+}
+
 // Task types that don't need dependency installation (pure docs/review work)
 const NO_INSTALL_TYPES: Set<DelegationTaskType> = new Set(['create', 'review', 'learn', 'research', 'plan', 'debug']);
 
@@ -47,6 +60,25 @@ export function forgeCreate(taskId: string, workdir: string, taskType?: Delegati
   }
 }
 
+export function prepareForgeWorkspace(opts: {
+  taskId: string;
+  workdir: string;
+  taskType?: DelegationTaskType;
+  requiresIsolation: boolean;
+  explicitWorktree?: string;
+}): PreparedForgeWorkspace {
+  if (!opts.requiresIsolation) return { cwd: opts.workdir };
+  if (opts.explicitWorktree) return { cwd: opts.explicitWorktree, worktree: opts.explicitWorktree };
+
+  const worktree = forgeCreate(opts.taskId, opts.workdir, opts.taskType) ?? undefined;
+  if (worktree) return { cwd: worktree, worktree };
+
+  return {
+    cwd: opts.workdir,
+    blockedReason: `blocked by workspace isolation policy: forge worktree allocation failed for ${opts.workdir}`,
+  };
+}
+
 export function forgeYolo(worktreePath: string, mainDir: string, message: string): boolean {
   try {
     forgeExec(`yolo "${worktreePath}" "${message}"`, mainDir, 120_000);
@@ -59,6 +91,29 @@ export function forgeYolo(worktreePath: string, mainDir: string, message: string
 /** @DANGEROUS _reason: deletes the worktree — only call after yolo failed or task aborted */
 export function forgeCleanup(worktreePath: string, mainDir: string): void {
   try { forgeExec(`cleanup "${worktreePath}"`, mainDir); } catch { /* best effort */ }
+}
+
+export function finalizeForgeWorkspace(opts: {
+  worktree: string;
+  mainDir: string;
+  status: 'completed' | 'failed' | 'timeout';
+  message: string;
+}): { outcome: ForgeOutcome; outputSuffix?: string } {
+  const outcome: ForgeOutcome = { worktree: opts.worktree, created: true, merged: false, cleaned: false };
+  if (opts.status === 'completed') {
+    outcome.merged = forgeYolo(opts.worktree, opts.mainDir, opts.message);
+    if (!outcome.merged) {
+      forgeCleanup(opts.worktree, opts.mainDir);
+      outcome.cleaned = true;
+      return { outcome, outputSuffix: '\n[forge] merge skipped (verify failed or no changes)' };
+    }
+    return { outcome };
+  }
+
+  slog('FORGE', `Cleaning up failed worktree ${opts.worktree} (status=${opts.status})`);
+  forgeCleanup(opts.worktree, opts.mainDir);
+  outcome.cleaned = true;
+  return { outcome };
 }
 
 export function forgeRecover(workdir: string): void {
