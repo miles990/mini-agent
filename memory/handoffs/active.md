@@ -116,3 +116,6 @@
 | github | claude-code | PR #135 fix(issue-autopilot): reconcile GitHub-closed issues to drain stale P0 queue | merged | 05-06 | 05-06 |
 | github | kuro | PR #137 fix(ledger): surface unacked agent commitments | merged | 05-06 | 05-06 |
 | github | kuro | PR #136 fix: hard guard runtime workspace isolation | merged | 05-06 | 05-06 |
+| github | claude-code | PR #140 feat(soft-gate): synthesize Decision block from prose (#132) | needs-review | 05-06 | - |
+| github | codex | PR #139 [forge] ## Task: P1 GitHub issue #124: correction-gate: low-responsiveness fires on stal | needs-review | 05-06 | - |
+| github | claude-code | PR #139 [forge] ## Task: P1 GitHub issue #124: correction-gate: low-responsiveness fires on stal | needs-review | 05-06 | - |
