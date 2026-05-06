@@ -65,6 +65,80 @@ describe('self research autopilot', () => {
     expect(result).toEqual({ queued: false, reason: 'active-tasks-present' });
   });
 
+  it('queues autonomous maintenance for blocked PR conflict debt before generic self-research', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '# Active Handoffs',
+        '',
+        '| From | To | Task | Status | Created | Done |',
+        '|------|----|------|--------|---------|------|',
+        '| github | kuro | PR #93 conflict diagnostic: hook rebuild (needs-verification; conflicting PR lacks completed verification evidence) | blocked | 05-06 | - |',
+        '| github | kuro | PR #90 conflict diagnostic: feedback loop patch (needs-decomposition; conflict spans broad scope (12 files)) | blocked | 05-06 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-05T00:00:00.000Z'),
+    });
+
+    expect(result.queued).toBe(true);
+    expect(result.reason).toBe('maintenance-queued');
+    expect(result.maintenance).toEqual(expect.objectContaining({
+      prNumber: 90,
+      action: 'needs-decomposition',
+    }));
+    expect(result.task).toEqual(expect.objectContaining({
+      status: 'pending',
+      summary: expect.stringContaining('P1 autonomous maintenance PR #90'),
+    }));
+    expect(result.task?.payload).toEqual(expect.objectContaining({
+      priority: 1,
+      assignee: 'kuro',
+      verify_command: expect.stringContaining('gh pr view 90'),
+    }));
+  });
+
+  it('does not duplicate an existing autonomous maintenance task', async () => {
+    mkdirSync(path.join(tmpDir, 'handoffs'), { recursive: true });
+    mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
+    writeFileSync(
+      path.join(tmpDir, 'handoffs/active.md'),
+      [
+        '| From | To | Task | Status | Created | Done |',
+        '| github | kuro | PR #90 conflict diagnostic: feedback loop patch (needs-decomposition; conflict spans broad scope) | blocked | 05-06 | - |',
+      ].join('\n'),
+      'utf-8',
+    );
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-maintenance',
+        ts: '2026-05-05T00:00:00.000Z',
+        type: 'task',
+        status: 'pending',
+        summary: 'P1 autonomous maintenance PR #90: rebuild or split conflicting broad PR from current main',
+        refs: [],
+        payload: { origin: 'scheduler', priority: 1 },
+      }) + '\n',
+      'utf-8',
+    );
+
+    const result = await maybeQueueSelfResearch(tmpDir, {
+      triggerReason: 'heartbeat',
+      now: new Date('2026-05-05T00:00:00.000Z'),
+    });
+
+    expect(result).toEqual({
+      queued: false,
+      reason: 'maintenance-task-exists',
+      maintenance: expect.objectContaining({ prNumber: 90 }),
+    });
+  });
+
   it('does not queue more than one proposal per day', async () => {
     const first = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
