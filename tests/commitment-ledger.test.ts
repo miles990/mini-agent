@@ -25,6 +25,7 @@ import {
   readPendingCommitments,
   parseFalsifierToQuery,
   resolveReadyCommitments,
+  buildLedgerSection,
 } from '../src/commitment-ledger.js';
 
 describe('commitment-ledger trust-layer branching', () => {
@@ -286,5 +287,39 @@ describe('commitment-ledger trust-layer branching', () => {
     resolveReadyCommitments(11);
 
     expect(auditCommitments(11).kept).toBe(1);
+  });
+
+  it('buildLedgerSection (#82) surfaces unacked agent commitments with <kuro:ack> hint after age>=2', () => {
+    writeCommitment({
+      cycle_id: 5,
+      prediction: 'Alex will review PR #82 patch',
+      falsifier: 'pr merged within 7d',
+      ttl_cycles: 10,
+      counterparty: { kind: 'agent', agent_id: 'alex' },
+    });
+
+    // age=1 → below threshold, should NOT appear in awaiting-ack section
+    const sec1 = buildLedgerSection(6);
+    expect(sec1).not.toMatch(/Awaiting ack from counterparty/);
+
+    // age=2 → at threshold, should appear with DSL hint
+    const sec2 = buildLedgerSection(7);
+    expect(sec2).toMatch(/Awaiting ack from counterparty \(1\)/);
+    expect(sec2).toMatch(/counterparty=alex, age=2 cycles/);
+    expect(sec2).toMatch(/<kuro:ack id="cl-X" by="alex"/);
+  });
+
+  it('buildLedgerSection (#82) excludes self-counterparty and already-acked entries', () => {
+    // self-counterparty: should never appear in awaiting-ack
+    writeCommitment({
+      cycle_id: 1,
+      prediction: 'self promise',
+      falsifier: 'something',
+      ttl_cycles: 10,
+      counterparty: { kind: 'self' },
+    });
+
+    const sec = buildLedgerSection(5);
+    expect(sec).not.toMatch(/Awaiting ack from counterparty/);
   });
 });

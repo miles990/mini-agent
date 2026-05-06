@@ -501,6 +501,27 @@ export function buildLedgerSection(currentCycleId: number): string {
   lines.push('');
   lines.push(`Stats: pending=${audit.pending} kept=${audit.kept} refuted=${audit.refuted} resolved=${audit.resolved} expired=${audit.expired} abandoned=${audit.abandoned}`);
 
+  // Phase B circulation fix (#82 Finding 1): surface unacked agent-counterparty
+  // commitments at prompt-time so the agent learns the <kuro:ack> DSL inline
+  // instead of letting them silently age into 'abandoned'. age>=2 threshold
+  // gives counterparty time to respond before nagging.
+  const unackedAgent = pending.filter(e =>
+    e.counterparty?.kind === 'agent' &&
+    !e.ack_at &&
+    (currentCycleId - e.cycle_id) >= 2,
+  );
+  if (unackedAgent.length > 0) {
+    lines.push('');
+    lines.push(`Awaiting ack from counterparty (${unackedAgent.length}):`);
+    for (const e of unackedAgent) {
+      const age = currentCycleId - e.cycle_id;
+      const cp = e.counterparty as { kind: 'agent'; agent_id: string };
+      const snippet = e.prediction.length > 80 ? e.prediction.slice(0, 77) + '...' : e.prediction;
+      lines.push(`  - ${e.id} (counterparty=${cp.agent_id}, age=${age} cycles): "${snippet}"`);
+    }
+    lines.push(`  → If counterparty has addressed any of these, emit: <kuro:ack id="cl-X" by="${(unackedAgent[0].counterparty as { kind: 'agent'; agent_id: string }).agent_id}" />`);
+  }
+
   const warnings: string[] = [];
 
   if (audit.analysisParalysis) {
