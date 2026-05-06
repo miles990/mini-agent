@@ -287,4 +287,18 @@ describe('PR review runner', () => {
     expect(computePrReviewInputHash({ ...candidate, changedFiles: [...candidate.changedFiles].reverse(), headSha: 'abc123' }))
       .toBe(computePrReviewInputHash({ ...candidate, headSha: 'abc123' }));
   });
+
+  it('uses the current review policy version in the input fingerprint', () => {
+    const hash = computePrReviewInputHash({
+      prNumber: 89,
+      title: 'fix(loop): dump head bytes on hasMarker=false soft-gate skip',
+      body: '## Verification\n- [x] `tsc --noEmit` passes',
+      headSha: 'a08d45898b3049b027c7b18a0d612e300b604333',
+      reviewer: 'akari',
+      framework: 'tanren-review',
+      changedFiles: ['src/loop.ts'],
+    });
+
+    expect(hash).not.toBe('888b5ec0d453625c');
+  });
 });
