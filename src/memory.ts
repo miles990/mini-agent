@@ -3717,15 +3717,23 @@ export class InstanceMemory {
     // Heartbeat — 只取 Active Tasks section (heartbeat-active only in minimal mode)
     // 完整 HEARTBEAT 佔 ~8.5K，Active Tasks 只佔 ~2K
     if (heartbeat) {
+      // Issue #163 Defect A: minimal-context path was slicing raw heartbeat which left
+      // HTML-commented + [x]-completed phantom tasks visible. Strip noise like the
+      // full-context builder does at L3367-3368 so render matches disk truth.
+      const cleaned = heartbeat
+        .replace(/<!--[\s\S]*?-->\n?/g, '')
+        .split('\n')
+        .filter(l => !l.trim().startsWith('- [x]'))
+        .join('\n');
       const activeTasksHeader = '## Active Tasks';
-      const activeIdx = heartbeat.indexOf(activeTasksHeader);
+      const activeIdx = cleaned.indexOf(activeTasksHeader);
       const MAX_HEARTBEAT_ACTIVE = 2000;
       if (activeIdx !== -1) {
         // Find the next ## header after Active Tasks to extract just that section
-        const afterActive = heartbeat.indexOf('\n## ', activeIdx + activeTasksHeader.length);
+        const afterActive = cleaned.indexOf('\n## ', activeIdx + activeTasksHeader.length);
         let activeTasks = afterActive !== -1
-          ? heartbeat.slice(activeIdx, afterActive).trim()
-          : heartbeat.slice(activeIdx).trim();
+          ? cleaned.slice(activeIdx, afterActive).trim()
+          : cleaned.slice(activeIdx).trim();
         // Issue #85: cap section-extract path (was uncapped, ~5KB bloat in minimal cycles).
         if (activeTasks.length > MAX_HEARTBEAT_ACTIVE) {
           activeTasks = activeTasks.slice(0, MAX_HEARTBEAT_ACTIVE) + '\n[... truncated; see HEARTBEAT.md for full list ...]';
@@ -3733,7 +3741,7 @@ export class InstanceMemory {
         sections.push(`<heartbeat-active>\n# HEARTBEAT (minimal)\n\n${activeTasks}\n</heartbeat-active>`);
       } else {
         // Fallback: truncate to first 2000 chars
-        sections.push(`<heartbeat-active>\n${heartbeat.slice(0, MAX_HEARTBEAT_ACTIVE)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
+        sections.push(`<heartbeat-active>\n${cleaned.slice(0, MAX_HEARTBEAT_ACTIVE)}\n[... truncated for minimal context ...]\n</heartbeat-active>`);
       }
     }
 
