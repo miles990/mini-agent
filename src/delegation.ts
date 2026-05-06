@@ -78,6 +78,14 @@ export interface DelegationTask {
   workdir: string;
   maxTurns?: number;
   timeoutMs?: number;
+  /**
+   * Per-task stall-kill cap for shell workers (ms).
+   * Overrides the worker-level `progressTimeoutSeconds` for this task only.
+   * Use for LLM-heavy shell pipelines (e.g. KG extraction) that produce no
+   * stdout during long LLM round-trips and would otherwise be killed by the
+   * default 300s worker stall cap. Set to 600_000 (10min) for KG ingest.
+   */
+  progressTimeoutMs?: number;
   verify?: string[];
   allowedTools?: string[];
   context?: string;
@@ -568,6 +576,9 @@ async function dispatchAndPoll(
       const step: PlanStepSpec & { cwd?: string } = {
         id: taskId, worker, label: task.prompt.slice(0, 80), task: prompt,
         dependsOn: [], timeoutSeconds: Math.max(30, Math.ceil(timeoutMs / 1000)), cwd,
+        ...(task.progressTimeoutMs !== undefined
+          ? { progressTimeoutSeconds: Math.ceil(task.progressTimeoutMs / 1000) }
+          : {}),
       };
       // 2026-04-20: middleware().plan() had no per-call timeout; a blocking /plan
       // endpoint manifested as silent 600s hang_no_diag (unclassifiable). 120s

@@ -49,6 +49,12 @@ export interface PlanStepSpec {
   task: string;
   dependsOn: string[];
   timeoutSeconds?: number;
+  /**
+   * Per-step stall-kill cap in seconds (overrides worker-level progressTimeoutSeconds).
+   * Used by shell worker to abort on no-stdout idle; prevents LLM-heavy pipelines
+   * from being killed by the default worker stall cap during long LLM round-trips.
+   */
+  progressTimeoutSeconds?: number;
   retry?: {
     maxRetries: number;
     backoffMs?: number;
