@@ -2246,7 +2246,20 @@ export class AgentLoop {
       } catch { /* non-critical */ }
       try {
         const { closeResolvedCorrectionTasks, evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
-        const correction = evaluateCorrectionGate(memDir);
+        let correction = evaluateCorrectionGate(memDir);
+        if (
+          correction.shipTruth.state === 'pending-push' &&
+          process.env.MINI_AGENT_AUTOCORRECT_RUNTIME_WORKSPACE !== '0'
+        ) {
+          try {
+            const { autocorrectRuntimeWorkspace } = await import('./runtime-workspace-autocorrect.js');
+            const result = autocorrectRuntimeWorkspace(process.cwd(), { apply: true });
+            slog('CORRECTION', `runtime autocorrect ${result.status}: ${result.reason}${result.prUrl ? ` ${result.prUrl}` : ''}`);
+            correction = evaluateCorrectionGate(memDir);
+          } catch (e) {
+            slog('WARN', `runtime autocorrect failed: ${e}`);
+          }
+        }
         if (correction.needsCorrection) {
           const correctionTask = await ensureCorrectionTask(memDir, correction);
           slog('CORRECTION', `active reasons=${correction.reasons.map(r => r.type).join(',')} task=${correctionTask?.id.slice(0, 12) ?? 'existing'}`);
