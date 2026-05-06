@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Auto-rebuild dist after commits that touch src/.
+# Avoids stale-dist drift (mini-agent issue #91, agent-middleware issue #3).
+# Skips during rebase/merge/cherry-pick to prevent loops.
+
+[ -n "$GIT_REBASE_OR_MERGE" ] && exit 0
+[ -d "$(git rev-parse --git-dir)/rebase-merge" ] && exit 0
+[ -d "$(git rev-parse --git-dir)/rebase-apply" ] && exit 0
+[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 0
+[ -f "$(git rev-parse --git-dir)/CHERRY_PICK_HEAD" ] && exit 0
+
+# Only rebuild if last commit touched src/ or tsconfig.json
+if git diff-tree --no-commit-id --name-only -r HEAD | grep -qE '^(src/|tsconfig\.json$)'; then
+  echo "[post-commit] src/ changed — rebuilding dist..."
+  if command -v pnpm >/dev/null 2>&1; then
+    pnpm build >/dev/null 2>&1 && echo "[post-commit] dist rebuilt OK" || echo "[post-commit] BUILD FAILED — dist may be stale"
+  else
+    npm run build >/dev/null 2>&1 && echo "[post-commit] dist rebuilt OK" || echo "[post-commit] BUILD FAILED — dist may be stale"
+  fi
+  echo "[post-commit] reminder: server pid running dist/ does not auto-reload — restart manually if needed"
+fi
