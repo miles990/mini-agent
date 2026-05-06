@@ -743,21 +743,21 @@ function dispatchKGIngestIfNeeded(): void {
     const workdir = process.cwd();
     slog('KG-INGEST', `Triggering auto-ingest: ${reason}`);
 
+    // #91: graphify worker is bash, not LLM. Emit a shell pipeline (&& chain), not prose.
+    const kgPipeline = [
+      `cd ${workdir}`,
+      'pnpm tsx scripts/kg-extract-chunks.ts --write',
+      'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+      'pnpm tsx scripts/kg-extract-edges.ts --write --limit 100',
+      'pnpm tsx scripts/kg-build-cooccurrence.ts --replace',
+      'pnpm tsx scripts/kg-build-frontmatter-edges.ts --write',
+      'pnpm tsx scripts/kg-detect-conflicts.ts --write',
+      'pnpm tsx scripts/kg-viz.ts',
+    ].join(' && ');
+    slog('KG-INGEST', `dispatching shell pipeline (newWrites=${newWrites})`);
     spawnDelegation({
       type: 'graphify',
-      prompt: [
-        `KG incremental rebuild: ${newWrites} new memory writes detected.`,
-        'Run the following pipeline in order:',
-        `cd ${workdir}`,
-        '1. pnpm tsx scripts/kg-extract-chunks.ts --write',
-        '2. pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
-        '3. pnpm tsx scripts/kg-extract-edges.ts --write --limit 100',
-        '4. pnpm tsx scripts/kg-build-cooccurrence.ts --replace',
-        '5. pnpm tsx scripts/kg-build-frontmatter-edges.ts --write',
-        '6. pnpm tsx scripts/kg-detect-conflicts.ts --write',
-        '7. pnpm tsx scripts/kg-viz.ts',
-        'Report: entity count, edge count, new conflicts.',
-      ].join('\n'),
+      prompt: kgPipeline,
       workdir,
       acceptance: 'KG entities.jsonl and edges.jsonl updated with new data from recent memory writes; manifest.json last_incremental timestamp refreshed',
     });
