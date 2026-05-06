@@ -11,13 +11,13 @@
 # auto-prune cleans up stale worktrees, deps are installed before verify
 # to prevent pnpm symlink corruption, and 3 persistent worktree slots with
 # cached node_modules support concurrent runs (first run installs, reuse skips).
-# Before merge, rebase onto main reduces conflicts from concurrent work.
+# Before push, rebase onto origin/main reduces conflicts from concurrent work.
 #
 # Usage:
 #   forge-lite.sh create <task-name> [--files "a.ts,b.ts"] [--no-install] [--json]
 #   forge-lite.sh verify <worktree-path>
-#   forge-lite.sh merge <worktree-path> [message]
-#   forge-lite.sh yolo <worktree-path> [message]     # verify + merge in one shot
+#   forge-lite.sh merge <worktree-path> [message]    # push branch + PR
+#   forge-lite.sh yolo <worktree-path> [message]     # verify + push branch + PR
 #   forge-lite.sh cleanup <worktree-path>
 #   forge-lite.sh status [--json]                     # alias: list, ls
 #   forge-lite.sh recover
@@ -37,11 +37,13 @@ MAIN_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || {
   exit 1
 }
 
-LOCK_FILE="$MAIN_DIR/.git/forge-lite.lock"
-STATE_FILE="$MAIN_DIR/.git/forge-lite-state"
+LOCK_FILE="$(git rev-parse --git-path forge-lite.lock)"
+STATE_FILE="$(git rev-parse --git-path forge-lite-state)"
 STALE_HOURS="${FORGE_STALE_HOURS:-24}"            # auto-prune worktrees older than this
 FORGE_SLOTS="${FORGE_SLOTS:-3}"                    # number of persistent worktree slots
 SLOT_STALE_MINUTES="${FORGE_SLOT_TTL_MINUTES:-60}" # slot abandoned after this (fallback for PID check)
+BASE_REF="${FORGE_BASE_REF:-origin/main}"           # immutable base for all worker branches
+BASE_BRANCH="${BASE_REF#origin/}"
 
 # ============================================================
 # Human-readable helpers
@@ -199,7 +201,7 @@ check_file_overlap() {
     # Combine ACTUAL modified files (git diff) + declared files (planned work)
     # This catches both: files already changed + files not yet changed
     local busy_files
-    busy_files=$(git -C "$slot" diff --name-only main 2>/dev/null || true)
+    busy_files=$(git -C "$slot" diff --name-only "$BASE_REF" 2>/dev/null || true)
     if [ -f "$slot/.forge-files" ]; then
       busy_files=$(printf '%s\n%s' "$busy_files" "$(cat "$slot/.forge-files")" | sort -u)
     fi
@@ -248,7 +250,7 @@ auto_prune() {
       local branch
       branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || branch=""
       git -C "$MAIN_DIR" worktree remove "$dir" 2>/dev/null || rm -rf "$dir"
-      [ -n "$branch" ] && [ "$branch" != "main" ] && \
+      [ -n "$branch" ] && [ "$branch" != "$BASE_BRANCH" ] && \
         git -C "$MAIN_DIR" branch -D "$branch" 2>/dev/null || true
     fi
   done
@@ -272,18 +274,22 @@ preflight_check() {
     fi
   fi
 
-  # For merge/yolo: ensure main is clean
+  # For merge/yolo: the worker worktree is verified and pushed as a feature
+  # branch. The runtime checkout is never used as a merge target.
   if [ "$cmd" = "merge" ] || [ "$cmd" = "yolo" ]; then
-    if ! git -C "$MAIN_DIR" diff --quiet 2>/dev/null || \
-       ! git -C "$MAIN_DIR" diff --cached --quiet 2>/dev/null; then
-      echo "Error: main has uncommitted changes — commit or stash first" >&2
-      exit 1
-    fi
     if [ -f "$MAIN_DIR/.git/MERGE_HEAD" ]; then
-      echo "Error: merge already in progress on main — resolve first" >&2
+      echo "Error: merge already in progress in runtime checkout — resolve first" >&2
       exit 1
     fi
   fi
+}
+
+ensure_base_ref() {
+  git -C "$MAIN_DIR" fetch origin "$BASE_BRANCH" >/dev/null 2>&1 || true
+  git -C "$MAIN_DIR" rev-parse --verify "$BASE_REF" >/dev/null 2>&1 || {
+    echo "Error: base ref $BASE_REF is unavailable" >&2
+    exit 1
+  }
 }
 
 # ============================================================
@@ -413,6 +419,7 @@ cmd_create() {
   fi
 
   auto_prune
+  ensure_base_ref
 
   local branch="feature/$task_name"
   local base_dir="$MAIN_DIR/../$(basename "$MAIN_DIR")-forge"
@@ -455,14 +462,14 @@ cmd_create() {
     # All slots busy — fallback to dedicated worktree (slow, full install)
     echo "[create] All $FORGE_SLOTS slots busy, using dedicated worktree" >&2
     worktree_dir="$MAIN_DIR/../$(basename "$MAIN_DIR")-forge-$task_name"
-    git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
+    git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" "$BASE_REF" >&2
     if [ "$no_install" = false ]; then
       install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
     else
       echo "[create] Skipping dependency install (--no-install)" >&2
     fi
   elif [ -d "$worktree_dir" ]; then
-    # Reuse existing slot — reset to main, create new branch
+    # Reuse existing slot — reset to origin/main, create new branch
     local old_branch
     old_branch=$(git -C "$worktree_dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || old_branch=""
     git -C "$worktree_dir" checkout --detach HEAD 2>/dev/null || true
@@ -470,7 +477,7 @@ cmd_create() {
     git -C "$worktree_dir" checkout -- . 2>/dev/null || true
     [ -n "$old_branch" ] && [ "$old_branch" != "HEAD" ] && \
       git -C "$MAIN_DIR" branch -D "$old_branch" 2>/dev/null || true
-    git -C "$worktree_dir" checkout -b "$branch" main 2>&1
+    git -C "$worktree_dir" checkout -b "$branch" "$BASE_REF" >&2
     if [ "$no_install" = false ]; then
       install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
     else
@@ -478,7 +485,7 @@ cmd_create() {
     fi
   else
     # Create new slot
-    git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" 2>&1
+    git -C "$MAIN_DIR" worktree add "$worktree_dir" -b "$branch" "$BASE_REF" >&2
     if [ "$no_install" = false ]; then
       install_deps "$worktree_dir" || echo "[create] WARNING: dependency install failed (worktree still usable)" >&2
     else
@@ -558,6 +565,7 @@ cmd_merge() {
   [ -d "$worktree" ] || { echo "Error: directory not found: $worktree" >&2; exit 1; }
 
   set_state "merge" "$worktree"
+  ensure_base_ref
 
   # Get branch name from worktree
   local branch
@@ -574,54 +582,43 @@ cmd_merge() {
     git -C "$worktree" commit -m "$message"
   fi
 
-  # Rebase onto latest main to reduce merge conflicts from concurrent work
-  echo "[merge] Rebasing $branch onto main..." >&2
-  if ! git -C "$worktree" rebase main 2>&1; then
-    echo "[merge] Rebase conflict — aborting rebase, will try direct merge" >&2
+  # Rebase onto latest origin/main to reduce conflicts from concurrent work.
+  echo "[merge] Rebasing $branch onto $BASE_REF..." >&2
+  if ! git -C "$worktree" rebase "$BASE_REF" 2>&1; then
+    echo "[merge] Rebase conflict — aborting; branch remains in worktree for diagnosis" >&2
     git -C "$worktree" rebase --abort 2>/dev/null || true
+    clear_state
+    exit 1
   fi
 
-  # Check if branch has commits ahead of main
+  # Check if branch has commits ahead of origin/main
   local ahead
-  ahead=$(git -C "$MAIN_DIR" rev-list --count "main..$branch" 2>/dev/null) || ahead=0
+  ahead=$(git -C "$MAIN_DIR" rev-list --count "$BASE_REF..$branch" 2>/dev/null) || ahead=0
   if [ "$ahead" -eq 0 ]; then
-    echo "Error: branch $branch has no commits ahead of main" >&2
+    echo "Error: branch $branch has no commits ahead of $BASE_REF" >&2
     exit 1
   fi
 
-  # Safety: ensure main staging area is clean before merge
-  # Prevents unrelated staged files from being included in the merge commit
-  if ! git -C "$MAIN_DIR" diff --cached --quiet 2>/dev/null; then
-    echo "[merge] ERROR: main has staged changes — refusing to merge." >&2
-    echo "[merge] Unstage with: git -C $MAIN_DIR reset HEAD" >&2
-    exit 1
-  fi
+  echo "[merge] Pushing $branch for PR review (no local main merge)..." >&2
+  git -C "$worktree" push -u origin "$branch"
+  if command -v gh >/dev/null 2>&1; then
+    local title body existing_pr
+    title="[forge] $message"
+    body="Automated forge submission from $worktree.
 
-  # Merge
-  echo "[merge] Merging $branch into main..." >&2
-  set_state "merging" "$worktree"
-  git -C "$MAIN_DIR" merge --no-ff "$branch" -m "[forge] $message" || {
-    echo "[merge] Merge conflict — resolve manually in $MAIN_DIR" >&2
-    exit 1
-  }
+Base: $BASE_REF
+Branch: $branch
 
-  # Post-merge verify
-  set_state "post-verify" "$worktree"
-  detect_commands "$MAIN_DIR"
-  install_deps "$MAIN_DIR" || true
-  local post_fail=0
-  if [ -n "$TYPECHECK_CMD" ]; then
-    (cd "$MAIN_DIR" && eval "$TYPECHECK_CMD") || post_fail=1
-  fi
-  if [ -n "$TEST_CMD" ] && [ "$post_fail" -eq 0 ]; then
-    (cd "$MAIN_DIR" && eval "$TEST_CMD") || post_fail=1
-  fi
-
-  if [ "$post_fail" -ne 0 ]; then
-    echo "[merge] Post-merge verification FAILED — rolling back" >&2
-    git -C "$MAIN_DIR" reset --merge HEAD~1
-    echo "[merge] Main restored. Debug in worktree: $worktree" >&2
-    exit 1
+This branch was verified in an isolated worktree. The runtime checkout was not used as a merge target."
+    existing_pr=$(gh pr view "$branch" --repo "$(git -C "$MAIN_DIR" config --get remote.origin.url | sed -E 's#.*github.com[:/]([^/]+/[^/.]+)(\\.git)?#\\1#')" --json number -q .number 2>/dev/null || true)
+    if [ -n "$existing_pr" ]; then
+      echo "[merge] PR already exists: #$existing_pr" >&2
+    else
+      gh pr create --base "$BASE_BRANCH" --head "$branch" --title "$title" --body "$body" >/dev/null 2>&1 || \
+        echo "[merge] Branch pushed; PR creation failed or requires manual auth" >&2
+    fi
+  else
+    echo "[merge] gh not found; branch pushed, PR must be opened separately" >&2
   fi
 
   # Keep persistent slot worktrees for reuse, delete dedicated ones
@@ -629,15 +626,15 @@ cmd_merge() {
     echo "[merge] Keeping slot for reuse (node_modules cached)" >&2
     rm -f "$worktree/.forge-in-use" "$worktree/.forge-files"
     git -C "$worktree" checkout --detach HEAD 2>/dev/null || true
-    git -C "$MAIN_DIR" branch -d "$branch" 2>/dev/null || true
+    git -C "$MAIN_DIR" branch -D "$branch" 2>/dev/null || true
   else
     echo "[merge] Cleaning up dedicated worktree..." >&2
     git -C "$MAIN_DIR" worktree remove "$worktree" 2>/dev/null || rm -rf "$worktree"
-    git -C "$MAIN_DIR" branch -d "$branch" 2>/dev/null || true
+    git -C "$MAIN_DIR" branch -D "$branch" 2>/dev/null || true
   fi
 
   clear_state
-  echo "[merge] Done. Merged $branch into main." >&2
+  echo "[merge] Done. Pushed $branch; open a PR against $BASE_BRANCH." >&2
 }
 
 cmd_yolo() {
@@ -771,18 +768,13 @@ cmd_recover() {
       return 0
       ;;
     merge|merging)
-      echo "[recover] Crashed during merge — checking main state" >&2
-      if [ -f "$MAIN_DIR/.git/MERGE_HEAD" ]; then
-        echo "[recover] Aborting in-progress merge on main" >&2
-        git -C "$MAIN_DIR" merge --abort 2>/dev/null || true
-      fi
+      echo "[recover] Crashed during branch submit — runtime checkout untouched" >&2
       echo "[recover] Cleaning up worktree" >&2
       cmd_cleanup "$worktree" 2>/dev/null || true
       ;;
     post-verify)
-      echo "[recover] Crashed during post-merge verify — rolling back merge" >&2
-      git -C "$MAIN_DIR" reset --merge HEAD~1 2>/dev/null || true
-      echo "[recover] Main restored. Cleaning up worktree" >&2
+      echo "[recover] Legacy post-merge state found — runtime checkout untouched by current forge" >&2
+      echo "[recover] Cleaning up worktree" >&2
       cmd_cleanup "$worktree" 2>/dev/null || true
       ;;
     *)
@@ -828,8 +820,8 @@ Usage: forge-lite.sh <command> [args]
 Commands:
   create  <task-name> [opts]     Create worktree + feature branch
   verify  <worktree-path>        Run build + typecheck + tests
-  merge   <worktree-path> [msg]  Rebase + merge to main + cleanup
-  yolo    <worktree-path> [msg]  Verify + merge in one shot
+  merge   <worktree-path> [msg]  Rebase onto origin/main, push branch, open PR, cleanup
+  yolo    <worktree-path> [msg]  Verify + push branch + PR in one shot
   status  [--json]               Show slot states (alias: list, ls)
   cleanup <worktree-path>        Remove worktree without merging
   recover                        Recover from a previous crash
