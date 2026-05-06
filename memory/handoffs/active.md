@@ -117,3 +117,5 @@
 | github | claude-code | PR #139 [forge] ## Task: P1 GitHub issue #124: correction-gate: low-responsiveness fires on stal | changes-requested | 05-06 | - |
 | github | kuro | #141 delegation: phantom-prompt + masked-forge-error allows fail-ejkd7t-shaped repeats | needs-triage | 05-06 | — |
 | github | kuro | PR #142 fix: externalize runtime memory state | merged | 05-06 | 05-06 |
+| github | akari | PR #143 test(delegation): pin phantom-prompt classifier spec for #141 | needs-review | 05-06 | - |
+| github | alex | PR #143 test(delegation): pin phantom-prompt classifier spec for #141 | needs-review | 05-06 | - |
