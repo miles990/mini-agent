@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { assessConflicts, mergeAppendOnlyText } from '../src/conflict-governance.js';
@@ -11,6 +11,26 @@ const json = args.has('--json');
 
 function git(args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf-8' }).trimEnd();
+}
+
+function assertGitWorktree(): void {
+  try {
+    const inside = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trimEnd();
+    if (inside === 'true') return;
+  } catch {
+    // Fall through to the explicit error below.
+  }
+
+  const message = 'check-conflicts must run inside a git worktree';
+  if (json) {
+    console.log(JSON.stringify({ error: message }, null, 2));
+  } else {
+    console.error(`[conflict-governance] ${message}.`);
+  }
+  process.exit(1);
 }
 
 function conflictedPaths(): string[] {
@@ -41,6 +61,8 @@ function resolveAppendOnly(paths: string[]): string[] {
   return resolved;
 }
 
+assertGitWorktree();
+
 const paths = conflictedPaths();
 let assessment = assessConflicts(paths);
 let resolved: string[] = [];
@@ -63,7 +85,3 @@ if (json) {
 }
 
 if (assessment.shouldBlock) process.exit(1);
-if (!existsSync('.git')) {
-  // Kept only to make this script explicit about requiring a git worktree.
-  process.exit(1);
-}

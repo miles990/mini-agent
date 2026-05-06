@@ -97,11 +97,25 @@ export function classifyConflictPath(path: string): ConflictFile {
 export function mergeAppendOnlyText(ours: string, theirs: string): string {
   const lines: string[] = [];
   const seen = new Set<string>();
-  for (const line of [...ours.split('\n'), ...theirs.split('\n')]) {
-    if (!line.trim()) continue;
-    if (seen.has(line)) continue;
-    seen.add(line);
-    lines.push(line);
+
+  const append = (text: string) => {
+    const sourceLines = text.endsWith('\n') ? text.slice(0, -1).split('\n') : text.split('\n');
+    for (const line of sourceLines) {
+      if (!line.trim()) {
+        if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('');
+        continue;
+      }
+      if (seen.has(line)) continue;
+      seen.add(line);
+      lines.push(line);
+    }
+  };
+
+  append(ours);
+  append(theirs);
+
+  while (lines[lines.length - 1] === '') {
+    lines.pop();
   }
   return lines.join('\n') + (lines.length > 0 ? '\n' : '');
 }
