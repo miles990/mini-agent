@@ -1,0 +1,30 @@
+#!/bin/sh
+# Post-commit hook: rebuild dist/ when src/ or tsconfig changes.
+#
+# Why: dist/ is gitignored. Without auto-rebuild after src/ commits, the
+# locally-running server keeps executing pre-commit compiled code while the
+# repo HEAD reflects newer src — silently defeating local falsifier checks.
+# Observed 2026-05-06 (mini-agent #91 + agent-middleware #3) — same drift class
+# 8 hours apart, both required manual `pnpm build` rescue.
+#
+# Install: bash scripts/install-git-hooks.sh
+# Build runs in background so commits stay fast; failures land in
+# /tmp/post-commit-build-<repo>.log. Server still needs manual restart.
+
+CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -E '^(src/|tsconfig\.json$)')
+[ -z "$CHANGED" ] && exit 0
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+LOG=/tmp/post-commit-build-$(basename "$REPO_ROOT").log
+
+echo "[post-commit] src/ touched — rebuilding dist/ in background (log: $LOG)"
+(
+  cd "$REPO_ROOT" || exit 1
+  if pnpm build >"$LOG" 2>&1; then
+    echo "[post-commit] ✓ dist/ rebuilt for $(basename "$REPO_ROOT")" >>"$LOG"
+  else
+    echo "[post-commit] ✗ build failed for $(basename "$REPO_ROOT") — see $LOG"
+  fi
+) &
+disown 2>/dev/null || true
+exit 0
