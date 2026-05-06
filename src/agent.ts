@@ -220,10 +220,26 @@ function classifyError(error: unknown): ErrorClassification {
 
   // Silent mid-duration exit — CLI returned without stderr after >= 2 minutes.
   // Before this patch, these fell through to UNKNOWN and got bucketed as `hang_no_diag`.
+  // 2026-05-07 (Issue #191): split silent_exit_void into two retryability classes.
+  //   - HTTP-stall (duration > 800s + stdout=empty): upstream provider held the SSE/stream
+  //     socket without progress until server-side timeout. Audit on 2026-05-06 showed 19 events
+  //     clustered tightly at 970–1007s, all retries (1/3, 2/3, 3/3) hit the same wall ⇒
+  //     burning 3000s+ per failure cycle. Mark non-retryable so the lane defers/switches.
+  //   - CLI internal hang (~260s, or stdout has any content): may recover on retry — keep retryable.
   if (duration && duration > 120_000 && exitCode !== null && !signal && !killed && !stderr.trim()) {
     const stdoutTail = stdout.trim().slice(-400).replace(/\x1b\[[0-9;]*m/g, '');
+    const stdoutEmpty = !stdoutTail;
     const stdoutHint = stdoutTail ? ` stdout_tail="${stdoutTail}"` : ' stdout=empty';
     const signalHint = signal ? ` signal=${signal}` : '';
+    const isHttpStall = stdoutEmpty && duration > 800_000;
+    if (isHttpStall) {
+      return {
+        type: 'TIMEOUT',
+        retryable: false,
+        message: `CLI 靜默中斷 HTTP-stall（exit ${exitCode}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
+        modelGuidance: 'HTTP-stall pattern detected (>800s, no stdout, no stderr) — upstream provider held the stream socket without progress. Retrying immediately wastes another 1000s. Defer the task, switch provider lane if available, or escalate to user. Issue #191.'
+      };
+    }
     return {
       type: 'TIMEOUT',
       retryable: true,
