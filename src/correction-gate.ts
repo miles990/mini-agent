@@ -77,6 +77,9 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   const quality = hasPulseHistory ? Math.min(outputRate * 1.5, 1) : 0.7;
   const score = Math.min(Math.round(fulfillment * 40 + responsiveness * 35 + quality * 25), 100);
 
+  const holds = loadCorrectionHolds(memoryDir);
+  const acknowledgedHolds: ActiveHoldMatch[] = [];
+
   const reasons: CorrectionReason[] = [];
   const guidance: string[] = [];
 
@@ -89,10 +92,17 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   if (responsiveness < 0.5) {
-    const stalest = [...activeTasks].sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
-    const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`;
-    reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest?.id });
-    guidance.push(message);
+    const respHold = findActiveHold(holds, 'low-responsiveness', {}, { repoRoot });
+    if (respHold) {
+      // Documented hold (e.g., signal-lag with verified-closed issues — see mini-agent#124)
+      acknowledgedHolds.push(respHold);
+      guidance.push(`響應力低 (${Math.round(responsiveness * 100)}%) 但有 active hold (${respHold.matchedBy}): ${respHold.hold.reason}`);
+    } else {
+      const stalest = [...activeTasks].sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
+      const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`;
+      reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest?.id });
+      guidance.push(message);
+    }
   }
 
   if (hasPulseHistory && quality < 0.4) {
@@ -102,8 +112,6 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   const shipTruth = readShipTruth(repoRoot);
-  const holds = loadCorrectionHolds(memoryDir);
-  const acknowledgedHolds: ActiveHoldMatch[] = [];
 
   if (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged') {
     const match = findActiveHold(holds, 'local-commit-not-pushed', {
