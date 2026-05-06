@@ -42,7 +42,7 @@ export type Counterparty =
 // `manual` is the escape hatch for predictions that truly need human judgment.
 export type FalsifierQuery =
   | { kind: 'kg_count';    query: string; op: '<=' | '>=' | '=='; threshold: number }
-  | { kind: 'log_grep';    pattern: string; since_iso: string; op: '<=' | '>=' | '=='; threshold: number }
+  | { kind: 'log_grep';    path: string; pattern: string; since_iso: string; op: '<=' | '>=' | '=='; threshold: number }
   | { kind: 'file_exists'; path: string; must: boolean }
   | { kind: 'metric';      metric: string; op: '<=' | '>=' | '=='; threshold: number }
   | { kind: 'manual';      description: string };
@@ -266,8 +266,8 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
 // =============================================================================
 
 // Cheap, synchronous query runners. Network-bound kinds (kg_count) and
-// higher-cost scans (log_grep, metric) return inconclusive for now —
-// they'll be wired in follow-up patches once the plumbing is proven.
+// runtime metric checks return inconclusive for now; file-local checks execute
+// inline so ledger commitments can resolve without delegation.
 
 /**
  * Parse a falsifier string for explicit FalsifierQuery DSL markers.
@@ -277,6 +277,9 @@ export function auditCommitments(currentCycleId: number): CommitmentAudit {
  * Supported DSL markers (opt-in, write anywhere in the falsifier text):
  *   file_exists:/abs/path      -> { kind:'file_exists', path, must:true }
  *   file_not_exists:/abs/path  -> { kind:'file_exists', path, must:false }
+ *   grep:/abs/path "pattern" [since:ISO] >=N
+ *   grep:/abs/path "pattern" [since:ISO] <=N
+ *   grep:/abs/path "pattern" [since:ISO] ==N
  *
  * Closes the cycle 80 STRUCTURAL gap: dispatcher.ts:1024 + loop.ts:2659
  * writeCommitment calls now auto-populate falsifier_query so
@@ -290,6 +293,20 @@ export function parseFalsifierToQuery(falsifier: string): FalsifierQuery | undef
   if (neg) return { kind: 'file_exists', path: neg[1], must: false };
   const pos = falsifier.match(new RegExp(String.raw`\bfile_exists:(\/\S+?)` + stop));
   if (pos) return { kind: 'file_exists', path: pos[1], must: true };
+
+  const grep = falsifier.match(
+    /\bgrep:(\/\S+?)\s+"((?:[^"\\]|\\.)*)"(?:\s+since:(\S+?))?\s+(>=|<=|==)\s*(\d+)/,
+  );
+  if (grep) {
+    return {
+      kind: 'log_grep',
+      path: grep[1],
+      pattern: unescapeQuotedPattern(grep[2]),
+      since_iso: grep[3] ?? new Date().toISOString(),
+      op: grep[4] as '<=' | '>=' | '==',
+      threshold: Number.parseInt(grep[5], 10),
+    };
+  }
   return undefined;
 }
 
@@ -315,14 +332,70 @@ function runQuery(q: FalsifierQuery): QueryResult {
         conclusive: false,
         evidence: `manual: ${q.description} (awaiting manual resolution)`,
       };
-    case 'kg_count':
     case 'log_grep':
+      return runLogGrepQuery(q);
+    case 'kg_count':
     case 'metric':
       return {
         conclusive: false,
         evidence: `kind=${q.kind} executor not yet implemented (Phase 1.5 stub)`,
       };
   }
+}
+
+function runLogGrepQuery(q: Extract<FalsifierQuery, { kind: 'log_grep' }>): QueryResult {
+  if (!existsSync(q.path)) {
+    return {
+      conclusive: true,
+      verdict: 'refuted',
+      evidence: `log_grep: file ${q.path} does not exist`,
+    };
+  }
+
+  let re: RegExp;
+  try {
+    re = new RegExp(q.pattern);
+  } catch (err) {
+    return {
+      conclusive: false,
+      evidence: `log_grep: invalid regex /${q.pattern}/: ${(err as Error).message}`,
+    };
+  }
+
+  const sinceMs = Date.parse(q.since_iso);
+  const useSince = !Number.isNaN(sinceMs);
+  const content = readFileSync(q.path, 'utf-8');
+  let count = 0;
+
+  for (const line of content.split('\n')) {
+    if (!re.test(line)) continue;
+    if (!useSince) {
+      count++;
+      continue;
+    }
+
+    const tsMatch = line.match(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/);
+    if (!tsMatch) {
+      count++;
+      continue;
+    }
+    if (Date.parse(tsMatch[0]) >= sinceMs) count++;
+  }
+
+  const kept =
+    q.op === '>=' ? count >= q.threshold :
+    q.op === '<=' ? count <= q.threshold :
+    count === q.threshold;
+
+  return {
+    conclusive: true,
+    verdict: kept ? 'kept' : 'refuted',
+    evidence: `log_grep ${q.path} /${q.pattern}/ since ${q.since_iso} -> count=${count} ${q.op}${q.threshold} -> ${kept ? 'kept' : 'refuted'}`,
+  };
+}
+
+function unescapeQuotedPattern(pattern: string): string {
+  return pattern.replace(/\\(["\\])/g, '$1');
 }
 
 export function resolveReadyCommitments(
@@ -413,7 +486,7 @@ export function buildLedgerSection(currentCycleId: number): string {
         const q = e.falsifier_query;
         const qDesc =
           q.kind === 'kg_count'    ? `kg_count(${q.query}) ${q.op} ${q.threshold}` :
-          q.kind === 'log_grep'    ? `log_grep(${q.pattern}) ${q.op} ${q.threshold} since ${q.since_iso}` :
+          q.kind === 'log_grep'    ? `log_grep(${q.path} /${q.pattern}/) ${q.op} ${q.threshold} since ${q.since_iso}` :
           q.kind === 'file_exists' ? `file_exists(${q.path}) must=${q.must}` :
           q.kind === 'metric'      ? `metric(${q.metric}) ${q.op} ${q.threshold}` :
           /* manual */               `manual: ${q.description}`;
