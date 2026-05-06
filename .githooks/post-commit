@@ -1,78 +1,21 @@
-#!/bin/sh
-# Post-commit hook (tracked at .githooks/post-commit; core.hooksPath=.githooks).
-#
-# Two responsibilities:
-#   1. Rebuild dist/ when src/ or tsconfig.json changes (gitignored, runtime drift).
-#      Mini-agent issue #91, agent-middleware issue #3.
-#   2. Auto-push commits whose subject matches auto-save patterns
-#      (chore(auto):, chore(memory):, chore(auto-idx):) — issue #97.
-#      Manual / feature / fix commits are NEVER auto-pushed.
-#
-# Skip during rebase/merge/cherry-pick to avoid loops.
-# Build/push run in background so commits stay fast.
-# Logs:
-#   /tmp/post-commit-build-<repo>.log — build success/failure
-#   /tmp/post-commit-push-<repo>.log  — push success/failure
-#
-# Race fix (issue #97 cycle 27 FAIL):
-#   When the parent automation process exits immediately after `git commit`,
-#   backgrounded subshells receive SIGHUP before `disown` runs. Subshell dies
-#   silently; log gets zero entries.
-#   Fix: `trap '' HUP` as first command inside the subshell + stdin from
-#   /dev/null so the subshell is fully detached. Logs append (>>) to avoid
-#   concurrent push runs clobbering each other.
+#!/usr/bin/env bash
+# Auto-rebuild dist after commits that touch src/.
+# Avoids stale-dist drift (mini-agent issue #91, agent-middleware issue #3).
+# Skips during rebase/merge/cherry-pick to prevent loops.
 
-# --- 0. Skip during rebase/merge/cherry-pick ---------------------------
+[ -n "$GIT_REBASE_OR_MERGE" ] && exit 0
 [ -d "$(git rev-parse --git-dir)/rebase-merge" ] && exit 0
 [ -d "$(git rev-parse --git-dir)/rebase-apply" ] && exit 0
 [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 0
 [ -f "$(git rev-parse --git-dir)/CHERRY_PICK_HEAD" ] && exit 0
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
-REPO_NAME=$(basename "$REPO_ROOT")
-
-# --- 1. Rebuild dist/ on src changes -----------------------------------
-CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -E '^(src/|tsconfig\.json$)')
-if [ -n "$CHANGED" ]; then
-  BUILD_LOG=/tmp/post-commit-build-${REPO_NAME}.log
-  echo "[post-commit] src/ touched — rebuilding dist/ in background (log: $BUILD_LOG)"
-  (
-    trap '' HUP
-    cd "$REPO_ROOT" || exit 1
-    if command -v pnpm >/dev/null 2>&1; then
-      BUILD_CMD="pnpm build"
-    else
-      BUILD_CMD="npm run build"
-    fi
-    if $BUILD_CMD >>"$BUILD_LOG" 2>&1; then
-      echo "[post-commit] ✓ dist/ rebuilt for $REPO_NAME at $(date '+%Y-%m-%d %H:%M:%S')" >>"$BUILD_LOG"
-    else
-      echo "[post-commit] ✗ build failed for $REPO_NAME at $(date '+%Y-%m-%d %H:%M:%S')" >>"$BUILD_LOG"
-    fi
-  ) </dev/null >>"$BUILD_LOG" 2>&1 &
-  disown 2>/dev/null || true
+# Only rebuild if last commit touched src/ or tsconfig.json
+if git diff-tree --no-commit-id --name-only -r HEAD | grep -qE '^(src/|tsconfig\.json$)'; then
+  echo "[post-commit] src/ changed — rebuilding dist..."
+  if command -v pnpm >/dev/null 2>&1; then
+    pnpm build >/dev/null 2>&1 && echo "[post-commit] dist rebuilt OK" || echo "[post-commit] BUILD FAILED — dist may be stale"
+  else
+    npm run build >/dev/null 2>&1 && echo "[post-commit] dist rebuilt OK" || echo "[post-commit] BUILD FAILED — dist may be stale"
+  fi
+  echo "[post-commit] reminder: server pid running dist/ does not auto-reload — restart manually if needed"
 fi
-
-# --- 2. Auto-push memory/auto-save chore commits (issue #97) -----------
-SUBJECT=$(git log -1 --pretty=%s)
-case "$SUBJECT" in
-  "chore(auto): auto-save"|"chore(memory):"*|"chore(auto-idx):"*|"chore(auto):"*)
-    BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
-    UPSTREAM=$(git rev-parse --abbrev-ref "${BRANCH}@{u}" 2>/dev/null)
-    if [ -n "$UPSTREAM" ]; then
-      PUSH_LOG=/tmp/post-commit-push-${REPO_NAME}.log
-      (
-        trap '' HUP
-        cd "$REPO_ROOT" || exit 1
-        if git push origin "$BRANCH" >>"$PUSH_LOG" 2>&1; then
-          echo "[post-commit] ✓ auto-pushed $BRANCH at $(date '+%Y-%m-%d %H:%M:%S') ($SUBJECT)" >>"$PUSH_LOG"
-        else
-          echo "[post-commit] ✗ auto-push failed for $BRANCH at $(date '+%Y-%m-%d %H:%M:%S') ($SUBJECT)" >>"$PUSH_LOG"
-        fi
-      ) </dev/null >>"$PUSH_LOG" 2>&1 &
-      disown 2>/dev/null || true
-    fi
-    ;;
-esac
-
-exit 0
