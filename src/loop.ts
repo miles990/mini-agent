@@ -64,6 +64,7 @@ import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage, sendChat } from './observability.js';
 import { truncateAtSectionBoundary } from './context-pipeline.js';
 import { applyShipTruthLanguageGate } from './ship-truth-language-gate.js';
+import { formatWorkspaceConstraint, readWorkspaceFinalizerSnapshot } from './workspace-finalizer.js';
 import { timed } from './diagnostics.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
@@ -1874,6 +1875,11 @@ export class AgentLoop {
         () => memory.buildContext({ mode: contextMode, cycleCount: this.cycleCount, trigger: this.triggerReason ?? undefined, phase0Results, contextBudget }),
         { alwaysLog: true },
       );
+
+      const workspaceConstraint = formatWorkspaceConstraint(readWorkspaceFinalizerSnapshot());
+      if (workspaceConstraint) {
+        context = `${workspaceConstraint}\n\n${context}`;
+      }
 
       // Constraint Texture: stale task pressure (grows with staleness)
       if (this.staleTasks.length > 0) {

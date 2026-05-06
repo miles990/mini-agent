@@ -24,6 +24,7 @@ import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
 import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
 import { spawnDelegation } from './delegation.js';
+import { updateWorkspaceFinalizerState } from './workspace-finalizer.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -709,6 +710,7 @@ export async function runHousekeeping(): Promise<void> {
   await refreshSearchIndex().catch(() => {});
   await expireOldInboxItems().catch(() => {});
   await syncHandoffStatus().catch(() => {});
+  await updateWorkspaceFinalizerState().catch(() => {});
   await decayStaleTasks().catch(() => {});
 
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
