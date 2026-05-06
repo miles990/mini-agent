@@ -6,6 +6,7 @@ import {
   appendMissingInternalPrReviewClaims,
   appendPrReviewClaim,
   applyPrReviewConsensusToHandoffs,
+  computePrReviewInputHash,
   createPrReviewClaim,
   createInternalPrReviewClaim,
   evaluatePrReviewConsensus,
@@ -179,6 +180,7 @@ describe('PR review runner', () => {
       prNumber: 104,
       title: 'fix: harden conflict governance and Kuro actor semantics',
       body: '## Verification\n- `pnpm typecheck` passed\n- `pnpm test` passed',
+      headSha: 'abc123',
       reviewer: 'codex',
       framework: 'internal-governance',
       changedFiles: ['src/actor-registry.ts', 'tests/actor-registry.test.ts'],
@@ -189,6 +191,8 @@ describe('PR review runner', () => {
       reviewer: 'codex',
       verdict: 'approve',
       risk: 'medium',
+      headSha: 'abc123',
+      reviewInputHash: expect.any(String),
     }));
   });
 
@@ -207,6 +211,7 @@ describe('PR review runner', () => {
       prNumber: 104,
       title: 'fix: harden conflict governance',
       body: '## Verification\n- `pnpm test` passed',
+      headSha: 'abc123',
       reviewer,
       framework: 'internal-governance' as const,
       changedFiles: ['src/conflict-governance.ts', 'tests/conflict-governance.test.ts'],
@@ -218,5 +223,50 @@ describe('PR review runner', () => {
     expect(first.created).toHaveLength(3);
     expect(second.created).toHaveLength(0);
     expect(readPrReviewClaimsSync(tmpDir, 104)).toHaveLength(3);
+  });
+
+  it('creates a new review claim when the PR input changes after requested changes', () => {
+    const baseCandidate = {
+      prNumber: 104,
+      title: 'fix: harden conflict governance',
+      body: 'Missing verification section',
+      headSha: 'abc123',
+      reviewer: 'codex' as const,
+      framework: 'internal-governance' as const,
+      changedFiles: ['src/conflict-governance.ts'],
+    };
+    const fixedCandidate = {
+      ...baseCandidate,
+      body: '## Verification\n- `pnpm test` passed',
+    };
+
+    const first = appendMissingInternalPrReviewClaims(tmpDir, [baseCandidate], new Date('2026-05-06T00:00:00Z'));
+    const duplicate = appendMissingInternalPrReviewClaims(tmpDir, [baseCandidate], new Date('2026-05-06T00:01:00Z'));
+    const fixed = appendMissingInternalPrReviewClaims(tmpDir, [fixedCandidate], new Date('2026-05-06T00:02:00Z'));
+    const claims = readPrReviewClaimsSync(tmpDir, 104);
+
+    expect(first.created).toHaveLength(1);
+    expect(first.created[0].verdict).toBe('request_changes');
+    expect(duplicate.created).toHaveLength(0);
+    expect(fixed.created).toHaveLength(1);
+    expect(fixed.created[0].verdict).toBe('approve');
+    expect(claims).toHaveLength(2);
+    expect(new Set(claims.map(c => c.reviewInputHash)).size).toBe(2);
+  });
+
+  it('changes the review input fingerprint when the head sha changes', () => {
+    const candidate = {
+      prNumber: 104,
+      title: 'fix: harden conflict governance',
+      body: '## Verification\n- `pnpm test` passed',
+      reviewer: 'codex' as const,
+      framework: 'internal-governance' as const,
+      changedFiles: ['tests/conflict-governance.test.ts', 'src/conflict-governance.ts'],
+    };
+
+    expect(computePrReviewInputHash({ ...candidate, headSha: 'abc123' }))
+      .not.toBe(computePrReviewInputHash({ ...candidate, headSha: 'def456' }));
+    expect(computePrReviewInputHash({ ...candidate, changedFiles: [...candidate.changedFiles].reverse(), headSha: 'abc123' }))
+      .toBe(computePrReviewInputHash({ ...candidate, headSha: 'abc123' }));
   });
 });

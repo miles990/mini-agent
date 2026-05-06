@@ -387,6 +387,7 @@ interface GhPrView {
   number: number;
   title: string;
   body?: string | null;
+  headRefOid?: string;
   labels?: Array<{ name: string }>;
   files?: Array<{ path: string }>;
   isDraft?: boolean;
@@ -400,7 +401,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
   if (!fs.existsSync(activePath)) return;
 
   let handoffs = parsePrReviewHandoffs(fs.readFileSync(activePath, 'utf-8'));
-  handoffs = handoffs.filter(h => h.reviewer !== 'alex' && ['needs-review', 'review-pending'].includes(h.status));
+  handoffs = handoffs.filter(h => h.reviewer !== 'alex' && ['needs-review', 'review-pending', 'changes-requested'].includes(h.status));
   if (handoffs.length === 0) return;
 
   const byPr = new Map<number, typeof handoffs>();
@@ -421,6 +422,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
         prNumber,
         title: pr.title,
         body: pr.body,
+        headSha: pr.headRefOid,
         reviewer: row.reviewer,
         framework: assignment.framework,
         changedFiles: pr.files?.map(f => f.path).filter(Boolean) ?? [],
@@ -436,7 +438,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
 
 async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
   try {
-    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,labels,files,isDraft,reviewDecision,url']);
+    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,url']);
     return JSON.parse(stdout) as GhPrView;
   } catch {
     return null;
