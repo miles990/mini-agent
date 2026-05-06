@@ -97,6 +97,43 @@ describe('runtime workspace autocorrect', () => {
       reason: expect.stringContaining('untracked changes'),
     }));
   });
+
+  it('is idempotent: re-uses existing remote branch and PR when retry runs after partial failure', () => {
+    const remote = path.join(tmpDir, 'idem-remote.git');
+    const repo = path.join(tmpDir, 'idem-mini-agent');
+    git(tmpDir, ['init', '--bare', remote]);
+    git(tmpDir, ['clone', remote, repo]);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test User']);
+    writeFileSync(path.join(repo, 'README.md'), 'base\n');
+    git(repo, ['add', 'README.md']);
+    git(repo, ['commit', '-m', 'init']);
+    git(repo, ['branch', '-M', 'runtime/main']);
+    git(repo, ['push', '-u', 'origin', 'runtime/main:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+    git(repo, ['branch', '--set-upstream-to=origin/main', 'runtime/main']);
+
+    writeFileSync(path.join(repo, 'README.md'), 'base\nruntime local\n');
+    git(repo, ['commit', '-am', 'diag: runtime local change']);
+    const localHead = gitOut(repo, ['rev-parse', 'HEAD']);
+    const expectedBranch = `fix/runtime-autocorrect-${localHead.slice(0, 8)}`;
+
+    // Simulate a prior partial run: branch already pushed to origin, but runtime
+    // was never reset (e.g. because gh pr create failed mid-sequence).
+    execFileSync('git', ['push', 'origin', `HEAD:refs/heads/${expectedBranch}`], { cwd: repo, stdio: 'ignore' });
+
+    // Retry the autocorrect — must NOT throw on cherry-pick / push, must still reset runtime.
+    const result = autocorrectRuntimeWorkspace(repo, {
+      apply: true,
+      createPr: false,
+      worktreeParent: tmpDir,
+    });
+
+    expect(result.status).toBe('created-worktree');
+    expect(result.branch).toBe(expectedBranch);
+    expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
+    expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+  });
 });
 
 function git(cwd: string, args: string[]): void {

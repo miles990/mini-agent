@@ -82,16 +82,25 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
 
   try {
     git(root, ['fetch', 'origin', baseBranch]);
-    ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
-    if (mode === 'tracked-dirty') {
-      moveTrackedDirtyToWorktree(root, worktree);
-    } else {
-      git(worktree, ['cherry-pick', `origin/${baseBranch}..${snapshot.headSha}`]);
+    // Idempotency: if the remote branch already exists from a prior partial run,
+    // skip the cherry-pick + push step. This handles the case where `gh pr create`
+    // (or any later step) failed mid-sequence and the loop retries the autocorrect.
+    const remoteBranchExists = !!safeGit(root, ['ls-remote', '--heads', 'origin', branch]);
+    if (!remoteBranchExists) {
+      ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
+      if (mode === 'tracked-dirty') {
+        moveTrackedDirtyToWorktree(root, worktree);
+      } else {
+        git(worktree, ['cherry-pick', `origin/${baseBranch}..${snapshot.headSha}`]);
+      }
+      git(worktree, ['push', '-u', 'origin', branch]);
     }
-    git(worktree, ['push', '-u', 'origin', branch]);
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
-      prUrl = createPullRequest(worktree, repo, baseBranch, branch, snapshot.ahead);
+      // Idempotency: re-use an existing PR for this branch if one is already open.
+      // Otherwise the second pass would fail with "a pull request for branch X already exists".
+      prUrl = findExistingPullRequest(repo, branch)
+        ?? createPullRequest(existsSync(worktree) ? worktree : root, repo, baseBranch, branch, snapshot.ahead);
     }
     git(root, ['reset', '--hard', `origin/${baseBranch}`]);
     return {
@@ -149,6 +158,28 @@ function ensureWorktree(repoRoot: string, worktree: string, branch: string, base
   }
   mkdirSync(path.dirname(worktree), { recursive: true });
   git(repoRoot, ['worktree', 'add', worktree, '-b', branch, baseRef]);
+}
+
+function findExistingPullRequest(repo: string, branch: string): string | undefined {
+  try {
+    const out = execFileSync('gh', [
+      'pr', 'list',
+      '--repo', repo,
+      '--head', branch,
+      '--state', 'open',
+      '--json', 'url',
+      '--limit', '1',
+    ], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30_000,
+    }).trim();
+    if (!out) return undefined;
+    const parsed = JSON.parse(out) as Array<{ url?: string }>;
+    return parsed[0]?.url || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function createPullRequest(worktree: string, repo: string, baseBranch: string, branch: string, ahead: number): string | undefined {
