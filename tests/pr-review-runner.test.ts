@@ -196,6 +196,24 @@ describe('PR review runner', () => {
     }));
   });
 
+  it('accepts tsc verification evidence in PR bodies', () => {
+    const claim = createInternalPrReviewClaim({
+      prNumber: 89,
+      title: 'fix(loop): dump head bytes on hasMarker=false soft-gate skip',
+      body: '## Verification\n- [x] `tsc --noEmit` passes',
+      headSha: 'abc123',
+      reviewer: 'akari',
+      framework: 'tanren-review',
+      changedFiles: ['src/loop.ts'],
+    }, new Date('2026-05-06T00:00:00Z'));
+
+    expect(claim).toEqual(expect.objectContaining({
+      prNumber: 89,
+      reviewer: 'akari',
+      verdict: 'approve',
+    }));
+  });
+
   it('does not create internal claims for Alex review rows', () => {
     expect(createInternalPrReviewClaim({
       prNumber: 104,
