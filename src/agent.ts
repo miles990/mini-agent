@@ -12,6 +12,7 @@ import { getMemory } from './memory.js';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { getLogger } from './logging.js';
 import { slog, diagLog } from './utils.js';
+import { extractErrorSubtype } from './feedback-loops.js';
 import { getSystemPrompt } from './dispatcher.js';
 import type { CycleMode } from './memory.js';
 import { eventBus, debounce } from './event-bus.js';
@@ -1990,7 +1991,12 @@ export async function callClaude(
       if (classified.retryable && attempt < maxRetries) {
         // OOM-likely errors (exit 143 = SIGTERM) need longer backoff to let system reclaim memory
         const isOomLikely = exitCode === 143 || (exitCode === null && classified.type === 'TIMEOUT');
-        const baseDelay = isOomLikely ? 90_000 : 30_000; // 90s/180s for OOM vs 30s/60s normal
+        // 2026-05-06 (Issue #166): transient_no_diag/midband_no_diag dominated retries
+        // (61/61 events today). 30s base × 3 attempts ≈ 120s — too short for Anthropic
+        // transient recovery (typically 2-5min). Bump these subtypes to 90s base.
+        const errSubtype = extractErrorSubtype(stderr || classified.message || '');
+        const isLongTransient = errSubtype === 'transient_no_diag' || errSubtype === 'midband_no_diag';
+        const baseDelay = (isOomLikely || isLongTransient) ? 90_000 : 30_000; // 90s/180s for OOM/transient vs 30s/60s normal
         const delay = baseDelay * Math.pow(2, attempt);
 
         // TIMEOUT retry strategy depends on whether Claude was actively working:
