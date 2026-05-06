@@ -69,6 +69,26 @@ describe('PR lifecycle governance', () => {
     expect(analysis.shouldBlockPush).toBe(false);
   });
 
+  it('blocks feature branch push when branch is behind origin base', () => {
+    const analysis = analyzeBranchLifecycle(input({
+      branch: 'feat/kg-promotion-context-fabric',
+      behindBase: 1,
+      pullRequest: {
+        number: 150,
+        title: 'feat: promote curated memory into KG',
+        body: '',
+      },
+      commitsAhead: [
+        { sha: 'a', subject: 'feat: promote curated memory into KG' },
+      ],
+    }));
+
+    expect(analysis.status).toBe('stale-base');
+    expect(analysis.behindBase).toBe(1);
+    expect(analysis.shouldBlockPush).toBe(true);
+    expect(analysis.guidance.join('\n')).toContain('rebase before push');
+  });
+
   it('downgrades scope-contaminated block when HEAD is a memory-only chore (Issue #102)', () => {
     const analysis = analyzeBranchLifecycle(input({
       branch: 'feat/correction-gate-hold-reasons',
