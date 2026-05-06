@@ -980,6 +980,42 @@ export function extractDecisionBlock(
 }
 
 // =============================================================================
+// synthesizeDecisionFromProse — issue #132 fallback when ## Decision header missing
+// =============================================================================
+
+/**
+ * Synthesizes a minimal Decision block from prose containing chose/falsifier lines
+ * but missing the `## Decision` header. Used as a fallback after extractDecisionBlock
+ * returns null. Conservative heuristic: requires explicit `chose:` line as anchor
+ * to keep false-positive rate low (issue #132 falsifier (c)).
+ *
+ * Returns null when synthesis is unsafe (too short, no chose anchor, or status-only).
+ */
+export function synthesizeDecisionFromProse(
+  response: string,
+): { chose: string; falsifier?: string; ttl: number } | null {
+  if (response.length < 200) return null;
+
+  // Anchor: explicit `chose:` line. Without it we can't reliably distinguish a
+  // commitment from a status update. `verified X / shipped Y` prose alone is
+  // too noisy — it would fire on chat-only responses.
+  const choseMatch = response.match(/^\s*[-*+]?\s*\**\s*chose\**\s*:\s*(.+)$/im);
+  if (!choseMatch) return null;
+  const chose = choseMatch[1].trim();
+  if (chose.length < 8) return null;
+
+  // Optional falsifier line. Synthesis is allowed without it (#132 spec).
+  const falsifierMatch = response.match(/^\s*[-*+]?\s*\**\s*(?:falsifier|falsify)\**\s*:\s*(.+)$/im);
+  const falsifier = falsifierMatch ? falsifierMatch[1].trim() : undefined;
+
+  // Optional ttl line.
+  const ttlMatch = response.match(/^\s*[-*+]?\s*\**\s*ttl\**\s*:\s*(\d+)$/im);
+  const ttl = ttlMatch ? Math.min(20, Math.max(1, parseInt(ttlMatch[1], 10))) : 3;
+
+  return { chose, falsifier, ttl };
+}
+
+// =============================================================================
 // postProcess — 共用的 tag 處理 + 記憶 + 日誌
 // =============================================================================
 
@@ -1037,6 +1073,22 @@ export async function postProcess(
         });
         if (!decision.falsifier) {
           slog('LEDGER', 'soft-gate: action without falsifier');
+        }
+      } else {
+        // Issue #132: extractDecisionBlock returned null. Try prose synthesis fallback —
+        // catches cycles where the model emits chose:/falsifier: lines but no
+        // `## Decision` header. Tag with meta.synthesized=true for later analysis.
+        const synth = synthesizeDecisionFromProse(mappedResponse);
+        if (synth) {
+          writeCommitment({
+            cycle_id: meta.cycleCount ?? 0,
+            prediction: synth.chose,
+            falsifier: synth.falsifier ?? null,
+            ttl_cycles: synth.ttl,
+            counterparty: { kind: 'self' },
+            meta: { synthesized: true },
+          });
+          slog('LEDGER', `soft-gate synthesized: chose=${synth.chose.slice(0, 60)}${synth.falsifier ? ' (with falsifier)' : ' (no falsifier)'}`);
         }
       }
     }
