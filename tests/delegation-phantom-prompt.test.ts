@@ -14,18 +14,7 @@
  * lives in src/delegation.ts (or a dedicated guard module) once landed.
  */
 import { describe, expect, it } from 'vitest';
-
-// Minimal pure predicate — the classifier under test. Inlined here so the
-// test is self-contained and falsifiable even before src wiring lands. The
-// real implementation should live in src/delegation.ts adjacent to
-// spawnDelegation and be called pre-dispatch.
-function isPhantomPrompt(prompt: string): boolean {
-  if (!prompt) return true;
-  const trimmed = prompt.trim();
-  if (trimmed.length >= 80) return false;
-  if (/^##\s+Task:/m.test(trimmed)) return false;
-  return true;
-}
+import { isPhantomPrompt } from '../src/delegation.js';
 
 describe('phantom-prompt classifier (issue #141 layer 1)', () => {
   it('rejects the exact fail-ejkd7t signature', () => {
