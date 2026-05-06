@@ -1613,6 +1613,36 @@ export async function markTaskDoneByDescription(
   return totalMarked;
 }
 
+export async function markTaskDoneById(
+  memoryDir: string,
+  taskId: string,
+  reason = 'scheduler binding done',
+): Promise<boolean> {
+  const task = queryMemoryIndexSync(memoryDir, {
+    id: taskId,
+    type: ['task', 'goal'],
+    status: ['pending', 'in_progress'],
+    limit: 1,
+  })[0];
+  if (!task) return false;
+
+  const payload = {
+    ...((task.payload ?? {}) as Record<string, unknown>),
+    completed_by: reason,
+    completed_at: new Date().toISOString(),
+  };
+  const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+    status: 'completed',
+    payload,
+  });
+  if (!updated) return false;
+
+  eventBus.emit('action:task', { content: updated.summary, entry: updated });
+  if (updated.summary) await resolveActiveCommitments(memoryDir, updated.summary);
+  slog('DONE', `Marked scheduler-bound task done: ${updated.summary?.slice(0, 60)}`);
+  return true;
+}
+
 /**
  * Auto-complete reply tasks by roomMsgId.
  * Called when inbox processing confirms a message was replied/addressed.
