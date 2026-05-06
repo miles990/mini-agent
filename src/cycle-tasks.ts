@@ -15,6 +15,7 @@ import { slog } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { notifyTelegram } from './telegram.js';
 import { getMemory } from './memory.js';
+import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
 // markNextItemsDone removed — loop.ts now calls markTaskDoneByDescription from memory-index.ts directly
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { CHAT_ROOM_INBOX_PATH } from './inbox-processor.js';
@@ -478,6 +479,12 @@ async function generateCommitMessage(diff: string, fileList: string, fallback: s
 
 export async function autoCommitMemoryFiles(action: string | null): Promise<void> {
   const cwd = process.cwd();
+  const isolation = evaluateWorkspaceIsolation(cwd);
+  if (isolation.protectedRuntimeWorkspace) {
+    slog('auto-commit', 'skipped: protected runtime workspace uses external memory repo');
+    return;
+  }
+
   const fallbackSummary = action
     ? action.replace(/\[.*?\]\s*/, '').slice(0, 80)
     : 'auto-save';

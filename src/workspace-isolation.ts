@@ -8,6 +8,7 @@ export interface WorkspaceIsolationSnapshot {
   protectedRuntimeWorkspace: boolean;
   dirtyPaths: string[];
   codeDirtyPaths: string[];
+  runtimeMemoryDirtyPaths: string[];
 }
 
 export interface WorkspaceIsolationDecision extends WorkspaceIsolationSnapshot {
@@ -25,6 +26,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
   const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']) || null;
   const dirtyPaths = parseDirtyPaths(git(cwd, ['status', '--porcelain']) ?? '');
   const codeDirtyPaths = dirtyPaths.filter(isCodePath);
+  const runtimeMemoryDirtyPaths = dirtyPaths.filter(isRuntimeRepoMemoryPath);
   const protectedRuntimeWorkspace = isProtectedRuntimeWorkspace(cwd, repoRoot, protectedRoot);
   const warnings: string[] = [];
 
@@ -36,6 +38,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
       protectedRuntimeWorkspace,
       dirtyPaths,
       codeDirtyPaths,
+      runtimeMemoryDirtyPaths,
       ok: true,
       reason: 'isolated worktree',
       warnings,
@@ -50,6 +53,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
       protectedRuntimeWorkspace,
       dirtyPaths,
       codeDirtyPaths,
+      runtimeMemoryDirtyPaths,
       ok: false,
       reason: `protected runtime workspace is on branch ${branch ?? 'unknown'}; expected runtime/main`,
       warnings,
@@ -64,14 +68,31 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
       protectedRuntimeWorkspace,
       dirtyPaths,
       codeDirtyPaths,
+      runtimeMemoryDirtyPaths,
       ok: false,
       reason: `protected runtime workspace has code/config dirt: ${codeDirtyPaths.slice(0, 5).join(', ')}`,
       warnings,
     };
   }
 
-  if (dirtyPaths.length > 0) {
-    warnings.push(`runtime workspace has non-code dirt: ${dirtyPaths.slice(0, 5).join(', ')}`);
+  if (runtimeMemoryDirtyPaths.length > 0) {
+    return {
+      cwd,
+      repoRoot,
+      branch,
+      protectedRuntimeWorkspace,
+      dirtyPaths,
+      codeDirtyPaths,
+      runtimeMemoryDirtyPaths,
+      ok: false,
+      reason: `protected runtime workspace has repo-local memory dirt: ${runtimeMemoryDirtyPaths.slice(0, 5).join(', ')}`,
+      warnings,
+    };
+  }
+
+  const nonBlockingDirt = dirtyPaths.filter(p => !isCodePath(p) && !isRuntimeRepoMemoryPath(p));
+  if (nonBlockingDirt.length > 0) {
+    warnings.push(`runtime workspace has non-code dirt: ${nonBlockingDirt.slice(0, 5).join(', ')}`);
   }
 
   return {
@@ -81,6 +102,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
     protectedRuntimeWorkspace,
     dirtyPaths,
     codeDirtyPaths,
+    runtimeMemoryDirtyPaths,
     ok: true,
     reason: 'protected runtime workspace is safe for isolated delegation',
     warnings,
@@ -98,6 +120,10 @@ export function parseDirtyPaths(porcelain: string): string[] {
 
 export function isCodePath(filePath: string): boolean {
   return CODE_PATH_PATTERN.test(filePath) || CODE_FILE_PATTERN.test(filePath);
+}
+
+export function isRuntimeRepoMemoryPath(filePath: string): boolean {
+  return filePath === 'memory' || filePath.startsWith('memory/');
 }
 
 export function isSafeRuntimeBranch(branch: string | null | undefined): boolean {

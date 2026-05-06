@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { isCodePath, isSafeRuntimeBranch, parseDirtyPaths } from '../src/workspace-isolation.js';
+import { isCodePath, isRuntimeRepoMemoryPath, isSafeRuntimeBranch, parseDirtyPaths } from '../src/workspace-isolation.js';
 
 const allow = process.env.MINI_AGENT_ALLOW_RUNTIME_WORKSPACE_WRITE === '1';
 const json = process.argv.includes('--json');
@@ -13,6 +13,7 @@ const protectedRoot = path.resolve(process.env.MINI_AGENT_RUNTIME_WORKSPACE ?? i
 const isProtectedRuntime = path.resolve(repoRoot) === protectedRoot;
 const paths = stagedOnly ? stagedPaths() : parseDirtyPaths(git(['status', '--porcelain']) ?? '');
 const blockingPaths = paths.filter(isCodePath);
+const runtimeMemoryPaths = paths.filter(isRuntimeRepoMemoryPath);
 
 const problems: string[] = [];
 if (isProtectedRuntime && !isSafeRuntimeBranch(branch)) {
@@ -20,6 +21,9 @@ if (isProtectedRuntime && !isSafeRuntimeBranch(branch)) {
 }
 if (isProtectedRuntime && blockingPaths.length > 0) {
   problems.push(`protected runtime workspace has code/config changes: ${blockingPaths.slice(0, 8).join(', ')}`);
+}
+if (isProtectedRuntime && runtimeMemoryPaths.length > 0) {
+  problems.push(`protected runtime workspace has repo-local memory changes: ${runtimeMemoryPaths.slice(0, 8).join(', ')}; write memory to MINI_AGENT_MEMORY_DIR instead`);
 }
 
 const result = {
@@ -32,6 +36,7 @@ const result = {
   stagedOnly,
   paths,
   blockingPaths,
+  runtimeMemoryPaths,
   problems,
 };
 
