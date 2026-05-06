@@ -639,9 +639,9 @@ function internalApprovalBody(summary: string): string {
 
 async function recordConflictDiagnostic(pr: GhPrView, decision: { action: string; reason: string; risk: string }): Promise<void> {
   const marker = `mini-agent:conflict-diagnostic:${pr.number}:${pr.headRefOid ?? 'unknown'}`;
+  appendConflictHandoff(pr, decision);
   if (await prHasCommentMarker(pr.number, marker)) return;
 
-  appendConflictHandoff(pr, decision);
   await addPrComment(pr.number, [
     `<!-- ${marker} -->`,
     `Conflict diagnostic: ${decision.action}`,
