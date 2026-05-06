@@ -56,6 +56,7 @@ jobs:
           if [ -d memory ]; then
             cp -a memory/ "$MEMORY_BACKUP/"
           fi
+          git checkout -B runtime/main origin/main
           git reset --hard origin/main
           # Restore memory files — prefer runtime version over repo version
           # (runtime has latest myelin rules, state files, etc.)
@@ -78,6 +79,8 @@ jobs:
           fi
 
           MINI_AGENT_SKIP_DEPLOY_PULL=1 ./scripts/deploy.sh
+
+          git checkout -B runtime/main origin/main
 
       - name: Notify Success
         if: success()
