@@ -17,6 +17,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
+import { classifyProviderResourceHold } from './provider-resource-guard.js';
 
 // =============================================================================
 // Config
@@ -203,6 +204,29 @@ function ensureListener(): void {
       const memoryDir = getMemoryRootDir();
       checkGoalClosure(memoryDir, taskId);
     } else {
+      const outputPreview = typeof event.data.outputPreview === 'string' ? event.data.outputPreview : '';
+      const resourceHold = classifyProviderResourceHold(outputPreview);
+      if (resourceHold) {
+        const memoryDir = getMemoryRootDir();
+        const current = queryMemoryIndexSync(memoryDir, { id: taskId, limit: 1 })[0];
+        const payload = (current?.payload ?? {}) as Record<string, unknown>;
+        updateMemoryIndexEntry(memoryDir, taskId, {
+          status: 'hold',
+          payload: {
+            ...payload,
+            holdCondition: {
+              type: 'date-after',
+              value: resourceHold.resumeAt,
+            },
+            provider_resource_hold: resourceHold,
+          },
+        }).catch(() => {});
+        failCounts.delete(taskId);
+        dispatchedSet.delete(taskId);
+        slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} held for provider quota until ${resourceHold.resumeAt}`);
+        return;
+      }
+
       const count = (failCounts.get(taskId) ?? 0) + 1;
       failCounts.set(taskId, count);
       if (count >= MAX_FAILURES_PER_TASK) {

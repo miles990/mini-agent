@@ -83,6 +83,31 @@ describe('delegation failure diagnostics', () => {
     }));
   });
 
+  it('classifies provider quota exhaustion as a resolved resource hold class', async () => {
+    const first = recordDelegationFailure(tmpDir, {
+      taskId: 'del-1',
+      taskType: 'code',
+      prompt: 'Run provider task',
+      output: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+    });
+    const task = await createTask(tmpDir, {
+      title: 'Diagnose provider quota failure',
+      origin: 'kuro',
+      status: 'pending',
+    });
+    markDelegationFailureDiagnosticCreated(tmpDir, first.record.signature, task.id);
+
+    const diagnosis = await diagnoseDelegationFailure(tmpDir, first.record.signature);
+
+    expect(diagnosis).toEqual(expect.objectContaining({
+      status: 'resolved',
+      category: 'provider_quota',
+    }));
+    expect(queryMemoryIndexSync(tmpDir, { id: task.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+    }));
+  });
+
   it('diagnoses pending linked failures in batches', async () => {
     const first = recordDelegationFailure(tmpDir, {
       taskId: 'del-1',
