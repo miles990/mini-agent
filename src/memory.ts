@@ -4304,7 +4304,7 @@ function extractDelegationSummaryInline(output: string, maxLen: number): string 
 // Review Backlog — persistent tracking of unreviewed delegation results
 // =============================================================================
 
-const BACKLOG_TTL_MS = 7 * 24 * 3600_000; // 7 days
+const BACKLOG_TTL_MS = 3 * 24 * 3600_000; // 3 days (Issue #83 follow-up: shorter TTL for un-acknowledged stale entries)
 
 /**
  * Detect failure-class delegation outputs that have zero learning value.
@@ -4328,7 +4328,7 @@ function isStaleFailureOutput(text: string): boolean {
   return false;
 }
 
-/** Remove backlog entries whose IDs appear in the response text. Also prune entries older than 7 days. */
+/** Remove backlog entries whose IDs appear in the response text. Also prune entries older than the backlog TTL. */
 export function clearReviewedDelegations(response: string, instanceId: string): void {
   try {
     const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
@@ -4342,7 +4342,7 @@ export function clearReviewedDelegations(response: string, instanceId: string): 
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
-        // Prune expired entries (7-day TTL)
+        // Prune expired entries.
         if (now - new Date(entry.archivedAt).getTime() > BACKLOG_TTL_MS) continue;
         // Prune if response mentions this delegation ID
         if (entry.id && response.includes(entry.id)) continue;
@@ -4360,7 +4360,9 @@ export function clearReviewedDelegations(response: string, instanceId: string): 
   } catch { /* best effort */ }
 }
 
-/** Read review backlog entries (for prompt injection). Returns entries within TTL. */
+/** Read review backlog entries for prompt injection, newest first and capped to avoid stale noise. */
+const REVIEW_BACKLOG_RENDER_CAP = 30;
+
 export function getReviewBacklog(instanceId: string): Array<{ id: string; type?: string; summary: string; archivedAt: string }> {
   try {
     const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
@@ -4372,12 +4374,13 @@ export function getReviewBacklog(instanceId: string): Array<{ id: string; type?:
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
-        if (now - new Date(entry.archivedAt).getTime() < BACKLOG_TTL_MS) {
-          entries.push(entry);
-        }
+        if (now - new Date(entry.archivedAt).getTime() >= BACKLOG_TTL_MS) continue;
+        if (entry.summary && isStaleFailureOutput(entry.summary)) continue;
+        entries.push(entry);
       } catch { continue; }
     }
-    return entries;
+    entries.sort((a, b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime());
+    return entries.slice(0, REVIEW_BACKLOG_RENDER_CAP);
   } catch { return []; }
 }
 

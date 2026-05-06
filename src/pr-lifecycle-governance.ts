@@ -93,6 +93,7 @@ export interface BranchLifecycleAnalysis {
   issueRefs: number[];
   allowedIssueRefs: number[];
   foreignIssueRefs: number[];
+  unscopedCommitSubjects: string[];
   hasReviewerSignal: boolean;
   canAcceptNewScope: boolean;
   shouldBlockPush: boolean;
@@ -110,6 +111,16 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
   const allowedIssueRefs = pr ? extractAllowedIssueRefs(pr) : [];
   const foreignIssueRefs = pr
     ? issueRefs.filter(ref => !allowedIssueRefs.includes(ref))
+    : [];
+  const hasExplicitIssueScope = pr ? allowedIssueRefs.some(ref => ref !== pr.number) : false;
+  const unscopedCommitSubjects = pr && hasExplicitIssueScope
+    ? input.commitsAhead
+      .filter(commit => !isMemoryScopedHead(commit))
+      .filter(commit => {
+        const refs = extractIssueRefs(`${commit.subject}\n${commit.body ?? ''}`);
+        return !refs.some(ref => allowedIssueRefs.includes(ref));
+      })
+      .map(commit => commit.subject)
     : [];
   const headIsMemoryChore = isMemoryScopedHead(input.commitsAhead[0]);
   const hasReviewerSignal = Boolean(
@@ -148,6 +159,11 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
       guidance.push(`PR #${pr.number} allows ${formatRefs(allowedIssueRefs)} but commits reference foreign issue(s): ${formatRefs(foreignIssueRefs)}.`);
       guidance.push('Split/cherry-pick unrelated commits into their own branch before pushing.');
     }
+  } else if (unscopedCommitSubjects.length > 0) {
+    status = 'scope-contaminated';
+    shouldBlockPush = true;
+    guidance.push(`PR #${pr.number} is issue-scoped to ${formatRefs(allowedIssueRefs)} but has unscoped non-memory commit(s): ${unscopedCommitSubjects.map(s => `"${s}"`).join(', ')}.`);
+    guidance.push('Amend or split commits so every non-memory commit on an issue-scoped PR references the PR issue.');
   } else {
     status = 'pending-review';
     guidance.push(`PR #${pr.number} is the active scope. Only amend this PR scope; do not start a new task on this branch.`);
@@ -167,6 +183,7 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
     issueRefs,
     allowedIssueRefs,
     foreignIssueRefs,
+    unscopedCommitSubjects,
     hasReviewerSignal,
     canAcceptNewScope: status === 'base' && !input.dirty,
     shouldBlockPush,
