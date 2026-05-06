@@ -5,7 +5,9 @@
  * 1. autoCreateIssueFromProposal — approved proposal → GitHub issue
  * 2. autoCloseCompletedIssues — completed/implemented proposal → close issue
  * 3. autoMergeApprovedPR — approved + CI pass → auto merge
- * 4. autoTrackNewIssues — 新 issue → handoffs/active.md
+ * 4. autoTrackPrReviewNeeds — PR without reviewer signal → handoffs/active.md + inbox
+ * 5. autoTrackMergedPrClosures — merged PR → close handoff loop
+ * 6. autoTrackNewIssues — 新 issue → handoffs/active.md
  *
  * 全部 try-catch 靜默失敗，不影響 OODA cycle。
  */
@@ -16,6 +18,12 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
 import { writeInboxItem } from './inbox.js';
+import {
+  closeMergedPrHandoffs,
+  decidePrReviewAssignment,
+  type MergedPullRequestSummary,
+  type OpenPullRequestSummary,
+} from './pr-lifecycle-governance.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -237,7 +245,166 @@ export async function autoMergeApprovedPR(): Promise<void> {
 }
 
 // =============================================================================
-// 4. 新 issue → handoffs/active.md
+// 4. PR review needs → handoffs/active.md + inbox
+// =============================================================================
+
+interface ReviewablePR {
+  number: number;
+  title: string;
+  body?: string | null;
+  isDraft?: boolean;
+  reviewDecision?: string;
+  reviewRequests?: unknown[];
+  labels?: Array<{ name: string }>;
+  author?: { login: string };
+  url?: string;
+}
+
+export async function autoTrackPrReviewNeeds(): Promise<void> {
+  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  let prs: ReviewablePR[];
+  try {
+    const { stdout } = await execFileAsync(
+      'gh',
+      ['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,author,url', '--limit', '50'],
+      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
+    );
+    prs = JSON.parse(stdout);
+  } catch {
+    return;
+  }
+
+  let activeContent: string;
+  try {
+    activeContent = fs.readFileSync(activePath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const today = new Date().toISOString().slice(5, 10);
+  const newRows: string[] = [];
+  let inboxCount = 0;
+
+  for (const pr of prs) {
+    const decision = decidePrReviewAssignment(toOpenPrSummary(pr));
+    if (!decision.needsAssignment) continue;
+
+    let addedReviewerRow = false;
+    for (const reviewer of decision.reviewers) {
+      const marker = `PR #${pr.number}`;
+      const reviewerMarker = `| github | ${reviewer} | ${marker}`;
+      if (!activeContent.includes(reviewerMarker) && !newRows.some(row => row.includes(reviewerMarker))) {
+        newRows.push(`| github | ${reviewer} | ${marker} ${escapeTable(pr.title)} | needs-review | ${today} | - |`);
+        addedReviewerRow = true;
+      }
+    }
+
+    if (!addedReviewerRow) continue;
+
+    const inboxId = writeInboxItem({
+      source: 'github',
+      from: 'system',
+      content: `Review PR #${pr.number}: ${pr.title}`,
+      meta: {
+        prNumber: String(pr.number),
+        reviewer: decision.reviewer,
+        reviewers: decision.reviewers.join(','),
+        framework: decision.framework,
+        reason: decision.reason,
+        ...(pr.url ? { url: pr.url } : {}),
+      },
+    });
+    if (inboxId) inboxCount++;
+  }
+
+  if (newRows.length > 0) {
+    fs.writeFileSync(activePath, activeContent.trimEnd() + '\n' + newRows.join('\n') + '\n', 'utf-8');
+  }
+  if (newRows.length > 0 || inboxCount > 0) {
+    slog('github', `tracked ${newRows.length} PR review handoff(s), ${inboxCount} inbox item(s)`);
+  }
+}
+
+function toOpenPrSummary(pr: ReviewablePR): OpenPullRequestSummary {
+  return {
+    number: pr.number,
+    title: pr.title,
+    body: pr.body,
+    reviewDecision: pr.reviewDecision,
+    reviewRequests: pr.reviewRequests,
+    authorLogin: pr.author?.login,
+    labels: pr.labels?.map(l => l.name),
+    isDraft: pr.isDraft,
+  };
+}
+
+function escapeTable(text: string): string {
+  return text.replace(/\|/g, '/').replace(/\s+/g, ' ').trim();
+}
+
+// =============================================================================
+// 5. Merged PR → close handoff loop
+// =============================================================================
+
+interface MergedPR {
+  number: number;
+  title: string;
+  mergedAt?: string | null;
+}
+
+export async function autoTrackMergedPrClosures(): Promise<void> {
+  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  let prs: MergedPR[];
+  try {
+    const { stdout } = await execFileAsync(
+      'gh',
+      ['pr', 'list', '--state', 'merged', '--json', 'number,title,mergedAt', '--limit', '20'],
+      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
+    );
+    prs = JSON.parse(stdout);
+  } catch {
+    return;
+  }
+
+  const recent = prs.filter(pr => isRecentlyMerged(pr.mergedAt));
+  if (recent.length === 0) return;
+
+  let activeContent: string;
+  try {
+    activeContent = fs.readFileSync(activePath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const today = new Date().toISOString().slice(5, 10);
+  const result = closeMergedPrHandoffs(activeContent, recent.map(toMergedPrSummary), today);
+  if (result.content !== activeContent) {
+    fs.writeFileSync(activePath, result.content, 'utf-8');
+    slog('github', `closed ${result.updated} merged PR handoff(s), appended ${result.appended} closure row(s)`);
+  }
+}
+
+function toMergedPrSummary(pr: MergedPR): MergedPullRequestSummary {
+  return {
+    number: pr.number,
+    title: pr.title,
+    mergedAt: pr.mergedAt,
+  };
+}
+
+function isRecentlyMerged(mergedAt?: string | null): boolean {
+  if (!mergedAt) return false;
+  const mergedTime = Date.parse(mergedAt);
+  if (!Number.isFinite(mergedTime)) return false;
+  return Date.now() - mergedTime <= 7 * 24 * 60 * 60 * 1000;
+}
+
+// =============================================================================
+// 6. 新 issue → handoffs/active.md
 // =============================================================================
 
 export async function autoTrackNewIssues(): Promise<void> {
@@ -311,5 +478,7 @@ export async function githubAutoActions(): Promise<void> {
   await autoCreateIssueFromProposal().catch(() => {});
   await autoCloseCompletedIssues().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
+  await autoTrackPrReviewNeeds().catch(() => {});
+  await autoTrackMergedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Block pushing commits for unrelated issues onto an existing PR branch.
+# Override only for intentional manual cleanup:
+#   MINI_AGENT_ALLOW_SCOPE_CONTAMINATION=1 git push
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "[pr-lifecycle] pnpm not found; skipping guard" >&2
+  exit 0
+fi
+
+pnpm exec tsx scripts/check-pr-lifecycle.ts --pre-push
