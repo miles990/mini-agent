@@ -3,13 +3,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  appendMissingInternalPrReviewClaims,
   appendPrReviewClaim,
   applyPrReviewConsensusToHandoffs,
   createPrReviewClaim,
+  createInternalPrReviewClaim,
   evaluatePrReviewConsensus,
   getPrReviewClaimsPath,
   parsePrReviewHandoffs,
   readPrReviewClaimsSync,
+  reconcilePrReviewHandoffs,
   runPrReviewConsensus,
 } from '../src/pr-review-runner.js';
 
@@ -156,5 +159,64 @@ describe('PR review runner', () => {
       missingReviewers: ['akari', 'claude-code'],
     }));
     expect(updated.match(/review-pending/g)?.length).toBe(3);
+  });
+
+  it('removes stale review handoff rows when assignment policy changes', () => {
+    const content = activeMd()
+      + '| github | alex | PR #96 fix(housekeeping): emit shell-executable cmd | needs-review | 05-06 | - |\n';
+
+    const updated = reconcilePrReviewHandoffs(content, [{
+      prNumber: 96,
+      reviewers: ['akari', 'codex', 'claude-code'],
+    }]);
+
+    expect(updated).toContain('| github | akari | PR #96');
+    expect(updated).not.toContain('| github | alex | PR #96');
+  });
+
+  it('creates internal review claims for non-human reviewers with verification evidence', () => {
+    const claim = createInternalPrReviewClaim({
+      prNumber: 104,
+      title: 'fix: harden conflict governance and Kuro actor semantics',
+      body: '## Verification\n- `pnpm typecheck` passed\n- `pnpm test` passed',
+      reviewer: 'codex',
+      framework: 'internal-governance',
+      changedFiles: ['src/actor-registry.ts', 'tests/actor-registry.test.ts'],
+    }, new Date('2026-05-06T00:00:00Z'));
+
+    expect(claim).toEqual(expect.objectContaining({
+      prNumber: 104,
+      reviewer: 'codex',
+      verdict: 'approve',
+      risk: 'medium',
+    }));
+  });
+
+  it('does not create internal claims for Alex review rows', () => {
+    expect(createInternalPrReviewClaim({
+      prNumber: 104,
+      title: 'fix: requires alex-review',
+      reviewer: 'alex',
+      framework: 'human-escalation',
+      changedFiles: ['src/actor-registry.ts'],
+    })).toBeNull();
+  });
+
+  it('appends missing internal review claims only once per reviewer', () => {
+    const candidates = (['akari', 'codex', 'claude-code'] as const).map(reviewer => ({
+      prNumber: 104,
+      title: 'fix: harden conflict governance',
+      body: '## Verification\n- `pnpm test` passed',
+      reviewer,
+      framework: 'internal-governance' as const,
+      changedFiles: ['src/conflict-governance.ts', 'tests/conflict-governance.test.ts'],
+    }));
+
+    const first = appendMissingInternalPrReviewClaims(tmpDir, candidates, new Date('2026-05-06T00:00:00Z'));
+    const second = appendMissingInternalPrReviewClaims(tmpDir, candidates, new Date('2026-05-06T00:01:00Z'));
+
+    expect(first.created).toHaveLength(3);
+    expect(second.created).toHaveLength(0);
+    expect(readPrReviewClaimsSync(tmpDir, 104)).toHaveLength(3);
   });
 });

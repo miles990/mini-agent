@@ -127,6 +127,19 @@ describe('PR lifecycle governance', () => {
     expect(decision.framework).toBe('human-escalation');
   });
 
+  it('does not treat host identity wording as Alex escalation by itself', () => {
+    const decision = decidePrReviewAssignment({
+      number: 104,
+      title: 'fix: harden conflict governance and Kuro actor semantics',
+      body: 'Clarify Kuro host identity and coordinator semantics.',
+      reviewDecision: '',
+      reviewRequests: [],
+    });
+
+    expect(decision.reviewers).toEqual(['akari', 'codex', 'claude-code']);
+    expect(decision.framework).toBe('internal-governance');
+  });
+
   it('assigns code PRs to cross-model code review', () => {
     const decision = decidePrReviewAssignment({
       number: 12,

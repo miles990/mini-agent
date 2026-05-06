@@ -265,7 +265,7 @@ function pickReviewAssignment(pr: OpenPullRequestSummary): {
   framework: PrReviewFramework;
 } {
   const text = `${pr.title}\n${pr.body ?? ''}`.toLowerCase();
-  if (/(human[- ]?gate|alex|credential|secret|billing|destructive|delete data|identity|persona core)/.test(text)) {
+  if (requiresHumanPrReview(text)) {
     return { reviewers: ['akari', 'alex'], framework: 'human-escalation' };
   }
   if (/(governance|hook|deploy|scheduler|arbiter|architecture|lifecycle)/.test(text)) {
@@ -278,6 +278,11 @@ function pickReviewAssignment(pr: OpenPullRequestSummary): {
     return { reviewers: ['codex', 'claude-code'], framework: 'code-review' };
   }
   return { reviewers: ['claude-code'], framework: 'standard-peer' };
+}
+
+export function requiresHumanPrReview(text: string): boolean {
+  return /(human[- ]?gate|requires?\s+alex|alex[- ]?review|credential|secret|billing|destructive|delete data|identity core|persona core)/i
+    .test(text);
 }
 
 function escapeHandoffTableText(text: string): string {
