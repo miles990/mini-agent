@@ -145,6 +145,7 @@ import { queryTimeline, type TimelineEventType } from './timeline.js';
 import { getProvenance, resolveMemoryId } from './memory-provenance-query.js';
 import { getSchedulerState, getTopPending, getSchedulerHistory } from './scheduler.js';
 import { evaluateCorrectionGate } from './correction-gate.js';
+import { evaluateAutonomyClosure } from './autonomy-closure-health.js';
 import { getStarvationMetrics } from './reactive-policies.js';
 import { getTodayActivity, getActivityByContext } from './activity-stream.js';
 import { getProcessTableSnapshot } from './process-table.js';
@@ -2908,6 +2909,15 @@ export function createApi(port = 3001): express.Express {
       res.json(evaluateCorrectionGate(memDir));
     } catch {
       res.json({ score: 50, breakdown: null, guidance: [], anomalies: [], reasons: [], suppressedActions: [], needsCorrection: false });
+    }
+  });
+
+  app.get('/api/dashboard/autonomy-closure', (_req: Request, res: Response) => {
+    try {
+      const memDir = getMemoryRootDir();
+      res.json(evaluateAutonomyClosure(memDir));
+    } catch {
+      res.json({ status: 'unknown', score: 0, stages: [], blockingStages: [], warningStages: [], recommendedTask: null });
     }
   });
 

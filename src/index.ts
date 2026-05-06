@@ -219,6 +219,20 @@ export type {
   HealthBreakdown,
   ShipTruthState,
 } from './correction-gate.js';
+export {
+  closeResolvedAutonomyClosureTasks,
+  ensureAutonomyClosureTask,
+  evaluateAutonomyClosure,
+  isAutonomyClosureTask,
+} from './autonomy-closure-health.js';
+export type {
+  AutonomyClosureOptions,
+  AutonomyClosureSnapshot,
+  AutonomyClosureStage,
+  AutonomyClosureStageResult,
+  AutonomyClosureStageStatus,
+  AutonomyClosureStatus,
+} from './autonomy-closure-health.js';
 export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middleware-provider.js';
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
