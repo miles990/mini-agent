@@ -22,6 +22,7 @@ import type { AgentResponse, ParsedTags, ThreadAction, DelegateRequest, Delegati
 import type { ModelTier } from './context-pipeline.js';
 import { spawnDelegation, getActiveDelegationSummaries } from './delegation.js';
 import { applyUrlCaseGate } from './url-case-gate.js';
+import { applyShipTruthLanguageGate } from './ship-truth-language-gate.js';
 import { buildTaskGraph, planExecution, type TaskInput } from './task-graph.js';
 import { triageRouting, triageLearningEvent } from './myelin-fleet.js';
 import { observe as kbObserve } from './shared-knowledge.js';
@@ -1804,22 +1805,31 @@ export async function postProcess(
 
     if (tags.chats.length > 0) tagsProcessed.push('chat');
     for (const chat of tags.chats) {
-      const askPerm = detectAskingPermission(chat.text);
+      const gatedChat = applyShipTruthLanguageGate(chat.text);
+      if (gatedChat.changed) {
+        logger.logBehavior('agent', 'gate.ship-truth-language', JSON.stringify({
+          reason: gatedChat.reason ?? 'ship claim corrected',
+          from: chat.text.slice(0, 240),
+          to: gatedChat.text.slice(0, 240),
+          shipTruth: gatedChat.shipTruth,
+        }));
+      }
+      const askPerm = detectAskingPermission(gatedChat.text);
       if (askPerm) {
         const isDelegation = askPerm.startsWith('delegation:');
         if (isDelegation) {
-          slog('GATE', `⚠️ Delegation-to-human detected (${askPerm}): ${chat.text.slice(0, 80)}`);
-          getLogger().logBehavior('agent', 'gate.delegation-to-human', `soft-warn: ${askPerm} — ${chat.text.slice(0, 120)}`);
+          slog('GATE', `⚠️ Delegation-to-human detected (${askPerm}): ${gatedChat.text.slice(0, 80)}`);
+          getLogger().logBehavior('agent', 'gate.delegation-to-human', `soft-warn: ${askPerm} — ${gatedChat.text.slice(0, 120)}`);
           eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
           // soft-warn: message goes through but CT pressure fires next cycle
         } else {
-          slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${chat.text.slice(0, 80)}`);
-          getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${chat.text.slice(0, 120)}`);
+          slog('GATE', `⛔ Asking-permission blocked (${askPerm}): ${gatedChat.text.slice(0, 80)}`);
+          getLogger().logBehavior('agent', 'gate.asking-permission', `blocked: ${askPerm} — ${gatedChat.text.slice(0, 120)}`);
           eventBus.emit('log:behavior', { tag: 'permission-gate', msg: askPerm });
           continue;
         }
       }
-      eventBus.emit('action:chat', { text: chat.text, reply: chat.reply });
+      eventBus.emit('action:chat', { text: gatedChat.text, reply: chat.reply });
     }
 
     if (tags.asks.length > 0) tagsProcessed.push('ask');

@@ -63,6 +63,7 @@ import { runHousekeeping, autoPushIfAhead, trackTaskProgress, markTaskProgressDo
 import { isEnabled, trackStart } from './features.js';
 import { writeRoomMessage, sendChat } from './observability.js';
 import { truncateAtSectionBoundary } from './context-pipeline.js';
+import { applyShipTruthLanguageGate } from './ship-truth-language-gate.js';
 import { timed } from './diagnostics.js';
 import { readMemory } from './memory.js';
 import { getMode } from './mode.js';
@@ -765,12 +766,15 @@ export class AgentLoop {
           slog('STREAM', `[foreground:${slotId}] Intercepted rate-limit leak: ${chatText.slice(0, 80)}`);
           return;
         }
+        const gatedChat = applyShipTruthLanguageGate(chatText);
+        const safeText = gatedChat.text;
         streamedChats.add(chatText);
+        streamedChats.add(safeText);
         if (source === 'telegram') {
-          notifyTelegram(chatText, matchReplyTarget(chatText, telegramMsgs) ?? undefined).catch(() => {});
+          notifyTelegram(safeText, matchReplyTarget(safeText, telegramMsgs) ?? undefined).catch(() => {});
         }
-        writeRoomMessage('kuro', chatText, replyTo).catch(() => {});
-        slog('STREAM', `[foreground:${slotId}] Chat streamed: ${chatText.slice(0, 80)}`);
+        writeRoomMessage('kuro', safeText, replyTo).catch(() => {});
+        slog('STREAM', `[foreground:${slotId}] Chat streamed: ${safeText.slice(0, 80)}`);
       };
 
       // Inject conversation thread into user message — immune to context budget trimming.
@@ -2480,14 +2484,17 @@ export class AgentLoop {
       const streamedChatTexts = new Set<string>();
       const deferredChats: Array<{ text: string; reply: boolean }> = [];
       const onStreamChat = (text: string, reply: boolean) => {
+        const gatedChat = applyShipTruthLanguageGate(text);
+        const safeText = gatedChat.text;
         streamedChatTexts.add(text);
+        streamedChatTexts.add(safeText);
         if (isDmCycle) {
-          const telegramMsgId = matchReplyTarget(text, this.triggerTelegramMsgs);
-          eventBus.emit('action:chat', { text, reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId });
-          slog('STREAM', `Chat streamed: ${text.slice(0, 80)}`);
+          const telegramMsgId = matchReplyTarget(safeText, this.triggerTelegramMsgs);
+          eventBus.emit('action:chat', { text: safeText, reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId });
+          slog('STREAM', `Chat streamed: ${safeText.slice(0, 80)}`);
         } else {
-          deferredChats.push({ text, reply });
-          slog('STREAM', `Chat deferred to expression: ${text.slice(0, 80)}`);
+          deferredChats.push({ text: safeText, reply });
+          slog('STREAM', `Chat deferred to expression: ${safeText.slice(0, 80)}`);
         }
       };
 
@@ -2827,7 +2834,7 @@ export class AgentLoop {
       // ── Telegram Reply（OODA-Only：telegram-user 觸發時自動回覆 Alex） ──
       // Uses unified sendChat() gateway for dedup
       if (currentTriggerReason?.startsWith('telegram-user') && tags.chats.length > 0) {
-        const replyContent = tags.chats.map(c => c.text).join('\n\n');
+        const replyContent = tags.chats.map(c => applyShipTruthLanguageGate(c.text).text).join('\n\n');
         if (replyContent) {
           didReplyToTelegram = true;
           const replyTarget = matchReplyTarget(replyContent, this.triggerTelegramMsgs);
@@ -2845,15 +2852,17 @@ export class AgentLoop {
       }
 
       for (const chat of tags.chats) {
+        const gatedChat = applyShipTruthLanguageGate(chat.text);
+        const safeText = gatedChat.text;
         if (isDmCycle) {
           // DM: skip already-streamed, post directly
-          if (streamedChatTexts.has(chat.text)) continue;
-          eventBus.emit('action:chat', { text: chat.text, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: matchReplyTarget(chat.text, this.triggerTelegramMsgs) });
+          if (streamedChatTexts.has(chat.text) || streamedChatTexts.has(safeText)) continue;
+          eventBus.emit('action:chat', { text: safeText, reply: chat.reply, roomReplyTo: this.triggerRoomMsgId, telegramMsgId: matchReplyTarget(safeText, this.triggerTelegramMsgs) });
         } else {
           // Proactive: route through Foreground (heart → mouth → Alex)
-          this.expressViaForeground(chat.text).catch(() => {});
+          this.expressViaForeground(safeText).catch(() => {});
         }
-        cycleSideEffects.push(`chat:${chat.text.slice(0, 60)}`);
+        cycleSideEffects.push(`chat:${safeText.slice(0, 60)}`);
         cycleTagsProcessed.push('CHAT');
       }
 
