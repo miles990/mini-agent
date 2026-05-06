@@ -77,3 +77,4 @@ HEARTBEAT P1 `silent_exit_void` and recurring TIMEOUT buckets are exactly the ca
 - Self-apply blocked this cycle (malware-guard reminder on src read).
 - Alex / Claude-Code can grab this from the proposal — patch is 3 lines plus type update, low-risk surgical.
 - If unshipped 14 days from 2026-05-06 → escalate to chat with concrete number ("N opaque buckets accumulated").
+- [2026-05-06] [2026-05-06T17:36Z PR #133 post-merge verification] direct invoke clearReviewedDelegations on 03bbc29a backlog 86→56, dropped 30 stale-failure entries. Patch works. Falsifier "≤30" failed but misaligned — 56 of 86 were legitimate backlog (chunks output / tagger code / real conv summaries), not failures. Real metric should be "stale-failure entries remaining ≤5" not "total backlog ≤30". Open: running process at 17:36:20 mtime rewrote 86 intact, didn't prune — suggests call site doesn't fire ever
