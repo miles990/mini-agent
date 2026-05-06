@@ -1,0 +1,261 @@
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { PrReviewFramework, PrReviewer } from './pr-lifecycle-governance.js';
+
+export type PrReviewVerdict = 'approve' | 'request_changes' | 'comment';
+export type PrReviewConsensusStatus = 'pending' | 'approved' | 'changes_requested' | 'commented' | 'disputed';
+
+export interface PrReviewClaimInput {
+  prNumber: number;
+  reviewer: PrReviewer;
+  framework: PrReviewFramework;
+  verdict: PrReviewVerdict;
+  risk: 'low' | 'medium' | 'high';
+  summary: string;
+  evidence: string[];
+}
+
+export interface PrReviewClaim extends PrReviewClaimInput {
+  id: string;
+  createdAt: string;
+}
+
+export interface PrReviewHandoff {
+  prNumber: number;
+  reviewer: PrReviewer;
+  title: string;
+  status: string;
+  line: string;
+}
+
+export interface PrReviewConsensus {
+  prNumber: number;
+  status: PrReviewConsensusStatus;
+  requiredReviewers: PrReviewer[];
+  receivedReviewers: PrReviewer[];
+  missingReviewers: PrReviewer[];
+  claims: PrReviewClaim[];
+  summary: string;
+}
+
+const PR_REVIEW_CLAIMS_FILE = 'pr-review-claims.jsonl';
+const PR_HANDOFF_RE = /^\|\s*github\s*\|\s*(\S+)\s*\|\s*PR #(\d+)\s+(.+?)\s*\|\s*([^|]+?)\s*\|/;
+
+export function getPrReviewClaimsPath(memoryDir: string): string {
+  return path.join(memoryDir, 'index', PR_REVIEW_CLAIMS_FILE);
+}
+
+export function createPrReviewClaim(input: PrReviewClaimInput, now = new Date()): PrReviewClaim {
+  if (!Number.isInteger(input.prNumber) || input.prNumber <= 0) throw new Error('prNumber must be positive');
+  if (!input.summary.trim()) throw new Error('summary is required');
+  return {
+    ...input,
+    id: randomUUID(),
+    createdAt: now.toISOString(),
+  };
+}
+
+export function appendPrReviewClaim(memoryDir: string, claim: PrReviewClaim): PrReviewClaim {
+  const filePath = ensurePrReviewClaimsFile(memoryDir);
+  appendFileSync(filePath, JSON.stringify(claimToRecord(claim)) + '\n', 'utf-8');
+  return claim;
+}
+
+export function readPrReviewClaimsSync(memoryDir: string, prNumber?: number): PrReviewClaim[] {
+  const filePath = ensurePrReviewClaimsFile(memoryDir);
+  const claims: PrReviewClaim[] = [];
+  for (const line of readFileSync(filePath, 'utf-8').split('\n')) {
+    const claim = parseClaim(line);
+    if (!claim) continue;
+    if (prNumber !== undefined && claim.prNumber !== prNumber) continue;
+    claims.push(claim);
+  }
+  return claims.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function parsePrReviewHandoffs(activeContent: string): PrReviewHandoff[] {
+  const handoffs: PrReviewHandoff[] = [];
+  for (const line of activeContent.split('\n')) {
+    const match = line.match(PR_HANDOFF_RE);
+    if (!match) continue;
+    const reviewer = normalizeReviewer(match[1]);
+    if (!reviewer) continue;
+    const status = match[4].trim();
+    if (!['needs-review', 'review-pending', 'review-approved', 'changes-requested'].includes(status)) continue;
+    handoffs.push({
+      prNumber: Number(match[2]),
+      reviewer,
+      title: match[3].trim(),
+      status,
+      line,
+    });
+  }
+  return handoffs;
+}
+
+export function evaluatePrReviewConsensus(
+  handoffs: PrReviewHandoff[],
+  claims: PrReviewClaim[],
+): PrReviewConsensus[] {
+  const byPr = new Map<number, PrReviewHandoff[]>();
+  for (const handoff of handoffs) {
+    const list = byPr.get(handoff.prNumber) ?? [];
+    list.push(handoff);
+    byPr.set(handoff.prNumber, list);
+  }
+
+  return [...byPr.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([prNumber, prHandoffs]) => {
+      const requiredReviewers = uniqueReviewers(prHandoffs.map(h => h.reviewer));
+      const latestClaims = latestClaimPerReviewer(claims.filter(c => c.prNumber === prNumber));
+      const receivedReviewers = uniqueReviewers(latestClaims.map(c => c.reviewer));
+      const missingReviewers = requiredReviewers.filter(reviewer => !receivedReviewers.includes(reviewer));
+      const status = consensusStatus(requiredReviewers, latestClaims, missingReviewers);
+      return {
+        prNumber,
+        status,
+        requiredReviewers,
+        receivedReviewers,
+        missingReviewers,
+        claims: latestClaims,
+        summary: summarizeConsensus(status, missingReviewers, latestClaims),
+      };
+    });
+}
+
+export function applyPrReviewConsensusToHandoffs(
+  activeContent: string,
+  consensuses: PrReviewConsensus[],
+): string {
+  if (consensuses.length === 0) return activeContent;
+  const byPr = new Map(consensuses.map(c => [c.prNumber, c]));
+  return activeContent.split('\n').map(line => {
+    const match = line.match(PR_HANDOFF_RE);
+    if (!match) return line;
+    const consensus = byPr.get(Number(match[2]));
+    if (!consensus) return line;
+    const cols = line.split('|');
+    if (cols.length < 8) return line;
+    const current = cols[4].trim();
+    if (!['needs-review', 'review-pending', 'review-approved', 'changes-requested'].includes(current)) return line;
+    cols[4] = ` ${handoffStatusForConsensus(consensus.status)} `;
+    return cols.join('|');
+  }).join('\n');
+}
+
+export function runPrReviewConsensus(memoryDir: string): { updated: boolean; consensuses: PrReviewConsensus[] } {
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!existsSync(activePath)) return { updated: false, consensuses: [] };
+  const activeContent = readFileSync(activePath, 'utf-8');
+  const handoffs = parsePrReviewHandoffs(activeContent);
+  if (handoffs.length === 0) return { updated: false, consensuses: [] };
+  const claims = readPrReviewClaimsSync(memoryDir);
+  const consensuses = evaluatePrReviewConsensus(handoffs, claims);
+  const next = applyPrReviewConsensusToHandoffs(activeContent, consensuses);
+  if (next !== activeContent) {
+    writeFileSync(activePath, next, 'utf-8');
+    return { updated: true, consensuses };
+  }
+  return { updated: false, consensuses };
+}
+
+function ensurePrReviewClaimsFile(memoryDir: string): string {
+  const filePath = getPrReviewClaimsPath(memoryDir);
+  const dir = path.dirname(filePath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  if (!existsSync(filePath)) writeFileSync(filePath, '', 'utf-8');
+  return filePath;
+}
+
+function claimToRecord(claim: PrReviewClaim): Record<string, unknown> {
+  return {
+    type: 'pr_review_claim',
+    id: claim.id,
+    pr_number: claim.prNumber,
+    reviewer: claim.reviewer,
+    framework: claim.framework,
+    verdict: claim.verdict,
+    risk: claim.risk,
+    summary: claim.summary,
+    evidence: claim.evidence,
+    created_at: claim.createdAt,
+  };
+}
+
+function parseClaim(line: string): PrReviewClaim | null {
+  if (!line.trim()) return null;
+  try {
+    const raw = JSON.parse(line) as Record<string, unknown>;
+    const reviewer = normalizeReviewer(stringField(raw.reviewer));
+    const framework = stringField(raw.framework) as PrReviewFramework;
+    const verdict = stringField(raw.verdict) as PrReviewVerdict;
+    const risk = stringField(raw.risk) as PrReviewClaim['risk'];
+    const prNumber = Number(raw.pr_number ?? raw.prNumber);
+    const id = stringField(raw.id);
+    const summary = stringField(raw.summary);
+    const createdAt = stringField(raw.created_at ?? raw.createdAt);
+    if (!id || !reviewer || !framework || !['approve', 'request_changes', 'comment'].includes(verdict)) return null;
+    if (!['low', 'medium', 'high'].includes(risk)) return null;
+    if (!Number.isInteger(prNumber) || prNumber <= 0 || !summary || !createdAt) return null;
+    const evidence = Array.isArray(raw.evidence)
+      ? raw.evidence.filter((item): item is string => typeof item === 'string')
+      : [];
+    return { id, prNumber, reviewer, framework, verdict, risk, summary, evidence, createdAt };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeReviewer(value: string): PrReviewer | null {
+  if (['codex', 'claude-code', 'akari', 'alex'].includes(value)) return value as PrReviewer;
+  return null;
+}
+
+function latestClaimPerReviewer(claims: PrReviewClaim[]): PrReviewClaim[] {
+  const latest = new Map<PrReviewer, PrReviewClaim>();
+  for (const claim of [...claims].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+    latest.set(claim.reviewer, claim);
+  }
+  return [...latest.values()].sort((a, b) => a.reviewer.localeCompare(b.reviewer));
+}
+
+function consensusStatus(
+  requiredReviewers: PrReviewer[],
+  claims: PrReviewClaim[],
+  missingReviewers: PrReviewer[],
+): PrReviewConsensusStatus {
+  if (claims.some(c => c.verdict === 'request_changes')) return 'changes_requested';
+  if (missingReviewers.length > 0) return claims.length > 0 ? 'commented' : 'pending';
+  if (requiredReviewers.length > 0 && claims.every(c => c.verdict === 'approve')) return 'approved';
+  if (claims.some(c => c.verdict === 'comment')) return 'commented';
+  return 'pending';
+}
+
+function summarizeConsensus(
+  status: PrReviewConsensusStatus,
+  missingReviewers: PrReviewer[],
+  claims: PrReviewClaim[],
+): string {
+  if (status === 'changes_requested') return 'at least one reviewer requested changes';
+  if (status === 'approved') return 'all required reviewers approved';
+  if (missingReviewers.length > 0) return `waiting for ${missingReviewers.join(', ')}`;
+  if (claims.length > 0) return 'review comments received; no approval consensus yet';
+  return 'waiting for review claims';
+}
+
+function handoffStatusForConsensus(status: PrReviewConsensusStatus): string {
+  if (status === 'approved') return 'review-approved';
+  if (status === 'changes_requested') return 'changes-requested';
+  if (status === 'commented') return 'review-pending';
+  return 'needs-review';
+}
+
+function uniqueReviewers(values: PrReviewer[]): PrReviewer[] {
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function stringField(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
