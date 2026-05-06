@@ -11,13 +11,14 @@ import {
   type ActiveHoldMatch,
   type CorrectionHold,
 } from './correction-holds.js';
-import { isCodePath } from './workspace-isolation.js';
+import { isCodePath, isSafeRuntimeBranch } from './workspace-isolation.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
   | 'low-responsiveness'
   | 'low-output-quality'
   | 'local-commit-not-pushed'
+  | 'runtime-workspace-wrong-branch'
   | 'dirty-runtime-workspace';
 
 export interface CorrectionReason {
@@ -114,6 +115,12 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   const shipTruth = readShipTruth(repoRoot);
+
+  if (shipTruth.repoPresent && !isSafeRuntimeBranch(shipTruth.branch)) {
+    const message = `runtime workspace 在錯誤分支 ${shipTruth.branch ?? 'unknown'} — protected runtime checkout 只能在 runtime/main；功能修改要用 isolated worktree + PR。`;
+    reasons.push({ type: 'runtime-workspace-wrong-branch', severity: 'high', message });
+    guidance.push(message);
+  }
 
   if (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged') {
     const match = findActiveHold(holds, 'local-commit-not-pushed', {

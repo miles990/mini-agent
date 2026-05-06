@@ -1,0 +1,11 @@
+#!/bin/sh
+# Runtime checkout guard:
+# code/config commits must happen in isolated feature worktrees, not in the
+# protected runtime/deploy checkout. Memory/state commits remain allowed.
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "[runtime-workspace] pnpm not found; skipping guard" >&2
+  exit 0
+fi
+
+pnpm exec tsx scripts/check-runtime-workspace.ts --staged
