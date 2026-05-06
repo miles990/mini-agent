@@ -934,6 +934,11 @@ const STALENESS_THRESHOLD = 3;
  * Increment ticksSinceLastProgress for all pending/in_progress tasks.
  * Called at the end of each OODA cycle (fire-and-forget).
  * Returns tasks that exceed the staleness threshold for surfacing.
+ *
+ * Issue #186: Only process tasks that have a real entry in task-events.jsonl.
+ * Tasks visible in the merged index view that only exist in relations.jsonl are
+ * phantom artifacts (test side-effect leaks, migration residue, etc.). They have
+ * no real delegation event trail and must never be surfaced as stale tasks.
  */
 export async function incrementTaskStaleness(
   memoryDir: string,
@@ -943,9 +948,22 @@ export async function incrementTaskStaleness(
     status: ['pending', 'in_progress'],
   });
 
+  // Issue #186 phantom guard: build the set of IDs actually present in the
+  // task-events bucket. Tasks only visible via relations.jsonl are phantom
+  // artifacts — skip them and log so they can be investigated.
+  const taskEventsBucket = getCachedBucket(memoryDir, 'task-events');
+  const taskEventIds = new Set(taskEventsBucket.keys());
+
   const stale: Array<{ id: string; summary: string; ticks: number; firstEscalation: boolean }> = [];
 
   for (const task of tasks) {
+    // Phantom guard: task-type entries must exist in task-events.jsonl.
+    // Goals live in relations.jsonl and are exempt from this check.
+    if (task.type === 'task' && !taskEventIds.has(task.id)) {
+      slog('SCHED', `[scheduler] phantom-id-skipped ${task.id} summary="${(task.summary ?? '').slice(0, 60)}" — absent from task-events.jsonl`);
+      continue;
+    }
+
     const payload = (task.payload ?? {}) as Record<string, unknown>;
     // Pipeline tasks AND pipeline goals are exempt from staleness
     if (payload.goal_id || (task.type === 'goal' && payload.origin === 'pipeline')) continue;
