@@ -252,7 +252,10 @@ function classifyError(error: unknown): ErrorClassification {
   // that all collapsed to no_diag — routing needs observable attributes to distinguish them).
   const exitLabel = exitCode != null ? ` (exit ${exitCode})` : '';
   const diagParts: string[] = [];
-  if (duration != null) diagParts.push(`dur=${Math.round(duration / 1000)}s`);
+  // 2026-05-07 (Issue #168): always emit dur= tag — null duration becomes dur=unknown so
+  // extractErrorSubtype can route to unknown_dur_no_diag instead of the residual no_diag bucket.
+  // Previously 34 errors/day lacked dur= and silently landed in no_diag with no attribution.
+  diagParts.push(duration != null ? `dur=${Math.round(duration / 1000)}s` : 'dur=unknown');
   if (signal) diagParts.push(`signal=${signal}`);
   if (killed) diagParts.push('killed=true');
   const diagSuffix = diagParts.length > 0 ? ` [${diagParts.join(', ')}]` : '';
