@@ -223,6 +223,24 @@ export { MiddlewareProvider, createDefaultMiddlewareProviders } from './middlewa
 export type { MiddlewareProviderOptions } from './middleware-provider.js';
 export { MiddlewarePeerAgent, createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 export type { MiddlewarePeerAgentOptions } from './middleware-peer-agent.js';
+export {
+  appendPrReviewClaim,
+  applyPrReviewConsensusToHandoffs,
+  createPrReviewClaim,
+  evaluatePrReviewConsensus,
+  getPrReviewClaimsPath,
+  parsePrReviewHandoffs,
+  readPrReviewClaimsSync,
+  runPrReviewConsensus,
+} from './pr-review-runner.js';
+export type {
+  PrReviewClaim,
+  PrReviewClaimInput,
+  PrReviewConsensus,
+  PrReviewConsensusStatus,
+  PrReviewHandoff,
+  PrReviewVerdict,
+} from './pr-review-runner.js';
 export { coordinateAsKuro } from './internal-kuro-coordinator.js';
 export type { KuroCoordinationInput, KuroCoordinationResult } from './internal-kuro-coordinator.js';
 export {

@@ -6,8 +6,9 @@
  * 2. autoCloseCompletedIssues — completed/implemented proposal → close issue
  * 3. autoMergeApprovedPR — approved + CI pass → auto merge
  * 4. autoTrackPrReviewNeeds — PR without reviewer signal → handoffs/active.md + inbox
- * 5. autoTrackMergedPrClosures — merged PR → close handoff loop
- * 6. autoTrackNewIssues — 新 issue → handoffs/active.md
+ * 5. autoTrackPrReviewConsensus — review claims → handoff consensus status
+ * 6. autoTrackMergedPrClosures — merged PR → close handoff loop
+ * 7. autoTrackNewIssues — 新 issue → handoffs/active.md
  *
  * 全部 try-catch 靜默失敗，不影響 OODA cycle。
  */
@@ -24,6 +25,7 @@ import {
   type MergedPullRequestSummary,
   type OpenPullRequestSummary,
 } from './pr-lifecycle-governance.js';
+import { runPrReviewConsensus } from './pr-review-runner.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -345,7 +347,22 @@ function escapeTable(text: string): string {
 }
 
 // =============================================================================
-// 5. Merged PR → close handoff loop
+// 5. PR review claims → handoff consensus status
+// =============================================================================
+
+export async function autoTrackPrReviewConsensus(): Promise<void> {
+  const result = runPrReviewConsensus(path.join(process.cwd(), 'memory'));
+  if (result.updated) {
+    const counts = result.consensuses.reduce<Record<string, number>>((acc, c) => {
+      acc[c.status] = (acc[c.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    slog('github', `updated PR review consensus: ${Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' ')}`);
+  }
+}
+
+// =============================================================================
+// 6. Merged PR → close handoff loop
 // =============================================================================
 
 interface MergedPR {
@@ -404,7 +421,7 @@ function isRecentlyMerged(mergedAt?: string | null): boolean {
 }
 
 // =============================================================================
-// 6. 新 issue → handoffs/active.md
+// 7. 新 issue → handoffs/active.md
 // =============================================================================
 
 export async function autoTrackNewIssues(): Promise<void> {
@@ -479,6 +496,7 @@ export async function githubAutoActions(): Promise<void> {
   await autoCloseCompletedIssues().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
   await autoTrackPrReviewNeeds().catch(() => {});
+  await autoTrackPrReviewConsensus().catch(() => {});
   await autoTrackMergedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }
