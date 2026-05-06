@@ -6,12 +6,13 @@ import { getMemoryStateRootDir } from './memory-paths.js';
 const KG_BASE = 'http://localhost:3300';
 
 const AGENT_MEMORY_DIRS: Record<string, string> = {
-  kuro: '/Users/user/Workspace/mini-agent/memory/state',
   akari: '/Users/user/Workspace/akari/memory/state',
 };
 
-function getCachePathForAgent(agent: string): string {
-  const dir = AGENT_MEMORY_DIRS[agent] ?? getMemoryStateRootDir();
+export function getCachePathForAgent(agent: string): string {
+  const dir = agent === 'kuro'
+    ? getMemoryStateRootDir()
+    : (AGENT_MEMORY_DIRS[agent] ?? getMemoryStateRootDir());
   const cacheDir = path.join(dir);
   if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
   return path.join(cacheDir, 'kg-memory-cache.jsonl');

@@ -16,10 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isEnabled } from './features.js';
-
-const ROOT = process.cwd();
-const LOG_PATH = path.join(ROOT, 'memory/index/live-ingest-log.jsonl');
-const ERRORS_PATH = path.join(ROOT, 'memory/index/ingest-errors.jsonl');
+import { getMemoryRootDir } from './memory-paths.js';
 
 export type WriteSource =
   | 'memory-md'
@@ -48,6 +45,23 @@ function appendLine(file: string, obj: unknown): void {
   }
 }
 
+export function getKgLiveIngestPaths(memoryDir = getMemoryRootDir()): {
+  indexDir: string;
+  logPath: string;
+  errorsPath: string;
+  manifestPath: string;
+  pushStatePath: string;
+} {
+  const indexDir = path.join(memoryDir, 'index');
+  return {
+    indexDir,
+    logPath: path.join(indexDir, 'live-ingest-log.jsonl'),
+    errorsPath: path.join(indexDir, 'ingest-errors.jsonl'),
+    manifestPath: path.join(indexDir, 'manifest.json'),
+    pushStatePath: path.join(indexDir, 'kg-push-state.json'),
+  };
+}
+
 /**
  * Record a memory write. Caller must not await — this is fire-and-forget.
  * Returns quickly after the single fs.appendFileSync.
@@ -55,12 +69,13 @@ function appendLine(file: string, obj: unknown): void {
 export function onMemoryWrite(event: Omit<MemoryWriteEvent, 'ts'>): void {
   if (!isEnabled('kg-live-ingest')) return;
   try {
+    const { logPath } = getKgLiveIngestPaths();
     const ev: MemoryWriteEvent = {
       ts: new Date().toISOString(),
       ...event,
       preview: event.preview?.slice(0, 160),
     };
-    appendLine(LOG_PATH, ev);
+    appendLine(logPath, ev);
   } catch (err) {
     logIngestError('onMemoryWrite', event.file, err);
   }
@@ -68,7 +83,8 @@ export function onMemoryWrite(event: Omit<MemoryWriteEvent, 'ts'>): void {
 
 export function logIngestError(stage: string, file: string, err: unknown): void {
   const msg = err instanceof Error ? err.message : String(err);
-  appendLine(ERRORS_PATH, {
+  const { errorsPath } = getKgLiveIngestPaths();
+  appendLine(errorsPath, {
     ts: new Date().toISOString(),
     stage,
     file,
@@ -82,7 +98,6 @@ export function logIngestError(stage: string, file: string, err: unknown): void 
 
 const INGEST_THRESHOLD = 10; // minimum new writes before triggering rebuild
 const INGEST_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4h cooldown between triggers
-const MANIFEST_PATH = path.join(ROOT, 'memory/index/manifest.json');
 
 let lastTriggerTs = 0;
 
@@ -98,10 +113,11 @@ export function shouldTriggerKGIngest(): { should: boolean; newWrites: number; r
   }
 
   // Read manifest to get last_incremental timestamp
+  const { logPath, manifestPath } = getKgLiveIngestPaths();
   let lastIncrementalTs = 0;
   try {
-    if (fs.existsSync(MANIFEST_PATH)) {
-      const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
       if (manifest.last_incremental && manifest.last_incremental !== 'never') {
         lastIncrementalTs = new Date(manifest.last_incremental).getTime();
       }
@@ -111,10 +127,10 @@ export function shouldTriggerKGIngest(): { should: boolean; newWrites: number; r
   // Count new writes since last ingest
   let newWrites = 0;
   try {
-    if (!fs.existsSync(LOG_PATH)) {
+    if (!fs.existsSync(logPath)) {
       return { should: false, newWrites: 0, reason: 'no log file' };
     }
-    for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
+    for (const line of fs.readFileSync(logPath, 'utf8').split('\n')) {
       const s = line.trim();
       if (!s) continue;
       try {
@@ -156,11 +172,11 @@ export async function pushToKGService(): Promise<{ pushed: number; errors: numbe
   let errors = 0;
 
   try {
-    if (!fs.existsSync(LOG_PATH)) return { pushed: 0, errors: 0 };
+    const { logPath, pushStatePath } = getKgLiveIngestPaths();
+    if (!fs.existsSync(logPath)) return { pushed: 0, errors: 0 };
 
     // Read manifest to get last push timestamp
     let lastPushTs = 0;
-    const pushStatePath = path.join(ROOT, 'memory/index/kg-push-state.json');
     try {
       if (fs.existsSync(pushStatePath)) {
         const state = JSON.parse(fs.readFileSync(pushStatePath, 'utf8'));
@@ -170,7 +186,7 @@ export async function pushToKGService(): Promise<{ pushed: number; errors: numbe
 
     // Collect writes since last push
     const writes: MemoryWriteEvent[] = [];
-    for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
+    for (const line of fs.readFileSync(logPath, 'utf8').split('\n')) {
       const s = line.trim();
       if (!s) continue;
       try {
@@ -237,8 +253,9 @@ export function getIngestStats(): {
   };
 
   try {
-    if (fs.existsSync(LOG_PATH)) {
-      for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
+    const { logPath, errorsPath } = getKgLiveIngestPaths();
+    if (fs.existsSync(logPath)) {
+      for (const line of fs.readFileSync(logPath, 'utf8').split('\n')) {
         const s = line.trim();
         if (!s) continue;
         try {
@@ -252,8 +269,8 @@ export function getIngestStats(): {
         }
       }
     }
-    if (fs.existsSync(ERRORS_PATH)) {
-      const content = fs.readFileSync(ERRORS_PATH, 'utf8');
+    if (fs.existsSync(errorsPath)) {
+      const content = fs.readFileSync(errorsPath, 'utf8');
       stats.errors = content.split('\n').filter((l) => l.trim()).length;
     }
   } catch {
