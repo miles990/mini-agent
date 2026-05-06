@@ -80,6 +80,9 @@ function formatHuman(analysis: ReturnType<typeof analyzeBranchLifecycle>): strin
   if (analysis.pullRequest) {
     lines.push(`[pr-lifecycle] pr=#${analysis.pullRequest.number} ${analysis.pullRequest.title}`);
     lines.push(`[pr-lifecycle] allowed=${analysis.allowedIssueRefs.map(r => `#${r}`).join(', ') || '(none)'} refs=${analysis.issueRefs.map(r => `#${r}`).join(', ') || '(none)'}`);
+    if (analysis.unscopedCommitSubjects.length > 0) {
+      lines.push(`[pr-lifecycle] unscoped=${analysis.unscopedCommitSubjects.map(subject => JSON.stringify(subject)).join(', ')}`);
+    }
   }
   for (const guidance of analysis.guidance) lines.push(`[pr-lifecycle] ${guidance}`);
   return lines.join('\n') + '\n';

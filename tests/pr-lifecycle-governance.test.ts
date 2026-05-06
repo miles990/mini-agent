@@ -69,6 +69,28 @@ describe('PR lifecycle governance', () => {
     expect(analysis.shouldBlockPush).toBe(false);
   });
 
+  it('blocks unscoped non-memory commits on issue-scoped PRs', () => {
+    const analysis = analyzeBranchLifecycle(input({
+      branch: 'fix/review-backlog-issue-83',
+      pullRequest: {
+        number: 155,
+        title: 'fix(memory): tighten review-backlog TTL + cap + read-side filter (#83)',
+        body: 'Fixes #83.',
+      },
+      commitsAhead: [
+        { sha: 'b', subject: '## Task: P0 correction gate: resolve local-commit-not-pushed' },
+        { sha: 'a', subject: 'fix(memory): tighten review-backlog TTL + cap + read-side filter (#83)' },
+      ],
+    }));
+
+    expect(analysis.status).toBe('scope-contaminated');
+    expect(analysis.unscopedCommitSubjects).toEqual([
+      '## Task: P0 correction gate: resolve local-commit-not-pushed',
+    ]);
+    expect(analysis.shouldBlockPush).toBe(true);
+    expect(analysis.guidance.join('\n')).toContain('unscoped non-memory commit');
+  });
+
   it('blocks feature branch push when branch is behind origin base', () => {
     const analysis = analyzeBranchLifecycle(input({
       branch: 'feat/kg-promotion-context-fabric',
