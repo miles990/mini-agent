@@ -902,7 +902,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/system-truth', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -2918,6 +2918,26 @@ export function createApi(port = 3001): express.Express {
       res.json(evaluateAutonomyClosure(memDir));
     } catch {
       res.json({ status: 'unknown', score: 0, stages: [], blockingStages: [], warningStages: [], recommendedTask: null });
+    }
+  });
+
+  app.get('/api/system-truth', async (req: Request, res: Response) => {
+    try {
+      const { evaluateSystemTruth } = await import('./system-truth.js');
+      const memDir = getMemoryRootDir();
+      const kgPushSample = req.query.kgPushSample !== 'false';
+      const snapshot = await evaluateSystemTruth({
+        memoryDir: memDir,
+        repoRoot: process.cwd(),
+        kgPushSample,
+      });
+      res.json(snapshot);
+    } catch (err) {
+      res.status(500).json({
+        status: 'unknown',
+        score: 0,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   });
 
