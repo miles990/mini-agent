@@ -16,7 +16,8 @@ export type CorrectionReasonType =
   | 'pending-pledge'
   | 'low-responsiveness'
   | 'low-output-quality'
-  | 'local-commit-not-pushed';
+  | 'local-commit-not-pushed'
+  | 'dirty-runtime-workspace';
 
 export interface CorrectionReason {
   type: CorrectionReasonType;
@@ -38,6 +39,7 @@ export interface ShipTruthState {
   ahead: number;
   behind: number;
   dirty: boolean;
+  dirtyPaths: string[];
   state: 'not-repo' | 'clean' | 'dirty' | 'pending-push' | 'behind' | 'diverged' | 'unknown';
 }
 
@@ -120,6 +122,25 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     } else {
       const message = `交付狀態未完成 — local branch ahead origin ${shipTruth.ahead} commit(s)，只能視為 committed-local/pending-push，不是 shipped。`;
       reasons.push({ type: 'local-commit-not-pushed', severity: 'high', message });
+      guidance.push(message);
+    }
+  }
+
+  if (shipTruth.state === 'dirty') {
+    const match = findActiveHold(holds, 'dirty-runtime-workspace', {
+      branch: shipTruth.branch,
+      sha: shipTruth.headSha,
+    }, { repoRoot });
+
+    if (match) {
+      acknowledgedHolds.push(match);
+      guidance.push(
+        `runtime workspace dirty 但有 active hold (${match.matchedBy}): ${match.hold.reason}`,
+      );
+    } else {
+      const paths = shipTruth.dirtyPaths.slice(0, 5).join(', ') || 'unknown paths';
+      const message = `runtime workspace 有未整理變更 — ${paths}。先提交、移出、或清理，不能把部署 checkout 當開發/產物工作區。`;
+      reasons.push({ type: 'dirty-runtime-workspace', severity: 'high', message });
       guidance.push(message);
     }
   }
@@ -287,7 +308,7 @@ function parseCorrectionReasonFromSummary(summary: string): string {
 
 function readShipTruth(repoRoot: string): ShipTruthState {
   if (!existsSync(path.join(repoRoot, '.git'))) {
-    return { repoPresent: false, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, state: 'not-repo' };
+    return { repoPresent: false, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, dirtyPaths: [], state: 'not-repo' };
   }
 
   try {
@@ -299,7 +320,7 @@ function readShipTruth(repoRoot: string): ShipTruthState {
     });
     return parseGitStatusPorcelainV2(status);
   } catch {
-    return { repoPresent: true, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, state: 'unknown' };
+    return { repoPresent: true, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, dirtyPaths: [], state: 'unknown' };
   }
 }
 
@@ -309,6 +330,7 @@ export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
   let ahead = 0;
   let behind = 0;
   let dirty = false;
+  const dirtyPaths: string[] = [];
 
   for (const line of status.split('\n')) {
     if (line.startsWith('# branch.oid ')) {
@@ -322,7 +344,12 @@ export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
       ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
       behind = behindMatch ? Number(behindMatch[1]) : 0;
     }
-    if (line && !line.startsWith('#')) dirty = true;
+    if (line && !line.startsWith('#')) {
+      dirty = true;
+      const parts = line.split(' ');
+      const path = parts[parts.length - 1]?.trim();
+      if (path) dirtyPaths.push(path);
+    }
   }
 
   let state: ShipTruthState['state'] = 'clean';
@@ -331,5 +358,5 @@ export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
   else if (behind > 0) state = 'behind';
   else if (dirty) state = 'dirty';
 
-  return { repoPresent: true, branch, headSha, ahead, behind, dirty, state };
+  return { repoPresent: true, branch, headSha, ahead, behind, dirty, dirtyPaths, state };
 }

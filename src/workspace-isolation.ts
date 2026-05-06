@@ -17,7 +17,7 @@ export interface WorkspaceIsolationDecision extends WorkspaceIsolationSnapshot {
 }
 
 const SAFE_RUNTIME_BRANCHES = new Set(['main', 'runtime/main']);
-const CODE_PATH_PATTERN = /^(src|tests|scripts|plugins|skills|tools|\.githooks|\.github)\//;
+const CODE_PATH_PATTERN = /^(src|tests|scripts|plugins|skills|tools|kuro-portfolio|knowledge-graph|\.githooks|\.github)\//;
 const CODE_FILE_PATTERN = /^(package\.json|pnpm-lock\.yaml|tsconfig\.json|agent-compose\.yaml)$/;
 
 export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = process.env.MINI_AGENT_RUNTIME_WORKSPACE): WorkspaceIsolationDecision {

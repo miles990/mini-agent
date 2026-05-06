@@ -81,7 +81,26 @@ describe('correction gate', () => {
       ahead: 2,
       behind: 0,
       dirty: false,
+      dirtyPaths: [],
       state: 'pending-push',
+    }));
+  });
+
+  it('parses dirty runtime paths as dirty ship truth', () => {
+    const parsed = parseGitStatusPorcelainV2([
+      '# branch.oid abc123',
+      '# branch.head runtime/main',
+      '# branch.upstream origin/main',
+      '# branch.ab +0 -0',
+      '1 .M N... 100644 100644 100644 abc abc kuro-portfolio/ai-trend/index.html',
+      '? knowledge-graph/',
+      '',
+    ].join('\n'));
+
+    expect(parsed).toEqual(expect.objectContaining({
+      dirty: true,
+      dirtyPaths: ['kuro-portfolio/ai-trend/index.html', 'knowledge-graph/'],
+      state: 'dirty',
     }));
   });
 
