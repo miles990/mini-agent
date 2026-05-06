@@ -91,4 +91,19 @@
 | github | kuro | PR #107 fix: unify default available actors | merged | 05-06 | 05-06 |
 | github | kuro | PR #104 fix: harden conflict governance and close internal review loop | merged | 05-06 | 05-06 |
 | github | kuro | PR #103 fix: add git conflict governance checks | merged | 05-06 | 05-06 |
-| github | akari | PR #120 fix(agent): structured CLI_EXIT slog for silent_exit_void diagnosis | changes-requested | 05-06 | - |
+| github | akari | PR #120 fix(agent): structured CLI_EXIT slog for silent_exit_void diagnosis | merged | 05-06 | 05-06 |
+| github | kuro | PR #131 fix: prune disposable base worktrees | merged | 05-06 | 05-06 |
+| github | kuro | PR #130 fix: resolve grep falsifier commitments | merged | 05-06 | 05-06 |
+| github | kuro | PR #129 fix: keep deploy checkout clean | merged | 05-06 | 05-06 |
+| github | kuro | PR #128 fix: classify runtime dirt by blocking scope | merged | 05-06 | 05-06 |
+| github | kuro | PR #127 fix: surface dirty runtime workspace corrections | merged | 05-06 | 05-06 |
+| github | kuro | PR #126 fix: complete scheduler-bound tasks by id fallback | merged | 05-06 | 05-06 |
+| github | kuro | PR #123 fix: delete squash-merged local branches in janitor | merged | 05-06 | 05-06 |
+| github | kuro | PR #122 fix(post-commit): auto-allow scope-contamination for memory/handoff chores | merged | 05-06 | 05-06 |
+| github | kuro | PR #121 fix: enforce autonomous workspace isolation | merged | 05-06 | 05-06 |
+| github | kuro | #132 soft-gate: auto-synthesize Decision block when 'chose'-like prose detected without header | needs-triage | 05-06 | — |
+| github | kuro | #124 correction-gate: low-responsiveness fires on stale ledger, not real backlog (signal lag) | needs-triage | 05-06 | — |
+| github | akari | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | codex | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | claude-code | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | akari | PR #133 fix(memory): broaden isStaleFailureOutput patterns (#83 follow-up) | changes-requested | 05-06 | - |
