@@ -7,6 +7,20 @@ import {
 } from '../src/actor-registry.js';
 
 describe('actor registry', () => {
+  it('models Kuro as the host coordinator, not a competing worker brain', () => {
+    expect(getActorProfile('kuro')).toEqual(expect.objectContaining({
+      id: 'kuro',
+      kind: 'host-agent',
+      cognition: 'agentic',
+      dispatchable: false,
+      autonomy: 'host',
+      roleTendency: ['arbiter'],
+      finalAuthority: expect.arrayContaining(['persona', 'taste', 'memory']),
+    }));
+    expect(isDispatchableActor('kuro')).toBe(false);
+    expect(getDefaultDispatchableActors()).not.toContain('kuro');
+  });
+
   it('models Akari as an independent Tanren-based peer agent', () => {
     expect(getActorProfile('akari')).toEqual(expect.objectContaining({
       id: 'akari',
