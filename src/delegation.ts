@@ -257,8 +257,11 @@ export function spawnDelegation(task: DelegationTask): string {
     slog('DELEGATION', `Capacity reached (${activeTasks.size}/${MAX_CONCURRENT}) — middleware will queue ${taskId}`);
   }
 
-  // Forge (§Q2): allocate worktree for code workers here, before submitting plan.
-  const forgeWorktree = task.forgeWorktree ?? (taskType === 'code'
+  // Forge (§Q2): allocate isolated worktrees for all workspace-writing work
+  // before submitting the plan. The main service checkout is deploy/runtime
+  // truth; autonomous edits must not fall back to mutating it directly.
+  const needsWorkspaceIsolation = workItem.risk === 'workspace_write';
+  const forgeWorktree = task.forgeWorktree ?? (needsWorkspaceIsolation
     ? forgeCreate(taskId, workdir, taskType) ?? undefined
     : undefined);
   const cwd = forgeWorktree ?? workdir;
@@ -275,6 +278,14 @@ export function spawnDelegation(task: DelegationTask): string {
   // planId gets filled in once /plan returns (or cleared on failure).
   const entry: ActiveEntry = { planId: '', result, task, forgeWorktree, arbitration };
   activeTasks.set(taskId, entry);
+
+  if (needsWorkspaceIsolation && !forgeWorktree && isProtectedServiceWorkspace(workdir)) {
+    finalizeTask(entry, {
+      status: 'failed',
+      output: `blocked by workspace isolation policy: forge worktree allocation failed for protected service workspace ${workdir}`,
+    });
+    return taskId;
+  }
 
   writeActivity({
     lane: 'background',
@@ -669,6 +680,10 @@ function riskForDelegationType(type: DelegationTaskType, task: DelegationTask): 
     return 'workspace_write';
   }
   return 'read_only';
+}
+
+function isProtectedServiceWorkspace(workdir: string): boolean {
+  return path.resolve(workdir) === path.resolve(process.cwd());
 }
 
 function priorityForDelegation(task: DelegationTask): WorkPriority {

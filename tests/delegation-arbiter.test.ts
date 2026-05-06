@@ -58,9 +58,12 @@ import {
   killAllDelegations,
   spawnDelegation,
 } from '../src/delegation.js';
+import { forgeCreate } from '../src/forge.js';
 
 beforeEach(() => {
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
+  vi.mocked(forgeCreate).mockReset();
+  vi.mocked(forgeCreate).mockReturnValue(null);
   killAllDelegations();
 });
 
@@ -128,6 +131,33 @@ describe('delegation arbitration mapping', () => {
         fileScopes: ['src/agent.ts'],
       }),
     ]);
+  });
+
+  it('allocates forge worktrees for create delegations that can write workspace files', () => {
+    vi.mocked(forgeCreate).mockReturnValueOnce('/repo-forge/create-1');
+
+    const id = spawnDelegation({
+      prompt: 'Create docs/guide.md',
+      workdir: '/repo',
+      type: 'create',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('running');
+    expect(forgeCreate).toHaveBeenCalledWith(id, '/repo', 'create');
+  });
+
+  it('blocks protected service workspace writes when forge allocation fails', () => {
+    vi.mocked(forgeCreate).mockReturnValueOnce(null);
+
+    const id = spawnDelegation({
+      prompt: 'Update src/agent.ts',
+      workdir: process.cwd(),
+      type: 'code',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('failed');
+    expect(getTaskResult(id)?.output).toContain('workspace isolation policy');
+    expect(getActiveWriteLeases()).toHaveLength(0);
   });
 
   it('blocks overlapping write scopes instead of dispatching them', () => {
