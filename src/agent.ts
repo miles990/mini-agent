@@ -1043,6 +1043,15 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         slog('CLAUDE', `Process terminated by signal ${signal} (not our timeout), elapsed=${(duration / 1000).toFixed(1)}s`);
       }
 
+      // Issue #77: structured exit log surfaces {code, signal, killed} for silent_exit_void
+      // (non-143 nonzero exit, no signal, no stderr). Without this, classifier sees only
+      // `exit undefined, stdout empty` and routes to hang_no_diag.
+      slog('CLI_EXIT', JSON.stringify({
+        cli: 'claude', source, code, signal: signal ?? null, killed: timedOut,
+        durationS: Math.round(duration / 1000), stderrLen: stderr.length,
+        stdoutLen: resultText.length, toolCalls: toolCallCount,
+      }));
+
       // Flush forensic entry — common to success and error paths. Fail-open.
       try {
         const now = Date.now();
@@ -1265,6 +1274,13 @@ async function execCodex(fullPrompt: string, opts?: ExecOptions): Promise<string
       if (toolCallCount > 0) {
         slog('AUDIT', `Codex CLI used ${toolCallCount} tool(s) this call`);
       }
+
+      // Issue #77: same structured exit log for codex lane (parity with claude handler).
+      slog('CLI_EXIT', JSON.stringify({
+        cli: 'codex', source, code, signal: signal ?? null, killed: timedOut,
+        durationS: Math.round(duration / 1000), stderrLen: stderr.length,
+        stdoutLen: resultText.length, toolCalls: toolCallCount,
+      }));
 
       if (code !== 0 && !resultText) {
         reject(Object.assign(new Error(`Codex CLI exited with code ${code}`), { stderr, stdout: resultText, status: code, killed: timedOut, signal, duration, timeoutMs: TIMEOUT_MS }));
