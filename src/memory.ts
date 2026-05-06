@@ -3346,13 +3346,22 @@ export class InstanceMemory {
     // Everything else (Self-Governance, Strategic Direction, named priority sections) → heartbeat-strategy
 
     const hbDiff = options?.phase0Results?.heartbeatDiff;
+    // Issue #163 Defect B/C: isLight + hbDiff paths used raw heartbeat, leaking
+    // HTML-commented + [x]-completed phantom tasks. Strip noise like the else
+    // branch (L3367-3368) and minimal builder (L3723-3727) so all 4 render
+    // paths produce phantom-free output.
+    const hbStripped = (heartbeat ?? '')
+      .replace(/<!--[\s\S]*?-->\n?/g, '')
+      .split('\n')
+      .filter(l => !l.trim().startsWith('- [x]'))
+      .join('\n');
     if (isLight) {
       // Light mode: just active slice
-      const hbLight = heartbeat?.slice(0, 1500) ?? '';
+      const hbLight = hbStripped.slice(0, 1500);
       sections.push(`<heartbeat-active>\n${hbLight}\n</heartbeat-active>`);
     } else if (hbDiff) {
       // P0c: Compressed heartbeat — diff summary + essential sections (Active Tasks header)
-      const activeTasksMatch = heartbeat?.match(/## Active Tasks[\s\S]*?(?=\n## |$)/);
+      const activeTasksMatch = hbStripped.match(/## Active Tasks[\s\S]*?(?=\n## |$)/);
       const activeTasks = activeTasksMatch?.[0]?.slice(0, 1500) ?? '';
       const hbDiffContent = `## Changes Since Last Cycle\n${hbDiff}\n\n${activeTasks}`;
       eventBus.emit('log:info', {
