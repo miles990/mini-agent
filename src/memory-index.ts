@@ -612,11 +612,16 @@ export async function updateTask(
   }
 
   // Progress reset: any status transition or verify write resets staleness counter
+  // (and clears the staleness escalation stamp so a re-stalled task can re-escalate)
   if (patch.status !== undefined && patch.status !== prevStatus) {
     newPayload.ticksSinceLastProgress = 0;
+    delete newPayload.escalated_at;
+    delete newPayload.escalation_reason;
   }
   if (patch.verify !== undefined) {
     newPayload.ticksSinceLastProgress = 0;
+    delete newPayload.escalated_at;
+    delete newPayload.escalation_reason;
   }
 
   // Verify gate: task with verify_command must pass before terminal status
@@ -932,13 +937,13 @@ const STALENESS_THRESHOLD = 3;
  */
 export async function incrementTaskStaleness(
   memoryDir: string,
-): Promise<Array<{ id: string; summary: string; ticks: number }>> {
+): Promise<Array<{ id: string; summary: string; ticks: number; firstEscalation: boolean }>> {
   const tasks = queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],
   });
 
-  const stale: Array<{ id: string; summary: string; ticks: number }> = [];
+  const stale: Array<{ id: string; summary: string; ticks: number; firstEscalation: boolean }> = [];
 
   for (const task of tasks) {
     const payload = (task.payload ?? {}) as Record<string, unknown>;
@@ -956,12 +961,35 @@ export async function incrementTaskStaleness(
       continue;
     }
 
+    // Issue #156: idempotent P0 escalation. Stamp `escalated_at` once when
+    // crossing the >5-ticks boundary; subsequent cycles see the stamp and
+    // skip re-writing priority. This stops the priority oscillation caused
+    // by external syncs (issue-autopilot, github-issue) writing the original
+    // priority back between cycles, only to be clobbered to 0 again here.
+    const alreadyEscalated = !!payload.escalated_at;
+    const shouldEscalateNow = newTicks > 5 && !alreadyEscalated;
+
+    const updatedPayload: Record<string, unknown> = {
+      ...payload,
+      ticksSinceLastProgress: newTicks,
+    };
+    if (shouldEscalateNow) {
+      updatedPayload.priority = 0;
+      updatedPayload.escalated_at = new Date().toISOString();
+      updatedPayload.escalation_reason = 'staleness';
+    }
+
     await updateMemoryIndexEntry(memoryDir, task.id, {
-      payload: { ...payload, ticksSinceLastProgress: newTicks },
+      payload: updatedPayload,
     });
 
     if (newTicks > STALENESS_THRESHOLD) {
-      stale.push({ id: task.id, summary: task.summary ?? task.id, ticks: newTicks });
+      stale.push({
+        id: task.id,
+        summary: task.summary ?? task.id,
+        ticks: newTicks,
+        firstEscalation: shouldEscalateNow,
+      });
     }
   }
 
