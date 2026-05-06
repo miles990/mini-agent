@@ -144,4 +144,87 @@ describe('autonomy closure health', () => {
     expect(task?.payload?.acceptance_criteria).toContain('1 task(s) exhausted autonomous retries');
     expect(task?.payload?.closure_refreshed_at).toEqual(expect.any(String));
   });
+
+  it('releases a stale autonomy closure hold when it has no unblock condition', async () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      [
+        JSON.stringify({
+          id: 'idx-existing',
+          ts: '2026-05-07T00:00:00.000Z',
+          type: 'task',
+          status: 'hold',
+          summary: 'P0 autonomy closure: repair old-stage',
+          refs: [],
+          tags: ['autonomy-closure'],
+          payload: {
+            origin: 'autonomy-closure',
+            priority: 0,
+            staleWarning: 'old provider failure',
+          },
+        }),
+        JSON.stringify({
+          id: 'idx-exhausted',
+          ts: '2026-05-07T00:00:00.000Z',
+          type: 'task',
+          status: 'hold',
+          summary: 'P1 failing autonomous issue repair',
+          refs: [],
+          payload: {
+            origin: 'github-issue',
+            priority: 1,
+            verify_command: 'pnpm test',
+            auto_executor_failures: 3,
+          },
+        }),
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const task = await ensureAutonomyClosureTask(tmpDir, evaluateAutonomyClosure(tmpDir, { repoRoot }));
+
+    expect(task?.status).toBe('pending');
+    expect(task?.payload?.closure_unheld_reason).toBe('refreshed stale autonomy closure hold without unblock condition');
+  });
+
+  it('keeps a timed provider resource hold in hold status', async () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      JSON.stringify({
+        id: 'idx-existing',
+        ts: '2026-05-07T00:00:00.000Z',
+        type: 'task',
+        status: 'hold',
+        summary: 'P0 autonomy closure: repair old-stage',
+        refs: [],
+        tags: ['autonomy-closure'],
+        payload: {
+          origin: 'autonomy-closure',
+          priority: 0,
+          holdCondition: { type: 'date-after', value: '2026-05-07T02:40:00.000Z' },
+        },
+      }) + '\n' + JSON.stringify({
+        id: 'idx-exhausted',
+        ts: '2026-05-07T00:00:00.000Z',
+        type: 'task',
+        status: 'hold',
+        summary: 'P1 failing autonomous issue repair',
+        refs: [],
+        payload: {
+          origin: 'github-issue',
+          priority: 1,
+          verify_command: 'pnpm test',
+          auto_executor_failures: 3,
+        },
+      }) + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const task = await ensureAutonomyClosureTask(tmpDir, evaluateAutonomyClosure(tmpDir, { repoRoot }));
+
+    expect(task?.status).toBe('hold');
+    expect(task?.payload?.closure_unheld_reason).toBeUndefined();
+  });
 });
