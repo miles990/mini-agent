@@ -8,7 +8,8 @@
  * 4. autoTrackPrReviewNeeds — PR without reviewer signal → handoffs/active.md + inbox
  * 5. autoTrackPrReviewConsensus — review claims → handoff consensus status
  * 6. autoTrackMergedPrClosures — merged PR → close handoff loop
- * 7. autoTrackNewIssues — 新 issue → handoffs/active.md
+ * 7. autoTrackAbandonedPrClosures — closed/unmerged PR → close stale review handoffs
+ * 8. autoTrackNewIssues — 新 issue → handoffs/active.md
  *
  * 全部 try-catch 靜默失敗，不影響 OODA cycle。
  */
@@ -22,6 +23,7 @@ import { promisify } from 'node:util';
 import { slog } from './utils.js';
 import { writeInboxItem } from './inbox.js';
 import {
+  closeAbandonedPrHandoffs,
   closeMergedPrHandoffs,
   decidePrReviewAssignment,
   decidePrConflictAction,
@@ -752,6 +754,53 @@ function isRecentlyMerged(mergedAt?: string | null): boolean {
 }
 
 // =============================================================================
+// 9. Closed/unmerged PR → close stale review handoff loop
+// =============================================================================
+
+interface PrClosureView {
+  number: number;
+  title: string;
+  state: string;
+  closedAt?: string | null;
+  mergedAt?: string | null;
+}
+
+export async function autoTrackAbandonedPrClosures(): Promise<void> {
+  const activePath = resolveMemoryPath('handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  let activeContent: string;
+  try {
+    activeContent = fs.readFileSync(activePath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const handoffs = parsePrReviewHandoffs(activeContent);
+  const prNumbers = [...new Set(handoffs.map(h => h.prNumber))].slice(0, 20);
+  if (prNumbers.length === 0) return;
+
+  const closed: PrClosureView[] = [];
+  for (const prNumber of prNumbers) {
+    try {
+      const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,state,closedAt,mergedAt'], 10000);
+      const pr = JSON.parse(stdout) as PrClosureView;
+      if (pr.state === 'CLOSED' && !pr.mergedAt) closed.push(pr);
+    } catch {
+      // Best-effort janitor: one failed lookup should not stop the cycle.
+    }
+  }
+  if (closed.length === 0) return;
+
+  const today = new Date().toISOString().slice(5, 10);
+  const result = closeAbandonedPrHandoffs(activeContent, closed, today);
+  if (result.content !== activeContent) {
+    fs.writeFileSync(activePath, result.content, 'utf-8');
+    slog('github', `closed ${result.updated} abandoned PR review handoff(s)`);
+  }
+}
+
+// =============================================================================
 // 7. 新 issue → handoffs/active.md
 // =============================================================================
 
@@ -831,6 +880,7 @@ export async function githubAutoActions(): Promise<void> {
   await autoMergeInternallyApprovedPR().catch(() => {});
   await autoHandleConflictingPRs().catch(() => {});
   await autoTrackMergedPrClosures().catch(() => {});
+  await autoTrackAbandonedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }
 

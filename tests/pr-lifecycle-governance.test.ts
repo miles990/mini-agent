@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeBranchLifecycle,
+  closeAbandonedPrHandoffs,
   closeMergedPrHandoffs,
   decidePrConflictAction,
   decidePrReviewAssignment,
@@ -254,6 +255,26 @@ describe('PR lifecycle governance', () => {
     expect(result.content).toContain('| github | akari | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-07 |');
     expect(result.content).toContain('| github | codex | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-07 |');
     expect(result.content).toContain('| github | kuro | PR #99 fix: another / task | merged | 05-07 | 05-07 |');
+  });
+
+  it('closes abandoned PR review handoff rows', () => {
+    const active = [
+      '# Active Handoffs',
+      '',
+      '| From | To | Task | Status | Created | Done |',
+      '|------|----|------|--------|---------|------|',
+      '| github | codex | PR #155 fix(memory): old follow-up | changes-requested | 05-06 | - |',
+      '| github | claude-code | PR #155 fix(memory): old follow-up | changes-requested | 05-06 | - |',
+    ].join('\n');
+
+    const result = closeAbandonedPrHandoffs(active, [
+      { number: 155, title: 'fix(memory): old follow-up' },
+    ], '05-07');
+
+    expect(result.updated).toBe(2);
+    expect(result.appended).toBe(0);
+    expect(result.content).toContain('| github | codex | PR #155 fix(memory): old follow-up | closed | 05-06 | 05-07 |');
+    expect(result.content).toContain('| github | claude-code | PR #155 fix(memory): old follow-up | closed | 05-06 | 05-07 |');
   });
 
   it('attempts branch update for approved narrow verified conflicts', () => {
