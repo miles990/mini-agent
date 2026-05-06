@@ -59,7 +59,11 @@ export function forgeCreate(taskId: string, workdir: string, taskType?: Delegati
     const output = forgeExec(`create "${taskId}" --caller-pid ${process.pid}${noInstall}`, workdir);
     return output.split('\n').pop()!.trim();
   } catch (e) {
-    slog('FORGE', `forgeCreate failed for ${taskId}: ${(e as Error).message?.split('\n')[0] ?? e}`);
+    const err = e as NodeJS.ErrnoException & { stderr?: Buffer | string; stdout?: Buffer | string; status?: number | null; signal?: string | null };
+    const errMsg = (err.message ?? String(e)).split('\n')[0];
+    const errType = err.constructor?.name ?? typeof e;
+    const stderrStr = typeof err.stderr === 'string' ? err.stderr : (err.stderr ? err.stderr.toString('utf-8') : '');
+    slog('FORGE', `forgeCreate failed: ${JSON.stringify({ taskId, errMsg, errType, stderr: stderrStr.slice(0, 500), status: err.status ?? null, signal: err.signal ?? null })}`);
     return null;
   }
 }
