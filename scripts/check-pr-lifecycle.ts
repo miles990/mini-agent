@@ -10,15 +10,18 @@ const baseBranch = process.env.MINI_AGENT_BASE_BRANCH ?? 'main';
 const allowContamination = process.env.MINI_AGENT_ALLOW_SCOPE_CONTAMINATION === '1';
 const json = process.argv.includes('--json');
 
+git(['fetch', '--quiet', 'origin', baseBranch]);
 const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).trim() || null;
 const dirty = git(['status', '--porcelain']).trim().length > 0;
 const commitsAhead = parseGitLogRecords(git(['log', '--format=%H%x1f%s%x1f%b%x1e', `origin/${baseBranch}..HEAD`]));
+const behindBase = countBehindBase(baseBranch);
 const pullRequest = readCurrentPr();
 const analysis = analyzeBranchLifecycle({
   branch,
   baseBranch,
   dirty,
   commitsAhead,
+  behindBase,
   pullRequest,
 });
 
@@ -64,9 +67,15 @@ function git(args: string[]): string {
   }
 }
 
+function countBehindBase(base: string): number {
+  const raw = git(['rev-list', '--left-right', '--count', `HEAD...origin/${base}`]).trim();
+  const parts = raw.split(/\s+/);
+  return Number(parts[1] ?? 0) || 0;
+}
+
 function formatHuman(analysis: ReturnType<typeof analyzeBranchLifecycle>): string {
   const lines = [
-    `[pr-lifecycle] status=${analysis.status} branch=${analysis.branch ?? 'unknown'} base=${analysis.baseBranch} ahead=${analysis.ahead} dirty=${analysis.dirty}`,
+    `[pr-lifecycle] status=${analysis.status} branch=${analysis.branch ?? 'unknown'} base=${analysis.baseBranch} ahead=${analysis.ahead} behind=${analysis.behindBase} dirty=${analysis.dirty}`,
   ];
   if (analysis.pullRequest) {
     lines.push(`[pr-lifecycle] pr=#${analysis.pullRequest.number} ${analysis.pullRequest.title}`);

@@ -21,6 +21,7 @@
     "setup:external-memory": "tsx scripts/setup-external-memory.ts",
     "memory:repo:setup": "tsx scripts/setup-memory-repo.ts --init",
     "memory:repo:check": "tsx scripts/setup-memory-repo.ts --check",
+    "memory:kg:promote": "tsx scripts/kg-promote-memory.ts",
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts"

@@ -305,6 +305,7 @@ export function isKgCandidate(file: MemoryRepoFileStat): boolean {
   if (!file.track) return false;
   if (!file.relPath.endsWith('.md')) return false;
   if (file.relPath === 'README.md' || file.relPath === 'MAINTENANCE.md') return false;
+  if (/(^|\/)\.?archive\//.test(file.relPath) || /-archived-\d{8}\.md$/.test(file.relPath)) return false;
   return /^(MEMORY|SOUL|HEARTBEAT|NEXT)\.md$/.test(file.relPath)
     || /^(topics|handoffs|proposals|reports|research|reviews|learning|discussions)\//.test(file.relPath);
 }

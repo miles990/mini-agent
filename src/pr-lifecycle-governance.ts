@@ -71,6 +71,7 @@ export interface BranchLifecycleInput {
   baseBranch: string;
   dirty: boolean;
   commitsAhead: CommitSummary[];
+  behindBase?: number;
   pullRequest?: PullRequestSummary | null;
 }
 
@@ -78,6 +79,7 @@ export type BranchLifecycleStatus =
   | 'base'
   | 'feature-no-pr'
   | 'pending-review'
+  | 'stale-base'
   | 'scope-contaminated';
 
 export interface BranchLifecycleAnalysis {
@@ -86,6 +88,7 @@ export interface BranchLifecycleAnalysis {
   baseBranch: string;
   dirty: boolean;
   ahead: number;
+  behindBase: number;
   pullRequest: PullRequestSummary | null;
   issueRefs: number[];
   allowedIssueRefs: number[];
@@ -102,6 +105,7 @@ const RESOLUTION_REF_RE = /(?:^|\n)\s*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|i
 export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifecycleAnalysis {
   const pr = input.pullRequest ?? null;
   const onBase = !input.branch || input.branch === input.baseBranch;
+  const behindBase = Math.max(0, input.behindBase ?? 0);
   const issueRefs = uniqueNumbers(input.commitsAhead.flatMap(c => extractIssueRefs(`${c.subject}\n${c.body ?? ''}`)));
   const allowedIssueRefs = pr ? extractAllowedIssueRefs(pr) : [];
   const foreignIssueRefs = pr
@@ -123,6 +127,11 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
   if (onBase) {
     status = 'base';
     if (input.dirty) guidance.push('Base branch is dirty; finish or stash local changes before starting new work.');
+  } else if (behindBase > 0) {
+    status = 'stale-base';
+    shouldBlockPush = true;
+    guidance.push(`Branch ${input.branch} is ${behindBase} commit(s) behind origin/${input.baseBranch}; rebase before push/PR completion.`);
+    guidance.push(`Run: git fetch origin && git rebase origin/${input.baseBranch}, then rerun verification.`);
   } else if (!pr) {
     status = 'feature-no-pr';
     guidance.push(`Branch ${input.branch} has no detected PR. Open a PR before treating it as complete.`);
@@ -153,6 +162,7 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
     baseBranch: input.baseBranch,
     dirty: input.dirty,
     ahead: input.commitsAhead.length,
+    behindBase,
     pullRequest: pr,
     issueRefs,
     allowedIssueRefs,
