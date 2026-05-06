@@ -30,9 +30,14 @@ vi.mock('../src/middleware-client.js', () => ({
 }));
 
 vi.mock('../src/forge.js', () => ({
-  forgeCreate: vi.fn(() => null),
-  forgeYolo: vi.fn(() => false),
-  forgeCleanup: vi.fn(),
+  prepareForgeWorkspace: vi.fn((opts: { workdir: string; requiresIsolation: boolean }) => ({
+    cwd: opts.requiresIsolation ? '/repo-forge/default' : opts.workdir,
+    ...(opts.requiresIsolation ? { worktree: '/repo-forge/default' } : {}),
+  })),
+  finalizeForgeWorkspace: vi.fn((opts: { worktree: string }) => ({
+    outcome: { worktree: opts.worktree, created: true, merged: false, cleaned: true },
+    outputSuffix: '\n[forge] merge skipped (verify failed or no changes)',
+  })),
 }));
 
 vi.mock('../src/delegation-summary.js', () => ({
@@ -58,9 +63,15 @@ import {
   killAllDelegations,
   spawnDelegation,
 } from '../src/delegation.js';
+import { prepareForgeWorkspace } from '../src/forge.js';
 
 beforeEach(() => {
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
+  vi.mocked(prepareForgeWorkspace).mockReset();
+  vi.mocked(prepareForgeWorkspace).mockImplementation((opts: { workdir: string; requiresIsolation: boolean }) => ({
+    cwd: opts.requiresIsolation ? '/repo-forge/default' : opts.workdir,
+    ...(opts.requiresIsolation ? { worktree: '/repo-forge/default' } : {}),
+  }));
   killAllDelegations();
 });
 
@@ -128,6 +139,41 @@ describe('delegation arbitration mapping', () => {
         fileScopes: ['src/agent.ts'],
       }),
     ]);
+  });
+
+  it('allocates forge worktrees for create delegations that can write workspace files', () => {
+    vi.mocked(prepareForgeWorkspace).mockReturnValueOnce({ cwd: '/repo-forge/create-1', worktree: '/repo-forge/create-1' });
+
+    const id = spawnDelegation({
+      prompt: 'Create docs/guide.md',
+      workdir: '/repo',
+      type: 'create',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('running');
+    expect(prepareForgeWorkspace).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: id,
+      workdir: '/repo',
+      taskType: 'create',
+      requiresIsolation: true,
+    }));
+  });
+
+  it('blocks workspace writes when forge allocation fails', () => {
+    vi.mocked(prepareForgeWorkspace).mockReturnValueOnce({
+      cwd: process.cwd(),
+      blockedReason: 'blocked by workspace isolation policy: forge worktree allocation failed for repo',
+    });
+
+    const id = spawnDelegation({
+      prompt: 'Update src/agent.ts',
+      workdir: process.cwd(),
+      type: 'code',
+    });
+
+    expect(getTaskResult(id)?.status).toBe('failed');
+    expect(getTaskResult(id)?.output).toContain('workspace isolation policy');
+    expect(getActiveWriteLeases()).toHaveLength(0);
   });
 
   it('blocks overlapping write scopes instead of dispatching them', () => {
