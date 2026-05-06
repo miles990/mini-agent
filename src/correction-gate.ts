@@ -11,7 +11,7 @@ import {
   type ActiveHoldMatch,
   type CorrectionHold,
 } from './correction-holds.js';
-import { isCodePath, isSafeRuntimeBranch } from './workspace-isolation.js';
+import { evaluateWorkspaceIsolation, isCodePath, isSafeRuntimeBranch } from './workspace-isolation.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -115,14 +115,15 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   const shipTruth = readShipTruth(repoRoot);
+  const workspaceIsolation = evaluateWorkspaceIsolation(repoRoot);
 
-  if (shipTruth.repoPresent && !isSafeRuntimeBranch(shipTruth.branch)) {
+  if (workspaceIsolation.protectedRuntimeWorkspace && shipTruth.repoPresent && !isSafeRuntimeBranch(shipTruth.branch)) {
     const message = `runtime workspace 在錯誤分支 ${shipTruth.branch ?? 'unknown'} — protected runtime checkout 只能在 runtime/main；功能修改要用 isolated worktree + PR。`;
     reasons.push({ type: 'runtime-workspace-wrong-branch', severity: 'high', message });
     guidance.push(message);
   }
 
-  if (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged') {
+  if (workspaceIsolation.protectedRuntimeWorkspace && (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged')) {
     const match = findActiveHold(holds, 'local-commit-not-pushed', {
       branch: shipTruth.branch,
       sha: shipTruth.headSha,
@@ -141,7 +142,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     }
   }
 
-  if (shipTruth.state === 'dirty') {
+  if (workspaceIsolation.protectedRuntimeWorkspace && shipTruth.state === 'dirty') {
     const blockingDirtyPaths = getBlockingRuntimeDirtyPaths(shipTruth.dirtyPaths);
     const match = findActiveHold(holds, 'dirty-runtime-workspace', {
       branch: shipTruth.branch,
