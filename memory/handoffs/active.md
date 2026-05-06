@@ -96,3 +96,7 @@
 | github | kuro | PR #122 fix(post-commit): auto-allow scope-contamination for memory/handoff chores | merged | 05-06 | 05-06 |
 | github | kuro | PR #121 fix: enforce autonomous workspace isolation | merged | 05-06 | 05-06 |
 | github | kuro | #124 correction-gate: low-responsiveness fires on stale ledger, not real backlog (signal lag) | needs-triage | 05-06 | — |
+| github | akari | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
+| github | codex | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
+| github | claude-code | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
+| github | kuro | PR #126 fix: complete scheduler-bound tasks by id fallback | merged | 05-06 | 05-06 |
