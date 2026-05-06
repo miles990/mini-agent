@@ -87,11 +87,13 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
     // (or any later step) failed mid-sequence and the loop retries the autocorrect.
     const remoteBranchExists = !!safeGit(root, ['ls-remote', '--heads', 'origin', branch]);
     if (!remoteBranchExists) {
-      ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
       if (mode === 'tracked-dirty') {
+        ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
         moveTrackedDirtyToWorktree(root, worktree);
       } else {
-        git(worktree, ['cherry-pick', `origin/${baseBranch}..${snapshot.headSha}`]);
+        // Create worktree directly at headSha to preserve original commit hashes
+        // (cherry-pick creates new commits with different hashes)
+        ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
       git(worktree, ['push', '-u', 'origin', branch]);
     }
