@@ -198,13 +198,28 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
   const primary = snapshot.reasons.find(r => r.severity === 'high') ?? snapshot.reasons[0];
   if (!primary) return null;
 
+  const runtimeAutocorrect = primary.type === 'local-commit-not-pushed'
+    ? [
+      'Run runtime autocorrect before manual edits: `pnpm exec tsx scripts/runtime-workspace-autocorrect.ts --apply`.',
+      'Expected loop: preserve change in isolated worktree branch, open PR, review, merge, deploy, and confirm runtime/main is clean.',
+    ].join(' ')
+    : primary.type === 'dirty-runtime-workspace'
+      ? [
+        'Do not edit protected runtime checkout directly.',
+        'Move the change into an isolated worktree/PR, then clean runtime/main and verify `git status --short --branch` is clean.',
+      ].join(' ')
+      : '';
+
   const task = await createTask(memoryDir, {
     title: `P0 correction gate: resolve ${primary.type}`,
     origin: 'scheduler',
     priority: 0,
-    verify_command: 'pnpm typecheck && pnpm test',
+    verify_command: primary.type === 'local-commit-not-pushed'
+      ? 'pnpm exec tsx scripts/runtime-workspace-autocorrect.ts --apply && pnpm typecheck && pnpm test'
+      : 'pnpm typecheck && pnpm test',
     acceptance_criteria: [
       primary.message,
+      runtimeAutocorrect,
       'Resolve the active correction reason or write a falsifiable blocker.',
       `Current suppressed actions: ${snapshot.suppressedActions.join(', ') || 'none'}.`,
       `Ship truth state: ${snapshot.shipTruth.state}.`,

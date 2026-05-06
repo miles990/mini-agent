@@ -19,6 +19,7 @@
     "janitor:workspaces": "tsx scripts/workspace-janitor.ts",
     "janitor:workspaces:apply": "tsx scripts/workspace-janitor.ts --apply",
     "check:runtime-workspace": "tsx scripts/check-runtime-workspace.ts",
+    "autocorrect:runtime-workspace": "tsx scripts/runtime-workspace-autocorrect.ts",
     "setup:external-memory": "tsx scripts/setup-external-memory.ts",
     "memory:repo:setup": "tsx scripts/setup-memory-repo.ts --init",
     "memory:repo:check": "tsx scripts/setup-memory-repo.ts --check",

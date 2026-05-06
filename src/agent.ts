@@ -1111,6 +1111,13 @@ async function execClaude(fullPrompt: string, opts?: ExecOptions): Promise<strin
         if (slot) slot.pid = null;
       }
       chatStreamParser?.end();
+      // Issue #77 diagnostic: capture spawn-level error attributes to disambiguate
+      // silent_exit_void modes (CLI internal stall ~260s vs HTTP timeout ~1000s).
+      const _eDur = Date.now() - startTs;
+      const _ec = (err as { code?: string }).code;
+      const _en = (err as { errno?: number | string }).errno;
+      const _es = (err as { syscall?: string }).syscall;
+      slog('CLAUDE', `spawn-error after ${Math.round(_eDur/1000)}s code=${_ec ?? 'n/a'} errno=${_en ?? 'n/a'} syscall=${_es ?? 'n/a'} toolCalls=${toolCallCount} msg="${(err.message || '').slice(0, 200).replace(/\n/g, ' ')}"`);
       // Forensic flush — spawn-level error (fork failure, etc). Fail-open.
       try {
         const now = Date.now();
