@@ -39,6 +39,15 @@ if (path.resolve(root) === protectedRoot && !['main', 'runtime/main'].includes(c
 for (const wt of worktrees) {
   if (!wt.branch) continue;
   if (path.resolve(wt.path) === protectedRoot) continue;
+  if (wt.branch === base && isDisposableBaseWorktree(wt.path) && isWorktreeClean(wt.path)) {
+    actions.push({
+      type: 'remove-worktree',
+      target: wt.path,
+      reason: `clean disposable ${base} worktree blocks future checkout of ${base}`,
+      command: ['git', 'worktree', 'remove', wt.path],
+    });
+    continue;
+  }
   if (openPrBranches.has(wt.branch)) continue;
   if (mergedPrBranches.has(wt.branch) && isWorktreeClean(wt.path)) {
     actions.push({
@@ -188,6 +197,12 @@ function readRemoteBranches(): string[] {
 
 function isWorktreeClean(worktreePath: string): boolean {
   return (git(['-C', worktreePath, 'status', '--porcelain']) ?? '').trim().length === 0;
+}
+
+function isDisposableBaseWorktree(worktreePath: string): boolean {
+  const name = path.basename(worktreePath);
+  const runtimeName = path.basename(protectedRoot);
+  return name !== runtimeName && name.startsWith(`${runtimeName}-`);
 }
 
 function isBranchCheckedOut(branch: string, records: WorktreeRecord[]): boolean {
