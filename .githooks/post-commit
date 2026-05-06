@@ -64,6 +64,14 @@ case "$SUBJECT" in
       (
         trap '' HUP
         cd "$REPO_ROOT" || exit 1
+        # Issue #100: memory/handoff chores are append-only state files; pr-lifecycle
+        # scope-contamination guard is correct for code commits but blocks these.
+        # Narrow override scoped to two prefixes only.
+        case "$SUBJECT" in
+          "chore(memory):"*|"chore(handoff):"*)
+            export MINI_AGENT_ALLOW_SCOPE_CONTAMINATION=1
+            ;;
+        esac
         if git push origin "$BRANCH" >>"$PUSH_LOG" 2>&1; then
           echo "[post-commit] ✓ auto-pushed $BRANCH at $(date '+%Y-%m-%d %H:%M:%S') ($SUBJECT)" >>"$PUSH_LOG"
         else
