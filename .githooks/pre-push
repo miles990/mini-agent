@@ -8,4 +8,5 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 0
 fi
 
+pnpm exec tsx scripts/check-conflicts.ts || exit $?
 pnpm exec tsx scripts/check-pr-lifecycle.ts --pre-push
