@@ -2237,13 +2237,15 @@ export class AgentLoop {
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
       // Issue autopilot: reconcile GitHub-closed issues so stale P0 entries drain (issue #151)
       try {
-        const repo = process.env.MINI_AGENT_GITHUB_REPO;
+        const { detectGitHubRepo, readOpenIssuesFromGitHub, syncGitHubIssuesToTasks } = await import('./issue-autopilot.js');
+        const repo = process.env.MINI_AGENT_GITHUB_REPO ?? detectGitHubRepo();
         if (repo) {
-          const { readOpenIssuesFromGitHub, syncGitHubIssuesToTasks } = await import('./issue-autopilot.js');
           const issues = readOpenIssuesFromGitHub(repo, 50);
           await syncGitHubIssuesToTasks(memDir, issues, { repo });
+        } else {
+          slog('ISSUE-AUTOPILOT', 'skipped: no GitHub repo detected');
         }
-      } catch { /* non-critical */ }
+      } catch (e) { slog('WARN', `issue autopilot failed: ${e}`); }
       try {
         const { closeResolvedCorrectionTasks, evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
         let correction = evaluateCorrectionGate(memDir);

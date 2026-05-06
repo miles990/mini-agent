@@ -166,6 +166,25 @@ export function readOpenIssuesFromGitHub(repo: string, limit = 50): GitHubIssueS
   return JSON.parse(output) as GitHubIssueSummary[];
 }
 
+export function detectGitHubRepo(cwd = process.cwd()): string | undefined {
+  try {
+    const url = execFileSync('git', ['config', '--get', 'remote.origin.url'], {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+    }).trim();
+    return parseGitHubRepoUrl(url);
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGitHubRepoUrl(url: string): string | undefined {
+  const match = url.match(/github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?$/);
+  return match?.[1];
+}
+
 function normalizeLabels(labels: GitHubIssueSummary['labels']): string[] {
   return (labels ?? [])
     .map(label => typeof label === 'string' ? label : label.name)

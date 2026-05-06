@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { readOpenIssuesFromGitHub, syncGitHubIssuesToTasks } from './issue-autopilot.js';
+import { detectGitHubRepo, readOpenIssuesFromGitHub, syncGitHubIssuesToTasks } from './issue-autopilot.js';
 
 const args = new Set(process.argv.slice(2));
-const repo = readArg('--repo') ?? process.env.MINI_AGENT_GITHUB_REPO ?? detectRepo();
+const repo = readArg('--repo') ?? process.env.MINI_AGENT_GITHUB_REPO ?? detectGitHubRepo();
 const memoryDir = path.resolve(readArg('--memory') ?? process.env.MINI_AGENT_MEMORY_DIR ?? 'memory');
 const limit = Number(readArg('--limit') ?? process.env.MINI_AGENT_GITHUB_ISSUE_LIMIT ?? '50');
 const dryRun = args.has('--dry-run');
@@ -45,18 +44,4 @@ function readArg(name: string): string | undefined {
   if (index >= 0) return argv[index + 1];
   const prefix = `${name}=`;
   return argv.find(arg => arg.startsWith(prefix))?.slice(prefix.length);
-}
-
-function detectRepo(): string | undefined {
-  try {
-    const url = execFileSync('git', ['config', '--get', 'remote.origin.url'], {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5000,
-    }).trim();
-    const match = url.match(/github\.com[:/]([^/]+\/[^/.]+)(?:\.git)?$/);
-    return match?.[1];
-  } catch {
-    return undefined;
-  }
 }

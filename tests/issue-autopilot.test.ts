@@ -1,9 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { issueTaskId, planIssueTask, syncGitHubIssuesToTasks } from '../src/issue-autopilot.js';
+import { detectGitHubRepo, issueTaskId, planIssueTask, syncGitHubIssuesToTasks } from '../src/issue-autopilot.js';
 import { appendMemoryIndexEntry, queryMemoryIndexSync } from '../src/memory-index.js';
 
 let tmpDir: string;
@@ -17,6 +18,20 @@ afterEach(() => {
 });
 
 describe('issue autopilot', () => {
+  it('detects the GitHub repo from an SSH origin remote', () => {
+    execFileSync('git', ['init'], { cwd: tmpDir, stdio: 'ignore' });
+    execFileSync('git', ['remote', 'add', 'origin', 'git@github.com:miles990/mini-agent.git'], { cwd: tmpDir, stdio: 'ignore' });
+
+    expect(detectGitHubRepo(tmpDir)).toBe('miles990/mini-agent');
+  });
+
+  it('detects the GitHub repo from an HTTPS origin remote', () => {
+    execFileSync('git', ['init'], { cwd: tmpDir, stdio: 'ignore' });
+    execFileSync('git', ['remote', 'add', 'origin', 'https://github.com/miles990/mini-agent.git'], { cwd: tmpDir, stdio: 'ignore' });
+
+    expect(detectGitHubRepo(tmpDir)).toBe('miles990/mini-agent');
+  });
+
   it('plans stable priority tasks from GitHub issues', () => {
     const plan = planIssueTask({
       number: 100,
