@@ -115,4 +115,54 @@ describe('issue autopilot', () => {
     expect(result).toEqual(expect.objectContaining({ created: 0, updated: 0, skipped: 1 }));
     expect(queryMemoryIndexSync(tmpDir, { id: issueTaskId('miles990/mini-agent', 77) })[0].status).toBe('completed');
   });
+
+  it('reconciles GitHub-closed issues by marking local pending entries completed', async () => {
+    // Seed: a local task entry for what was previously an open issue.
+    await appendMemoryIndexEntry(tmpDir, {
+      id: issueTaskId('miles990/mini-agent', 75),
+      type: 'task',
+      status: 'pending',
+      source: 'github-issue',
+      summary: 'P2 GitHub issue #75: stale-pending despite closed remote',
+      refs: ['https://github.com/miles990/mini-agent/issues/75'],
+      tags: ['github', 'issue', 'issue:75', 'P2'],
+      payload: { origin: 'github-issue', issue_number: 75, repo: 'miles990/mini-agent' },
+    });
+
+    // Now the remote is CLOSED. The fetch returns the closed issue alongside any open ones.
+    const issues = [
+      { number: 75, title: 'stale-pending despite closed remote', state: 'CLOSED' as const, labels: [] },
+      { number: 200, title: 'still open work', state: 'OPEN' as const, labels: [] },
+    ];
+
+    const result = await syncGitHubIssuesToTasks(tmpDir, issues, {
+      repo: 'miles990/mini-agent',
+      now: new Date('2026-05-06T09:00:00.000Z'),
+    });
+
+    expect(result).toEqual(expect.objectContaining({ scanned: 2, created: 1, closed: 1 }));
+
+    const stillPending = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] });
+    expect(stillPending.map(t => t.payload?.issue_number).sort()).toEqual([200]);
+
+    const completed = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['completed'] });
+    expect(completed.map(t => t.payload?.issue_number)).toContain(75);
+    expect(completed[0].payload).toEqual(expect.objectContaining({
+      closed_via: 'issue-autopilot-reconciliation',
+      github_state: 'CLOSED',
+    }));
+  });
+
+  it('does not create entries for closed issues with no prior local record', async () => {
+    const issues = [
+      { number: 999, title: 'closed before we ever saw it', state: 'CLOSED' as const, labels: [] },
+    ];
+    const result = await syncGitHubIssuesToTasks(tmpDir, issues, {
+      repo: 'miles990/mini-agent',
+      now: new Date('2026-05-06T09:00:00.000Z'),
+    });
+    expect(result).toEqual(expect.objectContaining({ scanned: 1, created: 0, closed: 0, skipped: 1 }));
+    expect(queryMemoryIndexSync(tmpDir, { type: ['task'] })).toHaveLength(0);
+  });
+
 });
