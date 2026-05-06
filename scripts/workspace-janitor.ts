@@ -28,6 +28,7 @@ const worktrees = readWorktrees();
 const protectedRoot = path.resolve(process.env.MINI_AGENT_RUNTIME_WORKSPACE ?? inferRuntimeWorkspace(root));
 
 const actions: JanitorAction[] = [];
+const removableWorktreeBranches = new Set<string>();
 
 if (path.resolve(root) === protectedRoot && !isSafeRuntimeBranch(currentBranch)) {
   actions.push({
@@ -41,6 +42,7 @@ for (const wt of worktrees) {
   if (!wt.branch) continue;
   if (path.resolve(wt.path) === protectedRoot) continue;
   if (wt.branch === base && isDisposableBaseWorktree(wt.path) && isWorktreeClean(wt.path)) {
+    removableWorktreeBranches.add(wt.branch);
     actions.push({
       type: 'remove-worktree',
       target: wt.path,
@@ -51,6 +53,7 @@ for (const wt of worktrees) {
   }
   if (openPrBranches.has(wt.branch)) continue;
   if (mergedPrBranches.has(wt.branch) && isWorktreeClean(wt.path)) {
+    removableWorktreeBranches.add(wt.branch);
     actions.push({
       type: 'remove-worktree',
       target: wt.path,
@@ -63,7 +66,7 @@ for (const wt of worktrees) {
 for (const branch of readLocalBranches()) {
   if (branch === 'runtime/main') continue;
   if (openPrBranches.has(branch)) continue;
-  if (isBranchCheckedOut(branch, worktrees)) continue;
+  if (isBranchCheckedOut(branch, worktrees) && !removableWorktreeBranches.has(branch)) continue;
   if (mergedPrBranches.has(branch) || isMergedToBase(branch, base)) {
     const githubMerged = mergedPrBranches.has(branch);
     actions.push({
