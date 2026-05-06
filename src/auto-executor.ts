@@ -15,6 +15,7 @@ import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
 
 // =============================================================================
 // Config
@@ -22,6 +23,7 @@ import path from 'node:path';
 
 const COOLDOWN_MS = 3 * 60_000;
 const MAX_FAILURES_PER_TASK = 3;
+const ISSUE_AUTOPILOT_ORIGIN = 'github-issue';
 const TIMEOUT_BY_COMPLEXITY: Record<TaskComplexity, number> = {
   simple: 300_000,   // 5 min
   medium: 600_000,   // 10 min
@@ -64,6 +66,65 @@ export function classifyComplexity(verifyCommand: string): TaskComplexity {
   if (hasMultiDir) return 'complex';
 
   return 'medium';
+}
+
+export function isIssueAutopilotTask(entry: MemoryIndexEntry): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  return entry.source === ISSUE_AUTOPILOT_ORIGIN || payload.origin === ISSUE_AUTOPILOT_ORIGIN;
+}
+
+export function canAutoDispatchTask(entry: MemoryIndexEntry, complexity: TaskComplexity): boolean {
+  if (complexity !== 'complex') return true;
+  return isIssueAutopilotTask(entry);
+}
+
+export function buildAutoDelegation(top: MemoryIndexEntry, complexity: TaskComplexity, now = Date.now()): DelegationTask {
+  const topPayload = (top.payload ?? {}) as Record<string, unknown>;
+  const verifyCommand = topPayload.verify_command as string;
+  const acceptance = (topPayload.acceptance_criteria as string) ?? `Task completed: ${top.summary}`;
+  const issueNumber = topPayload.issue_number as number | undefined;
+  const repo = topPayload.repo as string | undefined;
+  const issueContext = isIssueAutopilotTask(top)
+    ? [
+        '',
+        '## GitHub Issue Lifecycle',
+        repo && issueNumber ? `Source issue: ${repo}#${issueNumber}` : 'Source issue: recorded in task payload.',
+        '- Work in the isolated forge worktree allocated for this delegation.',
+        '- Keep the patch scoped to the issue.',
+        '- Run the verification commands and include evidence in the result.',
+        '- Do not close the GitHub issue unless the fix is merged or explicitly obsolete.',
+      ]
+    : [];
+
+  const prompt = [
+    `## Task: ${top.summary}`,
+    '',
+    `Task ID: ${top.id}`,
+    ...issueContext,
+    '',
+    '## Instructions',
+    'Complete this task by writing code. The task is verified by running:',
+    '```',
+    verifyCommand,
+    '```',
+    '',
+    'Write the minimum code needed to make the verify command pass.',
+    'After writing code, run the verify command to confirm it passes.',
+  ].join('\n');
+
+  const verify = verifyCommand.split('&&').map(v => v.trim());
+  const delegationId = `auto-${top.id.slice(0, 16)}-${now}`;
+
+  return {
+    id: delegationId,
+    type: 'code',
+    originTask: top.id,
+    prompt,
+    workdir: process.cwd(),
+    verify,
+    acceptance,
+    timeoutMs: TIMEOUT_BY_COMPLEXITY[complexity],
+  };
 }
 
 // =============================================================================
@@ -145,6 +206,20 @@ function ensureListener(): void {
       failCounts.set(taskId, count);
       if (count >= MAX_FAILURES_PER_TASK) {
         dispatchedSet.add(taskId);
+        const memoryDir = path.join(process.cwd(), 'memory');
+        const current = queryMemoryIndexSync(memoryDir, { id: taskId, limit: 1 })[0];
+        const payload = (current?.payload ?? {}) as Record<string, unknown>;
+        updateMemoryIndexEntry(memoryDir, taskId, {
+          status: 'hold',
+          payload: {
+            ...payload,
+            holdCondition: {
+              type: 'manual',
+              value: `auto-executor exhausted retries (${count}/${MAX_FAILURES_PER_TASK})`,
+            },
+            auto_executor_failures: count,
+          },
+        }).catch(() => {});
         slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} exhausted retries (${count}/${MAX_FAILURES_PER_TASK}) — marking blocked`);
       } else {
         slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} failed (${count}/${MAX_FAILURES_PER_TASK})`);
@@ -167,6 +242,11 @@ export interface AutoExecuteResult {
 
 export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
   ensureListener();
+
+  const isolation = evaluateWorkspaceIsolation(process.cwd());
+  if (!isolation.ok) {
+    return { fired: false, reason: `workspace isolation guard: ${isolation.reason}` };
+  }
 
   if (activeAutoTaskId) {
     return { fired: false, reason: `previous auto-dispatch still active: ${activeAutoTaskId}` };
@@ -202,43 +282,15 @@ export function checkAndDispatch(memoryDir: string): AutoExecuteResult {
   const top = actionable[0];
   const topPayload = (top.payload ?? {}) as Record<string, unknown>;
   const verifyCommand = topPayload.verify_command as string;
-  const acceptance = (topPayload.acceptance_criteria as string) ?? `Task completed: ${top.summary}`;
 
   // M3: complexity routing
   const complexity = classifyComplexity(verifyCommand);
-  if (complexity === 'complex') {
+  if (!canAutoDispatchTask(top, complexity)) {
     return { fired: false, reason: `task too complex for auto-dispatch: ${(top.summary ?? '').slice(0, 60)}`, complexity };
   }
 
-  const workdir = process.cwd();
-
-  const prompt = [
-    `## Task: ${top.summary}`,
-    '',
-    `Task ID: ${top.id}`,
-    '',
-    '## Instructions',
-    'Complete this task by writing code. The task is verified by running:',
-    '```',
-    verifyCommand,
-    '```',
-    '',
-    'Write the minimum code needed to make the verify command pass.',
-    'After writing code, run the verify command to confirm it passes.',
-  ].join('\n');
-
-  const verify = verifyCommand.split('&&').map(v => v.trim());
-  const delegationId = `auto-${top.id.slice(0, 16)}-${Date.now()}`;
-
-  const delegation: DelegationTask = {
-    id: delegationId,
-    type: 'code',
-    prompt,
-    workdir,
-    verify,
-    acceptance,
-    timeoutMs: TIMEOUT_BY_COMPLEXITY[complexity],
-  };
+  const delegation = buildAutoDelegation(top, complexity);
+  const delegationId = delegation.id!;
 
   try {
     spawnDelegation(delegation);
