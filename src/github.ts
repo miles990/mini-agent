@@ -14,6 +14,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -481,7 +482,7 @@ export async function autoRepairPrVerificationEvidence(): Promise<void> {
       if (pr.labels?.some(label => label.name === 'hold')) continue;
       const fix = autofixPrVerificationSection(pr.body);
       if (!fix.changed) continue;
-      await gh(['pr', 'edit', String(consensus.prNumber), '--body', fix.body], 20000);
+      await updatePullRequestBody(consensus.prNumber, fix.body);
       slog('github', `auto-repaired PR #${consensus.prNumber} verification evidence: ${fix.reason}`);
     } catch {
       // Single PR repair failure should not block the loop.
@@ -495,6 +496,17 @@ async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
     return JSON.parse(stdout) as GhPrView;
   } catch {
     return null;
+  }
+}
+
+async function updatePullRequestBody(prNumber: number, body: string): Promise<void> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mini-agent-pr-body-'));
+  const file = path.join(dir, 'body.json');
+  try {
+    fs.writeFileSync(file, JSON.stringify({ body }), 'utf-8');
+    await gh(['api', `repos/miles990/mini-agent/pulls/${prNumber}`, '-X', 'PATCH', '--input', file], 20000);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
