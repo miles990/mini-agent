@@ -110,4 +110,7 @@
 | github | akari | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
 | github | codex | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
 | github | claude-code | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
-| github | akari | PR #133 fix(memory): broaden isStaleFailureOutput patterns (#83 follow-up) | changes-requested | 05-06 | - |
+| github | akari | PR #133 fix(memory): broaden isStaleFailureOutput patterns (#83 follow-up) | merged | 05-06 | 05-06 |
+| github | akari | PR #135 fix(issue-autopilot): reconcile GitHub-closed issues to drain stale P0 queue | changes-requested | 05-06 | - |
+| github | codex | PR #135 fix(issue-autopilot): reconcile GitHub-closed issues to drain stale P0 queue | changes-requested | 05-06 | - |
+| github | claude-code | PR #135 fix(issue-autopilot): reconcile GitHub-closed issues to drain stale P0 queue | changes-requested | 05-06 | - |
