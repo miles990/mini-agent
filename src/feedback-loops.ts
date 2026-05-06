@@ -168,6 +168,10 @@ export function extractErrorSubtype(errorMsg: string): string {
     if (lower.includes('killed=true') || /signal=[^,\]]+/.test(lower)) return 'killed_no_diag';
     const durMatch = /dur=(\d+)s/.exec(lower);
     if (durMatch && Number(durMatch[1]) >= 600) return 'hang_no_diag';
+    // 2026-05-06: 處理訊息時發生錯誤 with dur 1-59s = Anthropic localized server error
+    // returned quickly (overload/rate-limit pattern); distinct from genuine no_diag.
+    // 61 occurrences today, all in 1-19s band — clear bimodal gap from hang_no_diag (≥600s).
+    if (durMatch && Number(durMatch[1]) < 60) return 'transient_no_diag';
     return 'no_diag';
   }
   // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
