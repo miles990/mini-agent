@@ -52,19 +52,49 @@ describe('runtime workspace autocorrect', () => {
     expect(gitOut(result.worktree!, ['rev-parse', 'HEAD'])).toBe(localHead);
   });
 
-  it('blocks when runtime checkout has uncommitted changes', () => {
-    const repo = path.join(tmpDir, 'repo');
+  it('moves tracked runtime dirt into an isolated worktree branch and resets runtime', () => {
+    const remote = path.join(tmpDir, 'dirty-remote.git');
+    const repo = path.join(tmpDir, 'dirty-mini-agent');
+    git(tmpDir, ['init', '--bare', remote]);
+    git(tmpDir, ['clone', remote, repo]);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test User']);
+    writeFileSync(path.join(repo, 'README.md'), 'base\n');
+    git(repo, ['add', 'README.md']);
+    git(repo, ['commit', '-m', 'init']);
+    git(repo, ['branch', '-M', 'runtime/main']);
+    git(repo, ['push', '-u', 'origin', 'runtime/main:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+    git(repo, ['branch', '--set-upstream-to=origin/main', 'runtime/main']);
+
+    writeFileSync(path.join(repo, 'README.md'), 'base\ntracked dirty\n');
+
+    const result = autocorrectRuntimeWorkspace(repo, {
+      apply: true,
+      createPr: false,
+      worktreeParent: tmpDir,
+    });
+
+    expect(result.status).toBe('created-worktree');
+    expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
+    expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+    expect(gitOut(result.worktree!, ['show', '--format=', '--name-only', 'HEAD'])).toContain('README.md');
+    expect(gitOut(result.worktree!, ['show', 'HEAD:README.md'])).toContain('tracked dirty');
+  });
+
+  it('blocks when runtime checkout has untracked changes', () => {
+    const repo = path.join(tmpDir, 'repo-untracked');
     git(tmpDir, ['init', '-b', 'runtime/main', repo]);
     git(repo, ['config', 'user.email', 'test@example.com']);
     git(repo, ['config', 'user.name', 'Test User']);
     writeFileSync(path.join(repo, 'README.md'), 'base\n');
     git(repo, ['add', 'README.md']);
     git(repo, ['commit', '-m', 'init']);
-    writeFileSync(path.join(repo, 'README.md'), 'dirty\n');
+    writeFileSync(path.join(repo, 'new-file.txt'), 'untracked\n');
 
     expect(autocorrectRuntimeWorkspace(repo, { apply: true })).toEqual(expect.objectContaining({
       status: 'blocked',
-      reason: expect.stringContaining('uncommitted changes'),
+      reason: expect.stringContaining('untracked changes'),
     }));
   });
 });

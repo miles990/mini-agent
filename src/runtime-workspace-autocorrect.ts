@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { isSafeRuntimeBranch } from './workspace-isolation.js';
 
@@ -25,6 +25,7 @@ interface GitSnapshot {
   ahead: number;
   behind: number;
   dirty: boolean;
+  hasUntracked: boolean;
 }
 
 export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
@@ -52,16 +53,17 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
       reason: `runtime checkout is behind origin/${baseBranch}; sync base before autocorrect`,
     };
   }
-  if (snapshot.dirty) {
+  const mode = snapshot.ahead > 0 ? 'commits' : snapshot.dirty ? 'tracked-dirty' : 'clean';
+  if (snapshot.dirty && snapshot.hasUntracked) {
     return {
       status: 'blocked',
-      reason: 'runtime checkout has uncommitted changes; preserve them manually or commit before autocorrect',
+      reason: 'runtime checkout has untracked changes; commit, move, or ignore them before autocorrect',
     };
   }
-  if (snapshot.ahead <= 0) return { status: 'not-needed', reason: 'runtime checkout is clean' };
+  if (mode === 'clean') return { status: 'not-needed', reason: 'runtime checkout is clean' };
   if (!snapshot.headSha) return { status: 'failed', reason: 'could not read runtime HEAD sha' };
 
-  const shortSha = snapshot.headSha.slice(0, 8);
+  const shortSha = mode === 'tracked-dirty' ? `dirty-${Date.now().toString(36)}` : snapshot.headSha.slice(0, 8);
   const branch = `fix/runtime-autocorrect-${shortSha}`;
   const worktreeParent = path.resolve(opts.worktreeParent ?? path.dirname(root));
   const worktree = path.join(worktreeParent, `${path.basename(root)}-autocorrect-${shortSha}`);
@@ -69,7 +71,9 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
   if (!opts.apply) {
     return {
       status: 'created-worktree',
-      reason: `would move ${snapshot.ahead} runtime-local commit(s) to ${branch}`,
+      reason: mode === 'tracked-dirty'
+        ? `would move tracked runtime dirt to ${branch}`
+        : `would move ${snapshot.ahead} runtime-local commit(s) to ${branch}`,
       branch,
       worktree,
       resetRuntime: true,
@@ -79,7 +83,11 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
   try {
     git(root, ['fetch', 'origin', baseBranch]);
     ensureWorktree(root, worktree, branch, `origin/${baseBranch}`);
-    git(worktree, ['cherry-pick', `origin/${baseBranch}..${snapshot.headSha}`]);
+    if (mode === 'tracked-dirty') {
+      moveTrackedDirtyToWorktree(root, worktree);
+    } else {
+      git(worktree, ['cherry-pick', `origin/${baseBranch}..${snapshot.headSha}`]);
+    }
     git(worktree, ['push', '-u', 'origin', branch]);
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
@@ -88,7 +96,9 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
     git(root, ['reset', '--hard', `origin/${baseBranch}`]);
     return {
       status: prUrl ? 'created-pr' : 'created-worktree',
-      reason: `moved ${snapshot.ahead} runtime-local commit(s) out of protected checkout`,
+      reason: mode === 'tracked-dirty'
+        ? 'moved tracked runtime dirt out of protected checkout'
+        : `moved ${snapshot.ahead} runtime-local commit(s) out of protected checkout`,
       branch,
       worktree,
       prUrl,
@@ -112,6 +122,7 @@ function readGitSnapshot(repoRoot: string): GitSnapshot | null {
   let ahead = 0;
   let behind = 0;
   let dirty = false;
+  let hasUntracked = false;
   for (const line of status.split('\n')) {
     if (line.startsWith('# branch.head ')) branch = line.slice('# branch.head '.length).trim();
     if (line.startsWith('# branch.oid ')) {
@@ -122,9 +133,12 @@ function readGitSnapshot(repoRoot: string): GitSnapshot | null {
       ahead = Number(line.match(/\+(\d+)/)?.[1] ?? 0);
       behind = Number(line.match(/-(\d+)/)?.[1] ?? 0);
     }
-    if (line && !line.startsWith('#')) dirty = true;
+    if (line && !line.startsWith('#')) {
+      dirty = true;
+      if (line.startsWith('? ')) hasUntracked = true;
+    }
   }
-  return { branch, headSha, ahead, behind, dirty };
+  return { branch, headSha, ahead, behind, dirty, hasUntracked };
 }
 
 function ensureWorktree(repoRoot: string, worktree: string, branch: string, baseRef: string): void {
@@ -164,6 +178,15 @@ function createPullRequest(worktree: string, repo: string, baseBranch: string, b
   return out || undefined;
 }
 
+function moveTrackedDirtyToWorktree(repoRoot: string, worktree: string): void {
+  const patch = gitRaw(repoRoot, ['diff', '--binary', 'HEAD']);
+  if (!patch.trim()) throw new Error('runtime dirty state has no tracked diff to preserve');
+  const patchPath = path.join(worktree, '.runtime-autocorrect.patch');
+  writeFileSync(patchPath, patch, 'utf-8');
+  git(worktree, ['apply', '--index', patchPath]);
+  git(worktree, ['commit', '-m', 'fix(runtime): preserve tracked runtime workspace changes']);
+}
+
 function safeGit(cwd: string, args: string[]): string | null {
   try {
     return git(cwd, args).trim();
@@ -173,10 +196,14 @@ function safeGit(cwd: string, args: string[]): string | null {
 }
 
 function git(cwd: string, args: string[]): string {
+  return gitRaw(cwd, args).trim();
+}
+
+function gitRaw(cwd: string, args: string[]): string {
   return execFileSync('git', args, {
     cwd,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 60_000,
-  }).trim();
+  });
 }
