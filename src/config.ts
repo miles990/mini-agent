@@ -9,6 +9,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import {
   getCurrentInstanceId,
   getInstanceDir,
@@ -20,7 +21,7 @@ import type { GlobalDefaults, InstanceConfig } from './types.js';
 import { expandEnvVars } from './utils.js';
 
 // 本地配置目錄（向後兼容）
-const LOCAL_CONFIG_DIR = path.join(process.cwd(), 'memory');
+const LOCAL_CONFIG_DIR = getMemoryRootDir();
 // LOCAL_CONFIG_FILE removed — was declared but unused (config.json read via getInstanceConfig)
 
 // expandEnvVars lives in utils.ts to avoid circular dependency (config ↔ instance)

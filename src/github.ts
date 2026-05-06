@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
@@ -100,7 +101,7 @@ async function ghAvailable(): Promise<boolean> {
 // =============================================================================
 
 export async function autoCreateIssueFromProposal(): Promise<void> {
-  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
+  const proposalsDir = resolveMemoryPath('proposals');
   if (!fs.existsSync(proposalsDir)) return;
 
   let files: string[];
@@ -188,7 +189,7 @@ function writeBackIssueRef(filePath: string, content: string, statusLine: string
 const TERMINAL_STATUSES = ['completed', 'implemented', 'superseded'];
 
 export async function autoCloseCompletedIssues(): Promise<void> {
-  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
+  const proposalsDir = resolveMemoryPath('proposals');
   if (!fs.existsSync(proposalsDir)) return;
 
   let files: string[];
@@ -298,7 +299,7 @@ interface ReviewablePR {
 }
 
 export async function autoTrackPrReviewNeeds(): Promise<void> {
-  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  const activePath = resolveMemoryPath('handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
   let prs: ReviewablePR[];
@@ -426,7 +427,7 @@ export function autofixPrVerificationSection(body?: string | null): PrVerificati
 }
 
 export async function autoProduceInternalPrReviewClaims(): Promise<void> {
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
@@ -467,7 +468,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
 }
 
 export async function autoRepairPrVerificationEvidence(): Promise<void> {
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
@@ -517,7 +518,7 @@ async function updatePullRequestBody(prNumber: number, body: string): Promise<vo
 // =============================================================================
 
 export async function autoTrackPrReviewConsensus(): Promise<void> {
-  const result = runPrReviewConsensus(path.join(process.cwd(), 'memory'));
+  const result = runPrReviewConsensus(getMemoryRootDir());
   if (result.updated) {
     const counts = result.consensuses.reduce<Record<string, number>>((acc, c) => {
       acc[c.status] = (acc[c.status] ?? 0) + 1;
@@ -532,7 +533,7 @@ export async function autoTrackPrReviewConsensus(): Promise<void> {
 // =============================================================================
 
 export async function autoApplyInternalPrReviewConsensus(): Promise<void> {
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
@@ -552,7 +553,7 @@ export async function autoApplyInternalPrReviewConsensus(): Promise<void> {
 }
 
 export async function autoMergeInternallyApprovedPR(): Promise<void> {
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
@@ -677,7 +678,7 @@ async function addPrComment(prNumber: number, body: string): Promise<void> {
 }
 
 function appendConflictHandoff(pr: GhPrView, decision: { action: string; reason: string }): void {
-  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  const activePath = resolveMemoryPath('handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
   const content = fs.readFileSync(activePath, 'utf-8');
   const marker = `PR #${pr.number} conflict diagnostic`;
@@ -706,7 +707,7 @@ interface MergedPR {
 }
 
 export async function autoTrackMergedPrClosures(): Promise<void> {
-  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  const activePath = resolveMemoryPath('handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
   let prs: MergedPR[];
@@ -755,7 +756,7 @@ function isRecentlyMerged(mergedAt?: string | null): boolean {
 // =============================================================================
 
 export async function autoTrackNewIssues(): Promise<void> {
-  const activePath = path.join(process.cwd(), 'memory', 'handoffs', 'active.md');
+  const activePath = resolveMemoryPath('handoffs', 'active.md');
   if (!fs.existsSync(activePath)) return;
 
   let issues: Array<{ number: number; title: string; createdAt: string; labels?: Array<{ name: string }> }>;

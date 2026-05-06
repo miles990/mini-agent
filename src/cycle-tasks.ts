@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { slog } from './utils.js';
@@ -122,8 +123,8 @@ export function parseInterval(str: string): number {
  * auto-create corresponding handoff task files in memory/handoffs/.
  */
 export async function checkApprovedProposals(): Promise<void> {
-  const proposalsDir = path.join(process.cwd(), 'memory', 'proposals');
-  const handoffsDir = path.join(process.cwd(), 'memory', 'handoffs');
+  const proposalsDir = resolveMemoryPath('proposals');
+  const handoffsDir = resolveMemoryPath('handoffs');
 
   if (!fs.existsSync(proposalsDir)) return;
   if (!fs.existsSync(handoffsDir)) {
@@ -329,7 +330,7 @@ export async function resolveStaleConversationThreads(actionText?: string): Prom
  * Max 2 P0 items — oldest beyond cap demoted to P1.
  */
 export async function autoEscalateOverdueTasks(): Promise<void> {
-  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+  const heartbeatPath = resolveMemoryPath('HEARTBEAT.md');
   if (!fs.existsSync(heartbeatPath)) return;
 
   try {
@@ -388,7 +389,7 @@ export async function autoEscalateOverdueTasks(): Promise<void> {
 // =============================================================================
 
 export function guardHeartbeatSize(): void {
-  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+  const heartbeatPath = resolveMemoryPath('HEARTBEAT.md');
   if (!fs.existsSync(heartbeatPath)) return;
   try {
     const content = fs.readFileSync(heartbeatPath, 'utf-8');

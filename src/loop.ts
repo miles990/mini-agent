@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { callClaude, preemptLoopCycle, isLoopBusy, isForegroundBusy, abortForeground, acquireForegroundSlot, releaseForegroundSlot, getLaneStatus } from './agent.js';
 import { getMemory, getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
@@ -1089,7 +1090,7 @@ export class AgentLoop {
     try { initProcessTable(getMemoryStateDir()); } catch { /* best effort */ }
 
     // Output Gate: restore persisted state
-    try { loadOutputGateState(path.join(process.cwd(), 'memory')); } catch { /* best effort */ }
+    try { loadOutputGateState(getMemoryRootDir()); } catch { /* best effort */ }
 
     // Phase 1c: Recover interrupted cycle on startup
     const stale = loadStaleCheckpoint();
@@ -1220,7 +1221,7 @@ export class AgentLoop {
       if (taskId) {
         const delegationStatus = (event?.data?.status as string) === 'completed' ? 'completed' : 'abandoned';
         import('./memory-index.js').then(({ updateMemoryIndexEntry }) => {
-          const memDir = path.join(process.cwd(), 'memory');
+          const memDir = getMemoryRootDir();
           updateMemoryIndexEntry(memDir, taskId!, { status: delegationStatus }).catch(() => {});
         }).catch(() => {});
         try { completeProcess(taskId); } catch { /* may not exist in process table */ }
@@ -1376,7 +1377,7 @@ export class AgentLoop {
 
     // Hard cap: don't idle too long when there's work to do
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       if (this.currentInterval > 180_000 && hasP0Tasks(memDir)) {
         this.currentInterval = 180_000; // 3min cap for P0
         slog('LOOP', `[next-p0] Capping interval to 3min — memory-index has P0 items`);
@@ -1413,7 +1414,7 @@ export class AgentLoop {
         }
       }
       // Only P0/P1 tasks count as "pending work" — P2+ don't block learn/explore/idle
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const highPriCount = getHighPriorityPendingCount(memDir);
       if (highPriCount > 0) {
         return true;
@@ -1897,7 +1898,7 @@ export class AgentLoop {
         const { minutesSinceLastCodeOutput } = await import('./activity-stream.js');
         const gapMinutes = minutesSinceLastCodeOutput();
         if (gapMinutes >= 15) {
-          const memDirIdle = path.join(process.cwd(), 'memory');
+          const memDirIdle = getMemoryRootDir();
           const pipelineAll = queryMemoryIndexSync(memDirIdle, { type: ['task'], status: ['pending', 'in_progress'] })
             .filter(t => (t.payload as Record<string, unknown>)?.goal_id);
           const actionable = pipelineAll.filter(t => {
@@ -1934,7 +1935,7 @@ export class AgentLoop {
       // Task decomposer: split abstract tasks into concrete sub-tasks (M1)
       try {
         const { checkAndDecompose } = await import('./task-decomposer.js');
-        const decompResult = checkAndDecompose(path.join(process.cwd(), 'memory'));
+        const decompResult = checkAndDecompose(getMemoryRootDir());
         if (decompResult.decomposed) {
           slog('DECOMPOSE', decompResult.reason);
         }
@@ -1943,7 +1944,7 @@ export class AgentLoop {
       // Auto-executor: immediate dispatch for ready tasks (M2+M3+M5)
       try {
         const { checkAndDispatch } = await import('./auto-executor.js');
-        const autoResult = checkAndDispatch(path.join(process.cwd(), 'memory'));
+        const autoResult = checkAndDispatch(getMemoryRootDir());
         if (autoResult.fired) {
           slog('AUTO-EXEC', `dispatched: ${autoResult.reason}`);
           context = `<auto-executor status="fired">\n` +
@@ -1955,7 +1956,7 @@ export class AgentLoop {
 
       // Decomposition gate: tasks that are too abstract need to be broken down
       try {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         const decomp = queryMemoryIndexSync(memDir, { type: ['task'], status: ['needs-decomposition'] });
         if (decomp.length > 0) {
           const lines = decomp.map(t =>
@@ -1969,7 +1970,7 @@ export class AgentLoop {
 
       // Pipeline stuck injection: tell agent about blocked pipeline tasks
       try {
-        const stuckAnalyses = getPipelineStuckAnalysis(path.join(process.cwd(), 'memory'));
+        const stuckAnalyses = getPipelineStuckAnalysis(getMemoryRootDir());
         if (stuckAnalyses.length > 0) {
           context = stuckAnalyses.join('\n') + '\n\n' + context;
         }
@@ -1983,7 +1984,7 @@ export class AgentLoop {
       // Task Pull: idle/heartbeat OR just-finished-task cycles get next action suggestion
       // P1 fix: include pipeline tasks, pipeline-first sort (KG c9361f0a)
       if ((isRoutineHeartbeat && !isDirectMessage) || justFinishedTask) {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         const pending = queryMemoryIndexSync(memDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] });
         const sorted = pending.sort((a, b) => {
           const pa = (a.payload as Record<string, unknown>) ?? {};
@@ -2139,7 +2140,7 @@ export class AgentLoop {
 
       // Check memory-index for pending tasks BEFORE mode detection
       // Fix: mode detection must know about tracked tasks, not just inbox items
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       let hasPendingTasks = false;
       try {
         const pendingPreviews = getPendingTaskPreviews(memDir);
@@ -2930,7 +2931,7 @@ export class AgentLoop {
         // Auto-register delegate as task in memory-index for Activity Monitor visibility
         try {
           const { appendMemoryIndexEntry } = await import('./memory-index.js');
-          const memDir = path.join(process.cwd(), 'memory');
+          const memDir = getMemoryRootDir();
           await appendMemoryIndexEntry(memDir, {
             id: taskId,
             type: 'task',
@@ -2974,7 +2975,7 @@ export class AgentLoop {
           return true;
         });
         if (filteredDones.length > 0) {
-          const markedCount = await markTaskDoneByDescription(path.join(process.cwd(), 'memory'), filteredDones).catch((err) => {
+          const markedCount = await markTaskDoneByDescription(getMemoryRootDir(), filteredDones).catch((err) => {
             slog('DONE', `⚠️ markTaskDoneByDescription error: ${err instanceof Error ? err.message : String(err)}`);
             return 0;
           });
@@ -2990,7 +2991,7 @@ export class AgentLoop {
               try {
                 const { markTaskDoneById } = await import('./memory-index.js');
                 const markedCurrent = await markTaskDoneById(
-                  path.join(process.cwd(), 'memory'),
+                  getMemoryRootDir(),
                   schedState.currentTaskId,
                   'current-task done fallback',
                 );
@@ -3563,14 +3564,14 @@ export class AgentLoop {
       }
 
       // ── Constraint Texture: task staleness pressure ──
-      incrementTaskStaleness(path.join(process.cwd(), 'memory')).then(staleTasks => {
+      incrementTaskStaleness(getMemoryRootDir()).then(staleTasks => {
         if (staleTasks.length === 0) return;
         this.staleTasks = staleTasks;
 
         // Escalation: >5 ticks → auto P0
         for (const t of staleTasks) {
           if (t.ticks > 5) {
-            updateTask(path.join(process.cwd(), 'memory'), t.id, { priority: 0 }).catch(() => {});
+            updateTask(getMemoryRootDir(), t.id, { priority: 0 }).catch(() => {});
             slog('CONSTRAINT', `Escalated to P0: ${t.summary.slice(0, 60)} (${t.ticks} ticks stale)`);
           }
         }
@@ -3589,7 +3590,7 @@ export class AgentLoop {
 
       // ── Pipeline: verify scan + goal self-heal (every 5 cycles) ──
       if (this.cycleCount % 5 === 0) {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         scanPipelineVerify(memDir).then(done => {
           if (done > 0) slog('PIPELINE', `Verify scan auto-completed ${done} task(s)`);
         }).catch(() => {});

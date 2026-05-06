@@ -17,6 +17,7 @@ import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { monitorEventLoopDelay, type IntervalHistogram } from 'node:perf_hooks';
 import express, { type Request, type Response, type NextFunction } from 'express';
 
@@ -597,7 +598,7 @@ export function createApi(port = 3001): express.Express {
   function getRoomDiffForCC(agentNameLower: string, maxPerMsg = 800, maxMsgs = 5): string {
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      const convPath = resolveMemoryPath('conversations', `${today}.jsonl`);
       if (!fs.existsSync(convPath)) return '';
 
       const cursorPath = path.join(getInstanceDir(getCurrentInstanceId()), 'cc-room-cursor.txt');
@@ -654,7 +655,7 @@ export function createApi(port = 3001): express.Express {
   function getRecentAgentReply(agentNameLower: string, maxLen = 200): string {
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+      const convPath = resolveMemoryPath('conversations', `${today}.jsonl`);
       if (!fs.existsSync(convPath)) return '';
       const raw = fs.readFileSync(convPath, 'utf-8');
       const lines = raw.split('\n').filter(Boolean);
@@ -674,7 +675,7 @@ export function createApi(port = 3001): express.Express {
   // Helper: get task summary from memory-index
   function getNextNowSummary(maxLen = 150): string {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       return getNowTaskSummary(memDir, maxLen);
     } catch { return ''; }
   }
@@ -1408,7 +1409,7 @@ export function createApi(port = 3001): express.Express {
   // Memory Files — list all files in memory/
   app.get('/api/memory/files', async (_req: Request, res: Response) => {
     try {
-      const memoryDir = path.join(process.cwd(), 'memory');
+      const memoryDir = getMemoryRootDir();
       const files: Array<{ name: string; path: string; size: number; modified: string }> = [];
 
       async function scanDir(dir: string, prefix: string): Promise<void> {
@@ -1445,7 +1446,7 @@ export function createApi(port = 3001): express.Express {
       const filePath = req.params.path;
 
       // Security: prevent path traversal (resolve and verify prefix)
-      const memoryRoot = path.resolve(process.cwd(), 'memory');
+      const memoryRoot = path.resolve(getMemoryRootDir());
       const fullPath = path.resolve(memoryRoot, filePath);
       if (!fullPath.startsWith(memoryRoot + path.sep) && fullPath !== memoryRoot) {
         res.status(400).json({ error: 'Invalid path' });
@@ -1587,7 +1588,7 @@ export function createApi(port = 3001): express.Express {
       void (async () => {
         try {
           // 擷取 in-progress 任務（from memory-index）
-          const inProgressLines = getTasksSnapshot(path.join(process.cwd(), 'memory'));
+          const inProgressLines = getTasksSnapshot(getMemoryRootDir());
 
           const snapshot = [
             '# Tracking Snapshot',
@@ -1624,9 +1625,9 @@ export function createApi(port = 3001): express.Express {
             const { promisify } = await import('node:util');
             const execAsync = promisify(exec);
             try {
-              await execAsync(`git -C "${process.cwd()}" add "${innerPath}"`);
+              await execAsync(`git -C "${memoryDir}" add "inner-notes.md"`);
               await execAsync(
-                `git -C "${process.cwd()}" commit -m "chore(inner): snapshot reserved working memory ${new Date().toISOString().slice(0, 10)}"`,
+                `git -C "${memoryDir}" commit -m "chore(inner): snapshot reserved working memory ${new Date().toISOString().slice(0, 10)}"`,
                 { env: { ...process.env, GIT_AUTHOR_NAME: 'Kuro', GIT_AUTHOR_EMAIL: 'kuro@mini-agent', GIT_COMMITTER_NAME: 'Kuro', GIT_COMMITTER_EMAIL: 'kuro@mini-agent' } },
               );
               slog('MODE', 'inner-notes.md committed');
@@ -1749,7 +1750,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/task-queue', (_req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const tasks = queryMemoryIndexSync(memDir, {
         type: ['task', 'goal'],
         status: ['pending', 'in_progress', 'completed', 'abandoned'],
@@ -1767,7 +1768,7 @@ export function createApi(port = 3001): express.Express {
         res.status(400).json({ error: 'title is required' });
         return;
       }
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const entry = await createTask(memDir, {
         type: type ?? 'task',
         title,
@@ -1790,7 +1791,7 @@ export function createApi(port = 3001): express.Express {
   app.patch('/api/task-queue/:id', async (req: Request, res: Response) => {
     try {
       const { title, status, priority, type, assignee, blockedBy, pinned, pinContext } = req.body;
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const updated = await updateTask(memDir, req.params.id, {
         title,
         status,
@@ -1814,7 +1815,7 @@ export function createApi(port = 3001): express.Express {
 
   app.delete('/api/task-queue/:id', async (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const ok = await deleteMemoryIndexEntry(memDir, req.params.id);
       if (!ok) {
         res.status(404).json({ error: 'task not found' });
@@ -1833,7 +1834,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/claims', (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const status = queryList(req.query.status).filter(isClaimStatus);
       const provider = queryList(req.query.provider);
       const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
@@ -1860,7 +1861,7 @@ export function createApi(port = 3001): express.Express {
         return;
       }
 
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const claim = transitionStoredProviderClaim(memDir, req.params.id, status);
       if (!claim) {
         res.status(404).json({ error: 'claim not found' });
@@ -1896,7 +1897,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/delegation-failures', (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const statuses = queryList(req.query.status).filter(isDelegationFailureStatus);
       let failures = readDelegationFailureRecordsSync(memDir);
       if (statuses.length > 0) failures = failures.filter(failure => statuses.includes(failure.status));
@@ -1914,7 +1915,7 @@ export function createApi(port = 3001): express.Express {
         return;
       }
       const resolution = typeof req.body?.resolution === 'string' ? req.body.resolution : undefined;
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const failure = transitionDelegationFailureStatus(
         memDir,
         decodeURIComponent(req.params.signature),
@@ -1938,7 +1939,7 @@ export function createApi(port = 3001): express.Express {
 
   app.post('/api/delegation-failures/:signature/diagnose', async (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const diagnosis = await diagnoseDelegationFailure(memDir, decodeURIComponent(req.params.signature));
       if (!diagnosis) {
         res.status(404).json({ error: 'delegation failure not found' });
@@ -1954,7 +1955,7 @@ export function createApi(port = 3001): express.Express {
     try {
       const limitRaw = typeof req.body?.limit === 'number' ? req.body.limit : 5;
       const limit = Math.max(1, Math.min(25, Math.floor(limitRaw)));
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const diagnoses = await diagnosePendingDelegationFailures(memDir, limit);
       res.json({ success: true, diagnoses, total: diagnoses.length });
     } catch (err) {
@@ -1966,7 +1967,7 @@ export function createApi(port = 3001): express.Express {
     try {
       const windowRaw = parseInt(String(req.query.window ?? '500'), 10);
       const window = Number.isFinite(windowRaw) ? windowRaw : 500;
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       res.json(getMyelinStatus(memDir, window));
     } catch (err) {
       res.status(500).json({ error: String(err) });
@@ -1975,7 +1976,7 @@ export function createApi(port = 3001): express.Express {
 
   app.post('/api/myelin/sync-kg', (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const result = syncMyelinToKnowledge(memDir, {
         force: req.body?.force === true,
         limitPerDomain: typeof req.body?.limitPerDomain === 'number' ? req.body.limitPerDomain : undefined,
@@ -1989,7 +1990,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/brain/runs', (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const actor = queryList(req.query.actor).filter(isBrainActor);
       const event = queryList(req.query.event).filter(isBrainRunEvent);
       const status = queryList(req.query.status).filter(isBrainRunStatus);
@@ -2034,7 +2035,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/brain/actor-stats', (req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const intent = typeof req.query.intent === 'string' && isWorkIntent(req.query.intent)
         ? req.query.intent
         : undefined;
@@ -2053,7 +2054,7 @@ export function createApi(port = 3001): express.Express {
         res.status(400).json({ error: 'title, acceptance_criteria, and tasks[] required' });
         return;
       }
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const result = await createGoal(memDir, { title, acceptance_criteria, verify_command }, tasks);
       res.json({ success: true, ...result });
     } catch (err) {
@@ -2069,7 +2070,7 @@ export function createApi(port = 3001): express.Express {
         res.status(400).json({ error: 'title required' });
         return;
       }
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const taskId = await addTaskToGoal(memDir, goalId, { title, verify_command, acceptance_criteria, depends_on_ids });
       res.json({ success: true, taskId });
     } catch (err) {
@@ -2083,7 +2084,7 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/goals', (req: Request, res: Response) => {
     try {
       const includeArchived = req.query.include_archived === 'true';
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const allEntries = queryMemoryIndexSync(memDir, { type: ['goal', 'task'] });
       const goals = allEntries.filter(e => {
         if (e.type !== 'goal' || (e.payload as Record<string, unknown>)?.origin !== 'pipeline') return false;
@@ -2704,7 +2705,7 @@ export function createApi(port = 3001): express.Express {
       // --- Inner Voice (personal monologue) ---
       let innerVoice: { timestamp: string; content: string }[] = [];
       const voicePath = path.join(memory.getMemoryDir(), 'inner-voice.md');
-      const voiceFallback = path.join(process.cwd(), 'memory', 'inner-voice.md');
+      const voiceFallback = resolveMemoryPath('inner-voice.md');
       try {
         let voiceContent: string;
         try {
@@ -2820,7 +2821,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/scheduler', (_req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const state = getSchedulerState();
       const { tasks: topTasks, totalCount } = getTopPending(memDir, 5);
       const ATTENTION_BUDGET = 15;
@@ -2859,7 +2860,7 @@ export function createApi(port = 3001): express.Express {
         stats[e.state] = (stats[e.state] ?? 0) + 1;
       }
       // Today's completed/abandoned from memory index
-      const mDir = path.join(process.cwd(), 'memory');
+      const mDir = getMemoryRootDir();
       const todayStart = new Date().toISOString().slice(0, 10);
       const completedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['completed', 'done'] }).filter(t => t.ts >= todayStart);
       const abandonedTasks = queryMemoryIndexSync(mDir, { type: ['task', 'goal'], status: ['abandoned'] }).filter(t => t.ts >= todayStart);
@@ -2893,7 +2894,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/health', (_req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       res.json(evaluateCorrectionGate(memDir));
     } catch {
       res.json({ score: 50, breakdown: null, guidance: [], anomalies: [], reasons: [], suppressedActions: [], needsCorrection: false });
@@ -2902,7 +2903,7 @@ export function createApi(port = 3001): express.Express {
 
   app.get('/api/dashboard/correction', (_req: Request, res: Response) => {
     try {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       res.json(evaluateCorrectionGate(memDir));
     } catch {
       res.json({ score: 50, breakdown: null, guidance: [], anomalies: [], reasons: [], suppressedActions: [], needsCorrection: false });
@@ -2963,7 +2964,7 @@ export function createApi(port = 3001): express.Express {
 
   // Knowledge Graph viz — self-contained HTML rebuilt by kg-viz.ts
   app.get('/kg-graph', (_req: Request, res: Response) => {
-    const htmlPath = path.join(process.cwd(), 'memory/index/kg-graph.html');
+    const htmlPath = resolveMemoryPath('index', 'kg-graph.html');
     if (fs.existsSync(htmlPath)) {
       res.sendFile(htmlPath);
     } else {
@@ -3264,7 +3265,7 @@ export function createApi(port = 3001): express.Express {
       res.status(400).json({ error: 'Invalid filename' });
       return;
     }
-    const filePath = path.join(process.cwd(), 'memory', 'media', filename);
+    const filePath = resolveMemoryPath('media', filename);
     if (!fs.existsSync(filePath)) {
       res.status(404).json({ error: 'Not found' });
       return;
@@ -3352,7 +3353,7 @@ export function createApi(port = 3001): express.Express {
       // Intake Pipeline: only NEW messages (not replies) go through addIdea → qualify → promote → goal
       // Replies are context for existing tasks, not new ideas
       if (from === 'alex' && !replyTo) {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         if (text.trim().length >= 5) {
           addIdea(memDir, { raw_text: text, source: `room:${from}` }).catch(() => {});
         }
@@ -3384,7 +3385,7 @@ export function createApi(port = 3001): express.Express {
       // Intake Pipeline: capture KG discussion creation as idea (only new_discussion, not every position)
       const isNewDiscussion = events?.some((e: any) => e.type === 'new_discussion' || e.type === 'discussion_created');
       if (isNewDiscussion && discussion_id) {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         const topic = events?.find((e: any) => e.topic)?.topic ?? `KG discussion ${discussion_id}`;
         addIdea(memDir, { raw_text: topic, source: 'kg:discussion' }).catch(() => {});
       }
@@ -3409,7 +3410,7 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/room', (req: Request, res: Response) => {
     try {
       const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-      const convPath = path.join(process.cwd(), 'memory', 'conversations', `${date}.jsonl`);
+      const convPath = resolveMemoryPath('conversations', `${date}.jsonl`);
 
       if (!fs.existsSync(convPath)) {
         res.json({ date, messages: [] });
@@ -3904,7 +3905,7 @@ if (isMain) {
     // Startup memory size check — log only, daily prune handles cleanup
     setTimeout(() => void (async () => {
       try {
-        const memDir = path.join(process.cwd(), 'memory');
+        const memDir = getMemoryRootDir();
         const [memoryLines, topicsCount, soulSize, claudeSize] = await Promise.all([
           fsPromises.readFile(path.join(memDir, 'MEMORY.md'), 'utf-8')
             .then(c => c.split('\n').length).catch(() => 0),

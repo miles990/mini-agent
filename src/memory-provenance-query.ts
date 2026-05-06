@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { memoryIdForContent, type ProvenanceRecord } from './memory-provenance.js';
+import { resolveMemoryPath } from './memory-paths.js';
 
 export interface KGEdgeProvenance {
   edge_id: string;
@@ -38,7 +39,7 @@ export interface ProvenanceChain {
   last_seen: string | null;             // latest ts
 }
 
-const PROVENANCE_PATH = path.join(process.cwd(), 'memory', 'state', 'memory-provenance.jsonl');
+const PROVENANCE_PATH = resolveMemoryPath('state', 'memory-provenance.jsonl');
 const KG_BASE = process.env.KG_BASE_URL || 'http://localhost:3300';
 
 /**

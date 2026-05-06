@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getMemoryStateDir } from './memory.js';
+import { resolveMemoryPath } from './memory-paths.js';
 import { slog } from './utils.js';
 
 interface SuccessPattern {
@@ -94,7 +95,7 @@ export function seedFromHeartbeat(): void {
     const filePath = path.join(stateDir, PATTERNS_FILE);
     if (fs.existsSync(filePath)) return;
 
-    const hbPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+    const hbPath = resolveMemoryPath('HEARTBEAT.md');
     if (!fs.existsSync(hbPath)) return;
 
     const hb = fs.readFileSync(hbPath, 'utf-8');

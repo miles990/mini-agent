@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { getCurrentInstanceId, getInstanceDir } from './instance.js';
@@ -171,7 +172,7 @@ export function buildTaskProgressSection(inboxItems: InboxItem[]): string {
  * 偵測 topics/*.md mtime > last index time → rebuildIndex()。
  */
 export async function refreshSearchIndex(): Promise<void> {
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   const topicsDir = path.join(memoryDir, 'topics');
   if (!fs.existsSync(topicsDir)) return;
 
@@ -289,7 +290,7 @@ const closedIssues = new Set<string>();
  * 已 close 的 issue 不重複處理（檔案內 Issue-Closed 標記 + memory Set）。
  */
 export async function syncHandoffStatus(): Promise<void> {
-  const handoffsDir = path.join(process.cwd(), 'memory', 'handoffs');
+  const handoffsDir = resolveMemoryPath('handoffs');
   if (!fs.existsSync(handoffsDir)) return;
 
   try {
@@ -436,7 +437,7 @@ const DAY_MS = 86_400_000;
  * 排除：goals 不受 L3、pinned 不清理、有部分通過 verify 的不自動清
  */
 export async function cleanStaleTasks(dryRun = false): Promise<CleanupResult[]> {
-  const memDir = path.join(process.cwd(), 'memory');
+  const memDir = getMemoryRootDir();
   const results: CleanupResult[] = [];
   const now = Date.now();
 
@@ -803,7 +804,7 @@ async function consolidateMemory(): Promise<void> {
   } catch { /* no lock file — proceed */ }
 
   // Use project memory dir, not instance dir (MEMORY.md lives in project/memory/)
-  const memoryDir = path.join(process.cwd(), 'memory');
+  const memoryDir = getMemoryRootDir();
   let actions = 0;
 
   // Phase 1: Cold storage migration (entries >30 days in non-protected sections)

@@ -18,6 +18,7 @@
     "sync:github-issues": "pnpm build && node dist/issue-autopilot-cli.js",
     "janitor:workspaces": "tsx scripts/workspace-janitor.ts",
     "check:runtime-workspace": "tsx scripts/check-runtime-workspace.ts",
+    "setup:external-memory": "tsx scripts/setup-external-memory.ts",
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts"

@@ -15,6 +15,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 // spawn removed — uses sideQuery (SDK path) instead of direct CLI subprocess
 import { existsSync, mkdirSync } from 'node:fs';
 import { slog } from './utils.js';
@@ -27,7 +28,7 @@ const MEMORY_DIR = path.join(
   process.env.HOME ?? '/tmp',
   '.claude/projects/-Users-user--mini-agent-subprocess/memory',
 );
-const REPORT_PATH = path.join(process.cwd(), 'memory', 'contradiction-report.md');
+const REPORT_PATH = resolveMemoryPath('contradiction-report.md');
 const SUBPROCESS_CWD = path.join(process.env.HOME ?? '/tmp', '.mini-agent-subprocess');
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const SCAN_TIMEOUT_MS = 120_000; // 2 minutes — Haiku is fast

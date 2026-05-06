@@ -18,6 +18,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { getMemoryStateDir } from './memory.js';
 import { getLogger } from './logging.js';
 import { getMemory } from './memory.js';
@@ -585,7 +586,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   // ── Stale tasks ──
   try {
     const { auditStaleTasks } = await import('./memory-index.js');
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     const stale = auditStaleTasks(memDir);
     metrics.staleTasks = stale.length;
   } catch { /* best effort */ }
@@ -615,7 +616,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
   // ── Goal idle detection ──
   try {
     const { queryMemoryIndexSync } = await import('./memory-index.js');
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     const goals = queryMemoryIndexSync(memDir, {
       type: 'goal',
       status: ['in_progress'],
@@ -676,7 +677,7 @@ export async function computePulseMetrics(action: string | null, state: PulseSta
     if (behaviors.length >= 5) {
       // Simple heuristic: check if recent actions mention P0 goal
       const { queryMemoryIndexSync: queryGoals } = await import('./memory-index.js');
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       const goals = queryGoals(memDir, {
         type: 'goal',
         status: ['in_progress'],
@@ -1182,7 +1183,7 @@ const NON_MECHANICAL_SIGNALS = new Set<string>([
 function escalateToCrystallization(signal: PulseSignal, history: SignalHistoryEntry): void {
   try {
     // Dedup: skip if HEARTBEAT already has a task (or comment) for this signal type
-    const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+    const heartbeatPath = resolveMemoryPath('HEARTBEAT.md');
     if (existsSync(heartbeatPath)) {
       const content = readFileSync(heartbeatPath, 'utf-8');
       if (content.includes(`結晶候選 — ${signal.type}`)) {
@@ -1230,7 +1231,7 @@ export async function runPulseCheck(
   // CT evolution: Learn goal vocabulary from this cycle's action
   try {
     const { queryMemoryIndexSync } = await import('./memory-index.js');
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     const goals = queryMemoryIndexSync(memDir, {
       type: 'goal',
       status: ['in_progress'],

@@ -22,6 +22,7 @@ import { isEnabled } from './features.js';
 import { isLoopBusy } from './agent.js';
 import { enqueueAlexMessage } from './memory-index.js';
 import { writeRoomMessage } from './observability.js';
+import { getMemoryRootDir } from './memory-paths.js';
 
 // =============================================================================
 // Types
@@ -507,7 +508,7 @@ export class TelegramPoller {
     // Sync TG message to Chat Room conversation log, then enqueue task with roomMsgId
     // so resolveReplyTasksByRoomMsgId can auto-complete it when replied.
     writeRoomMessage('alex', parsed.text)
-      .then(roomMsgId => enqueueAlexMessage(path.join(process.cwd(), 'memory'), parsed.text, parsed.timestamp, roomMsgId))
+      .then(roomMsgId => enqueueAlexMessage(getMemoryRootDir(), parsed.text, parsed.timestamp, roomMsgId))
       .catch(() => {});
 
     // Add to buffer and schedule flush
@@ -1316,5 +1317,4 @@ export function getLastAlexMessageId(): number | null {
 export function clearLastReaction(): void {
   pollerInstance?.clearLastReaction();
 }
-
 

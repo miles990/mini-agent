@@ -12,6 +12,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';  // getInstanceDir kept for features.json (ephemeral)
 import { getLogger } from './logging.js';
 import { perceptionStreams } from './perception-stream.js';
@@ -447,7 +448,7 @@ export async function auditDecisionQuality(action: string | null, triggerReason?
   let hasExternalTasks = false;
   try {
     const { queryMemoryIndexSync } = await import('./memory-index.js');
-    const memDir = (await import('node:path')).join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     const tasks = queryMemoryIndexSync(memDir, { type: ['task', 'goal'], status: ['pending', 'in_progress'] });
     hasExternalTasks = tasks.some(t => {
       const p = (t.payload ?? {}) as Record<string, unknown>;
@@ -836,7 +837,7 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
   // ── Check 2: Task Hygiene (memory-index) ──
   try {
     const { getTaskHygieneInfo } = await import('./memory-index.js');
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     const { pendingCount, staleCount } = getTaskHygieneInfo(memDir);
 
     if (pendingCount > 8) {
@@ -895,7 +896,7 @@ export async function auditStructuralHealth(triggerReason?: string | null): Prom
 
     if (recentSrcChanges && recentSrcChanges.split('\n').length >= 3) {
       // Check if there was a Telegram notification or upgrade report
-      const reportsDir = path.join(process.cwd(), 'memory', 'evolution-tracks', 'reports');
+      const reportsDir = resolveMemoryPath('evolution-tracks', 'reports');
       const today = new Date().toISOString().slice(0, 10);
       let hasReport = false;
       try {
@@ -965,7 +966,7 @@ export async function trackCompoundInterest(cycleCount: number): Promise<void> {
 
   if (cycleCount - state.lastScanCycle < COMPOUND_SCAN_INTERVAL) return;
 
-  const topicsDir = path.join(process.cwd(), 'memory', 'topics');
+  const topicsDir = resolveMemoryPath('topics');
   if (!existsSync(topicsDir)) return;
 
   const { readdirSync } = await import('node:fs');
@@ -1081,7 +1082,7 @@ export async function auditProblemAlignment(action: string | null): Promise<void
   let priorityKeywords: string[] = [];
   try {
     const { getPriorityKeywords } = await import('./memory-index.js');
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     priorityKeywords = getPriorityKeywords(memDir);
   } catch { /* ignore */ }
 

@@ -21,6 +21,7 @@
 
 import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
 import { getRecentClaimsSummary } from './claim-ledger.js';
@@ -385,7 +386,7 @@ export function patterns(): KBPattern[] {
  */
 export function getKnowledgeSummary(): string | null {
   const allStats = stats();
-  const claims = _logDir ? getRecentClaimsSummary(path.join(process.cwd(), 'memory'), 5) : null;
+  const claims = _logDir ? getRecentClaimsSummary(getMemoryRootDir(), 5) : null;
   if (allStats.length === 0 && !claims) return null;
 
   const lines: string[] = [];
