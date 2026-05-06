@@ -52,27 +52,41 @@
 | github | kuro | #94 feat(correction-gate): respect documented hold reasons for local-commit-not-pushed | needs-triage | 05-06 | — |
 | github | kuro | #91 graphify delegation routes prose to shell worker → 156 cumulative bash FAILs | needs-triage | 05-06 | — |
 | github | kuro | #97 Auto-push hook for memory/auto-save chore commits (recurring drift, N=3) | needs-triage | 05-06 | — |
-| github | akari | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
-| github | codex | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
-| github | claude-code | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
-| github | akari | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
-| github | codex | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
-| github | claude-code | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
-| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
-| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
-| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
-| github | akari | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
-| github | codex | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
-| github | claude-code | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
-| github | akari | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
-| github | codex | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
-| github | claude-code | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
-| github | akari | PR #89 fix(loop): dump head bytes on hasMarker=false soft-gate skip (#88 followup) | needs-review | 05-06 | - |
+| github | akari | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | merged | 05-06 | 05-06 |
+| github | codex | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | merged | 05-06 | 05-06 |
+| github | claude-code | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | merged | 05-06 | 05-06 |
+| github | akari | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
+| github | codex | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
+| github | claude-code | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
+| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
+| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
+| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
+| github | akari | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
+| github | codex | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
+| github | claude-code | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
+| github | akari | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | review-approved | 05-06 | - |
+| github | codex | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | review-approved | 05-06 | - |
+| github | claude-code | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | review-approved | 05-06 | - |
+| github | akari | PR #89 fix(loop): dump head bytes on hasMarker=false soft-gate skip (#88 followup) | merged | 05-06 | 05-06 |
 | github | kuro | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-06 |
 | github | kuro | PR #86 fix(loop): instrument soft-gate try-entry (#81) | merged | 05-06 | 05-06 |
 | github | kuro | #99 correction-gate: low-output-quality OUTPUT_PATTERNS misses real deliverables (gh issue/pr create, file edits, commits) | needs-triage | 05-06 | — |
 | github | kuro | #100 post-commit hook: auto-allow scope-contamination for chore(memory):* commits | needs-triage | 05-06 | — |
-| github | akari | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
-| github | codex | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
-| github | claude-code | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | akari | PR #101 feat: add PR review claim consensus runner | merged | 05-06 | 05-06 |
+| github | codex | PR #101 feat: add PR review claim consensus runner | merged | 05-06 | 05-06 |
+| github | claude-code | PR #101 feat: add PR review claim consensus runner | merged | 05-06 | 05-06 |
 | github | kuro | #102 pr-lifecycle scope-guard false-positive: chore(memory) commits blocked by branch-level ref aggregation | needs-triage | 05-06 | — |
+| github | kuro | PR #93 conflict diagnostic: chore(hooks): post-commit auto-rebuild to prevent stale-dist drift (needs-verification; conflicting PR lacks completed verification evidence) | blocked | 05-06 | - |
+| github | kuro | PR #90 conflict diagnostic: fix(feedback-loops): capture sampleMsg per error bucket → lastMessage (needs-decomposition; conflict spans broad scope (12 files) and should be split or rebuilt from main) | blocked | 05-06 | - |
+| github | kuro | PR #116 fix: queue autonomous maintenance for blocked debt | merged | 05-06 | 05-06 |
+| github | kuro | PR #115 fix: consolidate autonomous workspace isolation | merged | 05-06 | 05-06 |
+| github | kuro | PR #114 fix: isolate autonomous workspace writes | merged | 05-06 | 05-06 |
+| github | kuro | PR #113 fix: add autonomous PR conflict diagnostics | merged | 05-06 | 05-06 |
+| github | kuro | PR #112 fix: version PR review input fingerprints | merged | 05-06 | 05-06 |
+| github | kuro | PR #111 fix: accept tsc PR verification evidence | merged | 05-06 | 05-06 |
+| github | kuro | PR #110 fix: update PR bodies through REST automation | merged | 05-06 | 05-06 |
+| github | kuro | PR #109 fix: auto-repair PR verification headings | merged | 05-06 | 05-06 |
+| github | kuro | PR #108 fix: retry PR review claims after input changes | merged | 05-06 | 05-06 |
+| github | kuro | PR #107 fix: unify default available actors | merged | 05-06 | 05-06 |
+| github | kuro | PR #104 fix: harden conflict governance and close internal review loop | merged | 05-06 | 05-06 |
+| github | kuro | PR #103 fix: add git conflict governance checks | merged | 05-06 | 05-06 |
