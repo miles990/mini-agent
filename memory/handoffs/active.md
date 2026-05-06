@@ -49,3 +49,30 @@
 | github | kuro | #85 memory: minimal-mode heartbeat section-extract path uncapped (Active Tasks bloat ~5KB into stripped-context retries) | needs-triage | 05-05 | — |
 | github | kuro | #87 extractDecisionBlock regex misses bulleted Decision blocks (- chose:) — 8/8 soft-gate skip evidence | needs-triage | 05-05 | — |
 | github | kuro | #88 soft-gate hasMarker=false on substantial response — head-snippet missing for 5th-layer diagnosis | needs-triage | 05-05 | — |
+| github | kuro | #94 feat(correction-gate): respect documented hold reasons for local-commit-not-pushed | needs-triage | 05-06 | — |
+| github | kuro | #91 graphify delegation routes prose to shell worker → 156 cumulative bash FAILs | needs-triage | 05-06 | — |
+| github | kuro | #97 Auto-push hook for memory/auto-save chore commits (recurring drift, N=3) | needs-triage | 05-06 | — |
+| github | akari | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | codex | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | claude-code | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | akari | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | codex | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | claude-code | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | akari | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | codex | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | claude-code | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | akari | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | codex | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | claude-code | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | akari | PR #89 fix(loop): dump head bytes on hasMarker=false soft-gate skip (#88 followup) | needs-review | 05-06 | - |
+| github | kuro | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-06 |
+| github | kuro | PR #86 fix(loop): instrument soft-gate try-entry (#81) | merged | 05-06 | 05-06 |
+| github | kuro | #99 correction-gate: low-output-quality OUTPUT_PATTERNS misses real deliverables (gh issue/pr create, file edits, commits) | needs-triage | 05-06 | — |
+| github | kuro | #100 post-commit hook: auto-allow scope-contamination for chore(memory):* commits | needs-triage | 05-06 | — |
+| github | akari | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | codex | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | claude-code | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | kuro | #102 pr-lifecycle scope-guard false-positive: chore(memory) commits blocked by branch-level ref aggregation | needs-triage | 05-06 | — |

@@ -5,6 +5,12 @@ import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIn
 import { getHealthSignals } from './pulse.js';
 import { writeMemoryTriple } from './kg-memory.js';
 import { observe as kbObserve } from './shared-knowledge.js';
+import {
+  loadCorrectionHolds,
+  findActiveHold,
+  type ActiveHoldMatch,
+  type CorrectionHold,
+} from './correction-holds.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -28,6 +34,7 @@ export interface HealthBreakdown {
 export interface ShipTruthState {
   repoPresent: boolean;
   branch: string | null;
+  headSha: string | null;
   ahead: number;
   behind: number;
   dirty: boolean;
@@ -43,6 +50,7 @@ export interface CorrectionGateSnapshot {
   reasons: CorrectionReason[];
   suppressedActions: string[];
   shipTruth: ShipTruthState;
+  acknowledgedHolds: ActiveHoldMatch[];
 }
 
 export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd()): CorrectionGateSnapshot {
@@ -94,10 +102,26 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   const shipTruth = readShipTruth(repoRoot);
+  const holds = loadCorrectionHolds(memoryDir);
+  const acknowledgedHolds: ActiveHoldMatch[] = [];
+
   if (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged') {
-    const message = `交付狀態未完成 — local branch ahead origin ${shipTruth.ahead} commit(s)，只能視為 committed-local/pending-push，不是 shipped。`;
-    reasons.push({ type: 'local-commit-not-pushed', severity: 'high', message });
-    guidance.push(message);
+    const match = findActiveHold(holds, 'local-commit-not-pushed', {
+      branch: shipTruth.branch,
+      sha: shipTruth.headSha,
+    }, { repoRoot });
+
+    if (match) {
+      // Documented external hold — track for visibility, do NOT dispatch P0.
+      acknowledgedHolds.push(match);
+      guidance.push(
+        `交付狀態 ahead ${shipTruth.ahead} commit(s) 但有 active hold (${match.matchedBy}): ${match.hold.reason}`,
+      );
+    } else {
+      const message = `交付狀態未完成 — local branch ahead origin ${shipTruth.ahead} commit(s)，只能視為 committed-local/pending-push，不是 shipped。`;
+      reasons.push({ type: 'local-commit-not-pushed', severity: 'high', message });
+      guidance.push(message);
+    }
   }
 
   const needsCorrection = reasons.length > 0;
@@ -118,6 +142,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     reasons,
     suppressedActions,
     shipTruth,
+    acknowledgedHolds,
   };
 }
 
@@ -262,7 +287,7 @@ function parseCorrectionReasonFromSummary(summary: string): string {
 
 function readShipTruth(repoRoot: string): ShipTruthState {
   if (!existsSync(path.join(repoRoot, '.git'))) {
-    return { repoPresent: false, branch: null, ahead: 0, behind: 0, dirty: false, state: 'not-repo' };
+    return { repoPresent: false, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, state: 'not-repo' };
   }
 
   try {
@@ -274,17 +299,22 @@ function readShipTruth(repoRoot: string): ShipTruthState {
     });
     return parseGitStatusPorcelainV2(status);
   } catch {
-    return { repoPresent: true, branch: null, ahead: 0, behind: 0, dirty: false, state: 'unknown' };
+    return { repoPresent: true, branch: null, headSha: null, ahead: 0, behind: 0, dirty: false, state: 'unknown' };
   }
 }
 
 export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
   let branch: string | null = null;
+  let headSha: string | null = null;
   let ahead = 0;
   let behind = 0;
   let dirty = false;
 
   for (const line of status.split('\n')) {
+    if (line.startsWith('# branch.oid ')) {
+      const oid = line.slice('# branch.oid '.length).trim();
+      headSha = oid && oid !== '(initial)' ? oid : null;
+    }
     if (line.startsWith('# branch.head ')) branch = line.slice('# branch.head '.length).trim();
     if (line.startsWith('# branch.ab ')) {
       const aheadMatch = line.match(/\+(\d+)/);
@@ -301,5 +331,5 @@ export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
   else if (behind > 0) state = 'behind';
   else if (dirty) state = 'dirty';
 
-  return { repoPresent: true, branch, ahead, behind, dirty, state };
+  return { repoPresent: true, branch, headSha, ahead, behind, dirty, state };
 }

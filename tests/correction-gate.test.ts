@@ -77,11 +77,22 @@ describe('correction gate', () => {
     expect(parsed).toEqual(expect.objectContaining({
       repoPresent: true,
       branch: 'main',
+      headSha: 'abc123',
       ahead: 2,
       behind: 0,
       dirty: false,
       state: 'pending-push',
     }));
+  });
+
+  it('parseGitStatusPorcelainV2 sets headSha to null on initial branch', () => {
+    const parsed = parseGitStatusPorcelainV2([
+      '# branch.oid (initial)',
+      '# branch.head main',
+      '',
+    ].join('\n'));
+    expect(parsed.headSha).toBeNull();
+    expect(parsed.branch).toBe('main');
   });
 
   it('does not treat empty temp memory with no pulse history as unhealthy', () => {

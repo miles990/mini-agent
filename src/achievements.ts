@@ -198,6 +198,11 @@ const OUTPUT_PATTERNS = [
   /\btunnel\b.*(?:rebuilt|updated|fixed|created)/i,  // Infra work
   /\bpipeline\b.*(?:ran|tested|upgraded|fixed)/i,  // Pipeline execution
   /\bendpoint\b.*(?:updated|verified|checked)/i,  // API ops
+  // Issue #99: missing high-signal deliverables (gh CLI, commits, file edits, work refs)
+  /\bgh\s+(?:issue|pr)\s+create\b/i,
+  /\bcommit(?:ted)?\b/i,
+  /\b(?:issue|PR)\s+#\d+\b/,
+  /\bsed\b[^\n]*\s-i\b/,
 ];
 
 /**
