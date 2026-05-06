@@ -4,10 +4,12 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { appendMemoryIndexEntry, invalidateIndexCache, queryMemoryIndexSync } from '../src/memory-index.js';
+import { appendCorrectionHold } from '../src/correction-holds.js';
 import {
   closeResolvedCorrectionTasks,
   ensureCorrectionTask,
   evaluateCorrectionGate,
+  getBlockingRuntimeDirtyPaths,
   parseGitStatusPorcelainV2,
 } from '../src/correction-gate.js';
 
@@ -104,6 +106,20 @@ describe('correction gate', () => {
     }));
   });
 
+  it('classifies only managed/code dirt as blocking runtime dirt', () => {
+    expect(getBlockingRuntimeDirtyPaths([
+      'memory/inner-notes.md',
+      'memory/handoffs/active.md',
+      'kuro-portfolio/ai-trend/index.html',
+      'knowledge-graph/',
+      'src/correction-gate.ts',
+    ])).toEqual([
+      'kuro-portfolio/ai-trend/index.html',
+      'knowledge-graph/',
+      'src/correction-gate.ts',
+    ]);
+  });
+
   it('parseGitStatusPorcelainV2 sets headSha to null on initial branch', () => {
     const parsed = parseGitStatusPorcelainV2([
       '# branch.oid (initial)',
@@ -122,6 +138,29 @@ describe('correction gate', () => {
 
     expect(snapshot.needsCorrection).toBe(false);
     expect(snapshot.guidance).toEqual([]);
+  });
+
+  it('acknowledges an active low-responsiveness hold instead of emitting a correction reason', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'stale resolved task',
+      payload: { ticksSinceLastProgress: 10 },
+    });
+    appendCorrectionHold(tmpDir, {
+      id: 'hold-low-resp',
+      correction_reason_type: 'low-responsiveness',
+      reason: 'signal lag confirmed',
+      unblock_when: { kind: 'timeout', until: '2099-01-01T00:00:00Z' },
+      created_at: '2026-05-06T00:00:00Z',
+      created_by: 'test',
+    });
+    invalidateIndexCache();
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.reasons.map(r => r.type)).not.toContain('low-responsiveness');
+    expect(snapshot.acknowledgedHolds.map(h => h.hold.id)).toContain('hold-low-resp');
   });
 
   it('closes active correction tasks when the gate is clean', async () => {

@@ -11,6 +11,7 @@ import {
   type ActiveHoldMatch,
   type CorrectionHold,
 } from './correction-holds.js';
+import { isCodePath } from './workspace-isolation.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -79,6 +80,9 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   const quality = hasPulseHistory ? Math.min(outputRate * 1.5, 1) : 0.7;
   const score = Math.min(Math.round(fulfillment * 40 + responsiveness * 35 + quality * 25), 100);
 
+  const holds = loadCorrectionHolds(memoryDir);
+  const acknowledgedHolds: ActiveHoldMatch[] = [];
+
   const reasons: CorrectionReason[] = [];
   const guidance: string[] = [];
 
@@ -91,10 +95,16 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   if (responsiveness < 0.5) {
-    const stalest = [...activeTasks].sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
-    const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`;
-    reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest?.id });
-    guidance.push(message);
+    const respHold = findActiveHold(holds, 'low-responsiveness', {}, { repoRoot });
+    if (respHold) {
+      acknowledgedHolds.push(respHold);
+      guidance.push(`響應力低 (${Math.round(responsiveness * 100)}%) 但有 active hold (${respHold.matchedBy}): ${respHold.hold.reason}`);
+    } else {
+      const stalest = [...activeTasks].sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
+      const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`;
+      reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest?.id });
+      guidance.push(message);
+    }
   }
 
   if (hasPulseHistory && quality < 0.4) {
@@ -104,8 +114,6 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   const shipTruth = readShipTruth(repoRoot);
-  const holds = loadCorrectionHolds(memoryDir);
-  const acknowledgedHolds: ActiveHoldMatch[] = [];
 
   if (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged') {
     const match = findActiveHold(holds, 'local-commit-not-pushed', {
@@ -127,18 +135,23 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   }
 
   if (shipTruth.state === 'dirty') {
+    const blockingDirtyPaths = getBlockingRuntimeDirtyPaths(shipTruth.dirtyPaths);
     const match = findActiveHold(holds, 'dirty-runtime-workspace', {
       branch: shipTruth.branch,
       sha: shipTruth.headSha,
     }, { repoRoot });
 
-    if (match) {
+    if (blockingDirtyPaths.length === 0) {
+      guidance.push(
+        `runtime workspace 只有非阻塞狀態變更: ${shipTruth.dirtyPaths.slice(0, 5).join(', ') || 'unknown paths'}`,
+      );
+    } else if (match) {
       acknowledgedHolds.push(match);
       guidance.push(
         `runtime workspace dirty 但有 active hold (${match.matchedBy}): ${match.hold.reason}`,
       );
     } else {
-      const paths = shipTruth.dirtyPaths.slice(0, 5).join(', ') || 'unknown paths';
+      const paths = blockingDirtyPaths.slice(0, 5).join(', ') || 'unknown paths';
       const message = `runtime workspace 有未整理變更 — ${paths}。先提交、移出、或清理，不能把部署 checkout 當開發/產物工作區。`;
       reasons.push({ type: 'dirty-runtime-workspace', severity: 'high', message });
       guidance.push(message);
@@ -359,4 +372,8 @@ export function parseGitStatusPorcelainV2(status: string): ShipTruthState {
   else if (dirty) state = 'dirty';
 
   return { repoPresent: true, branch, headSha, ahead, behind, dirty, dirtyPaths, state };
+}
+
+export function getBlockingRuntimeDirtyPaths(paths: string[]): string[] {
+  return paths.filter(isCodePath);
 }
