@@ -38,6 +38,7 @@ import { createDefaultMiddlewarePeers } from './middleware-peer-agent.js';
 import type { BrainRequest } from './brain-types.js';
 import { getCachedAvailableBrainActors, isBrainRuntimeDelegationEnabled, refreshBrainHealth } from './brain-health.js';
 import { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
+import { filterActorsForProviderResourceHolds } from './provider-resource-guard.js';
 import {
   getDelegationFailureCode,
   markDelegationFailureDiagnosticCreated,
@@ -274,11 +275,14 @@ export function spawnDelegation(task: DelegationTask): string {
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
   const memDir = getMemoryRootDir();
+  const availableActors = isBrainRuntimeDelegationEnabled()
+    ? filterActorsForProviderResourceHolds(getCachedAvailableBrainActors(), memDir)
+    : undefined;
   const arbitration = decideArbitration(
     workItem,
     isBrainRuntimeDelegationEnabled()
       ? {
-          availableActors: getCachedAvailableBrainActors(),
+          availableActors,
           actorStats: readActorOutcomeStatsSync(memDir, { intent: workItem.intent, limit: 300 }),
         }
       : undefined,

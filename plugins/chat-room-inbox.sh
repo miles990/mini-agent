@@ -105,7 +105,8 @@ except: pass
     fi
 
     # Fallback: JSONL (truncated but functional)
-    CONV_FILE="$PROJECT_DIR/memory/conversations/$TODAY.jsonl"
+    MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
+    CONV_FILE="$MEMORY_DIR/conversations/$TODAY.jsonl"
     if [ -f "$CONV_FILE" ]; then
         tail -8 "$CONV_FILE" 2>/dev/null | while IFS= read -r line; do
             from=$(echo "$line" | sed -n 's/.*"from":"\([^"]*\)".*/\1/p')

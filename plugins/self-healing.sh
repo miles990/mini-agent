@@ -7,6 +7,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
 HEALED=0
 
 # macOS-compatible timeout — background + kill (perl alarm can't kill docker)
@@ -95,21 +96,21 @@ fi
 
 # --- Check 4: Critical Memory Files ---
 for f in SOUL.md MEMORY.md HEARTBEAT.md; do
-  if [ ! -f "$PROJECT_DIR/memory/$f" ]; then
-    (cd "$PROJECT_DIR" && git checkout HEAD -- "memory/$f" 2>/dev/null)
-    if [ -f "$PROJECT_DIR/memory/$f" ]; then
-      heal_report "HEALED" "memory/$f was missing → restored from git"
-    else
-      heal_report "FAILED" "memory/$f missing and cannot restore from git"
-    fi
+  if [ ! -f "$MEMORY_DIR/$f" ]; then
+    heal_report "FAILED" "$MEMORY_DIR/$f missing"
   fi
 done
 
-# --- Check 5: Uncommitted Memory Changes (data loss risk) ---
-if [ -d "$PROJECT_DIR/.git" ]; then
-  DIRTY=$(cd "$PROJECT_DIR" && git status --short memory/ skills/ plugins/ 2>/dev/null | wc -l | tr -d ' ')
+# --- Check 5: Uncommitted Knowledge Changes (data loss risk) ---
+if [ -d "$MEMORY_DIR/.git" ]; then
+  DIRTY=$(cd "$MEMORY_DIR" && git status --short 2>/dev/null | wc -l | tr -d ' ')
   if [ "$DIRTY" -gt 15 ]; then
-    heal_report "FAILED" "${DIRTY} uncommitted changes in memory/skills/plugins — data loss risk"
+    heal_report "FAILED" "${DIRTY} uncommitted changes in external memory repo — data loss risk"
+  fi
+elif [ -d "$PROJECT_DIR/.git" ]; then
+  DIRTY=$(cd "$PROJECT_DIR" && git status --short skills/ plugins/ 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$DIRTY" -gt 15 ]; then
+    heal_report "FAILED" "${DIRTY} uncommitted changes in skills/plugins — data loss risk"
   fi
 fi
 

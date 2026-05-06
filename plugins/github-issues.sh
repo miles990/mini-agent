@@ -4,6 +4,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
 CACHE_FILE="${TMPDIR:-/tmp}/mini-agent-github-issues.cache"
 CACHE_TTL=60  # seconds
 mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
@@ -47,7 +48,7 @@ output="=== Open Issues: $count ==="
 # ─── Issue Autopilot：把 open issue 寫入 memory index，讓 scheduler 能接手 ───
 if [ "${MINI_AGENT_GITHUB_ISSUE_AUTOPILOT:-1}" != "0" ]; then
   if [ -f "$PROJECT_DIR/dist/issue-autopilot-cli.js" ]; then
-    sync_output=$(MINI_AGENT_MEMORY_DIR="$PROJECT_DIR/memory" node "$PROJECT_DIR/dist/issue-autopilot-cli.js" --json --limit 50 2>/dev/null | sed -n '/^{/,$p')
+    sync_output=$(MINI_AGENT_MEMORY_DIR="$MEMORY_DIR" node "$PROJECT_DIR/dist/issue-autopilot-cli.js" --json --limit 50 2>/dev/null | sed -n '/^{/,$p')
     if [ -n "$sync_output" ]; then
       sync_summary=$(echo "$sync_output" | jq -r '"Issue Autopilot: scanned=\(.scanned) created=\(.created) updated=\(.updated) skipped=\(.skipped)"' 2>/dev/null)
       if [ -n "$sync_summary" ]; then

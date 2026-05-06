@@ -30,4 +30,16 @@ describe('deploy script workspace janitor hook', () => {
     expect(script).toContain('Skipping workspace janitor because deploy checkout has unresolved conflicts');
     expect(script).toContain('Workspace janitor failed (non-fatal)');
   });
+
+  it('exports external memory paths before starting the runtime service', () => {
+    const script = readFileSync(path.join(process.cwd(), 'scripts', 'deploy.sh'), 'utf-8');
+    const defaultMemoryIndex = script.indexOf('DEFAULT_MEMORY_DIR="$(dirname "$DEPLOY_DIR")/mini-agent-memory/memory"');
+    const exportIndex = script.indexOf('export MINI_AGENT_MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-$DEFAULT_MEMORY_DIR}"');
+    const startIndex = script.indexOf('node "$DEPLOY_DIR/dist/cli.js" up -d');
+
+    expect(defaultMemoryIndex).toBeGreaterThan(-1);
+    expect(exportIndex).toBeGreaterThan(defaultMemoryIndex);
+    expect(exportIndex).toBeLessThan(startIndex);
+    expect(script).toContain('export MINI_AGENT_MEMORY="${MINI_AGENT_MEMORY:-$MINI_AGENT_MEMORY_DIR}"');
+  });
 });

@@ -7,8 +7,12 @@ set -e
 DEPLOY_DIR="/Users/user/Workspace/mini-agent"
 LOG_FILE="$HOME/.mini-agent/deploy.log"
 LOCK_DIR="$HOME/.mini-agent/deploy.lock"
+DEFAULT_MEMORY_DIR="$(dirname "$DEPLOY_DIR")/mini-agent-memory/memory"
 
 mkdir -p "$HOME/.mini-agent"
+mkdir -p "$DEFAULT_MEMORY_DIR"
+export MINI_AGENT_MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-$DEFAULT_MEMORY_DIR}"
+export MINI_AGENT_MEMORY="${MINI_AGENT_MEMORY:-$MINI_AGENT_MEMORY_DIR}"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
