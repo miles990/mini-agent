@@ -5,7 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-MEMORY_DIR="${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}"
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
 SNAPSHOT_FILE="$MEMORY_DIR/.state-snapshot.json"
 
 # ─── 收集當前狀態 ─────────────────────────────

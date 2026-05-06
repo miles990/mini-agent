@@ -1,6 +1,9 @@
 #!/bin/bash
 # Handoff Watcher — 顯示 memory/handoffs/ 中的任務狀態（含 To + Depends-on 檢查）
-cd "$(dirname "$0")/../memory/handoffs" 2>/dev/null || exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
+cd "$MEMORY_DIR/handoffs" 2>/dev/null || exit 0
 
 found=0
 for f in *.md; do

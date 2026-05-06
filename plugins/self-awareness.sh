@@ -5,7 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-MEMORY_DIR="${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}"
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
 TOPICS_DIR="$MEMORY_DIR/topics"
 INSTANCE_ID="${MINI_AGENT_INSTANCE:-unknown}"
 BEHAVIOR_LOG="$HOME/.mini-agent/instances/$INSTANCE_ID/logs/behavior/$(date +%Y-%m-%d).jsonl"

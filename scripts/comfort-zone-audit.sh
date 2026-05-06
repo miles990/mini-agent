@@ -68,14 +68,15 @@ fi
 
 # HEARTBEAT tasks
 HEARTBEAT=""
-if [[ -f "$PROJECT_DIR/memory/HEARTBEAT.md" ]]; then
-  HEARTBEAT=$(head -60 "$PROJECT_DIR/memory/HEARTBEAT.md" 2>/dev/null)
+MEMORY_DIR="${MINI_AGENT_MEMORY_DIR:-${MINI_AGENT_MEMORY:-$PROJECT_DIR/memory}}"
+if [[ -f "$MEMORY_DIR/HEARTBEAT.md" ]]; then
+  HEARTBEAT=$(head -60 "$MEMORY_DIR/HEARTBEAT.md" 2>/dev/null)
 fi
 
 # SOUL identity (brief)
 SOUL_BRIEF=""
-if [[ -f "$PROJECT_DIR/memory/SOUL.md" ]]; then
-  SOUL_BRIEF=$(head -40 "$PROJECT_DIR/memory/SOUL.md" 2>/dev/null)
+if [[ -f "$MEMORY_DIR/SOUL.md" ]]; then
+  SOUL_BRIEF=$(head -40 "$MEMORY_DIR/SOUL.md" 2>/dev/null)
 fi
 
 # Build the data payload

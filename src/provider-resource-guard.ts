@@ -1,3 +1,6 @@
+import type { ActorId } from './brain-types.js';
+import { queryMemoryIndexSync } from './memory-index.js';
+
 export interface ProviderResourceHold {
   type: 'provider-quota';
   provider: 'claude' | 'codex' | 'unknown';
@@ -26,6 +29,34 @@ export function classifyProviderResourceHold(
   };
 }
 
+export function readActiveProviderResourceHolds(
+  memoryDir: string,
+  now = new Date(),
+): ProviderResourceHold[] {
+  const holds: ProviderResourceHold[] = [];
+  for (const entry of queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })) {
+    const hold = parseProviderResourceHold(entry.payload?.provider_resource_hold);
+    if (!hold) continue;
+    const resumeAt = Date.parse(hold.resumeAt);
+    if (!Number.isFinite(resumeAt) || resumeAt <= now.getTime()) continue;
+    holds.push(hold);
+  }
+  return holds;
+}
+
+export function filterActorsForProviderResourceHolds(
+  actors: ActorId[],
+  memoryDir: string,
+  now = new Date(),
+): ActorId[] {
+  const heldProviders = new Set(readActiveProviderResourceHolds(memoryDir, now).map(hold => hold.provider));
+  if (heldProviders.size === 0) return actors;
+  return actors.filter(actor => {
+    if (heldProviders.has('unknown') && (actor === 'claude' || actor === 'codex')) return false;
+    return !heldProviders.has(actor as ProviderResourceHold['provider']);
+  });
+}
+
 function parseResetTime(output: string, now: Date): Date | null {
   const match = output.match(/resets?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
   if (!match) return null;
@@ -42,4 +73,18 @@ function parseResetTime(output: string, now: Date): Date | null {
   reset.setHours(hour, minute, 0, 0);
   if (reset <= now) reset.setDate(reset.getDate() + 1);
   return reset;
+}
+
+function parseProviderResourceHold(value: unknown): ProviderResourceHold | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (raw.type !== 'provider-quota') return null;
+  if (raw.provider !== 'claude' && raw.provider !== 'codex' && raw.provider !== 'unknown') return null;
+  if (typeof raw.resumeAt !== 'string' || typeof raw.reason !== 'string') return null;
+  return {
+    type: 'provider-quota',
+    provider: raw.provider,
+    resumeAt: raw.resumeAt,
+    reason: raw.reason,
+  };
 }
