@@ -247,25 +247,6 @@ export function spawnDelegation(task: DelegationTask): string {
   const taskId = task.id ?? `del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const taskType = task.type ?? 'code';
 
-  // Layer 1 phantom-prompt gate (issue #141): reject thin prompts pre-dispatch.
-  // Spec pinned by tests/delegation-phantom-prompt.test.ts.
-  if (isPhantomPrompt(task.prompt)) {
-    const preview = (task.prompt ?? '').trim().slice(0, 60);
-    slog(
-      'DELEGATION',
-      `phantom_prompt rejected ${taskId} type=${taskType} len=${(task.prompt ?? '').length} preview="${preview}"`,
-    );
-    const failed: TaskResult = {
-      id: taskId,
-      type: taskType,
-      status: 'failed',
-      startedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      output: `phantom_prompt: prompt lacks "## Task:" envelope and is shorter than 80 chars (got ${(task.prompt ?? '').length}). Rejected pre-dispatch to avoid fail-ejkd7t-shaped retries (#141).`,
-    };
-    completedTasks.set(taskId, failed);
-    return taskId;
-  }
   const worker = CAPABILITY_TO_WORKER[taskType];
   const workItem = buildWorkItemForDelegation(taskId, task, taskType);
   const timeoutMs = Math.min(
