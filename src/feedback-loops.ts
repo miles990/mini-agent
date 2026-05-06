@@ -172,6 +172,12 @@ export function extractErrorSubtype(errorMsg: string): string {
     // returned quickly (overload/rate-limit pattern); distinct from genuine no_diag.
     // 61 occurrences today, all in 1-19s band — clear bimodal gap from hang_no_diag (≥600s).
     if (durMatch && Number(durMatch[1]) < 60) return 'transient_no_diag';
+    // 2026-05-06 (later same day): mid-band 60-599s = partial-stream failure
+    // (request started, response began, then errored mid-flight). Distinct from
+    // both transient (fail-fast) and hang (full timeout). Splitting this off
+    // leaves `no_diag` to mean "no dur= suffix at all" — a different class of
+    // upstream classifyError bug. count=34 in no_diag today motivated this split.
+    if (durMatch && Number(durMatch[1]) < 600) return 'midband_no_diag';
     return 'no_diag';
   }
   // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
