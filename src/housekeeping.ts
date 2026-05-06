@@ -763,6 +763,9 @@ function dispatchKGIngestIfNeeded(): void {
       type: 'graphify',
       prompt: kgRebuildCmd,
       workdir,
+      // KG extraction scripts call LLMs and produce no stdout during round-trips.
+      // progressTimeoutMs: 600_000 (10 min) prevents shell-worker stall-kill (#167 Patch Y).
+      progressTimeoutMs: 600_000,
       acceptance: `KG incremental rebuild (${newWrites} new writes): entities.jsonl and edges.jsonl updated; manifest.json last_incremental refreshed`,
     });
 
