@@ -2276,6 +2276,24 @@ export class AgentLoop {
       } catch (e) { slog('WARN', `correction gate failed: ${e}`); }
 
       try {
+        const { closeResolvedAutonomyClosureTasks, ensureAutonomyClosureTask, evaluateAutonomyClosure } = await import('./autonomy-closure-health.js');
+        const closure = evaluateAutonomyClosure(memDir);
+        if (closure.status === 'healthy') {
+          const closed = await closeResolvedAutonomyClosureTasks(memDir, closure);
+          if (closed.length > 0) {
+            for (const task of closed) {
+              schedulerTaskDone(task.id);
+              completeProcess(task.id);
+            }
+            slog('AUTONOMY', `closure healthy; closed ${closed.length} repair task(s)`);
+          }
+        } else {
+          const task = await ensureAutonomyClosureTask(memDir, closure);
+          slog('AUTONOMY', `closure ${closure.status} score=${closure.score} blocking=${closure.blockingStages.join(',') || 'none'} task=${task?.id.slice(0, 12) ?? 'none'}`);
+        }
+      } catch (e) { slog('WARN', `autonomy closure health failed: ${e}`); }
+
+      try {
         const { maybeQueueSelfResearch } = await import('./self-research-autopilot.js');
         const selfResearch = await maybeQueueSelfResearch(memDir, {
           triggerReason: currentTriggerReason,

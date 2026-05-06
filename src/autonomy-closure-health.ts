@@ -1,0 +1,403 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { evaluateCorrectionGate, type CorrectionGateSnapshot } from './correction-gate.js';
+import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
+import { evaluatePrReviewConsensus, parsePrReviewHandoffs, readPrReviewClaimsSync } from './pr-review-runner.js';
+import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
+import { eventBus } from './event-bus.js';
+
+export type AutonomyClosureStage =
+  | 'runtime-workspace'
+  | 'task-execution'
+  | 'issue-autopilot'
+  | 'pr-review-consensus'
+  | 'ship-and-deploy'
+  | 'self-improvement'
+  | 'memory-context';
+
+export type AutonomyClosureStageStatus = 'ok' | 'warn' | 'blocked';
+export type AutonomyClosureStatus = 'healthy' | 'degraded' | 'blocked';
+
+export interface AutonomyClosureStageResult {
+  stage: AutonomyClosureStage;
+  status: AutonomyClosureStageStatus;
+  summary: string;
+  evidence: string[];
+  repair?: string;
+}
+
+export interface AutonomyClosureSnapshot {
+  status: AutonomyClosureStatus;
+  score: number;
+  stages: AutonomyClosureStageResult[];
+  blockingStages: AutonomyClosureStage[];
+  warningStages: AutonomyClosureStage[];
+  recommendedTask: {
+    priority: 0 | 1;
+    title: string;
+    verifyCommand: string;
+    acceptanceCriteria: string;
+  } | null;
+  correction: CorrectionGateSnapshot;
+}
+
+export interface AutonomyClosureOptions {
+  repoRoot?: string;
+  now?: Date;
+}
+
+const ACTIVE_STATUSES = ['pending', 'in_progress', 'needs-decomposition', 'blocked', 'hold'];
+const AUTONOMY_CLOSURE_ORIGIN = 'autonomy-closure';
+
+export function evaluateAutonomyClosure(
+  memoryDir: string,
+  options: AutonomyClosureOptions = {},
+): AutonomyClosureSnapshot {
+  const repoRoot = options.repoRoot ?? process.cwd();
+  const correction = evaluateCorrectionGate(memoryDir, repoRoot);
+  const openTasks = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ACTIVE_STATUSES })
+    .filter(task => !isAutonomyClosureTask(task));
+  const stages: AutonomyClosureStageResult[] = [
+    runtimeWorkspaceStage(correction),
+    taskExecutionStage(openTasks),
+    issueAutopilotStage(openTasks),
+    prReviewConsensusStage(memoryDir),
+    shipAndDeployStage(correction),
+    selfImprovementStage(openTasks),
+    memoryContextStage(memoryDir, repoRoot),
+  ];
+
+  const blockingStages = stages.filter(s => s.status === 'blocked').map(s => s.stage);
+  const warningStages = stages.filter(s => s.status === 'warn').map(s => s.stage);
+  const penalty = stages.reduce((sum, stage) => {
+    if (stage.status === 'blocked') return sum + 22;
+    if (stage.status === 'warn') return sum + 8;
+    return sum;
+  }, 0);
+  const score = Math.max(0, Math.min(100, 100 - penalty));
+  const status: AutonomyClosureStatus = blockingStages.length > 0
+    ? 'blocked'
+    : warningStages.length > 0 ? 'degraded' : 'healthy';
+
+  return {
+    status,
+    score,
+    stages,
+    blockingStages,
+    warningStages,
+    recommendedTask: buildRecommendedTask(stages, status),
+    correction,
+  };
+}
+
+export async function ensureAutonomyClosureTask(
+  memoryDir: string,
+  snapshot = evaluateAutonomyClosure(memoryDir),
+): Promise<MemoryIndexEntry | null> {
+  if (snapshot.status === 'healthy') {
+    await closeResolvedAutonomyClosureTasks(memoryDir, snapshot);
+    return null;
+  }
+
+  if (snapshot.correction.needsCorrection) return null;
+
+  const existing = queryMemoryIndexSync(memoryDir, {
+    type: ['task'],
+    status: ACTIVE_STATUSES,
+  }).find(isAutonomyClosureTask);
+  if (existing) return existing;
+
+  const recommendation = snapshot.recommendedTask;
+  if (!recommendation) return null;
+
+  const task = await createTask(memoryDir, {
+    title: recommendation.title,
+    origin: 'scheduler',
+    priority: recommendation.priority,
+    assignee: 'kuro',
+    verify_command: recommendation.verifyCommand,
+    acceptance_criteria: recommendation.acceptanceCriteria,
+  });
+
+  const enriched = await updateMemoryIndexEntry(memoryDir, task.id, {
+    payload: {
+      ...((task.payload ?? {}) as Record<string, unknown>),
+      origin: AUTONOMY_CLOSURE_ORIGIN,
+      closure_status: snapshot.status,
+      closure_score: snapshot.score,
+      blocking_stages: snapshot.blockingStages,
+      warning_stages: snapshot.warningStages,
+      closure_started_at: new Date().toISOString(),
+    },
+    tags: ['autonomy-closure', snapshot.status],
+  });
+
+  eventBus.emit('action:task', {
+    event: 'autonomy-closure-repair-queued',
+    taskId: task.id,
+    status: snapshot.status,
+    score: snapshot.score,
+    blockingStages: snapshot.blockingStages,
+    warningStages: snapshot.warningStages,
+  });
+
+  return enriched ?? task;
+}
+
+export async function closeResolvedAutonomyClosureTasks(
+  memoryDir: string,
+  snapshot = evaluateAutonomyClosure(memoryDir),
+): Promise<MemoryIndexEntry[]> {
+  if (snapshot.status !== 'healthy') return [];
+  const tasks = queryMemoryIndexSync(memoryDir, {
+    type: ['task'],
+    status: ACTIVE_STATUSES,
+  }).filter(isAutonomyClosureTask);
+
+  const closed: MemoryIndexEntry[] = [];
+  for (const task of tasks) {
+    const updated = await updateMemoryIndexEntry(memoryDir, task.id, {
+      status: 'completed',
+      payload: {
+        ...((task.payload ?? {}) as Record<string, unknown>),
+        closure_resolved_at: new Date().toISOString(),
+        closure_final_score: snapshot.score,
+      },
+    });
+    if (updated) closed.push(updated);
+  }
+  return closed;
+}
+
+export function isAutonomyClosureTask(entry: Pick<MemoryIndexEntry, 'summary' | 'payload' | 'tags'>): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  return payload.origin === AUTONOMY_CLOSURE_ORIGIN
+    || (entry.summary ?? '').includes('autonomy closure')
+    || (entry.tags ?? []).includes('autonomy-closure');
+}
+
+function runtimeWorkspaceStage(correction: CorrectionGateSnapshot): AutonomyClosureStageResult {
+  const runtimeReasons = correction.reasons.filter(reason =>
+    ['runtime-workspace-wrong-branch', 'dirty-runtime-workspace', 'local-commit-not-pushed'].includes(reason.type),
+  );
+  if (runtimeReasons.length > 0) {
+    return {
+      stage: 'runtime-workspace',
+      status: 'blocked',
+      summary: 'protected runtime checkout is not clean enough for autonomous work',
+      evidence: runtimeReasons.map(reason => reason.message),
+      repair: 'Run runtime workspace autocorrect or move the change into an isolated worktree PR.',
+    };
+  }
+  return {
+    stage: 'runtime-workspace',
+    status: 'ok',
+    summary: `runtime workspace ${correction.shipTruth.state}`,
+    evidence: [`branch=${correction.shipTruth.branch ?? 'unknown'}`, `dirty=${correction.shipTruth.dirty}`],
+  };
+}
+
+function taskExecutionStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+  const exhausted = openTasks.filter(task => {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    return task.status === 'hold' && Number(payload.auto_executor_failures ?? 0) >= 3;
+  });
+  const blocked = openTasks.filter(task => ['blocked', 'needs-decomposition'].includes(String(task.status)));
+  if (exhausted.length > 0) {
+    return {
+      stage: 'task-execution',
+      status: 'blocked',
+      summary: `${exhausted.length} task(s) exhausted autonomous retries`,
+      evidence: exhausted.slice(0, 5).map(formatTaskEvidence),
+      repair: 'Create a diagnostic repair task or split the failing task into smaller verified slices.',
+    };
+  }
+  if (blocked.length > 0) {
+    return {
+      stage: 'task-execution',
+      status: 'warn',
+      summary: `${blocked.length} task(s) need decomposition or unblock`,
+      evidence: blocked.slice(0, 5).map(formatTaskEvidence),
+      repair: 'Prefer decomposition before retrying the same failed command.',
+    };
+  }
+  return {
+    stage: 'task-execution',
+    status: 'ok',
+    summary: `${openTasks.length} open task(s), none exhausted`,
+    evidence: openTasks.slice(0, 5).map(formatTaskEvidence),
+  };
+}
+
+function issueAutopilotStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+  const issueTasks = openTasks.filter(task => {
+    const payload = (task.payload ?? {}) as Record<string, unknown>;
+    return task.source === 'github-issue' || payload.origin === 'github-issue' || typeof payload.issue_number === 'number';
+  });
+  const staleIssueTasks = issueTasks.filter(task => ['blocked', 'hold', 'needs-decomposition'].includes(String(task.status)));
+  if (staleIssueTasks.length > 0) {
+    return {
+      stage: 'issue-autopilot',
+      status: 'warn',
+      summary: `${staleIssueTasks.length} GitHub issue task(s) are not flowing`,
+      evidence: staleIssueTasks.slice(0, 5).map(formatTaskEvidence),
+      repair: 'Reconcile GitHub issue state and queue a smaller repair task if the issue is still open.',
+    };
+  }
+  return {
+    stage: 'issue-autopilot',
+    status: 'ok',
+    summary: `${issueTasks.length} GitHub issue task(s) visible to scheduler`,
+    evidence: issueTasks.slice(0, 5).map(formatTaskEvidence),
+  };
+}
+
+function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!existsSync(activePath)) {
+    return {
+      stage: 'pr-review-consensus',
+      status: 'ok',
+      summary: 'no active PR review handoff file',
+      evidence: [],
+    };
+  }
+
+  const activeContent = readFileSync(activePath, 'utf-8');
+  const handoffs = parsePrReviewHandoffs(activeContent);
+  if (handoffs.length === 0) {
+    return {
+      stage: 'pr-review-consensus',
+      status: 'ok',
+      summary: 'no pending PR review handoffs',
+      evidence: [],
+    };
+  }
+
+  const claims = readPrReviewClaimsSync(memoryDir);
+  const consensuses = evaluatePrReviewConsensus(handoffs, claims);
+  const missing = consensuses.filter(c => c.status === 'pending' && c.missingReviewers.length > 0);
+  const changes = consensuses.filter(c => c.status === 'changes_requested' || c.status === 'disputed');
+  if (changes.length > 0) {
+    return {
+      stage: 'pr-review-consensus',
+      status: 'blocked',
+      summary: `${changes.length} PR consensus result(s) require changes or arbitration`,
+      evidence: changes.slice(0, 5).map(c => `PR #${c.prNumber}: ${c.status} (${c.summary})`),
+      repair: 'Apply review feedback, request a new claim, then allow merge automation to continue.',
+    };
+  }
+  if (missing.length > 0) {
+    return {
+      stage: 'pr-review-consensus',
+      status: 'warn',
+      summary: `${missing.length} PR(s) still missing internal review claims`,
+      evidence: missing.slice(0, 5).map(c => `PR #${c.prNumber}: missing ${c.missingReviewers.join(', ')}`),
+      repair: 'Run GitHub automation to produce internal review claims and consensus.',
+    };
+  }
+  return {
+    stage: 'pr-review-consensus',
+    status: 'ok',
+    summary: `${consensuses.length} PR review consensus record(s) current`,
+    evidence: consensuses.slice(0, 5).map(c => `PR #${c.prNumber}: ${c.status}`),
+  };
+}
+
+function shipAndDeployStage(correction: CorrectionGateSnapshot): AutonomyClosureStageResult {
+  if (correction.shipTruth.state === 'behind' || correction.shipTruth.state === 'diverged') {
+    return {
+      stage: 'ship-and-deploy',
+      status: 'blocked',
+      summary: `runtime checkout ship truth is ${correction.shipTruth.state}`,
+      evidence: [`ahead=${correction.shipTruth.ahead}`, `behind=${correction.shipTruth.behind}`],
+      repair: 'Rebase or reset protected runtime checkout to origin/main after preserving local work.',
+    };
+  }
+  return {
+    stage: 'ship-and-deploy',
+    status: 'ok',
+    summary: `ship truth ${correction.shipTruth.state}`,
+    evidence: [`ahead=${correction.shipTruth.ahead}`, `behind=${correction.shipTruth.behind}`],
+  };
+}
+
+function selfImprovementStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStageResult {
+  const selfResearch = openTasks.filter(task => (task.summary ?? '').includes('execute self-research'));
+  const maintenance = openTasks.filter(task => (task.summary ?? '').includes('autonomous maintenance'));
+  if (selfResearch.length > 1) {
+    return {
+      stage: 'self-improvement',
+      status: 'warn',
+      summary: `${selfResearch.length} self-research tasks are queued at once`,
+      evidence: selfResearch.slice(0, 5).map(formatTaskEvidence),
+      repair: 'Keep one measurable self-improvement experiment active and close stale duplicates.',
+    };
+  }
+  return {
+    stage: 'self-improvement',
+    status: 'ok',
+    summary: `${selfResearch.length} self-research task(s), ${maintenance.length} maintenance task(s)`,
+    evidence: [...selfResearch, ...maintenance].slice(0, 5).map(formatTaskEvidence),
+  };
+}
+
+function memoryContextStage(memoryDir: string, repoRoot: string): AutonomyClosureStageResult {
+  const placement = evaluateRuntimeMemoryPlacement(repoRoot);
+  const hasTaskEvents = existsSync(path.join(memoryDir, 'state', 'task-events.jsonl'));
+  const hasRelations = existsSync(path.join(memoryDir, 'index', 'relations.jsonl'));
+  const hasHandoffs = existsSync(path.join(memoryDir, 'handoffs', 'active.md'));
+  if (!placement.ok) {
+    return {
+      stage: 'memory-context',
+      status: 'blocked',
+      summary: 'runtime memory placement is unsafe',
+      evidence: [placement.reason, `memoryRoot=${placement.memoryRoot}`],
+      repair: 'Move memory/context outside protected runtime checkout and keep KG promotion reading curated memory.',
+    };
+  }
+  if (!hasTaskEvents && !hasRelations && !hasHandoffs) {
+    return {
+      stage: 'memory-context',
+      status: 'warn',
+      summary: 'memory context has no observable task/relation/handoff files yet',
+      evidence: [`memoryRoot=${memoryDir}`],
+      repair: 'Initialize memory index and handoff files so context can become reusable memory.',
+    };
+  }
+  return {
+    stage: 'memory-context',
+    status: 'ok',
+    summary: 'memory context is observable',
+    evidence: [
+      `memoryRoot=${memoryDir}`,
+      `taskEvents=${hasTaskEvents}`,
+      `relations=${hasRelations}`,
+      `handoffs=${hasHandoffs}`,
+    ],
+  };
+}
+
+function buildRecommendedTask(
+  stages: AutonomyClosureStageResult[],
+  status: AutonomyClosureStatus,
+): AutonomyClosureSnapshot['recommendedTask'] {
+  if (status === 'healthy') return null;
+  const primary = stages.find(s => s.status === 'blocked') ?? stages.find(s => s.status === 'warn');
+  if (!primary) return null;
+  const priority: 0 | 1 = primary.status === 'blocked' ? 0 : 1;
+  return {
+    priority,
+    title: `P${priority} autonomy closure: repair ${primary.stage}`,
+    verifyCommand: 'pnpm check:autonomy-closure -- --json',
+    acceptanceCriteria: [
+      primary.summary,
+      primary.repair ?? 'Restore the autonomous closed loop and leave falsifiable evidence.',
+      'Expected loop: issue/task visible -> isolated worktree -> PR -> review consensus -> merge -> deploy -> runtime clean -> memory/KG context updated.',
+    ].join(' '),
+  };
+}
+
+function formatTaskEvidence(task: MemoryIndexEntry): string {
+  return `${task.id.slice(0, 12)} ${task.status}: ${(task.summary ?? '').slice(0, 100)}`;
+}
