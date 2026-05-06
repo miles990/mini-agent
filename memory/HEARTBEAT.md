@@ -27,7 +27,9 @@
 
 ## Active Tasks
 <!-- 只留 7 天內或 P0/P1。OVERDUE 但無新證據的搬到 .backup-20260429 -->
-- [ ] **P0 Cannot read properties of unde:generic**（72 次, last 2026-04-25）：累計 counter 是歷史快照非 live signal。守值規則：count 不變期間禁止再查（cl-gate）。觸發條件：count > 72。
+<!-- RETIRED 2026-05-06T19:01Z: error-patterns.json 已不含 'generic'/'unde' 任何 key (data 層驗證) — count>72 gate 不可能觸發因為 count undefined。原 entry 移到 backup audit trail。 -->
+<!-- - [x] **P0 Cannot read properties of unde:generic**（72 次, last 2026-04-25）：累計 counter 是歷史快照非 live signal。守值規則：count 不變期間禁止再查（cl-gate）。觸發條件：count > 72。 -->
+
 - [ ] **P1 silent_exit_void**（last 2026-04-28）：stdout-tail classifier 已 ship `c7c50f7b`；新 events 是 root-cause 待解（stdout=empty after 254s），不是 classifier 問題。
 - [ ] **OODA 反射規則收斂監控**：連續 3 cycle 開場有 `memory_search` + `search_knowledge` 痕跡 = 內化完成。
 - [ ] **B3 Arena**: Comp 3 Kuro #2 (ai=4.5, eng=4.5, n=6) vs tsunumon #1 (4.5, eng=4.6, n=15)，需 Alex 觸發 c3 generation 拉 n。
