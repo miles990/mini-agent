@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { slog } from './utils.js';
+import { getMemoryStateRootDir } from './memory-paths.js';
 
 const KG_BASE = 'http://localhost:3300';
 
@@ -10,7 +11,7 @@ const AGENT_MEMORY_DIRS: Record<string, string> = {
 };
 
 function getCachePathForAgent(agent: string): string {
-  const dir = AGENT_MEMORY_DIRS[agent] ?? path.join(process.cwd(), 'memory', 'state');
+  const dir = AGENT_MEMORY_DIRS[agent] ?? getMemoryStateRootDir();
   const cacheDir = path.join(dir);
   if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
   return path.join(cacheDir, 'kg-memory-cache.jsonl');

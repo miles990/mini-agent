@@ -67,6 +67,7 @@ import { queryKGDiscussionContext } from './observability.js';
 import { getSkillsExcludeSet, shouldPruneSection, getEffectiveOutputCap, callLocalFast, classifyContextProfile, getContextProfileConfig, shouldLoadForProfile, extractKeywordsWithOMLX } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 import { appendProvenance, memoryIdForContent } from './memory-provenance.js';
+import { getMemoryRootDir, getMemoryStateRootDir } from './memory-paths.js';
 
 // =============================================================================
 // Write-time Dedup — Jaccard word similarity (zero LLM cost)
@@ -508,8 +509,8 @@ export function setPerceptionProviders(providers: {
  * 取得記憶目錄 — 統一指向專案的 memory/ 資料夾
  * Runtime state（cycle-state, features, mode 等）留在 instanceDir
  */
-function getMemoryDir(_instanceId?: string): string {
-  return path.join(process.cwd(), 'memory');
+export function getMemoryDir(_instanceId?: string): string {
+  return getMemoryRootDir();
 }
 
 /**
@@ -518,7 +519,7 @@ function getMemoryDir(_instanceId?: string): string {
  * 與 instanceDir（ephemeral runtime）分離
  */
 export function getMemoryStateDir(): string {
-  const dir = path.join(process.cwd(), 'memory', 'state');
+  const dir = getMemoryStateRootDir();
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }

@@ -8,12 +8,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { slog } from './utils.js';
+import { resolveMemoryPath } from './memory-paths.js';
 
 // =============================================================================
 // Gap Scanner — 系統 capability gap 主動掃描
 // =============================================================================
 
-const TRACKS_DIR = path.join(process.cwd(), 'memory', 'evolution-tracks');
+const TRACKS_DIR = resolveMemoryPath('evolution-tracks');
 
 /**
  * Scan for capability gaps and write results.

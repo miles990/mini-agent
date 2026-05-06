@@ -162,6 +162,7 @@ export function getModelCliName(tier: ModelTier): string | undefined {
 
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 
 interface DecisionProvenance {
   ts: string;
@@ -172,7 +173,7 @@ interface DecisionProvenance {
 }
 
 const provenancePath = (): string => {
-  const stateDir = path.join(process.cwd(), 'memory', 'state');
+  const stateDir = resolveMemoryPath('state');
   if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
   return path.join(stateDir, 'decision-provenance.jsonl');
 };

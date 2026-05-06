@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { getMemory, getMemoryStateDir, getReviewBacklog } from './memory.js';
 import type { CycleMode } from './memory.js';
 import { buildThreadsPromptSection } from './temporal.js';
@@ -142,7 +143,7 @@ export function loadBehaviorConfig(
   lastValidConfig: BehaviorConfig | null,
 ): { config: BehaviorConfig | null; lastValidConfig: BehaviorConfig | null } {
   try {
-    const filePath = path.join(process.cwd(), 'memory', 'behavior.md');
+    const filePath = resolveMemoryPath('behavior.md');
     if (!fs.existsSync(filePath)) return { config: lastValidConfig, lastValidConfig };
     const content = fs.readFileSync(filePath, 'utf-8');
     const config = parseBehaviorConfig(content);

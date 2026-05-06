@@ -1,5 +1,6 @@
 import { appendFileSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 
 export interface ActivityEntry {
   ts: string;
@@ -11,7 +12,7 @@ export interface ActivityEntry {
 }
 
 function getStreamPath(): string {
-  return path.join(process.cwd(), 'memory', 'state', 'activity-stream.jsonl');
+  return resolveMemoryPath('state', 'activity-stream.jsonl');
 }
 
 export function emitActivity(entry: {

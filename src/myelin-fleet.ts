@@ -16,6 +16,7 @@ import { createMyelin, createFleet, logDecision } from 'myelinate';
 import type { Myelin, MyelinStats, TriageResult, MyelinFleet, FleetStats } from 'myelinate';
 
 import { slog } from './utils.js';
+import { getMemoryRootDir } from './memory-paths.js';
 import type { TaskLane } from './task-graph.js';
 
 // =============================================================================
@@ -371,7 +372,7 @@ export async function maybeDistill(): Promise<boolean> {
     try { persistRuleHitCounts(); } catch { /* fire-and-forget */ }
     try {
       const { syncMyelinToKnowledge } = await import('./myelin-kg-sync.js');
-      syncMyelinToKnowledge(`${process.cwd()}/memory`, { limitPerDomain: 3, minHitCount: 1 });
+      syncMyelinToKnowledge(getMemoryRootDir(), { limitPerDomain: 3, minHitCount: 1 });
     } catch { /* shared knowledge sync is optional */ }
 
     // Research methodology evolution (needs evolve() beyond basic distill)

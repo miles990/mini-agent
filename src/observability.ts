@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
 import type { AgentEvent } from './event-bus.js';
 import { slog } from './utils.js';
@@ -313,7 +314,7 @@ export async function writeRoomMessage(from: string, text: string, replyTo?: str
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
 
-  const convDir = path.join(process.cwd(), 'memory', 'conversations');
+  const convDir = resolveMemoryPath('conversations');
   if (!fs.existsSync(convDir)) {
     await fsPromises.mkdir(convDir, { recursive: true });
   }
