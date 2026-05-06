@@ -92,5 +92,7 @@
 | github | kuro | PR #104 fix: harden conflict governance and close internal review loop | merged | 05-06 | 05-06 |
 | github | kuro | PR #103 fix: add git conflict governance checks | merged | 05-06 | 05-06 |
 | github | akari | PR #120 fix(agent): structured CLI_EXIT slog for silent_exit_void diagnosis | merged | 05-06 | 05-06 |
+| github | kuro | PR #123 fix: delete squash-merged local branches in janitor | merged | 05-06 | 05-06 |
 | github | kuro | PR #122 fix(post-commit): auto-allow scope-contamination for memory/handoff chores | merged | 05-06 | 05-06 |
 | github | kuro | PR #121 fix: enforce autonomous workspace isolation | merged | 05-06 | 05-06 |
+| github | kuro | #124 correction-gate: low-responsiveness fires on stale ledger, not real backlog (signal lag) | needs-triage | 05-06 | — |
