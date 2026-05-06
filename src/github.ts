@@ -431,11 +431,17 @@ export function autofixPrVerificationSection(body?: string | null): PrVerificati
 export async function autoProduceInternalPrReviewClaims(): Promise<void> {
   const memoryDir = getMemoryRootDir();
   const activePath = path.join(memoryDir, 'handoffs', 'active.md');
-  if (!fs.existsSync(activePath)) return;
+  if (!fs.existsSync(activePath)) {
+    slog('github', 'pr-review-claims: no active.md');
+    return;
+  }
 
   let handoffs = parsePrReviewHandoffs(fs.readFileSync(activePath, 'utf-8'));
   handoffs = handoffs.filter(h => h.reviewer !== 'alex' && ['needs-review', 'review-pending', 'changes-requested'].includes(h.status));
-  if (handoffs.length === 0) return;
+  if (handoffs.length === 0) {
+    slog('github', 'pr-review-claims: 0 eligible handoffs');
+    return;
+  }
 
   const byPr = new Map<number, typeof handoffs>();
   for (const handoff of handoffs) {
@@ -464,9 +470,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
   }
 
   const result = appendMissingInternalPrReviewClaims(memoryDir, candidates);
-  if (result.created.length > 0) {
-    slog('github', `created ${result.created.length} internal PR review claim(s)`);
-  }
+  slog('github', `pr-review-claims: candidates=${candidates.length} created=${result.created.length} skipped=${result.skipped.length}`);
 }
 
 export async function autoRepairPrVerificationEvidence(): Promise<void> {
