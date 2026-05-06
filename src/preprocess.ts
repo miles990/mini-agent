@@ -14,6 +14,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { callLocalConcurrent } from './omlx-gate.js';
 import type { LocalLLMTask } from './omlx-gate.js';
 import { eventBus } from './event-bus.js';
@@ -145,7 +146,7 @@ function buildHeartbeatDiffTask(currentContent: string): LocalLLMTask | null {
 function buildConversationSummaryTask(): LocalLLMTask | null {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const convPath = path.join(process.cwd(), 'memory', 'conversations', `${today}.jsonl`);
+    const convPath = resolveMemoryPath('conversations', `${today}.jsonl`);
     if (!fs.existsSync(convPath)) return null;
 
     const raw = fs.readFileSync(convPath, 'utf-8');
@@ -215,7 +216,7 @@ export async function runPhase0(): Promise<Phase0Results> {
 
   // P0c: HEARTBEAT diff
   try {
-    const hbPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+    const hbPath = resolveMemoryPath('HEARTBEAT.md');
     const hbContent = fs.readFileSync(hbPath, 'utf-8');
     const hbTask = buildHeartbeatDiffTask(hbContent);
     if (hbTask) tasks.push(hbTask);

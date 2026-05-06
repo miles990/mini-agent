@@ -12,6 +12,7 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 
 // =============================================================================
 // Types
@@ -56,7 +57,7 @@ let cachedState: TemporalState | null = null;
 let stateDirty = false;
 
 function getTemporalPath(): string {
-  return path.join(process.cwd(), 'memory', 'temporal.json');
+  return resolveMemoryPath('temporal.json');
 }
 
 function getDefaultState(): TemporalState {
@@ -469,7 +470,7 @@ export async function buildThreadsPromptSection(): Promise<string | null> {
 // =============================================================================
 
 export function buildThreadsContextSection(): string | null {
-  const threadsDir = path.join(process.cwd(), 'memory', 'threads');
+  const threadsDir = resolveMemoryPath('threads');
   if (!fsSync.existsSync(threadsDir)) return null;
 
   let files: string[];

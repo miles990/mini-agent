@@ -16,6 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
 import { eventBus } from './event-bus.js';
@@ -233,7 +234,7 @@ export function spawnDelegation(task: DelegationTask): string {
     MAX_TIMEOUT_MS,
   );
   const workdir = task.workdir.replace(/^~/, process.env.HOME ?? '');
-  const memDir = path.join(process.cwd(), 'memory');
+  const memDir = getMemoryRootDir();
   const arbitration = decideArbitration(
     workItem,
     isBrainRuntimeDelegationEnabled()
@@ -365,7 +366,7 @@ async function dispatchViaBrainRuntime(
   const runtime = new BrainRuntime({
     providers,
     peers,
-    memoryDir: path.join(process.cwd(), 'memory'),
+    memoryDir: getMemoryRootDir(),
   });
 
   const runtimeResult = await runtime.execute({
@@ -769,7 +770,7 @@ function finalizeTask(
 
   // Auto-update task-queue entry
   if (task.originTask) {
-    const memDir = path.join(process.cwd(), 'memory');
+    const memDir = getMemoryRootDir();
     updateTask(memDir, task.originTask, {
       status: result.status === 'completed' ? 'completed' : failureDecision?.repeated ? 'hold' : 'pending',
       verify: [{
@@ -813,7 +814,7 @@ function finalizeTask(
 function recordRepeatedDelegationFailure(entry: ActiveEntry): ReturnType<typeof recordDelegationFailure> | null {
   const { result, task } = entry;
   if (!shouldGuardDelegationFailure(result.output)) return null;
-  const memDir = path.join(process.cwd(), 'memory');
+  const memDir = getMemoryRootDir();
   try {
     const decision = recordDelegationFailure(memDir, {
       taskId: result.id,
@@ -882,7 +883,7 @@ function recordDelegationClaim(entry: ActiveEntry): string | undefined {
       ],
       confidence: result.status === 'completed' ? 0.7 : 0.35,
     });
-    appendProviderClaim(path.join(process.cwd(), 'memory'), claim);
+    appendProviderClaim(getMemoryRootDir(), claim);
     kbObserve({
       source: 'claims',
       type: 'claim',

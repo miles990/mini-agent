@@ -24,6 +24,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { eventBus } from './event-bus.js';
@@ -117,7 +118,7 @@ export function cronGate(taskDescription: string): CronGateResult {
     return 'claude';
   }
 
-  const heartbeatPath = path.join(process.cwd(), 'memory', 'HEARTBEAT.md');
+  const heartbeatPath = resolveMemoryPath('HEARTBEAT.md');
 
   // Read file once for both Layer 1 (content hash) and Layer 2 (heuristic + 0.8B)
   let content: string;
@@ -222,7 +223,7 @@ function refreshDynamicPruneList(): Set<string> {
   const pruneSet = new Set<string>();
 
   try {
-    const citationsPath = path.join(process.cwd(), 'memory', 'state', 'perception-citations.json');
+    const citationsPath = resolveMemoryPath('state', 'perception-citations.json');
     if (!fs.existsSync(citationsPath)) return pruneSet;
 
     const data = JSON.parse(fs.readFileSync(citationsPath, 'utf-8'));

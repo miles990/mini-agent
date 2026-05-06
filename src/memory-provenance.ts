@@ -15,6 +15,7 @@
  */
 import crypto from 'node:crypto';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { slog } from './utils.js';
 
@@ -69,7 +70,7 @@ export function memoryIdForContent(content: string): string {
 }
 
 const provenancePath = (): string => {
-  const stateDir = path.join(process.cwd(), 'memory', 'state');
+  const stateDir = resolveMemoryPath('state');
   if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
   return path.join(stateDir, 'memory-provenance.jsonl');
 };

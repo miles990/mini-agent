@@ -21,6 +21,7 @@ import type { ComposePerception } from './types.js';
 import { analyzePerceptions, isAnalysisAvailable } from './perception-analyzer.js';
 import { slog } from './utils.js';
 import { getInstanceDir, getCurrentInstanceId } from './instance.js';
+import { resolveMemoryPath } from './memory-paths.js';
 
 // =============================================================================
 // Perception Cache — persist across restarts
@@ -216,7 +217,7 @@ class PerceptionStreamManager {
 
     // Apply persisted interval adjustments from citation tracking (survives restarts)
     try {
-      const statePath = path.join(process.cwd(), 'memory', 'state', 'perception-citations.json');
+      const statePath = resolveMemoryPath('state', 'perception-citations.json');
       if (fs.existsSync(statePath)) {
         const stateData = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
         const adjusted = stateData.adjustedIntervals ?? {};

@@ -12,6 +12,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { withFileLock } from './filelock.js';
 import { MUSHI_DEDUP_URL } from './mushi-client.js';
 import { createHash } from 'node:crypto';
@@ -202,7 +203,7 @@ async function detectPatterns(): Promise<void> {
 
 async function removeBulletFromTopic(topic: string, bullet: string): Promise<void> {
   const memory = getMemory();
-  const topicPath = path.join(process.cwd(), 'memory', 'topics', `${topic}.md`);
+  const topicPath = resolveMemoryPath('topics', `${topic}.md`);
 
   await withFileLock(topicPath, async () => {
     const content = await memory.readTopicMemory(topic);
@@ -270,7 +271,7 @@ async function detectStaleKnowledge(): Promise<void> {
     if (staleLines.length === 0) continue;
 
     // Auto-archive: remove stale lines from topic file (locked to prevent race with appendTopicMemory)
-    const topicPath = path.join(process.cwd(), 'memory', 'topics', `${topic}.md`);
+    const topicPath = resolveMemoryPath('topics', `${topic}.md`);
     await withFileLock(topicPath, async () => {
       // Re-read inside lock to avoid TOCTOU
       const freshContent = await memory.readTopicMemory(topic);

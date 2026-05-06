@@ -14,6 +14,7 @@ import type { ParsedTags } from './types.js';
 import { callLocalFast } from './omlx-gate.js';
 import { recordCascadeMetric } from './cascade.js';
 import { resolveReplyTasksByRoomMsgId } from './memory-index.js';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 
 // =============================================================================
 // Chat Room Inbox Pre-classification (0.8B cascade)
@@ -145,7 +146,7 @@ function getRoomReplyStatus(): { replied: Set<string>, msgLookup: Map<string, st
 
     const allLines: string[] = [];
     for (const ds of dateStrs) {
-      const jsonlPath = path.join(process.cwd(), 'memory', 'conversations', `${ds}.jsonl`);
+      const jsonlPath = resolveMemoryPath('conversations', `${ds}.jsonl`);
       if (fs.existsSync(jsonlPath)) {
         allLines.push(...fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean));
       }
@@ -424,7 +425,7 @@ export function markChatRoomInboxProcessed(response: string, tags: ParsedTags, a
     // Auto-complete "回覆 alex" tasks whose inbox messages were addressed.
     // Closes the loop: enqueueRoomDirective creates → inbox replied → task completed.
     if (resolvedMsgIds.length > 0) {
-      const memDir = path.join(process.cwd(), 'memory');
+      const memDir = getMemoryRootDir();
       resolveReplyTasksByRoomMsgId(memDir, resolvedMsgIds).catch(() => {});
     }
   } catch { /* fire-and-forget */ }

@@ -15,6 +15,7 @@ import { eventBus } from './event-bus.js';
 import { slog } from './utils.js';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { evaluateWorkspaceIsolation } from './workspace-isolation.js';
 
 // =============================================================================
@@ -199,14 +200,14 @@ function ensureListener(): void {
       failCounts.delete(taskId);
       slog('AUTO-EXEC', `task ${taskId.slice(0, 16)} completed successfully`);
 
-      const memoryDir = path.join(process.cwd(), 'memory');
+      const memoryDir = getMemoryRootDir();
       checkGoalClosure(memoryDir, taskId);
     } else {
       const count = (failCounts.get(taskId) ?? 0) + 1;
       failCounts.set(taskId, count);
       if (count >= MAX_FAILURES_PER_TASK) {
         dispatchedSet.add(taskId);
-        const memoryDir = path.join(process.cwd(), 'memory');
+        const memoryDir = getMemoryRootDir();
         const current = queryMemoryIndexSync(memoryDir, { id: taskId, limit: 1 })[0];
         const payload = (current?.payload ?? {}) as Record<string, unknown>;
         updateMemoryIndexEntry(memoryDir, taskId, {
