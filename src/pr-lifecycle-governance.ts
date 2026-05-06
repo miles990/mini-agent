@@ -107,6 +107,7 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
   const foreignIssueRefs = pr
     ? issueRefs.filter(ref => !allowedIssueRefs.includes(ref))
     : [];
+  const headIsMemoryChore = isMemoryScopedHead(input.commitsAhead[0]);
   const hasReviewerSignal = Boolean(
     pr &&
     (
@@ -127,9 +128,17 @@ export function analyzeBranchLifecycle(input: BranchLifecycleInput): BranchLifec
     guidance.push(`Branch ${input.branch} has no detected PR. Open a PR before treating it as complete.`);
   } else if (foreignIssueRefs.length > 0) {
     status = 'scope-contaminated';
-    shouldBlockPush = true;
-    guidance.push(`PR #${pr.number} allows ${formatRefs(allowedIssueRefs)} but commits reference foreign issue(s): ${formatRefs(foreignIssueRefs)}.`);
-    guidance.push('Split/cherry-pick unrelated commits into their own branch before pushing.');
+    if (headIsMemoryChore) {
+      // Issue #102: HEAD is a memory chore that makes no scope claim of its own.
+      // Branch contamination came from earlier commits; blocking the chore push doesn't fix it
+      // and forces manual override on every memory snapshot. Allow push, surface as warning.
+      shouldBlockPush = false;
+      guidance.push(`HEAD is a memory chore with no scope claim; push allowed despite branch contamination from ${formatRefs(foreignIssueRefs)} (PR #${pr.number} allows ${formatRefs(allowedIssueRefs)}).`);
+    } else {
+      shouldBlockPush = true;
+      guidance.push(`PR #${pr.number} allows ${formatRefs(allowedIssueRefs)} but commits reference foreign issue(s): ${formatRefs(foreignIssueRefs)}.`);
+      guidance.push('Split/cherry-pick unrelated commits into their own branch before pushing.');
+    }
   } else {
     status = 'pending-review';
     guidance.push(`PR #${pr.number} is the active scope. Only amend this PR scope; do not start a new task on this branch.`);
@@ -160,6 +169,12 @@ export function extractIssueRefs(text: string): number[] {
   let m: RegExpExecArray | null;
   while ((m = ISSUE_REF_RE.exec(text)) !== null) refs.push(Number(m[1]));
   return uniqueNumbers(refs);
+}
+
+function isMemoryScopedHead(head?: CommitSummary): boolean {
+  if (!head) return false;
+  // chore(memory): commits are auto-generated memory snapshots — no scope claim, no block.
+  return /^chore\(memory\)/.test(head.subject ?? '');
 }
 
 export function extractAllowedIssueRefs(pr: PullRequestSummary): number[] {

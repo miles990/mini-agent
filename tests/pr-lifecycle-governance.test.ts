@@ -69,6 +69,28 @@ describe('PR lifecycle governance', () => {
     expect(analysis.shouldBlockPush).toBe(false);
   });
 
+  it('downgrades scope-contaminated block when HEAD is a memory-only chore (Issue #102)', () => {
+    const analysis = analyzeBranchLifecycle(input({
+      branch: 'feat/correction-gate-hold-reasons',
+      pullRequest: {
+        number: 95,
+        title: 'feat(correction-gate): respect documented hold reasons',
+        body: 'Implements #94.',
+      },
+      commitsAhead: [
+        // HEAD first (newest first, mirrors `git log` default order)
+        { sha: 'c', subject: 'chore(memory): Added 19 lines of code in memory/handoffs/active.md' },
+        { sha: 'b', subject: 'fix(housekeeping): graphify dispatch (#91)' },
+        { sha: 'a', subject: 'feat(correction-gate): hold reasons (#94)' },
+      ],
+    }));
+
+    expect(analysis.status).toBe('scope-contaminated');
+    expect(analysis.foreignIssueRefs).toEqual([91]);
+    expect(analysis.shouldBlockPush).toBe(false);
+    expect(analysis.guidance.join('\n')).toContain('memory chore');
+  });
+
   it('marks PR without reviewer signal as not complete', () => {
     const analysis = analyzeBranchLifecycle(input({
       branch: 'fix/example',
