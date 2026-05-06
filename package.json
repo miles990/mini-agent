@@ -17,6 +17,7 @@
     "self-research:plan": "pnpm build && node scripts/self-research-plan.mjs",
     "sync:github-issues": "pnpm build && node dist/issue-autopilot-cli.js",
     "janitor:workspaces": "tsx scripts/workspace-janitor.ts",
+    "janitor:workspaces:apply": "tsx scripts/workspace-janitor.ts --apply",
     "check:runtime-workspace": "tsx scripts/check-runtime-workspace.ts",
     "setup:external-memory": "tsx scripts/setup-external-memory.ts",
     "memory:repo:setup": "tsx scripts/setup-memory-repo.ts --init",
