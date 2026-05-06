@@ -12,6 +12,12 @@ import {
   type CorrectionHold,
 } from './correction-holds.js';
 import { isCodePath, isSafeRuntimeBranch } from './workspace-isolation.js';
+import {
+  SIGNAL_LAG_THRESHOLD,
+  getConsecutiveEmissionCount,
+  markTaskSuppressed,
+  recordLowResponsivenessEmission,
+} from './responsiveness-lag-tracker.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -86,6 +92,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
 
   const reasons: CorrectionReason[] = [];
   const guidance: string[] = [];
+  const anomalies: string[] = [];
 
   if (fulfillment < 0.5) {
     const unfinished = pledgeTasks.filter(t => !['completed', 'done'].includes(t.status));
@@ -102,9 +109,27 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
       guidance.push(`響應力低 (${Math.round(responsiveness * 100)}%) 但有 active hold (${respHold.matchedBy}): ${respHold.hold.reason}`);
     } else {
       const stalest = [...activeTasks].sort((a, b) => ((b.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0) - ((a.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0))[0];
-      const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展${stalest ? `，最停滯: ${stalest.summary?.slice(0, 50)}` : ''}。推進它。`;
-      reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest?.id });
-      guidance.push(message);
+
+      if (stalest) {
+        const consecutiveCount = getConsecutiveEmissionCount(memoryDir, stalest.id);
+        if (consecutiveCount >= SIGNAL_LAG_THRESHOLD) {
+          // Same task named stalest ≥ SIGNAL_LAG_THRESHOLD times without real progress.
+          // Suppress re-emit to avoid performative firing on stale ledger.
+          markTaskSuppressed(memoryDir, stalest.id);
+          const lagMsg = `signal-lag: task ${stalest.id} (${stalest.summary?.slice(0, 50)}) drove low-responsiveness ${consecutiveCount} consecutive cycles — suppressed. Ledger may be stale; verify GitHub state and run task close if resolved.`;
+          anomalies.push(`signal-lag:${stalest.id}`);
+          guidance.push(lagMsg);
+        } else {
+          recordLowResponsivenessEmission(memoryDir, stalest.id);
+          const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展，最停滯: ${stalest.summary?.slice(0, 50)}。推進它。`;
+          reasons.push({ type: 'low-responsiveness', severity: 'medium', message, taskId: stalest.id });
+          guidance.push(message);
+        }
+      } else {
+        const message = `響應力低 (${Math.round(responsiveness * 100)}%) — 平均 ${avgStaleness.toFixed(1)} cycles 沒進展。推進它。`;
+        reasons.push({ type: 'low-responsiveness', severity: 'medium', message });
+        guidance.push(message);
+      }
     }
   }
 
@@ -170,6 +195,10 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     ? ['self-research', 'open-cycle-discovery']
     : [];
 
+  if (needsCorrection) {
+    anomalies.push('needs-correction');
+  }
+
   return {
     score,
     needsCorrection,
@@ -179,7 +208,7 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
       quality: { value: quality, weight: 25, contribution: Math.round(quality * 25 * 10) / 10, detail: `output rate ${Math.round(outputRate * 100)}%` },
     },
     guidance,
-    anomalies: needsCorrection ? ['needs-correction'] : [],
+    anomalies,
     reasons,
     suppressedActions,
     shipTruth,
