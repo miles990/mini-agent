@@ -47,6 +47,25 @@ export interface HandoffClosureResult {
   appended: number;
 }
 
+export type PrConflictAction = 'none' | 'attempt-update-branch' | 'needs-decomposition' | 'needs-verification';
+
+export interface PrConflictInput {
+  number: number;
+  title: string;
+  body?: string | null;
+  mergeable?: string | null;
+  reviewDecision?: string | null;
+  labels?: string[];
+  isDraft?: boolean;
+  changedFiles: string[];
+}
+
+export interface PrConflictDecision {
+  action: PrConflictAction;
+  reason: string;
+  risk: 'low' | 'medium' | 'high';
+}
+
 export interface BranchLifecycleInput {
   branch: string | null;
   baseBranch: string;
@@ -260,6 +279,32 @@ export function closeMergedPrHandoffs(
   return { content: content + '\n', updated, appended };
 }
 
+export function decidePrConflictAction(pr: PrConflictInput): PrConflictDecision {
+  const labels = new Set((pr.labels ?? []).map(l => l.toLowerCase()));
+  if (pr.mergeable !== 'CONFLICTING') {
+    return { action: 'none', risk: 'low', reason: 'PR is not currently marked conflicting' };
+  }
+  if (pr.isDraft || labels.has('hold')) {
+    return { action: 'none', risk: 'medium', reason: 'draft or hold PR should not be conflict-updated automatically' };
+  }
+
+  const files = uniqueStrings(pr.changedFiles);
+  if (!hasCompletedVerification(pr.body ?? '')) {
+    return { action: 'needs-verification', risk: 'medium', reason: 'conflicting PR lacks completed verification evidence' };
+  }
+  if (isScopeBroad(files)) {
+    return {
+      action: 'needs-decomposition',
+      risk: 'high',
+      reason: `conflict spans broad scope (${files.length} files) and should be split or rebuilt from main`,
+    };
+  }
+  if (pr.reviewDecision === 'APPROVED') {
+    return { action: 'attempt-update-branch', risk: 'medium', reason: 'approved conflicting PR has narrow verified scope' };
+  }
+  return { action: 'none', risk: 'medium', reason: 'conflicting PR is waiting for review approval before branch update' };
+}
+
 function pickReviewAssignment(pr: OpenPullRequestSummary): {
   reviewers: [PrReviewer, ...PrReviewer[]];
   framework: PrReviewFramework;
@@ -296,10 +341,48 @@ function riskClass(pr: OpenPullRequestSummary): string {
   return 'standard';
 }
 
+function hasCompletedVerification(text: string): boolean {
+  const section = extractMarkdownSection(text, /^##\s+Verification\b/im);
+  if (!section) return false;
+  return /(?:^|\n)\s*-\s*\[[xX]\]\s+/.test(section)
+    || /\b(?:passed|passes|clean|success|ok)\b/i.test(section);
+}
+
+function extractMarkdownSection(text: string, heading: RegExp): string | null {
+  const match = heading.exec(text);
+  if (!match) return null;
+  const start = match.index;
+  const rest = text.slice(start);
+  const next = rest.slice(match[0].length).search(/\n##\s+/);
+  return next >= 0 ? rest.slice(0, match[0].length + next) : rest;
+}
+
+function isScopeBroad(files: string[]): boolean {
+  if (files.length > 6) return true;
+  const domains = new Set(files.map(fileDomain));
+  if (domains.size > 3) return true;
+  return files.some(file => /^memory\/(?:handoffs|topics|MEMORY\.md)/.test(file))
+    && files.some(file => /^(src|tests|scripts|\.githooks|package\.json)/.test(file));
+}
+
+function fileDomain(file: string): string {
+  if (file === 'package.json' || file === 'pnpm-lock.yaml') return 'package';
+  if (file.startsWith('src/')) return `src/${file.split('/')[1] ?? ''}`;
+  if (file.startsWith('tests/')) return 'tests';
+  if (file.startsWith('memory/')) return 'memory';
+  if (file.startsWith('scripts/')) return 'scripts';
+  if (file.startsWith('.githooks/')) return 'hooks';
+  return file.split('/')[0] ?? file;
+}
+
 function formatRefs(refs: number[]): string {
   return refs.length > 0 ? refs.map(ref => `#${ref}`).join(', ') : '(none)';
 }
 
 function uniqueNumbers(values: number[]): number[] {
   return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
