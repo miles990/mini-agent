@@ -71,3 +71,8 @@
 | github | kuro | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-06 |
 | github | kuro | PR #86 fix(loop): instrument soft-gate try-entry (#81) | merged | 05-06 | 05-06 |
 | github | kuro | #99 correction-gate: low-output-quality OUTPUT_PATTERNS misses real deliverables (gh issue/pr create, file edits, commits) | needs-triage | 05-06 | — |
+| github | kuro | #100 post-commit hook: auto-allow scope-contamination for chore(memory):* commits | needs-triage | 05-06 | — |
+| github | akari | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | codex | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | claude-code | PR #101 feat: add PR review claim consensus runner | needs-review | 05-06 | - |
+| github | kuro | #102 pr-lifecycle scope-guard false-positive: chore(memory) commits blocked by branch-level ref aggregation | needs-triage | 05-06 | — |
