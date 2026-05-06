@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runtime checkout guard:
-# code/config commits must happen in isolated feature worktrees, not in the
-# protected runtime/deploy checkout. Memory/state commits remain allowed.
+# code/config and repo-local memory commits must happen outside the protected
+# runtime/deploy checkout. Runtime memory writes belong in MINI_AGENT_MEMORY_DIR.
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "[runtime-workspace] pnpm not found; skipping guard" >&2
