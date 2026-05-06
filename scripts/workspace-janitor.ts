@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { isSafeRuntimeBranch } from '../src/workspace-isolation.js';
 
 interface WorktreeRecord {
   path: string;
@@ -28,7 +29,7 @@ const protectedRoot = path.resolve(process.env.MINI_AGENT_RUNTIME_WORKSPACE ?? i
 
 const actions: JanitorAction[] = [];
 
-if (path.resolve(root) === protectedRoot && !['main', 'runtime/main'].includes(currentBranch)) {
+if (path.resolve(root) === protectedRoot && !isSafeRuntimeBranch(currentBranch)) {
   actions.push({
     type: 'warn-runtime-branch',
     target: currentBranch,
@@ -60,7 +61,7 @@ for (const wt of worktrees) {
 }
 
 for (const branch of readLocalBranches()) {
-  if (['main', 'runtime/main'].includes(branch)) continue;
+  if (branch === 'runtime/main') continue;
   if (openPrBranches.has(branch)) continue;
   if (isBranchCheckedOut(branch, worktrees)) continue;
   if (mergedPrBranches.has(branch) || isMergedToBase(branch, base)) {
