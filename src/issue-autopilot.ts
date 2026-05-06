@@ -6,6 +6,7 @@ export interface GitHubIssueSummary {
   number: number;
   title: string;
   url?: string;
+  state?: 'OPEN' | 'CLOSED' | string;
   body?: string;
   labels?: Array<{ name: string } | string>;
   assignees?: Array<{ login: string } | string>;
@@ -35,6 +36,7 @@ export interface IssueAutopilotSyncResult {
   scanned: number;
   created: number;
   updated: number;
+  closed: number;
   skipped: number;
   plans: IssueTaskPlan[];
 }
@@ -74,13 +76,36 @@ export async function syncGitHubIssuesToTasks(
   issues: GitHubIssueSummary[],
   options: IssueAutopilotSyncOptions,
 ): Promise<IssueAutopilotSyncResult> {
-  const plans = issues
-    .filter(issue => Number.isInteger(issue.number) && issue.number > 0 && issue.title.trim().length > 0)
-    .map(issue => planIssueTask(issue, options));
+  const validIssues = issues
+    .filter(issue => Number.isInteger(issue.number) && issue.number > 0 && issue.title.trim().length > 0);
+  const openIssues = validIssues.filter(issue => (issue.state ?? 'OPEN').toUpperCase() !== 'CLOSED');
+  const closedIssues = validIssues.filter(issue => (issue.state ?? 'OPEN').toUpperCase() === 'CLOSED');
+  const plans = openIssues.map(issue => planIssueTask(issue, options));
 
   let created = 0;
   let updated = 0;
+  let closed = 0;
   let skipped = 0;
+
+  // Reconcile: GitHub-closed issues whose local task entry is still pending/in_progress.
+  // Without this, closed issues stay rendered as P0 forever (root cause of stale task queue).
+  for (const issue of closedIssues) {
+    const id = issueTaskId(options.repo, issue.number);
+    const existing = queryMemoryIndexSync(memoryDir, { id, limit: 1 })[0];
+    if (!existing) { skipped++; continue; }
+    if (TERMINAL_TASK_STATUSES.has(String(existing.status))) { skipped++; continue; }
+    if (options.dryRun) { closed++; continue; }
+    await updateMemoryIndexEntry(memoryDir, existing.id, {
+      status: 'completed',
+      payload: {
+        ...(existing.payload ?? {}),
+        closed_via: 'issue-autopilot-reconciliation',
+        github_state: 'CLOSED',
+        closed_at: (options.now ?? new Date()).toISOString(),
+      },
+    });
+    closed++;
+  }
 
   for (const plan of plans) {
     const existing = queryMemoryIndexSync(memoryDir, { id: plan.id, limit: 1 })[0];
@@ -116,8 +141,8 @@ export async function syncGitHubIssuesToTasks(
     created++;
   }
 
-  const result = { scanned: issues.length, created, updated, skipped, plans };
-  slog('ISSUE-AUTOPILOT', `scanned=${result.scanned} created=${created} updated=${updated} skipped=${skipped}`);
+  const result = { scanned: issues.length, created, updated, closed, skipped, plans };
+  slog('ISSUE-AUTOPILOT', `scanned=${result.scanned} created=${created} updated=${updated} closed=${closed} skipped=${skipped}`);
   return result;
 }
 
@@ -128,11 +153,11 @@ export function readOpenIssuesFromGitHub(repo: string, limit = 50): GitHubIssueS
     '--repo',
     repo,
     '--state',
-    'open',
+    'all',
     '--limit',
     String(limit),
     '--json',
-    'number,title,url,labels,assignees,createdAt,updatedAt',
+    'number,title,url,state,labels,assignees,createdAt,updatedAt',
   ], {
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
