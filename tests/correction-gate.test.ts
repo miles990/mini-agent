@@ -108,19 +108,27 @@ describe('correction gate', () => {
   });
 
   it('flags protected runtime checkout when it is on main instead of runtime/main', () => {
-    execGit(['init'], tmpDir);
-    execGit(['config', 'user.email', 'test@example.com'], tmpDir);
-    execGit(['config', 'user.name', 'Test User'], tmpDir);
-    writeFileSync(path.join(tmpDir, 'README.md'), 'runtime guard fixture\n', 'utf-8');
-    execGit(['add', 'README.md'], tmpDir);
-    execGit(['commit', '-m', 'init'], tmpDir);
-    execGit(['branch', '-M', 'main'], tmpDir);
+    try {
+      execGit(['init'], tmpDir);
+      execGit(['config', 'user.email', 'test@example.com'], tmpDir);
+      execGit(['config', 'user.name', 'Test User'], tmpDir);
+      writeFileSync(path.join(tmpDir, 'README.md'), 'runtime guard fixture\n', 'utf-8');
+      execGit(['add', 'README.md'], tmpDir);
+      execGit(['commit', '-m', 'init'], tmpDir);
+      execGit(['branch', '-M', 'main'], tmpDir);
+      process.env.MINI_AGENT_RUNTIME_WORKSPACE = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+      }).trim();
 
-    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+      const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
 
-    expect(snapshot.needsCorrection).toBe(true);
-    expect(snapshot.reasons.map(r => r.type)).toContain('runtime-workspace-wrong-branch');
-    expect(snapshot.guidance.join('\n')).toContain('只能在 runtime/main');
+      expect(snapshot.needsCorrection).toBe(true);
+      expect(snapshot.reasons.map(r => r.type)).toContain('runtime-workspace-wrong-branch');
+      expect(snapshot.guidance.join('\n')).toContain('只能在 runtime/main');
+    } finally {
+      delete process.env.MINI_AGENT_RUNTIME_WORKSPACE;
+    }
   });
 
   it('classifies only managed/code dirt as blocking runtime dirt', () => {

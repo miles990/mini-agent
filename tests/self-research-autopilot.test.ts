@@ -21,6 +21,7 @@ describe('self research autopilot', () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(result.queued).toBe(true);
@@ -60,6 +61,7 @@ describe('self research autopilot', () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(result).toEqual({ queued: false, reason: 'active-tasks-present' });
@@ -83,6 +85,7 @@ describe('self research autopilot', () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(result.queued).toBe(true);
@@ -130,6 +133,7 @@ describe('self research autopilot', () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(result).toEqual({
@@ -143,6 +147,7 @@ describe('self research autopilot', () => {
     const first = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
     expect(first.queued).toBe(true);
 
@@ -156,6 +161,7 @@ describe('self research autopilot', () => {
     const second = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
       now: new Date('2026-05-05T12:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(second).toEqual({ queued: false, reason: 'daily-proposal-already-exists' });
@@ -165,6 +171,7 @@ describe('self research autopilot', () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'telegram-user',
       now: new Date('2026-05-05T00:00:00.000Z'),
+      repoRoot: tmpDir,
     });
 
     expect(result).toEqual({ queued: false, reason: 'not-idle-trigger' });

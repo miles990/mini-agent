@@ -65,6 +65,16 @@ import {
 } from '../src/delegation.js';
 import { prepareForgeWorkspace } from '../src/forge.js';
 
+function validPrompt(text: string): string {
+  return [
+    '## Task:',
+    text,
+    '',
+    '## Context:',
+    'This is an explicit test envelope that should pass the phantom-prompt pre-dispatch guard.',
+  ].join('\n');
+}
+
 beforeEach(() => {
   delete process.env.MINI_AGENT_DELEGATION_RUNTIME;
   vi.mocked(prepareForgeWorkspace).mockReset();
@@ -126,7 +136,7 @@ describe('delegation arbitration mapping', () => {
 
   it('acquires a write lease for workspace-write delegations', () => {
     const id = spawnDelegation({
-      prompt: 'Update src/agent.ts',
+      prompt: validPrompt('Update src/agent.ts'),
       workdir: '/repo',
       type: 'code',
     });
@@ -145,7 +155,7 @@ describe('delegation arbitration mapping', () => {
     vi.mocked(prepareForgeWorkspace).mockReturnValueOnce({ cwd: '/repo-forge/create-1', worktree: '/repo-forge/create-1' });
 
     const id = spawnDelegation({
-      prompt: 'Create docs/guide.md',
+      prompt: validPrompt('Create docs/guide.md'),
       workdir: '/repo',
       type: 'create',
     });
@@ -166,7 +176,7 @@ describe('delegation arbitration mapping', () => {
     });
 
     const id = spawnDelegation({
-      prompt: 'Update src/agent.ts',
+      prompt: validPrompt('Update src/agent.ts'),
       workdir: process.cwd(),
       type: 'code',
     });
@@ -178,12 +188,12 @@ describe('delegation arbitration mapping', () => {
 
   it('blocks overlapping write scopes instead of dispatching them', () => {
     const first = spawnDelegation({
-      prompt: 'Update src/agent.ts',
+      prompt: validPrompt('Update src/agent.ts'),
       workdir: '/repo',
       type: 'code',
     });
     const second = spawnDelegation({
-      prompt: 'Refactor src/agent.ts',
+      prompt: validPrompt('Refactor src/agent.ts'),
       workdir: '/repo',
       type: 'code',
     });
@@ -196,7 +206,7 @@ describe('delegation arbitration mapping', () => {
 
   it('blocks external writes before dispatch', () => {
     const id = spawnDelegation({
-      prompt: 'P0 deploy this and push main',
+      prompt: validPrompt('P0 deploy this and push main after verification evidence is complete'),
       workdir: '/repo',
       type: 'shell',
     });
@@ -208,7 +218,7 @@ describe('delegation arbitration mapping', () => {
   it('can execute delegations through BrainRuntime when enabled', async () => {
     process.env.MINI_AGENT_DELEGATION_RUNTIME = 'true';
     const id = spawnDelegation({
-      prompt: 'Review the runtime adapter',
+      prompt: validPrompt('Review the runtime adapter and return verification evidence for the delegated run'),
       workdir: '/repo',
       type: 'review',
     });
@@ -234,7 +244,7 @@ describe('delegation arbitration mapping', () => {
   it('includes Akari peer critique for architecture delegations through BrainRuntime', async () => {
     process.env.MINI_AGENT_DELEGATION_RUNTIME = 'true';
     const id = spawnDelegation({
-      prompt: 'Ask Akari to critique the multi-brain runtime',
+      prompt: validPrompt('Ask Akari to critique the multi-brain runtime and summarize actionable design risk'),
       workdir: '/repo',
       type: 'akari',
     });

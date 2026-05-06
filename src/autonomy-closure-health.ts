@@ -5,10 +5,12 @@ import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIn
 import { evaluatePrReviewConsensus, parsePrReviewHandoffs, readPrReviewClaimsSync } from './pr-review-runner.js';
 import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
+import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autopilot.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
   | 'task-execution'
+  | 'test-health'
   | 'issue-autopilot'
   | 'pr-review-consensus'
   | 'ship-and-deploy'
@@ -60,6 +62,7 @@ export function evaluateAutonomyClosure(
   const stages: AutonomyClosureStageResult[] = [
     runtimeWorkspaceStage(correction),
     taskExecutionStage(openTasks),
+    testHealthStage(memoryDir),
     issueAutopilotStage(openTasks),
     prReviewConsensusStage(memoryDir),
     shipAndDeployStage(correction),
@@ -250,6 +253,37 @@ function taskExecutionStage(openTasks: MemoryIndexEntry[]): AutonomyClosureStage
     status: 'ok',
     summary: `${openTasks.length} open task(s), none exhausted`,
     evidence: openTasks.slice(0, 5).map(formatTaskEvidence),
+  };
+}
+
+function testHealthStage(memoryDir: string): AutonomyClosureStageResult {
+  const snapshot = readTestHealthSnapshot(memoryDir);
+  if (!snapshot) {
+    return {
+      stage: 'test-health',
+      status: 'ok',
+      summary: 'no recorded test failure',
+      evidence: [],
+    };
+  }
+  if (snapshot.status === 'failed') {
+    return {
+      stage: 'test-health',
+      status: 'blocked',
+      summary: summarizeTestHealth(snapshot),
+      evidence: [
+        `checkedAt=${snapshot.checkedAt}`,
+        `exitCode=${snapshot.exitCode}`,
+        ...snapshot.failedFiles.slice(0, 5).map(f => `${f.file}${f.failedCount ? ` (${f.failedCount} failed)` : ''}`),
+      ],
+      repair: 'Run the failing test files in isolation, fix the root cause or stale test expectation, then rerun pnpm check:test-health.',
+    };
+  }
+  return {
+    stage: 'test-health',
+    status: 'ok',
+    summary: summarizeTestHealth(snapshot),
+    evidence: [`checkedAt=${snapshot.checkedAt}`, `exitCode=${snapshot.exitCode}`],
   };
 }
 

@@ -16,6 +16,7 @@ import { evaluateCorrectionGate } from './correction-gate.js';
 export interface SelfResearchAutopilotOptions {
   triggerReason?: string | null;
   now?: Date;
+  repoRoot?: string;
 }
 
 export interface SelfResearchAutopilotResult {
@@ -44,7 +45,7 @@ export async function maybeQueueSelfResearch(
     return { queued: false, reason: 'not-idle-trigger' };
   }
 
-  const correction = evaluateCorrectionGate(memoryDir);
+  const correction = evaluateCorrectionGate(memoryDir, opts.repoRoot);
   if (correction.needsCorrection) {
     return { queued: false, reason: `suppressed-by-correction:${correction.reasons[0]?.type ?? 'unknown'}` };
   }
