@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "verify:brain-context": "pnpm build && node scripts/verify-brain-context.mjs",
     "self-research:plan": "pnpm build && node scripts/self-research-plan.mjs",
+    "sync:github-issues": "pnpm build && node dist/issue-autopilot-cli.js",
     "setup": "pnpm install && pnpm build && npm link",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "check:pr-lifecycle": "tsx scripts/check-pr-lifecycle.ts"

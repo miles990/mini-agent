@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CACHE_FILE="${TMPDIR:-/tmp}/mini-agent-github-issues.cache"
 CACHE_TTL=60  # seconds
+mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
 
 # ─── gh CLI 可用性檢查 ───
 if ! command -v gh &>/dev/null; then
@@ -42,6 +43,23 @@ fi
 
 count=$(echo "$issues" | jq 'length')
 output="=== Open Issues: $count ==="
+
+# ─── Issue Autopilot：把 open issue 寫入 memory index，讓 scheduler 能接手 ───
+if [ "${MINI_AGENT_GITHUB_ISSUE_AUTOPILOT:-1}" != "0" ]; then
+  if [ -f "$PROJECT_DIR/dist/issue-autopilot-cli.js" ]; then
+    sync_output=$(MINI_AGENT_MEMORY_DIR="$PROJECT_DIR/memory" node "$PROJECT_DIR/dist/issue-autopilot-cli.js" --json --limit 50 2>/dev/null | sed -n '/^{/,$p')
+    if [ -n "$sync_output" ]; then
+      sync_summary=$(echo "$sync_output" | jq -r '"Issue Autopilot: scanned=\(.scanned) created=\(.created) updated=\(.updated) skipped=\(.skipped)"' 2>/dev/null)
+      if [ -n "$sync_summary" ]; then
+        output="$output
+$sync_summary"
+      fi
+    fi
+  else
+    output="$output
+Issue Autopilot: dist missing; run pnpm build"
+  fi
+fi
 
 # ─── Needs Triage（無 assignee）───
 needs_triage=$(echo "$issues" | jq -r '
