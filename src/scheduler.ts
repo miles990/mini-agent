@@ -78,6 +78,9 @@ const ATTENTION_BUDGET = 15;
 const DISCOVERY_INTERVAL = 10;
 const AGING_BOOST_TICKS = 30;
 
+/** Consecutive terminal-signal cycles before a task is suppressed from dispatch. */
+export const DISPATCH_SUPPRESSION_THRESHOLD = 3;
+
 // =============================================================================
 // Default Scheduler
 // =============================================================================
@@ -325,6 +328,13 @@ export function schedulerPick(
     .filter(t => {
       const proc = getProcess(t.id);
       return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
+    })
+    .filter(t => {
+      if (suppressedTaskIds.has(t.id)) {
+        slog('SCHED', `dispatch-suppression: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)}`);
+        return false;
+      }
+      return true;
     });
   const decision = scheduler.decideNext(tasks, schedulerState, events);
   const correctionTask = entries.find(isCorrectionTask);
@@ -377,6 +387,69 @@ export function schedulerTaskDone(taskId: string): void {
   }
   needsPickNext = true;
   eventBus.emit('action:scheduler', { event: 'task-done', taskId });
+}
+
+// =============================================================================
+// Dispatch Suppression (GitHub issue #196)
+// =============================================================================
+
+/**
+ * In-memory registry tracking consecutive terminal-signal cycles per task.
+ * Persists for the process lifetime; resets on restart.
+ */
+const terminalSignalCount = new Map<string, number>();
+const suppressedTaskIds = new Set<string>();
+
+/**
+ * Record that a dispatched task produced a terminal outcome this cycle
+ * (e.g. <kuro:done>, done/blocked/waiting-external signal detected).
+ * After DISPATCH_SUPPRESSION_THRESHOLD consecutive calls the task is suppressed.
+ */
+export function recordTaskTerminalSignal(taskId: string): void {
+  const prev = terminalSignalCount.get(taskId) ?? 0;
+  const next = prev + 1;
+  terminalSignalCount.set(taskId, next);
+  if (next >= DISPATCH_SUPPRESSION_THRESHOLD && !suppressedTaskIds.has(taskId)) {
+    suppressedTaskIds.add(taskId);
+    slog('SCHED', `dispatch-suppressed task=${taskId.slice(0, 12)} after ${next} consecutive terminal signals`);
+    eventBus.emit('action:scheduler', { event: 'dispatch-suppressed', taskId, terminalCycles: next });
+  }
+}
+
+/**
+ * Reset suppression state for a task.
+ * Call on external triggers: new room message, file-change, PR event, etc.
+ */
+export function resetTaskSuppression(taskId: string): void {
+  if (suppressedTaskIds.has(taskId) || terminalSignalCount.has(taskId)) {
+    suppressedTaskIds.delete(taskId);
+    terminalSignalCount.delete(taskId);
+    slog('SCHED', `suppression-reset task=${taskId.slice(0, 12)}`);
+    eventBus.emit('action:scheduler', { event: 'suppression-reset', taskId });
+  }
+}
+
+/** Reset all dispatch suppression state (e.g. on broad external trigger). */
+export function resetAllSuppressions(): void {
+  const count = suppressedTaskIds.size;
+  suppressedTaskIds.clear();
+  terminalSignalCount.clear();
+  if (count > 0) {
+    slog('SCHED', `suppression-reset-all cleared ${count} suppressed tasks`);
+    eventBus.emit('action:scheduler', { event: 'suppression-reset-all', count });
+  }
+}
+
+export function isTaskSuppressed(taskId: string): boolean {
+  return suppressedTaskIds.has(taskId);
+}
+
+export function getSuppressedTaskIds(): string[] {
+  return [...suppressedTaskIds];
+}
+
+export function getTerminalSignalCount(taskId: string): number {
+  return terminalSignalCount.get(taskId) ?? 0;
 }
 
 export function consumeNeedsPickNext(): boolean {
