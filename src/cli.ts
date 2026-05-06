@@ -63,6 +63,7 @@ import { initObservability } from './observability.js';
 import { initActivityJournal } from './activity-journal.js';
 import { perceptionStreams } from './perception-stream.js';
 import { initClaudeMdJIT } from './claudemd-jit.js';
+import { assertRuntimeMemoryPlacement } from './memory-paths.js';
 import type { InstanceConfig } from './types.js';
 
 // =============================================================================
@@ -1340,6 +1341,8 @@ function describeCapability(pluginName: string): string {
 }
 
 async function runChat(port: number): Promise<void> {
+  const memoryPlacement = assertRuntimeMemoryPlacement();
+
   // 同時啟動 API server
   const app = createApi(port);
   const config = await getConfig();
@@ -1487,6 +1490,7 @@ async function runChat(port: number): Promise<void> {
     console.log(`Mini-Agent - Memory + Cron + Loop`);
     console.log(`Instance: ${instanceId}`);
     console.log(`API server: http://localhost:${port}`);
+    console.log(`Memory: ${memoryPlacement.memoryRoot} (${memoryPlacement.reason})`);
     if (cronCount > 0) {
       console.log(`Cron: ${cronCount} task(s) active`);
     }

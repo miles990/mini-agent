@@ -17,7 +17,7 @@ import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
-import { getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
+import { assertRuntimeMemoryPlacement, getMemoryRootDir, resolveMemoryPath } from './memory-paths.js';
 import { monitorEventLoopDelay, type IntervalHistogram } from 'node:perf_hooks';
 import express, { type Request, type Response, type NextFunction } from 'express';
 
@@ -3651,6 +3651,7 @@ process.on('unhandledRejection', (reason) => {
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
   const port = parseInt(process.env.PORT ?? '3001', 10);
+  const memoryPlacement = assertRuntimeMemoryPlacement();
   const app = createApi(port);
   const instanceId = getCurrentInstanceId();
   const instanceConfig = loadInstanceConfig(instanceId);
@@ -3871,6 +3872,7 @@ if (isMain) {
 
   const server = app.listen(port, '0.0.0.0', () => {
     slog('SERVER', `Started on :${port} (instance: ${instanceId})`);
+    slog('MEMORY', `${memoryPlacement.memoryRoot} (${memoryPlacement.reason})`);
     const cronCount = getCronTaskCount();
     if (cronCount > 0) slog('CRON', `${cronCount} task(s) active`);
     if (loopRef) {
