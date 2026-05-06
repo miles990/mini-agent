@@ -49,3 +49,4 @@
 | github | kuro | #85 memory: minimal-mode heartbeat section-extract path uncapped (Active Tasks bloat ~5KB into stripped-context retries) | needs-triage | 05-05 | — |
 | github | kuro | #87 extractDecisionBlock regex misses bulleted Decision blocks (- chose:) — 8/8 soft-gate skip evidence | needs-triage | 05-05 | — |
 | github | kuro | #88 soft-gate hasMarker=false on substantial response — head-snippet missing for 5th-layer diagnosis | needs-triage | 05-05 | — |
+| github | kuro | #91 graphify delegation routes prose to shell worker → 156 cumulative bash FAILs | needs-triage | 05-06 | — |
