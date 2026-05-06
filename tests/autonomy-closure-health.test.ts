@@ -98,4 +98,50 @@ describe('autonomy closure health', () => {
     expect(closed).toHaveLength(1);
     expect(queryMemoryIndexSync(tmpDir, { id: 'idx-existing', limit: 1 })[0].status).toBe('completed');
   });
+
+  it('refreshes an existing repair task with the latest closure snapshot', async () => {
+    writeFileSync(
+      path.join(tmpDir, 'state/task-events.jsonl'),
+      [
+        JSON.stringify({
+          id: 'idx-existing',
+          ts: '2026-05-07T00:00:00.000Z',
+          type: 'task',
+          status: 'pending',
+          summary: 'P0 autonomy closure: repair old-stage',
+          refs: [],
+          tags: ['autonomy-closure'],
+          payload: {
+            origin: 'autonomy-closure',
+            priority: 0,
+            acceptance_criteria: 'old stale blocker',
+          },
+        }),
+        JSON.stringify({
+          id: 'idx-exhausted',
+          ts: '2026-05-07T00:00:00.000Z',
+          type: 'task',
+          status: 'hold',
+          summary: 'P1 failing autonomous issue repair',
+          refs: [],
+          payload: {
+            origin: 'github-issue',
+            priority: 1,
+            verify_command: 'pnpm test',
+            auto_executor_failures: 3,
+          },
+        }),
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
+    const task = await ensureAutonomyClosureTask(tmpDir, snapshot);
+
+    expect(task?.id).toBe('idx-existing');
+    expect(task?.summary).toBe('P0 autonomy closure: repair task-execution');
+    expect(task?.payload?.acceptance_criteria).toContain('1 task(s) exhausted autonomous retries');
+    expect(task?.payload?.closure_refreshed_at).toEqual(expect.any(String));
+  });
 });

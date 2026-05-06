@@ -105,10 +105,30 @@ export async function ensureAutonomyClosureTask(
     type: ['task'],
     status: ACTIVE_STATUSES,
   }).find(isAutonomyClosureTask);
-  if (existing) return existing;
 
   const recommendation = snapshot.recommendedTask;
   if (!recommendation) return null;
+
+  if (existing) {
+    const refreshed = await updateMemoryIndexEntry(memoryDir, existing.id, {
+      summary: recommendation.title,
+      payload: {
+        ...((existing.payload ?? {}) as Record<string, unknown>),
+        origin: AUTONOMY_CLOSURE_ORIGIN,
+        priority: recommendation.priority,
+        assignee: 'kuro',
+        verify_command: recommendation.verifyCommand,
+        acceptance_criteria: recommendation.acceptanceCriteria,
+        closure_status: snapshot.status,
+        closure_score: snapshot.score,
+        blocking_stages: snapshot.blockingStages,
+        warning_stages: snapshot.warningStages,
+        closure_refreshed_at: new Date().toISOString(),
+      },
+      tags: ['autonomy-closure', snapshot.status],
+    });
+    return refreshed ?? existing;
+  }
 
   const task = await createTask(memoryDir, {
     title: recommendation.title,
