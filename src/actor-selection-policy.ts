@@ -7,7 +7,7 @@
  */
 
 import type { ActorId, WorkIntent, WorkItem, WorkRisk } from './brain-types.js';
-import { getActorProfile, type ActorProfile, type ActorRoleTendency } from './actor-registry.js';
+import { getActorProfile, getDefaultDispatchableActors, type ActorProfile, type ActorRoleTendency } from './actor-registry.js';
 import type { ActorOutcomeStats } from './actor-outcome-stats.js';
 
 export type SelectionRole = 'primary' | 'reviewer' | 'advisor' | 'executor';
@@ -23,8 +23,6 @@ export interface SelectionOptions {
   availableActors?: ActorId[];
   actorStats?: ActorOutcomeStats;
 }
-
-const DEFAULT_AVAILABLE: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari', 'human'];
 
 const INTENT_CAPABILITY_HINTS: Record<WorkIntent, string[]> = {
   chat: ['low-cost-reasoning', 'writing'],
@@ -46,7 +44,7 @@ export function rankActorsForRole(
   role: SelectionRole,
   opts: SelectionOptions = {},
 ): ActorScore[] {
-  const available = opts.availableActors ?? DEFAULT_AVAILABLE;
+  const available = opts.availableActors ?? getDefaultDispatchableActors();
   return available
     .map(actor => scoreActor(item, actor, role, opts))
     .filter((score): score is ActorScore => score !== null)

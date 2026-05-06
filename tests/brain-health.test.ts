@@ -5,6 +5,7 @@ import {
   isBrainRuntimeDelegationEnabled,
   refreshBrainHealth,
 } from '../src/brain-health.js';
+import { getDefaultDispatchableActors } from '../src/actor-registry.js';
 import type { BrainProvider, ProviderId } from '../src/brain-types.js';
 
 const originalFlag = process.env.MINI_AGENT_DELEGATION_RUNTIME;
@@ -35,7 +36,12 @@ function provider(id: ProviderId, available: boolean): BrainProvider {
 describe('brain health registry', () => {
   it('starts with an optimistic cached actor set before refresh', () => {
     expect(getCachedBrainHealthSnapshot().checkedAt).toBe('1970-01-01T00:00:00.000Z');
-    expect(getCachedAvailableBrainActors()).toEqual(expect.arrayContaining(['claude', 'codex', 'shell']));
+    expect(getCachedAvailableBrainActors()).toEqual(getDefaultDispatchableActors());
+    expect(getCachedAvailableBrainActors()).not.toContain('kuro');
+    expect(getCachedAvailableBrainActors()).not.toContain('tanren');
+    expect(getCachedBrainHealthSnapshot().actors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actor: 'human', kind: 'built-in' }),
+    ]));
   });
 
   it('refreshes provider health and keeps built-in actors available', async () => {

@@ -8,6 +8,7 @@
 
 import type { ActorId, BrainProvider, PeerAgentId, ProviderHealth, ProviderId } from './brain-types.js';
 import type { PeerAgent } from './peer-agent.js';
+import { getActorProfile, getDefaultDispatchableActors } from './actor-registry.js';
 
 export interface BrainActorHealth {
   actor: ActorId;
@@ -24,7 +25,6 @@ export interface BrainHealthSnapshot {
 }
 
 const BUILT_INS: ActorId[] = ['kuro', 'human'];
-const DEFAULT_AVAILABLE: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari', 'tanren'];
 
 let cachedSnapshot: BrainHealthSnapshot | null = null;
 
@@ -60,16 +60,17 @@ export async function refreshBrainHealth(
 export function getCachedBrainHealthSnapshot(): BrainHealthSnapshot {
   if (cachedSnapshot) return cachedSnapshot;
   const checkedAt = new Date(0).toISOString();
+  const availableActors = getDefaultDispatchableActors();
   return {
     checkedAt,
-    actors: DEFAULT_AVAILABLE.map(actor => ({
+    actors: availableActors.map(actor => ({
       actor,
-      kind: isPeer(actor) ? 'peer' : 'provider',
+      kind: actorHealthKind(actor),
       available: true,
       checkedAt,
       detail: 'optimistic default before first health refresh',
     })),
-    availableActors: DEFAULT_AVAILABLE,
+    availableActors,
   };
 }
 
@@ -110,4 +111,10 @@ async function actorHealth(
 
 function isPeer(actor: ActorId): boolean {
   return actor === 'akari' || actor === 'tanren';
+}
+
+function actorHealthKind(actor: ActorId): BrainActorHealth['kind'] {
+  const profile = getActorProfile(actor);
+  if (profile?.kind === 'human' || profile?.kind === 'host-agent') return 'built-in';
+  return isPeer(actor) ? 'peer' : 'provider';
 }

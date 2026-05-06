@@ -291,9 +291,7 @@ interface ReviewablePR {
   body?: string | null;
   isDraft?: boolean;
   reviewDecision?: string;
-  reviewRequests?: unknown[];
   labels?: Array<{ name: string }>;
-  author?: { login: string };
   url?: string;
 }
 
@@ -303,7 +301,7 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
 
   let prs: ReviewablePR[];
   try {
-    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,author,url', '--limit', '50']);
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,labels,url', '--limit', '50']);
     prs = JSON.parse(stdout);
   } catch {
     return;
@@ -371,8 +369,7 @@ function toOpenPrSummary(pr: ReviewablePR): OpenPullRequestSummary {
     title: pr.title,
     body: pr.body,
     reviewDecision: pr.reviewDecision,
-    reviewRequests: pr.reviewRequests,
-    authorLogin: pr.author?.login,
+    reviewRequests: [],
     labels: pr.labels?.map(l => l.name),
     isDraft: pr.isDraft,
   };
@@ -394,8 +391,6 @@ interface GhPrView {
   files?: Array<{ path: string }>;
   isDraft?: boolean;
   reviewDecision?: string;
-  reviewRequests?: unknown[];
-  author?: { login: string };
   url?: string;
 }
 
@@ -441,7 +436,7 @@ export async function autoProduceInternalPrReviewClaims(): Promise<void> {
 
 async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
   try {
-    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,labels,files,isDraft,reviewDecision,reviewRequests,author,url']);
+    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,labels,files,isDraft,reviewDecision,url']);
     return JSON.parse(stdout) as GhPrView;
   } catch {
     return null;
