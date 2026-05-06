@@ -2235,6 +2235,15 @@ export class AgentLoop {
       try { await cleanStaleEntries(memDir); } catch { /* non-critical */ }
       // Goal Advancer: pull tasks from pipeline goals before scheduler picks
       try { await advanceGoals(memDir); } catch { /* non-critical */ }
+      // Issue autopilot: reconcile GitHub-closed issues so stale P0 entries drain (issue #151)
+      try {
+        const repo = process.env.MINI_AGENT_GITHUB_REPO;
+        if (repo) {
+          const { readOpenIssuesFromGitHub, syncGitHubIssuesToTasks } = await import('./issue-autopilot.js');
+          const issues = readOpenIssuesFromGitHub(repo, 50);
+          await syncGitHubIssuesToTasks(memDir, issues, { repo });
+        }
+      } catch { /* non-critical */ }
       try {
         const { closeResolvedCorrectionTasks, evaluateCorrectionGate, ensureCorrectionTask } = await import('./correction-gate.js');
         const correction = evaluateCorrectionGate(memDir);
