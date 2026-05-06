@@ -50,3 +50,4 @@
 | github | kuro | #87 extractDecisionBlock regex misses bulleted Decision blocks (- chose:) — 8/8 soft-gate skip evidence | needs-triage | 05-05 | — |
 | github | kuro | #88 soft-gate hasMarker=false on substantial response — head-snippet missing for 5th-layer diagnosis | needs-triage | 05-05 | — |
 | github | kuro | #91 graphify delegation routes prose to shell worker → 156 cumulative bash FAILs | needs-triage | 05-06 | — |
+| github | kuro | #94 feat(correction-gate): respect documented hold reasons for local-commit-not-pushed | needs-triage | 05-06 | — |
