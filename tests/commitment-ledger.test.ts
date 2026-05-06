@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -23,6 +23,8 @@ import {
   expireOverdueCommitments,
   auditCommitments,
   readPendingCommitments,
+  parseFalsifierToQuery,
+  resolveReadyCommitments,
 } from '../src/commitment-ledger.js';
 
 describe('commitment-ledger trust-layer branching', () => {
@@ -175,5 +177,114 @@ describe('commitment-ledger trust-layer branching', () => {
     expect(audit.abandoned).toBe(1);
     expect(audit.expired).toBe(1);
     expect(audit.pending).toBe(1);
+  });
+
+  it('parses grep falsifier DSL into log_grep query', () => {
+    const parsed = parseFalsifierToQuery('next cycle grep:/tmp/x.log "foo.*bar" >=3');
+
+    expect(parsed).toEqual(expect.objectContaining({
+      kind: 'log_grep',
+      path: '/tmp/x.log',
+      pattern: 'foo.*bar',
+      op: '>=',
+      threshold: 3,
+    }));
+    expect(parsed && parsed.kind === 'log_grep' ? parsed.since_iso : '').toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('parses grep falsifier DSL with explicit since timestamp', () => {
+    const parsed = parseFalsifierToQuery('grep:/tmp/x.log "bar" since:2026-05-01T00:00:00Z ==0');
+
+    expect(parsed).toEqual({
+      kind: 'log_grep',
+      path: '/tmp/x.log',
+      pattern: 'bar',
+      since_iso: '2026-05-01T00:00:00Z',
+      op: '==',
+      threshold: 0,
+    });
+  });
+
+  it('auto-populates log_grep query and resolves kept when count meets threshold', () => {
+    const logPath = path.join(tmpStateDir, 'server.log');
+    writeFileSync(logPath, [
+      '2026-05-06T00:00:00Z alpha',
+      '2026-05-06T00:01:00Z alpha',
+      '2026-05-06T00:02:00Z beta',
+      '2026-05-06T00:03:00Z alpha',
+    ].join('\n'), 'utf-8');
+
+    writeCommitment({
+      cycle_id: 10,
+      prediction: 'alpha appears often enough',
+      falsifier: `grep:${logPath} "alpha" since:2026-05-06T00:00:00Z >=3`,
+      ttl_cycles: 5,
+      counterparty: { kind: 'self' },
+    });
+
+    const resolved = resolveReadyCommitments(11);
+    const audit = auditCommitments(11);
+
+    expect(resolved).toEqual({ resolved: 1, skipped: 0 });
+    expect(audit.kept).toBe(1);
+    expect(readPendingCommitments()).toHaveLength(0);
+  });
+
+  it('resolves log_grep as refuted when count misses threshold', () => {
+    const logPath = path.join(tmpStateDir, 'server.log');
+    writeFileSync(logPath, [
+      '2026-05-06T00:00:00Z alpha',
+      '2026-05-06T00:01:00Z beta',
+    ].join('\n'), 'utf-8');
+
+    writeCommitment({
+      cycle_id: 10,
+      prediction: 'alpha appears three times',
+      falsifier: `grep:${logPath} "alpha" since:2026-05-06T00:00:00Z >=3`,
+      ttl_cycles: 5,
+      counterparty: { kind: 'self' },
+    });
+
+    resolveReadyCommitments(11);
+    const audit = auditCommitments(11);
+
+    expect(audit.refuted).toBe(1);
+  });
+
+  it('treats missing log_grep file as refuted evidence', () => {
+    writeCommitment({
+      cycle_id: 10,
+      prediction: 'missing log exists',
+      falsifier: `grep:${path.join(tmpStateDir, 'missing.log')} "alpha" >=1`,
+      ttl_cycles: 5,
+      counterparty: { kind: 'self' },
+    });
+
+    resolveReadyCommitments(11);
+    const ledger = readFileSync(path.join(tmpStateDir, 'commitments.jsonl'), 'utf-8');
+
+    expect(auditCommitments(11).refuted).toBe(1);
+    expect(ledger).toContain('does not exist');
+  });
+
+  it('filters ISO-timestamped log_grep lines by since timestamp', () => {
+    const logPath = path.join(tmpStateDir, 'server.log');
+    writeFileSync(logPath, [
+      '2026-05-05T23:59:00Z alpha',
+      '2026-05-06T00:00:00Z alpha',
+      'alpha without timestamp',
+    ].join('\n'), 'utf-8');
+
+    writeCommitment({
+      cycle_id: 10,
+      prediction: 'old alpha is ignored, timestamp-less alpha is conservative-counted',
+      falsifier: `grep:${logPath} "alpha" since:2026-05-06T00:00:00Z ==2`,
+      ttl_cycles: 5,
+      counterparty: { kind: 'self' },
+    });
+
+    resolveReadyCommitments(11);
+
+    expect(auditCommitments(11).kept).toBe(1);
   });
 });
