@@ -58,9 +58,9 @@
 | github | akari | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
 | github | codex | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
 | github | claude-code | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | merged | 05-06 | 05-06 |
-| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
-| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
-| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | changes-requested | 05-06 | - |
+| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | review-pending | 05-06 | - |
+| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | review-pending | 05-06 | - |
+| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | review-pending | 05-06 | - |
 | github | akari | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
 | github | codex | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
 | github | claude-code | PR #92 feat(hooks): auto-rebuild dist after src/ commits | merged | 05-06 | 05-06 |
