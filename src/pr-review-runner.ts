@@ -59,6 +59,7 @@ export interface InternalPrReviewClaimResult {
 const PR_REVIEW_CLAIMS_FILE = 'pr-review-claims.jsonl';
 const PR_HANDOFF_RE = /^\|\s*github\s*\|\s*(\S+)\s*\|\s*PR #(\d+)\s+(.+?)\s*\|\s*([^|]+?)\s*\|/;
 const REVIEW_STATUSES = ['needs-review', 'review-pending', 'review-approved', 'changes-requested'];
+const REVIEW_INPUT_POLICY_VERSION = 2;
 
 export function getPrReviewClaimsPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', PR_REVIEW_CLAIMS_FILE);
@@ -78,6 +79,7 @@ export function computePrReviewInputHash(candidate: InternalPrReviewCandidate): 
   const changedFiles = uniqueStrings(candidate.changedFiles);
   return createHash('sha256')
     .update(JSON.stringify({
+      policyVersion: REVIEW_INPUT_POLICY_VERSION,
       prNumber: candidate.prNumber,
       title: candidate.title,
       body: candidate.body ?? '',
