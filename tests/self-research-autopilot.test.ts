@@ -20,6 +20,7 @@ describe('self research autopilot', () => {
   it('queues a proposal-backed P2 task on idle heartbeat when no task is active', async () => {
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T00:00:00.000Z'),
     });
 
@@ -59,6 +60,7 @@ describe('self research autopilot', () => {
 
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T00:00:00.000Z'),
     });
 
@@ -82,6 +84,7 @@ describe('self research autopilot', () => {
 
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T00:00:00.000Z'),
     });
 
@@ -129,6 +132,7 @@ describe('self research autopilot', () => {
 
     const result = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T00:00:00.000Z'),
     });
 
@@ -142,6 +146,7 @@ describe('self research autopilot', () => {
   it('does not queue more than one proposal per day', async () => {
     const first = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T00:00:00.000Z'),
     });
     expect(first.queued).toBe(true);
@@ -155,6 +160,7 @@ describe('self research autopilot', () => {
 
     const second = await maybeQueueSelfResearch(tmpDir, {
       triggerReason: 'heartbeat',
+      repoRoot: tmpDir,
       now: new Date('2026-05-05T12:00:00.000Z'),
     });
 
