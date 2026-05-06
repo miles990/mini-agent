@@ -11,7 +11,7 @@ import {
   type ActiveHoldMatch,
   type CorrectionHold,
 } from './correction-holds.js';
-import { evaluateWorkspaceIsolation, isCodePath, isSafeRuntimeBranch } from './workspace-isolation.js';
+import { evaluateWorkspaceIsolation, isCodePath, isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
 
 export type CorrectionReasonType =
   | 'pending-pledge'
@@ -348,6 +348,7 @@ function readShipTruth(repoRoot: string): ShipTruthState {
   }
 
   try {
+    refreshGitIndex(repoRoot);
     const status = execSync('git status --porcelain=v2 --branch', {
       cwd: repoRoot,
       encoding: 'utf-8',

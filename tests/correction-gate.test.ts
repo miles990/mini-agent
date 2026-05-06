@@ -107,6 +107,34 @@ describe('correction gate', () => {
     }));
   });
 
+  it('does not flag protected runtime checkout when a file is only stat-dirty', () => {
+    const memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-correction-gate-memory-'));
+    try {
+      execGit(['init'], tmpDir);
+      execGit(['config', 'user.email', 'test@example.com'], tmpDir);
+      execGit(['config', 'user.name', 'Test User'], tmpDir);
+      writeFileSync(path.join(tmpDir, 'src-file.ts'), 'export const value = 1;\n', 'utf-8');
+      execGit(['add', 'src-file.ts'], tmpDir);
+      execGit(['commit', '-m', 'init'], tmpDir);
+      execGit(['branch', '-M', 'runtime/main'], tmpDir);
+      process.env.MINI_AGENT_RUNTIME_WORKSPACE = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+      }).trim();
+
+      writeFileSync(path.join(tmpDir, 'src-file.ts'), 'export const value = 1;\n', 'utf-8');
+
+      const snapshot = evaluateCorrectionGate(memoryDir, tmpDir);
+
+      expect(snapshot.needsCorrection).toBe(false);
+      expect(snapshot.shipTruth.dirty).toBe(false);
+      expect(snapshot.shipTruth.dirtyPaths).toEqual([]);
+    } finally {
+      delete process.env.MINI_AGENT_RUNTIME_WORKSPACE;
+      rmSync(memoryDir, { recursive: true, force: true });
+    }
+  });
+
   it('flags protected runtime checkout when it is on main instead of runtime/main', () => {
     try {
       execGit(['init'], tmpDir);

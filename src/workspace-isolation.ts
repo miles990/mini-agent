@@ -24,6 +24,7 @@ const CODE_FILE_PATTERN = /^(package\.json|pnpm-lock\.yaml|tsconfig\.json|agent-
 export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = process.env.MINI_AGENT_RUNTIME_WORKSPACE): WorkspaceIsolationDecision {
   const repoRoot = git(cwd, ['rev-parse', '--show-toplevel']) || null;
   const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']) || null;
+  refreshGitIndex(cwd);
   const dirtyPaths = parseDirtyPaths(git(cwd, ['status', '--porcelain']) ?? '');
   const codeDirtyPaths = dirtyPaths.filter(isCodePath);
   const runtimeMemoryDirtyPaths = dirtyPaths.filter(isRuntimeRepoMemoryPath);
@@ -128,6 +129,18 @@ export function isRuntimeRepoMemoryPath(filePath: string): boolean {
 
 export function isSafeRuntimeBranch(branch: string | null | undefined): boolean {
   return Boolean(branch && SAFE_RUNTIME_BRANCHES.has(branch));
+}
+
+export function refreshGitIndex(cwd = process.cwd()): void {
+  try {
+    execFileSync('git', ['update-index', '-q', '--refresh'], {
+      cwd,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 8000,
+    });
+  } catch {
+    // Best effort only: callers still fall back to git status for real dirt.
+  }
 }
 
 function parseDirtyPath(line: string): string {

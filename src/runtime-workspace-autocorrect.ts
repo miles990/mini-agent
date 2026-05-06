@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { isSafeRuntimeBranch } from './workspace-isolation.js';
+import { isSafeRuntimeBranch, refreshGitIndex } from './workspace-isolation.js';
 
 export type RuntimeAutocorrectStatus =
   | 'not-needed'
@@ -125,6 +125,7 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
 
 function readGitSnapshot(repoRoot: string): GitSnapshot | null {
   if (!existsSync(path.join(repoRoot, '.git'))) return null;
+  refreshGitIndex(repoRoot);
   const status = git(repoRoot, ['status', '--porcelain=v2', '--branch']);
   let branch: string | null = null;
   let headSha: string | null = null;

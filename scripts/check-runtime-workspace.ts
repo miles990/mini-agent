@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { isCodePath, isRuntimeRepoMemoryPath, isSafeRuntimeBranch, parseDirtyPaths } from '../src/workspace-isolation.js';
+import { isCodePath, isRuntimeRepoMemoryPath, isSafeRuntimeBranch, parseDirtyPaths, refreshGitIndex } from '../src/workspace-isolation.js';
 
 const allow = process.env.MINI_AGENT_ALLOW_RUNTIME_WORKSPACE_WRITE === '1';
 const json = process.argv.includes('--json');
@@ -11,6 +11,7 @@ const repoRoot = git(['rev-parse', '--show-toplevel']) || cwd;
 const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']) || null;
 const protectedRoot = path.resolve(process.env.MINI_AGENT_RUNTIME_WORKSPACE ?? inferRuntimeWorkspace(repoRoot));
 const isProtectedRuntime = path.resolve(repoRoot) === protectedRoot;
+refreshGitIndex(repoRoot);
 const paths = stagedOnly ? stagedPaths() : parseDirtyPaths(git(['status', '--porcelain']) ?? '');
 const blockingPaths = paths.filter(isCodePath);
 const runtimeMemoryPaths = paths.filter(isRuntimeRepoMemoryPath);
