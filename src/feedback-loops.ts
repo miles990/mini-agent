@@ -178,6 +178,11 @@ export function extractErrorSubtype(errorMsg: string): string {
     // leaves `no_diag` to mean "no dur= suffix at all" — a different class of
     // upstream classifyError bug. count=34 in no_diag today motivated this split.
     if (durMatch && Number(durMatch[1]) < 600) return 'midband_no_diag';
+    // 2026-05-07 (Issue #168): dur=unknown means classifyError reached the fallback path but
+    // the throw site did not attach a duration property (pre-spawn errors, Local LLM throws,
+    // Promise.race timeout paths in delegation.ts). Distinct from the numbered-dur sub-buckets
+    // above — surfaces as its own actionable bucket instead of silently landing in no_diag.
+    if (lower.includes('dur=unknown')) return 'unknown_dur_no_diag';
     return 'no_diag';
   }
   // 2026-04-20: agent.ts:224 silent_exit message template (shipped 3039f4a3) — complete the label
