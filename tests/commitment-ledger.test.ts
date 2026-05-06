@@ -20,6 +20,7 @@ vi.mock('../src/utils.js', () => ({
 
 import {
   writeCommitment,
+  buildLedgerSection,
   expireOverdueCommitments,
   auditCommitments,
   readPendingCommitments,
@@ -120,6 +121,44 @@ describe('commitment-ledger trust-layer branching', () => {
     expect(audit.pending).toBe(1);
     expect(audit.abandoned).toBe(0);
     expect(audit.expired).toBe(0);
+  });
+
+  it('surfaces aged unacked agent commitments in the ledger section', () => {
+    writeCommitment({
+      cycle_id: 1,
+      prediction: 'Akari will review the handoff and report contradictions',
+      falsifier: 'no review reply',
+      ttl_cycles: 10,
+      counterparty: { kind: 'agent', agent_id: 'akari' },
+    });
+    writeCommitment({
+      cycle_id: 2,
+      prediction: 'Self promise should not request counterparty ack',
+      falsifier: 'no note',
+      ttl_cycles: 10,
+      counterparty: { kind: 'self' },
+    });
+
+    const section = buildLedgerSection(4);
+
+    expect(section).toContain('Awaiting ack from counterparty (1):');
+    expect(section).toContain('counterparty=akari');
+    expect(section).toContain('emit: <kuro:ack');
+    expect(section.slice(section.indexOf('Awaiting ack from counterparty'))).not.toContain('Self promise should not request counterparty ack');
+  });
+
+  it('does not nag for fresh unacked agent commitments before age threshold', () => {
+    writeCommitment({
+      cycle_id: 3,
+      prediction: 'Claude will review after the next cycle',
+      falsifier: 'no review reply',
+      ttl_cycles: 10,
+      counterparty: { kind: 'agent', agent_id: 'claude' },
+    });
+
+    const section = buildLedgerSection(4);
+
+    expect(section).not.toContain('Awaiting ack from counterparty');
   });
 
   it('writeCommitment rejects ack_at without counterparty', () => {
