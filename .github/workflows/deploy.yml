@@ -38,15 +38,15 @@ jobs:
           cd /Users/user/Workspace/mini-agent
           git fetch origin main
 
-          # Self-hosted runner shares the dev working tree. git reset --hard below
-          # would wipe any uncommitted work (dev edits, untracked tests/plans/etc).
-          # Stash first, pop after, so concurrent Claude Code / Kuro edits survive.
+          # Self-hosted runner shares the runtime working tree. Deployment must
+          # leave this checkout on origin/main; dev/runtime dirt is preserved in a
+          # stash for later recovery, but not popped back into the deploy checkout.
           STASH_TAG="deploy-backup-$(date -u +%Y%m%dT%H%M%SZ)"
           STASHED=0
           if ! git diff-index --quiet HEAD -- 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard)" ]; then
             if git stash push --include-untracked -m "$STASH_TAG" >/dev/null 2>&1; then
               STASHED=1
-              echo "Stashed uncommitted work as $STASH_TAG"
+              echo "Stashed runtime/dev dirt as $STASH_TAG"
             fi
           fi
 
@@ -68,19 +68,16 @@ jobs:
           fi
           rm -rf "$MEMORY_BACKUP"
 
-          # Restore dev work. Conflicts leave the stash in `git stash list` for
-          # manual recovery — deploy still succeeds (deployed code is authoritative).
+          # Do not pop the stash here. Popping runtime dirt into the deployment
+          # checkout can create unresolved conflicts and break deploy. The stash is
+          # an explicit recovery artifact; autonomous work must continue in an
+          # isolated worktree/branch, not in this runtime checkout.
           if [ "$STASHED" = "1" ]; then
-            if git stash pop >/dev/null 2>&1; then
-              echo "Restored uncommitted work from $STASH_TAG"
-            else
-              echo "WARNING: stash pop conflicted. Dev work preserved in stash list:"
-              git stash list | grep "$STASH_TAG" || true
-              git checkout -- . 2>/dev/null || true
-            fi
+            echo "Runtime/dev dirt preserved in stash; not restoring into deploy checkout:"
+            git stash list | grep "$STASH_TAG" || true
           fi
 
-          ./scripts/deploy.sh
+          MINI_AGENT_SKIP_DEPLOY_PULL=1 ./scripts/deploy.sh
 
       - name: Notify Success
         if: success()

@@ -20,7 +20,9 @@ log "Starting deployment..."
 # ── Phase 1: Pull + Install + Build (Kuro still running) ──
 
 log "Pulling latest code..."
-if ! git pull origin main; then
+if [ "${MINI_AGENT_SKIP_DEPLOY_PULL:-0}" = "1" ]; then
+    log "Skipping git pull; caller already synced deploy checkout"
+elif ! git pull origin main; then
     log "git pull failed; aborting deploy before build/stop"
     exit 1
 fi
