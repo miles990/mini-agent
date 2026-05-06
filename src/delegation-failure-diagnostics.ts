@@ -23,7 +23,7 @@ export interface DelegationFailureDiagnosis {
   signature: string;
   code: string;
   status: DelegationFailureStatus;
-  category: 'missing_environment' | 'shell_prompt_injection' | 'command_failed' | 'middleware_failed' | 'unknown';
+  category: 'missing_environment' | 'provider_quota' | 'shell_prompt_injection' | 'command_failed' | 'middleware_failed' | 'unknown';
   summary: string;
   recommendedAction: string;
   reportPath: string;
@@ -103,6 +103,18 @@ function buildDiagnosis(memoryDir: string, record: DelegationFailureRecord): Del
       category: 'missing_environment',
       summary: 'The repeated failure is caused by missing local environment, credential, or linked dependency.',
       recommendedAction: 'Fix the missing environment input, then mark this failure resolved or rerun the origin task.',
+      reportPath,
+    };
+  }
+
+  if (/out of extra usage|usage limit|rate[_ -]?limit|quota/.test(lower)) {
+    return {
+      signature: record.signature,
+      code,
+      status: 'resolved',
+      category: 'provider_quota',
+      summary: 'The repeated failure is provider quota/resource exhaustion, not a task defect.',
+      recommendedAction: 'Hold the origin task with a date-after provider resource condition and retry after reset.',
       reportPath,
     };
   }
