@@ -131,6 +131,16 @@ done
 
 if [ "$HEALTH_OK" = true ]; then
     log "Deployment successful"
+    if [ "${MINI_AGENT_SKIP_WORKSPACE_JANITOR:-0}" = "1" ]; then
+        log "Skipping workspace janitor"
+    else
+        log "Running workspace janitor..."
+        if pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1; then
+            log "Workspace janitor completed"
+        else
+            log "Workspace janitor failed (non-fatal)"
+        fi
+    fi
     exit 0
 else
     log "Health check failed after 30s"
