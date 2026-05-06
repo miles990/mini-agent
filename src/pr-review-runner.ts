@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { requiresHumanPrReview, type PrReviewFramework, type PrReviewer } from './pr-lifecycle-governance.js';
 
 export type PrReviewVerdict = 'approve' | 'request_changes' | 'comment';
@@ -14,6 +14,8 @@ export interface PrReviewClaimInput {
   risk: 'low' | 'medium' | 'high';
   summary: string;
   evidence: string[];
+  reviewInputHash?: string;
+  headSha?: string;
 }
 
 export interface PrReviewClaim extends PrReviewClaimInput {
@@ -43,6 +45,7 @@ export interface InternalPrReviewCandidate {
   prNumber: number;
   title: string;
   body?: string | null;
+  headSha?: string | null;
   reviewer: PrReviewer;
   framework: PrReviewFramework;
   changedFiles: string[];
@@ -69,6 +72,20 @@ export function createPrReviewClaim(input: PrReviewClaimInput, now = new Date())
     id: randomUUID(),
     createdAt: now.toISOString(),
   };
+}
+
+export function computePrReviewInputHash(candidate: InternalPrReviewCandidate): string {
+  const changedFiles = uniqueStrings(candidate.changedFiles);
+  return createHash('sha256')
+    .update(JSON.stringify({
+      prNumber: candidate.prNumber,
+      title: candidate.title,
+      body: candidate.body ?? '',
+      headSha: candidate.headSha ?? '',
+      changedFiles,
+    }))
+    .digest('hex')
+    .slice(0, 16);
 }
 
 export function appendPrReviewClaim(memoryDir: string, claim: PrReviewClaim): PrReviewClaim {
@@ -221,6 +238,8 @@ export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate
       risk: 'medium',
       summary: 'Internal review could not inspect changed-file evidence yet.',
       evidence: ['missing changed-file list'],
+      reviewInputHash: computePrReviewInputHash(candidate),
+      headSha: candidate.headSha ?? undefined,
     }, now);
   }
 
@@ -233,6 +252,8 @@ export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate
       risk: 'medium',
       summary: 'Code-affecting PR is missing verification evidence in the PR body.',
       evidence: changedFiles.slice(0, 8),
+      reviewInputHash: computePrReviewInputHash(candidate),
+      headSha: candidate.headSha ?? undefined,
     }, now);
   }
 
@@ -247,6 +268,8 @@ export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate
       ...changedFiles.slice(0, 8),
       ...(hasVerification ? ['PR body includes verification evidence'] : []),
     ],
+    reviewInputHash: computePrReviewInputHash(candidate),
+    headSha: candidate.headSha ?? undefined,
   }, now);
 }
 
@@ -256,14 +279,14 @@ export function appendMissingInternalPrReviewClaims(
   now = new Date(),
 ): InternalPrReviewClaimResult {
   const existing = readPrReviewClaimsSync(memoryDir);
-  const seen = new Set(existing.map(claim => `${claim.prNumber}:${claim.reviewer}`));
+  const seen = new Set(existing.map(reviewClaimKey));
   const created: PrReviewClaim[] = [];
   const skipped: InternalPrReviewClaimResult['skipped'] = [];
 
   for (const candidate of candidates) {
-    const key = `${candidate.prNumber}:${candidate.reviewer}`;
+    const key = `${candidate.prNumber}:${candidate.reviewer}:${computePrReviewInputHash(candidate)}`;
     if (seen.has(key)) {
-      skipped.push({ prNumber: candidate.prNumber, reviewer: candidate.reviewer, reason: 'claim already exists' });
+      skipped.push({ prNumber: candidate.prNumber, reviewer: candidate.reviewer, reason: 'claim already exists for this PR input' });
       continue;
     }
     const claim = createInternalPrReviewClaim(candidate, now);
@@ -298,6 +321,8 @@ function claimToRecord(claim: PrReviewClaim): Record<string, unknown> {
     risk: claim.risk,
     summary: claim.summary,
     evidence: claim.evidence,
+    review_input_hash: claim.reviewInputHash,
+    head_sha: claim.headSha,
     created_at: claim.createdAt,
   };
 }
@@ -314,16 +339,22 @@ function parseClaim(line: string): PrReviewClaim | null {
     const id = stringField(raw.id);
     const summary = stringField(raw.summary);
     const createdAt = stringField(raw.created_at ?? raw.createdAt);
+    const reviewInputHash = stringField(raw.review_input_hash ?? raw.reviewInputHash) || undefined;
+    const headSha = stringField(raw.head_sha ?? raw.headSha) || undefined;
     if (!id || !reviewer || !framework || !['approve', 'request_changes', 'comment'].includes(verdict)) return null;
     if (!['low', 'medium', 'high'].includes(risk)) return null;
     if (!Number.isInteger(prNumber) || prNumber <= 0 || !summary || !createdAt) return null;
     const evidence = Array.isArray(raw.evidence)
       ? raw.evidence.filter((item): item is string => typeof item === 'string')
       : [];
-    return { id, prNumber, reviewer, framework, verdict, risk, summary, evidence, createdAt };
+    return { id, prNumber, reviewer, framework, verdict, risk, summary, evidence, reviewInputHash, headSha, createdAt };
   } catch {
     return null;
   }
+}
+
+function reviewClaimKey(claim: PrReviewClaim): string {
+  return `${claim.prNumber}:${claim.reviewer}:${claim.reviewInputHash ?? 'legacy'}`;
 }
 
 function normalizeReviewer(value: string): PrReviewer | null {
