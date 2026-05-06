@@ -24,7 +24,7 @@ export interface SelectionOptions {
   actorStats?: ActorOutcomeStats;
 }
 
-const DEFAULT_AVAILABLE: ActorId[] = ['kuro', 'claude', 'codex', 'local', 'shell', 'akari', 'human'];
+const DEFAULT_AVAILABLE: ActorId[] = ['claude', 'codex', 'local', 'shell', 'akari', 'human'];
 
 const INTENT_CAPABILITY_HINTS: Record<WorkIntent, string[]> = {
   chat: ['low-cost-reasoning', 'writing'],

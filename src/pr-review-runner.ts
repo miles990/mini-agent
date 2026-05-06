@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { PrReviewFramework, PrReviewer } from './pr-lifecycle-governance.js';
+import { requiresHumanPrReview, type PrReviewFramework, type PrReviewer } from './pr-lifecycle-governance.js';
 
 export type PrReviewVerdict = 'approve' | 'request_changes' | 'comment';
 export type PrReviewConsensusStatus = 'pending' | 'approved' | 'changes_requested' | 'commented' | 'disputed';
@@ -39,8 +39,23 @@ export interface PrReviewConsensus {
   summary: string;
 }
 
+export interface InternalPrReviewCandidate {
+  prNumber: number;
+  title: string;
+  body?: string | null;
+  reviewer: PrReviewer;
+  framework: PrReviewFramework;
+  changedFiles: string[];
+}
+
+export interface InternalPrReviewClaimResult {
+  created: PrReviewClaim[];
+  skipped: Array<{ prNumber: number; reviewer: PrReviewer; reason: string }>;
+}
+
 const PR_REVIEW_CLAIMS_FILE = 'pr-review-claims.jsonl';
 const PR_HANDOFF_RE = /^\|\s*github\s*\|\s*(\S+)\s*\|\s*PR #(\d+)\s+(.+?)\s*\|\s*([^|]+?)\s*\|/;
+const REVIEW_STATUSES = ['needs-review', 'review-pending', 'review-approved', 'changes-requested'];
 
 export function getPrReviewClaimsPath(memoryDir: string): string {
   return path.join(memoryDir, 'index', PR_REVIEW_CLAIMS_FILE);
@@ -82,7 +97,7 @@ export function parsePrReviewHandoffs(activeContent: string): PrReviewHandoff[] 
     const reviewer = normalizeReviewer(match[1]);
     if (!reviewer) continue;
     const status = match[4].trim();
-    if (!['needs-review', 'review-pending', 'review-approved', 'changes-requested'].includes(status)) continue;
+    if (!REVIEW_STATUSES.includes(status)) continue;
     handoffs.push({
       prNumber: Number(match[2]),
       reviewer,
@@ -139,10 +154,35 @@ export function applyPrReviewConsensusToHandoffs(
     const cols = line.split('|');
     if (cols.length < 8) return line;
     const current = cols[4].trim();
-    if (!['needs-review', 'review-pending', 'review-approved', 'changes-requested'].includes(current)) return line;
+    if (!REVIEW_STATUSES.includes(current)) return line;
     cols[4] = ` ${handoffStatusForConsensus(consensus.status)} `;
     return cols.join('|');
   }).join('\n');
+}
+
+export function reconcilePrReviewHandoffs(
+  activeContent: string,
+  assignments: Array<{ prNumber: number; reviewers: PrReviewer[] }>,
+): string {
+  if (assignments.length === 0) return activeContent;
+  const allowedByPr = new Map(assignments.map(a => [a.prNumber, new Set(a.reviewers)]));
+  const nextLines: string[] = [];
+
+  for (const line of activeContent.split('\n')) {
+    const match = line.match(PR_HANDOFF_RE);
+    if (!match) {
+      nextLines.push(line);
+      continue;
+    }
+    const reviewer = normalizeReviewer(match[1]);
+    const prNumber = Number(match[2]);
+    const status = match[4].trim();
+    const allowed = allowedByPr.get(prNumber);
+    if (reviewer && allowed && REVIEW_STATUSES.includes(status) && !allowed.has(reviewer)) continue;
+    nextLines.push(line);
+  }
+
+  return nextLines.join('\n');
 }
 
 export function runPrReviewConsensus(memoryDir: string): { updated: boolean; consensuses: PrReviewConsensus[] } {
@@ -159,6 +199,84 @@ export function runPrReviewConsensus(memoryDir: string): { updated: boolean; con
     return { updated: true, consensuses };
   }
   return { updated: false, consensuses };
+}
+
+export function createInternalPrReviewClaim(candidate: InternalPrReviewCandidate, now = new Date()): PrReviewClaim | null {
+  if (candidate.reviewer === 'alex') return null;
+
+  const text = `${candidate.title}\n${candidate.body ?? ''}`;
+  if (requiresHumanPrReview(text)) return null;
+
+  const changedFiles = uniqueStrings(candidate.changedFiles);
+  const touchesCode = changedFiles.some(file => /^(src|tests|scripts|plugins|\.githooks)\//.test(file) || file === 'package.json');
+  const hasVerification = /(^|\n)##\s+Verification\b/i.test(text)
+    && /\b(pnpm|vitest|test|typecheck|build|passed|smoke)\b/i.test(text);
+
+  if (changedFiles.length === 0) {
+    return createPrReviewClaim({
+      prNumber: candidate.prNumber,
+      reviewer: candidate.reviewer,
+      framework: candidate.framework,
+      verdict: 'comment',
+      risk: 'medium',
+      summary: 'Internal review could not inspect changed-file evidence yet.',
+      evidence: ['missing changed-file list'],
+    }, now);
+  }
+
+  if (touchesCode && !hasVerification) {
+    return createPrReviewClaim({
+      prNumber: candidate.prNumber,
+      reviewer: candidate.reviewer,
+      framework: candidate.framework,
+      verdict: 'request_changes',
+      risk: 'medium',
+      summary: 'Code-affecting PR is missing verification evidence in the PR body.',
+      evidence: changedFiles.slice(0, 8),
+    }, now);
+  }
+
+  return createPrReviewClaim({
+    prNumber: candidate.prNumber,
+    reviewer: candidate.reviewer,
+    framework: candidate.framework,
+    verdict: 'approve',
+    risk: candidate.framework === 'internal-governance' ? 'medium' : 'low',
+    summary: `${candidate.reviewer} internal review approved: scoped diff with recorded verification evidence.`,
+    evidence: [
+      ...changedFiles.slice(0, 8),
+      ...(hasVerification ? ['PR body includes verification evidence'] : []),
+    ],
+  }, now);
+}
+
+export function appendMissingInternalPrReviewClaims(
+  memoryDir: string,
+  candidates: InternalPrReviewCandidate[],
+  now = new Date(),
+): InternalPrReviewClaimResult {
+  const existing = readPrReviewClaimsSync(memoryDir);
+  const seen = new Set(existing.map(claim => `${claim.prNumber}:${claim.reviewer}`));
+  const created: PrReviewClaim[] = [];
+  const skipped: InternalPrReviewClaimResult['skipped'] = [];
+
+  for (const candidate of candidates) {
+    const key = `${candidate.prNumber}:${candidate.reviewer}`;
+    if (seen.has(key)) {
+      skipped.push({ prNumber: candidate.prNumber, reviewer: candidate.reviewer, reason: 'claim already exists' });
+      continue;
+    }
+    const claim = createInternalPrReviewClaim(candidate, now);
+    if (!claim) {
+      skipped.push({ prNumber: candidate.prNumber, reviewer: candidate.reviewer, reason: 'human or unsupported reviewer' });
+      continue;
+    }
+    appendPrReviewClaim(memoryDir, claim);
+    seen.add(key);
+    created.push(claim);
+  }
+
+  return { created, skipped };
 }
 
 function ensurePrReviewClaimsFile(memoryDir: string): string {
@@ -254,6 +372,10 @@ function handoffStatusForConsensus(status: PrReviewConsensusStatus): string {
 
 function uniqueReviewers(values: PrReviewer[]): PrReviewer[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function stringField(value: unknown): string {

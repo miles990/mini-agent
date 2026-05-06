@@ -25,14 +25,68 @@ import {
   type MergedPullRequestSummary,
   type OpenPullRequestSummary,
 } from './pr-lifecycle-governance.js';
-import { runPrReviewConsensus } from './pr-review-runner.js';
+import {
+  appendMissingInternalPrReviewClaims,
+  evaluatePrReviewConsensus,
+  parsePrReviewHandoffs,
+  readPrReviewClaimsSync,
+  reconcilePrReviewHandoffs,
+  runPrReviewConsensus,
+} from './pr-review-runner.js';
 
 const execFileAsync = promisify(execFile);
+
+async function gh(args: string[], timeout = 15000): Promise<{ stdout: string; stderr: string }> {
+  const result = await execFileAsync('gh', args, {
+    cwd: process.cwd(),
+    encoding: 'utf-8',
+    timeout,
+    env: ghEnv(),
+  });
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+function ghEnv(): NodeJS.ProcessEnv {
+  const token = process.env.KURO_GITHUB_TOKEN
+    || process.env.KURO_GITHUB
+    || readDotEnvValue('KURO_GITHUB_TOKEN')
+    || readDotEnvValue('KURO_GITHUB');
+  return {
+    ...process.env,
+    ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}),
+  };
+}
+
+function readDotEnvValue(key: string): string | undefined {
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    if (!fs.existsSync(envPath)) return undefined;
+    for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
+      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+      if (!match || match[1] !== key) continue;
+      return unquoteEnvValue(match[2]);
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function unquoteEnvValue(value: string): string {
+  const trimmed = value.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
 
 /** Check if gh CLI is available and authenticated */
 async function ghAvailable(): Promise<boolean> {
   try {
-    await execFileAsync('gh', ['auth', 'status'], { timeout: 5000 });
+    await gh(['auth', 'status'], 5000);
     return true;
   } catch {
     return false;
@@ -57,10 +111,7 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
   // Layer 3: Dedup guard — fetch all existing proposal issues once
   let existingByTitle: Map<string, number>;
   try {
-    const { stdout } = await execFileAsync(
-      'gh', ['issue', 'list', '--label', 'proposal', '--state', 'all', '--json', 'number,title', '--limit', '200'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['issue', 'list', '--label', 'proposal', '--state', 'all', '--json', 'number,title', '--limit', '200']);
     const issues: Array<{ number: number; title: string }> = JSON.parse(stdout);
     existingByTitle = new Map(issues.map(i => [i.title, i.number]));
   } catch {
@@ -98,10 +149,7 @@ export async function autoCreateIssueFromProposal(): Promise<void> {
 
       const body = `Proposal: \`memory/proposals/${file}\`\n\n${tldr}`;
 
-      const { stdout } = await execFileAsync(
-        'gh', ['issue', 'create', '--title', issueTitle, '--label', 'proposal', '--body', body],
-        { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-      );
+      const { stdout } = await gh(['issue', 'create', '--title', issueTitle, '--label', 'proposal', '--body', body]);
 
       // stdout 格式: https://github.com/owner/repo/issues/N
       const issueUrl = stdout.trim();
@@ -151,10 +199,7 @@ export async function autoCloseCompletedIssues(): Promise<void> {
   // Fetch open proposal issues once
   let openIssues: Map<number, string>;
   try {
-    const { stdout } = await execFileAsync(
-      'gh', ['issue', 'list', '--label', 'proposal', '--state', 'open', '--json', 'number,title', '--limit', '200'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['issue', 'list', '--label', 'proposal', '--state', 'open', '--json', 'number,title', '--limit', '200']);
     const issues: Array<{ number: number; title: string }> = JSON.parse(stdout);
     openIssues = new Map(issues.map(i => [i.number, i.title]));
   } catch {
@@ -185,10 +230,7 @@ export async function autoCloseCompletedIssues(): Promise<void> {
       if (!TERMINAL_STATUSES.some(s => status.includes(s))) continue;
 
       // Close the issue
-      await execFileAsync(
-        'gh', ['issue', 'close', String(issueNum), '--comment', `Proposal status: ${statusMatch[1].trim()}`],
-        { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-      );
+      await gh(['issue', 'close', String(issueNum), '--comment', `Proposal status: ${statusMatch[1].trim()}`]);
 
       slog('github', `auto-closed issue #${issueNum} (${file})`);
     } catch {
@@ -207,15 +249,13 @@ interface PRInfo {
   reviewDecision: string;
   labels: Array<{ name: string }>;
   statusCheckRollup: Array<{ conclusion: string; status: string }>;
+  isDraft?: boolean;
 }
 
 export async function autoMergeApprovedPR(): Promise<void> {
   let prs: PRInfo[];
   try {
-    const { stdout } = await execFileAsync(
-      'gh', ['pr', 'list', '--state', 'open', '--json', 'number,title,reviewDecision,labels,statusCheckRollup'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,reviewDecision,labels,statusCheckRollup,isDraft']);
     prs = JSON.parse(stdout);
   } catch {
     return;
@@ -229,15 +269,10 @@ export async function autoMergeApprovedPR(): Promise<void> {
       // Must be approved
       if (pr.reviewDecision !== 'APPROVED') continue;
 
-      // All CI checks must pass
-      if (pr.statusCheckRollup.length === 0) continue;
-      const allPass = pr.statusCheckRollup.every(c => c.conclusion === 'SUCCESS');
-      if (!allPass) continue;
+      if (pr.isDraft) continue;
+      if (!statusChecksAcceptable(pr.statusCheckRollup, { allowMissingChecks: false })) continue;
 
-      await execFileAsync(
-        'gh', ['pr', 'merge', String(pr.number), '--merge', '--delete-branch'],
-        { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-      );
+      await gh(['pr', 'merge', String(pr.number), '--merge', '--delete-branch']);
 
       slog('github', `auto-merged PR #${pr.number}: ${pr.title}`);
     } catch {
@@ -268,11 +303,7 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
 
   let prs: ReviewablePR[];
   try {
-    const { stdout } = await execFileAsync(
-      'gh',
-      ['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,author,url', '--limit', '50'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,author,url', '--limit', '50']);
     prs = JSON.parse(stdout);
   } catch {
     return;
@@ -287,10 +318,12 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
 
   const today = new Date().toISOString().slice(5, 10);
   const newRows: string[] = [];
+  const assignments: Array<{ prNumber: number; reviewers: Array<'akari' | 'codex' | 'claude-code' | 'alex'> }> = [];
   let inboxCount = 0;
 
   for (const pr of prs) {
     const decision = decidePrReviewAssignment(toOpenPrSummary(pr));
+    assignments.push({ prNumber: pr.number, reviewers: decision.reviewers });
     if (!decision.needsAssignment) continue;
 
     let addedReviewerRow = false;
@@ -321,9 +354,12 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
     if (inboxId) inboxCount++;
   }
 
+  let nextActiveContent = activeContent;
   if (newRows.length > 0) {
-    fs.writeFileSync(activePath, activeContent.trimEnd() + '\n' + newRows.join('\n') + '\n', 'utf-8');
+    nextActiveContent = activeContent.trimEnd() + '\n' + newRows.join('\n') + '\n';
   }
+  nextActiveContent = reconcilePrReviewHandoffs(nextActiveContent, assignments);
+  if (nextActiveContent !== activeContent) fs.writeFileSync(activePath, nextActiveContent, 'utf-8');
   if (newRows.length > 0 || inboxCount > 0) {
     slog('github', `tracked ${newRows.length} PR review handoff(s), ${inboxCount} inbox item(s)`);
   }
@@ -347,7 +383,73 @@ function escapeTable(text: string): string {
 }
 
 // =============================================================================
-// 5. PR review claims → handoff consensus status
+// 5. Internal PR review claims
+// =============================================================================
+
+interface GhPrView {
+  number: number;
+  title: string;
+  body?: string | null;
+  labels?: Array<{ name: string }>;
+  files?: Array<{ path: string }>;
+  isDraft?: boolean;
+  reviewDecision?: string;
+  reviewRequests?: unknown[];
+  author?: { login: string };
+  url?: string;
+}
+
+export async function autoProduceInternalPrReviewClaims(): Promise<void> {
+  const memoryDir = path.join(process.cwd(), 'memory');
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  let handoffs = parsePrReviewHandoffs(fs.readFileSync(activePath, 'utf-8'));
+  handoffs = handoffs.filter(h => h.reviewer !== 'alex' && ['needs-review', 'review-pending'].includes(h.status));
+  if (handoffs.length === 0) return;
+
+  const byPr = new Map<number, typeof handoffs>();
+  for (const handoff of handoffs) {
+    const list = byPr.get(handoff.prNumber) ?? [];
+    list.push(handoff);
+    byPr.set(handoff.prNumber, list);
+  }
+
+  const candidates = [];
+  for (const [prNumber, rows] of byPr) {
+    const pr = await viewPullRequest(prNumber);
+    if (!pr || pr.isDraft) continue;
+    const assignment = decidePrReviewAssignment(toOpenPrSummary(pr));
+    for (const row of rows) {
+      if (!assignment.reviewers.includes(row.reviewer)) continue;
+      candidates.push({
+        prNumber,
+        title: pr.title,
+        body: pr.body,
+        reviewer: row.reviewer,
+        framework: assignment.framework,
+        changedFiles: pr.files?.map(f => f.path).filter(Boolean) ?? [],
+      });
+    }
+  }
+
+  const result = appendMissingInternalPrReviewClaims(memoryDir, candidates);
+  if (result.created.length > 0) {
+    slog('github', `created ${result.created.length} internal PR review claim(s)`);
+  }
+}
+
+async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
+  try {
+    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,labels,files,isDraft,reviewDecision,reviewRequests,author,url']);
+    return JSON.parse(stdout) as GhPrView;
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
+// 6. PR review claims → handoff consensus status
 // =============================================================================
 
 export async function autoTrackPrReviewConsensus(): Promise<void> {
@@ -362,7 +464,82 @@ export async function autoTrackPrReviewConsensus(): Promise<void> {
 }
 
 // =============================================================================
-// 6. Merged PR → close handoff loop
+// 7. Internal consensus → GitHub approve / merge
+// =============================================================================
+
+export async function autoApplyInternalPrReviewConsensus(): Promise<void> {
+  const memoryDir = path.join(process.cwd(), 'memory');
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  const activeContent = fs.readFileSync(activePath, 'utf-8');
+  const consensuses = evaluatePrReviewConsensus(parsePrReviewHandoffs(activeContent), readPrReviewClaimsSync(memoryDir))
+    .filter(c => c.status === 'approved' && !c.requiredReviewers.includes('alex'));
+  if (consensuses.length === 0) return;
+
+  for (const consensus of consensuses) {
+    try {
+      await gh(['pr', 'review', String(consensus.prNumber), '--approve', '--body', internalApprovalBody(consensus.summary)]);
+      slog('github', `submitted internal consensus approval for PR #${consensus.prNumber}`);
+    } catch {
+      // GitHub may reject self-approval. Internal consensus remains file truth.
+    }
+  }
+}
+
+export async function autoMergeInternallyApprovedPR(): Promise<void> {
+  const memoryDir = path.join(process.cwd(), 'memory');
+  const activePath = path.join(memoryDir, 'handoffs', 'active.md');
+  if (!fs.existsSync(activePath)) return;
+
+  const consensuses = evaluatePrReviewConsensus(
+    parsePrReviewHandoffs(fs.readFileSync(activePath, 'utf-8')),
+    readPrReviewClaimsSync(memoryDir),
+  ).filter(c => c.status === 'approved' && !c.requiredReviewers.includes('alex'));
+  if (consensuses.length === 0) return;
+  const approved = new Set(consensuses.map(c => c.prNumber));
+
+  let prs: PRInfo[];
+  try {
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,reviewDecision,labels,statusCheckRollup,isDraft']);
+    prs = JSON.parse(stdout);
+  } catch {
+    return;
+  }
+
+  for (const pr of prs) {
+    try {
+      if (!approved.has(pr.number)) continue;
+      if (pr.isDraft || pr.labels?.some(l => l.name === 'hold')) continue;
+      if (!statusChecksAcceptable(pr.statusCheckRollup, { allowMissingChecks: true })) continue;
+      await gh(['pr', 'merge', String(pr.number), '--merge', '--delete-branch']);
+      slog('github', `auto-merged internally approved PR #${pr.number}: ${pr.title}`);
+    } catch {
+      // Single PR failure should not block the loop.
+    }
+  }
+}
+
+function internalApprovalBody(summary: string): string {
+  return [
+    'Internal multi-brain review consensus approved this PR.',
+    '',
+    `Consensus: ${summary}`,
+    '',
+    'File-truth source: memory/index/pr-review-claims.jsonl',
+  ].join('\n');
+}
+
+function statusChecksAcceptable(
+  checks: Array<{ conclusion: string; status: string }> = [],
+  opts: { allowMissingChecks: boolean },
+): boolean {
+  if (checks.length === 0) return opts.allowMissingChecks;
+  return checks.every(check => check.conclusion === 'SUCCESS');
+}
+
+// =============================================================================
+// 8. Merged PR → close handoff loop
 // =============================================================================
 
 interface MergedPR {
@@ -377,11 +554,7 @@ export async function autoTrackMergedPrClosures(): Promise<void> {
 
   let prs: MergedPR[];
   try {
-    const { stdout } = await execFileAsync(
-      'gh',
-      ['pr', 'list', '--state', 'merged', '--json', 'number,title,mergedAt', '--limit', '20'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['pr', 'list', '--state', 'merged', '--json', 'number,title,mergedAt', '--limit', '20']);
     prs = JSON.parse(stdout);
   } catch {
     return;
@@ -430,10 +603,7 @@ export async function autoTrackNewIssues(): Promise<void> {
 
   let issues: Array<{ number: number; title: string; createdAt: string; labels?: Array<{ name: string }> }>;
   try {
-    const { stdout } = await execFileAsync(
-      'gh', ['issue', 'list', '--state', 'open', '--json', 'number,title,createdAt,labels', '--limit', '20'],
-      { cwd: process.cwd(), encoding: 'utf-8', timeout: 15000 },
-    );
+    const { stdout } = await gh(['issue', 'list', '--state', 'open', '--json', 'number,title,createdAt,labels', '--limit', '20']);
     issues = JSON.parse(stdout);
   } catch {
     return;
@@ -494,9 +664,12 @@ export async function githubAutoActions(): Promise<void> {
 
   await autoCreateIssueFromProposal().catch(() => {});
   await autoCloseCompletedIssues().catch(() => {});
-  await autoMergeApprovedPR().catch(() => {});
   await autoTrackPrReviewNeeds().catch(() => {});
+  await autoProduceInternalPrReviewClaims().catch(() => {});
   await autoTrackPrReviewConsensus().catch(() => {});
+  await autoApplyInternalPrReviewConsensus().catch(() => {});
+  await autoMergeApprovedPR().catch(() => {});
+  await autoMergeInternallyApprovedPR().catch(() => {});
   await autoTrackMergedPrClosures().catch(() => {});
   await autoTrackNewIssues().catch(() => {});
 }

@@ -52,4 +52,8 @@ describe('conflict governance', () => {
   it('merges append-only text by preserving both sides and deduplicating exact lines', () => {
     expect(mergeAppendOnlyText('a\nb\n', 'b\nc\n')).toBe('a\nb\nc\n');
   });
+
+  it('preserves paragraph breaks when merging append-only markdown', () => {
+    expect(mergeAppendOnlyText('a\n\nb\n', 'b\n\nc\n')).toBe('a\n\nb\n\nc\n');
+  });
 });
