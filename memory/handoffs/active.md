@@ -90,3 +90,6 @@
 | github | kuro | PR #107 fix: unify default available actors | merged | 05-06 | 05-06 |
 | github | kuro | PR #104 fix: harden conflict governance and close internal review loop | merged | 05-06 | 05-06 |
 | github | kuro | PR #103 fix: add git conflict governance checks | merged | 05-06 | 05-06 |
+| github | akari | PR #117 fix(pr-lifecycle): bypass scope-contaminated block for memory-chore HEAD | changes-requested | 05-06 | - |
+| github | codex | PR #117 fix(pr-lifecycle): bypass scope-contaminated block for memory-chore HEAD | changes-requested | 05-06 | - |
+| github | claude-code | PR #117 fix(pr-lifecycle): bypass scope-contaminated block for memory-chore HEAD | changes-requested | 05-06 | - |
