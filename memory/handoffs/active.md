@@ -91,3 +91,4 @@
 | github | kuro | PR #107 fix: unify default available actors | merged | 05-06 | 05-06 |
 | github | kuro | PR #104 fix: harden conflict governance and close internal review loop | merged | 05-06 | 05-06 |
 | github | kuro | PR #103 fix: add git conflict governance checks | merged | 05-06 | 05-06 |
+| github | akari | PR #120 fix(agent): structured CLI_EXIT slog for silent_exit_void diagnosis | changes-requested | 05-06 | - |
