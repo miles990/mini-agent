@@ -2986,6 +2986,21 @@ export class AgentLoop {
           // the agent said it's done, so release the scheduler binding.
           const schedState = getSchedulerState();
           if (schedState.currentTaskId) {
+            if (markedCount === 0) {
+              try {
+                const { markTaskDoneById } = await import('./memory-index.js');
+                const markedCurrent = await markTaskDoneById(
+                  path.join(process.cwd(), 'memory'),
+                  schedState.currentTaskId,
+                  'current-task done fallback',
+                );
+                if (markedCurrent) {
+                  slog('DONE', `Marked scheduler current task by id fallback: ${schedState.currentTaskId.slice(0, 16)}`);
+                }
+              } catch (err) {
+                slog('DONE', `⚠️ current task fallback failed: ${err instanceof Error ? err.message : String(err)}`);
+              }
+            }
             schedulerTaskDone(schedState.currentTaskId);
             completeProcess(schedState.currentTaskId);
           }
