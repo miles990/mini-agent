@@ -6,6 +6,7 @@ set -e
 
 DEPLOY_DIR="/Users/user/Workspace/mini-agent"
 LOG_FILE="$HOME/.mini-agent/deploy.log"
+LOCK_DIR="$HOME/.mini-agent/deploy.lock"
 
 mkdir -p "$HOME/.mini-agent"
 
@@ -13,7 +14,34 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
+acquire_lock() {
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+        trap 'rm -rf "$LOCK_DIR"' EXIT
+        return 0
+    fi
+
+    LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+    if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+        log "Another deploy is already running (PID $LOCK_PID); aborting"
+        exit 1
+    fi
+
+    log "Removing stale deploy lock"
+    rm -rf "$LOCK_DIR"
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+        trap 'rm -rf "$LOCK_DIR"' EXIT
+        return 0
+    fi
+
+    log "Could not acquire deploy lock; aborting"
+    exit 1
+}
+
 cd "$DEPLOY_DIR"
+
+acquire_lock
 
 log "Starting deployment..."
 
@@ -133,6 +161,10 @@ if [ "$HEALTH_OK" = true ]; then
     log "Deployment successful"
     if [ "${MINI_AGENT_SKIP_WORKSPACE_JANITOR:-0}" = "1" ]; then
         log "Skipping workspace janitor"
+    elif [ "$(git branch --show-current 2>/dev/null)" != "runtime/main" ]; then
+        log "Skipping workspace janitor because deploy checkout is not on runtime/main"
+    elif git status --porcelain | grep -q '^UU '; then
+        log "Skipping workspace janitor because deploy checkout has unresolved conflicts"
     else
         log "Running workspace janitor..."
         if pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1; then
