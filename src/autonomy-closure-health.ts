@@ -110,10 +110,13 @@ export async function ensureAutonomyClosureTask(
   if (!recommendation) return null;
 
   if (existing) {
+    const existingPayload = (existing.payload ?? {}) as Record<string, unknown>;
+    const shouldReleaseStaleHold = existing.status === 'hold' && !existingPayload.holdCondition;
     const refreshed = await updateMemoryIndexEntry(memoryDir, existing.id, {
+      ...(shouldReleaseStaleHold ? { status: 'pending' } : {}),
       summary: recommendation.title,
       payload: {
-        ...((existing.payload ?? {}) as Record<string, unknown>),
+        ...existingPayload,
         origin: AUTONOMY_CLOSURE_ORIGIN,
         priority: recommendation.priority,
         assignee: 'kuro',
@@ -124,6 +127,7 @@ export async function ensureAutonomyClosureTask(
         blocking_stages: snapshot.blockingStages,
         warning_stages: snapshot.warningStages,
         closure_refreshed_at: new Date().toISOString(),
+        ...(shouldReleaseStaleHold ? { closure_unheld_reason: 'refreshed stale autonomy closure hold without unblock condition' } : {}),
       },
       tags: ['autonomy-closure', snapshot.status],
     });
