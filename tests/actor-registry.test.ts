@@ -44,6 +44,10 @@ describe('actor registry', () => {
     expect(getPeerCritiqueActors()).not.toContain('tanren');
   });
 
+  it('provides the canonical default dispatch actor set', () => {
+    expect(getDefaultDispatchableActors()).toEqual(['claude', 'codex', 'local', 'shell', 'akari', 'human']);
+  });
+
   it('keeps executors, memory, and sensors distinct from brains', () => {
     expect(getActorProfile('shell')).toEqual(expect.objectContaining({
       kind: 'executor',
