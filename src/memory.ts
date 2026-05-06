@@ -4283,7 +4283,7 @@ function extractDelegationSummaryInline(output: string, maxLen: number): string 
   let text = output
     .replace(/<ktml:thinking>[\s\S]*?<\/ktml:thinking>/g, '')
     .replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
-    .replace(/\[forge\] merge skipped \([^)]*\)\s*$/, '')
+    .replace(/\[forge\] (?:merge|submit) skipped \([^)]*\)\s*$/, '')
     .trim();
   const cleaned = text.replace(/\n/g, ' ').trim();
   if (cleaned.length <= maxLen) return cleaned;

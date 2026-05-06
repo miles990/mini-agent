@@ -23,6 +23,7 @@ export interface ForgeOutcome {
   worktree: string;
   created: boolean;
   merged: boolean;
+  submitted?: boolean;
   cleaned: boolean;
 }
 
@@ -39,7 +40,10 @@ const FORGE_LITE_BUNDLED = new URL('../scripts/forge-lite.sh', import.meta.url).
 const FORGE_LITE_PLUGIN = path.join(
   process.env.HOME ?? '', '.claude/plugins/marketplaces/forge/scripts/forge-lite.sh'
 );
-const FORGE_LITE = fs.existsSync(FORGE_LITE_PLUGIN) ? FORGE_LITE_PLUGIN : FORGE_LITE_BUNDLED;
+const USE_EXTERNAL_FORGE = process.env.MINI_AGENT_USE_EXTERNAL_FORGE === '1';
+const FORGE_LITE = USE_EXTERNAL_FORGE && fs.existsSync(FORGE_LITE_PLUGIN)
+  ? FORGE_LITE_PLUGIN
+  : FORGE_LITE_BUNDLED;
 
 function forgeExec(cmd: string, workdir: string, timeoutMs = 15_000): string {
   return execSync(`bash "${FORGE_LITE}" ${cmd}`, {
@@ -79,7 +83,7 @@ export function prepareForgeWorkspace(opts: {
   };
 }
 
-export function forgeYolo(worktreePath: string, mainDir: string, message: string): boolean {
+export function forgeSubmit(worktreePath: string, mainDir: string, message: string): boolean {
   try {
     forgeExec(`yolo "${worktreePath}" "${message}"`, mainDir, 120_000);
     return true;
@@ -99,15 +103,15 @@ export function finalizeForgeWorkspace(opts: {
   status: 'completed' | 'failed' | 'timeout';
   message: string;
 }): { outcome: ForgeOutcome; outputSuffix?: string } {
-  const outcome: ForgeOutcome = { worktree: opts.worktree, created: true, merged: false, cleaned: false };
+  const outcome: ForgeOutcome = { worktree: opts.worktree, created: true, merged: false, submitted: false, cleaned: false };
   if (opts.status === 'completed') {
-    outcome.merged = forgeYolo(opts.worktree, opts.mainDir, opts.message);
-    if (!outcome.merged) {
+    outcome.submitted = forgeSubmit(opts.worktree, opts.mainDir, opts.message);
+    if (!outcome.submitted) {
       forgeCleanup(opts.worktree, opts.mainDir);
       outcome.cleaned = true;
-      return { outcome, outputSuffix: '\n[forge] merge skipped (verify failed or no changes)' };
+      return { outcome, outputSuffix: '\n[forge] submit skipped (verify failed or no changes)' };
     }
-    return { outcome };
+    return { outcome, outputSuffix: '\n[forge] branch submitted for PR review' };
   }
 
   slog('FORGE', `Cleaning up failed worktree ${opts.worktree} (status=${opts.status})`);

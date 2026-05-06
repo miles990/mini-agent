@@ -18,7 +18,7 @@ export function extractDelegationSummary(output: string, maxLen: number): string
   let text = output;
   text = text.replace(/<ktml:thinking>[\s\S]*?<\/ktml:thinking>/g, '');
   text = text.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
-  text = text.replace(/\[forge\] merge skipped \([^)]*\)\s*$/, '').trim();
+  text = text.replace(/\[forge\] (?:merge|submit) skipped \([^)]*\)\s*$/, '').trim();
 
   const cleaned = text.replace(/\n/g, ' ').trim();
   if (cleaned.length <= maxLen) return cleaned;
@@ -51,6 +51,7 @@ export function persistDelegationResult(result: TaskResult): void {
       status: result.status,
       durationMs: result.duration,
       forgeMerged: result.forge?.merged ?? false,
+      forgeSubmitted: result.forge?.submitted ?? false,
       output: result.output.slice(0, 2000),
     };
     fs.appendFileSync(journalPath, JSON.stringify(entry) + '\n');
