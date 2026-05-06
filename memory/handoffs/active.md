@@ -101,3 +101,13 @@
 | github | claude-code | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
 | github | kuro | PR #126 fix: complete scheduler-bound tasks by id fallback | merged | 05-06 | 05-06 |
 | github | akari | PR #127 fix: surface dirty runtime workspace corrections | merged | 05-06 | 05-06 |
+| github | kuro | PR #131 fix: prune disposable base worktrees | merged | 05-06 | 05-06 |
+| github | kuro | PR #130 fix: resolve grep falsifier commitments | merged | 05-06 | 05-06 |
+| github | kuro | PR #129 fix: keep deploy checkout clean | merged | 05-06 | 05-06 |
+| github | kuro | PR #128 fix: classify runtime dirt by blocking scope | merged | 05-06 | 05-06 |
+| github | kuro | PR #127 fix: surface dirty runtime workspace corrections | merged | 05-06 | 05-06 |
+| github | kuro | #132 soft-gate: auto-synthesize Decision block when 'chose'-like prose detected without header | needs-triage | 05-06 | — |
+| github | akari | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | codex | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | claude-code | PR #134 fix: route forge changes through PR branches | merged | 05-06 | 05-06 |
+| github | akari | PR #133 fix(memory): broaden isStaleFailureOutput patterns (#83 follow-up) | changes-requested | 05-06 | - |
