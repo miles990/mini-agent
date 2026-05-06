@@ -55,11 +55,15 @@ for (const branch of readLocalBranches()) {
   if (openPrBranches.has(branch)) continue;
   if (isBranchCheckedOut(branch, worktrees)) continue;
   if (mergedPrBranches.has(branch) || isMergedToBase(branch, base)) {
+    const githubMerged = mergedPrBranches.has(branch);
     actions.push({
       type: 'delete-local-branch',
       target: branch,
-      reason: mergedPrBranches.has(branch) ? 'PR already merged' : `already merged into ${base}`,
-      command: ['git', 'branch', '-d', branch],
+      reason: githubMerged ? 'PR already merged' : `already merged into ${base}`,
+      // Squash merges are not ancestors of main, so -d can reject branches that
+      // GitHub has already recorded as merged. Force is scoped to merged PR heads
+      // only; normal ancestor cleanup still uses -d.
+      command: ['git', 'branch', githubMerged ? '-D' : '-d', branch],
     });
   }
 }
