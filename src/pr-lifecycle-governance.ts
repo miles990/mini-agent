@@ -321,6 +321,47 @@ export function closeMergedPrHandoffs(
   return { content: content + '\n', updated, appended };
 }
 
+export function closeAbandonedPrHandoffs(
+  activeContent: string,
+  prs: Array<{ number: number; title: string }>,
+  today: string,
+): HandoffClosureResult {
+  let content = activeContent.trimEnd();
+  let updated = 0;
+  let appended = 0;
+
+  for (const pr of prs) {
+    const marker = `PR #${pr.number}`;
+    const lines = content.split('\n');
+    let found = false;
+
+    const nextLines = lines.map(line => {
+      if (!line.includes(marker) || !line.trim().startsWith('|')) return line;
+      found = true;
+
+      const cols = line.split('|');
+      if (cols.length < 8) return line;
+
+      const status = cols[4].trim().toLowerCase();
+      const done = cols[6].trim();
+      if (['done', 'merged', 'completed', 'closed', 'abandoned'].includes(status) && done !== '-' && done !== '—') return line;
+
+      cols[4] = ' closed ';
+      cols[6] = ` ${today} `;
+      updated++;
+      return cols.join('|');
+    });
+
+    content = nextLines.join('\n');
+    if (!found) {
+      content += `\n| github | kuro | ${marker} ${escapeHandoffTableText(pr.title)} | closed | ${today} | ${today} |`;
+      appended++;
+    }
+  }
+
+  return { content: content + '\n', updated, appended };
+}
+
 export function decidePrConflictAction(pr: PrConflictInput): PrConflictDecision {
   const labels = new Set((pr.labels ?? []).map(l => l.toLowerCase()));
   if (pr.mergeable !== 'CONFLICTING') {
