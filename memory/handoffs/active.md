@@ -52,3 +52,22 @@
 | github | kuro | #94 feat(correction-gate): respect documented hold reasons for local-commit-not-pushed | needs-triage | 05-06 | — |
 | github | kuro | #91 graphify delegation routes prose to shell worker → 156 cumulative bash FAILs | needs-triage | 05-06 | — |
 | github | kuro | #97 Auto-push hook for memory/auto-save chore commits (recurring drift, N=3) | needs-triage | 05-06 | — |
+| github | akari | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | codex | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | claude-code | PR #96 fix(housekeeping): emit shell-executable cmd for graphify KG rebuild (#91) | needs-review | 05-06 | - |
+| github | akari | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | codex | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | claude-code | PR #95 feat(correction-gate): respect documented hold reasons (agent-middleware#94) | needs-review | 05-06 | - |
+| github | akari | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | codex | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | claude-code | PR #93 chore(hooks): post-commit auto-rebuild to prevent stale-dist drift | needs-review | 05-06 | - |
+| github | akari | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | codex | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | claude-code | PR #92 feat(hooks): auto-rebuild dist after src/ commits | needs-review | 05-06 | - |
+| github | akari | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | codex | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | claude-code | PR #90 fix(feedback-loops): capture sampleMsg per error bucket → lastMessage | needs-review | 05-06 | - |
+| github | akari | PR #89 fix(loop): dump head bytes on hasMarker=false soft-gate skip (#88 followup) | needs-review | 05-06 | - |
+| github | kuro | PR #98 fix: gate PR branch scope contamination | merged | 05-06 | 05-06 |
+| github | kuro | PR #86 fix(loop): instrument soft-gate try-entry (#81) | merged | 05-06 | 05-06 |
+| github | kuro | #99 correction-gate: low-output-quality OUTPUT_PATTERNS misses real deliverables (gh issue/pr create, file edits, commits) | needs-triage | 05-06 | — |
