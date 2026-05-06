@@ -27,6 +27,7 @@ interface ErrorPatternState {
     count: number;
     taskCreated: boolean;
     lastSeen: string;
+    lastMessage?: string;
   };
 }
 
@@ -210,14 +211,19 @@ export async function detectErrorPatterns(): Promise<void> {
   const state = readState<ErrorPatternState>('error-patterns.json', {});
 
   // Group by (context + error code + subtype) — subtype splits polymorphic TIMEOUT/UNKNOWN buckets.
-  const groups = new Map<string, number>();
+  // sampleMsg captures first error string per bucket (240ch) — restores postmortem visibility for
+  // opaque buckets like silent_exit_void / no_diag where lastSeen+count alone gave zero diagnostic.
+  const groups = new Map<string, { count: number; sampleMsg: string }>();
   for (const err of errors) {
     const context = err.data.context ?? 'unknown';
     const errorMsg = err.data.error ?? '';
     const code = extractErrorCode(errorMsg);
     const subtype = extractErrorSubtype(errorMsg);
     const key = `${code}:${subtype}::${context}`;
-    groups.set(key, (groups.get(key) ?? 0) + 1);
+    const cur = groups.get(key) ?? { count: 0, sampleMsg: '' };
+    cur.count += 1;
+    if (!cur.sampleMsg && errorMsg) cur.sampleMsg = errorMsg.slice(0, 240);
+    groups.set(key, cur);
   }
 
   let changed = false;
@@ -233,20 +239,21 @@ export async function detectErrorPatterns(): Promise<void> {
     }
   }
 
-  for (const [key, count] of groups) {
+  for (const [key, { count, sampleMsg }] of groups) {
     if (count < 3) continue;
 
     const existing = state[key];
     if (existing) {
       existing.count = count;
       existing.lastSeen = today;
+      if (sampleMsg) existing.lastMessage = sampleMsg;
       changed = true;
       continue;
     }
 
     // Observation only — pulse.ts owns task creation via its own state.
     // taskCreated here is just a "seen" flag to prevent re-logging.
-    state[key] = { count, taskCreated: false, lastSeen: today };
+    state[key] = { count, taskCreated: false, lastSeen: today, lastMessage: sampleMsg };
     changed = true;
     slog('FEEDBACK', `Error pattern detected: ${key} (${count}×)`);
   }
