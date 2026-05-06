@@ -15,7 +15,7 @@ export interface ShipTruthLanguageGateOptions {
   shipTruth?: ShipTruthState | null;
 }
 
-const SHIP_CLAIM_RE = /\b(?:shipped|deployed|verified-live)\b|已上線|完成上線|部署完成|已部署|ship\s*了|上線完成/i;
+const SHIP_CLAIM_RE = /\b(?:shipped|deployed|verified-live)\b|\bship\b(?![-\s]?truth)|已上線|完成上線|部署完成|已部署|ship\s*了|上線完成/i;
 
 export function applyShipTruthLanguageGate(
   text: string,
@@ -37,6 +37,7 @@ export function applyShipTruthLanguageGate(
   const stateLabel = labelShipTruthState(shipTruth);
   const corrected = text
     .replace(/\bshipped\b/gi, stateLabel)
+    .replace(/\bship\b(?![-\s]?truth)/gi, stateLabel)
     .replace(/\bdeployed\b/gi, stateLabel)
     .replace(/\bverified-live\b/gi, stateLabel)
     .replace(/已上線|完成上線|部署完成|已部署|ship\s*了|上線完成/g, stateLabel);

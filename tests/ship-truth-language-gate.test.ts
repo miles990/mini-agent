@@ -46,6 +46,17 @@ describe('ship truth language gate', () => {
     expect(result.text).toContain('ahead=2');
   });
 
+  it('rewrites bare ship claims without corrupting ship truth labels', () => {
+    const result = applyShipTruthLanguageGate('真 ship a fix proposal; ship truth is dirty.', {
+      shipTruth: shipTruth('dirty', { dirty: true }),
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.text).toContain('真 pushed-with-dirty-worktree a fix proposal');
+    expect(result.text).toContain('ship truth is dirty');
+    expect(result.text).toContain('[ship-truth] state=dirty');
+  });
+
   it('allows ship claims when ship truth is clean', () => {
     const result = applyShipTruthLanguageGate('deployed and verified-live', {
       shipTruth: shipTruth('clean'),
