@@ -118,9 +118,22 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   const workspaceIsolation = evaluateWorkspaceIsolation(repoRoot);
 
   if (workspaceIsolation.protectedRuntimeWorkspace && shipTruth.repoPresent && !isSafeRuntimeBranch(shipTruth.branch)) {
-    const message = `runtime workspace 在錯誤分支 ${shipTruth.branch ?? 'unknown'} — protected runtime checkout 只能在 runtime/main；功能修改要用 isolated worktree + PR。`;
-    reasons.push({ type: 'runtime-workspace-wrong-branch', severity: 'high', message });
-    guidance.push(message);
+    const match = findActiveHold(holds, 'runtime-workspace-wrong-branch', {
+      branch: shipTruth.branch,
+      sha: shipTruth.headSha,
+    }, { repoRoot });
+
+    if (match) {
+      // Documented external hold (e.g., active PR work on a feature branch) — track for visibility, do NOT dispatch P0.
+      acknowledgedHolds.push(match);
+      guidance.push(
+        `runtime workspace 在 ${shipTruth.branch ?? 'unknown'} 但有 active hold (${match.matchedBy}): ${match.hold.reason}`,
+      );
+    } else {
+      const message = `runtime workspace 在錯誤分支 ${shipTruth.branch ?? 'unknown'} — protected runtime checkout 只能在 runtime/main；功能修改要用 isolated worktree + PR。`;
+      reasons.push({ type: 'runtime-workspace-wrong-branch', severity: 'high', message });
+      guidance.push(message);
+    }
   }
 
   if (workspaceIsolation.protectedRuntimeWorkspace && (shipTruth.state === 'pending-push' || shipTruth.state === 'diverged')) {
