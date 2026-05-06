@@ -15,10 +15,12 @@ describe('workspace isolation guard', () => {
     ]);
   });
 
-  it('treats source and config paths as code dirt but allows memory dirt', () => {
+  it('treats source, config, and managed output paths as blocking dirt but allows memory dirt', () => {
     expect(isCodePath('src/auto-executor.ts')).toBe(true);
     expect(isCodePath('tests/auto-executor.test.ts')).toBe(true);
     expect(isCodePath('package.json')).toBe(true);
+    expect(isCodePath('kuro-portfolio/ai-trend/index.html')).toBe(true);
+    expect(isCodePath('knowledge-graph/')).toBe(true);
     expect(isCodePath('memory/inner-notes.md')).toBe(false);
     expect(isCodePath('papers/')).toBe(false);
   });
