@@ -16,7 +16,7 @@ export interface WorkspaceIsolationDecision extends WorkspaceIsolationSnapshot {
   warnings: string[];
 }
 
-const SAFE_RUNTIME_BRANCHES = new Set(['main', 'runtime/main']);
+const SAFE_RUNTIME_BRANCHES = new Set(['runtime/main']);
 const CODE_PATH_PATTERN = /^(src|tests|scripts|plugins|skills|tools|kuro-portfolio|knowledge-graph|\.githooks|\.github)\//;
 const CODE_FILE_PATTERN = /^(package\.json|pnpm-lock\.yaml|tsconfig\.json|agent-compose\.yaml)$/;
 
@@ -42,7 +42,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
     };
   }
 
-  if (!branch || !SAFE_RUNTIME_BRANCHES.has(branch)) {
+  if (!isSafeRuntimeBranch(branch)) {
     return {
       cwd,
       repoRoot,
@@ -51,7 +51,7 @@ export function evaluateWorkspaceIsolation(cwd = process.cwd(), protectedRoot = 
       dirtyPaths,
       codeDirtyPaths,
       ok: false,
-      reason: `protected runtime workspace is on branch ${branch ?? 'unknown'}; expected main or runtime/main`,
+      reason: `protected runtime workspace is on branch ${branch ?? 'unknown'}; expected runtime/main`,
       warnings,
     };
   }
@@ -92,12 +92,22 @@ export function parseDirtyPaths(porcelain: string): string[] {
     .split('\n')
     .map(line => line.trimEnd())
     .filter(Boolean)
-    .map(line => line.slice(3).trim())
+    .map(parseDirtyPath)
     .filter(Boolean);
 }
 
 export function isCodePath(filePath: string): boolean {
   return CODE_PATH_PATTERN.test(filePath) || CODE_FILE_PATTERN.test(filePath);
+}
+
+export function isSafeRuntimeBranch(branch: string | null | undefined): boolean {
+  return Boolean(branch && SAFE_RUNTIME_BRANCHES.has(branch));
+}
+
+function parseDirtyPath(line: string): string {
+  if (line.startsWith('?? ') || line.startsWith('!! ')) return line.slice(3).trim();
+  if (line.length > 3 && line[2] === ' ') return line.slice(3).trim();
+  return line.replace(/^[ MADRCU?!]{1,2}\s+/, '').trim();
 }
 
 function isProtectedRuntimeWorkspace(cwd: string, repoRoot: string | null, protectedRoot?: string): boolean {

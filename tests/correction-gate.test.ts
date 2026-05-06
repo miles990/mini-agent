@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -106,6 +107,22 @@ describe('correction gate', () => {
     }));
   });
 
+  it('flags protected runtime checkout when it is on main instead of runtime/main', () => {
+    execGit(['init'], tmpDir);
+    execGit(['config', 'user.email', 'test@example.com'], tmpDir);
+    execGit(['config', 'user.name', 'Test User'], tmpDir);
+    writeFileSync(path.join(tmpDir, 'README.md'), 'runtime guard fixture\n', 'utf-8');
+    execGit(['add', 'README.md'], tmpDir);
+    execGit(['commit', '-m', 'init'], tmpDir);
+    execGit(['branch', '-M', 'main'], tmpDir);
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.needsCorrection).toBe(true);
+    expect(snapshot.reasons.map(r => r.type)).toContain('runtime-workspace-wrong-branch');
+    expect(snapshot.guidance.join('\n')).toContain('只能在 runtime/main');
+  });
+
   it('classifies only managed/code dirt as blocking runtime dirt', () => {
     expect(getBlockingRuntimeDirtyPaths([
       'memory/inner-notes.md',
@@ -184,3 +201,7 @@ describe('correction gate', () => {
     }));
   });
 });
+
+function execGit(args: string[], cwd = tmpDir): void {
+  execFileSync('git', args, { cwd, stdio: 'ignore' });
+}

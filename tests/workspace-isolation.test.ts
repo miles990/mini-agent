@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { isCodePath, parseDirtyPaths } from '../src/workspace-isolation.js';
+import { isCodePath, isSafeRuntimeBranch, parseDirtyPaths } from '../src/workspace-isolation.js';
 
 describe('workspace isolation guard', () => {
   it('parses porcelain paths without losing renamed or untracked paths', () => {
     expect(parseDirtyPaths([
       ' M memory/inner-notes.md',
+      'M  scripts/check-runtime-workspace.ts',
       '?? papers/',
       'A  src/workspace-isolation.ts',
     ].join('\n'))).toEqual([
       'memory/inner-notes.md',
+      'scripts/check-runtime-workspace.ts',
       'papers/',
       'src/workspace-isolation.ts',
     ]);
@@ -23,5 +25,12 @@ describe('workspace isolation guard', () => {
     expect(isCodePath('knowledge-graph/')).toBe(true);
     expect(isCodePath('memory/inner-notes.md')).toBe(false);
     expect(isCodePath('papers/')).toBe(false);
+  });
+
+  it('only treats runtime/main as safe for the protected runtime checkout', () => {
+    expect(isSafeRuntimeBranch('runtime/main')).toBe(true);
+    expect(isSafeRuntimeBranch('main')).toBe(false);
+    expect(isSafeRuntimeBranch('fix/example')).toBe(false);
+    expect(isSafeRuntimeBranch(null)).toBe(false);
   });
 });
