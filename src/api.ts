@@ -91,6 +91,7 @@ import { createTelegramPoller, getTelegramPoller, getNotificationStats } from '.
 import { searchEntities as kgSearchEntities, getEntityCard as kgGetEntityCard, getKgStats } from './kg-entity-search.js';
 import { getIngestStats as kgGetIngestStats } from './kg-live-ingest.js';
 import { query as kgQuery, formatReport as kgFormatReport } from './kg-query.js';
+import { getKGPromotionLedgerPath, readKGPromotionRecords, summarizeKGPromotions } from './kg-promotion.js';
 import {
   getProcessStatus, getLogSummary, getNetworkStatus, getConfigSnapshot,
   getActivitySummary,
@@ -3090,6 +3091,21 @@ export function createApi(port = 3001): express.Express {
   app.get('/api/kg/ingest-stats', (_req: Request, res: Response) => {
     try {
       res.json(kgGetIngestStats());
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/kg/promotions', (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
+      const memoryDir = getMemoryRootDir();
+      const records = readKGPromotionRecords(memoryDir, limit);
+      res.json({
+        ledgerPath: getKGPromotionLedgerPath(memoryDir),
+        summary: summarizeKGPromotions(records),
+        records,
+      });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

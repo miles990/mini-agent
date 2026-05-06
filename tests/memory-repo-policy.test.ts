@@ -31,11 +31,12 @@ describe('memory repo policy', () => {
     const report = buildMemoryRepoHealthReport('/memory', [
       { relPath: 'MEMORY.md', bytes: 1200 },
       { relPath: 'topics/kg.md', bytes: 2400 },
+      { relPath: 'topics/archive/old-archived-20260426.md', bytes: 5000 },
       { relPath: 'context-checkpoints/2026-05-06.jsonl', bytes: 9000 },
       { relPath: 'state/activity-journal.jsonl', bytes: 5000 },
     ], '2026-05-06T00:00:00.000Z');
 
-    expect(report.totals.trackableFiles).toBe(2);
+    expect(report.totals.trackableFiles).toBe(3);
     expect(report.totals.ignoredFiles).toBe(2);
     expect(report.kgCandidates.map(file => file.relPath)).toEqual(['topics/kg.md', 'MEMORY.md']);
 
