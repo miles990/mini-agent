@@ -100,3 +100,4 @@
 | github | codex | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
 | github | claude-code | PR #125 fix(correction-gate): wire hold-check into low-responsiveness (#124 option C) | changes-requested | 05-06 | - |
 | github | kuro | PR #126 fix: complete scheduler-bound tasks by id fallback | merged | 05-06 | 05-06 |
+| github | akari | PR #127 fix: surface dirty runtime workspace corrections | merged | 05-06 | 05-06 |
