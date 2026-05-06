@@ -20,7 +20,16 @@ log "Starting deployment..."
 # ── Phase 1: Pull + Install + Build (Kuro still running) ──
 
 log "Pulling latest code..."
-git pull origin main 2>/dev/null || true
+if ! git pull origin main; then
+    log "git pull failed; aborting deploy before build/stop"
+    exit 1
+fi
+
+if ! pnpm exec tsx scripts/check-conflicts.ts; then
+    log "Unresolved git conflicts detected; aborting deploy before build/stop"
+    log "For append-only memory conflicts, run: pnpm exec tsx scripts/check-conflicts.ts --resolve-append-only"
+    exit 1
+fi
 
 log "Installing dependencies..."
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
