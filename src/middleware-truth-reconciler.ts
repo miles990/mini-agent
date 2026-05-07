@@ -160,14 +160,34 @@ export async function reconcileMiddlewareCommitmentsSafe(
 async function listMiddlewareCommitments(baseUrl: string, fetchImpl: typeof fetch): Promise<Commitment[]> {
   const res = await fetchImpl(`${baseUrl}/commits?status=active`);
   if (!res.ok) throw new Error(`GET /commits failed: HTTP ${res.status}`);
-  return await res.json() as Commitment[];
+  return parseCommitmentsResponse(await res.json());
 }
 
 async function listMiddlewareTasks(baseUrl: string, fetchImpl: typeof fetch): Promise<MiddlewareTaskSnapshot[]> {
   const res = await fetchImpl(`${baseUrl}/tasks?limit=200`);
   if (!res.ok) throw new Error(`GET /tasks failed: HTTP ${res.status}`);
-  const payload = await res.json() as { tasks?: MiddlewareTaskSnapshot[] } | MiddlewareTaskSnapshot[];
-  return Array.isArray(payload) ? payload : payload.tasks ?? [];
+  return parseTasksResponse(await res.json());
+}
+
+export function parseCommitmentsResponse(payload: unknown): Commitment[] {
+  if (Array.isArray(payload)) return payload as Commitment[];
+  if (payload && typeof payload === 'object') {
+    const record = payload as { items?: unknown; commitments?: unknown; commits?: unknown };
+    if (Array.isArray(record.items)) return record.items as Commitment[];
+    if (Array.isArray(record.commitments)) return record.commitments as Commitment[];
+    if (Array.isArray(record.commits)) return record.commits as Commitment[];
+  }
+  return [];
+}
+
+export function parseTasksResponse(payload: unknown): MiddlewareTaskSnapshot[] {
+  if (Array.isArray(payload)) return payload as MiddlewareTaskSnapshot[];
+  if (payload && typeof payload === 'object') {
+    const record = payload as { items?: unknown; tasks?: unknown };
+    if (Array.isArray(record.items)) return record.items as MiddlewareTaskSnapshot[];
+    if (Array.isArray(record.tasks)) return record.tasks as MiddlewareTaskSnapshot[];
+  }
+  return [];
 }
 
 async function patchCommitment(

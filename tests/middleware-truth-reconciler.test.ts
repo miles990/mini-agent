@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   canonicalMiddlewareCommitmentKey,
+  parseCommitmentsResponse,
+  parseTasksResponse,
   planMiddlewareCommitmentTruthActions,
   reconcileMiddlewareCommitmentsSafe,
 } from '../src/middleware-truth-reconciler.js';
@@ -95,12 +97,15 @@ describe('middleware truth reconciler', () => {
   it('patches planned reconciliation actions through middleware status updates', async () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/tasks?limit=200')) {
-        return new Response(JSON.stringify({ tasks: [{ id: 'task-completed', status: 'completed' }] }), { status: 200 });
+        return new Response(JSON.stringify({ count: 1, items: [{ id: 'task-completed', status: 'completed' }] }), { status: 200 });
       }
       if (url.endsWith('/commits?status=active')) {
-        return new Response(JSON.stringify([
-          commitment({ id: 'cmt/completed', linked_task_id: 'task-completed' }),
-        ]), { status: 200 });
+        return new Response(JSON.stringify({
+          count: 1,
+          items: [
+            commitment({ id: 'cmt/completed', linked_task_id: 'task-completed' }),
+          ],
+        }), { status: 200 });
       }
       if (url.endsWith('/commit/cmt%2Fcompleted') && init?.method === 'PATCH') {
         expect(JSON.parse(String(init.body))).toMatchObject({
@@ -116,5 +121,17 @@ describe('middleware truth reconciler', () => {
       baseUrl: 'http://middleware.test',
       fetchImpl,
     })).resolves.toEqual({ planned: 1, applied: 1, skipped: 0 });
+  });
+
+  it('accepts middleware list envelopes from current and legacy endpoints', () => {
+    const c = commitment({ id: 'cmt-current' });
+    expect(parseCommitmentsResponse({ count: 1, items: [c] })).toEqual([c]);
+    expect(parseCommitmentsResponse({ commitments: [c] })).toEqual([c]);
+    expect(parseCommitmentsResponse([c])).toEqual([c]);
+
+    const task = { id: 'task-current', status: 'completed' as const };
+    expect(parseTasksResponse({ count: 1, items: [task] })).toEqual([task]);
+    expect(parseTasksResponse({ tasks: [task] })).toEqual([task]);
+    expect(parseTasksResponse([task])).toEqual([task]);
   });
 });
