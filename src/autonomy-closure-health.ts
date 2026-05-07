@@ -11,6 +11,7 @@ import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './exter
 import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
 import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-healing.js';
 import { getFeature } from './features.js';
+import { evaluatePublicWriteIdentity } from './public-write-identity.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -18,6 +19,7 @@ export type AutonomyClosureStage =
   | 'test-health'
   | 'issue-autopilot'
   | 'pr-review-consensus'
+  | 'public-write-identity'
   | 'ship-and-deploy'
   | 'self-improvement'
   | 'memory-context'
@@ -73,6 +75,7 @@ export function evaluateAutonomyClosure(
     testHealthStage(memoryDir),
     issueAutopilotStage(openTasks),
     prReviewConsensusStage(memoryDir),
+    publicWriteIdentityStage(memoryDir),
     shipAndDeployStage(correction),
     selfImprovementStage(openTasks),
     memoryContextStage(memoryDir, repoRoot),
@@ -101,6 +104,40 @@ export function evaluateAutonomyClosure(
     warningStages,
     recommendedTask: buildRecommendedTask(stages, status),
     correction,
+  };
+}
+
+function publicWriteIdentityStage(memoryDir: string): AutonomyClosureStageResult {
+  const snapshot = evaluatePublicWriteIdentity(memoryDir);
+  if (snapshot.status === 'blocked') {
+    return {
+      stage: 'public-write-identity',
+      status: 'blocked',
+      summary: snapshot.summary,
+      evidence: snapshot.openMismatches.slice(0, 5).map(record =>
+        `${record.service} ${record.action} ${record.subject}: expected=${record.expectedActor} actual=${record.actualActor} source=${record.source}`,
+      ),
+      repair: 'Stop that outbound channel until it uses Kuro-owned credentials; record a resolved provenance entry only after the account boundary is fixed.',
+    };
+  }
+  if (snapshot.status === 'warn') {
+    return {
+      stage: 'public-write-identity',
+      status: 'warn',
+      summary: snapshot.summary,
+      evidence: snapshot.unknownActors.slice(0, 5).map(record =>
+        `${record.service} ${record.action} ${record.subject}: actor unverified source=${record.source}`,
+      ),
+      repair: 'Record the actual public actor after each outbound write, or use a managed tool path that records it automatically.',
+    };
+  }
+  return {
+    stage: 'public-write-identity',
+    status: 'ok',
+    summary: snapshot.summary,
+    evidence: snapshot.recent.slice(0, 5).map(record =>
+      `${record.service} ${record.action} ${record.subject}: ${record.actualActor}`,
+    ),
   };
 }
 
