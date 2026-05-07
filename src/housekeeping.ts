@@ -25,7 +25,8 @@ import {
 import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
 import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
-import { spawnDelegation } from './delegation.js';
+import { spawnDelegation, awaitDelegation } from './delegation.js';
+import type { TaskResult } from './delegation.js';
 import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
 import { rotateDecisionLogs } from './decision-log-rotation.js';
 import { sweepMiddlewareFailures } from './middleware-failure-self-healing.js';
@@ -836,6 +837,121 @@ async function execGit(cwd: string, args: string[]): Promise<{ stdout: string; s
 // KG Auto-Ingest — dispatch KG rebuild via middleware when data accumulates
 // =============================================================================
 
+/**
+ * KG rebuild pipeline steps — issue #277.
+ *
+ * Previously a single `&&`-chained shell command (7 LLM-heavy `pnpm tsx`
+ * scripts) hit the agent-middleware shell-worker 1800s wall-clock cap
+ * (`workers.json` `shell.timeout=1800`). progressTimeoutMs (#167 Patch Y)
+ * prevented stall-kill but not the cumulative wall-clock blowup. The chain
+ * also masked which extractor was the bottleneck — failures looked identical.
+ *
+ * Decomposed into 7 sequential delegations so each step:
+ *   - gets its own wall-clock + progressTimeout budget,
+ *   - is observable per-step in events.jsonl,
+ *   - isolates failure to the offending extractor (chain aborts on first failure).
+ *
+ * graphify routes to the shell worker (CAPABILITY_TO_WORKER); each `cmd` is
+ * passed verbatim to /bin/bash -c, so each step MUST remain a single executable
+ * command line — NOT prose (cf. #91 prose-as-prompt regression).
+ */
+export interface KGRebuildStep {
+  /** Short label for logs / acceptance strings. */
+  label: string;
+  /** Single shell command — no `&&` chaining of multiple `pnpm tsx` invocations. */
+  cmd: string;
+  /** Acceptance descriptor surfaced via /accomplish. */
+  acceptance: string;
+}
+
+export const KG_REBUILD_STEPS: readonly KGRebuildStep[] = [
+  {
+    label: 'extract-chunks',
+    cmd: 'pnpm tsx scripts/kg-extract-chunks.ts --write',
+    acceptance: 'kg/chunks.jsonl updated with new memory-file chunks',
+  },
+  {
+    label: 'extract-entities',
+    cmd: 'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
+    acceptance: 'kg/entities.jsonl appended with up to 100 new entity rows',
+  },
+  {
+    label: 'extract-edges',
+    cmd: 'pnpm tsx scripts/kg-extract-edges.ts --write --limit 100',
+    acceptance: 'kg/edges.jsonl appended with up to 100 new edge rows',
+  },
+  {
+    label: 'build-cooccurrence',
+    cmd: 'pnpm tsx scripts/kg-build-cooccurrence.ts --replace',
+    acceptance: 'kg/edges.jsonl cooccurrence rows replaced from current chunk corpus',
+  },
+  {
+    label: 'build-frontmatter-edges',
+    cmd: 'pnpm tsx scripts/kg-build-frontmatter-edges.ts --write',
+    acceptance: 'kg/edges.jsonl frontmatter-derived edges refreshed',
+  },
+  {
+    label: 'detect-conflicts',
+    cmd: 'pnpm tsx scripts/kg-detect-conflicts.ts --write',
+    acceptance: 'kg/conflicts.jsonl rebuilt from current entities/edges',
+  },
+  {
+    label: 'viz',
+    cmd: 'pnpm tsx scripts/kg-viz.ts',
+    acceptance: 'kg/viz/* visualization artifacts regenerated',
+  },
+] as const;
+
+/** Per-step delegation timeout. 10 min × 7 steps = 70 min cumulative
+ *  budget — well above the previous 30 min single-task cap, but each
+ *  individual delegation stays under the shell-worker 1800s wall-clock. */
+const KG_STEP_TIMEOUT_MS = 600_000;
+
+async function runKGIngestChain(workdir: string, newWrites: number): Promise<void> {
+  for (let i = 0; i < KG_REBUILD_STEPS.length; i++) {
+    const step = KG_REBUILD_STEPS[i];
+    const stepNum = i + 1;
+    const total = KG_REBUILD_STEPS.length;
+    const prompt = `cd ${workdir} && ${step.cmd}`;
+    let taskId: string;
+    try {
+      taskId = spawnDelegation({
+        type: 'graphify',
+        prompt,
+        workdir,
+        timeoutMs: KG_STEP_TIMEOUT_MS,
+        // KG extraction scripts call LLMs and produce no stdout during
+        // round-trips. progressTimeoutMs prevents shell-worker stall-kill
+        // (#167 Patch Y) — kept per-step now that the chain is decomposed.
+        progressTimeoutMs: KG_STEP_TIMEOUT_MS,
+        acceptance: `KG rebuild step ${stepNum}/${total} (${step.label}, ${newWrites} new writes): ${step.acceptance}`,
+      });
+    } catch (err) {
+      slog('KG-INGEST', `dispatch failed at step ${stepNum}/${total} (${step.label}): ${(err as Error).message}`);
+      return;
+    }
+    let result: TaskResult;
+    try {
+      // Wall-clock budget per step matches the delegation timeout; ample headroom
+      // before the shell-worker 1800s cap. awaitDelegation rejects on its own
+      // wall-clock so we don't hang the chain forever.
+      result = await awaitDelegation(taskId, KG_STEP_TIMEOUT_MS * 2);
+    } catch (err) {
+      slog('KG-INGEST', `step ${stepNum}/${total} (${step.label}) await error: ${(err as Error).message}`);
+      return;
+    }
+    if (result.status !== 'completed') {
+      slog(
+        'KG-INGEST',
+        `chain aborted at step ${stepNum}/${total} (${step.label}) status=${result.status} task=${taskId}`,
+      );
+      return;
+    }
+    slog('KG-INGEST', `step ${stepNum}/${total} (${step.label}) ok task=${taskId}`);
+  }
+  slog('KG-INGEST', `chain completed (${KG_REBUILD_STEPS.length} steps, ${newWrites} new writes)`);
+}
+
 function dispatchKGIngestIfNeeded(): void {
   try {
     const { should, newWrites, reason } = shouldTriggerKGIngest();
@@ -844,32 +960,14 @@ function dispatchKGIngestIfNeeded(): void {
     const workdir = process.cwd();
     slog('KG-INGEST', `Triggering auto-ingest: ${reason}`);
 
-    // graphify is wired to the shell worker (delegation.ts CAPABILITY_TO_WORKER),
-    // and shell-worker prompts are passed through verbatim to /bin/bash -c.
-    // Therefore the prompt MUST be a single executable command line — NOT prose.
-    // See agent-middleware#91 for the prior 156-FAIL incident caused by prose.
-    const kgRebuildCmd = [
-      `cd ${workdir}`,
-      'pnpm tsx scripts/kg-extract-chunks.ts --write',
-      'pnpm tsx scripts/kg-extract-entities.ts --write --limit 100',
-      'pnpm tsx scripts/kg-extract-edges.ts --write --limit 100',
-      'pnpm tsx scripts/kg-build-cooccurrence.ts --replace',
-      'pnpm tsx scripts/kg-build-frontmatter-edges.ts --write',
-      'pnpm tsx scripts/kg-detect-conflicts.ts --write',
-      'pnpm tsx scripts/kg-viz.ts',
-    ].join(' && ');
-
-    spawnDelegation({
-      type: 'graphify',
-      prompt: kgRebuildCmd,
-      workdir,
-      // KG extraction scripts call LLMs and produce no stdout during round-trips.
-      // progressTimeoutMs: 600_000 (10 min) prevents shell-worker stall-kill (#167 Patch Y).
-      progressTimeoutMs: 600_000,
-      acceptance: `KG incremental rebuild (${newWrites} new writes): entities.jsonl and edges.jsonl updated; manifest.json last_incremental refreshed`,
-    });
-
+    // Mark before dispatch so we don't re-enter on the next housekeeping cycle
+    // while the (potentially long) chain is still running.
     markKGIngestTriggered();
+
+    // Fire-and-forget: housekeeping doesn't await the rebuild chain.
+    void runKGIngestChain(workdir, newWrites).catch(err => {
+      slog('KG-INGEST', `chain error: ${(err as Error).message}`);
+    });
 
     // Also push to external KG service (fire-and-forget)
     pushToKGService()
