@@ -102,7 +102,6 @@ describe('middleware failure self-healing', () => {
       summary: 'Decompose middleware task task-turns after max-turns failure',
       source: 'test',
       payload: {
-        origin: 'middleware-self-healing',
         middleware_failure_task_id: 'older-task-id',
         middleware_failure_bucket: 'max-turns',
       },

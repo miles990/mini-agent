@@ -295,7 +295,6 @@ function findMiddlewareFailureFollowUp(
   return queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold', 'completed'] })
     .find(entry => {
       const payload = (entry.payload ?? {}) as Record<string, unknown>;
-      if (payload.origin !== 'middleware-self-healing') return false;
       if (payload.middleware_failure_task_id === taskId && payload.middleware_failure_bucket === bucket) return true;
       return entry.summary === summary;
     });
