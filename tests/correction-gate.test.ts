@@ -68,6 +68,26 @@ describe('correction gate', () => {
     expect(correctionTasks).toHaveLength(1);
   });
 
+  it('does not suppress exploration for bounded background maintenance tasks', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'KG discussion old topic: close or refresh stale context',
+      tags: ['kg', 'discussion-lifecycle', 'stale-discussion'],
+      payload: {
+        origin: 'kg-discussion-janitor',
+        priority: 2,
+        ticksSinceLastProgress: 50,
+      },
+    });
+    invalidateIndexCache();
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.reasons.map(r => r.type)).not.toContain('low-responsiveness');
+    expect(snapshot.suppressedActions).not.toContain('self-research');
+  });
+
   it('parses git ahead state as pending-push ship truth', () => {
     const parsed = parseGitStatusPorcelainV2([
       '# branch.oid abc123',

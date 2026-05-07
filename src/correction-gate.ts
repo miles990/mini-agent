@@ -70,7 +70,8 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
 
   const activeTasks = allTasks.filter(t =>
     ['pending', 'in_progress'].includes(t.status) &&
-    !(t.payload as Record<string, unknown>)?.goal_id
+    !(t.payload as Record<string, unknown>)?.goal_id &&
+    !isBackgroundMaintenanceTask(t)
   );
   const avgStaleness = activeTasks.length === 0 ? 0 :
     activeTasks.reduce((sum, t) => sum + ((t.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0), 0) / activeTasks.length;
@@ -199,6 +200,13 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
     shipTruth,
     acknowledgedHolds,
   };
+}
+
+function isBackgroundMaintenanceTask(task: MemoryIndexEntry): boolean {
+  const payload = (task.payload ?? {}) as Record<string, unknown>;
+  if (payload.origin === 'kg-discussion-janitor') return true;
+  const priority = Number(payload.priority);
+  return Number.isFinite(priority) && priority >= 2 && Boolean(task.tags?.includes('discussion-lifecycle'));
 }
 
 export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluateCorrectionGate(memoryDir)): Promise<MemoryIndexEntry | null> {
