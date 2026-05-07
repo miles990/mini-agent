@@ -8,6 +8,8 @@ DEPLOY_DIR="/Users/user/Workspace/mini-agent"
 LOG_FILE="$HOME/.mini-agent/deploy.log"
 LOCK_DIR="$HOME/.mini-agent/deploy.lock"
 DEFAULT_MEMORY_DIR="$(dirname "$DEPLOY_DIR")/mini-agent-memory/memory"
+DEPLOY_LOCK_WAIT_SECONDS="${MINI_AGENT_DEPLOY_LOCK_WAIT_SECONDS:-90}"
+DEPLOY_LOCK_TERM_GRACE_SECONDS="${MINI_AGENT_DEPLOY_LOCK_TERM_GRACE_SECONDS:-30}"
 
 mkdir -p "$HOME/.mini-agent"
 mkdir -p "$DEFAULT_MEMORY_DIR"
@@ -16,6 +18,10 @@ export MINI_AGENT_MEMORY="${MINI_AGENT_MEMORY:-$MINI_AGENT_MEMORY_DIR}"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+is_deploy_process() {
+    ps -p "$1" -o command= 2>/dev/null | grep -q 'scripts/deploy\.sh'
 }
 
 acquire_lock() {
@@ -27,12 +33,45 @@ acquire_lock() {
 
     LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
     if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-        log "Another deploy is already running (PID $LOCK_PID); aborting"
-        exit 1
+        if ! is_deploy_process "$LOCK_PID"; then
+            log "Deploy lock PID $LOCK_PID is alive but not deploy.sh; removing stale lock"
+            rm -rf "$LOCK_DIR"
+        else
+            log "Another deploy is already running (PID $LOCK_PID); waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s"
+            for _ in $(seq 1 "$DEPLOY_LOCK_WAIT_SECONDS"); do
+                if ! kill -0 "$LOCK_PID" 2>/dev/null; then
+                    log "Previous deploy PID $LOCK_PID exited; taking over lock"
+                    rm -rf "$LOCK_DIR"
+                    break
+                fi
+                sleep 1
+            done
+
+            if [ -d "$LOCK_DIR" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+                log "Previous deploy PID $LOCK_PID still running; requesting graceful shutdown"
+                kill -TERM "$LOCK_PID" 2>/dev/null || true
+                for _ in $(seq 1 "$DEPLOY_LOCK_TERM_GRACE_SECONDS"); do
+                    if ! kill -0 "$LOCK_PID" 2>/dev/null; then
+                        log "Previous deploy PID $LOCK_PID exited after TERM; taking over lock"
+                        rm -rf "$LOCK_DIR"
+                        break
+                    fi
+                    sleep 1
+                done
+            fi
+
+            if [ -d "$LOCK_DIR" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+                log "Previous deploy PID $LOCK_PID ignored TERM; force killing before new deploy"
+                kill -KILL "$LOCK_PID" 2>/dev/null || true
+                sleep 1
+                rm -rf "$LOCK_DIR"
+            fi
+        fi
+    else
+        log "Removing stale deploy lock"
+        rm -rf "$LOCK_DIR"
     fi
 
-    log "Removing stale deploy lock"
-    rm -rf "$LOCK_DIR"
     if mkdir "$LOCK_DIR" 2>/dev/null; then
         echo "$$" > "$LOCK_DIR/pid"
         trap 'rm -rf "$LOCK_DIR"' EXIT

@@ -13,6 +13,10 @@ describe('deploy script workspace janitor hook', () => {
     expect(acquireIndex).toBeGreaterThan(lockIndex);
     expect(acquireIndex).toBeLessThan(startIndex);
     expect(script).toContain('Another deploy is already running');
+    expect(script).toContain('waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s');
+    expect(script).toContain('requesting graceful shutdown');
+    expect(script).toContain('kill -TERM "$LOCK_PID"');
+    expect(script).toContain('force killing before new deploy');
     expect(script).toContain("trap 'rm -rf \"$LOCK_DIR\"' EXIT");
   });
 
