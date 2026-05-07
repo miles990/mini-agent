@@ -236,14 +236,17 @@ function classifyError(error: unknown): ErrorClassification {
       return {
         type: 'TIMEOUT',
         retryable: false,
-        message: `CLI 靜默中斷 HTTP-stall（exit ${exitCode}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
+        // 2026-05-07 (Issue #233): exitCode ?? 'N/A' so exitCode=undefined/null shows as "exit N/A"
+        message: `CLI 靜默中斷 HTTP-stall（exit ${exitCode ?? 'N/A'}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
         modelGuidance: 'HTTP-stall pattern detected (>800s, no stdout, no stderr) — upstream provider held the stream socket without progress. Retrying immediately wastes another 1000s. Defer the task, switch provider lane if available, or escalate to user. Issue #191.'
       };
     }
     return {
       type: 'TIMEOUT',
       retryable: true,
-      message: `CLI 靜默中斷（exit ${exitCode}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
+      // 2026-05-07 (Issue #233): exitCode ?? 'N/A' so exitCode=undefined shows as "exit N/A"
+      // instead of "exit undefined" — keeps message consistent with outer logger at agent.ts:2010.
+      message: `CLI 靜默中斷（exit ${exitCode ?? 'N/A'}，${Math.round(duration / 1000)}s 無 stderr）.${stdoutHint}${signalHint}`,
       modelGuidance: 'CLI exited silently after >=2min with no stderr. Likely causes: mid-session auth drop, silent context overflow, or upstream provider quiet-failure. On retry, re-auth session first; if recurring, reduce context and split the task.'
     };
   }
