@@ -2719,7 +2719,10 @@ export class AgentLoop {
       // Soft falsifier gate — reuse shared extractDecisionBlock (fire-and-forget)
       try {
         const decision = extractDecisionBlock(response);
-        slog('LEDGER', `soft-gate enter: response=${response?.length ?? 0}ch hasMarker=${response ? /^##\s*Decision/m.test(response) : false} cycle=${this.cycleCount}`);
+        const len = response?.length ?? 0;
+        const hasMarker = response ? /^##\s*Decision/m.test(response) : false;
+        let outcome: 'wrote' | 'no-chose' | 'null-with-marker' | 'null-no-marker' | 'short-skip';
+        let extra: Record<string, unknown> = {};
         if (decision?.chose) {
           writeCommitment({
             cycle_id: this.cycleCount,
@@ -2729,35 +2732,31 @@ export class AgentLoop {
             // Phase 2 (cycle 16, 2026-05-06): Decision-block emits are self-promises.
             counterparty: { kind: 'self' },
           });
-          if (!decision.falsifier) slog('LEDGER', 'soft-gate: OODA action without falsifier');
+          outcome = 'wrote';
+          extra = { has_falsifier: Boolean(decision.falsifier) };
         } else if (decision && !decision.chose) {
           // Issue #80: parsed Decision block but `chose` field missing/empty.
-          // Heuristic to avoid log spam: only emit when response looks substantial.
-          if (response && response.length > 200) {
-            const keys = Object.keys(decision).join(',') || '<empty>';
-            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned object without chose (keys=${keys}, response=${response.length}ch)`);
-          }
-        } else if (!decision && response && response.length > 200) {
-          // Issue #80: regex returned null on a non-trivial response (potential silent miss).
-          // Length gate keeps tool-only / short cycles quiet.
-          const hasDecisionMarker = /^##\s*Decision/m.test(response);
-          if (hasDecisionMarker) {
-            // Issue #88 (2026-05-06): when header is detected but field-extract fails,
-            // dump first 300ch after the header so the regex flaw is self-diagnosing.
-            const headerIdx = response.search(/^#{2,3}\s*Decision\b/im);
-            const snippet = headerIdx >= 0
+          outcome = 'no-chose';
+          extra = { keys: Object.keys(decision).join(',') || '<empty>' };
+        } else if (len <= 200) {
+          outcome = 'short-skip';
+        } else if (hasMarker) {
+          // Issue #88: keep the diagnostic bytes, but make the event structured.
+          const headerIdx = response.search(/^#{2,3}\s*Decision\b/im);
+          extra = {
+            snippet: headerIdx >= 0
               ? response.slice(headerIdx, headerIdx + 300).replace(/\n/g, '\\n')
-              : '<no-header>';
-            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=true, snippet="${snippet}")`);
-          } else {
-            // Issue #88 followup: also dump head when marker missing on substantial response (cl-5 false-branch evidence).
-            const head = response.slice(0, 200).replace(/\n/g, '\\n');
-            slog('LEDGER', `soft-gate skip: extractDecisionBlock returned null (response=${response.length}ch, has_decision_marker=false, head="${head}")`);
-          }
+              : '<no-header>',
+          };
+          outcome = 'null-with-marker';
+        } else {
+          extra = { head: response.slice(0, 200).replace(/\n/g, '\\n') };
+          outcome = 'null-no-marker';
         }
+        slog('LEDGER', JSON.stringify({ evt: 'soft-gate', cycle: this.cycleCount, len, hasMarker, outcome, ...extra }));
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        slog('LEDGER', `soft-gate threw: ${msg}`);
+        slog('LEDGER', JSON.stringify({ evt: 'soft-gate', cycle: this.cycleCount, outcome: 'threw', msg }));
       }
 
       // ── Filter out chats already sent via streaming ──
