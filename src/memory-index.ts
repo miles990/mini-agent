@@ -2003,11 +2003,15 @@ export async function enqueueRoomDirective(
   slog('NEXT', `Enqueued [${from}] "${title.slice(0, 40)}" (${intent}, P${priority})`);
 }
 
-export async function pruneNonActionableRoomTasks(memoryDir: string): Promise<{ pruned: number }> {
+export async function pruneNonActionableRoomTasks(
+  memoryDir: string,
+  options: { sources?: string[] } = {},
+): Promise<{ pruned: number }> {
+  const sources = new Set(options.sources ?? ['room']);
   const tasks = queryMemoryIndexSync(memoryDir, {
     type: ['task'],
     status: ['pending', 'in_progress', 'hold'],
-  }).filter(entry => entry.source === 'room');
+  }).filter(entry => entry.source && sources.has(entry.source));
   let pruned = 0;
   for (const task of tasks) {
     const payload = getTaskPayload(task);
