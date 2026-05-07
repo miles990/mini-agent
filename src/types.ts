@@ -327,7 +327,7 @@ export interface ParsedTags {
     id?: string;
     ids?: string[];
     type?: 'task' | 'goal';
-    status?: 'pending' | 'in_progress' | 'completed' | 'abandoned' | 'hold';
+    status?: 'pending' | 'in_progress' | 'completed' | 'abandoned' | 'hold' | 'blocked';
     origin?: string;
     priority?: number;
     verify?: Array<{ name: string; status: 'pass' | 'fail' | 'unknown'; detail?: string }>;

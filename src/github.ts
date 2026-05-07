@@ -46,54 +46,22 @@ import {
   type IssueStateSummary,
   type OpenPrSnapshotEntry,
 } from './pr-autopilot.js';
+import { assertKuroGithubIdentity, kuroGithubCliEnv } from './github-identity.js';
 
 const execFileAsync = promisify(execFile);
 
 async function gh(args: string[], timeout = 15000): Promise<{ stdout: string; stderr: string }> {
+  assertKuroGithubIdentity();
   const result = await execFileAsync('gh', args, {
     cwd: process.cwd(),
     encoding: 'utf-8',
     timeout,
-    env: ghEnv(),
+    env: kuroGithubCliEnv(),
   });
   return {
     stdout: result.stdout,
     stderr: result.stderr,
   };
-}
-
-function ghEnv(): NodeJS.ProcessEnv {
-  const token = process.env.KURO_GITHUB_TOKEN
-    || process.env.KURO_GITHUB
-    || readDotEnvValue('KURO_GITHUB_TOKEN')
-    || readDotEnvValue('KURO_GITHUB');
-  return {
-    ...process.env,
-    ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}),
-  };
-}
-
-function readDotEnvValue(key: string): string | undefined {
-  try {
-    const envPath = path.join(process.cwd(), '.env');
-    if (!fs.existsSync(envPath)) return undefined;
-    for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
-      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-      if (!match || match[1] !== key) continue;
-      return unquoteEnvValue(match[2]);
-    }
-  } catch {
-    return undefined;
-  }
-  return undefined;
-}
-
-function unquoteEnvValue(value: string): string {
-  const trimmed = value.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
 }
 
 /** Check if gh CLI is available and authenticated */
