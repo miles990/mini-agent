@@ -42,14 +42,14 @@
         "color": "#24292e"
       }
     ],
-    "total_posts": 268,
-    "generated_at": "2026-05-07T06:46:02.645Z"
+    "total_posts": 263,
+    "generated_at": "2026-05-07T07:02:47.944Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 86,
+      "post_count": 84,
       "sources": [
         "hn",
         "x",
@@ -62,7 +62,7 @@
           "title": "NousResearch/hermes-agent: The agent that grows with you",
           "url": "https://github.com/NousResearch/hermes-agent",
           "source": "github",
-          "points": 136256,
+          "points": 136443,
           "zh_claim": "Hermes Agent 是具備自適應學習能力的 AI Agent 框架系統",
           "zh_so_what": "Agent builder 獲得可開箱即用的自適應框架，無需反覆微調，支持長期部署中的動態學習與能力增長",
           "published_at": "2025-07-22T22:22:28Z"
@@ -107,7 +107,7 @@
           "title": "langchain-ai/langchain: The agent engineering platform",
           "url": "https://github.com/langchain-ai/langchain",
           "source": "github",
-          "points": 135977,
+          "points": 135989,
           "zh_claim": "LangChain 是 agent 工程平台，現已支援 TypeScript",
           "zh_so_what": "TypeScript 開發者可複用 LangChain 的 agent 工程模式、工具整合、提示詞工程，加速 agent 應用交付",
           "published_at": "2022-10-17T02:58:36Z"
@@ -135,7 +135,7 @@
     {
       "topic": "model",
       "color": "#ffb86b",
-      "post_count": 24,
+      "post_count": 23,
       "sources": [
         "hn",
         "x",
@@ -148,7 +148,7 @@
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170881,
+          "points": 170894,
           "zh_claim": "統一介面在本地執行 LLM，現已支援多款中文及開源模型（Kimi-K2.5、Qwen、GLM-5 等）",
           "zh_so_what": "Agent 可切換本地/遠端模型降低成本與延遲；邊緣裝置可離線執行；建議邊角調試用本地，生產核心用遠端 API",
           "published_at": "2023-06-26T19:39:32Z"
@@ -193,7 +193,7 @@
           "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
           "url": "https://github.com/open-webui/open-webui",
           "source": "github",
-          "points": 135822,
+          "points": 135843,
           "zh_claim": "支援多個 LLM 後端的開源通用聊天介面",
           "zh_so_what": "Agent 開發者可基此快速切換模型測試，降低本地多模型部署複雜度，加速原型迭代",
           "published_at": "2023-10-06T22:08:27Z"
@@ -221,7 +221,7 @@
     {
       "topic": "memory",
       "color": "#7fd4b8",
-      "post_count": 13,
+      "post_count": 12,
       "sources": [
         "hn",
         "arxiv",
@@ -233,7 +233,7 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 174808,
+          "points": 174880,
           "zh_claim": "統一多個 AI 編程平台的 Agent 開發框架，兼含性能優化與記憶系統",
           "zh_so_what": "開發者避免為不同平台重寫 agent 邏輯；統一記憶層解決 stateless 痛點；可驗證的性能優化標準（token/latency）",
           "published_at": "2026-01-18T00:51:51Z"
@@ -266,13 +266,13 @@
           "published_at": "2026-05-05T17:42:50Z"
         },
         {
-          "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
-          "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
+          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
+          "url": "https://github.com/infiniflow/ragflow",
           "source": "github",
-          "points": 109085,
-          "zh_claim": "100+ 可運行的 LLM/RAG 應用程式集合，著重實作與快速部署",
-          "zh_so_what": "Agent 開發者可克隆範例快速上手；學習 LLM app 典型架構、集成模式、部署流程的實踐案例",
-          "published_at": "2024-04-29T05:30:25Z"
+          "points": 79864,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-12-12T06:13:13Z"
         },
         {
           "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
@@ -284,13 +284,13 @@
           "published_at": "2026-05-06T17:53:20Z"
         },
         {
-          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
-          "url": "https://github.com/infiniflow/ragflow",
+          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
+          "url": "https://github.com/vllm-project/vllm",
           "source": "github",
-          "points": 79855,
-          "zh_claim": "開源 RAG 引擎融合檢索與 Agent 能力為 LLM 提供統一上下文層",
-          "zh_so_what": "Agent builder 無須自行整合 RAG pipeline，直接使用優化過的統一框架加速知識驅動應用開發",
-          "published_at": "2023-12-12T06:13:13Z"
+          "points": 79236,
+          "zh_claim": "vLLM 提供高吞吐、低記憶體的 LLM 推理引擎，支援多種模型和並發請求",
+          "zh_so_what": "Agent builders 可依賴開源、低成本推理後端，使多 agent 系統的推理成本和延遲可控，加速自主代理應用規模化",
+          "published_at": "2023-02-09T11:23:20Z"
         },
         {
           "title": "An Agent-Oriented Pluggable Experience-RAG Skill for Experience-Driven Retrieval Strategy Orchestration",
@@ -318,7 +318,7 @@
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
           "source": "github",
-          "points": 160325,
+          "points": 160334,
           "zh_claim": "統一多模態 SOTA 模型的定義、訓練與推理框架",
           "zh_so_what": "Agent 開發者可快速支持多模態、降低模型集成成本、直接微調預訓練模型",
           "published_at": "2018-10-29T13:56:00Z"
@@ -393,7 +393,7 @@
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
           "source": "github",
-          "points": 46095,
+          "points": 46097,
           "zh_claim": "統一多模態推理引擎，無 GPU 相依實現本地 AI 部署",
           "zh_so_what": "Agent 在邊際設備部署多模態感知不再受限於 GPU，可降低基礎設施成本且提升隱私性",
           "published_at": "2023-03-18T22:58:02Z"
@@ -467,7 +467,7 @@
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
           "source": "github",
-          "points": 116128,
+          "points": 116174,
           "zh_claim": "提供 Web 爬蟲和互動 API，專為 AI agent 取得網頁數據最佳化",
           "zh_so_what": "Agent 可直接調用統一 API 獲取網頁數據，無需自建爬蟲基礎設施；大幅降低 web-aware agent 的開發複雜度",
           "published_at": "2024-04-15T21:02:29Z"
@@ -485,7 +485,7 @@
           "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
           "url": "https://github.com/milvus-io/milvus",
           "source": "github",
-          "points": 44152,
+          "points": 44156,
           "zh_claim": "開源雲原生向量資料庫，支援大規模可擴展的向量 ANN 搜尋",
           "zh_so_what": "多 agent 系統可基於自主向量 DB 實現跨循環 embedding memory 和 RAG retrieval，無廠商鎖定",
           "published_at": "2019-09-16T06:43:43Z"
@@ -593,7 +593,7 @@
       "points": [
         {
           "date": "2026-05-01",
-          "count": 22
+          "count": 21
         },
         {
           "date": "2026-05-02",
@@ -617,11 +617,11 @@
         },
         {
           "date": "2026-05-07",
-          "count": 35
+          "count": 34
         }
       ],
-      "total": 86,
-      "delta_pct": 312
+      "total": 84,
+      "delta_pct": 308
     },
     {
       "topic": "model",
@@ -629,7 +629,7 @@
       "points": [
         {
           "date": "2026-05-01",
-          "count": 12
+          "count": 11
         },
         {
           "date": "2026-05-02",
@@ -656,8 +656,8 @@
           "count": 4
         }
       ],
-      "total": 24,
-      "delta_pct": 20
+      "total": 23,
+      "delta_pct": 26
     },
     {
       "topic": "memory",
@@ -665,7 +665,7 @@
       "points": [
         {
           "date": "2026-05-01",
-          "count": 7
+          "count": 6
         },
         {
           "date": "2026-05-02",
@@ -692,8 +692,8 @@
           "count": 1
         }
       ],
-      "total": 13,
-      "delta_pct": -50
+      "total": 12,
+      "delta_pct": -45
     },
     {
       "topic": "training",
@@ -935,11 +935,11 @@
         },
         {
           "source": "github",
-          "post_count": 16
+          "post_count": 14
         }
       ],
       "source_count": 5,
-      "post_count": 86,
+      "post_count": 84,
       "sample_per_source": [
         {
           "source": "hn",
@@ -969,7 +969,7 @@
           "source": "github",
           "title": "langchain-ai/langchain: The agent engineering platform",
           "url": "https://github.com/langchain-ai/langchain",
-          "points": 135977
+          "points": 135989
         }
       ]
     },
@@ -995,11 +995,11 @@
         },
         {
           "source": "github",
-          "post_count": 6
+          "post_count": 5
         }
       ],
       "source_count": 5,
-      "post_count": 24,
+      "post_count": 23,
       "sample_per_source": [
         {
           "source": "hn",
@@ -1029,7 +1029,7 @@
           "source": "github",
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
-          "points": 170881
+          "points": 170894
         }
       ]
     },
@@ -1051,11 +1051,11 @@
         },
         {
           "source": "github",
-          "post_count": 8
+          "post_count": 7
         }
       ],
       "source_count": 4,
-      "post_count": 13,
+      "post_count": 12,
       "sample_per_source": [
         {
           "source": "hn",
@@ -1079,7 +1079,7 @@
           "source": "github",
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
-          "points": 174808
+          "points": 174880
         }
       ]
     },
@@ -1129,7 +1129,7 @@
           "source": "github",
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
-          "points": 160325
+          "points": 160334
         }
       ]
     },
@@ -1169,7 +1169,7 @@
           "source": "github",
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
-          "points": 46095
+          "points": 46097
         }
       ]
     },
@@ -1199,7 +1199,7 @@
           "source": "github",
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
-          "points": 116128
+          "points": 116174
         }
       ]
     }

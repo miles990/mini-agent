@@ -42,14 +42,14 @@
         "color": "#24292e"
       }
     ],
-    "total_posts": 129,
-    "generated_at": "2026-05-07T06:46:02.627Z"
+    "total_posts": 124,
+    "generated_at": "2026-05-07T07:02:47.929Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 92,
+      "post_count": 64,
       "sources": [
         "hn",
         "x",
@@ -59,13 +59,13 @@
       ],
       "sample_titles": [
         {
-          "title": "n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.",
-          "url": "https://github.com/n8n-io/n8n",
+          "title": "NousResearch/hermes-agent: The agent that grows with you",
+          "url": "https://github.com/NousResearch/hermes-agent",
           "source": "github",
-          "points": 186909,
-          "zh_claim": "n8n 是具原生 AI 能力的公平程式碼流程自動化平台，支援視覺編輯、自訂程式碼與 400+ 整合",
-          "zh_so_what": "Agent 開發者可用 n8n 快速組裝多來源工作流 + AI 判斷，無需自寫整合代碼；降低代理應用佈署成本",
-          "published_at": "2019-06-22T09:24:21Z"
+          "points": 136443,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2025-07-22T22:22:28Z"
         },
         {
           "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
@@ -104,13 +104,13 @@
           "published_at": "2026-05-06T17:57:31Z"
         },
         {
-          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
-          "url": "https://github.com/ollama/ollama",
+          "title": "langchain-ai/langchain: The agent engineering platform. Available in TypeScript!",
+          "url": "https://github.com/langchain-ai/langchain",
           "source": "github",
-          "points": 170881,
-          "zh_claim": "統一的本地 LLM 運行框架，支援多個開源模型的一鍵部署與推理",
-          "zh_so_what": "Agent 構建者可直接利用 ollama 統一推理接口快速原型化多模型架構，降低基礎設施門檻與部署成本",
-          "published_at": "2023-06-26T19:39:32Z"
+          "points": 135989,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2022-10-17T02:58:36Z"
         },
         {
           "title": "Effective today, we are: 1) Doubling Claude Code’s 5-hour rate limits for Pro, Max, and Team plans; 2) Removing the peak hours limit reduction on Claude Code for Pro and Max plans; and 3) Substantially raising our API rate limits for Opus models.",
@@ -133,100 +133,26 @@
       ]
     },
     {
-      "topic": "memory",
-      "color": "#7fd4b8",
-      "post_count": 15,
+      "topic": "model",
+      "color": "#ffb86b",
+      "post_count": 11,
       "sources": [
+        "hn",
+        "x",
         "arxiv",
         "latent",
         "github"
       ],
       "sample_titles": [
         {
-          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
-          "url": "https://github.com/affaan-m/everything-claude-code",
+          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
+          "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 174808,
-          "zh_claim": "統一多個 AI 編碼助手的 agent harness 性能優化系統",
-          "zh_so_what": "agent 開發者可借鑑統一 harness 架構減少重複優化，加快多平台部署",
-          "published_at": "2026-01-18T00:51:51Z"
+          "points": 170894,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-06-26T19:39:32Z"
         },
-        {
-          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
-          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
-          "source": "latent",
-          "points": 57,
-          "zh_claim": "AIE World's Fair 第三年擴大規模，新增六大議題軌道與垂直 AI 領域",
-          "zh_so_what": "Agent 構建者應重視記憶系統、世界模型、自動化研究；垂直 AI 工業化應用成為主流方向",
-          "published_at": "2026-05-02T07:21:55.000Z"
-        },
-        {
-          "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
-          "url": "http://arxiv.org/abs/2605.05189v1",
-          "source": "arxiv",
-          "points": 55,
-          "zh_claim": "線性關聯記憶的容量由檢索準則決定：Winner-take-all 需 d²log(n)，Listwise 只需 d²",
-          "zh_so_what": "記憶檢索系統設計啟示：放鬆 top-1 完美排序改用候選列表，可將容量從 O(d²log n) 降至 O(d²)，顯著提升知識圖譜檢索效率",
-          "published_at": "2026-05-06T17:53:20Z"
-        },
-        {
-          "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
-          "url": "https://github.com/open-webui/open-webui",
-          "source": "github",
-          "points": 135822,
-          "zh_claim": "統一 AI 對話介面，相容 Ollama、OpenAI 等多個模型後端",
-          "zh_so_what": "Agent builders 可快速整合多模型降低 UI 開發成本；標準化介面利於 RAG 和工具調用功能擴展",
-          "published_at": "2023-10-06T22:08:27Z"
-        },
-        {
-          "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
-          "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
-          "source": "github",
-          "points": 109085,
-          "zh_claim": "收集 100+ 個可直接執行的 LLM Agent 和 RAG 應用供開發者參考",
-          "zh_so_what": "Agent 開發者可從成熟實現快速啟動項目，降低從零到一的架構探索成本",
-          "published_at": "2024-04-29T05:30:25Z"
-        },
-        {
-          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
-          "url": "https://github.com/infiniflow/ragflow",
-          "source": "github",
-          "points": 79855,
-          "zh_claim": "開源 RAG 引擎融合檢索與 Agent 能力為 LLM 提供統一上下文層",
-          "zh_so_what": "Agent builder 無須自行整合 RAG pipeline，直接使用優化過的統一框架加速知識驅動應用開發",
-          "published_at": "2023-12-12T06:13:13Z"
-        },
-        {
-          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
-          "url": "https://github.com/vllm-project/vllm",
-          "source": "github",
-          "points": 79227,
-          "zh_claim": "vLLM 利用 PagedAttention 演算法實現高效能 LLM 推論和服務引擎",
-          "zh_so_what": "Agent builders 可大幅降低推論成本、提高並發，使邊緣環境部署複雜 agent 成為可能",
-          "published_at": "2023-02-09T11:23:20Z"
-        },
-        {
-          "title": "mem0ai/mem0: Universal memory layer for AI Agents",
-          "url": "https://github.com/mem0ai/mem0",
-          "source": "github",
-          "points": 54960,
-          "zh_claim": "為 AI Agent 提供通用、模組化的記憶持久化與檢索層",
-          "zh_so_what": "Agent 開發者可聚焦業務邏輯，記憶的增刪查改由框架統一處理。跨會話上下文成本大幅下降",
-          "published_at": "2023-06-20T08:58:36Z"
-        }
-      ]
-    },
-    {
-      "topic": "model",
-      "color": "#ffb86b",
-      "post_count": 6,
-      "sources": [
-        "hn",
-        "x",
-        "arxiv",
-        "latent"
-      ],
-      "sample_titles": [
         {
           "title": "[AINews] The Other vs The Utility",
           "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
@@ -264,6 +190,15 @@
           "published_at": "2026-05-06T16:28:25.000Z"
         },
         {
+          "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
+          "url": "https://github.com/open-webui/open-webui",
+          "source": "github",
+          "points": 135843,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-10-06T22:08:27Z"
+        },
+        {
           "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
           "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
           "source": "latent",
@@ -280,6 +215,127 @@
           "zh_claim": "多語言極化檢測中，集合 Gemma 模型與合成數據增強策略達到競賽第二名",
           "zh_so_what": "多語言微調時合成數據質量優於數量；集合與超參調整無成本提升效能；Gemma 跨語言泛化勝 XLM-RoBERTa/Qwen",
           "published_at": "2026-05-06T17:29:14Z"
+        }
+      ]
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "post_count": 9,
+      "sources": [
+        "arxiv",
+        "latent",
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+          "url": "https://github.com/affaan-m/everything-claude-code",
+          "source": "github",
+          "points": 174880,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-01-18T00:51:51Z"
+        },
+        {
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "source": "latent",
+          "points": 57,
+          "zh_claim": "AIE World's Fair 第三年擴大規模，新增六大議題軌道與垂直 AI 領域",
+          "zh_so_what": "Agent 構建者應重視記憶系統、世界模型、自動化研究；垂直 AI 工業化應用成為主流方向",
+          "published_at": "2026-05-02T07:21:55.000Z"
+        },
+        {
+          "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
+          "url": "http://arxiv.org/abs/2605.05189v1",
+          "source": "arxiv",
+          "points": 55,
+          "zh_claim": "線性關聯記憶的容量由檢索準則決定：Winner-take-all 需 d²log(n)，Listwise 只需 d²",
+          "zh_so_what": "記憶檢索系統設計啟示：放鬆 top-1 完美排序改用候選列表，可將容量從 O(d²log n) 降至 O(d²)，顯著提升知識圖譜檢索效率",
+          "published_at": "2026-05-06T17:53:20Z"
+        },
+        {
+          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
+          "url": "https://github.com/infiniflow/ragflow",
+          "source": "github",
+          "points": 79864,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-12-12T06:13:13Z"
+        },
+        {
+          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
+          "url": "https://github.com/vllm-project/vllm",
+          "source": "github",
+          "points": 79236,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-02-09T11:23:20Z"
+        },
+        {
+          "title": "mem0ai/mem0: Universal memory layer for AI Agents",
+          "url": "https://github.com/mem0ai/mem0",
+          "source": "github",
+          "points": 54968,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-06-20T08:58:36Z"
+        },
+        {
+          "title": "MemPalace/mempalace: The best-benchmarked open-source AI memory system. And it's free.",
+          "url": "https://github.com/MemPalace/mempalace",
+          "source": "github",
+          "points": 51380,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-05T01:12:07Z"
+        },
+        {
+          "title": "HKUDS/LightRAG: [EMNLP2025] \"LightRAG: Simple and Fast Retrieval-Augmented Generation\"",
+          "url": "https://github.com/HKUDS/LightRAG",
+          "source": "github",
+          "points": 34837,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2024-10-02T11:57:54Z"
+        }
+      ]
+    },
+    {
+      "topic": "reasoning",
+      "color": "#f1fa8c",
+      "post_count": 3,
+      "sources": [
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
+          "url": "https://github.com/firecrawl/firecrawl",
+          "source": "github",
+          "points": 116174,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2024-04-15T21:02:29Z"
+        },
+        {
+          "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
+          "url": "https://github.com/milvus-io/milvus",
+          "source": "github",
+          "points": 44156,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2019-09-16T06:43:43Z"
+        },
+        {
+          "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
+          "url": "https://github.com/pingcap/tidb",
+          "source": "github",
+          "points": 40059,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2015-09-06T04:01:52Z"
         }
       ]
     },
@@ -303,21 +359,40 @@
       ]
     },
     {
-      "topic": "reasoning",
-      "color": "#f1fa8c",
+      "topic": "training",
+      "color": "#ff79c6",
       "post_count": 1,
       "sources": [
         "github"
       ],
       "sample_titles": [
         {
-          "title": "Significant-Gravitas/AutoGPT: AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.",
-          "url": "https://github.com/Significant-Gravitas/AutoGPT",
+          "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
+          "url": "https://github.com/huggingface/transformers",
           "source": "github",
-          "points": 184041,
-          "zh_claim": "開源 AI 代理框架，賦權使用者自主構建與部署通用自主系統",
-          "zh_so_what": "降低代理開發門檻；成為後續開源框架的設計參考；驗證自主規劃迴圈可行性與社群容量極限",
-          "published_at": "2023-03-16T09:21:07Z"
+          "points": 160334,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2018-10-29T13:56:00Z"
+        }
+      ]
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
+      "post_count": 1,
+      "sources": [
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
+          "url": "https://github.com/mudler/LocalAI",
+          "source": "github",
+          "points": 46097,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2023-03-18T22:58:02Z"
         }
       ]
     }
@@ -329,22 +404,10 @@
       "points": [
         {
           "date": "2026-05-07",
-          "count": 92
+          "count": 64
         }
       ],
-      "total": 92,
-      "delta_pct": null
-    },
-    {
-      "topic": "memory",
-      "color": "#7fd4b8",
-      "points": [
-        {
-          "date": "2026-05-07",
-          "count": 15
-        }
-      ],
-      "total": 15,
+      "total": 64,
       "delta_pct": null
     },
     {
@@ -353,10 +416,34 @@
       "points": [
         {
           "date": "2026-05-07",
-          "count": 6
+          "count": 11
         }
       ],
-      "total": 6,
+      "total": 11,
+      "delta_pct": null
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "points": [
+        {
+          "date": "2026-05-07",
+          "count": 9
+        }
+      ],
+      "total": 9,
+      "delta_pct": null
+    },
+    {
+      "topic": "reasoning",
+      "color": "#f1fa8c",
+      "points": [
+        {
+          "date": "2026-05-07",
+          "count": 3
+        }
+      ],
+      "total": 3,
       "delta_pct": null
     },
     {
@@ -372,8 +459,20 @@
       "delta_pct": null
     },
     {
-      "topic": "reasoning",
-      "color": "#f1fa8c",
+      "topic": "training",
+      "color": "#ff79c6",
+      "points": [
+        {
+          "date": "2026-05-07",
+          "count": 1
+        }
+      ],
+      "total": 1,
+      "delta_pct": null
+    },
+    {
+      "topic": "infra",
+      "color": "#8be9fd",
       "points": [
         {
           "date": "2026-05-07",
@@ -407,11 +506,11 @@
         },
         {
           "source": "github",
-          "post_count": 42
+          "post_count": 14
         }
       ],
       "source_count": 5,
-      "post_count": 92,
+      "post_count": 64,
       "sample_per_source": [
         {
           "source": "hn",
@@ -439,9 +538,9 @@
         },
         {
           "source": "github",
-          "title": "n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.",
-          "url": "https://github.com/n8n-io/n8n",
-          "points": 186909
+          "title": "NousResearch/hermes-agent: The agent that grows with you",
+          "url": "https://github.com/NousResearch/hermes-agent",
+          "points": 136443
         }
       ]
     },
@@ -464,10 +563,14 @@
         {
           "source": "latent",
           "post_count": 2
+        },
+        {
+          "source": "github",
+          "post_count": 5
         }
       ],
-      "source_count": 4,
-      "post_count": 6,
+      "source_count": 5,
+      "post_count": 11,
       "sample_per_source": [
         {
           "source": "hn",
@@ -492,6 +595,12 @@
           "title": "[AINews] The Other vs The Utility",
           "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
           "points": 58
+        },
+        {
+          "source": "github",
+          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
+          "url": "https://github.com/ollama/ollama",
+          "points": 170894
         }
       ]
     },
@@ -509,11 +618,11 @@
         },
         {
           "source": "github",
-          "post_count": 13
+          "post_count": 7
         }
       ],
       "source_count": 3,
-      "post_count": 15,
+      "post_count": 9,
       "sample_per_source": [
         {
           "source": "arxiv",
@@ -531,7 +640,7 @@
           "source": "github",
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
-          "points": 174808
+          "points": 174880
         }
       ]
     }

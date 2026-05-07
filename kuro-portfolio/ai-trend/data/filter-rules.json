@@ -1,0 +1,29 @@
+{
+  "_doc": "Blacklist for build-landing.mjs aggregator. Filters out generic non-AI noise that crowds out real AI signal due to high star counts. Keep conservative — only add entries that are observably crowding out AI items, not opinions.",
+  "_added": "2026-05-07 (TrendRadar cherry-pick #2)",
+  "version": 1,
+  "blacklist_repo_full_names": [
+    "Snailclimb/JavaGuide",
+    "f/prompts.chat",
+    "Shubhamsaboo/awesome-llm-apps",
+    "EbookFoundation/free-programming-books",
+    "freeCodeCamp/freeCodeCamp",
+    "sindresorhus/awesome",
+    "kamranahmedse/developer-roadmap",
+    "vinta/awesome-python",
+    "donnemartin/system-design-primer",
+    "trekhleb/javascript-algorithms"
+  ],
+  "blacklist_title_regex": [
+    "^awesome[- ]",
+    "/awesome[- ]",
+    "面试|面試",
+    "interview[- ]?(guide|prep|questions)",
+    "cheat[- ]?sheet",
+    "free[- ]programming[- ]books",
+    "developer[- ]roadmap"
+  ],
+  "blacklist_url_regex": [
+    "github\\.com/[^/]+/awesome[-_]"
+  ]
+}

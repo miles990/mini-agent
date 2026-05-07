@@ -71,6 +71,32 @@ async function dirExists(p) {
   try { const s = await stat(p); return s.isDirectory(); } catch { return false; }
 }
 
+// TrendRadar cherry-pick #2 (2026-05-07): blacklist generic non-AI noise.
+// Conservative — only filters items observably crowding out AI signal.
+async function loadFilterRules() {
+  try {
+    const raw = JSON.parse(await readFile(join(OUT_DIR, 'filter-rules.json'), 'utf8'));
+    return {
+      repos: new Set(raw.blacklist_repo_full_names || []),
+      titleRx: (raw.blacklist_title_regex || []).map(s => new RegExp(s, 'i')),
+      urlRx:   (raw.blacklist_url_regex   || []).map(s => new RegExp(s, 'i')),
+    };
+  } catch { return { repos: new Set(), titleRx: [], urlRx: [] }; }
+}
+
+function passesBlacklist(post, src, rules) {
+  const title = String(post.title || '');
+  const url   = String(post.url || '');
+  // GitHub: "owner/repo: tagline" — extract owner/repo prefix.
+  if (src === 'github') {
+    const m = title.match(/^([\w.\-]+\/[\w.\-]+)(?::|\s)/);
+    if (m && rules.repos.has(m[1])) return false;
+  }
+  for (const rx of rules.titleRx) if (rx.test(title)) return false;
+  for (const rx of rules.urlRx)   if (rx.test(url))   return false;
+  return true;
+}
+
 function isoDate(d) { return d.toISOString().slice(0, 10); }
 
 function dateNDaysAgo(n) {
@@ -83,8 +109,10 @@ async function loadPeriod(days) {
   const today  = isoDate(new Date());
   const cutoff = dateNDaysAgo(days - 1); // inclusive of `days` days
 
+  const rules = await loadFilterRules();
   const all = [];
   const sourcesActive = new Set();
+  let filteredOut = 0;
 
   for (const src of SOURCES) {
     const dir = join(STATE_DIR, src.dir);
@@ -97,6 +125,7 @@ async function loadPeriod(days) {
       try { raw = JSON.parse(await readFile(join(dir, f), 'utf8')); }
       catch (e) { console.warn(`[landing] skip ${src.key}/${f}: ${e.message}`); continue; }
       for (const p of (raw.posts || [])) {
+        if (!passesBlacklist(p, src.key, rules)) { filteredOut++; continue; }
         const t = tagPost(p);
         all.push({
           id: p.id, date, source: src.key,
@@ -128,6 +157,7 @@ async function loadPeriod(days) {
     if (p.summary && p.summary.claim && p.summary.claim !== "pending-llm-pass" && (!prev.summary || !prev.summary.claim || prev.summary.claim === "pending-llm-pass")) prev.summary = p.summary;
     if (p.published_at && !prev.published_at) prev.published_at = p.published_at;
   }
+  if (filteredOut) console.log(`[landing] blacklist filtered out ${filteredOut} post(s)`);
   return { posts: [...byId.values()], sourcesActive: [...sourcesActive] };
 }
 
