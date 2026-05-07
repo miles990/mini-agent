@@ -82,6 +82,125 @@ describe('runtime workspace autocorrect', () => {
     expect(gitOut(result.worktree!, ['show', 'HEAD:README.md'])).toContain('tracked dirty');
   });
 
+  it('syncs a clean runtime checkout that is behind origin/main', () => {
+    const remote = path.join(tmpDir, 'behind-clean-remote.git');
+    const repo = path.join(tmpDir, 'behind-clean-mini-agent');
+    const peer = path.join(tmpDir, 'behind-clean-peer');
+    git(tmpDir, ['init', '--bare', remote]);
+    git(tmpDir, ['clone', remote, repo]);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test User']);
+    writeFileSync(path.join(repo, 'README.md'), 'base\n');
+    git(repo, ['add', 'README.md']);
+    git(repo, ['commit', '-m', 'init']);
+    git(repo, ['branch', '-M', 'runtime/main']);
+    git(repo, ['push', '-u', 'origin', 'runtime/main:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+    git(repo, ['branch', '--set-upstream-to=origin/main', 'runtime/main']);
+
+    git(tmpDir, ['clone', remote, peer]);
+    git(peer, ['config', 'user.email', 'test@example.com']);
+    git(peer, ['config', 'user.name', 'Test User']);
+    git(peer, ['checkout', '-b', 'main', 'origin/main']);
+    writeFileSync(path.join(peer, 'README.md'), 'base\nremote\n');
+    git(peer, ['commit', '-am', 'remote change']);
+    git(peer, ['push', 'origin', 'HEAD:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+
+    const result = autocorrectRuntimeWorkspace(repo, {
+      apply: true,
+      createPr: false,
+      worktreeParent: tmpDir,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      status: 'not-needed',
+      resetRuntime: true,
+    }));
+    expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
+    expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+  });
+
+  it('syncs behind tracked dirt without a PR when origin already contains the same file truth', () => {
+    const remote = path.join(tmpDir, 'behind-same-remote.git');
+    const repo = path.join(tmpDir, 'behind-same-mini-agent');
+    const peer = path.join(tmpDir, 'behind-same-peer');
+    git(tmpDir, ['init', '--bare', remote]);
+    git(tmpDir, ['clone', remote, repo]);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test User']);
+    writeFileSync(path.join(repo, 'README.md'), 'base\n');
+    git(repo, ['add', 'README.md']);
+    git(repo, ['commit', '-m', 'init']);
+    git(repo, ['branch', '-M', 'runtime/main']);
+    git(repo, ['push', '-u', 'origin', 'runtime/main:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+    git(repo, ['branch', '--set-upstream-to=origin/main', 'runtime/main']);
+
+    writeFileSync(path.join(repo, 'README.md'), 'base\nremote same\n');
+    git(tmpDir, ['clone', remote, peer]);
+    git(peer, ['config', 'user.email', 'test@example.com']);
+    git(peer, ['config', 'user.name', 'Test User']);
+    git(peer, ['checkout', '-b', 'main', 'origin/main']);
+    writeFileSync(path.join(peer, 'README.md'), 'base\nremote same\n');
+    git(peer, ['commit', '-am', 'remote same change']);
+    git(peer, ['push', 'origin', 'HEAD:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+
+    const result = autocorrectRuntimeWorkspace(repo, {
+      apply: true,
+      createPr: false,
+      worktreeParent: tmpDir,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      status: 'not-needed',
+      resetRuntime: true,
+    }));
+    expect(result.worktree).toBeUndefined();
+    expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
+    expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+  });
+
+  it('moves behind tracked dirt into an isolated worktree before syncing runtime', () => {
+    const remote = path.join(tmpDir, 'behind-dirty-remote.git');
+    const repo = path.join(tmpDir, 'behind-dirty-mini-agent');
+    const peer = path.join(tmpDir, 'behind-dirty-peer');
+    git(tmpDir, ['init', '--bare', remote]);
+    git(tmpDir, ['clone', remote, repo]);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test User']);
+    writeFileSync(path.join(repo, 'README.md'), 'base\n');
+    writeFileSync(path.join(repo, 'OTHER.md'), 'base\n');
+    git(repo, ['add', 'README.md', 'OTHER.md']);
+    git(repo, ['commit', '-m', 'init']);
+    git(repo, ['branch', '-M', 'runtime/main']);
+    git(repo, ['push', '-u', 'origin', 'runtime/main:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+    git(repo, ['branch', '--set-upstream-to=origin/main', 'runtime/main']);
+
+    writeFileSync(path.join(repo, 'README.md'), 'base\nlocal dirty\n');
+    git(tmpDir, ['clone', remote, peer]);
+    git(peer, ['config', 'user.email', 'test@example.com']);
+    git(peer, ['config', 'user.name', 'Test User']);
+    git(peer, ['checkout', '-b', 'main', 'origin/main']);
+    writeFileSync(path.join(peer, 'OTHER.md'), 'base\nremote change\n');
+    git(peer, ['commit', '-am', 'remote unrelated change']);
+    git(peer, ['push', 'origin', 'HEAD:main']);
+    git(repo, ['fetch', 'origin', 'main']);
+
+    const result = autocorrectRuntimeWorkspace(repo, {
+      apply: true,
+      createPr: false,
+      worktreeParent: tmpDir,
+    });
+
+    expect(result.status).toBe('created-worktree');
+    expect(gitOut(repo, ['rev-parse', 'HEAD'])).toBe(gitOut(repo, ['rev-parse', 'origin/main']));
+    expect(gitOut(repo, ['status', '--short', '--branch'])).toContain('runtime/main...origin/main');
+    expect(gitOut(result.worktree!, ['show', 'HEAD:README.md'])).toContain('local dirty');
+  });
+
   it('blocks when runtime checkout has untracked changes', () => {
     const repo = path.join(tmpDir, 'repo-untracked');
     git(tmpDir, ['init', '-b', 'runtime/main', repo]);
