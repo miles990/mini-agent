@@ -422,12 +422,21 @@ function buildDelegationReviewGate(): string {
   }
 }
 
-/** Build error-patterns hint — inject recurring error patterns into cycle prompt for real-time awareness */
-function buildErrorPatternsHint(): string {
+/** Build error-patterns hint — inject recurring error patterns into cycle prompt for real-time awareness.
+ *  Issue #315: filter out entries whose lastSeen is older than 7 days, so resolved-but-still-on-disk
+ *  patterns (e.g. `dns_lookup_failed` after the rename in #84) stop wasting cycle attention.
+ *  Exported for unit testing — production callers should still go through buildAutonomousPrompt. */
+export function buildErrorPatternsHint(): string {
   try {
     const patterns = readState<Record<string, { count: number; taskCreated: boolean; lastSeen: string; resolved?: boolean }>>('error-patterns.json', {});
+    const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - STALE_MS;
     const actionable = Object.entries(patterns)
-      .filter(([, v]) => v.count >= 3 && !v.resolved)
+      .filter(([, v]) => {
+        if (v.count < 3 || v.resolved) return false;
+        const ts = Date.parse(v.lastSeen);
+        return Number.isFinite(ts) && ts >= cutoff;
+      })
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 5);
     if (actionable.length === 0) return '';
