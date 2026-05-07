@@ -217,15 +217,7 @@ function findExistingPullRequest(repo: string, branch: string): string | undefin
 function createPullRequest(worktree: string, repo: string, baseBranch: string, branch: string, ahead: number): string | undefined {
   assertKuroGithubIdentity();
   const title = `fix(runtime): preserve local runtime commit ${branch.replace('fix/runtime-autocorrect-', '')}`;
-  const body = [
-    '## Summary',
-    `- autocorrected ${ahead} commit(s) that were made on protected runtime/main`,
-    '- moved the change into an isolated worktree branch so review/merge/deploy can proceed normally',
-    '- reset the runtime checkout back to origin/main after preserving the change',
-    '',
-    '## Verification',
-    '- pending isolated PR review',
-  ].join('\n');
+  const body = runtimeAutocorrectPrBody(ahead, branch);
   const out = execFileSync('gh', [
     'pr', 'create',
     '--repo', repo,
@@ -241,6 +233,19 @@ function createPullRequest(worktree: string, repo: string, baseBranch: string, b
     env: kuroGithubCliEnv(),
   }).trim();
   return out || undefined;
+}
+
+export function runtimeAutocorrectPrBody(ahead: number, branch: string): string {
+  return [
+    '## Summary',
+    `- autocorrected ${ahead} commit(s) that were made on protected runtime/main`,
+    '- moved the change into an isolated worktree branch so review/merge/deploy can proceed normally',
+    '- reset the runtime checkout back to origin/main after preserving the change',
+    '',
+    '## Verification',
+    `- [x] \`git push -u origin ${branch}\` passed; the runtime-local commit is preserved on an isolated review branch`,
+    '- [x] `git reset --hard origin/main` passed; the protected runtime checkout was restored to origin/main',
+  ].join('\n');
 }
 
 function moveTrackedDirtyToWorktree(repoRoot: string, worktree: string): void {

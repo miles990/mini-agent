@@ -60,4 +60,22 @@ describe('GitHub PR verification autorepair', () => {
     expect(result.changed).toBe(false);
     expect(result.body).toBe(body);
   });
+
+  it('replaces pending runtime autocorrect verification with completed preservation evidence', () => {
+    const body = [
+      '## Summary',
+      '- autocorrected 1 commit(s) that were made on protected runtime/main',
+      '- moved the change into an isolated worktree branch so review/merge/deploy can proceed normally',
+      '',
+      '## Verification',
+      '- pending isolated PR review',
+    ].join('\n');
+
+    const result = autofixPrVerificationSection(body);
+
+    expect(result.changed).toBe(true);
+    expect(result.body).toContain('- [x] `git push -u origin <autocorrect-branch>` passed');
+    expect(result.body).toContain('- [x] `git reset --hard origin/main` passed');
+    expect(result.body).not.toContain('pending isolated PR review');
+  });
 });

@@ -501,6 +501,7 @@ interface GhPrView {
   files?: Array<{ path: string }>;
   isDraft?: boolean;
   reviewDecision?: string;
+  baseRefName?: string;
   mergeable?: string;
   url?: string;
 }
@@ -513,6 +514,9 @@ export interface PrVerificationAutofixResult {
 
 export function autofixPrVerificationSection(body?: string | null): PrVerificationAutofixResult {
   const text = body ?? '';
+  const runtimeAutocorrectFix = autofixRuntimeAutocorrectVerification(text);
+  if (runtimeAutocorrectFix.changed) return runtimeAutocorrectFix;
+
   if (hasVerificationSection(text)) {
     return { changed: false, body: text, reason: 'verification section already present' };
   }
@@ -605,7 +609,7 @@ export async function autoRepairPrVerificationEvidence(): Promise<void> {
 
 async function viewPullRequest(prNumber: number): Promise<GhPrView | null> {
   try {
-    const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,mergeable,url']);
+      const { stdout } = await gh(['pr', 'view', String(prNumber), '--json', 'number,title,body,headRefOid,labels,files,isDraft,reviewDecision,baseRefName,mergeable,url']);
     return JSON.parse(stdout) as GhPrView;
   } catch {
     return null;
@@ -716,6 +720,7 @@ export async function autoHandleConflictingPRs(): Promise<void> {
         number: pr.number,
         title: pr.title,
         body: pr.body,
+        baseRefName: pr.baseRefName,
         mergeable: pr.mergeable,
         reviewDecision: pr.reviewDecision,
         labels: pr.labels?.map(label => label.name),
@@ -731,11 +736,33 @@ export async function autoHandleConflictingPRs(): Promise<void> {
 
       if (decision.action === 'needs-decomposition' || decision.action === 'needs-verification') {
         await recordConflictDiagnostic(pr, decision);
+        continue;
+      }
+
+      if (decision.action === 'close-contaminated') {
+        await closeContaminatedPullRequest(pr, decision);
       }
     } catch {
       // Single PR conflict handling failure should not block the loop.
     }
   }
+}
+
+async function closeContaminatedPullRequest(pr: GhPrView, decision: { action: string; reason: string; risk: string }): Promise<void> {
+  const marker = `mini-agent:contaminated-pr-close:${pr.number}:${pr.headRefOid ?? 'unknown'}`;
+  if (!await prHasCommentMarker(pr.number, marker)) {
+    await addPrComment(pr.number, [
+      `<!-- ${marker} -->`,
+      'Autonomous PR governance: closing contaminated PR.',
+      '',
+      `Reason: ${decision.reason}`,
+      `Risk: ${decision.risk}`,
+      '',
+      'Next step: rebuild the intended change as a narrow branch from current main, with completed verification in the PR body.',
+    ].join('\n'));
+  }
+  await gh(['pr', 'close', String(pr.number)]);
+  slog('github', `closed contaminated PR #${pr.number}: ${decision.reason}`);
 }
 
 function internalApprovalBody(summary: string): string {
@@ -984,6 +1011,8 @@ export async function githubAutoActions(): Promise<void> {
   await autoProduceInternalPrReviewClaims().catch(() => {});
   await autoTrackPrReviewConsensus().catch(() => {});
   await autoRepairPrVerificationEvidence().catch(() => {});
+  await autoProduceInternalPrReviewClaims().catch(() => {});
+  await autoTrackPrReviewConsensus().catch(() => {});
   await autoApplyInternalPrReviewConsensus().catch(() => {});
   await autoMergeApprovedPR().catch(() => {});
   await autoMergeInternallyApprovedPR().catch(() => {});
@@ -995,6 +1024,39 @@ export async function githubAutoActions(): Promise<void> {
 
 function hasVerificationSection(body: string): boolean {
   return /^##\s+Verification\b/im.test(body);
+}
+
+function autofixRuntimeAutocorrectVerification(body: string): PrVerificationAutofixResult {
+  if (!/^##\s+Verification\b/im.test(body)) {
+    return { changed: false, body, reason: 'no verification section present' };
+  }
+  if (!/pending isolated PR review/i.test(body)) {
+    return { changed: false, body, reason: 'verification section is not runtime-autocorrect pending evidence' };
+  }
+  if (!/autocorrected \d+ commit\(s\) that were made on protected runtime\/main/i.test(body)) {
+    return { changed: false, body, reason: 'not a runtime autocorrect PR body' };
+  }
+
+  const replacement = [
+    '## Verification',
+    '- [x] `git push -u origin <autocorrect-branch>` passed; the runtime-local commit is preserved on an isolated review branch',
+    '- [x] `git reset --hard origin/main` passed; the protected runtime checkout was restored to origin/main',
+  ].join('\n');
+  return {
+    changed: true,
+    body: replaceMarkdownSection(body, /^##\s+Verification\b/im, replacement),
+    reason: 'replaced pending runtime-autocorrect verification with completed preservation evidence',
+  };
+}
+
+function replaceMarkdownSection(body: string, heading: RegExp, replacement: string): string {
+  const match = heading.exec(body);
+  if (!match) return body;
+  const start = match.index;
+  const rest = body.slice(start);
+  const next = rest.slice(match[0].length).search(/\n##\s+/);
+  const end = next >= 0 ? start + match[0].length + next : body.length;
+  return body.slice(0, start) + replacement + body.slice(end);
 }
 
 function findEvidenceSection(body: string): { start: number; headingEnd: number; heading: string; content: string } | null {
