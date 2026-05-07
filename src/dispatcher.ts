@@ -592,7 +592,7 @@ export function parseTags(response: string): ParsedTags {
     const op = opRaw as ParsedTags['taskQueueActions'][number]['op'];
     const typeRaw = attr(t.attributes, 'type');
     const statusRaw = attr(t.attributes, 'status');
-    const safeStatus = statusRaw && ['pending', 'in_progress', 'completed', 'abandoned', 'hold'].includes(statusRaw)
+    const safeStatus = statusRaw && ['pending', 'in_progress', 'completed', 'abandoned', 'hold', 'blocked'].includes(statusRaw)
       ? statusRaw as ParsedTags['taskQueueActions'][number]['status']
       : undefined;
     const priorityRaw = attr(t.attributes, 'priority');
@@ -1304,8 +1304,8 @@ export async function postProcess(
       continue;
     }
 
-    // Constraint Texture: stale task action gate — deferring stale tasks requires block_reason
-    if (action.op === 'update' && action.status === 'hold' && action.id) {
+    // Constraint Texture: deferring or blocking stale tasks requires block_reason.
+    if (action.op === 'update' && (action.status === 'hold' || action.status === 'blocked') && action.id) {
       const target = queryMemoryIndexSync(memoryDir, { id: action.id, limit: 1 })[0];
       const ticks = (target?.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0;
       if (ticks > 3 && !action.blockReason) {
