@@ -71,7 +71,7 @@ export async function classifyMiddlewareFailures(
   tasks: MiddlewareTaskRecord[],
   now = new Date(),
 ): Promise<MiddlewareFailureSweepResult> {
-  const known = new Set(readMiddlewareFailureClassificationsSync(memoryDir).map(record => record.taskId));
+  const known = new Map(readMiddlewareFailureClassificationsSync(memoryDir).map(record => [record.taskId, record]));
   const failedTasks = tasks.filter(task => task.status === 'failed' && task.id);
   const result: MiddlewareFailureSweepResult = {
     scanned: tasks.length,
@@ -83,14 +83,16 @@ export async function classifyMiddlewareFailures(
 
   for (const task of failedTasks) {
     const taskId = task.id as string;
-    if (known.has(taskId)) {
+    const text = failureOutputText(task);
+    const bucket = classifyMiddlewareFailureBucket(text);
+    const providerHold = classifyProviderResourceHold(text, now) ?? undefined;
+    const status: MiddlewareFailureClassification['status'] = providerHold ? 'held' : 'classified';
+    const existing = known.get(taskId);
+    if (existing && existing.bucket === bucket && existing.status === status) {
       result.skippedKnown++;
       continue;
     }
 
-    const text = failureText(task);
-    const bucket = classifyMiddlewareFailureBucket(text);
-    const providerHold = classifyProviderResourceHold(text, now) ?? undefined;
     const delegationDecision = recordDelegationFailure(memoryDir, {
       taskId,
       taskType: `middleware:${task.worker ?? 'unknown'}`,
@@ -99,13 +101,11 @@ export async function classifyMiddlewareFailures(
     }, now);
 
     let providerHoldTaskId: string | undefined;
-    let status: MiddlewareFailureClassification['status'] = 'classified';
     let delegationStatus: DelegationFailureStatus = 'resolved';
     let resolution = `middleware failed task classified as ${bucket}`;
 
     if (providerHold) {
       providerHoldTaskId = await ensureProviderHoldTask(memoryDir, providerHold, task, now);
-      status = 'held';
       result.held++;
       resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
     } else if (bucket === 'max-turns') {
@@ -264,12 +264,13 @@ async function fetchMiddlewareTasks(baseUrl?: string, timeoutMs = 2500): Promise
   }
 }
 
-function failureText(task: MiddlewareTaskRecord): string {
-  return [
+function failureOutputText(task: MiddlewareTaskRecord): string {
+  const output = [
     task.error,
     task.result,
-    task.task,
   ].filter(value => typeof value === 'string' && value.trim()).join('\n').slice(0, 4000);
+  if (output) return output;
+  return String(task.task ?? '').slice(0, 4000);
 }
 
 function isMiddlewareFailureBucket(value: unknown): value is MiddlewareFailureBucket {
