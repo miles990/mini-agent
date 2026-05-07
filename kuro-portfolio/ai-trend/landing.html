@@ -74,6 +74,8 @@ ul.feed li .meta-row .pts b{color:var(--fg);font-weight:500}
 @media (max-width:640px){body{padding:1.1rem .8rem 3rem}.swot{grid-template-columns:1fr}}
 footer{color:var(--mute);font-size:.78rem;margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line)}
 footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
+.orig-title{color:var(--dim);font-size:.78rem;margin:.15rem 0 .3rem;font-style:italic;letter-spacing:.01em}
+.so-what{color:var(--acc2);font-size:.85rem;margin:.25rem 0 .4rem;line-height:1.55;border-left:2px solid var(--acc2);padding-left:.55rem}
 </style>
 </head>
 <body>
@@ -167,15 +169,17 @@ function renderTopics(d){
       return `<span class="src-pill ${on?'on':''}">${SRC_LABEL[k]||k}</span>`;
     }).join('');
     const items = t.sample_titles.map((s,i)=>{
-      const zh = s.zh_claim ? `<div class="zh">${escapeHtml(s.zh_claim)}</div>` : '';
+      const headline = s.zh_claim || s.title;
+      const origTitle = (s.zh_claim && s.title && s.zh_claim !== s.title)
+        ? `<div class="orig-title">${escapeHtml(s.title)}</div>` : '';
       const sw = s.zh_so_what ? `<div class="so-what">${escapeHtml(s.zh_so_what)}</div>` : '';
       const src = (s.source||'').toLowerCase();
       const srcLabel = SRC_LABEL[src]||src;
       return `<li>
         <span class="rk">${i+1}</span>
         <div class="body">
-          <h3 class="ti"><a href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a></h3>
-          ${zh}${sw}
+          <h3 class="ti"><a href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(headline)}</a></h3>
+          ${origTitle}${sw}
           <div class="meta-row">
             <span class="src ${src}">${srcLabel}</span>
             <span class="pts"><b>${fmtPts(s.points||0)}</b> 分</span>

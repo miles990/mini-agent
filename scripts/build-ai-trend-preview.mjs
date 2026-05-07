@@ -159,7 +159,25 @@ const KURO_TAKE = {
       link: 'https://www.thatprivacyguy.com/blog/chrome-silent-nano-install/'
     },
   ],
-  outlook: '下半年看：(1) services lab 模式會不會擠壓 SI 廠商；(2) coding agent 的「責任歸屬」框架（誰按下 deploy？）；(3) on-device LLM 的 consent UX 標準會被立法層接管。'
+  outlook: '下半年看：(1) services lab 模式會不會擠壓 SI 廠商；(2) coding agent 的「責任歸屬」框架（誰按下 deploy？）；(3) on-device LLM 的 consent UX 標準會被立法層接管。',
+  trends: {
+    up: [
+      'services-attached labs（labs 不再只賣 token，直接吃 enterprise 應用層）',
+      'agent-native file system / sandbox（Tilde 130pt 上 HN 前頁）',
+      'AI Trend 聚合層 commodity 化（TrendRadar 56K star、newsnow 多平台 API 開源）',
+    ],
+    down: [
+      'pure model API 單點變現 narrative（labs 自己跨進服務層）',
+      'review-vs-autopilot 的清楚邊界（vibe coding 模糊化）',
+      'on-device LLM 的 silent install 容忍度（Chrome Nano 引爆隱私反彈）',
+    ],
+  },
+  swot: {
+    s: '真錢真合資進場：Anthropic+Blackstone 1.5B、OpenAI Deployment Co 4B，labs 的服務層收入路徑正式被驗證',
+    w: 'enterprise services 對模型公司是新肌肉：交付週期長、毛利結構不同、跟 SI 廠商正面競爭',
+    o: '第三方在 agent 工具鏈（governance / sandbox / aggregation）有真空可吃',
+    t: '責任歸屬與隱私 UX 雙線立法壓力同時來：deploy 簽名制 + on-device LLM consent 兩戰場',
+  }
 };
 
 const STYLE = `
@@ -187,6 +205,21 @@ h1{font-size:1.7rem;margin:0 0 .35rem;letter-spacing:-.02em;font-weight:600}
 .banner .th .de{color:var(--mute);font-size:.84rem;line-height:1.55}
 .outlook{margin-top:.85rem;padding:.7rem .9rem;background:rgba(255,184,107,.05);border-left:2px solid var(--warn);border-radius:3px;color:#d9d9d9;font-size:.85rem}
 .outlook strong{color:var(--warn);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.3rem}
+.trends{margin-top:.85rem;display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.trends .col{padding:.7rem .9rem;border-radius:3px;font-size:.83rem;line-height:1.55}
+.trends .up{background:rgba(127,212,184,.06);border-left:2px solid var(--acc2);color:#cfd3da}
+.trends .down{background:rgba(255,154,162,.06);border-left:2px solid var(--rose);color:#cfd3da}
+.trends strong{font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.35rem}
+.trends .up strong{color:var(--acc2)}
+.trends .down strong{color:var(--rose)}
+.trends ul{margin:0;padding:0 0 0 1.1em;list-style:disc}
+.trends li{margin:.18rem 0}
+.swot{margin-top:.85rem;padding:.7rem .9rem;background:rgba(154,184,255,.05);border-left:2px solid var(--acc);border-radius:3px;font-size:.82rem;line-height:1.55;color:#cfd3da}
+.swot strong{color:var(--acc);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.35rem}
+.swot dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.25rem .7rem}
+.swot dt{color:var(--acc);font-weight:500;font-variant-numeric:tabular-nums}
+.swot dd{margin:0}
+ (max-width:640px){.trends{grid-template-columns:1fr}}
 section{margin:2rem 0}
 h2.sec{font-size:.78rem;color:var(--mute);text-transform:uppercase;letter-spacing:.16em;margin:0 0 .35rem;border-bottom:1px solid var(--line);padding-bottom:.45rem;font-weight:500;display:flex;align-items:baseline;gap:.6rem}
 h2.sec .cnt{color:var(--acc);font-weight:400}
@@ -402,6 +435,19 @@ async function main() {
   <div class="outlook">
     <strong>未來走向 / 注意點</strong>
     ${htmlEsc(KURO_TAKE.outlook)}
+  </div>
+  <div class="trends">
+    <div class="col up"><strong>↗ 上升趨勢</strong><ul>${KURO_TAKE.trends.up.map(x => `<li>${htmlEsc(x)}</li>`).join('')}</ul></div>
+    <div class="col down"><strong>↘ 下降趨勢</strong><ul>${KURO_TAKE.trends.down.map(x => `<li>${htmlEsc(x)}</li>`).join('')}</ul></div>
+  </div>
+  <div class="swot">
+    <strong>SWOT — 今日敘事</strong>
+    <dl>
+      <dt>S</dt><dd>${htmlEsc(KURO_TAKE.swot.s)}</dd>
+      <dt>W</dt><dd>${htmlEsc(KURO_TAKE.swot.w)}</dd>
+      <dt>O</dt><dd>${htmlEsc(KURO_TAKE.swot.o)}</dd>
+      <dt>T</dt><dd>${htmlEsc(KURO_TAKE.swot.t)}</dd>
+    </dl>
   </div>
 </div>
 
