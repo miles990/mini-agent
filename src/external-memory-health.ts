@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isKgDiscussionLifecycleKnown } from './kg-discussion-janitor.js';
+import { isKgDiscussionLifecycleKnown, readKgDiscussionLifecycleRecords } from './kg-discussion-janitor.js';
 
 export interface ExternalMemoryHealthResult {
   status: 'ok' | 'warn' | 'blocked';
@@ -129,15 +129,20 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
   const staleDiscussions = discussions.ok
     ? findStaleOpenDiscussions(discussions.value, now, options.staleDiscussionDays ?? 7)
     : [];
+  const lifecycleRecords = readKgDiscussionLifecycleRecords(memoryDir);
   const unmanagedStaleDiscussions = staleDiscussions.filter(discussion => {
     const id = getDiscussionId(discussion);
     return id === null || !isKgDiscussionLifecycleKnown(memoryDir, id);
   });
+  const queuedStaleDiscussions = staleDiscussions.length - unmanagedStaleDiscussions.length;
+  const latestLifecycleAt = latestKgDiscussionLifecycleAt(lifecycleRecords);
+  const lifecycleActive = queuedStaleDiscussions > 0
+    && latestLifecycleAt !== null
+    && now.getTime() - latestLifecycleAt.getTime() <= 24 * 3600_000;
   if (discussions.ok) {
     evidence.push(`staleOpenDiscussions=${staleDiscussions.length}`);
-    if (staleDiscussions.length !== unmanagedStaleDiscussions.length) {
-      evidence.push(`queuedStaleDiscussions=${staleDiscussions.length - unmanagedStaleDiscussions.length}`);
-    }
+    if (queuedStaleDiscussions > 0) evidence.push(`queuedStaleDiscussions=${queuedStaleDiscussions}`);
+    if (latestLifecycleAt) evidence.push(`latestDiscussionLifecycleAt=${latestLifecycleAt.toISOString()}`);
   }
 
   if (!stats.ok || !discussions.ok) {
@@ -165,12 +170,19 @@ export function evaluateKgExternalMemoryTruth(memoryDir: string, now = new Date(
       repair: 'Restart KG worker so shared AI context can keep ingesting, linking, and maintaining confidence.',
     };
   }
-  if (unmanagedStaleDiscussions.length > 0) {
+  if (unmanagedStaleDiscussions.length > 0 && !lifecycleActive) {
     return {
       status: 'warn',
       summary: `${unmanagedStaleDiscussions.length} stale KG context discussion(s) need lifecycle routing`,
       evidence,
       repair: 'Run KG discussion janitor so stale discussions become explicit close/refresh tasks, then resolve, merge, archive, or refresh them.',
+    };
+  }
+  if (unmanagedStaleDiscussions.length > 0 && lifecycleActive) {
+    return {
+      status: 'ok',
+      summary: `${queuedStaleDiscussions}/${staleDiscussions.length} stale KG discussion(s) are under bounded lifecycle routing`,
+      evidence,
     };
   }
 
@@ -347,4 +359,13 @@ function findStaleOpenDiscussions(value: unknown, now: Date, staleDays: number):
 function getDiscussionId(record: Record<string, unknown>): string | null {
   const id = record.id ?? record.discussion_id ?? record.discussionId;
   return typeof id === 'string' && id.trim() ? id : null;
+}
+
+function latestKgDiscussionLifecycleAt(records: Array<{ seenAt: string }>): Date | null {
+  let latest = 0;
+  for (const record of records) {
+    const ts = Date.parse(record.seenAt);
+    if (Number.isFinite(ts) && ts > latest) latest = ts;
+  }
+  return latest > 0 ? new Date(latest) : null;
 }
