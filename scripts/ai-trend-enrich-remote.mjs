@@ -109,7 +109,10 @@ async function enrich(post) {
       so_what:  parsed.so_what  || 'unspecified',
     };
   } catch (e) {
-    console.error(`[enrich] ${post.id} fail: ${e.message?.slice(0, 200)}`);
+    const stderr = (e.stderr?.toString?.() || '').trim();
+    const stdout = (e.stdout?.toString?.() || '').trim();
+    const detail = stderr || stdout || e.message || String(e);
+    console.error(`[enrich] ${post.id} fail status=${e.status ?? '?'} signal=${e.signal ?? '-'}: ${detail.slice(0, 600)}`);
     return null;
   }
 }
