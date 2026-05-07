@@ -28,6 +28,8 @@ import { spawnDelegation } from './delegation.js';
 import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
 import { rotateDecisionLogs } from './decision-log-rotation.js';
 import { sweepMiddlewareFailures } from './middleware-failure-self-healing.js';
+import { classifyMemoryRepoPath } from './memory-repo-policy.js';
+import { getFeature, setEnabled } from './features.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -714,6 +716,10 @@ export async function runHousekeeping(): Promise<void> {
   await expireOldInboxItems().catch(() => {});
   await syncHandoffStatus().catch(() => {});
   await decayStaleTasks().catch(() => {});
+  ensureCriticalContextFeatures();
+  await snapshotExternalMemoryChanges(getMemoryRootDir()).catch(err => {
+    slog('MEMORY-SNAPSHOT', `snapshot skipped: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   // KG auto-ingest: check every 5 cycles if enough new writes have accumulated
   if (cycleCounter % 5 === 0) {
@@ -748,6 +754,70 @@ export async function runHousekeeping(): Promise<void> {
       if (removed > 0) slog('HOUSEKEEPING', `forensic gc removed ${removed} file(s)`);
     } catch { /* fail-open */ }
   }
+}
+
+export interface ExternalMemorySnapshotResult {
+  status: 'skipped' | 'committed';
+  reason?: string;
+  files: string[];
+  commit?: string;
+}
+
+export async function snapshotExternalMemoryChanges(memoryDir: string): Promise<ExternalMemorySnapshotResult> {
+  if (!fs.existsSync(path.join(memoryDir, '.git'))) {
+    return { status: 'skipped', reason: 'not a git-backed memory workspace', files: [] };
+  }
+
+  const status = await execGit(memoryDir, ['status', '--porcelain']);
+  const files = parseTrackableMemoryStatus(status.stdout);
+  if (files.length === 0) {
+    return { status: 'skipped', reason: 'no trackable curated memory changes', files: [] };
+  }
+
+  await execGit(memoryDir, ['add', '--', ...files]);
+  const staged = await execGit(memoryDir, ['diff', '--cached', '--name-only']);
+  const stagedFiles = staged.stdout.split('\n').map(line => line.trim()).filter(Boolean);
+  if (stagedFiles.length === 0) {
+    return { status: 'skipped', reason: 'no staged curated memory changes', files: [] };
+  }
+
+  await execGit(memoryDir, [
+    '-c', 'user.name=mini-agent',
+    '-c', 'user.email=mini-agent@local',
+    'commit',
+    '-m', 'chore(memory): snapshot curated state',
+  ]);
+  const commit = (await execGit(memoryDir, ['rev-parse', '--short', 'HEAD'])).stdout.trim();
+  slog('MEMORY-SNAPSHOT', `committed ${stagedFiles.length} curated memory file(s): ${commit}`);
+  return { status: 'committed', files: stagedFiles, commit };
+}
+
+function ensureCriticalContextFeatures(): void {
+  for (const name of ['kg-retrieval-augment', 'kg-jit-augment', 'kg-service-push']) {
+    const feature = getFeature(name);
+    if (feature && !feature.enabled) setEnabled(name, true);
+  }
+}
+
+function parseTrackableMemoryStatus(status: string): string[] {
+  const files = new Set<string>();
+  for (const line of status.split('\n')) {
+    if (!line.trim()) continue;
+    const rawPath = line.slice(3).trim();
+    const relPath = rawPath.includes(' -> ') ? rawPath.split(' -> ').pop()?.trim() ?? rawPath : rawPath;
+    if (!relPath || relPath.startsWith('"')) continue;
+    const classification = classifyMemoryRepoPath(relPath);
+    if (classification.track) files.add(relPath);
+  }
+  return [...files].sort();
+}
+
+async function execGit(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+  return execFileAsync('git', args, {
+    cwd,
+    encoding: 'utf-8',
+    maxBuffer: 5 * 1024 * 1024,
+  });
 }
 
 // =============================================================================

@@ -73,7 +73,7 @@ describe('middleware failure self-healing', () => {
     expect(readDelegationFailureRecordsSync(memoryDir)[0].frequency).toBe(1);
   });
 
-  it('classifies max-turn failures without creating provider holds', async () => {
+  it('classifies max-turn failures and creates a decomposition follow-up', async () => {
     const result = await classifyMiddlewareFailures(memoryDir, [{
       id: 'task-turns',
       worker: 'coder',
@@ -86,8 +86,11 @@ describe('middleware failure self-healing', () => {
     expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
       bucket: 'max-turns',
       status: 'classified',
+      followUpTaskId: expect.any(String),
     }));
-    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(0);
+    const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
+    expect(followUps).toHaveLength(1);
+    expect(followUps[0].summary).toContain('Decompose middleware task task-turns');
   });
 
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {

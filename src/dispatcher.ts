@@ -299,7 +299,7 @@ function buildSkeletonPrompt(persona: string): string {
 - <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
 - <kuro:cycle-state>focus: ...\nintent: ...\noutcome: shipped|progressed|stalled|abandoned\nartifacts: commit:x\ncloses: cycle-xxx\nmood: 1-5 note</kuro:cycle-state> — cross-cycle continuity (→ KG → next cycle <continuity>)
 - <kuro:remember topic="t">content</kuro:remember> — save memory
-- <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
+- <kuro:task-queue op="create|update|delete|resolve" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" ids="comma,opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:plan acceptance="observable end state">goal</kuro:plan> — **primary**: brain auto-builds DAG (trivial→1-node, complex→multi-node with dependsOn). Use for any task that might decompose.
@@ -363,7 +363,7 @@ Messages must be self-contained: explicit background, specific references (msg I
 - <kuro:inner>state</kuro:inner> — working memory (overwrite each cycle)
 - <kuro:cycle-state>focus: ...\nintent: ...\noutcome: shipped|progressed|stalled|abandoned\nartifacts: commit:x\ncloses: cycle-xxx\nmood: 1-5 note</kuro:cycle-state> — cross-cycle continuity (→ KG → next cycle <continuity>)
 - <kuro:remember topic="t">content</kuro:remember> — save memory
-- <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
+- <kuro:task-queue op="create|update|delete|resolve" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="opt" ids="comma,opt" priority="opt" verify="name:pass|fail">title</kuro:task-queue>
 - <kuro:show url="URL">desc</kuro:show> — TG notification
 - <kuro:fetch url="URL" /> — web fetch (max 5/cycle)
 - <kuro:plan acceptance="observable end state">goal</kuro:plan> — **primary**: brain auto-builds DAG (trivial→1-node, complex→multi-node with dependsOn). Use for any task that might decompose.
@@ -465,7 +465,7 @@ CT 沒在工作的信號：回覆換掉 CT 詞彙後完全等價。在下游加 
 
 - Remember: <kuro:remember>...</kuro:remember> or <kuro:remember topic="topic">...</kuro:remember>
 - Scheduled tasks: <kuro:task schedule="cron or description">task content</kuro:task>
-- Task queue: <kuro:task-queue op="create|update|delete" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="optional" origin="optional" priority="optional" verify="name:pass|fail|unknown[:detail],...">title</kuro:task-queue>
+- Task queue: <kuro:task-queue op="create|update|delete|resolve" type="task|goal" status="pending|in_progress|completed|abandoned|hold" id="optional" ids="comma,optional" origin="optional" priority="optional" verify="name:pass|fail|unknown[:detail],...">title</kuro:task-queue>
 - Show to user (sends TG notification): <kuro:show url="URL">description</kuro:show>
 
 - Use <kuro:inner>...</kuro:inner> to update working memory (scratch pad, persists across cycles). Overwrite each time with full current state. Include atmosphere note at end (conversation tone/depth).
@@ -588,7 +588,7 @@ export function parseTags(response: string): ParsedTags {
   const taskQueueActions: ParsedTags['taskQueueActions'] = [];
   for (const t of byName('kuro:task-queue')) {
     const opRaw = attr(t.attributes, 'op') ?? 'create';
-    if (!['create', 'update', 'delete'].includes(opRaw)) continue;
+    if (!['create', 'update', 'delete', 'resolve'].includes(opRaw)) continue;
     const op = opRaw as ParsedTags['taskQueueActions'][number]['op'];
     const typeRaw = attr(t.attributes, 'type');
     const statusRaw = attr(t.attributes, 'status');
@@ -614,6 +614,7 @@ export function parseTags(response: string): ParsedTags {
     taskQueueActions.push({
       op,
       id: attr(t.attributes, 'id'),
+      ids: parseIdList(attr(t.attributes, 'ids')),
       type: typeRaw === 'task' || typeRaw === 'goal' ? typeRaw : undefined,
       status: safeStatus,
       origin: attr(t.attributes, 'origin'),
@@ -937,6 +938,14 @@ export function parseTags(response: string): ParsedTags {
   return { remembers, tasks, taskQueueActions, archive, impulses, threads, chats, asks, shows, summaries, dones, progresses, delegates, plans, fetches, schedule, inner, cycleState, goal, goalQueue, goalAdvance, goalProgress, goalDone, goalAbandon, understands, directionChanges, agoraPosts, supersedes, validates, excludes, kgFeedbacks, kgPositions, pledges, goalPipeline, cleanContent };
 }
 
+function parseIdList(raw: string | undefined): string[] | undefined {
+  if (!raw) return undefined;
+  const ids = raw.split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? ids : undefined;
+}
+
 // =============================================================================
 // extractDecisionBlock — parse ## Decision header from agent response
 // =============================================================================
@@ -1258,6 +1267,43 @@ export async function postProcess(
 
   if (tags.taskQueueActions.length > 0) tagsProcessed.push('task-queue');
   for (const action of tags.taskQueueActions) {
+    if (action.op === 'resolve') {
+      const ids = [...new Set([...(action.ids ?? []), ...(action.id ? [action.id] : [])])];
+      if (ids.length === 0) {
+        slog('WARN', 'task-queue resolve skipped: no id or ids provided');
+        continue;
+      }
+      for (const id of ids) {
+        const current = queryMemoryIndexSync(memoryDir, { id, limit: 1 })[0];
+        if (!current) {
+          slog('WARN', `task-queue resolve skipped: no task found for id=${id}`);
+          continue;
+        }
+        const currentPayload = (current.payload ?? {}) as Record<string, unknown>;
+        try {
+          const updated = await updateTask(memoryDir, id, {
+            type: action.type ?? (current.type as 'task' | 'goal' | undefined),
+            title: action.title ?? current.summary,
+            status: action.status ?? 'completed',
+            origin: action.origin ?? (currentPayload.origin as string | undefined),
+            priority: action.priority ?? (currentPayload.priority as number | undefined),
+            verify: action.verify
+              ? action.verify.map(v => ({ ...v, updatedAt: new Date().toISOString() }))
+              : (currentPayload.verify as VerifyResult[] | undefined),
+            staleWarning: undefined,
+          });
+          if (updated) {
+            eventBus.emit('action:task', { content: `resolved:${id}`, entry: updated });
+          } else {
+            slog('WARN', `task-queue resolve returned null for id=${id}`);
+          }
+        } catch (err) {
+          slog('WARN', `task-queue resolve failed for id=${id}: ${err instanceof Error ? err.message : err}`);
+        }
+      }
+      continue;
+    }
+
     // Constraint Texture: stale task action gate — deferring stale tasks requires block_reason
     if (action.op === 'update' && action.status === 'hold' && action.id) {
       const target = queryMemoryIndexSync(memoryDir, { id: action.id, limit: 1 })[0];

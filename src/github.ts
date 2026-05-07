@@ -383,6 +383,21 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
   }
   const draftHandoffs = appendStaleDraftPrHandoffs(nextActiveContent, staleDrafts, today);
   nextActiveContent = draftHandoffs.content;
+  for (const pr of staleDrafts) {
+    const inboxId = writeInboxItem({
+      source: 'github',
+      from: 'system',
+      content: `Triage stale draft PR #${pr.number}: ${pr.title}`,
+      meta: {
+        prNumber: String(pr.number),
+        lifecycle: 'stale-draft',
+        createdAt: pr.createdAt ?? '',
+        updatedAt: pr.updatedAt ?? '',
+        ...(pr.url ? { url: pr.url } : {}),
+      },
+    });
+    if (inboxId) inboxCount++;
+  }
   nextActiveContent = reconcilePrReviewHandoffs(nextActiveContent, assignments);
   if (nextActiveContent !== activeContent) fs.writeFileSync(activePath, nextActiveContent, 'utf-8');
   if (newRows.length > 0 || draftHandoffs.appended > 0 || inboxCount > 0) {

@@ -41,6 +41,7 @@ export interface MiddlewareFailureClassification {
   seenAt: string;
   providerHold?: ProviderResourceHold;
   providerHoldTaskId?: string;
+  followUpTaskId?: string;
   delegationFailureSignature?: string;
 }
 
@@ -101,6 +102,7 @@ export async function classifyMiddlewareFailures(
     }, now);
 
     let providerHoldTaskId: string | undefined;
+    let followUpTaskId: string | undefined;
     let delegationStatus: DelegationFailureStatus = 'resolved';
     let resolution = `middleware failed task classified as ${bucket}`;
 
@@ -109,10 +111,17 @@ export async function classifyMiddlewareFailures(
       result.held++;
       resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
     } else if (bucket === 'max-turns') {
-      resolution = `${resolution}; terminal max-turn failure should be retried only after task decomposition or prompt/context shrink`;
+      followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
+      resolution = `${resolution}; created decomposition follow-up ${followUpTaskId}`;
     } else if (bucket === 'offline' || bucket === 'stall-or-timeout') {
+      followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       delegationStatus = 'needs_human';
-      resolution = `${resolution}; middleware lane needs operator inspection before retry`;
+      resolution = `${resolution}; created lane recovery follow-up ${followUpTaskId}`;
+    } else if (bucket === 'workspace-isolation' || bucket === 'other') {
+      followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
+      resolution = `${resolution}; created repair follow-up ${followUpTaskId}`;
+    } else if (bucket === 'cancelled') {
+      resolution = `${resolution}; user/system cancellation treated as terminal unless it recurs`;
     }
 
     transitionDelegationFailureStatus(
@@ -131,6 +140,7 @@ export async function classifyMiddlewareFailures(
       seenAt: now.toISOString(),
       ...(providerHold ? { providerHold } : {}),
       ...(providerHoldTaskId ? { providerHoldTaskId } : {}),
+      ...(followUpTaskId ? { followUpTaskId } : {}),
       delegationFailureSignature: delegationDecision.record.signature,
     });
     result.classified++;
@@ -200,11 +210,81 @@ function parseClassification(line: string): MiddlewareFailureClassification | nu
       seenAt: raw.seenAt,
       ...(isProviderHold(raw.providerHold) ? { providerHold: raw.providerHold } : {}),
       ...(typeof raw.providerHoldTaskId === 'string' ? { providerHoldTaskId: raw.providerHoldTaskId } : {}),
+      ...(typeof raw.followUpTaskId === 'string' ? { followUpTaskId: raw.followUpTaskId } : {}),
       ...(typeof raw.delegationFailureSignature === 'string' ? { delegationFailureSignature: raw.delegationFailureSignature } : {}),
     };
   } catch {
     return null;
   }
+}
+
+async function ensureMiddlewareFailureFollowUpTask(
+  memoryDir: string,
+  bucket: MiddlewareFailureBucket,
+  task: MiddlewareTaskRecord,
+  now: Date,
+): Promise<string> {
+  const taskId = task.id ?? 'unknown';
+  const active = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold'] })
+    .find(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      return payload.origin === 'middleware-self-healing'
+        && payload.middleware_failure_task_id === taskId
+        && payload.middleware_failure_bucket === bucket;
+    });
+  if (active) return active.id;
+
+  const plan = middlewareFailureRepairPlan(bucket, task);
+  const entry = await appendMemoryIndexEntry(memoryDir, {
+    type: 'task',
+    status: plan.status,
+    summary: plan.summary,
+    refs: [],
+    tags: ['middleware', 'self-healing', bucket],
+    payload: {
+      origin: 'middleware-self-healing',
+      middleware_failure_task_id: taskId,
+      middleware_worker: task.worker,
+      middleware_failure_bucket: bucket,
+      failed_task_excerpt: String(task.task ?? '').slice(0, 500),
+      acceptance_criteria: plan.acceptance,
+      createdAt: now.toISOString(),
+    },
+  });
+  return entry.id;
+}
+
+function middlewareFailureRepairPlan(
+  bucket: MiddlewareFailureBucket,
+  task: MiddlewareTaskRecord,
+): { status: 'pending' | 'hold'; summary: string; acceptance: string } {
+  const worker = task.worker ?? 'unknown worker';
+  if (bucket === 'max-turns') {
+    return {
+      status: 'pending',
+      summary: `Decompose middleware task ${task.id ?? 'unknown'} after max-turns failure`,
+      acceptance: 'Original delegation is split into smaller tasks or retry policy marks it terminal with evidence.',
+    };
+  }
+  if (bucket === 'offline' || bucket === 'stall-or-timeout') {
+    return {
+      status: 'pending',
+      summary: `Recover middleware ${worker} lane after ${bucket} failure`,
+      acceptance: 'Middleware lane health probe passes, circuit breaker/backoff is updated, or lane is intentionally held.',
+    };
+  }
+  if (bucket === 'workspace-isolation') {
+    return {
+      status: 'pending',
+      summary: `Repair middleware workspace isolation for task ${task.id ?? 'unknown'}`,
+      acceptance: 'Worker retry uses an isolated worktree with required dependencies or records a durable bypass policy.',
+    };
+  }
+  return {
+    status: 'pending',
+    summary: `Triage middleware failed task ${task.id ?? 'unknown'} (${bucket})`,
+    acceptance: 'Failure is assigned to a known bucket, retried safely, held with a resume condition, or closed as terminal.',
+  };
 }
 
 async function ensureProviderHoldTask(

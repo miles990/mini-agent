@@ -34,6 +34,7 @@ describe('parseTags', () => {
     expect(result.taskQueueActions[0]).toEqual({
       op: 'create',
       id: undefined,
+      ids: undefined,
       type: 'goal',
       status: 'in_progress',
       origin: 'perception',
@@ -43,8 +44,25 @@ describe('parseTags', () => {
         { name: 'test', status: 'unknown', detail: undefined },
       ],
       title: 'Implement queue',
+      blockReason: undefined,
     });
     expect(result.cleanContent).toBe('');
+  });
+
+  it('parses <kuro:task-queue> resolve tag with ids', () => {
+    const result = parseTags('<kuro:task-queue op="resolve" ids="idx-a, idx-b">done</kuro:task-queue>');
+    expect(result.taskQueueActions[0]).toEqual({
+      op: 'resolve',
+      id: undefined,
+      ids: ['idx-a', 'idx-b'],
+      type: undefined,
+      status: undefined,
+      origin: undefined,
+      priority: undefined,
+      verify: undefined,
+      title: 'done',
+      blockReason: undefined,
+    });
   });
 
   it('parses <kuro:chat> tags', () => {
