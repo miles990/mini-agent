@@ -112,7 +112,7 @@ async function listArchiveDates() {
     const files = await readdir(join(ROOT, 'kuro-portfolio/ai-trend'));
     return files.filter(f => /^\d{4}-\d{2}-\d{2}\.html$/.test(f))
       .map(f => f.replace('.html',''))
-      .sort().reverse().slice(0, 14);
+      .sort().reverse().slice(0, 60);
   } catch { return []; }
 }
 
@@ -234,25 +234,25 @@ async function main() {
   // 今日 AI 大事 — HN + latent 跨來源 top 6 by points
   const cross = uniqByUrl([...hn.posts, ...latent.posts])
     .sort((a,b) => (b.points||0) - (a.points||0))
-    .slice(0, 6);
+    .slice(0, 15);
 
   // 新發布 — arxiv 最新 4
-  const newReleases = (arxiv.posts || []).slice(0, 4);
+  const newReleases = (arxiv.posts || []).slice(0, 12);
 
   // 值得讀 — latent + HN 帶 story_text 的 long-form
   const reads = uniqByUrl([...latent.posts, ...hn.posts])
     .filter(p => (p.story_text || '').length > 400 || /(blog|essay|article|space)/i.test(p.url || ''))
-    .slice(0, 4);
+    .slice(0, 12);
 
   // 專案 — github 帶 ai topic
   const projects = (gh.posts || []).filter(p =>
     (p.topics || []).some(t => /\b(ai|llm|agent|ml)\b/.test(t))
-  ).slice(0, 6);
+  ).slice(0, 15);
 
   // 熱門討論 — HN by num_comments
   const discs = (hn.posts || []).slice().sort((a,b) =>
     (b.num_comments||0) - (a.num_comments||0)
-  ).slice(0, 4);
+  ).slice(0, 10);
 
   const html = `<!DOCTYPE html>
 <html lang="zh-Hant">
@@ -352,7 +352,15 @@ ${archive.length ? `<section>
 </html>`;
 
   await writeFile(OUT, html, 'utf8');
+  // Daily snapshot — 讓 Alex 看舊簡報
+  const SNAP = join(ROOT, 'kuro-portfolio/ai-trend', `${DATE}.html`);
+  await writeFile(SNAP, html, 'utf8');
+  // Promote to index.html (Alex 2026-05-07 redesign approved as primary)
+  const INDEX = join(ROOT, 'kuro-portfolio/ai-trend/index.html');
+  await writeFile(INDEX, html.replace('Preview 版本（Alex 2026-05-07 redesign）。確認後 promote 到 index.html。', 'Daily 財報 · 自動更新。舊版本見下方 archive。'), 'utf8');
   console.log(`✓ wrote ${OUT}`);
+  console.log(`✓ snapshot ${SNAP}`);
+  console.log(`✓ promoted ${INDEX}`);
   console.log(`  hn=${hn.key||'-'}/${hn.posts.length} latent=${latent.key||'-'}/${latent.posts.length} arxiv=${arxiv.key||'-'}/${arxiv.posts.length} gh=${gh.key||'-'}/${gh.posts.length}`);
   console.log(`  sections: cross=${cross.length} new=${newReleases.length} reads=${reads.length} proj=${projects.length} disc=${discs.length}`);
 }
