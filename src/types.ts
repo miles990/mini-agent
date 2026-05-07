@@ -323,8 +323,9 @@ export interface ParsedTags {
   remembers: Array<{ content: string; topic?: string; ref?: string }>;
   tasks: Array<{ content: string; schedule?: string }>;
   taskQueueActions: Array<{
-    op: 'create' | 'update' | 'delete';
+    op: 'create' | 'update' | 'delete' | 'resolve';
     id?: string;
+    ids?: string[];
     type?: 'task' | 'goal';
     status?: 'pending' | 'in_progress' | 'completed' | 'abandoned' | 'hold';
     origin?: string;

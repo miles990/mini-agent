@@ -10,6 +10,7 @@ import { evaluatePrClosureGaps } from './pr-autopilot.js';
 import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './external-memory-health.js';
 import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
 import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-healing.js';
+import { getFeature } from './features.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -478,6 +479,22 @@ function memoryStateTruthStage(memoryDir: string, repoRoot: string): AutonomyClo
 }
 
 function kgContextFabricStage(memoryDir: string, now: Date): AutonomyClosureStageResult {
+  const retrieval = getFeature('kg-retrieval-augment');
+  const jit = getFeature('kg-jit-augment');
+  const push = getFeature('kg-service-push');
+  const features = [retrieval, jit, push].filter((feature): feature is Exclude<typeof feature, null> => feature !== null);
+  const disabled = features
+    .filter(feature => !feature.enabled)
+    .map(feature => feature.name);
+  if (disabled.length > 0) {
+    return {
+      stage: 'kg-context-fabric',
+      status: 'warn',
+      summary: `KG context feature(s) disabled: ${disabled.join(', ')}`,
+      evidence: disabled,
+      repair: 'Re-enable KG retrieval/JIT/push features so KG remains the shared context, classification, linking, and analysis fabric.',
+    };
+  }
   const result = evaluateKgExternalMemoryTruth(memoryDir, now);
   return {
     stage: 'kg-context-fabric',
