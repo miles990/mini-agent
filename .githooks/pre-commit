@@ -8,4 +8,9 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 0
 fi
 
+if [ ! -x node_modules/.bin/tsx ]; then
+  echo "[runtime-workspace] node_modules/.bin/tsx not found; skipping guard (run 'pnpm install')" >&2
+  exit 0
+fi
+
 pnpm exec tsx scripts/check-runtime-workspace.ts --staged
