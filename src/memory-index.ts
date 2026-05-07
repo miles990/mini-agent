@@ -22,6 +22,8 @@ import { slog, diagLog, tokenizeForMatch } from './utils.js';
 import { eventBus } from './event-bus.js';
 import { writeMemoryTriple } from './kg-memory.js';
 import type { ParsedTags } from './types.js';
+import { loadCorrectionHolds, findActiveHold } from './correction-holds.js';
+import type { CorrectionReasonType } from './correction-gate.js';
 
 // =============================================================================
 // Types
@@ -1706,12 +1708,33 @@ export function getP0TaskPreviews(memoryDir: string): string[] {
   // task-events.jsonl. Phantom tasks (visible only via relations.jsonl) are
   // skipped so they don't re-inject into the heartbeat prompt each cycle.
   const taskEventIds = new Set(getCachedBucket(memoryDir, 'task-events').keys());
+  // Issue #289: mirror scheduler's correction-task hold filter so the prompt
+  // header preview stays consistent with what scheduler will actually
+  // dispatch. Without this, held correction tasks (e.g. low-responsiveness
+  // during quota outage) re-emit P0 labels every cycle even though scheduler
+  // suppresses dispatch.
+  const holds = loadCorrectionHolds(memoryDir);
+  const repoRoot = path.resolve(memoryDir, '..', '..');
   return queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],
   })
     .filter(t => t.type !== 'task' || taskEventIds.has(t.id))
     .filter(t => getTaskPriority(t) === 0)
+    .filter(t => {
+      const summary = t.summary ?? '';
+      const isCorrection = summary.includes('correction gate');
+      if (!isCorrection) return true;
+      const payload = (t.payload ?? {}) as Record<string, unknown>;
+      const reasonFromPayload = typeof payload.correction_reason_type === 'string'
+        ? payload.correction_reason_type
+        : null;
+      const match = summary.match(/correction gate: resolve ([a-z-]+)/i);
+      const reason = reasonFromPayload ?? match?.[1] ?? null;
+      if (!reason) return true;
+      const hold = findActiveHold(holds, reason as CorrectionReasonType, {}, { repoRoot });
+      return !hold;
+    })
     .map(t => `P0: ${t.summary ?? t.id}`);
 }
 
