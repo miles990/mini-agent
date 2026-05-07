@@ -1,11 +1,10 @@
 {
   "meta": {
     "period_days": 7,
-    "end_date": "2026-04-29",
-    "start_date": "2026-04-23",
+    "end_date": "2026-05-07",
+    "start_date": "2026-05-01",
     "sources_active": [
       "hn",
-      "reddit",
       "x",
       "arxiv",
       "latent",
@@ -43,17 +42,16 @@
         "color": "#24292e"
       }
     ],
-    "total_posts": 254,
-    "generated_at": "2026-04-29T05:05:20.976Z"
+    "total_posts": 268,
+    "generated_at": "2026-05-07T06:30:38.765Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 80,
+      "post_count": 86,
       "sources": [
         "hn",
-        "reddit",
         "x",
         "arxiv",
         "latent",
@@ -61,32 +59,33 @@
       ],
       "sample_titles": [
         {
-          "title": "langchain-ai/langchain: The agent engineering platform",
-          "url": "https://github.com/langchain-ai/langchain",
-          "source": "github",
-          "points": 135297
-        },
-        {
           "title": "NousResearch/hermes-agent: The agent that grows with you",
           "url": "https://github.com/NousResearch/hermes-agent",
           "source": "github",
-          "points": 123415
+          "points": 136256
         },
         {
-          "title": "punkpeye/awesome-mcp-servers: A collection of MCP servers.",
-          "url": "https://github.com/punkpeye/awesome-mcp-servers",
+          "title": "langchain-ai/langchain: The agent engineering platform",
+          "url": "https://github.com/langchain-ai/langchain",
           "source": "github",
-          "points": 85882
+          "points": 135977
+        },
+        {
+          "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
+          "url": "https://x.com/claudeai/status/2052060691893227611",
+          "source": "x",
+          "points": 106133
         }
       ]
     },
     {
       "topic": "model",
       "color": "#ffb86b",
-      "post_count": 28,
+      "post_count": 24,
       "sources": [
         "hn",
-        "reddit",
+        "x",
+        "arxiv",
         "latent",
         "github"
       ],
@@ -95,29 +94,30 @@
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170251
+          "points": 170881
         },
         {
           "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
           "url": "https://github.com/open-webui/open-webui",
           "source": "github",
-          "points": 134696
+          "points": 135822
         },
         {
           "title": "unslothai/unsloth: Web UI for training and running open models like Gemma 4, Qwen3.6, DeepSeek, gpt-oss locally.",
           "url": "https://github.com/unslothai/unsloth",
           "source": "github",
-          "points": 63222
+          "points": 63723
         }
       ]
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
-      "post_count": 14,
+      "post_count": 13,
       "sources": [
         "hn",
         "arxiv",
+        "latent",
         "github"
       ],
       "sample_titles": [
@@ -125,26 +125,26 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 169531
+          "points": 174808
         },
         {
           "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
           "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
           "source": "github",
-          "points": 107976
+          "points": 109085
         },
         {
-          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
-          "url": "https://github.com/vllm-project/vllm",
+          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
+          "url": "https://github.com/infiniflow/ragflow",
           "source": "github",
-          "points": 78507
+          "points": 79855
         }
       ]
     },
     {
       "topic": "training",
       "color": "#ff79c6",
-      "post_count": 8,
+      "post_count": 7,
       "sources": [
         "hn",
         "arxiv",
@@ -156,19 +156,19 @@
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
           "source": "github",
-          "points": 160070
+          "points": 160325
         },
         {
-          "title": "Lambda Calculus Benchmark for AI",
-          "url": "https://victortaelin.github.io/lambench/",
+          "title": "Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library",
+          "url": "https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/",
           "source": "hn",
-          "points": 81
+          "points": 319
         },
         {
-          "title": "Relaxation-Informed Training of Neural Network Surrogate Models",
-          "url": "http://arxiv.org/abs/2604.22746v1",
-          "source": "arxiv",
-          "points": 56
+          "title": "Train Your Own LLM from Scratch",
+          "url": "https://github.com/angelos-p/llm-from-scratch",
+          "source": "hn",
+          "points": 253
         }
       ]
     },
@@ -177,8 +177,8 @@
       "color": "#8be9fd",
       "post_count": 7,
       "sources": [
-        "reddit",
-        "arxiv",
+        "hn",
+        "latent",
         "github"
       ],
       "sample_titles": [
@@ -186,56 +186,26 @@
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
           "source": "github",
-          "points": 45905
+          "points": 46095
         },
         {
           "title": "simstudioai/sim: Build, deploy, and orchestrate AI agents. Sim is the central intelligence layer for your AI workforce.",
           "url": "https://github.com/simstudioai/sim",
           "source": "github",
-          "points": 27897
+          "points": 27971
         },
         {
           "title": "sgl-project/sglang: SGLang is a high-performance serving framework for large language models and multimodal models.",
           "url": "https://github.com/sgl-project/sglang",
           "source": "github",
-          "points": 26656
-        }
-      ]
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "post_count": 6,
-      "sources": [
-        "reddit",
-        "x",
-        "arxiv"
-      ],
-      "sample_titles": [
-        {
-          "title": "Kimi K2.6 is now #1 on OpenRouter's weekly LLM Leaderboard 🏆 A huge thank you to every developer building with Kimi. We'll keep our heads down and keep shipping.",
-          "url": "https://x.com/Kimi_Moonshot/status/2048693682329776223",
-          "source": "x",
-          "points": 1803
-        },
-        {
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "source": "reddit",
-          "points": 103
-        },
-        {
-          "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
-          "url": "http://arxiv.org/abs/2604.24729v1",
-          "source": "arxiv",
-          "points": 56
+          "points": 26971
         }
       ]
     },
     {
       "topic": "reasoning",
       "color": "#f1fa8c",
-      "post_count": 5,
+      "post_count": 7,
       "sources": [
         "arxiv",
         "github"
@@ -245,19 +215,67 @@
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
           "source": "github",
-          "points": 112926
+          "points": 116128
         },
         {
           "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
           "url": "https://github.com/milvus-io/milvus",
           "source": "github",
-          "points": 44034
+          "points": 44152
         },
         {
           "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
           "url": "https://github.com/pingcap/tidb",
           "source": "github",
-          "points": 40036
+          "points": 40059
+        }
+      ]
+    },
+    {
+      "topic": "opinion",
+      "color": "#aaaaaa",
+      "post_count": 1,
+      "sources": [
+        "hn"
+      ],
+      "sample_titles": [
+        {
+          "title": "Show HN: Airbyte Agents – context for agents across multiple data sources",
+          "url": "https://news.ycombinator.com/item?id=48023496",
+          "source": "hn",
+          "points": 106
+        }
+      ]
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "post_count": 1,
+      "sources": [
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "A Benchmark for Interactive World Models with a Unified Action Generation Framework",
+          "url": "http://arxiv.org/abs/2605.03941v1",
+          "source": "arxiv",
+          "points": 37
+        }
+      ]
+    },
+    {
+      "topic": "security",
+      "color": "#ff5555",
+      "post_count": 1,
+      "sources": [
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "On the Hardness of Junking LLMs",
+          "url": "http://arxiv.org/abs/2605.05116v1",
+          "source": "arxiv",
+          "points": 33
         }
       ]
     }
@@ -268,175 +286,139 @@
       "color": "#9ab8ff",
       "points": [
         {
-          "date": "2026-04-23",
+          "date": "2026-05-01",
+          "count": 22
+        },
+        {
+          "date": "2026-05-02",
+          "count": 10
+        },
+        {
+          "date": "2026-05-03",
+          "count": 5
+        },
+        {
+          "date": "2026-05-04",
           "count": 0
         },
         {
-          "date": "2026-04-24",
-          "count": 8
+          "date": "2026-05-05",
+          "count": 7
         },
         {
-          "date": "2026-04-25",
-          "count": 3
+          "date": "2026-05-06",
+          "count": 7
         },
         {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
-          "count": 27
-        },
-        {
-          "date": "2026-04-28",
-          "count": 30
-        },
-        {
-          "date": "2026-04-29",
-          "count": 12
+          "date": "2026-05-07",
+          "count": 35
         }
       ],
-      "total": 80,
-      "delta_pct": 6
+      "total": 86,
+      "delta_pct": 312
     },
     {
       "topic": "model",
       "color": "#ffb86b",
       "points": [
         {
-          "date": "2026-04-23",
-          "count": 0
-        },
-        {
-          "date": "2026-04-24",
-          "count": 1
-        },
-        {
-          "date": "2026-04-25",
-          "count": 3
-        },
-        {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
+          "date": "2026-05-01",
           "count": 12
         },
         {
-          "date": "2026-04-28",
-          "count": 6
+          "date": "2026-05-02",
+          "count": 3
         },
         {
-          "date": "2026-04-29",
-          "count": 6
+          "date": "2026-05-03",
+          "count": 1
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 2
+        },
+        {
+          "date": "2026-05-06",
+          "count": 2
+        },
+        {
+          "date": "2026-05-07",
+          "count": 4
         }
       ],
-      "total": 28,
-      "delta_pct": 64
+      "total": 24,
+      "delta_pct": 20
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
       "points": [
         {
-          "date": "2026-04-23",
-          "count": 0
-        },
-        {
-          "date": "2026-04-24",
-          "count": 2
-        },
-        {
-          "date": "2026-04-25",
-          "count": 2
-        },
-        {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
-          "count": 3
-        },
-        {
-          "date": "2026-04-28",
+          "date": "2026-05-01",
           "count": 7
         },
         {
-          "date": "2026-04-29",
+          "date": "2026-05-02",
           "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 2
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 3
+        },
+        {
+          "date": "2026-05-07",
+          "count": 1
         }
       ],
-      "total": 14,
-      "delta_pct": -100
+      "total": 13,
+      "delta_pct": -50
     },
     {
       "topic": "training",
       "color": "#ff79c6",
       "points": [
         {
-          "date": "2026-04-23",
-          "count": 0
-        },
-        {
-          "date": "2026-04-24",
-          "count": 0
-        },
-        {
-          "date": "2026-04-25",
-          "count": 2
-        },
-        {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
-          "count": 4
-        },
-        {
-          "date": "2026-04-28",
-          "count": 2
-        },
-        {
-          "date": "2026-04-29",
-          "count": 0
-        }
-      ],
-      "total": 8,
-      "delta_pct": -100
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "points": [
-        {
-          "date": "2026-04-23",
-          "count": 0
-        },
-        {
-          "date": "2026-04-24",
-          "count": 0
-        },
-        {
-          "date": "2026-04-25",
-          "count": 0
-        },
-        {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
+          "date": "2026-05-01",
           "count": 3
         },
         {
-          "date": "2026-04-28",
-          "count": 4
+          "date": "2026-05-02",
+          "count": 0
         },
         {
-          "date": "2026-04-29",
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 3
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
           "count": 0
         }
       ],
@@ -444,39 +426,39 @@
       "delta_pct": -100
     },
     {
-      "topic": "eval",
-      "color": "#bd93f9",
+      "topic": "infra",
+      "color": "#8be9fd",
       "points": [
         {
-          "date": "2026-04-23",
+          "date": "2026-05-01",
+          "count": 4
+        },
+        {
+          "date": "2026-05-02",
           "count": 0
         },
         {
-          "date": "2026-04-24",
+          "date": "2026-05-03",
           "count": 0
         },
         {
-          "date": "2026-04-25",
+          "date": "2026-05-04",
           "count": 0
         },
         {
-          "date": "2026-04-26",
+          "date": "2026-05-05",
           "count": 0
         },
         {
-          "date": "2026-04-27",
+          "date": "2026-05-06",
           "count": 3
         },
         {
-          "date": "2026-04-28",
-          "count": 3
-        },
-        {
-          "date": "2026-04-29",
+          "date": "2026-05-07",
           "count": 0
         }
       ],
-      "total": 6,
+      "total": 7,
       "delta_pct": -100
     },
     {
@@ -484,36 +466,144 @@
       "color": "#f1fa8c",
       "points": [
         {
-          "date": "2026-04-23",
+          "date": "2026-05-01",
+          "count": 3
+        },
+        {
+          "date": "2026-05-02",
           "count": 0
         },
         {
-          "date": "2026-04-24",
+          "date": "2026-05-03",
           "count": 0
         },
         {
-          "date": "2026-04-25",
+          "date": "2026-05-04",
           "count": 0
         },
         {
-          "date": "2026-04-26",
-          "count": 0
+          "date": "2026-05-05",
+          "count": 2
         },
         {
-          "date": "2026-04-27",
-          "count": 1
+          "date": "2026-05-06",
+          "count": 2
         },
         {
-          "date": "2026-04-28",
-          "count": 4
-        },
-        {
-          "date": "2026-04-29",
+          "date": "2026-05-07",
           "count": 0
         }
       ],
-      "total": 5,
+      "total": 7,
       "delta_pct": -100
+    },
+    {
+      "topic": "opinion",
+      "color": "#aaaaaa",
+      "points": [
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
+        }
+      ],
+      "total": 1,
+      "delta_pct": -100
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "points": [
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
+        }
+      ],
+      "total": 1,
+      "delta_pct": -100
+    },
+    {
+      "topic": "security",
+      "color": "#ff5555",
+      "points": [
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 0
+        },
+        {
+          "date": "2026-05-07",
+          "count": 1
+        }
+      ],
+      "total": 1,
+      "delta_pct": null
     }
   ],
   "cross_source": [
@@ -523,67 +613,57 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 34
-        },
-        {
-          "source": "reddit",
-          "post_count": 1
+          "post_count": 35
         },
         {
           "source": "x",
-          "post_count": 26
+          "post_count": 11
         },
         {
           "source": "arxiv",
-          "post_count": 4
+          "post_count": 21
         },
         {
           "source": "latent",
-          "post_count": 2
+          "post_count": 3
         },
         {
           "source": "github",
-          "post_count": 13
+          "post_count": 16
         }
       ],
-      "source_count": 6,
-      "post_count": 80,
+      "source_count": 5,
+      "post_count": 86,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "DeepSeek v4",
-          "url": "https://api-docs.deepseek.com/",
-          "points": 1571
-        },
-        {
-          "source": "reddit",
-          "title": "Anthropic states Pro users can only access Opus models in Claude Code after enabling and purchasing extra usage",
-          "url": "https://i.redd.it/ghpqfe4oysxg1.png",
-          "points": 119
+          "title": "Where the goblins came from",
+          "url": "https://openai.com/index/where-the-goblins-came-from/",
+          "points": 1015
         },
         {
           "source": "x",
-          "title": "If you're curious about what it takes to build an AI agent, you'll learn how in this course. Lane teaches you how to use Python and the free Gemini API to code your own agent from scratch. You'll learn about the agentic loop, tool calling, and fixing buggy programs - and by the e",
-          "url": "https://x.com/freeCodeCamp/status/2048673802075128008",
-          "points": 433
+          "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
+          "url": "https://x.com/claudeai/status/2052060691893227611",
+          "points": 106133
         },
         {
           "source": "arxiv",
-          "title": "Seeing the Whole Elephant: A Benchmark for Failure Attribution in LLM-based Multi-Agent Systems",
-          "url": "http://arxiv.org/abs/2604.22708v1",
-          "points": 50
+          "title": "Reinforcement Learning for LLM-based Multi-Agent Systems through Orchestration Traces",
+          "url": "http://arxiv.org/abs/2605.02801v1",
+          "points": 42
         },
         {
           "source": "latent",
           "title": "AIE Europe Debrief + Agent Labs Thesis: Unsupervised Learning x Latent Space Crossover Special (2026)",
           "url": "https://www.latent.space/p/unsupervised-learning-2026",
-          "points": 58
+          "points": 54
         },
         {
           "source": "github",
           "title": "langchain-ai/langchain: The agent engineering platform",
           "url": "https://github.com/langchain-ai/langchain",
-          "points": 135297
+          "points": 135977
         }
       ]
     },
@@ -593,11 +673,15 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 11
+          "post_count": 7
         },
         {
-          "source": "reddit",
-          "post_count": 4
+          "source": "x",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 2
         },
         {
           "source": "latent",
@@ -605,85 +689,41 @@
         },
         {
           "source": "github",
-          "post_count": 5
+          "post_count": 6
         }
       ],
-      "source_count": 4,
-      "post_count": 28,
+      "source_count": 5,
+      "post_count": 24,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "GPT-5.5: Mythos-Like Hacking, Open to All",
-          "url": "https://xbow.com/blog/mythos-like-hacking-open-to-all",
-          "points": 71
+          "title": "Apple accidentally left Claude.md files Apple Support app",
+          "url": "https://x.com/aaronp613/status/2049986504617820551",
+          "points": 365
         },
         {
-          "source": "reddit",
-          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
-          "url": "https://www.reddit.com/gallery/1sxapqb",
-          "points": 285
+          "source": "x",
+          "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
+          "url": "https://x.com/0xwhrrari/status/2052083154706379229",
+          "points": 57
+        },
+        {
+          "source": "arxiv",
+          "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
+          "url": "http://arxiv.org/abs/2605.05192v1",
+          "points": 57
         },
         {
           "source": "latent",
           "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
           "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
-          "points": 60
+          "points": 56
         },
         {
           "source": "github",
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
-          "points": 170251
-        }
-      ]
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
-      "sources": [
-        {
-          "source": "hn",
-          "post_count": 3
-        },
-        {
-          "source": "arxiv",
-          "post_count": 3
-        },
-        {
-          "source": "latent",
-          "post_count": 1
-        },
-        {
-          "source": "github",
-          "post_count": 1
-        }
-      ],
-      "source_count": 4,
-      "post_count": 8,
-      "sample_per_source": [
-        {
-          "source": "hn",
-          "title": "Lambda Calculus Benchmark for AI",
-          "url": "https://victortaelin.github.io/lambench/",
-          "points": 81
-        },
-        {
-          "source": "arxiv",
-          "title": "Relaxation-Informed Training of Neural Network Surrogate Models",
-          "url": "http://arxiv.org/abs/2604.22746v1",
-          "points": 56
-        },
-        {
-          "source": "latent",
-          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
-          "url": "https://www.latent.space/p/noetik",
-          "points": 53
-        },
-        {
-          "source": "github",
-          "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
-          "url": "https://github.com/huggingface/transformers",
-          "points": 160070
+          "points": 170881
         }
       ]
     },
@@ -693,37 +733,97 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 5
+          "post_count": 1
         },
         {
           "source": "arxiv",
-          "post_count": 2
+          "post_count": 3
+        },
+        {
+          "source": "latent",
+          "post_count": 1
         },
         {
           "source": "github",
-          "post_count": 7
+          "post_count": 8
         }
       ],
-      "source_count": 3,
-      "post_count": 14,
+      "source_count": 4,
+      "post_count": 13,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "Show HN: Tolaria – Open-source macOS app to manage Markdown knowledge bases",
-          "url": "https://github.com/refactoringhq/tolaria",
-          "points": 266
+          "title": "Show HN: Mljar Studio – local AI data analyst that saves analysis as notebooks",
+          "url": "https://mljar.com/",
+          "points": 62
         },
         {
           "source": "arxiv",
-          "title": "BERAG: Bayesian Ensemble Retrieval-Augmented Generation for Knowledge-based Visual Question Answering",
-          "url": "http://arxiv.org/abs/2604.22678v1",
-          "points": 46
+          "title": "Rethinking Reasoning-Intensive Retrieval: Evaluating and Advancing Retrievers in Agentic Search Systems",
+          "url": "http://arxiv.org/abs/2605.04018v1",
+          "points": 55
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "points": 60
         },
         {
           "source": "github",
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
-          "points": 169531
+          "points": 174808
+        }
+      ]
+    },
+    {
+      "topic": "training",
+      "color": "#ff79c6",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 2
+        },
+        {
+          "source": "arxiv",
+          "post_count": 3
+        },
+        {
+          "source": "latent",
+          "post_count": 1
+        },
+        {
+          "source": "github",
+          "post_count": 1
+        }
+      ],
+      "source_count": 4,
+      "post_count": 7,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library",
+          "url": "https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/",
+          "points": 319
+        },
+        {
+          "source": "arxiv",
+          "title": "Trust, but Verify: Peeling Low-Bit Transformer Networks for Training Monitoring",
+          "url": "http://arxiv.org/abs/2605.02853v1",
+          "points": 54
+        },
+        {
+          "source": "latent",
+          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
+          "url": "https://www.latent.space/p/noetik",
+          "points": 49
+        },
+        {
+          "source": "github",
+          "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
+          "url": "https://github.com/huggingface/transformers",
+          "points": 160325
         }
       ]
     },
@@ -732,11 +832,11 @@
       "color": "#8be9fd",
       "sources": [
         {
-          "source": "reddit",
+          "source": "hn",
           "post_count": 3
         },
         {
-          "source": "arxiv",
+          "source": "latent",
           "post_count": 1
         },
         {
@@ -748,62 +848,22 @@
       "post_count": 7,
       "sample_per_source": [
         {
-          "source": "reddit",
-          "title": "To 16GB VRAM users, plug in your old GPU",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
-          "points": 328
+          "source": "hn",
+          "title": "Accelerating Gemma 4: faster inference with multi-token prediction drafters",
+          "url": "https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/",
+          "points": 500
         },
         {
-          "source": "arxiv",
-          "title": "DepthKV: Layer-Dependent KV Cache Pruning for Long-Context LLM Inference",
-          "url": "http://arxiv.org/abs/2604.24647v1",
-          "points": 31
+          "source": "latent",
+          "title": "[AINews] The Inference Inflection",
+          "url": "https://www.latent.space/p/ainews-the-inference-inflection",
+          "points": 60
         },
         {
           "source": "github",
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
-          "points": 45905
-        }
-      ]
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "sources": [
-        {
-          "source": "reddit",
-          "post_count": 1
-        },
-        {
-          "source": "x",
-          "post_count": 1
-        },
-        {
-          "source": "arxiv",
-          "post_count": 4
-        }
-      ],
-      "source_count": 3,
-      "post_count": 6,
-      "sample_per_source": [
-        {
-          "source": "reddit",
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "points": 103
-        },
-        {
-          "source": "x",
-          "title": "Kimi K2.6 is now #1 on OpenRouter's weekly LLM Leaderboard 🏆 A huge thank you to every developer building with Kimi. We'll keep our heads down and keep shipping.",
-          "url": "https://x.com/Kimi_Moonshot/status/2048693682329776223",
-          "points": 1803
-        },
-        {
-          "source": "arxiv",
-          "title": "Rethinking XAI Evaluation: A Human-Centered Audit of Shapley Benchmarks in High-Stakes Settings",
-          "url": "http://arxiv.org/abs/2604.22662v1",
-          "points": 43
+          "points": 46095
         }
       ]
     },
@@ -813,7 +873,7 @@
       "sources": [
         {
           "source": "arxiv",
-          "post_count": 2
+          "post_count": 4
         },
         {
           "source": "github",
@@ -821,19 +881,19 @@
         }
       ],
       "source_count": 2,
-      "post_count": 5,
+      "post_count": 7,
       "sample_per_source": [
         {
           "source": "arxiv",
-          "title": "Thinking Without Words: Efficient Latent Reasoning with Abstract Chain-of-Thought",
-          "url": "http://arxiv.org/abs/2604.22709v1",
-          "points": 51
+          "title": "U-Define: Designing User Workflows for Hard and Soft Constraints in LLM-Based Planning",
+          "url": "http://arxiv.org/abs/2605.02765v1",
+          "points": 34
         },
         {
           "source": "github",
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
-          "points": 112926
+          "points": 116128
         }
       ]
     }

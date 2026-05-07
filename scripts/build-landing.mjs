@@ -123,6 +123,8 @@ async function loadPeriod(days) {
     if (p.date < prev.first_seen) prev.first_seen = p.date;
     if (p.points > prev.points)   prev.points    = p.points;
     prev.sources_seen.add(p.source);
+    if (p.summary && p.summary.claim && p.summary.claim !== "pending-llm-pass" && (!prev.summary || !prev.summary.claim || prev.summary.claim === "pending-llm-pass")) prev.summary = p.summary;
+    if (p.published_at && !prev.published_at) prev.published_at = p.published_at;
   }
   return { posts: [...byId.values()], sourcesActive: [...sourcesActive] };
 }

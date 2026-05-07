@@ -1,10 +1,13 @@
 {
   "meta": {
     "period_days": 1,
-    "end_date": "2026-04-29",
-    "start_date": "2026-04-29",
+    "end_date": "2026-05-07",
+    "start_date": "2026-05-07",
     "sources_active": [
       "hn",
+      "x",
+      "arxiv",
+      "latent",
       "github"
     ],
     "sources_registry": [
@@ -39,73 +42,49 @@
         "color": "#24292e"
       }
     ],
-    "total_posts": 85,
-    "generated_at": "2026-04-29T05:05:20.966Z"
+    "total_posts": 129,
+    "generated_at": "2026-05-07T06:30:38.749Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 25,
+      "post_count": 92,
       "sources": [
         "hn",
+        "x",
+        "arxiv",
+        "latent",
         "github"
       ],
       "sample_titles": [
         {
-          "title": "langchain-ai/langchain: The agent engineering platform",
-          "url": "https://github.com/langchain-ai/langchain",
+          "title": "n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.",
+          "url": "https://github.com/n8n-io/n8n",
           "source": "github",
-          "points": 135297
+          "points": 186909
         },
-        {
-          "title": "NousResearch/hermes-agent: The agent that grows with you",
-          "url": "https://github.com/NousResearch/hermes-agent",
-          "source": "github",
-          "points": 123415
-        },
-        {
-          "title": "punkpeye/awesome-mcp-servers: A collection of MCP servers.",
-          "url": "https://github.com/punkpeye/awesome-mcp-servers",
-          "source": "github",
-          "points": 85882
-        }
-      ]
-    },
-    {
-      "topic": "model",
-      "color": "#ffb86b",
-      "post_count": 11,
-      "sources": [
-        "hn",
-        "github"
-      ],
-      "sample_titles": [
         {
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170251
+          "points": 170881
         },
         {
-          "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
-          "url": "https://github.com/open-webui/open-webui",
+          "title": "f/prompts.chat: f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.",
+          "url": "https://github.com/f/prompts.chat",
           "source": "github",
-          "points": 134696
-        },
-        {
-          "title": "unslothai/unsloth: Web UI for training and running open models like Gemma 4, Qwen3.6, DeepSeek, gpt-oss locally.",
-          "url": "https://github.com/unslothai/unsloth",
-          "source": "github",
-          "points": 63222
+          "points": 161726
         }
       ]
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
-      "post_count": 7,
+      "post_count": 15,
       "sources": [
+        "arxiv",
+        "latent",
         "github"
       ],
       "sample_titles": [
@@ -113,91 +92,82 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 169531
+          "points": 174808
+        },
+        {
+          "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
+          "url": "https://github.com/open-webui/open-webui",
+          "source": "github",
+          "points": 135822
         },
         {
           "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
           "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
           "source": "github",
-          "points": 107976
+          "points": 109085
+        }
+      ]
+    },
+    {
+      "topic": "model",
+      "color": "#ffb86b",
+      "post_count": 6,
+      "sources": [
+        "hn",
+        "x",
+        "arxiv",
+        "latent"
+      ],
+      "sample_titles": [
+        {
+          "title": "[AINews] The Other vs The Utility",
+          "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
+          "source": "latent",
+          "points": 58
         },
         {
-          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
-          "url": "https://github.com/vllm-project/vllm",
-          "source": "github",
-          "points": 78507
+          "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
+          "url": "https://x.com/0xwhrrari/status/2052083154706379229",
+          "source": "x",
+          "points": 57
+        },
+        {
+          "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
+          "url": "http://arxiv.org/abs/2605.05192v1",
+          "source": "arxiv",
+          "points": 57
+        }
+      ]
+    },
+    {
+      "topic": "security",
+      "color": "#ff5555",
+      "post_count": 1,
+      "sources": [
+        "arxiv"
+      ],
+      "sample_titles": [
+        {
+          "title": "On the Hardness of Junking LLMs",
+          "url": "http://arxiv.org/abs/2605.05116v1",
+          "source": "arxiv",
+          "points": 33
         }
       ]
     },
     {
       "topic": "reasoning",
       "color": "#f1fa8c",
-      "post_count": 3,
-      "sources": [
-        "github"
-      ],
-      "sample_titles": [
-        {
-          "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
-          "url": "https://github.com/firecrawl/firecrawl",
-          "source": "github",
-          "points": 112926
-        },
-        {
-          "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
-          "url": "https://github.com/milvus-io/milvus",
-          "source": "github",
-          "points": 44034
-        },
-        {
-          "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
-          "url": "https://github.com/pingcap/tidb",
-          "source": "github",
-          "points": 40036
-        }
-      ]
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "post_count": 3,
-      "sources": [
-        "github"
-      ],
-      "sample_titles": [
-        {
-          "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
-          "url": "https://github.com/mudler/LocalAI",
-          "source": "github",
-          "points": 45905
-        },
-        {
-          "title": "simstudioai/sim: Build, deploy, and orchestrate AI agents. Sim is the central intelligence layer for your AI workforce.",
-          "url": "https://github.com/simstudioai/sim",
-          "source": "github",
-          "points": 27897
-        },
-        {
-          "title": "sgl-project/sglang: SGLang is a high-performance serving framework for large language models and multimodal models.",
-          "url": "https://github.com/sgl-project/sglang",
-          "source": "github",
-          "points": 26656
-        }
-      ]
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
       "post_count": 1,
       "sources": [
         "github"
       ],
       "sample_titles": [
         {
-          "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
-          "url": "https://github.com/huggingface/transformers",
+          "title": "Significant-Gravitas/AutoGPT: AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.",
+          "url": "https://github.com/Significant-Gravitas/AutoGPT",
           "source": "github",
-          "points": 160070
+          "points": 184041
         }
       ]
     }
@@ -208,23 +178,11 @@
       "color": "#9ab8ff",
       "points": [
         {
-          "date": "2026-04-29",
-          "count": 25
+          "date": "2026-05-07",
+          "count": 92
         }
       ],
-      "total": 25,
-      "delta_pct": null
-    },
-    {
-      "topic": "model",
-      "color": "#ffb86b",
-      "points": [
-        {
-          "date": "2026-04-29",
-          "count": 11
-        }
-      ],
-      "total": 11,
+      "total": 92,
       "delta_pct": null
     },
     {
@@ -232,11 +190,35 @@
       "color": "#7fd4b8",
       "points": [
         {
-          "date": "2026-04-29",
-          "count": 7
+          "date": "2026-05-07",
+          "count": 15
         }
       ],
-      "total": 7,
+      "total": 15,
+      "delta_pct": null
+    },
+    {
+      "topic": "model",
+      "color": "#ffb86b",
+      "points": [
+        {
+          "date": "2026-05-07",
+          "count": 6
+        }
+      ],
+      "total": 6,
+      "delta_pct": null
+    },
+    {
+      "topic": "security",
+      "color": "#ff5555",
+      "points": [
+        {
+          "date": "2026-05-07",
+          "count": 1
+        }
+      ],
+      "total": 1,
       "delta_pct": null
     },
     {
@@ -244,31 +226,7 @@
       "color": "#f1fa8c",
       "points": [
         {
-          "date": "2026-04-29",
-          "count": 3
-        }
-      ],
-      "total": 3,
-      "delta_pct": null
-    },
-    {
-      "topic": "infra",
-      "color": "#8be9fd",
-      "points": [
-        {
-          "date": "2026-04-29",
-          "count": 3
-        }
-      ],
-      "total": 3,
-      "delta_pct": null
-    },
-    {
-      "topic": "training",
-      "color": "#ff79c6",
-      "points": [
-        {
-          "date": "2026-04-29",
+          "date": "2026-05-07",
           "count": 1
         }
       ],
@@ -283,27 +241,57 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 12
+          "post_count": 5
+        },
+        {
+          "source": "x",
+          "post_count": 11
+        },
+        {
+          "source": "arxiv",
+          "post_count": 17
+        },
+        {
+          "source": "latent",
+          "post_count": 17
         },
         {
           "source": "github",
-          "post_count": 13
+          "post_count": 42
         }
       ],
-      "source_count": 2,
-      "post_count": 25,
+      "source_count": 5,
+      "post_count": 92,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "Who owns the code Claude Code wrote?",
-          "url": "https://legallayer.substack.com/p/who-owns-the-claude-code-wrote",
-          "points": 284
+          "title": "Vibe coding and agentic engineering are getting closer than I'd like",
+          "url": "https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering/",
+          "points": 444
+        },
+        {
+          "source": "x",
+          "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
+          "url": "https://x.com/claudeai/status/2052060691893227611",
+          "points": 106133
+        },
+        {
+          "source": "arxiv",
+          "title": "Implicit Representations of Grammaticality in Language Models",
+          "url": "http://arxiv.org/abs/2605.05197v1",
+          "points": 59
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] Silicon Valley gets Serious about Services",
+          "url": "https://www.latent.space/p/ainews-silicon-valley-gets-serious",
+          "points": 60
         },
         {
           "source": "github",
-          "title": "langchain-ai/langchain: The agent engineering platform",
-          "url": "https://github.com/langchain-ai/langchain",
-          "points": 135297
+          "title": "n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.",
+          "url": "https://github.com/n8n-io/n8n",
+          "points": 186909
         }
       ]
     },
@@ -313,27 +301,87 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 6
+          "post_count": 1
         },
         {
-          "source": "github",
-          "post_count": 5
+          "source": "x",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 2
+        },
+        {
+          "source": "latent",
+          "post_count": 2
         }
       ],
-      "source_count": 2,
-      "post_count": 11,
+      "source_count": 4,
+      "post_count": 6,
       "sample_per_source": [
         {
           "source": "hn",
-          "title": "OpenAI CEO's Identity Verification Company Announced Fake Bruno Mars Partnership",
-          "url": "https://www.vice.com/en/article/openai-ceo-identity-verification-company-fake-bruno-mars-partnership-mistaken-identity/",
-          "points": 279
+          "title": "SpaceXAI will provide Anthropic with access to Colossus 1",
+          "url": "https://twitter.com/xai/status/2052060350770515978",
+          "points": 51
+        },
+        {
+          "source": "x",
+          "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
+          "url": "https://x.com/0xwhrrari/status/2052083154706379229",
+          "points": 57
+        },
+        {
+          "source": "arxiv",
+          "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
+          "url": "http://arxiv.org/abs/2605.05192v1",
+          "points": 57
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] The Other vs The Utility",
+          "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
+          "points": 58
+        }
+      ]
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "sources": [
+        {
+          "source": "arxiv",
+          "post_count": 1
+        },
+        {
+          "source": "latent",
+          "post_count": 1
         },
         {
           "source": "github",
-          "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
-          "url": "https://github.com/ollama/ollama",
-          "points": 170251
+          "post_count": 13
+        }
+      ],
+      "source_count": 3,
+      "post_count": 15,
+      "sample_per_source": [
+        {
+          "source": "arxiv",
+          "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
+          "url": "http://arxiv.org/abs/2605.05189v1",
+          "points": 55
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "points": 57
+        },
+        {
+          "source": "github",
+          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+          "url": "https://github.com/affaan-m/everything-claude-code",
+          "points": 174808
         }
       ]
     }

@@ -1,11 +1,10 @@
 {
   "meta": {
     "period_days": 30,
-    "end_date": "2026-04-29",
-    "start_date": "2026-03-31",
+    "end_date": "2026-05-07",
+    "start_date": "2026-04-08",
     "sources_active": [
       "hn",
-      "reddit",
       "x",
       "arxiv",
       "latent",
@@ -43,17 +42,16 @@
         "color": "#24292e"
       }
     ],
-    "total_posts": 280,
-    "generated_at": "2026-04-29T05:05:20.983Z"
+    "total_posts": 470,
+    "generated_at": "2026-05-07T06:30:38.785Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 85,
+      "post_count": 162,
       "sources": [
         "hn",
-        "reddit",
         "x",
         "arxiv",
         "latent",
@@ -61,32 +59,33 @@
       ],
       "sample_titles": [
         {
-          "title": "langchain-ai/langchain: The agent engineering platform",
-          "url": "https://github.com/langchain-ai/langchain",
-          "source": "github",
-          "points": 135297
-        },
-        {
           "title": "NousResearch/hermes-agent: The agent that grows with you",
           "url": "https://github.com/NousResearch/hermes-agent",
           "source": "github",
-          "points": 123415
+          "points": 136256
         },
         {
-          "title": "punkpeye/awesome-mcp-servers: A collection of MCP servers.",
-          "url": "https://github.com/punkpeye/awesome-mcp-servers",
+          "title": "langchain-ai/langchain: The agent engineering platform",
+          "url": "https://github.com/langchain-ai/langchain",
           "source": "github",
-          "points": 85882
+          "points": 135977
+        },
+        {
+          "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
+          "url": "https://x.com/claudeai/status/2052060691893227611",
+          "source": "x",
+          "points": 106133
         }
       ]
     },
     {
       "topic": "model",
       "color": "#ffb86b",
-      "post_count": 32,
+      "post_count": 41,
       "sources": [
         "hn",
-        "reddit",
+        "x",
+        "arxiv",
         "latent",
         "github"
       ],
@@ -95,29 +94,30 @@
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170251
+          "points": 170881
         },
         {
           "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
           "url": "https://github.com/open-webui/open-webui",
           "source": "github",
-          "points": 134696
+          "points": 135822
         },
         {
           "title": "unslothai/unsloth: Web UI for training and running open models like Gemma 4, Qwen3.6, DeepSeek, gpt-oss locally.",
           "url": "https://github.com/unslothai/unsloth",
           "source": "github",
-          "points": 63222
+          "points": 63723
         }
       ]
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
-      "post_count": 14,
+      "post_count": 21,
       "sources": [
         "hn",
         "arxiv",
+        "latent",
         "github"
       ],
       "sample_titles": [
@@ -125,26 +125,26 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 169531
+          "points": 174808
         },
         {
           "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
           "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
           "source": "github",
-          "points": 107976
+          "points": 109085
         },
         {
-          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
-          "url": "https://github.com/vllm-project/vllm",
+          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
+          "url": "https://github.com/infiniflow/ragflow",
           "source": "github",
-          "points": 78507
+          "points": 79855
         }
       ]
     },
     {
       "topic": "training",
       "color": "#ff79c6",
-      "post_count": 10,
+      "post_count": 15,
       "sources": [
         "hn",
         "arxiv",
@@ -156,7 +156,7 @@
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
           "source": "github",
-          "points": 160070
+          "points": 160325
         },
         {
           "title": "Atlassian enables default data collection to train AI",
@@ -165,21 +165,21 @@
           "points": 567
         },
         {
-          "title": "Meta employees are up in arms over a mandatory program to train AI on their",
-          "url": "https://www.businessinsider.com/meta-new-ai-tool-tracks-staff-activity-sparks-concern-2026-4",
+          "title": "Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library",
+          "url": "https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/",
           "source": "hn",
-          "points": 108
+          "points": 319
         }
       ]
     },
     {
       "topic": "infra",
       "color": "#8be9fd",
-      "post_count": 8,
+      "post_count": 9,
       "sources": [
         "hn",
-        "reddit",
         "arxiv",
+        "latent",
         "github"
       ],
       "sample_titles": [
@@ -187,28 +187,57 @@
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
           "source": "github",
-          "points": 45905
+          "points": 46095
         },
         {
           "title": "simstudioai/sim: Build, deploy, and orchestrate AI agents. Sim is the central intelligence layer for your AI workforce.",
           "url": "https://github.com/simstudioai/sim",
           "source": "github",
-          "points": 27897
+          "points": 27971
         },
         {
           "title": "sgl-project/sglang: SGLang is a high-performance serving framework for large language models and multimodal models.",
           "url": "https://github.com/sgl-project/sglang",
           "source": "github",
-          "points": 26656
+          "points": 26971
+        }
+      ]
+    },
+    {
+      "topic": "reasoning",
+      "color": "#f1fa8c",
+      "post_count": 9,
+      "sources": [
+        "arxiv",
+        "github"
+      ],
+      "sample_titles": [
+        {
+          "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
+          "url": "https://github.com/firecrawl/firecrawl",
+          "source": "github",
+          "points": 116128
+        },
+        {
+          "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
+          "url": "https://github.com/milvus-io/milvus",
+          "source": "github",
+          "points": 44152
+        },
+        {
+          "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
+          "url": "https://github.com/pingcap/tidb",
+          "source": "github",
+          "points": 40059
         }
       ]
     },
     {
       "topic": "eval",
       "color": "#bd93f9",
-      "post_count": 6,
+      "post_count": 7,
       "sources": [
-        "reddit",
+        "hn",
         "x",
         "arxiv"
       ],
@@ -220,56 +249,33 @@
           "points": 1803
         },
         {
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "source": "reddit",
-          "points": 103
-        },
-        {
           "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
           "url": "http://arxiv.org/abs/2604.24729v1",
           "source": "arxiv",
           "points": 56
-        }
-      ]
-    },
-    {
-      "topic": "reasoning",
-      "color": "#f1fa8c",
-      "post_count": 5,
-      "sources": [
-        "arxiv",
-        "github"
-      ],
-      "sample_titles": [
-        {
-          "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
-          "url": "https://github.com/firecrawl/firecrawl",
-          "source": "github",
-          "points": 112926
         },
         {
-          "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
-          "url": "https://github.com/milvus-io/milvus",
-          "source": "github",
-          "points": 44034
-        },
-        {
-          "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
-          "url": "https://github.com/pingcap/tidb",
-          "source": "github",
-          "points": 40036
+          "title": "Case-Specific Rubrics for Clinical AI Evaluation: Methodology, Validation, and LLM-Clinician Agreement Across 823 Encounters",
+          "url": "http://arxiv.org/abs/2604.24710v1",
+          "source": "arxiv",
+          "points": 52
         }
       ]
     },
     {
       "topic": "opinion",
       "color": "#aaaaaa",
-      "post_count": 2,
+      "post_count": 4,
       "sources": [
         "hn"
       ],
       "sample_titles": [
+        {
+          "title": "Why AI companies want you to be afraid of them",
+          "url": "https://www.bbc.com/future/article/20260428-ai-companies-want-you-to-be-afraid-of-them",
+          "source": "hn",
+          "points": 263
+        },
         {
           "title": "Scoring Show HN submissions for AI design patterns",
           "url": "https://www.adriankrebs.ch/blog/design-slop/",
@@ -277,19 +283,20 @@
           "points": 224
         },
         {
-          "title": "Show HN: Mediator.ai – Using Nash bargaining and LLMs to systematize fairness",
-          "url": "https://mediator.ai/",
+          "title": "Show HN: Airbyte Agents – context for agents across multiple data sources",
+          "url": "https://news.ycombinator.com/item?id=48023496",
           "source": "hn",
-          "points": 58
+          "points": 106
         }
       ]
     },
     {
       "topic": "security",
       "color": "#ff5555",
-      "post_count": 1,
+      "post_count": 2,
       "sources": [
-        "hn"
+        "hn",
+        "arxiv"
       ],
       "sample_titles": [
         {
@@ -297,6 +304,12 @@
           "url": "https://lwn.net/Articles/1068928/",
           "source": "hn",
           "points": 90
+        },
+        {
+          "title": "On the Hardness of Junking LLMs",
+          "url": "http://arxiv.org/abs/2605.05116v1",
+          "source": "arxiv",
+          "points": 33
         }
       ]
     }
@@ -306,38 +319,6 @@
       "topic": "agent",
       "color": "#9ab8ff",
       "points": [
-        {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
         {
           "date": "2026-04-08",
           "count": 0
@@ -420,52 +401,52 @@
         },
         {
           "date": "2026-04-28",
-          "count": 30
+          "count": 29
         },
         {
           "date": "2026-04-29",
           "count": 12
+        },
+        {
+          "date": "2026-04-30",
+          "count": 6
+        },
+        {
+          "date": "2026-05-01",
+          "count": 8
+        },
+        {
+          "date": "2026-05-02",
+          "count": 10
+        },
+        {
+          "date": "2026-05-03",
+          "count": 5
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 7
+        },
+        {
+          "date": "2026-05-06",
+          "count": 7
+        },
+        {
+          "date": "2026-05-07",
+          "count": 35
         }
       ],
-      "total": 85,
-      "delta_pct": 377
+      "total": 162,
+      "delta_pct": 699
     },
     {
       "topic": "model",
       "color": "#ffb86b",
       "points": [
-        {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
         {
           "date": "2026-04-08",
           "count": 0
@@ -544,56 +525,56 @@
         },
         {
           "date": "2026-04-27",
-          "count": 12
+          "count": 9
         },
         {
           "date": "2026-04-28",
-          "count": 6
+          "count": 5
         },
         {
           "date": "2026-04-29",
           "count": 6
+        },
+        {
+          "date": "2026-04-30",
+          "count": 0
+        },
+        {
+          "date": "2026-05-01",
+          "count": 1
+        },
+        {
+          "date": "2026-05-02",
+          "count": 3
+        },
+        {
+          "date": "2026-05-03",
+          "count": 1
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 2
+        },
+        {
+          "date": "2026-05-06",
+          "count": 2
+        },
+        {
+          "date": "2026-05-07",
+          "count": 4
         }
       ],
-      "total": 32,
-      "delta_pct": 569
+      "total": 41,
+      "delta_pct": 214
     },
     {
       "topic": "memory",
       "color": "#7fd4b8",
       "points": [
-        {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
         {
           "date": "2026-04-08",
           "count": 0
@@ -681,47 +662,47 @@
         {
           "date": "2026-04-29",
           "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 1
+        },
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 2
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 3
+        },
+        {
+          "date": "2026-05-07",
+          "count": 1
         }
       ],
-      "total": 14,
-      "delta_pct": -100
+      "total": 21,
+      "delta_pct": 45
     },
     {
       "topic": "training",
       "color": "#ff79c6",
       "points": [
-        {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
         {
           "date": "2026-04-08",
           "count": 0
@@ -809,9 +790,41 @@
         {
           "date": "2026-04-29",
           "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 0
+        },
+        {
+          "date": "2026-05-01",
+          "count": 1
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 3
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
         }
       ],
-      "total": 10,
+      "total": 15,
       "delta_pct": -100
     },
     {
@@ -819,38 +832,6 @@
       "color": "#8be9fd",
       "points": [
         {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
-        {
           "date": "2026-04-08",
           "count": 0
         },
@@ -928,7 +909,7 @@
         },
         {
           "date": "2026-04-27",
-          "count": 3
+          "count": 0
         },
         {
           "date": "2026-04-28",
@@ -937,137 +918,41 @@
         {
           "date": "2026-04-29",
           "count": 0
-        }
-      ],
-      "total": 8,
-      "delta_pct": -100
-    },
-    {
-      "topic": "eval",
-      "color": "#bd93f9",
-      "points": [
+        },
         {
-          "date": "2026-03-31",
+          "date": "2026-04-30",
           "count": 0
         },
         {
-          "date": "2026-04-01",
+          "date": "2026-05-01",
+          "count": 1
+        },
+        {
+          "date": "2026-05-02",
           "count": 0
         },
         {
-          "date": "2026-04-02",
+          "date": "2026-05-03",
           "count": 0
         },
         {
-          "date": "2026-04-03",
+          "date": "2026-05-04",
           "count": 0
         },
         {
-          "date": "2026-04-04",
+          "date": "2026-05-05",
           "count": 0
         },
         {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
-        {
-          "date": "2026-04-08",
-          "count": 0
-        },
-        {
-          "date": "2026-04-09",
-          "count": 0
-        },
-        {
-          "date": "2026-04-10",
-          "count": 0
-        },
-        {
-          "date": "2026-04-11",
-          "count": 0
-        },
-        {
-          "date": "2026-04-12",
-          "count": 0
-        },
-        {
-          "date": "2026-04-13",
-          "count": 0
-        },
-        {
-          "date": "2026-04-14",
-          "count": 0
-        },
-        {
-          "date": "2026-04-15",
-          "count": 0
-        },
-        {
-          "date": "2026-04-16",
-          "count": 0
-        },
-        {
-          "date": "2026-04-17",
-          "count": 0
-        },
-        {
-          "date": "2026-04-18",
-          "count": 0
-        },
-        {
-          "date": "2026-04-19",
-          "count": 0
-        },
-        {
-          "date": "2026-04-20",
-          "count": 0
-        },
-        {
-          "date": "2026-04-21",
-          "count": 0
-        },
-        {
-          "date": "2026-04-22",
-          "count": 0
-        },
-        {
-          "date": "2026-04-23",
-          "count": 0
-        },
-        {
-          "date": "2026-04-24",
-          "count": 0
-        },
-        {
-          "date": "2026-04-25",
-          "count": 0
-        },
-        {
-          "date": "2026-04-26",
-          "count": 0
-        },
-        {
-          "date": "2026-04-27",
+          "date": "2026-05-06",
           "count": 3
         },
         {
-          "date": "2026-04-28",
-          "count": 3
-        },
-        {
-          "date": "2026-04-29",
+          "date": "2026-05-07",
           "count": 0
         }
       ],
-      "total": 6,
+      "total": 9,
       "delta_pct": -100
     },
     {
@@ -1075,38 +960,6 @@
       "color": "#f1fa8c",
       "points": [
         {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
-        {
           "date": "2026-04-08",
           "count": 0
         },
@@ -1193,9 +1046,169 @@
         {
           "date": "2026-04-29",
           "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 0
+        },
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 2
+        },
+        {
+          "date": "2026-05-06",
+          "count": 2
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
         }
       ],
-      "total": 5,
+      "total": 9,
+      "delta_pct": -100
+    },
+    {
+      "topic": "eval",
+      "color": "#bd93f9",
+      "points": [
+        {
+          "date": "2026-04-08",
+          "count": 0
+        },
+        {
+          "date": "2026-04-09",
+          "count": 0
+        },
+        {
+          "date": "2026-04-10",
+          "count": 0
+        },
+        {
+          "date": "2026-04-11",
+          "count": 0
+        },
+        {
+          "date": "2026-04-12",
+          "count": 0
+        },
+        {
+          "date": "2026-04-13",
+          "count": 0
+        },
+        {
+          "date": "2026-04-14",
+          "count": 0
+        },
+        {
+          "date": "2026-04-15",
+          "count": 0
+        },
+        {
+          "date": "2026-04-16",
+          "count": 0
+        },
+        {
+          "date": "2026-04-17",
+          "count": 0
+        },
+        {
+          "date": "2026-04-18",
+          "count": 0
+        },
+        {
+          "date": "2026-04-19",
+          "count": 0
+        },
+        {
+          "date": "2026-04-20",
+          "count": 0
+        },
+        {
+          "date": "2026-04-21",
+          "count": 0
+        },
+        {
+          "date": "2026-04-22",
+          "count": 0
+        },
+        {
+          "date": "2026-04-23",
+          "count": 0
+        },
+        {
+          "date": "2026-04-24",
+          "count": 0
+        },
+        {
+          "date": "2026-04-25",
+          "count": 0
+        },
+        {
+          "date": "2026-04-26",
+          "count": 0
+        },
+        {
+          "date": "2026-04-27",
+          "count": 2
+        },
+        {
+          "date": "2026-04-28",
+          "count": 3
+        },
+        {
+          "date": "2026-04-29",
+          "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 1
+        },
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
+        }
+      ],
+      "total": 7,
       "delta_pct": -100
     },
     {
@@ -1203,38 +1216,6 @@
       "color": "#aaaaaa",
       "points": [
         {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
-        {
           "date": "2026-04-08",
           "count": 0
         },
@@ -1321,9 +1302,41 @@
         {
           "date": "2026-04-29",
           "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 1
+        },
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 1
+        },
+        {
+          "date": "2026-05-07",
+          "count": 0
         }
       ],
-      "total": 2,
+      "total": 4,
       "delta_pct": -100
     },
     {
@@ -1331,38 +1344,6 @@
       "color": "#ff5555",
       "points": [
         {
-          "date": "2026-03-31",
-          "count": 0
-        },
-        {
-          "date": "2026-04-01",
-          "count": 0
-        },
-        {
-          "date": "2026-04-02",
-          "count": 0
-        },
-        {
-          "date": "2026-04-03",
-          "count": 0
-        },
-        {
-          "date": "2026-04-04",
-          "count": 0
-        },
-        {
-          "date": "2026-04-05",
-          "count": 0
-        },
-        {
-          "date": "2026-04-06",
-          "count": 0
-        },
-        {
-          "date": "2026-04-07",
-          "count": 0
-        },
-        {
           "date": "2026-04-08",
           "count": 0
         },
@@ -1449,10 +1430,42 @@
         {
           "date": "2026-04-29",
           "count": 0
+        },
+        {
+          "date": "2026-04-30",
+          "count": 0
+        },
+        {
+          "date": "2026-05-01",
+          "count": 0
+        },
+        {
+          "date": "2026-05-02",
+          "count": 0
+        },
+        {
+          "date": "2026-05-03",
+          "count": 0
+        },
+        {
+          "date": "2026-05-04",
+          "count": 0
+        },
+        {
+          "date": "2026-05-05",
+          "count": 0
+        },
+        {
+          "date": "2026-05-06",
+          "count": 0
+        },
+        {
+          "date": "2026-05-07",
+          "count": 1
         }
       ],
-      "total": 1,
-      "delta_pct": -100
+      "total": 2,
+      "delta_pct": 2800
     }
   ],
   "cross_source": [
@@ -1462,43 +1475,33 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 39
-        },
-        {
-          "source": "reddit",
-          "post_count": 1
+          "post_count": 80
         },
         {
           "source": "x",
-          "post_count": 26
+          "post_count": 37
         },
         {
           "source": "arxiv",
-          "post_count": 4
+          "post_count": 25
         },
         {
           "source": "latent",
-          "post_count": 2
+          "post_count": 3
         },
         {
           "source": "github",
-          "post_count": 13
+          "post_count": 17
         }
       ],
-      "source_count": 6,
-      "post_count": 85,
+      "source_count": 5,
+      "post_count": 162,
       "sample_per_source": [
         {
           "source": "hn",
           "title": "Claude Code to be removed from Anthropic's Pro plan?",
           "url": "https://bsky.app/profile/edzitron.com/post/3mjzxwfx3qs2a",
           "points": 645
-        },
-        {
-          "source": "reddit",
-          "title": "Anthropic states Pro users can only access Opus models in Claude Code after enabling and purchasing extra usage",
-          "url": "https://i.redd.it/ghpqfe4oysxg1.png",
-          "points": 119
         },
         {
           "source": "x",
@@ -1522,7 +1525,7 @@
           "source": "github",
           "title": "langchain-ai/langchain: The agent engineering platform",
           "url": "https://github.com/langchain-ai/langchain",
-          "points": 135297
+          "points": 135977
         }
       ]
     },
@@ -1532,23 +1535,27 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 15
+          "post_count": 22
         },
         {
-          "source": "reddit",
-          "post_count": 4
+          "source": "x",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 2
         },
         {
           "source": "latent",
-          "post_count": 8
+          "post_count": 10
         },
         {
           "source": "github",
-          "post_count": 5
+          "post_count": 6
         }
       ],
-      "source_count": 4,
-      "post_count": 32,
+      "source_count": 5,
+      "post_count": 41,
       "sample_per_source": [
         {
           "source": "hn",
@@ -1557,10 +1564,16 @@
           "points": 264
         },
         {
-          "source": "reddit",
-          "title": "Differences Between GPT 5.4 and GPT 5.5 on MineBench",
-          "url": "https://www.reddit.com/gallery/1sxapqb",
-          "points": 285
+          "source": "x",
+          "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
+          "url": "https://x.com/0xwhrrari/status/2052083154706379229",
+          "points": 57
+        },
+        {
+          "source": "arxiv",
+          "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
+          "url": "http://arxiv.org/abs/2605.05192v1",
+          "points": 57
         },
         {
           "source": "latent",
@@ -1572,7 +1585,57 @@
           "source": "github",
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
-          "points": 170251
+          "points": 170881
+        }
+      ]
+    },
+    {
+      "topic": "memory",
+      "color": "#7fd4b8",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 7
+        },
+        {
+          "source": "arxiv",
+          "post_count": 5
+        },
+        {
+          "source": "latent",
+          "post_count": 1
+        },
+        {
+          "source": "github",
+          "post_count": 8
+        }
+      ],
+      "source_count": 4,
+      "post_count": 21,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "Show HN: Tolaria – Open-source macOS app to manage Markdown knowledge bases",
+          "url": "https://github.com/refactoringhq/tolaria",
+          "points": 266
+        },
+        {
+          "source": "arxiv",
+          "title": "BERAG: Bayesian Ensemble Retrieval-Augmented Generation for Knowledge-based Visual Question Answering",
+          "url": "http://arxiv.org/abs/2604.22678v1",
+          "points": 46
+        },
+        {
+          "source": "latent",
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "points": 60
+        },
+        {
+          "source": "github",
+          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+          "url": "https://github.com/affaan-m/everything-claude-code",
+          "points": 174808
         }
       ]
     },
@@ -1582,11 +1645,11 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 5
+          "post_count": 7
         },
         {
           "source": "arxiv",
-          "post_count": 3
+          "post_count": 6
         },
         {
           "source": "latent",
@@ -1598,7 +1661,7 @@
         }
       ],
       "source_count": 4,
-      "post_count": 10,
+      "post_count": 15,
       "sample_per_source": [
         {
           "source": "hn",
@@ -1622,7 +1685,7 @@
           "source": "github",
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
-          "points": 160070
+          "points": 160325
         }
       ]
     },
@@ -1632,14 +1695,14 @@
       "sources": [
         {
           "source": "hn",
-          "post_count": 1
-        },
-        {
-          "source": "reddit",
-          "post_count": 3
+          "post_count": 4
         },
         {
           "source": "arxiv",
+          "post_count": 1
+        },
+        {
+          "source": "latent",
           "post_count": 1
         },
         {
@@ -1648,7 +1711,7 @@
         }
       ],
       "source_count": 4,
-      "post_count": 8,
+      "post_count": 9,
       "sample_per_source": [
         {
           "source": "hn",
@@ -1657,62 +1720,22 @@
           "points": 253
         },
         {
-          "source": "reddit",
-          "title": "To 16GB VRAM users, plug in your old GPU",
-          "url": "https://www.reddit.com/r/LocalLLaMA/comments/1swzjnu/to_16gb_vram_users_plug_in_your_old_gpu/",
-          "points": 328
-        },
-        {
           "source": "arxiv",
           "title": "DepthKV: Layer-Dependent KV Cache Pruning for Long-Context LLM Inference",
           "url": "http://arxiv.org/abs/2604.24647v1",
           "points": 31
         },
         {
+          "source": "latent",
+          "title": "[AINews] The Inference Inflection",
+          "url": "https://www.latent.space/p/ainews-the-inference-inflection",
+          "points": 60
+        },
+        {
           "source": "github",
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
-          "points": 45905
-        }
-      ]
-    },
-    {
-      "topic": "memory",
-      "color": "#7fd4b8",
-      "sources": [
-        {
-          "source": "hn",
-          "post_count": 5
-        },
-        {
-          "source": "arxiv",
-          "post_count": 2
-        },
-        {
-          "source": "github",
-          "post_count": 7
-        }
-      ],
-      "source_count": 3,
-      "post_count": 14,
-      "sample_per_source": [
-        {
-          "source": "hn",
-          "title": "Show HN: Tolaria – Open-source macOS app to manage Markdown knowledge bases",
-          "url": "https://github.com/refactoringhq/tolaria",
-          "points": 266
-        },
-        {
-          "source": "arxiv",
-          "title": "BERAG: Bayesian Ensemble Retrieval-Augmented Generation for Knowledge-based Visual Question Answering",
-          "url": "http://arxiv.org/abs/2604.22678v1",
-          "points": 46
-        },
-        {
-          "source": "github",
-          "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
-          "url": "https://github.com/affaan-m/everything-claude-code",
-          "points": 169531
+          "points": 46095
         }
       ]
     },
@@ -1721,7 +1744,7 @@
       "color": "#bd93f9",
       "sources": [
         {
-          "source": "reddit",
+          "source": "hn",
           "post_count": 1
         },
         {
@@ -1730,17 +1753,17 @@
         },
         {
           "source": "arxiv",
-          "post_count": 4
+          "post_count": 5
         }
       ],
       "source_count": 3,
-      "post_count": 6,
+      "post_count": 7,
       "sample_per_source": [
         {
-          "source": "reddit",
-          "title": "The 4B class of 2026 (benchmark)",
-          "url": "https://i.redd.it/fj2b1am41sxg1.png",
-          "points": 103
+          "source": "hn",
+          "title": "Show HN: A new benchmark for testing LLMs for deterministic outputs",
+          "url": "https://interfaze.ai/blog/introducing-structured-output-benchmark",
+          "points": 48
         },
         {
           "source": "x",
@@ -1762,7 +1785,7 @@
       "sources": [
         {
           "source": "arxiv",
-          "post_count": 2
+          "post_count": 6
         },
         {
           "source": "github",
@@ -1770,7 +1793,7 @@
         }
       ],
       "source_count": 2,
-      "post_count": 5,
+      "post_count": 9,
       "sample_per_source": [
         {
           "source": "arxiv",
@@ -1782,7 +1805,37 @@
           "source": "github",
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
-          "points": 112926
+          "points": 116128
+        }
+      ]
+    },
+    {
+      "topic": "security",
+      "color": "#ff5555",
+      "sources": [
+        {
+          "source": "hn",
+          "post_count": 1
+        },
+        {
+          "source": "arxiv",
+          "post_count": 1
+        }
+      ],
+      "source_count": 2,
+      "post_count": 2,
+      "sample_per_source": [
+        {
+          "source": "hn",
+          "title": "Kernel code removals driven by LLM-created security reports",
+          "url": "https://lwn.net/Articles/1068928/",
+          "points": 90
+        },
+        {
+          "source": "arxiv",
+          "title": "On the Hardness of Junking LLMs",
+          "url": "http://arxiv.org/abs/2605.05116v1",
+          "points": 33
         }
       ]
     }
