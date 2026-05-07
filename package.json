@@ -24,6 +24,7 @@
     "memory:repo:setup": "tsx scripts/setup-memory-repo.ts --init",
     "memory:repo:check": "tsx scripts/setup-memory-repo.ts --check",
     "memory:kg:promote": "tsx scripts/kg-promote-memory.ts",
+    "skill-promotion:autopilot": "tsx scripts/skill-promotion-autopilot.ts",
     "check:autonomy-closure": "tsx scripts/autonomy-closure-health.ts",
     "check:test-health": "tsx scripts/test-health-autopilot.ts",
     "setup": "pnpm install && pnpm build && npm link",

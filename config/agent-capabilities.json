@@ -233,6 +233,42 @@
       "writePolicy": "internal-service"
     },
     {
+      "service": "skill-promotion-autopilot",
+      "kind": "workflow",
+      "defaultExpected": "skill-promotion-autopilot",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["capability-promotion", "skill-iteration", "autonomous-backtest", "workflow-to-code"],
+      "trigger": {
+        "modes": ["reflect", "act"],
+        "keywords": ["skill promotion", "promotion candidate", "能力升級", "自我更新", "自我迭代", "湧現能力"],
+        "signals": ["cross_skill_pattern", "repeated_success_path", "capability_promotion_candidate"],
+        "taskTypes": ["ops", "code", "plan"],
+        "minPriority": 1
+      },
+      "requires": ["constraint-texture-analysis", "verification-before-completion", "autonomy-closure-workflow"],
+      "combinesWith": ["task-decomposition", "kg-context-synthesis", "progress-reporting"],
+      "verifier": "promotion candidate becomes a scheduler-visible task, ships through PR/deploy, then passes next-3-use backtest or produces an iterate task",
+      "contextFabric": {
+        "sources": ["skill-usage", "capability-promotion-candidate", "task-events", "github-prs", "autonomy-closure"],
+        "writes": ["skill-promotion-autopilot", "promotion-backtest", "skill-usage"],
+        "learnsFrom": ["repeated-success-paths", "failed-promotions", "token-savings", "workflow-overhead"],
+        "sharesWith": ["kg", "constraint-texture-analysis", "task-decomposition", "autonomy-closure-workflow"],
+        "emergenceSignals": ["cross_skill_pattern", "repeated_success_path", "capability_promotion_candidate"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-promotion-autopilot.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.34,
+        "reviewCadenceDays": 3,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Turns repeated high-success skill patterns into durable skill/workflow/script/CLI/code changes, then backtests the promoted capability against future usage."
+    },
+    {
       "service": "constraint-texture-analysis",
       "kind": "workflow",
       "defaultExpected": "constraint-texture",

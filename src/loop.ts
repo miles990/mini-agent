@@ -2388,6 +2388,20 @@ export class AgentLoop {
       } catch (e) { slog('WARN', `autonomy closure health failed: ${e}`); }
 
       try {
+        const { maybeQueueSkillPromotion, sweepSkillPromotionBacktests } = await import('./skill-promotion-autopilot.js');
+        const backtest = sweepSkillPromotionBacktests(memDir);
+        if (backtest.updated > 0) {
+          slog('SKILL-PROMOTION', `backtest updated=${backtest.updated} accepted=${backtest.accepted} iterate=${backtest.iterate}`);
+        }
+        const promotion = await maybeQueueSkillPromotion(memDir, {
+          triggerReason: currentTriggerReason,
+        });
+        if (promotion.queued) {
+          slog('SKILL-PROMOTION', `queued ${promotion.candidate?.recommendedKind} task=${promotion.task?.id.slice(0, 12)}`);
+        }
+      } catch (e) { slog('WARN', `skill promotion autopilot failed: ${e}`); }
+
+      try {
         const { maybeQueueSelfResearch } = await import('./self-research-autopilot.js');
         const selfResearch = await maybeQueueSelfResearch(memDir, {
           triggerReason: currentTriggerReason,

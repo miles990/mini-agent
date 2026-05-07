@@ -179,6 +179,7 @@ import type { WorkIntent } from './brain-types.js';
 import { listAgentCapabilities, loadAgentRelationshipRegistry } from './agent-owned-identity.js';
 import { evaluatePublicWriteIdentity } from './public-write-identity.js';
 import { selectAgentSkills, summarizeSkillHealth, suggestPatternPromotions } from './agent-skill-manager.js';
+import { summarizeSkillPromotionAutopilot } from './skill-promotion-autopilot.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -948,7 +949,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/public-write-identity', '/api/dashboard/agent-skills/select', '/api/dashboard/agent-skills/promotions', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/public-write-identity', '/api/dashboard/agent-skills/select', '/api/dashboard/agent-skills/promotions', '/api/dashboard/agent-skills/autopilot', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -2614,6 +2615,10 @@ export function createApi(port = 3001): express.Express {
       ledger: 'memory/state/skill-usage.jsonl',
       policy: 'Repeated high-success patterns should be promoted into the lowest-overhead durable form: skill, workflow, script, CLI, code, or hybrid capability.',
     });
+  });
+
+  app.get('/api/dashboard/agent-skills/autopilot', (_req: Request, res: Response) => {
+    res.json(summarizeSkillPromotionAutopilot(getMemoryRootDir()));
   });
 
   // Forge slots — worktree allocation health for dashboard tile (W7 F-d)
