@@ -26,6 +26,7 @@ import { scanContradictions } from './contradiction-scanner.js';
 import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
 import { spawnDelegation } from './delegation.js';
 import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
+import { rotateDecisionLogs } from './decision-log-rotation.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -723,6 +724,15 @@ export async function runHousekeeping(): Promise<void> {
 
   // 低頻：每 10 cycle 掃描 instance 目錄下的過期臨時資源
   if (cycleCounter % 10 === 0) {
+    try {
+      const rotated = rotateDecisionLogs().filter(result => !result.skipped);
+      if (rotated.length > 0) {
+        const archived = rotated.reduce((sum, result) => sum + result.archivedLines, 0);
+        slog('HOUSEKEEPING', `decision-log rotation: ${rotated.length} file(s), ${archived} archived line(s)`);
+      }
+    } catch (err) {
+      slog('HOUSEKEEPING', `decision-log rotation skipped: ${err instanceof Error ? err.message : String(err)}`);
+    }
     await sweepInstanceDir().catch(() => {});
     // P1-5: Memory consolidation — migrate old entries to cold storage
     await consolidateMemory().catch(() => {});
