@@ -88,16 +88,18 @@ function fmtNum(n) {
   if (n >= 10000) return (n/1000).toFixed(1) + 'k';
   return String(n);
 }
+
+const SRC_ZH = { WEB: '網頁', HN: 'HN', LATENT: 'Latent', ARXIV: 'arXiv', GITHUB: 'GitHub', X: 'X' };
 function tagOf(post) {
   const t = (post.title + ' ' + (post.story_text || '')).toLowerCase();
-  if (/\b(agent|mcp|tool[- ]use|orchestrat)\b/.test(t)) return 'agent';
-  if (/\b(gpt[- ]?\d|claude|gemini|llama|mistral|sonnet|opus)\b/.test(t)) return 'model';
-  if (/\b(rag|retriev|embed|vector|memory)\b/.test(t)) return 'memory';
-  if (/\b(eval|benchmark|leaderboard|swe[- ]bench)\b/.test(t)) return 'eval';
-  if (/\b(security|injection|jailbreak|exploit|cve)\b/.test(t)) return 'security';
-  if (/\b(train|fine[- ]?tun|rlhf|distill|sft|dpo)\b/.test(t)) return 'training';
-  if (/\b(infra|gpu|cuda|inference|vllm|kubernetes)\b/.test(t)) return 'infra';
-  return 'other';
+  if (/\b(agent|mcp|tool[- ]use|orchestrat)\b/.test(t)) return '代理';
+  if (/\b(gpt[- ]?\d|claude|gemini|llama|mistral|sonnet|opus)\b/.test(t)) return '模型';
+  if (/\b(rag|retriev|embed|vector|memory)\b/.test(t)) return '記憶';
+  if (/\b(eval|benchmark|leaderboard|swe[- ]bench)\b/.test(t)) return '評測';
+  if (/\b(security|injection|jailbreak|exploit|cve)\b/.test(t)) return '安全';
+  if (/\b(train|fine[- ]?tun|rlhf|distill|sft|dpo)\b/.test(t)) return '訓練';
+  if (/\b(infra|gpu|cuda|inference|vllm|kubernetes)\b/.test(t)) return '基礎設施';
+  return '其他';
 }
 function uniqByUrl(posts) {
   const seen = new Set();
@@ -272,7 +274,7 @@ function renderItem(p, rank) {
         ? `<div class="zh">${htmlEsc(parts.desc)}</div>`
         : (!parts.hasZh ? `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>` : '')}
       <div class="meta-row">
-        <span class="src">${htmlEsc(src==="WEB"?"網頁":src)}</span>
+        <span class="src">${htmlEsc(SRC_ZH[src]||src)}</span>
         <span class="tag">#${htmlEsc(tag)}</span>
         ${stats.length ? `<span class="pts">${stats.join(' · ')}</span>` : ''}
         ${host ? `<span>${htmlEsc(host)}</span>` : ''}
@@ -323,23 +325,19 @@ async function main() {
   const xNorm = (x.posts || []).map(p => ({ ...p, _xs: (p.points || 0) / 1000 }));
   const cross = uniqByUrl([...hn.posts, ...latent.posts, ...xNorm])
     .map(p => ({ ...p, _score: p._xs ?? (p.points || 0) }))
-    .sort((a,b) => (b._score||0) - (a._score||0))
-    .slice(0, 25);
-  const xTop = (x.posts || []).slice(0, 12);
+    .sort((a,b) => (b._score||0) - (a._score||0));
+  const xTop = x.posts || [];
 
-  const newReleases = (arxiv.posts || []).slice(0, 15);
+  const newReleases = arxiv.posts || [];
 
   const reads = uniqByUrl([...latent.posts, ...hn.posts])
-    .filter(p => (p.story_text || '').length > 400 || /(blog|essay|article|space)/i.test(p.url || ''))
-    .slice(0, 15);
+    .filter(p => (p.story_text || '').length > 400 || /(blog|essay|article|space)/i.test(p.url || ''));
 
-  const projects = (gh.posts || []).filter(p =>
-    (p.topics || []).some(t => /\b(ai|llm|agent|ml)\b/.test(t))
-  ).slice(0, 20);
+  const projects = gh.posts || [];
 
   const discs = (hn.posts || []).slice().sort((a,b) =>
     (b.num_comments||0) - (a.num_comments||0)
-  ).slice(0, 12);
+  );
 
 
   const html = `<!DOCTYPE html>
