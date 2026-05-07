@@ -1702,10 +1702,15 @@ export function getHighPriorityPendingCount(memDir: string): number {
 
 /** Get P0 task preview strings for priority prefix injection. */
 export function getP0TaskPreviews(memoryDir: string): string[] {
+  // Phantom guard (issue #186 / #257): task-type entries must exist in
+  // task-events.jsonl. Phantom tasks (visible only via relations.jsonl) are
+  // skipped so they don't re-inject into the heartbeat prompt each cycle.
+  const taskEventIds = new Set(getCachedBucket(memoryDir, 'task-events').keys());
   return queryMemoryIndexSync(memoryDir, {
     type: ['task', 'goal'],
     status: ['pending', 'in_progress'],
   })
+    .filter(t => t.type !== 'task' || taskEventIds.has(t.id))
     .filter(t => getTaskPriority(t) === 0)
     .map(t => `P0: ${t.summary ?? t.id}`);
 }

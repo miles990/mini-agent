@@ -19,6 +19,7 @@ import {
   appendMemoryIndexEntry,
   getTaskEventsPath,
   getMemoryIndexPath,
+  getP0TaskPreviews,
   incrementTaskStaleness,
   invalidateIndexCache,
   queryMemoryIndexSync,
@@ -147,5 +148,68 @@ describe('issue #186 — phantom task guard in incrementTaskStaleness', () => {
     const staleIds = staleResult.map(s => s.id);
     expect(staleIds).toContain(real.id);
     expect(staleIds).not.toContain(phantomId);
+  });
+});
+
+describe('issue #257 — phantom task guard in getP0TaskPreviews', () => {
+  function injectPhantomP0(id: string, summary: string): void {
+    const relationsPath = getMemoryIndexPath(tmpDir);
+    const dir = path.dirname(relationsPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(relationsPath, JSON.stringify({
+      id,
+      ts: new Date().toISOString(),
+      type: 'task',
+      status: 'pending',
+      refs: [],
+      summary,
+      payload: { priority: 0 },
+    }) + '\n', 'utf-8');
+    invalidateIndexCache();
+  }
+
+  it('phantom P0 task in relations.jsonl is excluded from preview list', () => {
+    const phantomId = 'task-1778139204128-8c';
+    injectPhantomP0(phantomId, 'Decompose middleware task task-1778139204128-8c after max-turns failure');
+
+    // Phantom IS visible in the merged index
+    const merged = queryMemoryIndexSync(tmpDir, { type: ['task'], status: ['pending'] });
+    expect(merged.some(e => e.id === phantomId)).toBe(true);
+
+    // But getP0TaskPreviews should filter it out
+    const previews = getP0TaskPreviews(tmpDir);
+    expect(previews.some(p => p.includes(phantomId))).toBe(false);
+    expect(previews.some(p => p.includes('max-turns failure'))).toBe(false);
+  });
+
+  it('real P0 task in task-events.jsonl still appears in preview list', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Critical P0 deployment blocker',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    const previews = getP0TaskPreviews(tmpDir);
+    expect(previews.some(p => p.includes('Critical P0 deployment blocker'))).toBe(true);
+  });
+
+  it('phantom P0 excluded while real P0 still shown (mixed scenario)', async () => {
+    const phantomId = 'task-1778139697719-8i';
+    injectPhantomP0(phantomId, 'Decompose middleware task task-1778139697719-8i after max-turns failure');
+
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Real P0 incident response',
+      payload: { priority: 0 },
+    });
+    invalidateIndexCache();
+
+    const previews = getP0TaskPreviews(tmpDir);
+    expect(previews.some(p => p.includes('Real P0 incident response'))).toBe(true);
+    expect(previews.some(p => p.includes(phantomId))).toBe(false);
+    expect(previews.some(p => p.includes('max-turns failure'))).toBe(false);
   });
 });
