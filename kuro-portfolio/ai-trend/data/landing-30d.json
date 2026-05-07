@@ -43,13 +43,13 @@
       }
     ],
     "total_posts": 465,
-    "generated_at": "2026-05-07T07:02:47.964Z"
+    "generated_at": "2026-05-07T18:32:12.319Z"
   },
   "top_topics": [
     {
       "topic": "agent",
       "color": "#9ab8ff",
-      "post_count": 160,
+      "post_count": 161,
       "sources": [
         "hn",
         "x",
@@ -261,8 +261,8 @@
           "url": "http://arxiv.org/abs/2605.04018v1",
           "source": "arxiv",
           "points": 55,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T17:42:50Z"
         },
         {
@@ -270,8 +270,8 @@
           "url": "https://github.com/infiniflow/ragflow",
           "source": "github",
           "points": 79864,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": "GitHub 專案 infiniflow/ragflow 聚焦 RAGFlow is a leading open-source Retrieval-Augm…",
+          "zh_so_what": "可比對自家 agent 架構的能力邊界與整合策略。",
           "published_at": "2023-12-12T06:13:13Z"
         },
         {
@@ -329,7 +329,7 @@
           "source": "hn",
           "points": 567,
           "zh_claim": "Atlassian enables default data collection to train AI",
-          "zh_so_what": "pending-llm-pass",
+          "zh_so_what": null,
           "published_at": "2026-04-20T12:23:39Z"
         },
         {
@@ -337,8 +337,8 @@
           "url": "http://arxiv.org/abs/2604.22746v1",
           "source": "arxiv",
           "points": 56,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-24T17:46:55Z"
         },
         {
@@ -364,8 +364,8 @@
           "url": "http://arxiv.org/abs/2605.02853v1",
           "source": "arxiv",
           "points": 54,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-04T17:30:50Z"
         },
         {
@@ -382,8 +382,8 @@
           "url": "http://arxiv.org/abs/2605.04008v1",
           "source": "arxiv",
           "points": 52,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T17:30:17Z"
         }
       ]
@@ -413,8 +413,8 @@
           "url": "https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/",
           "source": "hn",
           "points": 500,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T16:14:17.000Z"
         },
         {
@@ -431,8 +431,8 @@
           "url": "http://arxiv.org/abs/2604.24647v1",
           "source": "arxiv",
           "points": 31,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-27T16:15:37Z"
         },
         {
@@ -440,8 +440,8 @@
           "url": "https://github.com/simstudioai/sim",
           "source": "github",
           "points": 27971,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2025-01-05T22:47:49Z"
         },
         {
@@ -450,7 +450,7 @@
           "source": "hn",
           "points": 253,
           "zh_claim": "Kimi vendor verifier – verify accuracy of inference providers",
-          "zh_so_what": "pending-llm-pass",
+          "zh_so_what": null,
           "published_at": "2026-04-20T18:39:53Z"
         },
         {
@@ -458,8 +458,8 @@
           "url": "https://github.com/sgl-project/sglang",
           "source": "github",
           "points": 26971,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2024-01-08T04:15:52Z"
         },
         {
@@ -467,8 +467,8 @@
           "url": "https://blog.cloudflare.com/agents-stripe-projects/",
           "source": "hn",
           "points": 86,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-06T03:10:33.000Z"
         }
       ]
@@ -496,8 +496,8 @@
           "url": "http://arxiv.org/abs/2605.04036v1",
           "source": "arxiv",
           "points": 58,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T17:55:25Z"
         },
         {
@@ -514,8 +514,8 @@
           "url": "http://arxiv.org/abs/2604.22709v1",
           "source": "arxiv",
           "points": 51,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-24T16:45:51Z"
         },
         {
@@ -532,8 +532,8 @@
           "url": "http://arxiv.org/abs/2604.24665v1",
           "source": "arxiv",
           "points": 36,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-27T16:26:20Z"
         },
         {
@@ -541,8 +541,8 @@
           "url": "http://arxiv.org/abs/2605.02765v1",
           "source": "arxiv",
           "points": 34,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-04T16:05:40Z"
         },
         {
@@ -550,8 +550,8 @@
           "url": "http://arxiv.org/abs/2605.03932v1",
           "source": "arxiv",
           "points": 34,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T16:20:46Z"
         }
       ]
@@ -580,8 +580,8 @@
           "url": "http://arxiv.org/abs/2604.24729v1",
           "source": "arxiv",
           "points": 56,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-27T17:40:18Z"
         },
         {
@@ -598,8 +598,8 @@
           "url": "http://arxiv.org/abs/2604.24710v1",
           "source": "arxiv",
           "points": 52,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-27T17:17:56Z"
         },
         {
@@ -607,8 +607,8 @@
           "url": "http://arxiv.org/abs/2604.24705v1",
           "source": "arxiv",
           "points": 49,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-27T17:14:01Z"
         },
         {
@@ -616,8 +616,8 @@
           "url": "http://arxiv.org/abs/2604.22662v1",
           "source": "arxiv",
           "points": 43,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-04-24T15:38:44Z"
         },
         {
@@ -625,8 +625,8 @@
           "url": "http://arxiv.org/abs/2605.03941v1",
           "source": "arxiv",
           "points": 37,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T16:30:03Z"
         }
       ]
@@ -654,7 +654,7 @@
           "source": "hn",
           "points": 224,
           "zh_claim": "Scoring Show HN submissions for AI design patterns",
-          "zh_so_what": "pending-llm-pass",
+          "zh_so_what": null,
           "published_at": "2026-04-22T14:44:32Z"
         },
         {
@@ -662,8 +662,8 @@
           "url": "https://news.ycombinator.com/item?id=48023496",
           "source": "hn",
           "points": 106,
-          "zh_claim": "pending-llm-pass",
-          "zh_so_what": "pending-llm-pass",
+          "zh_claim": null,
+          "zh_so_what": null,
           "published_at": "2026-05-05T15:03:18.000Z"
         },
         {
@@ -672,7 +672,7 @@
           "source": "hn",
           "points": 58,
           "zh_claim": "Show HN: Mediator.ai – Using Nash bargaining and LLMs to systematize fairness",
-          "zh_so_what": "pending-llm-pass",
+          "zh_so_what": null,
           "published_at": "2026-04-20T15:07:04Z"
         }
       ]
@@ -692,7 +692,7 @@
           "source": "hn",
           "points": 90,
           "zh_claim": "Kernel code removals driven by LLM-created security reports",
-          "zh_so_what": "pending-llm-pass",
+          "zh_so_what": null,
           "published_at": "2026-04-22T11:48:07Z"
         },
         {
@@ -830,11 +830,11 @@
         },
         {
           "date": "2026-05-07",
-          "count": 34
+          "count": 35
         }
       ],
-      "total": 160,
-      "delta_pct": 683
+      "total": 161,
+      "delta_pct": 706
     },
     {
       "topic": "model",
@@ -1884,11 +1884,11 @@
         },
         {
           "source": "github",
-          "post_count": 15
+          "post_count": 16
         }
       ],
       "source_count": 5,
-      "post_count": 160,
+      "post_count": 161,
       "sample_per_source": [
         {
           "source": "hn",
