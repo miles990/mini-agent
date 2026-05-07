@@ -320,9 +320,15 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
   try {
     const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,url,createdAt,updatedAt,headRefName', '--limit', '50']);
     prs = JSON.parse(stdout);
-    writeOpenPrSnapshot(getMemoryRootDir(), prs.map(toOpenPrSummary));
-  } catch {
+  } catch (err) {
+    slog('github', `open PR listing failed: ${String(err)}`);
     return;
+  }
+
+  try {
+    writeOpenPrSnapshot(getMemoryRootDir(), prs.map(toOpenPrSummary));
+  } catch (err) {
+    slog('github', `open PR snapshot write failed; continuing with handoff tracking: ${String(err)}`);
   }
 
   let activeContent: string;
