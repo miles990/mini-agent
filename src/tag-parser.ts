@@ -57,6 +57,7 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
     stack: [],
     ranges: [],
   };
+  const REQUIRE_CLOSED_TAGS = new Set(['kuro:inner', 'kuro:cycle-state']);
 
   const parser = new Parser({
     onopentag(name, attributes) {
@@ -82,6 +83,10 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
 
       const closeStart = parser.startIndex;
       const closeEnd = parser.endIndex;
+      const closeToken = input.slice(closeStart, closeEnd + 1);
+      if (REQUIRE_CLOSED_TAGS.has(name) && closeToken !== `</${name}>`) {
+        return;
+      }
       const selfClosing = closeStart <= entry.openEnd;
       const contentStart = Math.min(entry.openEnd + 1, input.length);
       const contentEnd = selfClosing ? contentStart : Math.max(contentStart, closeStart);
@@ -131,9 +136,12 @@ function parseInternal(input: string, options?: ParseOptions): ParseState {
 
   // Graceful fallback for malformed/unclosed tags.
   // Cap content to prevent pollution (e.g. unclosed <kuro:task> absorbing entire response).
+  // State-bearing tags are intentionally excluded: accepting malformed working
+  // memory can overwrite durable state with prompt-wrapper fragments.
   const UNCLOSED_CONTENT_CAP = 500;
   for (const entry of state.stack) {
     if (!entry.tracked) continue;
+    if (REQUIRE_CLOSED_TAGS.has(entry.name)) continue;
     const contentStart = Math.min(entry.openEnd + 1, input.length);
     let contentEnd = input.length;
     let raw = input.slice(entry.start);

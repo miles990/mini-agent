@@ -140,4 +140,9 @@ describe('parseTags', () => {
     const result = parseTags('<kuro:inner>Tracking: `<kuro:schedule>` usage</kuro:inner>');
     expect(result.inner).toContain('`<kuro:schedule>`');
   });
+
+  it('does not accept unclosed inner tags as working memory', () => {
+    const result = parseTags('<kuro:inner>\n</foreground_reply_mode>\n</parameter>\n</invoke>');
+    expect(result.inner).toBeUndefined();
+  });
 });
