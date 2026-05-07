@@ -200,6 +200,7 @@ ul.feed li .ti a{text-decoration:none;border-bottom:1px solid #2a2f38}
 ul.feed li .ti a:hover{color:var(--acc);border-color:var(--acc)}
 ul.feed li .zh{color:#cfd3da;font-size:.85rem;line-height:1.55;margin-top:.25rem}
 ul.feed li .zh.todo{color:var(--dim);font-style:italic}
+ul.feed li .orig{color:var(--dim);font-size:.72rem;margin-top:.18rem;line-height:1.35;opacity:.7}
 ul.feed li .ext{color:var(--dim);font-size:.74rem;white-space:nowrap;padding-top:.15rem}
 ul.feed li .ext a{color:var(--acc);text-decoration:none;border-bottom:1px solid #2a4373}
 ul.feed li .ext a:hover{color:var(--fg);border-color:var(--fg)}
@@ -225,18 +226,29 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
 }
 `;
 
-// 中文摘要：summary.claim 優先，再 so_what，最後 story_text 截斷
+// 中文摘要：claim 當主標、so_what 當描述；fallback 用 description 或 story_text
 function zhSummary(p) {
   const s = p.summary || {};
   const claim = (s.claim && s.claim !== 'pending-llm-pass') ? s.claim : '';
   const so = (s.so_what && s.so_what !== 'pending-llm-pass') ? s.so_what : '';
   if (claim || so) return [claim, so].filter(Boolean).join(' / ');
-  // GitHub repos: description is good signal
   if (p.description) return String(p.description).slice(0, 180);
-  // arXiv abstracts often have first sentence
   const txt = (p.story_text || '').replace(/\s+/g, ' ').trim();
   if (txt.length > 30) return txt.slice(0, 180) + (txt.length > 180 ? '…' : '');
-  return ''; // pending
+  return '';
+}
+// 中文標題（claim 優先，無則回退英文 title）+ 英文原題（小字顯示）
+function zhParts(p) {
+  const s = p.summary || {};
+  const claim = (s.claim && s.claim !== 'pending-llm-pass') ? s.claim : '';
+  const so = (s.so_what && s.so_what !== 'pending-llm-pass') ? s.so_what : '';
+  const enTitle = (p.title || '').trim();
+  const zhTitle = claim || enTitle || '(無標題)';
+  const desc = so || (claim && enTitle ? '' : '') || (p.description ? String(p.description).slice(0, 180) : '') || (() => {
+    const t = (p.story_text || '').replace(/\s+/g, ' ').trim();
+    return t.length > 30 ? t.slice(0, 180) + (t.length > 180 ? '…' : '') : '';
+  })();
+  return { zhTitle, enTitle, desc, hasZh: !!claim };
 }
 
 function renderItem(p, rank) {
@@ -248,16 +260,17 @@ function renderItem(p, rank) {
   if (cm != null) stats.push(`${fmtNum(cm)} 留言`);
   if (p.author && /github/i.test(src)) stats.push(htmlEsc(p.author));
   if (p.language) stats.push(htmlEsc(p.language));
-  const zh = zhSummary(p);
+  const parts = zhParts(p);
   const u = htmlEsc(p.url || '#');
   const host = (() => { try { return new URL(p.url).hostname.replace(/^www\./,''); } catch { return ''; } })();
   return `<li>
     <span class="rk">${rank}</span>
     <div class="body">
-      <h3 class="ti"><a href="${u}" target="_blank" rel="noopener">${htmlEsc(p.title || '(無標題)')}</a></h3>
-      ${zh
-        ? `<div class="zh">${htmlEsc(zh)}</div>`
-        : `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>`}
+      <h3 class="ti"><a href="${u}" target="_blank" rel="noopener">${htmlEsc(parts.zhTitle)}</a></h3>
+      ${parts.hasZh && parts.enTitle ? `<div class="orig">原題：${htmlEsc(parts.enTitle)}</div>` : ''}
+      ${parts.desc
+        ? `<div class="zh">${htmlEsc(parts.desc)}</div>`
+        : (!parts.hasZh ? `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>` : '')}
       <div class="meta-row">
         <span class="src">${htmlEsc(src==="WEB"?"網頁":src)}</span>
         <span class="tag">#${htmlEsc(tag)}</span>
