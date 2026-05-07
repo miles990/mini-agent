@@ -4422,13 +4422,12 @@ export function pruneReviewBacklog(instanceId: string): { pruned: number; remain
   }
 }
 
-export function getReviewBacklog(instanceId: string): Array<{ id: string; type?: string; summary: string; archivedAt: string }> {
+export function getReviewBacklog(instanceId: string, now = Date.now()): Array<{ id: string; type?: string; summary: string; archivedAt: string }> {
   try {
     const backlogPath = path.join(getInstanceDir(instanceId), 'review-backlog.jsonl');
     if (!existsSync(backlogPath)) return [];
 
     const lines = readFileSync(backlogPath, 'utf-8').split('\n').filter(Boolean);
-    const now = Date.now();
     const entries: Array<{ id: string; type?: string; summary: string; archivedAt: string }> = [];
     for (const line of lines) {
       try {

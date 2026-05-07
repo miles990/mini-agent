@@ -70,7 +70,7 @@ describe('review backlog prompt feed', () => {
     writeBacklog('kuro', entries);
 
     const result = pruneReviewBacklog('kuro', now);
-    const backlog = getReviewBacklog('kuro');
+    const backlog = getReviewBacklog('kuro', now);
 
     expect(result).toEqual({ pruned: 5, remaining: 10 });
     expect(backlog).toHaveLength(10);

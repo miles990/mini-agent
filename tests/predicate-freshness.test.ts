@@ -106,12 +106,12 @@ describe('issue #306 — reverifyPredicate', () => {
     });
   });
 
-  describe('scaffolded predicates (fail-open until wired)', () => {
-    it('low-responsiveness returns null', async () => {
-      const result = await reverifyPredicate('low-responsiveness', { repoRoot, memoryDir });
-      expect(result).toBeNull();
-    });
+  it('low-responsiveness returns false when no active tasks', async () => {
+    const result = await reverifyPredicate('low-responsiveness', { repoRoot, memoryDir });
+    expect(result).toBe(false);
+  });
 
+  describe('scaffolded predicates (fail-open until wired)', () => {
     it('memory-state-truth returns null', async () => {
       const result = await reverifyPredicate('memory-state-truth', { repoRoot, memoryDir });
       expect(result).toBeNull();

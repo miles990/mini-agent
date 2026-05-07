@@ -107,7 +107,12 @@ export function autocorrectRuntimeWorkspace(repoRoot = process.cwd(), opts: {
         // (cherry-pick creates new commits with different hashes)
         ensureWorktree(root, worktree, branch, snapshot.headSha);
       }
-      git(worktree, ['push', '-u', 'origin', branch], kuroGitEnv());
+      // Only inject GitHub credentials when pushing to a GitHub remote.
+      // Local/file remotes (e.g. in tests) don't need a token and kuroGitEnv()
+      // would throw if KURO_GITHUB_TOKEN is absent.
+      const originUrl = safeGit(root, ['remote', 'get-url', 'origin']) ?? '';
+      const pushEnv = originUrl.includes('github.com') ? kuroGitEnv() : undefined;
+      git(worktree, ['push', '-u', 'origin', branch], pushEnv);
     }
     let prUrl: string | undefined;
     if (opts.createPr ?? true) {
