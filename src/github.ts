@@ -318,8 +318,7 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
 
   let prs: ReviewablePR[];
   try {
-    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,url,createdAt,updatedAt,headRefName', '--limit', '50']);
-    prs = JSON.parse(stdout);
+    prs = await listOpenPrsForLifecycle();
   } catch (err) {
     slog('github', `open PR listing failed: ${String(err)}`);
     return;
@@ -405,6 +404,18 @@ function toOpenPrSummary(pr: ReviewablePR): OpenPrSnapshotEntry {
     updatedAt: pr.updatedAt,
     headRefName: pr.headRefName,
   };
+}
+
+async function listOpenPrsForLifecycle(): Promise<ReviewablePR[]> {
+  const baseFields = 'number,title,body,isDraft,reviewDecision,labels,url,createdAt,updatedAt,headRefName';
+  try {
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', `${baseFields},reviewRequests`, '--limit', '50']);
+    return JSON.parse(stdout);
+  } catch (err) {
+    slog('github', `open PR listing degraded without reviewRequests: ${String(err)}`);
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', baseFields, '--limit', '50']);
+    return JSON.parse(stdout);
+  }
 }
 
 interface SupersedablePR extends ReviewablePR {
