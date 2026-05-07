@@ -146,17 +146,17 @@ const KURO_TAKE = {
     {
       title: 'Anthropic / OpenAI 都在組 services JV',
       detail: 'Latent Space 這週兩篇：Anthropic 跟 Blackstone+Goldman 合資 1.5B、OpenAI 啟動 The Deployment Company 募 4B。模型公司同時做應用層 → labs 不再只賣 token，要直接吃 enterprise services 的錢。',
-      link: 'https://www.latent.space/'
+      link: 'https://www.latent.space/p/ainews-silicon-valley-gets-serious'
     },
     {
       title: 'Vibe coding 撞牆',
       detail: 'Simon Willison 文章衝上 444 點：agentic engineering 變得「比預期更接近 vibe coding」。意思是邊界正在模糊 — 寫程式不再有清楚的「我在 review」vs「我讓 agent 跑」。這對 dev workflow 是壓力測試。',
-      link: 'https://simonwillison.net/'
+      link: 'https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering/'
     },
     {
       title: 'Chrome 偷裝 4GB Gemini Nano 引爆隱私戰',
       detail: '昨天 1327pt 那篇還在發酵（今日仍在 trending）。瀏覽器內建 LLM 的 silent install 模式踩到使用者紅線，Mozilla / 反 ad-tech 陣營會把這當成下一輪火藥。',
-      link: 'https://github.com/explainers-by-googlers/prompt-api/issues/1213'
+      link: 'https://www.thatprivacyguy.com/blog/chrome-silent-nano-install/'
     },
   ],
   outlook: '下半年看：(1) services lab 模式會不會擠壓 SI 廠商；(2) coding agent 的「責任歸屬」框架（誰按下 deploy？）；(3) on-device LLM 的 consent UX 標準會被立法層接管。'
