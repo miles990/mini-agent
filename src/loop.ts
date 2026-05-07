@@ -39,6 +39,7 @@ import {
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
+import { reverifyPredicate, type PredicateType } from './predicate-freshness.js';
 import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, recordTaskTerminalSignal, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
@@ -2294,10 +2295,29 @@ export class AgentLoop {
         priorityPrefix += `\n背景委派待跟進：\n${fgPreview}\n收斂條件：委派結果被吸收，原始發問者得到回覆。\n\n`;
       }
 
-      // P0 reminder — applies to ALL triggers, not just non-telegram
-      const p0Previews = getP0TaskPreviews(memDir);
+      // P0 reminder — applies to ALL triggers, not just non-telegram.
+      // Layer 1.7 (issue #306): banner path bypassed scheduler's reverifyPredicate
+      // gate, so correction P0s whose underlying predicate had cleared kept
+      // re-injecting every cycle. Filter the banner candidates through the
+      // same live re-check the dispatcher uses (fail-open: keep on null/true).
+      const p0PreviewsRaw = getP0TaskPreviews(memDir);
+      const p0ReverifyCtx = { repoRoot: path.resolve(memDir, '..', '..'), memoryDir: memDir };
+      const p0Previews: string[] = [];
+      let p0PrunedReverify = 0;
+      for (const preview of p0PreviewsRaw) {
+        const m = preview.match(/correction gate: resolve ([a-z-]+)/i);
+        if (!m) { p0Previews.push(preview); continue; }
+        let stillStale: boolean | null = null;
+        try { stillStale = await reverifyPredicate(m[1] as PredicateType, p0ReverifyCtx); }
+        catch { stillStale = null; /* fail-open */ }
+        if (stillStale === false) { p0PrunedReverify++; continue; }
+        p0Previews.push(preview);
+      }
+      if (p0PrunedReverify > 0) {
+        slog('P0-BANNER', `pruned ${p0PrunedReverify} correction P0(s) via reverifyPredicate (Layer 1.7)`);
+      }
       if (process.env.DEBUG_P0_BANNER) {
-        console.log('[p0-banner-debug]', JSON.stringify({ ts: new Date().toISOString(), count: p0Previews.length, items: p0Previews.slice(0, 5) }));
+        console.log('[p0-banner-debug]', JSON.stringify({ ts: new Date().toISOString(), count: p0Previews.length, pruned: p0PrunedReverify, items: p0Previews.slice(0, 5) }));
       }
       if (p0Previews.length > 0) {
         const p0Preview = p0Previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
