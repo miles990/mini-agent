@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildAgentSkillOrchestrationPrompt,
+  buildSelectedSkillPrompt,
+  inferSkillSelectionInput,
   listManagedSkills,
   recordSkillUsage,
   selectAgentSkills,
@@ -192,6 +194,48 @@ describe('agent skill manager', () => {
         'context:stakeholder_conflict',
       ]),
     }));
+  });
+
+  it('infers runtime signals so Constraint Texture is selected at the right time', () => {
+    const env = { KURO_AGENT_CAPABILITIES_PATH: registryFile() } as NodeJS.ProcessEnv;
+    const input = inferSkillSelectionInput({
+      hint: 'stakeholder tension and competing requirements',
+      mode: 'reflect',
+      context: '理解瓶頸：需要處理最受影響 stakeholder 的取捨',
+      priority: 0,
+    });
+    const result = selectAgentSkills(input, env);
+
+    expect(input.signals).toEqual(expect.arrayContaining(['requirement_tension']));
+    expect(input.contextSignals).toEqual(expect.arrayContaining(['understanding_bottleneck', 'stakeholder_conflict']));
+    expect(result.selected[0]?.service).toBe('constraint-texture-analysis');
+  });
+
+  it('does not force Constraint Texture onto deterministic procedure slots', () => {
+    const env = { KURO_AGENT_CAPABILITIES_PATH: registryFile() } as NodeJS.ProcessEnv;
+    const input = inferSkillSelectionInput({
+      hint: 'return JSON with fields id name status',
+      mode: 'task',
+      context: 'deterministic schema output only',
+      priority: 2,
+    });
+    const result = selectAgentSkills(input, env);
+
+    expect(result.selected.map(skill => skill.service)).not.toContain('constraint-texture-analysis');
+  });
+
+  it('renders selected skills as a cycle-local prompt section', () => {
+    const env = { KURO_AGENT_CAPABILITIES_PATH: registryFile() } as NodeJS.ProcessEnv;
+    const result = selectAgentSkills(inferSkillSelectionInput({
+      hint: 'Constraint Texture token waste phantom task',
+      mode: 'reflect',
+      priority: 0,
+    }), env);
+    const prompt = buildSelectedSkillPrompt(result);
+
+    expect(prompt).toContain('Selected Managed Skills For This Cycle');
+    expect(prompt).toContain('constraint-texture-analysis');
+    expect(prompt).toContain('runtime records selected-skill usage automatically');
   });
 
   it('reports blocked skills with missing dependencies', () => {
