@@ -5,7 +5,8 @@
  * OS is inspiration, not blueprint — adapted for agent impedance mismatch.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
@@ -307,6 +308,65 @@ export function checkHoldTasks(memoryDir: string): { unblocked: string[]; checke
   return { unblocked, checked };
 }
 
+
+// =============================================================================
+// Phantom-task registry (#196)
+// memory/state/phantom-tasks.jsonl is a write-only log of tasks that grep/verify
+// confirmed don't exist. Without consuming it, scheduler keeps redispatching them.
+// Cache by mtime so we don't re-read every tick.
+// =============================================================================
+
+interface PhantomEntry {
+  task?: string;
+  verified_phantom_at?: string;
+}
+
+const phantomCache: { mtimeMs: number; titles: Set<string> } = {
+  mtimeMs: 0,
+  titles: new Set<string>(),
+};
+
+function loadPhantomTaskTitles(memoryDir: string): Set<string> {
+  const filePath = join(memoryDir, 'state', 'phantom-tasks.jsonl');
+  if (!existsSync(filePath)) {
+    if (phantomCache.mtimeMs !== 0) {
+      phantomCache.mtimeMs = 0;
+      phantomCache.titles = new Set();
+    }
+    return phantomCache.titles;
+  }
+  let mtimeMs = 0;
+  try { mtimeMs = statSync(filePath).mtimeMs; } catch { return phantomCache.titles; }
+  if (mtimeMs === phantomCache.mtimeMs) return phantomCache.titles;
+  const titles = new Set<string>();
+  try {
+    const raw = readFileSync(filePath, 'utf8');
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const obj = JSON.parse(trimmed) as PhantomEntry;
+        if (typeof obj.task === 'string' && obj.task.length > 0) {
+          titles.add(obj.task.trim());
+        }
+      } catch { /* skip malformed line */ }
+    }
+  } catch { return phantomCache.titles; }
+  phantomCache.mtimeMs = mtimeMs;
+  phantomCache.titles = titles;
+  return titles;
+}
+
+function isPhantomTask(summary: string, phantomTitles: Set<string>): boolean {
+  if (phantomTitles.size === 0) return false;
+  const norm = summary.trim();
+  if (phantomTitles.has(norm)) return true;
+  for (const title of phantomTitles) {
+    if (title.length >= 12 && norm.includes(title)) return true;
+  }
+  return false;
+}
+
 export function schedulerPick(
   memoryDir: string,
   events: IncomingEvent[] = [],
@@ -326,10 +386,19 @@ export function schedulerPick(
 
   resetSuppressionsForExternalEvents(events);
 
+  const phantomTitles = loadPhantomTaskTitles(memoryDir);
+
   const tasks: TaskSnapshot[] = entries.map(entryToSnapshot)
     .filter(t => {
       const proc = getProcess(t.id);
       return !proc || (proc.state !== 'completed' && proc.state !== 'abandoned');
+    })
+    .filter(t => {
+      if (isPhantomTask(t.summary, phantomTitles)) {
+        slog('SCHED', `dispatch-phantom: skipping task=${t.id.slice(0, 12)} ${t.summary.slice(0, 50)} (phantom-tasks.jsonl)`);
+        return false;
+      }
+      return true;
     })
     .filter(t => {
       if (suppressedTaskIds.has(t.id)) {
