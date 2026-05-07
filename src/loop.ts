@@ -2624,6 +2624,14 @@ export class AgentLoop {
         ? buildIdlePrompt()
         : prompt + (selectedSkillPrompt ? `\n\n${selectedSkillPrompt}` : '');
 
+      // Pre-flight observability (issue #304 phase 1) — silent_exit_void_40k risk surface.
+      // Measure ≥35K prompt rate before deciding rebuild/drain strategy in phase 2.
+      const PREFLIGHT_SIZE_THRESHOLD = 35_000;
+      if (effectivePrompt.length >= PREFLIGHT_SIZE_THRESHOLD) {
+        slog('LOOP', `[preflight.drain] prompt size ${effectivePrompt.length} >= ${PREFLIGHT_SIZE_THRESHOLD} (silent_exit_void_40k risk)`);
+        eventBus.emit('action:loop', { event: 'preflight.drain', promptSize: effectivePrompt.length, threshold: PREFLIGHT_SIZE_THRESHOLD, cycleMode, trigger: currentTriggerReason ?? null });
+      }
+
       // Intelligent model routing: decide Opus vs Sonnet based on cycle characteristics
       const modelRoute = routeModel({
         triggerReason: currentTriggerReason,
