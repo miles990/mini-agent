@@ -73,6 +73,30 @@ describe('autonomy closure health', () => {
     expect(tasks).toHaveLength(1);
   });
 
+  it('blocks closure when a Kuro-intended public write used the wrong account', () => {
+    writeFileSync(path.join(tmpDir, 'state/task-events.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'index/relations.jsonl'), '', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'index/public-write-provenance.jsonl'), JSON.stringify({
+      id: 'pub-mismatch',
+      observedAt: '2026-05-07T10:00:00.000Z',
+      service: 'github',
+      action: 'pr.create',
+      subject: 'PR #261',
+      expectedActor: 'kuro-agent',
+      actualActor: 'miles990',
+      intentActor: 'kuro',
+      source: 'codex-github-connector',
+      status: 'open',
+      evidence: [],
+    }) + '\n', 'utf-8');
+
+    const snapshot = evaluateAutonomyClosure(tmpDir, { repoRoot });
+
+    expect(snapshot.status).toBe('blocked');
+    expect(snapshot.blockingStages).toContain('public-write-identity');
+    expect(snapshot.stages.find(s => s.stage === 'public-write-identity')?.evidence[0]).toContain('expected=kuro-agent actual=miles990');
+  });
+
   it('closes active autonomy closure task after blockers resolve', async () => {
     writeFileSync(
       path.join(tmpDir, 'state/task-events.jsonl'),

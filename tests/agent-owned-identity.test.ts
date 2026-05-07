@@ -41,6 +41,8 @@ describe('agent-owned identity boundary', () => {
     expect(prompt).toContain('Read/observe and write/act are different permissions');
     expect(prompt).toContain('It is OK to observe through Alex-authorized accounts');
     expect(prompt).toContain('It is NOT OK to publish');
+    expect(prompt).toContain('Every outbound public write must leave provenance');
+    expect(prompt).toContain('Connector or browser writes that cannot prove Kuro-owned identity are blockers');
     expect(prompt).toContain('writes=kuro-owned-required');
     expect(prompt).toContain('All services, servers, APIs, accounts, and API keys Kuro uses must be added to this registry first');
     expect(prompt).toContain('New capability rule: before using a new external/internal service');

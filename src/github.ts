@@ -46,7 +46,8 @@ import {
   type IssueStateSummary,
   type OpenPrSnapshotEntry,
 } from './pr-autopilot.js';
-import { assertKuroGithubIdentity, kuroGithubCliEnv } from './github-identity.js';
+import { assertKuroGithubIdentity, expectedKuroGithubLogin, kuroGithubCliEnv } from './github-identity.js';
+import { recordPublicWriteProvenance } from './public-write-identity.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -58,10 +59,42 @@ async function gh(args: string[], timeout = 15000): Promise<{ stdout: string; st
     timeout,
     env: kuroGithubCliEnv(),
   });
+  recordGithubPublicWrite(args, result.stdout).catch(() => {});
   return {
     stdout: result.stdout,
     stderr: result.stderr,
   };
+}
+
+async function recordGithubPublicWrite(args: string[], stdout: string): Promise<void> {
+  const action = classifyGithubPublicWrite(args);
+  if (!action) return;
+  const subject = subjectFromGithubWrite(args, stdout);
+  recordPublicWriteProvenance(getMemoryRootDir(), {
+    service: 'github',
+    action,
+    subject,
+    actualActor: expectedKuroGithubLogin(),
+    source: `gh ${args.slice(0, 3).join(' ')}`,
+    evidence: [`args=${args.join(' ')}`],
+  });
+}
+
+function classifyGithubPublicWrite(args: string[]): string | undefined {
+  const [resource, command] = args;
+  if (resource === 'issue' && ['create', 'close', 'comment', 'edit'].includes(command ?? '')) return `issue.${command}`;
+  if (resource === 'pr' && ['create', 'merge', 'review', 'comment', 'close', 'edit', 'update-branch'].includes(command ?? '')) return `pr.${command}`;
+  if (resource === 'api' && args.some(arg => ['POST', 'PATCH', 'PUT', 'DELETE'].includes(arg))) return 'api.write';
+  return undefined;
+}
+
+function subjectFromGithubWrite(args: string[], stdout: string): string {
+  const url = stdout.trim().split('\n').find(line => /^https:\/\/github\.com\//.test(line.trim()));
+  if (url) return url.trim();
+  const index = args.findIndex(arg => /^(issue|pr)$/.test(args[0]) && /^\d+$/.test(arg));
+  if (index >= 0) return `${args[0]}#${args[index]}`;
+  if (args[0] === 'api') return args.find(arg => arg.includes('/repos/')) ?? 'github-api';
+  return args.slice(0, 4).join(' ');
 }
 
 /** Check if gh CLI is available and authenticated */
