@@ -53,6 +53,15 @@ acquire_lock() {
         else
             log "Another deploy is already running (PID $LOCK_PID); waiting up to ${DEPLOY_LOCK_WAIT_SECONDS}s"
             for _ in $(seq 1 "$DEPLOY_LOCK_WAIT_SECONDS"); do
+                if [ ! -d "$LOCK_DIR" ]; then
+                    log "Deploy lock was released; taking over lock"
+                    break
+                fi
+                CURRENT_LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+                if [ -n "$CURRENT_LOCK_PID" ] && [ "$CURRENT_LOCK_PID" != "$LOCK_PID" ]; then
+                    log "Deploy lock owner changed from $LOCK_PID to $CURRENT_LOCK_PID; continuing wait"
+                    LOCK_PID="$CURRENT_LOCK_PID"
+                fi
                 if ! kill -0 "$LOCK_PID" 2>/dev/null; then
                     log "Previous deploy PID $LOCK_PID exited; taking over lock"
                     rm -rf "$LOCK_DIR"
@@ -117,7 +126,7 @@ run_workspace_janitor() {
 
     log "Running workspace janitor..."
     (
-        pnpm exec tsx scripts/workspace-janitor.ts --apply >> "$LOG_FILE" 2>&1
+        pnpm exec tsx scripts/workspace-janitor.ts --apply --local-only >> "$LOG_FILE" 2>&1
     ) &
     JANITOR_PID=$!
     for _ in $(seq 1 "$WORKSPACE_JANITOR_TIMEOUT_SECONDS"); do
