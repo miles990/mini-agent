@@ -16,10 +16,41 @@ export interface AgentCapabilitySpec {
   entrypoint?: string;
   owner?: string;
   capabilities?: string[];
+  trigger?: AgentSkillTriggerSpec;
+  requires?: string[];
+  combinesWith?: string[];
+  verifier?: string;
+  iteration?: AgentSkillIterationSpec;
+  contextFabric?: AgentContextFabricSpec;
   readPolicy: AgentInboundPolicy;
   writePolicy: AgentOutboundPolicy;
   profileUrl?: string;
   notes?: string;
+}
+
+export interface AgentSkillTriggerSpec {
+  modes?: string[];
+  keywords?: string[];
+  signals?: string[];
+  taskTypes?: string[];
+  minPriority?: number;
+}
+
+export interface AgentSkillIterationSpec {
+  ledger?: string;
+  reviewCadenceDays?: number;
+  minUses?: number;
+  failureThreshold?: number;
+  staleAfterDays?: number;
+  updatePolicy?: 'self-edit-skill' | 'propose-change' | 'disable-on-failure' | 'human-review';
+}
+
+export interface AgentContextFabricSpec {
+  sources?: string[];
+  writes?: string[];
+  learnsFrom?: string[];
+  sharesWith?: string[];
+  emergenceSignals?: string[];
 }
 
 interface AgentCapabilityRegistryFile {
@@ -57,6 +88,12 @@ export interface AgentOwnedIdentity {
   entrypoint?: string;
   owner?: string;
   capabilities: string[];
+  trigger?: AgentSkillTriggerSpec;
+  requires: string[];
+  combinesWith: string[];
+  verifier?: string;
+  iteration?: AgentSkillIterationSpec;
+  contextFabric?: AgentContextFabricSpec;
   profileUrl?: string;
   actor: 'kuro';
   inboundReads: AgentInboundPolicy;
@@ -226,6 +263,12 @@ export function getAgentOwnedIdentity(
     entrypoint: spec.entrypoint,
     owner: spec.owner,
     capabilities: spec.capabilities ?? [],
+    trigger: spec.trigger,
+    requires: spec.requires ?? [],
+    combinesWith: spec.combinesWith ?? [],
+    verifier: spec.verifier,
+    iteration: spec.iteration,
+    contextFabric: spec.contextFabric,
     profileUrl: spec.profileUrl,
     actor: 'kuro',
     inboundReads: spec.readPolicy,
@@ -327,6 +370,12 @@ function mergeCapabilitySpec(base: AgentCapabilitySpec, patch: AgentCapabilitySp
     expectedEnv: patch.expectedEnv.length > 0 ? patch.expectedEnv : base.expectedEnv,
     credentialEnv: patch.credentialEnv.length > 0 ? patch.credentialEnv : base.credentialEnv,
     capabilities: patch.capabilities && patch.capabilities.length > 0 ? patch.capabilities : base.capabilities,
+    trigger: patch.trigger ?? base.trigger,
+    requires: patch.requires && patch.requires.length > 0 ? patch.requires : base.requires,
+    combinesWith: patch.combinesWith && patch.combinesWith.length > 0 ? patch.combinesWith : base.combinesWith,
+    verifier: patch.verifier ?? base.verifier,
+    iteration: patch.iteration ?? base.iteration,
+    contextFabric: patch.contextFabric ?? base.contextFabric,
   };
 }
 
@@ -356,11 +405,61 @@ function validateCapabilitySpec(raw: AgentCapabilitySpec, registryPath: string):
     entrypoint: raw.entrypoint,
     owner: raw.owner,
     capabilities: Array.isArray(raw.capabilities) ? raw.capabilities.filter(Boolean) : [],
+    trigger: validateTriggerSpec(raw.trigger, raw.service),
+    requires: Array.isArray(raw.requires) ? raw.requires.filter(Boolean) : [],
+    combinesWith: Array.isArray(raw.combinesWith) ? raw.combinesWith.filter(Boolean) : [],
+    verifier: raw.verifier,
+    iteration: validateIterationSpec(raw.iteration, raw.service),
+    contextFabric: validateContextFabricSpec(raw.contextFabric, raw.service),
     readPolicy: raw.readPolicy,
     writePolicy: raw.writePolicy,
     profileUrl: raw.profileUrl,
     notes: raw.notes,
   };
+}
+
+function validateContextFabricSpec(raw: AgentContextFabricSpec | undefined, service: string): AgentContextFabricSpec | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object') throw new Error(`invalid capability ${service}: contextFabric must be an object`);
+  return {
+    sources: Array.isArray(raw.sources) ? raw.sources.filter(Boolean) : [],
+    writes: Array.isArray(raw.writes) ? raw.writes.filter(Boolean) : [],
+    learnsFrom: Array.isArray(raw.learnsFrom) ? raw.learnsFrom.filter(Boolean) : [],
+    sharesWith: Array.isArray(raw.sharesWith) ? raw.sharesWith.filter(Boolean) : [],
+    emergenceSignals: Array.isArray(raw.emergenceSignals) ? raw.emergenceSignals.filter(Boolean) : [],
+  };
+}
+
+function validateTriggerSpec(raw: AgentSkillTriggerSpec | undefined, service: string): AgentSkillTriggerSpec | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object') throw new Error(`invalid capability ${service}: trigger must be an object`);
+  return {
+    modes: Array.isArray(raw.modes) ? raw.modes.filter(Boolean) : [],
+    keywords: Array.isArray(raw.keywords) ? raw.keywords.map(k => String(k).toLowerCase()).filter(Boolean) : [],
+    signals: Array.isArray(raw.signals) ? raw.signals.filter(Boolean) : [],
+    taskTypes: Array.isArray(raw.taskTypes) ? raw.taskTypes.filter(Boolean) : [],
+    minPriority: typeof raw.minPriority === 'number' ? raw.minPriority : undefined,
+  };
+}
+
+function validateIterationSpec(raw: AgentSkillIterationSpec | undefined, service: string): AgentSkillIterationSpec | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object') throw new Error(`invalid capability ${service}: iteration must be an object`);
+  if (raw.updatePolicy && !['self-edit-skill', 'propose-change', 'disable-on-failure', 'human-review'].includes(raw.updatePolicy)) {
+    throw new Error(`invalid capability ${service}: iteration.updatePolicy is invalid`);
+  }
+  return {
+    ledger: raw.ledger,
+    reviewCadenceDays: numberOrUndefined(raw.reviewCadenceDays),
+    minUses: numberOrUndefined(raw.minUses),
+    failureThreshold: numberOrUndefined(raw.failureThreshold),
+    staleAfterDays: numberOrUndefined(raw.staleAfterDays),
+    updatePolicy: raw.updatePolicy,
+  };
+}
+
+function numberOrUndefined(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function validateRelationshipSpec(raw: AgentRelationshipSpec, registryPath: string): AgentRelationshipSpec {

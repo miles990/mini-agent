@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy": "Every service, server, API, public account, API key, related AI, related human, and associated external account Kuro uses must be declared here or in a KURO_AGENT_CAPABILITIES_PATH overlay before use. Store secret values outside this file; only env var names belong here.",
+  "policy": "Every service, server, API, public account, API key, related AI, related human, associated external account, skill, workflow, tool, and context fabric Kuro uses must be declared here or in a KURO_AGENT_CAPABILITIES_PATH overlay before use. Store secret values outside this file; only env var names belong here.",
   "relationships": [
     {
       "id": "alex",
@@ -158,6 +158,13 @@
       "entrypoint": "KG_BASE_URL",
       "owner": "kuro",
       "capabilities": ["context-classification", "knowledge-linking", "provenance", "cross-ai-knowledge-exchange"],
+      "contextFabric": {
+        "sources": ["memory", "handoffs", "task-events", "agent-skill-usage", "discussions"],
+        "writes": ["entities", "edges", "provenance", "skill-patterns"],
+        "learnsFrom": ["skill-usage", "middleware-events", "autonomy-closure"],
+        "sharesWith": ["kuro", "middleware", "codex-cli", "claude-code-cli"],
+        "emergenceSignals": ["cross_skill_pattern", "context_conflict", "repeated_success_path", "repeated_failure_path"]
+      },
       "readPolicy": "internal-service",
       "writePolicy": "internal-service",
       "notes": "Knowledge graph context fabric; writes must carry source-agent provenance."
@@ -222,6 +229,250 @@
       "entrypoint": "MIDDLEWARE_URL",
       "owner": "kuro",
       "capabilities": ["delegation", "worker-routing", "background-tasks", "task-events"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "verification-before-completion",
+      "kind": "skill",
+      "defaultExpected": "verify-before-done",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["guardrail", "verification", "completion-quality"],
+      "trigger": {
+        "modes": ["task", "act", "respond"],
+        "keywords": ["done", "complete", "ship", "merge", "deploy", "完成", "部署"],
+        "signals": ["before_done", "claiming_complete"],
+        "taskTypes": ["code", "ops", "publish"],
+        "minPriority": 1
+      },
+      "requires": [],
+      "combinesWith": ["autonomy-closure-workflow"],
+      "verifier": "completion claim includes executed command, observable artifact, and current health/status evidence",
+      "contextFabric": {
+        "sources": ["memory/state/work-journal.jsonl", "autonomy-closure", "git-status"],
+        "writes": ["skill-usage", "verification-evidence"],
+        "learnsFrom": ["failed-completion-claims", "ship-truth"],
+        "sharesWith": ["kg", "autonomy-closure-workflow"],
+        "emergenceSignals": ["claim_without_verification", "repeated_success_path"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.25,
+        "reviewCadenceDays": 7,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Guardrail skill: prevents Kuro from declaring completion before command/artifact/health verification."
+    },
+    {
+      "service": "systematic-debugging",
+      "kind": "skill",
+      "defaultExpected": "diagnose-loop",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["diagnosis", "reproduction", "hypothesis-testing", "regression-test"],
+      "trigger": {
+        "modes": ["task", "act"],
+        "keywords": ["bug", "fail", "error", "broken", "regression", "debug", "diagnose", "失敗", "壞掉"],
+        "signals": ["test_failure", "runtime_error", "middleware_failure"],
+        "taskTypes": ["debug", "code", "ops"],
+        "minPriority": 1
+      },
+      "requires": ["verification-before-completion"],
+      "combinesWith": ["budget-aware-escalation", "kg-context-synthesis"],
+      "verifier": "root cause has a reproduction or falsifier, a fix, and a regression check",
+      "contextFabric": {
+        "sources": ["logs", "test-health", "KG", "work-journal"],
+        "writes": ["root-cause", "falsifier", "regression-check", "skill-usage"],
+        "learnsFrom": ["previous-diagnoses", "middleware-failures", "test-failures"],
+        "sharesWith": ["kg", "verification-before-completion"],
+        "emergenceSignals": ["repeated_failure_path", "same_root_cause_family", "context_conflict"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 4,
+        "failureThreshold": 0.34,
+        "reviewCadenceDays": 7,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "budget-aware-escalation",
+      "kind": "workflow",
+      "defaultExpected": "budget-aware-escalation",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["strategy-switch", "decompose", "pause-rabbit-hole", "escalate"],
+      "trigger": {
+        "modes": ["task", "act"],
+        "keywords": ["rabbit hole", "stuck", "same issue", "max turns", "quota", "budget", "燒", "卡住"],
+        "signals": ["same_task_retries>=3", "cost_cap_near", "max_turns_failure", "repeated_failure"],
+        "taskTypes": ["debug", "research", "ops"],
+        "minPriority": 1
+      },
+      "requires": ["middleware", "kg"],
+      "combinesWith": ["systematic-debugging", "task-decomposition"],
+      "verifier": "same blocker is not retried with the same method after threshold; next action is decomposed, escalated, or switched",
+      "contextFabric": {
+        "sources": ["budget-telemetry", "middleware-events", "task-events", "KG"],
+        "writes": ["strategy-switch", "decomposition-request", "skill-usage"],
+        "learnsFrom": ["max-turns-failures", "cost-cap-events", "same-task-retries"],
+        "sharesWith": ["kg", "middleware", "task-decomposition"],
+        "emergenceSignals": ["same_task_retries>=3", "max_turns_failure", "cost_cap_near", "repeated_failure_path"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.2,
+        "reviewCadenceDays": 3,
+        "updatePolicy": "propose-change"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "AI-native workflow: changes strategy when repeated attempts burn cycles/tokens without convergence."
+    },
+    {
+      "service": "task-decomposition",
+      "kind": "workflow",
+      "defaultExpected": "agent-team-task-breakdown",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["pm", "task-breakdown", "acceptance-criteria", "progress-reporting"],
+      "trigger": {
+        "modes": ["task", "respond", "act"],
+        "keywords": ["做完", "完整", "分解", "需求", "進度", "pm", "team", "front", "backend", "design"],
+        "signals": ["complex_task", "multi_role_task", "unclear_acceptance"],
+        "taskTypes": ["plan", "code", "create", "ops"],
+        "minPriority": 1
+      },
+      "requires": ["kg", "middleware"],
+      "combinesWith": ["verification-before-completion", "progress-reporting"],
+      "verifier": "task has explicit subgoals, acceptance criteria, owner/role, progress state, and completion summary",
+      "contextFabric": {
+        "sources": ["inbox", "HEARTBEAT.md", "NEXT.md", "KG", "task-events"],
+        "writes": ["task-graph", "acceptance-criteria", "progress-state", "skill-usage"],
+        "learnsFrom": ["completed-task-shapes", "blocked-task-shapes", "cross-role-work"],
+        "sharesWith": ["kg", "middleware", "progress-reporting"],
+        "emergenceSignals": ["complex_task", "multi_role_task", "unclear_acceptance", "cross_skill_pattern"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.3,
+        "reviewCadenceDays": 7,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "progress-reporting",
+      "kind": "skill",
+      "defaultExpected": "progress-and-summary",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["progress-update", "completion-summary", "stakeholder-communication"],
+      "trigger": {
+        "modes": ["task", "respond"],
+        "keywords": ["進度", "報告", "總結", "完成", "status", "summary"],
+        "signals": ["long_running_task", "milestone_reached", "completed"],
+        "taskTypes": ["plan", "code", "ops", "create"]
+      },
+      "requires": [],
+      "combinesWith": ["task-decomposition", "verification-before-completion"],
+      "verifier": "progress update names completed artifact, current blocker if any, and next autonomous action",
+      "contextFabric": {
+        "sources": ["task-events", "work-journal", "git-status", "middleware-events"],
+        "writes": ["progress-report", "completion-summary", "skill-usage"],
+        "learnsFrom": ["user-feedback", "missed-update-events"],
+        "sharesWith": ["kg", "task-decomposition"],
+        "emergenceSignals": ["long_running_task", "milestone_reached", "completed"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 5,
+        "failureThreshold": 0.25,
+        "reviewCadenceDays": 7,
+        "updatePolicy": "self-edit-skill"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "kg-context-synthesis",
+      "kind": "workflow",
+      "defaultExpected": "kg-context-synthesis",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["context-retrieval", "classification", "knowledge-linking", "cross-ai-synthesis"],
+      "trigger": {
+        "modes": ["learn", "task", "reflect"],
+        "keywords": ["脈絡", "context", "kg", "knowledge", "關聯", "統整", "分析"],
+        "signals": ["context_conflict", "cross_ai_knowledge", "stale_discussion"],
+        "taskTypes": ["research", "plan", "debug"]
+      },
+      "requires": ["kg"],
+      "combinesWith": ["task-decomposition", "systematic-debugging"],
+      "verifier": "answer or task plan cites current KG/file context and records unresolved conflicts",
+      "contextFabric": {
+        "sources": ["KG", "memory/topics", "handoffs", "relations", "discussion-lifecycle"],
+        "writes": ["context-summary", "conflict-record", "knowledge-link", "skill-usage"],
+        "learnsFrom": ["cross-ai-knowledge", "stale-discussions", "context-conflicts"],
+        "sharesWith": ["kg", "systematic-debugging", "task-decomposition"],
+        "emergenceSignals": ["context_conflict", "cross_ai_knowledge", "stale_discussion", "cross_skill_pattern"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.34,
+        "reviewCadenceDays": 7,
+        "updatePolicy": "propose-change"
+      },
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "autonomy-closure-workflow",
+      "kind": "workflow",
+      "defaultExpected": "autonomy-closure",
+      "expectedEnv": [],
+      "credentialEnv": [],
+      "owner": "kuro",
+      "capabilities": ["health-gate", "self-repair", "ship-truth", "memory-truth", "middleware-quality"],
+      "trigger": {
+        "modes": ["act", "task"],
+        "keywords": ["closure", "healthy", "blocked", "degraded", "閉環", "健康"],
+        "signals": ["autonomy_closure_blocked", "autonomy_closure_degraded", "before_deploy"],
+        "taskTypes": ["ops", "code"]
+      },
+      "requires": ["kg", "middleware", "verification-before-completion"],
+      "combinesWith": ["budget-aware-escalation", "progress-reporting"],
+      "verifier": "GET /api/dashboard/autonomy-closure reports no blocking stages and no unresolved repair task",
+      "contextFabric": {
+        "sources": ["health-endpoints", "KG", "middleware", "memory-state-truth", "ship-truth"],
+        "writes": ["closure-snapshot", "repair-task", "skill-usage"],
+        "learnsFrom": ["closure-regressions", "phantom-tasks", "deploy-results"],
+        "sharesWith": ["kg", "middleware", "verification-before-completion"],
+        "emergenceSignals": ["autonomy_closure_blocked", "autonomy_closure_degraded", "phantom_task", "repeated_success_path"]
+      },
+      "iteration": {
+        "ledger": "memory/state/skill-usage.jsonl",
+        "minUses": 3,
+        "failureThreshold": 0.2,
+        "reviewCadenceDays": 3,
+        "updatePolicy": "self-edit-skill"
+      },
       "readPolicy": "internal-service",
       "writePolicy": "internal-service"
     }
