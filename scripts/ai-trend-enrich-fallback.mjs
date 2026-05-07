@@ -162,7 +162,11 @@ for (const post of doc.posts || []) {
     novelty: isPending(summary.novelty) ? fallback.novelty : summary.novelty,
     so_what: isPending(summary.so_what) ? fallback.so_what : summary.so_what,
   };
-  post.status = post.status === 'dry-run' ? 'fallback-enriched' : (post.status || 'fallback-enriched');
+  // Always flip to 'fallback-enriched' when fallback actually wrote summary fields.
+  // Prior bug (#272 candidate C): when status was 'baseline' (truthy, !== 'dry-run'),
+  // ternary fell into `(post.status || 'fallback-enriched')` and kept 'baseline',
+  // so observers couldn't tell from status alone whether fallback ran.
+  post.status = 'fallback-enriched';
   changed++;
 }
 
