@@ -2389,9 +2389,9 @@ export class AgentLoop {
 
       try {
         const { maybeQueueSkillPromotion, sweepSkillPromotionBacktests } = await import('./skill-promotion-autopilot.js');
-        const backtest = sweepSkillPromotionBacktests(memDir);
+        const backtest = await sweepSkillPromotionBacktests(memDir);
         if (backtest.updated > 0) {
-          slog('SKILL-PROMOTION', `backtest updated=${backtest.updated} accepted=${backtest.accepted} iterate=${backtest.iterate}`);
+          slog('SKILL-PROMOTION', `backtest updated=${backtest.updated} accepted=${backtest.accepted} iterate=${backtest.iterate} dismissed=${backtest.dismissed}`);
         }
         const promotion = await maybeQueueSkillPromotion(memDir, {
           triggerReason: currentTriggerReason,

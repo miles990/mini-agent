@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -21,6 +21,7 @@ function seedPromotionUsage(dir: string, pattern = 'always-on autonomy health ga
       skill: 'constraint-texture-analysis',
       outcome: 'success',
       pattern,
+      savedTokensEstimate: 2_000,
       combinedWith: ['kg-context-synthesis', 'task-decomposition'],
       note: 'runtime gate should close loop automatically',
       ts: `2026-05-07T00:0${i}:00.000Z`,
@@ -75,7 +76,7 @@ describe('skill promotion autopilot', () => {
     });
     await updateMemoryIndexEntry(dir, queued.task!.id, { status: 'completed' });
 
-    const observing = sweepSkillPromotionBacktests(dir, { now: new Date('2026-05-07T02:00:00.000Z') });
+    const observing = await sweepSkillPromotionBacktests(dir, { now: new Date('2026-05-07T02:00:00.000Z') });
     expect(observing.updated).toBe(1);
     expect(observing.records[0].status).toBe('observing');
 
@@ -88,11 +89,59 @@ describe('skill promotion autopilot', () => {
       });
     }
 
-    const accepted = sweepSkillPromotionBacktests(dir, { now: new Date('2026-05-07T04:00:00.000Z') });
+    const accepted = await sweepSkillPromotionBacktests(dir, { now: new Date('2026-05-07T04:00:00.000Z') });
     expect(accepted.accepted).toBe(1);
     expect(summarizeSkillPromotionAutopilot(dir).accepted[0]).toEqual(expect.objectContaining({
       observedUses: 3,
       observedSuccessRate: 1,
     }));
   });
+
+  it('does not queue repeated patterns without measurable impact evidence', async () => {
+    const dir = memoryDir();
+    for (let i = 0; i < 3; i += 1) {
+      recordSkillUsage(dir, {
+        skill: 'constraint-texture-analysis',
+        outcome: 'success',
+        pattern: 'p0 low responsiveness scheduler task stack ranked from this',
+        combinedWith: ['kg-context-synthesis', 'task-decomposition'],
+        ts: `2026-05-07T00:1${i}:00.000Z`,
+      });
+    }
+
+    const result = await maybeQueueSkillPromotion(dir, { triggerReason: 'heartbeat' });
+
+    expect(result).toEqual(expect.objectContaining({
+      queued: false,
+      reason: 'no-eligible-candidate',
+    }));
+    expect(queryMemoryIndexSync(dir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
+  });
+
+  it('dismisses queued promotions that lose measurable impact eligibility', async () => {
+    const dir = memoryDir();
+    const queuedTaskId = (await maybeQueueSkillPromotionWithImpact(dir)).taskId;
+    const queued = queryMemoryIndexSync(dir, { id: queuedTaskId })[0];
+    expect(queued.status).toBe('pending');
+
+    const ledgerDir = join(dir, 'state');
+    mkdirSync(ledgerDir, { recursive: true });
+    writeFileSync(join(ledgerDir, 'skill-usage.jsonl'), '', 'utf-8');
+
+    const dismissed = await sweepSkillPromotionBacktests(dir, { now: new Date('2026-05-07T02:00:00.000Z') });
+    const task = queryMemoryIndexSync(dir, { id: queued.id })[0];
+
+    expect(dismissed.dismissed).toBe(1);
+    expect(dismissed.records[0]).toEqual(expect.objectContaining({ status: 'dismissed' }));
+    expect(task.status).toBe('abandoned');
+    expect(task.payload).toEqual(expect.objectContaining({
+      abandoned_reason: 'skill-promotion-insufficient-impact-evidence',
+    }));
+  });
 });
+
+async function maybeQueueSkillPromotionWithImpact(dir: string): Promise<{ taskId: string }> {
+  seedPromotionUsage(dir);
+  const result = await maybeQueueSkillPromotion(dir, { triggerReason: 'heartbeat' });
+  return { taskId: result.task!.id };
+}

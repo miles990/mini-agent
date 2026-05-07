@@ -15,7 +15,7 @@ if (args.has('--queue')) {
   });
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 } else if (args.has('--sweep')) {
-  const result = sweepSkillPromotionBacktests(memoryDir);
+  const result = await sweepSkillPromotionBacktests(memoryDir);
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 } else {
   process.stdout.write(JSON.stringify(summarizeSkillPromotionAutopilot(memoryDir), null, 2) + '\n');

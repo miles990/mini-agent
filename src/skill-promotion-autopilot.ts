@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { eventBus } from './event-bus.js';
-import { appendMemoryIndexEntry, queryMemoryIndexSync, type MemoryIndexEntry } from './memory-index.js';
+import { appendMemoryIndexEntry, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import {
   readSkillUsage,
   suggestPatternPromotions,
@@ -11,9 +11,9 @@ import {
 
 const LEDGER_FILE = 'skill-promotion-autopilot.jsonl';
 const ACTIVE_TASK_STATUSES = ['pending', 'in_progress', 'needs-decomposition', 'blocked', 'hold'];
-const TERMINAL_TASK_STATUSES = ['completed', 'done'];
+const TERMINAL_TASK_STATUSES = ['completed', 'done', 'abandoned', 'dropped', 'deleted'];
 
-export type SkillPromotionStatus = 'queued' | 'observing' | 'accepted' | 'iterate';
+export type SkillPromotionStatus = 'queued' | 'observing' | 'accepted' | 'iterate' | 'dismissed';
 
 export interface SkillPromotionObservationPolicy {
   nextUses: number;
@@ -60,6 +60,7 @@ export interface SkillPromotionBacktestResult {
   updated: number;
   accepted: number;
   iterate: number;
+  dismissed: number;
   records: SkillPromotionAutopilotRecord[];
 }
 
@@ -71,6 +72,7 @@ export interface SkillPromotionAutopilotSummary {
   observing: SkillPromotionAutopilotRecord[];
   accepted: SkillPromotionAutopilotRecord[];
   iterate: SkillPromotionAutopilotRecord[];
+  dismissed: SkillPromotionAutopilotRecord[];
   nextCandidate?: PatternPromotionCandidate;
   policy: string;
 }
@@ -132,24 +134,65 @@ export async function maybeQueueSkillPromotion(
   return { queued: true, reason: 'queued', candidate, task, record: persisted };
 }
 
-export function sweepSkillPromotionBacktests(
+export async function sweepSkillPromotionBacktests(
   memoryDir: string,
   opts: SkillPromotionAutopilotOptions = {},
-): SkillPromotionBacktestResult {
+): Promise<SkillPromotionBacktestResult> {
   const now = (opts.now ?? new Date()).toISOString();
   const records = latestRecords(memoryDir);
   const usage = readSkillUsage(memoryDir);
   let updated = 0;
   let accepted = 0;
   let iterate = 0;
+  let dismissed = 0;
   const written: SkillPromotionAutopilotRecord[] = [];
+  const eligiblePromotionIds = new Set(suggestPatternPromotions(memoryDir).map(promotionId));
 
   for (const record of records.values()) {
     if (record.status === 'queued') {
       const task = record.queuedTaskId
         ? queryMemoryIndexSync(memoryDir, { id: record.queuedTaskId, limit: 1 })[0]
         : undefined;
+      if (!eligiblePromotionIds.has(record.id)) {
+        if (task && ACTIVE_TASK_STATUSES.includes(String(task.status))) {
+          const payload = (task.payload ?? {}) as Record<string, unknown>;
+          await updateMemoryIndexEntry(memoryDir, task.id, {
+            status: 'abandoned',
+            payload: {
+              ...payload,
+              autoAbandoned: true,
+              abandoned_reason: 'skill-promotion-insufficient-impact-evidence',
+              abandoned_at: now,
+              ticksSinceLastProgress: 0,
+            },
+          });
+        }
+        const next: SkillPromotionAutopilotRecord = {
+          ...record,
+          status: 'dismissed',
+          decidedAt: now,
+          note: 'promotion dismissed because the pattern no longer has measurable token/time impact evidence',
+        };
+        appendPromotionRecord(memoryDir, next);
+        written.push(next);
+        updated++;
+        dismissed++;
+        continue;
+      }
       if (!task || !TERMINAL_TASK_STATUSES.includes(String(task.status))) continue;
+      if (!['completed', 'done'].includes(String(task.status))) {
+        const next: SkillPromotionAutopilotRecord = {
+          ...record,
+          status: 'iterate',
+          decidedAt: now,
+          note: `implementation task ended as ${task.status}; revise promotion before retrying`,
+        };
+        appendPromotionRecord(memoryDir, next);
+        written.push(next);
+        updated++;
+        iterate++;
+        continue;
+      }
       const next: SkillPromotionAutopilotRecord = {
         ...record,
         status: 'observing',
@@ -186,7 +229,7 @@ export function sweepSkillPromotionBacktests(
     if (status === 'iterate') iterate++;
   }
 
-  return { updated, accepted, iterate, records: written };
+  return { updated, accepted, iterate, dismissed, records: written };
 }
 
 export function summarizeSkillPromotionAutopilot(memoryDir: string): SkillPromotionAutopilotSummary {
@@ -197,6 +240,7 @@ export function summarizeSkillPromotionAutopilot(memoryDir: string): SkillPromot
   const observing = records.filter(record => record.status === 'observing');
   const accepted = records.filter(record => record.status === 'accepted');
   const iterate = records.filter(record => record.status === 'iterate');
+  const dismissed = records.filter(record => record.status === 'dismissed');
   return {
     ledger: `memory/state/${LEDGER_FILE}`,
     candidates,
@@ -205,8 +249,9 @@ export function summarizeSkillPromotionAutopilot(memoryDir: string): SkillPromot
     observing,
     accepted,
     iterate,
+    dismissed,
     nextCandidate: nextPromotionCandidate(memoryDir, latestRecords(memoryDir)),
-    policy: 'Queue at most one skill-promotion task; after implementation, observe the next 3 matching skill-usage events and accept only if successRate >= 0.67.',
+    policy: 'Queue at most one skill-promotion task with measurable token/time impact evidence; dismiss queued promotions that lose eligibility; after implementation, observe the next 3 matching skill-usage events and accept only if successRate >= 0.67.',
   };
 }
 
@@ -306,6 +351,7 @@ function promotionTaskTitle(candidate: PatternPromotionCandidate): string {
 function promotionAcceptance(candidate: PatternPromotionCandidate, policy: SkillPromotionObservationPolicy): string {
   return [
     `Implement ${candidate.suggestedCapability.service} as ${candidate.recommendedKind} using the lowest-overhead durable form.`,
+    `Impact evidence: savedTokens=${Math.round(candidate.savedTokensEstimate)}, savedMinutes=${Math.round(candidate.savedMinutesEstimate)}.`,
     `Required loop: code/script/workflow change -> PR -> review consensus -> merge -> deploy -> record skill usage.`,
     `Backtest: next ${policy.nextUses} matching skill-usage events must keep successRate >= ${policy.minSuccessRate}.`,
     `Verifier: ${candidate.suggestedCapability.verifier}`,
