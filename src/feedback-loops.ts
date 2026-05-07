@@ -171,7 +171,20 @@ export function extractErrorSubtype(errorMsg: string): string {
     // 2026-05-06: 處理訊息時發生錯誤 with dur 1-59s = Anthropic localized server error
     // returned quickly (overload/rate-limit pattern); distinct from genuine no_diag.
     // 61 occurrences today, all in 1-19s band — clear bimodal gap from hang_no_diag (≥600s).
-    if (durMatch && Number(durMatch[1]) < 60) return 'transient_no_diag';
+    //
+    // 2026-05-08 (Issue #318): Subdivide the 1-59s band into fast/slow at 10s threshold.
+    //   - fast-band (<10s):  transient_fast_band — API errored quickly then we retry; the
+    //                         "wait it out" assumption (90s baseDelay from #166/ceefde2e)
+    //                         doesn't apply here. Different gate: circuit-breaker, not backoff.
+    //   - slow-band (10-59s): transient_slow_band — the original 1-19s pattern that #166
+    //                         targeted; 90s baseDelay window is correct here.
+    // Keep the legacy `transient_no_diag` label as a fallback for ill-formed durations so
+    // the bucket never silently disappears from the recurring-errors panel.
+    if (durMatch) {
+      const dur = Number(durMatch[1]);
+      if (dur < 10) return 'transient_fast_band';
+      if (dur < 60) return 'transient_slow_band';
+    }
     // 2026-05-06 (later same day): mid-band 60-599s = partial-stream failure
     // (request started, response began, then errored mid-flight). Distinct from
     // both transient (fail-fast) and hang (full timeout). Splitting this off
