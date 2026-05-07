@@ -111,7 +111,7 @@ export function verifyAiTrendClosure(repoRoot: string): ProductVerifierResult {
     evidence: [...evidence, `zhRatio=${zhRatio.toFixed(3)}`, `renderRatio=${renderRatio.toFixed(3)}`, `hasXSection=${hasXSection}`],
     ...(pass ? {} : {
       repairTitle: `Repair AI trend closure: render all enriched source items for ${date}`,
-      verifyCommand: 'node scripts/build-ai-trend-preview.mjs && pnpm vitest run tests/autonomous-work-closure.test.ts',
+      verifyCommand: 'node scripts/ai-trend-enrich-fallback.mjs --source=github && node scripts/build-ai-trend-preview.mjs && pnpm vitest run tests/autonomous-work-closure.test.ts',
     }),
   };
 }

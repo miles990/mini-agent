@@ -46,6 +46,9 @@ describe('autonomous work closure', () => {
       .toEqual(expect.objectContaining({
         status: 'pending',
         summary: expect.stringContaining('Repair AI trend closure'),
+        payload: expect.objectContaining({
+          verify_command: expect.stringContaining('ai-trend-enrich-fallback.mjs'),
+        }),
       }));
   });
 
