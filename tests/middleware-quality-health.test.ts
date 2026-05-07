@@ -37,4 +37,20 @@ describe('middleware quality stale-failed suppression', () => {
     const result = evaluateMiddlewareQuality({ staleFailedMinutes: 5 });
     expect(result.status).toBe('ok');
   });
+
+  it('does not gate failed tasks that have already been classified by self-healing', () => {
+    const result = evaluateMiddlewareQuality({
+      tasks: [
+        { id: 'failed-1', status: 'failed', worker: 'coder', error: 'maximum number of turns reached' },
+        { id: 'failed-2', status: 'failed', worker: 'agent-brain', error: 'maximum budget exceeded' },
+        { id: 'done-1', status: 'completed', worker: 'coder' },
+      ],
+      classifiedFailedTaskIds: ['failed-1', 'failed-2'],
+      now: new Date('2026-05-06T16:30:00.000Z'),
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toContain('classifiedFailed=2');
+    expect(result.evidence).toContain('failed=0');
+  });
 });

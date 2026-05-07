@@ -25,7 +25,7 @@ describe('provider resource guard', () => {
 
   it('uses a conservative one-hour hold when no reset time is present', () => {
     const result = classifyProviderResourceHold(
-      'provider failed: rate_limit quota exceeded',
+      'provider failed: maximum budget exceeded',
       new Date('2026-05-06T16:30:00.000Z'),
     );
 
