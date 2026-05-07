@@ -39,7 +39,7 @@ import {
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
-import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, type IncomingEvent as SchedulerEvent } from './scheduler.js';
+import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, recordTaskTerminalSignal, resetAllSuppressions, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { onSchedulerTick } from './reactive-policies.js';
@@ -1009,6 +1009,9 @@ export class AgentLoop {
         slog('LOOP', `[dedup] Skipping ${roomMsgId} in FG — already claimed`);
         return;
       }
+      // External trigger — reset all dispatch suppressions so previously stuck tasks
+      // can be re-evaluated in the next OODA cycle (issue #196 fix).
+      resetAllSuppressions();
       slog('LOOP', `[dm-route] ${event.source} → batch buffer`);
       this.batchBuffer.add(event.source, messageText, roomMsgId);
       return;
@@ -3045,6 +3048,7 @@ export class AgentLoop {
               }
             }
             schedulerTaskDone(schedState.currentTaskId);
+            recordTaskTerminalSignal(schedState.currentTaskId);
             completeProcess(schedState.currentTaskId);
           }
           if (markedCount === 0) {
