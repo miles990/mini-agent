@@ -78,7 +78,7 @@ describe('middleware failure self-healing', () => {
       id: 'task-turns',
       worker: 'coder',
       status: 'failed',
-      task: 'Implement a large repair',
+      task: 'Implement a large repair for a previous maximum budget failure',
       error: 'Task failed: reached maximum number of turns',
     }], new Date('2026-05-06T16:30:00.000Z'));
 
@@ -88,6 +88,31 @@ describe('middleware failure self-healing', () => {
       status: 'classified',
     }));
     expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(0);
+  });
+
+  it('reclassifies a known task when better error-only signal changes the bucket', async () => {
+    await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-reclassify',
+      worker: 'coder',
+      status: 'failed',
+      task: 'Task text mentions maximum budget from a different failure',
+      error: 'Task failed: reached maximum number of turns',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    const second = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-reclassify',
+      worker: 'coder',
+      status: 'failed',
+      task: 'Task text mentions maximum budget from a different failure',
+      error: 'Task failed: reached maximum budget',
+    }], new Date('2026-05-06T16:31:00.000Z'));
+
+    expect(second).toEqual(expect.objectContaining({ classified: 1, skippedKnown: 0, held: 1 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-reclassify',
+      bucket: 'budget-or-quota',
+      status: 'held',
+    }));
   });
 
   it('exposes the same buckets used by middleware quality health', () => {
