@@ -7,6 +7,7 @@ import { readDelegationFailureRecordsSync } from '../src/delegation-failure-guar
 import {
   classifyMiddlewareFailureBucket,
   classifyMiddlewareFailures,
+  closeTerminalBrainMaxTurnFollowUps,
   readMiddlewareFailureClassificationsSync,
 } from '../src/middleware-failure-self-healing.js';
 
@@ -116,6 +117,54 @@ describe('middleware failure self-healing', () => {
       taskId: 'task-brain-turns',
       status: 'resolved',
     }));
+  });
+
+  it('treats delegated brain-provider prompts as terminal even when worker is mislabeled coder', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-brain-coded',
+      worker: 'coder',
+      status: 'failed',
+      task: 'You are running as a mini-agent delegated brain provider. Return the requested result with concise evidence.',
+      error: 'Claude Code returned an error result: Reached maximum number of turns (30)',
+    }], new Date('2026-05-07T09:50:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1, held: 0 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-brain-coded',
+      bucket: 'max-turns',
+      lifecycleAction: 'terminal-cancelled',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
+  });
+
+  it('closes legacy brain-provider max-turn follow-ups created before classifier fix', async () => {
+    const legacy = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Decompose middleware task task-legacy after max-turns failure',
+      source: 'test',
+      tags: ['middleware', 'self-healing', 'max-turns'],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'task-legacy',
+        middleware_worker: 'coder',
+        middleware_failure_bucket: 'max-turns',
+        failed_task_excerpt: 'You are running as a mini-agent delegated brain provider. Return the requested result with concise evidence.',
+      },
+    });
+
+    expect(await closeTerminalBrainMaxTurnFollowUps(memoryDir, new Date('2026-05-07T09:51:00.000Z'))).toBe(1);
+
+    const completed = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['completed'] });
+    expect(completed).toEqual([
+      expect.objectContaining({
+        id: legacy.id,
+        payload: expect.objectContaining({
+          terminal_resolution: expect.stringContaining('brain-provider max-turns'),
+        }),
+        tags: expect.arrayContaining(['terminal-cancelled']),
+      }),
+    ]);
   });
 
   it('reuses an existing duplicate follow-up instead of aborting the sweep', async () => {

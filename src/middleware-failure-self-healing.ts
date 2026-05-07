@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { appendMemoryIndexEntry, queryMemoryIndexSync } from './memory-index.js';
+import { appendMemoryIndexEntry, queryMemoryIndexSync, updateMemoryIndexEntry } from './memory-index.js';
 import { classifyProviderResourceHold, type ProviderResourceHold } from './provider-resource-guard.js';
 import {
   recordDelegationFailure,
@@ -81,6 +81,7 @@ export async function classifyMiddlewareFailures(
   tasks: MiddlewareTaskRecord[],
   now = new Date(),
 ): Promise<MiddlewareFailureSweepResult> {
+  await closeTerminalBrainMaxTurnFollowUps(memoryDir, now);
   const known = new Map(readMiddlewareFailureClassificationsSync(memoryDir).map(record => [record.taskId, record]));
   const failedTasks = tasks.filter(task => task.status === 'failed' && task.id);
   const result: MiddlewareFailureSweepResult = {
@@ -121,9 +122,9 @@ export async function classifyMiddlewareFailures(
       result.held++;
       lifecycleAction = 'provider-hold';
       resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
-    } else if (bucket === 'max-turns' && task.worker === 'agent-brain') {
+    } else if (bucket === 'max-turns' && isTerminalBrainMaxTurnTask(task)) {
       lifecycleAction = 'terminal-cancelled';
-      resolution = `${resolution}; agent-brain cycle max-turns is terminal telemetry, not a decomposable work item`;
+      resolution = `${resolution}; brain-provider max-turns is terminal telemetry, not a decomposable work item`;
     } else if (bucket === 'max-turns') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       lifecycleAction = 'decompose';
@@ -169,6 +170,32 @@ export async function classifyMiddlewareFailures(
     slog('MIDDLEWARE-SELF-HEAL', `classified ${result.classified}/${result.failed} failed middleware task(s), held=${result.held}`);
   }
   return result;
+}
+
+export async function closeTerminalBrainMaxTurnFollowUps(memoryDir: string, now = new Date()): Promise<number> {
+  const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold'] })
+    .filter(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      return payload.origin === 'middleware-self-healing'
+        && payload.middleware_failure_bucket === 'max-turns'
+        && isTerminalBrainMaxTurnText(String(payload.middleware_worker ?? ''), String(payload.failed_task_excerpt ?? ''));
+    });
+
+  let closed = 0;
+  for (const entry of followUps) {
+    const payload = (entry.payload ?? {}) as Record<string, unknown>;
+    const updated = await updateMemoryIndexEntry(memoryDir, entry.id, {
+      status: 'completed',
+      payload: {
+        ...payload,
+        terminal_resolution: 'brain-provider max-turns is terminal telemetry, not decomposable work',
+        terminal_resolved_at: now.toISOString(),
+      },
+      tags: [...new Set([...(entry.tags ?? []), 'terminal-cancelled'])],
+    });
+    if (updated) closed++;
+  }
+  return closed;
 }
 
 export function getMiddlewareFailureClassificationPath(memoryDir: string): string {
@@ -340,6 +367,21 @@ function middlewareFailureRepairPlan(
     summary: `Triage middleware failed task ${task.id ?? 'unknown'} (${bucket})`,
     acceptance: 'Failure is assigned to a known bucket, retried safely, held with a resume condition, or closed as terminal.',
   };
+}
+
+function isTerminalBrainMaxTurnTask(task: MiddlewareTaskRecord): boolean {
+  return isTerminalBrainMaxTurnText(task.worker ?? '', [
+    task.task,
+    failureOutputText(task),
+  ].filter(value => typeof value === 'string' && value.trim()).join('\n'));
+}
+
+function isTerminalBrainMaxTurnText(worker: string, text: string): boolean {
+  const lower = `${worker}\n${text}`.toLowerCase();
+  return worker.toLowerCase() === 'agent-brain'
+    || /mini-agent delegated brain provider/.test(lower)
+    || /return the requested result with concise evidence/.test(lower)
+    || /you are i'm kuro, alex's personal ai assistant/.test(lower);
 }
 
 async function ensureProviderHoldTask(
