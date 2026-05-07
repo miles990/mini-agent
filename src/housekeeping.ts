@@ -23,6 +23,7 @@ import {
 } from './memory-index.js';
 import { migrateToColdStorage } from './context-optimizer.js';
 import { scanContradictions } from './contradiction-scanner.js';
+import { rotateAllDecisionLogs } from './decision-log-rotation.js';
 import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from './kg-live-ingest.js';
 import { spawnDelegation } from './delegation.js';
 import type { MemoryIndexEntry } from './memory-index.js';
@@ -728,6 +729,14 @@ export async function runHousekeeping(): Promise<void> {
     try {
       const removed = gcForensicLogs(7);
       if (removed > 0) slog('HOUSEKEEPING', `forensic gc removed ${removed} file(s)`);
+    } catch { /* fail-open */ }
+    // Decision log rotation — move files >1MB to memory/decisions-archive/.
+    try {
+      const { rotated, results } = rotateAllDecisionLogs();
+      if (rotated > 0) {
+        const names = results.filter((r) => r.rotated).map((r) => r.archivedAs ?? r.logPath);
+        slog('HOUSEKEEPING', `decision log rotation: ${rotated} rotated → ${names.join(', ')}`);
+      }
     } catch { /* fail-open */ }
   }
 }
