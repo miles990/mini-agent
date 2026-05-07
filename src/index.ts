@@ -206,6 +206,19 @@ export type {
 export { maybeQueueSelfResearch } from './self-research-autopilot.js';
 export type { SelfResearchAutopilotOptions, SelfResearchAutopilotResult } from './self-research-autopilot.js';
 export {
+  maybeQueueSkillPromotion,
+  readSkillPromotionRecords,
+  summarizeSkillPromotionAutopilot,
+  sweepSkillPromotionBacktests,
+} from './skill-promotion-autopilot.js';
+export type {
+  SkillPromotionAutopilotOptions,
+  SkillPromotionAutopilotRecord,
+  SkillPromotionAutopilotResult,
+  SkillPromotionAutopilotSummary,
+  SkillPromotionBacktestResult,
+} from './skill-promotion-autopilot.js';
+export {
   closeResolvedCorrectionTasks,
   ensureCorrectionTask,
   evaluateCorrectionGate,

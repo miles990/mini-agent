@@ -228,6 +228,7 @@ export function inferSkillSelectionInput(input: SkillRuntimeSelectionInput): Ski
   addSignalIf(signals, /(test failure|vitest|tsc|typecheck|regression|failing test)/i, text, 'test_failure');
   addSignalIf(signals, /(closure|autonomy|blocked|degraded|閉環)/i, text, 'autonomy_closure_blocked');
   addSignalIf(signals, /(tension|tradeoff|stakeholder|conflict|competing requirement|張力|取捨|衝突)/i, text, 'requirement_tension');
+  addSignalIf(signals, /(skill promotion|promotion candidate|capability promotion|能力升級|自我更新|自我迭代|湧現能力)/i, text, 'capability_promotion_candidate');
   addSignalIf(signals, /(complete|done|merge|deploy|ship|完成|部署)/i, text, 'before_done');
 
   addSignalIf(contextSignals, /(same root cause|same_root_cause|root cause family)/i, text, 'same_root_cause_family');
