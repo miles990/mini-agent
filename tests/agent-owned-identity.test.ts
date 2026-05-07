@@ -120,6 +120,17 @@ describe('agent-owned identity boundary', () => {
           credentialEnv: [],
           entrypoint: 'pnpm exec playwright',
           capabilities: ['browser-test', 'screenshot'],
+          trigger: { keywords: ['browser'], signals: ['visual_check'] },
+          requires: ['browser-cdp'],
+          combinesWith: ['verification-before-completion'],
+          verifier: 'screenshot captured',
+          contextFabric: {
+            sources: ['KG', 'screenshots'],
+            writes: ['visual-evidence'],
+            learnsFrom: ['visual-regressions'],
+            sharesWith: ['kg'],
+            emergenceSignals: ['visual_regression'],
+          },
           readPolicy: 'internal-service',
           writePolicy: 'internal-service',
         },
@@ -153,6 +164,13 @@ describe('agent-owned identity boundary', () => {
       kind: 'tool',
       entrypoint: 'pnpm exec playwright',
       capabilities: ['browser-test', 'screenshot'],
+      requires: ['browser-cdp'],
+      combinesWith: ['verification-before-completion'],
+      verifier: 'screenshot captured',
+      contextFabric: expect.objectContaining({
+        sources: ['KG', 'screenshots'],
+        emergenceSignals: ['visual_regression'],
+      }),
     }));
     expect(getAgentOwnedIdentity('linkedin', env)).toEqual(expect.objectContaining({
       expected: 'kuro-agent',

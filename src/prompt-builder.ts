@@ -23,6 +23,7 @@ import { readState } from './feedback-loops.js';
 import { slog } from './utils.js';
 import { getActiveDelegationSummaries } from './delegation.js';
 import { buildAgentOwnedIdentityPrompt, buildAgentRelationshipPrompt } from './agent-owned-identity.js';
+import { buildAgentSkillOrchestrationPrompt } from './agent-skill-manager.js';
 
 // =============================================================================
 // Cycle Responsibility Guide — Observe→Act→Gate thinking structure
@@ -212,6 +213,7 @@ ${taskStatusLine}
 ${cycleResponsibilityGuide}
 ${buildAgentOwnedIdentityPrompt()}
 ${buildAgentRelationshipPrompt()}
+${buildAgentSkillOrchestrationPrompt()}
 ${focusSection}${reflectNudge}${avoidList}
 
 ## Response Format
@@ -257,6 +259,7 @@ ${taskStatusLine}
 ${cycleResponsibilityGuide}
 ${buildAgentOwnedIdentityPrompt()}
 ${buildAgentRelationshipPrompt()}
+${buildAgentSkillOrchestrationPrompt()}
 ${avoidList}
 
 ## 做正事
