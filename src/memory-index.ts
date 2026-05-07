@@ -325,6 +325,7 @@ export async function appendMemoryIndexEntry(
   });
 
   writeThroughEntry(memoryDir, entry);
+  await recordWorkflowCreation(memoryDir, entry);
   slog('INDEX', `append ${entry.id} type=${entry.type} status=${entry.status} bucket=${bucket}`);
   return entry;
 }
@@ -450,7 +451,107 @@ export async function updateMemoryIndexEntry(
   });
 
   writeThroughEntry(memoryDir, updated);
+  await recordWorkflowTransition(memoryDir, current, updated);
   return updated;
+}
+
+async function recordWorkflowCreation(memoryDir: string, entry: MemoryIndexEntry): Promise<void> {
+  void memoryDir;
+  if (entry.type !== 'task' && entry.type !== 'goal') return;
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const needsDecomposition = entry.status === 'needs-decomposition' || payload.needs_decomposition === true;
+  try {
+    const { triageWorkflowEvent } = await import('./myelin-fleet.js');
+    await triageWorkflowEvent({
+      type: 'task-start',
+      source: 'ooda-cycle',
+      context: {
+        taskId: entry.id,
+        title: entry.summary ?? '',
+        status: entry.status,
+        ideaClarity: needsDecomposition ? 'vague' : 'concrete',
+        fileImpact: needsDecomposition ? 3 : estimateFileImpact(entry.summary ?? '', payload),
+        origin: payload.origin ?? entry.source ?? 'unknown',
+      },
+    });
+  } catch (error) {
+    slog('WARN', `workflow myelin creation record failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function recordWorkflowTransition(
+  memoryDir: string,
+  previous: MemoryIndexEntry,
+  updated: MemoryIndexEntry,
+): Promise<void> {
+  void memoryDir;
+  if (previous.status === updated.status) return;
+  if (updated.type !== 'task' && updated.type !== 'goal') return;
+
+  if (TASK_TERMINAL_STATUSES.has(updated.status)) {
+    const verified = isWorkflowVerified(updated);
+    try {
+      const { triageWorkflowEvent } = await import('./myelin-fleet.js');
+      await triageWorkflowEvent({
+        type: 'task-done',
+        source: 'ooda-cycle',
+        context: {
+          taskId: updated.id,
+          title: updated.summary ?? '',
+          status: updated.status,
+          verified,
+          doneRatio: verified ? 1 : 0.95,
+        },
+      });
+    } catch (error) {
+      slog('WARN', `workflow myelin terminal record failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+
+  if (['blocked', 'hold', 'needs-decomposition'].includes(String(updated.status))) {
+    const payload = (updated.payload ?? {}) as Record<string, unknown>;
+    try {
+      const { triageWorkflowEvent } = await import('./myelin-fleet.js');
+      await triageWorkflowEvent({
+        type: 'process-friction',
+        source: 'ooda-cycle',
+        context: {
+          taskId: updated.id,
+          title: updated.summary ?? '',
+          status: updated.status,
+          frictionType: 'any',
+          hasToolsAvailable: !payload.provider_resource_hold,
+          attemptCount: Number(payload.auto_executor_failures ?? payload.ticksSinceLastProgress ?? 0),
+        },
+      });
+    } catch (error) {
+      slog('WARN', `workflow myelin friction record failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+function estimateFileImpact(summary: string, payload: Record<string, unknown>): number {
+  const verifyCommand = String(payload.verify_command ?? '');
+  const text = `${summary}\n${verifyCommand}`;
+  const files = new Set(text.match(/[a-zA-Z0-9_./-]+\.(?:ts|tsx|js|mjs|json|md|html|css|sh)/g) ?? []);
+  if (files.size > 0) return Math.min(10, files.size);
+  if (/architecture|refactor|redesign|重新設計|整套|跨/.test(text)) return 3;
+  return 1;
+}
+
+function isWorkflowVerified(entry: MemoryIndexEntry): boolean {
+  const payload = (entry.payload ?? {}) as Record<string, unknown>;
+  const verifyProof = payload.verify_proof as Record<string, unknown> | undefined;
+  if (verifyProof?.passed === true) return true;
+  const verify = payload.verify;
+  if (Array.isArray(verify) && verify.length > 0) {
+    return verify.every(item => {
+      const record = item as Record<string, unknown>;
+      return record.status === 'pass';
+    });
+  }
+  return entry.status === 'completed' || entry.status === 'done';
 }
 
 export async function deleteMemoryIndexEntry(
