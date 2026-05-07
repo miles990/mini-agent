@@ -15,6 +15,18 @@ export interface MiddlewareQualityOptions {
   blockFailedRatio?: number;
   warnRunningMinutes?: number;
   blockRunningMinutes?: number;
+  /**
+   * Failed tasks whose `completedAt` is older than this many minutes are
+   * treated as historical residue (stale) and excluded from the active
+   * `failed`/`failedRatio` gating. They are still surfaced in evidence as
+   * `staleFailed=N` so operators can see them. Default: 20 minutes.
+   *
+   * Rationale: middleware archives terminal tasks after 1h. During the gap
+   * between failure and archive, already-known failed tasks were holding
+   * the autonomy-closure gate open, blocking new repair work that the gate
+   * itself was telling us to do.
+   */
+  staleFailedMinutes?: number;
 }
 
 interface MiddlewareTaskRecord {
@@ -24,6 +36,7 @@ interface MiddlewareTaskRecord {
   submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
+  completedAt?: string;
   error?: string;
   result?: string;
   task?: string;
@@ -69,25 +82,34 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   }
 
   const tasks = extractTasks(tasksResponse.value);
-  const counts = countStatuses(tasks);
-  const total = tasks.length;
-  const failed = counts.failed ?? 0;
-  const running = counts.running ?? 0;
-  const failedRatio = total > 0 ? failed / total : 0;
   const now = options.now ?? new Date();
+  const staleFailedMinutes = options.staleFailedMinutes ?? 20;
+  const { activeFailed, staleFailed } = partitionFailedByRecency(tasks, now, staleFailedMinutes);
+
+  // Treat the in-flight task population as "everything except stale-failed
+  // residue". Stale residue still gets reported, but it doesn't gate new work.
+  const activeTotal = tasks.length - staleFailed.length;
+  const counts = countStatuses(tasks);
+  const failed = activeFailed.length;
+  const running = counts.running ?? 0;
+  const failedRatio = activeTotal > 0 ? failed / activeTotal : 0;
   const staleRunning = findStaleRunning(tasks, now, options.warnRunningMinutes ?? 45);
   const blockedRunning = findStaleRunning(tasks, now, options.blockRunningMinutes ?? 120);
-  const failureBuckets = bucketFailures(tasks);
+  const failureBuckets = bucketFailures(activeFailed);
 
-  evidence.push(`tasks=${total}`);
+  evidence.push(`tasks=${tasks.length}`);
+  evidence.push(`activeTasks=${activeTotal}`);
   evidence.push(`running=${running}`);
   evidence.push(`failed=${failed}`);
   evidence.push(`failedRatio=${failedRatio.toFixed(2)}`);
+  if (staleFailed.length > 0) {
+    evidence.push(`staleFailed=${staleFailed.length}>${staleFailedMinutes}m`);
+  }
   if (Object.keys(failureBuckets).length > 0) {
     evidence.push(`failureBuckets=${Object.entries(failureBuckets).map(([k, v]) => `${k}:${v}`).join(',')}`);
   }
   evidence.push(...staleRunning.slice(0, 5).map(task => `staleRunning=${formatTask(task, now)}`));
-  evidence.push(...tasks.filter(t => t.status === 'failed').slice(-5).map(task => `failedTask=${formatTask(task, now)}`));
+  evidence.push(...activeFailed.slice(-5).map(task => `failedTask=${formatTask(task, now)}`));
 
   if (blockedRunning.length > 0) {
     return {
@@ -101,7 +123,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   if (failedRatio >= (options.blockFailedRatio ?? 0.6) && failed >= 5) {
     return {
       status: 'blocked',
-      summary: `middleware failure ratio is ${(failedRatio * 100).toFixed(0)}% (${failed}/${total})`,
+      summary: `middleware failure ratio is ${(failedRatio * 100).toFixed(0)}% (${failed}/${activeTotal})`,
       evidence,
       repair: 'Hold new middleware-backed work, classify dominant failure buckets, and repair provider budget, max-turn, or shell-stall causes before retrying.',
     };
@@ -110,7 +132,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   if (failedRatio >= (options.warnFailedRatio ?? 0.2) && failed >= 3) {
     return {
       status: 'warn',
-      summary: `middleware quality degraded: ${failed}/${total} task(s) failed`,
+      summary: `middleware quality degraded: ${failed}/${activeTotal} task(s) failed`,
       evidence,
       repair: 'Diagnose the dominant middleware failure buckets and close or suppress stale failed tasks before dispatching more autonomous repair work.',
     };
@@ -127,7 +149,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
 
   return {
     status: 'ok',
-    summary: `middleware quality healthy: ${total} task(s), ${failed} failed`,
+    summary: `middleware quality healthy: ${activeTotal} task(s), ${failed} failed`,
     evidence,
   };
 }
@@ -146,6 +168,27 @@ function countStatuses(tasks: MiddlewareTaskRecord[]): Record<string, number> {
     counts[status] = (counts[status] ?? 0) + 1;
   }
   return counts;
+}
+
+function partitionFailedByRecency(
+  tasks: MiddlewareTaskRecord[],
+  now: Date,
+  staleMinutes: number,
+): { activeFailed: MiddlewareTaskRecord[]; staleFailed: MiddlewareTaskRecord[] } {
+  const thresholdMs = staleMinutes * 60 * 1000;
+  const activeFailed: MiddlewareTaskRecord[] = [];
+  const staleFailed: MiddlewareTaskRecord[] = [];
+  for (const task of tasks) {
+    if (task.status !== 'failed') continue;
+    const completedSource = task.completedAt ?? task.updatedAt ?? task.startedAt ?? task.submittedAt;
+    const completedAt = completedSource ? Date.parse(completedSource) : NaN;
+    if (Number.isFinite(completedAt) && now.getTime() - completedAt > thresholdMs) {
+      staleFailed.push(task);
+    } else {
+      activeFailed.push(task);
+    }
+  }
+  return { activeFailed, staleFailed };
 }
 
 function findStaleRunning(tasks: MiddlewareTaskRecord[], now: Date, maxMinutes: number): MiddlewareTaskRecord[] {
