@@ -45,7 +45,31 @@ const TOPICS = [
   { name: 'Policy / 政策',     kw: /\b(policy|standard|regulat|opposition|firefox|mozilla|chrome|browser|w3c|copyright|license)\b/i },
 ];
 
+// GitHub source-side topic → display category. github-ai-trend.mjs already
+// labels each repo with matched_topic (from search query topic:X) plus the
+// repo.topics array — much more accurate than regex on a template summary.
+const GH_TOPIC_MAP = {
+  'llm':         'LLM / 大模型',
+  'agent':       'Agent / 自主系統',
+  'rag':         'RAG / 檢索增強',
+  'transformer': 'Transformer / 架構',
+  'diffusion':   'Diffusion / 生成',
+  'mcp':         'MCP / 工具協定',
+  'fine-tuning': 'Fine-tuning / 微調',
+};
+
 function tagPost(post) {
+  // Priority 1: GitHub posts carry matched_topic from search query — trust it.
+  if (post.source === 'github') {
+    if (post.matched_topic && GH_TOPIC_MAP[post.matched_topic]) {
+      return GH_TOPIC_MAP[post.matched_topic];
+    }
+    for (const tag of post.topics || []) {
+      if (GH_TOPIC_MAP[tag]) return GH_TOPIC_MAP[tag];
+    }
+  }
+  // Priority 2: regex over title + summary (works even if enrichment failed,
+  // since title alone often carries enough signal).
   const text = [post.title || '', post.summary?.claim || '', post.summary?.so_what || ''].join(' ');
   const hits = TOPICS.filter(t => t.kw.test(text)).map(t => t.name);
   return hits[0] || 'Other / 其他';
