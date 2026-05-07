@@ -200,6 +200,9 @@ ul.feed li .ti a{text-decoration:none;border-bottom:1px solid #2a2f38}
 ul.feed li .ti a:hover{color:var(--acc);border-color:var(--acc)}
 ul.feed li .zh{color:#cfd3da;font-size:.85rem;line-height:1.55;margin-top:.25rem}
 ul.feed li .zh.todo{color:var(--dim);font-style:italic}
+ul.feed li .ti-en{color:var(--dim);font-size:.78rem;line-height:1.35;margin-top:.2rem;font-style:italic;word-break:break-word}
+ul.feed li .ti-en a{color:inherit;text-decoration:none;border-bottom:1px dotted #3a3f48}
+ul.feed li .ti-en a:hover{color:var(--acc);border-color:var(--acc)}
 ul.feed li .ext{color:var(--dim);font-size:.74rem;white-space:nowrap;padding-top:.15rem}
 ul.feed li .ext a{color:var(--acc);text-decoration:none;border-bottom:1px solid #2a4373}
 ul.feed li .ext a:hover{color:var(--fg);border-color:var(--fg)}
@@ -251,10 +254,22 @@ function renderItem(p, rank) {
   const zh = zhSummary(p);
   const u = htmlEsc(p.url || '#');
   const host = (() => { try { return new URL(p.url).hostname.replace(/^www\./,''); } catch { return ''; } })();
+  // 中文標題：取 claim 第一句（句號/分號斷句），fallback 原英文 title
+  const zhTitle = (() => {
+    if (!zh) return '';
+    // claim 部分（` / ` 之前）
+    const claimPart = zh.split(' / ')[0] || zh;
+    // 第一句（中/英文標點）
+    const m = claimPart.match(/^[^。；;.!?\n]+/);
+    return (m ? m[0] : claimPart).trim();
+  })();
+  const enTitle = htmlEsc(p.title || '(無標題)');
+  const headline = zhTitle ? htmlEsc(zhTitle) : enTitle;
   return `<li>
     <span class="rk">${rank}</span>
     <div class="body">
-      <h3 class="ti"><a href="${u}" target="_blank" rel="noopener">${htmlEsc(p.title || '(無標題)')}</a></h3>
+      <h3 class="ti"><a href="${u}" target="_blank" rel="noopener">${headline}</a></h3>
+      ${zhTitle ? `<div class="ti-en"><a href="${u}" target="_blank" rel="noopener">${enTitle}</a></div>` : ''}
       ${zh
         ? `<div class="zh">${htmlEsc(zh)}</div>`
         : `<div class="zh todo">中文摘要待 LLM enrich pass — 先點右側「閱讀原文 →」</div>`}
