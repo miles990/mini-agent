@@ -50,6 +50,7 @@ import { assertKuroGithubIdentity, expectedKuroGithubLogin, kuroGithubCliEnv } f
 import { recordPublicWriteProvenance } from './public-write-identity.js';
 
 const execFileAsync = promisify(execFile);
+let loggedReviewRequestsDegrade = false;
 
 async function gh(args: string[], timeout = 15000): Promise<{ stdout: string; stderr: string }> {
   assertKuroGithubIdentity();
@@ -432,10 +433,30 @@ async function listOpenPrsForLifecycle(): Promise<ReviewablePR[]> {
     const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', `${baseFields},reviewRequests`, '--limit', '50']);
     return JSON.parse(stdout);
   } catch (err) {
-    slog('github', `open PR listing degraded without reviewRequests: ${String(err)}`);
+    if (shouldLogPrReviewRequestsDegrade(err)) {
+      slog('github', `open PR listing degraded without reviewRequests: ${String(err)}`);
+    }
     const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', baseFields, '--limit', '50']);
     return JSON.parse(stdout);
   }
+}
+
+export function isGithubReviewRequestsScopeError(err: unknown): boolean {
+  const text = String(err);
+  return text.includes('GraphQL:')
+    && text.includes('required scopes')
+    && text.includes('read:org')
+    && text.includes('reviewRequests');
+}
+
+function shouldLogPrReviewRequestsDegrade(err: unknown): boolean {
+  if (isGithubReviewRequestsScopeError(err)) {
+    if (process.env.MINI_AGENT_LOG_GITHUB_SCOPE_DEGRADES !== '1') return false;
+    if (loggedReviewRequestsDegrade) return false;
+    loggedReviewRequestsDegrade = true;
+    return true;
+  }
+  return true;
 }
 
 interface SupersedablePR extends ReviewablePR {
