@@ -202,6 +202,17 @@ export class MiddlewareOfflineError extends MiddlewareError {
   }
 }
 
+export class MiddlewareCircuitOpenError extends MiddlewareError {
+  constructor(
+    public baseUrl: string,
+    public retryAt: string,
+    public failureCount: number,
+  ) {
+    super(`middleware circuit open at ${baseUrl}; retry after ${retryAt} (${failureCount} offline failures)`);
+    this.name = 'MiddlewareCircuitOpenError';
+  }
+}
+
 export class MiddlewareValidationError extends MiddlewareError {
   constructor(message: string, public errors?: string[]) {
     super(message);
@@ -319,15 +330,69 @@ export interface CreateClientOptions {
   baseUrl?: string;
   transport?: Transport;
   requestTimeoutMs?: number;
+  circuitBreaker?: false | Partial<MiddlewareCircuitConfig>;
 }
+
+export interface MiddlewareCircuitConfig {
+  failureThreshold: number;
+  initialBackoffMs: number;
+  maxBackoffMs: number;
+}
+
+export interface MiddlewareCircuitState {
+  baseUrl: string;
+  state: 'closed' | 'open';
+  failureCount: number;
+  openedUntil?: string;
+  lastFailureAt?: string;
+}
+
+const DEFAULT_CIRCUIT: MiddlewareCircuitConfig = {
+  failureThreshold: 3,
+  initialBackoffMs: 5 * 60 * 1000,
+  maxBackoffMs: 60 * 60 * 1000,
+};
+
+const circuitStates = new Map<string, {
+  failureCount: number;
+  openedUntilMs: number;
+  lastFailureAtMs?: number;
+}>();
 
 export function createMiddlewareClient(opts: CreateClientOptions = {}): MiddlewareClient {
   const baseUrl = opts.baseUrl ?? process.env.MIDDLEWARE_URL ?? 'http://localhost:3200';
   const transport = opts.transport ?? new HttpTransport(baseUrl, opts.requestTimeoutMs);
+  const circuitConfig = opts.circuitBreaker === false
+    ? null
+    : { ...DEFAULT_CIRCUIT, ...(opts.circuitBreaker ?? {}) };
+
+  async function request<T>(
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    path: string,
+    body?: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    if (circuitConfig && isCircuitGatedPath(method, path)) {
+      assertCircuitAllows(baseUrl);
+    }
+
+    try {
+      const result = await transport.request<T>(method, path, body, signal);
+      if (circuitConfig && (path === '/health' || isCircuitGatedPath(method, path))) {
+        resetMiddlewareCircuitBreaker(baseUrl);
+      }
+      return result;
+    } catch (err) {
+      if (circuitConfig && err instanceof MiddlewareOfflineError) {
+        recordMiddlewareOfflineFailure(baseUrl, circuitConfig);
+      }
+      throw err;
+    }
+  }
 
   const client: MiddlewareClient = {
-    dispatch: (req) => transport.request('POST', '/dispatch', req),
-    plan: (req) => transport.request('POST', '/plan', req),
+    dispatch: (req) => request('POST', '/dispatch', req),
+    plan: (req) => request('POST', '/plan', req),
     accomplish: (req) => {
       // Map AccomplishRequest fields to middleware's body schema
       const body: Record<string, unknown> = { goal: req.goal };
@@ -337,20 +402,20 @@ export function createMiddlewareClient(opts: CreateClientOptions = {}): Middlewa
       if (req.callbackUrl) body.callback = req.callbackUrl;
       if (req.callbackFrom) body.callbackFrom = req.callbackFrom;
       if (req.wait) body.wait = req.wait;
-      return transport.request('POST', '/accomplish', body);
+      return request('POST', '/accomplish', body);
     },
-    status: (id) => transport.request('GET', `/status/${encodeURIComponent(id)}`),
-    planStatus: (id) => transport.request('GET', `/plan/${encodeURIComponent(id)}`),
-    health: () => transport.request('GET', '/health'),
+    status: (id) => request('GET', `/status/${encodeURIComponent(id)}`),
+    planStatus: (id) => request('GET', `/plan/${encodeURIComponent(id)}`),
+    health: () => request('GET', '/health'),
     cancel: (id) =>
-      transport.request<void>('DELETE', `/task/${encodeURIComponent(id)}`),
+      request<void>('DELETE', `/task/${encodeURIComponent(id)}`),
     cancelPlan: (id) =>
-      transport.request<void>('DELETE', `/plan/${encodeURIComponent(id)}`),
+      request<void>('DELETE', `/plan/${encodeURIComponent(id)}`),
 
-    createCommitment: (req) => transport.request('POST', '/commit', req),
-    getCommitment: (id) => transport.request('GET', `/commit/${encodeURIComponent(id)}`),
+    createCommitment: (req) => request('POST', '/commit', req),
+    getCommitment: (id) => request('GET', `/commit/${encodeURIComponent(id)}`),
     resolveCommitment: (id, resolution) =>
-      transport.request<void>('PATCH', `/commit/${encodeURIComponent(id)}`, {
+      request<void>('PATCH', `/commit/${encodeURIComponent(id)}`, {
         status: 'fulfilled',
         resolution,
       }),
@@ -360,7 +425,7 @@ export function createMiddlewareClient(opts: CreateClientOptions = {}): Middlewa
       if (query.owner) qs.set('owner', query.owner);
       if (query.channel) qs.set('channel', query.channel);
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
-      return transport.request('GET', `/commits${suffix}`);
+      return request('GET', `/commits${suffix}`);
     },
 
     async listWorkers() {
@@ -390,6 +455,56 @@ export function createMiddlewareClient(opts: CreateClientOptions = {}): Middlewa
   };
 
   return client;
+}
+
+export function getMiddlewareCircuitState(baseUrl = process.env.MIDDLEWARE_URL ?? 'http://localhost:3200'): MiddlewareCircuitState {
+  const state = circuitStates.get(baseUrl);
+  const openedUntilMs = state?.openedUntilMs ?? 0;
+  const open = openedUntilMs > Date.now();
+  return {
+    baseUrl,
+    state: open ? 'open' : 'closed',
+    failureCount: state?.failureCount ?? 0,
+    ...(open ? { openedUntil: new Date(openedUntilMs).toISOString() } : {}),
+    ...(state?.lastFailureAtMs ? { lastFailureAt: new Date(state.lastFailureAtMs).toISOString() } : {}),
+  };
+}
+
+export function resetMiddlewareCircuitBreaker(baseUrl?: string): void {
+  if (baseUrl) {
+    circuitStates.delete(baseUrl);
+    return;
+  }
+  circuitStates.clear();
+}
+
+function assertCircuitAllows(baseUrl: string): void {
+  const state = circuitStates.get(baseUrl);
+  if (!state || state.openedUntilMs <= Date.now()) return;
+  throw new MiddlewareCircuitOpenError(
+    baseUrl,
+    new Date(state.openedUntilMs).toISOString(),
+    state.failureCount,
+  );
+}
+
+function recordMiddlewareOfflineFailure(baseUrl: string, config: MiddlewareCircuitConfig): void {
+  const now = Date.now();
+  const state = circuitStates.get(baseUrl) ?? { failureCount: 0, openedUntilMs: 0 };
+  const failureCount = state.failureCount + 1;
+  const openedUntilMs = failureCount >= config.failureThreshold
+    ? now + backoffForFailure(failureCount, config)
+    : 0;
+  circuitStates.set(baseUrl, { failureCount, openedUntilMs, lastFailureAtMs: now });
+}
+
+function backoffForFailure(failureCount: number, config: MiddlewareCircuitConfig): number {
+  const exponent = Math.max(0, failureCount - config.failureThreshold);
+  return Math.min(config.maxBackoffMs, config.initialBackoffMs * (2 ** exponent));
+}
+
+function isCircuitGatedPath(method: string, path: string): boolean {
+  return method === 'POST' && ['/dispatch', '/plan', '/accomplish'].includes(path);
 }
 
 async function waitForTerminal(
