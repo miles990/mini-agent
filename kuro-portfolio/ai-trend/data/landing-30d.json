@@ -43,7 +43,7 @@
       }
     ],
     "total_posts": 470,
-    "generated_at": "2026-05-07T06:30:38.785Z"
+    "generated_at": "2026-05-07T06:46:02.663Z"
   },
   "top_topics": [
     {
@@ -62,19 +62,73 @@
           "title": "NousResearch/hermes-agent: The agent that grows with you",
           "url": "https://github.com/NousResearch/hermes-agent",
           "source": "github",
-          "points": 136256
-        },
-        {
-          "title": "langchain-ai/langchain: The agent engineering platform",
-          "url": "https://github.com/langchain-ai/langchain",
-          "source": "github",
-          "points": 135977
+          "points": 136256,
+          "zh_claim": "Hermes Agent 是具備自適應學習能力的 AI Agent 框架系統",
+          "zh_so_what": "Agent builder 獲得可開箱即用的自適應框架，無需反覆微調，支持長期部署中的動態學習與能力增長",
+          "published_at": "2025-07-22T22:22:28Z"
         },
         {
           "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
           "url": "https://x.com/claudeai/status/2052060691893227611",
           "source": "x",
-          "points": 106133
+          "points": 106133,
+          "zh_claim": "Anthropic 與 SpaceX 合作提升計算容量，擴大 Claude Code 與 Claude API 使用配額",
+          "zh_so_what": "Agent 開發者獲得更高吞吐、更低延遲的 Claude API；Anthropic 基建競爭力強化；服務穩定性提升",
+          "published_at": "2026-05-06T16:19:29Z"
+        },
+        {
+          "title": "DeepSeek v4",
+          "url": "https://api-docs.deepseek.com/",
+          "source": "hn",
+          "points": 1571,
+          "zh_claim": "DeepSeek v4 achieves competitive performance on reasoning and coding benchmarks",
+          "zh_so_what": "If v4 matches Claude/GPT-4 on benchmarks at lower cost/latency, agent builders gain cheaper reasoning backbone for task decomposition and tool chains",
+          "published_at": "2026-04-24T03:01:21Z"
+        },
+        {
+          "title": "[AINews] Silicon Valley gets Serious about Services",
+          "url": "https://www.latent.space/p/ainews-silicon-valley-gets-serious",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "Anthropic 和 OpenAI 都成立獨立服務公司，將 AI 商業化從 API 變現轉向定制企業系統",
+          "zh_so_what": "Agent 從 API 轉向企業工作流嵌入。Builder 需轉向 enterprise reliability、domain adaptation、governance 而非單純模型能力。",
+          "published_at": "2026-05-06T05:40:41.000Z"
+        },
+        {
+          "title": "Implicit Representations of Grammaticality in Language Models",
+          "url": "http://arxiv.org/abs/2605.05197v1",
+          "source": "arxiv",
+          "points": 59,
+          "zh_claim": "語言模型內部隱含學習到與字符串概率不同的語法性表示",
+          "zh_so_what": "為設計更精準的語法判斷探針和語言理解任務提供實證基礎，助力 agent 強化語言能力",
+          "published_at": "2026-05-06T17:57:31Z"
+        },
+        {
+          "title": "langchain-ai/langchain: The agent engineering platform",
+          "url": "https://github.com/langchain-ai/langchain",
+          "source": "github",
+          "points": 135977,
+          "zh_claim": "LangChain 是 agent 工程平台，現已支援 TypeScript",
+          "zh_so_what": "TypeScript 開發者可複用 LangChain 的 agent 工程模式、工具整合、提示詞工程，加速 agent 應用交付",
+          "published_at": "2022-10-17T02:58:36Z"
+        },
+        {
+          "title": "Effective today, we are: 1) Doubling Claude Code’s 5-hour rate limits for Pro, Max, and Team plans; 2) Removing the peak hours limit reduction on Claude Code for Pro and Max plans; and 3) Substantially raising our API rate limits for Opus models.",
+          "url": "https://x.com/claudeai/status/2052060693269008586",
+          "source": "x",
+          "points": 37043,
+          "zh_claim": "Anthropic 將 Claude Code 率限翻倍並移除高峰限制，提升 Opus API 配額",
+          "zh_so_what": "長時間編碼會話變可用；Opus agent API 成本邊際改善",
+          "published_at": "2026-05-06T16:19:29Z"
+        },
+        {
+          "title": "GPT-5.5",
+          "url": "https://openai.com/index/introducing-gpt-5-5/",
+          "source": "hn",
+          "points": 1487,
+          "zh_claim": "OpenAI發佈GPT-5.5，在推理、編碼和多模態任務上超越GPT-4o",
+          "zh_so_what": "Agent開發者需評估升級成本效益；推理能力提升可改善複雜任務規劃；編碼能力強化利於代碼生成Agent",
+          "published_at": "2026-04-23T18:01:39Z"
         }
       ]
     },
@@ -94,19 +148,73 @@
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170881
+          "points": 170881,
+          "zh_claim": "統一介面在本地執行 LLM，現已支援多款中文及開源模型（Kimi-K2.5、Qwen、GLM-5 等）",
+          "zh_so_what": "Agent 可切換本地/遠端模型降低成本與延遲；邊緣裝置可離線執行；建議邊角調試用本地，生產核心用遠端 API",
+          "published_at": "2023-06-26T19:39:32Z"
+        },
+        {
+          "title": "Microsoft and OpenAI end their exclusive and revenue-sharing deal",
+          "url": "https://www.bloomberg.com/news/articles/2026-04-27/microsoft-to-stop-sharing-revenue-with-main-ai-partner-openai",
+          "source": "hn",
+          "points": 666,
+          "zh_claim": "微軟與 OpenAI 結束排他性合作及營收分成協議，轉向自有 AI 模型。",
+          "zh_so_what": "開發者需重新評估生態系依賴，微軟可能優先支持自有模型而非 OpenAI 工具。",
+          "published_at": "2026-04-27T13:22:42.000Z"
+        },
+        {
+          "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
+          "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "DeepSeek V4 達 Gemini 級別，1.6T MOE，1M context，同時發布 Base/Instruct 版本",
+          "zh_so_what": "開源模型新選擇、MOE 推理成本優化、Base 版本微調友善、1M context 支持長文檔",
+          "published_at": "2026-04-25T05:00:48.000Z"
+        },
+        {
+          "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
+          "url": "https://x.com/0xwhrrari/status/2052083154706379229",
+          "source": "x",
+          "points": 57,
+          "zh_claim": "某人的 AI bot 在 Polymarket 評估中超越了 OpenAI 的 GPT 模型",
+          "zh_so_what": "若成立，暗示評估方法開放、模型性能邊界民主化；同時示範誇大聲稱在 AI 社群的傳播力及警示評估信度風險",
+          "published_at": "2026-05-06T17:48:44Z"
+        },
+        {
+          "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
+          "url": "http://arxiv.org/abs/2605.05192v1",
+          "source": "arxiv",
+          "points": 57,
+          "zh_claim": "Lp空間中Carbery推廣三角不等式對p>2失效，臨界指數下成立尖銳三函數界限",
+          "zh_so_what": "純數學理論深化；無明顯AI應用；可能對數值分析框架開發有微弱參考價值",
+          "published_at": "2026-05-06T17:54:51Z"
         },
         {
           "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
           "url": "https://github.com/open-webui/open-webui",
           "source": "github",
-          "points": 135822
+          "points": 135822,
+          "zh_claim": "支援多個 LLM 後端的開源通用聊天介面",
+          "zh_so_what": "Agent 開發者可基此快速切換模型測試，降低本地多模型部署複雜度，加速原型迭代",
+          "published_at": "2023-10-06T22:08:27Z"
         },
         {
-          "title": "unslothai/unsloth: Web UI for training and running open models like Gemma 4, Qwen3.6, DeepSeek, gpt-oss locally.",
-          "url": "https://github.com/unslothai/unsloth",
-          "source": "github",
-          "points": 63723
+          "title": "How OpenAI delivers low-latency voice AI at scale",
+          "url": "https://openai.com/index/delivering-low-latency-voice-ai-at-scale/",
+          "source": "hn",
+          "points": 409,
+          "zh_claim": "OpenAI 透過混合推理與量化技術，在保持低延遲同時實現大規模語音 AI 部署。",
+          "zh_so_what": "開發者可直接應用混合推理策略，在資源受限環境下實現高效語音處理。",
+          "published_at": "2026-05-04T19:42:47.000Z"
+        },
+        {
+          "title": "[AINews] Agents for Everything Else: Codex for Knowledge Work, Claude for Creative Work",
+          "url": "https://www.latent.space/p/ainews-agents-for-everything-else",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "Codex 從編程 Agent 轉向通用知識工作 Agent，能力邊界大幅擴展",
+          "zh_so_what": "Agent 開發者應認知能力邊界已突破編碼限制，動態 UI、規劃介面、跨企業工具整合成基礎要求，通用型工作 Agent 時代到來",
+          "published_at": "2026-05-01T04:53:41.000Z"
         }
       ]
     },
@@ -125,19 +233,73 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 174808
+          "points": 174808,
+          "zh_claim": "統一多個 AI 編程平台的 Agent 開發框架，兼含性能優化與記憶系統",
+          "zh_so_what": "開發者避免為不同平台重寫 agent 邏輯；統一記憶層解決 stateless 痛點；可驗證的性能優化標準（token/latency）",
+          "published_at": "2026-01-18T00:51:51Z"
+        },
+        {
+          "title": "Mistral Medium 3.5",
+          "url": "https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5",
+          "source": "hn",
+          "points": 423,
+          "zh_claim": "Mistral Medium 3.5 透過 Vibe Remote Agents 架構，將大模型嵌入到真實的 Linux 環境中執行代碼與工具調用。",
+          "zh_so_what": "對 Agent 開發者而言，這意味著可以大幅降低環境模擬成本，讓模型在真實系統中進行複雜的代碼生成與調試。",
+          "published_at": "2026-04-29T15:17:46.000Z"
+        },
+        {
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "AIE World's Fair 第三年擴大規模，新增六大議題軌道與垂直 AI 領域",
+          "zh_so_what": "Agent 構建者應重視記憶系統、世界模型、自動化研究；垂直 AI 工業化應用成為主流方向",
+          "published_at": "2026-05-02T07:21:55.000Z"
+        },
+        {
+          "title": "Rethinking Reasoning-Intensive Retrieval: Evaluating and Advancing Retrievers in Agentic Search Systems",
+          "url": "http://arxiv.org/abs/2605.04018v1",
+          "source": "arxiv",
+          "points": 55,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T17:42:50Z"
         },
         {
           "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
           "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
           "source": "github",
-          "points": 109085
+          "points": 109085,
+          "zh_claim": "100+ 可運行的 LLM/RAG 應用程式集合，著重實作與快速部署",
+          "zh_so_what": "Agent 開發者可克隆範例快速上手；學習 LLM app 典型架構、集成模式、部署流程的實踐案例",
+          "published_at": "2024-04-29T05:30:25Z"
+        },
+        {
+          "title": "Show HN: Tolaria – Open-source macOS app to manage Markdown knowledge bases",
+          "url": "https://github.com/refactoringhq/tolaria",
+          "source": "hn",
+          "points": 266,
+          "zh_claim": "Tolaria is an offline-first macOS app for managing large Markdown knowledge bases with AI-native structure.",
+          "zh_so_what": "Practitioners building AI agents can use structured, version-controlled knowledge graphs without cloud lock-in. Schema enforcement prevents messy note sprawl that degrades RAG retrieval quality.",
+          "published_at": "2026-04-23T22:01:59Z"
+        },
+        {
+          "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
+          "url": "http://arxiv.org/abs/2605.05189v1",
+          "source": "arxiv",
+          "points": 55,
+          "zh_claim": "線性關聯記憶的容量由檢索準則決定：Winner-take-all 需 d²log(n)，Listwise 只需 d²",
+          "zh_so_what": "記憶檢索系統設計啟示：放鬆 top-1 完美排序改用候選列表，可將容量從 O(d²log n) 降至 O(d²)，顯著提升知識圖譜檢索效率",
+          "published_at": "2026-05-06T17:53:20Z"
         },
         {
           "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
           "url": "https://github.com/infiniflow/ragflow",
           "source": "github",
-          "points": 79855
+          "points": 79855,
+          "zh_claim": "開源 RAG 引擎融合檢索與 Agent 能力為 LLM 提供統一上下文層",
+          "zh_so_what": "Agent builder 無須自行整合 RAG pipeline，直接使用優化過的統一框架加速知識驅動應用開發",
+          "published_at": "2023-12-12T06:13:13Z"
         }
       ]
     },
@@ -156,19 +318,73 @@
           "title": "huggingface/transformers: 🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
           "url": "https://github.com/huggingface/transformers",
           "source": "github",
-          "points": 160325
+          "points": 160325,
+          "zh_claim": "統一多模態 SOTA 模型的定義、訓練與推理框架",
+          "zh_so_what": "Agent 開發者可快速支持多模態、降低模型集成成本、直接微調預訓練模型",
+          "published_at": "2018-10-29T13:56:00Z"
         },
         {
           "title": "Atlassian enables default data collection to train AI",
           "url": "https://letsdatascience.com/news/atlassian-enables-default-data-collection-to-train-ai-f71343d8",
           "source": "hn",
-          "points": 567
+          "points": 567,
+          "zh_claim": "Atlassian enables default data collection to train AI",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-20T12:23:39Z"
+        },
+        {
+          "title": "Relaxation-Informed Training of Neural Network Surrogate Models",
+          "url": "http://arxiv.org/abs/2604.22746v1",
+          "source": "arxiv",
+          "points": 56,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-24T17:46:55Z"
+        },
+        {
+          "title": "🔬 Training Transformers to solve 95% failure rate of Cancer Trials — Ron Alfa & Daniel Bear, Noetik",
+          "url": "https://www.latent.space/p/noetik",
+          "source": "latent",
+          "points": 53,
+          "zh_claim": "95% 癌症療法失敗根源是患者-腫瘤-治療匹配不當，AI 可優化現有療法分配",
+          "zh_so_what": "AI 價值在現有資源最適化，非全新創造；agent builder 應設計決策匹配系統優化現有約束",
+          "published_at": "2026-04-20T16:17:17.000Z"
         },
         {
           "title": "Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library",
           "url": "https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/",
           "source": "hn",
-          "points": 319
+          "points": 319,
+          "zh_claim": "PyTorch Lightning AI 訓練庫發現惡意依賴，名為 Shai-Hulud，用於 AI 訓練。",
+          "zh_so_what": "開發者必須在引入 PyTorch Lightning AI 時，嚴格檢查依賴項，特別是針對非標準或未知來源的包。",
+          "published_at": "2026-04-30T16:09:26.000Z"
+        },
+        {
+          "title": "Trust, but Verify: Peeling Low-Bit Transformer Networks for Training Monitoring",
+          "url": "http://arxiv.org/abs/2605.02853v1",
+          "source": "arxiv",
+          "points": 54,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-04T17:30:50Z"
+        },
+        {
+          "title": "Train Your Own LLM from Scratch",
+          "url": "https://github.com/angelos-p/llm-from-scratch",
+          "source": "hn",
+          "points": 253,
+          "zh_claim": "從零開始訓練自己的 LLM，無需依賴外部數據集或預訓練模型。",
+          "zh_so_what": "對於希望完全控制模型權重和數據流的開發者來說，這是一個重要的工具。",
+          "published_at": "2026-05-05T04:09:17.000Z"
+        },
+        {
+          "title": "Enhanced 3D Brain Tumor Segmentation Using Assorted Precision Training",
+          "url": "http://arxiv.org/abs/2605.04008v1",
+          "source": "arxiv",
+          "points": 52,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T17:30:17Z"
         }
       ]
     },
@@ -187,19 +403,73 @@
           "title": "mudler/LocalAI: LocalAI is the open-source AI engine. Run any model - LLMs, vision, voice, image, video - on any hardware. No GPU required.",
           "url": "https://github.com/mudler/LocalAI",
           "source": "github",
-          "points": 46095
+          "points": 46095,
+          "zh_claim": "統一多模態推理引擎，無 GPU 相依實現本地 AI 部署",
+          "zh_so_what": "Agent 在邊際設備部署多模態感知不再受限於 GPU，可降低基礎設施成本且提升隱私性",
+          "published_at": "2023-03-18T22:58:02Z"
+        },
+        {
+          "title": "Accelerating Gemma 4: faster inference with multi-token prediction drafters",
+          "url": "https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/",
+          "source": "hn",
+          "points": 500,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T16:14:17.000Z"
+        },
+        {
+          "title": "[AINews] The Inference Inflection",
+          "url": "https://www.latent.space/p/ainews-the-inference-inflection",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "推理計算從被忽視升級為戰略優先級，推動 CPU 需求激增",
+          "zh_so_what": "Agent 開發者需重新評估商業模式，推理成本是長期運營成本而非邊際成本，影響定價策略",
+          "published_at": "2026-04-30T01:42:51.000Z"
+        },
+        {
+          "title": "DepthKV: Layer-Dependent KV Cache Pruning for Long-Context LLM Inference",
+          "url": "http://arxiv.org/abs/2604.24647v1",
+          "source": "arxiv",
+          "points": 31,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-27T16:15:37Z"
         },
         {
           "title": "simstudioai/sim: Build, deploy, and orchestrate AI agents. Sim is the central intelligence layer for your AI workforce.",
           "url": "https://github.com/simstudioai/sim",
           "source": "github",
-          "points": 27971
+          "points": 27971,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2025-01-05T22:47:49Z"
+        },
+        {
+          "title": "Kimi vendor verifier – verify accuracy of inference providers",
+          "url": "https://www.kimi.com/blog/kimi-vendor-verifier",
+          "source": "hn",
+          "points": 253,
+          "zh_claim": "Kimi vendor verifier – verify accuracy of inference providers",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-20T18:39:53Z"
         },
         {
           "title": "sgl-project/sglang: SGLang is a high-performance serving framework for large language models and multimodal models.",
           "url": "https://github.com/sgl-project/sglang",
           "source": "github",
-          "points": 26971
+          "points": 26971,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2024-01-08T04:15:52Z"
+        },
+        {
+          "title": "Agents can now create Cloudflare accounts, buy domains, and deploy",
+          "url": "https://blog.cloudflare.com/agents-stripe-projects/",
+          "source": "hn",
+          "points": 86,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-06T03:10:33.000Z"
         }
       ]
     },
@@ -216,19 +486,73 @@
           "title": "firecrawl/firecrawl: 🔥 The API to search, scrape, and interact with the web for AI",
           "url": "https://github.com/firecrawl/firecrawl",
           "source": "github",
-          "points": 116128
+          "points": 116128,
+          "zh_claim": "提供 Web 爬蟲和互動 API，專為 AI agent 取得網頁數據最佳化",
+          "zh_so_what": "Agent 可直接調用統一 API 獲取網頁數據，無需自建爬蟲基礎設施；大幅降低 web-aware agent 的開發複雜度",
+          "published_at": "2024-04-15T21:02:29Z"
+        },
+        {
+          "title": "OpenSeeker-v2: Pushing the Limits of Search Agents with Informative and High-Difficulty Trajectories",
+          "url": "http://arxiv.org/abs/2605.04036v1",
+          "source": "arxiv",
+          "points": 58,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T17:55:25Z"
         },
         {
           "title": "milvus-io/milvus: Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search",
           "url": "https://github.com/milvus-io/milvus",
           "source": "github",
-          "points": 44152
+          "points": 44152,
+          "zh_claim": "開源雲原生向量資料庫，支援大規模可擴展的向量 ANN 搜尋",
+          "zh_so_what": "多 agent 系統可基於自主向量 DB 實現跨循環 embedding memory 和 RAG retrieval，無廠商鎖定",
+          "published_at": "2019-09-16T06:43:43Z"
+        },
+        {
+          "title": "Thinking Without Words: Efficient Latent Reasoning with Abstract Chain-of-Thought",
+          "url": "http://arxiv.org/abs/2604.22709v1",
+          "source": "arxiv",
+          "points": 51,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-24T16:45:51Z"
         },
         {
           "title": "pingcap/tidb: TiDB is built for agentic workloads that grow unpredictably, with ACID guarantees and native support for transactions, analytics, and vector search. No data silos. No noisy neighbors. No infrastructure ceiling.",
           "url": "https://github.com/pingcap/tidb",
           "source": "github",
-          "points": 40059
+          "points": 40059,
+          "zh_claim": "TiDB 為 agent 工作負載量身優化，原生支援 ACID、向量搜尋與分析查詢",
+          "zh_so_what": "Agent builders 統一 ACID + embedding 工作負載，消除資料孤島，簡化基礎設施複雜度",
+          "published_at": "2015-09-06T04:01:52Z"
+        },
+        {
+          "title": "Benchmarking Source-Sensitive Reasoning in Turkish: Humans and LLMs under Evidential Trust Manipulation",
+          "url": "http://arxiv.org/abs/2604.24665v1",
+          "source": "arxiv",
+          "points": 36,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-27T16:26:20Z"
+        },
+        {
+          "title": "U-Define: Designing User Workflows for Hard and Soft Constraints in LLM-Based Planning",
+          "url": "http://arxiv.org/abs/2605.02765v1",
+          "source": "arxiv",
+          "points": 34,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-04T16:05:40Z"
+        },
+        {
+          "title": "Magic-Informed Quantum Architecture Search",
+          "url": "http://arxiv.org/abs/2605.03932v1",
+          "source": "arxiv",
+          "points": 34,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T16:20:46Z"
         }
       ]
     },
@@ -246,19 +570,64 @@
           "title": "Kimi K2.6 is now #1 on OpenRouter's weekly LLM Leaderboard 🏆 A huge thank you to every developer building with Kimi. We'll keep our heads down and keep shipping.",
           "url": "https://x.com/Kimi_Moonshot/status/2048693682329776223",
           "source": "x",
-          "points": 1803
+          "points": 1803,
+          "zh_claim": "Kimi K2.6 has achieved the number one ranking on OpenRouter's weekly LLM Leaderboard.",
+          "zh_so_what": "AI builders gain access to a top-performing open-source model that can enhance applications without relying on proprietary APIs.",
+          "published_at": "2026-04-27T09:20:11Z"
         },
         {
           "title": "SpecRLBench: A Benchmark for Generalization in Specification-Guided Reinforcement Learning",
           "url": "http://arxiv.org/abs/2604.24729v1",
           "source": "arxiv",
-          "points": 56
+          "points": 56,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-27T17:40:18Z"
+        },
+        {
+          "title": "Show HN: A new benchmark for testing LLMs for deterministic outputs",
+          "url": "https://interfaze.ai/blog/introducing-structured-output-benchmark",
+          "source": "hn",
+          "points": 48,
+          "zh_claim": "現行結構化輸出基準僅驗證 JSON 格式與類型，未檢測實際內容的準確性。",
+          "zh_so_what": "開發者需重新設計工作流測試策略，避免僅因 JSON 格式正確就認為 LLM 輸出可靠，需額外驗證內容邏輯與事實一致性。",
+          "published_at": "2026-04-29T16:01:51.000Z"
         },
         {
           "title": "Case-Specific Rubrics for Clinical AI Evaluation: Methodology, Validation, and LLM-Clinician Agreement Across 823 Encounters",
           "url": "http://arxiv.org/abs/2604.24710v1",
           "source": "arxiv",
-          "points": 52
+          "points": 52,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-27T17:17:56Z"
+        },
+        {
+          "title": "Energy-Arena: A Dynamic Benchmark for Operational Energy Forecasting",
+          "url": "http://arxiv.org/abs/2604.24705v1",
+          "source": "arxiv",
+          "points": 49,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-27T17:14:01Z"
+        },
+        {
+          "title": "Rethinking XAI Evaluation: A Human-Centered Audit of Shapley Benchmarks in High-Stakes Settings",
+          "url": "http://arxiv.org/abs/2604.22662v1",
+          "source": "arxiv",
+          "points": 43,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-24T15:38:44Z"
+        },
+        {
+          "title": "A Benchmark for Interactive World Models with a Unified Action Generation Framework",
+          "url": "http://arxiv.org/abs/2605.03941v1",
+          "source": "arxiv",
+          "points": 37,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T16:30:03Z"
         }
       ]
     },
@@ -274,19 +643,37 @@
           "title": "Why AI companies want you to be afraid of them",
           "url": "https://www.bbc.com/future/article/20260428-ai-companies-want-you-to-be-afraid-of-them",
           "source": "hn",
-          "points": 263
+          "points": 263,
+          "zh_claim": "AI 公司故意製造焦慮，透過誇大風險與隱形控制來強化用戶依賴並防止反制。",
+          "zh_so_what": "開發者需警惕 AI 系統背後的人為設計意圖，避免盲目信任模型輸出，應建立透明監控與反制機制。",
+          "published_at": "2026-04-29T15:26:01.000Z"
         },
         {
           "title": "Scoring Show HN submissions for AI design patterns",
           "url": "https://www.adriankrebs.ch/blog/design-slop/",
           "source": "hn",
-          "points": 224
+          "points": 224,
+          "zh_claim": "Scoring Show HN submissions for AI design patterns",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-22T14:44:32Z"
         },
         {
           "title": "Show HN: Airbyte Agents – context for agents across multiple data sources",
           "url": "https://news.ycombinator.com/item?id=48023496",
           "source": "hn",
-          "points": 106
+          "points": 106,
+          "zh_claim": "pending-llm-pass",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-05-05T15:03:18.000Z"
+        },
+        {
+          "title": "Show HN: Mediator.ai – Using Nash bargaining and LLMs to systematize fairness",
+          "url": "https://mediator.ai/",
+          "source": "hn",
+          "points": 58,
+          "zh_claim": "Show HN: Mediator.ai – Using Nash bargaining and LLMs to systematize fairness",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-20T15:07:04Z"
         }
       ]
     },
@@ -303,13 +690,19 @@
           "title": "Kernel code removals driven by LLM-created security reports",
           "url": "https://lwn.net/Articles/1068928/",
           "source": "hn",
-          "points": 90
+          "points": 90,
+          "zh_claim": "Kernel code removals driven by LLM-created security reports",
+          "zh_so_what": "pending-llm-pass",
+          "published_at": "2026-04-22T11:48:07Z"
         },
         {
           "title": "On the Hardness of Junking LLMs",
           "url": "http://arxiv.org/abs/2605.05116v1",
           "source": "arxiv",
-          "points": 33
+          "points": 33,
+          "zh_claim": "語言模型中存在自然後門（純 token 序列無需提示即可觸發有害輸出），其發現難度有待量化評估",
+          "zh_so_what": "評估自然後門的可發現性對 LLM 安全部署至關重要；高效發現後門表示防禦策略需重新設計",
+          "published_at": "2026-05-06T16:47:07Z"
         }
       ]
     }
