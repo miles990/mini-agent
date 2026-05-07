@@ -25,6 +25,8 @@ h1{font-size:1.7rem;margin:0 0 .35rem;letter-spacing:-.02em;font-weight:600}
 .banner .threads{display:grid;gap:.7rem;margin-top:.75rem}
 .banner .th{padding:.6rem .85rem;background:rgba(255,255,255,.02);border-left:2px solid var(--acc2);border-radius:3px}
 .banner .th .ti{color:var(--acc2);font-weight:500;font-size:.9rem;margin-bottom:.22rem}
+.banner .th .ti a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(127,212,184,.3)}
+.banner .th .ti a:hover{color:var(--fg);border-color:var(--fg)}
 .banner .th .de{color:var(--mute);font-size:.84rem;line-height:1.55}
 .outlook{margin-top:.85rem;padding:.7rem .9rem;background:rgba(255,184,107,.05);border-left:2px solid var(--warn);border-radius:3px;color:#d9d9d9;font-size:.85rem}
 .outlook strong{color:var(--warn);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.3rem}
@@ -60,7 +62,11 @@ ul.feed li .ext a:hover{color:var(--fg);border-color:var(--fg)}
 .trend-bars .bn{color:var(--fg)}
 .trend-bars .bb{height:5px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
 .trend-bars .bb i{position:absolute;left:0;top:0;height:100%;background:var(--acc);border-radius:3px}
-.trend-bars .bv{color:var(--mute);font-size:.78rem;font-variant-numeric:tabular-nums}
+.trend-bars .bv{color:var(--mute);font-size:.78rem;font-variant-numeric:tabular-nums;display:inline-flex;gap:.45rem;align-items:baseline}
+.trend-bars .bd{font-size:.72rem;font-variant-numeric:tabular-nums;letter-spacing:.02em;min-width:3.5em;text-align:right}
+.trend-bars .bd.up{color:var(--acc2)}
+.trend-bars .bd.down{color:var(--rose)}
+.trend-bars .bd.flat{color:var(--dim)}
 .archive{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
 .archive a{padding:.25rem .6rem;font-size:.75rem;background:var(--row);border:1px solid var(--line);border-radius:3px;text-decoration:none;color:var(--mute);font-variant-numeric:tabular-nums}
 .archive a:hover{border-color:var(--acc);color:var(--fg)}
@@ -88,7 +94,7 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
     <span class="src-stamp"><b>X</b><span class="">2026-05-07 12:18</span></span>
     <span class="src-stamp"><b>arXiv</b><span class="">2026-05-07 13:00</span></span>
     <span class="src-stamp"><b>GitHub</b><span class="">2026-05-07 15:00</span></span>
-    <span class="src-stamp"><b>頁面 build</b><span>2026-05-07 15:31</span></span>
+    <span class="src-stamp"><b>頁面 build</b><span>2026-05-07 15:52</span></span>
   </div>
 </header>
 
@@ -100,15 +106,15 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
   <div class="threads">
     
       <div class="th">
-        <div class="ti">Anthropic / OpenAI 都在組 services JV</div>
+        <div class="ti"><a href="https://www.latent.space/" target="_blank" rel="noopener">Anthropic / OpenAI 都在組 services JV ↗</a></div>
         <div class="de">Latent Space 這週兩篇：Anthropic 跟 Blackstone+Goldman 合資 1.5B、OpenAI 啟動 The Deployment Company 募 4B。模型公司同時做應用層 → labs 不再只賣 token，要直接吃 enterprise services 的錢。</div>
       </div>
       <div class="th">
-        <div class="ti">Vibe coding 撞牆</div>
+        <div class="ti"><a href="https://simonwillison.net/" target="_blank" rel="noopener">Vibe coding 撞牆 ↗</a></div>
         <div class="de">Simon Willison 文章衝上 444 點：agentic engineering 變得「比預期更接近 vibe coding」。意思是邊界正在模糊 — 寫程式不再有清楚的「我在 review」vs「我讓 agent 跑」。這對 dev workflow 是壓力測試。</div>
       </div>
       <div class="th">
-        <div class="ti">Chrome 偷裝 4GB Gemini Nano 引爆隱私戰</div>
+        <div class="ti"><a href="https://github.com/explainers-by-googlers/prompt-api/issues/1213" target="_blank" rel="noopener">Chrome 偷裝 4GB Gemini Nano 引爆隱私戰 ↗</a></div>
         <div class="de">昨天 1327pt 那篇還在發酵（今日仍在 trending）。瀏覽器內建 LLM 的 silent install 模式踩到使用者紅線，Mozilla / 反 ad-tech 陣營會把這當成下一輪火藥。</div>
       </div>
   </div>
@@ -2498,17 +2504,17 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
   <div class="trend-bars">
     <span class="bn">其他</span>
        <span class="bb"><i style="width:100%"></i></span>
-       <span class="bv">54</span><span class="bn">代理</span>
+       <span class="bv"><span class="bd flat">=-11%</span> 54</span><span class="bn">代理</span>
        <span class="bb"><i style="width:20%"></i></span>
-       <span class="bv">11</span><span class="bn">模型</span>
+       <span class="bv"><span class="bd down">▼-15%</span> 11</span><span class="bn">模型</span>
        <span class="bb"><i style="width:17%"></i></span>
-       <span class="bv">9</span><span class="bn">基礎設施</span>
+       <span class="bv"><span class="bd down">▼-61%</span> 9</span><span class="bn">基礎設施</span>
        <span class="bb"><i style="width:4%"></i></span>
-       <span class="bv">2</span><span class="bn">訓練</span>
+       <span class="bv"><span class="bd up">▲+100%</span> 2</span><span class="bn">訓練</span>
        <span class="bb"><i style="width:2%"></i></span>
-       <span class="bv">1</span><span class="bn">評測</span>
+       <span class="bv"><span class="bd up">▲+100%</span> 1</span><span class="bn">評測</span>
        <span class="bb"><i style="width:2%"></i></span>
-       <span class="bv">1</span>
+       <span class="bv"><span class="bd flat">=0%</span> 1</span>
   </div>
 </section>
 
@@ -2523,7 +2529,7 @@ footer a{color:var(--acc);text-decoration:none;border-bottom:1px solid #334}
 </section>
 
 <footer>
-  <div>Kuro 自動生成 · <a href="https://github.com/miles990/mini-agent">原始碼</a> · 建置 2026-05-07 15:31 (Asia/Taipei)</div>
+  <div>Kuro 自動生成 · <a href="https://github.com/miles990/mini-agent">原始碼</a> · 建置 2026-05-07 15:52 (Asia/Taipei)</div>
   <div class="nav-row">
     <a href="./graph.html">主題圖譜</a>
     <a href="./swimlane.html">主題泳道</a>

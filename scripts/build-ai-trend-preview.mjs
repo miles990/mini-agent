@@ -112,20 +112,23 @@ function uniqByUrl(posts) {
 }
 
 async function loadTopicTrend(fromDate) {
+  // Load 14 days; first 7 = current window, days 7-13 = prior baseline for ▲▼
   const d = new Date(fromDate + 'T00:00:00Z');
   const counts = {};
-  for (let i = 0; i < 7; i++) {
+  const prevCounts = {};
+  for (let i = 0; i < 14; i++) {
     const dd = new Date(d.getTime() - i * 86400_000);
     const key = dd.toISOString().slice(0, 10);
     try {
       const raw = JSON.parse(await readFile(join(STATE_DIR, 'hn-ai-trend', `${key}.json`), 'utf8'));
+      const target = i < 7 ? counts : prevCounts;
       for (const p of (raw.posts || [])) {
         const t = tagOf(p);
-        counts[t] = (counts[t] || 0) + 1;
+        target[t] = (target[t] || 0) + 1;
       }
     } catch {}
   }
-  return counts;
+  return { counts, prevCounts };
 }
 
 async function listArchiveDates() {
@@ -142,15 +145,18 @@ const KURO_TAKE = {
   threads: [
     {
       title: 'Anthropic / OpenAI 都在組 services JV',
-      detail: 'Latent Space 這週兩篇：Anthropic 跟 Blackstone+Goldman 合資 1.5B、OpenAI 啟動 The Deployment Company 募 4B。模型公司同時做應用層 → labs 不再只賣 token，要直接吃 enterprise services 的錢。'
+      detail: 'Latent Space 這週兩篇：Anthropic 跟 Blackstone+Goldman 合資 1.5B、OpenAI 啟動 The Deployment Company 募 4B。模型公司同時做應用層 → labs 不再只賣 token，要直接吃 enterprise services 的錢。',
+      link: 'https://www.latent.space/'
     },
     {
       title: 'Vibe coding 撞牆',
-      detail: 'Simon Willison 文章衝上 444 點：agentic engineering 變得「比預期更接近 vibe coding」。意思是邊界正在模糊 — 寫程式不再有清楚的「我在 review」vs「我讓 agent 跑」。這對 dev workflow 是壓力測試。'
+      detail: 'Simon Willison 文章衝上 444 點：agentic engineering 變得「比預期更接近 vibe coding」。意思是邊界正在模糊 — 寫程式不再有清楚的「我在 review」vs「我讓 agent 跑」。這對 dev workflow 是壓力測試。',
+      link: 'https://simonwillison.net/'
     },
     {
       title: 'Chrome 偷裝 4GB Gemini Nano 引爆隱私戰',
-      detail: '昨天 1327pt 那篇還在發酵（今日仍在 trending）。瀏覽器內建 LLM 的 silent install 模式踩到使用者紅線，Mozilla / 反 ad-tech 陣營會把這當成下一輪火藥。'
+      detail: '昨天 1327pt 那篇還在發酵（今日仍在 trending）。瀏覽器內建 LLM 的 silent install 模式踩到使用者紅線，Mozilla / 反 ad-tech 陣營會把這當成下一輪火藥。',
+      link: 'https://github.com/explainers-by-googlers/prompt-api/issues/1213'
     },
   ],
   outlook: '下半年看：(1) services lab 模式會不會擠壓 SI 廠商；(2) coding agent 的「責任歸屬」框架（誰按下 deploy？）；(3) on-device LLM 的 consent UX 標準會被立法層接管。'
@@ -176,6 +182,8 @@ h1{font-size:1.7rem;margin:0 0 .35rem;letter-spacing:-.02em;font-weight:600}
 .banner .threads{display:grid;gap:.7rem;margin-top:.75rem}
 .banner .th{padding:.6rem .85rem;background:rgba(255,255,255,.02);border-left:2px solid var(--acc2);border-radius:3px}
 .banner .th .ti{color:var(--acc2);font-weight:500;font-size:.9rem;margin-bottom:.22rem}
+.banner .th .ti a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(127,212,184,.3)}
+.banner .th .ti a:hover{color:var(--fg);border-color:var(--fg)}
 .banner .th .de{color:var(--mute);font-size:.84rem;line-height:1.55}
 .outlook{margin-top:.85rem;padding:.7rem .9rem;background:rgba(255,184,107,.05);border-left:2px solid var(--warn);border-radius:3px;color:#d9d9d9;font-size:.85rem}
 .outlook strong{color:var(--warn);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem;display:block;margin-bottom:.3rem}
@@ -211,7 +219,11 @@ ul.feed li .ext a:hover{color:var(--fg);border-color:var(--fg)}
 .trend-bars .bn{color:var(--fg)}
 .trend-bars .bb{height:5px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
 .trend-bars .bb i{position:absolute;left:0;top:0;height:100%;background:var(--acc);border-radius:3px}
-.trend-bars .bv{color:var(--mute);font-size:.78rem;font-variant-numeric:tabular-nums}
+.trend-bars .bv{color:var(--mute);font-size:.78rem;font-variant-numeric:tabular-nums;display:inline-flex;gap:.45rem;align-items:baseline}
+.trend-bars .bd{font-size:.72rem;font-variant-numeric:tabular-nums;letter-spacing:.02em;min-width:3.5em;text-align:right}
+.trend-bars .bd.up{color:var(--acc2)}
+.trend-bars .bd.down{color:var(--rose)}
+.trend-bars .bd.flat{color:var(--dim)}
 .archive{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
 .archive a{padding:.25rem .6rem;font-size:.75rem;background:var(--row);border:1px solid var(--line);border-radius:3px;text-decoration:none;color:var(--mute);font-variant-numeric:tabular-nums}
 .archive a:hover{border-color:var(--acc);color:var(--fg)}
@@ -284,15 +296,26 @@ function renderItem(p, rank) {
   </li>`;
 }
 
-function renderTrendBars(counts) {
+function renderTrendBars(trend) {
+  const counts = (trend && trend.counts) || trend || {};
+  const prev = (trend && trend.prevCounts) || {};
   const max = Math.max(1, ...Object.values(counts));
   const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
   return `<div class="trend-bars">
-    ${sorted.map(([n,v]) =>
-      `<span class="bn">${htmlEsc(n)}</span>
+    ${sorted.map(([n,v]) => {
+      const pv = prev[n] || 0;
+      const delta = v - pv;
+      const pct = pv > 0 ? Math.round((delta / pv) * 100) : (v > 0 ? 100 : 0);
+      let arrow = '=', cls = 'flat';
+      if (Math.abs(pct) >= 15) {
+        if (delta > 0) { arrow = '▲'; cls = 'up'; }
+        else if (delta < 0) { arrow = '▼'; cls = 'down'; }
+      }
+      const sign = pct > 0 ? '+' : '';
+      return `<span class="bn">${htmlEsc(n)}</span>
        <span class="bb"><i style="width:${(v/max*100).toFixed(0)}%"></i></span>
-       <span class="bv">${v}</span>`
-    ).join('')}
+       <span class="bv"><span class="bd ${cls}">${arrow}${sign}${pct}%</span> ${v}</span>`;
+    }).join('')}
   </div>`;
 }
 
@@ -372,7 +395,7 @@ async function main() {
   <div class="threads">
     ${KURO_TAKE.threads.map(t => `
       <div class="th">
-        <div class="ti">${htmlEsc(t.title)}</div>
+        <div class="ti">${t.link ? `<a href="${htmlEsc(t.link)}" target="_blank" rel="noopener">${htmlEsc(t.title)} ↗</a>` : htmlEsc(t.title)}</div>
         <div class="de">${htmlEsc(t.detail)}</div>
       </div>`).join('')}
   </div>
