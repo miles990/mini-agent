@@ -6,6 +6,7 @@ import {
   appendStaleDraftPrHandoffs,
   evaluatePrClosureGaps,
   extractClosingIssueRefs,
+  findApprovedBlockedPrs,
   findUntrackedPrs,
   parseTrackedPrNumbers,
   shouldAutoCloseSupersededPr,
@@ -79,6 +80,17 @@ describe('PR autopilot closure', () => {
     expect(gaps.snapshotMissing).toBe(false);
     expect(gaps.snapshotStale).toBe(false);
     expect(gaps.readyUntracked.map(item => item.number)).toEqual([11]);
+  });
+
+  it('treats approved but conflicting PRs as unclosed lifecycle work', () => {
+    const blocked = findApprovedBlockedPrs([
+      pr({ number: 21, title: 'fix: approved clean', reviewDecision: 'APPROVED', mergeStateStatus: 'CLEAN', mergeable: 'MERGEABLE' }),
+      pr({ number: 22, title: 'fix: approved dirty', reviewDecision: 'APPROVED', mergeStateStatus: 'DIRTY', mergeable: 'CONFLICTING' }),
+      pr({ number: 23, title: 'fix: draft dirty', isDraft: true, reviewDecision: 'APPROVED', mergeStateStatus: 'DIRTY', mergeable: 'CONFLICTING' }),
+      pr({ number: 24, title: 'fix: held dirty', labels: ['hold'], reviewDecision: 'APPROVED', mergeStateStatus: 'DIRTY', mergeable: 'CONFLICTING' }),
+    ]);
+
+    expect(blocked.map(item => item.number)).toEqual([22]);
   });
 
   it('extracts only closing issue refs for superseded PR closure', () => {
