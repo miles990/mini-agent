@@ -24,6 +24,7 @@ export interface PrClosureGaps {
   snapshotGeneratedAt?: string;
   readyUntracked: OpenPrSnapshotEntry[];
   staleDrafts: OpenPrSnapshotEntry[];
+  approvedBlocked: OpenPrSnapshotEntry[];
 }
 
 export interface IssueStateSummary {
@@ -74,6 +75,7 @@ export function evaluatePrClosureGaps(
       snapshotStale: false,
       readyUntracked: [],
       staleDrafts: [],
+      approvedBlocked: [],
     };
   }
 
@@ -88,6 +90,7 @@ export function evaluatePrClosureGaps(
     snapshotStale,
     snapshotGeneratedAt: snapshot.generatedAt,
     ...gaps,
+    approvedBlocked: findApprovedBlockedPrs(snapshot.prs),
   };
 }
 
@@ -119,6 +122,16 @@ export function findUntrackedPrs(
   }
 
   return { readyUntracked, staleDrafts };
+}
+
+export function findApprovedBlockedPrs(prs: OpenPrSnapshotEntry[]): OpenPrSnapshotEntry[] {
+  return prs.filter(pr => {
+    if (pr.isDraft) return false;
+    if (pr.reviewDecision !== 'APPROVED') return false;
+    const labels = new Set((pr.labels ?? []).map(label => label.toLowerCase()));
+    if (labels.has('hold')) return false;
+    return isBlockedMergeState(pr.mergeStateStatus) || isBlockedMergeable(pr.mergeable);
+  });
 }
 
 export function appendStaleDraftPrHandoffs(
@@ -199,7 +212,17 @@ function normalizePrSnapshotEntry(pr: OpenPrSnapshotEntry): OpenPrSnapshotEntry 
     createdAt: pr.createdAt ?? null,
     updatedAt: pr.updatedAt ?? null,
     headRefName: pr.headRefName ?? null,
+    mergeStateStatus: pr.mergeStateStatus ?? null,
+    mergeable: pr.mergeable ?? null,
   };
+}
+
+function isBlockedMergeState(value: string | null | undefined): boolean {
+  return ['DIRTY', 'BLOCKED', 'UNKNOWN'].includes(String(value ?? '').toUpperCase());
+}
+
+function isBlockedMergeable(value: string | null | undefined): boolean {
+  return ['CONFLICTING', 'UNKNOWN'].includes(String(value ?? '').toUpperCase());
 }
 
 function ageHours(iso: string | null | undefined, now: Date): number {

@@ -399,19 +399,21 @@ function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
     || openPrGaps.snapshotStale
     || openPrGaps.readyUntracked.length > 0
     || openPrGaps.staleDrafts.length > 0
+    || openPrGaps.approvedBlocked.length > 0
   ) {
     const evidence: string[] = [];
     if (openPrGaps.snapshotMissing) evidence.push('open PR snapshot missing');
     if (openPrGaps.snapshotStale) evidence.push(`open PR snapshot stale: generatedAt=${openPrGaps.snapshotGeneratedAt ?? 'unknown'}`);
     evidence.push(...openPrGaps.readyUntracked.slice(0, 5).map(pr => `PR #${pr.number}: ready but not tracked for review (${pr.title})`));
     evidence.push(...openPrGaps.staleDrafts.slice(0, 5).map(pr => `PR #${pr.number}: stale draft needs triage (${pr.title})`));
+    evidence.push(...openPrGaps.approvedBlocked.slice(0, 5).map(pr => `PR #${pr.number}: approved but not mergeable (${pr.mergeStateStatus ?? pr.mergeable ?? 'unknown'}: ${pr.title})`));
 
     return {
       stage: 'pr-review-consensus',
-      status: 'warn',
+      status: openPrGaps.approvedBlocked.length > 0 ? 'blocked' : 'warn',
       summary: 'open PR lifecycle has unclosed tracking gaps',
       evidence,
-      repair: 'Run GitHub automation to refresh open-prs.json, queue PR review handoffs, and triage stale drafts.',
+      repair: 'Run GitHub automation to refresh open-prs.json, queue PR review handoffs, update approved conflicts, and triage stale drafts.',
     };
   }
   if (handoffs.length === 0) {

@@ -311,6 +311,8 @@ interface ReviewablePR {
   createdAt?: string;
   updatedAt?: string;
   headRefName?: string;
+  mergeStateStatus?: string;
+  mergeable?: string;
 }
 
 export async function autoTrackPrReviewNeeds(): Promise<void> {
@@ -419,11 +421,13 @@ function toOpenPrSummary(pr: ReviewablePR): OpenPrSnapshotEntry {
     createdAt: pr.createdAt,
     updatedAt: pr.updatedAt,
     headRefName: pr.headRefName,
+    mergeStateStatus: pr.mergeStateStatus,
+    mergeable: pr.mergeable,
   };
 }
 
 async function listOpenPrsForLifecycle(): Promise<ReviewablePR[]> {
-  const baseFields = 'number,title,body,isDraft,reviewDecision,labels,url,createdAt,updatedAt,headRefName';
+  const baseFields = 'number,title,body,isDraft,reviewDecision,labels,url,createdAt,updatedAt,headRefName,mergeStateStatus,mergeable';
   try {
     const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', `${baseFields},reviewRequests`, '--limit', '50']);
     return JSON.parse(stdout);

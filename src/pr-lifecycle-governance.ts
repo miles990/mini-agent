@@ -16,6 +16,8 @@ export interface OpenPullRequestSummary extends PullRequestSummary {
   authorLogin?: string | null;
   labels?: string[];
   isDraft?: boolean;
+  mergeStateStatus?: string | null;
+  mergeable?: string | null;
 }
 
 export type PrReviewer = 'codex' | 'claude-code' | 'akari' | 'alex';
