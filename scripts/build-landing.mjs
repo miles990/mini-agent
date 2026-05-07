@@ -201,8 +201,8 @@ function buildTopTopics(posts) {
         sources: [...e.sources],
         sample_titles: picks.slice(0, 8).map(p => ({
           title: p.title, url: p.url, source: p.source, points: p.points,
-          zh_claim: p.summary?.claim || null,
-          zh_so_what: p.summary?.so_what || null,
+          zh_claim: (p.summary?.claim && p.summary.claim !== 'pending-llm-pass') ? p.summary.claim : null,
+          zh_so_what: (p.summary?.so_what && p.summary.so_what !== 'pending-llm-pass') ? p.summary.so_what : null,
           published_at: p.published_at || null,
         })),
       };
