@@ -265,6 +265,27 @@ describe('schedulerPick — suppressed tasks excluded from dispatch', () => {
     expect(decision.taskId).not.toBe(task.id);
   });
 
+  it('does not force a stale correction task when the correction gate is clean', async () => {
+    const correction = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: { origin: 'scheduler', priority: 0, correction_reason_type: 'low-responsiveness' },
+    });
+    const normal = await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P1 normal work',
+      payload: { priority: 1 },
+    });
+    invalidateIndexCache();
+
+    const decision = schedulerPick(tmpDir, []);
+
+    expect(decision.taskId).toBe(normal.id);
+    expect(decision.taskId).not.toBe(correction.id);
+  });
+
   it('resets suppression on a human-directed scheduler event', async () => {
     const task = await appendMemoryIndexEntry(tmpDir, {
       type: 'task',
