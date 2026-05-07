@@ -43,7 +43,7 @@
       }
     ],
     "total_posts": 129,
-    "generated_at": "2026-05-07T06:30:38.749Z"
+    "generated_at": "2026-05-07T06:46:02.627Z"
   },
   "top_topics": [
     {
@@ -62,19 +62,73 @@
           "title": "n8n-io/n8n: Fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.",
           "url": "https://github.com/n8n-io/n8n",
           "source": "github",
-          "points": 186909
+          "points": 186909,
+          "zh_claim": "n8n 是具原生 AI 能力的公平程式碼流程自動化平台，支援視覺編輯、自訂程式碼與 400+ 整合",
+          "zh_so_what": "Agent 開發者可用 n8n 快速組裝多來源工作流 + AI 判斷，無需自寫整合代碼；降低代理應用佈署成本",
+          "published_at": "2019-06-22T09:24:21Z"
+        },
+        {
+          "title": "We’ve agreed to a partnership with @SpaceX that will substantially increase our compute capacity. This, along with our other recent compute deals, means that we’ve been able to increase our usage limits for Claude Code and the Claude API.",
+          "url": "https://x.com/claudeai/status/2052060691893227611",
+          "source": "x",
+          "points": 106133,
+          "zh_claim": "Anthropic 與 SpaceX 合作提升計算容量，擴大 Claude Code 與 Claude API 使用配額",
+          "zh_so_what": "Agent 開發者獲得更高吞吐、更低延遲的 Claude API；Anthropic 基建競爭力強化；服務穩定性提升",
+          "published_at": "2026-05-06T16:19:29Z"
+        },
+        {
+          "title": "Vibe coding and agentic engineering are getting closer than I'd like",
+          "url": "https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering/",
+          "source": "hn",
+          "points": 444,
+          "zh_claim": "AI agent 工程正朝向「感觉驱动」编码靠拢，这削弱了代码严谨性",
+          "zh_so_what": "Agent builders 需要强制规范：类型检查、单元测试、渐进式验证，防止 agent 自信生成的代码成为脆弱点",
+          "published_at": "2026-05-06T15:06:37.000Z"
+        },
+        {
+          "title": "[AINews] Silicon Valley gets Serious about Services",
+          "url": "https://www.latent.space/p/ainews-silicon-valley-gets-serious",
+          "source": "latent",
+          "points": 60,
+          "zh_claim": "Anthropic 和 OpenAI 都成立獨立服務公司，將 AI 商業化從 API 變現轉向定制企業系統",
+          "zh_so_what": "Agent 從 API 轉向企業工作流嵌入。Builder 需轉向 enterprise reliability、domain adaptation、governance 而非單純模型能力。",
+          "published_at": "2026-05-06T05:40:41.000Z"
+        },
+        {
+          "title": "Implicit Representations of Grammaticality in Language Models",
+          "url": "http://arxiv.org/abs/2605.05197v1",
+          "source": "arxiv",
+          "points": 59,
+          "zh_claim": "語言模型內部隱含學習到與字符串概率不同的語法性表示",
+          "zh_so_what": "為設計更精準的語法判斷探針和語言理解任務提供實證基礎，助力 agent 強化語言能力",
+          "published_at": "2026-05-06T17:57:31Z"
         },
         {
           "title": "ollama/ollama: Get up and running with Kimi-K2.5, GLM-5, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
           "url": "https://github.com/ollama/ollama",
           "source": "github",
-          "points": 170881
+          "points": 170881,
+          "zh_claim": "統一的本地 LLM 運行框架，支援多個開源模型的一鍵部署與推理",
+          "zh_so_what": "Agent 構建者可直接利用 ollama 統一推理接口快速原型化多模型架構，降低基礎設施門檻與部署成本",
+          "published_at": "2023-06-26T19:39:32Z"
         },
         {
-          "title": "f/prompts.chat: f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.",
-          "url": "https://github.com/f/prompts.chat",
-          "source": "github",
-          "points": 161726
+          "title": "Effective today, we are: 1) Doubling Claude Code’s 5-hour rate limits for Pro, Max, and Team plans; 2) Removing the peak hours limit reduction on Claude Code for Pro and Max plans; and 3) Substantially raising our API rate limits for Opus models.",
+          "url": "https://x.com/claudeai/status/2052060693269008586",
+          "source": "x",
+          "points": 37043,
+          "zh_claim": "Anthropic 將 Claude Code 率限翻倍並移除高峰限制，提升 Opus API 配額",
+          "zh_so_what": "長時間編碼會話變可用；Opus agent API 成本邊際改善",
+          "published_at": "2026-05-06T16:19:29Z"
+        },
+        {
+          "title": "Higher usage limits for Claude and a compute deal with SpaceX",
+          "url": "https://www.anthropic.com/news/higher-limits-spacex",
+          "source": "hn",
+          "points": 410,
+          "zh_claim": "Anthropic 提高 Claude 使用額度上限，與 SpaceX 達成計算資源合作",
+          "zh_so_what": "Agent 應用可突破調用限制，SpaceX 資源可降低推理成本，加速商業部署",
+          "published_at": "2026-05-06T16:17:33.000Z"
         }
       ]
     },
@@ -92,19 +146,73 @@
           "title": "affaan-m/everything-claude-code: The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
           "url": "https://github.com/affaan-m/everything-claude-code",
           "source": "github",
-          "points": 174808
+          "points": 174808,
+          "zh_claim": "統一多個 AI 編碼助手的 agent harness 性能優化系統",
+          "zh_so_what": "agent 開發者可借鑑統一 harness 架構減少重複優化，加快多平台部署",
+          "published_at": "2026-01-18T00:51:51Z"
+        },
+        {
+          "title": "[AINews] AI Engineer World's Fair — Autoresearch, Memory, World Models, Tokenmaxxing, Agentic Commerce, and Vertical AI Call for Speakers",
+          "url": "https://www.latent.space/p/ainews-ai-engineer-worlds-fair-autoresearch",
+          "source": "latent",
+          "points": 57,
+          "zh_claim": "AIE World's Fair 第三年擴大規模，新增六大議題軌道與垂直 AI 領域",
+          "zh_so_what": "Agent 構建者應重視記憶系統、世界模型、自動化研究；垂直 AI 工業化應用成為主流方向",
+          "published_at": "2026-05-02T07:21:55.000Z"
+        },
+        {
+          "title": "Sharp Capacity Thresholds in Linear Associative Memory: From Winner-Take-All to Listwise Retrieval",
+          "url": "http://arxiv.org/abs/2605.05189v1",
+          "source": "arxiv",
+          "points": 55,
+          "zh_claim": "線性關聯記憶的容量由檢索準則決定：Winner-take-all 需 d²log(n)，Listwise 只需 d²",
+          "zh_so_what": "記憶檢索系統設計啟示：放鬆 top-1 完美排序改用候選列表，可將容量從 O(d²log n) 降至 O(d²)，顯著提升知識圖譜檢索效率",
+          "published_at": "2026-05-06T17:53:20Z"
         },
         {
           "title": "open-webui/open-webui: User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
           "url": "https://github.com/open-webui/open-webui",
           "source": "github",
-          "points": 135822
+          "points": 135822,
+          "zh_claim": "統一 AI 對話介面，相容 Ollama、OpenAI 等多個模型後端",
+          "zh_so_what": "Agent builders 可快速整合多模型降低 UI 開發成本；標準化介面利於 RAG 和工具調用功能擴展",
+          "published_at": "2023-10-06T22:08:27Z"
         },
         {
           "title": "Shubhamsaboo/awesome-llm-apps: 100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
           "url": "https://github.com/Shubhamsaboo/awesome-llm-apps",
           "source": "github",
-          "points": 109085
+          "points": 109085,
+          "zh_claim": "收集 100+ 個可直接執行的 LLM Agent 和 RAG 應用供開發者參考",
+          "zh_so_what": "Agent 開發者可從成熟實現快速啟動項目，降低從零到一的架構探索成本",
+          "published_at": "2024-04-29T05:30:25Z"
+        },
+        {
+          "title": "infiniflow/ragflow: RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs",
+          "url": "https://github.com/infiniflow/ragflow",
+          "source": "github",
+          "points": 79855,
+          "zh_claim": "開源 RAG 引擎融合檢索與 Agent 能力為 LLM 提供統一上下文層",
+          "zh_so_what": "Agent builder 無須自行整合 RAG pipeline，直接使用優化過的統一框架加速知識驅動應用開發",
+          "published_at": "2023-12-12T06:13:13Z"
+        },
+        {
+          "title": "vllm-project/vllm: A high-throughput and memory-efficient inference and serving engine for LLMs",
+          "url": "https://github.com/vllm-project/vllm",
+          "source": "github",
+          "points": 79227,
+          "zh_claim": "vLLM 利用 PagedAttention 演算法實現高效能 LLM 推論和服務引擎",
+          "zh_so_what": "Agent builders 可大幅降低推論成本、提高並發，使邊緣環境部署複雜 agent 成為可能",
+          "published_at": "2023-02-09T11:23:20Z"
+        },
+        {
+          "title": "mem0ai/mem0: Universal memory layer for AI Agents",
+          "url": "https://github.com/mem0ai/mem0",
+          "source": "github",
+          "points": 54960,
+          "zh_claim": "為 AI Agent 提供通用、模組化的記憶持久化與檢索層",
+          "zh_so_what": "Agent 開發者可聚焦業務邏輯，記憶的增刪查改由框架統一處理。跨會話上下文成本大幅下降",
+          "published_at": "2023-06-20T08:58:36Z"
         }
       ]
     },
@@ -123,19 +231,55 @@
           "title": "[AINews] The Other vs The Utility",
           "url": "https://www.latent.space/p/ainews-the-other-vs-the-utility",
           "source": "latent",
-          "points": 58
+          "points": 58,
+          "zh_claim": "GPT 被塑造為純工具效用，Claude 卻被視為有靈魂的「他者」，根本改變了使用者期待",
+          "zh_so_what": "代理設計者需明確決定打造「邏輯假肢」還是「他者角色」——前者追求冷兵器完美度，後者爭奪使用者的信任和預期投資",
+          "published_at": "2026-05-04T23:29:05.000Z"
         },
         {
           "title": "OpenAI researcher slides into my booth at a noodle shop in Flushing and points chopsticks at my laptop. \"Are you the one whose bot keeps beating our GPT eval on Polymarket?\"",
           "url": "https://x.com/0xwhrrari/status/2052083154706379229",
           "source": "x",
-          "points": 57
+          "points": 57,
+          "zh_claim": "某人的 AI bot 在 Polymarket 評估中超越了 OpenAI 的 GPT 模型",
+          "zh_so_what": "若成立，暗示評估方法開放、模型性能邊界民主化；同時示範誇大聲稱在 AI 社群的傳播力及警示評估信度風險",
+          "published_at": "2026-05-06T17:48:44Z"
         },
         {
           "title": "Almost-Orthogonality in Lp Spaces: A Case Study with Grok",
           "url": "http://arxiv.org/abs/2605.05192v1",
           "source": "arxiv",
-          "points": 57
+          "points": 57,
+          "zh_claim": "Lp空間中Carbery推廣三角不等式對p>2失效，臨界指數下成立尖銳三函數界限",
+          "zh_so_what": "純數學理論深化；無明顯AI應用；可能對數值分析框架開發有微弱參考價值",
+          "published_at": "2026-05-06T17:54:51Z"
+        },
+        {
+          "title": "SpaceXAI will provide Anthropic with access to Colossus 1",
+          "url": "https://twitter.com/xai/status/2052060350770515978",
+          "source": "hn",
+          "points": 51,
+          "zh_claim": "SpaceXAI 將向 Anthropic 提供 Colossus 1 計算集群的存取權",
+          "zh_so_what": "Anthropic 獲得更強算力支援，加速 Claude 模型訓練；Elon/xAI 與 Anthropic 的資源深度合作可能重塑 LLM 供應鏈生態",
+          "published_at": "2026-05-06T16:28:25.000Z"
+        },
+        {
+          "title": "[AINews] DeepSeek V4 Pro (1.6T-A49B) and Flash (284B-A13B), Base and Instruct — runnable on Huawei Ascend chips",
+          "url": "https://www.latent.space/p/ainews-deepseek-v4-pro-16t-a49b-and",
+          "source": "latent",
+          "points": 51,
+          "zh_claim": "DeepSeek V4 達 Gemini 級別，1.6T MOE，1M context，同時發布 Base/Instruct 版本",
+          "zh_so_what": "開源模型新選擇、MOE 推理成本優化、Base 版本微調友善、1M context 支持長文檔",
+          "published_at": "2026-04-25T05:00:48.000Z"
+        },
+        {
+          "title": "PSK at SemEval-2026 Task 9: Multilingual Polarization Detection Using Ensemble Gemma Models with Synthetic Data Augmentation",
+          "url": "http://arxiv.org/abs/2605.05159v1",
+          "source": "arxiv",
+          "points": 47,
+          "zh_claim": "多語言極化檢測中，集合 Gemma 模型與合成數據增強策略達到競賽第二名",
+          "zh_so_what": "多語言微調時合成數據質量優於數量；集合與超參調整無成本提升效能；Gemma 跨語言泛化勝 XLM-RoBERTa/Qwen",
+          "published_at": "2026-05-06T17:29:14Z"
         }
       ]
     },
@@ -151,7 +295,10 @@
           "title": "On the Hardness of Junking LLMs",
           "url": "http://arxiv.org/abs/2605.05116v1",
           "source": "arxiv",
-          "points": 33
+          "points": 33,
+          "zh_claim": "語言模型中存在自然後門（純 token 序列無需提示即可觸發有害輸出），其發現難度有待量化評估",
+          "zh_so_what": "評估自然後門的可發現性對 LLM 安全部署至關重要；高效發現後門表示防禦策略需重新設計",
+          "published_at": "2026-05-06T16:47:07Z"
         }
       ]
     },
@@ -167,7 +314,10 @@
           "title": "Significant-Gravitas/AutoGPT: AutoGPT is the vision of accessible AI for everyone, to use and to build on. Our mission is to provide the tools, so that you can focus on what matters.",
           "url": "https://github.com/Significant-Gravitas/AutoGPT",
           "source": "github",
-          "points": 184041
+          "points": 184041,
+          "zh_claim": "開源 AI 代理框架，賦權使用者自主構建與部署通用自主系統",
+          "zh_so_what": "降低代理開發門檻；成為後續開源框架的設計參考；驗證自主規劃迴圈可行性與社群容量極限",
+          "published_at": "2023-03-16T09:21:07Z"
         }
       ]
     }

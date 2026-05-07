@@ -105,6 +105,8 @@ async function loadPeriod(days) {
           points: Number(p.points) || 0,
           comments: Number(p.comments) || 0,
           tags: t.tags, primary: t.primary, color: t.color,
+          summary: p.summary || null,
+          published_at: p.published_at || p.created_at || null,
         });
         sourcesActive.add(src.key);
       }
@@ -140,13 +142,38 @@ function buildTopTopics(posts) {
   return [...byTopic.values()]
     .map(e => {
       const sorted = e.posts.sort((a, b) => b.points - a.points);
+      // Source-balanced sampling: round-robin over active sources so every source
+      // surfaces at least once before any source double-dips. This stops GitHub
+      // (180k+ stars) and HN (~500 pts) from swamping X (100k+ likes) etc.
+      const bySrc = new Map();
+      for (const p of sorted) {
+        if (!bySrc.has(p.source)) bySrc.set(p.source, []);
+        bySrc.get(p.source).push(p);
+      }
+      const picks = [];
+      const seen = new Set();
+      const lanes = [...bySrc.values()];
+      let round = 0;
+      while (picks.length < 8 && lanes.some(l => l.length > round)) {
+        for (const l of lanes) {
+          if (l.length > round) {
+            const p = l[round];
+            if (!seen.has(p.id)) { picks.push(p); seen.add(p.id); }
+            if (picks.length >= 8) break;
+          }
+        }
+        round++;
+      }
       return {
         topic: e.topic,
         color: e.color,
         post_count: e.posts.length,
         sources: [...e.sources],
-        sample_titles: sorted.slice(0, 3).map(p => ({
+        sample_titles: picks.slice(0, 8).map(p => ({
           title: p.title, url: p.url, source: p.source, points: p.points,
+          zh_claim: p.summary?.claim || null,
+          zh_so_what: p.summary?.so_what || null,
+          published_at: p.published_at || null,
         })),
       };
     })
