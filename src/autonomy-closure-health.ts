@@ -6,6 +6,7 @@ import { evaluatePrReviewConsensus, parsePrReviewHandoffs, readPrReviewClaimsSyn
 import { evaluateRuntimeMemoryPlacement } from './memory-paths.js';
 import { eventBus } from './event-bus.js';
 import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autopilot.js';
+import { evaluatePrClosureGaps } from './pr-autopilot.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -322,16 +323,8 @@ function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
   }
 
   const activeContent = readFileSync(activePath, 'utf-8');
+  const openPrGaps = evaluatePrClosureGaps(memoryDir, activeContent);
   const handoffs = parsePrReviewHandoffs(activeContent);
-  if (handoffs.length === 0) {
-    return {
-      stage: 'pr-review-consensus',
-      status: 'ok',
-      summary: 'no pending PR review handoffs',
-      evidence: [],
-    };
-  }
-
   const claims = readPrReviewClaimsSync(memoryDir);
   const consensuses = evaluatePrReviewConsensus(handoffs, claims);
   const missing = consensuses.filter(c => c.status === 'pending' && c.missingReviewers.length > 0);
@@ -352,6 +345,34 @@ function prReviewConsensusStage(memoryDir: string): AutonomyClosureStageResult {
       summary: `${missing.length} PR(s) still missing internal review claims`,
       evidence: missing.slice(0, 5).map(c => `PR #${c.prNumber}: missing ${c.missingReviewers.join(', ')}`),
       repair: 'Run GitHub automation to produce internal review claims and consensus.',
+    };
+  }
+  if (
+    openPrGaps.snapshotMissing
+    || openPrGaps.snapshotStale
+    || openPrGaps.readyUntracked.length > 0
+    || openPrGaps.staleDrafts.length > 0
+  ) {
+    const evidence: string[] = [];
+    if (openPrGaps.snapshotMissing) evidence.push('open PR snapshot missing');
+    if (openPrGaps.snapshotStale) evidence.push(`open PR snapshot stale: generatedAt=${openPrGaps.snapshotGeneratedAt ?? 'unknown'}`);
+    evidence.push(...openPrGaps.readyUntracked.slice(0, 5).map(pr => `PR #${pr.number}: ready but not tracked for review (${pr.title})`));
+    evidence.push(...openPrGaps.staleDrafts.slice(0, 5).map(pr => `PR #${pr.number}: stale draft needs triage (${pr.title})`));
+
+    return {
+      stage: 'pr-review-consensus',
+      status: 'warn',
+      summary: 'open PR lifecycle has unclosed tracking gaps',
+      evidence,
+      repair: 'Run GitHub automation to refresh open-prs.json, queue PR review handoffs, and triage stale drafts.',
+    };
+  }
+  if (handoffs.length === 0) {
+    return {
+      stage: 'pr-review-consensus',
+      status: 'ok',
+      summary: 'no pending PR review handoffs and open PR snapshot is current',
+      evidence: [`snapshot=${openPrGaps.snapshotGeneratedAt ?? 'current'}`],
     };
   }
   return {
