@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { InstanceMemory, getSkillsPrompt, setCustomExtensions, type CycleMode } from '../src/memory.js';
+import { InstanceMemory, getSkillsPrompt, sanitizeDailyNoteContent, setCustomExtensions, type CycleMode } from '../src/memory.js';
 
 // Use a temp dir for test isolation
 let testDir: string;
@@ -127,6 +127,35 @@ describe('InstanceMemory', () => {
       await memory.appendConversation('user', 'Test message');
       const daily = await memory.readDailyNotes();
       expect(daily).toContain('(alex) Test message');
+    });
+
+    it('should remove prompt wrapper debris from daily notes', async () => {
+      await memory.appendConversation('assistant', [
+        "(Generate response as Kuro to user's message)",
+        '<think>private reasoning must not become episodic memory</think>',
+        '</foreground_reply_mode>',
+        '</parameter>',
+        'Visible reply',
+      ].join('\n'));
+
+      const daily = await memory.readDailyNotes();
+      expect(daily).toContain('(kuro) Visible reply');
+      expect(daily).not.toContain('foreground_reply_mode');
+      expect(daily).not.toContain('parameter');
+      expect(daily).not.toContain('private reasoning');
+      expect(daily).not.toContain('Generate response as Kuro');
+    });
+
+    it('should skip daily note entries that contain only prompt wrapper debris', async () => {
+      await memory.appendConversation('assistant', [
+        '</foreground_reply_mode>',
+        '</parameter>',
+        '</invoke>',
+      ].join('\n'));
+
+      const daily = await memory.readDailyNotes();
+      const entryLines = daily.split('\n').filter(l => l.match(/^\[/));
+      expect(entryLines).toHaveLength(0);
     });
 
     // clearHotBuffer was removed (dead code cleanup)
@@ -310,6 +339,16 @@ describe('InstanceMemory', () => {
       expect(entryLines.length).toBe(15);
       expect(daily).toContain('Entry 0');
       expect(daily).toContain('Entry 14');
+    });
+  });
+
+  describe('sanitizeDailyNoteContent', () => {
+    it('preserves normal content while removing known non-conversation wrappers', () => {
+      expect(sanitizeDailyNoteContent([
+        '<Use the Skill tool to invoke skills as needed>',
+        '正常回覆',
+        '</cached_perception>',
+      ].join('\n'))).toBe('正常回覆');
     });
   });
 
