@@ -2296,6 +2296,9 @@ export class AgentLoop {
 
       // P0 reminder — applies to ALL triggers, not just non-telegram
       const p0Previews = getP0TaskPreviews(memDir);
+      if (process.env.DEBUG_P0_BANNER) {
+        console.log('[p0-banner-debug]', JSON.stringify({ ts: new Date().toISOString(), count: p0Previews.length, items: p0Previews.slice(0, 5) }));
+      }
       if (p0Previews.length > 0) {
         const p0Preview = p0Previews.slice(0, 3).map(i => `  「${i.slice(0, 100)}」`).join('\n');
         priorityPrefix += `\nP0 items pending:\n${p0Preview}\n\n`;
