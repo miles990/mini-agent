@@ -390,7 +390,44 @@ async function ensureProviderHoldTask(
   task: MiddlewareTaskRecord,
   now: Date,
 ): Promise<string> {
-  const active = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })
+  const active = findProviderHoldTask(memoryDir, hold, now);
+  if (active) return active.id;
+
+  try {
+    const entry = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'hold',
+      summary: `Hold ${hold.provider} middleware delegation until provider quota resets`,
+      refs: [],
+      tags: ['middleware', 'provider-hold', 'self-healing'],
+      payload: {
+        origin: 'middleware-self-healing',
+        holdCondition: {
+          type: 'date-after',
+          value: hold.resumeAt,
+        },
+        provider_resource_hold: hold,
+        middleware_task_id: task.id,
+        middleware_worker: task.worker,
+        middleware_failure_bucket: 'budget-or-quota',
+        createdAt: now.toISOString(),
+      },
+    });
+    return entry.id;
+  } catch (error) {
+    if (/duplicate/i.test(String(error))) {
+      return findProviderHoldTask(memoryDir, hold, now)?.id ?? 'duplicate-existing-provider-hold';
+    }
+    throw error;
+  }
+}
+
+function findProviderHoldTask(
+  memoryDir: string,
+  hold: ProviderResourceHold,
+  now: Date,
+): { id: string } | undefined {
+  return queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })
     .find(entry => {
       const current = entry.payload?.provider_resource_hold as ProviderResourceHold | undefined;
       if (!current || current.type !== 'provider-quota') return false;
@@ -398,28 +435,6 @@ async function ensureProviderHoldTask(
       const resumeAt = Date.parse(current.resumeAt);
       return Number.isFinite(resumeAt) && resumeAt > now.getTime();
     });
-  if (active) return active.id;
-
-  const entry = await appendMemoryIndexEntry(memoryDir, {
-    type: 'task',
-    status: 'hold',
-    summary: `Hold ${hold.provider} middleware delegation until provider quota resets`,
-    refs: [],
-    tags: ['middleware', 'provider-hold', 'self-healing'],
-    payload: {
-      origin: 'middleware-self-healing',
-      holdCondition: {
-        type: 'date-after',
-        value: hold.resumeAt,
-      },
-      provider_resource_hold: hold,
-      middleware_task_id: task.id,
-      middleware_worker: task.worker,
-      middleware_failure_bucket: 'budget-or-quota',
-      createdAt: now.toISOString(),
-    },
-  });
-  return entry.id;
 }
 
 async function fetchMiddlewareTasks(baseUrl?: string, timeoutMs = 2500): Promise<MiddlewareTaskRecord[]> {
