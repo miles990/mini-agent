@@ -358,6 +358,7 @@ export function suggestPatternPromotions(
     const savedTokensEstimate = sum(list.map(event => event.savedTokensEstimate));
     const savedMinutesEstimate = sum(list.map(event => event.savedMinutesEstimate));
     if (uses < 3 || successRate < 0.67) continue;
+    if (!hasPromotionImpact(savedTokensEstimate, savedMinutesEstimate)) continue;
 
     const skills = unique(list.flatMap(event => [event.skill, ...(event.combinedWith ?? [])]));
     const recommendedKind = choosePromotionKind(pattern, list, savedTokensEstimate, savedMinutesEstimate);
@@ -445,6 +446,10 @@ function promotionRationale(
     ...(savedMinutesEstimate > 0 ? [`estimated time savings=${Math.round(savedMinutesEstimate)}m`] : []),
     `recommended as ${kind} because that is the lowest-overhead durable form for this pattern`,
   ];
+}
+
+function hasPromotionImpact(savedTokensEstimate: number, savedMinutesEstimate: number): boolean {
+  return savedTokensEstimate > 0 || savedMinutesEstimate > 0;
 }
 
 function normalizePattern(pattern: string): string {
