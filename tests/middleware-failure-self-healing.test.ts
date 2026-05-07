@@ -95,6 +95,29 @@ describe('middleware failure self-healing', () => {
     expect(followUps[0].summary).toContain('Decompose middleware task task-turns');
   });
 
+  it('treats agent-brain max-turn failures as terminal telemetry', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-brain-turns',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Think through the current autonomous cycle',
+      error: 'Claude Code returned an error result: Reached maximum number of turns (30)',
+    }], new Date('2026-05-07T08:00:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1, held: 0 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-brain-turns',
+      bucket: 'max-turns',
+      status: 'classified',
+      lifecycleAction: 'terminal-cancelled',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(0);
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-brain-turns',
+      status: 'resolved',
+    }));
+  });
+
   it('reuses an existing duplicate follow-up instead of aborting the sweep', async () => {
     const existing = await appendMemoryIndexEntry(memoryDir, {
       type: 'task',
