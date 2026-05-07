@@ -15,6 +15,8 @@ const CDP_HOST = process.env.CDP_HOST || 'localhost';
 const CDP_PORT = process.env.CDP_PORT || '9222';
 const CDP_BASE = `http://${CDP_HOST}:${CDP_PORT}`;
 const TIMEOUT = 30000;
+const KURO_GOOGLE_EMAIL = process.env.KURO_GOOGLE_EMAIL || process.env.GOOGLE_EMAIL || 'kuro.ai.agent@gmail.com';
+const KURO_X_HANDLE = (process.env.KURO_X_HANDLE || process.env.X_HANDLE || 'kuro_agent').replace(/^@/, '');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -380,7 +382,7 @@ async function handleGoogleOAuth(ws) {
           objectId: resolved.object.objectId,
           functionDeclaration: 'function() { this.focus(); this.value = ""; }',
         });
-        await typeText(ws, 'kuro.ai.agent@gmail.com');
+        await typeText(ws, KURO_GOOGLE_EMAIL);
         await sleep(500);
         // Click Next
         await findAndClick(ws, 'Next') || await findAndClick(ws, '下一步') || await findAndClick(ws, '繼續');
@@ -391,8 +393,8 @@ async function handleGoogleOAuth(ws) {
 
   // Check if we're on account chooser - look for the account email
   const accountBtn = nodes.find(n =>
-    n.name?.value?.toLowerCase().includes('kuro.ai.agent') ||
-    n.name?.value?.toLowerCase().includes('kuro')
+    n.name?.value?.toLowerCase().includes(KURO_GOOGLE_EMAIL.split('@')[0].toLowerCase()) ||
+    n.name?.value?.toLowerCase().includes(KURO_X_HANDLE.toLowerCase())
   );
 
   if (accountBtn) {

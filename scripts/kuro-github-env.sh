@@ -50,8 +50,10 @@ kuro_github_env_required() {
   fi
 
   local idx="${GIT_CONFIG_COUNT:-0}"
+  local git_auth
+  git_auth="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
   export "GIT_CONFIG_KEY_${idx}=http.https://github.com/.extraheader"
-  export "GIT_CONFIG_VALUE_${idx}=AUTHORIZATION: bearer ${token}"
+  export "GIT_CONFIG_VALUE_${idx}=AUTHORIZATION: basic ${git_auth}"
   idx=$((idx + 1))
   export "GIT_CONFIG_KEY_${idx}=url.https://github.com/.insteadOf"
   export "GIT_CONFIG_VALUE_${idx}=git@github.com:"

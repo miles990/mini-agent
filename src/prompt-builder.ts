@@ -22,7 +22,7 @@ import { getCurrentInstanceId, getInstanceDir } from './instance.js';
 import { readState } from './feedback-loops.js';
 import { slog } from './utils.js';
 import { getActiveDelegationSummaries } from './delegation.js';
-import { buildAgentOwnedIdentityPrompt } from './agent-owned-identity.js';
+import { buildAgentOwnedIdentityPrompt, buildAgentRelationshipPrompt } from './agent-owned-identity.js';
 
 // =============================================================================
 // Cycle Responsibility Guide — Observe→Act→Gate thinking structure
@@ -211,6 +211,7 @@ Read your <soul> to understand who you are, what you care about, and what you're
 ${taskStatusLine}
 ${cycleResponsibilityGuide}
 ${buildAgentOwnedIdentityPrompt()}
+${buildAgentRelationshipPrompt()}
 ${focusSection}${reflectNudge}${avoidList}
 
 ## Response Format
@@ -255,6 +256,7 @@ Read your <soul> to understand who you are, what you care about, and what you're
 ${taskStatusLine}
 ${cycleResponsibilityGuide}
 ${buildAgentOwnedIdentityPrompt()}
+${buildAgentRelationshipPrompt()}
 ${avoidList}
 
 ## 做正事

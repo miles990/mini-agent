@@ -27,7 +27,7 @@ describe('github identity', () => {
     expect(gitEnv.GH_TOKEN).toBe('kuro-token');
     expect(gitEnv.GITHUB_TOKEN).toBe('kuro-token');
     expect(gitEnv.GIT_CONFIG_COUNT).toBe('5');
-    expect(gitEnv.GIT_CONFIG_VALUE_0).toBe('AUTHORIZATION: bearer kuro-token');
+    expect(gitEnv.GIT_CONFIG_VALUE_0).toBe(`AUTHORIZATION: basic ${Buffer.from('x-access-token:kuro-token').toString('base64')}`);
     expect(gitEnv.GIT_CONFIG_VALUE_3).toBe('Kuro');
   });
 });

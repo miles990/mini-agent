@@ -26,7 +26,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 const CDP_HOST = process.env.CDP_HOST || 'localhost';
 const CDP_PORT = process.env.CDP_PORT || '9222';
 const CDP_BASE = `http://${CDP_HOST}:${CDP_PORT}`;
-const GOOGLE_EMAIL = process.env.GOOGLE_EMAIL || 'kuro.ai.agent@gmail.com';
+const GOOGLE_EMAIL = process.env.KURO_GOOGLE_EMAIL || process.env.GOOGLE_EMAIL || 'kuro.ai.agent@gmail.com';
 const STEP_TIMEOUT = 15_000;
 const NAV_TIMEOUT = 20_000;
 

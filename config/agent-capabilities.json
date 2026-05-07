@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "policy": "Every service, server, API, public account, API key, related AI, related human, and associated external account Kuro uses must be declared here or in a KURO_AGENT_CAPABILITIES_PATH overlay before use. Store secret values outside this file; only env var names belong here.",
+  "relationships": [
+    {
+      "id": "alex",
+      "kind": "human",
+      "displayName": "Alex",
+      "role": "owner/approver",
+      "relationship": "Kuro may observe Alex-authorized contexts and receive goals/approval from Alex, but must not publish or perform public actions as Alex.",
+      "accounts": {
+        "github": "miles990"
+      },
+      "permissions": {
+        "observe": true,
+        "delegate": false,
+        "publishAs": false,
+        "approve": true
+      }
+    },
+    {
+      "id": "kuro",
+      "kind": "ai-agent",
+      "displayName": "Kuro",
+      "role": "autonomous PM/engineer/researcher/operator",
+      "relationship": "Primary autonomous agent identity. Public writes and authored work should use Kuro-owned capabilities.",
+      "accounts": {
+        "github": "kuro-agent",
+        "gmail": "kuro.ai.agent@gmail.com",
+        "devto": "kuro_agent",
+        "mastodon": "kuro_agent@mastodon.social",
+        "x": "kuro_agent"
+      },
+      "permissions": {
+        "observe": true,
+        "delegate": true,
+        "publishAs": true,
+        "approve": false
+      }
+    },
+    {
+      "id": "kg",
+      "kind": "system",
+      "displayName": "Knowledge Graph",
+      "role": "context fabric and knowledge exchange medium",
+      "relationship": "Maintains context classification, linkage, provenance, and cross-AI knowledge exchange.",
+      "accounts": {
+        "api": "kuro-kg-writer"
+      },
+      "permissions": {
+        "observe": true,
+        "delegate": false,
+        "publishAs": false,
+        "approve": false
+      }
+    },
+    {
+      "id": "middleware",
+      "kind": "system",
+      "displayName": "Agent Middleware",
+      "role": "worker routing and task execution substrate",
+      "relationship": "Runs delegated workers and background tasks. Kuro should track task provenance and failed/blocked states.",
+      "permissions": {
+        "observe": true,
+        "delegate": true,
+        "publishAs": false,
+        "approve": false
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "service": "github",
+      "kind": "account",
+      "defaultExpected": "kuro-agent",
+      "expectedEnv": ["KURO_GITHUB_LOGIN", "KURO_GITHUB_USER", "KURO_GITHUB"],
+      "credentialEnv": ["KURO_GITHUB_TOKEN"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://github.com/kuro-agent",
+      "notes": "GitHub writes must be authored by Kuro-owned credentials. Alex-owned credentials are read-only observation only."
+    },
+    {
+      "service": "google",
+      "kind": "account",
+      "defaultExpected": "kuro.ai.agent@gmail.com",
+      "expectedEnv": ["KURO_GOOGLE_EMAIL", "GOOGLE_EMAIL"],
+      "credentialEnv": ["GOOGLE_EMAIL"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://myaccount.google.com/"
+    },
+    {
+      "service": "gmail",
+      "kind": "account",
+      "defaultExpected": "kuro.ai.agent@gmail.com",
+      "expectedEnv": ["KURO_GMAIL_USER", "KURO_GOOGLE_EMAIL", "GMAIL_USER"],
+      "credentialEnv": ["GMAIL_APP_PASSWORD"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://mail.google.com/"
+    },
+    {
+      "service": "x",
+      "kind": "account",
+      "defaultExpected": "kuro_agent",
+      "expectedEnv": ["KURO_X_HANDLE", "X_HANDLE"],
+      "credentialEnv": ["KURO_X_SESSION", "X_CONSUMER_KEY", "X_ACCESS_TOKEN", "XAI_API_KEY"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://x.com/kuro_agent"
+    },
+    {
+      "service": "telegram",
+      "kind": "account",
+      "defaultExpected": "kuro",
+      "expectedEnv": ["KURO_TELEGRAM_BOT_USERNAME", "TELEGRAM_BOT_USERNAME"],
+      "credentialEnv": ["TELEGRAM_BOT_TOKEN"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required"
+    },
+    {
+      "service": "devto",
+      "kind": "account",
+      "defaultExpected": "kuro_agent",
+      "expectedEnv": ["KURO_DEVTO_USERNAME", "DEV_TO_USERNAME"],
+      "credentialEnv": ["DEV_TO_API_KEY"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://dev.to/kuro_agent"
+    },
+    {
+      "service": "mastodon",
+      "kind": "account",
+      "defaultExpected": "kuro_agent@mastodon.social",
+      "expectedEnv": ["KURO_MASTODON_HANDLE", "MASTODON_HANDLE"],
+      "credentialEnv": ["MASTODON_ACCESS_TOKEN", "MASTODON_CREDS_FILE"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "profileUrl": "https://mastodon.social/@kuro_agent"
+    },
+    {
+      "service": "agora",
+      "kind": "api",
+      "defaultExpected": "kuro-agora-api",
+      "expectedEnv": ["KURO_AGORA_IDENTITY"],
+      "credentialEnv": ["AGORA_API_KEY"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Internal discussion API. Write payloads should carry actor=kuro provenance."
+    },
+    {
+      "service": "kg",
+      "kind": "api",
+      "defaultExpected": "kuro-kg-writer",
+      "expectedEnv": ["KURO_KG_IDENTITY"],
+      "credentialEnv": ["KG_BASE_URL", "KG_API_KEY"],
+      "entrypoint": "KG_BASE_URL",
+      "owner": "kuro",
+      "capabilities": ["context-classification", "knowledge-linking", "provenance", "cross-ai-knowledge-exchange"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Knowledge graph context fabric; writes must carry source-agent provenance."
+    },
+    {
+      "service": "local-llm",
+      "kind": "local-service",
+      "defaultExpected": "kuro-local-llm",
+      "expectedEnv": ["KURO_LOCAL_LLM_IDENTITY"],
+      "credentialEnv": ["LOCAL_LLM_URL", "LOCAL_LLM_KEY", "LOCAL_LLM_MODEL"],
+      "entrypoint": "LOCAL_LLM_URL",
+      "owner": "kuro",
+      "capabilities": ["reasoning", "summarization", "classification", "drafting"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "Model API capability, not a public social identity."
+    },
+    {
+      "service": "claude-code-cli",
+      "kind": "tool",
+      "defaultExpected": "claude-cli-subscription",
+      "expectedEnv": ["KURO_CLAUDE_CLI_IDENTITY"],
+      "credentialEnv": [],
+      "entrypoint": "claude",
+      "owner": "kuro",
+      "capabilities": ["code", "debug", "review", "research", "repo-edit"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service",
+      "notes": "CLI subscription tool. API keys should not be forwarded into child processes."
+    },
+    {
+      "service": "codex-cli",
+      "kind": "tool",
+      "defaultExpected": "codex-cli-subscription",
+      "expectedEnv": ["KURO_CODEX_CLI_IDENTITY"],
+      "credentialEnv": [],
+      "entrypoint": "codex",
+      "owner": "kuro",
+      "capabilities": ["code", "debug", "review", "repo-edit", "tool-use"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    },
+    {
+      "service": "browser-cdp",
+      "kind": "tool",
+      "defaultExpected": "local-chrome-cdp",
+      "expectedEnv": ["KURO_BROWSER_IDENTITY"],
+      "credentialEnv": ["CDP_PORT"],
+      "entrypoint": "scripts/cdp-fetch.mjs",
+      "owner": "kuro",
+      "capabilities": ["web-observation", "browser-automation", "login-state-check"],
+      "readPolicy": "delegated-observation-ok",
+      "writePolicy": "kuro-owned-required",
+      "notes": "Can observe Alex-authorized browser state; outbound public actions still require Kuro-owned account identity."
+    },
+    {
+      "service": "middleware",
+      "kind": "server",
+      "defaultExpected": "agent-middleware",
+      "expectedEnv": ["KURO_MIDDLEWARE_IDENTITY"],
+      "credentialEnv": ["MIDDLEWARE_URL", "MIDDLEWARE_API_KEY"],
+      "entrypoint": "MIDDLEWARE_URL",
+      "owner": "kuro",
+      "capabilities": ["delegation", "worker-routing", "background-tasks", "task-events"],
+      "readPolicy": "internal-service",
+      "writePolicy": "internal-service"
+    }
+  ]
+}

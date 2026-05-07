@@ -31,7 +31,7 @@ export function kuroGitEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.Process
   const token = getKuroGithubToken(env);
   if (!token) throw new Error('KURO_GITHUB_TOKEN is required for Kuro-owned git push automation');
   const config: Record<string, string> = {
-    'http.https://github.com/.extraheader': `AUTHORIZATION: bearer ${token}`,
+    'http.https://github.com/.extraheader': `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
     'url.https://github.com/.insteadOf': 'git@github.com:',
     'url.https://github.com/.pushInsteadOf': 'git@github.com:',
     'user.name': env.KURO_GIT_AUTHOR_NAME || 'Kuro',

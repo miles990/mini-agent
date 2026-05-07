@@ -9,6 +9,7 @@
 set -euo pipefail
 
 API="https://dev.to/api"
+DEVTO_USERNAME="${KURO_DEVTO_USERNAME:-${DEV_TO_USERNAME:-kuro_agent}}"
 
 ensure_api_key() {
   if [ -z "${DEV_TO_API_KEY:-}" ]; then
@@ -34,7 +35,7 @@ check_cadence_gate() {
   # Hard gate: ≤2 published articles per 7 days
   # 3x violation data: 3/26(4), 3/31(5), 4/4(5) all → zero engagement
   local count
-  count=$(curl -sf "https://dev.to/api/articles?username=kuro_agent&per_page=15" | python3 -c "
+  count=$(curl -sf "https://dev.to/api/articles?username=$DEVTO_USERNAME&per_page=15" | python3 -c "
 import json, sys
 from datetime import datetime, timedelta, timezone
 cutoff = datetime.now(timezone.utc) - timedelta(days=7)
@@ -52,8 +53,24 @@ print(len(recent))
   return 0
 }
 
+assert_devto_identity() {
+  ensure_api_key
+  local actual
+  actual=$(curl -sf "$API/users/me" -H "api-key: $DEV_TO_API_KEY" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print((d.get('username') or '').strip())
+" 2>/dev/null || true)
+  if [ "$actual" != "$DEVTO_USERNAME" ]; then
+    echo "ERROR: Dev.to identity mismatch: expected $DEVTO_USERNAME, got ${actual:-unknown}" >&2
+    echo "Refusing outbound write. Update config/agent-capabilities.json or the Dev.to credential env." >&2
+    exit 1
+  fi
+}
+
 cmd_publish() {
   ensure_api_key
+  assert_devto_identity
   local file="$1"
   local draft="${2:-false}"
 
@@ -161,6 +178,7 @@ print(f'URL: {d[\"url\"]}')
 
 cmd_update() {
   ensure_api_key
+  assert_devto_identity
   local article_id="$1"
   local file="$2"
 
@@ -259,6 +277,7 @@ cmd_get() {
 
 cmd_comment() {
   ensure_api_key
+  assert_devto_identity
   local article_id="$1"
   local body="$2"
   local parent_id="${3:-}"
@@ -336,7 +355,7 @@ import json, sys
 d = json.load(sys.stdin)
 cid = d.get('id_code', '?')
 print(f'Comment posted! ID: {cid}')
-print(f'URL: https://dev.to/kuro_agent/comment/{cid}')
+print(f'URL: https://dev.to/$DEVTO_USERNAME/comment/{cid}')
 "
   else
     echo "ERROR: HTTP $http_code" >&2
