@@ -28,7 +28,6 @@ import {
   decidePrReviewAssignment,
   decidePrConflictAction,
   type MergedPullRequestSummary,
-  type OpenPullRequestSummary,
 } from './pr-lifecycle-governance.js';
 import {
   appendMissingInternalPrReviewClaims,
@@ -38,6 +37,15 @@ import {
   reconcilePrReviewHandoffs,
   runPrReviewConsensus,
 } from './pr-review-runner.js';
+import {
+  appendStaleDraftPrHandoffs,
+  extractClosingIssueRefs,
+  findUntrackedPrs,
+  shouldAutoCloseSupersededPr,
+  writeOpenPrSnapshot,
+  type IssueStateSummary,
+  type OpenPrSnapshotEntry,
+} from './pr-autopilot.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -296,8 +304,12 @@ interface ReviewablePR {
   body?: string | null;
   isDraft?: boolean;
   reviewDecision?: string;
+  reviewRequests?: unknown[];
   labels?: Array<{ name: string }>;
   url?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  headRefName?: string;
 }
 
 export async function autoTrackPrReviewNeeds(): Promise<void> {
@@ -306,8 +318,9 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
 
   let prs: ReviewablePR[];
   try {
-    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,labels,url', '--limit', '50']);
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,reviewDecision,reviewRequests,labels,url,createdAt,updatedAt,headRefName', '--limit', '50']);
     prs = JSON.parse(stdout);
+    writeOpenPrSnapshot(getMemoryRootDir(), prs.map(toOpenPrSummary));
   } catch {
     return;
   }
@@ -323,6 +336,8 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
   const newRows: string[] = [];
   const assignments: Array<{ prNumber: number; reviewers: Array<'akari' | 'codex' | 'claude-code' | 'alex'> }> = [];
   let inboxCount = 0;
+  const normalizedPrs = prs.map(toOpenPrSummary);
+  const { staleDrafts } = findUntrackedPrs(normalizedPrs, activeContent);
 
   for (const pr of prs) {
     const decision = decidePrReviewAssignment(toOpenPrSummary(pr));
@@ -361,23 +376,75 @@ export async function autoTrackPrReviewNeeds(): Promise<void> {
   if (newRows.length > 0) {
     nextActiveContent = activeContent.trimEnd() + '\n' + newRows.join('\n') + '\n';
   }
+  const draftHandoffs = appendStaleDraftPrHandoffs(nextActiveContent, staleDrafts, today);
+  nextActiveContent = draftHandoffs.content;
   nextActiveContent = reconcilePrReviewHandoffs(nextActiveContent, assignments);
   if (nextActiveContent !== activeContent) fs.writeFileSync(activePath, nextActiveContent, 'utf-8');
-  if (newRows.length > 0 || inboxCount > 0) {
-    slog('github', `tracked ${newRows.length} PR review handoff(s), ${inboxCount} inbox item(s)`);
+  if (newRows.length > 0 || draftHandoffs.appended > 0 || inboxCount > 0) {
+    slog('github', `tracked ${newRows.length} PR review handoff(s), ${draftHandoffs.appended} draft triage handoff(s), ${inboxCount} inbox item(s)`);
   }
 }
 
-function toOpenPrSummary(pr: ReviewablePR): OpenPullRequestSummary {
+function toOpenPrSummary(pr: ReviewablePR): OpenPrSnapshotEntry {
   return {
     number: pr.number,
     title: pr.title,
     body: pr.body,
     reviewDecision: pr.reviewDecision,
-    reviewRequests: [],
+    reviewRequests: Array.isArray(pr.reviewRequests) ? pr.reviewRequests : [],
     labels: pr.labels?.map(l => l.name),
     isDraft: pr.isDraft,
+    url: pr.url,
+    createdAt: pr.createdAt,
+    updatedAt: pr.updatedAt,
+    headRefName: pr.headRefName,
   };
+}
+
+interface SupersedablePR extends ReviewablePR {
+  labels?: Array<{ name: string }>;
+}
+
+async function autoCloseSupersededPRs(): Promise<void> {
+  let prs: SupersedablePR[];
+  try {
+    const { stdout } = await gh(['pr', 'list', '--state', 'open', '--json', 'number,title,body,isDraft,labels,url,createdAt', '--limit', '50']);
+    prs = JSON.parse(stdout);
+  } catch {
+    return;
+  }
+
+  let closedCount = 0;
+  for (const pr of prs) {
+    const normalized = toOpenPrSummary(pr);
+    const refs = extractClosingIssueRefs(`${pr.title}\n${pr.body ?? ''}`);
+    if (refs.length === 0) continue;
+
+    const issues: IssueStateSummary[] = [];
+    let issueLookupFailed = false;
+    for (const ref of refs) {
+      try {
+        const { stdout } = await gh(['issue', 'view', String(ref), '--json', 'number,state,closedAt']);
+        issues.push(JSON.parse(stdout));
+      } catch {
+        issueLookupFailed = true;
+        break;
+      }
+    }
+    if (issueLookupFailed) continue;
+    if (!shouldAutoCloseSupersededPr(normalized, refs, issues)) continue;
+
+    const reason = `This PR declares ${refs.map(ref => `#${ref}`).join(', ')} as closing scope, and that issue is already closed. Closing to keep the autonomous PR queue truthful; reopen or create a fresh PR if this still has unique scope.`;
+    try {
+      await gh(['pr', 'close', String(pr.number), '--comment', reason]);
+      closedCount++;
+      slog('github', `closed superseded PR #${pr.number}: ${pr.title}`);
+    } catch {
+      // Per-PR failure should not block the rest of the GitHub autopilot.
+    }
+  }
+
+  if (closedCount > 0) slog('github', `closed ${closedCount} superseded PR(s)`);
 }
 
 function escapeTable(text: string): string {
@@ -875,6 +942,7 @@ export async function githubAutoActions(): Promise<void> {
 
   await autoCreateIssueFromProposal().catch(() => {});
   await autoCloseCompletedIssues().catch(() => {});
+  await autoCloseSupersededPRs().catch(() => {});
   await autoTrackPrReviewNeeds().catch(() => {});
   await autoProduceInternalPrReviewClaims().catch(() => {});
   await autoTrackPrReviewConsensus().catch(() => {});
