@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { createTask, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
+import { createTask, getTaskEventsPath, queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
+import { reverifyPredicate } from './predicate-freshness.js';
 import { getHealthSignals } from './pulse.js';
 import { writeMemoryTriple } from './kg-memory.js';
 import { observe as kbObserve } from './shared-knowledge.js';
@@ -220,6 +221,29 @@ export async function ensureCorrectionTask(memoryDir: string, snapshot = evaluat
 
   const primary = snapshot.reasons.find(r => r.severity === 'high') ?? snapshot.reasons[0];
   if (!primary) return null;
+
+  // Issue #306 Layer 1: re-verify the predicate against live source-of-truth
+  // before dispatching. The snapshot can lag (git status races, autonomy-closure
+  // updates) and produce phantom P0 tasks that waste cycle budget.
+  const repoRoot = process.env.RUNTIME_REPO_ROOT
+    ?? path.resolve(memoryDir, '..');
+  const stillStale = await reverifyPredicate(primary.type, { repoRoot, memoryDir });
+  if (stillStale === false) {
+    try {
+      const eventsPath = getTaskEventsPath(memoryDir);
+      mkdirSync(path.dirname(eventsPath), { recursive: true });
+      appendFileSync(eventsPath, JSON.stringify({
+        kind: 'p0_emit_skipped',
+        reason_type: primary.type,
+        reason: 'pre-dispatch freshness check passed (issue #306 Layer 1)',
+        snapshot_score: snapshot.score,
+        ts: new Date().toISOString(),
+      }) + '\n', 'utf-8');
+    } catch {
+      // Best-effort logging; never block the skip.
+    }
+    return null;
+  }
 
   const runtimeAutocorrect = primary.type === 'local-commit-not-pushed'
     ? [
