@@ -88,6 +88,26 @@ describe('correction gate', () => {
     expect(snapshot.suppressedActions).not.toContain('self-research');
   });
 
+  it('does not let stale correction tasks create a self-referential responsiveness loop', async () => {
+    await appendMemoryIndexEntry(tmpDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'P0 correction gate: resolve low-responsiveness',
+      payload: {
+        origin: 'scheduler',
+        priority: 0,
+        correction_reason_type: 'low-responsiveness',
+        ticksSinceLastProgress: 99,
+      },
+    });
+    invalidateIndexCache();
+
+    const snapshot = evaluateCorrectionGate(tmpDir, tmpDir);
+
+    expect(snapshot.needsCorrection).toBe(false);
+    expect(snapshot.reasons.map(r => r.type)).not.toContain('low-responsiveness');
+  });
+
   it('parses git ahead state as pending-push ship truth', () => {
     const parsed = parseGitStatusPorcelainV2([
       '# branch.oid abc123',

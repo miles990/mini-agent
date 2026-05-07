@@ -71,7 +71,8 @@ export function evaluateCorrectionGate(memoryDir: string, repoRoot = process.cwd
   const activeTasks = allTasks.filter(t =>
     ['pending', 'in_progress'].includes(t.status) &&
     !(t.payload as Record<string, unknown>)?.goal_id &&
-    !isBackgroundMaintenanceTask(t)
+    !isBackgroundMaintenanceTask(t) &&
+    !isCorrectionTask(t)
   );
   const avgStaleness = activeTasks.length === 0 ? 0 :
     activeTasks.reduce((sum, t) => sum + ((t.payload as Record<string, unknown>)?.ticksSinceLastProgress as number ?? 0), 0) / activeTasks.length;
