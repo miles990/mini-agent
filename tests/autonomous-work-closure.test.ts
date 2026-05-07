@@ -75,6 +75,33 @@ describe('autonomous work closure', () => {
     expect(queryMemoryIndexSync(memoryDir, { id: expression.id })[0].status).toBe('completed');
     expect(queryMemoryIndexSync(memoryDir, { id: hold.id })[0].status).toBe('pending');
   });
+
+  it('closes product repair tasks once the verifier passes', async () => {
+    const date = taipeiDate();
+    writeAiTrendState(repoRoot, date, {
+      hn: ['HN 中文 claim'],
+      latent: ['Latent 中文 claim'],
+      arxiv: ['arXiv 中文 claim'],
+      github: ['GitHub 中文 claim'],
+      x: ['X 中文 claim'],
+    });
+    writeHtml(repoRoot, date, 'HN 中文 claim\nLatent 中文 claim\narXiv 中文 claim\nGitHub 中文 claim\nX 中文 claim\nX / 社群熱議');
+    const repair = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: `Repair AI trend closure: render all enriched source items for ${date}`,
+      source: 'autonomous-work-closure',
+      payload: { origin: 'autonomous-work-closure', product: 'ai-trend' },
+    });
+
+    const result = await sweepAutonomousWorkClosure(memoryDir, { repoRoot });
+
+    expect(result.productRepairsClosed).toBe(1);
+    expect(queryMemoryIndexSync(memoryDir, { id: repair.id })[0]).toEqual(expect.objectContaining({
+      status: 'completed',
+      payload: expect.objectContaining({ completed_by: 'autonomous-work-closure' }),
+    }));
+  });
 });
 
 function taipeiDate(): string {
