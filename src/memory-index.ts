@@ -1937,12 +1937,14 @@ function ruleDecompose(message: string, intent: IntentType): Array<{ title: stri
   if (intent === 'execute' && shouldPmDecompose(message)) {
     const topic = extractTopicHint(message) || message.replace(/\n/g, ' ').slice(0, 40);
     return [
-      { title: `PM 整理需求脈絡與驗收標準: ${topic}`, type: 'execute', role: 'pm', acceptance: 'Alex 的需求被整理成背景、目標、限制、驗收條件與不做事項。' },
-      { title: `工程拆解並實作可運行方案: ${topic}`, type: 'execute', role: 'engineer', acceptance: '核心功能有具體 code/artifact，且可用命令或 live endpoint 驗證。' },
+      { title: `研究最新技術/模型/功能並選型: ${topic}`, type: 'research', role: 'research', acceptance: '檢查近期技術、模型、功能、相似產品或可靠來源；列出候選方案、取捨、選型理由與風險。' },
+      { title: `PM 整理需求脈絡與驗收標準: ${topic}`, type: 'execute', role: 'pm', acceptance: 'Alex 的需求被整理成背景、目標、限制、驗收條件、不做事項、里程碑與可觀測交付。' },
+      { title: `架構設計與任務依賴拆解: ${topic}`, type: 'execute', role: 'architect', acceptance: '方案被拆成可獨立執行的工作項，標明依賴、風險、回滾方式與資料/閉環影響。' },
+      { title: `工程實作可運行方案: ${topic}`, type: 'execute', role: 'engineer', acceptance: '核心功能有具體 code/artifact，且可用命令或 live endpoint 驗證。' },
       { title: `前端/UX 檢查資訊架構與操作體驗: ${topic}`, type: 'execute', role: 'frontend', acceptance: '主要使用路徑、資訊密度、響應式呈現與文案都符合需求。' },
       { title: `內容/脈絡補齊與中文化: ${topic}`, type: 'execute', role: 'content', acceptance: '對外可見內容有足夠脈絡、中文說明與來源鏈接。' },
       { title: `視覺/美術一致性檢查: ${topic}`, type: 'execute', role: 'visual', acceptance: '版面、色彩、間距、可讀性與視覺層級一致，沒有不必要裝飾。' },
-      { title: `驗證、部署、回報與收尾: ${topic}`, type: 'execute', role: 'qa', acceptance: '驗收命令或 live check 通過，完成狀態被回報，相關子任務 terminal。' },
+      { title: `驗證、部署、進度回報與完成總結: ${topic}`, type: 'execute', role: 'qa', acceptance: '驗收命令或 live check 通過；有進展時回報，完成時總結；相關子任務 terminal。' },
     ];
   }
   if (intent === 'fyi') return [{ title: `閱讀並記錄`, type: 'fyi' }];
@@ -2006,6 +2008,14 @@ export async function enqueueRoomDirective(
             parent_task: parentEntry.id,
             ...(sub.role ? { role: sub.role } : {}),
             ...(sub.acceptance ? { acceptance_criteria: sub.acceptance } : {}),
+            ...(sub.role ? {
+              team_loop: {
+                role: sub.role,
+                progress_report: 'on-material-progress',
+                completion_summary: 'required',
+                kg_context: 'link-findings-decisions-artifacts',
+              },
+            } : {}),
           },
         });
         eventBus.emit('action:task', { content: subEntry.summary, entry: subEntry });
