@@ -11,10 +11,12 @@
 //   - false → predicate is now clean, skip dispatch (caller logs skip)
 //   - null  → no live source-of-truth wired for this type yet (fail-open: dispatch)
 //
-// Layer 1 ships the cheapest predicate (`dirty-runtime-workspace`, ~50ms
-// git status) as proof. Other predicates (`local-commit-not-pushed`,
-// `low-responsiveness`, `memory-state-truth`, `ship-truth`) are scaffolded
-// but return `null` until their checks are added in follow-up commits.
+// Layer 1 ships the two cheapest predicates as proof:
+//   - `dirty-runtime-workspace` (~50ms `git status --porcelain`)
+//   - `local-commit-not-pushed` (~50ms `git rev-list --count @{u}..HEAD`)
+// Remaining predicates (`low-responsiveness`, `memory-state-truth`,
+// `ship-truth`) are scaffolded but return `null` until their checks are
+// added in follow-up commits.
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -46,8 +48,9 @@ export async function reverifyPredicate(
   switch (type) {
     case 'dirty-runtime-workspace':
       return checkDirtyRuntimeWorkspace(ctx);
-    // Scaffolded — return null (fail-open) until each is wired in follow-ups.
     case 'local-commit-not-pushed':
+      return checkLocalCommitNotPushed(ctx);
+    // Scaffolded — return null (fail-open) until each is wired in follow-ups.
     case 'low-responsiveness':
     case 'memory-state-truth':
     case 'ship-truth':
@@ -70,6 +73,30 @@ async function checkDirtyRuntimeWorkspace(ctx: FreshnessContext): Promise<boolea
     return stdout.trim().length > 0;
   } catch {
     // Fail-open: if git status itself fails, let the snapshot win.
+    return null;
+  }
+}
+
+/**
+ * Source-of-truth: `git rev-list --count @{u}..HEAD` against the runtime
+ * checkout. Stale (true) when local commits exist that the upstream does
+ * not have; fresh (false) when zero commits are ahead. Fail-open (null)
+ * when no upstream is configured or the command errors — phantom-skip
+ * must never silently drop a real correction.
+ */
+async function checkLocalCommitNotPushed(ctx: FreshnessContext): Promise<boolean | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-list', '--count', '@{u}..HEAD'],
+      { cwd: ctx.repoRoot, timeout: 5000 },
+    );
+    const ahead = Number.parseInt(stdout.trim(), 10);
+    if (!Number.isFinite(ahead)) return null;
+    return ahead > 0;
+  } catch {
+    // Common cause: no upstream configured (detached HEAD, fresh branch).
+    // Fail-open so the snapshot decision wins.
     return null;
   }
 }
