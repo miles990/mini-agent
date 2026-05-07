@@ -107,6 +107,13 @@ import { cleanupStaleLaneOutput } from './memory.js';
 import { trackNutrientSignals } from './nutrient.js';
 import { detectCitations } from './nutrient-router.js';
 import { recordCycleNutrient } from './cycle-nutrient.js';
+import {
+  canHardSkipRoutineTrigger,
+  effectiveTrueNoopStreak,
+  nextTrueNoopStreakAfterCycle,
+  shouldApplyNoopBackoff,
+  shouldBypassTriageForPendingWork,
+} from './noop-policy.js';
 import { metabolismScan, initMetabolism } from './metabolism.js';
 import { routeModel, getModelCliName, recordModelOutcome } from './model-router.js';
 import { buildCycleRoute, recordCycleRoute } from './route-tracker.js';
@@ -1221,6 +1228,10 @@ export class AgentLoop {
     if (health) {
       this.noopStreak = health.noopStreak;
       this.trueNoopStreak = health.trueNoopStreak ?? 0;
+      if (this.hasPendingWork() && this.trueNoopStreak > 0) {
+        slog('HEALTH', `Reset restored trueNoopStreak=${this.trueNoopStreak} because high-priority work is pending`);
+        this.trueNoopStreak = 0;
+      }
     }
 
     // Achievement system: retroactive unlock on first boot
@@ -1522,15 +1533,22 @@ export class AgentLoop {
       || reason.startsWith('direct-message');
     const isContinuation = reason.startsWith('continuation');
     const hasP0 = this.hasPendingWork();
-    // Noop spiral override: after 3+ consecutive TRUE empty cycles (zero tags),
-    // pending work is clearly not addressable right now — stop bypassing triage.
-    // Uses trueNoopStreak (not noopStreak) to avoid throttling productive-but-invisible cycles.
-    const effectiveP0 = hasP0 && this.trueNoopStreak < 3;
-    if (effectiveP0 && !isDM) {
+    const effectiveTrueNoop = effectiveTrueNoopStreak({
+      hasPendingHighPriority: hasP0,
+      trueNoopStreak: this.trueNoopStreak,
+    });
+    if (effectiveTrueNoop !== this.trueNoopStreak) {
+      slog('LOOP', `Clearing trueNoopStreak=${this.trueNoopStreak} because P0/P1 work is pending`);
+      this.trueNoopStreak = effectiveTrueNoop;
+    }
+    const effectiveP0 = shouldBypassTriageForPendingWork({
+      hasPendingHighPriority: hasP0,
+      trueNoopStreak: this.trueNoopStreak,
+      isDirectMessage: isDM,
+    });
+    if (effectiveP0) {
       slog('MUSHI', `✅ P0 pending work bypasses triage (hard rule)`);
       logTriageBypass('P0-pending', 'wake', 'pending work exists');
-    } else if (hasP0 && this.trueNoopStreak >= 3) {
-      slog('MUSHI', `⚠️ P0 pending but trueNoopStreak=${this.trueNoopStreak} — triage not bypassed`);
     }
     // Log alert/delegation bypasses independently — NOT gated by hasP0 or mushi-triage flag
     if (!isContinuation && reason) {
@@ -1552,7 +1570,10 @@ export class AgentLoop {
         && (triageSource === 'heartbeat' || triageSource === 'workspace')
         && perceptionStreams.version === this.lastPerceptionVersion
         && this.lastAction && /no action|穩態|無需行動|nothing to do/i.test(this.lastAction)
-        && (!this.hasPendingWork() || this.trueNoopStreak >= 3)
+        && canHardSkipRoutineTrigger({
+          hasPendingHighPriority: this.hasPendingWork(),
+          trueNoopStreak: this.trueNoopStreak,
+        })
       ) {
         // Hard skip: routine trigger + no perception change + last cycle was idle + no P0 work
         // Noop spiral override: if 3+ consecutive empty cycles, skip even with pending work
@@ -1701,18 +1722,21 @@ export class AgentLoop {
     // Pending work detection — cap interval when unprocessed items still exist
     // Different from concurrentInbox: checks state AT cycle end, not during Claude call
     // Priority: kuro:schedule > concurrent-inbox (30s) > pending-work (2min) > adjustInterval
-    // Noop spiral guard: if 3+ consecutive empty cycles, pending work is not actionable right now
+    // P0/P1 work owns the interval cap; stale/noop counters must not make it wait longer.
     if (!this.lastCycleHadSchedule && !this.concurrentInboxDetected
-        && this.currentInterval > 120_000 && this.trueNoopStreak < 3) {
+        && this.currentInterval > 120_000) {
       if (this.hasPendingWork()) {
         this.currentInterval = 120_000; // 2min cap
         slog('LOOP', `[pending-work] Capping interval to 2min — unprocessed items detected`);
       }
     }
 
-    // Noop spiral backoff: force minimum interval proportional to TRUE noop streak.
-    // Uses trueNoopStreak (zero tags) to avoid throttling productive-but-invisible cycles.
-    if (this.trueNoopStreak >= 3 && !this.lastCycleHadSchedule) {
+    // Noop spiral backoff only applies when no high-priority work is pending.
+    if (shouldApplyNoopBackoff({
+      hasPendingHighPriority: this.hasPendingWork(),
+      trueNoopStreak: this.trueNoopStreak,
+      lastCycleHadSchedule: this.lastCycleHadSchedule,
+    })) {
       const noopFloor = Math.min(this.trueNoopStreak * 120_000, 600_000);
       if (this.currentInterval < noopFloor) {
         this.currentInterval = noopFloor;
@@ -3264,11 +3288,16 @@ export class AgentLoop {
           this.noopStreak = Math.ceil(this.noopStreak / 2);
         }
       } else {
+        const hasPendingAfterCycle = this.hasPendingWork();
         this.noopStreak++;
         if (cycleTagsProcessed.length > 0) {
           this.trueNoopStreak = 0;
         } else {
-          this.trueNoopStreak++;
+          this.trueNoopStreak = nextTrueNoopStreakAfterCycle({
+            hasPendingHighPriority: hasPendingAfterCycle,
+            trueNoopStreak: this.trueNoopStreak,
+            hadAgentActivity: false,
+          });
         }
       }
 
