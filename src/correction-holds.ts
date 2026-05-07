@@ -142,3 +142,35 @@ export function findActiveHold(
 
   return null;
 }
+
+/**
+ * Issue #316: shared filter to drop correction tasks that have an active hold.
+ * Used by both `getP0TaskPreviews` (prompt header) and `Scheduler.stackRank`
+ * (dispatch path) so the two paths stay consistent. Without this, scheduler
+ * Rule 4 stack-ranks held correction tasks (priority 0 + +8000 score boost),
+ * causing same-task re-emission every cycle while the hold is active.
+ */
+export function filterHeldCorrectionTasks<
+  T extends { summary?: string; payload?: Record<string, unknown> | unknown }
+>(
+  tasks: T[],
+  memoryDir: string,
+  repoRoot: string,
+): T[] {
+  let holds: CorrectionHold[] | null = null;
+  return tasks.filter(t => {
+    const summary = (t as { summary?: string }).summary ?? '';
+    if (!summary.includes('correction gate')) return true;
+    if (holds === null) holds = loadCorrectionHolds(memoryDir);
+    if (holds.length === 0) return true;
+    const payload = ((t as { payload?: Record<string, unknown> }).payload ?? {}) as Record<string, unknown>;
+    const reasonFromPayload = typeof payload.correction_reason_type === 'string'
+      ? payload.correction_reason_type
+      : null;
+    const match = summary.match(/correction gate: resolve ([a-z-]+)/i);
+    const reason = reasonFromPayload ?? match?.[1] ?? null;
+    if (!reason) return true;
+    const hold = findActiveHold(holds, reason as CorrectionReasonType, {}, { repoRoot });
+    return !hold;
+  });
+}

@@ -6,7 +6,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { queryMemoryIndexSync, updateMemoryIndexEntry, type MemoryIndexEntry } from './memory-index.js';
 import { slog } from './utils.js';
@@ -14,6 +14,7 @@ import { eventBus } from './event-bus.js';
 import { getProcess } from './process-table.js';
 import { evaluateCorrectionGate, isCorrectionTask, type CorrectionGateSnapshot } from './correction-gate.js';
 import { reverifyPredicate } from './predicate-freshness.js';
+import { filterHeldCorrectionTasks } from './correction-holds.js';
 
 // =============================================================================
 // Types
@@ -417,8 +418,21 @@ export function schedulerPick(
       }
       return true;
     });
-  const decision = scheduler.decideNext(tasks, schedulerState, events);
-  const schedulableTaskIds = new Set(tasks.map(task => task.id));
+  // Issue #316: drop correction tasks whose hold is still active. Mirrors the
+  // filter already applied in memory-index.getP0TaskPreviews so the dispatch
+  // path stays consistent with the prompt-header preview path. Without this,
+  // Rule 4 stackRank picks held correction tasks (priority 0 + +8000 boost),
+  // re-emitting the same P0 every cycle while the hold is active.
+  const repoRootForHolds = resolve(memoryDir, '..', '..');
+  const beforeHoldFilter = tasks.length;
+  const tasksAfterHolds = filterHeldCorrectionTasks(tasks, memoryDir, repoRootForHolds);
+  if (tasksAfterHolds.length !== beforeHoldFilter) {
+    slog('SCHED', `stack-rank-hold-filter: dropped ${beforeHoldFilter - tasksAfterHolds.length} held correction task(s)`);
+  }
+  const decision = scheduler.decideNext(tasksAfterHolds, schedulerState, events);
+  // Issue #316: schedulableTaskIds must reflect the post-hold-filter set, otherwise
+  // the force-correction branch below would reintroduce a held correction task.
+  const schedulableTaskIds = new Set(tasksAfterHolds.map(task => task.id));
   const correctionTask = entries.find(entry => schedulableTaskIds.has(entry.id) && isCorrectionTask(entry));
   if (correctionTask && (!decision.taskId || decision.action === 'discovery' || decision.action === 'idle')) {
     const forced: SchedulingDecision = {
