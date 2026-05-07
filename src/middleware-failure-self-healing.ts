@@ -121,6 +121,9 @@ export async function classifyMiddlewareFailures(
       result.held++;
       lifecycleAction = 'provider-hold';
       resolution = `${resolution}; provider held until ${providerHold.resumeAt}; holdTask=${providerHoldTaskId}`;
+    } else if (bucket === 'max-turns' && task.worker === 'agent-brain') {
+      lifecycleAction = 'terminal-cancelled';
+      resolution = `${resolution}; agent-brain cycle max-turns is terminal telemetry, not a decomposable work item`;
     } else if (bucket === 'max-turns') {
       followUpTaskId = await ensureMiddlewareFailureFollowUpTask(memoryDir, bucket, task, now);
       lifecycleAction = 'decompose';
