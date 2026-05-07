@@ -8,6 +8,7 @@ import { eventBus } from './event-bus.js';
 import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autopilot.js';
 import { evaluatePrClosureGaps } from './pr-autopilot.js';
 import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './external-memory-health.js';
+import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -19,7 +20,8 @@ export type AutonomyClosureStage =
   | 'self-improvement'
   | 'memory-context'
   | 'memory-state-truth'
-  | 'kg-context-fabric';
+  | 'kg-context-fabric'
+  | 'middleware-quality';
 
 export type AutonomyClosureStageStatus = 'ok' | 'warn' | 'blocked';
 export type AutonomyClosureStatus = 'healthy' | 'degraded' | 'blocked';
@@ -74,6 +76,7 @@ export function evaluateAutonomyClosure(
     memoryContextStage(memoryDir, repoRoot),
     memoryStateTruthStage(memoryDir, repoRoot),
     kgContextFabricStage(memoryDir, options.now ?? new Date()),
+    middlewareQualityStage(options.now ?? new Date()),
   ];
 
   const blockingStages = stages.filter(s => s.status === 'blocked').map(s => s.stage);
@@ -477,6 +480,17 @@ function kgContextFabricStage(memoryDir: string, now: Date): AutonomyClosureStag
   const result = evaluateKgExternalMemoryTruth(memoryDir, now);
   return {
     stage: 'kg-context-fabric',
+    status: result.status,
+    summary: result.summary,
+    evidence: result.evidence,
+    repair: result.repair,
+  };
+}
+
+function middlewareQualityStage(now: Date): AutonomyClosureStageResult {
+  const result = evaluateMiddlewareQuality({ now });
+  return {
+    stage: 'middleware-quality',
     status: result.status,
     summary: result.summary,
     evidence: result.evidence,

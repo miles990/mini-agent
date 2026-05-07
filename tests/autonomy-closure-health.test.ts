@@ -20,6 +20,7 @@ describe('autonomy closure health', () => {
     mkdirSync(path.join(tmpDir, 'state'), { recursive: true });
     mkdirSync(path.join(tmpDir, 'index'), { recursive: true });
     vi.stubEnv('MINI_AGENT_MEMORY_DIR', tmpDir);
+    vi.stubEnv('MINI_AGENT_DISABLE_MIDDLEWARE_QUALITY_CLOSURE', '1');
   });
 
   afterEach(() => {
