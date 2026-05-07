@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { queryMemoryIndexSync } from '../src/memory-index.js';
+import { appendMemoryIndexEntry, queryMemoryIndexSync } from '../src/memory-index.js';
 import { readDelegationFailureRecordsSync } from '../src/delegation-failure-guard.js';
 import {
   classifyMiddlewareFailureBucket,
@@ -93,6 +93,36 @@ describe('middleware failure self-healing', () => {
     const followUps = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] });
     expect(followUps).toHaveLength(1);
     expect(followUps[0].summary).toContain('Decompose middleware task task-turns');
+  });
+
+  it('reuses an existing duplicate follow-up instead of aborting the sweep', async () => {
+    const existing = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: 'pending',
+      summary: 'Decompose middleware task task-turns after max-turns failure',
+      source: 'test',
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: 'older-task-id',
+        middleware_failure_bucket: 'max-turns',
+      },
+    });
+
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-turns',
+      worker: 'coder',
+      status: 'failed',
+      task: 'Implement a large repair',
+      error: 'Task failed: reached maximum number of turns',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-turns',
+      followUpTaskId: existing.id,
+      lifecycleAction: 'decompose',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending'] })).toHaveLength(1);
   });
 
   it('reclassifies a known task when better error-only signal changes the bucket', async () => {

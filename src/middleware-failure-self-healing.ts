@@ -261,23 +261,44 @@ async function ensureMiddlewareFailureFollowUpTask(
   if (active) return active.id;
 
   const plan = middlewareFailureRepairPlan(bucket, task);
-  const entry = await appendMemoryIndexEntry(memoryDir, {
-    type: 'task',
-    status: plan.status,
-    summary: plan.summary,
-    refs: [],
-    tags: ['middleware', 'self-healing', bucket],
-    payload: {
-      origin: 'middleware-self-healing',
-      middleware_failure_task_id: taskId,
-      middleware_worker: task.worker,
-      middleware_failure_bucket: bucket,
-      failed_task_excerpt: String(task.task ?? '').slice(0, 500),
-      acceptance_criteria: plan.acceptance,
-      createdAt: now.toISOString(),
-    },
-  });
-  return entry.id;
+  try {
+    const entry = await appendMemoryIndexEntry(memoryDir, {
+      type: 'task',
+      status: plan.status,
+      summary: plan.summary,
+      refs: [],
+      tags: ['middleware', 'self-healing', bucket],
+      payload: {
+        origin: 'middleware-self-healing',
+        middleware_failure_task_id: taskId,
+        middleware_worker: task.worker,
+        middleware_failure_bucket: bucket,
+        failed_task_excerpt: String(task.task ?? '').slice(0, 500),
+        acceptance_criteria: plan.acceptance,
+        createdAt: now.toISOString(),
+      },
+    });
+    return entry.id;
+  } catch (error) {
+    const duplicate = findMiddlewareFailureFollowUp(memoryDir, plan.summary, taskId, bucket);
+    if (duplicate && error instanceof Error && /duplicate/i.test(error.message)) return duplicate.id;
+    throw error;
+  }
+}
+
+function findMiddlewareFailureFollowUp(
+  memoryDir: string,
+  summary: string,
+  taskId: string,
+  bucket: MiddlewareFailureBucket,
+): { id: string } | undefined {
+  return queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['pending', 'in_progress', 'hold', 'completed'] })
+    .find(entry => {
+      const payload = (entry.payload ?? {}) as Record<string, unknown>;
+      if (payload.origin !== 'middleware-self-healing') return false;
+      if (payload.middleware_failure_task_id === taskId && payload.middleware_failure_bucket === bucket) return true;
+      return entry.summary === summary;
+    });
 }
 
 function middlewareFailureRepairPlan(
