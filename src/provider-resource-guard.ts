@@ -13,7 +13,7 @@ export function classifyProviderResourceHold(
   now = new Date(),
 ): ProviderResourceHold | null {
   const lower = output.toLowerCase();
-  if (!/out of extra usage|usage limit|rate[_ -]?limit|quota/.test(lower)) return null;
+  if (!/maximum budget|out of extra usage|usage limit|rate[_ -]?limit|quota/.test(lower)) return null;
 
   const provider = lower.includes('claude') ? 'claude'
     : lower.includes('codex') ? 'codex'

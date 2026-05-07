@@ -1,0 +1,98 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { queryMemoryIndexSync } from '../src/memory-index.js';
+import { readDelegationFailureRecordsSync } from '../src/delegation-failure-guard.js';
+import {
+  classifyMiddlewareFailureBucket,
+  classifyMiddlewareFailures,
+  readMiddlewareFailureClassificationsSync,
+} from '../src/middleware-failure-self-healing.js';
+
+let memoryDir: string;
+
+beforeEach(() => {
+  memoryDir = mkdtempSync(path.join(os.tmpdir(), 'mini-agent-middleware-self-heal-'));
+});
+
+afterEach(() => {
+  rmSync(memoryDir, { recursive: true, force: true });
+});
+
+describe('middleware failure self-healing', () => {
+  it('classifies provider budget failures and creates an active provider hold', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-budget',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Review delegated work as claude',
+      error: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+      completedAt: '2026-05-06T16:31:00.000Z',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1, held: 1 }));
+
+    const classifications = readMiddlewareFailureClassificationsSync(memoryDir);
+    expect(classifications).toEqual([
+      expect.objectContaining({
+        taskId: 'task-budget',
+        bucket: 'budget-or-quota',
+        status: 'held',
+      }),
+    ]);
+
+    const holds = queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] });
+    expect(holds).toHaveLength(1);
+    expect(holds[0].payload?.provider_resource_hold).toEqual(expect.objectContaining({
+      provider: 'claude',
+      resumeAt: '2026-05-06T18:40:00.000Z',
+    }));
+
+    expect(readDelegationFailureRecordsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      taskId: 'task-budget',
+      status: 'resolved',
+    }));
+  });
+
+  it('is idempotent for already classified middleware task ids', async () => {
+    const task = {
+      id: 'task-budget',
+      worker: 'agent-brain',
+      status: 'failed',
+      task: 'Review delegated work as claude',
+      error: "Claude Code returned an error result: You're out of extra usage · resets 2:40am (Asia/Taipei)",
+      completedAt: '2026-05-06T16:31:00.000Z',
+    };
+
+    await classifyMiddlewareFailures(memoryDir, [task], new Date('2026-05-06T16:30:00.000Z'));
+    const second = await classifyMiddlewareFailures(memoryDir, [task], new Date('2026-05-06T16:31:00.000Z'));
+
+    expect(second).toEqual(expect.objectContaining({ classified: 0, skippedKnown: 1 }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(1);
+    expect(readDelegationFailureRecordsSync(memoryDir)[0].frequency).toBe(1);
+  });
+
+  it('classifies max-turn failures without creating provider holds', async () => {
+    const result = await classifyMiddlewareFailures(memoryDir, [{
+      id: 'task-turns',
+      worker: 'coder',
+      status: 'failed',
+      task: 'Implement a large repair',
+      error: 'Task failed: reached maximum number of turns',
+    }], new Date('2026-05-06T16:30:00.000Z'));
+
+    expect(result).toEqual(expect.objectContaining({ failed: 1, classified: 1, held: 0 }));
+    expect(readMiddlewareFailureClassificationsSync(memoryDir)[0]).toEqual(expect.objectContaining({
+      bucket: 'max-turns',
+      status: 'classified',
+    }));
+    expect(queryMemoryIndexSync(memoryDir, { type: ['task'], status: ['hold'] })).toHaveLength(0);
+  });
+
+  it('exposes the same buckets used by middleware quality health', () => {
+    expect(classifyMiddlewareFailureBucket('maximum budget exceeded')).toBe('budget-or-quota');
+    expect(classifyMiddlewareFailureBucket('maximum number of turns reached')).toBe('max-turns');
+    expect(classifyMiddlewareFailureBucket('no activity timeout')).toBe('stall-or-timeout');
+  });
+});

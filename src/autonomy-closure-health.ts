@@ -9,6 +9,7 @@ import { readTestHealthSnapshot, summarizeTestHealth } from './test-health-autop
 import { evaluatePrClosureGaps } from './pr-autopilot.js';
 import { evaluateKgExternalMemoryTruth, evaluateMemoryStateTruth } from './external-memory-health.js';
 import { evaluateMiddlewareQuality } from './middleware-quality-health.js';
+import { readClassifiedMiddlewareTaskIds } from './middleware-failure-self-healing.js';
 
 export type AutonomyClosureStage =
   | 'runtime-workspace'
@@ -76,7 +77,7 @@ export function evaluateAutonomyClosure(
     memoryContextStage(memoryDir, repoRoot),
     memoryStateTruthStage(memoryDir, repoRoot),
     kgContextFabricStage(memoryDir, options.now ?? new Date()),
-    middlewareQualityStage(options.now ?? new Date()),
+    middlewareQualityStage(memoryDir, options.now ?? new Date()),
   ];
 
   const blockingStages = stages.filter(s => s.status === 'blocked').map(s => s.stage);
@@ -487,8 +488,11 @@ function kgContextFabricStage(memoryDir: string, now: Date): AutonomyClosureStag
   };
 }
 
-function middlewareQualityStage(now: Date): AutonomyClosureStageResult {
-  const result = evaluateMiddlewareQuality({ now });
+function middlewareQualityStage(memoryDir: string, now: Date): AutonomyClosureStageResult {
+  const result = evaluateMiddlewareQuality({
+    now,
+    classifiedFailedTaskIds: readClassifiedMiddlewareTaskIds(memoryDir),
+  });
   return {
     stage: 'middleware-quality',
     status: result.status,

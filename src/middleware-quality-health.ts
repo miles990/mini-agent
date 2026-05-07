@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { classifyMiddlewareFailureBucket, type MiddlewareTaskRecord } from './middleware-failure-self-healing.js';
 
 export interface MiddlewareQualityHealthResult {
   status: 'ok' | 'warn' | 'blocked';
@@ -15,18 +16,20 @@ export interface MiddlewareQualityOptions {
   blockFailedRatio?: number;
   warnRunningMinutes?: number;
   blockRunningMinutes?: number;
-}
-
-interface MiddlewareTaskRecord {
-  id?: string;
-  worker?: string;
-  status?: string;
-  submittedAt?: string;
-  startedAt?: string;
-  updatedAt?: string;
-  error?: string;
-  result?: string;
-  task?: string;
+  /**
+   * Failed tasks whose `completedAt` is older than this many minutes are
+   * treated as historical residue (stale) and excluded from the active
+   * `failed`/`failedRatio` gating. They are still surfaced in evidence as
+   * `staleFailed=N` so operators can see them. Default: 20 minutes.
+   *
+   * Rationale: middleware archives terminal tasks after 1h. During the gap
+   * between failure and archive, already-known failed tasks were holding
+   * the autonomy-closure gate open, blocking new repair work that the gate
+   * itself was telling us to do.
+   */
+  staleFailedMinutes?: number;
+  classifiedFailedTaskIds?: Iterable<string>;
+  tasks?: MiddlewareTaskRecord[];
 }
 
 export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}): MiddlewareQualityHealthResult {
@@ -36,6 +39,10 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
       summary: 'middleware quality closure disabled by environment',
       evidence: [],
     };
+  }
+
+  if (options.tasks) {
+    return evaluateTaskQuality(options.tasks, ['middlewareUrl=injected', 'status=injected'], options);
   }
 
   const baseUrl = (options.baseUrl ?? process.env.MIDDLEWARE_URL ?? 'http://127.0.0.1:3200').replace(/\/+$/, '');
@@ -69,25 +76,51 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   }
 
   const tasks = extractTasks(tasksResponse.value);
-  const counts = countStatuses(tasks);
-  const total = tasks.length;
-  const failed = counts.failed ?? 0;
-  const running = counts.running ?? 0;
-  const failedRatio = total > 0 ? failed / total : 0;
+  return evaluateTaskQuality(tasks, evidence, options);
+}
+
+function evaluateTaskQuality(
+  tasks: MiddlewareTaskRecord[],
+  evidence: string[],
+  options: MiddlewareQualityOptions,
+): MiddlewareQualityHealthResult {
   const now = options.now ?? new Date();
+  const staleFailedMinutes = options.staleFailedMinutes ?? 20;
+  const classifiedFailedTaskIds = new Set(options.classifiedFailedTaskIds ?? []);
+  const { activeFailed, staleFailed, classifiedFailed } = partitionFailedByRecency(
+    tasks,
+    now,
+    staleFailedMinutes,
+    classifiedFailedTaskIds,
+  );
+
+  // Treat the in-flight task population as "everything except stale-failed
+  // residue". Stale residue still gets reported, but it doesn't gate new work.
+  const activeTotal = tasks.length - staleFailed.length - classifiedFailed.length;
+  const counts = countStatuses(tasks);
+  const failed = activeFailed.length;
+  const running = counts.running ?? 0;
+  const failedRatio = activeTotal > 0 ? failed / activeTotal : 0;
   const staleRunning = findStaleRunning(tasks, now, options.warnRunningMinutes ?? 45);
   const blockedRunning = findStaleRunning(tasks, now, options.blockRunningMinutes ?? 120);
-  const failureBuckets = bucketFailures(tasks);
+  const failureBuckets = bucketFailures(activeFailed);
 
-  evidence.push(`tasks=${total}`);
+  evidence.push(`tasks=${tasks.length}`);
+  evidence.push(`activeTasks=${activeTotal}`);
   evidence.push(`running=${running}`);
   evidence.push(`failed=${failed}`);
   evidence.push(`failedRatio=${failedRatio.toFixed(2)}`);
+  if (staleFailed.length > 0) {
+    evidence.push(`staleFailed=${staleFailed.length}>${staleFailedMinutes}m`);
+  }
+  if (classifiedFailed.length > 0) {
+    evidence.push(`classifiedFailed=${classifiedFailed.length}`);
+  }
   if (Object.keys(failureBuckets).length > 0) {
     evidence.push(`failureBuckets=${Object.entries(failureBuckets).map(([k, v]) => `${k}:${v}`).join(',')}`);
   }
   evidence.push(...staleRunning.slice(0, 5).map(task => `staleRunning=${formatTask(task, now)}`));
-  evidence.push(...tasks.filter(t => t.status === 'failed').slice(-5).map(task => `failedTask=${formatTask(task, now)}`));
+  evidence.push(...activeFailed.slice(-5).map(task => `failedTask=${formatTask(task, now)}`));
 
   if (blockedRunning.length > 0) {
     return {
@@ -101,7 +134,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   if (failedRatio >= (options.blockFailedRatio ?? 0.6) && failed >= 5) {
     return {
       status: 'blocked',
-      summary: `middleware failure ratio is ${(failedRatio * 100).toFixed(0)}% (${failed}/${total})`,
+      summary: `middleware failure ratio is ${(failedRatio * 100).toFixed(0)}% (${failed}/${activeTotal})`,
       evidence,
       repair: 'Hold new middleware-backed work, classify dominant failure buckets, and repair provider budget, max-turn, or shell-stall causes before retrying.',
     };
@@ -110,7 +143,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
   if (failedRatio >= (options.warnFailedRatio ?? 0.2) && failed >= 3) {
     return {
       status: 'warn',
-      summary: `middleware quality degraded: ${failed}/${total} task(s) failed`,
+      summary: `middleware quality degraded: ${failed}/${activeTotal} task(s) failed`,
       evidence,
       repair: 'Diagnose the dominant middleware failure buckets and close or suppress stale failed tasks before dispatching more autonomous repair work.',
     };
@@ -127,7 +160,7 @@ export function evaluateMiddlewareQuality(options: MiddlewareQualityOptions = {}
 
   return {
     status: 'ok',
-    summary: `middleware quality healthy: ${total} task(s), ${failed} failed`,
+    summary: `middleware quality healthy: ${activeTotal} task(s), ${failed} failed`,
     evidence,
   };
 }
@@ -148,6 +181,33 @@ function countStatuses(tasks: MiddlewareTaskRecord[]): Record<string, number> {
   return counts;
 }
 
+function partitionFailedByRecency(
+  tasks: MiddlewareTaskRecord[],
+  now: Date,
+  staleMinutes: number,
+  classifiedTaskIds: Set<string> = new Set(),
+): { activeFailed: MiddlewareTaskRecord[]; staleFailed: MiddlewareTaskRecord[]; classifiedFailed: MiddlewareTaskRecord[] } {
+  const thresholdMs = staleMinutes * 60 * 1000;
+  const activeFailed: MiddlewareTaskRecord[] = [];
+  const staleFailed: MiddlewareTaskRecord[] = [];
+  const classifiedFailed: MiddlewareTaskRecord[] = [];
+  for (const task of tasks) {
+    if (task.status !== 'failed') continue;
+    if (task.id && classifiedTaskIds.has(task.id)) {
+      classifiedFailed.push(task);
+      continue;
+    }
+    const completedSource = task.completedAt ?? task.updatedAt ?? task.startedAt ?? task.submittedAt;
+    const completedAt = completedSource ? Date.parse(completedSource) : NaN;
+    if (Number.isFinite(completedAt) && now.getTime() - completedAt > thresholdMs) {
+      staleFailed.push(task);
+    } else {
+      activeFailed.push(task);
+    }
+  }
+  return { activeFailed, staleFailed, classifiedFailed };
+}
+
 function findStaleRunning(tasks: MiddlewareTaskRecord[], now: Date, maxMinutes: number): MiddlewareTaskRecord[] {
   const thresholdMs = maxMinutes * 60 * 1000;
   return tasks.filter(task => {
@@ -161,21 +221,10 @@ function bucketFailures(tasks: MiddlewareTaskRecord[]): Record<string, number> {
   const buckets: Record<string, number> = {};
   for (const task of tasks) {
     if (task.status !== 'failed') continue;
-    const bucket = classifyFailure(`${task.error ?? ''}\n${task.result ?? ''}`);
+    const bucket = classifyMiddlewareFailureBucket(`${task.error ?? ''}\n${task.result ?? ''}`);
     buckets[bucket] = (buckets[bucket] ?? 0) + 1;
   }
   return buckets;
-}
-
-function classifyFailure(text: string): string {
-  const lower = text.toLowerCase();
-  if (/maximum budget|out of extra usage|quota|rate.?limit/.test(lower)) return 'budget-or-quota';
-  if (/maximum number of turns|max turns/.test(lower)) return 'max-turns';
-  if (/stall|no activity|timeout|did not complete/.test(lower)) return 'stall-or-timeout';
-  if (/offline|econnrefused|fetch failed/.test(lower)) return 'offline';
-  if (/aborted by user|cancelled/.test(lower)) return 'cancelled';
-  if (/workspace isolation|forge worktree/.test(lower)) return 'workspace-isolation';
-  return 'other';
 }
 
 function formatTask(task: MiddlewareTaskRecord, now: Date): string {

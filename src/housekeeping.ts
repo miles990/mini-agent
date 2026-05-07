@@ -27,6 +27,7 @@ import { shouldTriggerKGIngest, markKGIngestTriggered, pushToKGService } from '.
 import { spawnDelegation } from './delegation.js';
 import { reconcileMiddlewareCommitmentsSafe } from './middleware-truth-reconciler.js';
 import { rotateDecisionLogs } from './decision-log-rotation.js';
+import { sweepMiddlewareFailures } from './middleware-failure-self-healing.js';
 import type { MemoryIndexEntry } from './memory-index.js';
 import type { InboxItem, ParsedTags } from './types.js';
 
@@ -719,6 +720,9 @@ export async function runHousekeeping(): Promise<void> {
     dispatchKGIngestIfNeeded();
     await reconcileMiddlewareCommitmentsSafe().catch(err => {
       slog('MIDDLEWARE-TRUTH', `reconcile skipped: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    await sweepMiddlewareFailures(getMemoryRootDir()).catch(err => {
+      slog('MIDDLEWARE-SELF-HEAL', `sweep skipped: ${err instanceof Error ? err.message : String(err)}`);
     });
   }
 
