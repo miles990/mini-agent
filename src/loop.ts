@@ -39,7 +39,7 @@ import {
   startThread, progressThread, completeThread, pauseThread,
 } from './temporal.js';
 import { hasP0Tasks, getPendingTaskPreviews, getP0TaskPreviews, markTaskDoneByDescription, getHighPriorityPendingCount, queryMemoryIndexSync, incrementTaskStaleness, healAbandonedGoals, scanPipelineVerify, getPipelineStuckAnalysis, cleanStaleEntries } from './memory-index.js';
-import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, type IncomingEvent as SchedulerEvent } from './scheduler.js';
+import { schedulerPick, advanceTick, schedulerTaskDone, getSchedulerState, getSchedulerStatus, entryToSnapshot, consumeNeedsPickNext, recordTaskTerminalSignal, type IncomingEvent as SchedulerEvent } from './scheduler.js';
 import { registerProcess, transitionProcess, suspendProcess, resumeProcess, completeProcess, incrementTicks, getCurrentProcess, getProcessTableStatus, syncFromTasks, initProcessTable, persistProcessTable } from './process-table.js';
 import { saveSuspendCheckpoint, loadSuspendCheckpoint, clearSuspendCheckpoint } from './cycle-state.js';
 import { onSchedulerTick } from './reactive-policies.js';
@@ -3045,6 +3045,10 @@ export class AgentLoop {
               }
             }
             schedulerTaskDone(schedState.currentTaskId);
+            // issue #196/#203: record terminal signal so consecutive <kuro:done>
+            // on the same task triggers dispatch suppression (PR #202 export had
+            // 0 src/ callers — wiring it here is the intended integration point).
+            recordTaskTerminalSignal(schedState.currentTaskId);
             completeProcess(schedState.currentTaskId);
           }
           if (markedCount === 0) {
