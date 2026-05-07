@@ -177,7 +177,7 @@ import { syncMyelinToKnowledge } from './myelin-kg-sync.js';
 import { readActorOutcomeStatsSync } from './actor-outcome-stats.js';
 import type { WorkIntent } from './brain-types.js';
 import { listAgentCapabilities, loadAgentRelationshipRegistry } from './agent-owned-identity.js';
-import { selectAgentSkills, summarizeSkillHealth } from './agent-skill-manager.js';
+import { selectAgentSkills, summarizeSkillHealth, suggestPatternPromotions } from './agent-skill-manager.js';
 
 // =============================================================================
 // Server Log Helper (re-exported from utils to avoid circular deps)
@@ -947,7 +947,7 @@ export function createApi(port = 3001): express.Express {
   app.use(createRateLimiter());
 
   // Request logging middleware (skip noisy polling endpoints)
-  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/agent-skills/select', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
+  const SILENT_PATHS = new Set(['/health', '/status', '/api/dashboard/behaviors', '/api/dashboard/learning', '/api/dashboard/journal', '/api/dashboard/cognition', '/api/dashboard/capabilities', '/api/dashboard/agent-arsenal', '/api/dashboard/agent-skills/select', '/api/dashboard/agent-skills/promotions', '/api/dashboard/context', '/api/dashboard/inner-state', '/api/dashboard/work-closure', '/api/events', '/api/room/stream', '/api/memory/structured', '/api/memory/history', '/api/memory/files']);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SILENT_PATHS.has(req.path)) { next(); return; }
     const start = Date.now();
@@ -2583,6 +2583,7 @@ export function createApi(port = 3001): express.Express {
       capabilities: listAgentCapabilities(),
       relationships: loadAgentRelationshipRegistry(),
       skillHealth: summarizeSkillHealth(getMemoryRootDir()),
+      patternPromotions: suggestPatternPromotions(getMemoryRootDir()),
       registryPath: process.env.KURO_AGENT_CAPABILITIES_PATH || 'config/agent-capabilities.json',
       policy: 'new services/servers/APIs/tools/accounts/related AIs or humans must be registry-managed before use',
     });
@@ -2599,6 +2600,14 @@ export function createApi(port = 3001): express.Express {
       taskType: typeof req.query.taskType === 'string' ? req.query.taskType : undefined,
       priority: typeof req.query.priority === 'string' ? Number(req.query.priority) : undefined,
     }));
+  });
+
+  app.get('/api/dashboard/agent-skills/promotions', (_req: Request, res: Response) => {
+    res.json({
+      promotions: suggestPatternPromotions(getMemoryRootDir()),
+      ledger: 'memory/state/skill-usage.jsonl',
+      policy: 'Repeated high-success patterns should be promoted into the lowest-overhead durable form: skill, workflow, script, CLI, code, or hybrid capability.',
+    });
   });
 
   // Forge slots — worktree allocation health for dashboard tile (W7 F-d)
