@@ -83,6 +83,24 @@ function htmlEsc(s) {
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
 }
+function renderInlineLinks(s) {
+  // Parse [text](url) markdown links inline; htmlEsc everything else.
+  // Backward compatible: plain text renders identically to htmlEsc(s).
+  const str = String(s ?? '');
+  const parts = [];
+  let last = 0;
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    if (m.index > last) parts.push(htmlEsc(str.slice(last, m.index)));
+    const text = htmlEsc(m[1]);
+    const url = htmlEsc(m[2]);
+    parts.push(`<a href="${url}" target="_blank" rel="noopener">${text} ↗</a>`);
+    last = m.index + m[0].length;
+  }
+  if (last < str.length) parts.push(htmlEsc(str.slice(last)));
+  return parts.join('');
+}
 function fmtNum(n) {
   if (n == null) return '—';
   if (n >= 10000) return (n/1000).toFixed(1) + 'k';
@@ -164,7 +182,7 @@ const KURO_TAKE = {
     up: [
       'services-attached labs（labs 不再只賣 token，直接吃 enterprise 應用層）',
       'agent-native file system / sandbox（Tilde 130pt 上 HN 前頁）',
-      'AI Trend 聚合層 commodity 化（TrendRadar 56K star、newsnow 多平台 API 開源）',
+      'AI Trend 聚合層 commodity 化（[TrendRadar](https://github.com/sansan0/TrendRadar) 56K star、newsnow 多平台 API 開源）',
     ],
     down: [
       'pure model API 單點變現 narrative（labs 自己跨進服務層）',
@@ -434,19 +452,19 @@ async function main() {
   </div>
   <div class="outlook">
     <strong>未來走向 / 注意點</strong>
-    ${htmlEsc(KURO_TAKE.outlook)}
+    ${renderInlineLinks(KURO_TAKE.outlook)}
   </div>
   <div class="trends">
-    <div class="col up"><strong>↗ 上升趨勢</strong><ul>${KURO_TAKE.trends.up.map(x => `<li>${htmlEsc(x)}</li>`).join('')}</ul></div>
-    <div class="col down"><strong>↘ 下降趨勢</strong><ul>${KURO_TAKE.trends.down.map(x => `<li>${htmlEsc(x)}</li>`).join('')}</ul></div>
+    <div class="col up"><strong>↗ 上升趨勢</strong><ul>${KURO_TAKE.trends.up.map(x => `<li>${renderInlineLinks(x)}</li>`).join('')}</ul></div>
+    <div class="col down"><strong>↘ 下降趨勢</strong><ul>${KURO_TAKE.trends.down.map(x => `<li>${renderInlineLinks(x)}</li>`).join('')}</ul></div>
   </div>
   <div class="swot">
     <strong>SWOT — 今日敘事</strong>
     <dl>
-      <dt>S</dt><dd>${htmlEsc(KURO_TAKE.swot.s)}</dd>
-      <dt>W</dt><dd>${htmlEsc(KURO_TAKE.swot.w)}</dd>
-      <dt>O</dt><dd>${htmlEsc(KURO_TAKE.swot.o)}</dd>
-      <dt>T</dt><dd>${htmlEsc(KURO_TAKE.swot.t)}</dd>
+      <dt>S</dt><dd>${renderInlineLinks(KURO_TAKE.swot.s)}</dd>
+      <dt>W</dt><dd>${renderInlineLinks(KURO_TAKE.swot.w)}</dd>
+      <dt>O</dt><dd>${renderInlineLinks(KURO_TAKE.swot.o)}</dd>
+      <dt>T</dt><dd>${renderInlineLinks(KURO_TAKE.swot.t)}</dd>
     </dl>
   </div>
 </div>
